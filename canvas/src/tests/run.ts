@@ -25,6 +25,15 @@ import {
 import { testGraphCanvasNodeDragDoesNotLeakUserSelectLockWhenSpacePanHeld } from '@/__tests__/graphCanvasDragUserSelectUnlockRegression.test'
 import { testFlowCanvasSpacePanCanStartFromOverlay } from '@/__tests__/flowCanvasSpacePanOverlayProxyRegression.test'
 import { testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay } from '@/__tests__/flowCanvasWheelOverlayProxyRegression.test'
+import { testFlowCanvasHandlesSafariGesturePinchZoom } from '@/__tests__/flowCanvasGesturePinchZoomRegression.test'
+import { testFlowEditorFlyoutOverlayRootHasQuickEditorDataAttr } from '@/__tests__/flowEditorFlyoutOverlayRootDataAttrRegression.test'
+import { testFlowEditorOverlayDragDoesNotStartCanvasPanProxyWithoutSpace } from '@/__tests__/flowEditorOverlayDragDoesNotStartCanvasPanProxyRegression.test'
+import { testFlowEditorOverlayCollisionResolveIsNotScheduledFromLiveInteractionTick } from '@/__tests__/flowEditorOverlayCollisionResolverNotTiedToLiveTickRegression.test'
+import { testFlowCanvasOverlayPanProxyClearsPointerIdOnPointerUpAndLostCapture } from '@/__tests__/flowCanvasOverlayPanProxyClearsPointerIdRegression.test'
+import { testFlowCanvasWheelCanRecoverFromStaleDrag } from '@/__tests__/flowCanvasWheelCancelsStaleDragRegression.test'
+import { testFlowCanvasWindowPointerUpCaptureCanEndActiveDrag } from '@/__tests__/flowCanvasWindowPointerUpClearsDragRegression.test'
+import { testFlowRequestCommitUsesSchemaAndGraphRefsToAvoidChurn } from '@/__tests__/flowRequestCommitUsesRefsRegression.test'
+import { testPointerDragCallsOnCancelOnLostPointerCapture } from '@/__tests__/pointerDragLostCaptureCallsCancelRegression.test'
 import { testGlobalUserSelectLockHasFailsafeAndIsInstalled } from '@/__tests__/userSelectFailsafeRegression.test'
 import { testGroupBboxCollideSeparatesTopParentGroups } from '@/__tests__/groupOverlapForce.test'
 import {
@@ -730,9 +739,20 @@ export const runAllTests = async () => {
 
   await exec('viewport.flowEditor.doesNotForceDesignPreset', testFlowEditorViewportControlsPresetDoesNotForceDesign)
   await exec('viewport.flowEditor.overlay.pointerCaptureRegression', testFlowEditorOverlayDoesNotFreezePanOrZoomAfterOverlayDrag)
+  await exec('viewport.flowEditor.overlay.dragDoesNotStartPanProxy', testFlowEditorOverlayDragDoesNotStartCanvasPanProxyWithoutSpace)
+  await exec('viewport.flowEditor.overlay.collision.notLiveTick', testFlowEditorOverlayCollisionResolveIsNotScheduledFromLiveInteractionTick)
   await exec('viewport.flowEditor.overlay.spacePanProxy', testFlowCanvasSpacePanCanStartFromOverlay)
   await exec('viewport.flowEditor.overlay.wheelProxy', testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay)
+  await exec('viewport.flowEditor.overlay.rootDataAttr', testFlowEditorFlyoutOverlayRootHasQuickEditorDataAttr)
+  await exec('viewport.flowEditor.overlay.panProxyClearsPointerId', testFlowCanvasOverlayPanProxyClearsPointerIdOnPointerUpAndLostCapture)
+  await exec('viewport.flow.windowPointerUp.endsDrag', testFlowCanvasWindowPointerUpCaptureCanEndActiveDrag)
+  await exec('viewport.flow.wheel.recoversFromStaleDrag', testFlowCanvasWheelCanRecoverFromStaleDrag)
+  await exec('viewport.flow.gesturePinchZoom', testFlowCanvasHandlesSafariGesturePinchZoom)
   await exec('viewport.flowEditor.initTransform.noChurnAfterPan', testFlowEditorInitialTransformDoesNotReapplyAfterUserPan)
+
+  await exec('perf.flow.commitHook.usesRefs', testFlowRequestCommitUsesSchemaAndGraphRefsToAvoidChurn)
+
+  await exec('dom.pointerDrag.lostCapture.callsCancel', testPointerDragCallsOnCancelOnLostPointerCapture)
   await exec('zoom.auto2dPolicy.flowEditor.disablesAutoModes', testAutoZoom2dPolicyFlowEditorDisablesAutoZoomModes)
   await exec('flow.collisionPolicy.flowEditor.forcesCollisionDuringDrag', testFlowCollisionPolicyForcesCollisionDuringDragInFlowEditor)
   await exec('zoom.wheel.flow.smooth', testFlowWheelZoomUsesSmoothFactorNotDiscreteSteps)

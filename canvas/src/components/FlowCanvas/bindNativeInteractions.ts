@@ -45,6 +45,7 @@ import {
   shouldWheelZoom,
 } from '@/lib/canvas/camera-options-2d'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
+import { FLOW_EDITOR_OVERLAY_ROOT_SELECTOR, resolveFlowEditorOverlayProxyTarget } from '@/lib/canvas/flow-editor-overlay-proxy'
 
 export type FlowCanvasDrag =
   | null
@@ -289,13 +290,54 @@ export function bindFlowCanvasNativeInteractions(args: {
     })
   }
 
+  const cancelActiveDragIfStale = (drag: NonNullable<typeof args.dragRef.current>): boolean => {
+    const shouldCancel = (() => {
+      try {
+        if (drag.type === 'pinch') {
+          const a = canvasEl.hasPointerCapture(drag.pointerIdA)
+          const b = canvasEl.hasPointerCapture(drag.pointerIdB)
+          return !a && !b
+        }
+        const id = (drag as unknown as { pointerId?: unknown }).pointerId
+        if (typeof id !== 'number') return true
+        return canvasEl.hasPointerCapture(id) !== true
+      } catch {
+        return false
+      }
+    })()
+
+    if (!shouldCancel) return false
+
+    const dragPointerId = drag.type === 'pinch' ? null : drag.pointerId
+    if (dragPointerId != null && args.userSelectLockPointerIdRef.current === dragPointerId) {
+      args.userSelectLockPointerIdRef.current = null
+      unlockGlobalUserSelect()
+      try {
+        if (canvasEl.hasPointerCapture(dragPointerId)) {
+          canvasEl.releasePointerCapture(dragPointerId)
+        }
+      } catch {
+        void 0
+      }
+    }
+
+    args.dragRef.current = null
+    edgeScroll.reset()
+    args.setSelectionBox(null)
+    args.requestCommit()
+    return true
+  }
+
   const shouldProxyWheelFromOverlay = (event: WheelEvent): boolean => {
-    const t = (event as unknown as { target?: unknown }).target
-    const el = t instanceof Element ? t : null
-    if (!el) return false
-    const overlayRoot = el.closest('[data-kg-node-quick-editor]')
-    if (!overlayRoot) return false
-    if (el.closest('input,textarea,select,button,[role="textbox"],[contenteditable="true"]')) return false
+    const resolved = resolveFlowEditorOverlayProxyTarget({
+      target: (event as unknown as { target?: unknown }).target,
+      canvasEl,
+    })
+    if (resolved.kind !== 'overlay') return false
+    if (resolved.isInteractive) return false
+    const overlayRoot = resolved.overlayRoot
+    const el = resolved.targetEl
+    if (isSpacePanHeld()) return true
     if (event.ctrlKey === true || event.metaKey === true) return true
 
     const dx = typeof (event as unknown as { deltaX?: unknown }).deltaX === 'number' ? (event as unknown as { deltaX: number }).deltaX : 0
@@ -336,7 +378,7 @@ export function bindFlowCanvasNativeInteractions(args: {
       return false
     }
 
-    const boundary = overlayRoot instanceof HTMLElement ? overlayRoot : null
+    const boundary = overlayRoot
     let cur: Element | null = el
     const maxHops = 30
     for (let hops = 0; cur && hops < maxHops; hops += 1) {
@@ -353,6 +395,9 @@ export function bindFlowCanvasNativeInteractions(args: {
     cancelFlowZoomRequestAnim(runtime)
     const drag = args.dragRef.current
     if (drag && drag.type !== 'pan') {
+      if (cancelActiveDragIfStale(drag)) {
+        return handleWheel(e, opts)
+      }
       try {
         e.preventDefault()
       } catch {
@@ -461,6 +506,124 @@ export function bindFlowCanvasNativeInteractions(args: {
     handleWheel(e, { skipIgnoreGuard: true })
   }
 
+  const shouldProxyGestureToCanvas = (event: Event): boolean => {
+    const resolved = resolveFlowEditorOverlayProxyTarget({
+      target: (event as unknown as { target?: unknown }).target,
+      canvasEl,
+    })
+    if (resolved.kind === 'none') return false
+    if (resolved.kind === 'overlay' && resolved.isInteractive) return false
+    return true
+  }
+
+  let gestureScalePrev: number | null = null
+
+  const onWindowGestureStartCapture = (event: Event) => {
+    if (!args.active) return
+    if (!shouldProxyGestureToCanvas(event)) return
+    cancelWheelZoomAnimation()
+    cancelFlowZoomRequestAnim(runtime)
+    const scaleRaw = (event as unknown as { scale?: unknown }).scale
+    const scale = typeof scaleRaw === 'number' && Number.isFinite(scaleRaw) && scaleRaw > 0 ? scaleRaw : 1
+    gestureScalePrev = scale
+    try {
+      event.preventDefault()
+    } catch {
+      void 0
+    }
+  }
+
+  const onWindowGestureChangeCapture = (event: Event) => {
+    if (!args.active) return
+    if (!shouldProxyGestureToCanvas(event)) return
+    const prev = gestureScalePrev
+    if (prev == null) {
+      onWindowGestureStartCapture(event)
+      return
+    }
+    const scaleRaw = (event as unknown as { scale?: unknown }).scale
+    const scale = typeof scaleRaw === 'number' && Number.isFinite(scaleRaw) && scaleRaw > 0 ? scaleRaw : 1
+    const ratio = scale / prev
+    gestureScalePrev = scale
+    if (!Number.isFinite(ratio) || Math.abs(ratio - 1) < 1e-6) {
+      try {
+        event.preventDefault()
+      } catch {
+        void 0
+      }
+      return
+    }
+
+    const storeState = useGraphStore.getState()
+    disableAutoZoomModesForUserGesture(storeState)
+    const schema = storeState.schema
+    const [schemaMinScale, schemaMaxScale] = readZoomScaleExtent(schema)
+    const autoMinScale = getFlowAutoMinScale(runtime)
+    const minScale = autoMinScale != null ? Math.min(schemaMinScale, autoMinScale) : schemaMinScale
+    const maxScale = schemaMaxScale
+    const t0 = runtime.transform || d3.zoomIdentity
+    const nextK = clampScale(t0.k * ratio, { minK: minScale, maxK: maxScale })
+    if (!Number.isFinite(nextK) || Math.abs(nextK - t0.k) < 1e-10) {
+      try {
+        event.preventDefault()
+      } catch {
+        void 0
+      }
+      return
+    }
+
+    const local = readCanvasLocalPoint({ canvasEl, event: event as unknown as { clientX?: unknown; clientY?: unknown } })
+    const rect = local ? null : canvasEl.getBoundingClientRect()
+    const now = Date.now()
+    const fallback = coerceWheelFallback({
+      fallback: args.lastPointerInCanvasRef.current,
+      nowMs: now,
+      maxAgeMs: 800,
+    })
+    const rectForAnchor = rect || canvasEl.getBoundingClientRect()
+    const cxRaw = (event as unknown as { clientX?: unknown }).clientX
+    const cyRaw = (event as unknown as { clientY?: unknown }).clientY
+    const clientX = typeof cxRaw === 'number' && Number.isFinite(cxRaw) ? cxRaw : rectForAnchor.left + rectForAnchor.width / 2
+    const clientY = typeof cyRaw === 'number' && Number.isFinite(cyRaw) ? cyRaw : rectForAnchor.top + rectForAnchor.height / 2
+
+    const anchor =
+      local && local.inBounds
+        ? { sx: local.sx, sy: local.sy, source: 'pointer' as const }
+        : resolveWheelAnchor({
+            rect: rectForAnchor,
+            clientX,
+            clientY,
+            fallback,
+          })
+    const sx = anchor.sx
+    const sy = anchor.sy
+    if (anchor.source !== 'center') {
+      args.lastPointerInCanvasRef.current = { sx, sy, ts: now }
+    }
+
+    setFlowNativeTransform(runtime, computeAnchoredZoomTransform({ transform: t0, anchor: { sx, sy }, nextK }))
+    requestFlowNativeDraw(runtime, args.buildDrawArgs())
+    args.requestCommit()
+    args.onInteractionFrame?.()
+    try {
+      event.preventDefault()
+    } catch {
+      void 0
+    }
+  }
+
+  const onWindowGestureEndCapture = (event: Event) => {
+    if (!args.active) return
+    if (gestureScalePrev == null) return
+    if (!shouldProxyGestureToCanvas(event)) return
+    gestureScalePrev = null
+    try {
+      event.preventDefault()
+    } catch {
+      void 0
+    }
+  }
+
   const onPointerDown = (e: PointerEvent) => {
     if (!args.active) return
 
@@ -501,6 +664,9 @@ export function bindFlowCanvasNativeInteractions(args: {
       void 0
     }
 
+    const storeStateAtDown = useGraphStore.getState()
+    const isFlowEditor = String(storeStateAtDown.canvas2dRenderer || '') === 'flowEditor'
+
     if (e.pointerType === 'touch') {
       touchPointsById.set(pointerId, { sx, sy })
       if (touchPointsById.size >= 2) {
@@ -534,13 +700,43 @@ export function bindFlowCanvasNativeInteractions(args: {
       }
       return
     }
+
+    if (isFlowEditor && !hit && e.pointerType !== 'touch') {
+      const selectionDrag = e.shiftKey === true
+      if (!selectionDrag) {
+        args.dragRef.current = {
+          type: 'pan',
+          startSx: sx,
+          startSy: sy,
+          startTx: runtime.transform.x,
+          startTy: runtime.transform.y,
+          pointerId,
+        }
+        return
+      }
+    }
     if (hit) {
-      const state = useGraphStore.getState()
+      const state = storeStateAtDown
       state.setSelectionSource('canvas')
       state.selectEdge(null)
       state.selectNode(hit)
 
       const allowDrag = typeof args.allowNodeDragOverride === 'boolean' ? args.allowNodeDragOverride : state.schema?.behavior?.allowNodeDrag !== false
+
+      if (!allowDrag) {
+        args.setSelectionBox(null)
+        args.dragRef.current = {
+          type: 'pan',
+          startSx: sx,
+          startSy: sy,
+          startTx: runtime.transform.x,
+          startTy: runtime.transform.y,
+          pointerId,
+        }
+        requestFlowNativeDraw(runtime, args.buildDrawArgs())
+        args.requestCommit()
+        return
+      }
       if (allowDrag) {
         const t0 = runtime.transform || d3.zoomIdentity
         const wx = (sx - t0.x) / t0.k
@@ -565,8 +761,24 @@ export function bindFlowCanvasNativeInteractions(args: {
 
     const groupHit = allowGroupHit ? hitTestGroup(runtime, { sx, sy }) : null
     if (groupHit) {
-      const state = useGraphStore.getState()
-      const allowDrag = typeof args.allowNodeDragOverride === 'boolean' ? args.allowNodeDragOverride : state.schema?.behavior?.allowNodeDrag !== false
+      const state = storeStateAtDown
+      const allowDrag =
+        typeof args.allowNodeDragOverride === 'boolean'
+          ? args.allowNodeDragOverride
+          : state.schema?.behavior?.allowNodeDrag !== false
+
+      if (!allowDrag) {
+        args.setSelectionBox(null)
+        args.dragRef.current = {
+          type: 'pan',
+          startSx: sx,
+          startSy: sy,
+          startTx: runtime.transform.x,
+          startTy: runtime.transform.y,
+          pointerId,
+        }
+        return
+      }
       if (allowDrag) {
         const scene = runtime.scene
         const group = scene?.groups?.find(g => String(g.id || '') === groupHit) || null
@@ -599,12 +811,14 @@ export function bindFlowCanvasNativeInteractions(args: {
 
     {
       const state = useGraphStore.getState()
+      const isFlowEditor = String(state.canvas2dRenderer || '') === 'flowEditor'
       const selectMode = state.schema?.behavior?.selectMode || 'single'
       const selectionOnDrag = args.selectionOnDrag === true
       const allowLasso = selectMode === 'lasso' || (selectionOnDrag === true && preset === 'design')
       const wantLasso =
         allowLasso &&
         e.pointerType !== 'touch' &&
+        (!isFlowEditor || e.shiftKey === true) &&
         shouldStartSelectionDragForPreset({
           preset,
           button: e.button,
@@ -946,9 +1160,35 @@ export function bindFlowCanvasNativeInteractions(args: {
         startTx: number
         startTy: number
       } = null
-  const spacePanProxyTargetSelector = ['[data-kg-node-quick-editor]', UI_SELECTORS.canvasWheelIgnore, UI_SELECTORS.canvasPointerIgnore]
+  const spacePanProxyTargetSelector = [FLOW_EDITOR_OVERLAY_ROOT_SELECTOR, UI_SELECTORS.canvasWheelIgnore, UI_SELECTORS.canvasPointerIgnore]
     .filter(Boolean)
     .join(', ')
+
+  const lastHandledPointerMoveKeyById = new Map<number, string>()
+  const lastHandledPointerUpKeyById = new Map<number, string>()
+  const shouldSkipDuplicatePointerEvent = (map: Map<number, string>, e: PointerEvent): boolean => {
+    const id = typeof e.pointerId === 'number' ? e.pointerId : -1
+    if (id < 0) return false
+    const cx = typeof e.clientX === 'number' && Number.isFinite(e.clientX) ? e.clientX : 0
+    const cy = typeof e.clientY === 'number' && Number.isFinite(e.clientY) ? e.clientY : 0
+    const buttons = typeof e.buttons === 'number' && Number.isFinite(e.buttons) ? e.buttons : -1
+    const button = typeof e.button === 'number' && Number.isFinite(e.button) ? e.button : -1
+    const key = `${e.type}|${cx}|${cy}|${buttons}|${button}`
+    const prev = map.get(id)
+    if (prev != null && prev === key) return true
+    map.set(id, key)
+    return false
+  }
+
+  const handlePointerMoveOnce = (e: PointerEvent) => {
+    if (shouldSkipDuplicatePointerEvent(lastHandledPointerMoveKeyById, e)) return
+    onPointerMove(e)
+  }
+
+  const handlePointerUpOnce = (e: PointerEvent) => {
+    if (shouldSkipDuplicatePointerEvent(lastHandledPointerUpKeyById, e)) return
+    onPointerUp(e)
+  }
 
   const onWindowPointerDownCapture = (e: PointerEvent) => {
     if (!args.active) return
@@ -963,18 +1203,38 @@ export function bindFlowCanvasNativeInteractions(args: {
     if (canvasEl.contains(targetEl)) return
     if (!spacePanProxyTargetSelector || !targetEl.closest(spacePanProxyTargetSelector)) return
 
-    const interactive = targetEl.closest('input,textarea,select,button,a,[role="button"],[contenteditable="true"]')
+    const storeState = useGraphStore.getState()
+    const isFlowEditor = String(storeState.canvas2dRenderer || '') === 'flowEditor'
     const preset = args.viewportControlsPreset
     const button = typeof e.button === 'number' ? e.button : 0
     const shiftKey = e.shiftKey === true
     const spacePanHeld = isSpacePanHeld()
-    const allowPan = shouldAllowPanDragForPointerEvent({
-      preset,
-      eventType: 'pointerdown',
-      button,
-      shiftKey,
-      spacePanHeld,
-    })
+
+    const resolved = resolveFlowEditorOverlayProxyTarget({ target: targetEl, canvasEl })
+    if (resolved.kind === 'overlay' && resolved.isInteractive && spacePanHeld !== true) return
+
+    const overlayPinnedToNode =
+      resolved.kind === 'overlay' &&
+      String((resolved.overlayRoot as HTMLElement | null)?.dataset?.kgNodeQuickEditorPinned || '') === '1'
+
+    if (resolved.kind === 'overlay' && !overlayPinnedToNode && spacePanHeld !== true) return
+
+    const allowPan =
+      isFlowEditor &&
+      resolved.kind === 'overlay' &&
+      overlayPinnedToNode &&
+      !resolved.isInteractive &&
+      button === 0 &&
+      spacePanHeld !== true &&
+      shiftKey !== true
+        ? true
+        : shouldAllowPanDragForPointerEvent({
+            preset,
+            eventType: 'pointerdown',
+            button,
+            shiftKey,
+            spacePanHeld,
+          })
     const selectionDrag = shouldStartSelectionDragForPreset({
       preset,
       button,
@@ -983,7 +1243,7 @@ export function bindFlowCanvasNativeInteractions(args: {
       selectionOnDrag: args.selectionOnDrag,
     })
     if (!allowPan || selectionDrag) return
-    if (interactive && !(spacePanHeld === true && button === 0)) return
+    if (resolved.kind === 'overlay' && resolved.isInteractive && !(spacePanHeld === true && button === 0)) return
 
     cancelWheelZoomAnimation()
     cancelFlowZoomRequestAnim(runtime)
@@ -1012,12 +1272,7 @@ export function bindFlowCanvasNativeInteractions(args: {
     if (!args.active) return
     if (proxyPanPointerId != null) {
       if (e.pointerId !== proxyPanPointerId) return
-      try {
-        if (canvasEl.hasPointerCapture(e.pointerId)) return
-      } catch {
-        void 0
-      }
-      onPointerMove(e)
+      handlePointerMoveOnce(e)
       return
     }
     const pending = pendingProxyPan
@@ -1050,7 +1305,7 @@ export function bindFlowCanvasNativeInteractions(args: {
     } catch {
       void 0
     }
-    onPointerMove(e)
+    handlePointerMoveOnce(e)
     try {
       e.preventDefault()
     } catch {
@@ -1062,20 +1317,30 @@ export function bindFlowCanvasNativeInteractions(args: {
     if (!args.active) return
     if (pendingProxyPan && e.pointerId === pendingProxyPan.pointerId) {
       pendingProxyPan = null
+    }
+    if (proxyPanPointerId != null && e.pointerId === proxyPanPointerId) {
+      proxyPanPointerId = null
+      handlePointerUpOnce(e)
       return
     }
-    if (proxyPanPointerId == null) return
-    if (e.pointerId !== proxyPanPointerId) return
-    try {
-      if (canvasEl.hasPointerCapture(e.pointerId)) return
-    } catch {
-      void 0
+
+    const drag = args.dragRef.current
+    if (!drag) return
+    if (drag.type === 'pinch') {
+      if (e.pointerId !== drag.pointerIdA && e.pointerId !== drag.pointerIdB) return
+    } else {
+      if (e.pointerId !== drag.pointerId) return
     }
-    proxyPanPointerId = null
-    onPointerUp(e)
+    handlePointerUpOnce(e)
   }
 
   const onLostPointerCapture = (e: PointerEvent) => {
+    if (pendingProxyPan && e.pointerId === pendingProxyPan.pointerId) {
+      pendingProxyPan = null
+    }
+    if (proxyPanPointerId != null && e.pointerId === proxyPanPointerId) {
+      proxyPanPointerId = null
+    }
     if (args.userSelectLockPointerIdRef.current === e.pointerId) {
       args.userSelectLockPointerIdRef.current = null
       unlockGlobalUserSelect()
@@ -1118,9 +1383,14 @@ export function bindFlowCanvasNativeInteractions(args: {
     window.addEventListener('pointerup', onWindowPointerUpCapture, { passive: false, capture: true })
     window.addEventListener('pointercancel', onWindowPointerUpCapture, { passive: false, capture: true })
     window.addEventListener('wheel', onWindowWheelCapture, { passive: false, capture: true })
+    window.addEventListener('gesturestart', onWindowGestureStartCapture, { passive: false, capture: true })
+    window.addEventListener('gesturechange', onWindowGestureChangeCapture, { passive: false, capture: true })
+    window.addEventListener('gestureend', onWindowGestureEndCapture, { passive: false, capture: true })
   }
 
   return () => {
+    pendingProxyPan = null
+    proxyPanPointerId = null
     if (args.userSelectLockPointerIdRef.current != null) {
       try {
         const pointerId = args.userSelectLockPointerIdRef.current
@@ -1188,6 +1458,9 @@ export function bindFlowCanvasNativeInteractions(args: {
       window.removeEventListener('pointerup', onWindowPointerUpCapture, true)
       window.removeEventListener('pointercancel', onWindowPointerUpCapture, true)
       window.removeEventListener('wheel', onWindowWheelCapture, true)
+      window.removeEventListener('gesturestart', onWindowGestureStartCapture, true)
+      window.removeEventListener('gesturechange', onWindowGestureChangeCapture, true)
+      window.removeEventListener('gestureend', onWindowGestureEndCapture, true)
     }
   }
 }

@@ -7,11 +7,10 @@ export function testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay() {
   if (!text.includes("window.addEventListener('wheel'")) {
     throw new Error('expected FlowCanvas to install a window wheel capture handler for Flow Editor overlays')
   }
-  if (!text.includes('[data-kg-node-quick-editor]')) {
-    throw new Error('expected FlowCanvas wheel proxy to target node quick editor overlays')
+  if (!text.includes('[data-kg-node-quick-editor]') && !text.includes('flow-editor-overlay-proxy')) {
+    throw new Error('expected FlowCanvas wheel proxy to target node quick editor overlays (direct selector or shared proxy helper)')
   }
   if (!text.includes('skipIgnoreGuard: true')) {
     throw new Error('expected FlowCanvas wheel proxy to bypass canvas wheel ignore guard when proxied')
   }
 }
-

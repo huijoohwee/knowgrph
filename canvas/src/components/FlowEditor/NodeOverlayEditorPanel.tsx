@@ -115,6 +115,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
       as="section"
       ariaLabel={UI_LABELS.flowNodeQuickEditor}
       data-kg-node-quick-editor={String(node.id || '')}
+      data-kg-node-quick-editor-pinned={pinned ? '1' : '0'}
       className={cn(
         'rounded-xl border shadow-lg flex flex-col relative',
         UI_THEME_TOKENS.panel.bg,

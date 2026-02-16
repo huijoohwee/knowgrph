@@ -92,8 +92,14 @@ export function startPointerDrag(args: {
     }
   }
 
-  const handleLostCapture = () => {
-    cleanup()
+  const handleLostCapture = (lost: Event) => {
+    if (!active) return
+    const ev = lost as unknown as PointerEvent
+    try {
+      onCancel?.(ev)
+    } finally {
+      cleanup()
+    }
   }
 
   window.addEventListener('pointermove', handleMove)
@@ -101,4 +107,3 @@ export function startPointerDrag(args: {
   window.addEventListener('pointercancel', handleCancel)
   target.addEventListener('lostpointercapture', handleLostCapture)
 }
-

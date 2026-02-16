@@ -161,6 +161,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   const lastAppliedRef = React.useRef<{ left: number; top: number; scale: number } | null>(null)
   const cssInitRef = React.useRef(false)
   const pendingClampCommitRef = React.useRef<number | null>(null)
+  const livePosWarmupRafRef = React.useRef<number | null>(null)
 
   const parsePinnedByNodeId = React.useCallback((raw: unknown): Record<string, boolean> | null => {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
@@ -312,13 +313,6 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     })
   }, [active, autoRevealKey, setLockedToNode])
 
-  React.useEffect(() => {
-    if (!active) return
-    if (!forcePinnedToNode) return
-    if (lockedToNode) return
-    setLockedToNode(true)
-  }, [active, forcePinnedToNode, lockedToNode, setLockedToNode])
-
   const enableHandlesDisabled = documentStructureBaselineLock === true || isHandlesForAllInputsEnabled(schema)
   const convertToLoopDisabled = isLoopNode(node)
 
@@ -464,16 +458,13 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       top: Number.isFinite(basePos.top) ? basePos.top : 8,
       left: Number.isFinite(basePos.left) ? basePos.left : 8,
     }
-    const clampFloatingToViewport = (pos: { top: number; left: number }) =>
-      clampOverlayTopLeftToViewport({
-        pos,
-        size: scaled,
-        viewport: { width: viewportWidth, height: viewportHeight },
-        visiblePx: 32,
-        snapPx: 1,
-      })
-
-    const pos = pinned ? clampFloatingToViewport(safeBasePos) : safeBasePos
+    const pos = clampOverlayTopLeftToViewport({
+      pos: safeBasePos,
+      size: scaled,
+      viewport: { width: viewportWidth, height: viewportHeight },
+      visiblePx: 32,
+      snapPx: 1,
+    })
 
     if (pinned && (pos.top !== safeBasePos.top || pos.left !== safeBasePos.left)) scheduleClampCommit(pos)
 
@@ -484,6 +475,40 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     const offset = canvasWindowOffsetRef.current
     el.style.transform = `translate3d(${pos.left + offset.left}px, ${pos.top + offset.top}px, 0) scale(${panelScale})`
   }, [autoStackOffset.left, autoStackOffset.top, getLiveNodeWorldPos, nodeId, scheduleClampCommit, zoomViewKey])
+
+  React.useEffect(() => {
+    if (!active) return
+    if (!getLiveNodeWorldPos) return
+    if (floating) return
+    if (typeof window === 'undefined') return
+
+    const initialLive = getLiveNodeWorldPos(nodeId)
+    if (initialLive && Number.isFinite(initialLive.x) && Number.isFinite(initialLive.y)) return
+
+    let attempts = 0
+    const tick = () => {
+      attempts += 1
+      applyOverlayPosition()
+      const live = getLiveNodeWorldPos(nodeId)
+      if ((live && Number.isFinite(live.x) && Number.isFinite(live.y)) || attempts >= 14) {
+        livePosWarmupRafRef.current = null
+        return
+      }
+      livePosWarmupRafRef.current = window.requestAnimationFrame(tick)
+    }
+
+    livePosWarmupRafRef.current = window.requestAnimationFrame(tick)
+    return () => {
+      if (livePosWarmupRafRef.current != null) {
+        try {
+          cancelAnimationFrame(livePosWarmupRafRef.current)
+        } catch {
+          void 0
+        }
+        livePosWarmupRafRef.current = null
+      }
+    }
+  }, [active, applyOverlayPosition, floating, getLiveNodeWorldPos, nodeId])
 
   useIsomorphicLayoutEffect(() => {
     applyOverlayPosition()
@@ -686,6 +711,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     <aside
       ref={asideRef}
       aria-label={UI_LABELS.flowNodeQuickEditor}
+      data-kg-node-quick-editor={String(node.id || '')}
       data-kg-canvas-wheel-ignore="true"
       className="fixed"
       style={{ zIndex: overlayZIndex }}

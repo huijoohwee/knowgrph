@@ -15,10 +15,10 @@ export function useFlowRequestCommit(args: {
   cacheKey: string
   flowConfig: FlowConfig
   flowPresentation: { portHandles: { enabled: boolean; sizePx: number; offsetPx: number } }
-  graphDataForZoom: GraphData | null
   graphDataRevision: number
   runtimeRef: React.MutableRefObject<FlowNativeRuntime | null>
-  schema: GraphSchema | null
+  graphDataForZoomRef: React.MutableRefObject<GraphData | null>
+  schemaRef: React.MutableRefObject<GraphSchema | null>
   setLayoutPositionsForMode?: (cacheKey: string, positions: Record<string, { x: number; y: number }>) => void
   setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW: number; viewportH: number }) => void
   setZoomStateForKey: (key: string, z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW: number; viewportH: number }) => void
@@ -35,10 +35,10 @@ export function useFlowRequestCommit(args: {
     cacheKey,
     flowConfig,
     flowPresentation,
-    graphDataForZoom,
     graphDataRevision,
     runtimeRef,
-    schema,
+    graphDataForZoomRef,
+    schemaRef,
     setLayoutPositionsForMode,
     setZoomState,
     setZoomStateForKey,
@@ -79,6 +79,9 @@ export function useFlowRequestCommit(args: {
       if (!scene) return
       positionsDirtySinceCommitRef.current = false
       const prev = lastCommittedPositionsRef.current
+
+      const schema = schemaRef.current
+      const graphDataForZoom = graphDataForZoomRef.current
 
       const relaxed =
         schema && graphDataForZoom
@@ -130,10 +133,10 @@ export function useFlowRequestCommit(args: {
     flowPresentation.portHandles.enabled,
     flowPresentation.portHandles.offsetPx,
     flowPresentation.portHandles.sizePx,
-    graphDataForZoom,
     graphDataRevision,
+    graphDataForZoomRef,
     runtimeRef,
-    schema,
+    schemaRef,
     setLayoutPositionsForMode,
     setZoomState,
     setZoomStateForKey,
