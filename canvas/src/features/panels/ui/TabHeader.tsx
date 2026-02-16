@@ -21,10 +21,11 @@ interface TabHeaderProps {
   collapsed?: boolean
   onToggle?: () => void
   onHeaderDoubleClick?: () => void
-  onDragStart?: (ev: React.PointerEvent<HTMLDivElement>) => void
+  onDragStart?: (ev: React.PointerEvent<HTMLElement>) => void
   tabs?: Tab[]
   activeTab?: string
   onTabChange?: (key: string) => void
+  tabIdBase?: string
   searchVisible?: boolean
   searchPlaceholder?: string
   searchQuery?: string
@@ -42,6 +43,7 @@ function TabHeaderImpl({
   tabs = [],
   activeTab,
   onTabChange,
+  tabIdBase,
   searchVisible,
   searchPlaceholder,
   searchQuery,
@@ -70,7 +72,7 @@ function TabHeaderImpl({
     }
   }, [])
 
-  const onHeaderClick = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const onHeaderClick = React.useCallback((e: React.MouseEvent<HTMLElement>) => {
     if (!onToggle) return
     const el = e.target as Element
     if (el.closest(UI_SELECTORS.draggablePanelIgnorePointerDown)) return
@@ -84,7 +86,7 @@ function TabHeaderImpl({
     }, 200)
   }, [onToggle])
 
-  const handleDoubleClick = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const handleDoubleClick = React.useCallback((e: React.MouseEvent<HTMLElement>) => {
     if (!onHeaderDoubleClick) return
     const el = e.target as Element
     if (el.closest(UI_SELECTORS.draggablePanelIgnorePointerDown)) return
@@ -102,12 +104,15 @@ function TabHeaderImpl({
     onHeaderDoubleClick()
   }, [onHeaderDoubleClick])
 
-  const handlePointerDown = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerDown = React.useCallback((e: React.PointerEvent<HTMLElement>) => {
     if (!onDragStart) return
     const el = e.target as Element
     if (el.closest(UI_SELECTORS.draggablePanelIgnorePointerDown)) return
     onDragStart(e)
   }, [onDragStart])
+
+  const base = String(tabIdBase || 'panel').trim() || 'panel'
+  const inputId = `${base}-search`
   return (
     <header
       className={
@@ -127,9 +132,11 @@ function TabHeaderImpl({
     >
       <nav className="flex items-center gap-2 min-w-0" aria-label="Panel tabs">
         {tabs.length > 0 && (
-          <menu
-            className={`flex items-center gap-1 min-w-0 ${tabVariant === 'icon' ? '' : 'overflow-x-auto whitespace-nowrap'}`}
+          <section
+            role="tablist"
             aria-label="Tabs"
+            aria-orientation="horizontal"
+            className={`flex items-center gap-1 min-w-0 ${tabVariant === 'icon' ? '' : 'overflow-x-auto whitespace-nowrap'}`}
           >
             {tabs.map(t => {
               if (tabVariant === 'icon') {
@@ -145,6 +152,10 @@ function TabHeaderImpl({
                       activeTab === t.key ? uiPrimaryPillActiveClassName : uiPrimaryIconInactiveClassName
                     }`}
                     showTooltip
+                    role="tab"
+                    id={`${base}-${t.key}-tab`}
+                    aria-selected={activeTab === t.key}
+                    aria-controls={`${base}-${t.key}-panel`}
                   >
                     <TabIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
                   </IconButton>
@@ -156,6 +167,10 @@ function TabHeaderImpl({
                   data-kg-spotlight-tab={t.key}
                   type="button"
                   onClick={() => onTabChange && onTabChange(t.key)}
+                  role="tab"
+                  id={`${base}-${t.key}-tab`}
+                  aria-selected={activeTab === t.key}
+                  aria-controls={`${base}-${t.key}-panel`}
                   className={`App-toolbar__btn text-xs ${
                     activeTab === t.key
                       ? uiToolbarToggleActiveClassName
@@ -166,7 +181,7 @@ function TabHeaderImpl({
                 </button>
               )
             })}
-          </menu>
+          </section>
         )}
       </nav>
       <section className="flex items-center gap-2 shrink-0" aria-label="Panel tools">
@@ -176,7 +191,11 @@ function TabHeaderImpl({
               searchVisible ? 'w-72' : 'w-0'
             }`}
           >
+            <label htmlFor={inputId} className="sr-only">
+              {searchPlaceholder || 'Search'}
+            </label>
             <input
+              id={inputId}
               value={searchQuery || ''}
               onChange={e => onSearchChange(e.target.value)}
               placeholder={searchPlaceholder || 'Search'}

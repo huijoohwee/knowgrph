@@ -4,9 +4,10 @@ import MainPanelContainer from './MainPanelContainer'
 import TabHeader, { type TabIconComponent } from './TabHeader'
 
 interface MainPanelFrameProps {
+  ariaLabel: string
   collapsed?: boolean
   onToggle?: () => void
-  onDragStart?: (ev: React.PointerEvent<HTMLDivElement>) => void
+  onDragStart?: (ev: React.PointerEvent<HTMLElement>) => void
   searchVisible?: boolean
   searchPlaceholder?: string
   searchQuery?: string
@@ -16,12 +17,14 @@ interface MainPanelFrameProps {
   tabs?: Array<{ key: string; label: string }>
   activeTab?: string
   onTabChange?: (key: string) => void
+  tabIdBase?: string
   footer?: React.ReactNode
   tabVariant?: 'text' | 'icon'
   tabIconByKey?: Partial<Record<string, TabIconComponent>>
 }
 
 export default function MainPanelFrame({
+  ariaLabel,
   collapsed,
   onToggle,
   onDragStart,
@@ -34,6 +37,7 @@ export default function MainPanelFrame({
   tabs = [],
   activeTab,
   onTabChange,
+  tabIdBase,
   footer,
   tabVariant,
   tabIconByKey,
@@ -46,8 +50,8 @@ export default function MainPanelFrame({
   )
 
   return (
-    <MainPanelContainer className={collapsed ? 'h-auto' : 'h-full'}>
-      <div className="flex h-full flex-col">
+    <MainPanelContainer ariaLabel={ariaLabel} className={collapsed ? 'h-auto' : 'h-full'}>
+      <section className="flex h-full flex-col" aria-label={ariaLabel}>
         <TabHeader
           collapsed={collapsed}
           onToggle={onToggle}
@@ -55,6 +59,7 @@ export default function MainPanelFrame({
           tabs={tabs}
           activeTab={activeTab}
           onTabChange={onTabChange}
+          tabIdBase={tabIdBase}
           searchVisible={searchVisible}
           searchPlaceholder={searchPlaceholder}
           searchQuery={searchQuery}
@@ -64,12 +69,12 @@ export default function MainPanelFrame({
           tabIconByKey={tabIconByKey}
         />
         {!collapsed && (
-          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <div className="flex-1 min-h-0 overflow-auto">
+          <section className="flex-1 min-h-0 flex flex-col overflow-hidden" aria-label="Panel content">
+            <main className="flex-1 min-h-0 overflow-auto">
               {children}
-            </div>
+            </main>
             {footer ? (
-              <div
+              <footer
                 className={[
                   'FooterBar border-t border-gray-200',
                   uiHeaderRowHeightClass,
@@ -77,11 +82,11 @@ export default function MainPanelFrame({
                 ].join(' ')}
               >
                 {footer}
-              </div>
+              </footer>
             ) : null}
-          </div>
+          </section>
         )}
-      </div>
+      </section>
     </MainPanelContainer>
   )
 }

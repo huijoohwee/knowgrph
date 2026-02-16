@@ -8,8 +8,7 @@ import { computeZoomTransformFromRequest } from '@/lib/zoom/actions'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
-import { createLayoutGroupKeyOfNode, selectLayoutGroups } from '@/components/GraphCanvas/layout/layoutGroupKey'
-import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
+import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { hideTempLink, cancelPendingEdge } from '@/features/edge-creation'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
@@ -43,6 +42,8 @@ type SetupGraphSceneArgs = {
   prevPositions?: Record<string, { x: number; y: number }> | null
   skipInitialLayout?: boolean
   freezeSimulation?: boolean
+  groupsForBboxCollide: GraphGroup[]
+  layoutGroupKeyByNodeId: Record<string, string> | null
   gRef: MutableRefObject<GSelection | null>
   nodesSelRef: MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>
   groupChevronSelRef: MutableRefObject<d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown> | null>
@@ -223,13 +224,16 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     applyInitialTransform({ k: t.k, x: t.x, y: t.y })
   }
 
-  const allGroups = deriveGraphGroups(graphDataForDisplay)
-  const layoutGroups = selectLayoutGroups({ graphData: graphDataForDisplay, schema, groups: allGroups })
-  const groupKeyOf = createLayoutGroupKeyOfNode({ graphData: graphDataForDisplay, schema, groups: layoutGroups })
+  const groupKeyByNodeId = args.layoutGroupKeyByNodeId
+  const groupKeyOf = (n: GraphNode): string | null => {
+    const id = String(n.id || '').trim()
+    if (!id || !groupKeyByNodeId) return null
+    return groupKeyByNodeId[id] || null
+  }
   const simulation = buildSimulation(displayNodes, edgesForDisplay, Math.max(1, width), Math.max(1, Math.floor(height)), schema, {
     skipInitialLayout: !!skipInitialLayout,
     groupKeyOf,
-    groupsForBboxCollide: allGroups,
+    groupsForBboxCollide: args.groupsForBboxCollide,
   })
   simulationRef.current = simulation
 

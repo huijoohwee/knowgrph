@@ -29,6 +29,7 @@ export default function HistoryPanel({ onClose }: { onClose?: () => void }) {
   const iconSizeClass = getIconSizeClass(uiIconScale)
   return (
     <MainPanelFrame
+      ariaLabel="History panel"
       searchVisible={searchOpen}
       searchPlaceholder="Search history"
       searchQuery={search}

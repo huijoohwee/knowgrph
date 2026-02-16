@@ -112,7 +112,7 @@ export function useMainPanelDrag() {
     lsSetNum(LS_KEYS.mainPanelLeft, clamped.left);
   }, [clampMainPanelPos, setMainPanelDragPosSynced]);
 
-  const handleMainPanelHeaderDragStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+  const handleMainPanelHeaderDragStart = useCallback((event: React.PointerEvent<HTMLElement>) => {
     if (event.button !== 0) return;
     const el = mainPanelCardRef.current;
     if (!el) return;

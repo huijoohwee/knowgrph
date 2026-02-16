@@ -1,3 +1,5 @@
+import { resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
+
 export type ThemeColors = {
   bg: string;
   text: string;
@@ -21,25 +23,30 @@ export const UI_THEME_COLORS_CSS: ThemeColors = {
 } as const;
 
 export function resolveCssVar(name: string, fallback: string): string {
-  if (typeof document === 'undefined') return fallback;
+  const key = String(name || '').trim()
+  if (key.startsWith('--kg-')) {
+    const v = resolveCssVarWithKgFallback(key as `--kg-${string}`)
+    return v || fallback
+  }
+  if (typeof document === 'undefined') return fallback
   try {
-    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    return v || fallback;
+    const v = getComputedStyle(document.documentElement).getPropertyValue(key).trim()
+    return v || fallback
   } catch {
-    return fallback;
+    return fallback
   }
 }
 
 export function resolveThemeColors(): ThemeColors {
   return {
-    bg: resolveCssVar('--kg-panel-bg', '#ffffff'),
-    text: resolveCssVar('--kg-text-primary', '#111827'),
-    textSecondary: resolveCssVar('--kg-text-secondary', '#4b5563'),
-    border: resolveCssVar('--kg-border', '#e5e7eb'),
-    nodeStroke: resolveCssVar('--kg-canvas-node-stroke', '#ffffff'),
-    edgeStroke: resolveCssVar('--kg-canvas-edge-stroke', '#9ca3af'),
-    labelHalo: resolveCssVar('--kg-canvas-label-halo', '#ffffff'),
-    labelFill: resolveCssVar('--kg-canvas-label-fill', '#111827'),
+    bg: resolveCssVarWithKgFallback('--kg-panel-bg'),
+    text: resolveCssVarWithKgFallback('--kg-text-primary'),
+    textSecondary: resolveCssVarWithKgFallback('--kg-text-secondary'),
+    border: resolveCssVarWithKgFallback('--kg-border'),
+    nodeStroke: resolveCssVarWithKgFallback('--kg-canvas-node-stroke'),
+    edgeStroke: resolveCssVarWithKgFallback('--kg-canvas-edge-stroke'),
+    labelHalo: resolveCssVarWithKgFallback('--kg-canvas-label-halo'),
+    labelFill: resolveCssVarWithKgFallback('--kg-canvas-label-fill'),
   };
 }
 
@@ -72,7 +79,7 @@ export const UI_THEME_TOKENS = {
   panel: {
     bg: 'bg-[var(--kg-panel-bg)]',
     border: 'border-[color:var(--kg-border)]',
-    headerBg: 'bg-[rgba(var(--panel-bg-rgb),0.75)]',
+    headerBg: 'bg-[color-mix(in_srgb,var(--kg-panel-bg)_75%,transparent)]',
     divider: 'border-[color:var(--kg-divider)]',
   },
   text: {

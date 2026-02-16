@@ -357,6 +357,8 @@ import {
 } from '@/__tests__/flowNodeQuickEditorActions.test'
 import { testPinnedDisablesDragAcrossPanels } from '@/__tests__/pinSemantics.test'
 import { testIconButtonPointerDownPreventsTextSelection } from '@/__tests__/iconButtonNoTextSelect.test'
+import { testKgTokenSsotIndexCssDefinesAllVars } from '@/__tests__/kgTokenSsot.test'
+import { testMainPanelContainerUsesKgPanelBg, testPanelHeaderUsesAriaTablist } from '@/__tests__/panelSemanticContract.test'
 import { testNodeQuickEditorHidesIdentityAndMovesActionsToToolbar } from '@/__tests__/nodeQuickEditorUiContract.test'
 import {
   testFlowCanvasAutoFitToScreenRunsInFlowRenderer,
@@ -1087,6 +1089,9 @@ export const runAllTests = async () => {
   await exec('rxdb.graphTable.createRow', testGraphTableDbAllocatesAndCreatesRows)
   await exec('ui.themeModePersistence', testThemeModePersistence)
   await exec('ui.themeSystemModeApplyAndSubscribe', testThemeSystemModeApplyAndSubscribe)
+  await exec('ui.tokens.ssot.indexCssDefinesAll', testKgTokenSsotIndexCssDefinesAllVars)
+  await exec('ui.panels.tablist.ariaRoles', testPanelHeaderUsesAriaTablist)
+  await exec('ui.panels.container.usesKgPanelBg', testMainPanelContainerUsesKgPanelBg)
   await exec('design.layers.normalizePreservesOrderAndAddsNew', testDesignLayersNormalizePreservesOrderAndAddsNew)
   await exec('design.layers.toggleAndMove', testDesignLayersToggleAndMove)
   await exec('design.renderer.posEq.detectsEquality', testDesignFramePosEqDetectsEquality)

@@ -17,7 +17,7 @@ import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeScene'
 import { buildGraphMetaKey, deriveRankdir } from '@/components/FlowCanvas/layout'
 import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'
-import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
+import { deriveSceneGroups } from '@/lib/scene/sceneDerivation'
 import type { GraphData } from '@/lib/graph/types'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
@@ -349,11 +349,20 @@ export default function FlowCanvas({
     ].join('|')
   }, [flowConfig, rankdir])
 
+  const sceneGroupsDerivation = React.useMemo(() => {
+    return deriveSceneGroups({
+      graphData: sceneGraphData as GraphData | null,
+      graphDataRevision,
+      schema,
+      documentSemanticMode: String(documentSemanticMode || ''),
+      frontmatterModeEnabled: !!effectiveFrontmatter,
+    })
+  }, [documentSemanticMode, effectiveFrontmatter, graphDataRevision, sceneGraphData, schema])
+
   const sceneGroups = React.useMemo(() => {
     if (!flowPresentation.groups.enabled) return []
-    if (!sceneGraphData) return []
-    return deriveGraphGroups(sceneGraphData as GraphData)
-  }, [flowPresentation.groups.enabled, sceneGraphData])
+    return sceneGroupsDerivation?.allGroups || []
+  }, [flowPresentation.groups.enabled, sceneGroupsDerivation])
 
   const datasetKey = React.useMemo(() => {
     return computeLayoutDatasetKey({

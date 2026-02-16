@@ -1,8 +1,19 @@
 import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { FloatingPanel } from '@/components/ui/FloatingPanel'
 
-export default function MainPanelContainer({ children, className, style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
+export default function MainPanelContainer({
+  children,
+  className,
+  style,
+  ariaLabel,
+}: {
+  children: React.ReactNode
+  className?: string
+  style?: React.CSSProperties
+  ariaLabel: string
+}) {
   const uiHeaderRowHeightClass = useGraphStore(s => s.uiHeaderRowHeightClass || 'min-h-[36px]')
   const headerBarHeightPx = React.useMemo(() => {
     const raw = String(uiHeaderRowHeightClass || '').trim()
@@ -15,15 +26,17 @@ export default function MainPanelContainer({ children, className, style }: { chi
   }, [uiHeaderRowHeightClass])
   const base = `MainPanelContainer flex flex-col p-0 rounded-xl border ${UI_THEME_TOKENS.panel.border} shadow-lg shadow-gray-200/60 dark:shadow-black/60 overflow-hidden`
   return (
-    <div
+    <FloatingPanel
+      as="aside"
+      ariaLabel={ariaLabel}
       className={`${base} ${className || 'h-full'}`}
       style={{
-        backgroundColor: 'var(--panel-bg)',
+        backgroundColor: 'var(--kg-panel-bg)',
         ['--kg-header-bar-height' as unknown as string]: `${headerBarHeightPx}px`,
         ...style,
       }}
     >
       {children}
-    </div>
+    </FloatingPanel>
   )
 }

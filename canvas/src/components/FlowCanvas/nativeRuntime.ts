@@ -6,6 +6,7 @@ import { computeConvexRing, type Point2d } from '@/lib/geometry/convexRing'
 import { routeFlowEdgeOrtho, type Rect } from '@/components/FlowCanvas/edgeRouting'
 import { computeGroupDepthStyle } from '@/lib/graph/groupDepthStyle'
 import { estimateMaxCharsForWidthPx, truncateTextWithEllipsis } from '@/lib/ui/text/labelText'
+import { getKgTokenFallback, getKgThemeFromDom, resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
 
 export type FlowNativeNodeShape = 'circle' | 'rect' | 'diamond' | 'hex'
 
@@ -109,13 +110,13 @@ export type FlowNativeRuntime = {
 }
 
 export const defaultFlowTheme = (): FlowNativeTheme => ({
-  bg: '#ffffff',
-  nodeFill: '#ffffff',
-  nodeStroke: '#9ca3af',
-  nodeStrokeSelected: '#2563eb',
-  text: '#111827',
-  edge: '#9ca3af',
-  edgeSelected: '#2563eb',
+  bg: getKgTokenFallback('--kg-canvas-bg', 'light'),
+  nodeFill: getKgTokenFallback('--kg-surface-bg', 'light'),
+  nodeStroke: getKgTokenFallback('--kg-canvas-node-stroke', 'light'),
+  nodeStrokeSelected: getKgTokenFallback('--kg-canvas-accent', 'light'),
+  text: getKgTokenFallback('--kg-text-primary', 'light'),
+  edge: getKgTokenFallback('--kg-canvas-edge-stroke', 'light'),
+  edgeSelected: getKgTokenFallback('--kg-canvas-accent', 'light'),
 })
 
 export const readFlowFontFamilyFromCss = (): string => {
@@ -141,19 +142,15 @@ export const readFlowCssKey = (): string => {
 export const readFlowThemeFromCss = (): FlowNativeTheme => {
   try {
     if (typeof document === 'undefined') return defaultFlowTheme()
-    const styles = getComputedStyle(document.documentElement)
-    const resolve = (name: string, fallback: string): string => {
-      const v = styles.getPropertyValue(name).trim()
-      return v || fallback
-    }
+    const theme = getKgThemeFromDom()
     return {
-      bg: resolve('--kg-canvas-bg', defaultFlowTheme().bg),
-      nodeFill: resolve('--kg-surface-bg', defaultFlowTheme().nodeFill),
-      nodeStroke: resolve('--kg-canvas-node-stroke', defaultFlowTheme().nodeStroke),
-      nodeStrokeSelected: resolve('--kg-canvas-accent', defaultFlowTheme().nodeStrokeSelected),
-      text: resolve('--kg-text-primary', defaultFlowTheme().text),
-      edge: resolve('--kg-canvas-edge-stroke', defaultFlowTheme().edge),
-      edgeSelected: resolve('--kg-canvas-accent', defaultFlowTheme().edgeSelected),
+      bg: resolveCssVarWithKgFallback('--kg-canvas-bg', theme),
+      nodeFill: resolveCssVarWithKgFallback('--kg-surface-bg', theme),
+      nodeStroke: resolveCssVarWithKgFallback('--kg-canvas-node-stroke', theme),
+      nodeStrokeSelected: resolveCssVarWithKgFallback('--kg-canvas-accent', theme),
+      text: resolveCssVarWithKgFallback('--kg-text-primary', theme),
+      edge: resolveCssVarWithKgFallback('--kg-canvas-edge-stroke', theme),
+      edgeSelected: resolveCssVarWithKgFallback('--kg-canvas-accent', theme),
     }
   } catch {
     return defaultFlowTheme()

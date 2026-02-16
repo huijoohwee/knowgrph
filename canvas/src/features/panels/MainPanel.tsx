@@ -54,7 +54,7 @@ export default function MainPanel({
   onPinToggle,
 }: {
   onClose?: () => void
-  onHeaderDragStart?: (ev: React.PointerEvent<HTMLDivElement>) => void
+  onHeaderDragStart?: (ev: React.PointerEvent<HTMLElement>) => void
   requestedTab?: MainPanelTab
   collapsed?: boolean
   pinned?: boolean
@@ -134,6 +134,7 @@ export default function MainPanel({
 
   return (
     <MainPanelFrame
+      ariaLabel="Main panel"
       onDragStart={onHeaderDragStart}
       collapsed={collapsed}
       searchVisible={
@@ -198,6 +199,7 @@ export default function MainPanel({
         setSearchOpen(false)
         setTab(key)
       }}
+      tabIdBase="main-panel"
       rightSlot={
         <HeaderActions
           onRestore={collapsed ? onRestore : undefined}
@@ -277,36 +279,55 @@ export default function MainPanel({
       )}
     >
       <section className="h-full min-h-0 px-3 py-2 overflow-hidden" aria-label="Main panel content">
-        {tab === 'help' && <HelpView searchQuery={search} />}
-        {tab === 'workflow' && (
-          <MainPanelBody header={<MainPanelWorkflowHeader workflowActions={workflowActions} />}>
-            <section
-              className={`min-h-0 py-2 ${UI_THEME_TOKENS.text.primary} ${panelTypography.panelTextClass}`}
-              data-kg-anchor={UI_ANCHORS.workflowPanel}
-            >
-              <WorkflowSection searchQuery={search} onRegisterActions={setWorkflowActions} />
-            </section>
-          </MainPanelBody>
-        )}
-        {tab === 'flowEditorManager' && (
-          <FlowEditorManagerView searchQuery={search} onRegisterActions={setFlowEditorManagerActions} />
-        )}
-        {tab === 'graphFields' && (
-          <GraphFieldsView onStatusChange={setGraphFieldsStatus} searchQuery={search} />
-        )}
-        {tab === 'dashboard' && <DashboardView />}
-        {tab === 'preview' && <PreviewPanelView />}
-        {tab === 'settings' && (
-          <MainPanelBody header={<MainPanelSettingsHeader settingsActions={settingsActions} />}>
-            <section
-              className={`min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}
-              data-kg-anchor={UI_ANCHORS.settingsPanel}
-            >
-              <SettingsView searchQuery={search} onRegisterActions={setSettingsActions} />
-            </section>
-          </MainPanelBody>
-        )}
-        {tab === 'history' && <HistoryView searchQuery={search} />}
+        <section role="tabpanel" id="main-panel-help-panel" aria-labelledby="main-panel-help-tab" hidden={tab !== 'help'}>
+          {tab === 'help' && <HelpView searchQuery={search} />}
+        </section>
+        <section role="tabpanel" id="main-panel-workflow-panel" aria-labelledby="main-panel-workflow-tab" hidden={tab !== 'workflow'}>
+          {tab === 'workflow' && (
+            <MainPanelBody header={<MainPanelWorkflowHeader workflowActions={workflowActions} />}>
+              <section
+                className={`min-h-0 py-2 ${UI_THEME_TOKENS.text.primary} ${panelTypography.panelTextClass}`}
+                data-kg-anchor={UI_ANCHORS.workflowPanel}
+              >
+                <WorkflowSection searchQuery={search} onRegisterActions={setWorkflowActions} />
+              </section>
+            </MainPanelBody>
+          )}
+        </section>
+        <section
+          role="tabpanel"
+          id="main-panel-flowEditorManager-panel"
+          aria-labelledby="main-panel-flowEditorManager-tab"
+          hidden={tab !== 'flowEditorManager'}
+        >
+          {tab === 'flowEditorManager' && (
+            <FlowEditorManagerView searchQuery={search} onRegisterActions={setFlowEditorManagerActions} />
+          )}
+        </section>
+        <section role="tabpanel" id="main-panel-graphFields-panel" aria-labelledby="main-panel-graphFields-tab" hidden={tab !== 'graphFields'}>
+          {tab === 'graphFields' && <GraphFieldsView onStatusChange={setGraphFieldsStatus} searchQuery={search} />}
+        </section>
+        <section role="tabpanel" id="main-panel-dashboard-panel" aria-labelledby="main-panel-dashboard-tab" hidden={tab !== 'dashboard'}>
+          {tab === 'dashboard' && <DashboardView />}
+        </section>
+        <section role="tabpanel" id="main-panel-preview-panel" aria-labelledby="main-panel-preview-tab" hidden={tab !== 'preview'}>
+          {tab === 'preview' && <PreviewPanelView />}
+        </section>
+        <section role="tabpanel" id="main-panel-settings-panel" aria-labelledby="main-panel-settings-tab" hidden={tab !== 'settings'}>
+          {tab === 'settings' && (
+            <MainPanelBody header={<MainPanelSettingsHeader settingsActions={settingsActions} />}>
+              <section
+                className={`min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}
+                data-kg-anchor={UI_ANCHORS.settingsPanel}
+              >
+                <SettingsView searchQuery={search} onRegisterActions={setSettingsActions} />
+              </section>
+            </MainPanelBody>
+          )}
+        </section>
+        <section role="tabpanel" id="main-panel-history-panel" aria-labelledby="main-panel-history-tab" hidden={tab !== 'history'}>
+          {tab === 'history' && <HistoryView searchQuery={search} />}
+        </section>
       </section>
     </MainPanelFrame>
   )

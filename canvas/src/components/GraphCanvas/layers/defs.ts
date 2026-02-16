@@ -15,7 +15,7 @@ export const createDefs = (svg: SvgSelection) => {
     .attr('orient', 'auto-start-reverse')
     .append('path')
     .attr('d', 'M 0 0 L 10 5 L 0 10 z')
-    .attr('fill', '#999');
+    .attr('fill', 'var(--kg-canvas-edge-stroke)');
   defs
     .append('clipPath')
     .attr('id', 'node-media-circle-clip')

@@ -28,9 +28,9 @@ export const createLabelsLayer = (args: {
   const labelLayer = g.append('g').attr('data-kg-layer', 'labels');
   
   const labelFontSize = schema.labelStyles?.fontSize ?? 12;
-  const labelFontFamily = 'Inter, sans-serif';
-  const labelFill = schema.labelStyles?.color || '#111111';
-  const haloColor = schema.labelStyles?.halo?.color ?? '#ffffff';
+  const labelFontFamily = 'inherit';
+  const labelFill = schema.labelStyles?.color || 'var(--kg-canvas-label-fill)';
+  const haloColor = schema.labelStyles?.halo?.color ?? 'var(--kg-canvas-label-halo)';
   const haloWidthRaw = schema.labelStyles?.halo?.width;
   const haloWidth = typeof haloWidthRaw === 'number' && Number.isFinite(haloWidthRaw) && haloWidthRaw > 0 ? haloWidthRaw : 3;
   const lineHeightEm = 1.2

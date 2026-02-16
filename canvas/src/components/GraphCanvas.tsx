@@ -7,8 +7,6 @@ import { type GraphSchema } from '@/lib/graph/schema'
 import { useContainerDims } from '@/hooks/useContainerDims'
 import { normalizeEdgesForSim, updateForceSimulationPresentation } from '@/components/GraphCanvas/simulation'
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
-import { createLayoutGroupKeyOfNode, selectLayoutGroups } from '@/components/GraphCanvas/layout/layoutGroupKey'
-import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
 import {
@@ -40,6 +38,7 @@ import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
 import { shouldIgnoreCanvasWheelEvent } from '@/lib/canvas/wheel-target-guard'
 import { UI_SELECTORS } from '@/lib/config'
+import { deriveSceneGroups } from '@/lib/scene/sceneDerivation'
 
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null);
@@ -265,6 +264,16 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     if (!renderGraphData) return null
     return cloneGraphDataForRender(renderGraphData)
   }, [renderGraphData])
+
+  const sceneGroupsDerivation = useMemo(() => {
+    return deriveSceneGroups({
+      graphData: sceneGraphData,
+      graphDataRevision: graphDataRevision || 0,
+      schema,
+      documentSemanticMode: String(documentSemanticMode || ''),
+      frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
+    })
+  }, [documentSemanticMode, effectiveFrontmatterModeEnabled, graphDataRevision, sceneGraphData, schema])
 
   useEffect(() => {
     schemaRef.current = schema
@@ -690,6 +699,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         prevPositions: Object.keys(prevPositions).length > 0 ? prevPositions : null,
         skipInitialLayout,
         freezeSimulation: isEmbeddedPreview,
+        groupsForBboxCollide: sceneGroupsDerivation?.allGroups || [],
+        layoutGroupKeyByNodeId: sceneGroupsDerivation?.layoutGroupKeyByNodeId || null,
         gRef,
         nodesSelRef,
         groupChevronSelRef,
@@ -813,9 +824,12 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     const expansionEnabled = expansionCfg.enabled !== false
     const zoomOnDoubleClick = expansionEnabled && expansionCfg.zoomOnDoubleClick !== false
 
-    const allGroups = deriveGraphGroups(sceneGraphDataRef.current)
-    const layoutGroups = selectLayoutGroups({ graphData: sceneGraphDataRef.current, schema: schemaValue, groups: allGroups })
-    const groupKeyOf = createLayoutGroupKeyOfNode({ graphData: sceneGraphDataRef.current, schema: schemaValue, groups: layoutGroups })
+    const groupKeyByNodeId = sceneGroupsDerivation?.layoutGroupKeyByNodeId || null
+    const groupKeyOf = (n: GraphNode): string | null => {
+      const id = String(n.id || '').trim()
+      if (!id || !groupKeyByNodeId) return null
+      return groupKeyByNodeId[id] || null
+    }
     updateForceSimulationPresentation({
       simulation: simulationRef.current,
       nodes: Array.isArray(sceneGraphDataRef.current.nodes) ? (sceneGraphDataRef.current.nodes as GraphNode[]) : [],
@@ -823,7 +837,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       height: sceneHeight,
       schema: schemaValue,
       groupKeyOf,
-      groupsForBboxCollide: allGroups,
+      groupsForBboxCollide: sceneGroupsDerivation?.allGroups || [],
     })
     updateGraphSceneNodesPresentation({
       svgEl: svgRef.current,
