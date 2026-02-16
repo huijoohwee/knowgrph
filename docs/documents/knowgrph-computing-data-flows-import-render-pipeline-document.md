@@ -9,7 +9,7 @@
 ## Demo Entry Point (User Journey)
 
 - **Toolbar → Editor workspace button**
-- Import local file (fixture): `sandbox/demo/computing-data-flow-pipeline.json`
+- Import local file (fixture, relative to repo root): `sandbox/demo/computing-data-flow-pipeline.json`
 - Switch: **Canvas → 2D Renderer → Flow Editor**
 
 Expected result:
@@ -79,4 +79,3 @@ Flow Editor + overlay wiring:
   - GraphData
   - registry entries (bundle or GraphData metadata)
   - schema-config toggles
-

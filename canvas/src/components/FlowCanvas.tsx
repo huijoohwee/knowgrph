@@ -13,6 +13,7 @@ import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
 import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
 import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
+import { buildFlowEditorCameraInitKey } from '@/lib/canvas/flow-editor-init-key'
 import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeScene'
 import { buildGraphMetaKey, deriveRankdir } from '@/components/FlowCanvas/layout'
@@ -507,13 +508,19 @@ export default function FlowCanvas({
     const effectiveFitToScreenMode = isFlowEditor ? false : fitToScreenMode
     const effectiveZoomToSelectionMode = isFlowEditor ? false : zoomToSelectionMode
 
-    const rawDatasetKey = String(datasetKey || '')
-    const normalizedDatasetKey = rawDatasetKey.startsWith('rev:') ? 'rev' : rawDatasetKey
-    const initKey = isFlowEditor ? `flowEditor:${normalizedDatasetKey}` : zoomViewKey
+    const initKey = isFlowEditor
+      ? buildFlowEditorCameraInitKey({ datasetKey: String(datasetKey || ''), graphData: sceneGraphData as GraphData | null })
+      : zoomViewKey
     const alreadyInitializedForKey = lastInitTransformZoomViewKeyRef.current === initKey
     const t0 = runtime.transform || d3.zoomIdentity
     const hasNonIdentityTransform = t0.k !== 1 || t0.x !== 0 || t0.y !== 0
-    if (isFlowEditor && alreadyInitializedForKey) return
+    if (isFlowEditor && alreadyInitializedForKey) {
+      const ok = isFlowTransformShowingGraph(
+        { k: t0.k, x: t0.x, y: t0.y },
+        { nodes: (Array.isArray(graphDataForZoom?.nodes) ? graphDataForZoom!.nodes! : []) as Array<{ x?: unknown; y?: unknown }>, viewportW, viewportH, nodeW: flowConfig.node.widthPx, nodeH: flowConfig.node.heightPx },
+      )
+      if (ok) return
+    }
     if (!isFlowEditor && alreadyInitializedForKey && hasNonIdentityTransform) return
 
     const now = Date.now()

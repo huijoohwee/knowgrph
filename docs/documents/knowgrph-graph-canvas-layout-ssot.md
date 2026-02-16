@@ -6,6 +6,7 @@ Graph Canvas layout behavior is defined by a small set of SSOT modules. All mode
 
 | Concern | SSOT Module | Notes |
 |---|---|---|
+| Schema layout-engine fingerprint (2D) | `canvas/src/lib/canvas/schema-layout-engine-json.ts` | Canonical schema→layout-engine JSON used by both zoom-view keys and layout-view keys. Must include `schema.layout.flow` to avoid D3/Flow/Design/Flow Editor drift. |
 | Layout defaults (force/fit/collision/groups/flow) | `canvas/src/lib/graph/layoutDefaults.ts` | Canonical numeric defaults + safe readers (including Flow layout knobs). Any fallback logic must live here (not spread across schema/editor/simulation). |
 | Node extents (render + labels) | `canvas/src/components/GraphCanvas/layout/overlap.ts` | `getNodeAabbHalfExtentsWithLabel` is the canonical AABB used by collision + group bounds (schema-aware cache to avoid stale extents). |
 | Collision knobs (node + group) | `canvas/src/components/GraphCanvas/layout/collisionConfig.ts` | `readCollisionConfig` is the only knob reader; schema-driven and shared across Force/Radial. |
@@ -71,6 +72,7 @@ Notes:
 - Frontmatter mode is only “effective” when the active graph contains frontmatter Mermaid seed nodes; otherwise filtering is a no-op and cache keys must not change.
 - `layout.flow.rankdir` controls the canonical top-bottom vs left-right flow direction.
 - Layout position caches must be isolated by the full key `(datasetKey, semanticMode, frontmatterMode, layoutMode, renderMode, renderVariant, layoutVariant?, viewKey, mediaPanelDensity, renderMediaAsNodes)` (no fallback to partial/legacy keys).
+- Zoom view keys must be derived from the same inputs across 2D renderer variants; mismatched schema fingerprints can cause keyed zoom state misses and restart-time “stuck offscreen” views.
 - Layout recompute/skip logic must account for previous renderVariant so toggling D3 ↔ Flow cannot incorrectly skip a required layout refresh.
 - Flow treats `layoutVariant` as a hard layout-change trigger: it must participate in layout recompute keys, render-scene rebuild keys, and cross-renderer seed selection.
 - Group collision is always enforced when `layout.groups.enabled !== false` (schema may keep `groupBboxCollide` for backward compatibility, but it does not disable the constraint).

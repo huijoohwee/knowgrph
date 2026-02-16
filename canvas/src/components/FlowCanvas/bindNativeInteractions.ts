@@ -334,7 +334,6 @@ export function bindFlowCanvasNativeInteractions(args: {
       canvasEl,
     })
     if (resolved.kind !== 'overlay') return false
-    if (resolved.isInteractive) return false
     const overlayRoot = resolved.overlayRoot
     const el = resolved.targetEl
     if (isSpacePanHeld()) return true
@@ -416,6 +415,19 @@ export function bindFlowCanvasNativeInteractions(args: {
     const ignoreWheel = opts?.skipIgnoreGuard ? false : shouldIgnoreCanvasWheelEvent({ event: e, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })
     const allowZoomThroughIgnore = wheelZoom && (e.ctrlKey === true || e.metaKey === true)
     if (ignoreWheel && !allowZoomThroughIgnore) {
+      const isFlowEditor = String(storeState.canvas2dRenderer || '') === 'flowEditor'
+      if (isFlowEditor && !opts?.skipIgnoreGuard) {
+        const cx = (e as unknown as { clientX?: unknown }).clientX
+        const cy = (e as unknown as { clientY?: unknown }).clientY
+        if (typeof cx === 'number' && Number.isFinite(cx) && typeof cy === 'number' && Number.isFinite(cy)) {
+          const top = typeof document !== 'undefined' && typeof document.elementFromPoint === 'function'
+            ? document.elementFromPoint(cx, cy)
+            : null
+          if (top && (top === canvasEl || canvasEl.contains(top))) {
+            return handleWheel(e, { skipIgnoreGuard: true })
+          }
+        }
+      }
       try {
         e.preventDefault()
       } catch {
@@ -512,7 +524,6 @@ export function bindFlowCanvasNativeInteractions(args: {
       canvasEl,
     })
     if (resolved.kind === 'none') return false
-    if (resolved.kind === 'overlay' && resolved.isInteractive) return false
     return true
   }
 

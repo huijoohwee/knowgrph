@@ -97,6 +97,8 @@
   - Must ensure Frontmatter Mode never yields an empty canvas: if no frontmatter Mermaid nodes exist, render the full graph.
   - Must default to Document Mode by treating Geospatial Mode as opt-in (`kg:ui:geospatial:overlayEnabled` defaults to false) and reading the persisted value for consistency across tabs and embedded previews.
   - Must ensure `graphLayersVisible` is true.
+  - Must compute 2D zoom/layout view keys from a shared schema-layout fingerprint (include `schema.layout.flow`) so keyed zoom state and cached layout positions do not drift across D3/Flow/Design/Flow Editor.
+  - Flow Editor camera init must be keyed per dataset when stable (e.g. `path:*`) and must fall back to a per-graph hash when dataset keys collapse to `rev:*`.
 
 ---
 

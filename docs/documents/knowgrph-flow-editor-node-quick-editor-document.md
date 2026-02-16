@@ -22,14 +22,14 @@
 - **Drag**: when unpinned (detached), header drag moves the overlay (ignores pointerdown on interactive elements).
 - **Minimize/Restore**: collapses the editor body to header-only.
 - **Opacity**: inherits `uiPanelOpacity` from UI settings.
-- **Scroll isolation**: scrolling inside the editor must not zoom the canvas; mark the overlay as a wheel-ignore zone and guard wheel-zoom handlers via SSOT selector `UI_SELECTORS.canvasWheelIgnore`.
+- **Scroll isolation**: scrolling inside the editor must not zoom the canvas; mark the overlay as a wheel-ignore zone and guard wheel-zoom handlers via SSOT selector `UI_SELECTORS.canvasWheelIgnore`. In Flow Editor, overlay wheel-ignore must not be able to block wheel zoom if the top-most element under the pointer is still the canvas.
 - **Toolbar actions**: open selected node in Sidepane, enable Handles for all inputs, convert selected node to a Loop node (schema + draft-graph edits only; no hidden background work; idempotent updates). The toolbar hides on unselect or outside click.
 - **Baseline lock**: enable-handles action is gated when Document Structure baseline lock is enabled.
 - **Multi-node overlays**: multiple Node Quick Editors may be open at the same time; overlays must remain visible and operable without DOM id collisions.
 
 ### Multi-node layout (detached)
 
-- Detached overlays must avoid full overlap. Default placement should use a deterministic grid/stack derived from the open-list order.
+- Detached overlays must avoid full overlap. Default placement must use a deterministic grid/stack derived from the open-list order and the current viewport dimensions (no stale 0×0 viewport refs).
 - Persist detached positions per node id so reopening multiple editors restores a stable layout.
 - When multiple detached overlays overlap, run a bounded collision pass that keeps the first overlay fixed and pushes others, using measured panel sizes and clamping back into the viewport.
 
@@ -45,6 +45,7 @@
 - **Drag**: unpinned overlay drag must not trigger a render per raw pointermove; throttle state updates to animation frames.
 - **Drag**: overlay header drag must lock global user-select so text never gets selected while dragging.
 - **Pan/Zoom**: keep screen-space overlays in sync with the renderer transform during active panning (rAF-throttled zoom-state commits).
+- **Pan/Zoom**: overlay positioning should prefer the live renderer transform (runtime) over store zoom state when available, to avoid restart-time key mismatches and stale keyed zoom.
 - **Pan/Zoom**: if interval-gating is used, keep it bounded and avoid end-of-pan snap.
 - **Pan/Zoom**: avoid forced layout reads in hot paths; prefer `offsetX/offsetY`-based local coordinates for canvas pointer/wheel interactions and only fall back to `getBoundingClientRect()` when offsets are unavailable.
 - **Collision settling**: during node/group drag, collision relaxation must be rAF-throttled and step-bounded; large graphs may disable drag-time relaxation and rely on commit-time settling.
@@ -65,6 +66,7 @@
 - Scale is computed from the schema zoom extent (`minK/maxK`) and current zoom `k`, then applied via CSS `transform` (translate + scale) to keep updates on the compositor path.
 - **Macro view rule**: at **max zoom-out** and **max zoom-in**, the panel stays **small** (same size at both extremes) so the user can keep a wide overview.
 - SSOT implementation lives in `canvas/src/components/FlowEditor/nodeQuickEditorZoom.ts` and must be reused by any future quick-editor overlays.
+- Default detached placement SSOT lives in `canvas/src/components/FlowEditor/nodeQuickEditorLayout.ts`.
 
 ---
 

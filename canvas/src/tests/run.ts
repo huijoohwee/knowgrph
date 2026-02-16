@@ -198,6 +198,8 @@ import { testFlowEditorInitialTransformDoesNotReapplyAfterUserPan } from '@/__te
 import { testFlowEditorInitialTransformWaitsForFinitePositions } from '@/__tests__/flowEditorInitialTransformWaitsForFinitePositions.test'
 import { testEffectiveZoomStateForKeyFallsBackToGlobal } from '@/__tests__/zoomEffectiveFallback.test'
 import { testSchemaLayoutEngineJson2dIncludesFlowKey } from '@/__tests__/schemaLayoutEngineJson2d.test'
+import { testNodeQuickEditorDefaultFloatingPosDependsOnViewport } from '@/__tests__/nodeQuickEditorDefaultFloatingPos.test'
+import { testFlowEditorCameraInitKeyHashesWhenRev, testFlowEditorCameraInitKeyUsesDatasetKeyWhenStable } from '@/__tests__/flowEditorCameraInitKey.test'
 import { testAutoZoom2dPolicyFlowEditorDisablesAutoZoomModes } from '@/__tests__/autoZoom2dPolicy.test'
 import { testFlowCollisionPolicyForcesCollisionDuringDragInFlowEditor } from '@/__tests__/flowCollisionPolicy.test'
 import { testFlowWheelZoomUsesSmoothFactorNotDiscreteSteps } from '@/__tests__/flowWheelZoomSmoothRegression.test'
@@ -755,6 +757,9 @@ export const runAllTests = async () => {
   await exec('viewport.flowEditor.initTransform.waitsForFinitePositions', testFlowEditorInitialTransformWaitsForFinitePositions)
   await exec('zoom.effective.fallsBackToGlobalWhenKeyMissing', testEffectiveZoomStateForKeyFallsBackToGlobal)
   await exec('zoom.viewKey.schemaLayoutEngineJson.includesFlowKey', testSchemaLayoutEngineJson2dIncludesFlowKey)
+  await exec('ui.flowNodeQuickEditor.defaultFloatingPos.dependsOnViewport', testNodeQuickEditorDefaultFloatingPosDependsOnViewport)
+  await exec('viewport.flowEditor.initKey.usesDatasetKeyWhenStable', testFlowEditorCameraInitKeyUsesDatasetKeyWhenStable)
+  await exec('viewport.flowEditor.initKey.hashesWhenRev', testFlowEditorCameraInitKeyHashesWhenRev)
 
   await exec('perf.flow.commitHook.usesRefs', testFlowRequestCommitUsesSchemaAndGraphRefsToAvoidChurn)
 

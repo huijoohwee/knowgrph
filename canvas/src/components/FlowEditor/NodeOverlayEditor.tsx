@@ -29,6 +29,7 @@ import {
   computeNodeQuickEditorScaledSize,
   NODE_QUICK_EDITOR_BASE_SIZE,
 } from '@/components/FlowEditor/nodeQuickEditorZoom'
+import { computeDefaultNodeQuickEditorFloatingPos } from '@/components/FlowEditor/nodeQuickEditorLayout'
 import { getIconSizeClass } from '@/lib/ui'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { useShallow } from 'zustand/react/shallow'
@@ -230,23 +231,8 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   const [hideFields, setHideFields] = React.useState<boolean>(() => lsBool(LS_KEYS.flowNodeQuickEditorHideFields, false))
 
   const defaultFloatingPos = React.useMemo(() => {
-    const idx = Number.isFinite(stackIndex) ? Math.max(0, Math.floor(stackIndex as number)) : 0
-    const w = viewportRef.current.width
-    const h = viewportRef.current.height
-    const gap = 18
-    const cellW = NODE_QUICK_EDITOR_BASE_SIZE.width + gap
-    const cellH = Math.round(NODE_QUICK_EDITOR_BASE_SIZE.height * 0.72) + gap
-    const cols = Math.max(1, Math.min(4, Math.floor(Math.max(1, w - 40) / cellW)))
-    const col = idx % cols
-    const row = Math.floor(idx / cols)
-    const left = 20 + col * cellW
-    const top = 96 + row * cellH
-    const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max)
-    return {
-      left: clamp(left, 8, Math.max(8, w - NODE_QUICK_EDITOR_BASE_SIZE.width - 8)),
-      top: clamp(top, 8, Math.max(8, h - NODE_QUICK_EDITOR_BASE_SIZE.height - 8)),
-    }
-  }, [stackIndex])
+    return computeDefaultNodeQuickEditorFloatingPos({ stackIndex, viewportW, viewportH })
+  }, [stackIndex, viewportH, viewportW])
 
   const resolveFloatingPos = React.useCallback(
     (id: string, fallback: { top: number; left: number }): { top: number; left: number } => {
@@ -258,7 +244,8 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       )
       const v = map[id]
       if (v && Number.isFinite(v.top) && Number.isFinite(v.left)) {
-        const { width: viewportWidth, height: viewportHeight } = viewportRef.current
+        const viewportWidth = viewportW
+        const viewportHeight = viewportH
         const offset = canvasWindowOffsetRef.current
         const leftRaw = v.left
         const topRaw = v.top
@@ -280,7 +267,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       }
       return fallback
     },
-    [parsePosByNodeId],
+    [parsePosByNodeId, viewportH, viewportW],
   )
 
   const [pinnedTopPx, setPinnedTopPx] = React.useState<number>(() => resolveFloatingPos(nodeId, defaultFloatingPos).top)
@@ -452,7 +439,8 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     const anchoredTopPx = screenY - 12
     anchoredPosRef.current = { top: anchoredTopPx, left: anchoredLeftPx }
 
-    const { width: viewportWidth, height: viewportHeight } = viewportRef.current
+    const viewportWidth = viewportW
+    const viewportHeight = viewportH
     const pinned = pinnedRef.current
     const anchorOffset = useGraphStore.getState().flowNodeQuickEditorAnchorOffsetByNodeId?.[nodeId] || null
     const anchorDx =
@@ -485,7 +473,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
 
     const offset = canvasWindowOffsetRef.current
     el.style.transform = `translate3d(${pos.left + offset.left}px, ${pos.top + offset.top}px, 0) scale(${panelScale})`
-  }, [autoStackOffset.left, autoStackOffset.top, getLiveNodeWorldPos, nodeId, scheduleClampCommit, zoomViewKey])
+  }, [autoStackOffset.left, autoStackOffset.top, getLiveNodeWorldPos, nodeId, scheduleClampCommit, viewportH, viewportW, zoomViewKey])
 
   React.useEffect(() => {
     if (!active) return
@@ -566,7 +554,8 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       if (!nextLocked) {
         const anchor = anchoredPosRef.current
         const scaled = scaledSizeRef.current
-        const { width: viewportWidth, height: viewportHeight } = viewportRef.current
+        const viewportWidth = viewportW
+        const viewportHeight = viewportH
         const h = hashStringToHex(nodeId)
         const v0 = parseInt(h.slice(0, 4), 16)
         const v1 = parseInt(h.slice(4, 8), 16)
@@ -585,7 +574,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       }
       return nextLocked
     })
-  }, [nodeId, persistFloatingPos, setLockedToNode])
+  }, [nodeId, persistFloatingPos, setLockedToNode, viewportH, viewportW])
 
   const handleToggleMinimized = React.useCallback(() => {
     setMinimized(prev => {
