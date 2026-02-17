@@ -26,12 +26,14 @@ import { GraphTableFastGrid } from '@/features/graph-table/ui/GraphTableFastGrid
 import { GraphTableCanvasPreviewDock } from '@/features/graph-table/ui/GraphTableCanvasPreviewDock'
 import {
   makeGraphTableRuleId,
+  parseColumnOrderByTableId,
   parseColumnVisibilityById,
   parseColumnWidthsPxById,
   parseFilterClauses,
   parseFilterMatch,
   parseRowHeightPreset,
   parseSortRules,
+  type GraphTableColumnOrderByTableId,
   type GraphTableColumnVisibilityById,
   type GraphTableColumnWidthsPxById,
   type GraphTableFilterClause,
@@ -60,6 +62,51 @@ const getRowTocId = (row: GraphTableGridRow | null): string | null => {
   const heading = typeof anyRow.heading === 'string' ? anyRow.heading.trim() : ''
   if (heading) return heading
   return null
+}
+
+const applyColumnOrder = (args: { columns: GraphColumnDoc[]; orderIds: string[] | undefined }): GraphColumnDoc[] => {
+  const base = args.columns
+    .filter(c => !c.hidden)
+    .slice()
+    .sort((a, b) => a.order - b.order)
+  const order = Array.isArray(args.orderIds) ? args.orderIds : null
+  if (!order || order.length === 0) return base
+
+  const byId = new Map<string, GraphColumnDoc>()
+  for (const c of base) byId.set(c.columnId, c)
+  const used = new Set<string>()
+  const next: GraphColumnDoc[] = []
+  for (const id of order) {
+    const c = byId.get(id)
+    if (!c) continue
+    if (used.has(id)) continue
+    used.add(id)
+    next.push(c)
+  }
+  for (const c of base) {
+    if (used.has(c.columnId)) continue
+    next.push(c)
+  }
+  return next
+}
+
+const reorderIds = (args: {
+  ids: string[]
+  fromId: string
+  toId: string
+  side: 'left' | 'right'
+}): string[] => {
+  const ids = args.ids.slice()
+  const fromIndex = ids.indexOf(args.fromId)
+  const toIndex = ids.indexOf(args.toId)
+  if (fromIndex < 0 || toIndex < 0) return ids
+  if (fromIndex === toIndex) return ids
+
+  const insertBase = toIndex + (args.side === 'right' ? 1 : 0)
+  const insertIndex = fromIndex < insertBase ? insertBase - 1 : insertBase
+  ids.splice(fromIndex, 1)
+  ids.splice(insertIndex, 0, args.fromId)
+  return ids
 }
 
 export default function GraphTableWorkspace(props: { previewSrc?: string }) {
@@ -98,20 +145,30 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
   const [columnWidthsPxById, setColumnWidthsPxById] = useState<GraphTableColumnWidthsPxById>(() =>
     lsJson(LS_KEYS.graphTableColumnWidthsPx, {}, parseColumnWidthsPxById),
   )
+  const [columnOrderByTableId, setColumnOrderByTableId] = useState<GraphTableColumnOrderByTableId>(() =>
+    lsJson(LS_KEYS.graphTableColumnOrderByTableId, {}, parseColumnOrderByTableId),
+  )
   const inspectorWidthPxRef = useRef(inspectorWidthPx)
   inspectorWidthPxRef.current = inspectorWidthPx
   const inspectorDragHandleRef = useRef<HTMLHRElement | null>(null)
   const { noteGraphWrite } = useGraphTableDbSync(graphDataRevision, renderGraphData)
-  const rowCacheRef = useRef<{ hashById: Map<string, number>; rowById: Map<string, GraphTableGridRow> }>({
-    hashById: new Map(),
-    rowById: new Map(),
-  })
+  const rowCacheRef = useRef<
+    Map<GraphTableId, { hashById: Map<string, number>; rowById: Map<string, GraphTableGridRow> }>
+  >(new Map())
 
   useEffect(() => {
     let sub: Subscription | null = null
     let rowSub: Subscription | null = null
     let colMap = new Map<string, GraphColumnDoc>()
     let cancelled = false
+
+    const cacheForTable = (() => {
+      const existing = rowCacheRef.current.get(activeTableId)
+      if (existing) return existing
+      const next = { hashById: new Map<string, number>(), rowById: new Map<string, GraphTableGridRow>() }
+      rowCacheRef.current.set(activeTableId, next)
+      return next
+    })()
 
     void (async () => {
       const { collections } = await getGraphTableDb()
@@ -122,10 +179,12 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
 
       const initialRows = await collections.rows.find({ selector: { tableId: activeTableId } }).sort({ order: 'asc' }).exec()
       if (cancelled) return
-      const cache = rowCacheRef.current
+      const cache = cacheForTable
       const nextRows: GraphTableGridRow[] = []
+      const nextIds = new Set<string>()
       for (const r of initialRows) {
         const json = r.toJSON() as GraphRowDoc
+        nextIds.add(json.rowId)
         const hash = hashString32(JSON.stringify(json.data || {}))
         const prevHash = cache.hashById.get(json.rowId)
         const prevRow = cache.rowById.get(json.rowId)
@@ -136,6 +195,12 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
           cache.hashById.set(json.rowId, hash)
           cache.rowById.set(json.rowId, nextRow)
           nextRows.push(nextRow)
+        }
+      }
+      for (const id of Array.from(cache.rowById.keys())) {
+        if (!nextIds.has(id)) {
+          cache.rowById.delete(id)
+          cache.hashById.delete(id)
         }
       }
       setRows(nextRows)
@@ -151,7 +216,7 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
       rowSub = collections.rows.$.subscribe((ev: RxChangeEvent<GraphRowDoc>) => {
         const doc = ev.documentData
         if (!doc || doc.tableId !== activeTableId) return
-        const cache = rowCacheRef.current
+        const cache = cacheForTable
         if (ev.operation === 'DELETE') {
           cache.hashById.delete(doc.rowId)
           cache.rowById.delete(doc.rowId)
@@ -239,6 +304,10 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
   useEffect(() => {
     lsSetJson(LS_KEYS.graphTableColumnWidthsPx, columnWidthsPxById)
   }, [columnWidthsPxById])
+
+  useEffect(() => {
+    lsSetJson(LS_KEYS.graphTableColumnOrderByTableId, columnOrderByTableId)
+  }, [columnOrderByTableId])
 
   useEffect(() => {
     const el = inspectorDragHandleRef.current
@@ -351,8 +420,26 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
     setColumnWidthsPxById(prev => ({ ...prev, [columnId]: widthPx }))
   }, [])
 
+  const orderedColumns = useMemo(() => {
+    return applyColumnOrder({ columns, orderIds: columnOrderByTableId[activeTableId] })
+  }, [activeTableId, columnOrderByTableId, columns])
+
+  const handleRequestReorderColumn = useCallback(
+    (fromColumnId: string, toColumnId: string, side: 'left' | 'right') => {
+      setColumnOrderByTableId(prev => {
+        const current = prev[activeTableId] || []
+        const base = applyColumnOrder({ columns, orderIds: current })
+        const ids = base.map(c => c.columnId)
+        const nextIds = reorderIds({ ids, fromId: fromColumnId, toId: toColumnId, side })
+        if (nextIds.join('\n') === ids.join('\n')) return prev
+        return { ...prev, [activeTableId]: nextIds }
+      })
+    },
+    [activeTableId, columns],
+  )
+
   useEffect(() => {
-    const available = columns.filter(c => !c.hidden).slice().sort((a, b) => a.order - b.order)
+    const available = orderedColumns
     const first = available[0]?.columnId || 'id'
     const setOfIds = new Set(available.map(c => c.columnId))
 
@@ -374,7 +461,7 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
       if (next.length === prev.length) return prev
       return next
     })
-  }, [activeTableId, columns])
+  }, [activeTableId, orderedColumns])
 
   return (
     <main
@@ -435,11 +522,7 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
         <section className="px-3 py-2 flex items-center justify-between gap-3">
           <GraphTableToolbar
             panelTypography={panelTypography}
-            columns={columns
-              .filter(c => !c.hidden)
-              .slice()
-              .sort((a, b) => a.order - b.order)
-              .map(c => ({ columnId: c.columnId, name: c.name }))}
+            columns={orderedColumns.map(c => ({ columnId: c.columnId, name: c.name }))}
             tableCollapsed={tableCollapsed}
             setTableCollapsed={setTableCollapsed}
             columnVisibilityById={columnVisibilityById}
@@ -478,7 +561,9 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
               sortRules={sortRules}
               rowHeightPreset={rowHeightPreset}
               columnWidthsPxById={columnWidthsPxById}
+              columnOrderIds={columnOrderByTableId[activeTableId]}
               onColumnWidthChanged={handleColumnWidthChanged}
+              onRequestReorderColumn={handleRequestReorderColumn}
               onCellValueChanged={handleCellValueChanged}
               onRowClicked={rowId => {
                 setInspectorRowId(rowId)

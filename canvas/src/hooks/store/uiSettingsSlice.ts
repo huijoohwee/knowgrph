@@ -188,7 +188,8 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   setGraphFieldSettingsById: (next: GraphFieldSettingsById) => set({ graphFieldSettingsById: next }),
   setSelectedGraphFieldId: (id: GraphFieldId | null) => set({ selectedGraphFieldId: id }),
   setGraphDataTableVisibleColumns: (next: GraphDataTableColumnVisibilityByKey) => set({ graphDataTableVisibleColumns: next }),
-  setGraphDataTableColumnOrder: (next: GraphDataTableColumnKey[]) => set({ graphDataTableColumnOrder: next }),
+  setGraphDataTableColumnOrder: (next: GraphDataTableColumnKey[]) =>
+    set({ graphDataTableColumnOrder: Array.from(new Set(next)) as GraphDataTableColumnKey[] }),
   setGraphDataTableAggregateKeys: (next: GraphDataTableColumnKey[]) => set({ graphDataTableAggregateKeys: next }),
   setGraphDataTableFilterMatch: (match: GraphDataTableFilterMatch) => set({ graphDataTableFilterMatch: match }),
   setGraphDataTableFilterClauses: (

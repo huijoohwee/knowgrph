@@ -48,8 +48,6 @@ export type PdfImportConversionMode = 'text-only' | 'image-heavy' | 'scan-ocr'
 
 export type PdfImportOcrMode = 'fallback' | 'always'
 
-export type EditorWorkspaceSection = 'markdown' | 'graphTable'
-
 export type DocumentStructureBaselineSnapshot = {
   documentSemanticMode: DocumentSemanticMode
   frontmatterModeEnabled: boolean
@@ -199,10 +197,9 @@ export interface GraphState {
   selectionSource: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'table' | 'unknown';
   setSelectionSource: (src: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'table' | 'unknown') => void;
 
-  editorWorkspaceSection: EditorWorkspaceSection
-  setEditorWorkspaceSection: (section: EditorWorkspaceSection) => void
   isEditMode: boolean;
   workspaceViewMode: WorkspaceViewMode;
+  workspaceViewModeBeforeTable: Exclude<WorkspaceViewMode, 'table'>
   documentStructureBaselineLock: boolean;
   documentStructureBaselineSnapshot: DocumentStructureBaselineSnapshot | null
   setDocumentStructureBaselineLock: (enabled: boolean) => void;

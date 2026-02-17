@@ -137,13 +137,10 @@ function inferYoutubeVideoIdFromPath(path: string): string | null {
   return m ? m[1] : null
 }
 
-const GraphTableWorkspaceLazy = React.lazy(() => import('@/features/graph-table/ui/GraphTableWorkspace'))
-
 export function MarkdownWorkspace() {
   const themeMode = useGraphStore(s => (s.resolvedThemeMode || 'light') as 'light' | 'dark')
   const bottomPanelCollapsed = useGraphStore(s => s.bottomPanelCollapsed)
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
-  const editorWorkspaceSection = useGraphStore(s => s.editorWorkspaceSection)
   const effectiveBottomPanelCollapsed = workspaceViewMode === 'editor' ? false : bottomPanelCollapsed
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
@@ -2297,8 +2294,6 @@ export function MarkdownWorkspace() {
     : 'inmemory://model/empty'
   const editorLanguage = activePath ? (webpageEditorMode || languageForPath(activePath)) : 'markdown'
 
-  const showGraphTable = workspaceViewMode === 'editor' && editorWorkspaceSection === 'graphTable'
-
   const effectiveActiveText = (() => {
     if (contentMode === 'nodeQuickEditor') return quickEditorEditorText
     if (activeText) return activeText
@@ -2379,68 +2374,62 @@ export function MarkdownWorkspace() {
 
       <VerticalResizeSeparatorHr ref={resizeHandleRef} ariaLabel="Resize explorer" />
 
-      {showGraphTable ? (
-        <React.Suspense fallback={null}>
-          <GraphTableWorkspaceLazy />
-        </React.Suspense>
-      ) : (
-        <MarkdownWorkspaceMain
-          themeMode={themeMode}
-          uiPanelTextFontClass={uiPanelTextFontClass}
-          uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-          geoDatasetIntegration={geoDatasetIntegration}
-          layoutMode={layoutMode}
-          setLayoutMode={setLayoutMode}
-          markdownWordWrap={markdownWordWrap}
-          setMarkdownWordWrap={setMarkdownWordWrap}
-          markdownTextHighlight={markdownTextHighlight}
-          setMarkdownTextHighlight={setMarkdownTextHighlight}
-          statusLabel={statusLabel}
-          onStatusProgress={setStatusProgress}
-          onStatusWithAutoClear={(label, ttlMs) => setStatusWithAutoClear(label, ttlMs)}
-          onApply={() => void handleApply()}
-          onSave={() => void saveActiveFileNow()}
-          onSaveAs={() => void saveAsActiveFileNow()}
-          onToggleFullscreen={toggleFullscreen}
-          presentationApiRef={presentationApiRef}
-          contentMode={contentMode}
-          setContentMode={setContentModeSafe}
-          nodeQuickEditorAvailable={nodeQuickEditorAvailable}
-          nodeQuickEditorFormat={nodeQuickEditorFormat}
-          setNodeQuickEditorFormat={setNodeQuickEditorFormat}
-          onCopyNodeQuickEditor={onCopyNodeQuickEditor}
-          isEditing={effectiveIsEditing}
-          isMarkdown={effectiveIsMarkdown}
-          onFormatAction={handleFormatAction}
-          onImportLocalFiles={fileActions.handleImportLocalFiles}
-          onImportLocalFolder={fileActions.handleImportLocalFolder}
-          onImportUrl={fileActions.handleImportUrl}
-          onImportWebsite={fileActions.handleImportWebsite}
-          webpageWorkspaceMeta={webpageWorkspaceMeta}
-          onWebpageChangeView={(view) => void switchActiveWebpageWorkspaceView(view)}
-          onWebpageUpdateMeta={patch => void updateActiveWebpageWorkspaceMeta(patch)}
-          onWebpageSyncMarkdownFromDom={() => void syncActiveWebpageMarkdownFromDom()}
-          activeText={effectiveActiveText}
-          setActiveText={effectiveSetActiveText}
-          editorTextOverride={effectiveEditorTextOverride}
-          disableEditorMutations={
-            webpageDerivedReadOnlyActive || (webpageWorkspaceMeta?.view === 'json' && typeof effectiveEditorTextOverride === 'string')
-          }
-          webpageHtmlOverride={null}
-          viewerTextOverride={combinedViewerTextOverride}
-          disableViewerMutations={contentMode === 'nodeQuickEditor'}
-          activeDocumentKey={activeDocumentKey}
-          highlightedLineRange={highlightedLineRange}
-          revealLineInEditor={revealLineInEditor}
-          showInViewer={showInViewer}
-          showInPresentation={showInPresentation}
-          showInSlidesGallery={showInSlidesGallery}
-          editorUri={editorUri}
-          editorLanguage={editorLanguage}
-          editorRef={editorRef}
-          onEditorCaretLine={onEditorCaretLine}
-        />
-      )}
+      <MarkdownWorkspaceMain
+        themeMode={themeMode}
+        uiPanelTextFontClass={uiPanelTextFontClass}
+        uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+        geoDatasetIntegration={geoDatasetIntegration}
+        layoutMode={layoutMode}
+        setLayoutMode={setLayoutMode}
+        markdownWordWrap={markdownWordWrap}
+        setMarkdownWordWrap={setMarkdownWordWrap}
+        markdownTextHighlight={markdownTextHighlight}
+        setMarkdownTextHighlight={setMarkdownTextHighlight}
+        statusLabel={statusLabel}
+        onStatusProgress={setStatusProgress}
+        onStatusWithAutoClear={(label, ttlMs) => setStatusWithAutoClear(label, ttlMs)}
+        onApply={() => void handleApply()}
+        onSave={() => void saveActiveFileNow()}
+        onSaveAs={() => void saveAsActiveFileNow()}
+        onToggleFullscreen={toggleFullscreen}
+        presentationApiRef={presentationApiRef}
+        contentMode={contentMode}
+        setContentMode={setContentModeSafe}
+        nodeQuickEditorAvailable={nodeQuickEditorAvailable}
+        nodeQuickEditorFormat={nodeQuickEditorFormat}
+        setNodeQuickEditorFormat={setNodeQuickEditorFormat}
+        onCopyNodeQuickEditor={onCopyNodeQuickEditor}
+        isEditing={effectiveIsEditing}
+        isMarkdown={effectiveIsMarkdown}
+        onFormatAction={handleFormatAction}
+        onImportLocalFiles={fileActions.handleImportLocalFiles}
+        onImportLocalFolder={fileActions.handleImportLocalFolder}
+        onImportUrl={fileActions.handleImportUrl}
+        onImportWebsite={fileActions.handleImportWebsite}
+        webpageWorkspaceMeta={webpageWorkspaceMeta}
+        onWebpageChangeView={(view) => void switchActiveWebpageWorkspaceView(view)}
+        onWebpageUpdateMeta={patch => void updateActiveWebpageWorkspaceMeta(patch)}
+        onWebpageSyncMarkdownFromDom={() => void syncActiveWebpageMarkdownFromDom()}
+        activeText={effectiveActiveText}
+        setActiveText={effectiveSetActiveText}
+        editorTextOverride={effectiveEditorTextOverride}
+        disableEditorMutations={
+          webpageDerivedReadOnlyActive || (webpageWorkspaceMeta?.view === 'json' && typeof effectiveEditorTextOverride === 'string')
+        }
+        webpageHtmlOverride={null}
+        viewerTextOverride={combinedViewerTextOverride}
+        disableViewerMutations={contentMode === 'nodeQuickEditor'}
+        activeDocumentKey={activeDocumentKey}
+        highlightedLineRange={highlightedLineRange}
+        revealLineInEditor={revealLineInEditor}
+        showInViewer={showInViewer}
+        showInPresentation={showInPresentation}
+        showInSlidesGallery={showInSlidesGallery}
+        editorUri={editorUri}
+        editorLanguage={editorLanguage}
+        editorRef={editorRef}
+        onEditorCaretLine={onEditorCaretLine}
+      />
     </section>
   )
 }

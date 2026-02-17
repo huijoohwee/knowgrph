@@ -161,7 +161,9 @@ export function hitTest<RowT extends { id: string }>(args: {
   const rect = viewportEl.getBoundingClientRect()
   const x = clientX - rect.left
   const y = clientY - rect.top
-  if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null
+  const viewportW = Math.max(1, viewportEl.clientWidth)
+  const viewportH = Math.max(1, viewportEl.clientHeight)
+  if (x < 0 || y < 0 || x > viewportW || y > viewportH) return null
 
   const inHeader = y <= headerHeight
   const rowIndex = inHeader ? -1 : Math.floor((y - headerHeight + scrollTop) / rowHeight)
@@ -207,6 +209,8 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
   someSelected: boolean
   sortIndexByColumnId: Record<string, { dir: 'asc' | 'desc'; index: number }>
   isGroupCollapsed: (label: string) => boolean
+  reorderHint?: { columnId: string; side: 'left' | 'right' } | null
+  selectedColumnId?: string | null
   theme?: GridTheme | null
 }): void {
   const {
@@ -223,11 +227,13 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
     someSelected,
     sortIndexByColumnId,
     isGroupCollapsed,
+    reorderHint,
+    selectedColumnId,
     theme,
   } = args
 
-  const scrollLeftPx = Math.round(scrollLeft)
-  const scrollTopPx = Math.round(scrollTop)
+  const scrollLeftPx = scrollLeft
+  const scrollTopPx = scrollTop
 
   const ctx = canvas.getContext('2d')
   if (!ctx) return
@@ -254,6 +260,7 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
   const accentRgb = parseCssColorToRgb(accent) || { r: 59, g: 130, b: 246 }
   const textPrimaryRgb = parseCssColorToRgb(textPrimary) || { r: 17, g: 24, b: 39 }
   const rowSelectedBg = rgba(accentRgb, 0.14)
+  const colSelectedBg = rgba(accentRgb, 0.10)
   const groupRowBg = rgba(textPrimaryRgb, 0.035)
 
   ctx.fillStyle = panelBgSolid
@@ -316,6 +323,35 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
 
   ctx.fillStyle = panelBgSolid
   ctx.fillRect(0, 0, w, headerHeight)
+
+  if (selectedColumnId) {
+    const pinned = layout.pinned.find(c => c.id === selectedColumnId)
+    if (pinned) {
+      let x = 0
+      for (const c of layout.pinned) {
+        if (c.id === selectedColumnId) break
+        x += c.width
+      }
+      ctx.save()
+      ctx.fillStyle = colSelectedBg
+      ctx.fillRect(x, 0, pinned.width, headerHeight)
+      ctx.restore()
+    } else {
+      const idx = layout.scrollable.findIndex(c => c.id === selectedColumnId)
+      if (idx >= 0) {
+        const col = layout.scrollable[idx]
+        const colX = layout.scrollableOffsets[idx] || 0
+        const x = layout.pinnedWidth + colX - scrollLeftPx
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(layout.pinnedWidth, 0, Math.max(0, w - layout.pinnedWidth), headerHeight)
+        ctx.clip()
+        ctx.fillStyle = colSelectedBg
+        ctx.fillRect(x, 0, col.width, headerHeight)
+        ctx.restore()
+      }
+    }
+  }
   ctx.strokeStyle = divider
   ctx.lineWidth = 1
   ctx.beginPath()
@@ -377,6 +413,27 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
     ctx.lineTo(x + cellW - 2 + 0.5, headerHeight - 6)
     ctx.stroke()
   }
+
+  if (reorderHint && reorderHint.columnId) {
+    const idx = layout.scrollable.findIndex(c => c.id === reorderHint.columnId)
+    if (idx >= 0) {
+      const col = layout.scrollable[idx]
+      const colX = layout.scrollableOffsets[idx] || 0
+      const x =
+        layout.pinnedWidth +
+        colX -
+        scrollLeftPx +
+        (reorderHint.side === 'right' ? col.width : 0)
+      ctx.save()
+      ctx.strokeStyle = accent
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(x + 0.5, 0)
+      ctx.lineTo(x + 0.5, h)
+      ctx.stroke()
+      ctx.restore()
+    }
+  }
   ctx.restore()
 
   const rowRange = getVisibleRange({
@@ -406,6 +463,35 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
     } else {
       ctx.fillStyle = groupRowBg
       ctx.fillRect(0, y, w, rowHeight)
+    }
+
+    if (selectedColumnId) {
+      const pinned = layout.pinned.find(c => c.id === selectedColumnId)
+      if (pinned) {
+        let x = 0
+        for (const c of layout.pinned) {
+          if (c.id === selectedColumnId) break
+          x += c.width
+        }
+        ctx.save()
+        ctx.fillStyle = colSelectedBg
+        ctx.fillRect(x, y, pinned.width, rowHeight)
+        ctx.restore()
+      } else {
+        const idx = layout.scrollable.findIndex(c => c.id === selectedColumnId)
+        if (idx >= 0) {
+          const col = layout.scrollable[idx]
+          const colX = layout.scrollableOffsets[idx] || 0
+          const x = layout.pinnedWidth + colX - scrollLeftPx
+          ctx.save()
+          ctx.beginPath()
+          ctx.rect(layout.pinnedWidth, y, Math.max(0, w - layout.pinnedWidth), rowHeight)
+          ctx.clip()
+          ctx.fillStyle = colSelectedBg
+          ctx.fillRect(x, y, col.width, rowHeight)
+          ctx.restore()
+        }
+      }
     }
 
     ctx.strokeStyle = divider

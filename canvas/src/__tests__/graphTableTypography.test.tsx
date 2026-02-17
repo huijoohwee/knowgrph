@@ -67,6 +67,7 @@ export async function testGraphTableTypographyUsesUiSettings() {
         rowHeightPreset: 'comfortable',
         columnWidthsPxById: {},
         onColumnWidthChanged: () => void 0,
+        onRequestReorderColumn: () => void 0,
         onCellValueChanged: () => void 0,
         onRowClicked: () => void 0,
         onSelectionChanged: () => void 0,

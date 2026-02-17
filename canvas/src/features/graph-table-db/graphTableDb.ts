@@ -70,6 +70,8 @@ export type GraphTableDb = {
 
 export const GRAPH_TABLE_DB_NAME = 'kg:graph-table'
 
+const GRAPH_TABLE_COLUMN_ORDER_STEP = 1024
+
 let graphTableDbWriteQueue: Promise<void> = Promise.resolve()
 
 const withGraphTableDbWrite = async <T>(fn: () => Promise<T>): Promise<T> => {
@@ -419,11 +421,11 @@ const ensureColumnsForRowData = async (tableId: GraphTableId, rows: Array<Record
   }
 
   const maxOrder = Math.max(0, ...Array.from(existing.values()).map(c => c.order))
-  let order = maxOrder
+  let order = Math.ceil(maxOrder / GRAPH_TABLE_COLUMN_ORDER_STEP) * GRAPH_TABLE_COLUMN_ORDER_STEP
   const planned: GraphColumnDoc[] = []
   for (const [columnId, kind] of observed.entries()) {
     if (existing.has(columnId)) continue
-    order += 1
+    order += GRAPH_TABLE_COLUMN_ORDER_STEP
     planned.push({
       pk: pkOfColumn(tableId, columnId),
       tableId,

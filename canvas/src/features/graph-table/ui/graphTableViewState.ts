@@ -21,6 +21,7 @@ export type GraphTableSortRule = {
 
 export type GraphTableColumnVisibilityById = Record<string, boolean>
 export type GraphTableColumnWidthsPxById = Record<string, number>
+export type GraphTableColumnOrderByTableId = Record<string, string[]>
 
 export const makeGraphTableRuleId = (): string => {
   return `r-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
@@ -95,3 +96,20 @@ export const parseColumnWidthsPxById = (raw: unknown): GraphTableColumnWidthsPxB
   return out
 }
 
+export const parseColumnOrderByTableId = (raw: unknown): GraphTableColumnOrderByTableId | null => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const anyRaw = raw as Record<string, unknown>
+  const out: GraphTableColumnOrderByTableId = {}
+  for (const [tableId, value] of Object.entries(anyRaw)) {
+    if (!tableId) continue
+    if (!Array.isArray(value)) continue
+    const ids: string[] = []
+    for (const item of value) {
+      const id = typeof item === 'string' ? item.trim() : ''
+      if (!id) continue
+      ids.push(id)
+    }
+    out[tableId] = ids
+  }
+  return out
+}

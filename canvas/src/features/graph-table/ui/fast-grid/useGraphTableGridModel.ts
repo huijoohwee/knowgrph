@@ -22,6 +22,7 @@ export function useGraphTableGridModel(args: {
   groupBy: string
   sortRules: GraphTableSortRule[]
   columnWidthsPxById: GraphTableColumnWidthsPxById
+  columnOrderIds?: string[]
   headerHeight: number
   rowHeight: number
   selectedRowIds: string[]
@@ -30,12 +31,33 @@ export function useGraphTableGridModel(args: {
   const [collapseVersion, bumpCollapseVersion] = useReducer(x => x + 1, 0)
 
   const visibleDataColumns = useMemo(() => {
-    return args.columns
+    const base = args.columns
       .filter(c => !c.hidden)
       .slice()
       .sort((a, b) => a.order - b.order)
-      .filter(c => args.columnVisibilityById[c.columnId] !== false)
-  }, [args.columnVisibilityById, args.columns])
+
+    const visibilityFiltered = base.filter(c => args.columnVisibilityById[c.columnId] !== false)
+    const order = Array.isArray(args.columnOrderIds) ? args.columnOrderIds : null
+    if (!order || order.length === 0) return visibilityFiltered
+
+    const byId = new Map<string, GraphColumnDoc>()
+    for (const c of visibilityFiltered) byId.set(c.columnId, c)
+
+    const used = new Set<string>()
+    const next: GraphColumnDoc[] = []
+    for (const id of order) {
+      const c = byId.get(id)
+      if (!c) continue
+      if (used.has(id)) continue
+      used.add(id)
+      next.push(c)
+    }
+    for (const c of visibilityFiltered) {
+      if (used.has(c.columnId)) continue
+      next.push(c)
+    }
+    return next
+  }, [args.columnOrderIds, args.columnVisibilityById, args.columns])
 
   const columns: GridColumnMeta[] = useMemo(() => {
     const pinned: GridColumnMeta[] = [

@@ -88,8 +88,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
   const toggleWorkspaceViewMode = useGraphStore(s => s.toggleWorkspaceViewMode)
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
-  const editorWorkspaceSection = useGraphStore(s => s.editorWorkspaceSection)
-  const setEditorWorkspaceSection = useGraphStore(s => s.setEditorWorkspaceSection)
+  const workspaceViewModeBeforeTable = useGraphStore(s => s.workspaceViewModeBeforeTable)
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes);
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes);
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
@@ -217,22 +216,19 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
 
       <IconButton
         className={`App-toolbar__btn ${
-          workspaceViewMode === 'table' || (workspaceViewMode === 'editor' && editorWorkspaceSection === 'graphTable')
+          workspaceViewMode === 'table'
             ? uiPrimaryIconActiveClassName
             : uiPrimaryIconInactiveClassName
         }`}
         title={UI_COPY.toolbarGraphDataTableToggleTitle}
         tooltipContent={
-          workspaceViewMode === 'table' || (workspaceViewMode === 'editor' && editorWorkspaceSection === 'graphTable')
+          workspaceViewMode === 'table'
             ? UI_COPY.toolbarGraphDataTableWorkspaceOnTooltip
             : UI_COPY.toolbarGraphDataTableWorkspaceOffTooltip
         }
         onClick={() => {
-          if (workspaceViewMode === 'editor') {
-            setEditorWorkspaceSection(editorWorkspaceSection === 'graphTable' ? 'markdown' : 'graphTable')
-            return
-          }
-          setWorkspaceViewMode(workspaceViewMode === 'table' ? 'canvas' : 'table')
+          if (workspaceViewMode === 'table') setWorkspaceViewMode(workspaceViewModeBeforeTable)
+          else setWorkspaceViewMode('table')
         }}
         showTooltip
       >

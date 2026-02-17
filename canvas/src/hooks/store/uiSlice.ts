@@ -101,6 +101,12 @@ export const createUiSlice = (set: SetGraph) => {
       value => (value === 'editor' || value === 'canvas' || value === 'table' ? value : 'canvas'),
     ),
 
+    workspaceViewModeBeforeTable: lsJson<'canvas' | 'editor'>(
+      LS_KEYS.workspaceViewModeBeforeTable,
+      'canvas',
+      value => (value === 'editor' || value === 'canvas' ? value : 'canvas'),
+    ),
+
     documentStructureBaselineLock: lsBool(LS_KEYS.documentStructureBaselineLock, true),
     documentStructureBaselineSnapshot: null,
     setDocumentStructureBaselineLock: (enabled: boolean) =>
@@ -178,13 +184,6 @@ export const createUiSlice = (set: SetGraph) => {
           selectedGroupIds: [],
         } as Partial<GraphState>
       }),
-
-    editorWorkspaceSection: lsJson<'markdown' | 'graphTable'>(
-      LS_KEYS.workspaceEditorSection,
-      'markdown',
-      value => (value === 'markdown' || value === 'graphTable' ? value : 'markdown'),
-    ),
-
     codeHighlightDurationMs: 1000,
     codeSelectThrottleMs: 100,
     codeHighlightUntilClick: true,
@@ -385,19 +384,16 @@ export const createUiSlice = (set: SetGraph) => {
     setEditMode: (mode: boolean) => set({ isEditMode: mode }),
 
     setWorkspaceViewMode: (mode: 'canvas' | 'editor' | 'table') =>
-      set({
-        workspaceViewMode: lsSetJson(
-          LS_KEYS.workspaceViewMode,
-          mode === 'editor' ? 'editor' : mode === 'table' ? 'table' : 'canvas',
-        ),
-      }),
-
-    setEditorWorkspaceSection: (section: 'markdown' | 'graphTable') =>
-      set({
-        editorWorkspaceSection: lsSetJson(
-          LS_KEYS.workspaceEditorSection,
-          section === 'graphTable' ? 'graphTable' : 'markdown',
-        ),
+      set(s => {
+        const nextMode = mode === 'editor' ? 'editor' : mode === 'table' ? 'table' : 'canvas'
+        const next: Partial<GraphState> = {
+          workspaceViewMode: lsSetJson(LS_KEYS.workspaceViewMode, nextMode),
+        }
+        if (nextMode === 'table') {
+          const currentNonTable = s.workspaceViewMode === 'editor' ? 'editor' : 'canvas'
+          next.workspaceViewModeBeforeTable = lsSetJson(LS_KEYS.workspaceViewModeBeforeTable, currentNonTable)
+        }
+        return next
       }),
     toggleWorkspaceViewMode: () =>
       set(s => {

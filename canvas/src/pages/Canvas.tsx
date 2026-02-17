@@ -223,7 +223,6 @@ export default function CanvasPage() {
     try {
       const store = useGraphStore.getState()
       store.setWorkspaceViewMode('editor')
-      store.setEditorWorkspaceSection('markdown')
     } catch {
       void 0
     }

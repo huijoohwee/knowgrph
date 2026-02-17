@@ -7,6 +7,7 @@ import {
   persistSourceFilesWorkspace,
   type SourceFilesWorkspaceState,
 } from '@/features/source-files/sourceFilesDb'
+import { applyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 
 const arraysEqualByIdAndHash = (a: unknown, b: unknown): boolean => {
   const aa = Array.isArray(a) ? a : []
@@ -28,6 +29,7 @@ export function SourceFilesPersistenceBootstrap() {
   const lastPersistedRef = React.useRef<unknown>(null)
   const workspaceHydratedRef = React.useRef(false)
   const lastWorkspacePersistedRef = React.useRef<unknown>(null)
+  const pendingComposeRef = React.useRef<number | null>(null)
 
   React.useEffect(() => {
     let cancelled = false
@@ -48,6 +50,12 @@ export function SourceFilesPersistenceBootstrap() {
             lastPersistedRef.current = persisted
           }
           hydratedRef.current = true
+        }
+
+        try {
+          applyComposedGraphFromSourceFiles()
+        } catch {
+          void 0
         }
 
         const store = useGraphStore.getState()
@@ -86,6 +94,23 @@ export function SourceFilesPersistenceBootstrap() {
       next => {
         if (!hydratedRef.current) return
         if (arraysEqualByIdAndHash(next, lastPersistedRef.current)) return
+
+        if (pendingComposeRef.current != null) {
+          try {
+            cancelAnimationFrame(pendingComposeRef.current)
+          } catch {
+            void 0
+          }
+        }
+        pendingComposeRef.current = requestAnimationFrame(() => {
+          pendingComposeRef.current = null
+          try {
+            applyComposedGraphFromSourceFiles()
+          } catch {
+            void 0
+          }
+        })
+
         if (timer != null) {
           try {
             window.clearTimeout(timer)
@@ -109,6 +134,14 @@ export function SourceFilesPersistenceBootstrap() {
         } catch {
           void 0
         }
+      }
+      if (pendingComposeRef.current != null) {
+        try {
+          cancelAnimationFrame(pendingComposeRef.current)
+        } catch {
+          void 0
+        }
+        pendingComposeRef.current = null
       }
       unsubscribe()
     }
