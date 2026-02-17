@@ -30,6 +30,42 @@
 - Renderer/mode switches (D3/Flow/3D/Geospatial) must not reset selection or mutate canonical graph data.
 - When Geospatial Mode is enabled, the table remains usable but the graph canvas is not rendered; selection is still updated in the shared store for when the user returns to a graph renderer.
 
+### Layout & Scroll (DOM table)
+
+- The curation table is a DOM `<table>` surface with a single scroll container owning both header and body.
+- Sticky/frozen bands (header row and optional first data column) must remain visually aligned with the scrollable region at all horizontal scroll offsets.
+- The horizontal scroll owner must be the same element for header and body; avoid split scroll containers that drift.
+
+Code references:
+
+- [GraphDataTableTable.tsx](file:///Users/huijoohwee/Documents/GitHub/curagrph/src/features/graph-data-table/ui/GraphDataTableTable.tsx)
+- [GraphDataTableHeader.tsx](file:///Users/huijoohwee/Documents/GitHub/curagrph/src/features/graph-data-table/ui/GraphDataTableHeader.tsx)
+- [GraphDataTableBody.tsx](file:///Users/huijoohwee/Documents/GitHub/curagrph/src/features/graph-data-table/ui/GraphDataTableBody.tsx)
+
+### Frozen Areas
+
+- Frozen header row is always sticky.
+- Optional frozen first data column (`freezeFirstDataColumn ∈ {none,label,id}`) must:
+  - Stay pinned without blocking horizontal scroll for the rest of the columns.
+  - Render with fully opaque backgrounds in both header and body so scrolled content does not show through.
+  - Preserve pointer interactions on scrollable cells (do not place empty sticky overlays above scrollable content).
+
+### Column Widths
+
+- Header and body must share the same effective column widths (including per-column overrides) so horizontal alignment cannot drift.
+- Width changes must apply to both header cells and body cells in the same render pass.
+
+### Column Reorder (Glide-like)
+
+- Column reordering is initiated by pointer-drag on a header drag affordance and must not rely on HTML5 drag-and-drop.
+- Reordering operates over the visible ordered columns; after a drop, the new order is persisted via `graphDataTableColumnOrder`.
+- Reorder feedback must be explicit (drop hint / insertion side), and the table must remain usable while dragging (no text selection, no accidental column resize).
+
+### Empty Graph Behavior
+
+- When the active `GraphData` becomes empty (no nodes and no edges), the table must render the empty state and must not keep showing rows from a previous graph.
+- Any derived/cached row materialization must be invalidated when the base graph becomes `null` or empty so “no data” is always truthful.
+
 ### Surface Vocabulary
 
 - Cross-surface routing uses the shared `SsotSurface` vocabulary from `grph-shared/ssot/types` so “Table / Markdown / Slides / Canvas / Map” can be referenced without per-repo string drift.
