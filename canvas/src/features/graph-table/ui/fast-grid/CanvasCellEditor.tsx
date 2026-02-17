@@ -30,7 +30,7 @@ export function CanvasCellEditor(props: {
   return (
     <section
       aria-label="Cell editor"
-      className="absolute"
+      className="absolute z-20"
       style={{
         left: Math.round(props.state.rect.x),
         top: Math.round(props.state.rect.y),
@@ -59,4 +59,3 @@ export function CanvasCellEditor(props: {
     </section>
   )
 }
-

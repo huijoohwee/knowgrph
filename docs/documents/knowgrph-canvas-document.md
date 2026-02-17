@@ -99,9 +99,11 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 
 - The Graph Data Table inside Editor mode is **not** the extracted `curagrph` Graph Data Table surface; it is a host-owned workspace tool.
 - The table surface must remain self-contained and drift-resistant:
-  - Semantic DOM: `<header>`, `<nav>`, `<form>`, `<table>`, `<thead>`, `<tbody>`, `<tr>`, `<th scope="col">`, `<td>`.
+  - Rendering uses a canvas-based fast grid with an overflow scroll viewport (single scroll owner).
   - View shaping is toolbar-driven (Fields/Filter/Group/Sort/Row height) and persisted via namespaced LS keys (`kg:ui:graphTable:*`).
-  - Column resizing uses `<colgroup><col style="width:..."/></colgroup>` + a `<button>` resize handle inside each header cell.
+  - Column resizing is pointer-drag based and must not reflow the app (only recompute layout for the grid).
+  - Scrolling correctness is mandatory: native vertical/horizontal scroll must work for large datasets and must not induce scroll/resize feedback loops.
+  - Visual correctness is mandatory: pinned header band and pinned columns must be fully opaque and must not show scrolled text underneath.
 - Split/Inspector:
   - The table grid and the Record Inspector are split by a draggable vertical `<hr>`; inspector open state and width persist via `LS_KEYS.graphTableInspectorOpen` and `LS_KEYS.graphTableInspectorWidthPx`.
 

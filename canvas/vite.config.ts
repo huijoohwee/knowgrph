@@ -59,6 +59,18 @@ const cesiumAssetsPlugin = {
   },
 }
 
+const stripEntitiesBadSourcemapsPlugin = {
+  name: 'knowgrph-strip-entities-bad-sourcemaps',
+  enforce: 'pre' as const,
+  transform(code: string, id: string) {
+    if (!id) return null
+    if (!id.includes('/entities/lib/esm/')) return null
+    if (!id.endsWith('.js')) return null
+    const next = code.replace(/^\/\/\# sourceMappingURL=.*\n?/gm, '')
+    return next === code ? null : next
+  },
+}
+
 function withRepoPythonPath(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const current = String(env.PYTHONPATH || '').trim()
   const next = current ? `${repoRoot}${path.delimiter}${current}` : repoRoot
@@ -2035,9 +2047,27 @@ export default defineConfig(({ command }) => ({
   define: {
     CESIUM_BASE_URL: JSON.stringify('/cesium/'),
   },
+  esbuild: {
+    sourcemap: false,
+  },
   optimizeDeps: {
     include: ['highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'dagre', 'elkjs', 'cesium'],
-    exclude: ['gympgrph', 'curagrph', 'grph-shared'],
+    exclude: ['gympgrph', 'curagrph', 'grph-shared', 'entities'],
+    esbuildOptions: {
+      sourcemap: false,
+      plugins: [
+        {
+          name: 'knowgrph-optimize-strip-entities-sourcemaps',
+          setup(build) {
+            build.onLoad({ filter: /[\\/]entities[\\/]lib[\\/]esm[\\/].*\.js$/ }, async (args) => {
+              const raw = await fs.readFile(args.path, 'utf8')
+              const next = raw.replace(/^\/\/\# sourceMappingURL=.*\n?/gm, '')
+              return { contents: next, loader: 'js' }
+            })
+          },
+        },
+      ],
+    },
   },
   build: {
     sourcemap: 'hidden',
@@ -2137,6 +2167,7 @@ export default defineConfig(({ command }) => ({
     }
   },
   plugins: [
+    stripEntitiesBadSourcemapsPlugin,
     react(),
     cesiumAssetsPlugin,
     ...(command === 'build'

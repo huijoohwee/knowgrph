@@ -1,5 +1,66 @@
 import { binarySearchFloor, clamp, getVisibleColumnsRange, getVisibleRange } from './fastGridMath'
 
+type Rgb = { r: number; g: number; b: number }
+
+function parseCssColorToRgb(input: string): Rgb | null {
+  const raw = String(input || '').trim()
+  if (!raw) return null
+  if (raw.startsWith('#')) {
+    const hex = raw.slice(1)
+    if (hex.length === 3) {
+      const r = parseInt(hex[0] + hex[0], 16)
+      const g = parseInt(hex[1] + hex[1], 16)
+      const b = parseInt(hex[2] + hex[2], 16)
+      if ([r, g, b].some(n => Number.isNaN(n))) return null
+      return { r, g, b }
+    }
+    if (hex.length === 6) {
+      const r = parseInt(hex.slice(0, 2), 16)
+      const g = parseInt(hex.slice(2, 4), 16)
+      const b = parseInt(hex.slice(4, 6), 16)
+      if ([r, g, b].some(n => Number.isNaN(n))) return null
+      return { r, g, b }
+    }
+    return null
+  }
+  const m = raw.match(/^rgba?\(([^)]+)\)$/i)
+  if (!m) return null
+  const parts = m[1]
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+  if (parts.length < 3) return null
+  const r = Number(parts[0])
+  const g = Number(parts[1])
+  const b = Number(parts[2])
+  if ([r, g, b].some(n => Number.isNaN(n))) return null
+  return { r: clamp(Math.round(r), 0, 255), g: clamp(Math.round(g), 0, 255), b: clamp(Math.round(b), 0, 255) }
+}
+
+function rgba(rgb: Rgb, a: number): string {
+  return `rgba(${rgb.r},${rgb.g},${rgb.b},${clamp(a, 0, 1)})`
+}
+
+function ellipsize(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+  const raw = String(text || '')
+  if (!raw) return ''
+  if (maxWidth <= 0) return ''
+  if (ctx.measureText(raw).width <= maxWidth) return raw
+  const ellipsis = '…'
+  const ellipsisW = ctx.measureText(ellipsis).width
+  if (ellipsisW >= maxWidth) return ''
+
+  let lo = 0
+  let hi = raw.length
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2)
+    const slice = raw.slice(0, mid)
+    if (ctx.measureText(slice).width + ellipsisW <= maxWidth) lo = mid
+    else hi = mid - 1
+  }
+  return `${raw.slice(0, Math.max(0, lo))}${ellipsis}`
+}
+
 export type GridColumnMeta = {
   kind: 'select' | 'order' | 'data'
   id: string
@@ -20,6 +81,48 @@ export type GridLayout = {
   scrollableOffsets: number[]
   totalWidth: number
   totalHeight: number
+}
+
+export type GridTheme = {
+  fontSize: string
+  fontFamily: string
+  panelBgSolid: string
+  divider: string
+  border: string
+  textPrimary: string
+  textSecondary: string
+  textTertiary: string
+  accent: string
+  tooltipText: string
+}
+
+export function readGridTheme(viewportEl: HTMLElement): GridTheme {
+  const computedViewport = window.getComputedStyle(viewportEl)
+  const computedRoot = window.getComputedStyle(document.documentElement)
+
+  const fontSize = computedViewport.fontSize || '12px'
+  const fontFamily = computedViewport.fontFamily || 'ui-sans-serif'
+
+  const divider = computedRoot.getPropertyValue('--kg-divider')?.trim() || 'rgba(0,0,0,0.12)'
+  const border = computedRoot.getPropertyValue('--kg-border')?.trim() || 'rgba(0,0,0,0.18)'
+  const textPrimary = computedViewport.color?.trim() || computedRoot.getPropertyValue('--kg-text-primary')?.trim() || '#111'
+  const textSecondary = computedRoot.getPropertyValue('--kg-text-secondary')?.trim() || '#666'
+  const textTertiary = computedRoot.getPropertyValue('--kg-text-tertiary')?.trim() || '#888'
+  const accent = computedRoot.getPropertyValue('--kg-canvas-accent')?.trim() || '#3b82f6'
+  const tooltipText = computedRoot.getPropertyValue('--kg-tooltip-text')?.trim() || '#fff'
+
+  const panelBgRgb = computedRoot.getPropertyValue('--panel-bg-rgb')?.trim()
+  const panelOpacity = computedRoot.getPropertyValue('--panel-opacity')?.trim()
+  const panelBg = computedRoot.getPropertyValue('--kg-panel-bg')?.trim() || '#ffffff'
+
+  const panelBgSolid =
+    panelBgRgb && panelOpacity
+      ? `rgba(${panelBgRgb},${panelOpacity})`
+      : panelBgRgb
+        ? `rgb(${panelBgRgb})`
+        : panelBg
+
+  return { fontSize, fontFamily, panelBgSolid, divider, border, textPrimary, textSecondary, textTertiary, accent, tooltipText }
 }
 
 export type GridHit<RowT> = {
@@ -104,6 +207,7 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
   someSelected: boolean
   sortIndexByColumnId: Record<string, { dir: 'asc' | 'desc'; index: number }>
   isGroupCollapsed: (label: string) => boolean
+  theme?: GridTheme | null
 }): void {
   const {
     canvas,
@@ -119,55 +223,56 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
     someSelected,
     sortIndexByColumnId,
     isGroupCollapsed,
+    theme,
   } = args
+
+  const scrollLeftPx = Math.round(scrollLeft)
+  const scrollTopPx = Math.round(scrollTop)
 
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
-  const rect = viewportEl.getBoundingClientRect()
   const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
-  const w = Math.max(1, Math.floor(rect.width))
-  const h = Math.max(1, Math.floor(rect.height))
-  const nextW = Math.max(1, Math.floor(w * dpr))
-  const nextH = Math.max(1, Math.floor(h * dpr))
+  const w = Math.max(1, viewportEl.clientWidth)
+  const h = Math.max(1, viewportEl.clientHeight)
+  const nextW = Math.max(1, Math.round(w * dpr))
+  const nextH = Math.max(1, Math.round(h * dpr))
   if (canvas.width !== nextW) canvas.width = nextW
   if (canvas.height !== nextH) canvas.height = nextH
-  canvas.style.width = `${w}px`
-  canvas.style.height = `${h}px`
+  const cssW = `${w}px`
+  const cssH = `${h}px`
+  if (canvas.style.width !== cssW) canvas.style.width = cssW
+  if (canvas.style.height !== cssH) canvas.style.height = cssH
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, w, h)
 
-  const computed = window.getComputedStyle(viewportEl)
-  const fontSize = computed.fontSize || '12px'
-  const fontFamily = computed.fontFamily || 'ui-sans-serif'
+  const resolvedTheme = theme || readGridTheme(viewportEl)
+  const { fontSize, fontFamily, panelBgSolid, divider, border, textPrimary, textSecondary, textTertiary, accent, tooltipText } = resolvedTheme
   ctx.font = `400 ${fontSize} ${fontFamily}`
   ctx.textBaseline = 'middle'
+  const accentRgb = parseCssColorToRgb(accent) || { r: 59, g: 130, b: 246 }
+  const textPrimaryRgb = parseCssColorToRgb(textPrimary) || { r: 17, g: 24, b: 39 }
+  const rowSelectedBg = rgba(accentRgb, 0.14)
+  const groupRowBg = rgba(textPrimaryRgb, 0.035)
 
-  const panelBg = computed.getPropertyValue('--kg-panel-bg')?.trim() || '#ffffff'
-  const divider = computed.getPropertyValue('--kg-divider')?.trim() || 'rgba(0,0,0,0.12)'
-  const border = computed.getPropertyValue('--kg-border')?.trim() || 'rgba(0,0,0,0.18)'
-  const textPrimary = computed.getPropertyValue('--kg-text-primary')?.trim() || '#111'
-  const textSecondary = computed.getPropertyValue('--kg-text-secondary')?.trim() || '#666'
-  const textTertiary = computed.getPropertyValue('--kg-text-tertiary')?.trim() || '#888'
-
-  ctx.fillStyle = panelBg
+  ctx.fillStyle = panelBgSolid
   ctx.fillRect(0, 0, w, h)
 
   const drawCheckbox = (x: number, y: number, size: number, checked: boolean, indeterminate: boolean) => {
     ctx.save()
     ctx.translate(x, y)
     ctx.lineWidth = 1
-    ctx.strokeStyle = 'rgba(128,128,128,0.8)'
+    ctx.strokeStyle = border
     ctx.beginPath()
     ctx.rect(0.5, 0.5, size - 1, size - 1)
     ctx.stroke()
     if (checked || indeterminate) {
-      ctx.fillStyle = 'rgba(59,130,246,0.95)'
+      ctx.fillStyle = rgba(accentRgb, 0.95)
       ctx.beginPath()
       ctx.rect(1, 1, size - 2, size - 2)
       ctx.fill()
-      ctx.strokeStyle = 'white'
+      ctx.strokeStyle = tooltipText
       ctx.lineWidth = 2
       ctx.beginPath()
       if (indeterminate) {
@@ -183,18 +288,33 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
     ctx.restore()
   }
 
-  const drawCellText = (text: string, x: number, y: number, cellW: number, color: string, bold: boolean) => {
+  const drawCellText = (
+    text: string,
+    x: number,
+    y: number,
+    cellW: number,
+    color: string,
+    bold: boolean,
+    clipMinX?: number,
+  ) => {
     ctx.save()
     ctx.fillStyle = color
     ctx.font = `${bold ? 600 : 400} ${fontSize} ${fontFamily}`
-    ctx.beginPath()
-    ctx.rect(x + 6, y + 1, Math.max(0, cellW - 12), rowHeight - 2)
-    ctx.clip()
-    ctx.fillText(text, x + 8, y + rowHeight / 2)
+    const cellStart = x + 6
+    const cellEnd = x + cellW - 6
+    const clipStart = Math.max(cellStart, typeof clipMinX === 'number' ? clipMinX : cellStart)
+    const clipW = cellEnd - clipStart
+    if (clipW > 0) {
+      ctx.beginPath()
+      ctx.rect(clipStart, y + 1, clipW, rowHeight - 2)
+      ctx.clip()
+      const maxTextW = Math.max(0, clipW - 4)
+      ctx.fillText(ellipsize(ctx, text, maxTextW), clipStart + 2, y + rowHeight / 2)
+    }
     ctx.restore()
   }
 
-  ctx.fillStyle = panelBg
+  ctx.fillStyle = panelBgSolid
   ctx.fillRect(0, 0, w, headerHeight)
   ctx.strokeStyle = divider
   ctx.lineWidth = 1
@@ -222,19 +342,23 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
 
   const colRange = getVisibleColumnsRange({
     offsets: layout.scrollableOffsets,
-    startPx: scrollLeft,
+    startPx: scrollLeftPx,
     viewportPx: Math.max(0, w - layout.pinnedWidth),
     overscan: 2,
   })
 
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(layout.pinnedWidth, 0, Math.max(0, w - layout.pinnedWidth), h)
+  ctx.clip()
   for (let i = colRange.start; i < colRange.end; i += 1) {
     const col = layout.scrollable[i]
     if (!col) continue
     const colX = layout.scrollableOffsets[i] || 0
-    const x = layout.pinnedWidth + colX - scrollLeft
+    const x = layout.pinnedWidth + colX - scrollLeftPx
     const cellW = col.width
     const sortMeta = sortIndexByColumnId[col.id]
-    drawCellText(col.title, x, 0, cellW, textSecondary, true)
+    drawCellText(col.title, x, 0, cellW, textSecondary, true, layout.pinnedWidth + 2)
     if (sortMeta) {
       ctx.save()
       ctx.fillStyle = textTertiary
@@ -253,29 +377,34 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
     ctx.lineTo(x + cellW - 2 + 0.5, headerHeight - 6)
     ctx.stroke()
   }
+  ctx.restore()
 
   const rowRange = getVisibleRange({
-    startPx: scrollTop,
+    startPx: scrollTopPx,
     viewportPx: Math.max(0, h - headerHeight),
     itemSizePx: rowHeight,
     itemCount: displayRows.length,
     overscan: 6,
   })
 
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(0, headerHeight, w, Math.max(0, h - headerHeight))
+  ctx.clip()
   for (let r = rowRange.start; r < rowRange.end; r += 1) {
     const item = displayRows[r]
     if (!item) continue
-    const y = headerHeight + r * rowHeight - scrollTop
+    const y = headerHeight + r * rowHeight - scrollTopPx
     if (y + rowHeight < headerHeight || y > h) continue
 
     if (item.kind === 'row') {
       const selected = selectedSet.has(item.row.id)
       if (selected) {
-        ctx.fillStyle = 'rgba(59,130,246,0.12)'
+        ctx.fillStyle = rowSelectedBg
         ctx.fillRect(0, y, w, rowHeight)
       }
     } else {
-      ctx.fillStyle = 'rgba(0,0,0,0.02)'
+      ctx.fillStyle = groupRowBg
       ctx.fillRect(0, y, w, rowHeight)
     }
 
@@ -300,23 +429,32 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
 
     if (item.kind === 'group') {
       const collapsed = isGroupCollapsed(item.label)
+      const groupBaseX = layout.pinnedWidth - scrollLeftPx
+      const groupSpanW = Math.max(80, layout.totalWidth - layout.pinnedWidth)
       ctx.save()
+      ctx.beginPath()
+      ctx.rect(layout.pinnedWidth, y, Math.max(0, w - layout.pinnedWidth), rowHeight)
+      ctx.clip()
       ctx.fillStyle = textSecondary
       ctx.font = `600 ${fontSize} ${fontFamily}`
-      ctx.fillText(collapsed ? '▶' : '▼', layout.pinnedWidth + 8, y + rowHeight / 2)
+      ctx.fillText(collapsed ? '▶' : '▼', groupBaseX + 8, y + rowHeight / 2)
       ctx.restore()
-      drawCellText(`${item.label} (${item.count})`, layout.pinnedWidth + 18, y, Math.max(80, w - layout.pinnedWidth - 18), textSecondary, true)
+      drawCellText(`${item.label} (${item.count})`, groupBaseX + 18, y, Math.max(80, groupSpanW - 18), textSecondary, true, layout.pinnedWidth + 2)
       continue
     }
 
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(layout.pinnedWidth, y, Math.max(0, w - layout.pinnedWidth), rowHeight)
+    ctx.clip()
     for (let i = colRange.start; i < colRange.end; i += 1) {
       const col = layout.scrollable[i]
       if (!col) continue
       const colX = layout.scrollableOffsets[i] || 0
-      const cellX = layout.pinnedWidth + colX - scrollLeft
+      const cellX = layout.pinnedWidth + colX - scrollLeftPx
       const raw = (item.row as unknown as Record<string, unknown>)[col.id]
-      drawCellText(getCellText(raw), cellX, y, col.width, textPrimary, false)
+      drawCellText(getCellText(raw), cellX, y, col.width, textPrimary, false, layout.pinnedWidth + 2)
     }
+    ctx.restore()
   }
 }
-

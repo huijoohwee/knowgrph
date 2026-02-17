@@ -22,9 +22,11 @@ Canonical ownership and contract details live in:
 #### Host-only workspace tools (do not drift into curagrph)
 
 - The Editor workspace includes a host-owned **Graph Table** (aka “Graph Data Table” inside Editor mode) that is intentionally lightweight:
-  - Semantic HTML `<table>` renderer with a small toolbar (fields/filter/group/sort/row height) and `<colgroup>` resizing.
+  - Canvas fast-grid renderer with a small toolbar (fields/filter/group/sort/row height) and pointer-drag column resizing.
   - Persisted via `kg:ui:graphTable:*` keys.
   - Selection-synced with the Canvas preview and the Markdown Explorer TOC.
+
+This surface must remain stable under stress: forbid ResizeObserver→React state loops, forbid scroll/resize feedback loops, and ensure pinned header/columns are fully opaque (no scrolled text bleed-through).
 
 This host workspace tool must not be duplicated inside `curagrph` (keep one owner per surface).
 
@@ -32,7 +34,7 @@ This host workspace tool must not be duplicated inside `curagrph` (keep one owne
 
 - Owns Graph Data curation/presentation UI and supporting modules:
   - BottomPanel curator + markdown section + JSON-backed markdown helpers
-  - Graph Data Table (filter/sort/group + cell editors)
+  - Graph Data Table (filter/sort/group + frozen areas + column reorder + cell editors)
   - Markdown viewer/editor/presentation/gallery
   - Preview panel UI primitives used by markdown/presentation (e.g. gallery + overlays)
   - JSON Editor used by curation/workflow inspectors
@@ -52,6 +54,15 @@ This boundary mirrors the earlier pattern used for Geospatial Mode extraction (i
 
 **knowgrph**
 - `knowgrph/canvas/src/*`: continues to host the app entrypoints, renderers, store orchestration, and pipeline logic.
+
+---
+
+## Graph Data Table (curagrph) Notes
+
+- The curation table is a DOM `<table>` with a single scroll owner; sticky header and optional frozen first data column must remain aligned with the scrollable columns.
+- Column widths must be shared between header and body so horizontal scroll never produces drift.
+- Visible columns can be reordered via pointer drag on the header (Glide-like); persist order via `graphDataTableColumnOrder`.
+- When the active graph becomes empty, the table must render empty state (no stale rows from prior graphs).
 
 ---
 

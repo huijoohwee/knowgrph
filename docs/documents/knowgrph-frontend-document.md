@@ -71,6 +71,12 @@
 - **Parsers & Loaders**:
   - `canvas/src/parsers/` transforms CSV, JSON, JSON-LD, and markdown into normalized graph representation.
 
+### Graph Data Table (Host)
+
+- Host-owned Graph Data Table (Editor workspace) is implemented as a canvas fast-grid for large datasets and selection-sync.
+- The surface must be observer-safe and scroll-stable: avoid ResizeObserver→state loops, avoid scroll/resize feedback loops, and ensure pinned header/columns are fully opaque (no bleed-through).
+- Implementation notes and guardrails live in `docs/documents/knowgrph-graph-data-table-fast-grid-document.md`.
+
 ### Integration Bridge: Product View ↔ Engineer View
 
 | Product Mental Model            | Technical Implementation                 | Configuration Controls                                    |

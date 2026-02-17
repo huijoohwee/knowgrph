@@ -4,9 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "fix:entities-sourcemaps": "node ./scripts/strip-entities-sourcemaps.mjs",
     "build:grph-shared": "tsc -p ../grph-shared/tsconfig.json",
     "build:settings": "tsx src/cli/extract-settings-schema.ts",
-    "predev": "npm run build:grph-shared && npm run build:settings",
+    "predev": "npm run fix:entities-sourcemaps && npm run build:grph-shared && npm run build:settings",
     "dev": "vite",
     "prebuild": "npm run build:grph-shared && npm run build:settings && npm --prefix .. run docs:update && tsx src/cli/lint-doc.ts",
     "doc:lint": "tsx src/cli/lint-doc.ts",

@@ -46,6 +46,11 @@ import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/sur
 
 export { __flowCanvasDebug, extractNodePositions }
 
+function clampFinite(v: number, lo: number, hi: number): number {
+  if (!Number.isFinite(v)) return lo
+  return Math.max(lo, Math.min(hi, v))
+}
+
 export default function FlowCanvas({
   active = true,
   graphDataOverride,
@@ -104,6 +109,10 @@ export default function FlowCanvas({
   const zoomWheelGuardRef = React.useRef(createZoomWheelGuardState())
   const userSelectLockPointerIdRef = React.useRef<number | null>(null)
 
+  const { width, height, dpr } = useContainerDims(containerRef)
+  const viewportW = Math.max(1, Math.floor(width))
+  const viewportH = Math.max(1, Math.floor(height))
+
   const [selectionBox, setSelectionBox] = React.useState<null | { left: number; top: number; width: number; height: number }>(null)
   const selectionBoxRafRef = React.useRef<number | null>(null)
   const requestSetSelectionBox = React.useCallback((next: null | { left: number; top: number; width: number; height: number }) => {
@@ -112,11 +121,20 @@ export default function FlowCanvas({
       selectionBoxRafRef.current = null
       setSelectionBox(prev => {
         if (!prev && !next) return prev
+        if (next) {
+          const w = clampFinite(next.width, 0, 1_000_000)
+          const h = clampFinite(next.height, 0, 1_000_000)
+          const maxLeft = Math.max(0, viewportW - w)
+          const maxTop = Math.max(0, viewportH - h)
+          const left = clampFinite(next.left, 0, maxLeft)
+          const top = clampFinite(next.top, 0, maxTop)
+          next = { left, top, width: clampFinite(w, 0, viewportW - left), height: clampFinite(h, 0, viewportH - top) }
+        }
         if (prev && next && prev.left === next.left && prev.top === next.top && prev.width === next.width && prev.height === next.height) return prev
         return next
       })
     })
-  }, [])
+  }, [viewportH, viewportW])
 
   React.useEffect(() => {
     ensureSpacePanKeyListenerInstalled()
@@ -140,10 +158,6 @@ export default function FlowCanvas({
   const collisionFlowConfigRef = React.useRef<typeof flowConfig | null>(null)
   const collisionPresentationRef = React.useRef<typeof flowPresentation | null>(null)
   const dragRef = React.useRef<FlowCanvasDrag>(null)
-  const { width, height, dpr } = useContainerDims(containerRef)
-  const viewportW = Math.max(1, Math.floor(width))
-  const viewportH = Math.max(1, Math.floor(height))
-
   const {
     schema,
     frontmatterModeEnabled,
