@@ -18,8 +18,9 @@
 
 ## Supported Behaviors (MVP)
 
-- **Pin/Unpin**: pin locks the overlay to node-anchored positioning (drag disabled, blue pin icon); unpin detaches (floating) and enables header drag, persisting a viewport position.
-- **Drag**: when unpinned (detached), header drag moves the overlay (ignores pointerdown on interactive elements).
+- **Pin/Unpin**: pin locks the overlay to node-anchored positioning with an adjustable anchor offset; unpin detaches (floating) and enables header drag, persisting a viewport position.
+- **Drag**: when unpinned (detached), header drag moves the overlay freely in the viewport (ignores pointerdown on interactive elements); when pinned, header drag adjusts the anchor offset so overlays and edges follow the pointer without bounce.
+- **Pinned multi-drag**: dragging a pinned overlay applies the same offset to all pinned overlays in the open list to preserve relative layout.
 - **Minimize/Restore**: collapses the editor body to header-only.
 - **Opacity**: inherits `uiPanelOpacity` from UI settings.
 - **Scroll isolation**: scrolling inside the editor must not zoom the canvas; mark the overlay as a wheel-ignore zone and guard wheel-zoom handlers via SSOT selector `UI_SELECTORS.canvasWheelIgnore`. In Flow Editor, overlay wheel-ignore must not be able to block wheel zoom if the top-most element under the pointer is still the canvas.

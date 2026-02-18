@@ -19,6 +19,7 @@ This document describes the interaction contract for restoring pan/zoom when Flo
 - Flow Editor fly-out overlays must expose the overlay root via `[data-kg-node-quick-editor]` on the portal root so global capture handlers can reliably proxy wheel/pan/zoom.
 - When Space-pan is held, Space+drag pan must remain usable even if the pointerdown starts on an overlay.
 - Dragging a fly-out overlay must never start a canvas pan proxy unless Space-pan is held.
+- Pinned overlay drags must update overlay anchor offsets directly (applied collectively to all pinned overlays) and must not route through any pan proxy path.
 - When `flowEditorOverlayWheelProxyEnabled=true`, wheel gestures that originate over a Node Quick Editor overlay must be forwarded to the Flow canvas unless the overlay can scroll in that direction (including when the wheel originates over interactive form fields).
 - When Safari emits `gesture*` pinch events over the canvas or fly-out overlays, the app must prevent browser zoom and apply anchored zoom to the Flow canvas.
 - Overlay-driven global user-select locks must always unlock on pointer end/cancel and must not leak across unmount.

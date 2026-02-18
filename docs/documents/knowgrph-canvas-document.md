@@ -121,6 +121,7 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 - Flow Editor canvas and Graph Table Inspector must consult the same open list to render quick editor panels for node rows.
 - Editor Workspace must surface Node Quick Editor **as codes** inside the Markdown editor/viewer (JSON/Markdown), not as a second quick editor panel.
 - Switching workspace view modes must preserve the open list unless the underlying nodes are removed from `GraphData`.
+- In Flow Editor, pinned quick editors adjust anchor offsets on header drag; dragging a pinned editor moves all pinned overlays together, while unpinned overlays drag freely and clamp in the viewport.
 
 ### Selection Sync (Table ↔ Preview ↔ TOC)
 

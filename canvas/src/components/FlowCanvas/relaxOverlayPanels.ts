@@ -18,6 +18,27 @@ export function relaxOverlayPanelsWithCollision(args: {
   iterations: number
   steps: number
 }): Array<{ id: string; left: number; top: number }> {
+  const stableSeedFromIds = (ids: string[]): number => {
+    let seed = 2166136261
+    for (let i = 0; i < ids.length; i += 1) {
+      const s = ids[i]
+      for (let j = 0; j < s.length; j += 1) {
+        seed ^= s.charCodeAt(j)
+        seed = Math.imul(seed, 16777619)
+      }
+    }
+    return seed >>> 0
+  }
+
+  const mulberry32 = (a: number) => {
+    return () => {
+      let t = (a += 0x6d2b79f5)
+      t = Math.imul(t ^ (t >>> 15), t | 1)
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+  }
+
   const schema = args.schema
   const gapPx = Number.isFinite(args.gapPx) ? Math.max(0, args.gapPx) : 0
   const strength = Number.isFinite(args.strength) ? Math.max(0, args.strength) : 0.9
@@ -63,7 +84,8 @@ export function relaxOverlayPanelsWithCollision(args: {
     strength,
     iterations,
   })
-  force.initialize(proxyNodes, Math.random)
+  const seed = stableSeedFromIds(proxyNodes.map(n => String(n.id || '')).sort((a, b) => a.localeCompare(b)))
+  force.initialize(proxyNodes, mulberry32(seed))
   const applyForce = force as unknown as (alpha: number) => void
 
   runRelaxSteps({
@@ -85,4 +107,3 @@ export function relaxOverlayPanelsWithCollision(args: {
   }
   return out
 }
-

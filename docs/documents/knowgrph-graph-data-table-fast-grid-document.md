@@ -30,6 +30,11 @@
 - **Sync key**: table sync is keyed by `(graphDataRevision, collapsedGroupIdsKey)` so collapsed-view toggles update the table even when graph revision is unchanged.
 - **Baseline anchor**: table sync uses the document-structure baseline graph and applies only group-collapse derivation; it must not depend on keyword/frontmatter mode so mode switches do not rewrite the table.
 
+## Quick Editor Parity
+
+- The Record Inspector must render the same Node Quick Editor panel as Flow Editor for any node id in the shared open list.
+- The open list remains SSOT in graph view state; the table must not keep a local open-state fork.
+
 ### Column Rearrangement (Drag Header)
 
 - Drag a **data column header** to reorder columns (drop hint line renders in the header band).

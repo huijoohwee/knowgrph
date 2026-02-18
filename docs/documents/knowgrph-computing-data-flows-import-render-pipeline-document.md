@@ -18,7 +18,7 @@ Expected result:
   - a Node Quick Editor registry snapshot (`registry[]`)
   - a workflow graph payload (`graph`)
 - Flow Editor renders the workflow graph using the native Flow renderer.
-- Node Quick Editors can be opened concurrently; detached overlays must not overlap by default and must be draggable.
+- Node Quick Editors can be opened concurrently; pinned header drag updates anchor offsets collectively, while detached overlays are draggable and must not overlap by default.
 
 ---
 
@@ -64,6 +64,7 @@ Key implementation:
   - have deterministic default placement (grid/stack)
   - persist detached positions per node id
   - avoid DOM id collisions by scoping form control ids per node
+- Pinned overlays must remain node-anchored while header drag applies a shared anchor offset across all pinned overlays.
 
 Flow Editor + overlay wiring:
 

@@ -1230,22 +1230,13 @@ export function bindFlowCanvasNativeInteractions(args: {
 
     if (resolved.kind === 'overlay' && !overlayPinnedToNode && spacePanHeld !== true) return
 
-    const allowPan =
-      isFlowEditor &&
-      resolved.kind === 'overlay' &&
-      overlayPinnedToNode &&
-      !resolved.isInteractive &&
-      button === 0 &&
-      spacePanHeld !== true &&
-      shiftKey !== true
-        ? true
-        : shouldAllowPanDragForPointerEvent({
-            preset,
-            eventType: 'pointerdown',
-            button,
-            shiftKey,
-            spacePanHeld,
-          })
+    const allowPan = shouldAllowPanDragForPointerEvent({
+      preset,
+      eventType: 'pointerdown',
+      button,
+      shiftKey,
+      spacePanHeld,
+    })
     const selectionDrag = shouldStartSelectionDragForPreset({
       preset,
       button,

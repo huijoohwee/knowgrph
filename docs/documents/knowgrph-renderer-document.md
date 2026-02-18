@@ -62,7 +62,7 @@
   - Value tooltips follow Default/Min/Max/Interval (when applicable) + short impact (≤ 15 words).
 
 - Flow Editor supports an in-canvas Node Quick Editor overlay (semantic HTML) for fast field edits and validation.
-  - Reuses the host FloatingPanel shell patterns (pin/unpin, drag-when-unpinned, minimize/restore + SSOT opacity).
+  - Reuses the host FloatingPanel shell patterns (pin/unpin, pinned drag adjusts anchor offsets collectively, detached drag when unpinned, minimize/restore + SSOT opacity).
   - Zoom/pan positioning updates are applied via rAF-batched DOM style updates (no editor-form rerender on zoom commits).
   - `canvas/src/components/FlowEditor/NodeOverlayEditor.tsx`
   - `canvas/src/components/FlowEditor/NodeOverlayEditorForm.tsx`
