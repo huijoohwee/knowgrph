@@ -97,6 +97,12 @@ import { testHtmlParserUsesEmbeddedLosslessMarkdownSource } from '@/__tests__/ht
 import { testHtmlToMarkdownUnifiedConvertsBasicHtml } from '@/__tests__/htmlToMarkdownUnified.test'
 import { testPlainTextToMarkdownPreservesParagraphs } from '@/__tests__/plainTextToMarkdown.test'
 import { testReorderListBasicMoves, testReorderListNoopAndBounds } from '@/__tests__/reorder.test'
+import {
+  testGraphTableDateFormatDraftFromIso,
+  testGraphTableDateNormalizeAcceptsMdySlash,
+  testGraphTableDateNormalizeAcceptsYmd,
+  testGraphTableDateNormalizeRejectsInvalid,
+} from '@/__tests__/dateCellValue.test'
 import { testFindNextSourceFileIndexNested, testFindNextSourceFileIndexRoot, testNormalizeParentPath } from '@/__tests__/sourceFileNaming.test'
 import {
   testWebkitRelativePathDoesNotTreatFileNameAsFolder,
@@ -173,6 +179,7 @@ import { testGraphDataMetadataHashIncludesRevision } from '@/__tests__/graphData
 import {
   testGraphTableDbAllocatesAndCreatesRows,
   testGraphTableDbConcurrentSyncDoesNotConflict,
+  testGraphTableDbInfersAndUpgradesDateColumns,
   testGraphTableDbNoopSyncDoesNotRewriteRows,
   testGraphTableDbSyncsCollapsedGraphViewRows,
   testGraphTableDbSeedsBaseTablesAndColumns,
@@ -501,7 +508,7 @@ import {
 import { testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFile } from '@/__tests__/markdownWorkspaceCrudActions.test'
 import { testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles } from '@/__tests__/workspaceSeedPersistence.test'
 import {
-  testEmbeddedEditorShellRendersCanvasPreviewIframe,
+  testEmbeddedEditorShellRendersMarkdownWorkspace,
   testEmbeddedPreviewGraphUpdatesApplyToParentStore,
   testEditorWorkspaceInspectorUsesSelectionInspectorWhenFlowEditorNotMounted,
   testToolbarEditorButtonTogglesWorkspaceViewMode,
@@ -727,7 +734,7 @@ export const runAllTests = async () => {
 
   await exec('toolbar.editorToggle.togglesWorkspaceViewMode', testToolbarEditorButtonTogglesWorkspaceViewMode)
   await exec('ui.floatingPanel.designLayers.rendersAsDiv', testFloatingPanelDesignLayersViewRendersAsDiv)
-  await exec('editorShell.rendersCanvasPreviewIframe', testEmbeddedEditorShellRendersCanvasPreviewIframe)
+  await exec('editorShell.rendersMarkdownWorkspace', testEmbeddedEditorShellRendersMarkdownWorkspace)
   await exec(
     'ui.editorWorkspace.inspector.usesSelectionInspectorWhenFlowEditorNotMounted',
     testEditorWorkspaceInspectorUsesSelectionInspectorWhenFlowEditorNotMounted,
@@ -1112,6 +1119,10 @@ export const runAllTests = async () => {
   await exec('scene.displayDerivation.memoizesDisplayGraphAndMaps', testSceneDisplayDerivationMemoizesDisplayGraphAndMaps)
   await exec('util.reorderList.basicMoves', testReorderListBasicMoves)
   await exec('util.reorderList.noopAndBounds', testReorderListNoopAndBounds)
+  await exec('graphTable.date.normalizeYmd', testGraphTableDateNormalizeAcceptsYmd)
+  await exec('graphTable.date.normalizeMdySlash', testGraphTableDateNormalizeAcceptsMdySlash)
+  await exec('graphTable.date.rejectsInvalid', testGraphTableDateNormalizeRejectsInvalid)
+  await exec('graphTable.date.formatDraftFromIso', testGraphTableDateFormatDraftFromIso)
   await exec('html.unifiedToMarkdown.basic', testHtmlToMarkdownUnifiedConvertsBasicHtml)
   await exec('ui.panelUnifiedExport', testUnifiedPanelExport)
   await exec('ui.settingsCollapsePersistence', testSettingsViewCollapsePersistence)
@@ -1120,6 +1131,7 @@ export const runAllTests = async () => {
   await exec('rxdb.graphTable.syncConcurrentNoConflict', testGraphTableDbConcurrentSyncDoesNotConflict)
   await exec('rxdb.graphTable.noopSyncNoRewrite', testGraphTableDbNoopSyncDoesNotRewriteRows)
   await exec('rxdb.graphTable.syncCollapsedView', testGraphTableDbSyncsCollapsedGraphViewRows)
+  await exec('rxdb.graphTable.inferDateColumns', testGraphTableDbInfersAndUpgradesDateColumns)
   await exec('rxdb.graphTable.updateCell', testGraphTableDbUpdatesCellValues)
   await exec('rxdb.graphTable.createRow', testGraphTableDbAllocatesAndCreatesRows)
   await exec('ui.themeModePersistence', testThemeModePersistence)

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Subscription } from 'rxjs'
 import type { RxChangeEvent } from 'rxdb'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 import {
   getGraphTableDb,
   type GraphColumnDoc,
@@ -69,11 +69,25 @@ export default function GraphTableSelectionInspector() {
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const openQuickEditorNodeIds = useGraphStore(s => s.openQuickEditorNodeIds || [])
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
-  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
   const baseGraphData = useGraphStore(s => s.graphData)
-  const renderGraphData = useActiveGraphRenderData()
-  const syncGraphData = workspaceViewMode === 'editor' ? baseGraphData : renderGraphData
-  const { noteGraphWrite } = useGraphTableDbSync(graphDataRevision, syncGraphData)
+  const collapsedGroupIds = useGraphStore(s => (s.collapsedGroupIds || []) as string[])
+
+  const collapsedGroupIdsKey = useMemo(() => {
+    const ids = Array.isArray(collapsedGroupIds) ? collapsedGroupIds : []
+    const normalized = ids.map(x => String(x || '').trim()).filter(Boolean)
+    if (normalized.length === 0) return ''
+    const unique = Array.from(new Set(normalized))
+    unique.sort((a, b) => a.localeCompare(b))
+    return unique.join('|')
+  }, [collapsedGroupIds])
+
+  const syncGraphData = useMemo(() => {
+    if (!baseGraphData) return null
+    if (!collapsedGroupIdsKey) return baseGraphData
+    return deriveGraphDataWithGroupCollapse({ graphData: baseGraphData, collapsedGroupIds: collapsedGroupIdsKey.split('|').filter(Boolean) })
+  }, [baseGraphData, collapsedGroupIdsKey])
+
+  const { noteGraphWrite } = useGraphTableDbSync(graphDataRevision, syncGraphData, `baseline:${collapsedGroupIdsKey}`)
   const [columns, setColumns] = useState<GraphColumnDoc[]>([])
   const [row, setRow] = useState<GraphTableInspectorRow | null>(null)
   const rowHashRef = useRef<number>(0)

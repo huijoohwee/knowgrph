@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Subscription } from 'rxjs'
 import type { RxChangeEvent } from 'rxdb'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { WorkspaceHeader, WorkspaceHeaderRow } from '@/components/ui/WorkspaceHeader'
 import { hashString32 } from 'grph-shared/hash/stringHash'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsInt, lsJson, lsSetBool, lsSetInt, lsSetJson } from '@/lib/persistence'
@@ -23,7 +24,7 @@ import type { GraphTableGridRow } from '@/features/graph-table/ui/graphTableType
 import { GraphTableInspector, type GraphTableInspectorRow } from '@/features/graph-table/ui/GraphTableInspector'
 import { GraphTableToolbar } from '@/features/graph-table/ui/GraphTableToolbar'
 import { GraphTableFastGrid } from '@/features/graph-table/ui/GraphTableFastGrid'
-import { GraphTableCanvasPreviewDock } from '@/features/graph-table/ui/GraphTableCanvasPreviewDock'
+import { EmbeddedWorkspaceShell } from '@/components/EmbeddedWorkspaceShell'
 import {
   makeGraphTableRuleId,
   parseColumnOrderByTableId,
@@ -109,12 +110,11 @@ const reorderIds = (args: {
   return ids
 }
 
-export default function GraphTableWorkspace(props: { previewSrc?: string }) {
+export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode }) {
   const panelTypography = usePanelTypography()
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
-  const previewSrc = String(props.previewSrc || '/').trim() || '/'
   const baseGraphData = useGraphStore(s => s.graphData)
-  const renderGraphData = useActiveGraphRenderData()
+  const collapsedGroupIds = useGraphStore(s => (s.collapsedGroupIds || []) as string[])
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
   const selectionSource = useGraphStore(s => s.selectionSource)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
@@ -127,7 +127,13 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
   const [inspectorRowId, setInspectorRowId] = useState<string | null>(null)
   const [inspectorOpen, setInspectorOpen] = useState(() => lsBool(LS_KEYS.graphTableInspectorOpen, true))
   const [inspectorWidthPx, setInspectorWidthPx] = useState(() => lsInt(LS_KEYS.graphTableInspectorWidthPx, 360))
-  const [tableCollapsed, setTableCollapsed] = useState(() => lsBool(LS_KEYS.graphTablePanelCollapsed, false))
+  const [canvasPreviewCollapsed, setCanvasPreviewCollapsed] = useState(() => lsBool(LS_KEYS.graphTablePreviewCollapsed, false))
+  const [canvasPreviewWidthPx, setCanvasPreviewWidthPx] = useState(() => {
+    const raw = lsInt(LS_KEYS.workspacePreviewWidthPx, 520)
+    const next = Math.max(320, Math.min(960, raw))
+    if (next !== raw) lsSetInt(LS_KEYS.workspacePreviewWidthPx, next, { min: 320, max: 960 })
+    return next
+  })
   const [columnVisibilityById, setColumnVisibilityById] = useState<GraphTableColumnVisibilityById>(() =>
     lsJson(LS_KEYS.graphTableColumnVisibilityById, {}, parseColumnVisibilityById),
   )
@@ -151,7 +157,30 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
   const inspectorWidthPxRef = useRef(inspectorWidthPx)
   inspectorWidthPxRef.current = inspectorWidthPx
   const inspectorDragHandleRef = useRef<HTMLHRElement | null>(null)
-  const { noteGraphWrite } = useGraphTableDbSync(graphDataRevision, renderGraphData)
+  const collapsedGroupIdsKey = useMemo(() => {
+    const ids = Array.isArray(collapsedGroupIds) ? collapsedGroupIds : []
+    const normalized = ids.map(x => String(x || '').trim()).filter(Boolean)
+    if (normalized.length === 0) return ''
+    const unique = Array.from(new Set(normalized))
+    unique.sort((a, b) => a.localeCompare(b))
+    return unique.join('|')
+  }, [collapsedGroupIds])
+
+  const syncGraphData = useMemo(() => {
+    if (!baseGraphData) return null
+    if (!collapsedGroupIdsKey) return baseGraphData
+    return deriveGraphDataWithGroupCollapse({ graphData: baseGraphData, collapsedGroupIds: collapsedGroupIdsKey.split('|').filter(Boolean) })
+  }, [baseGraphData, collapsedGroupIdsKey])
+
+  const { noteGraphWrite } = useGraphTableDbSync(graphDataRevision, syncGraphData, `baseline:${collapsedGroupIdsKey}`)
+
+  useEffect(() => {
+    lsSetBool(LS_KEYS.graphTablePreviewCollapsed, canvasPreviewCollapsed)
+  }, [canvasPreviewCollapsed])
+
+  useEffect(() => {
+    lsSetInt(LS_KEYS.workspacePreviewWidthPx, canvasPreviewWidthPx, { min: 320, max: 960 })
+  }, [canvasPreviewWidthPx])
   const rowCacheRef = useRef<
     Map<GraphTableId, { hashById: Map<string, number>; rowById: Map<string, GraphTableGridRow> }>
   >(new Map())
@@ -274,10 +303,6 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
   }, [inspectorOpen])
 
   useEffect(() => {
-    lsSetBool(LS_KEYS.graphTablePanelCollapsed, tableCollapsed)
-  }, [tableCollapsed])
-
-  useEffect(() => {
     lsSetJson(LS_KEYS.graphTableColumnVisibilityById, columnVisibilityById)
   }, [columnVisibilityById])
 
@@ -360,13 +385,20 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
   const handleCellValueChanged = useCallback(
     (rowId: string, columnId: string, next: unknown) => {
       void (async () => {
+        const currentRow = rows.find(r => r.id === rowId)
+        if (currentRow) {
+          const prevRaw = (currentRow as unknown as Record<string, unknown>)[columnId]
+          const normPrev = typeof prevRaw === 'string' && !prevRaw.trim() ? null : prevRaw
+          const normNext = typeof next === 'string' && !next.trim() ? null : next
+          if (Object.is(normPrev, normNext)) return
+        }
         await updateGraphTableCell(activeTableId, rowId, columnId, next)
         const prev = useGraphStore.getState().graphDataRevision
         noteGraphWrite(prev + 1)
         applyCellUpdateToGraphStore(activeTableId, rowId, columnId, next)
       })()
     },
-    [activeTableId, noteGraphWrite],
+    [activeTableId, noteGraphWrite, rows],
   )
 
   const handleAddRow = useCallback(() => {
@@ -463,13 +495,13 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
     })
   }, [activeTableId, orderedColumns])
 
-  return (
-    <main
-      className={`flex flex-col flex-1 min-h-0 overflow-hidden ${panelTypography.panelTextClass} ${UI_THEME_TOKENS.text.primary}`}
+  const left = (
+    <section
+      className={`flex-1 min-h-0 overflow-hidden flex flex-col ${UI_THEME_TOKENS.text.primary}`}
       aria-label="Graph Data Table"
     >
-      <header className={`h-12 shrink-0 border-b ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.panel.bg}`} aria-label="Table header">
-        <section className="h-full px-3 flex items-center justify-between gap-3">
+      <WorkspaceHeader ariaLabel="Table header" border="divider">
+        <WorkspaceHeaderRow ariaLabel="Table header row">
           <section className="min-w-0 flex items-center gap-3" aria-label="Table navigation">
             <h1 className="font-semibold">{UI_LABELS.graphDataTable}</h1>
             <nav className="flex items-center gap-2" aria-label="Dataset selector">
@@ -491,14 +523,33 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
             <output className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.tertiary}`}>{rowCountLabel}</output>
           </section>
 
+          <section className="flex-1 min-w-0 flex justify-center" aria-label="Table toolbar">
+            <GraphTableToolbar
+              panelTypography={panelTypography}
+              columns={orderedColumns.map(c => ({ columnId: c.columnId, name: c.name }))}
+              inspectorOpen={inspectorOpen}
+              setInspectorOpen={setInspectorOpen}
+              canvasPreviewAvailable={workspaceViewMode === 'table' && !!props.canvasPreview}
+              canvasPreviewCollapsed={canvasPreviewCollapsed}
+              setCanvasPreviewCollapsed={setCanvasPreviewCollapsed}
+              columnVisibilityById={columnVisibilityById}
+              setColumnVisibilityById={setColumnVisibilityById}
+              filterMatch={filterMatch}
+              setFilterMatch={setFilterMatch}
+              filterClauses={filterClauses}
+              setFilterClauses={setFilterClauses}
+              groupBy={groupBy}
+              setGroupBy={setGroupBy}
+              sortRules={sortRules}
+              setSortRules={setSortRules}
+              rowHeightPreset={rowHeightPreset}
+              setRowHeightPreset={setRowHeightPreset}
+              columnWidthsPxById={columnWidthsPxById}
+              resetColumnWidths={resetColumnWidths}
+            />
+          </section>
+
           <nav className="flex items-center gap-2" aria-label="Table actions">
-            <button
-              type="button"
-              className={`App-toolbar__btn ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-              onClick={() => setInspectorOpen(v => !v)}
-            >
-              {showInspector ? 'Single' : 'Split'}
-            </button>
             <button
               type="button"
               className={`App-toolbar__btn ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
@@ -515,85 +566,56 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
               Delete
             </button>
           </nav>
-        </section>
-      </header>
-
-      <header className={`shrink-0 border-b ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.panel.bg}`} aria-label="Table toolbar header">
-        <section className="px-3 py-2 flex items-center justify-between gap-3">
-          <GraphTableToolbar
-            panelTypography={panelTypography}
-            columns={orderedColumns.map(c => ({ columnId: c.columnId, name: c.name }))}
-            tableCollapsed={tableCollapsed}
-            setTableCollapsed={setTableCollapsed}
-            columnVisibilityById={columnVisibilityById}
-            setColumnVisibilityById={setColumnVisibilityById}
-            filterMatch={filterMatch}
-            setFilterMatch={setFilterMatch}
-            filterClauses={filterClauses}
-            setFilterClauses={setFilterClauses}
-            groupBy={groupBy}
-            setGroupBy={setGroupBy}
-            sortRules={sortRules}
-            setSortRules={setSortRules}
-            rowHeightPreset={rowHeightPreset}
-            setRowHeightPreset={setRowHeightPreset}
-            columnWidthsPxById={columnWidthsPxById}
-            resetColumnWidths={resetColumnWidths}
-          />
-        </section>
-      </header>
+        </WorkspaceHeaderRow>
+      </WorkspaceHeader>
 
       <section className="flex-1 min-h-0 overflow-hidden flex" aria-label="Table workspace">
         <section className="flex-1 min-w-0 min-h-0 overflow-hidden flex" aria-label="Table and inspector">
-          {!tableCollapsed ? (
-            <GraphTableFastGrid
-              tableId={activeTableId}
-              panelTypography={panelTypography}
-              columns={columns}
-              rows={rows}
-              selectedRowIds={selectedRowIds}
-              focusRowId={inspectorRowId}
-              autoScrollToFocusRow={selectionSource !== 'table'}
-              columnVisibilityById={columnVisibilityById}
-              filterMatch={filterMatch}
-              filterClauses={filterClauses}
-              groupBy={groupBy}
-              sortRules={sortRules}
-              rowHeightPreset={rowHeightPreset}
-              columnWidthsPxById={columnWidthsPxById}
-              columnOrderIds={columnOrderByTableId[activeTableId]}
-              onColumnWidthChanged={handleColumnWidthChanged}
-              onRequestReorderColumn={handleRequestReorderColumn}
-              onCellValueChanged={handleCellValueChanged}
-              onRowClicked={rowId => {
-                setInspectorRowId(rowId)
-                setSelectedRowIds([rowId])
-                try {
-                  const store = useGraphStore.getState()
-                  store.setSelectionSource('table')
-                  if (activeTableId === 'nodes') store.selectNode(rowId)
-                  else store.selectEdge(rowId)
-                } catch {
-                  void 0
-                }
+          <GraphTableFastGrid
+            tableId={activeTableId}
+            panelTypography={panelTypography}
+            columns={columns}
+            rows={rows}
+            selectedRowIds={selectedRowIds}
+            focusRowId={inspectorRowId}
+            autoScrollToFocusRow={selectionSource !== 'table'}
+            columnVisibilityById={columnVisibilityById}
+            filterMatch={filterMatch}
+            filterClauses={filterClauses}
+            groupBy={groupBy}
+            sortRules={sortRules}
+            rowHeightPreset={rowHeightPreset}
+            columnWidthsPxById={columnWidthsPxById}
+            columnOrderIds={columnOrderByTableId[activeTableId]}
+            onColumnWidthChanged={handleColumnWidthChanged}
+            onRequestReorderColumn={handleRequestReorderColumn}
+            onCellValueChanged={handleCellValueChanged}
+            onRowClicked={rowId => {
+              setInspectorRowId(rowId)
+              setSelectedRowIds([rowId])
+              try {
+                const store = useGraphStore.getState()
+                store.setSelectionSource('table')
+                if (activeTableId === 'nodes') store.selectNode(rowId)
+                else store.selectEdge(rowId)
+              } catch {
+                void 0
+              }
 
-                if (activeTableId === 'nodes') {
-                  const row = rows.find(r => r.id === rowId) || null
-                  const tocId = getRowTocId(row)
-                  if (tocId) {
-                    try {
-                      window.dispatchEvent(new CustomEvent('kg:tocFocus', { detail: { id: tocId } }))
-                    } catch {
-                      void 0
-                    }
+              if (activeTableId === 'nodes') {
+                const row = rows.find(r => r.id === rowId) || null
+                const tocId = getRowTocId(row)
+                if (tocId) {
+                  try {
+                    window.dispatchEvent(new CustomEvent('kg:tocFocus', { detail: { id: tocId } }))
+                  } catch {
+                    void 0
                   }
                 }
-              }}
-              onSelectionChanged={setSelectedRowIds}
-            />
-          ) : (
-            <section className="flex-1 min-h-0 overflow-hidden" aria-label="Collapsed table" />
-          )}
+              }
+            }}
+            onSelectionChanged={setSelectedRowIds}
+          />
           {showInspector && (
             <>
               <VerticalResizeSeparatorHr
@@ -620,8 +642,25 @@ export default function GraphTableWorkspace(props: { previewSrc?: string }) {
             </>
           )}
         </section>
-        {workspaceViewMode === 'table' ? <GraphTableCanvasPreviewDock previewSrc={previewSrc} panelTypography={panelTypography} /> : null}
       </section>
-    </main>
+    </section>
+  )
+
+  if (workspaceViewMode !== 'table' || !props.canvasPreview) return left
+
+  return (
+    <EmbeddedWorkspaceShell
+      left={left}
+      leftAriaLabel="Table"
+      preview={props.canvasPreview}
+      previewCollapsed={canvasPreviewCollapsed}
+      setPreviewCollapsed={setCanvasPreviewCollapsed}
+      previewWidthPx={canvasPreviewWidthPx}
+      setPreviewWidthPx={setCanvasPreviewWidthPx}
+      panelTextClass={panelTypography.panelTextClass}
+      previewResizeAriaLabel="Resize Canvas Preview"
+      previewAriaLabel="Canvas Preview"
+      previewFrameAriaLabel="Canvas Preview frame"
+    />
   )
 }

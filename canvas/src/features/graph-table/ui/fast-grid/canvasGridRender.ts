@@ -68,6 +68,7 @@ export type GridColumnMeta = {
   width: number
   pinned: boolean
   editable: boolean
+  dataKind?: 'text' | 'number' | 'boolean' | 'date' | 'json'
 }
 
 export type GridDisplayRow<RowT> =
@@ -144,6 +145,36 @@ export function getCellText(value: unknown): string {
   } catch {
     return String(value)
   }
+}
+
+function formatDateCellText(value: unknown): string {
+  if (value == null) return ''
+  if (typeof value === 'string') {
+    const raw = value.trim()
+    if (!raw) return ''
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`
+    const ms = Date.parse(raw)
+    if (Number.isFinite(ms)) return new Date(ms).toISOString().slice(0, 10)
+    return raw
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    try {
+      return new Date(value).toISOString().slice(0, 10)
+    } catch {
+      return String(value)
+    }
+  }
+  if (value instanceof Date) {
+    const ms = value.getTime()
+    if (Number.isFinite(ms)) return new Date(ms).toISOString().slice(0, 10)
+  }
+  return getCellText(value)
+}
+
+export function getCellTextByKind(value: unknown, kind?: GridColumnMeta['dataKind']): string {
+  if (kind === 'date') return formatDateCellText(value)
+  return getCellText(value)
 }
 
 export function hitTest<RowT extends { id: string }>(args: {
@@ -354,10 +385,6 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
   }
   ctx.strokeStyle = divider
   ctx.lineWidth = 1
-  ctx.beginPath()
-  ctx.moveTo(0, headerHeight + 0.5)
-  ctx.lineTo(w, headerHeight + 0.5)
-  ctx.stroke()
 
   let pinnedX = 0
   for (const col of layout.pinned) {
@@ -370,8 +397,8 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
     }
     ctx.strokeStyle = divider
     ctx.beginPath()
-    ctx.moveTo(x + cellW + 0.5, 0)
-    ctx.lineTo(x + cellW + 0.5, h)
+    ctx.moveTo(x + cellW - 0.5, 0)
+    ctx.lineTo(x + cellW - 0.5, h)
     ctx.stroke()
     pinnedX += cellW
   }
@@ -404,8 +431,8 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
     }
     ctx.strokeStyle = divider
     ctx.beginPath()
-    ctx.moveTo(x + cellW + 0.5, 0)
-    ctx.lineTo(x + cellW + 0.5, h)
+    ctx.moveTo(x + cellW - 0.5, 0)
+    ctx.lineTo(x + cellW - 0.5, h)
     ctx.stroke()
     ctx.strokeStyle = border
     ctx.beginPath()
@@ -428,8 +455,8 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
       ctx.strokeStyle = accent
       ctx.lineWidth = 2
       ctx.beginPath()
-      ctx.moveTo(x + 0.5, 0)
-      ctx.lineTo(x + 0.5, h)
+      ctx.moveTo(x - 0.5, 0)
+      ctx.lineTo(x - 0.5, h)
       ctx.stroke()
       ctx.restore()
     }
@@ -539,7 +566,7 @@ export function drawGrid<RowT extends { id: string; __order?: number }>(args: {
       const colX = layout.scrollableOffsets[i] || 0
       const cellX = layout.pinnedWidth + colX - scrollLeftPx
       const raw = (item.row as unknown as Record<string, unknown>)[col.id]
-      drawCellText(getCellText(raw), cellX, y, col.width, textPrimary, false, layout.pinnedWidth + 2)
+      drawCellText(getCellTextByKind(raw, col.dataKind), cellX, y, col.width, textPrimary, false, layout.pinnedWidth + 2)
     }
     ctx.restore()
   }

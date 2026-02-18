@@ -57,21 +57,21 @@
 - Edit interactions: `canvas/src/features/*`
 - Visual highlight: `canvas/src/components/GraphCanvas/highlight.ts`
 
-### Journey D: Editor Workspace (Markdown + Graph Table + Canvas Preview)
+### Journey D: Editor / Table Workspace (Markdown or Graph Table + Canvas Pane)
 
-**From/To**: User toggles Editor mode → edits Markdown or inspects Graph Data in a table → verifies changes in a preview canvas.
+**From/To**: User toggles Editor or Graph Data Table mode → edits Markdown or inspects Graph Data → verifies changes in the shared Canvas pane.
 
 - Editor mode shell: [EmbeddedEditorShell.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/EmbeddedEditorShell.tsx)
-- Editor workspace view mode: `LS_KEYS.workspaceViewMode` (`Canvas | Editor`)
+- Workspace view mode: `LS_KEYS.workspaceViewMode` (`Canvas | Editor | Table`)
 - Editor sections:
   - Markdown Workspace (SSOT text + Explorer)
-  - Graph Table (semantic HTML table with toolbar + optional Record Inspector)
+  - Graph Table (canvas fast-grid + Record Inspector split inside the tool surface)
 
 **Stability constraints**
-- Preview is isolated via `/?kgPreview=1` (no toolbars/panels) to prevent recursion and cross-mode interference.
+- The Canvas is mounted once (single `CanvasViewport`) and resized into the right Canvas pane for Editor/Table; do not mount a second preview surface.
 - Selection sync is bidirectional but must not induce scroll-jump loops:
   - Table selection sets `selectionSource='table'`.
-  - Preview selection sets `selectionSource='canvas'`.
+  - Canvas selection sets `selectionSource='canvas'`.
   - Explorer TOC focus is requested via an event (Table → TOC) and must reuse stable heading ids.
 
 ### Group Shape Toggle

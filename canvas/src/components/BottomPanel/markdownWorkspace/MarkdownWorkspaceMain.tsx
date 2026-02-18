@@ -37,6 +37,9 @@ export type MarkdownWorkspaceMainProps = {
   uiPanelMonospaceTextClass: string
   geoDatasetIntegration?: MarkdownGeoDatasetIntegration
 
+  explorerOpen: boolean
+  setExplorerOpen: (next: boolean) => void
+
   layoutMode: MarkdownWorkspaceLayoutMode
   setLayoutMode: (mode: MarkdownWorkspaceLayoutMode) => void
   markdownWordWrap: boolean
@@ -439,6 +442,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     uiPanelTextFontClass,
     uiPanelMonospaceTextClass,
     geoDatasetIntegration,
+    explorerOpen,
+    setExplorerOpen,
     layoutMode,
     setLayoutMode,
     markdownWordWrap,
@@ -916,6 +921,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   return (
     <main className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Markdown Editor and Viewer">
       <MarkdownWorkspaceToolbar
+        explorerOpen={explorerOpen}
+        setExplorerOpen={setExplorerOpen}
         layoutMode={layoutMode}
         setLayoutMode={setLayoutMode}
         markdownWordWrap={markdownWordWrap}

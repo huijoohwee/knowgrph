@@ -70,7 +70,8 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 ### Mode Model
 
 - **Canvas mode** is the default full-screen graph workspace with Toolbar, BottomPanel, and the optional right side panel.
-- **Editor mode** is a VS Code-like embedded workspace that reuses the existing Markdown Workspace SSOT (files + editor/viewer/split/presentation + import + apply-to-graph) and shows a Canvas preview.
+- **Editor mode** is a VS Code-like embedded workspace that reuses the existing Markdown Workspace SSOT (files + editor/viewer/split/presentation + import + apply-to-graph) and shares the same Canvas pane.
+- **Graph Data Table mode** is a table-first workspace for Nodes/Edges inspection that also shares the same Canvas pane.
 
 - The right SidePanel shell is a single FloatingPanel primitive (`<div role="complementary">` via `FloatingPanel as="div"`) and must not be re-implemented with ad-hoc containers.
 - Only the active SidePanel tab is mounted; inactive tabs must not render hidden panels to avoid background work and cross-mode interference.
@@ -78,12 +79,11 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 
 ### Preview Contract (SSOT)
 
-- Editor mode previews the Canvas using an embedded `iframe` marked with `data-kg-preview="1"` (the host may also use `?kgPreview=1`).
-- Preview mode must force preview-only rendering (no Toolbar, no BottomPanel, no side panels) so the preview cannot recursively enter Editor mode and cannot consume unnecessary UI resources.
-- The host syncs preview state via same-origin messaging (`kind: 'kg-preview-sync'` for graph/schema/render/selection) and via persisted geospatial state (`kg:ui:geospatial:overlayEnabled` via `storage` events) so the preview reflects the active mode.
+- **Editor/Table split view**: the Canvas is mounted once (single `CanvasViewport`) and resized into the right-side Canvas pane. The Editor workspace and Graph Data Table must not mount a second “Canvas Preview” instance.
+- **Embedded preview mode (external embed)**: if an `iframe` is used for embedding outside the workspace (marked with `data-kg-preview="1"` or `?kgPreview=1`), preview-only rendering must apply (no Toolbar, no BottomPanel, no side panels) so it cannot recursively enter Editor mode and cannot consume unnecessary UI resources.
+- For embedded preview mode, the host may sync preview state via same-origin messaging (`kind: 'kg-preview-sync'` for graph/schema/render/selection) and via persisted geospatial state (`kg:ui:geospatial:overlayEnabled` via `storage` events).
 - Preview sync handlers must ignore identical schema/graph payloads (hash/signature compare) to prevent rerender loops and React update-depth errors.
 - Preview sync graph hashing must ignore store-injected `metadata.graphDataRevision` and `metadata.hash` fields so preview ↔ host echoes do not trigger infinite sync loops.
-- The host must avoid rendering graph canvases in the background when the active view mode is Editor (mount only what is visible).
 
 ### Editor Workspace Sections (Markdown vs Graph Data Table)
 

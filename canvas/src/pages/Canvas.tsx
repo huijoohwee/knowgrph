@@ -7,132 +7,25 @@ import { createTabSync, buildEnvelope } from '@/lib/tabSync'
 import type { GraphSchema } from '@/lib/graph/schema'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 import { LS_KEYS, STORAGE_CHANNELS } from '@/lib/config'
-import { lsBool } from '@/lib/persistence'
+import { lsBool, lsInt, lsSetInt } from '@/lib/persistence'
 import { hashText } from '@/features/parsers/hash'
 import { hashGraphDataForPreviewSync } from '@/hooks/store/graphDataSliceUtils'
 import { autoApplyFrontmatterMermaidMarkdownToGraphIfEmpty } from '@/features/parsers/loader'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
-import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import ToastHost from '@/components/ui/ToastHost'
 import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceFilesPersistenceBootstrap'
 import { EmbeddedEditorShell } from '@/components/EmbeddedEditorShell'
 import { SsotEventBridge } from '@/features/ssot/SsotEventBridge'
-import { importWithRetry } from '@/lib/react/importWithRetry'
+import { CanvasViewport } from '@/components/CanvasViewport'
 import { normalizeSingleRootRoute } from '@/lib/routing/normalizeSingleRoot'
+import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
+import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
+import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 
-const GeospatialOverlayHostLazy = React.lazy(async () => {
-  const m = await import('gympgrph')
-  return { default: m.GeospatialOverlayHost }
-})
-
-const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
-const FlowCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowCanvas'), { retries: 2, retryDelayMs: 50 }))
-const DesignCanvasLazy = React.lazy(() => import('@/components/DesignCanvas'))
-const FlowEditorCanvasLazy = React.lazy(() => import('@/components/FlowEditorCanvas'))
-const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
 const ToolbarLazy = React.lazy(() => import('@/components/Toolbar'))
 const GraphTableWorkspaceLazy = React.lazy(() => import('@/features/graph-table/ui/GraphTableWorkspace'))
-const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
-
-type MarkdownMetricSample = {
-  ts: number
-  event: string
-  payload: Record<string, unknown>
-}
-
-function MarkdownMetricsDevOverlay() {
-  const [samples, setSamples] = React.useState<MarkdownMetricSample[]>([])
-  const [open, setOpen] = React.useState(false)
-
-  React.useEffect(() => {
-    const anyImportMeta = import.meta as unknown as { env?: { DEV?: boolean } }
-    if (!anyImportMeta.env?.DEV) return
-    if (typeof window === 'undefined') return
-    const handler = (ev: Event) => {
-      const e = ev as CustomEvent<{ event?: string } & Record<string, unknown>>
-      const detail = e.detail || {}
-      const name = typeof detail.event === 'string' ? detail.event : null
-      if (!name) return
-      const payloadEntries = Object.entries(detail).filter(([k]) => k !== 'event')
-      const payload: Record<string, unknown> = {}
-      for (const [k, v] of payloadEntries) {
-        payload[k] = v
-      }
-      const sample: MarkdownMetricSample = {
-        ts: Date.now(),
-        event: name,
-        payload,
-      }
-      setSamples(prev => {
-        const next = [sample, ...prev]
-        if (next.length > 50) next.length = 50
-        return next
-      })
-    }
-    window.addEventListener('kg:markdownPanelMetric', handler as EventListener)
-    return () => {
-      window.removeEventListener('kg:markdownPanelMetric', handler as EventListener)
-    }
-  }, [])
-
-  const anyImportMeta = import.meta as unknown as { env?: { DEV?: boolean } }
-  if (!anyImportMeta.env?.DEV) return null
-
-  let slideLabel = 'n/a'
-  const latestSlide = samples.find(s => s.event === 'markdownPresentationSlideStateChanged')
-  if (latestSlide) {
-    const idxRaw = latestSlide.payload.activeIndex
-    const countRaw = latestSlide.payload.slideCount
-    const idx = typeof idxRaw === 'number' && Number.isFinite(idxRaw) ? idxRaw : null
-    const count = typeof countRaw === 'number' && Number.isFinite(countRaw) ? countRaw : null
-    if (idx != null && count != null && count > 0) {
-      slideLabel = `${idx + 1}/${count}`
-    }
-  }
-
-  return (
-    <div className={`fixed bottom-2 right-2 z-50 text-xs ${UI_THEME_TOKENS.text.primary}`}>
-      <button
-        type="button"
-        className={[
-          `px-2 py-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm`,
-          open ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700' : '',
-        ].join(' ')}
-        onClick={() => setOpen(v => !v)}
-      >
-        Markdown metrics
-      </button>
-      {open && (
-        <div className={`mt-1 w-80 max-h-64 overflow-auto rounded ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.input.border} shadow-lg p-2 space-y-1`}>
-          <div className="flex items-center justify-between mb-1">
-            <div className="font-semibold">Markdown usage</div>
-            <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>slides: {slideLabel}</div>
-          </div>
-          <div className="space-y-1">
-            {samples.map(s => (
-              <div key={s.ts.toString() + s.event} className="border-b last:border-b-0 border-gray-100 dark:border-gray-800 pb-1">
-                <div className="flex items-center justify-between">
-                  <div className={`font-semibold text-[11px] ${UI_THEME_TOKENS.text.secondary}`}>{s.event}</div>
-                  <div className="text-[10px] text-gray-400">
-                    {new Date(s.ts).toLocaleTimeString(undefined, { hour12: false })}
-                  </div>
-                </div>
-                <div className="text-[10px] text-gray-600 break-words">
-                  {JSON.stringify(s.payload)}
-                </div>
-              </div>
-            ))}
-            {samples.length === 0 && (
-              <div className="text-[10px] text-gray-500">No markdown metrics yet.</div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 export default function CanvasPage() {
   const location = useLocation()
@@ -287,6 +180,72 @@ export default function CanvasPage() {
   const lastSelectionRef = React.useRef<{ n: string | null; e: string | null } | null>(null)
   const lastSchemaHashRef = React.useRef<string | null>(null)
   const lastSchemaRemoteTimestampRef = React.useRef<number>(0)
+
+  const [workspacePreviewWidthPx, setWorkspacePreviewWidthPx] = React.useState(() => {
+    const raw = lsInt(LS_KEYS.workspacePreviewWidthPx, 520)
+    const next = Math.max(320, Math.min(960, raw))
+    if (next !== raw) lsSetInt(LS_KEYS.workspacePreviewWidthPx, next, { min: 320, max: 960 })
+    return next
+  })
+  const workspacePreviewWidthPxRef = React.useRef(workspacePreviewWidthPx)
+  workspacePreviewWidthPxRef.current = workspacePreviewWidthPx
+  const resizeHandleRef = React.useRef<HTMLHRElement | null>(null)
+  const rafSetPreviewWidthRef = React.useRef(createRafValueScheduler<number>(v => setWorkspacePreviewWidthPx(v)))
+
+  React.useEffect(() => {
+    return () => {
+      rafSetPreviewWidthRef.current.cancel()
+    }
+  }, [])
+
+  React.useEffect(() => {
+    if (!Number.isFinite(workspacePreviewWidthPx) || workspacePreviewWidthPx < 320 || workspacePreviewWidthPx > 960) {
+      const next = Math.max(320, Math.min(960, Number.isFinite(workspacePreviewWidthPx) ? workspacePreviewWidthPx : 520))
+      setWorkspacePreviewWidthPx(next)
+      lsSetInt(LS_KEYS.workspacePreviewWidthPx, next, { min: 320, max: 960 })
+    }
+  }, [workspacePreviewWidthPx])
+
+  React.useEffect(() => {
+    lsSetInt(LS_KEYS.workspacePreviewWidthPx, workspacePreviewWidthPx, { min: 320, max: 960 })
+  }, [workspacePreviewWidthPx])
+
+  React.useEffect(() => {
+    const el = resizeHandleRef.current
+    if (!el) return
+    const onDown = (ev: PointerEvent) => {
+      if (ev.button !== undefined && ev.button !== 0) return
+      const startX = ev.clientX
+      const startWidth = workspacePreviewWidthPxRef.current
+      let pending = startWidth
+      startPointerDrag({
+        ev,
+        cursor: 'col-resize',
+        shouldStart: down => {
+          if (down.button !== undefined && down.button !== 0) return false
+          return true
+        },
+        onMove: mv => {
+          const dx = startX - mv.clientX
+          const next = Math.max(320, Math.min(960, Math.round(startWidth + dx)))
+          pending = next
+          rafSetPreviewWidthRef.current.schedule(next)
+        },
+        onEnd: () => {
+          rafSetPreviewWidthRef.current.flush()
+          setWorkspacePreviewWidthPx(pending)
+          lsSetInt(LS_KEYS.workspacePreviewWidthPx, pending, { min: 320, max: 960 })
+        },
+        onCancel: () => {
+          rafSetPreviewWidthRef.current.flush()
+          setWorkspacePreviewWidthPx(pending)
+          lsSetInt(LS_KEYS.workspacePreviewWidthPx, pending, { min: 320, max: 960 })
+        },
+      })
+    }
+    el.addEventListener('pointerdown', onDown)
+    return () => el.removeEventListener('pointerdown', onDown)
+  }, [])
   
 
   React.useEffect(() => {
@@ -657,10 +616,6 @@ export default function CanvasPage() {
   const handleReset = makeZoomHandler('reset')
   const handleZoomSelection = makeZoomHandler('selection')
 
-  const previewSrc = React.useMemo(() => {
-    return '/'
-  }, [])
-
   React.useEffect(() => {
     const handler = (event: MessageEvent) => {
       try {
@@ -922,178 +877,86 @@ export default function CanvasPage() {
       >
         {isEmbeddedPreview ? (
           <main className="flex-1 relative overflow-hidden" aria-label="Canvas Preview Only">
-            <React.Suspense fallback={null}>
-              {geospatialModeEnabled && (
-                <GeospatialOverlayHostLazy
-                  active
-                  snapshot={{
-                    graphData: activeGraphData,
-                    zoomState: gympgrphBridge.zoomState,
-                    canvasRenderMode: gympgrphBridge.canvasRenderMode,
-                    viewportControlsPreset: gympgrphBridge.viewportControlsPreset,
-                    selectedNodeId: gympgrphBridge.selectedNodeId,
-                    selectedNodeIds: gympgrphBridge.selectedNodeIds,
-                    selectedEdgeId: gympgrphBridge.selectedEdgeId,
-                  }}
-                  handlers={{
-                    selectNode: gympgrphBridge.selectNode,
-                    selectEdge: gympgrphBridge.selectEdge,
-                    setSelectionSource: gympgrphBridge.setSelectionSource,
-                    requestZoom: gympgrphBridge.requestZoom,
-                    requestThreeCamera: gympgrphBridge.requestThreeCamera,
-                    pushUiToast: gympgrphBridge.pushUiToast,
-                    upsertUiToast: gympgrphBridge.upsertUiToast,
-                    dismissUiToast: gympgrphBridge.dismissUiToast,
-                  }}
-                />
-              )}
-              {!geospatialModeEnabled && canvasRenderMode === '2d' && (
-                <>
-                  <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'd3' ? '' : 'opacity-0 pointer-events-none'}`}>
-                    {mounted2dRenderers.d3 ? <GraphCanvasLazy active={canvas2dRenderer === 'd3'} /> : null}
-                  </div>
-                  <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flow' ? '' : 'opacity-0 pointer-events-none'}`}>
-                    {mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} /> : null}
-                  </div>
-                  <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'design' ? '' : 'opacity-0 pointer-events-none'}`}>
-                    {mounted2dRenderers.design ? <DesignCanvasLazy active={canvas2dRenderer === 'design'} /> : null}
-                  </div>
-                  <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flowEditor' ? '' : 'opacity-0 pointer-events-none'}`}>
-                    {mounted2dRenderers.flowEditor ? <FlowEditorCanvasLazy active={canvas2dRenderer === 'flowEditor'} /> : null}
-                  </div>
-                </>
-              )}
-              {!geospatialModeEnabled && canvasRenderMode === '3d' && (
-                <div className="absolute inset-0 z-[10]">
-                  <ThreeGraphLazy active />
-                </div>
-              )}
-            </React.Suspense>
+            <CanvasViewport
+              variant="embeddedPreview"
+              geospatialModeEnabled={geospatialModeEnabled}
+              activeGraphData={activeGraphData}
+              canvasRenderMode={canvasRenderMode}
+              canvas2dRenderer={canvas2dRenderer}
+              mounted2dRenderers={mounted2dRenderers}
+              gympgrphBridge={gympgrphBridge}
+            />
           </main>
-        ) : workspaceViewMode === 'editor' ? (
-          <>
-            <header className="shrink-0" aria-label="Editor Toolbar Header">
-              <nav className="relative z-[200] flex items-center justify-center pt-2" aria-label="Canvas Toolbar" role="navigation">
-                <React.Suspense fallback={null}>
-                  <ToolbarLazy
-                    onZoomIn={handleZoomIn}
-                    onZoomOut={handleZoomOut}
-                    onReset={handleReset}
-                    onZoomSelection={handleZoomSelection}
-                  />
-                </React.Suspense>
-              </nav>
-            </header>
-            <ToastHost />
-            <EmbeddedEditorShell previewSrc={previewSrc} />
-          </>
-        ) : workspaceViewMode === 'table' ? (
-          <>
-            <header className="shrink-0" aria-label="Table Toolbar Header">
-              <nav
-                className="relative z-[200] flex items-center justify-center pt-2"
-                aria-label="Canvas Toolbar"
-                role="navigation"
-              >
-                <React.Suspense fallback={null}>
-                  <ToolbarLazy
-                    onZoomIn={handleZoomIn}
-                    onZoomOut={handleZoomOut}
-                    onReset={handleReset}
-                    onZoomSelection={handleZoomSelection}
-                  />
-                </React.Suspense>
-              </nav>
-            </header>
-            <ToastHost />
-            <React.Suspense fallback={null}>
-              <GraphTableWorkspaceLazy />
-            </React.Suspense>
-          </>
         ) : (
-          <main className="flex-1 flex overflow-hidden" aria-label="Canvas Workspace">
-            <section className="flex-1 flex flex-col overflow-hidden" aria-label="Canvas stage">
-              <section className="flex-1 relative overflow-hidden" aria-label="Canvas renderer stack">
-                <>
-                  <nav
-                    className="absolute top-2 inset-x-0 z-[200] flex items-center justify-center"
-                    aria-label="Canvas Toolbar"
-                    role="navigation"
+          <>
+            {workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? (
+              <header className="shrink-0" aria-label="Workspace Toolbar Header">
+                <nav className="relative z-[200] flex items-center justify-center pt-2" aria-label="Canvas Toolbar" role="navigation">
+                  <React.Suspense fallback={null}>
+                    <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
+                  </React.Suspense>
+                </nav>
+              </header>
+            ) : null}
+
+            <ToastHost />
+
+            <main className="flex-1 flex overflow-hidden" aria-label="Canvas Workspace">
+              <section className="flex-1 flex flex-col overflow-hidden" aria-label="Workspace stage">
+                <section className="flex-1 min-h-0 overflow-hidden flex" aria-label="Workspace split">
+                  <section
+                    className={`flex-1 min-w-0 min-h-0 overflow-hidden ${workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? 'flex flex-col' : 'hidden'}`}
+                    aria-label="Workspace left pane"
                   >
-                    <React.Suspense fallback={null}>
-                      <ToolbarLazy
-                        onZoomIn={handleZoomIn}
-                        onZoomOut={handleZoomOut}
-                        onReset={handleReset}
-                        onZoomSelection={handleZoomSelection}
-                      />
-                    </React.Suspense>
-                  </nav>
-                  <ToastHost />
-                  <>
-                    <React.Suspense fallback={null}>
-                      {geospatialModeEnabled && (
-                        <GeospatialOverlayHostLazy
-                          active
-                          snapshot={{
-                            graphData: activeGraphData,
-                            zoomState: gympgrphBridge.zoomState,
-                            canvasRenderMode: gympgrphBridge.canvasRenderMode,
-                            viewportControlsPreset: gympgrphBridge.viewportControlsPreset,
-                            selectedNodeId: gympgrphBridge.selectedNodeId,
-                            selectedNodeIds: gympgrphBridge.selectedNodeIds,
-                            selectedEdgeId: gympgrphBridge.selectedEdgeId,
-                          }}
-                          handlers={{
-                            selectNode: gympgrphBridge.selectNode,
-                            selectEdge: gympgrphBridge.selectEdge,
-                            setSelectionSource: gympgrphBridge.setSelectionSource,
-                            requestZoom: gympgrphBridge.requestZoom,
-                            requestThreeCamera: gympgrphBridge.requestThreeCamera,
-                            pushUiToast: gympgrphBridge.pushUiToast,
-                            upsertUiToast: gympgrphBridge.upsertUiToast,
-                            dismissUiToast: gympgrphBridge.dismissUiToast,
-                          }}
-                        />
-                      )}
-                      {!geospatialModeEnabled && canvasRenderMode === '2d' && (
-                        <>
-                          <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'd3' ? '' : 'opacity-0 pointer-events-none'}`}>
-                            {mounted2dRenderers.d3 ? <GraphCanvasLazy active={canvas2dRenderer === 'd3'} /> : null}
-                          </div>
-                          <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flow' ? '' : 'opacity-0 pointer-events-none'}`}>
-                            {mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} /> : null}
-                          </div>
-                          <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'design' ? '' : 'opacity-0 pointer-events-none'}`}>
-                            {mounted2dRenderers.design ? <DesignCanvasLazy active={canvas2dRenderer === 'design'} /> : null}
-                          </div>
-                          <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flowEditor' ? '' : 'opacity-0 pointer-events-none'}`}>
-                            {mounted2dRenderers.flowEditor ? <FlowEditorCanvasLazy active={canvas2dRenderer === 'flowEditor'} /> : null}
-                          </div>
-                        </>
-                      )}
-                      {!geospatialModeEnabled && canvasRenderMode === '3d' && (
-                        <div className="absolute inset-0 z-[10]">
-                          <ThreeGraphLazy active />
-                        </div>
-                      )}
-                      <LaunchSpotlight />
-                      {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'd3' && (
-                        <aside
-                          className="fixed left-3 z-[201] pointer-events-auto"
-                          style={{ bottom: 'calc(40px + 12px)' }}
-                          aria-label="Minimap Overlay"
-                        >
-                          <MinimapLazy />
-                        </aside>
-                      )}
-                      <MarkdownMetricsDevOverlay />
-                    </React.Suspense>
-                  </>
-                </>
+                    {workspaceViewMode === 'editor' ? (
+                      <EmbeddedEditorShell />
+                    ) : workspaceViewMode === 'table' ? (
+                      <React.Suspense fallback={null}>
+                        <GraphTableWorkspaceLazy />
+                      </React.Suspense>
+                    ) : null}
+                  </section>
+
+                  {workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? (
+                    <VerticalResizeSeparatorHr
+                      ref={el => {
+                        resizeHandleRef.current = el
+                      }}
+                      ariaLabel="Resize canvas"
+                    />
+                  ) : null}
+
+                  <section
+                    className={`min-h-0 overflow-hidden relative bg-[var(--kg-canvas-bg)] ${workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? 'shrink-0' : 'flex-1'}`}
+                    style={workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? { width: `${workspacePreviewWidthPx}px` } : undefined}
+                    aria-label="Canvas pane"
+                  >
+                    {workspaceViewMode !== 'editor' && workspaceViewMode !== 'table' ? (
+                      <nav
+                        className="absolute top-2 inset-x-0 z-[200] flex items-center justify-center"
+                        aria-label="Canvas Toolbar"
+                        role="navigation"
+                      >
+                        <React.Suspense fallback={null}>
+                          <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
+                        </React.Suspense>
+                      </nav>
+                    ) : null}
+                    <CanvasViewport
+                      variant="workspace"
+                      layout={workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? 'pane' : 'full'}
+                      geospatialModeEnabled={geospatialModeEnabled}
+                      activeGraphData={activeGraphData}
+                      canvasRenderMode={canvasRenderMode}
+                      canvas2dRenderer={canvas2dRenderer}
+                      mounted2dRenderers={mounted2dRenderers}
+                      gympgrphBridge={gympgrphBridge}
+                    />
+                  </section>
+                </section>
               </section>
-            </section>
-          </main>
+            </main>
+          </>
         )}
       </section>
     </>

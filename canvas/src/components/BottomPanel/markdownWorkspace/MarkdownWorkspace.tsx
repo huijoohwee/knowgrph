@@ -185,6 +185,7 @@ export function MarkdownWorkspace() {
   const [loadError, setLoadError] = React.useState<string>('')
   const [search, setSearch] = React.useState('')
   const [sidebarWidthPx, setSidebarWidthPx] = React.useState(() => lsInt(LS_KEYS.markdownSidebarWidthPx, 320))
+  const [explorerOpen, setExplorerOpen] = React.useState(() => lsBool(LS_KEYS.markdownSidebarOpen, true))
   const [sourceFilesCollapsed, setSourceFilesCollapsed] = React.useState(() => lsBool(LS_KEYS.markdownExplorerSourceFilesCollapsed, false))
   const [tocCollapsed, setTocCollapsed] = React.useState(() => lsBool(LS_KEYS.markdownExplorerOutlineCollapsed, false))
   const [backlinksCollapsed, setBacklinksCollapsed] = React.useState(() => lsBool(LS_KEYS.markdownExplorerBacklinksCollapsed, false))
@@ -1154,6 +1155,10 @@ export function MarkdownWorkspace() {
   React.useEffect(() => {
     lsSetInt(LS_KEYS.markdownSidebarWidthPx, sidebarWidthPx, { min: SIDEBAR_MIN_PX, max: SIDEBAR_MAX_PX })
   }, [sidebarWidthPx])
+
+  React.useEffect(() => {
+    lsSetBool(LS_KEYS.markdownSidebarOpen, explorerOpen)
+  }, [explorerOpen])
 
   React.useEffect(() => {
     lsSetBool(LS_KEYS.markdownExplorerSourceFilesCollapsed, sourceFilesCollapsed)
@@ -2326,59 +2331,65 @@ export function MarkdownWorkspace() {
       className={`flex-1 w-full h-full min-h-0 flex overflow-hidden rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
       aria-label="Markdown Workspace"
     >
-      <MarkdownWorkspaceExplorer
-        uiPanelTextFontClass={uiPanelTextFontClass}
-        sidebarWidthPx={sidebarWidthPx}
-        sidebarWidthMinPx={SIDEBAR_MIN_PX}
-        sidebarWidthMaxPx={SIDEBAR_MAX_PX}
-        entries={entries}
-        filteredEntries={filteredEntries}
-        sourcesByPath={sourcesByPath}
-        loading={loading}
-        loadError={loadError}
-        expandedPaths={expandedPaths}
-        toggleExpanded={toggleExpanded}
-        activePath={selectionPath || activePath}
-        onSelectFile={onSelectFile}
-        onSelectFolder={onSelectFolder}
-        search={search}
-        setSearch={setSearch}
-        sourceFilesCollapsed={sourceFilesCollapsed}
-        setSourceFilesCollapsed={setSourceFilesCollapsed}
-        tocCollapsed={tocCollapsed}
-        setTocCollapsed={setTocCollapsed}
-        backlinksCollapsed={backlinksCollapsed}
-        setBacklinksCollapsed={setBacklinksCollapsed}
-        tocTokens={tocTokens}
-        backlinks={backlinks}
-        onRevealLine={revealLineInEditor}
-        onOpenBacklink={openBacklink}
-        onTocReorder={onTocReorder}
-        onCreateNewFile={() => void fileActions.createNewFile({ parentPath: createParentPath })}
-        onCreateNewFolder={() => void fileActions.createNewFolder({ parentPath: createParentPath })}
-        onRefresh={() => void refresh()}
-        statusLabel={statusLabel}
-        activeEntryName={selectionEntry?.name || ''}
-        activeEntryKind={selectionEntry?.kind || ''}
-        canClearActiveSelection={fileActions.canClearActiveSelection}
-        onClearActiveSelection={fileActions.onClearActiveSelection}
-        canRefreshActiveFromSource={canRefreshActiveFromSource}
-        onRefreshActiveFromSource={() => {
-          if (!selectionPath || selectionEntry?.kind !== 'file') return
-          void fileActions.refreshFileFromSource(selectionPath)
-        }}
-        canDeleteActive={fileActions.canDeleteActive}
-        onDeleteActive={fileActions.onDeleteActive}
-        renderSourceFileRight={renderSourceFileRight}
-      />
+      {explorerOpen ? (
+        <>
+          <MarkdownWorkspaceExplorer
+            uiPanelTextFontClass={uiPanelTextFontClass}
+            sidebarWidthPx={sidebarWidthPx}
+            sidebarWidthMinPx={SIDEBAR_MIN_PX}
+            sidebarWidthMaxPx={SIDEBAR_MAX_PX}
+            entries={entries}
+            filteredEntries={filteredEntries}
+            sourcesByPath={sourcesByPath}
+            loading={loading}
+            loadError={loadError}
+            expandedPaths={expandedPaths}
+            toggleExpanded={toggleExpanded}
+            activePath={selectionPath || activePath}
+            onSelectFile={onSelectFile}
+            onSelectFolder={onSelectFolder}
+            search={search}
+            setSearch={setSearch}
+            sourceFilesCollapsed={sourceFilesCollapsed}
+            setSourceFilesCollapsed={setSourceFilesCollapsed}
+            tocCollapsed={tocCollapsed}
+            setTocCollapsed={setTocCollapsed}
+            backlinksCollapsed={backlinksCollapsed}
+            setBacklinksCollapsed={setBacklinksCollapsed}
+            tocTokens={tocTokens}
+            backlinks={backlinks}
+            onRevealLine={revealLineInEditor}
+            onOpenBacklink={openBacklink}
+            onTocReorder={onTocReorder}
+            onCreateNewFile={() => void fileActions.createNewFile({ parentPath: createParentPath })}
+            onCreateNewFolder={() => void fileActions.createNewFolder({ parentPath: createParentPath })}
+            onRefresh={() => void refresh()}
+            statusLabel={statusLabel}
+            activeEntryName={selectionEntry?.name || ''}
+            activeEntryKind={selectionEntry?.kind || ''}
+            canClearActiveSelection={fileActions.canClearActiveSelection}
+            onClearActiveSelection={fileActions.onClearActiveSelection}
+            canRefreshActiveFromSource={canRefreshActiveFromSource}
+            onRefreshActiveFromSource={() => {
+              if (!selectionPath || selectionEntry?.kind !== 'file') return
+              void fileActions.refreshFileFromSource(selectionPath)
+            }}
+            canDeleteActive={fileActions.canDeleteActive}
+            onDeleteActive={fileActions.onDeleteActive}
+            renderSourceFileRight={renderSourceFileRight}
+          />
 
-      <VerticalResizeSeparatorHr ref={resizeHandleRef} ariaLabel="Resize explorer" />
+          <VerticalResizeSeparatorHr ref={resizeHandleRef} ariaLabel="Resize explorer" />
+        </>
+      ) : null}
 
       <MarkdownWorkspaceMain
         themeMode={themeMode}
         uiPanelTextFontClass={uiPanelTextFontClass}
         uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
         geoDatasetIntegration={geoDatasetIntegration}
+        explorerOpen={explorerOpen}
+        setExplorerOpen={setExplorerOpen}
         layoutMode={layoutMode}
         setLayoutMode={setLayoutMode}
         markdownWordWrap={markdownWordWrap}

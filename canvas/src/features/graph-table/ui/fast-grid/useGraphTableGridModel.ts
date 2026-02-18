@@ -68,7 +68,7 @@ export function useGraphTableGridModel(args: {
       const widthRaw = args.columnWidthsPxById[c.columnId]
       const width = Math.max(80, Math.min(720, Math.round(typeof widthRaw === 'number' ? widthRaw : 180)))
       const editable = c.columnId !== 'id'
-      return { kind: 'data', id: c.columnId, title: c.name, width, pinned: false, editable }
+      return { kind: 'data', id: c.columnId, title: c.name, width, pinned: false, editable, dataKind: c.kind }
     })
     return pinned.concat(dynamic)
   }, [args.columnWidthsPxById, visibleDataColumns])

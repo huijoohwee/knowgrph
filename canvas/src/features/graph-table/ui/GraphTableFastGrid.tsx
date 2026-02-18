@@ -16,6 +16,7 @@ import { CanvasCellEditor, type CanvasCellEditorState } from '@/features/graph-t
 import { binarySearchFloor, clamp } from '@/features/graph-table/ui/fast-grid/fastGridMath'
 import { drawGrid, getCellText, hitTest, readGridTheme, type GridTheme } from '@/features/graph-table/ui/fast-grid/canvasGridRender'
 import { useGraphTableGridModel } from '@/features/graph-table/ui/fast-grid/useGraphTableGridModel'
+import { DateCellEditor, type DateCellEditorState } from '@/features/graph-table/ui/fast-grid/DateCellEditor'
 
 export type GraphTableFastGridProps = {
   tableId: GraphTableId
@@ -49,7 +50,7 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
   const headerRafRef = useRef<number | null>(null)
   const selectAllRef = useRef<HTMLInputElement | null>(null)
   const [viewportClientWidth, setViewportClientWidth] = useState(0)
-  const [editor, setEditor] = useState<CanvasCellEditorState | null>(null)
+  const [editor, setEditor] = useState<(CanvasCellEditorState & { kind: 'text' }) | (DateCellEditorState & { kind: 'date' }) | null>(null)
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null)
   const selectedColumnIdRef = useRef<string | null>(null)
   const reorderFromRef = useRef<string | null>(null)
@@ -58,8 +59,19 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
   const spacerRafRef = useRef<number | null>(null)
   const themeRef = useRef<GridTheme | null>(null)
 
+  const [overlayTick, setOverlayTick] = useState(0)
+  const overlayRafRef = useRef<number | null>(null)
+  const bumpOverlayTick = React.useCallback(() => {
+    if (!editor) return
+    if (overlayRafRef.current != null) return
+    overlayRafRef.current = window.requestAnimationFrame(() => {
+      overlayRafRef.current = null
+      setOverlayTick(v => v + 1)
+    })
+  }, [editor])
+
   const rowHeight = props.rowHeightPreset === 'compact' ? 22 : 28
-  const headerHeight = 28
+  const headerHeight = rowHeight
 
   const model = useGraphTableGridModel({
     columns: props.columns,
@@ -145,6 +157,28 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
     })
   }, [])
 
+  const computedEditorRect = useMemo(() => {
+    void overlayTick
+    if (!editor) return null
+    const rowId = editor.rowId
+    const columnId = editor.columnId
+    const rowIndex = model.rowIndexById.get(rowId)
+    if (rowIndex == null) return null
+    const colIndex = model.layout.scrollable.findIndex(c => c.id === columnId)
+    if (colIndex < 0) return null
+    const col = model.layout.scrollable[colIndex]
+    if (!col) return null
+    const x = model.layout.pinnedWidth + (model.layout.scrollableOffsets[colIndex] || 0) - scrollRef.current.left
+    const y = headerHeight + rowIndex * rowHeight - scrollRef.current.top
+    return { x, y, w: col.width, h: rowHeight }
+  }, [editor, headerHeight, model.layout.pinnedWidth, model.layout.scrollable, model.layout.scrollableOffsets, model.rowIndexById, overlayTick, rowHeight])
+
+  useEffect(() => {
+    if (!editor) return
+    if (computedEditorRect) return
+    setEditor(null)
+  }, [computedEditorRect, editor])
+
   useEffect(() => {
     selectedColumnIdRef.current = selectedColumnId
     scheduleDraw()
@@ -164,12 +198,13 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
       themeRef.current = readGridTheme(viewportEl)
       syncScrollSpacer()
       scheduleDraw()
+      bumpOverlayTick()
     })
     ro.observe(viewportEl)
     themeRef.current = readGridTheme(viewportEl)
     syncScrollSpacer()
     return () => ro.disconnect()
-  }, [scheduleDraw, syncScrollSpacer])
+  }, [bumpOverlayTick, scheduleDraw, syncScrollSpacer])
 
   useEffect(() => {
     if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return
@@ -178,10 +213,11 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
       const viewportEl = viewportRef.current
       if (viewportEl) themeRef.current = readGridTheme(viewportEl)
       scheduleDraw()
+      bumpOverlayTick()
     })
     mo.observe(root, { attributes: true, attributeFilter: ['data-theme', 'class', 'style'] })
     return () => mo.disconnect()
-  }, [scheduleDraw])
+  }, [bumpOverlayTick, scheduleDraw])
 
   useEffect(() => {
     scheduleDraw()
@@ -297,7 +333,7 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
                   <button
                     key={col.id}
                     type="button"
-                    className={`h-full flex items-center justify-center border-r pointer-events-auto ${UI_THEME_TOKENS.panel.divider}`}
+                    className={`h-full flex items-center justify-center leading-none border-r pointer-events-auto ${UI_THEME_TOKENS.panel.divider}`}
                     style={{ width: col.width, backgroundColor: bg }}
                     onClick={() => {
                       if (model.allSelected) props.onSelectionChanged([])
@@ -318,7 +354,7 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
                 <button
                   key={col.id}
                   type="button"
-                  className={`h-full flex items-center px-2 border-r pointer-events-auto ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.text.secondary}`}
+                  className={`h-full flex items-center leading-none px-2 border-r pointer-events-auto ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.text.secondary}`}
                   style={{ width: col.width, backgroundColor: bg }}
                   onClick={() => {
                     selectedColumnIdRef.current = col.id
@@ -352,7 +388,7 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
                   >
                     <button
                       type="button"
-                      className={`h-full w-full px-2 flex items-center justify-between gap-2 pointer-events-auto ${UI_THEME_TOKENS.text.secondary}`}
+                      className={`h-full w-full leading-none px-2 flex items-center justify-between gap-2 pointer-events-auto ${UI_THEME_TOKENS.text.secondary}`}
                       onPointerDown={e => {
                         if (e.button !== undefined && e.button !== 0) return
                         const fromColumnId = col.id
@@ -469,6 +505,7 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
           scrollRef.current = { left: el.scrollLeft, top: el.scrollTop }
           syncHeaderScroll(el.scrollLeft)
           scheduleDraw()
+          bumpOverlayTick()
         }}
         onPointerMove={e => {
           const el = e.currentTarget
@@ -518,7 +555,12 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
           const x =
             model.layout.pinnedWidth + (model.layout.scrollableOffsets[hit.scrollableColIndex] || 0) - scrollRef.current.left
           const y = headerHeight + hit.rowIndex * rowHeight - scrollRef.current.top
-          setEditor({ rowId, columnId, value, rect: { x, y, w: hit.col.width, h: rowHeight } })
+          const kind = props.columns.find(c => c.columnId === columnId)?.kind
+          if (kind === 'date') {
+            setEditor({ kind: 'date', rowId, columnId, initialValue: raw, rect: { x, y, w: hit.col.width, h: rowHeight } })
+            return
+          }
+          setEditor({ kind: 'text', rowId, columnId, value, rect: { x, y, w: hit.col.width, h: rowHeight } })
         }}
         onPointerDown={e => {
           e.stopPropagation()
@@ -564,16 +606,29 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
         />
       </section>
       {editor ? (
-        <CanvasCellEditor
-          state={editor}
-          onChange={value => setEditor(prev => (prev ? { ...prev, value } : prev))}
-          onCancel={() => setEditor(null)}
-          onCommit={() => {
-            const current = editor
-            setEditor(null)
-            props.onCellValueChanged(current.rowId, current.columnId, current.value)
-          }}
-        />
+        editor.kind === 'date' ? (
+          <DateCellEditor
+            state={{ ...editor, rect: computedEditorRect || editor.rect }}
+            onCancel={() => setEditor(null)}
+            onCommit={value => {
+              const current = editor
+              setEditor(null)
+              props.onCellValueChanged(current.rowId, current.columnId, value)
+            }}
+          />
+        ) : (
+          <CanvasCellEditor
+            state={{ ...editor, rect: computedEditorRect || editor.rect }}
+            onChange={value => setEditor(prev => (prev && prev.kind === 'text' ? { ...prev, value } : prev))}
+            onCancel={() => setEditor(null)}
+            onCommit={() => {
+              const current = editor
+              setEditor(null)
+              if (current.kind !== 'text') return
+              props.onCellValueChanged(current.rowId, current.columnId, current.value)
+            }}
+          />
+        )
       ) : null}
     </section>
   )

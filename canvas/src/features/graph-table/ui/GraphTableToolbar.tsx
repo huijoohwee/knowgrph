@@ -1,7 +1,16 @@
 import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import IconButton from '@/components/IconButton'
-import { ArrowUpDown, Columns2, Filter, PanelLeftClose, PanelLeftOpen, Ruler } from 'lucide-react'
+import {
+  ArrowUpDown,
+  Columns2,
+  Filter,
+  PanelRightClose,
+  PanelRightOpen,
+  Ruler,
+  SidebarClose,
+  SidebarOpen,
+} from 'lucide-react'
 import {
   makeGraphTableRuleId,
   type GraphTableColumnVisibilityById,
@@ -17,8 +26,12 @@ import type { PanelTypography } from '@/lib/ui/panelTypography'
 
 export type GraphTableToolbarProps = {
   columns: { columnId: string; name: string }[]
-  tableCollapsed: boolean
-  setTableCollapsed: (next: boolean) => void
+  inspectorOpen: boolean
+  setInspectorOpen: (next: boolean) => void
+
+  canvasPreviewAvailable?: boolean
+  canvasPreviewCollapsed?: boolean
+  setCanvasPreviewCollapsed?: (next: boolean) => void
 
   panelTypography?: PanelTypography
 
@@ -90,13 +103,28 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
   return (
     <nav aria-label="Table toolbar" className={`flex items-center gap-2 flex-wrap ${microLabelClass}`}>
       <IconButton
-        title={props.tableCollapsed ? 'Expand table' : 'Collapse table'}
-        showTooltip
-        onClick={() => props.setTableCollapsed(!props.tableCollapsed)}
+        title={props.inspectorOpen ? 'Hide Inspector' : 'Show Inspector'}
+        showTooltip={false}
+        onClick={() => props.setInspectorOpen(!props.inspectorOpen)}
         className={iconButtonClass}
       >
-        {props.tableCollapsed ? <PanelLeftOpen className="w-4 h-4" aria-hidden="true" /> : <PanelLeftClose className="w-4 h-4" aria-hidden="true" />}
+        {props.inspectorOpen ? <SidebarClose className="w-4 h-4" aria-hidden="true" /> : <SidebarOpen className="w-4 h-4" aria-hidden="true" />}
       </IconButton>
+
+      {props.canvasPreviewAvailable && props.setCanvasPreviewCollapsed ? (
+        <IconButton
+          title={props.canvasPreviewCollapsed ? 'Show Canvas Preview' : 'Hide Canvas Preview'}
+          showTooltip={false}
+          onClick={() => props.setCanvasPreviewCollapsed?.(!props.canvasPreviewCollapsed)}
+          className={iconButtonClass}
+        >
+          {props.canvasPreviewCollapsed ? (
+            <PanelRightOpen className="w-4 h-4" aria-hidden="true" />
+          ) : (
+            <PanelRightClose className="w-4 h-4" aria-hidden="true" />
+          )}
+        </IconButton>
+      ) : null}
 
       <details className="relative">
         <summary className={iconSummaryClass} title="Fields" aria-label="Fields">

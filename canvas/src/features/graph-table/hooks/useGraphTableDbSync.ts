@@ -6,33 +6,35 @@ type UseGraphTableDbSyncResult = {
   noteGraphWrite: (nextGraphRevision: number) => void
 }
 
-let lastSyncedRevisionGlobal = -1
-let lastGraphWriteRevisionGlobal: number | null = null
+let lastSyncedKeyGlobal = ''
+let lastGraphWriteKeyGlobal: string | null = null
 
 export const useGraphTableDbSync = (
   graphDataRevision: number,
   renderGraphData: GraphData | null | undefined,
+  viewKey: string = '',
 ): UseGraphTableDbSyncResult => {
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      if (lastGraphWriteRevisionGlobal === graphDataRevision) {
-        lastGraphWriteRevisionGlobal = null
+      const key = `${graphDataRevision}:${viewKey}`
+      if (lastGraphWriteKeyGlobal === key) {
+        lastGraphWriteKeyGlobal = null
         return
       }
-      if (lastSyncedRevisionGlobal === graphDataRevision) return
+      if (lastSyncedKeyGlobal === key) return
       await syncGraphDataToGraphTableDb(renderGraphData || null)
       if (cancelled) return
-      lastSyncedRevisionGlobal = graphDataRevision
+      lastSyncedKeyGlobal = key
     })()
     return () => {
       cancelled = true
     }
-  }, [graphDataRevision, renderGraphData])
+  }, [graphDataRevision, renderGraphData, viewKey])
 
   const noteGraphWrite = useCallback((nextGraphRevision: number) => {
-    lastGraphWriteRevisionGlobal = nextGraphRevision
-  }, [])
+    lastGraphWriteKeyGlobal = `${nextGraphRevision}:${viewKey}`
+  }, [viewKey])
 
   return { noteGraphWrite }
 }

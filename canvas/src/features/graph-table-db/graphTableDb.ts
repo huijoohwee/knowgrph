@@ -347,8 +347,24 @@ const isConflictError = (err: unknown): boolean => {
   return false
 }
 
+const isIsoDateLike = (raw: string): boolean => {
+  const s = raw.trim()
+  if (!s) return false
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const ms = Date.parse(s)
+    return Number.isFinite(ms)
+  }
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2})?$/.test(s)) {
+    const ms = Date.parse(s)
+    return Number.isFinite(ms)
+  }
+  return false
+}
+
 const inferKind = (v: JSONValue): GraphColumnKind => {
-  if (typeof v === 'string') return 'text'
+  if (typeof v === 'string') {
+    return isIsoDateLike(v) ? 'date' : 'text'
+  }
   if (typeof v === 'number') return 'number'
   if (typeof v === 'boolean') return 'boolean'
   if (v === null) return 'text'
@@ -405,19 +421,52 @@ const ensureColumnsForRowData = async (tableId: GraphTableId, rows: Array<Record
     existing.set(json.columnId, json)
   }
 
-  const observed = new Map<string, GraphColumnKind>()
+  const stats = new Map<
+    string,
+    { date: number; text: number; number: number; boolean: number; json: number }
+  >()
   for (const r of rows) {
     for (const [k, v] of Object.entries(r)) {
       if (k === 'id' || k === 'label' || k === 'type' || k === 'source' || k === 'target') continue
+      if (v == null) continue
+      if (typeof v === 'string' && !v.trim()) continue
       const kind = inferKind(v)
-      const prev = observed.get(k)
-      if (!prev) {
-        observed.set(k, kind)
-        continue
-      }
-      if (prev === kind) continue
-      observed.set(k, 'json')
+      const prev = stats.get(k) || { date: 0, text: 0, number: 0, boolean: 0, json: 0 }
+      prev[kind] += 1
+      stats.set(k, prev)
     }
+  }
+
+  const observed = new Map<string, GraphColumnKind>()
+  for (const [columnId, s] of stats.entries()) {
+    const { date, text, number, boolean, json } = s
+    if (json > 0) {
+      observed.set(columnId, 'json')
+      continue
+    }
+    if (date > 0 && text === 0 && number === 0 && boolean === 0) {
+      observed.set(columnId, 'date')
+      continue
+    }
+    if (number > 0 && text === 0 && date === 0 && boolean === 0) {
+      observed.set(columnId, 'number')
+      continue
+    }
+    if (boolean > 0 && text === 0 && date === 0 && number === 0) {
+      observed.set(columnId, 'boolean')
+      continue
+    }
+    observed.set(columnId, 'text')
+  }
+
+  for (const [columnId, nextKind] of observed.entries()) {
+    const prev = existing.get(columnId)
+    if (!prev) continue
+    if (prev.kind !== 'text' || nextKind !== 'date') continue
+    const doc = await collections.columns.findOne(pkOfColumn(tableId, columnId)).exec()
+    if (!doc) continue
+    await doc.incrementalPatch({ kind: 'date', updatedAtMs: now })
+    existing.set(columnId, { ...prev, kind: 'date', updatedAtMs: now })
   }
 
   const maxOrder = Math.max(0, ...Array.from(existing.values()).map(c => c.order))
@@ -467,13 +516,15 @@ export const syncGraphDataToGraphTableDb = async (graph: GraphData | null): Prom
     const existingEdges = await collections.rows.find({ selector: { tableId: 'edges' } }).exec()
     const existingNodeIds = new Set(existingNodes.map(d => d.get('rowId')))
     const existingEdgeIds = new Set(existingEdges.map(d => d.get('rowId')))
+    const existingNodeDocsById = new Map(existingNodes.map(d => [String(d.get('rowId')), d] as const))
+    const existingEdgeDocsById = new Map(existingEdges.map(d => [String(d.get('rowId')), d] as const))
 
     for (let i = 0; i < graph.nodes.length; i += 1) {
       const n = graph.nodes[i]
       const rowId = String(n.id)
       existingNodeIds.delete(rowId)
       const pk = pkOfRow('nodes', rowId)
-      const doc = await collections.rows.findOne(pk).exec()
+      const doc = existingNodeDocsById.get(rowId) || null
       const nextData = nodeRows[i]
       if (!doc) {
         await collections.rows.insert({
@@ -500,7 +551,7 @@ export const syncGraphDataToGraphTableDb = async (graph: GraphData | null): Prom
       const rowId = String(e.id)
       existingEdgeIds.delete(rowId)
       const pk = pkOfRow('edges', rowId)
-      const doc = await collections.rows.findOne(pk).exec()
+      const doc = existingEdgeDocsById.get(rowId) || null
       const nextData = edgeRows[i]
       if (!doc) {
         await collections.rows.insert({
@@ -523,13 +574,11 @@ export const syncGraphDataToGraphTableDb = async (graph: GraphData | null): Prom
     }
 
     for (const rowId of existingNodeIds) {
-      const pk = pkOfRow('nodes', rowId)
-      const doc = await collections.rows.findOne(pk).exec()
+      const doc = existingNodeDocsById.get(rowId) || null
       if (doc) await doc.remove()
     }
     for (const rowId of existingEdgeIds) {
-      const pk = pkOfRow('edges', rowId)
-      const doc = await collections.rows.findOne(pk).exec()
+      const doc = existingEdgeDocsById.get(rowId) || null
       if (doc) await doc.remove()
     }
   })

@@ -56,6 +56,29 @@ export async function testGraphTableDbSyncsGraphAndInfersPropertyColumns() {
   }
 }
 
+export async function testGraphTableDbInfersAndUpgradesDateColumns() {
+  const graph1: GraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'n1', type: 'Person', label: 'Alice', properties: { created: 'hello' } }],
+    edges: [],
+  }
+  await syncGraphDataToGraphTableDb(graph1)
+  const { collections } = await getGraphTableDb()
+  const col1 = await collections.columns.findOne('nodes:created').exec()
+  if (!col1) throw new Error('expected nodes:created column to exist')
+  if (col1.get('kind') !== 'text') throw new Error('expected nodes:created kind to start as text')
+
+  const graph2: GraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'n1', type: 'Person', label: 'Alice', properties: { created: '2026-02-17' } }],
+    edges: [],
+  }
+  await syncGraphDataToGraphTableDb(graph2)
+  const col2 = await collections.columns.findOne('nodes:created').exec()
+  if (!col2) throw new Error('expected nodes:created column to still exist')
+  if (col2.get('kind') !== 'date') throw new Error('expected nodes:created kind to upgrade to date')
+}
+
 export async function testGraphTableDbConcurrentSyncDoesNotConflict() {
   const graph: GraphData = {
     type: 'Graph',

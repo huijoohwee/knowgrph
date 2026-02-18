@@ -8,18 +8,20 @@ const readUtf8 = (absPath: string): string => {
 export const testGeospatialOverlayHostNotGatedBySidebar = () => {
   const canvasPath = path.resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx')
   const text = readUtf8(canvasPath)
+  const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
+  const viewportText = readUtf8(viewportPath)
   if (text.includes("active={isSidebarOpen && sidePanelTab === 'geo'}")) {
     throw new Error('GeospatialOverlayHost must not be gated by SidePanel expand/collapse')
   }
   if (!text.includes('geospatialModeEnabled')) throw new Error('Expected geospatialModeEnabled state to exist')
-  if (!text.includes('geospatialModeEnabled &&')) {
+  if (!(text.includes('geospatialModeEnabled &&') || viewportText.includes('geospatialModeEnabled &&'))) {
     throw new Error('Expected GeospatialOverlayHost to mount only when Geospatial Mode is enabled')
   }
 }
 
 export const testCanvasForbidsGraphWhenGeospatialEnabled = () => {
-  const canvasPath = path.resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx')
-  const text = readUtf8(canvasPath)
+  const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
+  const text = readUtf8(viewportPath)
 
   if (!text.includes('!geospatialModeEnabled && canvasRenderMode === \'2d\'')) {
     throw new Error('Expected 2D canvas to be gated off while Geospatial Mode is enabled')

@@ -83,6 +83,7 @@ export async function testGraphTableTypographyUsesUiSettings() {
       })
 
     await tick()
+    await tick()
 
     const viewport = container.querySelector('section[aria-label="Grid viewport"]')
     if (!viewport) throw new Error('expected graph table to render a Grid viewport')

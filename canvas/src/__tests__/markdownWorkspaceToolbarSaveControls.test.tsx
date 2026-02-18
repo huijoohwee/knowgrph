@@ -23,6 +23,8 @@ export async function testMarkdownWorkspaceToolbarRendersSaveControls() {
         themeMode="light"
         uiPanelTextFontClass="font-sans"
         uiPanelMonospaceTextClass="font-mono text-xs"
+        explorerOpen={true}
+        setExplorerOpen={() => {}}
         layoutMode="split"
         setLayoutMode={() => {}}
         markdownWordWrap={true}
@@ -70,4 +72,3 @@ export async function testMarkdownWorkspaceToolbarRendersSaveControls() {
     restore()
   }
 }
-

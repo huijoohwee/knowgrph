@@ -23,6 +23,8 @@ export async function testMarkdownEditorTextareaHeightAlignsAndSyncScrollsInSpli
         themeMode="light"
         uiPanelTextFontClass="font-sans"
         uiPanelMonospaceTextClass="font-mono text-xs"
+        explorerOpen={true}
+        setExplorerOpen={() => {}}
         layoutMode="split"
         setLayoutMode={() => {}}
         markdownWordWrap={true}

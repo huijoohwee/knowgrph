@@ -11,7 +11,7 @@
 ## Ownership
 
 - This Graph Data Table is **host-owned** (Knowgrph) and is **not** the extracted `curagrph` Graph Data Table surface.
-- It exists as an Editor workspace tool for inspecting the active graph view and syncing selection with preview/TOC.
+- It exists as a workspace tool for inspecting the active graph view and syncing selection with the shared Canvas pane / TOC.
 
 ---
 
@@ -22,12 +22,28 @@
 - **Renderer**: a `<canvas>` draws the body grid; the header is a DOM overlay synced to the same scroll owner.
 - **Model**: a derived grid model that computes column layout, row grouping/visibility, and selection metadata.
 
+---
+
+## Data Sync (Import → RxDB → Grid)
+
+- **Source of truth**: Graph import commits `GraphData` into the store; the Graph Data Table mirrors the store via an RxDB materialized view.
+- **Sync key**: table sync is keyed by `(graphDataRevision, collapsedGroupIdsKey)` so collapsed-view toggles update the table even when graph revision is unchanged.
+- **Baseline anchor**: table sync uses the document-structure baseline graph and applies only group-collapse derivation; it must not depend on keyword/frontmatter mode so mode switches do not rewrite the table.
+
 ### Column Rearrangement (Drag Header)
 
 - Drag a **data column header** to reorder columns (drop hint line renders in the header band).
 - Column order is persisted in local storage per table (`kg:ui:graphTable:columnOrderByTableId`) as an ordered list of `columnId`s. The RxDB `GraphColumnDoc.order` remains the base/default order when no user override is present.
 - Resize and reorder share the header: resizing is only active near the right edge of a header cell; reordering is active elsewhere.
 - Header click selects a column (highlights the full column in the grid body).
+
+---
+
+## Date Cells (Glide-like DateEditor behavior)
+
+- **Kind inference (import)**: property columns whose non-empty values are ISO-like dates are inferred/stored as `kind: 'date'` (and may be upgraded from `text → date`).
+- **Rendering**: date cells render as `YYYY-MM-DD` in the canvas grid.
+- **Editing**: double-click a date cell to open a text-first editor with a calendar popover; `Enter` commits, `Esc` cancels, picker select commits once, and Clear sets `null`.
 
 Code references:
 

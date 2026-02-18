@@ -145,9 +145,11 @@ This bridge powers two native (no headless browser) fidelity upgrades:
 - **Sync DOM → Markdown** from the Markdown toolbar by exporting DOM text/HTML.
 - **Import URL fallback** when the initial conversion yields low-quality Markdown for JS-rendered pages.
 
-## Canvas Preview Sync (Embedded)
+## Canvas Preview Sync (External Embedded Preview)
 
-The embedded Canvas Preview iframe is view-only by default:
+If a Canvas is embedded outside the main workspace via an iframe (marked with `data-kg-preview="1"` or `?kgPreview=1`), it is view-only by default.
+
+This embedded preview iframe is not used for the Editor/Table split view (Editor/Table reuse the same in-app Canvas pane).
 
 - It must not write graph updates back to the parent store unless explicitly enabled.
 - Selection sync may be enabled, but graph/layout writeback must be opt-in to prevent preview↔parent feedback loops.

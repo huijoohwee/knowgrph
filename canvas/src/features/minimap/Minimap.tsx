@@ -2,6 +2,7 @@ import React from 'react'
 import { Map } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import IconButton from '@/components/IconButton'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 import { LS_KEYS } from '@/lib/config'
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
@@ -409,15 +410,15 @@ function Minimap() {
 
   if (minimapCollapsed) {
     return (
-      <button
-        type="button"
-        onClick={() => setMinimapCollapsed(false)}
-        className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+      <IconButton
         title="Show Minimap"
+        onClick={() => setMinimapCollapsed(false)}
+        className="p-1"
+        showTooltip={false}
         style={{ opacity: minimapOpacity }}
       >
-        <Map size={14} />
-      </button>
+        <Map size={14} aria-hidden="true" />
+      </IconButton>
     )
   }
 
@@ -476,13 +477,14 @@ function Minimap() {
           )}
         </svg>
       </div>
-      <button
-        onClick={() => setMinimapCollapsed(true)}
-        className="absolute top-1 right-1 p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+      <IconButton
         title="Hide Minimap"
+        onClick={() => setMinimapCollapsed(true)}
+        className="absolute top-1 right-1 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+        showTooltip={false}
       >
-        <Map size={14} />
-      </button>
+        <Map size={14} aria-hidden="true" />
+      </IconButton>
     </aside>
   );
 }

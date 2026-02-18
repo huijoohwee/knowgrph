@@ -1,6 +1,8 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { initWindowHarness } from '@/tests/lib/windowHarness'
+import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import Toolbar from '@/components/Toolbar'
 import { EmbeddedEditorShell } from '@/components/EmbeddedEditorShell'
@@ -51,26 +53,29 @@ export async function testToolbarEditorButtonTogglesWorkspaceViewMode() {
   }
 }
 
-export async function testEmbeddedEditorShellRendersCanvasPreviewIframe() {
+export async function testEmbeddedEditorShellRendersMarkdownWorkspace() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
   try {
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
 
     const root = createRoot(container)
-    root.render(<EmbeddedEditorShell previewSrc="/" />)
-    await tick()
+    root.render(<EmbeddedEditorShell />)
 
-    const iframe = dom.window.document.querySelector('iframe[title="Canvas Preview"]') as HTMLIFrameElement | null
-    if (!iframe) throw new Error('expected Canvas Preview iframe')
-    const src = String(iframe.getAttribute('src') || '')
-    if (src !== '/') throw new Error(`expected iframe src to be /, got ${src}`)
-    const marker = String(iframe.getAttribute('data-kg-preview') || '')
-    if (marker !== '1') throw new Error(`expected iframe to include data-kg-preview=1, got ${marker}`)
+    let workspace: HTMLElement | null = null
+    for (let i = 0; i < 60; i++) {
+      await tick()
+      workspace = dom.window.document.querySelector('section[aria-label="Markdown Workspace"]') as HTMLElement | null
+      if (workspace) break
+    }
+    if (!workspace) throw new Error('expected Markdown Workspace to render')
 
     root.unmount()
   } finally {
     restore()
+    restoreWindow()
   }
 }
 

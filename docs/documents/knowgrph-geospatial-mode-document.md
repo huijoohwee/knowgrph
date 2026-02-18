@@ -127,7 +127,7 @@
 ### Host ↔ Preview sync (same-origin)
 
 - **Same-document**: `gympgrph` dispatches `kg:geospatialModeChanged` as a `CustomEvent` when toggled so host UI (Toolbar/Canvas) can update immediately.
-- **Cross-document**: `gympgrph` writes `kg:ui:geospatial:overlayEnabled` to `localStorage`, and the host listens for the browser `storage` event to keep other tabs and the embedded Editor preview iframe synchronized.
+- **Cross-document**: `gympgrph` writes `kg:ui:geospatial:overlayEnabled` to `localStorage`, and the host listens for the browser `storage` event to keep other tabs and any external embedded preview iframe synchronized.
 
 ### Host Integration Notes
 

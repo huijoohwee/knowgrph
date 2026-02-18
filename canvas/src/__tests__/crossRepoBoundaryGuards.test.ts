@@ -336,8 +336,8 @@ export function testForbidHardcodedSandboxAbsolutePaths() {
 }
 
 export function testCanvas2dRendererSwitchWarmsInactiveRenderer() {
-  const canvasPath = resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx')
-  const text = readFileSync(canvasPath, 'utf8')
+  const viewportPath = resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
+  const text = readFileSync(viewportPath, 'utf8')
   const requiredSnippets = [
     "mounted2dRenderers.d3 ? <GraphCanvasLazy active={canvas2dRenderer === 'd3'} />",
     "mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} />",
@@ -347,7 +347,7 @@ export function testCanvas2dRendererSwitchWarmsInactiveRenderer() {
   const missing = requiredSnippets.filter(s => !text.includes(s))
   if (missing.length) {
     const msg = missing.map(s => `missing: ${s}`).join('\n')
-    throw new Error(`Canvas.tsx must warm-mount the inactive 2D renderer after prefetch, while toggling via active/visibility:\n${msg}`)
+    throw new Error(`CanvasViewport must warm-mount the inactive 2D renderer after prefetch, while toggling via active/visibility:\n${msg}`)
   }
 }
 

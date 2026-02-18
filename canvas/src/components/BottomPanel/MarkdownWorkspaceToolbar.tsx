@@ -21,6 +21,8 @@ import {
   Save,
   Copy,
   Maximize2,
+  PanelLeftClose,
+  PanelLeftOpen,
   Quote,
   Strikethrough,
   Upload,
@@ -28,6 +30,8 @@ import {
 } from 'lucide-react'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { WorkspaceHeader, WorkspaceHeaderRow } from '@/components/ui/WorkspaceHeader'
+import IconButton from '@/components/IconButton'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import { SOURCE_FILES_COPY, SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import type { MarkdownPresentationApi } from './markdownWorkspace/markdownWorkspaceTypes'
@@ -38,6 +42,9 @@ import { WorkspaceModeSelect } from './markdownWorkspace/WorkspaceModeSelect'
 import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/frontmatter'
 
 export type MarkdownWorkspaceToolbarProps = {
+  explorerOpen: boolean
+  setExplorerOpen: (next: boolean) => void
+
   layoutMode: MarkdownWorkspaceLayoutMode
   setLayoutMode: (mode: MarkdownWorkspaceLayoutMode) => void
   markdownWordWrap: boolean
@@ -84,6 +91,8 @@ const TOOLBAR_BUTTON_CLASSNAME = `h-7 w-7 inline-flex items-center justify-cente
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 
 export function MarkdownWorkspaceToolbar({
+  explorerOpen,
+  setExplorerOpen,
   layoutMode,
   setLayoutMode,
   markdownWordWrap,
@@ -232,18 +241,24 @@ export function MarkdownWorkspaceToolbar({
   }, [])
 
   return (
-    <header
-      className={`flex items-center justify-between gap-2 px-3 py-2 border-b ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
-      aria-label="Markdown Toolbar"
-    >
-      <span className="min-w-0">
-        <span className={`${panelTypography.microLabelClass} uppercase tracking-wide font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Markdown</span>
-        {statusNode ? <span className="ml-2 inline-flex min-w-0">{statusNode}</span> : null}
-        {webpageSignalsNode}
-      </span>
-      <nav className="flex items-center gap-1 flex-wrap justify-end" aria-label="Markdown view controls">
-        {webpageControls && onWebpageChangeView && onWebpageUpdateMeta ? (
-          <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Webpage">
+    <WorkspaceHeader ariaLabel="Markdown Toolbar" border="border">
+      <WorkspaceHeaderRow className="gap-2" ariaLabel="Markdown toolbar row">
+        <span className="min-w-0">
+          <span className={`${panelTypography.microLabelClass} uppercase tracking-wide font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Markdown</span>
+          {statusNode ? <span className="ml-2 inline-flex min-w-0">{statusNode}</span> : null}
+          {webpageSignalsNode}
+        </span>
+        <nav className="flex items-center gap-1 flex-wrap justify-end" aria-label="Markdown view controls">
+          <IconButton
+            title={explorerOpen ? 'Hide Explorer' : 'Show Explorer'}
+            onClick={() => setExplorerOpen(!explorerOpen)}
+            className={UI_THEME_TOKENS.button.square}
+            showTooltip={false}
+          >
+            {explorerOpen ? <PanelLeftClose className="w-4 h-4" aria-hidden="true" /> : <PanelLeftOpen className="w-4 h-4" aria-hidden="true" />}
+          </IconButton>
+          {webpageControls && onWebpageChangeView && onWebpageUpdateMeta ? (
+            <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Webpage">
             <li className="list-none">
               <WorkspaceModeSelect<WebpageViewMode>
                 ariaLabel="Webpage view mode"
@@ -485,8 +500,8 @@ export function MarkdownWorkspaceToolbar({
                 <Code className="w-4 h-4" strokeWidth={1.6} />
               </button>
             </li>
-          </menu>
-        ) : null}
+            </menu>
+          ) : null}
         {contentMode === 'nodeQuickEditor' ? (
           <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Node Quick Editor format">
             <li className="list-none">
@@ -765,7 +780,8 @@ export function MarkdownWorkspaceToolbar({
             </button>
           </li>
         </menu>
-      </nav>
-    </header>
+        </nav>
+      </WorkspaceHeaderRow>
+    </WorkspaceHeader>
   )
 }

@@ -64,13 +64,12 @@
 
 ---
 
-## Workspace UI (Canvas vs Editor)
+## Workspace UI (Canvas vs Editor vs Table)
 
 - Workspace view mode and Editor layout state:
-  - `LS_KEYS.workspaceViewMode` (Canvas | Editor)
+  - `LS_KEYS.workspaceViewMode` (Canvas | Editor | Table)
   - `LS_KEYS.documentStructureBaselineLock` (default on; disables mode switches that can desync surfaces)
-  - `LS_KEYS.workspacePreviewWidthPx` (Editor preview split width)
-  - `LS_KEYS.workspaceEditorSection` (Editor left pane section: Markdown | Graph Table)
+  - `LS_KEYS.workspacePreviewWidthPx` (Editor/Table split: Canvas pane width)
 
 ---
 

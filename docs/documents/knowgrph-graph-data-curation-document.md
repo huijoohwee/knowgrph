@@ -24,7 +24,7 @@ Canonical ownership and contract details live in:
 - The Editor workspace includes a host-owned **Graph Table** (aka “Graph Data Table” inside Editor mode) that is intentionally lightweight:
   - Canvas fast-grid renderer for the body grid with a DOM header overlay (synced to the same scroll owner) + a small toolbar (fields/filter/group/sort/row height).
   - Persisted via `kg:ui:graphTable:*` keys.
-  - Selection-synced with the Canvas preview and the Markdown Explorer TOC.
+  - Selection-synced with the Canvas pane (single `CanvasViewport`) and the Markdown Explorer TOC.
 
 This surface must remain stable under stress: forbid ResizeObserver→React state loops, forbid scroll/resize feedback loops, and ensure pinned header/columns are fully opaque (no scrolled text bleed-through).
 
