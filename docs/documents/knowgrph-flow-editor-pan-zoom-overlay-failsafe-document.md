@@ -32,7 +32,8 @@ This document describes the interaction contract for restoring pan/zoom when Flo
 - Overlay pan proxy must clear its pointer id on `pointerup`, `pointercancel`, and `lostpointercapture` so subsequent interactions cannot be blocked.
 - Window capture handlers must be able to end an active canvas drag if the canvas listeners are temporarily unmounted during 2D renderer switches.
 - Wheel handling must recover from stale drag state (e.g. capture lost) instead of blocking zoom/pan indefinitely.
-- If the current camera transform does not show the graph (bounds guard fails), Flow Editor must re-apply an initial fit even when the init key matches.
+- Flow Editor must not apply persisted camera transforms until graph bounds are computable (e.g., at least one finite node position); otherwise initial transforms may land offscreen and appear as a “blank” canvas.
+- If the current camera transform does not show the graph (bounds guard fails), Flow Editor must treat the view as not-initialized yet (invalidate the init gate) and re-apply an initial fit even when the init key matches.
 
 ## References
 

@@ -3,6 +3,12 @@
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-02-19
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Docs / Canvas / 2D renderer initialization | Keep 2D initialization consistent across variants | Update cross-repo docs: 2D init is bounds-guarded + idempotent; skip invalid positions; stable node dims for fit; warm-mount effect gating. | `knowgrph/todo-log.md`, `knowgrph/docs/documents/{knowgrph-renderer-document.md,knowgrph-canvas-document.md,knowgrph-canvas-default-initialization-document.md,knowgrph-flow-editor-pan-zoom-overlay-failsafe-document.md}`, `huijoohwee.github.io/schema/AgenticRAG/{canvas.jsonld,README.md}` | Cross-repo documentation | Update Markdown + JSON-LD contract text | Renderer init invariants | Updated docs/contract text | Enforce SSOT parity across D3/Flow/Design/Flow Editor; forbid double-fit jumps; guard bounds before applying stored transforms; ignore invalid geometry to prevent one-long lines. | Run `python3 schema/AgenticRAG/sync_map.py --mode check` to validate docs↔schema alignment. | 2026-02-19 |
+
 ## 2026-02-17
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |

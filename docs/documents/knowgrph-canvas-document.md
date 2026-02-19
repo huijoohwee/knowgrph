@@ -40,7 +40,7 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 | Subgraph Containment | Prevent nodes escaping group bounds | - [x] Clamp member nodes within group bounds; forbid escape or touching borders |
 | Verification | Make layout and fit changes regression-resistant | - [ ] Cover fit and layout behaviors via bounded tests; forbid brittle dataset-specific assertions |
 | Zoom State | Prevent stale transforms across view toggles | - [ ] Cache zoom state by viewKey across mode/layout toggles; apply presentation updates without changing zoom keys; forbid stale transforms when switching layers/modes/labels/groups |
-| Renderer Exclusivity | Prevent inactive/off mode interference | - [ ] Mount exactly one active renderer/mode at a time (D3 / Flow / 3D / Geospatial); forbid inactive/off layers from rendering, consuming requests, or recalculating in the background |
+| Renderer Exclusivity | Prevent inactive/off mode interference | - [ ] Mount exactly one *active* renderer/mode at a time (2D: D3/Flow/Design/Flow Editor, 3D, Geospatial); inactive surfaces may be warm-mounted but must be effect-gated (no draw loops, no request consumption, no shared-cache writes) |
 
 ---
 
@@ -54,13 +54,15 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 - **2D renderer**: `canvas2dRenderer` selects the active 2D implementation:
   - `d3` (`GraphCanvas` SVG/D3 renderer)
   - `flow` (`FlowCanvas` native Canvas2D renderer)
+  - `design` (`DesignCanvas` 2D design surface)
+  - `flowEditor` (`FlowEditorCanvas` 2D workflow editor surface)
 - **Geospatial Mode**: hosted by `gympgrph` and treated as a mutually exclusive overlay mode.
 
 ### Exclusivity Rules (Non-Negotiable)
 
-- When **Geospatial Mode is enabled**, the host forbids graph rendering by unmounting D3/Flow/3D canvases (no hidden background work).
-- When **Flow is active**, D3 is not mounted; when **D3 is active**, Flow is not mounted.
-- Only the active renderer may consume shared requests (e.g. `zoomRequest`) and run expensive effects.
+- Only one renderer surface is active at a time (2D: D3/Flow/Design/Flow Editor, 3D, Geospatial).
+- The host may warm-mount inactive surfaces to reduce switch lag, but inactive surfaces must be effect-gated (no draw loops, no request consumption, no shared-cache writes).
+- Only the active renderer may consume shared requests (e.g. `zoomRequest`) and own interactive listeners.
 - Switching modes must preserve selection and avoid cross-mode cache contamination by keying layout/zoom caches with mode + renderer.
 
 ---

@@ -99,6 +99,10 @@
   - Must ensure `graphLayersVisible` is true.
   - Must compute 2D zoom/layout view keys from a shared schema-layout fingerprint (include `schema.layout.flow`) so keyed zoom state and cached layout positions do not drift across D3/Flow/Design/Flow Editor.
   - Flow Editor camera init must be keyed per dataset when stable (e.g. `path:*`) and must fall back to a per-graph hash when dataset keys collapse to `rev:*`.
+  - 2D renderer initialization must be idempotent: if a valid stored initial transform is applied, the same init pass must not immediately re-run auto-fit (forbid “double-fit” jumps).
+  - Persisted view restoration must be bounds-guarded: do not apply stored transforms until graph bounds can be computed (e.g., at least one finite node position and non-zero node dimensions); prefer fit/identity over a stale offscreen pan.
+  - Scene build and fit must ignore invalid geometry: if positions are only partially available, skip nodes without finite positions (and their incident edges) to prevent one-long stray lines and chaotic redraw on first paint.
+  - Fit geometry must use stable per-node dimensions: read `visual:width`/`visual:height` when present, otherwise fall back to the renderer’s default node width/height.
 
 ---
 
