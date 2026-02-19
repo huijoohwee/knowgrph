@@ -30,6 +30,10 @@
 
 ### P0-Critical
 
+#### 2026-02-19
+
+fix 2D Renderer Flow Editor: during initialization (not only when zoom-in), collective Node Quick Editors/edges layout centrod SHOULD in center, well-spread out in viewport, FORBID clustering/overlaying on top each other
+
 #### 2026-02-13
 
 - ENHANCE current native design tokens—a single source of truth to improve efficiency and collaboration between product design and development
