@@ -128,10 +128,15 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       selectNode: s.selectNode,
       setSelectionSource: s.setSelectionSource,
       selectedNodeId: s.selectedNodeId,
+      setFlowNodeQuickEditorPosByNodeId: s.setFlowNodeQuickEditorPosByNodeId,
     })),
   )
 
   const nodeId = React.useMemo(() => String(node.id || '').trim(), [node.id])
+
+  const quickEditorPos = useGraphStore(
+    useShallow(s => s.flowNodeQuickEditorPosByNodeId?.[nodeId]),
+  )
 
   const overlayZIndex = React.useMemo(() => {
     const safeFloating = Number.isFinite(floatingPanelZIndex) ? Math.max(1, Math.floor(floatingPanelZIndex)) : 5000
@@ -149,6 +154,8 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
 
   const asideRef = React.useRef<HTMLElement | null>(null)
   const nodeRef = React.useRef<GraphNode>(node)
+  const lastGoodWorldPosRef = React.useRef<{ x: number; y: number } | null>(null)
+  const pinnedDragOverrideRef = React.useRef<{ left: number; top: number } | null>(null)
   const viewportRef = React.useRef<{ width: number; height: number }>({
     width: viewportW,
     height: viewportH,
@@ -177,22 +184,6 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       const id = String(k || '').trim()
       if (!id) continue
       out[id] = !!v
-    }
-    return out
-  }, [])
-
-  const parsePosByNodeId = React.useCallback((raw: unknown): Record<string, { top: number; left: number }> | null => {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
-    const out: Record<string, { top: number; left: number }> = {}
-    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-      const id = String(k || '').trim()
-      if (!id) continue
-      if (!v || typeof v !== 'object' || Array.isArray(v)) continue
-      const o = v as { top?: unknown; left?: unknown }
-      const top = typeof o.top === 'number' && Number.isFinite(o.top) ? o.top : null
-      const left = typeof o.left === 'number' && Number.isFinite(o.left) ? o.left : null
-      if (top == null || left == null) continue
-      out[id] = { top, left }
     }
     return out
   }, [])
@@ -235,14 +226,8 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   }, [stackIndex, viewportH, viewportW])
 
   const resolveFloatingPos = React.useCallback(
-    (id: string, fallback: { top: number; left: number }): { top: number; left: number } => {
-      if (!id) return fallback
-      const map = lsJson(
-        LS_KEYS.flowNodeQuickEditorPosByNodeId,
-        {} as Record<string, { top: number; left: number }>,
-        parsePosByNodeId,
-      )
-      const v = map[id]
+    (pos: { top: number; left: number } | undefined, fallback: { top: number; left: number }): { top: number; left: number } => {
+      const v = pos
       if (v && Number.isFinite(v.top) && Number.isFinite(v.left)) {
         const viewportWidth = viewportW
         const viewportHeight = viewportH
@@ -250,11 +235,11 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
         const leftRaw = v.left
         const topRaw = v.top
         const looksLikeWindowCoords =
-          (offset.left !== 0 || offset.top !== 0)
-          && leftRaw >= offset.left - 2
-          && leftRaw <= offset.left + viewportWidth + 2
-          && topRaw >= offset.top - 2
-          && topRaw <= offset.top + viewportHeight + 2
+          (offset.left !== 0 || offset.top !== 0) &&
+          leftRaw >= offset.left - 2 &&
+          leftRaw <= offset.left + viewportWidth + 2 &&
+          topRaw >= offset.top - 2 &&
+          topRaw <= offset.top + viewportHeight + 2
         const coerce = looksLikeWindowCoords ? { left: leftRaw - offset.left, top: topRaw - offset.top } : v
         const clamped = clampOverlayTopLeftFullyInViewport({
           pos: coerce,
@@ -266,17 +251,17 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       }
       return fallback
     },
-    [parsePosByNodeId, viewportH, viewportW],
+    [viewportH, viewportW],
   )
 
-  const [pinnedTopPx, setPinnedTopPx] = React.useState<number>(() => resolveFloatingPos(nodeId, defaultFloatingPos).top)
-  const [pinnedLeftPx, setPinnedLeftPx] = React.useState<number>(() => resolveFloatingPos(nodeId, defaultFloatingPos).left)
+  const [pinnedTopPx, setPinnedTopPx] = React.useState<number>(() => resolveFloatingPos(quickEditorPos, defaultFloatingPos).top)
+  const [pinnedLeftPx, setPinnedLeftPx] = React.useState<number>(() => resolveFloatingPos(quickEditorPos, defaultFloatingPos).left)
 
   React.useEffect(() => {
-    const pos = resolveFloatingPos(nodeId, defaultFloatingPos)
+    const pos = resolveFloatingPos(quickEditorPos, defaultFloatingPos)
     setPinnedTopPx(prev => (prev === pos.top ? prev : pos.top))
     setPinnedLeftPx(prev => (prev === pos.left ? prev : pos.left))
-  }, [defaultFloatingPos, nodeId, resolveFloatingPos])
+  }, [defaultFloatingPos, quickEditorPos, resolveFloatingPos])
 
   const [toolbarVisible, setToolbarVisible] = React.useState(false)
   useOutsideClose(toolbarVisible, setToolbarVisible, asideRef)
@@ -350,15 +335,11 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   const persistFloatingPos = React.useCallback(
     (pos: { top: number; left: number }) => {
       if (!nodeId) return
-      const map = lsJson(
-        LS_KEYS.flowNodeQuickEditorPosByNodeId,
-        {} as Record<string, { top: number; left: number }>,
-        parsePosByNodeId,
-      )
-      const out = { ...map, [nodeId]: { top: pos.top, left: pos.left } }
-      lsSetJson(LS_KEYS.flowNodeQuickEditorPosByNodeId, out)
+      const current = useGraphStore.getState().flowNodeQuickEditorPosByNodeId || {}
+      const next = { ...current, [nodeId]: { top: pos.top, left: pos.left } }
+      useGraphStore.getState().setFlowNodeQuickEditorPosByNodeId(next)
     },
-    [nodeId, parsePosByNodeId],
+    [nodeId],
   )
 
   const scheduleClampCommit = React.useCallback((next: { top: number; left: number }) => {
@@ -411,12 +392,20 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
 
     const n = nodeRef.current
     const live = getLiveNodeWorldPos ? getLiveNodeWorldPos(nodeId) : null
-    const x = live && Number.isFinite(live.x) ? live.x : (Number.isFinite(n.x) ? n.x : 0)
-    const y = live && Number.isFinite(live.y) ? live.y : (Number.isFinite(n.y) ? n.y : 0)
+    const liveX = live && Number.isFinite(live.x) ? (live.x as number) : null
+    const liveY = live && Number.isFinite(live.y) ? (live.y as number) : null
+    const nx = typeof n.x === 'number' && Number.isFinite(n.x) ? (n.x as number) : null
+    const ny = typeof n.y === 'number' && Number.isFinite(n.y) ? (n.y as number) : null
+    if (liveX != null && liveY != null) {
+      lastGoodWorldPosRef.current = { x: liveX, y: liveY }
+    } else if (nx != null && ny != null) {
+      lastGoodWorldPosRef.current = { x: nx, y: ny }
+    }
+    const world = lastGoodWorldPosRef.current || { x: 0, y: 0 }
     const { sx: screenX, sy: screenY } = worldToScreen({
       transform: z,
-      x,
-      y,
+      x: world.x,
+      y: world.y,
     })
     const port = schemaRef.current?.behavior?.portHandles || null
     const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled)
@@ -439,12 +428,15 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     const anchorOffset = useGraphStore.getState().flowNodeQuickEditorAnchorOffsetByNodeId?.[nodeId] || null
     const anchorDx = typeof anchorOffset?.dx === 'number' && Number.isFinite(anchorOffset.dx) ? (anchorOffset.dx as number) : 0
     const anchorDy = typeof anchorOffset?.dy === 'number' && Number.isFinite(anchorOffset.dy) ? (anchorOffset.dy as number) : 0
+    const dragOverride = pinnedDragOverrideRef.current
     const basePos = pinned
       ? { top: pinnedTopPx, left: pinnedLeftPx }
-      : {
-          top: anchoredPosRef.current.top + autoStackOffset.top + anchorDy,
-          left: anchoredPosRef.current.left + autoStackOffset.left + anchorDx,
-        }
+      : dragOverride
+        ? { top: dragOverride.top, left: dragOverride.left }
+        : {
+            top: anchoredPosRef.current.top + anchorDy,
+            left: anchoredPosRef.current.left + anchorDx,
+          }
     const safeBasePos = {
       top: Number.isFinite(basePos.top) ? basePos.top : 8,
       left: Number.isFinite(basePos.left) ? basePos.left : 8,
@@ -477,12 +469,14 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     const initialLive = getLiveNodeWorldPos(nodeId)
     if (initialLive && Number.isFinite(initialLive.x) && Number.isFinite(initialLive.y)) return
 
+    const startedAtMs = Date.now()
     let attempts = 0
     const tick = () => {
       attempts += 1
       applyOverlayPosition()
       const live = getLiveNodeWorldPos(nodeId)
-      if ((live && Number.isFinite(live.x) && Number.isFinite(live.y)) || attempts >= 14) {
+      const elapsedMs = Date.now() - startedAtMs
+      if ((live && Number.isFinite(live.x) && Number.isFinite(live.y)) || attempts >= 120 || elapsedMs >= 1600) {
         livePosWarmupRafRef.current = null
         return
       }
@@ -620,6 +614,12 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       if (!(target instanceof Element)) return
       if (target.closest(UI_SELECTORS.draggablePanelIgnorePointerDown)) return
 
+      if (nodeId) {
+        setSelectionSource('editor')
+        selectNode(nodeId)
+        setToolbarVisible(true)
+      }
+
       try {
         event.preventDefault()
       } catch {
@@ -642,32 +642,35 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
 
       if (lockedToNode) {
         const st = useGraphStore.getState()
-        const clampOffset = (v: number) => Math.max(-400, Math.min(400, v))
+        st.setFlowNodeQuickEditorDraggingNodeId(nodeId)
+        const clampOffset = (v: number) => {
+          const max = 5000
+          return Math.max(-max, Math.min(max, v))
+        }
         const prevOffsets = st.flowNodeQuickEditorAnchorOffsetByNodeId || {}
-        const openIds = Array.isArray(st.openQuickEditorNodeIds) ? st.openQuickEditorNodeIds : []
-        const pinnedIds = openIds.filter(id => readLockedToNode(id))
-        const startOffsetsById = new Map<string, { dx: number; dy: number }>()
-        for (let i = 0; i < pinnedIds.length; i += 1) {
-          const id = pinnedIds[i]
-          const o = prevOffsets[id] || { dx: 0, dy: 0 }
+        const pinnedId = nodeId
+        const startOffset = (() => {
+          const o = prevOffsets[pinnedId] || { dx: 0, dy: 0 }
           const dx = typeof o.dx === 'number' && Number.isFinite(o.dx) ? o.dx : 0
           const dy = typeof o.dy === 'number' && Number.isFinite(o.dy) ? o.dy : 0
-          startOffsetsById.set(id, { dx, dy })
-        }
-        let pendingDx = 0
-        let pendingDy = 0
+          return { dx, dy }
+        })()
+
+        applyOverlayPosition()
+        const rect = asideRef.current?.getBoundingClientRect() || null
+        const grabScreenLeftPx = rect && Number.isFinite(rect.left) ? startX - rect.left : 0
+        const grabScreenTopPx = rect && Number.isFinite(rect.top) ? startY - rect.top : 0
+        const canvasOffsetStart = canvasWindowOffsetRef.current
+        const baseLeft = rect && Number.isFinite(rect.left) ? rect.left - canvasOffsetStart.left : anchoredPosRef.current.left + startOffset.dx
+        const baseTop = rect && Number.isFinite(rect.top) ? rect.top - canvasOffsetStart.top : anchoredPosRef.current.top + startOffset.dy
+
+        let pendingLeft = baseLeft
+        let pendingTop = baseTop
         let raf: number | null = null
 
         const flush = () => {
           raf = null
-          const current = useGraphStore.getState().flowNodeQuickEditorAnchorOffsetByNodeId || {}
-          const next = { ...current }
-          for (let i = 0; i < pinnedIds.length; i += 1) {
-            const id = pinnedIds[i]
-            const start = startOffsetsById.get(id) || { dx: 0, dy: 0 }
-            next[id] = { dx: clampOffset(start.dx + pendingDx), dy: clampOffset(start.dy + pendingDy) }
-          }
-          useGraphStore.getState().setFlowNodeQuickEditorAnchorOffsetByNodeId(next)
+          pinnedDragOverrideRef.current = { left: pendingLeft, top: pendingTop }
           applyOverlayPosition()
         }
 
@@ -675,10 +678,11 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
           ev: event.nativeEvent,
           cursor: 'move',
           onMove: mv => {
-            const dx = mv.clientX - startX
-            const dy = mv.clientY - startY
-            pendingDx = dx
-            pendingDy = dy
+            const canvasOffset = canvasWindowOffsetRef.current
+            const desiredScreenLeft = mv.clientX - grabScreenLeftPx
+            const desiredScreenTop = mv.clientY - grabScreenTopPx
+            pendingLeft = desiredScreenLeft - canvasOffset.left
+            pendingTop = desiredScreenTop - canvasOffset.top
             if (raf != null) return
             raf = requestAnimationFrame(flush)
           },
@@ -691,6 +695,17 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
               }
               flush()
             }
+            pinnedDragOverrideRef.current = null
+            applyOverlayPosition()
+
+            const anchor = anchoredPosRef.current
+            const current = useGraphStore.getState().flowNodeQuickEditorAnchorOffsetByNodeId || {}
+            const next = { ...current }
+            next[pinnedId] = { dx: clampOffset(pendingLeft - anchor.left), dy: clampOffset(pendingTop - anchor.top) }
+            useGraphStore.getState().setFlowNodeQuickEditorAnchorOffsetByNodeId(next)
+            applyOverlayPosition()
+
+            useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
             unlockGlobalUserSelect()
           },
           onCancel: () => {
@@ -702,6 +717,9 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
               }
               flush()
             }
+            pinnedDragOverrideRef.current = null
+            applyOverlayPosition()
+            useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
             unlockGlobalUserSelect()
           },
         })
@@ -766,7 +784,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
         },
       })
     },
-    [applyOverlayPosition, lockedToNode, nodeId, persistFloatingPos, pinnedLeftPx, pinnedTopPx, readLockedToNode],
+    [applyOverlayPosition, canvasWindowOffset, lockedToNode, nodeId, persistFloatingPos, pinnedLeftPx, pinnedTopPx, readLockedToNode],
   )
 
   const handleRegistrySelectionChange = React.useCallback(
@@ -797,6 +815,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       ref={asideRef}
       aria-label={UI_LABELS.flowNodeQuickEditor}
       data-kg-node-quick-editor={String(node.id || '')}
+      data-kg-node-quick-editor-pinned={pinnedToNode ? '1' : '0'}
       data-kg-canvas-wheel-ignore="true"
       className="fixed"
       style={{ zIndex: overlayZIndex }}

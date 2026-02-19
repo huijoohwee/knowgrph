@@ -395,6 +395,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   const overlayCollisionResolveRafRef = React.useRef<number | null>(null)
   const overlayCollisionResolveKeyRef = React.useRef<string>('')
+  const overlayRectCacheRef = React.useRef<Map<string, { left: number; top: number; width: number; height: number }>>(new Map())
 
   const scheduleOverlayCollisionResolve = React.useCallback(() => {
     if (!active) return
@@ -423,6 +424,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       if (overlayNodeIds.length < 2) return
 
       const st = useGraphStore.getState()
+      if (st.flowNodeQuickEditorDraggingNodeId) return
       const liveZoom = getLiveZoomTransform()
       const zoomKRaw =
         (liveZoom?.k ??
@@ -433,8 +435,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           })?.k) ?? null
       const zoomK = typeof zoomKRaw === 'number' && Number.isFinite(zoomKRaw) ? zoomKRaw : 1
       const zKey = String(Math.round(zoomK * 1000) / 1000)
-      const selectionKey = overlayOnlyModeEnabled ? '' : String(selectedNodeId || '')
-      const key = `${overlayNodeIds.join(',')}|${zKey}|${viewportW}x${viewportH}|${overlayOnlyModeEnabled ? 1 : 0}|${selectionKey}`
+      const key = `${overlayNodeIds.join(',')}|${zKey}|${viewportW}x${viewportH}|${overlayOnlyModeEnabled ? 1 : 0}`
       if (overlayCollisionResolveKeyRef.current === key) return
       overlayCollisionResolveKeyRef.current = key
 
@@ -444,11 +445,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const scaled = computeNodeQuickEditorScaledSize(panelScale)
 
       const pinnedById = lsJson(LS_KEYS.flowNodeQuickEditorPinnedByNodeId, {} as Record<string, boolean>, parsePinnedByNodeId)
-      const posById = lsJson(
-        LS_KEYS.flowNodeQuickEditorPosByNodeId,
-        {} as Record<string, { top: number; left: number }>,
-        parsePosByNodeId,
-      )
+      const posById = st.flowNodeQuickEditorPosByNodeId || {}
 
       const forcePinnedToNode = false
 
@@ -471,8 +468,20 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           const topRaw = Number.isFinite(rect.top) ? rect.top : 0
           const left = leftRaw - (Number.isFinite(canvasOffset.left) ? canvasOffset.left : 0)
           const top = topRaw - (Number.isFinite(canvasOffset.top) ? canvasOffset.top : 0)
-          if (width <= 0 || height <= 0) continue
-          m.set(id, { left, top, width, height })
+          if (width > 0 && height > 0) {
+            const resolved = { left, top, width, height }
+            overlayRectCacheRef.current.set(id, resolved)
+            m.set(id, resolved)
+            continue
+          }
+          const cached = overlayRectCacheRef.current.get(id) || null
+          if (cached) {
+            m.set(id, cached)
+            continue
+          }
+          if (Number.isFinite(left) && Number.isFinite(top)) {
+            m.set(id, { left, top, width: scaled.width, height: scaled.height })
+          }
         }
         return m
       })()
@@ -526,14 +535,11 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
       if (items.length < 2) return
 
-      const lockedItems = items.filter(it => it.lockedToNode)
-      const floatingItems = items.filter(it => !it.lockedToNode)
-
       const pickLockedId = (candidates: Array<{ id: string }>) => {
-      if (overlayOnlyModeEnabled) return [...candidates].map(it => it.id).sort((a, b) => a.localeCompare(b))[0] || ''
-      const sel = String(selectedNodeId || '').trim()
-      if (sel && candidates.some(it => it.id === sel)) return sel
-      return candidates[0]?.id || ''
+        const sel = String(selectedNodeId || '').trim()
+        if (sel && candidates.some(it => it.id === sel)) return sel
+        if (overlayOnlyModeEnabled) return [...candidates].map(it => it.id).sort((a, b) => a.localeCompare(b))[0] || ''
+        return candidates[0]?.id || ''
       }
 
       const shouldResolveItems = (
@@ -565,136 +571,172 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const next = { ...posById }
       const prevAnchorOffsets = st.flowNodeQuickEditorAnchorOffsetByNodeId || {}
       const nextAnchorOffsets: Record<string, { dx: number; dy: number }> = { ...prevAnchorOffsets }
-      const clampOffset = (v: number) => Math.max(-400, Math.min(400, v))
+      const clampOffset = (v: number) => {
+        const max = 5000
+        return Math.max(-max, Math.min(max, v))
+      }
 
-      const applyLockedResolution = (resolvedLocked: Array<{ id: string; left: number; top: number }>) => {
-      for (let i = 0; i < resolvedLocked.length; i += 1) {
-        const r = resolvedLocked[i]
-        if (!r?.id) continue
-        const item = lockedItems.find(it => it.id === r.id) || null
-        if (!item) continue
-        const dx = r.left - item.left
-        const dy = r.top - item.top
-        if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
-          const prev = nextAnchorOffsets[r.id] || { dx: 0, dy: 0 }
-          nextAnchorOffsets[r.id] = { dx: clampOffset(prev.dx + dx), dy: clampOffset(prev.dy + dy) }
+      const gapPx = 18
+      const fixedId = pickLockedId(items)
+
+      const cellSize = {
+        width: scaled.width + gapPx,
+        height: Math.round(scaled.height * 0.82) + gapPx,
+      }
+
+      const seedGridAroundFixed = (
+        worldIn: Array<{ id: string; left: number; top: number; width: number; height: number; movable: boolean }>,
+      ) => {
+        const marginLeft = 20
+        const marginTop = 96
+        const availW = Math.max(1, viewportW - marginLeft * 2)
+        const availH = Math.max(1, viewportH - marginTop - 24)
+        const cols = Math.max(1, Math.floor(availW / Math.max(1, cellSize.width)))
+        const rows = Math.max(1, Math.ceil(Math.max(worldIn.length, 1) / cols))
+        const maxRows = Math.max(rows, Math.ceil(availH / Math.max(1, cellSize.height)))
+
+        const fixed = worldIn.find(it => it.id === fixedId) || worldIn[0]
+        const fixedLeft = fixed ? fixed.left : marginLeft
+        const fixedTop = fixed ? fixed.top : marginTop
+        const fixedCol = Math.max(0, Math.min(cols - 1, Math.round((fixedLeft - marginLeft) / cellSize.width)))
+        const fixedRow = Math.max(0, Math.min(maxRows - 1, Math.round((fixedTop - marginTop) / cellSize.height)))
+        const fixedIdx = fixedRow * cols + fixedCol
+
+        const cellCount = Math.max(worldIn.length + 8, cols * maxRows)
+        const cells: Array<{ idx: number; row: number; col: number; left: number; top: number }> = []
+        for (let idx = 0; idx < cellCount; idx += 1) {
+          const row = Math.floor(idx / cols)
+          const col = idx % cols
+          cells.push({ idx, row, col, left: marginLeft + col * cellSize.width, top: marginTop + row * cellSize.height })
         }
-      }
-      }
 
-      const applyFloatingResolution = (resolvedFloating: Array<{ id: string; left: number; top: number }>) => {
-      for (let i = 0; i < resolvedFloating.length; i += 1) {
-        const r = resolvedFloating[i]
-        if (!r?.id) continue
-        const item = floatingItems.find(it => it.id === r.id) || null
-        if (!item) continue
-        const size = item.width && item.height ? { width: item.width, height: item.height } : scaled
-        const clamped = clampOverlayTopLeftFullyInViewport({
-          pos: { top: r.top, left: r.left },
-          size,
-          viewport: { width: viewportW, height: viewportH },
-          snapPx: 1,
+        const sortedCells = [...cells].sort((a, b) => {
+          const da = Math.abs(a.row - fixedRow) + Math.abs(a.col - fixedCol)
+          const db = Math.abs(b.row - fixedRow) + Math.abs(b.col - fixedCol)
+          if (da !== db) return da - db
+          if (a.row !== b.row) return a.row - b.row
+          return a.col - b.col
         })
-        next[r.id] = { top: clamped.top, left: clamped.left }
-      }
+
+        const used = new Set<number>()
+        const out: typeof worldIn = []
+        const byId = new Map(worldIn.map(it => [it.id, it]))
+        const fixedCell = cells[Math.max(0, Math.min(cells.length - 1, fixedIdx))]
+        if (fixedCell) used.add(fixedCell.idx)
+
+        const pickNextCell = () => {
+          for (let i = 0; i < sortedCells.length; i += 1) {
+            const c = sortedCells[i]
+            if (!c) continue
+            if (used.has(c.idx)) continue
+            used.add(c.idx)
+            return c
+          }
+          const idx = used.size
+          const row = Math.floor(idx / cols)
+          const col = idx % cols
+          const c = { idx, row, col, left: marginLeft + col * cellSize.width, top: marginTop + row * cellSize.height }
+          used.add(idx)
+          return c
+        }
+
+        const orderedIds = [...byId.keys()].sort((a, b) => a.localeCompare(b))
+        for (let i = 0; i < orderedIds.length; i += 1) {
+          const id = orderedIds[i]
+          const it = byId.get(id)
+          if (!it) continue
+          if (id === fixedId) {
+            out.push(it)
+            continue
+          }
+          const cell = pickNextCell()
+          out.push({ ...it, left: cell.left, top: cell.top })
+        }
+        return out
       }
 
-      if (lockedItems.length >= 2) {
-      const lockedId = pickLockedId(lockedItems)
-      for (let i = 0; i < lockedItems.length; i += 1) {
-        lockedItems[i].movable = lockedItems[i].id !== lockedId
+      const toWorld = (base: typeof items) => {
+        return base.map(it => ({
+          id: it.id,
+          left: it.left,
+          top: it.top,
+          width: it.width ?? scaled.width,
+          height: it.height ?? scaled.height,
+          movable: it.id !== fixedId,
+        }))
       }
-      const gapPx = 14
-      const lockedWorld = lockedItems.map(it => ({
-        id: it.id,
-        left: it.left,
-        top: it.top,
-        width: it.width ?? scaled.width,
-        height: it.height ?? scaled.height,
-        movable: it.movable,
-      }))
-      if (shouldResolveItems(lockedWorld, gapPx)) {
-        const resolvedLocked = schemaCur
+
+      const clampWorld = (world: Array<{ id: string; left: number; top: number; width: number; height: number; movable: boolean }>) => {
+        const out: Array<{ id: string; left: number; top: number; width: number; height: number; movable: boolean }> = []
+        for (let i = 0; i < world.length; i += 1) {
+          const it = world[i]
+          const clamped = clampOverlayTopLeftFullyInViewport({
+            pos: { top: it.top, left: it.left },
+            size: { width: it.width, height: it.height },
+            viewport: { width: viewportW, height: viewportH },
+            snapPx: 1,
+          })
+          out.push({ ...it, left: clamped.left, top: clamped.top })
+        }
+        return out
+      }
+
+      let world = clampWorld(toWorld(items))
+      if (shouldResolveItems(world, gapPx)) {
+        world = clampWorld(seedGridAroundFixed(world))
+      }
+      if (shouldResolveItems(world, gapPx)) {
+        const resolved = schemaCur
           ? relaxOverlayPanelsWithCollision({
               schema: schemaCur,
-              items: lockedWorld,
+              items: world,
               gapPx,
-              strength: 0.9,
-              iterations: 10,
-              steps: 14,
+              strength: 0.95,
+              iterations: 14,
+              steps: 18,
             })
-          : lockedWorld.map(r => ({ id: r.id, left: r.left, top: r.top }))
-        applyLockedResolution(resolvedLocked)
-      }
-      }
+          : world.map(r => ({ id: r.id, left: r.left, top: r.top }))
+        world = clampWorld(world.map(it => {
+          const r = resolved.find(x => x.id === it.id)
+          return r ? { ...it, left: r.left, top: r.top } : it
+        }))
 
-      if (floatingItems.length >= 2) {
-      const floatingId = pickLockedId(floatingItems)
-      for (let i = 0; i < floatingItems.length; i += 1) {
-        floatingItems[i].movable = floatingItems[i].id !== floatingId
-      }
-      const gapPx = 14
-      if (shouldResolveItems(floatingItems, gapPx)) {
-        const resolvedFloating = schemaCur
-          ? relaxOverlayPanelsWithCollision({
-              schema: schemaCur,
-              items: floatingItems.map(it => ({
-                id: it.id,
-                left: it.left,
-                top: it.top,
-                width: it.width ?? scaled.width,
-                height: it.height ?? scaled.height,
-                movable: it.movable,
-              })),
-              gapPx,
-              strength: 0.9,
-              iterations: 10,
-              steps: 14,
-            })
-          : floatingItems.map(r => ({ id: r.id, left: r.left, top: r.top }))
-        applyFloatingResolution(resolvedFloating)
-
-        const shouldResolveAfterClamp = (() => {
-          return shouldResolveItems(
-            floatingItems
-              .map(it => {
-                const p = next[it.id]
-                if (!p) return null
-                return { id: it.id, left: p.left, top: p.top, width: it.width, height: it.height }
-              })
-              .filter(Boolean) as Array<{ id: string; left: number; top: number; width?: number; height?: number }>,
-            gapPx,
-          )
-        })()
-        if (shouldResolveAfterClamp) {
+        if (shouldResolveItems(world, gapPx)) {
           const pass2 = schemaCur
             ? relaxOverlayPanelsWithCollision({
                 schema: schemaCur,
-                items: floatingItems.map(it => {
-                  const p = next[it.id]
-                  return {
-                    id: it.id,
-                    left: p?.left ?? it.left,
-                    top: p?.top ?? it.top,
-                    width: it.width ?? scaled.width,
-                    height: it.height ?? scaled.height,
-                    movable: it.id !== floatingId,
-                  }
-                }),
+                items: world,
                 gapPx,
-                strength: 0.9,
-                iterations: 10,
-                steps: 12,
+                strength: 0.95,
+                iterations: 12,
+                steps: 14,
               })
-            : floatingItems.map(r => ({ id: r.id, left: r.left, top: r.top }))
-          applyFloatingResolution(pass2)
+            : world.map(r => ({ id: r.id, left: r.left, top: r.top }))
+          world = clampWorld(world.map(it => {
+            const r = pass2.find(x => x.id === it.id)
+            return r ? { ...it, left: r.left, top: r.top } : it
+          }))
         }
       }
+      if (shouldResolveItems(world, gapPx)) {
+        world = clampWorld(seedGridAroundFixed(world))
       }
 
-      const lockedIds = new Set<string>(lockedItems.map(it => it.id))
-      for (const id of Object.keys(nextAnchorOffsets)) {
-        if (!lockedIds.has(id)) delete nextAnchorOffsets[id]
+      const finalById = new Map(world.map(it => [it.id, { left: it.left, top: it.top }]))
+      for (let i = 0; i < items.length; i += 1) {
+        const item = items[i]
+        const p = finalById.get(item.id)
+        if (!p) continue
+        if (item.lockedToNode) {
+          const dx = p.left - item.left
+          const dy = p.top - item.top
+          if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+            const prev = nextAnchorOffsets[item.id] || { dx: 0, dy: 0 }
+            nextAnchorOffsets[item.id] = { dx: clampOffset(prev.dx + dx), dy: clampOffset(prev.dy + dy) }
+          }
+        } else {
+          next[item.id] = { top: p.top, left: p.left }
+        }
       }
 
       let changed = false
@@ -727,7 +769,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         }
       }
       if (!changed && !anchorChanged) return
-      if (changed) lsSetJson(LS_KEYS.flowNodeQuickEditorPosByNodeId, next)
+      if (changed) st.setFlowNodeQuickEditorPosByNodeId(next)
       if (anchorChanged) setFlowNodeQuickEditorAnchorOffsetByNodeId(nextAnchorOffsets)
       overlayCollisionResolveKeyRef.current = ''
       scheduleOverlayCollisionResolve()
@@ -737,7 +779,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   React.useEffect(() => {
     if (!active) return
     scheduleOverlayCollisionResolve()
-  }, [active, openQuickEditorNodeIds, overlayOnlyModeEnabled, scheduleOverlayCollisionResolve, selectedNodeId, viewportH, viewportW])
+  }, [active, openQuickEditorNodeIds, overlayOnlyModeEnabled, scheduleOverlayCollisionResolve, viewportH, viewportW])
 
   React.useEffect(() => {
     if (!active) return

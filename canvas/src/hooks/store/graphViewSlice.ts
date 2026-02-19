@@ -1,5 +1,7 @@
 import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
+import { LS_KEYS } from '@/lib/config'
+import { lsJson, lsSetJson } from '@/lib/persistence'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -88,5 +90,19 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
       delete next[id]
       return { flowNodeQuickEditorAnchorOffsetByNodeId: next }
     })
+  },
+  flowNodeQuickEditorPosByNodeId: lsJson<Record<string, { top: number; left: number }>>(
+    LS_KEYS.flowNodeQuickEditorPosByNodeId,
+    {},
+    v => (v && typeof v === 'object' ? (v as Record<string, { top: number; left: number }>) : {}),
+  ),
+  setFlowNodeQuickEditorPosByNodeId: (pos: Record<string, { top: number; left: number }>) =>
+    set({ flowNodeQuickEditorPosByNodeId: lsSetJson(LS_KEYS.flowNodeQuickEditorPosByNodeId, pos) }),
+  flowNodeQuickEditorDraggingNodeId: null as string | null,
+  setFlowNodeQuickEditorDraggingNodeId: (rawId: string | null) => {
+    const id = rawId == null ? null : String(rawId || '').trim()
+    const prev = get().flowNodeQuickEditorDraggingNodeId ?? null
+    if (prev === id) return
+    set({ flowNodeQuickEditorDraggingNodeId: id })
   },
 })

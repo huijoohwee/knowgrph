@@ -191,25 +191,29 @@ export function computeFlowHandlesByNode(args: {
       return { in: sin, out: sout } satisfies FlowNodeHandles
     })()
 
-    const merge = (base: FlowPortHandle[], extra: FlowPortHandle[]): FlowPortHandle[] => {
-      const seen = new Set<string>(base.map(h => h.id))
-      const merged = base.slice()
-      for (let k = 0; k < extra.length; k += 1) {
-        const h = extra[k]
-        if (seen.has(h.id)) continue
-        merged.push(h)
+    const dyn = { in: toHandles('in', incoming), out: toHandles('out', outgoing) }
+
+    const mergeByPrecedence = (lists: Array<FlowPortHandle[] | null | undefined>): FlowPortHandle[] => {
+      const seen = new Set<string>()
+      const merged: FlowPortHandle[] = []
+      for (let l = 0; l < lists.length; l += 1) {
+        const list = lists[l]
+        if (!list || list.length === 0) continue
+        for (let k = 0; k < list.length; k += 1) {
+          const h = list[k]
+          if (!h) continue
+          if (seen.has(h.id)) continue
+          seen.add(h.id)
+          merged.push(h)
+        }
       }
       return merged
     }
 
-    const dyn = { in: toHandles('in', incoming), out: toHandles('out', outgoing) }
-    const base = schemaHandles || dyn
-    const merged = registryHandles ? { in: merge(base.in, registryHandles.in), out: merge(base.out, registryHandles.out) } : base
-    if (!schemaHandles) {
-      out[nodeId] = merged
-      continue
+    out[nodeId] = {
+      in: mergeByPrecedence([registryHandles?.in, schemaHandles?.in, dyn.in]),
+      out: mergeByPrecedence([registryHandles?.out, schemaHandles?.out, dyn.out]),
     }
-    out[nodeId] = { in: merge(merged.in, dyn.in), out: merge(merged.out, dyn.out) }
   }
   return out
 }
