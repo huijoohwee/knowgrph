@@ -12,12 +12,28 @@ export const applyClusterAwareHeuristicSeedLayout = (args: {
   if (!nodes.length) return
 
   let valid = 0
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+
   for (let i = 0; i < nodes.length; i += 1) {
     const x = nodes[i].x
     const y = nodes[i].y
-    if (typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y)) valid += 1
+    if (typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y)) {
+      valid += 1
+      if (x < minX) minX = x
+      if (x > maxX) maxX = x
+      if (y < minY) minY = y
+      if (y > maxY) maxY = y
+    }
   }
-  if (valid / Math.max(1, nodes.length) >= 0.2) return
+
+  const spreadX = valid > 0 ? maxX - minX : 0
+  const spreadY = valid > 0 ? maxY - minY : 0
+  const isClustered = spreadX < 40 && spreadY < 40
+
+  if (!isClustered && valid / Math.max(1, nodes.length) >= 0.2) return
 
   const estimateRadius = (n: GraphNode): number => {
     const props = (n.properties || {}) as Record<string, unknown>
@@ -84,8 +100,8 @@ export const applyClusterAwareHeuristicSeedLayout = (args: {
     countR += 1
   }
   const meanR = countR > 0 ? sumR / countR : 20
-  const nodePadding = 12
-  const nodeSpacing = Math.max(40, (meanR + nodePadding) * 2)
+  const nodePadding = 16
+  const nodeSpacing = Math.max(50, (meanR + nodePadding) * 2.2)
 
   const clusterRadius = (n: number): number => nodeSpacing * (0.5 + Math.sqrt(Math.max(1, n)))
   let maxClusterR = 0

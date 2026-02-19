@@ -505,6 +505,21 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         return m
       })()
 
+      // Calculate centered grid layout for unpinned items
+      const unpinnedCount = overlayNodeIds.reduce((acc, id) => {
+        if (!id) return acc
+        const locked = forcePinnedToNode || pinnedById[id] === true || pinnedToNodeByIdRef.current.get(id) === true
+        return locked ? acc : acc + 1
+      }, 0)
+
+      const gridCols = Math.max(1, Math.min(Math.ceil(Math.sqrt(Math.max(1, unpinnedCount))), Math.floor((viewportW - 40) / cellW)))
+      const gridWidth = gridCols * cellW - gap
+      const gridRows = Math.ceil(Math.max(1, unpinnedCount) / gridCols)
+      const gridHeight = gridRows * cellH - gap
+      
+      const startLeft = Math.max(20, (viewportW - gridWidth) / 2)
+      const startTop = Math.max(96, (viewportH - gridHeight) / 2)
+
       const items: Array<{ id: string; top: number; left: number; movable: boolean; width?: number; height?: number; lockedToNode: boolean }> = []
       let stack = 0
       for (let i = 0; i < overlayNodeIds.length; i += 1) {
@@ -530,10 +545,11 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const stored = posById[id]
         const hasStored = Boolean(stored && Number.isFinite(stored.top) && Number.isFinite(stored.left))
 
-        const col = stack % cols
-        const row = Math.floor(stack / cols)
+        const col = stack % gridCols
+        const row = Math.floor(stack / gridCols)
         stack += 1
-        const fallback = { left: 20 + col * cellW, top: 96 + row * cellH }
+        
+        const fallback = { left: startLeft + col * cellW, top: startTop + row * cellH }
         const base = hasStored ? (stored as { top: number; left: number }) : fallback
         const clamped = clampOverlayTopLeftFullyInViewport({
           pos: base,
@@ -606,11 +622,17 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const seedGridAroundFixed = (
         worldIn: Array<{ id: string; left: number; top: number; width: number; height: number; movable: boolean }>,
       ) => {
-        const marginLeft = 20
-        const marginTop = 96
-        const availW = Math.max(1, viewportW - marginLeft * 2)
-        const availH = Math.max(1, viewportH - marginTop - 24)
+        const baseMarginLeft = 20
+        const baseMarginTop = 96
+        const availW = Math.max(1, viewportW - baseMarginLeft * 2)
+        const availH = Math.max(1, viewportH - baseMarginTop - 24)
         const cols = Math.max(1, Math.floor(availW / Math.max(1, cellSize.width)))
+
+        const usedW = cols * cellSize.width
+        const extraX = Math.max(0, availW - usedW)
+        const marginLeft = baseMarginLeft + Math.floor(extraX / 2)
+        const marginTop = baseMarginTop
+
         const rows = Math.max(1, Math.ceil(Math.max(worldIn.length, 1) / cols))
         const maxRows = Math.max(rows, Math.ceil(availH / Math.max(1, cellSize.height)))
 

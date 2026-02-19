@@ -35,7 +35,7 @@
 # ENHANCE End-to-End native local in-repo Import → Render PIPELINE 
  
  ## 2D Renderer Flow Editor 
- - fix; during initialization (not only when zoom-in), collective Node Quick Editors/edges layout centrod SHOULD in center, well-spread out in viewport, FORBID clustering/overlaying on top each other 
+ - [x] fix; during initialization (not only when zoom-in), collective Node Quick Editors/edges layout centroid in center, well-spread out in viewport, FORBID clustering/overlaying on top each other 
  
  ## ANCHOR on Document Structure Mode (default) BASELINE, 
  ENFORCE GRAPHS/content alignment/consistency/sync, 

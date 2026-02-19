@@ -57,8 +57,8 @@ export const buildSimulation = (
   schema: GraphSchema,
   options?: { skipInitialLayout?: boolean; groupKeyOf?: GroupKeyOfNode; groupsForBboxCollide?: GraphGroup[] }
 ) => {
-  const viewW = width > 0 ? width : ZOOM_VIEWPORT_PRESET_16_9.maxWidth
-  const viewH = height > 0 ? height : ZOOM_VIEWPORT_PRESET_16_9.maxHeight
+  const viewW = width > 100 ? width : ZOOM_VIEWPORT_PRESET_16_9.maxWidth
+  const viewH = height > 100 ? height : ZOOM_VIEWPORT_PRESET_16_9.maxHeight
   const { frameW, frameH } = computeFitFrame(viewW, viewH, ZOOM_VIEWPORT_PRESET_16_9)
 
   const computeTopology = (ns: GraphNode[], es: GraphEdge[]) => {
@@ -424,15 +424,121 @@ export const buildSimulation = (
 export const updateForceSimulationPresentation = (args: {
   simulation: d3.Simulation<GraphNode, GraphEdge>
   nodes: GraphNode[]
+  edges: GraphEdge[]
   width: number
   height: number
   schema: GraphSchema
   groupKeyOf?: GroupKeyOfNode
   groupsForBboxCollide?: GraphGroup[]
 }) => {
-  const { simulation, nodes, width, height, schema } = args
+  const { simulation, nodes, edges, width, height, schema } = args
   const mode = readLayoutMode(schema)
   if (mode === 'radial') return
+
+  const viewW = width > 100 ? width : ZOOM_VIEWPORT_PRESET_16_9.maxWidth
+  const viewH = height > 100 ? height : ZOOM_VIEWPORT_PRESET_16_9.maxHeight
+  const { frameW, frameH } = computeFitFrame(viewW, viewH, ZOOM_VIEWPORT_PRESET_16_9)
+
+  const computeTopology = (ns: GraphNode[], es: GraphEdge[]) => {
+    const inDegree = new Map<string, number>()
+    const outDegree = new Map<string, number>()
+    ns.forEach(n => {
+      inDegree.set(String(n.id), 0)
+      outDegree.set(String(n.id), 0)
+    })
+    es.forEach(e => {
+      const s = typeof e.source === 'object' ? (e.source as { id: string }).id : e.source
+      const t = typeof e.target === 'object' ? (e.target as { id: string }).id : e.target
+      if (s && outDegree.has(String(s))) outDegree.set(String(s), (outDegree.get(String(s)) || 0) + 1)
+      if (t && inDegree.has(String(t))) inDegree.set(String(t), (inDegree.get(String(t)) || 0) + 1)
+    })
+    return { inDegree, outDegree }
+  }
+
+  const disjointEnabled = schema.layout?.forces?.disjointComponents !== false;
+  const disjointStrength =
+    typeof schema.layout?.forces?.disjointStrength === 'number' ? schema.layout.forces.disjointStrength : 0.1;
+  const disjointPadding = Math.max(40, readFitPadding(schema));
+  const disjointLayout =
+    mode === 'force' && disjointEnabled
+      ? computeDisjointComponentTargets({
+          nodes,
+          edges,
+          width: frameW,
+          height: frameH,
+          schema,
+          padding: disjointPadding,
+        })
+      : null;
+
+  const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
+  const hasMermaidNodes = portHandlesEnabled && nodes.some(n => String(n.type || '') === 'MermaidNode')
+  const topologyNodes = hasMermaidNodes ? nodes.filter(n => String(n.type || '') === 'MermaidNode') : nodes
+  const topologyNodeIds = hasMermaidNodes ? new Set(topologyNodes.map(n => String(n.id))) : null
+  const topologyEdges = hasMermaidNodes
+    ? edges.filter(e => {
+        if (String(e.label || '') !== 'pointsTo') return false
+        const s = typeof e.source === 'object' ? (e.source as { id: string }).id : e.source
+        const t = typeof e.target === 'object' ? (e.target as { id: string }).id : e.target
+        return !!s && !!t && topologyNodeIds?.has(String(s)) && topologyNodeIds?.has(String(t))
+      })
+    : edges
+  const { inDegree, outDegree } = portHandlesEnabled ? computeTopology(topologyNodes, topologyEdges) : { inDegree: new Map(), outDegree: new Map() }
+  const portAxis = portHandlesEnabled ? readMermaidAxisFromNodes(nodes) : null
+
+  const groupKeyOf = args.groupKeyOf || createGroupKeyOfNode({ nodes, edges })
+  const { readGroupTarget } = computeGroupTargets({ nodes, groupKeyOf })
+
+  const xTarget = (n: GraphNode) => {
+    if (portHandlesEnabled) {
+      const nid = String(n.id)
+      const ind = inDegree.get(nid) || 0
+      const outd = outDegree.get(nid) || 0
+      const role = ind === 0 && outd > 0 ? 'input' : outd === 0 && ind > 0 ? 'output' : ind > 0 || outd > 0 ? 'process' : ''
+      if (portAxis?.axis === 'x') {
+        if (role === 'input') return portAxis.forward > 0 ? 40 : frameW - 40
+        if (role === 'output') return portAxis.forward > 0 ? frameW - 40 : 40
+      }
+      const gt = readGroupTarget(n)
+      if (gt) return gt.x
+    }
+
+    const gt = readGroupTarget(n)
+    if (gt) return gt.x
+    
+    if (!disjointLayout) return frameW / 2
+    const comp = disjointLayout.componentByNodeId.get(String(n.id))
+    if (comp == null) return frameW / 2
+    const t = disjointLayout.targetsByComponent.get(comp)
+    return t ? t.x : frameW / 2
+  }
+  const yTarget = (n: GraphNode) => {
+    if (portHandlesEnabled) {
+      const nid = String(n.id)
+      const ind = inDegree.get(nid) || 0
+      const outd = outDegree.get(nid) || 0
+      const role = ind === 0 && outd > 0 ? 'input' : outd === 0 && ind > 0 ? 'output' : null
+      if (portAxis?.axis === 'y') {
+        if (role === 'input') return portAxis.forward > 0 ? 40 : frameH - 40
+        if (role === 'output') return portAxis.forward > 0 ? frameH - 40 : 40
+      }
+      const gt = readGroupTarget(n)
+      if (gt) return gt.y
+    }
+    const gt = readGroupTarget(n)
+    if (gt) return gt.y
+    if (!disjointLayout) return frameH / 2
+    const comp = disjointLayout.componentByNodeId.get(String(n.id))
+    if (comp == null) return frameH / 2
+    const t = disjointLayout.targetsByComponent.get(comp)
+    return t ? t.y : frameH / 2
+  }
+
+  const centerStrength =
+    typeof schema.layout?.forces?.centerStrength === 'number' && Number.isFinite(schema.layout.forces.centerStrength)
+      ? schema.layout.forces.centerStrength
+      : DEFAULT_CENTER_STRENGTH
+  const anchorStrength = Math.max(0, Math.min(2, disjointStrength)) * 0.08 + Math.max(0, Math.min(2, centerStrength)) * 0.06
 
   const collisionRadiusByType = schema.layout?.forces?.collisionByType || {}
   const collideRadiusFn = (d: GraphNode) => {
@@ -483,6 +589,8 @@ export const updateForceSimulationPresentation = (args: {
             }))
       : null,
   )
+  simulation.force('x', d3.forceX<GraphNode>(xTarget).strength(anchorStrength))
+  simulation.force('y', d3.forceY<GraphNode>(yTarget).strength(anchorStrength))
   simulation.force('box', () => {
     const enabled = schema.layout?.forces?.boxForce !== false
     if (!enabled) return
@@ -493,8 +601,8 @@ export const updateForceSimulationPresentation = (args: {
     const pad = portHandlesEnabled ? 20 : 28
     const minX = pad
     const minY = pad
-    const maxX = Math.max(minX + 1, width - pad)
-    const maxY = Math.max(minY + 1, height - pad)
+    const maxX = Math.max(minX + 1, frameW - pad)
+    const maxY = Math.max(minY + 1, frameH - pad)
     for (const d of nodes) {
       if (d.x == null || d.y == null) continue
       const { halfW, halfH } = getNodeHalfExtents2d(d, schema)

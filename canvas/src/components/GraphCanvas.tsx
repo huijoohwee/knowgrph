@@ -825,6 +825,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     updateForceSimulationPresentation({
       simulation: simulationRef.current,
       nodes: Array.isArray(sceneGraphDataRef.current.nodes) ? (sceneGraphDataRef.current.nodes as GraphNode[]) : [],
+      edges: edgesForSim,
       width: sceneWidth,
       height: sceneHeight,
       schema: schemaValue,
