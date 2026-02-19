@@ -19,7 +19,7 @@ import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeS
 import { buildGraphMetaKey, deriveRankdir } from '@/components/FlowCanvas/layout'
 import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'
 import { deriveSceneGroups } from '@/lib/scene/sceneDerivation'
-import type { GraphData } from '@/lib/graph/types'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
@@ -465,6 +465,7 @@ export default function FlowCanvas({
 
     const scene = runtime.scene
     if (!scene) return
+    let applied = 0
     for (let i = 0; i < scene.nodes.length; i += 1) {
       const n = scene.nodes[i]
       const p = pos[n.id]
@@ -472,7 +473,9 @@ export default function FlowCanvas({
       if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) continue
       n.x = p.x
       n.y = p.y
+      applied += 1
     }
+    if (applied > 0) runtime.positionsReady = true
     runtime.dirty = true
     requestFlowNativeDraw(runtime, buildDrawArgs())
     if (!cacheKey || typeof setLayoutPositionsForMode !== 'function') return
@@ -522,6 +525,47 @@ export default function FlowCanvas({
     const effectiveFitToScreenMode = isFlowEditor ? false : fitToScreenMode
     const effectiveZoomToSelectionMode = isFlowEditor ? false : zoomToSelectionMode
 
+    const nodesForTransformGuard = (() => {
+      const base = Array.isArray(graphDataForZoom.nodes) ? graphDataForZoom.nodes : []
+      if (!isFlowEditor) return base as GraphNode[]
+      const pos = computedPositions
+      if (!pos) return []
+      const out: GraphNode[] = []
+      for (let i = 0; i < base.length; i += 1) {
+        const n = base[i] as GraphNode
+        const id = String((n as { id?: unknown })?.id || '').trim()
+        if (!id) continue
+        const p = pos[id]
+        if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) continue
+        out.push({ ...n, x: p.x, y: p.y })
+      }
+      return out
+    })()
+
+    const nodesForFit = (() => {
+      if (!isFlowEditor) return (Array.isArray(graphDataForZoom.nodes) ? graphDataForZoom.nodes : []) as GraphNode[]
+      const base = nodesForTransformGuard
+      const w = flowConfig.node.widthPx
+      const h = flowConfig.node.heightPx
+      const out: GraphNode[] = []
+      for (let i = 0; i < base.length; i += 1) {
+        const n = base[i]
+        const props = (n.properties || {}) as Record<string, unknown>
+        out.push({
+          ...n,
+          x: (n.x as number) + w / 2,
+          y: (n.y as number) + h / 2,
+          properties: {
+            ...props,
+            'visual:width': w,
+            'visual:height': h,
+            'visual:shape': 'rect',
+          } as unknown as GraphNode['properties'],
+        })
+      }
+      return out
+    })()
+
     const initKey = isFlowEditor
       ? buildFlowEditorCameraInitKey({ datasetKey: String(datasetKey || ''), graphData: sceneGraphData as GraphData | null })
       : zoomViewKey
@@ -531,7 +575,7 @@ export default function FlowCanvas({
     if (isFlowEditor && alreadyInitializedForKey) {
       const ok = isFlowTransformShowingGraph(
         { k: t0.k, x: t0.x, y: t0.y },
-        { nodes: (Array.isArray(graphDataForZoom?.nodes) ? graphDataForZoom!.nodes! : []) as Array<{ x?: unknown; y?: unknown }>, viewportW, viewportH, nodeW: flowConfig.node.widthPx, nodeH: flowConfig.node.heightPx },
+        { nodes: nodesForTransformGuard as Array<{ x?: unknown; y?: unknown }>, viewportW, viewportH, nodeW: flowConfig.node.widthPx, nodeH: flowConfig.node.heightPx },
       )
       if (ok) return
     }
@@ -559,21 +603,7 @@ export default function FlowCanvas({
     const schema = useGraphStore.getState().schema
     const mode = readLayoutMode(schema)
     const opts = readFitAllOptions({ schema, mode, intent: effectiveFitToScreenMode ? 'fitToScreen' : 'initialFit' })
-    const nodesForFit = Array.isArray(graphDataForZoom.nodes) ? graphDataForZoom.nodes : []
-
-    if (isFlowEditor) {
-      let hasAnyFinitePos = false
-      for (let i = 0; i < nodesForFit.length; i += 1) {
-        const n = nodesForFit[i]
-        const x = typeof n?.x === 'number' ? n.x : null
-        const y = typeof n?.y === 'number' ? n.y : null
-        if (x != null && y != null && Number.isFinite(x) && Number.isFinite(y)) {
-          hasAnyFinitePos = true
-          break
-        }
-      }
-      if (!hasAnyFinitePos) return
-    }
+    if (isFlowEditor && nodesForTransformGuard.length === 0) return
 
     const fit = fitAllTransform(nodesForFit, viewportW, viewportH, opts)
     const next = (() => {
@@ -581,7 +611,7 @@ export default function FlowCanvas({
       const candidate = d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k)
       const ok = isFlowTransformShowingGraph(
         { k: candidate.k, x: candidate.x, y: candidate.y },
-        { nodes: nodesForFit as Array<{ x?: unknown; y?: unknown }>, viewportW, viewportH, nodeW: flowConfig.node.widthPx, nodeH: flowConfig.node.heightPx },
+        { nodes: nodesForTransformGuard as Array<{ x?: unknown; y?: unknown }>, viewportW, viewportH, nodeW: flowConfig.node.widthPx, nodeH: flowConfig.node.heightPx },
       )
       return ok ? candidate : fit
     })()
@@ -605,6 +635,7 @@ export default function FlowCanvas({
     viewPinned,
     zoomToSelectionMode,
     zoomViewKey,
+    computedPositions,
   ])
 
   React.useEffect(() => {
@@ -658,6 +689,7 @@ export default function FlowCanvas({
     if (graphKey === lastBuiltGraphKeyRef.current && (runtime.scene?.nodes.length || 0) > 0) return
     lastBuiltGraphKeyRef.current = graphKey
     __flowCanvasDebug.lastBuiltSceneKey = graphKey
+    runtime.positionsReady = computedPositions != null
     const res = buildAndSetFlowNativeScene({
       runtime,
       graphData: sceneGraphData,

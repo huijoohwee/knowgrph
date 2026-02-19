@@ -101,6 +101,7 @@ export type FlowNativeRuntime = {
   transform: d3.ZoomTransform
   rankdir: 'TB' | 'LR'
   scene: FlowNativeScene | null
+  positionsReady: boolean
   theme: FlowNativeTheme
   fontFamily: string
   cssKey: string
@@ -218,6 +219,7 @@ export const createFlowNativeRuntime = (args: {
     transform: args.initialTransform || d3.zoomIdentity,
     rankdir: args.rankdir,
     scene: null,
+    positionsReady: false,
     theme: readFlowThemeFromCss(),
     fontFamily: readFlowFontFamilyFromCss(),
     cssKey,

@@ -12,10 +12,13 @@ export const testDocumentStructureBaselineLockRestoresPriorState = () => {
   api.setViewPinned(true)
   api.setFitToScreenMode(false)
   api.setZoomToSelectionMode(true)
+  api.setZoomState({ k: 1.25, x: 10, y: -20, graphDataRevision: 123, viewportW: 900, viewportH: 700 })
+  api.setZoomStateForKey('test-key', { k: 0.75, x: 30, y: 40, graphDataRevision: 456, viewportW: 800, viewportH: 600 })
   api.setSelectionSource('toolbar')
   api.selectNode('node-1')
   api.selectEdge('edge-1')
   api.selectGroup('group-1')
+  api.setCollapsedGroupIds(['group-a', 'group-b'])
 
   const before = useGraphStore.getState()
   const expected = {
@@ -28,12 +31,15 @@ export const testDocumentStructureBaselineLockRestoresPriorState = () => {
     viewPinned: before.viewPinned,
     fitToScreenMode: before.fitToScreenMode,
     zoomToSelectionMode: before.zoomToSelectionMode,
+    zoomState: before.zoomState,
+    zoomStateByKey: before.zoomStateByKey,
     selectedNodeId: before.selectedNodeId,
     selectedEdgeId: before.selectedEdgeId,
     selectedGroupId: before.selectedGroupId,
     selectedNodeIds: before.selectedNodeIds,
     selectedEdgeIds: before.selectedEdgeIds,
     selectedGroupIds: before.selectedGroupIds,
+    collapsedGroupIds: before.collapsedGroupIds,
   }
 
   api.setDocumentStructureBaselineLock(true)
@@ -46,9 +52,11 @@ export const testDocumentStructureBaselineLockRestoresPriorState = () => {
   if (locked.viewPinned !== false) throw new Error('expected baseline to force view unpinned')
   if (locked.fitToScreenMode !== true) throw new Error('expected baseline to force fit-to-screen on')
   if (locked.zoomToSelectionMode !== false) throw new Error('expected baseline to force zoom-to-selection off')
+  if (locked.zoomState != null) throw new Error('expected baseline to clear zoomState')
   if (locked.selectedNodeId != null) throw new Error('expected baseline to clear selectedNodeId')
   if (locked.selectedEdgeId != null) throw new Error('expected baseline to clear selectedEdgeId')
   if (locked.selectedGroupId != null) throw new Error('expected baseline to clear selectedGroupId')
+  if ((locked.collapsedGroupIds || []).length !== 0) throw new Error('expected baseline to clear collapsed groups')
 
   api.setDocumentStructureBaselineLock(false)
   const restored = useGraphStore.getState()
@@ -62,6 +70,8 @@ export const testDocumentStructureBaselineLockRestoresPriorState = () => {
   if (restored.viewPinned !== expected.viewPinned) throw new Error('expected viewPinned restored')
   if (restored.fitToScreenMode !== expected.fitToScreenMode) throw new Error('expected fitToScreenMode restored')
   if (restored.zoomToSelectionMode !== expected.zoomToSelectionMode) throw new Error('expected zoomToSelectionMode restored')
+  if (JSON.stringify(restored.zoomState) !== JSON.stringify(expected.zoomState)) throw new Error('expected zoomState restored')
+  if (JSON.stringify(restored.zoomStateByKey) !== JSON.stringify(expected.zoomStateByKey)) throw new Error('expected zoomStateByKey restored')
   if (restored.selectedNodeId !== expected.selectedNodeId) throw new Error('expected selectedNodeId restored')
   if (restored.selectedEdgeId !== expected.selectedEdgeId) throw new Error('expected selectedEdgeId restored')
   if (restored.selectedGroupId !== expected.selectedGroupId) throw new Error('expected selectedGroupId restored')
@@ -73,5 +83,8 @@ export const testDocumentStructureBaselineLockRestoresPriorState = () => {
   }
   if ((restored.selectedGroupIds || []).join('|') !== (expected.selectedGroupIds || []).join('|')) {
     throw new Error('expected selectedGroupIds restored')
+  }
+  if ((restored.collapsedGroupIds || []).join('|') !== (expected.collapsedGroupIds || []).join('|')) {
+    throw new Error('expected collapsedGroupIds restored')
   }
 }

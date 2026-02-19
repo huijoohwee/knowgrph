@@ -264,6 +264,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const id = String(nodeId || '').trim()
     if (!id) return null
     const runtime = flowRuntimeRefRef.current?.current
+    if (!runtime || runtime.positionsReady !== true) return null
     const n = runtime?.scene?.nodeById?.get(id) || null
     if (!n) return null
     const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
@@ -396,19 +397,37 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const overlayCollisionResolveRafRef = React.useRef<number | null>(null)
   const overlayCollisionResolveKeyRef = React.useRef<string>('')
   const overlayRectCacheRef = React.useRef<Map<string, { left: number; top: number; width: number; height: number }>>(new Map())
+  const overlayCollisionWarmupStartedAtMsRef = React.useRef<number | null>(null)
+  const overlayCollisionWarmupAttemptsRef = React.useRef<number>(0)
 
   const scheduleOverlayCollisionResolve = React.useCallback(() => {
     if (!active) return
     if (typeof document === 'undefined') return
     if (typeof window === 'undefined') return
     if (overlayCollisionResolveRafRef.current != null) return
+    if (overlayCollisionWarmupStartedAtMsRef.current == null) overlayCollisionWarmupStartedAtMsRef.current = Date.now()
 
     overlayCollisionResolveRafRef.current = window.requestAnimationFrame(() => {
       overlayCollisionResolveRafRef.current = null
       if (!active) return
 
       const overlayEls = Array.from(document.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
-      if (overlayEls.length < 2) return
+      if (overlayEls.length < 2) {
+        const st = useGraphStore.getState()
+        const wantsResolve = (st.openQuickEditorNodeIds || []).length >= 2 || overlayOnlyModeEnabled
+        overlayCollisionWarmupAttemptsRef.current += 1
+        const startedAt = overlayCollisionWarmupStartedAtMsRef.current || Date.now()
+        const elapsed = Date.now() - startedAt
+        if (wantsResolve && overlayCollisionWarmupAttemptsRef.current < 60 && elapsed < 1600) {
+          scheduleOverlayCollisionResolve()
+          return
+        }
+        overlayCollisionWarmupStartedAtMsRef.current = null
+        overlayCollisionWarmupAttemptsRef.current = 0
+        return
+      }
+      overlayCollisionWarmupStartedAtMsRef.current = null
+      overlayCollisionWarmupAttemptsRef.current = 0
 
       const overlayNodeIds = (() => {
         const next: string[] = []

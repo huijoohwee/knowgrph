@@ -32,7 +32,39 @@
 
 #### 2026-02-19
 
-fix 2D Renderer Flow Editor: during initialization (not only when zoom-in), collective Node Quick Editors/edges layout centrod SHOULD in center, well-spread out in viewport, FORBID clustering/overlaying on top each other
+# ENHANCE End-to-End native local in-repo Import → Render PIPELINE 
+ 
+ ## 2D Renderer Flow Editor 
+ - fix; during initialization (not only when zoom-in), collective Node Quick Editors/edges layout centrod SHOULD in center, well-spread out in viewport, FORBID clustering/overlaying on top each other 
+ 
+ ## ANCHOR on Document Structure Mode (default) BASELINE, 
+ ENFORCE GRAPHS/content alignment/consistency/sync, 
+ FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across: 
+     
+ ### TOUCHPOINTS 
+ - Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Slides Gallery, EXPLORER, Canvas Preview 
+   
+ ### MODES/LAYOUTS 
+ - Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout) 
+     
+ ### ZOOMS 
+ - Pin to View, Fit to View, Fit to Screen, Zoom to Selection 
+     
+ ## ALIGN Semantic Definition 
+ - **GRAPHS Elements:** nodes, Node Quick Editors, edges, graph layers (subgraphs, groups, clusters, communities), labels, text 
+ - **GRAPHS Configs:** grouping, positioning, collisions, timing, knobs 
+     
+ ## Code Maintenance 
+ - COMPLY with `/GitHub/{huijoohwee.github.io/guidelines/{codebase-neutrality-guidelines.md,codebase-maintainability-guidelines.md},knowgrph/todo.md#L5-21}` 
+ - COMPLY with existing font/icon/label/text/text size/tooltip/typography semantic/design token SSOT 
+ - REMOVE, PREVENT & RESOLVE cross‑repo conflicts/duplicates/stale/interference across layers/modes 
+ - CENTRALIZE/REUSE shared algorithm/config/element/logic/utility (box, collision, drag, font, icon, knob, label, pan, scroll, text, text size, throttle, timing, typography, zoom) 
+ - OPTIMIZE & ENHANCE cache, loading, modularity, memory, state, store, rendering performance; FORBID churn, re-calculation, re-rendering 
+ - USE semantic HTML; forbid generic `<div>` 
+ - UPDATE unified setting to MainPanel Settings schema 
+ - TEST/VALIDATE only bounded diffs; FORBID indefinite runs 
+     
+ ## UPDATE CROSS‑REPO Docs `/GitHub/{knowgrph/todo-log.md,knowgrph/docs/documents,huijoohwee.github.io/schema/AgenticRAG}`
 
 #### 2026-02-13
 

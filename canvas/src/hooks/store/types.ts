@@ -58,12 +58,15 @@ export type DocumentStructureBaselineSnapshot = {
   viewPinned: boolean
   fitToScreenMode: boolean
   zoomToSelectionMode: boolean
+  zoomState: null | { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }
+  zoomStateByKey: Record<string, { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }>
   selectedNodeId: string | null
   selectedEdgeId: string | null
   selectedGroupId: string | null
   selectedNodeIds: string[]
   selectedEdgeIds: string[]
   selectedGroupIds: string[]
+  collapsedGroupIds: string[]
 }
 
 export type UiToastKind = 'neutral' | 'success' | 'warning' | 'error'

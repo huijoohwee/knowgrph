@@ -133,6 +133,8 @@ export const createUiSlice = (set: SetGraph) => {
             viewPinned: snap.viewPinned,
             fitToScreenMode: snap.fitToScreenMode,
             zoomToSelectionMode: snap.zoomToSelectionMode,
+            zoomState: snap.zoomState,
+            zoomStateByKey: snap.zoomStateByKey,
             zoomRequest: null,
             selectedNodeId: snap.selectedNodeId,
             selectedEdgeId: snap.selectedEdgeId,
@@ -140,6 +142,7 @@ export const createUiSlice = (set: SetGraph) => {
             selectedNodeIds: snap.selectedNodeIds,
             selectedEdgeIds: snap.selectedEdgeIds,
             selectedGroupIds: snap.selectedGroupIds,
+            collapsedGroupIds: snap.collapsedGroupIds,
           } as Partial<GraphState>
         }
         const snapshot = state.documentStructureBaselineSnapshot || {
@@ -152,12 +155,15 @@ export const createUiSlice = (set: SetGraph) => {
           viewPinned: state.viewPinned,
           fitToScreenMode: state.fitToScreenMode,
           zoomToSelectionMode: state.zoomToSelectionMode,
+          zoomState: state.zoomState,
+          zoomStateByKey: state.zoomStateByKey,
           selectedNodeId: state.selectedNodeId,
           selectedEdgeId: state.selectedEdgeId,
           selectedGroupId: state.selectedGroupId,
           selectedNodeIds: state.selectedNodeIds,
           selectedEdgeIds: state.selectedEdgeIds,
           selectedGroupIds: state.selectedGroupIds,
+          collapsedGroupIds: state.collapsedGroupIds,
         }
         lsSetJson(LS_KEYS.canvas2dRenderer, DEFAULT_CANVAS_2D_RENDERER)
         lsSetBool(LS_KEYS.viewportPinned, false)
@@ -175,6 +181,7 @@ export const createUiSlice = (set: SetGraph) => {
           viewPinned: false,
           fitToScreenMode: true,
           zoomToSelectionMode: false,
+          zoomState: null,
           zoomRequest: null,
           selectedNodeId: null,
           selectedEdgeId: null,
@@ -182,6 +189,7 @@ export const createUiSlice = (set: SetGraph) => {
           selectedNodeIds: [],
           selectedEdgeIds: [],
           selectedGroupIds: [],
+          collapsedGroupIds: [],
         } as Partial<GraphState>
       }),
     codeHighlightDurationMs: 1000,
