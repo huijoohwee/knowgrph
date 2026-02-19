@@ -6,8 +6,7 @@ import { createZoom } from '@/components/GraphCanvas/zoom'
 import { buildSimulation } from '@/components/GraphCanvas/simulation'
 import { computeZoomTransformFromRequest } from '@/lib/zoom/actions'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
-import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
-import { fitAllTransform } from '@/components/GraphCanvas/fit'
+import { relaxNodesWithCollision } from '@/components/GraphCanvas/layout/relax'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { hideTempLink, cancelPendingEdge } from '@/features/edge-creation'
@@ -215,16 +214,6 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     applyCachedPositions()
   }
 
-  if (initialZoomTransform) {
-    applyInitialTransform(initialZoomTransform)
-  } else if (fitToScreenMode) {
-    const intent = 'fitToScreen'
-    const mode = readLayoutMode(schema)
-    const opts = readFitAllOptions({ schema, mode, intent })
-    const t = fitAllTransform(displayNodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
-    applyInitialTransform({ k: t.k, x: t.x, y: t.y })
-  }
-
   const groupKeyByNodeId = args.layoutGroupKeyByNodeId
   const groupKeyOf = (n: GraphNode): string | null => {
     const id = String(n.id || '').trim()
@@ -238,6 +227,55 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   })
   simulationRef.current = simulation
 
+  if (!skipInitialLayout && displayNodes.length > 1) {
+    const dupCounts = new Map<string, number>()
+    for (let i = 0; i < displayNodes.length; i += 1) {
+      const n = displayNodes[i]
+      const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : 0
+      const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : 0
+      n.x = x
+      n.y = y
+      const key = `${Math.round(x * 10) / 10},${Math.round(y * 10) / 10}`
+      dupCounts.set(key, (dupCounts.get(key) || 0) + 1)
+    }
+
+    const jitterFor = (id: string): { dx: number; dy: number } => {
+      let h = 0
+      for (let i = 0; i < id.length; i += 1) {
+        h = (h * 31 + id.charCodeAt(i)) >>> 0
+      }
+      const sx = ((h % 7) - 3) * 0.11
+      const sy = (((h >>> 3) % 7) - 3) * 0.11
+      return { dx: sx, dy: sy }
+    }
+
+    for (let i = 0; i < displayNodes.length; i += 1) {
+      const n = displayNodes[i]
+      const x = n.x as number
+      const y = n.y as number
+      const key = `${Math.round(x * 10) / 10},${Math.round(y * 10) / 10}`
+      if ((dupCounts.get(key) || 0) <= 1) continue
+      const j = jitterFor(String(n.id || ''))
+      n.x = x + j.dx
+      n.y = y + j.dy
+    }
+
+    relaxNodesWithCollision({
+      nodes: displayNodes,
+      edges: edgesForDisplay,
+      schema,
+      defaultSteps: (args.groupsForBboxCollide || []).length > 0 ? 18 : 12,
+      groupKeyOf,
+      groups: args.groupsForBboxCollide,
+    })
+
+    for (let i = 0; i < displayNodes.length; i += 1) {
+      const n = displayNodes[i]
+      n.vx = 0
+      n.vy = 0
+    }
+  }
+
   if (args.freezeSimulation === true) {
     try {
       simulation.alpha(0)
@@ -248,23 +286,10 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     }
   }
 
-  const groupsLayer = createGroupsLayer({
-    g,
-    graphData,
-    edgesForDisplay,
-    schema,
-    simulation,
-    hoverEnabled,
-    setHoverInfo,
-    setSelectionSource,
-    selectNode,
-    selectGroup,
-    selectGroupExpanded,
-    toggleGroupCollapsed,
-  })
-  beforeRenderFrameRef.current = groupsLayer?.update ? () => groupsLayer.update() : null
+  if (initialZoomTransform) {
+    applyInitialTransform(initialZoomTransform)
+  }
 
-  // Fit to screen logic for clean slate
   if (fitToScreenMode !== false && !initialZoomTransform) {
     const [minK, maxK] = readZoomScaleExtent(schema)
     const res = computeZoomTransformFromRequest(
@@ -289,6 +314,22 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       t: d3.ZoomTransform,
     ) => void, t)
   }
+
+  const groupsLayer = createGroupsLayer({
+    g,
+    graphData,
+    edgesForDisplay,
+    schema,
+    simulation,
+    hoverEnabled,
+    setHoverInfo,
+    setSelectionSource,
+    selectNode,
+    selectGroup,
+    selectGroupExpanded,
+    toggleGroupCollapsed,
+  })
+  beforeRenderFrameRef.current = groupsLayer?.update ? () => groupsLayer.update() : null
 
   // Legacy layout sync removed to prevent infinite re-render loop in Force layout mode.
 
