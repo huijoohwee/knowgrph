@@ -76,8 +76,49 @@ export const buildSimulation = (
     return { inDegree, outDegree }
   }
 
-  const linkDist = (e: GraphEdge) => readForceLinkDistance(schema, e);
-  const chargeStrength = readForceCharge(schema);
+  const isKeywordGraph = (() => {
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const props = (n.properties || {}) as Record<string, unknown>
+      const kind = props['keyword:kind']
+      if (typeof kind === 'string' && kind.trim()) return true
+    }
+    for (let i = 0; i < edgesForSim.length; i += 1) {
+      const e = edgesForSim[i]
+      const props = (e.properties || {}) as Record<string, unknown>
+      const kind = props['keyword:kind']
+      if (typeof kind === 'string' && kind.trim()) return true
+    }
+    return false
+  })()
+
+  const frameArea = frameW * frameH
+  const idealSpacing = Math.max(48, Math.min(240, Math.sqrt(frameArea / Math.max(1, nodes.length)) * 1.45))
+
+  const byLabelDistances = schema.layout?.forces?.linkDistanceByLabel || null
+  const hasExplicitLinkDistance = (label: string): boolean => {
+    if (!byLabelDistances || !label) return false
+    const v = (byLabelDistances as Record<string, unknown>)[label]
+    return typeof v === 'number' && Number.isFinite(v) && v > 0
+  }
+
+  const linkDist = (e: GraphEdge) => {
+    const base = readForceLinkDistance(schema, e)
+    if (!isKeywordGraph) return base
+    const label = typeof e.label === 'string' ? e.label : String(e.label || '')
+    if (hasExplicitLinkDistance(label)) return base
+    return Math.max(40, Math.min(base, Math.round(idealSpacing * 1.1)))
+  };
+
+  const chargeStrength = (() => {
+    const raw = schema.layout?.forces?.charge
+    const base = readForceCharge(schema)
+    if (!isKeywordGraph) return base
+    if (typeof raw === 'number' && Number.isFinite(raw)) return base
+    const density = edgesForSim.length / Math.max(1, nodes.length)
+    const mag = Math.max(140, Math.min(720, idealSpacing * (density < 0.35 ? 1.8 : 2.6)))
+    return -mag
+  })();
   const collisionRadiusByType = schema.layout?.forces?.collisionByType || {};
   const mode = readLayoutMode(schema);
   const disjointEnabled = schema.layout?.forces?.disjointComponents !== false;
@@ -107,7 +148,7 @@ export const buildSimulation = (
       }
     }
     if (mode === 'force') {
-      applyForceModeSeeds({ nodes, edges: edgesForSim, width: frameW, height: frameH, schema })
+      applyForceModeSeeds({ nodes, edges: edgesForSim, width: frameW, height: frameH, schema, groupKeyOf: seedGroupKeyOf })
     }
   }
   const linkForce = d3
@@ -221,10 +262,12 @@ export const buildSimulation = (
       return t ? t.y : frameH / 2
     }
 
-    const centerStrength =
-      typeof schema.layout?.forces?.centerStrength === 'number' && Number.isFinite(schema.layout.forces.centerStrength)
-        ? schema.layout.forces.centerStrength
-        : DEFAULT_CENTER_STRENGTH
+    const centerStrength = (() => {
+      const raw = schema.layout?.forces?.centerStrength
+      if (typeof raw === 'number' && Number.isFinite(raw)) return raw
+      if (isKeywordGraph) return Math.max(DEFAULT_CENTER_STRENGTH, 0.14)
+      return DEFAULT_CENTER_STRENGTH
+    })()
     const anchorStrength = Math.max(0, Math.min(2, disjointStrength)) * 0.08 + Math.max(0, Math.min(2, centerStrength)) * 0.06
     let antiLineTick = 0
     if (!disjointLayout) {
@@ -416,6 +459,64 @@ export const buildSimulation = (
            }
          }
        })
+      .force('postFit', () => {
+        const enabled = (schema.layout as unknown as { forces?: { postFitForce?: boolean; postFitStrength?: number; postFitAlphaMax?: number } })?.forces?.postFitForce !== false
+        if (!enabled) return
+        const alpha = simulation.alpha()
+        const alphaMaxRaw = (schema.layout as unknown as { forces?: { postFitAlphaMax?: number } })?.forces?.postFitAlphaMax
+        const alphaMax = typeof alphaMaxRaw === 'number' && Number.isFinite(alphaMaxRaw) ? Math.max(0.01, Math.min(0.4, alphaMaxRaw)) : 0.085
+        if (alpha > alphaMax) return
+        const strengthRaw = (schema.layout as unknown as { forces?: { postFitStrength?: number } })?.forces?.postFitStrength
+        const strength = typeof strengthRaw === 'number' && Number.isFinite(strengthRaw) ? Math.max(0, Math.min(0.6, strengthRaw)) : 0.22
+        const k = Math.max(0.00001, strength) * Math.max(0.02, alphaMax)
+        const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
+        const pad = portHandlesEnabled ? 28 : 36
+
+        let minX = Infinity
+        let maxX = -Infinity
+        let minY = Infinity
+        let maxY = -Infinity
+        let sumX = 0
+        let sumY = 0
+        let count = 0
+        for (let i = 0; i < nodes.length; i += 1) {
+          const n = nodes[i]
+          const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+          const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+          if (x == null || y == null) continue
+          if (x < minX) minX = x
+          if (x > maxX) maxX = x
+          if (y < minY) minY = y
+          if (y > maxY) maxY = y
+          sumX += x
+          sumY += y
+          count += 1
+        }
+        if (count < 3 || minX === Infinity) return
+
+        const spanX = Math.max(1e-6, maxX - minX)
+        const spanY = Math.max(1e-6, maxY - minY)
+        const targetW = Math.max(1, frameW - pad * 2)
+        const targetH = Math.max(1, frameH - pad * 2)
+        const scale = Math.min(targetW / spanX, targetH / spanY)
+        const desired = scale < 0.94 ? Math.max(0.55, Math.min(0.98, scale)) : scale > 1.25 ? Math.min(1.4, Math.max(1.02, scale)) : 1
+        if (desired === 1) return
+
+        const cx = sumX / count
+        const cy = sumY / count
+        const tx = frameW / 2
+        const ty = frameH / 2
+        for (let i = 0; i < nodes.length; i += 1) {
+          const n = nodes[i]
+          const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+          const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+          if (x == null || y == null) continue
+          const nx = tx + (x - cx) * desired
+          const ny = ty + (y - cy) * desired
+          n.vx = (n.vx ?? 0) + (nx - x) * k
+          n.vy = (n.vy ?? 0) + (ny - y) * k
+        }
+      })
 
   if (schema.layout?.forces?.alphaDecay != null) {
     simulation.alphaDecay(schema.layout.forces.alphaDecay!);
@@ -594,10 +695,16 @@ export const updateForceSimulationPresentation = (args: {
   simulation.force('x', d3.forceX<GraphNode>(xTarget).strength(anchorStrength))
   simulation.force('y', d3.forceY<GraphNode>(yTarget).strength(anchorStrength))
   simulation.force('box', () => {
-    const enabled = schema.layout?.forces?.boxForce === true
+    const enabled = schema.layout?.forces?.boxForce !== false
     if (!enabled) return
     const strength = schema.layout?.forces?.boxForceStrength ?? 0.05
     const alpha = simulation.alpha()
+    const alphaMinRaw = (schema.layout?.forces as unknown as { boxForceAlphaMin?: number } | undefined)?.boxForceAlphaMin
+    const alphaMin =
+      typeof alphaMinRaw === 'number' && Number.isFinite(alphaMinRaw)
+        ? Math.max(0.0, Math.min(1.0, alphaMinRaw))
+        : 0.12
+    if (alpha < alphaMin) return
     const k = alpha * strength
     const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
     const pad = portHandlesEnabled ? 20 : 28
@@ -616,6 +723,64 @@ export const updateForceSimulationPresentation = (args: {
       if (d.x > hiX) d.vx = (d.vx ?? 0) - (d.x - hiX) * k * 2.2
       if (d.y < loY) d.vy = (d.vy ?? 0) + (loY - d.y) * k * 2.2
       if (d.y > hiY) d.vy = (d.vy ?? 0) - (d.y - hiY) * k * 2.2
+    }
+  })
+  simulation.force('postFit', () => {
+    const enabled = (schema.layout as unknown as { forces?: { postFitForce?: boolean; postFitStrength?: number; postFitAlphaMax?: number } })?.forces?.postFitForce !== false
+    if (!enabled) return
+    const alpha = simulation.alpha()
+    const alphaMaxRaw = (schema.layout as unknown as { forces?: { postFitAlphaMax?: number } })?.forces?.postFitAlphaMax
+    const alphaMax = typeof alphaMaxRaw === 'number' && Number.isFinite(alphaMaxRaw) ? Math.max(0.01, Math.min(0.4, alphaMaxRaw)) : 0.085
+    if (alpha > alphaMax) return
+    const strengthRaw = (schema.layout as unknown as { forces?: { postFitStrength?: number } })?.forces?.postFitStrength
+    const strength = typeof strengthRaw === 'number' && Number.isFinite(strengthRaw) ? Math.max(0, Math.min(0.6, strengthRaw)) : 0.22
+    const k = Math.max(0.00001, strength) * Math.max(0.02, alphaMax)
+    const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
+    const pad = portHandlesEnabled ? 28 : 36
+
+    let minX = Infinity
+    let maxX = -Infinity
+    let minY = Infinity
+    let maxY = -Infinity
+    let sumX = 0
+    let sumY = 0
+    let count = 0
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+      const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+      if (x == null || y == null) continue
+      if (x < minX) minX = x
+      if (x > maxX) maxX = x
+      if (y < minY) minY = y
+      if (y > maxY) maxY = y
+      sumX += x
+      sumY += y
+      count += 1
+    }
+    if (count < 3 || minX === Infinity) return
+
+    const spanX = Math.max(1e-6, maxX - minX)
+    const spanY = Math.max(1e-6, maxY - minY)
+    const targetW = Math.max(1, frameW - pad * 2)
+    const targetH = Math.max(1, frameH - pad * 2)
+    const scale = Math.min(targetW / spanX, targetH / spanY)
+    const desired = scale < 0.94 ? Math.max(0.55, Math.min(0.98, scale)) : scale > 1.25 ? Math.min(1.4, Math.max(1.02, scale)) : 1
+    if (desired === 1) return
+
+    const cx = sumX / count
+    const cy = sumY / count
+    const tx = frameW / 2
+    const ty = frameH / 2
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+      const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+      if (x == null || y == null) continue
+      const nx = tx + (x - cx) * desired
+      const ny = ty + (y - cy) * desired
+      n.vx = (n.vx ?? 0) + (nx - x) * k
+      n.vy = (n.vy ?? 0) + (ny - y) * k
     }
   })
 

@@ -143,6 +143,7 @@ export default function CanvasPage() {
     setSchema,
     setEnableLaunchSpotlight,
     workspaceViewMode,
+    workspaceCanvasPaneOpen,
   } = useGraphStore(
     useShallow(s => ({
       uiOverlayOpacity: s.uiOverlayOpacity,
@@ -159,6 +160,7 @@ export default function CanvasPage() {
       setSchema: s.setSchema,
       setEnableLaunchSpotlight: s.setEnableLaunchSpotlight,
       workspaceViewMode: s.workspaceViewMode,
+      workspaceCanvasPaneOpen: s.workspaceCanvasPaneOpen,
     })),
   )
 
@@ -922,12 +924,13 @@ export default function CanvasPage() {
                         resizeHandleRef.current = el
                       }}
                       ariaLabel="Resize canvas"
+                      className={workspaceCanvasPaneOpen ? '' : 'hidden'}
                     />
                   ) : null}
 
                   <section
-                    className={`min-h-0 overflow-hidden relative bg-[var(--kg-canvas-bg)] ${workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? 'shrink-0' : 'flex-1'}`}
-                    style={workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? { width: `${workspacePreviewWidthPx}px` } : undefined}
+                    className={`min-h-0 overflow-hidden relative bg-[var(--kg-canvas-bg)] ${workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? (workspaceCanvasPaneOpen ? 'shrink-0' : 'hidden') : 'flex-1'}`}
+                    style={workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? (workspaceCanvasPaneOpen ? { width: `${workspacePreviewWidthPx}px` } : undefined) : undefined}
                     aria-label="Canvas pane"
                   >
                     {workspaceViewMode !== 'editor' && workspaceViewMode !== 'table' ? (

@@ -6,6 +6,7 @@ import { relaxNodesWithCollision } from './relax'
 import type { GroupKeyOfNode } from './grouping'
 import { readFitPadding } from '@/lib/graph/layoutDefaults'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
+import { postFitNodesToViewport } from '@/components/GraphCanvas/layout/postFit'
 
 type RadialClusterNode = {
   id: string
@@ -96,4 +97,5 @@ export const applyRadialClusterLayout = (
   }
 
   relaxNodesWithCollision({ nodes, edges: edgesForSim, schema, defaultSteps: 6, groupKeyOf, groups })
+  postFitNodesToViewport({ nodes, width: viewW, height: viewH, paddingPx: Math.max(24, Math.floor(padding)) })
 }

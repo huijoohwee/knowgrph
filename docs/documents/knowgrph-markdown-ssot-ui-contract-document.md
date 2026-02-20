@@ -68,6 +68,7 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 - **Required behavior**:
   - Same header structure across Editor/Viewer/Presentation; only state changes (enabled/disabled) are allowed.
   - `Apply changes`, `Save`, `Save As...` are always present but disabled when not in editing mode.
+  - `Save As...` may include direct export actions (Markdown / JSON / JSON-LD / PDF). PDF export must use a print pipeline that avoids pop-up windows and cleans up any temporary print DOM.
   - `Source files` actions (`Open folder`, `Refresh files`, `New folder`, `New source file`) render **in the header**, immediately left of `Apply changes`.
   - The Explorer sidebar may also surface icon-only Source Files actions for VS Code-like parity, but must reuse the same underlying integrations (no duplicated logic paths).
 
@@ -113,6 +114,10 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
   - MainPanel / Editor workspace / Graph Data Table surfaces must also use the same ladder (`usePanelTypography`) and avoid hardcoded `text-*` / `font-*`.
 - Editor workspace Source Files rows and per-file view-mode controls (e.g. `Markdown/JSON/HTML` select) must inherit `usePanelTypography` sizing; do not hardcode pixel text sizes.
   - Portal content (dropdowns/popovers) must explicitly apply `microLabelClass` when it cannot inherit from a panel root.
+
+## Viewer Width Contract
+- In Viewer and Split modes, the rendered Markdown article content width must remain a stable 80% of the Viewer `section` width.
+- Toggling Explorer open/closed and toggling the Editor workspace Canvas pane open/closed must not change the 80% rule.
 
 ## Scroll Sync Contract
 - In split view, Editor↔Viewer scroll sync must be bidirectional, stable, and view-only (no text mutations).

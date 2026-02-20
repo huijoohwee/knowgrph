@@ -70,6 +70,7 @@
   - `LS_KEYS.workspaceViewMode` (Canvas | Editor | Table)
   - `LS_KEYS.documentStructureBaselineLock` (default on; disables mode switches that can desync surfaces)
   - `LS_KEYS.workspacePreviewWidthPx` (Editor/Table split: Canvas pane width)
+  - `LS_KEYS.workspaceCanvasPaneOpen` (Editor/Table split: Canvas pane open/closed)
 
 ---
 

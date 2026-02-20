@@ -2,14 +2,17 @@ import { GraphNode } from '@/lib/graph/types'
 import { GraphSchema, getNodeRenderRadius } from '@/lib/graph/schema'
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { pickBalancedGrid } from '@/components/GraphCanvas/layout/grid'
+import type { GroupKeyOfNode } from '@/components/GraphCanvas/layout/grouping'
+import { postFitNodesToViewport } from '@/components/GraphCanvas/layout/postFit'
 
 export const applyClusterAwareHeuristicSeedLayout = (args: {
   nodes: GraphNode[]
   width: number
   height: number
   schema: GraphSchema
+  groupKeyOf?: GroupKeyOfNode
 }): void => {
-  const { nodes, width, height, schema } = args
+  const { nodes, width, height, schema, groupKeyOf } = args
   if (!nodes.length) return
 
   let valid = 0
@@ -34,7 +37,19 @@ export const applyClusterAwareHeuristicSeedLayout = (args: {
   const spreadY = valid > 0 ? maxY - minY : 0
   const isClustered = spreadX < 40 && spreadY < 40
 
-  if (!isClustered && valid / Math.max(1, nodes.length) >= 0.2) return
+  const ratioValid = valid / Math.max(1, nodes.length)
+  if (!isClustered && ratioValid >= 0.2) {
+    const w = Math.max(1, width)
+    const h = Math.max(1, height)
+    const cx = minX === Infinity ? w / 2 : (minX + maxX) / 2
+    const cy = minY === Infinity ? h / 2 : (minY + maxY) / 2
+    const dx = Math.abs(cx - w / 2)
+    const dy = Math.abs(cy - h / 2)
+    const offCenter = (dx > w * 0.28) || (dy > h * 0.28)
+    const tooSmall = spreadX < w * 0.12 && spreadY < h * 0.12
+    const tooLarge = spreadX > w * 1.8 || spreadY > h * 1.8
+    if (!offCenter && !tooSmall && !tooLarge) return
+  }
 
   const estimateRadius = (n: GraphNode): number => {
     const props = (n.properties || {}) as Record<string, unknown>
@@ -61,6 +76,14 @@ export const applyClusterAwareHeuristicSeedLayout = (args: {
 
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i]
+    const groupKey = groupKeyOf ? groupKeyOf(n) : null
+    if (groupKey) {
+      const key = `group:${groupKey}`
+      const arr = clusters.get(key) || []
+      arr.push(n)
+      clusters.set(key, arr)
+      continue
+    }
     const props = (n.properties || {}) as Record<string, unknown>
     const community = normalizeCommunityKey(props['visual:community'])
     const key = community ? `community:${community}` : ''
@@ -164,4 +187,6 @@ export const applyClusterAwareHeuristicSeedLayout = (args: {
     const cy = startY + row * cellH
     placeCluster(entries[idx].nodes, cx, cy)
   }
+
+  postFitNodesToViewport({ nodes, width: w, height: h, paddingPx: Math.max(24, Math.floor(nodeSpacing * 0.6)) })
 }

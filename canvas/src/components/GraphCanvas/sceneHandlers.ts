@@ -111,20 +111,36 @@ export const attachSimulationTick = (args: {
       if (!sel) return
       if (portHandlesEnabled) {
         sel
-          .attr('x1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
-            const p = getEdgeEndpointFromPorts({ from: d.source, to: d.target, schema })
+          .attr('x1', (d: GraphEdge) => {
+            const edge = d as unknown as EdgeWithRuntime
+            const src = resolveNode(edge.source)
+            const tgt = resolveNode(edge.target)
+            if (!src || !tgt) return 0
+            const p = getEdgeEndpointFromPorts({ from: src, to: tgt, schema })
             return p.x
           })
-          .attr('y1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
-            const p = getEdgeEndpointFromPorts({ from: d.source, to: d.target, schema })
+          .attr('y1', (d: GraphEdge) => {
+            const edge = d as unknown as EdgeWithRuntime
+            const src = resolveNode(edge.source)
+            const tgt = resolveNode(edge.target)
+            if (!src || !tgt) return 0
+            const p = getEdgeEndpointFromPorts({ from: src, to: tgt, schema })
             return p.y
           })
-          .attr('x2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
-            const p = getEdgeEndpointFromPorts({ from: d.target, to: d.source, schema })
+          .attr('x2', (d: GraphEdge) => {
+            const edge = d as unknown as EdgeWithRuntime
+            const src = resolveNode(edge.source)
+            const tgt = resolveNode(edge.target)
+            if (!src || !tgt) return 0
+            const p = getEdgeEndpointFromPorts({ from: tgt, to: src, schema })
             return p.x
           })
-          .attr('y2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
-            const p = getEdgeEndpointFromPorts({ from: d.target, to: d.source, schema })
+          .attr('y2', (d: GraphEdge) => {
+            const edge = d as unknown as EdgeWithRuntime
+            const src = resolveNode(edge.source)
+            const tgt = resolveNode(edge.target)
+            if (!src || !tgt) return 0
+            const p = getEdgeEndpointFromPorts({ from: tgt, to: src, schema })
             return p.y
           })
       } else {
@@ -156,22 +172,38 @@ export const attachSimulationTick = (args: {
         }
 
         sel
-          .attr('x1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
-            const p = pickEndpoint(d.source, d.target, 3)
+          .attr('x1', (d: GraphEdge) => {
+            const edge = d as unknown as EdgeWithRuntime
+            const src = resolveNode(edge.source)
+            const tgt = resolveNode(edge.target)
+            if (!src || !tgt) return 0
+            const p = pickEndpoint(src, tgt, 3)
             return p.x
           })
-          .attr('y1', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
-            const p = pickEndpoint(d.source, d.target, 3)
+          .attr('y1', (d: GraphEdge) => {
+            const edge = d as unknown as EdgeWithRuntime
+            const src = resolveNode(edge.source)
+            const tgt = resolveNode(edge.target)
+            if (!src || !tgt) return 0
+            const p = pickEndpoint(src, tgt, 3)
             return p.y
           })
-          .attr('x2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
+          .attr('x2', (d: GraphEdge) => {
+            const edge = d as unknown as EdgeWithRuntime
+            const src = resolveNode(edge.source)
+            const tgt = resolveNode(edge.target)
+            if (!src || !tgt) return 0
             const hasArrow = Boolean(schema.edgeStyles?.[String(d.label || '')]?.arrow)
-            const p = pickEndpoint(d.target, d.source, hasArrow ? 8 : 3)
+            const p = pickEndpoint(tgt, src, hasArrow ? 8 : 3)
             return p.x
           })
-          .attr('y2', (d: GraphEdge & { source: GraphNode; target: GraphNode }) => {
+          .attr('y2', (d: GraphEdge) => {
+            const edge = d as unknown as EdgeWithRuntime
+            const src = resolveNode(edge.source)
+            const tgt = resolveNode(edge.target)
+            if (!src || !tgt) return 0
             const hasArrow = Boolean(schema.edgeStyles?.[String(d.label || '')]?.arrow)
-            const p = pickEndpoint(d.target, d.source, hasArrow ? 8 : 3)
+            const p = pickEndpoint(tgt, src, hasArrow ? 8 : 3)
             return p.y
           })
       }

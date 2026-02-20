@@ -105,6 +105,7 @@
   - Fit geometry must use stable per-node dimensions: read `visual:width`/`visual:height` when present, otherwise fall back to the renderer’s default node width/height.
   - Must use actual viewport dimensions for layout and fit when available; fallback to preset only when viewport is invalid (<100px).
   - Must enforce strict node separation via increased collision padding (20px) and charge (-800) to prevent initial clustering.
+  - Keyword Mode must remain anchored to Document Structure baseline: seed Keyword node positions from cached Document baseline positions when available; if Keyword cached positions are unstable (extreme/offscreen, overly spread, or overly clustered), override skip-initial-layout and force bounded relayout + post-fit-to-viewport to keep Nodes/Clusters/Edges centered and visible.
 
 ---
 

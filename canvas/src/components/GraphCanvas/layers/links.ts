@@ -6,6 +6,7 @@ import type { TempLinkSelection } from '@/features/edge-creation';
 import type { HoverInfo } from '@/components/GraphHoverTooltip';
 import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers';
 import { attachEdgeInteractionHandlers } from '@/components/GraphCanvas/layers/edgeInteractions'
+import { shouldShowEdgeArrow } from '@/components/GraphCanvas/edgeDisplay'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
@@ -58,16 +59,6 @@ export const createLinksLayer = (args: {
 }): d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> => {
   const { g, edgesForDisplay, schema } = args
 
-  const shouldShowArrow = (e: GraphEdge): boolean => {
-    if (schema.edgeStyles[e.label]?.arrow) return true
-    const props = (e.properties || {}) as Record<string, unknown>
-    const keywordKind = typeof props['keyword:kind'] === 'string' ? String(props['keyword:kind']).trim() : ''
-    if (!keywordKind) return false
-    const directed = props['keyword:directed']
-    if (typeof directed === 'boolean') return directed
-    return true
-  }
-
   const linkRoot = g.append('g').attr('data-kg-layer', 'links')
   const link = linkRoot.selectAll<SVGLineElement, GraphEdge>('line').data(edgesForDisplay).enter().append('line')
 
@@ -79,7 +70,7 @@ export const createLinksLayer = (args: {
 
   ;(link as d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown>).attr(
     'marker-end',
-    (d: GraphEdge) => (shouldShowArrow(d) ? 'url(#arrowhead)' : null),
+    (d: GraphEdge) => (shouldShowEdgeArrow(d, schema) ? 'url(#arrowhead)' : null),
   )
 
   return link as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>

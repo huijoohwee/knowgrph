@@ -607,6 +607,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       const prevSemanticMode = lastSemanticModeRef.current
       const prevLayoutVariant = lastLayoutVariantRef.current
       const prevDatasetKey = lastDatasetKeyRef.current
+      const prevLayoutViewKey = lastLayoutViewKeyRef.current
       const datasetKey = computeLayoutDatasetKey({
         graphData: sceneGraphData,
         graphDataRevision: graphDataRevisionRef.current ?? graphDataRevision,
@@ -642,6 +643,54 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         nodes: Array.isArray(sceneGraphData.nodes) ? sceneGraphData.nodes : [],
         layoutPositionCacheByMode,
       });
+
+      const baselineLayoutPositions = (() => {
+        if (String(documentSemanticMode || 'document') !== 'keyword') return null
+        if (!layoutPositionCacheByMode) return null
+
+        const lookup = (key: string | null): Record<string, { x: number; y: number }> | null => {
+          if (!key) return null
+          const cached = layoutPositionCacheByMode[key] ?? null
+          return cached && Object.keys(cached).length > 0 ? cached : null
+        }
+
+        if (prevSemanticMode === 'document' && prevDatasetKey && prevLayoutViewKey) {
+          const baselineFromPrevKey = buildLayoutPositionCacheKey({
+            datasetKey: prevDatasetKey,
+            mode: prevMode ?? mode,
+            frontmatterMode: prevFrontmatterMode ?? !!effectiveFrontmatterModeEnabled,
+            semanticMode: 'document',
+            renderMode: canvasRenderMode,
+            viewKey: prevLayoutViewKey,
+            renderVariant: canvasRenderMode === '2d' ? canvas2dRenderer : '',
+            layoutVariant: prevLayoutVariant ?? layoutVariant,
+          })
+          const found = lookup(baselineFromPrevKey)
+          if (found) return found
+        }
+
+        const graphMetaKey = buildGraphMetaKey(sceneGraphData)
+        const baselineLayoutViewKey = buildLayoutViewKey({
+          schemaLayoutEngineJson,
+          frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
+          documentSemanticMode: 'document',
+          graphMetaKey,
+          renderMediaAsNodes: renderMediaAsNodes === true,
+          mediaPanelDensity: String(mediaPanelDensity),
+          collapsedGroupIdsKey,
+        })
+        const baselineFromCurrentKey = buildLayoutPositionCacheKey({
+          datasetKey,
+          mode,
+          frontmatterMode: !!effectiveFrontmatterModeEnabled,
+          semanticMode: 'document',
+          renderMode: canvasRenderMode,
+          viewKey: baselineLayoutViewKey,
+          renderVariant: canvasRenderMode === '2d' ? canvas2dRenderer : '',
+          layoutVariant,
+        })
+        return lookup(baselineFromCurrentKey)
+      })()
       
       const prevPositions: Record<string, { x: number; y: number }> = {}
       if (nodesSelRef.current) {
@@ -675,6 +724,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         viewportControlsPreset,
         initialZoomTransform,
         layoutPositionsForMode,
+        baselineLayoutPositions,
         prevPositions: Object.keys(prevPositions).length > 0 ? prevPositions : null,
         skipInitialLayout,
         freezeSimulation: isEmbeddedPreview,

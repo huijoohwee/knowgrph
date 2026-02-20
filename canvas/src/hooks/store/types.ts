@@ -182,6 +182,20 @@ export interface GraphState {
   graphDataRevision: number;
   documentSemanticMode: DocumentSemanticMode;
   setDocumentSemanticMode: (mode: DocumentSemanticMode) => void;
+  keywordSourceMaxLines: number;
+  keywordSourceMaxChars: number;
+  keywordGraphPreviewDebounceMs: number;
+  keywordGraphFullDebounceMs: number;
+  keywordGraphEdgesPerNode: number;
+  keywordGraphMaxEdgesCap: number;
+  keywordGraphMentionEdgesPerSourceNode: number;
+  setKeywordSourceMaxLines: (v: number) => void;
+  setKeywordSourceMaxChars: (v: number) => void;
+  setKeywordGraphPreviewDebounceMs: (v: number) => void;
+  setKeywordGraphFullDebounceMs: (v: number) => void;
+  setKeywordGraphEdgesPerNode: (v: number) => void;
+  setKeywordGraphMaxEdgesCap: (v: number) => void;
+  setKeywordGraphMentionEdgesPerSourceNode: (v: number) => void;
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
   selectedGroupId: string | null;
@@ -205,6 +219,8 @@ export interface GraphState {
   isEditMode: boolean;
   workspaceViewMode: WorkspaceViewMode;
   workspaceViewModeBeforeTable: Exclude<WorkspaceViewMode, 'table'>
+  workspaceCanvasPaneOpen: boolean
+  setWorkspaceCanvasPaneOpen: (open: boolean) => void
   documentStructureBaselineLock: boolean;
   documentStructureBaselineSnapshot: DocumentStructureBaselineSnapshot | null
   setDocumentStructureBaselineLock: (enabled: boolean) => void;

@@ -196,6 +196,10 @@ import {
 import { testMainPanelTypographyUsesUiSettings } from '@/__tests__/mainPanelTypography.test'
 import { testGraphTableTypographyUsesUiSettings } from '@/__tests__/graphTableTypography.test'
 import { testCanvasZoomWheelParityBetweenD3AndNative } from '@/__tests__/canvasZoomWheelParity.test'
+import {
+  testSchemaUpdateCarriesZoomStateAcrossLayoutKey,
+  testSemanticModeSwitchCarriesZoomStateAcrossKeys,
+} from '@/__tests__/semanticModeZoomInvariants.test'
 import { testSpacePanKeyStateTracksHeldSpace } from '@/__tests__/spacePanKeyState.test'
 import { testViewportControlsPanDragPreset } from '@/__tests__/viewportControlsPanDragPreset.test'
 import { testViewportControlsSelectionDragPreset } from '@/__tests__/viewportControlsSelectionDragPreset.test'
@@ -213,6 +217,18 @@ import { testFlowWheelZoomUsesSmoothFactorNotDiscreteSteps } from '@/__tests__/f
 import { testD3WheelZoomIsContinuousAndUsesSharedWheelFactor } from '@/__tests__/d3WheelZoomSmoothRegression.test'
 import { testD3WheelZoomScaleExtentDoesNotClampToSchemaOnly } from '@/__tests__/d3ZoomScaleExtentRegression.test'
 import { testD3WheelZoomOverridesDesignPresetToZoom } from '@/__tests__/d3WheelZoomPresetOverrideRegression.test'
+import {
+  testEdgeDisplayKeywordArrowRespectsKeywordDirected,
+  testEdgeDisplayKeywordLabelCleansUnderscores,
+  testEdgeDisplaySchemaArrowOverridesKeyword,
+  testHeuristicClusterSeedsByGroupKey,
+  testPostFitShrinksOversizedLayout,
+} from '@/__tests__/d3EdgeDisplayShared.test'
+import { testKeywordModeDerivationIsOffMainThreadOrDeferred } from '@/__tests__/toolbarSemanticModeSwitchNoSyncDerive.test'
+import {
+  testSemanticModeSwitchDoesNotToastWhenNoSelection,
+  testSemanticModeSwitchToKeywordToastsWhenSelectionCleared,
+} from '@/__tests__/semanticModeSelectionToast.test'
 import { testWheelZoomUsesCtrlKeyBoostHelper } from '@/__tests__/wheelZoomCtrlKeyBoostRegression.test'
 import { testFlowNodeQuickEditorAnchorOffsetsClearAndSet } from '@/__tests__/flowNodeQuickEditorAnchorOffsets.test'
 import {
@@ -777,6 +793,14 @@ export const runAllTests = async () => {
   await exec('zoom.wheel.d3.smooth', testD3WheelZoomIsContinuousAndUsesSharedWheelFactor)
   await exec('zoom.wheel.d3.scaleExtent.ssot', testD3WheelZoomScaleExtentDoesNotClampToSchemaOnly)
   await exec('zoom.wheel.d3.presetOverride.design', testD3WheelZoomOverridesDesignPresetToZoom)
+  await exec('graphCanvas.edgeDisplay.keywordDirected', testEdgeDisplayKeywordArrowRespectsKeywordDirected)
+  await exec('graphCanvas.edgeDisplay.schemaArrow', testEdgeDisplaySchemaArrowOverridesKeyword)
+  await exec('graphCanvas.edgeDisplay.keywordLabelClean', testEdgeDisplayKeywordLabelCleansUnderscores)
+  await exec('graphCanvas.layout.heuristicSeed.groupKey', testHeuristicClusterSeedsByGroupKey)
+  await exec('graphCanvas.layout.postFit.shrinksOversized', testPostFitShrinksOversizedLayout)
+  await exec('semanticMode.keyword.derive.workerOrDeferred', testKeywordModeDerivationIsOffMainThreadOrDeferred)
+  await exec('semanticMode.selectionToast.noSelection', testSemanticModeSwitchDoesNotToastWhenNoSelection)
+  await exec('semanticMode.selectionToast.cleared', testSemanticModeSwitchToKeywordToastsWhenSelectionCleared)
   await exec('zoom.wheel.ctrlKey.boost', testWheelZoomUsesCtrlKeyBoostHelper)
   await exec('zoom.defaults.migration.upgradesPriorDefaults', testFlowZoomDefaultsMigrationUpgradesPriorDefaults)
   await exec('zoom.defaults.migration.noOverrideCustom', testFlowZoomDefaultsMigrationDoesNotOverrideCustomValues)
@@ -841,6 +865,8 @@ export const runAllTests = async () => {
   await exec('ui.perDocumentState.roundtripAndTrim', testPerDocumentUiStateReadWriteAndLruTrim)
   await exec('zoom.actions.inOut.preserveViewportCenterNoBounce', testZoomActionsZoomInOutPreserveViewportCenterNoBounce)
   await exec('zoom.wheel.parity.d3AndNative', testCanvasZoomWheelParityBetweenD3AndNative)
+  await exec('zoom.invariants.semanticMode.carriesZoomState', testSemanticModeSwitchCarriesZoomStateAcrossKeys)
+  await exec('zoom.invariants.schemaUpdate.carriesZoomState', testSchemaUpdateCarriesZoomStateAcrossLayoutKey)
   await exec('zoom.wheel.anchor.fallbackWhenOutside', testWheelAnchorFallsBackWhenClientCoordsOutsideRect)
   await exec('zoom.wheel.anchor.clampsNearEdge', testWheelAnchorClampsNearEdgeToPreventJump)
   await exec('zoom.wheel.anchor.centerWhenNoFallback', testWheelAnchorUsesCenterWhenNoFallback)

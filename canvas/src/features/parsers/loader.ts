@@ -16,6 +16,7 @@ import {
   buildRelationalGraph,
   buildNeo4jGraph,
 } from '@/lib/graph/db'
+import { pipelinePerfEnd, pipelinePerfMeasureAsync, pipelinePerfStart } from '@/lib/pipelinePerf'
 
 export type LoaderResult = {
   parserId?: string
@@ -151,6 +152,7 @@ export async function loadGraphDataFromTextViaParser(
   text: string,
   options?: { applyToStore?: boolean; onProgress?: (stage: string) => void },
 ): Promise<LoaderResult | null> {
+  const tAll = pipelinePerfStart()
   ensureBuiltInParsersRegistered()
   const normalizedText = normalizeMermaidMmdToMarkdown(name, text)
   try {
@@ -175,7 +177,12 @@ export async function loadGraphDataFromTextViaParser(
       void 0
     }
   }
-  const res = cached || await applyParserAsync(parserId, { name, text: normalizedText })
+  const res = cached || await pipelinePerfMeasureAsync({
+    name: 'import',
+    stage: 'parser:apply',
+    detail: { parserId: bm.id, name, textChars: normalizedText.length },
+    run: () => applyParserAsync(parserId, { name, text: normalizedText }),
+  })
   if (!res) return { parserId: bm.id, name, input: { name, text: normalizedText }, warnings: ["Parser returned no result"], counts: { n: 0, e: 0 } }
   if (!cached) setCachedParse(parserId, name, normalizedText, res)
   let { graphData } = res
@@ -232,6 +239,17 @@ export async function loadGraphDataFromTextViaParser(
   } catch {
     void 0
   }
+  pipelinePerfEnd({
+    name: 'import',
+    stage: 'loader:all',
+    t0: tAll,
+    detail: {
+      parserId: bm.id,
+      nodes: (graphData.nodes || []).length,
+      edges: (graphData.edges || []).length,
+      usedCache: !!cached,
+    },
+  })
   return {
     parserId: bm.id,
     name,

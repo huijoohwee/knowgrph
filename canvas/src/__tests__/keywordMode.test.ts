@@ -1,5 +1,5 @@
 import { deriveKeywordGraphFromText } from '@/features/semantic-mode/keywordGraph'
-import { mergeKeywordGraphWithMediaNodes } from '@/hooks/useActiveGraphData'
+import { mergeKeywordGraphWithSourceNodes } from '@/hooks/useActiveGraphData'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 
 export const testKeywordModeDerivesEntitiesAndPredicateEdges = () => {
@@ -60,7 +60,7 @@ export const testKeywordModeMergesMediaNodesForOverlays = () => {
     documentId: 'doc:test',
     documentText: 'Cat likes fish.',
   })
-  const merged = mergeKeywordGraphWithMediaNodes({
+  const merged = mergeKeywordGraphWithSourceNodes({
     baseGraphData: baseGraph as unknown as typeof keywordGraph,
     keywordGraph,
     sourceId: 'doc:test',

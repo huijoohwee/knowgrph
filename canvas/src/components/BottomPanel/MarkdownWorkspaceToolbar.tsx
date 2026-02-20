@@ -23,6 +23,8 @@ import {
   Maximize2,
   PanelLeftClose,
   PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Quote,
   Strikethrough,
   Upload,
@@ -45,6 +47,9 @@ export type MarkdownWorkspaceToolbarProps = {
   explorerOpen: boolean
   setExplorerOpen: (next: boolean) => void
 
+  canvasOpen?: boolean
+  setCanvasOpen?: (next: boolean) => void
+
   layoutMode: MarkdownWorkspaceLayoutMode
   setLayoutMode: (mode: MarkdownWorkspaceLayoutMode) => void
   markdownWordWrap: boolean
@@ -56,6 +61,10 @@ export type MarkdownWorkspaceToolbarProps = {
   applyDisabled?: boolean
   onSave?: () => void
   onSaveAs?: () => void
+  onExportMarkdown?: () => void
+  onExportJson?: () => void
+  onExportJsonLd?: () => void
+  onExportPdf?: () => void
   onToggleFullscreen: () => void
   presentationApiRef: React.MutableRefObject<MarkdownPresentationApi | null>
 
@@ -93,6 +102,8 @@ const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',
 export function MarkdownWorkspaceToolbar({
   explorerOpen,
   setExplorerOpen,
+  canvasOpen,
+  setCanvasOpen,
   layoutMode,
   setLayoutMode,
   markdownWordWrap,
@@ -104,6 +115,10 @@ export function MarkdownWorkspaceToolbar({
   applyDisabled,
   onSave,
   onSaveAs,
+  onExportMarkdown,
+  onExportJson,
+  onExportJsonLd,
+  onExportPdf,
   onToggleFullscreen,
   presentationApiRef,
   contentMode = 'document',
@@ -127,6 +142,36 @@ export function MarkdownWorkspaceToolbar({
 }: MarkdownWorkspaceToolbarProps) {
   const panelTypography = usePanelTypography()
   const canNavigateSlides = layoutMode === 'presentation'
+
+  const saveAsWrapRef = React.useRef<HTMLLIElement | null>(null)
+  const [saveAsOpen, setSaveAsOpen] = React.useState(false)
+  const canSaveAs = !!(onSaveAs || onExportMarkdown || onExportJson || onExportJsonLd || onExportPdf)
+
+  React.useEffect(() => {
+    if (!saveAsOpen) return
+    const onDown = (event: MouseEvent | TouchEvent) => {
+      try {
+        const target = event.target as Node | null
+        const wrap = saveAsWrapRef.current
+        if (!wrap || !target) return
+        if (wrap.contains(target)) return
+        setSaveAsOpen(false)
+      } catch {
+        void 0
+      }
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSaveAsOpen(false)
+    }
+    document.addEventListener('mousedown', onDown, true)
+    document.addEventListener('touchstart', onDown, true)
+    document.addEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('mousedown', onDown, true)
+      document.removeEventListener('touchstart', onDown, true)
+      document.removeEventListener('keydown', onKey, true)
+    }
+  }, [saveAsOpen])
 
   const webpageControls = React.useMemo(() => {
     const meta = webpageWorkspaceMeta
@@ -257,6 +302,16 @@ export function MarkdownWorkspaceToolbar({
           >
             {explorerOpen ? <PanelLeftClose className="w-4 h-4" aria-hidden="true" /> : <PanelLeftOpen className="w-4 h-4" aria-hidden="true" />}
           </IconButton>
+          {typeof canvasOpen === 'boolean' && typeof setCanvasOpen === 'function' ? (
+            <IconButton
+              title={canvasOpen ? 'Hide Canvas' : 'Show Canvas'}
+              onClick={() => setCanvasOpen(!canvasOpen)}
+              className={UI_THEME_TOKENS.button.square}
+              showTooltip={false}
+            >
+              {canvasOpen ? <PanelRightClose className="w-4 h-4" aria-hidden="true" /> : <PanelRightOpen className="w-4 h-4" aria-hidden="true" />}
+            </IconButton>
+          ) : null}
           {webpageControls && onWebpageChangeView && onWebpageUpdateMeta ? (
             <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Webpage">
             <li className="list-none">
@@ -757,17 +812,90 @@ export function MarkdownWorkspaceToolbar({
               <Save className="w-4 h-4" strokeWidth={1.6} />
             </button>
           </li>
-          <li className="list-none">
+          <li
+            ref={el => {
+              saveAsWrapRef.current = el
+            }}
+            className="list-none relative"
+          >
             <button
               type="button"
               className={TOOLBAR_BUTTON_CLASSNAME}
               title="Save As"
               aria-label="Save As"
-              onClick={() => onSaveAs?.()}
-              disabled={!isEditing || !onSaveAs}
+              onClick={() => setSaveAsOpen(v => !v)}
+              disabled={!canSaveAs}
             >
               <Copy className="w-4 h-4" strokeWidth={1.6} />
             </button>
+            {saveAsOpen ? (
+              <div
+                className={`absolute right-0 top-full mt-1 z-[300] min-w-[220px] rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-lg p-1`}
+                role="menu"
+                aria-label="Save As menu"
+              >
+                {onSaveAs ? (
+                  <button
+                    type="button"
+                    className={`w-full text-left px-2 py-1.5 rounded text-sm ${UI_THEME_TOKENS.button.hoverBg}`}
+                    onClick={() => {
+                      setSaveAsOpen(false)
+                      onSaveAs()
+                    }}
+                  >
+                    Workspace file
+                  </button>
+                ) : null}
+                {onExportMarkdown ? (
+                  <button
+                    type="button"
+                    className={`w-full text-left px-2 py-1.5 rounded text-sm ${UI_THEME_TOKENS.button.hoverBg}`}
+                    onClick={() => {
+                      setSaveAsOpen(false)
+                      onExportMarkdown()
+                    }}
+                  >
+                    Markdown (.md)
+                  </button>
+                ) : null}
+                {onExportJson ? (
+                  <button
+                    type="button"
+                    className={`w-full text-left px-2 py-1.5 rounded text-sm ${UI_THEME_TOKENS.button.hoverBg}`}
+                    onClick={() => {
+                      setSaveAsOpen(false)
+                      onExportJson()
+                    }}
+                  >
+                    JSON (.json)
+                  </button>
+                ) : null}
+                {onExportJsonLd ? (
+                  <button
+                    type="button"
+                    className={`w-full text-left px-2 py-1.5 rounded text-sm ${UI_THEME_TOKENS.button.hoverBg}`}
+                    onClick={() => {
+                      setSaveAsOpen(false)
+                      onExportJsonLd()
+                    }}
+                  >
+                    JSON-LD (.jsonld)
+                  </button>
+                ) : null}
+                {onExportPdf ? (
+                  <button
+                    type="button"
+                    className={`w-full text-left px-2 py-1.5 rounded text-sm ${UI_THEME_TOKENS.button.hoverBg}`}
+                    onClick={() => {
+                      setSaveAsOpen(false)
+                      onExportPdf()
+                    }}
+                  >
+                    PDF (Print)
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </li>
           <li className="list-none">
             <button type="button" className={TOOLBAR_BUTTON_CLASSNAME} title="Apply" onClick={onApply} disabled={applyDisabled}>

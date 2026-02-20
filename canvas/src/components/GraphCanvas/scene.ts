@@ -7,6 +7,7 @@ import { buildSimulation } from '@/components/GraphCanvas/simulation'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { relaxNodesWithCollision } from '@/components/GraphCanvas/layout/relax'
+import { postFitNodesToViewport } from '@/components/GraphCanvas/layout/postFit'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import { hideTempLink, cancelPendingEdge } from '@/features/edge-creation'
@@ -18,6 +19,7 @@ import { applyGraphCanvasZOrder } from '@/components/GraphCanvas/zOrder'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
+import { readFitPadding } from '@/lib/graph/layoutDefaults'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
@@ -38,6 +40,7 @@ type SetupGraphSceneArgs = {
   viewportControlsPreset: ViewportControlsPreset
   initialZoomTransform?: { k: number; x: number; y: number } | null
   layoutPositionsForMode?: Record<string, { x: number; y: number }> | null
+  baselineLayoutPositions?: Record<string, { x: number; y: number }> | null
   prevPositions?: Record<string, { x: number; y: number }> | null
   skipInitialLayout?: boolean
   freezeSimulation?: boolean
@@ -86,6 +89,12 @@ const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Num
 
 const hasFiniteXY = (n: GraphNode): boolean => isFiniteNumber((n as unknown as { x?: unknown }).x) && isFiniteNumber((n as unknown as { y?: unknown }).y)
 
+const isFixedNode = (n: GraphNode): boolean => {
+  const fx = (n as unknown as { fx?: unknown }).fx
+  const fy = (n as unknown as { fy?: unknown }).fy
+  return isFiniteNumber(fx) || isFiniteNumber(fy)
+}
+
 const hash01 = (s: string): number => {
   let h = 2166136261
   for (let i = 0; i < s.length; i += 1) {
@@ -95,7 +104,12 @@ const hash01 = (s: string): number => {
   return (h >>> 0) / 4294967296
 }
 
-const seedMissingNodePositions = (nodes: GraphNode[], width: number, height: number) => {
+const seedMissingNodePositions = (
+  nodes: GraphNode[],
+  width: number,
+  height: number,
+  seedCenter: { x: number; y: number } | null,
+) => {
   if (!nodes || nodes.length === 0) return
   const sorted = [...nodes].sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
   const existing = sorted.filter(hasFiniteXY)
@@ -114,6 +128,14 @@ const seedMissingNodePositions = (nodes: GraphNode[], width: number, height: num
     }
     cx = sx / existing.length
     cy = sy / existing.length
+  } else if (seedCenter) {
+    const x = typeof seedCenter.x === 'number' && Number.isFinite(seedCenter.x) ? seedCenter.x : 0
+    const y = typeof seedCenter.y === 'number' && Number.isFinite(seedCenter.y) ? seedCenter.y : 0
+    cx = x
+    cy = y
+  } else {
+    cx = width / 2
+    cy = height / 2
   }
 
   const pad = 40
@@ -123,28 +145,316 @@ const seedMissingNodePositions = (nodes: GraphNode[], width: number, height: num
   const spacingBase = Math.sqrt(area / Math.max(1, sorted.length))
   const spacing = Math.max(64, Math.min(220, spacingBase * 1.6))
 
-  const aspect = innerW / Math.max(1, innerH)
-  const idealCols = Math.ceil(Math.sqrt(Math.max(1, missing.length) * Math.max(0.35, aspect)))
-  const maxColsByWidth = Math.max(1, Math.floor(innerW / spacing))
-  const cols = Math.max(1, Math.min(maxColsByWidth, idealCols))
-  const rows = Math.max(1, Math.ceil(missing.length / cols))
-  const gridW = (cols - 1) * spacing
-  const gridH = (rows - 1) * spacing
-  const startX = cx - gridW / 2
-  const startY = cy - gridH / 2
+  const coerceCommunityKey = (n: GraphNode): string => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    const raw = props['visual:community']
+    if (typeof raw === 'string' && raw.trim()) return raw.trim()
+    if (typeof raw === 'number' && Number.isFinite(raw)) return String(raw)
+    return ''
+  }
 
-  for (let i = 0; i < missing.length; i += 1) {
-    const n = missing[i]!
-    const col = i % cols
-    const row = Math.floor(i / cols)
-    const jx = (hash01(`${String(n.id)}:x`) - 0.5) * Math.min(18, spacing * 0.15)
-    const jy = (hash01(`${String(n.id)}:y`) - 0.5) * Math.min(18, spacing * 0.15)
-    n.x = startX + col * spacing + jx
-    n.y = startY + row * spacing + jy
+  const missingByCommunity = (() => {
+    const map = new Map<string, GraphNode[]>()
+    for (let i = 0; i < missing.length; i += 1) {
+      const n = missing[i]!
+      const key = coerceCommunityKey(n)
+      if (!key) continue
+      const arr = map.get(key) || []
+      arr.push(n)
+      map.set(key, arr)
+    }
+    return map
+  })()
+
+  const hasCommunities = missingByCommunity.size >= 2
+
+  if (!hasCommunities) {
+    const aspect = innerW / Math.max(1, innerH)
+    const idealCols = Math.ceil(Math.sqrt(Math.max(1, missing.length) * Math.max(0.35, aspect)))
+    const maxColsByWidth = Math.max(1, Math.floor(innerW / spacing))
+    const cols = Math.max(1, Math.min(maxColsByWidth, idealCols))
+    const rows = Math.max(1, Math.ceil(missing.length / cols))
+    const gridW = (cols - 1) * spacing
+    const gridH = (rows - 1) * spacing
+    const startX = cx - gridW / 2
+    const startY = cy - gridH / 2
+    for (let i = 0; i < missing.length; i += 1) {
+      const n = missing[i]!
+      const col = i % cols
+      const row = Math.floor(i / cols)
+      const jx = (hash01(`${String(n.id)}:x`) - 0.5) * Math.min(18, spacing * 0.15)
+      const jy = (hash01(`${String(n.id)}:y`) - 0.5) * Math.min(18, spacing * 0.15)
+      n.x = startX + col * spacing + jx
+      n.y = startY + row * spacing + jy
+      n.vx = 0
+      n.vy = 0
+      n.fx = null
+      n.fy = null
+    }
+    return
+  }
+
+  const communityKeys = Array.from(missingByCommunity.keys()).sort((a, b) => a.localeCompare(b))
+  const clusterCount = communityKeys.length
+  const clusterSpacing = Math.max(220, Math.min(560, spacing * 3.1))
+  const aspect = innerW / Math.max(1, innerH)
+  const idealClusterCols = Math.ceil(Math.sqrt(Math.max(1, clusterCount) * Math.max(0.55, aspect)))
+  const maxClusterColsByWidth = Math.max(1, Math.floor(innerW / clusterSpacing))
+  const clusterCols = Math.max(1, Math.min(maxClusterColsByWidth, idealClusterCols))
+  const clusterRows = Math.max(1, Math.ceil(clusterCount / clusterCols))
+  const clusterGridW = (clusterCols - 1) * clusterSpacing
+  const clusterGridH = (clusterRows - 1) * clusterSpacing
+  const clusterStartX = cx - clusterGridW / 2
+  const clusterStartY = cy - clusterGridH / 2
+
+  const microSpacing = Math.max(42, Math.min(160, spacing * 0.72))
+
+  for (let gi = 0; gi < communityKeys.length; gi += 1) {
+    const key = communityKeys[gi]!
+    const members = missingByCommunity.get(key) || []
+    if (members.length === 0) continue
+    const cc = gi % clusterCols
+    const rr = Math.floor(gi / clusterCols)
+    const centerX = clusterStartX + cc * clusterSpacing
+    const centerY = clusterStartY + rr * clusterSpacing
+
+    const localAspect = 1
+    const localIdealCols = Math.ceil(Math.sqrt(Math.max(1, members.length) * Math.max(0.55, localAspect)))
+    const maxColsLocal = Math.max(1, Math.floor(clusterSpacing / microSpacing))
+    const cols = Math.max(1, Math.min(maxColsLocal, localIdealCols))
+    const rows = Math.max(1, Math.ceil(members.length / cols))
+    const gridW = (cols - 1) * microSpacing
+    const gridH = (rows - 1) * microSpacing
+    const startX = centerX - gridW / 2
+    const startY = centerY - gridH / 2
+
+    for (let i = 0; i < members.length; i += 1) {
+      const n = members[i]!
+      const col = i % cols
+      const row = Math.floor(i / cols)
+      const jx = (hash01(`${String(n.id)}:x`) - 0.5) * Math.min(16, microSpacing * 0.18)
+      const jy = (hash01(`${String(n.id)}:y`) - 0.5) * Math.min(16, microSpacing * 0.18)
+      n.x = startX + col * microSpacing + jx
+      n.y = startY + row * microSpacing + jy
+      n.vx = 0
+      n.vy = 0
+      n.fx = null
+      n.fy = null
+    }
+  }
+}
+
+const coerceEndpointId = (value: unknown): string | null => {
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object') {
+    const id = (value as { id?: unknown }).id
+    if (typeof id === 'string') return id
+  }
+  return null
+}
+
+const applyBaselineDocumentPositionsToKeywordGraph = (args: {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  baseline: Record<string, { x: number; y: number }>
+  overwriteExisting?: boolean
+}) => {
+  const { nodes, edges, baseline } = args
+  if (!nodes || nodes.length === 0) return
+  if (!baseline || Object.keys(baseline).length === 0) return
+  const overwriteExisting = args.overwriteExisting === true
+
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]!
+    if (isFixedNode(n)) continue
+    if (!overwriteExisting && hasFiniteXY(n)) continue
+    const id = String(n.id || '').trim()
+    if (!id) continue
+
+    const direct = baseline[id]
+    if (direct) {
+      n.x = direct.x
+      n.y = direct.y
+      n.vx = 0
+      n.vy = 0
+      if (!isFixedNode(n)) {
+        n.fx = null
+        n.fy = null
+      }
+      continue
+    }
+
+    if (!id.startsWith('doc:')) continue
+    const props = (n.properties || {}) as Record<string, unknown>
+    const srcId = typeof props['source:id'] === 'string' ? props['source:id'].trim() : ''
+    if (!srcId) continue
+    const p = baseline[srcId]
+    if (!p) continue
+    n.x = p.x
+    n.y = p.y
     n.vx = 0
     n.vy = 0
-    n.fx = null
-    n.fy = null
+    if (!isFixedNode(n)) {
+      n.fx = null
+      n.fy = null
+    }
+  }
+
+  const nodeById = new Map<string, GraphNode>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    nodeById.set(String(nodes[i]!.id), nodes[i]!)
+  }
+
+  const neighborIdsByNodeId = (() => {
+    const map = new Map<string, Set<string>>()
+    const push = (a: string, b: string) => {
+      if (!a || !b) return
+      const s = map.get(a) || new Set<string>()
+      s.add(b)
+      map.set(a, s)
+    }
+    for (let i = 0; i < edges.length; i += 1) {
+      const e = edges[i]!
+      const s = coerceEndpointId((e as unknown as { source?: unknown }).source)
+      const t = coerceEndpointId((e as unknown as { target?: unknown }).target)
+      if (!s || !t) continue
+      push(s, t)
+      push(t, s)
+    }
+    return map
+  })()
+
+  const jitter = (id: string, mag: number) => {
+    const a = hash01(`${id}:a`) * Math.PI * 2
+    const r = (0.4 + 0.6 * hash01(`${id}:r`)) * mag
+    return { dx: Math.cos(a) * r, dy: Math.sin(a) * r }
+  }
+
+  for (let pass = 0; pass < 3; pass += 1) {
+    let placed = 0
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]!
+      if (hasFiniteXY(n)) continue
+      const id = String(n.id || '').trim()
+      if (!id) continue
+      const neigh = neighborIdsByNodeId.get(id)
+      if (!neigh || neigh.size === 0) continue
+      let sx = 0
+      let sy = 0
+      let c = 0
+      neigh.forEach(nid => {
+        const nn = nodeById.get(nid)
+        if (!nn || !hasFiniteXY(nn)) return
+        sx += nn.x as number
+        sy += nn.y as number
+        c += 1
+      })
+      if (c === 0) continue
+      const j = jitter(id, 42 + pass * 22)
+      n.x = sx / c + j.dx
+      n.y = sy / c + j.dy
+      n.vx = 0
+      n.vy = 0
+      if (!isFixedNode(n)) {
+        n.fx = null
+        n.fy = null
+      }
+      placed += 1
+    }
+    if (placed === 0) break
+  }
+}
+
+const keywordLayoutLooksUnstable = (args: { nodes: GraphNode[]; width: number; height: number }): boolean => {
+  const { nodes, width, height } = args
+  if (!nodes || nodes.length < 2) return false
+
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+  let valid = 0
+  let extreme = 0
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]!
+    if (!hasFiniteXY(n)) continue
+    const x = n.x as number
+    const y = n.y as number
+    valid += 1
+    if (Math.abs(x) > 120000 || Math.abs(y) > 120000) extreme += 1
+    if (x < minX) minX = x
+    if (x > maxX) maxX = x
+    if (y < minY) minY = y
+    if (y > maxY) maxY = y
+  }
+  if (valid < 2 || minX === Infinity) return false
+  if (extreme > 0) return true
+
+  const spanX = maxX - minX
+  const spanY = maxY - minY
+  const w = Math.max(1, width)
+  const h = Math.max(1, height)
+  const tooLarge = spanX > w * 6 || spanY > h * 6
+  const tooSmall = spanX < Math.max(90, w * 0.12) && spanY < Math.max(90, h * 0.12)
+  return tooLarge || tooSmall
+}
+
+const normalizeSeededLayoutToViewport = (args: { nodes: GraphNode[]; width: number; height: number }) => {
+  const { nodes, width, height } = args
+  if (!nodes || nodes.length < 2) return
+
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+  let sumX = 0
+  let sumY = 0
+  let count = 0
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]!
+    if (!hasFiniteXY(n)) continue
+    const x = n.x as number
+    const y = n.y as number
+    if (x < minX) minX = x
+    if (x > maxX) maxX = x
+    if (y < minY) minY = y
+    if (y > maxY) maxY = y
+    sumX += x
+    sumY += y
+    count += 1
+  }
+  if (count < 2 || minX === Infinity) return
+  const spanX = Math.max(1e-6, maxX - minX)
+  const spanY = Math.max(1e-6, maxY - minY)
+  const targetW = Math.max(1, width - 80)
+  const targetH = Math.max(1, height - 80)
+  const sx = targetW / spanX
+  const sy = targetH / spanY
+  const scale = Math.min(sx, sy)
+
+  const tooLarge = spanX > width * 1.6 || spanY > height * 1.6
+  const tooSmall = spanX < width * 0.22 && spanY < height * 0.22
+  if (!tooLarge && !tooSmall) return
+
+  const desired = tooLarge
+    ? Math.max(0.52, Math.min(0.92, scale))
+    : Math.min(1.35, Math.max(1.05, scale))
+  if (!Number.isFinite(desired) || desired <= 0) return
+  if (Math.abs(desired - 1) < 0.02) return
+
+  const cx = sumX / count
+  const cy = sumY / count
+  const tx = width / 2
+  const ty = height / 2
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]!
+    if (!hasFiniteXY(n)) continue
+    const x = n.x as number
+    const y = n.y as number
+    n.x = tx + (x - cx) * desired
+    n.y = ty + (y - cy) * desired
+    n.vx = 0
+    n.vy = 0
   }
 }
 
@@ -165,6 +475,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     viewportControlsPreset,
     initialZoomTransform,
     layoutPositionsForMode,
+    baselineLayoutPositions,
     prevPositions,
     skipInitialLayout,
     gRef,
@@ -280,24 +591,44 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     applyCachedPositions()
   }
 
-  seedMissingNodePositions(displayNodes, width, height)
+  const isKeywordGraph = (() => {
+    const meta = (graphDataForDisplay.metadata || {}) as Record<string, unknown>
+    return meta.kind === 'keyword'
+  })()
 
-  if (initialZoomTransform) {
-    applyInitialTransform(initialZoomTransform)
-  } else if (fitToScreenMode) {
-    const intent = 'fitToScreen'
-    const mode = readLayoutMode(schema)
-    const opts = readFitAllOptions({ schema, mode, intent })
-    const t = fitAllTransform(displayNodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
-    applyInitialTransform({ k: t.k, x: t.x, y: t.y })
-  } else {
-    // If no explicit transform, we still want to ensure graph is centered initially
-    const intent = 'initialFit'
-    const mode = readLayoutMode(schema)
-    const opts = readFitAllOptions({ schema, mode, intent })
-    const t = fitAllTransform(displayNodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
-    applyInitialTransform({ k: t.k, x: t.x, y: t.y })
+  if (isKeywordGraph && baselineLayoutPositions) {
+    applyBaselineDocumentPositionsToKeywordGraph({
+      nodes: displayNodes,
+      edges: edgesForDisplay,
+      baseline: baselineLayoutPositions,
+      overwriteExisting: !skipInitialLayout || keywordLayoutLooksUnstable({ nodes: displayNodes, width, height }),
+    })
   }
+
+  const seedCenter = (() => {
+    if (!initialZoomTransform) return null
+    const k = typeof initialZoomTransform.k === 'number' && Number.isFinite(initialZoomTransform.k) && initialZoomTransform.k > 0 ? initialZoomTransform.k : 1
+    const x = typeof initialZoomTransform.x === 'number' && Number.isFinite(initialZoomTransform.x) ? initialZoomTransform.x : 0
+    const y = typeof initialZoomTransform.y === 'number' && Number.isFinite(initialZoomTransform.y) ? initialZoomTransform.y : 0
+    return { x: (width / 2 - x) / k, y: (height / 2 - y) / k }
+  })()
+
+  seedMissingNodePositions(displayNodes, width, height, seedCenter)
+
+  normalizeSeededLayoutToViewport({ nodes: displayNodes, width, height })
+
+  const effectiveSkipInitialLayout = (() => {
+    if (!skipInitialLayout) return false
+    if (!isKeywordGraph) return true
+    if (keywordLayoutLooksUnstable({ nodes: displayNodes, width, height })) return false
+    return true
+  })()
+
+  const pendingInitialFitIntent: 'fitToScreen' | 'initialFit' | null = initialZoomTransform
+    ? null
+    : fitToScreenMode
+      ? 'fitToScreen'
+      : 'initialFit'
 
   const groupKeyByNodeId = args.layoutGroupKeyByNodeId
   const groupKeyOf = (n: GraphNode): string | null => {
@@ -306,13 +637,13 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     return groupKeyByNodeId[id] || null
   }
   const simulation = buildSimulation(displayNodes, edgesForDisplay, Math.max(1, width), Math.max(1, Math.floor(height)), schema, {
-    skipInitialLayout: !!skipInitialLayout,
+    skipInitialLayout: !!effectiveSkipInitialLayout,
     groupKeyOf,
     groupsForBboxCollide: args.groupsForBboxCollide,
   })
   simulationRef.current = simulation
 
-  if (!skipInitialLayout && displayNodes.length > 1) {
+  if (!effectiveSkipInitialLayout && displayNodes.length > 1) {
     const dupCounts = new Map<string, number>()
     for (let i = 0; i < displayNodes.length; i += 1) {
       const n = displayNodes[i]
@@ -359,6 +690,28 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       n.vx = 0
       n.vy = 0
     }
+
+    if (isKeywordGraph) {
+      const padPx = Math.max(24, Math.floor(readFitPadding(schema)))
+      postFitNodesToViewport({
+        nodes: displayNodes,
+        width: Math.max(1, width),
+        height: Math.max(1, Math.floor(height)),
+        paddingPx: padPx,
+        minScale: 0.06,
+        maxScale: 2.6,
+      })
+    }
+  }
+
+  if (initialZoomTransform) {
+    applyInitialTransform(initialZoomTransform)
+  } else if (pendingInitialFitIntent) {
+    const intent = pendingInitialFitIntent
+    const mode = readLayoutMode(schema)
+    const opts = readFitAllOptions({ schema, mode, intent })
+    const t = fitAllTransform(displayNodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
+    applyInitialTransform({ k: t.k, x: t.x, y: t.y })
   }
 
   if (args.freezeSimulation === true) {
@@ -518,7 +871,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
         if (finalFitApplied) return
         if (args.freezeSimulation === true) return
         if (initialZoomTransform) return
-        if (skipInitialLayout) return
+        if (effectiveSkipInitialLayout) return
         if (tick < 20) return
 
         if (alpha < 0.045) {
@@ -528,9 +881,23 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
         }
         if (stableTicks < 12) return
 
+        if (isKeywordGraph) {
+          const padPx = Math.max(24, Math.floor(readFitPadding(getSchema())))
+          postFitNodesToViewport({
+            nodes: displayNodes,
+            width: Math.max(1, width),
+            height: Math.max(1, Math.floor(height)),
+            paddingPx: padPx,
+            minScale: 0.04,
+            maxScale: 1.6,
+          })
+        }
+
         const intent = fitToScreenMode ? 'fitToScreen' : 'fitToView'
-        const mode = readLayoutMode(schema)
-        const opts = readFitAllOptions({ schema, mode, intent })
+        const schemaValue = getSchema()
+        const mode = readLayoutMode(schemaValue)
+        const baseOpts = readFitAllOptions({ schema: schemaValue, mode, intent })
+        const opts = isKeywordGraph && intent === 'fitToView' ? { ...baseOpts, detectClusters: true } : baseOpts
         const t = fitAllTransform(displayNodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
         applyInitialTransform({ k: t.k, x: t.x, y: t.y })
         finalFitApplied = true

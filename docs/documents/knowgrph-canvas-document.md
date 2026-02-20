@@ -93,6 +93,9 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 - Import Folder in Markdown Workspace must be lazy: create file/folder entries and pending stubs without reading contents; clicking a file triggers indexing/loading/parsing/rendering (including on-demand PDF conversion) and shows an `Indexing` progress pill using the shared `label • n/n • kb/kb` formatting.
 - Switching files and switching webpage view modes must not toggle `frontmatterModeEnabled` or trigger graph/layout/zoom recomputation; view switches are strictly Viewer/Presentation/Slides-only and must not apply-to-graph.
 - Workspace file CRUD (create/edit/delete/clear) must sync to the Source Files list (with stable IDs keyed by `workspace:<path>`); file open should reuse cached `parsedGraphData` from Source Files when the text hash matches.
+- Markdown Workspace layout controls (Explorer open/closed, Canvas pane open/closed, Editor/Viewer/Split/Presentation) are UI-only state; toggling them must not rewrite graph state or invalidate layout/zoom caches.
+- In Viewer and Split modes, the rendered Markdown article content width must remain a stable 80% of the Viewer `section` width even when the Canvas pane or Explorer is toggled.
+- `Save As...` in the Markdown header may export Markdown/JSON/JSON-LD and must support PDF export via a print pipeline that does not rely on pop-up windows.
 - GeoJSON/JSON files that contain geodata must render as a normal graph by converting geodata into nodes with `properties.geo.{lat,lng}` (supporting FeatureCollection and record arrays), so both Canvas and Geospatial Mode can display the dataset.
 - Editor mode must not mount any separate Selection/Record Inspector dock (forbid extra inspector `<header>/<section>` surfaces in Editor mode).
 - If a Graph Table section exists, it is treated as an optional tool surface; it must not introduce a second inspector dock outside the table workspace.

@@ -150,6 +150,19 @@
   - Switching modes (e.g. Tree -> Force, 2D -> 3D -> 2D) restores cached positions to prevent visual chaos.
   - Centroid recentering ensures the graph stays visible.
 
+### 2D D3 Layout Seeding (Document Structure vs Keyword Mode)
+- **Visibility drives layout inputs**: D3 builds layout + fit from `graphDataForDisplay` (after shared display filters). Nodes/Clusters/Edges visibility must be derived once (SSOT) and reused by layout, fit, and rendering to prevent drift across panels and 2D renderers.
+- **Document Structure Mode**:
+  - Layout seeding prefers cached positions for the active layout mode (when coverage is sufficient).
+  - Missing positions are seeded around the viewport center (or the current transform center when restoring a non-identity transform) to prevent top-left clustering.
+  - Seed normalization rebases extreme/overly-tight seeds into a bounded viewport range before forces run.
+- **Keyword Mode**:
+  - Keyword Mode defaults to the Document Structure baseline: when baseline positions exist, Keyword nodes are seeded from the Document baseline positions to preserve mental map and prevent “new graph chaos” on mode switches.
+  - Baseline seeding is guarded by instability detection: if cached Keyword positions look unstable (extreme coordinates, excessive spread, or excessive clustering), baseline seeding overwrites cached positions and forces re-layout.
+  - Skip-initial-layout is overridden for unstable caches: even if `determineLayoutPositions` reports `skipInitialLayout=true`, Keyword Mode forces a fresh layout when instability is detected (prevents “stuck messy cache”).
+  - Post-computation collective fit is applied after bounded collision relaxation to keep the entire visible Keyword graph centered and bounded in the current viewport (prevents uncontrolled expansion and void-space layouts).
+  - Implementation lives in `canvas/src/components/GraphCanvas/scene.ts` (`applyBaselineDocumentPositionsToKeywordGraph`, `keywordLayoutLooksUnstable`, `effectiveSkipInitialLayout`, `postFitNodesToViewport`).
+
 ### Selection Zoom (Node/Edge vs Graph)
 - Zoom-to-selection operates on a selection subset (selected node ids and/or edge endpoints) and must share duration/timing knobs across 2D renderers.
 - Fit-to-screen operates on the full visible graph (after display filters) and must not be confused with selection zoom; selection zoom must not mutate layout caches.

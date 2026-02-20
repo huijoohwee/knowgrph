@@ -107,6 +107,15 @@ export const createUiSlice = (set: SetGraph) => {
       value => (value === 'editor' || value === 'canvas' ? value : 'canvas'),
     ),
 
+    workspaceCanvasPaneOpen: lsBool(LS_KEYS.workspaceCanvasPaneOpen, true),
+    setWorkspaceCanvasPaneOpen: (open: boolean) =>
+      set(state => {
+        const next = open === false ? false : true
+        if (state.workspaceCanvasPaneOpen === next) return {}
+        lsSetBool(LS_KEYS.workspaceCanvasPaneOpen, next)
+        return { workspaceCanvasPaneOpen: next } as Partial<GraphState>
+      }),
+
     documentStructureBaselineLock: lsBool(LS_KEYS.documentStructureBaselineLock, true),
     documentStructureBaselineSnapshot: null,
     setDocumentStructureBaselineLock: (enabled: boolean) =>

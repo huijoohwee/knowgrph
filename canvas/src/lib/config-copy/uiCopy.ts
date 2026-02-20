@@ -8,6 +8,7 @@ const MISSING_PATH = 'Missing path'
 const FAILED_TO_LOAD_MARKDOWN = 'Failed to load markdown'
 const EMPTY_RESPONSE = 'Empty response'
 const BASELINE_LOCKED_TOAST = 'Mode switches are locked (baseline). Click the lock icon to unlock.'
+const SELECTION_CLEARED_MODE_TOAST = 'Selection cleared: not available in the target mode.'
 
 export const UI_COPY = {
   invalidJsonLabel: 'Invalid JSON',
@@ -21,6 +22,7 @@ export const UI_COPY = {
   mainPanelPrefix: 'Main panel:',
   bottomPanelPrefix: 'Bottom panel:',
   baselineLockedToast: BASELINE_LOCKED_TOAST,
+  selectionClearedOnModeSwitchToast: SELECTION_CLEARED_MODE_TOAST,
   openSettingsUiDensityIconsButton: 'Open Settings: UI Density icons',
   openSettingsUiDensityIconsButtonCompact: 'Open Settings · UI Density: Icons',
   floatingPanelMinimize: 'Minimize floating panel',

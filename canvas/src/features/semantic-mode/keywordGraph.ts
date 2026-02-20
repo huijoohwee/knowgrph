@@ -19,6 +19,10 @@ export type KeywordGraphSource = {
   documentText: string
   sourceLabel?: string
   sourceTextHash?: string
+  tuning?: {
+    edgesPerNode?: number
+    maxEdgesCap?: number
+  }
 }
 
 export type KeywordGraphResult = {
@@ -60,7 +64,7 @@ const prettyLabel = (key: string): string => {
     .join(' ')
 }
 
-export const KEYWORD_GRAPH_ALGO_VERSION = 2
+export const KEYWORD_GRAPH_ALGO_VERSION = 4
 
 const STOPWORD_SET = new Set<string>(NLTK_STOPWORDS_EN.map(s => String(s || '').trim().toLowerCase()).filter(Boolean))
 
@@ -141,6 +145,16 @@ const compressCommunityLabels = (args: {
   const max = Math.max(2, Math.min(64, Math.floor(args.maxCommunities)))
   const labelsByNodeId = new Map(args.labelsByNodeId)
 
+  if (args.neighbors.size === 0) {
+    const ids = Array.from(labelsByNodeId.keys()).map(id => String(id || '').trim()).filter(Boolean)
+    ids.sort((a, b) => a.localeCompare(b))
+    const out = new Map<string, number>()
+    for (let i = 0; i < ids.length; i += 1) {
+      out.set(ids[i]!, (i % max) + 1)
+    }
+    return out
+  }
+
   const buildNodesByLabel = () => {
     const out = new Map<string, string[]>()
     labelsByNodeId.forEach((label, nodeId) => {
@@ -182,6 +196,7 @@ const compressCommunityLabels = (args: {
       continue
     }
 
+    let changed = false
     for (let i = 0; i < smallNodes.length; i += 1) {
       const id = smallNodes[i]!
       const neigh = args.neighbors.get(id) || []
@@ -200,7 +215,25 @@ const compressCommunityLabels = (args: {
           bestTarget = nbLabel
         }
       }
-      if (bestTarget) labelsByNodeId.set(id, bestTarget)
+      if (bestTarget) {
+        labelsByNodeId.set(id, bestTarget)
+        changed = true
+      }
+    }
+
+    if (!changed) {
+      const candidates = Array.from(nodesByLabel.entries())
+        .filter(([label]) => label !== smallLabel)
+        .map(([label, nodes]) => ({ label, size: nodes.length }))
+        .sort((a, b) => b.size - a.size || a.label.localeCompare(b.label))
+      const target = candidates[0]?.label || null
+      if (target) {
+        for (let i = 0; i < smallNodes.length; i += 1) {
+          labelsByNodeId.set(smallNodes[i]!, target)
+        }
+      } else {
+        break
+      }
     }
 
     nodesByLabel = buildNodesByLabel()
@@ -230,12 +263,13 @@ const compressCommunityLabels = (args: {
 export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordGraphResult => {
   const docId = String(source.documentId || 'doc')
   const text = String(source.documentText || '')
+  const analysisText = text.length > 60_000 ? text.slice(0, 60_000) : text
   const rawSourceHash = typeof source.sourceTextHash === 'string' && source.sourceTextHash.trim()
     ? source.sourceTextHash.trim()
     : hashText(text)
   const sourceLayerHash = `kw:v${KEYWORD_GRAPH_ALGO_VERSION}:${rawSourceHash}`
   
-  const textEntities = extractMentionsRobust(text)
+  const textEntities = extractMentionsRobust(analysisText)
   const mentions: Mention[] = textEntities.map(e => ({
     key: normalizeEntityKey(e.text),
     label: e.text,
@@ -272,8 +306,8 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
   const directionCountsByPair = new Map<string, Map<string, number>>()
 
   // 1. Process explicit triples first for strong signals
-  const explicitTriples = extractTriplesHeuristic(text, textEntities)
-  const cooccurrenceTriples = extractCooccurrencePairs(text, textEntities)
+  const explicitTriples = extractTriplesHeuristic(analysisText, textEntities)
+  const cooccurrenceTriples = extractCooccurrencePairs(analysisText, textEntities)
   
   // Merge all signals
   const allTriples = [...explicitTriples.map(t => ({ ...t, weight: 3 })), ...cooccurrenceTriples.map(t => ({ ...t, weight: 1 }))]
@@ -326,8 +360,40 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
     directionCountsByPair.set(pairKey, dirMap)
   }
 
+  if (pairCounts.size === 0 && entityByKey.size >= 2) {
+    const keysInOrder: string[] = []
+    for (let i = 0; i < mentions.length; i += 1) {
+      const key = mentions[i]?.key
+      if (!key) continue
+      if (!isUsefulEntityKey(key)) continue
+      keysInOrder.push(key)
+    }
+    const windowSize = 6
+    const pred = 'relatedTo'
+    const pKey = normalizeEntityKey(pred)
+    if (pKey) {
+      predicateKeys.add(pKey)
+      for (let i = 0; i < keysInOrder.length; i += 1) {
+        const a = keysInOrder[i]!
+        for (let j = Math.max(0, i - windowSize); j < i; j += 1) {
+          const b = keysInOrder[j]!
+          if (!a || !b || a === b) continue
+          const pairKey = a.localeCompare(b) < 0 ? `${a}|${b}` : `${b}|${a}`
+          pairCounts.set(pairKey, (pairCounts.get(pairKey) || 0) + 1)
+          const relMap = relationCountsByPair.get(pairKey) || new Map<string, number>()
+          relMap.set(pKey, (relMap.get(pKey) || 0) + 1)
+          relationCountsByPair.set(pairKey, relMap)
+          const aNode = entityByKey.get(a)
+          const bNode = entityByKey.get(b)
+          if (aNode) aNode.count += 1
+          if (bNode) bNode.count += 1
+        }
+      }
+    }
+  }
+
   // Record block counts for PPMI
-  const sentenceRanges = splitSentencesWithOffsets(text)
+  const sentenceRanges = splitSentencesWithOffsets(analysisText)
   for (const range of sentenceRanges) {
     const sentenceEntities = textEntities.filter(e => e.start >= range.start && e.end <= range.end)
     const uniqueKeys = new Set(sentenceEntities.map(e => normalizeEntityKey(e.text)).filter(k => !!k && isUsefulEntityKey(k)))
@@ -479,7 +545,15 @@ export const deriveKeywordGraphFromText = (source: KeywordGraphSource): KeywordG
 
   const prunedEdges = (() => {
     const nodeCount = nodes.length
-    const maxEdges = Math.max(60, Math.min(2400, nodeCount * 6))
+    const edgesPerNodeRaw = source.tuning?.edgesPerNode
+    const edgesPerNode = typeof edgesPerNodeRaw === 'number' && Number.isFinite(edgesPerNodeRaw)
+      ? clampNumber(Math.floor(edgesPerNodeRaw), 1, 60)
+      : 6
+    const maxEdgesCapRaw = source.tuning?.maxEdgesCap
+    const maxEdgesCap = typeof maxEdgesCapRaw === 'number' && Number.isFinite(maxEdgesCapRaw)
+      ? clampNumber(Math.floor(maxEdgesCapRaw), 0, 25_000)
+      : 2400
+    const maxEdges = Math.max(60, Math.min(maxEdgesCap, nodeCount * edgesPerNode))
     if (edges.length <= maxEdges) return edges
     const scored = edges
       .map(e => {

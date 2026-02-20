@@ -10,9 +10,15 @@ export function applyForceModeSeeds(args: {
   width: number
   height: number
   schema: GraphSchema
+  groupKeyOf?: (n: GraphNode) => string | null
 }) {
   applyMermaidSeedLayout({ nodes: args.nodes, edges: args.edges, width: args.width, height: args.height, schema: args.schema })
   applyMarkdownHeadingSeedLayout({ nodes: args.nodes, edges: args.edges, width: args.width, height: args.height, schema: args.schema })
-  applyClusterAwareHeuristicSeedLayout({ nodes: args.nodes, width: args.width, height: args.height, schema: args.schema })
+  applyClusterAwareHeuristicSeedLayout({
+    nodes: args.nodes,
+    width: args.width,
+    height: args.height,
+    schema: args.schema,
+    groupKeyOf: args.groupKeyOf,
+  })
 }
-

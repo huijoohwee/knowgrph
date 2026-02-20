@@ -114,6 +114,13 @@ export const LS_KEYS = {
   flowWheelZoomDefaultsVersion: 'kg:render:flow:wheelZoomDefaultsVersion',
   parserTreeSitterEnabled: 'kg:parsers:treeSitterEnabled',
   graphragTextCentralityConfig: 'kg:graphragText:centralityConfig',
+  keywordSourceMaxLines: 'kg:semantic:keyword:sourceMaxLines',
+  keywordSourceMaxChars: 'kg:semantic:keyword:sourceMaxChars',
+  keywordGraphPreviewDebounceMs: 'kg:semantic:keyword:previewDebounceMs',
+  keywordGraphFullDebounceMs: 'kg:semantic:keyword:fullDebounceMs',
+  keywordGraphEdgesPerNode: 'kg:semantic:keyword:edgesPerNode',
+  keywordGraphMaxEdgesCap: 'kg:semantic:keyword:maxEdgesCap',
+  keywordGraphMentionEdgesPerSourceNode: 'kg:semantic:keyword:mentionEdgesPerSourceNode',
   graphData: 'kg:data',
   graphSchema: 'kg:schema',
   graphFieldSettingsById: 'kg:graphFields:settingsById',
@@ -175,6 +182,7 @@ export const LS_KEYS = {
   workspaceViewModeBeforeTable: 'kg:ui:workspace:viewModeBeforeTable',
   documentStructureBaselineLock: 'kg:ui:baseline:documentStructureLock',
   workspacePreviewWidthPx: 'kg:ui:workspace:previewWidthPx',
+  workspaceCanvasPaneOpen: 'kg:ui:workspace:canvasPaneOpen',
   graphTablePreviewCollapsed: 'kg:ui:graphTable:preview:collapsed',
   graphTablePreviewWidthPx: 'kg:ui:graphTable:preview:widthPx',
   graphTablePanelCollapsed: 'kg:ui:graphTable:panelCollapsed',
@@ -275,6 +283,7 @@ export type LsKeyOwner =
   | 'ui.preview'
   | 'parsers.treeSitter'
   | 'graphragText.analytics'
+  | 'semantic.keyword'
   | 'data.graph'
   | 'schema.graph'
   | 'graphFields.settings'
@@ -415,6 +424,13 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   flowWheelZoomDefaultsVersion: 'render.prefs',
   parserTreeSitterEnabled: 'parsers.treeSitter',
   graphragTextCentralityConfig: 'graphragText.analytics',
+  keywordSourceMaxLines: 'semantic.keyword',
+  keywordSourceMaxChars: 'semantic.keyword',
+  keywordGraphPreviewDebounceMs: 'semantic.keyword',
+  keywordGraphFullDebounceMs: 'semantic.keyword',
+  keywordGraphEdgesPerNode: 'semantic.keyword',
+  keywordGraphMaxEdgesCap: 'semantic.keyword',
+  keywordGraphMentionEdgesPerSourceNode: 'semantic.keyword',
   graphData: 'data.graph',
   graphSchema: 'schema.graph',
   graphFieldSettingsById: 'graphFields.settings',
@@ -523,6 +539,7 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   workspaceViewMode: 'ui.workspace',
   documentStructureBaselineLock: 'ui.baseline',
   workspacePreviewWidthPx: 'ui.workspace',
+  workspaceCanvasPaneOpen: 'ui.workspace',
 };
 
 export const SCHEMA_SECTIONS = [

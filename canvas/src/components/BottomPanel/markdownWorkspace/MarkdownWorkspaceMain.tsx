@@ -30,6 +30,9 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { MonacoTextEditor, type MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { runInIdle } from '@/features/panels/utils/idle'
+import { saveBlobWithPicker, downloadBlob } from '@/lib/graph/save'
+import { exportGraphAsJSON, saveGraphFile, type DatasetPath } from '@/lib/graph/file'
+import { printElementToPdf } from '@/lib/print/printElementToPdf'
 
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
@@ -437,6 +440,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const [editorHandle, setEditorHandle] = React.useState<MonacoTextEditorHandle | null>(null)
   const [viewerEl, setViewerEl] = React.useState<HTMLElement | null>(null)
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
+  const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
+  const setWorkspaceCanvasPaneOpen = useGraphStore(s => s.setWorkspaceCanvasPaneOpen)
+  const graphData = useGraphStore(s => s.graphData)
+  const pushUiToast = useGraphStore(s => s.pushUiToast)
   const {
     themeMode,
     uiPanelTextFontClass,
@@ -838,6 +845,54 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     />
   )
 
+  const exportBaseName = React.useMemo(() => {
+    const raw = String(activeDocumentKey || '').trim() || 'document'
+    const base = raw.split('/').filter(Boolean).pop() || raw
+    return base.replace(/\.[a-z0-9]+$/i, '') || 'document'
+  }, [activeDocumentKey])
+
+  const handleExportMarkdown = React.useCallback(async () => {
+    try {
+      const text = String(typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText)
+      const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' })
+      const name = `${exportBaseName}.md`
+      const saved = await saveBlobWithPicker(blob, name, { description: 'Markdown Files', accept: { 'text/markdown': ['.md'] } })
+      if (saved === '') return
+      if (!saved) downloadBlob(blob, name)
+    } catch {
+      void 0
+    }
+  }, [activeText, exportBaseName, viewerTextOverride])
+
+  const handleExportJson = React.useCallback(async () => {
+    const data = graphData as unknown
+    if (!data) {
+      pushUiToast({ id: 'export-json-missing-graph', kind: 'warning', message: 'No graph to export.' })
+      return
+    }
+    await exportGraphAsJSON(data as never, `${exportBaseName}.json` as unknown as DatasetPath)
+  }, [exportBaseName, graphData, pushUiToast])
+
+  const handleExportJsonLd = React.useCallback(async () => {
+    const data = graphData as unknown
+    if (!data) {
+      pushUiToast({ id: 'export-jsonld-missing-graph', kind: 'warning', message: 'No graph to export.' })
+      return
+    }
+    await saveGraphFile(data as never, `${exportBaseName}.jsonld` as unknown as DatasetPath)
+  }, [exportBaseName, graphData, pushUiToast])
+
+  const handleExportPdf = React.useCallback(async () => {
+    const root = viewerEl || viewerRef.current
+    if (!root) {
+      pushUiToast({ id: 'export-pdf-missing-view', kind: 'warning', message: 'Open the Viewer to export PDF.' })
+      return
+    }
+    const previewRoot = (root.querySelector('[data-testid="markdown-preview-root"]') as HTMLElement | null) || root
+    const target = (previewRoot.querySelector('article') as HTMLElement | null) || previewRoot
+    await printElementToPdf(target, { title: exportBaseName })
+  }, [exportBaseName, pushUiToast, viewerEl])
+
   const presentation = showWebpageHtml ? (
     <section className="flex-1 min-h-0 flex" aria-label="Webpage Presentation Surface">
       <iframe
@@ -923,6 +978,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       <MarkdownWorkspaceToolbar
         explorerOpen={explorerOpen}
         setExplorerOpen={setExplorerOpen}
+        canvasOpen={workspaceCanvasPaneOpen}
+        setCanvasOpen={setWorkspaceCanvasPaneOpen}
         layoutMode={layoutMode}
         setLayoutMode={setLayoutMode}
         markdownWordWrap={markdownWordWrap}
@@ -932,6 +989,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         onApply={onApply}
         onSave={onSave}
         onSaveAs={onSaveAs}
+        onExportMarkdown={handleExportMarkdown}
+        onExportJson={handleExportJson}
+        onExportJsonLd={handleExportJsonLd}
+        onExportPdf={handleExportPdf}
         applyStatus={statusLabel}
         applyDisabled={!isEditing}
         onToggleFullscreen={onToggleFullscreen}

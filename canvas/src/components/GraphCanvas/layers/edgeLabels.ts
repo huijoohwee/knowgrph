@@ -4,7 +4,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { estimateMaxCharsForWidthPx, truncateTextWithEllipsis } from '@/components/GraphCanvas/layout/utils'
 import { attachEdgeInteractionHandlers } from '@/components/GraphCanvas/layers/edgeInteractions'
-import { readFlowEdgeDisplayLabel } from '@/lib/graph/flowPorts'
+import { getEdgeLabelForDisplay } from '@/components/GraphCanvas/edgeDisplay'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
@@ -19,16 +19,7 @@ export const createEdgeLabelsLayer = (args: {
 }): d3.Selection<SVGTextElement, GraphEdge, SVGGElement, unknown> | null => {
   const { g, edgesForDisplay, schema, hoverEnabled, setHoverInfo, setSelectionSource, selectEdge } = args
 
-  const edgeLabelForDisplay = (e: GraphEdge): string => {
-    const flowLabel = String(readFlowEdgeDisplayLabel(e) || '').trim()
-    if (flowLabel) return flowLabel
-    const label = String(e.label || '').trim()
-    const props = (e.properties || {}) as Record<string, unknown>
-    const keywordKind = typeof props['keyword:kind'] === 'string' ? String(props['keyword:kind']).trim() : ''
-    if (!keywordKind) return label
-    const clean = label.replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
-    return clean || label
-  }
+  const edgeLabelForDisplay = (e: GraphEdge): string => getEdgeLabelForDisplay(e)
   const edges = Array.isArray(edgesForDisplay)
     ? edgesForDisplay.filter(e => edgeLabelForDisplay(e))
     : []

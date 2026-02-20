@@ -4,8 +4,9 @@ import { LS_KEYS, UI_COPY } from '@/lib/config'
 import { getLocalStorage } from '@/lib/persistence'
 import { layoutModeRequires2d, readLayoutMode2d } from '@/lib/graph/layoutMode'
 import type { GraphState } from '@/hooks/store/types'
-import type { JSONValue } from '@/lib/graph/types'
+import type { GraphData, JSONValue } from '@/lib/graph/types'
 import type { StoreApi } from 'zustand';
+import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -70,13 +71,45 @@ export function readSchemaFromStorage(storage: Storage | null): GraphSchema | nu
 export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
   const setSchemaState = (schema: GraphSchema) => {
     const next = { ...schema }
-    const prevMode = readLayoutMode2d(get().schema)
+    const prevState = get()
+
+    const prevZoomKey = buildActive2dZoomViewKey({
+      canvasRenderMode: prevState.canvasRenderMode,
+      canvas2dRenderer: prevState.canvas2dRenderer,
+      schema: prevState.schema,
+      graphData: (prevState.graphData as unknown as GraphData | null),
+      documentSemanticMode: prevState.documentSemanticMode,
+      frontmatterModeEnabled: prevState.frontmatterModeEnabled,
+      documentStructureBaselineLock: prevState.documentStructureBaselineLock,
+      renderMediaAsNodes: prevState.renderMediaAsNodes,
+      mediaPanelDensity: prevState.mediaPanelDensity,
+      collapsedGroupIds: prevState.collapsedGroupIds,
+    })
+    const nextZoomKey = buildActive2dZoomViewKey({
+      canvasRenderMode: prevState.canvasRenderMode,
+      canvas2dRenderer: prevState.canvas2dRenderer,
+      schema: next,
+      graphData: (prevState.graphData as unknown as GraphData | null),
+      documentSemanticMode: prevState.documentSemanticMode,
+      frontmatterModeEnabled: prevState.frontmatterModeEnabled,
+      documentStructureBaselineLock: prevState.documentStructureBaselineLock,
+      renderMediaAsNodes: prevState.renderMediaAsNodes,
+      mediaPanelDensity: prevState.mediaPanelDensity,
+      collapsedGroupIds: prevState.collapsedGroupIds,
+    })
+    const prevZoom = prevZoomKey ? prevState.zoomStateByKey?.[prevZoomKey] ?? null : null
+    const nextZoomExists = nextZoomKey ? Boolean(prevState.zoomStateByKey?.[nextZoomKey]) : false
+    const zoomStateByKey =
+      prevZoom && nextZoomKey && !nextZoomExists
+        ? { ...(prevState.zoomStateByKey || {}), [nextZoomKey]: prevZoom }
+        : prevState.zoomStateByKey
+    const prevMode = readLayoutMode2d(prevState.schema)
     const nextMode = readLayoutMode2d(next)
     const prevRequires2d = layoutModeRequires2d(prevMode)
     const nextRequires2d = layoutModeRequires2d(nextMode)
-    const canvasRenderMode = get().canvasRenderMode
-    const lastFree = get().canvasRenderModeLastFree
-    const isAuto = get().canvasRenderModeIsAuto
+    const canvasRenderMode = prevState.canvasRenderMode
+    const lastFree = prevState.canvasRenderModeLastFree
+    const isAuto = prevState.canvasRenderModeIsAuto
     if (nextRequires2d) {
       if (canvasRenderMode === '3d') {
         set({ canvasRenderMode: '2d', canvasRenderModeLastFree: '3d', canvasRenderModeIsAuto: true })
@@ -88,14 +121,14 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
         set({ canvasRenderModeIsAuto: false })
       }
     }
-    const documentSemanticMode = (get().documentSemanticMode || 'document') as GraphState['documentSemanticMode']
-    const prevByMode = get().schemaBySemanticMode
+    const documentSemanticMode = (prevState.documentSemanticMode || 'document') as GraphState['documentSemanticMode']
+    const prevByMode = prevState.schemaBySemanticMode
     const nextByMode = {
       document: (prevByMode && prevByMode.document) ? prevByMode.document : next,
       keyword: (prevByMode && prevByMode.keyword) ? prevByMode.keyword : next,
       [documentSemanticMode]: next,
     }
-    set({ schema: next, schemaBySemanticMode: nextByMode })
+    set({ schema: next, schemaBySemanticMode: nextByMode, zoomStateByKey })
     if (documentSemanticMode === 'document') writeSchemaToStorage(getLocalStorage(), next)
   }
 

@@ -3,6 +3,8 @@ import { normalizeWorkspacePath, WORKSPACE_ROOT_PATH } from '@/features/workspac
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { fetchRemoteTextDetailed } from '@/lib/net/fetchRemoteText'
 import { describeFetchRemoteTextFailure } from '@/lib/net/fetchRemoteTextFailure'
+import { mapLimit } from '@/lib/async/mapLimit'
+import { pipelinePerfEnd, pipelinePerfStart } from '@/lib/pipelinePerf'
 import type { GitHubRepoRef, WorkspaceImportProgress, WorkspaceImportResult } from './githubRepoTypes'
 import { buildGitHubRawFileUrl, fetchGitHubRepoMeta, listGitHubRepoTreeFiles, resolveGitHubDefaultBranch } from './githubRepoApi'
 import { buildGitHubRepoSitemapMarkdown, buildGitHubRepoUserJourneyMarkdown } from './githubRepoDocs'
@@ -14,11 +16,13 @@ export async function importGitHubFolder(args: {
   onProgress?: (p: WorkspaceImportProgress) => void
   maxFiles?: number
 }): Promise<WorkspaceImportResult> {
+  const tAll = pipelinePerfStart()
   const maxFiles = typeof args.maxFiles === 'number' && Number.isFinite(args.maxFiles) && args.maxFiles > 0 ? Math.floor(args.maxFiles) : 60
   const parentPath = args.parentPath || WORKSPACE_ROOT_PATH
   const ref = args.repoRef.ref || (await resolveGitHubDefaultBranch({ owner: args.repoRef.owner, repo: args.repoRef.repo }))
 
   args.onProgress?.({ phase: 'listing', current: 0, label: 'Listing repo' })
+  const tListing = pipelinePerfStart()
   const tree = await listGitHubRepoTreeFiles({
     owner: args.repoRef.owner,
     repo: args.repoRef.repo,
@@ -26,6 +30,7 @@ export async function importGitHubFolder(args: {
     subdirPath: args.repoRef.subdirPath,
     maxFiles,
   })
+  pipelinePerfEnd({ name: 'import', stage: 'github:list', t0: tListing, detail: { count: tree.files.length, maxFiles } })
   const filesToFetch = tree.files
   const repoMeta = await fetchGitHubRepoMeta({ owner: args.repoRef.owner, repo: args.repoRef.repo })
 
@@ -81,10 +86,30 @@ export async function importGitHubFolder(args: {
   }
 
   const totalFiles = filesToFetch.length
-  for (let i = 0; i < filesToFetch.length; i += 1) {
-    const file = filesToFetch[i]
-    args.onProgress?.({ phase: 'fetching', current: i + 1, total: totalFiles, label: `Fetching ${file.relPath}` })
-    const fetched = await fetchRemoteTextDetailed(file.rawUrl, { preflightHead: true, preferProxy: true })
+  const tFetch = pipelinePerfStart()
+  let progressDone = 0
+  const fetchedFiles = await mapLimit(
+    filesToFetch,
+    Math.max(2, Math.min(10, Math.ceil(totalFiles / 12))),
+    async (file, index) => {
+      const fetched = await fetchRemoteTextDetailed(file.rawUrl, { preflightHead: true, preferProxy: true })
+      return { file, fetched, index }
+    },
+    {
+      onProgress: ({ done }) => {
+        progressDone = done
+        const label = filesToFetch[done - 1]?.relPath ? `Fetching ${filesToFetch[done - 1]!.relPath}` : 'Fetching'
+        args.onProgress?.({ phase: 'fetching', current: done, total: totalFiles, label })
+      },
+    },
+  )
+  pipelinePerfEnd({ name: 'import', stage: 'github:fetch', t0: tFetch, detail: { totalFiles, done: progressDone } })
+
+  const tWrite = pipelinePerfStart()
+  for (let i = 0; i < fetchedFiles.length; i += 1) {
+    const item = fetchedFiles[i]
+    const file = item.file
+    const fetched = item.fetched
     if (!fetched.ok) {
       failed.push({
         name: file.relPath,
@@ -113,7 +138,8 @@ export async function importGitHubFolder(args: {
       failed.push({ name: file.relPath, error: String((e as { message?: unknown })?.message ?? e) })
     }
   }
+  pipelinePerfEnd({ name: 'import', stage: 'github:write', t0: tWrite, detail: { totalFiles } })
+  pipelinePerfEnd({ name: 'import', stage: 'github:all', t0: tAll, detail: { totalFiles, failed: failed.length } })
 
   return { createdPaths, sources, skipped: [], failed }
 }
-

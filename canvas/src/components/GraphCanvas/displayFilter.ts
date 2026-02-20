@@ -15,9 +15,19 @@ export const getDisplayNodes = (graphData: GraphData): GraphNode[] => {
 
 export const getDisplayEdges = (args: { edges: GraphEdge[]; displayNodeIdSet: Set<string> }): GraphEdge[] => {
   const edges = Array.isArray(args.edges) ? args.edges : []
+  const endpointId = (v: unknown): string => {
+    if (typeof v === 'string') return v
+    if (typeof v === 'number') return Number.isFinite(v) ? String(v) : ''
+    if (v && typeof v === 'object') {
+      const id = (v as { id?: unknown }).id
+      if (typeof id === 'string') return id
+      if (typeof id === 'number') return Number.isFinite(id) ? String(id) : ''
+    }
+    return ''
+  }
   const base = edges.filter(e => {
-    const s = String(e.source || '')
-    const t = String(e.target || '')
+    const s = endpointId(e.source)
+    const t = endpointId(e.target)
     if (!s || !t) return false
     if (!args.displayNodeIdSet.has(s) || !args.displayNodeIdSet.has(t)) return false
     return true
