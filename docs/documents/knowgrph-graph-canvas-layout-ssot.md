@@ -78,3 +78,9 @@ Notes:
 - Group collision is always enforced when `layout.groups.enabled !== false` (schema may keep `groupBboxCollide` for backward compatibility, but it does not disable the constraint).
 - Group collision accounts for group label overhead (top padding) to reduce label-region overlap and to prevent group box overlap.
 - The default baseline experience is anchored by `LS_KEYS.documentStructureBaselineLock` (default on): it disables mode switches (Keyword/Frontmatter/Renderer/3D/Select/Create) so Editor/Canvas/Table/Preview stay content-aligned.
+
+## Rebase & Conflict Resolution Notes
+
+- When resolving divergence that touches layout/zoom ordering, treat `canvas/src/components/GraphCanvas/scene.ts` as SSOT for initial transform application and forbid reintroducing “double-fit” jumps.
+- Prefer preserving both: (1) collision relaxation before the force run (layout stability) and (2) schema-driven fit logic via `readFitAllOptions` + `fitAllTransform` (viewport stability).
+- Do not hand-merge `canvas/tsconfig.tsbuildinfo`; regenerate it by running `npm --prefix canvas run check` or `npm --prefix canvas run build`.

@@ -194,3 +194,11 @@ canvas/
 | Maintainability      | ✓      | - [ ] Centralize startup normalization; forbid scattered init logic       |
 | Testability          | ✓      | - [ ] Keep defaults schema-driven; forbid untestable UI-only behavior     |
 | Performance          | ✓      | - [ ] Optimize re-rendering; forbid simulation restart on stable state    |
+
+---
+
+## Rebase & Conflict Resolution Notes
+
+- If `scene.ts` is in conflict, keep initialization idempotent: applying a stored `initialZoomTransform` must prevent immediate auto-fit (“double-fit” jump).
+- If `fitToScreenMode` behavior diverges across branches, prefer schema-driven fit via `readFitAllOptions` + `fitAllTransform` and keep collision relaxation for layout stability.
+- Do not hand-merge `canvas/tsconfig.tsbuildinfo`; regenerate it via `npm --prefix canvas run check` or `npm --prefix canvas run build`.
