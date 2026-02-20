@@ -11,6 +11,7 @@ import { openSchemaConfigWorkspaceFile } from '@/features/panels/utils/schemaWor
 import { openParserScriptWorkspaceFile } from '@/features/panels/utils/parserWorkspaceFiles'
 import { emitRendererPanelOpen } from '@/features/canvas/utils'
 import { Database, FileCode } from 'lucide-react'
+import { useActiveGraphData } from '@/hooks/useActiveGraphData'
 
 type WorkflowActions = {
   collapseAll?: () => void;
@@ -24,7 +25,7 @@ type WorkflowSectionProps = {
 };
 
 export default function WorkflowSection({ searchQuery, onRegisterActions }: WorkflowSectionProps) {
-  const graphData = useGraphStore(s => s.graphData);
+  const graphData = useActiveGraphData();
   const graphDataLoaded = !!graphData;
   const selectedNodeId = useGraphStore(s => s.selectedNodeId);
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId);

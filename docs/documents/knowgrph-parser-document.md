@@ -104,7 +104,14 @@ Pipeline map:
 | Line Mapping         | Preserve source positions       | - [ ] Record lineStart/lineEnd; 1-based; forbid 0-based or missing ranges                | markdownJsonLd   | MetadataBuilder | mkMeta                  | —                | Start/end line numbers       | Node metadata          | Immutable provenance stamping    |
 | JSON-LD Conversion   | Build JSON-LD                   | - [ ] Emit @context/@graph; keep properties/metadata opaque; forbid semantic validation  | markdownJsonLd   | Builder         | buildMarkdownJsonLd     | —                | Markdown text                | JSON-LD document       | Schema-aligned assembly          |
 | GraphData Conversion | Convert to GraphData            | - [ ] Parse JSON-LD to GraphData; preserve properties; forbid property loss              | parseJsonLd      | Converter       | parseJsonLd             | —                | JSON-LD document             | GraphData              | JSON-LD interpretation rules     |
-| Metrics Tracking     | Record parse timing             | - [ ] Measure buildMarkdownJsonLd, parseJsonLd; store in metadata; forbid unmeasured ops | graph_builder    | MetricsTracker  | trackMetrics            | performance      | Start/end timestamps         | Metrics object         | Delta calculation                |
+| Metrics Tracking     | Record parse timing             | - [ ] Measure parse/build stages; store in `graphData.metadata`; keep metrics inspection-only | parsers/default.ts | —            | Parser `parse()` impl   | Date.now()       | Markdown text                | `metadata.ingestionMetrics` | Delta calculation             |
+
+**Verified performance patterns (implementation-aligned)**:
+- Parse-result LRU+TTL cache keyed by `(parserId, name, hashText(text), cfgKey)`: [cache.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/cache.ts)
+- Worker parsing (off-main-thread) with bounded timeouts and worker reset on hard error: [parseWorker.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/parseWorker.ts)
+- HTML → Markdown conversion yields to idle time and uses a unified converter with bounded caching: [html-parser.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/html-parser.ts), [htmlToMarkdownUnified.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/markdown/htmlToMarkdownUnified.ts)
+- Keyword-mode derivation is debounced and cached by `(algoVersion, docId, hashText(text))` to avoid keystroke churn: [useActiveGraphData.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/useActiveGraphData.ts)
+- Pipeline metrics payloads are stored in graph metadata for inspection (not required for ingestion): [agenticRag.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/agenticRag.ts)
 
 **Mermaid Support**:
 

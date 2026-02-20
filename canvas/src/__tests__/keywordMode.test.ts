@@ -1,5 +1,6 @@
 import { deriveKeywordGraphFromText } from '@/features/semantic-mode/keywordGraph'
 import { mergeKeywordGraphWithMediaNodes } from '@/hooks/useActiveGraphData'
+import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 
 export const testKeywordModeDerivesEntitiesAndPredicateEdges = () => {
   const { graph } = deriveKeywordGraphFromText({
@@ -66,4 +67,25 @@ export const testKeywordModeMergesMediaNodesForOverlays = () => {
   })
   const ids = new Set((merged.nodes || []).map(n => String(n.id)))
   if (!ids.has('media:1')) throw new Error('Keyword mode should retain media-capable nodes for overlays')
+}
+
+export const testKeywordModeCarriesSourceLayerHashForNoStaleViews = () => {
+  const a = deriveKeywordGraphFromText({
+    documentId: 'doc:test',
+    documentText: 'Alpha causes Beta.',
+  }).graph
+  const b = deriveKeywordGraphFromText({
+    documentId: 'doc:test',
+    documentText: 'Alpha causes Beta. Gamma appears too.',
+  }).graph
+
+  const metaA = (a.metadata || {}) as Record<string, unknown>
+  const metaB = (b.metadata || {}) as Record<string, unknown>
+  const hA = typeof metaA.sourceLayerHash === 'string' ? metaA.sourceLayerHash.trim() : ''
+  const hB = typeof metaB.sourceLayerHash === 'string' ? metaB.sourceLayerHash.trim() : ''
+  if (!hA || !hB) throw new Error('expected keyword graph metadata.sourceLayerHash')
+  if (hA === hB) throw new Error('expected sourceLayerHash to change when keyword source text changes')
+  const keyA = buildGraphMetaKey(a)
+  const keyB = buildGraphMetaKey(b)
+  if (keyA === keyB) throw new Error('expected graph meta key to change when sourceLayerHash changes')
 }

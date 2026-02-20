@@ -3,8 +3,8 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
-import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
+import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 
 export function buildActive2dZoomViewKey(args: {
   canvasRenderMode: unknown
@@ -35,10 +35,7 @@ export function buildActive2dZoomViewKey(args: {
   const mediaPanelDensity = String(args.mediaPanelDensity || '')
   const renderMediaAsNodes = args.renderMediaAsNodes === true
 
-  const collapsedIds = Array.isArray(args.collapsedGroupIds) ? args.collapsedGroupIds : []
-  const normalized = collapsedIds.map(x => String(x || '').trim()).filter(Boolean)
-  normalized.sort((a, b) => a.localeCompare(b))
-  const collapsedGroupIdsKey = normalized.join('|')
+  const collapsedGroupIdsKey = buildCollapsedGroupIdsKey(args.collapsedGroupIds)
 
   const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(schema)
 

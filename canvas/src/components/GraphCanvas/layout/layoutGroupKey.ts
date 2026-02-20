@@ -10,6 +10,7 @@ const classifyGroupId = (id: string): GroupKind => {
   if (!id) return 'other'
   if (id.startsWith('md:')) return 'markdown'
   if (id.startsWith('keyword-layer:')) return 'keywordLayer'
+  if (id.startsWith('keyword-ner:')) return 'keywordLayer'
   if (id.startsWith('community:')) return 'community'
   return 'mermaid'
 }
@@ -30,7 +31,11 @@ export function selectLayoutGroups(args: { graphData: GraphData; schema: GraphSc
     byKind.set(kind, arr)
   }
 
-  const priority: GroupKind[] = ['mermaid', 'markdown', 'keywordLayer', 'community', 'other']
+  const meta = (graphData.metadata || {}) as Record<string, unknown>
+  const isKeyword = typeof meta.kind === 'string' && meta.kind.trim().toLowerCase() === 'keyword'
+  const priority: GroupKind[] = isKeyword
+    ? ['community', 'keywordLayer', 'other', 'mermaid', 'markdown']
+    : ['mermaid', 'markdown', 'keywordLayer', 'community', 'other']
   for (const kind of priority) {
     const arr = byKind.get(kind)
     if (arr && arr.length > 0) return arr

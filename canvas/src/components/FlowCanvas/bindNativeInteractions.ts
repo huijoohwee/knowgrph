@@ -1214,8 +1214,6 @@ export function bindFlowCanvasNativeInteractions(args: {
     if (canvasEl.contains(targetEl)) return
     if (!spacePanProxyTargetSelector || !targetEl.closest(spacePanProxyTargetSelector)) return
 
-    const storeState = useGraphStore.getState()
-    const isFlowEditor = String(storeState.canvas2dRenderer || '') === 'flowEditor'
     const preset = args.viewportControlsPreset
     const button = typeof e.button === 'number' ? e.button : 0
     const shiftKey = e.shiftKey === true

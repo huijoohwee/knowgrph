@@ -13,8 +13,6 @@ import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
 import { isFrontmatterOnlyDoc, upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
-import { summarizeCategorizedSignalsFromMarkdown } from '@/lib/websites/signalTokens'
-import { buildLayoutStructureAscii } from '@/lib/websites/webpageMarkdownArtifactAscii'
 import { fetchWebpageHtmlAuto } from '@/lib/websites/webpageIframeSrcdoc'
 import { convertWebpageHtmlToMarkdownArtifactAsync } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
 import { exportWebpageDomViaHiddenIframe } from '@/lib/websites/webpageDomExport'
@@ -69,46 +67,7 @@ function yamlQuote(value: string): string {
   return `"${String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
 }
 
-function ensureWebpageTocLayoutAscii(markdown: string): string {
-  const text = String(markdown || '')
-  if (!text.trim()) return text
-  if (text.includes('```ascii') || text.includes('kg-webpage-layout') || /\bGLOBAL\s+NAVIGATION\b/i.test(text)) return text
-  const lines = text.split(/\r?\n/)
-  const tocHeadingIdx = lines.findIndex(l => /^##\s*(?:📋\s*)?table\s+of\s+contents\s*$/i.test(String(l || '').trim()))
-  if (tocHeadingIdx < 0) return text
 
-  const listIdx = (() => {
-    for (let i = tocHeadingIdx + 1; i < Math.min(lines.length, tocHeadingIdx + 220); i += 1) {
-      const s = String(lines[i] || '')
-      if (/^##\s+/.test(s.trim())) break
-      if (/^\s*\d+\.\s+\[/.test(s)) return i
-    }
-    return -1
-  })()
-  if (listIdx < 0) return text
-
-  for (let i = tocHeadingIdx + 1; i < listIdx; i += 1) {
-    const s = String(lines[i] || '').trim()
-    if (/^(```+|~~~+)/.test(s)) return text
-    if (/GLOBAL\s+NAVIGATION/i.test(s)) return text
-  }
-
-  const insertionIdx = (() => {
-    let i = tocHeadingIdx + 1
-    while (i < listIdx && !String(lines[i] || '').trim()) i += 1
-    return i
-  })()
-
-  const signals = summarizeCategorizedSignalsFromMarkdown(text, { maxLines: 8000, maxPerKind: 12 })
-  const navLabels = signals.nav.map(x => String(x.label || '').replace(/^\[NAV\]\s*/i, '').trim()).filter(Boolean)
-  const ctaLabels = signals.cta.map(x => String(x.label || '').replace(/^\[CTA\]\s*/i, '').trim()).filter(Boolean)
-  const ascii = buildLayoutStructureAscii({ navLabels, ctaLabels })
-  if (!String(ascii || '').trim()) return text
-
-  const injected = ['', '```ascii', ascii, '```', '']
-  const next = [...lines.slice(0, insertionIdx), ...injected, ...lines.slice(insertionIdx)]
-  return next.join('\n')
-}
 
 function normalizeWebpageCardAndListBlocks(markdown: string): string {
   const src = String(markdown || '')
@@ -169,7 +128,7 @@ function normalizeWebpageCardAndListBlocks(markdown: string): string {
     out.push('')
   }
 
-  let pending: string[] = []
+  const pending: string[] = []
   const pendingRaw: string[] = []
   const flushPendingRaw = () => {
     if (!pendingRaw.length) return

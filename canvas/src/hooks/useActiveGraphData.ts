@@ -3,12 +3,14 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphState } from '@/hooks/useGraphStore'
-import { keywordGraphCache, deriveKeywordGraphFromText } from '@/features/semantic-mode/keywordGraph'
+import { keywordGraphCache, deriveKeywordGraphFromText, KEYWORD_GRAPH_ALGO_VERSION } from '@/features/semantic-mode/keywordGraph'
 import { hashText } from '@/features/parsers/hash'
 import { hasNodeMedia } from '@/components/GraphCanvas/helpers'
 import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
+import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 
 const buildKeywordSourceTextFromGraph = (graph: GraphData): string => {
   const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
@@ -75,27 +77,42 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
 
   const { baseGraphData, mode, markdownName, markdownText, revision } = useGraphStore(useShallow(selector))
 
+  const docKey = typeof markdownName === 'string' && markdownName.trim() ? markdownName.trim() : ''
+  const lastDocKeyRef = React.useRef<string>('')
+  const isDocSwitch = docKey !== lastDocKeyRef.current
+  if (isDocSwitch) lastDocKeyRef.current = docKey
+
+  const keywordDebounceMs = mode === 'keyword' && !isDocSwitch ? 250 : 0
+  const debouncedMarkdownText = useDebouncedValue(markdownText, keywordDebounceMs, docKey)
+  const effectiveKeywordText = mode === 'keyword' ? (isDocSwitch ? markdownText : debouncedMarkdownText) : null
+
   const lastRef = React.useRef<GraphData | null>(null)
 
   const computed = React.useMemo(() => {
     if (!baseGraphData) return null
     if (mode !== 'keyword') return baseGraphData
-    const sourceText = typeof markdownText === 'string' && markdownText.trim()
-      ? markdownText
+    const sourceText = typeof effectiveKeywordText === 'string' && effectiveKeywordText.trim()
+      ? effectiveKeywordText
       : buildKeywordSourceTextFromGraph(baseGraphData)
     const docId = markdownName && markdownName.trim()
       ? `md:${hashText(markdownName.trim())}`
       : `graph:${hashText(String(revision))}`
-    const cacheKey = `keyword:${docId}:${hashText(sourceText)}`
+    const sourceTextHash = hashText(sourceText)
+    const cacheKey = `keyword:v${KEYWORD_GRAPH_ALGO_VERSION}:${docId}:${sourceTextHash}`
     const cached = keywordGraphCache.get(cacheKey)
     if (cached) {
-      return mergeKeywordGraphWithMediaNodes({ baseGraphData, keywordGraph: cached.graph, sourceId: docId })
+      return cached.graph
     }
-    const derived = deriveKeywordGraphFromText({ documentId: docId, documentText: sourceText, sourceLabel: markdownName || undefined })
+    const derived = deriveKeywordGraphFromText({
+      documentId: docId,
+      documentText: sourceText,
+      sourceLabel: markdownName || undefined,
+      sourceTextHash,
+    })
     const graph = mergeKeywordGraphWithMediaNodes({ baseGraphData, keywordGraph: derived.graph, sourceId: docId })
     keywordGraphCache.set(cacheKey, { ...derived, graph })
     return graph
-  }, [baseGraphData, markdownName, markdownText, mode, revision])
+  }, [baseGraphData, effectiveKeywordText, markdownName, mode, revision])
 
   React.useEffect(() => {
     if (!enabled) return
@@ -153,12 +170,7 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
   const lastRef = React.useRef<GraphData | null>(null)
 
   const collapsedGroupIdsKey = React.useMemo(() => {
-    const ids = Array.isArray(collapsedGroupIds) ? collapsedGroupIds : []
-    const normalized = ids.map(x => String(x || '').trim()).filter(Boolean)
-    if (normalized.length === 0) return ''
-    const unique = Array.from(new Set(normalized))
-    unique.sort((a, b) => a.localeCompare(b))
-    return unique.join('|')
+    return buildCollapsedGroupIdsKey(collapsedGroupIds)
   }, [collapsedGroupIds])
 
   const frontmatterGraphData = React.useMemo(() => {

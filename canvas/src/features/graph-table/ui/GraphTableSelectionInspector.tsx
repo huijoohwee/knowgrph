@@ -14,6 +14,7 @@ import { GraphTableInspector, type GraphTableInspectorRow } from '@/features/gra
 import { applyCellUpdateToGraphStore } from '@/features/graph-table/lib/applyCellUpdateToGraphStore'
 import { useGraphTableDbSync } from '@/features/graph-table/hooks/useGraphTableDbSync'
 import { hashString32 } from 'grph-shared/hash/stringHash'
+import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 
 const toInspectorRow = (tableId: GraphTableId, doc: GraphRowDoc): GraphTableInspectorRow => ({
   tableId,
@@ -73,12 +74,7 @@ export default function GraphTableSelectionInspector() {
   const collapsedGroupIds = useGraphStore(s => (s.collapsedGroupIds || []) as string[])
 
   const collapsedGroupIdsKey = useMemo(() => {
-    const ids = Array.isArray(collapsedGroupIds) ? collapsedGroupIds : []
-    const normalized = ids.map(x => String(x || '').trim()).filter(Boolean)
-    if (normalized.length === 0) return ''
-    const unique = Array.from(new Set(normalized))
-    unique.sort((a, b) => a.localeCompare(b))
-    return unique.join('|')
+    return buildCollapsedGroupIdsKey(collapsedGroupIds)
   }, [collapsedGroupIds])
 
   const syncGraphData = useMemo(() => {

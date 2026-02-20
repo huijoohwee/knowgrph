@@ -5,7 +5,6 @@ import { getAdjacencyMap } from '../adjacency'
 import { relaxNodesWithCollision } from './relax'
 import type { GroupKeyOfNode } from './grouping'
 import { readFitPadding } from '@/lib/graph/layoutDefaults'
-import { computeFitFrame, ZOOM_VIEWPORT_PRESET_16_9 } from 'grph-shared/zoom/presets'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 
 type RadialClusterNode = {
@@ -65,8 +64,7 @@ export const applyRadialClusterLayout = (
     components.length === 1 ? components[0] : { id: '__root__', children: components }
   const viewW = Math.max(1, width)
   const viewH = Math.max(1, height)
-  const { frameW, frameH } = computeFitFrame(viewW, viewH, ZOOM_VIEWPORT_PRESET_16_9)
-  const size = Math.max(1, Math.min(frameW, frameH))
+  const size = Math.min(viewW, viewH)
   const padding = readFitPadding(schema)
   const maxRadius = Math.max(10, size / 2 - Math.max(0, padding))
   if (!Number.isFinite(maxRadius) || maxRadius <= 0) return

@@ -4,8 +4,8 @@ import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { createZoom } from '@/components/GraphCanvas/zoom'
 import { buildSimulation } from '@/components/GraphCanvas/simulation'
-import { computeZoomTransformFromRequest } from '@/lib/zoom/actions'
-import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
+import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { relaxNodesWithCollision } from '@/components/GraphCanvas/layout/relax'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
@@ -82,12 +82,77 @@ type SetupGraphSceneArgs = {
   setLayoutPositionsForMode: ((key: string, positions: Record<string, { x: number; y: number }> | null) => void) | null
 }
 
+const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+
+const hasFiniteXY = (n: GraphNode): boolean => isFiniteNumber((n as unknown as { x?: unknown }).x) && isFiniteNumber((n as unknown as { y?: unknown }).y)
+
+const hash01 = (s: string): number => {
+  let h = 2166136261
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return (h >>> 0) / 4294967296
+}
+
+const seedMissingNodePositions = (nodes: GraphNode[], width: number, height: number) => {
+  if (!nodes || nodes.length === 0) return
+  const sorted = [...nodes].sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
+  const existing = sorted.filter(hasFiniteXY)
+  const missing = sorted.filter(n => !hasFiniteXY(n))
+  if (missing.length === 0) return
+
+  let cx = 0
+  let cy = 0
+  if (existing.length > 0) {
+    let sx = 0
+    let sy = 0
+    for (let i = 0; i < existing.length; i += 1) {
+      const n = existing[i]!
+      sx += (n.x as number)
+      sy += (n.y as number)
+    }
+    cx = sx / existing.length
+    cy = sy / existing.length
+  }
+
+  const pad = 40
+  const innerW = Math.max(1, Math.floor(width) - pad * 2)
+  const innerH = Math.max(1, Math.floor(height) - pad * 2)
+  const area = innerW * innerH
+  const spacingBase = Math.sqrt(area / Math.max(1, sorted.length))
+  const spacing = Math.max(64, Math.min(220, spacingBase * 1.6))
+
+  const aspect = innerW / Math.max(1, innerH)
+  const idealCols = Math.ceil(Math.sqrt(Math.max(1, missing.length) * Math.max(0.35, aspect)))
+  const maxColsByWidth = Math.max(1, Math.floor(innerW / spacing))
+  const cols = Math.max(1, Math.min(maxColsByWidth, idealCols))
+  const rows = Math.max(1, Math.ceil(missing.length / cols))
+  const gridW = (cols - 1) * spacing
+  const gridH = (rows - 1) * spacing
+  const startX = cx - gridW / 2
+  const startY = cy - gridH / 2
+
+  for (let i = 0; i < missing.length; i += 1) {
+    const n = missing[i]!
+    const col = i % cols
+    const row = Math.floor(i / cols)
+    const jx = (hash01(`${String(n.id)}:x`) - 0.5) * Math.min(18, spacing * 0.15)
+    const jy = (hash01(`${String(n.id)}:y`) - 0.5) * Math.min(18, spacing * 0.15)
+    n.x = startX + col * spacing + jx
+    n.y = startY + row * spacing + jy
+    n.vx = 0
+    n.vy = 0
+    n.fx = null
+    n.fy = null
+  }
+}
+
 export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   const {
     svgEl,
     svgRef,
     graphData,
-    graphDataRevision,
     schema,
     edgesForSim,
     width,
@@ -138,6 +203,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   const svg = d3.select(svgEl)
   svg.selectAll('*').remove()
+  svg.attr('data-kg-layout-frozen', null)
 
   const g = svg.append('g')
   gRef.current = g
@@ -214,6 +280,25 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     applyCachedPositions()
   }
 
+  seedMissingNodePositions(displayNodes, width, height)
+
+  if (initialZoomTransform) {
+    applyInitialTransform(initialZoomTransform)
+  } else if (fitToScreenMode) {
+    const intent = 'fitToScreen'
+    const mode = readLayoutMode(schema)
+    const opts = readFitAllOptions({ schema, mode, intent })
+    const t = fitAllTransform(displayNodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
+    applyInitialTransform({ k: t.k, x: t.x, y: t.y })
+  } else {
+    // If no explicit transform, we still want to ensure graph is centered initially
+    const intent = 'initialFit'
+    const mode = readLayoutMode(schema)
+    const opts = readFitAllOptions({ schema, mode, intent })
+    const t = fitAllTransform(displayNodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
+    applyInitialTransform({ k: t.k, x: t.x, y: t.y })
+  }
+
   const groupKeyByNodeId = args.layoutGroupKeyByNodeId
   const groupKeyOf = (n: GraphNode): string | null => {
     const id = String(n.id || '').trim()
@@ -284,35 +369,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     } catch {
       void 0
     }
-  }
-
-  if (initialZoomTransform) {
-    applyInitialTransform(initialZoomTransform)
-  }
-
-  if (fitToScreenMode !== false && !initialZoomTransform) {
-    const [minK, maxK] = readZoomScaleExtent(schema)
-    const res = computeZoomTransformFromRequest(
-      { type: 'fit', intent: 'initialFit', at: Date.now() },
-      {
-        graphData: graphDataForDisplay,
-        schema,
-        graphDataRevision,
-        viewportW: width,
-        viewportH: height,
-        pinned: false,
-        selectedNodeId: null,
-        selectedEdgeId: null,
-        currentTransform: d3.zoomIdentity,
-        scaleExtent: { minK, maxK },
-        cacheKeyBase: '2d',
-      },
-    )
-    const t = res?.nextTransform || d3.zoomIdentity
-    svg.call(zoom.transform as unknown as (
-      sel: d3.Selection<SVGSVGElement, unknown, null, undefined>,
-      t: d3.ZoomTransform,
-    ) => void, t)
+    svg.attr('data-kg-layout-frozen', '1')
   }
 
   const groupsLayer = createGroupsLayer({
@@ -330,7 +387,6 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     toggleGroupCollapsed,
   })
   beforeRenderFrameRef.current = groupsLayer?.update ? () => groupsLayer.update() : null
-
   // Legacy layout sync removed to prevent infinite re-render loop in Force layout mode.
 
   const linkHitSel = createLinksHitLayer({
@@ -412,32 +468,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     selectEdge,
     setSelectionSource,
   })
-  if (labelsSelRef.current) {
-    const hideBelow = schema.performance?.lod?.hideLabelsBelowScale ?? 0
-    const k = d3.zoomTransform(svgEl).k || 1
-    const hidden = hideBelow > 0 && k < hideBelow
-    labelsSelRef.current.attr('data-zoom-lod-hidden', hidden ? '1' : '0')
-    attachSimulationTick({
-      svgEl,
-      simulation,
-      nodeSelRef: nodesSelRef,
-      groupChevronSelRef,
-      mediaSelRef,
-      portHandlesSelRef,
-      linkHitSelRef: linksHitSelRef,
-      linkSelRef: linksSelRef,
-      edgeLabelSel,
-      labelsSelRef,
-      nodes: graphDataForDisplay.nodes,
-      nodeById: display?.nodeById || null,
-      getSchema,
-      width,
-      height,
-      beforeRenderFrameRef,
-    })
-  }
 
-  applyGraphCanvasZOrder(g, args.schema)
+  const isForceLayout = readLayoutMode(schema) === 'force'
 
   const storeLayoutPositions = () => {
     if (!layoutCacheKey || typeof setLayoutPositionsForMode !== 'function') return
@@ -456,6 +488,67 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       setLayoutPositionsForMode(layoutCacheKey, positions)
     }
   }
+  if (labelsSelRef.current) {
+    const hideBelow = schema.performance?.lod?.hideLabelsBelowScale ?? 0
+    const k = d3.zoomTransform(svgEl).k || 1
+    const hidden = hideBelow > 0 && k < hideBelow
+    labelsSelRef.current.attr('data-zoom-lod-hidden', hidden ? '1' : '0')
+
+    let stableTicks = 0
+    let finalFitApplied = false
+    attachSimulationTick({
+      svgEl,
+      simulation,
+      nodeSelRef: nodesSelRef,
+      groupChevronSelRef,
+      mediaSelRef,
+      portHandlesSelRef,
+      linkHitSelRef: linksHitSelRef,
+      linkSelRef: linksSelRef,
+      edgeLabelSel,
+      labelsSelRef,
+      nodes: graphDataForDisplay.nodes,
+      nodeById: display?.nodeById || null,
+      getSchema,
+      width,
+      height,
+      beforeRenderFrameRef,
+      afterRenderFrame: ({ alpha, tick }) => {
+        if (!isForceLayout) return
+        if (finalFitApplied) return
+        if (args.freezeSimulation === true) return
+        if (initialZoomTransform) return
+        if (skipInitialLayout) return
+        if (tick < 20) return
+
+        if (alpha < 0.045) {
+          stableTicks += 1
+        } else {
+          stableTicks = 0
+        }
+        if (stableTicks < 12) return
+
+        const intent = fitToScreenMode ? 'fitToScreen' : 'fitToView'
+        const mode = readLayoutMode(schema)
+        const opts = readFitAllOptions({ schema, mode, intent })
+        const t = fitAllTransform(displayNodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
+        applyInitialTransform({ k: t.k, x: t.x, y: t.y })
+        finalFitApplied = true
+
+        try {
+          simulation.alphaTarget(0)
+          simulation.alpha(0)
+          simulation.stop()
+        } catch {
+          void 0
+        }
+        svg.attr('data-kg-layout-frozen', '1')
+        storeLayoutPositions()
+      },
+    })
+  }
+
+  applyGraphCanvasZOrder(g, args.schema)
 
   simulation.on('end.layoutCache', storeLayoutPositions)
 
@@ -463,6 +556,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   if (layoutMode === 'radial') {
     simulation.stop()
     storeLayoutPositions()
+    svg.attr('data-kg-layout-frozen', '1')
   }
 
   setLifecycleStageRendering()

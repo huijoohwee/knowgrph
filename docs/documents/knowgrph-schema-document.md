@@ -497,13 +497,10 @@ metadata.ingestionMetrics.parseJsonLdMs:
 | Metric Recording      | Track performance             | - [ ] Record start/end times; compute durations; attach to metadata; forbid missing metrics | Ingestion wrapper         | `recordMetrics`      | parse timestamps          | metrics object        | timestamp subtraction                   |
 
 ---
-
 ### Schema-Config Generation from Hints
 
 **Generation Pattern**: `graph_jsonld.metadata.layers` → `schema-config.metadata.layers`
-
 **Transformation**:
-
 ```python
 # Seed from graph metadata
 schema_config["metadata"]["layersFromGraph"] = graph_jsonld["metadata"]["layers"]
@@ -523,32 +520,24 @@ schema_config["metadata"]["layers"] = {
     }
 }
 ```
-
 **Design Compliance**:
-
 | Context               | Intent                        | Directive                                                                                   | Module/Component          | Function/Method      | Input                     | Output                | Decision Logic                          |
 |-----------------------|-------------------------------|---------------------------------------------------------------------------------------------|---------------------------|----------------------|---------------------------|-----------------------|-----------------------------------------|
 | Hint Propagation      | Copy parser metadata          | - [ ] Copy `layers` from graph to `layersFromGraph`; forbid transformation during copy      | Schema-config builder     | `propagateLayerHints` | graph metadata           | schema metadata       | dict copy with validation               |
 | Metric Alignment      | Match edge metric to similarity | - [ ] Set `similarityMetric: "pmi"` when `edgeMetric: "pmi"`; forbid mismatched metrics   | Schema-config builder     | `alignSimilarityMetric` | layer hints            | similarity config     | conditional metric selection            |
-
 ---
 
 ## Semantic Threshold Presets
-
 ### Corpus-Size Presets
 
 **Preset Definitions**:
-
 | Preset  | Corpus Size      | `topKEdgesPerNode` | `minSimilarity` (cosine) | `minSimilarity` (PMI) |
 |---------|------------------|--------------------|--------------------------|----------------------|
 | `small` | Up to ~1e3 nodes | 10                 | 0.2                      | 0.3                  |
 | `medium`| Up to ~1e4 nodes | 5                  | 0.3                      | 0.5                  |
 | `large` | Up to ~1e5 nodes | 3                  | 0.4                      | 0.7                  |
-
 **Template Location**: `data/schema-config-template.jsonld`
-
 **Metadata Fields**:
-
 ```yaml
 metadata.corpusSizePreset:
   scope: schema_global
@@ -564,26 +553,18 @@ metadata.corpusSizePresets:
   validation: must define small/medium/large with nested threshold values
   impact: source of truth for recommended semantic tuning
 ```
-
 **Canvas UI Integration**:
-
 - Floating Panel exposes `topKEdgesPerNode` and `minSimilarity` sliders.
 - Curators can adapt thresholds interactively; schema-config acts as preset source.
 - LLMs and tools can read/update `corpusSizePresets` in schema-config JSON-LD.
-
 **Design Compliance**:
-
 | Context               | Intent                        | Directive                                                                                   | Module/Component          | Function/Method      | Input                     | Output                | Decision Logic                          |
 |-----------------------|-------------------------------|---------------------------------------------------------------------------------------------|---------------------------|----------------------|---------------------------|-----------------------|-----------------------------------------|
 | Preset Selection      | Apply corpus-size defaults    | - [ ] Read `corpusSizePreset`; lookup thresholds; apply to schema; forbid invalid keys      | Schema loader             | `applyCorpusPreset`  | preset key, presets obj   | threshold values      | dict lookup with validation             |
 | Preset Override       | Allow runtime adjustment      | - [ ] Update `topKEdgesPerNode`/`minSimilarity` from UI; forbid preset lock-in              | Settings panel            | `updateThresholds`   | user input values         | updated schema        | direct schema field assignment          |
-
 ## Tree Mermaid Density Presets
-
 ### Mermaid Diagram Density Metrics
-
 **Metadata Schema**:
-
 ```yaml
 metadata.tree.mermaidDensity.statementCount:
   scope: tree_specific
@@ -608,5 +589,4 @@ metadata.tree.mermaidDensity.anchorsOnly:
 
 metadata.tree.mermaidDensity.config: …
 ```
-
 See [knowgrph-schema-document.tree-mermaid-appendix.md](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-schema-document.tree-mermaid-appendix.md).

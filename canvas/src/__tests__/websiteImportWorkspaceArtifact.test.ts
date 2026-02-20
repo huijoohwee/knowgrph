@@ -6,14 +6,6 @@ import {
   buildWebsiteImportWebpageDocFromUpstreamMarkdown,
 } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
 
-const sliceBetween = (text: string, start: string, end: string): string => {
-  const a = text.indexOf(start)
-  if (a < 0) return ''
-  const b = text.indexOf(end, a + start.length)
-  if (b < 0) return text.slice(a).trimEnd()
-  return text.slice(a, b).trimEnd()
-}
-
 export const testWebsiteImportWorkspaceWritesArtifactDoc = () => {
   const self = fileURLToPath(import.meta.url)
   const dir = path.dirname(self)

@@ -32,45 +32,71 @@
 
 #### 2026-02-19
 
+
+- [] centralize, enhance security, byok
+
+- [ ] generate punch-list (which files/functions to merge, and what the minimal behavioral changes should be for keyword mode in 2D vs 3D) based on intended UX (e.g., whether 2D should match 3D arrow behavior for keyword edges)
+
+- []
+
 # ENHANCE End-to-End native local in-repo Import → Render PIPELINE 
  
- ## 2D Renderer Flow Editor 
- - [x] fix; during initialization (not only when zoom-in), collective Node Quick Editors/edges layout centroid in center, well-spread out in viewport, FORBID clustering/overlaying on top each other 
- 
- ## ANCHOR on Document Structure Mode (default) BASELINE, 
- ENFORCE GRAPHS/content alignment/consistency/sync, 
- FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across: 
-     
- ### TOUCHPOINTS 
- - Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Slides Gallery, EXPLORER, Canvas Preview 
-   
- ### MODES/LAYOUTS 
- - Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout) 
-     
- ### ZOOMS 
- - Pin to View, Fit to View, Fit to Screen, Zoom to Selection 
-     
- ## ALIGN Semantic Definition 
- - **GRAPHS Elements:** nodes, Node Quick Editors, edges, graph layers (subgraphs, groups, clusters, communities), labels, text 
- - **GRAPHS Configs:** grouping, positioning, collisions, timing, knobs 
-     
- ## Code Maintenance 
- - COMPLY with `/GitHub/{huijoohwee.github.io/guidelines/{codebase-neutrality-guidelines.md,codebase-maintainability-guidelines.md},knowgrph/todo.md#L5-21}` 
- - COMPLY with existing font/icon/label/text/text size/tooltip/typography semantic/design token SSOT 
- - REMOVE, PREVENT & RESOLVE cross‑repo conflicts/duplicates/stale/interference across layers/modes 
- - CENTRALIZE/REUSE shared algorithm/config/element/logic/utility (box, collision, drag, font, icon, knob, label, pan, scroll, text, text size, throttle, timing, typography, zoom) 
- - OPTIMIZE & ENHANCE cache, loading, modularity, memory, state, store, rendering performance; FORBID churn, re-calculation, re-rendering 
- - USE semantic HTML; forbid generic `<div>` 
- - UPDATE unified setting to MainPanel Settings schema 
- - TEST/VALIDATE only bounded diffs; FORBID indefinite runs 
-     
- ## UPDATE CROSS‑REPO Docs `/GitHub/{knowgrph/todo-log.md,knowgrph/docs/documents,huijoohwee.github.io/schema/AgenticRAG}`
+ ## 2D Renderer D3, Flow Editor 
+- [x] fix; during initialization, without the need of zooming-in, collective D3 Nodes/Flow Editor Node Quick Editors/edges layout centroid in center, well-spread out in viewport
+- [x] FORBID clustering/overlaying on top each other 
+
+##  2D Renderer (Document Structure Mode/Keyword Mode) SIMILARITY/DIFFERENCE 
+- DIFFERENCE: only on how Nodes/Clusters/Edges are accounted for/categorized/treated, calculated, rendered
+- SIMILARITY: except DIFFERENCE, others SHARE/REUSE common functionality, behavior, utils
+- init (both modes): without zooming-in, collective Nodes/Edges layout centroid in center, well-spread out in viewport
+
+## ANCHOR on Document Structure Mode (default) BASELINE, 
+ENFORCE GRAPHS/content alignment/consistency/sync, 
+FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across: 
+    
+### TOUCHPOINTS 
+- Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Slides Gallery, EXPLORER, Canvas Preview 
+  
+### MODES/LAYOUTS 
+- Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout) 
+    
+### ZOOMS 
+- Pin to View, Fit to View, Fit to Screen, Zoom to Selection 
+    
+## ALIGN Semantic Definition 
+- **GRAPHS Elements:** nodes, Node Quick Editors, edges, graph layers (subgraphs, groups, clusters, communities), labels, text 
+- **GRAPHS Configs:** grouping, positioning, collisions, timing, knobs 
+    
+## Code Maintenance 
+- COMPLY with `/GitHub/{huijoohwee.github.io/guidelines/{codebase-neutrality-guidelines.md,codebase-maintainability-guidelines.md},knowgrph/todo.md#L5-21}` 
+- COMPLY with existing font/icon/label/text/text size/tooltip/typography semantic/design token SSOT 
+- REMOVE, PREVENT & RESOLVE cross‑repo conflicts/duplicates/stale/interference across layers/modes 
+- CENTRALIZE/REUSE shared algorithm/config/element/logic/utility (box, collision, drag, font, icon, knob, label, pan, scroll, text, text size, throttle, timing, typography, zoom) 
+- OPTIMIZE & ENHANCE cache, loading, modularity, memory, state, store, rendering performance; FORBID churn, re-calculation, re-rendering 
+- USE semantic HTML; forbid generic `<div>` 
+- UPDATE unified setting to MainPanel Settings schema 
+- TEST/VALIDATE only bounded diffs; FORBID indefinite runs 
+    
+## UPDATE CROSS‑REPO Docs `/GitHub/{knowgrph/todo-log.md,knowgrph/docs/documents,huijoohwee.github.io/schema/AgenticRAG}`
+- [x] updated `todo-log.md`, `knowgrph-graph-canvas-layout-ssot.md`, `knowgrph-canvas-default-initialization-document.md`, `knowgrph-canvas-document.md`, and `canvas.jsonld` to reflect viewport-aware layout and stricter collision avoidance.
 
 #### 2026-02-13
 
 - ENHANCE current native design tokens—a single source of truth to improve efficiency and collaboration between product design and development
 
 - [ ] single SSOT “capability map” (URL import → conversion → artifact storage → explorer/tree → render modes)
+
+- [ ] 
+```
+broad + targeted searches across the whole knowgrph/canvas/src tree (hooks, workers, parser pipeline, schema/scene/view derivations, and anything using performance.now / timing metrics). The items below are the complete set of relevant debounce/worker/perf-instrumentation patterns currently used for parsing/derivation, Performance + Churn Fixes
+
+** fix, enhance importing, indexing, loading, rendering pipeline performance **
+## 2D Renderer D3 (Keyword Mode) 
+- SHARE/REUSE 2D Renderer D3 (Document Structure Mode) common functionality, behavior, utils, 
+- ENHANCE indexing, parsing, categorization, calculation, rendering of Nodes/Clusters/Edges
+- during initialization, without the need of zooming-in, collective 2D Renderer D3 (Document Structure Mode/Keyword Mode) Nodes/Clusters/Edges layout centroid in center, well-spread out in viewport (NOT concentrated on one line/corner leaving empty/spacing/void); after computation completion, collective fit (NOT keep expanding)
+- FORBID re-rendering, re-computation, stale, legacy, conflicting codes
+```
 
 - [ ] 
 

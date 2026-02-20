@@ -12,7 +12,7 @@ export const testGeoJsonImport = () => {
     ],
   })
 
-  const { data, diag } = parseGraph('test.geojson', geoJsonText)
+  const { data } = parseGraph('test.geojson', geoJsonText)
 
   if (data.context !== 'geojson') {
     throw new Error(`Expected context=geojson, got ${data.context}`)
@@ -21,7 +21,8 @@ export const testGeoJsonImport = () => {
     throw new Error(`Expected 1 node, got ${data.nodes?.length}`)
   }
   const n = data.nodes[0]
-  const geo = (n.properties as any)?.geo
+  const props = n.properties as Record<string, unknown>
+  const geo = props.geo as { lat: number; lng: number } | undefined
   if (!geo || typeof geo.lat !== 'number' || typeof geo.lng !== 'number') {
     throw new Error('Node missing valid geo properties')
   }

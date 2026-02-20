@@ -537,73 +537,56 @@ graphHoverPreview.showEdgeProperties:
 | Type Inference        | Derive JSON Schema type       | - [ ] Infer from default value or explicit type column; forbid ambiguous types              | Settings builder          | `inferType`          | setting descriptor        | schema type string    | default value type or explicit column   |
 | Bounds Parsing        | Extract constraints           | - [ ] Parse range/enum syntax; apply to schema; forbid unparseable bounds                  | Settings builder          | `parseBounds`        | bounds string             | constraint object     | regex match + conditional schema fields |
 | Nested Property Handling | Support dot notation       | - [ ] Split on `.`; create nested objects; forbid flat keys for nested settings            | Settings builder          | `buildNestedSchema`  | property path             | nested schema object  | path.split('.').reduce nesting          |
-
 ---
 
 ## Bootstrap Behavior
-
 ### Source Document Missing
-
 **Condition**: `knowgrph-codebase-responsibility-flow.md` not found at repo root
-
 **Behavior**:
-
 | Action                     | Implementation                                      | Output                                             |
 |----------------------------|-----------------------------------------------------|----------------------------------------------------|
 | Bootstrap from code         | Derive flow rows from `settingsRegistry` + store setters | Flow rows with modules/classes/functions populated |
 | Write source doc            | Emit `knowgrph-codebase-responsibility-flow.md`      | Canonical flow doc created at repo root            |
 | Write JSON artifacts        | Emit Settings UI flow JSON files                     | `canvas/public/settings-flow.json` + `canvas/src/features/settings/settings-flow.schema.json` |
 | Proceed with build          | Do not fail build process                            | Settings UI always has flow metadata               |
-
 ---
 
 ## Testing & Quality Standards
 
 **Test Coverage Metrics**
-
 | Context              | Intent                          | Directive                                                                                   |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
 | Schema Extraction    | Validate markdown parsing       | - [ ] Test table extraction; verify all rows parsed; forbid missing settings               |
 | Type Inference       | Ensure correct schema types     | - [ ] Test string/number/boolean inference; forbid type mismatches                          |
 | Bounds Parsing       | Validate constraint extraction  | - [ ] Test range, enum, boolean bounds; forbid unparsed constraints                        |
-
 **Test Categories**:
-
 - **Unit Tests**: Table parsing, type inference, bounds extraction, nested property handling.
 - **Integration Tests**: Full markdown → JSON Schema → TypeScript types pipeline.
-
 **Quality Gates**:
-
 | Context              | Intent                          | Directive                                                                                   |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
 | Schema Completeness  | Ensure all settings extracted   | - [ ] Verify output schema includes all table rows; forbid partial extraction               |
 | Performance Bounds   | Keep build fast                 | - [ ] Assert build completes in <1s; forbid slow regex or I/O operations                   |
 | Fallback Safety      | Handle missing source gracefully| - [ ] Test fallback to defaults; verify warning logged; forbid build failure               |
-
 ---
 
 ## Repository Health Checklist
 
 **Build Health**:
-
 | Context              | Status | Directive                                                                                   |
 |----------------------|--------|---------------------------------------------------------------------------------------------|
 | Source Doc Presence  | ☐      | - [ ] `knowgrph-codebase-responsibility-flow.md` exists at repo root; forbid missing source|
 | Schema Output        | ☐      | - [ ] `canvas/public/settings-flow.json` and `canvas/src/features/settings/settings-flow.schema.json` generated; forbid missing output|
 | Build Performance    | ☐      | - [ ] `build:settings` completes in <1s; forbid slow extraction                            |
-
 **Settings Quality**:
-
 | Context              | Status | Directive                                                                                   |
 |----------------------|--------|---------------------------------------------------------------------------------------------|
 | Type Safety          | ☐      | - [ ] All settings have valid JSON Schema types; forbid `any` types                        |
 | Bounds Validation    | ☐      | - [ ] Numeric settings have min/max; enums have valid values; forbid unbounded inputs      |
 | Documentation        | ☐      | - [ ] All settings have `description` field; forbid undocumented settings                  |
-
 ---
 
 ## Anti-Patterns (Forbidden)
-
 | Context              | Intent                          | Directive                                                                                   |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
 | Manual Schema Sync   | Automate schema generation      | - [ ] Prefer build script output; forbid hand-editing generated JSON artifacts              |

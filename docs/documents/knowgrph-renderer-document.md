@@ -245,9 +245,10 @@
 ## Viewport and zoom behavior
 - **Fit to Screen**:
   - Centers on rendered graph centroid and accounts for label-aware bounds.
-  - Computes fit scale on capped `1920×1080` (16:9) frame with `targetFillRatio = 0.8`.
+  - Computes fit scale on actual viewport dimensions with `targetFillRatio = 0.8`.
   - Clamps zoom scale via `schema.performance.zoom.{minScale,maxScale}`.
   - Re-evaluates on view/layout/presentation changes unless the view is pinned.
+  - `grph-shared/src/zoom/presets.ts` provides reusable fit/zoom presets reused by fit logic and simulation/layout seeding.
 - **Zoom to Selection**:
   - Focuses camera on selected node/edge.
 - **Zoom State Caching**:

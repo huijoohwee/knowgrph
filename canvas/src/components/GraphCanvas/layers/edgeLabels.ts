@@ -18,8 +18,19 @@ export const createEdgeLabelsLayer = (args: {
   selectEdge: (id: string | null) => void
 }): d3.Selection<SVGTextElement, GraphEdge, SVGGElement, unknown> | null => {
   const { g, edgesForDisplay, schema, hoverEnabled, setHoverInfo, setSelectionSource, selectEdge } = args
+
+  const edgeLabelForDisplay = (e: GraphEdge): string => {
+    const flowLabel = String(readFlowEdgeDisplayLabel(e) || '').trim()
+    if (flowLabel) return flowLabel
+    const label = String(e.label || '').trim()
+    const props = (e.properties || {}) as Record<string, unknown>
+    const keywordKind = typeof props['keyword:kind'] === 'string' ? String(props['keyword:kind']).trim() : ''
+    if (!keywordKind) return label
+    const clean = label.replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
+    return clean || label
+  }
   const edges = Array.isArray(edgesForDisplay)
-    ? edgesForDisplay.filter(e => String(readFlowEdgeDisplayLabel(e) || e.label || '').trim())
+    ? edgesForDisplay.filter(e => edgeLabelForDisplay(e))
     : []
   if (edges.length === 0) return null
   if (edges.length > 600) return null
@@ -39,9 +50,9 @@ export const createEdgeLabelsLayer = (args: {
     .attr('dominant-baseline', 'middle')
     .style('user-select', 'none')
     .style('pointer-events', 'all')
-    .text(d => truncateTextWithEllipsis(String(readFlowEdgeDisplayLabel(d) || d.label || ''), maxChars))
+    .text(d => truncateTextWithEllipsis(edgeLabelForDisplay(d), maxChars))
     .each(function (d) {
-      this.setAttribute('data-label-full', String(readFlowEdgeDisplayLabel(d) || d.label || ''))
+      this.setAttribute('data-label-full', edgeLabelForDisplay(d))
     })
 
   attachEdgeInteractionHandlers(labelSel as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>, {

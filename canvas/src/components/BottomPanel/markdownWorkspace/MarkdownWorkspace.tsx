@@ -49,7 +49,6 @@ import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
 import { fetchWebpageMarkdown, fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 import {
-  extractYamlFrontmatterBlock,
   isFrontmatterOnlyDoc,
   normalizeWebpageFrontmatterView,
   parseWebpageFrontmatterMeta,
@@ -59,7 +58,6 @@ import {
 } from '@/lib/markdown/frontmatter'
 import {
   fetchWebpageConversionJsonViaConvert,
-  fetchWebpageHtmlAuto,
   fetchWebsiteImportArtifact,
 } from '@/lib/websites/webpageIframeSrcdoc'
 import { websiteImportArtifactKindForWebpageView } from '@/lib/websites/websiteImportArtifactKind'

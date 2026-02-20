@@ -1,4 +1,3 @@
-import * as d3 from 'd3'
 import type { RefObject } from 'react'
 import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
 import { getNodeRadiusFromSchema, getNodeRenderRadius, getThreeConfig } from '@/lib/graph/schema'
@@ -97,12 +96,15 @@ export function getEdgeStrokeWidth(edge: GraphEdge, schema: GraphSchema): number
       ? styles.width
       : 2
   const props = edge.properties || {}
-  const scale = isKeywordItem(props as Record<string, unknown>) ? getKeywordEdgeWidthScale(schema) : 1
+  const isKeyword = isKeywordItem(props as Record<string, unknown>)
+  const scale = isKeyword ? getKeywordEdgeWidthScale(schema) : 1
   const threeCfg = getThreeConfig(schema)
   const formula = threeCfg.edgeWidthFormula || 'schema'
   const propWidth = props['visual:width']
   let width = baseFromSchema
-  if (formula !== 'weight' && typeof propWidth === 'number' && Number.isFinite(propWidth) && propWidth > 0) {
+  if (isKeyword && typeof propWidth === 'number' && Number.isFinite(propWidth) && propWidth > 0) {
+    width = propWidth
+  } else if (formula !== 'weight' && typeof propWidth === 'number' && Number.isFinite(propWidth) && propWidth > 0) {
     width = propWidth
   } else if (formula === 'weight') {
     const rawWeight = (() => {

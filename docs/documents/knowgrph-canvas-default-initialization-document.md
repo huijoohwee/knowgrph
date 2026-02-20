@@ -103,6 +103,8 @@
   - Persisted view restoration must be bounds-guarded: do not apply stored transforms until graph bounds can be computed (e.g., at least one finite node position and non-zero node dimensions); prefer fit/identity over a stale offscreen pan.
   - Scene build and fit must ignore invalid geometry: if positions are only partially available, skip nodes without finite positions (and their incident edges) to prevent one-long stray lines and chaotic redraw on first paint.
   - Fit geometry must use stable per-node dimensions: read `visual:width`/`visual:height` when present, otherwise fall back to the renderer’s default node width/height.
+  - Must use actual viewport dimensions for layout and fit when available; fallback to preset only when viewport is invalid (<100px).
+  - Must enforce strict node separation via increased collision padding (20px) and charge (-800) to prevent initial clustering.
 
 ---
 

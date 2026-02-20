@@ -23,12 +23,12 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 | Context | Intent | Directive |
 |---|---|---|
 | Anti-Line Force | Break long linear concentrations | - [ ] Apply perpendicular jitter to linear clusters; forbid long unbalanced concentrations |
-| Aspect Ratio | Prevent inconsistent fit behavior across viewports | - [ ] Fit via `schema.layout.fitTargetAspectRatio` (default 16:9); forbid hardcoded viewport assumptions |
+| Aspect Ratio | Prevent inconsistent fit behavior across viewports | - [ ] Fit via `schema.layout.fitTargetAspectRatio` (default: use container aspect ratio); forbid hardcoded viewport assumptions |
 | Centering | Keep zoom and fit stable across intents | - [ ] Center by centroid for all zoom/fit intents; forbid skew from bounding box bias |
 | Clusters | Avoid distortion from distant outliers | - [ ] Filter outliers when fitting (`schema.layout.fitDetectClusters`); forbid distortion from distant nodes |
 | Cross-mode Cache | Prevent layout drift when switching modes | - [ ] Key layout caches by `semanticMode + frontmatterMode + layoutMode + renderMode + renderVariant + layoutVariant + viewKey + mediaPanelDensity + renderMediaAsNodes`; apply presentation updates without changing cache keys; forbid cross-mode contamination |
 | Documentation | Keep behavior discoverable and auditable | - [ ] Keep schema options discoverable; forbid undocumented behaviors or hidden defaults |
-| Fit Frame | Prevent over-zoom on large viewports | - [ ] Compute fit scale on capped `1920×1080` (16:9) frame; forbid 4k/ultrawide over-zoom |
+| Fit Frame | Prevent over-zoom on large viewports | - [ ] Compute fit scale based on actual viewport dimensions; forbid 4k/ultrawide over-zoom via max scale caps |
 | Fit-to-Screen | Keep fit consistent with UI chrome changes | - [ ] Enforce 80/20 fill ratio via `targetFillRatio = 0.8`; forbid inconsistent viewport fill |
 | Integration | Keep parsing, schema, and rendering aligned | - [ ] Use schema-driven fit and Mermaid layout paths; forbid bypass of configuration flow |
 | Keyword Mode | Make text-derived graph views tunable and portable | - [ ] Derive keyword nodes/edges from document text; remove stopwords; map frequency/strength to sizes with schema tunables; preserve overlays; forbid stopword noise and selection-only dashboards |
@@ -150,7 +150,7 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 - Fit and zoom:
   - `canvas/src/components/GraphCanvas/{fit.ts,zoom.ts,zoomState.ts,zoomController.ts}` centralize zoom policies and per-view caching.
 - Shared presets:
-  - `grph-shared/src/zoom/presets.ts` provides reusable fit/zoom presets (capped 16:9 frame + fill ratio) reused by fit logic and simulation/layout seeding.
+  - `grph-shared/src/zoom/presets.ts` provides reusable fit/zoom presets reused by fit logic and simulation/layout seeding.
 
 ---
 
@@ -162,7 +162,7 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 
 | Context | Intent | Directive | Module | Function/Method | Input | Output | Decision Logic |
 |---|---|---|---|---|---|---|---|
-| Fit mapping | Keep fit consistent across viewports | - [ ] Fit on capped `1920×1080` frame and `targetFillRatio = 0.8`; forbid viewport-dependent over-zoom | GraphCanvas | fitAllTransform | viewport, schema | transform | Use aspect-ratio frame then scale by fill ratio |
+| Fit mapping | Keep fit consistent across viewports | - [ ] Fit on actual viewport dimensions with `targetFillRatio = 0.8`; forbid viewport-dependent over-zoom | GraphCanvas | fitAllTransform | viewport, schema | transform | Use container aspect-ratio then scale by fill ratio |
 | Zoom centering | Prevent drift between fit and user zoom | - [ ] Scale centered on graph centroid; forbid bbox-bias centering | GraphCanvas | scaleCenteredOnGraphCentroidTransform | centroid, scale | transform | Always compute centroid from rendered nodes |
 | Zoom state | Avoid stale transforms when switching views | - [ ] Cache zoom state per viewKey; forbid cross-mode reuse | GraphCanvas | setZoomStateForKey | viewKey, zoomState | persisted state | viewKey includes presentation toggles |
 

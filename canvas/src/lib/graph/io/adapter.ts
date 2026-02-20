@@ -53,10 +53,10 @@ export const parseGraph = (name: string, text: string): { data: GraphData; diag:
     }
 
     if (json && typeof json === 'object' && !Array.isArray(json)) {
-      const t = (json as any).type
+      const t = (json as { type?: unknown }).type
       if (t === 'FeatureCollection' || t === 'Feature') {
         try {
-          const normalized = coerceGeoJsonToFeatureCollection(json as any)
+          const normalized = coerceGeoJsonToFeatureCollection(json as never)
           const geoGraph = buildGraphDataFromFeatureCollection({
             featureCollection: normalized,
             sourcePath: name,

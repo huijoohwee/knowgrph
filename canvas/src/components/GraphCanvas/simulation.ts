@@ -13,7 +13,7 @@ import { createGroupKeyOfNode, computeGroupTargets, type GroupKeyOfNode } from '
 import { readCollisionConfig } from './layout/collisionConfig';
 import { readLayoutMode } from './layout/fitConfig';
 import { DEFAULT_CENTER_STRENGTH, readFitPadding, readForceCharge, readForceLinkDistance } from '@/lib/graph/layoutDefaults';
-import { computeFitFrame, ZOOM_VIEWPORT_PRESET_16_9 } from 'grph-shared/zoom/presets'
+import { ZOOM_VIEWPORT_PRESET_16_9 } from 'grph-shared/zoom/presets'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 
 type EdgeEndpointLike = GraphEdge['source'] | { id?: string } | null | undefined;
@@ -57,9 +57,8 @@ export const buildSimulation = (
   schema: GraphSchema,
   options?: { skipInitialLayout?: boolean; groupKeyOf?: GroupKeyOfNode; groupsForBboxCollide?: GraphGroup[] }
 ) => {
-  const viewW = width > 100 ? width : ZOOM_VIEWPORT_PRESET_16_9.maxWidth
-  const viewH = height > 100 ? height : ZOOM_VIEWPORT_PRESET_16_9.maxHeight
-  const { frameW, frameH } = computeFitFrame(viewW, viewH, ZOOM_VIEWPORT_PRESET_16_9)
+  const frameW = width > 100 ? width : ZOOM_VIEWPORT_PRESET_16_9.maxWidth
+  const frameH = height > 100 ? height : ZOOM_VIEWPORT_PRESET_16_9.maxHeight
 
   const computeTopology = (ns: GraphNode[], es: GraphEdge[]) => {
     const inDegree = new Map<string, number>()
@@ -96,10 +95,11 @@ export const buildSimulation = (
           padding: disjointPadding,
         })
       : null;
+
   if (!options?.skipInitialLayout) {
     const seedGroupKeyOf = options?.groupKeyOf || createGroupKeyOfNode({ nodes, edges: edgesForSim })
     if (mode === 'radial') {
-      applyRadialClusterLayout(nodes, edgesForSim, frameW, frameH, schema, seedGroupKeyOf, options?.groupsForBboxCollide);
+      applyRadialClusterLayout(nodes, edgesForSim, frameW, frameH, schema, seedGroupKeyOf, options?.groupsForBboxCollide)
       for (let i = 0; i < nodes.length; i += 1) {
         const n = nodes[i]
         n.vx = 0
@@ -110,7 +110,6 @@ export const buildSimulation = (
       applyForceModeSeeds({ nodes, edges: edgesForSim, width: frameW, height: frameH, schema })
     }
   }
-
   const linkForce = d3
     .forceLink<GraphNode, GraphEdge>(edgesForSim)
     .id(d => d.id)
@@ -228,9 +227,12 @@ export const buildSimulation = (
         : DEFAULT_CENTER_STRENGTH
     const anchorStrength = Math.max(0, Math.min(2, disjointStrength)) * 0.08 + Math.max(0, Math.min(2, centerStrength)) * 0.06
     let antiLineTick = 0
+    if (!disjointLayout) {
+      simulation.force('center', d3.forceCenter(frameW / 2, frameH / 2))
+    }
     simulation
       .force('charge', d3.forceManyBody().strength(chargeStrength))
-      .force('collide', d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.9).iterations(2))
+      .force('collide', d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.9).iterations(3))
       .force(
         'bboxCollide',
         bboxCfg.enabled
@@ -435,9 +437,8 @@ export const updateForceSimulationPresentation = (args: {
   const mode = readLayoutMode(schema)
   if (mode === 'radial') return
 
-  const viewW = width > 100 ? width : ZOOM_VIEWPORT_PRESET_16_9.maxWidth
-  const viewH = height > 100 ? height : ZOOM_VIEWPORT_PRESET_16_9.maxHeight
-  const { frameW, frameH } = computeFitFrame(viewW, viewH, ZOOM_VIEWPORT_PRESET_16_9)
+  const frameW = width > 100 ? width : ZOOM_VIEWPORT_PRESET_16_9.maxWidth
+  const frameH = height > 100 ? height : ZOOM_VIEWPORT_PRESET_16_9.maxHeight
 
   const computeTopology = (ns: GraphNode[], es: GraphEdge[]) => {
     const inDegree = new Map<string, number>()
@@ -550,7 +551,8 @@ export const updateForceSimulationPresentation = (args: {
   const collisionCfg = readCollisionConfig(schema)
   const bboxCfg = collisionCfg.nodeBbox
 
-  simulation.force('collide', d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.9).iterations(2))
+  simulation.force('center', disjointLayout ? null : d3.forceCenter(frameW / 2, frameH / 2))
+  simulation.force('collide', d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.9).iterations(3))
   simulation.force(
     'bboxCollide',
     bboxCfg.enabled
@@ -592,7 +594,7 @@ export const updateForceSimulationPresentation = (args: {
   simulation.force('x', d3.forceX<GraphNode>(xTarget).strength(anchorStrength))
   simulation.force('y', d3.forceY<GraphNode>(yTarget).strength(anchorStrength))
   simulation.force('box', () => {
-    const enabled = schema.layout?.forces?.boxForce !== false
+    const enabled = schema.layout?.forces?.boxForce === true
     if (!enabled) return
     const strength = schema.layout?.forces?.boxForceStrength ?? 0.05
     const alpha = simulation.alpha()
@@ -617,7 +619,10 @@ export const updateForceSimulationPresentation = (args: {
     }
   })
 
-  simulation.alphaTarget(0.18).restart()
+  if (schema.layout?.forces?.alphaDecay != null) {
+    simulation.alphaDecay(schema.layout.forces.alphaDecay!)
+  }
+  simulation.alphaTarget(0.12).restart()
 }
 
 export const buildNeighborIds = (data: { nodes: GraphNode[]; edges: GraphEdge[] }, selectedNodeId?: string | null) => {

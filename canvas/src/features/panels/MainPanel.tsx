@@ -43,6 +43,8 @@ function isMainPanelTab(key: string): key is MainPanelTab {
   )
 }
 
+import { useActiveGraphData } from '@/hooks/useActiveGraphData'
+
 export default function MainPanel({
   onClose,
   onHeaderDragStart,
@@ -89,9 +91,10 @@ export default function MainPanel({
   }>({ allCollapsed: true })
 
   const panelTypography = usePanelTypography()
-  const { lastTraversalSummary, graphData } = useGraphStore(
-    useShallow(s => ({ lastTraversalSummary: s.lastTraversalSummary, graphData: s.graphData })),
+  const { lastTraversalSummary } = useGraphStore(
+    useShallow(s => ({ lastTraversalSummary: s.lastTraversalSummary })),
   )
+  const graphData = useActiveGraphData()
 
   const traversalChip = React.useMemo(() => {
     const summary = lastTraversalSummary

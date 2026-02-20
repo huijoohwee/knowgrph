@@ -101,7 +101,7 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
       }
     }
 
-    if (anyWindow.HTMLIFrameElement && !Object.prototype.hasOwnProperty('HTMLIFrameElement')) {
+    if (anyWindow.HTMLIFrameElement && !Object.prototype.hasOwnProperty.call(Object.prototype, 'HTMLIFrameElement')) {
       Object.defineProperty(Object.prototype, 'HTMLIFrameElement', {
         configurable: true,
         enumerable: false,

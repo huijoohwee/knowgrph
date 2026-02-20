@@ -1,6 +1,7 @@
 import { GraphNode } from '@/lib/graph/types'
 import { GraphSchema, getNodeRenderRadius } from '@/lib/graph/schema'
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
+import { pickBalancedGrid } from '@/components/GraphCanvas/layout/grid'
 
 export const applyClusterAwareHeuristicSeedLayout = (args: {
   nodes: GraphNode[]
@@ -113,8 +114,12 @@ export const applyClusterAwareHeuristicSeedLayout = (args: {
   const w = Math.max(1, width)
   const h = Math.max(1, height)
   const aspect = w / h
-  const cols = Math.max(1, Math.ceil(Math.sqrt(entries.length * Math.max(0.2, aspect))))
-  const rows = Math.max(1, Math.ceil(entries.length / cols))
+  const { cols, rows } = pickBalancedGrid({
+    count: entries.length,
+    aspect,
+    minCols: entries.length >= 4 ? 2 : 1,
+    minRows: entries.length >= 4 ? 2 : 1,
+  })
   const cellW = maxClusterR * 2 + nodeSpacing
   const cellH = maxClusterR * 2 + nodeSpacing
   const startX = w / 2 - ((cols - 1) * cellW) / 2

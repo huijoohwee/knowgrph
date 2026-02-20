@@ -48,9 +48,14 @@ const buildKey = (args: {
   const nodesLen = Array.isArray(g.nodes) ? g.nodes.length : 0
   const edgesLen = Array.isArray(g.edges) ? g.edges.length : 0
   const metaKey = buildGraphMetaKey(g)
+  const meta = g.metadata && typeof g.metadata === 'object' && !Array.isArray(g.metadata)
+    ? (g.metadata as Record<string, unknown>)
+    : null
+  const layerHash = typeof meta?.sourceLayerHash === 'string' ? meta.sourceLayerHash.trim() : ''
+  const revKey = layerHash ? `h:${layerHash}` : `rev:${String(args.graphDataRevision || 0)}`
   const schemaGroupsKey = JSON.stringify(args.schema?.layout?.groups || null)
   return [
-    `rev:${String(args.graphDataRevision || 0)}`,
+    revKey,
     `meta:${metaKey}`,
     `n:${String(nodesLen)}`,
     `e:${String(edgesLen)}`,

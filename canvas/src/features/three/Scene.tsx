@@ -184,12 +184,32 @@ export function Scene({
             if (hiddenNodeIds.has(srcId) || hiddenNodeIds.has(tgtId)) return null
           }
           const props = e.properties || {}
-          const color = typeof props['color'] === 'string' ? String(props['color']) : colorByLabel(e.label)
+          const visualStroke = typeof (props as Record<string, unknown>)['visual:stroke'] === 'string'
+            ? String((props as Record<string, unknown>)['visual:stroke']).trim()
+            : ''
+          const parseRgba = (value: string): { color: string; alpha: number } | null => {
+            const m = value.match(/^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*([0-9]*\.?[0-9]+)\s*\)$/i)
+            if (!m) return null
+            const r = Number(m[1])
+            const g = Number(m[2])
+            const b = Number(m[3])
+            const a = Number(m[4])
+            if (![r, g, b, a].every(Number.isFinite)) return null
+            const rr = Math.max(0, Math.min(255, Math.floor(r)))
+            const gg = Math.max(0, Math.min(255, Math.floor(g)))
+            const bb = Math.max(0, Math.min(255, Math.floor(b)))
+            const aa = Math.max(0, Math.min(1, a))
+            return { color: `rgb(${rr}, ${gg}, ${bb})`, alpha: aa }
+          }
+          const rgba = visualStroke ? parseRgba(visualStroke) : null
+          const color = typeof props['color'] === 'string'
+            ? String(props['color'])
+            : (rgba?.color || colorByLabel(e.label))
           const baseWidth = getEdgeStrokeWidth(e, schema)
           let width = clamp(baseWidth, 0.5, 5)
           const linkOpacity = typeof props['opacity'] === 'number'
             ? Math.max(0, Math.min(1, props['opacity'] as number))
-            : (typeof opacityByLabel[e.label] === 'number' ? Math.max(0, Math.min(1, opacityByLabel[e.label] as number)) : linkOpacityDefault)
+            : (rgba ? rgba.alpha : (typeof opacityByLabel[e.label] === 'number' ? Math.max(0, Math.min(1, opacityByLabel[e.label] as number)) : linkOpacityDefault))
           const curvature = typeof props['curvature'] === 'number' ? Math.max(0, Math.min(1.5, props['curvature'] as number)) : linkCurvatureDefault
           const arrowLen = typeof props['arrowLength'] === 'number' ? Math.max(2, Math.min(24, props['arrowLength'] as number)) : arrowLenDefault
           const arrowColor = typeof props['arrowColor'] === 'string' ? String(props['arrowColor']) : color

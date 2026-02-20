@@ -40,6 +40,7 @@ import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/sur
 import { shouldIgnoreCanvasWheelEvent } from '@/lib/canvas/wheel-target-guard'
 import { UI_SELECTORS } from '@/lib/config'
 import { deriveSceneGroups } from '@/lib/scene/sceneDerivation'
+import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null);
@@ -245,11 +246,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   }, [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, renderGraphData])
 
   const collapsedGroupIdsKey = useMemo(() => {
-    const ids = Array.isArray(collapsedGroupIds) ? collapsedGroupIds : []
-    const normalized = ids.map(x => String(x || '').trim()).filter(Boolean)
-    if (normalized.length === 0) return ''
-    normalized.sort((a, b) => a.localeCompare(b))
-    return normalized.join('|')
+    return buildCollapsedGroupIdsKey(collapsedGroupIds)
   }, [collapsedGroupIds])
 
   const sceneGraphData = useMemo(() => {
@@ -378,31 +375,22 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     const schemaValue = schemaRef.current
     const mode = schemaValue ? readLayoutMode(schemaValue) : 'force'
     const semanticMode = String(state.documentSemanticMode || 'document')
+    const graphDataForView = sceneGraphDataRef.current ?? ((state.graphData as unknown as import('@/lib/graph/types').GraphData | null) ?? null)
     const frontmatter = computeEffectiveFrontmatterMode({
       frontmatterModeEnabled: state.frontmatterModeEnabled === true && state.documentStructureBaselineLock !== true,
       documentSemanticMode: semanticMode as 'document' | 'keyword',
-      graphData: (state.graphData as unknown as import('@/lib/graph/types').GraphData | null) ?? null,
+      graphData: graphDataForView,
     })
     const datasetKey = computeLayoutDatasetKey({
-      graphData: state.graphData as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null,
+      graphData: graphDataForView as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null,
       graphDataRevision: state.graphDataRevision || 0,
     })
     const layoutVariant = ''
-    const graphMetaKey = String(state.graphData?.metadata && typeof state.graphData.metadata === 'object'
-      ? `${String((state.graphData.metadata as Record<string, unknown>).kind ?? '')}:${String((state.graphData.metadata as Record<string, unknown>).source ?? '')}`
-      : '')
+    const graphMetaKey = buildGraphMetaKey(graphDataForView)
     const collapsedGroupIdsKey = (() => {
-      const ids = Array.isArray(state.collapsedGroupIds) ? state.collapsedGroupIds : []
-      const normalized = ids.map(x => String(x || '').trim()).filter(Boolean)
-      if (normalized.length === 0) return ''
-      normalized.sort((a, b) => a.localeCompare(b))
-      return normalized.join('|')
+      return buildCollapsedGroupIdsKey(state.collapsedGroupIds)
     })()
-    const schemaLayoutEngineJson = JSON.stringify({
-      mode,
-      forces: schemaValue?.layout?.forces || null,
-      fitPadding: schemaValue?.layout?.fitPadding ?? null,
-    })
+    const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(schemaValue)
     const viewKey = buildLayoutViewKey({
       schemaLayoutEngineJson,
       frontmatterModeEnabled: frontmatter,
@@ -513,9 +501,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         schemaLayoutEngineJson,
         String(effectiveFrontmatterModeEnabled ? 1 : 0),
         String(documentSemanticMode),
-        String(sceneGraphData?.metadata && typeof sceneGraphData.metadata === 'object'
-          ? `${String((sceneGraphData.metadata as Record<string, unknown>).kind ?? '')}:${String((sceneGraphData.metadata as Record<string, unknown>).source ?? '')}`
-          : ''),
+        buildGraphMetaKey(sceneGraphData),
         `${String(sceneGraphData?.nodes?.length ?? 0)}:${String(sceneGraphData?.edges?.length ?? 0)}`,
         String(renderMediaAsNodes ? 1 : 0),
         String(mediaPanelDensity),
@@ -526,9 +512,10 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         if (!isEmbeddedPreview) {
           const sim = simulationRef.current
           const effectiveMode = readLayoutMode(schemaValue)
-          if (sim && effectiveMode !== 'radial') {
+          const isFrozen = svgRef.current?.getAttribute('data-kg-layout-frozen') === '1'
+          if (sim && effectiveMode !== 'radial' && !isFrozen) {
             try {
-              sim.alphaTarget(0.08).restart()
+              sim.alphaTarget(0.02).restart()
             } catch {
               void 0
             }

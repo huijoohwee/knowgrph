@@ -1,4 +1,4 @@
-import type { GraphData } from '@/lib/graph/types'
+import type { GraphData, JSONValue } from '@/lib/graph/types'
 
 type LngLat = { lng: number; lat: number }
 
@@ -253,11 +253,11 @@ export function tryBuildGeodataGraphDataFromJsonText(args: {
       id: idBase,
       label,
       geo: {
-        ...(isRecord((record as any).geo) ? ((record as any).geo as Record<string, unknown>) : {}),
+        ...(isRecord(record.geo) ? record.geo : {}),
         lat: geo.lat,
         lng: geo.lng,
       },
-    } as Record<string, any>
+    } as unknown as Record<string, JSONValue>
     nodes.push({ id, label, type: 'GeoRecord', properties })
   }
   if (nodes.length === 0) return null

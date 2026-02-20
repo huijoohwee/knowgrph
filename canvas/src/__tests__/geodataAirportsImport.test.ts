@@ -31,8 +31,8 @@ export const testAirportsJsonGeodataParsingUsesSampling = () => {
     throw new Error('Expected sampled geodata nodes')
   }
   const hasGeo = data.nodes.some(n => {
-    const props = (n as any)?.properties
-    const geo = props && typeof props === 'object' ? (props.geo as any) : null
+    const props = n.properties as Record<string, unknown>
+    const geo = props?.geo as { lat?: unknown; lng?: unknown } | undefined
     return geo && typeof geo.lat === 'number' && typeof geo.lng === 'number'
   })
   if (!hasGeo) throw new Error('Expected at least one node to contain properties.geo.{lat,lng}')

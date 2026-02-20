@@ -49,7 +49,7 @@ import { FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY, FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY 
 import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import { hasFlowNodeQuickEditorDragType, readFlowNodeQuickEditorDragPayloadFromDataTransfer } from '@/lib/flowEditor/nodeQuickEditorDrag'
 import { buildSelectionSubgraph, exportNodeQuickEditorBundleAsJson } from '@/lib/graph/file'
-import { lsJson, lsSetJson } from '@/lib/persistence'
+import { lsJson } from '@/lib/persistence'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
 import { computeNodeQuickEditorScale, computeNodeQuickEditorScaledSize } from '@/components/FlowEditor/nodeQuickEditorZoom'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
@@ -471,7 +471,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const gap = 18
       const cellW = scaled.width + gap
       const cellH = Math.round(scaled.height * 0.72) + gap
-      const cols = Math.max(1, Math.min(4, Math.floor(Math.max(1, viewportW - 40) / cellW)))
 
       const rectByNodeId = (() => {
         const canvasOffset = canvasWindowOffsetRef.current

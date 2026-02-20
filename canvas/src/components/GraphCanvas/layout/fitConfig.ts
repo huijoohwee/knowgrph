@@ -10,8 +10,6 @@ import {
 
 import { readLayoutMode2d, type LayoutMode2d } from '@/lib/graph/layoutMode'
 
-import { ZOOM_VIEWPORT_PRESET_16_9 } from 'grph-shared/zoom/presets'
-
 export type LayoutMode = LayoutMode2d
 
 export const readLayoutMode = (schema: GraphSchema): LayoutMode => {
@@ -39,17 +37,20 @@ export function readFitAllOptions(args: {
     args.intent === 'fitToScreen' || args.intent === 'initialFit' ? detectClusters !== false : false
   const targetFillRatio = DEFAULT_FIT_TO_SCREEN_FILL_RATIO
   const minScaleEffective = args.intent === 'fitToView' ? Math.min(minScale, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP) : minScale
+  const nodePadding = (schema.layout as unknown as { nodePadding?: number })?.nodePadding
+  const nodePaddingEffective = typeof nodePadding === 'number' && Number.isFinite(nodePadding) ? Math.max(0, nodePadding) : 12
 
   return {
     pad,
     useCentroidCentering: true,
     detectClusters: detectClustersEffective,
-    targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : ZOOM_VIEWPORT_PRESET_16_9.aspectRatio,
+    targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : undefined,
     enforceAspectRatio: enforceAspectRatio !== false,
     targetFillRatio,
     minScale: minScaleEffective,
     maxScale,
     maxScaleHardCap: DEFAULT_ZOOM_MAX_SCALE_HARD_CAP,
     schema,
+    nodePadding: nodePaddingEffective,
   }
 }

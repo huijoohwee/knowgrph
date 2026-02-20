@@ -23,6 +23,7 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
+import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import {
   createFlowNativeRuntime,
   requestFlowNativeDraw,
@@ -266,11 +267,7 @@ export default function FlowCanvas({
   }, [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, renderGraphData])
 
   const collapsedGroupIdsKey = React.useMemo(() => {
-    const ids = Array.isArray(collapsedGroupIds) ? collapsedGroupIds : []
-    const normalized = ids.map(x => String(x || '').trim()).filter(Boolean)
-    if (normalized.length === 0) return ''
-    normalized.sort((a, b) => a.localeCompare(b))
-    return normalized.join('|')
+    return buildCollapsedGroupIdsKey(collapsedGroupIds)
   }, [collapsedGroupIds])
 
   const sceneGraphData = React.useMemo(() => {
@@ -520,6 +517,7 @@ export default function FlowCanvas({
     const runtime = runtimeRef.current
     if (!runtime) return
     if (!graphDataForZoom) return
+    if (!computedPositions) return
 
     const isFlowEditor = canvas2dRenderer === 'flowEditor'
     const effectiveFitToScreenMode = isFlowEditor ? false : fitToScreenMode
@@ -543,10 +541,35 @@ export default function FlowCanvas({
     })()
 
     const nodesForFit = (() => {
-      if (!isFlowEditor) return (Array.isArray(graphDataForZoom.nodes) ? graphDataForZoom.nodes : []) as GraphNode[]
-      const base = nodesForTransformGuard
+      const baseForFit = (Array.isArray(graphDataForZoom.nodes) ? graphDataForZoom.nodes : []) as GraphNode[]
       const w = flowConfig.node.widthPx
       const h = flowConfig.node.heightPx
+      if (!isFlowEditor) {
+        const out: GraphNode[] = []
+        for (let i = 0; i < baseForFit.length; i += 1) {
+          const n = baseForFit[i] as GraphNode
+          const x = typeof n.x === 'number' && Number.isFinite(n.x) ? (n.x as number) : null
+          const y = typeof n.y === 'number' && Number.isFinite(n.y) ? (n.y as number) : null
+          if (x == null || y == null) {
+            out.push(n)
+            continue
+          }
+          const props = (n.properties || {}) as Record<string, unknown>
+          out.push({
+            ...n,
+            x: x + w / 2,
+            y: y + h / 2,
+            properties: {
+              ...props,
+              'visual:width': w,
+              'visual:height': h,
+              'visual:shape': 'rect',
+            } as unknown as GraphNode['properties'],
+          })
+        }
+        return out
+      }
+      const base = nodesForTransformGuard
       const out: GraphNode[] = []
       for (let i = 0; i < base.length; i += 1) {
         const n = base[i]

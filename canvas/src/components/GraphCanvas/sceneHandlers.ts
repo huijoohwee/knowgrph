@@ -32,6 +32,7 @@ export const attachSimulationTick = (args: {
   width: number
   height: number
   beforeRenderFrameRef?: MutableRefObject<(() => void) | null>
+  afterRenderFrame?: (args: { alpha: number; tick: number }) => void
 }) => {
   const {
     svgEl,
@@ -49,6 +50,7 @@ export const attachSimulationTick = (args: {
     width,
     height,
     beforeRenderFrameRef,
+    afterRenderFrame,
   } = args
   const nodeById = args.nodeById || new Map<string, GraphNode>()
   if (!args.nodeById) {
@@ -77,7 +79,9 @@ export const attachSimulationTick = (args: {
     return null
   }
 
+  let tick = 0
   const renderFrame = () => {
+    tick += 1
     const beforeRenderFrame = beforeRenderFrameRef ? beforeRenderFrameRef.current : null
     if (beforeRenderFrame) beforeRenderFrame()
     const schema = getSchema()
@@ -506,6 +510,10 @@ export const attachSimulationTick = (args: {
           el.setAttribute('y', String(x.y))
         })
       }
+    }
+
+    if (afterRenderFrame) {
+      afterRenderFrame({ alpha: simulation.alpha(), tick })
     }
   }
   simulation.on('tick', renderFrame)

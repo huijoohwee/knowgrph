@@ -275,7 +275,7 @@ const clearTimeoutFn: (id: number) => void =
   typeof window !== 'undefined' && typeof window.clearTimeout === 'function'
     ? (id) => window.clearTimeout(id)
     : (id) => {
-        clearTimeout(id as unknown as any)
+        clearTimeout(id as never)
       }
 
 const withAbort = async <T,>(p: Promise<T>, signal: AbortSignal): Promise<T> => {
@@ -498,7 +498,7 @@ export const buildWebpageHtmlSrcdocAsync = async (args: {
     if (!s.includes('data:image/')) return s
     return s
       .replace(/\bsrc\s*=\s*("|')\s*data:image\/[a-zA-Z0-9.+-]+;base64,[^"']*\1/gi, 'src="data:,"')
-      .replace(/url\(\s*("|')?\s*data:image\/[a-zA-Z0-9.+-]+;base64,[^\)"']*("|')?\s*\)/gi, 'url(data:,)')
+      .replace(/url\(\s*("|')?\s*data:image\/[a-zA-Z0-9.+-]+;base64,[^)"']*("|')?\s*\)/gi, 'url(data:,)')
   }
 
   const compactWhitespace = (html: string): string => {
@@ -630,7 +630,7 @@ export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string; s
     if (!s.includes('data:image/')) return s
     return s
       .replace(/\bsrc\s*=\s*("|')\s*data:image\/[a-zA-Z0-9.+-]+;base64,[^"']*\1/gi, 'src="data:,"')
-      .replace(/url\(\s*("|')?\s*data:image\/[a-zA-Z0-9.+-]+;base64,[^\)"']*("|')?\s*\)/gi, 'url(data:,)')
+      .replace(/url\(\s*("|')?\s*data:image\/[a-zA-Z0-9.+-]+;base64,[^)"']*("|')?\s*\)/gi, 'url(data:,)')
   }
 
   const compactWhitespace = (html: string): string => {

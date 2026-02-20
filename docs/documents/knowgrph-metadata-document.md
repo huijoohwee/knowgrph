@@ -557,7 +557,6 @@ metadata.codebasePath:
 ```
 
 ### Canonicalization Rules
-
 **Fallback Chain**: `documentPath` (strip `#L` fragment) → `codebaseRelPath` → `codebasePath` (if unavoidable)
 
 **Portability Rule**: Producers preserve relative `documentPath` segments when provided (e.g., `docs/example.md`) and strip absolute filesystem paths down to the basename (e.g., `example.md`) to forbid environment-coupled provenance.

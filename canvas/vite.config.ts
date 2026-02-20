@@ -66,7 +66,7 @@ const stripEntitiesBadSourcemapsPlugin = {
     if (!id) return null
     if (!id.includes('/entities/lib/esm/')) return null
     if (!id.endsWith('.js')) return null
-    const next = code.replace(/^\/\/\# sourceMappingURL=.*\n?/gm, '')
+    const next = code.replace(/^\/\/# sourceMappingURL=.*\n?/gm, '')
     return next === code ? null : next
   },
 }
@@ -2061,7 +2061,7 @@ export default defineConfig(({ command }) => ({
           setup(build) {
             build.onLoad({ filter: /[\\/]entities[\\/]lib[\\/]esm[\\/].*\.js$/ }, async (args) => {
               const raw = await fs.readFile(args.path, 'utf8')
-              const next = raw.replace(/^\/\/\# sourceMappingURL=.*\n?/gm, '')
+              const next = raw.replace(/^\/\/# sourceMappingURL=.*\n?/gm, '')
               return { contents: next, loader: 'js' }
             })
           },

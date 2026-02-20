@@ -112,7 +112,7 @@ export async function convertHtmlToMarkdownUnified(args: {
     if (typeof remarkStringify !== 'function') return { ok: false, error: 'remark-stringify not available' }
     if (typeof toHtml !== 'function') return { ok: false, error: 'hast-util-to-html not available' }
 
-    const preserveAsHtmlHandler = (tagName: string) => {
+    const preserveAsHtmlHandler = () => {
       return (_state: unknown, node: unknown) => {
         const value = toHtml(node as never)
         return { type: 'html', value, position: null }
@@ -140,7 +140,7 @@ export async function convertHtmlToMarkdownUnified(args: {
       preserveTags.add('option')
       preserveTags.add('button')
     }
-    const handlers = Object.fromEntries(Array.from(preserveTags).map(t => [t, preserveAsHtmlHandler(t)])) as unknown
+    const handlers = Object.fromEntries(Array.from(preserveTags).map(t => [t, preserveAsHtmlHandler()])) as unknown
 
     try {
       args.onProgress?.('transform', 35)

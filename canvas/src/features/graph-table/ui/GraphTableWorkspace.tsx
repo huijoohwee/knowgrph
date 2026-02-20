@@ -46,6 +46,7 @@ import { applyCellUpdateToGraphStore } from '@/features/graph-table/lib/applyCel
 import { useGraphTableDbSync } from '@/features/graph-table/hooks/useGraphTableDbSync'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_LABELS } from '@/lib/config'
+import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 
 const mapRowDocToGridRow = (doc: GraphRowDoc): GraphTableGridRow => ({
   id: doc.rowId,
@@ -158,12 +159,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode }
   inspectorWidthPxRef.current = inspectorWidthPx
   const inspectorDragHandleRef = useRef<HTMLHRElement | null>(null)
   const collapsedGroupIdsKey = useMemo(() => {
-    const ids = Array.isArray(collapsedGroupIds) ? collapsedGroupIds : []
-    const normalized = ids.map(x => String(x || '').trim()).filter(Boolean)
-    if (normalized.length === 0) return ''
-    const unique = Array.from(new Set(normalized))
-    unique.sort((a, b) => a.localeCompare(b))
-    return unique.join('|')
+    return buildCollapsedGroupIdsKey(collapsedGroupIds)
   }, [collapsedGroupIds])
 
   const syncGraphData = useMemo(() => {

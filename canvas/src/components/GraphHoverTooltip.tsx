@@ -30,11 +30,27 @@ const NODE_PROP_PRIORITY = [
   'summary',
   'category',
   'role',
+  'keyword:key',
+  'keyword:role',
+  'keyword:ner',
+  'keyword:frequency',
+  'keyword:pagerank',
   'visual:importance',
   'visual:nodeSize',
   'visual:layer',
 ]
-const EDGE_PROP_PRIORITY = ['weight', 'score', 'confidence', 'count']
+const EDGE_PROP_PRIORITY = [
+  'strength:score',
+  'strength:ppmi',
+  'strength:count',
+  'keyword:predicate',
+  'keyword:verbLike',
+  'keyword:directed',
+  'weight',
+  'score',
+  'confidence',
+  'count',
+]
 
 function markdownToPlainText(markdown: string): string {
   const raw = String(markdown || '')
@@ -276,7 +292,16 @@ function buildEdgeContent(
   expanded: boolean,
   onToggleExpanded: (() => void) | null,
 ): React.ReactNode {
-  const edgeLabelForDisplay = readFlowEdgeDisplayLabel(edge) || String(edge.label || '').trim()
+  const edgeLabelForDisplay = (() => {
+    const flowLabel = String(readFlowEdgeDisplayLabel(edge) || '').trim()
+    if (flowLabel) return flowLabel
+    const label = String(edge.label || '').trim()
+    const props = (edge.properties || {}) as Record<string, unknown>
+    const keywordKind = typeof props['keyword:kind'] === 'string' ? String(props['keyword:kind']).trim() : ''
+    if (!keywordKind) return label
+    const clean = label.replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
+    return clean || label
+  })()
   const sorted = sortProps(edge.properties || {}, 'edge')
   const schemaBadges = buildEdgeSchemaBadges(
     schema,

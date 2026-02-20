@@ -81,13 +81,24 @@
 - Worker fast-path (for production/off-main-thread):
   - Client: [parseWorker.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/parseWorker.ts)
   - Worker: [graphParser.worker.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/workers/graphParser.worker.ts)
-  - Bounded execution: worker requests are guarded by a hard timeout; the worker is terminated on completion, error, or timeout (no indefinite hangs).
+  - Bounded execution: singleton worker with per-request timeouts; returns `null` on timeout/error; resets worker on `onerror` (no indefinite hangs).
+- Parser result cache (prevents re-parse churn for identical inputs):
+  - Cache surface: [cache.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/cache.ts), [config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/config.ts)
+  - Key SSOT: `parserId|name|hashText(text)|cfgKey` (bounded LRU + TTL); supports targeted invalidation by parser ID.
+- HTML → Markdown async conversion (keeps UI responsive on large HTML):
+  - Idle yielding: [idle.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/panels/utils/idle.ts) via [html-parser.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/html-parser.ts)
+  - Unified fallback: [htmlToMarkdownUnified.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/markdown/htmlToMarkdownUnified.ts) (dynamic imports + bounded LRU cache)
+- Format-specific worker parsing (when enabled):
+  - Python Tree-sitter worker client: [tsWorkerClient.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/python/tsWorkerClient.ts) (singleton worker + per-request timeout)
 - Format adapter for `.csv/.json/.jsonld` and workflow bundles:
   - Adapter: [adapter.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/io/adapter.ts)
 - JSON-LD edge inference alignment (no surprise edges):
   - `@context` keys with `{"@type":"@id"}` are eligible to become edges
   - `metadata.jsonLdMapping.contextEdgeProperties` can be used as an explicit allow-list for relation keys when the context is incomplete
   - Implementation: [parseJsonLd](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/jsonld/parse.ts)
+- Parse-time metrics (inspection only; no semantic coupling):
+  - Markdown ingestion timings stored in `graphData.metadata.ingestionMetrics`: [default.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/default.ts)
+  - Agentic RAG pipeline metrics stored in `graphData.metadata.pipelineMetrics`: [agenticRag.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/agenticRag.ts)
 - Output contract (render + storage):
   - `GraphData { type, context?, metadata?, nodes, edges }`: [types.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/types.ts)
 
@@ -117,7 +128,7 @@
 - Derivation: [layerDerivation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/layerDerivation.ts)
 - Layer modes:
   - `document`: assigns `properties["visual:layer"]` for structural layering
-  - `keyword` (semantic mode): derives a keyword graph from active document text (or node labels as fallback) where Subject/Object/Entity keywords become nodes and Verb/Predicate/Relationship keywords become edges; removes common stopwords using the NLTK English stopword list; caches derived graphs by stable text hash; sets `properties["visual:nodeSize"]` by keyword frequency and `properties["visual:width"]` by edge strength for renderer reuse; supports runtime scaling via `schema.three.keywordNodeSizeScale` / `schema.three.keywordEdgeWidthScale`; maps `visual:community` → `visual:layer` so 2D groups and 3D Z-layering can stay consistent; merges media-capable nodes from the base graph so the media overlay toggle remains effective
+  - `keyword` (semantic mode): derives a keyword graph from active document text (or node labels as fallback) where Subject/Object/Entity keywords become nodes and Verb/Predicate/Relationship keywords become edges; removes common stopwords using the NLTK English stopword list; caches derived graphs by stable text hash; sets `properties["visual:nodeSize"]` by keyword frequency and `properties["visual:width"]` by edge strength for renderer reuse; supports runtime scaling via `schema.three.keywordNodeSizeScale` / `schema.three.keywordEdgeWidthScale`; maps `visual:community` → `visual:layer` so 2D groups and 3D Z-layering can stay consistent; merges media-capable nodes from the base graph so the media overlay toggle remains effective; debounces text-to-graph derivation and caches by `(algoVersion, docId, hashText(text))`: [useActiveGraphData.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/useActiveGraphData.ts), [keywordGraph.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/semantic-mode/keywordGraph.ts)
   - `schema`: filters out `Document` nodes to focus on entity/schema nodes
   - `semantic`: enriches with derived similarity edges and `properties["visual:community"]`
   - `frontmatter mode` (UI flag): filters to Mermaid nodes tagged as frontmatter (`mermaidScope` / `isMermaidFrontmatter`)
@@ -152,6 +163,10 @@
 - Scene orchestration: [scene.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/scene.ts)
 - Scene layers barrel: [sceneLayers.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/sceneLayers.ts)
 - Presentation updates (no simulation rebuild): [scene.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/scene.ts)
+- Scene derivation caches (prevents re-derive churn on render):
+  - Group derivation LRU keyed by graph meta + revision/layer hash + schema group config: [sceneDerivation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/scene/sceneDerivation.ts)
+- UI performance instrumentation (opt-in):
+  - Selection latency metric emitted as `CustomEvent('kg-selection-perf')`: [selectionPerf.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/selectionPerf.ts)
 - Typography and icon alignment (render fidelity + UI consistency):
   - Node label anchoring and baseline: [labels.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layers/labels.ts)
   - Edge label baseline: [edgeLabels.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layers/edgeLabels.ts)

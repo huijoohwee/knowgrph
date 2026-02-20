@@ -22,7 +22,6 @@ import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
-import { hashStringToHex } from '@/lib/hash/stringHash'
 import { DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import {
   computeNodeQuickEditorScale,
