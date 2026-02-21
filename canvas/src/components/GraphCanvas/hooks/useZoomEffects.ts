@@ -41,8 +41,10 @@ export function useZoomEffects({
         height: Math.max(1, Math.floor(dimsRef.current.height)),
         selectedNodeId: state.selectedNodeId,
         selectedEdgeId: state.selectedEdgeId,
+        selectedGroupId: state.selectedGroupId,
         selectedNodeIds: state.selectedNodeIds,
         selectedEdgeIds: state.selectedEdgeIds,
+        selectedGroupIds: state.selectedGroupIds,
       })
     }
     const schedule = (zoomRequest: ZoomRequest | null) => {

@@ -391,7 +391,7 @@ export const createNodesLayer = (args: {
       .style('cursor', 'pointer') as unknown as d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown>
   })()
 
-  if (schema.behavior.allowNodeDrag) {
+  if (schema.behavior?.allowNodeDrag !== false) {
     const dragBehavior = nodeDragBehavior(simulation, schema);
 
     if (args.edgeScroll) {

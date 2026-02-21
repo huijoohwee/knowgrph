@@ -1,11 +1,18 @@
 import type { GraphData } from './types'
 import { requestFromSingletonWorker } from '@/lib/workers/singletonWorkerClient'
 
+const setLastParseWorkerError = (message: string) => {
+  try {
+    ;(globalThis as unknown as { __kgParseWorkerLastError?: string }).__kgParseWorkerLastError = String(message || '')
+  } catch {
+    void 0
+  }
+}
+
 export function parseGraphInWorker(name: string, text: string): Promise<GraphData | null> {
   try {
-    const isOffline = typeof navigator !== 'undefined' && navigator && 'onLine' in navigator && !navigator.onLine
     const hasWorker = typeof Worker !== 'undefined'
-    if (isOffline || !hasWorker) {
+    if (!hasWorker) {
       return Promise.resolve(null)
     }
 
@@ -22,6 +29,7 @@ export function parseGraphInWorker(name: string, text: string): Promise<GraphDat
         if (!msg || typeof msg.id !== 'number') return null
         return { id: msg.id, ok: msg.ok === true, value: (msg.data || null) as GraphData | null, error: msg.error }
       },
+      onWorkerErrorMessage: setLastParseWorkerError,
     })
   } catch {
     return Promise.resolve(null)

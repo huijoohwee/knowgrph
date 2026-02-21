@@ -101,9 +101,10 @@
 - **Solution**: Canvas may **warm-mount** inactive renderers to reduce switch lag, but enforces strict **active gating**:
   - Only the active renderer consumes shared requests (zoom/selection) and owns interactive listeners.
   - Inactive renderers must short-circuit hot-path effects (draw loops, request consumption, store writes) when `active=false`.
-  - Caches remain SSOT-keyed: zoom state is restored via a stable view key that is shared across 2D renderer variants and built from a single schema layout-engine fingerprint (include `schema.layout.flow`); layout caches remain isolated by render variant.
+  - Caches remain SSOT-keyed: zoom state is restored via a stable view key that is isolated per 2D renderer variant and built from a single schema layout-engine fingerprint (include `schema.layout.flow`); layout caches remain isolated by render variant.
   - Viewport controls are preset-driven (`map` vs `design`) and reused across 2D and Geospatial surfaces to avoid drift.
   - Node/edge visibility is renderer-parity SSOT: both D3 and Flow first derive `graphDataForDisplay` via the shared display filter helper (`getGraphDataForDisplay`) before fit/layout/scene build.
+  - Collective fit+center is renderer-parity SSOT: all 2D renderers compute fit from the display-derived graph (post filters/collapse) using node dimensions (`visual:width/height` when present) and group envelopes (clusters/subgraphs/layers) so the visible graph is fully in-viewport and centered.
   - 2D initialization is idempotent and bounds-guarded: do not apply stored transforms until bounds are computable (e.g., at least one finite position and stable node dimensions); if a valid initial transform is applied, the same init pass must not also auto-fit (prevents “double-fit” jumps and first-paint churn).
   - Flow/Flow Editor scene build must ignore invalid geometry: if positions are only partially available, skip nodes without finite positions (and incident edges) to prevent one-long stray lines and chaotic redraw.
   - Flow initial zoom uses a bounds guard: if node bounds cannot be computed yet, do not apply stored transforms (prevents "blank" due to stale pan); prefer fit/identity. Flow Editor init keys must be stable per graph: when dataset keys collapse to `rev:*`, compute a per-graph hashed init key to avoid cross-file collisions.
@@ -161,7 +162,11 @@
   - Baseline seeding is guarded by instability detection: if cached Keyword positions look unstable (extreme coordinates, excessive spread, or excessive clustering), baseline seeding overwrites cached positions and forces re-layout.
   - Skip-initial-layout is overridden for unstable caches: even if `determineLayoutPositions` reports `skipInitialLayout=true`, Keyword Mode forces a fresh layout when instability is detected (prevents “stuck messy cache”).
   - Post-computation collective fit is applied after bounded collision relaxation to keep the entire visible Keyword graph centered and bounded in the current viewport (prevents uncontrolled expansion and void-space layouts).
-  - Implementation lives in `canvas/src/components/GraphCanvas/scene.ts` (`applyBaselineDocumentPositionsToKeywordGraph`, `keywordLayoutLooksUnstable`, `effectiveSkipInitialLayout`, `postFitNodesToViewport`).
+  - Implementation lives in `canvas/src/components/GraphCanvas/scene.ts` (`applyBaselineDocumentPositionsToKeywordGraph`, `layoutLooksUnstableForViewport`, `effectiveSkipInitialLayout`, `postFitNodesToViewport`).
+  
+#### Flow/Flow Editor Parity with Baseline
+- Flow and Flow Editor do not run D3 forces but must reuse the same SSOT inputs as D3: visibility filter, collective fit geometry, and zoom behavior. Initial view honors the same bounds guards and idempotent init policy.
+- When the Document Structure baseline lock is active, Flow and Flow Editor must disable auto zoom modes and maintain parity with the D3 baseline; switching between 2D variants restores each variant’s own zoom state via isolated view keys. See [autoZoom2dPolicy.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/zoom/autoZoom2dPolicy.ts) and [FlowCanvas tests](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/__tests__/flowCanvasIntegration.test.ts#L143-L184).
 
 ### Selection Zoom (Node/Edge vs Graph)
 - Zoom-to-selection operates on a selection subset (selected node ids and/or edge endpoints) and must share duration/timing knobs across 2D renderers.
@@ -266,6 +271,7 @@
   - Focuses camera on selected node/edge.
 - **Zoom State Caching**:
   - Caches zoom state per viewKey to prevent cross-mode/layout/presentation contamination.
+  - Per-variant isolation: 2D zoom view keys include the renderer variant (D3/Flow/Design/Flow Editor) when `canvasRenderMode=2d` so switching renderers never reuses an incompatible transform. See [zoomViewKey.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/zoomViewKey.ts).
 - **Wheel parity (2D D3 + Flow + Flow Editor)**:
   - Wheel delta normalization and zoom factor are SSOT (`canvas/src/lib/canvas/zoom-input.ts`) and must be reused by all 2D renderers.
   - Stepped zoom accumulation uses SSOT helpers and constants in `canvas/src/lib/zoom/steps.ts` (threshold px + max steps) to keep wheel behavior aligned across renderers.

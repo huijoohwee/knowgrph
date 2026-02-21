@@ -76,16 +76,36 @@ export function calcMouseGraphPosition(svgRef: React.RefObject<SVGSVGElement>, e
 
 export function isNodePointerTarget(target: EventTarget | null): boolean {
   if (!target) return false
-  if (typeof SVGCircleElement !== 'undefined' && target instanceof SVGCircleElement) return true
-  if (typeof SVGRectElement !== 'undefined' && target instanceof SVGRectElement) return true
-  if (typeof SVGPathElement !== 'undefined' && target instanceof SVGPathElement) return true
-  const tag = (() => {
-    const el = target as unknown as { tagName?: unknown }
-    return typeof el?.tagName === 'string' ? el.tagName.toLowerCase() : ''
-  })()
-  if ((typeof Element !== 'undefined' && target instanceof Element) || tag) {
-    const t = tag || String((target as Element).tagName || '').toLowerCase()
-    return t === 'circle' || t === 'rect' || t === 'path'
+
+  const elementSupported = typeof Element !== 'undefined'
+  const el = elementSupported && target instanceof Element ? target : null
+  if (!el) {
+    const tag = (() => {
+      const x = target as unknown as { tagName?: unknown }
+      return typeof x?.tagName === 'string' ? x.tagName.toLowerCase() : ''
+    })()
+    return tag === 'circle' || tag === 'rect' || tag === 'path' || tag === 'line' || tag === 'text' || tag === 'tspan' || tag === 'foreignobject'
   }
+
+  const tag = String(el.tagName || '').toLowerCase()
+  if (tag === 'circle' || tag === 'rect' || tag === 'path') return true
+
+  if (el.closest('[data-kg-layer="nodes"]')) return true
+  if (el.closest('[data-kg-layer="node-chevrons"]')) return true
+  if (el.closest('[data-role="media-node-panel"]')) return true
+  if (el.closest('[data-kg-layer="labels"]')) return true
+  if (el.closest('[data-kg-layer="links-hit"]')) return true
+  if (el.closest('[data-kg-layer="edge-labels"]')) return true
+  if (el.closest('[data-kg-layer="groups"]')) return true
+  if (el.closest('[data-kg-layer="group-labels"]')) return true
+
+  if (tag === 'line' && el.closest('[data-kg-layer="links-hit"]')) return true
+  if ((tag === 'text' || tag === 'tspan') && el.closest('[data-kg-layer]')) {
+    const layer = el.closest('[data-kg-layer]')
+    const id = String(layer?.getAttribute('data-kg-layer') || '')
+    if (id === 'labels' || id === 'group-labels' || id === 'edge-labels') return true
+  }
+  if (tag === 'foreignobject' && el.closest('[data-role="media-node-panel"]')) return true
+
   return false
 }

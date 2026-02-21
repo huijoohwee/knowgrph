@@ -9,8 +9,11 @@ export function buildZoomViewKey(args: {
   mediaPanelDensity: string
   collapsedGroupIdsKey: string
 }): string {
+  const canvasRenderMode = String(args.canvasRenderMode)
+  const canvas2dRenderer = String(args.canvas2dRenderer || '')
   return [
-    String(args.canvasRenderMode),
+    canvasRenderMode,
+    canvasRenderMode === '2d' ? canvas2dRenderer : '',
     String(args.schemaLayoutEngineJson),
     String(args.frontmatterModeEnabled ? 1 : 0),
     String(args.documentSemanticMode),

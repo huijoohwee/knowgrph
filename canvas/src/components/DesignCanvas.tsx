@@ -164,7 +164,11 @@ export default function DesignCanvas({
           id: n.id,
           label: n.label,
           type: 'Frame',
-          properties: {},
+          properties: {
+            'visual:width': p.w,
+            'visual:height': p.h,
+            'visual:shape': 'rect',
+          },
           x: p.x + p.w / 2,
           y: p.y + p.h / 2,
         }

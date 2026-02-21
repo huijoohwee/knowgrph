@@ -36,6 +36,7 @@ type SetupGraphSceneArgs = {
   zoomOnDoubleClick: boolean
   renderMediaAsNodes: boolean
   mediaPanelDensity: 'default' | 'compact'
+  enableTightInitialLayout?: boolean
   fitToScreenMode?: boolean
   viewportControlsPreset: ViewportControlsPreset
   initialZoomTransform?: { k: number; x: number; y: number } | null
@@ -109,6 +110,7 @@ const seedMissingNodePositions = (
   width: number,
   height: number,
   seedCenter: { x: number; y: number } | null,
+  options?: { ignoreCommunities?: boolean },
 ) => {
   if (!nodes || nodes.length === 0) return
   const sorted = [...nodes].sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
@@ -153,6 +155,8 @@ const seedMissingNodePositions = (
     return ''
   }
 
+  const ignoreCommunities = options?.ignoreCommunities === true
+
   const missingByCommunity = (() => {
     const map = new Map<string, GraphNode[]>()
     for (let i = 0; i < missing.length; i += 1) {
@@ -166,7 +170,7 @@ const seedMissingNodePositions = (
     return map
   })()
 
-  const hasCommunities = missingByCommunity.size >= 2
+  const hasCommunities = !ignoreCommunities && missingByCommunity.size >= 2
 
   if (!hasCommunities) {
     const aspect = innerW / Math.max(1, innerH)
@@ -365,7 +369,115 @@ const applyBaselineDocumentPositionsToKeywordGraph = (args: {
   }
 }
 
-const keywordLayoutLooksUnstable = (args: { nodes: GraphNode[]; width: number; height: number }): boolean => {
+const seedKeywordEntityNodesFromBaselineSources = (args: {
+  keywordNodes: GraphNode[]
+  allNodes: GraphNode[]
+  allEdges: GraphEdge[]
+  baseline: Record<string, { x: number; y: number }>
+  overwriteExisting: boolean
+}) => {
+  const { keywordNodes, allNodes, allEdges, baseline, overwriteExisting } = args
+  if (!keywordNodes.length) return
+  if (!allNodes.length) return
+  if (!allEdges.length) return
+  if (!baseline || Object.keys(baseline).length === 0) return
+
+  const nodeById = new Map<string, GraphNode>()
+  for (let i = 0; i < allNodes.length; i += 1) {
+    const n = allNodes[i]
+    const id = String(n?.id || '').trim()
+    if (!id) continue
+    if (!nodeById.has(id)) nodeById.set(id, n)
+  }
+
+  for (let i = 0; i < allNodes.length; i += 1) {
+    const n = allNodes[i]!
+    const id = String(n.id || '').trim()
+    if (!id.startsWith('doc:')) continue
+    const props = (n.properties || {}) as Record<string, unknown>
+    const srcId = typeof props['source:id'] === 'string' ? props['source:id'].trim() : ''
+    if (!srcId) continue
+    const p = baseline[srcId]
+    if (!p) continue
+    n.x = p.x
+    n.y = p.y
+    n.vx = 0
+    n.vy = 0
+    if (!isFixedNode(n)) {
+      n.fx = null
+      n.fy = null
+    }
+  }
+
+  const sourceIdsByKeywordId = (() => {
+    const map = new Map<string, string[]>()
+    const push = (kwId: string, docId: string) => {
+      if (!kwId || !docId) return
+      const arr = map.get(kwId) || []
+      if (arr.includes(docId)) return
+      arr.push(docId)
+      map.set(kwId, arr)
+    }
+    for (let i = 0; i < allEdges.length; i += 1) {
+      const e = allEdges[i] as unknown as { label?: unknown; source?: unknown; target?: unknown; properties?: unknown }
+      if (!e) continue
+      if (String(e.label || '') !== 'mentions') continue
+      const s = coerceEndpointId(e.source)
+      const t = coerceEndpointId(e.target)
+      if (!s || !t) continue
+      if (!s.startsWith('doc:')) continue
+      if (!t.startsWith('kw:')) continue
+      push(t, s)
+    }
+    return map
+  })()
+
+  const jitter = (id: string, mag: number) => {
+    const a = hash01(`${id}:kwseed:a`) * Math.PI * 2
+    const r = (0.25 + 0.75 * hash01(`${id}:kwseed:r`)) * mag
+    return { dx: Math.cos(a) * r, dy: Math.sin(a) * r }
+  }
+
+  for (let i = 0; i < keywordNodes.length; i += 1) {
+    const n = keywordNodes[i]!
+    if (isFixedNode(n)) continue
+    if (!overwriteExisting && hasFiniteXY(n)) continue
+    const id = String(n.id || '').trim()
+    if (!id.startsWith('kw:')) continue
+    const srcs = sourceIdsByKeywordId.get(id)
+    if (!srcs || srcs.length === 0) continue
+
+    let sx = 0
+    let sy = 0
+    let c = 0
+    for (let j = 0; j < srcs.length; j += 1) {
+      const docId = srcs[j]!
+      const dn = nodeById.get(docId)
+      if (!dn || !hasFiniteXY(dn)) continue
+      sx += dn.x as number
+      sy += dn.y as number
+      c += 1
+    }
+    if (c === 0) continue
+
+    const j = jitter(id, 46)
+    n.x = sx / c + j.dx
+    n.y = sy / c + j.dy
+    n.vx = 0
+    n.vy = 0
+    if (!isFixedNode(n)) {
+      n.fx = null
+      n.fy = null
+    }
+  }
+}
+
+const layoutLooksUnstableForViewport = (args: {
+  nodes: GraphNode[]
+  width: number
+  height: number
+  viewportCenter?: { x: number; y: number } | null
+}): boolean => {
   const { nodes, width, height } = args
   if (!nodes || nodes.length < 2) return false
 
@@ -375,12 +487,16 @@ const keywordLayoutLooksUnstable = (args: { nodes: GraphNode[]; width: number; h
   let maxY = -Infinity
   let valid = 0
   let extreme = 0
+  let sumX = 0
+  let sumY = 0
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i]!
     if (!hasFiniteXY(n)) continue
     const x = n.x as number
     const y = n.y as number
     valid += 1
+    sumX += x
+    sumY += y
     if (Math.abs(x) > 120000 || Math.abs(y) > 120000) extreme += 1
     if (x < minX) minX = x
     if (x > maxX) maxX = x
@@ -394,12 +510,28 @@ const keywordLayoutLooksUnstable = (args: { nodes: GraphNode[]; width: number; h
   const spanY = maxY - minY
   const w = Math.max(1, width)
   const h = Math.max(1, height)
+  const ratio = Math.max(spanX / Math.max(1e-6, spanY), spanY / Math.max(1e-6, spanX))
+  const tooFlat = ratio > 12 && Math.max(spanX, spanY) > Math.max(w, h) * 1.5
   const tooLarge = spanX > w * 6 || spanY > h * 6
   const tooSmall = spanX < Math.max(90, w * 0.12) && spanY < Math.max(90, h * 0.12)
-  return tooLarge || tooSmall
+
+  const cx = sumX / valid
+  const cy = sumY / valid
+  const tx = args.viewportCenter ? args.viewportCenter.x : w / 2
+  const ty = args.viewportCenter ? args.viewportCenter.y : h / 2
+  const dist = Math.hypot(cx - tx, cy - ty)
+  const offCenter = dist > Math.max(w, h) * 0.42
+
+  const bboxArea = Math.max(1e-6, spanX * spanY)
+  const viewportArea = Math.max(1, w * h)
+  const coverage = bboxArea / viewportArea
+  const tooClustered = coverage < 0.014 && Math.max(spanX, spanY) < Math.max(w, h) * 0.45
+  const tooLiney = ratio > 14 && Math.max(spanX, spanY) < Math.max(w, h) * 0.7
+
+  return tooLarge || tooSmall || tooFlat || offCenter || tooClustered || tooLiney
 }
 
-const normalizeSeededLayoutToViewport = (args: { nodes: GraphNode[]; width: number; height: number }) => {
+const normalizeSeededLayoutToViewport = (args: { nodes: GraphNode[]; width: number; height: number; viewportCenter?: { x: number; y: number } | null }) => {
   const { nodes, width, height } = args
   if (!nodes || nodes.length < 2) return
 
@@ -434,18 +566,22 @@ const normalizeSeededLayoutToViewport = (args: { nodes: GraphNode[]; width: numb
 
   const tooLarge = spanX > width * 1.6 || spanY > height * 1.6
   const tooSmall = spanX < width * 0.22 && spanY < height * 0.22
-  if (!tooLarge && !tooSmall) return
+  const cx = sumX / count
+  const cy = sumY / count
+  const tx = args.viewportCenter ? args.viewportCenter.x : width / 2
+  const ty = args.viewportCenter ? args.viewportCenter.y : height / 2
+  const translateDist = Math.hypot(cx - tx, cy - ty)
+  const needsRecenter = translateDist > Math.max(width, height) * 0.26
+
+  if (!tooLarge && !tooSmall && !needsRecenter) return
 
   const desired = tooLarge
     ? Math.max(0.52, Math.min(0.92, scale))
-    : Math.min(1.35, Math.max(1.05, scale))
+    : tooSmall
+      ? Math.min(1.35, Math.max(1.05, scale))
+      : 1
   if (!Number.isFinite(desired) || desired <= 0) return
-  if (Math.abs(desired - 1) < 0.02) return
-
-  const cx = sumX / count
-  const cy = sumY / count
-  const tx = width / 2
-  const ty = height / 2
+  if (!needsRecenter && Math.abs(desired - 1) < 0.02) return
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i]!
     if (!hasFiniteXY(n)) continue
@@ -457,6 +593,7 @@ const normalizeSeededLayoutToViewport = (args: { nodes: GraphNode[]; width: numb
     n.vy = 0
   }
 }
+
 
 export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   const {
@@ -591,36 +728,55 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     applyCachedPositions()
   }
 
-  const isKeywordGraph = (() => {
-    const meta = (graphDataForDisplay.metadata || {}) as Record<string, unknown>
-    return meta.kind === 'keyword'
-  })()
-
-  if (isKeywordGraph && baselineLayoutPositions) {
-    applyBaselineDocumentPositionsToKeywordGraph({
-      nodes: displayNodes,
-      edges: edgesForDisplay,
-      baseline: baselineLayoutPositions,
-      overwriteExisting: !skipInitialLayout || keywordLayoutLooksUnstable({ nodes: displayNodes, width, height }),
-    })
-  }
-
   const seedCenter = (() => {
     if (!initialZoomTransform) return null
-    const k = typeof initialZoomTransform.k === 'number' && Number.isFinite(initialZoomTransform.k) && initialZoomTransform.k > 0 ? initialZoomTransform.k : 1
+    const k =
+      typeof initialZoomTransform.k === 'number' && Number.isFinite(initialZoomTransform.k) && initialZoomTransform.k > 0
+        ? initialZoomTransform.k
+        : 1
     const x = typeof initialZoomTransform.x === 'number' && Number.isFinite(initialZoomTransform.x) ? initialZoomTransform.x : 0
     const y = typeof initialZoomTransform.y === 'number' && Number.isFinite(initialZoomTransform.y) ? initialZoomTransform.y : 0
     return { x: (width / 2 - x) / k, y: (height / 2 - y) / k }
   })()
 
-  seedMissingNodePositions(displayNodes, width, height, seedCenter)
+  const isKeywordGraph = (() => {
+    const meta = (graphDataForDisplay.metadata || {}) as Record<string, unknown>
+    if (meta.kind === 'keyword') return true
+    // Also check nodes for keyword properties to match simulation detection
+    const nodes = Array.isArray(graphDataForDisplay.nodes) ? graphDataForDisplay.nodes : []
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const props = (n.properties || {}) as Record<string, unknown>
+      if (typeof props['keyword:kind'] === 'string' && props['keyword:kind']) return true
+    }
+    return false
+  })()
 
-  normalizeSeededLayoutToViewport({ nodes: displayNodes, width, height })
+  if (isKeywordGraph && baselineLayoutPositions) {
+    const overwriteExisting =
+      !skipInitialLayout || layoutLooksUnstableForViewport({ nodes: displayNodes, width, height, viewportCenter: seedCenter })
+    seedKeywordEntityNodesFromBaselineSources({
+      keywordNodes: displayNodes,
+      allNodes: Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : ([] as GraphNode[]),
+      allEdges: Array.isArray(graphData.edges) ? (graphData.edges as GraphEdge[]) : ([] as GraphEdge[]),
+      baseline: baselineLayoutPositions,
+      overwriteExisting,
+    })
+    applyBaselineDocumentPositionsToKeywordGraph({
+      nodes: displayNodes,
+      edges: edgesForDisplay,
+      baseline: baselineLayoutPositions,
+      overwriteExisting,
+    })
+  }
+
+  seedMissingNodePositions(displayNodes, width, height, seedCenter, { ignoreCommunities: false })
+
+  normalizeSeededLayoutToViewport({ nodes: displayNodes, width, height, viewportCenter: seedCenter })
 
   const effectiveSkipInitialLayout = (() => {
     if (!skipInitialLayout) return false
-    if (!isKeywordGraph) return true
-    if (keywordLayoutLooksUnstable({ nodes: displayNodes, width, height })) return false
+    if (layoutLooksUnstableForViewport({ nodes: displayNodes, width, height, viewportCenter: seedCenter })) return false
     return true
   })()
 
@@ -636,12 +792,28 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     if (!id || !groupKeyByNodeId) return null
     return groupKeyByNodeId[id] || null
   }
+
   const simulation = buildSimulation(displayNodes, edgesForDisplay, Math.max(1, width), Math.max(1, Math.floor(height)), schema, {
     skipInitialLayout: !!effectiveSkipInitialLayout,
     groupKeyOf,
     groupsForBboxCollide: args.groupsForBboxCollide,
+    treatKeywordGraphAsDocument: isKeywordGraph,
+    viewportCenter: seedCenter || undefined,
   })
   simulationRef.current = simulation
+
+  if (effectiveSkipInitialLayout && readLayoutMode(schema) === 'force' && args.freezeSimulation !== true) {
+    try {
+      simulation.alphaTarget(0)
+      simulation.alpha(0)
+      simulation.stop()
+    } catch {
+      void 0
+    }
+    svg.attr('data-kg-layout-frozen', '1')
+  }
+
+  const shouldApplyInitialTightLayout = args.enableTightInitialLayout === true
 
   if (!effectiveSkipInitialLayout && displayNodes.length > 1) {
     const dupCounts = new Map<string, number>()
@@ -676,6 +848,9 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       n.y = y + j.dy
     }
 
+  }
+
+  if (shouldApplyInitialTightLayout && displayNodes.length > 1) {
     relaxNodesWithCollision({
       nodes: displayNodes,
       edges: edgesForDisplay,
@@ -691,16 +866,26 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       n.vy = 0
     }
 
-    if (isKeywordGraph) {
-      const padPx = Math.max(24, Math.floor(readFitPadding(schema)))
-      postFitNodesToViewport({
-        nodes: displayNodes,
-        width: Math.max(1, width),
-        height: Math.max(1, Math.floor(height)),
-        paddingPx: padPx,
-        minScale: 0.06,
-        maxScale: 2.6,
-      })
+    const padPx = Math.max(24, Math.floor(readFitPadding(schema)))
+    postFitNodesToViewport({
+      nodes: displayNodes,
+      width: Math.max(1, width),
+      height: Math.max(1, Math.floor(height)),
+      paddingPx: padPx,
+      minScale: 0.06,
+      maxScale: 2.2,
+      viewportCenter: seedCenter || undefined,
+    })
+
+    if (readLayoutMode(schema) === 'force' && args.freezeSimulation !== true) {
+      try {
+        simulation.alphaTarget(0)
+        simulation.alpha(0)
+        simulation.stop()
+      } catch {
+        void 0
+      }
+      svg.attr('data-kg-layout-frozen', '1')
     }
   }
 
@@ -746,6 +931,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     g,
     edgesForDisplay,
     schema,
+    simulation,
     hoverEnabled,
     setHoverInfo,
     setSelectionSource,
@@ -870,7 +1056,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
         if (!isForceLayout) return
         if (finalFitApplied) return
         if (args.freezeSimulation === true) return
-        if (initialZoomTransform) return
+        if (args.enableTightInitialLayout !== true) return
         if (effectiveSkipInitialLayout) return
         if (tick < 20) return
 
@@ -881,7 +1067,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
         }
         if (stableTicks < 12) return
 
-        if (isKeywordGraph) {
+        const allowAutoFit = !initialZoomTransform
+        if (allowAutoFit) {
           const padPx = Math.max(24, Math.floor(readFitPadding(getSchema())))
           postFitNodesToViewport({
             nodes: displayNodes,
@@ -889,17 +1076,17 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
             height: Math.max(1, Math.floor(height)),
             paddingPx: padPx,
             minScale: 0.04,
-            maxScale: 1.6,
+            maxScale: 1.8,
           })
-        }
 
-        const intent = fitToScreenMode ? 'fitToScreen' : 'fitToView'
-        const schemaValue = getSchema()
-        const mode = readLayoutMode(schemaValue)
-        const baseOpts = readFitAllOptions({ schema: schemaValue, mode, intent })
-        const opts = isKeywordGraph && intent === 'fitToView' ? { ...baseOpts, detectClusters: true } : baseOpts
-        const t = fitAllTransform(displayNodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
-        applyInitialTransform({ k: t.k, x: t.x, y: t.y })
+          const intent = fitToScreenMode ? 'fitToScreen' : 'fitToView'
+          const schemaValue = getSchema()
+          const mode = readLayoutMode(schemaValue)
+          const baseOpts = readFitAllOptions({ schema: schemaValue, mode, intent })
+          const opts = baseOpts
+          const t = fitAllTransform(displayNodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
+          applyInitialTransform({ k: t.k, x: t.x, y: t.y })
+        }
         finalFitApplied = true
 
         try {

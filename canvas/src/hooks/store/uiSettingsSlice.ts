@@ -243,7 +243,7 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
       })
       const prevZoom = prevZoomKey ? state.zoomStateByKey?.[prevZoomKey] ?? null : null
       const nextZoomExists = nextZoomKey ? Boolean(state.zoomStateByKey?.[nextZoomKey]) : false
-      const shouldCopyZoom = prevMode === 'document' && nextMode !== 'document'
+      const shouldCopyZoom = true
       const zoomStateByKey =
         shouldCopyZoom && prevZoom && nextZoomKey && !nextZoomExists
           ? { ...(state.zoomStateByKey || {}), [nextZoomKey]: prevZoom }
@@ -337,18 +337,17 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
       } as Partial<GraphState>
     })
 
-    try {
-      const st = get()
-      if (nextMode === 'keyword' && selectionClearedOnSwitch) {
-        st.upsertUiToast({
+    if (selectionClearedOnSwitch) {
+      try {
+        get().upsertUiToast({
           id: 'selection-cleared-mode',
           kind: 'neutral',
           message: UI_COPY.selectionClearedOnModeSwitchToast,
-          ttlMs: 3500,
+          ttlMs: 4500,
         })
+      } catch {
+        void 0
       }
-    } catch {
-      void 0
     }
   },
   setKeywordSourceMaxLines: (v: number) => {

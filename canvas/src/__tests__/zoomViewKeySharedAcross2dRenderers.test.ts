@@ -18,7 +18,7 @@ export const testZoomViewKeyIsIsolatedAcross2dRenderers = () => {
   const designKey = buildZoomViewKey({ ...base, canvas2dRenderer: 'design' })
 
   if (!d3Key || !flowKey || !editorKey || !designKey) throw new Error('Expected zoom keys to be non-empty')
-  if (d3Key !== flowKey || d3Key !== editorKey || d3Key !== designKey) {
-    throw new Error('Expected 2D renderers to share a zoom view key')
+  if (d3Key === flowKey || d3Key === editorKey || d3Key === designKey) {
+    throw new Error('Expected 2D renderers to have isolated zoom view keys')
   }
 }

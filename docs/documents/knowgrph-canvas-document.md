@@ -152,6 +152,7 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
   - `canvas/src/components/GraphCanvas/layout/{overlap.ts,groupOverlap.ts,relax.ts}` centralize bbox collision and bounded relaxation.
 - Fit and zoom:
   - `canvas/src/components/GraphCanvas/{fit.ts,zoom.ts,zoomState.ts,zoomController.ts}` centralize zoom policies and per-view caching.
+  - Collective fit+center must be display-consistent across 2D renderers: fit uses display-derived graph bounds (post filters/collapse), includes node dimensions (`visual:width/height` when present) and group envelopes (clusters/subgraphs/layers), and centers the visible graph in the viewport.
 - Shared presets:
   - `grph-shared/src/zoom/presets.ts` provides reusable fit/zoom presets reused by fit logic and simulation/layout seeding.
 

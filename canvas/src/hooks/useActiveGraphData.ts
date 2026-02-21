@@ -251,6 +251,46 @@ const buildKeywordSourceTextFromBaselineGraph = (
 const keywordSourceTextCache = new LRUCache<string, { text: string; hash: string }>(40)
 const keywordPreviewGraphCache = new LRUCache<string, GraphData>(20)
 
+const computeBaselineIdentityKeys = (baseGraphData: GraphData): {
+  baselineGraphMetaKey: string
+  baselineDatasetKey: string
+  baselineSourceLayerHash: string
+} => {
+  const baseMeta =
+    baseGraphData.metadata && typeof baseGraphData.metadata === 'object' && !Array.isArray(baseGraphData.metadata)
+      ? (baseGraphData.metadata as Record<string, unknown>)
+      : null
+  const baselineSourceLayerHash = typeof baseMeta?.sourceLayerHash === 'string' ? baseMeta.sourceLayerHash.trim() : ''
+  const baselineGraphMetaKey = buildGraphMetaKey(baseGraphData)
+  const baselineDatasetKey = (() => {
+    if (baselineSourceLayerHash) return `sourceLayer:${baselineSourceLayerHash}`
+    const graphId = typeof baseMeta?.graphId === 'string' ? baseMeta.graphId.trim() : ''
+    if (graphId) return `graphId:${graphId}`
+    const kind = typeof baseMeta?.kind === 'string' ? baseMeta.kind.trim() : ''
+    const source = typeof baseMeta?.source === 'string' ? baseMeta.source.trim() : ''
+    if (kind || source) return `meta:${kind}:${source}`
+    const nodes = Array.isArray(baseGraphData.nodes) ? baseGraphData.nodes : []
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i] as unknown as { type?: unknown; properties?: unknown; metadata?: unknown } | null
+      const t = typeof n?.type === 'string' ? n.type.trim() : ''
+      if (t !== 'Document') continue
+      const props = n?.properties && typeof n.properties === 'object' && !Array.isArray(n.properties)
+        ? (n.properties as Record<string, unknown>)
+        : {}
+      const path = typeof props.path === 'string' ? props.path.trim() : ''
+      if (path) return `path:${path}`
+      const nMeta = n?.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata)
+        ? (n.metadata as Record<string, unknown>)
+        : {}
+      const docPath = typeof nMeta.documentPath === 'string' ? nMeta.documentPath.trim() : ''
+      if (docPath) return `doc:${docPath}`
+      break
+    }
+    return ''
+  })()
+  return { baselineGraphMetaKey, baselineDatasetKey, baselineSourceLayerHash }
+}
+
 export const mergeKeywordGraphWithSourceNodes = (args: {
   baseGraphData: GraphData
   keywordGraph: GraphData
@@ -456,9 +496,23 @@ export const mergeKeywordGraphWithSourceNodes = (args: {
     return out
   })()
 
-  if (mergedSourceNodes.length === 0 && mergedMediaNodes.length === 0 && mentionEdges.length === 0) return args.keywordGraph
+  const { baselineGraphMetaKey, baselineDatasetKey, baselineSourceLayerHash } = computeBaselineIdentityKeys(args.baseGraphData)
+
+  const nextMeta: GraphData['metadata'] = {
+    ...((args.keywordGraph.metadata && typeof args.keywordGraph.metadata === 'object' && !Array.isArray(args.keywordGraph.metadata)
+      ? (args.keywordGraph.metadata as Record<string, unknown>)
+      : {}) as Record<string, unknown>),
+    baselineGraphMetaKey,
+    ...(baselineDatasetKey ? { baselineDatasetKey } : {}),
+    ...(baselineSourceLayerHash ? { baselineSourceLayerHash } : {}),
+  } as GraphData['metadata']
+
+  if (mergedSourceNodes.length === 0 && mergedMediaNodes.length === 0 && mentionEdges.length === 0) {
+    return { ...args.keywordGraph, metadata: nextMeta }
+  }
   return {
     ...args.keywordGraph,
+    metadata: nextMeta,
     nodes: [...keywordNodes, ...mergedSourceNodes, ...mergedMediaNodes],
     edges: [...keywordEdges, ...mentionEdges],
   }
@@ -633,6 +687,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
       }
       return out
     })()
+    const { baselineGraphMetaKey, baselineDatasetKey, baselineSourceLayerHash } = computeBaselineIdentityKeys(baseGraphData)
     return {
       type: 'Graph',
       context: '',
@@ -642,6 +697,9 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
         source: inputs.docId,
         sourceLayerHash: inputs.sourceTextHash,
         pending: true,
+        baselineGraphMetaKey,
+        ...(baselineDatasetKey ? { baselineDatasetKey } : {}),
+        ...(baselineSourceLayerHash ? { baselineSourceLayerHash } : {}),
       } as unknown as GraphData['metadata'],
       nodes: placeholderMediaNodes,
       edges: [],

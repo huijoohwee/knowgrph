@@ -33,7 +33,14 @@ export function requestFromSingletonWorker<T>(args: SingletonWorkerRequestArgs<T
 
     global[args.globalStateKey] = state
 
-    const resetWorker = (w: Worker) => {
+    const resetWorker = (w: Worker, message?: string) => {
+      if (message && typeof message === 'string') {
+        try {
+          args.onWorkerErrorMessage?.(message)
+        } catch {
+          void 0
+        }
+      }
       const pending = Array.from(state.pending.values())
       state.pending.clear()
       for (const p of pending) {
@@ -79,7 +86,7 @@ export function requestFromSingletonWorker<T>(args: SingletonWorkerRequestArgs<T
         }
         entry.resolve(parsed.ok === true ? parsed.value : (null as unknown as T))
       }
-      w.onerror = () => resetWorker(w)
+      w.onerror = () => resetWorker(w, 'Worker crashed')
       state.worker = w
       return w
     }
@@ -98,13 +105,22 @@ export function requestFromSingletonWorker<T>(args: SingletonWorkerRequestArgs<T
       const timeoutId = setTimeout(() => {
         if (!state.pending.has(id)) return
         state.pending.delete(id)
+        try {
+          args.onWorkerErrorMessage?.('Worker request timed out')
+        } catch {
+          void 0
+        }
         resolve(null as unknown as T)
       }, timeoutMs) as unknown as number
       state.pending.set(id, { resolve, timeoutId })
       args.postMessage(worker, id)
     })
   } catch {
+    try {
+      args.onWorkerErrorMessage?.('Worker request failed')
+    } catch {
+      void 0
+    }
     return Promise.resolve(null as unknown as T)
   }
 }
-

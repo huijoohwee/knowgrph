@@ -41,13 +41,21 @@ export const computeLayoutDatasetKey = (args: { graphData: LayoutDatasetGraph; g
   const graphData = args.graphData
   const meta = isRecord(graphData?.metadata) ? graphData!.metadata as Record<string, unknown> : {}
 
+  const kind = typeof meta.kind === 'string' ? meta.kind.trim() : ''
+  if (kind === 'keyword') {
+    const baselineDatasetKey = typeof meta.baselineDatasetKey === 'string' ? meta.baselineDatasetKey.trim() : ''
+    if (baselineDatasetKey) return baselineDatasetKey
+    const baselineSourceLayerHash = typeof meta.baselineSourceLayerHash === 'string' ? meta.baselineSourceLayerHash.trim() : ''
+    if (baselineSourceLayerHash) return `sourceLayer:${baselineSourceLayerHash}`
+  }
+
   const sourceLayerHash = typeof meta.sourceLayerHash === 'string' ? meta.sourceLayerHash.trim() : ''
   if (sourceLayerHash) return `sourceLayer:${sourceLayerHash}`
 
   const graphId = typeof meta.graphId === 'string' ? meta.graphId.trim() : ''
   if (graphId) return `graphId:${graphId}`
 
-  const kind = typeof meta.kind === 'string' ? meta.kind.trim() : ''
+  
   const source = typeof meta.source === 'string' ? meta.source.trim() : ''
   if (kind || source) return `meta:${kind}:${source}`
 

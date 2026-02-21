@@ -124,8 +124,14 @@ export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number;
             : state.selectedEdgeId
               ? [state.selectedEdgeId]
               : []
-        if (nodeIds.length === 0 && edgeIds.length === 0) return
-        const key = `${nodeIds.join(',')}|${edgeIds.join(',')}|${state.graphDataRevision}`
+        const groupIds =
+          Array.isArray(state.selectedGroupIds) && state.selectedGroupIds.length > 0
+            ? state.selectedGroupIds
+            : state.selectedGroupId
+              ? [state.selectedGroupId]
+              : []
+        if (nodeIds.length === 0 && edgeIds.length === 0 && groupIds.length === 0) return
+        const key = `${nodeIds.join(',')}|${edgeIds.join(',')}|${groupIds.join(',')}|${state.graphDataRevision}`
         if (lastAutoZoomSelRef.current === key) return
         lastAutoZoomSelRef.current = key
         state.requestZoom('selection')
@@ -137,8 +143,10 @@ export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number;
         zoomToSelectionMode: s.zoomToSelectionMode,
         selectedNodeId: s.selectedNodeId,
         selectedEdgeId: s.selectedEdgeId,
+        selectedGroupId: s.selectedGroupId,
         selectedNodeIds: s.selectedNodeIds,
         selectedEdgeIds: s.selectedEdgeIds,
+        selectedGroupIds: s.selectedGroupIds,
         graphDataRevision: s.graphDataRevision,
         viewPinned: s.viewPinned,
       }),

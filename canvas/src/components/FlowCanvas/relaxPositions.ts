@@ -92,6 +92,11 @@ export function relaxFlowPositionsWithCollision(args: {
   const steps = readStructuredRelaxSteps(schema, args.defaultSteps)
   if (steps <= 0) return positions
 
+  const maxOps = 40_000
+  const maxStepsBySize = Math.max(2, Math.floor(maxOps / Math.max(1, proxyNodes.length)))
+  const effectiveSteps = Math.max(0, Math.min(steps, maxStepsBySize))
+  if (effectiveSteps <= 0) return positions
+
   const collision = readCollisionConfig(schema)
   if (!collision.nodeBbox.enabled && !collision.groupBbox.enabled) return positions
 
@@ -113,7 +118,7 @@ export function relaxFlowPositionsWithCollision(args: {
   const applyNodeForce = nodeForce as unknown as ((alpha: number) => void) | null
 
   const groupForces: Array<(alpha: number) => void> = []
-  if (collision.groupBbox.enabled && groups.length > 0) {
+  if (collision.groupBbox.enabled && groups.length > 0 && proxyNodes.length <= 3000) {
     const f = createGroupBboxCollideForceByDepth({
       schema,
       groups,
@@ -140,7 +145,7 @@ export function relaxFlowPositionsWithCollision(args: {
   const forces = [applyNodeForce, ...groupForces].filter(Boolean) as Array<(alpha: number) => void>
   runRelaxSteps({
     nodes: proxyNodes,
-    steps,
+    steps: effectiveSteps,
     forces,
     integrate: (node) =>
       integrateNodePositionWithVelocity(node, {

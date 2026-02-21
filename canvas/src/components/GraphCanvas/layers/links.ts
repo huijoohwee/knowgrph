@@ -1,12 +1,13 @@
 import * as d3 from 'd3';
 import type { MutableRefObject } from 'react';
-import type { GraphEdge } from '@/lib/graph/types';
+import type { GraphEdge, GraphNode } from '@/lib/graph/types';
 import type { GraphSchema } from '@/lib/graph/schema';
 import type { TempLinkSelection } from '@/features/edge-creation';
 import type { HoverInfo } from '@/components/GraphHoverTooltip';
 import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers';
 import { attachEdgeInteractionHandlers } from '@/components/GraphCanvas/layers/edgeInteractions'
 import { shouldShowEdgeArrow } from '@/components/GraphCanvas/edgeDisplay'
+import { edgeDragBehavior } from '@/components/GraphCanvas/utils';
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
@@ -14,6 +15,7 @@ export const createLinksHitLayer = (args: {
   g: GSelection;
   edgesForDisplay: GraphEdge[];
   schema: GraphSchema;
+  simulation: d3.Simulation<GraphNode, GraphEdge>;
   hoverEnabled: boolean;
   setHoverInfo: (updater: (prev: HoverInfo | null) => HoverInfo | null) => void;
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void;
@@ -24,6 +26,7 @@ export const createLinksHitLayer = (args: {
     g,
     edgesForDisplay,
     schema,
+    simulation,
     hoverEnabled,
     setHoverInfo,
     setSelectionSource,
@@ -48,6 +51,12 @@ export const createLinksHitLayer = (args: {
     selectEdge,
     enableContextMenu: true,
   })
+
+  if (schema.behavior?.allowNodeDrag !== false) {
+    const drag = edgeDragBehavior(simulation, schema);
+    (link as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>)
+      .call(drag as unknown as d3.DragBehavior<SVGElement, GraphEdge, unknown>)
+  }
 
   return link as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>
 }

@@ -1,16 +1,20 @@
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 
 type SelectionAnchorIds = {
   selectionNodeIds: string[]
   selectionEdgeIds: string[]
+  selectionGroupIds: string[]
 }
 
 type ZoomSelectionLogicParams = {
   graphData: GraphData
   selectedNodeId: string | null
   selectedEdgeId: string | null
+  selectedGroupId?: string | null
   selectedNodeIds?: string[]
   selectedEdgeIds?: string[]
+  selectedGroupIds?: string[]
 }
 
 type EdgeEndpointLike = GraphEdge['source'] | { id?: string } | null | undefined
@@ -28,8 +32,8 @@ const getEdgeEndpoints = (edge: GraphEdge): { src: string | null; tgt: string | 
   tgt: coerceEndpointId(edge.target ?? null),
 })
 
-const normalizeSelectionIds = (params: Pick<ZoomSelectionLogicParams, 'selectedNodeId' | 'selectedEdgeId' | 'selectedNodeIds' | 'selectedEdgeIds'>): SelectionAnchorIds => {
-  const { selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds } = params
+const normalizeSelectionIds = (params: Pick<ZoomSelectionLogicParams, 'selectedNodeId' | 'selectedEdgeId' | 'selectedGroupId' | 'selectedNodeIds' | 'selectedEdgeIds' | 'selectedGroupIds'>): SelectionAnchorIds => {
+  const { selectedNodeId, selectedEdgeId, selectedGroupId, selectedNodeIds, selectedEdgeIds, selectedGroupIds } = params
   const selectionNodeIds =
     Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0
       ? selectedNodeIds
@@ -42,7 +46,13 @@ const normalizeSelectionIds = (params: Pick<ZoomSelectionLogicParams, 'selectedN
       : selectedEdgeId
         ? [selectedEdgeId]
         : []
-  return { selectionNodeIds, selectionEdgeIds }
+  const selectionGroupIds =
+    Array.isArray(selectedGroupIds) && selectedGroupIds.length > 0
+      ? selectedGroupIds
+      : selectedGroupId
+        ? [selectedGroupId]
+        : []
+  return { selectionNodeIds, selectionEdgeIds, selectionGroupIds }
 }
 
 const adjCache = new WeakMap<GraphData, Map<string, Set<string>>>()
@@ -72,33 +82,57 @@ export const computeZoomTargetNodeIds = ({
   graphData,
   selectedNodeId,
   selectedEdgeId,
+  selectedGroupId,
   selectedNodeIds,
   selectedEdgeIds,
+  selectedGroupIds,
 }: ZoomSelectionLogicParams): Set<string> => {
   const ids = new Set<string>()
-  const { selectionNodeIds, selectionEdgeIds } = normalizeSelectionIds({
+  const { selectionNodeIds, selectionEdgeIds, selectionGroupIds } = normalizeSelectionIds({
     selectedNodeId,
     selectedEdgeId,
+    selectedGroupId,
     selectedNodeIds,
     selectedEdgeIds,
+    selectedGroupIds,
   })
-  if (selectionNodeIds.length === 0 && selectionEdgeIds.length === 0) {
+  if (selectionNodeIds.length === 0 && selectionEdgeIds.length === 0 && selectionGroupIds.length === 0) {
     return ids
   }
+
+  const anchorCount = selectionNodeIds.length + selectionEdgeIds.length + selectionGroupIds.length
   const adj = getAdjacencyMap(graphData)
+
+  if (selectionGroupIds.length > 0) {
+    const groups = deriveGraphGroups(graphData)
+    const membersByGroupId = new Map<string, string[]>()
+    for (let i = 0; i < groups.length; i += 1) {
+      const g = groups[i]
+      membersByGroupId.set(String(g.id), Array.isArray(g.memberNodeIds) ? g.memberNodeIds.map(v => String(v)).filter(Boolean) : [])
+    }
+    for (const rawGroupId of selectionGroupIds) {
+      const groupId = String(rawGroupId || '')
+      if (!groupId) continue
+      const members = membersByGroupId.get(groupId) || []
+      for (let i = 0; i < members.length; i += 1) ids.add(members[i])
+    }
+  }
+
   if (selectionNodeIds.length > 0) {
+    const expandNeighbors = anchorCount === 1 && selectionNodeIds.length === 1
     for (const rawId of selectionNodeIds) {
       const id = String(rawId || '')
       if (!id) continue
       ids.add(id)
+      if (!expandNeighbors) continue
       const neighbors = adj.get(id)
-      if (neighbors) {
-        neighbors.forEach(n => ids.add(n))
-      }
+      if (neighbors) neighbors.forEach(n => ids.add(n))
     }
-    return ids
   }
   const edges = Array.isArray(graphData.edges) ? graphData.edges : []
+
+  const expandEdgeNeighbors =
+    anchorCount === 1 && selectionEdgeIds.length === 1 && selectionNodeIds.length === 0 && selectionGroupIds.length === 0
   for (const rawEdgeId of selectionEdgeIds) {
     const edgeId = String(rawEdgeId || '')
     if (!edgeId) continue
@@ -110,17 +144,15 @@ export const computeZoomTargetNodeIds = ({
     if (!sId || !tId) continue
     ids.add(sId)
     ids.add(tId)
+    if (!expandEdgeNeighbors) continue
     const sNeighbors = adj.get(sId)
-    if (sNeighbors) {
-      sNeighbors.forEach(n => ids.add(n))
-    }
+    if (sNeighbors) sNeighbors.forEach(n => ids.add(n))
     const tNeighbors = adj.get(tId)
-    if (tNeighbors) {
-      tNeighbors.forEach(n => ids.add(n))
-    }
+    if (tNeighbors) tNeighbors.forEach(n => ids.add(n))
   }
   return ids
 }
+
 
 export const computeZoomSubset = (params: ZoomSelectionLogicParams): GraphNode[] => {
   const ids = computeZoomTargetNodeIds(params)

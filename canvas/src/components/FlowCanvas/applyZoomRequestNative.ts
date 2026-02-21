@@ -32,8 +32,10 @@ export const applyZoomRequestNative = (args: {
   height: number
   selectedNodeId: string | null
   selectedEdgeId: string | null
+  selectedGroupId?: string | null
   selectedNodeIds?: string[]
   selectedEdgeIds?: string[]
+  selectedGroupIds?: string[]
   onFrame?: () => void
 }) => {
   const clear = () => {
@@ -65,8 +67,10 @@ export const applyZoomRequestNative = (args: {
     },
     selectedNodeId: args.selectedNodeId,
     selectedEdgeId: args.selectedEdgeId,
+    selectedGroupId: args.selectedGroupId,
     selectedNodeIds: args.selectedNodeIds,
     selectedEdgeIds: args.selectedEdgeIds,
+    selectedGroupIds: args.selectedGroupIds,
     currentTransform: t0,
     scaleExtent: { minK: minKSafe, maxK: maxKSafe },
     cacheKeyBase: '2d',

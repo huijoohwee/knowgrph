@@ -3,14 +3,21 @@ import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsType
 import { deriveMermaidSubgraphGroups } from '@/components/GraphCanvas/layout/mermaidSubgraphGroups'
 import { deriveMarkdownHeadingGroups } from '@/components/GraphCanvas/layout/markdownHeadingGroups'
 
-export const deriveGraphGroups = (data: GraphData): GraphGroup[] => {
+export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStructure?: boolean }): GraphGroup[] => {
   const meta = (data.metadata || {}) as Record<string, unknown>
   const isKeywordGraph = meta.kind === 'keyword'
-  const mermaid = isKeywordGraph ? ([] as GraphGroup[]) : (deriveMermaidSubgraphGroups(data) as GraphGroup[])
-  const headings = isKeywordGraph ? ([] as GraphGroup[]) : deriveMarkdownHeadingGroups(data)
+  const mermaid = (!isKeywordGraph || options?.forceDocumentStructure) ? (deriveMermaidSubgraphGroups(data) as GraphGroup[]) : []
+  const headings = (!isKeywordGraph || options?.forceDocumentStructure) ? deriveMarkdownHeadingGroups(data) : []
   const keywordLayers = (() => {
-    if (!isKeywordGraph) return [] as GraphGroup[]
+    // Check if we have keyword roles in the data
     const nodes = Array.isArray(data.nodes) ? data.nodes : []
+    const hasKeywordRoles = nodes.some(n => {
+      const props = (n.properties || {}) as Record<string, unknown>
+      const role = typeof props['keyword:role'] === 'string' ? props['keyword:role'].trim() : ''
+      return role === 'subject' || role === 'object' || role === 'entity'
+    })
+
+    if (!isKeywordGraph && !options?.forceDocumentStructure && !hasKeywordRoles) return [] as GraphGroup[]
     const roleStroke = {
       subject: '#007BFF',
       object: '#28A745',
@@ -53,8 +60,16 @@ export const deriveGraphGroups = (data: GraphData): GraphGroup[] => {
     return out
   })()
   const keywordNerGroups = (() => {
-    if (!isKeywordGraph) return [] as GraphGroup[]
+    // Check if we have keyword:kind=entity and keyword:ner
     const nodes = Array.isArray(data.nodes) ? data.nodes : []
+    const hasNer = nodes.some(n => {
+      const props = (n.properties || {}) as Record<string, unknown>
+      const kind = typeof props['keyword:kind'] === 'string' ? props['keyword:kind'].trim() : ''
+      const ner = typeof props['keyword:ner'] === 'string' ? props['keyword:ner'].trim() : ''
+      return kind === 'entity' && ner && ner !== 'O'
+    })
+
+    if (!isKeywordGraph && !options?.forceDocumentStructure && !hasNer) return [] as GraphGroup[]
     const byNer = new Map<string, string[]>()
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
@@ -103,10 +118,12 @@ export const deriveGraphGroups = (data: GraphData): GraphGroup[] => {
   const communities = (() => {
     const nodes = Array.isArray(data.nodes) ? data.nodes : []
     const byCommunity = new Map<string, string[]>()
+    const propsByCommunity = new Map<string, { depth?: number; xIndex?: number; yIndex?: number }>()
+
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
       const props = (n.properties || {}) as Record<string, unknown>
-      const raw = props['visual:community']
+      const raw = props['visual:community'] ?? props['visual:layer']
       const key =
         typeof raw === 'number'
           ? (Number.isFinite(raw) ? String(raw) : '')
@@ -117,15 +134,43 @@ export const deriveGraphGroups = (data: GraphData): GraphGroup[] => {
       const arr = byCommunity.get(key) || []
       arr.push(String(n.id))
       byCommunity.set(key, arr)
+
+      const current = propsByCommunity.get(key) || {}
+      
+      let depthCandidate = current.depth
+      if (typeof raw === 'number' && Number.isFinite(raw)) {
+        depthCandidate = Math.max(depthCandidate ?? -Infinity, raw)
+      }
+
+      const explicitDepth = typeof props['visual:depth'] === 'number' ? props['visual:depth'] : typeof props['visual:zIndex'] === 'number' ? props['visual:zIndex'] : undefined
+      if (typeof explicitDepth === 'number' && Number.isFinite(explicitDepth)) {
+         depthCandidate = Math.max(depthCandidate ?? -Infinity, explicitDepth)
+      }
+
+      const xIndex = typeof props['visual:xIndex'] === 'number' ? props['visual:xIndex'] : undefined
+      const yIndex = typeof props['visual:yIndex'] === 'number' ? props['visual:yIndex'] : undefined
+
+      if (typeof xIndex === 'number' && Number.isFinite(xIndex)) {
+          current.xIndex = Math.max(current.xIndex ?? -Infinity, xIndex)
+      }
+      if (typeof yIndex === 'number' && Number.isFinite(yIndex)) {
+          current.yIndex = Math.max(current.yIndex ?? -Infinity, yIndex)
+      }
+      
+      current.depth = depthCandidate
+      propsByCommunity.set(key, current)
     }
     const out: GraphGroup[] = []
     byCommunity.forEach((memberNodeIds, key) => {
       const ids = Array.from(new Set(memberNodeIds)).filter(Boolean).sort((a, b) => a.localeCompare(b))
       if (ids.length === 0) return
+      const props = propsByCommunity.get(key)
       out.push({
         id: `community:${key}`,
         label: `Community ${key}`,
-        depth: 0,
+        depth: props?.depth ?? 0,
+        xIndex: props?.xIndex,
+        yIndex: props?.yIndex,
         memberNodeIds: ids,
         style: {},
       })
@@ -133,8 +178,82 @@ export const deriveGraphGroups = (data: GraphData): GraphGroup[] => {
     return out
   })()
   const merged = [...mermaid, ...headings, ...keywordLayers, ...keywordNerGroups, ...communities]
+
+  const nodeIdSet = (() => {
+    const nodes = Array.isArray(data.nodes) ? data.nodes : []
+    const s = new Set<string>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const id = String((nodes[i] as { id?: unknown } | null)?.id || '').trim()
+      if (!id) continue
+      s.add(id)
+    }
+    return s
+  })()
+
+  const collapsedNodeIdByGroupId = (() => {
+    const nodes = Array.isArray(data.nodes) ? data.nodes : []
+    const out = new Map<string, { nodeId: string; label: string; depth: number }>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i] as unknown as { id?: unknown; label?: unknown; properties?: unknown } | null
+      const nodeId = String(n?.id || '').trim()
+      if (!nodeId) continue
+      const props = n?.properties && typeof n.properties === 'object' && !Array.isArray(n.properties)
+        ? (n.properties as Record<string, unknown>)
+        : null
+      if (!props) continue
+      if (props['kg:collapsed'] !== true) continue
+      const groupId = typeof props['kg:groupId'] === 'string' ? props['kg:groupId'].trim() : ''
+      if (!groupId) continue
+      const depthRaw = props['kg:groupDepth']
+      const depth = typeof depthRaw === 'number' && Number.isFinite(depthRaw) ? Math.max(0, Math.floor(depthRaw)) : 0
+      const label = String(n?.label || groupId).trim() || groupId
+      out.set(groupId, { nodeId, label, depth })
+    }
+    return out
+  })()
+
+  if (collapsedNodeIdByGroupId.size > 0) {
+    for (let i = 0; i < merged.length; i += 1) {
+      const g = merged[i]
+      const gid = String(g.id || '').trim()
+      if (!gid) continue
+      const collapsed = collapsedNodeIdByGroupId.get(gid)
+      if (!collapsed) continue
+      const members = Array.isArray(g.memberNodeIds) ? g.memberNodeIds : []
+      let hasLiveMember = false
+      for (let j = 0; j < members.length; j += 1) {
+        const nid = String(members[j] || '').trim()
+        if (!nid) continue
+        if (nodeIdSet.has(nid)) {
+          hasLiveMember = true
+          break
+        }
+      }
+      if (hasLiveMember) continue
+      merged[i] = { ...g, memberNodeIds: [collapsed.nodeId] }
+    }
+
+    collapsedNodeIdByGroupId.forEach((collapsed, groupId) => {
+      const exists = merged.some(g => String(g.id || '').trim() === groupId)
+      if (exists) return
+      merged.push({
+        id: groupId,
+        label: collapsed.label,
+        depth: collapsed.depth,
+        memberNodeIds: [collapsed.nodeId],
+        style: {},
+      })
+    })
+  }
+
   merged.sort((a, b) => {
     if (a.depth !== b.depth) return a.depth - b.depth
+    const ax = typeof a.xIndex === 'number' && Number.isFinite(a.xIndex) ? a.xIndex : 0
+    const bx = typeof b.xIndex === 'number' && Number.isFinite(b.xIndex) ? b.xIndex : 0
+    if (ax !== bx) return ax - bx
+    const ay = typeof a.yIndex === 'number' && Number.isFinite(a.yIndex) ? a.yIndex : 0
+    const by = typeof b.yIndex === 'number' && Number.isFinite(b.yIndex) ? b.yIndex : 0
+    if (ay !== by) return ay - by
     return a.id.localeCompare(b.id)
   })
   return merged

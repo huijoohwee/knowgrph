@@ -42,7 +42,7 @@ export function readFitAllOptions(args: {
 
   return {
     pad,
-    useCentroidCentering: true,
+    centerMode: 'bbox',
     detectClusters: detectClustersEffective,
     targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : undefined,
     enforceAspectRatio: enforceAspectRatio !== false,
@@ -52,5 +52,6 @@ export function readFitAllOptions(args: {
     maxScaleHardCap: DEFAULT_ZOOM_MAX_SCALE_HARD_CAP,
     schema,
     nodePadding: nodePaddingEffective,
+    includeGroupsBounds: true,
   }
 }

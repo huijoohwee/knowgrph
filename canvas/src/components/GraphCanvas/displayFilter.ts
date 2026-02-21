@@ -2,6 +2,7 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 
 export const isDisplayNode = (n: GraphNode): boolean => {
   if (String(n.type || '') === 'MermaidSubgraph') return false
+  if (String(n.type || '') === 'KeywordSource') return false
   const props = (n.properties || {}) as Record<string, unknown>
   const isHeadingSection = String(n.type || '') === 'Section' && typeof props.level === 'number'
   return !isHeadingSection

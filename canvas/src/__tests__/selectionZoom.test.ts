@@ -8,6 +8,8 @@ import type { StoreApi } from 'zustand'
 import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphNode } from '@/lib/graph/types'
 import { readFitAllOptions } from '@/components/GraphCanvas/layout/fitConfig'
+import * as d3 from 'd3'
+import { computeZoomTransformFromRequest } from '@/lib/zoom/actions'
 import {
   DEFAULT_FIT_PADDING,
   DEFAULT_FIT_TO_SCREEN_FILL_RATIO,
@@ -104,6 +106,100 @@ export function testSelectionZoomNoSelectionReturnsEmptySubset() {
   })
   if (subset.length !== 0) {
     throw new Error('zoom subset should be empty when nothing is selected')
+  }
+}
+
+export function testSelectionZoomGroupSelectionUsesGroupMembers() {
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [
+      { id: 'a', label: 'A', type: 'Entity', properties: { 'visual:community': '1' }, x: 0, y: 0 },
+      { id: 'b', label: 'B', type: 'Entity', properties: { 'visual:community': '1' }, x: 10, y: 0 },
+      { id: 'c', label: 'C', type: 'Entity', properties: { 'visual:community': '2' }, x: 100, y: 0 },
+    ],
+    edges: [],
+  }
+  const ids = computeZoomTargetNodeIds({
+    graphData,
+    selectedNodeId: null,
+    selectedEdgeId: null,
+    selectedGroupId: 'community:1',
+  })
+  if (!ids.has('a') || !ids.has('b') || ids.has('c') || ids.size !== 2) {
+    throw new Error('zoom group selection should include group member nodes only')
+  }
+  const subset = computeZoomSubset({
+    graphData,
+    selectedNodeId: null,
+    selectedEdgeId: null,
+    selectedGroupId: 'community:1',
+  })
+  const subsetIds = new Set(subset.map(n => String(n.id)))
+  if (!subsetIds.has('a') || !subsetIds.has('b') || subsetIds.has('c') || subsetIds.size !== 2) {
+    throw new Error('zoom subset for group selection should only include group member nodes')
+  }
+}
+
+export function testSelectionZoomMultiSelectionDoesNotExpandNeighbors() {
+  const graphData = makeZoomGraph()
+  const ids = computeZoomTargetNodeIds({
+    graphData,
+    selectedNodeId: null,
+    selectedEdgeId: null,
+    selectedNodeIds: ['a', 'c'],
+  })
+  if (!ids.has('a') || !ids.has('c') || ids.has('b') || ids.size !== 2) {
+    throw new Error('zoom multi node selection should not automatically expand to neighbors')
+  }
+}
+
+export function testSelectionZoomCentersGroupCentroidInViewport() {
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [
+      { id: 'a', label: 'A', type: 'Entity', properties: { 'visual:community': '1' }, x: -50, y: 0 },
+      { id: 'b', label: 'B', type: 'Entity', properties: { 'visual:community': '1' }, x: 50, y: 0 },
+      { id: 'c', label: 'C', type: 'Entity', properties: { 'visual:community': '2' }, x: 400, y: 0 },
+    ],
+    edges: [],
+  }
+
+  const width = 800
+  const height = 600
+  const res = computeZoomTransformFromRequest({ type: 'selection' }, {
+    graphData,
+    schema: defaultSchema,
+    graphDataRevision: 1,
+    viewportW: width,
+    viewportH: height,
+    pinned: false,
+    selectedNodeId: null,
+    selectedEdgeId: null,
+    selectedGroupId: 'community:1',
+    selectedNodeIds: [],
+    selectedEdgeIds: [],
+    selectedGroupIds: ['community:1'],
+    currentTransform: d3.zoomIdentity,
+    scaleExtent: { minK: 0.01, maxK: 8 },
+    cacheKeyBase: 'test',
+  })
+  if (!res) throw new Error('expected selection zoom transform to be computed for group selection')
+
+  const subset = computeZoomSubset({
+    graphData,
+    selectedNodeId: null,
+    selectedEdgeId: null,
+    selectedGroupId: 'community:1',
+    selectedGroupIds: ['community:1'],
+  })
+  if (subset.length !== 2) throw new Error('expected subset to contain group member nodes')
+  const cx = ((subset[0].x || 0) + (subset[1].x || 0)) / 2
+  const cy = ((subset[0].y || 0) + (subset[1].y || 0)) / 2
+  const t = res.nextTransform
+  const screenX = t.k * cx + t.x
+  const screenY = t.k * cy + t.y
+  if (Math.abs(screenX - width / 2) > 1e-6 || Math.abs(screenY - height / 2) > 1e-6) {
+    throw new Error('selection zoom should center selected group centroid in the viewport')
   }
 }
 

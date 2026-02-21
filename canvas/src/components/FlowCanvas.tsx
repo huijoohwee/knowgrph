@@ -9,7 +9,7 @@ import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layo
 import { buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey } from '@/components/GraphCanvas/layout/positioning'
 import { cloneGraphDataForRender } from '@/components/GraphCanvas/renderClone'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
-import { fitAllTransform } from '@/components/GraphCanvas/fit'
+import { coerceNodesForFit, fitAllTransform } from '@/components/GraphCanvas/fit'
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
 import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
 import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
@@ -24,6 +24,7 @@ import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import {
   createFlowNativeRuntime,
   requestFlowNativeDraw,
@@ -304,7 +305,7 @@ export default function FlowCanvas({
       schemaLayoutEngineJson,
       frontmatterModeEnabled: effectiveFrontmatter,
       documentSemanticMode: String(documentSemanticMode),
-      graphMetaKey: buildGraphMetaKey(sceneGraphData),
+      graphMetaKey: buildGraphMetaKeyIgnoringPending(sceneGraphData),
       renderMediaAsNodes: renderMediaAsNodes === true,
       mediaPanelDensity: String(mediaPanelDensity),
       collapsedGroupIdsKey,
@@ -327,23 +328,33 @@ export default function FlowCanvas({
 
   const rankdir = deriveRankdir({ flowRankdir: schema?.layout?.flow?.rankdir })
   const flowConfig = React.useMemo(() => readFlowConfig({ schema, rankdir }), [rankdir, schema])
+  const flowConfigEffective = React.useMemo(() => {
+    if (documentSemanticMode !== 'keyword') return flowConfig
+    const explicitElkLayout = schema?.layout?.flow?.elkLayout
+    if (typeof explicitElkLayout === 'string' && explicitElkLayout.trim()) return flowConfig
+    if (flowConfig.engine !== 'auto' && flowConfig.engine !== 'elk') return flowConfig
+    if (flowConfig.elk.algorithm !== 'layered') return flowConfig
+    return { ...flowConfig, elk: { ...flowConfig.elk, algorithm: 'stress' as const } }
+  }, [documentSemanticMode, flowConfig, schema?.layout?.flow?.elkLayout])
   const layoutMode = schema ? readLayoutMode(schema) : 'force'
 
   const flowPresentation = React.useMemo(() => {
-    return readFlowPresentation(schema)
-  }, [schema])
+    const p = readFlowPresentation(schema)
+    return p
+  }, [documentSemanticMode, schema])
 
   const layoutVariant = React.useMemo(() => {
     return [
-      `e=${flowConfig.engine}`,
+      `e=${flowConfigEffective.engine}`,
       `rd=${rankdir}`,
-      `dir=${flowConfig.elk.direction}`,
-      `alg=${flowConfig.elk.algorithm}`,
-      `n=${flowConfig.node.widthPx}x${flowConfig.node.heightPx}`,
-      `s=${flowConfig.elk.nodeNodeSpacingPx},${flowConfig.elk.layerSpacingPx},${flowConfig.elk.edgeNodeSpacingPx}`,
-      `h=${flowConfig.handle.sizePx},${flowConfig.handle.lineHeightPx}`,
+      `dir=${flowConfigEffective.elk.direction}`,
+      `alg=${flowConfigEffective.elk.algorithm}`,
+      `n=${flowConfigEffective.node.widthPx}x${flowConfigEffective.node.heightPx}`,
+      `s=${flowConfigEffective.elk.nodeNodeSpacingPx},${flowConfigEffective.elk.layerSpacingPx},${flowConfigEffective.elk.edgeNodeSpacingPx}`,
+      `h=${flowConfigEffective.handle.sizePx},${flowConfigEffective.handle.lineHeightPx}`,
+      'cs=topLeftV2',
     ].join('|')
-  }, [flowConfig, rankdir])
+  }, [flowConfigEffective, rankdir])
 
   const sceneGroupsDerivation = React.useMemo(() => {
     return deriveSceneGroups({
@@ -395,7 +406,7 @@ export default function FlowCanvas({
     sceneGraphData,
     sceneGroups,
     schema,
-    flowConfig,
+    flowConfig: flowConfigEffective,
     flowPresentation,
     layoutPositionsForMode,
     setLayoutPositionsForMode,
@@ -420,6 +431,42 @@ export default function FlowCanvas({
     return { ...sceneGraphData, nodes: nextNodes }
   }, [computedPositions, sceneGraphData])
 
+  const nodesForFlowTransformGuard = React.useMemo(() => {
+    const isFlowEditor = canvas2dRenderer === 'flowEditor'
+    const base = (Array.isArray(graphDataForZoom?.nodes) ? graphDataForZoom!.nodes : []) as GraphNode[]
+    if (!isFlowEditor) return base
+    const pos = computedPositions
+    if (!pos) return []
+    const out: GraphNode[] = []
+    for (let i = 0; i < base.length; i += 1) {
+      const n = base[i]
+      const id = String((n as unknown as { id?: unknown })?.id || '').trim()
+      if (!id) continue
+      const p = pos[id]
+      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) continue
+      out.push({ ...n, x: p.x, y: p.y })
+    }
+    return out
+  }, [canvas2dRenderer, computedPositions, graphDataForZoom])
+
+  const nodesForFlowZoom = React.useMemo(() => {
+    const isFlowEditor = canvas2dRenderer === 'flowEditor'
+    const baseForFit = (Array.isArray(graphDataForZoom?.nodes) ? graphDataForZoom!.nodes : []) as GraphNode[]
+    const base = isFlowEditor ? nodesForFlowTransformGuard : baseForFit
+    return coerceNodesForFit({
+      nodes: base,
+      coords: 'topLeft',
+      defaultW: flowConfigEffective.node.widthPx,
+      defaultH: flowConfigEffective.node.heightPx,
+      setVisualRect: true,
+    })
+  }, [canvas2dRenderer, flowConfigEffective.node.heightPx, flowConfigEffective.node.widthPx, graphDataForZoom, nodesForFlowTransformGuard])
+
+  const graphDataForZoomRequests = React.useMemo(() => {
+    if (!graphDataForZoom) return null
+    return { ...graphDataForZoom, nodes: nodesForFlowZoom }
+  }, [graphDataForZoom, nodesForFlowZoom])
+
   React.useEffect(() => {
     collisionSchemaRef.current = schema
     collisionGraphDataRef.current =
@@ -428,13 +475,13 @@ export default function FlowCanvas({
         : sceneGraphData && typeof sceneGraphData === 'object'
           ? (sceneGraphData as GraphData)
           : null
-    collisionFlowConfigRef.current = flowConfig
+    collisionFlowConfigRef.current = flowConfigEffective
     collisionPresentationRef.current = flowPresentation
-  }, [flowConfig, flowPresentation, graphDataForZoom, schema, sceneGraphData])
+  }, [flowConfigEffective, flowPresentation, graphDataForZoom, schema, sceneGraphData])
 
   const requestCommit = useFlowRequestCommit({
     cacheKey,
-    flowConfig,
+    flowConfig: flowConfigEffective,
     flowPresentation,
     graphDataRevision,
     runtimeRef,
@@ -523,71 +570,13 @@ export default function FlowCanvas({
     const effectiveFitToScreenMode = isFlowEditor ? false : fitToScreenMode
     const effectiveZoomToSelectionMode = isFlowEditor ? false : zoomToSelectionMode
 
-    const nodesForTransformGuard = (() => {
-      const base = Array.isArray(graphDataForZoom.nodes) ? graphDataForZoom.nodes : []
-      if (!isFlowEditor) return base as GraphNode[]
-      const pos = computedPositions
-      if (!pos) return []
-      const out: GraphNode[] = []
-      for (let i = 0; i < base.length; i += 1) {
-        const n = base[i] as GraphNode
-        const id = String((n as { id?: unknown })?.id || '').trim()
-        if (!id) continue
-        const p = pos[id]
-        if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) continue
-        out.push({ ...n, x: p.x, y: p.y })
-      }
-      return out
-    })()
+    const nodesForTransformGuard = nodesForFlowTransformGuard
+    const nodesForFit = nodesForFlowZoom
 
-    const nodesForFit = (() => {
-      const baseForFit = (Array.isArray(graphDataForZoom.nodes) ? graphDataForZoom.nodes : []) as GraphNode[]
-      const w = flowConfig.node.widthPx
-      const h = flowConfig.node.heightPx
-      if (!isFlowEditor) {
-        const out: GraphNode[] = []
-        for (let i = 0; i < baseForFit.length; i += 1) {
-          const n = baseForFit[i] as GraphNode
-          const x = typeof n.x === 'number' && Number.isFinite(n.x) ? (n.x as number) : null
-          const y = typeof n.y === 'number' && Number.isFinite(n.y) ? (n.y as number) : null
-          if (x == null || y == null) {
-            out.push(n)
-            continue
-          }
-          const props = (n.properties || {}) as Record<string, unknown>
-          out.push({
-            ...n,
-            x: x + w / 2,
-            y: y + h / 2,
-            properties: {
-              ...props,
-              'visual:width': w,
-              'visual:height': h,
-              'visual:shape': 'rect',
-            } as unknown as GraphNode['properties'],
-          })
-        }
-        return out
-      }
-      const base = nodesForTransformGuard
-      const out: GraphNode[] = []
-      for (let i = 0; i < base.length; i += 1) {
-        const n = base[i]
-        const props = (n.properties || {}) as Record<string, unknown>
-        out.push({
-          ...n,
-          x: (n.x as number) + w / 2,
-          y: (n.y as number) + h / 2,
-          properties: {
-            ...props,
-            'visual:width': w,
-            'visual:height': h,
-            'visual:shape': 'rect',
-          } as unknown as GraphNode['properties'],
-        })
-      }
-      return out
-    })()
+    if (documentSemanticMode === 'keyword') {
+      const meta = (sceneGraphData?.metadata || null) as Record<string, unknown> | null
+      if (meta && meta.pending === true) return
+    }
 
     const initKey = isFlowEditor
       ? buildFlowEditorCameraInitKey({ datasetKey: String(datasetKey || ''), graphData: sceneGraphData as GraphData | null })
@@ -626,15 +615,36 @@ export default function FlowCanvas({
     const schema = useGraphStore.getState().schema
     const mode = readLayoutMode(schema)
     const opts = readFitAllOptions({ schema, mode, intent: effectiveFitToScreenMode ? 'fitToScreen' : 'initialFit' })
+
+    // In Document Structure Mode, enforce collective fit + center by disabling cluster detection
+    // and ensuring groups are included in the bounds calculation.
+    if (documentSemanticMode === 'document') {
+      opts.detectClusters = false
+      opts.includeGroupsBounds = true
+      opts.deriveGroupsOptions = { forceDocumentStructure: true }
+      // Force enable groups in the schema copy passed to fitAllTransform so it calculates their bounds
+      // even if the base schema has them disabled.
+      opts.schema = {
+        ...schema,
+        layout: {
+          ...(schema?.layout || {}),
+          groups: {
+            ...(schema?.layout?.groups || {}),
+            enabled: true,
+          },
+        },
+      } as GraphSchema
+    }
+
     if (isFlowEditor && nodesForTransformGuard.length === 0) return
 
-    const fit = fitAllTransform(nodesForFit, viewportW, viewportH, opts)
+    const fit = fitAllTransform(nodesForFit, viewportW, viewportH, { ...opts, graphData: graphDataForZoomRequests || undefined })
     const next = (() => {
       if (!initial) return fit
       const candidate = d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k)
       const ok = isFlowTransformShowingGraph(
         { k: candidate.k, x: candidate.x, y: candidate.y },
-        { nodes: nodesForTransformGuard as Array<{ x?: unknown; y?: unknown }>, viewportW, viewportH, nodeW: flowConfig.node.widthPx, nodeH: flowConfig.node.heightPx },
+        { nodes: nodesForTransformGuard as Array<{ x?: unknown; y?: unknown }>, viewportW, viewportH, nodeW: flowConfigEffective.node.widthPx, nodeH: flowConfigEffective.node.heightPx },
       )
       return ok ? candidate : fit
     })()
@@ -646,9 +656,10 @@ export default function FlowCanvas({
     active,
     datasetKey,
     fitToScreenMode,
-    flowConfig.node.heightPx,
-    flowConfig.node.widthPx,
+    flowConfigEffective.node.heightPx,
+    flowConfigEffective.node.widthPx,
     graphDataForZoom,
+    graphDataForZoomRequests,
     graphDataRevision,
     isFlowTransformShowingGraph,
     lastUserInteractionAtMsRef,
@@ -659,6 +670,10 @@ export default function FlowCanvas({
     zoomToSelectionMode,
     zoomViewKey,
     computedPositions,
+    nodesForFlowTransformGuard,
+    nodesForFlowZoom,
+    documentSemanticMode,
+    sceneGraphData,
   ])
 
   React.useEffect(() => {
@@ -669,7 +684,7 @@ export default function FlowCanvas({
     applyZoomRequestNative({
       zoomRequest,
       runtime,
-      graphData: graphDataForZoom,
+      graphData: graphDataForZoomRequests,
       width: viewportW,
       height: viewportH,
       selectedNodeId: selectedNodeId ? String(selectedNodeId) : null,
@@ -685,7 +700,7 @@ export default function FlowCanvas({
   }, [
     active,
     buildDrawArgs,
-    graphDataForZoom,
+    graphDataForZoomRequests,
     handleInteractionFrame,
     requestCommit,
     selectedEdgeId,
@@ -719,7 +734,7 @@ export default function FlowCanvas({
       positions: computedPositions,
       schema,
       forbidCircleNodes,
-      flowConfig,
+      flowConfig: flowConfigEffective,
       sceneGroups,
       rankdir,
       nodeQuickEditorRegistry,
@@ -730,7 +745,7 @@ export default function FlowCanvas({
     active,
     buildDrawArgs,
     computedPositions,
-    flowConfig,
+    flowConfigEffective,
     forbidCircleNodes,
     graphDataRevision,
     layoutVariant,

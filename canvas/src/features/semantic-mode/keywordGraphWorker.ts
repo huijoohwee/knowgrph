@@ -1,5 +1,6 @@
 import type { GraphData } from '@/lib/graph/types'
 import { requestFromSingletonWorker } from '@/lib/workers/singletonWorkerClient'
+import { runDeferredWithTimeout } from '@/lib/async/runDeferredWithTimeout'
 
 export type KeywordGraphWorkerArgs = {
   documentId: string
@@ -26,53 +27,22 @@ const clampTimeoutMs = (raw: unknown, fallback: number, min: number, max: number
 }
 
 const deriveDeferred = (args: KeywordGraphWorkerArgs, timeoutMs: number): Promise<GraphData | null> => {
-  return new Promise((resolve) => {
-    let settled = false
-    const timeoutId = setTimeout(() => {
-      if (settled) return
-      settled = true
-      resolve(null)
-    }, timeoutMs) as unknown as number
-
-    setTimeout(() => {
-      Promise.resolve()
-        .then(async () => {
-          const mod = await import('./keywordGraph')
-          return mod.deriveKeywordGraphFromText({
-            documentId: args.documentId,
-            documentText: args.documentText,
-            sourceLabel: args.sourceLabel,
-            sourceTextHash: args.sourceTextHash,
-            tuning: args.tuning,
-          }).graph
-        })
-        .then((g) => {
-          if (settled) return
-          settled = true
-          try {
-            clearTimeout(timeoutId)
-          } catch {
-            void 0
-          }
-          resolve(g || null)
-        })
-        .catch((err: unknown) => {
-          try {
-            const msg = String((err as { message?: unknown })?.message ?? err)
-            if (msg) setLastKeywordError(msg)
-          } catch {
-            void 0
-          }
-          if (settled) return
-          settled = true
-          try {
-            clearTimeout(timeoutId)
-          } catch {
-            void 0
-          }
-          resolve(null)
-        })
-    }, 0)
+  return runDeferredWithTimeout({
+    timeoutMs,
+    deferMs: 0,
+    onErrorMessage: setLastKeywordError,
+    run: async () => {
+      const mod = await import('./keywordGraph')
+      return (
+        (await mod.deriveKeywordGraphFromText({
+          documentId: args.documentId,
+          documentText: args.documentText,
+          sourceLabel: args.sourceLabel,
+          sourceTextHash: args.sourceTextHash,
+          tuning: args.tuning,
+        })).graph || null
+      )
+    },
   })
 }
 
@@ -137,4 +107,3 @@ export function deriveKeywordGraphPreviewInWorker(args: KeywordGraphWorkerArgs):
     return Promise.resolve(null)
   }
 }
-

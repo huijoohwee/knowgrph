@@ -177,6 +177,11 @@ import { testMarkdownPresentationRendersPdfAssetImagesFromSandboxFixture } from 
 import { testMarkdownSelectionTargetEmptyDocPathFallsBackToAnyDocument } from '@/__tests__/markdownSelectionTargetEmptyDocPath.test'
 import { testGraphDataMetadataHashIncludesRevision } from '@/__tests__/graphDataHashRevision.test'
 import {
+  testActive2dZoomViewKeyIgnoresPendingFlag,
+  testGraphMetaKeyIgnoringPendingStaysStableAcrossPendingFlag,
+} from '@/__tests__/graphMetaKeyPending.test'
+import { testDeriveGraphGroupsKeepsCollapsedGroupRenderable } from '@/__tests__/collapsedGroupDerivesRenderableGroup.test'
+import {
   testGraphTableDbAllocatesAndCreatesRows,
   testGraphTableDbConcurrentSyncDoesNotConflict,
   testGraphTableDbInfersAndUpgradesDateColumns,
@@ -865,6 +870,9 @@ export const runAllTests = async () => {
   await exec('ui.perDocumentState.roundtripAndTrim', testPerDocumentUiStateReadWriteAndLruTrim)
   await exec('zoom.actions.inOut.preserveViewportCenterNoBounce', testZoomActionsZoomInOutPreserveViewportCenterNoBounce)
   await exec('zoom.wheel.parity.d3AndNative', testCanvasZoomWheelParityBetweenD3AndNative)
+  await exec('zoom.viewKey.pending.ignoresPendingFlag', testActive2dZoomViewKeyIgnoresPendingFlag)
+  await exec('graph.metaKey.pending.ignoreHelper.stable', testGraphMetaKeyIgnoringPendingStaysStableAcrossPendingFlag)
+  await exec('graph.groups.collapse.derivesRenderableGroup', testDeriveGraphGroupsKeepsCollapsedGroupRenderable)
   await exec('zoom.invariants.semanticMode.carriesZoomState', testSemanticModeSwitchCarriesZoomStateAcrossKeys)
   await exec('zoom.invariants.schemaUpdate.carriesZoomState', testSchemaUpdateCarriesZoomStateAcrossLayoutKey)
   await exec('zoom.wheel.anchor.fallbackWhenOutside', testWheelAnchorFallsBackWhenClientCoordsOutsideRect)

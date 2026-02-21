@@ -5,7 +5,7 @@ type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
 const DEFAULT_LAYER_ORDER: ReadonlyArray<{ id: string; rank: number }> = [
   { id: 'links', rank: -20 },
-  { id: 'links-hit', rank: -15 },
+  { id: 'links-hit', rank: -5 },
   { id: 'groups', rank: -10 },
   { id: 'edge-labels', rank: 5 },
   { id: 'temp-link', rank: 7 },

@@ -9,6 +9,7 @@ export const postFitNodesToViewport = (args: {
   paddingPx: number
   minScale?: number
   maxScale?: number
+  viewportCenter?: { x: number; y: number }
 }): boolean => {
   const { nodes, width, height, paddingPx } = args
   if (!nodes.length) return false
@@ -51,8 +52,8 @@ export const postFitNodesToViewport = (args: {
 
   const cx = sumX / count
   const cy = sumY / count
-  const tx = width / 2
-  const ty = height / 2
+  const tx = args.viewportCenter ? args.viewportCenter.x : width / 2
+  const ty = args.viewportCenter ? args.viewportCenter.y : height / 2
 
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i]

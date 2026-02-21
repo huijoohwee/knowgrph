@@ -55,10 +55,20 @@ export const buildSimulation = (
   width: number,
   height: number,
   schema: GraphSchema,
-  options?: { skipInitialLayout?: boolean; groupKeyOf?: GroupKeyOfNode; groupsForBboxCollide?: GraphGroup[] }
+  options?: {
+    skipInitialLayout?: boolean
+    groupKeyOf?: GroupKeyOfNode
+    groupsForBboxCollide?: GraphGroup[]
+    treatKeywordGraphAsDocument?: boolean
+    viewportCenter?: { x: number; y: number }
+  }
 ) => {
   const frameW = width > 100 ? width : ZOOM_VIEWPORT_PRESET_16_9.maxWidth
   const frameH = height > 100 ? height : ZOOM_VIEWPORT_PRESET_16_9.maxHeight
+
+  const viewportCenter = options?.viewportCenter || { x: frameW / 2, y: frameH / 2 }
+  const centerX = viewportCenter.x
+  const centerY = viewportCenter.y
 
   const computeTopology = (ns: GraphNode[], es: GraphEdge[]) => {
     const inDegree = new Map<string, number>()
@@ -77,6 +87,7 @@ export const buildSimulation = (
   }
 
   const isKeywordGraph = (() => {
+    if (options?.treatKeywordGraphAsDocument === true) return false
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
       const props = (n.properties || {}) as Record<string, unknown>
@@ -234,11 +245,11 @@ export const buildSimulation = (
       const gt = readGroupTarget(n)
       if (gt) return gt.x
       
-      if (!disjointLayout) return frameW / 2
+      if (!disjointLayout) return centerX
       const comp = disjointLayout.componentByNodeId.get(String(n.id))
-      if (comp == null) return frameW / 2
+      if (comp == null) return centerX
       const t = disjointLayout.targetsByComponent.get(comp)
-      return t ? t.x : frameW / 2
+      return t ? t.x : centerX
     }
     const yTarget = (n: GraphNode) => {
       if (portHandlesEnabled) {
@@ -255,23 +266,25 @@ export const buildSimulation = (
       }
       const gt = readGroupTarget(n)
       if (gt) return gt.y
-      if (!disjointLayout) return frameH / 2
+      if (!disjointLayout) return centerY
       const comp = disjointLayout.componentByNodeId.get(String(n.id))
-      if (comp == null) return frameH / 2
+      if (comp == null) return centerY
       const t = disjointLayout.targetsByComponent.get(comp)
-      return t ? t.y : frameH / 2
+      return t ? t.y : centerY
     }
+
+
 
     const centerStrength = (() => {
       const raw = schema.layout?.forces?.centerStrength
       if (typeof raw === 'number' && Number.isFinite(raw)) return raw
-      if (isKeywordGraph) return Math.max(DEFAULT_CENTER_STRENGTH, 0.14)
-      return DEFAULT_CENTER_STRENGTH
+      if (isKeywordGraph) return Math.max(DEFAULT_CENTER_STRENGTH, 0.18)
+      return Math.max(DEFAULT_CENTER_STRENGTH, 0.15)
     })()
-    const anchorStrength = Math.max(0, Math.min(2, disjointStrength)) * 0.08 + Math.max(0, Math.min(2, centerStrength)) * 0.06
+    const anchorStrength = Math.max(0, Math.min(2, disjointStrength)) * 0.08 + Math.max(0, Math.min(2, centerStrength)) * 0.12
     let antiLineTick = 0
     if (!disjointLayout) {
-      simulation.force('center', d3.forceCenter(frameW / 2, frameH / 2))
+      simulation.force('center', d3.forceCenter(centerX, centerY).strength(1))
     }
     simulation
       .force('charge', d3.forceManyBody().strength(chargeStrength))
@@ -330,10 +343,10 @@ export const buildSimulation = (
          const k = alpha * strength;
          const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled);
          const pad = portHandlesEnabled ? 20 : 28;
-         const minX = pad;
-         const minY = pad;
-         const maxX = Math.max(minX + 1, frameW - pad);
-         const maxY = Math.max(minY + 1, frameH - pad);
+         const minX = centerX - frameW / 2 + pad;
+         const minY = centerY - frameH / 2 + pad;
+         const maxX = centerX + frameW / 2 - pad;
+         const maxY = centerY + frameH / 2 - pad;
          for (const d of nodes) {
            if (d.x == null || d.y == null) continue;
            const { halfW, halfH } = getNodeHalfExtents2d(d, schema);
@@ -464,13 +477,13 @@ export const buildSimulation = (
         if (!enabled) return
         const alpha = simulation.alpha()
         const alphaMaxRaw = (schema.layout as unknown as { forces?: { postFitAlphaMax?: number } })?.forces?.postFitAlphaMax
-        const alphaMax = typeof alphaMaxRaw === 'number' && Number.isFinite(alphaMaxRaw) ? Math.max(0.01, Math.min(0.4, alphaMaxRaw)) : 0.085
+        const alphaMax = typeof alphaMaxRaw === 'number' && Number.isFinite(alphaMaxRaw) ? Math.max(0.01, Math.min(0.4, alphaMaxRaw)) : 0.095
         if (alpha > alphaMax) return
         const strengthRaw = (schema.layout as unknown as { forces?: { postFitStrength?: number } })?.forces?.postFitStrength
-        const strength = typeof strengthRaw === 'number' && Number.isFinite(strengthRaw) ? Math.max(0, Math.min(0.6, strengthRaw)) : 0.22
+        const strength = typeof strengthRaw === 'number' && Number.isFinite(strengthRaw) ? Math.max(0, Math.min(0.6, strengthRaw)) : 0.28
         const k = Math.max(0.00001, strength) * Math.max(0.02, alphaMax)
         const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
-        const pad = portHandlesEnabled ? 28 : 36
+        const pad = portHandlesEnabled ? 28 : 48
 
         let minX = Infinity
         let maxX = -Infinity
@@ -499,22 +512,38 @@ export const buildSimulation = (
         const targetW = Math.max(1, frameW - pad * 2)
         const targetH = Math.max(1, frameH - pad * 2)
         const scale = Math.min(targetW / spanX, targetH / spanY)
-        const desired = scale < 0.94 ? Math.max(0.55, Math.min(0.98, scale)) : scale > 1.25 ? Math.min(1.4, Math.max(1.02, scale)) : 1
-        if (desired === 1) return
-
+        
+        // Stricter expansion control
+        const desired = scale < 0.9 ? Math.max(0.6, Math.min(0.96, scale)) : scale > 1.15 ? Math.min(1.25, Math.max(1.02, scale)) : 1
+        
         const cx = sumX / count
         const cy = sumY / count
-        const tx = frameW / 2
-        const ty = frameH / 2
+        const tx = centerX
+        const ty = centerY
+        
+        // Centering force
+        const centerK = k * 0.5
+        
         for (let i = 0; i < nodes.length; i += 1) {
           const n = nodes[i]
           const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
           const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
           if (x == null || y == null) continue
-          const nx = tx + (x - cx) * desired
-          const ny = ty + (y - cy) * desired
-          n.vx = (n.vx ?? 0) + (nx - x) * k
-          n.vy = (n.vy ?? 0) + (ny - y) * k
+          
+          let nx = x
+          let ny = y
+          
+          if (desired !== 1) {
+             nx = tx + (x - cx) * desired
+             ny = ty + (y - cy) * desired
+          }
+          
+          // Pull collective centroid to viewport center
+          const driftX = tx - cx
+          const driftY = ty - cy
+          
+          n.vx = (n.vx ?? 0) + (nx - x) * k + driftX * centerK
+          n.vy = (n.vy ?? 0) + (ny - y) * k + driftY * centerK
         }
       })
 
@@ -533,6 +562,7 @@ export const updateForceSimulationPresentation = (args: {
   schema: GraphSchema
   groupKeyOf?: GroupKeyOfNode
   groupsForBboxCollide?: GraphGroup[]
+  viewportCenter?: { x: number; y: number }
 }) => {
   const { simulation, nodes, edges, width, height, schema } = args
   const mode = readLayoutMode(schema)
@@ -540,6 +570,10 @@ export const updateForceSimulationPresentation = (args: {
 
   const frameW = width > 100 ? width : ZOOM_VIEWPORT_PRESET_16_9.maxWidth
   const frameH = height > 100 ? height : ZOOM_VIEWPORT_PRESET_16_9.maxHeight
+
+  const viewportCenter = args.viewportCenter || { x: frameW / 2, y: frameH / 2 }
+  const centerX = viewportCenter.x
+  const centerY = viewportCenter.y
 
   const computeTopology = (ns: GraphNode[], es: GraphEdge[]) => {
     const inDegree = new Map<string, number>()
@@ -608,11 +642,11 @@ export const updateForceSimulationPresentation = (args: {
     const gt = readGroupTarget(n)
     if (gt) return gt.x
     
-    if (!disjointLayout) return frameW / 2
+    if (!disjointLayout) return centerX
     const comp = disjointLayout.componentByNodeId.get(String(n.id))
-    if (comp == null) return frameW / 2
+    if (comp == null) return centerX
     const t = disjointLayout.targetsByComponent.get(comp)
-    return t ? t.x : frameW / 2
+    return t ? t.x : centerX
   }
   const yTarget = (n: GraphNode) => {
     if (portHandlesEnabled) {
@@ -629,30 +663,48 @@ export const updateForceSimulationPresentation = (args: {
     }
     const gt = readGroupTarget(n)
     if (gt) return gt.y
-    if (!disjointLayout) return frameH / 2
+    if (!disjointLayout) return centerY
     const comp = disjointLayout.componentByNodeId.get(String(n.id))
-    if (comp == null) return frameH / 2
+    if (comp == null) return centerY
     const t = disjointLayout.targetsByComponent.get(comp)
-    return t ? t.y : frameH / 2
+    return t ? t.y : centerY
   }
 
-  const centerStrength =
-    typeof schema.layout?.forces?.centerStrength === 'number' && Number.isFinite(schema.layout.forces.centerStrength)
-      ? schema.layout.forces.centerStrength
-      : DEFAULT_CENTER_STRENGTH
-  const anchorStrength = Math.max(0, Math.min(2, disjointStrength)) * 0.08 + Math.max(0, Math.min(2, centerStrength)) * 0.06
+  const isKeywordGraph = (() => {
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]
+        const props = (n.properties || {}) as Record<string, unknown>
+        const kind = props['keyword:kind']
+        if (typeof kind === 'string' && kind.trim()) return true
+      }
+      for (let i = 0; i < edges.length; i += 1) {
+        const e = edges[i]
+        const props = (e.properties || {}) as Record<string, unknown>
+        const kind = props['keyword:kind']
+        if (typeof kind === 'string' && kind.trim()) return true
+      }
+      return false
+    })()
 
-  const collisionRadiusByType = schema.layout?.forces?.collisionByType || {}
-  const collideRadiusFn = (d: GraphNode) => {
-    const configured = collisionRadiusByType[d.type]
-    if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) return configured
-    return getNodeCollisionRadius(d, schema)
-  }
+    const centerStrength = (() => {
+      const raw = schema.layout?.forces?.centerStrength
+      if (typeof raw === 'number' && Number.isFinite(raw)) return raw
+      if (isKeywordGraph) return Math.max(DEFAULT_CENTER_STRENGTH, 0.18)
+      return Math.max(DEFAULT_CENTER_STRENGTH, 0.15)
+    })()
+    const anchorStrength = Math.max(0, Math.min(2, disjointStrength)) * 0.08 + Math.max(0, Math.min(2, centerStrength)) * 0.12
 
-  const collisionCfg = readCollisionConfig(schema)
-  const bboxCfg = collisionCfg.nodeBbox
+    const collisionRadiusByType = schema.layout?.forces?.collisionByType || {}
+    const collideRadiusFn = (d: GraphNode) => {
+      const configured = collisionRadiusByType[d.type]
+      if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) return configured
+      return getNodeCollisionRadius(d, schema)
+    }
 
-  simulation.force('center', disjointLayout ? null : d3.forceCenter(frameW / 2, frameH / 2))
+    const collisionCfg = readCollisionConfig(schema)
+    const bboxCfg = collisionCfg.nodeBbox
+
+  simulation.force('center', disjointLayout ? null : d3.forceCenter(centerX, centerY).strength(1))
   simulation.force('collide', d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.9).iterations(3))
   simulation.force(
     'bboxCollide',
@@ -708,10 +760,10 @@ export const updateForceSimulationPresentation = (args: {
     const k = alpha * strength
     const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
     const pad = portHandlesEnabled ? 20 : 28
-    const minX = pad
-    const minY = pad
-    const maxX = Math.max(minX + 1, frameW - pad)
-    const maxY = Math.max(minY + 1, frameH - pad)
+    const minX = centerX - frameW / 2 + pad
+    const minY = centerY - frameH / 2 + pad
+    const maxX = centerX + frameW / 2 - pad
+    const maxY = centerY + frameH / 2 - pad
     for (const d of nodes) {
       if (d.x == null || d.y == null) continue
       const { halfW, halfH } = getNodeHalfExtents2d(d, schema)
@@ -730,13 +782,13 @@ export const updateForceSimulationPresentation = (args: {
     if (!enabled) return
     const alpha = simulation.alpha()
     const alphaMaxRaw = (schema.layout as unknown as { forces?: { postFitAlphaMax?: number } })?.forces?.postFitAlphaMax
-    const alphaMax = typeof alphaMaxRaw === 'number' && Number.isFinite(alphaMaxRaw) ? Math.max(0.01, Math.min(0.4, alphaMaxRaw)) : 0.085
+    const alphaMax = typeof alphaMaxRaw === 'number' && Number.isFinite(alphaMaxRaw) ? Math.max(0.01, Math.min(0.4, alphaMaxRaw)) : 0.095
     if (alpha > alphaMax) return
     const strengthRaw = (schema.layout as unknown as { forces?: { postFitStrength?: number } })?.forces?.postFitStrength
-    const strength = typeof strengthRaw === 'number' && Number.isFinite(strengthRaw) ? Math.max(0, Math.min(0.6, strengthRaw)) : 0.22
+    const strength = typeof strengthRaw === 'number' && Number.isFinite(strengthRaw) ? Math.max(0, Math.min(0.6, strengthRaw)) : 0.28
     const k = Math.max(0.00001, strength) * Math.max(0.02, alphaMax)
     const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
-    const pad = portHandlesEnabled ? 28 : 36
+    const pad = portHandlesEnabled ? 28 : 48
 
     let minX = Infinity
     let maxX = -Infinity
@@ -765,22 +817,38 @@ export const updateForceSimulationPresentation = (args: {
     const targetW = Math.max(1, frameW - pad * 2)
     const targetH = Math.max(1, frameH - pad * 2)
     const scale = Math.min(targetW / spanX, targetH / spanY)
-    const desired = scale < 0.94 ? Math.max(0.55, Math.min(0.98, scale)) : scale > 1.25 ? Math.min(1.4, Math.max(1.02, scale)) : 1
-    if (desired === 1) return
-
+    
+    // Stricter expansion control
+    const desired = scale < 0.9 ? Math.max(0.6, Math.min(0.96, scale)) : scale > 1.15 ? Math.min(1.25, Math.max(1.02, scale)) : 1
+    
     const cx = sumX / count
     const cy = sumY / count
-    const tx = frameW / 2
-    const ty = frameH / 2
+    const tx = centerX
+    const ty = centerY
+    
+    // Centering force
+    const centerK = k * 0.5
+    
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
       const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
       const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
       if (x == null || y == null) continue
-      const nx = tx + (x - cx) * desired
-      const ny = ty + (y - cy) * desired
-      n.vx = (n.vx ?? 0) + (nx - x) * k
-      n.vy = (n.vy ?? 0) + (ny - y) * k
+      
+      let nx = x
+      let ny = y
+      
+      if (desired !== 1) {
+         nx = tx + (x - cx) * desired
+         ny = ty + (y - cy) * desired
+      }
+      
+      // Pull collective centroid to viewport center
+      const driftX = tx - cx
+      const driftY = ty - cy
+      
+      n.vx = (n.vx ?? 0) + (nx - x) * k + driftX * centerK
+      n.vy = (n.vy ?? 0) + (ny - y) * k + driftY * centerK
     }
   })
 

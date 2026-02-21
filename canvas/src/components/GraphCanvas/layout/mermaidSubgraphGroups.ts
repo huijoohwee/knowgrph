@@ -106,10 +106,14 @@ export const deriveMermaidSubgraphGroups = (data: GraphData): MermaidSubgraphGro
       stroke: readStringProp(props, 'visual:stroke') ?? undefined,
       strokeWidth: readNumberProp(props, 'visual:strokeWidth') ?? readNumberProp(props, 'stroke-width') ?? undefined,
     }
+    const xIndex = readNumberProp(props, 'visual:xIndex')
+    const yIndex = readNumberProp(props, 'visual:yIndex')
     groups.push({
       id,
       label,
       depth: computeDepth(id),
+      xIndex: xIndex ?? undefined,
+      yIndex: yIndex ?? undefined,
       memberNodeIds: collectLeafNodes(id),
       style,
     })
@@ -117,6 +121,12 @@ export const deriveMermaidSubgraphGroups = (data: GraphData): MermaidSubgraphGro
 
   groups.sort((a, b) => {
     if (a.depth !== b.depth) return a.depth - b.depth
+    const ax = typeof a.xIndex === 'number' && Number.isFinite(a.xIndex) ? a.xIndex : 0
+    const bx = typeof b.xIndex === 'number' && Number.isFinite(b.xIndex) ? b.xIndex : 0
+    if (ax !== bx) return ax - bx
+    const ay = typeof a.yIndex === 'number' && Number.isFinite(a.yIndex) ? a.yIndex : 0
+    const by = typeof b.yIndex === 'number' && Number.isFinite(b.yIndex) ? b.yIndex : 0
+    if (ay !== by) return ay - by
     return a.id.localeCompare(b.id)
   })
   return groups

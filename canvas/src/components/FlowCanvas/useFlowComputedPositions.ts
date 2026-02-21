@@ -6,7 +6,7 @@ import { buildElkLayout } from '@/components/FlowCanvas/elkLayout'
 import { buildDagreLayout, buildFastGridLayout, buildGraphMetaKey } from '@/components/FlowCanvas/layout'
 import { buildLayoutPositionCacheKey } from '@/components/GraphCanvas/layout/positioning'
 import { pickSeedFromOtherRendererCache } from '@/components/FlowCanvas/seed'
-import { extractNodePositions, hasCacheCoverage } from '@/components/FlowCanvas/seedPositions'
+import { extractNodePositions, hasCacheCoverage, looksUnstablePositions } from '@/components/FlowCanvas/seedPositions'
 import { relaxFlowPositionsWithCollision } from '@/components/FlowCanvas/relaxPositions'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -57,6 +57,24 @@ export function useFlowComputedPositions(args: {
     lastLayoutGraphKeyRef.current = graphKey
 
     const run = async () => {
+      const nodeW = Math.max(1, Math.floor(args.flowConfig.node.widthPx))
+      const nodeH = Math.max(1, Math.floor(args.flowConfig.node.heightPx))
+      const centerToTopLeft = (positions: Record<string, { x: number; y: number }> | null): Record<string, { x: number; y: number }> | null => {
+        if (!positions) return null
+        const out: Record<string, { x: number; y: number }> = {}
+        const keys = Object.keys(positions)
+        for (let i = 0; i < keys.length; i += 1) {
+          const id = keys[i]
+          const p = positions[id]
+          if (!p) continue
+          const x = p.x
+          const y = p.y
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+          out[id] = { x: x - nodeW / 2, y: y - nodeH / 2 }
+        }
+        return out
+      }
+
       const cached = args.layoutPositionsForMode || null
       const seededFromOtherRenderer = (() => {
         const seedKey = `${graphKey}:${String(args.documentSemanticMode || 'document')}:${args.effectiveFrontmatter ? '1' : '0'}:${args.layoutMode}`
@@ -78,19 +96,28 @@ export function useFlowComputedPositions(args: {
           cache,
           baseKey,
         })
-        seededFromOtherRendererPositionsRef.current = best
-        return best
+        const normalized = centerToTopLeft(best)
+        seededFromOtherRendererPositionsRef.current = normalized
+        return normalized
       })()
-      const seededFromNodes = extractNodePositions(nodeList as ReadonlyArray<{ id?: unknown; x?: unknown; y?: unknown }>)
-      const fromCache = hasCacheCoverage({ nodes: nodeList, positions: cached, minCoverage: 0.9 })
-      const fromOtherRenderer = !fromCache && hasCacheCoverage({ nodes: nodeList, positions: seededFromOtherRenderer, minCoverage: 0.9 })
-      const fromNodes = !fromCache && !fromOtherRenderer && hasCacheCoverage({ nodes: nodeList, positions: seededFromNodes, minCoverage: 0.9 })
+      const seededFromNodes = centerToTopLeft(extractNodePositions(nodeList as ReadonlyArray<{ id?: unknown; x?: unknown; y?: unknown }>))
+      const cacheCoverageOk = hasCacheCoverage({ nodes: nodeList, positions: cached, minCoverage: 0.9 })
+      const cacheUnstable = cacheCoverageOk && looksUnstablePositions({ nodes: nodeList, positions: cached, nodeSize: { widthPx: nodeW, heightPx: nodeH } })
+      const allowCache = cacheCoverageOk && !cacheUnstable
 
-      const computed = fromCache
+      const otherCoverageOk = !allowCache && hasCacheCoverage({ nodes: nodeList, positions: seededFromOtherRenderer, minCoverage: 0.9 })
+      const otherUnstable = otherCoverageOk && looksUnstablePositions({ nodes: nodeList, positions: seededFromOtherRenderer, nodeSize: { widthPx: nodeW, heightPx: nodeH } })
+      const allowOther = otherCoverageOk && !otherUnstable
+
+      const nodesCoverageOk = !allowCache && !allowOther && hasCacheCoverage({ nodes: nodeList, positions: seededFromNodes, minCoverage: 0.9 })
+      const nodesUnstable = nodesCoverageOk && looksUnstablePositions({ nodes: nodeList, positions: seededFromNodes, nodeSize: { widthPx: nodeW, heightPx: nodeH } })
+      const allowNodes = nodesCoverageOk && !nodesUnstable
+
+      const computed = allowCache
         ? cached
-        : fromOtherRenderer
+        : allowOther
           ? seededFromOtherRenderer
-          : fromNodes
+          : allowNodes
             ? seededFromNodes
             : await (async () => {
                 if (nodeList.length > DEFAULT_FLOW_DAGRE_MAX_NODES) {
@@ -137,8 +164,14 @@ export function useFlowComputedPositions(args: {
                 }
               })()
 
+      const semanticMode = String(args.documentSemanticMode || 'document')
+      const computedCoverageOk = hasCacheCoverage({ nodes: nodeList, positions: computed, minCoverage: 0.98 })
+      const computedUnstable =
+        computedCoverageOk &&
+        looksUnstablePositions({ nodes: nodeList, positions: computed, nodeSize: { widthPx: nodeW, heightPx: nodeH } })
+      const shouldRelax = computedUnstable
       const relaxed =
-        !fromCache && args.sceneGraphData && args.schema
+        shouldRelax && args.sceneGraphData && args.schema
           ? relaxFlowPositionsWithCollision({
               graphData: args.sceneGraphData,
               groups: args.sceneGroups,
@@ -150,7 +183,7 @@ export function useFlowComputedPositions(args: {
                 sizePx: args.flowPresentation.portHandles.sizePx,
                 offsetPx: args.flowPresentation.portHandles.offsetPx,
               },
-              defaultSteps: args.sceneGroups.length > 0 ? 18 : 12,
+              defaultSteps: semanticMode === 'keyword' ? 12 : (args.sceneGroups.length > 0 ? 18 : 12),
             })
           : computed
 

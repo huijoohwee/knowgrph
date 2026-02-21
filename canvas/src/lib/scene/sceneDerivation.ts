@@ -84,7 +84,7 @@ export const deriveSceneGroups = (args: {
   const cached = cache.get(key)
   if (cached) return cached
 
-  const allGroups = deriveGraphGroups(g)
+  const allGroups = deriveGraphGroups(g, { forceDocumentStructure: args.documentSemanticMode === 'document' })
   const layoutGroups = selectLayoutGroups({ graphData: g, schema: args.schema, groups: allGroups })
   const keyOfNode = createLayoutGroupKeyOfNode({ graphData: g, schema: args.schema, groups: allGroups })
 

@@ -7,7 +7,7 @@ export {
 } from './simulation';
 export { buildAdjacencyMap, getAdjacencyMap } from './adjacency'
 export type { EdgeWithRuntime } from './simulation';
-export { nodeDragBehavior } from './drag';
+export { nodeDragBehavior, edgeDragBehavior } from './drag';
 export { fitNodeTransform, fitEdgeTransform, fitAllTransform, centerAllTransform } from './fit';
 export { applySelectionHighlight } from './highlight';
 export { attachEdgeCreateHandlers } from './edgeCreate';

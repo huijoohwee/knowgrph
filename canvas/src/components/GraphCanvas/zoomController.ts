@@ -46,12 +46,14 @@ export const applyZoomRequest = (
     height: number;
     selectedNodeId: string | null;
     selectedEdgeId: string | null;
+    selectedGroupId?: string | null;
     selectedNodeIds?: string[];
     selectedEdgeIds?: string[];
+    selectedGroupIds?: string[];
   }
 ) => {
   if (!zoomRequest) return;
-  const { svg, zoom, graphData, width, height, selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds } = ctx
+  const { svg, zoom, graphData, width, height, selectedNodeId, selectedEdgeId, selectedGroupId, selectedNodeIds, selectedEdgeIds, selectedGroupIds } = ctx
   const clear = () => {
     try {
       useGraphStore.getState().clearZoomRequest()
@@ -110,8 +112,10 @@ export const applyZoomRequest = (
     toolbarZoom: DEFAULT_TOOLBAR_ZOOM_CONFIG,
     selectedNodeId,
     selectedEdgeId,
+    selectedGroupId,
     selectedNodeIds,
     selectedEdgeIds,
+    selectedGroupIds,
     currentTransform: t0,
     scaleExtent,
     cacheKeyBase: '2d',

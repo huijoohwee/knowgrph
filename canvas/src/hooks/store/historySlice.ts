@@ -5,6 +5,7 @@ import type { StoreApi } from 'zustand';
 import { LS_KEYS } from '@/lib/config'
 import { lsSetJson } from '@/lib/persistence'
 import { withGraphDataRevision } from './graphDataSliceUtils'
+import { deepClone } from '@/lib/data/deepClone'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -43,8 +44,8 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
   addHistory: (label: string = 'Snapshot') => {
     const { graphData, graphFieldSettingsById, history, historyIndex } = get();
     if (!graphData) return;
-    const graphCopy: GraphData = JSON.parse(JSON.stringify(graphData));
-    const fieldSettingsCopy: GraphFieldSettingsById = JSON.parse(JSON.stringify(graphFieldSettingsById || {}));
+    const graphCopy: GraphData = deepClone(graphData)
+    const fieldSettingsCopy: GraphFieldSettingsById = deepClone(graphFieldSettingsById || {})
     const trimmed = history.slice(0, historyIndex + 1);
     const entry = {
       id: `h-${Date.now().toString(36)}`,
@@ -60,8 +61,8 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
     const { history, setGraphFieldSettingsById } = get();
     const entry = (history as HistoryEntry[])[index];
     if (!entry) return;
-    const graphCopy: GraphData = JSON.parse(JSON.stringify(entry.graphData));
-    const fieldSettingsCopy: GraphFieldSettingsById = JSON.parse(JSON.stringify(entry.graphFieldSettingsById || {}));
+    const graphCopy: GraphData = deepClone(entry.graphData)
+    const fieldSettingsCopy: GraphFieldSettingsById = deepClone(entry.graphFieldSettingsById || {})
     const nextRevision = (get().graphDataRevision || 0) + 1
     set({ graphData: withGraphDataRevision(graphCopy, nextRevision), graphDataRevision: nextRevision, historyIndex: index });
     setGraphFieldSettingsById(fieldSettingsCopy);
@@ -84,8 +85,8 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
     if (nextIndex < 0) return;
     const entry = (history as HistoryEntry[])[nextIndex];
     if (!entry) return;
-    const graphCopy: GraphData = JSON.parse(JSON.stringify(entry.graphData));
-    const fieldSettingsCopy: GraphFieldSettingsById = JSON.parse(JSON.stringify(entry.graphFieldSettingsById || {}));
+    const graphCopy: GraphData = deepClone(entry.graphData)
+    const fieldSettingsCopy: GraphFieldSettingsById = deepClone(entry.graphFieldSettingsById || {})
     const nextRevision = (get().graphDataRevision || 0) + 1
     set({ graphData: withGraphDataRevision(graphCopy, nextRevision), graphDataRevision: nextRevision, historyIndex: nextIndex });
     setGraphFieldSettingsById(fieldSettingsCopy);
@@ -108,8 +109,8 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
     if (nextIndex >= history.length) return;
     const entry = (history as HistoryEntry[])[nextIndex];
     if (!entry) return;
-    const graphCopy: GraphData = JSON.parse(JSON.stringify(entry.graphData));
-    const fieldSettingsCopy: GraphFieldSettingsById = JSON.parse(JSON.stringify(entry.graphFieldSettingsById || {}));
+    const graphCopy: GraphData = deepClone(entry.graphData)
+    const fieldSettingsCopy: GraphFieldSettingsById = deepClone(entry.graphFieldSettingsById || {})
     const nextRevision = (get().graphDataRevision || 0) + 1
     set({ graphData: withGraphDataRevision(graphCopy, nextRevision), graphDataRevision: nextRevision, historyIndex: nextIndex });
     setGraphFieldSettingsById(fieldSettingsCopy);
@@ -134,8 +135,8 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
     const t: ReturnType<typeof setTimeout> = setTimeout(() => {
       const { graphData, graphFieldSettingsById, history, historyIndex } = get();
       if (!graphData) return;
-      const graphCopy: GraphData = JSON.parse(JSON.stringify(graphData));
-      const fieldSettingsCopy: GraphFieldSettingsById = JSON.parse(JSON.stringify(graphFieldSettingsById || {}));
+      const graphCopy: GraphData = deepClone(graphData)
+      const fieldSettingsCopy: GraphFieldSettingsById = deepClone(graphFieldSettingsById || {})
       const trimmed = history.slice(0, historyIndex + 1);
       const entry = {
         id: `h-${Date.now().toString(36)}`,
@@ -175,8 +176,8 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
             id: String(h.id),
             label: String(h.label),
             timestamp: Math.floor(h.timestamp),
-            graphData: JSON.parse(JSON.stringify(h.graphData)) as GraphData,
-            graphFieldSettingsById: JSON.parse(JSON.stringify(h.graphFieldSettingsById || {})) as GraphFieldSettingsById,
+            graphData: deepClone(h.graphData) as GraphData,
+            graphFieldSettingsById: deepClone(h.graphFieldSettingsById || {}) as GraphFieldSettingsById,
           }))
       : [];
 
@@ -194,11 +195,11 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
         : graphData || null
     const nextRevision = (get().graphDataRevision || 0) + 1
     const nextGraphData: GraphData | null = nextGraphDataBase
-      ? withGraphDataRevision(JSON.parse(JSON.stringify(nextGraphDataBase)) as GraphData, nextRevision)
+      ? withGraphDataRevision(deepClone(nextGraphDataBase) as GraphData, nextRevision)
       : null
     const nextFieldSettings = boundedIndex >= 0 && safeHistory[boundedIndex] ? safeHistory[boundedIndex].graphFieldSettingsById : get().graphFieldSettingsById || {};
     set({ history: safeHistory, historyIndex: boundedIndex, historyTimer: null, graphData: nextGraphData, graphDataRevision: nextRevision });
-    setGraphFieldSettingsById(JSON.parse(JSON.stringify(nextFieldSettings || {})) as GraphFieldSettingsById);
+    setGraphFieldSettingsById(deepClone(nextFieldSettings || {}) as GraphFieldSettingsById);
     try {
       get().resyncGraphFieldsFromGraphData?.()
     } catch {

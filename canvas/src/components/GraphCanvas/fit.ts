@@ -1,7 +1,10 @@
 import * as d3 from 'd3';
-import { GraphNode } from '@/lib/graph/types';
+import { GraphNode, type GraphData } from '@/lib/graph/types';
 import type { GraphSchema } from '@/lib/graph/schema';
 import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d';
+import { getNodeAabbHalfExtentsWithLabel } from '@/components/GraphCanvas/layout/overlap'
+import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
+import { DEFAULT_GROUP_NESTED_PADDING_STEP } from '@/lib/graph/layoutDefaults'
 import {
   DEFAULT_FIT_PADDING,
   DEFAULT_ZOOM_MAX_SCALE,
@@ -34,6 +37,56 @@ export const fitEdgeTransform = (src: GraphNode, tgt: GraphNode, width: number, 
   return d3.zoomIdentity.translate(width / 2 - s * cx, height / 2 - s * cy).scale(s);
 };
 
+export const coerceNodesForFit = (args: {
+  nodes: GraphNode[]
+  coords: 'center' | 'topLeft'
+  defaultW?: number
+  defaultH?: number
+  setVisualRect?: boolean
+}): GraphNode[] => {
+  const nodes = Array.isArray(args.nodes) ? args.nodes : []
+  const coords = args.coords === 'topLeft' ? 'topLeft' : 'center'
+  const setVisualRect = args.setVisualRect !== false
+  const w = typeof args.defaultW === 'number' && Number.isFinite(args.defaultW) && args.defaultW > 0 ? args.defaultW : null
+  const h = typeof args.defaultH === 'number' && Number.isFinite(args.defaultH) && args.defaultH > 0 ? args.defaultH : null
+
+  const out: GraphNode[] = []
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]
+    if (!n) continue
+    const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+    const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+    const props = (n.properties || {}) as Record<string, unknown>
+    const hasVisualW = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) && (props['visual:width'] as number) > 0
+    const hasVisualH = typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) && (props['visual:height'] as number) > 0
+    const nextProps = setVisualRect
+      ? {
+          ...props,
+          ...(hasVisualW || w == null ? null : { 'visual:width': w }),
+          ...(hasVisualH || h == null ? null : { 'visual:height': h }),
+          'visual:shape': typeof props['visual:shape'] === 'string' ? props['visual:shape'] : 'rect',
+        }
+      : props
+
+    if (coords === 'topLeft' && x != null && y != null && w != null && h != null) {
+      out.push({
+        ...n,
+        x: x + w / 2,
+        y: y + h / 2,
+        properties: nextProps as unknown as GraphNode['properties'],
+      })
+      continue
+    }
+
+    if (setVisualRect && nextProps !== props) {
+      out.push({ ...n, properties: nextProps as unknown as GraphNode['properties'] })
+    } else {
+      out.push(n)
+    }
+  }
+  return out
+}
+
 export type FitAllTransformOptions = {
   pad?: number
   targetFillRatio?: number
@@ -44,9 +97,13 @@ export type FitAllTransformOptions = {
   maxScaleHardCap?: number
   minBBoxSize?: number
   useCentroidCentering?: boolean
+  centerMode?: 'bbox' | 'centroid'
   detectClusters?: boolean
   nodePadding?: number
   schema?: GraphSchema
+  graphData?: GraphData
+  includeGroupsBounds?: boolean
+  deriveGroupsOptions?: { forceDocumentStructure?: boolean }
 }
 
 export const fitAllTransform = (
@@ -78,13 +135,33 @@ export const fitAllTransform = (
       ? opts.maxScaleHardCap
       : DEFAULT_ZOOM_MAX_SCALE_HARD_CAP
   const minBBoxSize = typeof opts.minBBoxSize === 'number' && Number.isFinite(opts.minBBoxSize) ? opts.minBBoxSize : 100
-  const useCentroidCentering = opts.useCentroidCentering !== false
+  const centerMode = opts.centerMode === 'bbox' || opts.centerMode === 'centroid'
+    ? opts.centerMode
+    : (opts.useCentroidCentering !== false ? 'centroid' : 'bbox')
+  const useCentroidCentering = centerMode === 'centroid'
   const detectClusters = opts.detectClusters === true
   const nodePaddingRaw = typeof opts.nodePadding === 'number' && Number.isFinite(opts.nodePadding) ? opts.nodePadding : 12
   const nodePadding = Math.max(0, nodePaddingRaw)
   const schema = opts.schema
+  const graphData = opts.graphData
+  const includeGroupsBounds = opts.includeGroupsBounds !== false
 
-  const validNodes = nodes.filter(n => typeof n.x === 'number' && Number.isFinite(n.x) && typeof n.y === 'number' && Number.isFinite(n.y))
+  const coerceFiniteNumber = (v: unknown): number | null => {
+    if (typeof v !== 'number' || !Number.isFinite(v)) return null
+    return v
+  }
+
+  const readNodeXY = (n: GraphNode): { x: number; y: number } | null => {
+    const x = coerceFiniteNumber((n as unknown as { x?: unknown }).x)
+    const y = coerceFiniteNumber((n as unknown as { y?: unknown }).y)
+    if (x != null && y != null) return { x, y }
+    const fx = coerceFiniteNumber((n as unknown as { fx?: unknown }).fx)
+    const fy = coerceFiniteNumber((n as unknown as { fy?: unknown }).fy)
+    if (fx != null && fy != null) return { x: fx, y: fy }
+    return null
+  }
+
+  const validNodes = nodes.filter(n => !!readNodeXY(n))
 
   if (validNodes.length === 0) {
     return d3.zoomIdentity
@@ -105,14 +182,23 @@ export const fitAllTransform = (
     if (!detectClusters) return validNodes
     if (validNodes.length < 20) return validNodes
 
-    const xs = validNodes.map(n => n.x as number).sort((a, b) => a - b)
-    const ys = validNodes.map(n => n.y as number).sort((a, b) => a - b)
+    const xs: number[] = []
+    const ys: number[] = []
+    for (let i = 0; i < validNodes.length; i += 1) {
+      const xy = readNodeXY(validNodes[i])
+      if (!xy) continue
+      xs.push(xy.x)
+      ys.push(xy.y)
+    }
+    xs.sort((a, b) => a - b)
+    ys.sort((a, b) => a - b)
     const mx = quantileSorted(xs, 0.5)
     const my = quantileSorted(ys, 0.5)
 
     const withD2 = validNodes.map(n => {
-      const dx = (n.x as number) - mx
-      const dy = (n.y as number) - my
+      const xy = readNodeXY(n)
+      const dx = (xy?.x ?? 0) - mx
+      const dy = (xy?.y ?? 0) - my
       return { n, d2: dx * dx + dy * dy }
     })
     const d2s = withD2.map(v => v.d2).sort((a, b) => a - b)
@@ -128,6 +214,30 @@ export const fitAllTransform = (
 
   const nodesForFit = clusterFilteredNodes
 
+  const nodeHalfExtentsForFit = (n: GraphNode): { halfW: number; halfH: number } => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    const visualW = props['visual:width']
+    const visualH = props['visual:height']
+    const vw = typeof visualW === 'number' && Number.isFinite(visualW) && visualW > 0 ? visualW : null
+    const vh = typeof visualH === 'number' && Number.isFinite(visualH) && visualH > 0 ? visualH : null
+
+    let hw = 20
+    let hh = 20
+    if (schema) {
+      const ext = getNodeAabbHalfExtentsWithLabel(n, schema)
+      hw = Math.max(hw, ext.halfW)
+      hh = Math.max(hh, ext.halfH)
+
+      const dim = getNodeRectDimensions2d(n, schema)
+      hw = Math.max(hw, dim.width / 2)
+      hh = Math.max(hh, dim.height / 2)
+    }
+
+    if (vw != null) hw = Math.max(hw, vw / 2)
+    if (vh != null) hh = Math.max(hh, vh / 2)
+    return { halfW: hw, halfH: hh }
+  }
+
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
@@ -138,21 +248,14 @@ export const fitAllTransform = (
 
   for (let i = 0; i < nodesForFit.length; i += 1) {
     const n = nodesForFit[i];
-    const x = n.x!;
-    const y = n.y!;
+    const xy = readNodeXY(n)
+    if (!xy) continue
+    const x = xy.x
+    const y = xy.y
 
-    const dim = (() => {
-      const props = (n.properties || {}) as Record<string, unknown>
-      const visualW = props['visual:width']
-      const visualH = props['visual:height']
-      const vw = typeof visualW === 'number' && Number.isFinite(visualW) && visualW > 0 ? visualW : null
-      const vh = typeof visualH === 'number' && Number.isFinite(visualH) && visualH > 0 ? visualH : null
-      if (vw != null && vh != null) return { width: vw, height: vh }
-      if (schema) return getNodeRectDimensions2d(n, schema)
-      return null
-    })()
-    const hw = dim ? dim.width / 2 : 20
-    const hh = dim ? dim.height / 2 : 20
+    const ext = nodeHalfExtentsForFit(n)
+    const hw = ext.halfW
+    const hh = ext.halfH
     
     // For centroid, use node center
     sumX += x;
@@ -169,6 +272,97 @@ export const fitAllTransform = (
     if (right > maxX) maxX = right;
     if (top < minY) minY = top;
     if (bottom > maxY) maxY = bottom;
+  }
+
+  if (includeGroupsBounds && graphData && schema) {
+    const groupCfg = schema.layout?.groups || {}
+    // If groups are disabled in schema, but we explicitly requested to include them (e.g. forced mode),
+    // we proceed. Otherwise we respect the schema.
+    if (groupCfg.enabled === false && !opts.deriveGroupsOptions?.forceDocumentStructure) {
+       // skip
+    } else {
+    const paddingRaw = (groupCfg as unknown as { padding?: number }).padding
+    const labelPaddingRaw = (groupCfg as unknown as { labelPadding?: number }).labelPadding
+    const nestedPaddingStepRaw = (groupCfg as unknown as { nestedPaddingStep?: number }).nestedPaddingStep
+    const padding = typeof paddingRaw === 'number' && Number.isFinite(paddingRaw) ? Math.max(0, paddingRaw) : 24
+    const labelPadding = typeof labelPaddingRaw === 'number' && Number.isFinite(labelPaddingRaw) ? Math.max(0, labelPaddingRaw) : 10
+    const nestedPaddingStep = typeof nestedPaddingStepRaw === 'number' && Number.isFinite(nestedPaddingStepRaw)
+      ? Math.max(0, nestedPaddingStepRaw)
+      : DEFAULT_GROUP_NESTED_PADDING_STEP
+    const baseFontSize = schema.labelStyles?.fontSize ?? 12
+
+    const nodeById = new Map<string, GraphNode>()
+    const nodesForFitIdSet = new Set<string>()
+    for (let i = 0; i < nodesForFit.length; i += 1) {
+      const n = nodesForFit[i]
+      const id = String(n.id || '')
+      if (!id) continue
+      nodeById.set(id, n)
+      nodesForFitIdSet.add(id)
+    }
+
+    const groups = deriveGraphGroups(graphData, opts.deriveGroupsOptions)
+    if (groups.length > 0) {
+      let maxDepth = 0
+      for (let i = 0; i < groups.length; i += 1) {
+        const d = groups[i]
+        const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
+        maxDepth = Math.max(maxDepth, depth)
+      }
+
+      for (let gi = 0; gi < groups.length; gi += 1) {
+        const g = groups[gi]
+        const depth = typeof g.depth === 'number' && Number.isFinite(g.depth) ? Math.max(0, Math.floor(g.depth)) : 0
+        const extraPad = nestedPaddingStep > 0 ? nestedPaddingStep * Math.max(0, maxDepth - depth) : 0
+        const effectivePadding = padding + extraPad
+        const fontSize = Math.max(12, Math.min(24, baseFontSize + Math.min(12, depth * 2)))
+        const topPad = effectivePadding + labelPadding + fontSize * 1.25
+
+        let gMinX = Infinity
+        let gMaxX = -Infinity
+        let gMinY = Infinity
+        let gMaxY = -Infinity
+        let valid = 0
+
+        const members = Array.isArray(g.memberNodeIds) ? g.memberNodeIds : []
+        for (let mi = 0; mi < members.length; mi += 1) {
+          const id = String(members[mi] || '')
+          if (!id || !nodesForFitIdSet.has(id)) continue
+          const n = nodeById.get(id)
+          if (!n) continue
+          const xy = readNodeXY(n)
+          if (!xy) continue
+          const ext = nodeHalfExtentsForFit(n)
+          const x0 = xy.x - ext.halfW
+          const x1 = xy.x + ext.halfW
+          const y0 = xy.y - ext.halfH
+          const y1 = xy.y + ext.halfH
+          if (x0 < gMinX) gMinX = x0
+          if (x1 > gMaxX) gMaxX = x1
+          if (y0 < gMinY) gMinY = y0
+          if (y1 > gMaxY) gMaxY = y1
+          valid += 1
+        }
+
+        if (valid === 0 || gMinX === Infinity) continue
+        const left = gMinX - effectivePadding
+        const right = gMaxX + effectivePadding
+        const top = gMinY - topPad
+        const bottom = gMaxY + effectivePadding
+
+        if (left < minX) minX = left
+        if (right > maxX) maxX = right
+        if (top < minY) minY = top
+        if (bottom > maxY) maxY = bottom
+
+        if (useCentroidCentering) {
+          sumX += (left + right) / 2
+          sumY += (top + bottom) / 2
+          validCount += 1
+        }
+      }
+    }
+    }
   }
 
   // If we only have 1 node or very tight cluster, ensure minimum box size

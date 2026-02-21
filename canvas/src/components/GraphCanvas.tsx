@@ -33,13 +33,13 @@ import { commitZoomTransformToStore } from '@/lib/canvas/zoom-commit'
 import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
 import { ensureSpacePanKeyListenerInstalled } from '@/lib/canvas/space-pan'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
-import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
+import { buildGraphMetaKey, buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
 import { shouldIgnoreCanvasWheelEvent } from '@/lib/canvas/wheel-target-guard'
 import { UI_SELECTORS } from '@/lib/config'
-import { deriveSceneGroups } from '@/lib/scene/sceneDerivation'
+import { deriveSceneDisplayGraph, deriveSceneGroups } from '@/lib/scene/sceneDerivation'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
@@ -163,6 +163,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     zoomState,
     fitToScreenMode,
     zoomToSelectionMode,
+    workspaceViewMode,
   } = useGraphStore(
     useShallow((s) => ({
       graphDataRevision: s.graphDataRevision,
@@ -183,10 +184,12 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       zoomState: s.zoomState || null,
       fitToScreenMode: s.fitToScreenMode === true,
       zoomToSelectionMode: s.zoomToSelectionMode === true,
+      workspaceViewMode: s.workspaceViewMode,
     })),
   );
   const prevCanvasRenderModeRef = useRef<'2d' | '3d'>(canvasRenderMode)
   const prevRenderVariantRef = useRef<string>(canvasRenderMode === '2d' ? String(canvas2dRenderer || '') : '')
+  const lastKnownZoomTransformRef = useRef<{ k: number; x: number; y: number } | null>(null)
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns);
   const selectedNodeIdRef = useGraphStoreKeyRef('selectedNodeId')
   const selectedEdgeIdRef = useGraphStoreKeyRef('selectedEdgeId')
@@ -263,6 +266,10 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
     })
   }, [documentSemanticMode, effectiveFrontmatterModeEnabled, graphDataRevision, sceneGraphData, schema])
+
+  const sceneDisplayDerivation = useMemo(() => {
+    return deriveSceneDisplayGraph({ graphData: sceneGraphData })
+  }, [sceneGraphData])
 
   useEffect(() => {
     schemaRef.current = schema
@@ -437,6 +444,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     width,
     height,
     paused: !active,
+    graphDataOverride: sceneDisplayDerivation?.displayGraphData ?? null,
   });
 
   useAutoZoomModes2d({
@@ -495,6 +503,18 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     let rafId: number | null = null;
     rafId = requestAnimationFrame(() => {
       if (!svgRef.current) return;
+
+      try {
+        const t = d3.zoomTransform(svgRef.current as unknown as SVGSVGElement)
+        lastKnownZoomTransformRef.current = {
+          k: typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1,
+          x: typeof t.x === 'number' && Number.isFinite(t.x) ? t.x : 0,
+          y: typeof t.y === 'number' && Number.isFinite(t.y) ? t.y : 0,
+        }
+      } catch {
+        void 0
+      }
+
       const buildKey = [
         String(graphDataRevisionRef.current ?? graphDataRevision),
         `${sceneWidth}x${sceneHeight}`,
@@ -570,13 +590,14 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       nodesPresentationAppliedKeyRef.current = schemaNodesPresentationJson
       groupsPresentationAppliedKeyRef.current = schemaGroupsPresentationJson
       const graphMetaKey = buildGraphMetaKey(sceneGraphData)
+      const graphMetaKeyForZoom = buildGraphMetaKeyIgnoringPending(sceneGraphData)
       const zoomViewKey = buildZoomViewKey({
         canvasRenderMode,
         canvas2dRenderer,
         schemaLayoutEngineJson,
         frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
         documentSemanticMode: String(documentSemanticMode),
-        graphMetaKey,
+        graphMetaKey: graphMetaKeyForZoom,
         renderMediaAsNodes: renderMediaAsNodes === true,
         mediaPanelDensity: String(mediaPanelDensity),
         collapsedGroupIdsKey,
@@ -613,13 +634,16 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         graphDataRevision: graphDataRevisionRef.current ?? graphDataRevision,
       })
       const layoutVariant = ''
-      const initialZoomTransform = pickInitialZoomTransform({
+      const pickedInitialZoomTransform = pickInitialZoomTransform({
         zoomState: z,
         pinned: isPinned,
         graphDataRevision: graphDataRevisionRef.current ?? graphDataRevision,
         nextViewportW: sceneWidth,
         nextViewportH: sceneHeight,
       })
+      const initialZoomTransform =
+        pickedInitialZoomTransform ||
+        (!fitToScreenMode && !zoomToSelectionMode ? lastKnownZoomTransformRef.current : null)
       const {
         layoutPositionsForMode,
         skipInitialLayout,
@@ -670,11 +694,18 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         }
 
         const graphMetaKey = buildGraphMetaKey(sceneGraphData)
+        const baselineGraphMetaKey = (() => {
+          const meta = sceneGraphData.metadata && typeof sceneGraphData.metadata === 'object' && !Array.isArray(sceneGraphData.metadata)
+            ? (sceneGraphData.metadata as Record<string, unknown>)
+            : null
+          const raw = meta && typeof meta.baselineGraphMetaKey === 'string' ? meta.baselineGraphMetaKey.trim() : ''
+          return raw || graphMetaKey
+        })()
         const baselineLayoutViewKey = buildLayoutViewKey({
           schemaLayoutEngineJson,
           frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
           documentSemanticMode: 'document',
-          graphMetaKey,
+          graphMetaKey: baselineGraphMetaKey,
           renderMediaAsNodes: renderMediaAsNodes === true,
           mediaPanelDensity: String(mediaPanelDensity),
           collapsedGroupIdsKey,
@@ -691,6 +722,14 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         })
         return lookup(baselineFromCurrentKey)
       })()
+
+      const effectiveSkipInitialLayout =
+        String(documentSemanticMode || 'document') === 'keyword' &&
+        canvasRenderMode === '2d' &&
+        String(canvas2dRenderer || '') === 'd3' &&
+        !!baselineLayoutPositions
+          ? true
+          : skipInitialLayout
       
       const prevPositions: Record<string, { x: number; y: number }> = {}
       if (nodesSelRef.current) {
@@ -720,13 +759,14 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         zoomOnDoubleClick,
         renderMediaAsNodes,
         mediaPanelDensity,
+        enableTightInitialLayout: workspaceViewMode === 'editor' || workspaceViewMode === 'table',
         fitToScreenMode,
         viewportControlsPreset,
         initialZoomTransform,
         layoutPositionsForMode,
         baselineLayoutPositions,
         prevPositions: Object.keys(prevPositions).length > 0 ? prevPositions : null,
-        skipInitialLayout,
+        skipInitialLayout: effectiveSkipInitialLayout,
         freezeSimulation: isEmbeddedPreview,
         groupsForBboxCollide: sceneGroupsDerivation?.allGroups || [],
         layoutGroupKeyByNodeId: sceneGroupsDerivation?.layoutGroupKeyByNodeId || null,
@@ -868,6 +908,19 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       schema: schemaValue,
       groupKeyOf,
       groupsForBboxCollide: sceneGroupsDerivation?.allGroups || [],
+      viewportCenter: (() => {
+        const el = svgRef.current
+        if (!el) return undefined
+        try {
+          const t = d3.zoomTransform(el)
+          const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+          const x = typeof t.x === 'number' && Number.isFinite(t.x) ? t.x : 0
+          const y = typeof t.y === 'number' && Number.isFinite(t.y) ? t.y : 0
+          return { x: (sceneWidth / 2 - x) / k, y: (sceneHeight / 2 - y) / k }
+        } catch {
+          return undefined
+        }
+      })(),
     })
     updateGraphSceneNodesPresentation({
       svgEl: svgRef.current,

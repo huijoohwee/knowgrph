@@ -12,12 +12,29 @@ export const FitToViewButton = () => {
     uiIconScale,
     uiIconStrokeWidth,
   } = useToolbarState();
-  const { requestZoom, requestThreeCamera, canvasRenderMode, viewPinned } = useGraphStore(
+  const {
+    requestZoom,
+    requestThreeCamera,
+    canvasRenderMode,
+    viewPinned,
+    selectedNodeId,
+    selectedEdgeId,
+    selectedGroupId,
+    selectedNodeIds,
+    selectedEdgeIds,
+    selectedGroupIds,
+  } = useGraphStore(
     useShallow(s => ({
       requestZoom: s.requestZoom,
       requestThreeCamera: s.requestThreeCamera,
       canvasRenderMode: s.canvasRenderMode,
       viewPinned: s.viewPinned === true,
+      selectedNodeId: s.selectedNodeId,
+      selectedEdgeId: s.selectedEdgeId,
+      selectedGroupId: s.selectedGroupId,
+      selectedNodeIds: s.selectedNodeIds,
+      selectedEdgeIds: s.selectedEdgeIds,
+      selectedGroupIds: s.selectedGroupIds,
     })),
   )
 
@@ -26,8 +43,19 @@ export const FitToViewButton = () => {
       requestThreeCamera('fit')
       return
     }
+    const hasSelection =
+      (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0)
+      || (Array.isArray(selectedEdgeIds) && selectedEdgeIds.length > 0)
+      || (Array.isArray(selectedGroupIds) && selectedGroupIds.length > 0)
+      || !!selectedNodeId
+      || !!selectedEdgeId
+      || !!selectedGroupId
+    if (hasSelection) {
+      requestZoom('selection')
+      return
+    }
     requestZoom('fit', { intent: 'fitToView' })
-  }, [canvasRenderMode, requestThreeCamera, requestZoom]);
+  }, [canvasRenderMode, requestThreeCamera, requestZoom, selectedEdgeId, selectedEdgeIds, selectedGroupId, selectedGroupIds, selectedNodeId, selectedNodeIds]);
 
   const iconSizeClass = getIconSizeClass(uiIconScale);
 

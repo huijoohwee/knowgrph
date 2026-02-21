@@ -24,8 +24,10 @@ export type ZoomComputeContext = {
   toolbarZoom?: ToolbarZoomConfig
   selectedNodeId: string | null
   selectedEdgeId: string | null
+  selectedGroupId?: string | null
   selectedNodeIds?: string[]
   selectedEdgeIds?: string[]
+  selectedGroupIds?: string[]
   currentTransform: d3.ZoomTransform
   scaleExtent: { minK: number; maxK: number }
   cacheKeyBase: string
@@ -97,6 +99,8 @@ function getFitTransformCached(args: {
     schemaFitSig(args.schema),
     String(opts.pad ?? ''),
     String(opts.detectClusters ? 1 : 0),
+    String((opts as unknown as { centerMode?: unknown }).centerMode ?? ''),
+    String((opts as unknown as { includeGroupsBounds?: unknown }).includeGroupsBounds === false ? 0 : 1),
     String(opts.targetAspectRatio ?? ''),
     String(opts.enforceAspectRatio === false ? 0 : 1),
     String(opts.targetFillRatio ?? ''),
@@ -105,7 +109,7 @@ function getFitTransformCached(args: {
   ].join('|')
   const cached = FIT_CACHE.get(key)
   if (cached) return cached
-  const computed = fitAllTransform(args.nodes, w, h, opts)
+  const computed = fitAllTransform(args.nodes, w, h, { ...opts, graphData: args.graphData })
   FIT_CACHE.set(key, computed)
   return computed
 }
@@ -113,8 +117,10 @@ function getFitTransformCached(args: {
 function buildSelectionKey(args: {
   selectedNodeId: string | null
   selectedEdgeId: string | null
+  selectedGroupId?: string | null
   selectedNodeIds?: string[]
   selectedEdgeIds?: string[]
+  selectedGroupIds?: string[]
 }): string {
   const nodeIds = Array.isArray(args.selectedNodeIds) && args.selectedNodeIds.length > 0
     ? args.selectedNodeIds
@@ -126,9 +132,15 @@ function buildSelectionKey(args: {
     : args.selectedEdgeId
       ? [args.selectedEdgeId]
       : []
+  const groupIds = Array.isArray(args.selectedGroupIds) && args.selectedGroupIds.length > 0
+    ? args.selectedGroupIds
+    : args.selectedGroupId
+      ? [args.selectedGroupId]
+      : []
   const n = nodeIds.map(v => String(v)).filter(Boolean).sort().join(',')
   const e = edgeIds.map(v => String(v)).filter(Boolean).sort().join(',')
-  return `${n}|${e}`
+  const g = groupIds.map(v => String(v)).filter(Boolean).sort().join(',')
+  return `${n}|${e}|${g}`
 }
 
 export function computeZoomTransformFromRequest(
@@ -210,8 +222,17 @@ export function computeZoomTransformFromRequest(
 
   if (type === 'reset') {
     if (graphData && (graphData.nodes || []).length > 0) {
+      const centered = fitAllTransform(graphData.nodes, w, h, {
+        centerMode: 'bbox',
+        minScale: 1,
+        maxScale: 1,
+        maxScaleHardCap: 1,
+        schema: ctx.schema,
+        graphData,
+        includeGroupsBounds: true,
+      })
       return {
-        nextTransform: centerAllTransform(graphData.nodes, w, h),
+        nextTransform: centered,
         durationMs: readDurationMs(ctx.durations?.resetMs ?? ctx.toolbarZoom?.durationMs, 250),
       }
     }
@@ -230,15 +251,19 @@ export function computeZoomTransformFromRequest(
       graphData,
       selectedNodeId: ctx.selectedNodeId,
       selectedEdgeId: ctx.selectedEdgeId,
+      selectedGroupId: ctx.selectedGroupId,
       selectedNodeIds: ctx.selectedNodeIds,
       selectedEdgeIds: ctx.selectedEdgeIds,
+      selectedGroupIds: ctx.selectedGroupIds,
     })
     if (subset.length > 0) {
       const selectionKey = buildSelectionKey({
         selectedNodeId: ctx.selectedNodeId,
         selectedEdgeId: ctx.selectedEdgeId,
+        selectedGroupId: ctx.selectedGroupId,
         selectedNodeIds: ctx.selectedNodeIds,
         selectedEdgeIds: ctx.selectedEdgeIds,
+        selectedGroupIds: ctx.selectedGroupIds,
       })
       const next = getFitTransformCached({
         graphData,

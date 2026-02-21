@@ -63,15 +63,19 @@ export const createGroupsLayer = (args: {
     nodeById.set(String(n.id), n)
   }
 
+  const visibleGroups = groups.filter(d => d.memberNodeIds.some(id => nodeById.has(String(id))))
+  if (visibleGroups.length === 0) return { update: () => {} }
+
   const shapesLayer = g.append('g').attr('data-kg-layer', 'groups')
   const labelsLayer = g.append('g').attr('data-kg-layer', 'group-labels')
 
   const itemSel = shapesLayer
     .selectAll<SVGGElement, GroupDatum>('g')
-    .data(groups, d => d.id)
+    .data(visibleGroups, d => d.id)
     .join('g')
     .attr('data-kg-group-id', d => d.id)
-    .style('pointer-events', 'none')
+    .style('pointer-events', 'all')
+    .style('cursor', 'grab')
 
   const rectSel = itemSel
     .append('rect')
@@ -157,7 +161,7 @@ export const createGroupsLayer = (args: {
 
   const labelSel = labelsLayer
     .selectAll<SVGTextElement, GroupDatum>('text')
-    .data(groups, d => d.id)
+    .data(visibleGroups, d => d.id)
     .join('text')
     .attr('data-kg-group-label', '1')
     .attr('data-kg-group-id', d => d.id)
@@ -186,7 +190,7 @@ export const createGroupsLayer = (args: {
   const chevronGapPx = 6
   const chevronSel = labelsLayer
     .selectAll<SVGPathElement, GroupDatum>('path[data-kg-group-chevron]')
-    .data(groups, d => d.id)
+    .data(visibleGroups, d => d.id)
     .join('path')
     .attr('data-kg-group-chevron', '1')
     .attr('data-kg-group-id', d => d.id)
@@ -261,6 +265,33 @@ export const createGroupsLayer = (args: {
       selectNode(collapsedGroupNodeIdFor(d.id))
     })
 
+  itemSel
+    .on('click', (event: MouseEvent, d: GroupDatum) => {
+      if ((event as unknown as { defaultPrevented?: unknown }).defaultPrevented) return
+      event.stopPropagation()
+      clearClickTimer(d.id)
+      const handle = window.setTimeout(() => {
+        setSelectionSource('canvas')
+        selectGroup(d.id)
+      }, 200)
+      clickTimerById.set(d.id, handle)
+    })
+    .on('dblclick', (event: MouseEvent, d: GroupDatum) => {
+      event.stopPropagation()
+      clearClickTimer(d.id)
+      setSelectionSource('canvas')
+      const isAlt = (event as unknown as { altKey?: unknown }).altKey === true
+      if (isAlt) {
+        const members = d.memberNodeIds.map(x => String(x)).filter(Boolean)
+        const memberSet = memberIdSetOf(d)
+        const edgeIds = edgeIdsWithinMembers(memberSet)
+        selectGroupExpanded({ id: d.id, nodeIds: members, edgeIds })
+        return
+      }
+      toggleGroupCollapsed(d.id)
+      selectNode(collapsedGroupNodeIdFor(d.id))
+    })
+
   chevronSel.on('click', (event: MouseEvent, d: GroupDatum) => {
     event.stopPropagation()
     clearClickTimer(d.id)
@@ -269,9 +300,16 @@ export const createGroupsLayer = (args: {
     selectNode(collapsedGroupNodeIdFor(d.id))
   })
 
-  const allowDrag = schema.behavior?.allowNodeDrag !== false
+  const allowDrag = (() => {
+    const behavior = schema.behavior as unknown as { allowGroupDrag?: unknown }
+    if (behavior && behavior.allowGroupDrag === false) return false
+    const cfgDrag = cfg as unknown as { draggable?: unknown }
+    if (cfgDrag && cfgDrag.draggable === false) return false
+    return true
+  })()
   if (allowDrag) {
     let dragNodes: GraphNode[] = []
+    let frozen = false
     const dragBehavior = d3
       .drag<SVGTextElement, GroupDatum>()
       .on('start', (event, d) => {
@@ -279,13 +317,17 @@ export const createGroupsLayer = (args: {
         if (srcEv && typeof srcEv.stopPropagation === 'function') srcEv.stopPropagation()
         setSelectionSource('canvas')
         selectGroup(d.id)
+
+        const svgEl = (event?.sourceEvent?.target as SVGElement | null)?.ownerSVGElement
+        frozen = svgEl?.getAttribute('data-kg-layout-frozen') === '1'
+
         dragNodes = []
         for (let i = 0; i < d.memberNodeIds.length; i += 1) {
           const n = nodeById.get(String(d.memberNodeIds[i]))
           if (n) dragNodes.push(n)
         }
         const structured = readLayoutMode(schema) === 'radial'
-        if (simulation && !structured && !event.active) {
+        if (simulation && !structured && !frozen && !event.active) {
           simulation.alphaTarget(0.3).restart()
         }
         for (let i = 0; i < dragNodes.length; i += 1) {
@@ -307,12 +349,12 @@ export const createGroupsLayer = (args: {
           const ny = y + dy
           n.fx = nx
           n.fy = ny
-          if (structured) {
+          if (structured || frozen) {
             n.x = nx
             n.y = ny
           }
         }
-        if (structured && simulation) {
+        if ((structured || frozen) && simulation) {
           const tickHandler = simulation.on('tick')
           if (typeof tickHandler === 'function') {
             ;(tickHandler as unknown as () => void)()
@@ -321,12 +363,12 @@ export const createGroupsLayer = (args: {
       })
       .on('end', (event) => {
         const structured = readLayoutMode(schema) === 'radial'
-        if (simulation && !structured && !event.active) {
+        if (simulation && !structured && !frozen && !event.active) {
           simulation.alphaTarget(0)
         }
         for (let i = 0; i < dragNodes.length; i += 1) {
           const n = dragNodes[i]!
-          if (!structured) {
+          if (!structured && !frozen) {
             n.fx = null
             n.fy = null
           }
@@ -335,9 +377,11 @@ export const createGroupsLayer = (args: {
         }
         if (structured && simulation) simulation.stop()
         dragNodes = []
+        frozen = false
       })
-
+    
     labelSel.call(dragBehavior as unknown as d3.DragBehavior<SVGTextElement, GroupDatum, unknown>)
+    itemSel.call(dragBehavior as unknown as d3.DragBehavior<SVGGElement, GroupDatum, unknown>)
   }
 
   const layoutCache = new Map<

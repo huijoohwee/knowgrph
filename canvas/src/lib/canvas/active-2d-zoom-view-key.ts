@@ -2,7 +2,7 @@ import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
-import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 
@@ -45,7 +45,7 @@ export function buildActive2dZoomViewKey(args: {
     schemaLayoutEngineJson,
     frontmatterModeEnabled: effectiveFrontmatter,
     documentSemanticMode,
-    graphMetaKey: buildGraphMetaKey(graphData),
+    graphMetaKey: buildGraphMetaKeyIgnoringPending(graphData),
     renderMediaAsNodes,
     mediaPanelDensity,
     collapsedGroupIdsKey,

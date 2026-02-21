@@ -87,6 +87,10 @@ export const createGroupBboxCollideForce = (args: {
 
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
+      // If the node is being dragged (pinned), ignore it for group bbox calculation
+      // to prevent the group from expanding violently and causing chaos.
+      if (isPinned(n)) continue
+
       const id = String(n.id)
       if (!id) continue
       const gid = groupKeyOf(n)
@@ -110,7 +114,7 @@ export const createGroupBboxCollideForce = (args: {
           maxY,
           minZ: zInfo.hasZ ? zInfo.z : Infinity,
           maxZ: zInfo.hasZ ? zInfo.z : -Infinity,
-          movableIdxs: isPinned(n) ? [] : [i],
+          movableIdxs: [i],
         })
       } else {
         if (minX < prev.minX) prev.minX = minX
@@ -122,7 +126,7 @@ export const createGroupBboxCollideForce = (args: {
           if (z < prev.minZ) prev.minZ = z
           if (z > prev.maxZ) prev.maxZ = z
         }
-        if (!isPinned(n)) prev.movableIdxs.push(i)
+        prev.movableIdxs.push(i)
       }
     }
 
