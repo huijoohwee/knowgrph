@@ -1,29 +1,8 @@
 import * as d3 from 'd3'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { DEFAULT_CANVAS_LAYER_ORDER_2D, MERMAID_RENDER_ORDER_KEY_TO_LAYER_ID_2D } from '@/lib/canvas/layerOrder2d'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
-
-const DEFAULT_LAYER_ORDER: ReadonlyArray<{ id: string; rank: number }> = [
-  { id: 'links', rank: -20 },
-  { id: 'links-hit', rank: -5 },
-  { id: 'groups', rank: -10 },
-  { id: 'edge-labels', rank: 5 },
-  { id: 'temp-link', rank: 7 },
-  { id: 'nodes', rank: 10 },
-  { id: 'node-chevrons', rank: 12 },
-  { id: 'media', rank: 14 },
-  { id: 'port-handles', rank: 16 },
-  { id: 'labels', rank: 18 },
-  { id: 'group-labels', rank: 20 },
-]
-
-const MERMAID_RENDER_ORDER_KEY_TO_LAYER_ID: Readonly<Record<string, string>> = {
-  MermaidSubgraph: 'groups',
-  MermaidNode: 'nodes',
-  edge: 'links',
-  edgeLabels: 'edge-labels',
-  nodeLabels: 'labels',
-}
 
 export function applyGraphCanvasZOrder(g: GSelection, schema?: GraphSchema | null) {
   const renderOrderRaw = schema?.layout?.mermaid?.renderOrder
@@ -32,14 +11,14 @@ export function applyGraphCanvasZOrder(g: GSelection, schema?: GraphSchema | nul
     : null
 
   const rankByLayerId: Record<string, number> = {}
-  for (const x of DEFAULT_LAYER_ORDER) {
+  for (const x of DEFAULT_CANVAS_LAYER_ORDER_2D) {
     rankByLayerId[x.id] = x.rank
   }
 
   if (renderOrder) {
     for (const [key, v] of Object.entries(renderOrder)) {
       if (typeof v !== 'number' || !Number.isFinite(v)) continue
-      const mapped = MERMAID_RENDER_ORDER_KEY_TO_LAYER_ID[key] || key
+      const mapped = MERMAID_RENDER_ORDER_KEY_TO_LAYER_ID_2D[key] || key
       if (!mapped) continue
       rankByLayerId[mapped] = v
     }

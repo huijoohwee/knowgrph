@@ -127,6 +127,11 @@ export function bindFlowCanvasNativeInteractions(args: {
   const touchPointsById = new Map<number, { sx: number; sy: number }>()
   const edgeScroll = createEdgeScrollController()
 
+  const getPreset = (): ViewportControlsPreset => {
+    const st = useGraphStore.getState()
+    return (st.viewportControlsPreset || args.viewportControlsPreset) as ViewportControlsPreset
+  }
+
   let pendingDragRelaxRaf: number | null = null
   let lastDragRelaxMs = 0
   let pendingWheelZoomRaf: number | null = null
@@ -641,7 +646,7 @@ export function bindFlowCanvasNativeInteractions(args: {
     cancelWheelZoomAnimation()
     cancelFlowZoomRequestAnim(runtime)
 
-    const preset = args.viewportControlsPreset
+    const preset = getPreset()
     const allowButton = e.pointerType === 'touch' || e.button === 0 || isPanDragButton(e.button, preset)
     if (!allowButton) return
     try {
@@ -649,12 +654,8 @@ export function bindFlowCanvasNativeInteractions(args: {
     } catch {
       void 0
     }
-    lockGlobalUserSelect()
     const local = readCanvasLocalPoint({ canvasEl, event: e })
-    if (!local) {
-      unlockGlobalUserSelect()
-      return
-    }
+    if (!local) return
     args.lastPointerInCanvasRef.current = { sx: local.sx, sy: local.sy, ts: Date.now() }
     const sx = local.sx
     const sy = local.sy
@@ -663,16 +664,35 @@ export function bindFlowCanvasNativeInteractions(args: {
     const allowGroupHit = drawArgs.renderGroups !== false
     const hit = allowNodeHit ? hitTestNode(runtime, { sx, sy }) : null
     const pointerId = e.pointerId
-    args.userSelectLockPointerIdRef.current = pointerId
-    try {
-      canvasEl.setPointerCapture(pointerId)
-    } catch {
-      void 0
-    }
-    try {
-      e.preventDefault()
-    } catch {
-      void 0
+    const spacePanHeld = isSpacePanHeld()
+    const allowPan = shouldAllowPanDragForPointerEvent({
+      preset,
+      eventType: 'pointerdown',
+      button: e.button,
+      shiftKey: e.shiftKey === true,
+      spacePanHeld,
+    })
+    const selectionDrag = shouldStartSelectionDragForPreset({
+      preset,
+      button: e.button,
+      shiftKey: e.shiftKey === true,
+      spacePanHeld,
+      selectionOnDrag: args.selectionOnDrag,
+    })
+    const startDrag = (next: FlowCanvasDrag) => {
+      lockGlobalUserSelect()
+      args.userSelectLockPointerIdRef.current = pointerId
+      try {
+        canvasEl.setPointerCapture(pointerId)
+      } catch {
+        void 0
+      }
+      try {
+        e.preventDefault()
+      } catch {
+        void 0
+      }
+      args.dragRef.current = next
     }
 
     const storeStateAtDown = useGraphStore.getState()
@@ -687,7 +707,7 @@ export function bindFlowCanvasNativeInteractions(args: {
         const a = first ? first[1] : { sx, sy }
         const b = second ? second[1] : { sx, sy }
         args.setSelectionBox(null)
-        args.dragRef.current = {
+        startDrag({
           type: 'pinch',
           pointerIdA: first ? first[0] : pointerId,
           pointerIdB: second ? second[0] : pointerId,
@@ -695,36 +715,21 @@ export function bindFlowCanvasNativeInteractions(args: {
           startA: { sx: a.sx, sy: a.sy },
           startB: { sx: b.sx, sy: b.sy },
           pointerId,
-        }
+        })
         return
       }
     }
 
-    if (isSpacePanHeld()) {
-      args.dragRef.current = {
+    if (spacePanHeld === true && e.button === 0 && allowPan === true && selectionDrag !== true) {
+      startDrag({
         type: 'pan',
         startSx: sx,
         startSy: sy,
         startTx: runtime.transform.x,
         startTy: runtime.transform.y,
         pointerId,
-      }
+      })
       return
-    }
-
-    if (isFlowEditor && !hit && e.pointerType !== 'touch') {
-      const selectionDrag = e.shiftKey === true
-      if (!selectionDrag) {
-        args.dragRef.current = {
-          type: 'pan',
-          startSx: sx,
-          startSy: sy,
-          startTx: runtime.transform.x,
-          startTy: runtime.transform.y,
-          pointerId,
-        }
-        return
-      }
     }
     if (hit) {
       const state = storeStateAtDown
@@ -736,16 +741,18 @@ export function bindFlowCanvasNativeInteractions(args: {
 
       if (!allowDrag) {
         args.setSelectionBox(null)
-        args.dragRef.current = {
-          type: 'pan',
-          startSx: sx,
-          startSy: sy,
-          startTx: runtime.transform.x,
-          startTy: runtime.transform.y,
-          pointerId,
-        }
         requestFlowNativeDraw(runtime, args.buildDrawArgs())
         args.requestCommit()
+        if (allowPan === true && selectionDrag !== true) {
+          startDrag({
+            type: 'pan',
+            startSx: sx,
+            startSy: sy,
+            startTx: runtime.transform.x,
+            startTy: runtime.transform.y,
+            pointerId,
+          })
+        }
         return
       }
       if (allowDrag) {
@@ -754,7 +761,7 @@ export function bindFlowCanvasNativeInteractions(args: {
         const wy = (sy - t0.y) / t0.k
         const node = runtime.scene?.nodeById.get(hit)
         if (node) {
-          args.dragRef.current = {
+          startDrag({
             type: 'node',
             nodeId: hit,
             startWorldX: wx,
@@ -762,7 +769,7 @@ export function bindFlowCanvasNativeInteractions(args: {
             startNodeX: node.x,
             startNodeY: node.y,
             pointerId,
-          }
+          })
         }
       }
       requestFlowNativeDraw(runtime, args.buildDrawArgs())
@@ -780,13 +787,15 @@ export function bindFlowCanvasNativeInteractions(args: {
 
       if (!allowDrag) {
         args.setSelectionBox(null)
-        args.dragRef.current = {
-          type: 'pan',
-          startSx: sx,
-          startSy: sy,
-          startTx: runtime.transform.x,
-          startTy: runtime.transform.y,
-          pointerId,
+        if (allowPan === true && selectionDrag !== true) {
+          startDrag({
+            type: 'pan',
+            startSx: sx,
+            startSy: sy,
+            startTx: runtime.transform.x,
+            startTy: runtime.transform.y,
+            pointerId,
+          })
         }
         return
       }
@@ -806,7 +815,7 @@ export function bindFlowCanvasNativeInteractions(args: {
           const t0 = runtime.transform || d3.zoomIdentity
           const wx = (sx - t0.x) / t0.k
           const wy = (sy - t0.y) / t0.k
-          args.dragRef.current = {
+          startDrag({
             type: 'group',
             groupId: groupHit,
             memberNodeIds,
@@ -814,7 +823,7 @@ export function bindFlowCanvasNativeInteractions(args: {
             startWorldY: wy,
             startNodePosById,
             pointerId,
-          }
+          })
           return
         }
       }
@@ -830,66 +839,38 @@ export function bindFlowCanvasNativeInteractions(args: {
         allowLasso &&
         e.pointerType !== 'touch' &&
         (!isFlowEditor || e.shiftKey === true) &&
-        shouldStartSelectionDragForPreset({
-          preset,
-          button: e.button,
-          shiftKey: e.shiftKey === true,
-          spacePanHeld: isSpacePanHeld(),
-          selectionOnDrag,
-        })
+        selectionDrag
       if (wantLasso) {
         state.setSelectionSource('canvas')
         state.selectEdge(null)
         state.selectGroup(null)
         args.setSelectionBox({ left: sx, top: sy, width: 1, height: 1 })
-        args.dragRef.current = { type: 'lasso', startSx: sx, startSy: sy, lastSx: sx, lastSy: sy, pointerId }
+        startDrag({ type: 'lasso', startSx: sx, startSy: sy, lastSx: sx, lastSy: sy, pointerId })
         return
       }
     }
 
     if (e.pointerType === 'touch') {
-      args.dragRef.current = {
+      startDrag({
         type: 'pan',
         startSx: sx,
         startSy: sy,
         startTx: runtime.transform.x,
         startTy: runtime.transform.y,
         pointerId,
-      }
+      })
       return
     }
 
-    if (preset === 'design' && isPanDragButton(e.button, preset)) {
-      args.dragRef.current = {
-        type: 'pan',
-        startSx: sx,
-        startSy: sy,
-        startTx: runtime.transform.x,
-        startTy: runtime.transform.y,
-        pointerId,
-      }
-      return
-    }
-
-    if (preset === 'design') {
-      args.userSelectLockPointerIdRef.current = null
-      unlockGlobalUserSelect()
-      try {
-        canvasEl.releasePointerCapture(pointerId)
-      } catch {
-        void 0
-      }
-      return
-    }
-
-    args.dragRef.current = {
+    if (allowPan !== true || selectionDrag === true) return
+    startDrag({
       type: 'pan',
       startSx: sx,
       startSy: sy,
       startTx: runtime.transform.x,
       startTy: runtime.transform.y,
       pointerId,
-    }
+    })
   }
 
   const onPointerMove = (e: PointerEvent) => {
@@ -1151,7 +1132,7 @@ export function bindFlowCanvasNativeInteractions(args: {
   }
 
   const onContextMenu = (e: MouseEvent) => {
-    if (!shouldSuppressContextMenuForPreset(args.viewportControlsPreset)) return
+    if (!shouldSuppressContextMenuForPreset(getPreset())) return
     try {
       e.preventDefault()
     } catch {
@@ -1214,10 +1195,12 @@ export function bindFlowCanvasNativeInteractions(args: {
     if (canvasEl.contains(targetEl)) return
     if (!spacePanProxyTargetSelector || !targetEl.closest(spacePanProxyTargetSelector)) return
 
-    const preset = args.viewportControlsPreset
+    const preset = getPreset()
     const button = typeof e.button === 'number' ? e.button : 0
     const shiftKey = e.shiftKey === true
     const spacePanHeld = isSpacePanHeld()
+    if (spacePanHeld !== true) return
+    if (button !== 0) return
 
     const resolved = resolveFlowEditorOverlayProxyTarget({ target: targetEl, canvasEl })
     if (resolved.kind === 'overlay' && resolved.isInteractive && spacePanHeld !== true) return

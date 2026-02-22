@@ -21,7 +21,8 @@ Graph Canvas layout behavior is defined by a small set of SSOT modules. All mode
 | Structured-mode relaxation | `canvas/src/components/GraphCanvas/layout/relax.ts` | `relaxNodesWithCollision` is the only allowed post-layout relaxation pass for structured modes (Radial). |
 | Relax step runner | `canvas/src/lib/graph/collision/relaxRunner.ts` | Shared alpha schedule + integrate/damping loop used by both Graph and Flow collision relaxation passes. |
 | Group bounds rendering | `canvas/src/components/GraphCanvas/layers/groups.ts` | Group boxes use label-aware AABBs so outlines don’t clip labels; forbid ad-hoc sizing. |
-| Render Z-order | `canvas/src/components/GraphCanvas/zOrder.ts` | `applyGraphCanvasZOrder` is the only z-layer ordering entry point. |
+| 2D layer order ranks | `canvas/src/lib/canvas/layerOrder2d.ts` | Canonical 2D layer ranks (nodes/edges/groups/labels/handles) reused by both SVG z-order and native canvas draw order. |
+| Render Z-order (SVG) | `canvas/src/components/GraphCanvas/zOrder.ts` | `applyGraphCanvasZOrder` applies the shared 2D ranks to SVG layer DOM order. |
 | Update timing | `canvas/src/components/GraphCanvas/scene.ts` | Group outlines update via `beforeRenderFrameRef` so they track simulation without influencing it. |
 
 ## Configuration Knobs
@@ -75,6 +76,9 @@ Notes:
 - Zoom view keys must be derived from the same inputs across 2D renderer variants; mismatched schema fingerprints can cause keyed zoom state misses and restart-time “stuck offscreen” views.
 - Layout recompute/skip logic must account for previous renderVariant so toggling D3 ↔ Flow cannot incorrectly skip a required layout refresh.
 - Flow treats `layoutVariant` as a hard layout-change trigger: it must participate in layout recompute keys, render-scene rebuild keys, and cross-renderer seed selection.
+- Flow post-layout collision relaxation must not rely only on “unstable positions” heuristics; use an overlap-pressure guard so overlapping-but-stable layouts still get a bounded relax pass.
+- D3 “collective fit + freeze” must include a bounded collision relax pass before final fit/transform to reduce residual overlaps without restarting simulation.
+- Design surface must batch multi-frame position patches when resolving collisions (avoid per-node store writes that can cause rerender churn).
 - Group collision is always enforced when `layout.groups.enabled !== false` (schema may keep `groupBboxCollide` for backward compatibility, but it does not disable the constraint).
 - Group collision accounts for group label overhead (top padding) to reduce label-region overlap and to prevent group box overlap.
 - The default baseline experience is anchored by `LS_KEYS.documentStructureBaselineLock` (default on): it disables mode switches (Keyword/Frontmatter/Renderer/3D/Select/Create) so Editor/Canvas/Table/Preview stay content-aligned.

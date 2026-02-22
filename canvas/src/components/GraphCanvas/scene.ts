@@ -585,6 +585,20 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
             schema: getSchema(),
           })
 
+          relaxNodesWithCollision({
+            nodes: displayNodes,
+            edges: edgesForDisplay,
+            schema: getSchema(),
+            defaultSteps: (args.groupsForBboxCollide || []).length > 0 ? 10 : 6,
+            groups: args.groupsForBboxCollide,
+            groupKeyOf,
+          })
+          for (let i = 0; i < displayNodes.length; i += 1) {
+            const n = displayNodes[i]
+            n.vx = 0
+            n.vy = 0
+          }
+
           const padPx = Math.max(24, Math.floor(readFitPadding(getSchema())))
           postFitNodesToViewport({
             nodes: displayNodes,

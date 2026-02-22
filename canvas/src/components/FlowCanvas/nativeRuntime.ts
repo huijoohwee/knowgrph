@@ -780,6 +780,8 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
   const renderGroups = args.renderGroups !== false
   const renderNodes = args.renderNodes !== false
 
+  if (renderGroups) drawGroups(rt)
+
   if (renderEdges) {
     const routingCfg = rt.presentation.edges.routing
     const useOrtho = routingCfg.enabled && routingCfg.mode === 'ortho'
@@ -796,8 +798,6 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
 
     fadeEdgesUnderGeometry(rt)
   }
-
-  if (renderGroups) drawGroups(rt)
 
   if (renderNodes) {
     for (let i = 0; i < scene.nodes.length; i += 1) {

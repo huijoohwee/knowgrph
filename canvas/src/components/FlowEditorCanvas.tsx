@@ -191,6 +191,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     renderMediaAsNodes,
     mediaPanelDensity,
     collapsedGroupIds,
+    floatingPanelZIndex,
   } = useGraphStore(
     useShallow(s => ({
       canvasRenderMode: s.canvasRenderMode,
@@ -200,6 +201,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       renderMediaAsNodes: s.renderMediaAsNodes,
       mediaPanelDensity: s.mediaPanelDensity,
       collapsedGroupIds: s.collapsedGroupIds,
+      floatingPanelZIndex: s.floatingPanelZIndex,
     })),
   )
   const selectedNodeId = useGraphStore(s => (typeof s.selectedNodeId === 'string' ? s.selectedNodeId : null))
@@ -2349,7 +2351,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       {overlayOnlyModeEnabled && overlayEdgePaths.length > 0 && (
         <svg
           className="absolute inset-0 pointer-events-none"
-          style={{ zIndex: 20, color: 'var(--kg-canvas-edge-stroke)', overflow: 'visible' }}
+          style={{ zIndex: Math.max(1, Math.floor((floatingPanelZIndex || 5000) - 100)), color: 'var(--kg-canvas-edge-stroke)', overflow: 'visible' }}
           aria-hidden={true}
         >
           {overlayEdgePaths.map(p => (

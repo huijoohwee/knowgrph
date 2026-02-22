@@ -72,6 +72,7 @@
 - Apply the same separation rule at every nesting level (L3 vs L2, L2 vs L1).
 - Also repel non-member nodes away from group outer borders (member nodes are excluded so containment is preserved).
 - Z axis is only enabled when both boxes explicitly provide Z (a finite `cz`, `halfD`, or explicit `gapZ`/`hasZ`); otherwise the solver treats Z as infinite overlap so 2D flows never accidentally push in Z.
+- Group containment must remain stable under pinned nodes: pinned nodes contribute to group bbox extents, but are excluded from movableIdxs so containment pushes move other nodes instead of violating pinned anchors.
 
 **Implementation**: [boxCollision.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/grph-shared/src/collision/boxCollision.ts)
 
@@ -128,6 +129,9 @@ Notes:
 |---|---|---|
 | [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts) | `.force('bboxCollide', ...)` | Adds label-aware overlap resolution in force mode |
 | [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts) | `.force('groupBboxCollide', ...)` | Prevents group-box overlap in force mode (enforced when groups enabled; schema-driven group knobs) |
+| [scene.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/scene.ts) | `relaxNodesWithCollision` | Runs a bounded collision relax pass during final collective-fit freeze to remove residual overlaps |
+| [relaxPositions.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/FlowCanvas/relaxPositions.ts) | `relaxFlowPositionsWithCollision` | Reuses the same bbox + group collision forces to settle Flow/Flow Editor post-layout positions |
+| [DesignCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/DesignCanvas.tsx) | `relaxNodesWithCollision` | Resolves frame overlaps on drag end (pins dragged frame; batches store writes) |
 | [relaxRunner.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/collision/relaxRunner.ts) | `runRelaxSteps` | SSOT relax step runner used by Graph structured layout relax and Flow post-layout collision settling |
 | [schema.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/schema.ts) | defaults | Enables bbox collide by default |
 

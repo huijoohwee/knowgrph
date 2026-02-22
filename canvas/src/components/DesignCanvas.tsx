@@ -13,6 +13,7 @@ import { readElementLocalPoint } from '@/lib/canvas/canvas-event-coords'
 import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects'
 import { createZoom } from '@/components/GraphCanvas/zoom'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
+import { relaxNodesWithCollision } from '@/components/GraphCanvas/layout/relax'
 
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
@@ -93,6 +94,7 @@ export default function DesignCanvas({
       designLayerState: s.designLayerState,
       designFramePosById: s.designFramePosById,
       setDesignFramePos: s.setDesignFramePos,
+      setDesignFramePosMany: s.setDesignFramePosMany,
     })),
   )
 
@@ -179,6 +181,7 @@ export default function DesignCanvas({
   }, [positions, snapshot.graphData?.metadata, visibleNodes])
 
   const setDesignFramePos = snapshot.setDesignFramePos
+  const setDesignFramePosMany = snapshot.setDesignFramePosMany
 
   const dragRef = useRef<null | { id: string; startWorld: { x: number; y: number }; startPos: { x: number; y: number } }>(null)
   const dragRafRef = useRef<number | null>(null)
@@ -418,7 +421,123 @@ export default function DesignCanvas({
                   scheduleDragCommit()
                 }}
                 onPointerUp={() => {
+                  if (!active) {
+                    dragRef.current = null
+                    return
+                  }
+                  const drag = dragRef.current
                   dragRef.current = null
+                  const pending = dragPendingRef.current
+                  dragPendingRef.current = null
+                  if (dragRafRef.current != null) {
+                    try {
+                      window.cancelAnimationFrame(dragRafRef.current)
+                    } catch {
+                      void 0
+                    }
+                    dragRafRef.current = null
+                  }
+                  const updates: Record<string, { x: number; y: number }> = {}
+                  if (pending) updates[pending.id] = pending.nextPos
+
+                  const schema = snapshot.schema
+                  if (!schema) {
+                    if (Object.keys(updates).length > 0) setDesignFramePosMany(updates)
+                    return
+                  }
+
+                  const workPos: Record<string, { x: number; y: number; w: number; h: number }> = {}
+                  for (let i = 0; i < visibleNodes.length; i += 1) {
+                    const vn = visibleNodes[i]
+                    const base = positions[vn.id]
+                    if (!base) continue
+                    workPos[vn.id] = { x: base.x, y: base.y, w: base.w, h: base.h }
+                  }
+                  if (pending && workPos[pending.id]) {
+                    workPos[pending.id] = { ...workPos[pending.id]!, x: pending.nextPos.x, y: pending.nextPos.y }
+                  }
+
+                  const estimateOverlapPressure = (): number => {
+                    const ids = Object.keys(workPos)
+                    if (ids.length < 3) return 0
+                    let cell = 0
+                    for (let i = 0; i < ids.length; i += 1) {
+                      const p = workPos[ids[i]!]!
+                      cell = Math.max(cell, Math.floor(Math.max(p.w, p.h) * 0.75))
+                    }
+                    cell = Math.max(8, cell)
+                    const counts = new Map<string, number>()
+                    for (let i = 0; i < ids.length; i += 1) {
+                      const p = workPos[ids[i]!]!
+                      const gx = Math.floor(p.x / cell)
+                      const gy = Math.floor(p.y / cell)
+                      const key = `${gx}:${gy}`
+                      counts.set(key, (counts.get(key) || 0) + 1)
+                    }
+                    let collisions = 0
+                    for (const c of counts.values()) {
+                      if (c > 1) collisions += c - 1
+                    }
+                    return collisions / Math.max(1, ids.length)
+                  }
+                  const overlapPressure = estimateOverlapPressure()
+                  if (overlapPressure < 0.02) return
+
+                  const nodes: GraphNode[] = []
+                  for (let i = 0; i < visibleNodes.length; i += 1) {
+                    const vn = visibleNodes[i]
+                    const p = workPos[vn.id]
+                    if (!p) continue
+                    const cx = p.x + p.w / 2
+                    const cy = p.y + p.h / 2
+                    const node: GraphNode = {
+                      id: vn.id,
+                      label: vn.label,
+                      type: 'Frame',
+                      properties: {
+                        'visual:width': p.w,
+                        'visual:height': p.h,
+                        'visual:shape': 'rect',
+                      },
+                      x: cx,
+                      y: cy,
+                      vx: 0,
+                      vy: 0,
+                    }
+                    nodes.push(node)
+                  }
+
+                  const pinnedId = pending?.id || drag?.id || null
+                  if (pinnedId) {
+                    for (let i = 0; i < nodes.length; i += 1) {
+                      const n0 = nodes[i]
+                      if (String(n0.id) !== pinnedId) continue
+                      ;(n0 as unknown as { fx?: number; fy?: number }).fx = n0.x
+                      ;(n0 as unknown as { fx?: number; fy?: number }).fy = n0.y
+                      break
+                    }
+                  }
+
+                  relaxNodesWithCollision({
+                    nodes,
+                    edges: [],
+                    schema,
+                    defaultSteps: 12,
+                  })
+
+                  for (let i = 0; i < nodes.length; i += 1) {
+                    const n0 = nodes[i]
+                    const id = String(n0.id || '')
+                    const w = typeof (n0.properties as Record<string, unknown>)['visual:width'] === 'number' ? ((n0.properties as Record<string, unknown>)['visual:width'] as number) : FRAME_W
+                    const h = typeof (n0.properties as Record<string, unknown>)['visual:height'] === 'number' ? ((n0.properties as Record<string, unknown>)['visual:height'] as number) : FRAME_H
+                    const x = (typeof n0.x === 'number' && Number.isFinite(n0.x) ? n0.x : 0) - w / 2
+                    const y = (typeof n0.y === 'number' && Number.isFinite(n0.y) ? n0.y : 0) - h / 2
+                    const prev = workPos[id]
+                    if (!prev) continue
+                    if (Math.abs(prev.x - x) < 0.5 && Math.abs(prev.y - y) < 0.5) continue
+                    updates[id] = { x, y }
+                  }
+                  if (Object.keys(updates).length > 0) setDesignFramePosMany(updates)
                 }}
                 onPointerCancel={() => {
                   dragRef.current = null

@@ -91,6 +91,25 @@ export const createDesignRendererSlice = (set: SetGraph, get: GetGraph) => {
       if (designFramePosEq(prevPos, nextPos)) return
       set({ designFramePosById: { ...prev, [key]: nextPos } })
     },
+    setDesignFramePosMany: (patch: Record<string, DesignFramePos>) => {
+      const src = patch || {}
+      const keys = Object.keys(src)
+      if (keys.length === 0) return
+      const prev = get().designFramePosById || {}
+      let next: Record<string, DesignFramePos> | null = null
+      for (let i = 0; i < keys.length; i += 1) {
+        const key = normId(keys[i])
+        if (!key) continue
+        const raw = src[keys[i]!]!
+        const nextPos = { x: clampFinite(raw.x, 0), y: clampFinite(raw.y, 0) }
+        const prevPos = prev[key]
+        if (designFramePosEq(prevPos, nextPos)) continue
+        if (!next) next = { ...prev }
+        next[key] = nextPos
+      }
+      if (!next) return
+      set({ designFramePosById: next })
+    },
     clearDesignFramePos: (id: string) => {
       const key = normId(id)
       if (!key) return
@@ -107,4 +126,3 @@ export const createDesignRendererSlice = (set: SetGraph, get: GetGraph) => {
     },
   }
 }
-

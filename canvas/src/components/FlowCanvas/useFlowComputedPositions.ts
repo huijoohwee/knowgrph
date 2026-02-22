@@ -170,7 +170,35 @@ export function useFlowComputedPositions(args: {
       const computedUnstable =
         computedCoverageOk &&
         looksUnstablePositions({ nodes: nodeList, positions: computed, nodeSize: { widthPx: nodeW, heightPx: nodeH } })
-      const shouldRelax = computedUnstable
+      const estimateOverlapPressure = (positions: Record<string, { x: number; y: number }> | null): number => {
+        if (!positions) return 0
+        if (nodeList.length < 3) return 0
+        const cell = Math.max(8, Math.floor(Math.max(nodeW, nodeH) * 0.75))
+        const counts = new Map<string, number>()
+        let used = 0
+        for (let i = 0; i < nodeList.length; i += 1) {
+          const id = String(nodeList[i]?.id || '')
+          if (!id) continue
+          const p = positions[id]
+          if (!p) continue
+          const x = p.x
+          const y = p.y
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+          const gx = Math.floor(x / cell)
+          const gy = Math.floor(y / cell)
+          const key = `${gx}:${gy}`
+          counts.set(key, (counts.get(key) || 0) + 1)
+          used += 1
+        }
+        if (used < 3) return 0
+        let collisions = 0
+        for (const c of counts.values()) {
+          if (c > 1) collisions += c - 1
+        }
+        return collisions / used
+      }
+      const overlapPressure = estimateOverlapPressure(computed)
+      const shouldRelax = computedUnstable || overlapPressure >= 0.02
       const relaxed =
         shouldRelax && args.sceneGraphData && args.schema
           ? relaxFlowPositionsWithCollision({

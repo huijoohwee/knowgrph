@@ -261,6 +261,7 @@ export interface GraphState {
 
   designFramePosById: Record<string, DesignFramePos>
   setDesignFramePos: (id: string, pos: DesignFramePos) => void
+  setDesignFramePosMany: (patch: Record<string, DesignFramePos>) => void
   clearDesignFramePos: (id: string) => void
   clearAllDesignFramePos: () => void
   lifecycleStage: 'idle' | 'reset' | 'hydrated' | 'committed' | 'rendering' | 'selectionUpdate' | 'edgeMutate' | 'zoomUpdate' | 'minimapQuick' | 'minimapAsync';

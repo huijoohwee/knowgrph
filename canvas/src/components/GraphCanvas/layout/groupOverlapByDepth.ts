@@ -262,8 +262,7 @@ export const createGroupBboxCollideForceByDepth = (args: {
       const memberIdxs = g.memberIdxs
       for (let j = 0; j < memberIdxs.length; j += 1) {
         const n = nodes[memberIdxs[j]!]!
-        // If pinned (dragged), skip contribution to group bbox to avoid chaos
-        if (isPinned(n)) continue
+        const pinned = isPinned(n)
 
         const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
         const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
@@ -285,7 +284,7 @@ export const createGroupBboxCollideForceByDepth = (args: {
           sawZ = true
         }
         saw = true
-        g.movableIdxs.push(memberIdxs[j]!)
+        if (!pinned) g.movableIdxs.push(memberIdxs[j]!)
       }
 
       if (!saw) {
