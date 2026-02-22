@@ -294,6 +294,7 @@ export function computeZoomTransformFromRequest(
       const next = getFitTransformCached({
         graphData,
         schema: ctx.schema,
+        documentSemanticMode: ctx.documentSemanticMode,
         graphDataRevision: ctx.graphDataRevision,
         viewportW: w,
         viewportH: h,

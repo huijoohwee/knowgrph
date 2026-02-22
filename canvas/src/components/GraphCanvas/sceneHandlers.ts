@@ -81,6 +81,17 @@ export const attachSimulationTick = (args: {
         forces: Array<(alpha: number) => void>
       } = null
 
+  const seedRand = (seed: number): (() => number) => {
+    let a = seed >>> 0
+    return () => {
+      a |= 0
+      a = (a + 0x6d2b79f5) | 0
+      let t = Math.imul(a ^ (a >>> 15), 1 | a)
+      t ^= t + Math.imul(t ^ (t >>> 7), 61 | t)
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+  }
+
   const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v))
   const aabbOverlaps = (a: AabbRect, b: AabbRect): boolean =>
     Math.abs(a.x - b.x) < a.halfW + b.halfW && Math.abs(a.y - b.y) < a.halfH + b.halfH
@@ -238,11 +249,11 @@ export const attachSimulationTick = (args: {
       if (nodes.length > 3200) return 0
       if (tick < 8) return 0
       const alpha = simulation.alpha()
-      if (alpha > 0.18) return 0
-      const minInterval = alpha > 0.08 ? 22 : alpha > 0.04 ? 46 : 72
+      if (alpha > 0.12) return 0
+      const minInterval = alpha > 0.08 ? 48 : alpha > 0.04 ? 84 : 120
       if (tick - lastStrictOverlapTick < minInterval) return 0
-      if (nodes.length <= 120) return 3
-      if (nodes.length <= 520) return 2
+      if (nodes.length <= 120) return 2
+      if (nodes.length <= 520) return 1
       return 1
     })()
 
@@ -253,6 +264,15 @@ export const attachSimulationTick = (args: {
       if (wantsNode || wantsGroup) {
         if (!strictOverlapForcesCache || strictOverlapForcesCache.schema !== schema) {
           const forces: Array<(alpha: number) => void> = []
+          let seed = 2166136261
+          for (let i = 0; i < nodes.length; i += 1) {
+            const id = String(nodes[i]?.id || '')
+            for (let j = 0; j < id.length; j += 1) {
+              seed ^= id.charCodeAt(j)
+              seed = Math.imul(seed, 16777619)
+            }
+          }
+          const rand = seedRand(seed >>> 0)
           const nodeForce = wantsNode
             ? (createBboxCollideForce({
                 schema,
@@ -268,7 +288,7 @@ export const attachSimulationTick = (args: {
               }) as unknown as { initialize: (ns: GraphNode[], rand?: () => number) => void; (alpha: number): void })
             : null
           if (nodeForce) {
-            nodeForce.initialize(nodes, Math.random)
+            nodeForce.initialize(nodes, rand)
             forces.push(nodeForce as unknown as (alpha: number) => void)
           }
 
@@ -294,7 +314,7 @@ export const attachSimulationTick = (args: {
               }) as unknown as { initialize: (ns: GraphNode[], rand?: () => number) => void; (alpha: number): void })
             : null
           if (groupForce) {
-            groupForce.initialize(nodes, Math.random)
+            groupForce.initialize(nodes, rand)
             forces.push(groupForce as unknown as (alpha: number) => void)
           }
           strictOverlapForcesCache = { schema, nodeForce: nodeForce as unknown as ((alpha: number) => void) | null, groupForce: groupForce as unknown as ((alpha: number) => void) | null, forces }

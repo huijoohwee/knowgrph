@@ -14,6 +14,7 @@ import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects'
 import { createZoom } from '@/components/GraphCanvas/zoom'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { relaxNodesWithCollision } from '@/components/GraphCanvas/layout/relax'
+import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
@@ -268,6 +269,13 @@ export default function DesignCanvas({
     height: dims.height,
     paused: !active,
     graphDataOverride: localGraphData,
+  })
+
+  useAutoZoomModes2d({
+    viewportW: dims.width,
+    viewportH: dims.height,
+    paused: !active,
+    getGraph: () => ({ graphData: localGraphData, graphDataRevision: snapshot.graphDataRevision || 0 }),
   })
 
   useEffect(() => {

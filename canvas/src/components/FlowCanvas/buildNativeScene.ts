@@ -11,6 +11,7 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import { readFlowEdgePortKey } from '@/lib/graph/flowPorts'
+import { buildFlowEdgeDisplayLabelFromPorts, readFlowEdgeDisplayLabel } from '@/lib/graph/flowPorts'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
@@ -90,6 +91,17 @@ export function buildAndSetFlowNativeScene(args: {
 
     const sourcePortKey = readFlowEdgePortKey({ properties: e.properties as never } as never, 'source') || ''
     const targetPortKey = readFlowEdgePortKey({ properties: e.properties as never } as never, 'target') || ''
+    const explicitLabel = readFlowEdgeDisplayLabel({ properties: e.properties as never } as never) || ''
+    const computedLabel =
+      explicitLabel ||
+      buildFlowEdgeDisplayLabelFromPorts({
+        sourceNode: nodeList.find(n => String(n?.id || '').trim() === source) as never,
+        targetNode: nodeList.find(n => String(n?.id || '').trim() === target) as never,
+        sourcePortKey,
+        targetPortKey,
+      }) ||
+      ''
+    const label = computedLabel.trim()
 
     edges.push({
       id: edgeId,
@@ -97,6 +109,7 @@ export function buildAndSetFlowNativeScene(args: {
       target,
       outHandleId: buildFlowHandleId({ dir: 'out', edgeId: sourcePortKey || edgeId }),
       inHandleId: buildFlowHandleId({ dir: 'in', edgeId: targetPortKey || edgeId }),
+      ...(label ? { label } : {}),
     })
   }
 

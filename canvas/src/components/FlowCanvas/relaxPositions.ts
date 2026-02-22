@@ -7,6 +7,17 @@ import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsType
 import { readExplicitZ } from '@/lib/graph/collision/readZ'
 import { integrateNodePositionWithVelocity, runRelaxSteps } from '@/lib/graph/collision/relaxRunner'
 
+const seedRand = (seed: number): (() => number) => {
+  let a = seed >>> 0
+  return () => {
+    a |= 0
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
 export function relaxFlowPositionsWithCollision(args: {
   graphData: GraphData
   groups?: GraphGroup[]
@@ -95,6 +106,15 @@ export function relaxFlowPositionsWithCollision(args: {
 
   const collision = readCollisionConfig(schema)
   if (!collision.nodeBbox.enabled && !collision.groupBbox.enabled) return positions
+  let seed = 2166136261
+  for (let i = 0; i < proxyNodes.length; i += 1) {
+    const id = String(proxyNodes[i].id || '')
+    for (let j = 0; j < id.length; j += 1) {
+      seed ^= id.charCodeAt(j)
+      seed = Math.imul(seed, 16777619)
+    }
+  }
+  const rand = seedRand(seed >>> 0)
 
   const nodeForce = collision.nodeBbox.enabled
     ? createBboxCollideForce({
@@ -110,7 +130,7 @@ export function relaxFlowPositionsWithCollision(args: {
         iterations: collision.nodeBbox.iterations,
       })
     : null
-  if (nodeForce) nodeForce.initialize(proxyNodes, Math.random)
+  if (nodeForce) nodeForce.initialize(proxyNodes, rand)
   const applyNodeForce = nodeForce as unknown as ((alpha: number) => void) | null
 
   const groupForces: Array<(alpha: number) => void> = []
@@ -134,7 +154,7 @@ export function relaxFlowPositionsWithCollision(args: {
       strength: collision.groupBbox.strength,
       iterations: collision.groupBbox.iterations,
     })
-    f.initialize(proxyNodes, Math.random)
+    f.initialize(proxyNodes, rand)
     groupForces.push(f as unknown as (alpha: number) => void)
   }
 

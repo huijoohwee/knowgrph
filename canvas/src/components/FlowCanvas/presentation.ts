@@ -69,7 +69,8 @@ export function readFlowPresentation(args: { schema: GraphSchema | null; documen
       const semanticBoost = args.documentSemanticMode === 'document' ? 4 : 3
       const nodeFontSizePx = Math.max(14, Math.min(22, Math.round(base + semanticBoost)))
       const groupFontSizePx = Math.max(12, Math.min(26, Math.round(nodeFontSizePx + 2)))
-      return { nodeFontSizePx, groupFontSizePx }
+      const edgeFontSizePx = Math.max(10, Math.min(18, Math.round(base + 0)))
+      return { nodeFontSizePx, groupFontSizePx, edgeFontSizePx }
     })(),
     portHandles: {
       enabled: portCfg.enabled,

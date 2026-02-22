@@ -45,6 +45,7 @@ export const testFlowPortHandlesRenderWhenSelectedNodeGlyphHidden = () => {
   })
 
   setFlowNativePresentation(rt, {
+    labels: { nodeFontSizePx: 14, groupFontSizePx: 16, edgeFontSizePx: 12 },
     portHandles: { enabled: true, placement: 'cardinal', sizePx: 10, offsetPx: 2, strokeWidthPx: 1.5 },
     groups: {
       enabled: false,
@@ -109,6 +110,7 @@ export const testFlowPortHandlesCanBeHiddenForSelectedNodesWhenRequested = () =>
   })
 
   setFlowNativePresentation(rt, {
+    labels: { nodeFontSizePx: 14, groupFontSizePx: 16, edgeFontSizePx: 12 },
     portHandles: { enabled: true, placement: 'cardinal', sizePx: 10, offsetPx: 2, strokeWidthPx: 1.5 },
     groups: {
       enabled: false,

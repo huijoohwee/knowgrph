@@ -252,6 +252,12 @@ export function useFlowComputedPositions(args: {
               edges: edgeList.map(e => ({ source: String((e as { source?: unknown }).source), target: String((e as { target?: unknown }).target) })),
               positions: relaxed,
               nodeSize: { widthPx: nodeW, heightPx: nodeH },
+              groups: args.sceneGroups,
+              paddingPx: semanticMode === 'document' ? 120 : 80,
+              targetAspect: (() => {
+                const raw = args.schema?.layout?.fitTargetAspectRatio
+                return typeof raw === 'number' && Number.isFinite(raw) && raw > 0.05 ? raw : 16 / 9
+              })(),
             })
           : relaxed
 
@@ -283,7 +289,6 @@ export function useFlowComputedPositions(args: {
     args.flowConfig,
     args.flowPresentation,
     args.layoutMode,
-    args.layoutPositionsForMode,
     args.layoutVariant,
     args.layoutViewKey,
     args.rankdir,

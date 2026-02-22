@@ -47,10 +47,11 @@ export const packDisjointPositions2d = (args: {
   edges: PackEdge[]
   positions: Record<string, PackPos>
   nodeSize: { widthPx: number; heightPx: number }
+  groups?: Array<{ memberNodeIds: string[] }>
   paddingPx?: number
   targetAspect?: number
 }): Record<string, PackPos> => {
-  const { nodeIds, edges, positions, nodeSize, paddingPx = 80, targetAspect = 16 / 9 } = args
+  const { nodeIds, edges, positions, nodeSize, groups, paddingPx = 80, targetAspect = 16 / 9 } = args
   if (nodeIds.length < 2) return positions
 
   const nodeSet = new Set(nodeIds)
@@ -63,6 +64,26 @@ export const packDisjointPositions2d = (args: {
     if (!nodeSet.has(s) || !nodeSet.has(t)) continue
     adj.get(s)?.push(t)
     adj.get(t)?.push(s)
+  }
+  if (groups && groups.length > 0) {
+    for (let gi = 0; gi < groups.length; gi += 1) {
+      const raw = groups[gi]?.memberNodeIds
+      if (!Array.isArray(raw) || raw.length < 2) continue
+      const members: string[] = []
+      for (let i = 0; i < raw.length; i += 1) {
+        const id = String(raw[i] || '').trim()
+        if (!id) continue
+        if (!nodeSet.has(id)) continue
+        members.push(id)
+      }
+      if (members.length < 2) continue
+      for (let i = 1; i < members.length; i += 1) {
+        const a = members[i - 1]!
+        const b = members[i]!
+        adj.get(a)?.push(b)
+        adj.get(b)?.push(a)
+      }
+    }
   }
 
   const visited = new Set<string>()
@@ -152,4 +173,3 @@ export const packDisjointPositions2d = (args: {
 
   return out
 }
-

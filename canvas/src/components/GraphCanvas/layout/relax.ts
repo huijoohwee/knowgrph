@@ -8,6 +8,17 @@ import { readCollisionConfig, readStructuredRelaxSteps } from './collisionConfig
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { integrateNodePositionWithVelocity, runRelaxSteps } from '@/lib/graph/collision/relaxRunner'
 
+const seedRand = (seed: number): (() => number) => {
+  let a = seed >>> 0
+  return () => {
+    a |= 0
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
 export function relaxNodesWithCollision(args: {
   nodes: GraphNode[]
   edges: GraphEdge[]
@@ -38,6 +49,15 @@ export function relaxNodesWithCollision(args: {
     (typeof (n as { fy?: unknown }).fy === 'number' && Number.isFinite((n as { fy: number }).fy))
   const maxPad = Math.max(collision.nodeBbox.paddingX, collision.nodeBbox.paddingY, collision.groupBbox.paddingX, collision.groupBbox.paddingY)
   const maxShift = Math.max(24, Math.min(220, 24 + maxPad * 1.25))
+  let seed = 2166136261
+  for (let i = 0; i < nodes.length; i += 1) {
+    const id = String(nodes[i]?.id || '')
+    for (let j = 0; j < id.length; j += 1) {
+      seed ^= id.charCodeAt(j)
+      seed = Math.imul(seed, 16777619)
+    }
+  }
+  const rand = seedRand(seed >>> 0)
 
   const nodeForce = collision.nodeBbox.enabled
     ? createBboxCollideForce({
@@ -53,7 +73,7 @@ export function relaxNodesWithCollision(args: {
         iterations: collision.nodeBbox.iterations,
       })
     : null
-  if (nodeForce) nodeForce.initialize(nodes, Math.random)
+  if (nodeForce) nodeForce.initialize(nodes, rand)
   const applyNodeForce = nodeForce as unknown as ((alpha: number) => void) | null
 
   const groupKeyOf = args.groupKeyOf || createGroupKeyOfNode({ nodes, edges })
@@ -87,7 +107,7 @@ export function relaxNodesWithCollision(args: {
             groupKeyOf,
           }))
     : null
-  if (groupForce) groupForce.initialize(nodes, Math.random)
+  if (groupForce) groupForce.initialize(nodes, rand)
   const applyGroupForce = groupForce as unknown as ((alpha: number) => void) | null
 
   const pullToBase = (alpha: number) => {

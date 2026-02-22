@@ -5,7 +5,7 @@ import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsType
 import { computeConvexRing, type Point2d } from '@/lib/geometry/convexRing'
 import { routeFlowEdgeOrtho, type Rect } from '@/components/FlowCanvas/edgeRouting'
 import { computeGroupDepthStyle } from '@/lib/graph/groupDepthStyle'
-import { estimateMaxCharsForWidthPx, truncateTextWithEllipsis } from '@/lib/ui/text/labelText'
+import { estimateLabelCharWidthPx, estimateMaxCharsForWidthPx, truncateTextWithEllipsis } from '@/lib/ui/text/labelText'
 import { getKgTokenFallback, getKgThemeFromDom, resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
 
 export type FlowNativeNodeShape = 'circle' | 'rect' | 'diamond' | 'hex'
@@ -29,6 +29,7 @@ export type FlowNativeEdge = {
   target: string
   inHandleId: FlowHandleId
   outHandleId: FlowHandleId
+  label?: string
 }
 
 export type FlowNativeScene = {
@@ -67,6 +68,7 @@ export type FlowNativePresentation = {
   labels: {
     nodeFontSizePx: number
     groupFontSizePx: number
+    edgeFontSizePx: number
   }
   portHandles: FlowNativePortHandlesPresentation
   groups: FlowNativeGroupsPresentation
@@ -228,7 +230,7 @@ export const createFlowNativeRuntime = (args: {
     fontFamily: readFlowFontFamilyFromCss(),
     cssKey,
     presentation: {
-      labels: { nodeFontSizePx: 14, groupFontSizePx: 16 },
+      labels: { nodeFontSizePx: 14, groupFontSizePx: 16, edgeFontSizePx: 12 },
       portHandles: { enabled: false, placement: 'cardinal', sizePx: 4, offsetPx: 2, strokeWidthPx: 1.5 },
       groups: {
         enabled: false,
@@ -645,6 +647,177 @@ const fadeEdgesUnderGeometry = (rt: FlowNativeRuntime) => {
   ctx.restore()
 }
 
+type AabbRect = { x: number; y: number; halfW: number; halfH: number }
+
+const aabbOverlaps = (a: AabbRect, b: AabbRect): boolean =>
+  Math.abs(a.x - b.x) < a.halfW + b.halfW && Math.abs(a.y - b.y) < a.halfH + b.halfH
+
+const drawEdgeLabels = (rt: FlowNativeRuntime, args: { selectedEdgeIds: Set<string> }) => {
+  const scene = rt.scene
+  if (!scene) return
+  const edges = scene.edges
+  if (!edges || edges.length === 0) return
+  if (edges.length > 250) return
+
+  const k = rt.transform.k || 1
+  if (k < 0.55) return
+  if (!rt.positionsReady) return
+  const ctx = rt.ctx
+  const fontSizePx = Math.max(9, rt.presentation.labels?.edgeFontSizePx ?? 12)
+  const fontSizeWorld = fontSizePx / Math.max(1e-6, k)
+  const charWWorld = estimateLabelCharWidthPx(fontSizePx) / Math.max(1e-6, k)
+  const lineHWorld = (fontSizePx * 1.2) / Math.max(1e-6, k)
+  const padX = 6 / Math.max(1e-6, k)
+  const padY = 3 / Math.max(1e-6, k)
+
+  const blockers: AabbRect[] = []
+  for (let i = 0; i < scene.nodes.length; i += 1) {
+    const n = scene.nodes[i]
+    const cx = n.x + n.width / 2
+    const cy = n.y + n.height / 2
+    blockers.push({ x: cx, y: cy, halfW: n.width / 2 + 4 / Math.max(1e-6, k), halfH: n.height / 2 + 4 / Math.max(1e-6, k) })
+  }
+
+  const groupLabelBlockers: AabbRect[] = []
+  const gCfg = rt.presentation.groups
+  if (gCfg.enabled && scene.groups && scene.groups.length > 0) {
+    for (let i = 0; i < scene.groups.length; i += 1) {
+      const g = scene.groups[i]
+      const label = String(g.label || '').trim()
+      if (!label) continue
+      const aabb = computeFlowGroupAabb({ scene, group: g, paddingPx: gCfg.paddingPx, labelTopExtraPx: gCfg.labelTopExtraPx })
+      if (!aabb) continue
+      const w = Math.max(1, aabb.maxX - aabb.minX)
+      const minX = aabb.minX
+      const minY = aabb.minY
+      const maxChars = estimateMaxCharsForWidthPx(Math.max(0, w * k - 20), fontSizePx)
+      const clipped = truncateTextWithEllipsis(label, maxChars)
+      const textW = Math.max(6, clipped.length * charWWorld)
+      const halfW = textW / 2 + padX
+      const halfH = lineHWorld / 2 + padY
+      const cx = minX + 10 + halfW
+      const cy = minY + 8 + halfH
+      groupLabelBlockers.push({ x: cx, y: cy, halfW, halfH })
+    }
+  }
+  blockers.push(...groupLabelBlockers)
+
+  const placed: AabbRect[] = []
+
+  const rankdir = rt.rankdir
+  const portHandlesEnabled = rt.presentation.portHandles.enabled
+  const routingCfg = rt.presentation.edges.routing
+  const useOrtho = routingCfg.enabled && routingCfg.mode === 'ortho'
+  const useObstacles = useOrtho && routingCfg.obstacleAvoidance
+  const routingObstacles = useObstacles ? buildRoutingObstacles(rt, scene) : null
+
+  const labelFill = resolveCssVarCached(rt, '--kg-text-secondary', rt.theme.text)
+  const pillBg = resolveCssVarCached(rt, '--kg-panel-bg', rt.theme.bg)
+  const pillStroke = resolveCssVarCached(rt, '--kg-border-subtle', rt.theme.edge)
+
+  const offsets = [
+    { dx: 0, dy: 0 },
+    { dx: 0, dy: (-14) / Math.max(1e-6, k) },
+    { dx: 0, dy: (14) / Math.max(1e-6, k) },
+    { dx: (16) / Math.max(1e-6, k), dy: 0 },
+    { dx: (-16) / Math.max(1e-6, k), dy: 0 },
+  ]
+
+  for (let i = 0; i < edges.length; i += 1) {
+    const e = edges[i]
+    const labelRaw = String(e.label || '').trim()
+    if (!labelRaw) continue
+    const s = scene.nodeById.get(e.source)
+    const t = scene.nodeById.get(e.target)
+    if (!s || !t) continue
+
+    const sPct = portHandlesEnabled ? ((s.outHandleTopPctById[e.outHandleId] ?? 50) as number) : 50
+    const tPct = portHandlesEnabled ? ((t.inHandleTopPctById[e.inHandleId] ?? 50) as number) : 50
+    const sAxis = Math.max(0, Math.min(100, sPct)) / 100
+    const tAxis = Math.max(0, Math.min(100, tPct)) / 100
+
+    const sxx = rankdir === 'LR' ? s.x + s.width : s.x + sAxis * s.width
+    const txx = rankdir === 'LR' ? t.x : t.x + tAxis * t.width
+    const syy = rankdir === 'LR' ? s.y + sAxis * s.height : s.y + s.height
+    const tyy = rankdir === 'LR' ? t.y + tAxis * t.height : t.y
+
+    const points = useOrtho
+      ? routeFlowEdgeOrtho({
+          rankdir,
+          start: { x: sxx, y: syy },
+          end: { x: txx, y: tyy },
+          obstacles: useObstacles && routingObstacles ? routingObstacles : [],
+          marginPx: routingCfg.marginPx,
+          laneStepPx: routingCfg.laneStepPx,
+          maxLanes: routingCfg.maxLanes,
+          ignorePoints: useObstacles ? [{ x: sxx, y: syy }, { x: txx, y: tyy }] : undefined,
+        })
+      : []
+
+    const mid = (() => {
+      if (points.length >= 2) {
+        let best: { x: number; y: number } = points[0]
+        let bestLen = -Infinity
+        for (let j = 0; j < points.length - 1; j += 1) {
+          const a = points[j]
+          const b = points[j + 1]
+          const len = Math.hypot(b.x - a.x, b.y - a.y)
+          if (len > bestLen) {
+            bestLen = len
+            best = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+          }
+        }
+        return best
+      }
+      return { x: (sxx + txx) / 2, y: (syy + tyy) / 2 }
+    })()
+
+    const maxChars = estimateMaxCharsForWidthPx(Math.max(0, 160), fontSizePx)
+    const clipped = truncateTextWithEllipsis(labelRaw, Math.max(6, Math.min(60, maxChars)))
+    const textW = Math.max(6, clipped.length * charWWorld)
+    const halfW = textW / 2 + padX
+    const halfH = lineHWorld / 2 + padY
+
+    let placedRect: AabbRect | null = null
+    for (let oi = 0; oi < offsets.length; oi += 1) {
+      const o = offsets[oi]
+      const rect: AabbRect = { x: mid.x + o.dx, y: mid.y + o.dy, halfW, halfH }
+      let ok = true
+      for (let bi = 0; bi < blockers.length; bi += 1) {
+        if (aabbOverlaps(rect, blockers[bi])) { ok = false; break }
+      }
+      if (ok) {
+        for (let pi = 0; pi < placed.length; pi += 1) {
+          if (aabbOverlaps(rect, placed[pi])) { ok = false; break }
+        }
+      }
+      if (!ok) continue
+      placedRect = rect
+      break
+    }
+    if (!placedRect) continue
+    placed.push(placedRect)
+
+    ctx.save()
+    ctx.font = `${fontSizeWorld}px ${rt.fontFamily}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = pillBg
+    ctx.strokeStyle = pillStroke
+    ctx.globalAlpha = args.selectedEdgeIds.has(e.id) ? 0.98 : 0.9
+    ctx.lineWidth = 1 / Math.max(1e-6, k)
+    ctx.beginPath()
+    roundRectPath(ctx, placedRect.x - placedRect.halfW, placedRect.y - placedRect.halfH, placedRect.halfW * 2, placedRect.halfH * 2, 6 / Math.max(1e-6, k))
+    ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
+    ctx.globalAlpha = 1
+    ctx.fillStyle = labelFill
+    ctx.fillText(clipped, placedRect.x, placedRect.y)
+    ctx.restore()
+  }
+}
+
 const drawGroups = (rt: FlowNativeRuntime) => {
   const cfg = rt.presentation.groups
   if (!cfg.enabled) return
@@ -819,6 +992,7 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
       if (!hiddenPortHandleNodeIds.has(n.id)) drawPortHandles(rt, n)
     }
   }
+  if (renderEdges) drawEdgeLabels(rt, { selectedEdgeIds })
 }
 
 export const requestFlowNativeDraw = (

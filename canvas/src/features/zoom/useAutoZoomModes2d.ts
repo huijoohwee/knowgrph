@@ -3,8 +3,14 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { shouldAutoFitToScreen2d, shouldAutoZoomSelection2d } from '@/features/zoom/autoZoom2dPolicy'
+import type { GraphData } from '@/lib/graph/types'
 
-export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number; paused?: boolean }) {
+export function useAutoZoomModes2d(args: {
+  viewportW: number
+  viewportH: number
+  paused?: boolean
+  getGraph?: () => { graphData: GraphData | null; graphDataRevision: number } | null
+}) {
   const scheduleFitRef = React.useRef<(() => void) | null>(null)
   const dimsRef = React.useRef({ viewportW: args.viewportW, viewportH: args.viewportH })
   React.useEffect(() => {
@@ -20,6 +26,12 @@ export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number;
 
   const lastFitSigRef = React.useRef<string | null>(null)
   const lastAutoZoomSelRef = React.useRef<string | null>(null)
+  const graphOverrideRef = React.useRef<(() => { graphData: GraphData | null; graphDataRevision: number } | null) | null>(null)
+  React.useEffect(() => {
+    graphOverrideRef.current = typeof args.getGraph === 'function' ? args.getGraph : null
+    const schedule = scheduleFitRef.current
+    if (schedule) schedule()
+  }, [args.getGraph])
 
   React.useEffect(() => {
     let rafId: number | null = null
@@ -40,7 +52,10 @@ export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number;
           lastFitSigRef.current = null
           return
         }
-        const nodes = Array.isArray(state.graphData?.nodes) ? state.graphData.nodes : []
+        const override = graphOverrideRef.current ? graphOverrideRef.current() : null
+        const graphData = override?.graphData ?? state.graphData
+        const graphDataRevision = override?.graphDataRevision ?? state.graphDataRevision
+        const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
         if (nodes.length === 0) return
         const panelDims = {
           width: Math.max(1, Math.floor(dimsRef.current.viewportW)),
@@ -55,7 +70,7 @@ export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number;
               state.renderMediaAsNodes ? 1 : 0,
             )}`
           : `${minScale}|${maxScale}|${String(state.mediaPanelDensity ?? '')}|${String(state.renderMediaAsNodes ? 1 : 0)}`
-        const sig = `${nodes.length}|${panelDims.width}x${panelDims.height}|${state.graphDataRevision}|${fitSig}`
+        const sig = `${nodes.length}|${panelDims.width}x${panelDims.height}|${graphDataRevision}|${fitSig}`
         if (lastFitSigRef.current === sig) return
         lastFitSigRef.current = sig
         state.requestZoom('fit', { intent: 'fitToScreen' })
@@ -112,6 +127,8 @@ export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number;
         const expansionEnabled = expansionCfg.enabled !== false
         const zoomOnSelection = expansionEnabled && expansionCfg.zoomOnSelection !== false
         if (!zoomOnSelection) return
+        const override = graphOverrideRef.current ? graphOverrideRef.current() : null
+        const graphDataRevision = override?.graphDataRevision ?? state.graphDataRevision
         const nodeIds =
           Array.isArray(state.selectedNodeIds) && state.selectedNodeIds.length > 0
             ? state.selectedNodeIds
@@ -131,7 +148,7 @@ export function useAutoZoomModes2d(args: { viewportW: number; viewportH: number;
               ? [state.selectedGroupId]
               : []
         if (nodeIds.length === 0 && edgeIds.length === 0 && groupIds.length === 0) return
-        const key = `${nodeIds.join(',')}|${edgeIds.join(',')}|${groupIds.join(',')}|${state.graphDataRevision}`
+        const key = `${nodeIds.join(',')}|${edgeIds.join(',')}|${groupIds.join(',')}|${graphDataRevision}`
         if (lastAutoZoomSelRef.current === key) return
         lastAutoZoomSelRef.current = key
         state.requestZoom('selection')
