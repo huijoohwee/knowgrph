@@ -14,6 +14,7 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { usePinnedLs } from '@/lib/ui/panelPinned'
 import { uiPrimaryPillActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { cn } from '@/lib/utils'
+import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
 import {
   FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID,
   LS_KEYS,
@@ -205,7 +206,7 @@ export function ToolbarToolMenu({
   const handlePinToggle = toggleFloatingPanelPinned
 
   const floatingPanelRootStyle = React.useMemo(() => {
-    const safeZ = Number.isFinite(floatingPanelZIndex) ? Math.max(1, Math.floor(floatingPanelZIndex)) : 5000
+    const safeZ = Number.isFinite(floatingPanelZIndex) ? Math.max(1, Math.floor(floatingPanelZIndex)) : Z_INDEX_FLOATING_PANEL_DEFAULT
     return { zIndex: floatingPanelPinned ? Math.max(safeZ, 1000) : 90 }
   }, [floatingPanelPinned, floatingPanelZIndex])
 

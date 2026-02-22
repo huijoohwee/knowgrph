@@ -340,7 +340,7 @@ export default function FlowCanvas({
   const layoutMode = schema ? readLayoutMode(schema) : 'force'
 
   const flowPresentation = React.useMemo(() => {
-    const p = readFlowPresentation(schema)
+    const p = readFlowPresentation({ schema, documentSemanticMode })
     return p
   }, [documentSemanticMode, schema])
 
@@ -568,8 +568,8 @@ export default function FlowCanvas({
     if (!computedPositions) return
 
     const isFlowEditor = canvas2dRenderer === 'flowEditor'
-    const effectiveFitToScreenMode = isFlowEditor ? false : fitToScreenMode
-    const effectiveZoomToSelectionMode = isFlowEditor ? false : zoomToSelectionMode
+    const effectiveFitToScreenMode = fitToScreenMode
+    const effectiveZoomToSelectionMode = zoomToSelectionMode
 
     const nodesForTransformGuard = nodesForFlowTransformGuard
     const nodesForFit = nodesForFlowZoom

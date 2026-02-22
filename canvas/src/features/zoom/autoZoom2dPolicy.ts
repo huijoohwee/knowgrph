@@ -7,7 +7,6 @@ export function shouldAutoFitToScreen2d(args: {
   if (args.viewPinned) return false
   if (args.zoomToSelectionMode) return false
   if (!args.fitToScreenMode) return false
-  if (args.canvas2dRenderer === 'flowEditor') return false
   return true
 }
 
@@ -18,7 +17,5 @@ export function shouldAutoZoomSelection2d(args: {
 }): boolean {
   if (args.viewPinned) return false
   if (!args.zoomToSelectionMode) return false
-  if (args.canvas2dRenderer === 'flowEditor') return false
   return true
 }
-

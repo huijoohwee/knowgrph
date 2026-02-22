@@ -149,6 +149,18 @@ export const testFlowCanvasUsesActiveGraphRenderDataAndZoomState = async () => {
   const key = String(__flowCanvasDebug.lastZoomViewKey || '')
   if (!key) throw new Error('expected FlowCanvas to publish a zoom view key')
 
+  await waitFor({
+    ms: 5_000,
+    pollMs: 25,
+    ok: () => {
+      const s = useGraphStore.getState()
+      const byKey = s.zoomStateByKey?.[key]
+      return !!byKey && typeof byKey.k === 'number' && Number.isFinite(byKey.k)
+    },
+  }).catch(e => {
+    throw new Error(`stage=zoomStateInit ${String((e as { message?: unknown })?.message ?? e)}`)
+  })
+
   const beforeZoomK = (() => {
     const s = useGraphStore.getState()
     const byKey = s.zoomStateByKey?.[key]

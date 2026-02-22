@@ -57,6 +57,7 @@ export const applyZoomRequestNative = (args: {
   const res = computeZoomTransformFromRequest(args.zoomRequest, {
     graphData: args.graphData,
     schema,
+    documentSemanticMode: (state.documentSemanticMode as 'document' | 'keyword' | undefined) ?? undefined,
     graphDataRevision: state.graphDataRevision || 0,
     viewportW: Math.max(1, Math.floor(args.width)),
     viewportH: Math.max(1, Math.floor(args.height)),

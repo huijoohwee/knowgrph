@@ -244,6 +244,9 @@ export const fitAllTransform = (
   let maxY = -Infinity;
   let sumX = 0;
   let sumY = 0;
+  let sumWX = 0;
+  let sumWY = 0;
+  let sumW = 0;
   let validCount = 0;
 
   for (let i = 0; i < nodesForFit.length; i += 1) {
@@ -257,10 +260,15 @@ export const fitAllTransform = (
     const hw = ext.halfW
     const hh = ext.halfH
     
-    // For centroid, use node center
     sumX += x;
     sumY += y;
     validCount += 1;
+    if (useCentroidCentering) {
+      const w0 = schema ? Math.max(1, Math.min(4000, hw + hh)) : 1
+      sumWX += x * w0
+      sumWY += y * w0
+      sumW += w0
+    }
 
     // For bounding box, include node dimensions + padding
     const left = x - hw - nodePadding
@@ -356,9 +364,15 @@ export const fitAllTransform = (
         if (bottom > maxY) maxY = bottom
 
         if (useCentroidCentering) {
-          sumX += (left + right) / 2
-          sumY += (top + bottom) / 2
+          const cx0 = (left + right) / 2
+          const cy0 = (top + bottom) / 2
+          sumX += cx0
+          sumY += cy0
           validCount += 1
+          const w0 = Math.max(1, Math.min(8000, (right - left) + (bottom - top)))
+          sumWX += cx0 * w0
+          sumWY += cy0 * w0
+          sumW += w0
         }
       }
     }
@@ -408,8 +422,12 @@ export const fitAllTransform = (
     }
   }
 
-  const cx = useCentroidCentering ? (validCount > 0 ? sumX / validCount : (minX + maxX) / 2) : (minX + maxX) / 2;
-  const cy = useCentroidCentering ? (validCount > 0 ? sumY / validCount : (minY + maxY) / 2) : (minY + maxY) / 2;
+  const cx = useCentroidCentering
+    ? (sumW > 0 ? sumWX / sumW : validCount > 0 ? sumX / validCount : (minX + maxX) / 2)
+    : (minX + maxX) / 2;
+  const cy = useCentroidCentering
+    ? (sumW > 0 ? sumWY / sumW : validCount > 0 ? sumY / validCount : (minY + maxY) / 2)
+    : (minY + maxY) / 2;
 
   // Ensure minimum zoom scale to avoid tiny graph on large canvas
   const symmetricContentW = 2 * Math.max(cx - minX, maxX - cx)

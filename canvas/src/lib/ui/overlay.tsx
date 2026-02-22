@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Z_INDEX_ANCHOR_OVERLAY } from '@/lib/ui/zIndex'
 
 type Align = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'bottom-center' | 'top-center'
 
@@ -85,7 +86,7 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
       position: 'fixed',
       top: pos.top,
       left: pos.left,
-      zIndex: 2500,
+      zIndex: Z_INDEX_ANCHOR_OVERLAY,
       transform: align.endsWith('center') ? 'translateX(-50%)' : undefined,
     }),
     [pos, align],

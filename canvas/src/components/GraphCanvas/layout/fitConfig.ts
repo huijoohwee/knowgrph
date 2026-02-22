@@ -42,7 +42,7 @@ export function readFitAllOptions(args: {
 
   return {
     pad,
-    centerMode: 'bbox',
+    centerMode: args.intent === 'fitToView' || args.intent === 'fitSelection' ? 'centroid' : 'bbox',
     detectClusters: detectClustersEffective,
     targetAspectRatio: typeof targetAspectRatio === 'number' && Number.isFinite(targetAspectRatio) ? targetAspectRatio : undefined,
     enforceAspectRatio: enforceAspectRatio !== false,

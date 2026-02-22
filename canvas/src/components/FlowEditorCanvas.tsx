@@ -22,7 +22,7 @@ import {
   UI_COPY,
 } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { screenToWorld, viewportCenterToWorld } from '@/lib/zoom/viewport'
+import { screenToWorld, viewportCenterToWorld, worldToScreen } from '@/lib/zoom/viewport'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { getZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import {
@@ -51,9 +51,10 @@ import { hasFlowNodeQuickEditorDragType, readFlowNodeQuickEditorDragPayloadFromD
 import { buildSelectionSubgraph, exportNodeQuickEditorBundleAsJson } from '@/lib/graph/file'
 import { lsJson } from '@/lib/persistence'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
+import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
 import { computeNodeQuickEditorScale, computeNodeQuickEditorScaledSize } from '@/components/FlowEditor/nodeQuickEditorZoom'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
-import { DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE, readFlowLayoutKnobs, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { relaxOverlayPanelsWithCollision } from '@/components/FlowCanvas/relaxOverlayPanels'
 import { buildFlowHandleId, computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
 import { FLOW_EDITOR_OVERLAY_ROOT_SELECTOR } from '@/lib/canvas/flow-editor-overlay-proxy'
@@ -724,6 +725,38 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       }
 
       let world = clampWorld(toWorld(items))
+      const nodeObstacles = (() => {
+        if (!schemaCur) return []
+        const graph = draftGraphDataRef.current
+        const rawNodes = Array.isArray(graph?.nodes) ? (graph.nodes as Array<{ id?: unknown; x?: unknown; y?: unknown }>) : []
+        if (rawNodes.length === 0) return []
+        const t =
+          getLiveZoomTransform() ||
+          getZoomStateForKey({ zoomViewKey: zoomViewKeyRef.current, zoomStateByKey: st.zoomStateByKey }) ||
+          null
+        const k = typeof t?.k === 'number' && Number.isFinite(t.k) ? t.k : 1
+        const knobs = readFlowLayoutKnobs({ schema: schemaCur, rankdir: 'TB' })
+        const handleExtra = schemaCur.behavior?.portHandles?.enabled === true ? Math.max(0, knobs.handle.sizePx) : 0
+        const nodeW = Math.max(1, Math.floor(knobs.node.widthPx + handleExtra * 2))
+        const nodeH = Math.max(1, Math.floor(knobs.node.heightPx + handleExtra * 2))
+        const out: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
+        for (let i = 0; i < rawNodes.length; i += 1) {
+          const n = rawNodes[i]
+          const id = String(n?.id || '').trim()
+          if (!id) continue
+          const live = getLiveNodeWorldPos(id)
+          const x = live && typeof live.x === 'number' && Number.isFinite(live.x)
+            ? live.x
+            : (typeof n?.x === 'number' && Number.isFinite(n.x) ? (n.x as number) : null)
+          const y = live && typeof live.y === 'number' && Number.isFinite(live.y)
+            ? live.y
+            : (typeof n?.y === 'number' && Number.isFinite(n.y) ? (n.y as number) : null)
+          if (x == null || y == null) continue
+          const s = worldToScreen({ transform: t, x, y })
+          out.push({ id, left: s.sx, top: s.sy, width: nodeW * k, height: nodeH * k })
+        }
+        return out
+      })()
       if (shouldResolveItems(world, gapPx)) {
         world = clampWorld(seedGridAroundFixed(world))
       }
@@ -732,6 +765,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           ? relaxOverlayPanelsWithCollision({
               schema: schemaCur,
               items: world,
+              obstacles: nodeObstacles,
               gapPx,
               strength: 0.95,
               iterations: 14,
@@ -748,6 +782,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             ? relaxOverlayPanelsWithCollision({
                 schema: schemaCur,
                 items: world,
+                obstacles: nodeObstacles,
                 gapPx,
                 strength: 0.95,
                 iterations: 12,
@@ -2351,7 +2386,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       {overlayOnlyModeEnabled && overlayEdgePaths.length > 0 && (
         <svg
           className="absolute inset-0 pointer-events-none"
-          style={{ zIndex: Math.max(1, Math.floor((floatingPanelZIndex || 5000) - 100)), color: 'var(--kg-canvas-edge-stroke)', overflow: 'visible' }}
+          style={{ zIndex: Math.max(1, Math.floor((floatingPanelZIndex || Z_INDEX_FLOATING_PANEL_DEFAULT) - 100)), color: 'var(--kg-canvas-edge-stroke)', overflow: 'visible' }}
           aria-hidden={true}
         >
           {overlayEdgePaths.map(p => (

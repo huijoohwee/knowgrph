@@ -1,9 +1,11 @@
 import React from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import type { Canvas2dRendererId } from '@/lib/config'
 import type { GraphData } from '@/lib/graph/types'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { importWithRetry } from '@/lib/react/importWithRetry'
 import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 const GeospatialOverlayHostLazy = React.lazy(async () => {
   const m = await import('gympgrph')
@@ -127,6 +129,65 @@ export type CanvasViewportProps = {
 export function CanvasViewport(props: CanvasViewportProps) {
   const { variant, layout = 'full', geospatialModeEnabled, activeGraphData, canvasRenderMode, canvas2dRenderer, mounted2dRenderers, gympgrphBridge } = props
   const safeGraphData = activeGraphData || ({ nodes: [], edges: [] } as GraphData)
+  const { fitToScreenMode, zoomToSelectionMode, viewPinned, selectedNodeId, selectedNodeIds, selectedEdgeId } = useGraphStore(
+    useShallow(s => ({
+      fitToScreenMode: s.fitToScreenMode === true,
+      zoomToSelectionMode: s.zoomToSelectionMode === true,
+      viewPinned: s.viewPinned === true,
+      selectedNodeId: s.selectedNodeId,
+      selectedNodeIds: s.selectedNodeIds,
+      selectedEdgeId: s.selectedEdgeId,
+    })),
+  )
+
+  React.useEffect(() => {
+    if (!geospatialModeEnabled) return
+    void import('gympgrph')
+      .then(m => {
+        const st = (m as any).useGympgrphStore?.getState?.()
+        const setAutoFit = st && typeof st.setGeospatialAutoFitEnabled === 'function' ? st.setGeospatialAutoFitEnabled : null
+        if (!setAutoFit) return
+        setAutoFit(fitToScreenMode && !viewPinned)
+      })
+      .catch(() => void 0)
+  }, [fitToScreenMode, geospatialModeEnabled, viewPinned])
+
+  const lastGeoFitToScreenEnabledRef = React.useRef<boolean>(false)
+  React.useEffect(() => {
+    if (!geospatialModeEnabled) return
+    const prev = lastGeoFitToScreenEnabledRef.current
+    lastGeoFitToScreenEnabledRef.current = fitToScreenMode && !viewPinned
+    if (prev || !(fitToScreenMode && !viewPinned)) return
+    void import('gympgrph')
+      .then(m => {
+        if (typeof (m as any).requestGeospatialFitToData === 'function') {
+          ;(m as any).requestGeospatialFitToData()
+        }
+      })
+      .catch(() => void 0)
+  }, [fitToScreenMode, geospatialModeEnabled, viewPinned])
+
+  const lastGeoSelectionFitKeyRef = React.useRef<string>('')
+  React.useEffect(() => {
+    if (!geospatialModeEnabled) return
+    if (viewPinned) return
+    if (!zoomToSelectionMode) {
+      lastGeoSelectionFitKeyRef.current = ''
+      return
+    }
+    const ids = Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0 ? selectedNodeIds : selectedNodeId ? [selectedNodeId] : []
+    const key = `${ids.length}:${ids.slice(0, 8).join(',')}:${String(selectedEdgeId || '')}`
+    if (!ids.length) return
+    if (key === lastGeoSelectionFitKeyRef.current) return
+    lastGeoSelectionFitKeyRef.current = key
+    void import('gympgrph')
+      .then(m => {
+        if (typeof (m as any).requestGeospatialFitToSelection === 'function') {
+          ;(m as any).requestGeospatialFitToSelection()
+        }
+      })
+      .catch(() => void 0)
+  }, [geospatialModeEnabled, selectedEdgeId, selectedNodeId, selectedNodeIds, viewPinned, zoomToSelectionMode])
 
   return (
     <section className="relative w-full h-full overflow-hidden" aria-label={variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}>

@@ -2,10 +2,11 @@ import React, { useCallback } from 'react';
 import { Scan } from 'lucide-react';
 import IconButton from '@/components/IconButton';
 import { getIconSizeClass } from '@/lib/ui';
-import { UI_COPY, UI_LABELS } from '@/lib/config';
+import { LS_KEYS, UI_COPY, UI_LABELS } from '@/lib/config';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useShallow } from 'zustand/react/shallow'
+import { lsBool } from '@/lib/persistence'
 
 export const FitToViewButton = () => {
   const {
@@ -39,10 +40,6 @@ export const FitToViewButton = () => {
   )
 
   const handleFitToView = useCallback(() => {
-    if (canvasRenderMode === '3d') {
-      requestThreeCamera('fit')
-      return
-    }
     const hasSelection =
       (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0)
       || (Array.isArray(selectedEdgeIds) && selectedEdgeIds.length > 0)
@@ -50,12 +47,42 @@ export const FitToViewButton = () => {
       || !!selectedNodeId
       || !!selectedEdgeId
       || !!selectedGroupId
+    const geospatialEnabled = (() => {
+      try {
+        return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+      } catch {
+        return false
+      }
+    })()
+    if (geospatialEnabled) {
+      void import('gympgrph')
+        .then(m => {
+          if (hasSelection && typeof m.requestGeospatialFitToSelection === 'function') {
+            m.requestGeospatialFitToSelection()
+            return
+          }
+          if (typeof m.requestGeospatialFitToData === 'function') {
+            m.requestGeospatialFitToData()
+            return
+          }
+          requestZoom('fit', { intent: 'fitToView' })
+        })
+        .catch(() => {
+          requestZoom('fit', { intent: 'fitToView' })
+        })
+      return
+    }
+
+    if (canvasRenderMode === '3d') {
+      requestThreeCamera(hasSelection ? 'selection' : 'fit')
+      return
+    }
     if (hasSelection) {
       requestZoom('selection')
       return
     }
     requestZoom('fit', { intent: 'fitToView' })
-  }, [canvasRenderMode, requestThreeCamera, requestZoom, selectedEdgeId, selectedEdgeIds, selectedGroupId, selectedGroupIds, selectedNodeId, selectedNodeIds]);
+  }, [canvasRenderMode, requestThreeCamera, requestZoom, selectedNodeId, selectedEdgeId, selectedGroupId, selectedNodeIds, selectedEdgeIds, selectedGroupIds]);
 
   const iconSizeClass = getIconSizeClass(uiIconScale);
 

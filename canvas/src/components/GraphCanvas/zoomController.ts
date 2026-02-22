@@ -101,6 +101,7 @@ export const applyZoomRequest = (
   const res = computeZoomTransformFromRequest(zoomRequest, {
     graphData,
     schema,
+    documentSemanticMode: (state.documentSemanticMode as 'document' | 'keyword' | undefined) ?? undefined,
     graphDataRevision: state.graphDataRevision || 0,
     viewportW: width,
     viewportH: height,

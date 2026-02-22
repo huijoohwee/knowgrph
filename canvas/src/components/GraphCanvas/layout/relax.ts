@@ -25,6 +25,20 @@ export function relaxNodesWithCollision(args: {
   const collision = readCollisionConfig(schema)
   if (!collision.nodeBbox.enabled && !collision.groupBbox.enabled) return
 
+  const baseByNode = new WeakMap<GraphNode, { x: number; y: number }>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]
+    const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+    const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+    if (x == null || y == null) continue
+    baseByNode.set(n, { x, y })
+  }
+  const isPinned = (n: GraphNode): boolean =>
+    (typeof (n as { fx?: unknown }).fx === 'number' && Number.isFinite((n as { fx: number }).fx)) ||
+    (typeof (n as { fy?: unknown }).fy === 'number' && Number.isFinite((n as { fy: number }).fy))
+  const maxPad = Math.max(collision.nodeBbox.paddingX, collision.nodeBbox.paddingY, collision.groupBbox.paddingX, collision.groupBbox.paddingY)
+  const maxShift = Math.max(24, Math.min(220, 24 + maxPad * 1.25))
+
   const nodeForce = collision.nodeBbox.enabled
     ? createBboxCollideForce({
         schema,
@@ -32,6 +46,8 @@ export function relaxNodesWithCollision(args: {
         paddingY: collision.nodeBbox.paddingY,
         paddingZ: collision.nodeBbox.paddingZ,
         touchEpsilonPx: collision.nodeBbox.touchEpsilonPx,
+        touchEpsilonXPx: collision.nodeBbox.touchEpsilonXPx,
+        touchEpsilonYPx: collision.nodeBbox.touchEpsilonYPx,
         touchEpsilonZPx: collision.nodeBbox.touchEpsilonZPx,
         strength: collision.nodeBbox.strength,
         iterations: collision.nodeBbox.iterations,
@@ -74,11 +90,45 @@ export function relaxNodesWithCollision(args: {
   if (groupForce) groupForce.initialize(nodes, Math.random)
   const applyGroupForce = groupForce as unknown as ((alpha: number) => void) | null
 
-  const forces = [applyNodeForce, applyGroupForce].filter(Boolean) as Array<(alpha: number) => void>
+  const pullToBase = (alpha: number) => {
+    const strength = 0.06 * alpha
+    if (strength <= 0) return
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      if (!n || isPinned(n)) continue
+      const base = baseByNode.get(n)
+      if (!base) continue
+      n.vx = (n.vx || 0) + (base.x - (n.x as number)) * strength
+      n.vy = (n.vy || 0) + (base.y - (n.y as number)) * strength
+    }
+  }
+
+  const forces = [applyNodeForce, applyGroupForce, pullToBase].filter(Boolean) as Array<(alpha: number) => void>
   runRelaxSteps({
     nodes,
     steps,
     forces,
-    integrate: (node) => integrateNodePositionWithVelocity(node, { damping: 0.25, z: { mode: 'always' } }),
+    maxOps: 60_000,
+    integrate: (node) => {
+      const fx = (node as unknown as { fx?: unknown }).fx
+      const fy = (node as unknown as { fy?: unknown }).fy
+      if (typeof fx === 'number' && Number.isFinite(fx)) {
+        node.x = fx
+        node.vx = 0
+      }
+      if (typeof fy === 'number' && Number.isFinite(fy)) {
+        node.y = fy
+        node.vy = 0
+      }
+      integrateNodePositionWithVelocity(node, { damping: 0.38, z: { mode: 'always' } })
+      const base = baseByNode.get(node)
+      if (!base) return
+      const x = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : base.x
+      const y = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : base.y
+      const dx = Math.max(-maxShift, Math.min(maxShift, x - base.x))
+      const dy = Math.max(-maxShift, Math.min(maxShift, y - base.y))
+      node.x = base.x + dx
+      node.y = base.y + dy
+    },
   })
 }

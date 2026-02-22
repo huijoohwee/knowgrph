@@ -556,6 +556,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       labelsSelRef,
       nodes: graphDataForDisplay.nodes,
       nodeById: display?.nodeById || null,
+      groupsForBboxCollide: args.groupsForBboxCollide,
       getSchema,
       width,
       height,

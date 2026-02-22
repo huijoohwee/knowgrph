@@ -168,3 +168,53 @@ export const testGympgrphMapLibreLoggerSuppressesAbortNoise = () => {
     throw new Error('Expected logger to match aborted request errors')
   }
 }
+
+export const testGympgrphFitToSelectionRequestExists = () => {
+  const fitPath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'geospatialFit.ts')
+  const fitText = readUtf8(fitPath)
+  if (!fitText.includes('requestGeospatialFitToSelection')) {
+    throw new Error('Expected gympgrph to export requestGeospatialFitToSelection')
+  }
+  if (!fitText.includes('store.requestGeospatialFitToSelection')) {
+    throw new Error('Expected requestGeospatialFitToSelection to delegate to store.requestGeospatialFitToSelection')
+  }
+  const typesPath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'hooks', 'store', 'types.ts')
+  const typesText = readUtf8(typesPath)
+  if (!typesText.includes("mode: 'data' | 'selection'")) {
+    throw new Error("Expected geospatial fit request mode to include 'selection'")
+  }
+  const slicePath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
+  const sliceText = readUtf8(slicePath)
+  if (!sliceText.includes("mode: 'selection'")) {
+    throw new Error("Expected geospatialSlice requestGeospatialFitToSelection to set mode: 'selection'")
+  }
+}
+
+export const testHostGeoZoomToSelectionCallsGympgrphSelectionFit = () => {
+  const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
+  const viewportText = readUtf8(viewportPath)
+  if (!viewportText.includes('requestGeospatialFitToSelection')) {
+    throw new Error('Expected host CanvasViewport to call requestGeospatialFitToSelection when zoomToSelectionMode changes')
+  }
+  if (!viewportText.includes('setGeospatialAutoFitEnabled')) {
+    throw new Error('Expected host CanvasViewport to sync Fit-to-Screen to setGeospatialAutoFitEnabled')
+  }
+}
+
+export const testZIndexSsotIsUsedForToastsAndFloatingPanels = () => {
+  const zPath = path.resolve(process.cwd(), 'src', 'lib', 'ui', 'zIndex.ts')
+  const zText = readUtf8(zPath)
+  if (!zText.includes('Z_INDEX_FLOATING_PANEL_DEFAULT')) throw new Error('Expected Z_INDEX_FLOATING_PANEL_DEFAULT to exist')
+  if (!zText.includes('Z_INDEX_TOAST')) throw new Error('Expected Z_INDEX_TOAST to exist')
+  const toastPath = path.resolve(process.cwd(), 'src', 'components', 'ui', 'ToastHost.tsx')
+  const toastText = readUtf8(toastPath)
+  if (toastText.includes('z-[2500]') || toastText.includes('z-[5000]')) {
+    throw new Error('ToastHost must not hardcode z-index classes (use zIndex SSOT)')
+  }
+  if (!toastText.includes('Z_INDEX_TOAST')) throw new Error('Expected ToastHost to use Z_INDEX_TOAST')
+  const slicePath = path.resolve(process.cwd(), 'src', 'hooks', 'store', 'panelLayoutUiSlice.ts')
+  const sliceText = readUtf8(slicePath)
+  if (sliceText.includes('floatingPanelZIndex, 5000')) {
+    throw new Error('Expected floatingPanelZIndex default to use SSOT constant, not hardcoded 5000')
+  }
+}

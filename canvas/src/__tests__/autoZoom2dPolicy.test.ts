@@ -7,18 +7,14 @@ export function testAutoZoom2dPolicyFlowEditorDisablesAutoZoomModes() {
     fitToScreenMode: true,
     zoomToSelectionMode: false,
   })
-  if (fitAllowed) {
-    throw new Error('expected flowEditor to disable auto fit-to-screen')
-  }
+  if (!fitAllowed) throw new Error('expected flowEditor to allow auto fit-to-screen when enabled')
 
   const selAllowed = shouldAutoZoomSelection2d({
     canvas2dRenderer: 'flowEditor',
     viewPinned: false,
     zoomToSelectionMode: true,
   })
-  if (selAllowed) {
-    throw new Error('expected flowEditor to disable auto zoom-to-selection')
-  }
+  if (!selAllowed) throw new Error('expected flowEditor to allow auto zoom-to-selection when enabled')
 
   const mapFitAllowed = shouldAutoFitToScreen2d({
     canvas2dRenderer: 'flow',
@@ -30,4 +26,3 @@ export function testAutoZoom2dPolicyFlowEditorDisablesAutoZoomModes() {
     throw new Error('expected non-flowEditor renderer to allow auto fit-to-screen when enabled')
   }
 }
-

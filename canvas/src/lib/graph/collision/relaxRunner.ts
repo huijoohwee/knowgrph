@@ -10,6 +10,7 @@ export function runRelaxSteps<T>(args: {
   steps: number
   forces: RelaxForce[]
   alphaForStep?: (step: number) => number
+  maxOps?: number
   integrate: (node: T) => void
 }): void {
   const { nodes, steps, forces, integrate } = args
@@ -17,8 +18,11 @@ export function runRelaxSteps<T>(args: {
   if (!Number.isFinite(steps) || steps <= 0) return
 
   const alphaForStep = args.alphaForStep || DEFAULT_ALPHA_FOR_STEP
+  const maxOps = typeof args.maxOps === 'number' && Number.isFinite(args.maxOps) ? Math.max(0, Math.floor(args.maxOps)) : 40_000
+  const safeSteps = maxOps > 0 ? Math.min(Math.floor(steps), Math.max(0, Math.floor(maxOps / Math.max(1, nodes.length)))) : Math.floor(steps)
+  if (safeSteps <= 0) return
 
-  for (let step = 0; step < steps; step += 1) {
+  for (let step = 0; step < safeSteps; step += 1) {
     const alpha = alphaForStep(step)
     for (let i = 0; i < forces.length; i += 1) forces[i](alpha)
     for (let i = 0; i < nodes.length; i += 1) integrate(nodes[i])

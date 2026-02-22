@@ -18,6 +18,7 @@ import {
 import { isHandlesForAllInputsEnabled, isLoopNode } from '@/lib/flowEditor/flowEditorActions'
 import { lsBool, lsJson, lsSetBool, lsSetJson } from '@/lib/persistence'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
@@ -138,7 +139,9 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   )
 
   const overlayZIndex = React.useMemo(() => {
-    const safeFloating = Number.isFinite(floatingPanelZIndex) ? Math.max(1, Math.floor(floatingPanelZIndex)) : 5000
+    const safeFloating = Number.isFinite(floatingPanelZIndex)
+      ? Math.max(1, Math.floor(floatingPanelZIndex))
+      : Z_INDEX_FLOATING_PANEL_DEFAULT
     const base = safeFloating - 1
     const idx = Number.isFinite(stackIndex) ? Math.max(0, Math.floor(stackIndex as number)) : 0
     const selected = String(selectedNodeId || '').trim() === nodeId

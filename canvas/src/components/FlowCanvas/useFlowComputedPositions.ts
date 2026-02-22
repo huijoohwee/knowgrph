@@ -37,9 +37,39 @@ export function useFlowComputedPositions(args: {
   const [computedPositions, setComputedPositions] = React.useState<Record<string, { x: number; y: number }> | null>(
     () => args.layoutPositionsForMode || null,
   )
+  const computedPositionsRef = React.useRef<Record<string, { x: number; y: number }> | null>(computedPositions)
   const lastLayoutGraphKeyRef = React.useRef<string>('')
   const seededFromOtherRendererKeyRef = React.useRef<string>('')
   const seededFromOtherRendererPositionsRef = React.useRef<Record<string, { x: number; y: number }> | null>(null)
+  const lastOutputHashRef = React.useRef<string>('')
+
+  React.useEffect(() => {
+    computedPositionsRef.current = computedPositions
+  }, [computedPositions])
+
+  const hashPositions = (
+    positions: Record<string, { x: number; y: number }> | null,
+    nodeIds: string[],
+  ): string => {
+    if (!positions) return ''
+    const ids = nodeIds.length > 0 ? nodeIds : Object.keys(positions)
+    const ordered = ids.length <= 250 ? [...ids].sort((a, b) => a.localeCompare(b)) : [...ids].sort((a, b) => a.localeCompare(b)).slice(0, 250)
+    let h = 2166136261
+    const step = Math.max(1, Math.floor(ordered.length / 200))
+    for (let i = 0; i < ordered.length; i += step) {
+      const id = ordered[i]
+      const p = positions[id]
+      if (!p) continue
+      const x = Number.isFinite(p.x) ? Math.round(p.x * 10) : 0
+      const y = Number.isFinite(p.y) ? Math.round(p.y * 10) : 0
+      const s = `${id}:${x}:${y};`
+      for (let j = 0; j < s.length; j += 1) {
+        h ^= s.charCodeAt(j)
+        h = Math.imul(h, 16777619)
+      }
+    }
+    return `${nodeIds.length}|${h >>> 0}`
+  }
 
   React.useEffect(() => {
     if (!args.active) return
@@ -54,7 +84,7 @@ export function useFlowComputedPositions(args: {
     const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
     const edgeList = Array.isArray(g?.edges) ? g?.edges : []
     const graphKey = `${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${args.layoutVariant}`
-    if (graphKey === lastLayoutGraphKeyRef.current && computedPositions) return
+    if (graphKey === lastLayoutGraphKeyRef.current && computedPositionsRef.current) return
     lastLayoutGraphKeyRef.current = graphKey
 
     const run = async () => {
@@ -198,7 +228,7 @@ export function useFlowComputedPositions(args: {
         return collisions / used
       }
       const overlapPressure = estimateOverlapPressure(computed)
-      const shouldRelax = computedUnstable || overlapPressure >= 0.02
+      const shouldRelax = computedUnstable || overlapPressure >= 0.005
       const relaxed =
         shouldRelax && args.sceneGraphData && args.schema
           ? relaxFlowPositionsWithCollision({
@@ -226,6 +256,10 @@ export function useFlowComputedPositions(args: {
           : relaxed
 
       if (cancelled) return
+      const nodeIds = nodeList.map(n => String(n.id)).filter(Boolean)
+      const outHash = hashPositions(packed, nodeIds)
+      if (outHash && outHash === lastOutputHashRef.current) return
+      lastOutputHashRef.current = outHash
       if (
         args.cacheKey &&
         typeof args.setLayoutPositionsForMode === 'function' &&
@@ -257,7 +291,6 @@ export function useFlowComputedPositions(args: {
     args.sceneGroups,
     args.schema,
     args.setLayoutPositionsForMode,
-    computedPositions,
   ])
 
   return computedPositions

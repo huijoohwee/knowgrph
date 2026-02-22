@@ -165,6 +165,9 @@ import {
   testRemoteFetchProxyDoesNotAbortOnCloseOrTruncate,
   testGympgrphCesiumOverlayAutoFitsToGeoBounds,
   testGympgrphMapLibreLoggerSuppressesAbortNoise,
+  testGympgrphFitToSelectionRequestExists,
+  testHostGeoZoomToSelectionCallsGympgrphSelectionFit,
+  testZIndexSsotIsUsedForToastsAndFloatingPanels,
 } from '@/__tests__/geospatialHostIntegration.test'
 import { testAirportsJsonGeodataParsingUsesSampling } from '@/__tests__/geodataAirportsImport.test'
 import { testGeoJsonImport } from '@/__tests__/geojsonImport.test'
@@ -207,6 +210,12 @@ import {
 } from '@/__tests__/semanticModeZoomInvariants.test'
 import { testSpacePanKeyStateTracksHeldSpace } from '@/__tests__/spacePanKeyState.test'
 import { testViewportControlsPanDragPreset } from '@/__tests__/viewportControlsPanDragPreset.test'
+import {
+  testD3SceneUsesBudgetedLabelRelaxAndEdgePlacement,
+  testFlowAndDesignUseBudgetedCollisionRelax,
+  testFlowEditorOverlayUsesBudgetedPanelRelax,
+  testD3SimulationUsesAxisEpsilonsForStrictBboxCollision,
+} from '@/__tests__/labelCollisionPolicyWiring.test'
 import { testViewportControlsSelectionDragPreset } from '@/__tests__/viewportControlsSelectionDragPreset.test'
 import { testFlowEditorViewportControlsPresetDoesNotForceDesign } from '@/__tests__/flowEditorViewportControlsPreset.test'
 import { testFlowEditorOverlayDoesNotFreezePanOrZoomAfterOverlayDrag } from '@/__tests__/flowEditorOverlayPointerCaptureRegression.test'
@@ -978,6 +987,9 @@ export const runAllTests = async () => {
   await exec('geospatial.host.remoteFetchProxy.noAbortOrTruncate', testRemoteFetchProxyDoesNotAbortOnCloseOrTruncate)
   await exec('geospatial.gympgrphCesium.autoFitToGeoBounds', testGympgrphCesiumOverlayAutoFitsToGeoBounds)
   await exec('geospatial.gympgrphMapLibre.loggerSuppressesAbortNoise', testGympgrphMapLibreLoggerSuppressesAbortNoise)
+  await exec('geospatial.gympgrph.fitToSelection.requestExists', testGympgrphFitToSelectionRequestExists)
+  await exec('geospatial.host.zoomToSelection.callsSelectionFit', testHostGeoZoomToSelectionCallsGympgrphSelectionFit)
+  await exec('ui.zIndex.ssotUsedForToastsAndFloatingPanels', testZIndexSsotIsUsedForToastsAndFloatingPanels)
   await exec('geospatial.gympgrphUrl.proxyNormalizesGithubBlob', testGympgrphApplyMediaProxyNormalizesGithubBlobUrl)
   await exec('geospatial.gympgrphUrl.proxySkipsWhenNotLocalhost', testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost)
   await exec('geospatial.gympgrphUrl.proxyOpenFreeMapOnLocalhost', testGympgrphApplyMediaProxyProxiesOpenFreeMapOnLocalhost)
@@ -1362,6 +1374,10 @@ export const runAllTests = async () => {
   await exec('ui.toast.upsertMovesToastToFront', testUiToastUpsertMovesToastToFront)
   await exec('ui.toolbar.tooltipsDoNotInterceptClicks', testToolbarIconTooltipsDoNotInterceptClicks)
   await exec('ui.toolbar.iconButtonStopsPropagation', testIconButtonStopsPropagation)
+  await exec('d3.labels.strictCollisionWiring', testD3SceneUsesBudgetedLabelRelaxAndEdgePlacement)
+  await exec('d3.simulation.axisEpsilons.strictBboxCollision', testD3SimulationUsesAxisEpsilonsForStrictBboxCollision)
+  await exec('flowAndDesign.budgetedCollisionRelaxWiring', testFlowAndDesignUseBudgetedCollisionRelax)
+  await exec('flowEditor.overlay.budgetedPanelRelaxWiring', testFlowEditorOverlayUsesBudgetedPanelRelax)
   await exec('ui.overlayClamp.keepsPanelInViewport', testOverlayClampKeepsPanelInViewport)
   await exec('ui.overlayClamp.snapPxRoundsToGrid', testOverlayClampSnapPxRoundsToGrid)
   await exec('ui.flowNodeQuickEditor.anchorOffsets', testFlowNodeQuickEditorAnchorOffsetsClearAndSet)

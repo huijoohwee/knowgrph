@@ -491,7 +491,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L280; canvas/src/hooks/store/panelLayoutUiSlice.ts:L84; canvas/src/hooks/store/uiSettingsSlice.ts:L181"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L280; canvas/src/hooks/store/panelLayoutUiSlice.ts:L85; canvas/src/hooks/store/uiSettingsSlice.ts:L181"
   },
   "floatingPanelHeightRatio": {
     "area": "Floating Panel Layout",
@@ -509,7 +509,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L289; canvas/src/hooks/store/panelLayoutUiSlice.ts:L88; canvas/src/hooks/store/uiSettingsSlice.ts:L182"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L289; canvas/src/hooks/store/panelLayoutUiSlice.ts:L89; canvas/src/hooks/store/uiSettingsSlice.ts:L182"
   },
   "floatingPanelZIndex": {
     "area": "Floating Panel Layout",
@@ -527,7 +527,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L298; canvas/src/hooks/store/panelLayoutUiSlice.ts:L92; canvas/src/hooks/store/uiSettingsSlice.ts:L183"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L298; canvas/src/hooks/store/panelLayoutUiSlice.ts:L93; canvas/src/hooks/store/uiSettingsSlice.ts:L183"
   },
   "enableLaunchSpotlight": {
     "area": "Launch Spotlight",
@@ -2421,7 +2421,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L350; canvas/src/hooks/store/panelLayoutUiSlice.ts:L100; canvas/src/hooks/store/uiSettingsSlice.ts:L395"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L350; canvas/src/hooks/store/panelLayoutUiSlice.ts:L101; canvas/src/hooks/store/uiSettingsSlice.ts:L395"
   },
   "schema.behavior.hover.content.type": {
     "area": "Graph Hover Preview",

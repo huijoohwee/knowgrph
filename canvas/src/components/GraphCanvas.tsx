@@ -759,7 +759,14 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         zoomOnDoubleClick,
         renderMediaAsNodes,
         mediaPanelDensity,
-        enableTightInitialLayout: workspaceViewMode === 'editor' || workspaceViewMode === 'table',
+        enableTightInitialLayout: (() => {
+          if (isEmbeddedPreview) return false
+          const nodesCount = Array.isArray(sceneGraphData?.nodes) ? sceneGraphData.nodes.length : 0
+          const edgesCount = Array.isArray(sceneGraphData?.edges) ? sceneGraphData.edges.length : 0
+          if (nodesCount > 2600) return false
+          if (edgesCount > 8200) return false
+          return true
+        })(),
         fitToScreenMode,
         viewportControlsPreset,
         initialZoomTransform,

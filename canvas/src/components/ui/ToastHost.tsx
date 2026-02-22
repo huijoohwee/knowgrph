@@ -7,6 +7,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { sanitizeMessageText } from '@/lib/ui'
 import { cn } from '@/lib/utils'
 import type { UiToast, UiToastKind } from '@/hooks/store/types'
+import { Z_INDEX_TOAST } from '@/lib/ui/zIndex'
 
 const TOAST_TOP_PX = 56
 
@@ -92,10 +93,11 @@ export function ToastHost() {
 
   return createPortal(
     <div
-      className="fixed z-[2500] pointer-events-none"
+      className="fixed pointer-events-none"
       style={{
         top: TOAST_TOP_PX,
         right: 12,
+        zIndex: Z_INDEX_TOAST,
       }}
       aria-live="polite"
       aria-relevant="additions removals"

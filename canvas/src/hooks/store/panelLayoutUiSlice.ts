@@ -3,6 +3,7 @@ import { LS_KEYS } from '@/lib/config';
 import type { BottomTab, GraphState } from '@/hooks/store/types';
 import type { StoreApi } from 'zustand';
 import type { GraphFieldId, GraphFieldSettingsById } from '@/features/graph-fields/graphFields';
+import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
 
 type SetGraph = StoreApi<GraphState>['setState'];
 
@@ -71,7 +72,7 @@ export const createPanelLayoutUiSlice = (set: SetGraph) => {
     bottomPanelCollapsed: lsBool(LS_KEYS.bottomPanelCollapsed, true),
     floatingPanelWidthRatio: lsNum(LS_KEYS.floatingPanelWidthRatio, 0.25),
     floatingPanelHeightRatio: lsNum(LS_KEYS.floatingPanelHeightRatio, 0.5),
-    floatingPanelZIndex: lsInt(LS_KEYS.floatingPanelZIndex, 5000),
+    floatingPanelZIndex: lsInt(LS_KEYS.floatingPanelZIndex, Z_INDEX_FLOATING_PANEL_DEFAULT),
     bottomPanelTab: 'stats' as BottomTab,
     schemaDeriveCacheCapacity: lsInt(LS_KEYS.schemaDeriveCacheCapacity, 16),
     graphFieldSettingsById: lsJson(LS_KEYS.graphFieldSettingsById, {} as GraphFieldSettingsById, parseGraphFieldSettingsById),

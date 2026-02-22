@@ -1,0 +1,3 @@
+export const Z_INDEX_ANCHOR_OVERLAY = 2500
+export const Z_INDEX_FLOATING_PANEL_DEFAULT = 5000
+export const Z_INDEX_TOAST = 9000

@@ -91,11 +91,7 @@ export function relaxFlowPositionsWithCollision(args: {
 
   const steps = readStructuredRelaxSteps(schema, args.defaultSteps)
   if (steps <= 0) return positions
-
   const maxOps = 40_000
-  const maxStepsBySize = Math.max(2, Math.floor(maxOps / Math.max(1, proxyNodes.length)))
-  const effectiveSteps = Math.max(0, Math.min(steps, maxStepsBySize))
-  if (effectiveSteps <= 0) return positions
 
   const collision = readCollisionConfig(schema)
   if (!collision.nodeBbox.enabled && !collision.groupBbox.enabled) return positions
@@ -142,16 +138,53 @@ export function relaxFlowPositionsWithCollision(args: {
     groupForces.push(f as unknown as (alpha: number) => void)
   }
 
-  const forces = [applyNodeForce, ...groupForces].filter(Boolean) as Array<(alpha: number) => void>
+  const baseByNode = new WeakMap<GraphNode, { x: number; y: number }>()
+  for (let i = 0; i < proxyNodes.length; i += 1) {
+    const n = proxyNodes[i]
+    const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+    const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+    if (x == null || y == null) continue
+    baseByNode.set(n, { x, y })
+  }
+  const maxPad = Math.max(
+    collision.nodeBbox.paddingX,
+    collision.nodeBbox.paddingY,
+    collision.groupBbox.paddingX,
+    collision.groupBbox.paddingY,
+  )
+  const maxShift = Math.max(20, Math.min(220, 20 + Math.max(width, height) * 0.35 + maxPad * 0.85))
+  const pullToBase = (alpha: number) => {
+    const strength = 0.06 * alpha
+    if (strength <= 0) return
+    for (let i = 0; i < proxyNodes.length; i += 1) {
+      const n = proxyNodes[i]
+      const base = baseByNode.get(n)
+      if (!base) continue
+      n.vx = (n.vx || 0) + (base.x - (n.x as number)) * strength
+      n.vy = (n.vy || 0) + (base.y - (n.y as number)) * strength
+    }
+  }
+
+  const forces = [applyNodeForce, ...groupForces, pullToBase].filter(Boolean) as Array<(alpha: number) => void>
   runRelaxSteps({
     nodes: proxyNodes,
-    steps: effectiveSteps,
+    steps,
     forces,
-    integrate: (node) =>
+    maxOps,
+    integrate: (node) => {
       integrateNodePositionWithVelocity(node, {
-        damping: 0.25,
+        damping: 0.4,
         z: { mode: 'predicate', enabled: (n) => (n as { hasExplicitZ?: unknown }).hasExplicitZ === true },
-      }),
+      })
+      const base = baseByNode.get(node)
+      if (!base) return
+      const x = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : base.x
+      const y = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : base.y
+      const dx = Math.max(-maxShift, Math.min(maxShift, x - base.x))
+      const dy = Math.max(-maxShift, Math.min(maxShift, y - base.y))
+      node.x = base.x + dx
+      node.y = base.y + dy
+    },
   })
 
   const next: Record<string, { x: number; y: number }> = { ...positions }

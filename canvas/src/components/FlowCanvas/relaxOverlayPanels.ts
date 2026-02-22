@@ -13,6 +13,13 @@ export function relaxOverlayPanelsWithCollision(args: {
     height: number
     movable: boolean
   }>
+  obstacles?: Array<{
+    id: string
+    left: number
+    top: number
+    width: number
+    height: number
+  }>
   gapPx: number
   strength: number
   iterations: number
@@ -73,7 +80,36 @@ export function relaxOverlayPanelsWithCollision(args: {
     })
   }
 
-  if (proxyNodes.length < 2) {
+  const obstacles = Array.isArray(args.obstacles) ? args.obstacles : []
+  for (let i = 0; i < obstacles.length; i += 1) {
+    const it = obstacles[i]
+    const id = String(it?.id || '').trim()
+    if (!id) continue
+    const width = Number.isFinite(it.width) ? Math.max(1, it.width) : 1
+    const height = Number.isFinite(it.height) ? Math.max(1, it.height) : 1
+    const left = Number.isFinite(it.left) ? it.left : 0
+    const top = Number.isFinite(it.top) ? it.top : 0
+    const cx = left + width * 0.5
+    const cy = top + height * 0.5
+    proxyNodes.push({
+      id: `__obstacle__:${id}`,
+      type: 'OverlayObstacle',
+      label: '',
+      properties: {
+        'visual:shape': 'rect',
+        'visual:width': width,
+        'visual:height': height,
+      } as unknown as GraphNode['properties'],
+      x: cx,
+      y: cy,
+      vx: 0,
+      vy: 0,
+      fx: cx,
+      fy: cy,
+    })
+  }
+
+  if (proxyNodes.length < 2 || args.items.length < 2) {
     return args.items.map(it => ({ id: it.id, left: it.left, top: it.top }))
   }
 
@@ -92,18 +128,19 @@ export function relaxOverlayPanelsWithCollision(args: {
     nodes: proxyNodes,
     steps,
     forces: [applyForce],
+    maxOps: 40_000,
     integrate: node => integrateNodePositionWithVelocity(node, { damping: 0.25 }),
   })
 
   const out: Array<{ id: string; left: number; top: number }> = []
-  for (let i = 0; i < proxyNodes.length; i += 1) {
-    const n = proxyNodes[i]
-    const id = String(n.id || '').trim()
-    const it = args.items.find(x => x.id === id) || null
-    if (!id || !it) continue
-    const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : it.left + it.width * 0.5
-    const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : it.top + it.height * 0.5
-    out.push({ id, left: x - it.width * 0.5, top: y - it.height * 0.5 })
+  for (let i = 0; i < args.items.length; i += 1) {
+    const it = args.items[i]
+    const panelId = String(it?.id || '').trim()
+    if (!panelId) continue
+    const n = proxyNodes.find(x => String(x.id || '') === panelId) || null
+    const x = n && typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : it.left + it.width * 0.5
+    const y = n && typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : it.top + it.height * 0.5
+    out.push({ id: panelId, left: x - it.width * 0.5, top: y - it.height * 0.5 })
   }
   return out
 }

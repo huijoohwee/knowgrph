@@ -16,6 +16,7 @@ import { clampScale, safeScaleExtent } from '@/lib/zoom/scaleExtent'
 export type ZoomComputeContext = {
   graphData: GraphData | null
   schema: GraphSchema
+  documentSemanticMode?: 'document' | 'keyword'
   graphDataRevision: number
   viewportW: number
   viewportH: number
@@ -70,9 +71,28 @@ function schemaFitSig(schema: GraphSchema): string {
   ].join('|')
 }
 
+function applyDocumentSemanticFitPolicy(schema: GraphSchema, opts: ReturnType<typeof readFitAllOptions>): ReturnType<typeof readFitAllOptions> {
+  const next = { ...opts }
+  next.detectClusters = false
+  next.includeGroupsBounds = true
+  next.deriveGroupsOptions = { ...(next.deriveGroupsOptions || {}), forceDocumentStructure: true }
+  next.schema = {
+    ...schema,
+    layout: {
+      ...(schema?.layout || {}),
+      groups: {
+        ...(schema?.layout?.groups || {}),
+        enabled: true,
+      },
+    },
+  } as GraphSchema
+  return next
+}
+
 function getFitTransformCached(args: {
   graphData: GraphData
   schema: GraphSchema
+  documentSemanticMode?: 'document' | 'keyword'
   graphDataRevision: number
   viewportW: number
   viewportH: number
@@ -84,23 +104,28 @@ function getFitTransformCached(args: {
   const w = Math.max(1, Math.floor(args.viewportW))
   const h = Math.max(1, Math.floor(args.viewportH))
   const mode = readLayoutMode(args.schema)
-  const opts = readFitAllOptions({
+  let opts = readFitAllOptions({
     schema: args.schema,
     mode,
     intent: args.intent === 'fitSelection' ? 'fitSelection' : args.intent,
   })
+  if (args.documentSemanticMode === 'document') {
+    opts = applyDocumentSemanticFitPolicy(args.schema, opts)
+  }
   const key = [
     args.cacheKeyBase,
     String(args.graphDataRevision),
     String(w),
     String(h),
     args.intent,
+    String(args.documentSemanticMode || ''),
     args.selectionKey || '',
     schemaFitSig(args.schema),
     String(opts.pad ?? ''),
     String(opts.detectClusters ? 1 : 0),
     String((opts as unknown as { centerMode?: unknown }).centerMode ?? ''),
     String((opts as unknown as { includeGroupsBounds?: unknown }).includeGroupsBounds === false ? 0 : 1),
+    String((opts as unknown as { deriveGroupsOptions?: { forceDocumentStructure?: boolean } }).deriveGroupsOptions?.forceDocumentStructure === true ? 1 : 0),
     String(opts.targetAspectRatio ?? ''),
     String(opts.enforceAspectRatio === false ? 0 : 1),
     String(opts.targetFillRatio ?? ''),
@@ -162,6 +187,7 @@ export function computeZoomTransformFromRequest(
     return getFitTransformCached({
       graphData,
       schema: ctx.schema,
+      documentSemanticMode: ctx.documentSemanticMode,
       graphDataRevision: ctx.graphDataRevision,
       viewportW: w,
       viewportH: h,
@@ -223,7 +249,7 @@ export function computeZoomTransformFromRequest(
   if (type === 'reset') {
     if (graphData && (graphData.nodes || []).length > 0) {
       const centered = fitAllTransform(graphData.nodes, w, h, {
-        centerMode: 'bbox',
+        centerMode: 'centroid',
         minScale: 1,
         maxScale: 1,
         maxScaleHardCap: 1,
