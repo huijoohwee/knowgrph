@@ -696,7 +696,6 @@ export function bindFlowCanvasNativeInteractions(args: {
     }
 
     const storeStateAtDown = useGraphStore.getState()
-    const isFlowEditor = String(storeStateAtDown.canvas2dRenderer || '') === 'flowEditor'
 
     if (e.pointerType === 'touch') {
       touchPointsById.set(pointerId, { sx, sy })

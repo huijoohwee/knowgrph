@@ -17,8 +17,7 @@ import {
   buildNeo4jGraph,
 } from '@/lib/graph/db'
 import { pipelinePerfEnd, pipelinePerfMeasureAsync, pipelinePerfMeasureSync, pipelinePerfStart } from '@/lib/pipelinePerf'
-import { initializeGraphLayout } from '@/components/GraphCanvas/layout/initialization'
-import { defaultSchema } from '@/lib/graph/schema'
+import { seedMissingNodePositions } from '@/components/GraphCanvas/layout/initialization'
 
 export type LoaderResult = {
   parserId?: string
@@ -30,19 +29,23 @@ export type LoaderResult = {
 }
 
 function applyLayoutInitialization(graphData: GraphData) {
-  const schema = useGraphStore.getState().schema || defaultSchema
-  // We assume a standard viewport for initial seeding.
+  const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
+  if (nodes.length < 2) return
+
+  let missing = 0
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i] as unknown as { x?: unknown; y?: unknown }
+    const x = n.x
+    const y = n.y
+    const ok = typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y)
+    if (!ok) missing += 1
+    if (missing >= 2) break
+  }
+  if (missing === 0) return
+
   const width = 1200
   const height = 900
-  
-  initializeGraphLayout({
-    nodes: graphData.nodes,
-    edges: graphData.edges,
-    width,
-    height,
-    schema,
-    seedCenter: { x: width / 2, y: height / 2 }
-  })
+  seedMissingNodePositions(nodes, width, height, { x: width / 2, y: height / 2 })
 }
 
 export async function loadGraphDataViaParser(): Promise<LoaderResult | null> {

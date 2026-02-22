@@ -4,7 +4,7 @@ import { LRUCache } from '@/lib/cache/LRUCache'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
-import { centerAllTransform, fitAllTransform } from '@/components/GraphCanvas/fit'
+import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { computeZoomSubset } from '@/lib/zoom/selectionTargets'
 import type { ZoomRequest, ZoomFitIntent } from '@/lib/zoom/requests'
 import { computeTransformScaleAboutViewportCenter } from '@/lib/zoom/viewport'
@@ -247,19 +247,12 @@ export function computeZoomTransformFromRequest(
   }
 
   if (type === 'reset') {
-    if (graphData && (graphData.nodes || []).length > 0) {
-      const centered = fitAllTransform(graphData.nodes, w, h, {
-        centerMode: 'centroid',
-        minScale: 1,
-        maxScale: 1,
-        maxScaleHardCap: 1,
-        schema: ctx.schema,
-        graphData,
-        includeGroupsBounds: true,
-      })
+    const next = computeFitAll('fitToView')
+    if (next) {
       return {
-        nextTransform: centered,
+        nextTransform: next,
         durationMs: readDurationMs(ctx.durations?.resetMs ?? ctx.toolbarZoom?.durationMs, 250),
+        nextMinScale: next.k,
       }
     }
     return { nextTransform: d3.zoomIdentity, durationMs: readDurationMs(ctx.durations?.resetMs ?? ctx.toolbarZoom?.durationMs, 250) }

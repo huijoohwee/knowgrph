@@ -54,6 +54,8 @@
 - **Deep Nesting No-Stick**: Apply the same separation rule at every nesting level so inner groups do not snap/touch/stick to outer group borders.
 - Respect pinned nodes (`fx`/`fy`) by redirecting impulse to the unpinned counterpart.
 - Use `touchEpsilonPx` (or axis-specific `touchEpsilonX/Y`) to treat near-touch as a collision (stabilizes “snap/stick” at exact contact).
+- Determinism: force initialization must be seeded by a stable RNG (e.g., derived from node ids) to forbid `Math.random`-driven divergence across runs.
+- Layout locality: relax passes must remain bounded and clamp per-node displacement so collision avoidance cannot “mess up” the macro layout by teleporting nodes.
 
 **Implementation**: [createBboxCollideForce](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/overlap.ts)
 

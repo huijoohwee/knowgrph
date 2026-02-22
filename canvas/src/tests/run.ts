@@ -23,6 +23,7 @@ import {
   testForceSimulationSeedsClusterAwarePositionsWhenMissing,
 } from '@/__tests__/selectionZoom.test'
 import { testGraphCanvasNodeDragDoesNotLeakUserSelectLockWhenSpacePanHeld } from '@/__tests__/graphCanvasDragUserSelectUnlockRegression.test'
+import { testForbidPenpotRepoLiteral } from '@/__tests__/forbidPenpotRepoLiteral.test'
 import { testFlowCanvasSpacePanCanStartFromOverlay } from '@/__tests__/flowCanvasSpacePanOverlayProxyRegression.test'
 import { testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay } from '@/__tests__/flowCanvasWheelOverlayProxyRegression.test'
 import { testFlowCanvasHandlesSafariGesturePinchZoom } from '@/__tests__/flowCanvasGesturePinchZoomRegression.test'
@@ -374,6 +375,10 @@ import {
   testLayoutPositioningForcesLayoutWhenVariantChanges,
   testLayoutPositioningSkipsReseedOnToggle,
 } from '@/__tests__/layoutPositioning.test'
+import {
+  testLayoutInitRespectsStableCachedPositions,
+  testLayoutInitSeedsOnlyMissingPositionsWhenStable,
+} from '@/__tests__/layoutInitRespectsCachedPositions.test'
 import { testZoomViewKeyIsIsolatedAcross2dRenderers } from '@/__tests__/zoomViewKeySharedAcross2dRenderers.test'
 import { testPerDocumentUiStateReadWriteAndLruTrim } from '@/__tests__/perDocumentUiState.test'
 import {
@@ -864,6 +869,7 @@ export const runAllTests = async () => {
   await exec('ui.typography.graphTable.usesUiSettings', testGraphTableTypographyUsesUiSettings)
 
   await exec('policy.forbidHardcodedYouTubeUrlLiteral', testForbidHardcodedYouTubeUrlLiteral)
+  await exec('policy.forbidPenpotRepoLiteral', testForbidPenpotRepoLiteral)
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)
   await exec('ingest.markdown.importActionWiresStore', testMarkdownImportActionAppliesImportedMarkdownToStore)
 
@@ -875,6 +881,8 @@ export const runAllTests = async () => {
   await exec('layout.positioning.cacheKeyIncludesViewKey', testLayoutPositioningCacheKeyIncludesViewKey)
   await exec('layout.positioning.isolatesMediaDensity', testLayoutPositioningCacheKeyIsolatesMediaDensity)
   await exec('layout.positioning.isolatesRenderMediaAsNodes', testLayoutPositioningCacheKeyIsolatesRenderMediaAsNodes)
+  await exec('layout.init.respectsStableCachedPositions', testLayoutInitRespectsStableCachedPositions)
+  await exec('layout.init.seedsOnlyMissingWhenStable', testLayoutInitSeedsOnlyMissingPositionsWhenStable)
   await exec('zoom.viewKey.isolates2dRenderers', testZoomViewKeyIsIsolatedAcross2dRenderers)
   await exec('ui.perDocumentState.roundtripAndTrim', testPerDocumentUiStateReadWriteAndLruTrim)
   await exec('zoom.actions.inOut.preserveViewportCenterNoBounce', testZoomActionsZoomInOutPreserveViewportCenterNoBounce)

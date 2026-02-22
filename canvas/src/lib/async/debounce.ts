@@ -1,15 +1,13 @@
-
-export function debounce<T extends (...args: any[]) => void>(
-  func: T,
+export function debounce<TArgs extends unknown[]>(
+  func: (...args: TArgs) => void,
   wait: number,
-  options: { leading?: boolean; trailing?: boolean; maxWait?: number } = {}
-): T & { cancel: () => void; flush: () => void } {
+  options: { leading?: boolean; trailing?: boolean; maxWait?: number } = {},
+): ((...args: TArgs) => void) & { cancel: () => void; flush: () => void } {
   let timeoutId: ReturnType<typeof setTimeout> | null = null
-  let lastArgs: any[] | null = null
-  let lastThis: any = null
+  let lastArgs: TArgs | null = null
   let lastCallTime: number | null = null
   let lastInvokeTime: number = 0
-  
+
   const leading = !!options.leading
   const trailing = 'trailing' in options ? !!options.trailing : true
   const maxing = 'maxWait' in options
@@ -17,13 +15,11 @@ export function debounce<T extends (...args: any[]) => void>(
 
   function invokeFunc(time: number) {
     const args = lastArgs
-    const thisArg = lastThis
 
     lastArgs = null
-    lastThis = null
     lastInvokeTime = time
 
-    return func.apply(thisArg, args!)
+    func(...args!)
   }
 
   function leadingEdge(time: number) {
@@ -69,7 +65,6 @@ export function debounce<T extends (...args: any[]) => void>(
       return invokeFunc(time)
     }
     lastArgs = null
-    lastThis = null
     return undefined
   }
 
@@ -79,7 +74,6 @@ export function debounce<T extends (...args: any[]) => void>(
     }
     lastInvokeTime = 0
     lastArgs = null
-    lastThis = null
     timeoutId = null
   }
 
@@ -90,12 +84,11 @@ export function debounce<T extends (...args: any[]) => void>(
     return trailingEdge(Date.now())
   }
 
-  function debounced(this: any, ...args: any[]) {
+  function debounced(...args: TArgs) {
     const time = Date.now()
     const isInvoking = shouldInvoke(time)
 
     lastArgs = args
-    lastThis = this
     lastCallTime = time
 
     if (isInvoking) {
@@ -116,5 +109,5 @@ export function debounce<T extends (...args: any[]) => void>(
 
   debounced.cancel = cancel
   debounced.flush = flush
-  return debounced as T & { cancel: () => void; flush: () => void }
+  return debounced
 }

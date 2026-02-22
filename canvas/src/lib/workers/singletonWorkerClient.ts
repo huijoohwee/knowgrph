@@ -13,6 +13,7 @@ export type SingletonWorkerRequestArgs<T> = {
   globalStateKey: string
   createWorker: () => Worker
   timeoutMs: number
+  signal?: AbortSignal
   postMessage: (worker: Worker, id: number) => void
   readResponse: (data: unknown) => { id: number; ok: boolean; value: T; error?: string } | null
   onWorkerErrorMessage?: (message: string) => void
@@ -24,6 +25,7 @@ const getGlobalRecord = (): Record<string, unknown> => {
 
 export function requestFromSingletonWorker<T>(args: SingletonWorkerRequestArgs<T>): Promise<T> {
   try {
+    if (args.signal?.aborted) return Promise.resolve(null as unknown as T)
     const global = getGlobalRecord()
     const existing = global[args.globalStateKey] as SingletonWorkerState<T> | undefined
     const state: SingletonWorkerState<T> =
@@ -102,6 +104,47 @@ export function requestFromSingletonWorker<T>(args: SingletonWorkerRequestArgs<T
     })()
 
     return new Promise<T>((resolve) => {
+      let settled = false
+      const finish = (v: T) => {
+        if (settled) return
+        settled = true
+        cleanupAbort()
+        resolve(v)
+      }
+
+      let onAbort: (() => void) | null = null
+      const cleanupAbort = () => {
+        if (!args.signal) return
+        if (!onAbort) return
+        try {
+          args.signal.removeEventListener('abort', onAbort)
+        } catch {
+          void 0
+        }
+      }
+
+      onAbort = () => {
+        if (settled) return
+        const entry = state.pending.get(id)
+        state.pending.delete(id)
+        if (entry) {
+          try {
+            clearTimeout(entry.timeoutId)
+          } catch {
+            void 0
+          }
+        }
+        finish(null as unknown as T)
+      }
+
+      if (args.signal) {
+        try {
+          args.signal.addEventListener('abort', onAbort, { once: true })
+        } catch {
+          void 0
+        }
+      }
+
       const timeoutId = setTimeout(() => {
         if (!state.pending.has(id)) return
         state.pending.delete(id)
@@ -110,9 +153,9 @@ export function requestFromSingletonWorker<T>(args: SingletonWorkerRequestArgs<T
         } catch {
           void 0
         }
-        resolve(null as unknown as T)
+        finish(null as unknown as T)
       }, timeoutMs) as unknown as number
-      state.pending.set(id, { resolve, timeoutId })
+      state.pending.set(id, { resolve: finish, timeoutId })
       args.postMessage(worker, id)
     })
   } catch {

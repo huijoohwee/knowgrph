@@ -163,7 +163,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     zoomState,
     fitToScreenMode,
     zoomToSelectionMode,
-    workspaceViewMode,
   } = useGraphStore(
     useShallow((s) => ({
       graphDataRevision: s.graphDataRevision,
@@ -184,7 +183,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       zoomState: s.zoomState || null,
       fitToScreenMode: s.fitToScreenMode === true,
       zoomToSelectionMode: s.zoomToSelectionMode === true,
-      workspaceViewMode: s.workspaceViewMode,
     })),
   );
   const prevCanvasRenderModeRef = useRef<'2d' | '3d'>(canvasRenderMode)

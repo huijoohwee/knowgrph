@@ -93,8 +93,6 @@ export const attachSimulationTick = (args: {
   }
 
   const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v))
-  const aabbOverlaps = (a: AabbRect, b: AabbRect): boolean =>
-    Math.abs(a.x - b.x) < a.halfW + b.halfW && Math.abs(a.y - b.y) < a.halfH + b.halfH
 
   const resolveNode = (endpoint: unknown): GraphNode | null => {
     if (endpoint && typeof endpoint === 'object') {

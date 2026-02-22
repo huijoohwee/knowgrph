@@ -30,6 +30,49 @@
 
 ### P0-Critical
 
+#### 2026-02-22
+
+```
+# ENHANCE End-to-End native local in-repo Import → Render PIPELINE  
+- ENHANCE importing, indexing, loading, and rendering pipeline performance   
+- Implement broad and targeted searches cross-repo (hooks, workers, parser pipeline, schema/scene/view derivations, and any use of timing metrics).   
+- Refactor debounce, worker, and performance‑instrumentation patterns used for parsing and derivation.   
+- Enhance indexing, parsing, categorization, calculation, and rendering of Nodes, Clusters, and Edges   
+ 
+## **TODO: ENHANCE 2D Renderer (Design)**
+- native in-repo develop & enhance, FORBID hardcode/external dependency to `https://github.com/penpot/penpot.git` 
+
+## ENFORCE Layout & Initialization alignment/consistency/sync in the infinite canvas viewport 
+- CENTRALIZE, REUSE, ENHANCE initialization logic to center and evenly distribute collective (NOT individual) GRAPHS 
+- Add post‑computation layout collective fit;  
+- AVOID/FORBID chaotic clustering, excessive void spaces, mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:  
+      
+ ### TOUCHPOINTS  
+ - Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Slides Gallery, EXPLORER, Canvas Preview  
+    
+ ### MODES/LAYOUTS  
+ - Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Flow Editor), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout)  
+      
+ ### ZOOMS  
+ - Pin to View, Fit to View, Fit to Screen, Zoom to Selection  
+      
+ ### GRAPHS 
+ - **GRAPHS Elements:** nodes, Node Quick Editors, edges, graph layers (subgraphs, groups, clusters, communities), labels, text  
+ - **GRAPHS Configs:** grouping, positioning, collisions, timing, knobs  
+      
+ ## Code Maintenance  
+ - COMPLY with `/GitHub/{huijoohwee.github.io/guidelines/{codebase-neutrality-guidelines.md,codebase-maintainability-guidelines.md},knowgrph/todo.md#L5-21}`  
+ - COMPLY with existing font/icon/label/text/text size/tooltip/typography semantic/design token SSOT  
+ - REMOVE, PREVENT, RESOLVE, FORBID cross‑repo conflicts/duplicates/stale/interference across layers/modes  
+ - CENTRALIZE/REUSE shared algorithm/config/element/logic/utility (box, collision, drag, font, icon, knob, label, pan, scroll, text, text size, throttle, timing, typography, zoom)  
+ - OPTIMIZE & ENHANCE cache, loading, modularity, memory, state, store, rendering performance; FORBID churn, re-calculation, re-computation, re-rendering  
+ - USE semantic HTML; forbid generic `<div>`  
+ - UPDATE unified setting to MainPanel Settings schema  
+ - TEST/VALIDATE only bounded diffs; FORBID indefinite runs  
+      
+ ## UPDATE CROSS‑REPO Docs `/GitHub/{knowgrph/todo-log.md,knowgrph/docs/documents,huijoohwee.github.io/schema/AgenticRAG}`
+ ```
+
 #### 2026-02-19
 
 

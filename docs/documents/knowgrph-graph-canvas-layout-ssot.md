@@ -81,6 +81,10 @@ Notes:
 - Design surface must batch multi-frame position patches when resolving collisions (avoid per-node store writes that can cause rerender churn).
 - Group collision is always enforced when `layout.groups.enabled !== false` (schema may keep `groupBboxCollide` for backward compatibility, but it does not disable the constraint).
 - Group collision accounts for group label overhead (top padding) to reduce label-region overlap and to prevent group box overlap.
+- Collision relax determinism: any force initializer RNG must be seeded from stable inputs (e.g., node ids); forbid `Math.random` initializers that change layout per run.
+- Collision relax locality: bounded relax passes must clamp displacement so overlap removal cannot destroy macro layout.
+- Flow packing cohesion: collective packing must treat group membership as connectivity so subgraphs/groups/clusters remain cohesive even when edges are sparse.
+- Zoom Reset semantics: toolbar Reset is defined as Fit-to-View framing (centroid + group-aware bounds) and must not trigger any layout mutation.
 - The default baseline experience is anchored by `LS_KEYS.documentStructureBaselineLock` (default on): it disables mode switches (Keyword/Frontmatter/Renderer/3D/Select/Create) so Editor/Canvas/Table/Preview stay content-aligned.
 
 ## Rebase & Conflict Resolution Notes

@@ -25,6 +25,16 @@ type MarkdownMetricSample = {
   payload: Record<string, unknown>
 }
 
+type GympgrphStoreState = {
+  setGeospatialAutoFitEnabled?: (enabled: boolean) => void
+}
+
+type GympgrphModule = {
+  useGympgrphStore?: { getState?: () => GympgrphStoreState }
+  requestGeospatialFitToData?: () => void
+  requestGeospatialFitToSelection?: () => void
+}
+
 function MarkdownMetricsDevOverlay(props: { layout: 'full' | 'pane' }) {
   const [samples, setSamples] = React.useState<MarkdownMetricSample[]>([])
   const [open, setOpen] = React.useState(false)
@@ -144,7 +154,8 @@ export function CanvasViewport(props: CanvasViewportProps) {
     if (!geospatialModeEnabled) return
     void import('gympgrph')
       .then(m => {
-        const st = (m as any).useGympgrphStore?.getState?.()
+        const gm = m as unknown as Partial<GympgrphModule>
+        const st = gm.useGympgrphStore?.getState?.()
         const setAutoFit = st && typeof st.setGeospatialAutoFitEnabled === 'function' ? st.setGeospatialAutoFitEnabled : null
         if (!setAutoFit) return
         setAutoFit(fitToScreenMode && !viewPinned)
@@ -160,9 +171,8 @@ export function CanvasViewport(props: CanvasViewportProps) {
     if (prev || !(fitToScreenMode && !viewPinned)) return
     void import('gympgrph')
       .then(m => {
-        if (typeof (m as any).requestGeospatialFitToData === 'function') {
-          ;(m as any).requestGeospatialFitToData()
-        }
+        const gm = m as unknown as Partial<GympgrphModule>
+        gm.requestGeospatialFitToData?.()
       })
       .catch(() => void 0)
   }, [fitToScreenMode, geospatialModeEnabled, viewPinned])
@@ -182,9 +192,8 @@ export function CanvasViewport(props: CanvasViewportProps) {
     lastGeoSelectionFitKeyRef.current = key
     void import('gympgrph')
       .then(m => {
-        if (typeof (m as any).requestGeospatialFitToSelection === 'function') {
-          ;(m as any).requestGeospatialFitToSelection()
-        }
+        const gm = m as unknown as Partial<GympgrphModule>
+        gm.requestGeospatialFitToSelection?.()
       })
       .catch(() => void 0)
   }, [geospatialModeEnabled, selectedEdgeId, selectedNodeId, selectedNodeIds, viewPinned, zoomToSelectionMode])
@@ -225,9 +234,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
             <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flow' ? '' : 'opacity-0 pointer-events-none'}`}>
               {mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} /> : null}
             </div>
-            <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'design' ? '' : 'opacity-0 pointer-events-none'}`}>
+            <section className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'design' ? '' : 'opacity-0 pointer-events-none'}`} aria-label="Design renderer viewport">
               {mounted2dRenderers.design ? <DesignCanvasLazy active={canvas2dRenderer === 'design'} /> : null}
-            </div>
+            </section>
             <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flowEditor' ? '' : 'opacity-0 pointer-events-none'}`}>
               {mounted2dRenderers.flowEditor ? <FlowEditorCanvasLazy active={canvas2dRenderer === 'flowEditor'} /> : null}
             </div>

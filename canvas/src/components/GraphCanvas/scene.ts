@@ -19,8 +19,6 @@ import { attachGlobalHandlers, attachSimulationTick } from '@/components/GraphCa
 import { applyGraphCanvasZOrder } from '@/components/GraphCanvas/zOrder'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
 import {
-  seedMissingNodePositions,
-  normalizeSeededLayoutToViewport,
   initializeGraphLayout,
   applyBaselineDocumentPositionsToKeywordGraph,
   seedKeywordEntityNodesFromBaselineSources,
@@ -94,19 +92,6 @@ type SetupGraphSceneArgs = {
   layoutCacheKey: string | null
   setLayoutPositionsForMode: ((key: string, positions: Record<string, { x: number; y: number }> | null) => void) | null
 }
-
-const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
-
-const hasFiniteXY = (n: GraphNode): boolean => isFiniteNumber((n as unknown as { x?: unknown }).x) && isFiniteNumber((n as unknown as { y?: unknown }).y)
-
-const isFixedNode = (n: GraphNode): boolean => {
-  const fx = (n as unknown as { fx?: unknown }).fx
-  const fy = (n as unknown as { fy?: unknown }).fy
-  return isFiniteNumber(fx) || isFiniteNumber(fy)
-}
-
-
-
 
 export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   const {
@@ -210,36 +195,11 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     )
   }
 
-  const applyCachedPositions = () => {
+  const layoutPositionsSource = (() => {
     const cached = layoutPositionsForMode && Object.keys(layoutPositionsForMode).length > 0 ? layoutPositionsForMode : null
     const prev = prevPositions && Object.keys(prevPositions).length > 0 ? prevPositions : null
-    const source = cached || prev
-
-    if (!source) return
-    for (let i = 0; i < displayNodes.length; i += 1) {
-      const node = displayNodes[i]
-      const p = source[String(node.id)]
-      if (!p) continue
-      const x = typeof p.x === 'number' ? p.x : null
-      const y = typeof p.y === 'number' ? p.y : null
-      if (x == null || y == null) continue
-      if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-      node.x = x
-      node.y = y
-      node.vx = 0
-      node.vy = 0
-      node.fx = null
-      node.fy = null
-    }
-  }
-
-  if (skipInitialLayout) {
-    applyCachedPositions()
-  } else {
-    // If not skipping layout, we still want to apply prev positions as initial guess for force layout
-    // to avoid chaos when switching from tree -> force
-    applyCachedPositions()
-  }
+    return cached || prev
+  })()
 
   const seedCenter = (() => {
     if (!initialZoomTransform) return null
@@ -298,7 +258,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     schema,
     seedCenter,
     groupKeyOf,
-    layoutPositions: null, // We already handled cached positions above via applyCachedPositions, or we can move it here
+    layoutPositions: layoutPositionsSource,
   })
 
   const effectiveSkipInitialLayout = (() => {

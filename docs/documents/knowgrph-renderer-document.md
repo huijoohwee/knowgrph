@@ -215,6 +215,7 @@
 - **Single source**: wrapping + ellipsis decisions are shared across render, collision, and fit-to-view to prevent drift.
 - **Center alignment**: non-circle node labels are centered (`dx=0`, `anchor=middle`) and line-wrapped within the node’s visual bounds.
 - **Ellipsis**: long labels are clamped and expanded via hover tooltip (see `labels.ts`, `GraphHoverTooltip.tsx`).
+- **Flow edge labels**: Flow/Flow Editor edge labels are rendered in native canvas and placed using multi-candidate collision avoidance against nodes, groups, and other labels; the placement pass is gated by zoom and graph size to stay bounded.
 
 ---
 
@@ -270,6 +271,9 @@
   - Clamps zoom scale via `schema.performance.zoom.{minScale,maxScale}`.
   - Re-evaluates on view/layout/presentation changes unless the view is pinned.
   - `grph-shared/src/zoom/presets.ts` provides reusable fit/zoom presets reused by fit logic and simulation/layout seeding.
+- **Reset**:
+  - Resets viewport by performing the same collective Fit-to-View framing (centroid + group-aware bounds).
+  - Forbids forcing `k=1` as a reset behavior when the graph is larger than the viewport.
 - **Zoom to Selection**:
   - Focuses camera on selected node/edge.
 - **Zoom State Caching**:
@@ -289,10 +293,14 @@
     - The Flow Editor renderer must never override the stored preset.
     - Selection box on pointer drag is gated by `flowEditorSelectionOnDrag` (persisted at `LS_KEYS.flowEditorSelectionOnDrag`). When disabled, selection box uses `shift + drag` like other modes.
   - **Auto zoom modes**:
-    - Auto Fit-to-Screen and Auto Zoom-to-Selection must not run while `canvas2dRenderer=flowEditor` to prevent viewport churn during draft edits; explicit zoom actions still work.
+    - Auto Fit-to-Screen and Auto Zoom-to-Selection are shared across 2D renderers and are suppressed while the view is pinned.
+    - Auto modes must not run while `canvas2dRenderer=flowEditor` to prevent viewport churn during draft edits; explicit zoom actions still work.
+    - The Design renderer runs auto modes using its local render graph (visible frames) for fit signatures, so Fit-to-Screen/Selection matches what is actually rendered.
+    - The Design renderer’s frame grid is viewport-responsive: column count is derived from the active viewport width (with safety bounds) so initial framing avoids excessive whitespace and keeps visible frames within the primary viewport.
+    - During frame drag, Design applies visual-only DOM transforms in-flight and batches the final persisted frame positions, so collision-relax passes and layout caches see a single bounded commit instead of N-per-frame churn.
 - **Zoom commands (toolbar/keyboard)**:
   - Zoom-in/out scales about the current viewport center (preserve the world point at `viewportW/2, viewportH/2`) so panning does not “bounce” back toward the graph centroid.
-  - Only explicit `fit/reset` operations recenter on graph bounds/centroid.
+  - Only explicit `fit/reset` operations recenter on graph bounds/centroid; `reset` is defined as Fit-to-View framing.
 - **Drag vs Zoom**:
   - While dragging nodes/groups in Flow Editor, wheel zoom is blocked to avoid node movement discontinuities.
   - Pointer drag and wheel handlers prevent default page scroll/zoom while the canvas is active.

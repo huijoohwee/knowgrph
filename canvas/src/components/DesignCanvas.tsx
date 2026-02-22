@@ -14,6 +14,8 @@ import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects'
 import { createZoom } from '@/components/GraphCanvas/zoom'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { relaxNodesWithCollision } from '@/components/GraphCanvas/layout/relax'
+import { fitAllTransform } from '@/components/GraphCanvas/fit'
+import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 
 import type { GraphData, GraphNode } from '@/lib/graph/types'
@@ -47,13 +49,19 @@ function computeGridPositions(args: { nodes: FrameNode[]; colCount: number; colW
   const pad = Math.max(8, Math.floor(args.pad))
   const pos: Record<string, { x: number; y: number; w: number; h: number }> = {}
 
+  const rows = Math.max(1, Math.ceil(nodes.length / Math.max(1, cols)))
+  const gridW = cols * colW + Math.max(0, cols - 1) * pad
+  const gridH = rows * rowH + Math.max(0, rows - 1) * pad
+  const startX = -gridW / 2
+  const startY = -gridH / 2
+
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i]
     const col = i % cols
     const row = Math.floor(i / cols)
     pos[n.id] = {
-      x: col * (colW + pad),
-      y: row * (rowH + pad),
+      x: startX + col * (colW + pad),
+      y: startY + row * (rowH + pad),
       w: colW,
       h: rowH,
     }
@@ -94,7 +102,6 @@ export default function DesignCanvas({
       viewportControlsPreset: s.viewportControlsPreset,
       designLayerState: s.designLayerState,
       designFramePosById: s.designFramePosById,
-      setDesignFramePos: s.setDesignFramePos,
       setDesignFramePosMany: s.setDesignFramePosMany,
     })),
   )
@@ -140,7 +147,10 @@ export default function DesignCanvas({
   }, [snapshot.designLayerState?.hiddenById, sortedNodes])
 
   const positions = useMemo(() => {
-    const grid = computeGridPositions({ nodes: visibleNodes, colCount: 4, colW: FRAME_W, rowH: FRAME_H, pad: GAP })
+    const viewportW = Math.max(1, dims.width)
+    const maxCols = Math.max(1, Math.floor((viewportW + GAP) / (FRAME_W + GAP)))
+    const colCount = Math.max(1, Math.min(10, maxCols || 4))
+    const grid = computeGridPositions({ nodes: visibleNodes, colCount, colW: FRAME_W, rowH: FRAME_H, pad: GAP })
     const overrides = snapshot.designFramePosById || {}
     const out: Record<string, { x: number; y: number; w: number; h: number }> = {}
     for (let i = 0; i < visibleNodes.length; i += 1) {
@@ -155,7 +165,7 @@ export default function DesignCanvas({
       }
     }
     return out
-  }, [snapshot.designFramePosById, visibleNodes])
+  }, [dims.width, snapshot.designFramePosById, visibleNodes])
 
   const localGraphData: GraphData = useMemo(() => {
     return {
@@ -181,12 +191,18 @@ export default function DesignCanvas({
     }
   }, [positions, snapshot.graphData?.metadata, visibleNodes])
 
-  const setDesignFramePos = snapshot.setDesignFramePos
+  const localGraphDataRef = useRef<GraphData>(localGraphData)
+  useEffect(() => {
+    localGraphDataRef.current = localGraphData
+  }, [localGraphData])
+
   const setDesignFramePosMany = snapshot.setDesignFramePosMany
 
+  const frameElByIdRef = useRef<Map<string, SVGGElement>>(new Map())
   const dragRef = useRef<null | { id: string; startWorld: { x: number; y: number }; startPos: { x: number; y: number } }>(null)
   const dragRafRef = useRef<number | null>(null)
   const dragPendingRef = useRef<null | { id: string; nextPos: { x: number; y: number } }>(null)
+  const lastInitKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     return () => {
@@ -203,24 +219,23 @@ export default function DesignCanvas({
     }
   }, [])
 
-  const flushDrag = useMemo(() => {
-    return () => {
-      const pending = dragPendingRef.current
-      dragPendingRef.current = null
-      if (!pending) return
-      setDesignFramePos(pending.id, pending.nextPos)
-    }
-  }, [setDesignFramePos])
-
-  const scheduleDragCommit = useMemo(() => {
+  const scheduleDragVisual = useMemo(() => {
     return () => {
       if (dragRafRef.current != null) return
       dragRafRef.current = window.requestAnimationFrame(() => {
         dragRafRef.current = null
-        flushDrag()
+        const pending = dragPendingRef.current
+        if (!pending) return
+        const el = frameElByIdRef.current.get(pending.id)
+        if (!el) return
+        try {
+          el.setAttribute('transform', `translate(${pending.nextPos.x},${pending.nextPos.y})`)
+        } catch {
+          void 0
+        }
       })
     }
-  }, [flushDrag])
+  }, [])
 
   const pointerToWorld = useMemo(() => {
     return (ev: React.PointerEvent, svgEl: SVGSVGElement): { x: number; y: number } | null => {
@@ -256,11 +271,6 @@ export default function DesignCanvas({
     snapshot.renderMediaAsNodes,
     snapshot.schema,
   ])
-
-  const dimsRef = useRef({ width: dims.width, height: dims.height })
-  useEffect(() => {
-    dimsRef.current = { width: dims.width, height: dims.height }
-  }, [dims.width, dims.height])
 
   useZoomEffects({
     svgRef,
@@ -326,10 +336,32 @@ export default function DesignCanvas({
       nextViewportH: dims.height,
     })
 
-    if (initial) {
-      svg.call(zoom.transform as never, d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k))
-    } else {
-      svg.call(zoom.transform as never, d3.zoomIdentity)
+    const initKey = zoomViewKey
+    const alreadyInitialized = lastInitKeyRef.current === initKey
+    const t0 = d3.zoomTransform(svgEl)
+    const hasNonIdentityTransform = t0.k !== 1 || t0.x !== 0 || t0.y !== 0
+    if (!alreadyInitialized || !hasNonIdentityTransform) {
+      if (initial) {
+        svg.call(zoom.transform as never, d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k))
+      } else if (store.viewPinned !== true && dims.width > 80 && dims.height > 80) {
+        const g0 = localGraphDataRef.current
+        const nodes0 = Array.isArray(g0.nodes) ? (g0.nodes as GraphNode[]) : ([] as GraphNode[])
+        if (nodes0.length > 0) {
+          const mode = readLayoutMode(snapshot.schema)
+          const intent = store.fitToScreenMode ? 'fitToScreen' : 'initialFit'
+          const opts = readFitAllOptions({ schema: snapshot.schema, mode, intent })
+          const t = fitAllTransform(nodes0, Math.max(1, dims.width), Math.max(1, dims.height), {
+            ...opts,
+            graphData: g0,
+          })
+          svg.call(zoom.transform as never, d3.zoomIdentity.translate(t.x, t.y).scale(t.k))
+        } else {
+          svg.call(zoom.transform as never, d3.zoomIdentity)
+        }
+      } else {
+        svg.call(zoom.transform as never, d3.zoomIdentity)
+      }
+      if (initKey) lastInitKeyRef.current = initKey
     }
 
     return () => {
@@ -384,7 +416,7 @@ export default function DesignCanvas({
             <feDropShadow dx="0" dy="4" stdDeviation="6" floodOpacity="0.1" />
           </filter>
         </defs>
-        
+
         <g ref={gRef}>
           <rect x={-BG_SIZE} y={-BG_SIZE} width={BG_SIZE * 2} height={BG_SIZE * 2} fill="url(#grid-pattern)" />
 
@@ -392,10 +424,15 @@ export default function DesignCanvas({
             const p = positions[n.id]
             if (!p) return null
             const selected = snapshot.selectedNodeId === n.id
-            
+
             return (
               <g
                 key={n.id}
+                ref={el => {
+                  const map = frameElByIdRef.current
+                  if (el) map.set(n.id, el)
+                  else map.delete(n.id)
+                }}
                 transform={`translate(${p.x},${p.y})`}
                 onPointerDown={e => {
                   e.stopPropagation()
@@ -426,7 +463,7 @@ export default function DesignCanvas({
                   const nextY = drag.startPos.y + dy
                   if (!Number.isFinite(nextX) || !Number.isFinite(nextY)) return
                   dragPendingRef.current = { id: drag.id, nextPos: { x: nextX, y: nextY } }
-                  scheduleDragCommit()
+                  scheduleDragVisual()
                 }}
                 onPointerUp={() => {
                   if (!active) {
@@ -489,7 +526,10 @@ export default function DesignCanvas({
                     return collisions / Math.max(1, ids.length)
                   }
                   const overlapPressure = estimateOverlapPressure()
-                  if (overlapPressure < 0.02) return
+                  if (overlapPressure < 0.02) {
+                    if (Object.keys(updates).length > 0) setDesignFramePosMany(updates)
+                    return
+                  }
 
                   const nodes: GraphNode[] = []
                   for (let i = 0; i < visibleNodes.length; i += 1) {
@@ -549,6 +589,23 @@ export default function DesignCanvas({
                 }}
                 onPointerCancel={() => {
                   dragRef.current = null
+                  dragPendingRef.current = null
+                  if (dragRafRef.current != null) {
+                    try {
+                      window.cancelAnimationFrame(dragRafRef.current)
+                    } catch {
+                      void 0
+                    }
+                    dragRafRef.current = null
+                  }
+                  const el = frameElByIdRef.current.get(n.id)
+                  if (el) {
+                    try {
+                      el.setAttribute('transform', `translate(${p.x},${p.y})`)
+                    } catch {
+                      void 0
+                    }
+                  }
                 }}
                 style={{ cursor: 'pointer' }}
               >
@@ -563,7 +620,7 @@ export default function DesignCanvas({
                   strokeWidth={selected ? 2 : 1}
                   filter={selected ? 'url(#shadow-md)' : 'url(#shadow-sm)'}
                 />
-                <path 
+                <path
                   d={`M 0 8 Q 0 0 8 0 L ${p.w - 8} 0 Q ${p.w} 0 ${p.w} 8 L ${p.w} 32 L 0 32 Z`}
                   fill="var(--kg-statusbar-bg)"
                   opacity={0.5}

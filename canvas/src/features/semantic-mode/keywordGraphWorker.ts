@@ -9,6 +9,7 @@ export type KeywordGraphWorkerArgs = {
   sourceTextHash?: string
   tuning?: { edgesPerNode?: number; maxEdgesCap?: number }
   timeoutMs?: number
+  signal?: AbortSignal
 }
 
 type KeywordWorkerResponse = { id: number; ok: boolean; graph: GraphData | null; error?: string }
@@ -55,6 +56,7 @@ const deriveViaWorker = (
     globalStateKey,
     createWorker: () => new Worker(new URL('../../workers/keywordGraph.worker.ts', import.meta.url), { type: 'module' }),
     timeoutMs,
+    signal: args.signal,
     postMessage: (worker, id) => {
       worker.postMessage({
         type: 'deriveKeywordGraph',

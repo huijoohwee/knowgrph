@@ -734,6 +734,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     pendingPreviewKeyRef.current = inputs.cacheKey
 
     let canceled = false
+    const controller = new AbortController()
     const t0 = pipelinePerfStart()
     const timer = setTimeout(() => {
       Promise.resolve()
@@ -752,6 +753,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
               maxEdgesCap: inputs.tuning.maxEdgesCap,
             },
             timeoutMs: 20_000,
+            signal: controller.signal,
           })
           if (!g) return
           const base = baseGraphDataRef.current
@@ -772,6 +774,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
         .finally(() => {
           if (pendingPreviewKeyRef.current === inputs.cacheKey) pendingPreviewKeyRef.current = null
           if (!keywordPreviewGraphCache.get(inputs.cacheKey)) {
+            if (controller.signal.aborted || canceled) return
             const err = readKeywordWorkerLastError()
             if (err && !keywordErrorToastKeyRef.current.has(`preview:${inputs.cacheKey}`)) {
               keywordErrorToastKeyRef.current.add(`preview:${inputs.cacheKey}`)
@@ -797,6 +800,11 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
       } catch {
         void 0
       }
+      try {
+        controller.abort()
+      } catch {
+        void 0
+      }
       if (pendingPreviewKeyRef.current === inputs.cacheKey) pendingPreviewKeyRef.current = null
     }
   }, [debouncedKeywordPreviewInputs, enabled, markdownName, mode])
@@ -815,6 +823,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     const tAll = pipelinePerfStart()
     const tDerive = pipelinePerfStart()
     let canceled = false
+    const controller = new AbortController()
 
     Promise.resolve()
       .then(async () => {
@@ -828,6 +837,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
             maxEdgesCap: inputs.tuning.maxEdgesCap,
           },
           timeoutMs: 90_000,
+          signal: controller.signal,
         })
         if (canceled) return
         if (!derivedGraph) return
@@ -860,6 +870,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
       .finally(() => {
         if (pendingKeyRef.current === inputs.cacheKey) pendingKeyRef.current = null
         if (!keywordGraphCache.get(inputs.cacheKey)) {
+          if (controller.signal.aborted || canceled) return
           const err = readKeywordWorkerLastError()
           if (err && !keywordErrorToastKeyRef.current.has(`full:${inputs.cacheKey}`)) {
             keywordErrorToastKeyRef.current.add(`full:${inputs.cacheKey}`)
@@ -879,6 +890,11 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
 
     return () => {
       canceled = true
+      try {
+        controller.abort()
+      } catch {
+        void 0
+      }
     }
   }, [debouncedKeywordFullInputs, enabled, markdownName, mode])
 

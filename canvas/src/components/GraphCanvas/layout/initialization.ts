@@ -247,35 +247,75 @@ export const initializeGraphLayout = (args: {
   layoutPositions?: Record<string, { x: number; y: number }> | null
 }) => {
   const { nodes, edges, width, height, schema, seedCenter, groupKeyOf, layoutPositions } = args
-  
+
+  if (!nodes || nodes.length < 2) return
+
+  const needsRepair = (): boolean => {
+    let minX = Infinity
+    let maxX = -Infinity
+    let minY = Infinity
+    let maxY = -Infinity
+    let valid = 0
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]!
+      if (!hasFiniteXY(n)) continue
+      const x = n.x as number
+      const y = n.y as number
+      valid += 1
+      if (Math.abs(x) > 120000 || Math.abs(y) > 120000) return true
+      if (x < minX) minX = x
+      if (x > maxX) maxX = x
+      if (y < minY) minY = y
+      if (y > maxY) maxY = y
+    }
+    if (valid < 2 || minX === Infinity) return false
+    const spanX = maxX - minX
+    const spanY = maxY - minY
+    const w = Math.max(1, width)
+    const h = Math.max(1, height)
+    const ratio = Math.max(spanX / Math.max(1e-6, spanY), spanY / Math.max(1e-6, spanX))
+    const tooFlat = ratio > 12 && Math.max(spanX, spanY) > Math.max(w, h) * 1.5
+    const tooLarge = spanX > w * 6 || spanY > h * 6
+    return tooFlat || tooLarge
+  }
+
   if (layoutPositions) {
     let applied = 0
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
       const id = String(n.id)
       const pos = layoutPositions[id]
-      if (pos) {
-        n.x = pos.x
-        n.y = pos.y
-        n.vx = 0
-        n.vy = 0
-        applied += 1
-      }
+      if (!pos) continue
+      n.x = pos.x
+      n.y = pos.y
+      n.vx = 0
+      n.vy = 0
+      applied += 1
     }
-    if (applied >= nodes.length * 0.8) {
+
+    if (applied >= nodes.length * 0.8 && !needsRepair()) {
       seedMissingNodePositions(nodes, width, height, seedCenter)
       return
     }
   }
 
-  // Apply seeding logic
+  let missing = 0
+  for (let i = 0; i < nodes.length; i += 1) {
+    if (!hasFiniteXY(nodes[i]!)) missing += 1
+  }
+
+  const repair = needsRepair()
+  if (!repair) {
+    if (missing === 0) return
+    seedMissingNodePositions(nodes, width, height, seedCenter)
+    if (missing < nodes.length) return
+  }
+
   applyForceModeSeeds({ nodes, edges, width, height, schema, groupKeyOf })
-  
-  // Fill missing positions
   seedMissingNodePositions(nodes, width, height, seedCenter)
 
   applyCollectiveGraphLayout({ nodes, edges, width, height, schema })
-  
+
   const padPx = Math.max(24, Math.floor(readFitPadding(schema)))
   postFitNodesToViewport({
     nodes,
