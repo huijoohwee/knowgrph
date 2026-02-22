@@ -2,7 +2,8 @@ import { getPortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig
 import { readGroupLabelTopExtra } from '@/components/GraphCanvas/layout/collisionConfig'
 import type { GraphSchema } from '@/lib/graph/schema'
 
-export function readFlowPresentation(schema: GraphSchema | null) {
+export function readFlowPresentation(args: { schema: GraphSchema | null; documentSemanticMode?: 'document' | 'keyword' }) {
+  const schema = args.schema
   const s = schema
   const portCfg = s
     ? getPortHandlesConfig(s)
@@ -62,6 +63,14 @@ export function readFlowPresentation(schema: GraphSchema | null) {
   }
 
   return {
+    labels: (() => {
+      const baseRaw = s?.labelStyles?.fontSize
+      const base = typeof baseRaw === 'number' && Number.isFinite(baseRaw) ? Math.max(10, Math.min(26, baseRaw)) : 12
+      const semanticBoost = args.documentSemanticMode === 'document' ? 4 : 3
+      const nodeFontSizePx = Math.max(14, Math.min(22, Math.round(base + semanticBoost)))
+      const groupFontSizePx = Math.max(12, Math.min(26, Math.round(nodeFontSizePx + 2)))
+      return { nodeFontSizePx, groupFontSizePx }
+    })(),
     portHandles: {
       enabled: portCfg.enabled,
       placement: 'cardinal' as const,
@@ -82,4 +91,3 @@ export function readFlowPresentation(schema: GraphSchema | null) {
     edges: edgesPresentation,
   }
 }
-

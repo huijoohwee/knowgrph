@@ -64,6 +64,10 @@ export type FlowNativeGroupsPresentation = {
 }
 
 export type FlowNativePresentation = {
+  labels: {
+    nodeFontSizePx: number
+    groupFontSizePx: number
+  }
   portHandles: FlowNativePortHandlesPresentation
   groups: FlowNativeGroupsPresentation
   edges: {
@@ -224,6 +228,7 @@ export const createFlowNativeRuntime = (args: {
     fontFamily: readFlowFontFamilyFromCss(),
     cssKey,
     presentation: {
+      labels: { nodeFontSizePx: 14, groupFontSizePx: 16 },
       portHandles: { enabled: false, placement: 'cardinal', sizePx: 4, offsetPx: 2, strokeWidthPx: 1.5 },
       groups: {
         enabled: false,
@@ -419,11 +424,13 @@ const drawNode = (rt: FlowNativeRuntime, n: FlowNativeNode, args: { selected: bo
   const label = String(n.label || '').trim()
   if (!label) return
   ctx.fillStyle = rt.theme.text
-  const fontSizePx = 12
-  ctx.font = `${fontSizePx}px ${rt.fontFamily}`
+  const k = rt.transform.k || 1
+  const fontSizePx = Math.max(10, rt.presentation.labels?.nodeFontSizePx ?? 12)
+  const fontSizeWorld = fontSizePx / Math.max(1e-6, k)
+  ctx.font = `${fontSizeWorld}px ${rt.fontFamily}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  const maxChars = estimateMaxCharsForWidthPx(Math.max(0, n.width - 12), fontSizePx)
+  const maxChars = estimateMaxCharsForWidthPx(Math.max(0, n.width * k - 12), fontSizePx)
   const clipped = truncateTextWithEllipsis(label, maxChars)
   ctx.fillText(clipped, n.x + n.width / 2, n.y + n.height / 2)
 }
@@ -736,11 +743,13 @@ const drawGroups = (rt: FlowNativeRuntime) => {
     if (label) {
       ctx.save()
       ctx.fillStyle = labelFill
-      const fontSizePx = 12
-      ctx.font = `600 ${fontSizePx}px ${rt.fontFamily}`
+      const k = rt.transform.k || 1
+      const fontSizePx = Math.max(10, rt.presentation.labels?.groupFontSizePx ?? 12)
+      const fontSizeWorld = fontSizePx / Math.max(1e-6, k)
+      ctx.font = `600 ${fontSizeWorld}px ${rt.fontFamily}`
       ctx.textAlign = 'left'
       ctx.textBaseline = 'top'
-      const maxChars = estimateMaxCharsForWidthPx(Math.max(0, w - 20), fontSizePx)
+      const maxChars = estimateMaxCharsForWidthPx(Math.max(0, w * k - 20), fontSizePx)
       ctx.fillText(truncateTextWithEllipsis(label, maxChars), minX + 10, minY + 8)
       ctx.restore()
     }
