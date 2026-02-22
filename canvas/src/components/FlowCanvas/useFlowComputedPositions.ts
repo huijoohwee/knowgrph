@@ -8,6 +8,7 @@ import { buildLayoutPositionCacheKey } from '@/components/GraphCanvas/layout/pos
 import { pickSeedFromOtherRendererCache } from '@/components/FlowCanvas/seed'
 import { extractNodePositions, hasCacheCoverage, looksUnstablePositions } from '@/components/FlowCanvas/seedPositions'
 import { relaxFlowPositionsWithCollision } from '@/components/FlowCanvas/relaxPositions'
+import { packDisjointPositions2d } from '@/components/GraphCanvas/layout/collectivePackPositions'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
@@ -186,17 +187,26 @@ export function useFlowComputedPositions(args: {
               defaultSteps: semanticMode === 'keyword' ? 12 : (args.sceneGroups.length > 0 ? 18 : 12),
             })
           : computed
+      const packed =
+        relaxed
+          ? packDisjointPositions2d({
+              nodeIds: nodeList.map(n => String(n.id)),
+              edges: edgeList.map(e => ({ source: String((e as { source?: unknown }).source), target: String((e as { target?: unknown }).target) })),
+              positions: relaxed,
+              nodeSize: { widthPx: nodeW, heightPx: nodeH },
+            })
+          : relaxed
 
       if (cancelled) return
       if (
         args.cacheKey &&
         typeof args.setLayoutPositionsForMode === 'function' &&
-        relaxed &&
-        Object.keys(relaxed).length > 0
+        packed &&
+        Object.keys(packed).length > 0
       ) {
-        args.setLayoutPositionsForMode(args.cacheKey, relaxed)
+        args.setLayoutPositionsForMode(args.cacheKey, packed)
       }
-      setComputedPositions(relaxed)
+      setComputedPositions(packed)
     }
     void run()
     return () => {

@@ -261,7 +261,8 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
       const targetR = 1 / Math.sqrt(term)
 
       const diff = rlen - targetR
-      const f = sphereStrength * diff * dt
+      const factor = rlen > targetR * 1.2 ? 2.5 : 1.0
+      const f = sphereStrength * diff * dt * factor
       
       vx[i] -= nx * f
       vy[i] -= ny * f

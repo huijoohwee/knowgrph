@@ -21,6 +21,9 @@ export function pipelinePerfStart(): number | null {
   return performance.now()
 }
 
+export const pipelinePerfNow = pipelinePerfStart
+export const pipelinePerfMark = pipelinePerfStart
+
 export function pipelinePerfEnd(args: {
   name: string
   stage: string

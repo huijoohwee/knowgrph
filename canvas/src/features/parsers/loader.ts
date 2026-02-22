@@ -16,7 +16,9 @@ import {
   buildRelationalGraph,
   buildNeo4jGraph,
 } from '@/lib/graph/db'
-import { pipelinePerfEnd, pipelinePerfMeasureAsync, pipelinePerfStart } from '@/lib/pipelinePerf'
+import { pipelinePerfEnd, pipelinePerfMeasureAsync, pipelinePerfMeasureSync, pipelinePerfStart } from '@/lib/pipelinePerf'
+import { initializeGraphLayout } from '@/components/GraphCanvas/layout/initialization'
+import { defaultSchema } from '@/lib/graph/schema'
 
 export type LoaderResult = {
   parserId?: string
@@ -25,6 +27,22 @@ export type LoaderResult = {
   counts?: { n: number; e: number }
   warnings?: string[]
   input?: { name: string; text: string }
+}
+
+function applyLayoutInitialization(graphData: GraphData) {
+  const schema = useGraphStore.getState().schema || defaultSchema
+  // We assume a standard viewport for initial seeding.
+  const width = 1200
+  const height = 900
+  
+  initializeGraphLayout({
+    nodes: graphData.nodes,
+    edges: graphData.edges,
+    width,
+    height,
+    schema,
+    seedCenter: { x: width / 2, y: height / 2 }
+  })
 }
 
 export async function loadGraphDataViaParser(): Promise<LoaderResult | null> {
@@ -126,6 +144,11 @@ async function fetchBackendGraphData(url: string): Promise<{ name: string; data:
           : ['Backend response did not contain GraphData or database payload']
       return { name, data: empty, warnings, inputText }
     }
+    pipelinePerfMeasureSync({
+      name: 'import',
+      stage: 'layout:init',
+      run: () => applyLayoutInitialization(normalized.graphData!)
+    })
     return { name, data: normalized.graphData, warnings: normalized.warnings || [], inputText }
   } catch {
     return null
@@ -160,7 +183,11 @@ export async function loadGraphDataFromTextViaParser(
   } catch {
     void 0
   }
-  const bm = bestMatch({ name, text: normalizedText })
+  const bm = pipelinePerfMeasureSync({
+    name: 'import',
+    stage: 'parser:select',
+    run: () => bestMatch({ name, text: normalizedText })
+  })
   if (!bm) return { input: { name, text }, warnings: ['No matching parser found'], counts: { n: 0, e: 0 } }
   const parserId = toParserId(bm.id)
   const cached = getCachedParse(parserId, name, normalizedText)
@@ -184,6 +211,13 @@ export async function loadGraphDataFromTextViaParser(
     run: () => applyParserAsync(parserId, { name, text: normalizedText }),
   })
   if (!res) return { parserId: bm.id, name, input: { name, text: normalizedText }, warnings: ["Parser returned no result"], counts: { n: 0, e: 0 } }
+
+  pipelinePerfMeasureSync({
+    name: 'import',
+    stage: 'layout:init',
+    run: () => applyLayoutInitialization(res.graphData)
+  })
+
   if (!cached) setCachedParse(parserId, name, normalizedText, res)
   let { graphData } = res
   const maybeEmpty = !((graphData.nodes?.length || 0) > 0) && !((graphData.edges?.length || 0) > 0)
@@ -200,6 +234,13 @@ export async function loadGraphDataFromTextViaParser(
     if (fallback?.graphData) {
       if (!fallbackCached) setCachedParse(markdownParserId, name, normalizedText, fallback)
       graphData = fallback.graphData
+
+      pipelinePerfMeasureSync({
+        name: 'import',
+        stage: 'layout:init',
+        run: () => applyLayoutInitialization(graphData)
+      })
+
       if (options?.applyToStore !== false) {
         try {
           options?.onProgress?.('Applying graph')

@@ -45,6 +45,7 @@ import { readFlowPresentation } from '@/components/FlowCanvas/presentation'
 import { useFlowRequestCommit } from '@/components/FlowCanvas/useFlowRequestCommit'
 import { computeCollisionDuringDrag } from '@/components/FlowCanvas/collisionPolicy'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
+import type { GraphSchema } from '@/lib/graph/schema'
 
 export { __flowCanvasDebug, extractNodePositions }
 
