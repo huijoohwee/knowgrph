@@ -33,7 +33,7 @@ export function ToolbarMenuLauncher({ onOpenMainPanel: _onOpenMainPanel }: Toolb
 
   const floatingPanelRequestSeqRef = useRef(0)
   const [floatingPanelRequestedView, setFloatingPanelRequestedView] = useState<
-    { view: 'propsPanel' | 'designLayers' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'; seq: number } | null
+    { view: 'propsPanel' | 'interaction' | 'designLayers' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'; seq: number } | null
   >(null)
 
   const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => {

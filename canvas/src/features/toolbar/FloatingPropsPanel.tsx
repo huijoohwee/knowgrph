@@ -6,6 +6,8 @@ import { useFloatingPropsPanelModel } from '@/features/toolbar/useFloatingPropsP
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import NodeQuickEditorPalette from '@/features/toolbar/NodeQuickEditorPalette'
 import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelMenuButton'
+import { defaultSchema } from '@/lib/graph/schema'
+import type { GraphSchema } from '@/lib/graph/schema'
 
 export function FloatingPropsPanel() {
   const uiPanelKeyValueTextSizeClass = useGraphStore(
@@ -38,6 +40,9 @@ export function FloatingPropsPanel() {
   const setMediaNodeOpacity = useGraphStore(s => s.setMediaNodeOpacity)
   const mediaPanelDensity = useGraphStore(s => s.mediaPanelDensity)
   const setMediaPanelDensity = useGraphStore(s => s.setMediaPanelDensity)
+  const documentSemanticMode = useGraphStore(s => s.documentSemanticMode)
+  const schema = useGraphStore(s => s.schema) as GraphSchema
+  const setSchema = useGraphStore(s => s.setSchema)
 
   const {
     nodeTypes,
@@ -78,6 +83,17 @@ export function FloatingPropsPanel() {
     doStartEdgeFromSelected,
     doAddMediaNode,
   } = useFloatingPropsPanelModel()
+
+  const forces = schema.layout?.forces || {}
+  const antiLineStrength = typeof forces.antiLineStrength === 'number' && Number.isFinite(forces.antiLineStrength)
+    ? forces.antiLineStrength
+    : 0.06
+  const postFitStrength = typeof forces.postFitStrength === 'number' && Number.isFinite(forces.postFitStrength)
+    ? forces.postFitStrength
+    : 0.34
+  const postFitAlphaMax = typeof forces.postFitAlphaMax === 'number' && Number.isFinite(forces.postFitAlphaMax)
+    ? forces.postFitAlphaMax
+    : 0.12
 
   return (
     <div className={`min-w-56 ${UI_THEME_TOKENS.panel.bg}`}>
@@ -352,6 +368,172 @@ export function FloatingPropsPanel() {
         >
           Add Media Node
         </FloatingPropsPanelMenuButton>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Layout"
+        stickyHeader={false}
+        className="mt-0 border-t-0 pt-0"
+        headerClassName={`px-2 ${uiPanelTextFontClass}`}
+      >
+        <div className="px-3 py-2 space-y-2">
+          <div className="flex items-center gap-2">
+            <label
+              className={`w-[40%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
+            >
+              Anti-line strength
+            </label>
+            <input
+              type="number"
+              step={0.01}
+              min={0}
+              max={1}
+              value={antiLineStrength}
+              onChange={e => {
+                const current = schema
+                const curLayout = current.layout || {}
+                const curForces = curLayout.forces || {}
+                const raw = Number.parseFloat(e.target.value)
+                const next = Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : antiLineStrength
+                setSchema({
+                  ...current,
+                  layout: { ...curLayout, forces: { ...curForces, antiLineStrength: next } },
+                })
+              }}
+              className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[60%] text-right`}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label
+              className={`w-[40%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
+            >
+              Post-fit strength
+            </label>
+            <input
+              type="number"
+              step={0.01}
+              min={0}
+              max={1}
+              value={postFitStrength}
+              onChange={e => {
+                const current = schema
+                const curLayout = current.layout || {}
+                const curForces = curLayout.forces || {}
+                const raw = Number.parseFloat(e.target.value)
+                const next = Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : postFitStrength
+                setSchema({
+                  ...current,
+                  layout: { ...curLayout, forces: { ...curForces, postFitStrength: next } },
+                })
+              }}
+              className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[60%] text-right`}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label
+              className={`w-[40%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
+            >
+              Post-fit alpha max
+            </label>
+            <input
+              type="number"
+              step={0.01}
+              min={0}
+              max={1}
+              value={postFitAlphaMax}
+              onChange={e => {
+                const current = schema
+                const curLayout = current.layout || {}
+                const curForces = curLayout.forces || {}
+                const raw = Number.parseFloat(e.target.value)
+                const next = Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : postFitAlphaMax
+                setSchema({
+                  ...current,
+                  layout: { ...curLayout, forces: { ...curForces, postFitAlphaMax: next } },
+                })
+              }}
+              className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[60%] text-right`}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+              Strong spread preset
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className={`App-toolbar__btn text-[11px] px-2 py-1 rounded ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`}
+                onClick={() => {
+                  const current = schema
+                  const curLayout = current.layout || {}
+                  const curForces = curLayout.forces || {}
+                  const nextAnti = 0.1
+                  const nextPostFit = 0.45
+                  const nextAlphaMax = 0.16
+                  setSchema({
+                    ...current,
+                    layout: {
+                      ...curLayout,
+                      forces: {
+                        ...curForces,
+                        antiLineStrength: nextAnti,
+                        postFitStrength: nextPostFit,
+                        postFitAlphaMax: nextAlphaMax,
+                      },
+                    },
+                  })
+                }}
+              >
+                Apply
+              </button>
+              <button
+                type="button"
+                className={`App-toolbar__btn text-[11px] px-2 py-1 rounded ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
+                onClick={() => {
+                  const current = schema
+                  const curLayout = current.layout || {}
+                  const curForces = curLayout.forces || {}
+                  const baseForces = defaultSchema.layout?.forces || {}
+                  const baseAnti = typeof baseForces.antiLineStrength === 'number' && Number.isFinite(baseForces.antiLineStrength)
+                    ? baseForces.antiLineStrength
+                    : 0.06
+                  const basePost = typeof baseForces.postFitStrength === 'number' && Number.isFinite(baseForces.postFitStrength)
+                    ? baseForces.postFitStrength
+                    : 0.34
+                  const baseAlpha = typeof baseForces.postFitAlphaMax === 'number' && Number.isFinite(baseForces.postFitAlphaMax)
+                    ? baseForces.postFitAlphaMax
+                    : 0.12
+
+                  const isKeyword = documentSemanticMode === 'keyword'
+                  const nextAnti = isKeyword
+                    ? Math.max(0.02, Math.min(0.12, baseAnti * 1.5))
+                    : baseAnti
+                  const nextPostFit = isKeyword
+                    ? Math.max(0.1, Math.min(0.6, basePost * 1.3))
+                    : basePost
+                  const nextAlphaMax = isKeyword
+                    ? Math.max(0.05, Math.min(0.25, baseAlpha * 1.25))
+                    : baseAlpha
+
+                  setSchema({
+                    ...current,
+                    layout: {
+                      ...curLayout,
+                      forces: {
+                        ...curForces,
+                        antiLineStrength: nextAnti,
+                        postFitStrength: nextPostFit,
+                        postFitAlphaMax: nextAlphaMax,
+                      },
+                    },
+                  })
+                }}
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
       </CollapsibleSection>
 
       <CollapsibleSection

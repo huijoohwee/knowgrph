@@ -127,6 +127,21 @@ export const attachSimulationTick = (args: {
     const baseDxFallback = schema.labelStyles?.offset?.dx ?? 12
     const baseDyFallback = schema.labelStyles?.offset?.dy ?? 4
     const labelFontSize = schema.labelStyles?.fontSize ?? 12
+    const labelRelaxCfg = schema.performance?.labelRelax || {}
+    const maxNodesForRelaxRaw = (labelRelaxCfg as { maxNodesForRelax?: number }).maxNodesForRelax
+    const maxNodesForRelax = (() => {
+      if (typeof maxNodesForRelaxRaw !== 'number' || !Number.isFinite(maxNodesForRelaxRaw)) return 3600
+      const v = Math.floor(maxNodesForRelaxRaw)
+      if (v <= 0) return 0
+      return Math.min(8000, v)
+    })()
+    const maxNodeLabelsRaw = (labelRelaxCfg as { maxNodeLabels?: number }).maxNodeLabels
+    const maxNodeLabels = (() => {
+      if (typeof maxNodeLabelsRaw !== 'number' || !Number.isFinite(maxNodeLabelsRaw)) return 420
+      const v = Math.floor(maxNodeLabelsRaw)
+      if (v <= 0) return 0
+      return Math.min(1200, v)
+    })()
     const getNodeMetrics = (d: GraphNode): { width: number; height: number; r: number } => {
       const id = String(d.id)
       const props = (d.properties || {}) as Record<string, unknown>
@@ -493,7 +508,8 @@ export const attachSimulationTick = (args: {
     const k = t.k || 1
     const labelMode: 'compact' | 'wrap' = k < 0.55 ? 'compact' : 'wrap'
     const shouldRelaxLabels = (() => {
-      if (nodes.length > 3600) return false
+      if (maxNodesForRelax > 0 && nodes.length > maxNodesForRelax) return false
+      if (maxNodesForRelax === 0) return false
       if (labelMode !== lastLabelRelaxMode) return true
       const alpha = simulation.alpha()
       if (alpha > 0.22) return tick - lastLabelRelaxTick >= 10
@@ -850,7 +866,8 @@ export const attachSimulationTick = (args: {
     const resolveLabelRelax = () => {
       if (!shouldRelaxLabels) return
       if (nodeLabelParticles.length < 2) return
-      const maxLabels = 420
+      const maxLabels = maxNodeLabels > 0 ? maxNodeLabels : 0
+      if (maxLabels === 0) return
       const sampled = (() => {
         if (nodeLabelParticles.length <= maxLabels) return nodeLabelParticles
         const step = Math.max(1, Math.ceil(nodeLabelParticles.length / maxLabels))

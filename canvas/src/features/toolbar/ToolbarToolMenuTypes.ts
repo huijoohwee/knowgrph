@@ -6,7 +6,7 @@ export interface ToolbarToolMenuProps {
   toolMenuCardRef: React.RefObject<HTMLElement>
   toolMenuCardStyle: React.CSSProperties
   onHeaderPointerDown: (event: React.PointerEvent<HTMLElement>) => void
-  requestedFloatingPanelView?: 'propsPanel' | 'designLayers' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
+  requestedFloatingPanelView?: 'propsPanel' | 'interaction' | 'designLayers' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
   requestedFloatingPanelViewSeq?: number
   onClose: () => void
 }

@@ -19,6 +19,7 @@ import { createLocalMarkdownFolderSlice } from '@/hooks/store/localMarkdownFolde
 import { getLocalStorage } from '@/lib/persistence';
 import type { GraphState, NodePosition2d } from '@/hooks/store/types';
 import type { GraphSchema } from '@/lib/graph/schema'
+import { DEFAULT_BBOX_COLLIDE_PADDING, DEFAULT_FIT_PADDING, DEFAULT_GROUP_BBOX_COLLIDE_PADDING } from '@/lib/graph/layoutDefaults'
 import { buildDocumentKey, buildDocumentRef, readPerDocumentUiState, writePerDocumentUiState } from '@/lib/persistence/perDocumentUiState'
 
 const positionsMatch = (
@@ -57,7 +58,67 @@ const applyCanvasDefaultInitSchema = (schema: GraphSchema): GraphSchema => {
   return { ...schema, behavior: nextBehavior, layout: nextLayout }
 }
 
-const initialSchema: GraphSchema = (() => {
+const buildKeywordSchemaPreset = (schema: GraphSchema): GraphSchema => {
+  const layout = schema.layout || {}
+  const forces = layout.forces || {}
+
+  const forcesWithMaybeCharge = forces as typeof forces & { charge?: number }
+  const forcesWithoutCharge: typeof forces = (() => {
+    const { charge, ...rest } = forcesWithMaybeCharge
+    void charge
+    return rest
+  })()
+
+  const baseBBoxPaddingRaw = (forces as typeof forces & { bboxCollidePadding?: number }).bboxCollidePadding
+  const baseGroupPaddingRaw = (forces as typeof forces & { groupBboxCollidePadding?: number }).groupBboxCollidePadding
+  const baseFitPaddingRaw = layout.fitPadding
+  const baseAntiLineStrengthRaw = (forces as typeof forces & { antiLineStrength?: number }).antiLineStrength
+  const basePostFitStrengthRaw = (forces as typeof forces & { postFitStrength?: number }).postFitStrength
+  const basePostFitAlphaMaxRaw = (forces as typeof forces & { postFitAlphaMax?: number }).postFitAlphaMax
+
+  const baseBBoxPadding = typeof baseBBoxPaddingRaw === 'number' && Number.isFinite(baseBBoxPaddingRaw)
+    ? baseBBoxPaddingRaw
+    : DEFAULT_BBOX_COLLIDE_PADDING
+  const baseGroupPadding = typeof baseGroupPaddingRaw === 'number' && Number.isFinite(baseGroupPaddingRaw)
+    ? baseGroupPaddingRaw
+    : DEFAULT_GROUP_BBOX_COLLIDE_PADDING
+  const baseFitPadding = typeof baseFitPaddingRaw === 'number' && Number.isFinite(baseFitPaddingRaw)
+    ? baseFitPaddingRaw
+    : DEFAULT_FIT_PADDING
+  const baseAntiLineStrength = typeof baseAntiLineStrengthRaw === 'number' && Number.isFinite(baseAntiLineStrengthRaw)
+    ? baseAntiLineStrengthRaw
+    : 0.06
+  const basePostFitStrength = typeof basePostFitStrengthRaw === 'number' && Number.isFinite(basePostFitStrengthRaw)
+    ? basePostFitStrengthRaw
+    : 0.34
+  const basePostFitAlphaMax = typeof basePostFitAlphaMaxRaw === 'number' && Number.isFinite(basePostFitAlphaMaxRaw)
+    ? basePostFitAlphaMaxRaw
+    : 0.12
+
+  const keywordBBoxPadding = Math.round(baseBBoxPadding * 1.15)
+  const keywordGroupPadding = Math.round(baseGroupPadding * 1.15)
+  const keywordFitPadding = Math.round(baseFitPadding * 0.9)
+  const keywordAntiLineStrength = Math.max(0.02, Math.min(0.12, baseAntiLineStrength * 1.5))
+  const keywordPostFitStrength = Math.max(0.1, Math.min(0.6, basePostFitStrength * 1.3))
+  const keywordPostFitAlphaMax = Math.max(0.05, Math.min(0.25, basePostFitAlphaMax * 1.25))
+
+  const nextLayout: GraphSchema['layout'] = {
+    ...layout,
+    forces: {
+      ...forcesWithoutCharge,
+      bboxCollidePadding: keywordBBoxPadding,
+      groupBboxCollidePadding: keywordGroupPadding,
+      antiLineStrength: keywordAntiLineStrength,
+      postFitStrength: keywordPostFitStrength,
+      postFitAlphaMax: keywordPostFitAlphaMax,
+    },
+    fitPadding: keywordFitPadding,
+  }
+
+  return { ...schema, layout: nextLayout }
+}
+
+const initialSchemaBase: GraphSchema = (() => {
   try {
     const storage = getLocalStorage();
     const fromStorage = readSchemaFromStorage(storage)
@@ -67,10 +128,13 @@ const initialSchema: GraphSchema = (() => {
   }
 })()
 
+const initialKeywordSchema: GraphSchema = buildKeywordSchemaPreset(initialSchemaBase)
+const initialSchema: GraphSchema = initialSchemaBase
+
 export const useGraphStore = create<GraphState>()(
   subscribeWithSelector((set, get, api) => ({
   schema: initialSchema,
-  schemaBySemanticMode: { document: initialSchema, keyword: initialSchema },
+  schemaBySemanticMode: { document: initialSchema, keyword: initialKeywordSchema },
   layoutPositionCacheByMode: {},
   graphFieldsOpOk: null,
   graphFieldsOpMsg: '',
@@ -112,10 +176,11 @@ export const useGraphStore = create<GraphState>()(
   setLifecycleStage: (v) => set({ lifecycleStage: v }),
   resetAll: () => {
     const schema = applyCanvasDefaultInitSchema(defaultSchema)
+    const keywordSchema = buildKeywordSchemaPreset(schema)
     set({
       graphData: { nodes: [], edges: [], type: 'application/json' },
       schema,
-      schemaBySemanticMode: { document: schema, keyword: schema },
+      schemaBySemanticMode: { document: schema, keyword: keywordSchema },
       layoutPositionCacheByMode: {},
       history: [],
       historyIndex: -1,

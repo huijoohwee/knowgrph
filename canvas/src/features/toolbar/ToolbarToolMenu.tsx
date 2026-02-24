@@ -1,11 +1,11 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { FileCode, GitBranch, Layers, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
+import { FileCode, GitBranch, Hand, Layers, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
 import { useOrchestratorPanelState } from '@/features/panels/hooks/useOrchestratorPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
 import IconButton from '@/components/IconButton'
-import { FLOATING_PANEL_SCROLL_CLASSNAME, FloatingPanel } from '@/components/ui/FloatingPanel'
+import { FLOATING_PANEL_SCROLL_CLASSNAME } from '@/components/ui/FloatingPanel'
 import { ToolbarToolMenuRendererView } from '@/features/toolbar/ToolbarToolMenuRendererView'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
@@ -15,7 +15,6 @@ import { usePinnedLs } from '@/lib/ui/panelPinned'
 import { uiPrimaryPillActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { cn } from '@/lib/utils'
 import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
-import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import {
   FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID,
   LS_KEYS,
@@ -33,7 +32,7 @@ import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
 
-type FloatingPanelView = 'propsPanel' | 'designLayers' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
+type FloatingPanelView = 'propsPanel' | 'interaction' | 'designLayers' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
 
 const GeospatialPanelHostLazy = React.lazy(async () => {
   const m = await import('gympgrph')
@@ -223,69 +222,7 @@ export function ToolbarToolMenu({
     }
   }, [floatingPanelWidthRatio, floatingPanelHeightRatio])
 
-  const [toolMenuCardSize, setToolMenuCardSize] = React.useState<{ width: number; height: number } | null>(null)
-
-  React.useLayoutEffect(() => {
-    const el = toolMenuCardRef.current
-    if (!el) {
-      setToolMenuCardSize(null)
-      return
-    }
-    let raf = 0
-    const update = () => {
-      const rect = el.getBoundingClientRect()
-      const width = Math.round(rect.width)
-      const height = Math.round(rect.height)
-      setToolMenuCardSize(prev => {
-        if (prev && prev.width === width && prev.height === height) return prev
-        return { width, height }
-      })
-    }
-    update()
-    const ro = new ResizeObserver(() => {
-      cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(update)
-    })
-    ro.observe(el)
-    return () => {
-      cancelAnimationFrame(raf)
-      ro.disconnect()
-    }
-  }, [toolMenuCardRef])
-
-  const interactionPanelStyle = React.useMemo(() => {
-    if (typeof window === 'undefined') return null
-    if (floatingPanelMinimized) return null
-    if (floatingPanelView !== 'propsPanel') return null
-
-    const rawTop = toolMenuCardStyle.top
-    const rawLeft = toolMenuCardStyle.left
-    const top = typeof rawTop === 'number' ? rawTop : typeof rawTop === 'string' ? Number.parseFloat(rawTop) : null
-    const left = typeof rawLeft === 'number' ? rawLeft : typeof rawLeft === 'string' ? Number.parseFloat(rawLeft) : null
-    if (top == null || left == null) return null
-
-    const gapPx = 12
-    const anchorWidth = toolMenuCardSize?.width ?? 320
-    const anchorHeight = toolMenuCardSize?.height ?? 420
-
-    const width = 300
-    const height = anchorHeight
-
-    const clamped = clampOverlayTopLeftToViewport({
-      pos: { top, left: left + anchorWidth + gapPx },
-      size: { width, height },
-      viewport: { width: window.innerWidth, height: window.innerHeight },
-      visiblePx: 32,
-    })
-
-    return {
-      position: 'absolute' as const,
-      top: clamped.top,
-      left: clamped.left,
-      width,
-      height,
-    }
-  }, [floatingPanelMinimized, floatingPanelView, toolMenuCardSize, toolMenuCardStyle])
+  void toolMenuCardRef
 
   const iconSizeClass = getIconSizeClass(uiIconScale)
 
@@ -311,6 +248,17 @@ export function ToolbarToolMenu({
         showTooltip
       >
         <Layers className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+      </IconButton>
+
+      <IconButton
+        title="Interaction"
+        onClick={() => handleSelectView('interaction')}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'interaction' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+        }`}
+        showTooltip
+      >
+        <Hand className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
       </IconButton>
 
       {!geospatialModeEnabled && (
@@ -491,6 +439,21 @@ export function ToolbarToolMenu({
           </header>
           <section className={floatingPanelBodyClassName} aria-label={UI_LABELS.floatingPanel}>
             {floatingPanelView === 'propsPanel' && <FloatingPropsPanel />}
+            {floatingPanelView === 'interaction' && (
+              <section className="h-full flex flex-col" aria-label="Interaction panel">
+                <header className={`flex items-center justify-between gap-2 w-full select-none ${UI_THEME_TOKENS.panel.divider}`}>
+                  <div className={cn('text-xs font-semibold px-1 py-1', UI_THEME_TOKENS.text.primary)}>Interaction</div>
+                </header>
+                <section
+                  className={cn('mt-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden', uiPanelTextFontClass, uiPanelKeyValueTextSizeClass)}
+                  aria-label="Interaction panel content"
+                >
+                  <div className="px-1 pb-2">
+                    <InfiniteCanvasInteractionPanel />
+                  </div>
+                </section>
+              </section>
+            )}
             {floatingPanelView === 'designLayers' && <DesignLayersPanel active={true} />}
             {floatingPanelView === 'inspector' && <InspectorView geospatialModeEnabled={geospatialModeEnabled} />}
             {floatingPanelView === 'chat' && (
@@ -542,26 +505,6 @@ export function ToolbarToolMenu({
           </section>
         </section>
       </aside>
-
-      {interactionPanelStyle ? (
-        <FloatingPanel
-          as="aside"
-          ariaLabel="Interaction"
-          className={`pointer-events-auto ModalContainer flex flex-col overflow-hidden p-0 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
-          style={interactionPanelStyle}
-        >
-          <section className="px-2 py-1 flex flex-col gap-1 min-w-[260px] min-h-[36px] h-full" aria-label="Interaction panel">
-            <header className={`flex items-center justify-between gap-2 w-full select-none ${UI_THEME_TOKENS.panel.divider}`}>
-              <div className={cn('text-xs font-semibold px-1 py-1', UI_THEME_TOKENS.text.primary)}>Interaction</div>
-            </header>
-            <section className={cn('mt-1', FLOATING_PANEL_SCROLL_CLASSNAME, uiPanelTextFontClass, uiPanelKeyValueTextSizeClass)} aria-label="Interaction panel content">
-              <div className="px-1 pb-2">
-                <InfiniteCanvasInteractionPanel />
-              </div>
-            </section>
-          </section>
-        </FloatingPanel>
-      ) : null}
     </section>
   )
 }

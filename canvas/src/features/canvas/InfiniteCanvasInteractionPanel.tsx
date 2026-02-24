@@ -3,8 +3,13 @@ import { useShallow } from 'zustand/react/shallow'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
+import Tooltip from '@/features/panels/ui/Tooltip'
 import { setPipelinePerfEnabled } from '@/lib/pipelinePerf'
 import type { PipelinePerfDetail } from '@/lib/pipelinePerf'
+import { viewportCenterToWorld } from '@/lib/zoom/viewport'
+import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { readPanSpeed, readWheelBehavior, readZoomSpeed } from '@/lib/canvas/camera-options-2d'
 
 function Section(props: { title: string; children: React.ReactNode }) {
   return (
@@ -22,9 +27,25 @@ export function InfiniteCanvasInteractionPanel() {
     canvasPointerMode2d,
     setCanvasPointerMode2d,
     zoomState,
+    canvasDims,
     selectedNodeId,
     selectedNodeIds,
     requestGraphCanvasArrange,
+    viewportControlsPreset,
+    viewPinned,
+    fitToScreenMode,
+    zoomToSelectionMode,
+    zoomDurationFitMs,
+    zoomDurationSelectionMs,
+    wheelZoomCtrlMetaBoostMultiplier,
+    canvasInteractionSpeedMultiplier,
+    canvasPanSpeedMultiplier,
+    flowWheelZoomSpeedMultiplier,
+    flowWheelZoomIncrementMultiplier,
+    flowWheelZoomSmoothMinDurationMs,
+    flowWheelZoomSmoothMaxDurationMs,
+    flowEditorSelectionOnDrag,
+    flowEditorOverlayWheelProxyEnabled,
   } = useGraphStore(
     useShallow(s => ({
       schema: s.schema,
@@ -32,14 +53,40 @@ export function InfiniteCanvasInteractionPanel() {
       canvasPointerMode2d: s.canvasPointerMode2d,
       setCanvasPointerMode2d: s.setCanvasPointerMode2d,
       zoomState: s.zoomState,
+      canvasDims: s.canvasDims,
       selectedNodeId: s.selectedNodeId,
       selectedNodeIds: s.selectedNodeIds,
       requestGraphCanvasArrange: s.requestGraphCanvasArrange,
+      viewportControlsPreset: s.viewportControlsPreset,
+      viewPinned: s.viewPinned,
+      fitToScreenMode: s.fitToScreenMode,
+      zoomToSelectionMode: s.zoomToSelectionMode,
+      zoomDurationFitMs: s.zoomDurationFitMs,
+      zoomDurationSelectionMs: s.zoomDurationSelectionMs,
+      wheelZoomCtrlMetaBoostMultiplier: s.wheelZoomCtrlMetaBoostMultiplier,
+      canvasInteractionSpeedMultiplier: s.canvasInteractionSpeedMultiplier,
+      canvasPanSpeedMultiplier: s.canvasPanSpeedMultiplier,
+      flowWheelZoomSpeedMultiplier: s.flowWheelZoomSpeedMultiplier,
+      flowWheelZoomIncrementMultiplier: s.flowWheelZoomIncrementMultiplier,
+      flowWheelZoomSmoothMinDurationMs: s.flowWheelZoomSmoothMinDurationMs,
+      flowWheelZoomSmoothMaxDurationMs: s.flowWheelZoomSmoothMaxDurationMs,
+      flowEditorSelectionOnDrag: s.flowEditorSelectionOnDrag,
+      flowEditorOverlayWheelProxyEnabled: s.flowEditorOverlayWheelProxyEnabled,
     })),
   )
 
   const layoutMode = schema?.layout?.mode === 'radial' ? 'radial' : 'force'
-  const zoomPct = Math.round(((zoomState?.k ?? 1) * 100) / 1) || 100
+  const zoomK = Number.isFinite(zoomState?.k) ? (zoomState?.k as number) : 1
+  const zoomPct = Math.round(zoomK * 100) || 100
+  const [zoomMinK, zoomMaxK] = readZoomScaleExtent(schema)
+  const wheelBehavior = readWheelBehavior(schema)
+  const zoomSpeed = readZoomSpeed(schema)
+  const panSpeed = readPanSpeed(schema)
+  const center = viewportCenterToWorld({
+    transform: zoomState,
+    viewportW: canvasDims?.w ?? 1,
+    viewportH: canvasDims?.h ?? 1,
+  })
 
   const selectedCount = (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0)
     ? selectedNodeIds.length
@@ -114,111 +161,235 @@ export function InfiniteCanvasInteractionPanel() {
     }
   }, [perfOpen])
 
+  const fmtNum = (v: number | null | undefined, digits = 2) => {
+    if (!Number.isFinite(v)) return '-'
+    const rounded = Math.round((v as number) * Math.pow(10, digits)) / Math.pow(10, digits)
+    return String(rounded)
+  }
+  const fmtBool = (v: boolean | null | undefined) => (v ? 'On' : 'Off')
+  const fmtMs = (v: number | null | undefined) => (Number.isFinite(v) ? `${Math.round(v as number)} ms` : '-')
+  const viewportW = Math.round(canvasDims?.w ?? 0)
+  const viewportH = Math.round(canvasDims?.h ?? 0)
+  const viewportSize = viewportW > 0 && viewportH > 0 ? `${viewportW} × ${viewportH}` : '-'
+  const tooltipClassName = `${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`
+  const labelWithTooltip = (label: string, tooltip: string) => (
+    <Tooltip content={tooltip} maxWidthPx={260} contentClassName={tooltipClassName}>
+      <span>{label}</span>
+    </Tooltip>
+  )
+  const viewportGroups = [
+    {
+      key: 'readout',
+      title: 'Readout',
+      tooltip: 'Live viewport status from the active 2D camera.',
+      rows: [
+        { label: labelWithTooltip('Viewport size', 'Current viewport width and height in pixels.'), value: viewportSize },
+        { label: labelWithTooltip('Zoom percent', 'Zoom factor expressed as a percent.'), value: `${zoomPct}%` },
+        { label: labelWithTooltip('Center x', 'World-space x at the viewport center.'), value: fmtNum(center.x, 1) },
+        { label: labelWithTooltip('Center y', 'World-space y at the viewport center.'), value: fmtNum(center.y, 1) },
+      ],
+    },
+    {
+      key: 'transform',
+      title: 'Transform',
+      tooltip: 'Zoom scale and translation used to render the 2D viewport.',
+      rows: [
+        { label: labelWithTooltip('Zoom scale (k)', 'Current zoom scale factor.'), value: fmtNum(zoomK, 3) },
+        { label: labelWithTooltip('Transform x', 'Translation in screen space on the x-axis.'), value: fmtNum(zoomState?.x ?? null, 2) },
+        { label: labelWithTooltip('Transform y', 'Translation in screen space on the y-axis.'), value: fmtNum(zoomState?.y ?? null, 2) },
+        { label: labelWithTooltip('Zoom min', 'Minimum zoom scale from schema performance settings.'), value: fmtNum(zoomMinK, 3) },
+        { label: labelWithTooltip('Zoom max', 'Maximum zoom scale from schema performance settings.'), value: fmtNum(zoomMaxK, 3) },
+      ],
+    },
+    {
+      key: 'zoom-modes',
+      title: 'Zoom Modes',
+      tooltip: 'Auto-zoom and view pinning modes controlled from settings.',
+      rows: [
+        { label: labelWithTooltip('Pin view', 'Lock the view so auto-zoom actions are ignored.'), value: fmtBool(viewPinned) },
+        { label: labelWithTooltip('Fit to screen', 'Auto-fit graph to viewport on changes.'), value: fmtBool(fitToScreenMode) },
+        { label: labelWithTooltip('Zoom to selection', 'Auto-zoom to current selection.'), value: fmtBool(zoomToSelectionMode) },
+        { label: labelWithTooltip('Fit duration', 'Animation duration for fit-to-view actions.'), value: fmtMs(zoomDurationFitMs) },
+        { label: labelWithTooltip('Selection duration', 'Animation duration for zoom-to-selection.'), value: fmtMs(zoomDurationSelectionMs) },
+      ],
+    },
+    {
+      key: 'wheel',
+      title: 'Wheel',
+      tooltip: 'Wheel/trackpad zoom behavior and modifiers.',
+      rows: [
+        { label: labelWithTooltip('Wheel behavior', 'Choose pan, zoom, or preset-driven wheel behavior.'), value: wheelBehavior },
+        { label: labelWithTooltip('Wheel ctrl/meta boost', 'Zoom boost applied when Ctrl/Meta is held.'), value: fmtNum(wheelZoomCtrlMetaBoostMultiplier, 2) },
+        { label: labelWithTooltip('Viewport preset', 'Gesture preset that controls pan/zoom defaults.'), value: viewportControlsPreset || 'map' },
+      ],
+    },
+    {
+      key: 'speed',
+      title: 'Speeds',
+      tooltip: 'Speed multipliers for pan and zoom interactions.',
+      rows: [
+        { label: labelWithTooltip('Zoom speed', 'Schema zoom speed multiplier.'), value: fmtNum(zoomSpeed, 2) },
+        { label: labelWithTooltip('Pan speed', 'Schema pan speed multiplier.'), value: fmtNum(panSpeed, 2) },
+        { label: labelWithTooltip('Interaction speed', 'Global interaction speed multiplier.'), value: fmtNum(canvasInteractionSpeedMultiplier, 2) },
+        { label: labelWithTooltip('Pan speed multiplier', 'Global pan speed multiplier.'), value: fmtNum(canvasPanSpeedMultiplier, 2) },
+      ],
+    },
+    {
+      key: 'flow',
+      title: 'Flow',
+      tooltip: 'Flow renderer wheel zoom tuning and selection behavior.',
+      rows: [
+        { label: labelWithTooltip('Flow wheel speed', 'Wheel zoom speed multiplier for Flow.'), value: fmtNum(flowWheelZoomSpeedMultiplier, 2) },
+        { label: labelWithTooltip('Flow wheel increment', 'Wheel zoom increment multiplier for Flow.'), value: fmtNum(flowWheelZoomIncrementMultiplier, 2) },
+        { label: labelWithTooltip('Flow wheel smooth min', 'Minimum smoothing duration for Flow zoom.'), value: fmtMs(flowWheelZoomSmoothMinDurationMs) },
+        { label: labelWithTooltip('Flow wheel smooth max', 'Maximum smoothing duration for Flow zoom.'), value: fmtMs(flowWheelZoomSmoothMaxDurationMs) },
+        { label: labelWithTooltip('Flow selection on drag', 'Enable selection box when dragging in Flow editor.'), value: fmtBool(flowEditorSelectionOnDrag) },
+        { label: labelWithTooltip('Flow overlay wheel proxy', 'Allow wheel gestures over Flow overlays to control the canvas.'), value: fmtBool(flowEditorOverlayWheelProxyEnabled) },
+      ],
+    },
+  ]
+
   return (
     <div className="space-y-4">
-      <Section title="Interaction">
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            className={`rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${canvasPointerMode2d !== 'pan' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
-            onClick={() => setCanvasPointerMode2d('select')}
-            aria-label="Select/Drag mode"
+      <Section title="Viewport">
+        {viewportGroups.map(group => (
+          <CollapsibleSection
+            key={group.key}
+            title={(
+              <Tooltip content={group.tooltip} maxWidthPx={260} contentClassName={tooltipClassName}>
+                <span>{group.title}</span>
+              </Tooltip>
+            )}
+            defaultCollapsed={false}
+            stickyHeader={false}
           >
-            Select/Drag
-          </button>
-          <button
-            type="button"
-            className={`rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${canvasPointerMode2d === 'pan' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
-            onClick={() => setCanvasPointerMode2d('pan')}
-            aria-label="Pan mode"
-          >
-            Pan
-          </button>
-        </div>
-
-        <label className={`block text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-          Layout
-          <select
-            className={`mt-1 w-full rounded-md border px-2 py-1.5 text-xs ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
-            value={layoutMode}
-            onChange={e => {
-              const next = e.target.value === 'radial' ? 'radial' : 'force'
-              setSchema({ ...schema, layout: { ...(schema.layout || {}), mode: next } })
-            }}
-          >
-            <option value="force">Force</option>
-            <option value="radial">Radial</option>
-          </select>
-        </label>
-
-        <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Zoom: {zoomPct}%</div>
-      </Section>
-
-      <Section title="Centering / Centroid">
-        <button
-          type="button"
-          className={`w-full rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-          disabled={selectedCount === 0}
-          onClick={() => requestGraphCanvasArrange({ type: 'center', scope: 'selection' })}
-        >
-          Center on Selection
-        </button>
-        <button
-          type="button"
-          className={`w-full rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-          onClick={() => requestGraphCanvasArrange({ type: 'center', scope: 'all' })}
-        >
-          Center on All Items
-        </button>
-      </Section>
-
-      <Section title="Even Spread">
-        <button
-          type="button"
-          className={`w-full rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-          disabled={selectedCount < 3}
-          onClick={() => requestGraphCanvasArrange({ type: 'distribute', axis: 'x' })}
-        >
-          Distribute Horizontally
-        </button>
-        <button
-          type="button"
-          className={`w-full rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-          disabled={selectedCount < 3}
-          onClick={() => requestGraphCanvasArrange({ type: 'distribute', axis: 'y' })}
-        >
-          Distribute Vertically
-        </button>
-        <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
-          {selectedCount < 3 ? 'Select at least 3 nodes.' : `Selected: ${selectedCount}`}
-        </div>
-      </Section>
-
-      <Section title="Performance">
-        <button
-          type="button"
-          className={`w-full rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${perfOpen ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
-          onClick={() => setPerfOpen(v => !v)}
-        >
-          {perfOpen ? 'Hide Perf Overlay' : 'Show Perf Overlay'}
-        </button>
-        {perfOpen ? (
-          <div className={`rounded-md border p-2 text-xs ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.input.border}`}>
-            <div className={`flex items-center justify-between ${UI_THEME_TOKENS.text.secondary}`}>
-              <span>Render updates/sec</span>
-              <span className="font-mono">{rafFps}</span>
+            {group.key === 'readout' ? (
+              <div className={`rounded-full border px-3 py-1 text-xs ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.secondary} shadow-sm`} aria-label="Viewport readout">
+                <span className="font-mono">Zoom {zoomPct}%</span>
+                <span className="mx-2 opacity-60">·</span>
+                <span className="font-mono">Center {Math.round(center.x)} {Math.round(center.y)}</span>
+              </div>
+            ) : null}
+            <div className="mt-2 space-y-1.5">
+              {group.rows.map((row, idx) => (
+                <div key={`${group.key}-${idx}`} className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+                  <span>{row.label}</span>
+                  <span className="font-mono">{row.value}</span>
+                </div>
+              ))}
             </div>
-            <div className={`mt-1 flex items-center justify-between ${UI_THEME_TOKENS.text.secondary}`}>
-              <span>State updates/sec</span>
-              <span className="font-mono">{stateUps}</span>
-            </div>
-            <div className={`mt-1 flex items-center justify-between ${UI_THEME_TOKENS.text.secondary}`}>
-              <span>Last layout init (ms)</span>
-              <span className="font-mono">{lastLayoutInitMs == null ? '-' : lastLayoutInitMs}</span>
-            </div>
+          </CollapsibleSection>
+        ))}
+      </Section>
+      <CollapsibleSection title="Interaction" defaultCollapsed={false} stickyHeader={false}>
+        <div className="mt-2 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              className={`rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${canvasPointerMode2d !== 'pan' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
+              onClick={() => setCanvasPointerMode2d('select')}
+              aria-label="Select/Drag mode"
+            >
+              Select/Drag
+            </button>
+            <button
+              type="button"
+              className={`rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${canvasPointerMode2d === 'pan' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
+              onClick={() => setCanvasPointerMode2d('pan')}
+              aria-label="Pan mode"
+            >
+              Pan
+            </button>
           </div>
-        ) : null}
-      </Section>
+
+          <label className={`block text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+            Layout
+            <select
+              className={`mt-1 w-full rounded-md border px-2 py-1.5 text-xs ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
+              value={layoutMode}
+              onChange={e => {
+                const next = e.target.value === 'radial' ? 'radial' : 'force'
+                setSchema({ ...schema, layout: { ...(schema.layout || {}), mode: next } })
+              }}
+            >
+              <option value="force">Force</option>
+              <option value="radial">Radial</option>
+            </select>
+          </label>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Centering / Centroid" defaultCollapsed={false} stickyHeader={false}>
+        <div className="mt-2 space-y-2">
+          <button
+            type="button"
+            className={`w-full rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+            disabled={selectedCount === 0}
+            onClick={() => requestGraphCanvasArrange({ type: 'center', scope: 'selection' })}
+          >
+            Center on Selection
+          </button>
+          <button
+            type="button"
+            className={`w-full rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+            onClick={() => requestGraphCanvasArrange({ type: 'center', scope: 'all' })}
+          >
+            Center on All Items
+          </button>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Even Spread" defaultCollapsed={false} stickyHeader={false}>
+        <div className="mt-2 space-y-2">
+          <button
+            type="button"
+            className={`w-full rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+            disabled={selectedCount < 3}
+            onClick={() => requestGraphCanvasArrange({ type: 'distribute', axis: 'x' })}
+          >
+            Distribute Horizontally
+          </button>
+          <button
+            type="button"
+            className={`w-full rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+            disabled={selectedCount < 3}
+            onClick={() => requestGraphCanvasArrange({ type: 'distribute', axis: 'y' })}
+          >
+            Distribute Vertically
+          </button>
+          <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
+            {selectedCount < 3 ? 'Select at least 3 nodes.' : `Selected: ${selectedCount}`}
+          </div>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Performance" defaultCollapsed={false} stickyHeader={false}>
+        <div className="mt-2 space-y-2">
+          <button
+            type="button"
+            className={`w-full rounded-md border px-2 py-1.5 text-xs transition ${UI_THEME_TOKENS.input.border} ${perfOpen ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
+            onClick={() => setPerfOpen(v => !v)}
+          >
+            {perfOpen ? 'Hide Perf Overlay' : 'Show Perf Overlay'}
+          </button>
+          {perfOpen ? (
+            <div className={`rounded-md border p-2 text-xs ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.input.border}`}>
+              <div className={`flex items-center justify-between ${UI_THEME_TOKENS.text.secondary}`}>
+                <span>Render updates/sec</span>
+                <span className="font-mono">{rafFps}</span>
+              </div>
+              <div className={`mt-1 flex items-center justify-between ${UI_THEME_TOKENS.text.secondary}`}>
+                <span>State updates/sec</span>
+                <span className="font-mono">{stateUps}</span>
+              </div>
+              <div className={`mt-1 flex items-center justify-between ${UI_THEME_TOKENS.text.secondary}`}>
+                <span>Last layout init (ms)</span>
+                <span className="font-mono">{lastLayoutInitMs == null ? '-' : lastLayoutInitMs}</span>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </CollapsibleSection>
     </div>
   )
 }

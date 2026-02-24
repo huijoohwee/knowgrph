@@ -5,6 +5,7 @@ import Tooltip from '@/features/panels/ui/Tooltip'
 import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphBehavior, GraphSchema } from '@/lib/graph/schema'
+import { DEFAULT_BBOX_COLLIDE_PADDING, DEFAULT_GROUP_BBOX_COLLIDE_PADDING } from '@/lib/graph/layoutDefaults'
 import { RUN_CODEBASE_INDEX_PIPELINE_LABEL, UI_COPY } from '@/lib/config'
 import { RENDER_PANEL_SECTION_COPY } from '@/features/panels/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -122,6 +123,76 @@ export default function RenderSettingsSection({
       const curLayout = current.layout || {}
       const next = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : (curLayout.fitPadding ?? 80)
       setSchema({ ...current, layout: { ...curLayout, fitPadding: next } })
+    },
+    [schema, setSchema],
+  )
+
+  const setBboxCollidePadding = React.useCallback(
+    (value: number) => {
+      const current = schema
+      const curLayout = current.layout || {}
+      const curForces = curLayout.forces || {}
+      const base = curForces.bboxCollidePadding
+      const fallback =
+        typeof base === 'number' && Number.isFinite(base) ? base : DEFAULT_BBOX_COLLIDE_PADDING
+      const next = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : fallback
+      setSchema({
+        ...current,
+        layout: { ...curLayout, forces: { ...curForces, bboxCollidePadding: next } },
+      })
+    },
+    [schema, setSchema],
+  )
+
+  const setGroupBboxCollidePadding = React.useCallback(
+    (value: number) => {
+      const current = schema
+      const curLayout = current.layout || {}
+      const curForces = curLayout.forces || {}
+      const base = curForces.groupBboxCollidePadding
+      const fallback =
+        typeof base === 'number' && Number.isFinite(base) ? base : DEFAULT_GROUP_BBOX_COLLIDE_PADDING
+      const next = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : fallback
+      setSchema({
+        ...current,
+        layout: { ...curLayout, forces: { ...curForces, groupBboxCollidePadding: next } },
+      })
+    },
+    [schema, setSchema],
+  )
+
+  const setLabelRelaxMaxNodesForRelax = React.useCallback(
+    (value: number) => {
+      const current = schema
+      const curPerformance = current.performance || {}
+      const curLabelRelax = curPerformance.labelRelax || {}
+      const base = curLabelRelax.maxNodesForRelax
+      const fallback =
+        typeof base === 'number' && Number.isFinite(base) ? base : 3600
+      const rawNext = Number.isFinite(value) ? Math.floor(value) : fallback
+      const next = Math.max(0, Math.min(8000, rawNext))
+      setSchema({
+        ...current,
+        performance: { ...curPerformance, labelRelax: { ...curLabelRelax, maxNodesForRelax: next } },
+      })
+    },
+    [schema, setSchema],
+  )
+
+  const setLabelRelaxMaxNodeLabels = React.useCallback(
+    (value: number) => {
+      const current = schema
+      const curPerformance = current.performance || {}
+      const curLabelRelax = curPerformance.labelRelax || {}
+      const base = curLabelRelax.maxNodeLabels
+      const fallback =
+        typeof base === 'number' && Number.isFinite(base) ? base : 420
+      const rawNext = Number.isFinite(value) ? Math.floor(value) : fallback
+      const next = Math.max(0, Math.min(1200, rawNext))
+      setSchema({
+        ...current,
+        performance: { ...curPerformance, labelRelax: { ...curLabelRelax, maxNodeLabels: next } },
+      })
     },
     [schema, setSchema],
   )
@@ -468,6 +539,48 @@ export default function RenderSettingsSection({
               <KeyTypeValueRow
                 layout="keyValue"
                 density="compact"
+                keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.forces.bboxCollidePadding</span>}
+                valueNode={(
+                  <RightAlignedValueCell>
+                    <input
+                      type="number"
+                      step={1}
+                      min={0}
+                      className={uiPanelKeyValueInputClass}
+                      value={
+                        typeof schema.layout?.forces?.bboxCollidePadding === 'number'
+                          ? schema.layout.forces.bboxCollidePadding
+                          : DEFAULT_BBOX_COLLIDE_PADDING
+                      }
+                      onChange={e => setBboxCollidePadding(parseFloat(e.target.value || String(DEFAULT_BBOX_COLLIDE_PADDING)))}
+                    />
+                  </RightAlignedValueCell>
+                )}
+              />
+              <KeyTypeValueRow
+                layout="keyValue"
+                density="compact"
+                keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.forces.groupBboxCollidePadding</span>}
+                valueNode={(
+                  <RightAlignedValueCell>
+                    <input
+                      type="number"
+                      step={1}
+                      min={0}
+                      className={uiPanelKeyValueInputClass}
+                      value={
+                        typeof schema.layout?.forces?.groupBboxCollidePadding === 'number'
+                          ? schema.layout.forces.groupBboxCollidePadding
+                          : DEFAULT_GROUP_BBOX_COLLIDE_PADDING
+                      }
+                      onChange={e => setGroupBboxCollidePadding(parseFloat(e.target.value || String(DEFAULT_GROUP_BBOX_COLLIDE_PADDING)))}
+                    />
+                  </RightAlignedValueCell>
+                )}
+              />
+              <KeyTypeValueRow
+                layout="keyValue"
+                density="compact"
                 keyNode={<span className={uiPanelMonospaceTextClass}>graph.layout.rectNodes.maxZoomMinimapWidthRatio</span>}
                 valueNode={(
                   <RightAlignedValueCell>
@@ -546,6 +659,40 @@ export default function RenderSettingsSection({
                       className={uiPanelKeyValueInputClass}
                       value={schema.performance?.lod?.hideLabelsBelowScale ?? 0}
                       onChange={e => setHideLabelsBelowScale(parseFloat(e.target.value || '0'))}
+                    />
+                  </RightAlignedValueCell>
+                )}
+              />
+              <KeyTypeValueRow
+                layout="keyValue"
+                density="compact"
+                keyNode={<span className={uiPanelMonospaceTextClass}>graph.performance.labelRelax.maxNodesForRelax</span>}
+                valueNode={(
+                  <RightAlignedValueCell>
+                    <input
+                      type="number"
+                      step={100}
+                      min={0}
+                      className={uiPanelKeyValueInputClass}
+                      value={schema.performance?.labelRelax?.maxNodesForRelax ?? 3600}
+                      onChange={e => setLabelRelaxMaxNodesForRelax(parseFloat(e.target.value || '3600'))}
+                    />
+                  </RightAlignedValueCell>
+                )}
+              />
+              <KeyTypeValueRow
+                layout="keyValue"
+                density="compact"
+                keyNode={<span className={uiPanelMonospaceTextClass}>graph.performance.labelRelax.maxNodeLabels</span>}
+                valueNode={(
+                  <RightAlignedValueCell>
+                    <input
+                      type="number"
+                      step={20}
+                      min={0}
+                      className={uiPanelKeyValueInputClass}
+                      value={schema.performance?.labelRelax?.maxNodeLabels ?? 420}
+                      onChange={e => setLabelRelaxMaxNodeLabels(parseFloat(e.target.value || '420'))}
                     />
                   </RightAlignedValueCell>
                 )}

@@ -116,8 +116,13 @@ export interface GraphSchema {
       alphaDecay?: number;
       boxForce?: boolean;
       boxForceStrength?: number;
+      boxForceAlphaMin?: number;
       disjointComponents?: boolean;
       disjointStrength?: number;
+      antiLineForce?: boolean;
+      antiLineStrength?: number;
+      antiLineAlphaMin?: number;
+      antiLineTickInterval?: number;
       bboxCollide?: boolean;
       bboxCollideStrength?: number;
       bboxCollidePadding?: number;
@@ -151,6 +156,9 @@ export interface GraphSchema {
       groupBboxCollideZEnabled?: boolean;
       groupBboxCollideIterations?: number;
       structuredRelaxSteps?: number;
+      postFitForce?: boolean;
+      postFitStrength?: number;
+      postFitAlphaMax?: number;
     };
     fitPadding?: number;
     fitDetectClusters?: boolean;
@@ -202,6 +210,10 @@ export interface GraphSchema {
       steps?: number[]
     }
     caps?: { maxNodes?: number; maxEdges?: number };
+    labelRelax?: {
+      maxNodeLabels?: number
+      maxNodesForRelax?: number
+    }
   };
   accessibility?: { highContrast?: boolean };
   legend?: { showLegend?: boolean };

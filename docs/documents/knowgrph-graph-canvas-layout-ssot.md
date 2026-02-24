@@ -62,6 +62,13 @@ layout:
     groupBboxCollideExtraGapZPx: number
     groupBboxCollideIterations: number
     structuredRelaxSteps: number
+    antiLineForce: boolean
+    antiLineStrength: number
+    antiLineAlphaMin: number
+    antiLineTickInterval: number
+    postFitForce: boolean
+    postFitStrength: number
+    postFitAlphaMax: number
   groups:
     enabled: boolean
     padding: number
@@ -78,6 +85,8 @@ Notes:
 - Flow treats `layoutVariant` as a hard layout-change trigger: it must participate in layout recompute keys, render-scene rebuild keys, and cross-renderer seed selection.
 - Flow post-layout collision relaxation must not rely only on “unstable positions” heuristics; use an overlap-pressure guard so overlapping-but-stable layouts still get a bounded relax pass.
 - D3 “collective fit + freeze” must include a bounded collision relax pass before final fit/transform to reduce residual overlaps without restarting simulation.
+  - `layout.forces.antiLine*` controls a short de-line pass that breaks long thin bands while preserving macro layout.
+  - `layout.forces.postFit*` controls the bounded expansion/settle pass that spreads the graph into the viewport before Fit/Freeze; toolbar Reset must not change these knobs.
 - Design surface must batch multi-frame position patches when resolving collisions (avoid per-node store writes that can cause rerender churn).
 - Group collision is always enforced when `layout.groups.enabled !== false` (schema may keep `groupBboxCollide` for backward compatibility, but it does not disable the constraint).
 - Group collision accounts for group label overhead (top padding) to reduce label-region overlap and to prevent group box overlap.

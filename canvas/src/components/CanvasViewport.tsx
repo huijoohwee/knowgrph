@@ -7,7 +7,6 @@ import { importWithRetry } from '@/lib/react/importWithRetry'
 import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
-import { GraphEditorOverlay } from '@/features/graph-editor/GraphEditorOverlay'
 import { InfiniteCanvasWorkspaceOverlay } from '@/features/canvas/InfiniteCanvasWorkspaceOverlay'
 
 const GeospatialOverlayHostLazy = React.lazy(async () => {
@@ -234,11 +233,6 @@ export function CanvasViewport(props: CanvasViewportProps) {
             <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'd3' ? '' : 'opacity-0 pointer-events-none'}`}>
               {mounted2dRenderers.d3 ? <GraphCanvasLazy active={canvas2dRenderer === 'd3'} /> : null}
             </div>
-            {mounted2dRenderers.d3 ? (
-              <div className={`absolute inset-0 z-[30] ${canvas2dRenderer === 'd3' ? '' : 'opacity-0 pointer-events-none'}`}>
-                <GraphEditorOverlay active={canvas2dRenderer === 'd3'} />
-              </div>
-            ) : null}
             <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flow' ? '' : 'opacity-0 pointer-events-none'}`}>
               {mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} /> : null}
             </div>

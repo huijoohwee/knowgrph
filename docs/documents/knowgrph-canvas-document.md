@@ -81,9 +81,15 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 
 ### Canvas Interaction Panel (Floating)
 
-- In Canvas mode, interaction + arrangement actions are consolidated into a single **Interaction** floating panel (paired next to the Floating Panel **Props** view).
-- The Interaction panel hosts: pointer mode (Pan vs Select/Drag), layout selector (Force/Radial), centering/centroid, even-spread, and an opt-in performance overlay.
-- Forbid duplicate/legacy “Arrange” surfaces (canvas overlays or editor tabs) that reintroduce conflicting gesture ownership or duplicate actions.
+- In Canvas mode, interaction + arrangement actions are consolidated into a single **Interaction** tab inside the Floating Panel (adjacent to the **Props** view in the header).
+- The Interaction tab hosts:
+  - **Viewport**: read-only Viewport status and SSOT field groups (Readout, Transform, Zoom Modes, Wheel, Speeds, Flow) derived from the active 2D renderer state, schema zoom settings, and canvas interaction settings.
+  - **Interaction**: pointer mode (Pan vs Select/Drag) and layout selector (Force/Radial) that writes `schema.layout.mode`.
+  - **Centering / Centroid**: Center on Selection and Center on All Items.
+  - **Even Spread**: Distribute Horizontally/Vertically with a 3+ node guard and selection count helper text.
+  - **Performance**: opt-in perf overlay toggle plus read-only perf metrics (render updates/sec, state updates/sec, last layout init).
+- Viewport field groups are read-only views over the existing settings and schema; mutating the underlying behavior remains the responsibility of the Render and Settings panels.
+- Forbid duplicate/legacy “Arrange” surfaces (canvas overlays or editor tabs) that reintroduce conflicting gesture ownership, parallel Interaction UIs, or duplicate actions.
 
 ### Preview Contract (SSOT)
 

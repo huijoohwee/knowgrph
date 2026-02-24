@@ -92,6 +92,7 @@
 - **SSOT knobs**:
   - `schema.layout.mode` (high-level mode)
   - `schema.layout.flow.*` (Flow layout engine + routing knobs)
+  - `schema.layout.forces.{antiLineStrength,postFitStrength,postFitAlphaMax}` for 2D D3 spread/fit tuning (surfaced via Floating Panel Layout section)
   - renderer-specific layout caches must be isolated by explicit view/cache keys.
 
 ### Collisions
