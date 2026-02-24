@@ -2,6 +2,7 @@ import type { GraphData } from '@/lib/graph/types'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { deriveMermaidSubgraphGroups } from '@/components/GraphCanvas/layout/mermaidSubgraphGroups'
 import { deriveMarkdownHeadingGroups } from '@/components/GraphCanvas/layout/markdownHeadingGroups'
+import { readSubgraphs, subgraphGroupId } from '@/lib/graph/subgraphs'
 
 export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStructure?: boolean }): GraphGroup[] => {
   const meta = (data.metadata || {}) as Record<string, unknown>
@@ -177,7 +178,56 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
     })
     return out
   })()
-  const merged = [...mermaid, ...headings, ...keywordLayers, ...keywordNerGroups, ...communities]
+  const userSubgraphs = (() => {
+    const subgraphs = readSubgraphs(data)
+    if (subgraphs.length === 0) return [] as GraphGroup[]
+
+    const byId = new Map<string, { parentId: string | null; memberNodeIds: string[]; label: string }>()
+    for (let i = 0; i < subgraphs.length; i += 1) {
+      const sg = subgraphs[i]
+      byId.set(sg.id, {
+        parentId: sg.parentId == null ? null : String(sg.parentId || '').trim() || null,
+        memberNodeIds: Array.from(new Set(sg.memberNodeIds.map(x => String(x || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+        label: String(sg.label || sg.id).trim() || sg.id,
+      })
+    }
+
+    const depthById = new Map<string, number>()
+    const visiting = new Set<string>()
+    const resolveDepth = (id: string): number => {
+      const cached = depthById.get(id)
+      if (cached != null) return cached
+      if (visiting.has(id)) return 0
+      visiting.add(id)
+      const row = byId.get(id)
+      const parentId = row?.parentId || null
+      const depth = parentId && byId.has(parentId) ? resolveDepth(parentId) + 1 : 0
+      visiting.delete(id)
+      depthById.set(id, depth)
+      return depth
+    }
+
+    const out: GraphGroup[] = []
+    byId.forEach((row, id) => {
+      const gid = subgraphGroupId(id)
+      if (!gid) return
+      const depth = resolveDepth(id)
+      out.push({
+        id: gid,
+        label: row.label,
+        depth,
+        memberNodeIds: row.memberNodeIds,
+        style: { stroke: '#8B5CF6' },
+      })
+    })
+    out.sort((a, b) => {
+      if (a.depth !== b.depth) return a.depth - b.depth
+      return String(a.label || '').localeCompare(String(b.label || ''))
+    })
+    return out
+  })()
+
+  const merged = [...mermaid, ...headings, ...keywordLayers, ...keywordNerGroups, ...communities, ...userSubgraphs]
 
   const nodeIdSet = (() => {
     const nodes = Array.isArray(data.nodes) ? data.nodes : []

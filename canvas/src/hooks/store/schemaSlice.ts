@@ -130,6 +130,11 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
     }
     set({ schema: next, schemaBySemanticMode: nextByMode, zoomStateByKey })
     if (documentSemanticMode === 'document') writeSchemaToStorage(getLocalStorage(), next)
+
+    if (nextMode === 'radial') {
+      const setCanvas2dRenderer = get().setCanvas2dRenderer
+      if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer('d3')
+    }
   }
 
   return {

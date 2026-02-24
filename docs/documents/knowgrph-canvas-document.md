@@ -79,6 +79,12 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 - Only the active SidePanel tab is mounted; inactive tabs must not render hidden panels to avoid background work and cross-mode interference.
 - SidePanel tabs header must use semantic navigation elements (`<header>` + `<nav>`/`<menu>`), not generic wrappers.
 
+### Canvas Interaction Panel (Floating)
+
+- In Canvas mode, interaction + arrangement actions are consolidated into a single **Interaction** floating panel (paired next to the Floating Panel **Props** view).
+- The Interaction panel hosts: pointer mode (Pan vs Select/Drag), layout selector (Force/Radial), centering/centroid, even-spread, and an opt-in performance overlay.
+- Forbid duplicate/legacy “Arrange” surfaces (canvas overlays or editor tabs) that reintroduce conflicting gesture ownership or duplicate actions.
+
 ### Preview Contract (SSOT)
 
 - **Editor/Table split view**: the Canvas is mounted once (single `CanvasViewport`) and resized into the right-side Canvas pane. The Editor workspace and Graph Data Table must not mount a second “Canvas Preview” instance.
@@ -86,6 +92,8 @@ Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/D
 - For embedded preview mode, the host may sync preview state via same-origin messaging (`kind: 'kg-preview-sync'` for graph/schema/render/selection) and via persisted geospatial state (`kg:ui:geospatial:overlayEnabled` via `storage` events).
 - Preview sync handlers must ignore identical schema/graph payloads (hash/signature compare) to prevent rerender loops and React update-depth errors.
 - Preview sync graph hashing must ignore store-injected `metadata.graphDataRevision` and `metadata.hash` fields so preview ↔ host echoes do not trigger infinite sync loops.
+
+- A small non-interactive viewport readout overlay may be shown in Canvas mode for debugging drift (zoom % and viewport center). If shown, it must remain single-surface and must not trigger per-frame React rerenders.
 
 ### Editor Workspace Sections (Markdown vs Graph Data Table)
 

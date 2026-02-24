@@ -209,9 +209,10 @@ export const createZoom = (
 
     const st = useGraphStore.getState()
     const preset = (st.viewportControlsPreset || viewportControlsPreset) as ViewportControlsPreset
+    const pointerMode = st.canvasPointerMode2d === 'pan' ? 'pan' : 'select'
     const button = typeof e.button === 'number' ? e.button : 0
     const shiftKey = e.shiftKey === true
-    if (button === 0 && isSpacePanHeld() !== true && isNodePointerTarget(targetEl)) return
+    if (button === 0 && pointerMode !== 'pan' && isSpacePanHeld() !== true && isNodePointerTarget(targetEl)) return
     if (
       !shouldAllowPanDragForPointerEvent({
         preset,

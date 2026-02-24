@@ -1,9 +1,11 @@
 import type { WorkspacePath } from './types'
+import { coerceCodebaseRelPath } from '@/lib/codebase/relPath'
 
 export const WORKSPACE_ROOT_PATH: WorkspacePath = '/'
 
 export function normalizeWorkspacePath(raw: unknown): WorkspacePath {
-  const s = String(raw ?? '').trim().replace(/\\/g, '/')
+  const rel = coerceCodebaseRelPath(raw)
+  const s = String(rel || (raw ?? '')).trim().replace(/\\/g, '/')
   if (!s) return WORKSPACE_ROOT_PATH
   const withLeading = s.startsWith('/') ? s : `/${s}`
   const collapsed = withLeading.replace(/\/+/g, '/').replace(/\/+$/, '')

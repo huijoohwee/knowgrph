@@ -40,7 +40,7 @@
 - Enhance indexing, parsing, categorization, calculation, and rendering of Nodes, Clusters, and Edges   
  
 ## **TODO: ENHANCE 2D Renderer (Design)**
-- native in-repo develop & enhance, FORBID hardcode/external dependency to `https://github.com/penpot/penpot.git` 
+ - native in-repo develop & enhance, FORBID hardcode/external dependency to Penpot upstream repo 
 
 ## ENFORCE Layout & Initialization alignment/consistency/sync in the infinite canvas viewport 
 - CENTRALIZE, REUSE, ENHANCE initialization logic to center and evenly distribute collective (NOT individual) GRAPHS 

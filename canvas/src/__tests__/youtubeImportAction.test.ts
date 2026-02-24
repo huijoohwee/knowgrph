@@ -253,6 +253,7 @@ export async function testYouTubeImportPopulatesMarkdownAndJsonEditors() {
     semanticMode: String(next.documentSemanticMode || 'document'),
     renderMode,
     renderVariant: renderMode === '2d' ? String(next.canvas2dRenderer || 'd3') : '',
+    prevViewKey: null,
     prevDatasetKey: null,
     prevMode: null,
     prevFrontmatterMode: null,

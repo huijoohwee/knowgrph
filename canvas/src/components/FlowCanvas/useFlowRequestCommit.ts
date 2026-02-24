@@ -135,6 +135,8 @@ export function useFlowRequestCommit(args: {
     flowPresentation.portHandles.sizePx,
     graphDataRevision,
     graphDataForZoomRef,
+    lastCommittedPositionsRef,
+    positionsDirtySinceCommitRef,
     runtimeRef,
     schemaRef,
     setLayoutPositionsForMode,

@@ -2,7 +2,8 @@ import { JSDOM } from 'jsdom'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 
-import FlowCanvas, { __flowCanvasDebug } from '@/components/FlowCanvas'
+import FlowCanvas from '@/components/FlowCanvas'
+import { __flowCanvasDebug } from '@/components/FlowCanvas/flowCanvasDebug'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { defaultSchema } from '@/lib/graph/schema'
 

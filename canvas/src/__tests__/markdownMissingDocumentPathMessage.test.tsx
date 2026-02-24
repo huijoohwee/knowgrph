@@ -104,7 +104,12 @@ export async function testMarkdownViewerShowsMissingDocumentPathMessage() {
 
     await tick('mount')
 
-    const text = String(container.textContent || '')
+    let text = ''
+    for (let i = 0; i < 8; i += 1) {
+      text = String(container.textContent || '')
+      if (text.trim()) break
+      await tick(`settle:${i}`)
+    }
     if (!text.includes(UI_COPY.bottomPanelMarkdownMissingDocumentPathLabel)) {
       throw new Error(
         `expected markdown viewer to show missing documentPath message, got ${JSON.stringify(

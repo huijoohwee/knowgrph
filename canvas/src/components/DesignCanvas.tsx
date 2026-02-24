@@ -340,8 +340,28 @@ export default function DesignCanvas({
     const alreadyInitialized = lastInitKeyRef.current === initKey
     const t0 = d3.zoomTransform(svgEl)
     const hasNonIdentityTransform = t0.k !== 1 || t0.x !== 0 || t0.y !== 0
+
+    const autoZoomActive = store.viewPinned !== true && (store.fitToScreenMode || store.zoomToSelectionMode)
+
     if (!alreadyInitialized || !hasNonIdentityTransform) {
-      if (initial) {
+      if (!alreadyInitialized && !autoZoomActive && hasNonIdentityTransform && !initial) {
+        if (zoomViewKey && !store.zoomStateByKey?.[zoomViewKey]) {
+          commitZoomTransformToStore({
+            state: {
+              viewPinned: store.viewPinned,
+              zoomState: store.zoomState,
+              zoomStateByKey: store.zoomStateByKey,
+              setZoomState: store.setZoomState,
+              setZoomStateForKey: store.setZoomStateForKey,
+            },
+            zoomViewKey,
+            transform: { k: t0.k, x: t0.x, y: t0.y },
+            viewportW: dims.width,
+            viewportH: dims.height,
+            graphDataRevision: store.graphDataRevision,
+          })
+        }
+      } else if (initial) {
         svg.call(zoom.transform as never, d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k))
       } else if (store.viewPinned !== true && dims.width > 80 && dims.height > 80) {
         const g0 = localGraphDataRef.current

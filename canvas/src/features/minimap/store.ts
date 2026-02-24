@@ -1,6 +1,6 @@
 import { computeGraphBounds, MINIMAP_HEIGHT, MINIMAP_WIDTH } from '@/features/minimap/math'
 import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer'
-import { computeMinimapPreviewInWorkerWithHandle } from '@/features/minimap/workerClient'
+import { computeMinimapPreviewInWorker } from '@/features/minimap/workerClient'
 import type { GraphState } from '@/hooks/useGraphStore'
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import type { StoreApi } from 'zustand'
@@ -17,14 +17,13 @@ export const createMinimapSlice = (set: SetGraph, get: GetGraph) => ({
     sx: 1,
     bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 1, height: 1 },
   } as { nodesPath: string; edgesPath: string; sx: number; bounds: { minX: number; maxX: number; minY: number; maxY: number; width: number; height: number } },
-  minimapWorkerRef: null as Worker | null,
+  minimapAbortController: null as AbortController | null,
 
   cancelMinimapWorker: () => {
-    const w = get().minimapWorkerRef as Worker | null
-    if (w) {
-      try { w.terminate() } catch { void 0 }
-      set({ minimapWorkerRef: null })
-    }
+    const c = get().minimapAbortController
+    if (!c) return
+    try { c.abort() } catch { void 0 }
+    set({ minimapAbortController: null })
   },
 
   computeMinimapPreviewQuick: () => {
@@ -53,13 +52,18 @@ export const createMinimapSlice = (set: SetGraph, get: GetGraph) => ({
       const { graphData, graphId } = get()
       const nodes = (graphData?.nodes || []) as GraphNode[]
       const edges = (graphData?.edges || []) as GraphEdge[]
-      const { worker, promise } = computeMinimapPreviewInWorkerWithHandle(nodes, edges, { pad: 20, miniW: MINIMAP_WIDTH, miniH: MINIMAP_HEIGHT, edgeLimit: EDGE_LIMIT })
-      set({ minimapWorkerRef: worker })
+      const controller = new AbortController()
+      set({ minimapAbortController: controller })
+      const promise = computeMinimapPreviewInWorker(
+        nodes,
+        edges,
+        { pad: 20, miniW: MINIMAP_WIDTH, miniH: MINIMAP_HEIGHT, edgeLimit: EDGE_LIMIT, graphId: graphId ?? '' },
+        controller.signal,
+      )
       promise.then((res) => {
-        // If a newer worker is registered, ignore this result
-        const current = get().minimapWorkerRef
-        if (current && current !== worker) return;
-        set({ minimapWorkerRef: null })
+        const current = get().minimapAbortController
+        if (current && current !== controller) return;
+        set({ minimapAbortController: null })
         if (res) {
           set({ minimapPreview: res })
           set({ lifecycleStage: 'minimapAsync' })

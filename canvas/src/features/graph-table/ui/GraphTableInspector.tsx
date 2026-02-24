@@ -84,7 +84,11 @@ export function GraphTableInspector({
       setGraphDataPreservingLayout: s.setGraphDataPreservingLayout,
     })),
   )
-  const allEdges = ((graphData?.edges || []) as GraphEdge[]) || []
+  const edgesRaw = graphData?.edges
+  const allEdges: GraphEdge[] = useMemo(() => {
+    if (!Array.isArray(edgesRaw)) return []
+    return edgesRaw as GraphEdge[]
+  }, [edgesRaw])
   const node: GraphNode | null = useMemo(() => {
     if (!row || row.tableId !== 'nodes') return null
     const id = String(row.rowId || '').trim()

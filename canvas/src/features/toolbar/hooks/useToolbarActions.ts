@@ -51,7 +51,7 @@ export function useToolbarActions(
     if (!ensureBaselineUnlocked()) return
     const next = togglePortHandlesEnabledInSchema(schema)
     if (next.changed) setSchema(next.schema)
-  }, [schema, setSchema])
+  }, [ensureBaselineUnlocked, schema, setSchema])
 
   const handleToggleNodeShapeMode = useCallback(() => {
     if (!ensureBaselineUnlocked()) return
@@ -76,7 +76,7 @@ export function useToolbarActions(
       },
     }
     setSchema(next as GraphSchema)
-  }, [schema, setSchema])
+  }, [ensureBaselineUnlocked, schema, setSchema])
 
   const handleToggleGroupShapeMode = useCallback(() => {
     if (!ensureBaselineUnlocked()) return
@@ -96,7 +96,7 @@ export function useToolbarActions(
       },
     }
     setSchema(next as GraphSchema)
-  }, [schema, setSchema])
+  }, [ensureBaselineUnlocked, schema, setSchema])
 
   const handleToggleRadialLayout = useCallback(() => {
     if (!ensureBaselineUnlocked()) return

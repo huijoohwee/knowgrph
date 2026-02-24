@@ -34,8 +34,27 @@ export function useFlowComputedPositions(args: {
   layoutPositionsForMode: Record<string, { x: number; y: number }> | null
   setLayoutPositionsForMode?: (cacheKey: string, positions: Record<string, { x: number; y: number }>) => void
 }): Record<string, { x: number; y: number }> | null {
+  const {
+    active,
+    cacheKey,
+    datasetKey,
+    layoutMode,
+    layoutVariant,
+    documentSemanticMode,
+    effectiveFrontmatter,
+    layoutViewKey,
+    rankdir,
+    sceneGraphData,
+    sceneGroups,
+    schema,
+    flowConfig,
+    flowPresentation,
+    layoutPositionsForMode,
+    setLayoutPositionsForMode,
+  } = args
+
   const [computedPositions, setComputedPositions] = React.useState<Record<string, { x: number; y: number }> | null>(
-    () => args.layoutPositionsForMode || null,
+    () => layoutPositionsForMode || null,
   )
   const computedPositionsRef = React.useRef<Record<string, { x: number; y: number }> | null>(computedPositions)
   const lastLayoutGraphKeyRef = React.useRef<string>('')
@@ -72,24 +91,25 @@ export function useFlowComputedPositions(args: {
   }
 
   React.useEffect(() => {
-    if (!args.active) return
-    const next = args.layoutPositionsForMode || null
+    if (!active) return
+    void cacheKey
+    const next = layoutPositionsForMode || null
     setComputedPositions(prev => (prev === next ? prev : next))
-  }, [args.active, args.cacheKey, args.layoutPositionsForMode])
+  }, [active, cacheKey, layoutPositionsForMode])
 
   React.useEffect(() => {
     let cancelled = false
-    if (!args.active) return
-    const g = args.sceneGraphData
+    if (!active) return
+    const g = sceneGraphData
     const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
     const edgeList = Array.isArray(g?.edges) ? g?.edges : []
-    const graphKey = `${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${args.layoutVariant}`
+    const graphKey = `${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${layoutVariant}`
     if (graphKey === lastLayoutGraphKeyRef.current && computedPositionsRef.current) return
     lastLayoutGraphKeyRef.current = graphKey
 
     const run = async () => {
-      const nodeW = Math.max(1, Math.floor(args.flowConfig.node.widthPx))
-      const nodeH = Math.max(1, Math.floor(args.flowConfig.node.heightPx))
+      const nodeW = Math.max(1, Math.floor(flowConfig.node.widthPx))
+      const nodeH = Math.max(1, Math.floor(flowConfig.node.heightPx))
       const centerToTopLeft = (positions: Record<string, { x: number; y: number }> | null): Record<string, { x: number; y: number }> | null => {
         if (!positions) return null
         const out: Record<string, { x: number; y: number }> = {}
@@ -106,20 +126,20 @@ export function useFlowComputedPositions(args: {
         return out
       }
 
-      const cached = args.layoutPositionsForMode || null
+      const cached = layoutPositionsForMode || null
       const seededFromOtherRenderer = (() => {
-        const seedKey = `${graphKey}:${String(args.documentSemanticMode || 'document')}:${args.effectiveFrontmatter ? '1' : '0'}:${args.layoutMode}`
+        const seedKey = `${graphKey}:${String(documentSemanticMode || 'document')}:${effectiveFrontmatter ? '1' : '0'}:${layoutMode}`
         if (seededFromOtherRendererKeyRef.current === seedKey) return seededFromOtherRendererPositionsRef.current
         seededFromOtherRendererKeyRef.current = seedKey
 
         const cache = useGraphStore.getState().layoutPositionCacheByMode || null
         const baseKey = buildLayoutPositionCacheKey({
-          datasetKey: args.datasetKey,
-          mode: args.layoutMode,
-          frontmatterMode: args.effectiveFrontmatter,
-          semanticMode: String(args.documentSemanticMode || 'document'),
+          datasetKey,
+          mode: layoutMode,
+          frontmatterMode: effectiveFrontmatter,
+          semanticMode: String(documentSemanticMode || 'document'),
           renderMode: '2d',
-          viewKey: args.layoutViewKey,
+          viewKey: layoutViewKey,
           renderVariant: 'd3',
         })
         const best = pickSeedFromOtherRendererCache({
@@ -154,7 +174,7 @@ export function useFlowComputedPositions(args: {
                 if (nodeList.length > DEFAULT_FLOW_DAGRE_MAX_NODES) {
                   return buildFastGridLayout({
                     nodes: nodeList.map(n => ({ id: String(n.id) })),
-                    nodeSize: { widthPx: args.flowConfig.node.widthPx, heightPx: args.flowConfig.node.heightPx },
+                    nodeSize: { widthPx: flowConfig.node.widthPx, heightPx: flowConfig.node.heightPx },
                   })
                 }
 
@@ -162,25 +182,25 @@ export function useFlowComputedPositions(args: {
                   buildDagreLayout({
                     nodes: nodeList.map(n => ({ id: String(n.id) })),
                     edges: edgeList.map(e => ({ source: String((e as { source?: unknown }).source), target: String((e as { target?: unknown }).target) })),
-                    rankdir: args.rankdir,
-                    nodeSize: { widthPx: args.flowConfig.node.widthPx, heightPx: args.flowConfig.node.heightPx },
+                    rankdir,
+                    nodeSize: { widthPx: flowConfig.node.widthPx, heightPx: flowConfig.node.heightPx },
                   })
 
                 const grid = () =>
                   buildFastGridLayout({
                     nodes: nodeList.map(n => ({ id: String(n.id) })),
-                    nodeSize: { widthPx: args.flowConfig.node.widthPx, heightPx: args.flowConfig.node.heightPx },
+                    nodeSize: { widthPx: flowConfig.node.widthPx, heightPx: flowConfig.node.heightPx },
                   })
 
                 const allowElk = nodeList.length <= DEFAULT_FLOW_ELK_MAX_NODES
                 const allowDagre = nodeList.length <= DEFAULT_FLOW_DAGRE_MAX_NODES
 
-                if (args.flowConfig.engine === 'grid') return grid()
-                if (args.flowConfig.engine === 'dagre') return allowDagre ? dagre() : grid()
-                if (args.flowConfig.engine === 'elk') {
+                if (flowConfig.engine === 'grid') return grid()
+                if (flowConfig.engine === 'dagre') return allowDagre ? dagre() : grid()
+                if (flowConfig.engine === 'elk') {
                   if (!allowElk) return allowDagre ? dagre() : grid()
                   try {
-                    return await buildElkLayout({ graphData: { nodes: nodeList, edges: edgeList }, config: args.flowConfig })
+                    return await buildElkLayout({ graphData: { nodes: nodeList, edges: edgeList }, config: flowConfig })
                   } catch {
                     return dagre()
                   }
@@ -189,13 +209,13 @@ export function useFlowComputedPositions(args: {
                 if (!allowDagre) return grid()
                 if (!allowElk) return dagre()
                 try {
-                  return await buildElkLayout({ graphData: { nodes: nodeList, edges: edgeList }, config: args.flowConfig })
+                  return await buildElkLayout({ graphData: { nodes: nodeList, edges: edgeList }, config: flowConfig })
                 } catch {
                   return dagre()
                 }
               })()
 
-      const semanticMode = String(args.documentSemanticMode || 'document')
+      const semanticMode = String(documentSemanticMode || 'document')
       const computedCoverageOk = hasCacheCoverage({ nodes: nodeList, positions: computed, minCoverage: 0.98 })
       const computedUnstable =
         computedCoverageOk &&
@@ -230,19 +250,19 @@ export function useFlowComputedPositions(args: {
       const overlapPressure = estimateOverlapPressure(computed)
       const shouldRelax = computedUnstable || overlapPressure >= 0.005
       const relaxed =
-        shouldRelax && args.sceneGraphData && args.schema
+        shouldRelax && sceneGraphData && schema
           ? relaxFlowPositionsWithCollision({
-              graphData: args.sceneGraphData,
-              groups: args.sceneGroups,
+              graphData: sceneGraphData,
+              groups: sceneGroups,
               positions: computed,
-              schema: args.schema,
-              nodeSize: { widthPx: args.flowConfig.node.widthPx, heightPx: args.flowConfig.node.heightPx },
+              schema,
+              nodeSize: { widthPx: flowConfig.node.widthPx, heightPx: flowConfig.node.heightPx },
               portHandles: {
-                enabled: args.flowPresentation.portHandles.enabled,
-                sizePx: args.flowPresentation.portHandles.sizePx,
-                offsetPx: args.flowPresentation.portHandles.offsetPx,
+                enabled: flowPresentation.portHandles.enabled,
+                sizePx: flowPresentation.portHandles.sizePx,
+                offsetPx: flowPresentation.portHandles.offsetPx,
               },
-              defaultSteps: semanticMode === 'keyword' ? 12 : (args.sceneGroups.length > 0 ? 18 : 12),
+              defaultSteps: semanticMode === 'keyword' ? 12 : (sceneGroups.length > 0 ? 18 : 12),
             })
           : computed
       const packed =
@@ -252,10 +272,10 @@ export function useFlowComputedPositions(args: {
               edges: edgeList.map(e => ({ source: String((e as { source?: unknown }).source), target: String((e as { target?: unknown }).target) })),
               positions: relaxed,
               nodeSize: { widthPx: nodeW, heightPx: nodeH },
-              groups: args.sceneGroups,
+              groups: sceneGroups,
               paddingPx: semanticMode === 'document' ? 120 : 80,
               targetAspect: (() => {
-                const raw = args.schema?.layout?.fitTargetAspectRatio
+                const raw = schema?.layout?.fitTargetAspectRatio
                 return typeof raw === 'number' && Number.isFinite(raw) && raw > 0.05 ? raw : 16 / 9
               })(),
             })
@@ -267,12 +287,12 @@ export function useFlowComputedPositions(args: {
       if (outHash && outHash === lastOutputHashRef.current) return
       lastOutputHashRef.current = outHash
       if (
-        args.cacheKey &&
-        typeof args.setLayoutPositionsForMode === 'function' &&
+        cacheKey &&
+        typeof setLayoutPositionsForMode === 'function' &&
         packed &&
         Object.keys(packed).length > 0
       ) {
-        args.setLayoutPositionsForMode(args.cacheKey, packed)
+        setLayoutPositionsForMode(cacheKey, packed)
       }
       setComputedPositions(packed)
     }
@@ -281,21 +301,22 @@ export function useFlowComputedPositions(args: {
       cancelled = true
     }
   }, [
-    args.active,
-    args.cacheKey,
-    args.datasetKey,
-    args.documentSemanticMode,
-    args.effectiveFrontmatter,
-    args.flowConfig,
-    args.flowPresentation,
-    args.layoutMode,
-    args.layoutVariant,
-    args.layoutViewKey,
-    args.rankdir,
-    args.sceneGraphData,
-    args.sceneGroups,
-    args.schema,
-    args.setLayoutPositionsForMode,
+    active,
+    cacheKey,
+    datasetKey,
+    documentSemanticMode,
+    effectiveFrontmatter,
+    flowConfig,
+    flowPresentation,
+    layoutMode,
+    layoutPositionsForMode,
+    layoutVariant,
+    layoutViewKey,
+    rankdir,
+    sceneGraphData,
+    sceneGroups,
+    schema,
+    setLayoutPositionsForMode,
   ])
 
   return computedPositions

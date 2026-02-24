@@ -5,10 +5,9 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { selectionPerfEnd, selectionPerfStart } from '@/lib/selectionPerf'
 import type { Vec3 } from './layout'
 import { applyZoomStep, fitCameraToPositions, type CameraRequestType, getCameraConfig } from './camera'
-
-type SelectionPerfWindow = Window & { __KG_SELECTION_PERF_ENABLED__?: boolean };
 
 export function Controls({ schema, positions, paused }: { schema: GraphSchema; positions: Record<string, Vec3>; paused?: boolean }) {
   const { camera, gl } = useThree()
@@ -92,24 +91,11 @@ export function Controls({ schema, positions, paused }: { schema: GraphSchema; p
       useGraphStore.getState().clearThreeCameraRequest()
       return
     }
-    const enabled =
-      typeof window !== 'undefined' &&
-      (window as SelectionPerfWindow).__KG_SELECTION_PERF_ENABLED__ === true;
-    const t0 = enabled ? performance.now() : 0;
+    const t0 = selectionPerfStart()
     if (req.type === 'in' || req.type === 'out') {
       applyZoomStep(controls, perspectiveCamera, req.type)
       useGraphStore.getState().clearThreeCameraRequest()
-      if (enabled) {
-        const durationMs = performance.now() - t0;
-        try {
-          const event = new CustomEvent('kg-selection-perf', {
-            detail: { subscriber: 'three' as const, durationMs, ts: performance.now() },
-          });
-          window.dispatchEvent(event);
-        } catch {
-          void 0;
-        }
-      }
+      selectionPerfEnd('three', t0)
       return
     }
     const graph = data as GraphData | null
@@ -139,17 +125,7 @@ export function Controls({ schema, positions, paused }: { schema: GraphSchema; p
       selectedEdgeId,
     })
     useGraphStore.getState().clearThreeCameraRequest()
-    if (enabled) {
-      const durationMs = performance.now() - t0;
-      try {
-        const event = new CustomEvent('kg-selection-perf', {
-          detail: { subscriber: 'three' as const, durationMs, ts: performance.now() },
-        });
-        window.dispatchEvent(event);
-      } catch {
-        void 0;
-      }
-    }
+    selectionPerfEnd('three', t0)
   }, [paused, viewPinned, threeCameraRequest, data, selectedNodeId, selectedEdgeId, positions, perspectiveCamera, controls, zoomOnSelectionEnabled])
   React.useEffect(() => {
     return () => {

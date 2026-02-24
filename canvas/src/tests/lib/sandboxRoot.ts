@@ -112,6 +112,17 @@ export const toDocumentPath = (p: string): string => {
   const normalized = String(p || '').replace(/\\/g, '/').trim()
   if (!normalized) return ''
   if (/^https?:\/\//i.test(normalized)) return normalized
+
+  const sandboxRoot = resolveSandboxRoot()
+  if (sandboxRoot) {
+    const sandboxDirName = String(process.env.KG_SANDBOX_DIRNAME || '').trim() || 'sandbox'
+    const root = String(sandboxRoot || '').replace(/\\/g, '/').replace(/\/+$/, '')
+    if (root && normalized.startsWith(root + '/')) {
+      const rel = normalized.slice(root.length + 1).replace(/^\/+/, '').trim()
+      if (rel) return `${sandboxDirName}/${rel}`
+      return sandboxDirName
+    }
+  }
+
   return path.isAbsolute(normalized) ? path.basename(normalized) : normalized
 }
-

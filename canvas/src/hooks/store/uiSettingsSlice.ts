@@ -192,7 +192,44 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
       })
       return
     }
-    set({ frontmatterModeEnabled: v })
+    set(state => {
+      const nextEnabled = v === true
+      const prevEnabled = state.frontmatterModeEnabled === true
+      if (nextEnabled === prevEnabled) return {}
+
+      const prevZoomKey = buildActive2dZoomViewKey({
+        canvasRenderMode: state.canvasRenderMode,
+        canvas2dRenderer: state.canvas2dRenderer,
+        schema: state.schema,
+        graphData: (state.graphData as unknown as GraphData | null),
+        documentSemanticMode: state.documentSemanticMode,
+        frontmatterModeEnabled: prevEnabled,
+        documentStructureBaselineLock: state.documentStructureBaselineLock,
+        renderMediaAsNodes: state.renderMediaAsNodes,
+        mediaPanelDensity: state.mediaPanelDensity,
+        collapsedGroupIds: state.collapsedGroupIds,
+      })
+      const nextZoomKey = buildActive2dZoomViewKey({
+        canvasRenderMode: state.canvasRenderMode,
+        canvas2dRenderer: state.canvas2dRenderer,
+        schema: state.schema,
+        graphData: (state.graphData as unknown as GraphData | null),
+        documentSemanticMode: state.documentSemanticMode,
+        frontmatterModeEnabled: nextEnabled,
+        documentStructureBaselineLock: state.documentStructureBaselineLock,
+        renderMediaAsNodes: state.renderMediaAsNodes,
+        mediaPanelDensity: state.mediaPanelDensity,
+        collapsedGroupIds: state.collapsedGroupIds,
+      })
+      const prevZoom = prevZoomKey ? state.zoomStateByKey?.[prevZoomKey] ?? null : null
+      const nextZoomExists = nextZoomKey ? Boolean(state.zoomStateByKey?.[nextZoomKey]) : false
+      const zoomStateByKey =
+        prevZoom && nextZoomKey && !nextZoomExists
+          ? { ...(state.zoomStateByKey || {}), [nextZoomKey]: prevZoom }
+          : state.zoomStateByKey
+
+      return { frontmatterModeEnabled: nextEnabled, zoomStateByKey }
+    })
   },
   setDocumentSemanticMode: (v: DocumentSemanticMode) => {
     if (get().documentStructureBaselineLock === true) {

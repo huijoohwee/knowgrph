@@ -11,6 +11,16 @@ export function testMarkdownResolveHrefPreservesInternalAssetRoutes() {
   if (viteResolved !== viteHref) throw new Error(`Expected Vite internal route to remain unchanged: got ${viteResolved}`)
 }
 
+export function testMarkdownResolveHrefCoercesAbsoluteSandboxDocumentPath() {
+  const href = 'images/a.png'
+  const active = '/tmp/sandbox/demo/markdown-slide-demo.md'
+  const resolved = resolveHref(href, active)
+  const expected = '/__codebase_asset?path=sandbox%2Fdemo%2Fimages%2Fa.png'
+  if (resolved !== expected) {
+    throw new Error(`Expected absolute sandbox base to resolve to ${expected}, got ${resolved}`)
+  }
+}
+
 export function testMarkdownLargeDocFastModeParsesHtmlTables() {
   const filler = 'x'.repeat(200_010)
   const table = [

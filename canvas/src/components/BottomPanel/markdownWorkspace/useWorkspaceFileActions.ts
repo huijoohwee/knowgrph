@@ -207,7 +207,18 @@ export function useWorkspaceFileActions(args: {
         }
       }
     },
-    [applyImportedTextToGraph, getFs, lastLoadedRef, setActivePathSafe, setActiveText, setExpandedPaths, setMarkdownDocument, setMarkdownDocumentSourceUrl, setSelectionPathSafe, setStatusLabel],
+    [
+      applyImportedTextToGraph,
+      getFs,
+      lastLoadedRef,
+      setActivePathSafe,
+      setActiveText,
+      setExpandedPaths,
+      setMarkdownDocument,
+      setMarkdownDocumentSourceUrl,
+      setSelectionPathSafe,
+      setStatusError,
+    ],
   )
 
   const createNewFile = React.useCallback(async (opts?: { parentPath?: WorkspacePath }) => {
@@ -224,7 +235,7 @@ export function useWorkspaceFileActions(args: {
     } catch (e) {
       setStatusError(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
     }
-  }, [getFs, refresh, setActivePathSafe, setSelectionPathSafe, setStatusLabel])
+  }, [getFs, refresh, setActivePathSafe, setSelectionPathSafe, setStatusError, setStatusInfo, setStatusProgress])
 
   const createNewFolder = React.useCallback(async (opts?: { parentPath?: WorkspacePath }) => {
     setStatusProgress('Creating')
@@ -239,7 +250,7 @@ export function useWorkspaceFileActions(args: {
     } catch (e) {
       setStatusError(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
     }
-  }, [getFs, refresh, setExpandedPaths, setSelectionPathSafe, setStatusLabel])
+  }, [getFs, refresh, setExpandedPaths, setSelectionPathSafe, setStatusError, setStatusInfo, setStatusProgress])
 
   const handleImportLocalFiles = React.useCallback(
     async (files: FileList | null) => {
@@ -279,7 +290,7 @@ export function useWorkspaceFileActions(args: {
         setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [focusAfterImport, getFs, refresh, setStatusLabel],
+    [getFs, refresh, setStatusError, setStatusInfo, setStatusProgress],
   )
 
   const handleImportLocalFolder = React.useCallback(
@@ -315,7 +326,7 @@ export function useWorkspaceFileActions(args: {
         setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [getFs, refresh, setStatusLabel],
+    [getFs, refresh, setStatusError, setStatusInfo, setStatusLabel],
   )
 
   const handleImportUrl = React.useCallback(
@@ -499,7 +510,9 @@ export function useWorkspaceFileActions(args: {
       setEntries,
       setMarkdownDocument,
       setMarkdownDocumentSourceUrl,
-      setStatusLabel,
+      setStatusError,
+      setStatusInfo,
+      setStatusProgress,
     ],
   )
 
@@ -884,7 +897,7 @@ export function useWorkspaceFileActions(args: {
         setStatusError(`Import failed: ${msg}`)
       }
     },
-    [focusAfterImport, getFs, refresh, setStatusLabel],
+    [focusAfterImport, getFs, refresh, setStatusError, setStatusInfo, setStatusProgress],
   )
 
   const refreshFileFromSource = React.useCallback(
@@ -928,7 +941,19 @@ export function useWorkspaceFileActions(args: {
         setStatusError(`Refresh failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [activeDocumentKey, openedPath, applyImportedTextToGraph, getFs, lastLoadedRef, setActiveText, setEntries, setMarkdownDocument, setMarkdownDocumentSourceUrl, setStatusLabel],
+    [
+      activeDocumentKey,
+      openedPath,
+      getFs,
+      lastLoadedRef,
+      setActiveText,
+      setEntries,
+      setMarkdownDocument,
+      setMarkdownDocumentSourceUrl,
+      setStatusError,
+      setStatusInfo,
+      setStatusProgress,
+    ],
   )
 
   const deleteEntry = React.useCallback(
@@ -945,7 +970,7 @@ export function useWorkspaceFileActions(args: {
         setStatusError(`Delete failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [getFs, refresh, setStatusLabel],
+    [getFs, refresh, setStatusError, setStatusInfo, setStatusProgress],
   )
 
   const clearFile = React.useCallback(
@@ -966,7 +991,18 @@ export function useWorkspaceFileActions(args: {
         setStatusError(`Clear failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [activeDocumentKey, openedPath, getFs, lastLoadedRef, setActiveText, setEntries, setMarkdownDocument, setStatusLabel],
+    [
+      activeDocumentKey,
+      openedPath,
+      getFs,
+      lastLoadedRef,
+      setActiveText,
+      setEntries,
+      setMarkdownDocument,
+      setStatusError,
+      setStatusInfo,
+      setStatusProgress,
+    ],
   )
 
   const clearFolder = React.useCallback(
@@ -1009,7 +1045,18 @@ export function useWorkspaceFileActions(args: {
         setStatusError(`Clear failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [activeDocumentKey, openedPath, getFs, lastLoadedRef, setActiveText, setEntries, setMarkdownDocument, setStatusLabel],
+    [
+      activeDocumentKey,
+      openedPath,
+      getFs,
+      lastLoadedRef,
+      setActiveText,
+      setEntries,
+      setMarkdownDocument,
+      setStatusError,
+      setStatusInfo,
+      setStatusProgress,
+    ],
   )
 
   const canClearActiveSelection = !!(

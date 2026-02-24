@@ -228,7 +228,6 @@ export interface GraphState {
   historyIndex: number;
   recentFiles: RecentFileEntry[];
   historyDebounceMs: number;
-  historyTimer: ReturnType<typeof setTimeout> | null;
   schema: GraphSchema;
   schemaBySemanticMode?: SchemaBySemanticMode | null;
   layoutPositionCacheByMode: Partial<Record<LayoutPositionCacheKey, Record<string, NodePosition2d>>>;
@@ -635,6 +634,16 @@ export interface GraphState {
   requestZoomTransform: (payload: { k: number; x: number; y: number }) => void;
   requestZoomBounds: (payload: { bounds: { x: number; y: number; w: number; h: number }; insetPx?: number; origin?: { x: number; y: number } }) => void;
   clearZoomRequest: () => void;
+
+  canvasPointerMode2d: 'select' | 'pan';
+  setCanvasPointerMode2d: (mode: 'select' | 'pan') => void;
+
+  graphCanvasArrangeRequest: null | (
+    | { type: 'center'; scope: 'selection' | 'all'; at: number }
+    | { type: 'distribute'; axis: 'x' | 'y'; at: number }
+  );
+  requestGraphCanvasArrange: (req: { type: 'center'; scope: 'selection' | 'all' } | { type: 'distribute'; axis: 'x' | 'y' }) => void;
+  clearGraphCanvasArrangeRequest: () => void;
   zoomState: null | { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number };
   setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }) => void;
   zoomStateByKey: Record<string, { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }>
@@ -649,7 +658,7 @@ export interface GraphState {
   requestEdgeCreation: (req: { type: 'create' | 'update-source' | 'update-target'; fromId: string }) => void;
   clearEdgeCreationRequest: () => void;
   minimapPreview: { nodesPath: string; edgesPath: string; sx: number; bounds: { minX: number; maxX: number; minY: number; maxY: number; width: number; height: number } };
-  minimapWorkerRef: Worker | null;
+  minimapAbortController: AbortController | null;
   cancelMinimapWorker: () => void;
   computeMinimapPreviewQuick: () => void;
   computeMinimapPreviewAsync: () => void;

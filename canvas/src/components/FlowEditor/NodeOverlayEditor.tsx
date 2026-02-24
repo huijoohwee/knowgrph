@@ -460,7 +460,17 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
 
     const offset = canvasWindowOffsetRef.current
     el.style.transform = `translate3d(${pos.left + offset.left}px, ${pos.top + offset.top}px, 0) scale(${panelScale})`
-  }, [autoStackOffset.left, autoStackOffset.top, getLiveNodeWorldPos, nodeId, scheduleClampCommit, viewportH, viewportW, zoomViewKey])
+  }, [
+    getLiveNodeWorldPos,
+    getLiveZoomTransform,
+    nodeId,
+    pinnedLeftPx,
+    pinnedTopPx,
+    scheduleClampCommit,
+    viewportH,
+    viewportW,
+    zoomViewKey,
+  ])
 
   React.useEffect(() => {
     if (!active) return
@@ -786,7 +796,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
         },
       })
     },
-    [applyOverlayPosition, canvasWindowOffset, lockedToNode, nodeId, persistFloatingPos, pinnedLeftPx, pinnedTopPx, readLockedToNode],
+    [applyOverlayPosition, lockedToNode, nodeId, persistFloatingPos, pinnedLeftPx, pinnedTopPx, selectNode, setSelectionSource],
   )
 
   const handleRegistrySelectionChange = React.useCallback(

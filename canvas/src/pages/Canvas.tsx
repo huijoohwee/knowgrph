@@ -194,8 +194,9 @@ export default function CanvasPage() {
   const rafSetPreviewWidthRef = React.useRef(createRafValueScheduler<number>(v => setWorkspacePreviewWidthPx(v)))
 
   React.useEffect(() => {
+    const raf = rafSetPreviewWidthRef.current
     return () => {
-      rafSetPreviewWidthRef.current.cancel()
+      raf.cancel()
     }
   }, [])
 
@@ -598,7 +599,7 @@ export default function CanvasPage() {
     if (lastAutoAppliedMarkdownHashRef.current === h) return
     lastAutoAppliedMarkdownHashRef.current = h
     void autoApplyFrontmatterMermaidMarkdownToGraphIfEmpty({ name: markdownDocumentName, text })
-  }, [documentSemanticMode, frontmatterModeEnabled, graphData, markdownDocumentName, markdownDocumentText])
+  }, [canvas2dRenderer, canvasRenderMode, documentSemanticMode, frontmatterModeEnabled, graphData, markdownDocumentName, markdownDocumentText])
 
   const makeZoomHandler = (type: 'in' | 'out' | 'fit' | 'reset' | 'selection') => () => {
     if (geospatialModeEnabled) {

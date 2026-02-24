@@ -51,6 +51,9 @@ export async function testForbidPenpotRepoLiteral() {
     `https://github.com/${owner}/${repo}.git`,
     `https://github.com/${owner}/${repo}`,
     `git@github.com:${owner}/${repo}.git`,
+    `github.com/${owner}/${repo}.git`,
+    `github.com/${owner}/${repo}`,
+    `${owner}/${repo}`,
   ]
 
   const repoRoot = path.resolve(process.cwd(), '..')
@@ -67,8 +70,9 @@ export async function testForbidPenpotRepoLiteral() {
     } catch {
       continue
     }
+    const lower = text.toLowerCase()
     for (const f of forbidden) {
-      if (!text.includes(f)) continue
+      if (!lower.includes(f.toLowerCase())) continue
       matches.push(`${path.relative(repoRoot, filePath)} (${f})`)
       break
     }

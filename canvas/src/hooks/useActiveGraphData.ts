@@ -736,45 +736,44 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     let canceled = false
     const controller = new AbortController()
     const t0 = pipelinePerfStart()
-    const timer = setTimeout(() => {
-      Promise.resolve()
-        .then(async () => {
-          if (canceled) return
-          const snippet = inputs.sourceText.length > 16_000 ? inputs.sourceText.slice(0, 16_000) : inputs.sourceText
-          if (!snippet.trim()) return
 
-          const g = await deriveKeywordGraphPreviewInWorker({
-            documentId: inputs.docId,
-            documentText: snippet,
-            sourceLabel: markdownName || undefined,
-            sourceTextHash: inputs.sourceTextHash,
-            tuning: {
-              edgesPerNode: inputs.tuning.edgesPerNode,
-              maxEdgesCap: inputs.tuning.maxEdgesCap,
-            },
-            timeoutMs: 20_000,
-            signal: controller.signal,
-          })
-          if (!g) return
-          const base = baseGraphDataRef.current
-          if (!base) return
-          const merged = mergeKeywordGraphWithSourceNodes({
-            baseGraphData: base,
-            keywordGraph: g,
-            sourceId: inputs.docId,
-            tuning: { mentionEdgesPerSourceNode: inputs.tuning.mentionEdgesPerSourceNode },
-          })
-          keywordPreviewGraphCache.set(inputs.cacheKey, merged)
-          pipelinePerfEnd({ name: 'derive', stage: 'keyword:preview', t0, detail: { cacheKey: inputs.cacheKey } })
-          setAsyncBump(v => v + 1)
+    void (async () => {
+      try {
+        if (canceled) return
+        const snippet = inputs.sourceText.length > 16_000 ? inputs.sourceText.slice(0, 16_000) : inputs.sourceText
+        if (!snippet.trim()) return
+
+        const g = await deriveKeywordGraphPreviewInWorker({
+          documentId: inputs.docId,
+          documentText: snippet,
+          sourceLabel: markdownName || undefined,
+          sourceTextHash: inputs.sourceTextHash,
+          tuning: {
+            edgesPerNode: inputs.tuning.edgesPerNode,
+            maxEdgesCap: inputs.tuning.maxEdgesCap,
+          },
+          timeoutMs: 20_000,
+          signal: controller.signal,
         })
-        .catch(() => {
-          void 0
+        if (!g) return
+        const base = baseGraphDataRef.current
+        if (!base) return
+        const merged = mergeKeywordGraphWithSourceNodes({
+          baseGraphData: base,
+          keywordGraph: g,
+          sourceId: inputs.docId,
+          tuning: { mentionEdgesPerSourceNode: inputs.tuning.mentionEdgesPerSourceNode },
         })
-        .finally(() => {
-          if (pendingPreviewKeyRef.current === inputs.cacheKey) pendingPreviewKeyRef.current = null
-          if (!keywordPreviewGraphCache.get(inputs.cacheKey)) {
-            if (controller.signal.aborted || canceled) return
+        keywordPreviewGraphCache.set(inputs.cacheKey, merged)
+        pipelinePerfEnd({ name: 'derive', stage: 'keyword:preview', t0, detail: { cacheKey: inputs.cacheKey } })
+        setAsyncBump(v => v + 1)
+      } catch {
+        void 0
+      } finally {
+        if (pendingPreviewKeyRef.current === inputs.cacheKey) pendingPreviewKeyRef.current = null
+        if (!keywordPreviewGraphCache.get(inputs.cacheKey)) {
+          const shouldSkip = controller.signal.aborted || canceled
+          if (!shouldSkip) {
             const err = readKeywordWorkerLastError()
             if (err && !keywordErrorToastKeyRef.current.has(`preview:${inputs.cacheKey}`)) {
               keywordErrorToastKeyRef.current.add(`preview:${inputs.cacheKey}`)
@@ -790,16 +789,12 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
               }
             }
           }
-        })
-    }, 0)
+        }
+      }
+    })()
 
     return () => {
       canceled = true
-      try {
-        clearTimeout(timer)
-      } catch {
-        void 0
-      }
       try {
         controller.abort()
       } catch {
@@ -807,7 +802,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
       }
       if (pendingPreviewKeyRef.current === inputs.cacheKey) pendingPreviewKeyRef.current = null
     }
-  }, [debouncedKeywordPreviewInputs, enabled, markdownName, mode])
+  }, [baseGraphData, debouncedKeywordPreviewInputs, enabled, markdownName, mode])
 
   React.useEffect(() => {
     if (!enabled) return
@@ -825,8 +820,8 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     let canceled = false
     const controller = new AbortController()
 
-    Promise.resolve()
-      .then(async () => {
+    void (async () => {
+      try {
         const derivedGraph = await deriveKeywordGraphInWorker({
           documentId: inputs.docId,
           documentText: inputs.sourceText,
@@ -863,30 +858,31 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
         })
         pipelinePerfEnd({ name: 'derive', stage: 'keyword:all', t0: tAll, detail: { cacheKey: inputs.cacheKey } })
         setAsyncBump(v => v + 1)
-      })
-      .catch(() => {
+      } catch {
         void 0
-      })
-      .finally(() => {
+      } finally {
         if (pendingKeyRef.current === inputs.cacheKey) pendingKeyRef.current = null
         if (!keywordGraphCache.get(inputs.cacheKey)) {
-          if (controller.signal.aborted || canceled) return
-          const err = readKeywordWorkerLastError()
-          if (err && !keywordErrorToastKeyRef.current.has(`full:${inputs.cacheKey}`)) {
-            keywordErrorToastKeyRef.current.add(`full:${inputs.cacheKey}`)
-            try {
-              useGraphStore.getState().upsertUiToast({
-                id: `kw-derive-failed:${hashText(inputs.cacheKey)}`,
-                kind: 'warning',
-                message: `Keyword graph failed: ${err}`,
-                ttlMs: 8000,
-              })
-            } catch {
-              void 0
+          const shouldSkip = controller.signal.aborted || canceled
+          if (!shouldSkip) {
+            const err = readKeywordWorkerLastError()
+            if (err && !keywordErrorToastKeyRef.current.has(`full:${inputs.cacheKey}`)) {
+              keywordErrorToastKeyRef.current.add(`full:${inputs.cacheKey}`)
+              try {
+                useGraphStore.getState().upsertUiToast({
+                  id: `kw-derive-failed:${hashText(inputs.cacheKey)}`,
+                  kind: 'warning',
+                  message: `Keyword graph failed: ${err}`,
+                  ttlMs: 8000,
+                })
+              } catch {
+                void 0
+              }
             }
           }
         }
-      })
+      }
+    })()
 
     return () => {
       canceled = true
@@ -896,7 +892,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
         void 0
       }
     }
-  }, [debouncedKeywordFullInputs, enabled, markdownName, mode])
+  }, [baseGraphData, debouncedKeywordFullInputs, enabled, markdownName, mode])
 
   React.useEffect(() => {
     if (!enabled) return

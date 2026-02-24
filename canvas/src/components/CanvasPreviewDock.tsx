@@ -39,8 +39,9 @@ export function CanvasPreviewDock(props: CanvasPreviewDockProps) {
   const rafSetWidthRef = React.useRef(createRafValueScheduler<number>(v => setWidthPx(v)))
 
   React.useEffect(() => {
+    const raf = rafSetWidthRef.current
     return () => {
-      rafSetWidthRef.current.cancel()
+      raf.cancel()
     }
   }, [])
 

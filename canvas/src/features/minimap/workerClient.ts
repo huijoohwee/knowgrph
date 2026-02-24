@@ -1,6 +1,7 @@
 import { computeGraphBounds } from '@/features/minimap/math'
 import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer'
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
+import { requestFromSingletonWorker } from '@/lib/workers/singletonWorkerClient'
 
 type NodeLite = Pick<GraphNode, 'id' | 'x' | 'y'>
 type EdgeLite = Pick<GraphEdge, 'id' | 'source' | 'target'>
@@ -26,9 +27,10 @@ export type MinimapPreviewOptions = {
   miniW?: number
   miniH?: number
   edgeLimit?: number
+  graphId?: string | number
 }
 
-type PreviewResponse = { ok: boolean; data?: MinimapPreviewData; error?: string }
+type PreviewResponse = { id: number; ok: boolean; value: MinimapPreviewData; error?: string }
 
 function computeMinimapPreviewSync(
   nodes: NodeLite[],
@@ -45,8 +47,8 @@ function computeMinimapPreviewSync(
   const scaleY = miniH / Math.max(1, bounds.height)
   const sx = Math.min(scaleX, scaleY)
   const EDGE_LIMIT = typeof opts?.edgeLimit === 'number' ? opts.edgeLimit : 20000
-  const edgesPath = E.length > EDGE_LIMIT ? '' : buildEdgesPathD(N, E, bounds, sx)
-  const nodesPath = buildNodesPathD(N, bounds, sx, 3)
+  const edgesPath = E.length > EDGE_LIMIT ? '' : buildEdgesPathD(N, E, bounds, sx, opts?.graphId)
+  const nodesPath = buildNodesPathD(N, bounds, sx, 3, opts?.graphId)
   return { nodesPath, edgesPath, sx, bounds }
 }
 
@@ -54,6 +56,7 @@ export function computeMinimapPreviewInWorker(
   nodes: NodeLite[],
   edges: EdgeLite[],
   opts?: MinimapPreviewOptions,
+  signal?: AbortSignal,
 ): Promise<MinimapPreviewData | null> {
   try {
     const isDev = (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV
@@ -62,44 +65,23 @@ export function computeMinimapPreviewInWorker(
     if (isDev || isOffline || !hasWorker) {
       return Promise.resolve(computeMinimapPreviewSync(nodes, edges, opts))
     }
-    const worker = new Worker(new URL('../../workers/minimap.worker.ts', import.meta.url), { type: 'module' })
-    return new Promise<MinimapPreviewData | null>((resolve) => {
-      const cleanup = () => { try { worker.terminate() } catch { void 0 } }
-      worker.onmessage = (e: MessageEvent<PreviewResponse>) => {
-        const { ok, data } = e.data || { ok: false as const }
-        cleanup()
-        resolve(ok && data ? data : null)
-      }
-      worker.onerror = () => { cleanup(); resolve(null) }
-      worker.postMessage({ type: 'preview', nodes, edges, ...(opts || {}) })
+    return requestFromSingletonWorker<MinimapPreviewData | null>({
+      globalStateKey: '__KG_MINIMAP_WORKER__',
+      createWorker: () => new Worker(new URL('../../workers/minimap.worker.ts', import.meta.url), { type: 'module' }),
+      timeoutMs: 12_000,
+      signal,
+      postMessage: (worker, id) => {
+        worker.postMessage({ type: 'preview', id, nodes, edges, ...(opts || {}) })
+      },
+      readResponse: (data) => {
+        const d = data as PreviewResponse | null | undefined
+        if (!d || typeof d !== 'object') return null
+        if (typeof d.id !== 'number') return null
+        if (typeof d.ok !== 'boolean') return null
+        return { id: d.id, ok: d.ok, value: d.ok ? d.value : null, error: d.error }
+      },
     })
   } catch {
     try { return Promise.resolve(computeMinimapPreviewSync(nodes, edges, opts)) } catch { return Promise.resolve(null) }
   }
-}
-
-export function computeMinimapPreviewInWorkerWithHandle(
-  nodes: NodeLite[],
-  edges: EdgeLite[],
-  opts?: MinimapPreviewOptions,
-): { worker: Worker | null; promise: Promise<MinimapPreviewData | null> } {
-  const isDev = (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV
-  const isOffline = typeof navigator !== 'undefined' && navigator && 'onLine' in navigator && !navigator.onLine
-  const hasWorker = typeof Worker !== 'undefined'
-  if (isDev || isOffline || !hasWorker) {
-    const result = computeMinimapPreviewSync(nodes, edges, opts)
-    const promise = Promise.resolve(result)
-    return { worker: null, promise }
-  }
-  const worker = new Worker(new URL('../../workers/minimap.worker.ts', import.meta.url), { type: 'module' })
-  const promise = new Promise<MinimapPreviewData | null>((resolve) => {
-    const finish = (val: MinimapPreviewData | null) => { try { worker.terminate() } catch { void 0 } ; resolve(val) }
-    worker.onmessage = (e: MessageEvent<PreviewResponse>) => {
-      const { ok, data } = e.data || { ok: false as const }
-      finish(ok && data ? data : null)
-    }
-    worker.onerror = () => finish(null)
-    worker.postMessage({ type: 'preview', nodes, edges, ...(opts || {}) })
-  })
-  return { worker, promise }
 }

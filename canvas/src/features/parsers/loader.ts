@@ -17,7 +17,6 @@ import {
   buildNeo4jGraph,
 } from '@/lib/graph/db'
 import { pipelinePerfEnd, pipelinePerfMeasureAsync, pipelinePerfMeasureSync, pipelinePerfStart } from '@/lib/pipelinePerf'
-import { seedMissingNodePositions } from '@/components/GraphCanvas/layout/initialization'
 
 export type LoaderResult = {
   parserId?: string
@@ -28,28 +27,8 @@ export type LoaderResult = {
   input?: { name: string; text: string }
 }
 
-function applyLayoutInitialization(graphData: GraphData) {
-  const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
-  if (nodes.length < 2) return
-
-  let missing = 0
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i] as unknown as { x?: unknown; y?: unknown }
-    const x = n.x
-    const y = n.y
-    const ok = typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y)
-    if (!ok) missing += 1
-    if (missing >= 2) break
-  }
-  if (missing === 0) return
-
-  const width = 1200
-  const height = 900
-  seedMissingNodePositions(nodes, width, height, { x: width / 2, y: height / 2 })
-}
-
 export async function loadGraphDataViaParser(): Promise<LoaderResult | null> {
-  const f = await pickTextFileWithExtensions(['.csv', '.json', '.jsonld'])
+  const f = await pickTextFileWithExtensions(['.csv', '.json', '.jsonld', '.md', '.markdown', '.mmd'])
   if (!f) return null
   const name = f.name || ''
   const text = f.text || ''
@@ -147,11 +126,6 @@ async function fetchBackendGraphData(url: string): Promise<{ name: string; data:
           : ['Backend response did not contain GraphData or database payload']
       return { name, data: empty, warnings, inputText }
     }
-    pipelinePerfMeasureSync({
-      name: 'import',
-      stage: 'layout:init',
-      run: () => applyLayoutInitialization(normalized.graphData!)
-    })
     return { name, data: normalized.graphData, warnings: normalized.warnings || [], inputText }
   } catch {
     return null
@@ -181,6 +155,14 @@ export async function loadGraphDataFromTextViaParser(
   const tAll = pipelinePerfStart()
   ensureBuiltInParsersRegistered()
   const normalizedText = normalizeMermaidMmdToMarkdown(name, text)
+
+  if (options?.applyToStore !== false && isMarkdownLikeFileName(String(name || ''))) {
+    try {
+      useGraphStore.getState().setMarkdownDocument(name, normalizedText)
+    } catch {
+      void 0
+    }
+  }
   try {
     options?.onProgress?.('Selecting parser')
   } catch {
@@ -215,12 +197,6 @@ export async function loadGraphDataFromTextViaParser(
   })
   if (!res) return { parserId: bm.id, name, input: { name, text: normalizedText }, warnings: ["Parser returned no result"], counts: { n: 0, e: 0 } }
 
-  pipelinePerfMeasureSync({
-    name: 'import',
-    stage: 'layout:init',
-    run: () => applyLayoutInitialization(res.graphData)
-  })
-
   if (!cached) setCachedParse(parserId, name, normalizedText, res)
   let { graphData } = res
   const maybeEmpty = !((graphData.nodes?.length || 0) > 0) && !((graphData.edges?.length || 0) > 0)
@@ -237,12 +213,6 @@ export async function loadGraphDataFromTextViaParser(
     if (fallback?.graphData) {
       if (!fallbackCached) setCachedParse(markdownParserId, name, normalizedText, fallback)
       graphData = fallback.graphData
-
-      pipelinePerfMeasureSync({
-        name: 'import',
-        stage: 'layout:init',
-        run: () => applyLayoutInitialization(graphData)
-      })
 
       if (options?.applyToStore !== false) {
         try {

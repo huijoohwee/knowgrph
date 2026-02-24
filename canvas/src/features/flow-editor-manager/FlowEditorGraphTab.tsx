@@ -99,10 +99,17 @@ export default function FlowEditorGraphTab({ searchQuery }: { searchQuery: strin
     })),
   )
 
-  const nodes = React.useMemo(() => coerceRowsFromNodes(graphData), [graphData, graphDataRevision])
-  const edges = React.useMemo(() => coerceRowsFromEdges(graphData), [graphData, graphDataRevision])
+  const nodes = React.useMemo(() => {
+    void graphDataRevision
+    return coerceRowsFromNodes(graphData)
+  }, [graphData, graphDataRevision])
+  const edges = React.useMemo(() => {
+    void graphDataRevision
+    return coerceRowsFromEdges(graphData)
+  }, [graphData, graphDataRevision])
 
   const layers = React.useMemo(() => {
+    void graphDataRevision
     if (!graphData) return []
     const groups = deriveGraphGroups(graphData)
     return groups.map(g => {

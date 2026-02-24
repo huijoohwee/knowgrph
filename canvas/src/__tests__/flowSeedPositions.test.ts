@@ -1,4 +1,4 @@
-import { extractNodePositions } from '@/components/FlowCanvas'
+import { extractNodePositions } from '@/components/FlowCanvas/seedPositions'
 
 export const testFlowExtractNodePositionsReturnsNullWhenNone = () => {
   const out = extractNodePositions([
@@ -19,4 +19,3 @@ export const testFlowExtractNodePositionsExtractsFinitePositions = () => {
   if (!out.b || out.b.x !== 5 || out.b.y !== 6) throw new Error('expected b position')
   if (out.c) throw new Error('expected c to be skipped')
 }
-

@@ -1,6 +1,7 @@
 import { searchGraph } from '@/features/search'
 import { LRUCache } from '@/lib/cache/LRUCache'
 import type { SearchResult } from '@/features/search/types'
+import { debounce } from '@/lib/async/debounce'
 
 export type ToolbarSearchCacheKey = string
 
@@ -35,9 +36,10 @@ export const scheduleDebouncedSearch = (
   versionKey: string | undefined,
   onDone: (results: SearchResult[]) => void,
 ): (() => void) => {
-  const h: ReturnType<typeof setTimeout> = setTimeout(() => {
+  const run = debounce(() => {
     const res = computeSearchResults(data, query, limit, versionKey)
     onDone(res)
   }, delayMs)
-  return () => clearTimeout(h)
+  run()
+  return () => run.cancel()
 }

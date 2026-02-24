@@ -263,6 +263,22 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       return { zoomRequest: { type: 'bounds', at: Date.now(), payload } }
     }),
   clearZoomRequest: () => set({ zoomRequest: null }),
+
+  canvasPointerMode2d: 'select' as 'select' | 'pan',
+  setCanvasPointerMode2d: (mode: 'select' | 'pan') => {
+    const next = mode === 'pan' ? 'pan' : 'select'
+    const cur = get().canvasPointerMode2d
+    if (cur === next) return
+    set({ canvasPointerMode2d: next })
+  },
+
+  graphCanvasArrangeRequest: null as null | (
+    | { type: 'center'; scope: 'selection' | 'all'; at: number }
+    | { type: 'distribute'; axis: 'x' | 'y'; at: number }
+  ),
+  requestGraphCanvasArrange: (req: { type: 'center'; scope: 'selection' | 'all' } | { type: 'distribute'; axis: 'x' | 'y' }) =>
+    set({ graphCanvasArrangeRequest: { ...req, at: Date.now() } }),
+  clearGraphCanvasArrangeRequest: () => set({ graphCanvasArrangeRequest: null }),
   zoomState: null as null | { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number },
   setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }) => set({ zoomState: z }),
   zoomStateByKey: {} as Record<string, { k: number; x: number; y: number; graphDataRevision?: number; viewportW?: number; viewportH?: number }>,

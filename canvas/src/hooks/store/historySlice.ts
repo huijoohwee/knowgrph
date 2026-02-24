@@ -6,6 +6,7 @@ import { LS_KEYS } from '@/lib/config'
 import { lsSetJson } from '@/lib/persistence'
 import { withGraphDataRevision } from './graphDataSliceUtils'
 import { deepClone } from '@/lib/data/deepClone'
+import { debounce } from '@/lib/async/debounce'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -19,11 +20,13 @@ type HistoryEntry = {
 }
 
 export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
+  
   history: [] as HistoryEntry[],
   historyIndex: -1,
   recentFiles: [] as RecentFileEntry[],
   historyDebounceMs: 500,
-  historyTimer: null as ReturnType<typeof setTimeout> | null,
+
+  
 
   addRecentFile: (entry: Omit<RecentFileEntry, 'id' | 'timestamp'>) => {
     const { recentFiles } = get()
@@ -128,31 +131,42 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
   },
 
   scheduleHistory: (label: string) => {
-    const { historyTimer, historyDebounceMs } = get();
-    if (historyTimer) {
-      clearTimeout(historyTimer as ReturnType<typeof setTimeout>);
-    }
-    const t: ReturnType<typeof setTimeout> = setTimeout(() => {
-      const { graphData, graphFieldSettingsById, history, historyIndex } = get();
-      if (!graphData) return;
-      const graphCopy: GraphData = deepClone(graphData)
-      const fieldSettingsCopy: GraphFieldSettingsById = deepClone(graphFieldSettingsById || {})
-      const trimmed = history.slice(0, historyIndex + 1);
-      const entry = {
-        id: `h-${Date.now().toString(36)}`,
-        label,
-        timestamp: Date.now(),
-        graphData: graphCopy,
-        graphFieldSettingsById: fieldSettingsCopy,
-      };
-      set({ history: [...trimmed, entry], historyIndex: trimmed.length, historyTimer: null });
+    const global = globalThis as unknown as Record<string, unknown>
+    type Committer = ((label: string) => void) & { cancel: () => void }
+    const key = '__KG_HISTORY_COMMITTER__'
+    const state = (global[key] && typeof global[key] === 'object') ? (global[key] as { waitMs: number; fn: Committer }) : null
+    const waitMs = Math.max(0, Math.floor(get().historyDebounceMs || 0))
+    const fn: Committer = (() => {
+      if (state && state.waitMs === waitMs) return state.fn
       try {
-        lsSetJson(LS_KEYS.graphData, graphData)
+        state?.fn?.cancel?.()
       } catch {
         void 0
       }
-    }, historyDebounceMs);
-    set({ historyTimer: t });
+      const next = debounce((l: string) => {
+        const { graphData, graphFieldSettingsById, history, historyIndex } = get();
+        if (!graphData) return;
+        const graphCopy: GraphData = deepClone(graphData)
+        const fieldSettingsCopy: GraphFieldSettingsById = deepClone(graphFieldSettingsById || {})
+        const trimmed = history.slice(0, historyIndex + 1);
+        const entry = {
+          id: `h-${Date.now().toString(36)}`,
+          label: l,
+          timestamp: Date.now(),
+          graphData: graphCopy,
+          graphFieldSettingsById: fieldSettingsCopy,
+        };
+        set({ history: [...trimmed, entry], historyIndex: trimmed.length });
+        try {
+          lsSetJson(LS_KEYS.graphData, graphData)
+        } catch {
+          void 0
+        }
+      }, waitMs) as Committer
+      global[key] = { waitMs, fn: next }
+      return next
+    })()
+    fn(label)
   },
 
   setHistoryDebounceMs: (ms: number) => {
@@ -164,9 +178,13 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
     history: Array<{ id: string; label: string; timestamp: number; graphData: GraphData; graphFieldSettingsById?: GraphFieldSettingsById }>,
     historyIndex: number,
   ) => {
-    const { historyTimer, graphData, setGraphFieldSettingsById } = get();
-    if (historyTimer) {
-      clearTimeout(historyTimer as ReturnType<typeof setTimeout>);
+    const { graphData, setGraphFieldSettingsById } = get();
+    try {
+      const global = globalThis as unknown as Record<string, unknown>
+      const st = global['__KG_HISTORY_COMMITTER__'] as { fn?: { cancel?: () => void } } | undefined
+      st?.fn?.cancel?.()
+    } catch {
+      void 0
     }
 
     const safeHistory = Array.isArray(history)
@@ -198,7 +216,7 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
       ? withGraphDataRevision(deepClone(nextGraphDataBase) as GraphData, nextRevision)
       : null
     const nextFieldSettings = boundedIndex >= 0 && safeHistory[boundedIndex] ? safeHistory[boundedIndex].graphFieldSettingsById : get().graphFieldSettingsById || {};
-    set({ history: safeHistory, historyIndex: boundedIndex, historyTimer: null, graphData: nextGraphData, graphDataRevision: nextRevision });
+    set({ history: safeHistory, historyIndex: boundedIndex, graphData: nextGraphData, graphDataRevision: nextRevision });
     setGraphFieldSettingsById(deepClone(nextFieldSettings || {}) as GraphFieldSettingsById);
     try {
       get().resyncGraphFieldsFromGraphData?.()

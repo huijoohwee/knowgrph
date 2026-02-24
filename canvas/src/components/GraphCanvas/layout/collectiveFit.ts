@@ -74,16 +74,20 @@ export const applyCollectiveGraphLayout = (args: {
   const { nodes, edges, width, height, schema, padding = 80 } = args
   if (nodes.length < 2) return
 
-  const nodeIds = new Set(nodes.map(n => String(n.id)))
+  const nodeById = new Map<string, GraphNode>()
   const adj = new Map<string, string[]>()
-  nodes.forEach(n => adj.set(String(n.id), []))
+  for (const n of nodes) {
+    const id = String(n.id)
+    nodeById.set(id, n)
+    adj.set(id, [])
+  }
   
   edges.forEach(e => {
     const s = typeof e.source === 'object' ? (e.source as { id: string }).id : e.source
     const t = typeof e.target === 'object' ? (e.target as { id: string }).id : e.target
     const sid = String(s)
     const tid = String(t)
-    if (nodeIds.has(sid) && nodeIds.has(tid)) {
+    if (nodeById.has(sid) && nodeById.has(tid)) {
       adj.get(sid)?.push(tid)
       adj.get(tid)?.push(sid)
     }
@@ -102,7 +106,7 @@ export const applyCollectiveGraphLayout = (args: {
     
     while (stack.length) {
       const curr = stack.pop()!
-      const node = nodes.find(node => String(node.id) === curr)
+      const node = nodeById.get(curr)
       if (node) componentNodes.push(node)
       
       const neighbors = adj.get(curr) || []

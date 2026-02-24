@@ -148,6 +148,10 @@ selection_state:
 
 **Panel Organization**: Main panel (workflow, schema, settings), Bottom panel (markdown, parsers, tables), Floating panels (props, orchestrator) with independent state slices.
 
+- Floating Panel (tool menu) hosts the Props/Inspector/etc views.
+- Interaction controls for infinite-canvas workflows live in a dedicated **Interaction** floating panel that is positioned adjacent to the Floating Panel when the Props view is active.
+- Forbid any legacy “Arrange” panels (canvas overlays, editor tabs, or side panels) that duplicate Interaction/Arrange actions.
+
 #### Floating Panel Lightweight View Pattern (Props Panel Contract)
 
 Floating Panel views must reuse the same lightweight embedding pattern as Props Panel:

@@ -279,6 +279,8 @@ export const initializeGraphLayout = (args: {
     return tooFlat || tooLarge
   }
 
+  const usedLayoutPositions = !!layoutPositions
+
   if (layoutPositions) {
     let applied = 0
     for (let i = 0; i < nodes.length; i += 1) {
@@ -306,9 +308,53 @@ export const initializeGraphLayout = (args: {
 
   const repair = needsRepair()
   if (!repair) {
-    if (missing === 0) return
+    if (missing === 0) {
+      if (usedLayoutPositions) return
+      if (!layoutLooksUnstableForViewport({ nodes, width, height, viewportCenter: seedCenter })) return
+      const padPx = Math.max(24, Math.floor(readFitPadding(schema)))
+      applyCollectiveGraphLayout({
+        nodes,
+        edges,
+        width: Math.max(1, width),
+        height: Math.max(1, Math.floor(height)),
+        schema,
+        padding: Math.max(80, padPx),
+      })
+      postFitNodesToViewport({
+        nodes,
+        width: Math.max(1, width),
+        height: Math.max(1, Math.floor(height)),
+        paddingPx: padPx,
+        minScale: 0.06,
+        maxScale: 2.2,
+        viewportCenter: seedCenter || undefined,
+      })
+      return
+    }
     seedMissingNodePositions(nodes, width, height, seedCenter)
-    if (missing < nodes.length) return
+    if (missing < nodes.length) {
+      if (usedLayoutPositions) return
+      if (!layoutLooksUnstableForViewport({ nodes, width, height, viewportCenter: seedCenter })) return
+      const padPx = Math.max(24, Math.floor(readFitPadding(schema)))
+      applyCollectiveGraphLayout({
+        nodes,
+        edges,
+        width: Math.max(1, width),
+        height: Math.max(1, Math.floor(height)),
+        schema,
+        padding: Math.max(80, padPx),
+      })
+      postFitNodesToViewport({
+        nodes,
+        width: Math.max(1, width),
+        height: Math.max(1, Math.floor(height)),
+        paddingPx: padPx,
+        minScale: 0.06,
+        maxScale: 2.2,
+        viewportCenter: seedCenter || undefined,
+      })
+      return
+    }
   }
 
   applyForceModeSeeds({ nodes, edges, width, height, schema, groupKeyOf })

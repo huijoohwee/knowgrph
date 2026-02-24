@@ -3,12 +3,13 @@ import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer'
 
 type NodeLite = { id: string; x?: number; y?: number };
 type EdgeLite = { id: string; source: string; target: string };
-type PreviewRequest = { type: 'preview'; nodes: NodeLite[]; edges: EdgeLite[]; pad?: number; miniW?: number; miniH?: number; edgeLimit?: number };
-type PreviewResponse = { ok: boolean; data?: { nodesPath: string; edgesPath: string; sx: number; bounds: { minX: number; minY: number; maxX: number; maxY: number; width: number; height: number } }; error?: string };
+type PreviewRequest = { type: 'preview'; id: number; nodes: NodeLite[]; edges: EdgeLite[]; pad?: number; miniW?: number; miniH?: number; edgeLimit?: number; graphId?: string | number };
+type PreviewValue = { nodesPath: string; edgesPath: string; sx: number; bounds: { minX: number; minY: number; maxX: number; maxY: number; width: number; height: number } };
+type PreviewResponse = { id: number; ok: boolean; value: PreviewValue; error?: string };
 
 self.onmessage = (e: MessageEvent<PreviewRequest>) => {
   const msg = e.data
-  if (!msg || msg.type !== 'preview') return
+  if (!msg || msg.type !== 'preview' || typeof msg.id !== 'number') return
   try {
     const nodes = Array.isArray(msg.nodes) ? msg.nodes : []
     const edges = Array.isArray(msg.edges) ? msg.edges : []
@@ -20,13 +21,13 @@ self.onmessage = (e: MessageEvent<PreviewRequest>) => {
     const scaleY = miniH / Math.max(1, bounds.height)
     const sx = Math.min(scaleX, scaleY)
     const EDGE_LIMIT = typeof msg.edgeLimit === 'number' ? msg.edgeLimit : 20000
-    const edgesPath = edges.length > EDGE_LIMIT ? '' : buildEdgesPathD(nodes, edges, bounds, sx)
-    const nodesPath = buildNodesPathD(nodes, bounds, sx, 3)
+    const edgesPath = edges.length > EDGE_LIMIT ? '' : buildEdgesPathD(nodes, edges, bounds, sx, msg.graphId)
+    const nodesPath = buildNodesPathD(nodes, bounds, sx, 3, msg.graphId)
     const global = self as unknown as { postMessage: (data: PreviewResponse) => void }
-    global.postMessage({ ok: true, data: { nodesPath, edgesPath, sx, bounds } } as PreviewResponse)
+    global.postMessage({ id: msg.id, ok: true, value: { nodesPath, edgesPath, sx, bounds } } as PreviewResponse)
   } catch (err) {
     const global = self as unknown as { postMessage: (data: PreviewResponse) => void }
     const msg = String((err as Error)?.message || err as unknown as string)
-    global.postMessage({ ok: false, error: msg } as PreviewResponse)
+    global.postMessage({ id: (e.data && typeof e.data.id === 'number') ? e.data.id : -1, ok: false, value: null as unknown as PreviewValue, error: msg } as PreviewResponse)
   }
 }

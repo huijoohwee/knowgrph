@@ -279,7 +279,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     } catch { void 0 }
     set({ lifecycleStage: 'committed' });
     set({ aiKgTraversalRan: false });
-    set({ minimapPreview: { nodesPath: '', edgesPath: '', sx: 1, bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 1, height: 1 } }, minimapWorkerRef: null });
+    set({ minimapPreview: { nodesPath: '', edgesPath: '', sx: 1, bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 1, height: 1 } }, minimapAbortController: null });
     get().cancelMinimapWorker?.();
     get().scheduleHistory('Set Data');
     lsSetJson(LS_KEYS.graphData, nextGraphData)
@@ -311,6 +311,9 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
         if (mode === 'radial') {
           const setCanvasRenderMode = get().setCanvasRenderMode
           if (typeof setCanvasRenderMode === 'function') setCanvasRenderMode('2d')
+
+          const setCanvas2dRenderer = get().setCanvas2dRenderer
+          if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer('d3')
         }
       } catch {
         void 0

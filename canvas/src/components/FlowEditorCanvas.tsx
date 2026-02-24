@@ -381,22 +381,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     return out
   }, [])
 
-  const parsePosByNodeId = React.useCallback((raw: unknown): Record<string, { top: number; left: number }> | null => {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
-    const out: Record<string, { top: number; left: number }> = {}
-    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-      const id = String(k || '').trim()
-      if (!id) continue
-      if (!v || typeof v !== 'object' || Array.isArray(v)) continue
-      const o = v as { top?: unknown; left?: unknown }
-      const top = typeof o.top === 'number' && Number.isFinite(o.top) ? o.top : null
-      const left = typeof o.left === 'number' && Number.isFinite(o.left) ? o.left : null
-      if (top == null || left == null) continue
-      out[id] = { top, left }
-    }
-    return out
-  }, [])
-
   const overlayCollisionResolveRafRef = React.useRef<number | null>(null)
   const overlayCollisionResolveKeyRef = React.useRef<string>('')
   const overlayRectCacheRef = React.useRef<Map<string, { left: number; top: number; width: number; height: number }>>(new Map())
@@ -851,7 +835,18 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       overlayCollisionResolveKeyRef.current = ''
       scheduleOverlayCollisionResolve()
     })
-  }, [active, overlayOnlyModeEnabled, parsePinnedByNodeId, parsePosByNodeId, schema, selectedNodeId, setFlowNodeQuickEditorAnchorOffsetByNodeId, viewportH, viewportW])
+  }, [
+    active,
+    getLiveNodeWorldPos,
+    getLiveZoomTransform,
+    overlayOnlyModeEnabled,
+    parsePinnedByNodeId,
+    schema,
+    selectedNodeId,
+    setFlowNodeQuickEditorAnchorOffsetByNodeId,
+    viewportH,
+    viewportW,
+  ])
 
   React.useEffect(() => {
     if (!active) return
@@ -1103,7 +1098,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       if (!idSet.has(String(key || ''))) pinnedMap.delete(key)
     }
     setAnyEditorPinnedToNode(Array.from(pinnedMap.values()).some(Boolean))
-  }, [draftGraphData])
+  }, [draftGraphData, updateOpenQuickEditorNodeIds])
 
   React.useEffect(() => {
     nodeQuickEditorRegistryRef.current = nodeQuickEditorRegistry
@@ -1483,7 +1478,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         void 0
       }
     },
-    [appendDraftNode, baseGraphData, scheduleForceSelect, upsertUiToast],
+    [appendDraftNode, baseGraphData, scheduleForceSelect, updateOpenQuickEditorNodeIds, upsertUiToast],
   )
 
   React.useEffect(() => {
@@ -1588,7 +1583,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       document.removeEventListener('dragover', onDragOverCapture, true)
       document.removeEventListener('drop', onDropCapture, true)
     }
-  }, [active, addNodeFromRegistryAtWorld, shouldDedupeQuickEditorDrop, upsertUiToast])
+  }, [active, addNodeFromRegistryAtWorld, getLiveZoomTransform, setCanvasWindowOffsetFromRect, shouldDedupeQuickEditorDrop, upsertUiToast])
 
   const deleteSelection = React.useCallback(() => {
     if (!draftGraphData) return
@@ -1651,7 +1646,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         selectEdge(null)
       }
     },
-    [draftGraphData, selectEdge, selectNode, setGraphDataPreservingLayout, setSelectionSource],
+    [draftGraphData, selectEdge, selectNode, setGraphDataPreservingLayout, setSelectionSource, updateOpenQuickEditorNodeIds],
   )
 
   const clearNodeOutputById = React.useCallback(
@@ -1936,7 +1931,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       selectEdge(null)
       selectNode(nextId)
     },
-    [draftGraphData, selectEdge, selectNode, setGraphDataPreservingLayout, setSelectionSource],
+    [draftGraphData, selectEdge, selectNode, setGraphDataPreservingLayout, setSelectionSource, updateOpenQuickEditorNodeIds],
   )
 
   const showNodeEditorHelp = React.useCallback(() => {
@@ -2276,7 +2271,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       .filter(Boolean)
   }, [
     active,
-    anyEditorPinnedToNode,
     beginAddEdgeFromNode,
     canvasWindowOffset,
     clearNodeOutputById,
@@ -2305,6 +2299,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     validateNodeById,
     viewportH,
     viewportW,
+    zoomViewKey,
   ])
 
   const hasOverlayEditors = overlayEditorElements.length > 0

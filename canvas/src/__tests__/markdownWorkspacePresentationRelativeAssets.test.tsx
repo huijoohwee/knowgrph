@@ -67,13 +67,17 @@ export async function testMarkdownWorkspacePresentationResolvesRelativeAssetsAnd
       } as never),
     )
 
-    await new Promise<void>(resolve => setTimeout(() => resolve(), 0))
+    for (let i = 0; i < 8; i += 1) {
+      const img = container.querySelector('img')
+      if (img) break
+      await new Promise<void>(resolve => setTimeout(() => resolve(), 0))
+    }
 
     const img = container.querySelector('img')
     if (!img) throw new Error('expected an <img> in presentation mode')
     const srcAttr = img.getAttribute('src') || ''
-    if (srcAttr !== '/@fs/docs/images/a.png') {
-      throw new Error(`expected relative image to resolve to /@fs URL, got ${srcAttr}`)
+    if (srcAttr !== '/__codebase_asset?path=docs%2Fimages%2Fa.png') {
+      throw new Error(`expected relative image to resolve to __codebase_asset URL, got ${srcAttr}`)
     }
 
     const table = container.querySelector('table')

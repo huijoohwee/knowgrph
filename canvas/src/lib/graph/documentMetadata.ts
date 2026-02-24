@@ -1,3 +1,5 @@
+import { coerceCodebaseRelPath } from '@/lib/codebase/relPath'
+
 export type GraphMetadataRecord = Record<string, unknown>
 
 export const toMetadataRecord = (meta: unknown): GraphMetadataRecord => {
@@ -27,10 +29,21 @@ export const getDocumentPathFromMetadata = (metadata: unknown): string | null =>
   const record = toMetadataRecord(metadata)
   const primaryRaw = typeof record.documentPath === 'string' ? record.documentPath.trim() : ''
   const primary = primaryRaw ? stripLineFragment(primaryRaw) : ''
-  if (primary) return primary
+  if (primary) {
+    const coerced = coerceCodebaseRelPath(primary)
+    return coerced || null
+  }
   const fallbackRaw = typeof record.codebaseRelPath === 'string' ? record.codebaseRelPath.trim() : ''
   const fallback = fallbackRaw ? stripLineFragment(fallbackRaw) : ''
-  if (fallback) return fallback
+  if (fallback) {
+    const coerced = coerceCodebaseRelPath(fallback)
+    return coerced || null
+  }
+  const codebaseRaw = typeof record.codebasePath === 'string' ? record.codebasePath.trim() : ''
+  const codebase = codebaseRaw ? stripLineFragment(codebaseRaw) : ''
+  if (codebase) {
+    const coerced = coerceCodebaseRelPath(codebase)
+    return coerced || null
+  }
   return null
 }
-

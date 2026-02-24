@@ -36,6 +36,53 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   ;(g as { Node: typeof Node }).Node = dom.window.Node as unknown as typeof Node
   ;(g as { Element: typeof Element }).Element = dom.window.Element as unknown as typeof Element
   ;(g as { HTMLElement: typeof HTMLElement }).HTMLElement = dom.window.HTMLElement as unknown as typeof HTMLElement
+
+  try {
+    const proto = (dom.window as unknown as { HTMLCanvasElement?: { prototype?: { getContext?: unknown } } }).HTMLCanvasElement?.prototype
+    if (proto) {
+      ;(proto as unknown as { getContext?: unknown }).getContext = (() => {
+        const noop = () => void 0
+        return {
+          canvas: null,
+          clearRect: noop,
+          fillRect: noop,
+          strokeRect: noop,
+          beginPath: noop,
+          closePath: noop,
+          moveTo: noop,
+          lineTo: noop,
+          rect: noop,
+          arc: noop,
+          clip: noop,
+          stroke: noop,
+          fill: noop,
+          fillText: noop,
+          measureText: (text: string) => ({ width: String(text || '').length * 6 }),
+          save: noop,
+          restore: noop,
+          translate: noop,
+          scale: noop,
+          setTransform: noop,
+          resetTransform: noop,
+          createLinearGradient: () => ({ addColorStop: noop }),
+          createRadialGradient: () => ({ addColorStop: noop }),
+          createPattern: () => null,
+          drawImage: noop,
+          getImageData: () => ({ data: new Uint8ClampedArray(0) }),
+          putImageData: noop,
+          globalAlpha: 1,
+          fillStyle: '#000',
+          strokeStyle: '#000',
+          lineWidth: 1,
+          font: '12px sans-serif',
+          textBaseline: 'alphabetic',
+          textAlign: 'start',
+        } as unknown
+      }) as unknown
+    }
+  } catch {
+    void 0
+  }
   const nodeFilter = (dom.window as unknown as { NodeFilter?: typeof NodeFilter }).NodeFilter
   const polyfillNodeFilter = (nodeFilter ||
     ({

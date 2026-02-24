@@ -66,7 +66,7 @@ export const attachSimulationTick = (args: {
     }
   }
   let lastSchema: GraphSchema | null = null
-  const nodeMetricsCache = new Map<string, { width: number; height: number; r: number }>()
+  const nodeMetricsCache = new Map<string, { width: number; height: number; r: number; key: string }>()
   const nodeLabelNudgeById = new Map<string, { dx: number; dy: number }>()
   const groupLabelNudgeById = new Map<string, { dx: number; dy: number }>()
   let lastLabelRelaxMode: 'compact' | 'wrap' = 'wrap'
@@ -129,12 +129,19 @@ export const attachSimulationTick = (args: {
     const labelFontSize = schema.labelStyles?.fontSize ?? 12
     const getNodeMetrics = (d: GraphNode): { width: number; height: number; r: number } => {
       const id = String(d.id)
+      const props = (d.properties || {}) as Record<string, unknown>
+      const key = [
+        getNodeRenderShape2d(d, schema),
+        String(props['visual:width'] ?? ''),
+        String(props['visual:height'] ?? ''),
+        String(props['visual:nodeSize'] ?? ''),
+      ].join('|')
       const cached = nodeMetricsCache.get(id)
-      if (cached) return cached
+      if (cached && cached.key === key) return cached
       const { width, height } = getNodeRectDimensions2d(d, schema)
       const r0 = getRenderNodeRadius2d(d, schema)
       const r = typeof r0 === 'number' && Number.isFinite(r0) && r0 > 0 ? r0 : 10
-      const next = { width, height, r }
+      const next = { width, height, r, key }
       nodeMetricsCache.set(id, next)
       return next
     }
@@ -1040,10 +1047,12 @@ export const attachGlobalHandlers = (args: {
   tempLinkSelRef: MutableRefObject<TempLinkSelection>
   linkDragRef: MutableRefObject<PendingLink | null>
   selectNode: (id: string | null) => void
+  enableEditorGestures?: boolean
+  onCanvasShiftDoubleClick?: (args: { x: number; y: number; clientX: number; clientY: number }) => void
   hideTemp: () => void
   cancelPending: () => void
 }): (() => void) => {
-  const { svgRef, svg, tempLinkSelRef, linkDragRef, selectNode, hideTemp, cancelPending } = args
+  const { svgRef, svg, tempLinkSelRef, linkDragRef, selectNode, enableEditorGestures, onCanvasShiftDoubleClick, hideTemp, cancelPending } = args
   svg.on('mousemove', (ev: MouseEvent) => {
     if (!tempLinkSelRef.current || !linkDragRef.current) return
     const p = calcMouseGraphPosition(svgRef, ev)
@@ -1054,6 +1063,20 @@ export const attachGlobalHandlers = (args: {
     if (typeof ev.button === 'number' && ev.button !== 0) return
     selectNode(null)
     cancelPending()
+  })
+  svg.on('dblclick', (ev: MouseEvent) => {
+    const btn = (ev as unknown as { button?: unknown }).button
+    if (typeof btn === 'number' && btn !== 0) return
+    if (!enableEditorGestures) return
+    if (!ev.shiftKey) return
+    if (isNodePointerTarget(ev.target as HTMLElement | null)) return
+    const p = calcMouseGraphPosition(svgRef, ev)
+    if (!p) return
+    try {
+      onCanvasShiftDoubleClick?.({ x: p[0], y: p[1], clientX: ev.clientX, clientY: ev.clientY })
+    } catch {
+      void 0
+    }
   })
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') { hideTemp(); cancelPending() }
@@ -1071,6 +1094,7 @@ export const attachGlobalHandlers = (args: {
     svg.on('mousemove', null)
     svg.on('mouseup', null)
     svg.on('click', null)
+    svg.on('dblclick', null)
     window.removeEventListener('keydown', onKeyDown)
     document.removeEventListener('pointerdown', onDocPointerDown, pointerDownOptions)
   }

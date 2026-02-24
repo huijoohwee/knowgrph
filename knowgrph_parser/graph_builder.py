@@ -48,7 +48,10 @@ def _make_meta(
     if source_path:
         meta["sourcePath"] = source_path.replace("\\", "/")
         frag = f"#L{start_line}" if start_line == end_line else f"#L{start_line}-{end_line}"
-        meta["codebasePath"] = f"{os.path.abspath(source_path)}{frag}"
+        if rel_norm:
+            meta["codebasePath"] = f"{rel_norm}{frag}"
+        else:
+            meta["codebasePath"] = f"{os.path.abspath(source_path)}{frag}"
     meta["lineStart"] = int(start_line)
     meta["lineEnd"] = int(end_line)
     if raw_content:

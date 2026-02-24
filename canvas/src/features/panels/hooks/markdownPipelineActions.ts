@@ -55,6 +55,34 @@ export function getCodebaseRootFromEnv(): string {
   return trimmed;
 }
 
+function coerceSafeRepoRelPath(raw: string): string | null {
+  const normalized = String(raw || '')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+  if (!normalized) return null
+  if (normalized.startsWith('..')) return null
+  if (normalized.includes('\u0000')) return null
+  const parts = normalized.split('/').filter(Boolean)
+  if (parts.length === 0) return null
+  for (const part of parts) {
+    if (part === '..') return null
+  }
+  return parts.join('/')
+}
+
+export function buildCodebaseTextUrlForRelPath(relPath: string): string | null {
+  const rel = coerceSafeRepoRelPath(relPath)
+  if (!rel) return null
+  return `/__codebase_file?path=${encodeURIComponent(rel)}`
+}
+
+export function buildCodebaseAssetUrlForRelPath(relPath: string): string | null {
+  const rel = coerceSafeRepoRelPath(relPath)
+  if (!rel) return null
+  return `/__codebase_asset?path=${encodeURIComponent(rel)}`
+}
+
 export function buildFsUrlForRelPath(relPath: string): string | null {
   const rel = typeof relPath === 'string' ? relPath.trim() : '';
   if (!rel) return null;
@@ -83,19 +111,29 @@ async function maybeRunMarkdownPipeline(): Promise<void> {
 }
 
 async function fetchTextFromRelPath(relPath: string): Promise<string> {
-  const url = buildFsUrlForRelPath(relPath);
-  if (!url) {
-    throw new Error(UI_COPY.missingPathError);
+  const cleanRel = typeof relPath === 'string' ? relPath.trim().replace(/^\/+/, '') : '';
+  if (!cleanRel) throw new Error(UI_COPY.missingPathError);
+
+  try {
+    const url = buildCodebaseTextUrlForRelPath(cleanRel);
+    if (!url) throw new Error(UI_COPY.missingPathError);
+    const res = await fetch(url);
+    if (res.ok) {
+      const text = await res.text();
+      if (!text.trim()) throw new Error(UI_COPY.emptyResponseError);
+      return text;
+    }
+  } catch {
+    void 0;
   }
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(UI_COPY.requestFailedStatus(res.status));
-  }
-  const text = await res.text();
-  if (!text.trim()) {
-    throw new Error(UI_COPY.emptyResponseError);
-  }
-  return text;
+
+  const fsUrl = buildFsUrlForRelPath(cleanRel);
+  if (!fsUrl) throw new Error(UI_COPY.missingPathError);
+  const fsRes = await fetch(fsUrl);
+  if (!fsRes.ok) throw new Error(UI_COPY.requestFailedStatus(fsRes.status));
+  const fsText = await fsRes.text();
+  if (!fsText.trim()) throw new Error(UI_COPY.emptyResponseError);
+  return fsText;
 }
 
 export async function runMarkdownPipelineAndLoadArtifacts(): Promise<boolean> {

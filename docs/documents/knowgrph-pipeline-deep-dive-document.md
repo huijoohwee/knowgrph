@@ -55,14 +55,15 @@
 **From/To**: User input → Loader → raw text/bytes → enables parser selection.
 
 - UI import entrypoints (format-specific):
-  - Markdown: [markdownImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/markdownImportAction.ts)
-  - HTML → Markdown: [htmlImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/htmlImportAction.ts)
-  - PDF → Markdown: [pdfImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/pdfImportAction.ts)
-  - YouTube → Markdown (+ transcript JSON): [youtubeImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/youtubeImportAction.ts) (Source Files → YouTube)
-  - JSON/JSON-LD/CSV: [jsonImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/jsonImportAction.ts)
-- Local/URL loader bridge (Bottom Panel): [useMarkdownLoader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/BottomPanel/useMarkdownLoader.ts)
-- Parser loader (text → GraphData): [loader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/loader.ts)
-- Import side-effects (SSOT sync into Markdown Editor + Recents): [importSideEffects.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/importSideEffects.ts) (`applyImportedMarkdownToStore`)
+  - Markdown: [markdownImportAction.ts](../../canvas/src/features/toolbar/markdownImportAction.ts)
+  - HTML → Markdown: [htmlImportAction.ts](../../canvas/src/features/toolbar/htmlImportAction.ts)
+  - PDF → Markdown: [pdfImportAction.ts](../../canvas/src/features/toolbar/pdfImportAction.ts)
+  - YouTube → Markdown (+ transcript JSON): [youtubeImportAction.ts](../../canvas/src/features/toolbar/youtubeImportAction.ts) (Source Files → YouTube)
+  - JSON/JSON-LD/CSV: [jsonImportAction.ts](../../canvas/src/features/toolbar/jsonImportAction.ts)
+- Local/URL loader bridge (Bottom Panel): [useMarkdownLoader.ts](../../canvas/src/components/BottomPanel/useMarkdownLoader.ts)
+- Parser loader (text → GraphData): [loader.ts](../../canvas/src/features/parsers/loader.ts)
+- Import side-effects (SSOT sync into Markdown Editor + Recents): [importSideEffects.ts](../../canvas/src/features/toolbar/importSideEffects.ts) (`applyImportedMarkdownToStore`)
+- Dev/Preview in-repo artifact fetching (no absolute `/@fs` paths in client): [markdownPipelineActions.ts](../../canvas/src/features/panels/hooks/markdownPipelineActions.ts) via `GET /__codebase_file?path=<repoRel>`
 - Responsibility (S-V-O): Import action reads source → resolves text → hands off to parser loader → updates store.
 
 **YouTube import**:
@@ -75,19 +76,19 @@
 **From/To**: Raw source → Parser registry → `GraphData` → enables store ingestion.
 
 - Parser registry and execution:
-  - Registry: [registry.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/registry.ts)
-  - Built-in parser specs: [default.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/default.ts)
-  - Loader entry: [loader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/loader.ts)
+  - Registry: [registry.ts](../../canvas/src/features/parsers/registry.ts)
+  - Built-in parser specs: [default.ts](../../canvas/src/features/parsers/default.ts)
+  - Loader entry: [loader.ts](../../canvas/src/features/parsers/loader.ts)
 - Worker fast-path (for production/off-main-thread):
-  - Client: [parseWorker.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/parseWorker.ts)
-  - Worker: [graphParser.worker.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/workers/graphParser.worker.ts)
-  - Bounded execution: singleton worker with per-request timeouts; returns `null` on timeout/error; resets worker on `onerror` (no indefinite hangs). Requests are abortable (optional `AbortSignal`) so stale work does not leak results or UI warnings. SSOT helper: [singletonWorkerClient.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/workers/singletonWorkerClient.ts)
+  - Client: [parseWorker.ts](../../canvas/src/lib/graph/parseWorker.ts)
+  - Worker: [graphParser.worker.ts](../../canvas/src/workers/graphParser.worker.ts)
+  - Bounded execution: singleton worker with per-request timeouts; returns `null` on timeout/error; resets worker on `onerror` (no indefinite hangs). Requests are abortable (optional `AbortSignal`) so stale work does not leak results or UI warnings. SSOT helper: [singletonWorkerClient.ts](../../canvas/src/lib/workers/singletonWorkerClient.ts)
 - Parser result cache (prevents re-parse churn for identical inputs):
-  - Cache surface: [cache.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/cache.ts), [config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/config.ts)
+  - Cache surface: [cache.ts](../../canvas/src/features/parsers/cache.ts), [config.ts](../../canvas/src/features/parsers/config.ts)
   - Key SSOT: `parserId|name|hashText(text)|cfgKey` (bounded LRU + TTL); supports targeted invalidation by parser ID.
 - HTML → Markdown async conversion (keeps UI responsive on large HTML):
-  - Idle yielding: [idle.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/panels/utils/idle.ts) via [html-parser.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/html-parser.ts)
-  - Unified fallback: [htmlToMarkdownUnified.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/markdown/htmlToMarkdownUnified.ts) (dynamic imports + bounded LRU cache)
+  - Idle yielding: [idle.ts](../../canvas/src/features/panels/utils/idle.ts) via [html-parser.ts](../../canvas/src/features/parsers/html-parser.ts)
+  - Unified fallback: [htmlToMarkdownUnified.ts](../../canvas/src/lib/markdown/htmlToMarkdownUnified.ts) (dynamic imports + bounded LRU cache)
 - Format-specific worker parsing (when enabled):
   - Python Tree-sitter worker client: [tsWorkerClient.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/python/tsWorkerClient.ts) (singleton worker + per-request timeout)
 - Format adapter for `.csv/.json/.jsonld` and workflow bundles:
@@ -172,7 +173,8 @@
   - Node label anchoring and baseline: [labels.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layers/labels.ts)
   - Edge label baseline: [edgeLabels.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layers/edgeLabels.ts)
   - UI icon baseline alignment (Lucide): [index.css](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/index.css)
-  - UI icon+text alignment in controls: [GraphDataTableUiPrimitives.tsx](file:///Users/huijoohwee/Documents/GitHub/curagrph/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx)
+- UI surfaces:
+  - UI icon+text alignment in controls: [GraphDataTableUiPrimitives.tsx](../../../curagrph/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx)
 
 **Invariant**: UI toggles that affect presentation only (node shape, port handles, group overlay shape, media-as-nodes) update layers in-place and do not trigger re-layout or simulation rebuild.
 

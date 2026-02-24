@@ -4,8 +4,13 @@ import { GraphSchema } from '@/lib/graph/schema';
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig';
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
-export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>, schema: GraphSchema) =>
+export const nodeDragBehavior = (
+  simulation: d3.Simulation<GraphNode, GraphEdge>,
+  schema: GraphSchema,
+  opts?: { onNodeDragEnd?: (node: GraphNode) => void },
+) =>
   (() => {
     let locked = false
     let frozenDrag = false
@@ -15,6 +20,7 @@ export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
     }
     return d3.drag<SVGElement, GraphNode>()
     .on('start', function (event, d) {
+      if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
       if (isSpacePanHeld()) return
       lockGlobalUserSelect()
       locked = true
@@ -29,6 +35,7 @@ export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
       d.fy = d.y;
     })
     .on('drag', (event, d) => {
+      if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
       if (isSpacePanHeld()) return
       const mode = readLayoutMode(schema)
       const structured = mode === 'radial'
@@ -71,6 +78,7 @@ export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
       }
     })
     .on('end', (event, d) => {
+      if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
       if (locked) {
         locked = false
         unlockGlobalUserSelect()
@@ -85,6 +93,12 @@ export const nodeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
       d.vx = 0;
       d.vy = 0;
       frozenDrag = false
+
+      try {
+        opts?.onNodeDragEnd?.(d)
+      } catch {
+        void 0
+      }
       
       if (structured) simulation.stop();
     });
@@ -104,6 +118,7 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
 
     return d3.drag<SVGElement, GraphEdge>()
       .on('start', function (event, d) {
+        if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
         if (isSpacePanHeld()) return
         lockGlobalUserSelect()
         locked = true
@@ -131,6 +146,7 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
         targetNode.fy = targetNode.y
       })
       .on('drag', (event) => {
+        if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
         if (isSpacePanHeld()) return
         if (!sourceNode || !targetNode) return
 
@@ -159,6 +175,7 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
         }
       })
       .on('end', (event) => {
+        if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
         if (locked) {
             locked = false
             unlockGlobalUserSelect()

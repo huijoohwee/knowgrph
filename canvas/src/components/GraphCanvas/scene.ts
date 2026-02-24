@@ -14,7 +14,7 @@ import { hideTempLink, cancelPendingEdge } from '@/features/edge-creation'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { applySelectionHighlight } from '@/components/GraphCanvas/highlight'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
-import { createDefs, createGroupsLayer, createLinksHitLayer, createLinksLayer, createEdgeLabelsLayer, createNodesLayer, createTempLink, createLabelsLayer } from '@/components/GraphCanvas/sceneLayers'
+import { createDefs, createGroupsLayer, createLinksHitLayer, createLinksLayer, createEdgeLabelsLayer, createNodesLayer, createTempLink, createLabelsLayer, createResizeHandlesLayer } from '@/components/GraphCanvas/sceneLayers'
 import { attachGlobalHandlers, attachSimulationTick } from '@/components/GraphCanvas/sceneHandlers'
 import { applyGraphCanvasZOrder } from '@/components/GraphCanvas/zOrder'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
@@ -27,6 +27,8 @@ import {
 import { applyCollectiveGraphLayout } from '@/components/GraphCanvas/layout/collectiveFit'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { readFitPadding } from '@/lib/graph/layoutDefaults'
+import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
+import { createUniqueId } from '@/lib/ids'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
@@ -82,6 +84,8 @@ type SetupGraphSceneArgs = {
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void
   addEdge: (e: GraphEdge) => void
   updateEdge: (id: string, u: Partial<GraphEdge>) => void
+  addNode: (n: GraphNode) => void
+  updateNode: (id: string, u: Partial<GraphNode>) => void
   setHoverInfo: (updater: (prev: HoverInfo | null) => HoverInfo | null) => void
   setLifecycleStageRendering: () => void
   requestZoomSelection: () => void
@@ -89,6 +93,7 @@ type SetupGraphSceneArgs = {
   edgeScrollEnabled?: () => boolean
   getSchema: () => GraphSchema
   getRenderMediaAsNodes: () => boolean
+  enableEditorGestures?: boolean
   layoutCacheKey: string | null
   setLayoutPositionsForMode: ((key: string, positions: Record<string, { x: number; y: number }> | null) => void) | null
 }
@@ -143,6 +148,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     onZoomTransform,
     getSchema,
     getRenderMediaAsNodes,
+    enableEditorGestures,
     layoutCacheKey,
     setLayoutPositionsForMode,
   } = args
@@ -250,15 +256,26 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     })
   }
 
-  initializeGraphLayout({
-    nodes: displayNodes,
-    edges: edgesForDisplay,
-    width,
-    height,
-    schema,
-    seedCenter,
-    groupKeyOf,
-    layoutPositions: layoutPositionsSource,
+  pipelinePerfMeasureSync({
+    name: 'render',
+    stage: 'layout:init',
+    detail: {
+      nodes: displayNodes.length,
+      edges: edgesForDisplay.length,
+      hasCachedPositions: !!layoutPositionsSource,
+      skipInitialLayout: !!skipInitialLayout,
+    },
+    run: () =>
+      initializeGraphLayout({
+        nodes: displayNodes,
+        edges: edgesForDisplay,
+        width,
+        height,
+        schema,
+        seedCenter,
+        groupKeyOf,
+        layoutPositions: layoutPositionsSource,
+      }),
   })
 
   const effectiveSkipInitialLayout = (() => {
@@ -392,7 +409,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     selectGroupExpanded,
     toggleGroupCollapsed,
   })
-  beforeRenderFrameRef.current = groupsLayer?.update ? () => groupsLayer.update() : null
+  const groupsUpdate = groupsLayer?.update ? () => groupsLayer.update() : null
+  beforeRenderFrameRef.current = groupsUpdate
   // Legacy layout sync removed to prevent infinite re-render loop in Force layout mode.
 
   const linkHitSel = createLinksHitLayer({
@@ -418,6 +436,15 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     tempLinkSelRef,
     linkDragRef,
     simulation,
+    addEdge: args.addEdge,
+    updateEdge: args.updateEdge,
+    getSelectedEdgeId: () => selectedEdgeIdRef.current,
+    enableEditorGestures,
+    onCommitNodePosition: enableEditorGestures
+      ? ({ id, x, y }) => {
+          args.updateNode(id, { x, y })
+        }
+      : undefined,
     hoverEnabled,
     setHoverInfo,
     selectNode,
@@ -444,6 +471,24 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   groupChevronSelRef.current = groupChevronSel
   mediaSelRef.current = mediaSel
   portHandlesSelRef.current = portHandlesSel
+
+  const resizeLayer = enableEditorGestures
+    ? createResizeHandlesLayer({
+        g,
+        svgRef,
+        getSchema,
+        nodes: graphDataForDisplay.nodes,
+        getSelectedNodeId: () => selectedNodeIdRef.current,
+        enabled: true,
+        commitResize: ({ id, properties }) => {
+          args.updateNode(id, { properties })
+        },
+      })
+    : null
+  beforeRenderFrameRef.current = () => {
+    groupsUpdate?.()
+    resizeLayer?.update()
+  }
 
   const linkSel = createLinksLayer({
     g,
@@ -612,6 +657,28 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     tempLinkSelRef,
     linkDragRef,
     selectNode,
+    enableEditorGestures,
+    onCanvasShiftDoubleClick: ({ x, y }) => {
+      if (!enableEditorGestures) return
+      const base = args.graphData
+      const used = new Set<string>((base?.nodes || []).map(n => String(n.id || '')))
+      const id = createUniqueId('n', used)
+      const n: GraphNode = {
+        id,
+        label: `Node ${id}`,
+        type: 'Node',
+        x,
+        y,
+        properties: {},
+      }
+      args.addNode(n)
+      try {
+        args.setSelectionSource('editor')
+        args.selectNode(id)
+      } catch {
+        void 0
+      }
+    },
     hideTemp: () => hideTempLink(tempLinkSelRef),
     cancelPending: () => cancelPendingEdge(linkDragRef),
   })
@@ -623,6 +690,11 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     simulationRef.current = null
     sceneGraphDataRef.current = null
     beforeRenderFrameRef.current = null
+    try {
+      resizeLayer?.destroy()
+    } catch {
+      void 0
+    }
     cleanupHandlers()
   }
 }
@@ -652,6 +724,11 @@ export const updateGraphSceneNodesPresentation = (args: {
   selectNode: (id: string | null) => void
   selectEdge: (id: string | null) => void
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void
+  addEdge: (e: GraphEdge) => void
+  updateEdge: (id: string, u: Partial<GraphEdge>) => void
+  getSelectedEdgeId: () => string | null
+  enableEditorGestures?: boolean
+  onCommitNodePosition?: (args: { id: string; x: number; y: number }) => void
   requestZoomSelection: () => void
   toggleGroupCollapsed: (id: string) => void
 }) => {
@@ -680,6 +757,11 @@ export const updateGraphSceneNodesPresentation = (args: {
     tempLinkSelRef: args.tempLinkSelRef,
     linkDragRef: args.linkDragRef,
     simulation: sim,
+    addEdge: args.addEdge,
+    updateEdge: args.updateEdge,
+    getSelectedEdgeId: args.getSelectedEdgeId,
+    enableEditorGestures: args.enableEditorGestures,
+    onCommitNodePosition: args.onCommitNodePosition,
     hoverEnabled: args.hoverEnabled,
     setHoverInfo: args.setHoverInfo,
     selectNode: args.selectNode,

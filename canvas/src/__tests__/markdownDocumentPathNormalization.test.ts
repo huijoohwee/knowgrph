@@ -21,7 +21,7 @@ export const testMarkdownDocumentPathNormalization = () => {
     throw new Error(`expected relative documentPath to be preserved, got ${JSON.stringify(relDocPath)}`)
   }
 
-  const abs = buildMarkdownJsonLd('/Users/someone/docs/example.md', markdown)
+  const abs = buildMarkdownJsonLd('/tmp/someone/docs/example.md', markdown)
   const absGraph = parseJsonLd(abs)
   const absDocPath = getAnyDocumentPath(absGraph)
   if (absDocPath !== 'example.md') {
@@ -39,4 +39,3 @@ export const testMarkdownDocumentPathNormalization = () => {
     throw new Error(`expected url documentPath to match url, got ${JSON.stringify(webDocPath)}`)
   }
 }
-

@@ -41,6 +41,8 @@ import { shouldIgnoreCanvasWheelEvent } from '@/lib/canvas/wheel-target-guard'
 import { UI_SELECTORS } from '@/lib/config'
 import { deriveSceneDisplayGraph, deriveSceneGroups } from '@/lib/scene/sceneDerivation'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
+import { computeCenteredTransformToWorldPoint } from '@/lib/canvas/centerTransform'
+import { computeEvenlyDistributedPositions } from '@/lib/canvas/evenDistribute'
 
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null);
@@ -84,6 +86,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const groupsPresentationAppliedKeyRef = useRef<string | null>(null);
   const sceneCleanupRef = useRef<null | (() => void)>(null)
   const sceneBuildKeyRef = useRef<string | null>(null)
+  const activeLayoutCacheKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     ensureSpacePanKeyListenerInstalled()
@@ -163,6 +166,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     zoomState,
     fitToScreenMode,
     zoomToSelectionMode,
+    graphCanvasArrangeRequest,
+    clearGraphCanvasArrangeRequest,
   } = useGraphStore(
     useShallow((s) => ({
       graphDataRevision: s.graphDataRevision,
@@ -183,6 +188,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       zoomState: s.zoomState || null,
       fitToScreenMode: s.fitToScreenMode === true,
       zoomToSelectionMode: s.zoomToSelectionMode === true,
+      graphCanvasArrangeRequest: s.graphCanvasArrangeRequest,
+      clearGraphCanvasArrangeRequest: s.clearGraphCanvasArrangeRequest,
     })),
   );
   const prevCanvasRenderModeRef = useRef<'2d' | '3d'>(canvasRenderMode)
@@ -346,6 +353,59 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       void 0
     }
   }, [viewPinned, zoomState, sceneWidth, sceneHeight])
+
+  useEffect(() => {
+    if (!active) return
+    if (fitToScreenMode || zoomToSelectionMode) return
+    if (!svgRef.current) return
+    if (!zoomRef.current) return
+    try {
+      const t = d3.zoomTransform(svgRef.current)
+      const hasNonIdentityTransform = t.k !== 1 || t.x !== 0 || t.y !== 0
+      if (!hasNonIdentityTransform) return
+      const st = useGraphStore.getState()
+      const zoomViewKey = buildActive2dZoomViewKey({
+        canvasRenderMode: st.canvasRenderMode,
+        canvas2dRenderer: st.canvas2dRenderer,
+        schema: st.schema,
+        graphData: st.graphData,
+        documentSemanticMode: st.documentSemanticMode,
+        frontmatterModeEnabled: st.frontmatterModeEnabled,
+        documentStructureBaselineLock: st.documentStructureBaselineLock,
+        renderMediaAsNodes: st.renderMediaAsNodes,
+        mediaPanelDensity: st.mediaPanelDensity,
+        collapsedGroupIds: st.collapsedGroupIds,
+      })
+      if (!zoomViewKey) return
+      if (st.zoomStateByKey?.[zoomViewKey]) return
+      const seeded = {
+        k: t.k,
+        x: t.x,
+        y: t.y,
+        graphDataRevision: undefined,
+        viewportW: sceneWidth,
+        viewportH: sceneHeight,
+      }
+      st.setZoomStateForKey(zoomViewKey, seeded)
+      if (!st.zoomState) st.setZoomState(seeded)
+    } catch {
+      void 0
+    }
+  }, [
+    active,
+    canvas2dRenderer,
+    canvasRenderMode,
+    collapsedGroupIdsKey,
+    documentSemanticMode,
+    fitToScreenMode,
+    frontmatterModeEnabled,
+    mediaPanelDensity,
+    renderMediaAsNodes,
+    sceneHeight,
+    sceneWidth,
+    schemaLayoutEngineJson,
+    zoomToSelectionMode,
+  ])
 
   useEffect(() => {
     if (active) return
@@ -655,6 +715,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         renderVariant: canvasRenderMode === '2d' ? canvas2dRenderer : '',
         layoutVariant,
         viewKey: layoutViewKey,
+        prevViewKey: prevLayoutViewKey,
         prevDatasetKey,
         prevMode,
         prevFrontmatterMode,
@@ -744,6 +805,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       lastLayoutVariantRef.current = layoutVariant
       lastDatasetKeyRef.current = datasetKey
       lastLayoutViewKeyRef.current = layoutViewKey
+      activeLayoutCacheKeyRef.current = cacheKey
       sceneCleanupRef.current = setupGraphScene({
         svgEl: svgRef.current,
         svgRef,
@@ -800,8 +862,11 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
           useGraphStore.getState().selectGroupExpanded({ id: x.id, nodeIds: x.nodeIds, edgeIds: x.edgeIds }),
         toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
         setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
+        addNode: n => useGraphStore.getState().addNode(n),
+        updateNode: (id, u) => useGraphStore.getState().updateNode(id, u),
         addEdge: e => useGraphStore.getState().addEdge(e),
         updateEdge: (id, u) => useGraphStore.getState().updateEdge(id, u),
+        enableEditorGestures: useGraphStore.getState().workspaceViewMode === 'editor',
         setHoverInfo: updater => setHoverInfo(prev => updater(prev)),
         setLifecycleStageRendering: () => useGraphStore.getState().setLifecycleStage('rendering'),
         requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
@@ -857,9 +922,14 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     active,
     graphDataRevision,
     graphDataRevisionRef,
+    isEmbeddedPreview,
     sceneWidth,
     sceneHeight,
     sceneGraphData,
+    sceneGroupsDerivation?.allGroups,
+    sceneGroupsDerivation?.layoutGroupKeyByNodeId,
+    schemaGroupsPresentationJson,
+    schemaNodesPresentationJson,
     schemaLayoutEngineJson,
     edgesForSim,
     setLayoutPositionsForMode,
@@ -869,6 +939,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     canvas2dRenderer,
     renderMediaAsNodes,
     mediaPanelDensity,
+    viewportControlsPreset,
     collapsedGroupIdsKey,
     selectedNodeIdRef,
     selectedEdgeIdRef,
@@ -877,6 +948,118 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     fitToScreenMode,
     zoomToSelectionMode,
   ]);
+
+  useEffect(() => {
+    const req = graphCanvasArrangeRequest
+    if (!active) return
+    if (!req) return
+    try {
+      clearGraphCanvasArrangeRequest()
+    } catch {
+      void 0
+    }
+
+    const svgEl = svgRef.current
+    if (!svgEl) return
+    const graphDataNow = sceneGraphDataRef.current
+    if (!graphDataNow) return
+    const nodes = Array.isArray(graphDataNow.nodes) ? (graphDataNow.nodes as GraphNode[]) : []
+    if (nodes.length === 0) return
+
+    const selectionIds = (() => {
+      const multi = Array.isArray(selectedNodeIdsRef.current) ? selectedNodeIdsRef.current : []
+      if (multi.length > 0) return multi
+      const single = selectedNodeIdRef.current
+      return single ? [single] : []
+    })()
+
+    if (req.type === 'center') {
+      const scopeNodes = req.scope === 'all' ? nodes : nodes.filter(n => selectionIds.includes(String(n.id)))
+      if (scopeNodes.length === 0) return
+      let cx = 0
+      let cy = 0
+      let count = 0
+      for (let i = 0; i < scopeNodes.length; i += 1) {
+        const n = scopeNodes[i]
+        const x = typeof n.x === 'number' ? n.x : null
+        const y = typeof n.y === 'number' ? n.y : null
+        if (x == null || y == null) continue
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+        cx += x
+        cy += y
+        count += 1
+      }
+      if (count <= 0) return
+      cx /= count
+      cy /= count
+      const w = Math.max(1, Math.floor(sceneWidth))
+      const h = Math.max(1, Math.floor(sceneHeight))
+      const t = d3.zoomTransform(svgEl)
+      const next = computeCenteredTransformToWorldPoint({ transform: { k: t.k, x: t.x, y: t.y }, viewportW: w, viewportH: h, worldX: cx, worldY: cy })
+      useGraphStore.getState().requestZoomTransform(next)
+      return
+    }
+
+    if (req.type === 'distribute') {
+      const selectedNodes = nodes.filter(n => selectionIds.includes(String(n.id)))
+      if (selectedNodes.length < 3) return
+      const update = computeEvenlyDistributedPositions({
+        nodes: selectedNodes.map(n => ({
+          id: String(n.id),
+          x: typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : 0,
+          y: typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : 0,
+        })),
+        axis: req.axis,
+        minSpacing: 120,
+      })
+      const byId = new Map<string, { x: number; y: number }>(Object.entries(update))
+
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]
+        const id = String(n.id)
+        const p = byId.get(id)
+        if (!p) continue
+        n.x = p.x
+        n.y = p.y
+        n.fx = p.x
+        n.fy = p.y
+        n.vx = 0
+        n.vy = 0
+      }
+      try {
+        simulationRef.current?.stop()
+      } catch {
+        void 0
+      }
+      try {
+        svgRef.current?.setAttribute('data-kg-layout-frozen', '1')
+      } catch {
+        void 0
+      }
+      try {
+        const tickHandler = simulationRef.current?.on('tick')
+        if (typeof tickHandler === 'function') (tickHandler as unknown as () => void)()
+      } catch {
+        void 0
+      }
+      const cacheKey = activeLayoutCacheKeyRef.current
+      if (cacheKey) {
+        const positions: Record<string, { x: number; y: number }> = {}
+        for (let i = 0; i < nodes.length; i += 1) {
+          const n = nodes[i]
+          const id = String(n.id)
+          const x = typeof n.x === 'number' ? n.x : null
+          const y = typeof n.y === 'number' ? n.y : null
+          if (!id || x == null || y == null) continue
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+          positions[id] = { x, y }
+        }
+        if (Object.keys(positions).length > 0) {
+          useGraphStore.getState().setLayoutPositionsForMode(cacheKey, positions)
+        }
+      }
+    }
+  }, [active, clearGraphCanvasArrangeRequest, graphCanvasArrangeRequest, sceneHeight, sceneWidth, selectedNodeIdRef, selectedNodeIdsRef])
 
   useEffect(() => {
     prevCanvasRenderModeRef.current = canvasRenderMode
@@ -950,11 +1133,31 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       selectNode: id => useGraphStore.getState().selectNode(id),
       selectEdge: id => useGraphStore.getState().selectEdge(id),
       setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
+      addEdge: e => useGraphStore.getState().addEdge(e),
+      updateEdge: (id, u) => useGraphStore.getState().updateEdge(id, u),
+      getSelectedEdgeId: () => selectedEdgeIdRef.current,
+      enableEditorGestures: useGraphStore.getState().workspaceViewMode === 'editor',
+      onCommitNodePosition:
+        useGraphStore.getState().workspaceViewMode === 'editor'
+          ? ({ id, x, y }) => {
+              useGraphStore.getState().updateNode(id, { x, y })
+            }
+          : undefined,
       requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
       toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
     })
     nodesPresentationAppliedKeyRef.current = schemaNodesPresentationJson
-  }, [schemaNodesPresentationJson, sceneWidth, sceneHeight, renderMediaAsNodes, mediaPanelDensity])
+  }, [
+    edgesForSim,
+    mediaPanelDensity,
+    renderMediaAsNodes,
+    sceneGroupsDerivation?.allGroups,
+    sceneGroupsDerivation?.layoutGroupKeyByNodeId,
+    sceneHeight,
+    sceneWidth,
+    schemaNodesPresentationJson,
+    selectedEdgeIdRef,
+  ])
 
   useEffect(() => {
     const g = gRef.current
@@ -990,6 +1193,29 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     linksSelRef,
   });
   useGroupSelectionHighlight({ gRef, paused: !active })
+
+  useEffect(() => {
+    if (!active) return
+    const unsubscribe = useGraphStore.subscribe(
+      s => `${s.selectedNodeId || ''}:${s.selectedEdgeId || ''}:${s.selectedGroupId || ''}`,
+      () => {
+        const fn = beforeRenderFrameRef.current
+        if (!fn) return
+        try {
+          fn()
+        } catch {
+          void 0
+        }
+      },
+    )
+    return () => {
+      try {
+        unsubscribe()
+      } catch {
+        void 0
+      }
+    }
+  }, [active])
 
   useEffect(() => {
     if (!active) return

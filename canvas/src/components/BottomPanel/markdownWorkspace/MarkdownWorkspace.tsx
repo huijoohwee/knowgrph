@@ -320,7 +320,7 @@ export function MarkdownWorkspace() {
     if (contentMode !== 'nodeQuickEditor') return
     if (nodeQuickEditorAvailable) return
     setContentModeSafe('document')
-  }, [contentMode, nodeQuickEditorAvailable])
+  }, [contentMode, nodeQuickEditorAvailable, setContentModeSafe])
 
   React.useEffect(() => {
     if (!nodeQuickEditorAvailable) return
@@ -1078,17 +1078,15 @@ export function MarkdownWorkspace() {
       entries,
       folderModeContract,
       handleSetPdfImportConversionMode,
+      pickFolderContractTargetPath,
       pdfWorkspaceMeta,
       resolveFolderContractDocPath,
       setActivePathSafe,
       setFolderModeContract,
       switchActivePdfWorkspaceMode,
-      switchActiveWebpageWorkspaceView,
       youtubeWorkspaceMeta,
       switchActiveYoutubeWorkspaceFormat,
       webpageWorkspaceMeta,
-      syncActiveWebpageMarkdownFromDom,
-      updateActiveWebpageWorkspaceMeta,
     ],
   )
 
@@ -1413,7 +1411,6 @@ export function MarkdownWorkspace() {
     setStatusProgress,
     setStatusWithAutoClear,
     setEntries,
-    webpageWorkspaceMeta,
   ])
 
   const saveAsActiveFileNow = React.useCallback(async () => {
@@ -1540,7 +1537,7 @@ export function MarkdownWorkspace() {
     setActiveTextProgrammatic('')
     setHighlightedLineRange(null)
     setStatusLabel(null)
-  }, [activeEntry, activePath, setMarkdownDocument, setMarkdownDocumentSourceUrl])
+  }, [activeEntry, activePath, setActiveTextProgrammatic])
 
   React.useEffect(() => {
     const path = activePath
@@ -1854,8 +1851,11 @@ export function MarkdownWorkspace() {
     activeEntryText,
     activePath,
     getFs,
+    setActiveTextProgrammatic,
     setMarkdownDocument,
     setMarkdownDocumentSourceUrl,
+    setStatusError,
+    setStatusProgress,
     setStatusWithAutoClear,
     setStatusLabel,
     setActiveText,
@@ -1941,6 +1941,7 @@ export function MarkdownWorkspace() {
     getFs,
     setGraphRagWorkflowJsonText,
     setMarkdownDocument,
+    setStatusProgress,
     setStatusWithAutoClear,
     setStatusError,
     setEntries,

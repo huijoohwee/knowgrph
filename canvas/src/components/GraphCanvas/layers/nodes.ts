@@ -3,6 +3,7 @@ import type { MutableRefObject } from 'react';
 import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types';
 import type { GraphSchema } from '@/lib/graph/schema';
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation';
+import { finalizePendingEdge, startEdgeFromNode } from '@/features/edge-creation'
 import { emitPropsPanelOpen } from '@/features/canvas/utils';
 import {
   getNodeBaseFill,
@@ -47,6 +48,11 @@ export const createNodesLayer = (args: {
   tempLinkSelRef: MutableRefObject<TempLinkSelection>;
   linkDragRef: MutableRefObject<PendingLink | null>;
   simulation: d3.Simulation<GraphNode, GraphEdge>;
+  addEdge: (e: GraphEdge) => void;
+  updateEdge: (id: string, u: Partial<GraphEdge>) => void;
+  getSelectedEdgeId: () => string | null;
+  enableEditorGestures?: boolean;
+  onCommitNodePosition?: (args: { id: string; x: number; y: number }) => void;
   hoverEnabled?: boolean;
   setHoverInfo?: (updater: (prev: HoverInfo | null) => HoverInfo | null) => void;
   selectNode: (id: string | null) => void;
@@ -73,6 +79,11 @@ export const createNodesLayer = (args: {
     setSelectionSource,
     requestZoomSelection,
     simulation,
+    addEdge,
+    updateEdge,
+    getSelectedEdgeId,
+    enableEditorGestures,
+    onCommitNodePosition,
     hoverEnabled,
     setHoverInfo,
     toggleGroupCollapsed,
@@ -392,7 +403,19 @@ export const createNodesLayer = (args: {
   })()
 
   if (schema.behavior?.allowNodeDrag !== false) {
-    const dragBehavior = nodeDragBehavior(simulation, schema);
+    const dragBehavior = nodeDragBehavior(simulation, schema, {
+      onNodeDragEnd: (d) => {
+        const id = String(d.id || '').trim()
+        const x = typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : null
+        const y = typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : null
+        if (!id || x == null || y == null) return
+        try {
+          onCommitNodePosition?.({ id, x, y })
+        } catch {
+          void 0
+        }
+      },
+    });
 
     if (args.edgeScroll) {
       const edgeScroll = createEdgeScrollController()
@@ -447,7 +470,35 @@ export const createNodesLayer = (args: {
   }
 
   const onClick = (event: MouseEvent, d: GraphNode) => {
+    const btn = (event as unknown as { button?: unknown }).button
+    if (typeof btn === 'number' && btn !== 0) return
     event.stopPropagation();
+    const editorGestures = enableEditorGestures === true
+    const allowEdgeCreation = schema?.behavior?.allowEdgeCreation !== false
+    if (editorGestures && allowEdgeCreation) {
+      if (event.shiftKey && !args.linkDragRef.current) {
+        setSelectionSource('editor')
+        selectEdge(null)
+        selectNode(String(d.id))
+        startEdgeFromNode(d, args.tempLinkSelRef, args.linkDragRef)
+        return
+      }
+      if (args.linkDragRef.current) {
+        finalizePendingEdge(
+          String(d.id),
+          graphData,
+          getSelectedEdgeId(),
+          args.tempLinkSelRef,
+          args.linkDragRef,
+          addEdge,
+          updateEdge,
+          id => selectEdge(id),
+          src => setSelectionSource(src),
+          schema,
+        )
+        return
+      }
+    }
     setSelectionSource('canvas');
     selectEdge(null);
     selectNode(String(d.id));

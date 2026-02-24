@@ -316,6 +316,8 @@ export function testForbidHardcodedSandboxAbsolutePaths() {
     /\/Users\/[^\n]+\/GitHub\/sandbox\//,
     /\/Users\/[^\n]+\/Documents\/GitHub\/sandbox\/demo\/abc123\.md/,
     /\/Users\/[^\n]+\/Documents\/GitHub\/sandbox\/demo\/trip-demo-mmd\.md/,
+    /\/Users\/[^\n]+\/Documents\/GitHub\/sandbox\/demo\/markdown-slide-demo\.md/,
+    /\/Users\/[^\n]+\/GitHub\/sandbox\/demo\/markdown-slide-demo\.md/,
   ]
   for (const file of files) {
     const st = statSync(file)

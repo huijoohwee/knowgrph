@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
-import { existsSync } from 'node:fs'
+import { existsSync, createReadStream } from 'node:fs'
 import fs from 'node:fs/promises'
 import { CODEBASE_INDEX_PIPELINE_COMMAND } from './src/lib/config-copy/tooltips'
 import { unwrapUserProvidedText } from './src/lib/url'
@@ -215,6 +215,181 @@ const markdownPipelineDevPlugin = {
         res.end(JSON.stringify({ ok: false, error: message }))
       }
     })
+  },
+}
+
+function coerceSafeRepoRelPath(raw: unknown): string | null {
+  const normalized = String(raw ?? '')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+  if (!normalized) return null
+  if (normalized.startsWith('..')) return null
+  if (normalized.includes('\u0000')) return null
+  if (/^[a-zA-Z]:\//.test(normalized)) return null
+  if (path.isAbsolute(normalized)) return null
+  const parts = normalized.split('/').filter(Boolean)
+  if (parts.length === 0) return null
+  for (const part of parts) {
+    if (part === '..') return null
+  }
+  return parts.join('/')
+}
+
+function resolveCodebaseRootForDevServer(): string {
+  const raw = String(process.env.VITE_CODEBASE_ROOT || '').trim()
+  if (!raw) return repoRoot
+  try {
+    const abs = path.resolve(raw)
+    if (existsSync(abs)) return abs
+  } catch {
+    void 0
+  }
+  return repoRoot
+}
+
+const codebaseRootForDevServer = resolveCodebaseRootForDevServer()
+
+function createCodebaseFileHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    if (!req.url?.startsWith('/__codebase_file')) {
+      next()
+      return
+    }
+    if (req.method !== 'GET') {
+      next()
+      return
+    }
+    try {
+      const url = new URL(req.url, 'http://localhost')
+      const rel = coerceSafeRepoRelPath(url.searchParams.get('path'))
+      if (!rel) {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'Invalid path' }))
+        return
+      }
+      const abs = path.resolve(codebaseRootForDevServer, rel)
+      const rootPrefix = codebaseRootForDevServer.endsWith(path.sep)
+        ? codebaseRootForDevServer
+        : codebaseRootForDevServer + path.sep
+      if (!abs.startsWith(rootPrefix)) {
+        res.statusCode = 403
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'Forbidden path' }))
+        return
+      }
+      const text = await fs.readFile(abs, 'utf8')
+      if (!text.trim()) {
+        res.statusCode = 204
+        res.end('')
+        return
+      }
+      res.statusCode = 200
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.end(text)
+    } catch (error) {
+      let message = 'Failed to read file'
+      if (error && typeof error === 'object' && 'message' in error) {
+        const candidate = (error as { message?: unknown }).message
+        if (typeof candidate === 'string' && candidate.trim()) message = candidate
+      }
+      res.statusCode = 404
+      res.setHeader('Content-Type', 'application/json')
+      res.end(JSON.stringify({ ok: false, error: message }))
+    }
+  }
+}
+
+function guessContentType(filePath: string): string {
+  const ext = String(path.extname(filePath) || '').toLowerCase()
+  if (ext === '.png') return 'image/png'
+  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg'
+  if (ext === '.gif') return 'image/gif'
+  if (ext === '.webp') return 'image/webp'
+  if (ext === '.svg') return 'image/svg+xml'
+  if (ext === '.mp4') return 'video/mp4'
+  if (ext === '.webm') return 'video/webm'
+  if (ext === '.ogg') return 'audio/ogg'
+  if (ext === '.mp3') return 'audio/mpeg'
+  if (ext === '.wav') return 'audio/wav'
+  if (ext === '.pdf') return 'application/pdf'
+  if (ext === '.json' || ext === '.jsonld') return 'application/json'
+  if (ext === '.css') return 'text/css'
+  if (ext === '.html' || ext === '.htm') return 'text/html'
+  if (ext === '.md' || ext === '.mmd' || ext === '.txt') return 'text/plain'
+  return 'application/octet-stream'
+}
+
+function createCodebaseAssetHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    if (!req.url?.startsWith('/__codebase_asset')) {
+      next()
+      return
+    }
+    if (req.method !== 'GET') {
+      next()
+      return
+    }
+    try {
+      const url = new URL(req.url, 'http://localhost')
+      const rel = coerceSafeRepoRelPath(url.searchParams.get('path'))
+      if (!rel) {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'Invalid path' }))
+        return
+      }
+      const abs = path.resolve(codebaseRootForDevServer, rel)
+      const rootPrefix = codebaseRootForDevServer.endsWith(path.sep)
+        ? codebaseRootForDevServer
+        : codebaseRootForDevServer + path.sep
+      if (!abs.startsWith(rootPrefix)) {
+        res.statusCode = 403
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'Forbidden path' }))
+        return
+      }
+
+      const contentType = guessContentType(abs)
+      res.statusCode = 200
+      res.setHeader('Content-Type', contentType)
+
+      const stream = createReadStream(abs)
+      stream.on('error', () => {
+        try {
+          if (!res.headersSent) {
+            res.statusCode = 404
+            res.setHeader('Content-Type', 'application/json')
+          }
+          res.end(JSON.stringify({ ok: false, error: 'Asset not found' }))
+        } catch {
+          void 0
+        }
+      })
+      stream.pipe(res)
+    } catch (error) {
+      let message = 'Failed to read asset'
+      if (error && typeof error === 'object' && 'message' in error) {
+        const candidate = (error as { message?: unknown }).message
+        if (typeof candidate === 'string' && candidate.trim()) message = candidate
+      }
+      res.statusCode = 404
+      res.setHeader('Content-Type', 'application/json')
+      res.end(JSON.stringify({ ok: false, error: message }))
+    }
+  }
+}
+
+const codebaseFileDevPlugin = {
+  name: 'knowgrph-codebase-file-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use(createCodebaseFileHandler())
+    server.middlewares.use(createCodebaseAssetHandler())
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use(createCodebaseFileHandler())
+    server.middlewares.use(createCodebaseAssetHandler())
   },
 }
 
@@ -2183,6 +2358,7 @@ export default defineConfig(({ command }) => ({
             autoThemeTarget: '#root',
           }),
           markdownPipelineDevPlugin,
+          codebaseFileDevPlugin,
           remoteFetchProxyDevPlugin,
           webpageProxyDevPlugin,
           localGeoDatasetDevPlugin,

@@ -39,15 +39,12 @@ import { ensureSpacePanKeyListenerInstalled } from '@/lib/canvas/space-pan'
 import { applyZoomRequestNative } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { bindFlowCanvasNativeInteractions, type FlowCanvasDrag } from '@/components/FlowCanvas/bindNativeInteractions'
 import { __flowCanvasDebug } from '@/components/FlowCanvas/flowCanvasDebug'
-import { extractNodePositions } from '@/components/FlowCanvas/seedPositions'
 import { useFlowComputedPositions } from '@/components/FlowCanvas/useFlowComputedPositions'
 import { readFlowPresentation } from '@/components/FlowCanvas/presentation'
 import { useFlowRequestCommit } from '@/components/FlowCanvas/useFlowRequestCommit'
 import { computeCollisionDuringDrag } from '@/components/FlowCanvas/collisionPolicy'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
 import type { GraphSchema } from '@/lib/graph/schema'
-
-export { __flowCanvasDebug, extractNodePositions }
 
 function clampFinite(v: number, lo: number, hi: number): number {
   if (!Number.isFinite(v)) return lo
@@ -248,7 +245,21 @@ export default function FlowCanvas({
     if (!runtime) return
     runtime.dirty = true
     requestFlowNativeDraw(runtime, buildDrawArgs())
-  }, [active, hideNodeIds, hidePortHandleNodeIds, hideSelectedNodeGlyph, hideSelectedNodePortHandles, renderEdges, renderGroups, renderNodes, selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds])
+  }, [
+    active,
+    buildDrawArgs,
+    hideNodeIds,
+    hidePortHandleNodeIds,
+    hideSelectedNodeGlyph,
+    hideSelectedNodePortHandles,
+    renderEdges,
+    renderGroups,
+    renderNodes,
+    selectedEdgeId,
+    selectedEdgeIds,
+    selectedNodeId,
+    selectedNodeIds,
+  ])
 
   useAutoZoomModes2d({
     viewportW,
@@ -294,7 +305,6 @@ export default function FlowCanvas({
     effectiveFrontmatter,
     mediaPanelDensity,
     renderMediaAsNodes,
-    schema,
     schemaLayoutEngineJson,
     sceneGraphData,
   ])
@@ -525,7 +535,7 @@ export default function FlowCanvas({
     requestFlowNativeDraw(runtime, buildDrawArgs())
     if (!cacheKey || typeof setLayoutPositionsForMode !== 'function') return
     lastCommittedPositionsRef.current = pos
-  }, [active, cacheKey, computedPositions, setLayoutPositionsForMode])
+  }, [active, buildDrawArgs, cacheKey, computedPositions, setLayoutPositionsForMode])
 
   React.useEffect(() => {
     if (!active) return
@@ -558,7 +568,7 @@ export default function FlowCanvas({
     if (canvasEl.height !== nextH) canvasEl.height = nextH
     if (resized) runtime.dirty = true
     requestFlowNativeDraw(runtime, buildDrawArgs())
-  }, [active, dpr, viewportH, viewportW])
+  }, [active, buildDrawArgs, dpr, viewportH, viewportW])
 
   React.useEffect(() => {
     if (!active) return
@@ -640,9 +650,14 @@ export default function FlowCanvas({
     if (isFlowEditor && nodesForTransformGuard.length === 0) return
 
     const fit = fitAllTransform(nodesForFit, viewportW, viewportH, { ...opts, graphData: graphDataForZoomRequests || undefined })
+    const fallbackInitial =
+      !initial && !effectiveFitToScreenMode && !effectiveZoomToSelectionMode && hasNonIdentityTransform
+        ? { k: t0.k, x: t0.x, y: t0.y }
+        : null
+    const seeded = initial || fallbackInitial
     const next = (() => {
-      if (!initial) return fit
-      const candidate = d3.zoomIdentity.translate(initial.x, initial.y).scale(initial.k)
+      if (!seeded) return fit
+      const candidate = d3.zoomIdentity.translate(seeded.x, seeded.y).scale(seeded.k)
       const ok = isFlowTransformShowingGraph(
         { k: candidate.k, x: candidate.x, y: candidate.y },
         { nodes: nodesForTransformGuard as Array<{ x?: unknown; y?: unknown }>, viewportW, viewportH, nodeW: flowConfigEffective.node.widthPx, nodeH: flowConfigEffective.node.heightPx },
@@ -651,19 +666,24 @@ export default function FlowCanvas({
     })()
 
     lastInitTransformZoomViewKeyRef.current = initKey
-    setFlowNativeTransform(runtime, next)
+    const curT = runtime.transform || d3.zoomIdentity
+    const changed = Math.abs(curT.k - next.k) > 1e-9 || Math.abs(curT.x - next.x) > 1e-6 || Math.abs(curT.y - next.y) > 1e-6
+    if (changed) {
+      setFlowNativeTransform(runtime, next)
+    }
     requestCommit()
   }, [
     active,
+    canvas2dRenderer,
     datasetKey,
     fitToScreenMode,
     flowConfigEffective.node.heightPx,
     flowConfigEffective.node.widthPx,
+    flowConfig.node.heightPx,
+    flowConfig.node.widthPx,
     graphDataForZoom,
     graphDataForZoomRequests,
     graphDataRevision,
-    isFlowTransformShowingGraph,
-    lastUserInteractionAtMsRef,
     requestCommit,
     viewportH,
     viewportW,
@@ -763,7 +783,7 @@ export default function FlowCanvas({
     if (!runtime) return
     setFlowNativePresentation(runtime, flowPresentation)
     requestFlowNativeDraw(runtime, buildDrawArgs())
-  }, [active, flowPresentation])
+  }, [active, buildDrawArgs, flowPresentation])
 
   React.useEffect(() => {
     if (!active) return
@@ -805,7 +825,7 @@ export default function FlowCanvas({
     canvas2dRenderer,
     collisionDuringDrag,
     flowEditorSelectionOnDrag,
-    onInteractionFrame,
+    handleInteractionFrame,
     requestCommit,
     requestSetSelectionBox,
     viewportControlsPreset,
