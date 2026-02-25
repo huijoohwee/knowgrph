@@ -38,9 +38,9 @@
 
 Code references:
 
-- [GraphDataTableTable.tsx](file:///Users/huijoohwee/Documents/GitHub/curagrph/src/features/graph-data-table/ui/GraphDataTableTable.tsx)
-- [GraphDataTableHeader.tsx](file:///Users/huijoohwee/Documents/GitHub/curagrph/src/features/graph-data-table/ui/GraphDataTableHeader.tsx)
-- [GraphDataTableBody.tsx](file:///Users/huijoohwee/Documents/GitHub/curagrph/src/features/graph-data-table/ui/GraphDataTableBody.tsx)
+- `curagrph/src/features/graph-data-table/ui/GraphDataTableTable.tsx`
+- `curagrph/src/features/graph-data-table/ui/GraphDataTableHeader.tsx`
+- `curagrph/src/features/graph-data-table/ui/GraphDataTableBody.tsx`
 
 ### Frozen Areas
 

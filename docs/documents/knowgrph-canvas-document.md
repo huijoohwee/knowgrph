@@ -2,7 +2,7 @@
 
 ## Agentic GraphRAG/Knowledge Graph Pipeline Guidelines
 
-Canonical guidelines: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-pipeline-document.md) and [AgenticRAG README.md](file:///Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/schema/AgenticRAG/README.md).
+Canonical guidelines: `knowgrph/docs/documents/knowgrph-pipeline-document.md` and `huijoohwee.github.io/schema/AgenticRAG/README.md`.
 
 ## Design Mantras
 

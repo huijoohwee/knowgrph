@@ -61,6 +61,6 @@
 
 ## Primary References
 
-- Codebase index architecture: [knowgrph-codebase-index-document.md](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-codebase-index-document.md)
-- Pipeline overview: [knowgrph-pipeline-document.md](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-pipeline-document.md)
-- Renderer behavior: [knowgrph-renderer-document.md](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-renderer-document.md)
+- Codebase index architecture: [knowgrph-codebase-index-document.md](knowgrph-codebase-index-document.md)
+- Pipeline overview: [knowgrph-pipeline-document.md](knowgrph-pipeline-document.md)
+- Renderer behavior: [knowgrph-renderer-document.md](knowgrph-renderer-document.md)

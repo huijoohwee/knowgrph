@@ -36,13 +36,13 @@
 ### High-Level Components
 
 - **Schema Defaults**:
-  - [schema.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/schema.ts) defines the baseline schema defaults for new sessions.
+  - [schema.ts](../../canvas/src/lib/graph/schema.ts) defines the baseline schema defaults for new sessions.
 - **Initialization Normalization**:
-  - [useGraphStore.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/useGraphStore.ts) enforces the startup defaults by applying an initialization schema normalizer.
+  - [useGraphStore.ts](../../canvas/src/hooks/useGraphStore.ts) enforces the startup defaults by applying an initialization schema normalizer.
 - **Canvas Rendering**:
-  - [GraphCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas.tsx) renders the graph using the normalized schema and current toggle flags.
+  - [GraphCanvas.tsx](../../canvas/src/components/GraphCanvas.tsx) renders the graph using the normalized schema and current toggle flags.
 - **Simulation Control**:
-  - [positioning.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/positioning.ts) determines if simulation should skip initial seed layout (warm start).
+  - [positioning.ts](../../canvas/src/components/GraphCanvas/layout/positioning.ts) determines if simulation should skip initial seed layout (warm start).
 
 ---
 
@@ -55,7 +55,7 @@
 **Interface Pattern**: `applyCanvasDefaultInitSchema(schema)` → returns normalized schema → complexity: O(1)
 
 **Enforcement Location**:
-- [useGraphStore.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/useGraphStore.ts)
+- [useGraphStore.ts](../../canvas/src/hooks/useGraphStore.ts)
 
 **Design Compliance**:
 

@@ -63,6 +63,7 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 **Contract**: The Markdown section header is the canonical place for cross-document actions (Source Files ingest/export/save/apply) and editor workflow actions (Apply/Save).
 
 - Webpage-backed documents must expose per-document webpage controls only in the header `nav` (no duplicates in Source Files rows): `View` (`markdown/html/dom/raw/json`), `Script`, `Imgs`, `Fid`, plus an explicit `Sync` (DOM→Markdown) action.
+- Sync output must remain Markdown-only (no duplicate artifact-doc wrappers, no HTML/YAML snapshot blocks, no synthetic HTML Head sections). If the page HTML contains an embedded Markdown payload (e.g. `data-page` JSON `props.article.content`), the importer should prefer and write that Markdown directly.
 
 - **Canonical implementation**: `curagrph/src/components/BottomPanel/BottomPanelMarkdownViewerHeader.tsx` (`ViewerHeaderRow`).
 - **Required behavior**:

@@ -10,9 +10,10 @@
 
 ## View Modes
 
-Controlled by `kgWebpageView` in YAML frontmatter:
+Controlled by `kgWebpageView` in frontmatter:
 
 - `markdown`: show the markdown artifact doc (SSOT).
+- `markdown`: show the Markdown SSOT doc (frontmatter + Markdown body).
 - `html`: render HTML via sandboxed iframe.
 - `dom`: render a post-hydration DOM snapshot (best for JS-heavy pages).
 - `raw`: show raw HTML source for debugging.
@@ -22,11 +23,9 @@ Controlled by `kgWebpageView` in YAML frontmatter:
 
 Optional frontmatter keys:
 
-```yaml
-kgWebpageScriptPolicy: "allow" | "strip"
-kgWebpageIncludeImages: "true" | "false"
-kgWebpageFidelityLevel: "1" | "2" | "3" | "4"
-```
+`kgWebpageScriptPolicy: allow | strip`  
+`kgWebpageIncludeImages: true | false`  
+`kgWebpageFidelityLevel: 1 | 2 | 3 | 4`
 
 Semantics:
 
@@ -47,6 +46,6 @@ No other surface should duplicate these controls.
 
 - Switching view modes must be lossless for frontmatter keys.
 - `Sync` explicitly regenerates Markdown from a DOM snapshot:
-  - DOM capture → HTML→Markdown conversion (with `IncludeImages` + `FidelityLevel`) → markdown artifact doc update.
+  - DOM capture → HTML→Markdown conversion (with `IncludeImages` + `FidelityLevel`) → Markdown SSOT update.
+- The Markdown SSOT output must be Markdown-only (no duplicate “artifact doc” wrapper sections, no YAML/HTML snapshot blocks, no “HTML Head” blocks). Metadata remains available via the HTML/Raw/JSON views.
 - Markdown preview renders allowlisted HTML blocks safely (no `dangerouslySetInnerHTML`). Unsupported blocks must never be silently dropped.
-

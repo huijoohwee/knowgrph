@@ -264,7 +264,7 @@ ui_settings_slice:
 
 **Implementation**:
 - Store slice: `canvas/src/hooks/store/uiToastSlice.ts`
-- Host renderer: [ToastHost.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/ui/ToastHost.tsx)
+- Host renderer: [ToastHost.tsx](../../canvas/src/components/ui/ToastHost.tsx)
 
 **Contracts**:
 - **Stack order**: Store order is visual order; index 0 is the newest at the default Y, older toasts push downward (no overlap).

@@ -12,19 +12,19 @@ Knowgrph Canvas is primarily a client-side app. Local “API” surfaces used by
 - Used by:
   - Node media panels (remote `image/video/iframe` sources)
   - Markdown slide backgrounds via `applyMediaProxySrc(...)`
-- Implementation: [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts)
+- Implementation: [vite.config.ts](../../canvas/vite.config.ts)
 
 ### Run markdown pipeline (dev tooling)
 
 - Path: `/__run_markdown_pipeline` (POST)
 - Purpose: allow the UI/dev workflow to trigger the repo-level markdown pipeline once.
-- Implementation: [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts)
+- Implementation: [vite.config.ts](../../canvas/vite.config.ts)
 
 ### YouTube transcript conversion
 
 - Path: `/__youtube_transcript?url=<encoded>[&lang=<code>]` (POST)
 - Purpose: convert YouTube transcripts/subtitles/captions into Markdown for the Markdown Editor/Preview/Slides and return a transcript JSON payload for the Bottom Panel JSON Editor.
-- Implementation: [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts)
+- Implementation: [vite.config.ts](../../canvas/vite.config.ts)
 
 ## Production note
 

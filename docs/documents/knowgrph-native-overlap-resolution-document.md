@@ -32,7 +32,7 @@
 
 **Interface**: `getNodeAabbHalfExtentsWithLabel(node, schema)` → `{ halfW, halfH }`
 
-**Implementation**: [overlap.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/overlap.ts)
+**Implementation**: [overlap.ts](../../canvas/src/components/GraphCanvas/layout/overlap.ts)
 
 ### Module: Native BBox Collision Force
 
@@ -57,7 +57,7 @@
 - Determinism: force initialization must be seeded by a stable RNG (e.g., derived from node ids) to forbid `Math.random`-driven divergence across runs.
 - Layout locality: relax passes must remain bounded and clamp per-node displacement so collision avoidance cannot “mess up” the macro layout by teleporting nodes.
 
-**Implementation**: [createBboxCollideForce](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/overlap.ts)
+**Implementation**: [createBboxCollideForce](../../canvas/src/components/GraphCanvas/layout/overlap.ts)
 
 ### Module: Group Box Collision (No-Stick)
 
@@ -76,13 +76,13 @@
 - Z axis is only enabled when both boxes explicitly provide Z (a finite `cz`, `halfD`, or explicit `gapZ`/`hasZ`); otherwise the solver treats Z as infinite overlap so 2D flows never accidentally push in Z.
 - Group containment must remain stable under pinned nodes: pinned nodes contribute to group bbox extents, but are excluded from movableIdxs so containment pushes move other nodes instead of violating pinned anchors.
 
-**Implementation**: [boxCollision.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/grph-shared/src/collision/boxCollision.ts)
+**Implementation**: [boxCollision.ts](../../grph-shared/src/collision/boxCollision.ts)
 
 ---
 
 ## Configuration Schema
 
-Defined in [schemaTypes.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/schemaTypes.ts) and defaulted in [schema.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/schema.ts).
+Defined in [schemaTypes.ts](../../canvas/src/lib/graph/schemaTypes.ts) and defaulted in [schema.ts](../../canvas/src/lib/graph/schema.ts).
 
 ```yaml
 layout:
@@ -129,13 +129,13 @@ Notes:
 
 | Location | Integration | Behavior |
 |---|---|---|
-| [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts) | `.force('bboxCollide', ...)` | Adds label-aware overlap resolution in force mode |
-| [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts) | `.force('groupBboxCollide', ...)` | Prevents group-box overlap in force mode (enforced when groups enabled; schema-driven group knobs) |
-| [scene.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/scene.ts) | `relaxNodesWithCollision` | Runs a bounded collision relax pass during final collective-fit freeze to remove residual overlaps |
-| [relaxPositions.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/FlowCanvas/relaxPositions.ts) | `relaxFlowPositionsWithCollision` | Reuses the same bbox + group collision forces to settle Flow/Flow Editor post-layout positions |
-| [DesignCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/DesignCanvas.tsx) | `relaxNodesWithCollision` | Resolves frame overlaps on drag end (pins dragged frame; batches store writes) |
-| [relaxRunner.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/collision/relaxRunner.ts) | `runRelaxSteps` | SSOT relax step runner used by Graph structured layout relax and Flow post-layout collision settling |
-| [schema.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/schema.ts) | defaults | Enables bbox collide by default |
+| [simulation.ts](../../canvas/src/components/GraphCanvas/simulation.ts) | `.force('bboxCollide', ...)` | Adds label-aware overlap resolution in force mode |
+| [simulation.ts](../../canvas/src/components/GraphCanvas/simulation.ts) | `.force('groupBboxCollide', ...)` | Prevents group-box overlap in force mode (enforced when groups enabled; schema-driven group knobs) |
+| [scene.ts](../../canvas/src/components/GraphCanvas/scene.ts) | `relaxNodesWithCollision` | Runs a bounded collision relax pass during final collective-fit freeze to remove residual overlaps |
+| [relaxPositions.ts](../../canvas/src/components/FlowCanvas/relaxPositions.ts) | `relaxFlowPositionsWithCollision` | Reuses the same bbox + group collision forces to settle Flow/Flow Editor post-layout positions |
+| [DesignCanvas.tsx](../../canvas/src/components/DesignCanvas.tsx) | `relaxNodesWithCollision` | Resolves frame overlaps on drag end (pins dragged frame; batches store writes) |
+| [relaxRunner.ts](../../canvas/src/lib/graph/collision/relaxRunner.ts) | `runRelaxSteps` | SSOT relax step runner used by Graph structured layout relax and Flow post-layout collision settling |
+| [schema.ts](../../canvas/src/lib/graph/schema.ts) | defaults | Enables bbox collide by default |
 
 ---
 
@@ -146,7 +146,7 @@ Notes:
 | Type safety | Prevent drift | - [ ] Add new force keys to schemaTypes; forbid untyped force config |
 | Performance | Avoid regressions | - [ ] Keep iterations low; prune spatial-index queries; forbid heavy per-tick work |
 | Stability | Avoid jitter | - [ ] Use small impulses scaled by alpha; forbid abrupt position jumps |
-| Nested Groups | Prevent sticking | - [ ] Verify inner group containment; forbid disjoint sibling collisions; see [flowCollisionSticking.test.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/__tests__/flowCollisionSticking.test.ts) |
+| Nested Groups | Prevent sticking | - [ ] Verify inner group containment; forbid disjoint sibling collisions; see [flowCollisionSticking.test.ts](../../canvas/src/__tests__/flowCollisionSticking.test.ts) |
 
 ---
 

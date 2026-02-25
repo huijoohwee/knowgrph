@@ -39,16 +39,16 @@
 
 **From/To**: User selects input → parser loads graph → renderer draws scene → user navigates via pan/zoom and selection.
 
-- Canvas entry: [Canvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/pages/Canvas.tsx)
-- Renderer: [GraphCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas.tsx)
+- Canvas entry: [Canvas.tsx](../../canvas/src/pages/Canvas.tsx)
+- Renderer: [GraphCanvas.tsx](../../canvas/src/components/GraphCanvas.tsx)
 - Store: `canvas/src/hooks/useGraphStore.ts`
 
 ### Journey B: Mode Switching (Layer + Layout)
 
 **From/To**: User changes schema settings → graph derivation/layout updates → view remains stable (bounded reflow).
 
-- Layer derivation: [layerDerivation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/layerDerivation.ts)
-- Layout caching: [positioning.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/positioning.ts)
+- Layer derivation: [layerDerivation.ts](../../canvas/src/lib/graph/layerDerivation.ts)
+- Layout caching: [positioning.ts](../../canvas/src/components/GraphCanvas/layout/positioning.ts)
 
 ### Journey C: Edit Graph (Nodes/Edges)
 
@@ -61,7 +61,7 @@
 
 **From/To**: User toggles Editor or Graph Data Table mode → edits Markdown or inspects Graph Data → verifies changes in the shared Canvas pane.
 
-- Editor mode shell: [EmbeddedEditorShell.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/EmbeddedEditorShell.tsx)
+- Editor mode shell: [EmbeddedEditorShell.tsx](../../canvas/src/components/EmbeddedEditorShell.tsx)
 - Workspace view mode: `LS_KEYS.workspaceViewMode` (`Canvas | Editor | Table`)
 - Editor sections:
   - Markdown Workspace (SSOT text + Explorer)
@@ -112,9 +112,9 @@
 | SVG Labels | Keep label center alignment consistent | - [ ] Anchor and baseline-align SVG text; forbid default-anchor mismatches that overlap nodes |
 
 **Reference implementations**
-- Global Lucide icon alignment: [index.css](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/index.css)
-- Icon+text combobox controls: [GraphDataTableUiPrimitives.tsx](file:///Users/huijoohwee/Documents/GitHub/curagrph/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx)
-- Canvas node label anchoring/baseline: [labels.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layers/labels.ts)
+- Global Lucide icon alignment: [index.css](../../canvas/src/index.css)
+- Icon+text combobox controls: `curagrph/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx`
+- Canvas node label anchoring/baseline: [labels.ts](../../canvas/src/components/GraphCanvas/layers/labels.ts)
 
 ---
 

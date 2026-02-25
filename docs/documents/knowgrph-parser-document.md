@@ -67,10 +67,10 @@ Implementation note: `knowgrph_parser youtube` uses a robust native implementati
 
 | Surface | Responsibility (S-V-O) | Implementation |
 |---------|-------------------------|----------------|
-| Toolbar (Canvas) | User opens YouTube import UI → enters URL/ID → fetches transcript JSON → loads Markdown view | [ToolbarYouTubeArea](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/ToolbarYouTubeArea.tsx) → [performYouTubeImport](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/youtubeImportAction.ts) |
+| Toolbar (Canvas) | User opens YouTube import UI → enters URL/ID → fetches transcript JSON → loads Markdown view | `canvas/src/features/toolbar/ToolbarYouTubeArea.tsx` → `canvas/src/features/toolbar/youtubeImportAction.ts` |
 
 Pipeline map:
-- Import [knowgrph-pipeline-map.graph.json](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-pipeline-map.graph.json) into Canvas (as JSON) to visualize the runtime + Python pipeline call graph.
+- Import `docs/documents/knowgrph-pipeline-map.graph.json` into Canvas (as JSON) to visualize the runtime + Python pipeline call graph.
 
 ## Component Specifications
 
@@ -107,11 +107,11 @@ Pipeline map:
 | Metrics Tracking     | Record parse timing             | - [ ] Measure parse/build stages; store in `graphData.metadata`; keep metrics inspection-only | parsers/default.ts | —            | Parser `parse()` impl   | Date.now()       | Markdown text                | `metadata.ingestionMetrics` | Delta calculation             |
 
 **Verified performance patterns (implementation-aligned)**:
-- Parse-result LRU+TTL cache keyed by `(parserId, name, hashText(text), cfgKey)`: [cache.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/cache.ts)
-- Worker parsing (off-main-thread) with bounded timeouts and worker reset on hard error: [parseWorker.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/parseWorker.ts)
-- HTML → Markdown conversion yields to idle time and uses a unified converter with bounded caching: [html-parser.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/html-parser.ts), [htmlToMarkdownUnified.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/markdown/htmlToMarkdownUnified.ts)
-- Keyword-mode derivation is debounced and cached by `(algoVersion, docId, hashText(text))` to avoid keystroke churn: [useActiveGraphData.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/useActiveGraphData.ts)
-- Pipeline metrics payloads are stored in graph metadata for inspection (not required for ingestion): [agenticRag.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/agenticRag.ts)
+- Parse-result LRU+TTL cache keyed by `(parserId, name, hashText(text), cfgKey)`: `canvas/src/features/parsers/cache.ts`
+- Worker parsing (off-main-thread) with bounded timeouts and worker reset on hard error: `canvas/src/lib/graph/parseWorker.ts`
+- HTML → Markdown conversion yields to idle time and uses a unified converter with bounded caching: `canvas/src/features/parsers/html-parser.ts`, `canvas/src/lib/markdown/htmlToMarkdownUnified.ts`
+- Keyword-mode derivation is debounced and cached by `(algoVersion, docId, hashText(text))` to avoid keystroke churn: `canvas/src/hooks/useActiveGraphData.ts`
+- Pipeline metrics payloads are stored in graph metadata for inspection (not required for ingestion): `canvas/src/features/parsers/agenticRag.ts`
 
 **Mermaid Support**:
 

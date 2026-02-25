@@ -14,8 +14,8 @@ Knowgrph is primarily a client-side app (Vite + React). “Backend” functional
 - Policy: apply proxy to any remote URL; forbid hardcoded domain rewrites; enforce bounded upstream time and size
 
 Implementation:
-- Vite middleware: [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts)
-- URL utility: [url.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/url.ts)
+- Vite middleware: [vite.config.ts](../../canvas/vite.config.ts)
+- URL utility: [url.ts](../../canvas/src/lib/url.ts)
 
 ### Run markdown pipeline (dev tooling)
 
@@ -23,7 +23,7 @@ Implementation:
 - Purpose: allow the UI/dev workflow to trigger the repo-level markdown pipeline once.
 
 Implementation:
-- Vite middleware: [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts)
+- Vite middleware: [vite.config.ts](../../canvas/vite.config.ts)
 
 ### YouTube transcript → Markdown (+ JSON source)
 
@@ -32,8 +32,8 @@ Implementation:
 - Runtime constraints: bounded Python subprocess execution (timeout) to forbid hanging imports.
 
 Implementation:
-- Vite middleware: [vite.config.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/vite.config.ts)
-- Python command: `python3 -m knowgrph_parser youtube --emit json --url ... [--lang ...]` ([youtube_cmd.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/youtube_cmd.py))
+- Vite middleware: [vite.config.ts](../../canvas/vite.config.ts)
+- Python command: `python3 -m knowgrph_parser youtube --emit json --url ... [--lang ...]` ([youtube_cmd.py](../../knowgrph_parser/youtube_cmd.py))
 
 ## Production note
 

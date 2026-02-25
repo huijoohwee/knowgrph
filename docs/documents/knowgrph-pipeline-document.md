@@ -65,21 +65,21 @@ When changing shared packages that are wired via `file:` links (for example `cur
 
 #### Journey 1: Import JSON/CSV → See Nodes On MapLibre
 
-- `ToolbarToolMenuAreas` triggers a format import action → [useToolbarMenuAction](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/useToolbarMenuAction.ts)
+- `ToolbarToolMenuAreas` triggers a format import action → [useToolbarMenuAction](../../canvas/src/features/toolbar/useToolbarMenuAction.ts)
 - `useToolbarMenuAction(area='sourceFiles', action='importLocal'|'importUrl', payload.format='json'|'csv')` → `performJsonImport` / `performCsvImport`
-- `performJsonImport` / `performCsvImport` → [runImportFlow](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/importFlow.ts) → [loadGraphDataFromTextViaParser](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/loader.ts)
+- `performJsonImport` / `performCsvImport` → [runImportFlow](../../canvas/src/features/toolbar/importFlow.ts) → [loadGraphDataFromTextViaParser](../../canvas/src/features/parsers/loader.ts)
 - `loadGraphDataFromTextViaParser` → `bestMatch` → `applyParserAsync` → `useGraphStore.getState().setGraphData(graphData)`
-- `GraphCanvas` reads `graphData` → renders nodes/edges → [GraphCanvas](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas.tsx)
-- `Canvas` passes `graphData + zoomState + selection` into `gympgrph` hosts → [Canvas](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/pages/Canvas.tsx)
-- `GeospatialOverlayHost` applies snapshot into gympgrph store → [applyHostSnapshot](file:///Users/huijoohwee/Documents/GitHub/gympgrph/src/hostBridge.ts)
-- `GeospatialOverlay` builds GeoJSON points from graph nodes → ensures MapLibre sources/layers → [GeospatialOverlay](file:///Users/huijoohwee/Documents/GitHub/gympgrph/src/features/geospatial/GeospatialOverlay.tsx)
-- `useMapLibreBasemap` creates the MapLibre map instance + style → [useMapLibreBasemap](file:///Users/huijoohwee/Documents/GitHub/gympgrph/src/features/geospatial/useMapLibreBasemap.ts)
+- `GraphCanvas` reads `graphData` → renders nodes/edges → [GraphCanvas](../../canvas/src/components/GraphCanvas.tsx)
+- `Canvas` passes `graphData + zoomState + selection` into `gympgrph` hosts → [Canvas](../../canvas/src/pages/Canvas.tsx)
+- `GeospatialOverlayHost` applies snapshot into gympgrph store → `gympgrph/src/hostBridge.ts` (`applyHostSnapshot`)
+- `GeospatialOverlay` builds GeoJSON points from graph nodes → ensures MapLibre sources/layers → `gympgrph/src/features/geospatial/GeospatialOverlay.tsx`
+- `useMapLibreBasemap` creates the MapLibre map instance + style → `gympgrph/src/features/geospatial/useMapLibreBasemap.ts`
 
 #### Journey 2: Click Map POI → Host Selects Node → Canvas + Map Highlight
 
-- Map click event → `GeospatialOverlay.onClick` → [GeospatialOverlay](file:///Users/huijoohwee/Documents/GitHub/gympgrph/src/features/geospatial/GeospatialOverlay.tsx)
-- `pickPoiSelection(...)` returns `{ kind: 'graph-node', nodeId }` → [pickPoiSelection](file:///Users/huijoohwee/Documents/GitHub/gympgrph/src/features/geospatial/geospatialPoiSelection.ts)
-- `selectNode(nodeId)` (host handler injected via `setHostHandlers`) → updates Knowgrph `useGraphStore.selectedNodeId` → [Canvas](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/pages/Canvas.tsx)
+- Map click event → `GeospatialOverlay.onClick` → `gympgrph/src/features/geospatial/GeospatialOverlay.tsx`
+- `pickPoiSelection(...)` returns `{ kind: 'graph-node', nodeId }` → `gympgrph/src/features/geospatial/geospatialPoiSelection.ts`
+- `selectNode(nodeId)` (host handler injected via `setHostHandlers`) → updates Knowgrph `useGraphStore.selectedNodeId` → [Canvas](../../canvas/src/pages/Canvas.tsx)
 - `GraphCanvas` reads `selectedNodeId` → updates selection highlight
 - `Canvas` snapshots `selectedNodeId/selectedNodeIds` back into gympgrph → `applyHostSnapshot` updates gympgrph store
 - `GeospatialOverlay` reacts to `selectedNodeId/selectedNodeIds` → `map.setFilter(GRAPH_SELECTED_LAYER_ID, ...)` highlights the selected node layer
@@ -87,51 +87,51 @@ When changing shared packages that are wired via `file:` links (for example `cur
 #### Journey 3: Import Quick Editor Bundle → Open Flow Editor → See Port-bound Edges
 
 - Toolbar import action reads local JSON and routes through the shared parser loader:
-  - [jsonImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/jsonImportAction.ts)
-  - [importFlow.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/importFlow.ts)
-  - [loader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/loader.ts)
+  - [jsonImportAction.ts](../../canvas/src/features/toolbar/jsonImportAction.ts)
+  - [importFlow.ts](../../canvas/src/features/toolbar/importFlow.ts)
+  - [loader.ts](../../canvas/src/features/parsers/loader.ts)
 - JSON adapter detects `kg:flow:nodeQuickEditorBundle` (kind/version) and writes registry entries to `GraphData.metadata['flow:nodeQuickEditorRegistry']`:
-  - [quickEditorImport.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/io/quickEditorImport.ts)
-  - [adapter.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/io/adapter.ts)
+  - [quickEditorImport.ts](../../canvas/src/lib/graph/io/quickEditorImport.ts)
+  - [adapter.ts](../../canvas/src/lib/graph/io/adapter.ts)
 - Store commit applies registry metadata into the Flow Editor Manager snapshot and enables immediate Node Quick Editor rendering:
-  - [graphDataSlice.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/store/graphDataSlice.ts)
-  - [graphDataSliceUtils.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/store/graphDataSliceUtils.ts)
+  - [graphDataSlice.ts](../../canvas/src/hooks/store/graphDataSlice.ts)
+  - [graphDataSliceUtils.ts](../../canvas/src/hooks/store/graphDataSliceUtils.ts)
 - Flow Editor renders the graph using the native Flow renderer (edges are rendered by the same 2D Flow edge path; no overlay-only edge renderer):
-  - [FlowEditorCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/FlowEditorCanvas.tsx)
-  - [FlowCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/FlowCanvas.tsx)
+  - [FlowEditorCanvas.tsx](../../canvas/src/components/FlowEditorCanvas.tsx)
+  - [FlowCanvas.tsx](../../canvas/src/components/FlowCanvas.tsx)
 
 ### Import
 
 - Toolbar import actions read local files/URLs and call the parser loader:
-  - [jsonImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/jsonImportAction.ts)
-  - [importSideEffects.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/importSideEffects.ts)
+  - [jsonImportAction.ts](../../canvas/src/features/toolbar/jsonImportAction.ts)
+  - [importSideEffects.ts](../../canvas/src/features/toolbar/importSideEffects.ts)
 - YouTube import uses an end-to-end native local in-repo pipeline (no external API dependencies) to fetch transcripts/metadata via `youtube_cmd.py` (timedtext/InnerTube) and convert them to Markdown/JSON before following the standard loader path:
-  - [youtubeImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/youtubeImportAction.ts)
-  - [youtube_cmd.py](file:///Users/huijoohwee/Documents/GitHub/knowgrph/knowgrph_parser/youtube_cmd.py)
+  - [youtubeImportAction.ts](../../canvas/src/features/toolbar/youtubeImportAction.ts)
+  - [youtube_cmd.py](../../knowgrph_parser/youtube_cmd.py)
 
 ### Parse + Normalize
 
 - Parser selection and orchestration (best-match + optional worker parsing):
-  - [loader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/loader.ts)
-  - [registry.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/registry.ts)
-  - [graphParser.worker.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/workers/graphParser.worker.ts)
+  - [loader.ts](../../canvas/src/features/parsers/loader.ts)
+  - [registry.ts](../../canvas/src/features/parsers/registry.ts)
+  - [graphParser.worker.ts](../../canvas/src/workers/graphParser.worker.ts)
 - Format adapters (CSV/JSON/JSON-LD/GeoJSON/record arrays/GraphRAG bundle/n8n):
-  - [adapter.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/io/adapter.ts)
+  - [adapter.ts](../../canvas/src/lib/graph/io/adapter.ts)
 - JSON-LD structural interpretation + AgenticRAG context handling:
-  - [parse.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/jsonld/parse.ts)
-  - [agenticrag.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/agenticrag.ts)
+  - [parse.ts](../../canvas/src/lib/graph/jsonld/parse.ts)
+  - [agenticrag.ts](../../canvas/src/lib/agenticrag.ts)
 
 ### Validate + Store
 
 - Structural validation (duplicate IDs, dangling edges) + optional schema-config property checks:
-  - [validation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/validation.ts)
+  - [validation.ts](../../canvas/src/lib/graph/validation.ts)
 - Store commit is centralized in the graph slice (`setGraphData`), which also persists and normalizes:
-  - [graphDataSlice.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/store/graphDataSlice.ts)
+  - [graphDataSlice.ts](../../canvas/src/hooks/store/graphDataSlice.ts)
 
 ### Render
 
 - Render consumes the active `GraphData` view and applies schema-config-driven layout/styling:
-  - [GraphCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas.tsx)
+  - [GraphCanvas.tsx](../../canvas/src/components/GraphCanvas.tsx)
 - Active `GraphData` for rendering is SSOT-derived to keep Canvas/D3, Flow, Graph Data Table, Graph Fields, and Props/Node Editor consistent:
   - Canonical hook: `useActiveGraphRenderData()` (`knowgrph/canvas/src/hooks/useActiveGraphData.ts`)
   - Derivation order: keyword semantic mode base → optional frontmatter Mermaid filter (document mode only) → optional group collapse (`collapsedGroupIds`)
@@ -143,9 +143,9 @@ When changing shared packages that are wired via `file:` links (for example `cur
 
 ### Schema Contract (SSOT)
 
-- Structural JSON-LD contract: [AgenticRAG README](file:///Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/schema/AgenticRAG/README.md)
+- Structural JSON-LD contract: `huijoohwee.github.io/schema/AgenticRAG/README.md`
 - The Canvas app resolves schema URLs via `VITE_AGENTIC_RAG_SCHEMA_URL` (fallback: `/schema/AgenticRAG`):
-  - [agenticrag.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/agenticrag.ts)
+  - [agenticrag.ts](../../canvas/src/lib/agenticrag.ts)
 
 ## Pipeline Architecture
 

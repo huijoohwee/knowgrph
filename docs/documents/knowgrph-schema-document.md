@@ -589,4 +589,4 @@ metadata.tree.mermaidDensity.anchorsOnly:
 
 metadata.tree.mermaidDensity.config: …
 ```
-See [knowgrph-schema-document.tree-mermaid-appendix.md](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-schema-document.tree-mermaid-appendix.md).
+See [knowgrph-schema-document.tree-mermaid-appendix.md](knowgrph-schema-document.tree-mermaid-appendix.md).

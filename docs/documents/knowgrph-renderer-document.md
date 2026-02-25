@@ -169,7 +169,7 @@
   
 #### Flow/Flow Editor Parity with Baseline
 - Flow and Flow Editor do not run D3 forces but must reuse the same SSOT inputs as D3: visibility filter, collective fit geometry, and zoom behavior. Initial view honors the same bounds guards and idempotent init policy.
-- When the Document Structure baseline lock is active, Flow and Flow Editor must disable auto zoom modes and maintain parity with the D3 baseline; switching between 2D variants restores each variant’s own zoom state via isolated view keys. See [autoZoom2dPolicy.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/zoom/autoZoom2dPolicy.ts) and [FlowCanvas tests](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/__tests__/flowCanvasIntegration.test.ts#L143-L184).
+- When the Document Structure baseline lock is active, Flow and Flow Editor must disable auto zoom modes and maintain parity with the D3 baseline; switching between 2D variants restores each variant’s own zoom state via isolated view keys. See [autoZoom2dPolicy.ts](../../canvas/src/features/zoom/autoZoom2dPolicy.ts) and [FlowCanvas tests](../../canvas/src/__tests__/flowCanvasIntegration.test.ts#L143-L184).
 
 ### Selection Zoom (Node/Edge vs Graph)
 - Zoom-to-selection operates on a selection subset (selected node ids and/or edge endpoints) and must share duration/timing knobs across 2D renderers.
@@ -289,7 +289,7 @@
   - Focuses camera on selected node/edge.
 - **Zoom State Caching**:
   - Caches zoom state per viewKey to prevent cross-mode/layout/presentation contamination.
-  - Per-variant isolation: 2D zoom view keys include the renderer variant (D3/Flow/Design/Flow Editor) when `canvasRenderMode=2d` so switching renderers never reuses an incompatible transform. See [zoomViewKey.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/zoomViewKey.ts).
+  - Per-variant isolation: 2D zoom view keys include the renderer variant (D3/Flow/Design/Flow Editor) when `canvasRenderMode=2d` so switching renderers never reuses an incompatible transform. See [zoomViewKey.ts](../../canvas/src/components/GraphCanvas/zoomViewKey.ts).
 - **Wheel parity (2D D3 + Flow + Flow Editor)**:
   - Wheel delta normalization and zoom factor are SSOT (`canvas/src/lib/canvas/zoom-input.ts`) and must be reused by all 2D renderers.
   - Stepped zoom accumulation uses SSOT helpers and constants in `canvas/src/lib/zoom/steps.ts` (threshold px + max steps) to keep wheel behavior aligned across renderers.

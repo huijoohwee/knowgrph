@@ -40,7 +40,7 @@ Render imported webpages with high fidelity (rich media, animations) while prese
   - ensures `/__webpage_*` links resolve same-origin in iframe context
   - injects scroll-sync to align Editor ↔ iframe scroll ratio
 
-Repo-relative (in-repo) HTML is fetched via `GET /__repo_file/*` and then rendered via sandboxed `srcdoc` with a same-origin baseHref pointing at `/__repo_file/<siteRoot>/`.
+Repo-relative (in-codebase) HTML/text artifacts are fetched via `GET /__codebase_file?path=<repoRel>` (utf-8) and then rendered via sandboxed `srcdoc`. Repo-relative binary assets (CSS/images/fonts/media) are served via `GET /__codebase_asset?path=<repoRel>` so responses carry correct `Content-Type`.
 
 Additionally, the injected layer exposes a **DOM export bridge** (see `kg-export-dom`) that lets the host request a best-effort rendered `text` or `html` snapshot from inside the sandboxed iframe.
 
@@ -54,10 +54,14 @@ When `kgWebsiteImportId/kgWebsiteNodeId` are present, the HTML Viewer prefers st
 - Supports fetching remote URLs (bounded) or reading local files within the workspace.
 - Must be bounded (timeout/max-bytes) and not rely on streaming indefinite bodies.
 
-### `GET /__repo_file/*`
+### `GET /__codebase_file?path=...` / `GET /__codebase_asset?path=...`
 
-- Serves local in-repo files (CSS/images/fonts/etc) by path under the repo root.
-- Used as a stable `srcdoc` base URL so local webpages can resolve relative assets without hardcoded domains.
+- Serves repo-relative files under the monorepo root with traversal/absolute-path guards.
+- Use `/__codebase_file` for text (HTML/Markdown/JSON). Use `/__codebase_asset` for binary assets so iframe rendering preserves MIME types.
+
+### `GET /__repo_file/*` (legacy)
+
+- Legacy path-based serving used by older docs and some baseHref flows. Prefer `/__codebase_file` + `/__codebase_asset` for new behavior.
 
 ### `POST /__website_import/import-url`
 

@@ -34,11 +34,11 @@
 
 **Core modules**
 
-- Disjoint component anchors: [disjoint.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/disjoint.ts)
-- Overlap resolution (native broadphase): [overlap.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/overlap.ts)
-- Simulation orchestration: [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts)
-- Heuristic Clustering (Seed): [heuristic-cluster.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/heuristic-cluster.ts)
-- Frontmatter scoping: [layerDerivation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/layerDerivation.ts)
+- Disjoint component anchors: [disjoint.ts](../../canvas/src/components/GraphCanvas/layout/disjoint.ts)
+- Overlap resolution (native broadphase): [overlap.ts](../../canvas/src/components/GraphCanvas/layout/overlap.ts)
+- Simulation orchestration: [simulation.ts](../../canvas/src/components/GraphCanvas/simulation.ts)
+- Heuristic Clustering (Seed): [heuristic-cluster.ts](../../canvas/src/components/GraphCanvas/layout/heuristic-cluster.ts)
+- Frontmatter scoping: [layerDerivation.ts](../../canvas/src/lib/graph/layerDerivation.ts)
 
 ---
 
@@ -57,7 +57,7 @@
 - Anchor placement: deterministic spiral search with overlap rejection; larger components placed earlier.
 - Enhancement: Aligned with [D3 Disjoint Force](https://observablehq.com/@d3/disjoint-force-directed-graph/2) principles but adds deterministic anchoring for stability.
 
-**Implementation**: [computeDisjointComponentTargets](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/disjoint.ts)
+**Implementation**: [computeDisjointComponentTargets](../../canvas/src/components/GraphCanvas/layout/disjoint.ts)
 
 ### Module: Force Simulation (Force Mode)
 
@@ -70,13 +70,13 @@
 - Positioning: `d3.forceX` + `d3.forceY` targeting component anchors when `disjointComponents` is enabled
 - Overlap: `d3.forceCollide` (radius) + native `bboxCollide` (label-aware AABB with packed R-tree broadphase) + group-level bbox collision (label-aware group boxes)
 
-**Implementation**: [buildSimulation](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts)
+**Implementation**: [buildSimulation](../../canvas/src/components/GraphCanvas/simulation.ts)
 
 ---
 
 ## Configuration Schema (Layout Forces)
 
-Defined in [schemaTypes.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/schemaTypes.ts) and defaulted in [schema.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/schema.ts).
+Defined in [schemaTypes.ts](../../canvas/src/lib/graph/schemaTypes.ts) and defaulted in [schema.ts](../../canvas/src/lib/graph/schema.ts).
 
 ```yaml
 layout:
@@ -114,10 +114,10 @@ layout:
 
 | Layer/Subsystem | Path/Module | Component | Interface/Method | Responsibility (S-V-O) | Contracts |
 |---|---|---|---|---|---|
-| Layout | [disjoint.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/disjoint.ts) | Component anchors | computeDisjointComponentTargets | Module computes anchors → separates components → returns targets | Deterministic ordering |
-| Layout | [overlap.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/overlap.ts) | Overlap force | createBboxCollideForce | Force resolves overlaps → adjusts velocities → respects pinned nodes | Label-aware AABB |
-| Layout | [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts) | Simulation | buildSimulation | Builder constructs forces → seeds nodes → returns simulation | Honors schema.layout.forces |
-| Derivation | [layerDerivation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/layerDerivation.ts) | Frontmatter filter | filterGraphToFrontmatterMermaid | Filter scopes graph → keeps Mermaid frontmatter → returns scoped graph | Mermaid-only scope |
+| Layout | [disjoint.ts](../../canvas/src/components/GraphCanvas/layout/disjoint.ts) | Component anchors | computeDisjointComponentTargets | Module computes anchors → separates components → returns targets | Deterministic ordering |
+| Layout | [overlap.ts](../../canvas/src/components/GraphCanvas/layout/overlap.ts) | Overlap force | createBboxCollideForce | Force resolves overlaps → adjusts velocities → respects pinned nodes | Label-aware AABB |
+| Layout | [simulation.ts](../../canvas/src/components/GraphCanvas/simulation.ts) | Simulation | buildSimulation | Builder constructs forces → seeds nodes → returns simulation | Honors schema.layout.forces |
+| Derivation | [layerDerivation.ts](../../canvas/src/lib/graph/layerDerivation.ts) | Frontmatter filter | filterGraphToFrontmatterMermaid | Filter scopes graph → keeps Mermaid frontmatter → returns scoped graph | Mermaid-only scope |
 
 ---
 

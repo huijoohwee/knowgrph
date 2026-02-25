@@ -90,24 +90,24 @@
   - Idle yielding: [idle.ts](../../canvas/src/features/panels/utils/idle.ts) via [html-parser.ts](../../canvas/src/features/parsers/html-parser.ts)
   - Unified fallback: [htmlToMarkdownUnified.ts](../../canvas/src/lib/markdown/htmlToMarkdownUnified.ts) (dynamic imports + bounded LRU cache)
 - Format-specific worker parsing (when enabled):
-  - Python Tree-sitter worker client: [tsWorkerClient.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/python/tsWorkerClient.ts) (singleton worker + per-request timeout)
+  - Python Tree-sitter worker client: [tsWorkerClient.ts](../../canvas/src/features/parsers/python/tsWorkerClient.ts) (singleton worker + per-request timeout)
 - Format adapter for `.csv/.json/.jsonld` and workflow bundles:
-  - Adapter: [adapter.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/io/adapter.ts)
+  - Adapter: [adapter.ts](../../canvas/src/lib/graph/io/adapter.ts)
 - JSON-LD edge inference alignment (no surprise edges):
   - `@context` keys with `{"@type":"@id"}` are eligible to become edges
   - `metadata.jsonLdMapping.contextEdgeProperties` can be used as an explicit allow-list for relation keys when the context is incomplete
-  - Implementation: [parseJsonLd](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/jsonld/parse.ts)
+  - Implementation: [parseJsonLd](../../canvas/src/lib/graph/jsonld/parse.ts)
 - Parse-time metrics (inspection only; no semantic coupling):
-  - Markdown ingestion timings stored in `graphData.metadata.ingestionMetrics`: [default.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/default.ts)
-  - Agentic RAG pipeline metrics stored in `graphData.metadata.pipelineMetrics`: [agenticRag.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/agenticRag.ts)
+  - Markdown ingestion timings stored in `graphData.metadata.ingestionMetrics`: [default.ts](../../canvas/src/features/parsers/default.ts)
+  - Agentic RAG pipeline metrics stored in `graphData.metadata.pipelineMetrics`: [agenticRag.ts](../../canvas/src/features/parsers/agenticRag.ts)
 - Output contract (render + storage):
-  - `GraphData { type, context?, metadata?, nodes, edges }`: [types.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/types.ts)
+  - `GraphData { type, context?, metadata?, nodes, edges }`: [types.ts](../../canvas/src/lib/graph/types.ts)
 
 ### Stage 3: Normalize
 
 **From/To**: Parsed `GraphData` → normalizers → consistent node/edge shape → enables deterministic downstream behavior.
 
-- Edge normalization for simulation: [utils.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/utils.ts)
+- Edge normalization for simulation: [utils.ts](../../canvas/src/components/GraphCanvas/utils.ts)
 
 ### Stage 4: Store
 
@@ -115,21 +115,21 @@
 
 - Store: `canvas/src/hooks/useGraphStore.ts`
 - Canonical commit point:
-  - Store slice: [graphDataSlice.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/store/graphDataSlice.ts)
+  - Store slice: [graphDataSlice.ts](../../canvas/src/hooks/store/graphDataSlice.ts)
   - `setGraphData` enforces invariants (e.g. filters dangling edges) and bumps `graphDataRevision`.
 - Derivations coupled to commit:
-  - Derived field discovery: [graphFields.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/graph-fields/graphFields.ts)
-  - Sync visible columns and custom fields: [graphDataSliceUtils.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/store/graphDataSliceUtils.ts)
+  - Derived field discovery: [graphFields.ts](../../canvas/src/features/graph-fields/graphFields.ts)
+  - Sync visible columns and custom fields: [graphDataSliceUtils.ts](../../canvas/src/hooks/store/graphDataSliceUtils.ts)
 - Responsibility (S-V-O): Store accepts graph data → validates edges → syncs derived fields → notifies subscribers.
 
 ### Stage 5: Derive (Layer Mode)
 
 **From/To**: Canonical `GraphData` + schema layer config → derived render graph → enables filtered/augmented rendering.
 
-- Derivation: [layerDerivation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/layerDerivation.ts)
+- Derivation: [layerDerivation.ts](../../canvas/src/lib/graph/layerDerivation.ts)
 - Layer modes:
   - `document`: assigns `properties["visual:layer"]` for structural layering
-  - `keyword` (semantic mode): derives a keyword graph from active document text (or node labels as fallback) where Subject/Object/Entity keywords become nodes and Verb/Predicate/Relationship keywords become edges; removes common stopwords using the NLTK English stopword list; caches derived graphs by stable text hash; sets `properties["visual:nodeSize"]` by keyword frequency and `properties["visual:width"]` by edge strength for renderer reuse; supports runtime scaling via `schema.three.keywordNodeSizeScale` / `schema.three.keywordEdgeWidthScale`; maps `visual:community` → `visual:layer` so 2D groups and 3D Z-layering can stay consistent; merges media-capable nodes from the base graph so the media overlay toggle remains effective; debounces text-to-graph derivation (preview + full) via settings `keyword.graph.previewDebounceMs` and `keyword.graph.fullDebounceMs`; worker derivations are abortable to suppress stale results/toasts when inputs change rapidly; caches by `(algoVersion, docId, hashText(text))`: [useActiveGraphData.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/useActiveGraphData.ts), [keywordGraph.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/semantic-mode/keywordGraph.ts)
+  - `keyword` (semantic mode): derives a keyword graph from active document text (or node labels as fallback) where Subject/Object/Entity keywords become nodes and Verb/Predicate/Relationship keywords become edges; removes common stopwords using the NLTK English stopword list; caches derived graphs by stable text hash; sets `properties["visual:nodeSize"]` by keyword frequency and `properties["visual:width"]` by edge strength for renderer reuse; supports runtime scaling via `schema.three.keywordNodeSizeScale` / `schema.three.keywordEdgeWidthScale`; maps `visual:community` → `visual:layer` so 2D groups and 3D Z-layering can stay consistent; merges media-capable nodes from the base graph so the media overlay toggle remains effective; debounces text-to-graph derivation (preview + full) via settings `keyword.graph.previewDebounceMs` and `keyword.graph.fullDebounceMs`; worker derivations are abortable to suppress stale results/toasts when inputs change rapidly; caches by `(algoVersion, docId, hashText(text))`: [useActiveGraphData.ts](../../canvas/src/hooks/useActiveGraphData.ts), [keywordGraph.ts](../../canvas/src/features/semantic-mode/keywordGraph.ts)
   - `schema`: filters out `Document` nodes to focus on entity/schema nodes
   - `semantic`: enriches with derived similarity edges and `properties["visual:community"]`
   - `frontmatter mode` (UI flag): filters to Mermaid nodes tagged as frontmatter (`mermaidScope` / `isMermaidFrontmatter`)
@@ -146,33 +146,33 @@
 
 **From/To**: Derived render graph → layout engine → node positions → enables stable viewing.
 
-- Layout selection and caching: [positioning.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/positioning.ts)
-- Layout execution (seed + forces): [simulation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/simulation.ts)
-- Initialization policy: apply cached positions when available and only reseed/recenter when missing/unstable; this prevents renderer switches from rewriting stable node positions. SSOT helper: [initializeGraphLayout](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/initialization.ts)
-- Collision stabilization (node + group AABB, nested no-touch): [collisionConfig.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/collisionConfig.ts), [groupOverlapByDepth.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/groupOverlapByDepth.ts)
+- Layout selection and caching: [positioning.ts](../../canvas/src/components/GraphCanvas/layout/positioning.ts)
+- Layout execution (seed + forces): [simulation.ts](../../canvas/src/components/GraphCanvas/simulation.ts)
+- Initialization policy: apply cached positions when available and only reseed/recenter when missing/unstable; this prevents renderer switches from rewriting stable node positions. SSOT helper: [initializeGraphLayout](../../canvas/src/components/GraphCanvas/layout/initialization.ts)
+- Collision stabilization (node + group AABB, nested no-touch): [collisionConfig.ts](../../canvas/src/components/GraphCanvas/layout/collisionConfig.ts), [groupOverlapByDepth.ts](../../canvas/src/components/GraphCanvas/layout/groupOverlapByDepth.ts)
   - Broadphase: packed R-tree (Morton/Z-order), O(n log n) neighborhood queries.
   - Nested containment: when a child group is a subset of a parent group, enforce an axis-specific inset margin (`layout.forces.groupBboxCollideNestedTouchEpsilon*`) so the child inner border never touches the parent border; Z only when `groupBboxCollideZEnabled` and both groups have explicit Z.
-- Mermaid seeded placement (subgraph spread + centroid recenter): [mermaidSeed.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/mermaidSeed.ts)
-- Mermaid direction parsing (LR/RL/TB/BT): [mermaidDirection.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layout/mermaidDirection.ts)
+- Mermaid seeded placement (subgraph spread + centroid recenter): [mermaidSeed.ts](../../canvas/src/components/GraphCanvas/layout/mermaidSeed.ts)
+- Mermaid direction parsing (LR/RL/TB/BT): [mermaidDirection.ts](../../canvas/src/components/GraphCanvas/layout/mermaidDirection.ts)
 - Cache surface: `layoutPositionCacheByMode` keyed by `(semanticMode, frontmatterMode, layoutMode)` (e.g. `document:default:force`, `keyword:frontmatter:radial`)
 
 ### Stage 7: Render
 
 **From/To**: Positioned render graph → scene builder → DOM/SVG updates → enables interaction.
 
-- Render entrypoint: [GraphCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas.tsx)
-- 3D render entrypoint: [ThreeGraph.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/three/ThreeGraph.tsx)
-- Scene orchestration: [scene.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/scene.ts)
-- Scene layers barrel: [sceneLayers.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/sceneLayers.ts)
-- Presentation updates (no simulation rebuild): [scene.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/scene.ts)
+- Render entrypoint: [GraphCanvas.tsx](../../canvas/src/components/GraphCanvas.tsx)
+- 3D render entrypoint: [ThreeGraph.tsx](../../canvas/src/features/three/ThreeGraph.tsx)
+- Scene orchestration: [scene.ts](../../canvas/src/components/GraphCanvas/scene.ts)
+- Scene layers barrel: [sceneLayers.ts](../../canvas/src/components/GraphCanvas/sceneLayers.ts)
+- Presentation updates (no simulation rebuild): [scene.ts](../../canvas/src/components/GraphCanvas/scene.ts)
 - Scene derivation caches (prevents re-derive churn on render):
-  - Group derivation LRU keyed by graph meta + revision/layer hash + schema group config: [sceneDerivation.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/scene/sceneDerivation.ts)
+  - Group derivation LRU keyed by graph meta + revision/layer hash + schema group config: [sceneDerivation.ts](../../canvas/src/lib/scene/sceneDerivation.ts)
 - UI performance instrumentation (opt-in):
-  - Selection latency metric emitted as `CustomEvent('kg-selection-perf')`: [selectionPerf.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/selectionPerf.ts)
+  - Selection latency metric emitted as `CustomEvent('kg-selection-perf')`: [selectionPerf.ts](../../canvas/src/lib/selectionPerf.ts)
 - Typography and icon alignment (render fidelity + UI consistency):
-  - Node label anchoring and baseline: [labels.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layers/labels.ts)
-  - Edge label baseline: [edgeLabels.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/layers/edgeLabels.ts)
-  - UI icon baseline alignment (Lucide): [index.css](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/index.css)
+  - Node label anchoring and baseline: [labels.ts](../../canvas/src/components/GraphCanvas/layers/labels.ts)
+  - Edge label baseline: [edgeLabels.ts](../../canvas/src/components/GraphCanvas/layers/edgeLabels.ts)
+  - UI icon baseline alignment (Lucide): [index.css](../../canvas/src/index.css)
 - UI surfaces:
   - UI icon+text alignment in controls: [GraphDataTableUiPrimitives.tsx](../../../curagrph/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx)
 

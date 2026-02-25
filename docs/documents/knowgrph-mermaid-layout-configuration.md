@@ -576,4 +576,4 @@ layout.rectNodes.maxZoomMinimapHeightRatio:
 
 ## Configuration Examples
 
-See [knowgrph-mermaid-layout-configuration-examples.md](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-mermaid-layout-configuration-examples.md).
+See [knowgrph-mermaid-layout-configuration-examples.md](knowgrph-mermaid-layout-configuration-examples.md).

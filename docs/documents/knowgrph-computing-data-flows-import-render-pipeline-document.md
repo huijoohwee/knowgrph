@@ -31,20 +31,20 @@ Expected result:
 
 Key implementation:
 
-- Bundle parsing + GraphData metadata wiring: [quickEditorImport.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/io/quickEditorImport.ts)
+- Bundle parsing + GraphData metadata wiring: [quickEditorImport.ts](../../canvas/src/lib/graph/io/quickEditorImport.ts)
 
 ---
 
 ## Import → Store Commit (Code Path)
 
 - Toolbar local JSON import → parser selection → GraphData normalization:
-  - [jsonImportAction.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/jsonImportAction.ts)
-  - [importFlow.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/toolbar/importFlow.ts)
-  - [loader.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/parsers/loader.ts)
-  - [adapter.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/io/adapter.ts)
+  - [jsonImportAction.ts](../../canvas/src/features/toolbar/jsonImportAction.ts)
+  - [importFlow.ts](../../canvas/src/features/toolbar/importFlow.ts)
+  - [loader.ts](../../canvas/src/features/parsers/loader.ts)
+  - [adapter.ts](../../canvas/src/lib/graph/io/adapter.ts)
 - Registry auto-apply from GraphData metadata during store commit:
-  - [graphDataSlice.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/store/graphDataSlice.ts)
-  - [graphDataSliceUtils.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/hooks/store/graphDataSliceUtils.ts)
+  - [graphDataSlice.ts](../../canvas/src/hooks/store/graphDataSlice.ts)
+  - [graphDataSliceUtils.ts](../../canvas/src/hooks/store/graphDataSliceUtils.ts)
 
 ---
 
@@ -68,8 +68,8 @@ Key implementation:
 
 Flow Editor + overlay wiring:
 
-- [FlowEditorCanvas.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/FlowEditorCanvas.tsx)
-- [NodeOverlayEditor.tsx](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/FlowEditor/NodeOverlayEditor.tsx)
+- [FlowEditorCanvas.tsx](../../canvas/src/components/FlowEditorCanvas.tsx)
+- [NodeOverlayEditor.tsx](../../canvas/src/components/FlowEditor/NodeOverlayEditor.tsx)
 
 ---
 

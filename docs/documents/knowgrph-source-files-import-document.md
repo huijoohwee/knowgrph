@@ -148,16 +148,15 @@ sequenceDiagram
   - (2) `HTML`: Editor shows editable Markdown SSOT; Viewer/Presentation/Slides render sandboxed HTML via iframe `srcdoc` (view-only).
   - (3) `JSON`: Editor shows conversion JSON (read-only override); Viewer/Presentation/Slides render sandboxed JSON code via iframe `srcdoc` (view-only).
 
-**Webpage Markdown Artifact (Editor SSOT)**:
-- Generated Markdown is a deterministic, site-agnostic artifact doc derived from converted Markdown plus generic heuristics.
-- When signals allow, it emits stable sections: `Table of Contents`, `Page Structure Overview` (box-drawing frames), `Document Structure` (heading outline), `Navigation Header`, `Hero Section`, `Page Statistics`, and `Asset Catalog`.
-- Output detail is bounded by `webpageArtifactFidelityMaxLevel` (1..4).
+**Webpage Markdown (Editor SSOT)**:
+- Generated output is a single Markdown SSOT document (frontmatter + Markdown body). It must not include duplicate “artifact doc” wrappers, alternate formats, or synthetic table-of-contents/layout sections by default.
+- If a webpage embeds a Markdown payload in its HTML (e.g., React `data-page` JSON fields like `props.article.content`), the importer prefers that embedded Markdown and writes it directly (lossless for text/images/links).
 
 **Shared token vocabulary (mode-independent)**: the app uses a generic signal extraction layer to derive consistent tokens from Markdown across modes: `[NAV]`, `[CTA]`, `[LINK]`, `[PRICE]`, `[TIME]`.
 - **Iframe implementation**:
   - HTML/JSON always render via sandboxed iframe `srcdoc`.
   - HTML source is fetched via `/__webpage_proxy` (remote or local in-repo path), or read from stored website-import artifacts when available.
-  - For local in-repo webpages, assets resolve through `/__repo_file/*` and optional `kgWebpageSiteRootRel` for root-relative URLs.
+  - For local in-repo webpages, assets resolve through `/__codebase_asset?path=...` (preferred) plus optional `kgWebpageSiteRootRel` for root-relative URLs. `/__repo_file/*` may exist for legacy baseHref flows but should not be relied on by new docs.
   - Script execution is controlled by `webpageViewerScriptPolicy` (default `strip`).
 - **Iframe sandbox policy**: Use `sandbox="allow-scripts"` with `referrerPolicy="no-referrer"`; forbid top-level navigation. Also set a restrictive `allow` feature policy (no geolocation/camera/mic/payment/clipboard).
 - **Safety invariant**: Switching view must not mutate graph/layout/zoom/layers, trigger re-parsing/apply-to-graph, or write default import settings.
