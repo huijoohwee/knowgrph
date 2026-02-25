@@ -140,7 +140,6 @@ export function useFlowComputedPositions(args: {
           semanticMode: String(documentSemanticMode || 'document'),
           renderMode: '2d',
           viewKey: layoutViewKey,
-          renderVariant: 'd3',
         })
         const best = pickSeedFromOtherRendererCache({
           nodes: nodeList,

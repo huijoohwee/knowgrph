@@ -67,100 +67,39 @@ function yamlQuote(value: string): string {
   return `"${String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
 }
 
+function decodeHtmlEntitiesBasic(text: string): string {
+  const src = String(text || '')
+  if (!src.includes('&')) return src
+  return src
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#39;/g, "'")
+}
 
+function htmlFallbackToMarkdownAllText(html: string): string {
+  const src = String(html || '').replace(/\r/g, '')
+  const stripTags = (s: string) => decodeHtmlEntitiesBasic(String(s || '').replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
+
+  let out = src
+  out = out.replace(/<script\b[\s\S]*?<\/script>/gi, '')
+  out = out.replace(/<style\b[\s\S]*?<\/style>/gi, '')
+  out = out.replace(/<!--[\s\S]*?-->/g, '')
+  out = out.replace(/<br\s*\/?>/gi, '\n')
+  out = out.replace(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi, (_, inner) => `\n# ${stripTags(String(inner || ''))}\n`)
+  out = out.replace(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi, (_, inner) => `\n## ${stripTags(String(inner || ''))}\n`)
+  out = out.replace(/<h3\b[^>]*>([\s\S]*?)<\/h3>/gi, (_, inner) => `\n### ${stripTags(String(inner || ''))}\n`)
+  out = out.replace(/<p\b[^>]*>([\s\S]*?)<\/p>/gi, (_, inner) => `\n\n${stripTags(String(inner || ''))}\n\n`)
+  out = decodeHtmlEntitiesBasic(out.replace(/<[^>]+>/g, ''))
+  out = out.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
+  return out
+}
 
 function normalizeWebpageCardAndListBlocks(markdown: string): string {
-  const src = String(markdown || '')
-  if (!src.trim()) return src
-  const lines = src.replace(/\r/g, '').split('\n')
-  const out: string[] = []
-
-  const isHeading = (l: string) => /^#{1,6}\s+/.test(String(l || '').trim())
-  const isDivider = (l: string) => /^---\s*$/.test(String(l || '').trim())
-  const isAlreadyStructured = (l: string) => /^\s*(?:[-*+]\s+|\d+\.\s+|\|)/.test(String(l || ''))
-
-  const flushGroup = (group: string[]) => {
-    const parts = group.map(s => String(s || '').trim()).filter(Boolean)
-    if (parts.length < 6) {
-      out.push(...group)
-      return
-    }
-    const tooLong = parts.some(p => p.length > 96)
-    const punct = parts.some(p => /[.!?:;]$/.test(p))
-    if (tooLong || punct) {
-      out.push(...group)
-      return
-    }
-
-    const cards: Array<{ title: string; items: string[] }> = []
-    let cur: { title: string; items: string[] } | null = null
-    let i = 0
-    while (i < parts.length) {
-      const p = parts[i] || ''
-      const next = i + 1 < parts.length ? (parts[i + 1] || '') : ''
-      const isForLine = /^For\s+/i.test(p)
-      if (isForLine && next) {
-        if (cur) cards.push(cur)
-        cur = { title: next, items: [p] }
-        i += 2
-        continue
-      }
-      if (!cur) {
-        cur = { title: '', items: [] }
-      }
-      cur.items.push(p)
-      i += 1
-    }
-    if (cur) cards.push(cur)
-
-    const usableCards = cards.filter(c => c.title.trim() && c.items.length >= 3)
-    if (usableCards.length >= 2 && usableCards.length <= 4) {
-      const headers = usableCards.map(c => c.title.trim().replace(/\|/g, '\\|'))
-      out.push(`| ${headers.join(' | ')} |`)
-      out.push(`| ${headers.map(() => '---').join(' | ')} |`)
-      const rowCells = usableCards.map(c => c.items.map(it => `- ${it.trim().replace(/\|/g, '\\|')}`).join('<br>'))
-      out.push(`| ${rowCells.join(' | ')} |`)
-      out.push('')
-      return
-    }
-
-    out.push(...parts.map(p => `- ${p}`))
-    out.push('')
-  }
-
-  const pending: string[] = []
-  const pendingRaw: string[] = []
-  const flushPendingRaw = () => {
-    if (!pendingRaw.length) return
-    flushGroup(pendingRaw)
-    pendingRaw.length = 0
-  }
-
-  for (let idx = 0; idx < lines.length; idx += 1) {
-    const line = lines[idx] || ''
-    const trimmed = line.trim()
-    if (!trimmed) {
-      pending.push(line)
-      if (pendingRaw.length) pendingRaw.push('')
-      continue
-    }
-    if (isHeading(line) || isDivider(line) || isAlreadyStructured(line)) {
-      flushPendingRaw()
-      out.push(...pending)
-      pending.length = 0
-      out.push(line)
-      continue
-    }
-    if (pending.length && pending.every(l => !String(l || '').trim())) {
-      out.push(...pending)
-      pending.length = 0
-    }
-    pendingRaw.push(trimmed)
-  }
-
-  if (pendingRaw.length) flushPendingRaw()
-  if (pending.length) out.push(...pending)
-  return out.join('\n')
+  return String(markdown || '')
 }
 
 function buildPdfWorkspaceFrontmatter(args: { docId: string; mode: PdfWorkspaceImportMode; outputDirRel: string }): string {
@@ -518,96 +457,87 @@ export async function fetchWorkspaceUrlContent(
     const base = deriveFilenameFromUrl(normalizedUrl, 'webpage')
     const baseNoExt = base.replace(/\.[a-z0-9]+$/i, '') || 'webpage'
     const name = `${baseNoExt}.md`
-    const mode = opts?.mode === 'refresh' ? 'refresh' : 'import'
-    if (mode === 'import') {
-      const store = useGraphStore.getState()
-      const includeImages = store.webpageImportIncludeImages !== false
-      const fidelityLevel = (() => {
-        const raw = store.webpageArtifactFidelityMaxLevel
-        const n = Number.isFinite(raw) ? Math.floor(Number(raw)) : 4
-        return n <= 1 ? 1 : n >= 4 ? 4 : (n as 1 | 2 | 3)
-      })()
-      const text = [
-        '---',
-        `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`,
-        `kgWebpageView: ${yamlQuote('html')}`,
-        `kgWebpageScriptPolicy: ${yamlQuote('allow')}`,
-        `kgWebpageIncludeImages: ${yamlQuote(includeImages ? 'true' : 'false')}`,
-        `kgWebpageFidelityLevel: ${yamlQuote(String(fidelityLevel))}`,
-        '---',
-        '',
-      ].join('\n')
-      return { normalizedUrl, name, text }
-    }
     const ctrl = new AbortController()
     const ticker = opts?.onProgress
       ? createProgressTicker({ onProgress: opts.onProgress, intervalMs: 300, maxPercentage: 90, maxStepPercentage: 15 })
       : null
+    let includeImages = true
+    let defaultView: 'markdown' | 'json' | 'html' = 'html'
+    let fidelityLevel: 1 | 2 | 3 | 4 = 4
+    let lastFetchedHtml = ''
     try {
       ticker?.start()
 
       const store = useGraphStore.getState()
-      const includeImages = store.webpageImportIncludeImages !== false
-      const defaultView = store.webpageImportView
-      const fidelityLevel = (() => {
+      includeImages = store.webpageImportIncludeImages !== false
+      defaultView = opts?.mode === 'refresh' ? 'html' : store.webpageImportView
+      fidelityLevel = (() => {
         const raw = store.webpageArtifactFidelityMaxLevel
         const n = Number.isFinite(raw) ? Math.floor(Number(raw)) : 4
         return n <= 1 ? 1 : n >= 4 ? 4 : (n as 1 | 2 | 3)
       })()
 
       const upstreamMarkdown = await (async () => {
-        try {
-          const dom = await exportWebpageDomViaHiddenIframe({
-            url: normalizedUrl,
-            mode: 'html',
-            timeoutMs: 30_000,
-            maxChars: 10_000_000,
-            scrollCrawl: true,
-            expandFaq: true,
-          })
-          if (dom && dom.text && dom.text.trim()) {
-            opts?.onProgress?.(55)
-            const converted = await convertHtmlToMarkdownUnified({
-              html: dom.text,
-              baseUrl: normalizedUrl,
-              maxInputChars: 10_000_000,
-              includeImages,
-              fidelityLevel,
+        if (opts?.mode !== 'refresh') {
+          try {
+            const dom = await exportWebpageDomViaHiddenIframe({
+              url: normalizedUrl,
+              mode: 'html',
+              timeoutMs: 30_000,
+              maxChars: 10_000_000,
+              scrollCrawl: true,
+              expandFaq: true,
             })
-            if (converted.ok === true && converted.markdown.trim()) return converted.markdown.trim()
+            if (dom && dom.text && dom.text.trim()) {
+              lastFetchedHtml = dom.text
+              opts?.onProgress?.(55)
+              const markdown = await convertWebpageHtmlToMarkdownArtifactAsync({
+                html: dom.text,
+                url: normalizedUrl,
+                includeImages,
+                fidelityLevel,
+              })
+              if (markdown.trim()) return markdown.trim()
+            }
+          } catch {
+            void 0
           }
-        } catch {
-          void 0
         }
 
-        try {
-          const converted = await fetchWebpageMarkdown(normalizedUrl, { includeImages })
-          if (converted && converted.ok === true && typeof converted.markdown === 'string') {
-            return String(converted.markdown || '')
+        if (opts?.mode !== 'refresh') {
+          try {
+            const converted = await fetchWebpageMarkdown(normalizedUrl, { includeImages })
+            if (converted && converted.ok === true && typeof converted.markdown === 'string') {
+              return String(converted.markdown || '')
+            }
+          } catch {
+            void 0
           }
-        } catch {
-          void 0
         }
 
-        const rawHtml = await fetchWebpageHtmlAuto({ url: normalizedUrl, signal: ctrl.signal })
+        const fetchImpl = (globalThis as unknown as { fetch?: unknown }).fetch
+        const rawHtml = await fetchWebpageHtmlAuto({
+          url: normalizedUrl,
+          signal: ctrl.signal,
+          bypassCache: opts?.mode === 'refresh',
+          fetchImpl: typeof fetchImpl === 'function' ? (fetchImpl as typeof fetch) : undefined,
+        })
         const boundedHtml = rawHtml.length > 5_000_000 ? rawHtml.slice(0, 5_000_000) : rawHtml
+        lastFetchedHtml = boundedHtml
         opts?.onProgress?.(65)
-        try {
-          const unified = await convertHtmlToMarkdownUnified({
-            html: boundedHtml,
-            baseUrl: normalizedUrl,
-            maxInputChars: 5_000_000,
-            includeImages,
-            fidelityLevel,
-          })
-          if (unified.ok === true && unified.markdown.trim()) return unified.markdown.trim()
-        } catch {
-          void 0
-        }
-
-        const converted = await convertWebpageHtmlToMarkdownArtifactAsync({ html: boundedHtml, url: normalizedUrl })
+        const markdown =
+          opts?.mode === 'refresh'
+            ? ''
+            : await (async () => {
+                try {
+                  return await convertWebpageHtmlToMarkdownArtifactAsync({ html: boundedHtml, url: normalizedUrl, includeImages, fidelityLevel })
+                } catch {
+                  return ''
+                }
+              })()
         opts?.onProgress?.(85)
-        return converted
+        if (markdown.trim()) return markdown.trim()
+        return htmlFallbackToMarkdownAllText(boundedHtml)
       })()
 
       ticker?.stop()
@@ -627,8 +557,41 @@ export async function fetchWorkspaceUrlContent(
       )
       opts?.onProgress?.(100)
       if (text && text.trim() && !isFrontmatterOnlyDoc(text)) return { normalizedUrl, name, text }
+
+      const minimal = [
+        '---',
+        `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`,
+        `kgWebpageView: ${yamlQuote(defaultView)}`,
+        `kgWebpageScriptPolicy: ${yamlQuote('allow')}`,
+        `kgWebpageIncludeImages: ${yamlQuote(includeImages ? 'true' : 'false')}`,
+        `kgWebpageFidelityLevel: ${yamlQuote(String(fidelityLevel))}`,
+        '---',
+        '',
+        '**Fidelity Level:** 100% Source-Faithful (No Invented Content)',
+        '',
+        String(upstreamMarkdown || '').trim(),
+        '',
+      ].join('\n')
+      if (minimal.trim() && !isFrontmatterOnlyDoc(minimal)) return { normalizedUrl, name, text: minimal }
     } catch {
-      void 0
+      if (opts?.mode === 'refresh') {
+        const recoveredBody = lastFetchedHtml ? htmlFallbackToMarkdownAllText(lastFetchedHtml) : ''
+        const recovered = [
+          '---',
+          `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`,
+          `kgWebpageView: ${yamlQuote(defaultView)}`,
+          `kgWebpageScriptPolicy: ${yamlQuote('allow')}`,
+          `kgWebpageIncludeImages: ${yamlQuote(includeImages ? 'true' : 'false')}`,
+          `kgWebpageFidelityLevel: ${yamlQuote(String(fidelityLevel))}`,
+          '---',
+          '',
+          '**Fidelity Level:** 100% Source-Faithful (No Invented Content)',
+          '',
+          recoveredBody.trim(),
+          '',
+        ].join('\n')
+        if (recovered.trim() && !isFrontmatterOnlyDoc(recovered)) return { normalizedUrl, name, text: recovered }
+      }
     } finally {
       ticker?.stop()
       try {
@@ -764,7 +727,14 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
     return t.slice(end + 4).replace(/^\s*\n/, '')
   })()
   const normalizedBody = normalizeWebpageCardAndListBlocks(body)
-  return [...fmLines, normalizedBody].join('\n')
+  const SOURCE_FAITHFUL_MARKER = 'Source-Faithful (No Invented Content)'
+  const withMarker = (() => {
+    const text = String(normalizedBody || '')
+    if (!text.trim()) return text
+    if (text.includes(SOURCE_FAITHFUL_MARKER)) return text
+    return [`**Fidelity Level:** 100% ${SOURCE_FAITHFUL_MARKER}`, '', text].join('\n')
+  })()
+  return [...fmLines, withMarker].join('\n')
 }
 
 export function buildWebsiteImportWebpageDocFromUpstreamMarkdown(args: {
@@ -806,8 +776,16 @@ export function buildWebsiteImportWebpageDocFromUpstreamMarkdown(args: {
     if (end < 0) return t
     return t.slice(end + 4).replace(/^\s*\n/, '')
   })()
+  const normalizedBody = normalizeWebpageCardAndListBlocks(body)
+  const SOURCE_FAITHFUL_MARKER = 'Source-Faithful (No Invented Content)'
+  const withMarker = (() => {
+    const text = String(normalizedBody || '')
+    if (!text.trim()) return text
+    if (text.includes(SOURCE_FAITHFUL_MARKER)) return text
+    return [`**Fidelity Level:** 100% ${SOURCE_FAITHFUL_MARKER}`, '', text].join('\n')
+  })()
 
-  return [...fmLines, body].join('\n')
+  return [...fmLines, withMarker].join('\n')
 }
 
 export async function importWorkspaceUrl(args: {

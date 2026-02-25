@@ -981,8 +981,10 @@ export const attachSimulationTick = (args: {
             const n = raw != null ? Number(raw) : Number.NaN
             return Number.isFinite(n) ? Math.max(1, Math.floor(n)) : 1
           })()
-          const halfW = Math.max(2, (Math.max(0, charCount) * labelFontSize * 0.6) / 2)
-          const halfH = Math.max(2, (Math.max(1, lineCount) * labelFontSize * 0.6) / 2)
+          const charW = estimateLabelCharWidthPx(labelFontSize)
+          const lineHeightPx = labelFontSize * 1.2
+          const halfW = Math.max(2, (Math.max(0, charCount) * charW) / 2)
+          const halfH = Math.max(2, (Math.max(1, lineCount) * lineHeightPx) / 2)
           const dxv = Number.isFinite(dx) ? dx : 0
           const dyv = Number.isFinite(dy) ? dy : 0
           const cx =

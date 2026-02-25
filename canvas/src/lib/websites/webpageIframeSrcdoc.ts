@@ -266,17 +266,12 @@ const createAbortError = (): Error => {
   return err
 }
 
-const setTimeoutFn: (handler: () => void, timeout?: number) => number =
-  typeof window !== 'undefined' && typeof window.setTimeout === 'function'
-    ? (handler, timeout) => window.setTimeout(handler, timeout)
-    : (handler, timeout) => setTimeout(handler, timeout) as unknown as number
+const setTimeoutFn: (handler: () => void, timeout?: number) => number = (handler, timeout) =>
+  setTimeout(handler, timeout) as unknown as number
 
-const clearTimeoutFn: (id: number) => void =
-  typeof window !== 'undefined' && typeof window.clearTimeout === 'function'
-    ? (id) => window.clearTimeout(id)
-    : (id) => {
-        clearTimeout(id as never)
-      }
+const clearTimeoutFn: (id: number) => void = (id) => {
+  clearTimeout(id as never)
+}
 
 const withAbort = async <T,>(p: Promise<T>, signal: AbortSignal): Promise<T> => {
   if (!signal) return await p
@@ -311,7 +306,31 @@ const withAbort = async <T,>(p: Promise<T>, signal: AbortSignal): Promise<T> => 
   })
 }
 
-const fetchCached = (key: string, run: (signal: AbortSignal) => Promise<string>, signal: AbortSignal): Promise<string> => {
+const fetchCached = (
+  key: string,
+  run: (signal: AbortSignal) => Promise<string>,
+  signal: AbortSignal,
+  opts?: { bypassCache?: boolean },
+): Promise<string> => {
+  if (opts?.bypassCache) {
+    const ctrl = new AbortController()
+    const timeoutId = setTimeoutFn(() => {
+      try {
+        ctrl.abort()
+      } catch {
+        void 0
+      }
+    }, 30_000)
+    const p = withAbort(run(ctrl.signal), ctrl.signal).finally(() => {
+      try {
+        clearTimeoutFn(timeoutId)
+      } catch {
+        void 0
+      }
+    })
+    return withAbort(p, signal)
+  }
+
   const cached = CACHE.get(key)
   if (cached) {
     if (signal?.aborted) return Promise.reject(createAbortError())
@@ -330,7 +349,7 @@ const fetchCached = (key: string, run: (signal: AbortSignal) => Promise<string>,
     }
   }, 30_000)
 
-  const p = run(ctrl.signal)
+  const p = withAbort(run(ctrl.signal), ctrl.signal)
     .then((html) => {
       CACHE.set(key, { html, atMs: Date.now() })
       if (CACHE.size > CACHE_MAX) {
@@ -356,6 +375,8 @@ export async function fetchWebpageHtmlViaProxy(args: {
   url: string
   signal: AbortSignal
   onProgress?: (bytes: number, bytesTotal?: number | null) => void
+  bypassCache?: boolean
+  fetchImpl?: typeof fetch
 }): Promise<string> {
   const u = String(args.url || '').trim()
   if (!u) return ''
@@ -363,11 +384,13 @@ export async function fetchWebpageHtmlViaProxy(args: {
   return fetchCached(
     key,
     async (signal) => {
-      const res = await fetch(`/__webpage_proxy?url=${encodeURIComponent(u)}`, { signal, headers: { Accept: 'text/html,*/*;q=0.9' } })
+      const fetchFn = typeof args.fetchImpl === 'function' ? args.fetchImpl : fetch
+      const res = await fetchFn(`/__webpage_proxy?url=${encodeURIComponent(u)}`, { signal, headers: { Accept: 'text/html,*/*;q=0.9' } })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await fetchBoundedText(res, 5_000_000, args.onProgress)
     },
     args.signal,
+    { bypassCache: args.bypassCache },
   )
 }
 
@@ -375,6 +398,8 @@ export async function fetchWebpageHtmlFromRepoFile(args: {
   relPath: string
   signal: AbortSignal
   onProgress?: (bytes: number, bytesTotal?: number | null) => void
+  bypassCache?: boolean
+  fetchImpl?: typeof fetch
 }): Promise<string> {
   const rel = String(args.relPath || '')
     .trim()
@@ -388,11 +413,13 @@ export async function fetchWebpageHtmlFromRepoFile(args: {
   return fetchCached(
     key,
     async (signal) => {
-      const res = await fetch(buildRepoFilePath(rel), { signal, headers: { Accept: 'text/html,*/*;q=0.9' } })
+      const fetchFn = typeof args.fetchImpl === 'function' ? args.fetchImpl : fetch
+      const res = await fetchFn(buildRepoFilePath(rel), { signal, headers: { Accept: 'text/html,*/*;q=0.9' } })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await fetchBoundedText(res, 8_000_000, args.onProgress)
     },
     args.signal,
+    { bypassCache: args.bypassCache },
   )
 }
 
@@ -400,11 +427,27 @@ export async function fetchWebpageHtmlAuto(args: {
   url: string
   signal: AbortSignal
   onProgress?: (bytes: number, bytesTotal?: number | null) => void
+  bypassCache?: boolean
+  fetchImpl?: typeof fetch
 }): Promise<string> {
   const u = String(args.url || '').trim()
   if (!u) return ''
-  if (isHttpUrl(u)) return await fetchWebpageHtmlViaProxy({ url: u, signal: args.signal, onProgress: args.onProgress })
-  return await fetchWebpageHtmlFromRepoFile({ relPath: u, signal: args.signal, onProgress: args.onProgress })
+  if (isHttpUrl(u)) {
+    return await fetchWebpageHtmlViaProxy({
+      url: u,
+      signal: args.signal,
+      onProgress: args.onProgress,
+      bypassCache: args.bypassCache,
+      fetchImpl: args.fetchImpl,
+    })
+  }
+  return await fetchWebpageHtmlFromRepoFile({
+    relPath: u,
+    signal: args.signal,
+    onProgress: args.onProgress,
+    bypassCache: args.bypassCache,
+    fetchImpl: args.fetchImpl,
+  })
 }
 
 export async function fetchWebpageConversionJsonViaConvert(args: {

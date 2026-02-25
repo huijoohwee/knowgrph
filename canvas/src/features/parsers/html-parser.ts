@@ -66,11 +66,8 @@ export async function parseHtmlToMarkdownAsync(
     if (rssMarkdown.trim()) return rssMarkdown.trim()
   }
 
-  const preferUnified = raw.length >= 450_000
-  if (preferUnified) {
-    const unifiedRes = await runInIdle(() => convertHtmlToMarkdownUnified({ html: raw, baseUrl, onProgress: opts?.onProgress }))
-    if (unifiedRes.ok === true && unifiedRes.markdown.trim()) return unifiedRes.markdown.trim()
-  }
+  const unifiedRes = await runInIdle(() => convertHtmlToMarkdownUnified({ html: raw, baseUrl, onProgress: opts?.onProgress }))
+  if (unifiedRes.ok === true && unifiedRes.markdown.trim()) return unifiedRes.markdown.trim()
 
   return await runInIdle(() => parseHtmlToMarkdown(raw, baseUrl))
 }
@@ -110,13 +107,12 @@ export async function parseHtmlToMarkdownAllTextAsync(
     if (rssMarkdown.trim()) return rssMarkdown.trim()
   }
 
-  const preferUnified = raw.length >= 450_000
-  if (preferUnified) {
-    const unifiedRes = await runInIdle(() => convertHtmlToMarkdownUnified({ html: raw, baseUrl, onProgress: opts?.onProgress }))
-    if (unifiedRes.ok === true) {
-      const md = unifiedRes.markdown.trim()
-      if (md) return md
-    }
+  const unifiedRes = await runInIdle(() =>
+    convertHtmlToMarkdownUnified({ html: raw, baseUrl, injectTitleHeading: true, onProgress: opts?.onProgress }),
+  )
+  if (unifiedRes.ok === true) {
+    const md = unifiedRes.markdown.trim()
+    if (md) return md
   }
 
   return await runInIdle(() => parseHtmlToMarkdownAllText(raw, baseUrl))

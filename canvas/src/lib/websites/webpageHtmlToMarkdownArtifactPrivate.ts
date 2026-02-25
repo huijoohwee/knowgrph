@@ -160,11 +160,52 @@ export const scrapeDateTime = (): string => {
 }
 
 export const pickPrimaryContentRoot = (doc: Document): HTMLElement => {
-  const main = doc.querySelector('main')
-  if (main) return main as HTMLElement
-  const article = doc.querySelector('article')
-  if (article) return article as HTMLElement
-  return (doc.body || doc.documentElement) as HTMLElement
+  const uniq = <T>(items: Array<T | null | undefined>): T[] => {
+    const out: T[] = []
+    const seen = new Set<T>()
+    for (const it of items) {
+      if (!it) continue
+      if (seen.has(it)) continue
+      seen.add(it)
+      out.push(it)
+    }
+    return out
+  }
+
+  const body = (doc.body || doc.documentElement) as HTMLElement
+
+  const candidates = uniq<HTMLElement>([
+    doc.querySelector('main') as HTMLElement | null,
+    doc.querySelector('[role="main"]') as HTMLElement | null,
+    doc.querySelector('article') as HTMLElement | null,
+    doc.querySelector('#content') as HTMLElement | null,
+    doc.querySelector('#main') as HTMLElement | null,
+    doc.querySelector('#__next') as HTMLElement | null,
+    doc.querySelector('#root') as HTMLElement | null,
+    doc.querySelector('.content') as HTMLElement | null,
+    doc.querySelector('.main') as HTMLElement | null,
+    body,
+  ])
+
+  const score = (el: HTMLElement): number => {
+    const textLen = readTextExcludingNoisyTags(el).length
+    const links = el.querySelectorAll('a').length
+    const buttons = el.querySelectorAll('button,[role="button"]').length
+    const penalty = Math.min(textLen, links * 18 + buttons * 22)
+    return textLen - penalty
+  }
+
+  const scored = candidates
+    .map((el) => ({ el, s: score(el), t: readTextExcludingNoisyTags(el).length }))
+    .sort((a, b) => b.s - a.s)
+
+  const best = scored[0]?.el || body
+  const bestTextLen = scored[0]?.t ?? readTextExcludingNoisyTags(best).length
+  if (best !== body && bestTextLen < 200) {
+    const bodyTextLen = readTextExcludingNoisyTags(body).length
+    if (bodyTextLen > bestTextLen) return body
+  }
+  return best
 }
 
 export const pickHeaderRoot = (doc: Document): HTMLElement | null => {
@@ -582,7 +623,11 @@ const blockToMarkdown = (el: HTMLElement, baseUrl: string): string => {
   return readTextExcludingNoisyTags(el)
 }
 
-export const extractMainSections = (root: HTMLElement, baseUrl: string): MainSection[] => {
+const extractMainSectionsInternal = (
+  root: HTMLElement,
+  baseUrl: string,
+  opts?: { allowNoscriptFallback?: boolean },
+): MainSection[] => {
   const blockTags = new Set(['p', 'ul', 'ol', 'table', 'pre', 'blockquote', 'hr', 'img', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
   const blockSelector = Array.from(blockTags).join(',')
   const blocks: HTMLElement[] = []
@@ -693,6 +738,40 @@ export const extractMainSections = (root: HTMLElement, baseUrl: string): MainSec
     return derived.filter((s) => s.heading && s.blocks.some((b) => b.trim()))
   }
   return filtered
+}
+
+export const extractMainSections = (root: HTMLElement, baseUrl: string): MainSection[] => {
+  const primary = extractMainSectionsInternal(root, baseUrl, { allowNoscriptFallback: true })
+  if (primary.length > 0) return primary
+
+  const allowNoscriptFallback = true
+  if (!allowNoscriptFallback) return primary
+
+  const noscripts = Array.from(root.querySelectorAll('noscript')) as HTMLElement[]
+  if (!noscripts.length) return primary
+
+  for (const ns of noscripts.slice(0, 12)) {
+    const payload = String(ns.textContent || '').trim()
+    if (!payload) continue
+    const looksLikeHtml = payload.includes('<') && payload.includes('>') && /<(?:div|p|main|article|section|h\d|ul|ol|li|table|pre)\b/i.test(payload)
+    if (looksLikeHtml) {
+      try {
+        const parser = new DOMParser()
+        const doc = parser.parseFromString(payload, 'text/html')
+        const nextRoot = pickPrimaryContentRoot(doc)
+        const extracted = extractMainSectionsInternal(nextRoot, baseUrl, { allowNoscriptFallback: false })
+        if (extracted.length > 0) return extracted
+      } catch {
+        void 0
+      }
+    }
+    const text = payload.replace(/\s+/g, ' ').trim()
+    if (text.length >= 200) {
+      return [{ heading: 'Content', level: 2, blocks: [text], synthetic: true }]
+    }
+  }
+
+  return primary
 }
 
 export const formatRelativeHref = (href: string, pageUrl: string): string => {

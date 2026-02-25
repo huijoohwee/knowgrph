@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
 import { traeBadgePlugin } from 'vite-plugin-trae-solo-badge'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -13,7 +12,6 @@ import { CODEBASE_INDEX_PIPELINE_COMMAND } from './src/lib/config-copy/tooltips'
 import { unwrapUserProvidedText } from './src/lib/url'
 import { createPdfAssetsHandler, createPdfConvertHandler } from './src/lib/pdf/server/pdfConvertServer'
 import { createPdfWorkspaceHandler } from './src/lib/pdf/server/pdfWorkspaceServer'
-import { createWebsiteImportHandler } from './src/lib/websites/server/websiteImportServer'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -399,7 +397,8 @@ function createLazyWebsiteImportHandler(): import('vite').Connect.NextHandleFunc
     handlerPromise =
       handlerPromise ||
       (async () => {
-        return createWebsiteImportHandler({ repoRoot })
+        const mod = await import('./src/lib/websites/server/websiteImportServer')
+        return mod.createWebsiteImportHandler({ repoRoot })
       })()
     return handlerPromise
   }
@@ -1259,6 +1258,36 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '              const a = String(t1 || "").trim();',
     '              const b = String(t2 || "").trim();',
     '              const base = b.length > a.length ? b : a;',
+    '              let media = "";',
+    '              try {',
+    '                const lines = [];',
+    '                const push = (kind, url, label) => {',
+    '                  const u = String(url || "").trim();',
+    '                  if (!u) return;',
+    '                  const l = String(label || "").trim();',
+    '                  lines.push(`- [${kind}] ${l ? (l + " ") : ""}${u}`);',
+    '                };',
+    '                const imgs = Array.from(document.querySelectorAll("img")).slice(0, 60);',
+    '                for (const img of imgs) {',
+    '                  const src = img.currentSrc || (img.getAttribute && img.getAttribute("src")) || "";',
+    '                  const alt = (img.getAttribute && (img.getAttribute("alt") || img.getAttribute("aria-label"))) || "";',
+    '                  push("img", src, alt);',
+    '                }',
+    '                const videos = Array.from(document.querySelectorAll("video")).slice(0, 20);',
+    '                for (const v of videos) {',
+    '                  const src = v.currentSrc || (v.getAttribute && v.getAttribute("src")) || "";',
+    '                  push("video", src, (v.getAttribute && v.getAttribute("aria-label")) || "");',
+    '                  push("poster", (v.getAttribute && v.getAttribute("poster")) || "", "");',
+    '                }',
+    '                const audios = Array.from(document.querySelectorAll("audio")).slice(0, 20);',
+    '                for (const a2 of audios) {',
+    '                  const src = a2.currentSrc || (a2.getAttribute && a2.getAttribute("src")) || "";',
+    '                  push("audio", src, (a2.getAttribute && a2.getAttribute("aria-label")) || "");',
+    '                }',
+    '                if (lines.length) media = `\\n\\n[MEDIA]\\n${lines.join("\\n")}`.trimEnd();',
+    '              } catch {',
+    '                void 0;',
+    '              }',
     '              let shadow = "";',
     '              try {',
     '                const root = body || document.documentElement;',
@@ -1284,7 +1313,7 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '              } catch {',
     '                void 0;',
     '              }',
-    '              const combined = (base + "\n" + shadow).trim();',
+    '              const combined = (base + "\n" + shadow + "\n" + media).trim();',
     '              return combined.length > base.length ? combined : base;',
     '            } catch {',
     '              return "";',
@@ -2367,6 +2396,5 @@ export default defineConfig(({ command }) => ({
           websiteImportDevPlugin,
           youtubeConvertDevPlugin,
         ]),
-    tsconfigPaths(),
   ],
 }))

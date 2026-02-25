@@ -30,6 +30,16 @@
 
 ### P0-Critical
 
+#### 2026-02-25
+
+- [] a few have asked ..., I have used my app to generate the knowledge map...
+
+
+- [ ] One-click shareable interactive link; avoid exposing sensitive data, such as API keys, passwords, or personal information. FORBID re-computation, re-rendering, messy/chaotic layouts.
+
+- [ ] self-evolving
+
+
 #### 2026-02-22
 
 ```

@@ -186,7 +186,7 @@ export const buildLayoutPositionCacheKey = (args: {
   const rv = typeof args.renderVariant === 'string' ? args.renderVariant.trim() : ''
   const lv = typeof args.layoutVariant === 'string' ? args.layoutVariant.trim() : ''
   if (vk) parts.push(`v=${hashStringToHex(vk)}`)
-  if (rv) parts.push(rv)
+  if (args.renderMode === '3d' && rv) parts.push(rv)
   if (lv) parts.push(lv)
   return parts.join(':')
 }
@@ -217,7 +217,8 @@ export const determineLayoutPositions = ({
   const isFrontmatterChange = prevFrontmatterMode !== frontmatterMode;
   const isSemanticChange = prevSemanticMode !== semanticMode;
   const isRenderModeChange = prevRenderMode !== renderMode;
-  const isRenderVariantChange = (prevRenderVariant ?? null) !== (renderVariant ?? null)
+  const isRenderVariantChange =
+    renderMode === '3d' && (prevRenderVariant ?? null) !== (renderVariant ?? null)
   const isLayoutVariantChange = (prevLayoutVariant ?? null) !== (layoutVariant ?? null)
   const cacheKey = buildLayoutPositionCacheKey({
     datasetKey,

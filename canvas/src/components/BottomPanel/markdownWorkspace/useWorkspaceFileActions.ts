@@ -81,6 +81,14 @@ export function useWorkspaceFileActions(args: {
 
   const importJobRef = React.useRef(0)
 
+  const buildWebpageImportStageLabel = React.useCallback((pctRaw: number): string => {
+    const pct = Math.max(0, Math.min(100, Math.floor(Number.isFinite(pctRaw) ? pctRaw : 0)))
+    if (pct < 20) return 'Fetching webpage HTML'
+    if (pct < 60) return 'Processing webpage DOM'
+    if (pct < 90) return 'Converting webpage to Markdown'
+    return 'Finalizing webpage document'
+  }, [])
+
   const setStatusInfo = React.useCallback(
     (label: string) => {
       const msg = String(label || '').trim()
@@ -376,8 +384,36 @@ export function useWorkspaceFileActions(args: {
                 })
                 return
               }
+              if (p.phase === 'fetching' && p.total && p.total > 0) {
+                const pct = p.current && p.current > 0 ? (p.current / p.total) * 100 : 0
+                const stageLabel = buildWebpageImportStageLabel(pct)
+                const pctInt = Math.max(0, Math.min(100, Math.floor(pct)))
+                setStatusProgress(stageLabel, pctInt, 100)
+                useGraphStore.getState().upsertUiToast({
+                  id: toastId,
+                  kind: 'neutral',
+                  message: `Importing URL: ${stageLabel} ${pctInt}%`,
+                  ttlMs: null,
+                  dismissible: false,
+                  log: false,
+                })
+                return
+              }
+              if (p.phase === 'fetching') {
+                const stageLabel = buildWebpageImportStageLabel(0)
+                setStatusProgress(stageLabel)
+                useGraphStore.getState().upsertUiToast({
+                  id: toastId,
+                  kind: 'neutral',
+                  message: `Importing URL: ${stageLabel}…`,
+                  ttlMs: null,
+                  dismissible: false,
+                  log: false,
+                })
+                return
+              }
               if (p.total && p.total > 0) {
-                const label = p.phase === 'fetching' ? 'Fetching' : 'Writing'
+                const label = 'Writing'
                 if (p.current && p.current > 0) setStatusProgress(label, p.current, p.total)
                 else setStatusProgress(label)
                 useGraphStore.getState().upsertUiToast({
@@ -385,15 +421,15 @@ export function useWorkspaceFileActions(args: {
                   kind: 'neutral',
                   message:
                     p.current && p.current > 0
-                      ? `Importing URL: ${p.phase === 'fetching' ? 'Fetching' : 'Writing'} ${p.current}/${p.total}`
-                      : `Importing URL: ${p.phase === 'fetching' ? 'Fetching' : 'Writing'}…`,
+                      ? `Importing URL: Writing ${p.current}/${p.total}`
+                      : `Importing URL: Writing…`,
                   ttlMs: null,
                   dismissible: false,
                   log: false,
                 })
                 return
               }
-              setStatusProgress(p.phase === 'fetching' ? 'Fetching' : 'Writing')
+              setStatusProgress('Writing')
             },
           }),
         )
@@ -440,7 +476,19 @@ export function useWorkspaceFileActions(args: {
 
             const fetched = await fetchWorkspaceUrlContent(sourceUrl, {
               mode: 'refresh',
-              onProgress: (p) => setStatusProgress('Fetching', p, 100),
+              onProgress: (p) => {
+                const pct = Math.max(0, Math.min(100, Math.floor(Number.isFinite(p) ? p : 0)))
+                const phaseLabel = buildWebpageImportStageLabel(pct)
+                setStatusProgress(phaseLabel, pct, 100)
+                useGraphStore.getState().upsertUiToast({
+                  id: toastHydrateId,
+                  kind: 'neutral',
+                  message: `${phaseLabel} ${pct}%`,
+                  ttlMs: null,
+                  dismissible: false,
+                  log: false,
+                })
+              },
             })
             if (importJobRef.current !== jobId) return
             if (!fetched || !String(fetched.text || '').trim()) return
@@ -501,6 +549,7 @@ export function useWorkspaceFileActions(args: {
     },
     [
       activeDocumentKey,
+      buildWebpageImportStageLabel,
       focusAfterImport,
       getFs,
       lastLoadedRef,
@@ -799,7 +848,12 @@ export function useWorkspaceFileActions(args: {
                     signal: ctrl.signal,
                   })
                   const boundedHtml = rawHtml.length > 5_000_000 ? rawHtml.slice(0, 5_000_000) : rawHtml
-                  const markdown = await convertWebpageHtmlToMarkdownArtifactAsync({ html: boundedHtml, url: row.nodeUrl })
+                  const markdown = await convertWebpageHtmlToMarkdownArtifactAsync({
+                    html: boundedHtml,
+                    url: row.nodeUrl,
+                    includeImages: true,
+                    fidelityLevel: 4,
+                  })
                   return buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
                     upstreamMarkdown: markdown,
                     url: row.nodeUrl,

@@ -6,7 +6,7 @@ type CancelIdleCallback = (handle: number) => void
 export const scheduleIdle = (fn: () => void): number => {
   const ri = (globalThis as unknown as { requestIdleCallback?: IdleCallback }).requestIdleCallback
   if (typeof ri === 'function') return ri(fn)
-  return window.setTimeout(fn, IDLE_FALLBACK_MS)
+  return setTimeout(fn, IDLE_FALLBACK_MS) as unknown as number
 }
 
 export const cancelIdle = (handle: number): void => {
@@ -15,7 +15,7 @@ export const cancelIdle = (handle: number): void => {
     ci(handle)
     return
   }
-  window.clearTimeout(handle)
+  clearTimeout(handle as never)
 }
 
 export const runInIdle = async <T,>(fn: () => T | Promise<T>, opts?: { timeoutMs?: number }): Promise<T> => {
@@ -32,6 +32,6 @@ export const runInIdle = async <T,>(fn: () => T | Promise<T>, opts?: { timeoutMs
       }, { timeout: timeoutMs })
     })
   }
-  await new Promise<void>(resolve => window.setTimeout(resolve, 0))
+  await new Promise<void>(resolve => setTimeout(resolve, 0))
   return await fn()
 }

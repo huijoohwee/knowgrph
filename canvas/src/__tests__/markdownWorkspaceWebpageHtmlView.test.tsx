@@ -4,6 +4,11 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MarkdownWorkspaceMain } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceMain'
 import type { MarkdownPresentationApi } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceTypes'
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
+import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
+import { fetchWorkspaceUrlContent } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
+
+const BYTEPLUS_TEST_URL =
+  'https://api.byteplus.com/api-sdk/view?serviceCode=ecs&version=2020-04-01&language=Python'
 
 export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
   const { dom, restore } = initJsdomHarness()
@@ -302,6 +307,221 @@ export async function testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot() {
 
     root.unmount()
   } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownWorkspaceImportUrlHtmlPageSsotAndViewModes() {
+  const imported = await fetchWorkspaceUrlContent(BYTEPLUS_TEST_URL, { mode: 'import' })
+  if (imported.normalizedUrl !== BYTEPLUS_TEST_URL) {
+    throw new Error('expected normalizedUrl to equal input URL for Import URL pipeline')
+  }
+  if (!imported.name || !imported.name.endsWith('.md')) {
+    throw new Error('expected Import URL pipeline to derive a .md file name')
+  }
+  const frontmatterPrefix = imported.text.split('\n').slice(0, 12).join('\n')
+  if (!frontmatterPrefix.includes(`kgWebpageUrl: "${BYTEPLUS_TEST_URL}"`)) {
+    throw new Error('expected frontmatter to include kgWebpageUrl with BytePlus URL')
+  }
+  if (!frontmatterPrefix.includes('kgWebpageView: "html"')) {
+    throw new Error('expected frontmatter to set kgWebpageView: "html"')
+  }
+  if (!frontmatterPrefix.includes('kgWebpageScriptPolicy: "allow"')) {
+    throw new Error('expected frontmatter to set kgWebpageScriptPolicy: "allow"')
+  }
+  if (!frontmatterPrefix.includes('kgWebpageIncludeImages:')) {
+    throw new Error('expected frontmatter to include kgWebpageIncludeImages flag')
+  }
+  if (!frontmatterPrefix.includes('kgWebpageFidelityLevel:')) {
+    throw new Error('expected frontmatter to include kgWebpageFidelityLevel')
+  }
+
+  const importedMarkdown = [
+    imported.text.replace(/\s+$/, ''),
+    '',
+    '# BytePlus ECS Python SDK',
+    '',
+    '- Section 1',
+    '- Section 2',
+    '',
+  ].join('\n')
+
+  const { dom, restore } = initJsdomHarness()
+  const prevFetch = (globalThis as unknown as { fetch?: unknown }).fetch
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    const editorRef = { current: null as MonacoTextEditorHandle | null }
+    const presentationApiRef = { current: null as MarkdownPresentationApi | null }
+
+    const htmlBody =
+      '<!doctype html><html><head><base href="https://localhost/"></head><body><h1>BytePlus ECS Python SDK</h1><p>Section 1</p><p>Section 2</p></body></html>'
+    ;(globalThis as unknown as { fetch?: unknown }).fetch = (async (input: unknown, init?: unknown) => {
+      const initObj = init && typeof init === 'object' ? (init as { method?: unknown }) : null
+      const methodRaw = initObj?.method
+      const method = (typeof methodRaw === 'string' ? methodRaw : 'GET').toUpperCase()
+      const res = {
+        ok: true,
+        status: 200,
+        headers: {
+          get: () => null,
+        },
+        text: async () => (method === 'HEAD' ? '' : htmlBody),
+      }
+      return res as unknown as Response
+    }) as unknown
+
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (raf) {
+          raf(() => resolve())
+          return
+        }
+        setTimeout(() => resolve(), 0)
+      })
+
+    const refreshed = await fetchWorkspaceUrlContent(BYTEPLUS_TEST_URL, { mode: 'refresh' })
+    if (refreshed.normalizedUrl !== BYTEPLUS_TEST_URL) {
+      throw new Error('expected normalizedUrl to equal input URL for refresh mode')
+    }
+    if (!refreshed.name || !refreshed.name.endsWith('.md')) {
+      throw new Error('expected refresh mode to derive a .md file name')
+    }
+    if (!refreshed.text.includes(`kgWebpageUrl: "${BYTEPLUS_TEST_URL}"`)) {
+      throw new Error('expected refresh markdown to include kgWebpageUrl with BytePlus URL')
+    }
+    if (!refreshed.text.includes('kgWebpageView: "html"')) {
+      throw new Error('expected refresh markdown to keep kgWebpageView: "html" in frontmatter')
+    }
+    if (!refreshed.text.includes('BytePlus ECS Python SDK')) {
+      throw new Error('expected refresh markdown to include heading derived from HTML')
+    }
+  if (isFrontmatterOnlyDoc(refreshed.text)) {
+    throw new Error('expected refresh markdown to have non-empty body, not frontmatter-only')
+  }
+
+  const fidelityMarker = 'Fidelity Level:** 100% Source-Faithful (No Invented Content)'
+  if (!refreshed.text.includes(fidelityMarker)) {
+    throw new Error('expected refresh markdown to include Source-Faithful fidelity marker')
+  }
+
+    root.render(
+      React.createElement(MarkdownWorkspaceMain, {
+        themeMode: 'light',
+        uiPanelTextFontClass: 'font-sans',
+        uiPanelMonospaceTextClass: 'font-mono',
+        explorerOpen: true,
+        setExplorerOpen: () => {},
+        layoutMode: 'split',
+        setLayoutMode: () => {},
+        markdownWordWrap: true,
+        setMarkdownWordWrap: () => {},
+        markdownTextHighlight: false,
+        setMarkdownTextHighlight: () => {},
+        statusLabel: null,
+        onApply: () => {},
+        onToggleFullscreen: () => {},
+        presentationApiRef,
+        isEditing: true,
+        isMarkdown: true,
+        onFormatAction: () => {},
+        onImportLocalFiles: () => {},
+        onImportLocalFolder: () => {},
+        onImportUrl: () => {},
+        onImportWebsite: () => {},
+        activeText: importedMarkdown,
+        setActiveText: () => {},
+        activeDocumentKey: '/byteplus.md',
+        highlightedLineRange: null,
+        revealLineInEditor: () => {},
+        showInViewer: () => {},
+        showInPresentation: () => {},
+        showInSlidesGallery: () => {},
+        editorUri: 'inmemory://byteplus.md',
+        editorLanguage: 'markdown',
+        editorRef: editorRef as unknown as React.MutableRefObject<MonacoTextEditorHandle | null>,
+      }),
+    )
+
+    for (let i = 0; i < 5; i += 1) await tick()
+
+    const textarea = doc.querySelector(
+      'textarea[aria-label="Markdown Editor Text"]',
+    ) as HTMLTextAreaElement | null
+    if (!textarea) throw new Error('expected editor textarea for Import URL document')
+    if (textarea.value !== importedMarkdown) {
+      throw new Error('expected editor to render Import URL markdown SSOT text')
+    }
+
+    const iframe = doc.querySelector('iframe')
+    if (!iframe) throw new Error('expected iframe for HTML viewer after Import URL')
+    const src = String(iframe.getAttribute('src') || '')
+    if (src) throw new Error('expected no iframe src for srcdoc mode for Import URL')
+    const srcdoc = String(iframe.getAttribute('srcdoc') || '')
+    if (!srcdoc.includes('<base')) {
+      throw new Error('expected srcdoc to include base tag for Import URL HTML viewer')
+    }
+
+    root.render(
+      React.createElement(MarkdownWorkspaceMain, {
+        themeMode: 'light',
+        uiPanelTextFontClass: 'font-sans',
+        uiPanelMonospaceTextClass: 'font-mono',
+        explorerOpen: true,
+        setExplorerOpen: () => {},
+        layoutMode: 'viewer',
+        setLayoutMode: () => {},
+        markdownWordWrap: true,
+        setMarkdownWordWrap: () => {},
+        markdownTextHighlight: false,
+        setMarkdownTextHighlight: () => {},
+        statusLabel: null,
+        onApply: () => {},
+        onToggleFullscreen: () => {},
+        presentationApiRef,
+        isEditing: false,
+        isMarkdown: true,
+        onFormatAction: () => {},
+        onImportLocalFiles: () => {},
+        onImportLocalFolder: () => {},
+        onImportUrl: () => {},
+        onImportWebsite: () => {},
+        activeText: importedMarkdown.replace('kgWebpageView: "html"', 'kgWebpageView: "markdown"'),
+        setActiveText: () => {},
+        activeDocumentKey: '/byteplus.md',
+        highlightedLineRange: null,
+        revealLineInEditor: () => {},
+        showInViewer: () => {},
+        showInPresentation: () => {},
+        showInSlidesGallery: () => {},
+        editorUri: 'inmemory://byteplus.md',
+        editorLanguage: 'markdown',
+        editorRef: editorRef as unknown as React.MutableRefObject<MonacoTextEditorHandle | null>,
+      }),
+    )
+
+    for (let i = 0; i < 5; i += 1) await tick()
+
+    const iframeAfter = doc.querySelector('iframe')
+    if (iframeAfter) throw new Error('expected no iframe when view is markdown')
+
+    const viewerRoot = doc.querySelector(
+      '[data-testid="markdown-preview-root"]',
+    ) as HTMLElement | null
+    if (!viewerRoot) throw new Error('expected markdown preview root for markdown view')
+    const html = viewerRoot.innerHTML
+    if (!html.includes('BytePlus ECS Python SDK')) {
+      throw new Error('expected markdown viewer to render editor SSOT text')
+    }
+
+    root.unmount()
+  } finally {
+    ;(globalThis as unknown as { fetch?: unknown }).fetch = prevFetch
     restore()
   }
 }

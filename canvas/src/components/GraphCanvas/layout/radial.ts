@@ -65,14 +65,14 @@ export const applyRadialClusterLayout = (
     components.length === 1 ? components[0] : { id: '__root__', children: components }
   const viewW = Math.max(1, width)
   const viewH = Math.max(1, height)
-  const size = Math.min(viewW, viewH)
   const padding = readFitPadding(schema)
-  const maxRadius = Math.max(10, size / 2 - Math.max(0, padding))
-  if (!Number.isFinite(maxRadius) || maxRadius <= 0) return
+  const halfW = Math.max(1, viewW / 2 - Math.max(0, padding))
+  const halfH = Math.max(1, viewH / 2 - Math.max(0, padding))
+  if (!Number.isFinite(halfW) || !Number.isFinite(halfH) || halfW <= 0 || halfH <= 0) return
   const centerX = viewW / 2
   const centerY = viewH / 2
   const root = d3.hierarchy<RadialClusterNode>(treeRoot)
-  const cluster = d3.cluster<RadialClusterNode>().size([2 * Math.PI, maxRadius])
+  const cluster = d3.cluster<RadialClusterNode>().size([2 * Math.PI, 1])
   cluster(root)
   const positions = new Map<string, { x: number; y: number }>()
   root.descendants().forEach(node => {
@@ -82,9 +82,9 @@ export const applyRadialClusterLayout = (
     const radiusRaw = node.y
     if (typeof angleRaw !== 'number' || typeof radiusRaw !== 'number') return
     const angle = angleRaw - Math.PI / 2
-    const radius = radiusRaw
-    const x = centerX + radius * Math.cos(angle)
-    const y = centerY + radius * Math.sin(angle)
+    const rNorm = Math.max(0, Math.min(1, radiusRaw))
+    const x = centerX + rNorm * halfW * Math.cos(angle)
+    const y = centerY + rNorm * halfH * Math.sin(angle)
     positions.set(id, { x, y })
   })
   for (let i = 0; i < nodes.length; i += 1) {

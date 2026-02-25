@@ -737,16 +737,6 @@ export function MarkdownWorkspace() {
             return upsertWebpageFrontmatterMeta(prevText, { url: webpageWorkspaceMeta.url, view })
           }
 
-          const { looksLikeWebpageMarkdownArtifactDoc, buildWebpageMarkdownArtifactDoc } = await import(
-            '@/lib/websites/webpageMarkdownArtifact'
-          )
-
-          const fidelityMaxLevel = useGraphStore.getState().webpageArtifactFidelityMaxLevel ?? 4
-
-          if (looksLikeWebpageMarkdownArtifactDoc(prevText)) {
-            return upsertWebpageFrontmatterMeta(prevText, { url: webpageWorkspaceMeta.url, view })
-          }
-
           if (websiteImportMeta?.importId && websiteImportMeta?.nodeId) {
             const outputDirRel = String(
               websiteImportMeta.outputDirRel || useGraphStore.getState().websiteImportOutputDirRel || '',
@@ -758,10 +748,12 @@ export function MarkdownWorkspace() {
             )
             if (!rawRes.ok) return upsertWebpageFrontmatterMeta(prevText, { url: webpageWorkspaceMeta.url, view })
             const raw = String((await rawRes.text()) || '')
-            return buildWebpageMarkdownArtifactDoc({
-              markdown: raw,
+            return upsertWebpageFrontmatterMeta(raw, {
               url: webpageWorkspaceMeta.url,
-              fidelityMaxLevel,
+              view: 'markdown',
+              scriptPolicy: webpageWorkspaceMeta.scriptPolicy,
+              includeImages: webpageWorkspaceMeta.includeImages,
+              fidelityLevel: webpageWorkspaceMeta.fidelityLevel,
             })
           }
 
@@ -794,14 +786,10 @@ export function MarkdownWorkspace() {
                 maxInputChars: 10_000_000,
                 includeImages,
                 fidelityLevel,
+                  includeHeadSection: false,
               })
               if (converted.ok === true && converted.markdown.trim()) {
-                const built = buildWebpageMarkdownArtifactDoc({
-                  markdown: converted.markdown,
-                  url: webpageWorkspaceMeta.url,
-                  fidelityMaxLevel,
-                })
-                return upsertWebpageFrontmatterMeta(built, {
+                return upsertWebpageFrontmatterMeta(converted.markdown, {
                   url: webpageWorkspaceMeta.url,
                   view: 'markdown',
                   scriptPolicy: webpageWorkspaceMeta.scriptPolicy,
@@ -816,13 +804,7 @@ export function MarkdownWorkspace() {
 
           const res = await fetchWebpageMarkdown(webpageWorkspaceMeta.url, { includeImages })
           if (!res || res.ok !== true) return upsertWebpageFrontmatterMeta(prevText, { url: webpageWorkspaceMeta.url, view })
-
-          const built = buildWebpageMarkdownArtifactDoc({
-            markdown: String(res.markdown || ''),
-            url: webpageWorkspaceMeta.url,
-            fidelityMaxLevel,
-          })
-          return upsertWebpageFrontmatterMeta(built, {
+          return upsertWebpageFrontmatterMeta(String(res.markdown || ''), {
             url: webpageWorkspaceMeta.url,
             view: 'markdown',
             scriptPolicy: webpageWorkspaceMeta.scriptPolicy,
@@ -917,12 +899,10 @@ export function MarkdownWorkspace() {
         })()
         const fidelityMaxLevel = store.webpageArtifactFidelityMaxLevel ?? 4
 
-        const [{ exportWebpageDomViaHiddenIframe }, { convertHtmlToMarkdownUnified }, { buildWebpageMarkdownArtifactDoc }] =
-          await Promise.all([
-            import('@/lib/websites/webpageDomExport'),
-            import('@/lib/markdown/htmlToMarkdownUnified'),
-            import('@/lib/websites/webpageMarkdownArtifact'),
-          ])
+        const [{ exportWebpageDomViaHiddenIframe }, { convertHtmlToMarkdownUnified }] = await Promise.all([
+          import('@/lib/websites/webpageDomExport'),
+          import('@/lib/markdown/htmlToMarkdownUnified'),
+        ])
 
         const dom = await exportWebpageDomViaHiddenIframe({
           url: webpageWorkspaceMeta.url,
@@ -942,15 +922,11 @@ export function MarkdownWorkspace() {
           maxInputChars: 10_000_000,
           includeImages,
           fidelityLevel,
+          includeHeadSection: false,
         })
         if (converted.ok !== true) throw new Error(converted.error || 'Conversion failed')
 
-        const built = buildWebpageMarkdownArtifactDoc({
-          markdown: converted.markdown,
-          url: webpageWorkspaceMeta.url,
-          fidelityMaxLevel,
-        })
-        const nextText = upsertWebpageFrontmatterMeta(built, {
+        const nextText = upsertWebpageFrontmatterMeta(converted.markdown, {
           url: webpageWorkspaceMeta.url,
           view: 'markdown',
           siteRootRel: webpageWorkspaceMeta.siteRootRel,

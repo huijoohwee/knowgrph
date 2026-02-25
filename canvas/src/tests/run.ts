@@ -73,6 +73,7 @@ import {
   testWebpageHtmlToMarkdownArtifactAvoidsSyntheticContentDuplicateAndRendersCardGridAsTable,
   testWebpageHtmlToMarkdownArtifactRendersLinkListsAndListItemLinks,
 } from '@/__tests__/webpageHtmlToMarkdownArtifact.test'
+import { testWebpageDomExportWaitsForNetworkIdleAndReturnsSnapshot } from '@/__tests__/webpageDomExport.test'
 import { testWebsiteImportWorkspaceWritesArtifactDoc } from '@/__tests__/websiteImportWorkspaceArtifact.test'
 import { testWebsiteImportWorkspaceWritesSourceFaithfulDoc } from '@/__tests__/websiteImportWorkspaceArtifact.test'
 import { testWebsiteSitemapMarkdownBuildsTreeAndTable } from '@/__tests__/websiteSitemapMarkdown.test'
@@ -80,6 +81,7 @@ import { testSanitizeImportedMarkdownRemovesBase64FenceLines, testSanitizeImport
 import {
   testMarkdownWorkspaceWebpageHtmlViewRendersIframe,
   testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtifactForHtml,
+  testMarkdownWorkspaceImportUrlHtmlPageSsotAndViewModes,
   testMarkdownWorkspaceEditorTextOverrideWorks,
 } from '@/__tests__/markdownWorkspaceWebpageHtmlView.test'
 import { testWebpageHtmlSrcdocShrinksLargeHtmlInsteadOfFailing } from '@/__tests__/webpageIframeSrcdocLargeHtml.test'
@@ -97,7 +99,14 @@ import { testLRUCacheBasic, testLRUCacheClear } from '@/__tests__/cache.test'
 import { testSceneDisplayDerivationMemoizesDisplayGraphAndMaps } from '@/__tests__/sceneDisplayDerivation.test'
 import { testHtmlParserAllTextIncludesNavAndMain } from '@/__tests__/htmlParserAllText.test'
 import { testHtmlParserUsesEmbeddedLosslessMarkdownSource } from '@/__tests__/htmlParserRoundTripLossless.test'
-import { testHtmlToMarkdownUnifiedConvertsBasicHtml } from '@/__tests__/htmlToMarkdownUnified.test'
+import {
+  testHtmlToMarkdownUnifiedConvertsBasicHtml,
+  testHtmlToMarkdownUnifiedHeadOnlyRendersHeadSection,
+  testHtmlToMarkdownUnifiedParsesFullHtmlDocument,
+  testHtmlToMarkdownUnifiedPreservesChineseText,
+  testHtmlToMarkdownUnifiedPreservesPreCodeIndentation,
+  testHtmlToMarkdownUnifiedUsesBaseTagForLinkResolution,
+} from '@/__tests__/htmlToMarkdownUnified.test'
 import { testPlainTextToMarkdownPreservesParagraphs } from '@/__tests__/plainTextToMarkdown.test'
 import { testReorderListBasicMoves, testReorderListNoopAndBounds } from '@/__tests__/reorder.test'
 import {
@@ -152,7 +161,10 @@ import { runJsonLdTests } from '@/tests/runners/runJsonLdTests'
 import { runParserTests } from '@/tests/runners/runParserTests'
 import { testLaunchSpotlightStorageHelpers } from '@/__tests__/launchSpotlight.test'
 import { testPersistencePrimitives } from '@/__tests__/persistencePrimitives.test'
-import { testImportUrlWebpageCreatesHtmlFrontmatterStub } from '@/__tests__/importUrlWebpageStub.test'
+import {
+  testImportUrlWebpageCreatesHtmlFrontmatterStub,
+  testImportUrlWebpageRefreshUsesSourceFaithfulForMultipleUrls,
+} from '@/__tests__/importUrlWebpageStub.test'
 import { testParseSchemaLintOwner, testSchemaLintSummaryAndActivePath } from '@/__tests__/schemaLintNav.test'
 import {
   testGeospatialOverlayHostNotGatedBySidebar,
@@ -292,6 +304,7 @@ import {
 import { testZoomWheelGuardBlocksBounceAtMinScale } from '@/__tests__/canvasZoomWheelGuard.test'
 import {
   testFetchRemoteTextPreflightHeadGuardsTooLarge,
+  testFetchRemoteTextSupportsHeadersOption,
   testFetchRemoteTextValidateSupportsStringAndArgs,
   testFetchRemoteTextWrapperUseProxyBoolean,
 } from '@/__tests__/fetchRemoteTextInterop.test'
@@ -1145,6 +1158,7 @@ export const runAllTests = async () => {
   await exec('net.fetchRemoteText.validateSupportsStringAndArgs', testFetchRemoteTextValidateSupportsStringAndArgs)
   await exec('net.fetchRemoteText.preflightHeadGuardsTooLarge', testFetchRemoteTextPreflightHeadGuardsTooLarge)
   await exec('net.fetchRemoteText.wrapperUseProxyBoolean', testFetchRemoteTextWrapperUseProxyBoolean)
+  await exec('net.fetchRemoteText.supportsHeadersOption', testFetchRemoteTextSupportsHeadersOption)
   await exec('geospatial.gympgrphMapLibre.pickSkipsClusters', testGympgrphPickPoiSelectionSkipsClusterFeatures)
   await exec('geospatial.gympgrphMapLibre.coerceFeatureIds', testGympgrphCoerceFeatureCollectionIdsAddsMissingIds)
   await exec('geospatial.gympgrphMapLibre.pointOnly.true', testGympgrphIsPointOnlyFeatureCollectionDetectsPointOnly)
@@ -1244,10 +1258,12 @@ export const runAllTests = async () => {
   await exec('webpageMarkdownArtifact.figmaFixture.recognized', testWebpageMarkdownArtifactFigmaFixtureIsRecognized)
   await exec('websiteImport.workspace.writesArtifactDoc', testWebsiteImportWorkspaceWritesArtifactDoc)
   await exec('websiteImport.workspace.writesSourceFaithfulDoc', testWebsiteImportWorkspaceWritesSourceFaithfulDoc)
+  await exec('webpageDomExport.waitsForNetworkIdle', testWebpageDomExportWaitsForNetworkIdleAndReturnsSnapshot)
   await exec('markdown.sanitizeImported.fenceBase64', testSanitizeImportedMarkdownRemovesBase64FenceLines)
   await exec('markdown.sanitizeImported.dataImageBase64', testSanitizeImportedMarkdownRemovesDataImageBase64)
   await exec('markdown.workspace.webpageHtmlView.rendersIframe', testMarkdownWorkspaceWebpageHtmlViewRendersIframe)
   await exec('markdown.workspace.webpageHtmlView.websiteImportArtifactHtml', testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtifactForHtml)
+  await exec('markdown.workspace.importUrl.htmlPageSsotAndViewModes', testMarkdownWorkspaceImportUrlHtmlPageSsotAndViewModes)
   await exec('markdown.workspace.editorTextOverride.works', testMarkdownWorkspaceEditorTextOverrideWorks)
   await exec('markdown.richMedia.rendersSvgAndIframe', testMarkdownPreviewRendersSvgAndIframeHtmlBlocks)
   await exec('export.parseCombinedCsv', testParseCombinedCsv)
@@ -1280,6 +1296,11 @@ export const runAllTests = async () => {
   await exec('graphTable.date.rejectsInvalid', testGraphTableDateNormalizeRejectsInvalid)
   await exec('graphTable.date.formatDraftFromIso', testGraphTableDateFormatDraftFromIso)
   await exec('html.unifiedToMarkdown.basic', testHtmlToMarkdownUnifiedConvertsBasicHtml)
+  await exec('html.unifiedToMarkdown.headOnlyRendersHeadSection', testHtmlToMarkdownUnifiedHeadOnlyRendersHeadSection)
+  await exec('html.unifiedToMarkdown.parsesFullHtmlDocument', testHtmlToMarkdownUnifiedParsesFullHtmlDocument)
+  await exec('html.unifiedToMarkdown.preservesPreCodeIndentation', testHtmlToMarkdownUnifiedPreservesPreCodeIndentation)
+  await exec('html.unifiedToMarkdown.preservesChineseText', testHtmlToMarkdownUnifiedPreservesChineseText)
+  await exec('html.unifiedToMarkdown.usesBaseTagForLinkResolution', testHtmlToMarkdownUnifiedUsesBaseTagForLinkResolution)
   await exec('ui.panelUnifiedExport', testUnifiedPanelExport)
   await exec('ui.settingsCollapsePersistence', testSettingsViewCollapsePersistence)
   await exec('rxdb.graphTable.seed', testGraphTableDbSeedsBaseTablesAndColumns)
@@ -1304,6 +1325,7 @@ export const runAllTests = async () => {
   await exec('routing.singleRoot.stashesPathAndPreservesSearchAndHash', testNormalizeSingleRootRouteStashesPathAndPreservesSearchAndHash)
   await exec('routing.singleRoot.doesNotOverrideKgPath', testNormalizeSingleRootRouteDoesNotOverrideExistingKgPath)
   await exec('workspace.importUrl.webpageStubHtml', testImportUrlWebpageCreatesHtmlFrontmatterStub)
+  await exec('workspace.importUrl.webpageRefresh.sourceFaithfulAllUrls', testImportUrlWebpageRefreshUsesSourceFaithfulForMultipleUrls)
   await exec('keywordMode.derivesEntitiesAndPredicateEdges', testKeywordModeDerivesEntitiesAndPredicateEdges)
   await exec('keywordMode.mergesMediaNodesForOverlays', testKeywordModeMergesMediaNodesForOverlays)
   await exec('groupCollapse.derivation.collapsesCommunityIntoGroupNode', testGroupCollapseDerivationCollapsesCommunityIntoGroupNode)

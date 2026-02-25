@@ -425,7 +425,7 @@ const drawNode = (rt: FlowNativeRuntime, n: FlowNativeNode, args: { selected: bo
 
   const label = String(n.label || '').trim()
   if (!label) return
-  ctx.fillStyle = rt.theme.text
+  ctx.fillStyle = resolveCssVarCached(rt, '--kg-canvas-label-fill', rt.theme.text)
   const k = rt.transform.k || 1
   const fontSizePx = Math.max(10, rt.presentation.labels?.nodeFontSizePx ?? 12)
   const fontSizeWorld = fontSizePx / Math.max(1e-6, k)
@@ -711,7 +711,7 @@ const drawEdgeLabels = (rt: FlowNativeRuntime, args: { selectedEdgeIds: Set<stri
   const useObstacles = useOrtho && routingCfg.obstacleAvoidance
   const routingObstacles = useObstacles ? buildRoutingObstacles(rt, scene) : null
 
-  const labelFill = resolveCssVarCached(rt, '--kg-text-secondary', rt.theme.text)
+  const labelFill = resolveCssVarCached(rt, '--kg-canvas-label-fill', rt.theme.text)
   const pillBg = resolveCssVarCached(rt, '--kg-panel-bg', rt.theme.bg)
   const pillStroke = resolveCssVarCached(rt, '--kg-border-subtle', rt.theme.edge)
 
@@ -832,7 +832,7 @@ const drawGroups = (rt: FlowNativeRuntime) => {
   const padding = Math.max(0, cfg.paddingPx)
   const topExtra = Math.max(0, cfg.labelTopExtraPx)
   const radius = Math.max(0, cfg.cornerRadiusPx)
-  const labelFill = resolveCssVarCached(rt, '--kg-text-secondary', rt.theme.text)
+  const labelFill = resolveCssVarCached(rt, '--kg-canvas-label-fill', rt.theme.text)
 
   const groups = scene.groups
   let maxDepth = 0

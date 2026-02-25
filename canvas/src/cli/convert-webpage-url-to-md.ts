@@ -2,10 +2,9 @@ import fsSync from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { clampInt } from '@/lib/websites/server/websiteImportCore'
-import { buildWebpageMarkdownArtifactDoc } from '@/lib/websites/webpageMarkdownArtifact'
 import { fetchRemoteTextDetailed } from '@/lib/net/fetchRemoteText'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { convertWebpageHtmlToMarkdownArtifact } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
+import { convertWebpageHtmlToMarkdownArtifactAsync } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
 
 type Args = {
   url: string
@@ -66,10 +65,41 @@ async function main() {
 
   const { restore } = initJsdomHarness()
   try {
-    const fetched = await fetchRemoteTextDetailed(args.url, { preflightHead: true, preferProxy: true, maxBytes: 8 * 1024 * 1024 })
-    if (fetched.ok !== true) throw new Error('Fetch failed')
-    const md = convertWebpageHtmlToMarkdownArtifact({ html: fetched.text, url: args.url })
-    const outDoc = buildWebpageMarkdownArtifactDoc({ markdown: md, url: args.url, title: undefined })
+    const fetched = await fetchRemoteTextDetailed(args.url, {
+      preflightHead: true,
+      preferProxy: true,
+      maxBytes: 8 * 1024 * 1024,
+      timeoutMs: 20_000,
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        Accept: 'text/html,*/*;q=0.9',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+    })
+    if (fetched.ok !== true) {
+      const detail =
+        fetched.kind === 'http'
+          ? `HTTP ${fetched.status || ''}`.trim() + (fetched.errorText ? `: ${String(fetched.errorText || '').slice(0, 200)}` : '')
+          : fetched.kind
+      throw new Error(`Fetch failed: ${detail}`)
+    }
+    const md = await convertWebpageHtmlToMarkdownArtifactAsync({
+      html: fetched.text,
+      url: args.url,
+      includeImages: args.includeImages !== false,
+      fidelityLevel: 4,
+      mode: 'ssot',
+    })
+    const outDoc = [
+      '---',
+      `kgWebpageUrl: ${JSON.stringify(String(args.url || '').trim())}`,
+      `kgWebpageView: ${JSON.stringify('markdown')}`,
+      '---',
+      '',
+      String(md || '').trim(),
+      '',
+    ].join('\n')
 
     const maxBytes = clampInt(process.env.KG_WEBPAGE_MARKDOWN_OUT_MAX_BYTES, 2_000_000, 50_000, 10_000_000)
     if (Buffer.byteLength(outDoc, 'utf8') > maxBytes) throw new Error('Output exceeds max bytes')

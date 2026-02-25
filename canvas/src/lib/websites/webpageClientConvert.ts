@@ -1,39 +1,10 @@
 import { exportWebpageDomViaHiddenIframe } from './webpageDomExport'
 import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
-import { convertWebpageHtmlToMarkdownArtifact } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
+import { convertWebpageHtmlToMarkdownArtifactAsync } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
 
 export type WebpageClientConvertResult =
   | { ok: true; markdown: string; title: string }
   | { ok: false; error: string }
-
-const runSoon = async <T,>(fn: () => T): Promise<T> => {
-  const w = globalThis as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number }
-  if (typeof w.requestIdleCallback === 'function') {
-    return await new Promise<T>((resolve, reject) => {
-      w.requestIdleCallback(
-        () => {
-          try {
-            resolve(fn())
-          } catch (e) {
-            reject(e)
-          }
-        },
-        { timeout: 1200 },
-      )
-    })
-  }
-  return await new Promise<T>((resolve, reject) => {
-    setTimeout(() => {
-      try {
-        resolve(fn())
-      } catch (e) {
-        reject(e)
-      }
-    }, 0)
-  })
-}
-
-const normalizeText = (s: string): string => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim()
 
 const isJsdomLike = (): boolean => {
   try {
@@ -65,7 +36,7 @@ export const convertWebpageUrlToMarkdownViaProxyFetch = async (url: string): Pro
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
     const title = extractTitleFromHtml(html)
     const bounded = html.length > 8_000_000 ? html.slice(0, 8_000_000) : html
-    const md = await runSoon(() => convertWebpageHtmlToMarkdownArtifact({ html: bounded, url }))
+    const md = await convertWebpageHtmlToMarkdownArtifactAsync({ html: bounded, url, includeImages: true, fidelityLevel: 4 })
     return { ok: true, markdown: md, title }
   } catch (e) {
     const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
@@ -102,34 +73,7 @@ export async function convertWebpageUrlToMarkdownViaBrowser(args: {
 
     if (!html && text) return { ok: true, markdown: plainTextToMarkdown(text, title || undefined), title }
     const bounded = html.length > 8_000_000 ? html.slice(0, 8_000_000) : html
-    const md = convertWebpageHtmlToMarkdownArtifact({ html: bounded, url })
-
-    if (text.length > 1200) {
-      const mdNorm = normalizeText(md)
-      const lines = text
-        .split('\n')
-        .map(s => s.trim())
-        .filter(s => s.length >= 30 && s.length <= 200)
-      const samples: string[] = []
-      const maxSamples = 24
-      if (lines.length <= maxSamples) samples.push(...lines)
-      else {
-        for (let i = 0; i < maxSamples; i += 1) {
-          const idx = Math.floor((i * (lines.length - 1)) / (maxSamples - 1))
-          samples.push(lines[idx] || '')
-        }
-      }
-      let misses = 0
-      for (const s of samples) {
-        const ns = normalizeText(s)
-        if (!ns) continue
-        if (!mdNorm.includes(ns)) misses += 1
-        if (misses >= 6) break
-      }
-      if (md.length < text.length * 0.85 || misses >= 6) {
-        return { ok: true, markdown: plainTextToMarkdown(text, title || undefined), title }
-      }
-    }
+    let md = await convertWebpageHtmlToMarkdownArtifactAsync({ html: bounded, url, includeImages: true, fidelityLevel: 4 })
 
     if (!String(md || '').trim()) {
       const fallback = await convertWebpageUrlToMarkdownViaProxyFetch(url)

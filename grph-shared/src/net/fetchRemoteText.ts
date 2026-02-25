@@ -28,6 +28,7 @@ export type FetchRemoteTextDetailedOptions = {
   useProxy?: 'auto' | 'always' | 'never'
   preferProxy?: boolean
   preflightHead?: boolean
+  headers?: Record<string, string>
   validate?: ((text: string) => boolean) | ((args: { text: string; url: string }) => boolean)
   onProgress?: (args: { loadedBytes: number; totalBytes?: number }) => void
 }
@@ -124,11 +125,12 @@ async function fetchVia(url: string, options: FetchRemoteTextDetailedOptions, us
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES
   const proxyEndpoint = options.proxyEndpoint || REMOTE_FETCH_PROXY_ENDPOINT
   const targetUrl = useProxy ? buildProxyUrl(proxyEndpoint, url) : url
+  const headers = options.headers
 
   try {
     if (options.preflightHead) {
       try {
-        const headRes = await withTimeout(fetch(targetUrl, { method: 'HEAD' }), timeoutMs)
+        const headRes = await withTimeout(fetch(targetUrl, { method: 'HEAD', headers }), timeoutMs)
         const cl = headRes.headers.get('content-length')
         const contentLength = cl ? Number.parseInt(cl, 10) : undefined
         if (contentLength != null && Number.isFinite(contentLength) && contentLength > maxBytes) {
@@ -139,7 +141,7 @@ async function fetchVia(url: string, options: FetchRemoteTextDetailedOptions, us
       }
     }
 
-    const res = await withTimeout(fetch(targetUrl), timeoutMs)
+    const res = await withTimeout(fetch(targetUrl, { headers }), timeoutMs)
     const status = res.status
     if (!res.ok) {
       const errorText = await (async () => {

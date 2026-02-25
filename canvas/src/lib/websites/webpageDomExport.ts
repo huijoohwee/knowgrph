@@ -3,6 +3,7 @@ export type WebpageDomExportMode = 'text' | 'html'
 export type WebpageDomExportResult = { text: string; title: string; clipped: boolean }
 
 const KG_EXPORT_DOM_KIND = 'kg-export-dom'
+const KG_WEBPAGE_NET_KIND = 'kg-webpage-net'
 
 async function waitMs(ms: number): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, ms))
@@ -15,12 +16,18 @@ export async function exportWebpageDomViaHiddenIframe(args: {
   maxChars?: number
   scrollCrawl?: boolean
   expandFaq?: boolean
+  waitForNetworkIdle?: boolean
+  networkIdleMs?: number
+  minWaitAfterLoadMs?: number
 }): Promise<WebpageDomExportResult | null> {
   const url = String(args.url || '').trim()
   if (!url) return null
 
   const timeoutMs = Math.max(2000, Math.min(60_000, Math.floor(args.timeoutMs ?? 20_000)))
   const maxChars = Math.max(100_000, Math.min(12_000_000, Math.floor(args.maxChars ?? 8_000_000)))
+  const waitForNetworkIdle = args.waitForNetworkIdle !== false
+  const networkIdleMs = Math.max(150, Math.min(2500, Math.floor(args.networkIdleMs ?? 600)))
+  const minWaitAfterLoadMs = Math.max(0, Math.min(5000, Math.floor(args.minWaitAfterLoadMs ?? 350)))
 
   const iframe = document.createElement('iframe')
   iframe.setAttribute('sandbox', 'allow-scripts')
@@ -57,6 +64,45 @@ export async function exportWebpageDomViaHiddenIframe(args: {
     if (!win) return null
 
     const id = `${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`
+
+    const waitNetIdle = async (): Promise<void> => {
+      if (!waitForNetworkIdle) return
+      let sawStatus = false
+      let idleSince = 0
+      await new Promise<void>((resolve) => {
+        let settled = false
+        const done = () => {
+          if (settled) return
+          settled = true
+          clearTimeout(hardTimeout)
+          clearTimeout(fallbackTimeout)
+          window.removeEventListener('message', onMessage)
+          resolve()
+        }
+        const onMessage = (e: MessageEvent) => {
+          if (e.source !== win) return
+          const d = e?.data as unknown
+          if (!d || typeof d !== 'object') return
+          const rec = d as Record<string, unknown>
+          if (rec.kind !== KG_WEBPAGE_NET_KIND) return
+          const pending = typeof rec.pending === 'number' ? rec.pending : NaN
+          if (!Number.isFinite(pending)) return
+          sawStatus = true
+          if (pending === 0) {
+            if (!idleSince) idleSince = Date.now()
+            if (Date.now() - idleSince >= networkIdleMs) return done()
+          } else {
+            idleSince = 0
+          }
+        }
+        const hardTimeout = setTimeout(done, Math.min(timeoutMs, 15_000))
+        const fallbackTimeout = setTimeout(() => {
+          if (!sawStatus) done()
+        }, 1200)
+        window.addEventListener('message', onMessage)
+      })
+      if (minWaitAfterLoadMs > 0) await waitMs(Math.min(minWaitAfterLoadMs, 1200))
+    }
 
     const requestOnce = async (): Promise<WebpageDomExportResult | null> => {
       return await new Promise((resolve) => {
@@ -104,6 +150,7 @@ export async function exportWebpageDomViaHiddenIframe(args: {
       })
     }
 
+    await waitNetIdle()
     const first = await requestOnce()
     if (!first) return null
     if (args.mode !== 'text') return first
@@ -111,8 +158,9 @@ export async function exportWebpageDomViaHiddenIframe(args: {
     let best = first
     let stableRounds = 0
     const start = Date.now()
-    while (Date.now() - start < Math.min(10_000, timeoutMs)) {
+    while (Date.now() - start < Math.min(timeoutMs, 25_000)) {
       await waitMs(650)
+      await waitNetIdle()
       const next = await requestOnce()
       if (!next) break
       if (next.text.length >= best.text.length) best = next

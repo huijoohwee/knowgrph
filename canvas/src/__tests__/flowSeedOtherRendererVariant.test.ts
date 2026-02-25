@@ -2,7 +2,7 @@ import { pickSeedFromOtherRendererCache } from '@/components/FlowCanvas/seed'
 
 export function testFlowSeedFromOtherRendererPrefersExpectedVariant() {
   const nodes = [{ id: 'a' }, { id: 'b' }]
-  const baseKey = 'document:default:force:2d:d3'
+  const baseKey = 'document:default:force:2d'
   const variantAKey = `${baseKey}:variant=a`
   const variantBKey = `${baseKey}:variant=b`
   const variantA = { a: { x: 10, y: 10 }, b: { x: 20, y: 20 } }

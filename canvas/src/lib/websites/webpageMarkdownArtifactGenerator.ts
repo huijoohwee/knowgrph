@@ -576,5 +576,36 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
 
   doc.push('---')
   doc.push('')
+  const sourceBody = (() => {
+    const raw = stripFrontmatter(markdownMain).trim()
+    if (!raw) return ''
+    const marker = '## RAW HTML → MARKDOWN (Full Page Text)'
+    const markerIdx = raw.indexOf(marker)
+    if (markerIdx >= 0) {
+      const after = raw.slice(markerIdx + marker.length).replace(/^\s*\n/, '')
+      const cutIdx = after.search(/\n---\n|^##\s+RAW HTML SNAPSHOT/m)
+      const sliced = (cutIdx >= 0 ? after.slice(0, cutIdx) : after).trim()
+      if (sliced) return sliced
+    }
+    const domMarker = '## RAW DOM TEXT SNAPSHOT'
+    const domIdx = raw.indexOf(domMarker)
+    if (domIdx >= 0) {
+      const after = raw.slice(domIdx + domMarker.length).replace(/^\s*\n/, '')
+      const cutIdx = after.search(/\n---\n|^##\s+/m)
+      const sliced = (cutIdx >= 0 ? after.slice(0, cutIdx) : after).trim()
+      if (sliced) return sliced
+    }
+    return raw
+  })()
+  if (sourceBody) {
+    doc.push('## Source-Faithful Full Page Markdown')
+    doc.push('')
+    doc.push('**Fidelity Level:** 100% Source-Faithful (No Invented Content)')
+    doc.push('')
+    doc.push(sourceBody)
+    doc.push('')
+    doc.push('---')
+    doc.push('')
+  }
   return doc.join('\n').trimEnd() + '\n'
 }

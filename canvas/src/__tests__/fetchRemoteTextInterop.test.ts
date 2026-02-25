@@ -51,6 +51,45 @@ export const testFetchRemoteTextValidateSupportsStringAndArgs = async () => {
   }
 }
 
+export const testFetchRemoteTextSupportsHeadersOption = async () => {
+  const g = globalThis as unknown as GlobalWithFetch
+  const prevFetch = g.fetch
+  const prevWindow = g.window
+  const calls: Array<{ url: string; method?: string; headerValue?: string }> = []
+
+  g.window = { location: { origin: 'http://localhost:5173' } }
+  g.fetch = (async (input: unknown, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : ''
+    const headerValue = (() => {
+      const h = init?.headers as Record<string, string> | undefined
+      return h ? String(h['X-Test'] || '') : ''
+    })()
+    calls.push({ url, method: init?.method, headerValue })
+    const response: FetchStubResponse = {
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      body: null,
+      text: async () => 'ok',
+    }
+    return response as unknown as Response
+  }) as unknown as typeof fetch
+
+  try {
+    const res = await fetchRemoteTextDetailed('https://example.com/a.txt', {
+      useProxy: 'never',
+      preflightHead: true,
+      headers: { 'X-Test': '1' },
+    })
+    if ('kind' in res) throw new Error(`Expected ok result, got ${res.kind}`)
+    if (calls.length < 2) throw new Error(`Expected at least 2 fetch calls (HEAD+GET), got ${calls.length}`)
+    if (!calls.every(c => c.headerValue === '1')) throw new Error('Expected headers passed to all requests')
+  } finally {
+    g.fetch = prevFetch
+    g.window = prevWindow
+  }
+}
+
 export const testFetchRemoteTextPreflightHeadGuardsTooLarge = async () => {
   const g = globalThis as unknown as GlobalWithFetch
   const prevFetch = g.fetch

@@ -1,5 +1,5 @@
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { convertWebpageHtmlToMarkdownArtifact } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
+import { convertWebpageHtmlToMarkdownArtifact, convertWebpageHtmlToMarkdownArtifactAsync } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
 
 export async function testWebpageHtmlToMarkdownArtifactExtractsNavMenusAndTables() {
   const { restore } = initJsdomHarness()
@@ -176,6 +176,65 @@ export async function testWebpageHtmlToMarkdownArtifactRendersLinkListsAndListIt
     if (!md.includes('* [During YC](https://example.com/s05) Sam was part of YC\'s inaugural batch.')) {
       throw new Error('expected list item to preserve link markdown')
     }
+  } finally {
+    restore()
+  }
+}
+
+export async function testWebpageHtmlToMarkdownArtifactAsyncAvoidsHtmlCodeFenceForSnapshot() {
+  const { restore } = initJsdomHarness()
+  try {
+    const html = [
+      '<!doctype html>',
+      '<html>',
+      '<head>',
+      '<title>Test</title>',
+      '<meta name="referrer" content="no-referrer" />',
+      '<base href="https://example.com/" />',
+      '<link rel="canonical" href="/docs" />',
+      '</head>',
+      '<body>',
+      '<main><h1>Hello</h1><p>World</p></main>',
+      '<script>console.log("x")</script>',
+      '</body>',
+      '</html>',
+    ].join('')
+
+    const md = await convertWebpageHtmlToMarkdownArtifactAsync({
+      html,
+      url: 'https://example.com/',
+      includeImages: true,
+      fidelityLevel: 4,
+      includeHtmlSnapshot: true,
+    })
+    if (!md.includes('## RAW HTML SNAPSHOT (Sanitized, No Scripts)')) throw new Error('expected raw html snapshot section')
+    if (md.includes('```html')) throw new Error('expected snapshot to not be an html fenced block')
+    if (!md.includes('- meta:')) throw new Error('expected snapshot markdown structure')
+    if (!md.includes('name: referrer')) throw new Error('expected snapshot meta to render')
+    if (!md.includes('content: no-referrer')) throw new Error('expected snapshot meta content to render')
+    if (!md.includes('- link:')) throw new Error('expected snapshot link section')
+    if (!md.includes('rel: canonical')) throw new Error('expected snapshot link rel to render')
+    if (!md.includes('href: https://example.com/docs')) throw new Error('expected snapshot link href resolved against base')
+    if (md.includes('console.log("x")')) throw new Error('expected scripts removed from snapshot')
+  } finally {
+    restore()
+  }
+}
+
+export async function testWebpageHtmlToMarkdownArtifactAsyncUsesDataPageEmbeddedMarkdown() {
+  const { restore } = initJsdomHarness()
+  try {
+    const embeddedMd = ['Demo Day', '', '![slide](https://example.com/slide.png)', '', '[Link](https://example.com)', ''].join('\n')
+    const json = JSON.stringify({ props: { article: { title: 'Seed Deck', content: embeddedMd } } })
+    const dataPageAttr = json.replace(/"/g, '&quot;')
+    const html = ['<!doctype html>', '<html>', '<head><title>Ignored</title></head>', '<body>', `<div data-page="${dataPageAttr}"></div>`, '</body>', '</html>'].join('')
+
+    const md = await convertWebpageHtmlToMarkdownArtifactAsync({ html, url: 'https://example.com/' })
+    if (!md.includes('Demo Day')) throw new Error('expected embedded markdown content')
+    if (!md.includes('![slide](https://example.com/slide.png)')) throw new Error('expected embedded image markdown')
+    if (!md.includes('[Link](https://example.com)')) throw new Error('expected embedded link markdown')
+    if (md.includes('TABLE OF CONTENTS')) throw new Error('expected ssot markdown, not artifact doc')
+    if (md.includes('## HTML Head')) throw new Error('expected no HTML head section in ssot output')
   } finally {
     restore()
   }

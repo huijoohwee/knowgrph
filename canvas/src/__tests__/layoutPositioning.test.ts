@@ -32,7 +32,7 @@ export const testLayoutPositioningSkipsReseedOnToggle = () => {
     throw new Error('expected no cache positions when cache is empty')
   }
 
-  const key = `${datasetKey}:document:default:force:2d:d3`
+  const key = `${datasetKey}:document:default:force:2d`
   const cache = {
     [key]: {
       a: { x: 1, y: 2 },
@@ -108,14 +108,14 @@ export const testLayoutPositioningCacheKeyUsesRenderVariant = () => {
     layoutPositionCacheByMode: {},
   })
 
-  if (d3.cacheKey !== `${datasetKey}:document:default:force:2d:d3`) {
-    throw new Error(`expected d3 cacheKey ${datasetKey}:document:default:force:2d:d3, got ${d3.cacheKey}`)
+  if (d3.cacheKey !== `${datasetKey}:document:default:force:2d`) {
+    throw new Error(`expected d3 cacheKey ${datasetKey}:document:default:force:2d, got ${d3.cacheKey}`)
   }
-  if (flow.cacheKey !== `${datasetKey}:document:default:force:2d:flow`) {
-    throw new Error(`expected flow cacheKey ${datasetKey}:document:default:force:2d:flow, got ${flow.cacheKey}`)
+  if (flow.cacheKey !== `${datasetKey}:document:default:force:2d`) {
+    throw new Error(`expected flow cacheKey ${datasetKey}:document:default:force:2d, got ${flow.cacheKey}`)
   }
-  if (String(d3.cacheKey) === String(flow.cacheKey)) {
-    throw new Error('expected 2d cache keys to differ by renderVariant')
+  if (String(d3.cacheKey) !== String(flow.cacheKey)) {
+    throw new Error('expected 2d cache keys to be shared across renderVariants')
   }
 }
 
@@ -201,8 +201,8 @@ export const testLayoutPositioningDoesNotReuseCacheAcrossDatasets = () => {
 
   const dsA = 'graphId:a'
   const dsB = 'graphId:b'
-  const keyA = `${dsA}:document:default:force:2d:d3`
-  const keyB = `${dsB}:document:default:force:2d:d3`
+  const keyA = `${dsA}:document:default:force:2d`
+  const keyB = `${dsB}:document:default:force:2d`
 
   const cache = {
     [keyA]: {

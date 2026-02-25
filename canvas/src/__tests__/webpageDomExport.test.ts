@@ -1,0 +1,77 @@
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { exportWebpageDomViaHiddenIframe } from '@/lib/websites/webpageDomExport'
+
+const waitMs = async (ms: number) => {
+  await new Promise<void>(resolve => setTimeout(resolve, ms))
+}
+
+const createEvent = (type: string): Event => {
+  const Ctor = (window as unknown as { Event?: typeof Event }).Event
+  if (typeof Ctor === 'function') return new Ctor(type)
+  const e = document.createEvent('Event')
+  e.initEvent(type, false, false)
+  return e
+}
+
+const createMessageEvent = (data: unknown, source: Window): MessageEvent => {
+  const Ctor = (window as unknown as { MessageEvent?: typeof MessageEvent }).MessageEvent
+  if (typeof Ctor === 'function') return new Ctor('message', { data, source })
+  const e = document.createEvent('MessageEvent')
+  ;(e as unknown as { initMessageEvent?: unknown }).initMessageEvent &&
+    (e as unknown as { initMessageEvent: (...args: unknown[]) => void }).initMessageEvent('message', false, false, data, '', '', source, null)
+  return e as unknown as MessageEvent
+}
+
+export async function testWebpageDomExportWaitsForNetworkIdleAndReturnsSnapshot() {
+  const { restore } = initJsdomHarness()
+  try {
+    const p = exportWebpageDomViaHiddenIframe({
+      url: 'https://example.com/',
+      mode: 'html',
+      timeoutMs: 4000,
+      waitForNetworkIdle: true,
+      networkIdleMs: 200,
+      minWaitAfterLoadMs: 0,
+    })
+
+    await waitMs(0)
+    const iframe = document.querySelector('iframe') as HTMLIFrameElement | null
+    if (!iframe) throw new Error('expected iframe mounted')
+    const win = iframe.contentWindow
+    if (!win) throw new Error('expected iframe contentWindow')
+
+    let requestedId = ''
+    ;(win as unknown as { postMessage?: unknown }).postMessage = (payload: unknown) => {
+      if (!payload || typeof payload !== 'object') return
+      const rec = payload as Record<string, unknown>
+      if (rec.kind !== 'kg-export-dom') return
+      const id = typeof rec.id === 'string' ? rec.id : ''
+      if (id) requestedId = id
+    }
+
+    iframe.dispatchEvent(createEvent('load'))
+    await waitMs(0)
+    window.dispatchEvent(createMessageEvent({ kind: 'kg-webpage-net', pending: 1 }, win))
+    await waitMs(60)
+    window.dispatchEvent(createMessageEvent({ kind: 'kg-webpage-net', pending: 0 }, win))
+    await waitMs(240)
+    window.dispatchEvent(createMessageEvent({ kind: 'kg-webpage-net', pending: 0 }, win))
+
+    const startedAt = Date.now()
+    while (!requestedId && Date.now() - startedAt < 1200) {
+      await waitMs(15)
+    }
+    if (!requestedId) throw new Error('expected export request after network idle')
+
+    window.dispatchEvent(
+      createMessageEvent({ kind: 'kg-export-dom', id: requestedId, mode: 'html', title: 'T', clipped: false, text: '<html>OK</html>' }, win),
+    )
+
+    const res = await p
+    if (!res) throw new Error('expected result')
+    if (res.text !== '<html>OK</html>') throw new Error('expected returned html snapshot')
+    if (res.title !== 'T') throw new Error('expected title')
+  } finally {
+    restore()
+  }
+}
