@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { FileCode, GitBranch, Hand, Layers, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
+import { FileCode, GitBranch, Hand, Layers, ListTree, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
 import { useOrchestratorPanelState } from '@/features/panels/hooks/useOrchestratorPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
@@ -25,6 +25,8 @@ import { lsBool } from '@/lib/persistence'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import DesignLayersPanel from '@/features/design/DesignLayersPanel'
+import DesignDomTreePanel from '@/features/design/DesignDomTreePanel'
+import DesignDomInspectPanel from '@/features/design/DesignDomInspectPanel'
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
 import { requestGeospatialTraversalRun } from '@/features/geospatial/gympgrphBridge'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
@@ -32,7 +34,7 @@ import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
 
-type FloatingPanelView = 'propsPanel' | 'interaction' | 'designLayers' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
+type FloatingPanelView = 'propsPanel' | 'interaction' | 'designLayers' | 'domTree' | 'domInspect' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
 
 const GeospatialPanelHostLazy = React.lazy(async () => {
   const m = await import('gympgrph')
@@ -147,13 +149,27 @@ export function ToolbarToolMenu({
     }
   })
 
-  const { floatingPanelWidthRatio, floatingPanelHeightRatio, floatingPanelZIndex, uiIconScale, uiIconStrokeWidth } = useGraphStore(
+  const {
+    floatingPanelWidthRatio,
+    floatingPanelHeightRatio,
+    floatingPanelZIndex,
+    uiIconScale,
+    uiIconStrokeWidth,
+    workspaceViewMode,
+    canvasRenderMode,
+    canvas2dRenderer,
+    designRendererWebpageLayoutKey,
+  } = useGraphStore(
     useShallow(state => ({
       floatingPanelWidthRatio: state.floatingPanelWidthRatio,
       floatingPanelHeightRatio: state.floatingPanelHeightRatio,
       floatingPanelZIndex: state.floatingPanelZIndex,
       uiIconScale: state.uiIconScale,
       uiIconStrokeWidth: state.uiIconStrokeWidth,
+      workspaceViewMode: state.workspaceViewMode,
+      canvasRenderMode: state.canvasRenderMode,
+      canvas2dRenderer: state.canvas2dRenderer,
+      designRendererWebpageLayoutKey: state.designRendererWebpageLayoutKey,
     })),
   )
 
@@ -225,6 +241,9 @@ export function ToolbarToolMenu({
   void toolMenuCardRef
 
   const iconSizeClass = getIconSizeClass(uiIconScale)
+  const domPanelsAvailable =
+    !geospatialModeEnabled && workspaceViewMode === 'canvas' && canvasRenderMode === '2d' && canvas2dRenderer === 'design'
+  const domLayoutReady = domPanelsAvailable && !!designRendererWebpageLayoutKey
 
   const viewButtons = (
     <>
@@ -249,6 +268,34 @@ export function ToolbarToolMenu({
       >
         <Layers className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
       </IconButton>
+
+      {!geospatialModeEnabled && (
+        <IconButton
+          title={domLayoutReady ? 'DOM Tree' : domPanelsAvailable ? 'DOM Tree (loading)' : 'DOM Tree'}
+          onClick={() => handleSelectView('domTree')}
+          disabled={!domPanelsAvailable}
+          className={`App-toolbar__btn ${
+            floatingPanelView === 'domTree' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+          }`}
+          showTooltip
+        >
+          <ListTree className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+        </IconButton>
+      )}
+
+      {!geospatialModeEnabled && (
+        <IconButton
+          title={domLayoutReady ? 'Inspect (DOM)' : domPanelsAvailable ? 'Inspect (DOM) (loading)' : 'Inspect (DOM)'}
+          onClick={() => handleSelectView('domInspect')}
+          disabled={!domPanelsAvailable}
+          className={`App-toolbar__btn ${
+            floatingPanelView === 'domInspect' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+          }`}
+          showTooltip
+        >
+          <FileCode className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+        </IconButton>
+      )}
 
       <IconButton
         title="Interaction"
@@ -455,6 +502,8 @@ export function ToolbarToolMenu({
               </section>
             )}
             {floatingPanelView === 'designLayers' && <DesignLayersPanel active={true} />}
+            {floatingPanelView === 'domTree' && <DesignDomTreePanel active={true} />}
+            {floatingPanelView === 'domInspect' && <DesignDomInspectPanel active={true} />}
             {floatingPanelView === 'inspector' && <InspectorView geospatialModeEnabled={geospatialModeEnabled} />}
             {floatingPanelView === 'chat' && (
               <React.Suspense fallback={null}>

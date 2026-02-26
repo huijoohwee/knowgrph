@@ -1,3 +1,5 @@
+import { normalizeMarkdownAsciiBlocks } from './asciiBlocks.js'
+
 export type MarkdownFormatAction =
   | 'bold'
   | 'italic'
@@ -8,6 +10,7 @@ export type MarkdownFormatAction =
   | 'bulletList'
   | 'numberedList'
   | 'blockquote'
+  | 'normalizeAsciiBlocks'
 
 export type MarkdownSelectionOffsets = { startOffset: number; endOffset: number }
 
@@ -194,6 +197,19 @@ export function applyMarkdownFormatAction(args: {
       return toggleLinePrefix(text, selection, '1. ', { numbered: true })
     case 'blockquote':
       return toggleLinePrefix(text, selection, '> ')
+    case 'normalizeAsciiBlocks': {
+      const sel = clampOffsets(text, selection)
+      const start = lineStartOffset(text, sel.startOffset)
+      const end = lineEndOffset(text, sel.endOffset)
+      const block = text.slice(start, end)
+      const nextBlock = normalizeMarkdownAsciiBlocks(block)
+      const nextText = text.slice(0, start) + nextBlock + text.slice(end)
+      const delta = nextBlock.length - block.length
+      return {
+        nextText,
+        nextSelection: { startOffset: sel.startOffset, endOffset: sel.endOffset + delta },
+      }
+    }
     default: {
       const _exhaustive: never = action
       return { nextText: text, nextSelection: clampOffsets(text, selection) }

@@ -59,6 +59,11 @@
       "import": "./dist/markdown/wikiLinks.js",
       "default": "./dist/markdown/wikiLinks.js"
     },
+    "./markdown/asciiBlocks": {
+      "types": "./dist/markdown/asciiBlocks.d.ts",
+      "import": "./dist/markdown/asciiBlocks.js",
+      "default": "./dist/markdown/asciiBlocks.js"
+    },
     "./markdown/backlinks": {
       "types": "./dist/markdown/backlinks.d.ts",
       "import": "./dist/markdown/backlinks.js",

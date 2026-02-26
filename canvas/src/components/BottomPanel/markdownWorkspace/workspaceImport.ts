@@ -14,9 +14,10 @@ import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtil
 import { isFrontmatterOnlyDoc, upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 import { fetchWebpageHtmlAuto } from '@/lib/websites/webpageIframeSrcdoc'
-import { convertWebpageHtmlToMarkdownArtifactAsync } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
 import { exportWebpageDomViaHiddenIframe } from '@/lib/websites/webpageDomExport'
 import { convertHtmlToMarkdownUnified } from '@/lib/markdown/htmlToMarkdownUnified'
+import { postprocessWebpageMarkdownSsot } from '@/lib/markdown/webpageMarkdownPostprocess'
+import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { createProgressTicker } from '@/lib/progress/progressTicker'
 import { parseGitHubRepoUrl } from './githubRepoApi'
@@ -67,6 +68,13 @@ function yamlQuote(value: string): string {
   return `"${String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
 }
 
+function yamlBlockScalar(key: string, value: string): string[] {
+  const v = String(value || '').replace(/\r/g, '').trim()
+  if (!v) return []
+  const lines = v.split('\n')
+  return [`${key}: |`, ...lines.map(line => `  ${line}`)]
+}
+
 function decodeHtmlEntitiesBasic(text: string): string {
   const src = String(text || '')
   if (!src.includes('&')) return src
@@ -99,7 +107,11 @@ function htmlFallbackToMarkdownAllText(html: string): string {
 }
 
 function normalizeWebpageCardAndListBlocks(markdown: string): string {
-  return String(markdown || '')
+  try {
+    return postprocessWebpageMarkdownSsot(String(markdown || ''))
+  } catch {
+    return String(markdown || '')
+  }
 }
 
 function buildPdfWorkspaceFrontmatter(args: { docId: string; mode: PdfWorkspaceImportMode; outputDirRel: string }): string {
@@ -465,6 +477,8 @@ export async function fetchWorkspaceUrlContent(
     let defaultView: 'markdown' | 'json' | 'html' = 'html'
     let fidelityLevel: 1 | 2 | 3 | 4 = 4
     let lastFetchedHtml = ''
+    let lastDomDiag = ''
+    let lastDomTitle = ''
     try {
       ticker?.start()
 
@@ -480,24 +494,60 @@ export async function fetchWorkspaceUrlContent(
       const upstreamMarkdown = await (async () => {
         if (opts?.mode !== 'refresh') {
           try {
-            const dom = await exportWebpageDomViaHiddenIframe({
-              url: normalizedUrl,
-              mode: 'html',
-              timeoutMs: 30_000,
-              maxChars: 10_000_000,
-              scrollCrawl: true,
-              expandFaq: true,
-            })
-            if (dom && dom.text && dom.text.trim()) {
-              lastFetchedHtml = dom.text
-              opts?.onProgress?.(55)
-              const markdown = await convertWebpageHtmlToMarkdownArtifactAsync({
-                html: dom.text,
+            const [textDom, htmlDom] = await Promise.all([
+              exportWebpageDomViaHiddenIframe({
                 url: normalizedUrl,
+                mode: 'text',
+                timeoutMs: 45_000,
+                maxChars: 12_000_000,
+                scrollCrawl: true,
+                expandFaq: true,
+                minWaitAfterLoadMs: 650,
+              }),
+              exportWebpageDomViaHiddenIframe({
+                url: normalizedUrl,
+                mode: 'html',
+                timeoutMs: 45_000,
+                maxChars: 12_000_000,
+                scrollCrawl: true,
+                expandFaq: true,
+                minWaitAfterLoadMs: 650,
+              }),
+            ])
+            const domDiag = String(htmlDom?.diag || textDom?.diag || '').trim()
+            if (domDiag) lastDomDiag = domDiag
+            const domTitle = String(htmlDom?.title || textDom?.title || '').trim()
+            if (domTitle) lastDomTitle = domTitle
+
+            const htmlText = String(htmlDom?.text || '')
+            if (htmlText.trim()) {
+              lastFetchedHtml = htmlText
+              opts?.onProgress?.(55)
+              const converted = await convertHtmlToMarkdownUnified({
+                html: htmlText,
+                baseUrl: normalizedUrl,
+                maxInputChars: 12_000_000,
                 includeImages,
                 fidelityLevel,
+                includeHeadSection: false,
               })
-              if (markdown.trim()) return markdown.trim()
+              if (converted.ok === true && converted.markdown.trim()) {
+                const processed = normalizeWebpageCardAndListBlocks(converted.markdown)
+                const trimmed = processed.trim()
+                const title = String(htmlDom?.title || textDom?.title || '').trim()
+                if (trimmed.length >= 400) return trimmed
+                if (title && trimmed && trimmed.length <= 120 && trimmed.replace(/\s+/g, ' ').trim() === title.replace(/\s+/g, ' ').trim()) {
+                  void 0
+                } else if (trimmed.length >= 220) {
+                  return trimmed
+                }
+              }
+            }
+
+            const textOnly = String(textDom?.text || '').trim()
+            const title = String(htmlDom?.title || textDom?.title || '').trim() || undefined
+            if (textOnly.length >= 400) {
+              return plainTextToMarkdown(textOnly, title)
             }
           } catch {
             void 0
@@ -525,16 +575,26 @@ export async function fetchWorkspaceUrlContent(
         const boundedHtml = rawHtml.length > 5_000_000 ? rawHtml.slice(0, 5_000_000) : rawHtml
         lastFetchedHtml = boundedHtml
         opts?.onProgress?.(65)
-        const markdown =
-          opts?.mode === 'refresh'
-            ? ''
-            : await (async () => {
-                try {
-                  return await convertWebpageHtmlToMarkdownArtifactAsync({ html: boundedHtml, url: normalizedUrl, includeImages, fidelityLevel })
-                } catch {
-                  return ''
+        const markdown = opts?.mode === 'refresh'
+          ? ''
+          : await (async () => {
+              try {
+                const converted = await convertHtmlToMarkdownUnified({
+                  html: boundedHtml,
+                  baseUrl: normalizedUrl,
+                  maxInputChars: 5_000_000,
+                  includeImages,
+                  fidelityLevel,
+                  includeHeadSection: false,
+                })
+                if (converted.ok === true && converted.markdown.trim()) {
+                  return normalizeWebpageCardAndListBlocks(converted.markdown)
                 }
-              })()
+              } catch {
+                void 0
+              }
+              return ''
+            })()
         opts?.onProgress?.(85)
         if (markdown.trim()) return markdown.trim()
         return htmlFallbackToMarkdownAllText(boundedHtml)
@@ -549,9 +609,11 @@ export async function fetchWorkspaceUrlContent(
             upstreamMarkdown,
             url: normalizedUrl,
             view: defaultView,
+            title: lastDomTitle,
             scriptPolicy: 'allow',
             fidelityLevel,
             includeImages,
+            diag: lastDomDiag,
           }),
         { timeoutMs: 80 },
       )
@@ -566,8 +628,6 @@ export async function fetchWorkspaceUrlContent(
         `kgWebpageIncludeImages: ${yamlQuote(includeImages ? 'true' : 'false')}`,
         `kgWebpageFidelityLevel: ${yamlQuote(String(fidelityLevel))}`,
         '---',
-        '',
-        '**Fidelity Level:** 100% Source-Faithful (No Invented Content)',
         '',
         String(upstreamMarkdown || '').trim(),
         '',
@@ -584,8 +644,6 @@ export async function fetchWorkspaceUrlContent(
           `kgWebpageIncludeImages: ${yamlQuote(includeImages ? 'true' : 'false')}`,
           `kgWebpageFidelityLevel: ${yamlQuote(String(fidelityLevel))}`,
           '---',
-          '',
-          '**Fidelity Level:** 100% Source-Faithful (No Invented Content)',
           '',
           recoveredBody.trim(),
           '',
@@ -681,6 +739,7 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
   url: string
   view: 'markdown' | 'json' | 'html'
   title?: string
+  diag?: string
   scriptPolicy?: 'strip' | 'allow'
   fidelityLevel?: 1 | 2 | 3 | 4
   includeImages?: boolean
@@ -694,7 +753,7 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
       ? args.fidelityLevel
       : 0
   const includeImages = args.includeImages === true ? true : args.includeImages === false ? false : null
-  const upstreamSanitized = sanitizeImportedMarkdownText(String(args.upstreamMarkdown || '')).text
+  const upstreamSanitized = sanitizeImportedMarkdownText(String(args.upstreamMarkdown || ''), { sourceUrl: url }).text
   const strippedUpstream = (() => {
     const t = String(upstreamSanitized || '')
     if (!t.startsWith('---')) return t
@@ -716,7 +775,6 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
   if (importId) fmLines.push(`kgWebsiteImportId: ${yamlQuote(importId)}`)
   if (nodeId) fmLines.push(`kgWebsiteNodeId: ${yamlQuote(nodeId)}`)
   if (outputDirRel) fmLines.push(`kgWebsiteOutputDirRel: ${yamlQuote(outputDirRel)}`)
-  fmLines.push('---', '')
 
   const withView = upsertWebpageFrontmatterMeta(strippedUpstream, { url, view })
   const body = (() => {
@@ -727,14 +785,19 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
     return t.slice(end + 4).replace(/^\s*\n/, '')
   })()
   const normalizedBody = normalizeWebpageCardAndListBlocks(body)
-  const SOURCE_FAITHFUL_MARKER = 'Source-Faithful (No Invented Content)'
-  const withMarker = (() => {
-    const text = String(normalizedBody || '')
-    if (!text.trim()) return text
-    if (text.includes(SOURCE_FAITHFUL_MARKER)) return text
-    return [`**Fidelity Level:** 100% ${SOURCE_FAITHFUL_MARKER}`, '', text].join('\n')
-  })()
-  return [...fmLines, withMarker].join('\n')
+  const title = String(args.title || '').replace(/\s+/g, ' ').trim()
+  const diag = String(args.diag || '').trim()
+  const bodyText = String(normalizedBody || '').trim()
+  if (
+    diag &&
+    bodyText &&
+    bodyText.length <= 140 &&
+    (!title || bodyText.replace(/\s+/g, ' ').trim() === title)
+  ) {
+    fmLines.push(...yamlBlockScalar('kgWebpageDiagnostics', diag))
+  }
+  fmLines.push('---', '')
+  return [...fmLines, bodyText].join('\n').trimEnd() + '\n'
 }
 
 export function buildWebsiteImportWebpageDocFromUpstreamMarkdown(args: {
@@ -745,7 +808,7 @@ export function buildWebsiteImportWebpageDocFromUpstreamMarkdown(args: {
 }): string {
   const url = String(args.url || '').trim()
   const view = args.view === 'html' ? 'html' : args.view === 'json' ? 'json' : 'markdown'
-  const upstreamSanitized = sanitizeImportedMarkdownText(String(args.upstreamMarkdown || '')).text
+  const upstreamSanitized = sanitizeImportedMarkdownText(String(args.upstreamMarkdown || ''), { sourceUrl: url }).text
   const strippedUpstream = (() => {
     const t = String(upstreamSanitized || '')
     if (!t.startsWith('---')) return t
@@ -777,15 +840,7 @@ export function buildWebsiteImportWebpageDocFromUpstreamMarkdown(args: {
     return t.slice(end + 4).replace(/^\s*\n/, '')
   })()
   const normalizedBody = normalizeWebpageCardAndListBlocks(body)
-  const SOURCE_FAITHFUL_MARKER = 'Source-Faithful (No Invented Content)'
-  const withMarker = (() => {
-    const text = String(normalizedBody || '')
-    if (!text.trim()) return text
-    if (text.includes(SOURCE_FAITHFUL_MARKER)) return text
-    return [`**Fidelity Level:** 100% ${SOURCE_FAITHFUL_MARKER}`, '', text].join('\n')
-  })()
-
-  return [...fmLines, withMarker].join('\n')
+  return [...fmLines, String(normalizedBody || '').trim()].join('\n').trimEnd() + '\n'
 }
 
 export async function importWorkspaceUrl(args: {

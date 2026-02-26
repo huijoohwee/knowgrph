@@ -13,6 +13,29 @@ const FLASH_CSS = `
 }
 `
 
+const LONG_LINE_STYLE_ID = 'monaco-long-line-style'
+const LONG_LINE_CSS = `
+.monaco-editor .kg-monaco-ellipsis-long-html-line {
+  display: inline-block;
+  max-width: min(920px, 65vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: top;
+}
+.monaco-editor .kg-monaco-long-line-placeholder::before {
+  content: "⟪long HTML line⟫ ";
+  color: rgba(120, 120, 120, 0.95);
+  font-size: 12px;
+  font-style: italic;
+}
+.monaco-editor .kg-monaco-html-block-placeholder {
+  color: rgba(120, 120, 120, 0.95);
+  font-size: 12px;
+  font-style: italic;
+}
+`
+
 export type MonacoTextEditorHandle = {
   focus: () => void
   layout: () => void
@@ -42,6 +65,7 @@ export type MonacoTextEditorProps = {
   themeMode: 'light' | 'dark'
   wordWrap?: boolean
   readOnly?: boolean
+  hideLongHtmlBlocks?: boolean
   paddingTopPx?: number
   paddingBottomPx?: number
   className?: string
@@ -73,6 +97,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
     themeMode,
     wordWrap,
     readOnly,
+    hideLongHtmlBlocks,
     paddingTopPx,
     paddingBottomPx,
     className,
@@ -98,6 +123,11 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
   const monacoRef = React.useRef<MonacoApi | null>(null)
   const editorInstanceRef = React.useRef<Monaco.editor.IStandaloneCodeEditor | null>(null)
   const decorationsRef = React.useRef<string[]>([])
+  const hiddenLongLineDecorationsRef = React.useRef<string[]>([])
+  const hiddenLongBlockDecorationsRef = React.useRef<string[]>([])
+  const lastHiddenAreasKeyRef = React.useRef<string>('')
+  const htmlBlockToggleByLineRef = React.useRef<Map<number, string>>(new Map())
+  const expandedHtmlBlockKeysRef = React.useRef<Set<string>>(new Set())
   const latestValueRef = React.useRef<string>(value)
   latestValueRef.current = value
   const lastAppliedValueRef = React.useRef<string>(value)
@@ -143,6 +173,15 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
     const styleEl = document.createElement('style')
     styleEl.id = FLASH_STYLE_ID
     styleEl.textContent = FLASH_CSS
+    document.head.appendChild(styleEl)
+  }, [])
+
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return
+    if (document.getElementById(LONG_LINE_STYLE_ID)) return
+    const styleEl = document.createElement('style')
+    styleEl.id = LONG_LINE_STYLE_ID
+    styleEl.textContent = LONG_LINE_CSS
     document.head.appendChild(styleEl)
   }, [])
 
@@ -195,6 +234,239 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
     typeof document !== 'undefined' &&
     typeof (window as unknown as { Worker?: unknown }).Worker !== 'undefined' &&
     !isJsdom
+
+  const shouldHideLongHtmlBlocks = hideLongHtmlBlocks ?? String(language || '').toLowerCase() === 'markdown'
+
+  const recomputeHiddenLongHtmlLines = React.useCallback(() => {
+    const editor = editorInstanceRef.current
+    const monaco = monacoRef.current
+    const model = editor?.getModel()
+    if (!editor || !monaco || !model) return
+    try {
+      if (!shouldHideLongHtmlBlocks) {
+        hiddenLongLineDecorationsRef.current = editor.deltaDecorations(hiddenLongLineDecorationsRef.current, [])
+        hiddenLongBlockDecorationsRef.current = editor.deltaDecorations(hiddenLongBlockDecorationsRef.current, [])
+        htmlBlockToggleByLineRef.current = new Map()
+        expandedHtmlBlockKeysRef.current = new Set()
+        const anyEditor = editor as unknown as { setHiddenAreas?: (ranges: Monaco.IRange[]) => void }
+        if (typeof anyEditor.setHiddenAreas === 'function') {
+          anyEditor.setHiddenAreas([])
+        }
+        return
+      }
+      const text = model.getValue()
+      const lines = text.split(/\r?\n/)
+      const maxLen = 1400
+      const decs: Monaco.editor.IModelDeltaDecoration[] = []
+      for (let i = 0; i < lines.length; i += 1) {
+        const lineText = lines[i] || ''
+        if (lineText.length <= maxLen) continue
+        const trimmed = lineText.trimStart()
+        const isHtmlish = trimmed.startsWith('<') && trimmed.includes('>') && trimmed.includes('</')
+        if (!isHtmlish) continue
+        const lineNumber = i + 1
+        const lineMax = model.getLineMaxColumn(lineNumber)
+        decs.push({
+          range: new monaco.Range(lineNumber, 1, lineNumber, lineMax),
+          options: {
+            isWholeLine: true,
+            inlineClassName: 'kg-monaco-ellipsis-long-html-line',
+            beforeContentClassName: 'kg-monaco-long-line-placeholder',
+            hoverMessage: { value: `Long HTML line (${lineText.length} chars)` },
+          },
+        })
+      }
+      hiddenLongLineDecorationsRef.current = editor.deltaDecorations(hiddenLongLineDecorationsRef.current, decs)
+
+      const maxDocChars = 600_000
+      if (text.length > maxDocChars) {
+        hiddenLongBlockDecorationsRef.current = editor.deltaDecorations(hiddenLongBlockDecorationsRef.current, [])
+        const anyEditor = editor as unknown as { setHiddenAreas?: (ranges: Monaco.IRange[]) => void }
+        if (typeof anyEditor.setHiddenAreas === 'function') {
+          anyEditor.setHiddenAreas([])
+        }
+        lastHiddenAreasKeyRef.current = ''
+        return
+      }
+
+      const hideRanges: Monaco.IRange[] = []
+      const blockDecs: Monaco.editor.IModelDeltaDecoration[] = []
+      const togglesByLine = new Map<number, string>()
+      htmlBlockToggleByLineRef.current = togglesByLine
+
+      const addHiddenArea = (startLine: number, endLineExclusive: number) => {
+        if (endLineExclusive <= startLine) return
+        hideRanges.push(new monaco.Range(startLine, 1, endLineExclusive, 1))
+      }
+
+      const addPlaceholderDecoration = (lineNumber: number, placeholder: string, hover: string, key: string) => {
+        const lineMax = model.getLineMaxColumn(lineNumber)
+        if (key) togglesByLine.set(lineNumber, key)
+        blockDecs.push({
+          range: new monaco.Range(lineNumber, 1, lineNumber, lineMax),
+          options: {
+            isWholeLine: true,
+            inlineClassName: 'kg-monaco-ellipsis-long-html-line',
+            before: {
+              content: `${placeholder} `,
+              inlineClassName: 'kg-monaco-html-block-placeholder',
+            },
+            hoverMessage: { value: hover },
+          },
+        })
+      }
+
+      const looksLikeHtmlish = (s: string): boolean => {
+        const t = String(s || '').trim()
+        if (!t.startsWith('<')) return false
+        if (t.startsWith('</')) return false
+        if (!/[>]/.test(t)) return false
+        if (/^<!--/.test(t)) return true
+        return /^<\s*[a-zA-Z][a-zA-Z0-9:-]*/.test(t)
+      }
+
+      const tagNameFromLine = (s: string): string => {
+        const t = String(s || '').trim()
+        const m = t.match(/^<\s*([a-zA-Z][a-zA-Z0-9:-]*)\b/)
+        return String(m?.[1] || '').toLowerCase()
+      }
+
+      const allowedTags = new Set([
+        'svg',
+        'div',
+        'section',
+        'article',
+        'main',
+        'nav',
+        'header',
+        'footer',
+        'table',
+        'picture',
+        'iframe',
+        'video',
+        'style',
+        'script',
+      ])
+
+      const isFenceLine = (s: string): { marker: string; info: string } | null => {
+        const m = String(s || '').trim().match(/^(```+|~~~+)\s*(.*)$/)
+        if (!m) return null
+        return { marker: m[1] || '', info: String(m[2] || '') }
+      }
+
+      let i = 0
+      while (i < lines.length) {
+        const line = lines[i] || ''
+        const fence = isFenceLine(line)
+        if (fence) {
+          const marker = fence.marker
+          const info = fence.info.trim()
+          const lang = (info.split(/\s+/)[0] || '').trim().toLowerCase()
+          let j = i + 1
+          let charCount = 0
+          let htmlishCount = 0
+          while (j < lines.length) {
+            const cur = lines[j] || ''
+            const f2 = isFenceLine(cur)
+            if (f2 && f2.marker === marker) break
+            charCount += cur.length + 1
+            if (cur.includes('<') && cur.includes('>')) htmlishCount += 1
+            j += 1
+          }
+          const end = j < lines.length ? j : -1
+          if (end > i) {
+            const startLine = i + 1
+            const endLine = end + 1
+            const lineCount = endLine - startLine + 1
+            const looksHtmlFence = lang === 'html' || lang === 'svg' || (lang === '' && htmlishCount >= 3)
+            const shouldCollapse = looksHtmlFence && (lineCount >= 60 || charCount >= 40_000)
+            if (shouldCollapse) {
+              const blockKey = `fence:${startLine}:${endLine}`
+              const isExpanded = expandedHtmlBlockKeysRef.current.has(blockKey)
+              const headLines = 3
+              const tailLines = 1
+              const hideStart = Math.min(endLine, startLine + 1 + headLines)
+              const hideEnd = Math.max(startLine, endLine - tailLines)
+              addPlaceholderDecoration(
+                startLine,
+                `${isExpanded ? '⟪expanded' : '⟪collapsed'} fenced HTML block · ${lineCount} lines · ${Math.round(charCount / 1024)}KB⟫`,
+                `${isExpanded ? 'Expanded' : 'Collapsed'} fenced HTML block (${lineCount} lines, ${charCount} chars).`,
+                blockKey,
+              )
+              if (!isExpanded && hideEnd >= hideStart) addHiddenArea(hideStart, hideEnd + 1)
+              i = endLine
+              continue
+            }
+          }
+          i = end >= 0 ? end + 1 : j + 1
+          continue
+        }
+
+        const trimmed = line.trim()
+        if (!looksLikeHtmlish(trimmed)) {
+          i += 1
+          continue
+        }
+        const tag = tagNameFromLine(trimmed)
+        if (!tag || !allowedTags.has(tag)) {
+          i += 1
+          continue
+        }
+        const closeRe = new RegExp(`</\\s*${tag}\\s*>`, 'i')
+        let j = i
+        let charCount = 0
+        while (j < lines.length) {
+          const cur = lines[j] || ''
+          charCount += cur.length + 1
+          if (j > i && closeRe.test(cur)) break
+          if (j - i > 1200) break
+          j += 1
+        }
+        if (j >= lines.length) {
+          i += 1
+          continue
+        }
+        if (!closeRe.test(lines[j] || '')) {
+          i += 1
+          continue
+        }
+        const startLine = i + 1
+        const endLine = j + 1
+        const lineCount = endLine - startLine + 1
+        const shouldCollapse = lineCount >= 40 || charCount >= 20_000 || tag === 'script' || tag === 'style'
+        if (!shouldCollapse) {
+          i = j + 1
+          continue
+        }
+        const blockKey = `tag:${tag}:${startLine}:${endLine}`
+        const isExpanded = expandedHtmlBlockKeysRef.current.has(blockKey)
+        const headLines = 3
+        const tailLines = 1
+        const hideStart = Math.min(endLine, startLine + headLines)
+        const hideEnd = Math.max(startLine, endLine - tailLines)
+        addPlaceholderDecoration(
+          startLine,
+          `${isExpanded ? '⟪expanded' : '⟪collapsed'} <${tag}> block · ${lineCount} lines · ${Math.round(charCount / 1024)}KB⟫`,
+          `${isExpanded ? 'Expanded' : 'Collapsed'} <${tag}> block (${lineCount} lines, ${charCount} chars).`,
+          blockKey,
+        )
+        if (!isExpanded && hideEnd >= hideStart) addHiddenArea(hideStart, hideEnd + 1)
+        i = j + 1
+      }
+
+      hiddenLongBlockDecorationsRef.current = editor.deltaDecorations(hiddenLongBlockDecorationsRef.current, blockDecs)
+      const anyEditor = editor as unknown as { setHiddenAreas?: (ranges: Monaco.IRange[]) => void }
+      if (typeof anyEditor.setHiddenAreas === 'function') {
+        const key = hideRanges.map(r => `${r.startLineNumber}:${r.endLineNumber}`).join('|')
+        if (key !== lastHiddenAreasKeyRef.current) {
+          lastHiddenAreasKeyRef.current = key
+          anyEditor.setHiddenAreas(hideRanges)
+        }
+      }
+    } catch {
+      void 0
+    }
+  }, [shouldHideLongHtmlBlocks])
 
   React.useEffect(() => {
     if (canUseMonaco) return
@@ -283,6 +555,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
         model.setValue(nextValue)
       }
       lastAppliedValueRef.current = model.getValue()
+      recomputeHiddenLongHtmlLines()
 
       const handle = {
         focus: () => editor.focus(),
@@ -358,6 +631,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
         const next = model.getValue()
         lastAppliedValueRef.current = next
         onChangeRef.current(next)
+        recomputeHiddenLongHtmlLines()
       })
 
       const contextSub =
@@ -389,6 +663,18 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
                 onContextMenuRef.current({ startLine, endLine, text: text || undefined, event: e })
             }
           })
+
+      const toggleSub =
+        editor.onMouseDown(e => {
+          if (e.event.detail !== 1) return
+          const p = e.target.position
+          if (!p) return
+          const key = htmlBlockToggleByLineRef.current.get(p.lineNumber)
+          if (!key) return
+          if (expandedHtmlBlockKeysRef.current.has(key)) expandedHtmlBlockKeysRef.current.delete(key)
+          else expandedHtmlBlockKeysRef.current.add(key)
+          recomputeHiddenLongHtmlLines()
+        })
 
       const dblSub =
         editor.onMouseDown(e => {
@@ -455,11 +741,28 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
       cleanup = () => {
         contentSub.dispose()
         if (contextSub) contextSub.dispose()
+        if (toggleSub) toggleSub.dispose()
         if (dblSub) dblSub.dispose()
         if (dblSelSub) dblSelSub.dispose()
         if (selSub) selSub.dispose()
         if (blurSub) blurSub.dispose()
         if (focusSub) focusSub.dispose()
+        try {
+          hiddenLongLineDecorationsRef.current = editor.deltaDecorations(hiddenLongLineDecorationsRef.current, [])
+        } catch {
+          void 0
+        }
+        try {
+          hiddenLongBlockDecorationsRef.current = editor.deltaDecorations(hiddenLongBlockDecorationsRef.current, [])
+        } catch {
+          void 0
+        }
+        try {
+          const anyEditor = editor as unknown as { setHiddenAreas?: (ranges: Monaco.IRange[]) => void }
+          if (typeof anyEditor.setHiddenAreas === 'function') anyEditor.setHiddenAreas([])
+        } catch {
+          void 0
+        }
         const editorRefNow = editorRefRef.current
         if (editorRefNow) editorRefNow.current = null
         const onHandleNow = onHandleRef.current
@@ -500,7 +803,13 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
     if (viewState) {
       editor.restoreViewState(viewState)
     }
-  }, [canUseMonaco, value])
+    recomputeHiddenLongHtmlLines()
+  }, [canUseMonaco, value, recomputeHiddenLongHtmlLines])
+
+  React.useEffect(() => {
+    if (!canUseMonaco) return
+    recomputeHiddenLongHtmlLines()
+  }, [canUseMonaco, recomputeHiddenLongHtmlLines])
 
   React.useEffect(() => {
     if (!canUseMonaco) return

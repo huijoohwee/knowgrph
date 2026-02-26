@@ -310,20 +310,34 @@ const fetchCached = (
   key: string,
   run: (signal: AbortSignal) => Promise<string>,
   signal: AbortSignal,
-  opts?: { bypassCache?: boolean },
+  opts?: { bypassCache?: boolean; timeoutMs?: number },
 ): Promise<string> => {
+  const timeoutMs = (() => {
+    const raw = typeof opts?.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs) ? Math.floor(opts.timeoutMs) : 30_000
+    return Math.max(0, Math.min(180_000, raw))
+  })()
   if (opts?.bypassCache) {
     const ctrl = new AbortController()
-    const timeoutId = setTimeoutFn(() => {
+    let timedOut = false
+    const timeoutId =
+      timeoutMs > 0
+        ? setTimeoutFn(() => {
+            timedOut = true
+            try {
+              ctrl.abort()
+            } catch {
+              void 0
+            }
+          }, timeoutMs)
+        : 0
+    const p = withAbort(run(ctrl.signal), ctrl.signal)
+      .catch((e) => {
+        if (timedOut) throw new Error('Timeout')
+        throw e
+      })
+      .finally(() => {
       try {
-        ctrl.abort()
-      } catch {
-        void 0
-      }
-    }, 30_000)
-    const p = withAbort(run(ctrl.signal), ctrl.signal).finally(() => {
-      try {
-        clearTimeoutFn(timeoutId)
+        if (timeoutId) clearTimeoutFn(timeoutId)
       } catch {
         void 0
       }
@@ -341,15 +355,24 @@ const fetchCached = (
   if (inflight) return withAbort(inflight, signal)
 
   const ctrl = new AbortController()
-  const timeoutId = setTimeoutFn(() => {
-    try {
-      ctrl.abort()
-    } catch {
-      void 0
-    }
-  }, 30_000)
+  let timedOut = false
+  const timeoutId =
+    timeoutMs > 0
+      ? setTimeoutFn(() => {
+          timedOut = true
+          try {
+            ctrl.abort()
+          } catch {
+            void 0
+          }
+        }, timeoutMs)
+      : 0
 
   const p = withAbort(run(ctrl.signal), ctrl.signal)
+    .catch((e) => {
+      if (timedOut) throw new Error('Timeout')
+      throw e
+    })
     .then((html) => {
       CACHE.set(key, { html, atMs: Date.now() })
       if (CACHE.size > CACHE_MAX) {
@@ -360,7 +383,7 @@ const fetchCached = (
     })
     .finally(() => {
       try {
-        clearTimeoutFn(timeoutId)
+        if (timeoutId) clearTimeoutFn(timeoutId)
       } catch {
         void 0
       }
@@ -462,12 +485,36 @@ export async function fetchWebpageConversionJsonViaConvert(args: {
   return fetchCached(
     key,
     async () => {
+      let diag = ''
+      try {
+        const { probeWebpageDomViaHiddenIframe } = await import('./webpageDomExport')
+        const probe = await probeWebpageDomViaHiddenIframe({
+          url: u,
+          mode: 'text',
+          timeoutMs: 45_000,
+          maxChars: 250_000,
+          scrollCrawl: true,
+          expandFaq: true,
+          minWaitAfterLoadMs: 650,
+        })
+        if (probe.ok !== true) {
+          const p = probe as unknown as { stage?: unknown; error?: unknown; attempts?: unknown }
+          diag = JSON.stringify({ ok: false, stage: p.stage, error: p.error, attempts: Array.isArray(p.attempts) ? p.attempts : [] })
+        } else {
+          diag = String(probe.result.diag || '').trim() || JSON.stringify({ ok: false, error: 'Iframe diagnostics empty' })
+        }
+      } catch {
+        diag = JSON.stringify({ ok: false, error: 'Iframe probe failed' })
+      }
       const { convertWebpageUrlToMarkdownViaBrowser } = await import('./webpageClientConvert')
       const res = await convertWebpageUrlToMarkdownViaBrowser({ url: u })
       if (res.ok !== true) throw new Error(res.error)
-      return JSON.stringify({ ok: true, name: 'webpage.md', markdown: res.markdown, title: res.title, source_url: u, images: [] }, null, 2)
+      const payload: Record<string, unknown> = { ok: true, name: 'webpage.md', markdown: res.markdown, title: res.title, source_url: u, images: [] }
+      if (diag && String(res.markdown || '').trim().length <= 140) payload.diagnostics = diag
+      return JSON.stringify(payload, null, 2)
     },
     args.signal,
+    { timeoutMs: 120_000 },
   )
 }
 
@@ -555,7 +602,10 @@ export const buildWebpageHtmlSrcdocAsync = async (args: {
     return next
   }
 
-  const looksProxied = rawHtml.includes('/__webpage_asset_proxy?url=') || rawHtml.includes('/__webpage_proxy?url=')
+  const looksProxied =
+    rawHtml.includes('/__webpage_asset_proxy?url=') ||
+    rawHtml.includes('/__webpage_asset_path/') ||
+    rawHtml.includes('/__webpage_proxy?url=')
   const selfOriginBaseHref = (() => {
     try {
       const origin = typeof window !== 'undefined' && window.location && typeof window.location.origin === 'string' ? window.location.origin : ''

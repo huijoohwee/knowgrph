@@ -409,7 +409,7 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
       const webpage = await fetchWebpageMarkdown(normalizedUrl, { includeImages })
       if (webpage && webpage.ok) {
         const frontmatter = `---\nkgWebpageUrl: "${normalizedUrl}"\nkgWebpageView: "${view}"\n---\n\n`
-        const content = sanitizeImportedMarkdownText(`${frontmatter}${webpage.markdown}`).text
+        const content = sanitizeImportedMarkdownText(`${frontmatter}${webpage.markdown}`, { sourceUrl: normalizedUrl }).text
         store.updateSourceFile(id, {
           name: webpage.name,
           text: content,

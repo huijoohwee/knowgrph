@@ -3,6 +3,7 @@ import type { StoreApi } from 'zustand'
 import { moveDesignLayer, normalizeDesignLayerState, toggleDesignLayerHidden } from '@/features/design/designLayersState'
 import type { DesignLayerNode, DesignLayerState } from '@/features/design/designLayersState'
 import type { GraphState } from '@/hooks/store/types'
+import type { GraphNode } from '@/lib/graph/types'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -79,6 +80,35 @@ export const createDesignRendererSlice = (set: SetGraph, get: GetGraph) => {
     setDesignLayerState: (next: DesignLayerState) => {
       const n = next || { order: [], hiddenById: {} }
       set({ designLayerState: { order: Array.isArray(n.order) ? n.order : [], hiddenById: n.hiddenById || {} } })
+    },
+
+    designRendererNodes: [] as DesignLayerNode[],
+    setDesignRendererNodes: (nodes: DesignLayerNode[]) => {
+      const next = Array.isArray(nodes) ? nodes : []
+      const prev = get().designRendererNodes || []
+      if (next.length === prev.length) {
+        let same = true
+        for (let i = 0; i < next.length; i += 1) {
+          const a = prev[i]
+          const b = next[i]
+          if (a?.id !== b?.id || a?.label !== b?.label || a?.type !== b?.type) {
+            same = false
+            break
+          }
+        }
+        if (same) return
+      }
+      set({ designRendererNodes: next })
+    },
+
+    designRendererWebpageLayoutKey: null as string | null,
+    designRendererGraphNodesById: {} as Record<string, GraphNode>,
+    setDesignRendererWebpageGraph: (args: { key: string | null; nodesById: Record<string, GraphNode> }) => {
+      const nextKey = typeof args.key === 'string' && args.key.trim() ? args.key.trim() : null
+      const state = get()
+      if (state.designRendererWebpageLayoutKey === nextKey) return
+      const nodesById = args.nodesById && typeof args.nodesById === 'object' ? args.nodesById : {}
+      set({ designRendererWebpageLayoutKey: nextKey, designRendererGraphNodesById: nodesById })
     },
 
     designFramePosById: {} as Record<string, DesignFramePos>,

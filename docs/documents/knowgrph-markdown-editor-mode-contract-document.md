@@ -48,4 +48,8 @@ No other surface should duplicate these controls.
 - `Sync` explicitly regenerates Markdown from a DOM snapshot:
   - DOM capture → HTML→Markdown conversion (with `IncludeImages` + `FidelityLevel`) → Markdown SSOT update.
 - The Markdown SSOT output must be Markdown-only (no duplicate “artifact doc” wrapper sections, no YAML/HTML snapshot blocks, no “HTML Head” blocks). Metadata remains available via the HTML/Raw/JSON views.
+- HTML→Markdown conversion must be URL-agnostic but URL-correct: resolve `href/src/action/poster/srcset` and common lazy-load `data-*` media attributes against `baseUrl`; upsert missing `<img src>` from `data-src` or `srcset` so markdown images do not become empty.
+- Markdown preview must preserve layout and media fidelity for allowlisted HTML blocks:
+  - **Grid**: `grid-cols-*` and `col-span-*`/`row-span-*` class-derived layout must render as CSS grid, and item spans must apply even when the item itself is not `display:grid`.
+  - **Media**: allowlisted `<video>/<audio>` should preserve safe attributes (`autoplay`, `muted`, `loop`, `playsinline`, `poster`) and prefer `<source>` candidates when direct `src` is absent.
 - Markdown preview renders allowlisted HTML blocks safely (no `dangerouslySetInnerHTML`). Unsupported blocks must never be silently dropped.

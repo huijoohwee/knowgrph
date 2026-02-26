@@ -5,8 +5,6 @@ import { usePanelTypography, type PanelTypography } from '@/lib/ui/panelTypograp
 import { MarkdownWorkspaceToolbar } from '../MarkdownWorkspaceToolbar'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { HighlightedLineRange, MarkdownPresentationApi, MarkdownWorkspaceStatus } from './markdownWorkspaceTypes'
-import { lexMarkdown, type TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
-import { MarkdownPreviewViewer } from '@/features/markdown/ui/MarkdownPreviewViewer'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { splitMarkdownLines } from '@/lib/markdown'
 import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/MarkdownRendererTypes'
@@ -103,6 +101,58 @@ function sanitizeInvalidDataUrls(raw: string): string {
   const s = String(raw || '')
   if (!s.includes('data:image/') || !s.includes('<omitted>')) return s
   return s.replace(/data:image\/[a-zA-Z0-9.+-]+;base64,<omitted>/g, 'data:,')
+}
+
+function normalizeInlineSourceHints(raw: string): string {
+  const text = String(raw || '')
+  if (!text.includes('http')) return text
+  const lines = text.split(/\r?\n/g)
+  let inFence = false
+  let fence = ''
+  const out: string[] = []
+  const cleanUrl = (candidate: string): string => {
+    let u = String(candidate || '').trim()
+    u = u.replace(/^<|>$/g, '')
+    u = u.replace(/^`+|`+$/g, '')
+    while (/[)\].,;:]$/.test(u) && u.includes('://')) {
+      if (u.endsWith(')') && u.includes('(')) break
+      u = u.slice(0, -1)
+    }
+    return u
+  }
+  const replaceLine = (line: string): string => {
+    if (!line.includes('http')) return line
+    if (/\[source\]\(/i.test(line)) return line
+    let next = line
+    next = next.replace(/\(\s*`(https?:\/\/[^`]+?)`\s*\)?/g, (_m, url) => {
+      const u = cleanUrl(url)
+      if (!u) return _m
+      return `([source](<${u}>))`
+    })
+    next = next.replace(/\(\s*(https?:\/\/[^\s)]+)\s*\)/g, (_m, url) => {
+      const u = cleanUrl(url)
+      if (!u) return _m
+      return `([source](<${u}>))`
+    })
+    return next
+  }
+  for (const line of lines) {
+    const trimmed = line.trim()
+    const m = trimmed.match(/^(```+|~~~+)(.*)$/)
+    if (m) {
+      if (!inFence) {
+        inFence = true
+        fence = m[1] || '```'
+      } else if (trimmed.startsWith(fence)) {
+        inFence = false
+        fence = ''
+      }
+      out.push(line)
+      continue
+    }
+    out.push(inFence ? line : replaceLine(line))
+  }
+  return out.join('\n')
 }
 
 import { useSyncScrollEditorHandleElements } from './useSyncScroll'
@@ -544,7 +594,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const needsMarkdownViewerText = !showWebpageHtml && layoutMode !== 'editor'
   const viewerTextRaw = needsMarkdownViewerText ? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText) : ''
   const viewerText = React.useMemo(
-    () => (needsMarkdownViewerText ? sanitizeInvalidDataUrls(viewerTextRaw) : ''),
+    () => (needsMarkdownViewerText ? sanitizeInvalidDataUrls(normalizeInlineSourceHints(viewerTextRaw)) : ''),
     [needsMarkdownViewerText, viewerTextRaw],
   )
 
@@ -566,7 +616,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     }
   }, [debouncedSignalText, webpageMeta?.url])
 
-  const handleViewerRootRef = React.useCallback((el: HTMLElement | null) => {
+  const handleViewerRootRef = React.useCallback((el: HTMLDivElement | null) => {
     viewerRef.current = el
     setViewerEl(prev => (prev === el ? prev : el))
   }, [])
@@ -740,20 +790,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     }
   }, [layoutMode, presentationApiRef])
 
-  const lexed = React.useMemo(() => {
-    if (!viewerVisible) return { tokens: [] as TokenWithLines[], startLineOffset: 0, meta: {} as never }
-    if (showWebpageHtml) return { tokens: [] as TokenWithLines[], startLineOffset: 0, meta: {} as never }
-    try {
-      return lexMarkdown(viewerText)
-    } catch {
-      return { tokens: [] as TokenWithLines[], startLineOffset: 0, meta: {} as never }
-    }
-  }, [showWebpageHtml, viewerText, viewerVisible])
-
-  const tokens = lexed.tokens
-  void lexed.startLineOffset
-  void lexed.meta
-
   const handleInsertLineAfter = React.useCallback(
     (afterLine: number) => {
       if (disableViewerMutations) return
@@ -820,28 +856,24 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       />
     </section>
   ) : (
-    <MarkdownPreviewViewer
-      rootRef={handleViewerRootRef}
-      tokens={tokens}
+    <MarkdownPreview
+      ref={handleViewerRootRef}
+      markdownText={viewerText}
       activeDocumentPath={activeDocumentKey}
       highlightedLineRange={highlightedLineRange}
       markdownWordWrap={markdownWordWrap}
+      markdownPresentationMode={false}
       markdownTextHighlight={markdownTextHighlight}
       selectionKind={null}
       uiPanelTextFontClass={uiPanelTextFontClass}
       uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
       webpageLayoutWireframeAscii={webpageLayoutWireframeAscii}
       geoDatasetIntegration={geoDatasetIntegration}
-      mermaidFrontmatterConfig={null}
-      rootThemeMode={themeMode}
       previewOverlayScope="container"
       previewOverlayPortalTarget={null}
-      effectiveHighlightBackgroundColor={null}
-      effectiveHighlightUnderlineColor={null}
-      scrollClass="overflow-auto"
+      previewScrollable={true}
       showSidebar={false}
-      onContextMenu={() => void 0}
-      onClick={() => void 0}
+      viewMode="viewer"
       onInsertLineAfter={handleInsertLineAfter}
       onReorderLineBlock={handleReorderLineBlock}
     />

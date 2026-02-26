@@ -1,5 +1,6 @@
 import { fetchWorkspaceUrlContent } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
 import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
+import { buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
 
 export const testImportUrlWebpageCreatesHtmlFrontmatterStub = async () => {
   const res = await fetchWorkspaceUrlContent('https://grapesjs.com/pricing')
@@ -52,9 +53,6 @@ export const testImportUrlWebpageRefreshUsesSourceFaithfulForMultipleUrls = asyn
         throw new Error(`expected refresh mode to derive a .md file name for URL: ${url}`)
       }
       const text = refreshed.text
-      if (!text.includes('Source-Faithful (No Invented Content)')) {
-        throw new Error(`expected Source-Faithful fidelity marker for URL: ${url}`)
-      }
       if (isFrontmatterOnlyDoc(text)) {
         throw new Error(`expected non-empty body for URL: ${url}`)
       }
@@ -66,4 +64,48 @@ export const testImportUrlWebpageRefreshUsesSourceFaithfulForMultipleUrls = asyn
   } finally {
     g.fetch = prevFetch
   }
+}
+
+export const testImportUrlWebpagePostprocessCoalescesNavAndAvoidsSyntheticArtifacts = async () => {
+  const upstream = [
+    '# Pencil',
+    '',
+    '<div style="display:grid;grid-template-columns:repeat(6, minmax(0, 1fr));gap:8px">',
+    '<a href="/">Pencil Logo</a>',
+    '<a href="/downloads">Downloads</a>',
+    '<a href="/pricing">Pricing</a>',
+    '<a href="/gallery">Prompt Gallery</a>',
+    '<a href="/docs">Docs</a>',
+    '<a href="/download">Download Pencil</a>',
+    '</div>',
+    '',
+    'Backed by',
+    '',
+    'Dream on canvas.',
+    'Land in code.',
+    '',
+    'This is the real magic. You can plug in the whole world of MCPs, bring in data from other sources like databases, APIs, chart data, Playwright/Puppeteer, or plug in other agents easily. You’re in charge!',
+    '',
+  ].join('\n')
+
+  const doc = buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
+    upstreamMarkdown: upstream,
+    url: 'https://www.pencil.dev/',
+    view: 'markdown',
+    scriptPolicy: 'allow',
+    fidelityLevel: 4,
+    includeImages: false,
+  })
+
+  if (!doc.includes('| [Pencil Logo](/) | [Downloads](/downloads) | [Pricing](/pricing) |')) {
+    throw new Error('expected nav links to be coalesced into a markdown table')
+  }
+  if (doc.includes('\n### Icons\n') || doc.includes('\n### Icons\r\n')) {
+    throw new Error('expected no synthetic Icons section')
+  }
+  if (!doc.includes('Backed by')) throw new Error('expected body copy preserved')
+  if (!doc.includes('Dream on canvas.')) throw new Error('expected tagline preserved')
+  if (!doc.includes('Land in code.')) throw new Error('expected tagline preserved')
+  if (!doc.includes('This is the real magic.')) throw new Error('expected long paragraph preserved')
+  if (isFrontmatterOnlyDoc(doc)) throw new Error('expected non-empty markdown body')
 }

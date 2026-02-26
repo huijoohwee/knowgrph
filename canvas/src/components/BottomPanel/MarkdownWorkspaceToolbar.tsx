@@ -774,6 +774,17 @@ export function MarkdownWorkspaceToolbar({
               <Quote className="w-4 h-4" strokeWidth={1.6} />
             </button>
           </li>
+          <li className="list-none">
+            <button
+              type="button"
+              className={TOOLBAR_BUTTON_CLASSNAME}
+              title="Normalize ASCII blocks"
+              disabled={!isEditing || !isMarkdown}
+              onClick={() => onFormatAction('normalizeAsciiBlocks')}
+            >
+              <span className={panelTypography.microLabelClass}>ASCII</span>
+            </button>
+          </li>
         </menu>
         <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Display">
           <li className="list-none">

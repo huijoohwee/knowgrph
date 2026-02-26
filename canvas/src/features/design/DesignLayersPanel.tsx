@@ -36,6 +36,7 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
     uiIconScale,
     uiIconStrokeWidth,
     graphData,
+    designRendererNodes,
     selectedNodeId,
     setSelectionSource,
     selectNode,
@@ -49,6 +50,7 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
       uiIconScale: s.uiIconScale,
       uiIconStrokeWidth: s.uiIconStrokeWidth,
       graphData: s.graphData,
+      designRendererNodes: s.designRendererNodes,
       selectedNodeId: s.selectedNodeId,
       setSelectionSource: s.setSelectionSource,
       selectNode: s.selectNode,
@@ -64,7 +66,11 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
   const [query, setQuery] = React.useState('')
   const normalizedQuery = String(query || '').trim().toLowerCase()
 
-  const nodes = React.useMemo(() => coerceLayerNodes(graphData), [graphData])
+  const nodes = React.useMemo(() => {
+    const override = Array.isArray(designRendererNodes) ? designRendererNodes : []
+    if (active && override.length > 0) return override
+    return coerceLayerNodes(graphData)
+  }, [active, designRendererNodes, graphData])
 
   React.useEffect(() => {
     if (!active) return

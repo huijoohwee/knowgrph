@@ -148,7 +148,7 @@ export async function fetchWebpageMarkdown(
   try {
     void opts?.includeImages
     const emit = opts?.emit === 'json' ? 'json' : 'markdown'
-    const key = `webpage:${emit}:${cleaned}`
+    const key = `webpage:v3:${emit}:${cleaned}`
     const cached = WEBPAGE_MD_CACHE.get(key)
     if (cached && Date.now() - cached.atMs <= WEBPAGE_MD_CACHE_TTL_MS) return cached.res
 

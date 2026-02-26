@@ -258,6 +258,13 @@ export interface GraphState {
   toggleDesignLayerHidden: (id: string) => void
   moveDesignLayer: (id: string, dir: 'up' | 'down') => void
 
+  designRendererNodes: DesignLayerNode[]
+  setDesignRendererNodes: (nodes: DesignLayerNode[]) => void
+
+  designRendererWebpageLayoutKey: string | null
+  designRendererGraphNodesById: Record<string, GraphNode>
+  setDesignRendererWebpageGraph: (args: { key: string | null; nodesById: Record<string, GraphNode> }) => void
+
   designFramePosById: Record<string, DesignFramePos>
   setDesignFramePos: (id: string, pos: DesignFramePos) => void
   setDesignFramePosMany: (patch: Record<string, DesignFramePos>) => void

@@ -1,10 +1,53 @@
 import { exportWebpageDomViaHiddenIframe } from './webpageDomExport'
 import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
-import { convertWebpageHtmlToMarkdownArtifactAsync } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
+import { convertHtmlToMarkdownUnified } from '@/lib/markdown/htmlToMarkdownUnified'
+import { postprocessWebpageMarkdownSsot } from '@/lib/markdown/webpageMarkdownPostprocess'
 
 export type WebpageClientConvertResult =
   | { ok: true; markdown: string; title: string }
   | { ok: false; error: string }
+
+export const looksSyntheticWebpageArtifactMarkdown = (markdown: string): boolean => {
+  const s = String(markdown || '')
+  if (!s.trim()) return false
+  if (/\n###\s+Icons\s*\n/i.test(s)) return true
+  if (/##\s+📋\s*TABLE OF CONTENTS/i.test(s)) return true
+  if (/##\s+🗂️\s*ASSET CATALOG/i.test(s)) return true
+  if (/\bFidelity Level:\s*100% Source-Faithful\b/i.test(s)) return true
+  return false
+}
+
+const decodeHtmlEntitiesBasic = (text: string): string => {
+  const src = String(text || '')
+  if (!src.includes('&')) return src
+  return src
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#39;/g, "'")
+}
+
+const htmlFallbackToMarkdownAllText = (html: string): string => {
+  const src = String(html || '').replace(/\r/g, '')
+  const stripTags = (s: string) =>
+    decodeHtmlEntitiesBasic(String(s || '').replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
+
+  let out = src
+  out = out.replace(/<script\b[\s\S]*?<\/script>/gi, '')
+  out = out.replace(/<style\b[\s\S]*?<\/style>/gi, '')
+  out = out.replace(/<!--[\s\S]*?-->/g, '')
+  out = out.replace(/<br\s*\/?>/gi, '\n')
+  out = out.replace(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi, (_, inner) => `\n# ${stripTags(String(inner || ''))}\n`)
+  out = out.replace(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi, (_, inner) => `\n## ${stripTags(String(inner || ''))}\n`)
+  out = out.replace(/<h3\b[^>]*>([\s\S]*?)<\/h3>/gi, (_, inner) => `\n### ${stripTags(String(inner || ''))}\n`)
+  out = out.replace(/<p\b[^>]*>([\s\S]*?)<\/p>/gi, (_, inner) => `\n\n${stripTags(String(inner || ''))}\n\n`)
+  out = decodeHtmlEntitiesBasic(out.replace(/<[^>]+>/g, ''))
+  out = out.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
+  return out
+}
 
 const isJsdomLike = (): boolean => {
   try {
@@ -36,8 +79,25 @@ export const convertWebpageUrlToMarkdownViaProxyFetch = async (url: string): Pro
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
     const title = extractTitleFromHtml(html)
     const bounded = html.length > 8_000_000 ? html.slice(0, 8_000_000) : html
-    const md = await convertWebpageHtmlToMarkdownArtifactAsync({ html: bounded, url, includeImages: true, fidelityLevel: 4 })
-    return { ok: true, markdown: md, title }
+    try {
+      const converted = await convertHtmlToMarkdownUnified({
+        html: bounded,
+        baseUrl: url,
+        maxInputChars: 8_000_000,
+        includeImages: true,
+        fidelityLevel: 4,
+        includeHeadSection: false,
+      })
+      if (converted.ok === true && converted.markdown.trim()) {
+        const processed = postprocessWebpageMarkdownSsot(converted.markdown)
+        if (processed.trim()) return { ok: true, markdown: processed.trim(), title }
+      }
+    } catch {
+      void 0
+    }
+    const fallbackMd = htmlFallbackToMarkdownAllText(bounded)
+    if (fallbackMd.trim()) return { ok: true, markdown: fallbackMd.trim(), title }
+    return { ok: false, error: 'No convertible content extracted' }
   } catch (e) {
     const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
     return { ok: false, error: msg || 'Fetch failed' }
@@ -54,11 +114,29 @@ export async function convertWebpageUrlToMarkdownViaBrowser(args: {
   }
   try {
     const fast = await convertWebpageUrlToMarkdownViaProxyFetch(url)
-    if (fast.ok === true && String(fast.markdown || '').trim().length >= 1400) return fast
+    if (fast.ok === true && String(fast.markdown || '').trim().length >= 1400 && !looksSyntheticWebpageArtifactMarkdown(fast.markdown)) {
+      return fast
+    }
 
     const [textRes, htmlRes] = await Promise.all([
-      exportWebpageDomViaHiddenIframe({ url, mode: 'text', scrollCrawl: true, expandFaq: true, timeoutMs: 25_000 }),
-      exportWebpageDomViaHiddenIframe({ url, mode: 'html', scrollCrawl: false, expandFaq: true, timeoutMs: 25_000 }),
+      exportWebpageDomViaHiddenIframe({
+        url,
+        mode: 'text',
+        scrollCrawl: true,
+        expandFaq: true,
+        timeoutMs: 35_000,
+        maxChars: 12_000_000,
+        minWaitAfterLoadMs: 650,
+      }),
+      exportWebpageDomViaHiddenIframe({
+        url,
+        mode: 'html',
+        scrollCrawl: true,
+        expandFaq: true,
+        timeoutMs: 35_000,
+        maxChars: 12_000_000,
+        minWaitAfterLoadMs: 650,
+      }),
     ])
 
     const title = String(htmlRes?.title || textRes?.title || '').trim()
@@ -73,14 +151,28 @@ export async function convertWebpageUrlToMarkdownViaBrowser(args: {
 
     if (!html && text) return { ok: true, markdown: plainTextToMarkdown(text, title || undefined), title }
     const bounded = html.length > 8_000_000 ? html.slice(0, 8_000_000) : html
-    let md = await convertWebpageHtmlToMarkdownArtifactAsync({ html: bounded, url, includeImages: true, fidelityLevel: 4 })
-
-    if (!String(md || '').trim()) {
-      const fallback = await convertWebpageUrlToMarkdownViaProxyFetch(url)
-      if (fallback.ok === true) return fallback
+    try {
+      const converted = await convertHtmlToMarkdownUnified({
+        html: bounded,
+        baseUrl: url,
+        maxInputChars: 8_000_000,
+        includeImages: true,
+        fidelityLevel: 4,
+        includeHeadSection: false,
+      })
+      if (converted.ok === true && converted.markdown.trim()) {
+        const processed = postprocessWebpageMarkdownSsot(converted.markdown)
+        if (processed.trim()) return { ok: true, markdown: processed.trim(), title }
+      }
+    } catch {
+      void 0
     }
-
-    return { ok: true, markdown: md, title }
+    if (text) return { ok: true, markdown: plainTextToMarkdown(text, title || undefined), title }
+    const fallbackMd = htmlFallbackToMarkdownAllText(bounded)
+    if (fallbackMd.trim()) return { ok: true, markdown: fallbackMd.trim(), title }
+    const fallback = await convertWebpageUrlToMarkdownViaProxyFetch(url)
+    if (fallback.ok === true) return fallback
+    return { ok: false, error: 'No DOM content extracted' }
   } catch (e) {
     const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
     if (msg) {

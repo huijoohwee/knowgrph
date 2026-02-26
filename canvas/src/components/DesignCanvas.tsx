@@ -17,12 +17,17 @@ import { relaxNodesWithCollision } from '@/components/GraphCanvas/layout/relax'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
+import { exportWebpageLayoutViaHiddenIframe } from '@/lib/websites/webpageLayoutExport'
+import type { WebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutExport'
+import { getCachedWebpageLayoutSnapshot, setCachedWebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutCache'
+import { convertWebpageLayoutToGraphData } from '@/lib/websites/webpageLayoutToGraph'
 
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
 type FrameNode = {
   id: string
   label: string
+  type?: string
 }
 
 function coerceFrameNodes(nodes: Array<{ id?: unknown; label?: unknown }> | null | undefined): FrameNode[] {
@@ -69,6 +74,22 @@ function computeGridPositions(args: { nodes: FrameNode[]; colCount: number; colW
   return pos
 }
 
+function tryExtractDocumentUrl(graphData: GraphData | null): string | null {
+  const meta = graphData?.metadata && typeof graphData.metadata === 'object' ? (graphData.metadata as Record<string, unknown>) : null
+  const direct = meta && typeof meta.documentUrl === 'string' ? meta.documentUrl.trim() : ''
+  if (direct && /^https?:\/\//i.test(direct)) return direct
+  const layers = meta?.sourceLayers
+  if (!Array.isArray(layers)) return null
+  for (let i = 0; i < layers.length; i += 1) {
+    const layer = layers[i] as Record<string, unknown> | null
+    const src = layer?.source as Record<string, unknown> | null
+    if (!src || src.kind !== 'url') continue
+    const u = typeof src.url === 'string' ? src.url.trim() : ''
+    if (u && /^https?:\/\//i.test(u)) return u
+  }
+  return null
+}
+
 export default function DesignCanvas({
   active = true,
 }: {
@@ -103,8 +124,56 @@ export default function DesignCanvas({
       designLayerState: s.designLayerState,
       designFramePosById: s.designFramePosById,
       setDesignFramePosMany: s.setDesignFramePosMany,
+      setDesignRendererNodes: s.setDesignRendererNodes,
+      setDesignRendererWebpageGraph: s.setDesignRendererWebpageGraph,
     })),
   )
+
+  const documentUrl = useMemo(() => tryExtractDocumentUrl(snapshot.graphData as GraphData | null), [snapshot.graphData])
+  const [webpageLayout, setWebpageLayout] = React.useState<WebpageLayoutSnapshot | null>(null)
+  const lastWebpageLayoutUrlRef = useRef<string>('')
+  const lastWebpageLayoutReqRef = useRef<number>(0)
+
+  useEffect(() => {
+    if (!active) return
+    const url = String(documentUrl || '').trim()
+    if (!url) {
+      lastWebpageLayoutUrlRef.current = ''
+      setWebpageLayout(null)
+      return
+    }
+    lastWebpageLayoutUrlRef.current = url
+    const cached = getCachedWebpageLayoutSnapshot(url)
+    if (cached) return void setWebpageLayout(cached)
+    const reqId = (lastWebpageLayoutReqRef.current += 1)
+    let cancelled = false
+    exportWebpageLayoutViaHiddenIframe({
+      url,
+      maxElements: 1400,
+      scrollCrawl: true,
+      expandFaq: true,
+      timeoutMs: 45_000,
+      minWaitAfterLoadMs: 650,
+    })
+      .then((snap) => {
+        if (cancelled) return
+        if (reqId !== lastWebpageLayoutReqRef.current) return
+        if (!snap) {
+          setWebpageLayout(null)
+          return
+        }
+        setCachedWebpageLayoutSnapshot(url, snap)
+        setWebpageLayout(snap)
+      })
+      .catch(() => {
+        if (cancelled) return
+        if (reqId !== lastWebpageLayoutReqRef.current) return
+        setWebpageLayout(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [active, documentUrl])
 
   const designGraphDataForDisplay = useMemo(() => {
     const g = snapshot.graphData
@@ -112,7 +181,57 @@ export default function DesignCanvas({
     return deriveSceneDisplayGraph({ graphData: g as GraphData })?.displayGraphData || (g as GraphData)
   }, [snapshot.graphData])
 
-  const frameNodes = useMemo(() => coerceFrameNodes(designGraphDataForDisplay?.nodes as never), [designGraphDataForDisplay])
+  const webpageLayoutGraphData = useMemo(() => {
+    if (!webpageLayout) return null
+    return convertWebpageLayoutToGraphData(webpageLayout, { maxNodes: 1200, minAreaPx: 9000 })
+  }, [webpageLayout])
+
+  const webpageLayoutKey = useMemo(() => {
+    const url = String(documentUrl || '').trim()
+    if (!url) return null
+    const ts = typeof webpageLayout?.meta?.ts === 'number' && Number.isFinite(webpageLayout.meta.ts) ? webpageLayout.meta.ts : null
+    const n = Array.isArray(webpageLayout?.elements) ? webpageLayout.elements.length : null
+    if (ts == null || n == null) return null
+    return `${url}#${ts}#${n}`
+  }, [documentUrl, webpageLayout?.elements, webpageLayout?.meta?.ts])
+
+  const webpageGraphNodesById = useMemo(() => {
+    if (!webpageLayoutGraphData?.nodes || webpageLayoutGraphData.nodes.length === 0) return null
+    const out: Record<string, GraphNode> = {}
+    for (let i = 0; i < webpageLayoutGraphData.nodes.length; i += 1) {
+      const n = webpageLayoutGraphData.nodes[i] as GraphNode
+      const id = String(n.id || '').trim()
+      if (!id) continue
+      out[id] = n
+    }
+    return out
+  }, [webpageLayoutGraphData])
+
+  useEffect(() => {
+    if (!active) return
+    if (webpageLayoutKey && webpageGraphNodesById) {
+      snapshot.setDesignRendererWebpageGraph({ key: webpageLayoutKey, nodesById: webpageGraphNodesById })
+    } else {
+      snapshot.setDesignRendererWebpageGraph({ key: null, nodesById: {} })
+    }
+  }, [active, snapshot.setDesignRendererWebpageGraph, webpageGraphNodesById, webpageLayoutKey])
+
+  const baseFrameNodes = useMemo(() => {
+    if (webpageLayoutGraphData?.nodes && webpageLayoutGraphData.nodes.length > 0) {
+      const out: FrameNode[] = []
+      for (let i = 0; i < webpageLayoutGraphData.nodes.length; i += 1) {
+        const n = webpageLayoutGraphData.nodes[i] as GraphNode
+        const props = (n.properties || {}) as Record<string, unknown>
+        const tag = typeof props['dom:tag'] === 'string' ? String(props['dom:tag'] || '').trim() : ''
+        const id = String(n.id || '').trim()
+        if (!id) continue
+        const label = String(n.label || n.id || '').trim() || id
+        out.push({ id, label, ...(tag ? { type: tag } : {}) })
+      }
+      return out
+    }
+    return coerceFrameNodes(designGraphDataForDisplay?.nodes as never)
+  }, [designGraphDataForDisplay, webpageLayoutGraphData])
 
   const FRAME_W = 320
   const FRAME_H = 240
@@ -120,8 +239,8 @@ export default function DesignCanvas({
 
   const sortedNodes = useMemo(() => {
     const order = Array.isArray(snapshot.designLayerState?.order) ? snapshot.designLayerState!.order : []
-    if (order.length === 0) return frameNodes
-    const byId = new Map(frameNodes.map(n => [n.id, n] as const))
+    if (order.length === 0) return baseFrameNodes
+    const byId = new Map(baseFrameNodes.map(n => [n.id, n] as const))
     const used = new Set<string>()
     const out: FrameNode[] = []
     for (let i = 0; i < order.length; i += 1) {
@@ -133,26 +252,53 @@ export default function DesignCanvas({
       used.add(id)
       out.push(n)
     }
-    for (let i = 0; i < frameNodes.length; i += 1) {
-      const n = frameNodes[i]
+    for (let i = 0; i < baseFrameNodes.length; i += 1) {
+      const n = baseFrameNodes[i]
       if (used.has(n.id)) continue
       out.push(n)
     }
     return out
-  }, [frameNodes, snapshot.designLayerState])
+  }, [baseFrameNodes, snapshot.designLayerState])
 
   const visibleNodes = useMemo(() => {
     const hidden = snapshot.designLayerState?.hiddenById || {}
     return sortedNodes.filter(n => hidden[n.id] !== true)
   }, [snapshot.designLayerState?.hiddenById, sortedNodes])
 
+  useEffect(() => {
+    if (!active) return
+    snapshot.setDesignRendererNodes(sortedNodes)
+  }, [active, snapshot.setDesignRendererNodes, sortedNodes])
+
   const positions = useMemo(() => {
+    const overrides = snapshot.designFramePosById || {}
+    const out: Record<string, { x: number; y: number; w: number; h: number }> = {}
+    if (webpageLayoutGraphData?.nodes && webpageLayoutGraphData.nodes.length > 0) {
+      const byId = new Map<string, GraphNode>()
+      for (let i = 0; i < webpageLayoutGraphData.nodes.length; i += 1) {
+        const n = webpageLayoutGraphData.nodes[i] as GraphNode
+        byId.set(String(n.id), n)
+      }
+      for (let i = 0; i < visibleNodes.length; i += 1) {
+        const n = visibleNodes[i]
+        const base = byId.get(n.id)
+        if (!base) continue
+        const props = (base.properties || {}) as Record<string, unknown>
+        const w = typeof props['visual:width'] === 'number' ? (props['visual:width'] as number) : FRAME_W
+        const h = typeof props['visual:height'] === 'number' ? (props['visual:height'] as number) : FRAME_H
+        const cx = typeof base.x === 'number' && Number.isFinite(base.x) ? base.x : 0
+        const cy = typeof base.y === 'number' && Number.isFinite(base.y) ? base.y : 0
+        const basePos = { x: cx - w / 2, y: cy - h / 2, w, h }
+        const o = overrides[n.id]
+        if (o && Number.isFinite(o.x) && Number.isFinite(o.y)) out[n.id] = { x: o.x, y: o.y, w: basePos.w, h: basePos.h }
+        else out[n.id] = basePos
+      }
+      return out
+    }
     const viewportW = Math.max(1, dims.width)
     const maxCols = Math.max(1, Math.floor((viewportW + GAP) / (FRAME_W + GAP)))
     const colCount = Math.max(1, Math.min(10, maxCols || 4))
     const grid = computeGridPositions({ nodes: visibleNodes, colCount, colW: FRAME_W, rowH: FRAME_H, pad: GAP })
-    const overrides = snapshot.designFramePosById || {}
-    const out: Record<string, { x: number; y: number; w: number; h: number }> = {}
     for (let i = 0; i < visibleNodes.length; i += 1) {
       const n = visibleNodes[i]
       const base = grid[n.id]
@@ -165,9 +311,41 @@ export default function DesignCanvas({
       }
     }
     return out
-  }, [dims.width, snapshot.designFramePosById, visibleNodes])
+  }, [dims.width, snapshot.designFramePosById, visibleNodes, webpageLayoutGraphData])
 
   const localGraphData: GraphData = useMemo(() => {
+    if (webpageLayoutGraphData?.nodes && webpageLayoutGraphData.nodes.length > 0) {
+      const byId = new Map<string, GraphNode>()
+      for (let i = 0; i < webpageLayoutGraphData.nodes.length; i += 1) {
+        const n = webpageLayoutGraphData.nodes[i] as GraphNode
+        byId.set(String(n.id), n)
+      }
+      return {
+        type: 'Graph',
+        context: webpageLayoutGraphData.context,
+        nodes: visibleNodes.map(n => {
+          const base = byId.get(n.id)
+          const p = positions[n.id]
+          if (!base || !p) return { id: n.id, label: n.label, type: 'Frame', properties: {}, x: 0, y: 0 }
+          const props = (base.properties || {}) as Record<string, unknown>
+          const width = typeof props['visual:width'] === 'number' ? (props['visual:width'] as number) : p.w
+          const height = typeof props['visual:height'] === 'number' ? (props['visual:height'] as number) : p.h
+          return {
+            ...base,
+            properties: {
+              ...props,
+              'visual:width': width,
+              'visual:height': height,
+              'visual:shape': 'rect',
+            },
+            x: p.x + p.w / 2,
+            y: p.y + p.h / 2,
+          }
+        }),
+        edges: [],
+        metadata: webpageLayoutGraphData.metadata,
+      }
+    }
     return {
       type: 'Graph',
       nodes: visibleNodes.map(n => {
@@ -189,7 +367,7 @@ export default function DesignCanvas({
       edges: [],
       metadata: snapshot.graphData?.metadata,
     }
-  }, [positions, snapshot.graphData?.metadata, visibleNodes])
+  }, [positions, snapshot.graphData?.metadata, visibleNodes, webpageLayoutGraphData])
 
   const localGraphDataRef = useRef<GraphData>(localGraphData)
   useEffect(() => {
@@ -411,6 +589,35 @@ export default function DesignCanvas({
     }
   }, [])
 
+  const styleById = useMemo(() => {
+    if (!webpageLayoutGraphData?.nodes || webpageLayoutGraphData.nodes.length === 0) return null
+    const map = new Map<
+      string,
+      { fill?: string; stroke?: string; strokeWidth?: number; borderRadius?: number; opacity?: number }
+    >()
+    for (let i = 0; i < webpageLayoutGraphData.nodes.length; i += 1) {
+      const n = webpageLayoutGraphData.nodes[i] as GraphNode
+      const props = (n.properties || {}) as Record<string, unknown>
+      const fill = typeof props['visual:fill'] === 'string' ? String(props['visual:fill'] || '').trim() : ''
+      const stroke = typeof props['visual:stroke'] === 'string' ? String(props['visual:stroke'] || '').trim() : ''
+      const strokeWidth = typeof props['visual:strokeWidth'] === 'number' ? (props['visual:strokeWidth'] as number) : undefined
+      const borderRadius = typeof props['visual:borderRadius'] === 'number' ? (props['visual:borderRadius'] as number) : undefined
+      const opacity = typeof props['visual:opacity'] === 'number' ? (props['visual:opacity'] as number) : undefined
+      const id = String(n.id || '').trim()
+      if (!id) continue
+      map.set(id, {
+        ...(fill ? { fill } : {}),
+        ...(stroke ? { stroke } : {}),
+        ...(typeof strokeWidth === 'number' && Number.isFinite(strokeWidth) ? { strokeWidth } : {}),
+        ...(typeof borderRadius === 'number' && Number.isFinite(borderRadius) ? { borderRadius } : {}),
+        ...(typeof opacity === 'number' && Number.isFinite(opacity) ? { opacity } : {}),
+      })
+    }
+    return map
+  }, [webpageLayoutGraphData])
+
+  const denseRender = visibleNodes.length > 450
+
   const BG_SIZE = 100000
 
   return (
@@ -444,6 +651,13 @@ export default function DesignCanvas({
             const p = positions[n.id]
             if (!p) return null
             const selected = snapshot.selectedNodeId === n.id
+            const style = styleById ? styleById.get(n.id) || null : null
+            const fill = style?.fill || 'var(--kg-panel-bg)'
+            const stroke = selected ? 'var(--kg-canvas-accent)' : style?.stroke || 'var(--kg-border)'
+            const strokeWidth = selected ? 2 : (style?.strokeWidth ?? 1)
+            const rx = typeof style?.borderRadius === 'number' && Number.isFinite(style.borderRadius) ? style.borderRadius : 8
+            const rectOpacity = typeof style?.opacity === 'number' && Number.isFinite(style.opacity) ? style.opacity : 1
+            const showDecor = !styleById && !denseRender
 
             return (
               <g
@@ -504,6 +718,11 @@ export default function DesignCanvas({
                   }
                   const updates: Record<string, { x: number; y: number }> = {}
                   if (pending) updates[pending.id] = pending.nextPos
+
+                  if (webpageLayoutGraphData?.nodes && webpageLayoutGraphData.nodes.length > 0) {
+                    if (Object.keys(updates).length > 0) setDesignFramePosMany(updates)
+                    return
+                  }
 
                   const schema = snapshot.schema
                   if (!schema) {
@@ -634,17 +853,20 @@ export default function DesignCanvas({
                   y={0}
                   width={p.w}
                   height={p.h}
-                  rx={8}
-                  fill="var(--kg-panel-bg)"
-                  stroke={selected ? 'var(--kg-canvas-accent)' : 'var(--kg-border)'}
-                  strokeWidth={selected ? 2 : 1}
+                  rx={rx}
+                  fill={fill}
+                  fillOpacity={rectOpacity}
+                  stroke={stroke}
+                  strokeWidth={strokeWidth}
                   filter={selected ? 'url(#shadow-md)' : 'url(#shadow-sm)'}
                 />
-                <path
-                  d={`M 0 8 Q 0 0 8 0 L ${p.w - 8} 0 Q ${p.w} 0 ${p.w} 8 L ${p.w} 32 L 0 32 Z`}
-                  fill="var(--kg-statusbar-bg)"
-                  opacity={0.5}
-                />
+                {showDecor ? (
+                  <path
+                    d={`M 0 8 Q 0 0 8 0 L ${p.w - 8} 0 Q ${p.w} 0 ${p.w} 8 L ${p.w} 32 L 0 32 Z`}
+                    fill="var(--kg-statusbar-bg)"
+                    opacity={0.5}
+                  />
+                ) : null}
 
                 <text
                   x={12}
@@ -657,11 +879,13 @@ export default function DesignCanvas({
                   {n.label}
                 </text>
 
-                <g transform="translate(16, 48)" opacity={0.3}>
-                  <rect width={p.w - 32} height={12} rx={2} fill="var(--kg-text-tertiary)" />
-                  <rect y={20} width={(p.w - 32) * 0.6} height={12} rx={2} fill="var(--kg-text-tertiary)" />
-                  <rect y={40} width={p.w - 32} height={p.h - 100} rx={4} fill="var(--kg-border)" />
-                </g>
+                {showDecor ? (
+                  <g transform="translate(16, 48)" opacity={0.3}>
+                    <rect width={p.w - 32} height={12} rx={2} fill="var(--kg-text-tertiary)" />
+                    <rect y={20} width={(p.w - 32) * 0.6} height={12} rx={2} fill="var(--kg-text-tertiary)" />
+                    <rect y={40} width={p.w - 32} height={p.h - 100} rx={4} fill="var(--kg-border)" />
+                  </g>
+                ) : null}
 
                 <text
                   x={p.w - 12}
@@ -671,7 +895,7 @@ export default function DesignCanvas({
                   fontSize={10}
                   style={{ pointerEvents: 'none' }}
                 >
-                  {n.id}
+                  {n.type || n.id}
                 </text>
               </g>
             )

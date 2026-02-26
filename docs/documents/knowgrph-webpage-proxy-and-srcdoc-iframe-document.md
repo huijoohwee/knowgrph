@@ -175,6 +175,18 @@ When rendering Markdown to the preview DOM (Viewer/Presentation), the renderer m
 
 When the embedded payload is not present (or invalid), HTML→Markdown import uses a **unified/rehype/remark** pipeline as a general-purpose fallback for large/complex HTML, while keeping `markdown-it` as the renderer for the Markdown UI (no duplicate markdown rendering stack).
 
+## HTML/CSS/JS → Markdown SSOT (Universal, URL-Agnostic)
+
+When converting webpage HTML (static fetch or DOM-export snapshot) into Markdown SSOT:
+
+- **Neutrality**: forbid hardcoded domains and per-site branching. All rules are tag/attribute-based and driven by `baseUrl` + frontmatter fidelity controls.
+- **URL resolution (required)**: resolve relative URLs against `baseUrl` for common attributes:
+  - Link-like: `a[href]`, `link[href]`, `use[href]`, `form[action]`
+  - Media-like: `img/src`, `picture source/srcset`, `img/srcset`, `video/src`, `audio/src`, `source/src`, `track/src`, `embed/src`
+  - Posters + lazy-load: `video[poster]`, `data-src`, `data-srcset`, `data-poster` variants
+- **Missing media src (required)**: if an `<img>` has no `src` but has `data-src` or `srcset`, upsert a `src` candidate so the Markdown output never degrades into `![alt]()` while preview still renders an image.
+- **Output discipline**: keep Sync/convert output Markdown-only and forbid duplicate content blocks (no repeated synthetic headings, no repeated card blocks, no duplicated pricing/features, no artifact-doc wrapper echoes).
+
 ## Iframe Sandbox Policy
 
 All webpage HTML rendering in Viewer / Presentation / Slides uses a sandboxed iframe with:

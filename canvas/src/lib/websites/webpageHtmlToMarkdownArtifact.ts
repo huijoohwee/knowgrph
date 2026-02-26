@@ -1,6 +1,7 @@
 import { renderAsciiFrame } from './webpageMarkdownArtifactAscii'
 import { normalizeInline, stripTrailingPunctuation } from './webpageMarkdownArtifactAsciiPrivate'
 import { convertHtmlToMarkdownUnified } from '../markdown/htmlToMarkdownUnified'
+import { postprocessWebpageMarkdownSsot } from '../markdown/webpageMarkdownPostprocess'
 import {
   escapeMarkdownText,
   extractAssets,
@@ -370,7 +371,7 @@ export async function convertWebpageHtmlToMarkdownArtifactAsync(args: {
   }
 
   if (!fullText) return convertWebpageHtmlToMarkdownArtifact({ html: raw, url: args.url })
-  if (mode === 'ssot') return fullText
+  if (mode === 'ssot') return postprocessWebpageMarkdownSsot(fullText)
 
   const htmlSanitized = raw.replace(/<script\b[\s\S]*?<\/script\s*>/gi, '').trim()
 

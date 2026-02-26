@@ -43,6 +43,7 @@ import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
 import { ORCHESTRATOR_WORKFLOW_WORKSPACE_PATH } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { PARSER_SCRIPT_WORKSPACE_PATH } from '@/features/panels/utils/parserWorkspaceFiles'
 import { SCHEMA_CONFIG_WORKSPACE_PATH } from '@/features/panels/utils/schemaWorkspaceFiles'
+import { createProgressTicker } from '@/lib/progress/progressTicker'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { parseSchemaText } from '@/features/schema/io'
 import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
@@ -514,9 +515,19 @@ export function MarkdownWorkspace() {
     }
   }, [layoutMode, pdfWorkspaceMeta])
 
+  const webpageUrl = webpageWorkspaceMeta?.url ? String(webpageWorkspaceMeta.url || '').trim() : ''
+  const webpageView = webpageWorkspaceMeta?.view
+  const websiteImportKey = (() => {
+    const importId = String(websiteImportMeta?.importId || '').trim()
+    const nodeId = String(websiteImportMeta?.nodeId || '').trim()
+    const outputDirRel = String(websiteImportMeta?.outputDirRel || '').trim()
+    if (!importId || !nodeId) return ''
+    return `${importId}:${nodeId}:${outputDirRel}`
+  })()
+
   React.useEffect(() => {
-    const url = webpageWorkspaceMeta?.url ? String(webpageWorkspaceMeta.url || '').trim() : ''
-    const view = webpageWorkspaceMeta?.view
+    const url = webpageUrl
+    const view = webpageView
     if (!url || !view) {
       setWebpageWorkspaceEditorTextOverride(null)
       setWebpageWorkspaceViewerTextOverride(null)
@@ -537,17 +548,24 @@ export function MarkdownWorkspace() {
 
     let cancelled = false
     const controller = new AbortController()
+    const ticker = createProgressTicker({
+      onProgress: (p) => setStatusProgress(view === 'json' ? 'Loading JSON' : 'Loading view', p, 100),
+      intervalMs: 280,
+      maxPercentage: 92,
+      maxStepPercentage: 12,
+    })
     void (async () => {
       try {
-        if (websiteImportMeta?.importId && websiteImportMeta?.nodeId) {
-          const importId = websiteImportMeta.importId
-          const nodeId = websiteImportMeta.nodeId
-          const outputDirRel = String(websiteImportMeta.outputDirRel || useGraphStore.getState().websiteImportOutputDirRel || '').trim()
+        ticker.start()
+        setStatusProgress(view === 'json' ? 'Loading JSON' : 'Loading view')
+        if (websiteImportKey) {
+          const [importId, nodeId, outputDirRelRaw] = websiteImportKey.split(':')
+          const outputDirRel = String(outputDirRelRaw || useGraphStore.getState().websiteImportOutputDirRel || '').trim()
           const kind = websiteImportArtifactKindForWebpageView(view)
           try {
             const effective = await fetchWebsiteImportArtifact({
-              importId,
-              nodeId,
+              importId: String(importId || ''),
+              nodeId: String(nodeId || ''),
               outputDirRel,
               kind,
               signal: controller.signal,
@@ -555,7 +573,9 @@ export function MarkdownWorkspace() {
             if (cancelled) return
             const clipped = effective.length > 200_000 ? `${effective.slice(0, 200_000)}\n\n(clipped)\n` : effective
             setWebpageWorkspaceEditorTextOverride(clipped)
-            setWebpageWorkspaceViewerTextOverride(null)
+            setWebpageWorkspaceViewerTextOverride(view === 'json' ? `\`\`\`json\n${clipped}\n\`\`\`\n` : null)
+            ticker.stop(100)
+            setStatusWithAutoClear('Loaded', 1200)
           } catch (err) {
             if (cancelled) return
             const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : ''
@@ -563,7 +583,9 @@ export function MarkdownWorkspace() {
               ? JSON.stringify({ ok: false, error: msg || 'Load failed' }, null, 2)
               : `Load failed: ${msg || 'Request failed'}\n`
             setWebpageWorkspaceEditorTextOverride(errorText)
-            setWebpageWorkspaceViewerTextOverride(null)
+            setWebpageWorkspaceViewerTextOverride(view === 'json' ? `\`\`\`json\n${errorText}\n\`\`\`\n` : null)
+            ticker.stop()
+            setStatusError(`Load failed: ${msg || 'Request failed'}`)
           }
           return
         }
@@ -582,34 +604,47 @@ export function MarkdownWorkspace() {
               }
             })()
             setWebpageWorkspaceEditorTextOverride(pretty)
-            setWebpageWorkspaceViewerTextOverride(null)
+            setWebpageWorkspaceViewerTextOverride(`\`\`\`json\n${pretty}\n\`\`\`\n`)
+            ticker.stop(100)
+            setStatusWithAutoClear('Loaded', 1200)
           } catch (err) {
             if (cancelled) return
             const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : ''
-            setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: msg || 'Request failed' }, null, 2))
-            setWebpageWorkspaceViewerTextOverride(null)
+            const errorText = JSON.stringify({ ok: false, error: msg || 'Request failed' }, null, 2)
+            setWebpageWorkspaceEditorTextOverride(errorText)
+            setWebpageWorkspaceViewerTextOverride(`\`\`\`json\n${errorText}\n\`\`\`\n`)
+            ticker.stop()
+            setStatusError(`Load failed: ${msg || 'Request failed'}`)
           }
           return
         }
 
         setWebpageWorkspaceEditorTextOverride(null)
         setWebpageWorkspaceViewerTextOverride(null)
+        ticker.stop(100)
       } catch {
         if (cancelled) return
+        ticker.stop()
         setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: 'Request failed' }, null, 2))
         setWebpageWorkspaceViewerTextOverride(null)
+        setStatusError('Load failed')
       }
     })()
 
     return () => {
       cancelled = true
       try {
+        ticker.stop()
+      } catch {
+        void 0
+      }
+      try {
         controller.abort()
       } catch {
         void 0
       }
     }
-  }, [getFs, webpageWorkspaceMeta, websiteImportMeta])
+  }, [getFs, setStatusError, setStatusProgress, setStatusWithAutoClear, webpageUrl, webpageView, websiteImportKey])
 
   const switchActivePdfWorkspaceMode = React.useCallback(
     async (mode: PdfConversionMode) => {
@@ -702,8 +737,16 @@ export function MarkdownWorkspace() {
   const switchActiveWebpageWorkspaceView = React.useCallback(
     async (view: WebpageViewMode) => {
       if (!activePath || !webpageWorkspaceMeta) return
+      if (webpageWorkspaceMeta.view === view) return
+      const ticker = createProgressTicker({
+        onProgress: (p) => setStatusProgress('Updating view', p, 100),
+        intervalMs: 280,
+        maxPercentage: 92,
+        maxStepPercentage: 12,
+      })
       try {
         setStatusProgress('Updating view')
+        ticker.start()
         const fs = await getFs()
 
         if (view === 'markdown') {
@@ -737,7 +780,60 @@ export function MarkdownWorkspace() {
             return upsertWebpageFrontmatterMeta(prevText, { url: webpageWorkspaceMeta.url, view })
           }
 
-          if (websiteImportMeta?.importId && websiteImportMeta?.nodeId) {
+          const store = useGraphStore.getState()
+          const includeImages = webpageWorkspaceMeta.includeImages ?? (store.webpageImportIncludeImages !== false)
+          const fidelityLevel = webpageWorkspaceMeta.fidelityLevel ?? (() => {
+            const raw = store.webpageArtifactFidelityMaxLevel
+            const n = Number.isFinite(raw) ? Math.floor(Number(raw)) : 4
+            return n <= 1 ? 1 : n >= 4 ? 4 : (n as 1 | 2 | 3)
+          })()
+
+          const isHttp = (() => {
+            const u = String(webpageWorkspaceMeta.url || '').trim().toLowerCase()
+            return u.startsWith('http://') || u.startsWith('https://')
+          })()
+
+          try {
+            const [{ exportWebpageDomViaHiddenIframe }, { convertHtmlToMarkdownUnified }, { postprocessWebpageMarkdownSsot }] = await Promise.all([
+              import('@/lib/websites/webpageDomExport'),
+              import('@/lib/markdown/htmlToMarkdownUnified'),
+              import('@/lib/markdown/webpageMarkdownPostprocess'),
+            ])
+            const dom = await exportWebpageDomViaHiddenIframe({
+              url: webpageWorkspaceMeta.url,
+              mode: 'html',
+              timeoutMs: 45_000,
+              maxChars: 12_000_000,
+              scrollCrawl: true,
+              expandFaq: true,
+              minWaitAfterLoadMs: 650,
+            })
+            const domHtml = String(dom?.text || '')
+            if (domHtml.trim()) {
+              const converted = await convertHtmlToMarkdownUnified({
+                html: domHtml,
+                baseUrl: webpageWorkspaceMeta.url,
+                maxInputChars: 10_000_000,
+                includeImages,
+                fidelityLevel,
+                  includeHeadSection: false,
+              })
+              if (converted.ok === true && converted.markdown.trim()) {
+                const processed = postprocessWebpageMarkdownSsot(converted.markdown)
+                return upsertWebpageFrontmatterMeta(processed, {
+                  url: webpageWorkspaceMeta.url,
+                  view: 'markdown',
+                  scriptPolicy: webpageWorkspaceMeta.scriptPolicy,
+                  includeImages,
+                  fidelityLevel,
+                })
+              }
+            }
+          } catch {
+            void 0
+          }
+
+          if (!isHttp && websiteImportMeta?.importId && websiteImportMeta?.nodeId) {
             const outputDirRel = String(
               websiteImportMeta.outputDirRel || useGraphStore.getState().websiteImportOutputDirRel || '',
             ).trim()
@@ -757,51 +853,6 @@ export function MarkdownWorkspace() {
             })
           }
 
-          const store = useGraphStore.getState()
-          const includeImages = webpageWorkspaceMeta.includeImages ?? (store.webpageImportIncludeImages !== false)
-          const fidelityLevel = webpageWorkspaceMeta.fidelityLevel ?? (() => {
-            const raw = store.webpageArtifactFidelityMaxLevel
-            const n = Number.isFinite(raw) ? Math.floor(Number(raw)) : 4
-            return n <= 1 ? 1 : n >= 4 ? 4 : (n as 1 | 2 | 3)
-          })()
-
-          try {
-            const [{ exportWebpageDomViaHiddenIframe }, { convertHtmlToMarkdownUnified }] = await Promise.all([
-              import('@/lib/websites/webpageDomExport'),
-              import('@/lib/markdown/htmlToMarkdownUnified'),
-            ])
-            const dom = await exportWebpageDomViaHiddenIframe({
-              url: webpageWorkspaceMeta.url,
-              mode: 'html',
-              timeoutMs: 30_000,
-              maxChars: 10_000_000,
-              scrollCrawl: true,
-              expandFaq: true,
-            })
-            const domHtml = String(dom?.text || '')
-            if (domHtml.trim()) {
-              const converted = await convertHtmlToMarkdownUnified({
-                html: domHtml,
-                baseUrl: webpageWorkspaceMeta.url,
-                maxInputChars: 10_000_000,
-                includeImages,
-                fidelityLevel,
-                  includeHeadSection: false,
-              })
-              if (converted.ok === true && converted.markdown.trim()) {
-                return upsertWebpageFrontmatterMeta(converted.markdown, {
-                  url: webpageWorkspaceMeta.url,
-                  view: 'markdown',
-                  scriptPolicy: webpageWorkspaceMeta.scriptPolicy,
-                  includeImages,
-                  fidelityLevel,
-                })
-              }
-            }
-          } catch {
-            void 0
-          }
-
           const res = await fetchWebpageMarkdown(webpageWorkspaceMeta.url, { includeImages })
           if (!res || res.ok !== true) return upsertWebpageFrontmatterMeta(prevText, { url: webpageWorkspaceMeta.url, view })
           return upsertWebpageFrontmatterMeta(String(res.markdown || ''), {
@@ -818,8 +869,14 @@ export function MarkdownWorkspace() {
         const inlineText = nextText.length <= maxInline ? nextText : undefined
         setEntries(prev => prev.map(e => (e.path === activePath ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
         setActiveTextProgrammatic(nextText)
+        ticker.stop(100)
         setStatusWithAutoClear('Updated', 1200)
       } catch (e) {
+        try {
+          ticker.stop()
+        } catch {
+          void 0
+        }
         setStatusError(`Update failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },

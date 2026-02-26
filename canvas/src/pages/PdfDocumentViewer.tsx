@@ -1,11 +1,11 @@
 import React from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import MarkdownIt from 'markdown-it'
-import hljs from 'highlight.js'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { PdfConversionMode, PdfWorkspaceAnchorMap, PdfWorkspaceDocNode } from '@/lib/pdf/pdfWorkspaceAnchors'
 import { fetchPdfWorkspaceDoc, getDefaultWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspaceClient'
 import { resolveAnchorIdAfterSwitch } from '@/lib/pdf/pdfWorkspaceAnchors'
+import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
+import { parseMarkdownBlocks, parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 
 type LayoutPreset = 'reading' | 'paged'
 
@@ -38,43 +38,28 @@ const clampZoom = (raw: number): number => {
   return Math.max(0.5, Math.min(2.5, raw))
 }
 
-const createMarkdownRenderer = (): MarkdownIt => {
-  return new MarkdownIt({
-    html: true,
-    linkify: true,
-    highlight: (code, lang) => {
-      const raw = String(code || '')
-      const language = String(lang || '').trim().toLowerCase()
-      if (language && hljs.getLanguage(language)) {
-        try {
-          return hljs.highlight(raw, { language }).value
-        } catch {
-          return ''
-        }
-      }
-      try {
-        return hljs.highlightAuto(raw).value
-      } catch {
-        return ''
-      }
-    },
-  })
-}
-
-const decorateHtmlWithAnchors = (args: { html: string; map: PdfWorkspaceAnchorMap }): string => {
-  if (typeof window === 'undefined' || typeof DOMParser === 'undefined') return args.html
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(args.html, 'text/html')
-  const headingEls = Array.from(doc.querySelectorAll('h1,h2,h3,h4,h5,h6')) as HTMLElement[]
-  const nodes = args.map.nodes.filter(n => n.kind === 'heading')
-  for (let i = 0; i < headingEls.length && i < nodes.length; i += 1) {
-    const el = headingEls[i]
+const injectHeadingDomAnchors = (args: { markdown: string; map: PdfWorkspaceAnchorMap | null }): string => {
+  const src = String(args.markdown || '')
+  const map = args.map
+  if (!map) return src
+  const lines = splitMarkdownLines(src)
+  const { startIndex } = parseMarkdownFrontmatter(lines)
+  const blocks = parseMarkdownBlocks(lines, startIndex)
+  const headingBlocks = blocks.filter(b => b.kind === 'heading')
+  const nodes = map.nodes.filter(n => n.kind === 'heading')
+  const count = Math.min(headingBlocks.length, nodes.length)
+  for (let i = count - 1; i >= 0; i -= 1) {
+    const block = headingBlocks[i]
     const node = nodes[i]
-    const domId = args.map.domIdByAnchorId[node.id] || ''
-    if (domId) el.id = domId
-    el.setAttribute('data-anchor-id', node.id)
+    const domId = map.domIdByAnchorId[node.id] || ''
+    if (!domId) continue
+    const lineIndex = Math.max(0, Math.min(lines.length, block.startLine - 1))
+    const prev = lineIndex - 1 >= 0 ? String(lines[lineIndex - 1] || '').trim() : ''
+    const anchorLine = `<a id="${domId}"></a>`
+    if (prev === anchorLine) continue
+    lines.splice(lineIndex, 0, anchorLine)
   }
-  return doc.body.innerHTML
+  return lines.join('\n')
 }
 
 const buildTocTree = (nodes: PdfWorkspaceDocNode[]): PdfWorkspaceDocNode[] => {
@@ -99,8 +84,6 @@ export default function PdfDocumentViewer() {
   const [title, setTitle] = React.useState<string>('Document')
   const [notice, setNotice] = React.useState<string | null>(null)
   const [activeAnchorId, setActiveAnchorId] = React.useState<string | null>(() => readHashAnchor())
-
-  const md = React.useMemo(() => createMarkdownRenderer(), [])
 
   const load = React.useCallback(
     async (nextMode: PdfConversionMode, desiredAnchor: string | null) => {
@@ -134,11 +117,10 @@ export default function PdfDocumentViewer() {
     void load(mode, readHashAnchor())
   }, [docId, mode, load])
 
-  const html = React.useMemo(() => {
-    if (!anchorMap) return ''
-    const raw = md.render(markdown)
-    return decorateHtmlWithAnchors({ html: raw, map: anchorMap })
-  }, [anchorMap, md, markdown])
+  const renderedMarkdown = React.useMemo(
+    () => injectHeadingDomAnchors({ markdown, map: anchorMap }),
+    [anchorMap, markdown],
+  )
 
   const scrollToAnchor = React.useCallback(
     (anchorId: string | null) => {
@@ -155,9 +137,9 @@ export default function PdfDocumentViewer() {
   React.useEffect(() => {
     const id = activeAnchorId
     if (!id) return
-    const t = window.setTimeout(() => scrollToAnchor(id), 0)
-    return () => window.clearTimeout(t)
-  }, [activeAnchorId, html, layout, zoom, scrollToAnchor])
+    const t = setTimeout(() => scrollToAnchor(id), 0)
+    return () => clearTimeout(t)
+  }, [activeAnchorId, layout, zoom, renderedMarkdown, scrollToAnchor])
 
   const onSelectMode = React.useCallback(
     async (nextMode: PdfConversionMode) => {
@@ -351,7 +333,20 @@ export default function PdfDocumentViewer() {
               style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
               aria-label="Markdown Container"
             >
-              <article className="space-y-3" dangerouslySetInnerHTML={{ __html: html }} aria-label="Markdown HTML" />
+              <MarkdownPreview
+                markdownText={renderedMarkdown}
+                activeDocumentPath={`/pdf/${encodeURIComponent(docId)}/${encodeURIComponent(mode)}.md`}
+                highlightedLineRange={null}
+                markdownWordWrap
+                markdownPresentationMode={false}
+                markdownTextHighlight={false}
+                uiPanelTextFontClass="font-sans"
+                uiPanelMonospaceTextClass="font-mono"
+                previewOverlayScope="container"
+                previewOverlayPortalTarget={null}
+                previewScrollable={false}
+                showSidebar={false}
+              />
             </section>
           </article>
         </section>

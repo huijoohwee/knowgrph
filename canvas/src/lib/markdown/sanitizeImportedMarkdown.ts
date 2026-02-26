@@ -1,5 +1,34 @@
 export type SanitizeMarkdownResult = { text: string; changed: boolean }
 
+export type SanitizeImportedMarkdownOptions = { sourceUrl?: string }
+
+const SVG_OMITTED_PLACEHOLDER_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="24"/>'
+
+const encodeUtf8ToBase64 = (text: string): string => {
+  const raw = String(text ?? '')
+  const anyGlobal = globalThis as unknown as {
+    Buffer?: { from: (input: string, enc: string) => { toString: (enc: string) => string } }
+  }
+  if (anyGlobal.Buffer && typeof anyGlobal.Buffer.from === 'function') {
+    return anyGlobal.Buffer.from(raw, 'utf8').toString('base64')
+  }
+  const encoder = new TextEncoder()
+  const bytes = encoder.encode(raw)
+  let binary = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    const slice = bytes.subarray(i, Math.min(bytes.length, i + chunk))
+    binary += String.fromCharCode(...Array.from(slice))
+  }
+  return btoa(binary)
+}
+
+const SVG_OMITTED_PLACEHOLDER_DATA_URI = `data:image/svg+xml;base64,${encodeUtf8ToBase64(SVG_OMITTED_PLACEHOLDER_SVG)}`
+
+const makeSvgOmittedDataUri = (_label: string): string => {
+  return SVG_OMITTED_PLACEHOLDER_DATA_URI
+}
+
 const isBase64ish = (line: string): boolean => {
   const s = String(line || '').trim()
   if (!s) return false
@@ -14,6 +43,7 @@ export function stripEmbeddedBase64ImageSrc(raw: string): SanitizeMarkdownResult
   const s = String(raw || '')
   const needle = 'data:image/'
   const base64Needle = ';base64,'
+  const maxSvgBase64Chars = 100
   let i = 0
   let changed = false
   let out = ''
@@ -31,14 +61,34 @@ export function stripEmbeddedBase64ImageSrc(raw: string): SanitizeMarkdownResult
     out += s.slice(i, start)
 
     const afterBase64 = base64Pos + base64Needle.length
-    const maxScan = Math.min(s.length, afterBase64 + 2_000_000)
+    const mime = s.slice(start, base64Pos).toLowerCase()
+    const maxScan = Math.min(s.length, afterBase64 + 3_000_000)
     let end = afterBase64
+    let payloadChars = 0
+    let hadWhitespace = false
+    let payload = ''
+    const shouldCollect = mime.includes('image/svg+xml')
     for (; end < maxScan; end += 1) {
-      const ch = s.charCodeAt(end)
-      if (ch === 41 || ch === 34 || ch === 39 || ch === 32 || ch === 10 || ch === 13 || ch === 9) break
+      const ch = s[end] || ''
+      const code = s.charCodeAt(end)
+      if (code === 41 || code === 34 || code === 39) break
+      if (code === 32 || code === 10 || code === 13 || code === 9) {
+        hadWhitespace = true
+        continue
+      }
+      if (!/[A-Za-z0-9+/=]/.test(ch)) break
+      payloadChars += 1
+      if (shouldCollect && payloadChars <= maxSvgBase64Chars) payload += ch
     }
-    out += 'data:,'
-    changed = true
+    const isSvg = mime.includes('image/svg+xml')
+    const allowSmallInlineSvg = isSvg && payloadChars > 0 && payloadChars <= maxSvgBase64Chars
+    if (allowSmallInlineSvg) {
+      if (hadWhitespace) changed = true
+      out += `${s.slice(start, afterBase64)}${payload}`
+    } else {
+      out += isSvg ? makeSvgOmittedDataUri('') : 'data:,'
+      changed = true
+    }
     i = end
   }
   return { text: out, changed }
@@ -87,9 +137,249 @@ export function stripLargeBase64Fences(raw: string): SanitizeMarkdownResult {
   return { text: out.join('\n'), changed }
 }
 
-export function sanitizeImportedMarkdownText(raw: string): SanitizeMarkdownResult {
-  const a = stripEmbeddedBase64ImageSrc(raw)
-  const b = stripLargeBase64Fences(a.text)
-  return { text: b.text, changed: a.changed || b.changed }
+export function fixBrokenMarkdownImageSyntax(raw: string): SanitizeMarkdownResult {
+  const text = String(raw || '')
+  const next = text.replace(/!\s+\[([^\]]*)\]\(/g, '![$1](')
+  return { text: next, changed: next !== text }
 }
 
+const parseBalanced = (
+  s: string,
+  openIndex: number,
+  openChar: string,
+  closeChar: string,
+): { end: number } | null => {
+  if (s[openIndex] !== openChar) return null
+  let depth = 0
+  for (let i = openIndex; i < s.length; i += 1) {
+    const ch = s[i] || ''
+    if (ch === openChar) depth += 1
+    else if (ch === closeChar) {
+      depth -= 1
+      if (depth === 0) return { end: i }
+    }
+  }
+  return null
+}
+
+const removeImagesFromMarkdownLabel = (label: string): { text: string; removed: boolean } => {
+  const src = String(label || '')
+  let out = ''
+  let i = 0
+  let removed = false
+  while (i < src.length) {
+    const bang = src.indexOf('![', i)
+    if (bang < 0) {
+      out += src.slice(i)
+      break
+    }
+    out += src.slice(i, bang)
+    const labelStart = bang + 1
+    if (src[labelStart] !== '[') {
+      i = bang + 2
+      continue
+    }
+    const labelEnd = parseBalanced(src, labelStart, '[', ']')
+    if (!labelEnd) {
+      i = bang + 2
+      continue
+    }
+    const destOpen = labelEnd.end + 1
+    if (src.slice(destOpen, destOpen + 1) !== '(') {
+      i = labelEnd.end + 1
+      continue
+    }
+    const destEnd = parseBalanced(src, destOpen, '(', ')')
+    if (!destEnd) {
+      i = destOpen + 1
+      continue
+    }
+    removed = true
+    i = destEnd.end + 1
+  }
+  const normalized = out.replace(/\s+/g, ' ').trim()
+  return { text: normalized, removed }
+}
+
+export function removeImagesInsideLinkLabelsWhenTextExists(raw: string): SanitizeMarkdownResult {
+  const s = String(raw || '')
+  let out = ''
+  let i = 0
+  let changed = false
+  while (i < s.length) {
+    const start = s.indexOf('[', i)
+    if (start < 0) {
+      out += s.slice(i)
+      break
+    }
+    out += s.slice(i, start)
+    const labelEnd = parseBalanced(s, start, '[', ']')
+    if (!labelEnd) {
+      out += s[start]
+      i = start + 1
+      continue
+    }
+    const afterLabel = labelEnd.end + 1
+    if (s.slice(afterLabel, afterLabel + 1) !== '(') {
+      out += s.slice(start, afterLabel)
+      i = afterLabel
+      continue
+    }
+    const destEnd = parseBalanced(s, afterLabel, '(', ')')
+    if (!destEnd) {
+      out += s.slice(start, afterLabel + 1)
+      i = afterLabel + 1
+      continue
+    }
+    const rawLabel = s.slice(start + 1, labelEnd.end)
+    const { text: labelNoImages, removed } = removeImagesFromMarkdownLabel(rawLabel)
+    const hasText = /[\p{L}\p{N}]/u.test(labelNoImages)
+    if (removed && hasText) {
+      out += `[${labelNoImages}]${s.slice(afterLabel, destEnd.end + 1)}`
+      changed = true
+    } else {
+      out += s.slice(start, destEnd.end + 1)
+    }
+    i = destEnd.end + 1
+  }
+  return { text: out, changed }
+}
+
+const looksDecorativeSvgHtml = (svg: string): boolean => {
+  const lower = String(svg || '').toLowerCase()
+  if (!lower.includes('<svg')) return false
+  if (/\baria-hidden\s*=\s*["']?\s*true\b/.test(lower)) return true
+  if (/\brole\s*=\s*["']\s*presentation\s*["']/.test(lower)) return true
+  if (/\bdata-icon\b/.test(lower)) return true
+  if (/\bwidth\s*=\s*["'][^"']*em\b/.test(lower) || /\bheight\s*=\s*["'][^"']*em\b/.test(lower)) return true
+  if (/<\s*use\b/.test(lower)) {
+    const hasSymbol = /<\s*symbol\b/.test(lower) && /\bid\s*=/.test(lower)
+    if (!hasSymbol) return true
+  }
+  return false
+}
+
+const extractSvgAlt = (svg: string): string => {
+  const s = String(svg || '')
+  const m =
+    s.match(/\baria-label\s*=\s*["']([^"']+)["']/i) ||
+    s.match(/\btitle\s*=\s*["']([^"']+)["']/i) ||
+    s.match(/<\s*title[^>]*>([^<]{1,80})<\/\s*title\s*>/i)
+  return String(m?.[1] || '').trim()
+}
+
+export function convertOrDropInlineSvgHtmlBlocks(raw: string): SanitizeMarkdownResult {
+  const text = String(raw || '')
+  const lines = text.split(/\r?\n/g)
+  let inFence = false
+  let fence = ''
+  let changed = false
+  const out: string[] = []
+  const maxSvgBase64Chars = 100
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i] ?? ''
+    const trimmed = line.trim()
+    if (!inFence) {
+      const m = trimmed.match(/^(```+|~~~+)(.*)$/)
+      if (m) {
+        inFence = true
+        fence = m[1] || '```'
+        out.push(line)
+        continue
+      }
+      if (/^<\s*svg\b/i.test(trimmed)) {
+        const start = i
+        let end = -1
+        for (let j = i; j < lines.length && j - start < 220; j += 1) {
+          if (/<\/\s*svg\s*>/i.test(lines[j] || '')) {
+            end = j
+            break
+          }
+        }
+        if (end < 0) {
+          out.push(line)
+          continue
+        }
+        const svg = lines.slice(start, end + 1).join('\n')
+        if (looksDecorativeSvgHtml(svg)) {
+          changed = true
+          i = end
+          continue
+        }
+        const maxSvgCharsForDataUri = 24_000
+        if (svg.length <= maxSvgCharsForDataUri && !/<\s*script\b/i.test(svg)) {
+          const alt = extractSvgAlt(svg)
+          const b64 = encodeUtf8ToBase64(svg)
+          const url = b64.length <= maxSvgBase64Chars ? `data:image/svg+xml;base64,${b64}` : makeSvgOmittedDataUri(alt)
+          out.push(`![${alt}](${url})`)
+          changed = true
+          i = end
+          continue
+        }
+        out.push(...lines.slice(start, end + 1))
+        i = end
+        continue
+      }
+      out.push(line)
+      continue
+    }
+    if (trimmed.startsWith(fence)) {
+      inFence = false
+      fence = ''
+      out.push(line)
+      continue
+    }
+    out.push(line)
+  }
+  return { text: out.join('\n'), changed }
+}
+
+export function sanitizeImportedMarkdownText(raw: string, opts?: SanitizeImportedMarkdownOptions): SanitizeMarkdownResult {
+  const sourceUrl = String(opts?.sourceUrl || '').trim()
+  const a0 = fixBrokenMarkdownImageSyntax(raw)
+  const a1 = removeImagesInsideLinkLabelsWhenTextExists(a0.text)
+  const a2 = convertOrDropInlineSvgHtmlBlocks(a1.text)
+  const b = stripEmbeddedBase64ImageSrc(a2.text)
+  const c = stripLargeBase64Fences(b.text)
+  const d = (() => {
+    const text = c.text
+    if (!sourceUrl) return { text, changed: false }
+    const lines = String(text || '').split(/\r?\n/g)
+    let inFence = false
+    let fence = ''
+    let changed = false
+    const out: string[] = []
+    for (const line of lines) {
+      const trimmed = line.trim()
+      const m = trimmed.match(/^(```+|~~~+)(.*)$/)
+      if (m) {
+        if (!inFence) {
+          inFence = true
+          fence = m[1] || '```'
+        } else if (trimmed.startsWith(fence)) {
+          inFence = false
+          fence = ''
+        }
+        out.push(line)
+        continue
+      }
+      if (inFence) {
+        out.push(line)
+        continue
+      }
+      if (
+        line.includes(SVG_OMITTED_PLACEHOLDER_DATA_URI) &&
+        /!\[[^\]]*\]\(data:image\/svg\+xml;base64,[^)]+\)/i.test(line) &&
+        !/\[source\]\(/i.test(line)
+      ) {
+        out.push(`${line} ([source](${sourceUrl}))`)
+        changed = true
+        continue
+      }
+      out.push(line)
+    }
+    return { text: out.join('\n'), changed }
+  })()
+  const changed = a0.changed || a1.changed || a2.changed || b.changed || c.changed || d.changed
+  return { text: d.text, changed }
+}

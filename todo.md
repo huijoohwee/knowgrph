@@ -32,6 +32,10 @@
 
 #### 2026-02-25
 
+update to demo; FORBID duplicate content
+
+- [ ] Keyword Mode: deduple/consolidate keywords; forbid duplicate keywords in the same graph
+
 - [] a few have asked ..., I have used my app to generate the knowledge map...
 
 

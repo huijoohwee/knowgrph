@@ -121,6 +121,7 @@ To avoid redundant processing and ensure consistency across the application (e.g
 - **Background Sources**: Slide `background` URLs are normalized via [markdownSlideVisuals.ts](../../../curagrph/src/features/markdown/ui/markdownSlideVisuals.ts) before render.
 - **Proxy Routing**: Cross-origin URLs are routed through `/__fetch_remote` by [applyMediaProxySrc](../../canvas/src/lib/url.ts).
 - **Domain Neutrality**: No special-case domain rewrites; all remote backgrounds follow the same proxy path.
+- **Webpage SSOT conversion**: For HTML/CSS/JS → Markdown SSOT rules (URL resolution, lazy media src filling, and duplicate-content forbiddance), use `knowgrph-webpage-proxy-and-srcdoc-iframe-document.md` + `knowgrph-markdown-editor-mode-contract-document.md` as the canonical references.
 
 ### Markdown → Graph → Canvas flow
 

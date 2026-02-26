@@ -1,5 +1,6 @@
 import { hashText } from '../../features/parsers/hash'
 import { LRUCache } from '../cache/LRUCache'
+import { postprocessWebpageMarkdownSsot } from './webpageMarkdownPostprocess'
 
 type HastNode = {
   type?: unknown
@@ -60,6 +61,19 @@ const filterHastElements = (node: HastNode, args: { remove: Set<string>; unwrap:
       next.push(...unwrappedKids)
       continue
     }
+    next.push(k)
+  }
+  node.children = next
+}
+
+const stripHastComments = (node: HastNode): void => {
+  const kids = Array.isArray(node.children) ? (node.children as HastNode[]) : null
+  if (!kids || kids.length === 0) return
+  const next: HastNode[] = []
+  for (const k of kids) {
+    const t = typeof k?.type === 'string' ? k.type : ''
+    if (t === 'comment') continue
+    stripHastComments(k)
     next.push(k)
   }
   node.children = next
@@ -140,6 +154,75 @@ const fillEmptyAnchorText = (root: HastNode): void => {
   visit(root)
 }
 
+const pickFirstSrcsetUrl = (srcsetRaw: unknown): string => {
+  const raw = typeof srcsetRaw === 'string' ? srcsetRaw.trim() : ''
+  if (!raw) return ''
+  const firstChunk = raw.split(',')[0] || ''
+  const urlPart = firstChunk.trim().split(/\s+/)[0] || ''
+  return urlPart.trim()
+}
+
+const fillMissingMediaSrc = (node: HastNode): void => {
+  const t = typeof node?.type === 'string' ? node.type : ''
+  const tag = t === 'element' && typeof node?.tagName === 'string' ? node.tagName.toLowerCase() : ''
+  const props = node && typeof node.properties === 'object' && node.properties ? (node.properties as Record<string, unknown>) : null
+  const kids = Array.isArray(node.children) ? (node.children as HastNode[]) : null
+
+  if (tag === 'picture' && kids && kids.length) {
+    try {
+      const img = kids.find(
+        k =>
+          (k as unknown as { type?: unknown; tagName?: unknown })?.type === 'element' &&
+          String((k as unknown as { tagName?: unknown }).tagName || '').toLowerCase() === 'img',
+      )
+      const sources = kids.filter(
+        k =>
+          (k as unknown as { type?: unknown; tagName?: unknown })?.type === 'element' &&
+          String((k as unknown as { tagName?: unknown }).tagName || '').toLowerCase() === 'source',
+      )
+      const imgProps =
+        img && typeof (img as unknown as { properties?: unknown }).properties === 'object' && (img as unknown as { properties?: unknown }).properties
+          ? ((img as unknown as { properties?: unknown }).properties as Record<string, unknown>)
+          : null
+      const imgSrc = imgProps && typeof imgProps.src === 'string' ? String(imgProps.src || '').trim() : ''
+      if (imgProps && !imgSrc) {
+        const firstSource = sources[0]
+        const sProps =
+          firstSource &&
+          typeof (firstSource as unknown as { properties?: unknown }).properties === 'object' &&
+          (firstSource as unknown as { properties?: unknown }).properties
+            ? ((firstSource as unknown as { properties?: unknown }).properties as Record<string, unknown>)
+            : null
+        const srcset =
+          (sProps && typeof sProps.srcset === 'string' ? String(sProps.srcset || '').trim() : '') ||
+          (sProps && typeof sProps['data-srcset'] === 'string' ? String(sProps['data-srcset'] || '').trim() : '')
+        const picked = pickFirstSrcsetUrl(srcset)
+        if (picked) imgProps.src = picked
+      }
+    } catch {
+      void 0
+    }
+  }
+
+  if (props && tag === 'img') {
+    const src = typeof props.src === 'string' ? props.src.trim() : ''
+    if (!src) {
+      const dataSrc =
+        (typeof props['data-src'] === 'string' ? String(props['data-src'] || '').trim() : '') ||
+        (typeof props.dataSrc === 'string' ? String(props.dataSrc || '').trim() : '')
+      const srcset =
+        (typeof props.srcset === 'string' ? String(props.srcset || '').trim() : '') ||
+        (typeof props['data-srcset'] === 'string' ? String(props['data-srcset'] || '').trim() : '') ||
+        (typeof props.dataSrcset === 'string' ? String(props.dataSrcset || '').trim() : '')
+      const picked = dataSrc || pickFirstSrcsetUrl(srcset)
+      if (picked) props.src = picked
+    }
+  }
+
+  if (!kids || kids.length === 0) return
+  for (const k of kids) fillMissingMediaSrc(k)
+}
+
 const resolveUrlLoose = (rawValue: unknown, baseUrl: string): string => {
   const raw = typeof rawValue === 'string' ? rawValue.trim() : ''
   if (!raw) return ''
@@ -152,18 +235,72 @@ const resolveUrlLoose = (rawValue: unknown, baseUrl: string): string => {
   }
 }
 
+const resolveSrcsetLoose = (rawValue: unknown, baseUrl: string): string => {
+  const raw = typeof rawValue === 'string' ? rawValue.trim() : ''
+  if (!raw) return ''
+  if (!baseUrl) return raw
+  const parts = raw
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(entry => {
+      const m = entry.match(/^(\S+)(?:\s+(.+))?$/)
+      const urlPart = m?.[1] || ''
+      const desc = (m?.[2] || '').trim()
+      const resolved = resolveUrlLoose(urlPart, baseUrl) || urlPart
+      return desc ? `${resolved} ${desc}` : resolved
+    })
+  return parts.join(', ')
+}
+
+const resolveAttr = (props: Record<string, unknown>, key: string, baseUrl: string) => {
+  const v = props[key]
+  if (typeof v !== 'string') return
+  const next = resolveUrlLoose(v, baseUrl)
+  if (next) props[key] = next
+}
+
+const resolveAttrSrcset = (props: Record<string, unknown>, key: string, baseUrl: string) => {
+  const v = props[key]
+  if (typeof v !== 'string') return
+  const next = resolveSrcsetLoose(v, baseUrl)
+  if (next) props[key] = next
+}
+
 const resolveHastUrls = (node: HastNode, baseUrl: string): void => {
   const kids = Array.isArray(node.children) ? (node.children as HastNode[]) : null
   const t = typeof node?.type === 'string' ? node.type : ''
   const tag = t === 'element' && typeof node?.tagName === 'string' ? node.tagName.toLowerCase() : ''
   const props = node && typeof node.properties === 'object' && node.properties ? (node.properties as Record<string, unknown>) : null
   if (props && tag) {
-    if (tag === 'a' && typeof props.href === 'string') props.href = resolveUrlLoose(props.href, baseUrl)
-    if ((tag === 'img' || tag === 'iframe' || tag === 'audio' || tag === 'video') && typeof props.src === 'string') {
-      props.src = resolveUrlLoose(props.src, baseUrl)
+    if (tag === 'a' || tag === 'link' || tag === 'use') resolveAttr(props, 'href', baseUrl)
+    if (tag === 'form') resolveAttr(props, 'action', baseUrl)
+    if (tag === 'img' || tag === 'iframe' || tag === 'audio' || tag === 'video' || tag === 'source' || tag === 'track' || tag === 'embed') {
+      resolveAttr(props, 'src', baseUrl)
+      resolveAttr(props, 'data-src', baseUrl)
+      resolveAttr(props, 'dataSrc', baseUrl)
+      resolveAttrSrcset(props, 'srcset', baseUrl)
+      resolveAttrSrcset(props, 'data-srcset', baseUrl)
+      resolveAttrSrcset(props, 'dataSrcset', baseUrl)
     }
-    if (tag === 'source' && typeof props.src === 'string') props.src = resolveUrlLoose(props.src, baseUrl)
-    if (tag === 'link' && typeof props.href === 'string') props.href = resolveUrlLoose(props.href, baseUrl)
+    if (tag === 'img') {
+      resolveAttr(props, 'longdesc', baseUrl)
+    }
+    if (tag === 'video') {
+      resolveAttr(props, 'poster', baseUrl)
+      resolveAttr(props, 'data-poster', baseUrl)
+      resolveAttr(props, 'dataPoster', baseUrl)
+    }
+    if (tag === 'object') resolveAttr(props, 'data', baseUrl)
+    if (tag === 'image') {
+      resolveAttr(props, 'href', baseUrl)
+      resolveAttr(props, 'xlink:href', baseUrl)
+      resolveAttr(props, 'xlinkHref', baseUrl)
+    }
+    if (tag === 'use') {
+      resolveAttr(props, 'xlink:href', baseUrl)
+      resolveAttr(props, 'xlinkHref', baseUrl)
+    }
   }
   if (!kids || kids.length === 0) return
   for (const k of kids) resolveHastUrls(k, baseUrl)
@@ -316,7 +453,7 @@ export async function convertHtmlToMarkdownUnified(args: {
     const fidelityLevel: 1 | 2 | 3 | 4 =
       fidelityLevelRaw === 1 || fidelityLevelRaw === 2 || fidelityLevelRaw === 3 || fidelityLevelRaw === 4
         ? fidelityLevelRaw
-        : 3
+        : 2
     const maxInputChars =
       typeof args.maxInputChars === 'number' && Number.isFinite(args.maxInputChars)
         ? Math.max(10_000, Math.min(12_000_000, Math.floor(args.maxInputChars)))
@@ -330,6 +467,7 @@ export async function convertHtmlToMarkdownUnified(args: {
       `fid:${fidelityLevel}`,
       includeHeadSection ? 'head:1' : 'head:0',
       injectTitleHeading ? 'title:1' : 'title:0',
+      'post:webpage:3',
       String(html.length),
       hashText(html),
     ].join('|')
@@ -362,6 +500,8 @@ export async function convertHtmlToMarkdownUnified(args: {
     if (typeof remarkStringify !== 'function') return { ok: false, error: 'remark-stringify not available' }
     if (typeof toHtml !== 'function') return { ok: false, error: 'hast-util-to-html not available' }
 
+    const svgSymbolHtmlById = new Map<string, string>()
+
     const preserveAsHtmlHandler = () => {
       return (_state: unknown, node: unknown) => {
         const value = toHtml(node as never)
@@ -369,7 +509,125 @@ export async function convertHtmlToMarkdownUnified(args: {
       }
     }
 
-    const handlers = Object.fromEntries([]) as unknown
+    const preserveSvgAsImageHandler = () => {
+      const encodeUtf8ToBase64 = (text: string): string => {
+        const raw = String(text ?? '')
+        const anyGlobal = globalThis as unknown as {
+          Buffer?: { from: (input: string, enc: string) => { toString: (enc: string) => string } }
+        }
+        if (anyGlobal.Buffer && typeof anyGlobal.Buffer.from === 'function') {
+          return anyGlobal.Buffer.from(raw, 'utf8').toString('base64')
+        }
+        const encoder = new TextEncoder()
+        const bytes = encoder.encode(raw)
+        let binary = ''
+        const chunk = 0x8000
+        for (let i = 0; i < bytes.length; i += chunk) {
+          const slice = bytes.subarray(i, Math.min(bytes.length, i + chunk))
+          binary += String.fromCharCode(...Array.from(slice))
+        }
+        return btoa(binary)
+      }
+
+      const makeSvgOmittedDataUri = (label: string): string => {
+        void label
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="24"/>'
+        return `data:image/svg+xml;base64,${encodeUtf8ToBase64(svg)}`
+      }
+
+      return (_state: unknown, node: unknown) => {
+        let value = String(toHtml(node as never) || '')
+        const lower = value.toLowerCase()
+        if (!value.trim()) return { type: 'html', value, position: null }
+        const useRef = value.match(/<(?:\s*use\b)[^>]*\s(?:xlink:href|href)\s*=\s*["']\s*#([^"'\s>]+)\s*["'][^>]*>/i)
+        if (useRef) {
+          const id = String(useRef[1] || '').trim()
+          const alreadyHasSymbol = new RegExp(`<\\s*symbol\\b[^>]*\\bid\\s*=\\s*["']\\s*${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*["']`, 'i').test(value)
+          if (!alreadyHasSymbol) {
+            const symbolHtml = svgSymbolHtmlById.get(id)
+            if (symbolHtml) {
+              if (/<\s*defs\b/i.test(value)) {
+                value = value.replace(/<\s*defs\b([^>]*)>/i, (m, attrs) => `<defs${attrs || ''}>${symbolHtml}`)
+              } else {
+                value = value.replace(/<\s*svg\b([^>]*)>/i, (m, attrs) => `<svg${attrs || ''}><defs>${symbolHtml}</defs>`)
+              }
+            } else {
+              return { type: 'html', value, position: null }
+            }
+          }
+        }
+        const maxSvgCharsForDataUri = 24_000
+        const maxSvgBase64Chars = 100
+        if (value.length > maxSvgCharsForDataUri) return { type: 'html', value, position: null }
+        const withoutScripts = value.replace(/<\s*script\b[\s\S]*?<\/\s*script\s*>/gi, '')
+        let url = ''
+        try {
+          const b64 = encodeUtf8ToBase64(withoutScripts)
+          url = b64.length <= maxSvgBase64Chars ? `data:image/svg+xml;base64,${b64}` : makeSvgOmittedDataUri('')
+        } catch {
+          url = ''
+        }
+        if (!url) return { type: 'html', value, position: null }
+        const altMatch =
+          value.match(/\baria-label\s*=\s*["']([^"']+)["']/i) ||
+          value.match(/\bdata-icon\s*=\s*["']([^"']+)["']/i) ||
+          value.match(/<\s*title[^>]*>([^<]{1,80})<\/\s*title\s*>/i)
+        const alt = String(altMatch?.[1] || '').trim()
+        return { type: 'image', url, alt, title: null, position: null }
+      }
+    }
+
+    const preserveLayoutDivHandler = () => {
+      return (state: unknown, node: unknown) => {
+        const el = node as unknown as { properties?: Record<string, unknown>; children?: unknown }
+        const props = el?.properties || {}
+        const classProp = props.className
+        const className = Array.isArray(classProp) ? classProp.map(v => String(v || '')).join(' ') : String(classProp || '')
+        const style = String(props.style || '')
+        const classLower = className.toLowerCase()
+        const styleLower = style.toLowerCase()
+        const looksGridOrColumns =
+          /\bgrid\b|\binline-grid\b|\bgrid-cols-\[|\bgrid-rows-\[|\bgrid-cols-\d+|\bgrid-rows-\d+|\bgrid-flow-|\bcolumns-\d+/.test(
+            classLower,
+          ) ||
+          /display\s*:\s*(grid|inline-grid)/.test(styleLower) ||
+          /grid-template-columns|grid-template-rows|grid-auto-flow|column-count|column-width/.test(styleLower)
+        if (looksGridOrColumns) {
+          const kids = Array.isArray(el.children) ? (el.children as Array<{ type?: unknown }>) : []
+          const elementKids = kids.filter(k => typeof k?.type === 'string' && k.type === 'element')
+          if (elementKids.length < 2) {
+            const anyState = state as unknown as { all?: (n: unknown) => unknown }
+            if (typeof anyState?.all === 'function') return anyState.all(node)
+            return preserveAsHtmlHandler()(state, node)
+          }
+          const value = toHtml(node as never)
+          const maxPreservedHtmlChars = 1800
+          const divTagCount = (value.match(/<\s*div\b/gi) || []).length
+          const anchorCount = (value.match(/<\s*a\b/gi) || []).length
+          if (anchorCount === 0 && value.length <= maxPreservedHtmlChars && divTagCount <= 6) {
+            return { type: 'html', value, position: null }
+          }
+        }
+        const anyState = state as unknown as { all?: (n: unknown) => unknown }
+        if (typeof anyState?.all === 'function') return anyState.all(node)
+        return preserveAsHtmlHandler()(state, node)
+      }
+    }
+
+    const handlers: Record<string, unknown> = {}
+    if (fidelityLevel >= 2) {
+      handlers.table = preserveAsHtmlHandler()
+    }
+    if (fidelityLevel >= 3) {
+      handlers.video = preserveAsHtmlHandler()
+      handlers.audio = preserveAsHtmlHandler()
+      handlers.iframe = preserveAsHtmlHandler()
+    }
+    if (fidelityLevel >= 4) {
+      handlers.div = preserveLayoutDivHandler()
+      handlers.section = preserveLayoutDivHandler()
+      handlers.svg = preserveSvgAsImageHandler()
+    }
 
     try {
       args.onProgress?.('transform', 35)
@@ -450,6 +708,20 @@ export async function convertHtmlToMarkdownUnified(args: {
                 continue
               }
             }
+            if (tag === 'embed') {
+              const src = getProp(child, 'src')
+              if (src) {
+                children[i] = makeLinkPara('Embed', src)
+                continue
+              }
+            }
+            if (tag === 'object') {
+              const data = getProp(child, 'data')
+              if (data) {
+                children[i] = makeLinkPara('Embed', data)
+                continue
+              }
+            }
             if (tag === 'video' || tag === 'audio') {
               const src = getProp(child, 'src')
               const sourceEls = Array.isArray(cEl.children) ? cEl.children : []
@@ -495,7 +767,8 @@ export async function convertHtmlToMarkdownUnified(args: {
             if (bestRoot && bestRoot !== (tree as HastNode)) {
               ;(tree as HastNode).children = [bestRoot] as unknown as HastNode[]
             }
-            replaceMediaEmbedsWithLinks(tree as HastNode)
+            if (fidelityLevel <= 2) replaceMediaEmbedsWithLinks(tree as HastNode)
+            stripHastComments(tree as HastNode)
             const filter = {
               remove: new Set([
               'script',
@@ -505,7 +778,6 @@ export async function convertHtmlToMarkdownUnified(args: {
               'title',
               'base',
               'style',
-              'svg',
               'input',
               'textarea',
               'select',
@@ -515,12 +787,183 @@ export async function convertHtmlToMarkdownUnified(args: {
             ]),
               unwrap: new Set(['button', 'form', 'noscript']),
             }
+            if (fidelityLevel < 4) filter.remove.add('svg')
             if (!includeImages) {
               void 0
             }
             filterHastElements(tree as HastNode, filter)
             fillEmptyAnchorText(tree as HastNode)
+            fillMissingMediaSrc(tree as HastNode)
             if (resolvedBaseUrl) resolveHastUrls(tree as HastNode, resolvedBaseUrl)
+            try {
+              const getPropStr = (props: Record<string, unknown> | undefined, key: string): string => {
+                if (!props) return ''
+                const v = props[key]
+                if (typeof v === 'string') return v
+                if (typeof v === 'number') return String(v)
+                if (typeof v === 'boolean') return v ? 'true' : ''
+                if (Array.isArray(v)) return v.map(x => String(x || '')).join(' ').trim()
+                return ''
+              }
+
+              const nodeText = (node: HastNode): string => {
+                const n = node as unknown as { type?: string; value?: unknown; children?: HastNode[]; tagName?: string }
+                const type = String(n?.type || '')
+                if (type === 'text') return String(n.value || '')
+                if (type !== 'element' && type !== 'root') return ''
+                const tag = String(n.tagName || '').toLowerCase()
+                if (tag === 'svg' || tag === 'img') return ''
+                const kids = Array.isArray(n.children) ? n.children : []
+                return kids.map(nodeText).join('')
+              }
+
+              const isSvgOrImg = (node: HastNode): boolean => {
+                const el = node as unknown as { type?: string; tagName?: string }
+                if (String(el?.type || '') !== 'element') return false
+                const tag = String(el.tagName || '').toLowerCase()
+                return tag === 'svg' || tag === 'img'
+              }
+
+              const stripIconsAndImagesFromLinksWithText = (node: HastNode) => {
+                const el = node as unknown as { type?: string; tagName?: string; children?: HastNode[]; properties?: Record<string, unknown> }
+                const type = String(el?.type || '')
+                if (type !== 'element' && type !== 'root') return
+                const tag = String(el.tagName || '').toLowerCase()
+                if (tag === 'a') {
+                  const kids = Array.isArray(el.children) ? el.children : []
+                  const props = el.properties || {}
+                  const ariaLabel = getPropStr(props, 'ariaLabel') || getPropStr(props, 'aria-label')
+                  const title = getPropStr(props, 'title')
+                  const labelFromAttrs = (ariaLabel || title).trim()
+                  const text = nodeText(node).trim()
+                  const hasText = text.length > 0 || labelFromAttrs.length > 0
+                  if (hasText) {
+                    const filtered = kids.filter(k => !isSvgOrImg(k))
+                    if (filtered.length === 0 && labelFromAttrs) {
+                      ;(el.children as HastNode[]) = [{ type: 'text', value: labelFromAttrs } as unknown as HastNode]
+                    } else {
+                      ;(el.children as HastNode[]) = filtered
+                    }
+                  }
+                }
+                const kids = Array.isArray(el.children) ? el.children : []
+                for (const child of kids) stripIconsAndImagesFromLinksWithText(child)
+              }
+
+              const isDecorativeSvg = (node: HastNode): boolean => {
+                const el = node as unknown as { type?: string; tagName?: string; properties?: Record<string, unknown> }
+                if (String(el?.type || '') !== 'element') return false
+                if (String(el.tagName || '').toLowerCase() !== 'svg') return false
+                const props = el.properties || {}
+                const ariaHiddenRaw = props.ariaHidden ?? (props as Record<string, unknown>)['aria-hidden']
+                const ariaHidden =
+                  typeof ariaHiddenRaw === 'boolean'
+                    ? ariaHiddenRaw
+                    : String(ariaHiddenRaw || '').toLowerCase() === 'true'
+                if (ariaHidden) return true
+                const role = (getPropStr(props, 'role') || '').toLowerCase()
+                if (role === 'presentation') return true
+                const ariaLabel = getPropStr(props, 'ariaLabel') || getPropStr(props, 'aria-label')
+                if (ariaLabel.trim()) return false
+                const title = getPropStr(props, 'title')
+                if (title.trim()) return false
+                const dataIcon = getPropStr(props, 'dataIcon') || getPropStr(props, 'data-icon')
+                if (dataIcon.trim()) return true
+                const cls = (getPropStr(props, 'className') || getPropStr(props, 'class')).toLowerCase()
+                if (/\bicon\b/.test(cls)) return true
+                const width = (getPropStr(props, 'width') || '').toLowerCase()
+                const height = (getPropStr(props, 'height') || '').toLowerCase()
+                if (/\bem\b/.test(width) || /\bem\b/.test(height)) return true
+                const raw = String(toHtml(node as never) || '')
+                if (/<\s*use\b/i.test(raw)) return true
+                return false
+              }
+
+              const removeDecorativeSvgs = (node: HastNode) => {
+                const el = node as unknown as { type?: string; tagName?: string; children?: HastNode[] }
+                const type = String(el?.type || '')
+                if (type !== 'element' && type !== 'root') return
+                const kids = Array.isArray(el.children) ? el.children : []
+                if (kids.length) {
+                  const nextKids = kids.filter(k => !isDecorativeSvg(k))
+                  ;(el.children as HastNode[]) = nextKids
+                }
+                const next = Array.isArray(el.children) ? el.children : []
+                for (const child of next) removeDecorativeSvgs(child)
+              }
+
+              const unwrapLayoutWrappers = (node: HastNode) => {
+                const el = node as unknown as { type?: string; tagName?: string; children?: HastNode[]; properties?: Record<string, unknown> }
+                const type = String(el?.type || '')
+                if (type !== 'element' && type !== 'root') return
+                const kids = Array.isArray(el.children) ? el.children : []
+                if (kids.length) {
+                  const nextKids: HastNode[] = []
+                  for (const child of kids) {
+                    const cEl = child as unknown as { type?: string; tagName?: string; children?: HastNode[]; properties?: Record<string, unknown> }
+                    if (String(cEl?.type || '') === 'element') {
+                      const cTag = String(cEl.tagName || '').toLowerCase()
+                      const props = cEl.properties || {}
+                      const id = getPropStr(props, 'id')
+                      const keep = getPropStr(props, 'data-kg-keep') || getPropStr(props, 'dataKgKeep')
+                      const cls = (getPropStr(props, 'className') || getPropStr(props, 'class')).toLowerCase()
+                      const looksLayout =
+                        /\b(grid|flex|container|columns|col-span|row-span|gap-|gap\d|items-|justify-|space-)\b/.test(cls) ||
+                        /\b(grid-cols-|grid-rows-)\b/.test(cls)
+                      const hasText = nodeText(child).trim().length > 0
+                      const hasInteractive = /<(?:\s*button\b|\s*input\b|\s*textarea\b|\s*select\b|\s*details\b)/i.test(
+                        String(toHtml(child as never) || ''),
+                      )
+                      const canUnwrap =
+                        !keep &&
+                        !id &&
+                        !hasText &&
+                        (cTag === 'div' || cTag === 'section') &&
+                        looksLayout &&
+                        !/\bprose\b/.test(cls) &&
+                        !hasInteractive
+                      if (canUnwrap) {
+                        const grandKids = Array.isArray(cEl.children) ? cEl.children : []
+                        for (const g of grandKids) nextKids.push(g)
+                        continue
+                      }
+                    }
+                    nextKids.push(child)
+                  }
+                  ;(el.children as HastNode[]) = nextKids
+                }
+                const next = Array.isArray(el.children) ? el.children : []
+                for (const child of next) unwrapLayoutWrappers(child)
+              }
+
+              stripIconsAndImagesFromLinksWithText(tree as HastNode)
+              unwrapLayoutWrappers(tree as HastNode)
+              removeDecorativeSvgs(tree as HastNode)
+            } catch {
+              void 0
+            }
+            try {
+              const visit = (node: HastNode) => {
+                const el = node as unknown as { type?: string; tagName?: string; children?: HastNode[]; properties?: Record<string, unknown> }
+                if (String(el?.type || '') === 'element') {
+                  const tag = String(el.tagName || '').toLowerCase()
+                  if (tag === 'symbol') {
+                    const idRaw = el.properties?.id
+                    const id = typeof idRaw === 'string' ? idRaw : Array.isArray(idRaw) ? idRaw.map(v => String(v || '')).join(' ') : ''
+                    const k = id.trim()
+                    if (k) {
+                      const html = String(toHtml(node as never) || '')
+                      if (html) svgSymbolHtmlById.set(k, html)
+                    }
+                  }
+                }
+                const kids = Array.isArray(el.children) ? el.children : []
+                for (const child of kids) visit(child)
+              }
+              visit(tree as HastNode)
+            } catch {
+              void 0
+            }
           } catch {
             void 0
           }
@@ -551,7 +994,327 @@ export async function convertHtmlToMarkdownUnified(args: {
     }
 
     const file = await processor.process(html)
-    const coreMarkdown = String(file || '').trim()
+    const coreMarkdownRaw = String(file || '').trim()
+
+    const postprocessMarkdownLayout = (input: string): string => {
+      const raw = String(input || '').replace(/\r/g, '').trim()
+      if (!raw) return ''
+      const lines = raw.split('\n')
+      const out: string[] = []
+      let inFence = false
+      for (const line of lines) {
+        const t = line.trim()
+        if (t.startsWith('```')) {
+          inFence = !inFence
+          out.push(line)
+          continue
+        }
+        if (inFence) {
+          out.push(line)
+          continue
+        }
+        let next = line
+        next = next.replace(/\)\[/g, ') [')
+        next = next.replace(/\)\!\[/g, ')\n\n![')
+        next = next.replace(/(\S)(\[[^\]]+\]\([^)]+\))/g, (m, a: string, b: string) => {
+          if (a === '!') return `${a}${b}`
+          return `${a} ${b}`
+        })
+        next = next.replace(/(<https?:\/\/[^>]+>)(?=<https?:\/\/)/g, '$1\n')
+        const applyWordBreaks = (s: string): string => {
+          const src = String(s || '')
+          if (!src) return ''
+          let inCode = false
+          let inLinkDest = false
+          let inAutoUrl = false
+          let res = ''
+          for (let i = 0; i < src.length; i += 1) {
+            const ch = src[i] || ''
+            const prev = res.length ? res[res.length - 1] || '' : ''
+            const look2 = src.slice(i, i + 2)
+            const nextCh = i + 1 < src.length ? src[i + 1] || '' : ''
+            if (!inCode && !inAutoUrl && look2 === '](') {
+              inLinkDest = true
+              res += ']('
+              i += 1
+              continue
+            }
+            if (inLinkDest) {
+              res += ch
+              if (ch === ')') inLinkDest = false
+              continue
+            }
+            if (!inCode && !inAutoUrl && src.slice(i, i + 5).toLowerCase() === '<http') {
+              inAutoUrl = true
+              res += ch
+              continue
+            }
+            if (inAutoUrl) {
+              res += ch
+              if (ch === '>') inAutoUrl = false
+              continue
+            }
+            if (ch === '`') {
+              inCode = !inCode
+              res += ch
+              continue
+            }
+            if (!inCode) {
+              const isPrevLower = /[a-z]/.test(prev)
+              const isPrevUpper = /[A-Z]/.test(prev)
+              const isPrevDigit = /[0-9]/.test(prev)
+              const isChUpper = /[A-Z]/.test(ch)
+              const isChLower = /[a-z]/.test(ch)
+              const isChLetter = /[A-Za-z]/.test(ch)
+              const isChDigit = /[0-9]/.test(ch)
+              if (prev && !/\s/.test(prev)) {
+                if (isPrevLower && isChUpper) {
+                  let j = res.length - 1
+                  while (j >= 0 && /[A-Za-z]/.test(res[j] || '')) j -= 1
+                  const token = res.slice(j + 1)
+                  const tokenLen = token.length
+                  const hasUpperBeyondFirst = /[A-Z]/.test(token.slice(1))
+                  if (tokenLen >= 4 && !hasUpperBeyondFirst) {
+                    res += ` ${ch}`
+                    continue
+                  }
+                }
+                if ((isPrevLower || isPrevUpper) && isChDigit) {
+                  let j = res.length - 1
+                  while (j >= 0 && /[A-Za-z]/.test(res[j] || '')) j -= 1
+                  const token = res.slice(j + 1)
+                  const tokenLen = token.length
+                  const allUpper = tokenLen > 0 && /^[A-Z]+$/.test(token)
+                  if (!(allUpper && tokenLen <= 3)) {
+                    res += ` ${ch}`
+                    continue
+                  }
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  res += ` ${ch}`
+                  continue
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChLetter && !isChUpper && !isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChLetter && isChUpper && !/[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLetter && !isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLetter && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLetter && !isChUpper && !/[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLetter && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChDigit) {
+                  void 0
+                }
+                if (isPrevDigit && isChLetter && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && !/[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChDigit) {
+                  void 0
+                }
+                if (isPrevDigit && isChLetter && isChUpper && !/[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLetter && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChLetter && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChLetter && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChLower) {
+                  void 0
+                }
+                if (isPrevDigit && isChDigit) {
+                  void 0
+                }
+                if (isPrevDigit && isChLetter && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChUpper && /[a-z]/.test(nextCh)) {
+                  void 0
+                }
+                if (isPrevDigit && isChDigit) {
+                  void 0
+                }
+                if (isPrevDigit && isChLetter) {
+                  void 0
+                }
+                if (isPrevDigit && isChDigit) {
+                  void 0
+                }
+                if (isPrevDigit && isChLetter) {
+                  void 0
+                }
+              }
+            }
+            res += ch
+          }
+          return res
+        }
+        next = applyWordBreaks(next)
+        out.push(next)
+      }
+      return out.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+    }
+
+    const dedupeMarkdownParagraphs = (input: string): string => {
+      const raw = String(input || '').replace(/\r/g, '').trim()
+      if (!raw) return ''
+      const lines = raw.split('\n')
+      const out: string[] = []
+      const seen = new Set<string>()
+      let buf: string[] = []
+      let inFence = false
+
+      const flush = () => {
+        if (buf.length === 0) return
+        const block = buf.join('\n').trimEnd()
+        const normalized = block.replace(/\s+/g, ' ').trim()
+        const eligible = normalized.length >= 120
+        if (!eligible) {
+          out.push(block)
+          buf = []
+          return
+        }
+        if (!seen.has(normalized)) {
+          seen.add(normalized)
+          out.push(block)
+        }
+        buf = []
+      }
+
+      for (const line of lines) {
+        const t = line.trim()
+        if (t.startsWith('```')) {
+          flush()
+          inFence = !inFence
+          out.push(line)
+          continue
+        }
+        if (inFence) {
+          out.push(line)
+          continue
+        }
+        if (!t) {
+          flush()
+          if (out.length > 0 && out[out.length - 1]?.trim() !== '') out.push('')
+          continue
+        }
+        buf.push(line)
+      }
+      flush()
+      return out.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+    }
+
+    const coreMarkdown = dedupeMarkdownParagraphs(postprocessMarkdownLayout(coreMarkdownRaw))
 
     const headSection = (() => {
       if (!extractedHead) return ''
@@ -572,7 +1335,8 @@ export async function convertHtmlToMarkdownUnified(args: {
     })()
 
     const parts = [titleHeading, headSection, coreMarkdown].filter(Boolean)
-    const markdown = parts.join('\n\n').trim()
+    const markdownRaw = parts.join('\n\n').trim()
+    const markdown = postprocessWebpageMarkdownSsot(markdownRaw)
     if (!markdown) return { ok: false, error: 'Conversion produced empty markdown' }
 
     CACHE.set(cacheKey, markdown)

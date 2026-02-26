@@ -108,6 +108,7 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
   const pricingDetailsTable = extractMarkdownTableUnderH2(markdownMain, 'Pricing Details (Extracted)')
   const companyOptionsBlock = extractBlockUnderH2(markdownMain, 'Company License Options (Extracted)', 140)
   const renderingOptionsTable = extractMarkdownTableUnderH2(markdownMain, 'Rendering Options (Extracted)')
+  const pricingBlockRaw = extractBlockUnderH2(markdownMain, 'Pricing', 240)
 
   const blocks = extractHSections(markdownMain, 120)
   const featureBlocks = (() => {
@@ -270,9 +271,128 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
   if (skipLink) toc.push({ title: 'Accessibility Features', anchor: 'accessibility-features' })
   toc.push({ title: 'Navigation Header', anchor: 'navigation-header' })
   toc.push({ title: 'Hero Section', anchor: 'hero-section' })
-  if (templates.length) toc.push({ title: 'Template / Gallery', anchor: 'templates' })
+  if (templates.length) toc.push({ title: 'Template Gallery', anchor: 'templates' })
   if (stats.pricingTokens > 0 || pricingComparisonTable || pricingDetailsTable) toc.push({ title: 'Pricing', anchor: 'pricing' })
   toc.push({ title: 'Asset Catalog', anchor: 'asset-catalog' })
+
+  type PricingTier = { title: string; audience: string; lines: string[] }
+
+  const extractPricingTiers = (block: string): PricingTier[] => {
+    const raw = String(block || '').trimEnd()
+    if (!raw) return []
+    const lines = raw.split(/\r?\n/).map(l => String(l || '').trim()).filter(Boolean)
+    const tiers: PricingTier[] = []
+    let pendingAudience = ''
+    let current: PricingTier | null = null
+
+    const flush = () => {
+      if (!current) return
+      const seen = new Set<string>()
+      const cleaned = current.lines
+        .map(s => normalizeInline(s))
+        .filter(Boolean)
+        .filter(s => {
+          const k = s.toLowerCase()
+          if (seen.has(k)) return false
+          seen.add(k)
+          return true
+        })
+      tiers.push({
+        title: stripTrailingPunctuation(normalizeInline(current.title)),
+        audience: stripTrailingPunctuation(normalizeInline(current.audience)),
+        lines: cleaned,
+      })
+      current = null
+    }
+
+    const isTierTitle = (s: string): boolean => {
+      if (/^(free|company|enterprise)\s+license$/i.test(s)) return true
+      if (/^remotion\s+for\s+(creators|automators)$/i.test(s)) return true
+      if (/^enterprise\s+license$/i.test(s)) return true
+      return false
+    }
+
+    for (const l of lines) {
+      if (/^for\s+\S/i.test(l) && !current) {
+        pendingAudience = normalizeInline(l)
+        continue
+      }
+      if (isTierTitle(l)) {
+        flush()
+        current = { title: normalizeInline(l), audience: pendingAudience, lines: [] }
+        pendingAudience = ''
+        continue
+      }
+      if (!current) continue
+      if (/^for\s+\S/i.test(l) && !current.audience) {
+        current.audience = normalizeInline(l)
+        continue
+      }
+      const bullet = l.match(/^\s*[-*+]\s+(.+?)\s*$/)
+      if (bullet) {
+        current.lines.push(`- ${bullet[1] || ''}`)
+        continue
+      }
+      if (/^\[\s*[xX ]\s*\]\s+/.test(l)) {
+        current.lines.push(l)
+        continue
+      }
+      if (/\$\s?\d/.test(l) || /per\s+(seat|render|month)/i.test(l)) {
+        current.lines.push(l)
+        continue
+      }
+      if (current.lines.length < 8) current.lines.push(l)
+    }
+    flush()
+    return tiers
+  }
+
+  const renderPricingTiersAsciiTable = (tiers: PricingTier[]): string => {
+    const wanted = ['free license', 'company license', 'enterprise license']
+    const picked = tiers
+      .filter(t => wanted.includes(t.title.toLowerCase()))
+      .sort((a, b) => wanted.indexOf(a.title.toLowerCase()) - wanted.indexOf(b.title.toLowerCase()))
+      .slice(0, 3)
+
+    if (picked.length < 2) return ''
+    const colW = 26
+    const cols = 3
+    while (picked.length < cols) picked.push({ title: '', audience: '', lines: [] })
+
+    const header = picked.map(t => truncate(t.title || '', colW))
+    const bodies = picked.map(t => {
+      const out: string[] = []
+      if (t.audience) out.push(truncate(t.audience, colW))
+      for (const ln of t.lines) {
+        if (out.length >= 7) break
+        out.push(truncate(ln, colW))
+      }
+      return out
+    })
+    const rowCount = Math.max(2, ...bodies.map(b => b.length))
+
+    const top = `┌${'─'.repeat(colW)}┬${'─'.repeat(colW)}┬${'─'.repeat(colW)}┐`
+    const mid = `├${'─'.repeat(colW)}┼${'─'.repeat(colW)}┼${'─'.repeat(colW)}┤`
+    const bot = `└${'─'.repeat(colW)}┴${'─'.repeat(colW)}┴${'─'.repeat(colW)}┘`
+
+    const row = (cells: string[]) => `│${cells.map(c => String(c || '').padEnd(colW, ' ')).join('│')}│`
+
+    const out: string[] = []
+    out.push(top)
+    out.push(row(header))
+    out.push(mid)
+    for (let r = 0; r < rowCount; r += 1) {
+      out.push(
+        row([
+          bodies[0]?.[r] || '',
+          bodies[1]?.[r] || '',
+          bodies[2]?.[r] || '',
+        ]),
+      )
+    }
+    out.push(bot)
+    return out.join('\n')
+  }
 
   const buildPageStructureOverviewAscii = () => {
     const width = 84
@@ -483,8 +603,8 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
     const templateGridAscii = renderTemplateGalleryGrid(templates)
     doc.push('---')
     doc.push('')
-    doc.push('<a id="template-showcase"></a>')
-    doc.push('## Template Showcase')
+    doc.push('<a id="templates"></a>')
+    doc.push('## Template Gallery')
     doc.push('')
     doc.push('```ascii')
     doc.push(templateGridAscii)
@@ -494,16 +614,6 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
     doc.push('')
     for (const t of templates.slice(0, 12)) doc.push(`- ${t}`)
     doc.push('')
-
-    doc.push('---')
-    doc.push('')
-    doc.push('<a id="templates"></a>')
-    doc.push('## Template Gallery')
-    doc.push('')
-    doc.push('```ascii')
-    doc.push(templateGridAscii)
-    doc.push('```')
-    doc.push('')
   }
 
   if (stats.pricingTokens > 0 || pricingComparisonTable || pricingDetailsTable) {
@@ -512,6 +622,8 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
     doc.push('<a id="pricing"></a>')
   doc.push('## Pricing')
     doc.push('')
+    const pricingTiers = fidelityLevel >= 4 ? extractPricingTiers(pricingBlockRaw) : []
+    const pricingTiersTable = pricingTiers.length ? renderPricingTiersAsciiTable(pricingTiers) : ''
     doc.push('```ascii')
     doc.push(
       renderDoubleLineFrame({
@@ -523,6 +635,10 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
         ].filter(Boolean),
       }),
     )
+    if (pricingTiersTable) {
+      doc.push('')
+      doc.push(pricingTiersTable)
+    }
     doc.push('```')
     doc.push('')
     if (pricingComparisonTable) {

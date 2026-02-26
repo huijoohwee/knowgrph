@@ -20,17 +20,19 @@ import {
 } from './markdownJsonLdMermaidParser'
 import { MarkdownGraphBuilder } from './markdownJsonLdBuilder'
 import * as wikiLinks from 'grph-shared/markdown/wikiLinks'
+import { normalizeMarkdownAsciiBlocks } from 'grph-shared/markdown/asciiBlocks'
 
 export { slugify } from './markdownJsonLdUtils'
 
 export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<string, unknown> => {
   const rawText = String(markdownText || '')
+  const asciiNormalized = normalizeMarkdownAsciiBlocks(rawText)
   const normalizedText =
-    rawText.includes('[[') || /(?:^|\s)\^[A-Za-z0-9]/m.test(rawText)
+    asciiNormalized.includes('[[') || /(?:^|\s)\^[A-Za-z0-9]/m.test(asciiNormalized)
       ? (typeof wikiLinks.normalizeMarkdownWikiLinksAndBlockIds === 'function'
-          ? wikiLinks.normalizeMarkdownWikiLinksAndBlockIds(rawText)
-          : rawText)
-      : rawText
+          ? wikiLinks.normalizeMarkdownWikiLinksAndBlockIds(asciiNormalized)
+          : asciiNormalized)
+      : asciiNormalized
   const rawLines = splitMarkdownLines(normalizedText)
   const { meta, startIndex } = parseMarkdownFrontmatter(rawLines)
   const blocks = parseMarkdownBlocks(rawLines, startIndex)

@@ -8,10 +8,7 @@ import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { existsSync, createReadStream } from 'node:fs'
 import fs from 'node:fs/promises'
-import { CODEBASE_INDEX_PIPELINE_COMMAND } from './src/lib/config-copy/tooltips'
-import { unwrapUserProvidedText } from './src/lib/url'
-import { createPdfAssetsHandler, createPdfConvertHandler } from './src/lib/pdf/server/pdfConvertServer'
-import { createPdfWorkspaceHandler } from './src/lib/pdf/server/pdfWorkspaceServer'
+import { unwrapUserProvidedText } from 'grph-shared/url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -23,6 +20,12 @@ const resolvedReactDom = nodeRequire.resolve('react-dom')
 const resolvedReactDomClient = nodeRequire.resolve('react-dom/client')
 
 const cesiumPublicDir = path.resolve(__dirname, 'public', 'cesium')
+
+const MARKDOWN_PIPELINE_INPUT_REL_PATH =
+  String(process.env.VITE_MARKDOWN_PIPELINE_INPUT_REL_PATH || '').trim() || 'docs/knowgrph-pipeline-document.md'
+const CODEBASE_INDEX_PIPELINE_OUTPUT_DIR =
+  String(process.env.VITE_MARKDOWN_PIPELINE_OUTPUT_DIR || '').trim() || 'data/knowgrph-workflow-preview'
+const CODEBASE_INDEX_PIPELINE_COMMAND = `python -m knowgrph_parser markdown --input ${MARKDOWN_PIPELINE_INPUT_REL_PATH} --output-dir ${CODEBASE_INDEX_PIPELINE_OUTPUT_DIR}`
 
 async function ensureCesiumPublicAssets(): Promise<void> {
   try {
@@ -391,16 +394,29 @@ const codebaseFileDevPlugin = {
   },
 }
 
-function createLazyWebsiteImportHandler(): import('vite').Connect.NextHandleFunction {
+function createLazyWebsiteImportHandler(
+  server: Pick<import('vite').ViteDevServer, 'ssrLoadModule'> | Pick<import('vite').PreviewServer, 'middlewares'>,
+): import('vite').Connect.NextHandleFunction {
   let handlerPromise: Promise<import('vite').Connect.NextHandleFunction> | null = null
-  const getHandler = () => {
-    handlerPromise =
-      handlerPromise ||
-      (async () => {
-        const mod = await import('./src/lib/websites/server/websiteImportServer')
-        return mod.createWebsiteImportHandler({ repoRoot })
-      })()
-    return handlerPromise
+  const getHandler = async () => {
+    if (handlerPromise) return await handlerPromise
+    const hasSsr = server && typeof (server as unknown as { ssrLoadModule?: unknown }).ssrLoadModule === 'function'
+    if (!hasSsr) {
+      handlerPromise = Promise.resolve((req, res, _next) => {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'Website import handler unavailable in preview server' }))
+      })
+      return await handlerPromise
+    }
+    handlerPromise = (async () => {
+      const devServer = server as Pick<import('vite').ViteDevServer, 'ssrLoadModule'>
+      const mod = (await devServer.ssrLoadModule('/src/lib/websites/server/websiteImportServer.ts')) as unknown as {
+        createWebsiteImportHandler: (args: { repoRoot: string }) => import('vite').Connect.NextHandleFunction
+      }
+      return mod.createWebsiteImportHandler({ repoRoot })
+    })()
+    return await handlerPromise
   }
   return async (req, res, next) => {
     const handler = await getHandler()
@@ -435,11 +451,13 @@ const webpageProxyDevPlugin = {
   configureServer(server: import('vite').ViteDevServer) {
     server.middlewares.use('/__webpage_proxy', createWebpageProxyHandler())
     server.middlewares.use('/__webpage_asset_proxy', createWebpageAssetProxyHandler())
+    server.middlewares.use('/__webpage_asset_path', createWebpageAssetPathProxyHandler())
     server.middlewares.use('/__repo_file', createRepoFileHandler())
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
     server.middlewares.use('/__webpage_proxy', createWebpageProxyHandler())
     server.middlewares.use('/__webpage_asset_proxy', createWebpageAssetProxyHandler())
+    server.middlewares.use('/__webpage_asset_path', createWebpageAssetPathProxyHandler())
     server.middlewares.use('/__repo_file', createRepoFileHandler())
   },
 }
@@ -469,32 +487,122 @@ const localGeoDatasetDevPlugin = {
 const pdfConvertDevPlugin = {
   name: 'knowgrph-pdf-convert-dev',
   configureServer(server: import('vite').ViteDevServer) {
-    server.middlewares.use('/__convert_pdf', createPdfConvertHandler())
-    server.middlewares.use('/__pdf_assets', createPdfAssetsHandler())
+    let modPromise: Promise<{
+      createPdfConvertHandler: () => import('vite').Connect.NextHandleFunction
+      createPdfAssetsHandler: () => import('vite').Connect.NextHandleFunction
+    }> | null = null
+    const get = async () => {
+      modPromise = modPromise || import('./src/lib/pdf/server/pdfConvertServer')
+      return await modPromise
+    }
+    server.middlewares.use('/__convert_pdf', async (req, res, next) => {
+      try {
+        const mod = await get()
+        return mod.createPdfConvertHandler()(req, res, next)
+      } catch {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'PDF convert handler failed to load' }))
+      }
+    })
+    server.middlewares.use('/__pdf_assets', async (req, res, next) => {
+      try {
+        const mod = await get()
+        return mod.createPdfAssetsHandler()(req, res, next)
+      } catch {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'PDF assets handler failed to load' }))
+      }
+    })
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
-    server.middlewares.use('/__convert_pdf', createPdfConvertHandler())
-    server.middlewares.use('/__pdf_assets', createPdfAssetsHandler())
+    let modPromise: Promise<{
+      createPdfConvertHandler: () => import('vite').Connect.NextHandleFunction
+      createPdfAssetsHandler: () => import('vite').Connect.NextHandleFunction
+    }> | null = null
+    const get = async () => {
+      modPromise = modPromise || import('./src/lib/pdf/server/pdfConvertServer')
+      return await modPromise
+    }
+    server.middlewares.use('/__convert_pdf', async (req, res, next) => {
+      try {
+        const mod = await get()
+        return mod.createPdfConvertHandler()(req, res, next)
+      } catch {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'PDF convert handler failed to load' }))
+      }
+    })
+    server.middlewares.use('/__pdf_assets', async (req, res, next) => {
+      try {
+        const mod = await get()
+        return mod.createPdfAssetsHandler()(req, res, next)
+      } catch {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'PDF assets handler failed to load' }))
+      }
+    })
   },
 }
 
 const pdfWorkspaceDevPlugin = {
   name: 'knowgrph-pdf-workspace-dev',
   configureServer(server: import('vite').ViteDevServer) {
-    server.middlewares.use(createPdfWorkspaceHandler({ repoRoot }))
+    let handlerPromise: Promise<import('vite').Connect.NextHandleFunction> | null = null
+    const get = async () => {
+      handlerPromise =
+        handlerPromise ||
+        (async () => {
+          const mod = await import('./src/lib/pdf/server/pdfWorkspaceServer')
+          return mod.createPdfWorkspaceHandler({ repoRoot })
+        })()
+      return await handlerPromise
+    }
+    server.middlewares.use(async (req, res, next) => {
+      try {
+        const h = await get()
+        return h(req, res, next)
+      } catch {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'PDF workspace handler failed to load' }))
+      }
+    })
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
-    server.middlewares.use(createPdfWorkspaceHandler({ repoRoot }))
+    let handlerPromise: Promise<import('vite').Connect.NextHandleFunction> | null = null
+    const get = async () => {
+      handlerPromise =
+        handlerPromise ||
+        (async () => {
+          const mod = await import('./src/lib/pdf/server/pdfWorkspaceServer')
+          return mod.createPdfWorkspaceHandler({ repoRoot })
+        })()
+      return await handlerPromise
+    }
+    server.middlewares.use(async (req, res, next) => {
+      try {
+        const h = await get()
+        return h(req, res, next)
+      } catch {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'PDF workspace handler failed to load' }))
+      }
+    })
   },
 }
 
 const websiteImportDevPlugin = {
   name: 'knowgrph-website-import-dev',
   configureServer(server: import('vite').ViteDevServer) {
-    server.middlewares.use(createLazyWebsiteImportHandler())
+    server.middlewares.use(createLazyWebsiteImportHandler(server))
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
-    server.middlewares.use(createLazyWebsiteImportHandler())
+    server.middlewares.use(createLazyWebsiteImportHandler(server))
   },
 }
 
@@ -618,6 +726,10 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
 
     res.setHeader('Access-Control-Allow-Origin', '*')
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+    res.setHeader(
+      'Access-Control-Expose-Headers',
+      'Content-Type, Content-Length, Content-Range, Accept-Ranges, ETag, Last-Modified, Cache-Control, Expires',
+    )
     const urlParam = (() => {
       try {
         const parsed = new URL(req.url || '', `http://${req.headers.host}`)
@@ -626,6 +738,8 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
         return null
       }
     })()
+    const rangeHeader = typeof req.headers.range === 'string' ? req.headers.range : ''
+    const ifRangeHeader = typeof req.headers['if-range'] === 'string' ? req.headers['if-range'] : ''
 
     if (!urlParam) {
       res.statusCode = 400
@@ -702,6 +816,12 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
         if (!Number.isFinite(parsed)) return 20 * 1024 * 1024
         return Math.max(64 * 1024, Math.min(50 * 1024 * 1024, Math.floor(parsed)))
       })()
+      const maxBinaryBytes = (() => {
+        const raw = String(process.env.KNOWGRPH_REMOTE_FETCH_MAX_BYTES_BINARY || '').trim()
+        const parsed = raw ? Number(raw) : NaN
+        if (!Number.isFinite(parsed)) return 250 * 1024 * 1024
+        return Math.max(512 * 1024, Math.min(1024 * 1024 * 1024, Math.floor(parsed)))
+      })()
       const ctrl = new AbortController()
       controller = ctrl
       let finished = false
@@ -725,6 +845,8 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
           // Use generic accept for remote fetch to avoid 406/403 on raw files
           Accept: '*/*',
           'Accept-Language': 'en-US,en;q=0.9',
+          ...(rangeHeader ? { Range: rangeHeader } : {}),
+          ...(ifRangeHeader ? { 'If-Range': ifRangeHeader } : {}),
         },
       })
 
@@ -746,7 +868,7 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
       if (contentType) {
         res.setHeader('Content-Type', contentType)
       }
-      const passthrough = ['cache-control', 'etag', 'last-modified', 'expires', 'accept-ranges']
+      const passthrough = ['cache-control', 'etag', 'last-modified', 'expires', 'accept-ranges', 'content-range', 'content-length']
       for (const key of passthrough) {
         try {
           const v = upstream.headers.get(key)
@@ -756,52 +878,50 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
         }
       }
       if (req.method === 'HEAD') {
-        const contentLength = upstream.headers.get('content-length')
-        if (contentLength) {
-          res.setHeader('Content-Length', contentLength)
-        }
         res.end()
         finished = true
         return
       }
-      const readWithLimit = async (): Promise<Buffer> => {
-        const reader = upstream.body?.getReader()
-        if (!reader) {
-          const contentLengthRaw = upstream.headers.get('content-length')
-          const len = contentLengthRaw ? Number(contentLengthRaw) : NaN
-          if (Number.isFinite(len) && len > maxBytes) {
-            throw new Error('Upstream response too large')
-          }
-          return Buffer.from(await upstream.arrayBuffer())
+      const effectiveMaxBytes = (() => {
+        const ct = String(contentType || '').toLowerCase()
+        if (rangeHeader) return maxBinaryBytes
+        if (ct.startsWith('video/') || ct.startsWith('audio/')) return maxBinaryBytes
+        return maxBytes
+      })()
+      const reader = upstream.body?.getReader()
+      if (!reader) {
+        const contentLengthRaw = upstream.headers.get('content-length')
+        const len = contentLengthRaw ? Number(contentLengthRaw) : NaN
+        if (Number.isFinite(len) && len > effectiveMaxBytes) {
+          throw new Error('Upstream response too large')
         }
-        const chunks: Buffer[] = []
-        let total = 0
-        while (true) {
-          if (ctrl.signal.aborted) throw new Error('aborted')
-          const { done, value } = await reader.read()
-          if (done) break
-          if (!value || value.byteLength === 0) continue
-          total += value.byteLength
-          if (total > maxBytes) {
-            try {
-              await reader.cancel()
-            } catch {
-              void 0
-            }
-            throw new Error('Upstream response too large')
-          }
-          chunks.push(Buffer.from(value))
-        }
-        return Buffer.concat(chunks)
+        const buf = Buffer.from(await upstream.arrayBuffer())
+        if (buf.byteLength > effectiveMaxBytes) throw new Error('Upstream response too large')
+        finished = true
+        res.end(buf)
+        return
       }
-      const buf = await readWithLimit()
+      let total = 0
+      while (true) {
+        if (ctrl.signal.aborted) throw new Error('aborted')
+        const { done, value } = await reader.read()
+        if (done) break
+        if (!value || value.byteLength === 0) continue
+        total += value.byteLength
+        if (total > effectiveMaxBytes) {
+          try {
+            await reader.cancel()
+          } catch {
+            void 0
+          }
+          throw new Error('Upstream response too large')
+        }
+        if (!res.write(Buffer.from(value))) {
+          await new Promise<void>(resolve => res.once('drain', resolve))
+        }
+      }
       finished = true
-      try {
-        res.setHeader('Content-Length', String(buf.byteLength))
-      } catch {
-        void 0
-      }
-      res.end(buf)
+      res.end()
     } catch (error) {
       const msg =
         error && typeof error === 'object' && 'message' in error
@@ -847,7 +967,7 @@ function rewriteWebpageMediaAssetsToProxy(opts: { html: string; originalUrl: str
   const html = String(opts.html || '')
   const originalUrl = String(opts.originalUrl || '').trim()
   if (!html || !originalUrl) return html
-  const assetProxyPrefix = '/__webpage_asset_proxy?url='
+  const assetProxyPrefix = '/__webpage_asset_path/'
   const toAbs = (raw: string) => {
     try {
       const u = String(raw || '')
@@ -863,7 +983,15 @@ function rewriteWebpageMediaAssetsToProxy(opts: { html: string; originalUrl: str
   const toProxy = (raw: string) => {
     const abs = toAbs(raw)
     if (!abs) return raw
-    return `${assetProxyPrefix}${encodeURIComponent(abs)}`
+    try {
+      const u = new URL(abs)
+      const origin = u.origin
+      const p = u.pathname || '/'
+      const q = u.search || ''
+      return `${assetProxyPrefix}${encodeURIComponent(origin)}${p}${q}`
+    } catch {
+      return raw
+    }
   }
 
   const shouldKeepAsIs = (vRaw: string) => {
@@ -976,6 +1104,134 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '<script>',
     '(() => {',
     `  const KG_ORIGINAL_URL = ${JSON.stringify(originalUrl)};`,
+    '  const patchStorage = () => {',
+    '    const makeStorage = () => {',
+    '      const m = new Map();',
+    '      return {',
+    '        get length() { return m.size; },',
+    '        key: (i) => { try { return Array.from(m.keys())[i] || null; } catch { return null; } },',
+    '        getItem: (k) => { try { const v = m.get(String(k)); return typeof v === "string" ? v : null; } catch { return null; } },',
+    '        setItem: (k, v) => { try { m.set(String(k), String(v)); } catch { void 0; } },',
+    '        removeItem: (k) => { try { m.delete(String(k)); } catch { void 0; } },',
+    '        clear: () => { try { m.clear(); } catch { void 0; } },',
+    '      };',
+    '    };',
+    '    const ensure = (key) => {',
+    '      try {',
+    '        const v = window[key];',
+    '        if (v && typeof v.getItem === "function") return;',
+    '      } catch {',
+    '        void 0;',
+    '      }',
+    '      try {',
+    '        const stub = makeStorage();',
+    '        Object.defineProperty(window, key, { configurable: true, enumerable: true, get: () => stub });',
+    '      } catch {',
+    '        void 0;',
+    '      }',
+    '    };',
+    '    ensure("localStorage");',
+    '    ensure("sessionStorage");',
+    '    try {',
+    '      const d = document;',
+    '      void d.cookie;',
+    '    } catch {',
+    '      try { Object.defineProperty(document, "cookie", { configurable: true, get: () => "", set: () => true }); } catch { void 0; }',
+    '    }',
+    '  };',
+    '  const KG_DIAG = {',
+    '    errors: [],',
+    '    rejections: [],',
+    '    resources: [],',
+    '    console: [],',
+    '  };',
+    '  const kgDiagPush = (arr, item, limit) => {',
+    '    try {',
+    '      const a = arr;',
+    '      if (!a || typeof a.push !== "function") return;',
+    '      a.push(item);',
+    '      const lim = typeof limit === "number" && isFinite(limit) ? Math.max(5, Math.min(120, Math.floor(limit))) : 60;',
+    '      if (a.length > lim) a.splice(0, a.length - lim);',
+    '    } catch {',
+    '      void 0;',
+    '    }',
+    '  };',
+    '  const kgSetupDiag = () => {',
+    '    try {',
+    '      if (window.__KG_DIAG_SETUP__) return;',
+    '      Object.defineProperty(window, "__KG_DIAG_SETUP__", { value: true, configurable: true });',
+    '      try {',
+    '        window.addEventListener("error", (ev) => {',
+    '          try {',
+    '            const msg = ev && ev.message ? String(ev.message) : "";',
+    '            const src = ev && ev.filename ? String(ev.filename) : "";',
+    '            const line = ev && typeof ev.lineno === "number" ? ev.lineno : null;',
+    '            const col = ev && typeof ev.colno === "number" ? ev.colno : null;',
+    '            if (msg || src) kgDiagPush(KG_DIAG.errors, { msg, src, line, col }, 60);',
+    '          } catch { void 0; }',
+    '        });',
+    '      } catch { void 0; }',
+    '      try {',
+    '        window.addEventListener("unhandledrejection", (ev) => {',
+    '          try {',
+    '            const r = ev && ev.reason;',
+    '            const msg = r && typeof r === "object" && "message" in r ? String(r.message || "") : String(r || "");',
+    '            if (msg) kgDiagPush(KG_DIAG.rejections, { msg }, 60);',
+    '          } catch { void 0; }',
+    '        });',
+    '      } catch { void 0; }',
+    '      try {',
+    '        window.addEventListener("error", (ev) => {',
+    '          try {',
+    '            const t = ev && ev.target;',
+    '            if (!t || !t.tagName) return;',
+    '            const tag = String(t.tagName || "").toLowerCase();',
+    '            const src = t.getAttribute && (t.getAttribute("src") || t.getAttribute("href")) || "";',
+    '            if (tag && src) kgDiagPush(KG_DIAG.resources, { tag, src: String(src) }, 80);',
+    '          } catch { void 0; }',
+    '        }, true);',
+    '      } catch { void 0; }',
+    '      try {',
+    '        const wrap = (name) => {',
+    '          try {',
+    '            const prev = console && console[name];',
+    '            if (typeof prev !== "function") return;',
+    '            console[name] = (...args) => {',
+    '              try {',
+    '                const text = args.map(a => { try { return typeof a === "string" ? a : JSON.stringify(a); } catch { return String(a); } }).join(" ");',
+    '                if (text) kgDiagPush(KG_DIAG.console, { level: name, text }, 80);',
+    '              } catch { void 0; }',
+    '              return prev.apply(console, args);',
+    '            };',
+    '          } catch { void 0; }',
+    '        };',
+    '        wrap("error");',
+    '        wrap("warn");',
+    '      } catch { void 0; }',
+    '    } catch {',
+    '      void 0;',
+    '    }',
+    '  };',
+    '  const kgDiagSnapshot = () => {',
+    '    try {',
+    '      const scripts = Array.from(document.querySelectorAll("script[src]")).slice(0, 80).map(s => String(s.getAttribute("src") || ""));',
+    '      const links = Array.from(document.querySelectorAll("link[href]")).slice(0, 80).map(l => String(l.getAttribute("href") || ""));',
+    '      const payload = {',
+    '        href: String(location && location.href || ""),',
+    '        origin: String(location && location.origin || ""),',
+    '        readyState: String(document && document.readyState || ""),',
+    '        title: String(document && document.title || ""),',
+    '        scripts,',
+    '        links,',
+    '        diag: KG_DIAG,',
+    '      };',
+    '      const raw = JSON.stringify(payload);',
+    '      return raw.length > 18000 ? raw.slice(0, 18000) : raw;',
+    '    } catch {',
+    '      return "";',
+    '    }',
+    '  };',
+    '  kgSetupDiag();',
     '  let KG_NET_PENDING = 0;',
     `  const KG_WEBPAGE_NET_KIND = ${JSON.stringify('kg-webpage-net')};`,
     '  let KG_NET_POST_AT = 0;',
@@ -1002,17 +1258,53 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '  const kgNetInc = () => { try { KG_NET_PENDING += 1; } catch { void 0; } try { kgPostNet(); } catch { void 0; } };',
     '  const kgNetDec = () => { try { KG_NET_PENDING = Math.max(0, KG_NET_PENDING - 1); } catch { void 0; } try { kgPostNet(); } catch { void 0; } };',
     `  const KG_PROXY_PREFIX = ${JSON.stringify('/__webpage_proxy?url=')};`,
-      `  const KG_ASSET_PROXY_PREFIX = ${JSON.stringify('/__webpage_asset_proxy?url=')};`,
+      `  const KG_ASSET_PROXY_PREFIX = ${JSON.stringify('/__webpage_asset_path/')};`,
     `  const KG_SCROLL_SYNC_KIND = ${JSON.stringify('kg-scroll-sync')};`,
     `  const KG_EXPORT_DOM_KIND = ${JSON.stringify('kg-export-dom')};`,
     '  const resolveAbs = (u) => {',
+    '    try {',
+    '      const raw = String(u || "");',
+    '      const parsed = new URL(raw, window.location.href);',
+    '      if (parsed.origin === window.location.origin) {',
+    '        const p = String(parsed.pathname || "");',
+    '        if (!p.startsWith("/__") && !p.startsWith("/@")) {',
+    '          const rel = `${p}${parsed.search || ""}${parsed.hash || ""}`;',
+    '          return new URL(rel, KG_ORIGINAL_URL).toString();',
+    '        }',
+    '      }',
+    '    } catch {',
+    '      void 0;',
+    '    }',
     '    try { return new URL(String(u || ""), KG_ORIGINAL_URL).toString(); } catch { return ""; }',
     '  };',
     '  const toProxy = (abs) => abs ? (KG_PROXY_PREFIX + encodeURIComponent(abs)) : "";',
-      '  const toAssetProxy = (abs) => abs ? (KG_ASSET_PROXY_PREFIX + encodeURIComponent(abs)) : "";',
+      '  const toAssetProxy = (abs) => {',
+      '    try {',
+      '      const s = String(abs || "").trim();',
+      '      if (!s) return "";',
+      '      const u = new URL(s);',
+      '      const origin = encodeURIComponent(u.origin);',
+      '      const p = u.pathname || "/";',
+      '      const q = u.search || "";',
+      '      return `${KG_ASSET_PROXY_PREFIX}${origin}${p}${q}`;',
+      '    } catch {',
+      '      return "";',
+      '    }',
+      '  };',
       '  const shouldBypassProxy = (abs) => {',
       '    const s = String(abs || "");',
       '    if (!s) return true;',
+      '    try {',
+      '      const u = new URL(s, window.location.href);',
+      '      const p = String(u.pathname || "");',
+      '      if (p.startsWith("/__webpage_proxy")) return true;',
+      '      if (p.startsWith("/__webpage_asset_proxy")) return true;',
+      '      if (p.startsWith("/__webpage_asset_path")) return true;',
+      '      if (p.startsWith("/__repo_file")) return true;',
+      '      if (p.startsWith("/__fetch_remote")) return true;',
+      '    } catch {',
+      '      void 0;',
+      '    }',
       '    if (s.startsWith(KG_PROXY_PREFIX) || s.startsWith(KG_ASSET_PROXY_PREFIX)) return true;',
       '    if (s.startsWith("/__") || s.startsWith("/@")) return true;',
       '    return false;',
@@ -1091,6 +1383,12 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '      void 0;',
     '    }',
     '  };',
+    '  patchStorage();',
+    '  try {',
+    '    const u = new URL(KG_ORIGINAL_URL);',
+    '    const next = `${u.pathname || "/"}${u.search || ""}${u.hash || ""}`;',
+    '    history && history.replaceState && history.replaceState(null, "", next || "/");',
+    '  } catch { void 0; }',
     '  window.addEventListener("click", handleAnchorClick, true);',
       '  patchFetch();',
       '  patchXhr();',
@@ -1172,9 +1470,108 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
       '      void 0;',
       '    }',
       '  };',
+      '  const rewriteDeep = (node) => {',
+      '    try {',
+      '      if (!node || node.nodeType !== 1) return;',
+      '      rewriteElement(node);',
+      '      try {',
+      '        (node.querySelectorAll ? node.querySelectorAll("script[src],link[href],img[src],img[srcset],source[src],track[src],video[src],video[poster],audio[src],iframe[src]") : []).forEach(rewriteElement);',
+      '      } catch {',
+      '        void 0;',
+      '      }',
+      '    } catch {',
+      '      void 0;',
+      '    }',
+      '  };',
       '  const rewriteExisting = () => {',
       '    try {',
       '      document.querySelectorAll("script[src],link[href],img[src],img[srcset],source[src],track[src],video[src],video[poster],audio[src],iframe[src]").forEach(rewriteElement);',
+      '    } catch {',
+      '      void 0;',
+      '    }',
+      '  };',
+      '  const patchSetAttribute = () => {',
+      '    try {',
+      '      if (window.__KG_PATCHED_SETATTR__) return;',
+      '      Object.defineProperty(window, "__KG_PATCHED_SETATTR__", { value: true, configurable: true });',
+      '      const ep = Element && Element.prototype;',
+      '      if (!ep || typeof ep.setAttribute !== "function") return;',
+      '      const prev = ep.setAttribute;',
+      '      ep.setAttribute = function(name, value) {',
+      '        try {',
+      '          const n = String(name || "").toLowerCase();',
+      '          const v = String(value || "").trim();',
+      '          if (!n || !v) return prev.call(this, name, value);',
+      '          if (/^\\s*javascript:/i.test(v)) return prev.call(this, name, value);',
+      '          if (v.startsWith("#")) return prev.call(this, name, value);',
+      '          if (/^\\s*data:/i.test(v)) return prev.call(this, name, value);',
+      '          if (/^\\s*blob:/i.test(v)) return prev.call(this, name, value);',
+      '          if (/^\\s*mailto:/i.test(v) || /^\\s*tel:/i.test(v)) return prev.call(this, name, value);',
+      '          if (/^\\s*[a-zA-Z][a-zA-Z0-9+.-]*:/i.test(v) && !/^\\s*https?:/i.test(v)) return prev.call(this, name, value);',
+      '          if (v.startsWith("/__") || v.startsWith("/@")) return prev.call(this, name, value);',
+      '          if (n === "srcset") {',
+      '            const parts = v.split(",").map(x => x.trim()).filter(Boolean);',
+      '            const next = parts.map(p => {',
+      '              const m = p.match(/^(\\S+)(\\s+.+)?$/);',
+      '              const urlPart = m ? String(m[1] || "") : "";',
+      '              const tail = m && m[2] ? String(m[2] || "") : "";',
+      '              if (!urlPart) return p;',
+      '              if (/^\\s*javascript:/i.test(urlPart)) return `${urlPart}${tail}`;',
+      '              if (urlPart.startsWith("#")) return `${urlPart}${tail}`;',
+      '              if (/^\\s*data:/i.test(urlPart)) return `${urlPart}${tail}`;',
+      '              if (/^\\s*blob:/i.test(urlPart)) return `${urlPart}${tail}`;',
+      '              if (/^\\s*mailto:/i.test(urlPart) || /^\\s*tel:/i.test(urlPart)) return `${urlPart}${tail}`;',
+      '              if (/^\\s*[a-zA-Z][a-zA-Z0-9+.-]*:/i.test(urlPart) && !/^\\s*https?:/i.test(urlPart)) return `${urlPart}${tail}`;',
+      '              if (urlPart.startsWith("/__") || urlPart.startsWith("/@")) return `${urlPart}${tail}`;',
+      '              const abs = resolveAbs(urlPart);',
+      '              if (!abs) return `${urlPart}${tail}`;',
+      '              return `${toAssetProxy(abs)}${tail}`;',
+      '            }).join(", ");',
+      '            return prev.call(this, name, next);',
+      '          }',
+      '          if (n === "src" || n === "href" || n === "poster") {',
+      '            const tag = (this && this.tagName ? String(this.tagName) : "").toLowerCase();',
+      '            if (tag === "iframe" && n === "src") {',
+      '              try {',
+      '                const abs = resolveAbs(v);',
+      '                if (!abs) return prev.call(this, name, value);',
+      '                const o = new URL(KG_ORIGINAL_URL);',
+      '                const a = new URL(abs);',
+      '                if (o.origin !== a.origin) return prev.call(this, name, value);',
+      '                return prev.call(this, name, toProxy(abs));',
+      '              } catch {',
+      '                return prev.call(this, name, value);',
+      '              }',
+      '            }',
+      '            const abs = resolveAbs(v);',
+      '            if (!abs) return prev.call(this, name, value);',
+      '            return prev.call(this, name, toAssetProxy(abs));',
+      '          }',
+      '        } catch {',
+      '          void 0;',
+      '        }',
+      '        return prev.call(this, name, value);',
+      '      };',
+      '    } catch {',
+      '      void 0;',
+      '    }',
+      '  };',
+      '  const patchInsertions = () => {',
+      '    try {',
+      '      if (window.__KG_PATCHED_INSERTIONS__) return;',
+      '      Object.defineProperty(window, "__KG_PATCHED_INSERTIONS__", { value: true, configurable: true });',
+      '      const np = Node && Node.prototype;',
+      '      if (!np) return;',
+      '      const wrap = (fn) => function(a, b) {',
+      '        try { rewriteDeep(a); } catch { void 0; }',
+      '        try { return fn.call(this, a, b); } catch (e) { throw e; }',
+      '      };',
+      '      if (typeof np.appendChild === "function") np.appendChild = wrap(np.appendChild);',
+      '      if (typeof np.insertBefore === "function") np.insertBefore = wrap(np.insertBefore);',
+      '      if (typeof np.replaceChild === "function") np.replaceChild = function(n, o) {',
+      '        try { rewriteDeep(n); } catch { void 0; }',
+      '        return Node.prototype.replaceChild.call(this, n, o);',
+      '      };',
       '    } catch {',
       '      void 0;',
       '    }',
@@ -1185,21 +1582,19 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
       '        for (const m of mutations) {',
       '          for (const node of m.addedNodes || []) {',
       '            if (!node || node.nodeType !== 1) continue;',
-      '            rewriteElement(node);',
-      '            try {',
-      '              (node.querySelectorAll ? node.querySelectorAll("script[src],link[href],img[src],img[srcset],source[src],track[src],video[src],video[poster],audio[src],iframe[src]") : []).forEach(rewriteElement);',
-      '            } catch {',
-      '              void 0;',
-      '            }',
+      '            rewriteDeep(node);',
       '          }',
       '        }',
       '      });',
       '      mo.observe(document.documentElement, { childList: true, subtree: true });',
+      '      setTimeout(() => { try { mo.disconnect(); } catch { void 0; } }, 25_000);',
       '    } catch {',
       '      void 0;',
       '    }',
       '  };',
       '  rewriteExisting();',
+      '  patchSetAttribute();',
+      '  patchInsertions();',
       '  observeAdds();',
     '  const clamp01 = (n) => (n <= 0 ? 0 : n >= 1 ? 1 : n);',
     '  const getScrollEl = () => document.scrollingElement || document.documentElement || document.body;',
@@ -1247,7 +1642,7 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '          if (e.source !== window.parent) return;',
     '          const maxCharsRaw = typeof d.maxChars === "number" ? d.maxChars : 4000000;',
     '          const maxChars = Math.max(64000, Math.min(8000000, Math.floor(maxCharsRaw)));',
-    '          const mode = d.mode === "text" ? "text" : "html";',
+    '          const mode = d.mode === "text" ? "text" : d.mode === "layout" ? "layout" : "html";',
     '          const depth = typeof d.depth === "number" && isFinite(d.depth) ? Math.max(0, Math.min(2, Math.floor(d.depth))) : 0;',
     '          const includeChildren = mode === "text" && depth === 0 && d.includeChildren !== false;',
     '          const readText = () => {',
@@ -1257,7 +1652,7 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '              const t2 = body && typeof body.textContent === "string" ? body.textContent : "";',
     '              const a = String(t1 || "").trim();',
     '              const b = String(t2 || "").trim();',
-    '              const base = b.length > a.length ? b : a;',
+    '              const base = a || b;',
     '              let media = "";',
     '              try {',
     '                const lines = [];',
@@ -1288,45 +1683,270 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '              } catch {',
     '                void 0;',
     '              }',
-    '              let shadow = "";',
-    '              try {',
-    '                const root = body || document.documentElement;',
-    '                if (root && document.createTreeWalker) {',
-    '                  const w = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);',
-    '                  let n = 0;',
-    '                  while (w.nextNode()) {',
-    '                    n += 1;',
-    '                    if (n > 2200) break;',
-    '                    const el = w.currentNode;',
-    '                    const tag = el && el.tagName ? String(el.tagName).toLowerCase() : "";',
-    '                    if (tag === "template" && el.content && el.content.textContent) {',
-    '                      const tt = String(el.content.textContent || "").trim();',
-    '                      if (tt) shadow += "\n" + tt;',
-    '                    }',
-    '                    if (el && el.shadowRoot && el.shadowRoot.textContent) {',
-    '                      const st = String(el.shadowRoot.textContent || "").trim();',
-    '                      if (st) shadow += "\n" + st;',
-    '                    }',
-    '                    if (shadow.length > 2400000) break;',
-    '                  }',
-    '                }',
-    '              } catch {',
-    '                void 0;',
-    '              }',
-    '              const combined = (base + "\n" + shadow + "\n" + media).trim();',
+    '              const combined = (base + media).trim();',
     '              return combined.length > base.length ? combined : base;',
     '            } catch {',
     '              return "";',
     '            }',
     '          };',
-    '          const readHtml = () => { try { return document.documentElement ? document.documentElement.outerHTML : ""; } catch { return ""; } };',
-    '          const computeRaw = () => (mode === "text" ? readText() : readHtml());',
+    '          const safeStyleValue = (value) => {',
+    '            try {',
+    '              const v = String(value || "").trim();',
+    '              if (!v) return "";',
+    '              if (v.length > 240) return "";',
+    '              if (/url\\s*\\(|expression\\s*\\(|@import/i.test(v)) return "";',
+    '              if (!/^[a-zA-Z0-9\\s().,%:/_+-]+$/.test(v)) return "";',
+    '              const lower = v.toLowerCase();',
+    '              if (/javascript:|data:/.test(lower)) return "";',
+    '              return v;',
+    '            } catch {',
+    '              return "";',
+    '            }',
+    '          };',
+    '          const mergeStyle = (a, b) => {',
+    '            const x = String(a || "").trim();',
+    '            const y = String(b || "").trim();',
+    '            if (!x) return y;',
+    '            if (!y) return x;',
+    '            return `${x.replace(/;\\s*$/, "")}; ${y}`;',
+    '          };',
+    '          const buildInlineLayoutStyle = (el) => {',
+    '            try {',
+    '              if (!el || !window.getComputedStyle) return "";',
+    '              const cs = window.getComputedStyle(el);',
+    '              if (!cs) return "";',
+    '              const tag = el.tagName ? String(el.tagName).toUpperCase() : "";',
+    '              const isMedia = tag === "IMG" || tag === "VIDEO" || tag === "IFRAME" || tag === "SVG" || tag === "CANVAS";',
+    '              const display = String(cs.display || "").toLowerCase();',
+    '              const looksGrid = display === "grid" || display === "inline-grid" || String(cs.gridTemplateColumns || "").toLowerCase() !== "none" || String(cs.gridTemplateRows || "").toLowerCase() !== "none";',
+    '              const looksFlex = display === "flex" || display === "inline-flex";',
+    '              const looksTable = display.indexOf("table") === 0;',
+    '              const colCount = Number.parseInt(String(cs.columnCount || "0"), 10);',
+    '              const looksColumns = Number.isFinite(colCount) && colCount > 1;',
+    '              const gridColStart = String(cs.gridColumnStart || "").trim();',
+    '              const gridColEnd = String(cs.gridColumnEnd || "").trim();',
+    '              const gridRowStart = String(cs.gridRowStart || "").trim();',
+    '              const gridRowEnd = String(cs.gridRowEnd || "").trim();',
+    '              const looksGridItem = (gridColStart && gridColStart !== "auto") || (gridColEnd && gridColEnd !== "auto") || (gridRowStart && gridRowStart !== "auto") || (gridRowEnd && gridRowEnd !== "auto");',
+    '              if (!isMedia && !looksGrid && !looksFlex && !looksTable && !looksColumns && !looksGridItem) return "";',
+    '              const out = [];',
+    '              const push = (name, value) => {',
+    '                const v = safeStyleValue(value);',
+    '                if (!v) return;',
+    '                out.push(`${name}:${v}`);',
+    '              };',
+    '              if (display && (looksGrid || looksFlex || looksTable)) push("display", display);',
+    '              if (looksGrid) {',
+    '                push("grid-template-columns", cs.gridTemplateColumns);',
+    '                push("grid-template-rows", cs.gridTemplateRows);',
+    '                push("grid-auto-flow", cs.gridAutoFlow);',
+    '                push("grid-auto-rows", cs.gridAutoRows);',
+    '                push("grid-auto-columns", cs.gridAutoColumns);',
+    '                push("justify-items", cs.justifyItems);',
+    '                push("align-items", cs.alignItems);',
+    '                push("justify-content", cs.justifyContent);',
+    '                push("align-content", cs.alignContent);',
+    '              }',
+    '              if (looksFlex) {',
+    '                push("flex-direction", cs.flexDirection);',
+    '                push("flex-wrap", cs.flexWrap);',
+    '                push("justify-content", cs.justifyContent);',
+    '                push("align-items", cs.alignItems);',
+    '                push("align-content", cs.alignContent);',
+    '              }',
+    '              if (looksTable) {',
+    '                push("table-layout", cs.tableLayout);',
+    '                push("border-collapse", cs.borderCollapse);',
+    '                push("border-spacing", cs.borderSpacing);',
+    '              }',
+    '              if (looksColumns) {',
+    '                push("column-count", String(colCount));',
+    '                push("column-width", cs.columnWidth);',
+    '              }',
+    '              if (looksGridItem) {',
+    '                const col = `${gridColStart || "auto"} / ${gridColEnd || "auto"}`;',
+    '                const row = `${gridRowStart || "auto"} / ${gridRowEnd || "auto"}`;',
+    '                if (col !== "auto / auto") push("grid-column", col);',
+    '                if (row !== "auto / auto") push("grid-row", row);',
+    '              }',
+    '              push("gap", cs.gap);',
+    '              push("row-gap", cs.rowGap);',
+    '              push("column-gap", cs.columnGap);',
+    '              if (isMedia) {',
+    '                push("width", cs.width);',
+    '                push("height", cs.height);',
+    '                push("max-width", cs.maxWidth);',
+    '                push("max-height", cs.maxHeight);',
+    '                push("aspect-ratio", cs.aspectRatio);',
+    '              }',
+    '              const combined = out.join(";");',
+    '              return combined.length > 800 ? "" : combined;',
+    '            } catch {',
+    '              return "";',
+    '            }',
+    '          };',
+    '          const readHtml = () => {',
+    '            try {',
+    '              const root = document.documentElement;',
+    '              if (!root) return "";',
+    '              const clone = root.cloneNode(true);',
+    '              if (!clone || !clone.querySelectorAll) return root.outerHTML || "";',
+    '              const srcEls = Array.from(root.querySelectorAll("*"));',
+    '              const dstEls = Array.from(clone.querySelectorAll("*"));',
+    '              const n = Math.min(srcEls.length, dstEls.length);',
+    '              for (let i = 0; i < n; i += 1) {',
+    '                const src = srcEls[i];',
+    '                const dst = dstEls[i];',
+    '                if (!src || !dst) continue;',
+    '                const inline = buildInlineLayoutStyle(src);',
+    '                if (!inline) continue;',
+    '                const prev = dst.getAttribute && dst.getAttribute("style");',
+    '                const next = mergeStyle(prev, inline);',
+    '                if (next && dst.setAttribute) dst.setAttribute("style", next);',
+    '              }',
+    '              return clone.outerHTML || root.outerHTML || "";',
+    '            } catch {',
+    '              return document.documentElement ? document.documentElement.outerHTML : "";',
+    '            }',
+    '          };',
+    '          const readLayout = () => {',
+    '            try {',
+    '              const root = document.body || document.documentElement;',
+    '              if (!root) return "";',
+    '              const meta = {',
+    '                kind: "layout",',
+    '                title: String(document && document.title || ""),',
+    '                href: String(location && location.href || ""),',
+    '                viewport: { w: Number(window && window.innerWidth || 0) || 0, h: Number(window && window.innerHeight || 0) || 0 },',
+    '                scroll: { x: Number(window && window.scrollX || 0) || 0, y: Number(window && window.scrollY || 0) || 0, height: Number((document.scrollingElement || document.documentElement || document.body || {}).scrollHeight || 0) || 0 },',
+    '                ts: Date.now ? Date.now() : +new Date(),',
+    '              };',
+    '              const idByEl = new WeakMap();',
+    '              let seq = 0;',
+    '              const getId = (el) => {',
+    '                try {',
+    '                  if (!el) return "";',
+    '                  const existing = idByEl.get(el);',
+    '                  if (existing) return existing;',
+    '                  seq += 1;',
+    '                  const id = "e" + String(seq);',
+    '                  idByEl.set(el, id);',
+    '                  return id;',
+    '                } catch {',
+    '                  return "";',
+    '                }',
+    '              };',
+    '              const isSkippableTag = (tag) => {',
+    '                const t = String(tag || "").toUpperCase();',
+    '                return t === "SCRIPT" || t === "STYLE" || t === "NOSCRIPT" || t === "TEMPLATE" || t === "META" || t === "HEAD" || t === "LINK";',
+    '              };',
+    '              const safeText = (el) => {',
+    '                try {',
+    '                  const t = String(el && el.textContent || "").replace(/\\s+/g, " ").trim();',
+    '                  if (!t) return "";',
+    '                  if (t.length > 140) return t.slice(0, 140);',
+    '                  return t;',
+    '                } catch {',
+    '                  return "";',
+    '                }',
+    '              };',
+    '              const safeAttr = (el, name) => {',
+    '                try {',
+    '                  if (!el || !el.getAttribute) return "";',
+    '                  const v = String(el.getAttribute(name) || "").trim();',
+    '                  if (!v) return "";',
+    '                  if (v.length > 420) return v.slice(0, 420);',
+    '                  return v;',
+    '                } catch {',
+    '                  return "";',
+    '                }',
+    '              };',
+    '              const pickStyle = (cs) => {',
+    '                try {',
+    '                  if (!cs) return null;',
+    '                  const display = safeStyleValue(cs.display);',
+    '                  const position = safeStyleValue(cs.position);',
+    '                  const zIndex = safeStyleValue(cs.zIndex);',
+    '                  const backgroundColor = safeStyleValue(cs.backgroundColor);',
+    '                  const color = safeStyleValue(cs.color);',
+    '                  const borderRadius = safeStyleValue(cs.borderRadius);',
+    '                  const borderColor = safeStyleValue(cs.borderColor);',
+    '                  const borderWidth = safeStyleValue(cs.borderWidth);',
+    '                  const fontSize = safeStyleValue(cs.fontSize);',
+    '                  const fontWeight = safeStyleValue(cs.fontWeight);',
+    '                  const lineHeight = safeStyleValue(cs.lineHeight);',
+    '                  const opacity = safeStyleValue(cs.opacity);',
+    '                  const out = { display, position, zIndex, backgroundColor, color, borderRadius, borderColor, borderWidth, fontSize, fontWeight, lineHeight, opacity };',
+    '                  return out;',
+    '                } catch {',
+    '                  return null;',
+    '                }',
+    '              };',
+    '              const isVisibleBox = (cs, rect) => {',
+    '                try {',
+    '                  if (!rect) return false;',
+    '                  const w = Number(rect.width || 0);',
+    '                  const h = Number(rect.height || 0);',
+    '                  if (!(w > 2 && h > 2)) return false;',
+    '                  if (w * h < 24) return false;',
+    '                  if (!cs) return true;',
+    '                  const display = String(cs.display || "").toLowerCase();',
+    '                  if (display === "none") return false;',
+    '                  const vis = String(cs.visibility || "").toLowerCase();',
+    '                  if (vis === "hidden") return false;',
+    '                  const op = Number.parseFloat(String(cs.opacity || "1"));',
+    '                  if (Number.isFinite(op) && op <= 0.02) return false;',
+    '                  return true;',
+    '                } catch {',
+    '                  return true;',
+    '                }',
+    '              };',
+    '              const out = [];',
+    '              const els = Array.from(root.querySelectorAll ? root.querySelectorAll("*") : []);',
+    '              const limit = Math.max(200, Math.min(3500, Number.isFinite(d && d.maxElements) ? Math.floor(d.maxElements) : 1400));',
+    '              for (let i = 0; i < els.length; i += 1) {',
+    '                const el = els[i];',
+    '                if (!el || !el.tagName) continue;',
+    '                if (isSkippableTag(el.tagName)) continue;',
+    '                let rect = null;',
+    '                try { rect = el.getBoundingClientRect ? el.getBoundingClientRect() : null; } catch { rect = null; }',
+    '                let cs = null;',
+    '                try { cs = window.getComputedStyle ? window.getComputedStyle(el) : null; } catch { cs = null; }',
+    '                if (!isVisibleBox(cs, rect)) continue;',
+    '                const id = getId(el);',
+    '                if (!id) continue;',
+    '                const pid = el.parentElement ? getId(el.parentElement) : "";',
+    '                const x = (rect && Number(rect.left) || 0) + (Number(window && window.scrollX || 0) || 0);',
+    '                const y = (rect && Number(rect.top) || 0) + (Number(window && window.scrollY || 0) || 0);',
+    '                const w = rect && Number(rect.width) || 0;',
+    '                const h = rect && Number(rect.height) || 0;',
+    '                const tag = String(el.tagName || "").toUpperCase();',
+    '                const attrs = {',
+    '                  id: safeAttr(el, "id"),',
+    '                  class: safeAttr(el, "class"),',
+    '                  role: safeAttr(el, "role"),',
+    '                  href: tag === "A" ? safeAttr(el, "href") : "",',
+    '                  src: tag === "IMG" || tag === "VIDEO" || tag === "IFRAME" ? safeAttr(el, "src") : "",',
+    '                  alt: tag === "IMG" ? safeAttr(el, "alt") : "",',
+    '                };',
+    '                const text = tag === "INPUT" || tag === "TEXTAREA" ? safeAttr(el, "value") : safeText(el);',
+    '                out.push({ id, pid, tag, rect: { x, y, w, h }, text, attrs, style: pickStyle(cs) });',
+    '                if (out.length >= limit) break;',
+    '              }',
+    '              const payload = { meta, elements: out };',
+    '              const raw = JSON.stringify(payload);',
+    '              return raw.length > 6000000 ? raw.slice(0, 6000000) : raw;',
+    '            } catch {',
+    '              return "";',
+    '            }',
+    '          };',
+    '          const computeRaw = () => (mode === "text" ? readText() : mode === "layout" ? readLayout() : readHtml());',
     '          const send = (payload) => { try { window.parent && window.parent.postMessage(payload, "*"); } catch { void 0; } };',
     '          const replyNow = () => {',
     '            const raw = computeRaw();',
     '            const clipped = raw && raw.length > maxChars;',
     '            const text = clipped ? raw.slice(0, maxChars) : raw;',
-    '            send({ kind: KG_EXPORT_DOM_KIND, id: d.id, mode, title: document.title || "", clipped, text });',
+    '            send({ kind: KG_EXPORT_DOM_KIND, id: d.id, mode, title: document.title || "", clipped, text, diag: kgDiagSnapshot() });',
     '          };',
     '          const maybeCrawl = async () => {',
     '            try {',
@@ -1533,9 +2153,29 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '              void 0;',
     '            }',
     '          };',
+      '          const waitForHydration = async () => {',
+      '            try {',
+      '              const minChars = mode === "text" ? 260 : 1200;',
+      '              const maxWaitMs = 7000;',
+      '              const started = Date.now();',
+      '              let best = 0;',
+      '              let stable = 0;',
+      '              while (Date.now() - started < maxWaitMs) {',
+      '                const raw = String((mode === "text" ? readText() : readHtml()) || "");',
+      '                const n = raw.trim().length;',
+      '                if (n >= minChars) return;',
+      '                if (n > best + 20) { best = n; stable = 0; } else { stable += 1; }',
+      '                if (stable >= 12 && best > 0) return;',
+      '                await new Promise(r => setTimeout(r, 120));',
+      '              }',
+      '            } catch {',
+      '              void 0;',
+      '            }',
+      '          };',
     '          const run = async () => {',
     '            if (d && d.expandFaq) await autoExpandFaq();',
     '            if (d && d.scrollCrawl) await maybeCrawl();',
+      '            await waitForHydration();',
     '            if (!includeChildren) { replyNow(); return; }',
     '          const iframes = Array.from(document.querySelectorAll("iframe")).slice(0, 8);',
     '          if (!iframes.length) { replyNow(); return; }',
@@ -1567,7 +2207,7 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '            const combined = [base, ...childPieces].filter(Boolean).join("\n\n");',
     '            const clipped = combined && combined.length > maxChars;',
     '            const text = clipped ? combined.slice(0, maxChars) : combined;',
-    '            send({ kind: KG_EXPORT_DOM_KIND, id: d.id, mode, title: document.title || "", clipped, text });',
+    '            send({ kind: KG_EXPORT_DOM_KIND, id: d.id, mode, title: document.title || "", clipped, text, diag: kgDiagSnapshot() });',
     '          };',
     '          const tick = () => {',
     '            if (!pending.size) return finish();',
@@ -1948,7 +2588,13 @@ function createWebpageAssetProxyHandler(): import('vite').Connect.NextHandleFunc
         return null
       }
     })()
-    if (!urlParam || !/^https?:\/\//i.test(urlParam)) {
+    const normalizedUrlParam = urlParam
+      ? urlParam
+          .replace(/&amp;/g, '&')
+          .replace(/&#38;/g, '&')
+          .replace(/&#x26;/gi, '&')
+      : ''
+    if (!normalizedUrlParam || !/^https?:\/\//i.test(normalizedUrlParam)) {
       res.statusCode = 400
       res.setHeader('Content-Type', 'text/plain; charset=utf-8')
       res.end('Missing or invalid url parameter')
@@ -1985,7 +2631,7 @@ function createWebpageAssetProxyHandler(): import('vite').Connect.NextHandleFunc
       req.on('aborted', abort)
 
       timeoutId = setTimeout(() => ctrl.abort(), timeoutMs)
-      const upstream = await fetch(urlParam, {
+      const upstream = await fetch(normalizedUrlParam, {
         method: req.method,
         redirect: 'follow',
         signal: ctrl.signal,
@@ -2016,6 +2662,187 @@ function createWebpageAssetProxyHandler(): import('vite').Connect.NextHandleFunc
       const contentType = upstream.headers.get('content-type')
       if (contentType) res.setHeader('Content-Type', contentType)
 
+      if (req.method === 'HEAD') {
+        res.end()
+        finished = true
+        return
+      }
+
+      const reader = upstream.body?.getReader()
+      let buf: Buffer
+      if (!reader) {
+        const contentLengthRaw = upstream.headers.get('content-length')
+        const len = contentLengthRaw ? Number(contentLengthRaw) : NaN
+        if (Number.isFinite(len) && len > maxBytes) throw new Error('Upstream response too large')
+        buf = Buffer.from(await upstream.arrayBuffer())
+      } else {
+        const chunks: Buffer[] = []
+        let total = 0
+        while (true) {
+          if (ctrl.signal.aborted) throw new Error('aborted')
+          const { done, value } = await reader.read()
+          if (done) break
+          if (!value || value.byteLength === 0) continue
+          total += value.byteLength
+          if (total > maxBytes) {
+            try {
+              await reader.cancel()
+            } catch {
+              void 0
+            }
+            throw new Error('Upstream response too large')
+          }
+          chunks.push(Buffer.from(value))
+        }
+        buf = Buffer.concat(chunks)
+      }
+      finished = true
+      res.end(buf)
+    } catch (error) {
+      const msg =
+        error && typeof error === 'object' && 'message' in error
+          ? String((error as { message?: unknown }).message || '')
+          : 'Upstream fetch failed'
+      const message = msg || 'Upstream fetch failed'
+      if (controller?.signal.aborted || /aborted/i.test(message)) {
+        try {
+          res.statusCode = 499
+          res.end()
+        } catch {
+          void 0
+        }
+        return
+      }
+      if (/aborted/i.test(message) || /timeout/i.test(message)) {
+        res.statusCode = 504
+      } else if (/too large/i.test(message)) {
+        res.statusCode = 413
+      } else {
+        res.statusCode = 502
+      }
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.end(message)
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }
+  }
+}
+
+function createWebpageAssetPathProxyHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', '*')
+      res.setHeader('Access-Control-Max-Age', '86400')
+      res.end()
+      return
+    }
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      next()
+      return
+    }
+
+    const parsed = (() => {
+      try {
+        return new URL(req.url || '', `http://${req.headers.host}`)
+      } catch {
+        return null
+      }
+    })()
+    if (!parsed) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.end('Missing or invalid url')
+      return
+    }
+
+    const prefix = '/__webpage_asset_path/'
+    const pathname = String(parsed.pathname || '')
+    const rest = (pathname.startsWith(prefix) ? pathname.slice(prefix.length) : pathname).replace(/^\/+/, '')
+    const slash = rest.indexOf('/')
+    const originEnc = slash >= 0 ? rest.slice(0, slash) : rest
+    const upstreamPath = slash >= 0 ? `/${rest.slice(slash + 1)}` : '/'
+    const origin = (() => {
+      try {
+        return decodeURIComponent(originEnc)
+      } catch {
+        return ''
+      }
+    })()
+
+    if (!origin || !/^https?:\/\//i.test(origin)) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.end('Missing or invalid origin')
+      return
+    }
+
+    const upstreamUrl = `${origin}${upstreamPath}${parsed.search || ''}`
+
+    let controller: AbortController | null = null
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    try {
+      const timeoutMs = (() => {
+        const raw = String(process.env.KNOWGRPH_WEBPAGE_ASSET_PROXY_TIMEOUT_MS || '').trim()
+        const parsedN = raw ? Number(raw) : NaN
+        if (!Number.isFinite(parsedN)) return 30_000
+        return Math.max(1_000, Math.min(120_000, Math.floor(parsedN)))
+      })()
+      const maxBytes = (() => {
+        const raw = String(process.env.KNOWGRPH_WEBPAGE_ASSET_PROXY_MAX_BYTES || '').trim()
+        const parsedN = raw ? Number(raw) : NaN
+        if (!Number.isFinite(parsedN)) return 25 * 1024 * 1024
+        return Math.max(64 * 1024, Math.min(100 * 1024 * 1024, Math.floor(parsedN)))
+      })()
+
+      const ctrl = new AbortController()
+      controller = ctrl
+      let finished = false
+      const abort = () => {
+        if (finished) return
+        try {
+          ctrl.abort()
+        } catch {
+          void 0
+        }
+      }
+      req.on('aborted', abort)
+
+      timeoutId = setTimeout(() => ctrl.abort(), timeoutMs)
+      const upstream = await fetch(upstreamUrl, {
+        method: req.method,
+        redirect: 'follow',
+        signal: ctrl.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: '*/*',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      })
+
+      if (ctrl.signal.aborted) {
+        finished = true
+        if (!res.writableEnded) {
+          try {
+            res.statusCode = 499
+            res.end()
+          } catch {
+            void 0
+          }
+        }
+        return
+      }
+
+      res.statusCode = upstream.status
+      res.setHeader('Cache-Control', 'public, max-age=300')
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+      const contentType = upstream.headers.get('content-type')
+      if (contentType) res.setHeader('Content-Type', contentType)
       if (req.method === 'HEAD') {
         res.end()
         finished = true
