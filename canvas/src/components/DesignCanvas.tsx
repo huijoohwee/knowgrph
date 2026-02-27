@@ -29,7 +29,10 @@ import type { WebpageFrontmatterMeta, WebpageFidelityLevel } from '@/lib/markdow
 import { createProgressTicker } from '@/lib/progress/progressTicker'
 import type { WebpageDomProbeResult } from '@/lib/websites/webpageDomExport'
 
-import type { GraphData, GraphNode } from '@/lib/graph/types'
+import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import { estimateLabelCharWidthPx, estimateMaxCharsForWidthPx, truncateTextWithEllipsis, wrapTextByMaxChars } from '@/lib/ui/text/labelText'
+import { relaxAabbLabels, type AabbLabelParticle } from '@/lib/ui/labels/relaxAabbLabels'
+import { readDesignWireframeSettings } from '@/lib/render/designWireframeSettings'
 
 type FrameNode = {
   id: string
@@ -519,7 +522,8 @@ export default function DesignCanvas({
         const tag = typeof props['dom:tag'] === 'string' ? String(props['dom:tag'] || '').trim() : ''
         const id = String(n.id || '').trim()
         if (!id) continue
-        const label = String(n.label || n.id || '').trim() || id
+        const visualLabel = typeof props['visual:label'] === 'string' ? String(props['visual:label'] || '').trim() : ''
+        const label = visualLabel || String(n.label || n.id || '').trim() || id
         out.push({ id, label, ...(tag ? { type: tag } : {}) })
       }
       return out
@@ -995,6 +999,8 @@ export default function DesignCanvas({
         kind?: string
         zIndex?: number
         boxShadow?: string
+        position?: string
+        tag?: string
       }
     >()
     for (let i = 0; i < webpageLayoutGraphData.nodes.length; i += 1) {
@@ -1006,6 +1012,8 @@ export default function DesignCanvas({
       const borderRadius = typeof props['visual:borderRadius'] === 'number' ? (props['visual:borderRadius'] as number) : undefined
       const opacity = typeof props['visual:opacity'] === 'number' ? (props['visual:opacity'] as number) : undefined
       const kind = typeof props['dom:kind'] === 'string' ? String(props['dom:kind'] || '').trim() : ''
+      const tag = typeof props['dom:tag'] === 'string' ? String(props['dom:tag'] || '').trim() : ''
+      const position = typeof props['css:position'] === 'string' ? String(props['css:position'] || '').trim() : ''
       const zIndex = (() => {
         const raw = typeof props['css:zIndex'] === 'string' ? String(props['css:zIndex'] || '').trim() : ''
         if (!raw || raw === 'auto') return 0
@@ -1024,6 +1032,8 @@ export default function DesignCanvas({
         ...(kind ? { kind } : {}),
         ...(Number.isFinite(zIndex) ? { zIndex } : {}),
         ...(boxShadow ? { boxShadow } : {}),
+        ...(position ? { position } : {}),
+        ...(tag ? { tag } : {}),
       })
     }
     return map
@@ -1043,8 +1053,18 @@ export default function DesignCanvas({
     nodes.sort((a, b) => {
       const sa = styleById.get(a.id)
       const sb = styleById.get(b.id)
-      const za = sa?.zIndex ?? 0
-      const zb = sb?.zIndex ?? 0
+      const boost = (s: { position?: string; tag?: string; kind?: string } | null | undefined) => {
+        const pos = String(s?.position || '').toLowerCase()
+        const tag = String(s?.tag || '').toUpperCase()
+        const kind = String(s?.kind || '')
+        let v = 0
+        if (pos === 'fixed' || pos === 'sticky') v += 1000
+        if (tag === 'HEADER' || tag === 'NAV') v += 220
+        if (kind === 'interactive') v += 120
+        return v
+      }
+      const za = (sa?.zIndex ?? 0) + boost(sa)
+      const zb = (sb?.zIndex ?? 0) + boost(sb)
       if (za !== zb) return za - zb
       const ka = kindRank(sa?.kind || '')
       const kb = kindRank(sb?.kind || '')
@@ -1058,6 +1078,432 @@ export default function DesignCanvas({
     })
     return nodes
   }, [positions, styleById, visibleNodes])
+
+  const domDepthById = useMemo(() => {
+    const out = new Map<string, number>()
+    if (!webpageGraphNodesById) return out
+    const ids = visibleNodes.map(n => String(n.id || '').trim()).filter(Boolean)
+    const compute = (id: string): number => {
+      if (!id) return 0
+      if (out.has(id)) return out.get(id)!
+      const seen = new Set<string>()
+      let cur = id
+      let d = 0
+      while (d < 12) {
+        if (seen.has(cur)) break
+        seen.add(cur)
+        const node = webpageGraphNodesById[cur]
+        const pid = String((node?.metadata as unknown as { domParentId?: unknown })?.domParentId || '').trim()
+        if (!pid) break
+        d += 1
+        cur = pid
+      }
+      out.set(id, d)
+      return d
+    }
+    for (let i = 0; i < ids.length; i += 1) compute(ids[i]!)
+    return out
+  }, [visibleNodes, webpageGraphNodesById])
+
+  const wireframeSettings = useMemo(() => readDesignWireframeSettings(snapshot.schema), [snapshot.schema])
+
+  const labelLayoutById = useMemo(() => {
+    type Chip = {
+      boxX: number
+      boxY: number
+      boxW: number
+      boxH: number
+      textX: number
+      textY: number
+      textAnchor: 'start' | 'middle' | 'end'
+      text: string
+      fontSize: number
+      fontWeight?: number
+      fill: string
+      bgFill: string
+      bgOpacity: number
+      stroke: string
+      strokeOpacity: number
+    }
+    type Layout = { label?: Chip; meta?: Chip }
+
+    const map = new Map<string, Layout>()
+    if (!styleById) return map
+    if (!wireframeSettings.showLabelChips && !wireframeSettings.showMetaChips) return map
+    const rectIntersects = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) => {
+      const ax1 = a.x + a.w
+      const ay1 = a.y + a.h
+      const bx1 = b.x + b.w
+      const by1 = b.y + b.h
+      return a.x < bx1 && ax1 > b.x && a.y < by1 && ay1 > b.y
+    }
+    const rectIntersectionArea = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) => {
+      const ix0 = Math.max(a.x, b.x)
+      const iy0 = Math.max(a.y, b.y)
+      const ix1 = Math.min(a.x + a.w, b.x + b.w)
+      const iy1 = Math.min(a.y + a.h, b.y + b.h)
+      const iw = Math.max(0, ix1 - ix0)
+      const ih = Math.max(0, iy1 - iy0)
+      return iw > 0 && ih > 0 ? iw * ih : 0
+    }
+
+    const cell = 180
+    const cellKey = (x: number, y: number) => `${Math.floor(x / cell)}:${Math.floor(y / cell)}`
+    const neighbors = (x: number, y: number) => {
+      const gx = Math.floor(x / cell)
+      const gy = Math.floor(y / cell)
+      const out: string[] = []
+      for (let dx = -1; dx <= 1; dx += 1) for (let dy = -1; dy <= 1; dy += 1) out.push(`${gx + dx}:${gy + dy}`)
+      return out
+    }
+    const labelRectsByCell = new Map<string, Array<{ x: number; y: number; w: number; h: number }>>()
+    const frameRectsByCell = new Map<string, Array<{ x: number; y: number; w: number; h: number; area: number }>>()
+    const canPlaceLabel = (r: { x: number; y: number; w: number; h: number }) => {
+      const keys = neighbors(r.x, r.y)
+      for (let i = 0; i < keys.length; i += 1) {
+        const list = labelRectsByCell.get(keys[i]!)
+        if (!list) continue
+        for (let j = 0; j < list.length; j += 1) {
+          if (rectIntersects(r, list[j]!)) return false
+        }
+      }
+      return true
+    }
+    const addLabelRect = (r: { x: number; y: number; w: number; h: number }) => {
+      const k = cellKey(r.x, r.y)
+      const list = labelRectsByCell.get(k)
+      if (list) list.push(r)
+      else labelRectsByCell.set(k, [r])
+    }
+    const addFrameRect = (r: { x: number; y: number; w: number; h: number; area: number }) => {
+      const k = cellKey(r.x, r.y)
+      const list = frameRectsByCell.get(k)
+      if (list) list.push(r)
+      else frameRectsByCell.set(k, [r])
+    }
+    const isMostlyOccluded = (r: { x: number; y: number; w: number; h: number; area: number }) => {
+      if (!(r.area > 0)) return false
+      const keys = neighbors(r.x, r.y)
+      for (let i = 0; i < keys.length; i += 1) {
+        const list = frameRectsByCell.get(keys[i]!)
+        if (!list) continue
+        for (let j = 0; j < list.length; j += 1) {
+          const other = list[j]!
+          const inter = rectIntersectionArea(r, other)
+          if (inter <= 0) continue
+          const ratio = inter / r.area
+          if (ratio >= 0.72) return true
+        }
+      }
+      return false
+    }
+
+    const zKey = (s: { zIndex?: number; position?: string; kind?: string; tag?: string } | null | undefined) => {
+      const z = s?.zIndex ?? 0
+      const pos = String(s?.position || '').toLowerCase()
+      const tag = String(s?.tag || '').toUpperCase()
+      let boost = 0
+      if (pos === 'fixed' || pos === 'sticky') boost += 1000
+      if (tag === 'HEADER' || tag === 'NAV') boost += 220
+      if (tag === 'FOOTER') boost += 80
+      const kind = String(s?.kind || '')
+      if (kind === 'interactive') boost += 120
+      if (kind === 'media') boost += 60
+      return z + boost
+    }
+
+    const ordered = renderNodes
+      .slice()
+      .map(n => {
+        const p = positions[n.id]
+        const s = styleById.get(n.id) || null
+        const area = p ? p.w * p.h : 0
+        return { id: n.id, label: n.label, meta: n.type || n.id, p, s, area, z: zKey(s) }
+      })
+      .filter(v => !!v.p && v.area > 0)
+    ordered.sort((a, b) => b.z - a.z || b.area - a.area || a.id.localeCompare(b.id))
+
+    const importantTag = (tag: string) => {
+      const t = String(tag || '').toUpperCase()
+      return t === 'HEADER' || t === 'NAV' || t === 'MAIN' || t === 'FOOTER' || t === 'SECTION'
+    }
+
+    const selectedSet = (() => {
+      const ids = Array.isArray(snapshot.selectedNodeIds) ? snapshot.selectedNodeIds : []
+      const out = new Set<string>()
+      for (let i = 0; i < ids.length; i += 1) {
+        const id = String(ids[i] || '').trim()
+        if (!id) continue
+        if (!positions[id]) continue
+        out.add(id)
+      }
+      return out
+    })()
+
+    const placed: Array<{
+      particleId: string
+      nodeId: string
+      kind: 'label' | 'meta'
+      z: number
+      important: boolean
+      p: { x: number; y: number; w: number; h: number }
+    }> = []
+
+    for (let i = 0; i < ordered.length; i += 1) {
+      const n = ordered[i]!
+      const p = n.p!
+      const s = n.s
+      const kind = String(s?.kind || '')
+      const tag = String(s?.tag || '')
+      const selected = selectedSet.has(n.id)
+      const important = selected || kind === 'interactive' || kind === 'media' || importantTag(tag)
+
+      const frameRect = { x: p.x, y: p.y, w: p.w, h: p.h, area: n.area }
+      if (!important && isMostlyOccluded(frameRect)) {
+        addFrameRect(frameRect)
+        continue
+      }
+
+      const maxLabelW = Math.max(0, Math.min(420, p.w - 24))
+      const maxMetaW = Math.max(0, Math.min(320, p.w - 24))
+
+      const showLabel =
+        wireframeSettings.showLabelChips &&
+        (important ||
+          (!denseRender && p.w >= 84 && p.h >= 26 && n.area >= 1200) ||
+          (denseRender && p.w >= 140 && p.h >= 34 && n.area >= 24_000 && kind !== 'element'))
+      const showMeta = wireframeSettings.showMetaChips && important && !denseRender && p.w >= 140 && p.h >= 26
+
+      const layout: Layout = {}
+      if (showLabel && maxLabelW >= 48) {
+        const fontSize = 12
+        const boxH = 18
+        const padX = 8
+        const maxChars = Math.min(wireframeSettings.maxLabelChars, estimateMaxCharsForWidthPx(Math.max(0, maxLabelW - 18), fontSize))
+        const text = truncateTextWithEllipsis(n.label, maxChars)
+        const charW = estimateLabelCharWidthPx(fontSize)
+        const rawW = Math.max(48, Math.min(maxLabelW, text.length * charW + 18))
+        const boxW = rawW
+        const candidates: Array<{ boxX: number; boxY: number; textX: number; textY: number; textAnchor: 'start' | 'end' }> = [
+          { boxX: 10, boxY: 8, textX: 10 + padX, textY: 8 + 13, textAnchor: 'start' },
+          { boxX: Math.max(10, p.w - 10 - boxW), boxY: 8, textX: p.w - 10 - padX, textY: 8 + 13, textAnchor: 'end' },
+          { boxX: 10, boxY: Math.max(6, p.h - 8 - boxH), textX: 10 + padX, textY: Math.max(6, p.h - 8 - boxH) + 13, textAnchor: 'start' },
+          {
+            boxX: Math.max(10, p.w - 10 - boxW),
+            boxY: Math.max(6, p.h - 8 - boxH),
+            textX: p.w - 10 - padX,
+            textY: Math.max(6, p.h - 8 - boxH) + 13,
+            textAnchor: 'end',
+          },
+        ]
+        if (!wireframeSettings.avoidLabelCollisions) {
+          const cand = candidates[0]!
+          layout.label = {
+            boxX: cand.boxX,
+            boxY: cand.boxY,
+            boxW,
+            boxH,
+            textX: cand.textX,
+            textY: cand.textY,
+            textAnchor: cand.textAnchor,
+            text,
+            fontSize,
+            fontWeight: 600,
+            fill: 'var(--kg-text-primary)',
+            bgFill: 'var(--kg-panel-bg)',
+            bgOpacity: 0.92,
+            stroke: 'var(--kg-border)',
+            strokeOpacity: 0.7,
+          }
+        } else {
+          for (let c = 0; c < candidates.length; c += 1) {
+            const cand = candidates[c]!
+            const worldRect = { x: p.x + cand.boxX, y: p.y + cand.boxY, w: boxW, h: boxH }
+            if (!canPlaceLabel(worldRect)) continue
+            addLabelRect(worldRect)
+            layout.label = {
+              boxX: cand.boxX,
+              boxY: cand.boxY,
+              boxW,
+              boxH,
+              textX: cand.textX,
+              textY: cand.textY,
+              textAnchor: cand.textAnchor,
+              text,
+              fontSize,
+              fontWeight: 600,
+              fill: 'var(--kg-text-primary)',
+              bgFill: 'var(--kg-panel-bg)',
+              bgOpacity: 0.92,
+              stroke: 'var(--kg-border)',
+              strokeOpacity: 0.7,
+            }
+            break
+          }
+        }
+      }
+
+      if (showMeta && maxMetaW >= 48) {
+        const fontSize = 10
+        const boxH = 16
+        const padX = 7
+        const maxChars = Math.min(wireframeSettings.maxLabelChars, estimateMaxCharsForWidthPx(Math.max(0, maxMetaW - 18), fontSize))
+        const metaText = truncateTextWithEllipsis(n.meta, maxChars)
+        const charW = estimateLabelCharWidthPx(fontSize)
+        const rawW = Math.max(44, Math.min(maxMetaW, metaText.length * charW + 18))
+        const boxW = rawW
+        const candidates: Array<{ boxX: number; boxY: number; textX: number; textY: number; textAnchor: 'start' | 'end' }> = [
+          { boxX: Math.max(10, p.w - 10 - boxW), boxY: 8, textX: p.w - 10 - padX, textY: 8 + 12, textAnchor: 'end' },
+          { boxX: 10, boxY: 8, textX: 10 + padX, textY: 8 + 12, textAnchor: 'start' },
+          { boxX: Math.max(10, p.w - 10 - boxW), boxY: Math.max(6, p.h - 8 - boxH), textX: p.w - 10 - padX, textY: Math.max(6, p.h - 8 - boxH) + 12, textAnchor: 'end' },
+        ]
+        if (!wireframeSettings.avoidLabelCollisions) {
+          const cand = candidates[0]!
+          layout.meta = {
+            boxX: cand.boxX,
+            boxY: cand.boxY,
+            boxW,
+            boxH,
+            textX: cand.textX,
+            textY: cand.textY,
+            textAnchor: cand.textAnchor,
+            text: metaText,
+            fontSize,
+            fill: 'var(--kg-text-tertiary)',
+            bgFill: 'var(--kg-panel-bg)',
+            bgOpacity: 0.9,
+            stroke: 'var(--kg-border)',
+            strokeOpacity: 0.6,
+          }
+        } else {
+          for (let c = 0; c < candidates.length; c += 1) {
+            const cand = candidates[c]!
+            const worldRect = { x: p.x + cand.boxX, y: p.y + cand.boxY, w: boxW, h: boxH }
+            if (!canPlaceLabel(worldRect)) continue
+            addLabelRect(worldRect)
+            layout.meta = {
+              boxX: cand.boxX,
+              boxY: cand.boxY,
+              boxW,
+              boxH,
+              textX: cand.textX,
+              textY: cand.textY,
+              textAnchor: cand.textAnchor,
+              text: metaText,
+              fontSize,
+              fill: 'var(--kg-text-tertiary)',
+              bgFill: 'var(--kg-panel-bg)',
+              bgOpacity: 0.9,
+              stroke: 'var(--kg-border)',
+              strokeOpacity: 0.6,
+            }
+            break
+          }
+        }
+      }
+
+      if (layout.label || layout.meta) {
+        map.set(n.id, layout)
+        if (layout.label) placed.push({ particleId: `${n.id}:label`, nodeId: n.id, kind: 'label', z: n.z, important, p })
+        if (layout.meta) placed.push({ particleId: `${n.id}:meta`, nodeId: n.id, kind: 'meta', z: n.z, important, p })
+      }
+      addFrameRect(frameRect)
+    }
+
+    if (wireframeSettings.avoidLabelCollisions && placed.length >= 2) {
+      const particles: AabbLabelParticle[] = []
+      const byParticleId = new Map<string, { nodeId: string; kind: 'label' | 'meta'; p: { x: number; y: number; w: number; h: number } }>()
+      for (let i = 0; i < placed.length; i += 1) {
+        const pl = placed[i]!
+        const layout = map.get(pl.nodeId)
+        if (!layout) continue
+        const chip = pl.kind === 'label' ? layout.label : layout.meta
+        if (!chip) continue
+        const cx = pl.p.x + chip.boxX + chip.boxW / 2
+        const cy = pl.p.y + chip.boxY + chip.boxH / 2
+        const dxClamp = Math.max(18, Math.min(120, Math.floor(pl.p.w * 0.22)))
+        const dyClamp = Math.max(14, Math.min(90, Math.floor(pl.p.h * 0.18)))
+        const weight = (pl.important ? 2.2 : 1) + Math.max(0, Math.min(2, pl.z / 1200))
+        particles.push({
+          id: pl.particleId,
+          baseX: cx,
+          baseY: cy,
+          x: cx,
+          y: cy,
+          vx: 0,
+          vy: 0,
+          halfW: chip.boxW / 2,
+          halfH: chip.boxH / 2,
+          dxClamp,
+          dyClamp,
+          weight,
+        })
+        byParticleId.set(pl.particleId, { nodeId: pl.nodeId, kind: pl.kind, p: pl.p })
+      }
+      relaxAabbLabels({ particles, steps: 16, maxOps: 32_000 })
+      for (let i = 0; i < particles.length; i += 1) {
+        const particle = particles[i]!
+        const ref = byParticleId.get(particle.id)
+        if (!ref) continue
+        const layout = map.get(ref.nodeId)
+        if (!layout) continue
+        const chip = ref.kind === 'label' ? layout.label : layout.meta
+        if (!chip) continue
+        const base = ref.p
+        const worldX0 = particle.x - chip.boxW / 2
+        const worldY0 = particle.y - chip.boxH / 2
+        const localX0 = worldX0 - base.x
+        const localY0 = worldY0 - base.y
+        const minX = 6
+        const minY = 6
+        const maxX = Math.max(minX, base.w - 6 - chip.boxW)
+        const maxY = Math.max(minY, base.h - 6 - chip.boxH)
+        const boxX = Math.max(minX, Math.min(maxX, localX0))
+        const boxY = Math.max(minY, Math.min(maxY, localY0))
+        const isLabel = ref.kind === 'label'
+        const padX = isLabel ? 8 : 7
+        const textX = chip.textAnchor === 'end' ? boxX + chip.boxW - padX : boxX + padX
+        const textY = boxY + (isLabel ? 13 : 12)
+        if (ref.kind === 'label') layout.label = { ...chip, boxX, boxY, textX, textY }
+        else layout.meta = { ...chip, boxX, boxY, textX, textY }
+        map.set(ref.nodeId, layout)
+      }
+    }
+
+    return map
+  }, [denseRender, positions, renderNodes, snapshot.selectedNodeIds, styleById, wireframeSettings.avoidLabelCollisions, wireframeSettings.maxLabelChars, wireframeSettings.showLabelChips, wireframeSettings.showMetaChips])
+
+  const wireframeEdges = useMemo(() => {
+    if (!styleById) return [] as Array<{ id: string; x1: number; y1: number; x2: number; y2: number; opacity: number }>
+    if (!wireframeSettings.showEdges) return [] as Array<{ id: string; x1: number; y1: number; x2: number; y2: number; opacity: number }>
+    const edges = Array.isArray(webpageLayoutGraphData?.edges) ? (webpageLayoutGraphData!.edges as unknown as GraphEdge[]) : []
+    if (edges.length === 0) return []
+    const out: Array<{ id: string; x1: number; y1: number; x2: number; y2: number; opacity: number }> = []
+    const maxEdges = Math.max(0, Math.min(5000, Math.floor(wireframeSettings.maxEdges)))
+    for (let i = 0; i < edges.length; i += 1) {
+      if (maxEdges > 0 && out.length >= maxEdges) break
+      const e = edges[i]
+      const id = String(e?.id || '').trim() || `e:${i}`
+      const src = String((e as unknown as { source?: unknown }).source || '').trim()
+      const tgt = String((e as unknown as { target?: unknown }).target || '').trim()
+      if (!src || !tgt) continue
+      const ps = positions[src]
+      const pt = positions[tgt]
+      if (!ps || !pt) continue
+      const depth = domDepthById.get(tgt) ?? 0
+      if (depth > 5 && !(snapshot.selectedNodeId === tgt || snapshot.selectedNodeId === src)) continue
+      const ks = styleById.get(src)?.kind || ''
+      const kt = styleById.get(tgt)?.kind || ''
+      if (ks === 'element' && kt === 'element' && depth > 2) continue
+      const x1 = ps.x + ps.w / 2
+      const y1 = ps.y + ps.h / 2
+      const x2 = pt.x + pt.w / 2
+      const y2 = pt.y + pt.h / 2
+      const opacity = Math.max(0.06, Math.min(0.42, 0.28 / (1 + depth * 0.55)))
+      out.push({ id, x1, y1, x2, y2, opacity })
+    }
+    return out
+  }, [domDepthById, positions, snapshot.selectedNodeId, styleById, webpageLayoutGraphData?.edges, wireframeSettings.maxEdges, wireframeSettings.showEdges])
 
   const selectedIds = useMemo(() => {
     const ids = Array.isArray(snapshot.selectedNodeIds) ? snapshot.selectedNodeIds : []
@@ -1407,12 +1853,30 @@ export default function DesignCanvas({
             />
           ) : null}
 
+          {styleById && wireframeEdges.length > 0 ? (
+            <g data-kg-layer="wireframe-edges" style={{ pointerEvents: 'none' }}>
+              {wireframeEdges.map(e => (
+                <line
+                  key={e.id}
+                  x1={e.x1}
+                  y1={e.y1}
+                  x2={e.x2}
+                  y2={e.y2}
+                  stroke="var(--kg-border)"
+                  strokeWidth={1}
+                  opacity={e.opacity}
+                />
+              ))}
+            </g>
+          ) : null}
+
           {renderNodes.map(n => {
             const p = positions[n.id]
             if (!p) return null
             const selected = snapshot.selectedNodeId === n.id
             const style = styleById ? styleById.get(n.id) || null : null
             const kind = style?.kind || ''
+            const depth = wireframeSettings.depthFade ? (domDepthById.get(n.id) ?? 0) : 0
             const fill = (() => {
               if (!styleById) return 'var(--kg-panel-bg)'
               if (style?.fill) return style.fill
@@ -1421,15 +1885,21 @@ export default function DesignCanvas({
             })()
             const stroke = selected ? 'var(--kg-canvas-accent)' : style?.stroke || 'var(--kg-border)'
             const strokeWidth = selected ? 2 : (style?.strokeWidth ?? (kind === 'interactive' ? 2 : 1))
-            const strokeDasharray = !selected && kind === 'container' ? '6 4' : undefined
+            const strokeDasharray = !selected && kind === 'container' ? (depth <= 1 ? '8 4' : '6 4') : undefined
             const rx = typeof style?.borderRadius === 'number' && Number.isFinite(style.borderRadius) ? style.borderRadius : 8
             const rectOpacity = (() => {
               const baseOpacity = typeof style?.opacity === 'number' && Number.isFinite(style.opacity) ? style.opacity : 1
               if (!styleById) return baseOpacity
               if (style?.fill) return baseOpacity
-              if (kind === 'container') return baseOpacity * 0.18
-              if (kind === 'interactive') return baseOpacity * 0.22
+              if (kind === 'container') return baseOpacity * (0.26 / (1 + depth * 0.55))
+              if (kind === 'interactive') return baseOpacity * (0.28 / (1 + depth * 0.35))
               return baseOpacity
+            })()
+            const strokeOpacity = (() => {
+              if (!styleById) return 1
+              if (selected) return 1
+              const base = kind === 'container' ? 0.55 : kind === 'interactive' ? 0.75 : kind === 'media' ? 0.65 : 0.22
+              return Math.max(0.08, base / (1 + depth * 0.35))
             })()
             const showDecor = !styleById && !denseRender
             const hasShadow = !!(styleById && style?.boxShadow && style.boxShadow !== 'none')
@@ -1690,6 +2160,7 @@ export default function DesignCanvas({
                   fill={fill}
                   fillOpacity={rectOpacity}
                   stroke={stroke}
+                  strokeOpacity={strokeOpacity}
                   strokeWidth={strokeWidth}
                   strokeDasharray={strokeDasharray}
                   filter={filter}
@@ -1701,17 +2172,158 @@ export default function DesignCanvas({
                     opacity={0.5}
                   />
                 ) : null}
+                {styleById ? (() => {
+                  if (denseRender && !selected) return null
+                  if (!wireframeSettings.showTextPreview && !wireframeSettings.showMediaPreview) return null
+                  const base = webpageGraphNodesById ? webpageGraphNodesById[n.id] : null
+                  const props = (base?.properties || {}) as Record<string, unknown>
+                  const domText = typeof props['dom:text'] === 'string' ? String(props['dom:text'] || '').trim() : ''
+                  const tag = typeof props['dom:tag'] === 'string' ? String(props['dom:tag'] || '').trim().toUpperCase() : ''
+                  const src = typeof props['dom:attrs:src'] === 'string' ? String(props['dom:attrs:src'] || '').trim() : ''
+                  const alt = typeof props['dom:attrs:alt'] === 'string' ? String(props['dom:attrs:alt'] || '').trim() : ''
+                  const href = typeof props['dom:attrs:href'] === 'string' ? String(props['dom:attrs:href'] || '').trim() : ''
+                  const kind0 = typeof props['dom:kind'] === 'string' ? String(props['dom:kind'] || '').trim() : ''
+                  const kind = style?.kind || kind0
 
-                <text
-                  x={12}
-                  y={22}
-                  fill="var(--kg-text-primary)"
-                  fontSize={12}
-                  fontWeight={600}
-                  style={{ pointerEvents: 'none' }}
-                >
-                  {n.label}
-                </text>
+                  const padX = 14
+                  const topY = 44
+                  const maxW = Math.max(0, p.w - padX * 2)
+                  const maxH = Math.max(0, p.h - topY - 12)
+                  if (maxW < 90 || maxH < 18) return null
+
+                  const isMedia = kind === 'media' || tag === 'IMG' || tag === 'VIDEO' || tag === 'IFRAME' || tag === 'CANVAS' || tag === 'SVG'
+                  if (isMedia) {
+                    if (!wireframeSettings.showMediaPreview) return null
+                    const title = (() => {
+                      if (tag === 'IMG') return alt || (src ? src.split('/').slice(-1)[0] || 'IMG' : 'IMG')
+                      if (tag === 'IFRAME') return 'IFRAME'
+                      if (tag === 'VIDEO') return 'VIDEO'
+                      if (tag === 'CANVAS') return 'CANVAS'
+                      if (tag === 'SVG') return 'SVG'
+                      return tag || 'MEDIA'
+                    })()
+                    const innerX = padX
+                    const innerY = topY
+                    const innerW = Math.max(1, p.w - padX * 2)
+                    const innerH = Math.max(1, p.h - topY - 12)
+                    const chipH = 18
+                    const titleMaxChars = estimateMaxCharsForWidthPx(Math.max(0, innerW - 20), 10)
+                    const titleChip = truncateTextWithEllipsis(title, Math.max(8, Math.min(64, titleMaxChars)))
+                    return (
+                      <g style={{ pointerEvents: 'none' }}>
+                        <rect
+                          x={innerX}
+                          y={innerY}
+                          width={innerW}
+                          height={innerH}
+                          rx={6}
+                          fill="rgba(0,0,0,0)"
+                          stroke="var(--kg-border)"
+                          strokeWidth={1}
+                          strokeDasharray="5 4"
+                          opacity={0.9}
+                        />
+                        <rect
+                          x={innerX}
+                          y={innerY}
+                          width={Math.min(innerW, Math.max(64, (title.length + 6) * 6))}
+                          height={chipH}
+                          rx={5}
+                          fill="var(--kg-panel-bg)"
+                          opacity={0.92}
+                          stroke="var(--kg-border)"
+                          strokeWidth={1}
+                          strokeOpacity={0.7}
+                        />
+                        <text x={innerX + 10} y={innerY + 13} fill="var(--kg-text-tertiary)" fontSize={10} fontWeight={600}>
+                          {titleChip}
+                        </text>
+                        {tag === 'VIDEO' || tag === 'IFRAME' ? (
+                          <path
+                            d={`M ${innerX + innerW / 2 - 10} ${innerY + innerH / 2 - 12} L ${innerX + innerW / 2 - 10} ${innerY + innerH / 2 + 12} L ${innerX + innerW / 2 + 14} ${innerY + innerH / 2} Z`}
+                            fill="var(--kg-text-tertiary)"
+                            opacity={0.35}
+                          />
+                        ) : null}
+                      </g>
+                    )
+                  }
+
+                  const isTextish =
+                    !!domText &&
+                    (kind === 'element' ||
+                      tag === 'P' ||
+                      tag === 'SPAN' ||
+                      tag === 'H1' ||
+                      tag === 'H2' ||
+                      tag === 'H3' ||
+                      tag === 'H4' ||
+                      tag === 'H5' ||
+                      tag === 'H6' ||
+                      tag === 'LI' ||
+                      tag === 'A' ||
+                      tag === 'BUTTON' ||
+                      tag === 'LABEL')
+                  if (!isTextish) return null
+                  if (!wireframeSettings.showTextPreview) return null
+
+                  const isHeading = tag === 'H1' || tag === 'H2' || tag === 'H3' || tag === 'H4' || tag === 'H5' || tag === 'H6'
+                  const isCta = tag === 'A' || tag === 'BUTTON'
+                  const depth = domDepthById.get(n.id) ?? 0
+                  if (!selected && !isHeading && !isCta) {
+                    if (depth >= 4) return null
+                    if (p.w < 180 || p.h < 60) return null
+                  }
+
+                  const title = (() => {
+                    if (tag === 'A') return href ? `Link: ${href}` : 'Link'
+                    if (tag === 'BUTTON') return 'Button'
+                    return ''
+                  })()
+                  const fontSize = tag === 'H1' || tag === 'H2' || tag === 'H3' ? 12 : 11
+                  const lineH = fontSize + 4
+                  const maxLinesFit = Math.max(1, Math.floor(maxH / lineH))
+                  const maxLinesWanted = Math.max(1, Math.min(selected ? 4 : 2, maxLinesFit))
+                  const maxCharsPerLine = Math.max(6, estimateMaxCharsForWidthPx(Math.max(0, maxW), fontSize))
+                  const wrapped = wrapTextByMaxChars(domText, maxCharsPerLine)
+                  const all = wrapped.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 60)
+                  if (all.length === 0) return null
+                  let drawLines = all.slice(0, maxLinesWanted)
+                  if (all.length > maxLinesWanted && drawLines.length > 0) {
+                    const last = drawLines[drawLines.length - 1] || ''
+                    const next =
+                      last.endsWith('…') ? last : last.length >= maxCharsPerLine ? truncateTextWithEllipsis(last, maxCharsPerLine) : `${last}…`
+                    drawLines = drawLines.slice(0, -1).concat([next])
+                  }
+
+                  return (
+                    <g style={{ pointerEvents: 'none' }} opacity={0.72}>
+                      {title ? (
+                        <text x={padX} y={topY - 10} fill="var(--kg-text-tertiary)" fontSize={10} fontWeight={600}>
+                          {truncateTextWithEllipsis(title, Math.max(10, Math.min(90, estimateMaxCharsForWidthPx(Math.max(0, maxW), 10))))}
+                        </text>
+                      ) : null}
+                      <text x={padX} y={topY + fontSize} fill="var(--kg-text-primary)" fontSize={fontSize}>
+                        {drawLines.map((t, idx) => (
+                          <tspan key={idx} x={padX} dy={idx === 0 ? 0 : lineH}>
+                            {t}
+                          </tspan>
+                        ))}
+                      </text>
+                    </g>
+                  )
+                })() : (
+                  <text
+                    x={12}
+                    y={22}
+                    fill="var(--kg-text-primary)"
+                    fontSize={12}
+                    fontWeight={600}
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    {n.label}
+                  </text>
+                )}
 
                 {showDecor ? (
                   <g transform="translate(16, 48)" opacity={0.3}>
@@ -1721,19 +2333,87 @@ export default function DesignCanvas({
                   </g>
                 ) : null}
 
-                <text
-                  x={p.w - 12}
-                  y={22}
-                  textAnchor="end"
-                  fill="var(--kg-text-tertiary)"
-                  fontSize={10}
-                  style={{ pointerEvents: 'none' }}
-                >
-                  {n.type || n.id}
-                </text>
+                {styleById ? null : (
+                  <text
+                    x={p.w - 12}
+                    y={22}
+                    textAnchor="end"
+                    fill="var(--kg-text-tertiary)"
+                    fontSize={10}
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    {n.type || n.id}
+                  </text>
+                )}
               </g>
             )
           })}
+
+          {styleById ? (
+            <g style={{ pointerEvents: 'none' }}>
+              {renderNodes.map(n => {
+                const p = positions[n.id]
+                if (!p) return null
+                const layout = labelLayoutById.get(n.id) || null
+                if (!layout) return null
+                return (
+                  <g key={`lbl:${n.id}`} transform={`translate(${p.x},${p.y})`}>
+                    {layout.label ? (
+                      <g>
+                        <rect
+                          x={layout.label.boxX}
+                          y={layout.label.boxY}
+                          width={layout.label.boxW}
+                          height={layout.label.boxH}
+                          rx={4}
+                          fill={layout.label.bgFill}
+                          opacity={layout.label.bgOpacity}
+                          stroke={layout.label.stroke}
+                          strokeOpacity={layout.label.strokeOpacity}
+                          strokeWidth={1}
+                        />
+                        <text
+                          x={layout.label.textX}
+                          y={layout.label.textY}
+                          textAnchor={layout.label.textAnchor}
+                          fill={layout.label.fill}
+                          fontSize={layout.label.fontSize}
+                          fontWeight={layout.label.fontWeight}
+                        >
+                          {layout.label.text}
+                        </text>
+                      </g>
+                    ) : null}
+                    {layout.meta ? (
+                      <g>
+                        <rect
+                          x={layout.meta.boxX}
+                          y={layout.meta.boxY}
+                          width={layout.meta.boxW}
+                          height={layout.meta.boxH}
+                          rx={4}
+                          fill={layout.meta.bgFill}
+                          opacity={layout.meta.bgOpacity}
+                          stroke={layout.meta.stroke}
+                          strokeOpacity={layout.meta.strokeOpacity}
+                          strokeWidth={1}
+                        />
+                        <text
+                          x={layout.meta.textX}
+                          y={layout.meta.textY}
+                          textAnchor={layout.meta.textAnchor}
+                          fill={layout.meta.fill}
+                          fontSize={layout.meta.fontSize}
+                        >
+                          {layout.meta.text}
+                        </text>
+                      </g>
+                    ) : null}
+                  </g>
+                )
+              })}
+            </g>
+          ) : null}
         </g>
       </svg>
     </section>

@@ -46,7 +46,9 @@ export function buildAndSetFlowNativeScene(args: {
     const n = nodeList[i]
     const id = String(n?.id || '').trim()
     if (!id) continue
-    const label = String((n as { label?: unknown })?.label || id)
+    const props = ((n as unknown as { properties?: unknown })?.properties || {}) as Record<string, unknown>
+    const visualLabel = typeof props['visual:label'] === 'string' ? String(props['visual:label'] || '').trim() : ''
+    const label = visualLabel || String((n as { label?: unknown })?.label || id)
     const rawShape = args.schema ? getNodeRenderShape2d(n as GraphNode, args.schema) : 'rect'
     const shape = coerceFlowNativeNodeShape({ shape: rawShape, forbidCircle: args.forbidCircleNodes })
     const baseHandles = handlesByNode[id] || { in: [], out: [] }

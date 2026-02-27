@@ -9,6 +9,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { GraphEditorToolRail, type GraphEditorToolId } from '@/features/graph-editor/GraphEditorToolRail'
 import { GraphEditorRightPanel } from '@/features/graph-editor/GraphEditorRightPanel'
+import { DesignWireframeSettings } from '@/features/toolbar/ui/DesignWireframeSettings'
 
 export function ToolbarToolMenuRendererView() {
   const {
@@ -57,11 +58,13 @@ export function ToolbarToolMenuRendererView() {
 
   const showGraphEditorUi =
     workspaceViewMode === 'editor' && canvasRenderMode === '2d' && canvas2dRenderer === 'd3'
+  const showDesignWireframeUi = canvasRenderMode === '2d' && canvas2dRenderer === 'design'
 
   return (
     <div className="flex flex-col gap-2">
       <RendererPaletteSettings />
       <RendererHoverSettings />
+      {showDesignWireframeUi ? <DesignWireframeSettings /> : null}
       {showGraphEditorUi ? (
         <section className="flex gap-2" aria-label="Graph editor tools and inspector">
           <GraphEditorToolRail

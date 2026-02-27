@@ -1,4 +1,5 @@
 import React from 'react'
+import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
@@ -62,14 +63,11 @@ export async function testEmbeddedEditorShellRendersMarkdownWorkspace() {
     if (!container) throw new Error('missing root container')
 
     const root = createRoot(container)
-    root.render(<EmbeddedEditorShell />)
+    flushSync(() => {
+      root.render(<EmbeddedEditorShell />)
+    })
 
-    let workspace: HTMLElement | null = null
-    for (let i = 0; i < 60; i++) {
-      await tick()
-      workspace = dom.window.document.querySelector('section[aria-label="Markdown Workspace"]') as HTMLElement | null
-      if (workspace) break
-    }
+    const workspace = dom.window.document.querySelector('section[aria-label="Markdown Workspace"]') as HTMLElement | null
     if (!workspace) throw new Error('expected Markdown Workspace to render')
 
     root.unmount()

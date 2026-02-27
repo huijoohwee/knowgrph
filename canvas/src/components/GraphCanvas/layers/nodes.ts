@@ -366,9 +366,15 @@ export const createNodesLayer = (args: {
   node
      .attr('fill', (d: GraphNode) => getNodeBaseFill(d, schema))
     .attr('stroke', (d: GraphNode) => {
+      const props = (d.properties || {}) as Record<string, unknown>
+      const visualStroke = typeof props['visual:stroke'] === 'string' ? String(props['visual:stroke'] || '').trim() : ''
+      if (visualStroke) return visualStroke
       return schema.nodeStroke?.[d.type]?.color ?? UI_THEME_COLORS_CSS.nodeStroke
     })
     .attr('stroke-width', (d: GraphNode) => {
+      const props = (d.properties || {}) as Record<string, unknown>
+      const visualStrokeWidth = typeof props['visual:strokeWidth'] === 'number' ? (props['visual:strokeWidth'] as number) : NaN
+      if (Number.isFinite(visualStrokeWidth) && visualStrokeWidth >= 0) return visualStrokeWidth
       const w = schema.nodeStroke?.[d.type]?.width
       if (typeof w === 'number' && Number.isFinite(w) && w >= 0) return w
       return 1.5

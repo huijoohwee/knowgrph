@@ -190,7 +190,15 @@ import { testThemeModePersistence, testThemeSystemModeApplyAndSubscribe } from '
 import { testDesignLayersNormalizePreservesOrderAndAddsNew, testDesignLayersToggleAndMove } from '@/__tests__/designLayersState.test'
 import { testDesignFramePosEqDetectsEquality } from '@/__tests__/designRendererSlice.test'
 import { testDesignRendererWebpageGraphSetterNoopsOnSameKey } from '@/__tests__/designRendererWebpageGraph.test'
-import { testWebpageLayoutToGraphCentersAndFilters } from '@/__tests__/webpageLayoutToGraph.test'
+import { testDesignWireframeSettingsDefaultsAndClamp } from '@/__tests__/designWireframeSettings.test'
+import {
+  testWebpageLayoutToGraphCentersAndFilters,
+  testWebpageLayoutToGraphDropsTinyDecorativeSvgIcon,
+  testWebpageLayoutToGraphOverlapIntersectionPrune,
+  testWebpageLayoutToGraphPrunesUtilityWrapperAtThreeKids,
+  testWebpageLayoutToGraphSectionSynthesisGridFourItems,
+  testWebpageLayoutToGraphWrapperSingleChildPrune,
+} from '@/__tests__/webpageLayoutToGraph.test'
 import { testWebpageLayoutCacheEvictsOldest } from '@/__tests__/webpageLayoutCache.test'
 import {
   testNormalizeSingleRootRouteDoesNotOverrideExistingKgPath,
@@ -1408,7 +1416,13 @@ export const runAllTests = async () => {
   await exec('design.layers.toggleAndMove', testDesignLayersToggleAndMove)
   await exec('design.renderer.posEq.detectsEquality', testDesignFramePosEqDetectsEquality)
   await exec('design.renderer.webpageGraph.noopsOnSameKey', testDesignRendererWebpageGraphSetterNoopsOnSameKey)
+  await exec('design.wireframeSettings.defaultsAndClamp', testDesignWireframeSettingsDefaultsAndClamp)
   await exec('webpage.layoutToGraph.centersAndFilters', testWebpageLayoutToGraphCentersAndFilters)
+  await exec('webpage.layoutToGraph.wrapperSingleChildPrune', testWebpageLayoutToGraphWrapperSingleChildPrune)
+  await exec('webpage.layoutToGraph.overlapIntersectionPrune', testWebpageLayoutToGraphOverlapIntersectionPrune)
+  await exec('webpage.layoutToGraph.sectionSynthesis.gridFourItems', testWebpageLayoutToGraphSectionSynthesisGridFourItems)
+  await exec('webpage.layoutToGraph.prunesUtilityWrapperAtThreeKids', testWebpageLayoutToGraphPrunesUtilityWrapperAtThreeKids)
+  await exec('webpage.layoutToGraph.dropsTinyDecorativeSvgIcon', testWebpageLayoutToGraphDropsTinyDecorativeSvgIcon)
   await exec('webpage.layoutCache.evictsOldest', testWebpageLayoutCacheEvictsOldest)
   await exec('viewportTransform.invertZoomPoint.matchesD3', testViewportTransformInvertZoomPointMatchesD3Invert)
   await exec('canvasEventCoords.readElementLocalPoint.usesBoundingRect', testCanvasEventCoordsReadElementLocalPointUsesBoundingRect)

@@ -153,6 +153,38 @@ const rectArea = (r: WebpageLayoutElement['rect'] | null | undefined): number =>
   return w > 0 && h > 0 ? w * h : 0
 }
 
+const rectIntersectionArea = (
+  a: WebpageLayoutElement['rect'] | null | undefined,
+  b: WebpageLayoutElement['rect'] | null | undefined,
+): number => {
+  if (!a || !b) return 0
+  const ax0 = safeNum(a.x, 0)
+  const ay0 = safeNum(a.y, 0)
+  const ax1 = ax0 + safeNum(a.w, 0)
+  const ay1 = ay0 + safeNum(a.h, 0)
+  const bx0 = safeNum(b.x, 0)
+  const by0 = safeNum(b.y, 0)
+  const bx1 = bx0 + safeNum(b.w, 0)
+  const by1 = by0 + safeNum(b.h, 0)
+  const ix0 = Math.max(ax0, bx0)
+  const iy0 = Math.max(ay0, by0)
+  const ix1 = Math.min(ax1, bx1)
+  const iy1 = Math.min(ay1, by1)
+  const iw = Math.max(0, ix1 - ix0)
+  const ih = Math.max(0, iy1 - iy0)
+  return iw > 0 && ih > 0 ? iw * ih : 0
+}
+
+const stableHash32 = (s: string): string => {
+  const str = String(s || '')
+  let h = 0x811c9dc5
+  for (let i = 0; i < str.length; i += 1) {
+    h ^= str.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return (h >>> 0).toString(16).padStart(8, '0')
+}
+
 const clampRectWithin = (
   child: WebpageLayoutElement['rect'] | null | undefined,
   parent: WebpageLayoutElement['rect'] | null | undefined,
@@ -354,7 +386,7 @@ const scoreElementForPrune = (el: WebpageLayoutElement, preserveClassRe: RegExp)
 
 const pruneOverlappedSiblings = (kept: WebpageLayoutElement[]): WebpageLayoutElement[] => {
   const preserveClassRe =
-    /(hero|card|feature|tile|pricing|testimonial|reviews?|faq|accordion|banner|cta|navbar|header|footer|modal|dialog|drawer|popover|tooltip|toast|sidebar)/i
+    /(hero|card|feature|tile|pricing|testimonial|reviews?|faq|accordion|banner|cta|navbar|header|footer|modal|dialog|drawer|popover|tooltip|toast|sidebar|carousel|slider|swiper|gallery|tabs?|menu|table|list)/i
 
   const byId = new Map<string, WebpageLayoutElement>()
   for (let i = 0; i < kept.length; i += 1) {
@@ -456,6 +488,38 @@ const pruneOverlappedSiblings = (kept: WebpageLayoutElement[]): WebpageLayoutEle
     if (!changed) break
   }
 
+  {
+    const childrenById = buildChildren()
+    for (const [pid, kids] of childrenById.entries()) {
+      if (!kids || kids.length < 2) continue
+      for (let i = 0; i < kids.length; i += 1) {
+        const aId = kids[i] || ''
+        const a = byId.get(aId)
+        if (!a) continue
+        for (let j = i + 1; j < kids.length; j += 1) {
+          const bId = kids[j] || ''
+          const b = byId.get(bId)
+          if (!b) continue
+          const aArea = rectArea(a.rect)
+          const bArea = rectArea(b.rect)
+          if (!(aArea > 0 && bArea > 0)) continue
+          const inter = rectIntersectionArea(a.rect, b.rect)
+          if (!(inter > 0)) continue
+          const ratio = inter / Math.min(aArea, bArea)
+          if (ratio < 0.92) continue
+          const aDrop = shouldConsiderDropping(a)
+          const bDrop = shouldConsiderDropping(b)
+          if (!(aDrop || bDrop)) continue
+          const sa = scoreElementForPrune(a, preserveClassRe)
+          const sb = scoreElementForPrune(b, preserveClassRe)
+          if (aDrop && (!bDrop || sa <= sb)) byId.delete(aId)
+          else if (bDrop) byId.delete(bId)
+          break
+        }
+      }
+    }
+  }
+
   return Array.from(byId.values())
 }
 
@@ -464,7 +528,7 @@ const pruneSmallNoisyLeaves = (
   params: { leafMinArea: number; leafMinDim: number },
 ): WebpageLayoutElement[] => {
   const preserveClassRe =
-    /(hero|card|feature|tile|pricing|testimonial|reviews?|faq|accordion|banner|cta|navbar|header|footer|modal|dialog|drawer|popover|tooltip|toast|sidebar)/i
+    /(hero|card|feature|tile|pricing|testimonial|reviews?|faq|accordion|banner|cta|navbar|header|footer|modal|dialog|drawer|popover|tooltip|toast|sidebar|carousel|slider|swiper|gallery|tabs?|menu|table|list)/i
   const byId = new Map<string, WebpageLayoutElement>()
   for (let i = 0; i < kept.length; i += 1) {
     const el = kept[i]
@@ -487,8 +551,10 @@ const pruneSmallNoisyLeaves = (
     if (!id) continue
     if ((childCountById.get(id) || 0) > 0) continue
     const tag = safeStr(el.tag).toUpperCase()
-    if (tag !== 'DIV' && tag !== 'SPAN') continue
-    if (isInteractiveTag(tag) || isMediaTag(tag)) continue
+    const isPrunableBoxTag = tag === 'DIV' || tag === 'SPAN'
+    const isPrunableSvgIcon = tag === 'SVG'
+    if (!isPrunableBoxTag && !isPrunableSvgIcon) continue
+    if (isInteractiveTag(tag)) continue
     if (safeStr(el.text)) continue
     if (hasVisualDecoration(el)) continue
     const cls = safeStr(el.attrs?.class)
@@ -497,12 +563,25 @@ const pruneSmallNoisyLeaves = (
     const aria = safeStr(el.attrs?.ariaLabel)
     const domId = safeStr(el.attrs?.id)
     if (role || aria || domId) continue
+    if (isPrunableSvgIcon) {
+      const pid = safeStr(el.pid)
+      const parent = pid ? byId.get(pid) : null
+      const parentTag = safeStr(parent?.tag).toUpperCase()
+      const parentCls = safeStr(parent?.attrs?.class)
+      const parentIsInteractive = isInteractiveTag(parentTag)
+      const parentSuggestsControl = preserveClassRe.test(parentCls) || safeStr(parent?.attrs?.role) || safeStr(parent?.attrs?.ariaLabel)
+      if (!(parentIsInteractive || parentSuggestsControl)) continue
+    } else {
+      if (isMediaTag(tag)) continue
+    }
 
     const w = safeNum(el.rect?.w, 0)
     const h = safeNum(el.rect?.h, 0)
     const area = w * h
     const minDim = Math.min(w, h)
-    if (area < LEAF_MIN_AREA || minDim < LEAF_MIN_DIM) {
+    const effMinArea = isPrunableSvgIcon ? Math.min(900, LEAF_MIN_AREA) : LEAF_MIN_AREA
+    const effMinDim = isPrunableSvgIcon ? Math.min(20, LEAF_MIN_DIM) : LEAF_MIN_DIM
+    if (area < effMinArea || minDim < effMinDim) {
       byId.delete(id)
     }
   }
@@ -515,9 +594,9 @@ const pruneWrapperElements = (
   params: { vpW: number; vpH: number; vpArea: number; wrapperKidsThreshold: number },
 ): WebpageLayoutElement[] => {
   const preserveClassRe =
-    /(hero|card|feature|tile|pricing|testimonial|reviews?|faq|accordion|banner|cta|navbar|header|footer|modal|dialog|drawer|popover|tooltip|toast|sidebar)/i
+    /(hero|card|feature|tile|pricing|testimonial|reviews?|faq|accordion|banner|cta|navbar|header|footer|modal|dialog|drawer|popover|tooltip|toast|sidebar|carousel|slider|swiper|gallery|tabs?|menu|table|list)/i
   const glueClassRe =
-    /(container|wrapper|inner|content|stack|row|col|columns|layout|shell|page|grid|flex|mx-|my-|px-|py-|gap-|space-|w-|h-|max-w-|min-h-)/i
+    /(container|wrapper|inner|content|stack|row|col|columns|layout|shell|page|grid|flex|mx-|my-|px-|py-|gap-|space-|w-|h-|max-w-|min-h-|grid-cols-|grid-rows-|col-span-|row-span-|items-|justify-|content-|place-|basis-|grow|shrink|self-)/i
 
   const isLandmarkRole = (role: string): boolean => {
     const r = String(role || '').trim().toLowerCase()
@@ -644,6 +723,56 @@ const pruneWrapperElements = (
   }
 
   {
+    let pass = 0
+    while (pass < 6) {
+      pass += 1
+      let changed = false
+      const childrenById = rebuildChildren()
+      const ids = Array.from(byId.keys())
+      for (let i = 0; i < ids.length; i += 1) {
+        const id = ids[i] || ''
+        const el = byId.get(id)
+        if (!el) continue
+        const tag = safeStr(el.tag).toUpperCase()
+        if (tag !== 'DIV' && tag !== 'SPAN') continue
+        if (isInteractiveTag(tag) || isMediaTag(tag)) continue
+        if (safeStr(el.text)) continue
+        if (hasVisualDecoration(el)) continue
+        const cls = safeStr(el.attrs?.class)
+        if (preserveClassRe.test(cls)) continue
+        const role = safeStr(el.attrs?.role)
+        if (isLandmarkRole(role)) continue
+        const kids = childrenById.get(id) || []
+        if (kids.length !== 1) continue
+        const childId = kids[0] || ''
+        if (!childId) continue
+        const child = byId.get(childId)
+        if (!child || !child.rect || !el.rect) continue
+        if (safeStr(child.pid) === safeStr(el.pid)) continue
+        const display = safeStr(el.style?.display).toLowerCase()
+        const gap = safeStr(el.style?.gap).toLowerCase()
+        const padding = safeStr(el.style?.padding).toLowerCase()
+        const margin = safeStr(el.style?.margin).toLowerCase()
+        const hasLayoutSpacing =
+          (gap && gap !== '0px' && gap !== '0' && gap !== 'normal') ||
+          (padding && padding !== '0px' && padding !== '0' && padding !== 'normal') ||
+          (margin && margin !== '0px' && margin !== '0' && margin !== 'normal')
+        const isLayoutDisplay = display === 'flex' || display === 'grid' || display === 'inline-flex' || display === 'inline-grid'
+        if (!(isLayoutDisplay || hasLayoutSpacing || glueClassRe.test(cls) || looksUtilityHeavy(cls))) continue
+        if (isMajorSectionCandidate(id, childrenById, byId)) continue
+        if (!rectContains(el.rect, child.rect)) continue
+
+        const pid = safeStr(el.pid)
+        byId.delete(id)
+        byId.set(childId, pid === safeStr(child.pid) ? child : { ...child, pid })
+        changed = true
+        break
+      }
+      if (!changed) break
+    }
+  }
+
+  {
     const CHILD_COUNT_THRESHOLD = Math.max(4, Math.min(12, Math.floor(params.wrapperKidsThreshold)))
     let pass = 0
     while (pass < 6) {
@@ -665,7 +794,6 @@ const pruneWrapperElements = (
         const role = safeStr(el.attrs?.role)
         if (isLandmarkRole(role)) continue
         const kids = childrenById.get(id) || []
-        if (kids.length < CHILD_COUNT_THRESHOLD) continue
         const display = safeStr(el.style?.display).toLowerCase()
         const isLayoutDisplay = display === 'flex' || display === 'grid' || display === 'inline-flex' || display === 'inline-grid'
         const gap = safeStr(el.style?.gap).toLowerCase()
@@ -673,7 +801,11 @@ const pruneWrapperElements = (
         const hasLayoutSpacing =
           (gap && gap !== '0px' && gap !== '0' && gap !== 'normal') ||
           (padding && padding !== '0px' && padding !== '0' && padding !== 'normal')
-        if (!(isLayoutDisplay || hasLayoutSpacing || glueClassRe.test(cls) || looksUtilityHeavy(cls))) continue
+        const isGlue = isLayoutDisplay || hasLayoutSpacing || glueClassRe.test(cls) || looksUtilityHeavy(cls)
+        if (!isGlue) continue
+        const utilityHeavy = looksUtilityHeavy(cls) || glueClassRe.test(cls)
+        const effectiveThreshold = utilityHeavy ? Math.max(3, Math.floor(CHILD_COUNT_THRESHOLD * 0.5)) : CHILD_COUNT_THRESHOLD
+        if (kids.length < effectiveThreshold) continue
 
         let minX = Infinity
         let minY = Infinity
@@ -692,7 +824,7 @@ const pruneWrapperElements = (
           maxX = Math.max(maxX, safeNum(r?.x, 0) + safeNum(r?.w, 0))
           maxY = Math.max(maxY, safeNum(r?.y, 0) + safeNum(r?.h, 0))
         }
-        if (childIds.length < CHILD_COUNT_THRESHOLD) continue
+        if (childIds.length < effectiveThreshold) continue
         if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) continue
         const bbox = { x: minX, y: minY, w: Math.max(0, maxX - minX), h: Math.max(0, maxY - minY) }
         const tol = 6
@@ -818,6 +950,32 @@ const synthesizeLayoutSections = (
     return kids
   }
 
+  const classIndicatesGridOrList = (cls: string): boolean => {
+    const raw = String(cls || '').trim()
+    if (!raw) return false
+    if (/\b(grid|grid-cols-\d+|grid-rows-\d+|col-span-\d+|row-span-\d+)\b/i.test(raw)) return true
+    if (/\b(space-y-\d+|divide-y|list|cards?)\b/i.test(raw)) return true
+    return false
+  }
+
+  const computeMedian = (nums: number[]): number => {
+    if (nums.length === 0) return 0
+    const sorted = nums.slice().sort((a, b) => a - b)
+    return sorted[Math.floor(sorted.length / 2)] || 0
+  }
+
+  const computeMinMax = (nums: number[]): { min: number; max: number } => {
+    let min = Infinity
+    let max = -Infinity
+    for (let i = 0; i < nums.length; i += 1) {
+      const v = nums[i]!
+      min = Math.min(min, v)
+      max = Math.max(max, v)
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return { min: 0, max: 0 }
+    return { min, max }
+  }
+
   const isHeadingTag = (tag: string): boolean => {
     const t = String(tag || '').toUpperCase()
     return t === 'H1' || t === 'H2' || t === 'H3'
@@ -849,12 +1007,16 @@ const synthesizeLayoutSections = (
     return false
   }
 
-  let synthIndex = 0
   const nextById = new Map<string, WebpageLayoutElement>(byId)
 
   for (const [pid] of childrenByPid.entries()) {
     const siblings = siblingIdsSorted(pid)
-    if (siblings.length < 6) continue
+    const parent = pid ? byId.get(pid) : null
+    const parentCls = safeStr(parent?.attrs?.class)
+    const parentDisplay = safeStr(parent?.style?.display).toLowerCase()
+    const parentLooksGridOrList = classIndicatesGridOrList(parentCls) || parentDisplay === 'grid' || parentDisplay === 'flex'
+    const MIN_ITEMS = parentLooksGridOrList ? 4 : 6
+    if (siblings.length < MIN_ITEMS) continue
 
     const items: { id: string; x: number; y: number; w: number; h: number; cx: number; cy: number; tag: string }[] = []
     for (let i = 0; i < siblings.length; i += 1) {
@@ -875,7 +1037,7 @@ const synthesizeLayoutSections = (
       const y = safeNum(r.y, 0)
       items.push({ id, x, y, w, h, cx: x + w / 2, cy: y + h / 2, tag })
     }
-    if (items.length < 6) continue
+    if (items.length < MIN_ITEMS) continue
 
     const segments: { ids: string[] }[] = []
     {
@@ -887,21 +1049,21 @@ const synthesizeLayoutSections = (
         if (cur.length > 0) {
           const gapY = it.y - prevY
           if (gapY > Math.max(140, vpH * 0.18)) {
-            if (cur.length >= 6) segments.push({ ids: cur })
+            if (cur.length >= MIN_ITEMS) segments.push({ ids: cur })
             cur = []
           }
         }
         cur.push(it.id)
         prevY = Math.max(prevY, it.y + it.h)
       }
-      if (cur.length >= 6) segments.push({ ids: cur })
+      if (cur.length >= MIN_ITEMS) segments.push({ ids: cur })
     }
     if (segments.length === 0) continue
 
     for (let s = 0; s < segments.length; s += 1) {
       const segIds = segments[s]!.ids
       const segItems = segIds.map(id => items.find(it => it.id === id)!).filter(Boolean)
-      if (segItems.length < 6) continue
+      if (segItems.length < MIN_ITEMS) continue
 
       let minX = Infinity
       let minY = Infinity
@@ -910,10 +1072,8 @@ const synthesizeLayoutSections = (
       let medW = 0
       let medH = 0
       {
-        const ws = segItems.map(it => it.w).sort((a, b) => a - b)
-        const hs = segItems.map(it => it.h).sort((a, b) => a - b)
-        medW = ws[Math.floor(ws.length / 2)] || 0
-        medH = hs[Math.floor(hs.length / 2)] || 0
+        medW = computeMedian(segItems.map(it => it.w))
+        medH = computeMedian(segItems.map(it => it.h))
       }
       for (let i = 0; i < segItems.length; i += 1) {
         const it = segItems[i]!
@@ -957,8 +1117,17 @@ const synthesizeLayoutSections = (
         }
       }
       const looksGrid = cols >= 2 && rows >= 2
-      const looksList = cols <= 2 && rows >= 5 && bbox.w <= Math.min(vpW * 0.72, medW * 1.35)
+      const looksList = cols <= 2 && rows >= 4 && bbox.w <= vpW * 0.98
       if (!(looksGrid || looksList)) continue
+      const { min: minW, max: maxW } = computeMinMax(segItems.map(it => it.w))
+      const { min: minH, max: maxH } = computeMinMax(segItems.map(it => it.h))
+      const strongRepetition =
+        segItems.length >= 6 ||
+        (segItems.length >= 4 &&
+          (parentLooksGridOrList || looksGrid || looksList) &&
+          (minW > 0 ? maxW / minW <= 1.65 : true) &&
+          (minH > 0 ? maxH / minH <= 1.85 : true))
+      if (!strongRepetition) continue
 
       const ignoreSet = new Set<string>(segIds)
       if (siblingContainerCovers(pid, bbox, ignoreSet)) continue
@@ -1007,8 +1176,8 @@ const synthesizeLayoutSections = (
       const secRect = { x: secMinX, y: secMinY, w: Math.max(1, secMaxX - secMinX), h: Math.max(1, secMaxY - secMinY) }
 
       const title = heading ? safeStr(heading.text) : ''
-      synthIndex += 1
-      const synthId = `kg:sec:${pid || 'root'}:${Math.round(secRect.y)}:${Math.round(secRect.h)}:${memberIds.length}:${synthIndex}`
+      const memberKey = `${memberIds.slice(0, 32).join(',')}|${memberIds.length}|${Math.round(secRect.x)}|${Math.round(secRect.y)}|${Math.round(secRect.w)}|${Math.round(secRect.h)}`
+      const synthId = `kg:sec:${pid || 'root'}:${stableHash32(memberKey)}`
       if (nextById.has(synthId)) continue
 
       const sectionEl: WebpageLayoutElement = {
@@ -1200,6 +1369,7 @@ export function convertWebpageLayoutToGraphData(
       'visual:width': w as unknown as JSONValue,
       'visual:height': h as unknown as JSONValue,
       'visual:shape': 'rect' as unknown as JSONValue,
+      'visual:label': label as unknown as JSONValue,
       'dom:tag': tag as unknown as JSONValue,
       'dom:text': text as unknown as JSONValue,
       'dom:attrs:id': domId as unknown as JSONValue,
