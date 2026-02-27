@@ -41,12 +41,14 @@ export const nodeDragBehavior = (
       const structured = mode === 'radial'
       const gridEnabled = !!schema.behavior.snapGrid?.enabled;
       const gridSize = Math.max(1, schema.behavior.snapGrid?.size ?? 10);
+      const src = event && typeof event === 'object' && 'sourceEvent' in event ? (event as { sourceEvent?: unknown }).sourceEvent : null
+      const altDown = !!(src && typeof src === 'object' && 'altKey' in (src as Record<string, unknown>) && (src as { altKey?: unknown }).altKey)
       
       // Calculate new position
       let nx = event.x;
       let ny = event.y;
       
-      if (gridEnabled) {
+      if (gridEnabled && !altDown) {
         nx = Math.round(nx / gridSize) * gridSize;
         ny = Math.round(ny / gridSize) * gridSize;
       }

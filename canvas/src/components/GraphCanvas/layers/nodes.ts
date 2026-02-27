@@ -21,6 +21,7 @@ import { buildNodeShapePathD } from '@/components/GraphCanvas/shapePaths2d';
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
 import { createEdgeScrollController } from '@/lib/canvas/edge-scroll'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
@@ -501,7 +502,23 @@ export const createNodesLayer = (args: {
     }
     setSelectionSource('canvas');
     selectEdge(null);
-    selectNode(String(d.id));
+    const id = String(d.id || '').trim()
+    if (!id) return
+    const mode = schema?.behavior?.selectMode || 'single'
+    const wantsToggle = (mode === 'multi' || mode === 'lasso') && (event.shiftKey || (event as unknown as { metaKey?: boolean }).metaKey || (event as unknown as { ctrlKey?: boolean }).ctrlKey)
+    if (wantsToggle) {
+      selectNode(id)
+      return
+    }
+    if (mode === 'multi' || mode === 'lasso') {
+      try {
+        useGraphStore.getState().selectNodesExpanded({ nodeIds: [id], activeNodeId: id })
+      } catch {
+        selectNode(id)
+      }
+      return
+    }
+    selectNode(id);
   }
 
   const onDblClick = (event: MouseEvent, d: GraphNode) => {

@@ -5,6 +5,7 @@ import type { WebpageLayoutSnapshot, WebpageLayoutElement } from './webpageLayou
 export type WebpageLayoutToGraphOptions = {
   maxNodes?: number
   minAreaPx?: number
+  fidelityLevel?: 1 | 2 | 3 | 4
 }
 
 const clampInt = (n: unknown, fallback: number, min: number, max: number): number => {
@@ -86,6 +87,25 @@ const isContainerTag = (tag: string): boolean => {
 const isWrapperTag = (tag: string): boolean => {
   const t = String(tag || '').toUpperCase()
   return t === 'DIV' || t === 'SPAN' || isContainerTag(t)
+}
+
+const clampNum = (n: unknown, fallback: number, min: number, max: number): number => {
+  const v = typeof n === 'number' ? n : Number(n)
+  if (!Number.isFinite(v)) return fallback
+  return Math.max(min, Math.min(max, v))
+}
+
+const derivePruneParams = (snapshot: WebpageLayoutSnapshot, minAreaPx: number, fidelityLevel: 1 | 2 | 3 | 4) => {
+  const vpW = safeNum(snapshot?.meta?.viewport?.w, 0)
+  const vpH = safeNum(snapshot?.meta?.viewport?.h, 0)
+  const vpArea = vpW > 0 && vpH > 0 ? vpW * vpH : 0
+  const areaBase = vpArea > 0 ? vpArea : Math.max(1, minAreaPx / 0.012)
+  const pruneScale = fidelityLevel === 4 ? 0.65 : fidelityLevel === 3 ? 0.82 : fidelityLevel === 2 ? 1 : 1.25
+  const wrapperScale = fidelityLevel === 4 ? 1.25 : fidelityLevel === 3 ? 1.1 : fidelityLevel === 2 ? 1 : 0.85
+  const leafMinArea = Math.round(clampNum(areaBase * 0.0018 * pruneScale, 2200, 220, 7400))
+  const leafMinDim = Math.round(clampNum(Math.sqrt(areaBase) * 0.02 * Math.sqrt(pruneScale), 24, 12, 40))
+  const wrapperKidsThreshold = Math.round(clampNum((Math.sqrt(areaBase) / 170) * wrapperScale, 6, 4, 10))
+  return { vpW, vpH, vpArea, leafMinArea, leafMinDim, wrapperKidsThreshold }
 }
 
 const rectNearEq = (a: WebpageLayoutElement['rect'] | null | undefined, b: WebpageLayoutElement['rect'] | null | undefined): boolean => {
@@ -439,7 +459,10 @@ const pruneOverlappedSiblings = (kept: WebpageLayoutElement[]): WebpageLayoutEle
   return Array.from(byId.values())
 }
 
-const pruneSmallNoisyLeaves = (kept: WebpageLayoutElement[]): WebpageLayoutElement[] => {
+const pruneSmallNoisyLeaves = (
+  kept: WebpageLayoutElement[],
+  params: { leafMinArea: number; leafMinDim: number },
+): WebpageLayoutElement[] => {
   const preserveClassRe =
     /(hero|card|feature|tile|pricing|testimonial|reviews?|faq|accordion|banner|cta|navbar|header|footer|modal|dialog|drawer|popover|tooltip|toast|sidebar)/i
   const byId = new Map<string, WebpageLayoutElement>()
@@ -456,8 +479,8 @@ const pruneSmallNoisyLeaves = (kept: WebpageLayoutElement[]): WebpageLayoutEleme
     childCountById.set(pid, (childCountById.get(pid) || 0) + 1)
   }
 
-  const LEAF_MIN_AREA = 2200
-  const LEAF_MIN_DIM = 24
+  const LEAF_MIN_AREA = Math.max(60, Math.floor(params.leafMinArea))
+  const LEAF_MIN_DIM = Math.max(6, Math.floor(params.leafMinDim))
 
   for (const el of byId.values()) {
     const id = safeStr(el.id)
@@ -487,11 +510,66 @@ const pruneSmallNoisyLeaves = (kept: WebpageLayoutElement[]): WebpageLayoutEleme
   return Array.from(byId.values())
 }
 
-const pruneWrapperElements = (kept: WebpageLayoutElement[]): WebpageLayoutElement[] => {
+const pruneWrapperElements = (
+  kept: WebpageLayoutElement[],
+  params: { vpW: number; vpH: number; vpArea: number; wrapperKidsThreshold: number },
+): WebpageLayoutElement[] => {
   const preserveClassRe =
     /(hero|card|feature|tile|pricing|testimonial|reviews?|faq|accordion|banner|cta|navbar|header|footer|modal|dialog|drawer|popover|tooltip|toast|sidebar)/i
   const glueClassRe =
     /(container|wrapper|inner|content|stack|row|col|columns|layout|shell|page|grid|flex|mx-|my-|px-|py-|gap-|space-|w-|h-|max-w-|min-h-)/i
+
+  const isLandmarkRole = (role: string): boolean => {
+    const r = String(role || '').trim().toLowerCase()
+    if (!r) return false
+    return (
+      r === 'banner' ||
+      r === 'navigation' ||
+      r === 'main' ||
+      r === 'contentinfo' ||
+      r === 'complementary' ||
+      r === 'region' ||
+      r === 'search'
+    )
+  }
+
+  const isMajorSectionCandidate = (id: string, childrenById: Map<string, string[]>, byId: Map<string, WebpageLayoutElement>): boolean => {
+    const el = byId.get(id)
+    if (!el) return false
+    if (!(params.vpW > 0 && params.vpH > 0 && params.vpArea > 0)) return false
+    const r = el.rect
+    if (!r) return false
+    const w = safeNum(r.w, 0)
+    const h = safeNum(r.h, 0)
+    if (!(w > 0 && h > 0)) return false
+    const area = w * h
+    if (area < params.vpArea * 0.06) return false
+    if (w < params.vpW * 0.7) return false
+    if (h < Math.min(params.vpH * 0.12, 120)) return false
+
+    const y = safeNum(r.y, 0)
+    const nearTop = y <= params.vpH * 0.22
+    const nearBottom = y + h >= params.vpH * 0.78
+    if (!(nearTop || nearBottom || area >= params.vpArea * 0.14)) return false
+
+    const q: string[] = [id]
+    let scanned = 0
+    while (q.length > 0 && scanned < 140) {
+      const cur = q.shift()!
+      scanned += 1
+      const node = byId.get(cur)
+      if (node) {
+        const tag = safeStr(node.tag).toUpperCase()
+        if (tag === 'H1' || tag === 'H2' || tag === 'H3') return true
+        if (isInteractiveTag(tag) || isMediaTag(tag)) return true
+        const t = safeStr(node.text)
+        if (t && t.replace(/\s+/g, ' ').trim().length >= 4) return true
+      }
+      const kids = childrenById.get(cur) || []
+      for (let i = 0; i < kids.length && q.length < 220; i += 1) q.push(kids[i]!)
+    }
+    return false
+  }
 
   const looksUtilityHeavy = (cls: string): boolean => {
     const raw = String(cls || '').trim()
@@ -566,7 +644,7 @@ const pruneWrapperElements = (kept: WebpageLayoutElement[]): WebpageLayoutElemen
   }
 
   {
-    const CHILD_COUNT_THRESHOLD = 6
+    const CHILD_COUNT_THRESHOLD = Math.max(4, Math.min(12, Math.floor(params.wrapperKidsThreshold)))
     let pass = 0
     while (pass < 6) {
       pass += 1
@@ -584,9 +662,18 @@ const pruneWrapperElements = (kept: WebpageLayoutElement[]): WebpageLayoutElemen
         if (hasVisualDecoration(el)) continue
         const cls = safeStr(el.attrs?.class)
         if (preserveClassRe.test(cls)) continue
+        const role = safeStr(el.attrs?.role)
+        if (isLandmarkRole(role)) continue
         const kids = childrenById.get(id) || []
         if (kids.length < CHILD_COUNT_THRESHOLD) continue
-        if (!(glueClassRe.test(cls) || looksUtilityHeavy(cls))) continue
+        const display = safeStr(el.style?.display).toLowerCase()
+        const isLayoutDisplay = display === 'flex' || display === 'grid' || display === 'inline-flex' || display === 'inline-grid'
+        const gap = safeStr(el.style?.gap).toLowerCase()
+        const padding = safeStr(el.style?.padding).toLowerCase()
+        const hasLayoutSpacing =
+          (gap && gap !== '0px' && gap !== '0' && gap !== 'normal') ||
+          (padding && padding !== '0px' && padding !== '0' && padding !== 'normal')
+        if (!(isLayoutDisplay || hasLayoutSpacing || glueClassRe.test(cls) || looksUtilityHeavy(cls))) continue
 
         let minX = Infinity
         let minY = Infinity
@@ -619,6 +706,7 @@ const pruneWrapperElements = (kept: WebpageLayoutElement[]): WebpageLayoutElemen
         ) {
           continue
         }
+        if (isMajorSectionCandidate(id, childrenById, byId)) continue
 
         const pid = safeStr(el.pid)
         byId.delete(id)
@@ -683,12 +771,314 @@ const shouldKeepElement = (el: WebpageLayoutElement, minAreaPx: number): boolean
   return false
 }
 
+const synthesizeLayoutSections = (
+  els: WebpageLayoutElement[],
+  params: { vpW: number; vpH: number; vpArea: number },
+): WebpageLayoutElement[] => {
+  const vpW = safeNum(params.vpW, 0)
+  const vpH = safeNum(params.vpH, 0)
+  const vpArea = safeNum(params.vpArea, 0)
+  if (!(vpW > 0 && vpH > 0 && vpArea > 0)) return els
+
+  const byId = new Map<string, WebpageLayoutElement>()
+  for (let i = 0; i < els.length; i += 1) {
+    const el = els[i]
+    const id = safeStr(el.id)
+    if (!id) continue
+    byId.set(id, el)
+  }
+
+  const buildChildren = () => {
+    const childrenByPid = new Map<string, string[]>()
+    for (const el of byId.values()) {
+      const id = safeStr(el.id)
+      const pid = safeStr(el.pid)
+      if (!id) continue
+      const list = childrenByPid.get(pid)
+      if (list) list.push(id)
+      else childrenByPid.set(pid, [id])
+    }
+    return childrenByPid
+  }
+
+  const childrenByPid = buildChildren()
+  const siblingIdsSorted = (pid: string): string[] => {
+    const kids = (childrenByPid.get(pid) || []).slice()
+    kids.sort((a, b) => {
+      const ea = byId.get(a)
+      const eb = byId.get(b)
+      const ay = safeNum(ea?.rect?.y, 0)
+      const by = safeNum(eb?.rect?.y, 0)
+      if (ay !== by) return ay - by
+      const ax = safeNum(ea?.rect?.x, 0)
+      const bx = safeNum(eb?.rect?.x, 0)
+      if (ax !== bx) return ax - bx
+      return a.localeCompare(b)
+    })
+    return kids
+  }
+
+  const isHeadingTag = (tag: string): boolean => {
+    const t = String(tag || '').toUpperCase()
+    return t === 'H1' || t === 'H2' || t === 'H3'
+  }
+
+  const siblingContainerCovers = (pid: string, bbox: { x: number; y: number; w: number; h: number }, ignoreIds: Set<string>): boolean => {
+    const siblings = siblingIdsSorted(pid)
+    const tol = 8
+    for (let i = 0; i < siblings.length; i += 1) {
+      const id = siblings[i] || ''
+      if (!id || ignoreIds.has(id)) continue
+      const el = byId.get(id)
+      if (!el) continue
+      const tag = safeStr(el.tag).toUpperCase()
+      if (!isContainerTag(tag)) continue
+      if (safeStr(el.text)) continue
+      if (hasVisualDecoration(el)) continue
+      const r = el.rect
+      if (!r) continue
+      if (
+        Math.abs(safeNum(r.x, 0) - bbox.x) <= tol &&
+        Math.abs(safeNum(r.y, 0) - bbox.y) <= tol &&
+        Math.abs(safeNum(r.w, 0) - bbox.w) <= tol &&
+        Math.abs(safeNum(r.h, 0) - bbox.h) <= tol
+      ) {
+        return true
+      }
+    }
+    return false
+  }
+
+  let synthIndex = 0
+  const nextById = new Map<string, WebpageLayoutElement>(byId)
+
+  for (const [pid] of childrenByPid.entries()) {
+    const siblings = siblingIdsSorted(pid)
+    if (siblings.length < 6) continue
+
+    const items: { id: string; x: number; y: number; w: number; h: number; cx: number; cy: number; tag: string }[] = []
+    for (let i = 0; i < siblings.length; i += 1) {
+      const id = siblings[i] || ''
+      const el = id ? byId.get(id) : null
+      if (!el || !el.rect) continue
+      const tag = safeStr(el.tag).toUpperCase()
+      if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT') continue
+      if (isHeadingTag(tag)) continue
+      const r = el.rect
+      const w = safeNum(r.w, 0)
+      const h = safeNum(r.h, 0)
+      const area = w * h
+      const looksLikeWholeSection = (w >= vpW * 0.92 && h >= vpH * 0.28) || area >= vpArea * 0.45
+      if (looksLikeWholeSection) continue
+      if (!(w > 8 && h > 8 && area >= Math.max(2500, vpArea * 0.006))) continue
+      const x = safeNum(r.x, 0)
+      const y = safeNum(r.y, 0)
+      items.push({ id, x, y, w, h, cx: x + w / 2, cy: y + h / 2, tag })
+    }
+    if (items.length < 6) continue
+
+    const segments: { ids: string[] }[] = []
+    {
+      const sorted = items.slice().sort((a, b) => a.y - b.y || a.x - b.x || a.id.localeCompare(b.id))
+      let cur: string[] = []
+      let prevY = -Infinity
+      for (let i = 0; i < sorted.length; i += 1) {
+        const it = sorted[i]!
+        if (cur.length > 0) {
+          const gapY = it.y - prevY
+          if (gapY > Math.max(140, vpH * 0.18)) {
+            if (cur.length >= 6) segments.push({ ids: cur })
+            cur = []
+          }
+        }
+        cur.push(it.id)
+        prevY = Math.max(prevY, it.y + it.h)
+      }
+      if (cur.length >= 6) segments.push({ ids: cur })
+    }
+    if (segments.length === 0) continue
+
+    for (let s = 0; s < segments.length; s += 1) {
+      const segIds = segments[s]!.ids
+      const segItems = segIds.map(id => items.find(it => it.id === id)!).filter(Boolean)
+      if (segItems.length < 6) continue
+
+      let minX = Infinity
+      let minY = Infinity
+      let maxX = -Infinity
+      let maxY = -Infinity
+      let medW = 0
+      let medH = 0
+      {
+        const ws = segItems.map(it => it.w).sort((a, b) => a - b)
+        const hs = segItems.map(it => it.h).sort((a, b) => a - b)
+        medW = ws[Math.floor(ws.length / 2)] || 0
+        medH = hs[Math.floor(hs.length / 2)] || 0
+      }
+      for (let i = 0; i < segItems.length; i += 1) {
+        const it = segItems[i]!
+        minX = Math.min(minX, it.x)
+        minY = Math.min(minY, it.y)
+        maxX = Math.max(maxX, it.x + it.w)
+        maxY = Math.max(maxY, it.y + it.h)
+      }
+      if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) continue
+      const bbox = { x: minX, y: minY, w: Math.max(0, maxX - minX), h: Math.max(0, maxY - minY) }
+      if (bbox.w < vpW * 0.45 || bbox.h < Math.min(120, vpH * 0.12)) continue
+
+      const colTol = Math.max(18, Math.min(90, medW * 0.35))
+      const centersX = segItems.map(it => it.cx).sort((a, b) => a - b)
+      let cols = 0
+      {
+        let cur = -Infinity
+        for (let i = 0; i < centersX.length; i += 1) {
+          const x = centersX[i]!
+          if (x > cur + colTol) {
+            cols += 1
+            cur = x
+          } else {
+            cur = (cur + x) / 2
+          }
+        }
+      }
+      const rowTol = Math.max(18, Math.min(110, medH * 0.6))
+      const centersY = segItems.map(it => it.cy).sort((a, b) => a - b)
+      let rows = 0
+      {
+        let cur = -Infinity
+        for (let i = 0; i < centersY.length; i += 1) {
+          const y = centersY[i]!
+          if (y > cur + rowTol) {
+            rows += 1
+            cur = y
+          } else {
+            cur = (cur + y) / 2
+          }
+        }
+      }
+      const looksGrid = cols >= 2 && rows >= 2
+      const looksList = cols <= 2 && rows >= 5 && bbox.w <= Math.min(vpW * 0.72, medW * 1.35)
+      if (!(looksGrid || looksList)) continue
+
+      const ignoreSet = new Set<string>(segIds)
+      if (siblingContainerCovers(pid, bbox, ignoreSet)) continue
+
+      let heading: WebpageLayoutElement | null = null
+      {
+        let bestDy = Infinity
+        for (let i = 0; i < siblings.length; i += 1) {
+          const sid = siblings[i] || ''
+          const el = sid ? byId.get(sid) : null
+          if (!el || !el.rect) continue
+          const tag = safeStr(el.tag).toUpperCase()
+          if (!isHeadingTag(tag)) continue
+          const t = safeStr(el.text)
+          if (!t) continue
+          const r = el.rect
+          const bottom = safeNum(r.y, 0) + safeNum(r.h, 0)
+          const dy = bbox.y - bottom
+          if (dy < -8 || dy > 160) continue
+          const overlapsX = safeNum(r.x, 0) + safeNum(r.w, 0) > bbox.x + 10 && safeNum(r.x, 0) < bbox.x + bbox.w - 10
+          if (!overlapsX) continue
+          if (dy < bestDy) {
+            bestDy = dy
+            heading = el
+          }
+        }
+      }
+
+      const memberIds = segIds.slice()
+      if (heading) memberIds.unshift(safeStr(heading.id))
+
+      let secMinX = bbox.x
+      let secMinY = bbox.y
+      let secMaxX = bbox.x + bbox.w
+      let secMaxY = bbox.y + bbox.h
+      if (heading?.rect) {
+        secMinX = Math.min(secMinX, safeNum(heading.rect.x, 0))
+        secMinY = Math.min(secMinY, safeNum(heading.rect.y, 0))
+        secMaxX = Math.max(secMaxX, safeNum(heading.rect.x, 0) + safeNum(heading.rect.w, 0))
+      }
+      const margin = Math.max(8, Math.min(18, Math.round(vpW * 0.012)))
+      secMinX -= margin
+      secMinY -= margin
+      secMaxX += margin
+      secMaxY += margin
+      const secRect = { x: secMinX, y: secMinY, w: Math.max(1, secMaxX - secMinX), h: Math.max(1, secMaxY - secMinY) }
+
+      const title = heading ? safeStr(heading.text) : ''
+      synthIndex += 1
+      const synthId = `kg:sec:${pid || 'root'}:${Math.round(secRect.y)}:${Math.round(secRect.h)}:${memberIds.length}:${synthIndex}`
+      if (nextById.has(synthId)) continue
+
+      const sectionEl: WebpageLayoutElement = {
+        id: synthId,
+        pid: pid,
+        tag: 'SECTION',
+        rect: secRect,
+        text: '',
+        attrs: {
+          id: '',
+          class: 'kg-synth-section',
+          role: 'region',
+          ariaLabel: title,
+          placeholder: '',
+          href: '',
+          src: '',
+          alt: '',
+        },
+        style: {
+          display: looksGrid ? 'grid' : 'block',
+          position: 'static',
+          zIndex: '-1',
+          backgroundColor: 'rgba(0, 0, 0, 0)',
+          color: '',
+          borderRadius: '0px',
+          borderColor: 'rgba(0, 0, 0, 0)',
+          borderWidth: '0px',
+          padding: '0px',
+          margin: '0px',
+          gap: '0px',
+          justifyContent: 'normal',
+          alignItems: 'normal',
+          flexDirection: 'row',
+          flexWrap: 'nowrap',
+          fontSize: '',
+          fontWeight: '',
+          fontFamily: '',
+          lineHeight: '',
+          letterSpacing: '',
+          textTransform: '',
+          textAlign: '',
+          boxShadow: 'none',
+          opacity: '1',
+        },
+      }
+      nextById.set(synthId, sectionEl)
+
+      for (let i = 0; i < memberIds.length; i += 1) {
+        const mid = memberIds[i] || ''
+        if (!mid) continue
+        const el = nextById.get(mid)
+        if (!el) continue
+        if (safeStr(el.pid) === synthId) continue
+        nextById.set(mid, { ...el, pid: synthId })
+      }
+    }
+  }
+
+  return Array.from(nextById.values())
+}
+
 export function convertWebpageLayoutToGraphData(
   snapshot: WebpageLayoutSnapshot,
   opts?: WebpageLayoutToGraphOptions,
 ): GraphData {
   const maxNodes = clampInt(opts?.maxNodes, 1200, 100, 5000)
   const minAreaPx = clampInt(opts?.minAreaPx, 9000, 1, 2_000_000)
+  const fidelityParsed = opts?.fidelityLevel
+  const fidelityLevel: 1 | 2 | 3 | 4 = fidelityParsed === 1 || fidelityParsed === 2 || fidelityParsed === 3 || fidelityParsed === 4 ? fidelityParsed : 3
+  const pruneParams = derivePruneParams(snapshot, minAreaPx, fidelityLevel)
   const elements = Array.isArray(snapshot?.elements) ? snapshot.elements : []
 
   const kept: WebpageLayoutElement[] = []
@@ -726,10 +1116,11 @@ export function convertWebpageLayoutToGraphData(
     }
   }
 
-  let pruned = enforceGeometricNesting(pruneSmallNoisyLeaves(pruneOverlappedSiblings(pruneWrapperElements(kept))))
+  let pruned = enforceGeometricNesting(pruneSmallNoisyLeaves(pruneOverlappedSiblings(pruneWrapperElements(kept, pruneParams)), pruneParams))
   if (pruned.length === 0 && kept.length > 0) {
     pruned = enforceGeometricNesting(kept.slice(0, Math.max(100, Math.min(maxNodes, 1200))))
   }
+  pruned = synthesizeLayoutSections(pruned, pruneParams)
 
   let minX = Infinity
   let minY = Infinity

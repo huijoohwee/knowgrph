@@ -35,6 +35,13 @@
 - Best for editing workflows and node quick editors.
 - Main risk: overlay re-render churn and viewport transform drift.
 
+### Design (2D Webpage Wireframe)
+
+- Best for DOM-derived webpage wireframes rendered as 2D frames over a neutral layout snapshot graph.
+- Uses a browser-native layout export (`webpageLayout` snapshot) and deterministic DOM→graph conversion with domain-agnostic wrapper pruning, layout-glue cleanup, and synthetic section nodes.
+- Frame grid layout is viewport-responsive; column count derives from active viewport width, not fixed constants.
+- Shares collective fit/center, zoom view keys, snap-to-grid, lasso, and align/distribute semantics with D3 and Flow, plus renderer-neutral shortcuts for align/distribute and keyboard nudging.
+
 ## Parity SSOT (Must Match Across Variants)
 
 ### 1) Display Graph Derivation
@@ -61,6 +68,12 @@
 - Selection applies the same rules in all variants:
   - Node/edge selection, multi-select, hover, and selection zoom behavior.
   - Selection updates must avoid restarting layouts/simulations.
+- Multi-select and marquee semantics are SSOT across D3, Flow, and Design:
+  - Click semantics: replace vs toggle selection is driven by the same modifier set (Shift/Cmd/Ctrl) and shared selection store.
+  - Marquee/lasso semantics: `selectMode=lasso` uses shared add/remove/replace semantics (`Shift/Cmd/Ctrl` to add, `Alt` to remove, default to replace); lasso selection writes via the same expanded node-selection helper.
+- Align/distribute and keyboard nudging share renderer-neutral shortcuts:
+  - `Alt+Shift+L/H/R/T/V/B/X/Y` align or distribute selected nodes/frames; operations respect snap-grid settings and update layout caches via shared helpers.
+  - Arrow-key nudging uses a shared helper for deltas; when snap-grid is enabled, nudges move by grid-sized steps (with Shift-based multipliers) and `Alt` bypasses snapping. Design frame nudges apply batched position patches; Graph/Flow nudges freeze layouts and persist positions via layout-position caches without re-seeding.
 
 ## Performance Strategy
 

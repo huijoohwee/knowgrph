@@ -91,6 +91,7 @@ export type FlowCanvasDrag =
       lastSx: number
       lastSy: number
       pointerId: number
+      mode: 'replace' | 'add' | 'remove'
     }
 
 export function bindFlowCanvasNativeInteractions(args: {
@@ -734,7 +735,15 @@ export function bindFlowCanvasNativeInteractions(args: {
       const state = storeStateAtDown
       state.setSelectionSource('canvas')
       state.selectEdge(null)
-      state.selectNode(hit)
+      const mode = state.schema?.behavior?.selectMode || 'single'
+      const wantsToggle = (mode === 'multi' || mode === 'lasso') && (e.shiftKey === true || e.metaKey === true || e.ctrlKey === true)
+      if (wantsToggle) {
+        state.selectNode(hit)
+      } else if (mode === 'multi' || mode === 'lasso') {
+        state.selectNodesExpanded({ nodeIds: [hit], activeNodeId: hit })
+      } else {
+        state.selectNode(hit)
+      }
 
       const allowDrag = typeof args.allowNodeDragOverride === 'boolean' ? args.allowNodeDragOverride : state.schema?.behavior?.allowNodeDrag !== false
 
@@ -844,7 +853,8 @@ export function bindFlowCanvasNativeInteractions(args: {
         state.selectEdge(null)
         state.selectGroup(null)
         args.setSelectionBox({ left: sx, top: sy, width: 1, height: 1 })
-        startDrag({ type: 'lasso', startSx: sx, startSy: sy, lastSx: sx, lastSy: sy, pointerId })
+        const mode: 'replace' | 'add' | 'remove' = e.altKey === true ? 'remove' : e.shiftKey === true || e.metaKey === true || e.ctrlKey === true ? 'add' : 'replace'
+        startDrag({ type: 'lasso', startSx: sx, startSy: sy, lastSx: sx, lastSy: sy, pointerId, mode })
         return
       }
     }
@@ -1012,15 +1022,30 @@ export function bindFlowCanvasNativeInteractions(args: {
       const wy = (sy - t0.y) / t0.k
       const dx = wx - drag.startWorldX
       const dy = wy - drag.startWorldY
+      const st = useGraphStore.getState()
+      const grid = st.schema?.behavior?.snapGrid
+      const gridEnabled = !!(grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) && grid.size > 2)
+      const allowSnap = gridEnabled && e.altKey !== true
+      const size = gridEnabled ? Math.max(4, Math.floor(grid!.size)) : 0
       const scene = runtime.scene
       if (!scene) return
+      const anchorId = drag.memberNodeIds[0] || ''
+      const anchorStart = anchorId ? drag.startNodePosById[anchorId] : null
+      const snappedDelta = (() => {
+        if (!allowSnap || !anchorStart) return { dx, dy }
+        const ax = anchorStart.x + dx
+        const ay = anchorStart.y + dy
+        const sx0 = Math.round(ax / size) * size
+        const sy0 = Math.round(ay / size) * size
+        return { dx: sx0 - anchorStart.x, dy: sy0 - anchorStart.y }
+      })()
       for (let i = 0; i < drag.memberNodeIds.length; i += 1) {
         const id = drag.memberNodeIds[i]
         const node = scene.nodeById.get(id)
         const start = drag.startNodePosById[id]
         if (!node || !start) continue
-        node.x = start.x + dx
-        node.y = start.y + dy
+        node.x = start.x + snappedDelta.dx
+        node.y = start.y + snappedDelta.dy
       }
       runtime.dirty = true
       args.positionsDirtySinceCommitRef.current = true
@@ -1035,11 +1060,18 @@ export function bindFlowCanvasNativeInteractions(args: {
     const wy = (sy - t0.y) / t0.k
     const dx = wx - drag.startWorldX
     const dy = wy - drag.startWorldY
+    const st = useGraphStore.getState()
+    const grid = st.schema?.behavior?.snapGrid
+    const gridEnabled = !!(grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) && grid.size > 2)
+    const allowSnap = gridEnabled && e.altKey !== true
+    const size = gridEnabled ? Math.max(4, Math.floor(grid!.size)) : 0
     const scene = runtime.scene
     const node = scene?.nodeById.get(drag.nodeId)
     if (!scene || !node) return
-    node.x = drag.startNodeX + dx
-    node.y = drag.startNodeY + dy
+    const nextX0 = drag.startNodeX + dx
+    const nextY0 = drag.startNodeY + dy
+    node.x = allowSnap ? Math.round(nextX0 / size) * size : nextX0
+    node.y = allowSnap ? Math.round(nextY0 / size) * size : nextY0
     runtime.dirty = true
     args.positionsDirtySinceCommitRef.current = true
     scheduleDragRelax()
@@ -1109,7 +1141,23 @@ export function bindFlowCanvasNativeInteractions(args: {
       }
       const state = useGraphStore.getState()
       state.setSelectionSource('canvas')
-      state.selectNodesExpanded({ nodeIds: selected })
+      const prevIdsRaw = Array.isArray(state.selectedNodeIds) ? state.selectedNodeIds : []
+      const prevIds = prevIdsRaw.map(v => String(v || '').trim()).filter(Boolean)
+      if (drag.mode === 'remove') {
+        const drop = new Set<string>(selected.map(v => String(v || '').trim()).filter(Boolean))
+        const next = prevIds.filter(id => !drop.has(id))
+        state.selectNodesExpanded({ nodeIds: next, activeNodeId: next.length > 0 ? next[next.length - 1] : null })
+      } else if (drag.mode === 'add') {
+        const set = new Set<string>(prevIds)
+        for (let i = 0; i < selected.length; i += 1) {
+          const id = String(selected[i] || '').trim()
+          if (id) set.add(id)
+        }
+        const next = Array.from(set)
+        state.selectNodesExpanded({ nodeIds: next, activeNodeId: next.length > 0 ? next[next.length - 1] : null })
+      } else {
+        state.selectNodesExpanded({ nodeIds: selected, activeNodeId: selected.length > 0 ? selected[selected.length - 1] : null })
+      }
       requestFlowNativeDraw(runtime, args.buildDrawArgs())
       args.requestCommit()
       args.onInteractionFrame?.()

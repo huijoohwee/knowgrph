@@ -17,12 +17,15 @@ import { relaxNodesWithCollision } from '@/components/GraphCanvas/layout/relax'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
+import { computeEvenlyDistributedPositions } from '@/lib/canvas/evenDistribute'
+import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/canvas/arrangeShortcuts'
 import type { WebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutExport'
 import { getCachedWebpageLayoutSnapshot, setCachedWebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutCache'
 import { convertWebpageLayoutToGraphData } from '@/lib/websites/webpageLayoutToGraph'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { normalizeWorkspacePath, workspaceDocumentKey } from '@/features/workspace-fs/path'
-import { parseWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
+import { parseWebpageFrontmatterMeta, upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
+import type { WebpageFrontmatterMeta, WebpageFidelityLevel } from '@/lib/markdown/frontmatter'
 import { createProgressTicker } from '@/lib/progress/progressTicker'
 import type { WebpageDomProbeResult } from '@/lib/websites/webpageDomExport'
 
@@ -200,6 +203,7 @@ export default function DesignCanvas({
       fitToScreenMode: s.fitToScreenMode,
       zoomToSelectionMode: s.zoomToSelectionMode,
       selectedNodeId: s.selectedNodeId,
+      selectedNodeIds: s.selectedNodeIds,
       viewportControlsPreset: s.viewportControlsPreset,
       designLayerState: s.designLayerState,
       designFramePosById: s.designFramePosById,
@@ -211,6 +215,8 @@ export default function DesignCanvas({
 
   const directDocumentUrl = useMemo(() => tryExtractDocumentUrl(snapshot.graphData as GraphData | null), [snapshot.graphData])
   const [documentUrl, setDocumentUrl] = React.useState<string | null>(directDocumentUrl)
+  const [webpageWorkspacePath, setWebpageWorkspacePath] = React.useState<string>('')
+  const [webpageFrontmatter, setWebpageFrontmatter] = React.useState<WebpageFrontmatterMeta | null>(null)
   const [webpageLayout, setWebpageLayout] = React.useState<WebpageLayoutSnapshot | null>(null)
   const [webpageLayoutStatus, setWebpageLayoutStatus] = React.useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [webpageLayoutProgress, setWebpageLayoutProgress] = React.useState<number>(0)
@@ -225,7 +231,6 @@ export default function DesignCanvas({
 
   useEffect(() => {
     if (!active) return
-    if (directDocumentUrl) return
     const graph = snapshot.graphData as GraphData | null
     const p = tryExtractWebpageWorkspacePath(graph)
     let cancelled = false
@@ -260,14 +265,18 @@ export default function DesignCanvas({
         const fm = parseWebpageFrontmatterMeta(text)
         const url = String(fm?.url || '').trim()
         if (!url || !/^https?:\/\//i.test(url)) continue
-        if (!cancelled) setDocumentUrl(url)
+        if (!cancelled) {
+          setWebpageWorkspacePath(String(candidates[i] || ''))
+          setWebpageFrontmatter(fm)
+          if (!directDocumentUrl) setDocumentUrl(url)
+        }
         return
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [active, directDocumentUrl, snapshot.graphData])
+  }, [active, directDocumentUrl, snapshot.graphData, webpageLayoutRetryNonce])
 
   useEffect(() => {
     if (!active) return
@@ -418,15 +427,9 @@ export default function DesignCanvas({
 
   const webpageLayoutGraphData = useMemo(() => {
     if (!webpageLayout) return null
-    const href = String(webpageLayout?.meta?.href || documentUrl || '').trim()
-    const host = (() => {
-      if (!href) return ''
-      try {
-        return new URL(href).hostname.toLowerCase()
-      } catch {
-        return ''
-      }
-    })()
+    const fidelity: WebpageFidelityLevel = webpageFrontmatter?.fidelityLevel === 1 || webpageFrontmatter?.fidelityLevel === 2 || webpageFrontmatter?.fidelityLevel === 3 || webpageFrontmatter?.fidelityLevel === 4 ? webpageFrontmatter.fidelityLevel : 3
+    const areaScale = fidelity === 4 ? 0.55 : fidelity === 3 ? 0.75 : fidelity === 2 ? 1 : 1.25
+    const nodeScale = fidelity === 4 ? 1.7 : fidelity === 3 ? 1.35 : fidelity === 2 ? 1 : 0.75
     const vpW = typeof webpageLayout.meta?.viewport?.w === 'number' ? webpageLayout.meta.viewport.w : null
     const vpH = typeof webpageLayout.meta?.viewport?.h === 'number' ? webpageLayout.meta.viewport.h : null
     const vpArea = vpW != null && vpH != null && Number.isFinite(vpW) && Number.isFinite(vpH) ? vpW * vpH : null
@@ -437,31 +440,36 @@ export default function DesignCanvas({
       }
       return 9000
     })()
-    const isAstroBuild = host === 'astro.build' || host.endsWith('.astro.build')
+    const minAreaPx0 = Math.max(1, Math.round(baseMinAreaPx * areaScale))
+    const elementCount = Array.isArray(webpageLayout?.elements) ? webpageLayout.elements.length : 0
+    const baseMaxNodes = (() => {
+      const base = elementCount > 0 ? Math.max(900, Math.min(2600, Math.round(elementCount * 0.55))) : 1400
+      return Math.max(200, Math.min(5000, Math.round(base * nodeScale)))
+    })()
     const primary = {
-      minAreaPx: isAstroBuild ? Math.max(8000, Math.min(38_000, Math.round(baseMinAreaPx * 1.15))) : baseMinAreaPx,
-      maxNodes: isAstroBuild ? 1100 : 1400,
+      minAreaPx: minAreaPx0,
+      maxNodes: baseMaxNodes,
     }
     const secondary = {
-      minAreaPx: isAstroBuild ? 6500 : Math.max(5000, Math.round(baseMinAreaPx * 0.85)),
-      maxNodes: isAstroBuild ? 1800 : 2000,
+      minAreaPx: Math.max(1, Math.round(minAreaPx0 * 0.82)),
+      maxNodes: Math.max(200, Math.min(5000, Math.round(baseMaxNodes * 1.3))),
     }
     const tertiary = {
       minAreaPx: 1,
-      maxNodes: 3000,
+      maxNodes: Math.max(2000, Math.min(5000, Math.round(3400 * nodeScale))),
     }
-    const g1 = convertWebpageLayoutToGraphData(webpageLayout, { maxNodes: primary.maxNodes, minAreaPx: primary.minAreaPx })
+    const g1 = convertWebpageLayoutToGraphData(webpageLayout, { maxNodes: primary.maxNodes, minAreaPx: primary.minAreaPx, fidelityLevel: fidelity })
     const n1 = Array.isArray(g1?.nodes) ? g1.nodes.length : 0
     if (n1 >= 18) return g1
-    const g2 = convertWebpageLayoutToGraphData(webpageLayout, { maxNodes: secondary.maxNodes, minAreaPx: secondary.minAreaPx })
+    const g2 = convertWebpageLayoutToGraphData(webpageLayout, { maxNodes: secondary.maxNodes, minAreaPx: secondary.minAreaPx, fidelityLevel: fidelity })
     const n2 = Array.isArray(g2?.nodes) ? g2.nodes.length : 0
     const best = n2 > n1 ? g2 : g1
     const bestN = Math.max(n1, n2)
     if (bestN >= 8) return best
-    const g3 = convertWebpageLayoutToGraphData(webpageLayout, { maxNodes: tertiary.maxNodes, minAreaPx: tertiary.minAreaPx })
+    const g3 = convertWebpageLayoutToGraphData(webpageLayout, { maxNodes: tertiary.maxNodes, minAreaPx: tertiary.minAreaPx, fidelityLevel: fidelity })
     const n3 = Array.isArray(g3?.nodes) ? g3.nodes.length : 0
     return n3 > bestN ? g3 : best
-  }, [documentUrl, webpageLayout])
+  }, [documentUrl, webpageFrontmatter?.fidelityLevel, webpageLayout])
 
   useEffect(() => {
     if (!documentUrl) return
@@ -725,9 +733,15 @@ export default function DesignCanvas({
   const setDesignFramePosMany = snapshot.setDesignFramePosMany
 
   const frameElByIdRef = useRef<Map<string, SVGGElement>>(new Map())
-  const dragRef = useRef<null | { id: string; startWorld: { x: number; y: number }; startPos: { x: number; y: number } }>(null)
+  const dragRef = useRef<
+    null | { id: string; startWorld: { x: number; y: number }; startPos: { x: number; y: number }; ids: string[]; startPosById: Record<string, { x: number; y: number }> }
+  >(null)
   const dragRafRef = useRef<number | null>(null)
-  const dragPendingRef = useRef<null | { id: string; nextPos: { x: number; y: number } }>(null)
+  const dragPendingRef = useRef<null | { ids: string[]; nextPosById: Record<string, { x: number; y: number }> }>(null)
+  const marqueeRef = useRef<null | { start: { x: number; y: number }; end: { x: number; y: number }; mode: 'replace' | 'add'; pointerId: number }>(
+    null,
+  )
+  const [marqueeBox, setMarqueeBox] = React.useState<null | { x: number; y: number; w: number; h: number }>(null)
   const lastInitKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -752,12 +766,19 @@ export default function DesignCanvas({
         dragRafRef.current = null
         const pending = dragPendingRef.current
         if (!pending) return
-        const el = frameElByIdRef.current.get(pending.id)
-        if (!el) return
-        try {
-          el.setAttribute('transform', `translate(${pending.nextPos.x},${pending.nextPos.y})`)
-        } catch {
-          void 0
+        const ids = pending.ids || []
+        for (let i = 0; i < ids.length; i += 1) {
+          const id = String(ids[i] || '').trim()
+          if (!id) continue
+          const pos = pending.nextPosById?.[id]
+          if (!pos) continue
+          const el = frameElByIdRef.current.get(id)
+          if (!el) continue
+          try {
+            el.setAttribute('transform', `translate(${pos.x},${pos.y})`)
+          } catch {
+            void 0
+          }
         }
       })
     }
@@ -961,14 +982,6 @@ export default function DesignCanvas({
     }
   }, [active, dims.height, dims.width, snapshot.schema, snapshot.viewportControlsPreset, zoomViewKey])
 
-  const handleSelectNode = useMemo(() => {
-    return (id: string) => {
-      const store = useGraphStore.getState()
-      store.setSelectionSource('canvas')
-      store.selectNode(id)
-    }
-  }, [])
-
   const styleById = useMemo(() => {
     if (!webpageLayoutGraphData?.nodes || webpageLayoutGraphData.nodes.length === 0) return null
     const map = new Map<
@@ -1046,6 +1059,114 @@ export default function DesignCanvas({
     return nodes
   }, [positions, styleById, visibleNodes])
 
+  const selectedIds = useMemo(() => {
+    const ids = Array.isArray(snapshot.selectedNodeIds) ? snapshot.selectedNodeIds : []
+    const out: string[] = []
+    const seen = new Set<string>()
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = String(ids[i] || '').trim()
+      if (!id) continue
+      if (seen.has(id)) continue
+      seen.add(id)
+      if (!positions[id]) continue
+      out.push(id)
+    }
+    return out
+  }, [positions, snapshot.selectedNodeIds])
+
+  const applyArrange = useMemo(() => {
+    type Action =
+      | 'align-left'
+      | 'align-center-x'
+      | 'align-right'
+      | 'align-top'
+      | 'align-center-y'
+      | 'align-bottom'
+      | 'distribute-x'
+      | 'distribute-y'
+    return (action: Action) => {
+      if (!active) return
+      if (selectedIds.length < 2) return
+      const refId = (() => {
+        const a = String(snapshot.selectedNodeId || '').trim()
+        if (a && selectedIds.includes(a)) return a
+        return selectedIds[0] || ''
+      })()
+      const ref = refId ? positions[refId] : null
+      if (!ref) return
+      const updates: Record<string, { x: number; y: number }> = {}
+      const grid = snapshot.schema?.behavior?.snapGrid
+      const gridSize = grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) ? Math.max(4, Math.floor(grid.size)) : 0
+      const snap = (v: number) => (gridSize ? Math.round(v / gridSize) * gridSize : v)
+
+      if (action === 'distribute-x' || action === 'distribute-y') {
+        const pts = selectedIds.map((id) => {
+          const p = positions[id]!
+          return { id, x: p.x + p.w / 2, y: p.y + p.h / 2 }
+        })
+        const nextCenters = computeEvenlyDistributedPositions({ nodes: pts, axis: action === 'distribute-x' ? 'x' : 'y', minSpacing: gridSize || 24 })
+        for (let i = 0; i < selectedIds.length; i += 1) {
+          const id = selectedIds[i]!
+          const p = positions[id]!
+          const c = nextCenters[id]
+          if (!c) continue
+          const nextX = action === 'distribute-x' ? c.x - p.w / 2 : p.x
+          const nextY = action === 'distribute-y' ? c.y - p.h / 2 : p.y
+          updates[id] = { x: snap(nextX), y: snap(nextY) }
+        }
+        if (Object.keys(updates).length > 0) setDesignFramePosMany(updates)
+        return
+      }
+
+      for (let i = 0; i < selectedIds.length; i += 1) {
+        const id = selectedIds[i]!
+        const p = positions[id]!
+        let x = p.x
+        let y = p.y
+        if (action === 'align-left') x = ref.x
+        if (action === 'align-right') x = ref.x + ref.w - p.w
+        if (action === 'align-center-x') x = ref.x + ref.w / 2 - p.w / 2
+        if (action === 'align-top') y = ref.y
+        if (action === 'align-bottom') y = ref.y + ref.h - p.h
+        if (action === 'align-center-y') y = ref.y + ref.h / 2 - p.h / 2
+        updates[id] = { x: snap(x), y: snap(y) }
+      }
+      if (Object.keys(updates).length > 0) setDesignFramePosMany(updates)
+    }
+  }, [active, positions, selectedIds, setDesignFramePosMany, snapshot.schema?.behavior?.snapGrid, snapshot.selectedNodeId])
+
+  useEffect(() => {
+    if (!active) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isEditableTarget(e.target)) return
+      const arrange = readArrangeShortcut(e)
+      if (arrange) {
+        e.preventDefault()
+        applyArrange(arrange)
+        return
+      }
+      if (selectedIds.length === 0) return
+      const grid = snapshot.schema?.behavior?.snapGrid
+      const gridSize =
+        grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) ? Math.max(4, Math.floor(grid.size)) : 1
+      const delta = readNudgeDelta({ e, snapGridEnabled: !!grid?.enabled, snapGridSize: gridSize })
+      if (!delta) return
+      e.preventDefault()
+      const updates: Record<string, { x: number; y: number }> = {}
+      for (let i = 0; i < selectedIds.length; i += 1) {
+        const id = selectedIds[i]!
+        const p = positions[id]
+        if (!p) continue
+        updates[id] = { x: p.x + delta.dx, y: p.y + delta.dy }
+      }
+      if (Object.keys(updates).length > 0) setDesignFramePosMany(updates)
+    }
+    window.addEventListener('keydown', onKeyDown, { capture: true })
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, { capture: true } as AddEventListenerOptions)
+    }
+  }, [active, applyArrange, positions, selectedIds, setDesignFramePosMany, snapshot.schema?.behavior?.snapGrid])
+
   const BG_SIZE = 100000
 
   return (
@@ -1060,6 +1181,57 @@ export default function DesignCanvas({
             <div className="min-w-0">
               <div className="font-semibold">Webpage Wireframe</div>
               <div className="truncate opacity-80">{documentUrl}</div>
+              <div className="mt-1 flex items-center gap-2 opacity-80">
+                <div>Fidelity: {webpageFrontmatter?.fidelityLevel || 3}</div>
+                {webpageWorkspacePath ? (
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-0.5 text-xs"
+                      onClick={() => {
+                        const p = String(webpageWorkspacePath || '').trim()
+                        if (!p) return
+                        void (async () => {
+                          const fs = await getWorkspaceFs()
+                          const text = await fs.readFileText(p).catch(() => '')
+                          const fm = parseWebpageFrontmatterMeta(text)
+                          if (!fm) return
+                          const cur = fm.fidelityLevel === 1 || fm.fidelityLevel === 2 || fm.fidelityLevel === 3 || fm.fidelityLevel === 4 ? fm.fidelityLevel : 3
+                          const next = (cur > 1 ? cur - 1 : 1) as WebpageFidelityLevel
+                          const nextText = upsertWebpageFrontmatterMeta(text, { ...fm, fidelityLevel: next })
+                          await fs.writeFileText(p, nextText).catch(() => void 0)
+                          setWebpageFrontmatter({ ...fm, fidelityLevel: next })
+                          setWebpageLayoutRetryNonce(n => n + 1)
+                        })()
+                      }}
+                    >
+                      -
+                    </button>
+                    <button
+                      type="button"
+                      className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-0.5 text-xs"
+                      onClick={() => {
+                        const p = String(webpageWorkspacePath || '').trim()
+                        if (!p) return
+                        void (async () => {
+                          const fs = await getWorkspaceFs()
+                          const text = await fs.readFileText(p).catch(() => '')
+                          const fm = parseWebpageFrontmatterMeta(text)
+                          if (!fm) return
+                          const cur = fm.fidelityLevel === 1 || fm.fidelityLevel === 2 || fm.fidelityLevel === 3 || fm.fidelityLevel === 4 ? fm.fidelityLevel : 3
+                          const next = (cur < 4 ? cur + 1 : 4) as WebpageFidelityLevel
+                          const nextText = upsertWebpageFrontmatterMeta(text, { ...fm, fidelityLevel: next })
+                          await fs.writeFileText(p, nextText).catch(() => void 0)
+                          setWebpageFrontmatter({ ...fm, fidelityLevel: next })
+                          setWebpageLayoutRetryNonce(n => n + 1)
+                        })()
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
             {webpageLayoutStatus === 'loading' ? (
               <div className="shrink-0 tabular-nums">{Math.max(0, Math.min(100, Math.floor(webpageLayoutProgress)))}%</div>
@@ -1108,11 +1280,104 @@ export default function DesignCanvas({
           ) : null}
         </div>
       ) : null}
+      {active && selectedIds.length >= 2 ? (
+        <div className="pointer-events-none absolute right-3 top-3 z-50 flex flex-wrap gap-1 rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] p-2 text-xs text-[var(--kg-text)] shadow">
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-left')}>
+            Align L
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-center-x')}>
+            Align CX
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-right')}>
+            Align R
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-top')}>
+            Align T
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-center-y')}>
+            Align CY
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-bottom')}>
+            Align B
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('distribute-x')}>
+            Dist X
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('distribute-y')}>
+            Dist Y
+          </button>
+        </div>
+      ) : null}
       <svg
         ref={svgRef}
         className={`${CANVAS_INTERACTIVE_CLASS} block h-full w-full select-none`}
         role="img"
         aria-label="Design renderer"
+        onPointerDown={e => {
+          if (!active) return
+          if (e.button !== 0) return
+          const svgEl = svgRef.current
+          if (!svgEl) return
+          const world = pointerToWorld(e, svgEl)
+          if (!world) return
+          try {
+            ;(e.currentTarget as unknown as { setPointerCapture?: (id: number) => void }).setPointerCapture?.(e.pointerId)
+          } catch {
+            void 0
+          }
+          const mode: 'replace' | 'add' = e.shiftKey ? 'add' : 'replace'
+          marqueeRef.current = { start: world, end: world, mode, pointerId: e.pointerId }
+          setMarqueeBox({ x: world.x, y: world.y, w: 0, h: 0 })
+        }}
+        onPointerMove={e => {
+          const m = marqueeRef.current
+          if (!m) return
+          if (e.pointerId !== m.pointerId) return
+          const svgEl = svgRef.current
+          if (!svgEl) return
+          const world = pointerToWorld(e, svgEl)
+          if (!world) return
+          marqueeRef.current = { ...m, end: world }
+          const x0 = Math.min(m.start.x, world.x)
+          const y0 = Math.min(m.start.y, world.y)
+          const x1 = Math.max(m.start.x, world.x)
+          const y1 = Math.max(m.start.y, world.y)
+          setMarqueeBox({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 })
+        }}
+        onPointerUp={e => {
+          const m = marqueeRef.current
+          marqueeRef.current = null
+          setMarqueeBox(null)
+          if (!active) return
+          if (!m || e.pointerId !== m.pointerId) return
+          const x0 = Math.min(m.start.x, m.end.x)
+          const y0 = Math.min(m.start.y, m.end.y)
+          const x1 = Math.max(m.start.x, m.end.x)
+          const y1 = Math.max(m.start.y, m.end.y)
+          const box = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }
+          if (!box || box.w < 6 || box.h < 6) return
+          const hits: string[] = []
+          for (let i = 0; i < visibleNodes.length; i += 1) {
+            const id = String(visibleNodes[i]?.id || '').trim()
+            if (!id) continue
+            const p = positions[id]
+            if (!p) continue
+            const ix = p.x < box.x + box.w && p.x + p.w > box.x
+            const iy = p.y < box.y + box.h && p.y + p.h > box.y
+            if (ix && iy) hits.push(id)
+          }
+          const store = useGraphStore.getState()
+          store.setSelectionSource('canvas')
+          const prev = (m.mode === 'add' ? store.selectedNodeIds || [] : []).map(v => String(v || '').trim()).filter(Boolean)
+          const set = new Set<string>(prev)
+          for (let i = 0; i < hits.length; i += 1) set.add(hits[i]!)
+          const nodeIds = Array.from(set)
+          store.selectNodesExpanded({ nodeIds, activeNodeId: nodeIds.length > 0 ? nodeIds[nodeIds.length - 1] : null })
+        }}
+        onPointerCancel={() => {
+          marqueeRef.current = null
+          setMarqueeBox(null)
+        }}
       >
         <defs>
           <pattern id="grid-pattern" width="20" height="20" patternUnits="userSpaceOnUse">
@@ -1128,6 +1393,19 @@ export default function DesignCanvas({
 
         <g ref={gRef}>
           <rect x={-BG_SIZE} y={-BG_SIZE} width={BG_SIZE * 2} height={BG_SIZE * 2} fill="url(#grid-pattern)" />
+          {marqueeBox ? (
+            <rect
+              x={marqueeBox.x}
+              y={marqueeBox.y}
+              width={Math.max(0, marqueeBox.w)}
+              height={Math.max(0, marqueeBox.h)}
+              fill="var(--kg-canvas-accent)"
+              opacity="0.08"
+              stroke="var(--kg-canvas-accent)"
+              strokeWidth={1}
+              strokeDasharray="4 3"
+            />
+          ) : null}
 
           {renderNodes.map(n => {
             const p = positions[n.id]
@@ -1178,8 +1456,28 @@ export default function DesignCanvas({
                   } catch {
                     void 0
                   }
-                  handleSelectNode(n.id)
-                  dragRef.current = { id: n.id, startWorld: world, startPos: { x: p.x, y: p.y } }
+                  const store = useGraphStore.getState()
+                  store.setSelectionSource('canvas')
+                  const mode = store.schema?.behavior?.selectMode || 'single'
+                  const clickedId = String(n.id || '').trim()
+                  if (clickedId) {
+                    if (mode === 'multi' || mode === 'lasso') {
+                      if (e.shiftKey) store.selectNode(clickedId)
+                      else store.selectNodesExpanded({ nodeIds: [clickedId], activeNodeId: clickedId })
+                    } else {
+                      store.selectNode(clickedId)
+                    }
+                  }
+                  const selIds = (store.selectedNodeIds || []).map(v => String(v || '').trim()).filter(Boolean)
+                  const ids = clickedId && selIds.includes(clickedId) ? selIds : clickedId ? [clickedId] : []
+                  const startPosById: Record<string, { x: number; y: number }> = {}
+                  for (let i = 0; i < ids.length; i += 1) {
+                    const id = ids[i]!
+                    const base = positions[id]
+                    if (!base) continue
+                    startPosById[id] = { x: base.x, y: base.y }
+                  }
+                  dragRef.current = { id: n.id, startWorld: world, startPos: { x: p.x, y: p.y }, ids, startPosById }
                 }}
                 onPointerMove={e => {
                   const drag = dragRef.current
@@ -1191,10 +1489,35 @@ export default function DesignCanvas({
                   if (!world) return
                   const dx = world.x - drag.startWorld.x
                   const dy = world.y - drag.startWorld.y
-                  const nextX = drag.startPos.x + dx
-                  const nextY = drag.startPos.y + dy
-                  if (!Number.isFinite(nextX) || !Number.isFinite(nextY)) return
-                  dragPendingRef.current = { id: drag.id, nextPos: { x: nextX, y: nextY } }
+                  let sx = dx
+                  let sy = dy
+                  const schema = snapshot.schema
+                  const grid = schema?.behavior?.snapGrid
+                  const gridEnabled = !!(grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) && grid.size > 2)
+                  const allowSnap = gridEnabled && !e.altKey
+                  if (allowSnap) {
+                    const size = Math.max(4, Math.floor(grid!.size))
+                    const nx = drag.startPos.x + dx
+                    const ny = drag.startPos.y + dy
+                    const snappedX = Math.round(nx / size) * size
+                    const snappedY = Math.round(ny / size) * size
+                    if (Number.isFinite(snappedX) && Number.isFinite(snappedY)) {
+                      sx = snappedX - drag.startPos.x
+                      sy = snappedY - drag.startPos.y
+                    }
+                  }
+                  const nextPosById: Record<string, { x: number; y: number }> = {}
+                  const ids = drag.ids || []
+                  for (let i = 0; i < ids.length; i += 1) {
+                    const id = ids[i] || ''
+                    const start = drag.startPosById[id]
+                    if (!start) continue
+                    const nextX = start.x + sx
+                    const nextY = start.y + sy
+                    if (!Number.isFinite(nextX) || !Number.isFinite(nextY)) continue
+                    nextPosById[id] = { x: nextX, y: nextY }
+                  }
+                  dragPendingRef.current = { ids: ids.slice(), nextPosById }
                   scheduleDragVisual()
                 }}
                 onPointerUp={() => {
@@ -1215,7 +1538,14 @@ export default function DesignCanvas({
                     dragRafRef.current = null
                   }
                   const updates: Record<string, { x: number; y: number }> = {}
-                  if (pending) updates[pending.id] = pending.nextPos
+                  if (pending) {
+                    const ids = pending.ids || []
+                    for (let i = 0; i < ids.length; i += 1) {
+                      const id = String(ids[i] || '').trim()
+                      const pos = id ? pending.nextPosById?.[id] : null
+                      if (id && pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) updates[id] = { x: pos.x, y: pos.y }
+                    }
+                  }
 
                   if (webpageLayoutGraphData?.nodes && webpageLayoutGraphData.nodes.length > 0) {
                     if (Object.keys(updates).length > 0) setDesignFramePosMany(updates)
@@ -1235,8 +1565,13 @@ export default function DesignCanvas({
                     if (!base) continue
                     workPos[vn.id] = { x: base.x, y: base.y, w: base.w, h: base.h }
                   }
-                  if (pending && workPos[pending.id]) {
-                    workPos[pending.id] = { ...workPos[pending.id]!, x: pending.nextPos.x, y: pending.nextPos.y }
+                  if (pending) {
+                    const ids = pending.ids || []
+                    for (let i = 0; i < ids.length; i += 1) {
+                      const id = String(ids[i] || '').trim()
+                      const next = id ? pending.nextPosById?.[id] : null
+                      if (id && next && workPos[id]) workPos[id] = { ...workPos[id]!, x: next.x, y: next.y }
+                    }
                   }
 
                   const estimateOverlapPressure = (): number => {
@@ -1292,7 +1627,7 @@ export default function DesignCanvas({
                     nodes.push(node)
                   }
 
-                  const pinnedId = pending?.id || drag?.id || null
+                  const pinnedId = (drag && String(drag.id || '').trim()) || null
                   if (pinnedId) {
                     for (let i = 0; i < nodes.length; i += 1) {
                       const n0 = nodes[i]

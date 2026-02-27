@@ -25,6 +25,8 @@ import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { computeEvenlyDistributedPositions } from '@/lib/canvas/evenDistribute'
+import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/canvas/arrangeShortcuts'
 import {
   createFlowNativeRuntime,
   requestFlowNativeDraw,
@@ -509,6 +511,129 @@ export default function FlowCanvas({
     buildDrawArgs,
   })
 
+  const selectedIds = React.useMemo(() => {
+    const set = new Set<string>()
+    if (selectedNodeId) {
+      const id = String(selectedNodeId || '').trim()
+      if (id) set.add(id)
+    }
+    const ids = Array.isArray(selectedNodeIds) ? selectedNodeIds : []
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = String(ids[i] || '').trim()
+      if (id) set.add(id)
+    }
+    return Array.from(set)
+  }, [selectedNodeId, selectedNodeIds])
+
+  const applyArrange = React.useMemo(() => {
+    type Action =
+      | 'align-left'
+      | 'align-center-x'
+      | 'align-right'
+      | 'align-top'
+      | 'align-center-y'
+      | 'align-bottom'
+      | 'distribute-x'
+      | 'distribute-y'
+    return (action: Action) => {
+      if (!active) return
+      if (selectedIds.length < 2) return
+      const runtime = runtimeRef.current
+      const scene = runtime?.scene
+      if (!runtime || !scene) return
+      const byId = scene.nodeById
+      const refId = (() => {
+        const a = String(selectedNodeId || '').trim()
+        if (a && selectedIds.includes(a)) return a
+        return selectedIds[0] || ''
+      })()
+      const ref = refId ? byId.get(refId) : null
+      if (!ref) return
+      const grid = schema?.behavior?.snapGrid
+      const gridSize = grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) ? Math.max(4, Math.floor(grid.size)) : 0
+      const snap = (v: number) => (gridSize ? Math.round(v / gridSize) * gridSize : v)
+
+      if (action === 'distribute-x' || action === 'distribute-y') {
+        const pts = selectedIds
+          .map((id) => {
+            const n = byId.get(id)
+            if (!n) return null
+            return { id, x: n.x + n.width / 2, y: n.y + n.height / 2 }
+          })
+          .filter(Boolean) as { id: string; x: number; y: number }[]
+        if (pts.length < 3) return
+        const next = computeEvenlyDistributedPositions({ nodes: pts, axis: action === 'distribute-x' ? 'x' : 'y', minSpacing: gridSize || 24 })
+        for (let i = 0; i < pts.length; i += 1) {
+          const id = pts[i]!.id
+          const n = byId.get(id)
+          const p = next[id]
+          if (!n || !p) continue
+          if (action === 'distribute-x') n.x = snap(p.x - n.width / 2)
+          if (action === 'distribute-y') n.y = snap(p.y - n.height / 2)
+        }
+        runtime.dirty = true
+        positionsDirtySinceCommitRef.current = true
+        requestFlowNativeDraw(runtime, buildDrawArgs())
+        requestCommit()
+        return
+      }
+
+      for (let i = 0; i < selectedIds.length; i += 1) {
+        const id = selectedIds[i]!
+        const n = byId.get(id)
+        if (!n) continue
+        if (action === 'align-left') n.x = snap(ref.x)
+        if (action === 'align-right') n.x = snap(ref.x + ref.width - n.width)
+        if (action === 'align-center-x') n.x = snap(ref.x + ref.width / 2 - n.width / 2)
+        if (action === 'align-top') n.y = snap(ref.y)
+        if (action === 'align-bottom') n.y = snap(ref.y + ref.height - n.height)
+        if (action === 'align-center-y') n.y = snap(ref.y + ref.height / 2 - n.height / 2)
+      }
+      runtime.dirty = true
+      positionsDirtySinceCommitRef.current = true
+      requestFlowNativeDraw(runtime, buildDrawArgs())
+      requestCommit()
+    }
+  }, [active, buildDrawArgs, requestCommit, schema?.behavior?.snapGrid, selectedIds, selectedNodeId])
+
+  React.useEffect(() => {
+    if (!active) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isEditableTarget(e.target)) return
+      const arrange = readArrangeShortcut(e)
+      if (arrange) {
+        e.preventDefault()
+        applyArrange(arrange)
+        return
+      }
+      if (selectedIds.length === 0) return
+      const grid = schema?.behavior?.snapGrid
+      const gridSize =
+        grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) ? Math.max(4, Math.floor(grid.size)) : 1
+      const delta = readNudgeDelta({ e, snapGridEnabled: !!grid?.enabled, snapGridSize: gridSize })
+      if (!delta) return
+      const runtime = runtimeRef.current
+      const scene = runtime?.scene
+      if (!runtime || !scene) return
+      e.preventDefault()
+      for (let i = 0; i < selectedIds.length; i += 1) {
+        const id = selectedIds[i]!
+        const n = scene.nodeById.get(id)
+        if (!n) continue
+        n.x += delta.dx
+        n.y += delta.dy
+      }
+      runtime.dirty = true
+      positionsDirtySinceCommitRef.current = true
+      requestFlowNativeDraw(runtime, buildDrawArgs())
+      requestCommit()
+    }
+    window.addEventListener('keydown', onKeyDown, { capture: true })
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, { capture: true } as AddEventListenerOptions)
+    }
+  }, [active, applyArrange, buildDrawArgs, requestCommit, schema?.behavior?.snapGrid, selectedIds])
+
   React.useEffect(() => {
     if (!active) return
     const runtime = runtimeRef.current
@@ -833,6 +958,34 @@ export default function FlowCanvas({
 
   return (
     <section ref={containerRef} className={CANVAS_SURFACE_CLASS}>
+      {active && selectedIds.length >= 2 ? (
+        <div className="pointer-events-none absolute right-3 top-3 z-50 flex flex-wrap gap-1 rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] p-2 text-xs text-[var(--kg-text)] shadow">
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-left')}>
+            Align L
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-center-x')}>
+            Align CX
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-right')}>
+            Align R
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-top')}>
+            Align T
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-center-y')}>
+            Align CY
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-bottom')}>
+            Align B
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('distribute-x')}>
+            Dist X
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('distribute-y')}>
+            Dist Y
+          </button>
+        </div>
+      ) : null}
       <canvas
         ref={canvasRef}
         aria-label="Flow renderer"

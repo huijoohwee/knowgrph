@@ -47,6 +47,7 @@ import {
   testNodesLayerRendersDiamondAndHexPaths,
   testNodesLayerHonorsVisualShapeOverrides,
 } from '@/__tests__/nodeShapes2d.test'
+import { testArrangeShortcutsParseAndNudge } from '@/__tests__/arrangeShortcuts.test'
 import { testSettingsRegistryReadWrite } from '@/__tests__/settings.test'
 import {
   testWebpageFrontmatterRoundtrip,
@@ -868,6 +869,7 @@ export const runAllTests = async () => {
   await runSchemaTests(results)
   await runJsonLdTests(results)
 
+  await exec('canvas.shortcuts.arrangeAndNudge', testArrangeShortcutsParseAndNudge)
   await exec('flowCollisionSticking: testCorrectlyNestsH2InsideH1AndEnforcesContainmentSeparation', testCorrectlyNestsH2InsideH1AndEnforcesContainmentSeparation)
   await exec('markdownDocumentPathNormalization: testMarkdownDocumentPathNormalization', testMarkdownDocumentPathNormalization)
   await exec('codebasePathCoercion.absoluteUnderRoot.toRel', testCodebaseRelPathCoercionFromAbsoluteUnderRoot)

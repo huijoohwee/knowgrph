@@ -47,6 +47,19 @@ The `## 📐 Layout Structure` section contains a single ` ```ascii` block.
 - Merge top-level `[NAV]/[CTA]/[LINK]/[IMG]` items from the extracted Document Structure tail into the **GLOBAL NAVIGATION** box content.
 - Forbid emitting `+---` style tree frames in the output.
 
+## DOM Layout Snapshot → Wireframe Graph
+
+- The Design 2D renderer uses a browser-native `webpageLayout` snapshot (DOM elements + bounding boxes + neutral CSS signals) as its SSOT for webpage wireframes.
+- A deterministic DOM→graph converter builds a `webpageLayout` graph:
+  - Captures title, viewport, scroll metrics, and a bounded list of elements with `rect`, text, attributes, and safe style fields.
+  - Enforces geometric nesting (parent/child containment) using rect containment heuristics and bounds-aware clamping; re-parents elements when DOM containment and geometry disagree (within tolerance).
+  - Drops small noisy leaves and overlapping glue boxes that are visually negligible or purely structural; preserves interactive/media elements and large semantic containers (headers, mains, cards) even when textless.
+  - Treats utility-heavy, textless wrappers (`container`, `grid`, utility-class stacks) as layout glue when they fully match their children’s bounding box; re-parents children to the next semantic parent while preserving geometry.
+  - Preserves major page sections as containers when they occupy a substantial viewport area, span most of the viewport width, and contain headings/interactive content; aria landmark roles (banner/navigation/main/contentinfo/region/search) are always preserved.
+  - Synthesizes neutral `SECTION` containers for repeated grid/list regions (e.g., feature/pricing card grids) by detecting viewport-aware clusters of similar-sized siblings; optional H2/H3 headings immediately above the cluster become section labels via `ariaLabel`.
+  - Never branches on `kgWebpageUrl` or host; all decisions are purely geometric/structural and bounded (no per-site rules).
+  - Regression fixtures live under `canvas/src/__tests__/fixtures/` and drive DOM→graph parity expectations without hardcoding external domains.
+
 ## Fixture-Driven Parity (Without Hardcoded Domains)
 
 Fixture-like blocks (template showcase grid, pricing tables, etc.) are emitted only when corresponding generic signals and/or extracted blocks are present.

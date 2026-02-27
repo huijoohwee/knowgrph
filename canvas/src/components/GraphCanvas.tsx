@@ -43,6 +43,10 @@ import { deriveSceneDisplayGraph, deriveSceneGroups } from '@/lib/scene/sceneDer
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { computeCenteredTransformToWorldPoint } from '@/lib/canvas/centerTransform'
 import { computeEvenlyDistributedPositions } from '@/lib/canvas/evenDistribute'
+import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/canvas/arrangeShortcuts'
+import { readElementLocalPoint } from '@/lib/canvas/canvas-event-coords'
+import { invertZoomPoint } from '@/lib/canvas/viewport-transform'
+import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
 
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null);
@@ -168,6 +172,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     zoomToSelectionMode,
     graphCanvasArrangeRequest,
     clearGraphCanvasArrangeRequest,
+    selectedNodeId,
+    selectedNodeIds,
   } = useGraphStore(
     useShallow((s) => ({
       graphDataRevision: s.graphDataRevision,
@@ -190,6 +196,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       zoomToSelectionMode: s.zoomToSelectionMode === true,
       graphCanvasArrangeRequest: s.graphCanvasArrangeRequest,
       clearGraphCanvasArrangeRequest: s.clearGraphCanvasArrangeRequest,
+      selectedNodeId: s.selectedNodeId,
+      selectedNodeIds: s.selectedNodeIds,
     })),
   );
   const prevCanvasRenderModeRef = useRef<'2d' | '3d'>(canvasRenderMode)
@@ -201,6 +209,10 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const selectedNodeIdsRef = useGraphStoreKeyRef('selectedNodeIds')
   const selectedEdgeIdsRef = useGraphStoreKeyRef('selectedEdgeIds')
   const graphDataRevisionRef = useGraphStoreKeyRef('graphDataRevision')
+  const [marqueeBox, setMarqueeBox] = useState<null | { left: number; top: number; width: number; height: number }>(null)
+  const marqueeRef = useRef<
+    null | { start: { sx: number; sy: number }; end: { sx: number; sy: number }; mode: 'replace' | 'add' | 'remove'; pointerId: number }
+  >(null)
   const zoomCommitRafIdRef = useRef<number | null>(null)
   const zoomCommitPendingRef = useRef(false)
   const zoomCommitLatestTransformRef = useRef<{ k: number; x: number; y: number } | null>(null)
@@ -1243,6 +1255,224 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     graphDataRevision: graphDataRevisionRef.current ?? 0,
   });
 
+  const selectedIds = useMemo(() => {
+    const set = new Set<string>()
+    if (selectedNodeId) {
+      const id = String(selectedNodeId || '').trim()
+      if (id) set.add(id)
+    }
+    const ids = Array.isArray(selectedNodeIds) ? selectedNodeIds : []
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = String(ids[i] || '').trim()
+      if (id) set.add(id)
+    }
+    return Array.from(set)
+  }, [selectedNodeId, selectedNodeIds])
+
+  const applyArrange = useMemo(() => {
+    type Action =
+      | 'align-left'
+      | 'align-center-x'
+      | 'align-right'
+      | 'align-top'
+      | 'align-center-y'
+      | 'align-bottom'
+      | 'distribute-x'
+      | 'distribute-y'
+    return (action: Action) => {
+      if (!active) return
+      if (selectedIds.length < 2) return
+      const graphDataNow = sceneGraphDataRef.current
+      if (!graphDataNow) return
+      const nodes = Array.isArray(graphDataNow.nodes) ? (graphDataNow.nodes as GraphNode[]) : []
+      if (nodes.length === 0) return
+      const byId = new Map<string, GraphNode>()
+      for (let i = 0; i < nodes.length; i += 1) byId.set(String(nodes[i]!.id), nodes[i]!)
+      const refId = (() => {
+        const a = String(selectedNodeId || '').trim()
+        if (a && selectedIds.includes(a)) return a
+        return selectedIds[0] || ''
+      })()
+      const ref = refId ? byId.get(refId) : null
+      if (!ref) return
+      const refX = typeof ref.x === 'number' && Number.isFinite(ref.x) ? ref.x : null
+      const refY = typeof ref.y === 'number' && Number.isFinite(ref.y) ? ref.y : null
+      if (refX == null || refY == null) return
+      const grid = schema?.behavior?.snapGrid
+      const gridSize = grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) ? Math.max(4, Math.floor(grid.size)) : 0
+      const snap = (v: number) => (gridSize ? Math.round(v / gridSize) * gridSize : v)
+
+      const halfRef = getNodeHalfExtents2d(ref, schema)
+      const refLeft = refX - halfRef.halfW
+      const refRight = refX + halfRef.halfW
+      const refTop = refY - halfRef.halfH
+      const refBottom = refY + halfRef.halfH
+
+      if (action === 'distribute-x' || action === 'distribute-y') {
+        const pts = selectedIds
+          .map((id) => {
+            const n = byId.get(id)
+            if (!n) return null
+            const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+            const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+            if (x == null || y == null) return null
+            return { id, x, y }
+          })
+          .filter(Boolean) as { id: string; x: number; y: number }[]
+        if (pts.length < 3) return
+        const next = computeEvenlyDistributedPositions({ nodes: pts, axis: action === 'distribute-x' ? 'x' : 'y', minSpacing: gridSize || 120 })
+        const byNext = new Map<string, { x: number; y: number }>(Object.entries(next))
+        for (let i = 0; i < nodes.length; i += 1) {
+          const n = nodes[i]!
+          const id = String(n.id)
+          const p = byNext.get(id)
+          if (!p) continue
+          n.x = snap(p.x)
+          n.y = snap(p.y)
+          n.fx = n.x
+          n.fy = n.y
+          n.vx = 0
+          n.vy = 0
+        }
+      } else {
+        for (let i = 0; i < selectedIds.length; i += 1) {
+          const id = selectedIds[i]!
+          const n = byId.get(id)
+          if (!n) continue
+          const x0 = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+          const y0 = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+          if (x0 == null || y0 == null) continue
+          const half = getNodeHalfExtents2d(n, schema)
+          let x = x0
+          let y = y0
+          if (action === 'align-left') x = refLeft + half.halfW
+          if (action === 'align-right') x = refRight - half.halfW
+          if (action === 'align-center-x') x = refX
+          if (action === 'align-top') y = refTop + half.halfH
+          if (action === 'align-bottom') y = refBottom - half.halfH
+          if (action === 'align-center-y') y = refY
+          n.x = snap(x)
+          n.y = snap(y)
+          n.fx = n.x
+          n.fy = n.y
+          n.vx = 0
+          n.vy = 0
+        }
+      }
+
+      try {
+        simulationRef.current?.stop()
+      } catch {
+        void 0
+      }
+      try {
+        svgRef.current?.setAttribute('data-kg-layout-frozen', '1')
+      } catch {
+        void 0
+      }
+      try {
+        const tickHandler = simulationRef.current?.on('tick')
+        if (typeof tickHandler === 'function') (tickHandler as unknown as () => void)()
+      } catch {
+        void 0
+      }
+      const cacheKey = activeLayoutCacheKeyRef.current
+      if (cacheKey) {
+        const positions: Record<string, { x: number; y: number }> = {}
+        for (let i = 0; i < nodes.length; i += 1) {
+          const n = nodes[i]!
+          const id = String(n.id)
+          const x = typeof n.x === 'number' ? n.x : null
+          const y = typeof n.y === 'number' ? n.y : null
+          if (!id || x == null || y == null) continue
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+          positions[id] = { x, y }
+        }
+        if (Object.keys(positions).length > 0) {
+          useGraphStore.getState().setLayoutPositionsForMode(cacheKey, positions)
+        }
+      }
+    }
+  }, [active, schema, selectedIds, selectedNodeId])
+
+  useEffect(() => {
+    if (!active) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isEditableTarget(e.target)) return
+      const arrange = readArrangeShortcut(e)
+      if (arrange) {
+        e.preventDefault()
+        applyArrange(arrange)
+        return
+      }
+      if (selectedIds.length === 0) return
+      const grid = schema?.behavior?.snapGrid
+      const gridSize =
+        grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) ? Math.max(4, Math.floor(grid.size)) : 1
+      const delta = readNudgeDelta({ e, snapGridEnabled: !!grid?.enabled, snapGridSize: gridSize })
+      if (!delta) return
+      const graphDataNow = sceneGraphDataRef.current
+      if (!graphDataNow) return
+      const nodes = Array.isArray(graphDataNow.nodes) ? (graphDataNow.nodes as GraphNode[]) : []
+      if (nodes.length === 0) return
+      const set = new Set<string>(selectedIds)
+      let changed = 0
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]!
+        const id = String(n.id || '').trim()
+        if (!id || !set.has(id)) continue
+        const x0 = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+        const y0 = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+        if (x0 == null || y0 == null) continue
+        n.x = x0 + delta.dx
+        n.y = y0 + delta.dy
+        n.fx = n.x
+        n.fy = n.y
+        n.vx = 0
+        n.vy = 0
+        changed += 1
+      }
+      if (changed === 0) return
+      e.preventDefault()
+      try {
+        simulationRef.current?.stop()
+      } catch {
+        void 0
+      }
+      try {
+        svgRef.current?.setAttribute('data-kg-layout-frozen', '1')
+      } catch {
+        void 0
+      }
+      try {
+        const tickHandler = simulationRef.current?.on('tick')
+        if (typeof tickHandler === 'function') (tickHandler as unknown as () => void)()
+      } catch {
+        void 0
+      }
+      const cacheKey = activeLayoutCacheKeyRef.current
+      if (cacheKey) {
+        const positions: Record<string, { x: number; y: number }> = {}
+        for (let i = 0; i < nodes.length; i += 1) {
+          const n = nodes[i]!
+          const id = String(n.id)
+          const x = typeof n.x === 'number' ? n.x : null
+          const y = typeof n.y === 'number' ? n.y : null
+          if (!id || x == null || y == null) continue
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+          positions[id] = { x, y }
+        }
+        if (Object.keys(positions).length > 0) {
+          useGraphStore.getState().setLayoutPositionsForMode(cacheKey, positions)
+        }
+      }
+    }
+    window.addEventListener('keydown', onKeyDown, { capture: true })
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, { capture: true } as AddEventListenerOptions)
+    }
+  }, [active, applyArrange, schema?.behavior?.snapGrid, selectedIds])
+
   return (
     <main
       ref={containerRef}
@@ -1250,13 +1480,142 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       role="main"
       aria-label="Graph Canvas"
     >
+      {active && selectedIds.length >= 2 ? (
+        <div className="pointer-events-none absolute right-3 top-3 z-50 flex flex-wrap gap-1 rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] p-2 text-xs text-[var(--kg-text)] shadow">
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-left')}>
+            Align L
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-center-x')}>
+            Align CX
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-right')}>
+            Align R
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-top')}>
+            Align T
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-center-y')}>
+            Align CY
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-bottom')}>
+            Align B
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('distribute-x')}>
+            Dist X
+          </button>
+          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('distribute-y')}>
+            Dist Y
+          </button>
+        </div>
+      ) : null}
       <svg
         ref={svgRef}
         className={`${CANVAS_INTERACTIVE_CLASS} z-0`}
         data-kg-canvas-interactive="1"
         viewBox={`0 0 ${Math.max(1, Math.floor(width))} ${Math.max(1, Math.floor(height))}`}
         preserveAspectRatio="xMidYMid meet"
+        onPointerDown={e => {
+          if (!active) return
+          if (e.button !== 0) return
+          const svgEl = svgRef.current
+          if (!svgEl) return
+          if (e.target !== svgEl) return
+          const selectMode = schema?.behavior?.selectMode || 'single'
+          if (selectMode !== 'lasso') return
+          const local = readElementLocalPoint({ el: svgEl, event: e })
+          if (!local) return
+          try {
+            ;(e.currentTarget as unknown as { setPointerCapture?: (id: number) => void }).setPointerCapture?.(e.pointerId)
+          } catch {
+            void 0
+          }
+          const mode: 'replace' | 'add' | 'remove' = e.altKey ? 'remove' : e.shiftKey || e.metaKey || e.ctrlKey ? 'add' : 'replace'
+          marqueeRef.current = { start: { sx: local.sx, sy: local.sy }, end: { sx: local.sx, sy: local.sy }, mode, pointerId: e.pointerId }
+          setMarqueeBox({ left: local.sx, top: local.sy, width: 1, height: 1 })
+          try {
+            e.preventDefault()
+          } catch {
+            void 0
+          }
+        }}
+        onPointerMove={e => {
+          const m = marqueeRef.current
+          if (!m) return
+          if (e.pointerId !== m.pointerId) return
+          const svgEl = svgRef.current
+          if (!svgEl) return
+          const local = readElementLocalPoint({ el: svgEl, event: e })
+          if (!local) return
+          marqueeRef.current = { ...m, end: { sx: local.sx, sy: local.sy } }
+          const left = Math.min(m.start.sx, local.sx)
+          const top = Math.min(m.start.sy, local.sy)
+          const right = Math.max(m.start.sx, local.sx)
+          const bottom = Math.max(m.start.sy, local.sy)
+          setMarqueeBox({ left, top, width: Math.max(1, right - left), height: Math.max(1, bottom - top) })
+        }}
+        onPointerUp={e => {
+          const m = marqueeRef.current
+          marqueeRef.current = null
+          setMarqueeBox(null)
+          if (!active) return
+          const svgEl = svgRef.current
+          if (!svgEl) return
+          if (!m || e.pointerId !== m.pointerId) return
+          const w = Math.abs(m.end.sx - m.start.sx)
+          const h = Math.abs(m.end.sy - m.start.sy)
+          if (w < 6 || h < 6) return
+          const t = d3.zoomTransform(svgEl)
+          const a = invertZoomPoint(t, m.start)
+          const b = invertZoomPoint(t, m.end)
+          const minX = Math.min(a.x, b.x)
+          const minY = Math.min(a.y, b.y)
+          const maxX = Math.max(a.x, b.x)
+          const maxY = Math.max(a.y, b.y)
+          const graphDataNow = sceneGraphDataRef.current
+          if (!graphDataNow) return
+          const nodes = Array.isArray(graphDataNow.nodes) ? (graphDataNow.nodes as GraphNode[]) : []
+          const hits: string[] = []
+          for (let i = 0; i < nodes.length; i += 1) {
+            const n = nodes[i]!
+            const id = String(n.id || '').trim()
+            if (!id) continue
+            const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+            const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+            if (x == null || y == null) continue
+            const half = getNodeHalfExtents2d(n, schema)
+            const nMinX = x - half.halfW
+            const nMaxX = x + half.halfW
+            const nMinY = y - half.halfH
+            const nMaxY = y + half.halfH
+            const intersects = nMinX <= maxX && nMaxX >= minX && nMinY <= maxY && nMaxY >= minY
+            if (intersects) hits.push(id)
+          }
+          const st = useGraphStore.getState()
+          st.setSelectionSource('canvas')
+          st.selectEdge(null)
+          const prevRaw = Array.isArray(st.selectedNodeIds) ? st.selectedNodeIds : []
+          const prev = prevRaw.map(v => String(v || '').trim()).filter(Boolean)
+          if (m.mode === 'remove') {
+            const drop = new Set<string>(hits)
+            const next = prev.filter(id => !drop.has(id))
+            st.selectNodesExpanded({ nodeIds: next, activeNodeId: next.length > 0 ? next[next.length - 1] : null })
+          } else if (m.mode === 'add') {
+            const set = new Set<string>(prev)
+            for (let i = 0; i < hits.length; i += 1) set.add(hits[i]!)
+            const next = Array.from(set)
+            st.selectNodesExpanded({ nodeIds: next, activeNodeId: next.length > 0 ? next[next.length - 1] : null })
+          } else {
+            st.selectNodesExpanded({ nodeIds: hits, activeNodeId: hits.length > 0 ? hits[hits.length - 1] : null })
+          }
+        }}
       />
+      {marqueeBox ? (
+        <section
+          aria-hidden={true}
+          className="absolute pointer-events-none border border-[var(--kg-canvas-node-selected)] bg-[color-mix(in_srgb,var(--kg-canvas-node-selected)_15%,transparent)]"
+          style={{ left: marqueeBox.left, top: marqueeBox.top, width: marqueeBox.width, height: marqueeBox.height }}
+        />
+      ) : null}
       <GraphHoverTooltip
         hoverInfo={hoverInfo}
         containerRef={containerRef as unknown as React.RefObject<HTMLElement | null>}
