@@ -11,31 +11,12 @@ import { cn } from '@/lib/utils'
 
 import type { DesignLayerNode } from '@/features/design/designLayersState'
 
-function coerceLayerNodes(graphData: unknown): DesignLayerNode[] {
-  const gd = graphData as { nodes?: Array<{ id?: unknown; label?: unknown; type?: unknown }> } | null
-  const src = Array.isArray(gd?.nodes) ? gd!.nodes! : []
-  const out: DesignLayerNode[] = []
-  for (let i = 0; i < src.length; i += 1) {
-    const rawId = src[i]?.id
-    const id = typeof rawId === 'string' ? rawId.trim() : String(rawId || '').trim()
-    if (!id) continue
-    const rawLabel = src[i]?.label
-    const label = typeof rawLabel === 'string' && rawLabel.trim() ? rawLabel.trim() : id
-    const rawType = src[i]?.type
-    const type = typeof rawType === 'string' && rawType.trim() ? rawType.trim() : undefined
-    out.push({ id, label, ...(type ? { type } : {}) })
-  }
-  out.sort((a, b) => a.label.localeCompare(b.label))
-  return out
-}
-
 export default function DesignLayersPanel({ active }: { active: boolean }) {
   const panelTypography = usePanelTypography()
 
   const {
     uiIconScale,
     uiIconStrokeWidth,
-    graphData,
     designRendererNodes,
     selectedNodeId,
     setSelectionSource,
@@ -49,7 +30,6 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
     useShallow(s => ({
       uiIconScale: s.uiIconScale,
       uiIconStrokeWidth: s.uiIconStrokeWidth,
-      graphData: s.graphData,
       designRendererNodes: s.designRendererNodes,
       selectedNodeId: s.selectedNodeId,
       setSelectionSource: s.setSelectionSource,
@@ -67,10 +47,8 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
   const normalizedQuery = String(query || '').trim().toLowerCase()
 
   const nodes = React.useMemo(() => {
-    const override = Array.isArray(designRendererNodes) ? designRendererNodes : []
-    if (active && override.length > 0) return override
-    return coerceLayerNodes(graphData)
-  }, [active, designRendererNodes, graphData])
+    return Array.isArray(designRendererNodes) ? designRendererNodes : []
+  }, [designRendererNodes])
 
   React.useEffect(() => {
     if (!active) return
@@ -119,19 +97,26 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
     [active, requestZoom, selectNode, setSelectionSource],
   )
 
+  if (!active) {
+    return (
+      <div className={cn('min-w-56', UI_THEME_TOKENS.panel.bg)} aria-label="Design Layers" data-main-panel-no-drag="true">
+        <div className={cn('px-3 py-2 border-b flex items-center gap-2', UI_THEME_TOKENS.panel.border)} aria-label="Design Layers header">
+          <Layers className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+          <span className={cn('min-w-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>{UI_LABELS.layerMode}</span>
+        </div>
+        <p className={cn('p-3 text-sm', UI_THEME_TOKENS.text.secondary)}>Switch to Design renderer to view layers.</p>
+      </div>
+    )
+  }
+
   return (
-    <div
-      className={cn(
-        'min-w-56',
-        UI_THEME_TOKENS.panel.bg,
-      )}
-      aria-label="Design Layers"
-      data-main-panel-no-drag="true"
-    >
-      <div className={cn('px-3 py-2 border-b flex items-center gap-2', UI_THEME_TOKENS.panel.border)} aria-label="Layers header">
+    <div className={cn('min-w-56', UI_THEME_TOKENS.panel.bg)} aria-label="Design Layers" data-main-panel-no-drag="true">
+      <div className={cn('px-3 py-2 border-b flex items-center gap-2', UI_THEME_TOKENS.panel.border)} aria-label="Design Layers header">
         <Layers className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
         <span className={cn('min-w-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>{UI_LABELS.layerMode}</span>
-        <span className={cn('text-[10px] font-mono', UI_THEME_TOKENS.text.tertiary)}>{visibleCount}/{nodes.length}</span>
+        <span className={cn('text-[10px] font-mono', UI_THEME_TOKENS.text.tertiary)}>
+          {visibleCount}/{nodes.length}
+        </span>
         <button
           type="button"
           className={cn('App-toolbar__btn ml-auto', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}

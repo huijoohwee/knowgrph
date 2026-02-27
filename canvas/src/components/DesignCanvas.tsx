@@ -17,10 +17,14 @@ import { relaxNodesWithCollision } from '@/components/GraphCanvas/layout/relax'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
-import { exportWebpageLayoutViaHiddenIframe } from '@/lib/websites/webpageLayoutExport'
 import type { WebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutExport'
 import { getCachedWebpageLayoutSnapshot, setCachedWebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutCache'
 import { convertWebpageLayoutToGraphData } from '@/lib/websites/webpageLayoutToGraph'
+import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import { normalizeWorkspacePath, workspaceDocumentKey } from '@/features/workspace-fs/path'
+import { parseWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
+import { createProgressTicker } from '@/lib/progress/progressTicker'
+import type { WebpageDomProbeResult } from '@/lib/websites/webpageDomExport'
 
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
@@ -78,6 +82,15 @@ function tryExtractDocumentUrl(graphData: GraphData | null): string | null {
   const meta = graphData?.metadata && typeof graphData.metadata === 'object' ? (graphData.metadata as Record<string, unknown>) : null
   const direct = meta && typeof meta.documentUrl === 'string' ? meta.documentUrl.trim() : ''
   if (direct && /^https?:\/\//i.test(direct)) return direct
+  const urlish =
+    meta && typeof meta.url === 'string'
+      ? meta.url.trim()
+      : meta && typeof meta.href === 'string'
+        ? meta.href.trim()
+        : meta && typeof meta.sourceUrl === 'string'
+          ? meta.sourceUrl.trim()
+          : ''
+  if (urlish && /^https?:\/\//i.test(urlish)) return urlish
   const layers = meta?.sourceLayers
   if (!Array.isArray(layers)) return null
   for (let i = 0; i < layers.length; i += 1) {
@@ -87,7 +100,74 @@ function tryExtractDocumentUrl(graphData: GraphData | null): string | null {
     const u = typeof src.url === 'string' ? src.url.trim() : ''
     if (u && /^https?:\/\//i.test(u)) return u
   }
+  const nodes = Array.isArray(graphData?.nodes) ? (graphData!.nodes! as unknown as Array<Record<string, unknown>>) : []
+  for (let i = 0; i < Math.min(150, nodes.length); i += 1) {
+    const n = nodes[i]
+    const nm = n && typeof n === 'object' && 'metadata' in n ? ((n as { metadata?: unknown }).metadata as Record<string, unknown> | null) : null
+    if (!nm) continue
+    const u = typeof nm.documentUrl === 'string' ? nm.documentUrl.trim() : ''
+    if (u && /^https?:\/\//i.test(u)) return u
+    const u2 =
+      typeof nm.url === 'string'
+        ? nm.url.trim()
+        : typeof nm.href === 'string'
+          ? nm.href.trim()
+          : typeof nm.sourceUrl === 'string'
+            ? nm.sourceUrl.trim()
+            : ''
+    if (u2 && /^https?:\/\//i.test(u2)) return u2
+  }
   return null
+}
+
+function tryExtractWebpageWorkspacePath(graphData: GraphData | null): string | null {
+  const meta = graphData?.metadata && typeof graphData.metadata === 'object' ? (graphData.metadata as Record<string, unknown>) : null
+  const layers = meta?.sourceLayers
+  if (!Array.isArray(layers)) return null
+  for (let i = 0; i < layers.length; i += 1) {
+    const layer = layers[i] as Record<string, unknown> | null
+    const src = layer?.source as Record<string, unknown> | null
+    const path =
+      src && typeof src.path === 'string'
+        ? String(src.path || '').trim()
+        : layer && typeof layer.path === 'string'
+          ? String(layer.path || '').trim()
+          : ''
+    if (!path.startsWith('workspace:')) continue
+    const rel = path.slice('workspace:'.length)
+    const normalized = normalizeWorkspacePath(rel)
+    if (normalized) return normalized
+  }
+  return null
+}
+
+function tryExtractDocumentPaths(graphData: GraphData | null): string[] {
+  const out: string[] = []
+  const meta = graphData?.metadata && typeof graphData.metadata === 'object' ? (graphData.metadata as Record<string, unknown>) : null
+  const docPath = meta && typeof meta.documentPath === 'string' ? meta.documentPath.trim() : ''
+  if (docPath) out.push(docPath)
+  const nodes = Array.isArray(graphData?.nodes) ? (graphData!.nodes! as unknown as Array<Record<string, unknown>>) : []
+  for (let i = 0; i < Math.min(80, nodes.length); i += 1) {
+    const n = nodes[i]
+    const nm = n && typeof n === 'object' && 'metadata' in n ? ((n as { metadata?: unknown }).metadata as Record<string, unknown> | null) : null
+    if (!nm) continue
+    const p = typeof nm.documentPath === 'string' ? nm.documentPath.trim() : ''
+    if (p) out.push(p)
+  }
+  const unique = new Set<string>()
+  const cleaned: string[] = []
+  for (let i = 0; i < out.length; i += 1) {
+    const raw = String(out[i] || '').trim()
+    if (!raw) continue
+    const noHash = raw.split('#')[0] || raw
+    const noQuery = noHash.split('?')[0] || noHash
+    const k = noQuery.replace(/^\/+/, '').trim()
+    if (!k) continue
+    if (unique.has(k)) continue
+    unique.add(k)
+    cleaned.push(k)
+  }
+  return cleaned.slice(0, 6)
 }
 
 export default function DesignCanvas({
@@ -129,10 +209,65 @@ export default function DesignCanvas({
     })),
   )
 
-  const documentUrl = useMemo(() => tryExtractDocumentUrl(snapshot.graphData as GraphData | null), [snapshot.graphData])
+  const directDocumentUrl = useMemo(() => tryExtractDocumentUrl(snapshot.graphData as GraphData | null), [snapshot.graphData])
+  const [documentUrl, setDocumentUrl] = React.useState<string | null>(directDocumentUrl)
   const [webpageLayout, setWebpageLayout] = React.useState<WebpageLayoutSnapshot | null>(null)
+  const [webpageLayoutStatus, setWebpageLayoutStatus] = React.useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const [webpageLayoutProgress, setWebpageLayoutProgress] = React.useState<number>(0)
+  const [webpageLayoutMessage, setWebpageLayoutMessage] = React.useState<string>('')
+  const [webpageLayoutRetryNonce, setWebpageLayoutRetryNonce] = React.useState<number>(0)
   const lastWebpageLayoutUrlRef = useRef<string>('')
   const lastWebpageLayoutReqRef = useRef<number>(0)
+
+  useEffect(() => {
+    setDocumentUrl(directDocumentUrl)
+  }, [directDocumentUrl])
+
+  useEffect(() => {
+    if (!active) return
+    if (directDocumentUrl) return
+    const graph = snapshot.graphData as GraphData | null
+    const p = tryExtractWebpageWorkspacePath(graph)
+    let cancelled = false
+    void (async () => {
+      const fs = await getWorkspaceFs()
+      const candidates: string[] = []
+      if (p) candidates.push(p)
+
+      if (candidates.length === 0) {
+        const docKeys = tryExtractDocumentPaths(graph)
+        if (docKeys.length > 0) {
+          const entries = await fs.listEntries().catch(() => [])
+          const byDocKey = new Map<string, string>()
+          for (let i = 0; i < entries.length; i += 1) {
+            const e = entries[i] as { kind?: unknown; path?: unknown } | null
+            if (!e || e.kind !== 'file') continue
+            const wp = normalizeWorkspacePath(e.path)
+            const dk = workspaceDocumentKey(wp)
+            if (!dk) continue
+            if (!byDocKey.has(dk)) byDocKey.set(dk, wp)
+          }
+          for (let i = 0; i < docKeys.length; i += 1) {
+            const match = byDocKey.get(docKeys[i] || '')
+            if (match) candidates.push(match)
+          }
+        }
+      }
+
+      for (let i = 0; i < candidates.length; i += 1) {
+        if (cancelled) return
+        const text = await fs.readFileText(candidates[i]!).catch(() => '')
+        const fm = parseWebpageFrontmatterMeta(text)
+        const url = String(fm?.url || '').trim()
+        if (!url || !/^https?:\/\//i.test(url)) continue
+        if (!cancelled) setDocumentUrl(url)
+        return
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [active, directDocumentUrl, snapshot.graphData])
 
   useEffect(() => {
     if (!active) return
@@ -140,40 +275,140 @@ export default function DesignCanvas({
     if (!url) {
       lastWebpageLayoutUrlRef.current = ''
       setWebpageLayout(null)
+      setWebpageLayoutStatus('idle')
+      setWebpageLayoutProgress(0)
+      setWebpageLayoutMessage('')
       return
     }
     lastWebpageLayoutUrlRef.current = url
-    const cached = getCachedWebpageLayoutSnapshot(url)
-    if (cached) return void setWebpageLayout(cached)
     const reqId = (lastWebpageLayoutReqRef.current += 1)
     let cancelled = false
-    exportWebpageLayoutViaHiddenIframe({
-      url,
-      maxElements: 1400,
-      scrollCrawl: true,
-      expandFaq: true,
-      timeoutMs: 45_000,
-      minWaitAfterLoadMs: 650,
+    const allowCache = webpageLayoutRetryNonce <= 0
+    if (allowCache) {
+      const cached = getCachedWebpageLayoutSnapshot(url)
+      if (cached) {
+        setWebpageLayout(cached)
+        setWebpageLayoutStatus('ready')
+        setWebpageLayoutProgress(100)
+        setWebpageLayoutMessage('Loaded from cache')
+        return
+      }
+    }
+    setWebpageLayoutStatus('loading')
+    setWebpageLayoutProgress(0)
+    setWebpageLayoutMessage('Loading webpage for wireframe…')
+    const ticker = createProgressTicker({
+      onProgress: (p) => setWebpageLayoutProgress(p),
+      intervalMs: 280,
+      maxPercentage: 92,
+      maxStepPercentage: 12,
     })
-      .then((snap) => {
+    void (async () => {
+      try {
+        ticker.start()
+        const { probeWebpageDomViaHiddenIframe } = await import('@/lib/websites/webpageDomExport')
+        const probe = await probeWebpageDomViaHiddenIframe({
+          url,
+          mode: 'layout',
+          maxElements: 1400,
+          scrollCrawl: true,
+          expandFaq: true,
+          timeoutMs: 45_000,
+          waitForNetworkIdle: true,
+          networkIdleMs: 900,
+          minWaitAfterLoadMs: 1200,
+        })
         if (cancelled) return
         if (reqId !== lastWebpageLayoutReqRef.current) return
-        if (!snap) {
+        if (!probe.ok) {
+          const fail = probe as Extract<WebpageDomProbeResult, { ok: false }>
+          ticker.stop()
           setWebpageLayout(null)
+          setWebpageLayoutStatus('error')
+          setWebpageLayoutMessage(`Export failed (${fail.stage}): ${fail.error}`)
+          try {
+            useGraphStore.getState().pushUiToast({
+              id: 'design-webpage-layout-failed',
+              kind: 'warning',
+              message: `Webpage wireframe export failed (${fail.stage}): ${fail.error}`,
+              ttlMs: 8000,
+            })
+          } catch {
+            void 0
+          }
+          return
+        }
+        const res = probe.result
+        if (!res?.text) {
+          ticker.stop()
+          setWebpageLayout(null)
+          setWebpageLayoutStatus('error')
+          setWebpageLayoutMessage('Export failed: empty result')
+          return
+        }
+        const snap = (() => {
+          try {
+            const parsed = JSON.parse(res.text) as unknown
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+            const obj = parsed as Record<string, unknown>
+            const meta = obj.meta as Record<string, unknown> | null
+            const elements = obj.elements as unknown
+            if (!meta || typeof meta !== 'object') return null
+            if (!Array.isArray(elements)) return null
+            if (meta.kind !== 'layout') return null
+            return parsed as WebpageLayoutSnapshot
+          } catch {
+            return null
+          }
+        })()
+        if (!snap) {
+          ticker.stop()
+          setWebpageLayout(null)
+          setWebpageLayoutStatus('error')
+          setWebpageLayoutMessage('Export failed: invalid snapshot payload')
           return
         }
         setCachedWebpageLayoutSnapshot(url, snap)
         setWebpageLayout(snap)
-      })
-      .catch(() => {
+        setWebpageLayoutStatus('ready')
+        ticker.stop(100)
+        const n = Array.isArray(snap.elements) ? snap.elements.length : 0
+        setWebpageLayoutMessage(`Wireframe ready — elements=${n}`)
+      } catch (e) {
         if (cancelled) return
         if (reqId !== lastWebpageLayoutReqRef.current) return
+        ticker.stop()
+        const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
         setWebpageLayout(null)
-      })
+        setWebpageLayoutStatus('error')
+        setWebpageLayoutMessage(`Export failed: ${msg || 'Request failed'}`)
+        try {
+          useGraphStore.getState().pushUiToast({
+            id: 'design-webpage-layout-failed',
+            kind: 'warning',
+            message: `Webpage wireframe export failed: ${msg || 'Request failed'}`,
+            ttlMs: 8000,
+          })
+        } catch {
+          void 0
+        }
+      } finally {
+        try {
+          ticker.stop()
+        } catch {
+          void 0
+        }
+      }
+    })()
     return () => {
       cancelled = true
+      try {
+        ticker.stop()
+      } catch {
+        void 0
+      }
     }
-  }, [active, documentUrl])
+  }, [active, documentUrl, webpageLayoutRetryNonce])
 
   const designGraphDataForDisplay = useMemo(() => {
     const g = snapshot.graphData
@@ -183,8 +418,59 @@ export default function DesignCanvas({
 
   const webpageLayoutGraphData = useMemo(() => {
     if (!webpageLayout) return null
-    return convertWebpageLayoutToGraphData(webpageLayout, { maxNodes: 1200, minAreaPx: 9000 })
-  }, [webpageLayout])
+    const href = String(webpageLayout?.meta?.href || documentUrl || '').trim()
+    const host = (() => {
+      if (!href) return ''
+      try {
+        return new URL(href).hostname.toLowerCase()
+      } catch {
+        return ''
+      }
+    })()
+    const vpW = typeof webpageLayout.meta?.viewport?.w === 'number' ? webpageLayout.meta.viewport.w : null
+    const vpH = typeof webpageLayout.meta?.viewport?.h === 'number' ? webpageLayout.meta.viewport.h : null
+    const vpArea = vpW != null && vpH != null && Number.isFinite(vpW) && Number.isFinite(vpH) ? vpW * vpH : null
+    const baseMinAreaPx = (() => {
+      if (vpArea != null && vpArea > 0) {
+        const scaled = Math.round(vpArea * 0.012)
+        return Math.max(6000, Math.min(30_000, scaled))
+      }
+      return 9000
+    })()
+    const isAstroBuild = host === 'astro.build' || host.endsWith('.astro.build')
+    const primary = {
+      minAreaPx: isAstroBuild ? Math.max(8000, Math.min(38_000, Math.round(baseMinAreaPx * 1.15))) : baseMinAreaPx,
+      maxNodes: isAstroBuild ? 1100 : 1400,
+    }
+    const secondary = {
+      minAreaPx: isAstroBuild ? 6500 : Math.max(5000, Math.round(baseMinAreaPx * 0.85)),
+      maxNodes: isAstroBuild ? 1800 : 2000,
+    }
+    const tertiary = {
+      minAreaPx: 1,
+      maxNodes: 3000,
+    }
+    const g1 = convertWebpageLayoutToGraphData(webpageLayout, { maxNodes: primary.maxNodes, minAreaPx: primary.minAreaPx })
+    const n1 = Array.isArray(g1?.nodes) ? g1.nodes.length : 0
+    if (n1 >= 18) return g1
+    const g2 = convertWebpageLayoutToGraphData(webpageLayout, { maxNodes: secondary.maxNodes, minAreaPx: secondary.minAreaPx })
+    const n2 = Array.isArray(g2?.nodes) ? g2.nodes.length : 0
+    const best = n2 > n1 ? g2 : g1
+    const bestN = Math.max(n1, n2)
+    if (bestN >= 8) return best
+    const g3 = convertWebpageLayoutToGraphData(webpageLayout, { maxNodes: tertiary.maxNodes, minAreaPx: tertiary.minAreaPx })
+    const n3 = Array.isArray(g3?.nodes) ? g3.nodes.length : 0
+    return n3 > bestN ? g3 : best
+  }, [documentUrl, webpageLayout])
+
+  useEffect(() => {
+    if (!documentUrl) return
+    if (webpageLayoutStatus !== 'ready') return
+    const elCount = Array.isArray(webpageLayout?.elements) ? webpageLayout!.elements.length : 0
+    const nodeCount = Array.isArray(webpageLayoutGraphData?.nodes) ? webpageLayoutGraphData!.nodes.length : 0
+    if (nodeCount > 0) setWebpageLayoutMessage(`Wireframe ready — elements=${elCount}, nodes=${nodeCount}`)
+    else setWebpageLayoutMessage(`Wireframe ready — elements=${elCount}, nodes=0`)
+  }, [documentUrl, webpageLayout?.elements, webpageLayoutGraphData, webpageLayoutStatus])
 
   const webpageLayoutKey = useMemo(() => {
     const url = String(documentUrl || '').trim()
@@ -208,12 +494,12 @@ export default function DesignCanvas({
   }, [webpageLayoutGraphData])
 
   useEffect(() => {
-    if (!active) return
-    if (webpageLayoutKey && webpageGraphNodesById) {
-      snapshot.setDesignRendererWebpageGraph({ key: webpageLayoutKey, nodesById: webpageGraphNodesById })
-    } else {
+    if (!active) {
       snapshot.setDesignRendererWebpageGraph({ key: null, nodesById: {} })
+      return
     }
+    if (webpageLayoutKey && webpageGraphNodesById) snapshot.setDesignRendererWebpageGraph({ key: webpageLayoutKey, nodesById: webpageGraphNodesById })
+    else snapshot.setDesignRendererWebpageGraph({ key: null, nodesById: {} })
   }, [active, snapshot.setDesignRendererWebpageGraph, webpageGraphNodesById, webpageLayoutKey])
 
   const baseFrameNodes = useMemo(() => {
@@ -230,8 +516,9 @@ export default function DesignCanvas({
       }
       return out
     }
+    if (documentUrl) return []
     return coerceFrameNodes(designGraphDataForDisplay?.nodes as never)
-  }, [designGraphDataForDisplay, webpageLayoutGraphData])
+  }, [designGraphDataForDisplay, documentUrl, webpageLayoutGraphData, webpageLayoutStatus])
 
   const FRAME_W = 320
   const FRAME_H = 240
@@ -265,10 +552,19 @@ export default function DesignCanvas({
     return sortedNodes.filter(n => hidden[n.id] !== true)
   }, [snapshot.designLayerState?.hiddenById, sortedNodes])
 
+  const layersPanelNodes = useMemo(() => {
+    const out = baseFrameNodes.slice()
+    out.sort((a, b) => (a.label || a.id).localeCompare(b.label || b.id) || a.id.localeCompare(b.id))
+    return out
+  }, [baseFrameNodes])
+
   useEffect(() => {
-    if (!active) return
-    snapshot.setDesignRendererNodes(sortedNodes)
-  }, [active, snapshot.setDesignRendererNodes, sortedNodes])
+    if (!active) {
+      snapshot.setDesignRendererNodes([])
+      return
+    }
+    snapshot.setDesignRendererNodes(layersPanelNodes)
+  }, [active, layersPanelNodes, snapshot.setDesignRendererNodes])
 
   const positions = useMemo(() => {
     const overrides = snapshot.designFramePosById || {}
@@ -374,6 +670,58 @@ export default function DesignCanvas({
     localGraphDataRef.current = localGraphData
   }, [localGraphData])
 
+  const lastAutoFitWireframeKeyRef = useRef<string>('')
+  useEffect(() => {
+    if (!active) return
+    if (!documentUrl) return
+    if (webpageLayoutStatus !== 'ready') return
+    const svgEl = svgRef.current
+    if (!svgEl) return
+    const zoom = zoomRef.current
+    if (!zoom) return
+    const g0 = localGraphDataRef.current
+    const nodes0 = Array.isArray(g0.nodes) ? (g0.nodes as GraphNode[]) : ([] as GraphNode[])
+    if (nodes0.length === 0) {
+      const total = Array.isArray(webpageLayoutGraphData?.nodes) ? webpageLayoutGraphData!.nodes.length : 0
+      if (total > 0) {
+        const hidden = snapshot.designLayerState?.hiddenById || {}
+        let hiddenCount = 0
+        for (let i = 0; i < webpageLayoutGraphData!.nodes.length; i += 1) {
+          const id = String((webpageLayoutGraphData!.nodes[i] as GraphNode)?.id || '').trim()
+          if (!id) continue
+          if (hidden[id] === true) hiddenCount += 1
+        }
+        if (hiddenCount >= total) {
+          const ids: string[] = []
+          for (let i = 0; i < webpageLayoutGraphData!.nodes.length; i += 1) {
+            const id = String((webpageLayoutGraphData!.nodes[i] as GraphNode)?.id || '').trim()
+            if (id) ids.push(id)
+          }
+          try {
+            useGraphStore.getState().setDesignLayerState({ order: ids, hiddenById: {} })
+          } catch {
+            void 0
+          }
+          setWebpageLayoutMessage('All wireframe layers were hidden. Reset visibility.')
+          lastAutoFitWireframeKeyRef.current = ''
+          return
+        }
+      }
+      setWebpageLayoutStatus('error')
+      const elCount = Array.isArray(webpageLayout?.elements) ? webpageLayout!.elements.length : 0
+      setWebpageLayoutMessage(`Wireframe is empty (0 nodes). elements=${elCount}, convertedNodes=${total}. Click Retry.`)
+      return
+    }
+    const key = `${documentUrl}#${webpageLayout?.meta?.ts || 0}#${nodes0.length}`
+    if (lastAutoFitWireframeKeyRef.current === key) return
+    lastAutoFitWireframeKeyRef.current = key
+    if (dims.width <= 80 || dims.height <= 80) return
+    const mode = readLayoutMode(snapshot.schema)
+    const opts = readFitAllOptions({ schema: snapshot.schema, mode, intent: 'initialFit' })
+    const t = fitAllTransform(nodes0, Math.max(1, dims.width), Math.max(1, dims.height), { ...opts, graphData: g0 })
+    d3.select(svgEl).call(zoom.transform as never, d3.zoomIdentity.translate(t.x, t.y).scale(t.k))
+  }, [active, dims.height, dims.width, documentUrl, snapshot.designLayerState?.hiddenById, snapshot.schema, webpageLayout?.meta?.ts, webpageLayoutGraphData, webpageLayoutStatus])
+
   const setDesignFramePosMany = snapshot.setDesignFramePosMany
 
   const frameElByIdRef = useRef<Map<string, SVGGElement>>(new Map())
@@ -424,8 +772,16 @@ export default function DesignCanvas({
     }
   }, [])
 
+  const dimsRef = useRef({ width: dims.width, height: dims.height })
+  useEffect(() => {
+    dimsRef.current = { width: dims.width, height: dims.height }
+  }, [dims.width, dims.height])
+
+  const zoomCommitRafRef = useRef<number | null>(null)
+  const pendingZoomTransformRef = useRef<{ k: number; x: number; y: number } | null>(null)
+
   const zoomViewKey = useMemo(() => {
-    return buildActive2dZoomViewKey({
+    const base = buildActive2dZoomViewKey({
       canvasRenderMode: snapshot.canvasRenderMode,
       canvas2dRenderer: snapshot.canvas2dRenderer,
       schema: snapshot.schema,
@@ -437,6 +793,9 @@ export default function DesignCanvas({
       mediaPanelDensity: snapshot.mediaPanelDensity,
       collapsedGroupIds: snapshot.collapsedGroupIds,
     })
+    const url = String(documentUrl || '').trim()
+    if (!url) return base
+    return `${base}::webpage:${url}`
   }, [
     snapshot.canvas2dRenderer,
     snapshot.canvasRenderMode,
@@ -448,7 +807,13 @@ export default function DesignCanvas({
     snapshot.mediaPanelDensity,
     snapshot.renderMediaAsNodes,
     snapshot.schema,
+    documentUrl,
   ])
+
+  const zoomViewKeyRef = useRef<string | null>(null)
+  useEffect(() => {
+    zoomViewKeyRef.current = zoomViewKey
+  }, [zoomViewKey])
 
   useZoomEffects({
     svgRef,
@@ -476,22 +841,32 @@ export default function DesignCanvas({
     const g = d3.select(gEl)
 
     const zoom = createZoom(svg, g, labelsSelRef, snapshot.schema, snapshot.viewportControlsPreset, t => {
-      const store = useGraphStore.getState()
-      const key = zoomViewKey
-      if (!key) return
-      commitZoomTransformToStore({
-        state: {
-          viewPinned: store.viewPinned,
-          zoomState: store.zoomState,
-          zoomStateByKey: store.zoomStateByKey,
-          setZoomState: store.setZoomState,
-          setZoomStateForKey: store.setZoomStateForKey,
-        },
-        zoomViewKey: key,
-        transform: { k: t.k, x: t.x, y: t.y },
-        viewportW: dims.width,
-        viewportH: dims.height,
-        graphDataRevision: store.graphDataRevision,
+      if (!active) return
+      pendingZoomTransformRef.current = { k: t.k, x: t.x, y: t.y }
+      if (zoomCommitRafRef.current != null) return
+      zoomCommitRafRef.current = requestAnimationFrame(() => {
+        zoomCommitRafRef.current = null
+        const pending = pendingZoomTransformRef.current
+        pendingZoomTransformRef.current = null
+        if (!pending) return
+        const store = useGraphStore.getState()
+        const key = zoomViewKeyRef.current
+        if (!key) return
+        const d = dimsRef.current
+        commitZoomTransformToStore({
+          state: {
+            viewPinned: store.viewPinned,
+            zoomState: store.zoomState,
+            zoomStateByKey: store.zoomStateByKey,
+            setZoomState: store.setZoomState,
+            setZoomStateForKey: store.setZoomStateForKey,
+          },
+          zoomViewKey: key,
+          transform: { k: pending.k, x: pending.x, y: pending.y },
+          viewportW: d.width,
+          viewportH: d.height,
+          graphDataRevision: store.graphDataRevision,
+        })
       })
     })
 
@@ -578,6 +953,11 @@ export default function DesignCanvas({
         void 0
       }
       zoomRef.current = null
+      if (zoomCommitRafRef.current != null) {
+        cancelAnimationFrame(zoomCommitRafRef.current)
+        zoomCommitRafRef.current = null
+      }
+      pendingZoomTransformRef.current = null
     }
   }, [active, dims.height, dims.width, snapshot.schema, snapshot.viewportControlsPreset, zoomViewKey])
 
@@ -593,7 +973,16 @@ export default function DesignCanvas({
     if (!webpageLayoutGraphData?.nodes || webpageLayoutGraphData.nodes.length === 0) return null
     const map = new Map<
       string,
-      { fill?: string; stroke?: string; strokeWidth?: number; borderRadius?: number; opacity?: number }
+      {
+        fill?: string
+        stroke?: string
+        strokeWidth?: number
+        borderRadius?: number
+        opacity?: number
+        kind?: string
+        zIndex?: number
+        boxShadow?: string
+      }
     >()
     for (let i = 0; i < webpageLayoutGraphData.nodes.length; i += 1) {
       const n = webpageLayoutGraphData.nodes[i] as GraphNode
@@ -603,6 +992,14 @@ export default function DesignCanvas({
       const strokeWidth = typeof props['visual:strokeWidth'] === 'number' ? (props['visual:strokeWidth'] as number) : undefined
       const borderRadius = typeof props['visual:borderRadius'] === 'number' ? (props['visual:borderRadius'] as number) : undefined
       const opacity = typeof props['visual:opacity'] === 'number' ? (props['visual:opacity'] as number) : undefined
+      const kind = typeof props['dom:kind'] === 'string' ? String(props['dom:kind'] || '').trim() : ''
+      const zIndex = (() => {
+        const raw = typeof props['css:zIndex'] === 'string' ? String(props['css:zIndex'] || '').trim() : ''
+        if (!raw || raw === 'auto') return 0
+        const n = Number(raw)
+        return Number.isFinite(n) ? n : 0
+      })()
+      const boxShadow = typeof props['css:boxShadow'] === 'string' ? String(props['css:boxShadow'] || '').trim() : ''
       const id = String(n.id || '').trim()
       if (!id) continue
       map.set(id, {
@@ -611,12 +1008,43 @@ export default function DesignCanvas({
         ...(typeof strokeWidth === 'number' && Number.isFinite(strokeWidth) ? { strokeWidth } : {}),
         ...(typeof borderRadius === 'number' && Number.isFinite(borderRadius) ? { borderRadius } : {}),
         ...(typeof opacity === 'number' && Number.isFinite(opacity) ? { opacity } : {}),
+        ...(kind ? { kind } : {}),
+        ...(Number.isFinite(zIndex) ? { zIndex } : {}),
+        ...(boxShadow ? { boxShadow } : {}),
       })
     }
     return map
   }, [webpageLayoutGraphData])
 
   const denseRender = visibleNodes.length > 450
+  const renderNodes = useMemo(() => {
+    if (!styleById) return visibleNodes
+    const kindRank = (k: string): number => {
+      if (k === 'container') return 0
+      if (k === 'element') return 1
+      if (k === 'media') return 2
+      if (k === 'interactive') return 3
+      return 4
+    }
+    const nodes = visibleNodes.slice()
+    nodes.sort((a, b) => {
+      const sa = styleById.get(a.id)
+      const sb = styleById.get(b.id)
+      const za = sa?.zIndex ?? 0
+      const zb = sb?.zIndex ?? 0
+      if (za !== zb) return za - zb
+      const ka = kindRank(sa?.kind || '')
+      const kb = kindRank(sb?.kind || '')
+      if (ka !== kb) return ka - kb
+      const pa = positions[a.id]
+      const pb = positions[b.id]
+      const aa = pa ? pa.w * pa.h : 0
+      const ab = pb ? pb.w * pb.h : 0
+      if (aa !== ab) return ab - aa
+      return a.id.localeCompare(b.id)
+    })
+    return nodes
+  }, [positions, styleById, visibleNodes])
 
   const BG_SIZE = 100000
 
@@ -626,6 +1054,60 @@ export default function DesignCanvas({
       className={`${CANVAS_SURFACE_CLASS} relative h-full w-full overflow-hidden bg-[var(--kg-canvas-bg)]`}
       aria-label="Design Canvas"
     >
+      {documentUrl ? (
+        <div className="pointer-events-none absolute left-3 top-3 z-50 max-w-[min(720px,calc(100%-24px))] rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-3 py-2 text-xs text-[var(--kg-text)] shadow">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="font-semibold">Webpage Wireframe</div>
+              <div className="truncate opacity-80">{documentUrl}</div>
+            </div>
+            {webpageLayoutStatus === 'loading' ? (
+              <div className="shrink-0 tabular-nums">{Math.max(0, Math.min(100, Math.floor(webpageLayoutProgress)))}%</div>
+            ) : null}
+          </div>
+          {webpageLayoutStatus === 'loading' ? (
+            <div className="mt-2">
+              <div className="h-2 w-full overflow-hidden rounded bg-[var(--kg-border)]/40">
+                <div
+                  className="h-full bg-[var(--kg-canvas-accent)]"
+                  style={{ width: `${Math.max(0, Math.min(100, Math.floor(webpageLayoutProgress)))}%` }}
+                />
+              </div>
+              {webpageLayoutMessage ? <div className="mt-1 opacity-80">{webpageLayoutMessage}</div> : null}
+            </div>
+          ) : webpageLayoutStatus === 'error' ? (
+            <div className="mt-2">
+              <div className="text-[var(--kg-danger,#c0392b)]">{webpageLayoutMessage || 'Export failed'}</div>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  className="pointer-events-auto rounded border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-2 py-1 text-xs"
+                  onClick={() => {
+                    setWebpageLayout(null)
+                    setWebpageLayoutStatus('loading')
+                    setWebpageLayoutProgress(0)
+                    setWebpageLayoutMessage('Retrying…')
+                    setWebpageLayoutRetryNonce(n => n + 1)
+                  }}
+                >
+                  Retry
+                </button>
+                <button
+                  type="button"
+                  className="pointer-events-auto rounded border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-2 py-1 text-xs opacity-80"
+                  onClick={() => {
+                    setDocumentUrl(null)
+                  }}
+                >
+                  Hide Webpage Mode
+                </button>
+              </div>
+            </div>
+          ) : webpageLayoutStatus === 'ready' ? (
+            webpageLayoutMessage ? <div className="mt-2 opacity-70">{webpageLayoutMessage}</div> : null
+          ) : null}
+        </div>
+      ) : null}
       <svg
         ref={svgRef}
         className={`${CANVAS_INTERACTIVE_CLASS} block h-full w-full select-none`}
@@ -647,17 +1129,33 @@ export default function DesignCanvas({
         <g ref={gRef}>
           <rect x={-BG_SIZE} y={-BG_SIZE} width={BG_SIZE * 2} height={BG_SIZE * 2} fill="url(#grid-pattern)" />
 
-          {visibleNodes.map(n => {
+          {renderNodes.map(n => {
             const p = positions[n.id]
             if (!p) return null
             const selected = snapshot.selectedNodeId === n.id
             const style = styleById ? styleById.get(n.id) || null : null
-            const fill = style?.fill || 'var(--kg-panel-bg)'
+            const kind = style?.kind || ''
+            const fill = (() => {
+              if (!styleById) return 'var(--kg-panel-bg)'
+              if (style?.fill) return style.fill
+              if (kind === 'container' || kind === 'interactive') return 'var(--kg-panel-bg)'
+              return 'transparent'
+            })()
             const stroke = selected ? 'var(--kg-canvas-accent)' : style?.stroke || 'var(--kg-border)'
-            const strokeWidth = selected ? 2 : (style?.strokeWidth ?? 1)
+            const strokeWidth = selected ? 2 : (style?.strokeWidth ?? (kind === 'interactive' ? 2 : 1))
+            const strokeDasharray = !selected && kind === 'container' ? '6 4' : undefined
             const rx = typeof style?.borderRadius === 'number' && Number.isFinite(style.borderRadius) ? style.borderRadius : 8
-            const rectOpacity = typeof style?.opacity === 'number' && Number.isFinite(style.opacity) ? style.opacity : 1
+            const rectOpacity = (() => {
+              const baseOpacity = typeof style?.opacity === 'number' && Number.isFinite(style.opacity) ? style.opacity : 1
+              if (!styleById) return baseOpacity
+              if (style?.fill) return baseOpacity
+              if (kind === 'container') return baseOpacity * 0.18
+              if (kind === 'interactive') return baseOpacity * 0.22
+              return baseOpacity
+            })()
             const showDecor = !styleById && !denseRender
+            const hasShadow = !!(styleById && style?.boxShadow && style.boxShadow !== 'none')
+            const filter = selected ? 'url(#shadow-md)' : hasShadow ? 'url(#shadow-md)' : 'url(#shadow-sm)'
 
             return (
               <g
@@ -858,7 +1356,8 @@ export default function DesignCanvas({
                   fillOpacity={rectOpacity}
                   stroke={stroke}
                   strokeWidth={strokeWidth}
-                  filter={selected ? 'url(#shadow-md)' : 'url(#shadow-sm)'}
+                  strokeDasharray={strokeDasharray}
+                  filter={filter}
                 />
                 {showDecor ? (
                   <path

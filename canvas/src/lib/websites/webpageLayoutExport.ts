@@ -13,7 +13,7 @@ export type WebpageLayoutElement = {
   tag: string
   rect: { x: number; y: number; w: number; h: number }
   text: string
-  attrs: { id: string; class: string; role: string; href: string; src: string; alt: string }
+  attrs: { id: string; class: string; role: string; ariaLabel: string; placeholder: string; href: string; src: string; alt: string }
   style: null | {
     display: string
     position: string
@@ -23,9 +23,21 @@ export type WebpageLayoutElement = {
     borderRadius: string
     borderColor: string
     borderWidth: string
+    padding: string
+    margin: string
+    gap: string
+    justifyContent: string
+    alignItems: string
+    flexDirection: string
+    flexWrap: string
     fontSize: string
     fontWeight: string
+    fontFamily: string
     lineHeight: string
+    letterSpacing: string
+    textTransform: string
+    textAlign: string
+    boxShadow: string
     opacity: string
   }
 }
@@ -82,4 +94,3 @@ export async function exportWebpageLayoutViaHiddenIframe(args: {
     return null
   }
 }
-

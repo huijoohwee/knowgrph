@@ -261,6 +261,7 @@ export function ToolbarToolMenu({
       <IconButton
         title={UI_LABELS.layerMode}
         onClick={() => handleSelectView('designLayers')}
+        disabled={!domPanelsAvailable}
         className={`App-toolbar__btn ${
           floatingPanelView === 'designLayers' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
         }`}
@@ -501,9 +502,9 @@ export function ToolbarToolMenu({
                 </section>
               </section>
             )}
-            {floatingPanelView === 'designLayers' && <DesignLayersPanel active={true} />}
-            {floatingPanelView === 'domTree' && <DesignDomTreePanel active={true} />}
-            {floatingPanelView === 'domInspect' && <DesignDomInspectPanel active={true} />}
+            {floatingPanelView === 'designLayers' && <DesignLayersPanel active={domPanelsAvailable} />}
+            {floatingPanelView === 'domTree' && <DesignDomTreePanel active={domPanelsAvailable} />}
+            {floatingPanelView === 'domInspect' && <DesignDomInspectPanel active={domPanelsAvailable} />}
             {floatingPanelView === 'inspector' && <InspectorView geospatialModeEnabled={geospatialModeEnabled} />}
             {floatingPanelView === 'chat' && (
               <React.Suspense fallback={null}>

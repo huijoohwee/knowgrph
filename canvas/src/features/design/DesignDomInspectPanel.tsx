@@ -95,6 +95,8 @@ export default function DesignDomInspectPanel({ active }: { active: boolean }) {
   const domId = node ? readPropString(node, 'dom:attrs:id') : ''
   const domClass = node ? readPropString(node, 'dom:attrs:class') : ''
   const domRole = node ? readPropString(node, 'dom:attrs:role') : ''
+  const domAriaLabel = node ? readPropString(node, 'dom:attrs:ariaLabel') : ''
+  const domPlaceholder = node ? readPropString(node, 'dom:attrs:placeholder') : ''
   const domHref = node ? readPropString(node, 'dom:attrs:href') : ''
   const domSrc = node ? readPropString(node, 'dom:attrs:src') : ''
   const domAlt = node ? readPropString(node, 'dom:attrs:alt') : ''
@@ -118,9 +120,21 @@ export default function DesignDomInspectPanel({ active }: { active: boolean }) {
   const cssBorderRadius = node ? readPropString(node, 'css:borderRadius') : ''
   const cssBorderWidth = node ? readPropString(node, 'css:borderWidth') : ''
   const cssBorderColor = node ? readPropString(node, 'css:borderColor') : ''
+  const cssPadding = node ? readPropString(node, 'css:padding') : ''
+  const cssMargin = node ? readPropString(node, 'css:margin') : ''
+  const cssGap = node ? readPropString(node, 'css:gap') : ''
+  const cssJustifyContent = node ? readPropString(node, 'css:justifyContent') : ''
+  const cssAlignItems = node ? readPropString(node, 'css:alignItems') : ''
+  const cssFlexDirection = node ? readPropString(node, 'css:flexDirection') : ''
+  const cssFlexWrap = node ? readPropString(node, 'css:flexWrap') : ''
   const cssFontSize = node ? readPropString(node, 'css:fontSize') : ''
   const cssFontWeight = node ? readPropString(node, 'css:fontWeight') : ''
+  const cssFontFamily = node ? readPropString(node, 'css:fontFamily') : ''
   const cssLineHeight = node ? readPropString(node, 'css:lineHeight') : ''
+  const cssLetterSpacing = node ? readPropString(node, 'css:letterSpacing') : ''
+  const cssTextTransform = node ? readPropString(node, 'css:textTransform') : ''
+  const cssTextAlign = node ? readPropString(node, 'css:textAlign') : ''
+  const cssBoxShadow = node ? readPropString(node, 'css:boxShadow') : ''
   const cssOpacity = node ? readPropString(node, 'css:opacity') : ''
 
   return (
@@ -151,6 +165,8 @@ export default function DesignDomInspectPanel({ active }: { active: boolean }) {
             <KeyValueRow k="dom.id" v={domId} />
             <KeyValueRow k="dom.class" v={domClass} />
             <KeyValueRow k="dom.role" v={domRole} />
+            <KeyValueRow k="aria-label" v={domAriaLabel} />
+            <KeyValueRow k="placeholder" v={domPlaceholder} />
             <KeyValueRow k="href" v={domHref} />
             <KeyValueRow k="src" v={domSrc} />
             <KeyValueRow k="alt" v={domAlt} />
@@ -177,9 +193,21 @@ export default function DesignDomInspectPanel({ active }: { active: boolean }) {
             <KeyValueRow k="borderRadius" v={cssBorderRadius} />
             <KeyValueRow k="borderWidth" v={cssBorderWidth} />
             <KeyValueRow k="borderColor" v={cssBorderColor} />
+            <KeyValueRow k="padding" v={cssPadding} />
+            <KeyValueRow k="margin" v={cssMargin} />
+            <KeyValueRow k="gap" v={cssGap} />
+            <KeyValueRow k="justifyContent" v={cssJustifyContent} />
+            <KeyValueRow k="alignItems" v={cssAlignItems} />
+            <KeyValueRow k="flexDirection" v={cssFlexDirection} />
+            <KeyValueRow k="flexWrap" v={cssFlexWrap} />
             <KeyValueRow k="fontSize" v={cssFontSize} />
             <KeyValueRow k="fontWeight" v={cssFontWeight} />
+            <KeyValueRow k="fontFamily" v={cssFontFamily} />
             <KeyValueRow k="lineHeight" v={cssLineHeight} />
+            <KeyValueRow k="letterSpacing" v={cssLetterSpacing} />
+            <KeyValueRow k="textTransform" v={cssTextTransform} />
+            <KeyValueRow k="textAlign" v={cssTextAlign} />
+            <KeyValueRow k="boxShadow" v={cssBoxShadow} />
             <KeyValueRow k="opacity" v={cssOpacity} />
           </Section>
         </div>
