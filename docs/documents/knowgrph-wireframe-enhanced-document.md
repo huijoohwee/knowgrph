@@ -60,6 +60,14 @@ The `## 📐 Layout Structure` section contains a single ` ```ascii` block.
   - Never branches on `kgWebpageUrl` or host; all decisions are purely geometric/structural and bounded (no per-site rules).
   - Regression fixtures live under `canvas/src/__tests__/fixtures/` and drive DOM→graph parity expectations without hardcoding external domains.
 
+## Design 2D Wireframe Presentation (Labels, Text, Media)
+
+- Design 2D renders DOM-derived frames as wireframe cards with:
+  - bounded label/meta chips (SSOT ellipsis helpers, depth-aware opacity) placed using a collision-avoidance relax pass so labels do not overlap each other or frames; and
+  - optional light-weight edges between frames derived from DOM parent links, gated by graph size and depth to stay bounded.
+- Text and rich-media previews (headings/CTAs vs deep body copy, media placeholders for IMG/VIDEO/IFRAME/SVG/…) are driven by DOM signals but controlled by schema metadata, not by URL or site.
+- Presentation knobs are exposed as schema-only settings under `renderer:designWireframe` and surfaced via the Floating Panel "Design wireframe" section; the UI does not introduce new behavior beyond these metadata fields.
+
 ## Fixture-Driven Parity (Without Hardcoded Domains)
 
 Fixture-like blocks (template showcase grid, pricing tables, etc.) are emitted only when corresponding generic signals and/or extracted blocks are present.

@@ -39,6 +39,7 @@ import {
   exportGraphCsvCombinedFromStore,
   exportGraphMlFromStore,
   exportCypherFromStore,
+  exportGraphMarkdownFromStore,
 } from '@/features/parsers/storeExportActions'
 
 const PRESET_ID_BY_EXAMPLE_ID: Record<ExampleId, string> = {
@@ -181,6 +182,10 @@ export function useParserWorkflowState() {
 
   const onExportCypher = useCallback(() => {
     exportCypherFromStore()
+  }, [])
+
+  const onExportMarkdownGraph = useCallback(() => {
+    exportGraphMarkdownFromStore()
   }, [])
 
   const onClearDataButton = React.useCallback(() => {
@@ -445,6 +450,7 @@ export function useParserWorkflowState() {
       onExportCsvCombined,
       onExportGraphMl,
       onExportCypher,
+      onExportMarkdownGraph,
       presets: [],
       onApplyPreset: () => void 0,
       onValidateGraph,
@@ -461,6 +467,7 @@ export function useParserWorkflowState() {
       onExportCsvCombined,
       onExportGraphMl,
       onExportCypher,
+      onExportMarkdownGraph,
       onValidateGraph,
     ],
   )

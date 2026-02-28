@@ -13,6 +13,7 @@ import {
 } from '@/components/GraphCanvas/helpers';
 import { nodeDragBehavior } from '@/components/GraphCanvas/utils';
 import { applyMediaProxySrc } from '@/lib/url';
+import { buildIframeSrcDocForUrl, buildWebpageProxyUrl, isIframeDirectEmbedUrl } from '@/lib/render/richMediaEmbed';
 import { MINIMAP_HEIGHT } from '@/features/minimap/math';
 import { DEFAULT_ZOOM_MAX_SCALE } from '@/lib/graph/layoutDefaults'
 import { getPortHandlePosition, getPortHandlesConfig, listPortHandlesForNodes, type PortHandleDatum } from '@/components/GraphCanvas/portHandles';
@@ -249,12 +250,16 @@ export const createNodesLayer = (args: {
                   event.stopPropagation();
                 });
             } else if (spec.kind === 'iframe') {
+              const rawUrl = String(spec.url || '').trim()
+              const proxiedSrc = buildWebpageProxyUrl(rawUrl)
+              const direct = isIframeDirectEmbedUrl(rawUrl)
               const iframe = container
                 .append('xhtml:iframe')
-                .attr('src', spec.url)
+                .attr('data-kg-iframe-url', rawUrl)
+                .attr('src', proxiedSrc)
                 .attr('loading', 'lazy')
                 .attr('referrerpolicy', 'no-referrer')
-                .attr('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-presentation')
+                .attr('sandbox', direct ? 'allow-scripts allow-same-origin allow-forms allow-popups allow-presentation' : 'allow-scripts allow-presentation')
                 .attr(
                   'allow',
                   'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share',
@@ -275,6 +280,25 @@ export const createNodesLayer = (args: {
                 .on('contextmenu', event => {
                   event.stopPropagation();
                 });
+              if (!direct && rawUrl && /^https?:\/\//i.test(rawUrl)) {
+                const anyNode = iframe.node() as unknown as { getAttribute?: (k: string) => string | null; setAttribute?: (k: string, v: string) => void }
+                const existing = typeof anyNode?.getAttribute === 'function' ? String(anyNode.getAttribute('data-kg-iframe-srcdoc-ready') || '') : ''
+                if (!existing) {
+                  const ctrl = new AbortController()
+                  void buildIframeSrcDocForUrl({ url: rawUrl, signal: ctrl.signal }).then(({ srcDoc }) => {
+                    try {
+                      const node = iframe.node() as unknown as { getAttribute?: (k: string) => string | null; setAttribute?: (k: string, v: string) => void }
+                      if (!node || typeof node.getAttribute !== 'function' || typeof node.setAttribute !== 'function') return
+                      if (String(node.getAttribute('data-kg-iframe-url') || '') !== rawUrl) return
+                      if (!srcDoc) return
+                      node.setAttribute('srcdoc', srcDoc)
+                      node.setAttribute('data-kg-iframe-srcdoc-ready', '1')
+                    } catch {
+                      void 0
+                    }
+                  }).catch(() => void 0)
+                }
+              }
             }
           });
         }

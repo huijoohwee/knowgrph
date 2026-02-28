@@ -52,17 +52,19 @@ const buildKey = (args: {
     ? (g.metadata as Record<string, unknown>)
     : null
   const layerHash = typeof meta?.sourceLayerHash === 'string' ? meta.sourceLayerHash.trim() : ''
-  const revKey = layerHash ? `h:${layerHash}` : `rev:${String(args.graphDataRevision || 0)}`
+  const revKey = `rev:${String(args.graphDataRevision || 0)}`
+  const layerKey = layerHash ? `h:${layerHash}` : ''
   const schemaGroupsKey = JSON.stringify(args.schema?.layout?.groups || null)
   return [
     revKey,
+    layerKey,
     `meta:${metaKey}`,
     `n:${String(nodesLen)}`,
     `e:${String(edgesLen)}`,
     `sem:${String(args.documentSemanticMode || '')}`,
     `fm:${args.frontmatterModeEnabled ? 1 : 0}`,
     `groups:${schemaGroupsKey}`,
-  ].join('|')
+  ].filter(Boolean).join('|')
 }
 
 export const deriveSceneGroups = (args: {

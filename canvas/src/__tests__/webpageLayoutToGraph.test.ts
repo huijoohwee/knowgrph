@@ -1620,7 +1620,7 @@ export function testWebpageLayoutToGraphOverlapIntersectionPrune() {
 
 export function testWebpageLayoutToGraphSectionSynthesisGridFourItems() {
   const snap: WebpageLayoutSnapshot = {
-    meta: { kind: 'layout', title: 'Grid', href: 'https://example.invalid/', viewport: { w: 1000, h: 800 }, scroll: { x: 0, y: 0, height: 2200 }, ts: 1 },
+    meta: { kind: 'layout', title: 'Grid', href: 'https://astro.build/', viewport: { w: 1000, h: 800 }, scroll: { x: 0, y: 0, height: 2200 }, ts: 1 },
     elements: [
       {
         id: 'p1',
@@ -1641,6 +1641,7 @@ export function testWebpageLayoutToGraphSectionSynthesisGridFourItems() {
           padding: '0px',
           margin: '0px',
           gap: '32px',
+          gridTemplateColumns: '1fr 1fr',
           justifyContent: 'normal',
           alignItems: 'normal',
           flexDirection: 'row',
@@ -1830,6 +1831,11 @@ export function testWebpageLayoutToGraphSectionSynthesisGridFourItems() {
   }
 
   const graph = convertWebpageLayoutToGraphData(snap, { maxNodes: 1200, minAreaPx: 9000 })
+  const p1 = (graph.nodes || []).find(n => String(n.id) === 'p1') as GraphNode | undefined
+  if (!p1) throw new Error('expected parent grid node to exist')
+  const p1Props = (p1.properties || {}) as Record<string, JSONValue>
+  if (p1Props['layout:kind'] !== 'grid') throw new Error('expected grid container to be tagged with layout:kind=grid')
+  if (p1Props['css:gridTemplateColumns'] !== '1fr 1fr') throw new Error('expected css:gridTemplateColumns to be preserved')
   const synthSectionNodes = (graph.nodes || [])
     .map(n => n as GraphNode)
     .filter(n => {
@@ -2147,4 +2153,324 @@ export function testWebpageLayoutToGraphDropsTinyDecorativeSvgIcon() {
   const ids = new Set((graph.nodes || []).map(n => String(n.id)))
   if (!ids.has('b1')) throw new Error('expected to keep button')
   if (ids.has('i1')) throw new Error('expected to drop tiny decorative svg icon')
+}
+
+export function testWebpageLayoutToGraphEffectiveOpacityAndStackKey() {
+  const snap: WebpageLayoutSnapshot = {
+    meta: { kind: 'layout', title: 'Opacity', href: 'https://example.invalid/', viewport: { w: 800, h: 600 }, scroll: { x: 0, y: 0, height: 600 }, ts: 1 },
+    elements: [
+      {
+        id: 'p',
+        pid: '',
+        tag: 'DIV',
+        rect: { x: 0, y: 0, w: 800, h: 600 },
+        text: '',
+        attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' },
+        style: {
+          display: 'block',
+          position: 'static',
+          zIndex: 'auto',
+          backgroundColor: 'rgb(255, 255, 255)',
+          color: '',
+          borderRadius: '0px',
+          borderColor: 'rgba(0, 0, 0, 0)',
+          borderWidth: '0px',
+          padding: '0px',
+          margin: '0px',
+          gap: '0px',
+          justifyContent: 'normal',
+          alignItems: 'normal',
+          flexDirection: 'row',
+          flexWrap: 'nowrap',
+          fontSize: '',
+          fontWeight: '',
+          fontFamily: '',
+          lineHeight: '',
+          letterSpacing: '',
+          textTransform: '',
+          textAlign: '',
+          boxShadow: 'none',
+          opacity: '0.5',
+        },
+      },
+      {
+        id: 'c',
+        pid: 'p',
+        tag: 'BUTTON',
+        rect: { x: 100, y: 100, w: 200, h: 60 },
+        text: 'Click',
+        attrs: { id: '', class: 'btn', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' },
+        style: {
+          display: 'inline-block',
+          position: 'relative',
+          zIndex: '10',
+          backgroundColor: 'rgb(0, 0, 0)',
+          color: 'rgb(255, 255, 255)',
+          borderRadius: '6px',
+          borderColor: 'rgba(0, 0, 0, 0)',
+          borderWidth: '0px',
+          padding: '0px',
+          margin: '0px',
+          gap: '0px',
+          justifyContent: 'normal',
+          alignItems: 'normal',
+          flexDirection: 'row',
+          flexWrap: 'nowrap',
+          fontSize: '14px',
+          fontWeight: '600',
+          fontFamily: '',
+          lineHeight: '',
+          letterSpacing: '',
+          textTransform: '',
+          textAlign: '',
+          boxShadow: 'none',
+          opacity: '0.5',
+        },
+      },
+    ],
+  }
+
+  const graph = convertWebpageLayoutToGraphData(snap, { maxNodes: 1000, minAreaPx: 1 })
+  const node = (graph.nodes || []).find(n => String(n.id) === 'c') as GraphNode | undefined
+  if (!node) throw new Error('missing child node')
+  const props = (node.properties || {}) as Record<string, JSONValue>
+  const effOpacity = props['visual:opacity']
+  if (typeof effOpacity !== 'number' || Math.abs(effOpacity - 0.25) > 1e-6) {
+    throw new Error(`expected effective opacity 0.25 (got ${String(effOpacity)})`)
+  }
+  const stackKey = props['css:stackKey']
+  if (typeof stackKey !== 'string' || !stackKey.trim()) throw new Error('expected css:stackKey')
+}
+
+export function testWebpageLayoutToGraphAssignsGridChildIndices() {
+  const snap: WebpageLayoutSnapshot = {
+    meta: { kind: 'layout', title: 'Grid', href: 'https://example.invalid/', viewport: { w: 1000, h: 800 }, scroll: { x: 0, y: 0, height: 800 }, ts: 1 },
+    elements: [
+      {
+        id: 'g',
+        pid: '',
+        tag: 'DIV',
+        rect: { x: 0, y: 0, w: 1000, h: 800 },
+        text: '',
+        attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' },
+        style: {
+          display: 'grid',
+          position: 'static',
+          zIndex: 'auto',
+          backgroundColor: 'rgba(0, 0, 0, 0)',
+          color: '',
+          borderRadius: '0px',
+          borderColor: 'rgba(0, 0, 0, 0)',
+          borderWidth: '0px',
+          padding: '0px',
+          margin: '0px',
+          gap: '24px',
+          justifyContent: 'normal',
+          alignItems: 'normal',
+          flexDirection: 'row',
+          flexWrap: 'nowrap',
+          fontSize: '',
+          fontWeight: '',
+          fontFamily: '',
+          lineHeight: '',
+          letterSpacing: '',
+          textTransform: '',
+          textAlign: '',
+          boxShadow: 'none',
+          opacity: '1',
+        },
+      },
+      { id: 'a', pid: 'g', tag: 'BUTTON', rect: { x: 40, y: 40, w: 300, h: 80 }, text: 'A', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { display: 'inline-block', position: 'static', zIndex: 'auto', backgroundColor: 'rgb(0, 0, 0)', color: 'rgb(255, 255, 255)', borderRadius: '6px', borderColor: 'rgba(0, 0, 0, 0)', borderWidth: '0px', padding: '0px', margin: '0px', gap: '0px', justifyContent: 'normal', alignItems: 'normal', flexDirection: 'row', flexWrap: 'nowrap', fontSize: '14px', fontWeight: '600', fontFamily: '', lineHeight: '', letterSpacing: '', textTransform: '', textAlign: '', boxShadow: 'none', opacity: '1' } },
+      { id: 'b', pid: 'g', tag: 'BUTTON', rect: { x: 520, y: 40, w: 300, h: 80 }, text: 'B', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { display: 'inline-block', position: 'static', zIndex: 'auto', backgroundColor: 'rgb(0, 0, 0)', color: 'rgb(255, 255, 255)', borderRadius: '6px', borderColor: 'rgba(0, 0, 0, 0)', borderWidth: '0px', padding: '0px', margin: '0px', gap: '0px', justifyContent: 'normal', alignItems: 'normal', flexDirection: 'row', flexWrap: 'nowrap', fontSize: '14px', fontWeight: '600', fontFamily: '', lineHeight: '', letterSpacing: '', textTransform: '', textAlign: '', boxShadow: 'none', opacity: '1' } },
+      { id: 'c', pid: 'g', tag: 'BUTTON', rect: { x: 40, y: 180, w: 300, h: 80 }, text: 'C', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { display: 'inline-block', position: 'static', zIndex: 'auto', backgroundColor: 'rgb(0, 0, 0)', color: 'rgb(255, 255, 255)', borderRadius: '6px', borderColor: 'rgba(0, 0, 0, 0)', borderWidth: '0px', padding: '0px', margin: '0px', gap: '0px', justifyContent: 'normal', alignItems: 'normal', flexDirection: 'row', flexWrap: 'nowrap', fontSize: '14px', fontWeight: '600', fontFamily: '', lineHeight: '', letterSpacing: '', textTransform: '', textAlign: '', boxShadow: 'none', opacity: '1' } },
+      { id: 'd', pid: 'g', tag: 'BUTTON', rect: { x: 520, y: 180, w: 300, h: 80 }, text: 'D', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { display: 'inline-block', position: 'static', zIndex: 'auto', backgroundColor: 'rgb(0, 0, 0)', color: 'rgb(255, 255, 255)', borderRadius: '6px', borderColor: 'rgba(0, 0, 0, 0)', borderWidth: '0px', padding: '0px', margin: '0px', gap: '0px', justifyContent: 'normal', alignItems: 'normal', flexDirection: 'row', flexWrap: 'nowrap', fontSize: '14px', fontWeight: '600', fontFamily: '', lineHeight: '', letterSpacing: '', textTransform: '', textAlign: '', boxShadow: 'none', opacity: '1' } },
+    ],
+  }
+
+  const graph = convertWebpageLayoutToGraphData(snap, { maxNodes: 1000, minAreaPx: 1 })
+  const byId = new Map((graph.nodes || []).map(n => [String(n.id), n as GraphNode]))
+  const a = byId.get('a')
+  const b = byId.get('b')
+  const c = byId.get('c')
+  const d = byId.get('d')
+  if (!a || !b || !c || !d) throw new Error('missing grid children')
+  const getIx = (n: GraphNode) => {
+    const props = (n.properties || {}) as Record<string, JSONValue>
+    return { x: props['visual:xIndex'], y: props['visual:yIndex'] }
+  }
+  const ia = getIx(a)
+  const ib = getIx(b)
+  const ic = getIx(c)
+  const id = getIx(d)
+  if (ia.y !== 0 || ia.x !== 0) throw new Error('expected A at (0,0)')
+  if (ib.y !== 0 || ib.x !== 1) throw new Error('expected B at (1,0)')
+  if (ic.y !== 1 || ic.x !== 0) throw new Error('expected C at (0,1)')
+  if (id.y !== 1 || id.x !== 1) throw new Error('expected D at (1,1)')
+}
+
+export function testWebpageLayoutToGraphKeepsImportantHeadingUnderMaxNodesBudget() {
+  const url = 'https://www.ycombinator.com/library/8d-how-to-build-a-great-series-a-pitch-and-deck'
+  const snap: WebpageLayoutSnapshot = {
+    meta: { kind: 'layout', title: 'YC', href: url, viewport: { w: 1200, h: 800 }, scroll: { x: 0, y: 0, height: 5200 }, ts: 1 },
+    elements: (() => {
+      const styleBase = {
+        display: 'block',
+        position: 'static',
+        zIndex: 'auto',
+        backgroundColor: 'rgba(0, 0, 0, 0)',
+        color: '',
+        borderRadius: '0px',
+        borderColor: 'rgba(0, 0, 0, 0)',
+        borderWidth: '0px',
+        padding: '0px',
+        margin: '0px',
+        gap: '0px',
+        justifyContent: 'normal',
+        alignItems: 'normal',
+        flexDirection: 'row',
+        flexWrap: 'nowrap',
+        fontSize: '',
+        fontWeight: '',
+        fontFamily: '',
+        lineHeight: '',
+        letterSpacing: '',
+        textTransform: '',
+        textAlign: '',
+        boxShadow: 'none',
+        opacity: '1',
+      } as const
+      const els: WebpageLayoutSnapshot['elements'] = []
+      els.push({
+        id: 'main',
+        pid: '',
+        tag: 'MAIN',
+        rect: { x: 0, y: 0, w: 1200, h: 800 },
+        text: '',
+        attrs: { id: '', class: '', role: 'main', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' },
+        style: styleBase,
+      })
+      for (let i = 0; i < 64; i += 1) {
+        els.push({
+          id: `fill_${i}`,
+          pid: 'main',
+          tag: 'DIV',
+          rect: { x: 20 + (i % 8) * 140, y: 40 + Math.floor(i / 8) * 110, w: 100, h: 100 },
+          text: '',
+          attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' },
+          style: styleBase,
+        })
+      }
+      els.push({
+        id: 'h1',
+        pid: 'main',
+        tag: 'H1',
+        rect: { x: 60, y: 1600, w: 980, h: 44 },
+        text: 'How to build a great Series A pitch and deck',
+        attrs: { id: '', class: 'prose', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' },
+        style: { ...styleBase, fontSize: '36px', fontWeight: '700' },
+      })
+      return els
+    })(),
+  }
+
+  const graph = convertWebpageLayoutToGraphData(snap, { maxNodes: 18, minAreaPx: 9000 })
+  const ids = new Set((graph.nodes || []).map(n => String(n.id)))
+  if (!ids.has('h1')) throw new Error('expected important heading to be kept even when early DOM contains many candidates')
+}
+
+export function testWebpageLayoutToGraphPreservesSemanticWrapperSingleChildNearEq() {
+  const url = 'https://www.ycombinator.com/library/8d-how-to-build-a-great-series-a-pitch-and-deck'
+  const baseStyle = {
+    display: 'block',
+    position: 'static',
+    zIndex: 'auto',
+    backgroundColor: 'rgba(0, 0, 0, 0)',
+    color: '',
+    borderRadius: '0px',
+    borderColor: 'rgba(0, 0, 0, 0)',
+    borderWidth: '0px',
+    padding: '0px',
+    margin: '0px',
+    gap: '0px',
+    justifyContent: 'normal',
+    alignItems: 'normal',
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    fontSize: '',
+    fontWeight: '',
+    fontFamily: '',
+    lineHeight: '',
+    letterSpacing: '',
+    textTransform: '',
+    textAlign: '',
+    boxShadow: 'none',
+    opacity: '1',
+  } as const
+  const snap: WebpageLayoutSnapshot = {
+    meta: { kind: 'layout', title: 'YC', href: url, viewport: { w: 1200, h: 800 }, scroll: { x: 0, y: 0, height: 2400 }, ts: 1 },
+    elements: [
+      { id: 'main', pid: '', tag: 'MAIN', rect: { x: 0, y: 0, w: 1200, h: 800 }, text: '', attrs: { id: '', class: '', role: 'main', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: baseStyle },
+      { id: 'article', pid: 'main', tag: 'ARTICLE', rect: { x: 0, y: 0, w: 1200, h: 800 }, text: '', attrs: { id: '', class: 'prose', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: baseStyle },
+      { id: 'h2', pid: 'article', tag: 'H2', rect: { x: 60, y: 120, w: 980, h: 34 }, text: 'Problem', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...baseStyle, fontSize: '28px', fontWeight: '700' } },
+      { id: 'p1', pid: 'article', tag: 'P', rect: { x: 60, y: 170, w: 980, h: 22 }, text: 'Outline the problem you’re solving from your customer’s perspective.', attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' }, style: { ...baseStyle, fontSize: '16px' } },
+    ],
+  }
+
+  const graph = convertWebpageLayoutToGraphData(snap, { maxNodes: 1200, minAreaPx: 9000 })
+  const ids = new Set((graph.nodes || []).map(n => String(n.id)))
+  if (!ids.has('main')) throw new Error('expected MAIN to be preserved')
+  if (!ids.has('article')) throw new Error('expected ARTICLE to be preserved even when single-child near-eq')
+  const edgeIds = new Set((graph.edges || []).map(e => String(e.id)))
+  if (!edgeIds.has('dom:main->article')) throw new Error('expected dom nesting to keep MAIN->ARTICLE')
+}
+
+export function testWebpageLayoutToGraphAddsTextPreviewAndNormalizesText() {
+  const snap: WebpageLayoutSnapshot = {
+    meta: { kind: 'layout', title: 'Text', href: 'https://example.invalid/', viewport: { w: 1000, h: 800 }, scroll: { x: 0, y: 0, height: 1200 }, ts: 1 },
+    elements: [
+      {
+        id: 'p',
+        pid: '',
+        tag: 'P',
+        rect: { x: 40, y: 40, w: 920, h: 80 },
+        text: `Hello   world\n\nthis   is    a   test  ${'x'.repeat(420)}`,
+        attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: '', alt: '' },
+        style: {
+          display: 'block',
+          position: 'static',
+          zIndex: 'auto',
+          backgroundColor: 'rgba(0, 0, 0, 0)',
+          color: '',
+          borderRadius: '0px',
+          borderColor: 'rgba(0, 0, 0, 0)',
+          borderWidth: '0px',
+          padding: '0px',
+          margin: '0px',
+          gap: '0px',
+          justifyContent: 'normal',
+          alignItems: 'normal',
+          flexDirection: 'row',
+          flexWrap: 'nowrap',
+          fontSize: '16px',
+          fontWeight: '400',
+          fontFamily: '',
+          lineHeight: '',
+          letterSpacing: '',
+          textTransform: '',
+          textAlign: '',
+          boxShadow: 'none',
+          opacity: '1',
+        },
+      },
+    ],
+  }
+
+  const graph = convertWebpageLayoutToGraphData(snap, { maxNodes: 1200, minAreaPx: 9000 })
+  const node = (graph.nodes || []).find(n => String(n.id) === 'p') as GraphNode | undefined
+  if (!node) throw new Error('expected text node')
+  const props = (node.properties || {}) as Record<string, JSONValue>
+  const t = props['dom:text']
+  if (typeof t !== 'string' || t.includes('\n') || /\s{2,}/.test(t)) throw new Error('expected dom:text normalized')
+  const preview = props['dom:textPreview']
+  if (typeof preview !== 'string' || !preview.endsWith('…')) throw new Error('expected dom:textPreview truncated with ellipsis')
 }

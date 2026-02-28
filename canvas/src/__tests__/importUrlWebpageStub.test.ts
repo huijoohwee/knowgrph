@@ -109,3 +109,52 @@ export const testImportUrlWebpagePostprocessCoalescesNavAndAvoidsSyntheticArtifa
   if (!doc.includes('This is the real magic.')) throw new Error('expected long paragraph preserved')
   if (isFrontmatterOnlyDoc(doc)) throw new Error('expected non-empty markdown body')
 }
+
+export const testImportUrlSubstackDefaultsToMarkdownViewAndHasBody = async () => {
+  const url = 'https://www.citriniresearch.com/p/2028gic'
+  const htmlBody = [
+    '<!doctype html>',
+    '<html>',
+    '<head>',
+    '<title>THE 2028 GLOBAL INTELLIGENCE CRISIS</title>',
+    '<script src="https://substackcdn.com/bundle.js"></script>',
+    '</head>',
+    '<body>',
+    '<h1>THE 2028 GLOBAL INTELLIGENCE CRISIS</h1>',
+    '<p>Intro paragraph</p>',
+    '</body>',
+    '</html>',
+  ].join('')
+
+  const g = globalThis as unknown as { fetch?: unknown }
+  const prevFetch = g.fetch
+  try {
+    g.fetch = (async (_input: unknown, init?: unknown) => {
+      const initObj = init && typeof init === 'object' ? (init as { method?: unknown }) : null
+      const methodRaw = initObj?.method
+      const method = (typeof methodRaw === 'string' ? methodRaw : 'GET').toUpperCase()
+      const res = {
+        ok: true,
+        status: 200,
+        headers: {
+          get: () => null,
+        },
+        text: async () => (method === 'HEAD' ? '' : htmlBody),
+      }
+      return res as unknown as Response
+    }) as unknown
+
+    const imported = await fetchWorkspaceUrlContent(url, { mode: 'import' })
+    if (!imported || typeof imported.text !== 'string') throw new Error('missing import content')
+    if (!imported.text.includes(`kgWebpageUrl: "${url}"`)) throw new Error('expected kgWebpageUrl to be present')
+    if (!imported.text.includes('kgWebpageView: "markdown"')) {
+      throw new Error('expected Substack import to default to markdown view')
+    }
+    if (isFrontmatterOnlyDoc(imported.text)) throw new Error('expected Substack import to include markdown body')
+    if (!imported.text.includes('THE 2028 GLOBAL INTELLIGENCE CRISIS')) {
+      throw new Error('expected converted markdown to include the article title')
+    }
+  } finally {
+    g.fetch = prevFetch
+  }
+}

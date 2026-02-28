@@ -87,6 +87,7 @@ export const createLabelsLayer = (args: {
     label.each(function (d: GraphNode) {
       const el = d3.select(this)
       const baseLabelFull = String(getNodeLabelFullText2d(d) || '')
+      const labelFullAttr = baseLabelFull.length > 600 ? `${baseLabelFull.slice(0, 599)}…` : baseLabelFull
       const baseLabel = truncateTextWithWordEllipsis(baseLabelFull, 20)
       const layout = computeVisibleLabelLines2d(d, schema)
       const wrapped = layout.wrappedText
@@ -103,9 +104,9 @@ export const createLabelsLayer = (args: {
       
       el
         .attr('data-label-mode', 'wrap')
-        .attr('data-label-full', baseLabelFull)
-        .attr('data-label-wrap', wrapped)
-        .attr('data-label-compact', compact)
+        .attr('data-label-full', labelFullAttr)
+        .attr('data-label-wrap', wrapped.length > 600 ? `${wrapped.slice(0, 599)}…` : wrapped)
+        .attr('data-label-compact', compact.length > 120 ? `${compact.slice(0, 119)}…` : compact)
         .attr('data-label-linecount', String(lineCount))
         .attr('data-label-maxlen', String(maxLen))
       el.text(null)

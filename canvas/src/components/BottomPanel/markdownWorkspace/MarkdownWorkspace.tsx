@@ -824,8 +824,8 @@ export function MarkdownWorkspace() {
                   url: webpageWorkspaceMeta.url,
                   view: 'markdown',
                   scriptPolicy: webpageWorkspaceMeta.scriptPolicy,
-                  includeImages,
-                  fidelityLevel,
+                  includeImages: webpageWorkspaceMeta.includeImages,
+                  fidelityLevel: webpageWorkspaceMeta.fidelityLevel,
                 })
               }
             }
@@ -859,8 +859,8 @@ export function MarkdownWorkspace() {
             url: webpageWorkspaceMeta.url,
             view: 'markdown',
             scriptPolicy: webpageWorkspaceMeta.scriptPolicy,
-            includeImages,
-            fidelityLevel,
+            includeImages: webpageWorkspaceMeta.includeImages,
+            fidelityLevel: webpageWorkspaceMeta.fidelityLevel,
           })
         })()
         await fs.writeFileText(activePath, nextText)
@@ -988,8 +988,8 @@ export function MarkdownWorkspace() {
           view: 'markdown',
           siteRootRel: webpageWorkspaceMeta.siteRootRel,
           scriptPolicy: webpageWorkspaceMeta.scriptPolicy,
-          includeImages,
-          fidelityLevel,
+          includeImages: webpageWorkspaceMeta.includeImages,
+          fidelityLevel: webpageWorkspaceMeta.fidelityLevel,
         })
 
         setStatusProgress('Writing')

@@ -23,7 +23,14 @@ import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY, UI_COPY, WORKSPACE_ENTRY_
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { hashStringToHex } from '@/lib/hash/stringHash'
-import { isFrontmatterOnlyDoc, normalizeWebpageFrontmatterView, parseWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
+import {
+  extractYamlFrontmatterBlock,
+  isFrontmatterOnlyDoc,
+  normalizeWebpageFrontmatterView,
+  parseWebpageFrontmatterMeta,
+  readYamlFrontmatterValue,
+  upsertWebpageFrontmatterMeta,
+} from '@/lib/markdown/frontmatter'
 import { buildWebsiteSitemapMarkdown } from '@/lib/websites/websiteSitemapMarkdown'
 import { safeWebsitePathSegment } from '@/lib/websites/websitePathUtils'
 import { fetchWebsiteImportArtifact } from '@/lib/websites/webpageIframeSrcdoc'
@@ -449,7 +456,7 @@ export function useWorkspaceFileActions(args: {
         const createdPath = res.createdPaths.find(p => typeof p === 'string' && p.trim()) || null
         const source = createdPath ? res.sources.find(s => s.path === createdPath)?.source : res.sources[0]?.source
         const sourceUrl = source && source.kind === 'url' ? source.url : null
-        if (createdPath) await focusAfterImport(createdPath, { sourceUrl, applyToGraph: false, jobId })
+        if (createdPath) await focusAfterImport(createdPath, { sourceUrl, applyToGraph: true, jobId })
 
         const hydrateWebpageStub = async () => {
           if (!createdPath) return
@@ -458,10 +465,21 @@ export function useWorkspaceFileActions(args: {
           try {
             const current = await fs.readFileText(createdPath)
             if (!current) return
-            if (!isFrontmatterOnlyDoc(current)) return
             const meta = parseWebpageFrontmatterMeta(current)
             if (!meta || !meta.url) return
             if (meta.url !== sourceUrl) return
+            const body = String(current || '').replace(/^---[\s\S]*?\n---\n?/m, '').trim()
+            const looksLikeJsShellText = (text: string): boolean => {
+              const t = String(text || '')
+              if (!t.trim()) return false
+              if (/failed\s+to\s+load\s+posts/i.test(t)) return true
+              if (/enable-javascript\.com/i.test(t)) return true
+              if (/requires\s+java\s*script/i.test(t)) return true
+              if (/page not foundlatesttopdiscussions/i.test(t.replace(/\s+/g, ''))) return true
+              return false
+            }
+            const needsHydration = isFrontmatterOnlyDoc(current) || looksLikeJsShellText(body) || body.length < 220
+            if (!needsHydration) return
 
             const toastHydrateId = `workspace:import:url:hydrate:${hashStringToHex(sourceUrl).slice(0, 10)}`
             setStatusProgress('Fetching')
@@ -492,7 +510,9 @@ export function useWorkspaceFileActions(args: {
             })
             if (importJobRef.current !== jobId) return
             if (!fetched || !String(fetched.text || '').trim()) return
-            const nextText = normalizeWebpageFrontmatterView(fetched.text, meta.view)
+            const fetchedMeta = parseWebpageFrontmatterMeta(fetched.text)
+            const desiredView = meta.view === 'html' && fetchedMeta?.view === 'markdown' ? 'markdown' : meta.view
+            const nextText = normalizeWebpageFrontmatterView(fetched.text, desiredView)
             if (isFrontmatterOnlyDoc(nextText)) return
 
             setStatusProgress('Writing')
@@ -966,27 +986,41 @@ export function useWorkspaceFileActions(args: {
       setStatusProgress('Refreshing')
       try {
         const fs = await getFs()
-        try {
-          const current = await fs.readFileText(normalized)
-          const meta = current ? parseWebpageFrontmatterMeta(current) : null
-          if (meta?.url && meta.view === 'html') {
-            setStatusInfo('Refreshed')
-            return
-          }
-        } catch {
-          void 0
-        }
+        const prevText = await fs.readFileText(normalized).catch(() => '')
+        const prevFm = prevText ? extractYamlFrontmatterBlock(prevText) : null
+        const prevMeta = prevText ? parseWebpageFrontmatterMeta(prevText) : null
+        const prevViewRaw = prevFm ? readYamlFrontmatterValue(prevFm.rawBlock, 'kgWebpageView') : ''
+        const prevHasScript = !!(prevFm && readYamlFrontmatterValue(prevFm.rawBlock, 'kgWebpageScriptPolicy'))
+        const prevHasImages = !!(prevFm && readYamlFrontmatterValue(prevFm.rawBlock, 'kgWebpageIncludeImages'))
+        const prevHasFidelity = !!(prevFm && readYamlFrontmatterValue(prevFm.rawBlock, 'kgWebpageFidelityLevel'))
+
         const fetched = await fetchWorkspaceUrlContent(src.url, {
           mode: 'refresh',
           onProgress: (p) => setStatusProgress('Refreshing', p, 100),
         })
-        await fs.writeFileText(normalized, fetched.text)
-        const inlineText = fetched.text.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? fetched.text : undefined
+        let nextText = fetched.text
+        if (prevMeta && prevMeta.url) {
+          const desiredView = prevViewRaw === 'html' ? 'html' : prevViewRaw === 'json' ? 'json' : prevViewRaw === 'markdown' ? 'markdown' : ''
+          if (desiredView) nextText = normalizeWebpageFrontmatterView(nextText, desiredView as 'html' | 'json' | 'markdown')
+          if (prevHasScript || prevHasImages || prevHasFidelity || prevMeta.siteRootRel) {
+            nextText = upsertWebpageFrontmatterMeta(nextText, {
+              url: prevMeta.url,
+              view: desiredView === 'json' ? 'json' : desiredView === 'html' ? 'html' : 'markdown',
+              siteRootRel: prevMeta.siteRootRel,
+              scriptPolicy: prevHasScript ? prevMeta.scriptPolicy : undefined,
+              includeImages: prevHasImages ? prevMeta.includeImages : undefined,
+              fidelityLevel: prevHasFidelity ? prevMeta.fidelityLevel : undefined,
+            })
+          }
+        }
+
+        await fs.writeFileText(normalized, nextText)
+        const inlineText = nextText.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? nextText : undefined
         setEntries(prev => prev.map(e => (e.path === normalized ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
         if (openedPath === normalized) {
-          lastLoadedRef.current = { path: normalized, text: fetched.text }
-          setActiveText(fetched.text)
-          if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, fetched.text)
+          lastLoadedRef.current = { path: normalized, text: nextText }
+          setActiveText(nextText)
+          if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, nextText)
           setMarkdownDocumentSourceUrl(fetched.normalizedUrl)
           void 0
         }

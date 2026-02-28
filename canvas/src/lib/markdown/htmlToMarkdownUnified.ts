@@ -586,13 +586,14 @@ export async function convertHtmlToMarkdownUnified(args: {
         const style = String(props.style || '')
         const classLower = className.toLowerCase()
         const styleLower = style.toLowerCase()
-        const looksGridOrColumns =
+        const looksGridOrColumnsOrFlex =
           /\bgrid\b|\binline-grid\b|\bgrid-cols-\[|\bgrid-rows-\[|\bgrid-cols-\d+|\bgrid-rows-\d+|\bgrid-flow-|\bcolumns-\d+/.test(
             classLower,
           ) ||
-          /display\s*:\s*(grid|inline-grid)/.test(styleLower) ||
-          /grid-template-columns|grid-template-rows|grid-auto-flow|column-count|column-width/.test(styleLower)
-        if (looksGridOrColumns) {
+          /\bflex\b|\binline-flex\b|\bflex-row\b|\bflex-col\b|\bflex-wrap\b|\bgap-\d+|\bspace-[xy]-\d+/.test(classLower) ||
+          /display\s*:\s*(grid|inline-grid|flex|inline-flex)/.test(styleLower) ||
+          /grid-template-columns|grid-template-rows|grid-auto-flow|column-count|column-width|flex-wrap|gap\s*:/.test(styleLower)
+        if (looksGridOrColumnsOrFlex) {
           const kids = Array.isArray(el.children) ? (el.children as Array<{ type?: unknown }>) : []
           const elementKids = kids.filter(k => typeof k?.type === 'string' && k.type === 'element')
           if (elementKids.length < 2) {
@@ -601,10 +602,12 @@ export async function convertHtmlToMarkdownUnified(args: {
             return preserveAsHtmlHandler()(state, node)
           }
           const value = toHtml(node as never)
-          const maxPreservedHtmlChars = 1800
           const divTagCount = (value.match(/<\s*div\b/gi) || []).length
           const anchorCount = (value.match(/<\s*a\b/gi) || []).length
-          if (anchorCount === 0 && value.length <= maxPreservedHtmlChars && divTagCount <= 6) {
+          const lower = value.toLowerCase()
+          if (lower.includes('<script') || lower.includes('<style')) {
+            void 0
+          } else if (anchorCount === 0 && value.length <= 6000 && divTagCount <= 14) {
             return { type: 'html', value, position: null }
           }
         }

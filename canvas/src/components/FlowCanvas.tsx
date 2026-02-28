@@ -16,7 +16,7 @@ import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
 import { buildFlowEditorCameraInitKey } from '@/lib/canvas/flow-editor-init-key'
 import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeScene'
-import { buildGraphMetaKey, deriveRankdir } from '@/components/FlowCanvas/layout'
+import { buildGraphMetaKey, buildGraphMetaKeyIgnoringPending, deriveRankdir } from '@/components/FlowCanvas/layout'
 import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'
 import { deriveSceneGroups } from '@/lib/scene/sceneDerivation'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
@@ -24,7 +24,6 @@ import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
-import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { computeEvenlyDistributedPositions } from '@/lib/canvas/evenDistribute'
 import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/canvas/arrangeShortcuts'
 import {
@@ -155,6 +154,18 @@ export default function FlowCanvas({
     () => drawArgsRef.current,
     [],
   )
+  const drawRafRef = React.useRef<number | null>(null)
+  const scheduleFlowDraw = React.useCallback(() => {
+    if (drawRafRef.current != null) return
+    drawRafRef.current = requestAnimationFrame(() => {
+      drawRafRef.current = null
+      if (!active) return
+      const runtime = runtimeRef.current
+      if (!runtime) return
+      runtime.dirty = true
+      scheduleFlowDraw()
+    })
+  }, [active, buildDrawArgs])
   const collisionSchemaRef = React.useRef<typeof schema | null>(null)
   const collisionGraphDataRef = React.useRef<GraphData | null>(null)
   const collisionFlowConfigRef = React.useRef<typeof flowConfig | null>(null)
@@ -242,11 +253,7 @@ export default function FlowCanvas({
     drawArgsRef.current.renderEdges = renderEdges
     drawArgsRef.current.renderGroups = renderGroups
     drawArgsRef.current.renderNodes = renderNodes
-    if (!active) return
-    const runtime = runtimeRef.current
-    if (!runtime) return
-    runtime.dirty = true
-    requestFlowNativeDraw(runtime, buildDrawArgs())
+    scheduleFlowDraw()
   }, [
     active,
     buildDrawArgs,
@@ -261,6 +268,7 @@ export default function FlowCanvas({
     selectedEdgeIds,
     selectedNodeId,
     selectedNodeIds,
+    scheduleFlowDraw,
   ])
 
   useAutoZoomModes2d({
@@ -410,6 +418,7 @@ export default function FlowCanvas({
     active,
     cacheKey,
     datasetKey,
+    graphDataRevision,
     layoutMode,
     layoutVariant,
     documentSemanticMode: String(documentSemanticMode || 'document'),
@@ -573,7 +582,7 @@ export default function FlowCanvas({
         }
         runtime.dirty = true
         positionsDirtySinceCommitRef.current = true
-        requestFlowNativeDraw(runtime, buildDrawArgs())
+        scheduleFlowDraw()
         requestCommit()
         return
       }
@@ -591,10 +600,10 @@ export default function FlowCanvas({
       }
       runtime.dirty = true
       positionsDirtySinceCommitRef.current = true
-      requestFlowNativeDraw(runtime, buildDrawArgs())
+      scheduleFlowDraw()
       requestCommit()
     }
-  }, [active, buildDrawArgs, requestCommit, schema?.behavior?.snapGrid, selectedIds, selectedNodeId])
+  }, [active, buildDrawArgs, requestCommit, schema?.behavior?.snapGrid, scheduleFlowDraw, selectedIds, selectedNodeId])
 
   React.useEffect(() => {
     if (!active) return
@@ -625,14 +634,14 @@ export default function FlowCanvas({
       }
       runtime.dirty = true
       positionsDirtySinceCommitRef.current = true
-      requestFlowNativeDraw(runtime, buildDrawArgs())
+      scheduleFlowDraw()
       requestCommit()
     }
     window.addEventListener('keydown', onKeyDown, { capture: true })
     return () => {
       window.removeEventListener('keydown', onKeyDown, { capture: true } as AddEventListenerOptions)
     }
-  }, [active, applyArrange, buildDrawArgs, requestCommit, schema?.behavior?.snapGrid, selectedIds])
+  }, [active, applyArrange, buildDrawArgs, requestCommit, scheduleFlowDraw, schema?.behavior?.snapGrid, selectedIds])
 
   React.useEffect(() => {
     if (!active) return
@@ -657,7 +666,7 @@ export default function FlowCanvas({
     }
     if (applied > 0) runtime.positionsReady = true
     runtime.dirty = true
-    requestFlowNativeDraw(runtime, buildDrawArgs())
+    scheduleFlowDraw()
     if (!cacheKey || typeof setLayoutPositionsForMode !== 'function') return
     lastCommittedPositionsRef.current = pos
   }, [active, buildDrawArgs, cacheKey, computedPositions, setLayoutPositionsForMode])
@@ -692,7 +701,7 @@ export default function FlowCanvas({
     if (canvasEl.width !== nextW) canvasEl.width = nextW
     if (canvasEl.height !== nextH) canvasEl.height = nextH
     if (resized) runtime.dirty = true
-    requestFlowNativeDraw(runtime, buildDrawArgs())
+    scheduleFlowDraw()
   }, [active, buildDrawArgs, dpr, viewportH, viewportW])
 
   React.useEffect(() => {
@@ -838,7 +847,7 @@ export default function FlowCanvas({
       selectedNodeIds: (selectedNodeIds || []).map(v => String(v)),
       selectedEdgeIds: (selectedEdgeIds || []).map(v => String(v)),
       onFrame: () => {
-        requestFlowNativeDraw(runtime, buildDrawArgs())
+        scheduleFlowDraw()
         requestCommit()
         handleInteractionFrame()
       },
@@ -869,7 +878,7 @@ export default function FlowCanvas({
     const portHandlesEnabled = !!portHandlesCfg?.enabled
     const portHandlesShowAllInputs = !!portHandlesCfg?.showAllInputs
     const portHandlesKey = `${portHandlesEnabled ? 1 : 0}:${portHandlesShowAllInputs ? 1 : 0}`
-    const graphKey = `${graphDataRevision}:${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${layoutVariant}:${portHandlesKey}`
+    const graphKey = `${graphDataRevision}:${nodeList.length}:${edgeList.length}:${buildGraphMetaKeyIgnoringPending(g)}:${layoutVariant}:${portHandlesKey}`
     if (graphKey === lastBuiltGraphKeyRef.current && (runtime.scene?.nodes.length || 0) > 0) return
     lastBuiltGraphKeyRef.current = graphKey
     __flowCanvasDebug.lastBuiltSceneKey = graphKey
@@ -886,7 +895,7 @@ export default function FlowCanvas({
       nodeQuickEditorRegistry,
     })
     __flowCanvasDebug.lastBuiltSceneNodeCount = res.nodeCount
-    requestFlowNativeDraw(runtime, buildDrawArgs())
+    scheduleFlowDraw()
   }, [
     active,
     buildDrawArgs,
@@ -907,7 +916,7 @@ export default function FlowCanvas({
     const runtime = runtimeRef.current
     if (!runtime) return
     setFlowNativePresentation(runtime, flowPresentation)
-    requestFlowNativeDraw(runtime, buildDrawArgs())
+    scheduleFlowDraw()
   }, [active, buildDrawArgs, flowPresentation])
 
   React.useEffect(() => {

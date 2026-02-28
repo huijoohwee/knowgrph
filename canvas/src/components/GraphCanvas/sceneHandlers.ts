@@ -660,11 +660,18 @@ export const attachSimulationTick = (args: {
       .attr('y', (d: GraphNode) => (typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : 0))
     const padPx = 8
     const bodyBlockers: AabbRect[] = []
+    const farPad = 240
+    const bodyFilterEnabled = nodes.length > 1200
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
       if (!n) continue
       if (!Number.isFinite(n.x as number) || !Number.isFinite(n.y as number)) continue
-      const dims = getNodeRectDimensions2d(n, schema)
+      if (bodyFilterEnabled) {
+        const sx = t.applyX(n.x as number)
+        const sy = t.applyY(n.y as number)
+        if (!(sx > -farPad && sx < width + farPad && sy > -farPad && sy < height + farPad)) continue
+      }
+      const dims = getNodeMetrics(n)
       const hw = Math.max(4, dims.width / 2)
       const hh = Math.max(4, dims.height / 2)
       bodyBlockers.push({ x: n.x as number, y: n.y as number, halfW: hw + 2, halfH: hh + 2 })
@@ -688,6 +695,7 @@ export const attachSimulationTick = (args: {
       anchor: 'start' | 'end' | 'middle'
     }
     const nodeLabelParticles: NodeLabelParticle[] = []
+    const nodeLabelRects: AabbRect[] = []
     labelsSel.each(function (d: GraphNode) {
       const el = this as unknown as SVGTextElement
 
@@ -844,6 +852,7 @@ export const attachSimulationTick = (args: {
             : x + dxFinal
       const centerY = y + dyFinal
       if (!nodeId) return
+      nodeLabelRects.push({ x: centerX, y: centerY, halfW, halfH })
       nodeLabelParticles.push({
         id: nodeId,
         baseX: centerX - dxN,
@@ -960,42 +969,6 @@ export const attachSimulationTick = (args: {
       } else {
         edgeLabelSel.attr('data-zoom-lod-hidden', '0').style('display', null)
         const placedEdgeLabelRects: AabbRect[] = []
-        const nodeLabelRects: AabbRect[] = []
-        const nodeLabelEls = svgEl.querySelectorAll('g[data-kg-layer="labels"] text.node-label')
-        for (let i = 0; i < nodeLabelEls.length; i += 1) {
-          const el = nodeLabelEls[i] as SVGTextElement
-          const x = Number(el.getAttribute('x'))
-          const y = Number(el.getAttribute('y'))
-          if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-          const dx = Number(el.getAttribute('dx'))
-          const dy = Number(el.getAttribute('dy'))
-          const anchorRaw = String(el.getAttribute('text-anchor') || 'middle')
-          const anchor: 'start' | 'end' | 'middle' = anchorRaw === 'start' ? 'start' : anchorRaw === 'end' ? 'end' : 'middle'
-          const charCount = (() => {
-            const raw = el.getAttribute('data-label-maxlen')
-            const n = raw != null ? Number(raw) : Number.NaN
-            return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0
-          })()
-          const lineCount = (() => {
-            const raw = el.getAttribute('data-label-linecount')
-            const n = raw != null ? Number(raw) : Number.NaN
-            return Number.isFinite(n) ? Math.max(1, Math.floor(n)) : 1
-          })()
-          const charW = estimateLabelCharWidthPx(labelFontSize)
-          const lineHeightPx = labelFontSize * 1.2
-          const halfW = Math.max(2, (Math.max(0, charCount) * charW) / 2)
-          const halfH = Math.max(2, (Math.max(1, lineCount) * lineHeightPx) / 2)
-          const dxv = Number.isFinite(dx) ? dx : 0
-          const dyv = Number.isFinite(dy) ? dy : 0
-          const cx =
-            anchor === 'start'
-              ? x + dxv + halfW
-              : anchor === 'end'
-                ? x + dxv - halfW
-                : x + dxv
-          const cy = y + dyv
-          nodeLabelRects.push({ x: cx, y: cy, halfW, halfH })
-        }
         const blockerRects = [...groupLabelBlockers, ...nodeLabelRects, ...bodyBlockers]
         edgeLabelSel.each(function (d: GraphEdge) {
           const el = this as unknown as SVGTextElement

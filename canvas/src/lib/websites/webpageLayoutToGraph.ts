@@ -366,11 +366,62 @@ const hasVisualDecoration = (el: WebpageLayoutElement): boolean => {
   return false
 }
 
+const normText = (raw: string): string => String(raw || '').replace(/\s+/g, ' ').trim()
+
+const truncateForPreview = (raw: string, maxChars: number): string => {
+  const s = normText(raw)
+  const limit = Math.max(8, Math.min(2000, Math.floor(maxChars)))
+  if (s.length <= limit) return s
+  return `${s.slice(0, Math.max(0, limit - 1)).trimEnd()}…`
+}
+
+const isHeadingTag = (tag: string): boolean => {
+  const t = String(tag || '').toUpperCase()
+  return t === 'H1' || t === 'H2' || t === 'H3' || t === 'H4' || t === 'H5' || t === 'H6'
+}
+
+const scoreElementForKeep = (el: WebpageLayoutElement, minAreaPx: number): number => {
+  const tag = safeStr(el.tag).toUpperCase()
+  const r = el.rect
+  const w = safeNum(r?.w, 0)
+  const h = safeNum(r?.h, 0)
+  const area = w > 0 && h > 0 ? w * h : 0
+  const minDim = Math.min(w, h)
+  const text = normText(safeStr(el.text))
+  const cls = safeStr(el.attrs?.class)
+  const role = safeStr(el.attrs?.role)
+  const aria = safeStr(el.attrs?.ariaLabel)
+  const id = safeStr(el.attrs?.id)
+
+  let s = 0
+  if (isMediaTag(tag)) s += 90
+  if (isInteractiveTag(tag)) s += 85
+  if (isHeadingTag(tag)) s += 80
+  if (tag === 'P' || tag === 'LI') s += text ? 25 : 0
+  if (isContainerTag(tag)) s += 35
+  if (role === 'main') s += 40
+  if (tag === 'HEADER' || tag === 'NAV' || tag === 'MAIN' || tag === 'FOOTER') s += 30
+  if (hasVisualDecoration(el)) s += 20
+
+  if (text) s += Math.min(30, 8 + Math.floor(text.length / 18))
+  if (aria) s += 10
+  if (role) s += 8
+  if (id) s += 6
+  if (cls && /(hero|card|feature|tile|pricing|testimonial|reviews?|faq|accordion|banner|cta|navbar|header|footer|modal|dialog|drawer|popover|tooltip|toast|sidebar|carousel|slider|swiper|gallery|tabs?|menu|table|list)/i.test(cls)) {
+    s += 12
+  }
+
+  const areaRatio = minAreaPx > 0 ? area / minAreaPx : 0
+  if (areaRatio > 0) s += Math.min(40, Math.max(0, Math.round(Math.log2(1 + areaRatio) * 16)))
+  if (minDim > 0) s += Math.min(10, Math.floor(minDim / 40))
+  return s
+}
+
 const scoreElementForPrune = (el: WebpageLayoutElement, preserveClassRe: RegExp): number => {
   const tag = safeStr(el.tag).toUpperCase()
   if (isInteractiveTag(tag) || isMediaTag(tag)) return 1000
   let s = 0
-  const text = safeStr(el.text)
+  const text = normText(safeStr(el.text))
   if (text) s += Math.min(40, 10 + Math.floor(text.length / 12))
   if (hasVisualDecoration(el)) s += 30
   const cls = safeStr(el.attrs?.class)
@@ -699,7 +750,7 @@ const pruneWrapperElements = (
       const el = byId.get(id)
       if (!el) continue
       const tag = safeStr(el.tag).toUpperCase()
-      if (!isWrapperTag(tag)) continue
+      if (tag !== 'DIV' && tag !== 'SPAN') continue
       if (isInteractiveTag(tag) || isMediaTag(tag)) continue
       if (safeStr(el.text)) continue
       if (hasVisualDecoration(el)) continue
@@ -870,6 +921,12 @@ const shouldKeepElement = (el: WebpageLayoutElement, minAreaPx: number): boolean
   if (area < 60) return false
   if (area >= minAreaPx) return true
 
+  const text = normText(safeStr(el.text))
+  if (text) {
+    if (isHeadingTag(tag)) return area >= Math.max(280, minAreaPx * 0.04) && minDim >= 12
+    if (tag === 'P' || tag === 'LI') return text.length >= 18 && area >= Math.max(360, minAreaPx * 0.06) && minDim >= 12
+  }
+
   if (isMediaTag(tag)) return true
   if (isInteractiveTag(tag)) return true
   if (isContainerTag(tag) && area >= Math.max(3500, minAreaPx * 0.28) && minDim >= 30) return true
@@ -974,11 +1031,6 @@ const synthesizeLayoutSections = (
     }
     if (!Number.isFinite(min) || !Number.isFinite(max)) return { min: 0, max: 0 }
     return { min, max }
-  }
-
-  const isHeadingTag = (tag: string): boolean => {
-    const t = String(tag || '').toUpperCase()
-    return t === 'H1' || t === 'H2' || t === 'H3'
   }
 
   const siblingContainerCovers = (pid: string, bbox: { x: number; y: number; w: number; h: number }, ignoreIds: Set<string>): boolean => {
@@ -1208,10 +1260,23 @@ const synthesizeLayoutSections = (
           padding: '0px',
           margin: '0px',
           gap: '0px',
+          rowGap: '0px',
+          columnGap: '0px',
           justifyContent: 'normal',
+          justifyItems: 'normal',
           alignItems: 'normal',
+          alignContent: 'normal',
+          justifySelf: 'auto',
+          alignSelf: 'auto',
           flexDirection: 'row',
           flexWrap: 'nowrap',
+          flexGrow: '0',
+          flexShrink: '1',
+          flexBasis: 'auto',
+          order: '0',
+          gridTemplateColumns: looksGrid ? 'auto' : '',
+          gridTemplateRows: looksGrid ? 'auto' : '',
+          gridAutoFlow: looksGrid ? 'row' : '',
           fontSize: '',
           fontWeight: '',
           fontFamily: '',
@@ -1250,16 +1315,18 @@ export function convertWebpageLayoutToGraphData(
   const pruneParams = derivePruneParams(snapshot, minAreaPx, fidelityLevel)
   const elements = Array.isArray(snapshot?.elements) ? snapshot.elements : []
 
-  const kept: WebpageLayoutElement[] = []
+  const candidates: Array<{ el: WebpageLayoutElement; score: number; idx: number }> = []
   for (let i = 0; i < elements.length; i += 1) {
     const el = elements[i]
     if (!el || typeof el !== 'object') continue
     if (!String(el.id || '').trim()) continue
     if (!el.rect || typeof el.rect !== 'object') continue
     if (!shouldKeepElement(el, minAreaPx)) continue
-    kept.push(el)
-    if (kept.length >= maxNodes) break
+    candidates.push({ el, score: scoreElementForKeep(el, minAreaPx), idx: i })
   }
+  candidates.sort((a, b) => b.score - a.score || a.idx - b.idx)
+  const kept: WebpageLayoutElement[] = []
+  for (let i = 0; i < candidates.length && kept.length < maxNodes; i += 1) kept.push(candidates[i]!.el)
 
   if (kept.length === 0 && elements.length > 0) {
     const ranked: { el: WebpageLayoutElement; area: number; minDim: number }[] = []
@@ -1327,7 +1394,7 @@ export function convertWebpageLayoutToGraphData(
     const y = safeNum(r.y, 0) - cy + h / 2
 
     const tag = String(el.tag || '').toUpperCase()
-    const text = safeStr(el.text)
+    const text = normText(safeStr(el.text))
     const ariaLabel = safeStr(el.attrs?.ariaLabel)
     const domId = safeStr(el.attrs?.id)
     const domClass = safeStr(el.attrs?.class)
@@ -1381,12 +1448,17 @@ export function convertWebpageLayoutToGraphData(
       'dom:attrs:src': src as unknown as JSONValue,
       'dom:attrs:alt': alt as unknown as JSONValue,
     }
+    if (text) properties['dom:textPreview'] = truncateForPreview(text, 360) as unknown as JSONValue
     const kind = isMediaTag(tag) ? 'media' : isInteractiveTag(tag) ? 'interactive' : isContainerTag(tag) ? 'container' : 'element'
     properties['dom:kind'] = kind as unknown as JSONValue
     if (css) {
       const display = String(css.display || '').trim()
       const position = String(css.position || '').trim()
       const zIndex = String(css.zIndex || '').trim()
+      const transformCss = String((css as Record<string, unknown>).transform || '').trim()
+      const filterCss = String((css as Record<string, unknown>).filter || '').trim()
+      const isolationCss = String((css as Record<string, unknown>).isolation || '').trim()
+      const willChangeCss = String((css as Record<string, unknown>).willChange || '').trim()
       const backgroundColor = String(css.backgroundColor || '').trim()
       const color = String(css.color || '').trim()
       const borderRadiusCss = String(css.borderRadius || '').trim()
@@ -1395,10 +1467,23 @@ export function convertWebpageLayoutToGraphData(
       const paddingCss = String((css as Record<string, unknown>).padding || '').trim()
       const marginCss = String((css as Record<string, unknown>).margin || '').trim()
       const gapCss = String((css as Record<string, unknown>).gap || '').trim()
+      const rowGapCss = String((css as Record<string, unknown>).rowGap || '').trim()
+      const columnGapCss = String((css as Record<string, unknown>).columnGap || '').trim()
       const justifyContentCss = String((css as Record<string, unknown>).justifyContent || '').trim()
+      const justifyItemsCss = String((css as Record<string, unknown>).justifyItems || '').trim()
       const alignItemsCss = String((css as Record<string, unknown>).alignItems || '').trim()
+      const alignContentCss = String((css as Record<string, unknown>).alignContent || '').trim()
+      const justifySelfCss = String((css as Record<string, unknown>).justifySelf || '').trim()
+      const alignSelfCss = String((css as Record<string, unknown>).alignSelf || '').trim()
       const flexDirectionCss = String((css as Record<string, unknown>).flexDirection || '').trim()
       const flexWrapCss = String((css as Record<string, unknown>).flexWrap || '').trim()
+      const flexGrowCss = String((css as Record<string, unknown>).flexGrow || '').trim()
+      const flexShrinkCss = String((css as Record<string, unknown>).flexShrink || '').trim()
+      const flexBasisCss = String((css as Record<string, unknown>).flexBasis || '').trim()
+      const orderCss = String((css as Record<string, unknown>).order || '').trim()
+      const gridTemplateColumnsCss = String((css as Record<string, unknown>).gridTemplateColumns || '').trim()
+      const gridTemplateRowsCss = String((css as Record<string, unknown>).gridTemplateRows || '').trim()
+      const gridAutoFlowCss = String((css as Record<string, unknown>).gridAutoFlow || '').trim()
       const fontSize = String(css.fontSize || '').trim()
       const fontWeight = String(css.fontWeight || '').trim()
       const fontFamilyCss = String((css as Record<string, unknown>).fontFamily || '').trim()
@@ -1411,6 +1496,10 @@ export function convertWebpageLayoutToGraphData(
       if (display) properties['css:display'] = display as unknown as JSONValue
       if (position) properties['css:position'] = position as unknown as JSONValue
       if (zIndex) properties['css:zIndex'] = zIndex as unknown as JSONValue
+      if (transformCss && transformCss.toLowerCase() !== 'none') properties['css:transform'] = transformCss as unknown as JSONValue
+      if (filterCss && filterCss.toLowerCase() !== 'none') properties['css:filter'] = filterCss as unknown as JSONValue
+      if (isolationCss) properties['css:isolation'] = isolationCss as unknown as JSONValue
+      if (willChangeCss) properties['css:willChange'] = willChangeCss as unknown as JSONValue
       if (backgroundColor) properties['css:backgroundColor'] = backgroundColor as unknown as JSONValue
       if (color) properties['css:color'] = color as unknown as JSONValue
       if (borderRadiusCss) properties['css:borderRadius'] = borderRadiusCss as unknown as JSONValue
@@ -1420,9 +1509,22 @@ export function convertWebpageLayoutToGraphData(
       if (marginCss) properties['css:margin'] = marginCss as unknown as JSONValue
       if (gapCss) properties['css:gap'] = gapCss as unknown as JSONValue
       if (justifyContentCss) properties['css:justifyContent'] = justifyContentCss as unknown as JSONValue
+      if (justifyItemsCss) properties['css:justifyItems'] = justifyItemsCss as unknown as JSONValue
       if (alignItemsCss) properties['css:alignItems'] = alignItemsCss as unknown as JSONValue
+      if (alignContentCss) properties['css:alignContent'] = alignContentCss as unknown as JSONValue
+      if (justifySelfCss) properties['css:justifySelf'] = justifySelfCss as unknown as JSONValue
+      if (alignSelfCss) properties['css:alignSelf'] = alignSelfCss as unknown as JSONValue
       if (flexDirectionCss) properties['css:flexDirection'] = flexDirectionCss as unknown as JSONValue
       if (flexWrapCss) properties['css:flexWrap'] = flexWrapCss as unknown as JSONValue
+      if (flexGrowCss) properties['css:flexGrow'] = flexGrowCss as unknown as JSONValue
+      if (flexShrinkCss) properties['css:flexShrink'] = flexShrinkCss as unknown as JSONValue
+      if (flexBasisCss) properties['css:flexBasis'] = flexBasisCss as unknown as JSONValue
+      if (orderCss) properties['css:order'] = orderCss as unknown as JSONValue
+      if (rowGapCss) properties['css:rowGap'] = rowGapCss as unknown as JSONValue
+      if (columnGapCss) properties['css:columnGap'] = columnGapCss as unknown as JSONValue
+      if (gridTemplateColumnsCss && gridTemplateColumnsCss.toLowerCase() !== 'none') properties['css:gridTemplateColumns'] = gridTemplateColumnsCss as unknown as JSONValue
+      if (gridTemplateRowsCss && gridTemplateRowsCss.toLowerCase() !== 'none') properties['css:gridTemplateRows'] = gridTemplateRowsCss as unknown as JSONValue
+      if (gridAutoFlowCss) properties['css:gridAutoFlow'] = gridAutoFlowCss as unknown as JSONValue
       if (fontSize) properties['css:fontSize'] = fontSize as unknown as JSONValue
       if (fontWeight) properties['css:fontWeight'] = fontWeight as unknown as JSONValue
       if (fontFamilyCss) properties['css:fontFamily'] = fontFamilyCss as unknown as JSONValue
@@ -1432,6 +1534,20 @@ export function convertWebpageLayoutToGraphData(
       if (textAlignCss) properties['css:textAlign'] = textAlignCss as unknown as JSONValue
       if (boxShadowCss) properties['css:boxShadow'] = boxShadowCss as unknown as JSONValue
       if (opacityCss) properties['css:opacity'] = opacityCss as unknown as JSONValue
+
+      const layoutKind = (() => {
+        const d = display.toLowerCase()
+        const gtCols = gridTemplateColumnsCss.toLowerCase()
+        const gtRows = gridTemplateRowsCss.toLowerCase()
+        if (d === 'grid' || d === 'inline-grid') return 'grid'
+        if (gtCols && gtCols !== 'none') return 'grid'
+        if (gtRows && gtRows !== 'none') return 'grid'
+        if (d === 'flex' || d === 'inline-flex') return flexDirectionCss ? `flex:${flexDirectionCss}` : 'flex'
+        if (d.startsWith('table')) return 'table'
+        if (d) return d
+        return ''
+      })()
+      if (layoutKind) properties['layout:kind'] = layoutKind as unknown as JSONValue
     }
     if (borderRadius != null && Number.isFinite(borderRadius)) properties['visual:borderRadius'] = borderRadius as unknown as JSONValue
     if (borderWidth != null && Number.isFinite(borderWidth)) properties['visual:strokeWidth'] = borderWidth as unknown as JSONValue
@@ -1451,6 +1567,218 @@ export function convertWebpageLayoutToGraphData(
       },
     })
   }
+
+  const nodeById = new Map<string, GraphNode>()
+  const pidById = new Map<string, string>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]
+    const id = String(n.id || '').trim()
+    if (!id) continue
+    nodeById.set(id, n)
+    const pid = String((n.metadata as unknown as { domParentId?: unknown })?.domParentId || '').trim()
+    if (pid) pidById.set(id, pid)
+  }
+  const indexById = new Map<string, number>()
+  const rectById = new Map<string, { cx: number; cy: number; w: number; h: number }>()
+  for (let i = 0; i < pruned.length; i += 1) {
+    const el = pruned[i]
+    const id = safeStr(el.id)
+    if (!id) continue
+    indexById.set(id, i)
+    const r = el.rect
+    const w = Math.max(0, safeNum(r.w, 0))
+    const h = Math.max(0, safeNum(r.h, 0))
+    const cx = safeNum(r.x, 0) + w / 2
+    const cy = safeNum(r.y, 0) + h / 2
+    rectById.set(id, { cx, cy, w, h })
+  }
+
+  const readCssNumber = (props: Record<string, JSONValue>, key: string): number | null => {
+    const raw = props[key]
+    if (typeof raw === 'number' && Number.isFinite(raw)) return raw
+    const s = typeof raw === 'string' ? raw.trim() : ''
+    if (!s) return null
+    const n = Number(s)
+    return Number.isFinite(n) ? n : null
+  }
+  const readCssString = (props: Record<string, JSONValue>, key: string): string => {
+    const raw = props[key]
+    return typeof raw === 'string' ? raw.trim() : ''
+  }
+  const ownOpacityById = new Map<string, number>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]
+    const id = String(n.id || '').trim()
+    if (!id) continue
+    const props = (n.properties || {}) as Record<string, JSONValue>
+    const own = (() => {
+      const fromVisual = typeof props['visual:opacity'] === 'number' && Number.isFinite(props['visual:opacity']) ? (props['visual:opacity'] as number) : null
+      const fromCss = readCssNumber(props, 'css:opacity')
+      const v = fromVisual ?? fromCss ?? 1
+      if (v < 0) return 0
+      if (v > 1) return 1
+      return v
+    })()
+    ownOpacityById.set(id, own)
+  }
+  const effectiveOpacityById = new Map<string, number>()
+  const computeEffectiveOpacity = (id: string): number => {
+    const cached = effectiveOpacityById.get(id)
+    if (cached != null) return cached
+    const seen = new Set<string>()
+    let cur = id
+    let o = 1
+    let steps = 0
+    while (cur && steps < 32) {
+      if (seen.has(cur)) break
+      seen.add(cur)
+      o *= ownOpacityById.get(cur) ?? 1
+      const pid = pidById.get(cur) || ''
+      if (!pid) break
+      cur = pid
+      steps += 1
+    }
+    const out = Math.max(0, Math.min(1, o))
+    effectiveOpacityById.set(id, out)
+    return out
+  }
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]
+    const id = String(n.id || '').trim()
+    if (!id) continue
+    const props = (n.properties || {}) as Record<string, JSONValue>
+    const eff = computeEffectiveOpacity(id)
+    props['visual:opacity'] = eff as unknown as JSONValue
+  }
+
+  const formatZPart = (n: number): string => {
+    const z = Number.isFinite(n) ? Math.max(-999_999, Math.min(999_999, Math.floor(n))) : 0
+    const sign = z < 0 ? '-' : '+'
+    const abs = Math.abs(z).toString().padStart(6, '0')
+    return `${sign}${abs}`
+  }
+  const createsStackContext = (id: string, props: Record<string, JSONValue>): boolean => {
+    const position = readCssString(props, 'css:position').toLowerCase()
+    const zIndexRaw = readCssString(props, 'css:zIndex')
+    const zIndexNum = zIndexRaw && zIndexRaw !== 'auto' ? Number(zIndexRaw) : Number.NaN
+    if (position && position !== 'static' && Number.isFinite(zIndexNum)) return true
+    const ownOpacity = ownOpacityById.get(id) ?? null
+    if (ownOpacity != null && ownOpacity < 1) return true
+    const transform = readCssString(props, 'css:transform')
+    if (transform && transform.toLowerCase() !== 'none') return true
+    const filter = readCssString(props, 'css:filter')
+    if (filter && filter.toLowerCase() !== 'none') return true
+    const isolation = readCssString(props, 'css:isolation').toLowerCase()
+    if (isolation === 'isolate') return true
+    const willChange = readCssString(props, 'css:willChange').toLowerCase()
+    if (willChange && (willChange.includes('transform') || willChange.includes('opacity') || willChange.includes('filter'))) return true
+    return false
+  }
+  const stackKeyById = new Map<string, string>()
+  const computeStackKey = (id: string): string => {
+    const cached = stackKeyById.get(id)
+    if (cached != null) return cached
+    const chain: string[] = []
+    const seen = new Set<string>()
+    let cur = id
+    let steps = 0
+    while (cur && steps < 64) {
+      if (seen.has(cur)) break
+      seen.add(cur)
+      chain.push(cur)
+      const pid = pidById.get(cur) || ''
+      if (!pid) break
+      cur = pid
+      steps += 1
+    }
+    chain.reverse()
+    const parts: string[] = []
+    for (let i = 0; i < chain.length; i += 1) {
+      const n = nodeById.get(chain[i]!)
+      if (!n) continue
+      const nid = String(n.id || '').trim()
+      if (!nid) continue
+      const props = (n.properties || {}) as Record<string, JSONValue>
+      if (!createsStackContext(nid, props)) continue
+      const zRaw = readCssString(props, 'css:zIndex')
+      const z = zRaw && zRaw !== 'auto' ? Number(zRaw) : 0
+      parts.push(`z${formatZPart(Number.isFinite(z) ? z : 0)}`)
+    }
+    if (parts.length === 0) parts.push(`z${formatZPart(0)}`)
+    const idx = indexById.get(id) ?? 0
+    parts.push(`i${String(Math.max(0, Math.min(9_999_999, idx))).padStart(7, '0')}`)
+    const out = parts.join('.')
+    stackKeyById.set(id, out)
+    return out
+  }
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]
+    const id = String(n.id || '').trim()
+    if (!id) continue
+    const props = (n.properties || {}) as Record<string, JSONValue>
+    props['css:stackKey'] = computeStackKey(id) as unknown as JSONValue
+    const zRaw = readCssString(props, 'css:zIndex')
+    const z = zRaw && zRaw !== 'auto' ? Number(zRaw) : 0
+    if (Number.isFinite(z)) props['visual:zIndex'] = Math.floor(z) as unknown as JSONValue
+  }
+
+  const childrenByPid = new Map<string, string[]>()
+  pidById.forEach((pid, id) => {
+    const arr = childrenByPid.get(pid) || []
+    arr.push(id)
+    childrenByPid.set(pid, arr)
+  })
+  const assignChildGridIndices = (childIds: string[]) => {
+    const items = childIds
+      .map(id => {
+        const r = rectById.get(id)
+        return r ? { id, cx: r.cx, cy: r.cy, w: r.w, h: r.h } : null
+      })
+      .filter(Boolean) as Array<{ id: string; cx: number; cy: number; w: number; h: number }>
+    if (items.length < 2) return
+    items.sort((a, b) => a.cy - b.cy || a.cx - b.cx || a.id.localeCompare(b.id))
+    const heights = items.map(i => i.h).filter(h => Number.isFinite(h) && h > 0).sort((a, b) => a - b)
+    const medianH = heights.length ? heights[Math.floor(heights.length / 2)]! : 24
+    const rowThreshold = Math.max(10, Math.min(140, medianH * 0.65))
+    let row = 0
+    let rowCy = items[0]!.cy
+    let rowItems: Array<{ id: string; cx: number }> = []
+    const flush = () => {
+      rowItems.sort((a, b) => a.cx - b.cx || a.id.localeCompare(b.id))
+      for (let col = 0; col < rowItems.length; col += 1) {
+        const id = rowItems[col]!.id
+        const n = nodeById.get(id)
+        if (!n) continue
+        const props = (n.properties || {}) as Record<string, JSONValue>
+        props['visual:yIndex'] = row as unknown as JSONValue
+        props['visual:xIndex'] = col as unknown as JSONValue
+      }
+      rowItems = []
+    }
+    for (let i = 0; i < items.length; i += 1) {
+      const it = items[i]!
+      if (it.cy - rowCy > rowThreshold && rowItems.length > 0) {
+        flush()
+        row += 1
+        rowCy = it.cy
+      } else {
+        rowCy = (rowCy * 0.7) + (it.cy * 0.3)
+      }
+      rowItems.push({ id: it.id, cx: it.cx })
+    }
+    flush()
+  }
+  childrenByPid.forEach((childIds, pid) => {
+    const parent = nodeById.get(pid)
+    if (!parent) return
+    const props = (parent.properties || {}) as Record<string, JSONValue>
+    const layoutKind = readCssString(props, 'layout:kind').toLowerCase()
+    const display = readCssString(props, 'css:display').toLowerCase()
+    const isGrid = layoutKind === 'grid' || display === 'grid' || display === 'inline-grid'
+    const isFlex = layoutKind.startsWith('flex') || display === 'flex' || display === 'inline-flex'
+    if (!isGrid && !isFlex) return
+    assignChildGridIndices(childIds)
+  })
 
   const edges = (() => {
     const out: GraphEdge[] = []

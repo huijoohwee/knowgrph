@@ -18,6 +18,10 @@ export type WebpageLayoutElement = {
     display: string
     position: string
     zIndex: string
+    transform?: string
+    filter?: string
+    isolation?: string
+    willChange?: string
     backgroundColor: string
     color: string
     borderRadius: string
@@ -26,10 +30,23 @@ export type WebpageLayoutElement = {
     padding: string
     margin: string
     gap: string
+    rowGap?: string
+    columnGap?: string
     justifyContent: string
+    justifyItems?: string
     alignItems: string
+    alignContent?: string
+    justifySelf?: string
+    alignSelf?: string
     flexDirection: string
     flexWrap: string
+    flexGrow?: string
+    flexShrink?: string
+    flexBasis?: string
+    order?: string
+    gridTemplateColumns?: string
+    gridTemplateRows?: string
+    gridAutoFlow?: string
     fontSize: string
     fontWeight: string
     fontFamily: string

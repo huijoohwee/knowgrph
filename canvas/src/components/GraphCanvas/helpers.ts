@@ -3,7 +3,7 @@ import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
 import { getNodeRadiusFromSchema, getNodeRenderRadius, getThreeConfig } from '@/lib/graph/schema'
 import type { GraphSchema } from '@/lib/graph/schemaTypes'
 import { getAdjacencyMap } from '@/components/GraphCanvas/adjacency'
-import { coerceMediaUrl } from '@/lib/url'
+import { coerceMediaUrl, isLikelyImageUrl, isLikelySvgUrl, isLikelyVideoUrl } from '@/lib/url'
 import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
 import { getEdgeBaseStroke as getEdgeBaseStrokeRaw, getNodeBaseFill as getNodeBaseFillRaw } from '@/lib/graph/visualStyles'
 
@@ -153,6 +153,23 @@ export function getLayerOpacity(d: GraphNode, schema: GraphSchema): number {
   return 1
 }
 
+export function getVisualOpacity(d: GraphNode): number {
+  const props = d.properties || {}
+  const raw = props['visual:opacity']
+  const n =
+    typeof raw === 'number'
+      ? raw
+      : typeof raw === 'string'
+        ? Number(raw)
+        : null
+  if (typeof n === 'number' && Number.isFinite(n)) {
+    if (n < 0) return 0
+    if (n > 1) return 1
+    return n
+  }
+  return 1
+}
+
 export function getNodeBaseFill(d: GraphNode, schema: GraphSchema): string {
   return getNodeBaseFillRaw(d, schema)
 }
@@ -166,10 +183,10 @@ export type NodeMediaSpec = {
 }
 
 function inferMediaKindFromUrl(url: string): NodeMediaKind {
-  const lower = url.toLowerCase()
-  if (/\.(mp4|webm|ogg)(\?|#|$)/.test(lower)) return 'video'
-  if (/\.(svg)(\?|#|$)/.test(lower)) return 'svg'
-  if (/\.(png|jpg|jpeg|gif|webp)(\?|#|$)/.test(lower)) return 'image'
+  const raw = String(url || '').trim()
+  if (isLikelyVideoUrl(raw)) return 'video'
+  if (isLikelySvgUrl(raw)) return 'svg'
+  if (isLikelyImageUrl(raw)) return 'image'
   return 'image'
 }
 

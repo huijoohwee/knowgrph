@@ -23,7 +23,7 @@ export const uiImportWebpageSettingsRegistry: SettingMeta[] = [
         String(v) === 'html' ? 'html' : String(v) === 'json' ? 'json' : 'markdown',
       ),
     docKey: 'webpageImportView',
-    default: () => 'markdown',
+    default: () => 'html',
     options: ['markdown', 'html', 'json'],
   },
   {
@@ -33,7 +33,7 @@ export const uiImportWebpageSettingsRegistry: SettingMeta[] = [
     read: () => s().webpageViewerScriptPolicy,
     write: v => s().setWebpageViewerScriptPolicy(String(v) === 'allow' ? 'allow' : 'strip'),
     docKey: 'webpageViewerScriptPolicy',
-    default: () => 'strip',
+    default: () => 'allow',
     options: ['strip', 'allow'],
   },
   {

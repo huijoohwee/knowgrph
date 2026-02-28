@@ -491,8 +491,53 @@ export async function fetchWorkspaceUrlContent(
         return n <= 1 ? 1 : n >= 4 ? 4 : (n as 1 | 2 | 3)
       })()
 
+      const looksLikeSubstackUrl = (() => {
+        try {
+          const u = new URL(normalizedUrl)
+          const p = String(u.pathname || '')
+          if (/^\/p\/[^/]+\/?$/i.test(p)) return true
+          return false
+        } catch {
+          return false
+        }
+      })()
+      const preferProxyHtml = looksLikeSubstackUrl
+      if (looksLikeSubstackUrl) {
+        defaultView = 'markdown'
+        includeImages = true
+        fidelityLevel = 4
+      }
+
+      const autoTuneFromHtml = (html: string) => {
+        const h = String(html || '')
+        const isSubstackLike =
+          /substackcdn\.com/i.test(h) ||
+          /\bdata-page\s*=\s*["'][^"']+/i.test(h) ||
+          /failed\s+to\s+load\s+posts/i.test(h) ||
+          /enable-javascript\.com/i.test(h) ||
+          /requires\s+java\s*script/i.test(h)
+        const looksHuge = h.length > 5_000_000
+        const tuned = {
+          isSubstackLike,
+          includeImages: isSubstackLike ? true : looksHuge ? false : includeImages,
+          fidelityLevel: (isSubstackLike ? 4 : looksHuge ? 2 : fidelityLevel) as 1 | 2 | 3 | 4,
+          defaultView: (isSubstackLike ? 'markdown' : defaultView) as 'markdown' | 'json' | 'html',
+          shouldConvertToMarkdown: opts?.mode !== 'refresh' ? true : isSubstackLike,
+        }
+        return tuned
+      }
+      const looksLikeJsShellText = (text: string): boolean => {
+        const t = String(text || '')
+        if (!t.trim()) return false
+        if (/failed\s+to\s+load\s+posts/i.test(t)) return true
+        if (/enable-javascript\.com/i.test(t)) return true
+        if (/requires\s+java\s*script/i.test(t)) return true
+        if (/page not foundlatesttopdiscussions/i.test(t.replace(/\s+/g, ''))) return true
+        return false
+      }
+
       const upstreamMarkdown = await (async () => {
-        if (opts?.mode !== 'refresh') {
+        if (opts?.mode !== 'refresh' && !preferProxyHtml) {
           try {
             const [textDom, htmlDom] = await Promise.all([
               exportWebpageDomViaHiddenIframe({
@@ -503,6 +548,7 @@ export async function fetchWorkspaceUrlContent(
                 scrollCrawl: true,
                 expandFaq: true,
                 minWaitAfterLoadMs: 650,
+                signal: ctrl.signal,
               }),
               exportWebpageDomViaHiddenIframe({
                 url: normalizedUrl,
@@ -512,6 +558,7 @@ export async function fetchWorkspaceUrlContent(
                 scrollCrawl: true,
                 expandFaq: true,
                 minWaitAfterLoadMs: 650,
+                signal: ctrl.signal,
               }),
             ])
             const domDiag = String(htmlDom?.diag || textDom?.diag || '').trim()
@@ -522,6 +569,10 @@ export async function fetchWorkspaceUrlContent(
             const htmlText = String(htmlDom?.text || '')
             if (htmlText.trim()) {
               lastFetchedHtml = htmlText
+              const tuned = autoTuneFromHtml(lastFetchedHtml)
+              includeImages = tuned.includeImages
+              fidelityLevel = tuned.fidelityLevel
+              defaultView = tuned.defaultView
               opts?.onProgress?.(55)
               const converted = await convertHtmlToMarkdownUnified({
                 html: htmlText,
@@ -547,14 +598,16 @@ export async function fetchWorkspaceUrlContent(
             const textOnly = String(textDom?.text || '').trim()
             const title = String(htmlDom?.title || textDom?.title || '').trim() || undefined
             if (textOnly.length >= 400) {
-              return plainTextToMarkdown(textOnly, title)
+              if (!looksLikeJsShellText(textOnly)) {
+                return plainTextToMarkdown(textOnly, title)
+              }
             }
           } catch {
             void 0
           }
         }
 
-        if (opts?.mode !== 'refresh') {
+        if (opts?.mode !== 'refresh' && !preferProxyHtml) {
           try {
             const converted = await fetchWebpageMarkdown(normalizedUrl, { includeImages })
             if (converted && converted.ok === true && typeof converted.markdown === 'string') {
@@ -574,10 +627,13 @@ export async function fetchWorkspaceUrlContent(
         })
         const boundedHtml = rawHtml.length > 5_000_000 ? rawHtml.slice(0, 5_000_000) : rawHtml
         lastFetchedHtml = boundedHtml
+        const tuned = autoTuneFromHtml(lastFetchedHtml)
+        includeImages = tuned.includeImages
+        fidelityLevel = tuned.fidelityLevel
+        defaultView = tuned.defaultView
         opts?.onProgress?.(65)
-        const markdown = opts?.mode === 'refresh'
-          ? ''
-          : await (async () => {
+        const markdown = tuned.shouldConvertToMarkdown
+          ? await (async () => {
               try {
                 const converted = await convertHtmlToMarkdownUnified({
                   html: boundedHtml,
@@ -595,6 +651,7 @@ export async function fetchWorkspaceUrlContent(
               }
               return ''
             })()
+          : ''
         opts?.onProgress?.(85)
         if (markdown.trim()) return markdown.trim()
         return htmlFallbackToMarkdownAllText(boundedHtml)
@@ -610,9 +667,6 @@ export async function fetchWorkspaceUrlContent(
             url: normalizedUrl,
             view: defaultView,
             title: lastDomTitle,
-            scriptPolicy: 'allow',
-            fidelityLevel,
-            includeImages,
             diag: lastDomDiag,
           }),
         { timeoutMs: 80 },
@@ -624,9 +678,6 @@ export async function fetchWorkspaceUrlContent(
         '---',
         `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`,
         `kgWebpageView: ${yamlQuote(defaultView)}`,
-        `kgWebpageScriptPolicy: ${yamlQuote('allow')}`,
-        `kgWebpageIncludeImages: ${yamlQuote(includeImages ? 'true' : 'false')}`,
-        `kgWebpageFidelityLevel: ${yamlQuote(String(fidelityLevel))}`,
         '---',
         '',
         String(upstreamMarkdown || '').trim(),
@@ -640,9 +691,6 @@ export async function fetchWorkspaceUrlContent(
           '---',
           `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`,
           `kgWebpageView: ${yamlQuote(defaultView)}`,
-          `kgWebpageScriptPolicy: ${yamlQuote('allow')}`,
-          `kgWebpageIncludeImages: ${yamlQuote(includeImages ? 'true' : 'false')}`,
-          `kgWebpageFidelityLevel: ${yamlQuote(String(fidelityLevel))}`,
           '---',
           '',
           recoveredBody.trim(),
@@ -662,9 +710,6 @@ export async function fetchWorkspaceUrlContent(
       '---',
       `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`,
       `kgWebpageView: ${yamlQuote('html')}`,
-      `kgWebpageScriptPolicy: ${yamlQuote('allow')}`,
-      `kgWebpageIncludeImages: ${yamlQuote('true')}`,
-      `kgWebpageFidelityLevel: ${yamlQuote('4')}`,
       '---',
       '',
     ].join('\n')
@@ -681,9 +726,6 @@ export async function fetchWorkspaceUrlContent(
         '---',
         `kgWebpageUrl: ${yamlQuote(localRepoPath)}`,
         `kgWebpageView: ${yamlQuote('html')}`,
-        `kgWebpageScriptPolicy: ${yamlQuote('allow')}`,
-        `kgWebpageIncludeImages: ${yamlQuote('true')}`,
-        `kgWebpageFidelityLevel: ${yamlQuote('4')}`,
         localSiteRootRel ? `kgWebpageSiteRootRel: ${yamlQuote(localSiteRootRel)}` : null,
         '---',
         '',

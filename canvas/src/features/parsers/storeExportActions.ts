@@ -20,6 +20,7 @@ import {
 import {
   openSaveFilePickerHandle,
   writeBlobToFileHandle,
+  saveBlobWithPicker,
   writeExportPrefs,
 } from '@/lib/graph/save'
 
@@ -182,6 +183,95 @@ export const exportCypherFromStore = () => {
       await writeBlobToFileHandle(handle, blob)
       const nextName = typeof handle.name === 'string' && handle.name.trim() ? handle.name.trim() : name
       writeExportPrefs({ format: 'cypher', filename: nextName })
+    }
+
+    void run()
+  } catch {
+    void 0
+  }
+}
+
+export const exportGraphMarkdownFromStore = () => {
+  try {
+    const current = useGraphStore.getState().graphData
+    if (!current) return
+    const { lastApplied } = verifyWorkflowPresetStorage()
+    const suggested = lastApplied ? (lastApplied.datasetFileName as DatasetPath) : undefined
+    const prefs = readExportPrefsMeta()
+    const pref = prefs.format === 'markdown-graph' && prefs.filename ? prefs.filename : 'graph.md'
+    const base = suggested ? String(suggested) : pref
+    const name = ensureExt(base, ['.md', '.markdown'], 'graph.md')
+
+    const escapeCell = (v: unknown): string => {
+      const s = String(v ?? '').replace(/\r\n?/g, '\n').replace(/\n/g, ' ').trim()
+      if (!s) return ''
+      return s.replace(/\|/g, '\\|')
+    }
+
+    const run = async () => {
+      const handle = await openSaveFilePickerHandle(name, {
+        description: 'Markdown Files',
+        accept: { 'text/markdown': ['.md', '.markdown'] },
+      })
+      if (handle === '') return
+
+      const nodes = Array.isArray(current.nodes) ? current.nodes : []
+      const edges = Array.isArray(current.edges) ? current.edges : []
+      const MAX_ROWS = 800
+
+      const nodeRows = nodes.slice(0, MAX_ROWS).map(n => `| ${escapeCell(n.id)} | ${escapeCell(n.label)} | ${escapeCell(n.type)} |`)
+      const edgeRows = edges
+        .slice(0, MAX_ROWS)
+        .map(e => `| ${escapeCell(e.id)} | ${escapeCell(e.source)} | ${escapeCell(e.target)} | ${escapeCell(e.label)} | ${escapeCell(e.type)} |`)
+
+      const jsonld = await exportAsJsonLdBlob(current).text().catch(() => '')
+
+      const lines: string[] = []
+      lines.push('---')
+      lines.push('kgExportKind: "graph"')
+      lines.push('kgExportFormat: "markdown+jsonld"')
+      lines.push(`kgExportedAt: "${new Date().toISOString()}"`)
+      lines.push('---')
+      lines.push('')
+      lines.push('# Graph')
+      lines.push('')
+      lines.push(`- Nodes: ${nodes.length}`)
+      lines.push(`- Edges: ${edges.length}`)
+      if (nodes.length > MAX_ROWS) lines.push(`- Nodes table clipped: ${nodes.length - MAX_ROWS} not shown`)
+      if (edges.length > MAX_ROWS) lines.push(`- Edges table clipped: ${edges.length - MAX_ROWS} not shown`)
+      lines.push('')
+      lines.push('## Nodes')
+      lines.push('')
+      lines.push('| id | label | type |')
+      lines.push('|---|---|---|')
+      lines.push(...(nodeRows.length ? nodeRows : ['| | | |']))
+      lines.push('')
+      lines.push('## Edges')
+      lines.push('')
+      lines.push('| id | source | target | label | type |')
+      lines.push('|---|---|---|---|---|')
+      lines.push(...(edgeRows.length ? edgeRows : ['| | | | | |']))
+      lines.push('')
+      if (jsonld.trim()) {
+        lines.push('## JSON-LD')
+        lines.push('')
+        lines.push('```jsonld')
+        lines.push(jsonld.trim())
+        lines.push('```')
+        lines.push('')
+      }
+      const markdown = lines.join('\n')
+      const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
+
+      if (!handle) {
+        const saved = await saveBlobWithPicker(blob, name, { description: 'Markdown Files', accept: { 'text/markdown': ['.md', '.markdown'] } })
+        if (saved && saved !== '') writeExportPrefs({ format: 'markdown-graph', filename: saved })
+        return
+      }
+
+      await writeBlobToFileHandle(handle, blob)
+      const nextName = typeof handle.name === 'string' && handle.name.trim() ? handle.name.trim() : name
+      writeExportPrefs({ format: 'markdown-graph', filename: nextName })
     }
 
     void run()

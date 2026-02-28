@@ -63,7 +63,21 @@ export const createGroupsLayer = (args: {
     nodeById.set(String(n.id), n)
   }
 
-  const visibleGroups = groups.filter(d => d.memberNodeIds.some(id => nodeById.has(String(id))))
+  const visibleGroups = groups
+    .filter(d => d.memberNodeIds.some(id => nodeById.has(String(id))))
+    .slice()
+    .sort((a, b) => {
+      const ad = typeof a.depth === 'number' && Number.isFinite(a.depth) ? a.depth : 0
+      const bd = typeof b.depth === 'number' && Number.isFinite(b.depth) ? b.depth : 0
+      if (ad !== bd) return ad - bd
+      const ay = typeof a.yIndex === 'number' && Number.isFinite(a.yIndex) ? a.yIndex : 0
+      const by = typeof b.yIndex === 'number' && Number.isFinite(b.yIndex) ? b.yIndex : 0
+      if (ay !== by) return ay - by
+      const ax = typeof a.xIndex === 'number' && Number.isFinite(a.xIndex) ? a.xIndex : 0
+      const bx = typeof b.xIndex === 'number' && Number.isFinite(b.xIndex) ? b.xIndex : 0
+      if (ax !== bx) return ax - bx
+      return String(a.id).localeCompare(String(b.id))
+    })
   if (visibleGroups.length === 0) return { update: () => {} }
 
   const shapesLayer = g.append('g').attr('data-kg-layer', 'groups')
@@ -168,7 +182,7 @@ export const createGroupsLayer = (args: {
     .each(function (d) {
       const el = this as unknown as SVGTextElement
       const t = computeGroupLabelText(d)
-      el.setAttribute('data-label-full', t.full)
+      el.setAttribute('data-label-full', t.full.length > 600 ? `${t.full.slice(0, 599)}…` : t.full)
       el.textContent = t.visible
     })
     .style('user-select', 'none')

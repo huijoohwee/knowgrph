@@ -19,7 +19,7 @@ import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manage
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import type { Canvas2dRendererId } from '@/lib/config'
 import type { DesignLayerNode, DesignLayerState } from '@/features/design/designLayersState'
-import type { DesignFramePos } from '@/hooks/store/designRendererSlice'
+import type { DesignFramePos, DesignFrameSize } from '@/hooks/store/designRendererSlice'
 
 export type CanvasSnapshotFns = {
   capturePng?: (pixelRatio?: number) => Promise<Blob | null>;
@@ -270,6 +270,12 @@ export interface GraphState {
   setDesignFramePosMany: (patch: Record<string, DesignFramePos>) => void
   clearDesignFramePos: (id: string) => void
   clearAllDesignFramePos: () => void
+
+  designFrameSizeById: Record<string, DesignFrameSize>
+  setDesignFrameSize: (id: string, size: DesignFrameSize) => void
+  setDesignFrameSizeMany: (patch: Record<string, DesignFrameSize>) => void
+  clearDesignFrameSize: (id: string) => void
+  clearAllDesignFrameSize: () => void
   lifecycleStage: 'idle' | 'reset' | 'hydrated' | 'committed' | 'rendering' | 'selectionUpdate' | 'edgeMutate' | 'zoomUpdate' | 'minimapQuick' | 'minimapAsync';
   setLifecycleStage: (stage: 'idle' | 'reset' | 'hydrated' | 'committed' | 'rendering' | 'selectionUpdate' | 'edgeMutate' | 'zoomUpdate' | 'minimapQuick' | 'minimapAsync') => void;
   setGraphData: (data: GraphData) => void;

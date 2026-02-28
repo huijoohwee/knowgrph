@@ -1,6 +1,7 @@
 import dagre from 'dagre'
 
 export { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
+export { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 
 export function deriveRankdir(args: { flowRankdir: unknown; schemaOrientation?: unknown }): 'TB' | 'LR' {
   const r = String(args.flowRankdir || '').toUpperCase()

@@ -3,7 +3,7 @@ import { GraphNode, GraphEdge, GraphData, type SelectionAnchorIds } from '@/lib/
 import { GraphSchema, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema';
 import { getAdjacencyMap } from '@/components/GraphCanvas/adjacency'
 import { getEdgeEndpoints, type EdgeWithRuntime } from '@/components/GraphCanvas/simulation';
-import { getEdgeBaseStroke, getLayerOpacity, getNodeBaseFill, getEdgeStrokeWidth, hasNodeMedia } from '@/components/GraphCanvas/helpers';
+import { getEdgeBaseStroke, getLayerOpacity, getVisualOpacity, getNodeBaseFill, getEdgeStrokeWidth, hasNodeMedia } from '@/components/GraphCanvas/helpers';
 import { UI_THEME_COLORS_CSS, type ThemeColors } from '@/lib/ui/theme-tokens';
 
 export type SelectionHighlightParams = {
@@ -137,19 +137,21 @@ export const computeNodeVisual = (
     return 0.9
   })()
   const mediaLayerOpacity = Math.max(0, Math.min(1, mediaOpacity * baseLayerOpacity))
+  const visualOpacity = getVisualOpacity(node)
+  const withVisualOpacity = (opacity: number) => Math.max(0, Math.min(1, opacity * visualOpacity))
   
   if (selectedEdgeIdSet.size > 0) {
     if (selectedNodeIdSet.has(node.id)) {
       return {
         fill: highlightFill,
-        opacity: isMediaNode ? mediaLayerOpacity : 1,
+        opacity: isMediaNode ? withVisualOpacity(mediaLayerOpacity) : withVisualOpacity(1),
         stroke: highlightFill,
         strokeWidth: baseStrokeWidth * 1.5,
       }
     }
     const isEndpoint = selectedEdgeEndpointNodeIdSet.has(node.id)
     const fill = isEndpoint ? getNodeBaseFill(node, schema) : dimmedFill
-    const opacity = isMediaNode ? mediaLayerOpacity : isEndpoint ? 1 : 0.2
+    const opacity = isMediaNode ? withVisualOpacity(mediaLayerOpacity) : withVisualOpacity(isEndpoint ? 1 : 0.2)
     const stroke = isEndpoint ? baseStroke : dimmedFill
     const strokeWidth = isEndpoint ? baseStrokeWidth : baseStrokeWidth
     return { fill, opacity, stroke, strokeWidth }
@@ -158,13 +160,13 @@ export const computeNodeVisual = (
     if (selectedNodeIdSet.has(node.id)) {
       return {
         fill: highlightFill,
-        opacity: isMediaNode ? mediaLayerOpacity : 1,
+        opacity: isMediaNode ? withVisualOpacity(mediaLayerOpacity) : withVisualOpacity(1),
         stroke: highlightFill,
         strokeWidth: baseStrokeWidth * 1.5,
       }
     }
     if (neighborIds.has(node.id)) {
-      const opacity = isMediaNode ? mediaLayerOpacity : 1
+      const opacity = isMediaNode ? withVisualOpacity(mediaLayerOpacity) : withVisualOpacity(1)
       return {
         fill: getNodeBaseFill(node, schema),
         opacity,
@@ -172,7 +174,7 @@ export const computeNodeVisual = (
         strokeWidth: baseStrokeWidth,
       }
     }
-    const opacity = isMediaNode ? mediaLayerOpacity : 0.2
+    const opacity = isMediaNode ? withVisualOpacity(mediaLayerOpacity) : withVisualOpacity(0.2)
     return {
       fill: dimmedFill,
       opacity,
@@ -180,7 +182,7 @@ export const computeNodeVisual = (
       strokeWidth: baseStrokeWidth,
     }
   }
-  const opacity = isMediaNode ? mediaLayerOpacity : baseLayerOpacity
+  const opacity = isMediaNode ? withVisualOpacity(mediaLayerOpacity) : withVisualOpacity(baseLayerOpacity)
   return { fill: getNodeBaseFill(node, schema), opacity, stroke: baseStroke, strokeWidth: baseStrokeWidth }
 }
 
@@ -191,22 +193,24 @@ export const computeLabelVisual = (
   const { schema, neighborIds, selectionSets } = params
   const { selectedNodeIdSet, selectedEdgeIdSet, selectedEdgeEndpointNodeIdSet } =
     selectionSets ?? deriveSelectionSets(params)
+  const visualOpacity = getVisualOpacity(node)
+  const withVisualOpacity = (opacity: number) => Math.max(0, Math.min(1, opacity * visualOpacity))
   
   if (selectedEdgeIdSet.size > 0) {
     if (selectedNodeIdSet.has(node.id)) {
-      return { opacity: 1 }
+      return { opacity: withVisualOpacity(1) }
     }
     const isEndpoint = selectedEdgeEndpointNodeIdSet.has(node.id)
     const opacity = isEndpoint ? 1 : 0.2
-    return { opacity }
+    return { opacity: withVisualOpacity(opacity) }
   }
   if (selectedNodeIdSet.size === 0) {
-    const opacity = getLayerOpacity(node, schema)
-    return { opacity }
+    const opacity = Math.max(0.65, getLayerOpacity(node, schema))
+    return { opacity: withVisualOpacity(opacity) }
   }
   const isHighlighted = selectedNodeIdSet.has(node.id) || neighborIds.has(node.id)
   const opacity = isHighlighted ? 1 : 0.2
-  return { opacity }
+  return { opacity: withVisualOpacity(opacity) }
 }
 
 export const computeEdgeVisual = (

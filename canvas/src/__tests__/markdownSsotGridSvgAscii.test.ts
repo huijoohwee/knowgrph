@@ -240,3 +240,29 @@ export async function testHtmlToMarkdownUnifiedPreservesGridDivAsHtmlAtFidelity4
   if (!/display\s*:\s*grid/i.test(res.markdown)) throw new Error('expected grid container to remain in raw html')
   if (!res.markdown.includes('grid-template-columns')) throw new Error('expected grid-template-columns preserved')
 }
+
+export async function testHtmlToMarkdownUnifiedPreservesLinkedFlexGridAsHtmlAtFidelity4() {
+  const html = [
+    '<div class="flex flex-wrap gap-4">',
+    '<a href="https://example.invalid/a" class="w-48">A</a>',
+    '<a href="https://example.invalid/b" class="w-48">B</a>',
+    '<a href="https://example.invalid/c" class="w-48">C</a>',
+    '<a href="https://example.invalid/d" class="w-48">D</a>',
+    '</div>',
+  ].join('')
+  const res = await convertHtmlToMarkdownUnified({
+    html,
+    baseUrl: 'https://example.invalid/',
+    includeImages: true,
+    fidelityLevel: 4,
+    maxInputChars: 200_000,
+    includeHeadSection: false,
+  })
+  if (!res.ok) throw new Error(`expected ok, got error=${(res as { error?: unknown }).error}`)
+  if (/<\s*div\b/i.test(res.markdown) || /<\s*a\b/i.test(res.markdown)) {
+    throw new Error(`expected linked flex container not to be preserved as raw html, got: ${res.markdown.slice(0, 240)}`)
+  }
+  if (!/\[A\]\(https:\/\/example\.invalid\/a\)/.test(res.markdown)) {
+    throw new Error(`expected markdown link extraction, got: ${res.markdown.slice(0, 240)}`)
+  }
+}

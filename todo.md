@@ -30,6 +30,32 @@
 
 ### P0-Critical
 
+#### 2026-02-28
+- two opposite views, diff, in knowledge graph canvas
+
+https://www.citriniresearch.com/p/2028gic
+
+#### 2026-02-27
+
+- [ ]
+```
+# 2D Renderer (Design) 
+ ## ENHANCE HTML/CSS/JS hydration/DOM/heuristics -> 2D Renderer (Design) PIPELINE 
+ - refer to `https://github.com/penpot/penpot.git` , ENHANCE penpot-like functionalities for webpage UI components & layout; 
+ - ALIGN 2D Renderer (D3, Flow, Flow Editor) with 2D Renderer (Design) ENSURE consistency across modes/layouts; 
+ - ENFORCE high UI wireframe layout fidelity with `https://astro.build/`  ; 
+ - ENHANCE heuristics processing of patterns; 
+ - ADHERE to universal, neutrality, url-agnostic (i.e. URLs only for validation; not customized for individual url/hardcoded into system); 
+ - ENHANCE “section synthesis” for webpage→wireframe layout; repeated grids/lists become a stable “section” container even when the DOM lacks a clean wrapper; 
+ - ENHACE over-inclusion reduction so the Design renderer wireframe converges toward the meaningful layout blocks; 
+ - ENHANCE pruning rule to drop textless, undecorated wrappers with many children when they’re just “layout glue” while preserving major sections; (header/nav/hero/cards) and interactive/media nodes; 
+ - ENHANCE “small noisy leaf suppression” rule: drop leaf DIV/SPAN nodes under a size threshold unless they’re interactive/media or have decoration; 
+ - FINETUNE the child-count threshold and class/“sibling overlap / stacking cleanup” patterns; 
+ - FORBID re-computation, re-rendering, infinite loop, conflicting, legacy/stale codes
+ ```
+
+
+
 #### 2026-02-25
 
 update to demo; FORBID duplicate content

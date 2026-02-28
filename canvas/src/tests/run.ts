@@ -11,6 +11,7 @@ import {
   testSelectionHighlightNeighborsFromNodeSelection,
   testSelectionHighlightEdgeSelectionEndpointsAndEdges,
   testSelectionHighlightMediaOpacityRespectsRenderToggleAndLayerOpacity,
+  testSelectionHighlightLabelOpacityDoesNotDisappearAtZeroLayerOpacity,
 } from '@/__tests__/selectionHighlight.test'
 import {
   testSelectionZoomNodeSelectionUsesNodeAndNeighbors,
@@ -57,7 +58,12 @@ import {
   testWebpageFrontmatterSupportsMarkdownView,
   testFrontmatterOnlyDocDetection,
 } from '@/__tests__/webpageFrontmatter.test'
+import {
+  testWebpageImportDefaultsPreferHtmlAndAllowScripts,
+  testWebpageFrontmatterDefaultsToHtmlViewWhenMissingViewKey,
+} from '@/__tests__/webpageImportDefaults.test'
 import { testCodebaseRelPathCoercionFromAbsoluteUnderRoot } from '@/__tests__/codebaseRelPathFromAbsolute.test'
+import { testDesignDocumentUrlIgnoresMediaAssetUrls, testDesignDocumentUrlUsesExplicitDocumentUrl } from '@/__tests__/designDocumentUrl.test'
 import {
   testWebsiteImportSitemapDetectsIndex,
   testWebsiteImportSitemapExtractsLocs,
@@ -69,12 +75,23 @@ import { testWebpageMarkdownArtifactIncludesLayoutAndMotionFrames } from '@/__te
 import { testWebpageMarkdownArtifactFixtureLikeSections } from '@/__tests__/webpageMarkdownArtifactFixtureLike.test'
 import { testWebpageMarkdownArtifactFigmaFixtureIsRecognized } from '@/__tests__/webpageMarkdownArtifactFigmaFixtureLike.test'
 import {
+  testWebpageMarkdownPostprocessCoalescesPlainCardBlocksIntoMarkdownTable,
+  testWebpageMarkdownPostprocessNormalizesPlainListsIntoBullets,
+  testWebpageMarkdownPostprocessCoalescesNavLinksToTable,
+  testWebpageMarkdownPostprocessCoalescesHtmlGridNavIntoTable,
+  testWebpageMarkdownPostprocessCoalescesHtmlFlexCardGridIntoMarkdownTableOrList,
+} from '@/__tests__/webpageMarkdownPostprocessCardGrid.test'
+import {
   testWebpageHtmlToMarkdownArtifactExtractsNavMenusAndTables,
   testWebpageHtmlToMarkdownArtifactSupportsMenuDivAndOgImageWithoutNoisyScripts,
   testWebpageHtmlToMarkdownArtifactAvoidsSyntheticContentDuplicateAndRendersCardGridAsTable,
   testWebpageHtmlToMarkdownArtifactRendersLinkListsAndListItemLinks,
 } from '@/__tests__/webpageHtmlToMarkdownArtifact.test'
-import { testWebpageDomExportWaitsForNetworkIdleAndReturnsSnapshot } from '@/__tests__/webpageDomExport.test'
+import {
+  testWebpageDomExportAbortsAndRemovesIframe,
+  testWebpageDomExportDedupesInflightRequests,
+  testWebpageDomExportWaitsForNetworkIdleAndReturnsSnapshot,
+} from '@/__tests__/webpageDomExport.test'
 import { testWebsiteImportWorkspaceWritesArtifactDoc } from '@/__tests__/websiteImportWorkspaceArtifact.test'
 import { testWebsiteImportWorkspaceWritesSourceFaithfulDoc } from '@/__tests__/websiteImportWorkspaceArtifact.test'
 import { testWebsiteSitemapMarkdownBuildsTreeAndTable } from '@/__tests__/websiteSitemapMarkdown.test'
@@ -124,10 +141,21 @@ import {
   testHtmlToMarkdownUnifiedCapsLargeSvgToShortDataUri,
   testHtmlToMarkdownUnifiedConvertsIconOnlyLinkWithAriaLabelToTextLink,
   testHtmlToMarkdownUnifiedPreservesGridDivAsHtmlAtFidelity4,
+  testHtmlToMarkdownUnifiedPreservesLinkedFlexGridAsHtmlAtFidelity4,
   testHtmlToMarkdownUnifiedConvertsStandaloneSvgToMarkdownImageAtFidelity4,
 } from '@/__tests__/markdownSsotGridSvgAscii.test'
 import { testMarkdownPreviewRendersCodexUrlArtifact } from '@/__tests__/markdownCodexUrlArtifactRenders.test'
 import { testMarkdownPreviewRendersRemotionUrlArtifact } from '@/__tests__/markdownRemotionUrlArtifactRenders.test'
+import { testMarkdownPreviewRendersInlineHtmlRichMedia } from '@/__tests__/markdownInlineHtmlRichMediaPreview.test'
+import { testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe } from '@/__tests__/markdownImageRichMediaPreview.test'
+import { testDesignRichMediaPreviewRendersImageVideoAndIframe } from '@/__tests__/designRichMediaPreview.test'
+import {
+  testMarkdownGithubBlobIngestionProducesMediaNodes,
+  testMarkdownHtmlImgIngestionProducesMediaNodes,
+  testMarkdownAutolinkImageIngestionProducesMediaNodes,
+  testMarkdownHtmlIframeIngestionProducesMediaNodes,
+  testMarkdownHtmlVideoIngestionProducesMediaNodes,
+} from '@/__tests__/markdownGithubIngestion.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
 import { testParseKindCsv } from '@/__tests__/csvKind.test'
 import {
@@ -188,16 +216,21 @@ import {
 import { testGraphTraversalFloatingPanelGenericDepthClamp } from '@/__tests__/graphTraversalFloatingPanel.test'
 import { testThemeModePersistence, testThemeSystemModeApplyAndSubscribe } from '@/__tests__/theme.test'
 import { testDesignLayersNormalizePreservesOrderAndAddsNew, testDesignLayersToggleAndMove } from '@/__tests__/designLayersState.test'
-import { testDesignFramePosEqDetectsEquality } from '@/__tests__/designRendererSlice.test'
+import { testDesignFramePosEqDetectsEquality, testDesignFrameSizeEqDetectsEquality } from '@/__tests__/designRendererSlice.test'
 import { testDesignRendererWebpageGraphSetterNoopsOnSameKey } from '@/__tests__/designRendererWebpageGraph.test'
 import { testDesignWireframeSettingsDefaultsAndClamp } from '@/__tests__/designWireframeSettings.test'
 import {
   testWebpageLayoutToGraphCentersAndFilters,
   testWebpageLayoutToGraphDropsTinyDecorativeSvgIcon,
+  testWebpageLayoutToGraphEffectiveOpacityAndStackKey,
+  testWebpageLayoutToGraphAssignsGridChildIndices,
   testWebpageLayoutToGraphOverlapIntersectionPrune,
   testWebpageLayoutToGraphPrunesUtilityWrapperAtThreeKids,
   testWebpageLayoutToGraphSectionSynthesisGridFourItems,
   testWebpageLayoutToGraphWrapperSingleChildPrune,
+  testWebpageLayoutToGraphKeepsImportantHeadingUnderMaxNodesBudget,
+  testWebpageLayoutToGraphPreservesSemanticWrapperSingleChildNearEq,
+  testWebpageLayoutToGraphAddsTextPreviewAndNormalizesText,
 } from '@/__tests__/webpageLayoutToGraph.test'
 import { testWebpageLayoutCacheEvictsOldest } from '@/__tests__/webpageLayoutCache.test'
 import {
@@ -219,6 +252,7 @@ import {
   testImportUrlWebpageCreatesHtmlFrontmatterStub,
   testImportUrlWebpageRefreshUsesSourceFaithfulForMultipleUrls,
   testImportUrlWebpagePostprocessCoalescesNavAndAvoidsSyntheticArtifacts,
+  testImportUrlSubstackDefaultsToMarkdownViewAndHasBody,
 } from '@/__tests__/importUrlWebpageStub.test'
 import { testParseSchemaLintOwner, testSchemaLintSummaryAndActivePath } from '@/__tests__/schemaLintNav.test'
 import {
@@ -896,6 +930,7 @@ export const runAllTests = async () => {
   )
   await exec('webpage.htmlToArtifact.linksListAndListItemLinks', testWebpageHtmlToMarkdownArtifactRendersLinkListsAndListItemLinks)
   await exec('webpage.iframeSrcdoc.shrinksLargeHtml', testWebpageHtmlSrcdocShrinksLargeHtmlInsteadOfFailing)
+  await exec('design.richMedia.preview.rendersImageVideoAndIframe', testDesignRichMediaPreviewRendersImageVideoAndIframe)
   await exec('pdf.streamDecode.respectsMaxDecodeBytes', testPdfReadStreamRespectsMaxDecodeBytes)
   await exec('pdf.contentTokenizer.advancesOnDictDelimiters', testPdfContentTextTokenizerAdvancesOnDictDelimiters)
   await exec('pdf.http.fetchBytes.respectsMaxBytes', testPdfHttpFetchBytesRespectsMaxBytes)
@@ -1265,6 +1300,10 @@ export const runAllTests = async () => {
     testSelectionHighlightMediaOpacityRespectsRenderToggleAndLayerOpacity,
   )
   await exec(
+    'graph.selectionHighlight.labelOpacity.floor',
+    testSelectionHighlightLabelOpacityDoesNotDisappearAtZeroLayerOpacity,
+  )
+  await exec(
     'graph.selectionZoom.nodeSelectionSubset',
     testSelectionZoomNodeSelectionUsesNodeAndNeighbors,
   )
@@ -1300,6 +1339,8 @@ export const runAllTests = async () => {
   )
   await exec('graph.groups.bboxCollide.separatesTopParentGroups', testGroupBboxCollideSeparatesTopParentGroups)
   await exec('graph.groups.bboxCollideByDepth.separatesSiblings', testGroupBboxCollideByDepthSeparatesOuterAndInnerSiblings)
+  await exec('design.documentUrl.ignoresMediaAssetUrls', testDesignDocumentUrlIgnoresMediaAssetUrls)
+  await exec('design.documentUrl.usesExplicitDocumentUrl', testDesignDocumentUrlUsesExplicitDocumentUrl)
   await exec('settings.registryReadWrite', testSettingsRegistryReadWrite)
   await exec('htmlParser.allText.includesNavAndMain', testHtmlParserAllTextIncludesNavAndMain)
   await exec('htmlParser.losslessEmbeddedMarkdown', testHtmlParserUsesEmbeddedLosslessMarkdownSource)
@@ -1310,6 +1351,8 @@ export const runAllTests = async () => {
   await exec('webpage.frontmatter.supportsJsonView', testWebpageFrontmatterSupportsJsonView)
   await exec('webpage.frontmatter.supportsMarkdownView', testWebpageFrontmatterSupportsMarkdownView)
   await exec('webpage.frontmatter.frontmatterOnlyDocDetection', testFrontmatterOnlyDocDetection)
+  await exec('webpage.import.defaults.preferHtmlAllowScripts', testWebpageImportDefaultsPreferHtmlAndAllowScripts)
+  await exec('webpage.frontmatter.defaultsToHtmlViewWhenMissingViewKey', testWebpageFrontmatterDefaultsToHtmlViewWhenMissingViewKey)
   await exec('websiteImport.sitemap.extractsLocs', testWebsiteImportSitemapExtractsLocs)
   await exec('websiteImport.sitemap.detectsIndex', testWebsiteImportSitemapDetectsIndex)
   await exec('websiteImport.artifactKindForWebpageView', testWebsiteImportArtifactKindForWebpageView)
@@ -1319,9 +1362,16 @@ export const runAllTests = async () => {
   await exec('webpageMarkdownArtifact.includesLayoutAndMotionFrames', testWebpageMarkdownArtifactIncludesLayoutAndMotionFrames)
   await exec('webpageMarkdownArtifact.fixtureLike.sections', testWebpageMarkdownArtifactFixtureLikeSections)
   await exec('webpageMarkdownArtifact.figmaFixture.recognized', testWebpageMarkdownArtifactFigmaFixtureIsRecognized)
+  await exec('webpageMarkdownPostprocess.coalescesPlainCardBlocks', testWebpageMarkdownPostprocessCoalescesPlainCardBlocksIntoMarkdownTable)
+  await exec('webpageMarkdownPostprocess.normalizesPlainLists', testWebpageMarkdownPostprocessNormalizesPlainListsIntoBullets)
+  await exec('webpageMarkdownPostprocess.coalescesNavLinksToTable', testWebpageMarkdownPostprocessCoalescesNavLinksToTable)
+  await exec('webpageMarkdownPostprocess.coalescesHtmlGridNavToTable', testWebpageMarkdownPostprocessCoalescesHtmlGridNavIntoTable)
+  await exec('webpageMarkdownPostprocess.coalescesHtmlFlexCardGrid', testWebpageMarkdownPostprocessCoalescesHtmlFlexCardGridIntoMarkdownTableOrList)
   await exec('websiteImport.workspace.writesArtifactDoc', testWebsiteImportWorkspaceWritesArtifactDoc)
   await exec('websiteImport.workspace.writesSourceFaithfulDoc', testWebsiteImportWorkspaceWritesSourceFaithfulDoc)
   await exec('webpageDomExport.waitsForNetworkIdle', testWebpageDomExportWaitsForNetworkIdleAndReturnsSnapshot)
+  await exec('webpageDomExport.dedupesInflight', testWebpageDomExportDedupesInflightRequests)
+  await exec('webpageDomExport.abortsAndRemovesIframe', testWebpageDomExportAbortsAndRemovesIframe)
   await exec('webpage.clientConvert.qualityGate.syntheticDetected', testWebpageClientConvertQualityGateDetectsSyntheticArtifactMarkers)
   await exec('webpage.clientConvert.qualityGate.normalNotFlagged', testWebpageClientConvertQualityGateDoesNotFlagNormalMarkdown)
   await exec('markdown.sanitizeImported.fenceBase64', testSanitizeImportedMarkdownRemovesBase64FenceLines)
@@ -1359,8 +1409,16 @@ export const runAllTests = async () => {
   await exec('markdown.htmlToMarkdown.fidelity4.svgDataUri.capLarge', testHtmlToMarkdownUnifiedCapsLargeSvgToShortDataUri)
   await exec('markdown.htmlToMarkdown.fidelity4.iconOnlyLink.ariaLabel', testHtmlToMarkdownUnifiedConvertsIconOnlyLinkWithAriaLabelToTextLink)
   await exec('markdown.htmlToMarkdown.fidelity4.gridDivPreserved', testHtmlToMarkdownUnifiedPreservesGridDivAsHtmlAtFidelity4)
+  await exec('markdown.htmlToMarkdown.fidelity4.linkedFlexGridPreserved', testHtmlToMarkdownUnifiedPreservesLinkedFlexGridAsHtmlAtFidelity4)
   await exec('markdown.preview.rendersCodexUrlArtifact', testMarkdownPreviewRendersCodexUrlArtifact)
   await exec('markdown.preview.rendersRemotionUrlArtifact', testMarkdownPreviewRendersRemotionUrlArtifact)
+  await exec('markdown.preview.rendersInlineHtmlRichMedia', testMarkdownPreviewRendersInlineHtmlRichMedia)
+  await exec('markdown.preview.rendersMarkdownImageVideoAudioIframe', testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe)
+  await exec('markdown.ingest.githubBlob.producesMediaNodes', testMarkdownGithubBlobIngestionProducesMediaNodes)
+  await exec('markdown.ingest.htmlImg.producesMediaNodes', testMarkdownHtmlImgIngestionProducesMediaNodes)
+  await exec('markdown.ingest.autolinkImage.producesMediaNodes', testMarkdownAutolinkImageIngestionProducesMediaNodes)
+  await exec('markdown.ingest.htmlIframe.producesMediaNodes', testMarkdownHtmlIframeIngestionProducesMediaNodes)
+  await exec('markdown.ingest.htmlVideo.producesMediaNodes', testMarkdownHtmlVideoIngestionProducesMediaNodes)
   await exec('export.parseCombinedCsv', testParseCombinedCsv)
   await exec('csv.kindFormat', testParseKindCsv)
   await exec('csv.roundTrip', testCsvRoundTrip)
@@ -1415,6 +1473,7 @@ export const runAllTests = async () => {
   await exec('design.layers.normalizePreservesOrderAndAddsNew', testDesignLayersNormalizePreservesOrderAndAddsNew)
   await exec('design.layers.toggleAndMove', testDesignLayersToggleAndMove)
   await exec('design.renderer.posEq.detectsEquality', testDesignFramePosEqDetectsEquality)
+  await exec('design.renderer.sizeEq.detectsEquality', testDesignFrameSizeEqDetectsEquality)
   await exec('design.renderer.webpageGraph.noopsOnSameKey', testDesignRendererWebpageGraphSetterNoopsOnSameKey)
   await exec('design.wireframeSettings.defaultsAndClamp', testDesignWireframeSettingsDefaultsAndClamp)
   await exec('webpage.layoutToGraph.centersAndFilters', testWebpageLayoutToGraphCentersAndFilters)
@@ -1423,6 +1482,11 @@ export const runAllTests = async () => {
   await exec('webpage.layoutToGraph.sectionSynthesis.gridFourItems', testWebpageLayoutToGraphSectionSynthesisGridFourItems)
   await exec('webpage.layoutToGraph.prunesUtilityWrapperAtThreeKids', testWebpageLayoutToGraphPrunesUtilityWrapperAtThreeKids)
   await exec('webpage.layoutToGraph.dropsTinyDecorativeSvgIcon', testWebpageLayoutToGraphDropsTinyDecorativeSvgIcon)
+  await exec('webpage.layoutToGraph.effectiveOpacityAndStackKey', testWebpageLayoutToGraphEffectiveOpacityAndStackKey)
+  await exec('webpage.layoutToGraph.assignsGridChildIndices', testWebpageLayoutToGraphAssignsGridChildIndices)
+  await exec('webpage.layoutToGraph.keepsImportantHeadingUnderMaxNodesBudget', testWebpageLayoutToGraphKeepsImportantHeadingUnderMaxNodesBudget)
+  await exec('webpage.layoutToGraph.preservesSemanticWrapperSingleChildNearEq', testWebpageLayoutToGraphPreservesSemanticWrapperSingleChildNearEq)
+  await exec('webpage.layoutToGraph.textPreviewAndNormalization', testWebpageLayoutToGraphAddsTextPreviewAndNormalizesText)
   await exec('webpage.layoutCache.evictsOldest', testWebpageLayoutCacheEvictsOldest)
   await exec('viewportTransform.invertZoomPoint.matchesD3', testViewportTransformInvertZoomPointMatchesD3Invert)
   await exec('canvasEventCoords.readElementLocalPoint.usesBoundingRect', testCanvasEventCoordsReadElementLocalPointUsesBoundingRect)
@@ -1432,6 +1496,7 @@ export const runAllTests = async () => {
   await exec('workspace.importUrl.webpageStubHtml', testImportUrlWebpageCreatesHtmlFrontmatterStub)
   await exec('workspace.importUrl.webpageRefresh.sourceFaithfulAllUrls', testImportUrlWebpageRefreshUsesSourceFaithfulForMultipleUrls)
   await exec('workspace.importUrl.webpagePostprocess.navAndNoSynthetic', testImportUrlWebpagePostprocessCoalescesNavAndAvoidsSyntheticArtifacts)
+  await exec('workspace.importUrl.substack.defaultsToMarkdown', testImportUrlSubstackDefaultsToMarkdownViewAndHasBody)
   await exec('keywordMode.derivesEntitiesAndPredicateEdges', testKeywordModeDerivesEntitiesAndPredicateEdges)
   await exec('keywordMode.mergesMediaNodesForOverlays', testKeywordModeMergesMediaNodesForOverlays)
   await exec('groupCollapse.derivation.collapsesCommunityIntoGroupNode', testGroupCollapseDerivationCollapsesCommunityIntoGroupNode)

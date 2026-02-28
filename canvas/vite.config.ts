@@ -1234,6 +1234,29 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '  kgSetupDiag();',
     '  let KG_NET_PENDING = 0;',
     `  const KG_WEBPAGE_NET_KIND = ${JSON.stringify('kg-webpage-net')};`,
+    `  const KG_WEBPAGE_DOM_KIND = ${JSON.stringify('kg-webpage-dom')};`,
+    '  let KG_DOM_LAST_MUT_AT = (Date.now ? Date.now() : +new Date());',
+    '  let KG_DOM_POST_AT = 0;',
+    '  let KG_DOM_POST_TIMER = null;',
+    '  const kgPostDomNow = () => {',
+    '    try {',
+    '      KG_DOM_POST_AT = (Date.now ? Date.now() : +new Date());',
+    '      window.parent && window.parent.postMessage({ kind: KG_WEBPAGE_DOM_KIND, lastMutAt: KG_DOM_LAST_MUT_AT }, "*");',
+    '    } catch { void 0; }',
+    '  };',
+    '  const kgPostDom = () => {',
+    '    try {',
+    '      const now = (Date.now ? Date.now() : +new Date());',
+    '      const wait = 120 - (now - KG_DOM_POST_AT);',
+    '      if (wait <= 0) {',
+    '        if (KG_DOM_POST_TIMER) { clearTimeout(KG_DOM_POST_TIMER); KG_DOM_POST_TIMER = null; }',
+    '        kgPostDomNow();',
+    '        return;',
+    '      }',
+    '      if (KG_DOM_POST_TIMER) return;',
+    '      KG_DOM_POST_TIMER = setTimeout(() => { KG_DOM_POST_TIMER = null; kgPostDomNow(); }, wait);',
+    '    } catch { void 0; }',
+    '  };',
     '  let KG_NET_POST_AT = 0;',
     '  let KG_NET_POST_TIMER = null;',
     '  const kgPostNetNow = () => {',
@@ -1257,6 +1280,19 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '  };',
     '  const kgNetInc = () => { try { KG_NET_PENDING += 1; } catch { void 0; } try { kgPostNet(); } catch { void 0; } };',
     '  const kgNetDec = () => { try { KG_NET_PENDING = Math.max(0, KG_NET_PENDING - 1); } catch { void 0; } try { kgPostNet(); } catch { void 0; } };',
+    '  try {',
+    '    if (typeof MutationObserver === "function") {',
+    '      const target = document.documentElement || document.body;',
+    '      if (target) {',
+    '        const mo = new MutationObserver(() => {',
+    '          KG_DOM_LAST_MUT_AT = (Date.now ? Date.now() : +new Date());',
+    '          kgPostDom();',
+    '        });',
+    '        mo.observe(target, { subtree: true, childList: true, attributes: true, characterData: true });',
+    '      }',
+    '    }',
+    '  } catch { void 0; }',
+    '  kgPostDomNow();',
     `  const KG_PROXY_PREFIX = ${JSON.stringify('/__webpage_proxy?url=')};`,
       `  const KG_ASSET_PROXY_PREFIX = ${JSON.stringify('/__webpage_asset_path/')};`,
     `  const KG_SCROLL_SYNC_KIND = ${JSON.stringify('kg-scroll-sync')};`,
@@ -1867,6 +1903,10 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '                  const display = safeStyleValue(cs.display);',
     '                  const position = safeStyleValue(cs.position);',
     '                  const zIndex = safeStyleValue(cs.zIndex);',
+    '                  const transform = safeStyleValue(cs.transform);',
+    '                  const filter = safeStyleValue(cs.filter);',
+    '                  const isolation = safeStyleValue(cs.isolation);',
+    '                  const willChange = safeStyleValue(cs.willChange);',
     '                  const backgroundColor = safeStyleValue(cs.backgroundColor);',
     '                  const color = safeStyleValue(cs.color);',
     '                  const borderRadius = safeStyleValue(cs.borderRadius);',
@@ -1875,10 +1915,23 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '                  const padding = safeStyleValue(cs.padding);',
     '                  const margin = safeStyleValue(cs.margin);',
     '                  const gap = safeStyleValue(cs.gap);',
+    '                  const rowGap = safeStyleValue(cs.rowGap);',
+    '                  const columnGap = safeStyleValue(cs.columnGap);',
     '                  const justifyContent = safeStyleValue(cs.justifyContent);',
+    '                  const justifyItems = safeStyleValue(cs.justifyItems);',
     '                  const alignItems = safeStyleValue(cs.alignItems);',
+    '                  const alignContent = safeStyleValue(cs.alignContent);',
+    '                  const justifySelf = safeStyleValue(cs.justifySelf);',
+    '                  const alignSelf = safeStyleValue(cs.alignSelf);',
     '                  const flexDirection = safeStyleValue(cs.flexDirection);',
     '                  const flexWrap = safeStyleValue(cs.flexWrap);',
+    '                  const flexGrow = safeStyleValue(cs.flexGrow);',
+    '                  const flexShrink = safeStyleValue(cs.flexShrink);',
+    '                  const flexBasis = safeStyleValue(cs.flexBasis);',
+    '                  const order = safeStyleValue(cs.order);',
+    '                  const gridTemplateColumns = safeStyleValue(cs.gridTemplateColumns);',
+    '                  const gridTemplateRows = safeStyleValue(cs.gridTemplateRows);',
+    '                  const gridAutoFlow = safeStyleValue(cs.gridAutoFlow);',
     '                  const fontSize = safeStyleValue(cs.fontSize);',
     '                  const fontWeight = safeStyleValue(cs.fontWeight);',
     '                  const fontFamily = safeStyleValue(cs.fontFamily);',
@@ -1888,7 +1941,7 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '                  const textAlign = safeStyleValue(cs.textAlign);',
     '                  const boxShadow = safeStyleValue(cs.boxShadow);',
     '                  const opacity = safeStyleValue(cs.opacity);',
-    '                  const out = { display, position, zIndex, backgroundColor, color, borderRadius, borderColor, borderWidth, padding, margin, gap, justifyContent, alignItems, flexDirection, flexWrap, fontSize, fontWeight, fontFamily, lineHeight, letterSpacing, textTransform, textAlign, boxShadow, opacity };',
+    '                  const out = { display, position, zIndex, transform, filter, isolation, willChange, backgroundColor, color, borderRadius, borderColor, borderWidth, padding, margin, gap, rowGap, columnGap, justifyContent, justifyItems, alignItems, alignContent, justifySelf, alignSelf, flexDirection, flexWrap, flexGrow, flexShrink, flexBasis, order, gridTemplateColumns, gridTemplateRows, gridAutoFlow, fontSize, fontWeight, fontFamily, lineHeight, letterSpacing, textTransform, textAlign, boxShadow, opacity };',
     '                  return out;',
     '                } catch {',
     '                  return null;',
@@ -2170,14 +2223,30 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): st
     '          };',
       '          const waitForHydration = async () => {',
       '            try {',
-      '              const minChars = mode === "text" ? 260 : 1200;',
       '              const maxWaitMs = 7000;',
       '              const started = Date.now();',
       '              let best = 0;',
       '              let stable = 0;',
       '              while (Date.now() - started < maxWaitMs) {',
+      '                if (mode === "layout") {',
+      '                  const raw = String(readLayout() || "");',
+      '                  let score = 0;',
+      '                  try {',
+      '                    const parsed = JSON.parse(raw);',
+      '                    const els = parsed && parsed.elements;',
+      '                    score = Array.isArray(els) ? els.length : 0;',
+      '                  } catch {',
+      '                    score = raw.trim().length;',
+      '                  }',
+      '                  if (score >= 140) return;',
+      '                  if (score > best + 4) { best = score; stable = 0; } else { stable += 1; }',
+      '                  if (stable >= 12 && best > 0) return;',
+      '                  await new Promise(r => setTimeout(r, 120));',
+      '                  continue;',
+      '                }',
       '                const raw = String((mode === "text" ? readText() : readHtml()) || "");',
       '                const n = raw.trim().length;',
+      '                const minChars = mode === "text" ? 260 : 1200;',
       '                if (n >= minChars) return;',
       '                if (n > best + 20) { best = n; stable = 0; } else { stable += 1; }',
       '                if (stable >= 12 && best > 0) return;',
@@ -2750,13 +2819,21 @@ function createWebpageAssetPathProxyHandler(): import('vite').Connect.NextHandle
     if (req.method === 'OPTIONS') {
       res.statusCode = 204
       res.setHeader('Access-Control-Allow-Origin', '*')
-      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS')
       res.setHeader('Access-Control-Allow-Headers', '*')
       res.setHeader('Access-Control-Max-Age', '86400')
       res.end()
       return
     }
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
+    const methodRaw = String(req.method || '').toUpperCase()
+    const isSupportedMethod =
+      methodRaw === 'GET' ||
+      methodRaw === 'HEAD' ||
+      methodRaw === 'POST' ||
+      methodRaw === 'PUT' ||
+      methodRaw === 'PATCH' ||
+      methodRaw === 'DELETE'
+    if (!isSupportedMethod) {
       next()
       return
     }
@@ -2828,15 +2905,51 @@ function createWebpageAssetPathProxyHandler(): import('vite').Connect.NextHandle
       req.on('aborted', abort)
 
       timeoutId = setTimeout(() => ctrl.abort(), timeoutMs)
+
+      const readBody = async (): Promise<Buffer | null> => {
+        if (methodRaw === 'GET' || methodRaw === 'HEAD') return null
+        const chunks: Buffer[] = []
+        let total = 0
+        const maxBodyBytes = 5 * 1024 * 1024
+        await new Promise<void>((resolve, reject) => {
+          req.on('data', (chunk) => {
+            const b = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+            total += b.length
+            if (total > maxBodyBytes) {
+              reject(new Error('Upstream request body too large'))
+              return
+            }
+            chunks.push(b)
+          })
+          req.on('end', () => resolve())
+          req.on('error', (e) => reject(e))
+        })
+        return Buffer.concat(chunks)
+      }
+
+      const bodyBuf = await readBody()
+
+      const upstreamHeaders: Record<string, string> = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: typeof req.headers.accept === 'string' && req.headers.accept.trim() ? req.headers.accept : '*/*',
+        'Accept-Language':
+          typeof req.headers['accept-language'] === 'string' && req.headers['accept-language'].trim()
+            ? req.headers['accept-language']
+            : 'en-US,en;q=0.9',
+      }
+      if (typeof req.headers['content-type'] === 'string' && req.headers['content-type'].trim()) {
+        upstreamHeaders['Content-Type'] = req.headers['content-type']
+      }
+      if (typeof req.headers.authorization === 'string' && req.headers.authorization.trim()) {
+        upstreamHeaders.Authorization = req.headers.authorization
+      }
+
       const upstream = await fetch(upstreamUrl, {
-        method: req.method,
+        method: methodRaw,
         redirect: 'follow',
         signal: ctrl.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          Accept: '*/*',
-          'Accept-Language': 'en-US,en;q=0.9',
-        },
+        headers: upstreamHeaders,
+        body: bodyBuf && bodyBuf.length ? bodyBuf : undefined,
       })
 
       if (ctrl.signal.aborted) {
@@ -2853,12 +2966,12 @@ function createWebpageAssetPathProxyHandler(): import('vite').Connect.NextHandle
       }
 
       res.statusCode = upstream.status
-      res.setHeader('Cache-Control', 'public, max-age=300')
+      res.setHeader('Cache-Control', methodRaw === 'GET' || methodRaw === 'HEAD' ? 'public, max-age=300' : 'no-store')
       res.setHeader('Access-Control-Allow-Origin', '*')
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
       const contentType = upstream.headers.get('content-type')
       if (contentType) res.setHeader('Content-Type', contentType)
-      if (req.method === 'HEAD') {
+      if (methodRaw === 'HEAD') {
         res.end()
         finished = true
         return

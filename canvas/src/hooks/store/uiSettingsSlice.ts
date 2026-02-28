@@ -514,10 +514,10 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   webpageImportIncludeImages: true,
   setWebpageImportIncludeImages: (v: boolean) => set({ webpageImportIncludeImages: v }),
 
-  webpageImportView: 'markdown' as const,
+  webpageImportView: 'html' as const,
   setWebpageImportView: (v: 'markdown' | 'json' | 'html') => set({ webpageImportView: v }),
 
-  webpageViewerScriptPolicy: 'strip' as const,
+  webpageViewerScriptPolicy: 'allow' as const,
   setWebpageViewerScriptPolicy: (v: 'strip' | 'allow') => set({ webpageViewerScriptPolicy: v === 'allow' ? 'allow' : 'strip' }),
 
   webpageArtifactFidelityMaxLevel: 4,

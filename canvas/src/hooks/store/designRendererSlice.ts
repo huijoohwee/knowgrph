@@ -9,6 +9,7 @@ type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
 
 export type DesignFramePos = { x: number; y: number }
+export type DesignFrameSize = { w: number; h: number }
 
 export function designFramePosEq(a: DesignFramePos | null | undefined, b: DesignFramePos | null | undefined): boolean {
   if (a === b) return true
@@ -16,11 +17,22 @@ export function designFramePosEq(a: DesignFramePos | null | undefined, b: Design
   return a.x === b.x && a.y === b.y
 }
 
+export function designFrameSizeEq(a: DesignFrameSize | null | undefined, b: DesignFrameSize | null | undefined): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  return a.w === b.w && a.h === b.h
+}
+
 const normId = (v: unknown): string => String(v || '').trim()
 
 const clampFinite = (v: number, fallback: number): number => {
   if (!Number.isFinite(v)) return fallback
   return v
+}
+
+const clampSize = (v: number, fallback: number): number => {
+  if (!Number.isFinite(v)) return fallback
+  return Math.max(1, v)
 }
 
 export const createDesignRendererSlice = (set: SetGraph, get: GetGraph) => {
@@ -153,6 +165,50 @@ export const createDesignRendererSlice = (set: SetGraph, get: GetGraph) => {
       const prev = get().designFramePosById || {}
       if (Object.keys(prev).length === 0) return
       set({ designFramePosById: {} })
+    },
+
+    designFrameSizeById: {} as Record<string, DesignFrameSize>,
+    setDesignFrameSize: (id: string, size: DesignFrameSize) => {
+      const key = normId(id)
+      if (!key) return
+      const nextSize = { w: clampSize(size.w, 1), h: clampSize(size.h, 1) }
+      const prev = get().designFrameSizeById || {}
+      const prevSize = prev[key]
+      if (designFrameSizeEq(prevSize, nextSize)) return
+      set({ designFrameSizeById: { ...prev, [key]: nextSize } })
+    },
+    setDesignFrameSizeMany: (patch: Record<string, DesignFrameSize>) => {
+      const src = patch || {}
+      const keys = Object.keys(src)
+      if (keys.length === 0) return
+      const prev = get().designFrameSizeById || {}
+      let next: Record<string, DesignFrameSize> | null = null
+      for (let i = 0; i < keys.length; i += 1) {
+        const key = normId(keys[i])
+        if (!key) continue
+        const raw = src[keys[i]!]!
+        const nextSize = { w: clampSize(raw.w, 1), h: clampSize(raw.h, 1) }
+        const prevSize = prev[key]
+        if (designFrameSizeEq(prevSize, nextSize)) continue
+        if (!next) next = { ...prev }
+        next[key] = nextSize
+      }
+      if (!next) return
+      set({ designFrameSizeById: next })
+    },
+    clearDesignFrameSize: (id: string) => {
+      const key = normId(id)
+      if (!key) return
+      const prev = get().designFrameSizeById || {}
+      if (!Object.prototype.hasOwnProperty.call(prev, key)) return
+      const next = { ...prev }
+      delete next[key]
+      set({ designFrameSizeById: next })
+    },
+    clearAllDesignFrameSize: () => {
+      const prev = get().designFrameSizeById || {}
+      if (Object.keys(prev).length === 0) return
+      set({ designFrameSizeById: {} })
     },
   }
 }

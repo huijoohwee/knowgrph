@@ -13,6 +13,7 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   })
 
   const g = globalThis as typeof globalThis
+  const originalIsReactActEnvironment = (g as unknown as { IS_REACT_ACT_ENVIRONMENT?: unknown }).IS_REACT_ACT_ENVIRONMENT
 
   const originalWindow = (g as { window?: unknown }).window as Window | undefined
   const originalDocument = (g as { document?: unknown }).document as Document | undefined
@@ -36,6 +37,7 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   ;(g as { Node: typeof Node }).Node = dom.window.Node as unknown as typeof Node
   ;(g as { Element: typeof Element }).Element = dom.window.Element as unknown as typeof Element
   ;(g as { HTMLElement: typeof HTMLElement }).HTMLElement = dom.window.HTMLElement as unknown as typeof HTMLElement
+  ;(g as unknown as { IS_REACT_ACT_ENVIRONMENT?: unknown }).IS_REACT_ACT_ENVIRONMENT = true
 
   try {
     const proto = (dom.window as unknown as { HTMLCanvasElement?: { prototype?: { getContext?: unknown } } }).HTMLCanvasElement?.prototype
@@ -327,6 +329,12 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
       delete (Object.prototype as unknown as { HTMLIFrameElement?: unknown }).HTMLIFrameElement
     } else {
       Object.defineProperty(Object.prototype, 'HTMLIFrameElement', originalObjectProtoHtmlIFrameElementDesc)
+    }
+
+    if (typeof originalIsReactActEnvironment === 'undefined') {
+      delete (g as unknown as { IS_REACT_ACT_ENVIRONMENT?: unknown }).IS_REACT_ACT_ENVIRONMENT
+    } else {
+      ;(g as unknown as { IS_REACT_ACT_ENVIRONMENT?: unknown }).IS_REACT_ACT_ENVIRONMENT = originalIsReactActEnvironment
     }
 
     dom.window.close()

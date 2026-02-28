@@ -23,9 +23,9 @@ Render imported webpages with high fidelity (rich media, animations) while prese
 - `kgWebpageUrl`: source URL
 - `kgWebpageView`: `markdown | html | dom | raw | json`
 - `kgWebpageSiteRootRel`: optional local in-repo site root (for resolving `/assets/...` in `srcdoc`)
-- `kgWebpageScriptPolicy`: optional per-doc script policy override (`allow | strip`)
-- `kgWebpageIncludeImages`: optional per-doc conversion override (`true | false`)
-- `kgWebpageFidelityLevel`: optional per-doc conversion fidelity (`1 | 2 | 3 | 4`)
+- `kgWebpageScriptPolicy`: optional per-doc script policy override (`allow | strip`) for rare cases where automatic script heuristics need a manual override
+- `kgWebpageIncludeImages`: optional per-doc conversion override (`true | false`) when the default auto image handling is not sufficient
+- `kgWebpageFidelityLevel`: optional per-doc conversion fidelity (`1 | 2 | 3 | 4`) used only when the default auto fidelity is not acceptable
 - `kgWebsiteImportId`: optional website-import job id
 - `kgWebsiteNodeId`: optional stable node id
 - `kgWebsiteOutputDirRel`: optional artifact root override
@@ -114,16 +114,18 @@ Instead:
 - If still oversized, apply a **domain-neutral shrink** pass (strip scripts/handlers/comments; collapse whitespace; replace large base64 `data:image/...` with `data:,`; drop oversized inline `<svg>` and `<style>` blocks).
 - Only if the sanitized+shrunk result is still oversized, fall back to the text viewer.
 
-Script policy is controlled by `webpageViewerScriptPolicy`:
+Script policy baseline is controlled by `webpageViewerScriptPolicy` but effective behavior is **auto by default**:
 
-- `strip` (default): sanitize HTML and prevent upstream JS.
-- `allow`: keep upstream scripts (may be slower).
+- The viewer always sanitizes and strips untrusted scripts/handlers unless a safe, JS-required path is detected via DOM export heuristics.
+- Global `webpageViewerScriptPolicy` stays a coarse safety knob; most work should leave it at the default.
 
-Per-document overrides (preferred when present in frontmatter):
+Per-document frontmatter keys are **optional escape hatches**, not required inputs:
 
 - `kgWebpageScriptPolicy: allow | strip`
 - `kgWebpageIncludeImages: true | false`
 - `kgWebpageFidelityLevel: 1 | 2 | 3 | 4`
+
+When present, they override auto Script/Imgs/Fid for that page only. The recommended default is to omit them so Script/Imgs/Fid stays truly auto and driven by shared rich-media + iframe heuristics.
 
 ## DOM Export Bridge (`kg-export-dom`)
 
@@ -220,7 +222,7 @@ For local repo-relative inputs, `Import URL` accepts both `path/to/file.html` an
 
 The canonical place for these controls is the Markdown toolbar `nav` ("Webpage" group): `View`, `Script`, `Imgs`, `Fid`, and an explicit `Sync` action.
 
-Markdown rendering supports safe rich-media HTML blocks through an allowlist renderer (no `dangerouslySetInnerHTML`), including `<svg>`, `<iframe>`, `<video>`, `<audio>`, `<details>/<summary>`, plus layout-safe media wrappers like `<picture>`, `<figure>`, and `<figcaption>`.
+Markdown rendering supports safe rich-media HTML blocks through an allowlist renderer (no `dangerouslySetInnerHTML`), including `<svg>`, `<iframe>`, `<video>`, `<audio>`, `<details>/<summary>`, plus layout-safe media wrappers like `<picture>`, `<figure>`, and `<figcaption>`. The same shared rich-media SSOT (URL heuristics + iframe sandbox policy) is reused across Markdown Viewer, Canvas 2D/3D, Design, and Document/Geospatial modes.
 
 ## Shared Signal Tokens (Mode-Independent)
 

@@ -80,9 +80,34 @@ export function testWebpageMarkdownPostprocessCoalescesHtmlGridNavIntoTable() {
     '',
   ].join('\n')
   const out = postprocessWebpageMarkdownSsot(input)
+  if (/<\s*div\b/i.test(out)) throw new Error('expected no raw div html in output')
   if (!out.includes('| [Pencil Logo](/) | [Downloads](/downloads) | [Pricing](/pricing) |')) {
     throw new Error('expected html grid nav block to coalesce into a markdown table')
   }
   if (!out.includes('| --- | --- | --- |')) throw new Error('expected nav table separator row')
   if (!out.includes('Backed by')) throw new Error('expected following content preserved')
+}
+
+export function testWebpageMarkdownPostprocessCoalescesHtmlFlexCardGridIntoMarkdownTableOrList() {
+  const input = [
+    '# Example',
+    '',
+    '<div class="flex flex-wrap gap-4">',
+    '<a href="https://example.invalid/a"><img src="https://example.invalid/a.png" alt="A" /></a>',
+    '<a href="https://example.invalid/b"><img src="https://example.invalid/b.png" alt="B" /></a>',
+    '<a href="https://example.invalid/c"><img src="https://example.invalid/c.png" alt="C" /></a>',
+    '<a href="https://example.invalid/d"><img src="https://example.invalid/d.png" alt="D" /></a>',
+    '</div>',
+    '',
+  ].join('\n')
+  const out = postprocessWebpageMarkdownSsot(input)
+  if (/<\s*div\b/i.test(out) || /<\s*a\b/i.test(out) || /<\s*img\b/i.test(out)) {
+    throw new Error(`expected html grid block to be converted to pure markdown, got: ${out}`)
+  }
+  const expectsAny =
+    out.includes('[![A](https://example.invalid/a.png)](https://example.invalid/a)') ||
+    out.includes('- [![A](https://example.invalid/a.png)](https://example.invalid/a)')
+  if (!expectsAny) {
+    throw new Error(`expected linked markdown image cells, got: ${out}`)
+  }
 }

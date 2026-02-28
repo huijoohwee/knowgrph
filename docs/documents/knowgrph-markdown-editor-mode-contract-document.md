@@ -21,23 +21,23 @@ Controlled by `kgWebpageView` in frontmatter:
 
 ## Per-Document Fidelity Controls
 
-Optional frontmatter keys:
+Optional frontmatter keys (escape hatches; default is **Auto**):
 
 `kgWebpageScriptPolicy: allow | strip`  
 `kgWebpageIncludeImages: true | false`  
 `kgWebpageFidelityLevel: 1 | 2 | 3 | 4`
 
-Semantics:
+Semantics (per-doc overrides, not required for normal usage):
 
-- `kgWebpageScriptPolicy`: controls iframe script policy (`allow` = best render fidelity; `strip` = safest/static).
-- `kgWebpageIncludeImages`: controls whether HTML→Markdown conversion keeps `<img>/<picture>` blocks.
-- `kgWebpageFidelityLevel`: controls how aggressively complex HTML is preserved as HTML blocks during conversion.
+- `kgWebpageScriptPolicy`: nudges iframe script policy for this page only (`allow` = higher render fidelity; `strip` = strict sanitization). When absent, the viewer applies shared auto script heuristics.
+- `kgWebpageIncludeImages`: nudges whether HTML→Markdown conversion keeps `<img>/<picture>` blocks when auto image handling is insufficient.
+- `kgWebpageFidelityLevel`: nudges how aggressively complex HTML is preserved as HTML blocks during conversion when auto fidelity selection is not ideal.
 
 ## UI Placement (SSOT)
 
 The canonical UI for webpage-backed docs is the Markdown toolbar `nav` ("Webpage" group):
 
-- Selectors: `View`, `Script`, `Imgs`, `Fid`
+- Selectors: `View`, `Script`, `Imgs`, `Fid` (all default to **Auto**, reflecting shared rich-media + iframe heuristics; frontmatter is only written when a non-auto override is explicitly chosen)
 - Action: `Sync` (DOM→Markdown)
 
 No other surface should duplicate these controls.

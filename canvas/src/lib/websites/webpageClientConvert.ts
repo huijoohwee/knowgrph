@@ -79,13 +79,20 @@ export const convertWebpageUrlToMarkdownViaProxyFetch = async (url: string): Pro
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
     const title = extractTitleFromHtml(html)
     const bounded = html.length > 8_000_000 ? html.slice(0, 8_000_000) : html
+    const auto = (() => {
+      const h = bounded
+      const isSubstackLike = /substackcdn\.com/i.test(h) || /\bdata-page\s*=\s*["'][^"']+/i.test(h)
+      const includeImages = isSubstackLike ? true : h.length <= 6_000_000
+      const fidelityLevel: 1 | 2 | 3 | 4 = isSubstackLike ? 4 : h.length > 5_000_000 ? 2 : 4
+      return { includeImages, fidelityLevel }
+    })()
     try {
       const converted = await convertHtmlToMarkdownUnified({
         html: bounded,
         baseUrl: url,
         maxInputChars: 8_000_000,
-        includeImages: true,
-        fidelityLevel: 4,
+        includeImages: auto.includeImages,
+        fidelityLevel: auto.fidelityLevel,
         includeHeadSection: false,
       })
       if (converted.ok === true && converted.markdown.trim()) {
@@ -151,13 +158,20 @@ export async function convertWebpageUrlToMarkdownViaBrowser(args: {
 
     if (!html && text) return { ok: true, markdown: plainTextToMarkdown(text, title || undefined), title }
     const bounded = html.length > 8_000_000 ? html.slice(0, 8_000_000) : html
+    const auto = (() => {
+      const h = bounded
+      const isSubstackLike = /substackcdn\.com/i.test(h) || /\bdata-page\s*=\s*["'][^"']+/i.test(h)
+      const includeImages = isSubstackLike ? true : h.length <= 6_000_000
+      const fidelityLevel: 1 | 2 | 3 | 4 = isSubstackLike ? 4 : h.length > 5_000_000 ? 2 : 4
+      return { includeImages, fidelityLevel }
+    })()
     try {
       const converted = await convertHtmlToMarkdownUnified({
         html: bounded,
         baseUrl: url,
         maxInputChars: 8_000_000,
-        includeImages: true,
-        fidelityLevel: 4,
+        includeImages: auto.includeImages,
+        fidelityLevel: auto.fidelityLevel,
         includeHeadSection: false,
       })
       if (converted.ok === true && converted.markdown.trim()) {

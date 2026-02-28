@@ -31,6 +31,7 @@ export function buildAndSetFlowNativeScene(args: {
   const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
   const edgeList = Array.isArray(g?.edges) ? g?.edges : []
   const pos = args.positions || null
+  const useVisualNodeSize = String((g as unknown as { context?: unknown })?.context || '') === 'webpageLayout'
 
   setFlowNativeRankdir(args.runtime, args.rankdir)
 
@@ -41,6 +42,7 @@ export function buildAndSetFlowNativeScene(args: {
   })
 
   const nodeById = new Map<string, NonNullable<FlowNativeScene['nodes']>[number]>()
+  const inputNodeById = new Map<string, unknown>()
   const nodes: NonNullable<FlowNativeScene['nodes']> = []
   for (let i = 0; i < nodeList.length; i += 1) {
     const n = nodeList[i]
@@ -56,6 +58,34 @@ export function buildAndSetFlowNativeScene(args: {
     const p = pos ? pos[id] : null
     const x = p && Number.isFinite(p.x) ? p.x : 0
     const y = p && Number.isFinite(p.y) ? p.y : 0
+    const w0 = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? (props['visual:width'] as number) : null
+    const h0 = typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? (props['visual:height'] as number) : null
+    const width =
+      useVisualNodeSize && w0 != null && w0 > 0 ? Math.max(24, Math.min(1400, Math.floor(w0))) : args.flowConfig.node.widthPx
+    const height =
+      useVisualNodeSize && h0 != null && h0 > 0 ? Math.max(16, Math.min(900, Math.floor(h0))) : args.flowConfig.node.heightPx
+    const zIndex = (() => {
+      const raw = props['visual:zIndex'] ?? props['visual:depth'] ?? props['visual:layer']
+      const n =
+        typeof raw === 'number'
+          ? raw
+          : typeof raw === 'string'
+            ? Number(raw)
+            : null
+      if (typeof n === 'number' && Number.isFinite(n)) return Math.floor(n)
+      return 0
+    })()
+    const opacity = (() => {
+      const raw = props['visual:opacity']
+      const n =
+        typeof raw === 'number'
+          ? raw
+          : typeof raw === 'string'
+            ? Number(raw)
+            : null
+      if (typeof n === 'number' && Number.isFinite(n)) return Math.max(0, Math.min(1, n))
+      return 1
+    })()
     const inHandleTopPctById: Partial<Record<FlowHandleId, number>> = {}
     const outHandleTopPctById: Partial<Record<FlowHandleId, number>> = {}
     for (let j = 0; j < handles.in.length; j += 1) {
@@ -71,8 +101,10 @@ export function buildAndSetFlowNativeScene(args: {
       label,
       x,
       y,
-      width: args.flowConfig.node.widthPx,
-      height: args.flowConfig.node.heightPx,
+      width,
+      height,
+      zIndex,
+      opacity,
       shape,
       handles,
       inHandleTopPctById,
@@ -80,7 +112,14 @@ export function buildAndSetFlowNativeScene(args: {
     }
     nodes.push(node)
     nodeById.set(id, node)
+    inputNodeById.set(id, n)
   }
+  nodes.sort((a, b) => {
+    const az = typeof (a as unknown as { zIndex?: unknown }).zIndex === 'number' ? ((a as unknown as { zIndex: number }).zIndex) : 0
+    const bz = typeof (b as unknown as { zIndex?: unknown }).zIndex === 'number' ? ((b as unknown as { zIndex: number }).zIndex) : 0
+    if (az !== bz) return az - bz
+    return a.id.localeCompare(b.id)
+  })
 
   const edges: NonNullable<FlowNativeScene['edges']> = []
   for (let i = 0; i < edgeList.length; i += 1) {
@@ -96,12 +135,14 @@ export function buildAndSetFlowNativeScene(args: {
     const explicitLabel = readFlowEdgeDisplayLabel({ properties: e.properties as never } as never) || ''
     const computedLabel =
       explicitLabel ||
-      buildFlowEdgeDisplayLabelFromPorts({
-        sourceNode: nodeList.find(n => String(n?.id || '').trim() === source) as never,
-        targetNode: nodeList.find(n => String(n?.id || '').trim() === target) as never,
-        sourcePortKey,
-        targetPortKey,
-      }) ||
+      ((sourcePortKey || targetPortKey) &&
+        (buildFlowEdgeDisplayLabelFromPorts({
+          sourceNode: inputNodeById.get(source) as never,
+          targetNode: inputNodeById.get(target) as never,
+          sourcePortKey,
+          targetPortKey,
+        }) ||
+          '')) ||
       ''
     const label = computedLabel.trim()
 

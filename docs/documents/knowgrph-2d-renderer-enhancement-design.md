@@ -41,6 +41,7 @@
 - Uses a browser-native layout export (`webpageLayout` snapshot) and deterministic DOM→graph conversion with domain-agnostic wrapper pruning, layout-glue cleanup, and synthetic section nodes.
 - Frame grid layout is viewport-responsive; column count derives from active viewport width, not fixed constants.
 - Shares collective fit/center, zoom view keys, snap-to-grid, lasso, and align/distribute semantics with D3 and Flow, plus renderer-neutral shortcuts for align/distribute and keyboard nudging.
+- Wireframe presentation is driven by schema metadata (`renderer:designWireframe`) and rendered via a Floating Panel "Design wireframe" section: controls include label/meta chips, text/media previews, depth fade, optional edges, and label-collision avoidance. These knobs are schema-only; the UI is a thin shell and remains host/URL-agnostic.
 
 ## Parity SSOT (Must Match Across Variants)
 

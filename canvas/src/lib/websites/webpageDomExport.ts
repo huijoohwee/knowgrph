@@ -8,9 +8,60 @@ export type WebpageDomProbeResult =
 
 const KG_EXPORT_DOM_KIND = 'kg-export-dom'
 const KG_WEBPAGE_NET_KIND = 'kg-webpage-net'
+const KG_WEBPAGE_DOM_KIND = 'kg-webpage-dom'
 
-async function waitMs(ms: number): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, ms))
+async function waitMs(ms: number, signal?: AbortSignal): Promise<void> {
+  await new Promise<void>(resolve => {
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      clearTimeout(tid)
+      if (signal) signal.removeEventListener('abort', onAbort)
+      resolve()
+    }
+    const onAbort = () => finish()
+    const tid = setTimeout(finish, ms)
+    if (signal) {
+      if (signal.aborted) return finish()
+      signal.addEventListener('abort', onAbort)
+    }
+  })
+}
+
+type InflightEntry = {
+  promise: Promise<WebpageDomProbeResult>
+  refs: number
+  abortController: AbortController
+}
+
+const INFLIGHT = new Map<string, InflightEntry>()
+
+const stableKey = (args: {
+  url: string
+  mode: WebpageDomExportMode
+  timeoutMs: number
+  maxChars: number
+  waitForNetworkIdle: boolean
+  networkIdleMs: number
+  minWaitAfterLoadMs: number
+  domQuietMs: number
+  maxElements: number
+  scrollCrawl: boolean
+  expandFaq: boolean
+}): string => {
+  return [
+    `mode:${args.mode}`,
+    `url:${args.url}`,
+    `timeout:${args.timeoutMs}`,
+    `maxChars:${args.maxChars}`,
+    `netIdle:${args.waitForNetworkIdle ? 1 : 0}:${args.networkIdleMs}`,
+    `minAfter:${args.minWaitAfterLoadMs}`,
+    `domQuiet:${args.domQuietMs}`,
+    `maxEl:${args.maxElements}`,
+    `scroll:${args.scrollCrawl ? 1 : 0}`,
+    `faq:${args.expandFaq ? 1 : 0}`,
+  ].join('|')
 }
 
 export async function exportWebpageDomViaHiddenIframe(args: {
@@ -24,6 +75,7 @@ export async function exportWebpageDomViaHiddenIframe(args: {
   waitForNetworkIdle?: boolean
   networkIdleMs?: number
   minWaitAfterLoadMs?: number
+  signal?: AbortSignal
 }): Promise<WebpageDomExportResult | null> {
   const probe = await probeWebpageDomViaHiddenIframe(args)
   return probe.ok ? probe.result : null
@@ -40,6 +92,133 @@ export async function probeWebpageDomViaHiddenIframe(args: {
   waitForNetworkIdle?: boolean
   networkIdleMs?: number
   minWaitAfterLoadMs?: number
+  signal?: AbortSignal
+}): Promise<WebpageDomProbeResult> {
+  const url0 = String(args.url || '').trim()
+  if (!url0) return { ok: false, stage: 'init', error: 'Missing url' }
+
+  const timeoutMs = Math.max(2000, Math.min(60_000, Math.floor(args.timeoutMs ?? 20_000)))
+  const maxChars = Math.max(100_000, Math.min(12_000_000, Math.floor(args.maxChars ?? 8_000_000)))
+  const waitForNetworkIdle = args.waitForNetworkIdle !== false
+  const networkIdleMs = Math.max(150, Math.min(2500, Math.floor(args.networkIdleMs ?? 600)))
+  const minWaitAfterLoadMs = Math.max(0, Math.min(5000, Math.floor(args.minWaitAfterLoadMs ?? 350)))
+  const domQuietMs = (() => {
+    const raw = (args as unknown as { domQuietMs?: unknown }).domQuietMs
+    const parsed = typeof raw === 'number' ? raw : Number(raw)
+    if (Number.isFinite(parsed)) return Math.max(0, Math.min(2500, Math.floor(parsed)))
+    return Math.max(160, Math.min(1200, Math.floor(networkIdleMs * 0.75)))
+  })()
+  const maxElements = typeof args.maxElements === 'number' && Number.isFinite(args.maxElements) ? Math.floor(args.maxElements) : 0
+  const scrollCrawl = !!args.scrollCrawl
+  const expandFaq = args.expandFaq !== false
+
+  const key = stableKey({
+    url: url0,
+    mode: args.mode,
+    timeoutMs,
+    maxChars,
+    waitForNetworkIdle,
+    networkIdleMs,
+    minWaitAfterLoadMs,
+    domQuietMs,
+    maxElements,
+    scrollCrawl,
+    expandFaq,
+  })
+
+  const existing = INFLIGHT.get(key) || null
+  if (existing) {
+    existing.refs += 1
+    if (!args.signal) return await existing.promise
+    return await new Promise<WebpageDomProbeResult>((resolve) => {
+      let settled = false
+      const done = (v: WebpageDomProbeResult) => {
+        if (settled) return
+        settled = true
+        args.signal?.removeEventListener('abort', onAbort)
+        resolve(v)
+      }
+      const onAbort = () => {
+        existing.refs = Math.max(0, existing.refs - 1)
+        if (existing.refs === 0) {
+          try {
+            existing.abortController.abort()
+          } catch {
+            void 0
+          }
+        }
+        done({ ok: false, stage: 'abort', error: 'Aborted' })
+      }
+      if (args.signal.aborted) return onAbort()
+      args.signal.addEventListener('abort', onAbort)
+      existing.promise.then(v => done(v)).catch(() => done({ ok: false, stage: 'exception', error: 'Iframe export failed' }))
+    })
+  }
+
+  const abortController = new AbortController()
+  const entry: InflightEntry = {
+    promise: Promise.resolve({ ok: false, stage: 'init', error: 'Missing inflight promise' }),
+    refs: 1,
+    abortController,
+  }
+  INFLIGHT.set(key, entry)
+  const p = probeWebpageDomViaHiddenIframeOnce({
+    url: url0,
+    mode: args.mode,
+    timeoutMs,
+    maxChars,
+    maxElements: maxElements || undefined,
+    scrollCrawl,
+    expandFaq,
+    waitForNetworkIdle,
+    networkIdleMs,
+    minWaitAfterLoadMs,
+    domQuietMs,
+    signal: abortController.signal,
+  }).finally(() => {
+    INFLIGHT.delete(key)
+  })
+  entry.promise = p
+
+  if (!args.signal) return await p
+  return await new Promise<WebpageDomProbeResult>((resolve) => {
+    let settled = false
+    const done = (v: WebpageDomProbeResult) => {
+      if (settled) return
+      settled = true
+      args.signal?.removeEventListener('abort', onAbort)
+      resolve(v)
+    }
+    const onAbort = () => {
+      entry.refs = Math.max(0, entry.refs - 1)
+      if (entry.refs === 0) {
+        try {
+          entry.abortController.abort()
+        } catch {
+          void 0
+        }
+      }
+      done({ ok: false, stage: 'abort', error: 'Aborted' })
+    }
+    if (args.signal.aborted) return onAbort()
+    args.signal.addEventListener('abort', onAbort)
+    p.then(v => done(v)).catch(() => done({ ok: false, stage: 'exception', error: 'Iframe export failed' }))
+  })
+}
+
+async function probeWebpageDomViaHiddenIframeOnce(args: {
+  url: string
+  mode: WebpageDomExportMode
+  timeoutMs?: number
+  maxChars?: number
+  maxElements?: number
+  scrollCrawl?: boolean
+  expandFaq?: boolean
+  waitForNetworkIdle?: boolean
+  networkIdleMs?: number
+  minWaitAfterLoadMs?: number
+  domQuietMs?: number
+  signal?: AbortSignal
 }): Promise<WebpageDomProbeResult> {
   const url = String(args.url || '').trim()
   if (!url) return { ok: false, stage: 'init', error: 'Missing url' }
@@ -49,6 +228,14 @@ export async function probeWebpageDomViaHiddenIframe(args: {
   const waitForNetworkIdle = args.waitForNetworkIdle !== false
   const networkIdleMs = Math.max(150, Math.min(2500, Math.floor(args.networkIdleMs ?? 600)))
   const minWaitAfterLoadMs = Math.max(0, Math.min(5000, Math.floor(args.minWaitAfterLoadMs ?? 350)))
+  const domQuietMs = (() => {
+    const raw = (args as unknown as { domQuietMs?: unknown }).domQuietMs
+    const parsed = typeof raw === 'number' ? raw : Number(raw)
+    if (Number.isFinite(parsed)) return Math.max(0, Math.min(2500, Math.floor(parsed)))
+    return Math.max(160, Math.min(1200, Math.floor(networkIdleMs * 0.75)))
+  })()
+  const signal = args.signal
+  if (signal?.aborted) return { ok: false, stage: 'abort', error: 'Aborted' }
 
   const iframe = document.createElement('iframe')
   iframe.setAttribute('referrerpolicy', 'no-referrer')
@@ -99,11 +286,17 @@ export async function probeWebpageDomViaHiddenIframe(args: {
             settled = true
             clearTimeout(timeoutId)
             iframe.removeEventListener('load', onLoad)
+            if (signal) signal.removeEventListener('abort', onAbort)
             resolve(v)
           }
           const onLoad = () => done(true)
+          const onAbort = () => done(false)
           const timeoutId = setTimeout(() => done(false), perAttemptTimeout)
           iframe.addEventListener('load', onLoad)
+          if (signal) {
+            if (signal.aborted) return done(false)
+            signal.addEventListener('abort', onAbort)
+          }
           try {
             iframe.setAttribute('sandbox', cand.sandbox)
           } catch {
@@ -111,6 +304,7 @@ export async function probeWebpageDomViaHiddenIframe(args: {
           }
           iframe.src = cand.src
         })
+        if (signal?.aborted) throw new Error('ABORT')
         if (ok) {
           loadedCandidate = cand
           return true
@@ -264,6 +458,10 @@ export async function probeWebpageDomViaHiddenIframe(args: {
                 display: safeStyleValue(cs.display),
                 position: safeStyleValue(cs.position),
                 zIndex: safeStyleValue(cs.zIndex),
+                transform: safeStyleValue((cs as unknown as { transform?: unknown }).transform),
+                filter: safeStyleValue((cs as unknown as { filter?: unknown }).filter),
+                isolation: safeStyleValue((cs as unknown as { isolation?: unknown }).isolation),
+                willChange: safeStyleValue((cs as unknown as { willChange?: unknown }).willChange),
                 backgroundColor: safeStyleValue((cs as unknown as { backgroundColor?: unknown }).backgroundColor),
                 color: safeStyleValue((cs as unknown as { color?: unknown }).color),
                 borderRadius: safeStyleValue((cs as unknown as { borderRadius?: unknown }).borderRadius),
@@ -272,10 +470,23 @@ export async function probeWebpageDomViaHiddenIframe(args: {
                 padding: safeStyleValue((cs as unknown as { padding?: unknown }).padding),
                 margin: safeStyleValue((cs as unknown as { margin?: unknown }).margin),
                 gap: safeStyleValue((cs as unknown as { gap?: unknown }).gap),
+                rowGap: safeStyleValue((cs as unknown as { rowGap?: unknown }).rowGap),
+                columnGap: safeStyleValue((cs as unknown as { columnGap?: unknown }).columnGap),
                 justifyContent: safeStyleValue((cs as unknown as { justifyContent?: unknown }).justifyContent),
+                justifyItems: safeStyleValue((cs as unknown as { justifyItems?: unknown }).justifyItems),
                 alignItems: safeStyleValue((cs as unknown as { alignItems?: unknown }).alignItems),
+                alignContent: safeStyleValue((cs as unknown as { alignContent?: unknown }).alignContent),
+                justifySelf: safeStyleValue((cs as unknown as { justifySelf?: unknown }).justifySelf),
+                alignSelf: safeStyleValue((cs as unknown as { alignSelf?: unknown }).alignSelf),
                 flexDirection: safeStyleValue((cs as unknown as { flexDirection?: unknown }).flexDirection),
                 flexWrap: safeStyleValue((cs as unknown as { flexWrap?: unknown }).flexWrap),
+                flexGrow: safeStyleValue((cs as unknown as { flexGrow?: unknown }).flexGrow),
+                flexShrink: safeStyleValue((cs as unknown as { flexShrink?: unknown }).flexShrink),
+                flexBasis: safeStyleValue((cs as unknown as { flexBasis?: unknown }).flexBasis),
+                order: safeStyleValue((cs as unknown as { order?: unknown }).order),
+                gridTemplateColumns: safeStyleValue((cs as unknown as { gridTemplateColumns?: unknown }).gridTemplateColumns),
+                gridTemplateRows: safeStyleValue((cs as unknown as { gridTemplateRows?: unknown }).gridTemplateRows),
+                gridAutoFlow: safeStyleValue((cs as unknown as { gridAutoFlow?: unknown }).gridAutoFlow),
                 fontSize: safeStyleValue((cs as unknown as { fontSize?: unknown }).fontSize),
                 fontWeight: safeStyleValue((cs as unknown as { fontWeight?: unknown }).fontWeight),
                 fontFamily: safeStyleValue((cs as unknown as { fontFamily?: unknown }).fontFamily),
@@ -419,6 +630,7 @@ export async function probeWebpageDomViaHiddenIframe(args: {
           clearTimeout(hardTimeout)
           clearTimeout(fallbackTimeout)
           window.removeEventListener('message', onMessage)
+          if (signal) signal.removeEventListener('abort', onAbort)
           resolve()
         }
         const onMessage = (e: MessageEvent) => {
@@ -442,8 +654,54 @@ export async function probeWebpageDomViaHiddenIframe(args: {
           if (!sawStatus) done()
         }, 1200)
         window.addEventListener('message', onMessage)
+        const onAbort = () => done()
+        if (signal) {
+          if (signal.aborted) return done()
+          signal.addEventListener('abort', onAbort)
+        }
       })
-      if (minWaitAfterLoadMs > 0) await waitMs(Math.min(minWaitAfterLoadMs, 1200))
+      if (signal?.aborted) throw new Error('ABORT')
+      if (minWaitAfterLoadMs > 0) await waitMs(Math.min(minWaitAfterLoadMs, 1200), signal)
+    }
+
+    const waitDomQuiet = async (): Promise<void> => {
+      if (domQuietMs <= 0) return
+      let sawStatus = false
+      let lastMutAt = 0
+      await new Promise<void>((resolve) => {
+        let settled = false
+        const done = () => {
+          if (settled) return
+          settled = true
+          clearTimeout(hardTimeout)
+          clearTimeout(fallbackTimeout)
+          window.removeEventListener('message', onMessage)
+          if (signal) signal.removeEventListener('abort', onAbort)
+          resolve()
+        }
+        const onMessage = (e: MessageEvent) => {
+          if (e.source !== win) return
+          const d = e?.data as unknown
+          if (!d || typeof d !== 'object') return
+          const rec = d as Record<string, unknown>
+          if (rec.kind !== KG_WEBPAGE_DOM_KIND) return
+          const n = typeof rec.lastMutAt === 'number' ? rec.lastMutAt : Number(rec.lastMutAt)
+          if (!Number.isFinite(n)) return
+          sawStatus = true
+          lastMutAt = Math.max(0, Math.floor(n))
+          if (Date.now() - lastMutAt >= domQuietMs) return done()
+        }
+        const hardTimeout = setTimeout(done, Math.min(timeoutMs, 10_000))
+        const fallbackTimeout = setTimeout(() => {
+          if (!sawStatus) done()
+        }, 1200)
+        window.addEventListener('message', onMessage)
+        const onAbort = () => done()
+        if (signal) {
+          if (signal.aborted) return done()
+          signal.addEventListener('abort', onAbort)
+        }
+      })
     }
 
     const requestOnce = async (): Promise<WebpageDomExportResult | null> => {
@@ -459,6 +717,7 @@ export async function probeWebpageDomViaHiddenIframe(args: {
           done = true
           clearTimeout(tid)
           window.removeEventListener('message', onMessage)
+          if (signal) signal.removeEventListener('abort', onAbort)
           resolve({
             text: String(d.text ?? ''),
             title: String(d.title ?? ''),
@@ -470,9 +729,22 @@ export async function probeWebpageDomViaHiddenIframe(args: {
           if (done) return
           done = true
           window.removeEventListener('message', onMessage)
+          if (signal) signal.removeEventListener('abort', onAbort)
           resolve(null)
         }, timeoutMs)
         window.addEventListener('message', onMessage)
+        const onAbort = () => {
+          if (done) return
+          done = true
+          clearTimeout(tid)
+          window.removeEventListener('message', onMessage)
+          if (signal) signal.removeEventListener('abort', onAbort)
+          resolve(null)
+        }
+        if (signal) {
+          if (signal.aborted) return onAbort()
+          signal.addEventListener('abort', onAbort)
+        }
         try {
           win.postMessage(
             {
@@ -489,14 +761,19 @@ export async function probeWebpageDomViaHiddenIframe(args: {
         } catch {
           clearTimeout(tid)
           window.removeEventListener('message', onMessage)
+          if (signal) signal.removeEventListener('abort', onAbort)
           resolve(null)
         }
       })
     }
 
     await waitNetIdle()
+    if (signal?.aborted) throw new Error('ABORT')
+    if (args.mode === 'layout') await waitDomQuiet()
+    if (signal?.aborted) throw new Error('ABORT')
     const first = await requestOnce()
     if (!first) {
+      if (signal?.aborted) return { ok: false, stage: 'abort', error: 'Aborted', attempts: loadedCandidate ? [loadedCandidate] : candidates }
       const direct = tryDirectRead()
       if (direct) return { ok: true, result: direct }
       return {
@@ -526,8 +803,10 @@ export async function probeWebpageDomViaHiddenIframe(args: {
     }
     let bestLayoutScore = args.mode === 'layout' ? layoutScore(best.text) : 0
     while (Date.now() - start < Math.min(timeoutMs, 55_000)) {
-      await waitMs(900)
+      await waitMs(900, signal)
       await waitNetIdle()
+      if (args.mode === 'layout') await waitDomQuiet()
+      if (signal?.aborted) throw new Error('ABORT')
       const next = await requestOnce()
       if (!next) break
       const improved = (() => {
@@ -553,6 +832,9 @@ export async function probeWebpageDomViaHiddenIframe(args: {
     }
     return { ok: true, result: best }
   } catch (e) {
+    if (e && typeof e === 'object' && 'message' in e && String((e as { message?: unknown }).message || '') === 'ABORT') {
+      return { ok: false, stage: 'abort', error: 'Aborted', attempts: candidates }
+    }
     const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
     return { ok: false, stage: 'exception', error: msg || 'Iframe export failed', attempts: candidates }
   } finally {

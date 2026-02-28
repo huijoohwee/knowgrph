@@ -384,6 +384,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const overlayCollisionResolveRafRef = React.useRef<number | null>(null)
   const overlayCollisionResolveKeyRef = React.useRef<string>('')
   const overlayRectCacheRef = React.useRef<Map<string, { left: number; top: number; width: number; height: number }>>(new Map())
+  const overlayCollisionIterKeyRef = React.useRef<string>('')
+  const overlayCollisionIterCountRef = React.useRef<number>(0)
   const overlayCollisionWarmupStartedAtMsRef = React.useRef<number | null>(null)
   const overlayCollisionWarmupAttemptsRef = React.useRef<number>(0)
 
@@ -444,6 +446,10 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const key = `${overlayNodeIds.join(',')}|${zKey}|${viewportW}x${viewportH}|${overlayOnlyModeEnabled ? 1 : 0}`
       if (overlayCollisionResolveKeyRef.current === key) return
       overlayCollisionResolveKeyRef.current = key
+      if (overlayCollisionIterKeyRef.current !== key) {
+        overlayCollisionIterKeyRef.current = key
+        overlayCollisionIterCountRef.current = 0
+      }
 
       const schemaCur = schema
       const [minK, maxK] = schemaCur ? readZoomScaleExtent(schemaCur) : [DEFAULT_ZOOM_MIN_SCALE, DEFAULT_ZOOM_MAX_SCALE]
@@ -832,8 +838,18 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       if (!changed && !anchorChanged) return
       if (changed) st.setFlowNodeQuickEditorPosByNodeId(next)
       if (anchorChanged) setFlowNodeQuickEditorAnchorOffsetByNodeId(nextAnchorOffsets)
-      overlayCollisionResolveKeyRef.current = ''
-      scheduleOverlayCollisionResolve()
+
+      const stillOverlaps = shouldResolveItems(
+        world.map(it => ({ id: it.id, left: it.left, top: it.top, width: it.width, height: it.height })),
+        gapPx,
+      )
+      if (stillOverlaps) {
+        overlayCollisionIterCountRef.current += 1
+        if (overlayCollisionIterCountRef.current <= 10) {
+          overlayCollisionResolveKeyRef.current = ''
+          scheduleOverlayCollisionResolve()
+        }
+      }
     })
   }, [
     active,

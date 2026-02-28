@@ -157,7 +157,7 @@ sequenceDiagram
   - HTML/JSON always render via sandboxed iframe `srcdoc`.
   - HTML source is fetched via `/__webpage_proxy` (remote or local in-repo path), or read from stored website-import artifacts when available.
   - For local in-repo webpages, assets resolve through `/__codebase_asset?path=...` (preferred) plus optional `kgWebpageSiteRootRel` for root-relative URLs. `/__repo_file/*` may exist for legacy baseHref flows but should not be relied on by new docs.
-  - Script execution is controlled by `webpageViewerScriptPolicy` (default `strip`).
+  - Script execution baseline is controlled by `webpageViewerScriptPolicy`, but effective per-page behavior is auto by default: shared rich-media + iframe heuristics decide when scripts are required for DOM export versus when they should be stripped.
 - **Iframe sandbox policy**: Use `sandbox="allow-scripts"` with `referrerPolicy="no-referrer"`; forbid top-level navigation. Also set a restrictive `allow` feature policy (no geolocation/camera/mic/payment/clipboard).
 - **Safety invariant**: Switching view must not mutate graph/layout/zoom/layers, trigger re-parsing/apply-to-graph, or write default import settings.
 - **Iframe Fidelity**: The proxy strips conflicting `<base>` and CSP/XFO meta tags, rewrites asset URLs (including relative URLs) to `/__webpage_asset_proxy` for same-origin loading, and supports local in-repo file reads for HTML + assets.

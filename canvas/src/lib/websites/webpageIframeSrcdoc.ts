@@ -616,7 +616,7 @@ export const buildWebpageHtmlSrcdocAsync = async (args: {
   })()
   const chosen = looksProxied ? (selfOriginBaseHref || baseHref) : baseHref
 
-  const cacheKey = `srcdoc:${chosen}:${rawHtml.length}:${hash32(rawHtml)}`
+  const cacheKey = `srcdoc:${scriptPolicy}:${chosen}:${rawHtml.length}:${hash32(rawHtml)}`
   const cached = SRCDOC_CACHE.get(cacheKey)
   if (cached) return cached
 

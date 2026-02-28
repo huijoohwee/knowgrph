@@ -299,6 +299,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const tempLinkSelRef = useRef<TempLinkSelection>(null);
   const linkDragRef = useRef<PendingLink | null>(null);
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
+  const lastCanvasLayoutRef = useRef<null | { w: number; h: number; x: number; y: number }>(null)
 
   useEffect(() => {
     const el = svgRef.current;
@@ -325,8 +326,17 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   }, [schema.behavior?.hover?.enabled]);
 
   useEffect(() => {
-    setCanvasDims({ w: Math.max(1, Math.floor(width)), h: Math.max(1, Math.floor(height)) });
-    setCanvasPos({ x: left, y: top });
+    const next = {
+      w: Math.max(1, Math.floor(width)),
+      h: Math.max(1, Math.floor(height)),
+      x: left,
+      y: top,
+    }
+    const prev = lastCanvasLayoutRef.current
+    if (prev && prev.w === next.w && prev.h === next.h && prev.x === next.x && prev.y === next.y) return
+    lastCanvasLayoutRef.current = next
+    if (!prev || prev.w !== next.w || prev.h !== next.h) setCanvasDims({ w: next.w, h: next.h })
+    if (!prev || prev.x !== next.x || prev.y !== next.y) setCanvasPos({ x: next.x, y: next.y })
   }, [width, height, left, top, setCanvasDims, setCanvasPos]);
 
   useEffect(() => {

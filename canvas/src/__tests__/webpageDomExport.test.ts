@@ -75,3 +75,90 @@ export async function testWebpageDomExportWaitsForNetworkIdleAndReturnsSnapshot(
     restore()
   }
 }
+
+export async function testWebpageDomExportDedupesInflightRequests() {
+  const { restore } = initJsdomHarness()
+  try {
+    const p1 = exportWebpageDomViaHiddenIframe({
+      url: 'https://example.com/',
+      mode: 'html',
+      timeoutMs: 4000,
+      waitForNetworkIdle: true,
+      networkIdleMs: 200,
+      minWaitAfterLoadMs: 0,
+    })
+    const p2 = exportWebpageDomViaHiddenIframe({
+      url: 'https://example.com/',
+      mode: 'html',
+      timeoutMs: 4000,
+      waitForNetworkIdle: true,
+      networkIdleMs: 200,
+      minWaitAfterLoadMs: 0,
+    })
+
+    await waitMs(0)
+    const iframes = Array.from(document.querySelectorAll('iframe'))
+    if (iframes.length !== 1) throw new Error(`expected 1 iframe mounted, got ${iframes.length}`)
+    const iframe = iframes[0] as HTMLIFrameElement
+    const win = iframe.contentWindow
+    if (!win) throw new Error('expected iframe contentWindow')
+
+    let requestedId = ''
+    ;(win as unknown as { postMessage?: unknown }).postMessage = (payload: unknown) => {
+      if (!payload || typeof payload !== 'object') return
+      const rec = payload as Record<string, unknown>
+      if (rec.kind !== 'kg-export-dom') return
+      const id = typeof rec.id === 'string' ? rec.id : ''
+      if (id) requestedId = id
+    }
+
+    iframe.dispatchEvent(createEvent('load'))
+    await waitMs(0)
+    window.dispatchEvent(createMessageEvent({ kind: 'kg-webpage-net', pending: 0 }, win))
+    await waitMs(240)
+    window.dispatchEvent(createMessageEvent({ kind: 'kg-webpage-net', pending: 0 }, win))
+
+    const startedAt = Date.now()
+    while (!requestedId && Date.now() - startedAt < 1200) {
+      await waitMs(15)
+    }
+    if (!requestedId) throw new Error('expected export request')
+
+    window.dispatchEvent(
+      createMessageEvent({ kind: 'kg-export-dom', id: requestedId, mode: 'html', title: 'T', clipped: false, text: '<html>OK</html>' }, win),
+    )
+
+    const [r1, r2] = await Promise.all([p1, p2])
+    if (!r1 || !r2) throw new Error('expected results')
+    if (r1.text !== '<html>OK</html>' || r2.text !== '<html>OK</html>') throw new Error('expected returned html snapshot')
+  } finally {
+    restore()
+  }
+}
+
+export async function testWebpageDomExportAbortsAndRemovesIframe() {
+  const { restore } = initJsdomHarness()
+  try {
+    const ctrl = new AbortController()
+    const p = exportWebpageDomViaHiddenIframe({
+      url: 'https://example.com/',
+      mode: 'html',
+      timeoutMs: 4000,
+      waitForNetworkIdle: true,
+      networkIdleMs: 200,
+      minWaitAfterLoadMs: 0,
+      signal: ctrl.signal,
+    })
+    await waitMs(0)
+    const iframe = document.querySelector('iframe') as HTMLIFrameElement | null
+    if (!iframe) throw new Error('expected iframe mounted')
+    ctrl.abort()
+    const res = await p
+    if (res != null) throw new Error('expected null result on abort')
+    await waitMs(0)
+    const remaining = document.querySelector('iframe')
+    if (remaining) throw new Error('expected iframe removed')
+  } finally {
+    restore()
+  }
+}

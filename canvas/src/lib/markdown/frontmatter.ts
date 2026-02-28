@@ -49,8 +49,19 @@ export function parseWebpageFrontmatterMeta(rawText: string): WebpageFrontmatter
   if (!block) return null
   const url = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageUrl')
   const viewRaw = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageView')
-  const view: WebpageViewMode = viewRaw === 'html' ? 'html' : viewRaw === 'json' ? 'json' : 'markdown'
   if (!url) return null
+  const view: WebpageViewMode =
+    viewRaw === 'html'
+      ? 'html'
+      : viewRaw === 'json'
+        ? 'json'
+        : viewRaw === 'dom'
+          ? 'dom'
+          : viewRaw === 'raw'
+            ? 'raw'
+            : viewRaw
+              ? 'markdown'
+              : 'html'
   const siteRootRelRaw = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageSiteRootRel')
   const siteRootRel = siteRootRelRaw && siteRootRelRaw.trim() ? siteRootRelRaw.trim() : undefined
   const scriptRaw = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageScriptPolicy')

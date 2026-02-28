@@ -296,38 +296,85 @@ const coalesceHtmlNavOrGridBlockToTable = (markdown: string): string => {
   for (const b of blocks) {
     const lower = b.toLowerCase()
     const looksHtmlBlock = b.startsWith('<') && b.includes('>') && !b.startsWith('```')
-    const looksGrid = /display\s*:\s*(grid|inline-grid)/i.test(lower) || /grid-template-columns/i.test(lower)
+    const looksGrid =
+      /display\s*:\s*(grid|inline-grid|flex|inline-flex)/i.test(lower) ||
+      /grid-template-columns|grid-template-rows|grid-auto-flow|column-count|column-width|flex-wrap/i.test(lower) ||
+      /\bclass\s*=\s*["'][^"']*(?:\bgrid\b|\binline-grid\b|\bgrid-cols-\d+|\bgrid-rows-\d+|\bflex\b|\binline-flex\b|\bflex-wrap\b)[^"']*["']/.test(
+        lower,
+      )
     if (!looksHtmlBlock || !looksGrid) {
       out.push(b)
       continue
     }
 
-    const anchors: Array<{ href: string; text: string }> = []
+    const anchors: Array<{ href: string; text: string; imgSrc?: string; imgAlt?: string }> = []
     const aRe = /<a\b[^>]*\bhref\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))[^>]*>([\s\S]*?)<\/a\s*>/gi
     let m: RegExpExecArray | null
     aRe.lastIndex = 0
     while ((m = aRe.exec(b))) {
       const href = String(m[1] || m[2] || m[3] || '').trim()
       const inner = String(m[4] || '')
+      const imgSrc = (() => {
+        const mm =
+          inner.match(/<img\b[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/i) ||
+          inner.match(/<img\b[^>]*\bdata-src\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/i)
+        return mm ? String(mm[1] || mm[2] || mm[3] || '').trim() : ''
+      })()
       const imgAlt = (() => {
         const mm = inner.match(/<img\b[^>]*\balt\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/i)
         return mm ? String(mm[1] || mm[2] || mm[3] || '').trim() : ''
       })()
       const text = stripHtmlTags(inner) || imgAlt || ''
-      if (!href || !text) continue
-      anchors.push({ href, text })
-      if (anchors.length >= 8) break
+      if (!href) continue
+      if (!text && !imgSrc) continue
+      anchors.push({ href, text, imgSrc: imgSrc || undefined, imgAlt: imgAlt || undefined })
+      if (anchors.length >= 24) break
     }
 
-    const candidates = anchors.filter(a => a.text.length <= 40 && a.href.length <= 300)
-    if (candidates.length < 4 || candidates.length > 8) {
-      out.push(b)
+    const candidates = anchors.filter(a => {
+      if (!a.href || a.href.length > 600) return false
+      if (a.imgSrc) return a.imgSrc.length <= 600
+      return !!a.text && a.text.length <= 64
+    })
+
+    const mkCell = (a: { href: string; text: string; imgSrc?: string; imgAlt?: string }): string => {
+      const href = escapeMarkdownText(a.href)
+      const imgSrc = a.imgSrc ? escapeMarkdownText(a.imgSrc) : ''
+      const label = (() => {
+        if (!imgSrc) return escapeMarkdownText(a.text || '')
+        const alt = escapeMarkdownText(String(a.imgAlt || a.text || ''))
+        return `![${alt}](${imgSrc})`
+      })()
+      return `[${label}](${href})`
+    }
+    const cells = candidates.map(mkCell)
+    const anyImages = candidates.some(c => !!c.imgSrc)
+
+    if (cells.length >= 4 && cells.length <= 8 && !anyImages) {
+      out.push(`| ${cells.join(' | ')} |`)
+      out.push(`| ${cells.map(() => '---').join(' | ')} |`)
       continue
     }
 
-    const cells = candidates.map(a => `[${escapeMarkdownText(a.text)}](${escapeMarkdownText(a.href)})`)
-    out.push(`| ${cells.join(' | ')} |`)
-    out.push(`| ${cells.map(() => '---').join(' | ')} |`)
+    if (cells.length >= 4) {
+      const n = cells.length
+      const colCount = n >= 9 ? 4 : n >= 7 ? 4 : n >= 5 ? 3 : 2
+      out.push(`| ${new Array(colCount).fill(' ').join(' | ')} |`)
+      out.push(`| ${new Array(colCount).fill('---').join(' | ')} |`)
+      for (let i = 0; i < cells.length; i += colCount) {
+        const row = cells.slice(i, i + colCount)
+        while (row.length < colCount) row.push(' ')
+        out.push(`| ${row.join(' | ')} |`)
+      }
+      continue
+    }
+
+    if (candidates.length >= 3) {
+      out.push(candidates.map(a => `- ${mkCell(a)}`).join('\n'))
+      continue
+    }
+
+    out.push(stripHtmlTags(b))
   }
 
   return out.join('\n\n').replace(/\n{3,}/g, '\n\n').trim()
@@ -403,7 +450,7 @@ const escapeTableCell = (text: string): string => {
 const formatPlainLinesAsBulletsInTableCell = (lines: string[]): string => {
   const items = lines.map(l => String(l || '').trim()).filter(Boolean)
   if (!items.length) return ''
-  return items.map(it => `- ${escapeTableCell(it)}`).join('<br>')
+  return items.map(it => escapeTableCell(it)).join(' · ')
 }
 
 const normalizeBlockMarkdown = (block: string): string => {

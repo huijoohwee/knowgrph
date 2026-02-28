@@ -326,14 +326,14 @@ export async function testMarkdownWorkspaceImportUrlHtmlPageSsotAndViewModes() {
   if (!frontmatterPrefix.includes('kgWebpageView: "html"')) {
     throw new Error('expected frontmatter to set kgWebpageView: "html"')
   }
-  if (!frontmatterPrefix.includes('kgWebpageScriptPolicy: "allow"')) {
-    throw new Error('expected frontmatter to set kgWebpageScriptPolicy: "allow"')
+  if (frontmatterPrefix.includes('kgWebpageScriptPolicy:')) {
+    throw new Error('expected Import URL stub to keep Script: Auto (omit kgWebpageScriptPolicy)')
   }
-  if (!frontmatterPrefix.includes('kgWebpageIncludeImages:')) {
-    throw new Error('expected frontmatter to include kgWebpageIncludeImages flag')
+  if (frontmatterPrefix.includes('kgWebpageIncludeImages:')) {
+    throw new Error('expected Import URL stub to keep Imgs: Auto (omit kgWebpageIncludeImages)')
   }
-  if (!frontmatterPrefix.includes('kgWebpageFidelityLevel:')) {
-    throw new Error('expected frontmatter to include kgWebpageFidelityLevel')
+  if (frontmatterPrefix.includes('kgWebpageFidelityLevel:')) {
+    throw new Error('expected Import URL stub to keep Fid: Auto (omit kgWebpageFidelityLevel)')
   }
 
   const importedMarkdown = [
@@ -403,11 +403,6 @@ export async function testMarkdownWorkspaceImportUrlHtmlPageSsotAndViewModes() {
     }
   if (isFrontmatterOnlyDoc(refreshed.text)) {
     throw new Error('expected refresh markdown to have non-empty body, not frontmatter-only')
-  }
-
-  const fidelityMarker = 'Fidelity Level:** 100% Source-Faithful (No Invented Content)'
-  if (!refreshed.text.includes(fidelityMarker)) {
-    throw new Error('expected refresh markdown to include Source-Faithful fidelity marker')
   }
 
     root.render(

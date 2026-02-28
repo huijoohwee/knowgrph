@@ -15,6 +15,7 @@ import {
 import { useMarkdownPreviewLexedMarkdown } from '@/features/markdown/ui/useMarkdownPreviewTokens'
 import {
   buildMarkdownPreviewMediaKey,
+  applyMediaProxySrc,
   extractAttr,
   getVimeoId,
   getYouTubeId,
@@ -29,6 +30,7 @@ import {
   MermaidDiagram,
 } from '@/features/panels/views/preview-panel/ui/MermaidDiagram'
 import { splitMermaidIntoDiagrams } from 'grph-shared/markdown/mermaidBlocks'
+import { normalizeWebpageLikeUrl } from 'grph-shared/url'
 import {
   type MermaidInitConfig,
   parseMermaidConfigFromFrontmatter,
@@ -125,7 +127,7 @@ export default function PreviewPanelView() {
     return href || null
   }
 
-  type MediaKind = 'mermaid' | 'image' | 'video' | 'iframe' | 'youtube' | 'vimeo'
+  type MediaKind = 'mermaid' | 'image' | 'video' | 'iframe' | 'youtube' | 'vimeo' | 'webpage'
 
   type MediaSource = 'markdown' | 'graph'
 
@@ -146,6 +148,10 @@ export default function PreviewPanelView() {
     const list: MediaItem[] = []
     const docPath = markdownDocumentName || ''
     const frontmatterMermaid = String((meta as Record<string, unknown>).mermaid || '').trim()
+    const looksImageUrl = (href: string) =>
+      /^data:image\//i.test(href) || /\.(png|jpe?g|gif|webp|svg)(\?|#|$)/i.test(href)
+    const looksAudioUrl = (href: string) =>
+      /\.(mp3|wav|m4a|aac|flac|ogg)(\?|#|$)/i.test(href)
 
     if (frontmatterMermaid) {
       const diagrams = splitMermaidIntoDiagrams(frontmatterMermaid)
@@ -305,16 +311,27 @@ export default function PreviewPanelView() {
           const hrefRaw = String(img.href || '').trim()
           if (!hrefRaw) continue
           if (!isSafeHref(hrefRaw) || !isSafeMediaSrc(hrefRaw)) continue
-          const src = resolveHref(hrefRaw, docPath)
           const alt = img.text
+          const altNorm = String(alt || '').trim().toLowerCase()
+          const normalizedHref = normalizeWebpageLikeUrl(hrefRaw)
+          const treatAsWebpage =
+            /^https?:\/\//i.test(hrefRaw) &&
+            !altNorm.startsWith('iframe') &&
+            !altNorm.startsWith('video') &&
+            !altNorm.startsWith('audio') &&
+            !looksImageUrl(hrefRaw) &&
+            !isVideoUrl(hrefRaw) &&
+            !looksAudioUrl(hrefRaw)
+          const src = resolveHref(treatAsWebpage ? normalizedHref : hrefRaw, docPath)
           const idHint = `${hrefRaw}#${j}`
-          const key = buildMarkdownPreviewMediaKey('image', t.startLine, idHint)
+          const kind: MediaKind = treatAsWebpage ? 'webpage' : 'image'
+          const key = buildMarkdownPreviewMediaKey(kind, t.startLine, idHint)
           list.push({
             key,
-            kind: 'image',
+            kind,
             source: 'markdown',
             startLine: t.startLine,
-            label: alt || `Image ${list.length + 1}`,
+            label: alt || (treatAsWebpage ? `Webpage ${list.length + 1}` : `Image ${list.length + 1}`),
             src,
             alt,
           })
@@ -442,11 +459,12 @@ export default function PreviewPanelView() {
     }
 
     if (activeMedia.kind === 'image') {
+      const src = applyMediaProxySrc(activeMedia.src)
       return (
         <div className="w-full h-full flex items-center justify-center">
           <div className="aspect-video w-full max-w-4xl bg-black/5 rounded border border-gray-200 overflow-hidden flex items-center justify-center">
             <img
-              src={activeMedia.src}
+              src={src}
               alt={activeMedia.alt || activeMedia.label}
               className="w-full h-full object-contain"
             />
@@ -456,12 +474,26 @@ export default function PreviewPanelView() {
     }
 
     if (activeMedia.kind === 'video') {
+      const src = applyMediaProxySrc(activeMedia.src)
       return (
         <div className="w-full h-full flex items-center justify-center">
           <div className="aspect-video w-full max-w-4xl bg-black rounded border border-gray-800 overflow-hidden">
             <video controls className="w-full h-full">
-              <source src={activeMedia.src} />
+              <source src={src} />
             </video>
+          </div>
+        </div>
+      )
+    }
+
+    if (activeMedia.kind === 'webpage') {
+      return (
+        <div className="w-full h-full flex items-center justify-center">
+          <div className={`w-full max-w-4xl rounded border ${UI_THEME_TOKENS.panel.border} bg-white px-4 py-3`}>
+            <div className="text-xs font-medium text-gray-700 mb-1">Webpage</div>
+            <a className="text-xs underline break-all" href={activeMedia.src} target="_blank" rel="noreferrer">
+              {activeMedia.src}
+            </a>
           </div>
         </div>
       )

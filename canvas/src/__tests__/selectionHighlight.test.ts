@@ -151,3 +151,25 @@ export function testSelectionHighlightMediaOpacityRespectsRenderToggleAndLayerOp
     throw new Error(`expected media node to use layer opacity when Rich Media is off (got ${vOff.opacity})`)
   }
 }
+
+export function testSelectionHighlightLabelOpacityDoesNotDisappearAtZeroLayerOpacity() {
+  const schema = makeSchema()
+  schema.three = { ...(schema.three || {}), layerOpacityByLayer: { '2': 0 } }
+  const data: GraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'a', label: 'A', type: 'Entity', properties: { 'visual:layer': 2 } }],
+    edges: [],
+  }
+  const params: SelectionHighlightParams = {
+    data,
+    schema,
+    selectedNodeId: null,
+    selectedEdgeId: null,
+    renderMediaAsNodes: true,
+  }
+  const neighborIds = computeNeighborIds(params)
+  const v = computeLabelVisual(data.nodes[0], { ...params, neighborIds })
+  if (v.opacity < 0.65) {
+    throw new Error(`expected label opacity to have a floor even when layer opacity is 0 (got ${v.opacity})`)
+  }
+}

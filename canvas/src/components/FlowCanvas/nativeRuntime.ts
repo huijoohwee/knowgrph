@@ -17,6 +17,8 @@ export type FlowNativeNode = {
   y: number
   width: number
   height: number
+  zIndex?: number
+  opacity?: number
   shape: FlowNativeNodeShape
   handles: FlowNodeHandles
   inHandleTopPctById: Partial<Record<FlowHandleId, number>>
@@ -390,6 +392,13 @@ const roundRectPath = (ctx: CanvasRenderingContext2D, x: number, y: number, w: n
 
 const drawNode = (rt: FlowNativeRuntime, n: FlowNativeNode, args: { selected: boolean }) => {
   const ctx = rt.ctx
+  const nodeOpacity = (() => {
+    const raw = (n as unknown as { opacity?: unknown }).opacity
+    if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, Math.min(1, raw))
+    return 1
+  })()
+  ctx.save()
+  ctx.globalAlpha = Math.max(0, Math.min(1, ctx.globalAlpha * nodeOpacity))
   ctx.beginPath()
   if (n.shape === 'circle') {
     const r = Math.max(1, Math.min(n.width, n.height) / 2)
@@ -424,7 +433,10 @@ const drawNode = (rt: FlowNativeRuntime, n: FlowNativeNode, args: { selected: bo
   ctx.stroke()
 
   const label = String(n.label || '').trim()
-  if (!label) return
+  if (!label) {
+    ctx.restore()
+    return
+  }
   ctx.fillStyle = resolveCssVarCached(rt, '--kg-canvas-label-fill', rt.theme.text)
   const k = rt.transform.k || 1
   const fontSizePx = Math.max(10, rt.presentation.labels?.nodeFontSizePx ?? 12)
@@ -435,6 +447,7 @@ const drawNode = (rt: FlowNativeRuntime, n: FlowNativeNode, args: { selected: bo
   const maxChars = estimateMaxCharsForWidthPx(Math.max(0, n.width * k - 12), fontSizePx)
   const clipped = truncateTextWithEllipsis(label, maxChars)
   ctx.fillText(clipped, n.x + n.width / 2, n.y + n.height / 2)
+  ctx.restore()
 }
 
 const drawPortHandles = (rt: FlowNativeRuntime, n: FlowNativeNode) => {
@@ -442,6 +455,13 @@ const drawPortHandles = (rt: FlowNativeRuntime, n: FlowNativeNode) => {
   if (!cfg.enabled) return
   if (cfg.placement !== 'cardinal') return
   const ctx = rt.ctx
+  const nodeOpacity = (() => {
+    const raw = (n as unknown as { opacity?: unknown }).opacity
+    if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, Math.min(1, raw))
+    return 1
+  })()
+  ctx.save()
+  ctx.globalAlpha = Math.max(0, Math.min(1, ctx.globalAlpha * nodeOpacity))
   const k = rt.transform.k || 1
   const rScreen = Math.max(4, cfg.sizePx)
   const offsetScreen = Math.max(0, cfg.offsetPx)
@@ -478,6 +498,7 @@ const drawPortHandles = (rt: FlowNativeRuntime, n: FlowNativeNode) => {
       const y = n.y + axisFor(pct, n.height)
       drawCircle(n.x + n.width + offset, y)
     }
+    ctx.restore()
     return
   }
 
@@ -491,6 +512,7 @@ const drawPortHandles = (rt: FlowNativeRuntime, n: FlowNativeNode) => {
     const x = n.x + axisFor(pct, n.width)
     drawCircle(x, n.y + n.height + offset)
   }
+  ctx.restore()
 }
 
 const drawEdge = (

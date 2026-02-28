@@ -18,6 +18,7 @@ export function useFlowComputedPositions(args: {
   active: boolean
   cacheKey: string
   datasetKey: string
+  graphDataRevision: number
   layoutMode: string
   layoutVariant: string
   documentSemanticMode: string
@@ -38,6 +39,7 @@ export function useFlowComputedPositions(args: {
     active,
     cacheKey,
     datasetKey,
+    graphDataRevision,
     layoutMode,
     layoutVariant,
     documentSemanticMode,
@@ -103,7 +105,8 @@ export function useFlowComputedPositions(args: {
     const g = sceneGraphData
     const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
     const edgeList = Array.isArray(g?.edges) ? g?.edges : []
-    const graphKey = `${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${layoutVariant}`
+    const rev = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? Math.floor(graphDataRevision) : 0
+    const graphKey = `rev:${rev}:${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${layoutVariant}`
     if (graphKey === lastLayoutGraphKeyRef.current && computedPositionsRef.current) return
     lastLayoutGraphKeyRef.current = graphKey
 

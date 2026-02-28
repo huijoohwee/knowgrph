@@ -309,6 +309,7 @@
     - The Design renderer runs auto modes using its local render graph (visible frames) for fit signatures, so Fit-to-Screen/Selection matches what is actually rendered.
     - The Design renderer’s frame grid is viewport-responsive: column count is derived from the active viewport width (with safety bounds) so initial framing avoids excessive whitespace and keeps visible frames within the primary viewport.
     - During frame drag, Design applies visual-only DOM transforms in-flight and batches the final persisted frame positions, so collision-relax passes and layout caches see a single bounded commit instead of N-per-frame churn.
+    - Design wireframe label/layout presentation is driven by schema-only settings under `renderer:designWireframe` (exposed via the Floating Panel “Design wireframe” section) that control label/meta chips, text/media previews, z-aware label collision, depth fade, and optional edges. These knobs are domain- and URL-agnostic; the UI is a thin shell over the schema contract.
 - **Zoom commands (toolbar/keyboard)**:
   - Zoom-in/out scales about the current viewport center (preserve the world point at `viewportW/2, viewportH/2`) so panning does not “bounce” back toward the graph centroid.
   - Only explicit `fit/reset` operations recenter on graph bounds/centroid; `reset` is defined as Fit-to-View framing.

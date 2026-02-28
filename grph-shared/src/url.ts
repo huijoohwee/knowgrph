@@ -113,6 +113,38 @@ export function normalizeGitHubBlobLikeUrl(rawUrl: string): string | null {
   return null
 }
 
+export function normalizeWebpageLikeUrl(rawHref: string): string {
+  const raw = String(rawHref || '').trim()
+  if (!raw) return ''
+  try {
+    const u = new URL(raw)
+    const host = u.hostname.toLowerCase()
+    if (host === 'account.ycombinator.com') {
+      const cont = u.searchParams.get('continue')
+      if (cont) {
+        const decoded = decodeURIComponent(cont)
+        try {
+          const inner = new URL(decoded)
+          if (inner.pathname === '/__webpage_proxy') {
+            const q = inner.searchParams.get('url')
+            if (q) return decodeURIComponent(q)
+          }
+          return inner.toString()
+        } catch {
+          return decoded
+        }
+      }
+    }
+    if (u.pathname === '/__webpage_proxy') {
+      const q = u.searchParams.get('url')
+      if (q) return decodeURIComponent(q)
+    }
+    return raw
+  } catch {
+    return raw
+  }
+}
+
 export function coerceMediaUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const raw = value.trim()
@@ -123,6 +155,76 @@ export function coerceMediaUrl(value: unknown): string | null {
   if (raw.startsWith('/')) return raw
   if (/^[a-z][a-z0-9+.-]*:/i.test(raw)) return null
   return raw
+}
+
+export function isLikelySvgUrl(url: string): boolean {
+  const u = String(url || '').trim()
+  if (!u) return false
+  return /\.(svg)(\?|#|$)/i.test(u)
+}
+
+export function isLikelyVideoUrl(url: string): boolean {
+  const u = String(url || '').trim()
+  if (!u) return false
+  return /\.(mp4|webm|ogg|mov)(\?|#|$)/i.test(u)
+}
+
+export function isLikelyAudioUrl(url: string): boolean {
+  const u = String(url || '').trim()
+  if (!u) return false
+  return /\.(mp3|wav|m4a|aac|flac|ogg)(\?|#|$)/i.test(u)
+}
+
+export function isSubstackCdnImageFetchUrl(url: string): boolean {
+  const u = String(url || '').trim()
+  if (!u) return false
+  try {
+    const parsed = new URL(u)
+    return /(\.|^)substackcdn\.com$/i.test(parsed.hostname) && /\/image\/fetch\b/i.test(parsed.pathname)
+  } catch {
+    return false
+  }
+}
+
+export function isLikelyImageUrl(url: string): boolean {
+  const u = String(url || '').trim()
+  if (!u) return false
+  if (/^data:image\//i.test(u)) return true
+  if (/\.(png|jpe?g|gif|webp)(\?|#|$)/i.test(u)) return true
+  if (isLikelySvgUrl(u)) return true
+  if (isSubstackCdnImageFetchUrl(u) && /(\.png|\.jpe?g|\.gif|\.webp|\.svg)(\?|#|$)/i.test(decodeURIComponentSafe(u))) return true
+  if (isSubstackCdnImageFetchUrl(u)) return true
+  return false
+}
+
+function decodeURIComponentSafe(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
+export function isDirectIframeEmbedUrl(url: string): boolean {
+  const u = String(url || '').trim()
+  if (!u) return false
+  if (!/^https?:\/\//i.test(u)) return true
+  if (/(^|\/\/)(www\.)?youtube\.com\//i.test(u)) return true
+  if (/(^|\/\/)(www\.)?youtu\.be\//i.test(u)) return true
+  if (/(^|\/\/)www\.youtube-nocookie\.com\//i.test(u)) return true
+  if (/(^|\/\/)player\.vimeo\.com\//i.test(u)) return true
+  return false
+}
+
+export function inferIframeScriptPolicyFromHtml(html: string): 'strip' | 'allow' {
+  const h = String(html || '')
+  if (!h.trim()) return 'strip'
+  const needsJs =
+    /enable-javascript\.com/i.test(h) ||
+    /requires\s+java\s*script/i.test(h) ||
+    /failed\s+to\s+load\s+posts/i.test(h) ||
+    /substackcdn\.com/i.test(h)
+  return needsJs ? 'allow' : 'strip'
 }
 
 export function deriveFilenameFromUrl(rawUrl: string, fallback: string): string {
