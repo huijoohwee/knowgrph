@@ -38,57 +38,13 @@ import { relaxAabbLabels, type AabbLabelParticle } from '@/lib/ui/labels/relaxAa
 import { readDesignWireframeSettings } from '@/lib/render/designWireframeSettings'
 import { tryExtractDesignDocumentUrl } from '@/lib/render/designDocumentUrl'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
-import { applyMediaProxySrc } from '@/lib/url'
+import { applyMediaProxySrc, resolveUrlAgainstBase } from '@/lib/url'
 import { DesignRichMediaPreview } from '@/components/DesignRichMedia'
 
 type FrameNode = {
   id: string
   label: string
   type?: string
-}
-
-function coerceFrameNodes(nodes: Array<{ id?: unknown; label?: unknown }> | null | undefined): FrameNode[] {
-  const src = Array.isArray(nodes) ? nodes : []
-  const out: FrameNode[] = []
-  for (let i = 0; i < src.length; i += 1) {
-    const rawId = src[i]?.id
-    const id = typeof rawId === 'string' ? rawId : String(rawId || '').trim()
-    if (!id) continue
-    const rawLabel = src[i]?.label
-    const label = typeof rawLabel === 'string' && rawLabel.trim() ? rawLabel.trim() : id
-    out.push({ id, label })
-  }
-  out.sort((a, b) => a.label.localeCompare(b.label))
-  return out
-}
-
-function computeGridPositions(args: { nodes: FrameNode[]; colCount: number; colW: number; rowH: number; pad: number }):
-  Record<string, { x: number; y: number; w: number; h: number }> {
-  const nodes = args.nodes
-  const cols = Math.max(1, Math.floor(args.colCount))
-  const colW = Math.max(80, Math.floor(args.colW))
-  const rowH = Math.max(64, Math.floor(args.rowH))
-  const pad = Math.max(8, Math.floor(args.pad))
-  const pos: Record<string, { x: number; y: number; w: number; h: number }> = {}
-
-  const rows = Math.max(1, Math.ceil(nodes.length / Math.max(1, cols)))
-  const gridW = cols * colW + Math.max(0, cols - 1) * pad
-  const gridH = rows * rowH + Math.max(0, rows - 1) * pad
-  const startX = -gridW / 2
-  const startY = -gridH / 2
-
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]
-    const col = i % cols
-    const row = Math.floor(i / cols)
-    pos[n.id] = {
-      x: startX + col * (colW + pad),
-      y: startY + row * (rowH + pad),
-      w: colW,
-      h: rowH,
-    }
-  }
-  return pos
 }
 
 function tryExtractWebpageWorkspacePath(graphData: GraphData | null): string | null {
@@ -200,9 +156,8 @@ export default function DesignCanvas({
 
   useEffect(() => {
     const fmUrl = String(webpageFrontmatter?.url || '').trim()
-    if (fmUrl && /^https?:\/\//i.test(fmUrl)) return
-    if (!webpageWorkspacePath) {
-      setDocumentUrl(null)
+    if (fmUrl && /^https?:\/\//i.test(fmUrl)) {
+      setDocumentUrl(fmUrl)
       return
     }
     setDocumentUrl(directDocumentUrl)
@@ -255,7 +210,8 @@ export default function DesignCanvas({
       if (!cancelled) {
         setWebpageWorkspacePath('')
         setWebpageFrontmatter(null)
-        setDocumentUrl(null)
+        const fallbackUrl = String(directDocumentUrl || '').trim()
+        setDocumentUrl(fallbackUrl && /^https?:\/\//i.test(fallbackUrl) ? fallbackUrl : null)
       }
     })()
     return () => {
@@ -279,8 +235,35 @@ export default function DesignCanvas({
     const reqId = (lastWebpageLayoutReqRef.current += 1)
     let cancelled = false
     const allowCache = webpageLayoutRetryNonce <= 0
+    const fidelity: WebpageFidelityLevel =
+      webpageFrontmatter?.fidelityLevel === 1 || webpageFrontmatter?.fidelityLevel === 2 || webpageFrontmatter?.fidelityLevel === 3 || webpageFrontmatter?.fidelityLevel === 4
+        ? webpageFrontmatter.fidelityLevel
+        : 3
+    const maxElements = fidelity === 4 ? 3200 : fidelity === 3 ? 2400 : fidelity === 2 ? 1800 : 1400
+    const viewportW = (() => {
+      try {
+        const w = typeof window !== 'undefined' ? window.innerWidth : 0
+        if (!Number.isFinite(w) || w <= 0) return 1200
+        return Math.max(900, Math.min(1400, Math.floor(w * 0.9)))
+      } catch {
+        return 1200
+      }
+    })()
+    const viewportH = (() => {
+      try {
+        const h = typeof window !== 'undefined' ? window.innerHeight : 0
+        if (!Number.isFinite(h) || h <= 0) return 800
+        return Math.max(650, Math.min(1000, Math.floor(h * 0.84)))
+      } catch {
+        return 800
+      }
+    })()
+    const networkIdleMs = fidelity >= 3 ? 1100 : 900
+    const domQuietMs = fidelity >= 3 ? 900 : 650
+    const minWaitAfterLoadMs = fidelity >= 3 ? 1600 : 1200
+    const layoutCacheKey = `layout:v2:maxEl=${maxElements}:vp=${viewportW}x${viewportH}:scroll=1:faq=1:netIdle=1:netIdleMs=${networkIdleMs}:domQuietMs=${domQuietMs}:minAfter=${minWaitAfterLoadMs}`
     if (allowCache) {
-      const cached = getCachedWebpageLayoutSnapshot(url)
+      const cached = getCachedWebpageLayoutSnapshot(url, layoutCacheKey)
       if (cached) {
         setWebpageLayout(cached)
         setWebpageLayoutStatus('ready')
@@ -307,13 +290,16 @@ export default function DesignCanvas({
         const probe = await probeWebpageDomViaHiddenIframe({
           url,
           mode: 'layout',
-          maxElements: 1400,
+          maxElements,
           scrollCrawl: true,
           expandFaq: true,
           timeoutMs: 45_000,
           waitForNetworkIdle: true,
-          networkIdleMs: 900,
-          minWaitAfterLoadMs: 1200,
+          networkIdleMs,
+          domQuietMs,
+          minWaitAfterLoadMs,
+          viewportW,
+          viewportH,
           signal: ac.signal,
         })
         if (cancelled) return
@@ -366,7 +352,7 @@ export default function DesignCanvas({
           setWebpageLayoutMessage('Export failed: invalid snapshot payload')
           return
         }
-        setCachedWebpageLayoutSnapshot(url, snap)
+        setCachedWebpageLayoutSnapshot(url, snap, layoutCacheKey)
         setWebpageLayout(snap)
         setWebpageLayoutStatus('ready')
         ticker.stop(100)
@@ -571,21 +557,27 @@ export default function DesignCanvas({
         const n = webpageLayoutGraphData.nodes[i] as GraphNode
         const props = (n.properties || {}) as Record<string, unknown>
         const tag = typeof props['dom:tag'] === 'string' ? String(props['dom:tag'] || '').trim() : ''
+        const domClass = typeof props['dom:attrs:class'] === 'string' ? String(props['dom:attrs:class'] || '').trim() : ''
+        const isSynthSection = tag.toUpperCase() === 'SECTION' && domClass.includes('kg-synth-section')
         const id = String(n.id || '').trim()
         if (!id) continue
+        if (isSynthSection) continue
         const visualLabel = typeof props['visual:label'] === 'string' ? String(props['visual:label'] || '').trim() : ''
         const label = visualLabel || String(n.label || n.id || '').trim() || id
         out.push({ id, label, ...(tag ? { type: tag } : {}) })
       }
       return out
     }
-    if (documentUrl) return []
-    return coerceFrameNodes(designGraphDataForDisplay?.nodes as never)
-  }, [designGraphDataForDisplay, documentUrl, webpageLayoutGraphData, webpageLayoutStatus])
+    if (documentUrl) {
+      if (webpageLayoutStatus === 'loading') return [{ id: 'kg:webpage:loading', label: 'Loading webpage wireframe…', type: 'Webpage' }]
+      if (webpageLayoutStatus === 'error') return [{ id: 'kg:webpage:error', label: 'Webpage export failed — click Retry', type: 'Webpage' }]
+      return [{ id: 'kg:webpage:idle', label: 'Preparing webpage wireframe…', type: 'Webpage' }]
+    }
+    return []
+  }, [documentUrl, webpageLayoutGraphData, webpageLayoutStatus])
 
   const FRAME_W = 320
   const FRAME_H = 240
-  const GAP = 48
 
   const sortedNodes = useMemo(() => {
     const order = Array.isArray(snapshot.designLayerState?.order) ? snapshot.designLayerState!.order : []
@@ -670,26 +662,23 @@ export default function DesignCanvas({
       }
       return out
     }
-    const viewportW = Math.max(1, dims.width)
-    const maxCols = Math.max(1, Math.floor((viewportW + GAP) / (FRAME_W + GAP)))
-    const colCount = Math.max(1, Math.min(10, maxCols || 4))
-    const grid = computeGridPositions({ nodes: visibleNodes, colCount, colW: FRAME_W, rowH: FRAME_H, pad: GAP })
-    for (let i = 0; i < visibleNodes.length; i += 1) {
-      const n = visibleNodes[i]
-      const base = grid[n.id]
-      if (!base) continue
-      const so = sizeOverrides[n.id]
-      const w = so && Number.isFinite(so.w) ? Math.max(24, so.w) : base.w
-      const h = so && Number.isFinite(so.h) ? Math.max(18, so.h) : base.h
-      const o = overrides[n.id]
-      if (o && Number.isFinite(o.x) && Number.isFinite(o.y)) {
-        out[n.id] = { x: o.x, y: o.y, w, h }
-      } else {
-        out[n.id] = { ...base, w, h }
+    if (documentUrl && visibleNodes.length > 0) {
+      const w0 = Math.max(360, Math.min(920, Math.floor(dims.width * 0.72)))
+      const h0 = Math.max(220, Math.min(640, Math.floor(dims.height * 0.5)))
+      for (let i = 0; i < visibleNodes.length; i += 1) {
+        const n = visibleNodes[i]
+        const so = sizeOverrides[n.id]
+        const w = so && Number.isFinite(so.w) ? Math.max(24, so.w) : w0
+        const h = so && Number.isFinite(so.h) ? Math.max(18, so.h) : h0
+        const basePos = { x: -w / 2, y: -h / 2, w, h }
+        const o = overrides[n.id]
+        if (o && Number.isFinite(o.x) && Number.isFinite(o.y)) out[n.id] = { x: o.x, y: o.y, w: basePos.w, h: basePos.h }
+        else out[n.id] = basePos
       }
+      return out
     }
     return out
-  }, [dims.width, snapshot.designFramePosById, snapshot.designFrameSizeById, visibleNodes, webpageLayoutGraphData])
+  }, [dims.height, dims.width, documentUrl, snapshot.designFramePosById, snapshot.designFrameSizeById, visibleNodes, webpageLayoutGraphData])
 
   const localGraphData: GraphData = useMemo(() => {
     if (webpageLayoutGraphData?.nodes && webpageLayoutGraphData.nodes.length > 0) {
@@ -726,22 +715,7 @@ export default function DesignCanvas({
     }
     return {
       type: 'Graph',
-      nodes: visibleNodes.map(n => {
-        const p = positions[n.id]
-        if (!p) return { id: n.id, label: n.label, type: 'Frame', properties: {}, x: 0, y: 0 }
-        return {
-          id: n.id,
-          label: n.label,
-          type: 'Frame',
-          properties: {
-            'visual:width': p.w,
-            'visual:height': p.h,
-            'visual:shape': 'rect',
-          },
-          x: p.x + p.w / 2,
-          y: p.y + p.h / 2,
-        }
-      }),
+      nodes: [],
       edges: [],
       metadata: snapshot.graphData?.metadata,
     }
@@ -1314,8 +1288,120 @@ export default function DesignCanvas({
       if (aa !== ab) return ab - aa
       return a.id.localeCompare(b.id)
     })
-    return nodes
-  }, [positions, styleById, visibleNodes])
+
+    const selectedId = String(snapshot.selectedNodeId || '').trim()
+    const selectedIds = Array.isArray(snapshot.selectedNodeIds) ? snapshot.selectedNodeIds : []
+    const selected = new Set<string>()
+    if (selectedId) selected.add(selectedId)
+    for (let i = 0; i < selectedIds.length; i += 1) {
+      const id = String(selectedIds[i] || '').trim()
+      if (id) selected.add(id)
+    }
+
+    if (nodes.length <= 700) return nodes
+
+    const kept: FrameNode[] = []
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]!
+      if (selected.has(n.id)) {
+        kept.push(n)
+        continue
+      }
+      const p = positions[n.id]
+      if (!p) continue
+      const s = styleById.get(n.id) || null
+      const kind = String(s?.kind || '')
+      const tag = String(s?.tag || '').toUpperCase()
+      const pos = String(s?.position || '').toLowerCase()
+      const area = p.w * p.h
+      const minSide = Math.min(p.w, p.h)
+      if (minSide < 4 || area < 180) continue
+
+      const base = webpageGraphNodesById ? webpageGraphNodesById[n.id] : null
+      const props = (base?.properties || {}) as Record<string, unknown>
+      const hasText =
+        typeof props['dom:textPreview'] === 'string'
+          ? !!String(props['dom:textPreview'] || '').trim()
+          : typeof props['dom:text'] === 'string'
+            ? !!String(props['dom:text'] || '').trim()
+            : false
+      const hasHref = typeof props['dom:attrs:href'] === 'string' ? !!String(props['dom:attrs:href'] || '').trim() : false
+      const hasSrc = typeof props['dom:attrs:src'] === 'string' ? !!String(props['dom:attrs:src'] || '').trim() : false
+      const hasFill = !!(s?.fill && s.fill !== 'transparent')
+
+      const isSemanticContainer =
+        tag === 'HEADER' || tag === 'NAV' || tag === 'MAIN' || tag === 'FOOTER' || tag === 'SECTION' || tag === 'ARTICLE' || tag === 'ASIDE'
+
+      if (kind === 'interactive') {
+        if (p.w >= 32 && p.h >= 16) kept.push(n)
+        continue
+      }
+      if (kind === 'media') {
+        if (hasSrc || (p.w >= 48 && p.h >= 48)) kept.push(n)
+        continue
+      }
+      if (kind === 'container') {
+        if (pos === 'fixed' || pos === 'sticky') {
+          kept.push(n)
+          continue
+        }
+        if (isSemanticContainer) {
+          if (area >= 2800) kept.push(n)
+          continue
+        }
+        if (hasFill && area >= 2200) {
+          kept.push(n)
+          continue
+        }
+        if (area >= 260_000 && minSide >= 140) {
+          kept.push(n)
+          continue
+        }
+        continue
+      }
+
+      const isImportantTag =
+        tag === 'H1' ||
+        tag === 'H2' ||
+        tag === 'H3' ||
+        tag === 'BUTTON' ||
+        tag === 'A' ||
+        tag === 'IMG' ||
+        tag === 'VIDEO' ||
+        tag === 'IFRAME'
+      if (isImportantTag) {
+        if (area >= 600 || hasText || hasHref) kept.push(n)
+        continue
+      }
+      if (hasText || hasHref) {
+        if (p.w >= 140 && p.h >= 22) kept.push(n)
+        continue
+      }
+      if (hasFill && area >= 6000) {
+        kept.push(n)
+        continue
+      }
+      if (area >= 16_000 && minSide >= 24) {
+        kept.push(n)
+        continue
+      }
+    }
+
+    if (kept.length <= 1800) return kept
+    const fixed: FrameNode[] = []
+    const rest: Array<{ n: FrameNode; area: number }> = []
+    for (let i = 0; i < kept.length; i += 1) {
+      const n = kept[i]!
+      if (selected.has(n.id)) fixed.push(n)
+      else {
+        const p = positions[n.id]
+        rest.push({ n, area: p ? p.w * p.h : 0 })
+      }
+    }
+    rest.sort((a, b) => b.area - a.area)
+    const cap = Math.max(0, 1800 - fixed.length)
+    return fixed.concat(rest.slice(0, cap).map(r => r.n))
+  }, [positions, snapshot.selectedNodeId, snapshot.selectedNodeIds, styleById, visibleNodes, webpageGraphNodesById])
 
   const domDepthById = useMemo(() => {
     const out = new Map<string, number>()
@@ -1769,11 +1855,75 @@ export default function DesignCanvas({
   const wireframePreviewById = useMemo(() => {
     type Preview =
       | { kind: 'media'; innerX: number; innerY: number; innerW: number; innerH: number; tag: string; titleChip: string; src: string; isDataImage: boolean; clipId: string }
-      | { kind: 'text'; title: string; titleMaxChars: number; x: number; y: number; fontSize: number; fontWeight: number; textAnchor: 'start' | 'middle'; lineH: number; lines: string[] }
+      | {
+          kind: 'text'
+          title: string
+          titleMaxChars: number
+          x: number
+          y: number
+          fontSize: number
+          fontWeight: number
+          textAnchor: 'start' | 'middle' | 'end'
+          lineH: number
+          lines: string[]
+          fill?: string
+          fontFamily?: string
+        }
     const map = new Map<string, Preview>()
     if (!styleById) return map
     if (!wireframeSettings.showTextPreview && !wireframeSettings.showMediaPreview) return map
     if (!webpageGraphNodesById) return map
+    const safeCssColor = (raw: unknown): string | null => {
+      const s = typeof raw === 'string' ? String(raw || '').trim() : ''
+      if (!s) return null
+      if (s.length > 80) return null
+      const lower = s.toLowerCase()
+      if (lower === 'transparent') return null
+      if (lower === 'inherit' || lower === 'currentcolor') return null
+      if (lower.includes('var(') || lower.includes('url(')) return null
+      if (/^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s)) return s
+      if (/^rgba?\(/i.test(s) || /^hsla?\(/i.test(s)) return s
+      if (/^[a-z]+$/i.test(s)) return s
+      return null
+    }
+    const safeFontFamily = (raw: unknown): string | null => {
+      const s = typeof raw === 'string' ? String(raw || '').trim() : ''
+      if (!s) return null
+      if (s.length > 160) return null
+      const first = s.split(',')[0]?.trim() || ''
+      const cleaned = first.replace(/^['"]+|['"]+$/g, '').trim()
+      if (!cleaned) return null
+      if (cleaned.length > 60) return null
+      return cleaned
+    }
+    const parseBoxPx = (raw: unknown): { top: number; right: number; bottom: number; left: number } | null => {
+      const s = typeof raw === 'string' ? String(raw || '').trim() : ''
+      if (!s) return null
+      const matches = Array.from(s.matchAll(/(-?\d+(\.\d+)?)px/gi)).map(m => Number(m[1]))
+      const vals = matches.filter(v => Number.isFinite(v)).slice(0, 8)
+      if (vals.length === 0) return null
+      const clamp = (n: number) => Math.max(0, Math.min(200, n))
+      if (vals.length === 1) {
+        const a = clamp(vals[0]!)
+        return { top: a, right: a, bottom: a, left: a }
+      }
+      if (vals.length === 2) {
+        const a = clamp(vals[0]!)
+        const b = clamp(vals[1]!)
+        return { top: a, right: b, bottom: a, left: b }
+      }
+      if (vals.length === 3) {
+        const a = clamp(vals[0]!)
+        const b = clamp(vals[1]!)
+        const c = clamp(vals[2]!)
+        return { top: a, right: b, bottom: c, left: b }
+      }
+      const a = clamp(vals[0]!)
+      const b = clamp(vals[1]!)
+      const c = clamp(vals[2]!)
+      const d = clamp(vals[3]!)
+      return { top: a, right: b, bottom: c, left: d }
+    }
     const selectedId = String(snapshot.selectedNodeId || '').trim()
     for (let i = 0; i < renderNodes.length; i += 1) {
       const n = renderNodes[i]!
@@ -1795,14 +1945,20 @@ export default function DesignCanvas({
       const src = typeof props['dom:attrs:src'] === 'string' ? String(props['dom:attrs:src'] || '').trim() : ''
       const alt = typeof props['dom:attrs:alt'] === 'string' ? String(props['dom:attrs:alt'] || '').trim() : ''
       const href = typeof props['dom:attrs:href'] === 'string' ? String(props['dom:attrs:href'] || '').trim() : ''
+      const srcResolved = src ? resolveUrlAgainstBase(documentUrl, src) : ''
+      const hrefResolved = href ? resolveUrlAgainstBase(documentUrl, href) : ''
       const kind0 = typeof props['dom:kind'] === 'string' ? String(props['dom:kind'] || '').trim() : ''
       const cssFontSize = typeof props['css:fontSize'] === 'string' ? String(props['css:fontSize'] || '').trim() : ''
       const cssFontWeight = typeof props['css:fontWeight'] === 'string' ? String(props['css:fontWeight'] || '').trim() : ''
+      const cssTextAlign = typeof props['css:textAlign'] === 'string' ? String(props['css:textAlign'] || '').trim().toLowerCase() : ''
+      const cssColor = safeCssColor(props['css:color'])
+      const cssFontFamily = safeFontFamily(props['css:fontFamily'])
+      const cssPadding = parseBoxPx(props['css:padding'])
       const style = styleById.get(n.id) || null
       const kind = style?.kind || kind0
 
-      const padX = 14
-      const topY = 44
+      const padX = Math.max(10, Math.min(26, Math.round((cssPadding?.left ?? 14) * 0.75)))
+      const topY = Math.max(36, Math.min(72, Math.round(32 + (cssPadding?.top ?? 16) * 0.75)))
       const maxW = Math.max(0, p.w - padX * 2)
       const maxH = Math.max(0, p.h - topY - 12)
       if (maxW < 90 || maxH < 18) continue
@@ -1810,10 +1966,10 @@ export default function DesignCanvas({
       const isMedia = kind === 'media' || tag === 'IMG' || tag === 'VIDEO' || tag === 'IFRAME' || tag === 'CANVAS' || tag === 'SVG'
       if (isMedia) {
         if (!wireframeSettings.showMediaPreview) continue
-        const isDataImage = /^data:image\//i.test(src)
-        const srcFinal = tag === 'IMG' ? applyMediaProxySrc(src) : src
+        const isDataImage = /^data:image\//i.test(srcResolved || src)
+        const srcFinal = tag === 'IMG' ? applyMediaProxySrc(srcResolved || src) : (srcResolved || src)
         const title = (() => {
-          if (tag === 'IMG') return alt || (src ? src.split('/').slice(-1)[0] || 'IMG' : 'IMG')
+          if (tag === 'IMG') return alt || (srcResolved ? srcResolved.split('/').slice(-1)[0] || 'IMG' : src ? src.split('/').slice(-1)[0] || 'IMG' : 'IMG')
           if (tag === 'IFRAME') return 'IFRAME'
           if (tag === 'VIDEO') return 'VIDEO'
           if (tag === 'CANVAS') return 'CANVAS'
@@ -1859,16 +2015,17 @@ export default function DesignCanvas({
 
       const title = (() => {
         if (tag === 'A') {
-          if (!href) return 'Link'
+          const h = hrefResolved || href
+          if (!h) return 'Link'
           try {
-            const u = new URL(href, 'https://example.invalid')
-            const host = u.host && u.host !== 'example.invalid' ? u.host : ''
+            const u = new URL(h)
+            const host = u.host || ''
             const path = decodeURIComponent(u.pathname || '').replace(/\/+$/, '')
             const p0 = path && path !== '/' ? path : ''
-            const out = host ? `${host}${p0}` : p0 || href
+            const out = host ? `${host}${p0}` : p0 || h
             return `Link: ${out}`
           } catch {
-            return `Link: ${href}`
+            return `Link: ${h}`
           }
         }
         if (tag === 'BUTTON') return 'Button'
@@ -1878,7 +2035,7 @@ export default function DesignCanvas({
         const m = cssFontSize.match(/(-?\d+(\.\d+)?)px/i)
         const px = m ? Number(m[1]) : NaN
         if (!Number.isFinite(px) || px <= 0) return null
-        return Math.max(10, Math.min(16, Math.round(px * 0.55)))
+        return Math.max(10, Math.min(18, Math.round(px * 0.65)))
       })()
       const fontSize = fontSizeFromCss ?? (tag === 'H1' || tag === 'H2' || tag === 'H3' ? 12 : 11)
       const lineH = fontSize + 4
@@ -1904,8 +2061,9 @@ export default function DesignCanvas({
         if (isHeading || isCta) return 600
         return 400
       })()
-      const textAnchor = isCta ? 'middle' : 'start'
-      const x0 = isCta ? padX + maxW / 2 : padX
+      const align = cssTextAlign === 'center' || cssTextAlign === 'right' ? cssTextAlign : ''
+      const textAnchor = isCta ? 'middle' : align === 'center' ? 'middle' : align === 'right' ? 'end' : 'start'
+      const x0 = isCta ? padX + maxW / 2 : textAnchor === 'middle' ? padX + maxW / 2 : textAnchor === 'end' ? padX + maxW : padX
       const y0 = isCta ? topY + Math.max(fontSize, Math.min(maxH - 2, p.h * 0.5 - fontSize * 0.3)) : topY + fontSize
       map.set(n.id, {
         kind: 'text',
@@ -1918,11 +2076,14 @@ export default function DesignCanvas({
         textAnchor,
         lineH,
         lines,
+        ...(cssColor ? { fill: cssColor } : {}),
+        ...(cssFontFamily ? { fontFamily: cssFontFamily } : {}),
       })
     }
     return map
   }, [
     denseRender,
+    documentUrl,
     domDepthById,
     positions,
     renderNodes,
@@ -2041,23 +2202,22 @@ export default function DesignCanvas({
     }
   }, [active, applyArrange, positions, selectedIds, setDesignFramePosMany, snapshot.schema?.behavior?.snapGrid])
 
-  const BG_SIZE = 100000
-
   return (
     <section
       ref={containerRef}
-      className={`${CANVAS_SURFACE_CLASS} relative h-full w-full overflow-hidden bg-[var(--kg-canvas-bg)]`}
+      className={`${CANVAS_SURFACE_CLASS} relative h-full w-full overflow-hidden bg-[var(--kg-panel-bg)]`}
       aria-label="Design Canvas"
     >
-      {documentUrl ? (
+      {active ? (
         <div className="pointer-events-none absolute left-3 top-3 z-50 max-w-[min(720px,calc(100%-24px))] rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-3 py-2 text-xs text-[var(--kg-text)] shadow">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="font-semibold">Webpage Wireframe</div>
-              <div className="truncate opacity-80">{documentUrl}</div>
-              <div className="mt-1 flex items-center gap-2 opacity-80">
-                <div>Fidelity: {webpageFrontmatter?.fidelityLevel || 3}</div>
-                {webpageWorkspacePath ? (
+              {documentUrl ? <div className="truncate opacity-80">{documentUrl}</div> : <div className="opacity-80">No webpage URL found for this graph</div>}
+              {documentUrl ? (
+                <div className="mt-1 flex items-center gap-2 opacity-80">
+                  <div>Fidelity: {webpageFrontmatter?.fidelityLevel || 3}</div>
+                  {webpageWorkspacePath ? (
                   <div className="flex gap-1">
                     <button
                       type="button"
@@ -2105,7 +2265,10 @@ export default function DesignCanvas({
                     </button>
                   </div>
                 ) : null}
-              </div>
+                </div>
+              ) : (
+                <div className="mt-2 opacity-70">Import a URL-based document or add kgWebpageUrl frontmatter.</div>
+              )}
             </div>
             {webpageLayoutStatus === 'loading' ? (
               <div className="shrink-0 tabular-nums">{Math.max(0, Math.min(100, Math.floor(webpageLayoutProgress)))}%</div>
@@ -2137,15 +2300,6 @@ export default function DesignCanvas({
                   }}
                 >
                   Retry
-                </button>
-                <button
-                  type="button"
-                  className="pointer-events-auto rounded border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-2 py-1 text-xs opacity-80"
-                  onClick={() => {
-                    setDocumentUrl(null)
-                  }}
-                >
-                  Hide Webpage Mode
                 </button>
               </div>
             </div>
@@ -2369,9 +2523,6 @@ export default function DesignCanvas({
         }}
       >
         <defs>
-          <pattern id="grid-pattern" width="20" height="20" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="1" fill="var(--kg-border)" opacity="0.5" />
-          </pattern>
           <filter id="shadow-sm" x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="1" stdDeviation="2" floodOpacity="0.1" />
           </filter>
@@ -2381,8 +2532,6 @@ export default function DesignCanvas({
         </defs>
 
         <g ref={gRef}>
-          <rect x={-BG_SIZE} y={-BG_SIZE} width={BG_SIZE * 2} height={BG_SIZE * 2} fill="url(#grid-pattern)" />
-
           {styleById && wireframeEdges.length > 0 ? (
             <g data-kg-layer="wireframe-edges" style={{ pointerEvents: 'none' }}>
               {wireframeEdges.map(e => (
@@ -2405,20 +2554,43 @@ export default function DesignCanvas({
             if (!p) return null
             const selected = snapshot.selectedNodeId === n.id
             const style = styleById ? styleById.get(n.id) || null : null
+            const base = webpageGraphNodesById ? webpageGraphNodesById[n.id] : null
+            const baseProps = (base?.properties || {}) as Record<string, unknown>
+            const domTag = typeof baseProps['dom:tag'] === 'string' ? String(baseProps['dom:tag'] || '').trim().toUpperCase() : ''
+            const domClass = typeof baseProps['dom:attrs:class'] === 'string' ? String(baseProps['dom:attrs:class'] || '').trim() : ''
+            const isSynthSection = domTag === 'SECTION' && domClass.includes('kg-synth-section')
             const kind = style?.kind || ''
             const depth = wireframeSettings.depthFade ? (domDepthById.get(n.id) ?? 0) : 0
+            const isWebpageOverlay = !!(webpageLayoutGraphData?.nodes && webpageLayoutGraphData.nodes.length > 0)
             const fill = (() => {
+              const hasFill = !!(styleById && style?.fill && style.fill !== 'transparent')
+              if (isWebpageOverlay) {
+                if (hasFill) return style!.fill!
+                if (isSynthSection) return 'var(--kg-panel-bg)'
+                return 'transparent'
+              }
               if (!styleById) return 'var(--kg-panel-bg)'
-              if (style?.fill) return style.fill
+              if (hasFill) return style!.fill!
               if (kind === 'container' || kind === 'interactive') return 'var(--kg-panel-bg)'
               return 'transparent'
             })()
             const stroke = selected ? 'var(--kg-canvas-accent)' : style?.stroke || 'var(--kg-border)'
             const strokeWidth = selected ? 2 : (style?.strokeWidth ?? (kind === 'interactive' ? 2 : 1))
-            const strokeDasharray = !selected && kind === 'container' ? (depth <= 1 ? '8 4' : '6 4') : undefined
+            const strokeDasharray = !selected && kind === 'container' ? (isSynthSection ? (depth <= 1 ? '10 6' : '8 6') : depth <= 1 ? '8 4' : '6 4') : undefined
             const rx = typeof style?.borderRadius === 'number' && Number.isFinite(style.borderRadius) ? style.borderRadius : 8
             const rectOpacity = (() => {
               const baseOpacity = typeof style?.opacity === 'number' && Number.isFinite(style.opacity) ? style.opacity : 1
+              if (isWebpageOverlay) {
+                const hasWireFill = !!(styleById && style?.fill && style.fill !== 'transparent') || isSynthSection
+                if (hasWireFill) {
+                  const area = p.w * p.h
+                  if (area < 3200) return 0
+                  const k = isSynthSection ? 0.08 : kind === 'interactive' ? 0.22 : kind === 'container' ? 0.18 : kind === 'media' ? 0.12 : 0.1
+                  const selBoost = selected ? 1.25 : 1
+                  return baseOpacity * (k * selBoost) / (1 + depth * 0.35)
+                }
+                return 0
+              }
               if (!styleById) return baseOpacity
               if (style?.fill) return baseOpacity
               if (kind === 'container') return baseOpacity * (0.26 / (1 + depth * 0.55))
@@ -2864,9 +3036,10 @@ export default function DesignCanvas({
                         <text
                           x={preview.x}
                           y={preview.y}
-                          fill="var(--kg-text-primary)"
+                          fill={preview.fill || 'var(--kg-text-primary)'}
                           fontSize={preview.fontSize}
                           fontWeight={preview.fontWeight}
+                          fontFamily={preview.fontFamily}
                           textAnchor={preview.textAnchor}
                         >
                           {preview.lines.map((t, idx) => (

@@ -12,11 +12,10 @@ export function testWebpageLayoutCacheEvictsOldest() {
     }) as unknown as WebpageLayoutSnapshot
 
   for (let i = 1; i <= 9; i += 1) {
-    setCachedWebpageLayoutSnapshot(`https://example.invalid/${i}`, mk(i))
+    setCachedWebpageLayoutSnapshot(`https://example.invalid/${i}`, mk(i), 'layout:v1')
   }
 
-  if (getCachedWebpageLayoutSnapshot('https://example.invalid/1')) throw new Error('expected oldest entry to be evicted')
-  if (!getCachedWebpageLayoutSnapshot('https://example.invalid/2')) throw new Error('expected entry 2 to remain')
-  if (!getCachedWebpageLayoutSnapshot('https://example.invalid/9')) throw new Error('expected newest entry to remain')
+  if (getCachedWebpageLayoutSnapshot('https://example.invalid/1', 'layout:v1')) throw new Error('expected oldest entry to be evicted')
+  if (!getCachedWebpageLayoutSnapshot('https://example.invalid/2', 'layout:v1')) throw new Error('expected entry 2 to remain')
+  if (!getCachedWebpageLayoutSnapshot('https://example.invalid/9', 'layout:v1')) throw new Error('expected newest entry to remain')
 }
-

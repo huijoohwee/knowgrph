@@ -143,6 +143,60 @@ export function fixBrokenMarkdownImageSyntax(raw: string): SanitizeMarkdownResul
   return { text: next, changed: next !== text }
 }
 
+export function stripHeadingPermalinkArtifacts(raw: string, opts?: { sourceUrl?: string }): SanitizeMarkdownResult {
+  const sourceUrl = String(opts?.sourceUrl || '').trim()
+  const text = String(raw || '')
+  const lines = text.split(/\r?\n/g)
+  let inFence = false
+  let fence = ''
+  let changed = false
+  const out: string[] = []
+  for (const line of lines) {
+    const trimmed = line.trim()
+    const m = trimmed.match(/^(```+|~~~+)(.*)$/)
+    if (m) {
+      if (!inFence) {
+        inFence = true
+        fence = m[1] || '```'
+      } else if (trimmed.startsWith(fence)) {
+        inFence = false
+        fence = ''
+      }
+      out.push(line)
+      continue
+    }
+    if (inFence) {
+      out.push(line)
+      continue
+    }
+    if (!/^#{1,6}\s+/.test(line)) {
+      out.push(line)
+      continue
+    }
+    if (!/data:image\/svg\+xml;base64,/i.test(line)) {
+      out.push(line)
+      continue
+    }
+    let next = line
+    next = next.replace(/!\[[^\]]*\]\(data:image\/svg\+xml;base64,[^)]+\)/gi, '')
+    next = next.replace(/\[\s*\]\(data:image\/svg\+xml;base64,[^)]+\)/gi, '')
+    if (sourceUrl) {
+      const escaped = sourceUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      next = next.replace(/\)\s*\((https?:\/\/[^)]+)\)\s*$/i, (full, href: string) => {
+        const h = String(href || '').trim()
+        if (!h) return full
+        if (h === sourceUrl || h.startsWith(`${sourceUrl}#`)) return ''
+        return full
+      })
+      next = next.replace(new RegExp(`\\s*\\(${escaped}(#[^)]+)?\\)\\s*$`, 'i'), '')
+    }
+    next = next.replace(/\s{2,}/g, ' ').replace(/\s+$/, '')
+    if (next !== line) changed = true
+    out.push(next)
+  }
+  return { text: out.join('\n'), changed }
+}
+
 const parseBalanced = (
   s: string,
   openIndex: number,
@@ -336,10 +390,259 @@ export function convertOrDropInlineSvgHtmlBlocks(raw: string): SanitizeMarkdownR
 
 export function sanitizeImportedMarkdownText(raw: string, opts?: SanitizeImportedMarkdownOptions): SanitizeMarkdownResult {
   const sourceUrl = String(opts?.sourceUrl || '').trim()
+  const isLikelyImageHref = (href: string): boolean => {
+    const raw = String(href || '').trim()
+    if (!raw) return false
+    if (/^data:image\//i.test(raw)) return true
+    return /\.(png|jpe?g|gif|webp|svg)(\?|#|$)/i.test(raw)
+  }
+
+  const normalizeStandaloneImageAutolinks = (text: string): SanitizeMarkdownResult => {
+    const lines = String(text || '').split(/\r?\n/g)
+    let inFence = false
+    let fence = ''
+    let changed = false
+    const out: string[] = []
+    for (const line of lines) {
+      const trimmed = line.trim()
+      const mFence = trimmed.match(/^(```+|~~~+)(.*)$/)
+      if (mFence) {
+        if (!inFence) {
+          inFence = true
+          fence = mFence[1] || '```'
+        } else if (trimmed.startsWith(fence)) {
+          inFence = false
+          fence = ''
+        }
+        out.push(line)
+        continue
+      }
+      if (inFence) {
+        out.push(line)
+        continue
+      }
+      const mAngle = trimmed.match(/^<\s*(https?:\/\/[^>\s]+)\s*>$/i)
+      if (mAngle) {
+        const url = String(mAngle[1] || '').trim()
+        if (isLikelyImageHref(url)) {
+          out.push(`![](${url})`)
+          changed = true
+          continue
+        }
+      }
+      const mBare = trimmed.match(/^(https?:\/\/\S+)$/i)
+      if (mBare) {
+        const url = String(mBare[1] || '').trim()
+        const cleaned = url.replace(/[)\].,;:!?]+$/g, v => (v === ')' || v === ']' ? v : ''))
+        if (cleaned && isLikelyImageHref(cleaned)) {
+          out.push(`![](${cleaned})`)
+          changed = true
+          continue
+        }
+      }
+      out.push(line)
+    }
+    return { text: out.join('\n'), changed }
+  }
+
+  const normalizeStandaloneHtmlHeadingsToAtx = (text: string): SanitizeMarkdownResult => {
+    const raw = String(text || '')
+    if (!raw) return { text: raw, changed: false }
+    if (!/<h[1-6]\b/i.test(raw)) return { text: raw, changed: false }
+    const lines = raw.split(/\r?\n/g)
+    let inFence = false
+    let fence = ''
+    let changed = false
+    const out: string[] = []
+    const simplifyInlineHtml = (s: string): string => {
+      let x = String(s || '')
+      x = x.replace(/<\s*br\s*\/?\s*>/gi, '\n')
+      x = x.replace(/<\s*(strong|b)\s*>/gi, '**').replace(/<\s*\/\s*(strong|b)\s*>/gi, '**')
+      x = x.replace(/<\s*(em|i)\s*>/gi, '_').replace(/<\s*\/\s*(em|i)\s*>/gi, '_')
+      x = x.replace(/<[^>]+>/g, '')
+      x = x.replace(/&nbsp;/gi, ' ')
+      x = x.replace(/\s+/g, ' ').trim()
+      return x
+    }
+    for (const line of lines) {
+      const trimmed = line.trim()
+      const mFence = trimmed.match(/^(```+|~~~+)(.*)$/)
+      if (mFence) {
+        if (!inFence) {
+          inFence = true
+          fence = mFence[1] || '```'
+        } else if (trimmed.startsWith(fence)) {
+          inFence = false
+          fence = ''
+        }
+        out.push(line)
+        continue
+      }
+      if (inFence) {
+        out.push(line)
+        continue
+      }
+      const m = trimmed.match(/^<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>\s*$/i)
+      if (!m) {
+        out.push(line)
+        continue
+      }
+      const depth = Number(m[1]) || 1
+      const inner = simplifyInlineHtml(m[2] || '')
+      if (!inner) {
+        out.push(line)
+        continue
+      }
+      out.push(`${'#'.repeat(Math.min(6, Math.max(1, depth)))} ${inner}`)
+      changed = true
+    }
+    return { text: changed ? out.join('\n') : raw, changed }
+  }
+
+  const normalizeAtxHeadingWhitespace = (text: string): SanitizeMarkdownResult => {
+    const raw = String(text || '')
+    if (!raw) return { text: raw, changed: false }
+    const needsNormalize =
+      /[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000\uFEFF\u200B\u200C\u200D]/.test(raw) || /^#{1,6}\S/m.test(raw)
+    if (!needsNormalize) return { text: raw, changed: false }
+    const lines = raw.split(/\r?\n/g)
+    let inFence = false
+    let fence = ''
+    let changed = false
+    const out: string[] = []
+    for (const line of lines) {
+      const trimmed = line.trim()
+      const mFence = trimmed.match(/^(```+|~~~+)(.*)$/)
+      if (mFence) {
+        if (!inFence) {
+          inFence = true
+          fence = mFence[1] || '```'
+        } else if (trimmed.startsWith(fence)) {
+          inFence = false
+          fence = ''
+        }
+        out.push(line)
+        continue
+      }
+      if (inFence) {
+        out.push(line)
+        continue
+      }
+      if (/^[ \t]{4,}/.test(line)) {
+        out.push(line)
+        continue
+      }
+      const m = line.match(
+        /^([ \t]{0,3})([\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000\uFEFF\u200B\u200C\u200D]*)(#{1,6})([ \t\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]*)(.*)$/,
+      )
+      if (!m) {
+        out.push(line)
+        continue
+      }
+      const indent = m[1] || ''
+      const prefix = m[2] || ''
+      const hashes = m[3] || '#'
+      const ws = m[4] || ''
+      const rest = m[5] || ''
+      if (rest.trim() === '') {
+        out.push(line)
+        continue
+      }
+      const hadWeirdWs = /[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/.test(ws)
+      const hasAnyWs = ws.length > 0
+      if (prefix || !hasAnyWs || hadWeirdWs) {
+        const next = `${indent}${hashes} ${rest.replace(/^\s+/, '')}`
+        if (next !== line) changed = true
+        out.push(next)
+        continue
+      }
+      out.push(line)
+    }
+    return { text: out.join('\n'), changed }
+  }
+
+  const normalizeHeadingsSingleH1 = (text: string): SanitizeMarkdownResult => {
+    const lines = String(text || '').split(/\r?\n/g)
+    let inFence = false
+    let fence = ''
+    let seenTitle = false
+    let demote = 0
+    let changed = false
+    let totalH1 = 0
+    const out: string[] = []
+    for (const line of lines) {
+      const trimmed = line.trim()
+      const fm = trimmed.match(/^(```+|~~~+)(.*)$/)
+      if (fm) {
+        if (!inFence) {
+          inFence = true
+          fence = fm[1] || '```'
+        } else if (trimmed.startsWith(fence)) {
+          inFence = false
+          fence = ''
+        }
+        continue
+      }
+      if (inFence) continue
+      if (/^#\s+\S/.test(trimmed)) totalH1 += 1
+    }
+    if (totalH1 < 2) return { text, changed: false }
+
+    inFence = false
+    fence = ''
+    for (const line of lines) {
+      const trimmed = line.trim()
+      const fm = trimmed.match(/^(```+|~~~+)(.*)$/)
+      if (fm) {
+        if (!inFence) {
+          inFence = true
+          fence = fm[1] || '```'
+        } else if (trimmed.startsWith(fence)) {
+          inFence = false
+          fence = ''
+        }
+        out.push(line)
+        continue
+      }
+      if (inFence) {
+        out.push(line)
+        continue
+      }
+      const m = line.match(/^(#{1,6})(\s+)(.*)$/)
+      if (!m) {
+        out.push(line)
+        continue
+      }
+      const hashes = m[1] || '#'
+      const ws = m[2] || ' '
+      const rest = m[3] || ''
+      const depth = hashes.length
+      if (depth === 1 && !seenTitle) {
+        seenTitle = true
+        out.push(line)
+        continue
+      }
+      if (depth === 1) demote = 1
+      if (demote <= 0) {
+        out.push(line)
+        continue
+      }
+      const nextDepth = Math.min(6, depth + demote)
+      const nextLine = `${'#'.repeat(nextDepth)}${ws}${rest}`
+      if (nextLine !== line) changed = true
+      out.push(nextLine)
+    }
+    return { text: out.join('\n'), changed }
+  }
+
   const a0 = fixBrokenMarkdownImageSyntax(raw)
   const a1 = removeImagesInsideLinkLabelsWhenTextExists(a0.text)
   const a2 = convertOrDropInlineSvgHtmlBlocks(a1.text)
-  const b = stripEmbeddedBase64ImageSrc(a2.text)
+  const a3 = stripHeadingPermalinkArtifacts(a2.text, { sourceUrl })
+  const a4 = normalizeStandaloneImageAutolinks(a3.text)
+  const a5 = normalizeStandaloneHtmlHeadingsToAtx(a4.text)
+  const a6 = normalizeAtxHeadingWhitespace(a5.text)
+  const b = stripEmbeddedBase64ImageSrc(a6.text)
   const c = stripLargeBase64Fences(b.text)
   const d = (() => {
     const text = c.text
@@ -380,6 +683,18 @@ export function sanitizeImportedMarkdownText(raw: string, opts?: SanitizeImporte
     }
     return { text: out.join('\n'), changed }
   })()
-  const changed = a0.changed || a1.changed || a2.changed || b.changed || c.changed || d.changed
-  return { text: d.text, changed }
+  const e = normalizeHeadingsSingleH1(d.text)
+  const changed =
+    a0.changed ||
+    a1.changed ||
+    a2.changed ||
+    a3.changed ||
+    a4.changed ||
+    a5.changed ||
+    a6.changed ||
+    b.changed ||
+    c.changed ||
+    d.changed ||
+    e.changed
+  return { text: e.text, changed }
 }

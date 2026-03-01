@@ -3,14 +3,22 @@ import type { WebpageLayoutSnapshot } from './webpageLayoutExport'
 const CACHE_MAX = 8
 const CACHE = new Map<string, WebpageLayoutSnapshot>()
 
-export function getCachedWebpageLayoutSnapshot(url: string): WebpageLayoutSnapshot | null {
-  const key = String(url || '').trim()
+const buildKey = (url: string, optionsKey?: string | null): string => {
+  const base = String(url || '').trim()
+  if (!base) return ''
+  const opt = String(optionsKey || '').trim()
+  if (!opt) return base
+  return `${base}::${opt}`
+}
+
+export function getCachedWebpageLayoutSnapshot(url: string, optionsKey?: string | null): WebpageLayoutSnapshot | null {
+  const key = buildKey(url, optionsKey)
   if (!key) return null
   return CACHE.get(key) || null
 }
 
-export function setCachedWebpageLayoutSnapshot(url: string, snap: WebpageLayoutSnapshot): void {
-  const key = String(url || '').trim()
+export function setCachedWebpageLayoutSnapshot(url: string, snap: WebpageLayoutSnapshot, optionsKey?: string | null): void {
+  const key = buildKey(url, optionsKey)
   if (!key) return
   CACHE.set(key, snap)
   if (CACHE.size > CACHE_MAX) {
@@ -22,4 +30,3 @@ export function setCachedWebpageLayoutSnapshot(url: string, snap: WebpageLayoutS
 export function clearCachedWebpageLayoutSnapshots(): void {
   CACHE.clear()
 }
-

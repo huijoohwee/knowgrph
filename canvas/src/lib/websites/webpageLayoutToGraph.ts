@@ -1066,7 +1066,7 @@ const synthesizeLayoutSections = (
     const parent = pid ? byId.get(pid) : null
     const parentCls = safeStr(parent?.attrs?.class)
     const parentDisplay = safeStr(parent?.style?.display).toLowerCase()
-    const parentLooksGridOrList = classIndicatesGridOrList(parentCls) || parentDisplay === 'grid' || parentDisplay === 'flex'
+    const parentLooksGridOrList = classIndicatesGridOrList(parentCls) || parentDisplay === 'grid' || parentDisplay === 'inline-grid'
     const MIN_ITEMS = parentLooksGridOrList ? 4 : 6
     if (siblings.length < MIN_ITEMS) continue
 
@@ -1112,7 +1112,10 @@ const synthesizeLayoutSections = (
     }
     if (segments.length === 0) continue
 
+    let synthesized = 0
+    const maxSynthesized = pid ? (parentLooksGridOrList ? 3 : 4) : 6
     for (let s = 0; s < segments.length; s += 1) {
+      if (synthesized >= maxSynthesized) break
       const segIds = segments[s]!.ids
       const segItems = segIds.map(id => items.find(it => it.id === id)!).filter(Boolean)
       if (segItems.length < MIN_ITEMS) continue
@@ -1289,6 +1292,7 @@ const synthesizeLayoutSections = (
         },
       }
       nextById.set(synthId, sectionEl)
+      synthesized += 1
 
       for (let i = 0; i < memberIds.length; i += 1) {
         const mid = memberIds[i] || ''

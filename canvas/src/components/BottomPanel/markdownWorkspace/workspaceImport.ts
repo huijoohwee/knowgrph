@@ -170,8 +170,29 @@ async function importPdfFile(args: { fs: WorkspaceFs; file: File; parentPath: Wo
 }
 
 async function importTextFile(args: { fs: WorkspaceFs; file: File; parentPath: WorkspacePath }): Promise<WorkspacePath> {
-  const text = await args.file.text()
-  return args.fs.createFile({ parentPath: args.parentPath, name: args.file.name, text })
+  const nameRaw = String(args.file.name || '').trim() || 'file'
+  const lower = nameRaw.toLowerCase()
+  const rawText = await args.file.text()
+  if (lower.endsWith('.kgw')) {
+    try {
+      const parsed = JSON.parse(rawText) as unknown
+      const rec = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null
+      const kind = typeof rec?.kind === 'string' ? String(rec.kind || '').trim() : ''
+      const version = typeof rec?.version === 'number' ? rec.version : NaN
+      const doc = rec?.document && typeof rec.document === 'object' && !Array.isArray(rec.document) ? (rec.document as Record<string, unknown>) : null
+      const docText = typeof doc?.text === 'string' ? String(doc.text || '') : null
+      if (kind === 'kg:workspaceFile' && version === 1 && docText != null) {
+        const docPathRaw = typeof doc?.path === 'string' ? String(doc.path || '').trim() : ''
+        const leafRaw = (docPathRaw || nameRaw).replace(/\\/g, '/').split('/').filter(Boolean).pop() || 'document.md'
+        const leaf = leafRaw.toLowerCase().endsWith('.md') ? leafRaw : `${leafRaw}.md`
+        const safeName = leaf.length > 200 ? leaf.slice(0, 200) : leaf
+        return args.fs.createFile({ parentPath: args.parentPath, name: safeName, text: docText })
+      }
+    } catch {
+      void 0
+    }
+  }
+  return args.fs.createFile({ parentPath: args.parentPath, name: nameRaw, text: rawText })
 }
 
 type PendingLocalImportItem =
@@ -243,6 +264,7 @@ const WORKSPACE_IMPORT_EXTS = (() => {
   const exts = new Set<string>()
   for (const ext of SOURCE_FILES_FORMATS.import) exts.add(String(ext || '').toLowerCase())
   exts.add('.mdx')
+  exts.add('.kgw')
   return exts
 })()
 

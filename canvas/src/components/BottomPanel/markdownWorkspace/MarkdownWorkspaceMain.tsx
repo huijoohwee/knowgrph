@@ -124,14 +124,20 @@ function normalizeInlineSourceHints(raw: string): string {
     if (!line.includes('http')) return line
     if (/\[source\]\(/i.test(line)) return line
     let next = line
-    next = next.replace(/\(\s*`(https?:\/\/[^`]+?)`\s*\)?/g, (_m, url) => {
+    next = next.replace(/\(\s*`(https?:\/\/[^`]+?)`\s*\)?/g, (m, url, offset, whole) => {
+      const o = typeof offset === 'number' ? offset : -1
+      const w = typeof whole === 'string' ? whole : next
+      if (o > 0 && w[o - 1] === ']') return m
       const u = cleanUrl(url)
-      if (!u) return _m
+      if (!u) return m
       return `([source](<${u}>))`
     })
-    next = next.replace(/\(\s*(https?:\/\/[^\s)]+)\s*\)/g, (_m, url) => {
+    next = next.replace(/\(\s*(https?:\/\/[^\s)]+)\s*\)/g, (m, url, offset, whole) => {
+      const o = typeof offset === 'number' ? offset : -1
+      const w = typeof whole === 'string' ? whole : next
+      if (o > 0 && w[o - 1] === ']') return m
       const u = cleanUrl(url)
-      if (!u) return _m
+      if (!u) return m
       return `([source](<${u}>))`
     })
     return next
@@ -885,6 +891,30 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     return base.replace(/\.[a-z0-9]+$/i, '') || 'document'
   }, [activeDocumentKey])
 
+  const handleExportWorkspaceFile = React.useCallback(async () => {
+    try {
+      const text = String(typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText)
+      const payload = {
+        kind: 'kg:workspaceFile',
+        version: 1,
+        document: {
+          path: String(activeDocumentKey || '').trim() || `${exportBaseName}.md`,
+          text,
+        },
+      }
+      const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: 'application/json;charset=utf-8' })
+      const name = `${exportBaseName}.kgw`
+      const saved = await saveBlobWithPicker(blob, name, {
+        description: 'Workspace Files',
+        accept: { 'application/json': ['.kgw'] },
+      })
+      if (saved === '') return
+      if (!saved) downloadBlob(blob, name)
+    } catch {
+      void 0
+    }
+  }, [activeDocumentKey, activeText, exportBaseName, viewerTextOverride])
+
   const handleExportMarkdown = React.useCallback(async () => {
     try {
       const text = String(typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText)
@@ -1023,6 +1053,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         onApply={onApply}
         onSave={onSave}
         onSaveAs={onSaveAs}
+        onExportWorkspaceFile={handleExportWorkspaceFile}
         onExportMarkdown={handleExportMarkdown}
         onExportJson={handleExportJson}
         onExportJsonLd={handleExportJsonLd}

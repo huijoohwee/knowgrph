@@ -25,3 +25,43 @@ export function testDesignDocumentUrlUsesExplicitDocumentUrl() {
   const out = tryExtractDesignDocumentUrl(g)
   if (out !== 'https://example.invalid/page') throw new Error(`expected documentUrl from metadata, got: ${String(out)}`)
 }
+
+export function testDesignDocumentUrlFallsBackToNodeMetadataDocumentUrl() {
+  const g: GraphData = {
+    type: 'Graph',
+    nodes: [
+      {
+        id: 'doc:1',
+        label: 'Doc',
+        type: 'Document',
+        properties: {},
+        metadata: { documentUrl: 'https://example.invalid/page' },
+      },
+    ],
+    edges: [],
+    metadata: {},
+  }
+  const out = tryExtractDesignDocumentUrl(g)
+  if (out !== 'https://example.invalid/page') throw new Error(`expected documentUrl from node metadata, got: ${String(out)}`)
+}
+
+export function testDesignDocumentUrlFallsBackToEdgeMetadataDocumentPath() {
+  const g: GraphData = {
+    type: 'Graph',
+    nodes: [],
+    edges: [
+      {
+        id: 'e1',
+        source: 'a',
+        target: 'b',
+        label: 'link',
+        type: 'Link',
+        properties: {},
+        metadata: { documentPath: 'https://example.invalid/page' },
+      },
+    ],
+    metadata: {},
+  }
+  const out = tryExtractDesignDocumentUrl(g)
+  if (out !== 'https://example.invalid/page') throw new Error(`expected documentUrl from edge metadata, got: ${String(out)}`)
+}

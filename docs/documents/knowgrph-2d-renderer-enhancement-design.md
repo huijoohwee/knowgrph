@@ -38,8 +38,8 @@
 ### Design (2D Webpage Wireframe)
 
 - Best for DOM-derived webpage wireframes rendered as 2D frames over a neutral layout snapshot graph.
-- Uses a browser-native layout export (`webpageLayout` snapshot) and deterministic DOM→graph conversion with domain-agnostic wrapper pruning, layout-glue cleanup, and synthetic section nodes.
-- Frame grid layout is viewport-responsive; column count derives from active viewport width, not fixed constants.
+- Uses a browser-native layout export (`webpageLayout` snapshot) and deterministic DOM→graph conversion with domain-agnostic wrapper pruning, layout-glue cleanup, and synthetic section nodes. Export is implemented via a sandboxed hidden iframe (`kg-export-dom` layout mode) with URL-agnostic timing (networkIdle + domQuiet) and bounded snapshot capture.
+- Frame layout is snapshot-driven: when a `webpageLayout` graph is available, Design uses DOM-derived coordinates and dimensions as the SSOT; when no snapshot is ready yet, Design shows a single placeholder frame (loading/error/idle) instead of a legacy non-webpage frame grid.
 - Shares collective fit/center, zoom view keys, snap-to-grid, lasso, and align/distribute semantics with D3 and Flow, plus renderer-neutral shortcuts for align/distribute and keyboard nudging.
 - Wireframe presentation is driven by schema metadata (`renderer:designWireframe`) and rendered via a Floating Panel "Design wireframe" section: controls include label/meta chips, text/media previews, depth fade, optional edges, and label-collision avoidance. These knobs are schema-only; the UI is a thin shell and remains host/URL-agnostic.
 

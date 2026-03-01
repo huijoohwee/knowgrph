@@ -1,4 +1,5 @@
 import { load as parseYaml } from 'js-yaml'
+import { parseAsciiBoxTable } from 'curagrph/features/markdown/ui/codeblock/asciiBoxTable.ts'
 
 export type MarkdownFrontmatter = Record<string, unknown>
 
@@ -6,7 +7,15 @@ export type MarkdownBlock =
   | { kind: 'heading'; level: number; text: string; startLine: number; endLine: number }
   | { kind: 'paragraph'; text: string; startLine: number; endLine: number }
   | { kind: 'code'; text: string; language?: string; startLine: number; endLine: number }
-  | { kind: 'table'; text: string; startLine: number; endLine: number }
+  | {
+      kind: 'table'
+      text: string
+      tableFormat?: 'markdown' | 'ascii'
+      tableHeader?: string[]
+      tableRows?: string[][]
+      startLine: number
+      endLine: number
+    }
   | {
       kind: 'list'
       items: Array<{ text: string; ordered: boolean; index?: number }>
@@ -64,6 +73,41 @@ export const parseMarkdownBlocks = (lines: string[], startIndex: number): Markdo
   const blocks: MarkdownBlock[] = []
   let i = startIndex
   const lineCount = lines.length
+
+  const splitMarkdownTableRow = (raw: string): string[] => {
+    const s = String(raw || '').trim()
+    if (!s) return []
+    const withoutEnds = s.replace(/^\|/, '').replace(/\|$/, '')
+    return withoutEnds
+      .split('|')
+      .map(c => String(c || '').trim())
+      .map(c => c.replace(/\s+/g, ' ').trim())
+  }
+
+  const parseMarkdownPipeTable = (tableText: string): { header: string[] | null; rows: string[][] } | null => {
+    const rawLines = String(tableText || '').split(/\r?\n/)
+    if (rawLines.length < 2) return null
+    const headerLine = rawLines[0] || ''
+    const dividerLine = rawLines[1] || ''
+    const isDivider = (() => {
+      const t = dividerLine.trim()
+      if (!t.includes('|')) return false
+      return /^(\|?\s*:?-+:?\s*)+\|?\s*$/.test(t.replace(/\|/g, '| '))
+    })()
+    if (!isDivider) return null
+    const header = splitMarkdownTableRow(headerLine).filter(Boolean)
+    const rows: string[][] = []
+    for (let idx = 2; idx < rawLines.length; idx += 1) {
+      const rowLine = rawLines[idx] || ''
+      if (!rowLine.trim()) continue
+      if (!rowLine.includes('|')) continue
+      const cells = splitMarkdownTableRow(rowLine)
+      if (cells.length > 0) rows.push(cells)
+    }
+    if (header.length === 0 && rows.length === 0) return null
+    return { header: header.length ? header : null, rows }
+  }
+
   while (i < lineCount) {
     const line = lines[i] ?? ''
     const trimmed = line.trim()
@@ -96,7 +140,28 @@ export const parseMarkdownBlocks = (lines: string[], startIndex: number): Markdo
           i += 1
         }
       }
-      blocks.push({ kind: 'code', text: bodyLines.join('\n'), language, startLine, endLine })
+      const codeText = bodyLines.join('\n')
+      const lang = String(language || '').trim().toLowerCase()
+      const asciiCandidate =
+        lang === 'ascii' ||
+        lang === 'grid' ||
+        lang === 'diagram' ||
+        /[┌┐└┘┬┴┼├┤│─╔╗╚╝╦╩╬║═]/.test(codeText) ||
+        (/(^|\n)\s*\+[-+]{3,}\+\s*(\n|$)/.test(codeText) && /\|/.test(codeText))
+      const asciiTable = asciiCandidate ? parseAsciiBoxTable(codeText) : null
+      if (asciiTable) {
+        blocks.push({
+          kind: 'table',
+          text: codeText,
+          tableFormat: 'ascii',
+          tableHeader: asciiTable.header || undefined,
+          tableRows: asciiTable.rows || undefined,
+          startLine,
+          endLine,
+        })
+      } else {
+        blocks.push({ kind: 'code', text: codeText, language, startLine, endLine })
+      }
       continue
     }
 
@@ -166,7 +231,17 @@ export const parseMarkdownBlocks = (lines: string[], startIndex: number): Markdo
         i += 1
       }
       const endLine = Math.max(startLine, i)
-      blocks.push({ kind: 'table', text: tableLines.join('\n'), startLine, endLine })
+      const tableText = tableLines.join('\n')
+      const parsed = parseMarkdownPipeTable(tableText)
+      blocks.push({
+        kind: 'table',
+        text: tableText,
+        tableFormat: 'markdown',
+        tableHeader: parsed?.header || undefined,
+        tableRows: parsed?.rows || undefined,
+        startLine,
+        endLine,
+      })
       continue
     }
 

@@ -827,6 +827,89 @@ export async function convertHtmlToMarkdownUnified(args: {
                 return tag === 'svg' || tag === 'img'
               }
 
+              const isHeadingTag = (tag: string): boolean => {
+                const t = String(tag || '').toLowerCase()
+                return t === 'h1' || t === 'h2' || t === 'h3' || t === 'h4' || t === 'h5' || t === 'h6'
+              }
+
+              const isLikelyHeadingPermalinkHref = (href: string, headingId: string, baseUrlHint: string) => {
+                const raw = String(href || '').trim()
+                if (!raw) return false
+                if (raw.startsWith('#')) return true
+                const hashIdx = raw.indexOf('#')
+                if (hashIdx >= 0) return true
+                try {
+                  const base = String(baseUrlHint || '').trim()
+                  if (!base) return false
+                  const a = new URL(raw, base)
+                  const b = new URL(base)
+                  const aKey = `${a.origin}${a.pathname}`.replace(/\/+$/, '')
+                  const bKey = `${b.origin}${b.pathname}`.replace(/\/+$/, '')
+                  if (aKey && bKey && aKey === bKey) return true
+                  if (headingId && a.hash === `#${headingId}`) return true
+                  return false
+                } catch {
+                  return false
+                }
+              }
+
+              const isHeadingPermalinkAnchor = (node: HastNode, headingId: string): boolean => {
+                const el = node as unknown as {
+                  type?: string
+                  tagName?: string
+                  properties?: Record<string, unknown>
+                  children?: HastNode[]
+                }
+                if (String(el?.type || '') !== 'element') return false
+                if (String(el.tagName || '').toLowerCase() !== 'a') return false
+                const props = el.properties || {}
+                const href = getPropStr(props, 'href')
+                const baseUrlHint = String(resolvedBaseUrl || baseUrl || '').trim()
+                if (!href || !isLikelyHeadingPermalinkHref(href, headingId, baseUrlHint)) return false
+                const cls = (getPropStr(props, 'className') || getPropStr(props, 'class')).toLowerCase()
+                const id = (getPropStr(props, 'id') || '').toLowerCase()
+                const title = (getPropStr(props, 'title') || '').toLowerCase()
+                const ariaLabel = (getPropStr(props, 'ariaLabel') || getPropStr(props, 'aria-label')).toLowerCase()
+                const keyText = `${cls} ${id} ${title} ${ariaLabel}`
+                const looksLikePermalink =
+                  /\b(permalink|anchor|headerlink|hash-link|heading-anchor|octicon-link|anchorjs-link)\b/.test(keyText)
+                const kids = Array.isArray(el.children) ? el.children : []
+                const nonEmptyText = nodeText(node).trim()
+                if (nonEmptyText) {
+                  const labelFromAttrs = (ariaLabel || title).trim()
+                  const textLower = nonEmptyText.toLowerCase()
+                  const labelLower = labelFromAttrs.toLowerCase()
+                  const looksLikePermalinkWord = /\b(permalink|direct link|link to heading|anchor)\b/.test(textLower)
+                  if (!(looksLikePermalink && looksLikePermalinkWord && labelLower && textLower === labelLower)) return false
+                }
+                const hasAnyChild = kids.length > 0
+                const allKidsAreIconish =
+                  hasAnyChild &&
+                  kids.every(k => {
+                    const t = (k as unknown as { type?: string }).type
+                    if (t === 'text') return String((k as unknown as { value?: unknown }).value || '').trim() === ''
+                    return isSvgOrImg(k)
+                  })
+                return looksLikePermalink || allKidsAreIconish
+              }
+
+              const removeHeadingPermalinkAnchors = (node: HastNode) => {
+                const el = node as unknown as { type?: string; tagName?: string; children?: HastNode[]; properties?: Record<string, unknown> }
+                const type = String(el?.type || '')
+                if (type !== 'element' && type !== 'root') return
+                const tag = String(el.tagName || '').toLowerCase()
+                if (type === 'element' && isHeadingTag(tag)) {
+                  const headingId = getPropStr(el.properties || {}, 'id')
+                  const kids = Array.isArray(el.children) ? el.children : []
+                  if (kids.length) {
+                    const nextKids = kids.filter(k => !isHeadingPermalinkAnchor(k, headingId))
+                    ;(el.children as HastNode[]) = nextKids
+                  }
+                }
+                const kids = Array.isArray(el.children) ? el.children : []
+                for (const child of kids) removeHeadingPermalinkAnchors(child)
+              }
+
               const stripIconsAndImagesFromLinksWithText = (node: HastNode) => {
                 const el = node as unknown as { type?: string; tagName?: string; children?: HastNode[]; properties?: Record<string, unknown> }
                 const type = String(el?.type || '')
@@ -939,6 +1022,7 @@ export async function convertHtmlToMarkdownUnified(args: {
                 for (const child of next) unwrapLayoutWrappers(child)
               }
 
+              removeHeadingPermalinkAnchors(tree as HastNode)
               stripIconsAndImagesFromLinksWithText(tree as HastNode)
               unwrapLayoutWrappers(tree as HastNode)
               removeDecorativeSvgs(tree as HastNode)

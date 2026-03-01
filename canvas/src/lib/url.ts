@@ -37,3 +37,16 @@ export function isYouTubeUrl(value: unknown): boolean {
     return false
   }
 }
+
+export function resolveUrlAgainstBase(baseUrl: string | null | undefined, rawUrl: string): string {
+  const raw = String(rawUrl || '').trim()
+  if (!raw) return ''
+  if (/^(data:|blob:|mailto:|tel:|javascript:)/i.test(raw)) return raw
+  const base = String(baseUrl || '').trim()
+  if (!base) return raw
+  try {
+    return new URL(raw, base).toString()
+  } catch {
+    return raw
+  }
+}

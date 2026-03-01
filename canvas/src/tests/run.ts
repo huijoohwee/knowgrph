@@ -63,7 +63,12 @@ import {
   testWebpageFrontmatterDefaultsToHtmlViewWhenMissingViewKey,
 } from '@/__tests__/webpageImportDefaults.test'
 import { testCodebaseRelPathCoercionFromAbsoluteUnderRoot } from '@/__tests__/codebaseRelPathFromAbsolute.test'
-import { testDesignDocumentUrlIgnoresMediaAssetUrls, testDesignDocumentUrlUsesExplicitDocumentUrl } from '@/__tests__/designDocumentUrl.test'
+import {
+  testDesignDocumentUrlFallsBackToEdgeMetadataDocumentPath,
+  testDesignDocumentUrlFallsBackToNodeMetadataDocumentUrl,
+  testDesignDocumentUrlIgnoresMediaAssetUrls,
+  testDesignDocumentUrlUsesExplicitDocumentUrl,
+} from '@/__tests__/designDocumentUrl.test'
 import {
   testWebsiteImportSitemapDetectsIndex,
   testWebsiteImportSitemapExtractsLocs,
@@ -100,13 +105,18 @@ import {
   testSanitizeImportedMarkdownAppendsSourceLinkForOmittedSvg,
   testSanitizeImportedMarkdownCapsLargeInlineSvgHtmlConversion,
   testSanitizeImportedMarkdownConvertsLabeledInlineSvgHtmlToImage,
+  testSanitizeImportedMarkdownConvertsStandaloneImageAutolinkToMarkdownImage,
+  testSanitizeImportedMarkdownConvertsStandaloneHtmlHeadingToAtx,
   testSanitizeImportedMarkdownCapsLargeMultilineSvgDataUri,
   testSanitizeImportedMarkdownDropsDecorativeInlineSvgHtml,
   testSanitizeImportedMarkdownFixesBrokenImageSyntax,
+  testSanitizeImportedMarkdownNormalizesAtxHeadingWeirdSpaces,
+  testSanitizeImportedMarkdownNormalizesSubstackHeadingTree,
   testSanitizeImportedMarkdownNormalizesMultilineSvgDataUri,
   testSanitizeImportedMarkdownRemovesImageInsideLinkLabelWhenTextExists,
   testSanitizeImportedMarkdownRemovesBase64FenceLines,
   testSanitizeImportedMarkdownRemovesDataImageBase64,
+  testSanitizeImportedMarkdownStripsHeadingPermalinkArtifacts,
 } from '@/__tests__/sanitizeImportedMarkdown.test'
 import {
   testWebpageClientConvertQualityGateDetectsSyntheticArtifactMarkers,
@@ -156,6 +166,10 @@ import {
   testMarkdownHtmlIframeIngestionProducesMediaNodes,
   testMarkdownHtmlVideoIngestionProducesMediaNodes,
 } from '@/__tests__/markdownGithubIngestion.test'
+import {
+  testMarkdownAsciiTableFenceIngestionCreatesTableNodeWithCells,
+  testMarkdownPipeTableIngestionCreatesTableNodeWithCells,
+} from '@/__tests__/markdownTableIngestion.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
 import { testParseKindCsv } from '@/__tests__/csvKind.test'
 import {
@@ -173,6 +187,8 @@ import {
   testHtmlToMarkdownUnifiedConvertsBasicHtml,
   testHtmlToMarkdownUnifiedHeadOnlyRendersHeadSection,
   testHtmlToMarkdownUnifiedParsesFullHtmlDocument,
+  testHtmlToMarkdownUnifiedRemovesHeadingHashAnchorIconOnly,
+  testHtmlToMarkdownUnifiedRemovesHeadingPermalinkSvgAnchor,
   testHtmlToMarkdownUnifiedPreservesChineseText,
   testHtmlToMarkdownUnifiedPreservesPreCodeIndentation,
   testHtmlToMarkdownUnifiedUsesBaseTagForLinkResolution,
@@ -180,6 +196,13 @@ import {
 import { testHtmlToMarkdownUnifiedDedupeParagraphs } from '@/__tests__/htmlToMarkdownUnifiedDedupe.test'
 import { testPlainTextToMarkdownPreservesParagraphs } from '@/__tests__/plainTextToMarkdown.test'
 import { testReorderListBasicMoves, testReorderListNoopAndBounds } from '@/__tests__/reorder.test'
+import {
+  testMarkdownTocIncludesFormattedHeadingText,
+  testMarkdownTocIncludesHeadingsWithUnicodeLeadingWhitespace,
+  testMarkdownTocIncludesStandaloneHtmlHeadings,
+  testMarkdownTocIncludesHeadingsWithUnicodeSpacesAfterHashes,
+} from '@/__tests__/markdownTocFormattedHeadings.test'
+import { testMarkdownTocLargeDocGeneratesUniqueHeadingIds } from '@/__tests__/markdownTocLargeDocDuplicateHeadingIds.test'
 import {
   testGraphTableDateFormatDraftFromIso,
   testGraphTableDateNormalizeAcceptsMdySlash,
@@ -193,6 +216,9 @@ import {
   testWebkitRelativePathStripsRootFolder,
 } from '@/__tests__/webkitRelativePath.test'
 import { testUnifiedPanelExport } from '@/__tests__/panel.test'
+import { testMarkdownPreviewShowsGutterControlsForRichMedia } from '@/__tests__/markdownRichMediaGutterControls.test'
+import { testMarkdownFrontmatterUrlIsUsedAsBaseForMediaResolution } from '@/__tests__/markdownFrontmatterSourceUrlSsot.test'
+import { testResolveUrlAgainstBaseResolvesRelativeUrls } from '@/__tests__/urlResolveAgainstBase.test'
 import { testSettingsViewCollapsePersistence } from '@/__tests__/settingsCollapse.test'
 import { testSearchCacheKeysRespectVersion } from '@/__tests__/searchCache.test'
 import { testN8nParsingBasic } from '@/__tests__/n8nParse.test'
@@ -226,6 +252,7 @@ import {
   testWebpageLayoutToGraphAssignsGridChildIndices,
   testWebpageLayoutToGraphOverlapIntersectionPrune,
   testWebpageLayoutToGraphPrunesUtilityWrapperAtThreeKids,
+  testWebpageLayoutToGraphSectionSynthesisDoesNotTriggerOnFlexParent,
   testWebpageLayoutToGraphSectionSynthesisGridFourItems,
   testWebpageLayoutToGraphWrapperSingleChildPrune,
   testWebpageLayoutToGraphKeepsImportantHeadingUnderMaxNodesBudget,
@@ -656,6 +683,8 @@ import {
   testWorkspaceAutosaveGuardsAgainstPathSwitchOverwrite,
 } from '@/__tests__/workspaceAutosave.test'
 import { testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFile } from '@/__tests__/markdownWorkspaceCrudActions.test'
+import { testMarkdownWorkspaceExplorerTocShowsHeadingNumbers } from '@/__tests__/markdownWorkspaceTocHn.test'
+import { testMarkdownWorkspaceViewerRendersMarkdownImage } from '@/__tests__/markdownWorkspaceViewerRendersImage.test'
 import { testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles } from '@/__tests__/workspaceSeedPersistence.test'
 import {
   testEmbeddedEditorShellRendersMarkdownWorkspace,
@@ -942,6 +971,16 @@ export const runAllTests = async () => {
   await exec('markdown.resolveHref.preservesInternalPdfAssetRoutes', testMarkdownResolveHrefPreservesInternalAssetRoutes)
   await exec('markdown.resolveHref.coercesAbsoluteSandboxPath', testMarkdownResolveHrefCoercesAbsoluteSandboxDocumentPath)
   await exec('markdown.pipeTables.lexAsTableTokens', testMarkdownPipeTablesLexAsTableTokens)
+  await exec('markdown.ingestion.asciiTables.emitTableCells', testMarkdownAsciiTableFenceIngestionCreatesTableNodeWithCells)
+  await exec('markdown.ingestion.pipeTables.emitTableCells', testMarkdownPipeTableIngestionCreatesTableNodeWithCells)
+  await exec('markdown.toc.formattedHeadingText', testMarkdownTocIncludesFormattedHeadingText)
+  await exec('markdown.toc.unicodeHeadingSpaces', testMarkdownTocIncludesHeadingsWithUnicodeSpacesAfterHashes)
+  await exec('markdown.toc.unicodeHeadingLeadingSpace', testMarkdownTocIncludesHeadingsWithUnicodeLeadingWhitespace)
+  await exec('markdown.toc.htmlHeadings', testMarkdownTocIncludesStandaloneHtmlHeadings)
+  await exec('markdown.toc.largeDoc.uniqueHeadingIds', testMarkdownTocLargeDocGeneratesUniqueHeadingIds)
+  await exec('markdown.preview.richMedia.showsGutterControls', testMarkdownPreviewShowsGutterControlsForRichMedia)
+  await exec('markdown.ssot.frontmatterBaseUrl.mediaResolution', testMarkdownFrontmatterUrlIsUsedAsBaseForMediaResolution)
+  await exec('url.resolveAgainstBase.relative', testResolveUrlAgainstBaseResolvesRelativeUrls)
   await exec('markdown.fastMode.parsesHtmlTables', testMarkdownLargeDocFastModeParsesHtmlTables)
   await exec('importRenderPipeline.modesAndLayouts.slideDemo', testImportRenderPipelineAcrossModesAndLayouts)
   await exec('importRenderPipeline.layout.radialForces2d', testImportRenderPipelineRadialLayoutForces2d)
@@ -958,6 +997,9 @@ export const runAllTests = async () => {
 
   await exec('geodata.airportsJson.import.usesSampling', testAirportsJsonGeodataParsingUsesSampling)
   await exec('geojson.import.basic', testGeoJsonImport)
+
+  await exec('markdown.sourceFaithful.headingPermalinkIconRemoved', testHtmlToMarkdownUnifiedRemovesHeadingPermalinkSvgAnchor)
+  await exec('markdown.sourceFaithful.headingHashIconRemoved', testHtmlToMarkdownUnifiedRemovesHeadingHashAnchorIconOnly)
 
   // Remaining tests
   await exec('policy.boundary.forbidSiblingRepoSourceImports', testForbidSiblingRepoSourceImports)
@@ -1183,6 +1225,8 @@ export const runAllTests = async () => {
   await exec('markdownWorkspace.autosave.guardsAgainstPathSwitchOverwrite', testWorkspaceAutosaveGuardsAgainstPathSwitchOverwrite)
   await exec('markdownWorkspace.preview.splitFlushesOnDocKeyChange', testMarkdownWorkspaceSplitPreviewFlushesOnDocKeyChange)
   await exec('markdownWorkspace.explorer.crudActions.createDelete', testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFile)
+  await exec('markdownWorkspace.explorer.toc.hn', testMarkdownWorkspaceExplorerTocShowsHeadingNumbers)
+  await exec('markdownWorkspace.viewer.rendersMarkdownImage', testMarkdownWorkspaceViewerRendersMarkdownImage)
   await exec('workspaceFs.seed.noReseedAfterUserDeletesAll', testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles)
   await exec('workspaceFs.events.batch.coalescesNotifications', testWorkspaceFsChangedBatchCoalescesNotifications)
   await exec('workspaceFs.memory.initialEntries', testWorkspaceFsMemoryInitialEntries)
@@ -1341,6 +1385,8 @@ export const runAllTests = async () => {
   await exec('graph.groups.bboxCollideByDepth.separatesSiblings', testGroupBboxCollideByDepthSeparatesOuterAndInnerSiblings)
   await exec('design.documentUrl.ignoresMediaAssetUrls', testDesignDocumentUrlIgnoresMediaAssetUrls)
   await exec('design.documentUrl.usesExplicitDocumentUrl', testDesignDocumentUrlUsesExplicitDocumentUrl)
+  await exec('design.documentUrl.fallsBackToNodeMetadataDocumentUrl', testDesignDocumentUrlFallsBackToNodeMetadataDocumentUrl)
+  await exec('design.documentUrl.fallsBackToEdgeMetadataDocumentPath', testDesignDocumentUrlFallsBackToEdgeMetadataDocumentPath)
   await exec('settings.registryReadWrite', testSettingsRegistryReadWrite)
   await exec('htmlParser.allText.includesNavAndMain', testHtmlParserAllTextIncludesNavAndMain)
   await exec('htmlParser.losslessEmbeddedMarkdown', testHtmlParserUsesEmbeddedLosslessMarkdownSource)
@@ -1385,6 +1431,11 @@ export const runAllTests = async () => {
   await exec('markdown.sanitizeImported.svgDataUri.capsLargeMultiline', testSanitizeImportedMarkdownCapsLargeMultilineSvgDataUri)
   await exec('markdown.sanitizeImported.inlineSvg.capsToData', testSanitizeImportedMarkdownCapsLargeInlineSvgHtmlConversion)
   await exec('markdown.sanitizeImported.svgPlaceholder.appendsSource', testSanitizeImportedMarkdownAppendsSourceLinkForOmittedSvg)
+  await exec('markdown.sanitizeImported.headingPermalinkArtifacts', testSanitizeImportedMarkdownStripsHeadingPermalinkArtifacts)
+  await exec('markdown.sanitizeImported.substack.headingNormalization', testSanitizeImportedMarkdownNormalizesSubstackHeadingTree)
+  await exec('markdown.sanitizeImported.headingWeirdSpaces', testSanitizeImportedMarkdownNormalizesAtxHeadingWeirdSpaces)
+  await exec('markdown.sanitizeImported.autolinkImageToMarkdownImage', testSanitizeImportedMarkdownConvertsStandaloneImageAutolinkToMarkdownImage)
+  await exec('markdown.sanitizeImported.htmlHeadingToAtx', testSanitizeImportedMarkdownConvertsStandaloneHtmlHeadingToAtx)
   await exec('markdown.workspace.webpageHtmlView.rendersIframe', testMarkdownWorkspaceWebpageHtmlViewRendersIframe)
   await exec('markdown.workspace.webpageHtmlView.websiteImportArtifactHtml', testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtifactForHtml)
   await exec('markdown.workspace.importUrl.htmlPageSsotAndViewModes', testMarkdownWorkspaceImportUrlHtmlPageSsotAndViewModes)
@@ -1480,6 +1531,7 @@ export const runAllTests = async () => {
   await exec('webpage.layoutToGraph.wrapperSingleChildPrune', testWebpageLayoutToGraphWrapperSingleChildPrune)
   await exec('webpage.layoutToGraph.overlapIntersectionPrune', testWebpageLayoutToGraphOverlapIntersectionPrune)
   await exec('webpage.layoutToGraph.sectionSynthesis.gridFourItems', testWebpageLayoutToGraphSectionSynthesisGridFourItems)
+  await exec('webpage.layoutToGraph.sectionSynthesis.noFlexParent', testWebpageLayoutToGraphSectionSynthesisDoesNotTriggerOnFlexParent)
   await exec('webpage.layoutToGraph.prunesUtilityWrapperAtThreeKids', testWebpageLayoutToGraphPrunesUtilityWrapperAtThreeKids)
   await exec('webpage.layoutToGraph.dropsTinyDecorativeSvgIcon', testWebpageLayoutToGraphDropsTinyDecorativeSvgIcon)
   await exec('webpage.layoutToGraph.effectiveOpacityAndStackKey', testWebpageLayoutToGraphEffectiveOpacityAndStackKey)

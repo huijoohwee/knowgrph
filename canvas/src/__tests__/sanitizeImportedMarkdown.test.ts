@@ -96,3 +96,65 @@ export const testSanitizeImportedMarkdownAppendsSourceLinkForOmittedSvg = () => 
     throw new Error(`expected source link appended, got: ${out.text.slice(0, 200)}`)
   }
 }
+
+export const testSanitizeImportedMarkdownStripsHeadingPermalinkArtifacts = () => {
+  const url = 'https://www.citriniresearch.com/p/2028gic'
+  const input = `# **Preface**![](data:image/svg+xml;base64,${'A'.repeat(2000)}) (${url})`
+  const out = sanitizeImportedMarkdownText(input, { sourceUrl: url })
+  if (!out.changed) throw new Error('expected changed')
+  if (/data:image\/svg\+xml;base64,/i.test(out.text)) throw new Error('expected svg data uri removed from heading')
+  if (new RegExp(`\\(${url.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\)`).test(out.text)) {
+    throw new Error(`expected permalink url removed from heading, got: ${out.text}`)
+  }
+  if (!out.text.startsWith('# **Preface**')) throw new Error(`expected heading preserved, got: ${out.text}`)
+}
+
+export const testSanitizeImportedMarkdownNormalizesSubstackHeadingTree = () => {
+  const url = 'https://example.com/post'
+  const input = [
+    '# THE 2028 GLOBAL INTELLIGENCE CRISIS',
+    '',
+    '### A Thought Exercise in Financial History, from the Future',
+    '',
+    '# **Preface**',
+    '',
+    '# **Macro Memo**',
+    '',
+    '## **The Consequences of Abundant Intelligence**',
+    '',
+  ].join('\n')
+  const out = sanitizeImportedMarkdownText(input, { sourceUrl: url })
+  if (!out.changed) throw new Error('expected changed')
+  if (!out.text.includes('# THE 2028 GLOBAL INTELLIGENCE CRISIS')) throw new Error('expected title preserved as H1')
+  if (!out.text.includes('### A Thought Exercise in Financial History, from the Future')) throw new Error('expected subtitle preserved')
+  if (!out.text.includes('## **Preface**')) throw new Error(`expected Preface demoted to H2, got: ${out.text}`)
+  if (!out.text.includes('## **Macro Memo**')) throw new Error(`expected Macro Memo demoted to H2, got: ${out.text}`)
+  if (!out.text.includes('### **The Consequences of Abundant Intelligence**')) {
+    throw new Error(`expected Consequences demoted to H3, got: ${out.text}`)
+  }
+}
+
+export const testSanitizeImportedMarkdownNormalizesAtxHeadingWeirdSpaces = () => {
+  const nbsp = '\u00A0'
+  const input = [`#${nbsp}**Macro Memo**`, '', `##${nbsp}**The Consequences**`, ''].join('\n')
+  const out = sanitizeImportedMarkdownText(input, { sourceUrl: 'https://example.com' })
+  if (!out.changed) throw new Error('expected changed')
+  if (!out.text.includes('# **Macro Memo**')) throw new Error(`expected nbsp heading to be normalized, got: ${out.text}`)
+  if (!out.text.includes('## **The Consequences**')) throw new Error(`expected nbsp heading to be normalized, got: ${out.text}`)
+}
+
+export const testSanitizeImportedMarkdownConvertsStandaloneImageAutolinkToMarkdownImage = () => {
+  const input = ['<https://example.com/a.jpeg>', '', '<https://example.com/not-an-image>', ''].join('\n')
+  const out = sanitizeImportedMarkdownText(input, { sourceUrl: 'https://example.com' })
+  if (!out.changed) throw new Error('expected changed')
+  if (!out.text.includes('![](https://example.com/a.jpeg)')) throw new Error(`expected autolink jpeg to be converted, got: ${out.text}`)
+  if (!out.text.includes('<https://example.com/not-an-image>')) throw new Error('expected non-image autolink to remain')
+}
+
+export const testSanitizeImportedMarkdownConvertsStandaloneHtmlHeadingToAtx = () => {
+  const input = ['<h2><strong>Macro Memo</strong></h2>', '', '<h3> The Consequences </h3>', ''].join('\n')
+  const out = sanitizeImportedMarkdownText(input, { sourceUrl: 'https://example.com' })
+  if (!out.changed) throw new Error('expected changed')
+  if (!out.text.includes('## **Macro Memo**')) throw new Error(`expected h2 to become markdown heading, got: ${out.text}`)
+  if (!out.text.includes('### The Consequences')) throw new Error(`expected h3 to become markdown heading, got: ${out.text}`)
+}

@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { ChevronDown, ChevronUp, Eye, EyeOff, Layers, Search, Target } from 'lucide-react'
+import { ChevronDown, ChevronUp, Eye, EyeOff, Focus, Layers, Search, Target } from 'lucide-react'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
@@ -24,6 +24,7 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
     requestZoom,
     designLayerState,
     normalizeDesignLayerStateFromNodes,
+    setDesignLayerState,
     toggleDesignLayerHidden: toggleLayerHidden,
     moveDesignLayer: moveLayer,
   } = useGraphStore(
@@ -37,6 +38,7 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
       requestZoom: s.requestZoom,
       designLayerState: s.designLayerState,
       normalizeDesignLayerStateFromNodes: s.normalizeDesignLayerStateFromNodes,
+      setDesignLayerState: s.setDesignLayerState,
       toggleDesignLayerHidden: s.toggleDesignLayerHidden,
       moveDesignLayer: s.moveDesignLayer,
     })),
@@ -85,6 +87,46 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
 
   const toggleHidden = React.useCallback((id: string) => toggleLayerHidden(id), [toggleLayerHidden])
 
+  const applyBulkVisibility = React.useCallback(
+    (hidden: boolean, opts?: { onlyFiltered?: boolean }) => {
+      if (!active) return
+      const prev = designLayerState || { order: [], hiddenById: {} }
+      const prevHidden = prev.hiddenById || {}
+      const targetNodes = opts?.onlyFiltered ? filtered : nodes
+      if (targetNodes.length === 0) return
+      const nextHiddenById: Record<string, boolean> = { ...prevHidden }
+      for (let i = 0; i < targetNodes.length; i += 1) {
+        const id = String(targetNodes[i]?.id || '').trim()
+        if (!id) continue
+        nextHiddenById[id] = hidden
+      }
+      setDesignLayerState({ ...prev, hiddenById: nextHiddenById })
+    },
+    [active, designLayerState, filtered, nodes, setDesignLayerState],
+  )
+
+  const handleShowAll = React.useCallback(() => {
+    applyBulkVisibility(false, { onlyFiltered: !!normalizedQuery })
+  }, [applyBulkVisibility, normalizedQuery])
+
+  const handleHideAll = React.useCallback(() => {
+    applyBulkVisibility(true, { onlyFiltered: !!normalizedQuery })
+  }, [applyBulkVisibility, normalizedQuery])
+
+  const handleSoloSelected = React.useCallback(() => {
+    if (!active) return
+    const sel = String(selectedNodeId || '').trim()
+    if (!sel) return
+    const prev = designLayerState || { order: [], hiddenById: {} }
+    const nextHiddenById: Record<string, boolean> = {}
+    for (let i = 0; i < nodes.length; i += 1) {
+      const id = String(nodes[i]?.id || '').trim()
+      if (!id) continue
+      nextHiddenById[id] = id !== sel
+    }
+    setDesignLayerState({ ...prev, hiddenById: nextHiddenById })
+  }, [active, designLayerState, nodes, selectedNodeId, setDesignLayerState])
+
   const move = React.useCallback((id: string, dir: 'up' | 'down') => moveLayer(id, dir), [moveLayer])
 
   const handleSelect = React.useCallback(
@@ -126,6 +168,36 @@ export default function DesignLayersPanel({ active }: { active: boolean }) {
           disabled={!active}
         >
           <Target className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+        </button>
+        <button
+          type="button"
+          className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+          onClick={handleShowAll}
+          title={normalizedQuery ? `${UI_LABELS.showAll} (filtered)` : UI_LABELS.showAll}
+          aria-label={normalizedQuery ? `${UI_LABELS.showAll} (filtered)` : UI_LABELS.showAll}
+          disabled={!active}
+        >
+          <Eye className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+        </button>
+        <button
+          type="button"
+          className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+          onClick={handleHideAll}
+          title={normalizedQuery ? `${UI_LABELS.hideAll} (filtered)` : UI_LABELS.hideAll}
+          aria-label={normalizedQuery ? `${UI_LABELS.hideAll} (filtered)` : UI_LABELS.hideAll}
+          disabled={!active}
+        >
+          <EyeOff className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+        </button>
+        <button
+          type="button"
+          className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+          onClick={handleSoloSelected}
+          title="Solo selected"
+          aria-label="Solo selected"
+          disabled={!active || !selectedNodeId}
+        >
+          <Focus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
         </button>
       </div>
 

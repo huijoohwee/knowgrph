@@ -127,18 +127,19 @@ Per-document frontmatter keys are **optional escape hatches**, not required inpu
 
 When present, they override auto Script/Imgs/Fid for that page only. The recommended default is to omit them so Script/Imgs/Fid stays truly auto and driven by shared rich-media + iframe heuristics.
 
-## DOM Export Bridge (`kg-export-dom`)
+## DOM Export Bridge (`kg-export-dom`) and Layout Snapshots
 
 The proxy-injected layer inside the sandboxed iframe listens for `postMessage` requests of the form:
 
 - `kind`: `kg-export-dom`
 - `id`: request correlation id
-- `mode`: `text | html`
+- `mode`: `text | html | layout`
 - `maxChars`: cap the exported payload
+- `maxElements`: best-effort cap on exported DOM elements (neutral, URL-agnostic)
 - `expandFaq`: best-effort click/expand for accordion-like FAQ sections
 - `scrollCrawl`: best-effort scroll/settle loop to load lazy content and stabilize text
 
-It replies with:
+For `mode ∈ {text, html}` it replies with:
 
 - `kind`: `kg-export-dom`
 - `id`: same id
@@ -146,10 +147,29 @@ It replies with:
 - `title`: best-effort title
 - `clipped`: whether the result was truncated
 
-This bridge powers two native (no headless browser) fidelity upgrades:
+For `mode = layout` it replies with:
 
-- **Sync DOM → Markdown** from the Markdown toolbar by exporting DOM text/HTML.
+- `kind`: `kg-export-dom`
+- `id`: same id
+- `text`: JSON string containing a layout snapshot:
+  - `meta`: `{ title, href, viewport: { w, h }, scroll: { x, y }, ts, diag? }`
+  - `elements`: bounded array of `{ id, pid, tag, rect: { x, y, w, h }, text, attrs, style }` records
+- `title`: best-effort title
+- `clipped`: whether the serialized payload was truncated by `maxChars`
+
+The host DOM-export client (`exportWebpageDomViaHiddenIframe`) is responsible for:
+
+- Choosing **viewport size** and **element cap** in a URL-agnostic way (based on per-doc fidelity level and current window size).
+- Waiting for:
+  - network-idle (`kg-webpage-net` messages with `pending=0` for ≥`networkIdleMs`)
+  - DOM-quiet (`kg-webpage-dom` messages with stable `lastMutAt` for ≥`domQuietMs`)
+- Taking the best snapshot across multiple rounds (bounded by time and minimal score improvements).
+
+This bridge powers three native (no headless browser) fidelity surfaces:
+
+- **Sync DOM → Markdown** from the Markdown toolbar by exporting DOM `text`/`html`.
 - **Import URL fallback** when the initial conversion yields low-quality Markdown for JS-rendered pages.
+- **Webpage layout snapshot (`webpageLayout`)** used by the Design 2D renderer as a neutral, DOM-derived layout SSOT for webpage wireframes.
 
 ## Canvas Preview Sync (External Embedded Preview)
 

@@ -24,6 +24,29 @@ import { normalizeMarkdownAsciiBlocks } from 'grph-shared/markdown/asciiBlocks'
 
 export { slugify } from './markdownJsonLdUtils'
 
+const buildMarkdownPipeTable = (args: { header?: string[]; rows?: string[][] }): string => {
+  const header = (args.header || []).map(s => String(s || '').trim())
+  const rows = (args.rows || []).map(r => (Array.isArray(r) ? r : []).map(s => String(s || '').trim()))
+  const colCount = Math.max(
+    header.length,
+    rows.reduce((m, r) => Math.max(m, r.length), 0),
+  )
+  if (colCount <= 0) return ''
+
+  const pad = (cells: string[]) => {
+    const out = cells.slice(0, colCount)
+    while (out.length < colCount) out.push('')
+    return out
+  }
+
+  const headerRow = header.length ? pad(header) : new Array(colCount).fill('').map((_, i) => `Col ${i + 1}`)
+  const divider = new Array(colCount).fill('---')
+  const body = rows.map(pad)
+
+  const render = (cells: string[]) => `| ${cells.map(c => String(c || '').trim()).join(' | ')} |`
+  return [render(headerRow), render(divider), ...body.map(render)].join('\n')
+}
+
 export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<string, unknown> => {
   const rawText = String(markdownText || '')
   const asciiNormalized = normalizeMarkdownAsciiBlocks(rawText)
@@ -73,8 +96,25 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
 
   const nowIso = new Date().toISOString()
   const sourceUrl = (() => {
-    if (!/^https?:\/\//i.test(normalizedName)) return ''
-    return normalizedName
+    const fromName = /^https?:\/\//i.test(normalizedName) ? normalizedName : ''
+    const fromFrontmatter = (() => {
+      const rec = meta as unknown as Record<string, unknown>
+      const candidates = [
+        typeof rec.kgWebpageUrl === 'string' ? rec.kgWebpageUrl : '',
+        typeof rec.sourceUrl === 'string' ? rec.sourceUrl : '',
+        typeof rec.sourceFile === 'string' ? rec.sourceFile : '',
+        typeof rec['source-file'] === 'string' ? (rec['source-file'] as string) : '',
+      ]
+      for (const c of candidates) {
+        const u = String(c || '').trim()
+        if (/^https?:\/\//i.test(u)) return u
+      }
+      return ''
+    })()
+    const raw = fromName || fromFrontmatter
+    if (!raw) return ''
+    const normalized = normalizeGitHubBlobLikeUrl(raw) || raw
+    return /^https?:\/\//i.test(normalized) ? normalized : ''
   })()
 
   const documentPath = (() => {
@@ -386,7 +426,46 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
 
       if (b.kind === 'table') {
         const id = `blk:${gid}:table:${b.startLine}:${order}`
-        builder.createTableNode(id, `Table ${order}`, (b.text || '').slice(0, 800), { markdown: b.text, order }, mkMeta(b.startLine, b.endLine), parentId)
+        const headerRaw = (b as unknown as { tableHeader?: unknown }).tableHeader
+        const rowsRaw = (b as unknown as { tableRows?: unknown }).tableRows
+        const formatRaw = (b as unknown as { tableFormat?: unknown }).tableFormat
+        const format = typeof formatRaw === 'string' ? String(formatRaw || '').trim().toLowerCase() : ''
+        const header = Array.isArray(headerRaw) ? (headerRaw as unknown[]).map(v => String(v || '').trim()).filter(Boolean) : []
+        const rows = Array.isArray(rowsRaw)
+          ? (rowsRaw as unknown[]).map(r =>
+              Array.isArray(r) ? (r as unknown[]).map(v => String(v || '').trim()) : [],
+            )
+          : []
+        const markdown =
+          format === 'ascii' && (header.length > 0 || rows.length > 0)
+            ? buildMarkdownPipeTable({ header, rows })
+            : String(b.text || '')
+        const cols = Math.max(
+          header.length,
+          rows.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0),
+        )
+        const rowCount = rows.length + (header.length ? 1 : 0)
+        const visualWidth = Math.min(520, Math.max(220, 140 + cols * 120))
+        const visualHeight = Math.min(420, Math.max(160, 120 + rowCount * 34))
+        builder.createTableNode(
+          id,
+          `Table ${order}`,
+          markdown.slice(0, 800),
+          {
+            order,
+            markdown,
+            ...(format === 'ascii' ? { ascii: String(b.text || '') } : {}),
+            ...(header.length ? { 'table:header': header } : {}),
+            ...(rows.length ? { 'table:rows': rows } : {}),
+            ...(cols > 0 ? { 'table:cols': cols } : {}),
+            ...(rowCount > 0 ? { 'table:rowCount': rowCount } : {}),
+            'visual:shape': 'rect',
+            'visual:width': visualWidth,
+            'visual:height': visualHeight,
+          },
+          mkMeta(b.startLine, b.endLine),
+          parentId,
+        )
         
         builder.setNext(lastBlockId, id)
         lastBlockId = id

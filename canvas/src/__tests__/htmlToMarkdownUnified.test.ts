@@ -106,3 +106,54 @@ export async function testHtmlToMarkdownUnifiedParsesFullHtmlDocument() {
   if (res.ok !== true) throw new Error(`expected ok, got error: ${(res as { error?: unknown }).error || ''}`)
   if (!res.markdown.includes('# Source Faithful Heading')) throw new Error('expected h1 conversion from full document html')
 }
+
+export async function testHtmlToMarkdownUnifiedRemovesHeadingPermalinkSvgAnchor() {
+  const url = 'https://www.citriniresearch.com/p/2028gic'
+  const html = [
+    '<h1>',
+    '<strong>Preface</strong>',
+    `<a class="headerlink" href="${url}" aria-label="Permalink">`,
+    '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="24"></svg>',
+    '</a>',
+    '</h1>',
+  ].join('')
+  const res = await convertHtmlToMarkdownUnified({
+    html,
+    baseUrl: url,
+    fidelityLevel: 4,
+    includeImages: true,
+    includeHeadSection: false,
+    maxInputChars: 200_000,
+  })
+  if (res.ok !== true) throw new Error(`expected ok, got error: ${(res as { error?: unknown }).error || ''}`)
+  const md = res.markdown
+  if (!md.includes('# **Preface**')) throw new Error(`expected heading text preserved, got: ${md.slice(0, 200)}`)
+  if (/data:image\/svg\+xml;base64,/i.test(md)) throw new Error('expected heading permalink svg to be removed')
+  if (new RegExp(`\\(${url.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\)`).test(md)) {
+    throw new Error(`expected heading permalink link to be removed, got:\n${md}`)
+  }
+}
+
+export async function testHtmlToMarkdownUnifiedRemovesHeadingHashAnchorIconOnly() {
+  const html = [
+    '<h2 id="preface">',
+    'Preface',
+    '<a href="#preface" class="hash-link" title="Direct link to heading">',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" aria-hidden="true"></svg>',
+    '</a>',
+    '</h2>',
+  ].join('')
+  const res = await convertHtmlToMarkdownUnified({
+    html,
+    baseUrl: 'https://example.invalid/',
+    fidelityLevel: 4,
+    includeImages: true,
+    includeHeadSection: false,
+    maxInputChars: 200_000,
+  })
+  if (res.ok !== true) throw new Error(`expected ok, got error: ${(res as { error?: unknown }).error || ''}`)
+  const md = res.markdown
+  if (!md.includes('## Preface')) throw new Error(`expected heading text preserved, got: ${md.slice(0, 200)}`)
+  if (/data:image\/svg\+xml;base64,/i.test(md)) throw new Error('expected heading hash icon to be removed')
+  if (/\(#preface\)/.test(md)) throw new Error('expected heading hash link to be removed')
+}

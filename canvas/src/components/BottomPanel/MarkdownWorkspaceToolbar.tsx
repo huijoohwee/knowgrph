@@ -61,6 +61,7 @@ export type MarkdownWorkspaceToolbarProps = {
   applyDisabled?: boolean
   onSave?: () => void
   onSaveAs?: () => void
+  onExportWorkspaceFile?: () => void
   onExportMarkdown?: () => void
   onExportJson?: () => void
   onExportJsonLd?: () => void
@@ -97,7 +98,7 @@ export type MarkdownWorkspaceToolbarProps = {
 }
 
 const TOOLBAR_BUTTON_CLASSNAME = `h-7 w-7 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
-const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
+const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx', '.kgw'].join(',')
 
 export function MarkdownWorkspaceToolbar({
   explorerOpen,
@@ -115,6 +116,7 @@ export function MarkdownWorkspaceToolbar({
   applyDisabled,
   onSave,
   onSaveAs,
+  onExportWorkspaceFile,
   onExportMarkdown,
   onExportJson,
   onExportJsonLd,
@@ -145,7 +147,7 @@ export function MarkdownWorkspaceToolbar({
 
   const saveAsWrapRef = React.useRef<HTMLLIElement | null>(null)
   const [saveAsOpen, setSaveAsOpen] = React.useState(false)
-  const canSaveAs = !!(onSaveAs || onExportMarkdown || onExportJson || onExportJsonLd || onExportPdf)
+  const canExport = !!(onSaveAs || onExportWorkspaceFile || onExportMarkdown || onExportJson || onExportJsonLd || onExportPdf)
 
   React.useEffect(() => {
     if (!saveAsOpen) return
@@ -832,10 +834,10 @@ export function MarkdownWorkspaceToolbar({
             <button
               type="button"
               className={TOOLBAR_BUTTON_CLASSNAME}
-              title="Save As"
-              aria-label="Save As"
+              title="Export"
+              aria-label="Export"
               onClick={() => setSaveAsOpen(v => !v)}
-              disabled={!canSaveAs}
+              disabled={!canExport}
             >
               <Copy className="w-4 h-4" strokeWidth={1.6} />
             </button>
@@ -843,7 +845,7 @@ export function MarkdownWorkspaceToolbar({
               <div
                 className={`absolute right-0 top-full mt-1 z-[300] min-w-[220px] rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-lg p-1`}
                 role="menu"
-                aria-label="Save As menu"
+                aria-label="Export menu"
               >
                 {onSaveAs ? (
                   <button
@@ -854,7 +856,19 @@ export function MarkdownWorkspaceToolbar({
                       onSaveAs()
                     }}
                   >
-                    Workspace file
+                    Duplicate in workspace
+                  </button>
+                ) : null}
+                {onExportWorkspaceFile ? (
+                  <button
+                    type="button"
+                    className={`w-full text-left px-2 py-1.5 rounded text-sm ${UI_THEME_TOKENS.button.hoverBg}`}
+                    onClick={() => {
+                      setSaveAsOpen(false)
+                      onExportWorkspaceFile()
+                    }}
+                  >
+                    Workspace file (.kgw)
                   </button>
                 ) : null}
                 {onExportMarkdown ? (
@@ -902,7 +916,7 @@ export function MarkdownWorkspaceToolbar({
                       onExportPdf()
                     }}
                   >
-                    PDF (Print)
+                    PDF (Print…)
                   </button>
                 ) : null}
               </div>

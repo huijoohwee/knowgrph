@@ -27,6 +27,14 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
       '',
       '![](https://example.com/a.png)',
       '',
+      'JPG:',
+      '',
+      '![](https://example.com/a.jpg)',
+      '',
+      'Proxied JPEG:',
+      '',
+      '![](/__fetch_remote?url=https%3A%2F%2Fexample.com%2Fb.jpeg)',
+      '',
       'Autolink PNG:',
       '',
       '<https://substackcdn.com/image/fetch/$s_!kA4x!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0bc01ebb-a883-4e5c-bd2b-fa7aaa872edb_1600x1059.png>',
@@ -86,6 +94,22 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
 
     const imgEls = Array.from(container.querySelectorAll('img')) as HTMLImageElement[]
     const imgSrcs = imgEls.map(el => String(el.getAttribute('src') || ''))
+    const hasJpg = imgSrcs.some(s => /a\.jpg/i.test(decodeURIComponent(s)))
+    if (!hasJpg) {
+      throw new Error(`expected jpg markdown image to render as img, got: ${imgSrcs.join(', ')}`)
+    }
+    const hasProxiedJpeg = imgSrcs.some(s => {
+      const raw = String(s || '')
+      if (!raw.includes('/__fetch_remote?url=')) return false
+      try {
+        return decodeURIComponent(raw).includes('example.com/b.jpeg')
+      } catch {
+        return raw.includes('b.jpeg')
+      }
+    })
+    if (!hasProxiedJpeg) {
+      throw new Error(`expected proxied jpeg markdown image to render as img, got: ${imgSrcs.join(', ')}`)
+    }
     const hasSubstack = imgSrcs.some(s => {
       const raw = String(s || '')
       if (raw.includes('substackcdn.com/image/fetch')) return true

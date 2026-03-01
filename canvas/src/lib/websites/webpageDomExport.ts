@@ -49,6 +49,8 @@ const stableKey = (args: {
   maxElements: number
   scrollCrawl: boolean
   expandFaq: boolean
+  viewportW: number
+  viewportH: number
 }): string => {
   return [
     `mode:${args.mode}`,
@@ -59,6 +61,7 @@ const stableKey = (args: {
     `minAfter:${args.minWaitAfterLoadMs}`,
     `domQuiet:${args.domQuietMs}`,
     `maxEl:${args.maxElements}`,
+    `vp:${args.viewportW}x${args.viewportH}`,
     `scroll:${args.scrollCrawl ? 1 : 0}`,
     `faq:${args.expandFaq ? 1 : 0}`,
   ].join('|')
@@ -75,6 +78,9 @@ export async function exportWebpageDomViaHiddenIframe(args: {
   waitForNetworkIdle?: boolean
   networkIdleMs?: number
   minWaitAfterLoadMs?: number
+  domQuietMs?: number
+  viewportW?: number
+  viewportH?: number
   signal?: AbortSignal
 }): Promise<WebpageDomExportResult | null> {
   const probe = await probeWebpageDomViaHiddenIframe(args)
@@ -92,6 +98,9 @@ export async function probeWebpageDomViaHiddenIframe(args: {
   waitForNetworkIdle?: boolean
   networkIdleMs?: number
   minWaitAfterLoadMs?: number
+  domQuietMs?: number
+  viewportW?: number
+  viewportH?: number
   signal?: AbortSignal
 }): Promise<WebpageDomProbeResult> {
   const url0 = String(args.url || '').trim()
@@ -111,6 +120,18 @@ export async function probeWebpageDomViaHiddenIframe(args: {
   const maxElements = typeof args.maxElements === 'number' && Number.isFinite(args.maxElements) ? Math.floor(args.maxElements) : 0
   const scrollCrawl = !!args.scrollCrawl
   const expandFaq = args.expandFaq !== false
+  const viewportW = (() => {
+    const raw = (args as unknown as { viewportW?: unknown }).viewportW
+    const parsed = typeof raw === 'number' ? raw : Number(raw)
+    if (Number.isFinite(parsed)) return Math.max(360, Math.min(2200, Math.floor(parsed)))
+    return 1200
+  })()
+  const viewportH = (() => {
+    const raw = (args as unknown as { viewportH?: unknown }).viewportH
+    const parsed = typeof raw === 'number' ? raw : Number(raw)
+    if (Number.isFinite(parsed)) return Math.max(280, Math.min(1600, Math.floor(parsed)))
+    return 800
+  })()
 
   const key = stableKey({
     url: url0,
@@ -124,6 +145,8 @@ export async function probeWebpageDomViaHiddenIframe(args: {
     maxElements,
     scrollCrawl,
     expandFaq,
+    viewportW,
+    viewportH,
   })
 
   const existing = INFLIGHT.get(key) || null
@@ -174,6 +197,8 @@ export async function probeWebpageDomViaHiddenIframe(args: {
     networkIdleMs,
     minWaitAfterLoadMs,
     domQuietMs,
+    viewportW,
+    viewportH,
     signal: abortController.signal,
   }).finally(() => {
     INFLIGHT.delete(key)
@@ -218,6 +243,8 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
   networkIdleMs?: number
   minWaitAfterLoadMs?: number
   domQuietMs?: number
+  viewportW?: number
+  viewportH?: number
   signal?: AbortSignal
 }): Promise<WebpageDomProbeResult> {
   const url = String(args.url || '').trim()
@@ -234,6 +261,18 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
     if (Number.isFinite(parsed)) return Math.max(0, Math.min(2500, Math.floor(parsed)))
     return Math.max(160, Math.min(1200, Math.floor(networkIdleMs * 0.75)))
   })()
+  const viewportW = (() => {
+    const raw = (args as unknown as { viewportW?: unknown }).viewportW
+    const parsed = typeof raw === 'number' ? raw : Number(raw)
+    if (Number.isFinite(parsed)) return Math.max(360, Math.min(2200, Math.floor(parsed)))
+    return 1200
+  })()
+  const viewportH = (() => {
+    const raw = (args as unknown as { viewportH?: unknown }).viewportH
+    const parsed = typeof raw === 'number' ? raw : Number(raw)
+    if (Number.isFinite(parsed)) return Math.max(280, Math.min(1600, Math.floor(parsed)))
+    return 800
+  })()
   const signal = args.signal
   if (signal?.aborted) return { ok: false, stage: 'abort', error: 'Aborted' }
 
@@ -242,8 +281,8 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
   iframe.style.position = 'fixed'
   iframe.style.left = '-10000px'
   iframe.style.top = '0'
-  iframe.style.width = '900px'
-  iframe.style.height = '700px'
+  iframe.style.width = `${viewportW}px`
+  iframe.style.height = `${viewportH}px`
   iframe.style.opacity = '0'
   iframe.style.pointerEvents = 'none'
 
@@ -661,7 +700,7 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
         }
       })
       if (signal?.aborted) throw new Error('ABORT')
-      if (minWaitAfterLoadMs > 0) await waitMs(Math.min(minWaitAfterLoadMs, 1200), signal)
+      if (minWaitAfterLoadMs > 0) await waitMs(minWaitAfterLoadMs, signal)
     }
 
     const waitDomQuiet = async (): Promise<void> => {

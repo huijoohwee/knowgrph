@@ -69,6 +69,7 @@ export type MarkdownWorkspaceExplorerProps = {
 function TocTreeItem(props: {
   item: TocItem
   depth: number
+  hn: string
   isExpanded: boolean
   isActive: boolean
   onToggleExpanded: (id: string) => void
@@ -77,7 +78,7 @@ function TocTreeItem(props: {
   uiPanelTextFontClass: string
   uiPanelKeyValueTextSizeClass: string
 }) {
-  const { item, depth, isExpanded, isActive, onToggleExpanded, onSelect, onReorder, uiPanelTextFontClass, uiPanelKeyValueTextSizeClass } = props
+  const { item, depth, hn, isExpanded, isActive, onToggleExpanded, onSelect, onReorder, uiPanelTextFontClass, uiPanelKeyValueTextSizeClass } = props
   const [dragState, setDragState] = React.useState<'none' | 'top' | 'bottom'>('none')
   const [isDragging, setIsDragging] = React.useState(false)
 
@@ -154,6 +155,7 @@ function TocTreeItem(props: {
             <span className="w-3 h-3 shrink-0" aria-hidden="true" />
           )}
           {hasChildren ? <Folder className="w-3 h-3 shrink-0" aria-hidden="true" /> : <FileText className="w-3 h-3 shrink-0" aria-hidden="true" />}
+          <span className={`shrink-0 tabular-nums ${UI_THEME_TOKENS.text.secondary}`}>{hn}</span>
           <span className="truncate">{item.text}</span>
         </button>
 
@@ -303,16 +305,47 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
     [onTocReorder, tocItems],
   )
 
+  const tocHnById = React.useMemo(() => {
+    const map = new Map<string, string>()
+    const walk = (items: TocItem[], path: number[]) => {
+      for (let i = 0; i < items.length; i += 1) {
+        const it = items[i]!
+        const nextPath = path.concat([i + 1])
+        map.set(it.id, nextPath.join('.'))
+        if (it.children && it.children.length > 0) walk(it.children, nextPath)
+      }
+    }
+    walk(tocItems, [])
+    return map
+  }, [tocItems])
+
+  const tocBaseDepth = React.useMemo(() => {
+    let minDepth = Infinity
+    const walk = (items: TocItem[]) => {
+      for (const it of items) {
+        const d = typeof it.depth === 'number' && Number.isFinite(it.depth) ? it.depth : 1
+        minDepth = Math.min(minDepth, Math.max(1, Math.min(6, d)))
+        if (it.children && it.children.length > 0) walk(it.children)
+      }
+    }
+    walk(tocItems)
+    return Number.isFinite(minDepth) ? minDepth : 1
+  }, [tocItems])
+
   const renderTocNode = React.useCallback(
-    (item: TocItem, depth: number): React.ReactNode => {
+    (item: TocItem): React.ReactNode => {
       const isCollapsed = tocCollapsedIds.has(item.id)
       const isExpanded = !isCollapsed
       const hasChildren = item.children.length > 0
+      const itemDepth = typeof item.depth === 'number' && Number.isFinite(item.depth) ? item.depth : 1
+      const visualDepth = Math.max(0, Math.min(6, Math.max(1, itemDepth)) - tocBaseDepth)
+      const hn = tocHnById.get(item.id) || ''
       return (
         <li key={item.id} className="list-none">
           <TocTreeItem
             item={item}
-            depth={depth}
+            depth={visualDepth}
+            hn={hn}
             isExpanded={isExpanded}
             isActive={!!activeTocId && activeTocId === item.id}
             onToggleExpanded={toggleTocExpanded}
@@ -327,7 +360,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
             uiPanelKeyValueTextSizeClass={panelTypography.textSizeClass}
           />
           {hasChildren && isExpanded ? (
-            <ul className="list-none m-0 p-0">{item.children.map(child => renderTocNode(child, depth + 1))}</ul>
+            <ul className="list-none m-0 p-0">{item.children.map(child => renderTocNode(child))}</ul>
           ) : null}
         </li>
       )
@@ -339,6 +372,8 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
       panelTypography.textSizeClass,
       tocCollapsedIds,
       tocLineById,
+      tocBaseDepth,
+      tocHnById,
       toggleTocExpanded,
       uiPanelTextFontClass,
     ],
@@ -573,7 +608,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
               className="min-h-0 overflow-auto"
               aria-label="Table of contents"
             >
-              <ul className="list-none m-0 p-0">{tocItems.map(item => renderTocNode(item, 0))}</ul>
+              <ul className="list-none m-0 p-0">{tocItems.map(item => renderTocNode(item))}</ul>
             </nav>
           )}
         </MarkdownExplorerSection>
