@@ -14,6 +14,7 @@ export function shouldIgnoreCanvasWheelEvent(args: { event: WheelEvent; ignoreSe
     const top = typeof document.elementFromPoint === 'function' ? document.elementFromPoint(clientX, clientY) : null
     if (top && typeof (top as Element).closest === 'function') {
       if ((top as Element).closest(ignoreSelector)) return true
+      return false
     }
 
     const ignoreNodes = document.querySelectorAll(ignoreSelector)
@@ -27,6 +28,7 @@ export function shouldIgnoreCanvasWheelEvent(args: { event: WheelEvent; ignoreSe
         if (styles.visibility === 'hidden') continue
         const opacity = Number.parseFloat(styles.opacity)
         if (Number.isFinite(opacity) && opacity <= 0.01) continue
+        if (styles.pointerEvents === 'none') continue
       } catch {
         void 0
       }

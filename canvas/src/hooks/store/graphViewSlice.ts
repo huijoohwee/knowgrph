@@ -1,7 +1,7 @@
 import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import { LS_KEYS } from '@/lib/config'
-import { lsJson, lsSetJson } from '@/lib/persistence'
+import { lsInt, lsJson, lsSetInt, lsSetJson } from '@/lib/persistence'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -59,38 +59,92 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
     if (prev.length === next.length && prev.every((v, i) => v === next[i])) return
     set({ openQuickEditorNodeIds: next })
   },
-  flowNodeQuickEditorAnchorOffsetByNodeId: {} as Record<string, { dx: number; dy: number }>,
-  setFlowNodeQuickEditorAnchorOffsetByNodeId: (offsets: Record<string, { dx: number; dy: number }>) => {
-    const next = offsets || {}
-    const prev = get().flowNodeQuickEditorAnchorOffsetByNodeId || {}
-    const prevKeys = Object.keys(prev)
-    const nextKeys = Object.keys(next)
-    if (prevKeys.length === nextKeys.length) {
-      let same = true
-      for (let i = 0; i < prevKeys.length; i += 1) {
-        const k = prevKeys[i]
-        const a = prev[k]
-        const b = next[k]
-        if (!b || a.dx !== b.dx || a.dy !== b.dy) {
-          same = false
-          break
+  flowNodeQuickEditorPinnedByNodeId: (() => {
+    const parsed = lsJson<Record<string, boolean>>(
+      LS_KEYS.flowNodeQuickEditorPinnedByNodeId,
+      {},
+      raw => {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+        const out: Record<string, boolean> = {}
+        for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+          const id = String(k || '').trim()
+          if (!id) continue
+          out[id] = !!v
         }
-      }
-      if (same) return
+        return out
+      },
+    )
+
+    const version = lsInt(LS_KEYS.flowNodeQuickEditorPinnedSemanticsVersion, 0)
+    if (version >= 2) return parsed
+
+    const posById = lsJson<Record<string, { top: number; left: number }>>(
+      LS_KEYS.flowNodeQuickEditorPosByNodeId,
+      {},
+      v => (v && typeof v === 'object' ? (v as Record<string, { top: number; left: number }>) : {}),
+    )
+    const worldById = lsJson<Record<string, { x: number; y: number }>>(
+      LS_KEYS.flowNodeQuickEditorWorldPosByNodeId,
+      {},
+      raw => {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+        const out: Record<string, { x: number; y: number }> = {}
+        for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+          const id = String(k || '').trim()
+          if (!id) continue
+          const o = v as { x?: unknown; y?: unknown } | null
+          const x = typeof o?.x === 'number' && Number.isFinite(o.x) ? (o.x as number) : null
+          const y = typeof o?.y === 'number' && Number.isFinite(o.y) ? (o.y as number) : null
+          if (x == null || y == null) continue
+          out[id] = { x, y }
+        }
+        return out
+      },
+    )
+
+    const ids = Object.keys(parsed)
+    if (ids.length === 0) {
+      lsSetInt(LS_KEYS.flowNodeQuickEditorPinnedSemanticsVersion, 2)
+      return parsed
     }
-    set({ flowNodeQuickEditorAnchorOffsetByNodeId: next })
-  },
-  clearFlowNodeQuickEditorAnchorOffsetByNodeId: (rawId: string) => {
-    const id = String(rawId || '').trim()
-    if (!id) return
-    set(state => {
-      const prev = state.flowNodeQuickEditorAnchorOffsetByNodeId || {}
-      if (!prev[id]) return {}
-      const next = { ...prev }
-      delete next[id]
-      return { flowNodeQuickEditorAnchorOffsetByNodeId: next }
-    })
-  },
+
+    let evidence = 0
+    let total = 0
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = ids[i]!
+      const pinned = parsed[id]
+      const fp = posById[id]
+      const wp = worldById[id]
+      const hasFloating =
+        fp != null && typeof fp === 'object' && Number.isFinite((fp as { top?: unknown }).top) && Number.isFinite((fp as { left?: unknown }).left)
+      const hasWorld =
+        wp != null && typeof wp === 'object' && Number.isFinite((wp as { x?: unknown }).x) && Number.isFinite((wp as { y?: unknown }).y)
+      if (!hasFloating && !hasWorld) continue
+      total += 1
+
+      const suggestsInverted =
+        (pinned === true && hasFloating && !hasWorld) ||
+        (pinned === false && hasWorld && !hasFloating)
+      if (suggestsInverted) evidence += 1
+    }
+
+    const shouldInvert = total > 0 && evidence / total >= 0.75
+    if (!shouldInvert) {
+      lsSetInt(LS_KEYS.flowNodeQuickEditorPinnedSemanticsVersion, 2)
+      return parsed
+    }
+
+    const flipped: Record<string, boolean> = {}
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = ids[i]!
+      flipped[id] = !parsed[id]
+    }
+    lsSetJson(LS_KEYS.flowNodeQuickEditorPinnedByNodeId, flipped)
+    lsSetInt(LS_KEYS.flowNodeQuickEditorPinnedSemanticsVersion, 2)
+    return flipped
+  })(),
+  setFlowNodeQuickEditorPinnedByNodeId: (pinnedById: Record<string, boolean>) =>
+    set({ flowNodeQuickEditorPinnedByNodeId: lsSetJson(LS_KEYS.flowNodeQuickEditorPinnedByNodeId, pinnedById || {}) }),
   flowNodeQuickEditorPosByNodeId: lsJson<Record<string, { top: number; left: number }>>(
     LS_KEYS.flowNodeQuickEditorPosByNodeId,
     {},
@@ -98,6 +152,26 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
   ),
   setFlowNodeQuickEditorPosByNodeId: (pos: Record<string, { top: number; left: number }>) =>
     set({ flowNodeQuickEditorPosByNodeId: lsSetJson(LS_KEYS.flowNodeQuickEditorPosByNodeId, pos) }),
+  flowNodeQuickEditorWorldPosByNodeId: lsJson<Record<string, { x: number; y: number }>>(
+    LS_KEYS.flowNodeQuickEditorWorldPosByNodeId,
+    {},
+    raw => {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+      const out: Record<string, { x: number; y: number }> = {}
+      for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+        const id = String(k || '').trim()
+        if (!id) continue
+        const o = v as { x?: unknown; y?: unknown } | null
+        const x = typeof o?.x === 'number' && Number.isFinite(o.x) ? (o.x as number) : null
+        const y = typeof o?.y === 'number' && Number.isFinite(o.y) ? (o.y as number) : null
+        if (x == null || y == null) continue
+        out[id] = { x, y }
+      }
+      return out
+    },
+  ),
+  setFlowNodeQuickEditorWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) =>
+    set({ flowNodeQuickEditorWorldPosByNodeId: lsSetJson(LS_KEYS.flowNodeQuickEditorWorldPosByNodeId, pos || {}) }),
   flowNodeQuickEditorDraggingNodeId: null as string | null,
   setFlowNodeQuickEditorDraggingNodeId: (rawId: string | null) => {
     const id = rawId == null ? null : String(rawId || '').trim()

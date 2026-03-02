@@ -1,12 +1,14 @@
 import * as d3 from 'd3'
 
 import type { FlowHandleId, FlowNodeHandles } from '@/components/FlowCanvas/handles'
+import { parseFlowHandleKey } from '@/components/FlowCanvas/handles'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { computeConvexRing, type Point2d } from '@/lib/geometry/convexRing'
 import { routeFlowEdgeOrtho, type Rect } from '@/components/FlowCanvas/edgeRouting'
 import { computeGroupDepthStyle } from '@/lib/graph/groupDepthStyle'
 import { estimateLabelCharWidthPx, estimateMaxCharsForWidthPx, truncateTextWithEllipsis } from '@/lib/ui/text/labelText'
 import { getKgTokenFallback, getKgThemeFromDom, resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
+import { screenToWorld as screenToWorldViewport } from '@/lib/zoom/viewport'
 
 export type FlowNativeNodeShape = 'circle' | 'rect' | 'diamond' | 'hex'
 
@@ -23,6 +25,8 @@ export type FlowNativeNode = {
   handles: FlowNodeHandles
   inHandleTopPctById: Partial<Record<FlowHandleId, number>>
   outHandleTopPctById: Partial<Record<FlowHandleId, number>>
+  handleColorById?: Partial<Record<FlowHandleId, string>>
+  handleStrokeWidthById?: Partial<Record<FlowHandleId, number>>
 }
 
 export type FlowNativeEdge = {
@@ -32,6 +36,8 @@ export type FlowNativeEdge = {
   inHandleId: FlowHandleId
   outHandleId: FlowHandleId
   label?: string
+  color?: string
+  widthPx?: number
 }
 
 export type FlowNativeScene = {
@@ -313,17 +319,10 @@ export const setFlowNativeScene = (rt: FlowNativeRuntime, scene: FlowNativeScene
   rt.dirty = true
 }
 
-export const screenToWorld = (rt: FlowNativeRuntime, p: { sx: number; sy: number }) => {
-  const k = rt.transform.k || 1
-  const wx = (p.sx - rt.transform.x) / k
-  const wy = (p.sy - rt.transform.y) / k
-  return { x: wx, y: wy }
-}
-
 export const hitTestNode = (rt: FlowNativeRuntime, p: { sx: number; sy: number }): string | null => {
   const scene = rt.scene
   if (!scene) return null
-  const w = screenToWorld(rt, p)
+  const w = screenToWorldViewport({ transform: rt.transform, sx: p.sx, sy: p.sy })
   for (let i = scene.nodes.length - 1; i >= 0; i -= 1) {
     const n = scene.nodes[i]
     if (w.x >= n.x && w.x <= n.x + n.width && w.y >= n.y && w.y <= n.y + n.height) return n.id
@@ -336,7 +335,7 @@ export const hitTestGroup = (rt: FlowNativeRuntime, p: { sx: number; sy: number 
   if (!cfg.enabled) return null
   const scene = rt.scene
   if (!scene?.groups || scene.groups.length === 0) return null
-  const w = screenToWorld(rt, p)
+  const w = screenToWorldViewport({ transform: rt.transform, sx: p.sx, sy: p.sy })
   const padding = Math.max(0, cfg.paddingPx)
   const topExtra = Math.max(0, cfg.labelTopExtraPx)
   const groups = scene.groups
@@ -465,25 +464,35 @@ const drawPortHandles = (rt: FlowNativeRuntime, n: FlowNativeNode) => {
   const k = rt.transform.k || 1
   const rScreen = Math.max(4, cfg.sizePx)
   const offsetScreen = Math.max(0, cfg.offsetPx)
-  const strokeWScreen = Math.max(1, cfg.strokeWidthPx)
+  const strokeWScreenDefault = Math.max(1, cfg.strokeWidthPx)
   const r = rScreen / k
   const offset = offsetScreen / k
-  const strokeW = strokeWScreen / k
 
   const fill = resolveCssVarCached(rt, '--kg-panel-bg', rt.theme.nodeFill)
-  const stroke = rt.theme.nodeStrokeSelected
+  const defaultStroke = rt.theme.nodeStrokeSelected
+  const handleColorById = (n as unknown as { handleColorById?: Partial<Record<FlowHandleId, string>> }).handleColorById || null
+  const handleStrokeWidthById = (n as unknown as { handleStrokeWidthById?: Partial<Record<FlowHandleId, number>> }).handleStrokeWidthById || null
 
   const axisFor = (pct: number, length: number) => (Math.max(0, Math.min(100, pct)) / 100) * length
   const inHandles = n.handles?.in || []
   const outHandles = n.handles?.out || []
 
-  const drawCircle = (x: number, y: number) => {
+  const drawCircle = (x: number, y: number, handleId: FlowHandleId) => {
     ctx.beginPath()
     ctx.arc(x, y, r, 0, Math.PI * 2)
     ctx.fillStyle = fill
     ctx.fill()
-    ctx.lineWidth = strokeW
-    ctx.strokeStyle = stroke
+    const fallbackKey = parseFlowHandleKey(handleId)
+    const strokeWScreen = (() => {
+      const byId = handleStrokeWidthById && handleStrokeWidthById[handleId]
+      const byPortKey = handleStrokeWidthById && (handleStrokeWidthById as unknown as Record<string, number | undefined>)[fallbackKey]
+      const raw = typeof byId === 'number' && Number.isFinite(byId) ? byId : typeof byPortKey === 'number' && Number.isFinite(byPortKey) ? byPortKey : null
+      return raw != null ? Math.max(1, Math.min(12, raw)) : strokeWScreenDefault
+    })()
+    ctx.lineWidth = strokeWScreen / k
+    const byId = (handleColorById && handleColorById[handleId]) || ''
+    const byPortKey = (handleColorById && (handleColorById as unknown as Record<string, string | undefined>)[fallbackKey]) || ''
+    ctx.strokeStyle = byId || byPortKey || defaultStroke
     ctx.stroke()
   }
 
@@ -491,12 +500,12 @@ const drawPortHandles = (rt: FlowNativeRuntime, n: FlowNativeNode) => {
     for (let i = 0; i < inHandles.length; i += 1) {
       const pct = n.inHandleTopPctById[inHandles[i].id] ?? 50
       const y = n.y + axisFor(pct, n.height)
-      drawCircle(n.x - offset, y)
+      drawCircle(n.x - offset, y, inHandles[i].id)
     }
     for (let i = 0; i < outHandles.length; i += 1) {
       const pct = n.outHandleTopPctById[outHandles[i].id] ?? 50
       const y = n.y + axisFor(pct, n.height)
-      drawCircle(n.x + n.width + offset, y)
+      drawCircle(n.x + n.width + offset, y, outHandles[i].id)
     }
     ctx.restore()
     return
@@ -505,12 +514,12 @@ const drawPortHandles = (rt: FlowNativeRuntime, n: FlowNativeNode) => {
   for (let i = 0; i < inHandles.length; i += 1) {
     const pct = n.inHandleTopPctById[inHandles[i].id] ?? 50
     const x = n.x + axisFor(pct, n.width)
-    drawCircle(x, n.y - offset)
+    drawCircle(x, n.y - offset, inHandles[i].id)
   }
   for (let i = 0; i < outHandles.length; i += 1) {
     const pct = n.outHandleTopPctById[outHandles[i].id] ?? 50
     const x = n.x + axisFor(pct, n.width)
-    drawCircle(x, n.y + n.height + offset)
+    drawCircle(x, n.y + n.height + offset, outHandles[i].id)
   }
   ctx.restore()
 }
@@ -529,6 +538,7 @@ const drawEdge = (
   const rankdir = rt.rankdir
   const s = args.source
   const t = args.target
+  const k = rt.transform.k || 1
   const portHandlesEnabled = rt.presentation.portHandles.enabled
   const sPct = portHandlesEnabled ? ((s.outHandleTopPctById[e.outHandleId] ?? 50) as number) : 50
   const tPct = portHandlesEnabled ? ((t.inHandleTopPctById[e.inHandleId] ?? 50) as number) : 50
@@ -574,17 +584,25 @@ const drawEdge = (
     ctx.moveTo(sxx, syy)
     ctx.bezierCurveTo(c1x, c1y, c2x, c2y, txx, tyy)
   }
-  ctx.lineWidth = 1
+  const widthPx = typeof e.widthPx === 'number' && Number.isFinite(e.widthPx) ? Math.max(1, Math.min(12, e.widthPx)) : 1
+  ctx.lineWidth = (args.selected ? Math.max(2, widthPx + 1) : widthPx) / Math.max(1e-6, k)
   ctx.lineJoin = 'round'
-  ctx.strokeStyle = args.selected ? rt.theme.edgeSelected : rt.theme.edge
+  ctx.strokeStyle = args.selected ? rt.theme.edgeSelected : (e.color || rt.theme.edge)
   ctx.stroke()
 }
 
 const buildRoutingObstacles = (rt: FlowNativeRuntime, scene: FlowNativeScene): Rect[] => {
   const obstacles: Rect[] = []
+  const handleExtra = (() => {
+    const cfg = rt.presentation.portHandles
+    if (!cfg.enabled) return 0
+    const size = Number.isFinite(cfg.sizePx) ? Math.max(0, cfg.sizePx) : 0
+    const offset = Number.isFinite(cfg.offsetPx) ? Math.max(0, cfg.offsetPx) : 0
+    return (size + offset) / Math.max(1e-6, rt.transform.k || 1)
+  })()
   for (let i = 0; i < scene.nodes.length; i += 1) {
     const n = scene.nodes[i]
-    obstacles.push({ x: n.x, y: n.y, w: n.width, h: n.height })
+    obstacles.push({ x: n.x - handleExtra, y: n.y - handleExtra, w: n.width + handleExtra * 2, h: n.height + handleExtra * 2 })
   }
 
   const gCfg = rt.presentation.groups
@@ -735,7 +753,7 @@ const drawEdgeLabels = (rt: FlowNativeRuntime, args: { selectedEdgeIds: Set<stri
 
   const labelFill = resolveCssVarCached(rt, '--kg-canvas-label-fill', rt.theme.text)
   const pillBg = resolveCssVarCached(rt, '--kg-panel-bg', rt.theme.bg)
-  const pillStroke = resolveCssVarCached(rt, '--kg-border-subtle', rt.theme.edge)
+  const pillStrokeDefault = resolveCssVarCached(rt, '--kg-border-subtle', rt.theme.edge)
 
   const offsets = [
     { dx: 0, dy: 0 },
@@ -825,7 +843,7 @@ const drawEdgeLabels = (rt: FlowNativeRuntime, args: { selectedEdgeIds: Set<stri
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = pillBg
-    ctx.strokeStyle = pillStroke
+    ctx.strokeStyle = args.selectedEdgeIds.has(e.id) ? rt.theme.edgeSelected : (e.color || pillStrokeDefault)
     ctx.globalAlpha = args.selectedEdgeIds.has(e.id) ? 0.98 : 0.9
     ctx.lineWidth = 1 / Math.max(1e-6, k)
     ctx.beginPath()

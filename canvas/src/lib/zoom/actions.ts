@@ -222,7 +222,12 @@ export function computeZoomTransformFromRequest(
 
   if (type === 'out') {
     const fitT = computeFitAll('fitToView')
-    const autoMinScale = fitT ? Math.min(extent.minK, fitT.k) : extent.minK
+    const autoMinScale = (() => {
+      const kFit = typeof fitT?.k === 'number' && Number.isFinite(fitT.k) ? fitT.k : null
+      if (kFit == null || kFit <= 0) return extent.minK
+      const kCur = typeof ctx.currentTransform?.k === 'number' && Number.isFinite(ctx.currentTransform.k) ? ctx.currentTransform.k : extent.minK
+      return Math.min(kCur, kFit)
+    })()
     const toolbarFactorRaw = ctx.toolbarZoom?.scaleFactor
     const toolbarFactor = typeof toolbarFactorRaw === 'number' && Number.isFinite(toolbarFactorRaw) && toolbarFactorRaw > 1
       ? toolbarFactorRaw
@@ -233,6 +238,27 @@ export function computeZoomTransformFromRequest(
       : stepPolicy.enabled
         ? pickNextZoomStep({ dir: 'out', currentK: ctx.currentTransform.k, steps: stepPolicy.steps, minK: autoMinScale, maxK: extent.maxK })
         : clampScale(ctx.currentTransform.k / 1.2, { minK: autoMinScale, maxK: extent.maxK })
+    if (fitT && typeof fitT.k === 'number' && Number.isFinite(fitT.k) && fitT.k > 0) {
+      const kCur = typeof ctx.currentTransform?.k === 'number' && Number.isFinite(ctx.currentTransform.k) ? ctx.currentTransform.k : extent.minK
+      const kFit = fitT.k
+      const wantsFit = k2 <= autoMinScale + 1e-9
+      if (wantsFit) {
+        if (kCur < kFit - 1e-9) {
+          const cx = (w / 2 - fitT.x) / kFit
+          const cy = (h / 2 - fitT.y) / kFit
+          return {
+            nextTransform: d3.zoomIdentity.translate(w / 2 - kCur * cx, h / 2 - kCur * cy).scale(kCur),
+            durationMs: readDurationMs(ctx.durations?.inOutMs ?? ctx.toolbarZoom?.durationMs, 200),
+            nextMinScale: autoMinScale,
+          }
+        }
+        return {
+          nextTransform: fitT,
+          durationMs: readDurationMs(ctx.durations?.inOutMs ?? ctx.toolbarZoom?.durationMs, 200),
+          nextMinScale: autoMinScale,
+        }
+      }
+    }
     const scaled = computeTransformScaleAboutViewportCenter({
       transform: ctx.currentTransform,
       viewportW: w,

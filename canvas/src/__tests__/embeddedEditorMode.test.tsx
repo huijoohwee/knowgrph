@@ -58,6 +58,8 @@ export async function testEmbeddedEditorShellRendersMarkdownWorkspace() {
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
   try {
+    useGraphStore.getState().resetAll()
+
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
 

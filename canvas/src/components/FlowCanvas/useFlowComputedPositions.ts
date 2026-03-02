@@ -21,6 +21,7 @@ export function useFlowComputedPositions(args: {
   graphDataRevision: number
   layoutMode: string
   layoutVariant: string
+  flowEditorMode?: boolean
   documentSemanticMode: string
   effectiveFrontmatter: boolean
   layoutViewKey: string
@@ -42,6 +43,7 @@ export function useFlowComputedPositions(args: {
     graphDataRevision,
     layoutMode,
     layoutVariant,
+    flowEditorMode,
     documentSemanticMode,
     effectiveFrontmatter,
     layoutViewKey,
@@ -186,6 +188,12 @@ export function useFlowComputedPositions(args: {
                     edges: edgeList.map(e => ({ source: String((e as { source?: unknown }).source), target: String((e as { target?: unknown }).target) })),
                     rankdir,
                     nodeSize: { widthPx: flowConfig.node.widthPx, heightPx: flowConfig.node.heightPx },
+                    spacingPx: flowEditorMode === true
+                      ? {
+                          nodesep: Math.max(14, Math.min(90, Math.round(flowConfig.node.widthPx * 0.12))),
+                          ranksep: Math.max(22, Math.min(140, Math.round(flowConfig.node.heightPx * 1.15))),
+                        }
+                      : undefined,
                   })
 
                 const grid = () =>
@@ -275,10 +283,25 @@ export function useFlowComputedPositions(args: {
               positions: relaxed,
               nodeSize: { widthPx: nodeW, heightPx: nodeH },
               groups: sceneGroups,
-              paddingPx: semanticMode === 'document' ? 120 : 80,
+              paddingPx: (() => {
+                const flow = schema?.layout?.flow
+                const pack = flow && typeof flow === 'object' ? (flow as { pack?: { paddingPxDocument?: unknown; paddingPxKeyword?: unknown } }).pack : null
+                const rawDoc = pack ? pack.paddingPxDocument : null
+                const rawKey = pack ? pack.paddingPxKeyword : null
+                const doc = typeof rawDoc === 'number' && Number.isFinite(rawDoc) ? rawDoc : 80
+                const keyword = typeof rawKey === 'number' && Number.isFinite(rawKey) ? rawKey : 64
+                const base = semanticMode === 'document' ? doc : keyword
+                const basePx = Math.max(0, Math.min(240, Math.floor(base)))
+                if (flowEditorMode !== true) return basePx
+                const nodeMin = Math.max(1, Math.min(nodeW, nodeH))
+                const cap = Math.max(28, Math.min(96, Math.floor(24 + nodeMin * 0.35)))
+                return Math.max(0, Math.min(basePx, cap))
+              })(),
               targetAspect: (() => {
                 const raw = schema?.layout?.fitTargetAspectRatio
-                return typeof raw === 'number' && Number.isFinite(raw) && raw > 0.05 ? raw : 16 / 9
+                const base = typeof raw === 'number' && Number.isFinite(raw) && raw > 0.05 ? raw : 16 / 9
+                if (flowEditorMode !== true) return base
+                return Math.max(0.8, Math.min(1.6, base))
               })(),
             })
           : relaxed
@@ -306,10 +329,12 @@ export function useFlowComputedPositions(args: {
     active,
     cacheKey,
     datasetKey,
+    flowEditorMode,
     documentSemanticMode,
     effectiveFrontmatter,
     flowConfig,
     flowPresentation,
+    graphDataRevision,
     layoutMode,
     layoutPositionsForMode,
     layoutVariant,

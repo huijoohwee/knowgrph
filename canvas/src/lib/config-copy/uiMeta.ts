@@ -215,8 +215,8 @@ export const UI_LABELS = {
   openInSidepane: 'Open in sidepane',
   enableHandlesForAllInputs: 'Enable Handles for All Inputs',
   convertToLoopNode: 'Convert to Loop Node',
-  pinPanel: 'Pin panel',
-  unpinPanel: 'Unpin panel',
+  pinPanel: 'Pin',
+  unpinPanel: 'Unpin',
   minimizePanel: 'Minimize panel',
   restorePanel: 'Restore panel',
 } as const;

@@ -1,7 +1,9 @@
 export const FLOW_EDITOR_OVERLAY_ROOT_SELECTOR = '[data-kg-node-quick-editor]'
 
 export const FLOW_EDITOR_OVERLAY_INTERACTIVE_SELECTOR =
-  'input,textarea,select,button,[role="textbox"],[contenteditable="true"]'
+  'input,textarea,select,button,a,[role="textbox"],[role="button"],[contenteditable="true"]'
+
+export const FLOW_EDITOR_INTERACTION_FRAME_EVENT = 'kg-flow-editor-interaction-frame'
 
 export type FlowEditorOverlayProxyTarget =
   | { kind: 'none' }

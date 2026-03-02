@@ -254,7 +254,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
         {variant === 'workspace' ? (
           <>
             {layout === 'full' ? <LaunchSpotlight /> : null}
-            {!geospatialModeEnabled && canvasRenderMode === '2d' && canvas2dRenderer === 'd3' ? (
+            {!geospatialModeEnabled && canvasRenderMode === '2d' && (canvas2dRenderer === 'd3' || canvas2dRenderer === 'flow' || canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'design') ? (
               <aside
                 className={`${layout === 'pane' ? 'absolute' : 'fixed'} left-3 z-[201] pointer-events-auto`}
                 style={layout === 'pane' ? undefined : { bottom: 'calc(40px + 12px)' }}

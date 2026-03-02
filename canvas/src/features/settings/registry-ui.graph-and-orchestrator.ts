@@ -465,6 +465,216 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     default: () => 10,
   },
   {
+    key: 'schema.layout.flow.pack.paddingPxDocument',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      const raw =
+        schema.layout?.flow && typeof schema.layout.flow === 'object'
+          ? (schema.layout.flow as { pack?: { paddingPxDocument?: unknown } }).pack?.paddingPxDocument
+          : undefined
+      return typeof raw === 'number' && Number.isFinite(raw) ? raw : 80
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0, Math.min(240, Math.floor(next))) : 80
+      const current = s().schema
+      const layout = current.layout || {}
+      const flow = layout.flow || {}
+      const pack = (flow as { pack?: Record<string, unknown> }).pack || {}
+      s().setSchema({
+        ...current,
+        layout: {
+          ...layout,
+          flow: { ...flow, pack: { ...pack, paddingPxDocument: clamped } },
+        },
+      })
+    },
+    docKey: 'schema.layout.flow.pack.paddingPxDocument',
+    default: () => 80,
+  },
+  {
+    key: 'schema.layout.flow.pack.paddingPxKeyword',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      const raw =
+        schema.layout?.flow && typeof schema.layout.flow === 'object'
+          ? (schema.layout.flow as { pack?: { paddingPxKeyword?: unknown } }).pack?.paddingPxKeyword
+          : undefined
+      return typeof raw === 'number' && Number.isFinite(raw) ? raw : 64
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0, Math.min(240, Math.floor(next))) : 64
+      const current = s().schema
+      const layout = current.layout || {}
+      const flow = layout.flow || {}
+      const pack = (flow as { pack?: Record<string, unknown> }).pack || {}
+      s().setSchema({
+        ...current,
+        layout: {
+          ...layout,
+          flow: { ...flow, pack: { ...pack, paddingPxKeyword: clamped } },
+        },
+      })
+    },
+    docKey: 'schema.layout.flow.pack.paddingPxKeyword',
+    default: () => 64,
+  },
+  {
+    key: 'schema.layout.flow.collisionCaps.nodePaddingXMax',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      const raw =
+        schema.layout?.flow && typeof schema.layout.flow === 'object'
+          ? (schema.layout.flow as { collisionCaps?: { nodePaddingXMax?: unknown } }).collisionCaps?.nodePaddingXMax
+          : undefined
+      return typeof raw === 'number' && Number.isFinite(raw) ? raw : 48
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0, Math.min(160, Math.floor(next))) : 48
+      const current = s().schema
+      const layout = current.layout || {}
+      const flow = layout.flow || {}
+      const collisionCaps = (flow as { collisionCaps?: Record<string, unknown> }).collisionCaps || {}
+      s().setSchema({
+        ...current,
+        layout: {
+          ...layout,
+          flow: { ...flow, collisionCaps: { ...collisionCaps, nodePaddingXMax: clamped } },
+        },
+      })
+    },
+    docKey: 'schema.layout.flow.collisionCaps.nodePaddingXMax',
+    default: () => 48,
+  },
+  {
+    key: 'schema.layout.flow.collisionCaps.nodePaddingYMax',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      const raw =
+        schema.layout?.flow && typeof schema.layout.flow === 'object'
+          ? (schema.layout.flow as { collisionCaps?: { nodePaddingYMax?: unknown } }).collisionCaps?.nodePaddingYMax
+          : undefined
+      return typeof raw === 'number' && Number.isFinite(raw) ? raw : 36
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0, Math.min(160, Math.floor(next))) : 36
+      const current = s().schema
+      const layout = current.layout || {}
+      const flow = layout.flow || {}
+      const collisionCaps = (flow as { collisionCaps?: Record<string, unknown> }).collisionCaps || {}
+      s().setSchema({
+        ...current,
+        layout: {
+          ...layout,
+          flow: { ...flow, collisionCaps: { ...collisionCaps, nodePaddingYMax: clamped } },
+        },
+      })
+    },
+    docKey: 'schema.layout.flow.collisionCaps.nodePaddingYMax',
+    default: () => 36,
+  },
+  {
+    key: 'schema.layout.flow.collisionCaps.groupExtraGapPxMax',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      const raw =
+        schema.layout?.flow && typeof schema.layout.flow === 'object'
+          ? (schema.layout.flow as { collisionCaps?: { groupExtraGapPxMax?: unknown } }).collisionCaps?.groupExtraGapPxMax
+          : undefined
+      return typeof raw === 'number' && Number.isFinite(raw) ? raw : 48
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0, Math.min(240, Math.floor(next))) : 48
+      const current = s().schema
+      const layout = current.layout || {}
+      const flow = layout.flow || {}
+      const collisionCaps = (flow as { collisionCaps?: Record<string, unknown> }).collisionCaps || {}
+      s().setSchema({
+        ...current,
+        layout: {
+          ...layout,
+          flow: { ...flow, collisionCaps: { ...collisionCaps, groupExtraGapPxMax: clamped } },
+        },
+      })
+    },
+    docKey: 'schema.layout.flow.collisionCaps.groupExtraGapPxMax',
+    default: () => 48,
+  },
+  {
+    key: 'schema.layout.flow.collisionCaps.maxShiftPx',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      const raw =
+        schema.layout?.flow && typeof schema.layout.flow === 'object'
+          ? (schema.layout.flow as { collisionCaps?: { maxShiftPx?: unknown } }).collisionCaps?.maxShiftPx
+          : undefined
+      return typeof raw === 'number' && Number.isFinite(raw) ? raw : 220
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(40, Math.min(800, Math.floor(next))) : 220
+      const current = s().schema
+      const layout = current.layout || {}
+      const flow = layout.flow || {}
+      const collisionCaps = (flow as { collisionCaps?: Record<string, unknown> }).collisionCaps || {}
+      s().setSchema({
+        ...current,
+        layout: {
+          ...layout,
+          flow: { ...flow, collisionCaps: { ...collisionCaps, maxShiftPx: clamped } },
+        },
+      })
+    },
+    docKey: 'schema.layout.flow.collisionCaps.maxShiftPx',
+    default: () => 220,
+  },
+  {
+    key: 'schema.layout.flow.overlay.collisionGapPx',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      const raw =
+        schema.layout?.flow && typeof schema.layout.flow === 'object'
+          ? (schema.layout.flow as { overlay?: { collisionGapPx?: unknown } }).overlay?.collisionGapPx
+          : undefined
+      return typeof raw === 'number' && Number.isFinite(raw) ? raw : 12
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0, Math.min(40, Math.floor(next))) : 12
+      const current = s().schema
+      const layout = current.layout || {}
+      const flow = layout.flow || {}
+      const overlay = (flow as { overlay?: Record<string, unknown> }).overlay || {}
+      s().setSchema({
+        ...current,
+        layout: {
+          ...layout,
+          flow: { ...flow, overlay: { ...overlay, collisionGapPx: clamped } },
+        },
+      })
+    },
+    docKey: 'schema.layout.flow.overlay.collisionGapPx',
+    default: () => 12,
+  },
+  {
     key: 'schema.layout.edges.opacity',
     type: 'number',
     source: 'store',

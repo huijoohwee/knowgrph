@@ -16,11 +16,16 @@ export function buildDagreLayout(args: {
   edges: ReadonlyArray<{ source: string; target: string }>
   rankdir: 'TB' | 'LR'
   nodeSize?: { widthPx: number; heightPx: number }
+  spacingPx?: { nodesep?: number; ranksep?: number }
 }): Record<string, { x: number; y: number }> {
   const widthPx = Math.max(1, Math.floor(args.nodeSize?.widthPx ?? 180))
   const heightPx = Math.max(1, Math.floor(args.nodeSize?.heightPx ?? 48))
+  const nodesepRaw = args.spacingPx?.nodesep
+  const ranksepRaw = args.spacingPx?.ranksep
+  const nodesep = typeof nodesepRaw === 'number' && Number.isFinite(nodesepRaw) ? Math.max(0, Math.floor(nodesepRaw)) : undefined
+  const ranksep = typeof ranksepRaw === 'number' && Number.isFinite(ranksepRaw) ? Math.max(0, Math.floor(ranksepRaw)) : undefined
   const g = new dagre.graphlib.Graph()
-  g.setGraph({ rankdir: args.rankdir })
+  g.setGraph({ rankdir: args.rankdir, ...(nodesep != null ? { nodesep } : {}), ...(ranksep != null ? { ranksep } : {}) })
   g.setDefaultEdgeLabel(() => ({}))
 
   for (let i = 0; i < args.nodes.length; i += 1) {

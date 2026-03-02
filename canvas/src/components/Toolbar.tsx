@@ -195,7 +195,25 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   }, [])
 
   return (
-    <nav className="Island App-toolbar App-toolbar--compact w-fit" role="navigation" aria-label="Main Toolbar" data-kg-canvas-wheel-ignore="true">
+    <nav
+      className="Island App-toolbar App-toolbar--compact w-fit"
+      role="navigation"
+      aria-label="Main Toolbar"
+      data-kg-canvas-wheel-ignore="true"
+      onWheelCapture={e => {
+        if (e.ctrlKey !== true && e.metaKey !== true) return
+        try {
+          e.preventDefault()
+        } catch {
+          void 0
+        }
+        try {
+          e.stopPropagation()
+        } catch {
+          void 0
+        }
+      }}
+    >
       <ToolbarMenuLauncher onOpenMainPanel={openMainPanel} />
 
       <IconButton

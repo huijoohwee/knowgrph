@@ -43,8 +43,26 @@ export function relaxFlowPositionsWithCollision(args: {
     const offset = Number.isFinite(ph.offsetPx) ? Math.max(0, ph.offsetPx) : 0
     return size + offset
   })()
-  const width = Math.max(1, Math.floor(args.nodeSize.widthPx + handleExtra * 2))
-  const height = Math.max(1, Math.floor(args.nodeSize.heightPx + handleExtra * 2))
+  const defaultWidth = Math.max(1, Math.floor(args.nodeSize.widthPx))
+  const defaultHeight = Math.max(1, Math.floor(args.nodeSize.heightPx))
+  const sizeById = new Map<string, { w: number; h: number }>()
+  let maxW = Math.max(1, Math.floor(defaultWidth + handleExtra * 2))
+  let maxH = Math.max(1, Math.floor(defaultHeight + handleExtra * 2))
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]
+    const id = String(n?.id || '').trim()
+    if (!id) continue
+    const props = (n.properties || {}) as Record<string, unknown>
+    const w0 = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? (props['visual:width'] as number) : null
+    const h0 = typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? (props['visual:height'] as number) : null
+    const baseW = w0 != null && w0 > 0 ? Math.max(24, Math.min(1400, Math.floor(w0))) : defaultWidth
+    const baseH = h0 != null && h0 > 0 ? Math.max(16, Math.min(900, Math.floor(h0))) : defaultHeight
+    const w = Math.max(1, Math.floor(baseW + handleExtra * 2))
+    const h = Math.max(1, Math.floor(baseH + handleExtra * 2))
+    sizeById.set(id, { w, h })
+    maxW = Math.max(maxW, w)
+    maxH = Math.max(maxH, h)
+  }
 
   const dupCounts = new Map<string, number>()
   for (let i = 0; i < nodes.length; i += 1) {
@@ -78,17 +96,18 @@ export function relaxFlowPositionsWithCollision(args: {
     const needsJitter = (dupCounts.get(key) || 0) > 1
     const jitter = needsJitter ? jitterFor(id) : { dx: 0, dy: 0 }
     const baseProps = (n.properties || {}) as Record<string, unknown>
+    const sz = sizeById.get(id) || { w: maxW, h: maxH }
     const properties = {
       ...baseProps,
-      'visual:width': width,
-      'visual:height': height,
+      'visual:width': sz.w,
+      'visual:height': sz.h,
       'visual:shape': 'rect',
     }
     const zInfo = readExplicitZ(n)
     proxyNodes.push({
       ...n,
-      x: p.x + width / 2 + jitter.dx,
-      y: p.y + height / 2 + jitter.dy,
+      x: p.x + sz.w / 2 + jitter.dx,
+      y: p.y + sz.h / 2 + jitter.dy,
       ...(zInfo.hasZ ? { z: zInfo.z } : {}),
       hasExplicitZ: zInfo.hasZ,
       vx: 0,
@@ -104,8 +123,41 @@ export function relaxFlowPositionsWithCollision(args: {
   if (steps <= 0) return positions
   const maxOps = 40_000
 
-  const collision = readCollisionConfig(schema)
-  if (!collision.nodeBbox.enabled && !collision.groupBbox.enabled) return positions
+  const collision0 = readCollisionConfig(schema)
+  if (!collision0.nodeBbox.enabled && !collision0.groupBbox.enabled) return positions
+  const caps = (() => {
+    const flow = schema.layout?.flow
+    if (!flow || typeof flow !== 'object') return null
+    const raw = (flow as { collisionCaps?: unknown }).collisionCaps
+    return raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null
+  })()
+  const nodePaddingXMaxRaw = caps && typeof caps.nodePaddingXMax === 'number' && Number.isFinite(caps.nodePaddingXMax) ? (caps.nodePaddingXMax as number) : 48
+  const nodePaddingYMaxRaw = caps && typeof caps.nodePaddingYMax === 'number' && Number.isFinite(caps.nodePaddingYMax) ? (caps.nodePaddingYMax as number) : 36
+  const groupPaddingXMaxRaw = caps && typeof caps.groupPaddingXMax === 'number' && Number.isFinite(caps.groupPaddingXMax) ? (caps.groupPaddingXMax as number) : 48
+  const groupPaddingYMaxRaw = caps && typeof caps.groupPaddingYMax === 'number' && Number.isFinite(caps.groupPaddingYMax) ? (caps.groupPaddingYMax as number) : 36
+  const groupExtraGapPxMaxRaw =
+    caps && typeof caps.groupExtraGapPxMax === 'number' && Number.isFinite(caps.groupExtraGapPxMax) ? (caps.groupExtraGapPxMax as number) : 48
+  const maxShiftCapRaw = caps && typeof caps.maxShiftPx === 'number' && Number.isFinite(caps.maxShiftPx) ? (caps.maxShiftPx as number) : 220
+  const nodePaddingXMax = Math.max(0, Math.min(160, Math.floor(nodePaddingXMaxRaw)))
+  const nodePaddingYMax = Math.max(0, Math.min(160, Math.floor(nodePaddingYMaxRaw)))
+  const groupPaddingXMax = Math.max(0, Math.min(160, Math.floor(groupPaddingXMaxRaw)))
+  const groupPaddingYMax = Math.max(0, Math.min(160, Math.floor(groupPaddingYMaxRaw)))
+  const groupExtraGapPxMax = Math.max(0, Math.min(240, Math.floor(groupExtraGapPxMaxRaw)))
+  const maxShiftCap = Math.max(40, Math.min(800, Math.floor(maxShiftCapRaw)))
+  const collision = {
+    ...collision0,
+    nodeBbox: {
+      ...collision0.nodeBbox,
+      paddingX: Math.min(collision0.nodeBbox.paddingX, nodePaddingXMax),
+      paddingY: Math.min(collision0.nodeBbox.paddingY, nodePaddingYMax),
+    },
+    groupBbox: {
+      ...collision0.groupBbox,
+      paddingX: Math.min(collision0.groupBbox.paddingX, groupPaddingXMax),
+      paddingY: Math.min(collision0.groupBbox.paddingY, groupPaddingYMax),
+      extraGapPx: Math.min(collision0.groupBbox.extraGapPx, groupExtraGapPxMax),
+    },
+  }
   let seed = 2166136261
   for (let i = 0; i < proxyNodes.length; i += 1) {
     const id = String(proxyNodes[i].id || '')
@@ -172,7 +224,7 @@ export function relaxFlowPositionsWithCollision(args: {
     collision.groupBbox.paddingX,
     collision.groupBbox.paddingY,
   )
-  const maxShift = Math.max(20, Math.min(220, 20 + Math.max(width, height) * 0.35 + maxPad * 0.85))
+  const maxShift = Math.max(20, Math.min(maxShiftCap, 20 + Math.max(maxW, maxH) * 0.35 + maxPad * 0.85))
   const pullToBase = (alpha: number) => {
     const strength = 0.06 * alpha
     if (strength <= 0) return
@@ -215,7 +267,8 @@ export function relaxFlowPositionsWithCollision(args: {
     const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
     const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
     if (x == null || y == null) continue
-    next[id] = { x: x - width / 2, y: y - height / 2 }
+    const sz = sizeById.get(id) || { w: maxW, h: maxH }
+    next[id] = { x: x - sz.w / 2, y: y - sz.h / 2 }
   }
   return next
 }

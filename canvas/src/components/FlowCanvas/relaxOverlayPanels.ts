@@ -24,6 +24,9 @@ export function relaxOverlayPanelsWithCollision(args: {
   strength: number
   iterations: number
   steps: number
+  anchorStrength?: number
+  maxAnchorShiftPx?: number
+  maxSpeedPxPerStep?: number
 }): Array<{ id: string; left: number; top: number }> {
   const stableSeedFromIds = (ids: string[]): number => {
     let seed = 2166136261
@@ -51,8 +54,18 @@ export function relaxOverlayPanelsWithCollision(args: {
   const strength = Number.isFinite(args.strength) ? Math.max(0, args.strength) : 0.9
   const iterations = Number.isFinite(args.iterations) ? Math.max(1, Math.floor(args.iterations)) : 10
   const steps = Number.isFinite(args.steps) ? Math.max(1, Math.floor(args.steps)) : 12
+  const anchorStrength = Number.isFinite(args.anchorStrength) ? Math.max(0, args.anchorStrength as number) : 0.06
+  const maxAnchorShiftPx = (() => {
+    const raw = args.maxAnchorShiftPx
+    if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return Math.max(40, raw)
+    const n = Math.max(1, args.items.length)
+    const base = 60 + gapPx * 3.5
+    return Math.max(80, Math.min(520, Math.sqrt(n) * base))
+  })()
+  const maxSpeedPxPerStep = Number.isFinite(args.maxSpeedPxPerStep) ? Math.max(0, args.maxSpeedPxPerStep as number) : 220
 
   const proxyNodes: Array<GraphNode & { vx?: number; vy?: number; fx?: number; fy?: number }> = []
+  const anchorsById = new Map<string, { x: number; y: number }>()
   for (let i = 0; i < args.items.length; i += 1) {
     const it = args.items[i]
     const id = String(it?.id || '').trim()
@@ -63,6 +76,7 @@ export function relaxOverlayPanelsWithCollision(args: {
     const top = Number.isFinite(it.top) ? it.top : 0
     const cx = left + width * 0.5
     const cy = top + height * 0.5
+    anchorsById.set(id, { x: cx, y: cy })
     proxyNodes.push({
       id,
       type: 'OverlayPanel',
@@ -123,14 +137,186 @@ export function relaxOverlayPanelsWithCollision(args: {
   const seed = stableSeedFromIds(proxyNodes.map(n => String(n.id || '')).sort((a, b) => a.localeCompare(b)))
   force.initialize(proxyNodes, mulberry32(seed))
   const applyForce = force as unknown as (alpha: number) => void
+  const applyAnchor = (alpha: number) => {
+    if (!(anchorStrength > 0) || !(alpha > 0)) return
+    for (let i = 0; i < proxyNodes.length; i += 1) {
+      const n = proxyNodes[i]
+      const id = String(n.id || '')
+      if (!id || id.startsWith('__obstacle__:')) continue
+      const fx = (n as unknown as { fx?: unknown }).fx
+      const fy = (n as unknown as { fy?: unknown }).fy
+      if (typeof fx === 'number' && Number.isFinite(fx)) continue
+      if (typeof fy === 'number' && Number.isFinite(fy)) continue
+      const a = anchorsById.get(id)
+      if (!a) continue
+      const nx = typeof n.x === 'number' && Number.isFinite(n.x) ? (n.x as number) : a.x
+      const ny = typeof n.y === 'number' && Number.isFinite(n.y) ? (n.y as number) : a.y
+      const vx0 = typeof (n as unknown as { vx?: unknown }).vx === 'number' && Number.isFinite((n as unknown as { vx: number }).vx)
+        ? (n as unknown as { vx: number }).vx
+        : 0
+      const vy0 = typeof (n as unknown as { vy?: unknown }).vy === 'number' && Number.isFinite((n as unknown as { vy: number }).vy)
+        ? (n as unknown as { vy: number }).vy
+        : 0
+      const vx = vx0 + (a.x - nx) * anchorStrength * alpha
+      const vy = vy0 + (a.y - ny) * anchorStrength * alpha
+      if (maxSpeedPxPerStep > 0) {
+        const mag = Math.hypot(vx, vy)
+        if (mag > maxSpeedPxPerStep) {
+          const s = maxSpeedPxPerStep / Math.max(1e-9, mag)
+          ;(n as unknown as { vx: number }).vx = vx * s
+          ;(n as unknown as { vy: number }).vy = vy * s
+          continue
+        }
+      }
+      ;(n as unknown as { vx: number }).vx = vx
+      ;(n as unknown as { vy: number }).vy = vy
+    }
+  }
 
   runRelaxSteps({
     nodes: proxyNodes,
     steps,
-    forces: [applyForce],
+    forces: [applyForce, applyAnchor],
     maxOps: 40_000,
-    integrate: node => integrateNodePositionWithVelocity(node, { damping: 0.25 }),
+    integrate: node => {
+      integrateNodePositionWithVelocity(node, { damping: 0.25 })
+      const id = String((node as unknown as { id?: unknown }).id || '')
+      if (!id || id.startsWith('__obstacle__:')) return
+      const fx = (node as unknown as { fx?: unknown }).fx
+      const fy = (node as unknown as { fy?: unknown }).fy
+      if (typeof fx === 'number' && Number.isFinite(fx)) return
+      if (typeof fy === 'number' && Number.isFinite(fy)) return
+      const a = anchorsById.get(id)
+      if (!a) return
+      const nx = typeof (node as unknown as { x?: unknown }).x === 'number' && Number.isFinite((node as unknown as { x: number }).x)
+        ? (node as unknown as { x: number }).x
+        : a.x
+      const ny = typeof (node as unknown as { y?: unknown }).y === 'number' && Number.isFinite((node as unknown as { y: number }).y)
+        ? (node as unknown as { y: number }).y
+        : a.y
+      const dx = nx - a.x
+      const dy = ny - a.y
+      if (Math.abs(dx) <= maxAnchorShiftPx && Math.abs(dy) <= maxAnchorShiftPx) return
+      const cx = a.x + Math.max(-maxAnchorShiftPx, Math.min(maxAnchorShiftPx, dx))
+      const cy = a.y + Math.max(-maxAnchorShiftPx, Math.min(maxAnchorShiftPx, dy))
+      ;(node as unknown as { x: number }).x = cx
+      ;(node as unknown as { y: number }).y = cy
+    },
   })
+
+  const tryCompactTowardsAnchors = () => {
+    const rectsById = new Map<string, { w: number; h: number }>()
+    for (let i = 0; i < args.items.length; i += 1) {
+      const it = args.items[i]
+      const id = String(it?.id || '').trim()
+      if (!id) continue
+      const w = Number.isFinite(it.width) ? Math.max(1, it.width) : 1
+      const h = Number.isFinite(it.height) ? Math.max(1, it.height) : 1
+      rectsById.set(id, { w, h })
+    }
+
+    const obstacleRects = obstacles.map(o => ({
+      left: o.left,
+      top: o.top,
+      right: o.left + o.width,
+      bottom: o.top + o.height,
+    }))
+
+    const overlaps = (a: { left: number; top: number; right: number; bottom: number }, b: { left: number; top: number; right: number; bottom: number }) => {
+      return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+    }
+
+    const getRect = (id: string, cx: number, cy: number) => {
+      const sz = rectsById.get(id) || { w: 1, h: 1 }
+      const halfW = sz.w * 0.5
+      const halfH = sz.h * 0.5
+      return { left: cx - halfW - gapPx, top: cy - halfH - gapPx, right: cx + halfW + gapPx, bottom: cy + halfH + gapPx }
+    }
+
+    const ordered = proxyNodes
+      .filter(n => {
+        const id = String(n.id || '')
+        if (!id || id.startsWith('__obstacle__:')) return false
+        const fx = (n as unknown as { fx?: unknown }).fx
+        const fy = (n as unknown as { fy?: unknown }).fy
+        if (typeof fx === 'number' && Number.isFinite(fx)) return false
+        if (typeof fy === 'number' && Number.isFinite(fy)) return false
+        return true
+      })
+      .map(n => String(n.id || ''))
+      .sort((a, b) => a.localeCompare(b))
+
+    if (ordered.length < 2) return
+
+    const getNodeCenter = (id: string) => {
+      const n = proxyNodes.find(x => String(x.id || '') === id) || null
+      const sz = rectsById.get(id) || { w: 1, h: 1 }
+      const fallback = { x: sz.w * 0.5, y: sz.h * 0.5 }
+      const x = n && typeof n.x === 'number' && Number.isFinite(n.x) ? (n.x as number) : fallback.x
+      const y = n && typeof n.y === 'number' && Number.isFinite(n.y) ? (n.y as number) : fallback.y
+      return { x, y }
+    }
+
+    const setNodeCenter = (id: string, x: number, y: number) => {
+      const n = proxyNodes.find(t => String(t.id || '') === id) || null
+      if (!n) return
+      ;(n as unknown as { x: number }).x = x
+      ;(n as unknown as { y: number }).y = y
+    }
+
+    const wouldCollide = (id: string, cx: number, cy: number) => {
+      const r = getRect(id, cx, cy)
+      for (let i = 0; i < obstacleRects.length; i += 1) {
+        if (overlaps(r, obstacleRects[i]!)) return true
+      }
+      for (let i = 0; i < ordered.length; i += 1) {
+        const otherId = ordered[i]!
+        if (otherId === id) continue
+        const c = getNodeCenter(otherId)
+        const or = getRect(otherId, c.x, c.y)
+        if (overlaps(r, or)) return true
+      }
+      return false
+    }
+
+    for (let pass = 0; pass < 6; pass += 1) {
+      for (let i = 0; i < ordered.length; i += 1) {
+        const id = ordered[i]!
+        const a = anchorsById.get(id)
+        if (!a) continue
+        const cur = getNodeCenter(id)
+        const dx = a.x - cur.x
+        const dy = a.y - cur.y
+        const dist = Math.hypot(dx, dy)
+        if (!(dist > 1)) continue
+
+        const maxStep = Math.min(48, dist)
+        let t = Math.min(0.65, maxStep / Math.max(1e-9, dist))
+        const bestDist = dist
+        let moved = false
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          const nx = cur.x + dx * t
+          const ny = cur.y + dy * t
+          const clampedDx = Math.max(-maxAnchorShiftPx, Math.min(maxAnchorShiftPx, nx - a.x))
+          const clampedDy = Math.max(-maxAnchorShiftPx, Math.min(maxAnchorShiftPx, ny - a.y))
+          const cx = a.x + clampedDx
+          const cy = a.y + clampedDy
+          if (!wouldCollide(id, cx, cy)) {
+            const d2 = Math.hypot(a.x - cx, a.y - cy)
+            if (d2 < bestDist - 0.5) {
+              setNodeCenter(id, cx, cy)
+              moved = true
+            }
+            break
+          }
+          t *= 0.5
+        }
+        if (moved) continue
+      }
+    }
+  }
+
+  tryCompactTowardsAnchors()
 
   const out: Array<{ id: string; left: number; top: number }> = []
   for (let i = 0; i < args.items.length; i += 1) {

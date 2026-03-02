@@ -19,6 +19,7 @@ export function useFlowRequestCommit(args: {
   runtimeRef: React.MutableRefObject<FlowNativeRuntime | null>
   graphDataForZoomRef: React.MutableRefObject<GraphData | null>
   schemaRef: React.MutableRefObject<GraphSchema | null>
+  disableRelaxOnCommit?: boolean
   setLayoutPositionsForMode?: (cacheKey: string, positions: Record<string, { x: number; y: number }>) => void
   setZoomState: (z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW: number; viewportH: number }) => void
   setZoomStateForKey: (key: string, z: { k: number; x: number; y: number; graphDataRevision?: number; viewportW: number; viewportH: number }) => void
@@ -39,6 +40,7 @@ export function useFlowRequestCommit(args: {
     runtimeRef,
     graphDataForZoomRef,
     schemaRef,
+    disableRelaxOnCommit,
     setLayoutPositionsForMode,
     setZoomState,
     setZoomStateForKey,
@@ -83,24 +85,37 @@ export function useFlowRequestCommit(args: {
       const schema = schemaRef.current
       const graphDataForZoom = graphDataForZoomRef.current
 
-      const relaxed =
-        schema && graphDataForZoom
-          ? relaxFlowSceneNodePositions({
-              graphData: graphDataForZoom,
-              sceneNodes: scene.nodes,
-              groups: scene.groups || [],
-              schema,
-              nodeSize: { widthPx: flowConfig.node.widthPx, heightPx: flowConfig.node.heightPx },
-              portHandles: {
-                enabled: flowPresentation.portHandles.enabled,
-                sizePx: flowPresentation.portHandles.sizePx,
-                offsetPx: flowPresentation.portHandles.offsetPx,
-              },
-              steps: computeFlowCommitRelaxSteps({ nodeCount: scene.nodes.length, groupCount: scene.groups?.length || 0 }),
-            })
-          : null
-      if (!relaxed) return
-      const nextPositions = relaxed
+      const nextPositions = (() => {
+        if (disableRelaxOnCommit === true) {
+          const out: Record<string, { x: number; y: number }> = {}
+          for (let i = 0; i < scene.nodes.length; i += 1) {
+            const n = scene.nodes[i]
+            const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+            const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+            if (x == null || y == null) continue
+            out[n.id] = { x, y }
+          }
+          return out
+        }
+        const relaxed =
+          schema && graphDataForZoom
+            ? relaxFlowSceneNodePositions({
+                graphData: graphDataForZoom,
+                sceneNodes: scene.nodes,
+                groups: scene.groups || [],
+                schema,
+                nodeSize: { widthPx: flowConfig.node.widthPx, heightPx: flowConfig.node.heightPx },
+                portHandles: {
+                  enabled: flowPresentation.portHandles.enabled,
+                  sizePx: flowPresentation.portHandles.sizePx,
+                  offsetPx: flowPresentation.portHandles.offsetPx,
+                },
+                steps: computeFlowCommitRelaxSteps({ nodeCount: scene.nodes.length, groupCount: scene.groups?.length || 0 }),
+              })
+            : null
+        return relaxed
+      })()
+      if (!nextPositions) return
 
       for (let i = 0; i < scene.nodes.length; i += 1) {
         const n = scene.nodes[i]
@@ -128,6 +143,7 @@ export function useFlowRequestCommit(args: {
   }, [
     buildDrawArgs,
     cacheKey,
+    disableRelaxOnCommit,
     flowConfig.node.heightPx,
     flowConfig.node.widthPx,
     flowPresentation.portHandles.enabled,

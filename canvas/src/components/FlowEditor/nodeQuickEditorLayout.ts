@@ -14,7 +14,9 @@ export function computeDefaultNodeQuickEditorFloatingPos(args: {
   const cols = Math.max(1, Math.min(4, Math.floor(Math.max(1, w - 40) / cellW)))
   const col = idx % cols
   const row = Math.floor(idx / cols)
-  const leftRaw = 20 + col * cellW
+  const gridW = cols * cellW - gap
+  const startLeft = Math.max(20, Math.floor((w - gridW) / 2))
+  const leftRaw = startLeft + col * cellW
   const topRaw = 96 + row * cellH
   const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max)
   return {
@@ -23,3 +25,8 @@ export function computeDefaultNodeQuickEditorFloatingPos(args: {
   }
 }
 
+export function computeNodeQuickEditorMaxAnchorShiftPx(viewportW: number, viewportH: number): number {
+  const w = Math.max(1, Math.floor(viewportW))
+  const h = Math.max(1, Math.floor(viewportH))
+  return Math.max(120, Math.min(520, Math.floor(Math.min(w, h) * 0.45)))
+}

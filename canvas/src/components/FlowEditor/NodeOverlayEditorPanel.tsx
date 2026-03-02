@@ -24,6 +24,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   minimized: boolean
   hideFields: boolean
   pinned: boolean
+  showPinToggle?: boolean
   uiPanelOpacity: number | null | undefined
   panelTextClass: string
   microLabelClass: string
@@ -32,7 +33,8 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   labelInputRef: React.MutableRefObject<HTMLInputElement | null>
   onHeaderPointerDown: (event: React.PointerEvent<HTMLElement>) => void
   onToggleHideFields: () => void
-  onTogglePinned: () => void
+  onTogglePinned?: (event: React.MouseEvent) => void
+  onPinnedPointerDown?: (event: React.PointerEvent) => void
   onToggleMinimized: () => void
   onSetLabel: (label: string) => void
   onSetType: (type: string) => void
@@ -59,6 +61,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
     minimized,
     hideFields,
     pinned,
+    showPinToggle = true,
     uiPanelOpacity,
     panelTextClass,
     microLabelClass,
@@ -68,6 +71,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
     onHeaderPointerDown,
     onToggleHideFields,
     onTogglePinned,
+    onPinnedPointerDown,
     onToggleMinimized,
     onSetLabel,
     onSetType,
@@ -125,6 +129,9 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
       )}
       onWheelCapture={e => {
         try {
+          if (e.ctrlKey === true || e.metaKey === true) {
+            e.preventDefault()
+          }
           e.stopPropagation()
         } catch {
           void 0
@@ -154,9 +161,10 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
         className={cn(
           'border-b',
           UI_THEME_TOKENS.panel.border,
-          pinned ? 'select-none' : 'cursor-move select-none',
+          'cursor-move select-none',
           minimized ? 'px-2 py-0 h-[36px]' : 'px-3 py-2',
         )}
+        data-kg-flow-node-drag-handle="true"
         onPointerDown={onHeaderPointerDown}
       >
         <section
@@ -215,19 +223,22 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
                 )}
               </IconButton>
 
-              <IconButton
-                title={pinned ? UI_LABELS.unpinPanel : UI_LABELS.pinPanel}
-                tooltipContent={pinned ? UI_COPY.flowNodeQuickEditorUnpin : UI_COPY.flowNodeQuickEditorPin}
-                showTooltip
-                onClick={onTogglePinned}
-                className={getPinToggleButtonClassName(pinned)}
-              >
-                {pinned ? (
-                  <Pin className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-                ) : (
-                  <PinOff className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-                )}
-              </IconButton>
+              {showPinToggle && (
+                <IconButton
+                  title={pinned ? UI_LABELS.unpinPanel : UI_LABELS.pinPanel}
+                  tooltipContent={pinned ? UI_COPY.flowNodeQuickEditorUnpin : UI_COPY.flowNodeQuickEditorPin}
+                  showTooltip
+                  onPointerDown={onPinnedPointerDown}
+                  onClick={onTogglePinned}
+                  className={getPinToggleButtonClassName(pinned)}
+                >
+                  {pinned ? (
+                    <Pin className={cn(iconSizeClass, UI_THEME_TOKENS.icon.active)} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+                  ) : (
+                    <PinOff className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+                  )}
+                </IconButton>
+              )}
             </nav>
           )}
         </section>

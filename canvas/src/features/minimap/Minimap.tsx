@@ -1,5 +1,5 @@
 import React from 'react'
-import { Map } from 'lucide-react'
+import { Map as MapIcon } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import IconButton from '@/components/IconButton'
@@ -18,7 +18,9 @@ import {
   MINIMAP_HEIGHT,
 } from '@/features/minimap/math'
 import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer'
-import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { DEFAULT_FLOW_NODE_WIDTH_PX, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { computeNodeQuickEditorScale, NODE_QUICK_EDITOR_BASE_SIZE } from '@/components/FlowEditor/nodeQuickEditorZoom'
+import { computeDefaultNodeQuickEditorFloatingPos, computeNodeQuickEditorMaxAnchorShiftPx } from '@/components/FlowEditor/nodeQuickEditorLayout'
 
 type ZoomT = { k: number; x: number; y: number };
 
@@ -42,7 +44,7 @@ function Minimap() {
   const miniW = MINIMAP_WIDTH
   const miniH = MINIMAP_HEIGHT
   const zoomStateByKey = useGraphStore(s => s.zoomStateByKey)
-  const { canvasRenderMode, canvas2dRenderer, documentSemanticMode, frontmatterModeEnabled, documentStructureBaselineLock, renderMediaAsNodes, mediaPanelDensity, collapsedGroupIds } = useGraphStore(
+  const { canvasRenderMode, canvas2dRenderer, documentSemanticMode, frontmatterModeEnabled, documentStructureBaselineLock, renderMediaAsNodes, mediaPanelDensity, collapsedGroupIds, designRendererWebpageLayoutKey } = useGraphStore(
     useShallow(s => ({
       canvasRenderMode: s.canvasRenderMode,
       canvas2dRenderer: s.canvas2dRenderer,
@@ -52,12 +54,21 @@ function Minimap() {
       renderMediaAsNodes: s.renderMediaAsNodes,
       mediaPanelDensity: s.mediaPanelDensity,
       collapsedGroupIds: s.collapsedGroupIds,
+      designRendererWebpageLayoutKey: s.designRendererWebpageLayoutKey,
     })),
   )
   const preview = useGraphStore(s => s.minimapPreview)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const uiPanelOpacity = useGraphStore(s => s.uiPanelOpacity)
+  const { openQuickEditorNodeIds, flowNodeQuickEditorPinnedByNodeId, flowNodeQuickEditorPosByNodeId, flowNodeQuickEditorWorldPosByNodeId } = useGraphStore(
+    useShallow(s => ({
+      openQuickEditorNodeIds: s.openQuickEditorNodeIds,
+      flowNodeQuickEditorPinnedByNodeId: s.flowNodeQuickEditorPinnedByNodeId,
+      flowNodeQuickEditorPosByNodeId: s.flowNodeQuickEditorPosByNodeId,
+      flowNodeQuickEditorWorldPosByNodeId: (s as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowNodeQuickEditorWorldPosByNodeId,
+    })),
+  )
 
   const schema = useGraphStore(s => s.schema)
 
@@ -73,6 +84,7 @@ function Minimap() {
       renderMediaAsNodes,
       mediaPanelDensity,
       collapsedGroupIds,
+      designRendererWebpageLayoutKey,
     })
   }, [
     canvas2dRenderer,
@@ -80,6 +92,7 @@ function Minimap() {
     collapsedGroupIds,
     documentSemanticMode,
     documentStructureBaselineLock,
+    designRendererWebpageLayoutKey,
     frontmatterModeEnabled,
     graphData,
     mediaPanelDensity,
@@ -112,22 +125,176 @@ function Minimap() {
     () => (Array.isArray(graphData?.edges) ? (graphData!.edges as GraphEdge[]) : []),
     [graphData],
   );
-  const bounds = preview?.bounds ?? computeGraphBounds(nodes, 20);
-  const sx = preview?.sx ?? (() => {
+
+  const flowEditorOverlaySubset = React.useMemo(() => {
+    const isFlowEditor = String(canvas2dRenderer || '') === 'flowEditor'
+    const ids = Array.isArray(openQuickEditorNodeIds) ? openQuickEditorNodeIds.map(v => String(v || '').trim()).filter(Boolean) : []
+    if (!isFlowEditor || ids.length === 0) return null
+    const zoom = zoomState || { k: 1, x: 0, y: 0 }
+    const k = typeof zoom.k === 'number' && Number.isFinite(zoom.k) && zoom.k > 0 ? zoom.k : 1
+    const tx = typeof zoom.x === 'number' && Number.isFinite(zoom.x) ? zoom.x : 0
+    const ty = typeof zoom.y === 'number' && Number.isFinite(zoom.y) ? zoom.y : 0
+    const nodeById = new Map<string, GraphNode>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const id = String(n?.id || '').trim()
+      if (id) nodeById.set(id, n)
+    }
+    const pinnedById = flowNodeQuickEditorPinnedByNodeId || {}
+    const posById = flowNodeQuickEditorPosByNodeId || {}
+    const worldById = flowNodeQuickEditorWorldPosByNodeId || {}
+    const port = schema?.behavior?.portHandles || null
+    const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled)
+    const portSizePx =
+      typeof (port as { size?: unknown } | null)?.size === 'number' && Number.isFinite((port as { size: number }).size)
+        ? Math.max(0, (port as { size: number }).size)
+        : 4
+    const portOffsetPx =
+      typeof (port as { offset?: unknown } | null)?.offset === 'number' && Number.isFinite((port as { offset: number }).offset)
+        ? Math.max(0, (port as { offset: number }).offset)
+        : 2
+    const portExtraPadScreenPx = portEnabled ? portSizePx + portOffsetPx + 8 : 0
+    const [schemaMinK, schemaMaxK] = readZoomScaleExtent(schema || defaultSchema)
+    const extent = { minK: Math.min(schemaMinK, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP), maxK: schemaMaxK }
+
+    const overlayNodes: GraphNode[] = []
+    const idSet = new Set(ids)
+    for (let stackIndex = 0; stackIndex < ids.length; stackIndex += 1) {
+      const id = ids[stackIndex]!
+      const node = nodeById.get(id)
+      if (!node) continue
+      const pinnedInCanvas = typeof pinnedById[id] === 'boolean' ? pinnedById[id] : true
+      const floating = !pinnedInCanvas
+      const panelScale = computeNodeQuickEditorScale(k, extent, { mode: 'pinnedInCanvas' })
+      const wPx = NODE_QUICK_EDITOR_BASE_SIZE.width * panelScale
+      const hPx = NODE_QUICK_EDITOR_BASE_SIZE.height * panelScale
+      const stackCol = stackIndex % 3
+      const stackRow = Math.floor(stackIndex / 3)
+      const stackTopPx = stackIndex <= 0 ? 0 : stackRow * 54 + stackCol * 8
+      const stackLeftPx = stackIndex <= 0 ? 0 : stackCol * 54
+      const leftTopPx = (() => {
+        if (floating) {
+          const stored = posById[id]
+          const fallback = computeDefaultNodeQuickEditorFloatingPos({ stackIndex, viewportW: canvasDims.w, viewportH: canvasDims.h })
+          const left = stored && typeof stored.left === 'number' && Number.isFinite(stored.left) ? stored.left : fallback.left
+          const top = stored && typeof stored.top === 'number' && Number.isFinite(stored.top) ? stored.top : fallback.top
+          return { left, top }
+        }
+        const stored = worldById[id] as { x?: unknown; y?: unknown } | null
+        const x = typeof stored?.x === 'number' && Number.isFinite(stored.x) ? (stored.x as number) : null
+        const y = typeof stored?.y === 'number' && Number.isFinite(stored.y) ? (stored.y as number) : null
+        if (x != null && y != null) {
+          return { left: tx + x * k, top: ty + y * k }
+        }
+        const nx = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : 0
+        const ny = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : 0
+        const nodeLeftPx = tx + nx * k
+        const nodeTopPx = ty + ny * k
+        const anchoredLeftPx = nodeLeftPx + DEFAULT_FLOW_NODE_WIDTH_PX * k + 16 + portExtraPadScreenPx
+        const anchoredTopPx = nodeTopPx - 12
+        return {
+          left: anchoredLeftPx + stackLeftPx,
+          top: anchoredTopPx + stackTopPx,
+        }
+      })()
+      const cxWorld = (leftTopPx.left + wPx / 2 - tx) / k
+      const cyWorld = (leftTopPx.top + hPx / 2 - ty) / k
+      overlayNodes.push({
+        id: `__qe:${id}`,
+        type: 'FlowQuickEditor' as unknown as string,
+        x: cxWorld,
+        y: cyWorld,
+        label: '',
+      } as unknown as GraphNode)
+    }
+
+    const overlayEdges: GraphEdge[] = []
+    for (let i = 0; i < edges.length; i += 1) {
+      const e = edges[i]
+      const s = String(e?.source || '').trim()
+      const t = String(e?.target || '').trim()
+      if (!s || !t) continue
+      if (!idSet.has(s) || !idSet.has(t)) continue
+      overlayEdges.push({
+        ...e,
+        source: `__qe:${s}`,
+        target: `__qe:${t}`,
+      })
+    }
+
+    return { nodes: overlayNodes, edges: overlayEdges }
+  }, [
+    canvas2dRenderer,
+    canvasDims.h,
+    canvasDims.w,
+    defaultSchema,
+    edges,
+    flowNodeQuickEditorPinnedByNodeId,
+    flowNodeQuickEditorPosByNodeId,
+    flowNodeQuickEditorWorldPosByNodeId,
+    nodes,
+    openQuickEditorNodeIds,
+    schema,
+    zoomState,
+  ])
+
+  const nodesForBounds = flowEditorOverlaySubset ? [...nodes, ...flowEditorOverlaySubset.nodes] : nodes
+  const graphBounds = flowEditorOverlaySubset ? computeGraphBounds(nodesForBounds, 20) : (preview?.bounds ?? computeGraphBounds(nodes, 20));
+  const viewRectWorld = React.useMemo(() => {
+    const z = zoomState || { k: 1, x: 0, y: 0 };
+    return computeViewRect(Math.max(1, canvasDims.w), Math.max(1, canvasDims.h), z.k, z.x, z.y, 1);
+  }, [canvasDims, zoomState]);
+  const bounds = React.useMemo(() => {
+    const vrMinX = viewRectWorld.x;
+    const vrMinY = viewRectWorld.y;
+    const vrMaxX = viewRectWorld.x + viewRectWorld.w;
+    const vrMaxY = viewRectWorld.y + viewRectWorld.h;
+    const minX = Math.min(graphBounds.minX, vrMinX);
+    const minY = Math.min(graphBounds.minY, vrMinY);
+    const maxX = Math.max(graphBounds.maxX, vrMaxX);
+    const maxY = Math.max(graphBounds.maxY, vrMaxY);
+    const width = Math.max(1, maxX - minX);
+    const height = Math.max(1, maxY - minY);
+    return { minX, minY, maxX, maxY, width, height };
+  }, [graphBounds.maxX, graphBounds.maxY, graphBounds.minX, graphBounds.minY, viewRectWorld.h, viewRectWorld.w, viewRectWorld.x, viewRectWorld.y]);
+  const sx = React.useMemo(() => {
     const scaleX = miniW / Math.max(1, bounds.width);
     const scaleY = miniH / Math.max(1, bounds.height);
     return Math.min(scaleX, scaleY);
-  })();
+  }, [bounds.height, bounds.width, miniH, miniW]);
+
+  const canUsePreview = React.useMemo(() => {
+    if (flowEditorOverlaySubset) return false
+    const b = preview?.bounds;
+    if (!b) return false;
+    return (
+      Math.abs(b.minX - bounds.minX) < 1e-6
+      && Math.abs(b.minY - bounds.minY) < 1e-6
+      && Math.abs(b.maxX - bounds.maxX) < 1e-6
+      && Math.abs(b.maxY - bounds.maxY) < 1e-6
+    );
+  }, [bounds.maxX, bounds.maxY, bounds.minX, bounds.minY, preview?.bounds]);
 
   const EDGE_LIMIT = 20000;
   const edgesPathD = React.useMemo(() => {
-    if (preview?.edgesPath) return preview.edgesPath as string;
+    if (canUsePreview && preview?.edgesPath) return preview.edgesPath as string;
     return edges.length > EDGE_LIMIT ? '' : buildEdgesPathD(nodes, edges, bounds, sx, graphId ?? '');
-  }, [nodes, edges, bounds, sx, preview?.edgesPath, graphId]);
+  }, [canUsePreview, nodes, edges, bounds, sx, preview?.edgesPath, graphId]);
   const nodesPathD = React.useMemo(() => {
-    if (preview?.nodesPath) return preview.nodesPath as string;
+    if (canUsePreview && preview?.nodesPath) return preview.nodesPath as string;
     return buildNodesPathD(nodes, bounds, sx, 3, graphId ?? '');
-  }, [nodes, bounds, sx, preview?.nodesPath, graphId]);
+  }, [canUsePreview, nodes, bounds, sx, preview?.nodesPath, graphId]);
+
+  const overlayEdgesPathD = React.useMemo(() => {
+    const overlay = flowEditorOverlaySubset
+    if (!overlay) return ''
+    return overlay.edges.length > EDGE_LIMIT ? '' : buildEdgesPathD(overlay.nodes, overlay.edges, bounds, sx, `qe:${graphId ?? ''}`)
+  }, [bounds, flowEditorOverlaySubset, graphId, sx])
+  const overlayNodesPathD = React.useMemo(() => {
+    const overlay = flowEditorOverlaySubset
+    if (!overlay) return ''
+    return buildNodesPathD(overlay.nodes, bounds, sx, 2, `qe:${graphId ?? ''}`)
+  }, [bounds, flowEditorOverlaySubset, graphId, sx])
 
   const highlight: Highlight = React.useMemo(() => {
     if (!selectedNodeId && !selectedEdgeId) return { selNodes: [], nbrNodes: [], selEdges: [] };
@@ -172,12 +339,8 @@ function Minimap() {
   );
 
   const viewRectRaw = React.useMemo(() => {
-    const z = zoomState || { k: 1, x: 0, y: 0 };
-    const vr = computeViewRect(Math.max(1, canvasDims.w), Math.max(1, canvasDims.h), z.k, z.x, z.y, 1);
-    const gx = Math.max(bounds.minX, Math.min(vr.x, bounds.maxX - vr.w));
-    const gy = Math.max(bounds.minY, Math.min(vr.y, bounds.maxY - vr.h));
-    return { x: gx, y: gy, w: vr.w, h: vr.h };
-  }, [canvasDims, zoomState, bounds]);
+    return { x: viewRectWorld.x, y: viewRectWorld.y, w: viewRectWorld.w, h: viewRectWorld.h };
+  }, [viewRectWorld.h, viewRectWorld.w, viewRectWorld.x, viewRectWorld.y]);
 
   const viewRect = React.useMemo(() => ({
     x: (viewRectRaw.x - bounds.minX) * sx,
@@ -278,8 +441,8 @@ function Minimap() {
     const dyg = dy / sx;
     const w0 = viewRectRaw.w;
     const h0 = viewRectRaw.h;
-    const ngx = Math.max(bounds.minX, Math.min(dragRef.current.gx + dxg, bounds.maxX - w0));
-    const ngy = Math.max(bounds.minY, Math.min(dragRef.current.gy + dyg, bounds.maxY - h0));
+    const ngx = dragRef.current.gx + dxg;
+    const ngy = dragRef.current.gy + dyg;
     pendingRef.current = { ngx, ngy };
     if (rafRef.current == null) {
       rafRef.current = requestAnimationFrame(() => {
@@ -315,15 +478,7 @@ function Minimap() {
       const vw = Math.max(1, canvasDims.w);
       const vh = Math.max(1, canvasDims.h);
       const kk = clampZoomScale(k, minScale, maxScale)
-      const w0 = vw / kk;
-      const h0 = vh / kk;
-      const minCX = bounds.minX + w0 / 2;
-      const maxCX = bounds.maxX - w0 / 2;
-      const minCY = bounds.minY + h0 / 2;
-      const maxCY = bounds.maxY - h0 / 2;
-      const cx = Math.max(minCX, Math.min(ux, maxCX));
-      const cy = Math.max(minCY, Math.min(uy, maxCY));
-      const t = computeTransformFromCenter(vw, vh, cx, cy, kk, { minScale, maxScale });
+      const t = computeTransformFromCenter(vw, vh, ux, uy, kk, { minScale, maxScale });
       const EPS = 0.5;
       const nearlySame = Math.abs(t.x - z.x) < EPS && Math.abs(t.y - z.y) < EPS && Math.abs((t.k || 1) - (z.k || 1)) < 1e-9;
       if (!nearlySame) {
@@ -417,7 +572,7 @@ function Minimap() {
         showTooltip={false}
         style={{ opacity: minimapOpacity }}
       >
-        <Map size={14} aria-hidden="true" />
+        <MapIcon size={14} aria-hidden="true" />
       </IconButton>
     )
   }
@@ -432,6 +587,12 @@ function Minimap() {
           )}
           {nodesPathD && (
             <path d={nodesPathD} fill="#334155" stroke="none" pointerEvents="none" />
+          )}
+          {overlayEdgesPathD && (
+            <path d={overlayEdgesPathD} stroke="#0f172a" strokeWidth={1} strokeOpacity={0.35} fill="none" pointerEvents="none" shapeRendering="crispEdges" />
+          )}
+          {overlayNodesPathD && (
+            <path d={overlayNodesPathD} fill="#0f172a" fillOpacity={0.35} stroke="none" pointerEvents="none" />
           )}
           {selEdgesPathD && (
             <path d={selEdgesPathD} stroke={highlightColor} strokeWidth={1.5} strokeOpacity={0.9} fill="none" pointerEvents="none" shapeRendering="crispEdges" />
@@ -483,7 +644,7 @@ function Minimap() {
         className="absolute top-1 right-1 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
         showTooltip={false}
       >
-        <Map size={14} aria-hidden="true" />
+        <MapIcon size={14} aria-hidden="true" />
       </IconButton>
     </aside>
   );

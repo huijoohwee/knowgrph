@@ -171,7 +171,6 @@ export function GraphTableInspector({
   }
 
   const [panelMinimized, setPanelMinimized] = useState(false)
-  const [panelPinned, setPanelPinned] = useState(true)
   const [panelHideFields, setPanelHideFields] = useState(false)
   const labelInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -368,7 +367,8 @@ export function GraphTableInspector({
                   registryEntries={nodeQuickEditorRegistry}
                   minimized={panelMinimized}
                   hideFields={panelHideFields}
-                  pinned={panelPinned}
+                  pinned={false}
+                  showPinToggle={false}
                   uiPanelOpacity={1}
                   panelTextClass={panelTextClass}
                   microLabelClass={microLabelClass}
@@ -377,7 +377,6 @@ export function GraphTableInspector({
                   labelInputRef={labelInputRef}
                   onHeaderPointerDown={() => void 0}
                   onToggleHideFields={() => setPanelHideFields(v => !v)}
-                  onTogglePinned={() => setPanelPinned(v => !v)}
                   onToggleMinimized={() => setPanelMinimized(v => !v)}
                   onSetLabel={handleSetLabel}
                   onSetType={handleSetType}

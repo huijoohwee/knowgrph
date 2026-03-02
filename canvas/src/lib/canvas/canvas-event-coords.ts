@@ -2,13 +2,16 @@ const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Num
 
 export function readCanvasLocalPoint(args: {
   canvasEl: HTMLCanvasElement
-  event: { offsetX?: unknown; offsetY?: unknown; clientX?: unknown; clientY?: unknown }
+  event: { offsetX?: unknown; offsetY?: unknown; clientX?: unknown; clientY?: unknown; target?: unknown; currentTarget?: unknown }
 }): { sx: number; sy: number; inBounds: boolean } | null {
   const { canvasEl, event } = args
 
   const offsetX = event.offsetX
   const offsetY = event.offsetY
-  if (isFiniteNumber(offsetX) && isFiniteNumber(offsetY)) {
+  const target = (event as unknown as { target?: unknown }).target
+  const currentTarget = (event as unknown as { currentTarget?: unknown }).currentTarget
+  const allowOffsetXY = target === canvasEl || currentTarget === canvasEl
+  if (allowOffsetXY && isFiniteNumber(offsetX) && isFiniteNumber(offsetY)) {
     const w = canvasEl.clientWidth
     const h = canvasEl.clientHeight
     const inBounds = offsetX >= 0 && offsetY >= 0 && offsetX <= w && offsetY <= h

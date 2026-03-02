@@ -38,6 +38,21 @@ import { testFlowCanvasWindowPointerUpCaptureCanEndActiveDrag } from '@/__tests_
 import { testFlowRequestCommitUsesSchemaAndGraphRefsToAvoidChurn } from '@/__tests__/flowRequestCommitUsesRefsRegression.test'
 import { testPointerDragCallsOnCancelOnLostPointerCapture } from '@/__tests__/pointerDragLostCaptureCallsCancelRegression.test'
 import { testGlobalUserSelectLockHasFailsafeAndIsInstalled } from '@/__tests__/userSelectFailsafeRegression.test'
+import { testFlowEditorQuickEditorDefaultsPinnedInCanvas } from '@/__tests__/flowEditorQuickEditorDefaultsPinnedToNodeRegression.test'
+import { testFlowEditorDoesNotDisableCanvasNodeDragWhenEditorsPinned } from '@/__tests__/flowEditorDoesNotDisableCanvasNodeDragWhenEditorsPinnedRegression.test'
+import { testFlowEditorSelectModeOverridesSingleToMulti } from '@/__tests__/flowEditorSelectModeOverridesSingleToMultiRegression.test'
+import { testFlowEditorGroupHitPrefersPanWhenUnselected } from '@/__tests__/flowEditorGroupHitPrefersPanWhenUnselectedRegression.test'
+import { testFlowEditorPinnedOverlayWheelAlwaysProxiesUnlessAlt } from '@/__tests__/flowEditorPinnedOverlayWheelAlwaysProxiesUnlessAltRegression.test'
+import { testFlowEditorWheelPreventsBrowserZoomWhenOverCanvas } from '@/__tests__/flowEditorWheelPreventsBrowserZoomWhenOverCanvasRegression.test'
+import { testFlowEditorMinimapIsEnabled } from '@/__tests__/flowEditorMinimapEnabledRegression.test'
+import { testFlowEditorFitIncludesPinnedQuickEditors } from '@/__tests__/flowEditorFitPinnedQuickEditorsRegression.test'
+import { testFlowEditorPinnedQuickEditorDragDoesNotProxyNodeDrag } from '@/__tests__/flowEditorPinnedQuickEditorDragPansCanvasRegression.test'
+import { testFlowEditorCommitDoesNotRelaxDraggedLayout } from '@/__tests__/flowEditorCommitDoesNotRelaxDraggedLayoutRegression.test'
+import { testDesignMinimapUsesWebpageLayoutKey } from '@/__tests__/designMinimapUsesWebpageLayoutKeyRegression.test'
+import { testFlowEditorOverlayCollisionDebouncesOnZoom } from '@/__tests__/flowEditorOverlayCollisionDebouncesOnZoomRegression.test'
+import { testFlowEditorDoesNotForceMapPresetInInteractions } from '@/__tests__/flowEditorDoesNotForceMapPresetInInteractionsRegression.test'
+import { testMinimapAllowsViewportOutsideGraphBounds } from '@/__tests__/minimapAllowsViewportOutsideGraphBoundsRegression.test'
+import { testFlowEditorDoesNotEnforceTransformGuard } from '@/__tests__/flowEditorDoesNotEnforceTransformGuardRegression.test'
 import { testGroupBboxCollideSeparatesTopParentGroups } from '@/__tests__/groupOverlapForce.test'
 import {
   testGroupBboxCollideByDepthSeparatesOuterAndInnerSiblings,
@@ -170,6 +185,7 @@ import {
   testMarkdownAsciiTableFenceIngestionCreatesTableNodeWithCells,
   testMarkdownPipeTableIngestionCreatesTableNodeWithCells,
 } from '@/__tests__/markdownTableIngestion.test'
+import { testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry } from '@/__tests__/markdownFrontmatterFlowGraphImport.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
 import { testParseKindCsv } from '@/__tests__/csvKind.test'
 import {
@@ -359,7 +375,6 @@ import { testFlowEditorInitialTransformWaitsForFinitePositions } from '@/__tests
 import { testEffectiveZoomStateForKeyFallsBackToGlobal } from '@/__tests__/zoomEffectiveFallback.test'
 import { testSchemaLayoutEngineJson2dIncludesFlowKey } from '@/__tests__/schemaLayoutEngineJson2d.test'
 import { testNodeQuickEditorDefaultFloatingPosDependsOnViewport } from '@/__tests__/nodeQuickEditorDefaultFloatingPos.test'
-import { testFlowEditorCameraInitKeyHashesWhenRev, testFlowEditorCameraInitKeyUsesDatasetKeyWhenStable } from '@/__tests__/flowEditorCameraInitKey.test'
 import { testAutoZoom2dPolicyFlowEditorDisablesAutoZoomModes } from '@/__tests__/autoZoom2dPolicy.test'
 import { testFlowCollisionPolicyForcesCollisionDuringDragInFlowEditor } from '@/__tests__/flowCollisionPolicy.test'
 import { testFlowWheelZoomUsesSmoothFactorNotDiscreteSteps } from '@/__tests__/flowWheelZoomSmoothRegression.test'
@@ -379,7 +394,7 @@ import {
   testSemanticModeSwitchToKeywordToastsWhenSelectionCleared,
 } from '@/__tests__/semanticModeSelectionToast.test'
 import { testWheelZoomUsesCtrlKeyBoostHelper } from '@/__tests__/wheelZoomCtrlKeyBoostRegression.test'
-import { testFlowNodeQuickEditorAnchorOffsetsClearAndSet } from '@/__tests__/flowNodeQuickEditorAnchorOffsets.test'
+import { testFlowNodeQuickEditorWorldPosSet } from '@/__tests__/flowNodeQuickEditorAnchorOffsets.test'
 import {
   testFlowZoomDefaultsMigrationUpgradesPriorDefaults,
   testFlowZoomDefaultsMigrationDoesNotOverrideCustomValues,
@@ -624,7 +639,11 @@ import {
   testFlowNodeQuickEditorDragPayloadRoundTrip,
 } from '@/__tests__/flowNodeQuickEditorDrag.test'
 import { testCanvasWheelIgnoreOverlayPreventsZoom } from '@/__tests__/canvasWheelIgnoreOverlay.test'
-import { testCanvasEventCoordsFallsBackToClientRect, testCanvasEventCoordsPrefersOffsetXY } from '@/__tests__/canvasEventCoords.test'
+import {
+  testCanvasEventCoordsFallsBackToClientRect,
+  testCanvasEventCoordsIgnoresOffsetXYWhenTargetNotCanvas,
+  testCanvasEventCoordsPrefersOffsetXY,
+} from '@/__tests__/canvasEventCoords.test'
 import { testFlowRelaxStepPolicyBoundedAndMonotonic } from '@/__tests__/flowRelaxStepPolicy.test'
 import {
   testCanvasHelpShortcutsSsotHasUniqueIdsAndLines,
@@ -705,7 +724,7 @@ import { testPinnedZoomAdjustKeepsWorldCenter } from '@/__tests__/pinnedZoomNoJu
 import { testFitToViewAllowsZoomOutBelowSchemaMinScale } from '@/__tests__/zoomOutFitAll.test'
 import { testZoomActionsZoomInOutPreserveViewportCenterNoBounce } from '@/__tests__/zoomInOutViewportCenterNoBounce.test'
 import { testDisableAutoZoomModesForUserGesture } from '@/__tests__/autoZoomModesDisable.test'
-import { testNodeQuickEditorScaledSizeTracksZoomK } from '@/__tests__/nodeQuickEditorZoom.test'
+import { testNodeQuickEditorScaledSizeShrinksOnZoomOutAndCapsOnZoomIn } from '@/__tests__/nodeQuickEditorZoom.test'
 import {
   testOverlayPanelCollisionKeepsLockedPanelFixed,
   testOverlayPanelCollisionUsesPerItemSizes,
@@ -973,6 +992,7 @@ export const runAllTests = async () => {
   await exec('markdown.pipeTables.lexAsTableTokens', testMarkdownPipeTablesLexAsTableTokens)
   await exec('markdown.ingestion.asciiTables.emitTableCells', testMarkdownAsciiTableFenceIngestionCreatesTableNodeWithCells)
   await exec('markdown.ingestion.pipeTables.emitTableCells', testMarkdownPipeTableIngestionCreatesTableNodeWithCells)
+  await exec('markdown.frontmatterFlowGraph.importsNodesEdgesAndRegistry', testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry)
   await exec('markdown.toc.formattedHeadingText', testMarkdownTocIncludesFormattedHeadingText)
   await exec('markdown.toc.unicodeHeadingSpaces', testMarkdownTocIncludesHeadingsWithUnicodeSpacesAfterHashes)
   await exec('markdown.toc.unicodeHeadingLeadingSpace', testMarkdownTocIncludesHeadingsWithUnicodeLeadingWhitespace)
@@ -1038,6 +1058,21 @@ export const runAllTests = async () => {
   await exec('viewport.flowEditor.overlay.spacePanProxy', testFlowCanvasSpacePanCanStartFromOverlay)
   await exec('viewport.flowEditor.overlay.wheelProxy', testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay)
   await exec('viewport.flowEditor.overlay.rootDataAttr', testFlowEditorFlyoutOverlayRootHasQuickEditorDataAttr)
+  await exec('viewport.flowEditor.overlay.defaultsPinned', testFlowEditorQuickEditorDefaultsPinnedInCanvas)
+  await exec('viewport.flowEditor.fit.includesPinnedQuickEditors', testFlowEditorFitIncludesPinnedQuickEditors)
+  await exec('viewport.flowEditor.overlay.drag.pinnedPansNotNodeDrag', testFlowEditorPinnedQuickEditorDragDoesNotProxyNodeDrag)
+  await exec('viewport.flowEditor.drag.collectiveMode', testFlowEditorSelectModeOverridesSingleToMulti)
+  await exec('viewport.flowEditor.drag.doesNotDisableCanvasNodeDrag', testFlowEditorDoesNotDisableCanvasNodeDragWhenEditorsPinned)
+  await exec('viewport.flowEditor.groups.panWhenUnselected', testFlowEditorGroupHitPrefersPanWhenUnselected)
+  await exec('viewport.flowEditor.overlay.wheelPinnedAlwaysProxies', testFlowEditorPinnedOverlayWheelAlwaysProxiesUnlessAlt)
+  await exec('viewport.flowEditor.wheel.preventsBrowserZoom', testFlowEditorWheelPreventsBrowserZoomWhenOverCanvas)
+  await exec('viewport.flowEditor.minimap.enabled', testFlowEditorMinimapIsEnabled)
+  await exec('flowEditor.commit.noRelax', testFlowEditorCommitDoesNotRelaxDraggedLayout)
+  await exec('viewport.design.minimap.usesWebpageKey', testDesignMinimapUsesWebpageLayoutKey)
+  await exec('viewport.flowEditor.overlay.collision.debouncesOnZoom', testFlowEditorOverlayCollisionDebouncesOnZoom)
+  await exec('viewport.flowEditor.preset.noForceMapInInteractions', testFlowEditorDoesNotForceMapPresetInInteractions)
+  await exec('viewport.minimap.allowsViewportOutsideGraphBounds', testMinimapAllowsViewportOutsideGraphBounds)
+  await exec('viewport.flowEditor.camera.noTransformGuard', testFlowEditorDoesNotEnforceTransformGuard)
   await exec('viewport.flowEditor.overlay.panProxyClearsPointerId', testFlowCanvasOverlayPanProxyClearsPointerIdOnPointerUpAndLostCapture)
   await exec('viewport.flow.windowPointerUp.endsDrag', testFlowCanvasWindowPointerUpCaptureCanEndActiveDrag)
   await exec('viewport.flow.wheel.recoversFromStaleDrag', testFlowCanvasWheelCanRecoverFromStaleDrag)
@@ -1047,8 +1082,6 @@ export const runAllTests = async () => {
   await exec('zoom.effective.fallsBackToGlobalWhenKeyMissing', testEffectiveZoomStateForKeyFallsBackToGlobal)
   await exec('zoom.viewKey.schemaLayoutEngineJson.includesFlowKey', testSchemaLayoutEngineJson2dIncludesFlowKey)
   await exec('ui.flowNodeQuickEditor.defaultFloatingPos.dependsOnViewport', testNodeQuickEditorDefaultFloatingPosDependsOnViewport)
-  await exec('viewport.flowEditor.initKey.usesDatasetKeyWhenStable', testFlowEditorCameraInitKeyUsesDatasetKeyWhenStable)
-  await exec('viewport.flowEditor.initKey.hashesWhenRev', testFlowEditorCameraInitKeyHashesWhenRev)
 
   await exec('perf.flow.commitHook.usesRefs', testFlowRequestCommitUsesSchemaAndGraphRefsToAvoidChurn)
 
@@ -1108,6 +1141,7 @@ export const runAllTests = async () => {
   await exec('ui.wheelIgnore.overlay.preventsCanvasZoom', testCanvasWheelIgnoreOverlayPreventsZoom)
   await exec('ui.canvasEventCoords.prefersOffsetXY', testCanvasEventCoordsPrefersOffsetXY)
   await exec('ui.canvasEventCoords.fallsBackToClientRect', testCanvasEventCoordsFallsBackToClientRect)
+  await exec('ui.canvasEventCoords.ignoresOffsetXYWhenTargetNotCanvas', testCanvasEventCoordsIgnoresOffsetXYWhenTargetNotCanvas)
   await exec('flow.relaxStepPolicy.boundedAndMonotonic', testFlowRelaxStepPolicyBoundedAndMonotonic)
 
   await exec('ui.help.canvasShortcuts.ssot.uniqueIdsAndLines', testCanvasHelpShortcutsSsotHasUniqueIdsAndLines)
@@ -1559,7 +1593,7 @@ export const runAllTests = async () => {
   await exec('zoom.pinned.adjustKeepsWorldCenterOnResize', testPinnedZoomAdjustKeepsWorldCenter)
   await exec('zoom.fitToView.allowsBelowSchemaMinScale', testFitToViewAllowsZoomOutBelowSchemaMinScale)
   await exec('zoom.autoModes.disableOnGesture', testDisableAutoZoomModesForUserGesture)
-  await exec('ui.flowNodeQuickEditor.scalesWithZoomK', testNodeQuickEditorScaledSizeTracksZoomK)
+  await exec('ui.flowNodeQuickEditor.shrinksOnZoomOutAndCapsOnZoomIn', testNodeQuickEditorScaledSizeShrinksOnZoomOutAndCapsOnZoomIn)
   await exec('zoom.ssot.fit.cachedAcrossRequests', testZoomActionsFitTransformIsCachedAcrossRequests)
   await exec('zoom.ssot.out.autoMinScaleTracksFitToView', testZoomActionsZoomOutAutoMinScaleTracksFitToView)
   await exec('zoom.pick.reusesAcrossPresentationChanges', testPickInitialZoomTransformReusesZoomAcrossPresentationChanges)
@@ -1735,7 +1769,7 @@ export const runAllTests = async () => {
   await exec('flowEditor.overlay.budgetedPanelRelaxWiring', testFlowEditorOverlayUsesBudgetedPanelRelax)
   await exec('ui.overlayClamp.keepsPanelInViewport', testOverlayClampKeepsPanelInViewport)
   await exec('ui.overlayClamp.snapPxRoundsToGrid', testOverlayClampSnapPxRoundsToGrid)
-  await exec('ui.flowNodeQuickEditor.anchorOffsets', testFlowNodeQuickEditorAnchorOffsetsClearAndSet)
+  await exec('ui.flowNodeQuickEditor.worldPos', testFlowNodeQuickEditorWorldPosSet)
   await exec('ui.overlayPanelCollision.lockedPanelFixed', testOverlayPanelCollisionKeepsLockedPanelFixed)
   await exec('ui.overlayPanelCollision.perItemSizes', testOverlayPanelCollisionUsesPerItemSizes)
   await exec('flow.shape.forbidCircle.coercesToRect', testFlowNativeNodeShapeForbidCircleCoercesToRect)

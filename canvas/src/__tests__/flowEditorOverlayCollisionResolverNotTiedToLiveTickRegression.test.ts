@@ -7,8 +7,7 @@ export function testFlowEditorOverlayCollisionResolveIsNotScheduledFromLiveInter
   if (!text.includes('scheduleOverlayCollisionResolve')) {
     throw new Error('expected FlowEditorCanvas to define scheduleOverlayCollisionResolve')
   }
-  if (text.includes('scheduleOverlayCollisionResolve,\n    liveInteractionTick')) {
-    throw new Error('expected overlay collision scheduling not to depend on liveInteractionTick')
+  if (text.includes('liveInteractionTick')) {
+    throw new Error('expected FlowEditorCanvas not to depend on liveInteractionTick')
   }
 }
-

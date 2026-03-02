@@ -1,6 +1,7 @@
 import * as d3 from 'd3'
 
 import { clampScale, safeScaleExtent, type ScaleExtent } from '@/lib/zoom/scaleExtent'
+import { screenToWorld } from '@/lib/zoom/viewport'
 
 export type { ScaleExtent }
 
@@ -15,10 +16,9 @@ export function computeAnchoredZoomTransform(args: {
   const nextK = Number.isFinite(args.nextK) ? args.nextK : t0.k
   const sx = Number.isFinite(args.anchor.sx) ? args.anchor.sx : 0
   const sy = Number.isFinite(args.anchor.sy) ? args.anchor.sy : 0
-  const wx = (sx - t0.x) / t0.k
-  const wy = (sy - t0.y) / t0.k
-  const nextX = sx - wx * nextK
-  const nextY = sy - wy * nextK
+  const world = screenToWorld({ transform: t0, sx, sy })
+  const nextX = sx - world.x * nextK
+  const nextY = sy - world.y * nextK
   return d3.zoomIdentity.translate(nextX, nextY).scale(nextK)
 }
 
@@ -49,19 +49,14 @@ export function computePinchZoomTransform(args: {
   const nextKRaw = t0.k * Math.pow(ratio, safeM)
   const nextK = clampScale(nextKRaw, args.scaleExtent)
 
-  const midWorldX = (startMidSx - t0.x) / t0.k
-  const midWorldY = (startMidSy - t0.y) / t0.k
-  const nextX = curMidSx - midWorldX * nextK
-  const nextY = curMidSy - midWorldY * nextK
+  const midWorld = screenToWorld({ transform: t0, sx: startMidSx, sy: startMidSy })
+  const nextX = curMidSx - midWorld.x * nextK
+  const nextY = curMidSy - midWorld.y * nextK
   return d3.zoomIdentity.translate(nextX, nextY).scale(nextK)
 }
 
 export function invertZoomPoint(transform: d3.ZoomTransform, p: { sx: number; sy: number }): { x: number; y: number } {
-  const t = transform || d3.zoomIdentity
   const sx = Number.isFinite(p.sx) ? p.sx : 0
   const sy = Number.isFinite(p.sy) ? p.sy : 0
-  const inv = t.invert([sx, sy])
-  const x = inv[0]
-  const y = inv[1]
-  return { x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 0 }
+  return screenToWorld({ transform: transform || d3.zoomIdentity, sx, sy })
 }

@@ -1,18 +1,13 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 
-export const testFlowNodeQuickEditorAnchorOffsetsClearAndSet = () => {
-  useGraphStore.setState({ flowNodeQuickEditorAnchorOffsetByNodeId: {} })
+export const testFlowNodeQuickEditorWorldPosSet = () => {
+  useGraphStore.setState({ flowNodeQuickEditorWorldPosByNodeId: {} as never })
   const st = useGraphStore.getState()
-  st.setFlowNodeQuickEditorAnchorOffsetByNodeId({ a: { dx: 10, dy: -5 }, b: { dx: 0, dy: 0 } })
-  const afterSet = useGraphStore.getState().flowNodeQuickEditorAnchorOffsetByNodeId
-  if (!afterSet.a || afterSet.a.dx !== 10 || afterSet.a.dy !== -5) throw new Error('expected offsets to be set for a')
-  if (!afterSet.b || afterSet.b.dx !== 0 || afterSet.b.dy !== 0) throw new Error('expected offsets to be set for b')
+  st.setFlowNodeQuickEditorWorldPosByNodeId({ a: { x: 10, y: -5 }, b: { x: 0, y: 0 } })
+  const afterSet = (useGraphStore.getState() as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> })
+    .flowNodeQuickEditorWorldPosByNodeId
+  if (!afterSet?.a || afterSet.a.x !== 10 || afterSet.a.y !== -5) throw new Error('expected world pos to be set for a')
+  if (!afterSet?.b || afterSet.b.x !== 0 || afterSet.b.y !== 0) throw new Error('expected world pos to be set for b')
 
-  useGraphStore.getState().clearFlowNodeQuickEditorAnchorOffsetByNodeId('a')
-  const afterClear = useGraphStore.getState().flowNodeQuickEditorAnchorOffsetByNodeId
-  if (afterClear.a) throw new Error('expected a offset cleared')
-  if (!afterClear.b) throw new Error('expected b offset to remain')
-
-  useGraphStore.setState({ flowNodeQuickEditorAnchorOffsetByNodeId: {} })
+  useGraphStore.setState({ flowNodeQuickEditorWorldPosByNodeId: {} as never })
 }
-

@@ -93,6 +93,21 @@ export interface GraphSchema {
       engine?: 'auto' | 'elk' | 'dagre' | 'grid'
       rankdir?: 'TB' | 'LR'
       elkLayout?: 'elk' | 'elk.layered' | 'elk.stress' | 'elk.force' | 'elk.mrtree'
+      pack?: {
+        paddingPxDocument?: number
+        paddingPxKeyword?: number
+      }
+      collisionCaps?: {
+        nodePaddingXMax?: number
+        nodePaddingYMax?: number
+        groupPaddingXMax?: number
+        groupPaddingYMax?: number
+        groupExtraGapPxMax?: number
+        maxShiftPx?: number
+      }
+      overlay?: {
+        collisionGapPx?: number
+      }
       edges?: {
         routing?: {
           enabled?: boolean

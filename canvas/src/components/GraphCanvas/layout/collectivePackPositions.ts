@@ -114,46 +114,86 @@ export const packDisjointPositions2d = (args: {
 
   if (components.length <= 1) return positions
 
-  components.sort((a, b) => b.bbox.height - a.bbox.height)
+  const pad = Math.max(0, Math.floor(paddingPx))
+  const aspect = Number.isFinite(targetAspect) ? Math.max(0.2, Math.min(6, targetAspect)) : 16 / 9
 
-  const totalArea = components.reduce((sum, c) => sum + (c.bbox.width + paddingPx) * (c.bbox.height + paddingPx), 0)
-  const targetWidth = Math.max(
-    components.reduce((m, c) => Math.max(m, c.bbox.width), 0),
-    Math.sqrt(Math.max(1, totalArea) * Math.max(0.2, targetAspect)),
-  )
+  components.sort((a, b) => {
+    const aa = a.bbox.width * a.bbox.height
+    const bb = b.bbox.width * b.bbox.height
+    if (aa !== bb) return bb - aa
+    if (a.bbox.height !== b.bbox.height) return b.bbox.height - a.bbox.height
+    return b.bbox.width - a.bbox.width
+  })
 
-  let x = 0
-  let y = 0
-  let rowH = 0
-  const placements: Array<{ compIndex: number; x: number; y: number }> = []
+  const totalArea = components.reduce((sum, c) => sum + (c.bbox.width + pad) * (c.bbox.height + pad), 0)
+  const maxCompW = components.reduce((m, c) => Math.max(m, c.bbox.width), 0)
+  const baseTargetW = Math.max(maxCompW, Math.sqrt(Math.max(1, totalArea) * aspect))
 
-  for (let i = 0; i < components.length; i += 1) {
-    const c = components[i]
-    if (x + c.bbox.width > targetWidth && x > 0) {
-      x = 0
-      y += rowH + paddingPx
-      rowH = 0
+  const place = (wTarget: number) => {
+    const targetW = Math.max(maxCompW, Math.floor(wTarget))
+    let x = 0
+    let y = 0
+    let rowH = 0
+    const placements: Array<{ compIndex: number; x: number; y: number }> = []
+    for (let i = 0; i < components.length; i += 1) {
+      const c = components[i]
+      if (x + c.bbox.width > targetW && x > 0) {
+        x = 0
+        y += rowH + pad
+        rowH = 0
+      }
+      placements.push({ compIndex: i, x, y })
+      rowH = Math.max(rowH, c.bbox.height)
+      x += c.bbox.width + pad
     }
-    placements.push({ compIndex: i, x, y })
-    rowH = Math.max(rowH, c.bbox.height)
-    x += c.bbox.width + paddingPx
+    let arrMinX = Infinity
+    let arrMinY = Infinity
+    let arrMaxX = -Infinity
+    let arrMaxY = -Infinity
+    for (let i = 0; i < placements.length; i += 1) {
+      const p = placements[i]
+      const c = components[p.compIndex]
+      arrMinX = Math.min(arrMinX, p.x)
+      arrMinY = Math.min(arrMinY, p.y)
+      arrMaxX = Math.max(arrMaxX, p.x + c.bbox.width)
+      arrMaxY = Math.max(arrMaxY, p.y + c.bbox.height)
+    }
+    const width = Math.max(1, arrMaxX - arrMinX)
+    const height = Math.max(1, arrMaxY - arrMinY)
+    return { placements, bbox: { minX: arrMinX, minY: arrMinY, maxX: arrMaxX, maxY: arrMaxY, width, height } }
   }
 
-  let arrMinX = Infinity
-  let arrMinY = Infinity
-  let arrMaxX = -Infinity
-  let arrMaxY = -Infinity
-  for (let i = 0; i < placements.length; i += 1) {
-    const p = placements[i]
-    const c = components[p.compIndex]
-    arrMinX = Math.min(arrMinX, p.x)
-    arrMinY = Math.min(arrMinY, p.y)
-    arrMaxX = Math.max(arrMaxX, p.x + c.bbox.width)
-    arrMaxY = Math.max(arrMaxY, p.y + c.bbox.height)
+  const candidates = (() => {
+    const mult = [0.62, 0.78, 0.9, 1, 1.15, 1.35, 1.65]
+    const xs: number[] = []
+    for (let i = 0; i < mult.length; i += 1) xs.push(baseTargetW * mult[i]!)
+    xs.push(maxCompW)
+    const uniq = Array.from(new Set(xs.map(v => Math.max(maxCompW, Math.floor(v)))))
+    uniq.sort((a, b) => a - b)
+    return uniq
+  })()
+
+  let best = place(baseTargetW)
+  let bestScore = Infinity
+  for (let i = 0; i < candidates.length; i += 1) {
+    const cur = place(candidates[i]!)
+    const w = cur.bbox.width
+    const h = cur.bbox.height
+    const ratio = w / Math.max(1e-9, h)
+    const area = w * h
+    const ratioPenalty = Math.abs(ratio - aspect) * area * 0.08
+    const longSidePenalty = Math.max(w, h) * pad * 0.75
+    const score = area + ratioPenalty + longSidePenalty
+    if (score < bestScore) {
+      bestScore = score
+      best = cur
+    }
   }
 
-  const arrCX = (arrMinX + arrMaxX) / 2
-  const arrCY = (arrMinY + arrMaxY) / 2
+  const placements = best.placements
+
+  const arrCX = (best.bbox.minX + best.bbox.maxX) / 2
+  const arrCY = (best.bbox.minY + best.bbox.maxY) / 2
   const shiftX = -arrCX
   const shiftY = -arrCY
 

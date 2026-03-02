@@ -17,6 +17,7 @@ export function buildActive2dZoomViewKey(args: {
   renderMediaAsNodes: unknown
   mediaPanelDensity: unknown
   collapsedGroupIds: unknown
+  designRendererWebpageLayoutKey?: unknown
 }): string | null {
   const canvasRenderMode = String(args.canvasRenderMode || '')
   if (canvasRenderMode !== '2d') return null
@@ -39,7 +40,7 @@ export function buildActive2dZoomViewKey(args: {
 
   const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(schema)
 
-  return buildZoomViewKey({
+  const base = buildZoomViewKey({
     canvasRenderMode,
     canvas2dRenderer,
     schemaLayoutEngineJson,
@@ -50,4 +51,8 @@ export function buildActive2dZoomViewKey(args: {
     mediaPanelDensity,
     collapsedGroupIdsKey,
   })
+  if (canvas2dRenderer !== 'design') return base
+  const webpageKey = String(args.designRendererWebpageLayoutKey || '').trim()
+  if (!webpageKey) return base
+  return `${base}::webpage:${webpageKey}`
 }

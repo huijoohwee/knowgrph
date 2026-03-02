@@ -6,7 +6,7 @@ import type { ZoomRequest } from '@/lib/zoom/requests'
 import { computeZoomTransformFromRequest } from '@/lib/zoom/actions'
 import type { GraphData } from '@/lib/graph/types'
 import { setFlowNativeTransform, type FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
-import { easeOutCubic01, lerpNumber } from '@/components/FlowCanvas/wheelZoomSmoothing'
+import { easeOutCubic01, lerpNumber } from '@/lib/canvas/zoom-smoothing'
 import { getFlowAutoMinScale, setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
 
 const FLOW_ZOOM_REQUEST_ANIMS = new WeakMap<FlowNativeRuntime, { rafId: number | null; token: number }>()

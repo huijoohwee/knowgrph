@@ -999,7 +999,7 @@ export default function DesignCanvas({
   const pendingZoomTransformRef = useRef<{ k: number; x: number; y: number } | null>(null)
 
   const zoomViewKey = useMemo(() => {
-    const base = buildActive2dZoomViewKey({
+    return buildActive2dZoomViewKey({
       canvasRenderMode: snapshot.canvasRenderMode,
       canvas2dRenderer: snapshot.canvas2dRenderer,
       schema: snapshot.schema,
@@ -1010,10 +1010,8 @@ export default function DesignCanvas({
       renderMediaAsNodes: snapshot.renderMediaAsNodes,
       mediaPanelDensity: snapshot.mediaPanelDensity,
       collapsedGroupIds: snapshot.collapsedGroupIds,
+      designRendererWebpageLayoutKey: webpageLayoutKey,
     })
-    const url = String(documentUrl || '').trim()
-    if (!url) return base
-    return `${base}::webpage:${url}`
   }, [
     snapshot.canvas2dRenderer,
     snapshot.canvasRenderMode,
@@ -1025,7 +1023,7 @@ export default function DesignCanvas({
     snapshot.mediaPanelDensity,
     snapshot.renderMediaAsNodes,
     snapshot.schema,
-    documentUrl,
+    webpageLayoutKey,
   ])
 
   const zoomViewKeyRef = useRef<string | null>(null)

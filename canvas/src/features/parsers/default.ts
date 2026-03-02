@@ -8,6 +8,7 @@ import type { ParserSpec } from './types'
 import { toParserId } from './types'
 import { pythonSpec } from './python'
 import { buildMarkdownJsonLd, slugify } from './markdownJsonLd'
+import { tryParseMarkdownFrontmatterFlowGraph } from './markdownFrontmatterFlowGraph'
 import { containsFrontmatterMermaid, isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { LS_KEYS } from '@/lib/config'
 import { lsJson } from '@/lib/persistence'
@@ -55,6 +56,8 @@ const markdownSpec: ParserSpec = {
   },
   parse: (name, text) => {
     const raw = String(text || '')
+    const frontmatterFlow = tryParseMarkdownFrontmatterFlowGraph(name, raw)
+    if (frontmatterFlow) return frontmatterFlow
     const maxChars = 500000
     if (raw.length > maxChars) {
       const baseName = (name || '').replace(/\\/g, '/').split('/').pop() || ''

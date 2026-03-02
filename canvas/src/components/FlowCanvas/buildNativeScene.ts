@@ -4,13 +4,14 @@ import {
   ensureFlowHandlesHaveDefaults,
   type FlowHandleId,
 } from '@/components/FlowCanvas/handles'
+import { parseFlowHandleKey } from '@/components/FlowCanvas/handles'
 import { coerceFlowNativeNodeShape } from '@/components/FlowCanvas/shape'
 import { setFlowNativeScene, setFlowNativeRankdir, type FlowNativeRuntime, type FlowNativeScene } from '@/components/FlowCanvas/nativeRuntime'
 import { getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
-import { readFlowEdgePortKey } from '@/lib/graph/flowPorts'
+import { parseSchemaFieldPortKey, readFlowEdgePortKey, readSchemaFieldSpecs } from '@/lib/graph/flowPorts'
 import { buildFlowEdgeDisplayLabelFromPorts, readFlowEdgeDisplayLabel } from '@/lib/graph/flowPorts'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
@@ -31,7 +32,64 @@ export function buildAndSetFlowNativeScene(args: {
   const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
   const edgeList = Array.isArray(g?.edges) ? g?.edges : []
   const pos = args.positions || null
-  const useVisualNodeSize = String((g as unknown as { context?: unknown })?.context || '') === 'webpageLayout'
+  const context = String((g as unknown as { context?: unknown })?.context || '')
+  const useVisualNodeSize = context === 'webpageLayout' || context === 'frontmatter-flow'
+
+  const socketStyleByType = (() => {
+    const meta = (g?.metadata && typeof g.metadata === 'object' && !Array.isArray(g.metadata))
+      ? (g.metadata as Record<string, unknown>)
+      : null
+    const raw = meta && meta.socketTypes && typeof meta.socketTypes === 'object' && !Array.isArray(meta.socketTypes)
+      ? (meta.socketTypes as Record<string, unknown>)
+      : null
+    const out = new Map<string, { color?: string; edgeWidthPx?: number; handleStrokeWidthPx?: number }>()
+    if (!raw) return out
+    const readNum = (v: unknown): number | null => {
+      if (typeof v === 'number' && Number.isFinite(v)) return v
+      if (typeof v === 'string' && v.trim()) {
+        const n = Number(v)
+        if (Number.isFinite(n)) return n
+      }
+      return null
+    }
+    for (const k of Object.keys(raw)) {
+      const t = String(k || '').trim()
+      if (!t) continue
+      const row = raw[t]
+      if (!row || typeof row !== 'object' || Array.isArray(row)) continue
+      const r = row as Record<string, unknown>
+      const color = typeof r.color === 'string' ? String(r.color || '').trim() : ''
+      const edgeWidthPx = readNum(r.edgeWidthPx ?? r.edgeWidth)
+      const handleStrokeWidthPx = readNum(r.handleStrokeWidthPx ?? r.handleStrokeWidth)
+      if (!color && edgeWidthPx == null && handleStrokeWidthPx == null) continue
+      out.set(t, {
+        ...(color ? { color } : {}),
+        ...(edgeWidthPx != null ? { edgeWidthPx } : {}),
+        ...(handleStrokeWidthPx != null ? { handleStrokeWidthPx } : {}),
+      })
+    }
+    return out
+  })()
+
+  const readPortTypeMap = (props: Record<string, unknown>): { in: Record<string, string>; out: Record<string, string> } | null => {
+    const raw = props['flow:portTypes']
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+    const rec = raw as Record<string, unknown>
+    const inRec = rec.in && typeof rec.in === 'object' && !Array.isArray(rec.in) ? (rec.in as Record<string, unknown>) : null
+    const outRec = rec.out && typeof rec.out === 'object' && !Array.isArray(rec.out) ? (rec.out as Record<string, unknown>) : null
+    const normalize = (r: Record<string, unknown> | null): Record<string, string> => {
+      const m: Record<string, string> = {}
+      if (!r) return m
+      for (const k of Object.keys(r)) {
+        const key = String(k || '').trim()
+        const v = typeof r[k] === 'string' ? String(r[k] || '').trim() : ''
+        if (!key || !v) continue
+        m[key] = v
+      }
+      return m
+    }
+    return { in: normalize(inRec), out: normalize(outRec) }
+  }
 
   setFlowNativeRankdir(args.runtime, args.rankdir)
 
@@ -96,6 +154,65 @@ export function buildAndSetFlowNativeScene(args: {
       const h = handles.out[j]
       outHandleTopPctById[h.id] = h.topPct
     }
+
+    const handleColorById = (() => {
+      if (socketStyleByType.size === 0) return null
+      const pt = readPortTypeMap(props)
+      const fieldTypeById = new Map<string, string>()
+      const fields = readSchemaFieldSpecs(n as unknown as GraphNode)
+      for (let f = 0; f < fields.length; f += 1) {
+        const id = String(fields[f]?.id || '').trim()
+        const t = String(fields[f]?.type || '').trim()
+        if (!id || !t) continue
+        fieldTypeById.set(id, t)
+      }
+      const out: Partial<Record<FlowHandleId, string>> = {}
+      const apply = (dir: 'in' | 'out', handleId: FlowHandleId) => {
+        const portKey = parseFlowHandleKey(handleId)
+        const explicit = pt ? (dir === 'in' ? pt.in[portKey] : pt.out[portKey]) : ''
+        const schemaFieldId = parseSchemaFieldPortKey(portKey)
+        const inferred = !explicit && schemaFieldId ? (fieldTypeById.get(schemaFieldId) || '') : ''
+        const socketType = explicit || inferred
+        if (!socketType) return
+        const color = socketStyleByType.get(socketType)?.color || ''
+        if (!color) return
+        out[handleId] = color
+        ;(out as unknown as Record<string, string>)[portKey] = color
+      }
+      for (let j = 0; j < handles.in.length; j += 1) apply('in', handles.in[j].id)
+      for (let j = 0; j < handles.out.length; j += 1) apply('out', handles.out[j].id)
+      return Object.keys(out as Record<string, unknown>).length > 0 ? out : null
+    })()
+
+    const handleStrokeWidthById = (() => {
+      if (socketStyleByType.size === 0) return null
+      const pt = readPortTypeMap(props)
+      const fieldTypeById = new Map<string, string>()
+      const fields = readSchemaFieldSpecs(n as unknown as GraphNode)
+      for (let f = 0; f < fields.length; f += 1) {
+        const id = String(fields[f]?.id || '').trim()
+        const t = String(fields[f]?.type || '').trim()
+        if (!id || !t) continue
+        fieldTypeById.set(id, t)
+      }
+      const out: Partial<Record<FlowHandleId, number>> = {}
+      const apply = (dir: 'in' | 'out', handleId: FlowHandleId) => {
+        const portKey = parseFlowHandleKey(handleId)
+        const explicit = pt ? (dir === 'in' ? pt.in[portKey] : pt.out[portKey]) : ''
+        const schemaFieldId = parseSchemaFieldPortKey(portKey)
+        const inferred = !explicit && schemaFieldId ? (fieldTypeById.get(schemaFieldId) || '') : ''
+        const socketType = explicit || inferred
+        if (!socketType) return
+        const w = socketStyleByType.get(socketType)?.handleStrokeWidthPx
+        if (typeof w !== 'number' || !Number.isFinite(w)) return
+        out[handleId] = w
+        ;(out as unknown as Record<string, number>)[portKey] = w
+      }
+      for (let j = 0; j < handles.in.length; j += 1) apply('in', handles.in[j].id)
+      for (let j = 0; j < handles.out.length; j += 1) apply('out', handles.out[j].id)
+      return Object.keys(out as Record<string, unknown>).length > 0 ? out : null
+    })()
+
     const node = {
       id,
       label,
@@ -109,6 +226,8 @@ export function buildAndSetFlowNativeScene(args: {
       handles,
       inHandleTopPctById,
       outHandleTopPctById,
+      ...(handleColorById ? { handleColorById } : {}),
+      ...(handleStrokeWidthById ? { handleStrokeWidthById } : {}),
     }
     nodes.push(node)
     nodeById.set(id, node)
@@ -146,6 +265,20 @@ export function buildAndSetFlowNativeScene(args: {
       ''
     const label = computedLabel.trim()
 
+    const edgeColor = (() => {
+      if (socketStyleByType.size === 0) return ''
+      const t = typeof (e as unknown as { type?: unknown }).type === 'string' ? String((e as unknown as { type?: string }).type || '').trim() : ''
+      if (!t) return ''
+      return socketStyleByType.get(t)?.color || ''
+    })()
+    const edgeWidthPx = (() => {
+      if (socketStyleByType.size === 0) return null
+      const t = typeof (e as unknown as { type?: unknown }).type === 'string' ? String((e as unknown as { type?: string }).type || '').trim() : ''
+      if (!t) return null
+      const w = socketStyleByType.get(t)?.edgeWidthPx
+      return typeof w === 'number' && Number.isFinite(w) ? w : null
+    })()
+
     edges.push({
       id: edgeId,
       source,
@@ -153,6 +286,8 @@ export function buildAndSetFlowNativeScene(args: {
       outHandleId: buildFlowHandleId({ dir: 'out', edgeId: sourcePortKey || edgeId }),
       inHandleId: buildFlowHandleId({ dir: 'in', edgeId: targetPortKey || edgeId }),
       ...(label ? { label } : {}),
+      ...(edgeColor ? { color: edgeColor } : {}),
+      ...(edgeWidthPx != null ? { widthPx: edgeWidthPx } : {}),
     })
   }
 

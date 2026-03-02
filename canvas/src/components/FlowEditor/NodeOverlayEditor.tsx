@@ -3,8 +3,14 @@ import { createPortal } from 'react-dom'
 
 import { NodeOverlayEditorPanel } from '@/components/FlowEditor/NodeOverlayEditorPanel'
 import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
-import { worldToScreen } from '@/lib/zoom/viewport'
-import { DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
+import { screenToWorld, worldToScreen } from '@/lib/zoom/viewport'
+import {
+  DEFAULT_FLOW_NODE_WIDTH_PX,
+  DEFAULT_ZOOM_MAX_SCALE,
+  DEFAULT_ZOOM_MIN_SCALE,
+  DEFAULT_ZOOM_MIN_SCALE_HARD_CAP,
+  readZoomScaleExtent,
+} from '@/lib/graph/layoutDefaults'
 import { useOutsideClose } from '@/hooks/useOutsideClose'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
@@ -16,14 +22,14 @@ import {
   UI_SELECTORS,
 } from '@/lib/config'
 import { isHandlesForAllInputsEnabled, isLoopNode } from '@/lib/flowEditor/flowEditorActions'
-import { lsBool, lsJson, lsSetBool, lsSetJson } from '@/lib/persistence'
+import { lsBool, lsSetBool } from '@/lib/persistence'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
-import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
+import { clampOverlayTopLeftFullyInViewport, clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
-import { DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 import {
   computeNodeQuickEditorScale,
   computeNodeQuickEditorScaledSize,
@@ -37,48 +43,15 @@ import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-mana
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 
-const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
-  active,
-  node,
-  viewportW,
-  viewportH,
-  canvasWindowOffset,
-  autoRevealKey,
-  forcePinnedToNode,
-  stackIndex,
-  liveInteractionTick,
-  getLiveNodeWorldPos,
-  getLiveZoomTransform,
-  edges,
-  connectedValuesBySchemaPath,
-  toolMode,
-  pendingEdgeSourceId,
-  zoomViewKey,
-  onBeginAddEdgeFromNode,
-  onFinalizeAddEdgeToNode,
-  onSetLabel,
-  onSetType,
-  onPatchProperties,
-  onSetProperties,
-  onValidate,
-  onDuplicate,
-  onRemove,
-  onClearOutput,
-  onHelp,
-  onConvertToLoopNode,
-  onEnableHandlesForAllInputs,
-  onPinnedToNodeChange,
-  onRenameSchemaFieldId,
-}: {
+type NodeOverlayEditorProps = {
   active: boolean
   node: GraphNode
   viewportW: number
   viewportH: number
   canvasWindowOffset?: { left: number; top: number } | null
   autoRevealKey?: number
-  forcePinnedToNode?: boolean
+  forcePinnedToCanvas?: boolean
   stackIndex?: number
-  liveInteractionTick?: number
   getLiveNodeWorldPos?: (nodeId: string) => { x: number; y: number } | null
   getLiveZoomTransform?: () => { k: number; x: number; y: number } | null
   edges: ReadonlyArray<GraphEdge>
@@ -99,9 +72,42 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   onHelp: () => void
   onConvertToLoopNode: () => void
   onEnableHandlesForAllInputs: () => void
-  onPinnedToNodeChange?: (pinnedToNode: boolean) => void
+  onPinnedInCanvasChange?: (pinnedInCanvas: boolean) => void
   onRenameSchemaFieldId?: (args: { prevId: string; nextId: string }) => void
-}) {
+}
+
+const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
+  active,
+  node,
+  viewportW,
+  viewportH,
+  canvasWindowOffset,
+  autoRevealKey,
+  forcePinnedToCanvas,
+  stackIndex,
+  getLiveNodeWorldPos,
+  getLiveZoomTransform,
+  edges,
+  connectedValuesBySchemaPath,
+  toolMode,
+  pendingEdgeSourceId,
+  zoomViewKey,
+  onBeginAddEdgeFromNode,
+  onFinalizeAddEdgeToNode,
+  onSetLabel,
+  onSetType,
+  onPatchProperties,
+  onSetProperties,
+  onValidate,
+  onDuplicate,
+  onRemove,
+  onClearOutput,
+  onHelp,
+  onConvertToLoopNode,
+  onEnableHandlesForAllInputs,
+  onPinnedInCanvasChange,
+  onRenameSchemaFieldId,
+}: NodeOverlayEditorProps) {
   const { panelTextClass, microLabelClass } = usePanelTypography()
   const {
     uiIconScale,
@@ -115,6 +121,9 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     selectNode,
     setSelectionSource,
     selectedNodeId,
+    setFlowNodeQuickEditorPosByNodeId,
+    setFlowNodeQuickEditorWorldPosByNodeId,
+    setFlowNodeQuickEditorPinnedByNodeId,
   } = useGraphStore(
     useShallow(s => ({
       uiIconScale: s.uiIconScale,
@@ -129,6 +138,9 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       setSelectionSource: s.setSelectionSource,
       selectedNodeId: s.selectedNodeId,
       setFlowNodeQuickEditorPosByNodeId: s.setFlowNodeQuickEditorPosByNodeId,
+      setFlowNodeQuickEditorWorldPosByNodeId: (s as unknown as { setFlowNodeQuickEditorWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => void })
+        .setFlowNodeQuickEditorWorldPosByNodeId,
+      setFlowNodeQuickEditorPinnedByNodeId: s.setFlowNodeQuickEditorPinnedByNodeId,
     })),
   )
 
@@ -136,6 +148,9 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
 
   const quickEditorPos = useGraphStore(
     useShallow(s => s.flowNodeQuickEditorPosByNodeId?.[nodeId]),
+  )
+  const quickEditorWorldPos = useGraphStore(
+    useShallow(s => (s as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowNodeQuickEditorWorldPosByNodeId?.[nodeId]),
   )
 
   const overlayZIndex = React.useMemo(() => {
@@ -158,13 +173,14 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   const nodeRef = React.useRef<GraphNode>(node)
   const lastGoodWorldPosRef = React.useRef<{ x: number; y: number } | null>(null)
   const pinnedDragOverrideRef = React.useRef<{ left: number; top: number } | null>(null)
+  const worldDragOverrideRef = React.useRef<{ x: number; y: number } | null>(null)
   const viewportRef = React.useRef<{ width: number; height: number }>({
     width: viewportW,
     height: viewportH,
   })
   const canvasWindowOffsetRef = React.useRef<{ left: number; top: number }>({ left: 0, top: 0 })
   const schemaRef = React.useRef(schema)
-  const pinnedRef = React.useRef(false)
+  const floatingRef = React.useRef(false)
   const anchoredPosRef = React.useRef<{ top: number; left: number }>({ top: 48, left: 16 })
   const scaledSizeRef = React.useRef<{ width: number; height: number }>({ width: NODE_QUICK_EDITOR_BASE_SIZE.width, height: NODE_QUICK_EDITOR_BASE_SIZE.height })
   const zoomStateRef = React.useRef<{ k: number; x: number; y: number } | null>(
@@ -177,47 +193,38 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   const lastAppliedRef = React.useRef<{ left: number; top: number; scale: number } | null>(null)
   const cssInitRef = React.useRef(false)
   const pendingClampCommitRef = React.useRef<number | null>(null)
+  const pinToggleCollisionGuardRef = React.useRef<number | null>(null)
+  const skipPinClickRef = React.useRef(false)
   const livePosWarmupRafRef = React.useRef<number | null>(null)
 
-  const parsePinnedByNodeId = React.useCallback((raw: unknown): Record<string, boolean> | null => {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
-    const out: Record<string, boolean> = {}
-    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-      const id = String(k || '').trim()
-      if (!id) continue
-      out[id] = !!v
-    }
-    return out
-  }, [])
-
-  const readLockedToNode = React.useCallback(
+  const readPinnedInCanvas = React.useCallback(
     (id: string): boolean => {
       if (!id) return false
-      const map = lsJson(LS_KEYS.flowNodeQuickEditorPinnedByNodeId, {} as Record<string, boolean>, parsePinnedByNodeId)
+      const map = useGraphStore.getState().flowNodeQuickEditorPinnedByNodeId || {}
       const v = map[id]
-      return typeof v === 'boolean' ? v : false
+      return typeof v === 'boolean' ? v : true
     },
-    [parsePinnedByNodeId],
+    [],
   )
 
-  const [lockedToNode, setLockedToNodeState] = React.useState<boolean>(() => readLockedToNode(nodeId))
+  const [pinnedInCanvas, setPinnedInCanvasState] = React.useState<boolean>(() => readPinnedInCanvas(nodeId))
 
   React.useEffect(() => {
-    setLockedToNodeState(readLockedToNode(nodeId))
-  }, [nodeId, readLockedToNode])
+    setPinnedInCanvasState(readPinnedInCanvas(nodeId))
+  }, [nodeId, readPinnedInCanvas])
 
-  const setLockedToNode = React.useCallback(
+  const setPinnedInCanvas = React.useCallback(
     (next: boolean | ((prev: boolean) => boolean)) => {
-      setLockedToNodeState(prev => {
+      setPinnedInCanvasState(prev => {
         const resolved = typeof next === 'function' ? (next as (v: boolean) => boolean)(prev) : next
-        pinnedRef.current = (forcePinnedToNode ? false : !resolved) === true
-        const map = lsJson(LS_KEYS.flowNodeQuickEditorPinnedByNodeId, {} as Record<string, boolean>, parsePinnedByNodeId)
-        const out = nodeId ? { ...map, [nodeId]: !!resolved } : map
-        if (nodeId) lsSetJson(LS_KEYS.flowNodeQuickEditorPinnedByNodeId, out)
+        if (nodeId) {
+          const map = useGraphStore.getState().flowNodeQuickEditorPinnedByNodeId || {}
+          setFlowNodeQuickEditorPinnedByNodeId({ ...map, [nodeId]: !!resolved })
+        }
         return !!resolved
       })
     },
-    [forcePinnedToNode, nodeId, parsePinnedByNodeId],
+    [nodeId, setFlowNodeQuickEditorPinnedByNodeId],
   )
 
   const [minimized, setMinimized] = React.useState<boolean>(() => lsBool(LS_KEYS.flowNodeQuickEditorMinimized, false))
@@ -231,9 +238,21 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     (pos: { top: number; left: number } | undefined, fallback: { top: number; left: number }): { top: number; left: number } => {
       const v = pos
       if (v && Number.isFinite(v.top) && Number.isFinite(v.left)) {
-        const viewportWidth = viewportW
-        const viewportHeight = viewportH
         const offset = canvasWindowOffsetRef.current
+        const viewportWidth = (() => {
+          if (typeof window === 'undefined') return viewportW
+          const w =
+            (typeof document !== 'undefined' && document.documentElement ? document.documentElement.clientWidth : null) ??
+            window.innerWidth
+          return Math.max(1, Math.floor((Number.isFinite(w) ? (w as number) : viewportW) - offset.left))
+        })()
+        const viewportHeight = (() => {
+          if (typeof window === 'undefined') return viewportH
+          const h =
+            (typeof document !== 'undefined' && document.documentElement ? document.documentElement.clientHeight : null) ??
+            window.innerHeight
+          return Math.max(1, Math.floor((Number.isFinite(h) ? (h as number) : viewportH) - offset.top))
+        })()
         const leftRaw = v.left
         const topRaw = v.top
         const looksLikeWindowCoords =
@@ -270,8 +289,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
 
   const labelInputRef = React.useRef<HTMLInputElement | null>(null)
 
-  const floating = forcePinnedToNode ? false : !lockedToNode
-  const pinnedToNode = !floating
+  const floating = forcePinnedToCanvas ? false : !pinnedInCanvas
 
   const autoStackOffset = React.useMemo(() => {
     const idx = Number.isFinite(stackIndex) ? Math.max(0, Math.floor(stackIndex as number)) : 0
@@ -285,20 +303,20 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   React.useEffect(() => {
     if (!active) return
     if (!autoRevealKey) return
-    setLockedToNode(true)
+    setPinnedInCanvas(true)
     setMinimized(prev => {
       if (!prev) return prev
       lsSetBool(LS_KEYS.flowNodeQuickEditorMinimized, false)
       return false
     })
-  }, [active, autoRevealKey, setLockedToNode])
+  }, [active, autoRevealKey, setPinnedInCanvas])
 
   const enableHandlesDisabled = documentStructureBaselineLock === true || isHandlesForAllInputsEnabled(schema)
   const convertToLoopDisabled = isLoopNode(node)
 
   React.useEffect(() => {
-    onPinnedToNodeChange?.(pinnedToNode)
-  }, [onPinnedToNodeChange, pinnedToNode])
+    onPinnedInCanvasChange?.(pinnedInCanvas)
+  }, [onPinnedInCanvasChange, pinnedInCanvas])
 
   React.useEffect(() => {
     nodeRef.current = node
@@ -331,7 +349,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
   }, [schema])
 
   useIsomorphicLayoutEffect(() => {
-    pinnedRef.current = floating
+    floatingRef.current = floating
   }, [floating])
 
   const persistFloatingPos = React.useCallback(
@@ -344,6 +362,18 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     [nodeId],
   )
 
+  const persistWorldPos = React.useCallback(
+    (pos: { x: number; y: number }) => {
+      if (!nodeId) return
+      const current =
+        (useGraphStore.getState() as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> })
+          .flowNodeQuickEditorWorldPosByNodeId || {}
+      const next = { ...current, [nodeId]: { x: pos.x, y: pos.y } }
+      setFlowNodeQuickEditorWorldPosByNodeId(next)
+    },
+    [nodeId, setFlowNodeQuickEditorWorldPosByNodeId],
+  )
+
   const scheduleClampCommit = React.useCallback((next: { top: number; left: number }) => {
     if (pendingClampCommitRef.current != null) {
       try {
@@ -354,7 +384,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     }
     pendingClampCommitRef.current = setTimeout(() => {
       pendingClampCommitRef.current = null
-      if (!pinnedRef.current) return
+      if (!floatingRef.current) return
       if (pinnedTopPx === next.top && pinnedLeftPx === next.left) return
       setPinnedTopPx(prev => (prev === next.top ? prev : next.top))
       setPinnedLeftPx(prev => (prev === next.left ? prev : next.left))
@@ -386,9 +416,13 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       zoomStateRef.current = storeZoom
     }
     const zoomK = Number.isFinite(z?.k) ? (z?.k as number) : 1
-    const schemaCur = schemaRef.current
-    const [minK, maxK] = schemaCur ? readZoomScaleExtent(schemaCur) : [DEFAULT_ZOOM_MIN_SCALE, DEFAULT_ZOOM_MAX_SCALE]
-    const panelScale = computeNodeQuickEditorScale(zoomK, { minK, maxK })
+    const extent = (() => {
+      const s = schemaRef.current
+      if (!s) return { minK: DEFAULT_ZOOM_MIN_SCALE, maxK: DEFAULT_ZOOM_MAX_SCALE }
+      const [minK, maxK] = readZoomScaleExtent(s)
+      return { minK: Math.min(minK, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP), maxK }
+    })()
+    const panelScale = computeNodeQuickEditorScale(zoomK, extent, { mode: floatingRef.current ? 'floating' : 'pinnedInCanvas' })
     const scaled = computeNodeQuickEditorScaledSize(panelScale)
     scaledSizeRef.current = scaled
 
@@ -419,51 +453,76 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       typeof (port as { offset?: unknown } | null)?.offset === 'number' && Number.isFinite((port as { offset: number }).offset)
         ? Math.max(0, (port as { offset: number }).offset)
         : 2
-    const portExtraPadScreenPx = portEnabled ? (portSizePx + portOffsetPx + 8) * zoomK : 0
+    const portExtraPadScreenPx = portEnabled ? portSizePx + portOffsetPx + 8 : 0
     const anchoredLeftPx = screenX + DEFAULT_FLOW_NODE_WIDTH_PX * zoomK + 16 + portExtraPadScreenPx
     const anchoredTopPx = screenY - 12
     anchoredPosRef.current = { top: anchoredTopPx, left: anchoredLeftPx }
 
     const viewportWidth = viewportW
     const viewportHeight = viewportH
-    const pinned = pinnedRef.current
-    const anchorOffset = useGraphStore.getState().flowNodeQuickEditorAnchorOffsetByNodeId?.[nodeId] || null
-    const anchorDx = typeof anchorOffset?.dx === 'number' && Number.isFinite(anchorOffset.dx) ? (anchorOffset.dx as number) : 0
-    const anchorDy = typeof anchorOffset?.dy === 'number' && Number.isFinite(anchorOffset.dy) ? (anchorOffset.dy as number) : 0
+    const floating = floatingRef.current
     const dragOverride = pinnedDragOverrideRef.current
-    const basePos = pinned
-      ? { top: pinnedTopPx, left: pinnedLeftPx }
-      : dragOverride
-        ? { top: dragOverride.top, left: dragOverride.left }
-        : {
-            top: anchoredPosRef.current.top + anchorDy,
-            left: anchoredPosRef.current.left + anchorDx,
-          }
+    const worldDragOverride = worldDragOverrideRef.current
+    const storedWorld = quickEditorWorldPos && Number.isFinite(quickEditorWorldPos.x) && Number.isFinite(quickEditorWorldPos.y)
+      ? { x: quickEditorWorldPos.x, y: quickEditorWorldPos.y }
+      : null
+    const defaultWorld = screenToWorld({
+      transform: z,
+      sx: anchoredPosRef.current.left + autoStackOffset.left,
+      sy: anchoredPosRef.current.top + autoStackOffset.top,
+    })
+    const worldPinned = worldDragOverride || storedWorld || defaultWorld
+    const worldPinnedScreen = worldToScreen({ transform: z, x: worldPinned.x, y: worldPinned.y })
+    const basePos = dragOverride
+      ? { top: dragOverride.top, left: dragOverride.left }
+      : floating
+        ? { top: pinnedTopPx, left: pinnedLeftPx }
+        : { top: worldPinnedScreen.sy, left: worldPinnedScreen.sx }
     const safeBasePos = {
       top: Number.isFinite(basePos.top) ? basePos.top : 8,
       left: Number.isFinite(basePos.left) ? basePos.left : 8,
     }
-    const pos = pinned
-      ? clampOverlayTopLeftFullyInViewport({
+    const shouldClampFloating = floating && !dragOverride
+    const floatingViewport = (() => {
+      if (!shouldClampFloating) return { width: viewportWidth, height: viewportHeight }
+      if (typeof window === 'undefined') return { width: viewportWidth, height: viewportHeight }
+      const offset = canvasWindowOffsetRef.current
+      const w =
+        (typeof document !== 'undefined' && document.documentElement ? document.documentElement.clientWidth : null) ??
+        window.innerWidth
+      const h =
+        (typeof document !== 'undefined' && document.documentElement ? document.documentElement.clientHeight : null) ??
+        window.innerHeight
+      return {
+        width: Math.max(1, Math.floor((Number.isFinite(w) ? (w as number) : viewportWidth) - offset.left)),
+        height: Math.max(1, Math.floor((Number.isFinite(h) ? (h as number) : viewportHeight) - offset.top)),
+      }
+    })()
+    const pos = shouldClampFloating
+      ? clampOverlayTopLeftToViewport({
           pos: safeBasePos,
           size: scaled,
-          viewport: { width: viewportWidth, height: viewportHeight },
+          viewport: floatingViewport,
+          visiblePx: 48,
           snapPx: 1,
         })
       : safeBasePos
 
-    if (pinned && (pos.top !== safeBasePos.top || pos.left !== safeBasePos.left)) scheduleClampCommit(pos)
+    if (shouldClampFloating && (pos.top !== safeBasePos.top || pos.left !== safeBasePos.left)) scheduleClampCommit(pos)
 
     const last = lastAppliedRef.current
     if (last && last.left === pos.left && last.top === pos.top && Math.abs(last.scale - panelScale) < 1e-6) return
     lastAppliedRef.current = { left: pos.left, top: pos.top, scale: panelScale }
 
     const offset = canvasWindowOffsetRef.current
-    el.style.transform = `translate3d(${pos.left + offset.left}px, ${pos.top + offset.top}px, 0) scale(${panelScale})`
+    const tx = pos.left + offset.left
+    const ty = pos.top + offset.top
+    el.style.transform = `matrix(${panelScale}, 0, 0, ${panelScale}, ${tx}, ${ty})`
   }, [
     getLiveNodeWorldPos,
     getLiveZoomTransform,
     nodeId,
+    quickEditorWorldPos,
     pinnedLeftPx,
     pinnedTopPx,
     scheduleClampCommit,
@@ -514,8 +573,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     applyOverlayPosition,
     canvasWindowOffset?.left,
     canvasWindowOffset?.top,
-    liveInteractionTick,
-    lockedToNode,
+    pinnedInCanvas,
     pinnedLeftPx,
     pinnedTopPx,
     viewportH,
@@ -523,6 +581,21 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     node.x,
     node.y,
   ])
+
+  React.useEffect(() => {
+    if (!active) return
+    if (floating) return
+    if (!nodeId) return
+    if (quickEditorWorldPos && Number.isFinite(quickEditorWorldPos.x) && Number.isFinite(quickEditorWorldPos.y)) return
+    applyOverlayPosition()
+    const z = (getLiveZoomTransform ? getLiveZoomTransform() : null) || zoomStateRef.current || { k: 1, x: 0, y: 0 }
+    const world = screenToWorld({
+      transform: z,
+      sx: anchoredPosRef.current.left + autoStackOffset.left,
+      sy: anchoredPosRef.current.top + autoStackOffset.top,
+    })
+    persistWorldPos(world)
+  }, [active, applyOverlayPosition, autoStackOffset.left, autoStackOffset.top, floating, getLiveZoomTransform, nodeId, persistWorldPos, quickEditorWorldPos])
 
   React.useEffect(() => {
     const unsub = useGraphStore.subscribe(
@@ -546,52 +619,228 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
     }
   }, [applyOverlayPosition, zoomViewKey])
 
-  const handleTogglePinned = React.useCallback(() => {
-    setLockedToNode(prev => {
-      const nextLocked = !prev
-      if (nextLocked) {
-        const base = anchoredPosRef.current
+  React.useEffect(() => {
+    if (!active) return
+    if (typeof window === 'undefined') return
+    let raf: number | null = null
+    const onFrame = () => {
+      if (raf != null) return
+      raf = requestAnimationFrame(() => {
+        raf = null
+        applyOverlayPosition()
+      })
+    }
+    try {
+      window.addEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onFrame as EventListener)
+    } catch {
+      void 0
+    }
+    return () => {
+      try {
+        window.removeEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onFrame as EventListener)
+      } catch {
+        void 0
+      }
+      if (raf != null) {
+        try {
+          cancelAnimationFrame(raf)
+        } catch {
+          void 0
+        }
+        raf = null
+      }
+    }
+  }, [active, applyOverlayPosition])
+
+  const togglePinnedInternal = React.useCallback((opts?: { keepDragging?: boolean }) => {
+    if (pinToggleCollisionGuardRef.current != null) {
+      try {
+        clearTimeout(pinToggleCollisionGuardRef.current)
+      } catch {
+        void 0
+      }
+      pinToggleCollisionGuardRef.current = null
+    }
+    if (nodeId) {
+      const st = useGraphStore.getState()
+      st.setFlowNodeQuickEditorDraggingNodeId(nodeId)
+      if (opts?.keepDragging !== true) {
+        pinToggleCollisionGuardRef.current = setTimeout(() => {
+          pinToggleCollisionGuardRef.current = null
+          const cur = useGraphStore.getState().flowNodeQuickEditorDraggingNodeId
+          if (cur === nodeId) useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
+        }, 240) as unknown as number
+      }
+    }
+    setPinnedInCanvas(prev => {
+      const nextPinned = !prev
+      const readZoom = () => {
+        const liveZoom = getLiveZoomTransform ? getLiveZoomTransform() : null
+        const storeZoom = getEffectiveZoomStateForKey({
+          zoomViewKey,
+          zoomStateByKey: useGraphStore.getState().zoomStateByKey,
+          zoomState: useGraphStore.getState().zoomState,
+        })
+        let z = liveZoom || zoomStateRef.current
+        if (!liveZoom && storeZoom && storeZoom !== z) {
+          z = storeZoom
+          zoomStateRef.current = storeZoom
+        }
+        return z || { k: 1, x: 0, y: 0 }
+      }
+
+      const z = readZoom()
+
+      if (nextPinned) {
         const applied = lastAppliedRef.current
         const desired = {
           top: applied ? applied.top : pinnedTopPx,
           left: applied ? applied.left : pinnedLeftPx,
         }
-        const anchorBase = {
-          top: base.top + autoStackOffset.top,
-          left: base.left + autoStackOffset.left,
-        }
-        const dx = desired.left - anchorBase.left
-        const dy = desired.top - anchorBase.top
-        const st = useGraphStore.getState()
-        const prevOffsets = st.flowNodeQuickEditorAnchorOffsetByNodeId || {}
-        const nextOffsets = { ...prevOffsets, [nodeId]: { dx, dy } }
-        st.setFlowNodeQuickEditorAnchorOffsetByNodeId(nextOffsets)
-      } else {
-        useGraphStore.getState().clearFlowNodeQuickEditorAnchorOffsetByNodeId(nodeId)
+        const world = screenToWorld({ transform: z, sx: desired.left, sy: desired.top })
+        persistWorldPos(world)
+        return nextPinned
       }
-      if (!nextLocked) {
-        const scaled = scaledSizeRef.current
-        const viewportWidth = viewportW
-        const viewportHeight = viewportH
-        const applied = lastAppliedRef.current
-        const fallback = anchoredPosRef.current
-        const current = {
-          top: applied ? applied.top : fallback.top + autoStackOffset.top,
-          left: applied ? applied.left : fallback.left + autoStackOffset.left,
-        }
-        const pos = clampOverlayTopLeftFullyInViewport({
-          pos: current,
-          size: scaled,
-          viewport: { width: viewportWidth, height: viewportHeight },
-          snapPx: 1,
-        })
-        setPinnedTopPx(prevTop => (prevTop === pos.top ? prevTop : pos.top))
-        setPinnedLeftPx(prevLeft => (prevLeft === pos.left ? prevLeft : pos.left))
-        persistFloatingPos(pos)
-      }
-      return nextLocked
+
+      const storedWorld =
+        quickEditorWorldPos && Number.isFinite(quickEditorWorldPos.x) && Number.isFinite(quickEditorWorldPos.y)
+          ? { x: quickEditorWorldPos.x, y: quickEditorWorldPos.y }
+          : null
+      const defaultWorld = screenToWorld({
+        transform: z,
+        sx: anchoredPosRef.current.left + autoStackOffset.left,
+        sy: anchoredPosRef.current.top + autoStackOffset.top,
+      })
+      const world = worldDragOverrideRef.current || storedWorld || defaultWorld
+      const screen = worldToScreen({ transform: z, x: world.x, y: world.y })
+      const scaled = scaledSizeRef.current
+      const pos = clampOverlayTopLeftFullyInViewport({
+        pos: { top: screen.sy, left: screen.sx },
+        size: scaled,
+        viewport: { width: viewportW, height: viewportH },
+        snapPx: 1,
+      })
+      setPinnedTopPx(prevTop => (prevTop === pos.top ? prevTop : pos.top))
+      setPinnedLeftPx(prevLeft => (prevLeft === pos.left ? prevLeft : pos.left))
+      persistFloatingPos(pos)
+      return nextPinned
     })
-  }, [autoStackOffset.left, autoStackOffset.top, nodeId, persistFloatingPos, pinnedLeftPx, pinnedTopPx, setLockedToNode, viewportH, viewportW])
+  }, [
+    autoStackOffset.left,
+    autoStackOffset.top,
+    getLiveZoomTransform,
+    nodeId,
+    persistFloatingPos,
+    persistWorldPos,
+    pinnedLeftPx,
+    pinnedTopPx,
+    quickEditorWorldPos,
+    setPinnedInCanvas,
+    viewportH,
+    viewportW,
+    zoomViewKey,
+  ])
+
+  const handleTogglePinned = React.useCallback((event: React.MouseEvent) => {
+    if (skipPinClickRef.current) {
+      skipPinClickRef.current = false
+      return
+    }
+    try {
+      event.preventDefault()
+    } catch {
+      void 0
+    }
+    try {
+      event.stopPropagation()
+    } catch {
+      void 0
+    }
+    togglePinnedInternal()
+  }, [togglePinnedInternal])
+
+  const handlePinnedPointerDown = React.useCallback((event: React.PointerEvent) => {
+    if (event.button !== 0) return
+    skipPinClickRef.current = true
+    const willUnpinToFloating = pinnedInCanvas === true && forcePinnedToCanvas !== true
+    togglePinnedInternal({ keepDragging: willUnpinToFloating })
+    if (!willUnpinToFloating) return
+
+    const startX = event.clientX
+    const startY = event.clientY
+    const nativeEv = event.nativeEvent
+    try {
+      lockGlobalUserSelect()
+    } catch {
+      void 0
+    }
+
+    const startDrag = () => {
+      const applied = lastAppliedRef.current
+      const startTop = applied ? applied.top : pinnedTopPx
+      const startLeft = applied ? applied.left : pinnedLeftPx
+      let pendingTop = startTop
+      let pendingLeft = startLeft
+      let raf: number | null = null
+
+      const flush = () => {
+        raf = null
+        setPinnedTopPx(prev => (prev === pendingTop ? prev : pendingTop))
+        setPinnedLeftPx(prev => (prev === pendingLeft ? prev : pendingLeft))
+      }
+
+      startPointerDrag({
+        ev: nativeEv,
+        cursor: 'move',
+        onMove: mv => {
+          const dx = mv.clientX - startX
+          const dy = mv.clientY - startY
+          const scaled = scaledSizeRef.current
+          const { width: viewportWidth, height: viewportHeight } = viewportRef.current
+          const next = clampOverlayTopLeftFullyInViewport({
+            pos: { top: startTop + dy, left: startLeft + dx },
+            size: scaled,
+            viewport: { width: viewportWidth, height: viewportHeight },
+            snapPx: 1,
+          })
+          pendingTop = next.top
+          pendingLeft = next.left
+          if (raf != null) return
+          raf = requestAnimationFrame(flush)
+        },
+        onEnd: () => {
+          if (raf != null) {
+            try {
+              cancelAnimationFrame(raf)
+            } catch {
+              void 0
+            }
+            flush()
+          }
+          persistFloatingPos({ top: pendingTop, left: pendingLeft })
+          const cur = useGraphStore.getState().flowNodeQuickEditorDraggingNodeId
+          if (cur === nodeId) useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
+          unlockGlobalUserSelect()
+        },
+        onCancel: () => {
+          if (raf != null) {
+            try {
+              cancelAnimationFrame(raf)
+            } catch {
+              void 0
+            }
+            flush()
+          }
+          persistFloatingPos({ top: pendingTop, left: pendingLeft })
+          const cur = useGraphStore.getState().flowNodeQuickEditorDraggingNodeId
+          if (cur === nodeId) useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
+          unlockGlobalUserSelect()
+        },
+      })
+    }
+
+    requestAnimationFrame(startDrag)
+  }, [forcePinnedToCanvas, pinnedInCanvas, nodeId, persistFloatingPos, pinnedLeftPx, pinnedTopPx, togglePinnedInternal])
 
   const handleToggleMinimized = React.useCallback(() => {
     setMinimized(prev => {
@@ -616,6 +865,14 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       const unlock = spacePanUserSelectUnlockRef.current
       spacePanUserSelectUnlockRef.current = null
       if (unlock) unlock()
+      if (pinToggleCollisionGuardRef.current != null) {
+        try {
+          clearTimeout(pinToggleCollisionGuardRef.current)
+        } catch {
+          void 0
+        }
+        pinToggleCollisionGuardRef.current = null
+      }
     }
   }, [])
 
@@ -652,49 +909,75 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
         void 0
       }
 
-      if (lockedToNode) {
-        const st = useGraphStore.getState()
-        st.setFlowNodeQuickEditorDraggingNodeId(nodeId)
-        const clampOffset = (v: number) => {
-          const max = 5000
-          return Math.max(-max, Math.min(max, v))
-        }
-        const prevOffsets = st.flowNodeQuickEditorAnchorOffsetByNodeId || {}
-        const pinnedId = nodeId
-        const startOffset = (() => {
-          const o = prevOffsets[pinnedId] || { dx: 0, dy: 0 }
-          const dx = typeof o.dx === 'number' && Number.isFinite(o.dx) ? o.dx : 0
-          const dy = typeof o.dy === 'number' && Number.isFinite(o.dy) ? o.dy : 0
-          return { dx, dy }
-        })()
-
+      if (!floating) {
+        useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(nodeId)
         applyOverlayPosition()
-        const rect = asideRef.current?.getBoundingClientRect() || null
-        const grabScreenLeftPx = rect && Number.isFinite(rect.left) ? startX - rect.left : 0
-        const grabScreenTopPx = rect && Number.isFinite(rect.top) ? startY - rect.top : 0
-        const canvasOffsetStart = canvasWindowOffsetRef.current
-        const baseLeft = rect && Number.isFinite(rect.left) ? rect.left - canvasOffsetStart.left : anchoredPosRef.current.left + startOffset.dx
-        const baseTop = rect && Number.isFinite(rect.top) ? rect.top - canvasOffsetStart.top : anchoredPosRef.current.top + startOffset.dy
 
-        let pendingLeft = baseLeft
-        let pendingTop = baseTop
+        const startClientX = event.clientX
+        const startClientY = event.clientY
+        const startOffset = canvasWindowOffsetRef.current
+
+        const readZoom = () => {
+          const liveZoom = getLiveZoomTransform ? getLiveZoomTransform() : null
+          const storeZoom = getEffectiveZoomStateForKey({
+            zoomViewKey,
+            zoomStateByKey: useGraphStore.getState().zoomStateByKey,
+            zoomState: useGraphStore.getState().zoomState,
+          })
+          let z = liveZoom || zoomStateRef.current
+          if (!liveZoom && storeZoom && storeZoom !== z) {
+            z = storeZoom
+            zoomStateRef.current = storeZoom
+          }
+          return z || { k: 1, x: 0, y: 0 }
+        }
+
+        const z0 = readZoom()
+        const storedWorld =
+          quickEditorWorldPos && Number.isFinite(quickEditorWorldPos.x) && Number.isFinite(quickEditorWorldPos.y)
+            ? { x: quickEditorWorldPos.x, y: quickEditorWorldPos.y }
+            : null
+        const defaultWorld = screenToWorld({
+          transform: z0,
+          sx: anchoredPosRef.current.left + autoStackOffset.left,
+          sy: anchoredPosRef.current.top + autoStackOffset.top,
+        })
+        const startWorld = worldDragOverrideRef.current || storedWorld || defaultWorld
+        const startPointerWorld = screenToWorld({
+          transform: z0,
+          sx: startClientX - startOffset.left,
+          sy: startClientY - startOffset.top,
+        })
+        const grabDx = startPointerWorld.x - startWorld.x
+        const grabDy = startPointerWorld.y - startWorld.y
+
         let raf: number | null = null
+        let pending: { x: number; y: number } | null = null
 
         const flush = () => {
           raf = null
-          pinnedDragOverrideRef.current = { left: pendingLeft, top: pendingTop }
+          if (!pending) return
+          worldDragOverrideRef.current = pending
           applyOverlayPosition()
+          try {
+            window.dispatchEvent(new CustomEvent(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
+          } catch {
+            void 0
+          }
         }
 
         startPointerDrag({
           ev: event.nativeEvent,
           cursor: 'move',
           onMove: mv => {
-            const canvasOffset = canvasWindowOffsetRef.current
-            const desiredScreenLeft = mv.clientX - grabScreenLeftPx
-            const desiredScreenTop = mv.clientY - grabScreenTopPx
-            pendingLeft = desiredScreenLeft - canvasOffset.left
-            pendingTop = desiredScreenTop - canvasOffset.top
+            const z = readZoom()
+            const offset = canvasWindowOffsetRef.current
+            const pointerWorld = screenToWorld({
+              transform: z,
+              sx: mv.clientX - offset.left,
+              sy: mv.clientY - offset.top,
+            })
+            pending = { x: pointerWorld.x - grabDx, y: pointerWorld.y - grabDy }
             if (raf != null) return
             raf = requestAnimationFrame(flush)
           },
@@ -707,16 +990,9 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
               }
               flush()
             }
-            pinnedDragOverrideRef.current = null
-            applyOverlayPosition()
-
-            const anchor = anchoredPosRef.current
-            const current = useGraphStore.getState().flowNodeQuickEditorAnchorOffsetByNodeId || {}
-            const next = { ...current }
-            next[pinnedId] = { dx: clampOffset(pendingLeft - anchor.left), dy: clampOffset(pendingTop - anchor.top) }
-            useGraphStore.getState().setFlowNodeQuickEditorAnchorOffsetByNodeId(next)
-            applyOverlayPosition()
-
+            const out = worldDragOverrideRef.current || startWorld
+            worldDragOverrideRef.current = null
+            persistWorldPos(out)
             useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
             unlockGlobalUserSelect()
           },
@@ -729,7 +1005,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
               }
               flush()
             }
-            pinnedDragOverrideRef.current = null
+            worldDragOverrideRef.current = null
             applyOverlayPosition()
             useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
             unlockGlobalUserSelect()
@@ -741,14 +1017,20 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       const applied = lastAppliedRef.current
       const startTop = applied ? applied.top : pinnedTopPx
       const startLeft = applied ? applied.left : pinnedLeftPx
+      useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(nodeId)
       let pendingTop = startTop
       let pendingLeft = startLeft
       let raf: number | null = null
 
       const flush = () => {
         raf = null
-        setPinnedTopPx(prev => (prev === pendingTop ? prev : pendingTop))
-        setPinnedLeftPx(prev => (prev === pendingLeft ? prev : pendingLeft))
+        pinnedDragOverrideRef.current = { left: pendingLeft, top: pendingTop }
+        applyOverlayPosition()
+        try {
+          window.dispatchEvent(new CustomEvent(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
+        } catch {
+          void 0
+        }
       }
 
       startPointerDrag({
@@ -757,16 +1039,8 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
         onMove: mv => {
           const dx = mv.clientX - startX
           const dy = mv.clientY - startY
-          const scaled = scaledSizeRef.current
-          const { width: viewportWidth, height: viewportHeight } = viewportRef.current
-          const next = clampOverlayTopLeftFullyInViewport({
-            pos: { top: startTop + dy, left: startLeft + dx },
-            size: scaled,
-            viewport: { width: viewportWidth, height: viewportHeight },
-            snapPx: 1,
-          })
-          pendingTop = next.top
-          pendingLeft = next.left
+          pendingTop = startTop + dy
+          pendingLeft = startLeft + dx
           if (raf != null) return
           raf = requestAnimationFrame(flush)
         },
@@ -779,7 +1053,36 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
             }
             flush()
           }
+          pinnedDragOverrideRef.current = null
+          const scaled = scaledSizeRef.current
+          const canvasOffset = canvasWindowOffsetRef.current
+          const viewportWidth = (() => {
+            if (typeof window === 'undefined') return viewportRef.current.width
+            const w =
+              (typeof document !== 'undefined' && document.documentElement ? document.documentElement.clientWidth : null) ??
+              window.innerWidth
+            return Math.max(1, Math.floor((Number.isFinite(w) ? (w as number) : viewportRef.current.width) - canvasOffset.left))
+          })()
+          const viewportHeight = (() => {
+            if (typeof window === 'undefined') return viewportRef.current.height
+            const h =
+              (typeof document !== 'undefined' && document.documentElement ? document.documentElement.clientHeight : null) ??
+              window.innerHeight
+            return Math.max(1, Math.floor((Number.isFinite(h) ? (h as number) : viewportRef.current.height) - canvasOffset.top))
+          })()
+          const clamped = clampOverlayTopLeftToViewport({
+            pos: { top: pendingTop, left: pendingLeft },
+            size: scaled,
+            viewport: { width: viewportWidth, height: viewportHeight },
+            visiblePx: 48,
+            snapPx: 1,
+          })
+          pendingTop = clamped.top
+          pendingLeft = clamped.left
+          setPinnedTopPx(prev => (prev === pendingTop ? prev : pendingTop))
+          setPinnedLeftPx(prev => (prev === pendingLeft ? prev : pendingLeft))
           persistFloatingPos({ top: pendingTop, left: pendingLeft })
+          useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
           unlockGlobalUserSelect()
         },
         onCancel: () => {
@@ -791,12 +1094,56 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
             }
             flush()
           }
+          pinnedDragOverrideRef.current = null
+          const scaled = scaledSizeRef.current
+          const canvasOffset = canvasWindowOffsetRef.current
+          const viewportWidth = (() => {
+            if (typeof window === 'undefined') return viewportRef.current.width
+            const w =
+              (typeof document !== 'undefined' && document.documentElement ? document.documentElement.clientWidth : null) ??
+              window.innerWidth
+            return Math.max(1, Math.floor((Number.isFinite(w) ? (w as number) : viewportRef.current.width) - canvasOffset.left))
+          })()
+          const viewportHeight = (() => {
+            if (typeof window === 'undefined') return viewportRef.current.height
+            const h =
+              (typeof document !== 'undefined' && document.documentElement ? document.documentElement.clientHeight : null) ??
+              window.innerHeight
+            return Math.max(1, Math.floor((Number.isFinite(h) ? (h as number) : viewportRef.current.height) - canvasOffset.top))
+          })()
+          const clamped = clampOverlayTopLeftToViewport({
+            pos: { top: pendingTop, left: pendingLeft },
+            size: scaled,
+            viewport: { width: viewportWidth, height: viewportHeight },
+            visiblePx: 48,
+            snapPx: 1,
+          })
+          pendingTop = clamped.top
+          pendingLeft = clamped.left
+          setPinnedTopPx(prev => (prev === pendingTop ? prev : pendingTop))
+          setPinnedLeftPx(prev => (prev === pendingLeft ? prev : pendingLeft))
           persistFloatingPos({ top: pendingTop, left: pendingLeft })
+          useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
           unlockGlobalUserSelect()
         },
       })
     },
-    [applyOverlayPosition, lockedToNode, nodeId, persistFloatingPos, pinnedLeftPx, pinnedTopPx, selectNode, setSelectionSource],
+    [
+      applyOverlayPosition,
+      autoStackOffset.left,
+      autoStackOffset.top,
+      floating,
+      getLiveZoomTransform,
+      nodeId,
+      persistFloatingPos,
+      persistWorldPos,
+      pinnedLeftPx,
+      pinnedTopPx,
+      quickEditorWorldPos,
+      selectNode,
+      setSelectionSource,
+      zoomViewKey,
+    ],
   )
 
   const handleRegistrySelectionChange = React.useCallback(
@@ -827,12 +1174,17 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
       ref={asideRef}
       aria-label={UI_LABELS.flowNodeQuickEditor}
       data-kg-node-quick-editor={String(node.id || '')}
-      data-kg-node-quick-editor-pinned={pinnedToNode ? '1' : '0'}
+      data-kg-node-quick-editor-pinned={pinnedInCanvas ? '1' : '0'}
       data-kg-canvas-wheel-ignore="true"
       className="fixed"
       style={{ zIndex: overlayZIndex }}
       onPointerDownCapture={(ev) => {
         if (!active) return
+        if (ev.button === 0 && pinnedInCanvas && ev.altKey !== true && isSpacePanHeld() !== true) {
+          const t = ev.target
+          const el = t instanceof Element ? t : null
+          if (el?.closest('[data-kg-flow-node-drag-handle="true"]')) return
+        }
         if (ev.button === 0 && isSpacePanHeld()) {
           const t = ev.target
           const el = t instanceof Element ? t : null
@@ -894,7 +1246,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
         node={node}
         minimized={minimized}
         hideFields={hideFields}
-        pinned={lockedToNode}
+        pinned={pinnedInCanvas}
         uiPanelOpacity={uiPanelOpacity}
         panelTextClass={panelTextClass}
         microLabelClass={microLabelClass}
@@ -904,6 +1256,7 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
         onHeaderPointerDown={handleHeaderPointerDown}
         onToggleHideFields={handleToggleHideFields}
         onTogglePinned={handleTogglePinned}
+        onPinnedPointerDown={handlePinnedPointerDown}
         onToggleMinimized={handleToggleMinimized}
         onSetLabel={onSetLabel}
         onSetType={onSetType}
@@ -931,6 +1284,11 @@ const NodeOverlayEditor = React.memo(function NodeOverlayEditor({
 
   if (typeof document === 'undefined') return overlayElement
   return createPortal(overlayElement, document.body)
+})
+
+const NodeOverlayEditor = React.memo(function NodeOverlayEditor(props: NodeOverlayEditorProps) {
+  if (props.active !== true) return null
+  return <NodeOverlayEditorInner {...props} />
 })
 
 export default NodeOverlayEditor

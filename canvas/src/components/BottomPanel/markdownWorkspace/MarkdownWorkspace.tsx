@@ -327,8 +327,9 @@ export function MarkdownWorkspace() {
     if (!nodeQuickEditorAvailable) return
     if (contentMode === 'nodeQuickEditor') return
     if (userForcedDocumentRef.current) return
+    if (activePath && isMarkdownPath(activePath)) return
     setContentModeSafe('nodeQuickEditor')
-  }, [contentMode, nodeQuickEditorAvailable, setContentModeSafe])
+  }, [activePath, contentMode, nodeQuickEditorAvailable, setContentModeSafe])
 
   const quickEditorBundleJsonText = React.useMemo(() => {
     if (!activeQuickEditorNodeId) return ''

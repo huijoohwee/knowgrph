@@ -13,7 +13,6 @@ import { coerceNodesForFit, fitAllTransform } from '@/components/GraphCanvas/fit
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
 import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
 import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
-import { buildFlowEditorCameraInitKey } from '@/lib/canvas/flow-editor-init-key'
 import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeScene'
 import { buildGraphMetaKey, buildGraphMetaKeyIgnoringPending, deriveRankdir } from '@/components/FlowCanvas/layout'
@@ -38,13 +37,18 @@ import {
 import { createZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
 import { ensureSpacePanKeyListenerInstalled } from '@/lib/canvas/space-pan'
 import { applyZoomRequestNative } from '@/components/FlowCanvas/applyZoomRequestNative'
+import { setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
 import { bindFlowCanvasNativeInteractions, type FlowCanvasDrag } from '@/components/FlowCanvas/bindNativeInteractions'
 import { __flowCanvasDebug } from '@/components/FlowCanvas/flowCanvasDebug'
 import { useFlowComputedPositions } from '@/components/FlowCanvas/useFlowComputedPositions'
+import { fitFlowEditorPinnedQuickEditors } from '@/components/FlowCanvas/fitPinnedQuickEditors'
 import { readFlowPresentation } from '@/components/FlowCanvas/presentation'
 import { useFlowRequestCommit } from '@/components/FlowCanvas/useFlowRequestCommit'
 import { computeCollisionDuringDrag } from '@/components/FlowCanvas/collisionPolicy'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
+import { computeNodeQuickEditorScale, NODE_QUICK_EDITOR_BASE_SIZE } from '@/components/FlowEditor/nodeQuickEditorZoom'
+import { computeNodeQuickEditorMaxAnchorShiftPx } from '@/components/FlowEditor/nodeQuickEditorLayout'
+import { DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import type { GraphSchema } from '@/lib/graph/schema'
 
 function clampFinite(v: number, lo: number, hi: number): number {
@@ -163,9 +167,31 @@ export default function FlowCanvas({
       const runtime = runtimeRef.current
       if (!runtime) return
       runtime.dirty = true
-      scheduleFlowDraw()
+      requestFlowNativeDraw(runtime, buildDrawArgs())
     })
   }, [active, buildDrawArgs])
+
+  React.useEffect(() => {
+    return () => {
+      if (drawRafRef.current != null) {
+        try {
+          cancelAnimationFrame(drawRafRef.current)
+        } catch {
+          void 0
+        }
+        drawRafRef.current = null
+      }
+      const rt = runtimeRef.current
+      if (rt?.pendingRaf != null) {
+        try {
+          cancelAnimationFrame(rt.pendingRaf)
+        } catch {
+          void 0
+        }
+        rt.pendingRaf = null
+      }
+    }
+  }, [])
   const collisionSchemaRef = React.useRef<typeof schema | null>(null)
   const collisionGraphDataRef = React.useRef<GraphData | null>(null)
   const collisionFlowConfigRef = React.useRef<typeof flowConfig | null>(null)
@@ -196,6 +222,10 @@ export default function FlowCanvas({
     setZoomState,
     setZoomStateForKey,
     nodeQuickEditorRegistry,
+    openQuickEditorNodeIds,
+    flowNodeQuickEditorPinnedByNodeId,
+    flowNodeQuickEditorWorldPosByNodeId,
+    flowNodeQuickEditorPosByNodeId,
   } = useGraphStore(
     useShallow(s => ({
       schema: s.schema,
@@ -222,6 +252,10 @@ export default function FlowCanvas({
       setZoomState: s.setZoomState,
       setZoomStateForKey: s.setZoomStateForKey,
       nodeQuickEditorRegistry: s.nodeQuickEditorRegistry || [],
+      openQuickEditorNodeIds: s.openQuickEditorNodeIds || [],
+      flowNodeQuickEditorPinnedByNodeId: s.flowNodeQuickEditorPinnedByNodeId || {},
+      flowNodeQuickEditorWorldPosByNodeId: (s as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowNodeQuickEditorWorldPosByNodeId || {},
+      flowNodeQuickEditorPosByNodeId: s.flowNodeQuickEditorPosByNodeId || {},
     })),
   )
 
@@ -421,6 +455,7 @@ export default function FlowCanvas({
     graphDataRevision,
     layoutMode,
     layoutVariant,
+    flowEditorMode: canvas2dRenderer === 'flowEditor',
     documentSemanticMode: String(documentSemanticMode || 'document'),
     effectiveFrontmatter,
     layoutViewKey,
@@ -484,10 +519,141 @@ export default function FlowCanvas({
     })
   }, [canvas2dRenderer, flowConfigEffective.node.heightPx, flowConfigEffective.node.widthPx, graphDataForZoom, nodesForFlowTransformGuard])
 
+  const flowEditorReservedW = React.useMemo(() => {
+    if (canvas2dRenderer !== 'flowEditor') return 0
+    const openCount = openQuickEditorNodeIds.length
+    if (openCount <= 0) return 0
+    const pinnedById = flowNodeQuickEditorPinnedByNodeId || {}
+    let unpinnedCount = 0
+    for (let i = 0; i < openQuickEditorNodeIds.length; i += 1) {
+      const id = String(openQuickEditorNodeIds[i] || '').trim()
+      if (!id) continue
+      const v = pinnedById[id]
+      const pinnedInCanvas = typeof v === 'boolean' ? v : true
+      if (!pinnedInCanvas) unpinnedCount += 1
+    }
+    if (unpinnedCount <= 0) return 0
+
+    const port = schema?.behavior?.portHandles || null
+    const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled)
+    const portSizePx =
+      typeof (port as { size?: unknown } | null)?.size === 'number' && Number.isFinite((port as { size: number }).size)
+        ? Math.max(0, (port as { size: number }).size)
+        : 4
+    const portOffsetPx =
+      typeof (port as { offset?: unknown } | null)?.offset === 'number' && Number.isFinite((port as { offset: number }).offset)
+        ? Math.max(0, (port as { offset: number }).offset)
+        : 2
+    const portExtraPadPx = portEnabled ? Math.floor((portSizePx + portOffsetPx + 8) * 0.7) : 0
+
+    const gapPx = (() => {
+      const flow = schema?.layout?.flow
+      const overlay = flow && typeof flow === 'object' ? (flow as { overlay?: { collisionGapPx?: unknown } }).overlay : null
+      const raw = overlay ? overlay.collisionGapPx : null
+      const base = typeof raw === 'number' && Number.isFinite(raw) ? raw : 12
+      return Math.max(0, Math.min(40, Math.floor(base)))
+    })()
+
+    const marginLeft = 20
+    const marginRight = 20
+    const marginTop = 96
+    const marginBottom = 24
+    const cellW = NODE_QUICK_EDITOR_BASE_SIZE.width + gapPx + portExtraPadPx
+    const cellH = Math.round(NODE_QUICK_EDITOR_BASE_SIZE.height * 0.76) + gapPx
+    const rowsMax = Math.max(1, Math.floor((viewportH - marginTop - marginBottom) / Math.max(1, cellH)))
+    const colsNeeded = Math.max(1, Math.ceil(unpinnedCount / rowsMax))
+    const colsMax = Math.max(1, Math.min(3, Math.floor((viewportW - marginLeft - marginRight) / Math.max(1, cellW))))
+    const cols = Math.max(1, Math.min(colsNeeded, colsMax))
+    const dockWidth = cols * cellW - gapPx
+    const raw = dockWidth + marginRight + 12
+    return Math.max(0, Math.min(Math.floor(viewportW * 0.72), Math.floor(raw)))
+  }, [
+    canvas2dRenderer,
+    flowNodeQuickEditorPinnedByNodeId,
+    openQuickEditorNodeIds,
+    schema?.behavior?.portHandles,
+    schema?.layout?.flow,
+    viewportH,
+    viewportW,
+  ])
+
   const graphDataForZoomRequests = React.useMemo(() => {
     if (!graphDataForZoom) return null
     return { ...graphDataForZoom, nodes: nodesForFlowZoom }
   }, [graphDataForZoom, nodesForFlowZoom])
+
+  React.useEffect(() => {
+    if (!active) return
+    const runtime = runtimeRef.current
+    if (!runtime) return
+    if (canvas2dRenderer !== 'flowEditor') {
+      setFlowAutoMinScale(runtime, null)
+      return
+    }
+    const nodes = nodesForFlowZoom
+    if (!Array.isArray(nodes) || nodes.length === 0) {
+      setFlowAutoMinScale(runtime, null)
+      return
+    }
+    const mode = readLayoutMode(schema)
+    const opts = readFitAllOptions({ schema, mode, intent: 'fitToView' })
+    if (documentSemanticMode === 'document') {
+      opts.detectClusters = false
+      opts.includeGroupsBounds = true
+      opts.deriveGroupsOptions = { forceDocumentStructure: true }
+      opts.schema = {
+        ...schema,
+        layout: {
+          ...(schema?.layout || {}),
+          groups: {
+            ...(schema?.layout?.groups || {}),
+            enabled: true,
+          },
+        },
+      } as GraphSchema
+    }
+    const fitW = Math.max(1, viewportW - flowEditorReservedW)
+    const port = schema?.behavior?.portHandles || null
+    const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled)
+    const portSizePx =
+      typeof (port as { size?: unknown } | null)?.size === 'number' && Number.isFinite((port as { size: number }).size)
+        ? Math.max(0, (port as { size: number }).size)
+        : 4
+    const portOffsetPx =
+      typeof (port as { offset?: unknown } | null)?.offset === 'number' && Number.isFinite((port as { offset: number }).offset)
+        ? Math.max(0, (port as { offset: number }).offset)
+        : 2
+    const portExtraPadScreenPx = portEnabled ? portSizePx + portOffsetPx + 8 : 0
+
+    const fit = fitFlowEditorPinnedQuickEditors({
+      nodes,
+      fitW,
+      viewportH,
+      viewportW,
+      openQuickEditorNodeIds,
+      pinnedById: flowNodeQuickEditorPinnedByNodeId || {},
+      worldPosById: flowNodeQuickEditorWorldPosByNodeId || {},
+      portExtraPadScreenPx,
+      graphData: graphDataForZoomRequests,
+      fitOpts: opts,
+    })
+    const k = typeof fit?.k === 'number' && Number.isFinite(fit.k) ? fit.k : null
+    setFlowAutoMinScale(runtime, k != null && k > 0 ? k : null)
+  }, [
+    active,
+    canvas2dRenderer,
+    documentSemanticMode,
+    flowEditorReservedW,
+    flowNodeQuickEditorPinnedByNodeId,
+    flowNodeQuickEditorWorldPosByNodeId,
+    flowNodeQuickEditorPosByNodeId,
+    graphDataForZoomRequests,
+    nodesForFlowZoom,
+    openQuickEditorNodeIds,
+    schema,
+    viewportH,
+    viewportW,
+  ])
 
   React.useEffect(() => {
     collisionSchemaRef.current = schema
@@ -509,6 +675,7 @@ export default function FlowCanvas({
     runtimeRef,
     graphDataForZoomRef: collisionGraphDataRef,
     schemaRef: collisionSchemaRef,
+    disableRelaxOnCommit: canvas2dRenderer === 'flowEditor',
     setLayoutPositionsForMode,
     setZoomState,
     setZoomStateForKey,
@@ -723,19 +890,11 @@ export default function FlowCanvas({
       if (meta && meta.pending === true) return
     }
 
-    const initKey = isFlowEditor
-      ? buildFlowEditorCameraInitKey({ datasetKey: String(datasetKey || ''), graphData: sceneGraphData as GraphData | null })
-      : zoomViewKey
+    const initKey = zoomViewKey
     const alreadyInitializedForKey = lastInitTransformZoomViewKeyRef.current === initKey
     const t0 = runtime.transform || d3.zoomIdentity
     const hasNonIdentityTransform = t0.k !== 1 || t0.x !== 0 || t0.y !== 0
-    if (isFlowEditor && alreadyInitializedForKey) {
-      const ok = isFlowTransformShowingGraph(
-        { k: t0.k, x: t0.x, y: t0.y },
-        { nodes: nodesForTransformGuard as Array<{ x?: unknown; y?: unknown }>, viewportW, viewportH, nodeW: flowConfig.node.widthPx, nodeH: flowConfig.node.heightPx },
-      )
-      if (ok) return
-    }
+    if (isFlowEditor && alreadyInitializedForKey) return
     if (!isFlowEditor && alreadyInitializedForKey && hasNonIdentityTransform) return
 
     const now = Date.now()
@@ -783,7 +942,34 @@ export default function FlowCanvas({
 
     if (isFlowEditor && nodesForTransformGuard.length === 0) return
 
-    const fit = fitAllTransform(nodesForFit, viewportW, viewportH, { ...opts, graphData: graphDataForZoomRequests || undefined })
+    const fitW = Math.max(1, viewportW - (isFlowEditor ? flowEditorReservedW : 0))
+    const fit = isFlowEditor
+      ? (() => {
+          const port = schema?.behavior?.portHandles || null
+          const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled)
+          const portSizePx =
+            typeof (port as { size?: unknown } | null)?.size === 'number' && Number.isFinite((port as { size: number }).size)
+              ? Math.max(0, (port as { size: number }).size)
+              : 4
+          const portOffsetPx =
+            typeof (port as { offset?: unknown } | null)?.offset === 'number' && Number.isFinite((port as { offset: number }).offset)
+              ? Math.max(0, (port as { offset: number }).offset)
+              : 2
+          const portExtraPadScreenPx = portEnabled ? portSizePx + portOffsetPx + 8 : 0
+          return fitFlowEditorPinnedQuickEditors({
+            nodes: nodesForFit,
+            fitW,
+            viewportH,
+            viewportW,
+            openQuickEditorNodeIds,
+            pinnedById: flowNodeQuickEditorPinnedByNodeId || {},
+            worldPosById: flowNodeQuickEditorWorldPosByNodeId || {},
+            portExtraPadScreenPx,
+            graphData: graphDataForZoomRequests,
+            fitOpts: opts,
+          })
+        })()
+      : fitAllTransform(nodesForFit, fitW, viewportH, { ...opts, graphData: graphDataForZoomRequests || undefined })
     const fallbackInitial =
       !initial && !effectiveFitToScreenMode && !effectiveZoomToSelectionMode && hasNonIdentityTransform
         ? { k: t0.k, x: t0.x, y: t0.y }
@@ -792,6 +978,7 @@ export default function FlowCanvas({
     const next = (() => {
       if (!seeded) return fit
       const candidate = d3.zoomIdentity.translate(seeded.x, seeded.y).scale(seeded.k)
+      if (isFlowEditor) return candidate
       const ok = isFlowTransformShowingGraph(
         { k: candidate.k, x: candidate.x, y: candidate.y },
         { nodes: nodesForTransformGuard as Array<{ x?: unknown; y?: unknown }>, viewportW, viewportH, nodeW: flowConfigEffective.node.widthPx, nodeH: flowConfigEffective.node.heightPx },
@@ -829,6 +1016,7 @@ export default function FlowCanvas({
     nodesForFlowZoom,
     documentSemanticMode,
     sceneGraphData,
+    flowEditorReservedW,
   ])
 
   React.useEffect(() => {
@@ -836,11 +1024,16 @@ export default function FlowCanvas({
     const runtime = runtimeRef.current
     if (!runtime) return
     if (!zoomRequest) return
+    const isFlowEditor = canvas2dRenderer === 'flowEditor'
+    const widthEffective =
+      isFlowEditor && (zoomRequest.type === 'fit' || zoomRequest.type === 'reset')
+        ? Math.max(1, viewportW - flowEditorReservedW)
+        : viewportW
     applyZoomRequestNative({
       zoomRequest,
       runtime,
       graphData: graphDataForZoomRequests,
-      width: viewportW,
+      width: widthEffective,
       height: viewportH,
       selectedNodeId: selectedNodeId ? String(selectedNodeId) : null,
       selectedEdgeId: selectedEdgeId ? String(selectedEdgeId) : null,
@@ -855,8 +1048,10 @@ export default function FlowCanvas({
   }, [
     active,
     buildDrawArgs,
+    canvas2dRenderer,
     graphDataForZoomRequests,
     handleInteractionFrame,
+    flowEditorReservedW,
     requestCommit,
     selectedEdgeId,
     selectedEdgeIds,

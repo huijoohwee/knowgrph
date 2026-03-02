@@ -4,7 +4,7 @@ import * as d3 from 'd3'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { hitTestGroup, hitTestNode, requestFlowNativeDraw, setFlowNativeTransform, type FlowNativeDrawArgs, type FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
-import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { DEFAULT_FLOW_NODE_WIDTH_PX, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { computeWheelZoomFactor, computeZoomWheelDeltaYpx } from '@/lib/canvas/zoom-input'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { coerceWheelFallback, resolveWheelAnchor } from '@/lib/canvas/wheel-anchor'
@@ -13,11 +13,7 @@ import { shouldIgnoreCanvasWheelEvent } from '@/lib/canvas/wheel-target-guard'
 import { readCanvasLocalPoint } from '@/lib/canvas/canvas-event-coords'
 import { relaxFlowSceneNodePositions } from '@/components/FlowCanvas/relaxScenePositions'
 import { computeFlowDragRelaxPolicy } from '@/components/FlowCanvas/relaxStepPolicy'
-import {
-  computeFlowWheelZoomDurationMs,
-  easeOutCubic01,
-  lerpNumber,
-} from '@/components/FlowCanvas/wheelZoomSmoothing'
+import { computeFlowWheelZoomDurationMs, easeOutCubic01, lerpNumber } from '@/lib/canvas/zoom-smoothing'
 import { clampFlowWheelZoomIncrementMultiplier, clampFlowWheelZoomSpeedMultiplier } from '@/lib/canvas/flow-zoom-tuning'
 import { cancelFlowZoomRequestAnim } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { getFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
@@ -64,6 +60,14 @@ export type FlowCanvasDrag =
       startTransform: d3.ZoomTransform
       startA: { sx: number; sy: number }
       startB: { sx: number; sy: number }
+      pointerId: number
+    }
+  | {
+      type: 'nodes'
+      memberNodeIds: string[]
+      startWorldX: number
+      startWorldY: number
+      startNodePosById: Record<string, { x: number; y: number }>
       pointerId: number
     }
   | {
@@ -128,6 +132,13 @@ export function bindFlowCanvasNativeInteractions(args: {
   const touchPointsById = new Map<number, { sx: number; sy: number }>()
   const edgeScroll = createEdgeScrollController()
 
+  const readEffectiveSelectMode = (st: ReturnType<typeof useGraphStore.getState>, isFlowEditor: boolean): 'single' | 'multi' | 'lasso' => {
+    const raw = st.schema?.behavior?.selectMode
+    const base: 'single' | 'multi' | 'lasso' = raw === 'lasso' ? 'lasso' : raw === 'multi' ? 'multi' : 'single'
+    if (!isFlowEditor) return base
+    return base === 'lasso' ? 'lasso' : 'multi'
+  }
+
   const getPreset = (): ViewportControlsPreset => {
     const st = useGraphStore.getState()
     return (st.viewportControlsPreset || args.viewportControlsPreset) as ViewportControlsPreset
@@ -147,6 +158,7 @@ export function bindFlowCanvasNativeInteractions(args: {
   let wheelZoomAnimToK = 1
   let wheelZoomAnimAnchor: { sx: number; sy: number } = { sx: 0, sy: 0 }
   let wheelZoomAnimScaleExtent: { minK: number; maxK: number } = { minK: 0.05, maxK: 8 }
+  let wheelZoomAnimLastCommitMs = 0
 
   const cancelWheelZoomAnimation = () => {
     if (wheelZoomAnimRaf == null) return
@@ -172,11 +184,17 @@ export function bindFlowCanvasNativeInteractions(args: {
 
     setFlowNativeTransform(runtime, computeAnchoredZoomTransform({ transform: t0, anchor, nextK: k }))
     requestFlowNativeDraw(runtime, args.buildDrawArgs())
-    args.requestCommit()
+    const commitNow = Date.now()
+    const shouldCommit = wheelZoomAnimLastCommitMs === 0 || commitNow - wheelZoomAnimLastCommitMs >= 60
+    if (shouldCommit) {
+      wheelZoomAnimLastCommitMs = commitNow
+      args.requestCommit()
+    }
     args.onInteractionFrame?.()
 
     if (!(raw01 < 1)) {
       wheelZoomAnimRaf = null
+      args.requestCommit()
       return
     }
     wheelZoomAnimRaf = requestAnimationFrame(tickWheelZoomAnimation)
@@ -195,6 +213,7 @@ export function bindFlowCanvasNativeInteractions(args: {
     wheelZoomAnimScaleExtent = { minK: next.extent.minK, maxK: next.extent.maxK }
     wheelZoomAnimDurationMs = Math.max(0, Math.floor(next.durationMs))
     wheelZoomAnimStartMs = performance.now()
+    wheelZoomAnimLastCommitMs = 0
     wheelZoomAnimRaf = requestAnimationFrame(tickWheelZoomAnimation)
   }
 
@@ -259,11 +278,12 @@ export function bindFlowCanvasNativeInteractions(args: {
     if (!Number.isFinite(deltaYpx) || Math.abs(deltaYpx) < 1e-9) return
 
     const t0 = runtime.transform || d3.zoomIdentity
-    const minK = extent && Number.isFinite(extent.minK) ? extent.minK : 0.05
+    const baseMinK = extent && Number.isFinite(extent.minK) ? extent.minK : 0.05
     const maxK = extent && Number.isFinite(extent.maxK) ? extent.maxK : 8
     const now = Date.now()
 
     const intent = deltaYpx < 0 ? 'in' : 'out'
+    const minK = intent === 'out' ? Math.min(baseMinK, t0.k) : baseMinK
     args.lastWheelIntentRef.current = { dir: intent, ts: now }
     {
       const guard = computeZoomWheelGuardDecision({
@@ -334,7 +354,7 @@ export function bindFlowCanvasNativeInteractions(args: {
     return true
   }
 
-  const shouldProxyWheelFromOverlay = (event: WheelEvent): boolean => {
+  const shouldProxyWheelFromOverlay = (event: WheelEvent, opts?: { isFlowEditor?: boolean }): boolean => {
     const resolved = resolveFlowEditorOverlayProxyTarget({
       target: (event as unknown as { target?: unknown }).target,
       canvasEl,
@@ -342,14 +362,14 @@ export function bindFlowCanvasNativeInteractions(args: {
     if (resolved.kind !== 'overlay') return false
     const overlayRoot = resolved.overlayRoot
     const el = resolved.targetEl
-    if (isSpacePanHeld()) return true
-    if (event.ctrlKey === true || event.metaKey === true) return true
+    const overlayPinnedToNode = String((overlayRoot as HTMLElement | null)?.dataset?.kgNodeQuickEditorPinned || '') === '1'
+    const isFlowEditor = opts?.isFlowEditor === true
 
     const dx = typeof (event as unknown as { deltaX?: unknown }).deltaX === 'number' ? (event as unknown as { deltaX: number }).deltaX : 0
     const dy = typeof (event as unknown as { deltaY?: unknown }).deltaY === 'number' ? (event as unknown as { deltaY: number }).deltaY : 0
     if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return false
 
-    const canScrollForDelta = (node: HTMLElement, delta: { dx: number; dy: number }): boolean => {
+    const isScrollable = (node: HTMLElement, axis: 'x' | 'y'): boolean => {
       let overflowX = ''
       let overflowY = ''
       try {
@@ -360,23 +380,19 @@ export function bindFlowCanvasNativeInteractions(args: {
         void 0
       }
 
-      if (delta.dy !== 0 && (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay')) {
+      if (axis === 'y' && (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay')) {
         const h = node.scrollHeight
         const ch = node.clientHeight
         if (h > ch + 1) {
-          const top = node.scrollTop
-          if (delta.dy > 0 && top + ch < h - 1) return true
-          if (delta.dy < 0 && top > 0) return true
+          return true
         }
       }
 
-      if (delta.dx !== 0 && (overflowX === 'auto' || overflowX === 'scroll' || overflowX === 'overlay')) {
+      if (axis === 'x' && (overflowX === 'auto' || overflowX === 'scroll' || overflowX === 'overlay')) {
         const w = node.scrollWidth
         const cw = node.clientWidth
         if (w > cw + 1) {
-          const left = node.scrollLeft
-          if (delta.dx > 0 && left + cw < w - 1) return true
-          if (delta.dx < 0 && left > 0) return true
+          return true
         }
       }
 
@@ -388,10 +404,18 @@ export function bindFlowCanvasNativeInteractions(args: {
     const maxHops = 30
     for (let hops = 0; cur && hops < maxHops; hops += 1) {
       const node = cur instanceof HTMLElement ? cur : null
-      if (node && canScrollForDelta(node, { dx, dy })) return false
+      if (node) {
+        if (dy !== 0 && isScrollable(node, 'y')) return false
+        if (dx !== 0 && isScrollable(node, 'x')) return false
+      }
       if (boundary && cur === boundary) break
       cur = cur.parentElement
     }
+
+    if (isFlowEditor && overlayPinnedToNode && event.altKey !== true) return true
+    if (overlayPinnedToNode && resolved.isInteractive !== true && event.altKey !== true) return true
+    if (isSpacePanHeld()) return true
+    if (event.ctrlKey === true || event.metaKey === true) return true
 
     return true
   }
@@ -411,8 +435,9 @@ export function bindFlowCanvasNativeInteractions(args: {
       return
     }
 
-    const preset = args.viewportControlsPreset
     const storeState = useGraphStore.getState()
+    const isFlowEditor = String(storeState.canvas2dRenderer || '') === 'flowEditor'
+    const preset: ViewportControlsPreset = getPreset()
     disableAutoZoomModesForUserGesture(storeState)
     const schemaForWheel = storeState.schema
     const wheelBehavior = schemaForWheel ? readWheelBehavior(schemaForWheel) : 'preset'
@@ -421,7 +446,6 @@ export function bindFlowCanvasNativeInteractions(args: {
     const ignoreWheel = opts?.skipIgnoreGuard ? false : shouldIgnoreCanvasWheelEvent({ event: e, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })
     const allowZoomThroughIgnore = wheelZoom && (e.ctrlKey === true || e.metaKey === true)
     if (ignoreWheel && !allowZoomThroughIgnore) {
-      const isFlowEditor = String(storeState.canvas2dRenderer || '') === 'flowEditor'
       if (isFlowEditor && !opts?.skipIgnoreGuard) {
         const cx = (e as unknown as { clientX?: unknown }).clientX
         const cy = (e as unknown as { clientY?: unknown }).clientY
@@ -468,8 +492,9 @@ export function bindFlowCanvasNativeInteractions(args: {
     const schema = state.schema
     const [schemaMinScale, schemaMaxScale] = readZoomScaleExtent(schema)
     const autoMinScale = getFlowAutoMinScale(runtime)
-    const minScale = autoMinScale != null ? Math.min(schemaMinScale, autoMinScale) : schemaMinScale
     const maxScale = schemaMaxScale
+    const minScaleBase = autoMinScale != null ? autoMinScale : schemaMinScale
+    const minScale = clampScale(minScaleBase, { minK: DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, maxK: maxScale })
     const local = readCanvasLocalPoint({ canvasEl, event: e })
     const rect = local ? null : canvasEl.getBoundingClientRect()
     const now = Date.now()
@@ -519,8 +544,28 @@ export function bindFlowCanvasNativeInteractions(args: {
 
   const onWindowWheelCapture = (e: WheelEvent) => {
     if (!args.active) return
-    if (useGraphStore.getState().flowEditorOverlayWheelProxyEnabled === false) return
-    if (!shouldProxyWheelFromOverlay(e)) return
+    const st = useGraphStore.getState()
+    const isFlowEditor = String(st.canvas2dRenderer || '') === 'flowEditor'
+    if (!isFlowEditor && st.flowEditorOverlayWheelProxyEnabled === false) return
+    const target = e.target
+    const targetEl = target instanceof Element ? target : null
+    const targetInCanvas = !!targetEl && (targetEl === canvasEl || canvasEl.contains(targetEl))
+
+    if (!targetInCanvas && isFlowEditor) {
+      const cx = (e as unknown as { clientX?: unknown }).clientX
+      const cy = (e as unknown as { clientY?: unknown }).clientY
+      if (typeof cx === 'number' && Number.isFinite(cx) && typeof cy === 'number' && Number.isFinite(cy)) {
+        const top = typeof document !== 'undefined' && typeof document.elementFromPoint === 'function'
+          ? document.elementFromPoint(cx, cy)
+          : null
+        if (top && (top === canvasEl || canvasEl.contains(top))) {
+          handleWheel(e, { skipIgnoreGuard: true })
+          return
+        }
+      }
+    }
+
+    if (!shouldProxyWheelFromOverlay(e, { isFlowEditor })) return
     handleWheel(e, { skipIgnoreGuard: true })
   }
 
@@ -576,10 +621,13 @@ export function bindFlowCanvasNativeInteractions(args: {
     const schema = storeState.schema
     const [schemaMinScale, schemaMaxScale] = readZoomScaleExtent(schema)
     const autoMinScale = getFlowAutoMinScale(runtime)
-    const minScale = autoMinScale != null ? Math.min(schemaMinScale, autoMinScale) : schemaMinScale
     const maxScale = schemaMaxScale
     const t0 = runtime.transform || d3.zoomIdentity
-    const nextK = clampScale(t0.k * ratio, { minK: minScale, maxK: maxScale })
+    const minScaleBase = autoMinScale != null ? autoMinScale : schemaMinScale
+    const minScale = clampScale(minScaleBase, { minK: DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, maxK: maxScale })
+    const minK = ratio < 1 ? Math.min(minScale, t0.k) : minScale
+    const nextK = clampScale(t0.k * ratio, { minK, maxK: maxScale })
+    const wantsZoomOut = ratio < 1 - 1e-6
     if (!Number.isFinite(nextK) || Math.abs(nextK - t0.k) < 1e-10) {
       try {
         event.preventDefault()
@@ -647,11 +695,14 @@ export function bindFlowCanvasNativeInteractions(args: {
     cancelWheelZoomAnimation()
     cancelFlowZoomRequestAnim(runtime)
 
-    const preset = getPreset()
+    const presetRaw = getPreset()
+    const storeStateAtDown = useGraphStore.getState()
+    const isFlowEditor = String(storeStateAtDown.canvas2dRenderer || '') === 'flowEditor'
+    const preset = presetRaw
     const allowButton = e.pointerType === 'touch' || e.button === 0 || isPanDragButton(e.button, preset)
     if (!allowButton) return
     try {
-      disableAutoZoomModesForUserGesture(useGraphStore.getState())
+      disableAutoZoomModesForUserGesture(storeStateAtDown)
     } catch {
       void 0
     }
@@ -696,8 +747,6 @@ export function bindFlowCanvasNativeInteractions(args: {
       args.dragRef.current = next
     }
 
-    const storeStateAtDown = useGraphStore.getState()
-
     if (e.pointerType === 'touch') {
       touchPointsById.set(pointerId, { sx, sy })
       if (touchPointsById.size >= 2) {
@@ -735,12 +784,19 @@ export function bindFlowCanvasNativeInteractions(args: {
       const state = storeStateAtDown
       state.setSelectionSource('canvas')
       state.selectEdge(null)
-      const mode = state.schema?.behavior?.selectMode || 'single'
+      const mode = readEffectiveSelectMode(state, isFlowEditor)
       const wantsToggle = (mode === 'multi' || mode === 'lasso') && (e.shiftKey === true || e.metaKey === true || e.ctrlKey === true)
+      const selectedAtDownRaw = Array.isArray(state.selectedNodeIds) ? state.selectedNodeIds : []
+      const selectedAtDown = selectedAtDownRaw.map(v => String(v || '').trim()).filter(Boolean)
+      const isHitSelected = selectedAtDown.includes(hit)
       if (wantsToggle) {
         state.selectNode(hit)
       } else if (mode === 'multi' || mode === 'lasso') {
-        state.selectNodesExpanded({ nodeIds: [hit], activeNodeId: hit })
+        if (isHitSelected && selectedAtDown.length > 1) {
+          state.selectNodesExpanded({ nodeIds: selectedAtDown, activeNodeId: hit })
+        } else {
+          state.selectNodesExpanded({ nodeIds: [hit], activeNodeId: hit })
+        }
       } else {
         state.selectNode(hit)
       }
@@ -767,17 +823,42 @@ export function bindFlowCanvasNativeInteractions(args: {
         const t0 = runtime.transform || d3.zoomIdentity
         const wx = (sx - t0.x) / t0.k
         const wy = (sy - t0.y) / t0.k
-        const node = runtime.scene?.nodeById.get(hit)
-        if (node) {
-          startDrag({
-            type: 'node',
-            nodeId: hit,
-            startWorldX: wx,
-            startWorldY: wy,
-            startNodeX: node.x,
-            startNodeY: node.y,
-            pointerId,
-          })
+        const scene = runtime.scene
+        if (scene) {
+          const selectedForDrag = (mode === 'multi' || mode === 'lasso') && !wantsToggle && isHitSelected && selectedAtDown.length > 1
+          if (selectedForDrag) {
+            const memberNodeIds = selectedAtDown
+              .map(v => String(v || '').trim())
+              .filter(id => id && scene.nodeById.has(id))
+            const startNodePosById: Record<string, { x: number; y: number }> = {}
+            for (let i = 0; i < memberNodeIds.length; i += 1) {
+              const id = memberNodeIds[i]
+              const n = scene.nodeById.get(id)
+              if (!n) continue
+              startNodePosById[id] = { x: n.x, y: n.y }
+            }
+            startDrag({
+              type: 'nodes',
+              memberNodeIds,
+              startWorldX: wx,
+              startWorldY: wy,
+              startNodePosById,
+              pointerId,
+            })
+          } else {
+            const node = scene.nodeById.get(hit)
+            if (node) {
+              startDrag({
+                type: 'node',
+                nodeId: hit,
+                startWorldX: wx,
+                startWorldY: wy,
+                startNodeX: node.x,
+                startNodeY: node.y,
+                pointerId,
+              })
+            }
+          }
         }
       }
       requestFlowNativeDraw(runtime, args.buildDrawArgs())
@@ -805,6 +886,27 @@ export function bindFlowCanvasNativeInteractions(args: {
             pointerId,
           })
         }
+        return
+      }
+      if (
+        isFlowEditor
+        && allowPan === true
+        && selectionDrag !== true
+        && spacePanHeld !== true
+        && e.altKey !== true
+        && String(state.selectedGroupId || '').trim() !== String(groupHit || '').trim()
+      ) {
+        state.setSelectionSource('canvas')
+        state.selectEdge(null)
+        state.selectGroup(groupHit)
+        startDrag({
+          type: 'pan',
+          startSx: sx,
+          startSy: sy,
+          startTx: runtime.transform.x,
+          startTy: runtime.transform.y,
+          pointerId,
+        })
         return
       }
       if (allowDrag) {
@@ -838,16 +940,15 @@ export function bindFlowCanvasNativeInteractions(args: {
     }
 
     {
-      const state = useGraphStore.getState()
-      const isFlowEditor = String(state.canvas2dRenderer || '') === 'flowEditor'
-      const selectMode = state.schema?.behavior?.selectMode || 'single'
-      const selectionOnDrag = args.selectionOnDrag === true
-      const allowLasso = selectMode === 'lasso' || (selectionOnDrag === true && preset === 'design')
+      const state = storeStateAtDown
+      const selectMode = readEffectiveSelectMode(state, isFlowEditor)
+      const allowLasso =
+        selectMode === 'lasso'
+        || (isFlowEditor && selectMode === 'multi' && e.shiftKey === true)
       const wantLasso =
         allowLasso &&
         e.pointerType !== 'touch' &&
-        (!isFlowEditor || e.shiftKey === true) &&
-        selectionDrag
+        ((selectionDrag && (!isFlowEditor || e.shiftKey === true)) || (isFlowEditor && e.shiftKey === true && selectionDrag !== true))
       if (wantLasso) {
         state.setSelectionSource('canvas')
         state.selectEdge(null)
@@ -914,7 +1015,7 @@ export function bindFlowCanvasNativeInteractions(args: {
     const sx = local.sx
     const sy = local.sy
 
-    if (drag.type === 'node' || drag.type === 'group' || drag.type === 'lasso') {
+    if (drag.type === 'node' || drag.type === 'nodes' || drag.type === 'group' || drag.type === 'lasso') {
       const state = useGraphStore.getState()
       const locked = state.viewPinned === true
       const d = edgeScroll.update({
@@ -951,25 +1052,28 @@ export function bindFlowCanvasNativeInteractions(args: {
       disableAutoZoomModesForUserGesture(state)
       const [schemaMinScale, schemaMaxScale] = readZoomScaleExtent(state.schema)
       const autoMinScale = getFlowAutoMinScale(runtime)
-      const minScale = autoMinScale != null ? Math.min(schemaMinScale, autoMinScale) : schemaMinScale
       const maxScale = schemaMaxScale
+      const minScaleBase = autoMinScale != null ? autoMinScale : schemaMinScale
+      const minScale = clampScale(minScaleBase, { minK: DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, maxK: maxScale })
+      const minK = Math.min(minScale, drag.startTransform.k)
       const zoomSpeedRaw = readZoomSpeed(state.schema)
       const zoomSpeed = Number.isFinite(zoomSpeedRaw) && zoomSpeedRaw > 0 ? zoomSpeedRaw : 1
       const speed = clampFlowWheelZoomSpeedMultiplier(state.flowWheelZoomSpeedMultiplier)
       const increment = clampFlowWheelZoomIncrementMultiplier(state.flowWheelZoomIncrementMultiplier)
       const interactionSpeed = clampCanvasInteractionSpeedMultiplier(state.canvasInteractionSpeedMultiplier)
-      setFlowNativeTransform(
-        runtime,
-        computePinchZoomTransform({
-          startTransform: drag.startTransform,
-          startA: drag.startA,
-          startB: drag.startB,
-          curA: a,
-          curB: b,
-          scaleExtent: { minK: minScale, maxK: maxScale },
-          zoomExponentMultiplier: zoomSpeed * speed * increment * interactionSpeed,
-        }),
-      )
+      const next = computePinchZoomTransform({
+        startTransform: drag.startTransform,
+        startA: drag.startA,
+        startB: drag.startB,
+        curA: a,
+        curB: b,
+        scaleExtent: { minK, maxK: maxScale },
+        zoomExponentMultiplier: zoomSpeed * speed * increment * interactionSpeed,
+      })
+      const startDist = Math.hypot(drag.startA.sx - drag.startB.sx, drag.startA.sy - drag.startB.sy)
+      const curDist = Math.hypot(a.sx - b.sx, a.sy - b.sy)
+      const pinchWantsZoomOut = curDist < startDist - 1e-6
+      setFlowNativeTransform(runtime, next)
       requestFlowNativeDraw(runtime, args.buildDrawArgs())
       args.requestCommit()
       args.onInteractionFrame?.()
@@ -1013,6 +1117,45 @@ export function bindFlowCanvasNativeInteractions(args: {
       } catch {
         void 0
       }
+      return
+    }
+
+    if (drag.type === 'nodes') {
+      const t0 = runtime.transform || d3.zoomIdentity
+      const wx = (sx - t0.x) / t0.k
+      const wy = (sy - t0.y) / t0.k
+      const dx = wx - drag.startWorldX
+      const dy = wy - drag.startWorldY
+      const st = useGraphStore.getState()
+      const grid = st.schema?.behavior?.snapGrid
+      const gridEnabled = !!(grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) && grid.size > 2)
+      const allowSnap = gridEnabled && e.altKey !== true
+      const size = gridEnabled ? Math.max(4, Math.floor(grid!.size)) : 0
+      const scene = runtime.scene
+      if (!scene) return
+      const anchorId = drag.memberNodeIds[0] || ''
+      const anchorStart = anchorId ? drag.startNodePosById[anchorId] : null
+      const snappedDelta = (() => {
+        if (!allowSnap || !anchorStart) return { dx, dy }
+        const ax = anchorStart.x + dx
+        const ay = anchorStart.y + dy
+        const sx0 = Math.round(ax / size) * size
+        const sy0 = Math.round(ay / size) * size
+        return { dx: sx0 - anchorStart.x, dy: sy0 - anchorStart.y }
+      })()
+      for (let i = 0; i < drag.memberNodeIds.length; i += 1) {
+        const id = drag.memberNodeIds[i]
+        const node = scene.nodeById.get(id)
+        const start = drag.startNodePosById[id]
+        if (!node || !start) continue
+        node.x = start.x + snappedDelta.dx
+        node.y = start.y + snappedDelta.dy
+      }
+      runtime.dirty = true
+      args.positionsDirtySinceCommitRef.current = true
+      scheduleDragRelax()
+      requestFlowNativeDraw(runtime, args.buildDrawArgs())
+      args.onInteractionFrame?.()
       return
     }
 
@@ -1179,7 +1322,11 @@ export function bindFlowCanvasNativeInteractions(args: {
   }
 
   const onContextMenu = (e: MouseEvent) => {
-    if (!shouldSuppressContextMenuForPreset(getPreset())) return
+    const presetRaw = getPreset()
+    const st = useGraphStore.getState()
+    const isFlowEditor = String(st.canvas2dRenderer || '') === 'flowEditor'
+    const preset: ViewportControlsPreset = presetRaw
+    if (!shouldSuppressContextMenuForPreset(preset)) return
     try {
       e.preventDefault()
     } catch {
@@ -1199,6 +1346,7 @@ export function bindFlowCanvasNativeInteractions(args: {
         startTx: number
         startTy: number
       } = null
+  const OVERLAY_NODE_DRAG_HANDLE_SELECTOR = '[data-kg-flow-node-drag-handle="true"]'
   const spacePanProxyTargetSelector = [FLOW_EDITOR_OVERLAY_ROOT_SELECTOR, UI_SELECTORS.canvasWheelIgnore, UI_SELECTORS.canvasPointerIgnore]
     .filter(Boolean)
     .join(', ')
@@ -1242,21 +1390,98 @@ export function bindFlowCanvasNativeInteractions(args: {
     if (canvasEl.contains(targetEl)) return
     if (!spacePanProxyTargetSelector || !targetEl.closest(spacePanProxyTargetSelector)) return
 
-    const preset = getPreset()
+    const presetRaw = getPreset()
+    const storeStateAtDown = useGraphStore.getState()
+    const isFlowEditor = String(storeStateAtDown.canvas2dRenderer || '') === 'flowEditor'
+    const preset = presetRaw
     const button = typeof e.button === 'number' ? e.button : 0
     const shiftKey = e.shiftKey === true
     const spacePanHeld = isSpacePanHeld()
-    if (spacePanHeld !== true) return
-    if (button !== 0) return
 
     const resolved = resolveFlowEditorOverlayProxyTarget({ target: targetEl, canvasEl })
-    if (resolved.kind === 'overlay' && resolved.isInteractive && spacePanHeld !== true) return
-
     const overlayPinnedToNode =
       resolved.kind === 'overlay' &&
       String((resolved.overlayRoot as HTMLElement | null)?.dataset?.kgNodeQuickEditorPinned || '') === '1'
 
-    if (resolved.kind === 'overlay' && !overlayPinnedToNode && spacePanHeld !== true) return
+    const overlayDragHandle =
+      resolved.kind === 'overlay' && overlayPinnedToNode && resolved.targetEl.closest(OVERLAY_NODE_DRAG_HANDLE_SELECTOR)
+
+    if (resolved.kind === 'overlay' && resolved.isInteractive && button === 0 && spacePanHeld !== true && !overlayDragHandle) return
+
+    if (resolved.kind === 'overlay' && !overlayPinnedToNode && button === 0 && spacePanHeld !== true) return
+
+    if (
+      resolved.kind === 'overlay' &&
+      overlayPinnedToNode &&
+      button === 0 &&
+      spacePanHeld !== true &&
+      e.altKey !== true &&
+      overlayDragHandle
+    ) {
+      cancelWheelZoomAnimation()
+      cancelFlowZoomRequestAnim(runtime)
+      try {
+        disableAutoZoomModesForUserGesture(storeStateAtDown)
+      } catch {
+        void 0
+      }
+
+      const local = readCanvasLocalPoint({ canvasEl, event: e })
+      if (!local) return
+
+      args.lastPointerInCanvasRef.current = { sx: local.sx, sy: local.sy, ts: Date.now() }
+      pendingProxyPan = {
+        pointerId: e.pointerId,
+        startClientX: Number.isFinite(e.clientX) ? e.clientX : 0,
+        startClientY: Number.isFinite(e.clientY) ? e.clientY : 0,
+        startSx: local.sx,
+        startSy: local.sy,
+        startTx: runtime.transform.x,
+        startTy: runtime.transform.y,
+      }
+      return
+    }
+
+    if (resolved.kind === 'overlay' && overlayPinnedToNode && button === 0 && spacePanHeld !== true && e.altKey !== true) {
+      const allowPan = shouldAllowPanDragForPointerEvent({
+        preset,
+        eventType: 'pointerdown',
+        button,
+        shiftKey,
+        spacePanHeld,
+      })
+      const selectionDrag = shouldStartSelectionDragForPreset({
+        preset,
+        button,
+        shiftKey,
+        spacePanHeld,
+        selectionOnDrag: args.selectionOnDrag,
+      })
+      if (!allowPan || selectionDrag) return
+
+      cancelWheelZoomAnimation()
+      cancelFlowZoomRequestAnim(runtime)
+      try {
+        disableAutoZoomModesForUserGesture(storeStateAtDown)
+      } catch {
+        void 0
+      }
+
+      const local = readCanvasLocalPoint({ canvasEl, event: e })
+      if (!local) return
+
+      args.lastPointerInCanvasRef.current = { sx: local.sx, sy: local.sy, ts: Date.now() }
+      pendingProxyPan = {
+        pointerId: e.pointerId,
+        startClientX: Number.isFinite(e.clientX) ? e.clientX : 0,
+        startClientY: Number.isFinite(e.clientY) ? e.clientY : 0,
+        startSx: local.sx,
+        startSy: local.sy,
+        startTx: runtime.transform.x,
+        startTy: runtime.transform.y,
+      }
+      return
+    }
 
     const allowPan = shouldAllowPanDragForPointerEvent({
       preset,
@@ -1273,7 +1498,7 @@ export function bindFlowCanvasNativeInteractions(args: {
       selectionOnDrag: args.selectionOnDrag,
     })
     if (!allowPan || selectionDrag) return
-    if (resolved.kind === 'overlay' && resolved.isInteractive && !(spacePanHeld === true && button === 0)) return
+    if (resolved.kind === 'overlay' && resolved.isInteractive && button === 0 && spacePanHeld !== true) return
 
     cancelWheelZoomAnimation()
     cancelFlowZoomRequestAnim(runtime)
@@ -1300,6 +1525,34 @@ export function bindFlowCanvasNativeInteractions(args: {
 
   const onWindowPointerMoveCapture = (e: PointerEvent) => {
     if (!args.active) return
+    if (proxyPanPointerId == null && pendingProxyPan == null) {
+      const drag = args.dragRef.current
+      if (drag) {
+        const pointerIds = (() => {
+          if (drag.type === 'pinch') return [drag.pointerIdA, drag.pointerIdB]
+          return [drag.pointerId]
+        })()
+        if (pointerIds.includes(e.pointerId)) {
+          try {
+            if (canvasEl.hasPointerCapture(e.pointerId) !== true) {
+              handlePointerMoveOnce(e)
+              try {
+                e.preventDefault()
+              } catch {
+                void 0
+              }
+            }
+          } catch {
+            handlePointerMoveOnce(e)
+            try {
+              e.preventDefault()
+            } catch {
+              void 0
+            }
+          }
+        }
+      }
+    }
     if (proxyPanPointerId != null) {
       if (e.pointerId !== proxyPanPointerId) return
       handlePointerMoveOnce(e)

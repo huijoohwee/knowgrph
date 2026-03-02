@@ -49,15 +49,15 @@ import { FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY, FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY 
 import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import { hasFlowNodeQuickEditorDragType, readFlowNodeQuickEditorDragPayloadFromDataTransfer } from '@/lib/flowEditor/nodeQuickEditorDrag'
 import { buildSelectionSubgraph, exportNodeQuickEditorBundleAsJson } from '@/lib/graph/file'
-import { lsJson } from '@/lib/persistence'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
 import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
 import { computeNodeQuickEditorScale, computeNodeQuickEditorScaledSize } from '@/components/FlowEditor/nodeQuickEditorZoom'
+import { computeNodeQuickEditorMaxAnchorShiftPx } from '@/components/FlowEditor/nodeQuickEditorLayout'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
-import { DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE, readFlowLayoutKnobs, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { readFlowLayoutKnobs } from '@/lib/graph/layoutDefaults'
 import { relaxOverlayPanelsWithCollision } from '@/components/FlowCanvas/relaxOverlayPanels'
 import { buildFlowHandleId, computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
-import { FLOW_EDITOR_OVERLAY_ROOT_SELECTOR } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { FLOW_EDITOR_INTERACTION_FRAME_EVENT, FLOW_EDITOR_OVERLAY_ROOT_SELECTOR } from '@/lib/canvas/flow-editor-overlay-proxy'
 
 type ToolMode = 'select' | 'addEdge'
 
@@ -77,9 +77,8 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
   canvasWindowOffset: { left: number; top: number }
   zoomViewKey: string | null
   autoRevealKey?: number
-  forcePinnedToNode?: boolean
+  forcePinnedToCanvas?: boolean
   stackIndex?: number
-  liveInteractionTick?: number
   getLiveNodeWorldPos?: (nodeId: string) => { x: number; y: number } | null
   getLiveZoomTransform?: () => { k: number; x: number; y: number } | null
   toolMode: ToolMode
@@ -97,7 +96,7 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
   onHelp: () => void
   onConvertToLoopNode: () => void
   onEnableHandlesForAllInputs: () => void
-  onPinnedToNodeChange: (pinnedToNode: boolean) => void
+  onPinnedInCanvasChange: (pinnedInCanvas: boolean) => void
   onRenameSchemaFieldId?: (args: { prevId: string; nextId: string }) => void
 }) {
   return (
@@ -115,9 +114,8 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
       viewportH={args.viewportH}
       canvasWindowOffset={args.canvasWindowOffset}
       autoRevealKey={args.autoRevealKey}
-      forcePinnedToNode={args.forcePinnedToNode}
+      forcePinnedToCanvas={args.forcePinnedToCanvas}
       stackIndex={args.stackIndex}
-      liveInteractionTick={args.liveInteractionTick}
       getLiveNodeWorldPos={args.getLiveNodeWorldPos}
       getLiveZoomTransform={args.getLiveZoomTransform}
       onSetLabel={args.onSetLabel}
@@ -131,7 +129,7 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
       onHelp={args.onHelp}
       onConvertToLoopNode={args.onConvertToLoopNode}
       onEnableHandlesForAllInputs={args.onEnableHandlesForAllInputs}
-      onPinnedToNodeChange={args.onPinnedToNodeChange}
+      onPinnedInCanvasChange={args.onPinnedInCanvasChange}
       onRenameSchemaFieldId={args.onRenameSchemaFieldId}
     />
   )
@@ -256,11 +254,13 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const [lastDroppedQuickEditorToken, setLastDroppedQuickEditorToken] = React.useState<number>(0)
 
   const openQuickEditorNodeIds = useGraphStore(s => s.openQuickEditorNodeIds || [])
+  const openQuickEditorNodeIdsRef = React.useRef(openQuickEditorNodeIds)
   const updateOpenQuickEditorNodeIds = useGraphStore(s => s.updateOpenQuickEditorNodeIds)
   const setOpenQuickEditorNodeIds = useGraphStore(s => s.setOpenQuickEditorNodeIds)
-  const setFlowNodeQuickEditorAnchorOffsetByNodeId = useGraphStore(s => s.setFlowNodeQuickEditorAnchorOffsetByNodeId)
-  const pinnedToNodeByIdRef = React.useRef<Map<string, boolean>>(new Map())
-  const [anyEditorPinnedToNode, setAnyEditorPinnedToNode] = React.useState<boolean>(false)
+
+  React.useEffect(() => {
+    openQuickEditorNodeIdsRef.current = openQuickEditorNodeIds
+  }, [openQuickEditorNodeIds])
 
   const flowRuntimeRefRef = React.useRef<React.MutableRefObject<import('@/components/FlowCanvas/nativeRuntime').FlowNativeRuntime | null> | null>(null)
   const getLiveNodeWorldPos = React.useCallback((nodeId: string) => {
@@ -286,14 +286,13 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     return { k, x, y }
   }, [])
 
-  const [liveInteractionTick, setLiveInteractionTick] = React.useState(0)
-  const liveInteractionRafRef = React.useRef<number | null>(null)
-  const scheduleLiveInteractionTick = React.useCallback(() => {
-    if (liveInteractionRafRef.current != null) return
-    liveInteractionRafRef.current = requestAnimationFrame(() => {
-      liveInteractionRafRef.current = null
-      setLiveInteractionTick(v => (v + 1) % 1_000_000)
-    })
+  const emitFlowEditorInteractionFrame = React.useCallback(() => {
+    if (typeof window === 'undefined') return
+    try {
+      window.dispatchEvent(new CustomEvent(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
+    } catch {
+      void 0
+    }
   }, [])
 
   const [toolMode, setToolMode] = React.useState<ToolMode>('select')
@@ -370,17 +369,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     return nodes.map(n => String((n as { id?: unknown })?.id || '')).filter(Boolean)
   }, [draftGraphData?.nodes, overlayOnlyModeEnabled])
 
-  const parsePinnedByNodeId = React.useCallback((raw: unknown): Record<string, boolean> | null => {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
-    const out: Record<string, boolean> = {}
-    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-      const id = String(k || '').trim()
-      if (!id) continue
-      out[id] = !!v
-    }
-    return out
-  }, [])
-
   const overlayCollisionResolveRafRef = React.useRef<number | null>(null)
   const overlayCollisionResolveKeyRef = React.useRef<string>('')
   const overlayRectCacheRef = React.useRef<Map<string, { left: number; top: number; width: number; height: number }>>(new Map())
@@ -388,6 +376,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const overlayCollisionIterCountRef = React.useRef<number>(0)
   const overlayCollisionWarmupStartedAtMsRef = React.useRef<number | null>(null)
   const overlayCollisionWarmupAttemptsRef = React.useRef<number>(0)
+  const overlayCollisionZoomDebounceRef = React.useRef<number | null>(null)
+  const overlayCollisionLastZoomKRef = React.useRef<number | null>(null)
 
   const scheduleOverlayCollisionResolve = React.useCallback(() => {
     if (!active) return
@@ -443,7 +433,21 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           })?.k) ?? null
       const zoomK = typeof zoomKRaw === 'number' && Number.isFinite(zoomKRaw) ? zoomKRaw : 1
       const zKey = String(Math.round(zoomK * 1000) / 1000)
-      const key = `${overlayNodeIds.join(',')}|${zKey}|${viewportW}x${viewportH}|${overlayOnlyModeEnabled ? 1 : 0}`
+      const overlayViewport = (() => {
+        const offset = canvasWindowOffsetRef.current
+        if (typeof window === 'undefined') return { width: viewportW, height: viewportH }
+        const w =
+          (typeof document !== 'undefined' && document.documentElement ? document.documentElement.clientWidth : null) ??
+          window.innerWidth
+        const h =
+          (typeof document !== 'undefined' && document.documentElement ? document.documentElement.clientHeight : null) ??
+          window.innerHeight
+        return {
+          width: Math.max(1, Math.floor((Number.isFinite(w) ? (w as number) : viewportW) - offset.left)),
+          height: Math.max(1, Math.floor((Number.isFinite(h) ? (h as number) : viewportH) - offset.top)),
+        }
+      })()
+      const key = `${overlayNodeIds.join(',')}|${zKey}|${overlayViewport.width}x${overlayViewport.height}|${overlayOnlyModeEnabled ? 1 : 0}`
       if (overlayCollisionResolveKeyRef.current === key) return
       overlayCollisionResolveKeyRef.current = key
       if (overlayCollisionIterKeyRef.current !== key) {
@@ -452,18 +456,18 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       }
 
       const schemaCur = schema
-      const [minK, maxK] = schemaCur ? readZoomScaleExtent(schemaCur) : [DEFAULT_ZOOM_MIN_SCALE, DEFAULT_ZOOM_MAX_SCALE]
-      const panelScale = computeNodeQuickEditorScale(zoomK, { minK, maxK })
-      const scaled = computeNodeQuickEditorScaledSize(panelScale)
+      const panelScale = computeNodeQuickEditorScale(zoomK, null, { mode: 'pinnedInCanvas' })
+      const floatingScaled = computeNodeQuickEditorScaledSize(panelScale)
 
-      const pinnedById = lsJson(LS_KEYS.flowNodeQuickEditorPinnedByNodeId, {} as Record<string, boolean>, parsePinnedByNodeId)
+      const pinnedById = st.flowNodeQuickEditorPinnedByNodeId || {}
       const posById = st.flowNodeQuickEditorPosByNodeId || {}
 
-      const forcePinnedToNode = false
-
-      const gap = 18
-      const cellW = scaled.width + gap
-      const cellH = Math.round(scaled.height * 0.72) + gap
+      const forcePinnedToCanvas = false
+      const isPinnedInCanvas = (id: string): boolean => {
+        if (forcePinnedToCanvas) return true
+        const v = pinnedById[id]
+        return typeof v === 'boolean' ? v : true
+      }
 
       const rectByNodeId = (() => {
         const canvasOffset = canvasWindowOffsetRef.current
@@ -491,76 +495,117 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             continue
           }
           if (Number.isFinite(left) && Number.isFinite(top)) {
-            m.set(id, { left, top, width: scaled.width, height: scaled.height })
+            m.set(id, { left, top, width: floatingScaled.width, height: floatingScaled.height })
           }
         }
         return m
       })()
 
-      // Calculate centered grid layout for unpinned items
+      const typicalSize = (() => {
+        let sumW = 0
+        let sumH = 0
+        let count = 0
+        for (let i = 0; i < overlayNodeIds.length; i += 1) {
+          const id = overlayNodeIds[i]
+          const r = id ? rectByNodeId.get(id) : null
+          if (!r) continue
+          if (!(r.width > 0 && r.height > 0)) continue
+          sumW += r.width
+          sumH += r.height
+          count += 1
+        }
+        if (count > 0) {
+          const w = sumW / count
+          const h = sumH / count
+          return {
+            width: Math.max(120, Math.min(floatingScaled.width, w)),
+            height: Math.max(160, Math.min(floatingScaled.height, h)),
+          }
+        }
+        return floatingScaled
+      })()
+
+      const gapPx = (() => {
+        const flow = schemaCur?.layout?.flow
+        const overlay = flow && typeof flow === 'object' ? (flow as { overlay?: { collisionGapPx?: unknown } }).overlay : null
+        const raw = overlay ? overlay.collisionGapPx : null
+        const base = typeof raw === 'number' && Number.isFinite(raw) ? raw : 12
+        return Math.max(0, Math.min(40, Math.floor(base)))
+      })()
+
       const unpinnedCount = overlayNodeIds.reduce((acc, id) => {
         if (!id) return acc
-        const locked = forcePinnedToNode || pinnedById[id] === true || pinnedToNodeByIdRef.current.get(id) === true
+        const locked = isPinnedInCanvas(id)
         return locked ? acc : acc + 1
       }, 0)
 
-      const gridCols = Math.max(1, Math.min(Math.ceil(Math.sqrt(Math.max(1, unpinnedCount))), Math.floor((viewportW - 40) / cellW)))
-      const gridWidth = gridCols * cellW - gap
-      const gridRows = Math.ceil(Math.max(1, unpinnedCount) / gridCols)
-      const gridHeight = gridRows * cellH - gap
-      
-      const startLeft = Math.max(20, (viewportW - gridWidth) / 2)
-      const startTop = Math.max(96, (viewportH - gridHeight) / 2)
+      const cellSize = {
+        width: typicalSize.width + gapPx,
+        height: Math.round(typicalSize.height * 0.76) + gapPx,
+      }
 
-      const items: Array<{ id: string; top: number; left: number; movable: boolean; width?: number; height?: number; lockedToNode: boolean }> = []
+      const marginLeft = 20
+      const marginRight = 20
+      const marginTop = 96
+      const marginBottom = 24
+      const rowsMax = Math.max(1, Math.floor((overlayViewport.height - marginTop - marginBottom) / Math.max(1, cellSize.height)))
+      const colsNeeded = Math.max(1, Math.ceil(Math.max(1, unpinnedCount) / rowsMax))
+      const colsMax = Math.max(1, Math.min(3, Math.floor((overlayViewport.width - marginLeft - marginRight) / Math.max(1, cellSize.width))))
+      const dockCols = Math.max(1, Math.min(colsNeeded, colsMax))
+      const dockWidth = dockCols * cellSize.width - gapPx
+      const dockLeft = Math.max(marginLeft, overlayViewport.width - marginRight - dockWidth)
+      const dockTop = marginTop
+
+      const pinnedObstacles: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
+      const items: Array<{ id: string; top: number; left: number; movable: boolean; width?: number; height?: number; pinnedInCanvas: boolean }> = []
       let stack = 0
       for (let i = 0; i < overlayNodeIds.length; i += 1) {
         const id = String(overlayNodeIds[i] || '').trim()
         if (!id) continue
-        const lockedToNode = forcePinnedToNode || pinnedById[id] === true || pinnedToNodeByIdRef.current.get(id) === true
+        const pinnedInCanvas = isPinnedInCanvas(id)
         const rect = rectByNodeId.get(id) || null
 
-        if (lockedToNode) {
+        if (pinnedInCanvas) {
           if (!rect) continue
-          items.push({
-            id,
-            top: rect.top,
-            left: rect.left,
-            movable: true,
-            width: rect.width,
-            height: rect.height,
-            lockedToNode: true,
-          })
+          pinnedObstacles.push({ id, left: rect.left, top: rect.top, width: rect.width, height: rect.height })
           continue
         }
 
         const stored = posById[id]
         const hasStored = Boolean(stored && Number.isFinite(stored.top) && Number.isFinite(stored.left))
 
-        const col = stack % gridCols
-        const row = Math.floor(stack / gridCols)
+        const rawCol = Math.floor(stack / rowsMax)
+        const col = Math.min(rawCol, dockCols - 1)
+        const row = rawCol < dockCols ? stack % rowsMax : stack - (dockCols - 1) * rowsMax
         stack += 1
-        
-        const fallback = { left: startLeft + col * cellW, top: startTop + row * cellH }
-        const base = hasStored ? (stored as { top: number; left: number }) : fallback
+
+        const fallback = { left: dockLeft + col * cellSize.width, top: dockTop + row * cellSize.height }
+        const base = (() => {
+          if (!hasStored) return fallback
+          const left = (stored as { top: number; left: number }).left
+          const top = (stored as { top: number; left: number }).top
+          const okX = left >= marginLeft - 12 && left <= overlayViewport.width - marginRight - 12
+          const okY = top >= marginTop - 12 && top <= overlayViewport.height - marginBottom - 12
+          return okX && okY ? (stored as { top: number; left: number }) : fallback
+        })()
         const clamped = clampOverlayTopLeftFullyInViewport({
           pos: base,
-          size: rect ? { width: rect.width, height: rect.height } : scaled,
-          viewport: { width: viewportW, height: viewportH },
+          size: rect ? { width: rect.width, height: rect.height } : floatingScaled,
+          viewport: { width: overlayViewport.width, height: overlayViewport.height },
           snapPx: 1,
         })
         items.push({
           id,
           top: clamped.top,
           left: clamped.left,
-          movable: true,
+          movable: !hasStored,
           width: rect?.width,
           height: rect?.height,
-          lockedToNode: false,
+          pinnedInCanvas: false,
         })
       }
 
-      if (items.length < 2) return
+      if (items.length === 0) return
 
       const pickLockedId = (candidates: Array<{ id: string }>) => {
         const sel = String(selectedNodeId || '').trim()
@@ -576,13 +621,13 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       for (let i = 0; i < candidates.length; i += 1) {
         const a = candidates[i]
         if (!a) continue
-        const aw = a.width ?? scaled.width
-        const ah = a.height ?? scaled.height
+        const aw = a.width ?? floatingScaled.width
+        const ah = a.height ?? floatingScaled.height
         for (let j = i + 1; j < candidates.length; j += 1) {
           const b = candidates[j]
           if (!b) continue
-          const bw = b.width ?? scaled.width
-          const bh = b.height ?? scaled.height
+          const bw = b.width ?? floatingScaled.width
+          const bh = b.height ?? floatingScaled.height
           const ax2 = a.left + aw + gapPx
           const ay2 = a.top + ah + gapPx
           const bx2 = b.left + bw + gapPx
@@ -595,35 +640,43 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       return false
       }
 
+      const shouldResolveItemsAgainstObstacles = (
+        candidates: Array<{ id: string; left: number; top: number; width?: number; height?: number }>,
+        obstacles: Array<{ id: string; left: number; top: number; width: number; height: number }>,
+        gapPx: number,
+      ) => {
+        for (let i = 0; i < candidates.length; i += 1) {
+          const a = candidates[i]
+          if (!a) continue
+          const aw = a.width ?? floatingScaled.width
+          const ah = a.height ?? floatingScaled.height
+          const ax2 = a.left + aw + gapPx
+          const ay2 = a.top + ah + gapPx
+          for (let j = 0; j < obstacles.length; j += 1) {
+            const b = obstacles[j]
+            if (!b) continue
+            const bx2 = b.left + b.width + gapPx
+            const by2 = b.top + b.height + gapPx
+            const overlapX = a.left < bx2 && b.left < ax2
+            const overlapY = a.top < by2 && b.top < ay2
+            if (overlapX && overlapY) return true
+          }
+        }
+        return false
+      }
+
       const next = { ...posById }
-      const prevAnchorOffsets = st.flowNodeQuickEditorAnchorOffsetByNodeId || {}
-      const nextAnchorOffsets: Record<string, { dx: number; dy: number }> = { ...prevAnchorOffsets }
-      const clampOffset = (v: number) => {
-        const max = 5000
-        return Math.max(-max, Math.min(max, v))
-      }
 
-      const gapPx = 18
       const fixedId = pickLockedId(items)
-
-      const cellSize = {
-        width: scaled.width + gapPx,
-        height: Math.round(scaled.height * 0.82) + gapPx,
-      }
 
       const seedGridAroundFixed = (
         worldIn: Array<{ id: string; left: number; top: number; width: number; height: number; movable: boolean }>,
       ) => {
-        const baseMarginLeft = 20
-        const baseMarginTop = 96
-        const availW = Math.max(1, viewportW - baseMarginLeft * 2)
-        const availH = Math.max(1, viewportH - baseMarginTop - 24)
-        const cols = Math.max(1, Math.floor(availW / Math.max(1, cellSize.width)))
-
-        const usedW = cols * cellSize.width
-        const extraX = Math.max(0, availW - usedW)
-        const marginLeft = baseMarginLeft + Math.floor(extraX / 2)
-        const marginTop = baseMarginTop
+        const availW = Math.max(1, dockWidth)
+        const availH = Math.max(1, viewportH - dockTop - marginBottom)
+        const cols = Math.max(1, Math.min(dockCols, Math.floor(availW / Math.max(1, cellSize.width))))
+        const marginLeft = dockLeft
+        const marginTop = dockTop
 
         const rows = Math.max(1, Math.ceil(Math.max(worldIn.length, 1) / cols))
         const maxRows = Math.max(rows, Math.ceil(availH / Math.max(1, cellSize.height)))
@@ -693,8 +746,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           id: it.id,
           left: it.left,
           top: it.top,
-          width: it.width ?? scaled.width,
-          height: it.height ?? scaled.height,
+          width: it.width ?? floatingScaled.width,
+          height: it.height ?? floatingScaled.height,
           movable: it.id !== fixedId,
         }))
       }
@@ -706,7 +759,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           const clamped = clampOverlayTopLeftFullyInViewport({
             pos: { top: it.top, left: it.left },
             size: { width: it.width, height: it.height },
-            viewport: { width: viewportW, height: viewportH },
+            viewport: { width: overlayViewport.width, height: overlayViewport.height },
             snapPx: 1,
           })
           out.push({ ...it, left: clamped.left, top: clamped.top })
@@ -747,19 +800,24 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         }
         return out
       })()
-      if (shouldResolveItems(world, gapPx)) {
-        world = clampWorld(seedGridAroundFixed(world))
-      }
-      if (shouldResolveItems(world, gapPx)) {
+      const obstacles = [...nodeObstacles, ...pinnedObstacles]
+      const wantsResolve = shouldResolveItems(world, gapPx) || shouldResolveItemsAgainstObstacles(world, obstacles, gapPx)
+      if (wantsResolve) {
+        if (shouldResolveItems(world, gapPx)) {
+          world = clampWorld(seedGridAroundFixed(world))
+        }
         const resolved = schemaCur
           ? relaxOverlayPanelsWithCollision({
               schema: schemaCur,
               items: world,
-              obstacles: nodeObstacles,
+              obstacles,
               gapPx,
-              strength: 0.95,
-              iterations: 14,
-              steps: 18,
+              strength: 0.85,
+              iterations: 12,
+              steps: 14,
+              anchorStrength: 0.08,
+              maxAnchorShiftPx: computeNodeQuickEditorMaxAnchorShiftPx(overlayViewport.width, overlayViewport.height),
+              maxSpeedPxPerStep: 180,
             })
           : world.map(r => ({ id: r.id, left: r.left, top: r.top }))
         world = clampWorld(world.map(it => {
@@ -767,16 +825,19 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           return r ? { ...it, left: r.left, top: r.top } : it
         }))
 
-        if (shouldResolveItems(world, gapPx)) {
+        if (shouldResolveItems(world, gapPx) || shouldResolveItemsAgainstObstacles(world, obstacles, gapPx)) {
           const pass2 = schemaCur
             ? relaxOverlayPanelsWithCollision({
                 schema: schemaCur,
                 items: world,
-                obstacles: nodeObstacles,
+                obstacles,
                 gapPx,
-                strength: 0.95,
-                iterations: 12,
-                steps: 14,
+                strength: 0.78,
+                iterations: 10,
+                steps: 12,
+                anchorStrength: 0.08,
+                maxAnchorShiftPx: computeNodeQuickEditorMaxAnchorShiftPx(overlayViewport.width, overlayViewport.height),
+                maxSpeedPxPerStep: 180,
               })
             : world.map(r => ({ id: r.id, left: r.left, top: r.top }))
           world = clampWorld(world.map(it => {
@@ -785,32 +846,18 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           }))
         }
       }
-      if (shouldResolveItems(world, gapPx)) {
-        world = clampWorld(seedGridAroundFixed(world))
-      }
-
       const finalById = new Map(world.map(it => [it.id, { left: it.left, top: it.top }]))
       for (let i = 0; i < items.length; i += 1) {
         const item = items[i]
         const p = finalById.get(item.id)
         if (!p) continue
-        if (item.lockedToNode) {
-          const dx = p.left - item.left
-          const dy = p.top - item.top
-          if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
-            const prev = nextAnchorOffsets[item.id] || { dx: 0, dy: 0 }
-            nextAnchorOffsets[item.id] = { dx: clampOffset(prev.dx + dx), dy: clampOffset(prev.dy + dy) }
-          }
-        } else {
-          next[item.id] = { top: p.top, left: p.left }
-        }
+        next[item.id] = { top: p.top, left: p.left }
       }
 
       let changed = false
       for (const it of items) {
         const prev = posById[it.id]
         const cur = next[it.id]
-        if (it.lockedToNode) continue
         if (!cur) continue
         if (!prev) {
           changed = true
@@ -821,28 +868,12 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           break
         }
       }
-      const anchorKeysPrev = Object.keys(prevAnchorOffsets)
-      const anchorKeysNext = Object.keys(nextAnchorOffsets)
-      let anchorChanged = anchorKeysPrev.length !== anchorKeysNext.length
-      if (!anchorChanged) {
-        for (let i = 0; i < anchorKeysPrev.length; i += 1) {
-          const k = anchorKeysPrev[i]
-          const a = prevAnchorOffsets[k]
-          const b = nextAnchorOffsets[k]
-          if (!b || a.dx !== b.dx || a.dy !== b.dy) {
-            anchorChanged = true
-            break
-          }
-        }
-      }
-      if (!changed && !anchorChanged) return
-      if (changed) st.setFlowNodeQuickEditorPosByNodeId(next)
-      if (anchorChanged) setFlowNodeQuickEditorAnchorOffsetByNodeId(nextAnchorOffsets)
+      if (!changed) return
+      st.setFlowNodeQuickEditorPosByNodeId(next)
 
-      const stillOverlaps = shouldResolveItems(
-        world.map(it => ({ id: it.id, left: it.left, top: it.top, width: it.width, height: it.height })),
-        gapPx,
-      )
+      const stillOverlaps =
+        shouldResolveItems(world.map(it => ({ id: it.id, left: it.left, top: it.top, width: it.width, height: it.height })), gapPx)
+        || shouldResolveItemsAgainstObstacles(world.map(it => ({ id: it.id, left: it.left, top: it.top, width: it.width, height: it.height })), obstacles, gapPx)
       if (stillOverlaps) {
         overlayCollisionIterCountRef.current += 1
         if (overlayCollisionIterCountRef.current <= 10) {
@@ -856,10 +887,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     getLiveNodeWorldPos,
     getLiveZoomTransform,
     overlayOnlyModeEnabled,
-    parsePinnedByNodeId,
     schema,
     selectedNodeId,
-    setFlowNodeQuickEditorAnchorOffsetByNodeId,
     viewportH,
     viewportW,
   ])
@@ -871,18 +900,43 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   React.useEffect(() => {
     if (!active) return
-    const unsub = useGraphStore.subscribe(
-      s => getZoomStateForKey({ zoomViewKey: zoomViewKeyRef.current, zoomStateByKey: s.zoomStateByKey })?.k,
-      () => scheduleOverlayCollisionResolve(),
-    )
+    if (typeof window === 'undefined') return
+    const onInteractionFrame = () => {
+      const live = getLiveZoomTransform()
+      const k = typeof live?.k === 'number' && Number.isFinite(live.k) ? live.k : null
+      if (k == null) return
+      const prev = overlayCollisionLastZoomKRef.current
+      overlayCollisionLastZoomKRef.current = k
+      if (prev != null && Math.abs(prev - k) < 1e-6) return
+      if (overlayCollisionZoomDebounceRef.current != null) {
+        try {
+          window.clearTimeout(overlayCollisionZoomDebounceRef.current)
+        } catch {
+          void 0
+        }
+      }
+      overlayCollisionZoomDebounceRef.current = window.setTimeout(() => {
+        overlayCollisionZoomDebounceRef.current = null
+        scheduleOverlayCollisionResolve()
+      }, 120)
+    }
+    window.addEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onInteractionFrame as EventListener)
     return () => {
       try {
-        unsub()
+        window.removeEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onInteractionFrame as EventListener)
       } catch {
         void 0
       }
+      if (typeof window !== 'undefined' && overlayCollisionZoomDebounceRef.current != null) {
+        try {
+          window.clearTimeout(overlayCollisionZoomDebounceRef.current)
+        } catch {
+          void 0
+        }
+        overlayCollisionZoomDebounceRef.current = null
+      }
     }
-  }, [active, scheduleOverlayCollisionResolve])
+  }, [active, getLiveZoomTransform, scheduleOverlayCollisionResolve])
 
   React.useEffect(() => {
     return () => {
@@ -897,8 +951,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     }
   }, [])
 
-  const [overlayEdgePaths, setOverlayEdgePaths] = React.useState<Array<{ id: string; d: string }>>([])
-  const overlayEdgeKeyRef = React.useRef<string>('')
+  const overlayEdgesSvgRef = React.useRef<SVGSVGElement | null>(null)
+  const overlayEdgePathByIdRef = React.useRef<Map<string, SVGPathElement>>(new Map())
   const overlayEdgeRafRef = React.useRef<number | null>(null)
 
   const scheduleOverlayEdgeUpdate = React.useCallback(() => {
@@ -909,12 +963,18 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       overlayEdgeRafRef.current = null
       const root = rootRef.current
       if (!root) return
+      const svg = overlayEdgesSvgRef.current
+      if (!svg) return
       const graph = draftGraphDataRef.current
       if (!graph) {
-        if (overlayEdgeKeyRef.current) {
-          overlayEdgeKeyRef.current = ''
-          setOverlayEdgePaths([])
+        for (const el of overlayEdgePathByIdRef.current.values()) {
+          try {
+            el.remove()
+          } catch {
+            void 0
+          }
         }
+        overlayEdgePathByIdRef.current.clear()
         return
       }
 
@@ -923,11 +983,34 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         ? (graph.edges as Array<{ id?: unknown; source?: unknown; target?: unknown; properties?: unknown }>)
         : []
 
+      const overlayIdSet = (() => {
+        const ids = Array.isArray(openQuickEditorNodeIdsRef.current) ? openQuickEditorNodeIdsRef.current : []
+        const sel = String(pendingOverlayNodeIdRef.current || '').trim()
+        const set = new Set<string>()
+        for (let i = 0; i < ids.length; i += 1) {
+          const id = String(ids[i] || '').trim()
+          if (id) set.add(id)
+        }
+        if (sel) set.add(sel)
+        return set
+      })()
+      if (overlayIdSet.size === 0) {
+        for (const el of overlayEdgePathByIdRef.current.values()) {
+          try {
+            el.remove()
+          } catch {
+            void 0
+          }
+        }
+        overlayEdgePathByIdRef.current.clear()
+        return
+      }
+
       const nodeIds = new Set<string>()
       const nodes: Array<{ id: unknown; type?: unknown; properties?: unknown }> = []
       for (let i = 0; i < rawNodes.length; i += 1) {
         const id = String(rawNodes[i]?.id || '').trim()
-        if (!id) continue
+        if (!id || !overlayIdSet.has(id)) continue
         nodeIds.add(id)
         nodes.push({ id, type: rawNodes[i]?.type, properties: rawNodes[i]?.properties })
       }
@@ -938,36 +1021,56 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const source = String(rawEdges[i]?.source || '').trim()
         const target = String(rawEdges[i]?.target || '').trim()
         if (!id || !source || !target) continue
+        if (!overlayIdSet.has(source) || !overlayIdSet.has(target)) continue
         edges.push({ id, source, target, properties: rawEdges[i]?.properties })
       }
 
       if (nodeIds.size === 0 || edges.length === 0) {
-        if (overlayEdgeKeyRef.current) {
-          overlayEdgeKeyRef.current = ''
-          setOverlayEdgePaths([])
+        for (const el of overlayEdgePathByIdRef.current.values()) {
+          try {
+            el.remove()
+          } catch {
+            void 0
+          }
         }
+        overlayEdgePathByIdRef.current.clear()
         return
       }
 
       const overlayRectsByNodeId = (() => {
         if (typeof document === 'undefined') return new Map<string, DOMRect>()
-        const els = Array.from(document.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
+        const esc = (v: string) => {
+          const raw = String(v || '')
+          const fn = (globalThis as unknown as { CSS?: { escape?: (x: string) => string } }).CSS?.escape
+          if (typeof fn === 'function') return fn(raw)
+          return raw.replace(/[^a-zA-Z0-9_-]/g, '\\$&')
+        }
+        const ids = Array.isArray(openQuickEditorNodeIdsRef.current) ? openQuickEditorNodeIdsRef.current : []
         const m = new Map<string, DOMRect>()
-        for (let i = 0; i < els.length; i += 1) {
-          const el = els[i]
-          const id = String(el.getAttribute('data-kg-node-quick-editor') || '').trim()
-          if (!id) continue
-          if (!nodeIds.has(id)) continue
+        for (let i = 0; i < ids.length; i += 1) {
+          const id = String(ids[i] || '').trim()
+          if (!id || !nodeIds.has(id)) continue
+          const el = document.querySelector<HTMLElement>(`${FLOW_EDITOR_OVERLAY_ROOT_SELECTOR}[data-kg-node-quick-editor="${esc(id)}"]`)
+          if (!el) continue
           m.set(id, el.getBoundingClientRect())
+        }
+        const sel = String(pendingOverlayNodeIdRef.current || '').trim()
+        if (sel && nodeIds.has(sel) && !m.has(sel)) {
+          const el = document.querySelector<HTMLElement>(`${FLOW_EDITOR_OVERLAY_ROOT_SELECTOR}[data-kg-node-quick-editor="${esc(sel)}"]`)
+          if (el) m.set(sel, el.getBoundingClientRect())
         }
         return m
       })()
 
       if (overlayRectsByNodeId.size === 0) {
-        if (overlayEdgeKeyRef.current) {
-          overlayEdgeKeyRef.current = ''
-          setOverlayEdgePaths([])
+        for (const el of overlayEdgePathByIdRef.current.values()) {
+          try {
+            el.remove()
+          } catch {
+            void 0
+          }
         }
+        overlayEdgePathByIdRef.current.clear()
         return
       }
 
@@ -989,9 +1092,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const baseLeft = Number.isFinite(rootRect.left) ? rootRect.left : null
       const baseTop = Number.isFinite(rootRect.top) ? rootRect.top : null
       if (baseLeft == null || baseTop == null) return
-
-      const nextPaths: Array<{ id: string; d: string }> = []
-      const keyParts: string[] = []
+      const keep = new Set<string>()
 
       for (let i = 0; i < edges.length; i += 1) {
         const e = edges[i]
@@ -1041,14 +1142,29 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const c2x = tx - dx * c
         const c2y = ty
         const d = `M ${sx.toFixed(2)} ${sy.toFixed(2)} C ${c1x.toFixed(2)} ${c1y.toFixed(2)} ${c2x.toFixed(2)} ${c2y.toFixed(2)} ${tx.toFixed(2)} ${ty.toFixed(2)}`
-        nextPaths.push({ id: edgeId, d })
-        keyParts.push(`${edgeId}:${sx.toFixed(1)},${sy.toFixed(1)}:${tx.toFixed(1)},${ty.toFixed(1)}`)
+        keep.add(edgeId)
+        const existing = overlayEdgePathByIdRef.current.get(edgeId) || null
+        const pathEl = existing || document.createElementNS('http://www.w3.org/2000/svg', 'path')
+        if (!existing) {
+          pathEl.setAttribute('fill', 'none')
+          pathEl.setAttribute('stroke', 'currentColor')
+          pathEl.setAttribute('stroke-width', '1.5')
+          pathEl.setAttribute('stroke-linejoin', 'round')
+          pathEl.setAttribute('stroke-linecap', 'round')
+          svg.appendChild(pathEl)
+          overlayEdgePathByIdRef.current.set(edgeId, pathEl)
+        }
+        if (pathEl.getAttribute('d') !== d) pathEl.setAttribute('d', d)
       }
-
-      const key = keyParts.join('|')
-      if (key === overlayEdgeKeyRef.current) return
-      overlayEdgeKeyRef.current = key
-      setOverlayEdgePaths(nextPaths)
+      for (const [id, el] of overlayEdgePathByIdRef.current.entries()) {
+        if (keep.has(id)) continue
+        try {
+          el.remove()
+        } catch {
+          void 0
+        }
+        overlayEdgePathByIdRef.current.delete(id)
+      }
     })
   }, [active, overlayOnlyModeEnabled])
 
@@ -1056,41 +1172,31 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (!active) return
     if (!overlayOnlyModeEnabled) return
     scheduleOverlayEdgeUpdate()
-
-    const unsubZoom = useGraphStore.subscribe(
-      s => (zoomViewKey ? (s.zoomStateByKey?.[zoomViewKey] ?? null) : null),
-      () => scheduleOverlayEdgeUpdate(),
-    )
+    const onInteractionFrame = () => scheduleOverlayEdgeUpdate()
+    window.addEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onInteractionFrame as EventListener)
 
     const onAny = () => scheduleOverlayEdgeUpdate()
     window.addEventListener('resize', onAny)
     window.addEventListener('scroll', onAny, true)
 
-    const observer = typeof MutationObserver !== 'undefined' ? new MutationObserver(() => scheduleOverlayEdgeUpdate()) : null
-    if (observer && typeof document !== 'undefined') {
-      observer.observe(document.body, {
-        subtree: true,
-        childList: true,
-        attributes: true,
-        attributeFilter: ['style', 'class', 'data-kg-node-quick-editor'],
-      })
-    }
-
     return () => {
       try {
-        unsubZoom()
+        window.removeEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onInteractionFrame as EventListener)
       } catch {
         void 0
       }
       window.removeEventListener('resize', onAny)
       window.removeEventListener('scroll', onAny, true)
-      try {
-        observer?.disconnect()
-      } catch {
-        void 0
+      for (const el of overlayEdgePathByIdRef.current.values()) {
+        try {
+          el.remove()
+        } catch {
+          void 0
+        }
       }
+      overlayEdgePathByIdRef.current.clear()
     }
-  }, [active, overlayOnlyModeEnabled, scheduleOverlayEdgeUpdate, zoomViewKey])
+  }, [active, overlayOnlyModeEnabled, scheduleOverlayEdgeUpdate])
 
 
   React.useEffect(() => {
@@ -1109,11 +1215,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const nodes = Array.isArray(draftGraphData?.nodes) ? draftGraphData?.nodes : []
     const idSet = new Set(nodes.map(n => String(n.id || '')).filter(Boolean))
     updateOpenQuickEditorNodeIds(prev => prev.filter(id => idSet.has(String(id || ''))))
-    const pinnedMap = pinnedToNodeByIdRef.current
-    for (const key of Array.from(pinnedMap.keys())) {
-      if (!idSet.has(String(key || ''))) pinnedMap.delete(key)
-    }
-    setAnyEditorPinnedToNode(Array.from(pinnedMap.values()).some(Boolean))
   }, [draftGraphData, updateOpenQuickEditorNodeIds])
 
   React.useEffect(() => {
@@ -1653,8 +1754,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       })
       setGraphDataPreservingLayout(next)
       updateOpenQuickEditorNodeIds(prev => prev.filter(x => String(x || '') !== id))
-      pinnedToNodeByIdRef.current.delete(id)
-      setAnyEditorPinnedToNode(Array.from(pinnedToNodeByIdRef.current.values()).some(Boolean))
       const selected = String(useGraphStore.getState().selectedNodeId || '')
       if (selected === id) {
         setSelectionSource('canvas')
@@ -2230,7 +2329,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (!active) return []
     const edges = (draftGraphData?.edges || []) as GraphEdge[]
     const nodes = Array.isArray(draftGraphData?.nodes) ? (draftGraphData?.nodes as GraphNode[]) : []
-    const forcePinnedToNode = false
+    const forcePinnedToCanvas = false
     const resolveNode = (id: string) => {
       const found = nodes.find(n => String(n.id || '') === id) || null
       if (found) return found
@@ -2260,9 +2359,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             canvasWindowOffset={canvasWindowOffset}
             zoomViewKey={zoomViewKey}
             autoRevealKey={autoRevealKey}
-            forcePinnedToNode={forcePinnedToNode}
+            forcePinnedToCanvas={forcePinnedToCanvas}
             stackIndex={stackIndex}
-            liveInteractionTick={liveInteractionTick}
             getLiveNodeWorldPos={getLiveNodeWorldPos}
             getLiveZoomTransform={getLiveZoomTransform}
             onSetLabel={(label) => setNodeLabelById(id, label)}
@@ -2276,9 +2374,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             onHelp={showNodeEditorHelp}
             onConvertToLoopNode={() => convertNodeToLoopById(id)}
             onEnableHandlesForAllInputs={enableHandlesForAllInputs}
-            onPinnedToNodeChange={(pinnedToNode) => {
-              pinnedToNodeByIdRef.current.set(id, pinnedToNode)
-              setAnyEditorPinnedToNode(Array.from(pinnedToNodeByIdRef.current.values()).some(Boolean))
+            onPinnedInCanvasChange={(pinnedInCanvas) => {
+              void pinnedInCanvas
+              scheduleOverlayCollisionResolve()
             }}
             onRenameSchemaFieldId={({ prevId, nextId }) => renameSchemaFieldIdByNodeId(id, prevId, nextId)}
           />
@@ -2300,13 +2398,13 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     getLiveNodeWorldPos,
     getLiveZoomTransform,
     lastDroppedQuickEditorToken,
-    liveInteractionTick,
     overlayEditorNodeIds,
     patchNodePropertiesById,
     pendingEdgeSourceId,
     pendingOverlayNode,
     removeNodeById,
     renameSchemaFieldIdByNodeId,
+    scheduleOverlayCollisionResolve,
     setNodeLabelById,
     setNodePropertiesById,
     setNodeTypeById,
@@ -2383,35 +2481,23 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         active={active}
         graphDataOverride={draftGraphData}
         graphDataRevisionOverride={baseGraphDataRevision}
-        allowNodeDragOverride={anyEditorPinnedToNode ? false : undefined}
         exposeRuntimeRef={ref => {
           flowRuntimeRefRef.current = ref
         }}
-        onInteractionFrame={anyEditorPinnedToNode ? scheduleLiveInteractionTick : undefined}
+        onInteractionFrame={hasOverlayEditors ? emitFlowEditorInteractionFrame : undefined}
         renderEdges={overlayOnlyModeEnabled ? false : true}
         renderGroups={overlayOnlyModeEnabled ? false : true}
         renderNodes={overlayOnlyModeEnabled ? false : true}
         hidePortHandleNodeIds={overlayOnlyHidePortHandleNodeIds}
       />
 
-      {overlayOnlyModeEnabled && overlayEdgePaths.length > 0 && (
+      {overlayOnlyModeEnabled && (
         <svg
+          ref={overlayEdgesSvgRef}
           className="absolute inset-0 pointer-events-none"
           style={{ zIndex: Math.max(1, Math.floor((floatingPanelZIndex || Z_INDEX_FLOATING_PANEL_DEFAULT) - 100)), color: 'var(--kg-canvas-edge-stroke)', overflow: 'visible' }}
           aria-hidden={true}
-        >
-          {overlayEdgePaths.map(p => (
-            <path
-              key={p.id}
-              d={p.d}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.5}
-              strokeLinejoin="round"
-              strokeLinecap="round"
-            />
-          ))}
-        </svg>
+        />
       )}
 
       {overlayEditorElements as unknown as React.ReactNode}

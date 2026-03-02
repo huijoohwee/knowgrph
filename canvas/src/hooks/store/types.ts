@@ -204,8 +204,9 @@ export interface GraphState {
   selectedGroupIds: string[];
   collapsedGroupIds: string[];
   openQuickEditorNodeIds: string[];
-  flowNodeQuickEditorAnchorOffsetByNodeId: Record<string, { dx: number; dy: number }>;
+  flowNodeQuickEditorPinnedByNodeId: Record<string, boolean>;
   flowNodeQuickEditorPosByNodeId: Record<string, { top: number; left: number }>;
+  flowNodeQuickEditorWorldPosByNodeId: Record<string, { x: number; y: number }>;
   flowNodeQuickEditorDraggingNodeId: string | null;
   graphFieldsOpOk: boolean | null;
   graphFieldsOpMsg: string;
@@ -215,6 +216,7 @@ export interface GraphState {
   renderOpMsg: string;
   selectionSource: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'table' | 'unknown';
   setSelectionSource: (src: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'table' | 'unknown') => void;
+  setFlowNodeQuickEditorPinnedByNodeId: (pinnedById: Record<string, boolean>) => void;
 
   isEditMode: boolean;
   workspaceViewMode: WorkspaceViewMode;
@@ -298,9 +300,8 @@ export interface GraphState {
   toggleGroupCollapsed: (id: string) => void;
   setOpenQuickEditorNodeIds: (ids: string[]) => void;
   updateOpenQuickEditorNodeIds: (updater: (prev: string[]) => string[]) => void;
-  setFlowNodeQuickEditorAnchorOffsetByNodeId: (offsets: Record<string, { dx: number; dy: number }>) => void;
   setFlowNodeQuickEditorPosByNodeId: (pos: Record<string, { top: number; left: number }>) => void;
-  clearFlowNodeQuickEditorAnchorOffsetByNodeId: (id: string) => void;
+  setFlowNodeQuickEditorWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => void;
   setFlowNodeQuickEditorDraggingNodeId: (id: string | null) => void;
   setEditMode: (mode: boolean) => void;
   setWorkspaceViewMode: (mode: WorkspaceViewMode) => void;
