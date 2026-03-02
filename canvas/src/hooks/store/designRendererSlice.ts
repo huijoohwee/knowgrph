@@ -94,6 +94,13 @@ export const createDesignRendererSlice = (set: SetGraph, get: GetGraph) => {
       set({ designLayerState: { order: Array.isArray(n.order) ? n.order : [], hiddenById: n.hiddenById || {} } })
     },
 
+    designWireframeCacheEpoch: 0,
+    bumpDesignWireframeCacheEpoch: () => {
+      const prev = get().designWireframeCacheEpoch
+      const next = typeof prev === 'number' && Number.isFinite(prev) ? prev + 1 : 1
+      set({ designWireframeCacheEpoch: next })
+    },
+
     designRendererNodes: [] as DesignLayerNode[],
     setDesignRendererNodes: (nodes: DesignLayerNode[]) => {
       const next = Array.isArray(nodes) ? nodes : []

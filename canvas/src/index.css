@@ -198,6 +198,15 @@ html, body, #root {
     box-shadow: var(--island-shadow);
     min-height: 36px;
   }
+  .App-toolbar--collapsed {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    padding: 0;
+    gap: 0;
+    justify-content: center;
+    overflow: hidden;
+  }
   .App-toolbar--compact {
     --toolbar-gap: 0.25rem;
     --toolbar-padding: 0.25rem 0.5rem;

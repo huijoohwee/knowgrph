@@ -845,6 +845,7 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
           // Use generic accept for remote fetch to avoid 406/403 on raw files
           Accept: '*/*',
           'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'identity',
           ...(rangeHeader ? { Range: rangeHeader } : {}),
           ...(ifRangeHeader ? { 'If-Range': ifRangeHeader } : {}),
         },

@@ -4,14 +4,11 @@ import { randomUUID } from 'node:crypto'
 import { convertPdfToMarkdown } from './pdfConvertServer'
 import {
   PDF_WORKSPACE_INDEX_VERSION,
-  type PdfConversionMode,
   type PdfWorkspaceDocumentMeta,
   type PdfWorkspaceIndex,
   buildAnchorMapFromMarkdown,
 } from '../pdfWorkspaceAnchors'
 import { PDF_WORKSPACE_DIR_REL_DEFAULT } from '../pdfWorkspaceConfig'
-
-const isPdfConversionMode = (raw: string): raw is PdfConversionMode => raw === 'text-only' || raw === 'image-heavy' || raw === 'scan-ocr'
 
 const normalizeRel = (raw: string): string => String(raw || '').trim().replace(/\\/g, '/').replace(/^\/+/, '')
 
@@ -67,43 +64,6 @@ const readBodyAsPdf = async (req: import('http').IncomingMessage): Promise<Buffe
 
 const SOURCE_PDF_FILENAME = 'source.pdf'
 
-const modeOverrides = (mode: PdfConversionMode) => {
-  if (mode === 'image-heavy') {
-    return {
-      includeImages: true,
-      embedImages: true,
-      maxExtractedImagesPerPage: 16,
-      maxEmbeddedImagesPerPage: 12,
-      maxEmbeddedTotalBytes: 4 * 1024 * 1024,
-      maxEmbeddedAssetBytes: 2 * 1024 * 1024,
-      ocrEnabled: false,
-      ocrMode: 'fallback' as const,
-    }
-  }
-  if (mode === 'scan-ocr') {
-    return {
-      includeImages: true,
-      embedImages: true,
-      maxExtractedImagesPerPage: 4,
-      maxEmbeddedImagesPerPage: 2,
-      maxEmbeddedTotalBytes: 2 * 1024 * 1024,
-      maxEmbeddedAssetBytes: 512 * 1024,
-      ocrEnabled: true,
-      ocrMode: 'always' as const,
-    }
-  }
-  return {
-    includeImages: false,
-    embedImages: false,
-    maxExtractedImagesPerPage: 0,
-    maxEmbeddedImagesPerPage: 0,
-    maxEmbeddedTotalBytes: 4 * 1024 * 1024,
-    maxEmbeddedAssetBytes: 2 * 1024 * 1024,
-    ocrEnabled: false,
-    ocrMode: 'fallback' as const,
-  }
-}
-
 const readIndex = async (workspaceAbs: string): Promise<PdfWorkspaceIndex> => {
   const p = path.join(workspaceAbs, 'index.json')
   const existing = await readJsonFile<PdfWorkspaceIndex>(p)
@@ -152,9 +112,68 @@ export function createPdfWorkspaceHandler(args: { repoRoot: string }): import('v
       return
     }
 
+    if (req.method === 'GET' && pathname.startsWith('/__pdf_workspace/assets/')) {
+      try {
+        const parts = pathname.split('/').filter(Boolean)
+        const docId = parts.length >= 3 ? decodeURIComponent(parts[2] || '') : ''
+        const legacyModeRaw = parts.length >= 4 ? decodeURIComponent(parts[3] || '') : ''
+        const isLegacyMode = legacyModeRaw === 'text-only' || legacyModeRaw === 'image-heavy' || legacyModeRaw === 'scan-ocr'
+        const file = isLegacyMode ? (parts.length >= 5 ? parts.slice(4).map(decodeURIComponent).join('/') : '') : (parts.length >= 4 ? parts.slice(3).map(decodeURIComponent).join('/') : '')
+        if (!docId || !file || file.includes('..') || file.includes('\\')) {
+          res.statusCode = 404
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          res.end('Asset not found')
+          return
+        }
+        const assetsDirAbs = isLegacyMode ? path.join(workspaceAbs, docId, 'modes', legacyModeRaw, 'assets') : path.join(workspaceAbs, docId, 'assets')
+        const resolved = path.resolve(assetsDirAbs, file)
+        const within = resolved.startsWith(path.resolve(assetsDirAbs) + path.sep)
+        if (!within) {
+          res.statusCode = 403
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          res.end('Forbidden')
+          return
+        }
+        const stat = await fs.stat(resolved).catch(() => null)
+        if (!stat || !stat.isFile()) {
+          res.statusCode = 404
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          res.end('Asset not found')
+          return
+        }
+        const etag = `W/"${stat.size}-${Math.floor(stat.mtimeMs)}"`
+        if (req.headers['if-none-match'] === etag) {
+          res.statusCode = 304
+          res.end()
+          return
+        }
+        const ext = path.extname(resolved).toLowerCase()
+        const contentType =
+          ext === '.png'
+            ? 'image/png'
+            : ext === '.jpg' || ext === '.jpeg'
+              ? 'image/jpeg'
+              : ext === '.gif'
+                ? 'image/gif'
+                : ext === '.webp'
+                  ? 'image/webp'
+                  : 'application/octet-stream'
+        const buf = await fs.readFile(resolved)
+        res.statusCode = 200
+        res.setHeader('Content-Type', contentType)
+        res.setHeader('ETag', etag)
+        res.setHeader('Cache-Control', 'max-age=0, must-revalidate')
+        res.end(buf)
+        return
+      } catch {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.end('Asset not found')
+        return
+      }
+    }
+
     if (req.method === 'POST' && pathname === '/__pdf_workspace/import') {
-      const modeRaw = String(parsed.searchParams.get('conversionMode') || '').trim()
-      const mode: PdfConversionMode = isPdfConversionMode(modeRaw) ? modeRaw : 'text-only'
       const docId = String(parsed.searchParams.get('docId') || '').trim() || randomUUID()
       const nameHint = typeof req.headers['x-import-filename'] === 'string' ? req.headers['x-import-filename'] : ''
       const pdfBytes = await readBodyAsPdf(req)
@@ -173,10 +192,15 @@ export function createPdfWorkspaceHandler(args: { repoRoot: string }): import('v
         void 0
       }
 
+      const assetsDirAbs = path.join(docDirAbs, 'assets')
+      await fs.rm(assetsDirAbs, { recursive: true, force: true }).catch(() => void 0)
       const converted = await convertPdfToMarkdown({
         body: pdfBytes,
         nameHint,
-        overrides: modeOverrides(mode),
+        assetStore: {
+          assetsDirAbs,
+          assetUrlPrefix: `/__pdf_workspace/assets/${encodeURIComponent(docId)}`,
+        },
       })
       if (!converted.ok) {
         res.statusCode = 400
@@ -186,20 +210,16 @@ export function createPdfWorkspaceHandler(args: { repoRoot: string }): import('v
       }
 
       const markdown = String(converted.markdown || '')
-      const anchorMap = buildAnchorMapFromMarkdown({ docId, mode, markdown })
+      const anchorMap = buildAnchorMapFromMarkdown({ docId, markdown })
 
-      const modeDirAbs = path.join(docDirAbs, 'modes', mode)
-      await fs.mkdir(modeDirAbs, { recursive: true })
-
-      const mdPathAbs = path.join(modeDirAbs, 'output.md')
-      const anchorPathAbs = path.join(modeDirAbs, 'anchor-map.json')
-      const reportPathAbs = path.join(modeDirAbs, 'conversion-report.json')
+      const mdPathAbs = path.join(docDirAbs, 'output.md')
+      const anchorPathAbs = path.join(docDirAbs, 'anchor-map.json')
+      const reportPathAbs = path.join(docDirAbs, 'conversion-report.json')
       await fs.writeFile(mdPathAbs, markdown, 'utf8')
       await writeJsonFileAtomic(anchorPathAbs, anchorMap)
       await writeJsonFileAtomic(reportPathAbs, {
         ok: true,
         docId,
-        mode,
         name: converted.name,
         createdAtMs: nowMs(),
       })
@@ -213,7 +233,6 @@ export function createPdfWorkspaceHandler(args: { repoRoot: string }): import('v
         sourceName: String(nameHint || converted.name || 'document.pdf').trim() || 'document.pdf',
         createdAtMs,
         updatedAtMs: nowMs(),
-        lastMode: mode,
       }
       await writeJsonFileAtomic(docMetaPathAbs, meta)
 
@@ -221,14 +240,13 @@ export function createPdfWorkspaceHandler(args: { repoRoot: string }): import('v
       await writeIndex(workspaceAbs, idx)
 
       const relBase = workspaceResolved.rel
-      const relDoc = path.posix.join(relBase, docId, 'modes', mode)
+      const relDoc = path.posix.join(relBase, docId)
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
       res.end(
         JSON.stringify({
           ok: true,
           docId,
-          mode,
           name: converted.name,
           artifacts: {
             mdRelPath: `${relDoc}/output.md`,
@@ -249,20 +267,17 @@ export function createPdfWorkspaceHandler(args: { repoRoot: string }): import('v
         res.end(JSON.stringify({ ok: false, error: 'Missing docId' }))
         return
       }
-      const modeRaw = String(parsed.searchParams.get('mode') || parsed.searchParams.get('conversionMode') || '').trim()
-      const mode: PdfConversionMode = isPdfConversionMode(modeRaw) ? modeRaw : 'text-only'
       const docDirAbs = path.join(workspaceAbs, docId)
       const meta = await readJsonFile<PdfWorkspaceDocumentMeta>(path.join(docDirAbs, 'document.json'))
-      const modeDirAbs = path.join(docDirAbs, 'modes', mode)
 
       let markdown = await fs
-        .readFile(path.join(modeDirAbs, 'output.md'), 'utf8')
+        .readFile(path.join(docDirAbs, 'output.md'), 'utf8')
         .then(s => String(s))
         .catch(() => '')
-      let anchorMap = (await readJsonFile(path.join(modeDirAbs, 'anchor-map.json'))) as unknown
+      let anchorMap = (await readJsonFile(path.join(docDirAbs, 'anchor-map.json'))) as unknown
 
       if (!markdown || !anchorMap) {
-        const candidates: PdfConversionMode[] = ['image-heavy', 'text-only', 'scan-ocr']
+        const candidates = ['image-heavy', 'text-only', 'scan-ocr']
         for (const candidate of candidates) {
           const candidateDir = path.join(docDirAbs, 'modes', candidate)
           const candidateMd = await fs
@@ -271,8 +286,21 @@ export function createPdfWorkspaceHandler(args: { repoRoot: string }): import('v
             .catch(() => '')
           const candidateAnchor = (await readJsonFile(path.join(candidateDir, 'anchor-map.json'))) as unknown
           if (candidateMd && candidateAnchor) {
-            markdown = candidateMd
+            const legacyPrefix = `/__pdf_workspace/assets/${encodeURIComponent(docId)}/${encodeURIComponent(candidate)}`
+            const nextPrefix = `/__pdf_workspace/assets/${encodeURIComponent(docId)}`
+            markdown = candidateMd.includes(`${legacyPrefix}/`) ? candidateMd.split(`${legacyPrefix}/`).join(`${nextPrefix}/`) : candidateMd
             anchorMap = candidateAnchor
+            const legacyAssetsDirAbs = path.join(candidateDir, 'assets')
+            const assetsDirAbs = path.join(docDirAbs, 'assets')
+            try {
+              const st = await fs.stat(assetsDirAbs)
+              if (!st.isDirectory()) throw new Error('not dir')
+            } catch {
+              await fs.mkdir(assetsDirAbs, { recursive: true }).catch(() => void 0)
+              await fs.cp(legacyAssetsDirAbs, assetsDirAbs, { recursive: true }).catch(() => void 0)
+            }
+            await fs.writeFile(path.join(docDirAbs, 'output.md'), markdown, 'utf8').catch(() => void 0)
+            await writeJsonFileAtomic(path.join(docDirAbs, 'anchor-map.json'), anchorMap).catch(() => void 0)
             break
           }
         }
@@ -283,23 +311,30 @@ export function createPdfWorkspaceHandler(args: { repoRoot: string }): import('v
         const pdfBytes = await fs.readFile(sourcePdfAbs).catch(() => null)
         if (pdfBytes) {
           const nameHint = meta?.sourceName || meta?.title || ''
-          const converted = await convertPdfToMarkdown({ body: pdfBytes, nameHint, overrides: modeOverrides(mode) })
+          const assetsDirAbs = path.join(docDirAbs, 'assets')
+          await fs.rm(assetsDirAbs, { recursive: true, force: true }).catch(() => void 0)
+          const converted = await convertPdfToMarkdown({
+            body: pdfBytes,
+            nameHint,
+            assetStore: {
+              assetsDirAbs,
+              assetUrlPrefix: `/__pdf_workspace/assets/${encodeURIComponent(docId)}`,
+            },
+          })
           if (converted.ok) {
             markdown = String(converted.markdown || '')
-            anchorMap = buildAnchorMapFromMarkdown({ docId, mode, markdown })
-            await fs.mkdir(modeDirAbs, { recursive: true })
-            await fs.writeFile(path.join(modeDirAbs, 'output.md'), markdown, 'utf8')
-            await writeJsonFileAtomic(path.join(modeDirAbs, 'anchor-map.json'), anchorMap)
-            await writeJsonFileAtomic(path.join(modeDirAbs, 'conversion-report.json'), {
+            anchorMap = buildAnchorMapFromMarkdown({ docId, markdown })
+            await fs.writeFile(path.join(docDirAbs, 'output.md'), markdown, 'utf8')
+            await writeJsonFileAtomic(path.join(docDirAbs, 'anchor-map.json'), anchorMap)
+            await writeJsonFileAtomic(path.join(docDirAbs, 'conversion-report.json'), {
               ok: true,
               docId,
-              mode,
               name: converted.name,
               createdAtMs: nowMs(),
               regenerated: true,
             })
             if (meta) {
-              const nextMeta: PdfWorkspaceDocumentMeta = { ...meta, updatedAtMs: nowMs(), lastMode: mode }
+              const nextMeta: PdfWorkspaceDocumentMeta = { ...meta, updatedAtMs: nowMs() }
               await writeJsonFileAtomic(path.join(docDirAbs, 'document.json'), nextMeta)
               const idx = upsertDocMeta(await readIndex(workspaceAbs), nextMeta)
               await writeIndex(workspaceAbs, idx)
@@ -316,7 +351,7 @@ export function createPdfWorkspaceHandler(args: { repoRoot: string }): import('v
       }
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      res.end(JSON.stringify({ ok: true, docId, mode, meta, markdown, anchorMap }))
+      res.end(JSON.stringify({ ok: true, docId, meta, markdown, anchorMap }))
       return
     }
 

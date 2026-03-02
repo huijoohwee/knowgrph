@@ -20,6 +20,10 @@ const looksLikeAsciiBodyLine = (line: string): boolean => {
 const looksLikePipeLayoutLine = (line: string): boolean => {
   const s = String(line || '')
   if (!/\|/.test(s)) return false
+  const t = s.trim()
+  const pipeCount = (t.match(/\|/g) || []).length
+  if (t.startsWith('|') && t.endsWith('|')) return false
+  if (pipeCount >= 3) return false
   if (/^\s*(?:\.\.\.|…)\s*\|\s*/.test(s)) return true
   if (/\s\|\s*#{1,6}\s+\S/.test(s)) return true
   if (/^\s*\S.{0,40}\|\s*$/.test(s)) return true

@@ -308,13 +308,17 @@ export function useParserWorkflowState() {
       }
     })()
     await loadWithStatus(async () => {
-      const result = await loadGraphDataFromTextViaParser(name, text)
+      const result = await loadGraphDataFromTextViaParser(name, text, { syncMarkdownDocument: false })
       try {
         const state = useGraphStore.getState()
         const normalizedText = normalizeMermaidMmdToMarkdown(name, text)
         if (normalizedText.trim()) {
-          state.setMarkdownDocument(name, normalizedText)
-          state.setMarkdownDocumentSourceUrl(rawUrl)
+          void state.setActiveMarkdownDocument({
+            name,
+            text: normalizedText,
+            normalizeMermaidMmd: false,
+            sourceUrl: rawUrl,
+          })
         }
       } catch {
         void 0
@@ -373,13 +377,17 @@ export function useParserWorkflowState() {
 
         const name = fileNameFromRepoPath(String(pipeline.datasetPath))
         await loadWithStatus(async () => {
-          const result = await loadGraphDataFromTextViaParser(name, datasetText)
+          const result = await loadGraphDataFromTextViaParser(name, datasetText, { syncMarkdownDocument: false })
           try {
             const state = useGraphStore.getState()
             const normalizedText = normalizeMermaidMmdToMarkdown(name, datasetText)
             if (normalizedText.trim()) {
-              state.setMarkdownDocument(name, normalizedText)
-              state.setMarkdownDocumentSourceUrl(null)
+              void state.setActiveMarkdownDocument({
+                name,
+                text: normalizedText,
+                normalizeMermaidMmd: false,
+                sourceUrl: null,
+              })
             }
           } catch {
             void 0

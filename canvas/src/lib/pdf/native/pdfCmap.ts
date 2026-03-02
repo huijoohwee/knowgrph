@@ -14,9 +14,14 @@ export function parseToUnicodeCMap(bytes: Buffer, opts?: { maxBytes?: number }):
   const s = bytes.toString('latin1')
   const map = new Map<string, string>()
   const decodeUtf16be = (b: Buffer) => {
-    const u16: number[] = []
-    for (let i = 0; i + 1 < b.length; i += 2) u16.push((b[i] << 8) | b[i + 1])
-    return String.fromCharCode(...u16)
+    if (!b || b.length === 0) return ''
+    const len = b.length - (b.length % 2)
+    const swapped = Buffer.allocUnsafe(len)
+    for (let i = 0; i + 1 < len; i += 2) {
+      swapped[i] = b[i + 1]
+      swapped[i + 1] = b[i]
+    }
+    return swapped.toString('utf16le')
   }
   const parseHex = (hex: string) => Buffer.from(hex.replace(/[<>\s]/g, ''), 'hex')
 
@@ -145,7 +150,75 @@ export function buildFontUnicodeMaps(
 
 export function decodePdfTextBytes(bytes: Buffer, cmap: Map<string, string> | null): string {
   if (!bytes || bytes.length === 0) return ''
-  if (!cmap || cmap.size === 0) return bytes.toString('latin1')
+  const decodeWinAnsiByte = (b: number): string => {
+    const x = b & 0xff
+    if (x < 0x80 || x >= 0xa0) return String.fromCharCode(x)
+    switch (x) {
+      case 0x80:
+        return '€'
+      case 0x82:
+        return '‚'
+      case 0x83:
+        return 'ƒ'
+      case 0x84:
+        return '„'
+      case 0x85:
+        return '…'
+      case 0x86:
+        return '†'
+      case 0x87:
+        return '‡'
+      case 0x88:
+        return 'ˆ'
+      case 0x89:
+        return '‰'
+      case 0x8a:
+        return 'Š'
+      case 0x8b:
+        return '‹'
+      case 0x8c:
+        return 'Œ'
+      case 0x8e:
+        return 'Ž'
+      case 0x91:
+        return '‘'
+      case 0x92:
+        return '’'
+      case 0x93:
+        return '“'
+      case 0x94:
+        return '”'
+      case 0x95:
+        return '•'
+      case 0x96:
+        return '–'
+      case 0x97:
+        return '—'
+      case 0x98:
+        return '˜'
+      case 0x99:
+        return '™'
+      case 0x9a:
+        return 'š'
+      case 0x9b:
+        return '›'
+      case 0x9c:
+        return 'œ'
+      case 0x9e:
+        return 'ž'
+      case 0x9f:
+        return 'Ÿ'
+      default:
+        return String.fromCharCode(x)
+    }
+  }
+  const decodeWinAnsiBytes = (b: Buffer): string => {
+    let out = ''
+    for (let i = 0; i < b.length; i += 1) out += decodeWinAnsiByte(b[i] || 0)
+    return out
+  }
+
+  if (!cmap || cmap.size === 0) return decodeWinAnsiBytes(bytes)
   const preferredLen = (() => {
     const preferredLenByMap: WeakMap<Map<string, string>, number> = (decodePdfTextBytes as unknown as {
       __preferredLenByMap?: WeakMap<Map<string, string>, number>
@@ -188,7 +261,7 @@ export function decodePdfTextBytes(bytes: Buffer, cmap: Map<string, string> | nu
       }
     }
     if (!matched) {
-      out += String.fromCharCode(bytes[i])
+      out += decodeWinAnsiByte(bytes[i] || 0)
       i += 1
     }
   }

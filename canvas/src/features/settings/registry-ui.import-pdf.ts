@@ -14,16 +14,6 @@ export const uiImportPdfSettingsRegistry: SettingMeta[] = [
     default: () => true,
   },
   {
-    key: 'pdfImportConversionMode',
-    type: 'string',
-    source: 'store',
-    read: () => s().pdfImportConversionMode,
-    write: v => s().setPdfImportConversionMode(String(v) === 'image-heavy' ? 'image-heavy' : String(v) === 'scan-ocr' ? 'scan-ocr' : 'text-only'),
-    docKey: 'pdfImportConversionMode',
-    default: () => 'text-only',
-    options: ['text-only', 'image-heavy', 'scan-ocr'],
-  },
-  {
     key: 'pdfImportMaxPages',
     type: 'number',
     source: 'store',

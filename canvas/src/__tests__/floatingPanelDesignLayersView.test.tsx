@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { ToolbarToolMenu } from '@/features/toolbar/ToolbarToolMenu'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_LABELS } from '@/lib/config'
+import { LS_KEYS } from '@/lib/config.ls'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 const tick = async () => {
@@ -14,8 +15,15 @@ export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
   const store = useGraphStore.getState()
   try {
+    try {
+      dom.window.localStorage.setItem(LS_KEYS.geospatialOverlayEnabled, '0')
+      ;(globalThis as unknown as { localStorage?: Storage }).localStorage?.setItem(LS_KEYS.geospatialOverlayEnabled, '0')
+    } catch {
+      void 0
+    }
     store.setWorkspaceViewMode('canvas')
     store.setCanvasRenderMode('2d')
+    store.setCanvas2dRenderer('design')
 
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
@@ -28,7 +36,7 @@ export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
         toolMenuCardRef={{ current: null }}
         toolMenuCardStyle={{ top: 0, left: 0 }}
         onHeaderPointerDown={() => void 0}
-        requestedFloatingPanelView="propsPanel"
+        requestedFloatingPanelView="designLayers"
         requestedFloatingPanelViewSeq={1}
         onClose={() => void 0}
       />,
@@ -47,8 +55,6 @@ export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
     if (labels[1] !== UI_LABELS.layerMode) {
       throw new Error(`expected second floating panel view to be ${UI_LABELS.layerMode}, got ${labels[1]}`)
     }
-
-    buttons[1]?.click()
 
     let designLayers: HTMLElement | null = null
     for (let i = 0; i < 30; i++) {

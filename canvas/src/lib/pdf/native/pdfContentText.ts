@@ -82,12 +82,25 @@ export function parseContentStreamText(bytes: Buffer, fontMaps: Record<string, M
     return { tok: raw, next: end }
   }
 
+  const emitText = (raw: string) => {
+    const cleaned = String(raw || '').replace(/\s+/g, ' ').trim()
+    if (!cleaned) return
+    const pieces = cleaned.split(' ').filter(Boolean)
+    if (pieces.length === 0) return
+    const charW = Math.max(1, fontSize * 0.5)
+    let dx = 0
+    for (let i = 0; i < pieces.length; i += 1) {
+      const w = pieces[i]
+      frags.push({ x: x + dx, y, fontSize, fontKey, text: w })
+      dx += w.length * charW
+      if (i < pieces.length - 1) dx += charW
+    }
+    x += dx
+  }
+
   const emitBytes = (b: Buffer) => {
     const cmap = fontKey ? fontMaps[fontKey] || null : null
-    const text = decodePdfTextBytes(b, cmap)
-    const cleaned = text.replace(/\s+/g, ' ').trim()
-    if (!cleaned) return
-    frags.push({ x, y, fontSize, fontKey, text: cleaned })
+    emitText(decodePdfTextBytes(b, cmap))
   }
 
   let idx = 0
@@ -173,8 +186,26 @@ export function parseContentStreamText(bytes: Buffer, fontMaps: Record<string, M
         if (isContentArrayToken(arr)) {
           const items = arr.items
           const parts: Buffer[] = []
-          for (const it of items) if (isPdfBytesToken(it)) parts.push(Buffer.from(it.bytes))
-          if (parts.length > 0) emitBytes(Buffer.concat(parts))
+          const textParts: string[] = []
+          let sawNumber = false
+          for (const it of items) {
+            if (isPdfBytesToken(it)) {
+              const b = Buffer.from(it.bytes)
+              parts.push(b)
+              const cmap = fontKey ? fontMaps[fontKey] || null : null
+              textParts.push(decodePdfTextBytes(b, cmap))
+              continue
+            }
+            if (typeof it === 'number' && Number.isFinite(it)) {
+              sawNumber = true
+              if (it > 120) textParts.push(' ')
+            }
+          }
+          if (textParts.length > 0) {
+            emitText(textParts.join(''))
+          } else if (parts.length > 0 && !sawNumber) {
+            emitBytes(Buffer.concat(parts))
+          }
         }
         stack.length = 0
         continue

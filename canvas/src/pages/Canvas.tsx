@@ -874,7 +874,7 @@ export default function CanvasPage() {
       <SourceFilesPersistenceBootstrap />
       <SsotEventBridge />
       <section
-        className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--kg-canvas-bg)] transition-colors duration-300"
+        className="relative flex h-screen w-screen flex-col overflow-hidden bg-[var(--kg-canvas-bg)] transition-colors duration-300"
         aria-label="Knowgrph Canvas"
       >
         {isEmbeddedPreview ? (
@@ -892,11 +892,13 @@ export default function CanvasPage() {
         ) : (
           <>
             {workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? (
-              <header className="shrink-0" aria-label="Workspace Toolbar Header">
-                <nav className="relative z-[200] flex items-center justify-center pt-2" aria-label="Canvas Toolbar" role="navigation">
-                  <React.Suspense fallback={null}>
-                    <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
-                  </React.Suspense>
+              <header className="absolute top-0 inset-x-0 z-[400] pointer-events-none" aria-label="Workspace Toolbar Header">
+                <nav className="absolute top-2 right-2 z-[200] flex items-center justify-end bg-transparent" aria-label="Canvas Toolbar" role="navigation">
+                  <div className="pointer-events-auto">
+                    <React.Suspense fallback={null}>
+                      <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
+                    </React.Suspense>
+                  </div>
                 </nav>
               </header>
             ) : null}
@@ -907,7 +909,7 @@ export default function CanvasPage() {
               <section className="flex-1 flex flex-col overflow-hidden" aria-label="Workspace stage">
                 <section className="flex-1 min-h-0 overflow-hidden flex" aria-label="Workspace split">
                   <section
-                    className={`flex-1 min-w-0 min-h-0 overflow-hidden ${workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? 'flex flex-col' : 'hidden'}`}
+                    className={`relative z-[300] flex-1 min-w-0 min-h-0 overflow-hidden ${workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? 'flex flex-col' : 'hidden'}`}
                     aria-label="Workspace left pane"
                   >
                     {workspaceViewMode === 'editor' ? (
@@ -936,13 +938,15 @@ export default function CanvasPage() {
                   >
                     {workspaceViewMode !== 'editor' && workspaceViewMode !== 'table' ? (
                       <nav
-                        className="absolute top-2 inset-x-0 z-[200] flex items-center justify-center"
+                        className="absolute top-0 inset-x-0 z-[200] flex items-center justify-center pt-2 pb-2 bg-transparent pointer-events-none"
                         aria-label="Canvas Toolbar"
                         role="navigation"
                       >
-                        <React.Suspense fallback={null}>
-                          <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
-                        </React.Suspense>
+                        <div className="pointer-events-auto">
+                          <React.Suspense fallback={null}>
+                            <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
+                          </React.Suspense>
+                        </div>
                       </nav>
                     ) : null}
                     <CanvasViewport

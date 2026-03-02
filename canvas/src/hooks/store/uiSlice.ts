@@ -1,6 +1,6 @@
 import { lsNum, lsSetNum, lsBool, lsSetBool, lsInt, lsSetInt, lsJson, lsSetJson, getLocalStorage } from '@/lib/persistence'
 import { LS_KEYS } from '@/lib/config'
-import type { GraphState, PdfImportConversionMode } from '@/hooks/store/types'
+import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import { getInitialLaunchSpotlightEnabled, persistLaunchSpotlightEnabled } from '@/features/spotlight/storage'
 import { createPanelLayoutUiSlice } from '@/hooks/store/panelLayoutUiSlice'
@@ -9,87 +9,7 @@ import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
-function coercePdfImportConversionMode(v: unknown): PdfImportConversionMode | null {
-  if (v === 'text-only' || v === 'image-heavy' || v === 'scan-ocr') return v
-  return null
-}
-
-function getPdfImportModePreset(mode: PdfImportConversionMode): {
-  includeImages: boolean
-  embedImages: boolean
-  maxExtractedImagesPerPage: number
-  maxEmbeddedImagesPerPage: number
-  maxEmbeddedTotalBytes: number
-  maxEmbeddedAssetBytes: number
-  ocrEnabled: boolean
-  ocrMode: 'fallback' | 'always'
-} {
-  if (mode === 'image-heavy') {
-    return {
-      includeImages: true,
-      embedImages: false,
-      maxExtractedImagesPerPage: 16,
-      maxEmbeddedImagesPerPage: 12,
-      maxEmbeddedTotalBytes: 4 * 1024 * 1024,
-      maxEmbeddedAssetBytes: 2 * 1024 * 1024,
-      ocrEnabled: false,
-      ocrMode: 'fallback',
-    }
-  }
-  if (mode === 'scan-ocr') {
-    return {
-      includeImages: false,
-      embedImages: false,
-      maxExtractedImagesPerPage: 4,
-      maxEmbeddedImagesPerPage: 0,
-      maxEmbeddedTotalBytes: 4 * 1024 * 1024,
-      maxEmbeddedAssetBytes: 2 * 1024 * 1024,
-      ocrEnabled: true,
-      ocrMode: 'always',
-    }
-  }
-  return {
-    includeImages: false,
-    embedImages: false,
-    maxExtractedImagesPerPage: 0,
-    maxEmbeddedImagesPerPage: 0,
-    maxEmbeddedTotalBytes: 4 * 1024 * 1024,
-    maxEmbeddedAssetBytes: 2 * 1024 * 1024,
-    ocrEnabled: false,
-    ocrMode: 'fallback',
-  }
-}
-
-function migrateLegacyPdfOcrKeys(): void {
-  const storage = getLocalStorage()
-  if (!storage) return
-  try {
-    const keys: string[] = []
-    for (let i = 0; i < storage.length; i++) {
-      const k = storage.key(i)
-      if (k) keys.push(k)
-    }
-
-    const legacyEnabledKey = keys.find(k => /:ocr2:enabled$/i.test(k))
-    const legacyModeKey = keys.find(k => /:ocr2:mode$/i.test(k))
-
-    if (legacyEnabledKey) {
-      const v = storage.getItem(legacyEnabledKey)
-      if (v != null && storage.getItem(LS_KEYS.pdfImportOcrEnabled) == null) storage.setItem(LS_KEYS.pdfImportOcrEnabled, v)
-      storage.removeItem(legacyEnabledKey)
-    }
-    if (legacyModeKey) {
-      const v = storage.getItem(legacyModeKey)
-      if (v != null && storage.getItem(LS_KEYS.pdfImportOcrMode) == null) storage.setItem(LS_KEYS.pdfImportOcrMode, v)
-      storage.removeItem(legacyModeKey)
-    }
-  } catch {
-    void 0
-  }
-}
-
 export const createUiSlice = (set: SetGraph) => {
-  migrateLegacyPdfOcrKeys()
   return {
     ...createPanelLayoutUiSlice(set),
 
@@ -347,7 +267,6 @@ export const createUiSlice = (set: SetGraph) => {
     autoEnableGeospatialOnGeoImport: lsBool(LS_KEYS.geospatialAutoEnableOnGeoImport, true),
 
     pdfImportIncludeImages: lsBool(LS_KEYS.pdfImportIncludeImages, true),
-    pdfImportConversionMode: lsJson<PdfImportConversionMode>(LS_KEYS.pdfImportConversionMode, 'text-only', coercePdfImportConversionMode),
     pdfImportMaxPages: lsInt(LS_KEYS.pdfImportMaxPages, 0),
     pdfImportMaxPdfBytes: lsInt(LS_KEYS.pdfImportMaxPdfBytes, 100 * 1024 * 1024),
     pdfImportFetchTimeoutMs: lsInt(LS_KEYS.pdfImportFetchTimeoutMs, 60_000),
@@ -620,22 +539,6 @@ export const createUiSlice = (set: SetGraph) => {
       set({ autoEnableGeospatialOnGeoImport: lsSetBool(LS_KEYS.geospatialAutoEnableOnGeoImport, v === true) }),
 
     setPdfImportIncludeImages: (v: boolean) => set({ pdfImportIncludeImages: lsSetBool(LS_KEYS.pdfImportIncludeImages, !!v) }),
-    setPdfImportConversionMode: (mode: PdfImportConversionMode) =>
-      set(() => {
-        const nextMode = coercePdfImportConversionMode(mode) || 'text-only'
-        const preset = getPdfImportModePreset(nextMode)
-        return {
-          pdfImportConversionMode: lsSetJson(LS_KEYS.pdfImportConversionMode, nextMode),
-          pdfImportIncludeImages: lsSetBool(LS_KEYS.pdfImportIncludeImages, preset.includeImages),
-          pdfImportEmbedImages: lsSetBool(LS_KEYS.pdfImportEmbedImages, preset.embedImages),
-          pdfImportMaxExtractedImagesPerPage: lsSetInt(LS_KEYS.pdfImportMaxExtractedImagesPerPage, preset.maxExtractedImagesPerPage, { min: 0, max: 50 }),
-          pdfImportMaxEmbeddedImagesPerPage: lsSetInt(LS_KEYS.pdfImportMaxEmbeddedImagesPerPage, preset.maxEmbeddedImagesPerPage, { min: 0, max: 50 }),
-          pdfImportMaxEmbeddedTotalBytes: lsSetInt(LS_KEYS.pdfImportMaxEmbeddedTotalBytes, preset.maxEmbeddedTotalBytes, { min: 0, max: 50 * 1024 * 1024 }),
-          pdfImportMaxEmbeddedAssetBytes: lsSetInt(LS_KEYS.pdfImportMaxEmbeddedAssetBytes, preset.maxEmbeddedAssetBytes, { min: 0, max: 20 * 1024 * 1024 }),
-          pdfImportOcrEnabled: lsSetBool(LS_KEYS.pdfImportOcrEnabled, preset.ocrEnabled),
-          pdfImportOcrMode: lsSetJson(LS_KEYS.pdfImportOcrMode, preset.ocrMode),
-        } satisfies Partial<GraphState>
-      }),
     setPdfImportMaxPages: (v: number) =>
       set({ pdfImportMaxPages: lsSetInt(LS_KEYS.pdfImportMaxPages, v, { min: 0, max: 10_000 }) }),
     setPdfImportMaxPdfBytes: (v: number) =>

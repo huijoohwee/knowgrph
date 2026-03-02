@@ -38,6 +38,8 @@ import { convertWebpageHtmlToMarkdownArtifactAsync } from '@/lib/websites/webpag
 import { buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from './workspaceImport'
 import { mapLimit } from '@/lib/async/mapLimit'
 import type { MarkdownWorkspaceStatus } from './markdownWorkspaceTypes'
+import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
+import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
 
 export function shouldForceDocumentSemanticModeForImport(nameForParse: string): boolean {
   const lower = String(nameForParse || '').trim().toLowerCase()
@@ -55,6 +57,7 @@ export function useWorkspaceFileActions(args: {
   selectionPath: WorkspacePath | null
   selectionEntryKind: WorkspaceEntry['kind'] | null
   activeDocumentKey: string
+  activeDocumentSourceUrl: string | null
   setActiveText: (next: string) => void
   setEntries: React.Dispatch<React.SetStateAction<WorkspaceEntry[]>>
   lastLoadedRef: React.MutableRefObject<{ path: WorkspacePath; text: string } | null>
@@ -63,8 +66,18 @@ export function useWorkspaceFileActions(args: {
   setActivePathSafe: (path: WorkspacePath) => void
   setSelectionPathSafe: (path: WorkspacePath) => void
 
-  setMarkdownDocument: (name: string | null, text: string | null) => void
-  setMarkdownDocumentSourceUrl: (url: string | null) => void
+  setActiveMarkdownDocument: (args: {
+    name: string
+    text: string
+    sourceUrl?: string | null
+    jsonSourceText?: string | null
+    autoEnableFrontmatter?: boolean
+    workspaceViewMode?: import('@/hooks/store/types').WorkspaceViewMode | null
+    recent?: Omit<import('@/hooks/store/types').RecentFileEntry, 'id' | 'timestamp'> | null
+    applyToGraph?: boolean
+    forceApplyToGraph?: boolean
+    normalizeMermaidMmd?: boolean
+  }) => Promise<boolean>
   applyMarkdownDocumentToGraph: (name: string, text: string, opts?: { force?: boolean }) => Promise<boolean>
 }) {
   const {
@@ -75,14 +88,14 @@ export function useWorkspaceFileActions(args: {
     selectionPath,
     selectionEntryKind,
     activeDocumentKey,
+    activeDocumentSourceUrl,
     setActiveText,
     setEntries,
     lastLoadedRef,
     setExpandedPaths,
     setActivePathSafe,
     setSelectionPathSafe,
-    setMarkdownDocument,
-    setMarkdownDocumentSourceUrl,
+    setActiveMarkdownDocument,
     applyMarkdownDocumentToGraph,
   } = args
 
@@ -139,11 +152,31 @@ export function useWorkspaceFileActions(args: {
   const applyImportedTextToGraph = React.useCallback(
     async (args: { nameForParse: string; text: string }) => {
       const storeBefore = useGraphStore.getState()
-      const okMarkdown = await applyMarkdownDocumentToGraph(args.nameForParse, args.text, { force: true })
+      const resolvedText = await (async (): Promise<string> => {
+        const meta = parsePdfWorkspaceFrontmatter(args.text)
+        if (!meta) return args.text
+        try {
+          const controller = new AbortController()
+          const timeoutMs = 1500
+          const t = setTimeout(() => controller.abort(), timeoutMs)
+          const fetched = await fetchPdfWorkspaceDoc({
+            docId: meta.docId,
+            outputDirRel: meta.outputDirRel,
+            signal: controller.signal,
+          }).finally(() => clearTimeout(t))
+          if (fetched.ok !== true) return args.text
+          const markdown = String(fetched.markdown || '')
+          return markdown.trim() ? markdown : args.text
+        } catch {
+          return args.text
+        }
+      })()
+
+      const okMarkdown = await applyMarkdownDocumentToGraph(args.nameForParse, resolvedText, { force: true })
       if (!okMarkdown) {
         const { loadGraphDataFromTextViaParser } =
           (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
-        await loadGraphDataFromTextViaParser(args.nameForParse, args.text, { applyToStore: true })
+        await loadGraphDataFromTextViaParser(args.nameForParse, resolvedText, { applyToStore: true })
       }
 
       const store = useGraphStore.getState()
@@ -203,7 +236,6 @@ export function useWorkspaceFileActions(args: {
         for (const ancestor of ancestorPathsForWorkspacePath(createdPath)) next.add(ancestor)
         return next
       })
-      if (opts?.sourceUrl) setMarkdownDocumentSourceUrl(opts.sourceUrl)
       if (opts?.applyToGraph) {
         try {
           const fs = await getFs()
@@ -214,7 +246,12 @@ export function useWorkspaceFileActions(args: {
           lastLoadedRef.current = { path: createdPath, text: content }
           setActiveText(content)
           if (docKey && content.trim()) {
-            setMarkdownDocument(docKey, content)
+            void setActiveMarkdownDocument({
+              name: docKey,
+              text: content,
+              normalizeMermaidMmd: false,
+              sourceUrl: typeof opts?.sourceUrl === 'string' ? opts!.sourceUrl : activeDocumentSourceUrl,
+            })
             await applyImportedTextToGraph({ nameForParse: docKey, text: content })
           }
         } catch (e) {
@@ -229,10 +266,10 @@ export function useWorkspaceFileActions(args: {
       setActivePathSafe,
       setActiveText,
       setExpandedPaths,
-      setMarkdownDocument,
-      setMarkdownDocumentSourceUrl,
+      setActiveMarkdownDocument,
       setSelectionPathSafe,
       setStatusError,
+      activeDocumentSourceUrl,
     ],
   )
 
@@ -523,8 +560,14 @@ export function useWorkspaceFileActions(args: {
             if (openedPath === createdPath) {
               lastLoadedRef.current = { path: createdPath, text: nextText }
               setActiveText(nextText)
-              if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, nextText)
-              setMarkdownDocumentSourceUrl(fetched.normalizedUrl)
+              if (activeDocumentKey) {
+                void setActiveMarkdownDocument({
+                  name: activeDocumentKey,
+                  text: nextText,
+                  normalizeMermaidMmd: false,
+                  sourceUrl: fetched.normalizedUrl,
+                })
+              }
             }
 
             useGraphStore.getState().upsertUiToast({
@@ -577,8 +620,7 @@ export function useWorkspaceFileActions(args: {
       refresh,
       setActiveText,
       setEntries,
-      setMarkdownDocument,
-      setMarkdownDocumentSourceUrl,
+      setActiveMarkdownDocument,
       setStatusError,
       setStatusInfo,
       setStatusProgress,
@@ -1020,8 +1062,14 @@ export function useWorkspaceFileActions(args: {
         if (openedPath === normalized) {
           lastLoadedRef.current = { path: normalized, text: nextText }
           setActiveText(nextText)
-          if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, nextText)
-          setMarkdownDocumentSourceUrl(fetched.normalizedUrl)
+          if (activeDocumentKey) {
+            void setActiveMarkdownDocument({
+              name: activeDocumentKey,
+              text: nextText,
+              normalizeMermaidMmd: false,
+              sourceUrl: fetched.normalizedUrl,
+            })
+          }
           void 0
         }
         setStatusInfo('Refreshed')
@@ -1036,8 +1084,7 @@ export function useWorkspaceFileActions(args: {
       lastLoadedRef,
       setActiveText,
       setEntries,
-      setMarkdownDocument,
-      setMarkdownDocumentSourceUrl,
+      setActiveMarkdownDocument,
       setStatusError,
       setStatusInfo,
       setStatusProgress,
@@ -1072,7 +1119,14 @@ export function useWorkspaceFileActions(args: {
         setEntries(prev => prev.map(e => (e.path === normalized ? { ...e, text: '', updatedAtMs: Date.now() } : e)))
         if (openedPath === normalized) {
           setActiveText('')
-          if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, '')
+          if (activeDocumentKey) {
+            void setActiveMarkdownDocument({
+              name: activeDocumentKey,
+              text: '',
+              normalizeMermaidMmd: false,
+              sourceUrl: null,
+            })
+          }
         }
         setStatusInfo('Cleared')
       } catch (e) {
@@ -1086,7 +1140,7 @@ export function useWorkspaceFileActions(args: {
       lastLoadedRef,
       setActiveText,
       setEntries,
-      setMarkdownDocument,
+      setActiveMarkdownDocument,
       setStatusError,
       setStatusInfo,
       setStatusProgress,
@@ -1117,7 +1171,14 @@ export function useWorkspaceFileActions(args: {
         if (shouldClearActive) {
           lastLoadedRef.current = { path: normalizedActivePath as WorkspacePath, text: '' }
           setActiveText('')
-          if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, '')
+          if (activeDocumentKey) {
+            void setActiveMarkdownDocument({
+              name: activeDocumentKey,
+              text: '',
+              normalizeMermaidMmd: false,
+              sourceUrl: null,
+            })
+          }
         } else {
           const last = lastLoadedRef.current
           if (last && targetSet.has(last.path)) {
@@ -1140,7 +1201,7 @@ export function useWorkspaceFileActions(args: {
       lastLoadedRef,
       setActiveText,
       setEntries,
-      setMarkdownDocument,
+      setActiveMarkdownDocument,
       setStatusError,
       setStatusInfo,
       setStatusProgress,

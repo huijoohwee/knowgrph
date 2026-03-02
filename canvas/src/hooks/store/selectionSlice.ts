@@ -5,6 +5,36 @@ import { FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY, FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
 
+const readTocIdFromNode = (node: unknown): string | null => {
+  const n = node as { properties?: unknown; id?: unknown; label?: unknown } | null
+  const props = n?.properties && typeof n.properties === 'object' && !Array.isArray(n.properties) ? (n.properties as Record<string, unknown>) : null
+  const anchorId = typeof props?.anchorId === 'string' ? props.anchorId.trim() : ''
+  if (anchorId) return anchorId
+  const anchor = typeof props?.anchor === 'string' ? props.anchor.trim() : ''
+  if (anchor) return anchor
+  const heading = typeof props?.heading === 'string' ? props.heading.trim() : ''
+  if (heading) return heading
+  const label = typeof n?.label === 'string' ? n.label.trim() : ''
+  if (label) return label
+  const id = typeof n?.id === 'string' ? n.id.trim() : ''
+  if (id) return id
+  return null
+}
+
+const tryDispatchTocFocus = (id: string): void => {
+  const safeId = String(id || '').trim()
+  if (!safeId) return
+  const w = typeof window !== 'undefined' ? window : null
+  if (!w || typeof w.dispatchEvent !== 'function') return
+  const CE = (globalThis as unknown as { CustomEvent?: unknown }).CustomEvent
+  if (typeof CE !== 'function') return
+  try {
+    w.dispatchEvent(new (CE as unknown as { new (type: string, init?: unknown): Event })('kg:tocFocus', { detail: { id: safeId } }))
+  } catch {
+    void 0
+  }
+}
+
 export const createSelectionSlice = (set: SetGraph, get: GetGraph) => ({
   selectedNodeId: null as string | null,
   selectedEdgeId: null as string | null,
@@ -67,6 +97,16 @@ export const createSelectionSlice = (set: SetGraph, get: GetGraph) => ({
       selectedEdgeIds: [],
       selectedGroupIds: [],
     })
+    if (state.workspaceViewMode === 'editor' || state.workspaceViewMode === 'table') {
+      try {
+        const graphData = get().graphData
+        const node = (graphData?.nodes || []).find(n => String(n.id || '') === id) || null
+        const tocId = readTocIdFromNode(node)
+        if (tocId) tryDispatchTocFocus(tocId)
+      } catch {
+        void 0
+      }
+    }
     try {
       const graphData = get().graphData
       const node = (graphData?.nodes || []).find(n => String(n.id || '') === id) || null

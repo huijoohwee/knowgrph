@@ -1,7 +1,5 @@
 import type { IncomingMessage } from 'node:http'
 
-export type PdfConvertMode = 'text-only' | 'image-heavy' | 'scan-ocr'
-
 export type PdfConvertOverrides = {
   includeImages?: boolean
   embedImages?: boolean
@@ -54,12 +52,6 @@ function readBool01(sp: URLSearchParams, key: string): boolean | undefined {
   return raw.trim() === '1'
 }
 
-function readMode(sp: URLSearchParams): PdfConvertMode | undefined {
-  const raw = String(sp.get('conversionMode') || '').trim().toLowerCase()
-  if (raw === 'text-only' || raw === 'image-heavy' || raw === 'scan-ocr') return raw
-  return undefined
-}
-
 function readString(sp: URLSearchParams, key: string): string | undefined {
   const raw = String(sp.get(key) || '').trim()
   return raw ? raw : undefined
@@ -86,48 +78,6 @@ export function parsePdfConvertRequest(args: {
 }): PdfConvertRequest {
   const parsed = new URL(args.req.url || '', `http://${args.req.headers.host}`)
   const sp = parsed.searchParams
-
-  const conversionMode = readMode(sp)
-
-  const modeOverrides = (() => {
-    if (conversionMode === 'image-heavy') {
-      return {
-        includeImages: true,
-        embedImages: false,
-        maxExtractedImagesPerPage: 24,
-        maxEmbeddedImagesPerPage: 24,
-        maxEmbeddedTotalBytes: 4 * 1024 * 1024,
-        maxEmbeddedAssetBytes: 2 * 1024 * 1024,
-        ocrEnabled: false,
-        ocrMode: 'fallback' as const,
-      }
-    }
-    if (conversionMode === 'scan-ocr') {
-      return {
-        includeImages: false,
-        embedImages: false,
-        maxExtractedImagesPerPage: 4,
-        maxEmbeddedImagesPerPage: 0,
-        maxEmbeddedTotalBytes: 4 * 1024 * 1024,
-        maxEmbeddedAssetBytes: 2 * 1024 * 1024,
-        ocrEnabled: true,
-        ocrMode: 'always' as const,
-      }
-    }
-    if (conversionMode === 'text-only') {
-      return {
-        includeImages: false,
-        embedImages: false,
-        maxExtractedImagesPerPage: 0,
-        maxEmbeddedImagesPerPage: 0,
-        maxEmbeddedTotalBytes: 4 * 1024 * 1024,
-        maxEmbeddedAssetBytes: 2 * 1024 * 1024,
-        ocrEnabled: false,
-        ocrMode: 'fallback' as const,
-      }
-    }
-    return null
-  })()
 
   const urlParam = readString(sp, 'url')
   const includeImagesOverride = readBool01(sp, 'includeImages')
@@ -167,20 +117,11 @@ export function parsePdfConvertRequest(args: {
   const ocrEnabled = (() => {
     const direct = sp.get('ocr')
     if (direct != null) return direct.trim() === '1'
-    for (const [k, v] of sp.entries()) {
-      if (!/ocr2$/i.test(k)) continue
-      return String(v || '').trim() === '1'
-    }
     return undefined
   })()
   const ocrMode = (() => {
     const raw = String(sp.get('ocrMode') || '').trim().toLowerCase()
     if (raw) return raw === 'always' ? 'always' : raw === 'fallback' ? 'fallback' : undefined
-    for (const [k, v] of sp.entries()) {
-      if (!/ocr2mode$/i.test(k)) continue
-      const vv = String(v || '').trim().toLowerCase()
-      return vv === 'always' ? 'always' : vv === 'fallback' ? 'fallback' : undefined
-    }
     return undefined
   })()
 
@@ -196,19 +137,19 @@ export function parsePdfConvertRequest(args: {
     nameHint: nameHintHeader,
     rawContentType: contentType,
     overrides: {
-      includeImages: includeImagesOverride ?? modeOverrides?.includeImages,
-      embedImages: embedImagesOverride ?? modeOverrides?.embedImages,
+      includeImages: includeImagesOverride,
+      embedImages: embedImagesOverride,
       maxPages,
-      maxExtractedImagesPerPage: maxExtractedImagesPerPage ?? modeOverrides?.maxExtractedImagesPerPage,
-      maxEmbeddedImagesPerPage: maxEmbeddedImagesPerPage ?? modeOverrides?.maxEmbeddedImagesPerPage,
-      maxEmbeddedTotalBytes: maxEmbeddedTotalBytes ?? modeOverrides?.maxEmbeddedTotalBytes,
-      maxEmbeddedAssetBytes: maxEmbeddedAssetBytes ?? modeOverrides?.maxEmbeddedAssetBytes,
+      maxExtractedImagesPerPage,
+      maxEmbeddedImagesPerPage,
+      maxEmbeddedTotalBytes,
+      maxEmbeddedAssetBytes,
       reconstructTables,
       tableMinColumns,
       tableMinRows,
       tableMaxRows,
-      ocrEnabled: ocrEnabled ?? modeOverrides?.ocrEnabled,
-      ocrMode: ocrMode ?? modeOverrides?.ocrMode,
+      ocrEnabled,
+      ocrMode,
       provider,
       doclingEndpoint,
       providerFallbackToNative,

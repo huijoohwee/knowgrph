@@ -18,17 +18,17 @@ export function applyImportedMarkdownToStore(args: {
   if (!name) return
 
   const state = useGraphStore.getState()
-  state.setMarkdownDocument(name, text)
-  state.setJsonSourceDocument(name, null)
-  state.setMarkdownDocumentSourceUrl(sourceUrl)
-  if (args.curationView === 'markdown') {
-    state.setWorkspaceViewMode('editor')
-  } else if (args.curationView === 'grid') {
-    state.setWorkspaceViewMode('table')
-  }
-  if (args.recent) {
-    state.addRecentFile(args.recent)
-  }
+  void state.setActiveMarkdownDocument({
+    name,
+    text,
+    normalizeMermaidMmd: false,
+    sourceUrl,
+    jsonSourceText: null,
+    workspaceViewMode: args.curationView === 'markdown' ? 'editor' : args.curationView === 'grid' ? 'table' : null,
+    recent: args.recent,
+    applyToGraph: true,
+    forceApplyToGraph: true,
+  })
 }
 
 export function applyImportedCsvToStore(args: {
@@ -65,14 +65,19 @@ export function applyImportedJsonToStore(args: {
 
   const state = useGraphStore.getState()
   if (!trimmed) {
-    state.setJsonSourceDocument(name, null)
-    state.setMarkdownDocument(name, rawText)
-    state.setMarkdownDocumentSourceUrl(args.sourceUrl)
-    if (args.recent) state.addRecentFile(args.recent)
+    void state.setActiveMarkdownDocument({
+      name,
+      text: rawText,
+      normalizeMermaidMmd: false,
+      sourceUrl: args.sourceUrl,
+      jsonSourceText: null,
+      recent: args.recent,
+    })
     return
   }
 
   let markdown = rawText
+  let jsonSourceText: string | null = null
   try {
     const parsed = JSON.parse(trimmed) as unknown
     const persistedMode = lsJson<JsonToMarkdownMode>(
@@ -88,15 +93,20 @@ export function applyImportedJsonToStore(args: {
     )
     markdown = jsonToMarkdown(parsed, { defaultMode: persistedMode }, persistedMode)
     lsSetJson<JsonToMarkdownMode>(LS_KEYS.jsonMarkdownMode, persistedMode)
-    state.setJsonSourceDocument(name, trimmed)
+    jsonSourceText = trimmed
   } catch {
     const fenceLang = args.fallbackFenceLang || 'json'
     markdown = ['```' + fenceLang, trimmed, '```', ''].join('\n')
-    state.setJsonSourceDocument(name, null)
+    jsonSourceText = null
   }
 
-  state.setMarkdownDocument(name, markdown)
-  state.setMarkdownDocumentSourceUrl(args.sourceUrl)
-  state.setWorkspaceViewMode('editor')
-  if (args.recent) state.addRecentFile(args.recent)
+  void state.setActiveMarkdownDocument({
+    name,
+    text: markdown,
+    normalizeMermaidMmd: false,
+    sourceUrl: args.sourceUrl,
+    jsonSourceText,
+    workspaceViewMode: 'editor',
+    recent: args.recent,
+  })
 }

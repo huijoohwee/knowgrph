@@ -696,6 +696,15 @@ import { testKeywordModeDerivesEntitiesAndPredicateEdges, testKeywordModeMergesM
 import { testToolMenuDoesNotExposeCuratorArea } from '@/__tests__/toolMenuCuratorActions.test'
 import { testForbidHardcodedYouTubeUrlLiteral, testYouTubeImportPopulatesMarkdownAndJsonEditors } from '@/__tests__/youtubeImportAction.test'
 import { testMarkdownImportActionAppliesImportedMarkdownToStore } from '@/__tests__/markdownImportActionWiresStore.test'
+import { testMarkdownImportSideEffectsAppliesGraphFromImportedMarkdown } from '@/__tests__/markdownImportSideEffectsApplyGraphRegression.test'
+import { testLoaderCacheKeyIncludesParserRegistryRevision } from '@/__tests__/loaderCacheIncludesParserRegistryRevisionRegression.test'
+import { testGraphDataSliceAvoidsWindowSetTimeout } from '@/__tests__/graphDataSliceAvoidsWindowSetTimeoutRegression.test'
+import { testRendererUiStateIsolationKeepsOpenQuickEditorsPerRenderer, testRendererUiStateIsolationKeepsPointerModePerRenderer } from '@/__tests__/rendererUiStateIsolation.test'
+import { testRenderCloneMemoizesPerGraphObject, testSceneDisplayDerivationReusesDisplayNodesForStableGraphObject } from '@/__tests__/renderCloneMemoization.test'
+import { testFlowEditorOverlaySvgIsBoundedBelowToolbar, testFlowEditorOverlaysDoNotUseFloatingPanelZIndex, testWorkspacePanesOutrankFlowEditorOverlays } from '@/__tests__/flowEditorOverlayLayeringRegression.test'
+import { testSelectionDispatchesTocFocusInSplitViews } from '@/__tests__/selectionTocFocusSync.test'
+import { testDesignWireframeCacheEpochAffectsLayoutCacheKey, testDesignWireframeSettingsExposesClearCache } from '@/__tests__/designWireframeCacheClearRegression.test'
+import { testToolbarNavMasksCanvasUnderlay } from '@/__tests__/toolbarNavMaskRegression.test'
 import { testGroupCollapseDerivationCollapsesCommunityIntoGroupNode } from '@/__tests__/groupCollapse.test'
 import {
   testMarkdownWorkspaceSplitPreviewFlushesOnDocKeyChange,
@@ -1157,6 +1166,20 @@ export const runAllTests = async () => {
   await exec('policy.forbidPenpotRepoLiteral', testForbidPenpotRepoLiteral)
   await exec('ingest.youtube.importPopulatesMarkdownAndJsonEditors', testYouTubeImportPopulatesMarkdownAndJsonEditors)
   await exec('ingest.markdown.importActionWiresStore', testMarkdownImportActionAppliesImportedMarkdownToStore)
+  await exec('ingest.markdown.importSideEffects.appliesGraph', testMarkdownImportSideEffectsAppliesGraphFromImportedMarkdown)
+  await exec('parsers.loader.cacheKey.includesRegistryRevision', testLoaderCacheKeyIncludesParserRegistryRevision)
+  await exec('store.graphDataSlice.avoidsWindowSetTimeout', testGraphDataSliceAvoidsWindowSetTimeout)
+  await exec('ui.rendererIsolation.pointerMode', testRendererUiStateIsolationKeepsPointerModePerRenderer)
+  await exec('ui.rendererIsolation.openQuickEditors', testRendererUiStateIsolationKeepsOpenQuickEditorsPerRenderer)
+  await exec('render.clone.memoizes', testRenderCloneMemoizesPerGraphObject)
+  await exec('render.sceneDisplay.reusesDisplayNodes', testSceneDisplayDerivationReusesDisplayNodesForStableGraphObject)
+  await exec('ui.flowEditorOverlayLayering.nodeOverlaysBounded', testFlowEditorOverlaysDoNotUseFloatingPanelZIndex)
+  await exec('ui.flowEditorOverlayLayering.overlaySvgBounded', testFlowEditorOverlaySvgIsBoundedBelowToolbar)
+  await exec('ui.flowEditorOverlayLayering.workspacePanesElevated', testWorkspacePanesOutrankFlowEditorOverlays)
+  await exec('ui.selection.tocFocus.sync', testSelectionDispatchesTocFocusInSplitViews)
+  await exec('ui.designWireframe.cacheClearEpoch', testDesignWireframeCacheEpochAffectsLayoutCacheKey)
+  await exec('ui.designWireframe.clearCacheButton', testDesignWireframeSettingsExposesClearCache)
+  await exec('ui.toolbar.navMask', testToolbarNavMasksCanvasUnderlay)
 
   await exec('layout.positioning.skipsReseedOnToggle', testLayoutPositioningSkipsReseedOnToggle)
   await exec('layout.positioning.cacheKeyUsesRenderVariant', testLayoutPositioningCacheKeyUsesRenderVariant)

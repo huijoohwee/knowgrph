@@ -131,6 +131,7 @@ export default function DesignCanvas({
       viewportControlsPreset: s.viewportControlsPreset,
       canvasPointerMode2d: s.canvasPointerMode2d,
       designLayerState: s.designLayerState,
+      designWireframeCacheEpoch: s.designWireframeCacheEpoch,
       designFramePosById: s.designFramePosById,
       designFrameSizeById: s.designFrameSizeById,
       setDesignFramePosMany: s.setDesignFramePosMany,
@@ -261,7 +262,8 @@ export default function DesignCanvas({
     const networkIdleMs = fidelity >= 3 ? 1100 : 900
     const domQuietMs = fidelity >= 3 ? 900 : 650
     const minWaitAfterLoadMs = fidelity >= 3 ? 1600 : 1200
-    const layoutCacheKey = `layout:v2:maxEl=${maxElements}:vp=${viewportW}x${viewportH}:scroll=1:faq=1:netIdle=1:netIdleMs=${networkIdleMs}:domQuietMs=${domQuietMs}:minAfter=${minWaitAfterLoadMs}`
+    const epoch = typeof snapshot.designWireframeCacheEpoch === 'number' && Number.isFinite(snapshot.designWireframeCacheEpoch) ? snapshot.designWireframeCacheEpoch : 0
+    const layoutCacheKey = `layout:v2:e=${epoch}:maxEl=${maxElements}:vp=${viewportW}x${viewportH}:scroll=1:faq=1:netIdle=1:netIdleMs=${networkIdleMs}:domQuietMs=${domQuietMs}:minAfter=${minWaitAfterLoadMs}`
     if (allowCache) {
       const cached = getCachedWebpageLayoutSnapshot(url, layoutCacheKey)
       if (cached) {
@@ -397,7 +399,7 @@ export default function DesignCanvas({
         void 0
       }
     }
-  }, [active, documentUrl, webpageLayoutRetryNonce])
+  }, [active, documentUrl, snapshot.designWireframeCacheEpoch, webpageLayoutRetryNonce])
 
   const designGraphDataForDisplay = useMemo(() => {
     const g = snapshot.graphData
@@ -411,7 +413,8 @@ export default function DesignCanvas({
     const url = String(documentUrl || '').trim()
     const ts = typeof webpageLayout.meta?.ts === 'number' && Number.isFinite(webpageLayout.meta.ts) ? webpageLayout.meta.ts : null
     const elCountKey = Array.isArray(webpageLayout?.elements) ? webpageLayout.elements.length : null
-    const cacheKey = url && ts != null && elCountKey != null ? `${url}#${ts}#${elCountKey}::f${fidelity}` : null
+    const epoch = typeof snapshot.designWireframeCacheEpoch === 'number' && Number.isFinite(snapshot.designWireframeCacheEpoch) ? snapshot.designWireframeCacheEpoch : 0
+    const cacheKey = url && ts != null && elCountKey != null ? `${url}#${ts}#${elCountKey}::f${fidelity}::e${epoch}` : null
     if (cacheKey) {
       const cached = webpageLayoutGraphCacheRef.current.get(cacheKey) || null
       if (cached) return cached

@@ -1,7 +1,7 @@
 import { hashStringToHex } from '../hash/stringHash'
 import { parseMarkdownBlocks, parseMarkdownFrontmatter, splitMarkdownLines } from '../markdown'
 
-export type PdfConversionMode = 'text-only' | 'image-heavy' | 'scan-ocr'
+export type PdfConversionMode = 'auto'
 
 export type AnchorId = string
 export type DocumentId = string
@@ -16,7 +16,6 @@ export type PdfWorkspaceDocNode = {
 
 export type PdfWorkspaceAnchorMap = {
   docId: DocumentId
-  mode: PdfConversionMode
   nodes: PdfWorkspaceDocNode[]
   domIdByAnchorId: Record<AnchorId, string>
 }
@@ -27,7 +26,6 @@ export type PdfWorkspaceDocumentMeta = {
   sourceName: string
   createdAtMs: number
   updatedAtMs: number
-  lastMode: PdfConversionMode
 }
 
 export type PdfWorkspaceIndex = {
@@ -57,7 +55,6 @@ export const buildDomIdForAnchorId = (anchorId: AnchorId): string => {
 
 export const buildAnchorMapFromMarkdown = (args: {
   docId: DocumentId
-  mode: PdfConversionMode
   markdown: string
 }): PdfWorkspaceAnchorMap => {
   const lines = splitMarkdownLines(args.markdown)
@@ -110,7 +107,6 @@ export const buildAnchorMapFromMarkdown = (args: {
 
   return {
     docId: args.docId,
-    mode: args.mode,
     nodes,
     domIdByAnchorId,
   }

@@ -2495,7 +2495,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         <svg
           ref={overlayEdgesSvgRef}
           className="absolute inset-0 pointer-events-none"
-          style={{ zIndex: Math.max(1, Math.floor((floatingPanelZIndex || Z_INDEX_FLOATING_PANEL_DEFAULT) - 100)), color: 'var(--kg-canvas-edge-stroke)', overflow: 'visible' }}
+          style={{ zIndex: 120, color: 'var(--kg-canvas-edge-stroke)', overflow: 'visible' }}
           aria-hidden={true}
         />
       )}

@@ -101,19 +101,26 @@ function syncDocumentViewFromSourceFile(
     const trimmed = text.trim()
     const fencedLang = lower.endsWith('.yml') || lower.endsWith('.yaml') ? 'yaml' : 'text'
     const markdown = trimmed ? ['```' + fencedLang, trimmed, '```', ''].join('\n') : text
-    store.setJsonSourceDocument(name, null)
-    store.setMarkdownDocument(name, markdown)
-    store.setMarkdownDocumentSourceUrl(sourceUrl || null)
-    if (!baselineLocked) store.setWorkspaceViewMode('editor')
+    void store.setActiveMarkdownDocument({
+      name,
+      text: markdown,
+      normalizeMermaidMmd: false,
+      sourceUrl: sourceUrl || null,
+      jsonSourceText: null,
+      workspaceViewMode: baselineLocked ? null : 'editor',
+    })
     return
   }
   const normalized = normalizeMermaidMmdToMarkdown(name, text)
-  store.setMarkdownDocument(name, normalized)
-  store.setMarkdownDocumentSourceUrl(sourceUrl || null)
-  if (!baselineLocked) store.setWorkspaceViewMode('editor')
-  if (opts?.applyToGraph ?? true) {
-    void store.applyMarkdownDocumentToGraph(name, normalized, { force: true })
-  }
+  void store.setActiveMarkdownDocument({
+    name,
+    text: normalized,
+    normalizeMermaidMmd: false,
+    sourceUrl: sourceUrl || null,
+    workspaceViewMode: baselineLocked ? null : 'editor',
+    applyToGraph: opts?.applyToGraph ?? true,
+    forceApplyToGraph: true,
+  })
 }
 
 async function parseAndApplySourceFile(fileId: string): Promise<void> {

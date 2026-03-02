@@ -14,6 +14,11 @@ export type KeywordGraphWorkerArgs = {
 
 type KeywordWorkerResponse = { id: number; ok: boolean; graph: GraphData | null; error?: string }
 
+const isNode =
+  typeof process !== 'undefined' && !!(process as unknown as { versions?: { node?: string } }).versions?.node
+const canUseBrowserWorker =
+  !isNode && typeof window !== 'undefined' && typeof document !== 'undefined' && typeof Worker !== 'undefined'
+
 const setLastKeywordError = (message: string) => {
   try {
     ;(globalThis as unknown as { __kgKeywordWorkerLastError?: string }).__kgKeywordWorkerLastError = String(message || '')
@@ -84,9 +89,8 @@ const deriveViaWorker = (
 
 export function deriveKeywordGraphInWorker(args: KeywordGraphWorkerArgs): Promise<GraphData | null> {
   try {
-    const hasWorker = typeof Worker !== 'undefined'
     const timeoutMs = clampTimeoutMs(args.timeoutMs, 25_000, 2_000, 180_000)
-    if (!hasWorker) return deriveDeferred(args, timeoutMs)
+    if (!canUseBrowserWorker) return deriveDeferred(args, timeoutMs)
     return deriveViaWorker('__kgKeywordWorker', args, timeoutMs).then((g) => {
       if (g) return g
       return deriveDeferred(args, timeoutMs)
@@ -98,9 +102,8 @@ export function deriveKeywordGraphInWorker(args: KeywordGraphWorkerArgs): Promis
 
 export function deriveKeywordGraphPreviewInWorker(args: KeywordGraphWorkerArgs): Promise<GraphData | null> {
   try {
-    const hasWorker = typeof Worker !== 'undefined'
     const timeoutMs = clampTimeoutMs(args.timeoutMs, 4_000, 750, 25_000)
-    if (!hasWorker) return deriveDeferred(args, timeoutMs)
+    if (!canUseBrowserWorker) return deriveDeferred(args, timeoutMs)
     return deriveViaWorker('__kgKeywordPreviewWorker', args, timeoutMs).then((g) => {
       if (g) return g
       return deriveDeferred(args, timeoutMs)

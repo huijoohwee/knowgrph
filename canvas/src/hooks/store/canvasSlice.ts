@@ -265,11 +265,17 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   clearZoomRequest: () => set({ zoomRequest: null }),
 
   canvasPointerMode2d: 'select' as 'select' | 'pan',
+  canvasPointerMode2dByRenderer: { [initialCanvas2dRenderer]: 'select' } as Partial<Record<Canvas2dRendererId, 'select' | 'pan'>>,
   setCanvasPointerMode2d: (mode: 'select' | 'pan') => {
     const next = mode === 'pan' ? 'pan' : 'select'
     const cur = get().canvasPointerMode2d
     if (cur === next) return
-    set({ canvasPointerMode2d: next })
+    set(state => {
+      const renderer = state.canvas2dRenderer
+      const by = state.canvasPointerMode2dByRenderer || {}
+      const nextBy = renderer ? { ...by, [renderer]: next } : by
+      return { canvasPointerMode2d: next, canvasPointerMode2dByRenderer: nextBy }
+    })
   },
 
   graphCanvasArrangeRequest: null as null | (
@@ -408,7 +414,22 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
           ? { ...(state.zoomStateByKey || {}), [nextZoomKey]: prevZoom }
           : state.zoomStateByKey
 
-      return { canvas2dRenderer: next, zoomStateByKey }
+      const pointerBy = state.canvasPointerMode2dByRenderer || {}
+      const nextPointerBy = { ...pointerBy, [state.canvas2dRenderer]: state.canvasPointerMode2d }
+      const nextPointer = nextPointerBy[next] || 'select'
+
+      const quickEditorBy = state.openQuickEditorNodeIdsByRenderer || {}
+      const nextQuickEditorBy = { ...quickEditorBy, [state.canvas2dRenderer]: state.openQuickEditorNodeIds || [] }
+      const nextQuickEditors = nextQuickEditorBy[next] || []
+
+      return {
+        canvas2dRenderer: next,
+        zoomStateByKey,
+        canvasPointerMode2d: nextPointer,
+        canvasPointerMode2dByRenderer: nextPointerBy,
+        openQuickEditorNodeIds: nextQuickEditors,
+        openQuickEditorNodeIdsByRenderer: nextQuickEditorBy,
+      }
     })
   },
   setViewportControlsPreset: (preset) => {

@@ -98,10 +98,6 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'Import: PDF',
     responsibility: 'Include extracted PDF images in Markdown output',
   },
-  pdfImportConversionMode: {
-    area: 'Import: PDF',
-    responsibility: 'Conversion mode preset (text-only, image-heavy, scan/OCR)',
-  },
   pdfImportEmbedImages: {
     area: 'Import: PDF',
     responsibility: 'Embed eligible images as data: URIs (bounded)',

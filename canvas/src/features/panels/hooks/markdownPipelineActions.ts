@@ -157,12 +157,13 @@ export async function runMarkdownPipelineAndLoadArtifacts(): Promise<boolean> {
       if (normalizedText.trim()) {
         const store = useGraphStore.getState();
         try {
-          store.setMarkdownDocument(name, normalizedText);
-        } catch {
-          void 0;
-        }
-        try {
-          store.setMarkdownDocumentSourceUrl(null);
+          void store.setActiveMarkdownDocument({
+            name,
+            text: normalizedText,
+            normalizeMermaidMmd: false,
+            sourceUrl: null,
+            jsonSourceText: null,
+          });
         } catch {
           void 0;
         }

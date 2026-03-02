@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, FileCode, Table, Lock, Unlock, Pencil, Compass, Palette } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, FileCode, Table, Lock, Unlock, Pencil, Compass, Palette, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -21,6 +21,7 @@ import {
 } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
 import { useToolbarActions } from '@/features/toolbar/hooks/useToolbarActions';
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
+import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 
 import { CANVAS_INTERACTION_MODE_LABELS } from '@/lib/canvas/interaction-ssot'
 
@@ -80,6 +81,9 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     }
   })
 
+  const toolbarNavRef = useRef<HTMLElement>(null)
+  useForbidBrowserZoomWheel(toolbarNavRef, true)
+
   const searchBtnRef = useRef<HTMLButtonElement>(null);
   const searchPanelRef = useRef<HTMLDivElement>(null);
 
@@ -112,6 +116,14 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const documentStructureBaselineLock = useGraphStore(s => s.documentStructureBaselineLock === true)
   const setDocumentStructureBaselineLock = useGraphStore(s => s.setDocumentStructureBaselineLock)
   const upsertUiToast = useGraphStore(s => s.upsertUiToast)
+
+  const isWorkspaceOverlayMode = workspaceViewMode === 'editor' || workspaceViewMode === 'table'
+  const [workspaceToolbarExpanded, setWorkspaceToolbarExpanded] = useState(true)
+  React.useEffect(() => {
+    if (!isWorkspaceOverlayMode) return
+    setWorkspaceToolbarExpanded(false)
+  }, [isWorkspaceOverlayMode])
+  const toolbarCollapsed = workspaceToolbarExpanded !== true
 
   const ensureBaselineUnlocked = useCallback((): boolean => {
     if (documentStructureBaselineLock !== true) return true
@@ -194,28 +206,37 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     })
   }, [])
 
+  const navClassBase = 'Island App-toolbar App-toolbar--compact w-fit'
+
   return (
     <nav
-      className="Island App-toolbar App-toolbar--compact w-fit"
+      ref={toolbarNavRef}
+      className={`${navClassBase} ${toolbarCollapsed ? 'App-toolbar--collapsed' : ''}`}
       role="navigation"
       aria-label="Main Toolbar"
       data-kg-canvas-wheel-ignore="true"
-      onWheelCapture={e => {
-        if (e.ctrlKey !== true && e.metaKey !== true) return
-        try {
-          e.preventDefault()
-        } catch {
-          void 0
-        }
-        try {
-          e.stopPropagation()
-        } catch {
-          void 0
-        }
-      }}
     >
-      <ToolbarMenuLauncher onOpenMainPanel={openMainPanel} />
+      {toolbarCollapsed ? (
+        <>
+          <IconButton
+            className="App-toolbar__btn"
+            title="Expand toolbar"
+            tooltipContent="Expand toolbar"
+            onClick={() => setWorkspaceToolbarExpanded(true)}
+            showTooltip
+          >
+            <ChevronLeft className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+          </IconButton>
+          <div className="hidden">
+            <ToolbarMenuLauncher onOpenMainPanel={openMainPanel} />
+          </div>
+        </>
+      ) : (
+        <ToolbarMenuLauncher onOpenMainPanel={openMainPanel} />
+      )}
 
+      {toolbarCollapsed ? null : (
+        <>
       <IconButton
         className={`App-toolbar__btn ${
           workspaceViewMode === 'editor' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
@@ -369,6 +390,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           <FileText className={iconSizeClass} strokeWidth={iconStrokeWidth} />
         )}
       </IconButton>
+      <div className="App-toolbar__divider" />
       <IconButton
         className={`App-toolbar__btn ${
           nodeShapeMode !== 'circle' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
@@ -668,6 +690,17 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       >
         <SunMoon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
+      <IconButton
+        className="App-toolbar__btn"
+        title="Collapse toolbar"
+        tooltipContent="Collapse toolbar"
+        onClick={() => setWorkspaceToolbarExpanded(false)}
+        showTooltip
+      >
+        <ChevronRight className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
+        </>
+      )}
     </nav>
   );
 }

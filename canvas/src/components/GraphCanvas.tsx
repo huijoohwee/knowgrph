@@ -271,7 +271,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
 
   const sceneGraphData = useMemo(() => {
     if (!renderGraphData) return null
-    return cloneGraphDataForRender(renderGraphData)
+    const cloned = cloneGraphDataForRender(renderGraphData)
+    return deriveSceneDisplayGraph({ graphData: cloned as GraphData })?.displayGraphData || (cloned as GraphData)
   }, [renderGraphData])
 
   const sceneGroupsDerivation = useMemo(() => {
@@ -283,10 +284,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
     })
   }, [documentSemanticMode, effectiveFrontmatterModeEnabled, graphDataRevision, sceneGraphData, schema])
-
-  const sceneDisplayDerivation = useMemo(() => {
-    return deriveSceneDisplayGraph({ graphData: sceneGraphData })
-  }, [sceneGraphData])
 
   useEffect(() => {
     schemaRef.current = schema
@@ -524,7 +521,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     width,
     height,
     paused: !active,
-    graphDataOverride: sceneDisplayDerivation?.displayGraphData ?? null,
+    graphDataOverride: sceneGraphData,
   });
 
   useAutoZoomModes2d({

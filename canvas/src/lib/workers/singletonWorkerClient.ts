@@ -145,7 +145,7 @@ export function requestFromSingletonWorker<T>(args: SingletonWorkerRequestArgs<T
         }
       }
 
-      const timeoutId = setTimeout(() => {
+      const timeoutIdObj = setTimeout(() => {
         if (!state.pending.has(id)) return
         state.pending.delete(id)
         try {
@@ -155,6 +155,8 @@ export function requestFromSingletonWorker<T>(args: SingletonWorkerRequestArgs<T
         }
         finish(null as unknown as T)
       }, timeoutMs) as unknown as number
+      ;(timeoutIdObj as unknown as { unref?: () => void }).unref?.()
+      const timeoutId = timeoutIdObj as unknown as number
       state.pending.set(id, { resolve: finish, timeoutId })
       args.postMessage(worker, id)
     })

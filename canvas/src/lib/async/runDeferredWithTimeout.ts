@@ -23,9 +23,11 @@ export async function runDeferredWithTimeout<T>(args: {
       resolve(v)
     }
 
-    const timeoutId = setTimeout(() => settle(null), timeoutMs) as unknown as number
+    const timeoutIdObj = setTimeout(() => settle(null), timeoutMs)
+    ;(timeoutIdObj as unknown as { unref?: () => void }).unref?.()
+    const timeoutId = timeoutIdObj as unknown as number
 
-    setTimeout(() => {
+    const deferIdObj = setTimeout(() => {
       Promise.resolve()
         .then(() => args.run())
         .then((v) => {
@@ -53,5 +55,6 @@ export async function runDeferredWithTimeout<T>(args: {
           settle(null)
         })
     }, deferMs)
+    ;(deferIdObj as unknown as { unref?: () => void }).unref?.()
   })
 }

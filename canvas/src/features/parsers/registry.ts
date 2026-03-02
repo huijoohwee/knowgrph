@@ -2,6 +2,7 @@ import type { ParserSpec, ParseInput, ParseResult, ParserId } from './types'
 import type { GraphData } from '@/lib/graph/types'
 
 let specs: ParserSpec[] = []
+let registryRevision = 0
 
 export const listParsers = (): ParserSpec[] => specs.slice()
 
@@ -9,15 +10,20 @@ export const registerParser = (spec: ParserSpec) => {
   const idx = specs.findIndex(s => s.id === spec.id)
   if (idx >= 0) specs.splice(idx, 1)
   specs.push(spec)
+  registryRevision += 1
 }
 
 export const unregisterParser = (id: string) => {
   specs = specs.filter(s => s.id !== id)
+  registryRevision += 1
 }
 
 export const resetParsers = () => {
   specs = []
+  registryRevision += 1
 }
+
+export const getParserRegistryRevision = (): number => registryRevision
 
 export const applyParser = (id: ParserId, input: ParseInput): ParseResult | null => {
   const s = specs.find(x => x.id === id)

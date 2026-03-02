@@ -197,7 +197,6 @@ export const LS_KEYS = {
   graphTableColumnOrderByTableId: 'kg:ui:graphTable:columnOrderByTableId',
 
   pdfImportIncludeImages: 'kg:import:pdf:includeImages',
-  pdfImportConversionMode: 'kg:import:pdf:conversionMode',
   pdfImportMaxPages: 'kg:import:pdf:maxPages',
   pdfImportMaxPdfBytes: 'kg:import:pdf:maxPdfBytes',
   pdfImportFetchTimeoutMs: 'kg:import:pdf:fetchTimeoutMs',
@@ -477,7 +476,6 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   graphTableColumnOrderByTableId: 'ui.workspace',
 
   pdfImportIncludeImages: 'import.pdf',
-  pdfImportConversionMode: 'import.pdf',
   pdfImportMaxPages: 'import.pdf',
   pdfImportMaxPdfBytes: 'import.pdf',
   pdfImportFetchTimeoutMs: 'import.pdf',

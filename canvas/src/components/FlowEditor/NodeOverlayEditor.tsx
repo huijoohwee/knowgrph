@@ -24,7 +24,6 @@ import {
 import { isHandlesForAllInputsEnabled, isLoopNode } from '@/lib/flowEditor/flowEditorActions'
 import { lsBool, lsSetBool } from '@/lib/persistence'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
-import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
 import { clampOverlayTopLeftFullyInViewport, clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
@@ -42,6 +41,9 @@ import { useShallow } from 'zustand/react/shallow'
 import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+
+const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE = 140
+const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED = 170
 
 type NodeOverlayEditorProps = {
   active: boolean
@@ -113,7 +115,6 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     uiIconScale,
     uiIconStrokeWidth,
     uiPanelOpacity,
-    floatingPanelZIndex,
     schema,
     documentStructureBaselineLock,
     nodeQuickEditorRegistry,
@@ -129,7 +130,6 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       uiIconScale: s.uiIconScale,
       uiIconStrokeWidth: s.uiIconStrokeWidth,
       uiPanelOpacity: s.uiPanelOpacity,
-      floatingPanelZIndex: s.floatingPanelZIndex,
       schema: s.schema,
       documentStructureBaselineLock: s.documentStructureBaselineLock === true,
       nodeQuickEditorRegistry: s.nodeQuickEditorRegistry || [],
@@ -154,15 +154,11 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   )
 
   const overlayZIndex = React.useMemo(() => {
-    const safeFloating = Number.isFinite(floatingPanelZIndex)
-      ? Math.max(1, Math.floor(floatingPanelZIndex))
-      : Z_INDEX_FLOATING_PANEL_DEFAULT
-    const base = safeFloating - 1
     const idx = Number.isFinite(stackIndex) ? Math.max(0, Math.floor(stackIndex as number)) : 0
     const selected = String(selectedNodeId || '').trim() === nodeId
-    if (selected) return Math.max(11, base)
-    return Math.max(11, base - 1 - Math.min(24, idx))
-  }, [floatingPanelZIndex, nodeId, selectedNodeId, stackIndex])
+    if (selected) return FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED
+    return Math.max(20, FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE - Math.min(48, idx))
+  }, [nodeId, selectedNodeId, stackIndex])
 
   const registryEntry: NodeQuickEditorRegistryEntry | null = React.useMemo(
     () => resolveNodeQuickEditorRegistryEntry({ node, registry: nodeQuickEditorRegistry }),

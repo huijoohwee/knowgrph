@@ -4,17 +4,8 @@ export function buildPdfConvertQueryParamsFromStore(): URLSearchParams {
   const s = useGraphStore.getState()
   const qs = new URLSearchParams()
 
-  const conversionMode = s.pdfImportConversionMode === 'image-heavy'
-    ? 'image-heavy'
-    : s.pdfImportConversionMode === 'scan-ocr'
-      ? 'scan-ocr'
-      : 'text-only'
-
-  qs.set('conversionMode', conversionMode)
   qs.set('includeImages', s.pdfImportIncludeImages ? '1' : '0')
-
-  const forbidEmbed = conversionMode === 'image-heavy'
-  qs.set('embedImages', forbidEmbed ? '0' : s.pdfImportEmbedImages ? '1' : '0')
+  qs.set('embedImages', s.pdfImportEmbedImages ? '1' : '0')
 
   const maxPages = Number.isFinite(s.pdfImportMaxPages) ? Math.max(0, Math.min(10_000, Math.floor(s.pdfImportMaxPages))) : 0
   if (maxPages > 0) qs.set('maxPages', String(maxPages))

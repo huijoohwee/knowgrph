@@ -2,6 +2,7 @@ import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import { LS_KEYS } from '@/lib/config'
 import { lsInt, lsJson, lsSetInt, lsSetJson } from '@/lib/persistence'
+import type { Canvas2dRendererId } from '@/lib/config'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -47,17 +48,32 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
     })
   },
   openQuickEditorNodeIds: [] as string[],
+  openQuickEditorNodeIdsByRenderer: {} as Partial<Record<Canvas2dRendererId, string[]>>,
   setOpenQuickEditorNodeIds: (ids: string[]) => {
     const next = normalizeOpenQuickEditorNodeIds(ids, get().graphData)
     const prev = get().openQuickEditorNodeIds || []
-    if (prev.length === next.length && prev.every((v, i) => v === next[i])) return
-    set({ openQuickEditorNodeIds: next })
+    const renderer = get().canvas2dRenderer
+    const by = get().openQuickEditorNodeIdsByRenderer || {}
+    const prevForRenderer = (renderer && by[renderer]) || []
+    const sameGlobal = prev.length === next.length && prev.every((v, i) => v === next[i])
+    const sameForRenderer =
+      prevForRenderer.length === next.length && prevForRenderer.every((v, i) => v === next[i])
+    if (sameGlobal && sameForRenderer) return
+    const nextBy = renderer ? { ...by, [renderer]: next } : by
+    set({ openQuickEditorNodeIds: next, openQuickEditorNodeIdsByRenderer: nextBy })
   },
   updateOpenQuickEditorNodeIds: (updater: (prev: string[]) => string[]) => {
     const prev = get().openQuickEditorNodeIds || []
     const next = normalizeOpenQuickEditorNodeIds(updater([...prev]), get().graphData)
-    if (prev.length === next.length && prev.every((v, i) => v === next[i])) return
-    set({ openQuickEditorNodeIds: next })
+    const renderer = get().canvas2dRenderer
+    const by = get().openQuickEditorNodeIdsByRenderer || {}
+    const prevForRenderer = (renderer && by[renderer]) || []
+    const sameGlobal = prev.length === next.length && prev.every((v, i) => v === next[i])
+    const sameForRenderer =
+      prevForRenderer.length === next.length && prevForRenderer.every((v, i) => v === next[i])
+    if (sameGlobal && sameForRenderer) return
+    const nextBy = renderer ? { ...by, [renderer]: next } : by
+    set({ openQuickEditorNodeIds: next, openQuickEditorNodeIdsByRenderer: nextBy })
   },
   flowNodeQuickEditorPinnedByNodeId: (() => {
     const parsed = lsJson<Record<string, boolean>>(

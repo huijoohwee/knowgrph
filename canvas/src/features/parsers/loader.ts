@@ -1,5 +1,5 @@
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
-import { bestMatch, applyParserAsync } from '@/features/parsers/registry'
+import { bestMatch, applyParserAsync, getParserRegistryRevision } from '@/features/parsers/registry'
 import { getCachedParse, setCachedParse } from '@/features/parsers/cache'
 import { toParserId } from '@/features/parsers'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -150,15 +150,19 @@ export async function loadGraphDataFromBackendViaParser(url: string): Promise<Lo
 export async function loadGraphDataFromTextViaParser(
   name: string,
   text: string,
-  options?: { applyToStore?: boolean; onProgress?: (stage: string) => void },
+  options?: { applyToStore?: boolean; syncMarkdownDocument?: boolean; onProgress?: (stage: string) => void },
 ): Promise<LoaderResult | null> {
   const tAll = pipelinePerfStart()
   ensureBuiltInParsersRegistered()
   const normalizedText = normalizeMermaidMmdToMarkdown(name, text)
 
-  if (options?.applyToStore !== false && isMarkdownLikeFileName(String(name || ''))) {
+  if (
+    options?.applyToStore !== false &&
+    options?.syncMarkdownDocument !== false &&
+    isMarkdownLikeFileName(String(name || ''))
+  ) {
     try {
-      useGraphStore.getState().setMarkdownDocument(name, normalizedText)
+      void useGraphStore.getState().setActiveMarkdownDocument({ name, text: normalizedText, normalizeMermaidMmd: false })
     } catch {
       void 0
     }
@@ -175,7 +179,8 @@ export async function loadGraphDataFromTextViaParser(
   })
   if (!bm) return { input: { name, text }, warnings: ['No matching parser found'], counts: { n: 0, e: 0 } }
   const parserId = toParserId(bm.id)
-  const cached = getCachedParse(parserId, name, normalizedText)
+  const cfgKey = `reg:${getParserRegistryRevision()}`
+  const cached = getCachedParse(parserId, name, normalizedText, cfgKey)
   if (cached) {
     try {
       options?.onProgress?.('Using cached parse')
@@ -197,7 +202,7 @@ export async function loadGraphDataFromTextViaParser(
   })
   if (!res) return { parserId: bm.id, name, input: { name, text: normalizedText }, warnings: ["Parser returned no result"], counts: { n: 0, e: 0 } }
 
-  if (!cached) setCachedParse(parserId, name, normalizedText, res)
+  if (!cached) setCachedParse(parserId, name, normalizedText, res, cfgKey)
   let { graphData } = res
   const maybeEmpty = !((graphData.nodes?.length || 0) > 0) && !((graphData.edges?.length || 0) > 0)
   const lower = String(name || '').trim().toLowerCase()
@@ -208,10 +213,10 @@ export async function loadGraphDataFromTextViaParser(
       void 0
     }
     const markdownParserId = toParserId('markdown')
-    const fallbackCached = getCachedParse(markdownParserId, name, normalizedText)
+    const fallbackCached = getCachedParse(markdownParserId, name, normalizedText, cfgKey)
     const fallback = fallbackCached || await applyParserAsync(markdownParserId, { name, text: normalizedText })
     if (fallback?.graphData) {
-      if (!fallbackCached) setCachedParse(markdownParserId, name, normalizedText, fallback)
+      if (!fallbackCached) setCachedParse(markdownParserId, name, normalizedText, fallback, cfgKey)
       graphData = fallback.graphData
 
       if (options?.applyToStore !== false) {

@@ -58,12 +58,6 @@ function isPdfFile(file: File): boolean {
   return file.type === 'application/pdf'
 }
 
-type PdfWorkspaceImportMode = 'text-only' | 'image-heavy' | 'scan-ocr'
-
-function coercePdfWorkspaceImportMode(raw: unknown): PdfWorkspaceImportMode {
-  return raw === 'image-heavy' ? 'image-heavy' : raw === 'scan-ocr' ? 'scan-ocr' : 'text-only'
-}
-
 function yamlQuote(value: string): string {
   return `"${String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
 }
@@ -114,8 +108,8 @@ function normalizeWebpageCardAndListBlocks(markdown: string): string {
   }
 }
 
-function buildPdfWorkspaceFrontmatter(args: { docId: string; mode: PdfWorkspaceImportMode; outputDirRel: string }): string {
-  return `---\nkgPdfWorkspaceDocId: ${yamlQuote(args.docId)}\nkgPdfWorkspaceMode: ${yamlQuote(args.mode)}\nkgPdfWorkspaceOutputDirRel: ${yamlQuote(args.outputDirRel)}\n---\n\n`
+function buildPdfWorkspaceFrontmatter(args: { docId: string; outputDirRel: string }): string {
+  return `---\nkgPdfWorkspaceDocId: ${yamlQuote(args.docId)}\nkgPdfWorkspaceOutputDirRel: ${yamlQuote(args.outputDirRel)}\n---\n\n`
 }
 
 function stripEmbeddedBase64ImageSrc(raw: string): { text: string; changed: boolean } {
@@ -153,19 +147,17 @@ function stripEmbeddedBase64ImageSrc(raw: string): { text: string; changed: bool
 }
 
 async function importPdfFile(args: { fs: WorkspaceFs; file: File; parentPath: WorkspacePath }): Promise<WorkspacePath> {
-  const store = useGraphStore.getState()
-  const mode = coercePdfWorkspaceImportMode((store as unknown as { pdfImportConversionMode?: unknown }).pdfImportConversionMode)
   const outputDirRel = readPdfWorkspaceOutputDirRel()
-  const imported = await importPdfToWorkspace({ file: args.file, conversionMode: mode, outputDirRel })
+  const imported = await importPdfToWorkspace({ file: args.file, outputDirRel })
   if (!imported) throw new Error('PDF import failed')
   if (imported.ok !== true) throw new Error(imported.error || 'PDF import failed')
-  const fetched = await fetchPdfWorkspaceDoc({ docId: imported.docId, mode: imported.mode, outputDirRel })
+  const fetched = await fetchPdfWorkspaceDoc({ docId: imported.docId, outputDirRel })
   if (!fetched) throw new Error('PDF import failed')
   if (fetched.ok !== true) throw new Error(fetched.error || 'PDF import failed')
   const markdownRaw = String(fetched.markdown || '')
   const stripped = stripEmbeddedBase64ImageSrc(markdownRaw)
   const notice = stripped.changed ? `> Embedded base64 image data omitted for editor readability.\n\n` : ''
-  const text = `${buildPdfWorkspaceFrontmatter({ docId: imported.docId, mode: imported.mode, outputDirRel })}${notice}${stripped.text}`
+  const text = `${buildPdfWorkspaceFrontmatter({ docId: imported.docId, outputDirRel })}${notice}${stripped.text}`
   return args.fs.createFile({ parentPath: args.parentPath, name: String(imported.name || 'document.md'), text })
 }
 
@@ -233,19 +225,17 @@ export async function hydrateWorkspaceFileFromPendingLocalImport(args: {
   if (!pending) return null
   try {
     if (pending.kind === 'pdf') {
-      const store = useGraphStore.getState()
-      const mode = coercePdfWorkspaceImportMode((store as unknown as { pdfImportConversionMode?: unknown }).pdfImportConversionMode)
       const outputDirRel = readPdfWorkspaceOutputDirRel()
-      const imported = await importPdfToWorkspace({ file: pending.file, conversionMode: mode, outputDirRel })
+      const imported = await importPdfToWorkspace({ file: pending.file, outputDirRel })
       if (!imported) throw new Error('PDF import failed')
       if (imported.ok !== true) throw new Error(imported.error || 'PDF import failed')
-      const fetched = await fetchPdfWorkspaceDoc({ docId: imported.docId, mode: imported.mode, outputDirRel })
+      const fetched = await fetchPdfWorkspaceDoc({ docId: imported.docId, outputDirRel })
       if (!fetched) throw new Error('PDF import failed')
       if (fetched.ok !== true) throw new Error(fetched.error || 'PDF import failed')
       const markdownRaw = String(fetched.markdown || '')
       const stripped = stripEmbeddedBase64ImageSrc(markdownRaw)
       const notice = stripped.changed ? `> Embedded base64 image data omitted for editor readability.\n\n` : ''
-      const text = `${buildPdfWorkspaceFrontmatter({ docId: imported.docId, mode: imported.mode, outputDirRel })}${notice}${stripped.text}`
+      const text = `${buildPdfWorkspaceFrontmatter({ docId: imported.docId, outputDirRel })}${notice}${stripped.text}`
       await args.fs.writeFileText(key, text)
       pendingLocalImportsByPath.delete(key)
       return { kind: 'pdf', text }

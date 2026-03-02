@@ -1,7 +1,7 @@
 import React from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import type { PdfConversionMode, PdfWorkspaceAnchorMap, PdfWorkspaceDocNode } from '@/lib/pdf/pdfWorkspaceAnchors'
+import type { PdfWorkspaceAnchorMap, PdfWorkspaceDocNode } from '@/lib/pdf/pdfWorkspaceAnchors'
 import { fetchPdfWorkspaceDoc, getDefaultWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspaceClient'
 import { resolveAnchorIdAfterSwitch } from '@/lib/pdf/pdfWorkspaceAnchors'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
@@ -9,7 +9,6 @@ import { parseMarkdownBlocks, parseMarkdownFrontmatter, splitMarkdownLines } fro
 
 type LayoutPreset = 'reading' | 'paged'
 
-const isMode = (raw: string): raw is PdfConversionMode => raw === 'text-only' || raw === 'image-heavy' || raw === 'scan-ocr'
 const isLayout = (raw: string): raw is LayoutPreset => raw === 'reading' || raw === 'paged'
 
 const readHashAnchor = (): string | null => {
@@ -73,7 +72,6 @@ export default function PdfDocumentViewer() {
   const docId = String(params.docId || '').trim()
 
   const outputDirRel = String(searchParams.get('outputDirRel') || '').trim() || getDefaultWorkspaceOutputDirRel()
-  const mode: PdfConversionMode = isMode(String(searchParams.get('mode') || '').trim()) ? (String(searchParams.get('mode') || '').trim() as PdfConversionMode) : 'text-only'
   const layout: LayoutPreset = isLayout(String(searchParams.get('layout') || '').trim()) ? (String(searchParams.get('layout') || '').trim() as LayoutPreset) : 'reading'
   const zoom = clampZoom(Number(searchParams.get('zoom') || '1'))
 
@@ -86,10 +84,10 @@ export default function PdfDocumentViewer() {
   const [activeAnchorId, setActiveAnchorId] = React.useState<string | null>(() => readHashAnchor())
 
   const load = React.useCallback(
-    async (nextMode: PdfConversionMode, desiredAnchor: string | null) => {
+    async (desiredAnchor: string | null) => {
       setBusy(true)
       setError(null)
-      const res = await fetchPdfWorkspaceDoc({ docId, mode: nextMode, outputDirRel })
+      const res = await fetchPdfWorkspaceDoc({ docId, outputDirRel })
       if (res.ok !== true) {
         setBusy(false)
         setError(res.error)
@@ -103,7 +101,7 @@ export default function PdfDocumentViewer() {
       setActiveAnchorId(resolved)
       writeHashAnchor(resolved)
       if (desiredAnchor && resolved && desiredAnchor !== resolved) {
-        setNotice('Section moved under current conversion mode; resolved to nearest canonical anchor.')
+        setNotice('Section moved; resolved to nearest canonical anchor.')
       } else {
         setNotice(null)
       }
@@ -114,8 +112,8 @@ export default function PdfDocumentViewer() {
 
   React.useEffect(() => {
     if (!docId) return
-    void load(mode, readHashAnchor())
-  }, [docId, mode, load])
+    void load(readHashAnchor())
+  }, [docId, load])
 
   const renderedMarkdown = React.useMemo(
     () => injectHeadingDomAnchors({ markdown, map: anchorMap }),
@@ -140,17 +138,6 @@ export default function PdfDocumentViewer() {
     const t = setTimeout(() => scrollToAnchor(id), 0)
     return () => clearTimeout(t)
   }, [activeAnchorId, layout, zoom, renderedMarkdown, scrollToAnchor])
-
-  const onSelectMode = React.useCallback(
-    async (nextMode: PdfConversionMode) => {
-      const desired = activeAnchorId
-      const next = new URLSearchParams(searchParams)
-      next.set('mode', nextMode)
-      setSearchParams(next, { replace: true })
-      await load(nextMode, desired)
-    },
-    [activeAnchorId, load, searchParams, setSearchParams],
-  )
 
   const onSetLayout = React.useCallback(
     (nextLayout: LayoutPreset) => {
@@ -189,7 +176,7 @@ export default function PdfDocumentViewer() {
               {title}
             </h1>
             <output className={`block text-[11px] ${UI_THEME_TOKENS.text.tertiary}`} aria-label="Viewer state summary">
-              {mode} · {layout} · {Math.round(zoom * 100)}%
+              {layout} · {Math.round(zoom * 100)}%
             </output>
           </section>
           <nav aria-label="Viewer navigation" className="flex items-center gap-2">
@@ -253,21 +240,6 @@ export default function PdfDocumentViewer() {
         <section className="lg:col-span-9 space-y-3" aria-label="Document Pane">
           <header className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`} aria-label="Viewer Toolbar">
             <form className="flex flex-wrap items-center gap-2" aria-label="Viewer Controls">
-              <label className={`text-xs ${UI_THEME_TOKENS.text.secondary}`} htmlFor="modeSel">
-                Mode
-              </label>
-              <select
-                id="modeSel"
-                className={`text-xs px-2 py-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
-                value={mode}
-                onChange={e => void onSelectMode(e.target.value as PdfConversionMode)}
-                disabled={busy}
-              >
-                <option value="text-only">Fast text</option>
-                <option value="image-heavy">Image-heavy</option>
-                <option value="scan-ocr">Scan / OCR</option>
-              </select>
-
               <label className={`text-xs ${UI_THEME_TOKENS.text.secondary}`} htmlFor="layoutSel">
                 Layout
               </label>
@@ -335,7 +307,7 @@ export default function PdfDocumentViewer() {
             >
               <MarkdownPreview
                 markdownText={renderedMarkdown}
-                activeDocumentPath={`/pdf/${encodeURIComponent(docId)}/${encodeURIComponent(mode)}.md`}
+                activeDocumentPath={`/pdf/${encodeURIComponent(docId)}.md`}
                 highlightedLineRange={null}
                 markdownWordWrap
                 markdownPresentationMode={false}

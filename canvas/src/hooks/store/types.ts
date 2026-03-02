@@ -44,8 +44,6 @@ export type WorkspaceViewMode = 'canvas' | 'editor' | 'table'
 
 export type PdfImportProvider = 'native' | 'docling-remote'
 
-export type PdfImportConversionMode = 'text-only' | 'image-heavy' | 'scan-ocr'
-
 export type PdfImportOcrMode = 'fallback' | 'always'
 
 export type DocumentStructureBaselineSnapshot = {
@@ -204,6 +202,7 @@ export interface GraphState {
   selectedGroupIds: string[];
   collapsedGroupIds: string[];
   openQuickEditorNodeIds: string[];
+  openQuickEditorNodeIdsByRenderer: Partial<Record<Canvas2dRendererId, string[]>>;
   flowNodeQuickEditorPinnedByNodeId: Record<string, boolean>;
   flowNodeQuickEditorPosByNodeId: Record<string, { top: number; left: number }>;
   flowNodeQuickEditorWorldPosByNodeId: Record<string, { x: number; y: number }>;
@@ -259,6 +258,9 @@ export interface GraphState {
   normalizeDesignLayerStateFromNodes: (nodes: DesignLayerNode[]) => void
   toggleDesignLayerHidden: (id: string) => void
   moveDesignLayer: (id: string, dir: 'up' | 'down') => void
+
+  designWireframeCacheEpoch: number
+  bumpDesignWireframeCacheEpoch: () => void
 
   designRendererNodes: DesignLayerNode[]
   setDesignRendererNodes: (nodes: DesignLayerNode[]) => void
@@ -408,7 +410,6 @@ export interface GraphState {
   setAutoEnableGeospatialOnGeoImport: (v: boolean) => void;
 
   pdfImportIncludeImages: boolean;
-  pdfImportConversionMode: PdfImportConversionMode;
   pdfImportMaxPages: number;
   pdfImportMaxPdfBytes: number;
   pdfImportFetchTimeoutMs: number;
@@ -515,7 +516,6 @@ export interface GraphState {
   setChatSystemPrompt: (v: string | null) => void;
 
   setPdfImportIncludeImages: (v: boolean) => void;
-  setPdfImportConversionMode: (mode: PdfImportConversionMode) => void;
   setPdfImportMaxPages: (v: number) => void;
   setPdfImportMaxPdfBytes: (v: number) => void;
   setPdfImportFetchTimeoutMs: (v: number) => void;
@@ -594,6 +594,18 @@ export interface GraphState {
   setGraphDataTableVirtualMinRows: (v: number) => void;
   setGraphDataTableVirtualDebugLogRanges: (v: boolean) => void;
   setMarkdownDocument: (name: string | null, text: string | null, opts?: { autoEnableFrontmatter?: boolean }) => void;
+  setActiveMarkdownDocument: (args: {
+    name: string
+    text: string
+    sourceUrl?: string | null
+    jsonSourceText?: string | null
+    autoEnableFrontmatter?: boolean
+    workspaceViewMode?: WorkspaceViewMode | null
+    recent?: Omit<RecentFileEntry, 'id' | 'timestamp'> | null
+    applyToGraph?: boolean
+    forceApplyToGraph?: boolean
+    normalizeMermaidMmd?: boolean
+  }) => Promise<boolean>
   applyMarkdownDocumentToGraph: (
     name: string,
     text: string,
@@ -650,6 +662,7 @@ export interface GraphState {
   clearZoomRequest: () => void;
 
   canvasPointerMode2d: 'select' | 'pan';
+  canvasPointerMode2dByRenderer: Partial<Record<Canvas2dRendererId, 'select' | 'pan'>>;
   setCanvasPointerMode2d: (mode: 'select' | 'pan') => void;
 
   graphCanvasArrangeRequest: null | (

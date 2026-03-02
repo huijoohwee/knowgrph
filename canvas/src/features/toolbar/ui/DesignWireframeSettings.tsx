@@ -3,6 +3,8 @@ import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useDesignWireframeSettings } from '@/features/toolbar/hooks/useDesignWireframeSettings'
+import { clearWebpageIframeSrcdocCaches } from '@/lib/websites/webpageIframeSrcdoc'
+import { clearCachedWebpageLayoutSnapshots } from '@/lib/websites/webpageLayoutCache'
 
 function ToggleRow(props: { label: string; value: boolean; onChange: (next: boolean) => void }) {
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
@@ -71,6 +73,7 @@ export function DesignWireframeSettings() {
   const { settings, setSettings, resetSettings } = useDesignWireframeSettings()
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
+  const bumpDesignWireframeCacheEpoch = useGraphStore(s => s.bumpDesignWireframeCacheEpoch)
 
   return (
     <CollapsibleSection title="Design wireframe" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
@@ -87,7 +90,18 @@ export function DesignWireframeSettings() {
         <ToggleRow label="Depth fade" value={settings.depthFade} onChange={v => setSettings({ depthFade: v })} />
         <NumberRow label="Max edges" value={settings.maxEdges} min={0} max={5000} onChange={v => setSettings({ maxEdges: v })} />
         <NumberRow label="Max label chars" value={settings.maxLabelChars} min={8} max={140} onChange={v => setSettings({ maxLabelChars: v })} />
-        <div className="pt-1 flex justify-end">
+        <div className="pt-1 flex justify-end gap-2">
+          <button
+            type="button"
+            className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass}`}
+            onClick={() => {
+              try { clearCachedWebpageLayoutSnapshots() } catch { void 0 }
+              try { clearWebpageIframeSrcdocCaches() } catch { void 0 }
+              try { bumpDesignWireframeCacheEpoch() } catch { void 0 }
+            }}
+          >
+            Clear cache
+          </button>
           <button
             type="button"
             className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass}`}
@@ -100,4 +114,3 @@ export function DesignWireframeSettings() {
     </CollapsibleSection>
   )
 }
-

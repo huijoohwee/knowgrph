@@ -186,16 +186,22 @@ export function buildMarkdownForPage(args: {
     .map(g => {
       const parts = g.parts.slice().sort((a, b) => a.x - b.x)
       let line = ''
-      let prevX = 0
-      let prevSize = 12
+      let cursorEndX = 0
       for (const p of parts) {
-        const expectedEnd = prevX + (line.length || 0) * (prevSize * 0.5)
-        const gap = p.x - expectedEnd
-        const needsSpace = line && gap > Math.max(2, p.fontSize * 0.2) && !line.endsWith('-') && !line.endsWith(' ')
-        if (needsSpace) line += ' '
+        const charW = Math.max(1, p.fontSize * 0.5)
+        if (!line) {
+          line = p.text
+          cursorEndX = p.x + p.text.length * charW
+          continue
+        }
+        const gap = p.x - cursorEndX
+        const needsSpace = gap > Math.max(2, p.fontSize * 0.2) && !line.endsWith('-') && !line.endsWith(' ')
+        if (needsSpace) {
+          line += ' '
+          cursorEndX += charW
+        }
         line += p.text
-        prevX = p.x
-        prevSize = p.fontSize
+        cursorEndX = p.x + p.text.length * charW
       }
       line = line.replace(/\s+/g, ' ').trim()
       const maxFont = parts.reduce((m, p) => Math.max(m, p.fontSize || 0), 0)

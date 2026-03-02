@@ -1,7 +1,6 @@
 import fs from 'node:fs/promises'
-import os from 'node:os'
 import path from 'node:path'
-import { randomUUID } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import { normalizePdfExtractedMarkdown } from '../normalizePdfExtractedMarkdown'
 import { embedPdfAssetsInMarkdown } from '../embedPdfAssetsInMarkdown'
 import { convertPdfBytesToMarkdown, writePdfAssets } from '../native/nativePdfToMarkdownNode'
@@ -166,6 +165,10 @@ export async function convertPdfToMarkdown(opts: {
   url?: string
   body?: Buffer
   nameHint?: string
+  assetStore?: {
+    assetsDirAbs: string
+    assetUrlPrefix: string
+  }
   overrides?: {
     includeImages?: boolean
     embedImages?: boolean
@@ -211,16 +214,15 @@ export async function convertPdfToMarkdown(opts: {
   const maxPdfBytes = clampToEnvCap({ envCap: envMaxPdfBytes, override: opts.overrides?.maxPdfBytes })
   const fetchTimeoutMs = clampToEnvCap({ envCap: envFetchTimeoutMs, override: opts.overrides?.fetchTimeoutMs })
   const convertTimeoutMs = clampToEnvCap({ envCap: envConvertTimeoutMs, override: opts.overrides?.convertTimeoutMs })
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'knowgrph-pdf-'))
-  const token = randomUUID()
-  const assetsDir = path.join(tmpDir, 'assets')
-  const cleanup = async () => {
-    try {
-      await fs.rm(tmpDir, { recursive: true, force: true })
-    } catch {
-      void 0
-    }
-  }
+  const assetStore =
+    opts.assetStore && typeof opts.assetStore === 'object'
+      ? {
+          assetsDirAbs: String(opts.assetStore.assetsDirAbs || '').trim(),
+          assetUrlPrefix: String(opts.assetStore.assetUrlPrefix || '').trim().replace(/\/+$/, ''),
+        }
+      : null
+
+  const cleanup = async () => void 0
   try {
     let pdfBytes: Buffer | null = null
     if (opts.body) {
@@ -253,7 +255,6 @@ export async function convertPdfToMarkdown(opts: {
         : opts.url
           ? derivePdfTitleFromUrl(opts.url)
           : '') || 'document.pdf'
-    const assetUrlPrefix = `/__pdf_assets/${token}`
 
     const provider = pickProvider({ provider: opts.overrides?.provider })
     if (provider === 'docling-remote') {
@@ -274,6 +275,20 @@ export async function convertPdfToMarkdown(opts: {
         name: result.name,
         markdown: normalizePdfExtractedMarkdown(result.markdown),
       }
+    }
+
+    const stableToken = (() => {
+      const hex = createHash('sha256').update(pdfBytes).digest('hex')
+      return `pdf-${hex.slice(0, 16)}-${provider}`
+    })()
+    const assetUrlPrefix = assetStore?.assetUrlPrefix ? assetStore.assetUrlPrefix : `/__pdf_assets/${stableToken}`
+    const resolvePersistentAssetsDir = async (): Promise<string> => {
+      const repoRoot = path.resolve(process.cwd(), '..')
+      const assetsDir = path.resolve(repoRoot, 'data', 'outputs', 'pdf-assets', stableToken)
+      const rootResolved = path.resolve(repoRoot)
+      if (!assetsDir.startsWith(rootResolved + path.sep) && assetsDir !== rootResolved) return assetsDir
+      await fs.mkdir(assetsDir, { recursive: true })
+      return assetsDir
     }
 
     const includeImages = defaultIncludeImages({ includeImages: opts.overrides?.includeImages })
@@ -353,27 +368,14 @@ export async function convertPdfToMarkdown(opts: {
 
     const ocrEnhance = (() => {
       const readEnv = (key: string): string => String(process.env[key] || '').trim()
-      const readLegacyEnvBySuffix = (suffixRe: RegExp): string => {
-        const keys = Object.keys(process.env)
-        for (const k of keys) {
-          if (!suffixRe.test(k)) continue
-          const v = String(process.env[k] || '').trim()
-          if (v) return v
-        }
-        return ''
-      }
+      const endpoint = readEnv('KNOWGRPH_PDF_OCR_ENDPOINT')
+      if (!endpoint) return null
 
-      const modeEnv = String(process.env.KNOWGRPH_PDF_MODE || '').trim().toLowerCase()
-      const enabledFromMode = modeEnv === 'online'
       const enabled =
-        typeof opts.overrides?.ocrEnabled === 'boolean'
-          ? opts.overrides.ocrEnabled
-          : readEnv('KNOWGRPH_PDF_OCR_ENABLE') === '1' || readLegacyEnvBySuffix(/OCR2_ENABLE$/i) === '1' || enabledFromMode
+        typeof opts.overrides?.ocrEnabled === 'boolean' ? opts.overrides.ocrEnabled : readEnv('KNOWGRPH_PDF_OCR_ENABLE') !== '0'
+      if (!enabled) return null
 
-      const endpoint = readEnv('KNOWGRPH_PDF_OCR_ENDPOINT') || readLegacyEnvBySuffix(/OCR2_ENDPOINT$/i)
-      if (!enabled || !endpoint) return null
-
-      const modeEnvRaw = readEnv('KNOWGRPH_PDF_OCR_MODE') || readLegacyEnvBySuffix(/OCR2_MODE$/i)
+      const modeEnvRaw = readEnv('KNOWGRPH_PDF_OCR_MODE')
       const mode: 'always' | 'fallback' =
         opts.overrides?.ocrMode === 'always'
           ? 'always'
@@ -384,22 +386,22 @@ export async function convertPdfToMarkdown(opts: {
               : 'fallback'
 
       const minTextChars = (() => {
-        const raw = readEnv('KNOWGRPH_PDF_OCR_MIN_TEXT_CHARS') || readLegacyEnvBySuffix(/OCR2_MIN_TEXT_CHARS$/i)
+        const raw = readEnv('KNOWGRPH_PDF_OCR_MIN_TEXT_CHARS')
         const parsed = raw ? Number(raw) : NaN
         return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : undefined
       })()
       const maxImagesPerPage = (() => {
-        const raw = readEnv('KNOWGRPH_PDF_OCR_MAX_IMAGES_PER_PAGE') || readLegacyEnvBySuffix(/OCR2_MAX_IMAGES_PER_PAGE$/i)
+        const raw = readEnv('KNOWGRPH_PDF_OCR_MAX_IMAGES_PER_PAGE')
         const parsed = raw ? Number(raw) : NaN
         return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined
       })()
       const timeoutMs = (() => {
-        const raw = readEnv('KNOWGRPH_PDF_OCR_TIMEOUT_MS') || readLegacyEnvBySuffix(/OCR2_TIMEOUT_MS$/i)
+        const raw = readEnv('KNOWGRPH_PDF_OCR_TIMEOUT_MS')
         const parsed = raw ? Number(raw) : NaN
         return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined
       })()
       const prompt = (() => {
-        const raw = readEnv('KNOWGRPH_PDF_OCR_PROMPT') || readLegacyEnvBySuffix(/OCR2_PROMPT$/i)
+        const raw = readEnv('KNOWGRPH_PDF_OCR_PROMPT')
         return raw ? raw : undefined
       })()
       return { enabled, endpoint, mode, minTextChars, maxImagesPerPage, timeoutMs, prompt }
@@ -459,8 +461,12 @@ export async function convertPdfToMarkdown(opts: {
 
     const needsAssetServer = includeImages && markdown.includes(`(${assetUrlPrefix}/`)
     if (needsAssetServer && native.assets.length > 0) {
-      await writePdfAssets({ assetsDir, assets: native.assets })
-      pdfAssetCache.add({ token, assetsDir, tmpDir, createdAtMs: Date.now() })
+      if (assetStore?.assetsDirAbs) {
+        await writePdfAssets({ assetsDir: assetStore.assetsDirAbs, assets: native.assets })
+      } else {
+        const assetsDir = await resolvePersistentAssetsDir()
+        await writePdfAssets({ assetsDir, assets: native.assets })
+      }
     } else {
       await cleanup()
     }
@@ -543,14 +549,28 @@ export function createPdfAssetsHandler(): import('vite').Connect.NextHandleFunct
         return
       }
       const entry = pdfAssetCache.get(token)
-      if (!entry) {
+      const assetsDir = await (async (): Promise<string | null> => {
+        if (entry?.assetsDir) return entry.assetsDir
+        const repoRoot = path.resolve(process.cwd(), '..')
+        const dir = path.resolve(repoRoot, 'data', 'outputs', 'pdf-assets', token)
+        const rootResolved = path.resolve(repoRoot)
+        if (!dir.startsWith(rootResolved + path.sep) && dir !== rootResolved) return null
+        try {
+          const st = await fs.stat(dir)
+          if (!st.isDirectory()) return null
+          return dir
+        } catch {
+          return null
+        }
+      })()
+      if (!assetsDir) {
         res.statusCode = 404
         res.setHeader('Content-Type', 'text/plain; charset=utf-8')
         res.end('Asset not found')
         return
       }
-      const resolved = path.resolve(entry.assetsDir, file)
-      const within = resolved.startsWith(path.resolve(entry.assetsDir) + path.sep)
+      const resolved = path.resolve(assetsDir, file)
+      const within = resolved.startsWith(path.resolve(assetsDir) + path.sep)
       if (!within) {
         res.statusCode = 403
         res.setHeader('Content-Type', 'text/plain; charset=utf-8')

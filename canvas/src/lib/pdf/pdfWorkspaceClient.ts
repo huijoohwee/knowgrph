@@ -1,12 +1,11 @@
 import { PDF_WORKSPACE_API, PDF_WORKSPACE_DIR_REL_DEFAULT } from './pdfWorkspaceConfig'
-import type { PdfConversionMode, PdfWorkspaceIndex, PdfWorkspaceAnchorMap, PdfWorkspaceDocumentMeta } from './pdfWorkspaceAnchors'
+import type { PdfWorkspaceIndex, PdfWorkspaceAnchorMap, PdfWorkspaceDocumentMeta } from './pdfWorkspaceAnchors'
 
 export type PdfWorkspaceDocsResponse = { ok: true; index: PdfWorkspaceIndex } | { ok: false; error: string }
 
 export type PdfWorkspaceImportOk = {
   ok: true
   docId: string
-  mode: PdfConversionMode
   name: string
   artifacts: { mdRelPath: string; anchorMapRelPath: string; reportRelPath: string }
 }
@@ -14,7 +13,7 @@ export type PdfWorkspaceImportErr = { ok: false; error: string }
 export type PdfWorkspaceImportResponse = PdfWorkspaceImportOk | PdfWorkspaceImportErr
 
 export type PdfWorkspaceDocResponse =
-  | { ok: true; docId: string; mode: PdfConversionMode; meta: PdfWorkspaceDocumentMeta | null; markdown: string; anchorMap: PdfWorkspaceAnchorMap }
+  | { ok: true; docId: string; meta: PdfWorkspaceDocumentMeta | null; markdown: string; anchorMap: PdfWorkspaceAnchorMap }
   | { ok: false; error: string }
 
 const readJson = async <T>(res: Response): Promise<T | null> => {
@@ -40,11 +39,10 @@ export async function listPdfWorkspaceDocs(args?: { outputDirRel?: string }): Pr
 
 export async function importPdfToWorkspace(args: {
   file: File
-  conversionMode: PdfConversionMode
   outputDirRel?: string
 }): Promise<PdfWorkspaceImportResponse> {
   const outputDirRel = String(args.outputDirRel || PDF_WORKSPACE_DIR_REL_DEFAULT).trim() || PDF_WORKSPACE_DIR_REL_DEFAULT
-  const qs = new URLSearchParams({ outputDirRel, conversionMode: args.conversionMode })
+  const qs = new URLSearchParams({ outputDirRel })
   const body = await args.file.arrayBuffer()
   const res = await fetch(`${PDF_WORKSPACE_API.import}?${qs.toString()}`, {
     method: 'POST',
@@ -62,14 +60,16 @@ export async function importPdfToWorkspace(args: {
 
 export async function fetchPdfWorkspaceDoc(args: {
   docId: string
-  mode: PdfConversionMode
   outputDirRel?: string
+  signal?: AbortSignal
 }): Promise<PdfWorkspaceDocResponse> {
   const outputDirRel = String(args.outputDirRel || PDF_WORKSPACE_DIR_REL_DEFAULT).trim() || PDF_WORKSPACE_DIR_REL_DEFAULT
-  const qs = new URLSearchParams({ outputDirRel, mode: args.mode })
-  const res = await fetch(`${PDF_WORKSPACE_API.doc(args.docId)}?${qs.toString()}`, { headers: { Accept: 'application/json' } })
+  const qs = new URLSearchParams({ outputDirRel })
+  const res = await fetch(`${PDF_WORKSPACE_API.doc(args.docId)}?${qs.toString()}`, {
+    headers: { Accept: 'application/json' },
+    signal: args.signal,
+  })
   const json = await readJson<PdfWorkspaceDocResponse>(res)
   if (json) return json
   return { ok: false, error: `HTTP ${res.status}` }
 }
-

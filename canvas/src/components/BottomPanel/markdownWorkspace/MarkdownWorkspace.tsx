@@ -62,7 +62,6 @@ import {
   fetchWebsiteImportArtifact,
 } from '@/lib/websites/webpageIframeSrcdoc'
 import { websiteImportArtifactKindForWebpageView } from '@/lib/websites/websiteImportArtifactKind'
-import type { PdfConversionMode } from '@/lib/pdf/pdfWorkspaceAnchors'
 import {
   hydrateWorkspaceFileFromPendingLocalImport,
   isPendingLocalImportStubText,
@@ -71,6 +70,7 @@ import {
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import { readPdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
+import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
 import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
 import { coerceGeoJsonToFeatureCollection, parseGeoJsonFromText } from 'gympgrph'
 import { tryBuildGeodataGraphDataFromJsonText } from '@/lib/graph/io/geodataJson'
@@ -87,27 +87,6 @@ const parseStringArray = (raw: unknown): string[] | null => {
   if (!Array.isArray(raw)) return null
   const out = raw.map(v => String(v || '').trim()).filter(Boolean)
   return out
-}
-
-function parsePdfWorkspaceFrontmatter(text: string): { docId: string; mode: PdfConversionMode; outputDirRel: string } | null {
-  const raw = String(text || '')
-  if (!raw.startsWith('---')) return null
-  const end = raw.indexOf('\n---')
-  if (end < 0) return null
-  const fm = raw.slice(0, end + 4)
-  const readVal = (key: string): string => {
-    const m = fm.match(new RegExp(`^${key}:\\s*(.+)\\s*$`, 'm'))
-    const v = m ? String(m[1] || '').trim() : ''
-    if (!v) return ''
-    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) return v.slice(1, -1)
-    return v
-  }
-  const docId = readVal('kgPdfWorkspaceDocId')
-  const modeRaw = readVal('kgPdfWorkspaceMode')
-  const outputDirRel = readVal('kgPdfWorkspaceOutputDirRel')
-  const mode: PdfConversionMode = modeRaw === 'image-heavy' ? 'image-heavy' : modeRaw === 'scan-ocr' ? 'scan-ocr' : 'text-only'
-  if (!docId) return null
-  return { docId, mode, outputDirRel: outputDirRel || readPdfWorkspaceOutputDirRel() }
 }
 
 function parseYoutubeWorkspaceFrontmatter(text: string): { videoId: string; format: 'markdown' | 'json' } | null {
@@ -144,25 +123,11 @@ export function MarkdownWorkspace() {
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
   const applyMarkdownDocumentToGraph = useGraphStore(s => s.applyMarkdownDocumentToGraph)
-  const setMarkdownDocument = useGraphStore(s => s.setMarkdownDocument)
-  const setMarkdownDocumentSourceUrl = useGraphStore(s => s.setMarkdownDocumentSourceUrl)
+  const setActiveMarkdownDocument = useGraphStore(s => s.setActiveMarkdownDocument)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
   const setGraphRagWorkflowJsonText = useGraphStore(s => s.setGraphRagWorkflowJsonText)
   const setGraphData = useGraphStore(s => s.setGraphData)
-
-  const setPdfImportConversionMode = useGraphStore(s => s.setPdfImportConversionMode)
-
-  const handleSetPdfImportConversionMode = React.useCallback(
-    (mode: 'text-only' | 'image-heavy' | 'scan-ocr') => {
-      try {
-        setPdfImportConversionMode(mode)
-      } catch {
-        void 0
-      }
-    },
-    [setPdfImportConversionMode],
-  )
 
   const graphData = useGraphStore(s => s.graphData) as GraphData | null
   const nodeQuickEditorRegistry = useGraphStore(s => s.nodeQuickEditorRegistry || [])
@@ -483,22 +448,32 @@ export function MarkdownWorkspace() {
   const [webpageWorkspaceEditorTextOverride, setWebpageWorkspaceEditorTextOverride] = React.useState<string | null>(null)
   const [webpageWorkspaceViewerTextOverride, setWebpageWorkspaceViewerTextOverride] = React.useState<string | null>(null)
 
+  const pdfWorkspaceFetchArgs = React.useMemo(() => {
+    const docId = pdfWorkspaceMeta ? String(pdfWorkspaceMeta.docId || '').trim() : ''
+    const outputDirRel = pdfWorkspaceMeta ? String(pdfWorkspaceMeta.outputDirRel || '').trim() : ''
+    if (!docId) return null
+    return { docId, outputDirRel }
+  }, [pdfWorkspaceMeta?.docId, pdfWorkspaceMeta?.outputDirRel])
+  const pdfWorkspaceFetchKey = pdfWorkspaceFetchArgs ? `${pdfWorkspaceFetchArgs.docId}:${pdfWorkspaceFetchArgs.outputDirRel}` : ''
+
   React.useEffect(() => {
     if (layoutMode !== 'viewer' && layoutMode !== 'split') {
       setPdfWorkspaceViewerTextOverride(null)
       return
     }
-    if (!pdfWorkspaceMeta) {
+    if (!pdfWorkspaceFetchKey || !pdfWorkspaceFetchArgs) {
       setPdfWorkspaceViewerTextOverride(null)
       return
     }
     let cancelled = false
+    const controller = new AbortController()
+    const t = setTimeout(() => controller.abort(), 60_000)
     void (async () => {
       try {
         const res = await fetchPdfWorkspaceDoc({
-          docId: pdfWorkspaceMeta.docId,
-          mode: pdfWorkspaceMeta.mode,
-          outputDirRel: pdfWorkspaceMeta.outputDirRel,
+          docId: pdfWorkspaceFetchArgs.docId,
+          outputDirRel: pdfWorkspaceFetchArgs.outputDirRel,
+          signal: controller.signal,
         })
         if (cancelled) return
         if (res.ok !== true) {
@@ -513,8 +488,14 @@ export function MarkdownWorkspace() {
     })()
     return () => {
       cancelled = true
+      clearTimeout(t)
+      try {
+        controller.abort()
+      } catch {
+        void 0
+      }
     }
-  }, [layoutMode, pdfWorkspaceMeta])
+  }, [layoutMode, pdfWorkspaceFetchKey])
 
   const webpageUrl = webpageWorkspaceMeta?.url ? String(webpageWorkspaceMeta.url || '').trim() : ''
   const webpageView = webpageWorkspaceMeta?.view
@@ -647,42 +628,6 @@ export function MarkdownWorkspace() {
     }
   }, [getFs, setStatusError, setStatusProgress, setStatusWithAutoClear, webpageUrl, webpageView, websiteImportKey])
 
-  const switchActivePdfWorkspaceMode = React.useCallback(
-    async (mode: PdfConversionMode) => {
-      if (!activePath || !pdfWorkspaceMeta) return
-      setStatusProgress('Loading PDF')
-      try {
-        const res = await fetchPdfWorkspaceDoc({ docId: pdfWorkspaceMeta.docId, mode, outputDirRel: pdfWorkspaceMeta.outputDirRel })
-        if (res.ok !== true) {
-          setStatusError(res.error)
-          return
-        }
-
-        const markdownRaw = String(res.markdown || '')
-        setPdfWorkspaceViewerTextOverride(markdownRaw)
-
-        const sanitized = sanitizeImportedMarkdownText(markdownRaw)
-        const notice = sanitized.changed ? `> Embedded base64 image data omitted for editor readability.\n\n` : ''
-        const frontmatter = `---\nkgPdfWorkspaceDocId: "${pdfWorkspaceMeta.docId}"\nkgPdfWorkspaceMode: "${mode}"\nkgPdfWorkspaceOutputDirRel: "${pdfWorkspaceMeta.outputDirRel}"\n---\n\n`
-        const nextText = `${frontmatter}${notice}${sanitized.text}`
-
-        const fs = await getFs()
-        await fs.writeFileText(activePath, nextText)
-        lastLoadedRef.current = { path: activePath, text: nextText }
-        const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
-        const inlineText = nextText.length <= maxInline ? nextText : undefined
-        setEntries(prev => prev.map(e => (e.path === activePath ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
-        setActiveTextProgrammatic(nextText)
-        const docKey = workspaceDocumentKey(activePath)
-        if (docKey) setMarkdownDocument(docKey, nextText)
-        setStatusWithAutoClear('Loaded', 1200)
-      } catch (e) {
-        setStatusError(`Load failed: ${String((e as { message?: unknown })?.message ?? e)}`)
-      }
-    },
-    [activePath, getFs, pdfWorkspaceMeta, setActiveTextProgrammatic, setEntries, setMarkdownDocument, setStatusError, setStatusProgress, setStatusWithAutoClear],
-  )
-
   const switchActiveYoutubeWorkspaceFormat = React.useCallback(
     async (format: 'markdown' | 'json') => {
       if (!activePath || !youtubeWorkspaceMeta) return
@@ -716,7 +661,16 @@ export function MarkdownWorkspace() {
         setEntries(prev => prev.map(e => (e.path === activePath ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
         setActiveTextProgrammatic(nextText)
         const docKey = workspaceDocumentKey(activePath)
-        if (docKey) setMarkdownDocument(docKey, nextText)
+        if (docKey) {
+          const source = sourcesByPath[activePath]
+          const sourceUrl = source && source.kind === 'url' ? String(source.url || '').trim() : ''
+          void setActiveMarkdownDocument({
+            name: docKey,
+            text: nextText,
+            normalizeMermaidMmd: false,
+            sourceUrl: sourceUrl ? sourceUrl : null,
+          })
+        }
         setStatusWithAutoClear('Loaded', 1200)
       } catch (e) {
         setStatusError(`Load failed: ${String((e as { message?: unknown })?.message ?? e)}`)
@@ -727,11 +681,12 @@ export function MarkdownWorkspace() {
       getFs,
       youtubeWorkspaceMeta,
       setActiveTextProgrammatic,
+      setActiveMarkdownDocument,
       setEntries,
-      setMarkdownDocument,
       setStatusError,
       setStatusProgress,
       setStatusWithAutoClear,
+      sourcesByPath,
     ],
   )
 
@@ -1090,34 +1045,15 @@ export function MarkdownWorkspace() {
         return null
       }
 
-      if (!pdfWorkspaceMeta) return null
-      return (
-        <WorkspaceModeSelect<'text-only' | 'image-heavy' | 'scan-ocr'>
-          ariaLabel="PDF conversion mode"
-          value={pdfWorkspaceMeta.mode}
-          isActive={args.isActive}
-          options={[
-            { value: 'text-only', label: 'text-only' },
-            { value: 'image-heavy', label: 'image-heavy' },
-            { value: 'scan-ocr', label: 'scan/OCR' },
-          ]}
-          onChange={next => {
-            handleSetPdfImportConversionMode(next)
-            void switchActivePdfWorkspaceMode(next)
-          }}
-        />
-      )
+      return null
     },
     [
       entries,
       folderModeContract,
-      handleSetPdfImportConversionMode,
       pickFolderContractTargetPath,
-      pdfWorkspaceMeta,
       resolveFolderContractDocPath,
       setActivePathSafe,
       setFolderModeContract,
-      switchActivePdfWorkspaceMode,
       youtubeWorkspaceMeta,
       switchActiveYoutubeWorkspaceFormat,
       webpageWorkspaceMeta,
@@ -1319,6 +1255,13 @@ export function MarkdownWorkspace() {
     if (activeEntry && activeEntry.kind !== 'file') return ''
     return workspaceDocumentKey(activePath)
   }, [activeEntry, activePath])
+  const activeDocumentSourceUrl = React.useMemo(() => {
+    const path = activePath
+    if (!path) return null
+    const source = sourcesByPath[path]
+    const url = source && source.kind === 'url' ? String(source.url || '').trim() : ''
+    return url ? url : null
+  }, [activePath, sourcesByPath])
 
   React.useEffect(() => {
     const path = activePath
@@ -1345,7 +1288,15 @@ export function MarkdownWorkspace() {
       if (String(activeText || '').trim()) return
       if (!String(candidate || '').trim()) return
       setActiveText(candidate)
-      if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, normalizeWebpageFrontmatterView(candidate, 'markdown'), { autoEnableFrontmatter: false })
+      if (activeDocumentKey) {
+        void setActiveMarkdownDocument({
+          name: activeDocumentKey,
+          text: normalizeWebpageFrontmatterView(candidate, 'markdown'),
+          normalizeMermaidMmd: false,
+          autoEnableFrontmatter: false,
+          sourceUrl: activeDocumentSourceUrl,
+        })
+      }
       return
     }
 
@@ -1358,13 +1309,22 @@ export function MarkdownWorkspace() {
     if (!snap || snap.path !== path) return
     if (!String(snap.text || '').trim()) return
     setActiveText(snap.text)
-    if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, normalizeWebpageFrontmatterView(snap.text, 'markdown'), { autoEnableFrontmatter: false })
+    if (activeDocumentKey) {
+      void setActiveMarkdownDocument({
+        name: activeDocumentKey,
+        text: normalizeWebpageFrontmatterView(snap.text, 'markdown'),
+        normalizeMermaidMmd: false,
+        autoEnableFrontmatter: false,
+        sourceUrl: activeDocumentSourceUrl,
+      })
+    }
   }, [
     activeDocumentKey,
+    activeDocumentSourceUrl,
     activePath,
     activeText,
     effectiveBottomPanelCollapsed,
-    setMarkdownDocument,
+    setActiveMarkdownDocument,
   ])
 
   const saveActiveFileNow = React.useCallback(async () => {
@@ -1380,7 +1340,13 @@ export function MarkdownWorkspace() {
       const inlineText = activeText.length <= maxInline ? activeText : undefined
       setEntries(prev => prev.map(e => (e.path === path ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
       if (activeDocumentKey) {
-        setMarkdownDocument(activeDocumentKey, normalizeWebpageFrontmatterView(activeText, 'markdown'), { autoEnableFrontmatter: false })
+        void setActiveMarkdownDocument({
+          name: activeDocumentKey,
+          text: normalizeWebpageFrontmatterView(activeText, 'markdown'),
+          normalizeMermaidMmd: false,
+          autoEnableFrontmatter: false,
+          sourceUrl: activeDocumentSourceUrl,
+        })
       }
       try {
         const store = useGraphStore.getState()
@@ -1435,12 +1401,13 @@ export function MarkdownWorkspace() {
     }
   }, [
     activeDocumentKey,
+    activeDocumentSourceUrl,
     activeEntryKind,
     activePath,
     activeText,
     getFs,
     setGraphRagWorkflowJsonText,
-    setMarkdownDocument,
+    setActiveMarkdownDocument,
     setStatusError,
     setStatusProgress,
     setStatusWithAutoClear,
@@ -1512,7 +1479,15 @@ export function MarkdownWorkspace() {
     const last = lastLoadedRef.current
     if (last && last.path === path && String(last.text || '').trim()) {
       setActiveText(last.text)
-      if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, normalizeWebpageFrontmatterView(last.text, 'markdown'), { autoEnableFrontmatter: false })
+      if (activeDocumentKey) {
+        void setActiveMarkdownDocument({
+          name: activeDocumentKey,
+          text: normalizeWebpageFrontmatterView(last.text, 'markdown'),
+          normalizeMermaidMmd: false,
+          autoEnableFrontmatter: false,
+          sourceUrl: activeDocumentSourceUrl,
+        })
+      }
       return
     }
 
@@ -1524,12 +1499,20 @@ export function MarkdownWorkspace() {
         if (!next.trim()) return
         lastLoadedRef.current = { path, text: next }
         setActiveText(next)
-        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, normalizeWebpageFrontmatterView(next, 'markdown'), { autoEnableFrontmatter: false })
+        if (activeDocumentKey) {
+          void setActiveMarkdownDocument({
+            name: activeDocumentKey,
+            text: normalizeWebpageFrontmatterView(next, 'markdown'),
+            normalizeMermaidMmd: false,
+            autoEnableFrontmatter: false,
+            sourceUrl: activeDocumentSourceUrl,
+          })
+        }
       } catch {
         void 0
       }
     })()
-  }, [activeDocumentKey, activePath, activeText, effectiveBottomPanelCollapsed, getFs, setMarkdownDocument])
+  }, [activeDocumentKey, activeDocumentSourceUrl, activePath, activeText, effectiveBottomPanelCollapsed, getFs, setActiveMarkdownDocument])
 
   const createParentPath = React.useMemo<WorkspacePath>(() => {
     if (!selectionEntry) return WORKSPACE_ROOT_PATH
@@ -1592,7 +1575,6 @@ export function MarkdownWorkspace() {
     const cachedText = typeof activeEntryText === 'string' ? String(activeEntryText ?? '') : null
     const source = sourcesByPath[path]
     const sourceUrl = source && source.kind === 'url' ? String(source.url || '').trim() : ''
-    setMarkdownDocumentSourceUrl(sourceUrl ? sourceUrl : null)
 
     const pendingLocalImport = peekPendingWorkspaceLocalImport(path)
     const indexLabel = pendingLocalImport?.kind === 'pdf' ? 'Indexing PDF' : 'Indexing'
@@ -1688,7 +1670,15 @@ export function MarkdownWorkspace() {
             return nextEntries
           })
         }
-        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, normalizeWebpageFrontmatterView(nextText, 'markdown'), { autoEnableFrontmatter: false })
+        if (activeDocumentKey) {
+          void setActiveMarkdownDocument({
+            name: activeDocumentKey,
+            text: normalizeWebpageFrontmatterView(nextText, 'markdown'),
+            normalizeMermaidMmd: false,
+            autoEnableFrontmatter: false,
+            sourceUrl: sourceUrl ? sourceUrl : null,
+          })
+        }
 
         if (activeDocumentKey && nextText.trim()) {
           const hash = hashStringToHex(nextText)
@@ -1886,8 +1876,7 @@ export function MarkdownWorkspace() {
     activePath,
     getFs,
     setActiveTextProgrammatic,
-    setMarkdownDocument,
-    setMarkdownDocumentSourceUrl,
+    setActiveMarkdownDocument,
     setStatusError,
     setStatusProgress,
     setStatusWithAutoClear,
@@ -1913,7 +1902,15 @@ export function MarkdownWorkspace() {
         const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
         const inlineText = debouncedText.length <= maxInline ? debouncedText : undefined
         setEntries(prev => prev.map(e => (e.path === path ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
-        if (activeDocumentKey) setMarkdownDocument(activeDocumentKey, normalizeWebpageFrontmatterView(debouncedText, 'markdown'), { autoEnableFrontmatter: false })
+        if (activeDocumentKey) {
+          void setActiveMarkdownDocument({
+            name: activeDocumentKey,
+            text: normalizeWebpageFrontmatterView(debouncedText, 'markdown'),
+            normalizeMermaidMmd: false,
+            autoEnableFrontmatter: false,
+            sourceUrl: activeDocumentSourceUrl,
+          })
+        }
         try {
           const store = useGraphStore.getState()
           const wsPath = `workspace:${path}`
@@ -1968,13 +1965,14 @@ export function MarkdownWorkspace() {
     })()
   }, [
     activeDocumentKey,
+    activeDocumentSourceUrl,
     activeEntryKind,
     activePath,
     activeText,
     debouncedText,
     getFs,
     setGraphRagWorkflowJsonText,
-    setMarkdownDocument,
+    setActiveMarkdownDocument,
     setStatusProgress,
     setStatusWithAutoClear,
     setStatusError,
@@ -2300,14 +2298,14 @@ export function MarkdownWorkspace() {
     selectionPath,
     selectionEntryKind: selectionEntry?.kind ?? null,
     activeDocumentKey,
+    activeDocumentSourceUrl,
     setActiveText: setActiveTextProgrammatic,
     setEntries,
     lastLoadedRef,
     setExpandedPaths,
     setActivePathSafe,
     setSelectionPathSafe,
-    setMarkdownDocument,
-    setMarkdownDocumentSourceUrl,
+    setActiveMarkdownDocument,
     applyMarkdownDocumentToGraph,
   })
 

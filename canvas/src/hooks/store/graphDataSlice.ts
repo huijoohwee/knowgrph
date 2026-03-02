@@ -15,7 +15,7 @@ import {
   readGraphRagWorkflowJsonTextFromGraphData,
   withGraphDataRevision,
 } from './graphDataSliceUtils'
-import { containsFrontmatterMermaid, isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
+import { containsFrontmatterMermaid, isMarkdownLikeFileName, normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 import {
   buildDefaultVisibleColumns,
   isGraphDataTablePropertyColumnKey,
@@ -72,6 +72,59 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     })
   },
 
+  setActiveMarkdownDocument: async (args: {
+    name: string
+    text: string
+    sourceUrl?: string | null
+    jsonSourceText?: string | null
+    autoEnableFrontmatter?: boolean
+    workspaceViewMode?: GraphState['workspaceViewMode'] | null
+    recent?: Omit<import('@/hooks/store/types').RecentFileEntry, 'id' | 'timestamp'> | null
+    applyToGraph?: boolean
+    forceApplyToGraph?: boolean
+    normalizeMermaidMmd?: boolean
+  }): Promise<boolean> => {
+    const name = String(args?.name || '').trim()
+    if (!name) return false
+    const rawText = String(args?.text || '')
+    const text = args?.normalizeMermaidMmd === false ? rawText : normalizeMermaidMmdToMarkdown(name, rawText)
+
+    get().setMarkdownDocument(name, text, { autoEnableFrontmatter: args?.autoEnableFrontmatter })
+
+    if ('sourceUrl' in (args as Record<string, unknown>)) {
+      get().setMarkdownDocumentSourceUrl(typeof args.sourceUrl === 'string' ? args.sourceUrl : null)
+    }
+    if ('jsonSourceText' in (args as Record<string, unknown>)) {
+      const nextJson = typeof args.jsonSourceText === 'string' ? args.jsonSourceText : null
+      get().setJsonSourceDocument(name, nextJson)
+    }
+    const viewMode = args?.workspaceViewMode ?? null
+    if (viewMode === 'canvas' || viewMode === 'editor' || viewMode === 'table') {
+      try {
+        get().setWorkspaceViewMode(viewMode)
+      } catch {
+        void 0
+      }
+    }
+    const recent = args?.recent ?? null
+    if (recent) {
+      try {
+        get().addRecentFile(recent)
+      } catch {
+        void 0
+      }
+    }
+
+    if (args?.applyToGraph) {
+      try {
+        return await get().applyMarkdownDocumentToGraph(name, text, { force: args?.forceApplyToGraph !== false })
+      } catch {
+        return false
+      }
+    }
+    return true
+  },
+
   applyMarkdownDocumentToGraph: async (name: string, text: string, opts?: { force?: boolean }) => {
     const nextName = String(name || '').trim()
     const nextText = String(text || '')
@@ -97,7 +150,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     if (!shouldApply) return false
 
     const { loadGraphDataFromTextViaParser } = (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
-    const res = await loadGraphDataFromTextViaParser(nextName, nextText, { applyToStore: true })
+    const res = await loadGraphDataFromTextViaParser(nextName, nextText, { applyToStore: true, syncMarkdownDocument: false })
     return !!(res?.graphData && ((res.graphData.nodes || []).length > 0 || (res.graphData.edges || []).length > 0))
   },
 
@@ -123,7 +176,6 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     set(state => ({
       ...state,
       jsonSourceDocumentText: nextText,
-      markdownDocumentName: name ?? null,
     }))
   },
 
@@ -320,8 +372,8 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       }
     }
 
-    if (typeof window !== 'undefined' && typeof window.setTimeout === 'function') {
-      window.setTimeout(runHeavyGraphDataSideEffects, 0)
+    if (typeof setTimeout === 'function') {
+      setTimeout(runHeavyGraphDataSideEffects, 0)
     } else {
       runHeavyGraphDataSideEffects()
     }

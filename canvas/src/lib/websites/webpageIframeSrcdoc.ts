@@ -12,6 +12,12 @@ const CACHE_MAX = 24
 const SRCDOC_CACHE = new Map<string, string>()
 const SRCDOC_CACHE_MAX = 24
 
+export function clearWebpageIframeSrcdocCaches(): void {
+  CACHE.clear()
+  INFLIGHT.clear()
+  SRCDOC_CACHE.clear()
+}
+
 const hash32 = (s: string): string => {
   const str = String(s || '')
   let h = 2166136261
