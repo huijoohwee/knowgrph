@@ -17,7 +17,9 @@ import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { createDefs, createGroupsLayer, createLinksHitLayer, createLinksLayer, createEdgeLabelsLayer, createNodesLayer, createTempLink, createLabelsLayer, createResizeHandlesLayer } from '@/components/GraphCanvas/sceneLayers'
 import { attachGlobalHandlers, attachSimulationTick } from '@/components/GraphCanvas/sceneHandlers'
 import { applyGraphCanvasZOrder } from '@/components/GraphCanvas/zOrder'
+import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
+import { buildNodeZKeyById } from '@/lib/canvas/groupZOrder'
 import {
   initializeGraphLayout,
   applyBaselineDocumentPositionsToKeywordGraph,
@@ -38,6 +40,7 @@ type SetupGraphSceneArgs = {
   graphData: GraphData
   graphDataRevision: number
   schema: GraphSchema
+  documentSemanticMode?: 'document' | 'keyword'
   edgesForSim: GraphEdge[]
   width: number
   height: number
@@ -395,12 +398,17 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     svg.attr('data-kg-layout-frozen', '1')
   }
 
+  const allGroupsForZOrder = deriveGraphGroups(graphDataForDisplay, { forceDocumentStructure: args.documentSemanticMode === 'document' })
+  const nodeZKeyById = buildNodeZKeyById({ nodes: displayNodes, groups: allGroupsForZOrder })
+
   const groupsLayer = createGroupsLayer({
     g,
     graphData,
     edgesForDisplay,
     schema,
+    documentSemanticMode: args.documentSemanticMode,
     simulation,
+    groupsOverride: allGroupsForZOrder,
     hoverEnabled,
     setHoverInfo,
     setSelectionSource,
@@ -433,6 +441,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     renderMediaAsNodes,
     mediaPanelDensity,
     zoomOnDoubleClick,
+    nodeZKeyById,
     tempLinkSelRef,
     linkDragRef,
     simulation,
@@ -513,6 +522,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     g,
     nodes: graphDataForDisplay.nodes,
     schema,
+    documentSemanticMode: args.documentSemanticMode,
+    nodeZKeyById,
     labelsSelRef,
     hoverEnabled,
     setHoverInfo,
@@ -563,6 +574,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       nodeById: display?.nodeById || null,
       groupsForBboxCollide: args.groupsForBboxCollide,
       getSchema,
+      documentSemanticMode: args.documentSemanticMode,
       width,
       height,
       beforeRenderFrameRef,
@@ -705,6 +717,7 @@ export const updateGraphSceneNodesPresentation = (args: {
   zoomRef: MutableRefObject<d3.ZoomBehavior<SVGSVGElement, unknown> | null>
   edgeScrollEnabled?: () => boolean
   schema: GraphSchema
+  documentSemanticMode?: 'document' | 'keyword'
   hoverEnabled: boolean
   zoomOnDoubleClick: boolean
   renderMediaAsNodes: boolean
@@ -737,6 +750,9 @@ export const updateGraphSceneNodesPresentation = (args: {
   const graphData = args.sceneGraphDataRef.current
   if (!g || !sim || !graphData) return
 
+  const allGroupsForZOrder = deriveGraphGroups(graphData, { forceDocumentStructure: args.documentSemanticMode === 'document' })
+  const nodeZKeyById = buildNodeZKeyById({ nodes: Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : [], groups: allGroupsForZOrder })
+
   const zoom = args.zoomRef.current
   const svgEl = args.svgEl
   const svg = d3.select(svgEl)
@@ -754,6 +770,7 @@ export const updateGraphSceneNodesPresentation = (args: {
     renderMediaAsNodes: args.renderMediaAsNodes,
     mediaPanelDensity: args.mediaPanelDensity,
     zoomOnDoubleClick: args.zoomOnDoubleClick,
+    nodeZKeyById,
     tempLinkSelRef: args.tempLinkSelRef,
     linkDragRef: args.linkDragRef,
     simulation: sim,
@@ -797,6 +814,8 @@ export const updateGraphSceneNodesPresentation = (args: {
     g,
     nodes: graphData.nodes,
     schema: args.schema,
+    documentSemanticMode: args.documentSemanticMode,
+    nodeZKeyById,
     labelsSelRef: args.labelsSelRef,
     hoverEnabled: args.hoverEnabled,
     setHoverInfo: args.setHoverInfo,
@@ -812,6 +831,7 @@ export const updateGraphSceneGroupsPresentation = (args: {
   gRef: MutableRefObject<GSelection | null>
   schema: GraphSchema
   graphData: GraphData
+  documentSemanticMode?: 'document' | 'keyword'
   beforeRenderFrameRef: MutableRefObject<(() => void) | null>
   simulationRef: MutableRefObject<d3.Simulation<GraphNode, GraphEdge> | null>
   hoverEnabled: boolean
@@ -830,11 +850,14 @@ export const updateGraphSceneGroupsPresentation = (args: {
   const edgesForDisplay = display ? display.displayEdges : ([] as GraphEdge[])
 
   const sim = args.simulationRef.current
+  const allGroupsForZOrder = deriveGraphGroups(args.graphData, { forceDocumentStructure: args.documentSemanticMode === 'document' })
   const groupsLayer = createGroupsLayer({
     g,
     graphData: args.graphData,
     edgesForDisplay,
     schema: args.schema,
+    documentSemanticMode: args.documentSemanticMode,
+    groupsOverride: allGroupsForZOrder,
     simulation: sim,
     hoverEnabled: args.hoverEnabled,
     setHoverInfo: args.setHoverInfo,

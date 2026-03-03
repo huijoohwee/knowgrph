@@ -16,6 +16,7 @@ import { buildFlowEdgeDisplayLabelFromPorts, readFlowEdgeDisplayLabel } from '@/
 import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import { buildBestGroupInfoByNodeId } from '@/lib/canvas/groupZOrder'
 
 export function buildAndSetFlowNativeScene(args: {
   runtime: FlowNativeRuntime
@@ -102,6 +103,7 @@ export function buildAndSetFlowNativeScene(args: {
   const nodeById = new Map<string, NonNullable<FlowNativeScene['nodes']>[number]>()
   const inputNodeById = new Map<string, unknown>()
   const nodes: NonNullable<FlowNativeScene['nodes']> = []
+  const bestGroupByNodeId = buildBestGroupInfoByNodeId(args.sceneGroups || [])
   for (let i = 0; i < nodeList.length; i += 1) {
     const n = nodeList[i]
     const id = String(n?.id || '').trim()
@@ -131,6 +133,18 @@ export function buildAndSetFlowNativeScene(args: {
             ? Number(raw)
             : null
       if (typeof n === 'number' && Number.isFinite(n)) return Math.floor(n)
+      return 0
+    })()
+    const yIndex = (() => {
+      const raw = props['visual:yIndex']
+      const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+      if (typeof n === 'number' && Number.isFinite(n)) return n
+      return 0
+    })()
+    const xIndex = (() => {
+      const raw = props['visual:xIndex']
+      const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+      if (typeof n === 'number' && Number.isFinite(n)) return n
       return 0
     })()
     const opacity = (() => {
@@ -221,6 +235,8 @@ export function buildAndSetFlowNativeScene(args: {
       width,
       height,
       zIndex,
+      yIndex,
+      xIndex,
       opacity,
       shape,
       handles,
@@ -234,9 +250,21 @@ export function buildAndSetFlowNativeScene(args: {
     inputNodeById.set(id, n)
   }
   nodes.sort((a, b) => {
+    const ag = bestGroupByNodeId.get(a.id) || { depth: -1, size: Number.POSITIVE_INFINITY }
+    const bg = bestGroupByNodeId.get(b.id) || { depth: -1, size: Number.POSITIVE_INFINITY }
+    if (ag.depth !== bg.depth) return ag.depth - bg.depth
+    if (ag.size !== bg.size) return bg.size - ag.size
+
     const az = typeof (a as unknown as { zIndex?: unknown }).zIndex === 'number' ? ((a as unknown as { zIndex: number }).zIndex) : 0
     const bz = typeof (b as unknown as { zIndex?: unknown }).zIndex === 'number' ? ((b as unknown as { zIndex: number }).zIndex) : 0
     if (az !== bz) return az - bz
+
+    const ay = typeof (a as unknown as { yIndex?: unknown }).yIndex === 'number' ? ((a as unknown as { yIndex: number }).yIndex) : 0
+    const by = typeof (b as unknown as { yIndex?: unknown }).yIndex === 'number' ? ((b as unknown as { yIndex: number }).yIndex) : 0
+    if (ay !== by) return ay - by
+    const ax = typeof (a as unknown as { xIndex?: unknown }).xIndex === 'number' ? ((a as unknown as { xIndex: number }).xIndex) : 0
+    const bx = typeof (b as unknown as { xIndex?: unknown }).xIndex === 'number' ? ((b as unknown as { xIndex: number }).xIndex) : 0
+    if (ax !== bx) return ax - bx
     return a.id.localeCompare(b.id)
   })
 

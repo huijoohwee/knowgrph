@@ -38,6 +38,37 @@ interface ExpandedBoxItem extends BoxItem {
   original: CollisionGroupItem
 }
 
+const hash01 = (s: string): number => {
+  let h = 2166136261
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return (h >>> 0) / 4294967296
+}
+
+export function tieBreakOverlaps2d(args: {
+  ox: number
+  oy: number
+  aId: string | number
+  bId: string | number
+  tieEpsilon?: number
+  bias?: number
+}): { ox: number; oy: number } {
+  const tieEpsilon =
+    typeof args.tieEpsilon === 'number' && Number.isFinite(args.tieEpsilon) ? Math.max(0, args.tieEpsilon) : 0.5
+  const bias = typeof args.bias === 'number' && Number.isFinite(args.bias) ? Math.max(0, args.bias) : 1e-4
+  if (bias <= 0) return { ox: args.ox, oy: args.oy }
+  if (Math.abs(args.ox - args.oy) > tieEpsilon) return { ox: args.ox, oy: args.oy }
+
+  const a = String(args.aId)
+  const b = String(args.bId)
+  const pairKey = a <= b ? `${a}|${b}` : `${b}|${a}`
+  const u = hash01(pairKey)
+  if (u < 0.5) return { ox: args.ox + bias, oy: args.oy }
+  return { ox: args.ox, oy: args.oy + bias }
+}
+
 export function computeBoxIndices(
   cx: number, cy: number, cz: number,
   halfW: number, halfH: number, halfD: number,
@@ -126,7 +157,7 @@ export function resolveGroupCollisions(args: {
     return {
       cx: g.cx,
       cy: g.cy,
-      cz: g.cz,
+      cz: g.cz ?? 0,
       halfW: g.halfW + gapX,
       halfH: g.halfH + gapY,
       halfD: (g.halfD ?? 0) + gapZ,
@@ -190,6 +221,12 @@ export function resolveGroupCollisions(args: {
       const useZ = shouldUseZAxis(a, b)
       
       if (oxAdj > 0 && oyAdj > 0 && (!useZ || ozAdj > 0)) {
+        const { ox: oxFinal, oy: oyFinal } = tieBreakOverlaps2d({
+          ox: oxAdj,
+          oy: oyAdj,
+          aId: String(a.id ?? aIdx),
+          bId: String(b.id ?? bIdx),
+        })
         applyAabbOverlapPush({
           nodes,
           aMovableIdxs: a.movableIdxs,
@@ -197,8 +234,8 @@ export function resolveGroupCollisions(args: {
           dx,
           dy,
           dz,
-          ox: oxAdj,
-          oy: oyAdj,
+          ox: oxFinal,
+          oy: oyFinal,
           oz: useZ ? ozAdj : Infinity, // If not using Z, treat as infinite overlap (always collides on Z)
           k: strength,
         })

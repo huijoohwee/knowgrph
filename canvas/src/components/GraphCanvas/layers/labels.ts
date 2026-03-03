@@ -5,8 +5,10 @@ import type { GraphSchema } from '@/lib/graph/schema';
 import { truncateTextWithEllipsis, truncateTextWithWordEllipsis, estimateMaxCharsForWidthPx } from '@/components/GraphCanvas/layout/utils'
 import { getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { computeVisibleLabelLines2d, getNodeLabelFullText2d } from '@/components/GraphCanvas/labelLayout2d'
+import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
+import { compareNodeZKey, type NodeZKey } from '@/lib/canvas/groupZOrder'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
@@ -14,6 +16,8 @@ export const createLabelsLayer = (args: {
   g: GSelection;
   nodes: GraphNode[];
   schema: GraphSchema;
+  documentSemanticMode?: 'document' | 'keyword'
+  nodeZKeyById?: Map<string, NodeZKey>;
   labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>;
   hoverEnabled?: boolean;
   setHoverInfo?: (updater: (prev: HoverInfo | null) => HoverInfo | null) => void;
@@ -21,18 +25,18 @@ export const createLabelsLayer = (args: {
   selectEdge: (id: string | null) => void;
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void;
 }) => {
-  const { g, nodes: rawNodes, schema, labelsSelRef, hoverEnabled, setHoverInfo, selectNode, selectEdge, setSelectionSource } = args;
+  const { g, nodes: rawNodes, schema, documentSemanticMode, nodeZKeyById, labelsSelRef, hoverEnabled, setHoverInfo, selectNode, selectEdge, setSelectionSource } = args;
 
   const nodes = rawNodes;
 
   const labelLayer = g.append('g').attr('data-kg-layer', 'labels');
   
-  const labelFontSize = schema.labelStyles?.fontSize ?? 12;
+  const labelPresentation = readLabelPresentation2d({ schema, documentSemanticMode })
+  const labelFontSize = labelPresentation.nodeFontSizePx
   const labelFontFamily = 'inherit';
-  const labelFill = schema.labelStyles?.color || 'var(--kg-canvas-label-fill)';
-  const haloColor = schema.labelStyles?.halo?.color ?? 'var(--kg-canvas-label-halo)';
-  const haloWidthRaw = schema.labelStyles?.halo?.width;
-  const haloWidth = typeof haloWidthRaw === 'number' && Number.isFinite(haloWidthRaw) && haloWidthRaw > 0 ? haloWidthRaw : 3;
+  const labelFill = labelPresentation.color || 'var(--kg-canvas-label-fill)';
+  const haloColor = labelPresentation.haloColor || 'var(--kg-canvas-label-halo)';
+  const haloWidth = labelPresentation.haloWidthPx
   const lineHeightEm = 1.2
   const getBaseDxForNode = (d: GraphNode) => {
     if (getNodeRenderShape2d(d, schema) !== 'circle') return 0
@@ -81,6 +85,12 @@ export const createLabelsLayer = (args: {
     .style('pointer-events', 'all')
     .style('cursor', 'pointer');
 
+  if (nodeZKeyById) {
+    const keyForId = (id: string): NodeZKey =>
+      nodeZKeyById.get(id) || { id, groupDepth: -1, groupSize: Number.POSITIVE_INFINITY, zIndex: 0, yIndex: 0, xIndex: 0 }
+    label.sort((a, b) => compareNodeZKey(keyForId(String(a.id)), keyForId(String(b.id))))
+  }
+
     const maxCharsPerLine = Math.max(8, Math.min(34, estimateMaxCharsForWidthPx(180, labelFontSize)));
     const compactChars = Math.max(6, Math.min(18, Math.floor(maxCharsPerLine * 0.55)));
     
@@ -89,7 +99,7 @@ export const createLabelsLayer = (args: {
       const baseLabelFull = String(getNodeLabelFullText2d(d) || '')
       const labelFullAttr = baseLabelFull.length > 600 ? `${baseLabelFull.slice(0, 599)}…` : baseLabelFull
       const baseLabel = truncateTextWithWordEllipsis(baseLabelFull, 20)
-      const layout = computeVisibleLabelLines2d(d, schema)
+      const layout = computeVisibleLabelLines2d(d, schema, { documentSemanticMode })
       const wrapped = layout.wrappedText
       const visibleLines = layout.visibleLines
       const compact = truncateTextWithEllipsis(baseLabel, compactChars)

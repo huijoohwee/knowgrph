@@ -397,6 +397,12 @@ import { testD3WheelZoomIsContinuousAndUsesSharedWheelFactor } from '@/__tests__
 import { testD3WheelZoomScaleExtentDoesNotClampToSchemaOnly } from '@/__tests__/d3ZoomScaleExtentRegression.test'
 import { testD3WheelZoomOverridesDesignPresetToZoom } from '@/__tests__/d3WheelZoomPresetOverrideRegression.test'
 import { testD3ZoomDoesNotSnapToFitToView } from '@/__tests__/d3ZoomDoesNotSnapToFitToViewRegression.test'
+import { testFlowLabelsScaleWithZoom } from '@/__tests__/flowLabelsScaleWithZoomRegression.test'
+import { testFlowPresentationIncludesLabelHalo } from '@/__tests__/flowPresentationIncludesLabelHaloRegression.test'
+import { testLabelPresentationSsotUsage } from '@/__tests__/labelPresentationSsotUsageRegression.test'
+import { testD3LabelCollisionReusesFlowStyle } from '@/__tests__/d3LabelCollisionReusesFlowStyleRegression.test'
+import { testD3DisjointComponentsForceSeparatesComponents } from '@/__tests__/d3DisjointComponentsForce.test'
+import { testComponentBboxCollideForceSeparatesComponents } from '@/__tests__/componentBboxCollideForce.test'
 import {
   testEdgeDisplayKeywordArrowRespectsKeywordDirected,
   testEdgeDisplayKeywordLabelCleansUnderscores,
@@ -956,7 +962,7 @@ export const runAllTests = async () => {
     if (filter && !name.toLowerCase().includes(filter.toLowerCase())) return
     try {
       ensureHtmlIFrameCtor()
-      console.log(`RUN ${name}`)
+      if (process.env.KG_TEST_QUIET !== '1') console.log(`RUN ${name}`)
       const timeoutMs = (() => {
         const raw = Number(process.env.KG_TEST_CASE_TIMEOUT_MS)
         if (Number.isFinite(raw) && raw > 1_000) return Math.max(5_000, Math.min(10 * 60_000, Math.floor(raw)))
@@ -1122,6 +1128,12 @@ export const runAllTests = async () => {
   await exec('zoom.wheel.d3.scaleExtent.ssot', testD3WheelZoomScaleExtentDoesNotClampToSchemaOnly)
   await exec('zoom.wheel.d3.presetOverride.design', testD3WheelZoomOverridesDesignPresetToZoom)
   await exec('zoom.wheel.d3.noSnapToFit', testD3ZoomDoesNotSnapToFitToView)
+  await exec('flow.labels.scaleWithZoom', testFlowLabelsScaleWithZoom)
+  await exec('flow.presentation.labels.halo', testFlowPresentationIncludesLabelHalo)
+  await exec('labels.presentation.ssotUsage', testLabelPresentationSsotUsage)
+  await exec('labels.collision.d3.reuseFlowStyle', testD3LabelCollisionReusesFlowStyle)
+  await exec('layout.disjointComponents.force.separates', testD3DisjointComponentsForceSeparatesComponents)
+  await exec('layout.componentBboxCollide.separates', testComponentBboxCollideForceSeparatesComponents)
   await exec('graphCanvas.edgeDisplay.keywordDirected', testEdgeDisplayKeywordArrowRespectsKeywordDirected)
   await exec('graphCanvas.edgeDisplay.schemaArrow', testEdgeDisplaySchemaArrowOverridesKeyword)
   await exec('graphCanvas.edgeDisplay.keywordLabelClean', testEdgeDisplayKeywordLabelCleansUnderscores)

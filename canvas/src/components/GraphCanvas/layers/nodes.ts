@@ -23,6 +23,7 @@ import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
 import { createEdgeScrollController } from '@/lib/canvas/edge-scroll'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { compareNodeZKey, type NodeZKey } from '@/lib/canvas/groupZOrder'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
@@ -47,6 +48,7 @@ export const createNodesLayer = (args: {
   zoomOnDoubleClick: boolean;
   renderMediaAsNodes: boolean;
   mediaPanelDensity: 'default' | 'compact';
+  nodeZKeyById?: Map<string, NodeZKey>;
   tempLinkSelRef: MutableRefObject<TempLinkSelection>;
   linkDragRef: MutableRefObject<PendingLink | null>;
   simulation: d3.Simulation<GraphNode, GraphEdge>;
@@ -76,6 +78,7 @@ export const createNodesLayer = (args: {
     renderMediaAsNodes,
     mediaPanelDensity,
     zoomOnDoubleClick,
+    nodeZKeyById,
     selectNode,
     selectEdge,
     setSelectionSource,
@@ -433,6 +436,15 @@ export const createNodesLayer = (args: {
       .style('cursor', 'pointer') as unknown as d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown>
   })()
 
+  if (nodeZKeyById) {
+    const keyForId = (id: string): NodeZKey =>
+      nodeZKeyById.get(id) || { id, groupDepth: -1, groupSize: Number.POSITIVE_INFINITY, zIndex: 0, yIndex: 0, xIndex: 0 }
+    const cmp = (a: GraphNode, b: GraphNode) => compareNodeZKey(keyForId(String(a.id)), keyForId(String(b.id)))
+    node.sort(cmp)
+    if (mediaPanelSel) mediaPanelSel.sort(cmp)
+    if (groupChevronSel) groupChevronSel.sort(cmp)
+  }
+
   if (schema.behavior?.allowNodeDrag !== false) {
     const dragBehavior = nodeDragBehavior(simulation, schema, {
       onNodeDragEnd: (d) => {
@@ -653,6 +665,11 @@ export const createNodesLayer = (args: {
         if (!n) return 0;
         return getPortHandlePosition({ datum: d, node: n, schema, cfg: portHandlesCfg }).y;
       });
+    if (nodeZKeyById) {
+      const keyForId = (id: string): NodeZKey =>
+        nodeZKeyById.get(id) || { id, groupDepth: -1, groupSize: Number.POSITIVE_INFINITY, zIndex: 0, yIndex: 0, xIndex: 0 }
+      portHandlesSel.sort((a, b) => compareNodeZKey(keyForId(a.nodeId), keyForId(b.nodeId)))
+    }
   }
 
   return { nodeSel: node, mediaSel, portHandlesSel, groupChevronSel };

@@ -5,7 +5,7 @@ import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { estimateNodeLabelAabbHalfExtents2d } from '@/components/GraphCanvas/labelLayout2d'
 import { getPortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig'
 import { readCollisionConfig } from '@/components/GraphCanvas/layout/collisionConfig'
-import { applyAabbOverlapPush, PackedRTree } from '@/lib/graph/collision/boxCollision'
+import { applyAabbOverlapPush, PackedRTree, tieBreakOverlaps2d } from '@/lib/graph/collision/boxCollision'
 import { computeBorderGapPx } from '@/lib/graph/collision/borderGap'
 import { readNodeStrokeWidthPx } from '@/lib/graph/collision/strokeWidth'
 import { readExplicitZ } from '@/lib/graph/collision/readZ'
@@ -169,6 +169,12 @@ export const createBboxCollideForce = (args: {
         const ozAdj = oz + touchEpsilonZPx
 
         if (oxAdj > 0 && oyAdj > 0 && (!useZPair || ozAdj > 0)) {
+          const { ox: oxFinal, oy: oyFinal } = tieBreakOverlaps2d({
+            ox: oxAdj,
+            oy: oyAdj,
+            aId: aNodeIdx,
+            bId: b.id,
+          })
           applyAabbOverlapPush({
             nodes,
             aMovableIdxs: aPinned ? [] : [aNodeIdx],
@@ -176,8 +182,8 @@ export const createBboxCollideForce = (args: {
             dx,
             dy,
             dz,
-            ox: oxAdj,
-            oy: oyAdj,
+            ox: oxFinal,
+            oy: oyFinal,
             oz: useZPair ? ozAdj : Infinity,
             k: kScaled,
           })

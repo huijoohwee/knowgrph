@@ -2,6 +2,7 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { createBboxCollideForce } from '@/components/GraphCanvas/layout/overlap'
 import { createGroupBboxCollideForceByDepth } from '@/components/GraphCanvas/layout/groupOverlapByDepth'
+import { createComponentBboxCollideForce } from '@/components/GraphCanvas/layout/componentOverlap'
 import { readCollisionConfig, readStructuredRelaxSteps } from '@/components/GraphCanvas/layout/collisionConfig'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { readExplicitZ } from '@/lib/graph/collision/readZ'
@@ -157,6 +158,11 @@ export function relaxFlowPositionsWithCollision(args: {
       paddingY: Math.min(collision0.groupBbox.paddingY, groupPaddingYMax),
       extraGapPx: Math.min(collision0.groupBbox.extraGapPx, groupExtraGapPxMax),
     },
+    componentBbox: {
+      ...collision0.componentBbox,
+      paddingX: Math.min(collision0.componentBbox.paddingX, groupPaddingXMax),
+      paddingY: Math.min(collision0.componentBbox.paddingY, groupPaddingYMax),
+    },
   }
   let seed = 2166136261
   for (let i = 0; i < proxyNodes.length; i += 1) {
@@ -210,6 +216,22 @@ export function relaxFlowPositionsWithCollision(args: {
     groupForces.push(f as unknown as (alpha: number) => void)
   }
 
+  const componentForce = collision.componentBbox.enabled
+    ? createComponentBboxCollideForce({
+        schema,
+        edges: Array.isArray(args.graphData.edges) ? args.graphData.edges : [],
+        paddingX: collision.componentBbox.paddingX,
+        paddingY: collision.componentBbox.paddingY,
+        touchEpsilonPx: collision.componentBbox.touchEpsilonPx,
+        touchEpsilonXPx: collision.componentBbox.touchEpsilonXPx,
+        touchEpsilonYPx: collision.componentBbox.touchEpsilonYPx,
+        strength: collision.componentBbox.strength,
+        iterations: collision.componentBbox.iterations,
+      })
+    : null
+  if (componentForce) componentForce.initialize(proxyNodes, rand)
+  const applyComponentForce = componentForce as unknown as ((alpha: number) => void) | null
+
   const baseByNode = new WeakMap<GraphNode, { x: number; y: number }>()
   for (let i = 0; i < proxyNodes.length; i += 1) {
     const n = proxyNodes[i]
@@ -237,7 +259,7 @@ export function relaxFlowPositionsWithCollision(args: {
     }
   }
 
-  const forces = [applyNodeForce, ...groupForces, pullToBase].filter(Boolean) as Array<(alpha: number) => void>
+  const forces = [applyNodeForce, ...groupForces, applyComponentForce, pullToBase].filter(Boolean) as Array<(alpha: number) => void>
   runRelaxSteps({
     nodes: proxyNodes,
     steps,

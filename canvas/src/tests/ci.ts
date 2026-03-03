@@ -48,6 +48,18 @@ const ensurePeerSymlinks = () => {
 
 ensurePeerSymlinks()
 
+if (process.env.KG_TEST_QUIET !== '0') process.env.KG_TEST_QUIET = '1'
+
+const originalConsoleError = console.error.bind(console)
+console.error = (...args: unknown[]) => {
+  for (let i = 0; i < args.length; i += 1) {
+    const v = args[i]
+    if (typeof v !== 'string') continue
+    if (v.includes('not wrapped in act') || v.includes('wrap-tests-with-act')) return
+  }
+  originalConsoleError(...args)
+}
+
 type WindowStub = Pick<
   Window,
   'addEventListener' | 'removeEventListener' | 'dispatchEvent' | 'setTimeout' | 'clearTimeout'

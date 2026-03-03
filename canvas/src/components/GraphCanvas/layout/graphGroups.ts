@@ -3,6 +3,7 @@ import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsType
 import { deriveMermaidSubgraphGroups } from '@/components/GraphCanvas/layout/mermaidSubgraphGroups'
 import { deriveMarkdownHeadingGroups } from '@/components/GraphCanvas/layout/markdownHeadingGroups'
 import { readSubgraphs, subgraphGroupId } from '@/lib/graph/subgraphs'
+import { compareGroupsForZOrder } from '@/lib/canvas/groupZOrder'
 
 export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStructure?: boolean }): GraphGroup[] => {
   const meta = (data.metadata || {}) as Record<string, unknown>
@@ -300,19 +301,6 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
     })
   }
 
-  merged.sort((a, b) => {
-    if (a.depth !== b.depth) return a.depth - b.depth
-    const axRaw = (a as unknown as { xIndex?: unknown }).xIndex
-    const bxRaw = (b as unknown as { xIndex?: unknown }).xIndex
-    const ax = typeof axRaw === 'number' && Number.isFinite(axRaw) ? axRaw : 0
-    const bx = typeof bxRaw === 'number' && Number.isFinite(bxRaw) ? bxRaw : 0
-    if (ax !== bx) return ax - bx
-    const ayRaw = (a as unknown as { yIndex?: unknown }).yIndex
-    const byRaw = (b as unknown as { yIndex?: unknown }).yIndex
-    const ay = typeof ayRaw === 'number' && Number.isFinite(ayRaw) ? ayRaw : 0
-    const by = typeof byRaw === 'number' && Number.isFinite(byRaw) ? byRaw : 0
-    if (ay !== by) return ay - by
-    return a.id.localeCompare(b.id)
-  })
+  merged.sort(compareGroupsForZOrder)
   return merged
 }

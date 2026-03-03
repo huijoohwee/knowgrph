@@ -6,7 +6,8 @@ import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsType
 import { computeConvexRing, type Point2d } from '@/lib/geometry/convexRing'
 import { routeFlowEdgeOrtho, type Rect } from '@/components/FlowCanvas/edgeRouting'
 import { computeGroupDepthStyle } from '@/lib/graph/groupDepthStyle'
-import { estimateLabelCharWidthPx, estimateMaxCharsForWidthPx, truncateTextWithEllipsis } from '@/lib/ui/text/labelText'
+import { aabbOverlaps, type AabbRect } from '@/lib/ui/labels/aabb'
+import { estimateLabelCharWidthPx, estimateMaxCharsForWidthPx, truncateTextWithEllipsis, truncateTextWithWordEllipsis, wrapTextByMaxChars } from '@/lib/ui/text/labelText'
 import { getKgTokenFallback, getKgThemeFromDom, resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
 import { screenToWorld as screenToWorldViewport } from '@/lib/zoom/viewport'
 
@@ -77,6 +78,9 @@ export type FlowNativePresentation = {
     nodeFontSizePx: number
     groupFontSizePx: number
     edgeFontSizePx: number
+    color?: string
+    haloColor?: string
+    haloWidthPx?: number
   }
   portHandles: FlowNativePortHandlesPresentation
   groups: FlowNativeGroupsPresentation
@@ -371,6 +375,33 @@ const resolveColor = (rt: FlowNativeRuntime, value: string | null | undefined, f
   return v
 }
 
+const readLabelPaint = (rt: FlowNativeRuntime) => {
+  const cfg = rt.presentation.labels || ({} as FlowNativePresentation['labels'])
+  const fillFallback = resolveCssVarCached(rt, '--kg-canvas-label-fill', rt.theme.text)
+  const haloFallback = resolveCssVarCached(rt, '--kg-canvas-label-halo', rt.theme.bg)
+  const fill = resolveColor(rt, cfg.color || null, fillFallback)
+  const halo = resolveColor(rt, cfg.haloColor || null, haloFallback)
+  const haloWidthRaw = cfg.haloWidthPx
+  const haloWidth = typeof haloWidthRaw === 'number' && Number.isFinite(haloWidthRaw) && haloWidthRaw > 0 ? haloWidthRaw : 3
+  return { fill, halo, haloWidth }
+}
+
+const drawTextHalo = (
+  ctx: CanvasRenderingContext2D,
+  args: { text: string; x: number; y: number; fill: string; halo: string; haloWidth: number },
+) => {
+  ctx.fillStyle = args.fill
+  const strokeText = (ctx as unknown as { strokeText?: unknown }).strokeText
+  if (typeof strokeText === 'function') {
+    ctx.strokeStyle = args.halo
+    ctx.lineWidth = args.haloWidth
+    ctx.lineJoin = 'round'
+    ctx.miterLimit = 2
+    ctx.strokeText(args.text, args.x, args.y)
+  }
+  ctx.fillText(args.text, args.x, args.y)
+}
+
 const roundRectPath = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
   const rr = Math.max(0, Math.min(Math.floor(r), Math.floor(Math.min(w, h) / 2)))
   if (typeof (ctx as unknown as { roundRect?: unknown }).roundRect === 'function') {
@@ -436,16 +467,45 @@ const drawNode = (rt: FlowNativeRuntime, n: FlowNativeNode, args: { selected: bo
     ctx.restore()
     return
   }
-  ctx.fillStyle = resolveCssVarCached(rt, '--kg-canvas-label-fill', rt.theme.text)
-  const k = rt.transform.k || 1
+  const paint = readLabelPaint(rt)
   const fontSizePx = Math.max(10, rt.presentation.labels?.nodeFontSizePx ?? 12)
-  const fontSizeWorld = fontSizePx / Math.max(1e-6, k)
-  ctx.font = `${fontSizeWorld}px ${rt.fontFamily}`
+  ctx.font = `${fontSizePx}px ${rt.fontFamily}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  const maxChars = estimateMaxCharsForWidthPx(Math.max(0, n.width * k - 12), fontSizePx)
-  const clipped = truncateTextWithEllipsis(label, maxChars)
-  ctx.fillText(clipped, n.x + n.width / 2, n.y + n.height / 2)
+  const padX = 8
+  const padY = 4
+  const availW = Math.max(8, n.width - padX * 2)
+  const availH = Math.max(8, n.height - padY * 2)
+  const base = truncateTextWithWordEllipsis(label, 20)
+  const maxCharsPerLine = Math.max(4, Math.min(80, estimateMaxCharsForWidthPx(availW, fontSizePx)))
+  const wrapped = wrapTextByMaxChars(base, maxCharsPerLine)
+  const rawLines = String(wrapped).replace(/\r\n?/g, '\n').split('\n')
+  const lineH = fontSizePx * 1.2
+  const maxLines = Math.max(1, Math.min(4, Math.floor(availH / Math.max(1, lineH))))
+  const visibleLines =
+    rawLines.length > maxLines
+      ? (() => {
+          const v = rawLines.slice(0, maxLines)
+          const last = String(v[v.length - 1] || '')
+          v[v.length - 1] = last.endsWith('…') ? last : truncateTextWithEllipsis(last, Math.max(1, last.length))
+          if (!v[v.length - 1].endsWith('…')) v[v.length - 1] = `${v[v.length - 1]}…`
+          return v
+        })()
+      : rawLines
+  const cx = n.x + n.width / 2
+  const cy = n.y + n.height / 2
+  for (let i = 0; i < visibleLines.length; i += 1) {
+    const line = String(visibleLines[i] || '').trim()
+    if (!line) continue
+    drawTextHalo(ctx, {
+      text: line,
+      x: cx,
+      y: cy + (i - (visibleLines.length - 1) / 2) * lineH,
+      fill: paint.fill,
+      halo: paint.halo,
+      haloWidth: paint.haloWidth,
+    })
+  }
   ctx.restore()
 }
 
@@ -687,11 +747,6 @@ const fadeEdgesUnderGeometry = (rt: FlowNativeRuntime) => {
   ctx.restore()
 }
 
-type AabbRect = { x: number; y: number; halfW: number; halfH: number }
-
-const aabbOverlaps = (a: AabbRect, b: AabbRect): boolean =>
-  Math.abs(a.x - b.x) < a.halfW + b.halfW && Math.abs(a.y - b.y) < a.halfH + b.halfH
-
 const drawEdgeLabels = (rt: FlowNativeRuntime, args: { selectedEdgeIds: Set<string> }) => {
   const scene = rt.scene
   if (!scene) return
@@ -703,19 +758,19 @@ const drawEdgeLabels = (rt: FlowNativeRuntime, args: { selectedEdgeIds: Set<stri
   if (k < 0.55) return
   if (!rt.positionsReady) return
   const ctx = rt.ctx
+  const paint = readLabelPaint(rt)
   const fontSizePx = Math.max(9, rt.presentation.labels?.edgeFontSizePx ?? 12)
-  const fontSizeWorld = fontSizePx / Math.max(1e-6, k)
-  const charWWorld = estimateLabelCharWidthPx(fontSizePx) / Math.max(1e-6, k)
-  const lineHWorld = (fontSizePx * 1.2) / Math.max(1e-6, k)
-  const padX = 6 / Math.max(1e-6, k)
-  const padY = 3 / Math.max(1e-6, k)
+  const charWWorld = estimateLabelCharWidthPx(fontSizePx)
+  const lineHWorld = fontSizePx * 1.2
+  const padX = 6
+  const padY = 3
 
   const blockers: AabbRect[] = []
   for (let i = 0; i < scene.nodes.length; i += 1) {
     const n = scene.nodes[i]
     const cx = n.x + n.width / 2
     const cy = n.y + n.height / 2
-    blockers.push({ x: cx, y: cy, halfW: n.width / 2 + 4 / Math.max(1e-6, k), halfH: n.height / 2 + 4 / Math.max(1e-6, k) })
+    blockers.push({ x: cx, y: cy, halfW: n.width / 2 + 4, halfH: n.height / 2 + 4 })
   }
 
   const groupLabelBlockers: AabbRect[] = []
@@ -730,7 +785,7 @@ const drawEdgeLabels = (rt: FlowNativeRuntime, args: { selectedEdgeIds: Set<stri
       const w = Math.max(1, aabb.maxX - aabb.minX)
       const minX = aabb.minX
       const minY = aabb.minY
-      const maxChars = estimateMaxCharsForWidthPx(Math.max(0, w * k - 20), fontSizePx)
+      const maxChars = estimateMaxCharsForWidthPx(Math.max(0, w - 20), fontSizePx)
       const clipped = truncateTextWithEllipsis(label, maxChars)
       const textW = Math.max(6, clipped.length * charWWorld)
       const halfW = textW / 2 + padX
@@ -751,16 +806,15 @@ const drawEdgeLabels = (rt: FlowNativeRuntime, args: { selectedEdgeIds: Set<stri
   const useObstacles = useOrtho && routingCfg.obstacleAvoidance
   const routingObstacles = useObstacles ? buildRoutingObstacles(rt, scene) : null
 
-  const labelFill = resolveCssVarCached(rt, '--kg-canvas-label-fill', rt.theme.text)
   const pillBg = resolveCssVarCached(rt, '--kg-panel-bg', rt.theme.bg)
   const pillStrokeDefault = resolveCssVarCached(rt, '--kg-border-subtle', rt.theme.edge)
 
   const offsets = [
     { dx: 0, dy: 0 },
-    { dx: 0, dy: (-14) / Math.max(1e-6, k) },
-    { dx: 0, dy: (14) / Math.max(1e-6, k) },
-    { dx: (16) / Math.max(1e-6, k), dy: 0 },
-    { dx: (-16) / Math.max(1e-6, k), dy: 0 },
+    { dx: 0, dy: -14 },
+    { dx: 0, dy: 14 },
+    { dx: 16, dy: 0 },
+    { dx: -16, dy: 0 },
   ]
 
   for (let i = 0; i < edges.length; i += 1) {
@@ -839,21 +893,20 @@ const drawEdgeLabels = (rt: FlowNativeRuntime, args: { selectedEdgeIds: Set<stri
     placed.push(placedRect)
 
     ctx.save()
-    ctx.font = `${fontSizeWorld}px ${rt.fontFamily}`
+    ctx.font = `${fontSizePx}px ${rt.fontFamily}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = pillBg
     ctx.strokeStyle = args.selectedEdgeIds.has(e.id) ? rt.theme.edgeSelected : (e.color || pillStrokeDefault)
     ctx.globalAlpha = args.selectedEdgeIds.has(e.id) ? 0.98 : 0.9
-    ctx.lineWidth = 1 / Math.max(1e-6, k)
+    ctx.lineWidth = 1
     ctx.beginPath()
-    roundRectPath(ctx, placedRect.x - placedRect.halfW, placedRect.y - placedRect.halfH, placedRect.halfW * 2, placedRect.halfH * 2, 6 / Math.max(1e-6, k))
+    roundRectPath(ctx, placedRect.x - placedRect.halfW, placedRect.y - placedRect.halfH, placedRect.halfW * 2, placedRect.halfH * 2, 6)
     ctx.closePath()
     ctx.fill()
     ctx.stroke()
     ctx.globalAlpha = 1
-    ctx.fillStyle = labelFill
-    ctx.fillText(clipped, placedRect.x, placedRect.y)
+    drawTextHalo(ctx, { text: clipped, x: placedRect.x, y: placedRect.y, fill: paint.fill, halo: paint.halo, haloWidth: Math.max(2, paint.haloWidth * 0.85) })
     ctx.restore()
   }
 }
@@ -872,7 +925,6 @@ const drawGroups = (rt: FlowNativeRuntime) => {
   const padding = Math.max(0, cfg.paddingPx)
   const topExtra = Math.max(0, cfg.labelTopExtraPx)
   const radius = Math.max(0, cfg.cornerRadiusPx)
-  const labelFill = resolveCssVarCached(rt, '--kg-canvas-label-fill', rt.theme.text)
 
   const groups = scene.groups
   let maxDepth = 0
@@ -955,15 +1007,14 @@ const drawGroups = (rt: FlowNativeRuntime) => {
     const label = String(g.label || '').trim()
     if (label) {
       ctx.save()
-      ctx.fillStyle = labelFill
-      const k = rt.transform.k || 1
+      const paint = readLabelPaint(rt)
       const fontSizePx = Math.max(10, rt.presentation.labels?.groupFontSizePx ?? 12)
-      const fontSizeWorld = fontSizePx / Math.max(1e-6, k)
-      ctx.font = `600 ${fontSizeWorld}px ${rt.fontFamily}`
+      ctx.font = `600 ${fontSizePx}px ${rt.fontFamily}`
       ctx.textAlign = 'left'
       ctx.textBaseline = 'top'
-      const maxChars = estimateMaxCharsForWidthPx(Math.max(0, w * k - 20), fontSizePx)
-      ctx.fillText(truncateTextWithEllipsis(label, maxChars), minX + 10, minY + 8)
+      const maxChars = estimateMaxCharsForWidthPx(Math.max(0, w - 20), fontSizePx)
+      const clipped = truncateTextWithEllipsis(label, maxChars)
+      drawTextHalo(ctx, { text: clipped, x: minX + 10, y: minY + 8, fill: paint.fill, halo: paint.halo, haloWidth: paint.haloWidth })
       ctx.restore()
     }
   }

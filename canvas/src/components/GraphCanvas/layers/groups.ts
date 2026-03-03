@@ -16,6 +16,8 @@ import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens'
 import { computeGroupDepthStyle } from '@/lib/graph/groupDepthStyle'
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { DEFAULT_GROUP_NESTED_PADDING_STEP } from '@/lib/graph/layoutDefaults'
+import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
+import { compareGroupsForZOrder } from '@/lib/canvas/groupZOrder'
 
 type GroupDatum = GraphGroup
 
@@ -30,6 +32,8 @@ export const createGroupsLayer = (args: {
   graphData: GraphData
   edgesForDisplay: GraphEdge[]
   schema: GraphSchema
+  documentSemanticMode?: 'document' | 'keyword'
+  groupsOverride?: GraphGroup[]
   simulation: d3.Simulation<GraphNode, GraphEdge> | null
   hoverEnabled?: boolean
   setHoverInfo?: (updater: (prev: HoverInfo | null) => HoverInfo | null) => void
@@ -44,7 +48,9 @@ export const createGroupsLayer = (args: {
   const enabled = cfg.enabled !== false
   if (!enabled) return { update: () => {} }
 
-  const groups = deriveGraphGroups(graphData)
+  const groups =
+    args.groupsOverride ||
+    deriveGraphGroups(graphData, { forceDocumentStructure: args.documentSemanticMode === 'document' })
   if (groups.length === 0) return { update: () => {} }
 
   const shape: 'rect' | 'geo' = cfg.shape === 'geo' ? 'geo' : 'rect'
@@ -66,18 +72,7 @@ export const createGroupsLayer = (args: {
   const visibleGroups = groups
     .filter(d => d.memberNodeIds.some(id => nodeById.has(String(id))))
     .slice()
-    .sort((a, b) => {
-      const ad = typeof a.depth === 'number' && Number.isFinite(a.depth) ? a.depth : 0
-      const bd = typeof b.depth === 'number' && Number.isFinite(b.depth) ? b.depth : 0
-      if (ad !== bd) return ad - bd
-      const ay = typeof a.yIndex === 'number' && Number.isFinite(a.yIndex) ? a.yIndex : 0
-      const by = typeof b.yIndex === 'number' && Number.isFinite(b.yIndex) ? b.yIndex : 0
-      if (ay !== by) return ay - by
-      const ax = typeof a.xIndex === 'number' && Number.isFinite(a.xIndex) ? a.xIndex : 0
-      const bx = typeof b.xIndex === 'number' && Number.isFinite(b.xIndex) ? b.xIndex : 0
-      if (ax !== bx) return ax - bx
-      return String(a.id).localeCompare(String(b.id))
-    })
+    .sort(compareGroupsForZOrder)
   if (visibleGroups.length === 0) return { update: () => {} }
 
   const shapesLayer = g.append('g').attr('data-kg-layer', 'groups')
@@ -115,7 +110,8 @@ export const createGroupsLayer = (args: {
     typeof cfg.strokeWidth === 'number' && Number.isFinite(cfg.strokeWidth) ? Math.max(0, cfg.strokeWidth) : 1.5
   const fillOpacity =
     typeof cfg.fillOpacity === 'number' && Number.isFinite(cfg.fillOpacity) ? Math.max(0, Math.min(1, cfg.fillOpacity)) : 0.08
-  const baseFontSize = schema.labelStyles?.fontSize ?? 12
+  const labelPresentation = readLabelPresentation2d({ schema, documentSemanticMode: args.documentSemanticMode })
+  const baseFontSize = labelPresentation.groupFontSizePx
   const themeEdgeStroke = UI_THEME_COLORS_CSS.edgeStroke
 
   let maxDepth = 0
@@ -209,7 +205,7 @@ export const createGroupsLayer = (args: {
     .attr('data-kg-group-chevron', '1')
     .attr('data-kg-group-id', d => d.id)
     .attr('fill', 'none')
-    .attr('stroke', schema.labelStyles?.color ?? UI_THEME_COLORS_CSS.labelFill)
+    .attr('stroke', labelPresentation.color || UI_THEME_COLORS_CSS.labelFill)
     .attr('stroke-width', 1.75)
     .attr('stroke-linecap', 'round')
     .attr('stroke-linejoin', 'round')

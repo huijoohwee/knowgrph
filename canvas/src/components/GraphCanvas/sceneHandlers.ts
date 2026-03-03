@@ -16,6 +16,8 @@ import { createGroupBboxCollideForceByDepth } from '@/components/GraphCanvas/lay
 import { readCollisionConfig } from '@/components/GraphCanvas/layout/collisionConfig'
 import { integrateNodePositionWithVelocity, runRelaxSteps } from '@/lib/graph/collision/relaxRunner'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
+import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
+import { aabbOverlaps, aabbOverlapsAny } from '@/lib/ui/labels/aabb'
 
 type SvgSelection = d3.Selection<SVGSVGElement, unknown, null, undefined>
 
@@ -34,6 +36,7 @@ export const attachSimulationTick = (args: {
   nodeById?: Map<string, GraphNode> | null
   groupsForBboxCollide?: GraphGroup[]
   getSchema: () => GraphSchema
+  documentSemanticMode?: 'document' | 'keyword'
   width: number
   height: number
   beforeRenderFrameRef?: MutableRefObject<(() => void) | null>
@@ -67,7 +70,6 @@ export const attachSimulationTick = (args: {
   }
   let lastSchema: GraphSchema | null = null
   const nodeMetricsCache = new Map<string, { width: number; height: number; r: number; key: string }>()
-  const nodeLabelNudgeById = new Map<string, { dx: number; dy: number }>()
   const groupLabelNudgeById = new Map<string, { dx: number; dy: number }>()
   let lastLabelRelaxMode: 'compact' | 'wrap' = 'wrap'
   let lastLabelRelaxTick = -1
@@ -126,7 +128,7 @@ export const attachSimulationTick = (args: {
     const portHandlesEnabled = portHandlesCfg.enabled
     const baseDxFallback = schema.labelStyles?.offset?.dx ?? 12
     const baseDyFallback = schema.labelStyles?.offset?.dy ?? 4
-    const labelFontSize = schema.labelStyles?.fontSize ?? 12
+    const labelFontSize = readLabelPresentation2d({ schema, documentSemanticMode: args.documentSemanticMode }).nodeFontSizePx
     const labelRelaxCfg = schema.performance?.labelRelax || {}
     const maxNodesForRelaxRaw = (labelRelaxCfg as { maxNodesForRelax?: number }).maxNodesForRelax
     const maxNodesForRelax = (() => {
@@ -659,7 +661,7 @@ export const attachSimulationTick = (args: {
       .attr('x', (d: GraphNode) => (typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : 0))
       .attr('y', (d: GraphNode) => (typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : 0))
     const padPx = 8
-    const bodyBlockers: AabbRect[] = []
+    const bodyBlockers: Array<AabbRect & { id: string }> = []
     const farPad = 240
     const bodyFilterEnabled = nodes.length > 1200
     for (let i = 0; i < nodes.length; i += 1) {
@@ -674,27 +676,15 @@ export const attachSimulationTick = (args: {
       const dims = getNodeMetrics(n)
       const hw = Math.max(4, dims.width / 2)
       const hh = Math.max(4, dims.height / 2)
-      bodyBlockers.push({ x: n.x as number, y: n.y as number, halfW: hw + 2, halfH: hh + 2 })
+      bodyBlockers.push({ id: String(n.id), x: n.x as number, y: n.y as number, halfW: hw + 2, halfH: hh + 2 })
     }
 
-    type NodeLabelParticle = {
-      id: string
-      baseX: number
-      baseY: number
-      x: number
-      y: number
-      vx: number
-      vy: number
-      halfW: number
-      halfH: number
-      dxClamp: number
-      dyClamp: number
-      el: SVGTextElement
-      baseDx: number
-      baseDy: number
-      anchor: 'start' | 'end' | 'middle'
-    }
-    const nodeLabelParticles: NodeLabelParticle[] = []
+    const maxPlacedNodeLabels = (() => {
+      const maxLabels = maxNodeLabels > 0 ? maxNodeLabels : 0
+      if (maxLabels === 0) return 0
+      return labelMode === 'compact' ? Math.max(0, Math.min(maxLabels, 180)) : maxLabels
+    })()
+
     const nodeLabelRects: AabbRect[] = []
     labelsSel.each(function (d: GraphNode) {
       const el = this as unknown as SVGTextElement
@@ -705,6 +695,7 @@ export const attachSimulationTick = (args: {
         el.style.display = 'none'
         return
       }
+      const nodeId = String((d as unknown as { id?: unknown }).id ?? '')
       el.style.display = ''
       
       const desiredMode = labelMode
@@ -766,6 +757,7 @@ export const attachSimulationTick = (args: {
         sy > -farPad &&
         sy < height + farPad
       if (!isNearViewport) {
+        el.setAttribute('data-collide-hidden', '0')
         el.setAttribute('text-anchor', String(el.getAttribute('data-base-anchor') || 'middle'))
         el.setAttribute('dx', String(baseDx))
         el.setAttribute('dy', String(baseDy))
@@ -820,8 +812,6 @@ export const attachSimulationTick = (args: {
       const maxShiftPx = 96
       const shiftPx = Math.max(-maxShiftPx, Math.min(maxShiftPx, shiftPxRaw))
       const dxAdjusted = best.dx + (k > 0 ? shiftPx / k : 0)
-      el.setAttribute('text-anchor', best.anchor)
-      el.setAttribute('dx', String(dxAdjusted))
       
       const estHalfHeightPx = Math.max(1, lineCount) * labelFontSize * k * 0.6
       const top = sy + baseDy * k - estHalfHeightPx
@@ -831,131 +821,72 @@ export const attachSimulationTick = (args: {
       const shiftYPxRaw = overflowTop - overflowBottom
       const shiftYPx = Math.max(-maxShiftPx, Math.min(maxShiftPx, shiftYPxRaw))
       const dyAdjusted = baseDy + (k > 0 ? shiftYPx / k : 0)
-      const nodeId = String((d as unknown as { id?: unknown }).id ?? '')
-      const prior = nodeId ? (nodeLabelNudgeById.get(nodeId) || { dx: 0, dy: 0 }) : { dx: 0, dy: 0 }
-      const maxNudge = Math.max(36, Math.min(160, 24 + labelFontSize * 6))
-      const dxN = clamp(prior.dx, -maxNudge, maxNudge)
-      const dyN = clamp(prior.dy, -maxNudge, maxNudge)
-      if (nodeId) nodeLabelNudgeById.set(nodeId, { dx: dxN, dy: dyN })
-      const dxFinal = dxAdjusted + dxN
-      const dyFinal = dyAdjusted + dyN
-      el.setAttribute('dy', String(dyFinal))
-      el.setAttribute('dx', String(dxFinal))
 
       const halfW = Math.max(2, (Math.max(0, charCount) * labelFontSize * 0.6) / 2)
       const halfH = Math.max(2, (Math.max(1, lineCount) * labelFontSize * 0.6) / 2)
-      const centerX =
-        best.anchor === 'start'
-          ? x + dxFinal + halfW
-          : best.anchor === 'end'
-            ? x + dxFinal - halfW
-            : x + dxFinal
-      const centerY = y + dyFinal
-      if (!nodeId) return
-      nodeLabelRects.push({ x: centerX, y: centerY, halfW, halfH })
-      nodeLabelParticles.push({
-        id: nodeId,
-        baseX: centerX - dxN,
-        baseY: centerY - dyN,
-        x: centerX,
-        y: centerY,
-        vx: 0,
-        vy: 0,
-        halfW,
-        halfH,
-        dxClamp: maxNudge,
-        dyClamp: maxNudge,
-        el,
-        baseDx: dxAdjusted,
-        baseDy: dyAdjusted,
-        anchor: best.anchor,
-      })
-    })
 
-    const resolveLabelRelax = () => {
-      if (!shouldRelaxLabels) return
-      if (nodeLabelParticles.length < 2) return
-      const maxLabels = maxNodeLabels > 0 ? maxNodeLabels : 0
-      if (maxLabels === 0) return
-      const sampled = (() => {
-        if (nodeLabelParticles.length <= maxLabels) return nodeLabelParticles
-        const step = Math.max(1, Math.ceil(nodeLabelParticles.length / maxLabels))
-        const out: NodeLabelParticle[] = []
-        for (let i = 0; i < nodeLabelParticles.length; i += step) out.push(nodeLabelParticles[i])
-        return out
-      })()
-      const blockers = [...groupLabelBlockers, ...bodyBlockers]
-      const collideLabels = (alpha: number) => {
-        for (let i = 0; i < sampled.length; i += 1) {
-          const a = sampled[i]
-          for (let j = i + 1; j < sampled.length; j += 1) {
-            const b = sampled[j]
-            const dx = a.x - b.x
-            const dy = a.y - b.y
-            const ox = a.halfW + b.halfW - Math.abs(dx)
-            const oy = a.halfH + b.halfH - Math.abs(dy)
-            if (!(ox > 0 && oy > 0)) continue
-            if (ox < oy) {
-              const s = dx >= 0 ? 1 : -1
-              const push = ox * 0.5 * alpha
-              a.vx += push * s
-              b.vx -= push * s
-            } else {
-              const s = dy >= 0 ? 1 : -1
-              const push = oy * 0.5 * alpha
-              a.vy += push * s
-              b.vy -= push * s
-            }
-          }
-        }
-        for (let i = 0; i < sampled.length; i += 1) {
-          const a = sampled[i]
-          for (let j = 0; j < blockers.length; j += 1) {
-            const b = blockers[j]
-            const dx = a.x - b.x
-            const dy = a.y - b.y
-            const ox = a.halfW + b.halfW - Math.abs(dx)
-            const oy = a.halfH + b.halfH - Math.abs(dy)
-            if (!(ox > 0 && oy > 0)) continue
-            if (ox < oy) {
-              const s = dx >= 0 ? 1 : -1
-              a.vx += ox * 0.7 * alpha * s
-            } else {
-              const s = dy >= 0 ? 1 : -1
-              a.vy += oy * 0.7 * alpha * s
-            }
-          }
-        }
+      const yStep = Math.max(10, Math.min(28, labelFontSize * 1.45))
+      const xStep = Math.max(12, Math.min(36, labelFontSize * 1.8))
+      const placeCandidates: Array<{ anchor: 'start' | 'end' | 'middle'; dx: number; dy: number }> = [
+        { anchor: best.anchor, dx: dxAdjusted, dy: dyAdjusted },
+        { anchor: best.anchor, dx: dxAdjusted, dy: dyAdjusted - yStep },
+        { anchor: best.anchor, dx: dxAdjusted, dy: dyAdjusted + yStep },
+        { anchor: best.anchor, dx: dxAdjusted + xStep, dy: dyAdjusted },
+        { anchor: best.anchor, dx: dxAdjusted - xStep, dy: dyAdjusted },
+        { anchor: 'middle', dx: 0, dy: dyAdjusted },
+      ]
+
+      if (maxPlacedNodeLabels > 0 && nodeLabelRects.length >= maxPlacedNodeLabels) {
+        el.style.display = 'none'
+        el.setAttribute('data-collide-hidden', '1')
+        return
       }
-      const pullToBase = (alpha: number) => {
-        const strength = 0.012 * alpha
-        for (let i = 0; i < sampled.length; i += 1) {
-          const p = sampled[i]
-          p.vx += (p.baseX - p.x) * strength
-          p.vy += (p.baseY - p.y) * strength
+
+      const overlapsBlockers = (rect: AabbRect) => {
+        if (aabbOverlapsAny(rect, groupLabelBlockers)) return true
+        for (let bi = 0; bi < bodyBlockers.length; bi += 1) {
+          const b = bodyBlockers[bi]!
+          if (b.id === nodeId) continue
+          if (aabbOverlaps(rect, b)) return true
         }
+        return false
       }
-      runRelaxSteps({
-        nodes: sampled,
-        steps: 18,
-        forces: [collideLabels, pullToBase],
-        maxOps: 36_000,
-        integrate: n => {
-          integrateNodePositionWithVelocity(n, { damping: 0.58, z: { mode: 'never' } })
-          const dx = clamp(n.x - n.baseX, -n.dxClamp, n.dxClamp)
-          const dy = clamp(n.y - n.baseY, -n.dyClamp, n.dyClamp)
-          n.x = n.baseX + dx
-          n.y = n.baseY + dy
-          nodeLabelNudgeById.set(n.id, { dx, dy })
-          const dxFinal = n.baseDx + dx
-          const dyFinal = n.baseDy + dy
-          n.el.setAttribute('text-anchor', n.anchor)
-          n.el.setAttribute('dx', String(dxFinal))
-          n.el.setAttribute('dy', String(dyFinal))
-        },
-      })
-    }
-    resolveLabelRelax()
+
+      let placedRect: AabbRect | null = null
+      let placedAnchor: 'start' | 'end' | 'middle' = best.anchor
+      let placedDx = dxAdjusted
+      let placedDy = dyAdjusted
+      for (let ci = 0; ci < placeCandidates.length; ci += 1) {
+        const c = placeCandidates[ci]!
+        const centerX =
+          c.anchor === 'start'
+            ? x + c.dx + halfW
+            : c.anchor === 'end'
+              ? x + c.dx - halfW
+              : x + c.dx
+        const centerY = y + c.dy
+        const rect: AabbRect = { x: centerX, y: centerY, halfW, halfH }
+        if (overlapsBlockers(rect)) continue
+        if (aabbOverlapsAny(rect, nodeLabelRects)) continue
+        placedRect = rect
+        placedAnchor = c.anchor
+        placedDx = c.dx
+        placedDy = c.dy
+        break
+      }
+
+      if (!placedRect) {
+        el.style.display = 'none'
+        el.setAttribute('data-collide-hidden', '1')
+        return
+      }
+      el.style.display = ''
+      el.setAttribute('data-collide-hidden', '0')
+      el.setAttribute('text-anchor', placedAnchor)
+      el.setAttribute('dx', String(placedDx))
+      el.setAttribute('dy', String(placedDy))
+      nodeLabelRects.push(placedRect)
+    })
     if (shouldRelaxLabels) {
       lastLabelRelaxMode = labelMode
       lastLabelRelaxTick = tick

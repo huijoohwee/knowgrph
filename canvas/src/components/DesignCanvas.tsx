@@ -38,6 +38,7 @@ import { relaxAabbLabels, type AabbLabelParticle } from '@/lib/ui/labels/relaxAa
 import { readDesignWireframeSettings } from '@/lib/render/designWireframeSettings'
 import { tryExtractDesignDocumentUrl } from '@/lib/render/designDocumentUrl'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
+import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { applyMediaProxySrc, resolveUrlAgainstBase } from '@/lib/url'
 import { DesignRichMediaPreview } from '@/components/DesignRichMedia'
 
@@ -1497,6 +1498,13 @@ export default function DesignCanvas({
     const map = new Map<string, Layout>()
     if (!styleById) return map
     if (!wireframeSettings.showLabelChips && !wireframeSettings.showMetaChips) return map
+
+    const labelPresentation = readLabelPresentation2d({
+      schema: snapshot.schema || null,
+      documentSemanticMode: (snapshot.documentSemanticMode as 'document' | 'keyword' | undefined) ?? undefined,
+    })
+    const labelFontSize = labelPresentation.nodeFontSizePx
+    const metaFontSize = Math.max(9, Math.min(16, Math.round(labelFontSize * 0.85)))
     const rectIntersects = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) => {
       const ax1 = a.x + a.w
       const ay1 = a.y + a.h
@@ -1643,7 +1651,7 @@ export default function DesignCanvas({
 
       const layout: Layout = {}
       if (showLabel && maxLabelW >= 48) {
-        const fontSize = 12
+        const fontSize = labelFontSize
         const boxH = 18
         const padX = 8
         const maxChars = Math.min(wireframeSettings.maxLabelChars, estimateMaxCharsForWidthPx(Math.max(0, maxLabelW - 18), fontSize))
@@ -1711,7 +1719,7 @@ export default function DesignCanvas({
       }
 
       if (showMeta && maxMetaW >= 48) {
-        const fontSize = 10
+        const fontSize = metaFontSize
         const boxH = 16
         const padX = 7
         const maxChars = Math.min(wireframeSettings.maxLabelChars, estimateMaxCharsForWidthPx(Math.max(0, maxMetaW - 18), fontSize))

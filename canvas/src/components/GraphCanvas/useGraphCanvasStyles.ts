@@ -7,6 +7,7 @@ import { type EdgeWithRuntime } from '@/components/GraphCanvas/utils';
 import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens';
 import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d';
 import { readEdgeOpacity2d } from '@/lib/graph/layoutDefaults'
+import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 
 type UseGraphCanvasStylesProps = {
   gRef?: MutableRefObject<d3.Selection<SVGGElement, unknown, null, undefined> | null>;
@@ -14,6 +15,7 @@ type UseGraphCanvasStylesProps = {
   linksSelRef: MutableRefObject<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>;
   labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>;
   schema: GraphSchema;
+  documentSemanticMode?: 'document' | 'keyword'
   paused?: boolean;
   graphDataRevision?: number;
 };
@@ -24,16 +26,17 @@ export function useGraphCanvasStyles({
   linksSelRef,
   labelsSelRef,
   schema,
+  documentSemanticMode,
   paused,
   graphDataRevision,
 }: UseGraphCanvasStylesProps) {
   useEffect(() => {
     if (paused) return;
     const colors = UI_THEME_COLORS_CSS;
+    const lp = readLabelPresentation2d({ schema, documentSemanticMode })
     const labelFill = schema.labelStyles?.color ?? colors.labelFill
     const haloColor = schema.labelStyles?.halo?.color ?? colors.labelHalo
-    const haloWidthRaw = schema.labelStyles?.halo?.width
-    const haloWidth = typeof haloWidthRaw === 'number' && Number.isFinite(haloWidthRaw) && haloWidthRaw > 0 ? haloWidthRaw : 3
+    const haloWidth = lp.haloWidthPx
 
     if (nodesSelRef.current) {
       nodesSelRef.current.each(function (d: GraphNode) {
@@ -82,7 +85,7 @@ export function useGraphCanvasStyles({
 
     if (labelsSelRef.current) {
       labelsSelRef.current
-        .attr('font-size', schema.labelStyles?.fontSize ?? 12)
+        .attr('font-size', lp.nodeFontSizePx)
         .attr('fill', labelFill)
         .attr('stroke', haloColor)
         .attr('stroke-width', haloWidth)
@@ -104,13 +107,11 @@ export function useGraphCanvasStyles({
         }
       }
 
-      const baseFontSizeRaw = schema.labelStyles?.fontSize
-      const baseFontSize = typeof baseFontSizeRaw === 'number' && Number.isFinite(baseFontSizeRaw) && baseFontSizeRaw > 0 ? baseFontSizeRaw : 12
-      styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="group-labels"] text'), baseFontSize)
-      styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="edge-labels"] text'), Math.max(9, baseFontSize * 0.9))
+      styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="group-labels"] text'), lp.groupFontSizePx)
+      styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="edge-labels"] text'), lp.edgeFontSizePx)
       root
         .selectAll<SVGPathElement, unknown>('path[data-kg-group-chevron]')
         .attr('stroke', labelFill)
     }
-  }, [paused, gRef, nodesSelRef, linksSelRef, labelsSelRef, schema, graphDataRevision]);
+  }, [paused, gRef, nodesSelRef, linksSelRef, labelsSelRef, schema, documentSemanticMode, graphDataRevision]);
 }

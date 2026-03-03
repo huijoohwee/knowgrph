@@ -481,6 +481,14 @@ export async function fetchWorkspaceUrlContent(
     const base = deriveFilenameFromUrl(normalizedUrl, 'webpage')
     const baseNoExt = base.replace(/\.[a-z0-9]+$/i, '') || 'webpage'
     const name = `${baseNoExt}.md`
+    const mode = opts?.mode === 'refresh' ? 'refresh' : 'import'
+    if (mode === 'import') {
+      return {
+        normalizedUrl,
+        name,
+        text: ['---', `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`, 'kgWebpageView: "html"', '---', '', ''].join('\n'),
+      }
+    }
     const ctrl = new AbortController()
     const ticker = opts?.onProgress
       ? createProgressTicker({ onProgress: opts.onProgress, intervalMs: 300, maxPercentage: 90, maxStepPercentage: 15 })

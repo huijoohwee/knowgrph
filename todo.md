@@ -30,6 +30,11 @@
 
 ### P0-Critical
 
+#### 2026-03-03
+
+- [ ] Unlock business value with Agentic AI; shareable interactive link, SVG, bilingual EN, CN
+
+
 #### 2026-02-28
 - two opposite views, diff, in knowledge graph canvas
 

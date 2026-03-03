@@ -5,16 +5,13 @@ import {
   truncateTextWithWordEllipsis,
   wrapTextByMaxChars,
 } from '@/lib/ui/text/labelText'
+import { aabbOverlaps } from '@/lib/ui/labels/aabb'
 
 export const isRecordType = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 
 export { estimateLabelCharWidthPx, estimateMaxCharsForWidthPx, truncateTextWithEllipsis, truncateTextWithWordEllipsis, wrapTextByMaxChars }
 
 export type AabbRect = { x: number; y: number; halfW: number; halfH: number }
-
-const aabbOverlaps = (a: AabbRect, b: AabbRect): boolean => {
-  return Math.abs(a.x - b.x) < a.halfW + b.halfW && Math.abs(a.y - b.y) < a.halfH + b.halfH
-}
 
 export function pickEdgeLabelPlacement(args: {
   p1: { x: number; y: number }

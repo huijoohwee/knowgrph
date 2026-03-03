@@ -4,11 +4,13 @@ import { GraphSchema } from '@/lib/graph/schema';
 import { applyRadialClusterLayout } from './layout/radial';
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d';
 import { computeDisjointComponentTargets } from './layout/disjoint';
+import { createDisjointComponentsForce } from './layout/disjointForce';
 import { applyForceModeSeeds } from './layout/seeding';
 import { readMermaidAxisFromNodes } from './layout/mermaidDirection';
 import { createBboxCollideForce, getNodeCollisionRadius } from './layout/overlap';
 import { createGroupBboxCollideForce } from './layout/groupOverlap';
 import { createGroupBboxCollideForceByDepth } from './layout/groupOverlapByDepth'
+import { createComponentBboxCollideForce } from './layout/componentOverlap';
 import { createGroupKeyOfNode, computeGroupTargets, type GroupKeyOfNode } from './layout/grouping';
 import { readCollisionConfig } from './layout/collisionConfig';
 import { readLayoutMode } from './layout/fitConfig';
@@ -136,8 +138,9 @@ export const buildSimulation = (
   const disjointStrength =
     typeof schema.layout?.forces?.disjointStrength === 'number' ? schema.layout.forces.disjointStrength : 0.1;
   const disjointPadding = Math.max(40, readFitPadding(schema));
+  const allowDisjointLayout = mode === 'force' && disjointEnabled && nodes.length <= 5200 && edgesForSim.length <= 18_000;
   const disjointLayout =
-    mode === 'force' && disjointEnabled
+    allowDisjointLayout
       ? computeDisjointComponentTargets({
           nodes,
           edges: edgesForSim,
@@ -183,6 +186,7 @@ export const buildSimulation = (
 
     const collisionCfg = readCollisionConfig(schema)
     const bboxCfg = collisionCfg.nodeBbox
+    const collideIterations = nodes.length <= 450 ? 4 : nodes.length <= 1600 ? 3 : 2
 
     const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
     const hasMermaidNodes = portHandlesEnabled && nodes.some(n => String(n.type || '') === 'MermaidNode')
@@ -287,8 +291,8 @@ export const buildSimulation = (
       simulation.force('center', d3.forceCenter(centerX, centerY).strength(1))
     }
     simulation
-      .force('charge', d3.forceManyBody().strength(chargeStrength))
-      .force('collide', d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.9).iterations(3))
+      .force('charge', d3.forceManyBody().strength(chargeStrength).distanceMax(Math.max(frameW, frameH) * 1.2))
+      .force('collide', d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.92).iterations(collideIterations))
       .force(
         'bboxCollide',
         bboxCfg.enabled
@@ -339,8 +343,38 @@ export const buildSimulation = (
                 }))
           : null,
       )
+      .force(
+        'componentBboxCollide',
+        collisionCfg.componentBbox.enabled
+          ? createComponentBboxCollideForce({
+              schema,
+              edges: edgesForSim,
+              paddingX: collisionCfg.componentBbox.paddingX,
+              paddingY: collisionCfg.componentBbox.paddingY,
+              touchEpsilonPx: collisionCfg.componentBbox.touchEpsilonPx,
+              touchEpsilonXPx: collisionCfg.componentBbox.touchEpsilonXPx,
+              touchEpsilonYPx: collisionCfg.componentBbox.touchEpsilonYPx,
+              strength: collisionCfg.componentBbox.strength,
+              iterations: collisionCfg.componentBbox.iterations,
+            })
+          : null,
+      )
       .force('x', d3.forceX<GraphNode>(xTarget).strength(anchorStrength))
       .force('y', d3.forceY<GraphNode>(yTarget).strength(anchorStrength))
+      .force(
+        'disjointComponents',
+        disjointLayout
+          ? createDisjointComponentsForce({
+              schema,
+              disjointLayout,
+              paddingPx: disjointPadding,
+              strength: Math.max(0.02, Math.min(0.6, disjointStrength)),
+              alphaMin: 0.03,
+              tickInterval: 6,
+              maxPairwiseComponents: 90,
+            })
+          : null,
+      )
        .force('box', () => {
          const enabled = schema.layout?.forces?.boxForce !== false;
          if (!enabled) return;
@@ -607,8 +641,9 @@ export const updateForceSimulationPresentation = (args: {
   const disjointStrength =
     typeof schema.layout?.forces?.disjointStrength === 'number' ? schema.layout.forces.disjointStrength : 0.1;
   const disjointPadding = Math.max(40, readFitPadding(schema));
+  const allowDisjointLayout = mode === 'force' && disjointEnabled && nodes.length <= 5200 && edges.length <= 18_000;
   const disjointLayout =
-    mode === 'force' && disjointEnabled
+    allowDisjointLayout
       ? computeDisjointComponentTargets({
           nodes,
           edges,
@@ -770,6 +805,20 @@ export const updateForceSimulationPresentation = (args: {
   )
   simulation.force('x', d3.forceX<GraphNode>(xTarget).strength(anchorStrength))
   simulation.force('y', d3.forceY<GraphNode>(yTarget).strength(anchorStrength))
+  simulation.force(
+    'disjointComponents',
+    disjointLayout
+      ? createDisjointComponentsForce({
+          schema,
+          disjointLayout,
+          paddingPx: disjointPadding,
+          strength: Math.max(0.02, Math.min(0.6, disjointStrength)),
+          alphaMin: 0.03,
+          tickInterval: 6,
+          maxPairwiseComponents: 90,
+        })
+      : null,
+  )
   simulation.force('box', () => {
     const enabled = schema.layout?.forces?.boxForce !== false
     if (!enabled) return

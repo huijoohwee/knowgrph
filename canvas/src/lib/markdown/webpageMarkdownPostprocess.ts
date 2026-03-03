@@ -374,7 +374,7 @@ const coalesceHtmlNavOrGridBlockToTable = (markdown: string): string => {
       continue
     }
 
-    out.push(stripHtmlTags(b))
+    out.push(b)
   }
 
   return out.join('\n\n').replace(/\n{3,}/g, '\n\n').trim()

@@ -43,8 +43,8 @@ export function testQuickEditorBundleParseProducesGraphDataWithRegistryMetadata(
 export function testQuickEditorRegistryAppliedFromGraphMetadata() {
   let applied: unknown[] | null = null
   const get = () => ({
-    nodeQuickEditorRegistry: [],
-    setNodeQuickEditorRegistry: (entries: unknown[]) => {
+    documentNodeQuickEditorRegistry: [],
+    setDocumentNodeQuickEditorRegistry: (entries: unknown[]) => {
       applied = entries
     },
   })

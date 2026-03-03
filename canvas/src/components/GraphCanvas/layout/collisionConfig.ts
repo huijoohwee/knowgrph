@@ -10,6 +10,9 @@ import {
   DEFAULT_GROUP_BBOX_COLLIDE_ITERATIONS,
   DEFAULT_GROUP_BBOX_COLLIDE_PADDING,
   DEFAULT_GROUP_BBOX_COLLIDE_STRENGTH,
+  DEFAULT_COMPONENT_BBOX_COLLIDE_ITERATIONS,
+  DEFAULT_COMPONENT_BBOX_COLLIDE_PADDING,
+  DEFAULT_COMPONENT_BBOX_COLLIDE_STRENGTH,
 } from '@/lib/graph/layoutDefaults'
 import { readGroupBboxCollideExtraGapPx } from '@/lib/graph/collision/groupCollisionSpacing'
 
@@ -54,6 +57,17 @@ export type GroupBboxCollideConfig = {
 export type CollisionConfig = {
   nodeBbox: BboxCollideConfig
   groupBbox: GroupBboxCollideConfig
+  componentBbox: {
+    enabled: boolean
+    padding: number
+    paddingX: number
+    paddingY: number
+    touchEpsilonPx: number
+    touchEpsilonXPx: number
+    touchEpsilonYPx: number
+    strength: number
+    iterations: number
+  }
 }
 
 const clampNonNegative = (v: unknown, fallback: number): number => {
@@ -100,6 +114,15 @@ export function readCollisionConfig(schema: GraphSchema): CollisionConfig {
     groupBboxCollideNestedTouchEpsilonZPx?: number
     groupBboxCollideZEnabled?: boolean
     groupBboxCollideIterations?: number
+    componentBboxCollide?: boolean
+    componentBboxCollideStrength?: number
+    componentBboxCollidePadding?: number
+    componentBboxCollidePaddingX?: number
+    componentBboxCollidePaddingY?: number
+    componentBboxCollideTouchEpsilonPx?: number
+    componentBboxCollideTouchEpsilonXPx?: number
+    componentBboxCollideTouchEpsilonYPx?: number
+    componentBboxCollideIterations?: number
   }
 
   const nodeBboxEnabled = forces.bboxCollide !== false
@@ -170,6 +193,16 @@ export function readCollisionConfig(schema: GraphSchema): CollisionConfig {
   const groupBboxStrength = groupBboxEnabled ? Math.max(0.05, groupBboxStrengthRaw) : 0
   const groupBboxIterations = clampPositiveInt(forces.groupBboxCollideIterations, DEFAULT_GROUP_BBOX_COLLIDE_ITERATIONS)
 
+  const componentBboxEnabled = forces.componentBboxCollide !== false
+  const componentBboxPadding = clampNonNegative(forces.componentBboxCollidePadding, DEFAULT_COMPONENT_BBOX_COLLIDE_PADDING)
+  const componentBboxPaddingX = clampNonNegative(forces.componentBboxCollidePaddingX, componentBboxPadding)
+  const componentBboxPaddingY = clampNonNegative(forces.componentBboxCollidePaddingY, componentBboxPadding)
+  const componentBboxTouchEpsilonPx = clampNonNegative(forces.componentBboxCollideTouchEpsilonPx, DEFAULT_NODE_COLLISION_TOUCH_EPSILON_PX)
+  const componentBboxTouchEpsilonXPx = clampNonNegative(forces.componentBboxCollideTouchEpsilonXPx, componentBboxTouchEpsilonPx)
+  const componentBboxTouchEpsilonYPx = clampNonNegative(forces.componentBboxCollideTouchEpsilonYPx, componentBboxTouchEpsilonPx)
+  const componentBboxStrength = clampNonNegative(forces.componentBboxCollideStrength, DEFAULT_COMPONENT_BBOX_COLLIDE_STRENGTH)
+  const componentBboxIterations = clampPositiveInt(forces.componentBboxCollideIterations, DEFAULT_COMPONENT_BBOX_COLLIDE_ITERATIONS)
+
   return {
     nodeBbox: {
       enabled: nodeBboxEnabled,
@@ -206,6 +239,17 @@ export function readCollisionConfig(schema: GraphSchema): CollisionConfig {
       nestedTouchEpsilonZPx: groupBboxNestedTouchEpsilonZPx,
       strength: groupBboxStrength,
       iterations: groupBboxIterations,
+    },
+    componentBbox: {
+      enabled: componentBboxEnabled,
+      padding: componentBboxPadding,
+      paddingX: componentBboxPaddingX,
+      paddingY: componentBboxPaddingY,
+      touchEpsilonPx: componentBboxTouchEpsilonPx,
+      touchEpsilonXPx: componentBboxTouchEpsilonXPx,
+      touchEpsilonYPx: componentBboxTouchEpsilonYPx,
+      strength: componentBboxStrength,
+      iterations: componentBboxIterations,
     },
   }
 }
