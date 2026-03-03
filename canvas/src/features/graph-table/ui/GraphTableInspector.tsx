@@ -18,10 +18,9 @@ import {
   FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
   resolveNodeQuickEditorRegistryEntry,
 } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
-import { useShallow } from 'zustand/react/shallow'
-
 import { normalizeGraphData } from '@/lib/graph/normalize'
 import { buildNodeQuickEditorBundleV1, nodeQuickEditorBundleToJsonText } from '@/lib/graph/io/nodeQuickEditorBundle'
+import { useShallow } from 'zustand/react/shallow'
 
 export type GraphTableInspectorRow = {
   tableId: 'nodes' | 'edges'
@@ -69,7 +68,7 @@ export function GraphTableInspector({
     uiIconScale,
     uiIconStrokeWidth,
     upsertUiToast,
-    setGraphDataPreservingLayout,
+    updateNode,
   } = useGraphStore(
     useShallow(s => ({
       graphData: s.graphData,
@@ -81,7 +80,7 @@ export function GraphTableInspector({
       uiIconScale: s.uiIconScale,
       uiIconStrokeWidth: s.uiIconStrokeWidth,
       upsertUiToast: s.upsertUiToast,
-      setGraphDataPreservingLayout: s.setGraphDataPreservingLayout,
+      updateNode: s.updateNode,
     })),
   )
   const edgesRaw = graphData?.edges
@@ -236,40 +235,33 @@ export function GraphTableInspector({
   const handleSetLabel = (label: string) => {
     if (!node) return
     const id = String(node.id || '').trim()
-    if (!id || !graphData) return
-    const nextNodes = (graphData.nodes || []).map(n => (String(n.id || '') === id ? { ...n, label: String(label || '') } : n))
-    setGraphDataPreservingLayout(normalizeGraphData({ ...graphData, nodes: nextNodes }))
+    if (!id) return
+    updateNode(id, { label: String(label || '') })
   }
   const handleSetType = (type: string) => {
     if (!node) return
     const id = String(node.id || '').trim()
-    if (!id || !graphData) return
+    if (!id) return
     const trimmed = String(type || '').trim() || 'Node'
-    const nextNodes = (graphData.nodes || []).map(n => (String(n.id || '') === id ? { ...n, type: trimmed } : n))
-    setGraphDataPreservingLayout(normalizeGraphData({ ...graphData, nodes: nextNodes }))
+    updateNode(id, { type: trimmed })
   }
   const handlePatchProperties = (patch: Record<string, unknown>) => {
     if (!node) return
     const id = String(node.id || '').trim()
-    if (!id || !graphData) return
-    const nextNodes = (graphData.nodes || []).map(n => {
-      if (String(n.id || '') !== id) return n
-      const prevProps = (n.properties || {}) as Record<string, unknown>
-      const nextProps: Record<string, unknown> = { ...prevProps }
-      for (const [k, v] of Object.entries(patch)) {
-        if (typeof v === 'undefined') delete nextProps[k]
-        else nextProps[k] = v
-      }
-      return { ...n, properties: nextProps as never }
-    })
-    setGraphDataPreservingLayout(normalizeGraphData({ ...graphData, nodes: nextNodes }))
+    if (!id) return
+    const prevProps = (node.properties || {}) as Record<string, unknown>
+    const nextProps: Record<string, unknown> = { ...prevProps }
+    for (const [k, v] of Object.entries(patch)) {
+      if (typeof v === 'undefined') delete nextProps[k]
+      else nextProps[k] = v
+    }
+    updateNode(id, { properties: nextProps as never })
   }
   const handleSetProperties = (props: Record<string, unknown>) => {
     if (!node) return
     const id = String(node.id || '').trim()
-    if (!id || !graphData) return
-    const nextNodes = (graphData.nodes || []).map(n => (String(n.id || '') === id ? { ...n, properties: (props || {}) as never } : n))
-    setGraphDataPreservingLayout(normalizeGraphData({ ...graphData, nodes: nextNodes }))
+    if (!id) return
+    updateNode(id, { properties: (props || {}) as never })
   }
   const handleValidate = () => {
     if (!node) return

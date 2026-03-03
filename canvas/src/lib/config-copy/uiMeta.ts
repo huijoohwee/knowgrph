@@ -195,6 +195,9 @@ export const UI_LABELS = {
   flowNodeQuickEditorValidate: 'Validate',
   flowNodeQuickEditorActions: 'Quick edit actions',
 
+  flowNodeQuickEditorParamsLegend: 'Params',
+  flowNodeQuickEditorParamsJsonLabel: 'Params (JSON)',
+
   flowNodeQuickEditorSchemaLegend: 'Schema',
   flowNodeQuickEditorSchemaFieldsLegend: 'Fields',
   flowNodeQuickEditorSchemaColumnLabel: 'Column',

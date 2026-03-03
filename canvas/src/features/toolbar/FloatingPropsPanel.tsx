@@ -25,7 +25,7 @@ export function FloatingPropsPanel() {
       || `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`,
   )
 
-  const nodeQuickEditorRegistry = useGraphStore(s => s.nodeQuickEditorRegistry || [])
+  const nodeQuickEditorRegistry = useGraphStore(s => s.effectiveNodeQuickEditorRegistry || [])
   const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const quickEditorPaletteEntries = React.useMemo(

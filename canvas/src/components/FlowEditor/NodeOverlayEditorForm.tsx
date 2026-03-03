@@ -23,6 +23,7 @@ import {
 import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 import { NodeOverlayEditorSchemaTable } from '@/components/FlowEditor/NodeOverlayEditorSchemaTable'
 import { NodeOverlayEditorRegistrySection } from '@/components/FlowEditor/NodeOverlayEditorRegistrySection'
+import { NodeOverlayEditorParamsSection } from '@/components/FlowEditor/NodeOverlayEditorParamsSection'
 import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 
@@ -101,6 +102,8 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       referenceImage: `${idBase}-reference-image`,
       registrySelect: `${idBase}-registry-select`,
       registryField: (fieldKey: string) => `${idBase}-registry-field-${cleanDomIdPart(fieldKey) || 'field'}`,
+      paramsJson: `${idBase}-params-json`,
+      paramsJsonInput: `${idBase}-params-json-input`,
       portHandle: (portKey: string, dir: 'in' | 'out') => `${idBase}-port-${dir}-${cleanDomIdPart(portKey) || 'port'}`,
     }
   }, [idBase])
@@ -497,6 +500,22 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           connectedValuesBySchemaPath={connectedValuesBySchemaPath}
           onSetProperties={onSetProperties}
           onSchemaPortHandleClick={onSchemaPortHandleClick}
+        />
+      )}
+
+      {!hideFields && (
+        <NodeOverlayEditorParamsSection
+          active={active}
+          properties={properties}
+          microLabelClass={microLabelClass}
+          monospaceTextClass={monospaceTextClass}
+          textSizeClass={textSizeClass}
+          keyValueInputClass={keyValueInputClass}
+          keyLabelClass={keyLabelClass}
+          ids={{ paramsJson: ids.paramsJson, paramsJsonInput: ids.paramsJsonInput }}
+          dotSizePx={dotSizePx}
+          dotHitPx={dotHitPx}
+          onPatchProperties={onPatchProperties}
         />
       )}
 

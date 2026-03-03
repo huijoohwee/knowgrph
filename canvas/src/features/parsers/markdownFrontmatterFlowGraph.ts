@@ -115,6 +115,53 @@ function buildDefaultSubgraphsFromNodes(rawNodes: ReadonlyArray<unknown>): Array
   return out
 }
 
+function normalizeSubgraphsFromFrontmatter(args: {
+  meta: Record<string, unknown>
+  rawNodes: ReadonlyArray<unknown>
+}): Array<{ id: string; label: string; memberNodeIds: string[]; parentId?: string | null; kind?: 'subgraph' | 'cluster' }> | null {
+  const raw = args.meta[KG_SUBGRAPHS_KEY]
+  if (!Array.isArray(raw)) return buildDefaultSubgraphsFromNodes(args.rawNodes)
+  const nodeIdSet = new Set<string>()
+  for (let i = 0; i < args.rawNodes.length; i += 1) {
+    const row = args.rawNodes[i]
+    if (!isRecord(row)) continue
+    const id = asString(row.id)
+    if (id) nodeIdSet.add(id)
+  }
+  const out: Array<{ id: string; label: string; memberNodeIds: string[]; parentId?: string | null; kind?: 'subgraph' | 'cluster' }> = []
+  const seen = new Set<string>()
+  for (let i = 0; i < raw.length; i += 1) {
+    const row = raw[i]
+    if (!isRecord(row)) continue
+    const id = asString(row.id)
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    const label = asString(row.label) || id
+    const memberNodeIds = (() => {
+      const ids = Array.isArray(row.memberNodeIds) ? row.memberNodeIds : []
+      const set = new Set<string>()
+      for (let j = 0; j < ids.length; j += 1) {
+        const nid = asString(ids[j])
+        if (!nid) continue
+        if (!nodeIdSet.has(nid)) continue
+        set.add(nid)
+      }
+      return Array.from(set).sort((a, b) => a.localeCompare(b))
+    })()
+    const parentId = row.parentId == null ? null : asString(row.parentId) || null
+    const kindRaw = asString(row.kind)
+    const kind = kindRaw === 'cluster' ? 'cluster' : kindRaw === 'subgraph' ? 'subgraph' : undefined
+    out.push({
+      id,
+      label,
+      memberNodeIds,
+      ...(parentId !== undefined ? { parentId } : {}),
+      ...(kind ? { kind } : {}),
+    })
+  }
+  return out
+}
+
 function normalizeRegistryPorts(args: { inputs: unknown; outputs: unknown }): RegistryPort[] {
   const ports: RegistryPort[] = []
   const seen = new Set<string>()
@@ -350,10 +397,7 @@ export function tryParseMarkdownFrontmatterFlowGraph(
   const edgesFromConnections = normalizeEdgesFromConnections(meta)
   const rawNodes = Array.isArray((meta as Record<string, unknown>).nodes) ? ((meta as Record<string, unknown>).nodes as unknown[]) : []
   const edges = edgesFromConnections.length > 0 ? edgesFromConnections : normalizeEdgesFromNodeInputs(rawNodes as Record<string, unknown>[])
-  const subgraphs =
-    Array.isArray((meta as Record<string, unknown>)[KG_SUBGRAPHS_KEY])
-      ? null
-      : buildDefaultSubgraphsFromNodes(rawNodes)
+  const subgraphs = normalizeSubgraphsFromFrontmatter({ meta, rawNodes })
 
   const frontmatterMeta = isRecord(meta.meta) ? (meta.meta as Record<string, unknown>) : null
   const stableId = asString(frontmatterMeta?.id) || cleanIdPart(name) || 'frontmatter'

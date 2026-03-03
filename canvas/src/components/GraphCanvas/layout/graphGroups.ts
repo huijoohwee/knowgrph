@@ -182,13 +182,14 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
     const subgraphs = readSubgraphs(data)
     if (subgraphs.length === 0) return [] as GraphGroup[]
 
-    const byId = new Map<string, { parentId: string | null; memberNodeIds: string[]; label: string }>()
+    const byId = new Map<string, { parentId: string | null; memberNodeIds: string[]; label: string; kind: 'subgraph' | 'cluster' }>()
     for (let i = 0; i < subgraphs.length; i += 1) {
       const sg = subgraphs[i]
       byId.set(sg.id, {
         parentId: sg.parentId == null ? null : String(sg.parentId || '').trim() || null,
         memberNodeIds: Array.from(new Set(sg.memberNodeIds.map(x => String(x || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
         label: String(sg.label || sg.id).trim() || sg.id,
+        kind: sg.kind === 'cluster' ? 'cluster' : 'subgraph',
       })
     }
 
@@ -217,7 +218,10 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
         label: row.label,
         depth,
         memberNodeIds: row.memberNodeIds,
-        style: { stroke: '#8B5CF6' },
+        style:
+          row.kind === 'cluster'
+            ? { stroke: '#0EA5E9', strokeWidth: 2, fill: 'rgba(14,165,233,0.10)' }
+            : { stroke: '#8B5CF6', strokeWidth: 2, fill: 'rgba(139,92,246,0.08)' },
       })
     })
     out.sort((a, b) => {

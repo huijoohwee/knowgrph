@@ -56,6 +56,8 @@ export const UI_COPY = {
   flowNodeQuickEditorRegistryClearedToast: 'Node Quick Editor mapping cleared.',
   flowNodeQuickEditorSelectPlaceholder: 'Search or select…',
   flowNodeQuickEditorReferenceImagePlaceholder: 'Enter URL to desired file',
+  flowNodeQuickEditorParamsPlaceholder: 'Edit node params as JSON',
+  flowNodeQuickEditorParamsInvalidJson: 'Invalid JSON.',
   flowNodeQuickEditorConnectedValueLabel: 'Connected value',
   flowNodeQuickEditorConnectedValuePrefix: 'Connected: ',
   flowNodeQuickEditorApplyConnectedValueLabel: 'Apply connected value',

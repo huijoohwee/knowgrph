@@ -31,6 +31,8 @@ export function testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry() {
     '    outputs: []',
     'connections:',
     '  - { id: e01, from_node: NODE_A, from_port: out_1, to_node: NODE_B, to_port: in_1, type: STRING }',
+    'socket_types:',
+    '  STRING: { color: "#AED6F1", accepts: [STRING] }',
     '---',
     '',
     '# Demo',
@@ -66,6 +68,59 @@ export function testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry() {
   const registry = meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
   if (!Array.isArray(registry) || registry.length < 2) throw new Error('expected quick editor registry entries')
 
+  const socketTypes = meta.socketTypes
+  if (!socketTypes || typeof socketTypes !== 'object') throw new Error('expected socketTypes metadata')
+
   const subgraphs = meta[KG_SUBGRAPHS_KEY]
   if (!Array.isArray(subgraphs) || subgraphs.length < 2) throw new Error('expected derived subgraphs')
+}
+
+export function testMarkdownFrontmatterFlowGraphHonorsUserSubgraphs() {
+  const md = [
+    '---',
+    'meta:',
+    '  id: demo-flow-subgraphs-001',
+    'nodes:',
+    '  - id: NODE_A',
+    '    type: Source',
+    '    label: "A"',
+    '    category: source',
+    '    pos: { x: 40, y: 80 }',
+    '    inputs: []',
+    '    outputs:',
+    '      - port: out_1',
+    '        type: STRING',
+    '  - id: NODE_B',
+    '    type: Sink',
+    '    label: "B"',
+    '    category: output',
+    '    pos: { x: 240, y: 80 }',
+    '    inputs:',
+    '      - port: in_1',
+    '        type: STRING',
+    '        from: NODE_A.out_1',
+    '    outputs: []',
+    'connections:',
+    '  - { id: e01, from_node: NODE_A, from_port: out_1, to_node: NODE_B, to_port: in_1, type: STRING }',
+    `'${KG_SUBGRAPHS_KEY}':`,
+    '  - id: g1',
+    '    label: "Cluster 1"',
+    '    kind: cluster',
+    '    parentId: null',
+    '    memberNodeIds: [NODE_A, NODE_B]',
+    '---',
+    '',
+    '# Demo',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('demo.md', md)
+  if (!res) throw new Error('expected a frontmatter flow graph parse result')
+  const meta = (res.graphData.metadata || {}) as Record<string, unknown>
+  const subgraphs = meta[KG_SUBGRAPHS_KEY]
+  if (!Array.isArray(subgraphs) || subgraphs.length !== 1) throw new Error('expected user subgraphs to be preserved')
+  const sg = subgraphs[0] as { id?: unknown; label?: unknown; kind?: unknown; memberNodeIds?: unknown }
+  if (String(sg.id || '') !== 'g1') throw new Error('expected subgraph id g1')
+  if (String(sg.label || '') !== 'Cluster 1') throw new Error('expected subgraph label Cluster 1')
+  if (String(sg.kind || '') !== 'cluster') throw new Error('expected subgraph kind cluster')
+  if (!Array.isArray(sg.memberNodeIds) || sg.memberNodeIds.length !== 2) throw new Error('expected memberNodeIds preserved')
 }

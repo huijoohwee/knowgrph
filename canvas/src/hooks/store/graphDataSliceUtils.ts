@@ -93,20 +93,18 @@ export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unkn
 export function applyNodeQuickEditorRegistryFromMetadata(get: GetGraph, metadata: unknown) {
   if (!isRecord(metadata)) return
   const raw = metadata[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
-  if (!Array.isArray(raw) || raw.length === 0) return
+  const rawArr = Array.isArray(raw) ? raw : []
 
-  const validated = raw
+  const validated = rawArr
     .map(item => validateNodeQuickEditorRegistryEntry(item))
     .filter((e): e is NonNullable<typeof e> => !!e)
 
-  if (validated.length === 0) return
-
-  const current = Array.isArray(get().nodeQuickEditorRegistry) ? get().nodeQuickEditorRegistry : []
+  const current = Array.isArray(get().documentNodeQuickEditorRegistry) ? get().documentNodeQuickEditorRegistry : []
   const currentSig = computeRegistrySignature(current)
   const nextSig = computeRegistrySignature(validated)
   if (currentSig === nextSig) return
 
-  const setRegistry = get().setNodeQuickEditorRegistry
+  const setRegistry = get().setDocumentNodeQuickEditorRegistry
   if (typeof setRegistry !== 'function') return
   setRegistry(validated)
 }

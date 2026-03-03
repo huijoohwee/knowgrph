@@ -185,7 +185,10 @@ import {
   testMarkdownAsciiTableFenceIngestionCreatesTableNodeWithCells,
   testMarkdownPipeTableIngestionCreatesTableNodeWithCells,
 } from '@/__tests__/markdownTableIngestion.test'
-import { testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry } from '@/__tests__/markdownFrontmatterFlowGraphImport.test'
+import {
+  testMarkdownFrontmatterFlowGraphHonorsUserSubgraphs,
+  testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry,
+} from '@/__tests__/markdownFrontmatterFlowGraphImport.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
 import { testParseKindCsv } from '@/__tests__/csvKind.test'
 import {
@@ -327,6 +330,17 @@ import { testMarkdownPresentationRendersPdfAssetImagesFromSandboxFixture } from 
 import { testMarkdownSelectionTargetEmptyDocPathFallsBackToAnyDocument } from '@/__tests__/markdownSelectionTargetEmptyDocPath.test'
 import { testPdfDocumentViewerUsesMarkdownPreviewSsot } from '@/__tests__/pdfDocumentViewerSsot.test'
 import { testGraphDataMetadataHashIncludesRevision } from '@/__tests__/graphDataHashRevision.test'
+import {
+  testSetGraphDataPreservingLayoutAppliesQuickEditorRegistryFromMetadata,
+  testSetGraphDataPreservingLayoutSyncsGraphFields,
+} from '@/__tests__/graphDataPreservingLayoutSync.test'
+import { testDocumentQuickEditorRegistryOverrideDoesNotOverwriteGlobal } from '@/__tests__/documentQuickEditorRegistryOverride.test'
+import {
+  testUserSubgraphCrudCreateDerivesGroup,
+  testUserSubgraphCrudPreventsParentCycle,
+  testUserSubgraphDeleteClearsCollapsedAndSelection,
+  testUserSubgraphClusterKindDerivesClusterStyle,
+} from '@/__tests__/userSubgraphCrudStore.test'
 import { testMonacoLongHtmlPlaceholderIsVisibleAndEllipsized } from '@/__tests__/monacoLongHtmlPlaceholderStyle.test'
 import { testMonacoHtmlBlockCollapseShowsPreview } from '@/__tests__/monacoHtmlBlockPreviewNotInvisible.test'
 import {
@@ -1002,6 +1016,7 @@ export const runAllTests = async () => {
   await exec('markdown.ingestion.asciiTables.emitTableCells', testMarkdownAsciiTableFenceIngestionCreatesTableNodeWithCells)
   await exec('markdown.ingestion.pipeTables.emitTableCells', testMarkdownPipeTableIngestionCreatesTableNodeWithCells)
   await exec('markdown.frontmatterFlowGraph.importsNodesEdgesAndRegistry', testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry)
+  await exec('markdown.frontmatterFlowGraph.honorsUserSubgraphs', testMarkdownFrontmatterFlowGraphHonorsUserSubgraphs)
   await exec('markdown.toc.formattedHeadingText', testMarkdownTocIncludesFormattedHeadingText)
   await exec('markdown.toc.unicodeHeadingSpaces', testMarkdownTocIncludesHeadingsWithUnicodeSpacesAfterHashes)
   await exec('markdown.toc.unicodeHeadingLeadingSpace', testMarkdownTocIncludesHeadingsWithUnicodeLeadingWhitespace)
@@ -1689,6 +1704,13 @@ export const runAllTests = async () => {
 
   await exec('markdown.selectionTarget.emptyDocumentPath', testMarkdownSelectionTargetEmptyDocPathFallsBackToAnyDocument)
   await exec('graph.data.hashIncludesRevision', testGraphDataMetadataHashIncludesRevision)
+  await exec('graph.data.preserveLayout.syncGraphFields', testSetGraphDataPreservingLayoutSyncsGraphFields)
+  await exec('graph.data.preserveLayout.applyQuickEditorRegistry', testSetGraphDataPreservingLayoutAppliesQuickEditorRegistryFromMetadata)
+  await exec('graph.data.documentQuickEditorRegistryOverride', testDocumentQuickEditorRegistryOverrideDoesNotOverwriteGlobal)
+  await exec('graph.subgraph.crud.createDerivesGroup', testUserSubgraphCrudCreateDerivesGroup)
+  await exec('graph.subgraph.crud.preventsParentCycle', testUserSubgraphCrudPreventsParentCycle)
+  await exec('graph.subgraph.crud.deleteClearsCollapsedSelection', testUserSubgraphDeleteClearsCollapsedAndSelection)
+  await exec('graph.subgraph.crud.clusterKindDerivesStyle', testUserSubgraphClusterKindDerivesClusterStyle)
 
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     const modShowOnCanvas = await import('@/__tests__/markdownPreviewShowOnCanvas.test')

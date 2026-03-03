@@ -6,11 +6,33 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import { computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults, parseFlowHandleKey } from '@/components/FlowCanvas/handles'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { PORT_HANDLE_STROKE_CLASS, readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 
 type FlowEditorToolMode = 'select' | 'addEdge'
+
+const FLOW_PORT_TYPES_KEY = 'flow:portTypes' as const
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function pickString(v: unknown): string {
+  return typeof v === 'string' ? v.trim() : ''
+}
+
+function readFlowPortSocketType(nodeProps: unknown, dir: 'in' | 'out', portKey: string): string {
+  const pk = pickString(portKey)
+  if (!pk) return ''
+  const props = (nodeProps || {}) as Record<string, unknown>
+  const portTypes = props[FLOW_PORT_TYPES_KEY]
+  if (!isRecord(portTypes)) return ''
+  const bucket = portTypes[dir]
+  if (!isRecord(bucket)) return ''
+  return pickString(bucket[pk])
+}
 
 function coerceEdgeEndpoints(raw: ReadonlyArray<GraphEdge>): Array<{ id: string; source: string; target: string; properties?: unknown }> {
   const out: Array<{ id: string; source: string; target: string; properties?: unknown }> = []
@@ -38,6 +60,19 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
   onFinalizeAddEdgeToNode?: (nodeId: string, portKey?: string | null) => void
 }) {
   const edges = React.useMemo(() => coerceEdgeEndpoints(args.edges), [args.edges])
+  const socketTypes = useGraphStore(s => (s.graphData?.metadata as Record<string, unknown> | null | undefined)?.socketTypes)
+  const socketStyleByType = React.useMemo(() => {
+    if (!isRecord(socketTypes)) return new Map<string, { color: string }>()
+    const m = new Map<string, { color: string }>()
+    for (const k of Object.keys(socketTypes)) {
+      const spec = socketTypes[k]
+      if (!isRecord(spec)) continue
+      const color = pickString(spec.color)
+      if (!color) continue
+      m.set(String(k || ''), { color })
+    }
+    return m
+  }, [socketTypes])
 
   const nodeId = React.useMemo(() => String(args.node?.id || '').trim(), [args.node?.id])
 
@@ -100,6 +135,9 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
     const ringClass = isSource ? `ring-2 ring-inset ${UI_THEME_TOKENS.button.ring}` : ''
     const hoverClass = canInteract ? 'hover:opacity-100' : 'opacity-90'
     const cursorClass = canInteract ? 'cursor-pointer' : 'cursor-default'
+    const portKey = parseFlowHandleKey(p.handleId as never)
+    const socketType = readFlowPortSocketType(args.node?.properties, p.dir, portKey)
+    const stroke = socketType ? socketStyleByType.get(socketType)?.color || '' : ''
 
     return (
       <button
@@ -145,6 +183,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
             height: `${sizePx}px`,
             transform: isIn ? 'translate(-50%, -50%)' : 'translate(50%, -50%)',
             ...(isIn ? { left: 0 } : { right: 0 }),
+            ...(stroke ? { borderColor: stroke } : {}),
           }}
         />
       </button>

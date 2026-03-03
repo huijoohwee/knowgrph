@@ -94,7 +94,6 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     })() ||
     'Markdown Document'
 
-  const nowIso = new Date().toISOString()
   const sourceUrl = (() => {
     const fromName = /^https?:\/\//i.test(normalizedName) ? normalizedName : ''
     const fromFrontmatter = (() => {
@@ -127,7 +126,6 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     return isAbsolutePosix || isAbsoluteWindows ? baseName : stripped
   })()
   const mkMeta = (startLine: number, endLine: number): Record<string, unknown> => ({
-    timestamp: nowIso,
     documentPath,
     ...(sourceUrl ? { documentUrl: sourceUrl } : {}),
     lineStart: startLine,
@@ -680,7 +678,6 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
 
   const metadata = {
     graphId: gid,
-    generatedAt: nowIso,
     layoutMode: hasMermaid ? 'mermaid' : 'tree',
     ...(hasMermaid ? { mermaid: treeMeta } : { tree: treeMeta }),
   }

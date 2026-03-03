@@ -246,7 +246,10 @@ export interface GraphState {
   setRenderOpStatus: (ok: boolean | null, msg: string) => void;
 
   nodeQuickEditorRegistry: NodeQuickEditorRegistryEntry[]
+  documentNodeQuickEditorRegistry: NodeQuickEditorRegistryEntry[]
+  effectiveNodeQuickEditorRegistry: NodeQuickEditorRegistryEntry[]
   setNodeQuickEditorRegistry: (entries: NodeQuickEditorRegistryEntry[]) => void
+  setDocumentNodeQuickEditorRegistry: (entries: NodeQuickEditorRegistryEntry[]) => void
   upsertNodeQuickEditorRegistryEntry: (
     entry: Omit<NodeQuickEditorRegistryEntry, 'id' | 'updatedAt'> & { id?: string | null },
   ) => { ok: true; id: string } | { ok: false; message: string }
@@ -292,6 +295,11 @@ export interface GraphState {
   removeNode: (id: string) => void;
   addEdge: (edge: GraphEdge) => void;
   removeEdge: (id: string) => void;
+  createUserSubgraph: (args: { label?: string; memberNodeIds: string[]; parentId?: string | null; kind?: 'subgraph' | 'cluster' }) => { ok: true; id: string } | { ok: false; message: string };
+  updateUserSubgraph: (id: string, patch: { label?: string; memberNodeIds?: string[]; parentId?: string | null; kind?: 'subgraph' | 'cluster' }) => { ok: true } | { ok: false; message: string };
+  removeUserSubgraph: (id: string) => void;
+  addNodesToUserSubgraph: (id: string, nodeIds: string[]) => { ok: true } | { ok: false; message: string };
+  removeNodesFromUserSubgraph: (id: string, nodeIds: string[]) => { ok: true } | { ok: false; message: string };
   selectNode: (id: string | null) => void;
   selectNodesExpanded: (args: { nodeIds: string[]; edgeIds?: string[]; groupIds?: string[]; activeNodeId?: string | null }) => void;
   selectEdge: (id: string | null) => void;

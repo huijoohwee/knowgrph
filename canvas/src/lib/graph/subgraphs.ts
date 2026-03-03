@@ -1,11 +1,14 @@
 import type { GraphData, JSONValue } from '@/lib/graph/types'
 import { createUniqueId } from '@/lib/ids'
 
+export type UserSubgraphKind = 'subgraph' | 'cluster'
+
 export type UserSubgraph = {
   id: string
   label: string
   memberNodeIds: string[]
   parentId?: string | null
+  kind?: UserSubgraphKind
 }
 
 export const KG_SUBGRAPHS_KEY = 'kg:subgraphs'
@@ -39,7 +42,9 @@ const coerceSubgraph = (raw: unknown): UserSubgraph | null => {
   const memberNodeIds = normalizeIds(r.memberNodeIds)
   const parentRaw = r.parentId
   const parentId = parentRaw == null ? null : String(parentRaw || '').trim() || null
-  return { id, label, memberNodeIds, parentId }
+  const rawKind = typeof r.kind === 'string' ? r.kind.trim() : ''
+  const kind: UserSubgraphKind = rawKind === 'cluster' ? 'cluster' : 'subgraph'
+  return { id, label, memberNodeIds, parentId, kind }
 }
 
 export const readSubgraphs = (data: GraphData | null | undefined): UserSubgraph[] => {
@@ -73,6 +78,7 @@ export const writeSubgraphs = (data: GraphData, subgraphs: UserSubgraph[]): Grap
       label: String(sg.label || id).trim() || id,
       memberNodeIds: normalizeIds(sg.memberNodeIds),
       parentId: sg.parentId == null ? null : String(sg.parentId || '').trim() || null,
+      kind: sg.kind === 'cluster' ? 'cluster' : 'subgraph',
     })
   }
   next.sort((a, b) => a.label.localeCompare(b.label))
@@ -85,14 +91,18 @@ export const writeSubgraphs = (data: GraphData, subgraphs: UserSubgraph[]): Grap
   }
 }
 
-export const createSubgraph = (data: GraphData, args: { nodeIds: string[]; label?: string; parentId?: string | null }) => {
+export const createSubgraph = (
+  data: GraphData,
+  args: { nodeIds: string[]; label?: string; parentId?: string | null; kind?: UserSubgraphKind },
+) => {
   const subgraphs = readSubgraphs(data)
   const used = new Set<string>(subgraphs.map(s => s.id))
   const id = createUniqueId('sg', used)
   const label = String(args.label || `Subgraph ${id}`).trim() || `Subgraph ${id}`
   const memberNodeIds = normalizeIds(args.nodeIds)
   const parentId = args.parentId == null ? null : String(args.parentId || '').trim() || null
-  const sg: UserSubgraph = { id, label, memberNodeIds, parentId }
+  const kind: UserSubgraphKind = args.kind === 'cluster' ? 'cluster' : 'subgraph'
+  const sg: UserSubgraph = { id, label, memberNodeIds, parentId, kind }
   return { subgraph: sg, graphData: writeSubgraphs(data, [...subgraphs, sg]) }
 }
 
@@ -105,7 +115,9 @@ export const updateSubgraph = (data: GraphData, id: string, patch: Partial<UserS
     const label = patch.label == null ? sg.label : String(patch.label || '').trim() || sg.label
     const memberNodeIds = patch.memberNodeIds == null ? sg.memberNodeIds : normalizeIds(patch.memberNodeIds)
     const parentId = patch.parentId === undefined ? sg.parentId : patch.parentId == null ? null : String(patch.parentId || '').trim() || null
-    return { ...sg, label, memberNodeIds, parentId }
+    const kind: UserSubgraphKind =
+      patch.kind === undefined ? (sg.kind === 'cluster' ? 'cluster' : 'subgraph') : patch.kind === 'cluster' ? 'cluster' : 'subgraph'
+    return { ...sg, label, memberNodeIds, parentId, kind }
   })
   return writeSubgraphs(data, next)
 }
@@ -117,4 +129,3 @@ export const removeSubgraph = (data: GraphData, id: string): GraphData => {
   const filtered = subgraphs.filter(sg => sg.id !== sid).map(sg => ({ ...sg, parentId: sg.parentId === sid ? null : sg.parentId }))
   return writeSubgraphs(data, filtered)
 }
-

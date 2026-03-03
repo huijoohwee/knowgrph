@@ -223,6 +223,10 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
 
   if (seeded.changed) persist(initial)
 
+  const pickEffective = (global: NodeQuickEditorRegistryEntry[], doc: NodeQuickEditorRegistryEntry[]) => {
+    return doc.length > 0 ? doc : global
+  }
+
   const upsert = (entry: Omit<NodeQuickEditorRegistryEntry, 'id' | 'updatedAt'> & { id?: string | null }) => {
     const state = get()
     const prev = state.nodeQuickEditorRegistry || []
@@ -265,16 +269,29 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
       replaced ? prev.map(e => (e.id === validated.id ? validated : e)) : [...prev, validated],
     )
     persist(next)
-    set({ nodeQuickEditorRegistry: next })
+    set(s => {
+      const doc = Array.isArray(s.documentNodeQuickEditorRegistry) ? s.documentNodeQuickEditorRegistry : []
+      return { nodeQuickEditorRegistry: next, effectiveNodeQuickEditorRegistry: pickEffective(next, doc) }
+    })
     return { ok: true as const, id: validated.id }
   }
 
   return {
     nodeQuickEditorRegistry: initial,
+    documentNodeQuickEditorRegistry: [],
+    effectiveNodeQuickEditorRegistry: initial,
     setNodeQuickEditorRegistry: (entries: NodeQuickEditorRegistryEntry[]) => {
       const next = normalizeNodeQuickEditorRegistryEntries(Array.isArray(entries) ? entries : [])
       persist(next)
-      set({ nodeQuickEditorRegistry: next })
+      set(s => {
+        const doc = Array.isArray(s.documentNodeQuickEditorRegistry) ? s.documentNodeQuickEditorRegistry : []
+        return { nodeQuickEditorRegistry: next, effectiveNodeQuickEditorRegistry: pickEffective(next, doc) }
+      })
+    },
+    setDocumentNodeQuickEditorRegistry: (entries: NodeQuickEditorRegistryEntry[]) => {
+      const doc = normalizeNodeQuickEditorRegistryEntries(Array.isArray(entries) ? entries : [])
+      const global = Array.isArray(get().nodeQuickEditorRegistry) ? get().nodeQuickEditorRegistry : []
+      set({ documentNodeQuickEditorRegistry: doc, effectiveNodeQuickEditorRegistry: pickEffective(global, doc) })
     },
     upsertNodeQuickEditorRegistryEntry: upsert,
     removeNodeQuickEditorRegistryEntry: (id: string) => {
@@ -285,7 +302,10 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
       const next = prev.filter(e => e.id !== entryId)
       if (next.length === prev.length) return
       persist(next)
-      set({ nodeQuickEditorRegistry: next })
+      set(s => {
+        const doc = Array.isArray(s.documentNodeQuickEditorRegistry) ? s.documentNodeQuickEditorRegistry : []
+        return { nodeQuickEditorRegistry: next, effectiveNodeQuickEditorRegistry: pickEffective(next, doc) }
+      })
     },
     toggleNodeQuickEditorRegistryEntryEnabled: (id: string, enabled?: boolean) => {
       const entryId = trimOrEmpty(id)
@@ -318,7 +338,10 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
 
       const next = prev.map(e => (e.id === entryId ? { ...e, isEnabled: nextEnabled, updatedAt: new Date().toISOString() } : e))
       persist(next)
-      set({ nodeQuickEditorRegistry: next })
+      set(s => {
+        const doc = Array.isArray(s.documentNodeQuickEditorRegistry) ? s.documentNodeQuickEditorRegistry : []
+        return { nodeQuickEditorRegistry: next, effectiveNodeQuickEditorRegistry: pickEffective(next, doc) }
+      })
     },
   }
 }

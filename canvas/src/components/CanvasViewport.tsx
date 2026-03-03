@@ -229,20 +229,12 @@ export function CanvasViewport(props: CanvasViewportProps) {
         )}
 
         {!geospatialModeEnabled && canvasRenderMode === '2d' && (
-          <>
-            <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'd3' ? '' : 'opacity-0 pointer-events-none'}`}>
-              {mounted2dRenderers.d3 ? <GraphCanvasLazy active={canvas2dRenderer === 'd3'} /> : null}
-            </div>
-            <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flow' ? '' : 'opacity-0 pointer-events-none'}`}>
-              {mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} /> : null}
-            </div>
-            <section className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'design' ? '' : 'opacity-0 pointer-events-none'}`} aria-label="Design renderer viewport">
-              {mounted2dRenderers.design ? <DesignCanvasLazy active={canvas2dRenderer === 'design'} /> : null}
-            </section>
-            <div className={`absolute inset-0 z-[10] ${canvas2dRenderer === 'flowEditor' ? '' : 'opacity-0 pointer-events-none'}`}>
-              {mounted2dRenderers.flowEditor ? <FlowEditorCanvasLazy active={canvas2dRenderer === 'flowEditor'} /> : null}
-            </div>
-          </>
+          <div className="absolute inset-0 z-[10]">
+            {canvas2dRenderer === 'd3' && mounted2dRenderers.d3 ? <GraphCanvasLazy active /> : null}
+            {canvas2dRenderer === 'flow' && mounted2dRenderers.flow ? <FlowCanvasLazy active /> : null}
+            {canvas2dRenderer === 'design' && mounted2dRenderers.design ? <DesignCanvasLazy active /> : null}
+            {canvas2dRenderer === 'flowEditor' && mounted2dRenderers.flowEditor ? <FlowEditorCanvasLazy active /> : null}
+          </div>
         )}
 
         {!geospatialModeEnabled && canvasRenderMode === '3d' && (

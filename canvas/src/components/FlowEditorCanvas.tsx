@@ -43,6 +43,7 @@ import {
   buildFlowEdgeDisplayLabelFromPorts,
   pickDefaultSchemaFieldPortKey,
 } from '@/lib/graph/flowPorts'
+import { resolveFlowSocketTypesForEdge } from '@/lib/graph/flowSocketTypes'
 import { canAddEdge } from '@/features/schema/validation'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import { FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY, FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
@@ -58,6 +59,7 @@ import { readFlowLayoutKnobs } from '@/lib/graph/layoutDefaults'
 import { relaxOverlayPanelsWithCollision } from '@/components/FlowCanvas/relaxOverlayPanels'
 import { buildFlowHandleId, computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT, FLOW_EDITOR_OVERLAY_ROOT_SELECTOR } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { readSubgraphs, subgraphGroupId } from '@/lib/graph/subgraphs'
 
 type ToolMode = 'select' | 'addEdge'
 
@@ -66,6 +68,14 @@ const QUICK_EDITOR_DROP_DEDUPE_WINDOW_MS = 250
 const FORCE_SELECT_TICK_MS = 30
 const FORCE_SELECT_MAX_TICKS = 80
 const DROP_DEBUG_TOAST_TTL_MS = 3500
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function pickString(v: unknown): string {
+  return typeof v === 'string' ? v.trim() : ''
+}
 
 const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuickEditorOverlay(args: {
   active: boolean
@@ -204,15 +214,26 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     })),
   )
   const selectedNodeId = useGraphStore(s => (typeof s.selectedNodeId === 'string' ? s.selectedNodeId : null))
+  const selectedNodeIds = useGraphStore(s => (Array.isArray(s.selectedNodeIds) ? s.selectedNodeIds : []))
   const selectedEdgeId = useGraphStore(s => (typeof s.selectedEdgeId === 'string' ? s.selectedEdgeId : null))
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const selectNode = useGraphStore(s => s.selectNode)
   const selectEdge = useGraphStore(s => s.selectEdge)
+  const selectGroup = useGraphStore(s => s.selectGroup)
   const setGraphDataPreservingLayout = useGraphStore(s => s.setGraphDataPreservingLayout)
+  const updateNode = useGraphStore(s => s.updateNode)
+  const updateEdge = useGraphStore(s => s.updateEdge)
+  const addEdge = useGraphStore(s => s.addEdge)
+  const createUserSubgraph = useGraphStore(s => s.createUserSubgraph)
+  const updateUserSubgraph = useGraphStore(s => s.updateUserSubgraph)
+  const removeUserSubgraph = useGraphStore(s => s.removeUserSubgraph)
+  const addNodesToUserSubgraph = useGraphStore(s => s.addNodesToUserSubgraph)
+  const removeNodesFromUserSubgraph = useGraphStore(s => s.removeNodesFromUserSubgraph)
   const upsertUiToast = useGraphStore(s => s.upsertUiToast)
   const documentStructureBaselineLock = useGraphStore(s => s.documentStructureBaselineLock === true)
   const schema = useGraphStore(s => s.schema)
   const setSchema = useGraphStore(s => s.setSchema)
+  const toggleGroupCollapsed = useGraphStore(s => s.toggleGroupCollapsed)
 
   const zoomViewKey = React.useMemo(() => {
     return buildActive2dZoomViewKey({
@@ -247,7 +268,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   const selectedNodeIdsRef = useGraphStoreKeyRef('selectedNodeIds')
   const selectedEdgeIdsRef = useGraphStoreKeyRef('selectedEdgeIds')
-  const nodeQuickEditorRegistry = useGraphStore(s => s.nodeQuickEditorRegistry || [])
+  const nodeQuickEditorRegistry = useGraphStore(s => s.effectiveNodeQuickEditorRegistry || [])
   const nodeQuickEditorRegistryRef = React.useRef(nodeQuickEditorRegistry)
   const lastQuickEditorDropRef = React.useRef<{ key: string; ts: number } | null>(null)
   const lastDroppedQuickEditorNodeIdRef = React.useRef<string | null>(null)
@@ -980,8 +1001,24 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
       const rawNodes = Array.isArray(graph.nodes) ? (graph.nodes as Array<{ id?: unknown; type?: unknown; properties?: unknown }>) : []
       const rawEdges = Array.isArray(graph.edges)
-        ? (graph.edges as Array<{ id?: unknown; source?: unknown; target?: unknown; properties?: unknown }>)
+        ? (graph.edges as Array<{ id?: unknown; source?: unknown; target?: unknown; type?: unknown; properties?: unknown }>)
         : []
+
+      const socketStyleByType = (() => {
+        const meta = (graph.metadata || {}) as Record<string, unknown>
+        const st = meta.socketTypes
+        if (!isRecord(st)) return new Map<string, { color: string; edgeWidthPx: number | null }>()
+        const m = new Map<string, { color: string; edgeWidthPx: number | null }>()
+        for (const k of Object.keys(st)) {
+          const spec = st[k]
+          if (!isRecord(spec)) continue
+          const color = pickString(spec.color)
+          if (!color) continue
+          const edgeWidthPx = typeof spec.edgeWidthPx === 'number' && Number.isFinite(spec.edgeWidthPx) ? spec.edgeWidthPx : null
+          m.set(String(k || ''), { color, edgeWidthPx })
+        }
+        return m
+      })()
 
       const overlayIdSet = (() => {
         const ids = Array.isArray(openQuickEditorNodeIdsRef.current) ? openQuickEditorNodeIdsRef.current : []
@@ -1015,14 +1052,14 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         nodes.push({ id, type: rawNodes[i]?.type, properties: rawNodes[i]?.properties })
       }
 
-      const edges: Array<{ id: unknown; source: unknown; target: unknown; properties?: unknown }> = []
+      const edges: Array<{ id: unknown; source: unknown; target: unknown; type?: unknown; properties?: unknown }> = []
       for (let i = 0; i < rawEdges.length; i += 1) {
         const id = String(rawEdges[i]?.id || '').trim()
         const source = String(rawEdges[i]?.source || '').trim()
         const target = String(rawEdges[i]?.target || '').trim()
         if (!id || !source || !target) continue
         if (!overlayIdSet.has(source) || !overlayIdSet.has(target)) continue
-        edges.push({ id, source, target, properties: rawEdges[i]?.properties })
+        edges.push({ id, source, target, type: rawEdges[i]?.type, properties: rawEdges[i]?.properties })
       }
 
       if (nodeIds.size === 0 || edges.length === 0) {
@@ -1115,6 +1152,16 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             ? String((props as Record<string, unknown>)[FLOW_EDGE_TARGET_PORT_KEY] || '').trim()
             : ''
 
+        const edgeTypeFromEdge = pickString(e.type)
+        const edgeTypeFromProps =
+          props && typeof props === 'object' && !Array.isArray(props) && typeof (props as Record<string, unknown>)['flow:socketType'] === 'string'
+            ? String((props as Record<string, unknown>)['flow:socketType'] || '').trim()
+            : ''
+        const edgeSocketType = edgeTypeFromEdge || edgeTypeFromProps
+        const style = edgeSocketType ? socketStyleByType.get(edgeSocketType) || null : null
+        const stroke = style?.color || 'currentColor'
+        const strokeWidth = style?.edgeWidthPx != null ? String(style.edgeWidthPx) : '1.5'
+
         const outHandleId = buildFlowHandleId({ dir: 'out', edgeId: sourcePortKey || edgeId })
         const inHandleId = buildFlowHandleId({ dir: 'in', edgeId: targetPortKey || edgeId })
         const sPct = topPctByNodeAndHandle.get(source)?.get(outHandleId) ?? 50
@@ -1147,13 +1194,15 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const pathEl = existing || document.createElementNS('http://www.w3.org/2000/svg', 'path')
         if (!existing) {
           pathEl.setAttribute('fill', 'none')
-          pathEl.setAttribute('stroke', 'currentColor')
-          pathEl.setAttribute('stroke-width', '1.5')
+          pathEl.setAttribute('stroke', stroke)
+          pathEl.setAttribute('stroke-width', strokeWidth)
           pathEl.setAttribute('stroke-linejoin', 'round')
           pathEl.setAttribute('stroke-linecap', 'round')
           svg.appendChild(pathEl)
           overlayEdgePathByIdRef.current.set(edgeId, pathEl)
         }
+        if (pathEl.getAttribute('stroke') !== stroke) pathEl.setAttribute('stroke', stroke)
+        if (pathEl.getAttribute('stroke-width') !== strokeWidth) pathEl.setAttribute('stroke-width', strokeWidth)
         if (pathEl.getAttribute('d') !== d) pathEl.setAttribute('d', d)
       }
       for (const [id, el] of overlayEdgePathByIdRef.current.entries()) {
@@ -1406,6 +1455,24 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const explicitTarget = typeof portKey === 'string' && portKey.trim() ? portKey.trim() : null
       const targetPort = explicitTarget || pickDefaultSchemaFieldPortKey(targetNode) || null
 
+      const socketRes = resolveFlowSocketTypesForEdge({
+        graphData: draftGraphData,
+        sourceNode,
+        targetNode,
+        sourcePortKey: sourcePort,
+        targetPortKey: targetPort,
+      })
+      if (!socketRes.ok) {
+        upsertUiToast({
+          id: 'flow-editor-edge-denied',
+          kind: 'warning',
+          message: `Incompatible port types: ${socketRes.outType || '∅'} → ${socketRes.inType || '∅'}.`,
+          ttlMs: 2200,
+        })
+        return
+      }
+      const edgeSocketType = socketRes.edgeType || ''
+
       const usedEdgeIds = new Set((draftGraphData.edges || []).map(e => String(e.id || '')).filter(Boolean))
       const edgeId = createUniqueId('e', usedEdgeIds)
       const nextEdge: GraphEdge = {
@@ -1413,9 +1480,11 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         source: pendingEdgeSourceId,
         target: id,
         label: 'linksTo',
+        ...(edgeSocketType ? { type: edgeSocketType } : {}),
         properties: {
           ...(sourcePort ? { [FLOW_EDGE_SOURCE_PORT_KEY]: sourcePort } : {}),
           ...(targetPort ? { [FLOW_EDGE_TARGET_PORT_KEY]: targetPort } : {}),
+          ...(edgeSocketType ? ({ 'flow:socketType': edgeSocketType } as unknown as Record<string, JSONValue>) : {}),
         },
       }
 
@@ -1458,16 +1527,12 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         })
         return
       }
-      const next: GraphData = {
-        ...draftGraphData,
-        edges: [...(draftGraphData.edges || []), nextEdge],
-      }
-      setGraphDataPreservingLayout(normalizeGraphData(next))
+      addEdge(nextEdge)
       setPendingEdgeSourceId(null)
       setPendingEdgeSourcePortKey(null)
       setToolMode('select')
     },
-    [active, draftGraphData, pendingEdgeSourceId, pendingEdgeSourcePortKey, schema, selectEdge, selectNode, setGraphDataPreservingLayout, setSelectionSource, toolMode, upsertUiToast],
+    [active, addEdge, draftGraphData, pendingEdgeSourceId, pendingEdgeSourcePortKey, schema, selectEdge, selectNode, setSelectionSource, toolMode, upsertUiToast],
   )
 
   React.useEffect(() => {
@@ -1821,17 +1886,10 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     (nodeId: string, label: string) => {
       const id = String(nodeId || '').trim()
       if (!id) return
-      if (!draftGraphData) return
       const trimmed = String(label || '')
-      const nodes = (draftGraphData.nodes || []).map(n => {
-        if (String(n.id || '') !== id) return n
-        if (String(n.label || '') === trimmed) return n
-        return { ...n, label: trimmed }
-      })
-      const next = normalizeGraphData({ ...draftGraphData, nodes })
-      setGraphDataPreservingLayout(next)
+      updateNode(id, { label: trimmed })
     },
-    [draftGraphData, setGraphDataPreservingLayout],
+    [updateNode],
   )
 
   const setSelectedNodeLabel = React.useCallback(
@@ -1846,17 +1904,10 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     (nodeId: string, type: string) => {
       const id = String(nodeId || '').trim()
       if (!id) return
-      if (!draftGraphData) return
       const trimmed = String(type || '').trim() || 'Node'
-      const nodes = (draftGraphData.nodes || []).map(n => {
-        if (String(n.id || '') !== id) return n
-        if (String(n.type || '') === trimmed) return n
-        return { ...n, type: trimmed }
-      })
-      const next = normalizeGraphData({ ...draftGraphData, nodes })
-      setGraphDataPreservingLayout(next)
+      updateNode(id, { type: trimmed })
     },
-    [draftGraphData, setGraphDataPreservingLayout],
+    [updateNode],
   )
 
   const setSelectedNodeType = React.useCallback(
@@ -1871,24 +1922,18 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     (nodeId: string, patch: Record<string, unknown>) => {
       const id = String(nodeId || '').trim()
       if (!id) return
-      if (!draftGraphData) return
-      const nodes = (draftGraphData.nodes || []).map(n => {
-        if (String(n.id || '') !== id) return n
-        const prevProps = (n.properties || {}) as Record<string, unknown>
-        const nextProps: Record<string, unknown> = { ...prevProps }
-        for (const [key, value] of Object.entries(patch)) {
-          if (typeof value === 'undefined') {
-            delete nextProps[key]
-            continue
-          }
-          nextProps[key] = value as unknown
-        }
-        return { ...n, properties: nextProps as never }
-      })
-      const next = normalizeGraphData({ ...draftGraphData, nodes })
-      setGraphDataPreservingLayout(next)
+      const cur = useGraphStore.getState().graphData
+      const node = cur?.nodes?.find(n => String(n.id || '') === id) || null
+      if (!node) return
+      const prevProps = (node.properties || {}) as Record<string, unknown>
+      const nextProps: Record<string, unknown> = { ...prevProps }
+      for (const [key, value] of Object.entries(patch)) {
+        if (typeof value === 'undefined') delete nextProps[key]
+        else nextProps[key] = value as unknown
+      }
+      updateNode(id, { properties: nextProps as never })
     },
-    [draftGraphData, setGraphDataPreservingLayout],
+    [updateNode],
   )
 
   const renameSchemaFieldIdByNodeId = React.useCallback(
@@ -1963,15 +2008,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     (nodeId: string, properties: Record<string, unknown>) => {
       const id = String(nodeId || '').trim()
       if (!id) return
-      if (!draftGraphData) return
-      const nodes = (draftGraphData.nodes || []).map(n => {
-        if (String(n.id || '') !== id) return n
-        return { ...n, properties: (properties || {}) as never }
-      })
-      const next = normalizeGraphData({ ...draftGraphData, nodes })
-      setGraphDataPreservingLayout(next)
+      updateNode(id, { properties: (properties || {}) as never })
     },
-    [draftGraphData, setGraphDataPreservingLayout],
+    [updateNode],
   )
 
   const validateNodeById = React.useCallback(
@@ -2117,17 +2156,11 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   const setSelectedEdgeLabel = React.useCallback(
     (label: string) => {
-      if (!draftGraphData || !selectedEdgeId) return
+      if (!selectedEdgeId) return
       const trimmed = String(label || '').trim() || 'linksTo'
-      const edges = (draftGraphData.edges || []).map(e => {
-        if (String(e.id || '') !== selectedEdgeId) return e
-        if (String(e.label || '') === trimmed) return e
-        return { ...e, label: trimmed }
-      })
-      const next = normalizeGraphData({ ...draftGraphData, edges })
-      setGraphDataPreservingLayout(next)
+      updateEdge(selectedEdgeId, { label: trimmed })
     },
-    [draftGraphData, selectedEdgeId, setGraphDataPreservingLayout],
+    [selectedEdgeId, updateEdge],
   )
 
   const applyJsonToDraft = React.useCallback(
@@ -2176,11 +2209,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           setJsonError('Node value must be a JSON object.')
           return
         }
-        const nodes = (draftGraphData.nodes || []).map(n => {
-          if (String(n.id || '') !== selectedNodeId) return n
-          return args.target === 'nodeProps' ? { ...n, properties: record as never } : { ...n, metadata: record as never }
-        })
-        apply({ ...draftGraphData, nodes })
+        updateNode(selectedNodeId, args.target === 'nodeProps' ? { properties: record as never } : { metadata: record as never })
         return
       }
 
@@ -2197,14 +2226,10 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           setJsonError('Edge value must be a JSON object.')
           return
         }
-        const edges = (draftGraphData.edges || []).map(e => {
-          if (String(e.id || '') !== selectedEdgeId) return e
-          return args.target === 'edgeProps' ? { ...e, properties: record as never } : { ...e, metadata: record as never }
-        })
-        apply({ ...draftGraphData, edges })
+        updateEdge(selectedEdgeId, args.target === 'edgeProps' ? { properties: record as never } : { metadata: record as never })
       }
     },
-    [draftGraphData, edgeMetaJson, edgePropsJson, nodeMetaJson, nodePropsJson, selectedEdgeId, selectedNodeId, setGraphDataPreservingLayout, workflowContextJson, workflowMetaJson],
+    [draftGraphData, edgeMetaJson, edgePropsJson, nodeMetaJson, nodePropsJson, selectedEdgeId, selectedNodeId, setGraphDataPreservingLayout, updateEdge, updateNode, workflowContextJson, workflowMetaJson],
   )
 
   const runWorkflowNode = React.useCallback(
@@ -2265,6 +2290,112 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     }
   }, [draftGraphData, upsertUiToast])
 
+  const subgraphs = React.useMemo(() => readSubgraphs(baseGraphData), [baseGraphData])
+
+  const createSubgraphFromSelection = React.useCallback(
+    (args: { label?: string; kind?: 'subgraph' | 'cluster' }) => {
+      const nodeIds = (selectedNodeIds || []).map(v => String(v || '').trim()).filter(Boolean)
+      const res = createUserSubgraph({
+        label: args?.label,
+        kind: args?.kind,
+        memberNodeIds: nodeIds,
+      })
+      if (res.ok === false) {
+        upsertUiToast({ id: 'flow-editor-subgraph-create-failed', kind: 'warning', message: res.message, ttlMs: 2500 })
+        return
+      }
+      const gid = subgraphGroupId(res.id)
+      if (gid) {
+        setSelectionSource('canvas')
+        selectNode(null)
+        selectEdge(null)
+        selectGroup(gid)
+        setInspectorTab('groups')
+      }
+    },
+    [createUserSubgraph, selectEdge, selectGroup, selectNode, selectedNodeIds, setSelectionSource, upsertUiToast],
+  )
+
+  const setSubgraphKind = React.useCallback(
+    (id: string, kind: 'subgraph' | 'cluster') => {
+      const res = updateUserSubgraph(id, { kind })
+      if (res.ok === false) {
+        upsertUiToast({ id: `flow-editor-subgraph-kind-failed-${String(id || '')}`, kind: 'warning', message: res.message, ttlMs: 2500 })
+      }
+    },
+    [updateUserSubgraph, upsertUiToast],
+  )
+
+  const renameSubgraph = React.useCallback(
+    (id: string, label: string) => {
+      const res = updateUserSubgraph(id, { label })
+      if (res.ok === false) {
+        upsertUiToast({ id: `flow-editor-subgraph-rename-failed-${String(id || '')}`, kind: 'warning', message: res.message, ttlMs: 2500 })
+      }
+    },
+    [updateUserSubgraph, upsertUiToast],
+  )
+
+  const setSubgraphParent = React.useCallback(
+    (id: string, parentId: string | null) => {
+      const res = updateUserSubgraph(id, { parentId })
+      if (res.ok === false) {
+        upsertUiToast({ id: `flow-editor-subgraph-parent-failed-${String(id || '')}`, kind: 'warning', message: res.message, ttlMs: 2500 })
+      }
+    },
+    [updateUserSubgraph, upsertUiToast],
+  )
+
+  const deleteSubgraph = React.useCallback(
+    (id: string) => {
+      removeUserSubgraph(id)
+    },
+    [removeUserSubgraph],
+  )
+
+  const addSelectionToSubgraph = React.useCallback(
+    (id: string) => {
+      const nodeIds = (selectedNodeIds || []).map(v => String(v || '').trim()).filter(Boolean)
+      const res = addNodesToUserSubgraph(id, nodeIds)
+      if (res.ok === false) {
+        upsertUiToast({ id: `flow-editor-subgraph-add-failed-${String(id || '')}`, kind: 'warning', message: res.message, ttlMs: 2500 })
+      }
+    },
+    [addNodesToUserSubgraph, selectedNodeIds, upsertUiToast],
+  )
+
+  const removeSelectionFromSubgraph = React.useCallback(
+    (id: string) => {
+      const nodeIds = (selectedNodeIds || []).map(v => String(v || '').trim()).filter(Boolean)
+      const res = removeNodesFromUserSubgraph(id, nodeIds)
+      if (res.ok === false) {
+        upsertUiToast({ id: `flow-editor-subgraph-remove-failed-${String(id || '')}`, kind: 'warning', message: res.message, ttlMs: 2500 })
+      }
+    },
+    [removeNodesFromUserSubgraph, selectedNodeIds, upsertUiToast],
+  )
+
+  const toggleSubgraphCollapsed = React.useCallback(
+    (id: string) => {
+      const gid = subgraphGroupId(id)
+      if (!gid) return
+      toggleGroupCollapsed(gid)
+    },
+    [toggleGroupCollapsed],
+  )
+
+  const selectSubgraph = React.useCallback(
+    (id: string) => {
+      const gid = subgraphGroupId(id)
+      if (!gid) return
+      setSelectionSource('canvas')
+      selectNode(null)
+      selectEdge(null)
+      selectGroup(gid)
+    },
+    [selectEdge, selectGroup, selectNode, setSelectionSource],
+  )
+
   const inspectorElement = (
     <FlowEditorInspector
       active={active}
@@ -2272,6 +2403,18 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       setTab={setInspectorTab}
       selectedNode={selectedDraftNode}
       selectedEdge={selectedDraftEdge}
+      subgraphs={subgraphs}
+      selectedNodeIds={selectedNodeIds}
+      collapsedGroupIds={collapsedGroupIds}
+      onCreateSubgraphFromSelection={createSubgraphFromSelection}
+      onSetSubgraphKind={setSubgraphKind}
+      onRenameSubgraph={renameSubgraph}
+      onDeleteSubgraph={deleteSubgraph}
+      onSetSubgraphParent={setSubgraphParent}
+      onAddSelectionToSubgraph={addSelectionToSubgraph}
+      onRemoveSelectionFromSubgraph={removeSelectionFromSubgraph}
+      onToggleSubgraphCollapsed={toggleSubgraphCollapsed}
+      onSelectSubgraph={selectSubgraph}
       workflowNodes={draftGraphData?.nodes || []}
       workflowSelectedNodeId={selectedNodeId}
       onWorkflowSelectNode={id => {

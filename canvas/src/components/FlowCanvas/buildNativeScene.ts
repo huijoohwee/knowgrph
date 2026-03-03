@@ -265,17 +265,25 @@ export function buildAndSetFlowNativeScene(args: {
       ''
     const label = computedLabel.trim()
 
+    const edgeSocketType = (() => {
+      const t = typeof (e as unknown as { type?: unknown }).type === 'string' ? String((e as unknown as { type?: string }).type || '').trim() : ''
+      if (t) return t
+      const props = e.properties
+      const fromProps =
+        props && typeof props === 'object' && !Array.isArray(props) && typeof (props as Record<string, unknown>)['flow:socketType'] === 'string'
+          ? String((props as Record<string, unknown>)['flow:socketType'] || '').trim()
+          : ''
+      return fromProps
+    })()
     const edgeColor = (() => {
       if (socketStyleByType.size === 0) return ''
-      const t = typeof (e as unknown as { type?: unknown }).type === 'string' ? String((e as unknown as { type?: string }).type || '').trim() : ''
-      if (!t) return ''
-      return socketStyleByType.get(t)?.color || ''
+      if (!edgeSocketType) return ''
+      return socketStyleByType.get(edgeSocketType)?.color || ''
     })()
     const edgeWidthPx = (() => {
       if (socketStyleByType.size === 0) return null
-      const t = typeof (e as unknown as { type?: unknown }).type === 'string' ? String((e as unknown as { type?: string }).type || '').trim() : ''
-      if (!t) return null
-      const w = socketStyleByType.get(t)?.edgeWidthPx
+      if (!edgeSocketType) return null
+      const w = socketStyleByType.get(edgeSocketType)?.edgeWidthPx
       return typeof w === 'number' && Number.isFinite(w) ? w : null
     })()
 

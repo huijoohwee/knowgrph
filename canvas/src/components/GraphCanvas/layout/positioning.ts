@@ -186,7 +186,7 @@ export const buildLayoutPositionCacheKey = (args: {
   const rv = typeof args.renderVariant === 'string' ? args.renderVariant.trim() : ''
   const lv = typeof args.layoutVariant === 'string' ? args.layoutVariant.trim() : ''
   if (vk) parts.push(`v=${hashStringToHex(vk)}`)
-  if (args.renderMode === '3d' && rv) parts.push(rv)
+  if (rv) parts.push(rv)
   if (lv) parts.push(lv)
   return parts.join(':')
 }

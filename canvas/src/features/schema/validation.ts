@@ -1,6 +1,7 @@
 import { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types'
 import { GraphSchema, defaultSchema } from '@/lib/graph/schema'
 import { parseSchemaFieldPortKey, readFlowEdgePortKey, readSchemaFieldSpecs } from '@/lib/graph/flowPorts'
+import { resolveFlowSocketTypesForEdge } from '@/lib/graph/flowSocketTypes'
 
 export type SchemaLintWarning = {
   path: string
@@ -127,11 +128,26 @@ const validateSchemaPortKeysIfPresent = (edge: GraphEdge, srcNode: GraphNode, tg
   return true
 }
 
+const validateTypedPortKeysIfPresent = (data: GraphData, edge: GraphEdge, srcNode: GraphNode, tgtNode: GraphNode): boolean => {
+  const sourcePortKey = readFlowEdgePortKey(edge, 'source')
+  const targetPortKey = readFlowEdgePortKey(edge, 'target')
+  const res = resolveFlowSocketTypesForEdge({
+    graphData: data,
+    sourceNode: srcNode,
+    targetNode: tgtNode,
+    sourcePortKey,
+    targetPortKey,
+  })
+  if (!res.outType || !res.inType) return true
+  return res.ok
+}
+
 export const canAddEdge = (schema: GraphSchema, data: GraphData, edge: GraphEdge) => {
   const srcNode = data.nodes.find(n => n.id === String(edge.source))
   const tgtNode = data.nodes.find(n => n.id === String(edge.target))
   if (!srcNode || !tgtNode) return false
   if (!validateSchemaPortKeysIfPresent(edge, srcNode, tgtNode)) return false
+  if (!validateTypedPortKeysIfPresent(data, edge, srcNode, tgtNode)) return false
   const em = schema.endpointMatrix?.[edge.label] || undefined
   if (em) {
     if (em.sources.length > 0 && !em.sources.includes(srcNode.type)) return false

@@ -130,7 +130,7 @@ export function MarkdownWorkspace() {
   const setGraphData = useGraphStore(s => s.setGraphData)
 
   const graphData = useGraphStore(s => s.graphData) as GraphData | null
-  const nodeQuickEditorRegistry = useGraphStore(s => s.nodeQuickEditorRegistry || [])
+  const nodeQuickEditorRegistry = useGraphStore(s => s.effectiveNodeQuickEditorRegistry || [])
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)

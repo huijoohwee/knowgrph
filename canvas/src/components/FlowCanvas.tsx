@@ -251,7 +251,7 @@ export default function FlowCanvas({
       zoomToSelectionMode: s.zoomToSelectionMode === true,
       setZoomState: s.setZoomState,
       setZoomStateForKey: s.setZoomStateForKey,
-      nodeQuickEditorRegistry: s.nodeQuickEditorRegistry || [],
+      nodeQuickEditorRegistry: s.effectiveNodeQuickEditorRegistry || [],
       openQuickEditorNodeIds: s.openQuickEditorNodeIds || [],
       flowNodeQuickEditorPinnedByNodeId: s.flowNodeQuickEditorPinnedByNodeId || {},
       flowNodeQuickEditorWorldPosByNodeId: (s as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowNodeQuickEditorWorldPosByNodeId || {},

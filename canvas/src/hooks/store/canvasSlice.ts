@@ -407,12 +407,9 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       }
       const prevZoomKey = buildActive2dZoomViewKey({ ...common, canvas2dRenderer: state.canvas2dRenderer })
       const nextZoomKey = buildActive2dZoomViewKey({ ...common, canvas2dRenderer: next })
-      const prevZoom = prevZoomKey ? state.zoomStateByKey?.[prevZoomKey] ?? null : null
-      const nextZoomExists = nextZoomKey ? Boolean(state.zoomStateByKey?.[nextZoomKey]) : false
-      const zoomStateByKey =
-        prevZoom && nextZoomKey && !nextZoomExists
-          ? { ...(state.zoomStateByKey || {}), [nextZoomKey]: prevZoom }
-          : state.zoomStateByKey
+      void prevZoomKey
+      void nextZoomKey
+      const zoomStateByKey = state.zoomStateByKey
 
       const pointerBy = state.canvasPointerMode2dByRenderer || {}
       const nextPointerBy = { ...pointerBy, [state.canvas2dRenderer]: state.canvasPointerMode2d }

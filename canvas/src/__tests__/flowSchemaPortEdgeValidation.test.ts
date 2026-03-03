@@ -88,3 +88,75 @@ export const testFlowSchemaPortsBuildDisplayLabel = () => {
   })
   if (label !== 'warehouse_id → id') throw new Error(`expected display label "warehouse_id → id", got ${String(label)}`)
 }
+
+export const testFlowTypedPortsInfluenceEdgeValidation = () => {
+  const schema = {
+    ...defaultSchema,
+    endpointMatrix: {
+      ...(defaultSchema.endpointMatrix || {}),
+      linksTo: { sources: ['Node'], targets: ['Node'] },
+    },
+  }
+
+  const data: GraphData = {
+    type: 'graph',
+    nodes: [
+      {
+        id: 'a',
+        type: 'Node',
+        label: 'A',
+        properties: {
+          'flow:portTypes': { out: { out_1: 'VIDEO_CLIP' }, in: {} },
+        },
+      },
+      {
+        id: 'b',
+        type: 'Node',
+        label: 'B',
+        properties: {
+          'flow:portTypes': { in: { in_1: 'VIDEO_SEQUENCE', in_2: 'VIDEO_CLIP' }, out: {} },
+        },
+      },
+      {
+        id: 'c',
+        type: 'Node',
+        label: 'C',
+        properties: {
+          'flow:portTypes': { in: { in_1: 'AUDIO_CLIP' }, out: {} },
+        },
+      },
+    ],
+    edges: [],
+    metadata: {
+      socketTypes: {
+        VIDEO_CLIP: { accepts: ['VIDEO_CLIP'] },
+        VIDEO_SEQUENCE: { accepts: ['VIDEO_SEQUENCE', 'VIDEO_CLIP'] },
+        AUDIO_CLIP: { accepts: ['AUDIO_CLIP'] },
+      },
+    },
+  }
+
+  const okEdge: GraphEdge = {
+    id: 'e1',
+    source: 'a',
+    target: 'b',
+    label: 'linksTo',
+    properties: { 'flow:sourcePortKey': 'out_1', 'flow:targetPortKey': 'in_2' },
+  }
+  if (!canAddEdge(schema, data, okEdge)) throw new Error('expected VIDEO_CLIP→VIDEO_CLIP edge to be allowed')
+
+  const promoted: GraphEdge = {
+    ...okEdge,
+    id: 'e2',
+    properties: { 'flow:sourcePortKey': 'out_1', 'flow:targetPortKey': 'in_1' },
+  }
+  if (!canAddEdge(schema, data, promoted)) throw new Error('expected VIDEO_CLIP→VIDEO_SEQUENCE edge to be allowed via accepts')
+
+  const badEdge: GraphEdge = {
+    ...okEdge,
+    id: 'e3',
+    target: 'c',
+    properties: { 'flow:sourcePortKey': 'out_1', 'flow:targetPortKey': 'in_1' },
+  }
+  if (canAddEdge(schema, data, badEdge)) throw new Error('expected VIDEO_CLIP→AUDIO_CLIP edge to be denied')
+}
