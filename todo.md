@@ -32,7 +32,7 @@
 
 #### 2026-03-03
 
-- [ ] Unlock business value with Agentic AI; shareable interactive link, SVG, bilingual EN, CN
+- [ ] Unlock business value with Agentic AI; shareable interactive link, SVG, bilingual EN, CN; CN<>SG<>WW; ELI5
 
 
 #### 2026-02-28
