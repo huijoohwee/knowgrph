@@ -80,6 +80,7 @@ import {
   FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
   resolveNodeQuickEditorRegistryEntry,
 } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import { buildNodeQuickEditorBundleV1, nodeQuickEditorBundleToJsonText } from '@/lib/graph/io/nodeQuickEditorBundle'
 import { WorkspaceModeSelect } from './WorkspaceModeSelect'
 
@@ -115,6 +116,8 @@ function inferYoutubeVideoIdFromPath(path: string): string | null {
   return m ? m[1] : null
 }
 
+const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
+
 export function MarkdownWorkspace() {
   const themeMode = useGraphStore(s => (s.resolvedThemeMode || 'light') as 'light' | 'dark')
   const bottomPanelCollapsed = useGraphStore(s => s.bottomPanelCollapsed)
@@ -130,7 +133,7 @@ export function MarkdownWorkspace() {
   const setGraphData = useGraphStore(s => s.setGraphData)
 
   const graphData = useGraphStore(s => s.graphData) as GraphData | null
-  const nodeQuickEditorRegistry = useGraphStore(s => s.effectiveNodeQuickEditorRegistry || [])
+  const nodeQuickEditorRegistry = useGraphStore(s => s.effectiveNodeQuickEditorRegistry ?? EMPTY_NODE_QUICK_EDITOR_REGISTRY)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)

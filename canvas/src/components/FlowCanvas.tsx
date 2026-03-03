@@ -46,10 +46,13 @@ import { readFlowPresentation } from '@/components/FlowCanvas/presentation'
 import { useFlowRequestCommit } from '@/components/FlowCanvas/useFlowRequestCommit'
 import { computeCollisionDuringDrag } from '@/components/FlowCanvas/collisionPolicy'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
-import { computeNodeQuickEditorScale, NODE_QUICK_EDITOR_BASE_SIZE } from '@/components/FlowEditor/nodeQuickEditorZoom'
+import { computeNodeQuickEditorScale, computeNodeQuickEditorScaledSize, NODE_QUICK_EDITOR_BASE_SIZE } from '@/components/FlowEditor/nodeQuickEditorZoom'
 import { computeNodeQuickEditorMaxAnchorShiftPx } from '@/components/FlowEditor/nodeQuickEditorLayout'
 import { DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import type { GraphSchema } from '@/lib/graph/schema'
+import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+
+const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
 
 function clampFinite(v: number, lo: number, hi: number): number {
   if (!Number.isFinite(v)) return lo
@@ -251,7 +254,7 @@ export default function FlowCanvas({
       zoomToSelectionMode: s.zoomToSelectionMode === true,
       setZoomState: s.setZoomState,
       setZoomStateForKey: s.setZoomStateForKey,
-      nodeQuickEditorRegistry: s.effectiveNodeQuickEditorRegistry || [],
+      nodeQuickEditorRegistry: s.effectiveNodeQuickEditorRegistry ?? EMPTY_NODE_QUICK_EDITOR_REGISTRY,
       openQuickEditorNodeIds: s.openQuickEditorNodeIds || [],
       flowNodeQuickEditorPinnedByNodeId: s.flowNodeQuickEditorPinnedByNodeId || {},
       flowNodeQuickEditorWorldPosByNodeId: (s as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowNodeQuickEditorWorldPosByNodeId || {},
@@ -474,9 +477,79 @@ export default function FlowCanvas({
     lastAppliedPositionsRef.current = null
   }, [active, cacheKey])
 
+  const seededFallbackPositions = React.useMemo(() => {
+    if (computedPositions) return null
+    const g = sceneGraphData
+    const nodes = Array.isArray(g?.nodes) ? (g!.nodes as GraphNode[]) : ([] as GraphNode[])
+    if (nodes.length < 2) return null
+
+    const isFiniteNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+    let finiteCount = 0
+    let minX = Infinity
+    let maxX = -Infinity
+    let minY = Infinity
+    let maxY = -Infinity
+    const seen = new Set<string>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const id = String(nodes[i]?.id || '').trim()
+      if (!id || seen.has(id)) continue
+      seen.add(id)
+      const x = (nodes[i] as unknown as { x?: unknown }).x
+      const y = (nodes[i] as unknown as { y?: unknown }).y
+      if (!isFiniteNum(x) || !isFiniteNum(y)) continue
+      finiteCount += 1
+      if (x < minX) minX = x
+      if (x > maxX) maxX = x
+      if (y < minY) minY = y
+      if (y > maxY) maxY = y
+    }
+
+    const spanX = maxX === -Infinity ? 0 : maxX - minX
+    const spanY = maxY === -Infinity ? 0 : maxY - minY
+    const looksCollapsed = finiteCount >= 2 && spanX < 1 && spanY < 1
+    const shouldSeedAll = finiteCount < 2 || looksCollapsed
+
+    const ids = nodes
+      .map(n => String((n as unknown as { id?: unknown })?.id || '').trim())
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b))
+    if (ids.length < 2) return null
+
+    const gap = 48
+    const cellW = Math.max(120, Math.floor(flowConfigEffective.node.widthPx + gap))
+    const cellH = Math.max(120, Math.floor(flowConfigEffective.node.heightPx + gap))
+    const aspect = viewportW / Math.max(1, viewportH)
+    const idealCols = Math.ceil(Math.sqrt(Math.max(1, ids.length) * Math.max(0.45, aspect)))
+    const maxCols = Math.max(1, Math.floor(Math.max(1, viewportW - 80) / Math.max(1, cellW)))
+    const cols = Math.max(1, Math.min(maxCols, idealCols))
+    const rows = Math.max(1, Math.ceil(ids.length / cols))
+    const gridW = (cols - 1) * cellW
+    const gridH = (rows - 1) * cellH
+
+    const cx = viewportW / 2
+    const cy = viewportH / 2
+    const startX = cx - gridW / 2
+    const startY = cy - gridH / 2
+
+    const next: Record<string, { x: number; y: number }> = {}
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = ids[i]!
+      if (!shouldSeedAll) {
+        const n = nodes.find(nn => String((nn as unknown as { id?: unknown })?.id || '').trim() === id) || null
+        const x0 = n ? (n as unknown as { x?: unknown }).x : null
+        const y0 = n ? (n as unknown as { y?: unknown }).y : null
+        if (isFiniteNum(x0) && isFiniteNum(y0)) continue
+      }
+      const col = i % cols
+      const row = Math.floor(i / cols)
+      next[id] = { x: startX + col * cellW, y: startY + row * cellH }
+    }
+    return Object.keys(next).length > 0 ? next : null
+  }, [computedPositions, flowConfigEffective.node.heightPx, flowConfigEffective.node.widthPx, sceneGraphData, viewportH, viewportW])
+
   const graphDataForZoom = React.useMemo(() => {
     if (!sceneGraphData) return null
-    const pos = computedPositions
+    const pos = computedPositions || seededFallbackPositions
     if (!pos) return sceneGraphData
     const nodes = Array.isArray(sceneGraphData.nodes) ? sceneGraphData.nodes : []
     const nextNodes = nodes.map(n => {
@@ -486,14 +559,14 @@ export default function FlowCanvas({
       return { ...n, x: p.x, y: p.y }
     })
     return { ...sceneGraphData, nodes: nextNodes }
-  }, [computedPositions, sceneGraphData])
+  }, [computedPositions, sceneGraphData, seededFallbackPositions])
 
   const nodesForFlowTransformGuard = React.useMemo(() => {
     const isFlowEditor = canvas2dRenderer === 'flowEditor'
     const base = (Array.isArray(graphDataForZoom?.nodes) ? graphDataForZoom!.nodes : []) as GraphNode[]
     if (!isFlowEditor) return base
-    const pos = computedPositions
-    if (!pos) return []
+    const pos = computedPositions || seededFallbackPositions
+    if (!pos) return base
     const out: GraphNode[] = []
     for (let i = 0; i < base.length; i += 1) {
       const n = base[i]
@@ -504,7 +577,7 @@ export default function FlowCanvas({
       out.push({ ...n, x: p.x, y: p.y })
     }
     return out
-  }, [canvas2dRenderer, computedPositions, graphDataForZoom])
+  }, [canvas2dRenderer, computedPositions, graphDataForZoom, seededFallbackPositions])
 
   const nodesForFlowZoom = React.useMemo(() => {
     const isFlowEditor = canvas2dRenderer === 'flowEditor'
@@ -876,7 +949,6 @@ export default function FlowCanvas({
     const runtime = runtimeRef.current
     if (!runtime) return
     if (!graphDataForZoom) return
-    if (!computedPositions) return
 
     const isFlowEditor = canvas2dRenderer === 'flowEditor'
     const effectiveFitToScreenMode = fitToScreenMode
@@ -975,8 +1047,55 @@ export default function FlowCanvas({
         ? { k: t0.k, x: t0.x, y: t0.y }
         : null
     const seeded = initial || fallbackInitial
+    const centered = (() => {
+      if (effectiveFitToScreenMode || effectiveZoomToSelectionMode) return null
+      if (!nodesForFit || nodesForFit.length === 0) return null
+      const zoomK = 1
+      const targetSx = fitW / 2
+      const targetSy = viewportH / 2
+
+      let sumX = 0
+      let sumY = 0
+      let count = 0
+      for (let i = 0; i < nodesForFit.length; i += 1) {
+        const n = nodesForFit[i] as unknown as { x?: unknown; y?: unknown }
+        const x = typeof n?.x === 'number' && Number.isFinite(n.x) ? (n.x as number) : null
+        const y = typeof n?.y === 'number' && Number.isFinite(n.y) ? (n.y as number) : null
+        if (x == null || y == null) continue
+        sumX += x
+        sumY += y
+        count += 1
+      }
+
+      if (isFlowEditor) {
+        const openIds = openQuickEditorNodeIds || []
+        const pinnedById = flowNodeQuickEditorPinnedByNodeId || {}
+        const worldById = flowNodeQuickEditorWorldPosByNodeId || {}
+        const panelScale = computeNodeQuickEditorScale(zoomK, null, { mode: 'pinnedInCanvas' })
+        const panelScreen = computeNodeQuickEditorScaledSize(panelScale)
+        const panelWorldW = panelScreen.width / Math.max(0.001, zoomK)
+        const panelWorldH = panelScreen.height / Math.max(0.001, zoomK)
+        for (let i = 0; i < openIds.length; i += 1) {
+          const id = String(openIds[i] || '').trim()
+          if (!id) continue
+          const v = pinnedById[id]
+          const pinned = typeof v === 'boolean' ? v : true
+          if (!pinned) continue
+          const wp = worldById[id]
+          if (!wp || !Number.isFinite(wp.x) || !Number.isFinite(wp.y)) continue
+          sumX += wp.x + panelWorldW / 2
+          sumY += wp.y + panelWorldH / 2
+          count += 1
+        }
+      }
+
+      if (count <= 0) return null
+      const cx = sumX / count
+      const cy = sumY / count
+      return { k: zoomK, x: targetSx - cx * zoomK, y: targetSy - cy * zoomK }
+    })()
     const next = (() => {
-      if (!seeded) return fit
+      if (!seeded) return centered ? d3.zoomIdentity.translate(centered.x, centered.y).scale(centered.k) : fit
       const candidate = d3.zoomIdentity.translate(seeded.x, seeded.y).scale(seeded.k)
       if (isFlowEditor) return candidate
       const ok = isFlowTransformShowingGraph(
@@ -1011,7 +1130,6 @@ export default function FlowCanvas({
     viewPinned,
     zoomToSelectionMode,
     zoomViewKey,
-    computedPositions,
     nodesForFlowTransformGuard,
     nodesForFlowZoom,
     documentSemanticMode,
@@ -1081,7 +1199,7 @@ export default function FlowCanvas({
     const res = buildAndSetFlowNativeScene({
       runtime,
       graphData: sceneGraphData,
-      positions: computedPositions,
+      positions: computedPositions || seededFallbackPositions,
       schema,
       forbidCircleNodes,
       flowConfig: flowConfigEffective,
@@ -1095,6 +1213,7 @@ export default function FlowCanvas({
     active,
     buildDrawArgs,
     computedPositions,
+    seededFallbackPositions,
     flowConfigEffective,
     forbidCircleNodes,
     graphDataRevision,

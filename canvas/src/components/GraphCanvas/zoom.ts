@@ -30,8 +30,6 @@ import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { isNodePointerTarget } from '@/features/canvas/utils'
 import { mergeScaleExtentWithCurrent } from '@/lib/zoom/scaleExtent'
-import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
-import { coerceNodesForFit, fitAllTransform } from '@/components/GraphCanvas/fit'
 
 export const createZoom = (
   svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
@@ -314,38 +312,6 @@ export const createZoom = (
   let wheelZoomToK = 1
   let wheelZoomAnchor: { sx: number; sy: number } = { sx: 0, sy: 0 }
 
-  const snapToFitToView = (args: { schemaNow: GraphSchema; viewportW: number; viewportH: number; currentK: number }): boolean => {
-    const st = useGraphStore.getState()
-    const graphData = st.graphData
-    const baseNodes = Array.isArray(graphData?.nodes) ? (graphData.nodes as GraphNode[]) : []
-    if (baseNodes.length === 0) return false
-    const nodesForFit = coerceNodesForFit({ nodes: baseNodes, coords: 'center', setVisualRect: true })
-    const mode = readLayoutMode(args.schemaNow)
-    const opts = readFitAllOptions({ schema: args.schemaNow, mode, intent: 'fitToView' })
-    const fit = fitAllTransform(nodesForFit, args.viewportW, args.viewportH, { ...opts, graphData })
-    if (!(typeof fit?.k === 'number' && Number.isFinite(fit.k) && fit.k > 0)) return false
-    const kCur = typeof args.currentK === 'number' && Number.isFinite(args.currentK) && args.currentK > 0 ? args.currentK : 1
-    const kFit = fit.k
-    const [curMinK, curMaxK] = zoom.scaleExtent()
-    if (kFit < curMinK - 1e-12) {
-      zoom.scaleExtent([kFit, curMaxK])
-      scaleExtent = { minK: kFit, maxK: curMaxK }
-    }
-    const next = (() => {
-      if (kCur < kFit - 1e-9) {
-        const cx = (args.viewportW / 2 - fit.x) / kFit
-        const cy = (args.viewportH / 2 - fit.y) / kFit
-        return d3.zoomIdentity.translate(args.viewportW / 2 - kCur * cx, args.viewportH / 2 - kCur * cy).scale(kCur)
-      }
-      return fit
-    })()
-    svg.call(
-      zoom.transform as unknown as (sel: d3.Selection<SVGSVGElement, unknown, null, undefined>, t: d3.ZoomTransform) => void,
-      next,
-    )
-    return true
-  }
-
   const cancelWheelZoomAnimation = () => {
     if (wheelZoomAnimRaf == null) return
     try {
@@ -432,17 +398,6 @@ export const createZoom = (
 
     const deltaYpx = computeZoomWheelDeltaYpx(e, zoomSpeed * speed * interactionSpeed, st.wheelZoomCtrlMetaBoostMultiplier)
     const t0 = d3.zoomTransform(svgEl)
-    const intentOut = deltaYpx > 0
-    if (intentOut && t0.k <= extent.minK + 1e-9) {
-      if (snapToFitToView({ schemaNow, viewportW: rect.width, viewportH: rect.height, currentK: t0.k })) {
-        try {
-          e.preventDefault()
-        } catch {
-          void 0
-        }
-        return
-      }
-    }
     const guard = computeZoomWheelGuardDecision({
       currentK: t0.k,
       minK: extent.minK,
@@ -457,16 +412,6 @@ export const createZoom = (
     const factor = computeWheelZoomFactor(deltaYpx * increment)
     const nextK = Math.max(extent.minK, Math.min(extent.maxK, t0.k * factor))
     if (!Number.isFinite(nextK) || Math.abs(nextK - t0.k) < 1e-12) {
-      if (intentOut && t0.k <= extent.minK + 1e-9) {
-        if (snapToFitToView({ schemaNow, viewportW: rect.width, viewportH: rect.height, currentK: t0.k })) {
-          try {
-            e.preventDefault()
-          } catch {
-            void 0
-          }
-          return
-        }
-      }
       return
     }
     const durationMs = computeFlowWheelZoomDurationMs({
@@ -515,11 +460,6 @@ export const createZoom = (
     const nextK = Math.max(extent.minK, Math.min(extent.maxK, g.startK * ratio))
     const t0 = d3.zoomTransform(svgEl)
     if (!Number.isFinite(nextK) || Math.abs(nextK - t0.k) < 1e-12) {
-      const intentOut = ratio < 1
-      const rect = svgEl.getBoundingClientRect()
-      if (intentOut && t0.k <= extent.minK + 1e-9) {
-        if (snapToFitToView({ schemaNow, viewportW: rect.width, viewportH: rect.height, currentK: t0.k })) return
-      }
       return
     }
     const next = computeAnchoredZoomTransform({ transform: t0, anchor: g.anchor, nextK })
@@ -657,19 +597,6 @@ export const createZoom = (
       const curA = readTouchLocal(svgEl, a)
       const curB = readTouchLocal(svgEl, b)
       const curDist = Math.hypot(curA.sx - curB.sx, curA.sy - curB.sy)
-      const pinchWantsZoomOut = curDist < startDist - 1e-6
-      const t0 = d3.zoomTransform(svgEl)
-      if (pinchWantsZoomOut && t0.k <= extent.minK + 1e-9) {
-        const rect = svgEl.getBoundingClientRect()
-        if (snapToFitToView({ schemaNow, viewportW: rect.width, viewportH: rect.height, currentK: t0.k })) {
-          try {
-            e.preventDefault()
-          } catch {
-            void 0
-          }
-          return
-        }
-      }
       const next = computePinchZoomTransform({
         startTransform: drag.startTransform,
         startA: drag.startA,

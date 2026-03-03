@@ -1139,14 +1139,33 @@ export default function DesignCanvas({
         const g0 = localGraphDataRef.current
         const nodes0 = Array.isArray(g0.nodes) ? (g0.nodes as GraphNode[]) : ([] as GraphNode[])
         if (nodes0.length > 0) {
-          const mode = readLayoutMode(snapshot.schema)
-          const intent = store.fitToScreenMode ? 'fitToScreen' : 'initialFit'
-          const opts = readFitAllOptions({ schema: snapshot.schema, mode, intent })
-          const t = fitAllTransform(nodes0, Math.max(1, dims.width), Math.max(1, dims.height), {
-            ...opts,
-            graphData: g0,
-          })
-          svg.call(zoom.transform as never, d3.zoomIdentity.translate(t.x, t.y).scale(t.k))
+          let sumX = 0
+          let sumY = 0
+          let count = 0
+          for (let i = 0; i < nodes0.length; i += 1) {
+            const n = nodes0[i] as unknown as { x?: unknown; y?: unknown; properties?: unknown }
+            const x0 = typeof n?.x === 'number' && Number.isFinite(n.x) ? (n.x as number) : null
+            const y0 = typeof n?.y === 'number' && Number.isFinite(n.y) ? (n.y as number) : null
+            if (x0 == null || y0 == null) continue
+            const props = (n.properties && typeof n.properties === 'object' && !Array.isArray(n.properties))
+              ? (n.properties as Record<string, unknown>)
+              : {}
+            const w = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? (props['visual:width'] as number) : 0
+            const h = typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? (props['visual:height'] as number) : 0
+            sumX += x0 + w / 2
+            sumY += y0 + h / 2
+            count += 1
+          }
+          if (count > 0) {
+            const cx = sumX / count
+            const cy = sumY / count
+            const k = 1
+            const x = dims.width / 2 - cx * k
+            const y = dims.height / 2 - cy * k
+            svg.call(zoom.transform as never, d3.zoomIdentity.translate(x, y).scale(k))
+          } else {
+            svg.call(zoom.transform as never, d3.zoomIdentity)
+          }
         } else {
           svg.call(zoom.transform as never, d3.zoomIdentity)
         }

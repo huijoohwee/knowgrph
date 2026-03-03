@@ -68,6 +68,7 @@ const QUICK_EDITOR_DROP_DEDUPE_WINDOW_MS = 250
 const FORCE_SELECT_TICK_MS = 30
 const FORCE_SELECT_MAX_TICKS = 80
 const DROP_DEBUG_TOAST_TTL_MS = 3500
+const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -147,7 +148,7 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
 
 export default function FlowEditorCanvas({ active = true }: { active?: boolean }) {
   const rootRef = React.useRef<HTMLElement | null>(null)
-  const { width, height } = useContainerDims(rootRef)
+  const { width, height, left: containerLeft, top: containerTop } = useContainerDims(rootRef)
   const viewportW = Math.max(1, Math.floor(width))
   const viewportH = Math.max(1, Math.floor(height))
 
@@ -164,6 +165,15 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (prev.left === left && prev.top === top) return
     setCanvasWindowOffset({ left, top })
   }, [])
+
+  React.useEffect(() => {
+    if (!active) return
+    const left = Number.isFinite(containerLeft) ? containerLeft : 0
+    const top = Number.isFinite(containerTop) ? containerTop : 0
+    const prev = canvasWindowOffsetRef.current
+    if (prev.left === left && prev.top === top) return
+    setCanvasWindowOffset({ left, top })
+  }, [active, containerLeft, containerTop])
 
   React.useEffect(() => {
     if (!active) return
@@ -268,7 +278,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   const selectedNodeIdsRef = useGraphStoreKeyRef('selectedNodeIds')
   const selectedEdgeIdsRef = useGraphStoreKeyRef('selectedEdgeIds')
-  const nodeQuickEditorRegistry = useGraphStore(s => s.effectiveNodeQuickEditorRegistry || [])
+  const nodeQuickEditorRegistry = useGraphStore(s => s.effectiveNodeQuickEditorRegistry ?? EMPTY_NODE_QUICK_EDITOR_REGISTRY)
   const nodeQuickEditorRegistryRef = React.useRef(nodeQuickEditorRegistry)
   const lastQuickEditorDropRef = React.useRef<{ key: string; ts: number } | null>(null)
   const lastDroppedQuickEditorNodeIdRef = React.useRef<string | null>(null)
@@ -306,6 +316,72 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (k == null || x == null || y == null) return null
     return { k, x, y }
   }, [])
+
+  const seededPinnedQuickEditorWorldPosKeyRef = React.useRef<string>('')
+  React.useEffect(() => {
+    if (!active) return
+    const openIds = openQuickEditorNodeIds
+    if (!Array.isArray(openIds) || openIds.length === 0) return
+
+    const st = useGraphStore.getState()
+    const pinnedById = st.flowNodeQuickEditorPinnedByNodeId || {}
+    const worldById =
+      (st as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> })
+        .flowNodeQuickEditorWorldPosByNodeId || {}
+
+    const pendingRaw = openIds
+      .map(id => String(id || '').trim())
+      .filter(Boolean)
+      .filter(id => {
+        const v = pinnedById[id]
+        const pinned = typeof v === 'boolean' ? v : true
+        if (!pinned) return false
+        const w = worldById[id]
+        return !(w && Number.isFinite(w.x) && Number.isFinite(w.y))
+      })
+    if (pendingRaw.length === 0) return
+    const pending = [...pendingRaw].sort((a, b) => a.localeCompare(b))
+
+    const seedKey = `${pending.join(',')}|${baseGraphDataRevision}|${zoomViewKeyRef.current || ''}`
+    if (seededPinnedQuickEditorWorldPosKeyRef.current === seedKey) return
+    seededPinnedQuickEditorWorldPosKeyRef.current = seedKey
+
+    const liveZoom = getLiveZoomTransform()
+    const z =
+      liveZoom ||
+      getEffectiveZoomStateForKey({
+        zoomViewKey: zoomViewKeyRef.current,
+        zoomStateByKey: st.zoomStateByKey,
+        zoomState: st.zoomState,
+      }) ||
+      { k: 1, x: 0, y: 0 }
+    const zoomK = typeof z.k === 'number' && Number.isFinite(z.k) ? z.k : 1
+    const panelScale = computeNodeQuickEditorScale(zoomK, null, { mode: 'pinnedInCanvas' })
+    const panelScreen = computeNodeQuickEditorScaledSize(panelScale)
+
+    const GAP_SCREEN_PX = 24
+    const gapWorld = GAP_SCREEN_PX / Math.max(0.001, zoomK)
+    const cellW = (panelScreen.width + GAP_SCREEN_PX) / Math.max(0.001, zoomK)
+    const cellH = (panelScreen.height + GAP_SCREEN_PX) / Math.max(0.001, zoomK)
+
+    const cols = Math.max(1, Math.ceil(Math.sqrt(pending.length)))
+    const rows = Math.max(1, Math.ceil(pending.length / cols))
+    const gridW = cols * cellW - gapWorld
+    const gridH = rows * cellH - gapWorld
+
+    const center = viewportCenterToWorld({ transform: z, viewportW, viewportH })
+    const startX = center.x - gridW / 2
+    const startY = center.y - gridH / 2
+
+    const nextWorld = { ...worldById }
+    for (let i = 0; i < pending.length; i += 1) {
+      const id = pending[i]!
+      const col = i % cols
+      const row = Math.floor(i / cols)
+      nextWorld[id] = { x: startX + col * cellW, y: startY + row * cellH }
+    }
+    st.setFlowNodeQuickEditorWorldPosByNodeId(nextWorld)
+  }, [active, baseGraphDataRevision, getLiveZoomTransform, openQuickEditorNodeIds, viewportH, viewportW])
 
   const emitFlowEditorInteractionFrame = React.useCallback(() => {
     if (typeof window === 'undefined') return
@@ -455,18 +531,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const zoomK = typeof zoomKRaw === 'number' && Number.isFinite(zoomKRaw) ? zoomKRaw : 1
       const zKey = String(Math.round(zoomK * 1000) / 1000)
       const overlayViewport = (() => {
-        const offset = canvasWindowOffsetRef.current
-        if (typeof window === 'undefined') return { width: viewportW, height: viewportH }
-        const w =
-          (typeof document !== 'undefined' && document.documentElement ? document.documentElement.clientWidth : null) ??
-          window.innerWidth
-        const h =
-          (typeof document !== 'undefined' && document.documentElement ? document.documentElement.clientHeight : null) ??
-          window.innerHeight
-        return {
-          width: Math.max(1, Math.floor((Number.isFinite(w) ? (w as number) : viewportW) - offset.left)),
-          height: Math.max(1, Math.floor((Number.isFinite(h) ? (h as number) : viewportH) - offset.top)),
-        }
+        return { width: viewportW, height: viewportH }
       })()
       const key = `${overlayNodeIds.join(',')}|${zKey}|${overlayViewport.width}x${overlayViewport.height}|${overlayOnlyModeEnabled ? 1 : 0}`
       if (overlayCollisionResolveKeyRef.current === key) return

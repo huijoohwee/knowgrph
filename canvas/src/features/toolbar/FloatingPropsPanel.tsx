@@ -8,6 +8,9 @@ import NodeQuickEditorPalette from '@/features/toolbar/NodeQuickEditorPalette'
 import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelMenuButton'
 import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphSchema } from '@/lib/graph/schema'
+import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+
+const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
 
 export function FloatingPropsPanel() {
   const uiPanelKeyValueTextSizeClass = useGraphStore(
@@ -25,7 +28,7 @@ export function FloatingPropsPanel() {
       || `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`,
   )
 
-  const nodeQuickEditorRegistry = useGraphStore(s => s.effectiveNodeQuickEditorRegistry || [])
+  const nodeQuickEditorRegistry = useGraphStore(s => s.effectiveNodeQuickEditorRegistry ?? EMPTY_NODE_QUICK_EDITOR_REGISTRY)
   const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const quickEditorPaletteEntries = React.useMemo(

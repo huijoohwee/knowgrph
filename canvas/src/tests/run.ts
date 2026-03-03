@@ -47,6 +47,7 @@ import { testFlowEditorWheelPreventsBrowserZoomWhenOverCanvas } from '@/__tests_
 import { testFlowEditorMinimapIsEnabled } from '@/__tests__/flowEditorMinimapEnabledRegression.test'
 import { testFlowEditorFitIncludesPinnedQuickEditors } from '@/__tests__/flowEditorFitPinnedQuickEditorsRegression.test'
 import { testFlowEditorPinnedQuickEditorDragDoesNotProxyNodeDrag } from '@/__tests__/flowEditorPinnedQuickEditorDragPansCanvasRegression.test'
+import { testFlowEditorPinnedQuickEditorsInitCenteredEvenGrid } from '@/__tests__/flowEditorPinnedQuickEditorsSeedCenteredGridRegression.test'
 import { testFlowEditorCommitDoesNotRelaxDraggedLayout } from '@/__tests__/flowEditorCommitDoesNotRelaxDraggedLayoutRegression.test'
 import { testDesignMinimapUsesWebpageLayoutKey } from '@/__tests__/designMinimapUsesWebpageLayoutKeyRegression.test'
 import { testFlowEditorOverlayCollisionDebouncesOnZoom } from '@/__tests__/flowEditorOverlayCollisionDebouncesOnZoomRegression.test'
@@ -395,6 +396,7 @@ import { testFlowWheelZoomUsesSmoothFactorNotDiscreteSteps } from '@/__tests__/f
 import { testD3WheelZoomIsContinuousAndUsesSharedWheelFactor } from '@/__tests__/d3WheelZoomSmoothRegression.test'
 import { testD3WheelZoomScaleExtentDoesNotClampToSchemaOnly } from '@/__tests__/d3ZoomScaleExtentRegression.test'
 import { testD3WheelZoomOverridesDesignPresetToZoom } from '@/__tests__/d3WheelZoomPresetOverrideRegression.test'
+import { testD3ZoomDoesNotSnapToFitToView } from '@/__tests__/d3ZoomDoesNotSnapToFitToViewRegression.test'
 import {
   testEdgeDisplayKeywordArrowRespectsKeywordDirected,
   testEdgeDisplayKeywordLabelCleansUnderscores,
@@ -643,6 +645,8 @@ import {
 import { testFloatingPanelInspectorTypographyUsesUiSettings } from '@/__tests__/floatingPanelInspectorTypography.test'
 import { testFlowNodeQuickEditorTypographyInheritsPanelSettings } from '@/__tests__/flowNodeQuickEditorTypography.test'
 import { testFlowNodeQuickEditorZoomUpdatesDoNotRerenderPanel } from '@/__tests__/flowNodeQuickEditorZoomRerenderGuard.test'
+import { testFlowNodeQuickEditorUnpinnedSnapsToCanvasRightOnViewportChange } from '@/__tests__/flowNodeQuickEditorFloatingDockRight.test'
+import { testFlowEditorUnpinnedQuickEditorDoesNotSnapToPhantomBorderOnLayoutChange } from '@/__tests__/flowEditorQuickEditorUnpinnedDoesNotSnapToPhantomBorderOnLayoutChangeRegression.test'
 import { testFlowNodeQuickEditorRendersPortHandleGutterWhenEnabled } from '@/__tests__/flowNodeQuickEditorPortHandleGutter.test'
 import { testFlowNodeQuickEditorSchemaFieldPortsRenderRowHandles } from '@/__tests__/flowNodeQuickEditorSchemaFieldPorts.test'
 import {
@@ -1085,6 +1089,7 @@ export const runAllTests = async () => {
   await exec('viewport.flowEditor.overlay.defaultsPinned', testFlowEditorQuickEditorDefaultsPinnedInCanvas)
   await exec('viewport.flowEditor.fit.includesPinnedQuickEditors', testFlowEditorFitIncludesPinnedQuickEditors)
   await exec('viewport.flowEditor.overlay.drag.pinnedPansNotNodeDrag', testFlowEditorPinnedQuickEditorDragDoesNotProxyNodeDrag)
+  await exec('viewport.flowEditor.overlay.initCenteredGrid', testFlowEditorPinnedQuickEditorsInitCenteredEvenGrid)
   await exec('viewport.flowEditor.drag.collectiveMode', testFlowEditorSelectModeOverridesSingleToMulti)
   await exec('viewport.flowEditor.drag.doesNotDisableCanvasNodeDrag', testFlowEditorDoesNotDisableCanvasNodeDragWhenEditorsPinned)
   await exec('viewport.flowEditor.groups.panWhenUnselected', testFlowEditorGroupHitPrefersPanWhenUnselected)
@@ -1116,6 +1121,7 @@ export const runAllTests = async () => {
   await exec('zoom.wheel.d3.smooth', testD3WheelZoomIsContinuousAndUsesSharedWheelFactor)
   await exec('zoom.wheel.d3.scaleExtent.ssot', testD3WheelZoomScaleExtentDoesNotClampToSchemaOnly)
   await exec('zoom.wheel.d3.presetOverride.design', testD3WheelZoomOverridesDesignPresetToZoom)
+  await exec('zoom.wheel.d3.noSnapToFit', testD3ZoomDoesNotSnapToFitToView)
   await exec('graphCanvas.edgeDisplay.keywordDirected', testEdgeDisplayKeywordArrowRespectsKeywordDirected)
   await exec('graphCanvas.edgeDisplay.schemaArrow', testEdgeDisplaySchemaArrowOverridesKeyword)
   await exec('graphCanvas.edgeDisplay.keywordLabelClean', testEdgeDisplayKeywordLabelCleansUnderscores)
@@ -1151,6 +1157,8 @@ export const runAllTests = async () => {
   await exec('ui.typography.floatingPanelInspector.usesUiSettings', testFloatingPanelInspectorTypographyUsesUiSettings)
   await exec('ui.typography.flowNodeQuickEditor.usesUiSettings', testFlowNodeQuickEditorTypographyInheritsPanelSettings)
   await exec('ui.flowNodeQuickEditor.zoomUpdates.noRerender', testFlowNodeQuickEditorZoomUpdatesDoNotRerenderPanel)
+  await exec('ui.flowNodeQuickEditor.unpinned.snapRight', testFlowNodeQuickEditorUnpinnedSnapsToCanvasRightOnViewportChange)
+  await exec('ui.flowNodeQuickEditor.unpinned.noPhantomBorderOnLayoutChange', testFlowEditorUnpinnedQuickEditorDoesNotSnapToPhantomBorderOnLayoutChange)
   await exec('ui.pinSemantics.pinnedDisablesDrag', testPinnedDisablesDragAcrossPanels)
   await exec('ui.iconButton.preventsTextSelection', testIconButtonPointerDownPreventsTextSelection)
   await exec('ui.flowNodeQuickEditor.uiContract', testNodeQuickEditorHidesIdentityAndMovesActionsToToolbar)

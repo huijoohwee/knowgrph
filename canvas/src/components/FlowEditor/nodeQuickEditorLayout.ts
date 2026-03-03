@@ -9,15 +9,9 @@ export function computeDefaultNodeQuickEditorFloatingPos(args: {
   const w = Math.max(1, Math.floor(args.viewportW))
   const h = Math.max(1, Math.floor(args.viewportH))
   const gap = 18
-  const cellW = NODE_QUICK_EDITOR_BASE_SIZE.width + gap
   const cellH = Math.round(NODE_QUICK_EDITOR_BASE_SIZE.height * 0.72) + gap
-  const cols = Math.max(1, Math.min(4, Math.floor(Math.max(1, w - 40) / cellW)))
-  const col = idx % cols
-  const row = Math.floor(idx / cols)
-  const gridW = cols * cellW - gap
-  const startLeft = Math.max(20, Math.floor((w - gridW) / 2))
-  const leftRaw = startLeft + col * cellW
-  const topRaw = 96 + row * cellH
+  const leftRaw = w - NODE_QUICK_EDITOR_BASE_SIZE.width - 16
+  const topRaw = 96 + idx * cellH
   const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max)
   return {
     left: clamp(leftRaw, 8, Math.max(8, w - NODE_QUICK_EDITOR_BASE_SIZE.width - 8)),
