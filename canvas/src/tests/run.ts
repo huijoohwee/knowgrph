@@ -24,6 +24,11 @@ import {
   testForceSimulationSeedsClusterAwarePositionsWhenMissing,
 } from '@/__tests__/selectionZoom.test'
 import { testCenterTransformCentersWorldPoint, testEvenDistributeUsesStableOrderingAndMinSpacing } from '@/__tests__/infiniteCanvasArrange.test'
+import {
+  testZoomScaleExtentPolicyDoesNotChangeExtentForFit,
+  testZoomScaleExtentPolicyExpandsMaxForToolbarZoomIn,
+  testZoomScaleExtentPolicyExpandsMinForToolbarZoomOut,
+} from '@/__tests__/zoomScaleExtentPolicy.test'
 import { testGraphCanvasNodeDragDoesNotLeakUserSelectLockWhenSpacePanHeld } from '@/__tests__/graphCanvasDragUserSelectUnlockRegression.test'
 import { testForbidPenpotRepoLiteral } from '@/__tests__/forbidPenpotRepoLiteral.test'
 import { testFlowCanvasSpacePanCanStartFromOverlay } from '@/__tests__/flowCanvasSpacePanOverlayProxyRegression.test'
@@ -1448,6 +1453,9 @@ export const runAllTests = async () => {
     testSelectionZoomEdgeSelectionUsesEndpointsAndNeighbors,
   )
   await exec('graph.selectionZoom.noSelectionSubset', testSelectionZoomNoSelectionReturnsEmptySubset)
+  await exec('zoom.scaleExtentPolicy.toolbarZoomIn.expandsMax', testZoomScaleExtentPolicyExpandsMaxForToolbarZoomIn)
+  await exec('zoom.scaleExtentPolicy.toolbarZoomOut.expandsMin', testZoomScaleExtentPolicyExpandsMinForToolbarZoomOut)
+  await exec('zoom.scaleExtentPolicy.fit.doesNotChangeExtent', testZoomScaleExtentPolicyDoesNotChangeExtentForFit)
   await exec('canvas.centerTransform.centersWorldPoint', testCenterTransformCentersWorldPoint)
   await exec('canvas.evenDistribute.enforcesMinSpacing', testEvenDistributeUsesStableOrderingAndMinSpacing)
   await exec('graph.nodes2d.rendersDiamondAndHex', testNodesLayerRendersDiamondAndHexPaths)

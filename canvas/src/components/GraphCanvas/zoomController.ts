@@ -3,8 +3,9 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import type { ZoomRequest } from '@/lib/zoom/requests'
 import { computeZoomTransformFromRequest } from '@/lib/zoom/actions'
-import { DEFAULT_ZOOM_MAX_SCALE_HARD_CAP, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { DEFAULT_TOOLBAR_ZOOM_CONFIG } from '@/lib/zoom/toolbarZoom'
+import { resolveScaleExtentForZoomRequest } from '@/lib/zoom/scaleExtentPolicy'
 
 export type { ZoomRequest } from '@/lib/zoom/requests'
 
@@ -65,39 +66,23 @@ export const applyZoomRequest = (
   const t0 = node ? d3.zoomTransform(node) : d3.zoomIdentity
   const state = useGraphStore.getState()
   const schema = state.schema
-  const [schemaMinK, schemaMaxK] = schema ? readZoomScaleExtent(schema) : zoom.scaleExtent()
   const [curMinK, curMaxK] = zoom.scaleExtent()
-  let minK = Math.min(curMinK, schemaMinK)
-  let maxK = Math.max(curMaxK, schemaMaxK)
-
-  const toolbarFactorRaw = DEFAULT_TOOLBAR_ZOOM_CONFIG.scaleFactor
-  const toolbarFactor = typeof toolbarFactorRaw === 'number' && Number.isFinite(toolbarFactorRaw) && toolbarFactorRaw > 1
-    ? toolbarFactorRaw
-    : null
-  if (toolbarFactor && (zoomRequest.type === 'in' || zoomRequest.type === 'out')) {
-    const k0 = Number.isFinite(t0.k) ? t0.k : 1
-    if (zoomRequest.type === 'in') {
-      maxK = Math.max(maxK, k0 * toolbarFactor)
-    } else {
-      minK = Math.min(minK, k0 / toolbarFactor)
-    }
+  const schemaExtent = schema
+    ? (() => {
+        const [minK, maxK] = readZoomScaleExtent(schema)
+        return { minK, maxK }
+      })()
+    : { minK: curMinK, maxK: curMaxK }
+  const scaleExtent = resolveScaleExtentForZoomRequest({
+    zoomRequest,
+    schemaExtent,
+    currentExtent: { minK: curMinK, maxK: curMaxK },
+    currentTransform: t0,
+    toolbarZoom: DEFAULT_TOOLBAR_ZOOM_CONFIG,
+  })
+  if (scaleExtent.minK !== curMinK || scaleExtent.maxK !== curMaxK) {
+    zoom.scaleExtent([scaleExtent.minK, scaleExtent.maxK])
   }
-
-  if (!(maxK > minK + 1e-12)) {
-    const k0 = Number.isFinite(t0.k) ? t0.k : 1
-    minK = Math.min(minK, k0, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP)
-    maxK = Math.max(maxK, k0, DEFAULT_ZOOM_MAX_SCALE_HARD_CAP)
-    if (!(maxK > minK + 1e-12)) {
-      maxK = minK * 2
-    }
-  }
-
-  minK = Math.max(DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, minK)
-  maxK = Math.min(DEFAULT_ZOOM_MAX_SCALE_HARD_CAP, maxK)
-  if (minK !== curMinK || maxK !== curMaxK) {
-    zoom.scaleExtent([minK, maxK])
-  }
-  const scaleExtent = { minK, maxK }
   const res = computeZoomTransformFromRequest(zoomRequest, {
     graphData,
     schema,

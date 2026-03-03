@@ -1,13 +1,15 @@
 import * as d3 from 'd3'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { DEFAULT_ZOOM_MAX_SCALE_HARD_CAP, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import type { ZoomRequest } from '@/lib/zoom/requests'
 import { computeZoomTransformFromRequest } from '@/lib/zoom/actions'
 import type { GraphData } from '@/lib/graph/types'
 import { setFlowNativeTransform, type FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import { easeOutCubic01, lerpNumber } from '@/lib/canvas/zoom-smoothing'
 import { getFlowAutoMinScale, setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
+import { DEFAULT_TOOLBAR_ZOOM_CONFIG } from '@/lib/zoom/toolbarZoom'
+import { resolveScaleExtentForZoomRequest } from '@/lib/zoom/scaleExtentPolicy'
 
 const FLOW_ZOOM_REQUEST_ANIMS = new WeakMap<FlowNativeRuntime, { rafId: number | null; token: number }>()
 
@@ -47,13 +49,20 @@ export const applyZoomRequestNative = (args: {
   }
   const state = useGraphStore.getState()
   const schema = state.schema
+  if (!schema) {
+    clear()
+    return
+  }
   const t0 = args.runtime.transform || d3.zoomIdentity
-  const [minK, maxK] = readZoomScaleExtent(schema)
-  const k0 = Number.isFinite(t0.k) ? t0.k : 1
-  const minKSafe = minK
-  const maxKSafe = maxK > minK + 1e-12
-    ? maxK
-    : Math.max(maxK, k0, DEFAULT_ZOOM_MAX_SCALE_HARD_CAP, Math.max(minK, k0, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP) * 2)
+  const [schemaMinK, schemaMaxK] = readZoomScaleExtent(schema)
+  const autoMinK = getFlowAutoMinScale(args.runtime)
+  const scaleExtent = resolveScaleExtentForZoomRequest({
+    zoomRequest: args.zoomRequest,
+    schemaExtent: { minK: schemaMinK, maxK: schemaMaxK },
+    currentExtent: { minK: autoMinK ?? schemaMinK, maxK: schemaMaxK },
+    currentTransform: t0,
+    toolbarZoom: DEFAULT_TOOLBAR_ZOOM_CONFIG,
+  })
   const res = computeZoomTransformFromRequest(args.zoomRequest, {
     graphData: args.graphData,
     schema,
@@ -73,15 +82,16 @@ export const applyZoomRequestNative = (args: {
     selectedEdgeIds: args.selectedEdgeIds,
     selectedGroupIds: args.selectedGroupIds,
     currentTransform: t0,
-    scaleExtent: { minK: minKSafe, maxK: maxKSafe },
+    scaleExtent,
     cacheKeyBase: '2d',
+    toolbarZoom: DEFAULT_TOOLBAR_ZOOM_CONFIG,
   })
   if (!res) {
     clear()
     return
   }
   const nextMinScale = res.nextMinScale
-  if (typeof nextMinScale === 'number' && Number.isFinite(nextMinScale) && nextMinScale < minK) {
+  if (typeof nextMinScale === 'number' && Number.isFinite(nextMinScale) && nextMinScale < schemaMinK) {
     const prev = getFlowAutoMinScale(args.runtime)
     const combined = prev == null ? nextMinScale : Math.min(prev, nextMinScale)
     setFlowAutoMinScale(args.runtime, combined)
