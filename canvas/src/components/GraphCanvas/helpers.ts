@@ -6,6 +6,7 @@ import { getAdjacencyMap } from '@/components/GraphCanvas/adjacency'
 import { coerceMediaUrl, isLikelyImageUrl, isLikelySvgUrl, isLikelyVideoUrl } from '@/lib/url'
 import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
 import { getEdgeBaseStroke as getEdgeBaseStrokeRaw, getNodeBaseFill as getNodeBaseFillRaw } from '@/lib/graph/visualStyles'
+import { buildViewportSvgMarkupFromElement } from '@/lib/graph/svgSnapshot'
 
 export function create2dSvgSnapshotFns(
   svgRef: RefObject<SVGSVGElement | null>,
@@ -17,12 +18,12 @@ export function create2dSvgSnapshotFns(
     try {
       const el = svgRef.current
       if (!el) return null
-      const clone = el.cloneNode(true) as SVGSVGElement
-      clone.removeAttribute('style')
-      const serializer = new XMLSerializer()
-      const markup = serializer.serializeToString(clone)
-      if (!markup || !markup.trim()) return null
-      return markup
+      return buildViewportSvgMarkupFromElement(el, {
+        includeXmlDeclaration: true,
+        inlineComputedStyles: true,
+        removeCssClasses: true,
+        removeDataAttributes: false,
+      })
     } catch {
       return null
     }

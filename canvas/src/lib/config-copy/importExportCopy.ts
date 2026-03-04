@@ -121,14 +121,14 @@ export const IMPORT_EXPORT_STATUS_COPY = {
 } as const;
 
 export const SOURCE_FILES_FORMATS = {
-  import: ['.md', '.markdown', '.mmd', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.htm', '.yaml', '.yml', '.pdf'] as const,
-  importLocalText: ['.md', '.markdown', '.mmd', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.htm', '.yaml', '.yml'] as const,
-  export: ['.md', '.mmd', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.yaml'] as const,
+  import: ['.md', '.markdown', '.mmd', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.htm', '.svg', '.yaml', '.yml', '.pdf'] as const,
+  importLocalText: ['.md', '.markdown', '.mmd', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.htm', '.svg', '.yaml', '.yml'] as const,
+  export: ['.md', '.mmd', '.txt', '.geojson', '.json', '.jsonld', '.csv', '.html', '.svg', '.yaml'] as const,
 } as const
 
 export const SOURCE_FILES_COPY = {
   supports:
-    'Supports import/export: .md .markdown .mmd .txt .geojson .json .jsonld .csv .html .htm .yaml .yml .pdf; URL sources: https://… (including YouTube).',
+    'Supports import/export: .md .markdown .mmd .txt .geojson .json .jsonld .csv .html .htm .svg .yaml .yml .pdf; URL sources: https://… (including YouTube).',
   importUrlPrompt: 'Enter a Source File URL (https://… or YouTube).',
   urlPlaceholder: 'https://… (or YouTube)',
   geoLayerEmbeddedGeojsonNotFound: 'Geo layer enable failed: no embedded GeoJSON FeatureCollection blocks found in the Markdown file',

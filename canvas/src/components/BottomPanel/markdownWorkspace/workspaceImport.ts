@@ -161,27 +161,97 @@ async function importPdfFile(args: { fs: WorkspaceFs; file: File; parentPath: Wo
   return args.fs.createFile({ parentPath: args.parentPath, name: String(imported.name || 'document.md'), text })
 }
 
+type WorkspaceFileDocument = { path: string; text: string }
+
+function buildWorkspaceFileLeafName(args: { documentPath: string; fallbackName: string }): string {
+  const docPathRaw = String(args.documentPath || '').trim()
+  const fallbackNameRaw = String(args.fallbackName || '').trim() || 'document'
+  const leafRaw = (docPathRaw || fallbackNameRaw).replace(/\\/g, '/').split('/').filter(Boolean).pop() || 'document.md'
+  const ext = leafRaw.toLowerCase().split('.').filter(Boolean).pop() || ''
+  const keepExt = ext === 'md' || ext === 'markdown' || ext === 'mmd' || ext === 'mdx'
+  const leaf = keepExt ? leafRaw : `${leafRaw}.md`
+  const safeName = leaf.length > 200 ? leaf.slice(0, 200) : leaf
+  return safeName || 'document.md'
+}
+
+export function buildWorkspaceFileJsonLdV1(args: { path: string; text: string }): Record<string, unknown> {
+  return {
+    '@context': {
+      kg: 'http://example.org/kg#',
+      version: 'kg:version',
+      document: 'kg:document',
+      path: 'kg:path',
+      text: 'kg:text',
+    },
+    '@type': 'kg:WorkspaceFile',
+    version: 1,
+    document: {
+      '@type': 'kg:WorkspaceDocument',
+      path: String(args.path || '').trim(),
+      text: String(args.text || ''),
+    },
+  }
+}
+
+function parseWorkspaceFileDocument(rawText: string): WorkspaceFileDocument | null {
+  const raw = String(rawText || '').trim()
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    const rec = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null
+    if (!rec) return null
+
+    const type = typeof rec['@type'] === 'string' ? String(rec['@type'] || '').trim() : ''
+
+    const version =
+      typeof rec.version === 'number'
+        ? rec.version
+        : typeof rec['kg:version'] === 'number'
+          ? (rec['kg:version'] as number)
+          : NaN
+
+    const docRaw =
+      rec.document && typeof rec.document === 'object' && !Array.isArray(rec.document)
+        ? (rec.document as Record<string, unknown>)
+        : rec['kg:document'] && typeof rec['kg:document'] === 'object' && !Array.isArray(rec['kg:document'])
+          ? (rec['kg:document'] as Record<string, unknown>)
+          : null
+
+    const docText =
+      typeof docRaw?.text === 'string'
+        ? String(docRaw.text || '')
+        : typeof docRaw?.['kg:text'] === 'string'
+          ? String(docRaw['kg:text'] || '')
+          : null
+
+    if (docText == null) return null
+
+    const docPath =
+      typeof docRaw?.path === 'string'
+        ? String(docRaw.path || '').trim()
+        : typeof docRaw?.['kg:path'] === 'string'
+          ? String(docRaw['kg:path'] || '').trim()
+          : ''
+
+    if (type === 'kg:WorkspaceFile' && version === 1) return { path: docPath, text: docText }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
 async function importTextFile(args: { fs: WorkspaceFs; file: File; parentPath: WorkspacePath }): Promise<WorkspacePath> {
   const nameRaw = String(args.file.name || '').trim() || 'file'
   const lower = nameRaw.toLowerCase()
   const rawText = await args.file.text()
-  if (lower.endsWith('.kgw')) {
-    try {
-      const parsed = JSON.parse(rawText) as unknown
-      const rec = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null
-      const kind = typeof rec?.kind === 'string' ? String(rec.kind || '').trim() : ''
-      const version = typeof rec?.version === 'number' ? rec.version : NaN
-      const doc = rec?.document && typeof rec.document === 'object' && !Array.isArray(rec.document) ? (rec.document as Record<string, unknown>) : null
-      const docText = typeof doc?.text === 'string' ? String(doc.text || '') : null
-      if (kind === 'kg:workspaceFile' && version === 1 && docText != null) {
-        const docPathRaw = typeof doc?.path === 'string' ? String(doc.path || '').trim() : ''
-        const leafRaw = (docPathRaw || nameRaw).replace(/\\/g, '/').split('/').filter(Boolean).pop() || 'document.md'
-        const leaf = leafRaw.toLowerCase().endsWith('.md') ? leafRaw : `${leafRaw}.md`
-        const safeName = leaf.length > 200 ? leaf.slice(0, 200) : leaf
-        return args.fs.createFile({ parentPath: args.parentPath, name: safeName, text: docText })
-      }
-    } catch {
-      void 0
+  const looksLikeWorkspaceFile =
+    lower.endsWith('.jsonld') || lower.endsWith('.json-ld')
+  if (looksLikeWorkspaceFile) {
+    const parsed = parseWorkspaceFileDocument(rawText)
+    if (parsed) {
+      const safeName = buildWorkspaceFileLeafName({ documentPath: parsed.path, fallbackName: nameRaw })
+      return args.fs.createFile({ parentPath: args.parentPath, name: safeName, text: parsed.text })
     }
   }
   return args.fs.createFile({ parentPath: args.parentPath, name: nameRaw, text: rawText })
@@ -254,7 +324,6 @@ const WORKSPACE_IMPORT_EXTS = (() => {
   const exts = new Set<string>()
   for (const ext of SOURCE_FILES_FORMATS.import) exts.add(String(ext || '').toLowerCase())
   exts.add('.mdx')
-  exts.add('.kgw')
   return exts
 })()
 
@@ -475,14 +544,24 @@ export async function fetchWorkspaceUrlContent(
     }
   }
 
-  const looksLikeCodeOrData = /\.(json|jsonld|geojson|csv|yaml|yml|txt|js|ts|py|md|markdown|mdx)(\?|#|$)/i.test(normalizedLower)
+  const looksLikeCodeOrData = /\.(json|jsonld|geojson|csv|yaml|yml|txt|js|ts|py|md|markdown|mdx|svg)(\?|#|$)/i.test(normalizedLower)
   const looksLikeLocalHtml = isLocalRepoPath && /\.(html|htm)(\?|#|$)/i.test(normalizedLower)
   if (!looksLikeCodeOrData) {
     const base = deriveFilenameFromUrl(normalizedUrl, 'webpage')
     const baseNoExt = base.replace(/\.[a-z0-9]+$/i, '') || 'webpage'
     const name = `${baseNoExt}.md`
+    const looksLikeSubstackUrl = (() => {
+      try {
+        const u = new URL(normalizedUrl)
+        const p = String(u.pathname || '')
+        if (/^\/p\/[^/]+\/?$/i.test(p)) return true
+        return false
+      } catch {
+        return false
+      }
+    })()
     const mode = opts?.mode === 'refresh' ? 'refresh' : 'import'
-    if (mode === 'import') {
+    if (mode === 'import' && !looksLikeSubstackUrl) {
       return {
         normalizedUrl,
         name,
@@ -509,17 +588,6 @@ export async function fetchWorkspaceUrlContent(
         const raw = store.webpageArtifactFidelityMaxLevel
         const n = Number.isFinite(raw) ? Math.floor(Number(raw)) : 4
         return n <= 1 ? 1 : n >= 4 ? 4 : (n as 1 | 2 | 3)
-      })()
-
-      const looksLikeSubstackUrl = (() => {
-        try {
-          const u = new URL(normalizedUrl)
-          const p = String(u.pathname || '')
-          if (/^\/p\/[^/]+\/?$/i.test(p)) return true
-          return false
-        } catch {
-          return false
-        }
       })()
       const preferProxyHtml = looksLikeSubstackUrl
       if (looksLikeSubstackUrl) {
@@ -765,6 +833,7 @@ export async function fetchWorkspaceUrlContent(
       if (normalizedLower.endsWith('.md') || normalizedLower.endsWith('.markdown') || normalizedLower.endsWith('.mdx')) return '.md'
       if (normalizedLower.endsWith('.json') || normalizedLower.endsWith('.jsonld') || normalizedLower.endsWith('.geojson')) return '.json'
       if (normalizedLower.endsWith('.csv')) return '.csv'
+      if (normalizedLower.endsWith('.svg')) return '.svg'
       if (normalizedLower.endsWith('.yaml') || normalizedLower.endsWith('.yml')) return '.yaml'
       if (normalizedLower.endsWith('.html') || normalizedLower.endsWith('.htm')) return '.html'
       return '.txt'
@@ -785,6 +854,7 @@ export async function fetchWorkspaceUrlContent(
     if (normalizedLower.endsWith('.md') || normalizedLower.endsWith('.markdown') || normalizedLower.endsWith('.mdx')) return '.md'
     if (normalizedLower.endsWith('.json') || normalizedLower.endsWith('.jsonld') || normalizedLower.endsWith('.geojson')) return '.json'
     if (normalizedLower.endsWith('.csv')) return '.csv'
+    if (normalizedLower.endsWith('.svg')) return '.svg'
     if (normalizedLower.endsWith('.yaml') || normalizedLower.endsWith('.yml')) return '.yaml'
     if (normalizedLower.endsWith('.html') || normalizedLower.endsWith('.htm')) return '.html'
     return '.txt'

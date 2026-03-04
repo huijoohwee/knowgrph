@@ -790,5 +790,5 @@ export interface GraphState {
   canvasSnapshotFns: { '2d'?: CanvasSnapshotFns; '3d'?: CanvasSnapshotFns };
   registerCanvasSnapshotFns: (mode: '2d' | '3d', fns: CanvasSnapshotFns | null) => void;
   captureCanvasPngSnapshot: (mode?: '2d' | '3d') => Promise<Blob | null>;
-  captureCanvasSvgSnapshot: () => Promise<string | null>;
+  captureCanvasSvgSnapshot: (mode?: '2d' | '3d') => Promise<string | null>;
 }

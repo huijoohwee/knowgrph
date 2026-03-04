@@ -64,7 +64,7 @@ export type MarkdownWorkspaceToolbarProps = {
   onExportWorkspaceFile?: () => void
   onExportMarkdown?: () => void
   onExportJson?: () => void
-  onExportJsonLd?: () => void
+  onExportSvg?: () => void
   onExportPdf?: () => void
   onToggleFullscreen: () => void
   presentationApiRef: React.MutableRefObject<MarkdownPresentationApi | null>
@@ -98,7 +98,7 @@ export type MarkdownWorkspaceToolbarProps = {
 }
 
 const TOOLBAR_BUTTON_CLASSNAME = `h-7 w-7 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
-const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx', '.kgw'].join(',')
+const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 
 export function MarkdownWorkspaceToolbar({
   explorerOpen,
@@ -119,7 +119,7 @@ export function MarkdownWorkspaceToolbar({
   onExportWorkspaceFile,
   onExportMarkdown,
   onExportJson,
-  onExportJsonLd,
+  onExportSvg,
   onExportPdf,
   onToggleFullscreen,
   presentationApiRef,
@@ -147,7 +147,7 @@ export function MarkdownWorkspaceToolbar({
 
   const saveAsWrapRef = React.useRef<HTMLLIElement | null>(null)
   const [saveAsOpen, setSaveAsOpen] = React.useState(false)
-  const canExport = !!(onSaveAs || onExportWorkspaceFile || onExportMarkdown || onExportJson || onExportJsonLd || onExportPdf)
+  const canExport = !!(onSaveAs || onExportWorkspaceFile || onExportMarkdown || onExportJson || onExportSvg || onExportPdf)
 
   React.useEffect(() => {
     if (!saveAsOpen) return
@@ -868,7 +868,7 @@ export function MarkdownWorkspaceToolbar({
                       onExportWorkspaceFile()
                     }}
                   >
-                    Workspace file (.kgw)
+                    Workspace file (.jsonld)
                   </button>
                 ) : null}
                 {onExportMarkdown ? (
@@ -895,16 +895,16 @@ export function MarkdownWorkspaceToolbar({
                     JSON (.json)
                   </button>
                 ) : null}
-                {onExportJsonLd ? (
+                {onExportSvg ? (
                   <button
                     type="button"
                     className={`w-full text-left px-2 py-1.5 rounded text-sm ${UI_THEME_TOKENS.button.hoverBg}`}
                     onClick={() => {
                       setSaveAsOpen(false)
-                      onExportJsonLd()
+                      onExportSvg()
                     }}
                   >
-                    JSON-LD (.jsonld)
+                    SVG (.svg)
                   </button>
                 ) : null}
                 {onExportPdf ? (

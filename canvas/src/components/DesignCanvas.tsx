@@ -38,6 +38,7 @@ import { relaxAabbLabels, type AabbLabelParticle } from '@/lib/ui/labels/relaxAa
 import { readDesignWireframeSettings } from '@/lib/render/designWireframeSettings'
 import { tryExtractDesignDocumentUrl } from '@/lib/render/designDocumentUrl'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
+import { buildViewportSvgMarkupFromElement } from '@/lib/graph/svgSnapshot'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { applyMediaProxySrc, resolveUrlAgainstBase } from '@/lib/url'
 import { DesignRichMediaPreview } from '@/components/DesignRichMedia'
@@ -109,6 +110,68 @@ export default function DesignCanvas({
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null)
   const labelsSelRef = useRef<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>(null)
   const dims = useContainerDims(containerRef)
+  const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
+
+  useEffect(() => {
+    const captureSvg = async (): Promise<string | null> => {
+      try {
+        const el = svgRef.current
+        if (!el) return null
+        return buildViewportSvgMarkupFromElement(el, {
+          includeXmlDeclaration: true,
+          inlineComputedStyles: true,
+          removeCssClasses: true,
+          removeDataAttributes: false,
+        })
+      } catch {
+        return null
+      }
+    }
+
+    const capturePng = async (pixelRatio?: number): Promise<Blob | null> => {
+      try {
+        const el = svgRef.current
+        if (!el) return null
+        const serializer = new XMLSerializer()
+        const markup = serializer.serializeToString(el)
+        if (!markup || !markup.trim()) return null
+        const blob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' })
+        const url = URL.createObjectURL(blob)
+        try {
+          const img = new Image()
+          const vb = el.viewBox && el.viewBox.baseVal ? el.viewBox.baseVal : null
+          const w = vb && vb.width ? vb.width : el.clientWidth || 800
+          const h = vb && vb.height ? vb.height : el.clientHeight || 600
+          const ratio = pixelRatio && pixelRatio > 0 ? pixelRatio : 1
+          const canvas = document.createElement('canvas')
+          canvas.width = Math.max(1, Math.floor(w * ratio))
+          canvas.height = Math.max(1, Math.floor(h * ratio))
+          const ctx = canvas.getContext('2d')
+          if (!ctx) return null
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve()
+            img.onerror = () => reject(new Error('Image load failed'))
+            img.src = url
+          })
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          const pngBlob = await new Promise<Blob | null>(resolve => {
+            canvas.toBlob(b => resolve(b), 'image/png')
+          })
+          return pngBlob || null
+        } finally {
+          URL.revokeObjectURL(url)
+        }
+      } catch {
+        return null
+      }
+    }
+
+    registerCanvasSnapshotFns('2d', { captureSvg, capturePng })
+    return () => {
+      registerCanvasSnapshotFns('2d', null)
+    }
+  }, [registerCanvasSnapshotFns])
 
   const snapshot = useGraphStore(
     useShallow(s => ({

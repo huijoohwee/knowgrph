@@ -15,7 +15,6 @@ export type UseWorkflowExportActionsParams = {
   graphSchema: GraphSchema | null
   selectedNodeId: string | null
   selectedEdgeId: string | null
-  captureCanvasSvgSnapshot: () => Promise<string | null>
+  captureCanvasSvgSnapshot: (mode?: '2d' | '3d') => Promise<string | null>
   captureCanvasPngSnapshot: () => Promise<Blob | null>
 }
-

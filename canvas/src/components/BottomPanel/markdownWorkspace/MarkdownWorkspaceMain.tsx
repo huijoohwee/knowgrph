@@ -29,8 +29,13 @@ import { MonacoTextEditor, type MonacoTextEditorHandle } from '@/features/monaco
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { saveBlobWithPicker, downloadBlob } from '@/lib/graph/save'
-import { exportGraphAsJSON, saveGraphFile, type DatasetPath } from '@/lib/graph/file'
+import { exportGraphAsJSON, exportSvgSnapshot, type DatasetPath } from '@/lib/graph/file'
+import { captureVisibleCanvasPngBlobFromDom, readCanvasViewportSizeFromDom, wrapPngBlobAsSvgMarkup } from '@/lib/graph/svgSnapshot'
 import { printElementToPdf } from '@/lib/print/printElementToPdf'
+import { buildWorkspaceFileJsonLdV1 } from './workspaceImport'
+import { LS_KEYS } from '@/lib/config'
+import { lsBool } from '@/lib/persistence'
+import { exportGraphAsCenteredSvgMarkup } from '@/lib/graph/graphCenteredSvg'
 
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
@@ -560,8 +565,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   } = props
   const viewerRef = React.useRef<HTMLElement | null>(null)
 
-  const viewerVisible = layoutMode === 'viewer' || layoutMode === 'split'
-
   const frontmatterBlock = React.useMemo(() => extractYamlFrontmatterBlock(activeText), [activeText])
   const webpageMeta = React.useMemo((): WebpageFrontmatterMeta | null => {
     if (!frontmatterBlock) return null
@@ -894,19 +897,15 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const handleExportWorkspaceFile = React.useCallback(async () => {
     try {
       const text = String(typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText)
-      const payload = {
-        kind: 'kg:workspaceFile',
-        version: 1,
-        document: {
-          path: String(activeDocumentKey || '').trim() || `${exportBaseName}.md`,
-          text,
-        },
-      }
-      const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: 'application/json;charset=utf-8' })
-      const name = `${exportBaseName}.kgw`
+      const payload = buildWorkspaceFileJsonLdV1({
+        path: String(activeDocumentKey || '').trim() || `${exportBaseName}.md`,
+        text,
+      })
+      const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: 'application/ld+json;charset=utf-8' })
+      const name = `${exportBaseName}.workspace.jsonld`
       const saved = await saveBlobWithPicker(blob, name, {
         description: 'Workspace Files',
-        accept: { 'application/json': ['.kgw'] },
+        accept: { 'application/ld+json': ['.workspace.jsonld', '.jsonld', '.json-ld'] },
       })
       if (saved === '') return
       if (!saved) downloadBlob(blob, name)
@@ -928,6 +927,99 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     }
   }, [activeText, exportBaseName, viewerTextOverride])
 
+  const handleExportSvg = React.useCallback(async () => {
+    try {
+      const normalizeSvgMarkup = (raw: string, fallback: { w: number; h: number }): string => {
+        const s = String(raw || '').trim()
+        if (!s) return ''
+        try {
+          const parser = new DOMParser()
+          const doc = parser.parseFromString(s, 'image/svg+xml')
+          const root = doc.documentElement
+          if (!root || String(root.nodeName || '').toLowerCase() !== 'svg') {
+            return `<?xml version="1.0" encoding="UTF-8"?>\n${s}\n`
+          }
+          if (!root.getAttribute('xmlns')) root.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+          if (!root.getAttribute('xmlns:xlink')) root.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+          if (!root.getAttribute('width') || !root.getAttribute('height')) {
+            const vb = String(root.getAttribute('viewBox') || '').trim()
+            const parts = vb.split(/[ ,]+/).filter(Boolean)
+            const w = parts.length === 4 ? Number(parts[2]) : NaN
+            const h = parts.length === 4 ? Number(parts[3]) : NaN
+            const width = Number.isFinite(w) && w > 0 ? Math.floor(w) : fallback.w
+            const height = Number.isFinite(h) && h > 0 ? Math.floor(h) : fallback.h
+            root.setAttribute('width', String(width))
+            root.setAttribute('height', String(height))
+            if (!vb || parts.length !== 4) root.setAttribute('viewBox', `0 0 ${width} ${height}`)
+          }
+          const out = new XMLSerializer().serializeToString(root)
+          return `<?xml version="1.0" encoding="UTF-8"?>\n${out}\n`
+        } catch {
+          return `<?xml version="1.0" encoding="UTF-8"?>\n${s}\n`
+        }
+      }
+
+      const suggested = `${exportBaseName}.svg`
+      const fallbackSize = readCanvasViewportSizeFromDom()
+      const store = useGraphStore.getState()
+      const geospatialEnabled = (() => {
+        try {
+          return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+        } catch {
+          return false
+        }
+      })()
+      const workspaceEditorEnabled = store.workspaceViewMode === 'editor'
+      const is3dMode = store.canvasRenderMode === '3d'
+
+      if (geospatialEnabled || workspaceEditorEnabled || is3dMode) {
+        const graphData = store.graphData
+        const schema = store.schema
+        if (graphData && schema) {
+          const centered = exportGraphAsCenteredSvgMarkup({
+            graphData,
+            schema,
+            widthPx: fallbackSize.w,
+            heightPx: fallbackSize.h,
+            paddingPx: 96,
+            includeXmlDeclaration: true,
+            animated: is3dMode || workspaceEditorEnabled,
+          })
+          if (centered && centered.trim()) {
+            await exportSvgSnapshot(centered, suggested)
+            return
+          }
+        }
+      }
+
+      if (!geospatialEnabled) {
+        const svg = await store.captureCanvasSvgSnapshot()
+        const trimmedSvg = normalizeSvgMarkup(svg || '', fallbackSize).trim()
+        if (trimmedSvg) {
+          await exportSvgSnapshot(trimmedSvg, suggested)
+          return
+        }
+      }
+
+      const png =
+        (geospatialEnabled ? null : await store.captureCanvasPngSnapshot()) || (await captureVisibleCanvasPngBlobFromDom())
+
+      if (png) {
+        const wrapped = await wrapPngBlobAsSvgMarkup(png, { includeXmlDeclaration: true, width: fallbackSize.w, height: fallbackSize.h })
+        if (!wrapped || !wrapped.trim()) {
+          pushUiToast({ id: 'export-svg-missing-canvas-wrap', kind: 'warning', message: 'Failed to wrap canvas PNG into SVG.' })
+          return
+        }
+        await exportSvgSnapshot(wrapped, suggested)
+        return
+      }
+
+      pushUiToast({ id: 'export-svg-missing-canvas', kind: 'warning', message: 'No canvas snapshot available.' })
+    } catch {
+      void 0
+    }
+  }, [exportBaseName, pushUiToast])
+
   const handleExportJson = React.useCallback(async () => {
     const data = graphData as unknown
     if (!data) {
@@ -935,15 +1027,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       return
     }
     await exportGraphAsJSON(data as never, `${exportBaseName}.json` as unknown as DatasetPath)
-  }, [exportBaseName, graphData, pushUiToast])
-
-  const handleExportJsonLd = React.useCallback(async () => {
-    const data = graphData as unknown
-    if (!data) {
-      pushUiToast({ id: 'export-jsonld-missing-graph', kind: 'warning', message: 'No graph to export.' })
-      return
-    }
-    await saveGraphFile(data as never, `${exportBaseName}.jsonld` as unknown as DatasetPath)
   }, [exportBaseName, graphData, pushUiToast])
 
   const handleExportPdf = React.useCallback(async () => {
@@ -1056,7 +1139,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         onExportWorkspaceFile={handleExportWorkspaceFile}
         onExportMarkdown={handleExportMarkdown}
         onExportJson={handleExportJson}
-        onExportJsonLd={handleExportJsonLd}
+        onExportSvg={handleExportSvg}
         onExportPdf={handleExportPdf}
         applyStatus={statusLabel}
         applyDisabled={!isEditing}

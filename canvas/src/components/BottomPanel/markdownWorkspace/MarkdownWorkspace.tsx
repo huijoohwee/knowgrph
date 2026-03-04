@@ -69,7 +69,6 @@ import {
 } from './workspaceImport'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
-import { readPdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
 import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
 import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
 import { coerceGeoJsonToFeatureCollection, parseGeoJsonFromText } from 'gympgrph'
@@ -913,7 +912,6 @@ export function MarkdownWorkspace() {
           const n = Number.isFinite(raw) ? Math.floor(Number(raw)) : 4
           return n <= 1 ? 1 : n >= 4 ? 4 : (n as 1 | 2 | 3)
         })()
-        const fidelityMaxLevel = store.webpageArtifactFidelityMaxLevel ?? 4
 
         const [{ exportWebpageDomViaHiddenIframe }, { convertHtmlToMarkdownUnified }] = await Promise.all([
           import('@/lib/websites/webpageDomExport'),

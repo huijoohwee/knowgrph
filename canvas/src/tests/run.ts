@@ -196,6 +196,7 @@ import {
   testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry,
 } from '@/__tests__/markdownFrontmatterFlowGraphImport.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
+import { testGraphCenteredSvgIncludesAnimationWhenEnabled, testGraphCenteredSvgPutsCentroidInViewCenter } from '@/__tests__/graphCenteredSvg.test'
 import { testParseKindCsv } from '@/__tests__/csvKind.test'
 import {
   testCsvRoundTrip,
@@ -484,6 +485,10 @@ import {
 } from '@/__tests__/markdownLoaderInterop.test'
 import {
   testWorkspaceImportLocalFilesCreatesExpectedEntries,
+  testWorkspaceImportLocalFilesSvgPreservesBytes,
+  testWorkspaceImportWorkspaceFileJsonLdConvertsToMarkdown,
+  testWorkspaceImportWorkspaceFileJsonLdPreservesMdxExtension,
+  testWorkspaceImportDoesNotAcceptLegacyKgw,
   testWorkspaceImportLocalFolderCreatesNestedFolders,
   testWorkspaceImportLocalFolderHydratesOnlyOpenedFile,
   testNormalizeWorkspacePathCollapsesExtraSlashes,
@@ -1571,6 +1576,8 @@ export const runAllTests = async () => {
   await exec('markdown.ingest.htmlIframe.producesMediaNodes', testMarkdownHtmlIframeIngestionProducesMediaNodes)
   await exec('markdown.ingest.htmlVideo.producesMediaNodes', testMarkdownHtmlVideoIngestionProducesMediaNodes)
   await exec('export.parseCombinedCsv', testParseCombinedCsv)
+  await exec('export.svg.centered.centroidInCenter', testGraphCenteredSvgPutsCentroidInViewCenter)
+  await exec('export.svg.centered.animated.includesAnimate', testGraphCenteredSvgIncludesAnimationWhenEnabled)
   await exec('csv.kindFormat', testParseKindCsv)
   await exec('csv.roundTrip', testCsvRoundTrip)
   await exec('export.graphMl', testGraphMlExport)
@@ -1721,6 +1728,10 @@ export const runAllTests = async () => {
   await exec('workflowPreset.exportBrandedPaths', testExportFunctionsAcceptBrandedPaths)
   await exec('ui.media.mediaInteractiveDefaults', testMediaInteractiveDefaults)
   await exec('workspace.import.localFiles', testWorkspaceImportLocalFilesCreatesExpectedEntries)
+  await exec('workspace.import.localFiles.svgFidelity', testWorkspaceImportLocalFilesSvgPreservesBytes)
+  await exec('workspace.import.workspaceFileJsonLd', testWorkspaceImportWorkspaceFileJsonLdConvertsToMarkdown)
+  await exec('workspace.import.workspaceFileJsonLdPreservesMdx', testWorkspaceImportWorkspaceFileJsonLdPreservesMdxExtension)
+  await exec('workspace.import.rejectsLegacyKgw', testWorkspaceImportDoesNotAcceptLegacyKgw)
   await exec('workspace.import.localFolder', testWorkspaceImportLocalFolderCreatesNestedFolders)
   await exec('workspace.import.localFolder.lazyHydrate', testWorkspaceImportLocalFolderHydratesOnlyOpenedFile)
   await exec('workspace.path.normalizeCollapsesSlashes', testNormalizeWorkspacePathCollapsesExtraSlashes)

@@ -560,7 +560,6 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     set(state => ({
       canvasSnapshotFns: {
         ...state.canvasSnapshotFns,
-        ...state.canvasSnapshotFns,
         [mode]: fns || undefined,
       },
     })),
@@ -573,12 +572,12 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     }
     return null;
   },
-  captureCanvasSvgSnapshot: async () => {
+  captureCanvasSvgSnapshot: async (mode?: '2d' | '3d') => {
     const state = get();
+    const m = mode || state.canvasRenderMode;
+    if (m !== '2d') return null;
     const fns = state.canvasSnapshotFns?.['2d'];
-    if (fns?.captureSvg) {
-      return fns.captureSvg();
-    }
+    if (fns?.captureSvg) return fns.captureSvg();
     return null;
   },
   }

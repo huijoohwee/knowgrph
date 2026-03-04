@@ -34,6 +34,138 @@ export async function testWorkspaceImportLocalFilesCreatesExpectedEntries() {
   }
 }
 
+export async function testWorkspaceImportLocalFilesSvgPreservesBytes() {
+  const { restore } = initJsdomHarness()
+  try {
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+
+    const svg = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">', '<circle cx="5" cy="5" r="4"/>', '</svg>', ''].join('\n')
+    const files = [createFile('icon.svg', svg)]
+    const res = await importWorkspaceLocalFiles({ fs, files, parentPath: '/' })
+    if (res.createdPaths.length !== 1) throw new Error('expected 1 created path')
+
+    const entries = await fs.listEntries()
+    const svgPath = entries.find(e => e.kind === 'file' && e.name === 'icon.svg')?.path || ''
+    if (!svgPath) throw new Error('expected icon.svg to be created')
+
+    const text = await fs.readFileText(svgPath)
+    if (text !== svg) throw new Error(`expected icon.svg contents to match exactly, got: ${JSON.stringify(text)}`)
+  } finally {
+    restore()
+  }
+}
+
+export async function testWorkspaceImportWorkspaceFileJsonLdConvertsToMarkdown() {
+  const { restore } = initJsdomHarness()
+  try {
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+
+    const payload = {
+      '@context': {
+        kg: 'http://example.org/kg#',
+        version: 'kg:version',
+        document: 'kg:document',
+        path: 'kg:path',
+        text: 'kg:text',
+      },
+      '@type': 'kg:WorkspaceFile',
+      version: 1,
+      document: {
+        '@type': 'kg:WorkspaceDocument',
+        path: 'docs/note.md',
+        text: '# Note\n',
+      },
+    }
+
+    const files = [createFile('note.workspace.jsonld', `${JSON.stringify(payload, null, 2)}\n`)]
+    const res = await importWorkspaceLocalFiles({ fs, files, parentPath: '/' })
+    if (res.createdPaths.length !== 1) throw new Error('expected 1 created path')
+
+    const entries = await fs.listEntries()
+    const notePath = entries.find(e => e.kind === 'file' && e.name === 'note.md')?.path || ''
+    if (!notePath) throw new Error('expected note.md to be created from workspace file')
+
+    const text = await fs.readFileText(notePath)
+    if (text !== '# Note\n') throw new Error(`expected note.md contents to match workspace document text, got: ${JSON.stringify(text)}`)
+  } finally {
+    restore()
+  }
+}
+
+export async function testWorkspaceImportWorkspaceFileJsonLdPreservesMdxExtension() {
+  const { restore } = initJsdomHarness()
+  try {
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+
+    const payload = {
+      '@context': {
+        kg: 'http://example.org/kg#',
+        version: 'kg:version',
+        document: 'kg:document',
+        path: 'kg:path',
+        text: 'kg:text',
+      },
+      '@type': 'kg:WorkspaceFile',
+      version: 1,
+      document: {
+        '@type': 'kg:WorkspaceDocument',
+        path: 'docs/note.mdx',
+        text: '# Note MDX\n',
+      },
+    }
+
+    const files = [createFile('note.workspace.jsonld', `${JSON.stringify(payload, null, 2)}\n`)]
+    const res = await importWorkspaceLocalFiles({ fs, files, parentPath: '/' })
+    if (res.createdPaths.length !== 1) throw new Error('expected 1 created path')
+
+    const entries = await fs.listEntries()
+    const notePath = entries.find(e => e.kind === 'file' && e.name === 'note.mdx')?.path || ''
+    if (!notePath) throw new Error('expected note.mdx to be created from workspace file')
+
+    const text = await fs.readFileText(notePath)
+    if (text !== '# Note MDX\n') throw new Error(`expected note.mdx contents to match, got: ${JSON.stringify(text)}`)
+  } finally {
+    restore()
+  }
+}
+
+export async function testWorkspaceImportDoesNotAcceptLegacyKgw() {
+  const { restore } = initJsdomHarness()
+  try {
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+
+    const supported = createFile('ok.md', '# ok\n')
+    const legacy = createFile(
+      'legacy.kgw',
+      `${JSON.stringify(
+        {
+          kind: 'kg:workspaceFile',
+          version: 1,
+          document: { path: 'legacy.md', text: '# Legacy\n' },
+        },
+        null,
+        2,
+      )}\n`,
+    )
+
+    const res = await importWorkspaceLocalFiles({ fs, files: [supported, legacy], parentPath: '/' })
+    if (res.createdPaths.length !== 1) throw new Error(`expected 1 created path, got ${res.createdPaths.length}`)
+    if (!res.skipped.some(s => s.name === 'legacy.kgw' && s.reason === 'unsupported')) {
+      throw new Error('expected legacy.kgw to be skipped as unsupported')
+    }
+
+    const entries = await fs.listEntries()
+    const hasLegacy = entries.some(e => e.kind === 'file' && e.name === 'legacy.kgw')
+    if (hasLegacy) throw new Error('expected legacy.kgw not to be imported into workspace fs')
+  } finally {
+    restore()
+  }
+}
+
 export async function testWorkspaceImportLocalFolderCreatesNestedFolders() {
   const { restore } = initJsdomHarness()
   try {

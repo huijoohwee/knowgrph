@@ -190,39 +190,49 @@ export const getGraphTableDb = async (): Promise<GraphTableDb> => {
   graphTableDbSingleton = (async () => {
     ensureRxdbPlugins()
     const name = GRAPH_TABLE_DB_NAME
-    try {
-      const db = await createRxDatabase<GraphTableCollections>({
-        name,
-        storage: getRxStorageDexie(),
-        multiInstance: true,
-        eventReduce: true,
-        closeDuplicates: true,
-      })
-      const collections = await db.addCollections({
-        tables: { schema: graphTableSchema },
-        columns: { schema: graphColumnSchema },
-        rows: { schema: graphRowSchema },
-        views: { schema: graphViewSchema },
-        meta: { schema: graphMetaSchema },
-      })
-      return { db, collections }
-    } catch {
-      const db = await createRxDatabase<GraphTableCollections>({
-        name: `${name}:memory`,
-        storage: getRxStorageMemory(),
-        multiInstance: true,
-        eventReduce: true,
-        closeDuplicates: true,
-      })
-      const collections = await db.addCollections({
-        tables: { schema: graphTableSchema },
-        columns: { schema: graphColumnSchema },
-        rows: { schema: graphRowSchema },
-        views: { schema: graphViewSchema },
-        meta: { schema: graphMetaSchema },
-      })
-      return { db, collections }
+    const canUseDexie = (() => {
+      const anyGlobal = globalThis as unknown as { indexedDB?: unknown }
+      const idb = anyGlobal.indexedDB as { open?: unknown } | undefined
+      return !!(idb && typeof idb.open === 'function')
+    })()
+
+    if (canUseDexie) {
+      try {
+        const db = await createRxDatabase<GraphTableCollections>({
+          name,
+          storage: getRxStorageDexie(),
+          multiInstance: true,
+          eventReduce: true,
+          closeDuplicates: true,
+        })
+        const collections = await db.addCollections({
+          tables: { schema: graphTableSchema },
+          columns: { schema: graphColumnSchema },
+          rows: { schema: graphRowSchema },
+          views: { schema: graphViewSchema },
+          meta: { schema: graphMetaSchema },
+        })
+        return { db, collections }
+      } catch {
+        void 0
+      }
     }
+
+    const db = await createRxDatabase<GraphTableCollections>({
+      name: `${name}:memory`,
+      storage: getRxStorageMemory(),
+      multiInstance: true,
+      eventReduce: true,
+      closeDuplicates: true,
+    })
+    const collections = await db.addCollections({
+      tables: { schema: graphTableSchema },
+      columns: { schema: graphColumnSchema },
+      rows: { schema: graphRowSchema },
+      views: { schema: graphViewSchema },
+      meta: { schema: graphMetaSchema },
+    })
+    return { db, collections }
   })()
   return graphTableDbSingleton
 }

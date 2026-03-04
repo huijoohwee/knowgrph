@@ -9,6 +9,7 @@ export function languageForPath(path: WorkspacePath): string {
   if (ext === 'md' || ext === 'markdown' || ext === 'mdx') return 'markdown'
   if (ext === 'json' || ext === 'jsonld' || ext === 'geojson') return 'json'
   if (ext === 'html' || ext === 'htm') return 'html'
+  if (ext === 'svg') return 'html'
   if (ext === 'yaml' || ext === 'yml') return 'yaml'
   if (ext === 'csv') return 'csv'
   return 'plaintext'

@@ -117,9 +117,46 @@ export default function FlowCanvas({
   const zoomWheelGuardRef = React.useRef(createZoomWheelGuardState())
   const userSelectLockPointerIdRef = React.useRef<number | null>(null)
 
+  const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
+
   const { width, height, dpr } = useContainerDims(containerRef)
   const viewportW = Math.max(1, Math.floor(width))
   const viewportH = Math.max(1, Math.floor(height))
+
+  React.useEffect(() => {
+    const capturePng = async (pixelRatio?: number): Promise<Blob | null> => {
+      try {
+        const canvas = canvasRef.current
+        if (!canvas) return null
+        const ratio = pixelRatio && pixelRatio > 0 ? pixelRatio : 1
+        if (ratio === 1 && typeof canvas.toBlob === 'function') {
+          const directBlob = await new Promise<Blob | null>(resolve => {
+            canvas.toBlob(b => resolve(b), 'image/png')
+          })
+          return directBlob || null
+        }
+        const width = Math.max(1, Math.floor(canvas.width * ratio))
+        const height = Math.max(1, Math.floor(canvas.height * ratio))
+        const target = document.createElement('canvas')
+        target.width = width
+        target.height = height
+        const ctx = target.getContext('2d')
+        if (!ctx) return null
+        ctx.clearRect(0, 0, width, height)
+        ctx.drawImage(canvas, 0, 0, width, height)
+        const blob = await new Promise<Blob | null>(resolve => {
+          target.toBlob(b => resolve(b), 'image/png')
+        })
+        return blob || null
+      } catch {
+        return null
+      }
+    }
+    registerCanvasSnapshotFns('2d', { capturePng })
+    return () => {
+      registerCanvasSnapshotFns('2d', null)
+    }
+  }, [registerCanvasSnapshotFns])
 
   const [selectionBox, setSelectionBox] = React.useState<null | { left: number; top: number; width: number; height: number }>(null)
   const selectionBoxRafRef = React.useRef<number | null>(null)
