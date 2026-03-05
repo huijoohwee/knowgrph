@@ -31,6 +31,7 @@ type GeoUploadCacheValue = { ok: true; url: string; name: string } | { ok: false
 
 const detectCache = new LRUCache<string, GeoDetectResult>(500, 10 * 60 * 1000)
 const uploadCache = new LRUCache<string, GeoUploadCacheValue>(120, 30 * 60 * 1000)
+const addUrlOnceCache = new LRUCache<string, { ok: true }>(800, 45 * 60 * 1000)
 
 const basenameFromDocPath = (raw: string): string => {
   const s = String(raw || '').trim().replace(/\\/g, '/')
@@ -87,6 +88,19 @@ const canParseGeoJson = (req: MarkdownGeoDatasetRegistrationRequest): boolean =>
   }
 }
 
+const addDatasetUrlOnce = (args: { url: string; label: string }) => {
+  const rawUrl = String(args.url || '').trim()
+  const rawLabel = String(args.label || '').trim()
+  if (!rawUrl) return
+  const label = rawLabel || 'GeoJSON dataset'
+
+  const cacheKey = rawUrl
+  if (addUrlOnceCache.get(cacheKey)) return
+
+  addGeospatialDatasetUrl({ url: rawUrl, label, format: 'geojson' })
+  addUrlOnceCache.set(cacheKey, { ok: true })
+}
+
 export function createMarkdownGeoDatasetIntegration(args: {
   requestOpenGeoPanel?: () => void
   loadGraphData?: (graphData: GraphData) => void
@@ -120,7 +134,7 @@ export function createMarkdownGeoDatasetIntegration(args: {
       const uploadCacheKey = `${req.codeBlock.lang}:${hashText(trimmed)}:${buildUploadName(req)}`
       const cached = uploadCache.get(uploadCacheKey)
       if (cached && cached.ok) {
-        addGeospatialDatasetUrl({ url: cached.url, label: cached.name, format: 'geojson' })
+        addDatasetUrlOnce({ url: cached.url, label: cached.name })
         return { ok: true }
       }
 
@@ -132,7 +146,7 @@ export function createMarkdownGeoDatasetIntegration(args: {
         return { ok: false, error: err || 'Geo upload failed' }
       }
       uploadCache.set(uploadCacheKey, uploaded)
-      addGeospatialDatasetUrl({ url: uploaded.url, label: uploaded.name, format: 'geojson' })
+      addDatasetUrlOnce({ url: uploaded.url, label: uploaded.name })
       return { ok: true }
     },
     loadGeoJsonAsGraphData: async req => {

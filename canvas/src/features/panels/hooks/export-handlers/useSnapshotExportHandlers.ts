@@ -7,6 +7,7 @@ import { LS_KEYS } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { exportGraphAsCenteredSvgMarkup } from '@/lib/graph/graphCenteredSvg'
+import { exportGraphAsCentered3dSvgMarkup } from '@/lib/graph/graphCenteredSvg3d'
 import type { WorkflowExportStatusDeps } from './useExportUtils'
 
 type UseSnapshotExportHandlersParams = {
@@ -34,9 +35,34 @@ export function useSnapshotExportHandlers({
         })()
         const store = useGraphStore.getState()
         const workspaceEditorEnabled = store.workspaceViewMode === 'editor'
-        const is3dMode = store.canvasRenderMode === '3d'
+        const wants3dExport =
+          store.canvasRenderMode === '3d' ||
+          (store.canvasRenderModeIsAuto === true && store.canvasRenderModeLastFree === '3d')
 
-        if (geospatialEnabled || workspaceEditorEnabled || is3dMode) {
+        if (wants3dExport) {
+          const graphData = store.graphData
+          const schema = store.schema
+          const vp = readCanvasViewportSizeFromDom()
+          if (graphData && schema) {
+            const centered3d = exportGraphAsCentered3dSvgMarkup({
+              graphData,
+              schema,
+              widthPx: vp.w,
+              heightPx: vp.h,
+              paddingPx: 96,
+              includeXmlDeclaration: true,
+              animated: true,
+            })
+            if (centered3d && centered3d.trim()) {
+              await exportSvgSnapshot(centered3d, suggested)
+              markExported()
+              setTransientExportStatus(IMPORT_EXPORT_STATUS_COPY.svgSnapshotExported)
+              return
+            }
+          }
+        }
+
+        if (geospatialEnabled || workspaceEditorEnabled) {
           const graphData = store.graphData
           const schema = store.schema
           const vp = readCanvasViewportSizeFromDom()
@@ -48,7 +74,7 @@ export function useSnapshotExportHandlers({
               heightPx: vp.h,
               paddingPx: 96,
               includeXmlDeclaration: true,
-              animated: is3dMode || workspaceEditorEnabled,
+              animated: workspaceEditorEnabled,
             })
             if (centered && centered.trim()) {
               await exportSvgSnapshot(centered, suggested)

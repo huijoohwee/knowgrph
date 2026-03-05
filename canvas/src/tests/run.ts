@@ -197,6 +197,7 @@ import {
 } from '@/__tests__/markdownFrontmatterFlowGraphImport.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
 import { testGraphCenteredSvgIncludesAnimationWhenEnabled, testGraphCenteredSvgPutsCentroidInViewCenter } from '@/__tests__/graphCenteredSvg.test'
+import { testGraphCenteredSvg3dCentersAndAnimates } from '@/__tests__/graphCenteredSvg3d.test'
 import { testParseKindCsv } from '@/__tests__/csvKind.test'
 import {
   testCsvRoundTrip,
@@ -371,6 +372,7 @@ import {
   testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost,
   testGympgrphApplyMediaProxyProxiesOpenFreeMapOnLocalhost,
   testGympgrphCoerceFetchUrlAcceptsAbsolutePath,
+  testGympgrphCoerceFetchUrlTreatsAbsoluteFsPathAsViteFs,
   testGympgrphCoerceFetchUrlRejectsFileScheme,
 } from '@/__tests__/gympgrphUrlInterop.test'
 import { testMainPanelTypographyUsesUiSettings } from '@/__tests__/mainPanelTypography.test'
@@ -1359,6 +1361,7 @@ export const runAllTests = async () => {
   await exec('geospatial.gympgrphUrl.proxySkipsWhenNotLocalhost', testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost)
   await exec('geospatial.gympgrphUrl.proxyOpenFreeMapOnLocalhost', testGympgrphApplyMediaProxyProxiesOpenFreeMapOnLocalhost)
   await exec('geospatial.gympgrphUrl.coerceFetchUrlAcceptsAbsolutePath', testGympgrphCoerceFetchUrlAcceptsAbsolutePath)
+  await exec('geospatial.gympgrphUrl.coerceFetchUrlTreatsAbsoluteFsPathAsViteFs', testGympgrphCoerceFetchUrlTreatsAbsoluteFsPathAsViteFs)
   await exec('geospatial.gympgrphUrl.coerceFetchUrlRejectsFileScheme', testGympgrphCoerceFetchUrlRejectsFileScheme)
 
   await exec(
@@ -1578,6 +1581,7 @@ export const runAllTests = async () => {
   await exec('export.parseCombinedCsv', testParseCombinedCsv)
   await exec('export.svg.centered.centroidInCenter', testGraphCenteredSvgPutsCentroidInViewCenter)
   await exec('export.svg.centered.animated.includesAnimate', testGraphCenteredSvgIncludesAnimationWhenEnabled)
+  await exec('export.svg.3d.centered.animates', testGraphCenteredSvg3dCentersAndAnimates)
   await exec('csv.kindFormat', testParseKindCsv)
   await exec('csv.roundTrip', testCsvRoundTrip)
   await exec('export.graphMl', testGraphMlExport)

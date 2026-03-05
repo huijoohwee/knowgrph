@@ -39,7 +39,15 @@ export function coerceFetchUrl(value: unknown): string | null {
   const origin = window.location?.origin
   if (!origin) return null
   try {
-    const url = new URL(raw, origin)
+    const isLikelyAbsoluteFsPath = (path: string): boolean => {
+      const p = String(path || '').trim()
+      if (!p.startsWith('/')) return false
+      if (p.startsWith('/@fs/')) return false
+      return /^\/(Users|home|private|var|tmp|Volumes)\//.test(p)
+    }
+
+    const effectivePath = isLikelyAbsoluteFsPath(raw) ? `/@fs${raw}` : raw
+    const url = new URL(effectivePath, origin)
     if (!/^https?:$/i.test(url.protocol)) return null
     if (url.username || url.password) return null
     return url.toString()

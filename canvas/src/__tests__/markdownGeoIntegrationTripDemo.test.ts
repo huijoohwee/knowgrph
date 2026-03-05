@@ -1,4 +1,4 @@
-import { LS_KEYS, parseGeoJsonFromText } from 'gympgrph'
+import { loadDatasetFeatureCollection, LS_KEYS, parseGeoJsonFromText } from 'gympgrph'
 import { createMarkdownGeoDatasetIntegration } from '@/features/geospatial/markdownGeoDatasetIntegration'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
@@ -9,6 +9,7 @@ import {
   resolveTripDemoMmdDocumentPath,
 } from '@/tests/lib/tripDemo'
 import type { GraphData } from '@/lib/graph/types'
+import { LRUCache } from 'grph-shared/cache/LRUCache'
 
 const extractFirstGeoJsonFromJsonFences = (markdown: string): string | null => {
   const lines = String(markdown || '').split('\n')
@@ -252,5 +253,59 @@ export async function testMarkdownTripDemoMmdJsonFenceLoadsGraphData() {
   })
   if (!hasGeo) {
     throw new Error('Expected at least one node to have properties.geo.{lat,lng}')
+  }
+}
+
+export async function testGeospatialDatasetLoaderParsesEmbeddedGeoJsonFromMarkdownUrl() {
+  const raw = readTripDemo()
+  if (!raw) return
+
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const originalFetch = (globalThis as unknown as { fetch?: unknown }).fetch
+
+  try {
+    const url = '/Users/huijoohwee/Documents/GitHub/sandbox/demo/trip-demo.md'
+    const expectedFetchUrl = 'http://localhost:5173/@fs/Users/huijoohwee/Documents/GitHub/sandbox/demo/trip-demo.md'
+
+    ;(globalThis as unknown as { fetch: unknown }).fetch = (async (input: unknown) => {
+      const u = typeof input === 'string' ? input : ''
+      if (u !== expectedFetchUrl) {
+        return {
+          ok: false,
+          status: 404,
+          headers: { get: () => null },
+          body: null,
+          text: async () => 'not found',
+        } as unknown as Response
+      }
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        body: null,
+        text: async () => raw,
+      } as unknown as Response
+    }) as unknown as typeof fetch
+
+    const cache = new LRUCache<string, any>(10, 10_000)
+    const fc = await loadDatasetFeatureCollection(
+      url,
+      'auto',
+      { timeoutMs: 5_000, maxBytes: 5 * 1024 * 1024 },
+      cache as any,
+    )
+
+    const features = Array.isArray(fc.features) ? fc.features : []
+    if (features.length === 0) throw new Error('Expected markdown dataset URL to produce GeoJSON features')
+    const hasSin = features.some(f => String((f as any)?.properties?.code || '') === 'SIN')
+    if (!hasSin) throw new Error('Expected extracted features to include SIN airport')
+  } finally {
+    if (typeof originalFetch === 'undefined') {
+      delete (globalThis as unknown as { fetch?: unknown }).fetch
+    } else {
+      ;(globalThis as unknown as { fetch?: unknown }).fetch = originalFetch
+    }
+    restoreWindow()
   }
 }

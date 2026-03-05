@@ -778,15 +778,35 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
 
     if (localFile) {
        try {
+         const ext = path.extname(localFile).toLowerCase()
+         if (ext === '.html' || ext === '.htm') {
+           const content = await fs.readFile(localFile, 'utf8')
+           const injected = injectWebpageProxyHtml({
+             html: content,
+             originalUrl: urlParam,
+           })
+           res.statusCode = 200
+           res.setHeader('Content-Type', 'text/html; charset=utf-8')
+           res.setHeader('Cache-Control', 'no-store')
+           res.end(injected)
+           return
+         }
+
          const content = await fs.readFile(localFile, 'utf8')
-         const injected = injectWebpageProxyHtml({
-            html: content,
-            originalUrl: urlParam,
-         })
+         const contentType = (() => {
+           if (ext === '.geojson') return 'application/geo+json; charset=utf-8'
+           if (ext === '.json' || ext === '.jsonld') return 'application/json; charset=utf-8'
+           if (ext === '.md' || ext === '.markdown' || ext === '.mmd') return 'text/markdown; charset=utf-8'
+           if (ext === '.yaml' || ext === '.yml') return 'text/yaml; charset=utf-8'
+           if (ext === '.csv') return 'text/csv; charset=utf-8'
+           if (ext === '.svg') return 'image/svg+xml; charset=utf-8'
+           if (ext === '.txt') return 'text/plain; charset=utf-8'
+           return 'text/plain; charset=utf-8'
+         })()
          res.statusCode = 200
-         res.setHeader('Content-Type', 'text/html; charset=utf-8')
+         res.setHeader('Content-Type', contentType)
          res.setHeader('Cache-Control', 'no-store')
-         res.end(injected)
+         res.end(content)
          return
        } catch (err) {
          res.statusCode = 500
@@ -2954,7 +2974,7 @@ function createWebpageAssetPathProxyHandler(): import('vite').Connect.NextHandle
         redirect: 'follow',
         signal: ctrl.signal,
         headers: upstreamHeaders,
-        body: bodyBuf && bodyBuf.length ? bodyBuf : undefined,
+        body: bodyBuf && bodyBuf.length ? (bodyBuf.buffer.slice(bodyBuf.byteOffset, bodyBuf.byteOffset + bodyBuf.byteLength) as ArrayBuffer) : undefined,
       })
 
       if (ctrl.signal.aborted) {

@@ -2224,27 +2224,53 @@ export function MarkdownWorkspace() {
     setStatusProgress('Applying')
     try {
       const ok = await applyMarkdownDocumentToGraph(name, activeText)
-      const blocks = (() => {
+      const geoReqs = (() => {
         const text = String(activeText || '')
         if (!text.includes('```')) return []
-        return extractFencedCodeBlocks(text)
-          .filter(b => b.lang === 'geojson' || b.lang === 'json')
-          .slice(0, 20)
+        const blocks = extractFencedCodeBlocks(text).filter(b => b.lang === 'geojson' || b.lang === 'json')
+        const out: Array<{
+          sourceDocumentPath: string
+          codeBlock: { lang: 'geojson' | 'json'; text: string; startLine: number; endLine: number }
+        }> = []
+        const seen = new Set<string>()
+        for (const b of blocks.slice(0, 40)) {
+          const lang = b.lang === 'geojson' ? 'geojson' : 'json'
+          const rawBlock = String(b.content || '')
+          const trimmed = rawBlock.trim()
+          if (!trimmed) continue
+          if (lang === 'json') {
+            const head = trimmed.slice(0, 4096).toLowerCase()
+            if (!head.includes('"type"')) continue
+            if (!head.includes('featurecollection')) continue
+          }
+          const sig = `${lang}:${b.startLine}:${b.endLine}:${trimmed.length}:${trimmed.slice(0, 64)}`
+          if (seen.has(sig)) continue
+          seen.add(sig)
+          const req = {
+            sourceDocumentPath: name,
+            codeBlock: {
+              lang,
+              text: rawBlock,
+              startLine: b.startLine,
+              endLine: b.endLine,
+            },
+          } as const
+          if (typeof geoDatasetIntegration.isGeoJsonCodeBlock === 'function') {
+            try {
+              if (!geoDatasetIntegration.isGeoJsonCodeBlock(req as never)) continue
+            } catch {
+              continue
+            }
+          } else if (lang !== 'geojson') {
+            continue
+          }
+          out.push(req)
+        }
+        return out
       })()
-      if (blocks.length > 0) {
-        await Promise.all(
-          blocks.map(b =>
-            geoDatasetIntegration.registerGeoJsonFeatureCollection?.({
-              sourceDocumentPath: name,
-              codeBlock: {
-                lang: b.lang === 'geojson' ? 'geojson' : 'json',
-                text: b.content,
-                startLine: b.startLine,
-                endLine: b.endLine,
-              },
-            }),
-          ),
-        )
+
+      if (geoReqs.length > 0 && typeof geoDatasetIntegration.registerGeoJsonFeatureCollection === 'function') {
+        await Promise.all(geoReqs.map(req => geoDatasetIntegration.registerGeoJsonFeatureCollection?.(req as never)))
       }
       setStatusInfo(ok ? 'Applied' : 'Skipped')
     } catch (e) {

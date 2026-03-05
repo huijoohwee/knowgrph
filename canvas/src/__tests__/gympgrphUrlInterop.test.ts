@@ -68,6 +68,20 @@ export const testGympgrphCoerceFetchUrlAcceptsAbsolutePath = () => {
   }
 }
 
+export const testGympgrphCoerceFetchUrlTreatsAbsoluteFsPathAsViteFs = () => {
+  const g = globalThis as unknown as Record<string, unknown>
+  const prevWindow = g.window
+  g.window = { location: { origin: 'http://localhost:5173' } }
+  try {
+    const out = coerceGympgrphFetchUrl('/Users/demo/sandbox/demo/trip demo.md')
+    if (out !== 'http://localhost:5173/@fs/Users/demo/sandbox/demo/trip%20demo.md') {
+      throw new Error(`expected vite /@fs rewrite, got ${String(out)}`)
+    }
+  } finally {
+    g.window = prevWindow
+  }
+}
+
 export const testGympgrphCoerceFetchUrlRejectsFileScheme = () => {
   const g = globalThis as unknown as Record<string, unknown>
   const prevWindow = g.window

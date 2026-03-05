@@ -7,6 +7,7 @@ import { testMarkdownFileTreeFolderClickDoesNotClearSelection } from '@/__tests_
 import { testMarkdownWorkspaceViewerUsesMarkdownPreviewSsot } from '@/__tests__/markdownWorkspaceViewerSsot.test'
 import { testMarkdownWorkspaceViewerRendersRemotionArtifactRichMedia } from '@/__tests__/markdownWorkspaceRemotionViewerRenders.test'
 import {
+  testGeospatialDatasetLoaderParsesEmbeddedGeoJsonFromMarkdownUrl,
   testMarkdownTripDemoJsonFenceLoadsGraphData,
   testMarkdownTripDemoJsonFenceRegistersAsGeoDataset,
   testMarkdownTripDemoMmdJsonFenceLoadsGraphData,
@@ -53,6 +54,7 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.geospatial.tripDemoLoadsGraphData', testMarkdownTripDemoJsonFenceLoadsGraphData)
   await execTest(results, 'markdown.geospatial.tripDemoMmdRegistersGeoDataset', testMarkdownTripDemoMmdJsonFenceRegistersAsGeoDataset)
   await execTest(results, 'markdown.geospatial.tripDemoMmdLoadsGraphData', testMarkdownTripDemoMmdJsonFenceLoadsGraphData)
+  await execTest(results, 'markdown.geospatial.markdownUrlEmbedsGeoJsonLoadsAsDataset', testGeospatialDatasetLoaderParsesEmbeddedGeoJsonFromMarkdownUrl)
   await execTest(results, 'markdown.mediaRegistry.poiImagesEnrichMatchingNodes', testMarkdownPoiImagesRegistryEnrichesMatchingNodes)
   await execTest(results, 'markdown.applyWithoutFrontmatterBuildsGraph', testMarkdownApplyWithoutFrontmatterBuildsGraph)
   await execTest(results, 'markdown.mermaid.elkLayoutRegistersLoaders', testMermaidElkLayoutRegistersLoadersBeforeInit)

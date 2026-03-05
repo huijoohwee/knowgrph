@@ -36,6 +36,7 @@ import { buildWorkspaceFileJsonLdV1 } from './workspaceImport'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { exportGraphAsCenteredSvgMarkup } from '@/lib/graph/graphCenteredSvg'
+import { exportGraphAsCentered3dSvgMarkup } from '@/lib/graph/graphCenteredSvg3d'
 
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
@@ -970,9 +971,31 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         }
       })()
       const workspaceEditorEnabled = store.workspaceViewMode === 'editor'
-      const is3dMode = store.canvasRenderMode === '3d'
+      const wants3dExport =
+        store.canvasRenderMode === '3d' ||
+        (store.canvasRenderModeIsAuto === true && store.canvasRenderModeLastFree === '3d')
 
-      if (geospatialEnabled || workspaceEditorEnabled || is3dMode) {
+      if (wants3dExport) {
+        const graphData = store.graphData
+        const schema = store.schema
+        if (graphData && schema) {
+          const centered3d = exportGraphAsCentered3dSvgMarkup({
+            graphData,
+            schema,
+            widthPx: fallbackSize.w,
+            heightPx: fallbackSize.h,
+            paddingPx: 96,
+            includeXmlDeclaration: true,
+            animated: true,
+          })
+          if (centered3d && centered3d.trim()) {
+            await exportSvgSnapshot(centered3d, suggested)
+            return
+          }
+        }
+      }
+
+      if (geospatialEnabled || workspaceEditorEnabled) {
         const graphData = store.graphData
         const schema = store.schema
         if (graphData && schema) {
@@ -983,7 +1006,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             heightPx: fallbackSize.h,
             paddingPx: 96,
             includeXmlDeclaration: true,
-            animated: is3dMode || workspaceEditorEnabled,
+            animated: workspaceEditorEnabled,
           })
           if (centered && centered.trim()) {
             await exportSvgSnapshot(centered, suggested)

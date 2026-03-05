@@ -12,8 +12,10 @@ import {
   testGympgrphApplyMediaProxyNormalizesGithubBlobUrl,
   testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost,
   testGympgrphCoerceFetchUrlAcceptsAbsolutePath,
+  testGympgrphCoerceFetchUrlTreatsAbsoluteFsPathAsViteFs,
   testGympgrphCoerceFetchUrlRejectsFileScheme,
 } from '@/__tests__/gympgrphUrlInterop.test'
+import { testGeospatialDatasetLoaderParsesEmbeddedGeoJsonFromMarkdownUrl } from '@/__tests__/markdownGeoIntegrationTripDemo.test'
 import {
   testCoerceMediaUrlAcceptsSafeRelative,
   testCoerceMediaUrlRejectsExplicitScheme,
@@ -32,7 +34,9 @@ const cases: TestCase[] = [
   { name: 'gympgrph url: apply media proxy normalizes github blob', run: testGympgrphApplyMediaProxyNormalizesGithubBlobUrl },
   { name: 'gympgrph url: apply media proxy skips when not localhost', run: testGympgrphApplyMediaProxySkipsProxyWhenNotLocalhost },
   { name: 'gympgrph url: coerce fetch url accepts absolute path', run: testGympgrphCoerceFetchUrlAcceptsAbsolutePath },
+  { name: 'gympgrph url: coerce fetch url rewrites absolute fs path to /@fs', run: testGympgrphCoerceFetchUrlTreatsAbsoluteFsPathAsViteFs },
   { name: 'gympgrph url: coerce fetch url rejects file scheme', run: testGympgrphCoerceFetchUrlRejectsFileScheme },
+  { name: 'gympgrph geo: markdown url embeds geojson loads as dataset', run: testGeospatialDatasetLoaderParsesEmbeddedGeoJsonFromMarkdownUrl },
   { name: 'media url: coerce accepts safe relative', run: testCoerceMediaUrlAcceptsSafeRelative },
   { name: 'media url: coerce rejects explicit scheme', run: testCoerceMediaUrlRejectsExplicitScheme },
   { name: 'import naming: derive filename from url+format', run: testNormalizeImportNameDerivesJsonNameFromUrlAndFormat },

@@ -3,7 +3,6 @@ import {
   coerceFeatureCollectionIds,
   colorForDataset,
   computeBoundsFromCollections,
-  DEFAULT_GEOSPATIAL_STYLE_URL,
   ensureDatasetLayer,
   isPointOnlyFeatureCollection,
   parseGeoJsonFromText,
@@ -11,14 +10,88 @@ import {
   useMapLibreBasemap,
 } from 'gympgrph'
 import type { FeatureCollection } from 'geojson'
-import { geoMercator, geoPath } from 'd3'
-import { useGympgrphExternalStore } from '@/lib/gympgrph/externalStore'
+import { geoGraticule10, geoMercator, geoPath } from 'd3'
 import { shouldSuppressBasemapErrorMessage } from './basemapErrorSuppression'
 
 const sanitizeId = (raw: string): string => {
   const s = String(raw || '').trim()
   if (!s) return 'dataset'
   return s.replace(/[^a-zA-Z0-9._:-]+/g, '_').slice(0, 80) || 'dataset'
+}
+
+const FALLBACK_BASEMAP_BG_LAYER_ID = 'kg-md-basemap-fallback:bg'
+const FALLBACK_BASEMAP_GRATICULE_SOURCE_ID = 'kg-md-basemap-fallback:graticule'
+const FALLBACK_BASEMAP_GRATICULE_LAYER_ID = 'kg-md-basemap-fallback:graticule-lines'
+
+const FALLBACK_GRATICULE_FC = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: {},
+      geometry: geoGraticule10(),
+    },
+  ],
+} as const
+
+const ensureFallbackBasemapLayers = (map: any, enabled: boolean) => {
+  if (!map) return
+  if (!enabled) return
+
+  let beforeId = ''
+  try {
+    const style = map.getStyle?.()
+    const layers = Array.isArray(style?.layers) ? style.layers : []
+    const firstNonBg = layers.find((l: any) => l && typeof l === 'object' && String(l.type || '') !== 'background')
+    beforeId = typeof firstNonBg?.id === 'string' ? firstNonBg.id : ''
+  } catch {
+    beforeId = ''
+  }
+
+  try {
+    if (!map.getLayer?.(FALLBACK_BASEMAP_BG_LAYER_ID)) {
+      map.addLayer?.(
+        {
+          id: FALLBACK_BASEMAP_BG_LAYER_ID,
+          type: 'background',
+          paint: { 'background-color': 'rgba(15,23,42,1)' },
+        },
+        beforeId || undefined,
+      )
+    }
+  } catch {
+    void 0
+  }
+
+  try {
+    if (!map.getSource?.(FALLBACK_BASEMAP_GRATICULE_SOURCE_ID)) {
+      map.addSource?.(FALLBACK_BASEMAP_GRATICULE_SOURCE_ID, {
+        type: 'geojson',
+        data: FALLBACK_GRATICULE_FC as never,
+      })
+    }
+  } catch {
+    void 0
+  }
+
+  try {
+    if (!map.getLayer?.(FALLBACK_BASEMAP_GRATICULE_LAYER_ID)) {
+      map.addLayer?.(
+        {
+          id: FALLBACK_BASEMAP_GRATICULE_LAYER_ID,
+          type: 'line',
+          source: FALLBACK_BASEMAP_GRATICULE_SOURCE_ID,
+          paint: {
+            'line-color': 'rgba(148,163,184,0.28)',
+            'line-width': 1,
+          },
+        },
+        beforeId || undefined,
+      )
+    }
+  } catch {
+    void 0
+  }
 }
 
 function GeoJsonSvgPreview(args: {
@@ -84,6 +157,61 @@ function GeoJsonSvgPreview(args: {
   )
 }
 
+function GeoGraticuleSvg(args: { height: number | string; className?: string }) {
+  const { height, className } = args
+  const width = 1000
+  const viewHeight = 600
+  const projection = React.useMemo(() => {
+    try {
+      return geoMercator().fitSize([width, viewHeight], { type: 'Sphere' } as never)
+    } catch {
+      return geoMercator()
+    }
+  }, [])
+  const pathGen = React.useMemo(() => {
+    try {
+      return geoPath(projection)
+    } catch {
+      return null
+    }
+  }, [projection])
+  const graticulePath = React.useMemo(() => {
+    if (!pathGen) return ''
+    try {
+      return String(pathGen(geoGraticule10() as never) || '')
+    } catch {
+      return ''
+    }
+  }, [pathGen])
+  const spherePath = React.useMemo(() => {
+    if (!pathGen) return ''
+    try {
+      return String(pathGen({ type: 'Sphere' } as never) || '')
+    } catch {
+      return ''
+    }
+  }, [pathGen])
+
+  return (
+    <svg
+      className={className || ''}
+      style={{ height }}
+      viewBox={`0 0 ${width} ${viewHeight}`}
+      preserveAspectRatio="xMidYMid meet"
+      aria-label="Basemap graticule"
+      role="img"
+    >
+      <rect x="0" y="0" width={width} height={viewHeight} fill="rgba(148,163,184,0.08)" />
+      {spherePath ? (
+        <path d={spherePath} fill="none" stroke="rgba(148,163,184,0.25)" strokeWidth={2} />
+      ) : null}
+      {graticulePath ? (
+        <path d={graticulePath} fill="none" stroke="rgba(148,163,184,0.22)" strokeWidth={1} />
+      ) : null}
+    </svg>
+  )
+}
+
 export function InlineMarkdownGeoJsonLayerMap(args: {
   geojsonText: string
   datasetId: string
@@ -95,15 +223,12 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
   const rootRef = React.useRef<HTMLDivElement | null>(null)
   const containerRef = React.useRef<HTMLDivElement | null>(null)
   const [shouldLoadMap, setShouldLoadMap] = React.useState(false)
+  const [isInView, setIsInView] = React.useState(true)
+  const [mapEverEnabled, setMapEverEnabled] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [basemapWarning, setBasemapWarning] = React.useState<string | null>(null)
 
-  const styleUrl = useGympgrphExternalStore(s => {
-    const anyState = s as unknown as { geospatialStyleUrl?: unknown }
-    const raw = typeof anyState.geospatialStyleUrl === 'string' ? anyState.geospatialStyleUrl : ''
-    const trimmed = raw.trim()
-    return trimmed || DEFAULT_GEOSPATIAL_STYLE_URL
-  })
+  const targetStyleUrl = 'kg:style:raster-osm'
 
   const parsed = React.useMemo(() => {
     const trimmed = String(geojsonText || '').trim()
@@ -184,11 +309,59 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     }
   }, [isJsdom, parsed.fc, shouldLoadMap])
 
+  React.useEffect(() => {
+    if (isJsdom) return
+    const el = rootRef.current
+    if (!el) return
+    if (typeof IntersectionObserver === 'undefined') return
+    let cancelled = false
+    const io = new IntersectionObserver(
+      entries => {
+        if (cancelled) return
+        const entry = entries && entries.length > 0 ? entries[0] : null
+        if (!entry) return
+        setIsInView(entry.isIntersecting || entry.intersectionRatio > 0)
+      },
+      { root: null, rootMargin: '200px 0px 200px 0px', threshold: [0, 0.01] },
+    )
+    try {
+      io.observe(el)
+    } catch {
+      try {
+        io.disconnect()
+      } catch {
+        void 0
+      }
+      return
+    }
+    return () => {
+      cancelled = true
+      try {
+        io.disconnect()
+      } catch {
+        void 0
+      }
+    }
+  }, [isJsdom])
+
+  React.useEffect(() => {
+    if (mapEverEnabled) return
+    if (!shouldLoadMap || !isInView) return
+    if (!parsed.fc) return
+    setMapEverEnabled(true)
+  }, [isInView, mapEverEnabled, parsed.fc, shouldLoadMap])
+
+  React.useEffect(() => {
+    if (!parsed.fc && mapEverEnabled) setMapEverEnabled(false)
+  }, [mapEverEnabled, parsed.fc])
+
+  const mapEnabled = mapEverEnabled
+
   const basemap = useMapLibreBasemap({
-    enabled: shouldLoadMap,
+    enabled: mapEnabled,
     rootRef,
     containerRef,
-    targetStyleUrl: styleUrl,
+    targetStyleUrl,
     canvasRenderMode: '2d',
     projectionMode: 'mercator',
     viewportSizingMode: 'none',
@@ -198,12 +371,43 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
   React.useEffect(() => {
     const msg = String(basemap.mapError || '').trim()
     if (!msg) return
+    const lower = msg.toLowerCase()
+    const isWebglError = lower.includes('webgl')
+    if (isWebglError) setError(prev => prev || msg)
+
     if (shouldSuppressBasemapErrorMessage(msg)) {
       setBasemapWarning(prev => prev || 'Basemap unavailable')
       return
     }
     setError(prev => prev || msg)
   }, [basemap.mapError])
+
+  const basemapHasBaseSource = React.useMemo(() => {
+    const probe = basemap.probe
+    return Boolean(probe.tileSourceId && probe.tilesLoaded && probe.canvasW > 0 && probe.canvasH > 0)
+  }, [basemap.probe])
+
+  const containerGridStyle = React.useMemo(() => {
+    return {
+      backgroundColor: 'rgba(15,23,42,1)',
+      backgroundImage:
+        'linear-gradient(rgba(148,163,184,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.18) 1px, transparent 1px)',
+      backgroundSize: '40px 40px',
+      backgroundPosition: '0 0, 0 0',
+    } as const
+  }, [])
+
+  const fallbackInjectedForStyleRevRef = React.useRef<number>(-1)
+  React.useEffect(() => {
+    const map = basemap.map
+    if (!map) return
+    const rev = basemap.styleRevision
+    if (rev <= 0) return
+    if (basemapHasBaseSource) return
+    if (fallbackInjectedForStyleRevRef.current === rev) return
+    fallbackInjectedForStyleRevRef.current = rev
+    ensureFallbackBasemapLayers(map, true)
+  }, [basemap.map, basemap.styleRevision, basemapHasBaseSource])
 
   React.useEffect(() => {
     const map = basemap.map
@@ -235,7 +439,7 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
         void 0
       }
     }
-  }, [basemap.map, basemap.styleRevision, datasetId, parsed.bounds, parsed.fc])
+  }, [basemap.map, basemap.styleRevision, basemapHasBaseSource, datasetId, parsed.bounds, parsed.fc])
 
   React.useEffect(() => {
     const map = basemap.map
@@ -253,8 +457,9 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     if (!parsed.fc) return null
     if (basemap.map) return null
     if (!shouldLoadMap) return 'Preparing map preview…'
+    if (!isInView) return null
     return 'Loading map preview…'
-  }, [error, basemapWarning, basemap.map, parsed.fc, shouldLoadMap])
+  }, [error, basemapWarning, basemap.map, isInView, parsed.fc, shouldLoadMap])
 
   const svgColor = React.useMemo(() => {
     const safeDatasetId = sanitizeId(datasetId)
@@ -263,27 +468,32 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
 
   const rootHeight = useContainerHeight ? '100%' : heightPx
   const rootMinHeight = useContainerHeight ? heightPx : undefined
+  const hasInputText = React.useMemo(() => Boolean(String(geojsonText || '').trim()), [geojsonText])
 
   return (
     <div ref={el => {
       rootRef.current = el
     }} className={`relative ${className || ''}`} style={{ height: rootHeight, minHeight: rootMinHeight }}>
-      {parsed.fc && (
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          <GeoJsonSvgPreview fc={parsed.fc} color={svgColor} height={rootHeight} className="w-full" />
-        </div>
-      )}
+      <div className="absolute inset-0 z-10 pointer-events-none">
+        <GeoGraticuleSvg height={rootHeight} className="w-full" />
+        {parsed.fc ? <GeoJsonSvgPreview fc={parsed.fc} color={svgColor} height={rootHeight} className="w-full" /> : null}
+      </div>
       <div ref={el => {
         containerRef.current = el
-      }} data-testid="geojson-map-container" className="absolute inset-0 z-[1]" />
+      }} data-testid="geojson-map-container" className="absolute inset-0 z-0" style={containerGridStyle} />
       {overlayMessage && (
         <div
           data-testid="geojson-map-overlay"
-          className="absolute bottom-2 right-2 z-10 pointer-events-none px-2 py-1 rounded-md text-[11px] text-gray-700 dark:text-gray-200 bg-white/80 dark:bg-black/60 border border-gray-200/60 dark:border-gray-800/60"
+          className="absolute bottom-2 right-2 z-20 pointer-events-none px-2 py-1 rounded-md text-[11px] text-gray-700 dark:text-gray-200 bg-white/80 dark:bg-black/60 border border-gray-200/60 dark:border-gray-800/60"
         >
           {overlayMessage}
         </div>
       )}
+      {!overlayMessage && hasInputText && !parsed.fc ? (
+        <div className="absolute bottom-2 right-2 z-20 pointer-events-none px-2 py-1 rounded-md text-[11px] text-gray-700 dark:text-gray-200 bg-white/80 dark:bg-black/60 border border-gray-200/60 dark:border-gray-800/60">
+          Invalid GeoJSON
+        </div>
+      ) : null}
     </div>
   )
 }
