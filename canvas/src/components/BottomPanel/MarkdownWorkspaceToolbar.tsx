@@ -63,6 +63,8 @@ export type MarkdownWorkspaceToolbarProps = {
   onSaveAs?: () => void
   onExportWorkspaceFile?: () => void
   onExportMarkdown?: () => void
+  onExportHtmlViewer?: () => void
+  onExportHtmlCanvas?: () => void
   onExportJson?: () => void
   onExportSvg?: () => void
   onExportPdf?: () => void
@@ -118,6 +120,8 @@ export function MarkdownWorkspaceToolbar({
   onSaveAs,
   onExportWorkspaceFile,
   onExportMarkdown,
+  onExportHtmlViewer,
+  onExportHtmlCanvas,
   onExportJson,
   onExportSvg,
   onExportPdf,
@@ -147,7 +151,16 @@ export function MarkdownWorkspaceToolbar({
 
   const saveAsWrapRef = React.useRef<HTMLLIElement | null>(null)
   const [saveAsOpen, setSaveAsOpen] = React.useState(false)
-  const canExport = !!(onSaveAs || onExportWorkspaceFile || onExportMarkdown || onExportJson || onExportSvg || onExportPdf)
+  const canExport = !!(
+    onSaveAs ||
+    onExportWorkspaceFile ||
+    onExportMarkdown ||
+    onExportHtmlViewer ||
+    onExportHtmlCanvas ||
+    onExportJson ||
+    onExportSvg ||
+    onExportPdf
+  )
 
   React.useEffect(() => {
     if (!saveAsOpen) return
@@ -881,6 +894,30 @@ export function MarkdownWorkspaceToolbar({
                     }}
                   >
                     Markdown (.md)
+                  </button>
+                ) : null}
+                {onExportHtmlViewer ? (
+                  <button
+                    type="button"
+                    className={`w-full text-left px-2 py-1.5 rounded text-sm ${UI_THEME_TOKENS.button.hoverBg}`}
+                    onClick={() => {
+                      setSaveAsOpen(false)
+                      onExportHtmlViewer()
+                    }}
+                  >
+                    HTML (.html) — Viewer
+                  </button>
+                ) : null}
+                {onExportHtmlCanvas ? (
+                  <button
+                    type="button"
+                    className={`w-full text-left px-2 py-1.5 rounded text-sm ${UI_THEME_TOKENS.button.hoverBg}`}
+                    onClick={() => {
+                      setSaveAsOpen(false)
+                      onExportHtmlCanvas()
+                    }}
+                  >
+                    HTML (.html) — Canvas
                   </button>
                 ) : null}
                 {onExportJson ? (

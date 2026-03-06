@@ -30,13 +30,19 @@ import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { saveBlobWithPicker, downloadBlob } from '@/lib/graph/save'
 import { exportGraphAsJSON, exportSvgSnapshot, type DatasetPath } from '@/lib/graph/file'
-import { captureVisibleCanvasPngBlobFromDom, readCanvasViewportSizeFromDom, wrapPngBlobAsSvgMarkup } from '@/lib/graph/svgSnapshot'
+import { buildStandaloneSvgMarkupFromElement, captureVisibleCanvasPngBlobFromDom, readCanvasViewportSizeFromDom, wrapPngBlobAsSvgMarkup } from '@/lib/graph/svgSnapshot'
 import { printElementToPdf } from '@/lib/print/printElementToPdf'
 import { buildWorkspaceFileJsonLdV1 } from './workspaceImport'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { exportGraphAsCenteredSvgMarkup } from '@/lib/graph/graphCenteredSvg'
 import { exportGraphAsCentered3dSvgMarkup } from '@/lib/graph/graphCenteredSvg3d'
+import { getNodeBaseFill, getEdgeBaseStroke } from '@/lib/graph/visualStyles'
+import { loadThreeOfflineModuleSources } from '@/lib/three/offlineModules'
+import { getThreeConfig } from '@/lib/graph/schema'
+import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
+import { computeNeighborIds, computeNodeVisual, computeEdgeVisual } from '@/components/GraphCanvas/highlight'
+import { KG_TOKEN_DEFS, ensureKgTokensInstalled, resolveCssVarWithKgFallback, getKgThemeFromDom } from '@/lib/ui/tokens-ssot'
 
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
@@ -928,6 +934,2381 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     }
   }, [activeText, exportBaseName, viewerTextOverride])
 
+  const handleExportHtmlViewer = React.useCallback(async () => {
+    try {
+      const MAX_INLINE_ASSET_BYTES = 25 * 1024 * 1024
+      const assetCache = new Map<string, string | null>()
+
+      const blobToDataUrl = async (blob: Blob): Promise<string> => {
+        return await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(String(reader.result || ''))
+          reader.onerror = () => reject(new Error('Failed to read blob.'))
+          reader.readAsDataURL(blob)
+        })
+      }
+
+      const tryInlineUrlAsData = async (url: string): Promise<string | null> => {
+        try {
+          const cached = assetCache.get(url)
+          if (cached !== undefined) return cached
+          const resp = await fetch(url)
+          if (!resp.ok) {
+            assetCache.set(url, null)
+            return null
+          }
+          const len = Number(resp.headers.get('content-length') || '')
+          if (Number.isFinite(len) && len > 0 && len > MAX_INLINE_ASSET_BYTES) {
+            assetCache.set(url, null)
+            return null
+          }
+          const blob = await resp.blob()
+          if (blob.size > MAX_INLINE_ASSET_BYTES) {
+            assetCache.set(url, null)
+            return null
+          }
+          const dataUrl = await blobToDataUrl(blob)
+          if (!dataUrl.startsWith('data:')) return null
+          assetCache.set(url, dataUrl)
+          return dataUrl
+        } catch {
+          return null
+        }
+      }
+
+      const inlineUrlString = async (rawUrl: string, baseUrl: string): Promise<string | null> => {
+        try {
+          const u = String(rawUrl || '').trim()
+          if (!u) return null
+          if (u.startsWith('data:') || u.startsWith('blob:')) return null
+          if (u.startsWith('#')) return null
+          if (/^javascript:/i.test(u)) return null
+          const abs = new URL(u, baseUrl).toString()
+          return await tryInlineUrlAsData(abs)
+        } catch {
+          return null
+        }
+      }
+
+      const inlineImagesInElement = async (root: HTMLElement): Promise<void> => {
+        const imgs = Array.from(root.querySelectorAll('img[src]')) as HTMLImageElement[]
+        for (const img of imgs) {
+          try {
+            const src = String(img.getAttribute('src') || '').trim()
+            if (!src) continue
+            if (src.startsWith('data:') || src.startsWith('blob:')) continue
+            const dataUrl = await inlineUrlString(src, window.location.href)
+            if (!dataUrl) continue
+            img.setAttribute('src', dataUrl)
+            img.removeAttribute('srcset')
+            img.removeAttribute('sizes')
+          } catch {
+            void 0
+          }
+        }
+      }
+
+      const inlineMediaInElement = async (root: HTMLElement): Promise<void> => {
+        const media = Array.from(root.querySelectorAll('video,audio')) as Array<HTMLVideoElement | HTMLAudioElement>
+        for (const el of media) {
+          try {
+            const src = String(el.getAttribute('src') || '').trim()
+            if (src) {
+              const dataUrl = await inlineUrlString(src, window.location.href)
+              if (dataUrl) el.setAttribute('src', dataUrl)
+            }
+          } catch {
+            void 0
+          }
+        }
+
+        const sources = Array.from(root.querySelectorAll('source[src]')) as HTMLSourceElement[]
+        for (const s of sources) {
+          try {
+            const src = String(s.getAttribute('src') || '').trim()
+            if (!src) continue
+            const dataUrl = await inlineUrlString(src, window.location.href)
+            if (!dataUrl) continue
+            s.setAttribute('src', dataUrl)
+          } catch {
+            void 0
+          }
+        }
+
+        const videos = Array.from(root.querySelectorAll('video[poster]')) as HTMLVideoElement[]
+        for (const v of videos) {
+          try {
+            const poster = String(v.getAttribute('poster') || '').trim()
+            if (!poster) continue
+            const dataUrl = await inlineUrlString(poster, window.location.href)
+            if (!dataUrl) continue
+            v.setAttribute('poster', dataUrl)
+          } catch {
+            void 0
+          }
+        }
+      }
+
+      const rewriteCssUrls = async (cssText: string, baseUrl: string): Promise<string> => {
+        const raw = String(cssText || '')
+        if (!raw.trim()) return raw
+        const re = /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi
+        const unique = new Set<string>()
+        let m: RegExpExecArray | null = null
+        while ((m = re.exec(raw))) {
+          const u = String(m[2] || '').trim()
+          if (!u) continue
+          if (u.startsWith('data:') || u.startsWith('blob:')) continue
+          if (u.startsWith('#')) continue
+          if (/^javascript:/i.test(u)) continue
+          try {
+            unique.add(new URL(u, baseUrl).toString())
+          } catch {
+            void 0
+          }
+        }
+        if (!unique.size) return raw
+        const mapping = new Map<string, string>()
+        for (const abs of unique) {
+          const dataUrl = await tryInlineUrlAsData(abs)
+          if (!dataUrl) continue
+          mapping.set(abs, dataUrl)
+        }
+        if (!mapping.size) return raw
+        return raw.replace(re, (_whole, quote: string, u: string) => {
+          try {
+            const abs = new URL(String(u || '').trim(), baseUrl).toString()
+            const rep = mapping.get(abs)
+            if (!rep) return _whole
+            const q = quote || '"'
+            return `url(${q}${rep}${q})`
+          } catch {
+            return _whole
+          }
+        })
+      }
+
+      const inlineCssInElement = async (root: HTMLElement): Promise<void> => {
+        const styles = Array.from(root.querySelectorAll('style')) as HTMLStyleElement[]
+        for (const s of styles) {
+          try {
+            const t = String(s.textContent || '')
+            if (!t.trim()) continue
+            const next = await rewriteCssUrls(t, window.location.href)
+            if (next !== t) s.textContent = next
+          } catch {
+            void 0
+          }
+        }
+        const styled = Array.from(root.querySelectorAll('[style]')) as HTMLElement[]
+        for (const el of styled) {
+          try {
+            const style = String(el.getAttribute('style') || '')
+            if (!style.includes('url(')) continue
+            const next = await rewriteCssUrls(style, window.location.href)
+            if (next !== style) el.setAttribute('style', next)
+          } catch {
+            void 0
+          }
+        }
+      }
+
+      const inlineScriptsInElement = async (root: HTMLElement): Promise<void> => {
+        const scripts = Array.from(root.querySelectorAll('script[src]')) as HTMLScriptElement[]
+        for (const s of scripts) {
+          try {
+            const src = String(s.getAttribute('src') || '').trim()
+            if (!src) continue
+            const abs = new URL(src, window.location.href)
+            if (abs.origin !== window.location.origin) continue
+            const resp = await fetch(abs.toString())
+            if (!resp.ok) continue
+            const len = Number(resp.headers.get('content-length') || '')
+            if (Number.isFinite(len) && len > 0 && len > MAX_INLINE_ASSET_BYTES) continue
+            const js = String(await resp.text())
+            if (!js.trim()) continue
+            s.removeAttribute('src')
+            s.textContent = js
+          } catch {
+            void 0
+          }
+        }
+      }
+
+      const buildCssVarsStyle = (prefixes: string[]): string => {
+        try {
+          const cs = window.getComputedStyle(document.documentElement)
+          const out: string[] = []
+          for (let i = 0; i < cs.length; i++) {
+            const k = cs.item(i)
+            if (!k || !k.startsWith('--')) continue
+            if (!prefixes.some(p => k.startsWith(p))) continue
+            const v = cs.getPropertyValue(k)
+            if (!v || !v.trim()) continue
+            out.push(`${k}:${v.trim()}`)
+          }
+          if (!out.length) return ''
+          return `:root{${out.join(';')}}`
+        } catch {
+          return ''
+        }
+      }
+
+      const collectDocumentCss = (): {
+        inlineCssChunks: Array<{ cssText: string; baseUrl: string }>
+        externalLinks: Array<{ href: string; outerHtml: string }>
+      } => {
+        const inlineCssChunks: Array<{ cssText: string; baseUrl: string }> = []
+        for (const sheet of Array.from(document.styleSheets)) {
+          try {
+            const rules = sheet.cssRules
+            const parts: string[] = []
+            for (const rule of Array.from(rules)) parts.push(rule.cssText)
+            const cssText = parts.join('\n')
+            if (!cssText.trim()) continue
+            const baseUrl = sheet.href ? new URL(sheet.href, window.location.href).toString() : window.location.href
+            inlineCssChunks.push({ cssText, baseUrl })
+          } catch {
+            void 0
+          }
+        }
+
+        const links = Array.from(document.head.querySelectorAll('link[rel="stylesheet"][href]')) as HTMLLinkElement[]
+        const externalLinks = links
+          .filter(link => {
+            try {
+              const sheet = link.sheet as CSSStyleSheet | null
+              if (!sheet) return true
+              void sheet.cssRules
+              return false
+            } catch {
+              return true
+            }
+          })
+          .map(link => ({ href: String(link.getAttribute('href') || ''), outerHtml: link.outerHTML }))
+
+        return { inlineCssChunks, externalLinks }
+      }
+
+      if (showWebpageHtml) {
+        const s = String(iframeSrcDoc || '').trim()
+        if (!s) {
+          pushUiToast({ id: 'export-html-missing-view', kind: 'warning', message: 'Open the Viewer to export HTML.' })
+          return
+        }
+        const isFullDoc = /<html[\s>]/i.test(s) || /<!doctype[\s>]/i.test(s)
+        const html =
+          isFullDoc && s.trim()
+            ? s
+            : [
+                '<!doctype html>',
+                '<html lang="en">',
+                '<head>',
+                '  <meta charset="utf-8" />',
+                '  <meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+                `  <title>${exportBaseName}</title>`,
+                '</head>',
+                '<body>',
+                s,
+                '</body>',
+                '</html>',
+                '',
+              ].join('\n')
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+        const name = `${exportBaseName}.html`
+        const saved = await saveBlobWithPicker(blob, name, { description: 'HTML Files', accept: { 'text/html': ['.html'] } })
+        if (saved === '') return
+        if (!saved) downloadBlob(blob, name)
+        return
+      }
+
+      const root = viewerEl || viewerRef.current
+      if (!root) {
+        pushUiToast({ id: 'export-html-missing-view', kind: 'warning', message: 'Open the Viewer to export HTML.' })
+        return
+      }
+      const previewRoot = (root.querySelector('[data-testid="markdown-preview-root"]') as HTMLElement | null) || root
+      const article = (previewRoot.querySelector('article') as HTMLElement | null) || previewRoot
+      const cloned = article.cloneNode(true) as HTMLElement
+      await inlineImagesInElement(cloned)
+      await inlineMediaInElement(cloned)
+      await inlineCssInElement(cloned)
+      await inlineScriptsInElement(cloned)
+      const bodyHtml = cloned.outerHTML
+
+      const htmlClass = String(document.documentElement.className || '').trim()
+      const { inlineCssChunks, externalLinks } = collectDocumentCss()
+      const fetchedExternalCss: Array<{ cssText: string; baseUrl: string }> = []
+      const externalLinkTags: string[] = []
+      for (const link of externalLinks) {
+        try {
+          const href = String(link.href || '').trim()
+          if (!href) continue
+          const abs = new URL(href, window.location.href)
+          const sameOrigin = abs.origin === window.location.origin
+          if (!sameOrigin) {
+            externalLinkTags.push(link.outerHtml)
+            continue
+          }
+          const resp = await fetch(abs.toString())
+          if (!resp.ok) {
+            externalLinkTags.push(link.outerHtml)
+            continue
+          }
+          const css = String(await resp.text())
+          if (!css.trim()) continue
+          fetchedExternalCss.push({ cssText: css, baseUrl: abs.toString() })
+        } catch {
+          externalLinkTags.push(link.outerHtml)
+        }
+      }
+
+      const varsCss = buildCssVarsStyle(['--kg-'])
+      const rewrittenExternal: string[] = []
+      for (const chunk of fetchedExternalCss) {
+        rewrittenExternal.push(await rewriteCssUrls(chunk.cssText, chunk.baseUrl))
+      }
+      const rewrittenInline: string[] = []
+      for (const chunk of inlineCssChunks) {
+        rewrittenInline.push(await rewriteCssUrls(chunk.cssText, chunk.baseUrl))
+      }
+      const combinedCss = [varsCss, ...rewrittenExternal, ...rewrittenInline].filter(Boolean).join('\n')
+      const baseHref = (() => {
+        try {
+          const u = new URL(window.location.href)
+          u.hash = ''
+          return u.toString()
+        } catch {
+          return ''
+        }
+      })()
+
+      const html = [
+        '<!doctype html>',
+        `<html lang="en"${htmlClass ? ` class="${htmlClass.replace(/"/g, '&quot;')}"` : ''}>`,
+        '<head>',
+        '  <meta charset="utf-8" />',
+        '  <meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+        `  <title>${exportBaseName}</title>`,
+        baseHref ? `  <base href="${baseHref.replace(/"/g, '&quot;')}" />` : '',
+        externalLinkTags.length ? `  ${externalLinkTags.join('\n  ')}` : '',
+        combinedCss ? '  <style>' + combinedCss.replace(/<\/style>/g, '<\\/style>') + '</style>' : '',
+        '</head>',
+        '<body>',
+        bodyHtml,
+        '</body>',
+        '</html>',
+        '',
+      ].join('\n')
+
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+      const name = `${exportBaseName}.html`
+      const saved = await saveBlobWithPicker(blob, name, { description: 'HTML Files', accept: { 'text/html': ['.html'] } })
+      if (saved === '') return
+      if (!saved) downloadBlob(blob, name)
+    } catch {
+      void 0
+    }
+  }, [exportBaseName, iframeSrcDoc, pushUiToast, showWebpageHtml, viewerEl, viewerRef])
+
+  const handleExportHtmlCanvas = React.useCallback(async () => {
+    try {
+      const waitFrames = async (n: number) => {
+        let left = Math.max(0, Math.floor(n))
+        while (left > 0) {
+          await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+          left -= 1
+        }
+      }
+
+      const blobToDataUrl = async (blob: Blob): Promise<string> => {
+        return await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(String(reader.result || ''))
+          reader.onerror = () => reject(new Error('Failed to read blob.'))
+          reader.readAsDataURL(blob)
+        })
+      }
+
+      const buildKgVarsStyle = (theme: 'light' | 'dark'): string => {
+        try {
+          ensureKgTokensInstalled(theme)
+        } catch {
+          void 0
+        }
+        try {
+          const out: string[] = []
+          for (let i = 0; i < KG_TOKEN_DEFS.length; i += 1) {
+            const def = KG_TOKEN_DEFS[i]
+            const v = resolveCssVarWithKgFallback(def.cssVar, theme)
+            if (!v || !String(v).trim()) continue
+            out.push(`${def.cssVar}:${String(v).trim()}`)
+          }
+          if (!out.length) return ''
+          return `:root{${out.join(';')}}`
+        } catch {
+          return ''
+        }
+      }
+
+      const fallbackSize = readCanvasViewportSizeFromDom()
+      const store = useGraphStore.getState()
+      const themeAttr = (() => {
+        try {
+          return getKgThemeFromDom()
+        } catch {
+          return 'light'
+        }
+      })()
+      const canvasBgToken = (() => {
+        try {
+          return resolveCssVarWithKgFallback('--kg-canvas-bg', themeAttr)
+        } catch {
+          return themeAttr === 'dark' ? '#020617' : '#f3f4f6'
+        }
+      })()
+      const textPrimaryToken = (() => {
+        try {
+          return resolveCssVarWithKgFallback('--kg-text-primary', themeAttr)
+        } catch {
+          return themeAttr === 'dark' ? '#f3f4f6' : '#111827'
+        }
+      })()
+      const tooltipBgToken = (() => {
+        try {
+          return resolveCssVarWithKgFallback('--kg-tooltip-bg', themeAttr)
+        } catch {
+          return themeAttr === 'dark' ? '#0b1220' : '#111827'
+        }
+      })()
+      const tooltipTextToken = (() => {
+        try {
+          return resolveCssVarWithKgFallback('--kg-tooltip-text', themeAttr)
+        } catch {
+          return themeAttr === 'dark' ? '#f3f4f6' : '#ffffff'
+        }
+      })()
+      const normalizeExportColor = (value: string, fallback: string): string => {
+        const v = String(value || '').trim().toLowerCase()
+        if (!v || v === 'none' || v === 'transparent' || v === 'rgba(0, 0, 0, 0)' || v === 'rgb(0, 0, 0, 0)') return fallback
+        return value
+      }
+      const resolveExportPaint = (value: string, fallback: string): string => {
+        let raw = String(value || '').trim()
+        if (!raw) return fallback
+        const m = raw.match(/^var\(\s*(--[a-z0-9-]+)\s*(?:,\s*([^)]+))?\)$/i)
+        if (m) {
+          const varName = String(m[1] || '').trim()
+          const inlineFallback = String(m[2] || '').trim()
+          try {
+            raw = String(resolveCssVarWithKgFallback(varName as `--kg-${string}`, themeAttr) || '').trim() || inlineFallback || fallback
+          } catch {
+            raw = inlineFallback || fallback
+          }
+        }
+        return normalizeExportColor(raw, fallback)
+      }
+      const normalizeExportOpacity = (value: unknown, fallback: number | null = null): number | null => {
+        const n = typeof value === 'number' ? value : Number(value)
+        if (!Number.isFinite(n)) return fallback
+        return Math.max(0, Math.min(1, n))
+      }
+      const canvasLabelFillToken = (() => {
+        try {
+          return normalizeExportColor(resolveCssVarWithKgFallback('--kg-canvas-label-fill', themeAttr), textPrimaryToken)
+        } catch {
+          return textPrimaryToken
+        }
+      })()
+      const canvasLabelHaloToken = (() => {
+        try {
+          return normalizeExportColor(resolveCssVarWithKgFallback('--kg-canvas-label-halo', themeAttr), themeAttr === 'dark' ? '#000000' : '#ffffff')
+        } catch {
+          return themeAttr === 'dark' ? '#000000' : '#ffffff'
+        }
+      })()
+      const labelsForExport = (() => {
+        try {
+          const gd = store.graphData as unknown as { nodes?: Array<{ id?: unknown; label?: unknown }>; edges?: Array<{ id?: unknown; label?: unknown }> } | null
+          const out: { nodes: Record<string, string>; edges: Record<string, string>; groups: Record<string, string> } = { nodes: {}, edges: {}, groups: {} }
+          if (!gd || !Array.isArray(gd.nodes) || !Array.isArray(gd.edges)) return out
+          for (let i = 0; i < gd.nodes.length; i += 1) {
+            const n = gd.nodes[i]
+            const id = String(n?.id ?? '').trim()
+            if (!id) continue
+            const label = String(n?.label ?? '').trim()
+            out.nodes[id] = label
+          }
+          for (let i = 0; i < gd.edges.length; i += 1) {
+            const e = gd.edges[i]
+            const id = String(e?.id ?? '').trim()
+            if (!id) continue
+            const label = String(e?.label ?? '').trim()
+            out.edges[id] = label
+          }
+          return out
+        } catch {
+          return { nodes: {}, edges: {}, groups: {} }
+        }
+      })()
+      const labelColorsForExport: { nodes: Record<string, string>; edges: Record<string, string>; groups: Record<string, string> } = {
+        nodes: {},
+        edges: {},
+        groups: {},
+      }
+      const shapeColorsForExport: { nodes: Record<string, string>; edges: Record<string, string>; groups: Record<string, string> } = {
+        nodes: {},
+        edges: {},
+        groups: {},
+      }
+      const shapeOpacityForExport: { nodes: Record<string, number>; edges: Record<string, number>; groups: Record<string, number> } = {
+        nodes: {},
+        edges: {},
+        groups: {},
+      }
+      try {
+        const gd = store.graphData as unknown as { nodes?: Array<{ id?: unknown; label?: unknown; type?: unknown; properties?: Record<string, unknown> }>; edges?: Array<{ id?: unknown; source?: unknown; target?: unknown; label?: unknown; properties?: Record<string, unknown> }> } | null
+        if (gd && Array.isArray(gd.nodes) && Array.isArray(gd.edges)) {
+          const selectionParams = {
+            data: store.graphData,
+            schema: store.schema,
+            selectedNodeId: store.selectedNodeId,
+            selectedEdgeId: store.selectedEdgeId,
+            selectedNodeIds: store.selectedNodeIds,
+            selectedEdgeIds: store.selectedEdgeIds,
+            renderMediaAsNodes: store.renderMediaAsNodes === true,
+            mediaNodeOpacity: typeof store.mediaNodeOpacity === 'number' ? store.mediaNodeOpacity : undefined,
+          }
+          const neighborIds = computeNeighborIds(selectionParams)
+          for (let i = 0; i < gd.nodes.length; i += 1) {
+            const n = gd.nodes[i]
+            const id = String(n?.id ?? '').trim()
+            if (!id) continue
+            let c = ''
+            let o: number | null = null
+            try {
+              const vis = computeNodeVisual(n as never, { ...selectionParams, neighborIds })
+              c = String(vis?.fill || '').trim()
+              o = normalizeExportOpacity(vis?.opacity, null)
+            } catch {
+              c = String(getNodeBaseFill(n as never, store.schema) || '').trim()
+            }
+            c = resolveExportPaint(c, '')
+            if (c) shapeColorsForExport.nodes[id] = c
+            if (o != null) shapeOpacityForExport.nodes[id] = o
+          }
+          for (let i = 0; i < gd.edges.length; i += 1) {
+            const e = gd.edges[i]
+            const id = String(e?.id ?? '').trim()
+            if (!id) continue
+            let c = ''
+            let o: number | null = null
+            try {
+              const vis = computeEdgeVisual(e as never, selectionParams as never)
+              c = String(vis?.stroke || '').trim()
+              o = normalizeExportOpacity(vis?.opacity, null)
+            } catch {
+              c = String(getEdgeBaseStroke(e as never, store.schema) || '').trim()
+            }
+            c = resolveExportPaint(c, '')
+            if (c) shapeColorsForExport.edges[id] = c
+            if (o != null) shapeOpacityForExport.edges[id] = o
+          }
+          const groups = deriveGraphGroups(store.graphData)
+          for (let i = 0; i < groups.length; i += 1) {
+            const g = groups[i]
+            const id = String(g?.id || '').trim()
+            if (!id) continue
+            const c = resolveExportPaint(String(g?.style?.stroke || g?.style?.fill || '').trim(), '')
+            if (c) shapeColorsForExport.groups[id] = c
+            const o = normalizeExportOpacity((g as unknown as { style?: Record<string, unknown> })?.style?.opacity, null)
+            if (o != null) shapeOpacityForExport.groups[id] = o
+          }
+        }
+      } catch {
+        void 0
+      }
+      let labelsForExportB64 = ''
+
+      const geospatialEnabled = (() => {
+        try {
+          return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+        } catch {
+          return false
+        }
+      })()
+      const wants3dExport =
+        store.canvasRenderMode === '3d' ||
+        (store.canvasRenderModeIsAuto === true && store.canvasRenderModeLastFree === '3d')
+
+      let svgMarkup: string | null = null
+      const canvasViewportEl = document.querySelector('section[aria-label="Canvas viewport"]') as HTMLElement | null
+      const bg = (() => {
+        try {
+          const isTransparent = (s: string) => {
+            const v = String(s || '').trim().toLowerCase()
+            return !v || v === 'transparent' || v === 'rgba(0, 0, 0, 0)' || v === 'rgb(0, 0, 0, 0)'
+          }
+          const read = (el: Element | null) => {
+            if (!el) return ''
+            const v = window.getComputedStyle(el as Element).backgroundColor
+            return typeof v === 'string' && !isTransparent(v) ? v.trim() : ''
+          }
+          return (
+            read(canvasViewportEl) ||
+            read(document.querySelector('[data-testid="app-root"]')) ||
+            read(document.body) ||
+            read(document.documentElement) ||
+            ''
+          )
+        } catch {
+          return ''
+        }
+      })()
+      const fg = (() => {
+        try {
+          const read = (el: Element | null) => {
+            if (!el) return ''
+            const v = window.getComputedStyle(el as Element).color
+            return typeof v === 'string' && v.trim() ? v.trim() : ''
+          }
+          return read(canvasViewportEl) || read(document.querySelector('[data-testid="app-root"]')) || read(document.body) || read(document.documentElement) || ''
+        } catch {
+          return ''
+        }
+      })()
+      const exportBg = bg || canvasBgToken
+      const exportFg = fg || textPrimaryToken
+      const svgEl =
+        (canvasViewportEl?.querySelector('svg[data-kg-canvas-interactive="1"]') as SVGSVGElement | null) ||
+        (canvasViewportEl?.querySelector('svg[aria-label="Design renderer"]') as SVGSVGElement | null)
+      if (svgEl) {
+        try {
+          const readPaint = (el: Element): string => {
+            try {
+              const attrFill = String(el.getAttribute('fill') || '').trim()
+              if (attrFill && attrFill !== 'none' && attrFill !== 'transparent') return attrFill
+            } catch {
+              void 0
+            }
+            try {
+              const inline = String(el.getAttribute('style') || '')
+              const m = inline.match(/(?:^|;)\s*fill\s*:\s*([^;]+)/i)
+              if (m && m[1]) {
+                const v = String(m[1]).trim()
+                if (v && v !== 'none' && v !== 'transparent') return v
+              }
+            } catch {
+              void 0
+            }
+            try {
+              const cs = window.getComputedStyle(el as Element).fill
+              const v = String(cs || '').trim()
+              if (v && v !== 'none' && v !== 'transparent') return v
+            } catch {
+              void 0
+            }
+            return ''
+          }
+          const readStroke = (el: Element): string => {
+            try {
+              const attrStroke = String(el.getAttribute('stroke') || '').trim()
+              if (attrStroke && attrStroke !== 'none' && attrStroke !== 'transparent') return attrStroke
+            } catch {
+              void 0
+            }
+            try {
+              const inline = String(el.getAttribute('style') || '')
+              const m = inline.match(/(?:^|;)\s*stroke\s*:\s*([^;]+)/i)
+              if (m && m[1]) {
+                const v = String(m[1]).trim()
+                if (v && v !== 'none' && v !== 'transparent') return v
+              }
+            } catch {
+              void 0
+            }
+            try {
+              const cs = window.getComputedStyle(el as Element).stroke
+              const v = String(cs || '').trim()
+              if (v && v !== 'none' && v !== 'transparent') return v
+            } catch {
+              void 0
+            }
+            return ''
+          }
+          const readOpacity = (el: Element): number | null => {
+            try {
+              const attr = normalizeExportOpacity(el.getAttribute('opacity'), null)
+              if (attr != null) return attr
+            } catch {
+              void 0
+            }
+            try {
+              const inline = String(el.getAttribute('style') || '')
+              const m = inline.match(/(?:^|;)\s*opacity\s*:\s*([^;]+)/i)
+              if (m && m[1]) {
+                const v = normalizeExportOpacity(m[1], null)
+                if (v != null) return v
+              }
+            } catch {
+              void 0
+            }
+            try {
+              const cs = normalizeExportOpacity(window.getComputedStyle(el as Element).opacity, null)
+              if (cs != null) return cs
+            } catch {
+              void 0
+            }
+            return null
+          }
+          for (const el of Array.from(svgEl.querySelectorAll('g[data-kg-layer="labels"] text[data-node-id]'))) {
+            const id = String(el.getAttribute('data-node-id') || '').trim()
+            if (!id) continue
+            const text = String(el.textContent || '').trim()
+            if (text) labelsForExport.nodes[id] = text
+            const color = readPaint(el)
+            if (color) labelColorsForExport.nodes[id] = resolveExportPaint(color, '')
+          }
+          for (const el of Array.from(svgEl.querySelectorAll('circle[data-node-id],rect[data-node-id],path[data-node-id],g.media-node-panel[data-node-id]'))) {
+            const id = String(el.getAttribute('data-node-id') || '').trim()
+            if (!id) continue
+            const color = readPaint(el)
+            if (color) shapeColorsForExport.nodes[id] = resolveExportPaint(color, '')
+            const opacity = readOpacity(el)
+            if (opacity != null) shapeOpacityForExport.nodes[id] = opacity
+          }
+          for (const el of Array.from(svgEl.querySelectorAll('g[data-kg-layer="edge-labels"] text[data-edge-id]'))) {
+            const id = String(el.getAttribute('data-edge-id') || '').trim()
+            if (!id) continue
+            const text = String(el.textContent || '').trim()
+            if (text) labelsForExport.edges[id] = text
+            const color = readPaint(el)
+            if (color) labelColorsForExport.edges[id] = resolveExportPaint(color, '')
+          }
+          for (const el of Array.from(svgEl.querySelectorAll('[data-edge-id]'))) {
+            const id = String(el.getAttribute('data-edge-id') || '').trim()
+            if (!id) continue
+            const color = readStroke(el) || readPaint(el)
+            if (color) shapeColorsForExport.edges[id] = resolveExportPaint(color, '')
+            const opacity = readOpacity(el)
+            if (opacity != null) shapeOpacityForExport.edges[id] = opacity
+          }
+          for (const el of Array.from(svgEl.querySelectorAll('g[data-kg-layer="group-labels"] text[data-kg-group-id], text[data-kg-group-label="1"][data-kg-group-id]'))) {
+            const id = String(el.getAttribute('data-kg-group-id') || '').trim()
+            if (!id) continue
+            const text = String(el.textContent || '').trim()
+            if (text) labelsForExport.groups[id] = text
+            const color = readPaint(el)
+            if (color) labelColorsForExport.groups[id] = resolveExportPaint(color, '')
+          }
+          for (const el of Array.from(svgEl.querySelectorAll('[data-kg-shape="group-rect"][data-kg-group-id], [data-kg-shape="group-geo"][data-kg-group-id], [data-kg-group-chevron="1"][data-kg-group-id], g[data-kg-group-id]'))) {
+            const id = String(el.getAttribute('data-kg-group-id') || '').trim()
+            if (!id) continue
+            const color = readStroke(el) || readPaint(el)
+            if (color) shapeColorsForExport.groups[id] = resolveExportPaint(color, '')
+            const opacity = readOpacity(el)
+            if (opacity != null) shapeOpacityForExport.groups[id] = opacity
+          }
+        } catch {
+          void 0
+        }
+      }
+      if (wants3dExport && !svgEl) {
+        try {
+          const captured2d = String((await store.captureCanvasSvgSnapshot('2d')) || '').trim()
+          if (captured2d) {
+            const parser = new DOMParser()
+            const doc = parser.parseFromString(captured2d, 'image/svg+xml')
+            const root = doc.documentElement
+            if (root && String(root.nodeName || '').toLowerCase() === 'svg') {
+              const readPaint = (el: Element): string => {
+                try {
+                  const attrFill = String(el.getAttribute('fill') || '').trim()
+                  if (attrFill && attrFill !== 'none' && attrFill !== 'transparent') return attrFill
+                } catch {
+                  void 0
+                }
+                try {
+                  const inline = String(el.getAttribute('style') || '')
+                  const m = inline.match(/(?:^|;)\s*fill\s*:\s*([^;]+)/i)
+                  if (m && m[1]) {
+                    const v = String(m[1]).trim()
+                    if (v && v !== 'none' && v !== 'transparent') return v
+                  }
+                } catch {
+                  void 0
+                }
+                return ''
+              }
+              const readStroke = (el: Element): string => {
+                try {
+                  const attrStroke = String(el.getAttribute('stroke') || '').trim()
+                  if (attrStroke && attrStroke !== 'none' && attrStroke !== 'transparent') return attrStroke
+                } catch {
+                  void 0
+                }
+                try {
+                  const inline = String(el.getAttribute('style') || '')
+                  const m = inline.match(/(?:^|;)\s*stroke\s*:\s*([^;]+)/i)
+                  if (m && m[1]) {
+                    const v = String(m[1]).trim()
+                    if (v && v !== 'none' && v !== 'transparent') return v
+                  }
+                } catch {
+                  void 0
+                }
+                return ''
+              }
+              const readOpacity = (el: Element): number | null => {
+                try {
+                  const attr = normalizeExportOpacity(el.getAttribute('opacity'), null)
+                  if (attr != null) return attr
+                } catch {
+                  void 0
+                }
+                try {
+                  const inline = String(el.getAttribute('style') || '')
+                  const m = inline.match(/(?:^|;)\s*opacity\s*:\s*([^;]+)/i)
+                  if (m && m[1]) {
+                    const v = normalizeExportOpacity(m[1], null)
+                    if (v != null) return v
+                  }
+                } catch {
+                  void 0
+                }
+                return null
+              }
+              for (const el of Array.from(root.querySelectorAll('g[data-kg-layer="labels"] text[data-node-id]'))) {
+                const id = String(el.getAttribute('data-node-id') || '').trim()
+                if (!id) continue
+                const text = String(el.textContent || '').trim()
+                if (text) labelsForExport.nodes[id] = text
+                const color = readPaint(el)
+                if (color) labelColorsForExport.nodes[id] = resolveExportPaint(color, '')
+              }
+              for (const el of Array.from(root.querySelectorAll('circle[data-node-id],rect[data-node-id],path[data-node-id],g.media-node-panel[data-node-id]'))) {
+                const id = String(el.getAttribute('data-node-id') || '').trim()
+                if (!id) continue
+                const color = readPaint(el)
+                if (color) shapeColorsForExport.nodes[id] = resolveExportPaint(color, '')
+                const opacity = readOpacity(el)
+                if (opacity != null) shapeOpacityForExport.nodes[id] = opacity
+              }
+              for (const el of Array.from(root.querySelectorAll('g[data-kg-layer="edge-labels"] text[data-edge-id]'))) {
+                const id = String(el.getAttribute('data-edge-id') || '').trim()
+                if (!id) continue
+                const text = String(el.textContent || '').trim()
+                if (text) labelsForExport.edges[id] = text
+                const color = readPaint(el)
+                if (color) labelColorsForExport.edges[id] = resolveExportPaint(color, '')
+              }
+              for (const el of Array.from(root.querySelectorAll('[data-edge-id]'))) {
+                const id = String(el.getAttribute('data-edge-id') || '').trim()
+                if (!id) continue
+                const color = readStroke(el) || readPaint(el)
+                if (color) shapeColorsForExport.edges[id] = resolveExportPaint(color, '')
+                const opacity = readOpacity(el)
+                if (opacity != null) shapeOpacityForExport.edges[id] = opacity
+              }
+              for (const el of Array.from(root.querySelectorAll('g[data-kg-layer="group-labels"] text[data-kg-group-id], text[data-kg-group-label="1"][data-kg-group-id]'))) {
+                const id = String(el.getAttribute('data-kg-group-id') || '').trim()
+                if (!id) continue
+                const text = String(el.textContent || '').trim()
+                if (text) labelsForExport.groups[id] = text
+                const color = readPaint(el)
+                if (color) labelColorsForExport.groups[id] = resolveExportPaint(color, '')
+              }
+              for (const el of Array.from(root.querySelectorAll('[data-kg-shape="group-rect"][data-kg-group-id], [data-kg-shape="group-geo"][data-kg-group-id], [data-kg-group-chevron="1"][data-kg-group-id], g[data-kg-group-id]'))) {
+                const id = String(el.getAttribute('data-kg-group-id') || '').trim()
+                if (!id) continue
+                const color = readStroke(el) || readPaint(el)
+                if (color) shapeColorsForExport.groups[id] = resolveExportPaint(color, '')
+                const opacity = readOpacity(el)
+                if (opacity != null) shapeOpacityForExport.groups[id] = opacity
+              }
+            }
+          }
+        } catch {
+          void 0
+        }
+      }
+      if (svgEl && !geospatialEnabled && !wants3dExport) {
+        const s = buildStandaloneSvgMarkupFromElement(svgEl, {
+          paddingPx: 96,
+          includeXmlDeclaration: false,
+          inlineComputedStyles: true,
+          removeCssClasses: false,
+          removeDataAttributes: false,
+          removeZoomTransformOnFirstGroup: true,
+        })
+        if (s && s.trim()) {
+          const enhance = (raw: string): string => {
+            try {
+              const parser = new DOMParser()
+              const doc = parser.parseFromString(raw, 'image/svg+xml')
+              const root = doc.documentElement
+              if (!root || String(root.nodeName || '').toLowerCase() !== 'svg') return raw
+              const attachTitle = (el: Element, text: string) => {
+                const t = String(text || '').trim()
+                if (!t) return
+                try {
+                  const existing = el.querySelector('title')
+                  if (existing) return
+                } catch {
+                  void 0
+                }
+                const title = doc.createElementNS('http://www.w3.org/2000/svg', 'title')
+                title.textContent = t
+                try {
+                  el.insertBefore(title, el.firstChild)
+                } catch {
+                  try {
+                    el.appendChild(title)
+                  } catch {
+                    void 0
+                  }
+                }
+              }
+              const normalizeStyle = (el: Element, extra?: string) => {
+                const prev = String(el.getAttribute('style') || '')
+                const cleaned = prev
+                  .replace(/(?:^|;)\s*display\s*:\s*none\s*;?/gi, ';')
+                  .replace(/(?:^|;)\s*visibility\s*:\s*hidden\s*;?/gi, ';')
+                  .replace(/(?:^|;)\s*opacity\s*:\s*0(?:\.0+)?\s*;?/gi, ';')
+                  .replace(/;{2,}/g, ';')
+                  .trim()
+                const suffix = String(extra || '').trim()
+                el.setAttribute('style', `${cleaned ? cleaned.replace(/;?\s*$/, ';') : ''}${suffix}`)
+              }
+              const ensureVisibleText = (el: Element, opts?: { forceLabelColor?: boolean }) => {
+                try {
+                  el.setAttribute('data-lod-hidden', '0')
+                  el.setAttribute('data-zoom-lod-hidden', '0')
+                  el.removeAttribute('hidden')
+                  const layer = el.closest('g[data-kg-layer]')
+                  if (layer) {
+                    layer.removeAttribute('hidden')
+                    layer.setAttribute('display', 'inline')
+                    layer.setAttribute('visibility', 'visible')
+                    layer.setAttribute('opacity', '1')
+                    normalizeStyle(layer, 'display:inline;visibility:visible;opacity:1;')
+                  }
+                  el.setAttribute('display', 'inline')
+                  el.setAttribute('visibility', 'visible')
+                  el.setAttribute('opacity', '1')
+                  if (opts?.forceLabelColor) {
+                    const fill = String(el.getAttribute('fill') || '').trim().toLowerCase()
+                    const stroke = String(el.getAttribute('stroke') || '').trim().toLowerCase()
+                    if (!fill || fill === 'none' || fill === 'transparent') el.setAttribute('fill', canvasLabelFillToken)
+                    if (!stroke || stroke === 'none' || stroke === 'transparent') el.setAttribute('stroke', canvasLabelHaloToken)
+                  }
+                  normalizeStyle(el, 'display:inline;visibility:visible;opacity:1;pointer-events:all;')
+                } catch {
+                  void 0
+                }
+              }
+              const hash01 = (s: string) => {
+                let h = 2166136261
+                for (let i = 0; i < s.length; i += 1) {
+                  h ^= s.charCodeAt(i)
+                  h = Math.imul(h, 16777619)
+                }
+                return ((h >>> 0) % 1000) / 1000
+              }
+              const nodeSel = 'circle[data-node-id],rect[data-node-id],path[data-node-id],g.media-node-panel[data-node-id]'
+              for (const el of Array.from(root.querySelectorAll(nodeSel))) {
+                const id = String(el.getAttribute('data-node-id') || '').trim()
+                if (!id) continue
+                attachTitle(el, labelsForExport.nodes[id] || id)
+                const d = 2.8 + hash01(id) * 1.6
+                const delay = hash01(id + ':d') * 1.2
+                const amp = 1.5 + hash01(id + ':a') * 1.8
+                const prev = String(el.getAttribute('style') || '')
+                const next = `${prev ? prev.replace(/;?\s*$/, ';') : ''}pointer-events:all;transform-box:fill-box;transform-origin:center;animation:kgNodeBob ${d.toFixed(2)}s ease-in-out ${delay.toFixed(2)}s infinite;--kg-bob-amp:${amp.toFixed(2)}px;`
+                el.setAttribute('style', next)
+                try {
+                  const existing = el.querySelector('animateTransform[data-kg-anim="1"]')
+                  if (!existing) {
+                    const anim = doc.createElementNS('http://www.w3.org/2000/svg', 'animateTransform')
+                    anim.setAttribute('data-kg-anim', '1')
+                    anim.setAttribute('attributeName', 'transform')
+                    anim.setAttribute('attributeType', 'XML')
+                    anim.setAttribute('type', 'translate')
+                    anim.setAttribute('additive', 'sum')
+                    anim.setAttribute('dur', `${d.toFixed(2)}s`)
+                    anim.setAttribute('begin', `${delay.toFixed(2)}s`)
+                    anim.setAttribute('repeatCount', 'indefinite')
+                    anim.setAttribute('values', `0 0;0 ${(-amp).toFixed(2)};0 0`)
+                    el.appendChild(anim)
+                  }
+                } catch {
+                  void 0
+                }
+              }
+              const edgeSel = '[data-edge-id]'
+              for (const el of Array.from(root.querySelectorAll(edgeSel))) {
+                const id = String(el.getAttribute('data-edge-id') || '').trim()
+                if (!id) continue
+                attachTitle(el, labelsForExport.edges[id] || id)
+                try {
+                  const prev = String(el.getAttribute('style') || '')
+                  if (!/\bpointer-events\s*:/i.test(prev)) {
+                    el.setAttribute('style', `${prev ? prev.replace(/;?\s*$/, ';') : ''}pointer-events:all;`)
+                  }
+                } catch {
+                  void 0
+                }
+              }
+              for (const el of Array.from(root.querySelectorAll('g[data-kg-layer="labels"] text[data-node-id]'))) {
+                ensureVisibleText(el, { forceLabelColor: true })
+              }
+              for (const el of Array.from(root.querySelectorAll('g[data-kg-layer="edge-labels"] text[data-edge-id]'))) {
+                ensureVisibleText(el, { forceLabelColor: true })
+              }
+              for (const el of Array.from(root.querySelectorAll('g[data-kg-layer="labels"], g[data-kg-layer="edge-labels"], g[data-kg-layer="group-labels"]'))) {
+                normalizeStyle(el, 'display:inline;visibility:visible;opacity:1;')
+              }
+              for (const el of Array.from(root.querySelectorAll('g[data-kg-layer="group-labels"] text[data-kg-group-id], text[data-kg-group-label="1"][data-kg-group-id]'))) {
+                const gid = String(el.getAttribute('data-kg-group-id') || '').trim()
+                const text = String(el.textContent || '').trim()
+                if (gid && text) labelsForExport.groups[gid] = text
+                attachTitle(el, labelsForExport.groups[gid] || gid)
+                ensureVisibleText(el, { forceLabelColor: true })
+              }
+              for (const el of Array.from(root.querySelectorAll('[data-kg-shape="group-rect"][data-kg-group-id], [data-kg-shape="group-geo"][data-kg-group-id], [data-kg-group-chevron="1"][data-kg-group-id]'))) {
+                const gid = String(el.getAttribute('data-kg-group-id') || '').trim()
+                if (!gid) continue
+                const text = labelsForExport.groups[gid] || gid
+                attachTitle(el, text)
+                normalizeStyle(el, 'pointer-events:all;')
+              }
+              try {
+                const tokenMap = new Map<string, string>()
+                for (let i = 0; i < KG_TOKEN_DEFS.length; i += 1) {
+                  const def = KG_TOKEN_DEFS[i]
+                  const v = resolveCssVarWithKgFallback(def.cssVar, themeAttr)
+                  if (v && String(v).trim()) tokenMap.set(def.cssVar, String(v).trim())
+                }
+                const svgOut = new XMLSerializer().serializeToString(root)
+                return svgOut.replace(/var\(\s*(--kg-[a-z0-9-]+)\s*(?:,\s*[^)]+)?\)/gi, (_m, name: string) => {
+                  const v = tokenMap.get(String(name || '').trim())
+                  return v || _m
+                })
+              } catch {
+                return new XMLSerializer().serializeToString(root)
+              }
+            } catch {
+              return raw
+            }
+          }
+          svgMarkup = enhance(s.trim()).trim()
+        }
+      }
+      if (!svgMarkup && !geospatialEnabled && !wants3dExport) {
+        try {
+          const captured = await store.captureCanvasSvgSnapshot()
+          const trimmed = String(captured || '').trim()
+          if (trimmed) svgMarkup = trimmed
+        } catch {
+          void 0
+        }
+      }
+
+      let bodyHtml = ''
+      let threeModuleScript: string | null = null
+      let threeFallbackPngDataUrl = ''
+      if (svgMarkup) {
+        const stripped = svgMarkup.replace(/^\s*<\?xml[^>]*>\s*/i, '')
+        bodyHtml = `<div class="kgExportCanvasRoot">${stripped}</div>`
+      } else {
+        const shouldTry3dFit = !geospatialEnabled && wants3dExport
+        const shouldTry2dFit =
+          !geospatialEnabled &&
+          store.canvasRenderMode === '2d' &&
+          (store.canvas2dRenderer === 'flow' || store.canvas2dRenderer === 'flowEditor')
+
+        const prev3d = shouldTry3dFit ? store.captureThreeCameraPose() : null
+        let poseForExport = prev3d
+        const prev2d = shouldTry2dFit ? store.zoomState : null
+
+        if (shouldTry3dFit && prev3d) {
+          try {
+            store.requestThreeCamera('fit')
+            await waitFrames(2)
+            poseForExport = store.captureThreeCameraPose() || prev3d
+          } catch {
+            void 0
+          }
+        } else if (shouldTry2dFit && prev2d) {
+          try {
+            store.requestZoom('fit', { intent: 'fitToView' })
+            await waitFrames(2)
+          } catch {
+            void 0
+          }
+        }
+
+        const glbForThree = await (async () => {
+          if (!shouldTry3dFit) return null
+          try {
+            return await store.captureThreeGlbSnapshot()
+          } catch {
+            return null
+          }
+        })()
+
+        if (glbForThree) {
+          const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
+          const threeCfg = getThreeConfig(store.schema)
+          const fogColor =
+            typeof threeCfg.fogColor === 'string' && threeCfg.fogColor.trim() !== ''
+              ? threeCfg.fogColor.trim()
+              : null
+          const fogNearRaw = typeof threeCfg.fogNear === 'number' ? threeCfg.fogNear : 180
+          const fogFarRaw = typeof threeCfg.fogFar === 'number' ? threeCfg.fogFar : 360
+          const fogNear = Math.max(1, Math.min(fogNearRaw, fogFarRaw - 1))
+          const fogFar = Math.max(fogNear + 1, fogFarRaw)
+          const dampingFactor = clamp01(typeof threeCfg.cameraDampingFactor === 'number' ? threeCfg.cameraDampingFactor : 0.06)
+          const rotateSpeed = typeof threeCfg.cameraRotateSpeed === 'number' ? threeCfg.cameraRotateSpeed : 0.6
+          const zoomSpeed = typeof threeCfg.cameraZoomSpeed === 'number' ? threeCfg.cameraZoomSpeed : 0.8
+          const panSpeed = typeof threeCfg.cameraPanSpeed === 'number' ? threeCfg.cameraPanSpeed : 0.5
+          const autoRotate = !!threeCfg.cameraAutoRotate
+          const autoRotateSpeed = typeof threeCfg.cameraAutoRotateSpeed === 'number' ? threeCfg.cameraAutoRotateSpeed : 0.4
+          const nodeMotionIntensity = typeof threeCfg.nodeMotionIntensity === 'number' ? Math.max(0, Math.min(2, threeCfg.nodeMotionIntensity)) : 1
+          const offlineModules = await (async () => {
+            try {
+              return await loadThreeOfflineModuleSources()
+            } catch {
+              return null
+            }
+          })()
+          const glbDataUrl = await blobToDataUrl(glbForThree)
+          const glbJs = JSON.stringify(glbDataUrl)
+          const poseJs = JSON.stringify(poseForExport || null)
+          const offlineJs = JSON.stringify(offlineModules)
+          const labelsJs = JSON.stringify(labelsForExport)
+          const labelColorsJs = JSON.stringify(labelColorsForExport)
+          const shapeColorsJs = JSON.stringify(shapeColorsForExport)
+          const shapeOpacityJs = JSON.stringify(shapeOpacityForExport)
+          const threeCfgJs = JSON.stringify({
+            fogColor,
+            fogNear,
+            fogFar,
+            dampingFactor,
+            rotateSpeed,
+            zoomSpeed,
+            panSpeed,
+            autoRotate,
+            autoRotateSpeed,
+            nodeMotionIntensity,
+            bg: exportBg,
+          })
+          bodyHtml = `<div class="kgExportCanvasRoot kgExportThreeRoot"><canvas id="kgExportThreeCanvas"></canvas></div>`
+          threeModuleScript = [
+            'const PREFER_CDN = false;',
+            `const GLB_URL = ${glbJs};`,
+            `const CAMERA_POSE = ${poseJs};`,
+            `const OFFLINE = ${offlineJs};`,
+            `const LABELS = ${labelsJs};`,
+            `const LABEL_COLORS = ${labelColorsJs};`,
+            `const SHAPE_COLORS = ${shapeColorsJs};`,
+            `const SHAPE_OPACITY = ${shapeOpacityJs};`,
+            `const THREE_CFG = ${threeCfgJs};`,
+            'const loadThree = async () => {',
+            '  const cdnBase = "https://unpkg.com/three@0.170.0/";',
+            '  const loadCdn = async () => {',
+            '    const THREE = await import(cdnBase + "build/three.module.js");',
+            '    const { OrbitControls } = await import(cdnBase + "examples/jsm/controls/OrbitControls.js");',
+            '    const { GLTFLoader } = await import(cdnBase + "examples/jsm/loaders/GLTFLoader.js");',
+            '    return { THREE, OrbitControls, GLTFLoader };',
+            '  };',
+            '  const loadEmbedded = async () => {',
+            '    if (!OFFLINE) throw new Error("Missing offline modules");',
+            '    const mkUrl = (src) => URL.createObjectURL(new Blob([String(src || "")], { type: "text/javascript" }));',
+            '    const threeUrl = mkUrl(OFFLINE.three);',
+            '    const fixThreeImport = (src) => String(src || "").replace(/from\\s+[\\\'\\"]three[\\\'\\"]/g, `from "${threeUrl}"`);',
+            '    const bufUrl = mkUrl(fixThreeImport(OFFLINE.bufferGeometryUtils));',
+            '    const orbitUrl = mkUrl(fixThreeImport(OFFLINE.orbitControls));',
+            '    const gltfSrc = fixThreeImport(OFFLINE.gltfLoader).replace("../utils/BufferGeometryUtils.js", bufUrl);',
+            '    const gltfUrl = mkUrl(gltfSrc);',
+            '    const THREE = await import(threeUrl);',
+            '    const { OrbitControls } = await import(orbitUrl);',
+            '    const { GLTFLoader } = await import(gltfUrl);',
+            '    return { THREE, OrbitControls, GLTFLoader };',
+            '  };',
+            '  if (PREFER_CDN) return await loadCdn();',
+            '  try {',
+            '    return await loadEmbedded();',
+            '  } catch {',
+            '    return await loadCdn();',
+            '  }',
+            '};',
+            'const { THREE, OrbitControls, GLTFLoader } = await loadThree();',
+            'const canvas = document.getElementById("kgExportThreeCanvas");',
+            'if (!(canvas instanceof HTMLCanvasElement)) throw new Error("Missing canvas");',
+            'const root = document.querySelector(".kgExportThreeRoot");',
+            'const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });',
+            'try {',
+            '  const bg = THREE_CFG && typeof THREE_CFG.bg === "string" ? String(THREE_CFG.bg).trim() : "";',
+            '  if (bg && bg !== "transparent" && bg !== "rgba(0, 0, 0, 0)") {',
+            '    renderer.setClearColor(new THREE.Color(bg), 1);',
+            '  } else {',
+            '    renderer.setClearColor(0x000000, 0);',
+            '  }',
+            '} catch {',
+            '  renderer.setClearColor(0x000000, 0);',
+            '}',
+            'renderer.outputColorSpace = THREE.SRGBColorSpace;',
+            'const scene = new THREE.Scene();',
+            'try {',
+            '  if (THREE_CFG && THREE_CFG.fogColor) {',
+            '    scene.fog = new THREE.Fog(String(THREE_CFG.fogColor), Number(THREE_CFG.fogNear) || 180, Number(THREE_CFG.fogFar) || 360);',
+            '  }',
+            '} catch { }',
+            'const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 10000);',
+            'const controls = new OrbitControls(camera, renderer.domElement);',
+            'controls.enableDamping = !!(THREE_CFG && typeof THREE_CFG.dampingFactor === "number" && THREE_CFG.dampingFactor > 0);',
+            'controls.dampingFactor = (THREE_CFG && typeof THREE_CFG.dampingFactor === "number") ? THREE_CFG.dampingFactor : 0.06;',
+            'controls.screenSpacePanning = true;',
+            'controls.enablePan = true;',
+            'controls.enableRotate = true;',
+            'controls.enableZoom = true;',
+            'controls.rotateSpeed = (THREE_CFG && typeof THREE_CFG.rotateSpeed === "number") ? THREE_CFG.rotateSpeed : 0.6;',
+            'controls.zoomSpeed = (THREE_CFG && typeof THREE_CFG.zoomSpeed === "number") ? THREE_CFG.zoomSpeed : 0.8;',
+            'controls.panSpeed = (THREE_CFG && typeof THREE_CFG.panSpeed === "number") ? THREE_CFG.panSpeed : 0.5;',
+            'controls.autoRotate = !!(THREE_CFG && THREE_CFG.autoRotate);',
+            'controls.autoRotateSpeed = (THREE_CFG && typeof THREE_CFG.autoRotateSpeed === "number") ? THREE_CFG.autoRotateSpeed : 0.4;',
+            'const setSize = () => {',
+            '  const w = (root && (root instanceof HTMLElement) ? root.clientWidth : window.innerWidth) || 1;',
+            '  const h = (root && (root instanceof HTMLElement) ? root.clientHeight : window.innerHeight) || 1;',
+            '  camera.aspect = w / h;',
+            '  camera.updateProjectionMatrix();',
+            '  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));',
+            '  renderer.setSize(w, h, false);',
+            '};',
+            'let needsRender = true;',
+            'const render = () => { needsRender = true; };',
+            'controls.addEventListener("change", render);',
+            'window.addEventListener("resize", () => { setSize(); render(); });',
+            'setSize();',
+            'const loader = new GLTFLoader();',
+            'const buf = await (await fetch(GLB_URL)).arrayBuffer();',
+            'const gltf = await new Promise((resolve, reject) => {',
+            '  loader.parse(buf, "", (g) => resolve(g), (e) => reject(e));',
+            '});',
+            'scene.add(gltf.scene);',
+            'const labelLayer = document.createElement("div");',
+            'labelLayer.style.position = "absolute";',
+            'labelLayer.style.inset = "0";',
+            'labelLayer.style.pointerEvents = "none";',
+            'labelLayer.style.zIndex = "4";',
+            'if (root && (root instanceof HTMLElement)) {',
+            '  try { if (getComputedStyle(root).position === "static") root.style.position = "relative"; } catch { }',
+            '  root.appendChild(labelLayer);',
+            '}',
+            'const getOverlayColor = (kind, id) => {',
+            '  const fallback = kind === "group" ? "#a5f3fc" : kind === "edge" ? "#cbd5e1" : "#e5e7eb";',
+            '  if (!id) return fallback;',
+            '  const maps = LABEL_COLORS && typeof LABEL_COLORS === "object" ? LABEL_COLORS : null;',
+            '  if (!maps) return fallback;',
+            '  const table = kind === "group" ? maps.groups : kind === "edge" ? maps.edges : maps.nodes;',
+            '  const v = table && typeof table === "object" ? String(table[id] || "").trim() : "";',
+            '  return v || fallback;',
+            '};',
+            'const mkOverlayLabel = (text, kind, id) => {',
+            '  const el = document.createElement("div");',
+            '  el.textContent = String(text || "");',
+            '  el.style.position = "absolute";',
+            '  el.style.left = "0";',
+            '  el.style.top = "0";',
+            '  el.style.transform = "translate(-10000px,-10000px)";',
+            '  el.style.whiteSpace = "nowrap";',
+            '  el.style.font = kind === "edge" ? "500 11px/1.2 system-ui, sans-serif" : "600 12px/1.2 system-ui, sans-serif";',
+            '  el.style.color = getOverlayColor(kind, id);',
+            '  el.style.textShadow = "0 1px 0 rgba(2,6,23,0.95), 0 -1px 0 rgba(2,6,23,0.95), 1px 0 0 rgba(2,6,23,0.95), -1px 0 0 rgba(2,6,23,0.95)";',
+            '  el.style.opacity = kind === "edge" ? "0.95" : "1";',
+            '  el.style.display = "none";',
+            '  labelLayer.appendChild(el);',
+            '  return el;',
+            '};',
+            'const labelEntries = [];',
+            'const addLabelEntries = (kind, map, includeWhenEmpty) => {',
+            '  if (!map || typeof map !== "object") return;',
+            '  for (const id of Object.keys(map)) {',
+            '    const raw = map[id];',
+            '    const label = typeof raw === "string" ? raw.trim() : "";',
+            '    if (!label && !includeWhenEmpty) continue;',
+            '    const text = label || String(id || "");',
+            '    labelEntries.push({ kind, id: String(id || ""), el: mkOverlayLabel(text, kind, String(id || "")), obj: null, box: new THREE.Box3(), center: new THREE.Vector3(), screen: new THREE.Vector3(), sx: 0, sy: 0, visible: false });',
+            '  }',
+            '};',
+            'addLabelEntries("node", LABELS && LABELS.nodes ? LABELS.nodes : null, true);',
+            'addLabelEntries("edge", LABELS && LABELS.edges ? LABELS.edges : null, false);',
+            'addLabelEntries("group", LABELS && LABELS.groups ? LABELS.groups : null, true);',
+            'const taggedObjects = new Map();',
+            'const namedObjects = [];',
+            'gltf.scene.traverse(o => {',
+            '  const name = String(o && o.name ? o.name : "");',
+            '  if (!name) return;',
+            '  namedObjects.push({ name, obj: o });',
+            '  if (name.startsWith("kg_node:") || name.startsWith("kg_edge:") || name.startsWith("kg_group:") || name.startsWith("kg_cluster:")) taggedObjects.set(name, o);',
+            '});',
+            'const canonicalId = (value) => String(value || "").trim().replace(/^ws:[^:]+::/, "");',
+            'const idCandidates = (value) => {',
+            '  const raw = String(value || "").trim();',
+            '  const out = [];',
+            '  const seen = new Set();',
+            '  const add = (v) => {',
+            '    const s = String(v || "").trim();',
+            '    if (!s || seen.has(s)) return;',
+            '    seen.add(s);',
+            '    out.push(s);',
+            '  };',
+            '  add(raw);',
+            '  add(canonicalId(raw));',
+            '  if (raw.includes("::")) add(raw.split("::").pop());',
+            '  if (raw.includes(":")) add(raw.split(":").pop());',
+            '  return out;',
+            '};',
+            'const getShapeColor = (kind, id) => {',
+            '  if (!id) return "";',
+            '  const maps = SHAPE_COLORS && typeof SHAPE_COLORS === "object" ? SHAPE_COLORS : null;',
+            '  if (!maps) return "";',
+            '  const table = kind === "group" ? maps.groups : kind === "edge" ? maps.edges : maps.nodes;',
+            '  if (!table || typeof table !== "object") return "";',
+            '  const ids = idCandidates(id);',
+            '  for (let i = 0; i < ids.length; i += 1) {',
+            '    const v = String(table[ids[i]] || "").trim();',
+            '    if (v) return v;',
+            '  }',
+            '  const canonSet = new Set(ids.map(canonicalId).filter(Boolean));',
+            '  for (const k of Object.keys(table)) {',
+            '    const ck = canonicalId(k);',
+            '    if (!ck || !canonSet.has(ck)) continue;',
+            '    const v = String(table[k] || "").trim();',
+            '    if (v) return v;',
+            '  }',
+            '  return "";',
+            '};',
+            'const getShapeOpacity = (kind, id) => {',
+            '  if (!id) return null;',
+            '  const maps = SHAPE_OPACITY && typeof SHAPE_OPACITY === "object" ? SHAPE_OPACITY : null;',
+            '  if (!maps) return null;',
+            '  const table = kind === "group" ? maps.groups : kind === "edge" ? maps.edges : maps.nodes;',
+            '  if (!table || typeof table !== "object") return null;',
+            '  const ids = idCandidates(id);',
+            '  for (let i = 0; i < ids.length; i += 1) {',
+            '    const raw = Number(table[ids[i]]);',
+            '    if (Number.isFinite(raw)) return Math.max(0, Math.min(1, raw));',
+            '  }',
+            '  const canonSet = new Set(ids.map(canonicalId).filter(Boolean));',
+            '  for (const k of Object.keys(table)) {',
+            '    const ck = canonicalId(k);',
+            '    if (!ck || !canonSet.has(ck)) continue;',
+            '    const raw = Number(table[k]);',
+            '    if (Number.isFinite(raw)) return Math.max(0, Math.min(1, raw));',
+            '  }',
+            '  return null;',
+            '};',
+            'const resolveRuntimeColor = (value) => {',
+            '  let v = String(value || "").trim();',
+            '  if (!v) return "";',
+            '  const m = v.match(/^var\\(\\s*(--[a-z0-9-]+)\\s*(?:,\\s*([^)]+))?\\)$/i);',
+            '  if (m) {',
+            '    const cssName = String(m[1] || "").trim();',
+            '    const fb = String(m[2] || "").trim();',
+            '    let resolved = "";',
+            '    try { resolved = String(getComputedStyle(document.documentElement).getPropertyValue(cssName) || "").trim(); } catch { }',
+            '    v = resolved || fb;',
+            '  }',
+            '  return String(v || "").trim();',
+            '};',
+            'const parseAlpha = (value) => {',
+            '  const s = String(value || "").trim();',
+            '  const rgba = s.match(/^rgba\\(\\s*[^,]+\\s*,\\s*[^,]+\\s*,\\s*[^,]+\\s*,\\s*([0-9]*\\.?[0-9]+)\\s*\\)$/i);',
+            '  if (rgba && rgba[1]) return Math.max(0, Math.min(1, Number(rgba[1])));',
+            '  const hsla = s.match(/^hsla\\(\\s*[^,]+\\s*,\\s*[^,]+\\s*,\\s*[^,]+\\s*,\\s*([0-9]*\\.?[0-9]+)\\s*\\)$/i);',
+            '  if (hsla && hsla[1]) return Math.max(0, Math.min(1, Number(hsla[1])));',
+            '  return null;',
+            '};',
+            'const applyMaterialColor = (mat, color, kind, opacityOverride) => {',
+            '  if (!mat || !color) return;',
+            '  try {',
+            '    const resolved = resolveRuntimeColor(color);',
+            '    if (!resolved) return;',
+            '    if (mat.color && mat.color.isColor) mat.color.setStyle(resolved);',
+            '    if (mat.emissive && mat.emissive.isColor) {',
+            '      mat.emissive.setStyle(resolved);',
+            '      if (typeof mat.emissiveIntensity === "number") mat.emissiveIntensity = kind === "edge" ? 0.3 : 0.22;',
+            '    }',
+            '    if (typeof mat.vertexColors === "boolean" && mat.vertexColors) mat.vertexColors = false;',
+            '    if (typeof mat.toneMapped === "boolean") mat.toneMapped = false;',
+            '    if (typeof mat.metalness === "number") mat.metalness = 0;',
+            '    if (typeof mat.roughness === "number") mat.roughness = 1;',
+            '    const alpha = opacityOverride != null && Number.isFinite(opacityOverride) ? Math.max(0, Math.min(1, Number(opacityOverride))) : parseAlpha(resolved);',
+            '    if (alpha != null && Number.isFinite(alpha) && typeof mat.opacity === "number") {',
+            '      mat.opacity = alpha;',
+            '      if (typeof mat.transparent === "boolean") mat.transparent = alpha < 0.999;',
+            '    }',
+            '    mat.needsUpdate = true;',
+            '  } catch { }',
+            '};',
+            'const applyObjectColor = (obj, color, kind, opacityOverride) => {',
+            '  if (!obj || !color) return;',
+            '  try {',
+            '    obj.traverse((o) => {',
+            '      const m = o && o.material ? o.material : null;',
+            '      if (!m) return;',
+            '      if (Array.isArray(m)) {',
+            '        for (let i = 0; i < m.length; i += 1) applyMaterialColor(m[i], color, kind, opacityOverride);',
+            '      } else {',
+            '        applyMaterialColor(m, color, kind, opacityOverride);',
+            '      }',
+            '    });',
+            '  } catch { }',
+            '};',
+            'for (const [name, obj] of taggedObjects.entries()) {',
+            '  const s = String(name || "");',
+            '  const kind = s.startsWith("kg_node:") ? "node" : s.startsWith("kg_edge:") ? "edge" : (s.startsWith("kg_group:") || s.startsWith("kg_cluster:")) ? "group" : "";',
+            '  if (!kind) continue;',
+            '  const id = s.replace(/^kg_(?:node|edge|group|cluster):/, "");',
+            '  const color = getShapeColor(kind, id);',
+            '  const opacity = getShapeOpacity(kind, id);',
+            '  if (color) applyObjectColor(obj, color, kind, opacity);',
+            '}',
+            'const taggedList = Array.from(taggedObjects.entries());',
+            'const findBestTaggedObject = (kind, id) => {',
+            '  const safeId = String(id || "").trim();',
+            '  if (!safeId) return null;',
+            '  const ids = idCandidates(safeId);',
+            '  const canonSet = new Set(ids.map(canonicalId).filter(Boolean));',
+            '  for (let i = 0; i < ids.length; i += 1) {',
+            '    const cur = ids[i];',
+            '    const key = kind === "node" ? `kg_node:${cur}` : kind === "edge" ? `kg_edge:${cur}` : `kg_group:${cur}`;',
+            '    const alt = kind === "group" ? `kg_cluster:${cur}` : "";',
+            '    const exact = taggedObjects.get(key) || (alt ? taggedObjects.get(alt) : null);',
+            '    if (exact) return exact;',
+            '  }',
+            '  for (let i = 0; i < taggedList.length; i += 1) {',
+            '    const [name, obj] = taggedList[i];',
+            '    if (!name || !obj) continue;',
+            '    if (kind === "node" && !name.startsWith("kg_node:")) continue;',
+            '    if (kind === "edge" && !name.startsWith("kg_edge:")) continue;',
+            '    if (kind === "group" && !name.startsWith("kg_group:") && !name.startsWith("kg_cluster:")) continue;',
+            '    const nameId = String(name).replace(/^kg_(?:node|edge|group|cluster):/, "");',
+            '    const nameCanon = canonicalId(nameId);',
+            '    if ((nameCanon && canonSet.has(nameCanon)) || ids.some(v => name.includes(v) || name.endsWith(`:${v}`) || name.endsWith(v))) return obj;',
+            '  }',
+            '  for (let i = 0; i < namedObjects.length; i += 1) {',
+            '    const it = namedObjects[i];',
+            '    if (!it || !it.name || !it.obj) continue;',
+            '    const nameCanon = canonicalId(String(it.name).replace(/^kg_(?:node|edge|group|cluster):/, ""));',
+            '    if ((nameCanon && canonSet.has(nameCanon)) || ids.some(v => it.name.includes(v))) return it.obj;',
+            '  }',
+            '  return null;',
+            '};',
+            'const applyColorTable = (kind, map) => {',
+            '  if (!map || typeof map !== "object") return;',
+            '  for (const id of Object.keys(map)) {',
+            '    const color = getShapeColor(kind, id);',
+            '    if (!color) continue;',
+            '    const opacity = getShapeOpacity(kind, id);',
+            '    const obj = findBestTaggedObject(kind, id);',
+            '    if (!obj) continue;',
+            '    applyObjectColor(obj, color, kind, opacity);',
+            '  }',
+            '};',
+            'applyColorTable("node", SHAPE_COLORS && SHAPE_COLORS.nodes ? SHAPE_COLORS.nodes : null);',
+            'applyColorTable("edge", SHAPE_COLORS && SHAPE_COLORS.edges ? SHAPE_COLORS.edges : null);',
+            'applyColorTable("group", SHAPE_COLORS && SHAPE_COLORS.groups ? SHAPE_COLORS.groups : null);',
+            'const fallbackMeshes = [];',
+            'gltf.scene.traverse(o => {',
+            '  if (!o || !o.isMesh) return;',
+            '  const n = String(o.name || "").toLowerCase();',
+            '  if (n.includes("starfield") || n.includes("grid") || n.includes("background")) return;',
+            '  fallbackMeshes.push(o);',
+            '});',
+            'let fallbackNodeCursor = 0;',
+            'for (let i = 0; i < labelEntries.length; i += 1) {',
+            '  const it = labelEntries[i];',
+            '  it.obj = findBestTaggedObject(it.kind, it.id);',
+            '  if (!it.obj && it.kind === "node" && fallbackNodeCursor < fallbackMeshes.length) {',
+            '    it.obj = fallbackMeshes[fallbackNodeCursor++] || null;',
+            '  }',
+            '}',
+            'const tooltip = document.createElement("div");',
+            'tooltip.className = "kgExportTooltip";',
+            'tooltip.style.display = "none";',
+            'document.body.appendChild(tooltip);',
+            'const showTip = (text, x, y) => {',
+            '  tooltip.textContent = String(text || "");',
+            '  tooltip.style.left = `${Math.round(x + 12)}px`;',
+            '  tooltip.style.top = `${Math.round(y + 12)}px`;',
+            '  tooltip.style.display = "";',
+            '};',
+            'const hideTip = () => { tooltip.style.display = "none"; };',
+            'const findTagged = (obj) => {',
+            '  let o = obj;',
+            '  while (o) {',
+            '    const name = String(o.name || "");',
+            '    if (name.startsWith("kg_node:") || name.startsWith("kg_edge:") || name.startsWith("kg_group:") || name.startsWith("kg_cluster:")) return name;',
+            '    o = o.parent;',
+            '  }',
+            '  return "";',
+            '};',
+            'const raycaster = new THREE.Raycaster();',
+            'const mouse = new THREE.Vector2();',
+            'let lastTipKey = "";',
+            'const onPointerMove = (e) => {',
+            '  const rect = renderer.domElement.getBoundingClientRect();',
+            '  const cx = e.clientX - rect.left;',
+            '  const cy = e.clientY - rect.top;',
+            '  mouse.x = (cx / rect.width) * 2 - 1;',
+            '  mouse.y = -(cy / rect.height) * 2 + 1;',
+            '  raycaster.setFromCamera(mouse, camera);',
+            '  const hits = raycaster.intersectObject(gltf.scene, true);',
+            '  const tag = hits && hits.length ? findTagged(hits[0].object) : "";',
+            '  if (!tag) {',
+            '    let nearest = null;',
+            '    let nearestDist = 1e9;',
+            '    for (let i = 0; i < labelEntries.length; i += 1) {',
+            '      const it = labelEntries[i];',
+            '      if (!it || !it.visible) continue;',
+            '      const dx = it.sx - cx;',
+            '      const dy = it.sy - cy;',
+            '      const d2 = dx * dx + dy * dy;',
+            '      if (d2 < nearestDist) { nearestDist = d2; nearest = it; }',
+            '    }',
+            '    if (nearest && nearestDist <= 40 * 40) {',
+            '      const key = `overlay:${nearest.kind}:${nearest.id}`;',
+            '      const txt = String((nearest.el && nearest.el.textContent) || nearest.id || "");',
+            '      lastTipKey = key;',
+            '      showTip(txt, e.clientX, e.clientY);',
+            '      return;',
+            '    }',
+            '    if (lastTipKey) { hideTip(); lastTipKey = ""; }',
+            '    return;',
+            '  }',
+            '  if (tag === lastTipKey) {',
+            '    showTip(tooltip.textContent || "", e.clientX, e.clientY);',
+            '    return;',
+            '  }',
+            '  lastTipKey = tag;',
+            '  const parts = tag.split(":");',
+            '  const kind = parts[0] || "";',
+            '  const id = parts.slice(1).join(":");',
+            '  const label = kind === "kg_node" ? (LABELS && LABELS.nodes ? LABELS.nodes[id] : "") : kind === "kg_edge" ? (LABELS && LABELS.edges ? LABELS.edges[id] : "") : (LABELS && LABELS.groups ? LABELS.groups[id] : "");',
+            '  const text = label ? `${label}` : id;',
+            '  showTip(text, e.clientX, e.clientY);',
+            '  needsRender = true;',
+            '};',
+            'renderer.domElement.addEventListener("pointermove", onPointerMove);',
+            'renderer.domElement.addEventListener("pointerleave", () => { hideTip(); lastTipKey = ""; });',
+            'const nodeBases = [];',
+            'gltf.scene.traverse(o => {',
+            '  const name = String(o.name || "");',
+            '  if (!name.startsWith("kg_node:")) return;',
+            '  const id = name.slice("kg_node:".length);',
+            '  const seed = id ? id.length : 0;',
+            '  nodeBases.push({ o, base: o.position.clone(), seed });',
+            '});',
+            'if (!nodeBases.length) {',
+            '  let i = 0;',
+            '  gltf.scene.traverse(o => {',
+            '    if (i > 200) return;',
+            '    if (!o || !o.isMesh) return;',
+            '    nodeBases.push({ o, base: o.position.clone(), seed: i });',
+            '    i += 1;',
+            '  });',
+            '}',
+            'const starfield = gltf.scene.getObjectByName("kg_starfield");',
+            'try {',
+            '  const hasLights = (() => {',
+            '    let found = false;',
+            '    scene.traverse(o => {',
+            '      if (found) return;',
+            '      if (o && o.isLight) found = true;',
+            '    });',
+            '    return found;',
+            '  })();',
+            '  if (!hasLights) {',
+            '    scene.add(new THREE.AmbientLight(0xffffff, 0.9));',
+            '    scene.add(new THREE.HemisphereLight(0xffffff, 0xcbd5e1, 0.6));',
+            '    const p = new THREE.PointLight(0xffffff, 0.9);',
+            '    p.position.set(120, 120, 120);',
+            '    scene.add(p);',
+            '  }',
+            '} catch { }',
+            'const applyPose = (pose) => {',
+            '  if (!pose || !pose.position || !pose.quaternion || !pose.target) return false;',
+            '  camera.position.set(pose.position.x, pose.position.y, pose.position.z);',
+            '  camera.quaternion.set(pose.quaternion.x, pose.quaternion.y, pose.quaternion.z, pose.quaternion.w);',
+            '  if (typeof pose.fov === "number" && Number.isFinite(pose.fov)) camera.fov = pose.fov;',
+            '  if (typeof pose.zoom === "number" && Number.isFinite(pose.zoom)) camera.zoom = pose.zoom;',
+            '  camera.updateProjectionMatrix();',
+            '  controls.target.set(pose.target.x, pose.target.y, pose.target.z);',
+            '  controls.update();',
+            '  return true;',
+            '};',
+            'const fitToObject = (obj) => {',
+            '  const box = new THREE.Box3().setFromObject(obj);',
+            '  if (!box.isEmpty()) {',
+            '    const center = box.getCenter(new THREE.Vector3());',
+            '    const size = box.getSize(new THREE.Vector3());',
+            '    const maxDim = Math.max(1e-6, size.x, size.y, size.z);',
+            '    const fov = (camera.fov * Math.PI) / 180;',
+            '    const dist = (maxDim * 0.6) / Math.tan(fov / 2);',
+            '    controls.target.copy(center);',
+            '    camera.position.copy(center).add(new THREE.Vector3(0, 0, dist * 1.25));',
+            '    camera.near = Math.max(0.01, dist / 2000);',
+            '    camera.far = Math.max(1000, dist * 200);',
+            '    camera.updateProjectionMatrix();',
+            '    controls.update();',
+            '  }',
+            '};',
+            'if (!applyPose(CAMERA_POSE)) {',
+            '  fitToObject(gltf.scene);',
+            '}',
+            'const updateOverlayLabels = () => {',
+            '  if (!labelEntries.length) return;',
+            '  const rect = renderer.domElement.getBoundingClientRect();',
+            '  const w = Math.max(1, rect.width || 0);',
+            '  const h = Math.max(1, rect.height || 0);',
+            '  for (let i = 0; i < labelEntries.length; i += 1) {',
+            '    const it = labelEntries[i];',
+            '    if (!it || !it.obj) { if (it && it.el) { it.el.style.display = "none"; it.visible = false; } continue; }',
+            '    try {',
+            '      it.box.setFromObject(it.obj);',
+            '      if (it.box.isEmpty()) { it.el.style.display = "none"; it.visible = false; continue; }',
+            '      it.box.getCenter(it.center);',
+            '      it.screen.copy(it.center).project(camera);',
+            '      if (!Number.isFinite(it.screen.x) || !Number.isFinite(it.screen.y) || !Number.isFinite(it.screen.z) || it.screen.z <= -1 || it.screen.z >= 1) {',
+            '        it.el.style.display = "none";',
+            '        it.visible = false;',
+            '        continue;',
+            '      }',
+            '      const sx = (it.screen.x * 0.5 + 0.5) * w;',
+            '      const sy = (-it.screen.y * 0.5 + 0.5) * h;',
+            '      it.sx = sx;',
+            '      it.sy = sy;',
+            '      it.visible = true;',
+            '      it.el.style.display = "";',
+            '      it.el.style.transform = `translate(-50%, -50%) translate(${Math.round(sx)}px, ${Math.round(sy)}px)`;',
+            '    } catch {',
+            '      it.el.style.display = "none";',
+            '      it.visible = false;',
+            '    }',
+            '  }',
+            '};',
+            'const sceneBase = gltf.scene.position.clone();',
+            'const tick = () => {',
+            '  const t = performance.now() * 0.001;',
+            '  const motion = THREE_CFG && typeof THREE_CFG.nodeMotionIntensity === "number" ? Math.max(0, Math.min(2, THREE_CFG.nodeMotionIntensity)) : 1;',
+            '  if (motion > 1e-6) {',
+            '    const globalAmp = 0.8 * motion;',
+            '    gltf.scene.position.x = sceneBase.x + Math.sin(t * 0.12) * globalAmp * 0.08;',
+            '    gltf.scene.position.y = sceneBase.y + Math.cos(t * 0.14) * globalAmp * 0.08;',
+            '    gltf.scene.position.z = sceneBase.z;',
+            '    if (nodeBases.length) {',
+            '      const amp = 0.9 * motion;',
+            '      for (let i = 0; i < nodeBases.length; i += 1) {',
+            '        const p = nodeBases[i];',
+            '        const o = p.o;',
+            '        const b = p.base;',
+            '        const seed = (p.seed || 0) * 0.77;',
+            '        o.position.x = b.x + Math.sin(t * 0.65 + seed) * amp;',
+            '        o.position.y = b.y + Math.cos(t * 0.72 + seed * 1.31) * amp;',
+            '        o.position.z = b.z + Math.sin(t * 0.48 + seed * 2.17) * (amp * 0.35);',
+            '      }',
+            '    }',
+            '    needsRender = true;',
+            '  }',
+            '  if (starfield && starfield.position && camera && camera.position) {',
+            '    try { starfield.position.copy(camera.position); } catch { }',
+            '  }',
+            '  if (controls.enableDamping || controls.autoRotate) {',
+            '    controls.update();',
+            '    needsRender = true;',
+            '  }',
+            '  if (needsRender) {',
+            '    needsRender = false;',
+            '    updateOverlayLabels();',
+            '    renderer.render(scene, camera);',
+            '  }',
+            '  requestAnimationFrame(tick);',
+            '};',
+            'tick();',
+          ].join('\n')
+        }
+
+        if (threeModuleScript) {
+          try {
+            const fallbackPng = (await store.captureCanvasPngSnapshot('3d')) || (await captureVisibleCanvasPngBlobFromDom())
+            if (fallbackPng) threeFallbackPngDataUrl = await blobToDataUrl(fallbackPng)
+          } catch {
+            void 0
+          }
+        }
+        const png = threeModuleScript
+          ? null
+          : await (async () => {
+              if (geospatialEnabled) {
+                try {
+                  const gm = (await import('gympgrph')) as unknown as { captureGeospatialPngSnapshot?: (opts?: { fit?: 'data' | 'selection' | 'none' }) => Promise<Blob | null> }
+                  const b = await gm.captureGeospatialPngSnapshot?.({ fit: 'data' })
+                  if (b) return b
+                } catch {
+                  void 0
+                }
+                return await captureVisibleCanvasPngBlobFromDom()
+              }
+
+              if (store.canvasRenderMode === '3d') {
+                return (await store.captureCanvasPngSnapshot('3d')) || (await captureVisibleCanvasPngBlobFromDom())
+              }
+
+              return (await store.captureCanvasPngSnapshot('2d')) || (await captureVisibleCanvasPngBlobFromDom())
+            })()
+        if (!png && !threeModuleScript && !geospatialEnabled && !wants3dExport) {
+          try {
+            const centered = exportGraphAsCenteredSvgMarkup({
+              graphData: store.graphData,
+              schema: store.schema,
+              widthPx: Math.max(800, fallbackSize.w || 0),
+              heightPx: Math.max(600, fallbackSize.h || 0),
+              paddingPx: 96,
+              includeXmlDeclaration: false,
+              animated: true,
+            })
+            if (centered && centered.trim()) {
+              svgMarkup = centered.trim()
+              const stripped = svgMarkup.replace(/^\s*<\?xml[^>]*>\s*/i, '')
+              bodyHtml = `<div class="kgExportCanvasRoot">${stripped}</div>`
+            }
+          } catch {
+            void 0
+          }
+        }
+        if (!bodyHtml && !png && !threeModuleScript) {
+          pushUiToast({ id: 'export-html-missing-canvas', kind: 'warning', message: 'No canvas snapshot available.' })
+          return
+        }
+        if (!bodyHtml && png && !threeModuleScript) {
+          const dataUrl = await blobToDataUrl(png)
+          bodyHtml = `<div class="kgExportCanvasRoot"><img class="kgExportCanvasImg" src="${dataUrl.replace(/"/g, '&quot;')}" alt="Canvas snapshot" /></div>`
+        }
+
+        if (shouldTry3dFit && prev3d) {
+          try {
+            store.restoreThreeCameraPose(prev3d)
+            await waitFrames(1)
+          } catch {
+            void 0
+          }
+        } else if (shouldTry2dFit && prev2d) {
+          try {
+            store.requestZoomTransform({ k: prev2d.k, x: prev2d.x, y: prev2d.y })
+            await waitFrames(1)
+          } catch {
+            void 0
+          }
+        }
+      }
+
+      labelsForExportB64 = (() => {
+        try {
+          const json = JSON.stringify(labelsForExport)
+          return btoa(unescape(encodeURIComponent(json)))
+        } catch {
+          return ''
+        }
+      })()
+
+      const htmlClass = String(document.documentElement.className || '').trim()
+      const exportHtmlClass = (() => {
+        const base = String(htmlClass || '').trim()
+        const cleaned = base.replace(/\bdark\b/g, '').trim()
+        return themeAttr === 'dark' ? (cleaned ? `${cleaned} dark` : 'dark') : cleaned
+      })()
+      const varsCss = buildKgVarsStyle(themeAttr)
+
+      const html = [
+        '<!doctype html>',
+        `<html lang="en" data-theme="${themeAttr}"${exportHtmlClass ? ` class="${exportHtmlClass.replace(/"/g, '&quot;')}"` : ''}>`,
+        '<head>',
+        '  <meta charset="utf-8" />',
+        '  <meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+        `  <title>${exportBaseName} (Canvas)</title>`,
+        '  <style>',
+        varsCss || '',
+        `    html { height: 100%; color-scheme: ${themeAttr}; }`,
+        '    body { height: 100%; }',
+        `    body { margin: 0; background: ${exportBg}; color: ${exportFg}; }`,
+        '    .kgExportCanvasRoot { width: 100vw; height: 100vh; display: grid; place-items: center; overflow: hidden; }',
+        '    .kgExportThreeRoot { place-items: stretch; }',
+        '    #kgExportThreeCanvas { width: 100%; height: 100%; display: block; }',
+        `    .kgExportTooltip { position: fixed; z-index: 2147483647; padding: 6px 8px; border-radius: 8px; font-size: 12px; line-height: 1.2; max-width: min(560px, 70vw); white-space: pre-wrap; pointer-events: none; user-select: none; background: ${tooltipBgToken}; color: ${tooltipTextToken}; border: 1px solid rgba(255,255,255,0.18); box-shadow: 0 10px 30px rgba(0,0,0,0.35); }`,
+        '    @keyframes kgNodeBob { 0% { translate: 0 0; } 50% { translate: 0 calc(var(--kg-bob-amp, 2px) * -1); } 100% { translate: 0 0; } }',
+        '    .kgExportCanvasRoot svg { width: 100%; height: 100%; display: block; touch-action: none; }',
+        '    .kgExportCanvasRoot g[data-kg-layer="labels"], .kgExportCanvasRoot g[data-kg-layer="edge-labels"], .kgExportCanvasRoot g[data-kg-layer="group-labels"] { display: inline !important; visibility: visible !important; opacity: 1 !important; }',
+        `    .kgExportCanvasRoot [data-kg-layer="labels"] text, .kgExportCanvasRoot [data-kg-layer="edge-labels"] text, .kgExportCanvasRoot [data-kg-layer="group-labels"] text { fill: ${canvasLabelFillToken}; stroke: ${canvasLabelHaloToken}; paint-order: stroke; visibility: visible !important; opacity: 1 !important; }`,
+        '    .kgExportCanvasRoot [data-lod-hidden="1"], .kgExportCanvasRoot [data-zoom-lod-hidden="1"] { visibility: visible !important; opacity: 1 !important; }',
+        '    .kgExportCanvasRoot [data-node-id] { cursor: grab; }',
+        '    .kgExportCanvasRoot [data-node-id]:active { cursor: grabbing; }',
+        '    .kgExportCanvasImg { max-width: none; max-height: none; display: block; transform-origin: 0 0; touch-action: none; }',
+        '  </style>',
+        '</head>',
+        '<body>',
+        bodyHtml,
+        threeModuleScript
+          ? '  <script type="module">\n' +
+            `const __KG_THREE_FALLBACK_PNG = ${JSON.stringify(threeFallbackPngDataUrl)};\n` +
+            'window.__KG_EXPORT_THREE_STATUS = "init";\n' +
+            'const __kgMarkThreeStatus = (kind, detail) => {\n' +
+            '  try {\n' +
+            '    window.__KG_EXPORT_THREE_STATUS = String(kind || "unknown");\n' +
+            '    if (!detail) return;\n' +
+            '    const el = document.createElement("div");\n' +
+            '    el.textContent = String(detail);\n' +
+            '    el.style.position = "fixed";\n' +
+            '    el.style.right = "10px";\n' +
+            '    el.style.bottom = "10px";\n' +
+            '    el.style.maxWidth = "60vw";\n' +
+            '    el.style.padding = "6px 8px";\n' +
+            '    el.style.borderRadius = "8px";\n' +
+            '    el.style.font = "12px/1.2 system-ui, sans-serif";\n' +
+            '    el.style.color = "#f8fafc";\n' +
+            '    el.style.background = "rgba(15,23,42,0.86)";\n' +
+            '    el.style.border = "1px solid rgba(248,250,252,0.22)";\n' +
+            '    el.style.zIndex = "2147483647";\n' +
+            '    el.style.pointerEvents = "none";\n' +
+            '    document.body.appendChild(el);\n' +
+            '  } catch {}\n' +
+            '};\n' +
+            'try {\n' +
+            threeModuleScript.replace(/<\/script>/g, '<\\/script>') +
+            '\n__kgMarkThreeStatus("ok", "");\n' +
+            '\n} catch (e) {\n' +
+            '  try { console.error(e); } catch {}\n' +
+            '  __kgMarkThreeStatus("fallback", `3D export fallback: ${e && e.message ? e.message : e}`);\n' +
+            '  try {\n' +
+            '    const root = document.querySelector(".kgExportCanvasRoot");\n' +
+            '    if (root && __KG_THREE_FALLBACK_PNG) {\n' +
+            '      root.classList.remove("kgExportThreeRoot");\n' +
+            '      const img = document.createElement("img");\n' +
+            '      img.className = "kgExportCanvasImg";\n' +
+            '      img.alt = "Canvas snapshot";\n' +
+            '      img.src = String(__KG_THREE_FALLBACK_PNG);\n' +
+            '      root.replaceChildren(img);\n' +
+            '    }\n' +
+            '  } catch {}\n' +
+            '}\n' +
+            '  </script>'
+          : '',
+        '  <script>',
+        '    (() => { try {',
+        '      const root = document.querySelector(".kgExportCanvasRoot");',
+        '      if (!root) return;',
+        '      const svg = root.querySelector("svg");',
+        '      const img = root.querySelector("img.kgExportCanvasImg");',
+        '      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));',
+        `      const LABELS = (() => {`,
+        `        try {`,
+        `          const raw = "${labelsForExportB64}";`,
+        `          if (!raw) return { nodes: {}, edges: {}, groups: {} };`,
+        `          const json = decodeURIComponent(escape(atob(raw)));`,
+        `          const parsed = JSON.parse(json);`,
+        `          if (!parsed || typeof parsed !== "object") return { nodes: {}, edges: {}, groups: {} };`,
+        `          if (!parsed.groups || typeof parsed.groups !== "object") parsed.groups = {};`,
+        `          return parsed;`,
+        `        } catch {`,
+        `          return { nodes: {}, edges: {}, groups: {} };`,
+        `        }`,
+        `      })();`,
+        '      const parseVb = (s) => {',
+        '        const p = String(s || "").trim().split(/[ ,]+/).filter(Boolean).map(Number);',
+        '        if (p.length === 4 && p.every(n => Number.isFinite(n))) return { x: p[0], y: p[1], w: p[2], h: p[3] };',
+        '        return null;',
+        '      };',
+        '      const applyVb = (vb) => {',
+        '        if (!svg) return;',
+        '        svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);',
+        '      };',
+        '      const svgPoint = (clientX, clientY) => {',
+        '        if (!svg) return null;',
+        '        const pt = svg.createSVGPoint();',
+        '        pt.x = clientX;',
+        '        pt.y = clientY;',
+        '        const ctm = svg.getScreenCTM();',
+        '        if (!ctm) return null;',
+        '        const inv = ctm.inverse();',
+        '        return pt.matrixTransform(inv);',
+        '      };',
+        '      const parseTranslate = (s) => {',
+        '        const m = String(s || "").match(/translate\\(([-0-9.]+)[ ,]([-0-9.]+)\\)/);',
+        '        if (!m) return null;',
+        '        const x = Number(m[1]);',
+        '        const y = Number(m[2]);',
+        '        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;',
+        '        return { x, y };',
+        '      };',
+        '      const getNodeCenter = (el) => {',
+        '        const tag = String(el.tagName || "").toLowerCase();',
+        '        if (tag === "circle") {',
+        '          const x = Number(el.getAttribute("cx"));',
+        '          const y = Number(el.getAttribute("cy"));',
+        '          if (Number.isFinite(x) && Number.isFinite(y)) return { x, y };',
+        '        }',
+        '        if (tag === "rect") {',
+        '          const x = Number(el.getAttribute("x"));',
+        '          const y = Number(el.getAttribute("y"));',
+        '          const w = Number(el.getAttribute("width"));',
+        '          const h = Number(el.getAttribute("height"));',
+        '          if ([x,y,w,h].every(n => Number.isFinite(n))) return { x: x + w / 2, y: y + h / 2 };',
+        '        }',
+        '        if (tag === "path" || tag === "g") {',
+        '          const t = parseTranslate(el.getAttribute("transform"));',
+        '          if (t) return t;',
+        '        }',
+        '        return null;',
+        '      };',
+        '      const setNodeCenter = (el, x, y) => {',
+        '        const tag = String(el.tagName || "").toLowerCase();',
+        '        if (tag === "circle") {',
+        '          el.setAttribute("cx", String(x));',
+        '          el.setAttribute("cy", String(y));',
+        '          return;',
+        '        }',
+        '        if (tag === "rect") {',
+        '          const w = Number(el.getAttribute("width"));',
+        '          const h = Number(el.getAttribute("height"));',
+        '          const ww = Number.isFinite(w) ? w : 0;',
+        '          const hh = Number.isFinite(h) ? h : 0;',
+        '          el.setAttribute("x", String(x - ww / 2));',
+        '          el.setAttribute("y", String(y - hh / 2));',
+        '          return;',
+        '        }',
+        '        if (tag === "path" || tag === "g") {',
+        '          el.setAttribute("transform", `translate(${x},${y})`);',
+        '        }',
+        '      };',
+        '      if (svg) {',
+        '        const vb0 = parseVb(svg.getAttribute("viewBox")) || { x: 0, y: 0, w: 1000, h: 800 };',
+        '        let vb = { ...vb0 };',
+        '        applyVb(vb);',
+        '        const tooltip = document.createElement("div");',
+        '        tooltip.className = "kgExportTooltip";',
+        '        tooltip.style.display = "none";',
+        '        document.body.appendChild(tooltip);',
+        '        const forceVisibleText = (el) => {',
+        '          if (!(el instanceof Element)) return;',
+        '          el.setAttribute("data-lod-hidden", "0");',
+        '          el.setAttribute("data-zoom-lod-hidden", "0");',
+        '          try { el.removeAttribute("hidden"); } catch { }',
+        '          const layer = el.closest("g[data-kg-layer]");',
+        '          if (layer instanceof Element) {',
+        '            try { layer.removeAttribute("hidden"); } catch { }',
+        '            layer.setAttribute("display", "inline");',
+        '            layer.setAttribute("visibility", "visible");',
+        '            layer.setAttribute("opacity", "1");',
+        '          }',
+        '          const prev = String(el.getAttribute("style") || "");',
+        '          const cleaned = prev.replace(/(?:^|;)\\s*display\\s*:\\s*none\\s*;?/gi, ";").replace(/(?:^|;)\\s*visibility\\s*:\\s*hidden\\s*;?/gi, ";").replace(/(?:^|;)\\s*opacity\\s*:\\s*0(?:\\.0+)?\\s*;?/gi, ";").replace(/;{2,}/g, ";");',
+        '          el.setAttribute("style", `${cleaned ? cleaned.replace(/;?\\s*$/, ";") : ""}display:inline;visibility:visible;opacity:1;pointer-events:all;`);',
+        '          el.setAttribute("display", "inline");',
+        '          el.setAttribute("visibility", "visible");',
+        '          el.setAttribute("opacity", "1");',
+        '        };',
+        '        for (const layer of Array.from(svg.querySelectorAll(\'g[data-kg-layer="labels"], g[data-kg-layer="edge-labels"], g[data-kg-layer="group-labels"]\'))) {',
+        '          if (!(layer instanceof Element)) continue;',
+        '          try { layer.removeAttribute("hidden"); } catch { }',
+        '          layer.setAttribute("display", "inline");',
+        '          layer.setAttribute("visibility", "visible");',
+        '          layer.setAttribute("opacity", "1");',
+        '        }',
+        '        for (const el of Array.from(svg.querySelectorAll(\'g[data-kg-layer="labels"] text[data-node-id], g[data-kg-layer="edge-labels"] text[data-edge-id], g[data-kg-layer="group-labels"] text[data-kg-group-id], text[data-kg-group-label="1"][data-kg-group-id]\'))) forceVisibleText(el);',
+        '        const showTip = (text, x, y) => {',
+        '          tooltip.textContent = String(text || "");',
+        '          tooltip.style.left = `${Math.round(x + 12)}px`;',
+        '          tooltip.style.top = `${Math.round(y + 12)}px`;',
+        '          tooltip.style.display = "";',
+        '        };',
+        '        const hideTip = () => { tooltip.style.display = "none"; };',
+        '        let pan = null;',
+        '        svg.addEventListener("pointerdown", (e) => {',
+        '          if (e.button !== 0) return;',
+        '          if (e.target !== svg) return;',
+        '          const p = svgPoint(e.clientX, e.clientY);',
+        '          if (!p) return;',
+        '          try { svg.setPointerCapture(e.pointerId); } catch { }',
+        '          pan = { sx: p.x, sy: p.y, vb: { ...vb }, pointerId: e.pointerId };',
+          '          hideTip();',
+        '          try { e.preventDefault(); } catch { }',
+        '        }, { passive: false });',
+        '        svg.addEventListener("pointermove", (e) => {',
+        '          if (!pan || e.pointerId !== pan.pointerId) return;',
+        '          const p = svgPoint(e.clientX, e.clientY);',
+        '          if (!p) return;',
+        '          vb = { ...pan.vb, x: pan.vb.x - (p.x - pan.sx), y: pan.vb.y - (p.y - pan.sy) };',
+        '          applyVb(vb);',
+        '        });',
+        '        svg.addEventListener("pointerup", (e) => {',
+        '          if (!pan || e.pointerId !== pan.pointerId) return;',
+        '          pan = null;',
+        '        });',
+        '        svg.addEventListener("wheel", (e) => {',
+        '          const p = svgPoint(e.clientX, e.clientY);',
+        '          if (!p) return;',
+        '          const k = Math.pow(1.0015, e.deltaY);',
+        '          const nextW = clamp(vb.w * k, vb0.w * 0.05, vb0.w * 80);',
+        '          const nextH = clamp(vb.h * k, vb0.h * 0.05, vb0.h * 80);',
+        '          const sx = (p.x - vb.x) / vb.w;',
+        '          const sy = (p.y - vb.y) / vb.h;',
+        '          vb = { x: p.x - sx * nextW, y: p.y - sy * nextH, w: nextW, h: nextH };',
+        '          applyVb(vb);',
+        '          try { e.preventDefault(); } catch { }',
+        '        }, { passive: false });',
+        '        const pushMap = (m, k, v) => {',
+        '          if (!k) return;',
+        '          const cur = m.get(k);',
+        '          if (cur) cur.push(v); else m.set(k, [v]);',
+        '        };',
+        '        const nodeShapeSelector = \'circle[data-node-id],rect[data-node-id],path[data-node-id][data-kg-node-shape],g.media-node-panel[data-node-id]\';',
+        '        const nodeShapesById = new Map();',
+        '        for (const el of Array.from(svg.querySelectorAll(nodeShapeSelector))) {',
+        '          const id = String(el.getAttribute("data-node-id") || "");',
+        '          pushMap(nodeShapesById, id, el);',
+        '        }',
+        '        const nodeLabelsById = new Map();',
+        '        for (const el of Array.from(svg.querySelectorAll(\'g[data-kg-layer="labels"] text[data-node-id]\'))) {',
+        '          const id = String(el.getAttribute("data-node-id") || "");',
+        '          pushMap(nodeLabelsById, id, el);',
+        '        }',
+        '        const nodeChevronsById = new Map();',
+        '        for (const el of Array.from(svg.querySelectorAll(\'path[data-kg-node-chevron="1"][data-node-id]\'))) {',
+        '          const id = String(el.getAttribute("data-node-id") || "");',
+        '          pushMap(nodeChevronsById, id, el);',
+        '        }',
+        '        const portHandlesById = new Map();',
+        '        for (const el of Array.from(svg.querySelectorAll(\'g[data-kg-layer="port-handles"] circle[data-node-id][data-port-side]\'))) {',
+        '          const id = String(el.getAttribute("data-node-id") || "");',
+        '          pushMap(portHandlesById, id, el);',
+        '        }',
+        '        const edgeEls = Array.from(svg.querySelectorAll("line[data-source-id][data-target-id]"));',
+        '        const edgeByNode = new Map();',
+        '        for (const el of edgeEls) {',
+        '          const s = String(el.getAttribute("data-source-id") || "");',
+        '          const t = String(el.getAttribute("data-target-id") || "");',
+        '          if (!s || !t) continue;',
+        '          if (!edgeByNode.has(s)) edgeByNode.set(s, []);',
+        '          if (!edgeByNode.has(t)) edgeByNode.set(t, []);',
+        '          edgeByNode.get(s).push(el);',
+        '          edgeByNode.get(t).push(el);',
+        '        }',
+        '        const edgeLabelsById = new Map();',
+        '        for (const el of Array.from(svg.querySelectorAll(\'g[data-kg-layer="edge-labels"] text[data-edge-id]\'))) {',
+        '          const id = String(el.getAttribute("data-edge-id") || "");',
+        '          if (!id) continue;',
+        '          edgeLabelsById.set(id, el);',
+        '        }',
+        '        let lastTipKey = "";',
+        '        const tipForNode = (id) => {',
+        '          const s = String(id || "");',
+        '          const label = LABELS && LABELS.nodes ? String(LABELS.nodes[s] || "") : "";',
+        '          if (label) return label;',
+        '          const list = nodeLabelsById.get(s);',
+        '          if (list && list.length) return String(list[0].textContent || "");',
+        '          return s;',
+        '        };',
+        '        const tipForEdge = (id) => {',
+        '          const s = String(id || "");',
+        '          const label = LABELS && LABELS.edges ? String(LABELS.edges[s] || "") : "";',
+        '          if (label) return label;',
+        '          const el = edgeLabelsById.get(s);',
+        '          if (el) return String(el.textContent || "");',
+        '          return s;',
+        '        };',
+        '        const tipForGroup = (id, fallbackLabel) => {',
+        '          const s = String(id || "");',
+        '          const label = LABELS && LABELS.groups ? String(LABELS.groups[s] || "") : "";',
+        '          const fb = String(fallbackLabel || "").trim();',
+        '          if (label) return label;',
+        '          if (fb) return fb;',
+        '          return s;',
+        '        };',
+        '        root.addEventListener("pointermove", (e) => {',
+        '          if (pan) return;',
+        '          const t = (() => {',
+        '            try { return document.elementFromPoint(e.clientX, e.clientY); } catch { return e.target; }',
+        '          })();',
+        '          if (!(t instanceof Element)) {',
+        '            if (lastTipKey) { hideTip(); lastTipKey = ""; }',
+        '            return;',
+        '          }',
+        '          const nodeEl = t.closest("[data-node-id]");',
+        '          if (nodeEl instanceof Element) {',
+        '            const id = String(nodeEl.getAttribute("data-node-id") || "");',
+        '            if (!id) return;',
+        '            const key = `n:${id}`;',
+        '            if (key !== lastTipKey) lastTipKey = key;',
+        '            showTip(tipForNode(id), e.clientX, e.clientY);',
+        '            return;',
+        '          }',
+        '          const edgeEl = t.closest("[data-edge-id]");',
+        '          if (edgeEl instanceof Element) {',
+        '            const id = String(edgeEl.getAttribute("data-edge-id") || "");',
+        '            if (!id) return;',
+        '            const key = `e:${id}`;',
+        '            if (key !== lastTipKey) lastTipKey = key;',
+        '            showTip(tipForEdge(id), e.clientX, e.clientY);',
+        '            return;',
+        '          }',
+        '          const groupEl = t.closest("[data-kg-group-id]");',
+        '          if (groupEl instanceof Element) {',
+        '            const id = String(groupEl.getAttribute("data-kg-group-id") || "");',
+        '            if (!id) return;',
+        '            const key = `g:${id}`;',
+        '            if (key !== lastTipKey) lastTipKey = key;',
+        '            const textEl = groupEl.closest(\'g[data-kg-layer="group-labels"]\') ? groupEl : svg.querySelector(`text[data-kg-group-id="${id}"]`);',
+        '            const fallbackLabel = textEl instanceof Element ? String(textEl.textContent || "") : "";',
+        '            showTip(tipForGroup(id, fallbackLabel), e.clientX, e.clientY);',
+        '            return;',
+        '          }',
+        '          if (lastTipKey) { hideTip(); lastTipKey = ""; }',
+        '        }, { passive: true });',
+        '        svg.addEventListener("pointerleave", () => { hideTip(); lastTipKey = ""; });',
+        '        const getPrimaryNodeEl = (id) => {',
+        '          const list = nodeShapesById.get(id);',
+        '          return Array.isArray(list) && list.length ? list[0] : null;',
+        '        };',
+        '        const getNodeBBox = (id) => {',
+        '          const el = getPrimaryNodeEl(id);',
+        '          if (!el || typeof el.getBBox !== "function") return null;',
+        '          try { return el.getBBox(); } catch { return null; }',
+        '        };',
+        '        const updateChevron = (id) => {',
+        '          const list = nodeChevronsById.get(id);',
+        '          if (!list || !list.length) return;',
+        '          const bbox = getNodeBBox(id);',
+        '          const el0 = getPrimaryNodeEl(id);',
+        '          if (!bbox || !el0) return;',
+        '          const c = getNodeCenter(el0);',
+        '          if (!c) return;',
+        '          const r = Math.max(1, Math.min(bbox.width, bbox.height) / 2);',
+        '          const pad = clamp(r * 0.35, 6, 12);',
+        '          const cx = c.x + bbox.width / 2 - pad;',
+        '          const cy = c.y - bbox.height / 2 + pad;',
+        '          const size = clamp(r * 0.9, 8, 14);',
+        '          const x0 = cx - size * 0.45;',
+        '          const y0 = cy - size * 0.35;',
+        '          const x1 = cx + size * 0.45;',
+        '          const y1 = cy;',
+        '          const x2 = cx - size * 0.45;',
+        '          const y2 = cy + size * 0.35;',
+        '          const d = `M ${x0} ${y0} L ${x1} ${y1} L ${x2} ${y2}`;',
+        '          for (const el of list) el.setAttribute("d", d);',
+        '        };',
+        '        const updatePortHandles = (id) => {',
+        '          const list = portHandlesById.get(id);',
+        '          if (!list || !list.length) return;',
+        '          const bbox = getNodeBBox(id);',
+        '          const el0 = getPrimaryNodeEl(id);',
+        '          if (!bbox || !el0) return;',
+        '          const c = getNodeCenter(el0);',
+        '          if (!c) return;',
+        '          const r = Math.max(1, Math.min(bbox.width, bbox.height) / 2);',
+        '          const offset = clamp(r * 0.28, 6, 16);',
+        '          for (const el of list) {',
+        '            const side = String(el.getAttribute("data-port-side") || "");',
+        '            let x = c.x, y = c.y;',
+        '            if (side === "left") x = c.x - bbox.width / 2 - offset;',
+        '            else if (side === "right") x = c.x + bbox.width / 2 + offset;',
+        '            else if (side === "top") y = c.y - bbox.height / 2 - offset;',
+        '            else if (side === "bottom") y = c.y + bbox.height / 2 + offset;',
+        '            el.setAttribute("cx", String(x));',
+        '            el.setAttribute("cy", String(y));',
+        '          }',
+        '        };',
+        '        const updateNodeLabels = (id, x, y) => {',
+        '          const list = nodeLabelsById.get(id);',
+        '          if (!list || !list.length) return;',
+        '          for (const el of list) {',
+        '            el.setAttribute("x", String(x));',
+        '            el.setAttribute("y", String(y));',
+        '          }',
+        '        };',
+        '        const updateEdge = (el) => {',
+        '          const s = String(el.getAttribute("data-source-id") || "");',
+        '          const t = String(el.getAttribute("data-target-id") || "");',
+        '          const a = s ? getPrimaryNodeEl(s) : null;',
+        '          const b = t ? getPrimaryNodeEl(t) : null;',
+        '          if (!a || !b) return;',
+        '          const pa = getNodeCenter(a);',
+        '          const pb = getNodeCenter(b);',
+        '          if (!pa || !pb) return;',
+        '          el.setAttribute("x1", String(pa.x));',
+        '          el.setAttribute("y1", String(pa.y));',
+        '          el.setAttribute("x2", String(pb.x));',
+        '          el.setAttribute("y2", String(pb.y));',
+        '          const edgeId = String(el.getAttribute("data-edge-id") || "");',
+        '          const lbl = edgeId ? edgeLabelsById.get(edgeId) : null;',
+        '          if (lbl) {',
+        '            lbl.setAttribute("x", String((pa.x + pb.x) / 2));',
+        '            lbl.setAttribute("y", String((pa.y + pb.y) / 2));',
+        '            lbl.style.display = "";',
+        '          }',
+        '        };',
+        '        let drag = null;',
+        '        const nodeBases = [];',
+        '        for (const [id, list] of nodeShapesById.entries()) {',
+        '          if (!id) continue;',
+        '          if (!list || !list.length) continue;',
+        '          const c = getNodeCenter(list[0]);',
+        '          if (!c) continue;',
+        '          nodeBases.push({ id, base: { x: c.x, y: c.y }, seed: id.length });',
+        '        }',
+        '        const tickNodes = () => {',
+        '          if (!drag && !pan && nodeBases.length) {',
+        '            const t = performance.now() * 0.001;',
+        '            const amp = 0.25;',
+        '            for (let i = 0; i < nodeBases.length; i += 1) {',
+        '              const p = nodeBases[i];',
+        '              const nx = p.base.x + Math.sin(t * 0.2 + p.seed) * amp;',
+        '              const ny = p.base.y + Math.cos(t * 0.25 + p.seed) * amp;',
+        '              const shapes = nodeShapesById.get(p.id) || [];',
+        '              for (const el of shapes) setNodeCenter(el, nx, ny);',
+        '              updateNodeLabels(p.id, nx, ny);',
+        '              updatePortHandles(p.id);',
+        '              updateChevron(p.id);',
+        '              const list = edgeByNode.get(p.id) || [];',
+        '              for (const el of list) updateEdge(el);',
+        '            }',
+        '          }',
+        '          requestAnimationFrame(tickNodes);',
+        '        };',
+        '        tickNodes();',
+        '        svg.addEventListener("pointerdown", (e) => {',
+        '          if (e.button !== 0) return;',
+        '          const t = e.target;',
+        '          if (!(t instanceof Element)) return;',
+        '          const hit = t.closest("[data-node-id]");',
+        '          if (!(hit instanceof Element)) return;',
+        '          const id = String(hit.getAttribute("data-node-id") || "");',
+        '          if (!id) return;',
+        '          const shapes = nodeShapesById.get(id);',
+        '          if (!shapes || !shapes.length) return;',
+        '          const primary = shapes[0];',
+        '          const p0 = svgPoint(e.clientX, e.clientY);',
+        '          if (!p0) return;',
+        '          const c0 = getNodeCenter(primary);',
+        '          if (!c0) return;',
+        '          try { svg.setPointerCapture(e.pointerId); } catch { }',
+        '          drag = { id, p0, c0, pointerId: e.pointerId };',
+        '          hideTip();',
+        '          try { e.preventDefault(); } catch { }',
+        '        }, { passive: false });',
+        '        svg.addEventListener("pointermove", (e) => {',
+        '          if (!drag || e.pointerId !== drag.pointerId) return;',
+        '          const p = svgPoint(e.clientX, e.clientY);',
+        '          if (!p) return;',
+        '          const nx = drag.c0.x + (p.x - drag.p0.x);',
+        '          const ny = drag.c0.y + (p.y - drag.p0.y);',
+        '          const shapes = nodeShapesById.get(drag.id) || [];',
+        '          for (const el of shapes) setNodeCenter(el, nx, ny);',
+        '          updateNodeLabels(drag.id, nx, ny);',
+        '          updatePortHandles(drag.id);',
+        '          updateChevron(drag.id);',
+        '          const list = edgeByNode.get(drag.id) || [];',
+        '          for (const el of list) updateEdge(el);',
+        '        });',
+        '        svg.addEventListener("pointerup", (e) => {',
+        '          if (!drag || e.pointerId !== drag.pointerId) return;',
+        '          try {',
+        '            const id = drag.id;',
+        '            const shapes = nodeShapesById.get(id);',
+        '            if (shapes && shapes.length) {',
+        '              const c = getNodeCenter(shapes[0]);',
+        '              if (c) {',
+        '                for (let i = 0; i < nodeBases.length; i += 1) {',
+        '                  if (nodeBases[i].id === id) {',
+        '                    nodeBases[i].base = { x: c.x, y: c.y };',
+        '                    break;',
+        '                  }',
+        '                }',
+        '              }',
+        '            }',
+        '          } catch { }',
+        '          drag = null;',
+        '        });',
+        '      }',
+        '      if (img) {',
+        '        let state = { k: 1, x: 0, y: 0 };',
+        '        const apply = () => { img.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.k})`; };',
+        '        apply();',
+        '        const fit = () => {',
+        '          try {',
+        '            const vw = root.clientWidth || window.innerWidth || 0;',
+        '            const vh = root.clientHeight || window.innerHeight || 0;',
+        '            const iw = img.naturalWidth || 0;',
+        '            const ih = img.naturalHeight || 0;',
+        '            if (!vw || !vh || !iw || !ih) return;',
+        '            const k = Math.min(vw / iw, vh / ih);',
+        '            state.k = Number.isFinite(k) && k > 0 ? k : 1;',
+        '            state.x = (vw - iw * state.k) / 2;',
+        '            state.y = (vh - ih * state.k) / 2;',
+        '            apply();',
+        '          } catch { }',
+        '        };',
+        '        if (img.complete) fit(); else img.addEventListener("load", fit, { once: true });',
+        '        let pan = null;',
+        '        root.addEventListener("pointerdown", (e) => {',
+        '          if (e.button !== 0) return;',
+        '          if (e.target !== img && e.target !== root) return;',
+        '          try { root.setPointerCapture(e.pointerId); } catch { }',
+        '          pan = { sx: e.clientX, sy: e.clientY, x: state.x, y: state.y, pointerId: e.pointerId };',
+        '          try { e.preventDefault(); } catch { }',
+        '        }, { passive: false });',
+        '        root.addEventListener("pointermove", (e) => {',
+        '          if (!pan || e.pointerId !== pan.pointerId) return;',
+        '          state.x = pan.x + (e.clientX - pan.sx);',
+        '          state.y = pan.y + (e.clientY - pan.sy);',
+        '          apply();',
+        '        });',
+        '        root.addEventListener("pointerup", (e) => {',
+        '          if (!pan || e.pointerId !== pan.pointerId) return;',
+        '          pan = null;',
+        '        });',
+        '        root.addEventListener("wheel", (e) => {',
+        '          const rect = root.getBoundingClientRect();',
+        '          const cx = e.clientX - rect.left;',
+        '          const cy = e.clientY - rect.top;',
+        '          const k = Math.pow(1.0015, e.deltaY);',
+        '          const nextK = clamp(state.k * (1 / k), 0.05, 80);',
+        '          const s = nextK / state.k;',
+        '          state.x = cx - (cx - state.x) * s;',
+        '          state.y = cy - (cy - state.y) * s;',
+        '          state.k = nextK;',
+        '          apply();',
+        '          try { e.preventDefault(); } catch { }',
+        '        }, { passive: false });',
+        '      }',
+        '    } catch { } })();',
+        '  </script>',
+        '</body>',
+        '</html>',
+        '',
+      ].join('\n')
+
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+      const name = `${exportBaseName}.canvas.html`
+      const saved = await saveBlobWithPicker(blob, name, { description: 'HTML Files', accept: { 'text/html': ['.html'] } })
+      if (saved === '') return
+      if (!saved) downloadBlob(blob, name)
+    } catch {
+      void 0
+    }
+  }, [exportBaseName, pushUiToast])
+
   const handleExportSvg = React.useCallback(async () => {
     try {
       const normalizeSvgMarkup = (raw: string, fallback: { w: number; h: number }): string => {
@@ -1161,6 +3542,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         onSaveAs={onSaveAs}
         onExportWorkspaceFile={handleExportWorkspaceFile}
         onExportMarkdown={handleExportMarkdown}
+        onExportHtmlViewer={handleExportHtmlViewer}
+        onExportHtmlCanvas={handleExportHtmlCanvas}
         onExportJson={handleExportJson}
         onExportSvg={handleExportSvg}
         onExportPdf={handleExportPdf}

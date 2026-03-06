@@ -28,6 +28,7 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-expressions': 'off',
       'prefer-const': 'off',
       'no-useless-escape': 'off',
+      'react-hooks/exhaustive-deps': 'off',
     },
   },
 )

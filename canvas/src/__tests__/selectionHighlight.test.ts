@@ -50,14 +50,14 @@ export function testSelectionHighlightNeighborsFromNodeSelection() {
   const centerVisual = computeNodeVisual(center, { ...params, neighborIds })
   const leftVisual = computeNodeVisual(left, { ...params, neighborIds })
   const rightVisual = computeNodeVisual(right, { ...params, neighborIds })
-  if (centerVisual.fill !== '#007BFF' || centerVisual.opacity !== 1) {
-    throw new Error('selected node should be blue and fully opaque')
+  if (centerVisual.fill !== 'var(--kg-canvas-accent)' || centerVisual.opacity !== 1) {
+    throw new Error('selected node should use accent fill and be fully opaque')
   }
   if (leftVisual.opacity !== 1 || rightVisual.opacity !== 1) {
     throw new Error('neighbor nodes should be fully opaque')
   }
-  if (leftVisual.fill === '#9CA3AF' || rightVisual.fill === '#9CA3AF') {
-    throw new Error('neighbor nodes should use base fill, not dimmed gray')
+  if (leftVisual.fill === 'var(--kg-canvas-edge-stroke)' || rightVisual.fill === 'var(--kg-canvas-edge-stroke)') {
+    throw new Error('neighbor nodes should use base fill, not dimmed edge stroke')
   }
   const centerLabel = computeLabelVisual(center, { ...params, neighborIds })
   const leftLabel = computeLabelVisual(left, { ...params, neighborIds })
@@ -93,8 +93,8 @@ export function testSelectionHighlightEdgeSelectionEndpointsAndEdges() {
   if (aVisual.opacity !== 1 || bVisual.opacity !== 1) {
     throw new Error('edge endpoints should remain fully opaque')
   }
-  if (cVisual.opacity !== 0.2 || cVisual.fill !== '#9CA3AF') {
-    throw new Error('non-endpoint nodes should be dimmed gray on edge selection')
+  if (cVisual.opacity !== 0.2 || cVisual.fill !== 'var(--kg-canvas-edge-stroke)') {
+    throw new Error('non-endpoint nodes should be dimmed using edge stroke on edge selection')
   }
   const aLabel = computeLabelVisual(a, { ...params, neighborIds })
   const bLabel = computeLabelVisual(b, { ...params, neighborIds })
@@ -109,11 +109,11 @@ export function testSelectionHighlightEdgeSelectionEndpointsAndEdges() {
   const e2: EdgeWithRuntime = data.edges[1]
   const e1Visual = computeEdgeVisual(e1, params)
   const e2Visual = computeEdgeVisual(e2, params)
-  if (e1Visual.stroke !== '#007BFF' || e1Visual.opacity !== 0.9 || e1Visual.width <= e2Visual.width) {
-    throw new Error('selected edge should be blue, more opaque, and thicker')
+  if (e1Visual.stroke !== 'var(--kg-canvas-accent)' || e1Visual.opacity !== 0.9 || e1Visual.width <= e2Visual.width) {
+    throw new Error('selected edge should use accent stroke, be more opaque, and thicker')
   }
-  if (e2Visual.stroke !== '#9CA3AF' || e2Visual.opacity !== 0.2) {
-    throw new Error('non-selected edges should be gray and dimmed')
+  if (e2Visual.stroke !== 'var(--kg-canvas-edge-stroke)' || e2Visual.opacity !== 0.2) {
+    throw new Error('non-selected edges should use edge stroke and be dimmed')
   }
 }
 

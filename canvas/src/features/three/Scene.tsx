@@ -1,13 +1,14 @@
 import React from 'react'
-import { useThree } from '@react-three/fiber'
+import { useThree, useFrame } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
+import * as THREE from 'three'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
 import { resolveCssVar } from '@/lib/ui/theme-tokens'
 import { getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import { computeNeighborIds } from '@/components/GraphCanvas/highlight'
-import { getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers'
+import { getRenderNodeRadius2d, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers'
 import { Physics3D, type Vec3 } from './layout'
 import type { NodeSelectionMode } from './selection'
 import { getSelectionVisuals } from './selection'
@@ -15,6 +16,8 @@ import { DirectionalParticles, ArrowHead, EdgeMesh, CurvedEdgeMesh } from './vis
 import { NodeMesh } from './NodeMesh'
 import { Starfield } from './Starfield'
 import { getCameraConfig } from './camera'
+import { resolveThreeColor } from './resolveColor'
+import type { KgTheme } from '@/lib/ui/tokens-ssot'
 
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min
@@ -30,6 +33,9 @@ export function Scene({
   onSelectNode,
   onHoverNode,
   onHoverEdge,
+  onDragNode,
+  draggedNodeId,
+  theme,
 }: {
   data: GraphData;
   schema: GraphSchema;
@@ -38,6 +44,9 @@ export function Scene({
   onSelectNode: (id: string) => void;
   onHoverNode?: (info: { id: string; clientX: number; clientY: number } | null) => void;
   onHoverEdge?: (info: { id: string; clientX: number; clientY: number } | null) => void;
+  onDragNode?: (id: string | null) => void;
+  draggedNodeId?: string | null;
+  theme?: KgTheme;
 }) {
   const { gl } = useThree()
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
@@ -90,14 +99,49 @@ export function Scene({
   )
   const selectionMode: NodeSelectionMode =
     selectionSets.selectedEdgeIdSet.size > 0 ? 'edge' : selectionSets.selectedNodeIdSet.size > 0 ? 'node' : 'none'
-  const palette = getRendererPalette(schema)
-  const neutralEdgeColor = palette.edges.neutral || MVP_COLOR_PALETTE.edges.neutral
-  const colorByLabel = (l: string) => schema.edgeStyles[l]?.color || neutralEdgeColor
-  const selectionVisuals = getSelectionVisuals(schema)
+  
+  // Memoize resolved colors to depend on theme
+  const {
+    neutralEdgeColor,
+    selectedEdgeColor,
+    palette,
+    colorByLabel
+  } = React.useMemo(() => {
+    // We include theme in dependency to force re-evaluation
+    void theme
+
+    const palette = getRendererPalette(schema)
+    const neutralEdgeColorRaw = palette.edges.neutral || MVP_COLOR_PALETTE.edges.neutral
+    const neutralEdgeColor = resolveThreeColor(neutralEdgeColorRaw, MVP_COLOR_PALETTE.edges.neutral)
+    const colorByLabel = (l: string) => resolveThreeColor(schema.edgeStyles[l]?.color || neutralEdgeColorRaw, neutralEdgeColor)
+    const selectionVisuals = getSelectionVisuals(schema)
+    const selectedEdgeColor = resolveThreeColor(selectionVisuals.selectedEdgeColor, neutralEdgeColor)
+    return { neutralEdgeColor, selectedEdgeColor, palette, colorByLabel }
+  }, [schema, theme])
+
+  const selectionVisuals = React.useMemo(() => getSelectionVisuals(schema), [schema])
+
+  const nodeRadiusMap = React.useMemo(() => {
+    const map = new Map<string, number>()
+    if (data.nodes) {
+      for (const n of data.nodes) {
+        const r = getRenderNodeRadius2d(n, schema)
+        map.set(n.id, r)
+      }
+    }
+    return map
+  }, [data.nodes, schema])
+
+  const threeCfg = getThreeConfig(schema)
+  const motionIntensity = typeof threeCfg.nodeMotionIntensity === 'number'
+    ? Math.max(0, Math.min(2, threeCfg.nodeMotionIntensity))
+    : 1
+
   const cameraConfig = getCameraConfig(schema)
-  const threeCfg: ThreeConfig = getThreeConfig(schema)
   const hiddenNodeIds = React.useMemo(() => new Set<string>(), [])
   React.useEffect(() => {
+    // Force dependency on theme
+    void theme
     const threeCfgLocal: ThreeConfig = getThreeConfig(schema)
     const raw = threeCfgLocal.backgroundColor
     let color: string
@@ -111,7 +155,7 @@ export function Scene({
     } catch {
       void 0
     }
-  }, [gl, schema])
+  }, [gl, schema, theme])
   const arrowLenDefault = typeof threeCfg.linkDirectionalArrowLength === 'number' ? Math.max(2, Math.min(24, threeCfg.linkDirectionalArrowLength)) : 8
   const linkOpacityDefault = typeof threeCfg.linkOpacity === 'number' ? Math.max(0, Math.min(1, threeCfg.linkOpacity)) : 0.6
   const linkCurvatureDefault = typeof threeCfg.linkCurvature === 'number' ? Math.max(0, Math.min(1.5, threeCfg.linkCurvature)) : 0
@@ -133,10 +177,12 @@ export function Scene({
   const starfieldRadius = Math.max(40, Math.min(1200, starfieldRadiusRaw))
   const starfieldOpacityRaw = typeof threeCfg.starfieldOpacity === 'number' ? threeCfg.starfieldOpacity : 0.9
   const starfieldOpacity = Math.max(0, Math.min(1, starfieldOpacityRaw))
-  const starfieldColorRaw =
-    typeof threeCfg.starfieldColor === 'string' && threeCfg.starfieldColor.trim() !== ''
+  const starfieldColorRaw = React.useMemo(() => {
+    void theme
+    return typeof threeCfg.starfieldColor === 'string' && threeCfg.starfieldColor.trim() !== ''
       ? threeCfg.starfieldColor
       : (palette.nodes.hypothesis || MVP_COLOR_PALETTE.nodes.hypothesis)
+  }, [threeCfg.starfieldColor, palette, theme])
   const dragOverridesRef = React.useRef<Record<string, Vec3>>({})
   const handleDragStart = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
@@ -155,6 +201,19 @@ export function Scene({
     delete dragOverridesRef.current[id]
   }, [])
   const allowNodeDrag = schema.behavior ? schema.behavior.allowNodeDrag !== false : true
+
+  const sceneGroupRef = React.useRef<THREE.Group | null>(null)
+  useFrame(({ clock }) => {
+    if (paused) return
+    const g = sceneGroupRef.current
+    if (!g) return
+    const t = clock.getElapsedTime()
+    const i = motionIntensity
+    g.position.x = Math.sin(t * 0.12) * (0.08 * i)
+    g.position.y = Math.cos(t * 0.15) * (0.08 * i)
+    g.rotation.z = Math.sin(t * 0.04) * (0.002 * i)
+    g.rotation.x = Math.cos(t * 0.05) * (0.0035 * i)
+  })
   return (
     <>
       {cameraConfig.fogColor ? (
@@ -172,7 +231,7 @@ export function Scene({
           paused={paused}
         />
       ) : null}
-      <group>
+      <group ref={sceneGroupRef}>
         <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragOverridesRef} paused={paused} />
         {data.edges.map((e) => {
           const a = positions[e.source]
@@ -202,8 +261,8 @@ export function Scene({
             return { color: `rgb(${rr}, ${gg}, ${bb})`, alpha: aa }
           }
           const rgba = visualStroke ? parseRgba(visualStroke) : null
-          const color = typeof props['color'] === 'string'
-            ? String(props['color'])
+          const color = typeof props['color'] === 'string' && props['color'].trim() !== ''
+            ? String(props['color']).trim()
             : (rgba?.color || colorByLabel(e.label))
           const baseWidth = getEdgeStrokeWidth(e, schema)
           let width = clamp(baseWidth, 0.5, 5)
@@ -226,6 +285,8 @@ export function Scene({
             : particleSpeedDefault
           const srcId = e.source as string
           const tgtId = e.target as string
+          const srcRadius = nodeRadiusMap.get(srcId) || 5
+          const tgtRadius = nodeRadiusMap.get(tgtId) || 5
           const isSelectedEdge = selectionSets.selectedEdgeIdSet.has(e.id)
           const isIncidentToSelectedNode = selectionSets.selectedNodeIdSet.size > 0 && (selectionSets.selectedNodeIdSet.has(srcId) || selectionSets.selectedNodeIdSet.has(tgtId))
           let finalColor = arrowColor || color
@@ -234,7 +295,7 @@ export function Scene({
           const dimmedEdgeOpacity = selectionVisuals.dimmedEdgeOpacity
           if (selectionMode === 'edge') {
             if (isSelectedEdge) {
-              finalColor = selectionVisuals.selectedEdgeColor
+              finalColor = selectedEdgeColor
               finalOpacity = Math.max(finalOpacity, 0.9)
               width = Math.max(width, selectedEdgeWidth)
             } else {
@@ -244,24 +305,31 @@ export function Scene({
             }
           } else if (selectionMode === 'node') {
             if (isIncidentToSelectedNode) {
-              finalColor = selectionVisuals.selectedEdgeColor
+              finalColor = selectedEdgeColor
               finalOpacity = Math.max(finalOpacity, 0.9)
               width = Math.max(width, selectedEdgeWidth)
             } else {
-              finalColor = schema.edgeStyles[e.label]?.color || neutralEdgeColor
+              finalColor = colorByLabel(e.label)
               finalOpacity = Math.min(finalOpacity, dimmedEdgeOpacity)
               width = Math.max(1, Math.min(baseWidth, selectedEdgeWidth * 0.5))
             }
           }
+          const resolvedFinalColor = resolveThreeColor(finalColor, neutralEdgeColor)
           return (
             <group
               key={e.id}
+              name={`kg_edge:${e.id}`}
               onClick={(evt) => {
                 evt.stopPropagation()
                 setSelectionSource('canvas')
                 selectEdge(e.id)
               }}
               onPointerOver={(evt: ThreeEvent<PointerEvent>) => {
+                if (onHoverEdge) {
+                  onHoverEdge({ id: e.id, clientX: evt.clientX, clientY: evt.clientY })
+                }
+              }}
+              onPointerMove={(evt: ThreeEvent<PointerEvent>) => {
                 if (onHoverEdge) {
                   onHoverEdge({ id: e.id, clientX: evt.clientX, clientY: evt.clientY })
                 }
@@ -273,12 +341,12 @@ export function Scene({
               }}
             >
               {curvature > 0.001
-                ? <CurvedEdgeMesh a={a} b={b} color={finalColor} width={width} opacity={finalOpacity} curvature={curvature} resolution={resolution} rotation={curveRotation} paused={paused} />
-                : <EdgeMesh a={a} b={b} color={finalColor} width={width} opacity={finalOpacity} resolution={resolution} paused={paused} />
+                ? <CurvedEdgeMesh a={a} b={b} color={resolvedFinalColor} width={width} opacity={finalOpacity} curvature={curvature} resolution={resolution} rotation={curveRotation} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensity} draggedNodeId={draggedNodeId} />
+                : <EdgeMesh a={a} b={b} color={resolvedFinalColor} width={width} opacity={finalOpacity} resolution={resolution} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensity} draggedNodeId={draggedNodeId} />
               }
-              <ArrowHead start={a} end={b} color={finalColor} height={arrowLen} relPos={arrowRelPos} paused={paused} />
+              <ArrowHead start={a} end={b} color={resolvedFinalColor} height={arrowLen} relPos={arrowRelPos} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensity} draggedNodeId={draggedNodeId} />
               {particles > 0 && particleSpeed > 0 ? (
-                <DirectionalParticles start={a} end={b} count={particles} color={finalColor} speed={particleSpeed} paused={paused} />
+                <DirectionalParticles start={a} end={b} count={particles} color={resolvedFinalColor} speed={particleSpeed} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensity} draggedNodeId={draggedNodeId} />
               ) : null}
             </group>
           )
@@ -304,6 +372,9 @@ export function Scene({
               onDrag={allowNodeDrag ? handleDrag : undefined}
               onDragEnd={allowNodeDrag ? handleDragEnd : undefined}
               onHoverChange={onHoverNode}
+              setNodeDragActive={allowNodeDrag ? onDragNode : undefined}
+              motionIntensity={motionIntensity}
+              draggedNodeId={draggedNodeId}
             />
           )
         })}

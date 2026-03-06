@@ -130,6 +130,12 @@ html, body, #root {
   }
 }
 
+@keyframes kgNodeBob {
+  0% { translate: 0 0; }
+  50% { translate: 0 calc(var(--kg-bob-amp, 2px) * -1); }
+  100% { translate: 0 0; }
+}
+
 @layer base {
   .lucide {
     flex-shrink: 0;

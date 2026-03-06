@@ -37,7 +37,9 @@ export const KG_TOKEN_DEFS: readonly KgTokenDef[] = [
 export const getKgThemeFromDom = (): KgTheme => {
   if (typeof document === 'undefined') return 'light'
   const raw = String(document.documentElement.getAttribute('data-theme') || '').trim()
-  return raw === 'dark' ? 'dark' : 'light'
+  if (raw === 'dark') return 'dark'
+  if (document.documentElement.classList.contains('dark')) return 'dark'
+  return 'light'
 }
 
 export const getKgTokenFallback = (cssVar: KgTokenDef['cssVar'], theme: KgTheme): string => {

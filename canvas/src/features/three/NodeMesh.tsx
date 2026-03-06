@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { GraphNode } from '@/lib/graph/types'
-import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
+import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import { getNodeMediaSpec, getLayerOpacity, getNodeBaseFill, getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
@@ -11,6 +11,8 @@ import { applyMediaProxySrc } from '@/lib/url'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { NodeSelectionState, SelectionVisuals } from './selection'
 import type { Vec3 } from './layout'
+import { computeNodeMotion, type NodeMotionState } from './animation'
+import { resolveThreeColor } from './resolveColor'
 
 function MediaBillboard({ url, size, opacity, offsetZ }: { url: string; size: number; opacity: number; offsetZ: number }) {
   const meshRef = useRef<THREE.Mesh>(null)
@@ -129,6 +131,9 @@ export function NodeMesh({
   onDrag,
   onDragEnd,
   onHoverChange,
+  setNodeDragActive,
+  motionIntensity,
+  draggedNodeId,
 }: {
   node: GraphNode;
   pos: Vec3;
@@ -141,6 +146,9 @@ export function NodeMesh({
   onDrag?: (id: string, e: ThreeEvent<PointerEvent>) => void;
   onDragEnd?: (id: string, e: ThreeEvent<PointerEvent>) => void;
   onHoverChange?: (info: { id: string; clientX: number; clientY: number } | null) => void;
+  setNodeDragActive?: (id: string, active: boolean) => void;
+  motionIntensity?: number;
+  draggedNodeId?: string | null;
 }) {
   const hoveredRef = useRef(false)
   const sphereRef = useRef<THREE.Mesh>(null!)
@@ -189,6 +197,8 @@ export function NodeMesh({
   const isSelectedNode = selection.isSelected
   const emissiveColor = isSelectedNode ? visuals.selectedEdgeColor : '#000000'
   const emissiveIntensity = isSelectedNode ? visuals.selectedNodeGlowIntensity : 0
+  const resolvedColor = resolveThreeColor(displayColor, MVP_COLOR_PALETTE.nodes.execution)
+  const resolvedEmissive = resolveThreeColor(emissiveColor, '#000000')
   const renderShape = getNodeRenderShape2d(node, schema)
   const rectDims = renderShape === 'circle' ? null : getNodeRectDimensions2d(node, schema)
   const depth = Math.max(2, radius * 0.85)
@@ -202,45 +212,54 @@ export function NodeMesh({
       : renderShape === 'diamond'
         ? [0, 0, Math.PI / 4]
         : [0, 0, 0]
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (paused) return
     if (!sphereRef.current) return
-    const threeCfg: ThreeConfig = getThreeConfig(schema)
-    const motionRaw = threeCfg.nodeMotionIntensity
-    const motion = typeof motionRaw === 'number'
-      ? Math.max(0, Math.min(2, motionRaw))
-      : 1
-    const amp = 0.2 * motion
-    const t = Date.now() * 0.001
+    const t = clock.getElapsedTime()
+    const dragging = draggingRef.current
+    const ms: NodeMotionState = { intensity: motionIntensity || 0, draggedNodeId }
+    // If we are dragging locally, we override the motion state for this node to be dragging
+    if (dragging && !draggedNodeId) {
+      ms.draggedNodeId = node.id
+    }
+    const p = computeNodeMotion(node.id, pos, radius, ms, t)
+    
     const s = hoveredRef.current ? 1.06 : 1
     sphereRef.current.scale.set(s, s, s)
-    sphereRef.current.position.x = pos[0] + Math.sin(t * 0.2 + node.id.length) * amp
-    sphereRef.current.position.y = pos[1] + Math.cos(t * 0.25 + node.id.length) * amp
-    sphereRef.current.position.z = pos[2]
+    sphereRef.current.position.set(p[0], p[1], p[2])
   })
   const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
     const isModifier = e.metaKey || e.ctrlKey
     if (!isModifier) return
     draggingRef.current = true
+    setNodeDragActive?.(node.id, true)
     if (onDragStart) onDragStart(node.id, e)
   }
   const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
+    if (onHoverChange) {
+      onHoverChange({ id: node.id, clientX: e.clientX, clientY: e.clientY })
+    }
     if (!draggingRef.current) return
     if (onDrag) onDrag(node.id, e)
   }
   const handlePointerUp = (e: ThreeEvent<PointerEvent>) => {
     if (!draggingRef.current) return
     draggingRef.current = false
+    setNodeDragActive?.(node.id, false)
     if (onDragEnd) onDragEnd(node.id, e)
   }
   const handlePointerOut = () => {
     hoveredRef.current = false
-    draggingRef.current = false
+    if (draggingRef.current) {
+      draggingRef.current = false
+      setNodeDragActive?.(node.id, false)
+    }
   }
   return (
-    <group>
+    <group name={`kg_node:${node.id}`}>
       <mesh
         ref={sphereRef}
+        name={`kg_node:${node.id}`}
         rotation={meshRotation}
         onClick={() => onClick(node.id)}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
@@ -267,10 +286,10 @@ export function NodeMesh({
           <boxGeometry args={[boxW, boxH, depth]} />
         )}
         <meshLambertMaterial
-          color={displayColor}
+          color={resolvedColor}
           transparent
           opacity={hasImage ? Math.max(0.1, displayOpacity * 0.3) : displayOpacity}
-          emissive={emissiveColor}
+          emissive={resolvedEmissive}
           emissiveIntensity={emissiveIntensity}
         />
         {hasImage && imageUrl && (

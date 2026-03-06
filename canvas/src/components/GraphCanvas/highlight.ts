@@ -123,7 +123,7 @@ export const computeNodeVisual = (
   const dimmedFill = typeof palette.edges.neutral === 'string' && palette.edges.neutral.trim()
     ? palette.edges.neutral
     : MVP_COLOR_PALETTE.edges.neutral
-  const baseStroke = schema.nodeStroke?.[node.type]?.color ?? params.themeColors?.nodeStroke ?? '#ffffff'
+  const baseStroke = schema.nodeStroke?.[node.type]?.color ?? params.themeColors?.nodeStroke ?? UI_THEME_COLORS_CSS.nodeStroke
   const baseStrokeWidth = schema.nodeStroke?.[node.type]?.width ?? 1.5
   const baseLayerOpacity = getLayerOpacity(node, schema)
   const isMediaNode = params.renderMediaAsNodes && hasNodeMedia(node)

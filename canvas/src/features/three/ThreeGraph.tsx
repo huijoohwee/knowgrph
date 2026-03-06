@@ -6,6 +6,9 @@ import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
 import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
 import { usePositions } from './layout'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
+import type { Scene as ThreeScene } from 'three'
+import { useThemeDetector } from '@/hooks/useThemeDetector'
 
 const SceneLazy = React.lazy(() =>
   import('./Scene').then(mod => ({
@@ -27,7 +30,9 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     setSelectionSource,
   } = useGraphStore()
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
+  const registerThreeGlbSnapshotFns = useGraphStore(s => s.registerThreeGlbSnapshotFns)
   const glCanvasRef = React.useRef<HTMLCanvasElement | null>(null)
+  const threeSceneRef = React.useRef<ThreeScene | null>(null)
   const [webglSupported, setWebglSupported] = useState<boolean | null>(null)
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -60,6 +65,9 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   const positions = usePositions(hasGraph ? (renderGraph as GraphData).nodes : [], hasGraph ? (effectiveSchema as GraphSchema) : null)
   const containerRef = React.useRef<HTMLDivElement | null>(null)
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null)
+  const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null)
+  const hoverClearTimerRef = useRef<number | null>(null)
+  const theme = useThemeDetector()
   useEffect(() => {
     if (!hoverEnabled) {
       setHoverInfo(null)
@@ -72,26 +80,57 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
       } catch {
         void 0
       }
+      try {
+        registerThreeGlbSnapshotFns(null)
+      } catch {
+        void 0
+      }
     }
-  }, [registerCanvasSnapshotFns])
+  }, [registerCanvasSnapshotFns, registerThreeGlbSnapshotFns])
   const onSelectNode = (id: string) => {
     setSelectionSource('canvas')
     selectNode(id)
   }
+  const clearHoverClearTimer = useCallback(() => {
+    const t = hoverClearTimerRef.current
+    if (t != null) {
+      try {
+        window.clearTimeout(t)
+      } catch {
+        void 0
+      }
+      hoverClearTimerRef.current = null
+    }
+  }, [])
+  useEffect(() => {
+    return () => {
+      clearHoverClearTimer()
+    }
+  }, [clearHoverClearTimer])
   const handleHoverNode = useCallback((info: { id: string; clientX: number; clientY: number } | null) => {
     if (!info) {
-      setHoverInfo(prev => (prev && prev.kind === 'node' ? null : prev))
+      clearHoverClearTimer()
+      hoverClearTimerRef.current = window.setTimeout(() => {
+        setHoverInfo(prev => (prev && prev.kind === 'node' ? null : prev))
+        hoverClearTimerRef.current = null
+      }, 80)
       return
     }
+    clearHoverClearTimer()
     setHoverInfo({ kind: 'node', id: info.id, clientX: info.clientX, clientY: info.clientY })
-  }, [])
+  }, [clearHoverClearTimer])
   const handleHoverEdge = useCallback((info: { id: string; clientX: number; clientY: number } | null) => {
     if (!info) {
-      setHoverInfo(prev => (prev && prev.kind === 'edge' ? null : prev))
+      clearHoverClearTimer()
+      hoverClearTimerRef.current = window.setTimeout(() => {
+        setHoverInfo(prev => (prev && prev.kind === 'edge' ? null : prev))
+        hoverClearTimerRef.current = null
+      }, 80)
       return
     }
+    clearHoverClearTimer()
     setHoverInfo({ kind: 'edge', id: info.id, clientX: info.clientX, clientY: info.clientY })
-  }, [])
+  }, [clearHoverClearTimer])
   if (!hasGraph || webglSupported === false) {
     return (
       <div
@@ -109,13 +148,14 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
         camera={{ position: [0, 0, 220], fov: 50 }}
         shadows
         gl={{ antialias: true, alpha: true }}
-        onCreated={({ gl }) => {
+        onCreated={({ gl, scene }) => {
           gl.setClearColor('#000000', 0)
           try {
             glCanvasRef.current = gl.domElement as HTMLCanvasElement
           } catch {
             glCanvasRef.current = null
           }
+          threeSceneRef.current = scene || null
           const capturePng = async (pixelRatio?: number): Promise<Blob | null> => {
             try {
               const canvas = glCanvasRef.current
@@ -145,6 +185,30 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
             }
           }
           registerCanvasSnapshotFns('3d', { capturePng })
+          registerThreeGlbSnapshotFns({
+            captureGlb: async () => {
+              try {
+                const scene = threeSceneRef.current
+                if (!scene) return null
+                const exporter = new GLTFExporter()
+                const arrayBuffer = await new Promise<ArrayBuffer | null>(resolve => {
+                  exporter.parse(
+                    scene,
+                    gltf => {
+                      if (gltf && gltf instanceof ArrayBuffer) resolve(gltf)
+                      else resolve(null)
+                    },
+                    () => resolve(null),
+                    { binary: true },
+                  )
+                })
+                if (!arrayBuffer) return null
+                return new Blob([arrayBuffer], { type: 'model/gltf-binary' })
+              } catch {
+                return null
+              }
+            },
+          })
         }}
         onPointerMissed={(ev) => {
           if (ev && typeof ev.button === 'number' && ev.button !== 0) return
@@ -162,6 +226,9 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
             onSelectNode={onSelectNode}
             onHoverNode={hoverEnabled ? handleHoverNode : undefined}
             onHoverEdge={hoverEnabled ? handleHoverEdge : undefined}
+            onDragNode={setDraggedNodeId}
+            draggedNodeId={draggedNodeId}
+            theme={theme}
           />
           <ControlsLazy schema={effectiveSchema as GraphSchema} positions={positions} paused={paused} />
         </React.Suspense>
@@ -172,6 +239,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
         nodes={(renderGraph as GraphData | null)?.nodes as GraphNode[] | undefined}
         edges={(renderGraph as GraphData | null)?.edges as GraphEdge[] | undefined}
         schema={effectiveSchema as GraphSchema | null}
+        tooltipInteractive={false}
       />
     </div>
   )

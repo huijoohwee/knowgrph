@@ -187,6 +187,7 @@ function buildNodeContent(
   const showProps = contentCfg?.showProps !== false && config.showNodeProperties;
   const showType = contentCfg?.showType !== false && config.showNodeLabel;
   const showId = contentCfg?.showId !== false && config.showNodeId;
+  const primaryNodeText = String(node.label || '').trim() || String(node.id || '').trim() || 'Node'
   const { imageSrc, imageCount } = buildHoverImageInfo(node)
   const descRaw = config.showNodeDescription ? buildHoverDescription(node) : ''
   const descText = expanded ? descRaw : truncateTextWithEllipsis(descRaw, 280)
@@ -194,7 +195,7 @@ function buildNodeContent(
   return (
     <div>
       <div className="font-semibold">
-        {config.showNodeName && node.label}{' '}
+        {primaryNodeText}
         {showType && (
           <span className={UI_THEME_TOKENS.tooltip.textSecondary}>
             ({node.type})
@@ -314,15 +315,16 @@ function buildEdgeContent(
   const descRaw = typeof (edge.properties as Record<string, unknown> | null | undefined)?.description === 'string'
     ? String((edge.properties as Record<string, unknown>).description || '')
     : ''
+  const primaryEdgeText = edgeLabelForDisplay || String(edge.id || '').trim() || 'Edge'
   const desc = showProps ? descRaw : ''
   const descText = expanded ? desc : truncateTextWithEllipsis(desc, 280)
 
   return (
     <div>
       <div className="font-semibold">
-        {config.showEdgeLabel && (
+        {(config.showEdgeLabel || !edgeLabelForDisplay) && (
           <span className="block whitespace-normal break-words">
-            {edgeLabelForDisplay}
+            {primaryEdgeText}
           </span>
         )}
       </div>
@@ -437,9 +439,10 @@ export type GraphHoverTooltipProps = {
   edges: GraphEdge[] | null | undefined;
   schema: GraphSchema | null | undefined;
   onRequestClose?: () => void;
+  tooltipInteractive?: boolean;
 }
 
-export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schema, onRequestClose }: GraphHoverTooltipProps) {
+export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schema, onRequestClose, tooltipInteractive = true }: GraphHoverTooltipProps) {
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconBadgeChipClass = useGraphStore(s => s.uiIconBadgeChipClass)
   const uiIconBadgeChipTextSizeClass = useGraphStore(s => s.uiIconBadgeChipTextSizeClass)
@@ -548,17 +551,20 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
   ])
   if (!hoverInfo || !container || !content) return null
   const rect = container.getBoundingClientRect()
-  const hoverX = hoverInfo.clientX - rect.left + 8
-  const hoverY = hoverInfo.clientY - rect.top + 8
+  const hoverXRaw = hoverInfo.clientX - rect.left + 8
+  const hoverYRaw = hoverInfo.clientY - rect.top + 8
+  const hoverX = Math.max(8, Math.min(Math.max(8, rect.width - 8), hoverXRaw))
+  const hoverY = Math.max(8, Math.min(Math.max(8, rect.height - 8), hoverYRaw))
   return (
     <Tooltip
       content={content}
       open
-      className="absolute z-50 pointer-events-auto"
+      className={tooltipInteractive ? 'absolute z-50 pointer-events-auto' : 'absolute z-50 pointer-events-none'}
       anchorStyle={{ left: hoverX, top: hoverY, width: 0, height: 0 }}
       maxWidthPx={260}
-      contentClassName="shadow-md max-w-xs text-xs"
+      contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text} shadow-md max-w-xs text-xs`}
       onContentMouseLeave={onRequestClose}
+      interactive={tooltipInteractive}
     >
       <span />
     </Tooltip>

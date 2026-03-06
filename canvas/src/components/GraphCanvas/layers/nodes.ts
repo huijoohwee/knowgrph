@@ -391,6 +391,7 @@ export const createNodesLayer = (args: {
 
   const node = nodeLayer.selectAll<SVGElement, GraphNode>('circle,rect,path[data-kg-node-shape]')
   node
+    .attr('data-node-id', (d: GraphNode) => String(d.id))
      .attr('fill', (d: GraphNode) => getNodeBaseFill(d, schema))
     .attr('stroke', (d: GraphNode) => {
       const props = (d.properties || {}) as Record<string, unknown>
@@ -427,6 +428,7 @@ export const createNodesLayer = (args: {
       .enter()
       .append('path')
       .attr('data-kg-node-chevron', '1')
+      .attr('data-node-id', (d: GraphNode) => String(d.id))
       .attr('fill', 'none')
       .attr('stroke', UI_THEME_COLORS_CSS.textSecondary)
       .attr('stroke-width', 1.75)
@@ -644,6 +646,8 @@ export const createNodesLayer = (args: {
       .data(data, d => `${d.nodeId}:${d.side}`)
       .enter()
       .append('circle')
+      .attr('data-node-id', (d: PortHandleDatum) => String(d.nodeId))
+      .attr('data-port-side', (d: PortHandleDatum) => String(d.side))
       .attr('r', portHandlesCfg.size)
       .attr('fill', portHandlesCfg.fill)
       .attr('stroke', portHandlesCfg.stroke)

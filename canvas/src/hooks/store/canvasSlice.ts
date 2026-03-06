@@ -1,4 +1,4 @@
-import type { GraphState, CanvasSnapshotFns } from '@/hooks/store/types'
+import type { GraphState, CanvasSnapshotFns, ThreeCameraPose, ThreeCameraSnapshotFns, ThreeGlbSnapshotFns } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
 import { LS_KEYS, DEFAULT_CANVAS_2D_RENDERER, DEFAULT_VIEWPORT_CONTROLS_PRESET, UI_COPY } from '@/lib/config'
@@ -579,6 +579,38 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     const fns = state.canvasSnapshotFns?.['2d'];
     if (fns?.captureSvg) return fns.captureSvg();
     return null;
+  },
+  threeCameraSnapshotFns: null as ThreeCameraSnapshotFns | null,
+  registerThreeCameraSnapshotFns: (fns: ThreeCameraSnapshotFns | null) => set({ threeCameraSnapshotFns: fns || null }),
+  captureThreeCameraPose: (): ThreeCameraPose | null => {
+    const fns = get().threeCameraSnapshotFns
+    if (!fns) return null
+    try {
+      return fns.capturePose()
+    } catch {
+      return null
+    }
+  },
+  restoreThreeCameraPose: (pose: ThreeCameraPose | null) => {
+    if (!pose) return
+    const fns = get().threeCameraSnapshotFns
+    if (!fns) return
+    try {
+      fns.restorePose(pose)
+    } catch {
+      void 0
+    }
+  },
+  threeGlbSnapshotFns: null as ThreeGlbSnapshotFns | null,
+  registerThreeGlbSnapshotFns: (fns: ThreeGlbSnapshotFns | null) => set({ threeGlbSnapshotFns: fns || null }),
+  captureThreeGlbSnapshot: async (): Promise<Blob | null> => {
+    const fns = get().threeGlbSnapshotFns
+    if (!fns) return null
+    try {
+      return await fns.captureGlb()
+    } catch {
+      return null
+    }
   },
   }
 };

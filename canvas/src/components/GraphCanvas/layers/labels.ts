@@ -54,6 +54,7 @@ export const createLabelsLayer = (args: {
     .enter()
     .append('text')
     .attr('class', 'node-label')
+    .attr('data-node-id', (d: GraphNode) => String(d.id))
     .attr('font-size', labelFontSize)
     .attr('font-family', labelFontFamily)
     .attr('fill', labelFill)

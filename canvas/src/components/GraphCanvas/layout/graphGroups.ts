@@ -4,8 +4,12 @@ import { deriveMermaidSubgraphGroups } from '@/components/GraphCanvas/layout/mer
 import { deriveMarkdownHeadingGroups } from '@/components/GraphCanvas/layout/markdownHeadingGroups'
 import { readSubgraphs, subgraphGroupId } from '@/lib/graph/subgraphs'
 import { compareGroupsForZOrder } from '@/lib/canvas/groupZOrder'
+import { getKgThemeFromDom, resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
 
 export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStructure?: boolean }): GraphGroup[] => {
+  const theme = getKgThemeFromDom()
+  const edgeStrokeToken = resolveCssVarWithKgFallback('--kg-canvas-edge-stroke', theme)
+  const accentToken = resolveCssVarWithKgFallback('--kg-canvas-accent', theme)
   const meta = (data.metadata || {}) as Record<string, unknown>
   const isKeywordGraph = meta.kind === 'keyword'
   const mermaid = (!isKeywordGraph || options?.forceDocumentStructure) ? (deriveMermaidSubgraphGroups(data) as GraphGroup[]) : []
@@ -21,9 +25,9 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
 
     if (!isKeywordGraph && !options?.forceDocumentStructure && !hasKeywordRoles) return [] as GraphGroup[]
     const roleStroke = {
-      subject: '#007BFF',
-      object: '#28A745',
-      entity: '#9CA3AF',
+      subject: accentToken,
+      object: theme === 'dark' ? '#34d399' : '#059669',
+      entity: edgeStrokeToken,
     } as const
     const byKey = new Map<string, string[]>()
     for (let i = 0; i < nodes.length; i += 1) {
@@ -89,12 +93,12 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
     if (byNer.size === 0) return [] as GraphGroup[]
 
     const strokeFor = (ner: string): string => {
-      if (ner === 'PERSON') return '#007BFF'
-      if (ner === 'ORG') return '#FFC107'
-      if (ner === 'GPE' || ner === 'LOC') return '#28A745'
-      if (ner === 'DATE' || ner === 'TIME') return '#FD7E14'
-      if (ner === 'EVENT') return '#DC3545'
-      return '#9CA3AF'
+      if (ner === 'PERSON') return accentToken
+      if (ner === 'ORG') return theme === 'dark' ? '#fde047' : '#ca8a04'
+      if (ner === 'GPE' || ner === 'LOC') return theme === 'dark' ? '#34d399' : '#059669'
+      if (ner === 'DATE' || ner === 'TIME') return theme === 'dark' ? '#fb923c' : '#ea580c'
+      if (ner === 'EVENT') return theme === 'dark' ? '#f87171' : '#dc2626'
+      return edgeStrokeToken
     }
 
     const groups: Array<{ ner: string; ids: string[] }> = []
@@ -221,8 +225,8 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
         memberNodeIds: row.memberNodeIds,
         style:
           row.kind === 'cluster'
-            ? { stroke: '#0EA5E9', strokeWidth: 2, fill: 'rgba(14,165,233,0.10)' }
-            : { stroke: '#8B5CF6', strokeWidth: 2, fill: 'rgba(139,92,246,0.08)' },
+            ? { stroke: theme === 'dark' ? '#38bdf8' : '#0284c7', strokeWidth: 2, fill: theme === 'dark' ? 'rgba(56,189,248,0.16)' : 'rgba(2,132,199,0.10)' }
+            : { stroke: theme === 'dark' ? '#a78bfa' : '#7c3aed', strokeWidth: 2, fill: theme === 'dark' ? 'rgba(167,139,250,0.14)' : 'rgba(124,58,237,0.08)' },
       })
     })
     out.sort((a, b) => {

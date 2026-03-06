@@ -218,6 +218,17 @@ export const createGroupsLayer = (args: {
     if (t != null) clearTimeout(t)
     clickTimerById.delete(id)
   }
+  const updateGroupHover = (event: MouseEvent, d: GroupDatum) => {
+    if (!hoverEnabled || typeof setHoverInfo !== 'function') return
+    setHoverInfo(() => ({ kind: 'group', id: String(d.id), clientX: event.clientX, clientY: event.clientY }))
+  }
+  const clearGroupHover = (event: MouseEvent, d: GroupDatum) => {
+    if (!hoverEnabled || typeof setHoverInfo !== 'function') return
+    const rt = (event as unknown as { relatedTarget?: unknown }).relatedTarget
+    if (isTooltipRelatedTarget(rt)) return
+    const id = String(d.id)
+    setHoverInfo(prev => (prev && prev.kind === 'group' && prev.id === id ? null : prev))
+  }
 
   const memberIdSetOf = (d: GroupDatum) => new Set<string>(d.memberNodeIds.map(x => String(x)))
 
@@ -244,21 +255,9 @@ export const createGroupsLayer = (args: {
       }, 200)
       clickTimerById.set(d.id, handle)
     })
-    .on('mouseover', (event: MouseEvent, d: GroupDatum) => {
-      if (!hoverEnabled || typeof setHoverInfo !== 'function') return
-      setHoverInfo(() => ({ kind: 'group', id: String(d.id), clientX: event.clientX, clientY: event.clientY }))
-    })
-    .on('mousemove', (event: MouseEvent, d: GroupDatum) => {
-      if (!hoverEnabled || typeof setHoverInfo !== 'function') return
-      setHoverInfo(() => ({ kind: 'group', id: String(d.id), clientX: event.clientX, clientY: event.clientY }))
-    })
-    .on('mouseout', (event: MouseEvent, d: GroupDatum) => {
-      if (!hoverEnabled || typeof setHoverInfo !== 'function') return
-      const rt = (event as unknown as { relatedTarget?: unknown }).relatedTarget
-      if (isTooltipRelatedTarget(rt)) return
-      const id = String(d.id)
-      setHoverInfo(prev => (prev && prev.kind === 'group' && prev.id === id ? null : prev))
-    })
+    .on('mouseover', updateGroupHover)
+    .on('mousemove', updateGroupHover)
+    .on('mouseout', clearGroupHover)
     .on('dblclick', (event: MouseEvent, d: GroupDatum) => {
       event.stopPropagation()
       clearClickTimer(d.id)
@@ -276,6 +275,9 @@ export const createGroupsLayer = (args: {
     })
 
   itemSel
+    .on('mouseover', updateGroupHover)
+    .on('mousemove', updateGroupHover)
+    .on('mouseout', clearGroupHover)
     .on('click', (event: MouseEvent, d: GroupDatum) => {
       if ((event as unknown as { defaultPrevented?: unknown }).defaultPrevented) return
       event.stopPropagation()

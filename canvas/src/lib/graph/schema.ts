@@ -125,28 +125,28 @@ export function getRendererPalette(schema: GraphSchema | null | undefined): Rend
 
 export const defaultSchema: GraphSchema = {
   nodeStyles: {
-    Subject: { color: MVP_COLOR_PALETTE.nodes.idea },
-    Object: { color: MVP_COLOR_PALETTE.nodes.execution },
-    Entity: { color: MVP_COLOR_PALETTE.nodes.idea },
-    Chunk: { color: MVP_COLOR_PALETTE.nodes.execution },
-    EmbeddingMeta: { color: '#6B7280' },
+    Subject: { color: 'var(--kg-canvas-accent)' },
+    Object: { color: 'var(--kg-canvas-accent)' },
+    Entity: { color: 'var(--kg-canvas-accent)' },
+    Chunk: { color: 'var(--kg-canvas-accent)' },
+    EmbeddingMeta: { color: 'var(--kg-text-tertiary)' },
   },
   edgeStyles: {
-    relatedTo: { color: MVP_COLOR_PALETTE.edges.neutral, width: 1.5 },
-    pointsTo: { color: MVP_COLOR_PALETTE.edges.neutral, width: 1.5, arrow: true },
+    relatedTo: { color: 'var(--kg-canvas-edge-stroke)', width: 1.5 },
+    pointsTo: { color: 'var(--kg-canvas-edge-stroke)', width: 1.5, arrow: true },
   },
   metadata: {
     'renderer:palette': {
       nodes: {
-        idea: MVP_COLOR_PALETTE.nodes.idea,
-        hypothesis: MVP_COLOR_PALETTE.nodes.hypothesis,
-        execution: MVP_COLOR_PALETTE.nodes.execution,
-        pivot: MVP_COLOR_PALETTE.nodes.pivot,
-        alert: MVP_COLOR_PALETTE.nodes.alert,
+        idea: 'var(--kg-canvas-accent)',
+        hypothesis: '#f59e0b',
+        execution: '#22c55e',
+        pivot: '#f97316',
+        alert: '#ef4444',
       },
       edges: {
-        critical: MVP_COLOR_PALETTE.edges.critical,
-        neutral: MVP_COLOR_PALETTE.edges.neutral,
+        critical: '#ef4444',
+        neutral: 'var(--kg-canvas-edge-stroke)',
       },
     },
   },

@@ -37,11 +37,46 @@ export function useGraphCanvasStyles({
     const labelFill = schema.labelStyles?.color ?? colors.labelFill
     const haloColor = schema.labelStyles?.halo?.color ?? colors.labelHalo
     const haloWidth = lp.haloWidthPx
+    const motionRaw = (schema as unknown as { three?: { nodeMotionIntensity?: unknown } }).three?.nodeMotionIntensity
+    const motion = typeof motionRaw === 'number' && Number.isFinite(motionRaw)
+      ? Math.max(0, Math.min(2, motionRaw))
+      : 1
+    const motionEnabled = motion > 1e-6
+    const hash01 = (s: string) => {
+      let h = 2166136261
+      for (let i = 0; i < s.length; i += 1) {
+        h ^= s.charCodeAt(i)
+        h = Math.imul(h, 16777619)
+      }
+      return ((h >>> 0) % 1000) / 1000
+    }
 
     if (nodesSelRef.current) {
       nodesSelRef.current.each(function (d: GraphNode) {
         const radius = getRenderNodeRadius2d(d, schema);
         const el = d3.select(this);
+        const id = String(d.id || '')
+        if (motionEnabled && id) {
+          const dur = 2.8 + hash01(id) * 1.6
+          const delay = hash01(id + ':d') * 1.2
+          const amp = (1.5 + hash01(id + ':a') * 1.8) * motion
+          el
+            .attr('data-kg-node-anim', '1')
+            .style('transform-box', 'fill-box')
+            .style('transform-origin', 'center')
+            .style('--kg-bob-amp', `${amp.toFixed(2)}px`)
+            .style('animation', `kgNodeBob ${dur.toFixed(2)}s ease-in-out ${delay.toFixed(2)}s infinite`)
+        } else {
+          const prev = String(el.attr('data-kg-node-anim') || '')
+          if (prev === '1') {
+            el
+              .attr('data-kg-node-anim', null)
+              .style('animation', null)
+              .style('--kg-bob-amp', null)
+              .style('transform-box', null)
+              .style('transform-origin', null)
+          }
+        }
         if (this.tagName === 'circle') {
           el.attr('r', radius);
         } else if (this.tagName === 'rect') {

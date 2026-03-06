@@ -2,6 +2,16 @@ import React, { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Vec3 } from './layout'
+import { computeNodeMotion, type NodeMotionState } from './animation'
+
+type MotionProps = {
+  sourceId?: string
+  targetId?: string
+  sourceRadius?: number
+  targetRadius?: number
+  motionIntensity?: number
+  draggedNodeId?: string | null
+}
 
 const PARTICLE_GEOMETRY = new THREE.SphereGeometry(1.4, 8, 8)
 
@@ -9,7 +19,7 @@ const MAX_PARTICLE_INSTANCES = 64
 
 type DirectionalParticlesProps = { start: Vec3; end: Vec3; count: number; color: string; speed: number }
 
-export function DirectionalParticles({ start, end, count, color, speed, paused }: DirectionalParticlesProps & { paused?: boolean }) {
+export function DirectionalParticles({ start, end, count, color, speed, paused, name, sourceId, targetId, sourceRadius, targetRadius, motionIntensity, draggedNodeId }: DirectionalParticlesProps & MotionProps & { paused?: boolean; name?: string }) {
   const meshRef = useRef<THREE.InstancedMesh | null>(null)
   const offsetsRef = useRef<number[]>([])
   const instanceCountRef = useRef(0)
@@ -36,14 +46,28 @@ export function DirectionalParticles({ start, end, count, color, speed, paused }
     if (!n) return
     const offsets = offsetsRef.current
     if (!offsets.length) return
-    const sx = start[0], sy = start[1], sz = start[2]
-    const ex = end[0], ey = end[1], ez = end[2]
+
+    const t = clock.getElapsedTime()
+    let sx = start[0], sy = start[1], sz = start[2]
+    let ex = end[0], ey = end[1], ez = end[2]
+
+    if (sourceId && motionIntensity && motionIntensity > 0) {
+      const ms: NodeMotionState = { intensity: motionIntensity, draggedNodeId }
+      const p = computeNodeMotion(sourceId, start, sourceRadius || 5, ms, t)
+      sx = p[0]; sy = p[1]; sz = p[2]
+    }
+    if (targetId && motionIntensity && motionIntensity > 0) {
+      const ms: NodeMotionState = { intensity: motionIntensity, draggedNodeId }
+      const p = computeNodeMotion(targetId, end, targetRadius || 5, ms, t)
+      ex = p[0]; ey = p[1]; ez = p[2]
+    }
+
     const dx = ex - sx
     const dy = ey - sy
     const dz = ez - sz
     const len = Math.sqrt(dx * dx + dy * dy + dz * dz)
     if (len < 1e-3) return
-    const t = clock.getElapsedTime()
+
     const baseSpeed = Math.max(0.01, Math.min(5, speed || 0.6))
     const pos = posRef.current
     const matrix = matrixRef.current
@@ -64,6 +88,7 @@ export function DirectionalParticles({ start, end, count, color, speed, paused }
   return (
     <instancedMesh
       ref={meshRef}
+      name={name}
       args={[PARTICLE_GEOMETRY, undefined as THREE.Material | THREE.Material[] | undefined, MAX_PARTICLE_INSTANCES]}
     >
       <meshBasicMaterial color={color} />
@@ -73,17 +98,30 @@ export function DirectionalParticles({ start, end, count, color, speed, paused }
 
 type ArrowHeadProps = { start: Vec3; end: Vec3; color: string; height: number; relPos: number }
 
-export function ArrowHead({ start, end, color, height, relPos, paused }: ArrowHeadProps & { paused?: boolean }) {
+export function ArrowHead({ start, end, color, height, relPos, paused, name, sourceId, targetId, sourceRadius, targetRadius, motionIntensity, draggedNodeId }: ArrowHeadProps & MotionProps & { paused?: boolean; name?: string }) {
   const ref = useRef<THREE.Mesh>(null!)
   const dir = useRef(new THREE.Vector3())
   const pos = useRef(new THREE.Vector3())
   const quat = useRef(new THREE.Quaternion())
   const up = useRef(new THREE.Vector3(0, 1, 0))
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (paused) return
     if (!ref.current) return
-    const sx = start[0], sy = start[1], sz = start[2]
-    const ex = end[0], ey = end[1], ez = end[2]
+    const t = clock.getElapsedTime()
+    let sx = start[0], sy = start[1], sz = start[2]
+    let ex = end[0], ey = end[1], ez = end[2]
+    
+    if (sourceId && motionIntensity && motionIntensity > 0) {
+      const ms: NodeMotionState = { intensity: motionIntensity, draggedNodeId }
+      const p = computeNodeMotion(sourceId, start, sourceRadius || 5, ms, t)
+      sx = p[0]; sy = p[1]; sz = p[2]
+    }
+    if (targetId && motionIntensity && motionIntensity > 0) {
+      const ms: NodeMotionState = { intensity: motionIntensity, draggedNodeId }
+      const p = computeNodeMotion(targetId, end, targetRadius || 5, ms, t)
+      ex = p[0]; ey = p[1]; ez = p[2]
+    }
+
     const d = dir.current
     d.set(ex - sx, ey - sy, ez - sz)
     const len = d.length()
@@ -99,7 +137,7 @@ export function ArrowHead({ start, end, color, height, relPos, paused }: ArrowHe
     ref.current.setRotationFromQuaternion(q)
   })
   return (
-    <mesh ref={ref}>
+    <mesh ref={ref} name={name}>
       <coneGeometry args={[4, height, 24]} />
       <meshLambertMaterial color={color} />
     </mesh>
@@ -108,17 +146,30 @@ export function ArrowHead({ start, end, color, height, relPos, paused }: ArrowHe
 
 type EdgeMeshProps = { a: Vec3; b: Vec3; color: string; width: number; opacity: number; resolution: number }
 
-export function EdgeMesh({ a, b, color, width, opacity, resolution, paused }: EdgeMeshProps & { paused?: boolean }) {
+export function EdgeMesh({ a, b, color, width, opacity, resolution, paused, name, sourceId, targetId, sourceRadius, targetRadius, motionIntensity, draggedNodeId }: EdgeMeshProps & MotionProps & { paused?: boolean; name?: string }) {
   const ref = useRef<THREE.Mesh>(null!)
   const diff = useRef(new THREE.Vector3())
   const mid = useRef(new THREE.Vector3())
   const quat = useRef(new THREE.Quaternion())
   const up = useRef(new THREE.Vector3(0, 1, 0))
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (paused) return
     if (!ref.current) return
-    const ax = a[0], ay = a[1], az = a[2]
-    const bx = b[0], by = b[1], bz = b[2]
+    const t = clock.getElapsedTime()
+    let ax = a[0], ay = a[1], az = a[2]
+    let bx = b[0], by = b[1], bz = b[2]
+    
+    if (sourceId && motionIntensity && motionIntensity > 0) {
+      const ms: NodeMotionState = { intensity: motionIntensity, draggedNodeId }
+      const p = computeNodeMotion(sourceId, a, sourceRadius || 5, ms, t)
+      ax = p[0]; ay = p[1]; az = p[2]
+    }
+    if (targetId && motionIntensity && motionIntensity > 0) {
+      const ms: NodeMotionState = { intensity: motionIntensity, draggedNodeId }
+      const p = computeNodeMotion(targetId, b, targetRadius || 5, ms, t)
+      bx = p[0]; by = p[1]; bz = p[2]
+    }
+
     const d = diff.current
     d.set(bx - ax, by - ay, bz - az)
     const len = d.length()
@@ -133,7 +184,7 @@ export function EdgeMesh({ a, b, color, width, opacity, resolution, paused }: Ed
     ref.current.setRotationFromQuaternion(q)
   })
   return (
-    <mesh ref={ref}>
+    <mesh ref={ref} name={name}>
       <cylinderGeometry args={[1, 1, 1, Math.max(12, Math.min(48, Math.floor(resolution))) || 24]} />
       <meshLambertMaterial color={color} transparent opacity={opacity} />
     </mesh>
@@ -149,9 +200,10 @@ type CurvedEdgeMeshProps = {
   curvature: number
   resolution: number
   rotation: number
+  name?: string
 }
 
-export function CurvedEdgeMesh({ a, b, color, width, opacity, curvature, resolution, rotation, paused }: CurvedEdgeMeshProps & { paused?: boolean }) {
+export function CurvedEdgeMesh({ a, b, color, width, opacity, curvature, resolution, rotation, paused, name, sourceId, targetId, sourceRadius, targetRadius, motionIntensity, draggedNodeId }: CurvedEdgeMeshProps & MotionProps & { paused?: boolean }) {
   const ref = useRef<THREE.Mesh>(null!)
   const geomRef = useRef<THREE.BufferGeometry>(null!)
   const startRef = useRef(new THREE.Vector3())
@@ -163,10 +215,23 @@ export function CurvedEdgeMesh({ a, b, color, width, opacity, curvature, resolut
   const perpRef = useRef(new THREE.Vector3())
   const ctrlRef = useRef(new THREE.Vector3())
   const quatRotRef = useRef(new THREE.Quaternion())
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (paused) return
-    const ax = a[0], ay = a[1], az = a[2]
-    const bx = b[0], by = b[1], bz = b[2]
+    const t = clock.getElapsedTime()
+    let ax = a[0], ay = a[1], az = a[2]
+    let bx = b[0], by = b[1], bz = b[2]
+    
+    if (sourceId && motionIntensity && motionIntensity > 0) {
+      const ms: NodeMotionState = { intensity: motionIntensity, draggedNodeId }
+      const p = computeNodeMotion(sourceId, a, sourceRadius || 5, ms, t)
+      ax = p[0]; ay = p[1]; az = p[2]
+    }
+    if (targetId && motionIntensity && motionIntensity > 0) {
+      const ms: NodeMotionState = { intensity: motionIntensity, draggedNodeId }
+      const p = computeNodeMotion(targetId, b, targetRadius || 5, ms, t)
+      bx = p[0]; by = p[1]; bz = p[2]
+    }
+
     const start = startRef.current
     const end = endRef.current
     start.set(ax, ay, az)
@@ -207,7 +272,7 @@ export function CurvedEdgeMesh({ a, b, color, width, opacity, curvature, resolut
     }
   })
   return (
-    <mesh ref={ref}>
+    <mesh ref={ref} name={name}>
       <meshLambertMaterial color={color} transparent opacity={opacity} />
     </mesh>
   )

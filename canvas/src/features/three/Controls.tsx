@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import type { ThreeCameraPose, ThreeCameraSnapshotFns } from '@/hooks/store/types'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { selectionPerfEnd, selectionPerfStart } from '@/lib/selectionPerf'
@@ -21,6 +22,7 @@ export function Controls({ schema, positions, paused }: { schema: GraphSchema; p
   const data = useGraphStore(s => s.graphData)
   const fitToScreenMode = useGraphStore(s => s.fitToScreenMode)
   const requestThreeCamera = useGraphStore(s => s.requestThreeCamera)
+  const registerThreeCameraSnapshotFns = useGraphStore(s => s.registerThreeCameraSnapshotFns)
   const viewPinned = useGraphStore(s => s.viewPinned)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
@@ -83,6 +85,52 @@ export function Controls({ schema, positions, paused }: { schema: GraphSchema; p
   React.useEffect(() => {
     controls.enabled = !paused
   }, [controls, paused])
+  React.useEffect(() => {
+    const fns: ThreeCameraSnapshotFns = {
+      capturePose: (): ThreeCameraPose | null => {
+        try {
+          const pos = camera.position
+          const quat = camera.quaternion
+          const t = controls.target
+          const pc = perspectiveCamera
+          return {
+            position: { x: pos.x, y: pos.y, z: pos.z },
+            quaternion: { x: quat.x, y: quat.y, z: quat.z, w: quat.w },
+            target: { x: t.x, y: t.y, z: t.z },
+            fov: typeof pc?.fov === 'number' && Number.isFinite(pc.fov) ? pc.fov : undefined,
+            zoom: typeof pc?.zoom === 'number' && Number.isFinite(pc.zoom) ? pc.zoom : undefined,
+          }
+        } catch {
+          return null
+        }
+      },
+      restorePose: (pose: ThreeCameraPose) => {
+        try {
+          camera.position.set(pose.position.x, pose.position.y, pose.position.z)
+          camera.quaternion.set(pose.quaternion.x, pose.quaternion.y, pose.quaternion.z, pose.quaternion.w)
+          controls.target.set(pose.target.x, pose.target.y, pose.target.z)
+          if (typeof pose.fov === 'number' && Number.isFinite(pose.fov)) {
+            perspectiveCamera.fov = pose.fov
+          }
+          if (typeof pose.zoom === 'number' && Number.isFinite(pose.zoom)) {
+            perspectiveCamera.zoom = pose.zoom
+          }
+          try {
+            perspectiveCamera.updateProjectionMatrix()
+          } catch {
+            void 0
+          }
+          controls.update()
+        } catch {
+          void 0
+        }
+      },
+    }
+    registerThreeCameraSnapshotFns(fns)
+    return () => {
+      registerThreeCameraSnapshotFns(null)
+    }
+  }, [camera, controls, perspectiveCamera, registerThreeCameraSnapshotFns])
   React.useEffect(() => {
     if (paused) return
     const req = threeCameraRequest

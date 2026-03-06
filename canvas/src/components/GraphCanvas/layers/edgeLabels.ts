@@ -8,6 +8,20 @@ import { getEdgeLabelForDisplay } from '@/components/GraphCanvas/edgeDisplay'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
+function coerceEdgeEndpointId(v: unknown): string {
+  if (typeof v === 'string' || typeof v === 'number') return String(v)
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    const id = (v as any).id
+    if (typeof id === 'string' || typeof id === 'number') return String(id)
+  }
+  return ''
+}
+
+function coerceEdgeId(v: unknown): string {
+  if (typeof v === 'string' || typeof v === 'number') return String(v)
+  return ''
+}
+
 export const createEdgeLabelsLayer = (args: {
   g: GSelection
   edgesForDisplay: GraphEdge[]
@@ -37,6 +51,9 @@ export const createEdgeLabelsLayer = (args: {
     .enter()
     .append('text')
     .attr('data-kg-edge-label', '1')
+    .attr('data-edge-id', (d: GraphEdge) => coerceEdgeId((d as any).id))
+    .attr('data-source-id', (d: GraphEdge) => coerceEdgeEndpointId((d as any).source))
+    .attr('data-target-id', (d: GraphEdge) => coerceEdgeEndpointId((d as any).target))
     .attr('text-anchor', 'middle')
     .attr('dominant-baseline', 'middle')
     .style('user-select', 'none')

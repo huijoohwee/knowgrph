@@ -11,6 +11,20 @@ import { edgeDragBehavior } from '@/components/GraphCanvas/utils';
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
+function coerceEdgeEndpointId(v: unknown): string {
+  if (typeof v === 'string' || typeof v === 'number') return String(v)
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    const id = (v as any).id
+    if (typeof id === 'string' || typeof id === 'number') return String(id)
+  }
+  return ''
+}
+
+function coerceEdgeId(v: unknown): string {
+  if (typeof v === 'string' || typeof v === 'number') return String(v)
+  return ''
+}
+
 export const createLinksHitLayer = (args: {
   g: GSelection;
   edgesForDisplay: GraphEdge[];
@@ -38,9 +52,13 @@ export const createLinksHitLayer = (args: {
   const link = linkRoot.selectAll<SVGLineElement, GraphEdge>('line').data(edgesForDisplay).enter().append('line');
 
   (link as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>)
+    .attr('data-edge-id', (d: GraphEdge) => coerceEdgeId((d as any).id))
+    .attr('data-source-id', (d: GraphEdge) => coerceEdgeEndpointId((d as any).source))
+    .attr('data-target-id', (d: GraphEdge) => coerceEdgeEndpointId((d as any).target))
     .attr('stroke', 'transparent')
     .attr('stroke-opacity', 1)
-    .attr('stroke-width', (d: GraphEdge) => Math.max(10, getEdgeStrokeWidth(d, schema) * 6))
+    .attr('stroke-width', (d: GraphEdge) => Math.max(12, getEdgeStrokeWidth(d, schema) * 7))
+    .attr('stroke-linecap', 'round')
     .style('pointer-events', 'stroke')
 
   attachEdgeInteractionHandlers(link as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>, {
@@ -72,6 +90,9 @@ export const createLinksLayer = (args: {
   const link = linkRoot.selectAll<SVGLineElement, GraphEdge>('line').data(edgesForDisplay).enter().append('line')
 
   ;(link as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>)
+    .attr('data-edge-id', (d: GraphEdge) => coerceEdgeId((d as any).id))
+    .attr('data-source-id', (d: GraphEdge) => coerceEdgeEndpointId((d as any).source))
+    .attr('data-target-id', (d: GraphEdge) => coerceEdgeEndpointId((d as any).target))
     .attr('stroke', (d: GraphEdge) => getEdgeBaseStroke(d, schema))
     .attr('stroke-opacity', 1)
     .attr('stroke-width', (d: GraphEdge) => getEdgeStrokeWidth(d, schema))

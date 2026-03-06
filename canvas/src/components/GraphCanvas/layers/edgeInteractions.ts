@@ -32,11 +32,12 @@ export const attachEdgeInteractionHandlers = (
       if (!hoverEnabled) return
       setHoverInfo(() => ({ kind: 'edge', id: String(d.id), clientX: event.clientX, clientY: event.clientY }))
     })
-    .on('mouseout', (event: MouseEvent) => {
+    .on('mouseout', (event: MouseEvent, d: GraphEdge) => {
       if (!hoverEnabled) return
       const rt = (event as unknown as { relatedTarget?: unknown }).relatedTarget
       if (isTooltipRelatedTarget(rt)) return
-      setHoverInfo(prev => (prev && prev.kind === 'edge' ? null : prev))
+      const id = String(d.id)
+      setHoverInfo(prev => (prev && prev.kind === 'edge' && prev.id === id ? null : prev))
     })
 
   if (enableContextMenu) {

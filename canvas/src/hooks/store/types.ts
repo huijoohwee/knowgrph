@@ -26,6 +26,23 @@ export type CanvasSnapshotFns = {
   captureSvg?: () => Promise<string | null>;
 };
 
+export type ThreeCameraPose = {
+  position: { x: number; y: number; z: number }
+  quaternion: { x: number; y: number; z: number; w: number }
+  target: { x: number; y: number; z: number }
+  fov?: number
+  zoom?: number
+}
+
+export type ThreeCameraSnapshotFns = {
+  capturePose: () => ThreeCameraPose | null
+  restorePose: (pose: ThreeCameraPose) => void
+}
+
+export type ThreeGlbSnapshotFns = {
+  captureGlb: () => Promise<Blob | null>
+}
+
 export type GraphDataTableScope = 'all' | 'nodes' | 'edges';
 
 export type GraphDataTableFreezeMode = 'none' | 'label' | 'id';
@@ -791,4 +808,11 @@ export interface GraphState {
   registerCanvasSnapshotFns: (mode: '2d' | '3d', fns: CanvasSnapshotFns | null) => void;
   captureCanvasPngSnapshot: (mode?: '2d' | '3d') => Promise<Blob | null>;
   captureCanvasSvgSnapshot: (mode?: '2d' | '3d') => Promise<string | null>;
+  threeCameraSnapshotFns: ThreeCameraSnapshotFns | null;
+  registerThreeCameraSnapshotFns: (fns: ThreeCameraSnapshotFns | null) => void;
+  captureThreeCameraPose: () => ThreeCameraPose | null;
+  restoreThreeCameraPose: (pose: ThreeCameraPose | null) => void;
+  threeGlbSnapshotFns: ThreeGlbSnapshotFns | null;
+  registerThreeGlbSnapshotFns: (fns: ThreeGlbSnapshotFns | null) => void;
+  captureThreeGlbSnapshot: () => Promise<Blob | null>;
 }

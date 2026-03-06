@@ -20,9 +20,10 @@ interface TooltipProps {
   open?: boolean
   anchorStyle?: React.CSSProperties
   onContentMouseLeave?: () => void
+  interactive?: boolean
 }
 
-export default function Tooltip({ content, className, children, maxWidthFromPrevSibling, maxWidthPx, contentClassName, open: controlledOpen, anchorStyle, onContentMouseLeave }: TooltipProps) {
+export default function Tooltip({ content, className, children, maxWidthFromPrevSibling, maxWidthPx, contentClassName, open: controlledOpen, anchorStyle, onContentMouseLeave, interactive = true }: TooltipProps) {
   const anchorRef = React.useRef<HTMLSpanElement | null>(null)
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false)
   const open = typeof controlledOpen === 'boolean' ? controlledOpen : uncontrolledOpen
@@ -166,9 +167,10 @@ export default function Tooltip({ content, className, children, maxWidthFromPrev
         <div
           ref={scrollRef}
           data-kg-tooltip-root="1"
-          className={cn(`px-2 py-1 text-xs rounded ${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text} whitespace-normal break-words overflow-hidden pointer-events-auto z-[10000]`, contentClassName)}
+          className={cn(`px-2 py-1 text-xs rounded ${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text} whitespace-normal break-words overflow-hidden ${interactive ? 'pointer-events-auto' : 'pointer-events-none'} z-[10000]`, contentClassName)}
           style={{ position: 'fixed', top: pos.top, left: pos.left, transform: 'translateX(-50%)', maxWidth: maxW ? `${maxW}px` : '250px' }}
           onMouseEnter={() => {
+            if (!interactive) return
             if (scrollDelayRef.current !== null) return
             delayElapsedRef.current = false
             scrollDelayRef.current = window.setTimeout(() => {
@@ -180,10 +182,12 @@ export default function Tooltip({ content, className, children, maxWidthFromPrev
             }, 500)
           }}
           onMouseLeave={() => {
+            if (!interactive) return
             onContentMouseLeave?.()
             stopScroll()
           }}
           onMouseMove={e => {
+            if (!interactive) return
             const el = scrollRef.current
             if (!el) return
             const rect = el.getBoundingClientRect()
