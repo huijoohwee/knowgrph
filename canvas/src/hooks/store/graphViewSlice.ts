@@ -3,6 +3,7 @@ import type { StoreApi } from 'zustand'
 import { LS_KEYS } from '@/lib/config'
 import { lsInt, lsJson, lsSetInt, lsSetJson } from '@/lib/persistence'
 import type { Canvas2dRendererId } from '@/lib/config'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -26,16 +27,28 @@ const normalizeOpenQuickEditorNodeIds = (ids: string[], graphData: GraphState['g
 
 export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
   collapsedGroupIds: [] as string[],
+  collapsedGroupIdsByGraphMetaKey: {} as Record<string, string[]>,
   setCollapsedGroupIds: (ids: string[]) => {
     const next = normalizeIds(Array.isArray(ids) ? ids : [])
     const prev = get().collapsedGroupIds || []
-    if (prev.length === next.length && prev.every((v, i) => v === next[i])) return
-    set({ collapsedGroupIds: next })
+    const graphKey = buildGraphMetaKeyIgnoringPending(get().graphData)
+    const by = get().collapsedGroupIdsByGraphMetaKey || {}
+    const prevForGraph = graphKey ? (by[graphKey] || []) : prev
+    const sameGlobal = prev.length === next.length && prev.every((v, i) => v === next[i])
+    const sameForGraph = prevForGraph.length === next.length && prevForGraph.every((v, i) => v === next[i])
+    if (sameGlobal && sameForGraph) return
+    const nextBy = graphKey ? { ...by, [graphKey]: next } : by
+    set({ collapsedGroupIds: next, collapsedGroupIdsByGraphMetaKey: nextBy })
   },
   clearCollapsedGroups: () => {
     const prev = get().collapsedGroupIds || []
     if (prev.length === 0) return
-    set({ collapsedGroupIds: [] })
+    const graphKey = buildGraphMetaKeyIgnoringPending(get().graphData)
+    const by = get().collapsedGroupIdsByGraphMetaKey || {}
+    const prevForGraph = graphKey ? (by[graphKey] || []) : prev
+    if (prevForGraph.length === 0) return
+    const nextBy = graphKey ? { ...by, [graphKey]: [] } : by
+    set({ collapsedGroupIds: [], collapsedGroupIdsByGraphMetaKey: nextBy })
   },
   toggleGroupCollapsed: (rawId: string) => {
     const id = String(rawId || '').trim()
@@ -44,7 +57,11 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
       const prev = state.collapsedGroupIds || []
       const exists = prev.includes(id)
       const next = exists ? prev.filter(x => x !== id) : [...prev, id]
-      return { collapsedGroupIds: normalizeIds(next) }
+      const normalized = normalizeIds(next)
+      const graphKey = buildGraphMetaKeyIgnoringPending((state as unknown as { graphData?: unknown }).graphData as GraphState['graphData'])
+      const by = (state as unknown as { collapsedGroupIdsByGraphMetaKey?: unknown }).collapsedGroupIdsByGraphMetaKey as Record<string, string[]> | undefined
+      const nextBy = graphKey ? { ...(by || {}), [graphKey]: normalized } : (by || {})
+      return { collapsedGroupIds: normalized, collapsedGroupIdsByGraphMetaKey: nextBy }
     })
   },
   openQuickEditorNodeIds: [] as string[],
@@ -159,15 +176,111 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
     lsSetInt(LS_KEYS.flowNodeQuickEditorPinnedSemanticsVersion, 2)
     return flipped
   })(),
-  setFlowNodeQuickEditorPinnedByNodeId: (pinnedById: Record<string, boolean>) =>
-    set({ flowNodeQuickEditorPinnedByNodeId: lsSetJson(LS_KEYS.flowNodeQuickEditorPinnedByNodeId, pinnedById || {}) }),
+  flowNodeQuickEditorPinnedByNodeIdByGraphMetaKey: lsJson<Record<string, Record<string, boolean>>>(
+    LS_KEYS.flowNodeQuickEditorPinnedByGraphMetaKey,
+    {},
+    raw => {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+      const out: Record<string, Record<string, boolean>> = {}
+      for (const [graphKeyRaw, entry] of Object.entries(raw as Record<string, unknown>)) {
+        const graphKey = String(graphKeyRaw || '').trim()
+        if (!graphKey) continue
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue
+        const inner: Record<string, boolean> = {}
+        for (const [nodeIdRaw, v] of Object.entries(entry as Record<string, unknown>)) {
+          const nodeId = String(nodeIdRaw || '').trim()
+          if (!nodeId) continue
+          if (typeof v !== 'boolean') continue
+          inner[nodeId] = v
+        }
+        out[graphKey] = inner
+      }
+      return out
+    },
+  ),
+  setFlowNodeQuickEditorPinnedByNodeId: (pinnedById: Record<string, boolean>) => {
+    const state = get()
+    const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+    const by = state.flowNodeQuickEditorPinnedByNodeIdByGraphMetaKey || {}
+    const nextBy = graphKey ? { ...by, [graphKey]: pinnedById || {} } : by
+    if (graphKey) {
+      set({
+        flowNodeQuickEditorPinnedByNodeId: pinnedById || {},
+        flowNodeQuickEditorPinnedByNodeIdByGraphMetaKey: lsSetJson(LS_KEYS.flowNodeQuickEditorPinnedByGraphMetaKey, nextBy),
+      })
+      return
+    }
+    set({ flowNodeQuickEditorPinnedByNodeId: pinnedById || {} })
+  },
+  flowNodeQuickEditorPosByNodeIdByGraphMetaKey: lsJson<Record<string, Record<string, { top: number; left: number }>>>(
+    LS_KEYS.flowNodeQuickEditorPosByGraphMetaKey,
+    {},
+    raw => {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+      const out: Record<string, Record<string, { top: number; left: number }>> = {}
+      for (const [graphKeyRaw, entry] of Object.entries(raw as Record<string, unknown>)) {
+        const graphKey = String(graphKeyRaw || '').trim()
+        if (!graphKey) continue
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue
+        const inner: Record<string, { top: number; left: number }> = {}
+        for (const [nodeIdRaw, v] of Object.entries(entry as Record<string, unknown>)) {
+          const nodeId = String(nodeIdRaw || '').trim()
+          if (!nodeId) continue
+          const o = v as { top?: unknown; left?: unknown } | null
+          const top = typeof o?.top === 'number' && Number.isFinite(o.top) ? (o.top as number) : null
+          const left = typeof o?.left === 'number' && Number.isFinite(o.left) ? (o.left as number) : null
+          if (top == null || left == null) continue
+          inner[nodeId] = { top, left }
+        }
+        out[graphKey] = inner
+      }
+      return out
+    },
+  ),
   flowNodeQuickEditorPosByNodeId: lsJson<Record<string, { top: number; left: number }>>(
     LS_KEYS.flowNodeQuickEditorPosByNodeId,
     {},
     v => (v && typeof v === 'object' ? (v as Record<string, { top: number; left: number }>) : {}),
   ),
-  setFlowNodeQuickEditorPosByNodeId: (pos: Record<string, { top: number; left: number }>) =>
-    set({ flowNodeQuickEditorPosByNodeId: lsSetJson(LS_KEYS.flowNodeQuickEditorPosByNodeId, pos) }),
+  setFlowNodeQuickEditorPosByNodeId: (pos: Record<string, { top: number; left: number }>) => {
+    const state = get()
+    const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+    const by = state.flowNodeQuickEditorPosByNodeIdByGraphMetaKey || {}
+    const nextBy = graphKey ? { ...by, [graphKey]: pos || {} } : by
+    if (graphKey) {
+      set({
+        flowNodeQuickEditorPosByNodeId: pos || {},
+        flowNodeQuickEditorPosByNodeIdByGraphMetaKey: lsSetJson(LS_KEYS.flowNodeQuickEditorPosByGraphMetaKey, nextBy),
+      })
+      return
+    }
+    set({ flowNodeQuickEditorPosByNodeId: pos || {} })
+  },
+  flowNodeQuickEditorWorldPosByNodeIdByGraphMetaKey: lsJson<Record<string, Record<string, { x: number; y: number }>>>(
+    LS_KEYS.flowNodeQuickEditorWorldPosByGraphMetaKey,
+    {},
+    raw => {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+      const out: Record<string, Record<string, { x: number; y: number }>> = {}
+      for (const [graphKeyRaw, entry] of Object.entries(raw as Record<string, unknown>)) {
+        const graphKey = String(graphKeyRaw || '').trim()
+        if (!graphKey) continue
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue
+        const inner: Record<string, { x: number; y: number }> = {}
+        for (const [nodeIdRaw, v] of Object.entries(entry as Record<string, unknown>)) {
+          const nodeId = String(nodeIdRaw || '').trim()
+          if (!nodeId) continue
+          const o = v as { x?: unknown; y?: unknown } | null
+          const x = typeof o?.x === 'number' && Number.isFinite(o.x) ? (o.x as number) : null
+          const y = typeof o?.y === 'number' && Number.isFinite(o.y) ? (o.y as number) : null
+          if (x == null || y == null) continue
+          inner[nodeId] = { x, y }
+        }
+        out[graphKey] = inner
+      }
+      return out
+    },
+  ),
   flowNodeQuickEditorWorldPosByNodeId: lsJson<Record<string, { x: number; y: number }>>(
     LS_KEYS.flowNodeQuickEditorWorldPosByNodeId,
     {},
@@ -186,8 +299,20 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
       return out
     },
   ),
-  setFlowNodeQuickEditorWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) =>
-    set({ flowNodeQuickEditorWorldPosByNodeId: lsSetJson(LS_KEYS.flowNodeQuickEditorWorldPosByNodeId, pos || {}) }),
+  setFlowNodeQuickEditorWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => {
+    const state = get()
+    const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+    const by = state.flowNodeQuickEditorWorldPosByNodeIdByGraphMetaKey || {}
+    const nextBy = graphKey ? { ...by, [graphKey]: pos || {} } : by
+    if (graphKey) {
+      set({
+        flowNodeQuickEditorWorldPosByNodeId: pos || {},
+        flowNodeQuickEditorWorldPosByNodeIdByGraphMetaKey: lsSetJson(LS_KEYS.flowNodeQuickEditorWorldPosByGraphMetaKey, nextBy),
+      })
+      return
+    }
+    set({ flowNodeQuickEditorWorldPosByNodeId: pos || {} })
+  },
   flowNodeQuickEditorDraggingNodeId: null as string | null,
   setFlowNodeQuickEditorDraggingNodeId: (rawId: string | null) => {
     const id = rawId == null ? null : String(rawId || '').trim()

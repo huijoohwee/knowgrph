@@ -42,6 +42,7 @@ import {
   buildSchemaFieldPortKey,
   buildFlowEdgeDisplayLabelFromPorts,
   pickDefaultSchemaFieldPortKey,
+  readSchemaFieldSpecs,
 } from '@/lib/graph/flowPorts'
 import { resolveFlowSocketTypesForEdge } from '@/lib/graph/flowSocketTypes'
 import { canAddEdge } from '@/features/schema/validation'
@@ -81,6 +82,7 @@ function pickString(v: unknown): string {
 const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuickEditorOverlay(args: {
   active: boolean
   node: GraphNode
+  graphMetaKind?: string | null
   edges: ReadonlyArray<GraphEdge>
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
   viewportW: number
@@ -114,6 +116,7 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
     <NodeOverlayEditor
       active={args.active}
       node={args.node}
+      graphMetaKind={args.graphMetaKind}
       edges={args.edges}
       connectedValuesBySchemaPath={args.connectedValuesBySchemaPath}
       toolMode={args.toolMode}
@@ -459,12 +462,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const overlayOnlyModeEnabled = React.useMemo(() => {
     return Array.isArray(nodeQuickEditorRegistry) && nodeQuickEditorRegistry.length > 0
   }, [nodeQuickEditorRegistry])
-
-  const overlayOnlyHidePortHandleNodeIds = React.useMemo(() => {
-    if (!overlayOnlyModeEnabled) return undefined
-    const nodes = Array.isArray(draftGraphData?.nodes) ? draftGraphData?.nodes : []
-    return nodes.map(n => String((n as { id?: unknown })?.id || '')).filter(Boolean)
-  }, [draftGraphData?.nodes, overlayOnlyModeEnabled])
 
   const overlayCollisionResolveRafRef = React.useRef<number | null>(null)
   const overlayCollisionResolveKeyRef = React.useRef<string>('')
@@ -1040,6 +1037,13 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const overlayEdgesSvgRef = React.useRef<SVGSVGElement | null>(null)
   const overlayEdgePathByIdRef = React.useRef<Map<string, SVGPathElement>>(new Map())
   const overlayEdgeRafRef = React.useRef<number | null>(null)
+  const overlayEdgeSocketTypesRef = React.useRef<unknown>(null)
+  const overlayEdgeSocketStyleByTypeRef = React.useRef<Map<string, { color: string; edgeWidthPx: number | null }>>(new Map())
+  const overlayEdgeTopPctCacheRef = React.useRef<{
+    key: string
+    registry: ReadonlyArray<NodeQuickEditorRegistryEntry> | null
+    map: Map<string, Map<string, number>>
+  } | null>(null)
 
   const scheduleOverlayEdgeUpdate = React.useCallback(() => {
     if (!active) return
@@ -1072,17 +1076,23 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const socketStyleByType = (() => {
         const meta = (graph.metadata || {}) as Record<string, unknown>
         const st = meta.socketTypes
-        if (!isRecord(st)) return new Map<string, { color: string; edgeWidthPx: number | null }>()
-        const m = new Map<string, { color: string; edgeWidthPx: number | null }>()
+        if (st === overlayEdgeSocketTypesRef.current) return overlayEdgeSocketStyleByTypeRef.current
+        overlayEdgeSocketTypesRef.current = st
+        const next = new Map<string, { color: string; edgeWidthPx: number | null }>()
+        if (!isRecord(st)) {
+          overlayEdgeSocketStyleByTypeRef.current = next
+          return next
+        }
         for (const k of Object.keys(st)) {
           const spec = st[k]
           if (!isRecord(spec)) continue
           const color = pickString(spec.color)
           if (!color) continue
           const edgeWidthPx = typeof spec.edgeWidthPx === 'number' && Number.isFinite(spec.edgeWidthPx) ? spec.edgeWidthPx : null
-          m.set(String(k || ''), { color, edgeWidthPx })
+          next.set(String(k || ''), { color, edgeWidthPx })
         }
-        return m
+        overlayEdgeSocketStyleByTypeRef.current = next
+        return next
       })()
 
       const overlayIdSet = (() => {
@@ -1117,14 +1127,52 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         nodes.push({ id, type: rawNodes[i]?.type, properties: rawNodes[i]?.properties })
       }
 
-      const edges: Array<{ id: unknown; source: unknown; target: unknown; type?: unknown; properties?: unknown }> = []
+      const firstSchemaPortKeyByNodeId = (() => {
+        const m = new Map<string, string>()
+        for (let i = 0; i < nodes.length; i += 1) {
+          const id = String(nodes[i]?.id || '').trim()
+          if (!id) continue
+          const fields = readSchemaFieldSpecs({ properties: nodes[i]?.properties as never }).map(f => f.id).filter(Boolean)
+          const first = fields[0]
+          if (!first) continue
+          m.set(id, buildSchemaFieldPortKey(first))
+        }
+        return m
+      })()
+
+      const readPropString = (props: unknown, key: string): string => {
+        if (!props || typeof props !== 'object' || Array.isArray(props)) return ''
+        const raw = (props as Record<string, unknown>)[key]
+        return typeof raw === 'string' ? raw.trim() : ''
+      }
+
+      const edges: Array<{
+        id: string
+        source: string
+        target: string
+        sourcePortKey: string
+        targetPortKey: string
+        stroke: string
+        strokeWidth: string
+      }> = []
       for (let i = 0; i < rawEdges.length; i += 1) {
         const id = String(rawEdges[i]?.id || '').trim()
         const source = String(rawEdges[i]?.source || '').trim()
         const target = String(rawEdges[i]?.target || '').trim()
         if (!id || !source || !target) continue
         if (!overlayIdSet.has(source) || !overlayIdSet.has(target)) continue
-        edges.push({ id, source, target, type: rawEdges[i]?.type, properties: rawEdges[i]?.properties })
+        const props = rawEdges[i]?.properties
+        const sourcePortKeyRaw = readPropString(props, FLOW_EDGE_SOURCE_PORT_KEY)
+        const targetPortKeyRaw = readPropString(props, FLOW_EDGE_TARGET_PORT_KEY)
+        const sourcePortKey = sourcePortKeyRaw || firstSchemaPortKeyByNodeId.get(source) || id
+        const targetPortKey = targetPortKeyRaw || firstSchemaPortKeyByNodeId.get(target) || id
+        const edgeTypeFromEdge = pickString(rawEdges[i]?.type)
+        const edgeTypeFromProps = readPropString(props, 'flow:socketType')
+        const edgeSocketType = edgeTypeFromEdge || edgeTypeFromProps
+        const style = edgeSocketType ? socketStyleByType.get(edgeSocketType) || null : null
+        const stroke = style?.color || 'currentColor'
+        const strokeWidth = style?.edgeWidthPx != null ? String(style.edgeWidthPx) : '1.5'
+        edges.push({ id, source, target, sourcePortKey, targetPortKey, stroke, strokeWidth })
       }
 
       if (nodeIds.size === 0 || edges.length === 0) {
@@ -1141,25 +1189,13 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
       const overlayRectsByNodeId = (() => {
         if (typeof document === 'undefined') return new Map<string, DOMRect>()
-        const esc = (v: string) => {
-          const raw = String(v || '')
-          const fn = (globalThis as unknown as { CSS?: { escape?: (x: string) => string } }).CSS?.escape
-          if (typeof fn === 'function') return fn(raw)
-          return raw.replace(/[^a-zA-Z0-9_-]/g, '\\$&')
-        }
-        const ids = Array.isArray(openQuickEditorNodeIdsRef.current) ? openQuickEditorNodeIdsRef.current : []
         const m = new Map<string, DOMRect>()
-        for (let i = 0; i < ids.length; i += 1) {
-          const id = String(ids[i] || '').trim()
+        const els = Array.from(document.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
+        for (let i = 0; i < els.length; i += 1) {
+          const el = els[i]
+          const id = String(el?.dataset?.kgNodeQuickEditor || '').trim()
           if (!id || !nodeIds.has(id)) continue
-          const el = document.querySelector<HTMLElement>(`${FLOW_EDITOR_OVERLAY_ROOT_SELECTOR}[data-kg-node-quick-editor="${esc(id)}"]`)
-          if (!el) continue
           m.set(id, el.getBoundingClientRect())
-        }
-        const sel = String(pendingOverlayNodeIdRef.current || '').trim()
-        if (sel && nodeIds.has(sel) && !m.has(sel)) {
-          const el = document.querySelector<HTMLElement>(`${FLOW_EDITOR_OVERLAY_ROOT_SELECTOR}[data-kg-node-quick-editor="${esc(sel)}"]`)
-          if (el) m.set(sel, el.getBoundingClientRect())
         }
         return m
       })()
@@ -1176,19 +1212,34 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         return
       }
 
-      const handlesByNodeId = computeFlowHandlesByNode({
-        nodes,
-        edges,
-        nodeQuickEditorRegistry: Array.isArray(nodeQuickEditorRegistryRef.current) ? nodeQuickEditorRegistryRef.current : null,
-      })
+      const topPctByNodeAndHandle = (() => {
+        const overlayNodeIds = nodes.map(n => String(n.id || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b))
+        const overlayEdgeKeyParts: string[] = []
+        for (let i = 0; i < edges.length; i += 1) {
+          const e = edges[i]
+          overlayEdgeKeyParts.push(`${e.id}:${e.source}->${e.target}:${e.sourcePortKey}|${e.targetPortKey}`)
+        }
+        overlayEdgeKeyParts.sort((a, b) => a.localeCompare(b))
+        const reg = Array.isArray(nodeQuickEditorRegistryRef.current) ? (nodeQuickEditorRegistryRef.current as ReadonlyArray<NodeQuickEditorRegistryEntry>) : null
+        const cacheKey = `${overlayNodeIds.join(',')}|${overlayEdgeKeyParts.join(',')}`
+        const cached = overlayEdgeTopPctCacheRef.current
+        if (cached && cached.key === cacheKey && cached.registry === reg) return cached.map
 
-      const topPctByNodeAndHandle = new Map<string, Map<string, number>>()
-      for (const [id, handles] of Object.entries(handlesByNodeId)) {
-        const m = new Map<string, number>()
-        for (let i = 0; i < (handles.in || []).length; i += 1) m.set(handles.in[i].id, handles.in[i].topPct)
-        for (let i = 0; i < (handles.out || []).length; i += 1) m.set(handles.out[i].id, handles.out[i].topPct)
-        topPctByNodeAndHandle.set(id, m)
-      }
+        const handlesByNodeId = computeFlowHandlesByNode({
+          nodes,
+          edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target, properties: { [FLOW_EDGE_SOURCE_PORT_KEY]: e.sourcePortKey, [FLOW_EDGE_TARGET_PORT_KEY]: e.targetPortKey } })),
+          nodeQuickEditorRegistry: reg,
+        })
+        const map = new Map<string, Map<string, number>>()
+        for (const [id, handles] of Object.entries(handlesByNodeId)) {
+          const hm = new Map<string, number>()
+          for (let i = 0; i < (handles.in || []).length; i += 1) hm.set(handles.in[i].id, handles.in[i].topPct)
+          for (let i = 0; i < (handles.out || []).length; i += 1) hm.set(handles.out[i].id, handles.out[i].topPct)
+          map.set(id, hm)
+        }
+        overlayEdgeTopPctCacheRef.current = { key: cacheKey, registry: reg, map }
+        return map
+      })()
 
       const rootRect = root.getBoundingClientRect()
       const baseLeft = Number.isFinite(rootRect.left) ? rootRect.left : null
@@ -1206,29 +1257,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const sRect = overlayRectsByNodeId.get(source)
         const tRect = overlayRectsByNodeId.get(target)
         if (!sRect || !tRect) continue
-
-        const props = e.properties
-        const sourcePortKey =
-          props && typeof props === 'object' && !Array.isArray(props) && typeof (props as Record<string, unknown>)[FLOW_EDGE_SOURCE_PORT_KEY] === 'string'
-            ? String((props as Record<string, unknown>)[FLOW_EDGE_SOURCE_PORT_KEY] || '').trim()
-            : ''
-        const targetPortKey =
-          props && typeof props === 'object' && !Array.isArray(props) && typeof (props as Record<string, unknown>)[FLOW_EDGE_TARGET_PORT_KEY] === 'string'
-            ? String((props as Record<string, unknown>)[FLOW_EDGE_TARGET_PORT_KEY] || '').trim()
-            : ''
-
-        const edgeTypeFromEdge = pickString(e.type)
-        const edgeTypeFromProps =
-          props && typeof props === 'object' && !Array.isArray(props) && typeof (props as Record<string, unknown>)['flow:socketType'] === 'string'
-            ? String((props as Record<string, unknown>)['flow:socketType'] || '').trim()
-            : ''
-        const edgeSocketType = edgeTypeFromEdge || edgeTypeFromProps
-        const style = edgeSocketType ? socketStyleByType.get(edgeSocketType) || null : null
-        const stroke = style?.color || 'currentColor'
-        const strokeWidth = style?.edgeWidthPx != null ? String(style.edgeWidthPx) : '1.5'
-
-        const outHandleId = buildFlowHandleId({ dir: 'out', edgeId: sourcePortKey || edgeId })
-        const inHandleId = buildFlowHandleId({ dir: 'in', edgeId: targetPortKey || edgeId })
+        const outHandleId = buildFlowHandleId({ dir: 'out', edgeId: e.sourcePortKey || edgeId })
+        const inHandleId = buildFlowHandleId({ dir: 'in', edgeId: e.targetPortKey || edgeId })
         const sPct = topPctByNodeAndHandle.get(source)?.get(outHandleId) ?? 50
         const tPct = topPctByNodeAndHandle.get(target)?.get(inHandleId) ?? 50
 
@@ -1259,15 +1289,15 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const pathEl = existing || document.createElementNS('http://www.w3.org/2000/svg', 'path')
         if (!existing) {
           pathEl.setAttribute('fill', 'none')
-          pathEl.setAttribute('stroke', stroke)
-          pathEl.setAttribute('stroke-width', strokeWidth)
+          pathEl.setAttribute('stroke', e.stroke)
+          pathEl.setAttribute('stroke-width', e.strokeWidth)
           pathEl.setAttribute('stroke-linejoin', 'round')
           pathEl.setAttribute('stroke-linecap', 'round')
           svg.appendChild(pathEl)
           overlayEdgePathByIdRef.current.set(edgeId, pathEl)
         }
-        if (pathEl.getAttribute('stroke') !== stroke) pathEl.setAttribute('stroke', stroke)
-        if (pathEl.getAttribute('stroke-width') !== strokeWidth) pathEl.setAttribute('stroke-width', strokeWidth)
+        if (pathEl.getAttribute('stroke') !== e.stroke) pathEl.setAttribute('stroke', e.stroke)
+        if (pathEl.getAttribute('stroke-width') !== e.strokeWidth) pathEl.setAttribute('stroke-width', e.strokeWidth)
         if (pathEl.getAttribute('d') !== d) pathEl.setAttribute('d', d)
       }
       for (const [id, el] of overlayEdgePathByIdRef.current.entries()) {
@@ -2537,9 +2567,17 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (!active) return []
     const edges = (draftGraphData?.edges || []) as GraphEdge[]
     const nodes = Array.isArray(draftGraphData?.nodes) ? (draftGraphData?.nodes as GraphNode[]) : []
+    const nodeById = new Map<string, GraphNode>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const id = String(n?.id || '').trim()
+      if (!id) continue
+      if (!nodeById.has(id)) nodeById.set(id, n)
+    }
+    const graphMetaKind = String(((draftGraphData?.metadata || {}) as Record<string, unknown>).kind || '').trim() || null
     const forcePinnedToCanvas = false
     const resolveNode = (id: string) => {
-      const found = nodes.find(n => String(n.id || '') === id) || null
+      const found = nodeById.get(id) || null
       if (found) return found
       const pending = pendingOverlayNodeIdRef.current
       if (pending && pending === id) return pendingOverlayNode
@@ -2549,6 +2587,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       .map((id, stackIndex) => {
         const node = resolveNode(id)
         if (!node) return null
+        if (String(node.type || '') === 'Section') return null
         const autoRevealKey = id === String(lastDroppedQuickEditorNodeIdRef.current || '') ? lastDroppedQuickEditorToken : 0
         const connectedValuesBySchemaPath = connectedValuesByNodeId.get(id) || undefined
         return (
@@ -2556,6 +2595,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             key={`qe-${id}`}
             active={active}
             node={node}
+            graphMetaKind={graphMetaKind}
             edges={edges}
             connectedValuesBySchemaPath={connectedValuesBySchemaPath}
             toolMode={toolMode}
@@ -2625,6 +2665,12 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   ])
 
   const hasOverlayEditors = overlayEditorElements.length > 0
+  const overlayOnlyActive = overlayOnlyModeEnabled && hasOverlayEditors
+  const overlayOnlyHidePortHandleNodeIds = React.useMemo(() => {
+    if (!overlayOnlyActive) return undefined
+    const nodes = Array.isArray(draftGraphData?.nodes) ? draftGraphData?.nodes : []
+    return nodes.map(n => String((n as { id?: unknown })?.id || '')).filter(Boolean)
+  }, [draftGraphData?.nodes, overlayOnlyActive])
   const noGraphLoaded = !draftGraphData
 
   return (
@@ -2693,13 +2739,13 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           flowRuntimeRefRef.current = ref
         }}
         onInteractionFrame={hasOverlayEditors ? emitFlowEditorInteractionFrame : undefined}
-        renderEdges={overlayOnlyModeEnabled ? false : true}
-        renderGroups={overlayOnlyModeEnabled ? false : true}
-        renderNodes={overlayOnlyModeEnabled ? false : true}
+        renderEdges={overlayOnlyActive ? false : true}
+        renderGroups={true}
+        renderNodes={overlayOnlyActive ? false : true}
         hidePortHandleNodeIds={overlayOnlyHidePortHandleNodeIds}
       />
 
-      {overlayOnlyModeEnabled && (
+      {overlayOnlyActive && (
         <svg
           ref={overlayEdgesSvgRef}
           className="absolute inset-0 pointer-events-none"

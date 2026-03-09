@@ -7,6 +7,38 @@ export const FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY = 'flow:quickEditorFormId' as co
 
 const pickString = (v: unknown): string => (typeof v === 'string' ? v.trim() : '')
 
+type RegistryIndex = {
+  byNodeType: Map<string, ReadonlyArray<NodeQuickEditorRegistryEntry>>
+}
+
+const registryIndexCache = new WeakMap<object, RegistryIndex>()
+
+const getRegistryIndex = (registry: ReadonlyArray<NodeQuickEditorRegistryEntry>): RegistryIndex => {
+  const cached = registryIndexCache.get(registry as unknown as object)
+  if (cached) return cached
+  const byNodeType = new Map<string, NodeQuickEditorRegistryEntry[]>()
+  for (let i = 0; i < registry.length; i += 1) {
+    const e = registry[i]
+    if (!e || e.isEnabled !== true) continue
+    const nt = String(e.nodeTypeId || '').trim()
+    if (!nt) continue
+    const list = byNodeType.get(nt) || []
+    list.push(e)
+    byNodeType.set(nt, list)
+  }
+  const idx: RegistryIndex = { byNodeType }
+  registryIndexCache.set(registry as unknown as object, idx)
+  return idx
+}
+
+const compareRegistryEntries = (a: NodeQuickEditorRegistryEntry, b: NodeQuickEditorRegistryEntry): number => {
+  const t = a.quickEditorTypeId.localeCompare(b.quickEditorTypeId)
+  if (t !== 0) return t
+  const f = a.formId.localeCompare(b.formId)
+  if (f !== 0) return f
+  return String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))
+}
+
 export function resolveNodeQuickEditorRegistryEntry(args: {
   node: Pick<GraphNode, 'type' | 'properties'> | null | undefined
   registry: ReadonlyArray<NodeQuickEditorRegistryEntry> | null | undefined
@@ -20,35 +52,55 @@ export function resolveNodeQuickEditorRegistryEntry(args: {
   const wantType = pickString(props[FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY])
   const wantForm = pickString(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY])
 
-  let candidates = reg.filter(e => e && e.isEnabled && e.nodeTypeId === nodeType)
-  if (candidates.length === 0) return null
+  const candidatesAll = getRegistryIndex(reg).byNodeType.get(nodeType) || []
+  if (candidatesAll.length === 0) return null
 
-  if (wantType) {
-    const filtered = candidates.filter(e => e.quickEditorTypeId === wantType)
-    if (filtered.length > 0) candidates = filtered
-  }
-  if (wantForm) {
-    const filtered = candidates.filter(e => e.formId === wantForm)
-    if (filtered.length > 0) candidates = filtered
-  }
+  const restrictByType = (() => {
+    if (!wantType) return null
+    for (let i = 0; i < candidatesAll.length; i += 1) {
+      if (candidatesAll[i]?.quickEditorTypeId === wantType) return wantType
+    }
+    return null
+  })()
+
+  const restrictByForm = (() => {
+    if (!wantForm) return null
+    for (let i = 0; i < candidatesAll.length; i += 1) {
+      const e = candidatesAll[i]
+      if (!e) continue
+      if (restrictByType && e.quickEditorTypeId !== restrictByType) continue
+      if (e.formId === wantForm) return wantForm
+    }
+    return null
+  })()
 
   const prefer = (typeId: string, formId?: string) => {
-    const found = candidates.find(e => e.quickEditorTypeId === typeId && (!formId || e.formId === formId))
-    return found || null
+    for (let i = 0; i < candidatesAll.length; i += 1) {
+      const e = candidatesAll[i]
+      if (!e) continue
+      if (restrictByType && e.quickEditorTypeId !== restrictByType) continue
+      if (restrictByForm && e.formId !== restrictByForm) continue
+      if (e.quickEditorTypeId !== typeId) continue
+      if (formId && e.formId !== formId) continue
+      return e
+    }
+    return null
   }
 
   const preferred = prefer('default', wantForm || undefined) || prefer('default')
   if (preferred) return preferred
 
-  const sorted = candidates
-    .slice()
-    .sort((a, b) => {
-      const t = a.quickEditorTypeId.localeCompare(b.quickEditorTypeId)
-      if (t !== 0) return t
-      const f = a.formId.localeCompare(b.formId)
-      if (f !== 0) return f
-      return String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))
-    })
-  return sorted[0] || null
+  let best: NodeQuickEditorRegistryEntry | null = null
+  for (let i = 0; i < candidatesAll.length; i += 1) {
+    const e = candidatesAll[i]
+    if (!e) continue
+    if (restrictByType && e.quickEditorTypeId !== restrictByType) continue
+    if (restrictByForm && e.formId !== restrictByForm) continue
+    if (!best) {
+      best = e
+      continue
+    }
+    if (compareRegistryEntries(e, best) < 0) best = e
+  }
+  return best
 }
-

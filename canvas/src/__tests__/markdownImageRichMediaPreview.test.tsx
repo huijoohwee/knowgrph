@@ -135,16 +135,21 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
     if (!/demo\.mp3/i.test(decodeURIComponent(audioSrc))) throw new Error(`expected mp3 audio src, got: ${audioSrc}`)
 
     const iframes = Array.from(container.querySelectorAll('iframe')) as HTMLIFrameElement[]
-    if (iframes.length < 1) throw new Error('expected markdown image with alt=iframe to render as iframe')
+    if (iframes.length < 2) throw new Error('expected iframe + webpage url to render as iframes')
     const iframeSrcDocs = iframes.map(el => String(el.getAttribute('srcdoc') || ''))
     if (!iframeSrcDocs.some(s => /<base\s+href="https:\/\/example\.com\/?"/i.test(s))) {
       throw new Error(`expected iframe srcdoc to include base href example.com, got: ${iframeSrcDocs.join(', ')}`)
     }
-
-    const links = Array.from(container.querySelectorAll('a')) as HTMLAnchorElement[]
-    const hrefs = links.map(a => String(a.getAttribute('href') || ''))
-    if (!hrefs.some(h => /^https:\/\/www\.ycombinator\.com\/library\/8d-how-to-build-a-great-series-a-pitch-and-deck\/?$/i.test(h))) {
-      throw new Error(`expected webpage url to render as link (not iframe), got: ${hrefs.join(', ')}`)
+    if (
+      !iframeSrcDocs.some(s =>
+        /<base\s+href="https:\/\/www\.ycombinator\.com\/library\/8d-how-to-build-a-great-series-a-pitch-and-deck\/?"/i.test(
+          s,
+        ),
+      )
+    ) {
+      throw new Error(
+        `expected webpage srcdoc to include base href ycombinator, got: ${iframeSrcDocs.join(', ')}`,
+      )
     }
 
     root.unmount()

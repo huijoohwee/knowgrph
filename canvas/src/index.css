@@ -51,6 +51,7 @@
   --kg-canvas-accent: #3b82f6;
   --kg-canvas-label-halo: var(--app-bg);
   --kg-canvas-label-fill: #111827;
+  --kg-media-panel-bg: var(--kg-panel-bg);
   --kg-media-panel-header-bg: #f9fafb;
   --kg-statusbar-bg: #f9fafb;
   --kg-statusbar-text: #4b5563;

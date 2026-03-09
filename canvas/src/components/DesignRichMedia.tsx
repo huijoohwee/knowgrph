@@ -1,6 +1,6 @@
 import React from 'react'
 import { applyMediaProxySrc } from '@/lib/url'
-import { buildIframeSrcDocForUrl, buildWebpageProxyUrl, isIframeDirectEmbedUrl } from '@/lib/render/richMediaEmbed'
+import RichMediaPanel from '@/components/RichMediaPanel'
 
 export type DesignRichMediaTag = 'IMG' | 'VIDEO' | 'IFRAME'
 
@@ -15,7 +15,6 @@ const stopEvent = (event: React.SyntheticEvent) => {
 const normalizeMediaUrl = (tag: DesignRichMediaTag, rawUrl: string): string => {
   const url = String(rawUrl || '').trim()
   if (!url) return ''
-  if (tag === 'IFRAME') return buildWebpageProxyUrl(url)
   if (tag === 'VIDEO') return applyMediaProxySrc(url)
   if (/^data:image\//i.test(url)) return url
   return applyMediaProxySrc(url)
@@ -49,36 +48,6 @@ export function DesignRichMediaPreview(props: {
   } = props
 
   const normalizedUrl = React.useMemo(() => normalizeMediaUrl(tag, url), [tag, url])
-  const [iframeSrcDoc, setIframeSrcDoc] = React.useState<string>('')
-
-  React.useEffect(() => {
-    if (tag !== 'IFRAME') return
-    const raw = String(url || '').trim()
-    if (!raw || isIframeDirectEmbedUrl(raw)) {
-      setIframeSrcDoc('')
-      return
-    }
-    let cancelled = false
-    const ctrl = new AbortController()
-    void (async () => {
-      try {
-        const { srcDoc } = await buildIframeSrcDocForUrl({ url: raw, signal: ctrl.signal })
-        if (cancelled) return
-        setIframeSrcDoc(srcDoc)
-      } catch {
-        if (cancelled) return
-        setIframeSrcDoc('')
-      }
-    })()
-    return () => {
-      cancelled = true
-      try {
-        ctrl.abort()
-      } catch {
-        void 0
-      }
-    }
-  }, [tag, url])
 
   const titleW = Math.min(innerW, Math.max(64, (titleChip.length + 6) * 6))
   const mediaCorner = 6
@@ -156,30 +125,26 @@ export function DesignRichMediaPreview(props: {
           onDoubleClickCapture={stopEvent}
           onContextMenuCapture={stopEvent}
         >
-          <section
-            style={{
-              width: '100%',
-              height: '100%',
-              borderRadius: `${mediaCorner}px`,
-              overflow: 'hidden',
-              background: 'transparent',
-              pointerEvents: interactive ? 'auto' : 'none',
-            }}
-          >
-            <iframe
-              src={iframeSrcDoc ? undefined : normalizedUrl}
-              srcDoc={iframeSrcDoc || undefined}
-              loading="lazy"
-              referrerPolicy="no-referrer"
-              sandbox={iframeSrcDoc ? 'allow-scripts allow-presentation' : 'allow-scripts allow-same-origin allow-forms allow-popups allow-presentation'}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              style={{ width: '100%', height: '100%', border: 0 }}
-            />
-          </section>
+          <RichMediaPanel
+            title={titleChip}
+            url={url}
+            interactive={interactive}
+            iframeMode="srcdoc-when-needed"
+            showHeader={false}
+            style={
+              {
+                width: '100%',
+                height: '100%',
+                boxShadow: 'none',
+                ['--kg-media-panel-padding' as never]: '0px',
+                ['--kg-media-panel-radius' as never]: `${mediaCorner}px`,
+              } as React.CSSProperties
+            }
+          />
         </foreignObject>
       ) : null}
 
-      {showBorder ? (
+      {showBorder && tag === 'IMG' ? (
         <rect
           x={innerX}
           y={innerY}

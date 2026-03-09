@@ -26,6 +26,8 @@ import { NodeOverlayEditorRegistrySection } from '@/components/FlowEditor/NodeOv
 import { NodeOverlayEditorParamsSection } from '@/components/FlowEditor/NodeOverlayEditorParamsSection'
 import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { NodeOverlayEditorBeatByBeatSection } from '@/components/FlowEditor/NodeOverlayEditorBeatByBeatSection'
+import type { GraphEdge } from '@/lib/graph/types'
 
 function pickString(v: unknown): string {
   return typeof v === 'string' ? v : ''
@@ -46,6 +48,8 @@ function cleanDomIdPart(v: unknown): string {
 export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   active,
   node,
+  graphMetaKind,
+  edges,
   schema,
   hideFields,
   labelInputRef,
@@ -63,6 +67,8 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
 }: {
   active: boolean
   node: GraphNode
+  graphMetaKind?: string | null
+  edges?: ReadonlyArray<GraphEdge>
   schema: GraphSchema | null
   hideFields: boolean
   labelInputRef: React.RefObject<HTMLInputElement>
@@ -481,6 +487,15 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           ]}
         />
       </section>
+
+      <NodeOverlayEditorBeatByBeatSection
+        node={node}
+        graphMetaKind={graphMetaKind}
+        edges={edges || []}
+        microLabelClass={microLabelClass}
+        monospaceTextClass={monospaceTextClass}
+        compact={hideFields}
+      />
 
       {!hideFields && registryEntry && (
         <NodeOverlayEditorRegistrySection

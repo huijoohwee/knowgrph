@@ -11,11 +11,13 @@ const CACHE_MAX = 24
 
 const SRCDOC_CACHE = new Map<string, string>()
 const SRCDOC_CACHE_MAX = 24
+const SRCDOC_INFLIGHT = new Map<string, Promise<string>>()
 
 export function clearWebpageIframeSrcdocCaches(): void {
   CACHE.clear()
   INFLIGHT.clear()
   SRCDOC_CACHE.clear()
+  SRCDOC_INFLIGHT.clear()
 }
 
 const hash32 = (s: string): string => {
@@ -562,7 +564,6 @@ export const buildWebpageHtmlSrcdocAsync = async (args: {
   const baseHref = String(args.baseHref || '').trim() || 'https://example.invalid/'
   const rawHtml = String(args.html || '')
   const scriptPolicy = args.scriptPolicy === 'allow' ? 'allow' : 'strip'
-
   const MAX_SRCDOC_CHARS = 1_500_000
 
   const stripHtmlComments = (html: string): string => {
@@ -625,73 +626,106 @@ export const buildWebpageHtmlSrcdocAsync = async (args: {
   const cacheKey = `srcdoc:${scriptPolicy}:${chosen}:${rawHtml.length}:${hash32(rawHtml)}`
   const cached = SRCDOC_CACHE.get(cacheKey)
   if (cached) return cached
+  const inflight = SRCDOC_INFLIGHT.get(cacheKey)
+  if (inflight) return await inflight
 
-  if (rawHtml.length > 50_000) await yieldToMain()
+  const p = (async () => {
+    if (rawHtml.length > 50_000) await yieldToMain()
 
-  let current = rawHtml
-  const stepYield = async (label: string) => {
-    if (args.onProgress) args.onProgress(label)
-    if (current.length > 50_000) await yieldToMain()
+    let current = rawHtml
+    const stepYield = async (label: string) => {
+      if (args.onProgress) args.onProgress(label)
+      if (current.length > 50_000) await yieldToMain()
+    }
+
+  const injectViewportCss = (html: string): string => {
+    const css = [
+      'html,body{margin:0;padding:0;width:100%;max-width:100%;overflow-x:hidden!important;}',
+      'body{min-width:0!important;overscroll-behavior-x:none;}',
+      '*{box-sizing:border-box;}',
+      'img,video,svg,canvas,iframe{max-width:100%!important;height:auto;}',
+      'pre,code{white-space:pre-wrap;word-break:break-word;}',
+    ].join('')
+    const tag = `<style data-kg-srcdoc-viewport="1">${css}</style>`
+    const meta = '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />'
+    if (/<head\b[^>]*>/i.test(html)) {
+      return html.replace(/<head\b[^>]*>/i, (m) => `${m}${meta}${tag}`)
+    }
+    if (/<html\b[^>]*>/i.test(html)) {
+      return html.replace(/<html\b[^>]*>/i, (m) => `${m}<head>${meta}${tag}</head>`)
+    }
+    return `<head>${meta}${tag}</head>${html}`
   }
 
-  if (scriptPolicy === 'allow') {
-    await stepYield('Sanitizing CSP')
-    current = stripCspMeta(current)
+    if (scriptPolicy === 'allow') {
+      await stepYield('Sanitizing CSP')
+      current = stripCspMeta(current)
+      
+      await stepYield('Sanitizing Refresh')
+      current = stripRefreshMeta(current)
+    } else {
+      await stepYield('Sanitizing CSP')
+      current = stripCspMeta(current)
+      
+      await stepYield('Sanitizing Refresh')
+      current = stripRefreshMeta(current)
+      
+      await stepYield('Stripping Scripts')
+      current = stripScriptTags(current)
+      
+      await stepYield('Stripping Handlers')
+      current = stripInlineEventHandlers(current)
+    }
+
+    if (current.length > MAX_SRCDOC_CHARS) {
+      await stepYield('Shrinking HTML')
+      current = stripHtmlComments(current)
+      current = stripDataImageSrc(current)
+      current = stripOversizeInlineSvg(current, 180_000)
+      current = stripOversizeStyleTags(current, 220_000)
+      current = compactWhitespace(current)
+    }
+
+    if (current.length > MAX_SRCDOC_CHARS) {
+      return buildCodeViewerSrcdoc({
+        baseHref,
+        title: baseHref,
+        mode: 'text',
+        text: `HTML too large for sandboxed srcdoc (${current.length} chars after sanitization).\n\nTip: try switching script policy to 'allow' or use Markdown view.`,
+      })
+    }
+
+    await stepYield('Injecting Base')
+    const csp = scriptPolicy === 'allow'
+      ? "default-src https: http: data: blob:; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http: ws: wss:; frame-src https: http:; worker-src blob: data:; script-src 'unsafe-inline' 'unsafe-eval' https: http: blob: data:"
+      : "default-src 'none'; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http:; frame-src https: http:; script-src 'unsafe-inline'"
     
-    await stepYield('Sanitizing Refresh')
-    current = stripRefreshMeta(current)
-  } else {
-    await stepYield('Sanitizing CSP')
-    current = stripCspMeta(current)
+    const withBase = upsertBaseTag(current, chosen)
     
-    await stepYield('Sanitizing Refresh')
-    current = stripRefreshMeta(current)
+    await stepYield('Injecting CSP')
+    const withCsp = upsertSandboxCspMeta(withBase, csp)
     
-    await stepYield('Stripping Scripts')
-    current = stripScriptTags(current)
-    
-    await stepYield('Stripping Handlers')
-    current = stripInlineEventHandlers(current)
+    await stepYield('Injecting Viewport CSS')
+    const withViewport = injectViewportCss(withCsp)
+
+    await stepYield('Injecting Scroll Sync')
+    const built = injectScrollSync(withViewport)
+
+    SRCDOC_CACHE.set(cacheKey, built)
+    if (SRCDOC_CACHE.size > SRCDOC_CACHE_MAX) {
+      const oldest = SRCDOC_CACHE.keys().next().value as string | undefined
+      if (oldest) SRCDOC_CACHE.delete(oldest)
+    }
+
+    return built
+  })()
+
+  SRCDOC_INFLIGHT.set(cacheKey, p)
+  try {
+    return await p
+  } finally {
+    SRCDOC_INFLIGHT.delete(cacheKey)
   }
-
-  if (current.length > MAX_SRCDOC_CHARS) {
-    await stepYield('Shrinking HTML')
-    current = stripHtmlComments(current)
-    current = stripDataImageSrc(current)
-    current = stripOversizeInlineSvg(current, 180_000)
-    current = stripOversizeStyleTags(current, 220_000)
-    current = compactWhitespace(current)
-  }
-
-  if (current.length > MAX_SRCDOC_CHARS) {
-    return buildCodeViewerSrcdoc({
-      baseHref,
-      title: baseHref,
-      mode: 'text',
-      text: `HTML too large for sandboxed srcdoc (${current.length} chars after sanitization).\n\nTip: try switching script policy to 'allow' or use Markdown view.`,
-    })
-  }
-
-  await stepYield('Injecting Base')
-  const csp = scriptPolicy === 'allow'
-    ? "default-src https: http: data: blob:; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http: ws: wss:; frame-src https: http:; worker-src blob: data:; script-src 'unsafe-inline' 'unsafe-eval' https: http: blob: data:"
-    : "default-src 'none'; img-src https: http: data: blob:; media-src https: http: data: blob:; style-src 'unsafe-inline' https: http:; font-src https: http: data: blob:; connect-src https: http:; frame-src https: http:; script-src 'unsafe-inline'"
-  
-  const withBase = upsertBaseTag(current, chosen)
-  
-  await stepYield('Injecting CSP')
-  const withCsp = upsertSandboxCspMeta(withBase, csp)
-  
-  await stepYield('Injecting Scroll Sync')
-  const built = injectScrollSync(withCsp)
-
-  SRCDOC_CACHE.set(cacheKey, built)
-  if (SRCDOC_CACHE.size > SRCDOC_CACHE_MAX) {
-    const oldest = SRCDOC_CACHE.keys().next().value as string | undefined
-    if (oldest) SRCDOC_CACHE.delete(oldest)
-  }
-
-  return built
 }
 
 export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string; scriptPolicy?: 'strip' | 'allow' }): string => {
@@ -743,6 +777,25 @@ export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string; s
     return next
   }
 
+  const injectViewportCss = (html: string): string => {
+    const css = [
+      'html,body{margin:0;padding:0;width:100%;max-width:100%;overflow-x:hidden!important;}',
+      'body{min-width:0!important;overscroll-behavior-x:none;}',
+      '*{box-sizing:border-box;}',
+      'img,video,svg,canvas,iframe{max-width:100%!important;height:auto;}',
+      'pre,code{white-space:pre-wrap;word-break:break-word;}',
+    ].join('')
+    const tag = `<style data-kg-srcdoc-viewport="1">${css}</style>`
+    const meta = '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />'
+    if (/<head\b[^>]*>/i.test(html)) {
+      return html.replace(/<head\b[^>]*>/i, (m) => `${m}${meta}${tag}`)
+    }
+    if (/<html\b[^>]*>/i.test(html)) {
+      return html.replace(/<html\b[^>]*>/i, (m) => `${m}<head>${meta}${tag}</head>`)
+    }
+    return `<head>${meta}${tag}</head>${html}`
+  }
+
   const scriptPolicy = args.scriptPolicy === 'allow' ? 'allow' : 'strip'
   let current = rawHtml
   if (scriptPolicy === 'allow') {
@@ -770,5 +823,6 @@ export const buildWebpageHtmlSrcdoc = (args: { html: string; baseHref: string; s
 
   const withBase = upsertBaseTag(current, baseHref)
   const withCsp = upsertSandboxCspMeta(withBase, csp)
-  return injectScrollSync(withCsp)
+  const withViewport = injectViewportCss(withCsp)
+  return injectScrollSync(withViewport)
 }

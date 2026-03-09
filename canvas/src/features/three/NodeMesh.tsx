@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
@@ -7,117 +7,11 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import { getNodeMediaSpec, getLayerOpacity, getNodeBaseFill, getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
-import { applyMediaProxySrc } from '@/lib/url'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { NodeSelectionState, SelectionVisuals } from './selection'
 import type { Vec3 } from './layout'
 import { computeNodeMotion, type NodeMotionState } from './animation'
 import { resolveThreeColor } from './resolveColor'
-
-function MediaBillboard({ url, size, opacity, offsetZ }: { url: string; size: number; opacity: number; offsetZ: number }) {
-  const meshRef = useRef<THREE.Mesh>(null)
-  const textureRef = useRef<THREE.Texture | null>(null)
-  const [loadError, setLoadError] = useState(false)
-  const [, bump] = useState(0)
-
-  useEffect(() => {
-    const prev = textureRef.current
-    if (prev) {
-      prev.dispose()
-      textureRef.current = null
-    }
-
-    let cancelled = false
-    setLoadError(false)
-    const loader = new THREE.TextureLoader()
-    try {
-      loader.setCrossOrigin('anonymous')
-    } catch {
-      void 0
-    }
-
-    const src = applyMediaProxySrc(url)
-    loader.load(
-      src,
-      tex => {
-        if (cancelled) {
-          try {
-            tex.dispose()
-          } catch {
-            void 0
-          }
-          return
-        }
-        try {
-          tex.colorSpace = THREE.SRGBColorSpace
-        } catch {
-          void 0
-        }
-        textureRef.current = tex
-        bump(x => x + 1)
-      },
-      undefined,
-      () => {
-        if (cancelled) return
-        textureRef.current = null
-        setLoadError(true)
-        bump(x => x + 1)
-      },
-    )
-
-    return () => {
-      cancelled = true
-      const t = textureRef.current
-      if (t) {
-        try {
-          t.dispose()
-        } catch {
-          void 0
-        }
-        textureRef.current = null
-      }
-    }
-  }, [url])
-
-  useFrame(state => {
-    if (!meshRef.current) return
-    meshRef.current.lookAt(state.camera.position)
-  })
-
-  const texture = textureRef.current
-  if (!texture) {
-    if (!loadError) return null
-    const o = Math.max(0, Math.min(1, opacity))
-    const s = Math.max(1, size)
-    return (
-      <mesh ref={meshRef} position={[0, 0, offsetZ]}>
-        <planeGeometry args={[s, s]} />
-        <meshBasicMaterial
-          color={MVP_COLOR_PALETTE.nodes.alert}
-          transparent
-          opacity={Math.max(0.25, Math.min(0.9, o))}
-          side={THREE.DoubleSide}
-          depthWrite={false}
-        />
-      </mesh>
-    )
-  }
-
-  const o = Math.max(0, Math.min(1, opacity))
-  const s = Math.max(1, size)
-  return (
-    <mesh ref={meshRef} position={[0, 0, offsetZ]}>
-      <planeGeometry args={[s, s]} />
-      <meshBasicMaterial
-        map={texture}
-        transparent
-        opacity={o}
-        side={THREE.DoubleSide}
-        depthWrite={false}
-      />
-    </mesh>
-  )
-}
 
 export function NodeMesh({
   node,
@@ -164,10 +58,8 @@ export function NodeMesh({
   const radius = baseRadius * scale
 
   const mediaSpec = getNodeMediaSpec(node)
-  const hasImage = !!renderMediaAsNodes && !!mediaSpec && (mediaSpec.kind === 'image' || mediaSpec.kind === 'svg')
-  const imageUrl = hasImage ? mediaSpec.url : null
-
   const isMediaNode = !!renderMediaAsNodes && !!mediaSpec
+  const hideNodeBody = isMediaNode
   const mediaLayerOpacity = Math.max(0, Math.min(1, mediaNodeOpacity * baseLayerOpacity))
 
   let displayColor = baseColor
@@ -205,7 +97,6 @@ export function NodeMesh({
   const boxW = rectDims ? Math.max(2, rectDims.width) : Math.max(2, radius * 2)
   const boxH = rectDims ? Math.max(2, rectDims.height) : Math.max(2, radius * 2)
   const hexR = Math.max(2, Math.min(boxW, boxH) / 2)
-  const mediaOffsetZ = renderShape === 'circle' ? radius + 0.1 : depth / 2 + 0.1
   const meshRotation: [number, number, number] =
     renderShape === 'hex'
       ? [Math.PI / 2, 0, 0]
@@ -288,18 +179,12 @@ export function NodeMesh({
         <meshLambertMaterial
           color={resolvedColor}
           transparent
-          opacity={hasImage ? Math.max(0.1, displayOpacity * 0.3) : displayOpacity}
+          opacity={hideNodeBody ? 0 : displayOpacity}
+          depthWrite={!hideNodeBody}
+          colorWrite={!hideNodeBody}
           emissive={resolvedEmissive}
           emissiveIntensity={emissiveIntensity}
         />
-        {hasImage && imageUrl && (
-          <MediaBillboard
-            url={imageUrl}
-            size={radius * 1.5}
-            opacity={displayOpacity}
-            offsetZ={mediaOffsetZ}
-          />
-        )}
       </mesh>
     </group>
   )

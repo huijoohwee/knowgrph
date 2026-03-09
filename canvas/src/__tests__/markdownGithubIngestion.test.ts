@@ -140,6 +140,50 @@ export async function testMarkdownHtmlIframeIngestionProducesMediaNodes() {
   await Promise.resolve()
 }
 
+export async function testMarkdownStandaloneLinkWebpageIngestionProducesIframeNode() {
+  resetParsers()
+  builtInParsers.forEach(p => registerParser(p))
+
+  const markdown = [
+    '# Title',
+    '',
+    '[Article](https://www.aljazeera.com/news/2026/2/19/visualising-ai-spending-how-does-it-compare-with-historys-mega-projects)',
+    '',
+    '[YouTube](https://youtu.be/XzzPRQRDcDw?t=2997)',
+    '',
+    '[Tweet](https://x.com/HuiJooHwee/status/2023774971982672097?s=20)',
+    '',
+  ].join('\n')
+
+  const jsonld = buildMarkdownJsonLd('https://example.invalid/doc.md', markdown)
+  const res = applyParser(toParserId('jsonld'), { name: 'doc.jsonld', text: JSON.stringify(jsonld) })
+  if (!res) throw new Error('jsonld parse returned null')
+  if (res.warnings && res.warnings.length > 0) throw new Error(`jsonld parse warnings: ${res.warnings.join('; ')}`)
+
+  const nodes = res.graphData.nodes || []
+
+  const hasAljazeeraIframe = nodes.some(n => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    return String(props.media_kind || '') === 'iframe' && String(props.iframe_url || '').includes('aljazeera.com/news/2026/2/19/')
+  })
+  if (!hasAljazeeraIframe) throw new Error('expected standalone webpage link to ingest as iframe media node')
+
+  const hasNoCookieYoutubeEmbed = nodes.some(n => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    const src = String(props.iframe_url || '')
+    return String(props.media_kind || '') === 'iframe' && src.startsWith('https://www.youtube-nocookie.com/embed/') && src.includes('?start=')
+  })
+  if (!hasNoCookieYoutubeEmbed) throw new Error('expected youtube standalone link to ingest as youtube-nocookie iframe embed with start')
+
+  const hasTweetEmbed = nodes.some(n => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    return String(props.media_kind || '') === 'iframe' && String(props.iframe_url || '').includes('platform.twitter.com/embed/Tweet.html?id=2023774971982672097')
+  })
+  if (!hasTweetEmbed) throw new Error('expected x.com status to ingest as platform.twitter.com tweet iframe embed')
+
+  await Promise.resolve()
+}
+
 export async function testMarkdownHtmlVideoIngestionProducesMediaNodes() {
   resetParsers()
   builtInParsers.forEach(p => registerParser(p))

@@ -44,6 +44,27 @@ export const parseMarkdownFrontmatter = (
   if (endIndex < 0) return { meta: {}, startIndex: 0 }
 
   const frontmatterText = lines.slice(1, endIndex).join('\n')
+  const repairFrontmatterYaml = (raw: string): string => {
+    const src = String(raw || '')
+    if (!src) return src
+    const out: string[] = []
+    const lines = src.split('\n')
+    for (let i = 0; i < lines.length; i += 1) {
+      const line = lines[i] || ''
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) {
+        out.push(line)
+        continue
+      }
+      const m = /^(\s*[-]?\s*[A-Za-z0-9_.-]+):(["'].*)$/.exec(line)
+      if (m) {
+        out.push(`${m[1]}: ${m[2]}`)
+        continue
+      }
+      out.push(line)
+    }
+    return out.join('\n')
+  }
   const sanitizeYamlValue = (value: unknown): unknown => {
     if (value instanceof Date) return value.toISOString()
     if (Array.isArray(value)) return value.map(v => sanitizeYamlValue(v))
@@ -63,7 +84,17 @@ export const parseMarkdownFrontmatter = (
       meta = sanitizeYamlValue(parsed) as MarkdownFrontmatter
     }
   } catch {
-    meta = {}
+    try {
+      const repaired = repairFrontmatterYaml(frontmatterText)
+      const parsed = parseYaml(repaired) as unknown
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        meta = sanitizeYamlValue(parsed) as MarkdownFrontmatter
+      } else {
+        meta = {}
+      }
+    } catch {
+      meta = {}
+    }
   }
 
   return { meta, startIndex: endIndex + 1 }

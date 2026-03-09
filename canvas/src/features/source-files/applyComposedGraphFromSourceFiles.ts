@@ -3,7 +3,10 @@ import { composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
 
 export function applyComposedGraphFromSourceFiles() {
   const store = useGraphStore.getState()
-  if (store.canvasRenderMode === '2d' && store.canvas2dRenderer === 'flowEditor') return
+  if (store.canvasRenderMode === '2d' && store.canvas2dRenderer === 'flowEditor') {
+    const meta = (store.graphData?.metadata || {}) as Record<string, unknown>
+    if (String(meta.sourceLayerComposition || '') !== 'compose') return
+  }
   const layers = (store.sourceFiles || []).map(f => ({
     id: f.id,
     name: f.name,

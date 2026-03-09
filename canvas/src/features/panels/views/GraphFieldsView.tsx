@@ -50,10 +50,14 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
   const setSelectedFieldId = useGraphStore(s => s.setSelectedGraphFieldId)
   const [selectedGlobalView, setSelectedGlobalView] = React.useState<GraphFieldsSelectedView>(null)
 
+  const derivedFields = React.useMemo<ReadonlyArray<GraphField>>(() => {
+    if (!graphData) return []
+    return computeDerivedFields(graphData)
+  }, [graphData])
+
   const fields = React.useMemo<ReadonlyArray<GraphField>>(() => {
     if (!graphData) return []
-    const derived = computeDerivedFields(graphData)
-    const derivedIds = new Set<string>(derived.map(f => f.id))
+    const derivedIds = new Set<string>(derivedFields.map(f => f.id))
     const custom: GraphField[] = []
     for (const [id, v] of Object.entries(settingsById)) {
       if (!v || v.isCustom !== true) continue
@@ -68,13 +72,13 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
         samples: 0,
       })
     }
-    const merged = [...derived, ...custom]
+    const merged = [...derivedFields, ...custom]
     merged.sort((a, b) => {
       if (a.scope !== b.scope) return a.scope === 'node' ? -1 : 1
       return a.key.localeCompare(b.key)
     })
     return merged
-  }, [graphData, settingsById])
+  }, [derivedFields, graphData, settingsById])
 
   const agenticLegend = React.useMemo(() => {
     const kinds = new Set<string>()

@@ -18,7 +18,8 @@ import {
   applyMediaProxySrc,
   extractAttr,
   getVimeoId,
-  getYouTubeId,
+  buildYouTubeEmbedUrl,
+  getTwitterStatusId,
   isAbsoluteWebUrl,
   isSafeHref,
   isSafeMediaSrc,
@@ -41,6 +42,7 @@ import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY } from '@/lib/config'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import RichMediaIframe from '@/components/RichMediaIframe'
 
 export default function PreviewPanelView() {
   const markdownText = useGraphStore(s => s.markdownDocumentText || '')
@@ -127,7 +129,20 @@ export default function PreviewPanelView() {
     return href || null
   }
 
-  type MediaKind = 'mermaid' | 'image' | 'video' | 'iframe' | 'youtube' | 'vimeo' | 'webpage'
+  const isStandaloneTextUrlParagraph = (token: TokenWithLines): string | null => {
+    const p = token as unknown as TokensParagraph
+    const inner = Array.isArray(p.tokens) ? p.tokens : []
+    if (inner.length !== 1) return null
+    const only = inner[0] as unknown as TokensGeneric
+    if (only.type !== 'text') return null
+    const rawText = String((only as unknown as { text?: unknown }).text || '').trim()
+    if (!rawText) return null
+    const cleaned = rawText.replace(/^<|>$/g, '').trim()
+    if (!/^https?:\/\//i.test(cleaned)) return null
+    return cleaned
+  }
+
+  type MediaKind = 'mermaid' | 'image' | 'video' | 'iframe' | 'youtube' | 'vimeo' | 'webpage' | 'tweet'
 
   type MediaSource = 'markdown' | 'graph'
 
@@ -257,11 +272,11 @@ export default function PreviewPanelView() {
       }
 
       if (tt.type === 'paragraph') {
-        const href = isStandaloneLinkParagraph(t)
+        const href = isStandaloneLinkParagraph(t) || isStandaloneTextUrlParagraph(t)
         if (href && isSafeHref(href) && isAbsoluteWebUrl(href)) {
-          const yt = getYouTubeId(href)
-          if (yt) {
-            const src = `https://www.youtube-nocookie.com/embed/${yt}`
+          const youtube = buildYouTubeEmbedUrl(href)
+          if (youtube) {
+            const src = youtube
             const key = buildMarkdownPreviewMediaKey('youtube', t.startLine, href)
             list.push({
               key,
@@ -300,6 +315,35 @@ export default function PreviewPanelView() {
             })
             continue
           }
+
+          const normalizedHref = normalizeWebpageLikeUrl(href)
+          const tweetId = getTwitterStatusId(normalizedHref)
+          if (tweetId) {
+            const theme = String(rootThemeMode || '').toLowerCase() === 'dark' ? 'dark' : 'light'
+            const src = `https://platform.twitter.com/embed/Tweet.html?id=${tweetId}&theme=${theme}`
+            const key = buildMarkdownPreviewMediaKey('tweet', t.startLine, href)
+            list.push({
+              key,
+              kind: 'tweet',
+              source: 'markdown',
+              startLine: t.startLine,
+              label: `X ${list.length + 1}`,
+              src,
+            })
+            continue
+          }
+
+          const src = resolveHref(normalizedHref, docPath)
+          const key = buildMarkdownPreviewMediaKey('webpage', t.startLine, href)
+          list.push({
+            key,
+            kind: 'webpage',
+            source: 'markdown',
+            startLine: t.startLine,
+            label: `Webpage ${list.length + 1}`,
+            src,
+          })
+          continue
         }
 
         const p = t as unknown as TokensParagraph
@@ -366,7 +410,7 @@ export default function PreviewPanelView() {
     }
 
     return list
-  }, [graphData, markdownDocumentName, mermaidFrontmatterConfig, meta, tokens])
+  }, [graphData, markdownDocumentName, mermaidFrontmatterConfig, meta, rootThemeMode, tokens])
 
   const hasMermaidFocus = !!mermaidFocusCode
 
@@ -486,39 +530,32 @@ export default function PreviewPanelView() {
       )
     }
 
-    if (activeMedia.kind === 'webpage') {
-      return (
-        <div className="w-full h-full flex items-center justify-center">
-          <div className={`w-full max-w-4xl rounded border ${UI_THEME_TOKENS.panel.border} bg-white px-4 py-3`}>
-            <div className="text-xs font-medium text-gray-700 mb-1">Webpage</div>
-            <a className="text-xs underline break-all" href={activeMedia.src} target="_blank" rel="noreferrer">
-              {activeMedia.src}
-            </a>
-          </div>
-        </div>
-      )
-    }
-
     if (
       activeMedia.kind === 'iframe' ||
       activeMedia.kind === 'youtube' ||
-      activeMedia.kind === 'vimeo'
+      activeMedia.kind === 'vimeo' ||
+      activeMedia.kind === 'webpage' ||
+      activeMedia.kind === 'tweet'
     ) {
       const loaded = loadedEmbedKey === activeMedia.key
       return (
         <div className="w-full h-full flex items-center justify-center">
           <div className={`aspect-video w-full max-w-4xl bg-black/5 rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`}>
             {loaded ? (
-              <iframe
-                src={activeMedia.src}
-                title={activeMedia.label}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                sandbox="allow-scripts allow-same-origin allow-presentation"
-                referrerPolicy="no-referrer"
-                loading="lazy"
-                className="w-full h-full"
-              />
+              activeMedia.kind === 'webpage' ? (
+                <RichMediaIframe url={activeMedia.src} title={activeMedia.label} className="w-full h-full" />
+              ) : (
+                <iframe
+                  src={activeMedia.src}
+                  title={activeMedia.label}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  sandbox="allow-scripts allow-same-origin allow-presentation"
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                  className="w-full h-full"
+                />
+              )
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <div className="flex items-center gap-2">

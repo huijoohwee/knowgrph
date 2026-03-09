@@ -6,6 +6,7 @@ import PreviewPanelView from '@/features/panels/views/PreviewPanelView'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { buildMarkdownPreviewMediaKey } from '@/features/markdown/ui/markdownPreviewLinks'
 
 const buildGraphWithMediaNode = (): GraphData => ({
   type: 'Graph',
@@ -70,12 +71,12 @@ export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
     state.setMarkdownPreviewActiveMediaKey(null)
 
     root.render(React.createElement(PreviewPanelView))
-    await waitForNextFrame(dom.window)
+    for (let i = 0; i < 8; i += 1) await waitForNextFrame(dom.window)
 
     const buttons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
     const graphCard = buttons.find(btn => {
       const text = btn.textContent || ''
-      return text.includes('Graph') && text.includes('Node media:')
+      return text.includes('Node media:')
     })
     if (!graphCard) {
       throw new Error('graph media gallery card not found')
@@ -100,6 +101,85 @@ export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
       throw new Error(
         `expected markdownPreviewActiveMediaKey "${expectedKey}", got ${String(
           after.markdownPreviewActiveMediaKey,
+        )}`,
+      )
+    }
+
+    root.unmount()
+  } finally {
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testPreviewPanelStandaloneLinkWebpageAndTweetSelectable() {
+  const storage = new MemoryStorage()
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    const markdown = [
+      '# Rich Media',
+      '',
+      '[Article](https://www.aljazeera.com/news/2026/2/19/visualising-ai-spending-how-does-it-compare-with-historys-mega-projects)',
+      '',
+      '[Tweet](https://x.com/HuiJooHwee/status/2023774971982672097?s=20)',
+      '',
+    ].join('\n')
+
+    const state = useGraphStore.getState()
+    state.setGraphData({ type: 'Graph', nodes: [], edges: [] })
+    state.setMarkdownDocument('doc.md', markdown)
+    state.setMarkdownPreviewMermaidFocus(null)
+    state.setMarkdownPreviewActiveMediaKey(null)
+
+    root.render(React.createElement(PreviewPanelView))
+    for (let i = 0; i < 8; i += 1) await waitForNextFrame(dom.window)
+
+    const buttons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
+    const webpageCard = buttons.find(btn => String(btn.textContent || '').toLowerCase().includes('webpage'))
+    if (!webpageCard) throw new Error('webpage gallery card not found')
+
+    webpageCard.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    await waitForNextFrame(dom.window)
+
+    const expectedWebpageKey = buildMarkdownPreviewMediaKey(
+      'webpage',
+      3,
+      'https://www.aljazeera.com/news/2026/2/19/visualising-ai-spending-how-does-it-compare-with-historys-mega-projects',
+    )
+    const afterWebpage = useGraphStore.getState()
+    if (afterWebpage.markdownPreviewActiveMediaKey !== expectedWebpageKey) {
+      throw new Error(
+        `expected markdownPreviewActiveMediaKey "${expectedWebpageKey}", got ${String(
+          afterWebpage.markdownPreviewActiveMediaKey,
+        )}`,
+      )
+    }
+
+    const buttonsAfter = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
+    const tweetCard = buttonsAfter.find(btn => String(btn.textContent || '').toLowerCase().includes('tweet'))
+    if (!tweetCard) throw new Error('tweet gallery card not found')
+
+    tweetCard.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    await waitForNextFrame(dom.window)
+
+    const expectedTweetKey = buildMarkdownPreviewMediaKey(
+      'tweet',
+      5,
+      'https://x.com/HuiJooHwee/status/2023774971982672097?s=20',
+    )
+    const afterTweet = useGraphStore.getState()
+    if (afterTweet.markdownPreviewActiveMediaKey !== expectedTweetKey) {
+      throw new Error(
+        `expected markdownPreviewActiveMediaKey "${expectedTweetKey}", got ${String(
+          afterTweet.markdownPreviewActiveMediaKey,
         )}`,
       )
     }

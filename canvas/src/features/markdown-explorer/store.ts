@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { LS_KEYS } from '@/lib/config'
+import { lsJson, lsSetJson } from '@/lib/persistence'
 
 type MarkdownExplorerState = {
   activePath: WorkspacePath | null
@@ -13,12 +15,25 @@ type MarkdownExplorerState = {
 }
 
 export const useMarkdownExplorerStore = create<MarkdownExplorerState>(set => ({
-  activePath: null,
+  activePath: lsJson(
+    LS_KEYS.markdownExplorerActivePath,
+    null as WorkspacePath | null,
+    (raw) => {
+      const v = typeof raw === 'string' ? raw : null
+      if (!v) return null
+      try {
+        return normalizeWorkspacePath(v as WorkspacePath)
+      } catch {
+        return null
+      }
+    },
+  ),
   requestedRevealLine: null,
   lastCanvasSyncSig: null,
   lastSetActivePath: null,
   setActivePath: (path: WorkspacePath | null) => {
     const normalized = path ? normalizeWorkspacePath(path) : null
+    lsSetJson(LS_KEYS.markdownExplorerActivePath, normalized)
     set({
       activePath: normalized,
       lastSetActivePath: normalized ? { path: normalized, atMs: Date.now() } : null,

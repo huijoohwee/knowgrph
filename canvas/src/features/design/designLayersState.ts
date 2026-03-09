@@ -51,7 +51,7 @@ export function normalizeDesignLayerState(args: {
   const nextHiddenById: Record<string, boolean> = {}
   const prevHidden = prev.hiddenById && typeof prev.hiddenById === 'object' ? prev.hiddenById : {}
   for (const id of outOrder) {
-    nextHiddenById[id] = prevHidden[id] === true
+    if (prevHidden[id] === true) nextHiddenById[id] = true
   }
 
   return { order: outOrder, hiddenById: nextHiddenById }
@@ -62,7 +62,11 @@ export function toggleDesignLayerHidden(hiddenById: Record<string, boolean>, id:
   if (!key) return hiddenById
   const cur = hiddenById && typeof hiddenById === 'object' ? hiddenById : {}
   const next = { ...cur }
-  next[key] = cur[key] !== true
+  if (cur[key] === true) {
+    delete next[key]
+  } else {
+    next[key] = true
+  }
   return next
 }
 
@@ -80,4 +84,3 @@ export function moveDesignLayer(args: { order: string[]; id: string; dir: 'up' |
   next[idx] = tmp
   return next
 }
-

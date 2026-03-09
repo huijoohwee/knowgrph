@@ -1,6 +1,8 @@
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 
 export const isDisplayNode = (n: GraphNode): boolean => {
+  if (getNodeMediaSpec(n)) return true
   if (String(n.type || '') === 'MermaidSubgraph') return false
   if (String(n.type || '') === 'KeywordSource') return false
   const props = (n.properties || {}) as Record<string, unknown>

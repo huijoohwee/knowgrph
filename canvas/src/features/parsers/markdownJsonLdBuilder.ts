@@ -1,4 +1,5 @@
 import { slugify } from './markdownJsonLdUtils'
+import { isYouTubeUrl } from '@/lib/url'
 
 export interface BuilderContext {
   gid: string
@@ -118,17 +119,93 @@ export class MarkdownGraphBuilder {
     this.addRel(parentId, 'hasBlock', id)
   }
 
-  createLinkNode(url: string, label: string | undefined, meta: Record<string, unknown>, parentId: string) {
+  createLinkNode(
+    url: string,
+    label: string | undefined,
+    meta: Record<string, unknown>,
+    parentId: string,
+    opts?: { preferMedia?: boolean },
+  ) {
     const linkId = `link:${slugify(url)}`
     if (!this.linkNodeIds.has(linkId)) {
       this.linkNodeIds.add(linkId)
+      const mediaProps = (() => {
+        try {
+          if (isYouTubeUrl(url)) {
+            const u = new URL(url)
+            const id = (() => {
+              const host = u.hostname.toLowerCase()
+              if (host === 'youtu.be' || host === 'www.youtu.be') return u.pathname.replace(/^\/+/, '').trim()
+              if (host === 'youtube.com' || host.endsWith('.youtube.com')) return String(u.searchParams.get('v') || '').trim()
+              return ''
+            })()
+            if (!id) return null
+            const parseStart = (raw: string): number | null => {
+              const s = String(raw || '').trim()
+              if (!s) return null
+              if (/^\d+$/.test(s)) return Number(s)
+              const m = s.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/i)
+              if (!m) return null
+              const h = m[1] ? Number(m[1]) : 0
+              const mm = m[2] ? Number(m[2]) : 0
+              const sec = m[3] ? Number(m[3]) : 0
+              const out = h * 3600 + mm * 60 + sec
+              return out > 0 && Number.isFinite(out) ? out : null
+            }
+            const t = u.searchParams.get('t') || u.searchParams.get('start') || ''
+            const start = parseStart(t)
+            const q = start != null && Number.isFinite(start) && start > 0 ? `?start=${start}` : ''
+            const embed = `https://www.youtube-nocookie.com/embed/${id}${q}`
+            return {
+              media_kind: 'iframe',
+              iframe_url: embed,
+              media_url: embed,
+              media: embed,
+              media_interactive: true,
+              'visual:shape': 'rect',
+            }
+          }
+          const u = new URL(url)
+          const host = u.hostname.toLowerCase()
+          const isX = host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com')
+          if (!isX) return null
+          const m = u.pathname.match(/\/status\/(\d+)(?:\/|$)/)
+          const id = m && m[1] ? m[1] : ''
+          if (!id) return null
+          const embed = `https://platform.twitter.com/embed/Tweet.html?id=${id}`
+          return {
+            media_kind: 'iframe',
+            iframe_url: embed,
+            media_url: embed,
+            media: embed,
+            media_interactive: true,
+            'visual:shape': 'rect',
+          }
+        } catch {
+          return null
+        }
+      })()
+      const genericWebpageMediaProps = (() => {
+        if (opts?.preferMedia !== true) return null
+        const raw = String(url || '').trim()
+        if (!/^https?:\/\//i.test(raw)) return null
+        if (/\.(png|jpe?g|gif|webp|svg|mp4|webm|ogg|mp3|wav|m4a|aac|flac|pdf)(\?|#|$)/i.test(raw)) return null
+        return {
+          media_kind: 'iframe',
+          iframe_url: raw,
+          media_url: raw,
+          media: raw,
+          media_interactive: true,
+          'visual:shape': 'rect',
+        }
+      })()
       this.ensureNode({
         '@id': linkId,
         '@type': 'Link',
         labels: ['Link'],
         name: label || url,
         chunk_text: (label || url).slice(0, 800),
-        properties: { url, label },
+        properties: { url, label, ...(mediaProps || genericWebpageMediaProps || {}) },
         metadata: meta,
       })
     }

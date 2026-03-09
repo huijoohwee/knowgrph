@@ -11,7 +11,7 @@ import type {
 } from '@/features/graph-data-table/graphDataTable';
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal';
 import { LS_KEYS, SESSION_KEYS, UI_COPY } from '@/lib/config';
-import { lsInt, lsSetInt } from '@/lib/persistence'
+import { lsFloat, lsInt, lsSetFloat, lsSetInt } from '@/lib/persistence'
 import { ssSetString, ssString, getLocalStorage } from '@/lib/persistence';
 import { ThemeMode, ResolvedThemeMode, getInitialThemeMode, persistThemeMode, applyThemeMode, resolveThemeMode, getSystemTheme } from '@/lib/ui/theme';
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
@@ -59,6 +59,14 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
     maxEdgesCap: lsInt(LS_KEYS.keywordGraphMaxEdgesCap, 2400),
     mentionEdgesPerSourceNode: lsInt(LS_KEYS.keywordGraphMentionEdgesPerSourceNode, 6),
   }
+  const clampInt = (v: number, fallback: number, opts: { min: number; max: number }) => {
+    const n = Number.isFinite(v) ? Math.floor(Number(v)) : fallback
+    return n < opts.min ? opts.min : n > opts.max ? opts.max : n
+  }
+  const clampFloat = (v: number, fallback: number, opts: { min: number; max: number }) => {
+    const n = Number.isFinite(v) ? Number(v) : fallback
+    return n < opts.min ? opts.min : n > opts.max ? opts.max : n
+  }
   return ({
   renderMediaAsNodes: true,
   setRenderMediaAsNodes: (v: boolean) => set({ renderMediaAsNodes: v }),
@@ -70,9 +78,43 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   },
   mediaPanelDensity: 'default' as const,
   setMediaPanelDensity: (v: 'default' | 'compact') => set({ mediaPanelDensity: v }),
+
+  threeIframeOverlayPoolMax: clampInt(lsInt(LS_KEYS.renderThreeIframeOverlayPoolMax, 24), 24, { min: 1, max: 200 }),
+  setThreeIframeOverlayPoolMax: (v: number) => set({ threeIframeOverlayPoolMax: lsSetInt(LS_KEYS.renderThreeIframeOverlayPoolMax, v, { min: 1, max: 200 }) }),
+
+  threeIframeOverlayMaxVisibleDefault: clampInt(lsInt(LS_KEYS.renderThreeIframeOverlayMaxVisibleDefault, 8), 8, { min: 0, max: 50 }),
+  setThreeIframeOverlayMaxVisibleDefault: (v: number) => set({ threeIframeOverlayMaxVisibleDefault: lsSetInt(LS_KEYS.renderThreeIframeOverlayMaxVisibleDefault, v, { min: 0, max: 50 }) }),
+
+  threeIframeOverlayMaxVisibleCompact: clampInt(lsInt(LS_KEYS.renderThreeIframeOverlayMaxVisibleCompact, 6), 6, { min: 0, max: 50 }),
+  setThreeIframeOverlayMaxVisibleCompact: (v: number) => set({ threeIframeOverlayMaxVisibleCompact: lsSetInt(LS_KEYS.renderThreeIframeOverlayMaxVisibleCompact, v, { min: 0, max: 50 }) }),
+
+  threeIframeOverlayMaxDistanceDefault: clampFloat(lsFloat(LS_KEYS.renderThreeIframeOverlayMaxDistanceDefault, 620, { min: 60, max: 5000 }), 620, { min: 60, max: 5000 }),
+  setThreeIframeOverlayMaxDistanceDefault: (v: number) => set({ threeIframeOverlayMaxDistanceDefault: lsSetFloat(LS_KEYS.renderThreeIframeOverlayMaxDistanceDefault, v, { min: 60, max: 5000 }) }),
+
+  threeIframeOverlayMaxDistanceCompact: clampFloat(lsFloat(LS_KEYS.renderThreeIframeOverlayMaxDistanceCompact, 520, { min: 60, max: 5000 }), 520, { min: 60, max: 5000 }),
+  setThreeIframeOverlayMaxDistanceCompact: (v: number) => set({ threeIframeOverlayMaxDistanceCompact: lsSetFloat(LS_KEYS.renderThreeIframeOverlayMaxDistanceCompact, v, { min: 60, max: 5000 }) }),
+
+  threeIframeOverlayBaseWidthRatioDefault: clampFloat(lsFloat(LS_KEYS.renderThreeIframeOverlayBaseWidthRatioDefault, 0.2, { min: 0.05, max: 0.9 }), 0.2, { min: 0.05, max: 0.9 }),
+  setThreeIframeOverlayBaseWidthRatioDefault: (v: number) => set({ threeIframeOverlayBaseWidthRatioDefault: lsSetFloat(LS_KEYS.renderThreeIframeOverlayBaseWidthRatioDefault, v, { min: 0.05, max: 0.9 }) }),
+
+  threeIframeOverlayBaseWidthRatioCompact: clampFloat(lsFloat(LS_KEYS.renderThreeIframeOverlayBaseWidthRatioCompact, 0.16, { min: 0.05, max: 0.9 }), 0.16, { min: 0.05, max: 0.9 }),
+  setThreeIframeOverlayBaseWidthRatioCompact: (v: number) => set({ threeIframeOverlayBaseWidthRatioCompact: lsSetFloat(LS_KEYS.renderThreeIframeOverlayBaseWidthRatioCompact, v, { min: 0.05, max: 0.9 }) }),
+
+  threeIframeOverlayBaseWidthMinPxDefault: clampInt(lsInt(LS_KEYS.renderThreeIframeOverlayBaseWidthMinPxDefault, 210), 210, { min: 80, max: 4000 }),
+  setThreeIframeOverlayBaseWidthMinPxDefault: (v: number) => set({ threeIframeOverlayBaseWidthMinPxDefault: lsSetInt(LS_KEYS.renderThreeIframeOverlayBaseWidthMinPxDefault, v, { min: 80, max: 4000 }) }),
+
+  threeIframeOverlayBaseWidthMinPxCompact: clampInt(lsInt(LS_KEYS.renderThreeIframeOverlayBaseWidthMinPxCompact, 180), 180, { min: 80, max: 4000 }),
+  setThreeIframeOverlayBaseWidthMinPxCompact: (v: number) => set({ threeIframeOverlayBaseWidthMinPxCompact: lsSetInt(LS_KEYS.renderThreeIframeOverlayBaseWidthMinPxCompact, v, { min: 80, max: 4000 }) }),
+
+  threeIframeOverlayBaseWidthMaxPxDefault: clampInt(lsInt(LS_KEYS.renderThreeIframeOverlayBaseWidthMaxPxDefault, 360), 360, { min: 80, max: 4000 }),
+  setThreeIframeOverlayBaseWidthMaxPxDefault: (v: number) => set({ threeIframeOverlayBaseWidthMaxPxDefault: lsSetInt(LS_KEYS.renderThreeIframeOverlayBaseWidthMaxPxDefault, v, { min: 80, max: 4000 }) }),
+
+  threeIframeOverlayBaseWidthMaxPxCompact: clampInt(lsInt(LS_KEYS.renderThreeIframeOverlayBaseWidthMaxPxCompact, 300), 300, { min: 80, max: 4000 }),
+  setThreeIframeOverlayBaseWidthMaxPxCompact: (v: number) => set({ threeIframeOverlayBaseWidthMaxPxCompact: lsSetInt(LS_KEYS.renderThreeIframeOverlayBaseWidthMaxPxCompact, v, { min: 80, max: 4000 }) }),
   themeMode,
   resolvedThemeMode,
   setThemeMode: (mode: ThemeMode) => {
+    persistThemeMode(getLocalStorage(), mode);
     persistThemeMode(getLocalStorage(), mode);
     applyThemeMode(mode);
     set({ themeMode: mode, resolvedThemeMode: resolveThemeMode(mode) });

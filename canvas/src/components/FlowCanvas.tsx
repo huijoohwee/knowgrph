@@ -51,6 +51,10 @@ import { computeNodeQuickEditorMaxAnchorShiftPx } from '@/components/FlowEditor/
 import { DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
+import RichMediaPanel from '@/components/RichMediaPanel'
+import { computeMediaPanelWorldDims } from '@/lib/render/mediaPanelSpec'
+import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars2d, computePanelRect, computePanelSizeFromContent16x9 } from '@/lib/render/mediaPanelLayout'
 
 const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
 
@@ -211,6 +215,14 @@ export default function FlowCanvas({
     })
   }, [active, buildDrawArgs])
 
+  const stopEvent = React.useCallback((event: React.SyntheticEvent) => {
+    try {
+      event.stopPropagation()
+    } catch {
+      void 0
+    }
+  }, [])
+
   React.useEffect(() => {
     return () => {
       if (drawRafRef.current != null) {
@@ -245,6 +257,7 @@ export default function FlowCanvas({
     collapsedGroupIds,
     renderMediaAsNodes,
     mediaPanelDensity,
+    threeIframeOverlayPoolMax,
     canvasRenderMode,
     canvas2dRenderer,
     viewportControlsPreset,
@@ -275,6 +288,7 @@ export default function FlowCanvas({
       collapsedGroupIds: s.collapsedGroupIds || [],
       renderMediaAsNodes: s.renderMediaAsNodes,
       mediaPanelDensity: s.mediaPanelDensity,
+      threeIframeOverlayPoolMax: s.threeIframeOverlayPoolMax,
       canvasRenderMode: s.canvasRenderMode,
       canvas2dRenderer: s.canvas2dRenderer,
       viewportControlsPreset: s.viewportControlsPreset,
@@ -372,6 +386,75 @@ export default function FlowCanvas({
     const cloned = cloneGraphDataForRender(renderGraphData)
     return deriveSceneDisplayGraph({ graphData: cloned as GraphData })?.displayGraphData || (cloned as GraphData)
   }, [renderGraphData])
+
+  const mediaNodes = React.useMemo(() => {
+    const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as GraphNode[]) : []
+    const poolMax = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
+    return listMediaOverlayNodes({ enabled: renderMediaAsNodes === true, nodes, poolMax, kinds: ['iframe'] })
+  }, [renderMediaAsNodes, sceneGraphData, threeIframeOverlayPoolMax])
+
+  const mediaNodeIdsKey = React.useMemo(() => mediaNodes.map(n => n.id).join('|'), [mediaNodes])
+  const mediaOverlayElsRef = React.useRef<Map<string, HTMLDivElement>>(new Map())
+  React.useEffect(() => {
+    const next = new Map<string, HTMLDivElement>()
+    for (const n of mediaNodes) {
+      const existing = mediaOverlayElsRef.current.get(n.id)
+      if (existing) next.set(n.id, existing)
+    }
+    mediaOverlayElsRef.current = next
+  }, [mediaNodeIdsKey, mediaNodes])
+
+  const mediaPanelDimsWorld = React.useMemo(() => {
+    const density = mediaPanelDensity === 'compact' ? 'compact' : 'default'
+    return computeMediaPanelWorldDims(density)
+  }, [mediaPanelDensity])
+
+  React.useEffect(() => {
+    if (!active) return
+    if (renderMediaAsNodes !== true) return
+    if (mediaNodes.length === 0) return
+    let raf: number | null = null
+    const tick = () => {
+      raf = null
+      const rt = runtimeRef.current
+      const scene = rt?.scene
+      if (!rt || !scene) {
+        raf = requestAnimationFrame(tick)
+        return
+      }
+      const k = Number.isFinite(rt.transform.k) ? Math.max(0.001, rt.transform.k) : 1
+      const { metrics, vars } = computeMediaPanelCssVars2d({ zoomK: k, dimsWorld: mediaPanelDimsWorld })
+      const { panelW, panelH } = computePanelSizeFromContent16x9({ contentW: mediaPanelDimsWorld.panelWidth * k, metrics })
+      for (const n of mediaNodes) {
+        const el = mediaOverlayElsRef.current.get(n.id)
+        if (!el) continue
+        const node = scene.nodeById.get(n.id)
+        if (!node) {
+          applyPanelBox(el, { left: 0, top: 0, w: 1, h: 1, display: 'none' })
+          continue
+        }
+        const rect = computePanelRect({
+          cx: rt.transform.applyX(node.x + node.width / 2),
+          cy: rt.transform.applyY(node.y + node.height / 2),
+          w: panelW,
+          h: panelH,
+        })
+        applyMediaPanelCssVars(el, vars)
+        applyPanelBox(el, { left: rect.left, top: rect.top, w: panelW, h: panelH, display: 'block' })
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => {
+      if (raf != null) {
+        try {
+          cancelAnimationFrame(raf)
+        } catch {
+          void 0
+        }
+      }
+    }
+  }, [active, mediaNodes, mediaNodeIdsKey, mediaPanelDimsWorld, renderMediaAsNodes])
 
   const layoutViewKey = React.useMemo(() => {
     return buildLayoutViewKey({
@@ -1353,6 +1436,40 @@ export default function FlowCanvas({
         className={CANVAS_INTERACTIVE_CLASS}
         draggable={false}
       />
+      {active && renderMediaAsNodes === true && mediaNodes.length > 0 ? (
+        <section aria-label="Flow media overlay" className="absolute inset-0 pointer-events-none">
+          {mediaNodes.map(n => {
+            return (
+              <RichMediaPanel
+                key={n.id}
+                ref={(el) => {
+                  if (!el) {
+                    mediaOverlayElsRef.current.delete(n.id)
+                    return
+                  }
+                  mediaOverlayElsRef.current.set(n.id, el)
+                }}
+                className="absolute left-0 top-0 pointer-events-auto"
+                title={n.title}
+                url={n.url}
+                interactive={n.interactive}
+                iframeMode="srcdoc-when-needed"
+                style={{
+                  transform: 'translate(-99999px, -99999px)',
+                  width: 1,
+                  height: 1,
+                }}
+                onPointerDownCapture={stopEvent}
+                onPointerUpCapture={stopEvent}
+                onWheelCapture={stopEvent}
+                onClickCapture={stopEvent}
+                onDoubleClickCapture={stopEvent}
+                onContextMenuCapture={stopEvent}
+              />
+            )
+          })}
+        </section>
+      ) : null}
       {selectionBox && (
         <section
           aria-hidden={true}

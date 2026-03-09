@@ -57,6 +57,7 @@ type NodeOverlayEditorProps = {
   stackIndex?: number
   getLiveNodeWorldPos?: (nodeId: string) => { x: number; y: number } | null
   getLiveZoomTransform?: () => { k: number; x: number; y: number } | null
+  graphMetaKind?: string | null
   edges: ReadonlyArray<GraphEdge>
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
   toolMode?: 'select' | 'addEdge'
@@ -90,6 +91,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   stackIndex,
   getLiveNodeWorldPos,
   getLiveZoomTransform,
+  graphMetaKind,
   edges,
   connectedValuesBySchemaPath,
   toolMode,
@@ -111,7 +113,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   onPinnedInCanvasChange,
   onRenameSchemaFieldId,
 }: NodeOverlayEditorProps) {
-  const { panelTextClass, microLabelClass } = usePanelTypography()
+  const { panelTextClass, microLabelClass, monospaceTextClass } = usePanelTypography()
   const {
     uiIconScale,
     uiIconStrokeWidth,
@@ -1255,12 +1257,14 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       <NodeOverlayEditorPanel
         active={active}
         node={node}
+        graphMetaKind={graphMetaKind}
         minimized={minimized}
         hideFields={hideFields}
         pinned={pinnedInCanvas}
         uiPanelOpacity={uiPanelOpacity}
         panelTextClass={panelTextClass}
         microLabelClass={microLabelClass}
+        monospaceTextClass={monospaceTextClass}
         uiIconScale={uiIconScale}
         uiIconStrokeWidth={uiIconStrokeWidth}
         labelInputRef={labelInputRef}

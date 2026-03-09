@@ -16,6 +16,28 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
+function arraysEqual(a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown>): boolean {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
+}
+
+function recordsShallowEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
+  if (a === b) return true
+  const ak = Object.keys(a)
+  const bk = Object.keys(b)
+  if (ak.length !== bk.length) return false
+  for (let i = 0; i < ak.length; i += 1) {
+    const k = ak[i]!
+    if (!Object.prototype.hasOwnProperty.call(b, k)) return false
+    if (a[k] !== b[k]) return false
+  }
+  return true
+}
+
 function computeRegistrySignature(entries: Array<{ id: string; updatedAt: string }>): string {
   const pairs = entries
     .map(e => `${String(e.id || '').trim()}@${String(e.updatedAt || '').trim()}`)
@@ -140,7 +162,7 @@ export function syncGraphFieldsWithGraphData(
     }
   }
   const nextOrder = [...baseAndActiveOrder, ...missingPropKeys]
-  get().setGraphDataTableColumnOrder(nextOrder)
+  if (!arraysEqual(currentOrder, nextOrder)) get().setGraphDataTableColumnOrder(nextOrder)
 
   const currentVisible = (get().graphDataTableVisibleColumns || {}) as Record<
     string,
@@ -165,7 +187,9 @@ export function syncGraphFieldsWithGraphData(
       nextVisible[key] = typeof hidden === 'boolean' ? !hidden : true
     }
   }
-  get().setGraphDataTableVisibleColumns(nextVisible as GraphDataTableColumnVisibilityByKey)
+  if (!recordsShallowEqual(currentVisible, nextVisible)) {
+    get().setGraphDataTableVisibleColumns(nextVisible as GraphDataTableColumnVisibilityByKey)
+  }
 
   const nextSettings: typeof currentSettings = {}
   for (const [k, v] of Object.entries(currentSettings)) {
@@ -174,7 +198,9 @@ export function syncGraphFieldsWithGraphData(
     if (!isDerived && v.isCustom !== true) continue
     nextSettings[k as keyof typeof currentSettings] = v
   }
-  get().setGraphFieldSettingsById(nextSettings)
+  if (!recordsShallowEqual(currentSettings as Record<string, unknown>, nextSettings as Record<string, unknown>)) {
+    get().setGraphFieldSettingsById(nextSettings)
+  }
 }
 
 export function readGraphRagWorkflowJsonTextFromGraphData(graphData: GraphData): string | null {

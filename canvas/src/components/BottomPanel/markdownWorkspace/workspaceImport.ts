@@ -544,6 +544,31 @@ export async function fetchWorkspaceUrlContent(
     }
   }
 
+  const twitterStatus = (() => {
+    try {
+      const u = new URL(normalizedUrl)
+      const host = u.hostname.toLowerCase()
+      const isX = host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com')
+      if (!isX) return null
+      const m = u.pathname.match(/^\/([^/]+)\/status\/(\d+)(?:\/|$)/i) || u.pathname.match(/\/status\/(\d+)(?:\/|$)/i)
+      const handle = m && m[1] && typeof m[1] === 'string' && /^\d+$/.test(m[1]) === false ? String(m[1]).trim() : ''
+      const id = m && m[2] ? String(m[2]).trim() : m && m[1] && /^\d+$/.test(String(m[1])) ? String(m[1]).trim() : ''
+      if (!id) return null
+      const safeHandle = handle ? handle.replace(/[^a-z0-9_]+/gi, '-') : 'tweet'
+      const canonical = handle ? `https://x.com/${handle}/status/${id}` : `https://x.com/i/web/status/${id}`
+      return { id, handle, safeHandle, canonical }
+    } catch {
+      return null
+    }
+  })()
+  if (twitterStatus) {
+    return {
+      normalizedUrl: twitterStatus.canonical,
+      name: `${twitterStatus.safeHandle}-${twitterStatus.id}.md`,
+      text: ['# X', '', `[](${twitterStatus.canonical})`, '', ''].join('\n'),
+    }
+  }
+
   const looksLikeCodeOrData = /\.(json|jsonld|geojson|csv|yaml|yml|txt|js|ts|py|md|markdown|mdx|svg)(\?|#|$)/i.test(normalizedLower)
   const looksLikeLocalHtml = isLocalRepoPath && /\.(html|htm)(\?|#|$)/i.test(normalizedLower)
   if (!looksLikeCodeOrData) {

@@ -126,6 +126,16 @@ export type FlowNativeRuntime = {
   presentation: FlowNativePresentation
   pendingRaf: number | null
   dirty: boolean
+  idSetCache: {
+    selectedNodeIdsRef: string[] | null
+    selectedNodeIds: Set<string>
+    selectedEdgeIdsRef: string[] | null
+    selectedEdgeIds: Set<string>
+    hideNodeIdsRef: string[] | null
+    hideNodeIds: Set<string>
+    hidePortHandleNodeIdsRef: string[] | null
+    hidePortHandleNodeIds: Set<string>
+  }
 }
 
 export const defaultFlowTheme = (): FlowNativeTheme => ({
@@ -261,6 +271,16 @@ export const createFlowNativeRuntime = (args: {
     },
     pendingRaf: null,
     dirty: true,
+    idSetCache: {
+      selectedNodeIdsRef: null,
+      selectedNodeIds: new Set<string>(),
+      selectedEdgeIdsRef: null,
+      selectedEdgeIds: new Set<string>(),
+      hideNodeIdsRef: null,
+      hideNodeIds: new Set<string>(),
+      hidePortHandleNodeIdsRef: null,
+      hidePortHandleNodeIds: new Set<string>(),
+    },
   }
 }
 
@@ -297,6 +317,8 @@ export const computeFlowGroupAabb = (args: {
   if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) return null
   return { minX, minY: minY - topExtra, maxX, maxY }
 }
+
+export type FlowGroupAabb = NonNullable<ReturnType<typeof computeFlowGroupAabb>>
 
 export const setFlowNativePresentation = (rt: FlowNativeRuntime, p: FlowNativePresentation) => {
   rt.presentation = p
@@ -651,7 +673,7 @@ const drawEdge = (
   ctx.stroke()
 }
 
-const buildRoutingObstacles = (rt: FlowNativeRuntime, scene: FlowNativeScene): Rect[] => {
+const buildRoutingObstacles = (rt: FlowNativeRuntime, scene: FlowNativeScene, groupAabbById: Map<string, FlowGroupAabb> | null): Rect[] => {
   const obstacles: Rect[] = []
   const handleExtra = (() => {
     const cfg = rt.presentation.portHandles
@@ -670,12 +692,14 @@ const buildRoutingObstacles = (rt: FlowNativeRuntime, scene: FlowNativeScene): R
 
   for (let i = 0; i < scene.groups.length; i += 1) {
     const g = scene.groups[i]
-    const aabb = computeFlowGroupAabb({
-      scene,
-      group: g,
-      paddingPx: gCfg.paddingPx,
-      labelTopExtraPx: gCfg.labelTopExtraPx,
-    })
+    const aabb =
+      (groupAabbById ? groupAabbById.get(g.id) || null : null) ||
+      computeFlowGroupAabb({
+        scene,
+        group: g,
+        paddingPx: gCfg.paddingPx,
+        labelTopExtraPx: gCfg.labelTopExtraPx,
+      })
     if (!aabb) continue
     const w = aabb.maxX - aabb.minX
     const h = aabb.maxY - aabb.minY
@@ -686,7 +710,7 @@ const buildRoutingObstacles = (rt: FlowNativeRuntime, scene: FlowNativeScene): R
   return obstacles
 }
 
-const fadeEdgesUnderGeometry = (rt: FlowNativeRuntime) => {
+const fadeEdgesUnderGeometry = (rt: FlowNativeRuntime, groupAabbById: Map<string, FlowGroupAabb> | null) => {
   const ctx = rt.ctx
   const scene = rt.scene
   if (!scene) return
@@ -706,7 +730,7 @@ const fadeEdgesUnderGeometry = (rt: FlowNativeRuntime) => {
     const groups = scene.groups
     for (let i = 0; i < groups.length; i += 1) {
       const g = groups[i]
-      const aabb = computeFlowGroupAabb({ scene, group: g, paddingPx: padding, labelTopExtraPx: topExtra })
+      const aabb = (groupAabbById ? groupAabbById.get(g.id) || null : null) || computeFlowGroupAabb({ scene, group: g, paddingPx: padding, labelTopExtraPx: topExtra })
       if (!aabb) continue
       const w = Math.max(1, aabb.maxX - aabb.minX)
       const h = Math.max(1, aabb.maxY - aabb.minY)
@@ -747,7 +771,10 @@ const fadeEdgesUnderGeometry = (rt: FlowNativeRuntime) => {
   ctx.restore()
 }
 
-const drawEdgeLabels = (rt: FlowNativeRuntime, args: { selectedEdgeIds: Set<string> }) => {
+const drawEdgeLabels = (
+  rt: FlowNativeRuntime,
+  args: { selectedEdgeIds: Set<string>; routingObstacles: Rect[] | null; groupAabbById: Map<string, FlowGroupAabb> | null },
+) => {
   const scene = rt.scene
   if (!scene) return
   const edges = scene.edges
@@ -780,7 +807,9 @@ const drawEdgeLabels = (rt: FlowNativeRuntime, args: { selectedEdgeIds: Set<stri
       const g = scene.groups[i]
       const label = String(g.label || '').trim()
       if (!label) continue
-      const aabb = computeFlowGroupAabb({ scene, group: g, paddingPx: gCfg.paddingPx, labelTopExtraPx: gCfg.labelTopExtraPx })
+      const aabb =
+        (args.groupAabbById ? args.groupAabbById.get(g.id) || null : null) ||
+        computeFlowGroupAabb({ scene, group: g, paddingPx: gCfg.paddingPx, labelTopExtraPx: gCfg.labelTopExtraPx })
       if (!aabb) continue
       const w = Math.max(1, aabb.maxX - aabb.minX)
       const minX = aabb.minX
@@ -804,7 +833,7 @@ const drawEdgeLabels = (rt: FlowNativeRuntime, args: { selectedEdgeIds: Set<stri
   const routingCfg = rt.presentation.edges.routing
   const useOrtho = routingCfg.enabled && routingCfg.mode === 'ortho'
   const useObstacles = useOrtho && routingCfg.obstacleAvoidance
-  const routingObstacles = useObstacles ? buildRoutingObstacles(rt, scene) : null
+  const routingObstacles = useObstacles ? (args.routingObstacles || []) : []
 
   const pillBg = resolveCssVarCached(rt, '--kg-panel-bg', rt.theme.bg)
   const pillStrokeDefault = resolveCssVarCached(rt, '--kg-border-subtle', rt.theme.edge)
@@ -911,7 +940,7 @@ const drawEdgeLabels = (rt: FlowNativeRuntime, args: { selectedEdgeIds: Set<stri
   }
 }
 
-const drawGroups = (rt: FlowNativeRuntime) => {
+const drawGroups = (rt: FlowNativeRuntime, groupAabbById: Map<string, FlowGroupAabb> | null) => {
   const cfg = rt.presentation.groups
   if (!cfg.enabled) return
   const scene = rt.scene
@@ -939,7 +968,7 @@ const drawGroups = (rt: FlowNativeRuntime) => {
     const memberIds = Array.isArray(g.memberNodeIds) ? g.memberNodeIds : []
     if (memberIds.length === 0) continue
 
-    const aabb = computeFlowGroupAabb({ scene, group: g, paddingPx: padding, labelTopExtraPx: topExtra })
+    const aabb = (groupAabbById ? groupAabbById.get(g.id) || null : null) || computeFlowGroupAabb({ scene, group: g, paddingPx: padding, labelTopExtraPx: topExtra })
     if (!aabb) continue
 
     const minX = aabb.minX
@@ -1045,21 +1074,78 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
 
   const scene = rt.scene
   if (!scene) return
-  const selectedNodeIds = new Set<string>(args.selectedNodeIds || [])
-  const selectedEdgeIds = new Set<string>(args.selectedEdgeIds || [])
-  const hiddenNodeIds = new Set<string>(args.hideNodeIds || [])
-  const hiddenPortHandleNodeIds = new Set<string>(args.hidePortHandleNodeIds || [])
+  const idCache = rt.idSetCache
+  const selectedNodeIds = (() => {
+    const ids = Array.isArray(args.selectedNodeIds) ? args.selectedNodeIds : []
+    if (idCache.selectedNodeIdsRef === ids) return idCache.selectedNodeIds
+    idCache.selectedNodeIdsRef = ids
+    idCache.selectedNodeIds.clear()
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = String(ids[i] || '').trim()
+      if (id) idCache.selectedNodeIds.add(id)
+    }
+    return idCache.selectedNodeIds
+  })()
+  const selectedEdgeIds = (() => {
+    const ids = Array.isArray(args.selectedEdgeIds) ? args.selectedEdgeIds : []
+    if (idCache.selectedEdgeIdsRef === ids) return idCache.selectedEdgeIds
+    idCache.selectedEdgeIdsRef = ids
+    idCache.selectedEdgeIds.clear()
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = String(ids[i] || '').trim()
+      if (id) idCache.selectedEdgeIds.add(id)
+    }
+    return idCache.selectedEdgeIds
+  })()
+  const hiddenNodeIds = (() => {
+    const ids = Array.isArray(args.hideNodeIds) ? args.hideNodeIds : []
+    if (idCache.hideNodeIdsRef === ids) return idCache.hideNodeIds
+    idCache.hideNodeIdsRef = ids
+    idCache.hideNodeIds.clear()
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = String(ids[i] || '').trim()
+      if (id) idCache.hideNodeIds.add(id)
+    }
+    return idCache.hideNodeIds
+  })()
+  const hiddenPortHandleNodeIds = (() => {
+    const ids = Array.isArray(args.hidePortHandleNodeIds) ? args.hidePortHandleNodeIds : []
+    if (idCache.hidePortHandleNodeIdsRef === ids) return idCache.hidePortHandleNodeIds
+    idCache.hidePortHandleNodeIdsRef = ids
+    idCache.hidePortHandleNodeIds.clear()
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = String(ids[i] || '').trim()
+      if (id) idCache.hidePortHandleNodeIds.add(id)
+    }
+    return idCache.hidePortHandleNodeIds
+  })()
   const renderEdges = args.renderEdges !== false
   const renderGroups = args.renderGroups !== false
   const renderNodes = args.renderNodes !== false
 
-  if (renderGroups) drawGroups(rt)
+  const groupAabbById = (() => {
+    const gCfg = rt.presentation.groups
+    if (!gCfg.enabled) return null
+    if (!scene.groups || scene.groups.length === 0) return null
+    const padding = Math.max(0, gCfg.paddingPx)
+    const topExtra = Math.max(0, gCfg.labelTopExtraPx)
+    const m = new Map<string, FlowGroupAabb>()
+    for (let i = 0; i < scene.groups.length; i += 1) {
+      const g = scene.groups[i]
+      const aabb = computeFlowGroupAabb({ scene, group: g, paddingPx: padding, labelTopExtraPx: topExtra })
+      if (!aabb) continue
+      m.set(g.id, aabb)
+    }
+    return m
+  })()
+
+  if (renderGroups) drawGroups(rt, groupAabbById)
 
   if (renderEdges) {
     const routingCfg = rt.presentation.edges.routing
     const useOrtho = routingCfg.enabled && routingCfg.mode === 'ortho'
     const useObstacles = useOrtho && routingCfg.obstacleAvoidance
-    const routingObstacles = useObstacles ? buildRoutingObstacles(rt, scene) : null
+    const routingObstacles = useObstacles ? buildRoutingObstacles(rt, scene, groupAabbById) : null
 
     for (let i = 0; i < scene.edges.length; i += 1) {
       const e = scene.edges[i]
@@ -1069,7 +1155,8 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
       drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), source: s, target: t, routingObstacles })
     }
 
-    fadeEdgesUnderGeometry(rt)
+    fadeEdgesUnderGeometry(rt, groupAabbById)
+    drawEdgeLabels(rt, { selectedEdgeIds, routingObstacles, groupAabbById })
   }
 
   if (renderNodes) {
@@ -1083,7 +1170,6 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
       if (!hiddenPortHandleNodeIds.has(n.id)) drawPortHandles(rt, n)
     }
   }
-  if (renderEdges) drawEdgeLabels(rt, { selectedEdgeIds })
 }
 
 export const requestFlowNativeDraw = (

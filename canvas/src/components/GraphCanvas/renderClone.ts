@@ -5,8 +5,27 @@ const cache = new WeakMap<object, GraphData>()
 
 const coerceRecord = (value: unknown): Record<string, JSONValue> => {
   if (!value) return EMPTY_RECORD
+  if (value instanceof Map) {
+    const out: Record<string, JSONValue> = {}
+    for (const [k, v] of value.entries()) {
+      const key = typeof k === 'string' ? k : String(k || '').trim()
+      if (!key) continue
+      out[key] = v as JSONValue
+    }
+    return out
+  }
   if (typeof value !== 'object' || Array.isArray(value)) return EMPTY_RECORD
-  return value as Record<string, JSONValue>
+  const proto = Object.getPrototypeOf(value)
+  if (proto === Object.prototype || proto === null) return value as Record<string, JSONValue>
+  try {
+    const out: Record<string, JSONValue> = {}
+    for (const k of Object.keys(value as object)) {
+      out[k] = (value as Record<string, unknown>)[k] as JSONValue
+    }
+    return out
+  } catch {
+    return EMPTY_RECORD
+  }
 }
 
 export const cloneGraphDataForRender = (graphData: GraphData): GraphData => {

@@ -206,7 +206,7 @@ export async function loadGraphDataFromTextViaParser(
   let { graphData } = res
   const maybeEmpty = !((graphData.nodes?.length || 0) > 0) && !((graphData.edges?.length || 0) > 0)
   const lower = String(name || '').trim().toLowerCase()
-  if (maybeEmpty && bm.id !== 'markdown' && (lower.endsWith('.md') || lower.endsWith('.markdown')) && containsFrontmatterMermaid(normalizedText)) {
+  if (maybeEmpty && bm.id !== 'markdown' && (lower.endsWith('.md') || lower.endsWith('.markdown'))) {
     try {
       options?.onProgress?.('Fallback: markdown parser')
     } catch {
@@ -236,7 +236,10 @@ export async function loadGraphDataFromTextViaParser(
         name,
         graphData,
         counts: { n: graphData.nodes.length, e: graphData.edges.length },
-        warnings: [...(fallback.warnings || []), `Parser fallback: ${bm.id} yielded empty graph; used markdown parser instead.`],
+        warnings: [
+          ...(fallback.warnings || []),
+          `Parser fallback: ${bm.id} yielded empty graph; used markdown parser instead.`,
+        ],
         input: { name, text: normalizedText },
       }
     }

@@ -1,4 +1,4 @@
-import { isLikelyImageUrl } from '@/lib/url'
+import { isLikelyImageUrl, isYouTubeUrl } from '@/lib/url'
 
 export { slugify } from 'grph-shared/markdown/slugify'
 
@@ -195,12 +195,91 @@ export const extractMarkdownInlineRefs = (
   return { links, images }
 }
 
+export const extractBareHttpUrls = (text: string, options?: { baseUrl?: string }): string[] => {
+  const raw = String(text || '')
+  if (!raw.trim()) return []
+  const baseUrl = options?.baseUrl
+  const out: string[] = []
+  const seen = new Set<string>()
+  const re = /\bhttps?:\/\/[^\s<>()]+/gi
+  re.lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = re.exec(raw))) {
+    const urlRaw = String(match[0] || '').trim()
+    if (!urlRaw) continue
+    const trimmed = urlRaw.replace(/[)\].,;:]+$/g, '').trim()
+    if (!trimmed) continue
+    const resolved = resolveUrl(baseUrl, trimmed)
+    if (!resolved) continue
+    if (seen.has(resolved)) continue
+    seen.add(resolved)
+    out.push(resolved)
+  }
+  return out
+}
+
 export const classifyMediaFromAltAndUrl = (
   url: string,
   alt: string,
 ): { type: 'Image' | 'Video' | 'IFrame'; props: Record<string, unknown> } => {
   const altRaw = String(alt || '')
   const altNorm = altRaw.trim().toLowerCase()
+  const yt = (() => {
+    try {
+      if (!isYouTubeUrl(url)) return ''
+      const u = new URL(url)
+      const host = u.hostname.toLowerCase()
+      if (host === 'youtu.be' || host === 'www.youtu.be') return u.pathname.replace(/^\/+/, '').trim()
+      if (host === 'youtube.com' || host.endsWith('.youtube.com')) return String(u.searchParams.get('v') || '').trim()
+      return ''
+    } catch {
+      return ''
+    }
+  })()
+  const tweetId = (() => {
+    try {
+      const u = new URL(url)
+      const host = u.hostname.toLowerCase()
+      const isX = host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com')
+      if (!isX) return ''
+      const m = u.pathname.match(/\/status\/(\d+)(?:\/|$)/)
+      return m && m[1] ? m[1] : ''
+    } catch {
+      return ''
+    }
+  })()
+  if (yt) {
+    const embed = `https://www.youtube.com/embed/${yt}`
+    return {
+      type: 'IFrame',
+      props: {
+        url,
+        alt,
+        media_url: embed,
+        media: embed,
+        'visual:shape': 'rect',
+        media_kind: 'iframe',
+        iframe_url: embed,
+        original_url: url,
+      },
+    }
+  }
+  if (tweetId) {
+    const embed = `https://platform.twitter.com/embed/Tweet.html?id=${tweetId}`
+    return {
+      type: 'IFrame',
+      props: {
+        url,
+        alt,
+        media_url: embed,
+        media: embed,
+        'visual:shape': 'rect',
+        media_kind: 'iframe',
+        iframe_url: embed,
+        original_url: url,
+      },
+    }
+  }
   const isVideo = altNorm.startsWith('video') || /\.(mp4|webm|ogg|mov)(\?|#|$)/i.test(url)
   const isIFrame = altNorm.startsWith('iframe')
   const type: 'Image' | 'Video' | 'IFrame' = isVideo ? 'Video' : isIFrame ? 'IFrame' : 'Image'

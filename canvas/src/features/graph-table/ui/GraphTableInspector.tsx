@@ -363,6 +363,7 @@ export function GraphTableInspector({
                   showPinToggle={false}
                   uiPanelOpacity={1}
                   panelTextClass={panelTextClass}
+                  monospaceTextClass={monospaceTextClass}
                   microLabelClass={microLabelClass}
                   uiIconScale={uiIconScale}
                   uiIconStrokeWidth={uiIconStrokeWidth}

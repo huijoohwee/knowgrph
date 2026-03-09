@@ -221,6 +221,8 @@ export function isDirectIframeEmbedUrl(url: string): boolean {
   if (/(^|\/\/)(www\.)?youtu\.be\//i.test(u)) return true
   if (/(^|\/\/)www\.youtube-nocookie\.com\//i.test(u)) return true
   if (/(^|\/\/)player\.vimeo\.com\//i.test(u)) return true
+  if (/(^|\/\/)platform\.twitter\.com\//i.test(u)) return true
+  if (/(^|\/\/)twitframe\.com\//i.test(u)) return true
   return false
 }
 

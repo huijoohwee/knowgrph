@@ -130,6 +130,7 @@ export function MarkdownWorkspace() {
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
   const setGraphRagWorkflowJsonText = useGraphStore(s => s.setGraphRagWorkflowJsonText)
   const setGraphData = useGraphStore(s => s.setGraphData)
+  const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
 
   const graphData = useGraphStore(s => s.graphData) as GraphData | null
   const nodeQuickEditorRegistry = useGraphStore(s => s.effectiveNodeQuickEditorRegistry ?? EMPTY_NODE_QUICK_EDITOR_REGISTRY)
@@ -144,6 +145,8 @@ export function MarkdownWorkspace() {
   const setActivePath = useMarkdownExplorerStore(s => s.setActivePath)
   const requestedRevealLine = useMarkdownExplorerStore(s => s.requestedRevealLine)
   const requestRevealLine = useMarkdownExplorerStore(s => s.requestRevealLine)
+  const lastCanvasSyncSig = useMarkdownExplorerStore(s => s.lastCanvasSyncSig)
+  const setLastCanvasSyncSig = useMarkdownExplorerStore(s => s.setLastCanvasSyncSig)
 
   const [entries, setEntries] = React.useState<WorkspaceEntry[]>([])
   const [sourcesByPath, setSourcesByPath] = React.useState(() => loadWorkspaceSourceIndex())
@@ -262,9 +265,19 @@ export function MarkdownWorkspace() {
     const nodes = Array.isArray(gd?.nodes) ? (gd?.nodes as Array<{ id?: unknown; type?: unknown; properties?: unknown }>) : []
     const byId = new Map(nodes.map(n => [String(n.id || ''), n] as const))
 
+    const isHeadingSectionNode = (n: { type?: unknown; properties?: unknown } | null): boolean => {
+      if (!n) return false
+      if (String(n.type || '') !== 'Section') return false
+      const props = n.properties && typeof n.properties === 'object' && !Array.isArray(n.properties)
+        ? (n.properties as Record<string, unknown>)
+        : null
+      return typeof props?.level === 'number' && Number.isFinite(props.level)
+    }
+
     const selectedId = typeof selectedNodeId === 'string' ? selectedNodeId.trim() : ''
     if (selectedId) {
       const node = byId.get(selectedId) || null
+      if (isHeadingSectionNode(node)) return ''
       const reg = node ? resolveNodeQuickEditorRegistryEntry({ node: node as never, registry: nodeQuickEditorRegistry }) : null
       const props = node && typeof node === 'object' ? ((node as { properties?: unknown }).properties as Record<string, unknown> | undefined) : undefined
       const hasHint =
@@ -276,7 +289,9 @@ export function MarkdownWorkspace() {
     for (let i = openQuickEditorNodeIds.length - 1; i >= 0; i -= 1) {
       const id = String(openQuickEditorNodeIds[i] || '').trim()
       if (!id) continue
-      if (!byId.has(id)) continue
+      const node = byId.get(id) || null
+      if (!node) continue
+      if (isHeadingSectionNode(node)) continue
       return id
     }
     return ''
@@ -2221,11 +2236,28 @@ export function MarkdownWorkspace() {
       setStatusError('No file selected')
       return
     }
+    const applyText = (() => {
+      const raw = String(activeText || '')
+      if (raw.trim()) return raw
+      if (contentMode === 'nodeQuickEditor') return String(quickEditorEditorText || '')
+      if (markdownDocumentName === activeDocumentKey && typeof markdownDocumentText === 'string' && markdownDocumentText) {
+        return markdownDocumentText
+      }
+      return raw
+    })()
     setStatusProgress('Applying')
     try {
-      const ok = await applyMarkdownDocumentToGraph(name, activeText)
+      try {
+        const st = useGraphStore.getState()
+        if (String(st.documentSemanticMode || 'document') !== 'document') {
+          st.setDocumentSemanticMode('document')
+        }
+      } catch {
+        void 0
+      }
+      const ok = await applyMarkdownDocumentToGraph(name, applyText, { force: true })
       const geoReqs = (() => {
-        const text = String(activeText || '')
+        const text = String(applyText || '')
         if (!text.includes('```')) return []
         const blocks = extractFencedCodeBlocks(text).filter(b => b.lang === 'geojson' || b.lang === 'json')
         const out: Array<{
@@ -2276,7 +2308,22 @@ export function MarkdownWorkspace() {
     } catch (e) {
       setStatusError(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
     }
-  }, [activeDocumentKey, activeText, applyMarkdownDocumentToGraph, geoDatasetIntegration, setStatusError, setStatusInfo, setStatusProgress])
+  }, [activeDocumentKey, activeText, applyMarkdownDocumentToGraph, contentMode, geoDatasetIntegration, markdownDocumentName, markdownDocumentText, quickEditorEditorText, setStatusError, setStatusInfo, setStatusProgress])
+
+  React.useEffect(() => {
+    if (!workspaceCanvasPaneOpen) return
+    const name = String(activeDocumentKey || '').trim()
+    if (!name) return
+    const text = String(activeText || '')
+    if (!text.trim()) return
+    const g = graphData
+    const isGraphEmpty = !g || !Array.isArray(g.nodes) || !Array.isArray(g.edges) || (g.nodes.length === 0 && g.edges.length === 0)
+    if (!isGraphEmpty) return
+    const sig = `${name}:${text.length}:${text.slice(0, 96)}`
+    if (lastCanvasSyncSig === sig) return
+    setLastCanvasSyncSig(sig)
+    void handleApply()
+  }, [activeDocumentKey, activeText, graphData, handleApply, lastCanvasSyncSig, setLastCanvasSyncSig, workspaceCanvasPaneOpen])
 
   const handleFormatAction = React.useCallback(
     (action: MarkdownFormatAction) => {

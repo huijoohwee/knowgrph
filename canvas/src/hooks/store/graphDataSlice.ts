@@ -7,6 +7,7 @@ import { lsSetJson, lsRemove } from '@/lib/persistence'
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
 import { isJsonValue } from '@/lib/graph/jsonValue'
 import { normalizeGraphData } from '@/lib/graph/normalize'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import {
   applyLayoutAutosuggestFromMetadata,
   applyNodeQuickEditorRegistryFromMetadata,
@@ -286,18 +287,45 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       void 0
     }
 
+    const collapsedKey = buildGraphMetaKeyIgnoringPending(nextGraphDataBase)
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1
       const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
+      const byKey = (s.collapsedGroupIdsByGraphMetaKey || {}) as Record<string, string[]>
+      const nextCollapsed = collapsedKey ? (byKey[collapsedKey] || []) : (s.collapsedGroupIds || [])
+      const designByKey = (s.designLayerStateByGraphMetaKey || {}) as Record<string, import('@/features/design/designLayersState').DesignLayerState>
+      const nextDesignLayerState = collapsedKey ? (designByKey[collapsedKey] || { order: [], hiddenById: {} }) : s.designLayerState
+      const pinnedByKey = (s.flowNodeQuickEditorPinnedByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, boolean>>
+      const posByKey = (s.flowNodeQuickEditorPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { top: number; left: number }>>
+      const worldByKey = (s.flowNodeQuickEditorWorldPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { x: number; y: number }>>
+      const nextPinned = collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowNodeQuickEditorPinnedByNodeId
+      const nextPos = collapsedKey ? (posByKey[collapsedKey] || {}) : s.flowNodeQuickEditorPosByNodeId
+      const nextWorld = collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowNodeQuickEditorWorldPosByNodeId
       return {
         graphData: nextGraphData,
         graphDataRevision: nextRevision,
         graphValidationStatus: null,
         graphValidationTimestamp: null,
+        ...(collapsedKey ? { collapsedGroupIds: nextCollapsed } : {}),
+        ...(collapsedKey ? { designLayerState: nextDesignLayerState } : {}),
+        ...(collapsedKey ? { flowNodeQuickEditorPinnedByNodeId: nextPinned } : {}),
+        ...(collapsedKey ? { flowNodeQuickEditorPosByNodeId: nextPos } : {}),
+        ...(collapsedKey ? { flowNodeQuickEditorWorldPosByNodeId: nextWorld } : {}),
       }
     })
     const stateNow = get()
     const nextGraphData = stateNow.graphData as GraphData
+
+    try {
+      applyLayoutAutosuggestFromMetadata(get, nextGraphData.metadata)
+    } catch {
+      void 0
+    }
+    try {
+      applyNodeQuickEditorRegistryFromMetadata(get, nextGraphData.metadata)
+    } catch {
+      void 0
+    }
 
     try {
       const nextWorkflowText = readGraphRagWorkflowJsonTextFromGraphData(nextGraphData)
@@ -350,16 +378,6 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       if (typeof async === 'function') async()
 
       try {
-        applyLayoutAutosuggestFromMetadata(get, nextGraphData.metadata)
-      } catch {
-        void 0
-      }
-      try {
-        applyNodeQuickEditorRegistryFromMetadata(get, nextGraphData.metadata)
-      } catch {
-        void 0
-      }
-      try {
         const mode = get().schema.layout?.mode
         if (mode === 'radial') {
           const setCanvasRenderMode = get().setCanvasRenderMode
@@ -403,13 +421,29 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       void 0
     }
 
+    const collapsedKey = buildGraphMetaKeyIgnoringPending(nextGraphData)
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1
+      const byKey = (s.collapsedGroupIdsByGraphMetaKey || {}) as Record<string, string[]>
+      const nextCollapsed = collapsedKey ? (byKey[collapsedKey] || []) : (s.collapsedGroupIds || [])
+      const designByKey = (s.designLayerStateByGraphMetaKey || {}) as Record<string, import('@/features/design/designLayersState').DesignLayerState>
+      const nextDesignLayerState = collapsedKey ? (designByKey[collapsedKey] || { order: [], hiddenById: {} }) : s.designLayerState
+      const pinnedByKey = (s.flowNodeQuickEditorPinnedByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, boolean>>
+      const posByKey = (s.flowNodeQuickEditorPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { top: number; left: number }>>
+      const worldByKey = (s.flowNodeQuickEditorWorldPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { x: number; y: number }>>
+      const nextPinned = collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowNodeQuickEditorPinnedByNodeId
+      const nextPos = collapsedKey ? (posByKey[collapsedKey] || {}) : s.flowNodeQuickEditorPosByNodeId
+      const nextWorld = collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowNodeQuickEditorWorldPosByNodeId
       return {
         graphData: withGraphDataRevision(nextGraphData, nextRevision),
         graphDataRevision: nextRevision,
         graphValidationStatus: null,
         graphValidationTimestamp: null,
+        ...(collapsedKey ? { collapsedGroupIds: nextCollapsed } : {}),
+        ...(collapsedKey ? { designLayerState: nextDesignLayerState } : {}),
+        ...(collapsedKey ? { flowNodeQuickEditorPinnedByNodeId: nextPinned } : {}),
+        ...(collapsedKey ? { flowNodeQuickEditorPosByNodeId: nextPos } : {}),
+        ...(collapsedKey ? { flowNodeQuickEditorWorldPosByNodeId: nextWorld } : {}),
       }
     })
     const stateNow = get()

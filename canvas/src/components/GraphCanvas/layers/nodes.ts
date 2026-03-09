@@ -13,9 +13,10 @@ import {
 } from '@/components/GraphCanvas/helpers';
 import { nodeDragBehavior } from '@/components/GraphCanvas/utils';
 import { applyMediaProxySrc } from '@/lib/url';
-import { buildIframeSrcDocForUrl, buildWebpageProxyUrl, isIframeDirectEmbedUrl } from '@/lib/render/richMediaEmbed';
-import { MINIMAP_HEIGHT } from '@/features/minimap/math';
 import { DEFAULT_ZOOM_MAX_SCALE } from '@/lib/graph/layoutDefaults'
+import {
+  computeMediaPanelWorldDims,
+} from '@/lib/render/mediaPanelSpec'
 import { getPortHandlePosition, getPortHandlesConfig, listPortHandlesForNodes, type PortHandleDatum } from '@/components/GraphCanvas/portHandles';
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d';
 import { buildNodeShapePathD } from '@/components/GraphCanvas/shapePaths2d';
@@ -29,17 +30,9 @@ type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
 import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens';
 
-const MEDIA_PANEL_HEADER_AT_MAX_ZOOM = 36;
-const MEDIA_PANEL_BODY_MINIMAP_MULTIPLIER_DEFAULT = 5.0;
-const MEDIA_PANEL_BODY_MINIMAP_MULTIPLIER_COMPACT = 2.5; // Aligned with ~half size
-const MEDIA_PANEL_ASPECT_WIDTH = 16;
-const MEDIA_PANEL_ASPECT_HEIGHT = 9;
-const MEDIA_PANEL_PADDING = 4;
-const MEDIA_PANEL_CORNER_AT_MAX_ZOOM = 8;
 const MEDIA_PANEL_BORDER_COLOR = UI_THEME_COLORS_CSS.border;
-const MEDIA_PANEL_BG_FILL_OPACITY = 0.14;
-const MEDIA_PANEL_HEADER_FILL_OPACITY = 0.22;
-const MEDIA_PANEL_BORDER_WIDTH = 1 / DEFAULT_ZOOM_MAX_SCALE;
+const MEDIA_PANEL_BG_FILL_OPACITY = 0.3;
+const MEDIA_PANEL_HEADER_FILL_OPACITY = 0.42;
 
 export const createNodesLayer = (args: {
   g: GSelection;
@@ -47,6 +40,7 @@ export const createNodesLayer = (args: {
   schema: GraphSchema;
   zoomOnDoubleClick: boolean;
   renderMediaAsNodes: boolean;
+  preferDomMediaOverlays?: boolean;
   mediaPanelDensity: 'default' | 'compact';
   nodeZKeyById?: Map<string, NodeZKey>;
   tempLinkSelRef: MutableRefObject<TempLinkSelection>;
@@ -96,6 +90,7 @@ export const createNodesLayer = (args: {
 
   const rawNodes = Array.isArray(graphData.nodes) ? graphData.nodes : [];
   const nodes = rawNodes;
+  const preferDomMediaOverlays = args.preferDomMediaOverlays === true
   const shapeByNodeId = new Map<string, ReturnType<typeof getNodeRenderShape2d>>();
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i];
@@ -110,14 +105,21 @@ export const createNodesLayer = (args: {
       mediaByNodeId.set(String(n.id), spec);
     }
   }
+  const shouldHideNodeBody = (d: GraphNode): boolean => {
+    if (!renderMediaAsNodes) return false
+    const spec = mediaByNodeId.get(String(d.id))
+    return !!spec
+  }
 
   const mediaLayer = g.append('g').attr('data-kg-layer', 'media');
   let mediaPanelSel: d3.Selection<SVGGElement, GraphNode, SVGGElement, unknown> | null = null;
-  if (renderMediaAsNodes && mediaByNodeId.size > 0) {
+  if (!preferDomMediaOverlays && renderMediaAsNodes && mediaByNodeId.size > 0) {
     const mediaNodes = nodes.filter(n => mediaByNodeId.has(String(n.id)));
     if (mediaNodes.length > 0) {
-      const headerHeight = MEDIA_PANEL_HEADER_AT_MAX_ZOOM / DEFAULT_ZOOM_MAX_SCALE;
-      const padding = MEDIA_PANEL_PADDING;
+      const density = mediaPanelDensity === 'compact' ? 'compact' : 'default';
+      const dims = computeMediaPanelWorldDims(density);
+      const headerHeight = dims.headerHeight;
+      const padding = dims.padding;
 
       mediaPanelSel = (mediaLayer
         .selectAll<SVGGElement, GraphNode>('g.media-node-panel')
@@ -137,21 +139,21 @@ export const createNodesLayer = (args: {
         const spec = mediaByNodeId.get(String(d.id));
         if (!spec) return;
         const panel = d3.select(this);
-        const density = mediaPanelDensity === 'compact' ? 'compact' : 'default';
         const rawLabel = String(d.label || d.id || '').trim();
         const rawType = String(d.type || '').trim();
         const baseLabel = rawLabel || String(d.id || '');
         const fullTitle = rawType ? `${baseLabel} (${rawType})` : baseLabel || 'Media node';
-        const bodyMultiplier =
-          density === 'compact'
-            ? MEDIA_PANEL_BODY_MINIMAP_MULTIPLIER_COMPACT
-            : MEDIA_PANEL_BODY_MINIMAP_MULTIPLIER_DEFAULT;
-        const bodyHeight = (MINIMAP_HEIGHT * bodyMultiplier) / DEFAULT_ZOOM_MAX_SCALE;
-        const panelHeight = bodyHeight + headerHeight;
-        const panelWidth = (bodyHeight * MEDIA_PANEL_ASPECT_WIDTH) / MEDIA_PANEL_ASPECT_HEIGHT;
-        const corner = MEDIA_PANEL_CORNER_AT_MAX_ZOOM / DEFAULT_ZOOM_MAX_SCALE;
+        const bodyHeight = dims.bodyHeight;
+        const panelHeight = dims.panelHeight;
+        const panelWidth = dims.panelWidth;
+        const corner = dims.corner;
         const baseFill = getNodeBaseFill(d, schema)
         const baseStroke = schema.nodeStroke?.[d.type]?.color ?? UI_THEME_COLORS_CSS.nodeStroke
+        const isIframe = spec.kind === 'iframe'
+        const panelFill = UI_THEME_COLORS_CSS.bg
+        const panelFillOpacity = 1
+        const headerFill = 'var(--kg-media-panel-header-bg)'
+        const headerFillOpacity = 1
         const bg = panel
           .append('rect')
           .attr('data-role', 'media-panel-bg')
@@ -161,10 +163,11 @@ export const createNodesLayer = (args: {
           .attr('height', panelHeight)
           .attr('rx', corner)
           .attr('ry', corner)
-          .attr('fill', baseFill)
-          .attr('fill-opacity', MEDIA_PANEL_BG_FILL_OPACITY)
+          .attr('fill', panelFill)
+          .attr('fill-opacity', isIframe ? 0 : panelFillOpacity)
           .attr('stroke', baseStroke || MEDIA_PANEL_BORDER_COLOR)
-          .attr('stroke-width', MEDIA_PANEL_BORDER_WIDTH);
+          .attr('stroke-width', dims.borderWidth)
+          .attr('stroke-opacity', isIframe ? 0 : 1);
         const header = panel
           .append('g')
           .attr('class', 'media-panel-header')
@@ -175,8 +178,8 @@ export const createNodesLayer = (args: {
           .attr('y', -panelHeight / 2)
           .attr('width', panelWidth)
           .attr('height', headerHeight)
-          .attr('fill', baseFill)
-          .attr('fill-opacity', MEDIA_PANEL_HEADER_FILL_OPACITY);
+          .attr('fill', headerFill)
+          .attr('fill-opacity', isIframe ? 0 : headerFillOpacity);
         header
           .append('text')
           .attr('x', 0)
@@ -185,6 +188,7 @@ export const createNodesLayer = (args: {
           .attr('dominant-baseline', 'middle')
           .attr('font-size', 10)
           .attr('fill', UI_THEME_COLORS_CSS.text)
+          .attr('opacity', isIframe ? 0 : 1)
           .text(fullTitle);
         const contentX = -panelWidth / 2 + padding;
         const contentY = -panelHeight / 2 + headerHeight + padding;
@@ -202,7 +206,7 @@ export const createNodesLayer = (args: {
             .attr('crossorigin', 'anonymous')
             .attr('href', () => applyMediaProxySrc(spec.url))
             .style('pointer-events', 'none');
-        } else {
+        } else if (spec.kind === 'video') {
           const fo = panel
             .append('foreignObject')
             .attr('data-role', 'media-panel-media')
@@ -221,88 +225,38 @@ export const createNodesLayer = (args: {
             const container = d3
               .select(this)
               .append('xhtml:section')
+              .style('margin', '0')
+              .style('padding', '0')
               .style('width', '100%')
               .style('height', '100%')
               .style('border-radius', `${corner}px`)
               .style('overflow', 'hidden')
-              .style('background', 'transparent')
+              .style('background', UI_THEME_COLORS_CSS.bg)
               .style('pointer-events', spec.interactive ? 'auto' : 'none');
-            if (spec.kind === 'video') {
-              const url = applyMediaProxySrc(spec.url);
-              const video = container
-                .append('xhtml:video')
-                .attr('src', url)
-                .attr('playsinline', 'true')
-                .attr('muted', 'true')
-                .attr('controls', 'true')
-                .attr('preload', 'metadata')
-                .style('width', '100%')
-                .style('height', '100%')
-                .style('object-fit', 'cover');
-              video
-                .on('mousedown', event => {
-                  event.stopPropagation();
-                })
-                .on('click', event => {
-                  event.stopPropagation();
-                })
-                .on('dblclick', event => {
-                  event.stopPropagation();
-                })
-                .on('contextmenu', event => {
-                  event.stopPropagation();
-                });
-            } else if (spec.kind === 'iframe') {
-              const rawUrl = String(spec.url || '').trim()
-              const proxiedSrc = buildWebpageProxyUrl(rawUrl)
-              const direct = isIframeDirectEmbedUrl(rawUrl)
-              const iframe = container
-                .append('xhtml:iframe')
-                .attr('data-kg-iframe-url', rawUrl)
-                .attr('src', proxiedSrc)
-                .attr('loading', 'lazy')
-                .attr('referrerpolicy', 'no-referrer')
-                .attr('sandbox', direct ? 'allow-scripts allow-same-origin allow-forms allow-popups allow-presentation' : 'allow-scripts allow-presentation')
-                .attr(
-                  'allow',
-                  'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share',
-                )
-                .style('width', '100%')
-                .style('height', '100%')
-                .style('border', '0');
-              iframe
-                .on('mousedown', event => {
-                  event.stopPropagation();
-                })
-                .on('click', event => {
-                  event.stopPropagation();
-                })
-                .on('dblclick', event => {
-                  event.stopPropagation();
-                })
-                .on('contextmenu', event => {
-                  event.stopPropagation();
-                });
-              if (!direct && rawUrl && /^https?:\/\//i.test(rawUrl)) {
-                const anyNode = iframe.node() as unknown as { getAttribute?: (k: string) => string | null; setAttribute?: (k: string, v: string) => void }
-                const existing = typeof anyNode?.getAttribute === 'function' ? String(anyNode.getAttribute('data-kg-iframe-srcdoc-ready') || '') : ''
-                if (!existing) {
-                  const ctrl = new AbortController()
-                  void buildIframeSrcDocForUrl({ url: rawUrl, signal: ctrl.signal }).then(({ srcDoc }) => {
-                    try {
-                      const node = iframe.node() as unknown as { getAttribute?: (k: string) => string | null; setAttribute?: (k: string, v: string) => void }
-                      if (!node || typeof node.getAttribute !== 'function' || typeof node.setAttribute !== 'function') return
-                      if (String(node.getAttribute('data-kg-iframe-url') || '') !== rawUrl) return
-                      if (!srcDoc) return
-                      node.setAttribute('srcdoc', srcDoc)
-                      node.setAttribute('data-kg-iframe-srcdoc-ready', '1')
-                    } catch {
-                      void 0
-                    }
-                  }).catch(() => void 0)
-                }
-              }
-            }
+            const url = applyMediaProxySrc(spec.url);
+            const video = container
+              .append('xhtml:video')
+              .attr('src', url)
+              .attr('playsinline', 'true')
+              .attr('muted', 'true')
+              .attr('controls', 'true')
+              .attr('preload', 'metadata')
+              .style('width', '100%')
+              .style('height', '100%')
+              .style('object-fit', 'cover');
+            video
+              .on('mousedown', event => {
+                event.stopPropagation();
+              })
+              .on('click', event => {
+                event.stopPropagation();
+              })
+              .on('dblclick', event => {
+                event.stopPropagation();
+              })
+              .on('contextmenu', event => {
+                event.stopPropagation();
+              });
           });
         }
         panel.append('title').text(fullTitle);
@@ -318,7 +272,7 @@ export const createNodesLayer = (args: {
 
   const nodeLayer = g.append('g').attr('data-kg-layer', 'nodes');
 
-  const eligibleNodes = nodes.filter(n => !(renderMediaAsNodes && hasNodeMedia(n)));
+  const eligibleNodes = nodes;
   const circleNodes = eligibleNodes.filter(n => shapeByNodeId.get(String(n.id)) === 'circle');
   const rectNodes = eligibleNodes.filter(n => shapeByNodeId.get(String(n.id)) === 'rect');
   const diamondNodes = eligibleNodes.filter(n => shapeByNodeId.get(String(n.id)) === 'diamond');
@@ -392,8 +346,9 @@ export const createNodesLayer = (args: {
   const node = nodeLayer.selectAll<SVGElement, GraphNode>('circle,rect,path[data-kg-node-shape]')
   node
     .attr('data-node-id', (d: GraphNode) => String(d.id))
-     .attr('fill', (d: GraphNode) => getNodeBaseFill(d, schema))
+     .attr('fill', (d: GraphNode) => (shouldHideNodeBody(d) ? 'transparent' : getNodeBaseFill(d, schema)))
     .attr('stroke', (d: GraphNode) => {
+      if (shouldHideNodeBody(d)) return 'transparent'
       const props = (d.properties || {}) as Record<string, unknown>
       const visualStroke = typeof props['visual:stroke'] === 'string' ? String(props['visual:stroke'] || '').trim() : ''
       if (visualStroke) return visualStroke

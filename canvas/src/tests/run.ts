@@ -64,6 +64,7 @@ import {
   testGroupBboxCollideByDepthSeparatesOuterAndInnerSiblings,
   testNestedGroupInnerBorderDoesNotTouchParentOuterBorder,
 } from '@/__tests__/groupOverlapByDepthForce.test'
+import { testGraphCanvasIframeNodesHideBodyWhenRichMediaOn } from '@/__tests__/graphCanvasIframeNodesHideBody.test'
 import {
   testIsNodePointerTargetAcceptsPathNodes,
   testNodesLayerRendersDiamondAndHexPaths,
@@ -179,12 +180,17 @@ import { testMarkdownPreviewRendersCodexUrlArtifact } from '@/__tests__/markdown
 import { testMarkdownPreviewRendersRemotionUrlArtifact } from '@/__tests__/markdownRemotionUrlArtifactRenders.test'
 import { testMarkdownPreviewRendersInlineHtmlRichMedia } from '@/__tests__/markdownInlineHtmlRichMediaPreview.test'
 import { testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe } from '@/__tests__/markdownImageRichMediaPreview.test'
+import {
+  testPreviewPanelGraphMediaSelectionOpensMarkdownPanel,
+  testPreviewPanelStandaloneLinkWebpageAndTweetSelectable,
+} from '@/__tests__/previewPanelViewMediaSelection.test'
 import { testDesignRichMediaPreviewRendersImageVideoAndIframe } from '@/__tests__/designRichMediaPreview.test'
 import {
   testMarkdownGithubBlobIngestionProducesMediaNodes,
   testMarkdownHtmlImgIngestionProducesMediaNodes,
   testMarkdownAutolinkImageIngestionProducesMediaNodes,
   testMarkdownHtmlIframeIngestionProducesMediaNodes,
+  testMarkdownStandaloneLinkWebpageIngestionProducesIframeNode,
   testMarkdownHtmlVideoIngestionProducesMediaNodes,
 } from '@/__tests__/markdownGithubIngestion.test'
 import {
@@ -194,6 +200,13 @@ import {
 import {
   testMarkdownFrontmatterFlowGraphHonorsUserSubgraphs,
   testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry,
+  testMarkdownFrontmatterFlowGraphMatchesVideoScriptTemplateEdgeIdsAndPorts,
+  testMarkdownFrontmatterFlowGraphAugmentsPortsFromEdgeMap,
+  testMarkdownFrontmatterFlowGraphExtractsEdgeTablesAndSocketLegend,
+  testMarkdownFrontmatterFlowGraphParsesMultiFrontmatterBlocks,
+  testMarkdownFrontmatterFlowGraphParsesDotFromToConnections,
+  testMarkdownFrontmatterFlowGraphRepairsMissingSpaceAfterColonQuote,
+  testMarkdownFrontmatterFlowGraphWarningsDetectDivergentConnections,
 } from '@/__tests__/markdownFrontmatterFlowGraphImport.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
 import { testGraphCenteredSvgIncludesAnimationWhenEnabled, testGraphCenteredSvgPutsCentroidInViewCenter } from '@/__tests__/graphCenteredSvg.test'
@@ -249,6 +262,9 @@ import { testResolveUrlAgainstBaseResolvesRelativeUrls } from '@/__tests__/urlRe
 import { testSettingsViewCollapsePersistence } from '@/__tests__/settingsCollapse.test'
 import { testSearchCacheKeysRespectVersion } from '@/__tests__/searchCache.test'
 import { testN8nParsingBasic } from '@/__tests__/n8nParse.test'
+import { testMarkdownPanelFlowGraphParsesPanelsAndEdges } from '@/__tests__/markdownPanelFlowGraphImport.test'
+import { testSyncGraphFieldsAvoidsRedundantStoreSets } from '@/__tests__/graphFieldsSyncChurn.test'
+import { testVideoScriptTemplateFileFrontmatterFlowGraphFidelity } from '@/__tests__/videoScriptTemplateFileFidelity.test'
 import {
   testBuildSelectionSubgraphFromNode,
   testBuildSelectionSubgraphFromEdge,
@@ -593,6 +609,7 @@ import {
 } from '@/__tests__/flowDataflowConnectedValues.test'
 import {
   testFlowNodeQuickEditorRegistryResolveHonorsNodeOverride,
+  testFlowNodeQuickEditorRegistryResolveHonorsFormOverrideOrFallsBack,
   testFlowNodeQuickEditorRegistryResolvePrefersDefault,
 } from '@/__tests__/flowNodeQuickEditorRegistryResolve.test'
 import { testNodeQuickEditorBundleRoundtripParsesWithRegistryMetadata } from '@/__tests__/nodeQuickEditorBundleRoundtrip.test'
@@ -665,6 +682,8 @@ import { testFlowNodeQuickEditorTypographyInheritsPanelSettings } from '@/__test
 import { testFlowNodeQuickEditorZoomUpdatesDoNotRerenderPanel } from '@/__tests__/flowNodeQuickEditorZoomRerenderGuard.test'
 import { testFlowNodeQuickEditorUnpinnedSnapsToCanvasRightOnViewportChange } from '@/__tests__/flowNodeQuickEditorFloatingDockRight.test'
 import { testFlowEditorUnpinnedQuickEditorDoesNotSnapToPhantomBorderOnLayoutChange } from '@/__tests__/flowEditorQuickEditorUnpinnedDoesNotSnapToPhantomBorderOnLayoutChangeRegression.test'
+import { testFlowNodeQuickEditorBeatByBeatHeadingVisibleWhenFieldsHidden } from '@/__tests__/flowNodeQuickEditorBeatByBeatHeadingVisibleWhenFieldsHidden.test'
+import { testFlowNodeQuickEditorBeatByBeatTitleUsesTemplateHeading } from '@/__tests__/flowNodeQuickEditorBeatByBeatTitleUsesTemplateHeading.test'
 import { testFlowNodeQuickEditorRendersPortHandleGutterWhenEnabled } from '@/__tests__/flowNodeQuickEditorPortHandleGutter.test'
 import { testFlowNodeQuickEditorSchemaFieldPortsRenderRowHandles } from '@/__tests__/flowNodeQuickEditorSchemaFieldPorts.test'
 import {
@@ -737,11 +756,21 @@ import { testLoaderCacheKeyIncludesParserRegistryRevision } from '@/__tests__/lo
 import { testGraphDataSliceAvoidsWindowSetTimeout } from '@/__tests__/graphDataSliceAvoidsWindowSetTimeoutRegression.test'
 import { testRendererUiStateIsolationKeepsOpenQuickEditorsPerRenderer, testRendererUiStateIsolationKeepsPointerModePerRenderer } from '@/__tests__/rendererUiStateIsolation.test'
 import { testRenderCloneMemoizesPerGraphObject, testSceneDisplayDerivationReusesDisplayNodesForStableGraphObject } from '@/__tests__/renderCloneMemoization.test'
-import { testFlowEditorOverlaySvgIsBoundedBelowToolbar, testFlowEditorOverlaysDoNotUseFloatingPanelZIndex, testWorkspacePanesOutrankFlowEditorOverlays } from '@/__tests__/flowEditorOverlayLayeringRegression.test'
+import {
+  testFlowEditorOverlayModeStillRendersGroups,
+  testFlowEditorOverlayOnlyModeDoesNotBlankCanvasWhenNoOverlaysOpen,
+  testFlowEditorOverlaySvgIsBoundedBelowToolbar,
+  testFlowEditorOverlaysDoNotUseFloatingPanelZIndex,
+  testWorkspacePanesOutrankFlowEditorOverlays,
+} from '@/__tests__/flowEditorOverlayLayeringRegression.test'
 import { testSelectionDispatchesTocFocusInSplitViews } from '@/__tests__/selectionTocFocusSync.test'
 import { testDesignWireframeCacheEpochAffectsLayoutCacheKey, testDesignWireframeSettingsExposesClearCache } from '@/__tests__/designWireframeCacheClearRegression.test'
 import { testToolbarNavMasksCanvasUnderlay } from '@/__tests__/toolbarNavMaskRegression.test'
 import { testGroupCollapseDerivationCollapsesCommunityIntoGroupNode } from '@/__tests__/groupCollapse.test'
+import { testCollapsedGroupIdsAreScopedByGraphMetaKey } from '@/__tests__/collapsedGroupIdsScopedByGraphMetaKey.test'
+import { testDesignLayerStateIsScopedByGraphMetaKey } from '@/__tests__/designLayerStateScopedByGraphMetaKey.test'
+import { testFlowNodeQuickEditorUiStateIsScopedByGraphMetaKey } from '@/__tests__/flowNodeQuickEditorUiStateScopedByGraphMetaKey.test'
+import { testDeriveGraphGroupsCreatesLayerGroupsFromVisualLayer } from '@/__tests__/graphGroupsDeriveLayersFromVisualLayer.test'
 import {
   testMarkdownWorkspaceSplitPreviewFlushesOnDocKeyChange,
   testWorkspaceAutosaveGuardsAgainstPathSwitchOverwrite,
@@ -1039,6 +1068,16 @@ export const runAllTests = async () => {
   await exec('markdown.ingestion.pipeTables.emitTableCells', testMarkdownPipeTableIngestionCreatesTableNodeWithCells)
   await exec('markdown.frontmatterFlowGraph.importsNodesEdgesAndRegistry', testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry)
   await exec('markdown.frontmatterFlowGraph.honorsUserSubgraphs', testMarkdownFrontmatterFlowGraphHonorsUserSubgraphs)
+  await exec('markdown.frontmatterFlowGraph.connections.dotFromTo', testMarkdownFrontmatterFlowGraphParsesDotFromToConnections)
+  await exec('markdown.frontmatterFlowGraph.tables.extractsEdgesAndSocketTypes', testMarkdownFrontmatterFlowGraphExtractsEdgeTablesAndSocketLegend)
+  await exec('markdown.frontmatterFlowGraph.frontmatter.multiBlock', testMarkdownFrontmatterFlowGraphParsesMultiFrontmatterBlocks)
+  await exec('markdown.frontmatterFlowGraph.fidelity.videoScriptTemplatePorts', testMarkdownFrontmatterFlowGraphMatchesVideoScriptTemplateEdgeIdsAndPorts)
+  await exec('markdown.frontmatterFlowGraph.edgeMap.augmentsPorts', testMarkdownFrontmatterFlowGraphAugmentsPortsFromEdgeMap)
+  await exec('markdown.frontmatterFlowGraph.frontmatter.repairsColonQuote', testMarkdownFrontmatterFlowGraphRepairsMissingSpaceAfterColonQuote)
+  await exec('markdown.frontmatterFlowGraph.warnings.detectDivergentConnections', testMarkdownFrontmatterFlowGraphWarningsDetectDivergentConnections)
+  await exec('markdown.panelFlowGraph.parsesPanelsAndEdges', testMarkdownPanelFlowGraphParsesPanelsAndEdges)
+  await exec('ui.graphFields.sync.avoidsRedundantSets', testSyncGraphFieldsAvoidsRedundantStoreSets)
+  await exec('markdown.frontmatterFlowGraph.fidelity.videoScriptTemplateFile', testVideoScriptTemplateFileFrontmatterFlowGraphFidelity)
   await exec('markdown.toc.formattedHeadingText', testMarkdownTocIncludesFormattedHeadingText)
   await exec('markdown.toc.unicodeHeadingSpaces', testMarkdownTocIncludesHeadingsWithUnicodeSpacesAfterHashes)
   await exec('markdown.toc.unicodeHeadingLeadingSpace', testMarkdownTocIncludesHeadingsWithUnicodeLeadingWhitespace)
@@ -1186,6 +1225,8 @@ export const runAllTests = async () => {
   await exec('ui.pinSemantics.pinnedDisablesDrag', testPinnedDisablesDragAcrossPanels)
   await exec('ui.iconButton.preventsTextSelection', testIconButtonPointerDownPreventsTextSelection)
   await exec('ui.flowNodeQuickEditor.uiContract', testNodeQuickEditorHidesIdentityAndMovesActionsToToolbar)
+  await exec('ui.flowNodeQuickEditor.beatByBeat.headingVisibleWhenFieldsHidden', testFlowNodeQuickEditorBeatByBeatHeadingVisibleWhenFieldsHidden)
+  await exec('ui.flowNodeQuickEditor.beatByBeat.titleUsesTemplateHeading', testFlowNodeQuickEditorBeatByBeatTitleUsesTemplateHeading)
   await exec('ui.flowNodeQuickEditor.portHandles.gutterRendersWhenEnabled', testFlowNodeQuickEditorRendersPortHandleGutterWhenEnabled)
   await exec('ui.flowNodeQuickEditor.schemaFieldPorts.renderRowHandles', testFlowNodeQuickEditorSchemaFieldPortsRenderRowHandles)
   await exec('dnd.flowNodeQuickEditorDragPayload.roundTrip', testFlowNodeQuickEditorDragPayloadRoundTrip)
@@ -1222,6 +1263,8 @@ export const runAllTests = async () => {
   await exec('render.sceneDisplay.reusesDisplayNodes', testSceneDisplayDerivationReusesDisplayNodesForStableGraphObject)
   await exec('ui.flowEditorOverlayLayering.nodeOverlaysBounded', testFlowEditorOverlaysDoNotUseFloatingPanelZIndex)
   await exec('ui.flowEditorOverlayLayering.overlaySvgBounded', testFlowEditorOverlaySvgIsBoundedBelowToolbar)
+  await exec('ui.flowEditorOverlayLayering.overlayMode.rendersGroups', testFlowEditorOverlayModeStillRendersGroups)
+  await exec('ui.flowEditorOverlayLayering.overlayMode.noBlankWithoutOverlays', testFlowEditorOverlayOnlyModeDoesNotBlankCanvasWhenNoOverlaysOpen)
   await exec('ui.flowEditorOverlayLayering.workspacePanesElevated', testWorkspacePanesOutrankFlowEditorOverlays)
   await exec('ui.selection.tocFocus.sync', testSelectionDispatchesTocFocusInSplitViews)
   await exec('ui.designWireframe.cacheClearEpoch', testDesignWireframeCacheEpochAffectsLayoutCacheKey)
@@ -1245,6 +1288,7 @@ export const runAllTests = async () => {
   await exec('zoom.viewKey.pending.ignoresPendingFlag', testActive2dZoomViewKeyIgnoresPendingFlag)
   await exec('graph.metaKey.pending.ignoreHelper.stable', testGraphMetaKeyIgnoringPendingStaysStableAcrossPendingFlag)
   await exec('graph.groups.collapse.derivesRenderableGroup', testDeriveGraphGroupsKeepsCollapsedGroupRenderable)
+  await exec('graph.groups.layers.deriveFromVisualLayer', testDeriveGraphGroupsCreatesLayerGroupsFromVisualLayer)
   await exec('graph.groups.subgraphs.derive', testDeriveGraphGroupsIncludesUserSubgraphs)
   await exec('graph.groups.subgraphs.depthFromParent', testDeriveGraphGroupsComputesNestedDepthFromParentId)
   await exec('zoom.invariants.semanticMode.carriesZoomState', testSemanticModeSwitchCarriesZoomStateAcrossKeys)
@@ -1276,6 +1320,7 @@ export const runAllTests = async () => {
   await exec('flow.dataflow.demo.computingDataFlows.bundleParsesAndComputes', testComputingDataFlowsDemoBundleParsesAndComputes)
   await exec('flow.quickEditor.registry.resolve.prefersDefault', testFlowNodeQuickEditorRegistryResolvePrefersDefault)
   await exec('flow.quickEditor.registry.resolve.honorsNodeOverride', testFlowNodeQuickEditorRegistryResolveHonorsNodeOverride)
+  await exec('flow.quickEditor.registry.resolve.honorsFormOverrideOrFallsBack', testFlowNodeQuickEditorRegistryResolveHonorsFormOverrideOrFallsBack)
   await exec('mainPanel.flowEditorManager.registry.validateAndNormalize', testFlowEditorManagerRegistryValidatesAndNormalizes)
   await exec('mainPanel.flowEditorManager.registry.storageRoundTrip', testFlowEditorManagerRegistryStorageRoundTrip)
   await exec('mainPanel.flowEditorManager.registry.seedGenerateVideo', testFlowEditorManagerSeedsGenerateVideoRegistryEntry)
@@ -1573,10 +1618,14 @@ export const runAllTests = async () => {
   await exec('markdown.preview.rendersRemotionUrlArtifact', testMarkdownPreviewRendersRemotionUrlArtifact)
   await exec('markdown.preview.rendersInlineHtmlRichMedia', testMarkdownPreviewRendersInlineHtmlRichMedia)
   await exec('markdown.preview.rendersMarkdownImageVideoAudioIframe', testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe)
+  await exec('graphCanvas.richMedia.iframeNodes.hideBody', testGraphCanvasIframeNodesHideBodyWhenRichMediaOn)
+  await exec('preview.panel.graphMediaSelection.opensMarkdownPanel', testPreviewPanelGraphMediaSelectionOpensMarkdownPanel)
+  await exec('preview.panel.standaloneLinks.webpageAndTweetSelectable', testPreviewPanelStandaloneLinkWebpageAndTweetSelectable)
   await exec('markdown.ingest.githubBlob.producesMediaNodes', testMarkdownGithubBlobIngestionProducesMediaNodes)
   await exec('markdown.ingest.htmlImg.producesMediaNodes', testMarkdownHtmlImgIngestionProducesMediaNodes)
   await exec('markdown.ingest.autolinkImage.producesMediaNodes', testMarkdownAutolinkImageIngestionProducesMediaNodes)
   await exec('markdown.ingest.htmlIframe.producesMediaNodes', testMarkdownHtmlIframeIngestionProducesMediaNodes)
+  await exec('markdown.ingest.standaloneLinks.webpageAndEmbeds', testMarkdownStandaloneLinkWebpageIngestionProducesIframeNode)
   await exec('markdown.ingest.htmlVideo.producesMediaNodes', testMarkdownHtmlVideoIngestionProducesMediaNodes)
   await exec('export.parseCombinedCsv', testParseCombinedCsv)
   await exec('export.svg.centered.centroidInCenter', testGraphCenteredSvgPutsCentroidInViewCenter)
@@ -1663,6 +1712,9 @@ export const runAllTests = async () => {
   await exec('keywordMode.derivesEntitiesAndPredicateEdges', testKeywordModeDerivesEntitiesAndPredicateEdges)
   await exec('keywordMode.mergesMediaNodesForOverlays', testKeywordModeMergesMediaNodesForOverlays)
   await exec('groupCollapse.derivation.collapsesCommunityIntoGroupNode', testGroupCollapseDerivationCollapsesCommunityIntoGroupNode)
+  await exec('groupCollapse.uiState.scopedByGraphMetaKey', testCollapsedGroupIdsAreScopedByGraphMetaKey)
+  await exec('design.layers.uiState.scopedByGraphMetaKey', testDesignLayerStateIsScopedByGraphMetaKey)
+  await exec('ui.flowNodeQuickEditor.state.scopedByGraphMetaKey', testFlowNodeQuickEditorUiStateIsScopedByGraphMetaKey)
   await exec('metrics.graphrag.writesNamespacedCausalityComponents', testGraphRagAnalyticsWritesNamespacedCausalityComponents)
   await exec('metrics.keywordGraph.writesKeywordFrequencyAndStrengthScore', testKeywordGraphWritesKeywordFrequencyAndStrengthScore)
   await exec('densityClustering.maxNodesExceededReturnsEmpty', testDensityClusteringReturnsEmptyWhenMaxNodesExceeded)

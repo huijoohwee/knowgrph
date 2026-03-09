@@ -15,7 +15,9 @@ export async function buildIframeSrcDocForUrl(args: {
   const raw = String(args.url || '').trim()
   if (!raw) return { srcDoc: '', scriptPolicy: 'strip' }
   if (!isHttpUrl(raw)) return { srcDoc: '', scriptPolicy: 'strip' }
+  if (args.signal.aborted) return { srcDoc: '', scriptPolicy: 'strip' }
   const html = await fetchWebpageHtmlViaProxy({ url: raw, signal: args.signal })
+  if (args.signal.aborted) return { srcDoc: '', scriptPolicy: 'strip' }
   const scriptPolicy = inferIframeScriptPolicyFromHtml(html)
   const srcDoc = await buildWebpageHtmlSrcdocAsync({ html, baseHref: raw, scriptPolicy })
   return { srcDoc, scriptPolicy }
@@ -24,4 +26,3 @@ export async function buildIframeSrcDocForUrl(args: {
 export function isIframeDirectEmbedUrl(url: string): boolean {
   return isDirectIframeEmbedUrl(url)
 }
-

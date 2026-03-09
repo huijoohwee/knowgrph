@@ -218,11 +218,15 @@ export interface GraphState {
   selectedEdgeIds: string[];
   selectedGroupIds: string[];
   collapsedGroupIds: string[];
+  collapsedGroupIdsByGraphMetaKey: Record<string, string[]>;
   openQuickEditorNodeIds: string[];
   openQuickEditorNodeIdsByRenderer: Partial<Record<Canvas2dRendererId, string[]>>;
   flowNodeQuickEditorPinnedByNodeId: Record<string, boolean>;
+  flowNodeQuickEditorPinnedByNodeIdByGraphMetaKey: Record<string, Record<string, boolean>>;
   flowNodeQuickEditorPosByNodeId: Record<string, { top: number; left: number }>;
+  flowNodeQuickEditorPosByNodeIdByGraphMetaKey: Record<string, Record<string, { top: number; left: number }>>;
   flowNodeQuickEditorWorldPosByNodeId: Record<string, { x: number; y: number }>;
+  flowNodeQuickEditorWorldPosByNodeIdByGraphMetaKey: Record<string, Record<string, { x: number; y: number }>>;
   flowNodeQuickEditorDraggingNodeId: string | null;
   graphFieldsOpOk: boolean | null;
   graphFieldsOpMsg: string;
@@ -274,6 +278,7 @@ export interface GraphState {
   toggleNodeQuickEditorRegistryEntryEnabled: (id: string, enabled?: boolean) => void
 
   designLayerState: DesignLayerState
+  designLayerStateByGraphMetaKey: Record<string, DesignLayerState>
   setDesignLayerState: (next: DesignLayerState) => void
   normalizeDesignLayerStateFromNodes: (nodes: DesignLayerNode[]) => void
   toggleDesignLayerHidden: (id: string) => void
@@ -361,6 +366,28 @@ export interface GraphState {
   setRenderMediaAsNodes: (v: boolean) => void;
   setMediaPanelDensity: (v: 'default' | 'compact') => void;
   mediaPanelDensity: 'default' | 'compact';
+  threeIframeOverlayPoolMax: number;
+  setThreeIframeOverlayPoolMax: (v: number) => void;
+  threeIframeOverlayMaxVisibleDefault: number;
+  setThreeIframeOverlayMaxVisibleDefault: (v: number) => void;
+  threeIframeOverlayMaxVisibleCompact: number;
+  setThreeIframeOverlayMaxVisibleCompact: (v: number) => void;
+  threeIframeOverlayMaxDistanceDefault: number;
+  setThreeIframeOverlayMaxDistanceDefault: (v: number) => void;
+  threeIframeOverlayMaxDistanceCompact: number;
+  setThreeIframeOverlayMaxDistanceCompact: (v: number) => void;
+  threeIframeOverlayBaseWidthRatioDefault: number;
+  setThreeIframeOverlayBaseWidthRatioDefault: (v: number) => void;
+  threeIframeOverlayBaseWidthRatioCompact: number;
+  setThreeIframeOverlayBaseWidthRatioCompact: (v: number) => void;
+  threeIframeOverlayBaseWidthMinPxDefault: number;
+  setThreeIframeOverlayBaseWidthMinPxDefault: (v: number) => void;
+  threeIframeOverlayBaseWidthMinPxCompact: number;
+  setThreeIframeOverlayBaseWidthMinPxCompact: (v: number) => void;
+  threeIframeOverlayBaseWidthMaxPxDefault: number;
+  setThreeIframeOverlayBaseWidthMaxPxDefault: (v: number) => void;
+  threeIframeOverlayBaseWidthMaxPxCompact: number;
+  setThreeIframeOverlayBaseWidthMaxPxCompact: (v: number) => void;
   uiHeaderRowHeightClass: string;
   uiHeaderRowPaddingClass: string;
   uiSectionHeaderRowHeightClass: string;

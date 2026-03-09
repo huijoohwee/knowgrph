@@ -4,6 +4,7 @@ import { moveDesignLayer, normalizeDesignLayerState, toggleDesignLayerHidden } f
 import type { DesignLayerNode, DesignLayerState } from '@/features/design/designLayersState'
 import type { GraphState } from '@/hooks/store/types'
 import type { GraphNode } from '@/lib/graph/types'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -38,6 +39,7 @@ const clampSize = (v: number, fallback: number): number => {
 export const createDesignRendererSlice = (set: SetGraph, get: GetGraph) => {
   return {
     designLayerState: { order: [], hiddenById: {} } as DesignLayerState,
+    designLayerStateByGraphMetaKey: {} as Record<string, DesignLayerState>,
     normalizeDesignLayerStateFromNodes: (nodes: DesignLayerNode[]) => {
       const state = get()
       const prev = state.designLayerState
@@ -71,27 +73,45 @@ export const createDesignRendererSlice = (set: SetGraph, get: GetGraph) => {
         if (same) return
       }
 
-      set({ designLayerState: next })
+      const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+      const by = state.designLayerStateByGraphMetaKey || {}
+      const nextBy = graphKey ? { ...by, [graphKey]: next } : by
+      set({ designLayerState: next, designLayerStateByGraphMetaKey: nextBy })
     },
     toggleDesignLayerHidden: (id: string) => {
       const key = normId(id)
       if (!key) return
-      const prev = get().designLayerState
+      const state = get()
+      const prev = state.designLayerState
       const nextHidden = toggleDesignLayerHidden(prev.hiddenById || {}, key)
       if (nextHidden === prev.hiddenById) return
-      set({ designLayerState: { ...prev, hiddenById: nextHidden } })
+      const next = { ...prev, hiddenById: nextHidden }
+      const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+      const by = state.designLayerStateByGraphMetaKey || {}
+      const nextBy = graphKey ? { ...by, [graphKey]: next } : by
+      set({ designLayerState: next, designLayerStateByGraphMetaKey: nextBy })
     },
     moveDesignLayer: (id: string, dir: 'up' | 'down') => {
       const key = normId(id)
       if (!key) return
-      const prev = get().designLayerState
+      const state = get()
+      const prev = state.designLayerState
       const nextOrder = moveDesignLayer({ order: prev.order || [], id: key, dir })
       if (nextOrder === prev.order) return
-      set({ designLayerState: { ...prev, order: nextOrder } })
+      const next = { ...prev, order: nextOrder }
+      const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+      const by = state.designLayerStateByGraphMetaKey || {}
+      const nextBy = graphKey ? { ...by, [graphKey]: next } : by
+      set({ designLayerState: next, designLayerStateByGraphMetaKey: nextBy })
     },
     setDesignLayerState: (next: DesignLayerState) => {
       const n = next || { order: [], hiddenById: {} }
-      set({ designLayerState: { order: Array.isArray(n.order) ? n.order : [], hiddenById: n.hiddenById || {} } })
+      const normalized = { order: Array.isArray(n.order) ? n.order : [], hiddenById: n.hiddenById || {} }
+      const state = get()
+      const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+      const by = state.designLayerStateByGraphMetaKey || {}
+      const nextBy = graphKey ? { ...by, [graphKey]: normalized } : by
+      set({ designLayerState: normalized, designLayerStateByGraphMetaKey: nextBy })
     },
 
     designWireframeCacheEpoch: 0,

@@ -15,10 +15,12 @@ import { getIconSizeClass, getPinToggleButtonClassName } from '@/lib/ui'
 import { cn } from '@/lib/utils'
 import { NODE_QUICK_EDITOR_BASE_SIZE } from '@/components/FlowEditor/nodeQuickEditorZoom'
 import { ChevronDown, ChevronUp, Pin, PinOff, CheckCircle, Minimize2, Maximize2 } from 'lucide-react'
+import { resolveBeatRefForNode, resolveBeatClipOverlayIdsForNode } from '@/components/FlowEditor/beatByBeat'
 
 export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel(args: {
   active: boolean
   node: GraphNode
+  graphMetaKind?: string | null
   registryEntry: NodeQuickEditorRegistryEntry | null
   registryEntries: ReadonlyArray<NodeQuickEditorRegistryEntry>
   minimized: boolean
@@ -28,6 +30,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   uiPanelOpacity: number | null | undefined
   panelTextClass: string
   microLabelClass: string
+  monospaceTextClass: string
   uiIconScale: 'compact' | 'default' | undefined
   uiIconStrokeWidth: number
   labelInputRef: React.MutableRefObject<HTMLInputElement | null>
@@ -56,6 +59,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   const {
     active,
     node,
+    graphMetaKind,
     registryEntry,
     registryEntries,
     minimized,
@@ -65,6 +69,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
     uiPanelOpacity,
     panelTextClass,
     microLabelClass,
+    monospaceTextClass,
     uiIconScale,
     uiIconStrokeWidth,
     labelInputRef,
@@ -94,6 +99,26 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   const iconSizeClass = getIconSizeClass(uiIconScale)
 
   const hasSchemaFields = React.useMemo(() => readSchemaFieldSpecs(node).length > 0, [node])
+
+  const beatByBeatTitle = React.useMemo(() => {
+    const kind = String(graphMetaKind || '').trim()
+    if (kind !== 'frontmatter-flow') return null
+    const beatRef = resolveBeatRefForNode(node)
+    if (!beatRef) return null
+    const ids = resolveBeatClipOverlayIdsForNode(node)
+    if (!ids) return null
+    return (
+      <>
+        <span>{beatRef}</span>
+        <span>{' · '}</span>
+        <code className={cn(monospaceTextClass, UI_THEME_TOKENS.text.secondary)}>{`{{timeline.beats.${beatRef}.label}}`}</code>
+        <span>{' · '}</span>
+        <code className={cn(monospaceTextClass, UI_THEME_TOKENS.text.secondary)}>{ids.clipNodeId}</code>
+        <span>{' → '}</span>
+        <code className={cn(monospaceTextClass, UI_THEME_TOKENS.text.secondary)}>{ids.overlayNodeId}</code>
+      </>
+    )
+  }, [graphMetaKind, monospaceTextClass, node.id, (node.properties as unknown as { params?: unknown } | null)?.params])
   const handleSchemaPortHandleClick = React.useCallback(
     (evt: { dir: 'in' | 'out'; portKey: string }) => {
       if (!active) return
@@ -179,7 +204,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
                 minimized ? microLabelClass : '',
               )}
             >
-              {String(node.label || node.id)}
+              {beatByBeatTitle || String(node.label || node.id)}
             </h3>
           </section>
 
@@ -248,6 +273,8 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
         <NodeOverlayEditorForm
           active={active}
           node={node}
+          graphMetaKind={graphMetaKind}
+          edges={portHandleEdges}
           schema={schema}
           hideFields={hideFields}
           labelInputRef={labelInputRef}

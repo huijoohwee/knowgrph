@@ -8,6 +8,7 @@ import { AGENTIC_RAG_SCHEMA_URL } from '@/lib/agenticrag'
 import {
   slugify,
   extractMarkdownInlineRefs,
+  extractBareHttpUrls,
   classifyMediaFromAltAndUrl,
 } from './markdownJsonLdUtils'
 import {
@@ -393,9 +394,30 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
         builder.setNext(lastBlockId, id)
         lastBlockId = id
         if (mermaidAnchorsOnly) anchorsOnlyParagraphEmitted = true
+        const standaloneUrl = (() => {
+          const raw = String(b.text || '').trim()
+          if (!raw) return null
+          const singleLine = raw.split('\n').map(l => l.trim()).filter(Boolean)
+          if (singleLine.length !== 1) return null
+          const line = singleLine[0] || ''
+          const mdLink = line.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+          if (mdLink && mdLink[2]) return String(mdLink[2]).trim()
+          const angle = line.match(/^<([^>]+)>$/)
+          if (angle && angle[1]) return String(angle[1]).trim()
+          if (/^https?:\/\/\S+$/i.test(line)) return line
+          return null
+        })()
         const refs = extractMarkdownInlineRefs(b.text || '', { baseUrl: sourceUrl || undefined })
         for (const link of refs.links) {
-          builder.createLinkNode(link.url, link.label, mkMeta(b.startLine, b.endLine), id)
+          builder.createLinkNode(link.url, link.label, mkMeta(b.startLine, b.endLine), id, {
+            preferMedia: !!standaloneUrl && standaloneUrl === link.url,
+          })
+        }
+        const bareUrls = extractBareHttpUrls(b.text || '', { baseUrl: sourceUrl || undefined })
+        for (const url of bareUrls) {
+          builder.createLinkNode(url, url, mkMeta(b.startLine, b.endLine), id, {
+            preferMedia: !!standaloneUrl && standaloneUrl === url,
+          })
         }
         for (const img of refs.images) {
           const normalizedUrl = (() => {
@@ -581,6 +603,11 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
         const url = String(link.url || '').trim()
         if (!url || url.startsWith('#')) continue
         builder.createLinkNode(url, link.label, mkMeta(lineNo, lineNo), docId)
+      }
+      const bareUrls = extractBareHttpUrls(line, { baseUrl: sourceUrl || undefined })
+      for (const url of bareUrls) {
+        if (!url || url.startsWith('#')) continue
+        builder.createLinkNode(url, url, mkMeta(lineNo, lineNo), docId)
       }
       for (const img of refs.images) {
         const normalizedUrl = (() => {

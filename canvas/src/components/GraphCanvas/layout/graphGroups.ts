@@ -129,7 +129,7 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
       const props = (n.properties || {}) as Record<string, unknown>
-      const raw = props['visual:community'] ?? props['visual:layer']
+      const raw = props['visual:community']
       const key =
         typeof raw === 'number'
           ? (Number.isFinite(raw) ? String(raw) : '')
@@ -174,6 +174,70 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
       out.push({
         id: `community:${key}`,
         label: `Community ${key}`,
+        depth: props?.depth ?? 0,
+        xIndex: props?.xIndex,
+        yIndex: props?.yIndex,
+        memberNodeIds: ids,
+        style: {},
+      })
+    })
+    return out
+  })()
+  const layers = (() => {
+    const nodes = Array.isArray(data.nodes) ? data.nodes : []
+    const byLayer = new Map<string, string[]>()
+    const propsByLayer = new Map<string, { depth?: number; xIndex?: number; yIndex?: number }>()
+
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const props = (n.properties || {}) as Record<string, unknown>
+      if (props['visual:community'] != null) continue
+      const raw = props['visual:layer']
+      const key =
+        typeof raw === 'number'
+          ? (Number.isFinite(raw) ? String(raw) : '')
+          : typeof raw === 'string'
+            ? raw.trim()
+            : ''
+      if (!key) continue
+      const arr = byLayer.get(key) || []
+      arr.push(String(n.id))
+      byLayer.set(key, arr)
+
+      const current = propsByLayer.get(key) || {}
+
+      let depthCandidate = current.depth
+      if (typeof raw === 'number' && Number.isFinite(raw)) {
+        depthCandidate = Math.max(depthCandidate ?? -Infinity, raw)
+      }
+
+      const explicitDepth = typeof props['visual:depth'] === 'number' ? props['visual:depth'] : typeof props['visual:zIndex'] === 'number' ? props['visual:zIndex'] : undefined
+      if (typeof explicitDepth === 'number' && Number.isFinite(explicitDepth)) {
+        depthCandidate = Math.max(depthCandidate ?? -Infinity, explicitDepth)
+      }
+
+      const xIndex = typeof props['visual:xIndex'] === 'number' ? props['visual:xIndex'] : undefined
+      const yIndex = typeof props['visual:yIndex'] === 'number' ? props['visual:yIndex'] : undefined
+
+      if (typeof xIndex === 'number' && Number.isFinite(xIndex)) {
+        current.xIndex = Math.max(current.xIndex ?? -Infinity, xIndex)
+      }
+      if (typeof yIndex === 'number' && Number.isFinite(yIndex)) {
+        current.yIndex = Math.max(current.yIndex ?? -Infinity, yIndex)
+      }
+
+      current.depth = depthCandidate
+      propsByLayer.set(key, current)
+    }
+
+    const out: GraphGroup[] = []
+    byLayer.forEach((memberNodeIds, key) => {
+      const ids = Array.from(new Set(memberNodeIds)).filter(Boolean).sort((a, b) => a.localeCompare(b))
+      if (ids.length === 0) return
+      const props = propsByLayer.get(key)
+      out.push({
+        id: `layer:${key}`,
+        label: key,
         depth: props?.depth ?? 0,
         xIndex: props?.xIndex,
         yIndex: props?.yIndex,
@@ -236,7 +300,7 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
     return out
   })()
 
-  const merged = [...mermaid, ...headings, ...keywordLayers, ...keywordNerGroups, ...communities, ...userSubgraphs]
+  const merged = [...mermaid, ...headings, ...keywordLayers, ...keywordNerGroups, ...communities, ...layers, ...userSubgraphs]
 
   const nodeIdSet = (() => {
     const nodes = Array.isArray(data.nodes) ? data.nodes : []
