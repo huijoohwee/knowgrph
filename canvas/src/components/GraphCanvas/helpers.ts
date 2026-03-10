@@ -33,16 +33,27 @@ export function create2dSvgSnapshotFns(
     try {
       const el = svgRef.current
       if (!el) return null
-      const serializer = new XMLSerializer()
-      const markup = serializer.serializeToString(el)
+      const markup =
+        buildViewportSvgMarkupFromElement(el, {
+          includeXmlDeclaration: true,
+          inlineComputedStyles: true,
+          removeCssClasses: true,
+          removeDataAttributes: false,
+        }) || ''
       if (!markup || !markup.trim()) return null
       const blob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' })
       const url = URL.createObjectURL(blob)
       try {
         const img = new Image()
-        const viewBox = el.viewBox && el.viewBox.baseVal ? el.viewBox.baseVal : null
-        const w = viewBox && viewBox.width ? viewBox.width : el.clientWidth || 800
-        const h = viewBox && viewBox.height ? viewBox.height : el.clientHeight || 600
+        const rect = (() => {
+          try {
+            return el.getBoundingClientRect()
+          } catch {
+            return null
+          }
+        })()
+        const w = rect && Number.isFinite(rect.width) && rect.width > 0 ? Math.floor(rect.width) : el.clientWidth || 800
+        const h = rect && Number.isFinite(rect.height) && rect.height > 0 ? Math.floor(rect.height) : el.clientHeight || 600
         const ratio = pixelRatio && pixelRatio > 0 ? pixelRatio : 1
         const canvas = document.createElement('canvas')
         canvas.width = Math.max(1, Math.floor(w * ratio))

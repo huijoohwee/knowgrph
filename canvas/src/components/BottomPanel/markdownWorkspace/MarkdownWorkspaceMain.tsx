@@ -31,6 +31,7 @@ import { runInIdle } from '@/features/panels/utils/idle'
 import { saveBlobWithPicker, downloadBlob } from '@/lib/graph/save'
 import { exportGraphAsJSON, exportSvgSnapshot, type DatasetPath } from '@/lib/graph/file'
 import { buildStandaloneSvgMarkupFromElement, captureVisibleCanvasPngBlobFromDom, readCanvasViewportSizeFromDom, wrapPngBlobAsSvgMarkup } from '@/lib/graph/svgSnapshot'
+import type { GraphNode } from '@/lib/graph/types'
 import { printElementToPdf } from '@/lib/print/printElementToPdf'
 import { buildWorkspaceFileJsonLdV1 } from './workspaceImport'
 import { LS_KEYS } from '@/lib/config'
@@ -42,6 +43,7 @@ import { loadThreeOfflineModuleSources } from '@/lib/three/offlineModules'
 import { getThreeConfig } from '@/lib/graph/schema'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { computeNeighborIds, computeNodeVisual, computeEdgeVisual } from '@/components/GraphCanvas/highlight'
+import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { KG_TOKEN_DEFS, ensureKgTokensInstalled, resolveCssVarWithKgFallback, getKgThemeFromDom } from '@/lib/ui/tokens-ssot'
 
 export type MarkdownWorkspaceMainProps = {
@@ -2019,7 +2021,52 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       let threeFallbackPngDataUrl = ''
       if (svgMarkup) {
         const stripped = svgMarkup.replace(/^\s*<\?xml[^>]*>\s*/i, '')
-        bodyHtml = `<div class="kgExportCanvasRoot">${stripped}</div>`
+        const mediaOverlayHtml = (() => {
+          if (store.renderMediaAsNodes !== true) return ''
+          const nodes = Array.isArray((store.graphData as { nodes?: unknown[] } | null)?.nodes)
+            ? ((store.graphData as unknown as { nodes: GraphNode[] }).nodes as GraphNode[])
+            : []
+          if (!nodes.length) return ''
+          const escapeAttr = (v: string): string =>
+            String(v || '')
+              .replace(/&/g, '&amp;')
+              .replace(/"/g, '&quot;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+          const escapeText = (v: string): string =>
+            String(v || '')
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+          const parts: string[] = []
+          for (let i = 0; i < nodes.length; i += 1) {
+            const n = nodes[i]
+            const id = String(n?.id ?? '').trim()
+            if (!id) continue
+            const spec = getNodeMediaSpec(n)
+            if (!spec) continue
+            const titleRaw = String(n?.label ?? n?.id ?? '').trim() || 'Media node'
+            const title = escapeText(titleRaw)
+            const url = escapeAttr(String(spec.url || '').trim())
+            const interactive = spec.interactive !== false ? '1' : '0'
+            const kind = spec.kind === 'image' || spec.kind === 'svg' || spec.kind === 'video' ? spec.kind : 'iframe'
+            const content =
+              kind === 'iframe'
+                ? `<iframe title="${escapeAttr(titleRaw)}" src="${url}" loading="lazy" allow="fullscreen; autoplay; clipboard-read; clipboard-write; geolocation" style="display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius, 10px) * 0.8);background:transparent;"></iframe>`
+                : kind === 'video'
+                  ? `<video src="${url}" playsinline muted controls preload="metadata" style="display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius, 10px) * 0.8);object-fit:cover;background:transparent;"></video>`
+                  : `<img src="${url}" alt="${escapeAttr(titleRaw)}" loading="lazy" style="display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius, 10px) * 0.8);object-fit:cover;background:transparent;" />`
+            parts.push(
+              `<div class="kgExportMediaPanel" data-node-id="${escapeAttr(id)}" data-kg-media-kind="${escapeAttr(kind)}" data-kg-media-interactive="${interactive}">` +
+                `<header class="kgExportMediaHeader" title="${escapeAttr(titleRaw)}">${title}</header>` +
+                `<section class="kgExportMediaBody">${content}</section>` +
+              `</div>`,
+            )
+          }
+          if (!parts.length) return ''
+          return `<div class="kgExportMediaOverlayRoot">${parts.join('')}</div>`
+        })()
+        bodyHtml = `<div class="kgExportCanvasRoot"><div class="kgExportCanvasStage">${stripped}${mediaOverlayHtml}</div></div>`
       } else {
         const shouldTry3dFit = !geospatialEnabled && wants3dExport
         const shouldTry2dFit =
@@ -2774,6 +2821,22 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         return themeAttr === 'dark' ? (cleaned ? `${cleaned} dark` : 'dark') : cleaned
       })()
       const varsCss = buildKgVarsStyle(themeAttr)
+      const mediaCfgJson = (() => {
+        const density = store.mediaPanelDensity === 'compact' ? 'compact' : 'default'
+        const num = (v: unknown, fallback: number) => {
+          const n = typeof v === 'number' ? v : Number(v)
+          return Number.isFinite(n) ? n : fallback
+        }
+        return JSON.stringify({
+          density,
+          widthRatioDefault: num((store as unknown as { threeIframeOverlayBaseWidthRatioDefault?: unknown }).threeIframeOverlayBaseWidthRatioDefault, 0.2),
+          widthRatioCompact: num((store as unknown as { threeIframeOverlayBaseWidthRatioCompact?: unknown }).threeIframeOverlayBaseWidthRatioCompact, 0.16),
+          widthMinDefault: num((store as unknown as { threeIframeOverlayBaseWidthMinPxDefault?: unknown }).threeIframeOverlayBaseWidthMinPxDefault, 210),
+          widthMinCompact: num((store as unknown as { threeIframeOverlayBaseWidthMinPxCompact?: unknown }).threeIframeOverlayBaseWidthMinPxCompact, 180),
+          widthMaxDefault: num((store as unknown as { threeIframeOverlayBaseWidthMaxPxDefault?: unknown }).threeIframeOverlayBaseWidthMaxPxDefault, 360),
+          widthMaxCompact: num((store as unknown as { threeIframeOverlayBaseWidthMaxPxCompact?: unknown }).threeIframeOverlayBaseWidthMaxPxCompact, 300),
+        })
+      })()
 
       const html = [
         '<!doctype html>',
@@ -2788,6 +2851,13 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '    body { height: 100%; }',
         `    body { margin: 0; background: ${exportBg}; color: ${exportFg}; }`,
         '    .kgExportCanvasRoot { width: 100vw; height: 100vh; display: grid; place-items: center; overflow: hidden; }',
+        '    .kgExportCanvasStage { width: 100%; height: 100%; position: relative; }',
+        '    .kgExportCanvasStage > svg { position: absolute; inset: 0; }',
+        '    .kgExportMediaOverlayRoot { position: absolute; inset: 0; z-index: 3; pointer-events: none; }',
+        '    .kgExportMediaPanel { position: absolute; left: 0; top: 0; box-sizing: border-box; overflow: hidden; contain: layout paint; isolation: isolate; border-radius: var(--kg-media-panel-radius, 10px); border: var(--kg-media-panel-border-w, 1px) solid var(--kg-border); background: var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.92))); box-shadow: 0 10px 30px rgba(0,0,0,0.18); backface-visibility: hidden; -webkit-backface-visibility: hidden; will-change: transform, width, height; pointer-events: none; display: flex; flex-direction: column; visibility: hidden; opacity: 0; }',
+        '    .kgExportMediaPanel[data-kg-media-interactive="1"] { pointer-events: auto; }',
+        '    .kgExportMediaHeader { height: var(--kg-media-panel-header-h, 28px); min-height: var(--kg-media-panel-header-h, 28px); box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding-left: var(--kg-media-panel-padding, 6px); padding-right: var(--kg-media-panel-padding, 6px); background: var(--kg-media-panel-header-bg, var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.96)))); border-bottom: var(--kg-media-panel-border-w, 1px) solid var(--kg-border); color: var(--kg-text-primary, var(--kg-text)); font-size: var(--kg-media-panel-title-size, 12px); font-weight: 600; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: auto; user-select: none; }',
+        '    .kgExportMediaBody { flex: 1; padding: var(--kg-media-panel-padding, 6px); box-sizing: border-box; min-height: 0; }',
         '    .kgExportThreeRoot { place-items: stretch; position: relative; }',
         '    #kgExportThreeCanvas { width: 100%; height: 100%; display: block; }',
         '    .kgExportThreeSnapshot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 1; }',
@@ -2857,6 +2927,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '      const svg = root.querySelector("svg");',
         '      const img = root.querySelector("img.kgExportCanvasImg");',
         '      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));',
+        `      const MEDIA_CFG = ${mediaCfgJson};`,
         `      const LABELS = (() => {`,
         `        try {`,
         `          const raw = "${labelsForExportB64}";`,
@@ -2996,6 +3067,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '          if (!p) return;',
         '          vb = { ...pan.vb, x: pan.vb.x - (p.x - pan.sx), y: pan.vb.y - (p.y - pan.sy) };',
         '          applyVb(vb);',
+        '          try { updateMediaOverlays(); } catch { }',
         '        });',
         '        svg.addEventListener("pointerup", (e) => {',
         '          if (!pan || e.pointerId !== pan.pointerId) return;',
@@ -3011,6 +3083,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '          const sy = (p.y - vb.y) / vb.h;',
         '          vb = { x: p.x - sx * nextW, y: p.y - sy * nextH, w: nextW, h: nextH };',
         '          applyVb(vb);',
+        '          try { updateMediaOverlays(); } catch { }',
         '          try { e.preventDefault(); } catch { }',
         '        }, { passive: false });',
         '        const pushMap = (m, k, v) => {',
@@ -3024,6 +3097,119 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '          const id = String(el.getAttribute("data-node-id") || "");',
         '          pushMap(nodeShapesById, id, el);',
         '        }',
+        '        const mediaRoot = root.querySelector(".kgExportMediaOverlayRoot");',
+        '        const mediaPanels = mediaRoot ? Array.from(mediaRoot.querySelectorAll(".kgExportMediaPanel[data-node-id]")) : [];',
+        '        let lastMediaVarsKey = "";',
+        '        let lastMediaVars = null;',
+        '        let lastMediaPanelW = 0;',
+        '        let lastMediaPanelH = 0;',
+        '        const computeMediaVars = (density, sizeScale) => {',
+        '          const s = Number.isFinite(sizeScale) ? Math.max(0.001, Number(sizeScale)) : 1;',
+        '          const d = density === "compact" ? "compact" : "default";',
+        '          const headerBase = d === "compact" ? 22 : 28;',
+        '          const paddingBase = d === "compact" ? 6 : 8;',
+        '          const radiusBase = d === "compact" ? 9 : 10;',
+        '          const borderBase = 1;',
+        '          const titleBase = d === "compact" ? 11 : 12;',
+        '          const headerH = Math.max(14, Math.round(headerBase * s));',
+        '          const padding = Math.max(2, Math.round(paddingBase * s));',
+        '          const radius = Math.max(3, Math.round(radiusBase * s));',
+        '          const borderW = Math.max(1, Math.round(borderBase * s));',
+        '          const titleSize = Math.max(10, Math.round(titleBase * s));',
+        '          const metrics = { headerH, padding, radius, borderW, titleSize };',
+        '          const vars = {',
+        '            "--kg-media-panel-header-h": `${headerH}px`,',
+        '            "--kg-media-panel-border-w": `${borderW}px`,',
+        '            "--kg-media-panel-radius": `${radius}px`,',
+        '            "--kg-media-panel-padding": `${padding}px`,',
+        '            "--kg-media-panel-title-size": `${titleSize}px`,',
+        '          };',
+        '          return { metrics, vars };',
+        '        };',
+        '        const computePanelSize16x9 = (contentW, headerH, padding) => {',
+        '          const cw = Math.max(2, Number(contentW) || 2);',
+        '          const ch = Math.max(2, (cw * 9) / 16);',
+        '          const p = Math.max(0, Number(padding) || 0);',
+        '          const hh = Math.max(0, Number(headerH) || 0);',
+        '          const panelW = Math.max(2, cw + p * 2);',
+        '          const panelH = Math.max(2, ch + hh + p * 2);',
+        '          return { panelW, panelH, contentW: cw, contentH: ch };',
+        '        };',
+        '        const applyVars = (el, vars) => {',
+        '          if (!(el instanceof HTMLElement) || !vars) return;',
+        '          for (const k of Object.keys(vars)) el.style.setProperty(k, String(vars[k] || ""));',
+        '        };',
+        '        const svgToClient = (x, y) => {',
+        '          if (!svg) return null;',
+        '          const ctm = svg.getScreenCTM();',
+        '          if (!ctm) return null;',
+        '          const pt = svg.createSVGPoint();',
+        '          pt.x = x;',
+        '          pt.y = y;',
+        '          const out = pt.matrixTransform(ctm);',
+        '          return { x: out.x, y: out.y };',
+        '        };',
+        '        const updateMediaOverlays = () => {',
+        '          if (!mediaPanels.length) return;',
+        '          const rect = root.getBoundingClientRect();',
+        '          const vw = Math.max(1, rect.width);',
+        '          const vh = Math.max(1, rect.height);',
+        '          const ctm = svg ? svg.getScreenCTM() : null;',
+        '          const kRaw = ctm && Number.isFinite(ctm.a) ? Math.abs(ctm.a) : 1;',
+        '          const k = Math.max(0.001, kRaw);',
+        '          const density = MEDIA_CFG && MEDIA_CFG.density === "compact" ? "compact" : "default";',
+        '          const widthRatio = density === "compact" ? Number(MEDIA_CFG.widthRatioCompact || 0.16) : Number(MEDIA_CFG.widthRatioDefault || 0.2);',
+        '          const widthMin = density === "compact" ? Number(MEDIA_CFG.widthMinCompact || 180) : Number(MEDIA_CFG.widthMinDefault || 210);',
+        '          const widthMax = density === "compact" ? Number(MEDIA_CFG.widthMaxCompact || 300) : Number(MEDIA_CFG.widthMaxDefault || 360);',
+        '          const clampW = (px) => Math.max(Math.max(1, widthMin), Math.min(Math.max(1, widthMax), Number(px) || 0));',
+        '          const baseW = clampW(vw * Math.max(0.001, Math.min(0.9, widthRatio)));',
+        '          const MAX_PANEL_PX = 2048;',
+        '          const STEP_PX = 16;',
+        '          const quantize = (px) => Math.round(px / STEP_PX) * STEP_PX;',
+        '          const contentW = Math.max(2, Math.min(MAX_PANEL_PX, quantize(baseW * k)));',
+        '          const sizeScale = Math.max(0.001, contentW / Math.max(1, baseW));',
+        '          let varsChanged = false;',
+        '          const varsKey = `${density}|${Math.round(contentW)}`;',
+        '          if (varsKey !== lastMediaVarsKey || !lastMediaVars) {',
+        '            const computed = computeMediaVars(density, sizeScale);',
+        '            const panel = computePanelSize16x9(contentW, computed.metrics.headerH, computed.metrics.padding);',
+        '            lastMediaVars = computed.vars;',
+        '            lastMediaPanelW = panel.panelW;',
+        '            lastMediaPanelH = panel.panelH;',
+        '            lastMediaVarsKey = varsKey;',
+        '            varsChanged = true;',
+        '          }',
+        '          for (const panelEl of mediaPanels) {',
+        '            const id = String(panelEl.getAttribute("data-node-id") || "");',
+        '            if (!id) continue;',
+        '            const list = nodeShapesById.get(id);',
+        '            const shapeEl = list && list.length ? list[0] : null;',
+        '            const center = shapeEl ? getNodeCenter(shapeEl) : null;',
+        '            if (!center) {',
+        '              panelEl.style.visibility = "hidden";',
+        '              panelEl.style.opacity = "0";',
+        '              continue;',
+        '            }',
+        '            const client = svgToClient(center.x, center.y);',
+        '            if (!client) {',
+        '              panelEl.style.visibility = "hidden";',
+        '              panelEl.style.opacity = "0";',
+        '              continue;',
+        '            }',
+        '            const cx = client.x - rect.left;',
+        '            const cy = client.y - rect.top;',
+        '            const left = Math.round(cx - lastMediaPanelW / 2);',
+        '            const top = Math.round(cy - lastMediaPanelH / 2);',
+        '            if (varsChanged) applyVars(panelEl, lastMediaVars);',
+        '            panelEl.style.width = `${Math.round(lastMediaPanelW)}px`;',
+        '            panelEl.style.height = `${Math.round(lastMediaPanelH)}px`;',
+        '            panelEl.style.transform = `translate3d(${left}px, ${top}px, 0px)`;',
+        '            panelEl.style.visibility = "visible";',
+        '            panelEl.style.opacity = "1";',
+        '          }',
+        '        };',
+        '        try { updateMediaOverlays(); } catch { }',
+        '        try { window.addEventListener("resize", () => { try { updateMediaOverlays(); } catch { } }); } catch { }',
         '        const nodeLabelsById = new Map();',
         '        for (const el of Array.from(svg.querySelectorAll(\'g[data-kg-layer="labels"] text[data-node-id]\'))) {',
         '          const id = String(el.getAttribute("data-node-id") || "");',

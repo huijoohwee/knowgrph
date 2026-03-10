@@ -204,6 +204,37 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     )
   }
 
+  const computeAutoCenterTransform = (): { k: number; x: number; y: number } | null => {
+    if (initialZoomTransform) return null
+    if (fitToScreenMode) return null
+    const nodes = displayNodes
+    if (!nodes || nodes.length === 0) return null
+    let minX = Number.POSITIVE_INFINITY
+    let maxX = Number.NEGATIVE_INFINITY
+    let minY = Number.POSITIVE_INFINITY
+    let maxY = Number.NEGATIVE_INFINITY
+    let count = 0
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const x = typeof n.x === 'number' && Number.isFinite(n.x) ? (n.x as number) : NaN
+      const y = typeof n.y === 'number' && Number.isFinite(n.y) ? (n.y as number) : NaN
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+      if (x < minX) minX = x
+      if (x > maxX) maxX = x
+      if (y < minY) minY = y
+      if (y > maxY) maxY = y
+      count += 1
+    }
+    if (count === 0) return null
+    const cx = (minX + maxX) / 2
+    const cy = (minY + maxY) / 2
+    if (!Number.isFinite(cx) || !Number.isFinite(cy)) return null
+    const x = width / 2 - cx
+    const y = height / 2 - cy
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null
+    return { k: 1, x, y }
+  }
+
   const layoutPositionsSource = (() => {
     const cached = layoutPositionsForMode && Object.keys(layoutPositionsForMode).length > 0 ? layoutPositionsForMode : null
     const prev = prevPositions && Object.keys(prevPositions).length > 0 ? prevPositions : null
@@ -385,6 +416,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   if (initialZoomTransform) {
     applyInitialTransform(initialZoomTransform)
+  } else {
+    applyInitialTransform(computeAutoCenterTransform())
   }
 
   if (args.freezeSimulation === true) {
