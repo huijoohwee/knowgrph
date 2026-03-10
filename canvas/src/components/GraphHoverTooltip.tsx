@@ -557,7 +557,7 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
   const hoverY = Math.max(8, Math.min(Math.max(8, rect.height - 8), hoverYRaw))
   return (
     <Tooltip
-      content={content}
+      content={<div data-kg-canvas-wheel-ignore="true">{content}</div>}
       open
       className={tooltipInteractive ? 'absolute z-50 pointer-events-auto' : 'absolute z-50 pointer-events-none'}
       anchorStyle={{ left: hoverX, top: hoverY, width: 0, height: 0 }}

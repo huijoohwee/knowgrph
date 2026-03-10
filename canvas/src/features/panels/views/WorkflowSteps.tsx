@@ -16,6 +16,8 @@ import GraphRagTextPipelineSection from '@/features/panels/views/GraphRagTextPip
 import type { ParserSelectionSectionProps, ParserDataSectionProps } from '@/features/panels/views/ParserSectionsModel'
 import { useSchemaConfiguratorUiState } from '@/features/schema-editor/useSchemaConfiguratorUiState'
 import SchemaUiEditorPane from '@/features/schema/ui/SchemaUiEditorPane'
+import WorkflowExportActions from '@/features/panels/views/WorkflowExportActions'
+import { useWorkflowExportActions } from '@/features/panels/hooks/useWorkflowExportActions'
 
 type CollapsedByStep = {
   1: boolean;
@@ -48,6 +50,7 @@ interface WorkflowStepsProps {
   hasSchema: boolean;
   graphDataLoaded: boolean;
   searchQuery?: string;
+  exportActions: ReturnType<typeof useWorkflowExportActions>;
   onOpenSchemaTab: () => void;
   onOpenParserScript: () => void;
   onOpenRenderTab: () => void;
@@ -80,6 +83,7 @@ export function WorkflowSteps({
   hasSchema,
   graphDataLoaded,
   searchQuery,
+  exportActions,
   onOpenSchemaTab,
   onOpenParserScript,
   onOpenRenderTab,
@@ -378,9 +382,43 @@ export function WorkflowSteps({
         collapsed={collapsedByStep[8]}
         onToggle={next => onToggleStep(8, next)}
       >
-        <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
-          Stats now live in Graph Fields, History lives in the History tab, and rendering controls open in the floating Renderer panel.
-        </p>
+        <WorkflowExportActions
+          exportedThisSession={exportActions.exportedThisSession}
+          exportedAt={exportActions.exportedAt}
+          onExportAll={exportActions.exportAll}
+          onExportGraphJsonLd={exportActions.exportGraphJsonLd}
+          onExportGraphJson={exportActions.exportGraphJson}
+          onExportGraphCsvCombined={exportActions.exportGraphCsvCombined}
+          onExportGraphMl={exportActions.exportGraphGraphMl}
+          onExportGraphCypher={exportActions.exportGraphCypher}
+          onExportSettingsJsonLd={exportActions.exportSettingsJsonLd}
+          onExportHistoryJsonLd={exportActions.exportHistoryJsonLd}
+          onExportGraphFieldSettingsJsonLd={exportActions.exportGraphFieldSettingsJsonLd}
+          onExportGraphRagWorkflowJsonLd={exportActions.exportGraphRagWorkflowJsonLd}
+          onExportSvgSnapshot={exportActions.exportSvgSnapshotAction}
+          onExportPngSnapshot={exportActions.exportPngSnapshotAction}
+          onExportHtmlViewer={exportActions.exportHtmlViewerAction}
+          onCopyGraphJsonLd={exportActions.copyGraphJsonLd}
+          onCopyGraphJson={exportActions.copyGraphJson}
+          onExportValidationJson={exportActions.exportValidationJson}
+          onExportValidationMarkdown={exportActions.exportValidationMarkdown}
+          onExportSelectionValidationJson={exportActions.exportSelectionValidationJson}
+          onExportSelectionValidationMarkdown={exportActions.exportSelectionValidationMarkdown}
+          onExportSchemaJson={exportActions.exportSchemaJson}
+          onExportSchemaJsonLd={exportActions.exportSchemaJsonLd}
+          onExportSchemaCsv={exportActions.exportSchemaCsv}
+          onCopySchemaJsonLd={exportActions.copySchemaJsonLd}
+          onCopySchemaJson={exportActions.copySchemaJson}
+          graphHeading=""
+          schemaHeading=""
+          hasSelection={exportActions.hasSelection}
+          selectionSummary={exportActions.selectionSummary}
+          onExportSelectionJsonLd={exportActions.exportSelectionJsonLd}
+          onExportSelectionJson={exportActions.exportSelectionJson}
+          onExportSelectionCsvCombined={exportActions.exportSelectionCsvCombined}
+          onExportSelectionGraphMl={exportActions.exportSelectionGraphMl}
+          onExportSelectionCypher={exportActions.exportSelectionCypher}
+        />
       </CollapsibleSection>
     </section>
   );

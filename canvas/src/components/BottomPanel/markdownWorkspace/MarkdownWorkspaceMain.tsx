@@ -2027,6 +2027,14 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             ? ((store.graphData as unknown as { nodes: GraphNode[] }).nodes as GraphNode[])
             : []
           if (!nodes.length) return ''
+          const poolMax = (() => {
+            const raw = (store as unknown as { threeIframeOverlayPoolMax?: unknown }).threeIframeOverlayPoolMax
+            const n = typeof raw === 'number' ? raw : Number(raw)
+            if (!Number.isFinite(n)) return 24
+            const v = Math.floor(n)
+            if (v <= 0) return 0
+            return Math.min(200, Math.max(0, v))
+          })()
           const escapeAttr = (v: string): string =>
             String(v || '')
               .replace(/&/g, '&amp;')
@@ -2039,7 +2047,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
               .replace(/</g, '&lt;')
               .replace(/>/g, '&gt;')
           const parts: string[] = []
+          let picked = 0
           for (let i = 0; i < nodes.length; i += 1) {
+            if (poolMax > 0 && picked >= poolMax) break
             const n = nodes[i]
             const id = String(n?.id ?? '').trim()
             if (!id) continue
@@ -2062,6 +2072,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
                 `<section class="kgExportMediaBody">${content}</section>` +
               `</div>`,
             )
+            picked += 1
           }
           if (!parts.length) return ''
           return `<div class="kgExportMediaOverlayRoot">${parts.join('')}</div>`
@@ -3390,34 +3401,46 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '          }',
         '        };',
         '        let drag = null;',
-        '        const nodeBases = [];',
-        '        for (const [id, list] of nodeShapesById.entries()) {',
-        '          if (!id) continue;',
-        '          if (!list || !list.length) continue;',
-        '          const c = getNodeCenter(list[0]);',
-        '          if (!c) continue;',
-        '          nodeBases.push({ id, base: { x: c.x, y: c.y }, seed: id.length });',
-        '        }',
-        '        const tickNodes = () => {',
-        '          if (!drag && !pan && nodeBases.length) {',
-        '            const t = performance.now() * 0.001;',
-        '            const amp = 0.25;',
-        '            for (let i = 0; i < nodeBases.length; i += 1) {',
-        '              const p = nodeBases[i];',
-        '              const nx = p.base.x + Math.sin(t * 0.2 + p.seed) * amp;',
-        '              const ny = p.base.y + Math.cos(t * 0.25 + p.seed) * amp;',
-        '              const shapes = nodeShapesById.get(p.id) || [];',
-        '              for (const el of shapes) setNodeCenter(el, nx, ny);',
-        '              updateNodeLabels(p.id, nx, ny);',
-        '              updatePortHandles(p.id);',
-        '              updateChevron(p.id);',
-        '              const list = edgeByNode.get(p.id) || [];',
-        '              for (const el of list) updateEdge(el);',
-        '            }',
+        '        if (window.__KG_EXPORT_WOBBLE__ === true) {',
+        '          const nodeBases = [];',
+        '          for (const [id, list] of nodeShapesById.entries()) {',
+        '            if (!id) continue;',
+        '            if (!list || !list.length) continue;',
+        '            const c = getNodeCenter(list[0]);',
+        '            if (!c) continue;',
+        '            nodeBases.push({ id, base: { x: c.x, y: c.y }, seed: id.length });',
         '          }',
-        '          requestAnimationFrame(tickNodes);',
-        '        };',
-        '        tickNodes();',
+        '          let lastMediaOverlayTs = 0;',
+        '          const tickNodes = () => {',
+        '            if (!drag && !pan && nodeBases.length) {',
+        '              const t = performance.now() * 0.001;',
+        '              const amp = 0.25;',
+        '              for (let i = 0; i < nodeBases.length; i += 1) {',
+        '                const p = nodeBases[i];',
+        '                const nx = p.base.x + Math.sin(t * 0.2 + p.seed) * amp;',
+        '                const ny = p.base.y + Math.cos(t * 0.25 + p.seed) * amp;',
+        '                const shapes = nodeShapesById.get(p.id) || [];',
+        '                for (const el of shapes) setNodeCenter(el, nx, ny);',
+        '                updateNodeLabels(p.id, nx, ny);',
+        '                updatePortHandles(p.id);',
+        '                updateChevron(p.id);',
+        '                const list = edgeByNode.get(p.id) || [];',
+        '                for (const el of list) updateEdge(el);',
+        '              }',
+        '              try {',
+        '                if (mediaPanels.length) {',
+        '                  const now = performance.now();',
+        '                  if (now - lastMediaOverlayTs > 90) {',
+        '                    lastMediaOverlayTs = now;',
+        '                    updateMediaOverlays();',
+        '                  }',
+        '                }',
+        '              } catch { }',
+        '            }',
+        '            requestAnimationFrame(tickNodes);',
+        '          };',
+        '          tickNodes();',
+        '        }',
         '        svg.addEventListener("pointerdown", (e) => {',
         '          if (e.button !== 0) return;',
         '          const t = e.target;',
@@ -3451,6 +3474,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '          updateChevron(drag.id);',
         '          const list = edgeByNode.get(drag.id) || [];',
         '          for (const el of list) updateEdge(el);',
+        '          try { updateMediaOverlays(); } catch { }',
         '        });',
         '        svg.addEventListener("pointerup", (e) => {',
         '          if (!drag || e.pointerId !== drag.pointerId) return;',
@@ -3470,6 +3494,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '            }',
         '          } catch { }',
         '          drag = null;',
+        '          try { updateMediaOverlays(); } catch { }',
         '        });',
         '      }',
         '      if (img) {',
@@ -3599,6 +3624,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             paddingPx: 96,
             includeXmlDeclaration: true,
             animated: true,
+            threeEdgeRenderer: store.threeEdgeRenderer,
           })
           if (centered3d && centered3d.trim()) {
             await exportSvgSnapshot(centered3d, suggested)

@@ -8,8 +8,9 @@ import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
 import { usePositions } from './layout'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
-import { Vector3, type Camera, type Scene as ThreeScene, type WebGLRenderer } from 'three'
+import { Vector3, Quaternion, Matrix4, type Camera, type Scene as ThreeScene, type WebGLRenderer } from 'three'
 import { useThemeDetector } from '@/hooks/useThemeDetector'
+import type { ThreeCameraPose } from '@/hooks/store/types'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars3d, computePanelRect, computePanelSizeFromContent16x9 } from '@/lib/render/mediaPanelLayout'
 import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
@@ -95,6 +96,9 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   const iframeOverlayScheduleRafRef = React.useRef<number | null>(null)
   const iframeOverlaySchedulePendingRef = React.useRef<boolean>(false)
   const overlayPointerOverrideActiveRef = React.useRef<boolean>(false)
+  const dragOverridesRef = React.useRef<Record<string, [number, number, number]>>({})
+  const overlayHeaderDrag3dRef = React.useRef<null | { id: string; pointerId: number; sx: number; sy: number; ndcZ: number; w: number; h: number }>(null)
+  const overlayPan3dRef = React.useRef<null | { pointerId: number; pose: ThreeCameraPose }>(null)
   const [webglSupported, setWebglSupported] = useState<boolean | null>(null)
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -750,6 +754,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
             onDragNode={setDraggedNodeId}
             draggedNodeId={draggedNodeId}
             theme={theme}
+            dragOverridesRef={dragOverridesRef as unknown as React.MutableRefObject<Record<string, [number, number, number]>>}
           />
           <ControlsLazy
             schema={effectiveSchema as GraphSchema}
@@ -781,10 +786,99 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
                 kind={n.kind}
                 interactive={n.interactive}
                 hideUntilReady={true}
-                headerPassthrough={true}
                 iframeMode="srcdoc-when-needed"
-                onPointerDownCapture={stopEvent}
-                onPointerUpCapture={stopEvent}
+                forwardWheelTo={() => glCanvasRef.current}
+                onOverlayPanStart={({ pointerId }) => {
+                  const pose = useGraphStore.getState().captureThreeCameraPose()
+                  if (!pose) return
+                  overlayPan3dRef.current = { pointerId, pose }
+                }}
+                onOverlayPan={({ pointerId, dx, dy, shiftKey }) => {
+                  const st = overlayPan3dRef.current
+                  if (!st || st.pointerId !== pointerId) return
+                  const pose = st.pose
+                  const isPan = shiftKey === true
+                  const target = new Vector3(pose.target.x, pose.target.y, pose.target.z)
+                  const pos0 = new Vector3(pose.position.x, pose.position.y, pose.position.z)
+                  const startQuat = new Quaternion(pose.quaternion.x, pose.quaternion.y, pose.quaternion.z, pose.quaternion.w)
+                  const worldUp = new Vector3(0, 1, 0)
+                  const offset = pos0.clone().sub(target)
+                  if (isPan) {
+                    const dist = Math.max(1e-3, offset.length())
+                    const scale = dist * 0.0012
+                    const right = new Vector3(1, 0, 0).applyQuaternion(startQuat).normalize()
+                    const up = new Vector3(0, 1, 0).applyQuaternion(startQuat).normalize()
+                    const delta = right.multiplyScalar(-dx * scale).add(up.multiplyScalar(dy * scale))
+                    const nextTarget = target.clone().add(delta)
+                    const nextPos = pos0.clone().add(delta)
+                    const m = new Matrix4().lookAt(nextPos, nextTarget, worldUp)
+                    const q = new Quaternion().setFromRotationMatrix(m)
+                    useGraphStore.getState().restoreThreeCameraPose({
+                      position: { x: nextPos.x, y: nextPos.y, z: nextPos.z },
+                      quaternion: { x: q.x, y: q.y, z: q.z, w: q.w },
+                      target: { x: nextTarget.x, y: nextTarget.y, z: nextTarget.z },
+                    })
+                    return
+                  }
+                  const sensitivity = 0.0025
+                  const yaw = -dx * sensitivity
+                  const pitch = -dy * sensitivity
+                  const right = new Vector3(1, 0, 0).applyQuaternion(startQuat).normalize()
+                  const qYaw = new Quaternion().setFromAxisAngle(worldUp, yaw)
+                  const qPitch = new Quaternion().setFromAxisAngle(right, pitch)
+                  offset.applyQuaternion(qYaw).applyQuaternion(qPitch)
+                  const nextPos = target.clone().add(offset)
+                  const m = new Matrix4().lookAt(nextPos, target, worldUp)
+                  const q = new Quaternion().setFromRotationMatrix(m)
+                  useGraphStore.getState().restoreThreeCameraPose({
+                    position: { x: nextPos.x, y: nextPos.y, z: nextPos.z },
+                    quaternion: { x: q.x, y: q.y, z: q.z, w: q.w },
+                    target: { x: target.x, y: target.y, z: target.z },
+                  })
+                }}
+                onOverlayPanEnd={({ pointerId }) => {
+                  const st = overlayPan3dRef.current
+                  if (!st || st.pointerId !== pointerId) return
+                  overlayPan3dRef.current = null
+                }}
+                onHeaderDragStart={({ clientX, clientY, pointerId }) => {
+                  const camera = threeCameraRef.current
+                  const gl = threeGlRef.current
+                  const p = positions[n.id]
+                  if (!camera || !gl || !p) return
+                  const w = gl.domElement.clientWidth || 1
+                  const h = gl.domElement.clientHeight || 1
+                  const world = new Vector3(p[0], p[1], p[2])
+                  const ndc = world.clone().project(camera as unknown as Camera)
+                  const sx = (ndc.x * 0.5 + 0.5) * w
+                  const sy = (-ndc.y * 0.5 + 0.5) * h
+                  overlayHeaderDrag3dRef.current = { id: n.id, pointerId, sx, sy, ndcZ: ndc.z, w, h }
+                  void clientX
+                  void clientY
+                }}
+                onHeaderDrag={({ dx, dy, pointerId }) => {
+                  const st = overlayHeaderDrag3dRef.current
+                  if (!st) return
+                  if (st.id !== n.id) return
+                  if (st.pointerId !== pointerId) return
+                  const camera = threeCameraRef.current
+                  if (!camera) return
+                  const w = st.w || 1
+                  const h = st.h || 1
+                  const sx = st.sx + dx
+                  const sy = st.sy + dy
+                  const ndcX = (sx / w) * 2 - 1
+                  const ndcY = -((sy / h) * 2 - 1)
+                  const ndcZ = st.ndcZ
+                  if (!Number.isFinite(ndcX) || !Number.isFinite(ndcY) || !Number.isFinite(ndcZ)) return
+                  const nextWorld = new Vector3(ndcX, ndcY, ndcZ).unproject(camera as unknown as Camera)
+                  dragOverridesRef.current[n.id] = [nextWorld.x, nextWorld.y, nextWorld.z]
+                }}
+                onHeaderDragEnd={({ pointerId }) => {
+                  const st = overlayHeaderDrag3dRef.current
+                  if (st && st.id === n.id && st.pointerId === pointerId) overlayHeaderDrag3dRef.current = null
+                  delete dragOverridesRef.current[n.id]
+                }}
                 onWheelCapture={stopEvent}
                 onClickCapture={stopEvent}
                 onDoubleClickCapture={stopEvent}

@@ -349,6 +349,28 @@ export async function exportPngSnapshot(pngBlob: Blob, suggestedName?: string): 
   }
 }
 
+export async function exportHtmlSnapshot(htmlMarkup: string, suggestedName?: string): Promise<void> {
+  try {
+    const trimmed = String(htmlMarkup || '').trim()
+    if (!trimmed) return
+    const blob = new Blob([trimmed], { type: 'text/html;charset=utf-8' })
+    const prefs = readExportPrefs()
+    const pref = (typeof (prefs as Record<string, unknown>).filename === 'string' && (prefs as Record<string, unknown>).format === 'html-viewer')
+      ? ((prefs as Record<string, unknown>).filename as string) : 'graph-viewer.html'
+    const base = typeof suggestedName === 'string' && suggestedName.trim() ? suggestedName : pref
+    const name = ensureExt(base, ['.html', '.htm'], 'graph-viewer.html')
+    const saved = await saveBlobWithPicker(blob, name, { description: 'HTML Files', accept: { 'text/html': ['.html', '.htm'] } })
+    if (saved === '') return
+    if (saved) {
+      writeExportPrefs({ format: 'html-viewer', filename: saved })
+      return
+    }
+    downloadBlob(blob, 'graph-viewer.html')
+  } catch {
+    void 0
+  }
+}
+
 export async function exportValidationSummaryAsJSON(summary: GraphValidationSummary, suggestedName?: string): Promise<void> {
   try {
     const blob = new Blob([JSON.stringify(summary, null, 2)], { type: 'application/json' });

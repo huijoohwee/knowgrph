@@ -210,7 +210,15 @@ import {
 } from '@/__tests__/markdownFrontmatterFlowGraphImport.test'
 import { testParseCombinedCsv } from '@/__tests__/export.test'
 import { testGraphCenteredSvgIncludesAnimationWhenEnabled, testGraphCenteredSvgPutsCentroidInViewCenter } from '@/__tests__/graphCenteredSvg.test'
-import { testGraphCenteredSvg3dCentersAndAnimates } from '@/__tests__/graphCenteredSvg3d.test'
+import {
+  testGraphCenteredSvg3dCentersAndAnimates,
+  testGraphCenteredSvg3dEdgeRgbaAlphaControlsStrokeOpacity,
+  testGraphCenteredSvg3dShaderLineModeIgnoresSchemaEdgeOpacity,
+  testGraphCenteredSvg3dNodeVisualOpacityAffectsSvgOpacity,
+  testGraphCenteredSvg3dResolvesThemeColorsWhenDocumentAvailable,
+} from '@/__tests__/graphCenteredSvg3d.test'
+import { testExportHtmlViewerIsSvgOnlyAndBlocksBrowserZoomAndSelection } from '@/__tests__/graphHtmlViewer.test'
+import { testExportHtmlViewerIncludesRichMediaNodesWithDefaultPoolMax } from '@/__tests__/graphHtmlViewer.test'
 import { testParseKindCsv } from '@/__tests__/csvKind.test'
 import {
   testCsvRoundTrip,
@@ -1631,6 +1639,12 @@ export const runAllTests = async () => {
   await exec('export.svg.centered.centroidInCenter', testGraphCenteredSvgPutsCentroidInViewCenter)
   await exec('export.svg.centered.animated.includesAnimate', testGraphCenteredSvgIncludesAnimationWhenEnabled)
   await exec('export.svg.3d.centered.animates', testGraphCenteredSvg3dCentersAndAnimates)
+  await exec('export.svg.3d.theme.resolvesColors', testGraphCenteredSvg3dResolvesThemeColorsWhenDocumentAvailable)
+  await exec('export.svg.3d.edgeRgba.alphaIsOpacity', testGraphCenteredSvg3dEdgeRgbaAlphaControlsStrokeOpacity)
+  await exec('export.svg.3d.shaderLine.opaqueEdges', testGraphCenteredSvg3dShaderLineModeIgnoresSchemaEdgeOpacity)
+  await exec('export.svg.3d.nodeVisualOpacity', testGraphCenteredSvg3dNodeVisualOpacityAffectsSvgOpacity)
+  await exec('export.htmlViewer.svgOnly.blocksBrowserZoom', testExportHtmlViewerIsSvgOnlyAndBlocksBrowserZoomAndSelection)
+  await exec('export.htmlViewer.richMedia.defaultPool', testExportHtmlViewerIncludesRichMediaNodesWithDefaultPoolMax)
   await exec('csv.kindFormat', testParseKindCsv)
   await exec('csv.roundTrip', testCsvRoundTrip)
   await exec('export.graphMl', testGraphMlExport)

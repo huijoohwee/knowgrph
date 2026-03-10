@@ -286,7 +286,7 @@ export function ShaderLineEdges({
   edges,
   positions,
   nodeRadiusById,
-  colorByLabel,
+  colorByEdge,
   neutralEdgeColor,
   selectedEdgeColor,
   selectionMode,
@@ -304,7 +304,7 @@ export function ShaderLineEdges({
   edges: GraphEdge[]
   positions: Record<string, Vec3>
   nodeRadiusById: Map<string, number>
-  colorByLabel: (label: string) => string
+  colorByEdge: (edge: GraphEdge) => string
   neutralEdgeColor: string
   selectedEdgeColor: string
   selectionMode: 'none' | 'node' | 'edge'
@@ -405,7 +405,7 @@ export function ShaderLineEdges({
       const tgtId = String(e.target)
       const isSelectedEdge = selectedEdgeIdSet.has(String(e.id))
       const isIncidentToSelectedNode = selectedNodeIdSet.size > 0 && (selectedNodeIdSet.has(srcId) || selectedNodeIdSet.has(tgtId))
-      let finalColor = colorByLabel(e.label)
+      let finalColor = colorByEdge(e)
       let finalOpacity = 1
       if (selectionMode === 'edge') {
         if (isSelectedEdge) {
@@ -420,7 +420,7 @@ export function ShaderLineEdges({
           finalColor = selectedEdgeColor
           finalOpacity = 1
         } else {
-          finalColor = colorByLabel(e.label)
+          finalColor = colorByEdge(e)
           finalOpacity = Math.min(1, dimmedEdgeOpacity)
         }
       }
@@ -442,7 +442,7 @@ export function ShaderLineEdges({
     if (attr && attr.data) {
       attr.data.needsUpdate = true
     }
-  }, [colorByLabel, dimmedEdgeOpacity, edges, neutralEdgeColor, selectedEdgeColor, selectedEdgeIdSet, selectedNodeIdSet, selectionMode, selectedEdgeWidth])
+  }, [colorByEdge, dimmedEdgeOpacity, edges, neutralEdgeColor, selectedEdgeColor, selectedEdgeIdSet, selectedNodeIdSet, selectionMode, selectedEdgeWidth])
 
   useFrame(({ clock }) => {
     if (paused) return

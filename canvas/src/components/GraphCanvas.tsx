@@ -47,12 +47,16 @@ import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/can
 import { readElementLocalPoint } from '@/lib/canvas/canvas-event-coords'
 import { invertZoomPoint } from '@/lib/canvas/viewport-transform'
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
+import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
+import { clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } from '@/lib/canvas/camera-options-2d'
 import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars3d, computePanelRect, computePanelSizeFromContent16x9 } from '@/lib/render/mediaPanelLayout'
 import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
+import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
+import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null);
@@ -238,6 +242,29 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const zoomCommitPendingRef = useRef(false)
   const zoomCommitLatestTransformRef = useRef<{ k: number; x: number; y: number } | null>(null)
   const schemaRef = useRef(schema)
+  const iframeOverlayElsRef = useRef<Map<string, HTMLDivElement>>(new Map())
+  const iframeNodeByIdRef = useRef<{ rev: number; sim: unknown | null; map: Map<string, GraphNode> }>({ rev: -1, sim: null, map: new Map() })
+  const mediaOverlayScheduleRef = useRef<(() => void) | null>(null)
+  const mediaOverlayScheduleRafRef = useRef<number | null>(null)
+  const mediaOverlaySchedulePendingRef = useRef<boolean>(false)
+  const iframeOverlayRefFnByIdRef = useRef<Map<string, (el: HTMLDivElement | null) => void>>(new Map())
+  const requestMediaOverlaySchedule = useCallback(() => {
+    const schedule = mediaOverlayScheduleRef.current
+    if (schedule) {
+      schedule()
+      return
+    }
+    mediaOverlaySchedulePendingRef.current = true
+    if (mediaOverlayScheduleRafRef.current != null) return
+    mediaOverlayScheduleRafRef.current = requestAnimationFrame(() => {
+      mediaOverlayScheduleRafRef.current = null
+      try {
+        mediaOverlayScheduleRef.current?.()
+      } catch {
+        void 0
+      }
+    })
+  }, [])
 
   const stopEvent = React.useCallback((event: React.SyntheticEvent) => {
     try {
@@ -245,6 +272,198 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     } catch {
       void 0
     }
+  }, [])
+
+  const mediaHeaderDragRef = useRef<null | { id: string; baseX: number; baseY: number; structured: boolean; frozen: boolean }>(null)
+  const mediaOverlayPanRef = useRef<null | { pointerId: number; startClientX: number; startClientY: number; startTransform: d3.ZoomTransform }>(null)
+
+  const beginMediaHeaderDrag = React.useCallback((id: string, clientX: number, clientY: number) => {
+    if (!activeRef.current) return
+    if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
+    if (isSpacePanHeld()) return
+    const svgEl = svgRef.current
+    if (!svgEl) return
+    const sim = simulationRef.current
+    const graph = sceneGraphDataRef.current
+    const nodes = sim ? (sim.nodes() as unknown as GraphNode[]) : Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
+    let node: GraphNode | null = null
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      if (String(n?.id || '') === id) {
+        node = n
+        break
+      }
+    }
+    if (!node) return
+    const x0 = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : 0
+    const y0 = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : 0
+    const mode = readLayoutMode(schemaRef.current)
+    const structured = mode === 'radial'
+    const frozen = svgEl.getAttribute('data-kg-layout-frozen') === '1'
+    lockGlobalUserSelect()
+    mediaHeaderDragRef.current = { id, baseX: x0, baseY: y0, structured, frozen }
+    if (sim && !structured && !frozen) {
+      try {
+        sim.alphaTarget(0.3).restart()
+      } catch {
+        void 0
+      }
+    }
+    node.fx = x0
+    node.fy = y0
+    void clientX
+    void clientY
+  }, [])
+
+  const moveMediaHeaderDrag = React.useCallback((dx: number, dy: number) => {
+    const st = mediaHeaderDragRef.current
+    if (!st) return
+    if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
+    if (isSpacePanHeld()) return
+    const svgEl = svgRef.current
+    if (!svgEl) return
+    const sim = simulationRef.current
+    const graph = sceneGraphDataRef.current
+    const nodes = sim ? (sim.nodes() as unknown as GraphNode[]) : Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
+    let node: GraphNode | null = null
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      if (String(n?.id || '') === st.id) {
+        node = n
+        break
+      }
+    }
+    if (!node) return
+    const t = d3.zoomTransform(svgEl as unknown as SVGSVGElement)
+    const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+    const nx = st.baseX + dx / k
+    const ny = st.baseY + dy / k
+    const gridEnabled = !!schemaRef.current.behavior.snapGrid?.enabled
+    const gridSize = Math.max(1, schemaRef.current.behavior.snapGrid?.size ?? 10)
+    const constraint = schemaRef.current.behavior.dragConstraint || 'free'
+    const snapX = gridEnabled ? Math.round(nx / gridSize) * gridSize : nx
+    const snapY = gridEnabled ? Math.round(ny / gridSize) * gridSize : ny
+    if (constraint === 'axis-x') {
+      node.fx = snapX
+      if (st.structured || st.frozen) node.x = snapX
+    } else if (constraint === 'axis-y') {
+      node.fy = snapY
+      if (st.structured || st.frozen) node.y = snapY
+    } else if (constraint === 'none') {
+      node.fx = st.baseX
+      node.fy = st.baseY
+    } else {
+      node.fx = snapX
+      node.fy = snapY
+      if (st.structured || st.frozen) {
+        node.x = snapX
+        node.y = snapY
+      }
+    }
+    node.vx = 0
+    node.vy = 0
+    if (st.structured || st.frozen) {
+      try {
+        const tickHandler = sim?.on('tick')
+        if (typeof tickHandler === 'function') {
+          ;(tickHandler as unknown as () => void)()
+        }
+      } catch {
+        void 0
+      }
+    }
+    try {
+      requestMediaOverlaySchedule()
+    } catch {
+      void 0
+    }
+  }, [requestMediaOverlaySchedule])
+
+  const endMediaHeaderDrag = React.useCallback(() => {
+    const st = mediaHeaderDragRef.current
+    if (!st) return
+    mediaHeaderDragRef.current = null
+    unlockGlobalUserSelect()
+    const svgEl = svgRef.current
+    const sim = simulationRef.current
+    const graph = sceneGraphDataRef.current
+    const nodes = sim ? (sim.nodes() as unknown as GraphNode[]) : Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
+    let node: GraphNode | null = null
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      if (String(n?.id || '') === st.id) {
+        node = n
+        break
+      }
+    }
+    if (sim && !st.structured && !st.frozen) {
+      try {
+        sim.alphaTarget(0)
+      } catch {
+        void 0
+      }
+      if (node) {
+        node.fx = null
+        node.fy = null
+      }
+    }
+    if (node) {
+      const x = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : (typeof node.fx === 'number' ? node.fx : null)
+      const y = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : (typeof node.fy === 'number' ? node.fy : null)
+      if (x != null && y != null && useGraphStore.getState().workspaceViewMode === 'editor') {
+        try {
+          useGraphStore.getState().updateNode(st.id, { x, y })
+        } catch {
+          void 0
+        }
+      }
+    }
+    void svgEl
+  }, [])
+
+  const startMediaOverlayPan = React.useCallback((args: { pointerId: number; clientX: number; clientY: number }) => {
+    if (!activeRef.current) return
+    const svgEl = svgRef.current
+    const zoom = zoomRef.current
+    if (!svgEl || !zoom) return
+    try {
+      d3.select(svgEl).interrupt()
+    } catch {
+      void 0
+    }
+    const st = useGraphStore.getState()
+    disableAutoZoomModesForUserGesture(st)
+    mediaOverlayPanRef.current = {
+      pointerId: args.pointerId,
+      startClientX: args.clientX,
+      startClientY: args.clientY,
+      startTransform: d3.zoomTransform(svgEl),
+    }
+  }, [])
+
+  const moveMediaOverlayPan = React.useCallback((args: { pointerId: number; clientX: number; clientY: number; dx: number; dy: number }) => {
+    const drag = mediaOverlayPanRef.current
+    if (!drag || drag.pointerId !== args.pointerId) return
+    const svgEl = svgRef.current
+    const zoom = zoomRef.current
+    if (!svgEl || !zoom) return
+    const st = useGraphStore.getState()
+    disableAutoZoomModesForUserGesture(st)
+    const interactionSpeed =
+      clampCanvasPanSpeedMultiplier(st.canvasPanSpeedMultiplier) * clampCanvasInteractionSpeedMultiplier(st.canvasInteractionSpeedMultiplier)
+    const dx = args.dx * interactionSpeed
+    const dy = args.dy * interactionSpeed
+    const next = d3.zoomIdentity.translate(drag.startTransform.x + dx, drag.startTransform.y + dy).scale(drag.startTransform.k)
+    d3.select(svgEl).call(
+      zoom.transform as unknown as (sel: d3.Selection<SVGSVGElement, unknown, null, undefined>, t: d3.ZoomTransform) => void,
+      next,
+    )
+  }, [])
+
+  const endMediaOverlayPan = React.useCallback((args: { pointerId: number }) => {
+    const drag = mediaOverlayPanRef.current
+    if (!drag || drag.pointerId !== args.pointerId) return
+    mediaOverlayPanRef.current = null
   }, [])
 
   const schemaLayoutEngineJson = useMemo(() => buildSchemaLayoutEngineJson2d(schema), [schema])
@@ -367,29 +586,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       poolMaxRaw: threeIframeOverlayPoolMax,
     })
   }, [active, mediaOverlayNodeIdsKey, mediaOverlayNodes, renderMediaAsNodes, sceneGraphData, threeIframeOverlayPoolMax])
-  const iframeOverlayElsRef = useRef<Map<string, HTMLDivElement>>(new Map())
-  const iframeNodeByIdRef = useRef<{ rev: number; sim: unknown | null; map: Map<string, GraphNode> }>({ rev: -1, sim: null, map: new Map() })
-  const mediaOverlayScheduleRef = useRef<(() => void) | null>(null)
-  const mediaOverlayScheduleRafRef = useRef<number | null>(null)
-  const mediaOverlaySchedulePendingRef = useRef<boolean>(false)
-  const iframeOverlayRefFnByIdRef = useRef<Map<string, (el: HTMLDivElement | null) => void>>(new Map())
-  const requestMediaOverlaySchedule = useCallback(() => {
-    const schedule = mediaOverlayScheduleRef.current
-    if (schedule) {
-      schedule()
-      return
-    }
-    mediaOverlaySchedulePendingRef.current = true
-    if (mediaOverlayScheduleRafRef.current != null) return
-    mediaOverlayScheduleRafRef.current = requestAnimationFrame(() => {
-      mediaOverlayScheduleRafRef.current = null
-      try {
-        mediaOverlayScheduleRef.current?.()
-      } catch {
-        void 0
-      }
-    })
-  }, [])
   useEffect(() => {
     return () => {
       const raf = mediaOverlayScheduleRafRef.current
@@ -2006,8 +2202,18 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
                 kind={n.kind}
                 interactive={n.interactive}
                 iframeMode="srcdoc-when-needed"
-                onPointerDownCapture={stopEvent}
-                onPointerUpCapture={stopEvent}
+                forwardWheelTo={() => svgRef.current}
+                shouldStartHeaderDrag={() => {
+                  if (useGraphStore.getState().canvasPointerMode2d === 'pan') return false
+                  if (isSpacePanHeld()) return false
+                  return true
+                }}
+                onOverlayPanStart={({ pointerId, clientX, clientY }) => startMediaOverlayPan({ pointerId, clientX, clientY })}
+                onOverlayPan={({ pointerId, clientX, clientY, dx, dy }) => moveMediaOverlayPan({ pointerId, clientX, clientY, dx, dy })}
+                onOverlayPanEnd={({ pointerId }) => endMediaOverlayPan({ pointerId })}
+                onHeaderDragStart={({ clientX, clientY }) => beginMediaHeaderDrag(n.id, clientX, clientY)}
+                onHeaderDrag={({ dx, dy }) => moveMediaHeaderDrag(dx, dy)}
+                onHeaderDragEnd={() => endMediaHeaderDrag()}
                 onWheelCapture={stopEvent}
                 onClickCapture={stopEvent}
                 onDoubleClickCapture={stopEvent}

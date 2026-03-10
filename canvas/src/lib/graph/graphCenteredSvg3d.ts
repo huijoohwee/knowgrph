@@ -3,7 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { getNodeRenderRadius, getThreeConfig } from '@/lib/graph/schema'
 import { getEdgeBaseStroke, getNodeBaseFill } from '@/lib/graph/visualStyles'
 import { computePositions3d } from '@/features/three/positions'
-import { getEdgeStrokeWidth, getLayerOpacity } from '@/components/GraphCanvas/helpers'
+import { getEdgeStrokeWidth, getLayerOpacity, getVisualOpacity } from '@/components/GraphCanvas/helpers'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
@@ -20,6 +20,54 @@ const escapeXml = (s: string): string => {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
+}
+
+const readCssVar = (name: string, fallback: string): string => {
+  try {
+    if (typeof document === 'undefined') return fallback
+    const el = document.documentElement
+    const direct = String(el.style.getPropertyValue(name) || '').trim()
+    if (direct) return direct
+    const raw = String(getComputedStyle(el).getPropertyValue(name) || '').trim()
+    return raw || fallback
+  } catch {
+    return fallback
+  }
+}
+
+const resolveCssColor = (value: string, fallback: string): string => {
+  let v = String(value || '').trim()
+  if (!v) return fallback
+  if (v.startsWith('--')) {
+    v = readCssVar(v as `--${string}`, fallback || v)
+  }
+  for (let depth = 0; depth < 6; depth += 1) {
+    const m = v.match(/^var\(\s*(--[^,\s\)]+)\s*(?:,\s*([^)]+)\s*)?\)$/i)
+    if (!m) break
+    const varName = String(m[1] || '').trim()
+    const varFallback = String(m[2] || '').trim()
+    const resolved = varName ? readCssVar(varName, varFallback || fallback || v) : ''
+    const next = String(resolved || '').trim()
+    if (!next || next === v) break
+    v = next
+  }
+  if (v.startsWith('--')) {
+    v = readCssVar(v as `--${string}`, fallback || v)
+  }
+  try {
+    if (typeof document === 'undefined') return v
+    const body = document.body
+    if (!body) return v
+    const el = document.createElement('span')
+    el.style.color = v
+    el.style.display = 'none'
+    body.appendChild(el)
+    const computed = String(getComputedStyle(el).color || '').trim()
+    body.removeChild(el)
+    return computed || v
+  } catch {
+    return v
+  }
 }
 
 const estimateLabelWidthPx = (label: string, fontSizePx: number) => {
@@ -99,6 +147,7 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
   animated?: boolean
   durationSec?: number
   frames?: number
+  threeEdgeRenderer?: 'mesh' | 'shaderLine'
 }): string | null {
   try {
     const graph = args.graphData
@@ -116,6 +165,17 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
     const animated = args.animated !== false
     const durationSec = clampFinite(args.durationSec, 1, 60) || 6
     const frames = Math.max(6, Math.min(60, Math.floor(clampFinite(args.frames, 1, 200) || 24)))
+    const threeEdgeRenderer = args.threeEdgeRenderer === 'shaderLine' ? 'shaderLine' : 'mesh'
+
+    const canvasBg = resolveCssColor(readCssVar('--kg-canvas-bg', 'white'), 'white')
+    const labelFill = resolveCssColor(
+      readCssVar('--kg-canvas-label-fill', readCssVar('--kg-text-primary', 'rgba(0,0,0,0.86)')),
+      'rgba(0,0,0,0.86)',
+    )
+    const nodeStroke = resolveCssColor(
+      readCssVar('--kg-canvas-node-stroke', readCssVar('--kg-border', 'rgba(0,0,0,0.45)')),
+      'rgba(0,0,0,0.45)',
+    )
 
     const positions = computePositions3d(nodes, schema)
     const posById = new Map<string, Vec3>()
@@ -155,10 +215,8 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
       minZ = -1
       maxZ = 1
     }
-    const zSpan = Math.max(1e-6, maxZ - minZ)
-    const depthOpacity = (z: number) => {
-      const t = (z - minZ) / zSpan
-      return 0.35 + t * 0.65
+    const depthOpacity = (_z: number) => {
+      return 1
     }
 
     let maxAbsX = 1
@@ -183,6 +241,17 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
       return out
     })()
 
+    const nodeById = (() => {
+      const m = new Map<string, GraphNode>()
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]
+        const id = String(n?.id || '').trim()
+        if (!id) continue
+        m.set(id, n)
+      }
+      return m
+    })()
+
     for (let ai = 0; ai < angleSamples.length; ai += 1) {
       const angY = angleSamples[ai]!
       for (const [id, p0] of posById.entries()) {
@@ -193,7 +262,7 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
         const ry = rotateY(p, angY)
         const rxy = rotateX(ry, tiltX)
         const pr = projectPerspective(rxy, cameraZ)
-        const node = nodes.find(n => String(n.id || '').trim() === id)
+        const node = nodeById.get(id)
         const baseR = Math.max(4, node ? (getNodeRenderRadius(node, schema) || 10) : 10)
         const r = baseR * pr.k
         const label = String(node?.label || id)
@@ -222,9 +291,10 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
       const id = String(n.id || '').trim()
       const p = posById.get(id) || [0, 0, 0]
       const baseR = Math.max(4, getNodeRenderRadius(n, schema) || 10)
-      const fill = String(getNodeBaseFill(n, schema) || '')
+      const fillRaw = String(getNodeBaseFill(n, schema) || '')
+      const fill = resolveCssColor(fillRaw, fillRaw)
       const label = String(n.label || id)
-      const layerOpacity = getLayerOpacity(n, schema)
+      const layerOpacity = Math.max(0, Math.min(1, getLayerOpacity(n, schema) * getVisualOpacity(n)))
       return { id, p, baseR, fill, label, layerOpacity }
     }).filter(x => x.id)
 
@@ -233,10 +303,10 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
       const s = String(e.source || '').trim()
       const t = String(e.target || '').trim()
       const props = (e.properties || {}) as Record<string, unknown>
-      const visualStroke = typeof props['visual:stroke'] === 'string' ? String(props['visual:stroke']).trim() : ''
-      const rgba = visualStroke ? parseRgba(visualStroke) : null
-      const baseStroke = rgba ? rgba.color : String(getEdgeBaseStroke(e, schema) || '')
-      const baseAlpha = rgba ? rgba.alpha : 1
+      const rawStroke = String(getEdgeBaseStroke(e, schema) || '')
+      const rgba = rawStroke ? parseRgba(rawStroke) : null
+      const rawColor = rgba ? rgba.color : rawStroke
+      const baseStroke = resolveCssColor(rawColor, rawColor)
       const baseWidth = (() => {
         const w = getEdgeStrokeWidth(e, schema)
         const clamped = Math.max(0.5, Math.min(5, w))
@@ -246,7 +316,10 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
       const opacityByLabel: Record<string, number> = threeCfg.edgeOpacityByLabel || {}
       const cfgOpacity = typeof opacityByLabel[e.label] === 'number' ? Math.max(0, Math.min(1, opacityByLabel[e.label] as number)) : linkOpacityDefault
       const propOpacity = typeof props['opacity'] === 'number' ? Math.max(0, Math.min(1, props['opacity'] as number)) : null
-      const baseOpacity = (propOpacity == null ? cfgOpacity : propOpacity) * baseAlpha
+      const baseOpacity =
+        threeEdgeRenderer === 'shaderLine'
+          ? 1
+          : (propOpacity == null ? (rgba ? rgba.alpha : cfgOpacity) : propOpacity)
       return { id, s, t, stroke: baseStroke, baseWidth, baseOpacity }
     }).filter(x => x.id && x.s && x.t)
 
@@ -269,8 +342,8 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
       const op = depthOpacity(pr.z) * Math.max(0, Math.min(1, nd.layerOpacity))
       nodeParts.push(
         `<g data-node-id="${escapeXml(nd.id)}">` +
-          `<circle data-role="node-circle" cx="${fmt(pr.x)}" cy="${fmt(pr.y)}" r="${fmt(r)}" fill="${escapeXml(nd.fill)}" stroke="rgba(0,0,0,0.45)" stroke-width="1" opacity="${fmtOp(op)}"/>` +
-          `<text data-role="node-label" x="${fmt(pr.x)}" y="${fmt(pr.y - r - labelPadY)}" font-size="${fontSizePx}" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" text-anchor="middle" fill="rgba(0,0,0,0.86)" opacity="${fmtOp(op)}">${escapeXml(nd.label)}</text>` +
+          `<circle data-role="node-circle" cx="${fmt(pr.x)}" cy="${fmt(pr.y)}" r="${fmt(r)}" fill="${escapeXml(nd.fill)}" stroke="${escapeXml(nodeStroke)}" stroke-width="1" opacity="${fmtOp(op)}"/>` +
+          `<text data-role="node-label" x="${fmt(pr.x)}" y="${fmt(pr.y - r - labelPadY)}" font-size="${fontSizePx}" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" text-anchor="middle" fill="${escapeXml(labelFill)}" opacity="${fmtOp(op)}">${escapeXml(nd.label)}</text>` +
         `</g>`,
       )
     }
@@ -328,7 +401,7 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
           `var cx=Number(payload.cx)||0,cy=Number(payload.cy)||0,cz=Number(payload.cz)||0;` +
           `var minZ=Number(payload.minZ)||-1,maxZ=Number(payload.maxZ)||1;` +
           `var zSpan=Math.max(1e-6,maxZ-minZ);` +
-          `var depthOpacity=function(z){var t=(z-minZ)/zSpan;return 0.35+t*0.65;};` +
+          `var depthOpacity=function(z){return 1;};` +
           `var motionRaw=Number(payload.motion);var motion=(isFinite(motionRaw)?Math.max(0,Math.min(2,motionRaw)):1);` +
           `var amp=0.2*motion;` +
           `var autoRotate=payload.autoRotate===true;` +
@@ -401,7 +474,7 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
 
     const svg =
       `<svg xmlns="${SVG_NS}" width="${widthPx}" height="${heightPx}" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}" preserveAspectRatio="xMidYMid meet" data-kg-3d-payload="${scriptPayload}">` +
-        `<rect x="${vb.x}" y="${vb.y}" width="${vb.w}" height="${vb.h}" fill="white"/>` +
+        `<rect x="${vb.x}" y="${vb.y}" width="${vb.w}" height="${vb.h}" fill="${escapeXml(canvasBg)}"/>` +
         `<g data-layer="edges">${edgeParts.join('')}</g>` +
         `<g data-layer="nodes">${nodeParts.join('')}</g>` +
         script +

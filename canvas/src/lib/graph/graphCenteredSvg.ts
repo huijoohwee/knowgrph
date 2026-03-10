@@ -22,6 +22,54 @@ const escapeXml = (s: string): string => {
     .replace(/'/g, '&#39;')
 }
 
+const readCssVar = (name: string, fallback: string): string => {
+  try {
+    if (typeof document === 'undefined') return fallback
+    const el = document.documentElement
+    const direct = String(el.style.getPropertyValue(name) || '').trim()
+    if (direct) return direct
+    const raw = String(getComputedStyle(el).getPropertyValue(name) || '').trim()
+    return raw || fallback
+  } catch {
+    return fallback
+  }
+}
+
+const resolveCssColor = (value: string, fallback: string): string => {
+  let v = String(value || '').trim()
+  if (!v) return fallback
+  if (v.startsWith('--')) {
+    v = readCssVar(v as `--${string}`, fallback || v)
+  }
+  for (let depth = 0; depth < 6; depth += 1) {
+    const m = v.match(/^var\(\s*(--[^,\s\)]+)\s*(?:,\s*([^)]+)\s*)?\)$/i)
+    if (!m) break
+    const varName = String(m[1] || '').trim()
+    const varFallback = String(m[2] || '').trim()
+    const resolved = varName ? readCssVar(varName, varFallback || fallback || v) : ''
+    const next = String(resolved || '').trim()
+    if (!next || next === v) break
+    v = next
+  }
+  if (v.startsWith('--')) {
+    v = readCssVar(v as `--${string}`, fallback || v)
+  }
+  try {
+    if (typeof document === 'undefined') return v
+    const body = document.body
+    if (!body) return v
+    const el = document.createElement('span')
+    el.style.color = v
+    el.style.display = 'none'
+    body.appendChild(el)
+    const computed = String(getComputedStyle(el).color || '').trim()
+    body.removeChild(el)
+    return computed || v
+  } catch {
+    return v
+  }
+}
+
 const estimateLabelWidthPx = (label: string, fontSizePx: number) => {
   const len = Math.max(0, String(label || '').length)
   return Math.max(0, Math.round(len * fontSizePx * 0.56))
@@ -99,6 +147,16 @@ export function exportGraphAsCenteredSvgMarkup(args: {
     const includeXmlDeclaration = args.includeXmlDeclaration !== false
     const animated = args.animated === true
 
+    const canvasBg = resolveCssColor(readCssVar('--kg-canvas-bg', 'white'), 'white')
+    const labelFill = resolveCssColor(
+      readCssVar('--kg-canvas-label-fill', readCssVar('--kg-text-primary', 'rgba(0,0,0,0.86)')),
+      'rgba(0,0,0,0.86)',
+    )
+    const nodeStroke = resolveCssColor(
+      readCssVar('--kg-canvas-node-stroke', readCssVar('--kg-border', 'rgba(0,0,0,0.45)')),
+      'rgba(0,0,0,0.45)',
+    )
+
     const seeded = computeSeededPositions(nodes)
     const posById = new Map<string, { x: number; y: number }>()
     for (let i = 0; i < nodes.length; i += 1) {
@@ -159,7 +217,8 @@ export function exportGraphAsCenteredSvgMarkup(args: {
       const ps = posById.get(s)
       const pt = posById.get(t)
       if (!ps || !pt) continue
-      const stroke = escapeXml(getEdgeBaseStroke(e, schema))
+      const strokeRaw = getEdgeBaseStroke(e, schema)
+      const stroke = escapeXml(resolveCssColor(strokeRaw, strokeRaw))
       const dx = pt.x - ps.x
       const dy = pt.y - ps.y
       const len = Math.max(1, Math.hypot(dx, dy))
@@ -180,7 +239,8 @@ export function exportGraphAsCenteredSvgMarkup(args: {
       const p = posById.get(id)
       if (!p) continue
       const r = Math.max(4, getNodeRenderRadius(n, schema) || 10)
-      const fill = escapeXml(getNodeBaseFill(n, schema))
+      const fillRaw = getNodeBaseFill(n, schema)
+      const fill = escapeXml(resolveCssColor(fillRaw, fillRaw))
       const label = escapeXml(String(n.label || id))
       const begin = ((i % 17) * 0.08).toFixed(2)
       const floatDy = (2 + (i % 3)).toFixed(0)
@@ -189,21 +249,21 @@ export function exportGraphAsCenteredSvgMarkup(args: {
         animated
           ? `<g>` +
               `<animateTransform attributeName="transform" type="translate" values="0 0;0 -${floatDy};0 0" dur="2.4s" repeatCount="indefinite" begin="${begin}s"/>` +
-              `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${fill}" stroke="rgba(0,0,0,0.45)" stroke-width="1">` +
+              `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${fill}" stroke="${escapeXml(nodeStroke)}" stroke-width="1">` +
                 `<animate attributeName="r" values="${r};${pulseR};${r}" dur="1.6s" repeatCount="indefinite" begin="${begin}s"/>` +
               `</circle>` +
-              `<text x="${p.x}" y="${p.y - r - labelPadY}" font-size="${fontSizePx}" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" text-anchor="middle" fill="rgba(0,0,0,0.86)">${label}</text>` +
+              `<text x="${p.x}" y="${p.y - r - labelPadY}" font-size="${fontSizePx}" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" text-anchor="middle" fill="${escapeXml(labelFill)}">${label}</text>` +
             `</g>`
           : `<g>` +
-              `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${fill}" stroke="rgba(0,0,0,0.45)" stroke-width="1"/>` +
-              `<text x="${p.x}" y="${p.y - r - labelPadY}" font-size="${fontSizePx}" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" text-anchor="middle" fill="rgba(0,0,0,0.86)">${label}</text>` +
+              `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${fill}" stroke="${escapeXml(nodeStroke)}" stroke-width="1"/>` +
+              `<text x="${p.x}" y="${p.y - r - labelPadY}" font-size="${fontSizePx}" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" text-anchor="middle" fill="${escapeXml(labelFill)}">${label}</text>` +
             `</g>`,
       )
     }
 
     const svg =
       `<svg xmlns="${SVG_NS}" width="${widthPx}" height="${heightPx}" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}" preserveAspectRatio="xMidYMid meet">` +
-      `<rect x="${vb.x}" y="${vb.y}" width="${vb.w}" height="${vb.h}" fill="white"/>` +
+      `<rect x="${vb.x}" y="${vb.y}" width="${vb.w}" height="${vb.h}" fill="${escapeXml(canvasBg)}"/>` +
       `<g data-layer="edges">${edgeParts.join('')}</g>` +
       `<g data-layer="nodes">${nodeParts.join('')}</g>` +
       `</svg>`

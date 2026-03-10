@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { exportSvgSnapshot, exportPngSnapshot } from '@/lib/graph/file'
+import { exportHtmlSnapshot, exportSvgSnapshot, exportPngSnapshot } from '@/lib/graph/file'
 import { IMPORT_EXPORT_STATUS_COPY } from '@/lib/config.copy'
 import { verifyWorkflowPresetStorage } from '@/features/parsers/workflowPresets'
 import { captureVisibleCanvasPngBlobFromDom, readCanvasViewportSizeFromDom, wrapPngBlobAsSvgMarkup } from '@/lib/graph/svgSnapshot'
@@ -8,6 +8,7 @@ import { lsBool } from '@/lib/persistence'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { exportGraphAsCenteredSvgMarkup } from '@/lib/graph/graphCenteredSvg'
 import { exportGraphAsCentered3dSvgMarkup } from '@/lib/graph/graphCenteredSvg3d'
+import { buildGraphHtmlViewerMarkup } from '@/lib/graph/graphHtmlViewer'
 import type { WorkflowExportStatusDeps } from './useExportUtils'
 
 type UseSnapshotExportHandlersParams = {
@@ -52,6 +53,7 @@ export function useSnapshotExportHandlers({
               paddingPx: 96,
               includeXmlDeclaration: true,
               animated: true,
+                threeEdgeRenderer: store.threeEdgeRenderer,
             })
             if (centered3d && centered3d.trim()) {
               await exportSvgSnapshot(centered3d, suggested)
@@ -136,8 +138,91 @@ export function useSnapshotExportHandlers({
     })()
   }, [captureCanvasPngSnapshot, markExported, setTransientExportStatus])
 
+  const exportHtmlViewerAction = useCallback(() => {
+    void (async () => {
+      try {
+        const storage = verifyWorkflowPresetStorage()
+        const suggested = storage.lastApplied ? String(storage.lastApplied.datasetFileName || '') : undefined
+        const store = useGraphStore.getState()
+        const wants3dExport =
+          store.canvasRenderMode === '3d' ||
+          (store.canvasRenderModeIsAuto === true && store.canvasRenderModeLastFree === '3d')
+
+        const vp = readCanvasViewportSizeFromDom()
+        const title = (() => {
+          const base = suggested ? suggested.replace(/\.[a-z0-9]+$/i, '') : ''
+          return base ? `${base} (Graph viewer)` : 'Graph viewer'
+        })()
+
+        const svgMarkup = await (async () => {
+          if (wants3dExport) {
+            const graphData = store.graphData
+            const schema = store.schema
+            if (graphData && schema) {
+              const centered3d = exportGraphAsCentered3dSvgMarkup({
+                graphData,
+                schema,
+                widthPx: vp.w,
+                heightPx: vp.h,
+                paddingPx: 96,
+                includeXmlDeclaration: false,
+                animated: true,
+                threeEdgeRenderer: store.threeEdgeRenderer,
+              })
+              return String(centered3d || '').trim()
+            }
+            return ''
+          }
+          const graphData = store.graphData
+          const schema = store.schema
+          if (graphData && schema) {
+            const centered2d = exportGraphAsCenteredSvgMarkup({
+              graphData,
+              schema,
+              widthPx: vp.w,
+              heightPx: vp.h,
+              paddingPx: 96,
+              includeXmlDeclaration: false,
+              animated: true,
+            })
+            const trimmed = String(centered2d || '').trim()
+            if (trimmed) return trimmed
+          }
+          const captured = await captureCanvasSvgSnapshot('2d')
+          return String(captured || '').trim()
+        })()
+
+        const html = await buildGraphHtmlViewerMarkup({
+          title,
+          svgMarkup: svgMarkup || null,
+          graphData: store.graphData,
+          includeRichMediaOverlays: store.renderMediaAsNodes === true,
+          mediaOverlayPoolMax: store.threeIframeOverlayPoolMax,
+          mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
+          threeIframeOverlayBaseWidthRatioDefault: store.threeIframeOverlayBaseWidthRatioDefault,
+          threeIframeOverlayBaseWidthRatioCompact: store.threeIframeOverlayBaseWidthRatioCompact,
+          threeIframeOverlayBaseWidthMinPxDefault: store.threeIframeOverlayBaseWidthMinPxDefault,
+          threeIframeOverlayBaseWidthMinPxCompact: store.threeIframeOverlayBaseWidthMinPxCompact,
+          threeIframeOverlayBaseWidthMaxPxDefault: store.threeIframeOverlayBaseWidthMaxPxDefault,
+          threeIframeOverlayBaseWidthMaxPxCompact: store.threeIframeOverlayBaseWidthMaxPxCompact,
+        })
+        const trimmed = String(html || '').trim()
+        if (!trimmed) {
+          setTransientExportStatus(IMPORT_EXPORT_STATUS_COPY.htmlViewerNoSnapshotAvailable)
+          return
+        }
+        await exportHtmlSnapshot(trimmed, suggested)
+        markExported()
+        setTransientExportStatus(IMPORT_EXPORT_STATUS_COPY.htmlViewerExported)
+      } catch {
+        setTransientExportStatus(IMPORT_EXPORT_STATUS_COPY.htmlViewerExportFailed)
+      }
+    })()
+  }, [captureCanvasPngSnapshot, captureCanvasSvgSnapshot, markExported, setTransientExportStatus])
+
   return {
     exportSvgSnapshotAction,
     exportPngSnapshotAction,
+    exportHtmlViewerAction,
   }
 }

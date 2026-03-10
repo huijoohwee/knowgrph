@@ -9,6 +9,7 @@ import { resolveCssVar } from '@/lib/ui/theme-tokens'
 import { getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import { computeNeighborIds } from '@/components/GraphCanvas/highlight'
 import { getRenderNodeRadius2d, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers'
+import { getEdgeBaseStroke } from '@/lib/graph/visualStyles'
 import { Physics3D, type Vec3 } from './layout'
 import type { NodeSelectionMode } from './selection'
 import { getSelectionVisuals } from './selection'
@@ -36,6 +37,7 @@ export function Scene({
   onDragNode,
   draggedNodeId,
   theme,
+  dragOverridesRef,
 }: {
   data: GraphData;
   schema: GraphSchema;
@@ -47,6 +49,7 @@ export function Scene({
   onDragNode?: (id: string | null) => void;
   draggedNodeId?: string | null;
   theme?: KgTheme;
+  dragOverridesRef?: React.MutableRefObject<Record<string, Vec3>>;
 }) {
   const { gl } = useThree()
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
@@ -107,7 +110,7 @@ export function Scene({
     neutralEdgeColor,
     selectedEdgeColor,
     palette,
-    colorByLabel
+    colorByEdge
   } = React.useMemo(() => {
     // We include theme in dependency to force re-evaluation
     void theme
@@ -115,10 +118,13 @@ export function Scene({
     const palette = getRendererPalette(schema)
     const neutralEdgeColorRaw = palette.edges.neutral || MVP_COLOR_PALETTE.edges.neutral
     const neutralEdgeColor = resolveThreeColor(neutralEdgeColorRaw, MVP_COLOR_PALETTE.edges.neutral)
-    const colorByLabel = (l: string) => resolveThreeColor(schema.edgeStyles[l]?.color || neutralEdgeColorRaw, neutralEdgeColor)
+    const colorByEdge = (e: import('@/lib/graph/types').GraphEdge) => {
+      const raw = getEdgeBaseStroke(e, schema)
+      return resolveThreeColor(raw, neutralEdgeColor)
+    }
     const selectionVisuals = getSelectionVisuals(schema)
     const selectedEdgeColor = resolveThreeColor(selectionVisuals.selectedEdgeColor, neutralEdgeColor)
-    return { neutralEdgeColor, selectedEdgeColor, palette, colorByLabel }
+    return { neutralEdgeColor, selectedEdgeColor, palette, colorByEdge }
   }, [schema, theme])
 
   const selectionVisuals = React.useMemo(() => getSelectionVisuals(schema), [schema])
@@ -186,22 +192,23 @@ export function Scene({
       ? threeCfg.starfieldColor
       : (palette.nodes.hypothesis || MVP_COLOR_PALETTE.nodes.hypothesis)
   }, [threeCfg.starfieldColor, palette, theme])
-  const dragOverridesRef = React.useRef<Record<string, Vec3>>({})
+  const localDragOverridesRef = React.useRef<Record<string, Vec3>>({})
+  const dragRef = dragOverridesRef || localDragOverridesRef
   const handleDragStart = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     const p = e.point
-    dragOverridesRef.current[id] = [p.x, p.y, p.z]
+    dragRef.current[id] = [p.x, p.y, p.z]
   }, [])
   const handleDrag = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     const p = e.point
-    dragOverridesRef.current[id] = [p.x, p.y, p.z]
+    dragRef.current[id] = [p.x, p.y, p.z]
   }, [])
   const handleDragEnd = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     const p = e.point
-    dragOverridesRef.current[id] = [p.x, p.y, p.z]
-    delete dragOverridesRef.current[id]
+    dragRef.current[id] = [p.x, p.y, p.z]
+    delete dragRef.current[id]
   }, [])
   const allowNodeDrag = schema.behavior ? schema.behavior.allowNodeDrag !== false : true
 
@@ -235,13 +242,13 @@ export function Scene({
         />
       ) : null}
       <group ref={sceneGroupRef}>
-        <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragOverridesRef} paused={paused} />
+        <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragRef} paused={paused} />
         {threeEdgeRenderer === 'shaderLine' ? (
           <ShaderLineEdges
             edges={data.edges}
             positions={positions}
             nodeRadiusById={nodeRadiusMap}
-            colorByLabel={colorByLabel}
+            colorByEdge={colorByEdge}
             neutralEdgeColor={neutralEdgeColor}
             selectedEdgeColor={selectedEdgeColor}
             selectionMode={selectionMode}
@@ -270,9 +277,6 @@ export function Scene({
             if (hiddenNodeIds.has(srcId) || hiddenNodeIds.has(tgtId)) return null
           }
           const props = e.properties || {}
-          const visualStroke = typeof (props as Record<string, unknown>)['visual:stroke'] === 'string'
-            ? String((props as Record<string, unknown>)['visual:stroke']).trim()
-            : ''
           const parseRgba = (value: string): { color: string; alpha: number } | null => {
             const m = value.match(/^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*([0-9]*\.?[0-9]+)\s*\)$/i)
             if (!m) return null
@@ -287,10 +291,10 @@ export function Scene({
             const aa = Math.max(0, Math.min(1, a))
             return { color: `rgb(${rr}, ${gg}, ${bb})`, alpha: aa }
           }
-          const rgba = visualStroke ? parseRgba(visualStroke) : null
-          const color = typeof props['color'] === 'string' && props['color'].trim() !== ''
-            ? String(props['color']).trim()
-            : (rgba?.color || colorByLabel(e.label))
+          const baseStroke = getEdgeBaseStroke(e, schema)
+          const rgba = baseStroke ? parseRgba(String(baseStroke || '').trim()) : null
+          const baseColor = rgba?.color || baseStroke || neutralEdgeColor
+          const color = baseColor
           const baseWidth = getEdgeStrokeWidth(e, schema)
           let width = clamp(baseWidth, 0.5, 5)
           const linkOpacity = typeof props['opacity'] === 'number'
@@ -336,7 +340,7 @@ export function Scene({
               finalOpacity = Math.max(finalOpacity, 0.9)
               width = Math.max(width, selectedEdgeWidth)
             } else {
-              finalColor = colorByLabel(e.label)
+              finalColor = baseColor
               finalOpacity = Math.min(finalOpacity, dimmedEdgeOpacity)
               width = Math.max(1, Math.min(baseWidth, selectedEdgeWidth * 0.5))
             }

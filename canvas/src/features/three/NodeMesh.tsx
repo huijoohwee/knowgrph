@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
-import { getNodeMediaSpec, getLayerOpacity, getNodeBaseFill, getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
+import { getNodeMediaSpec, getLayerOpacity, getNodeBaseFill, getRenderNodeRadius2d, getVisualOpacity } from '@/components/GraphCanvas/helpers'
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { NodeSelectionState, SelectionVisuals } from './selection'
@@ -52,7 +52,15 @@ export function NodeMesh({
   const baseColor = getNodeBaseFill(node, schema)
   const props = node.properties || {}
   const baseRadius = getRenderNodeRadius2d(node, schema)
-  const baseLayerOpacity = getLayerOpacity(node, schema)
+  const baseLayerOpacity = (() => {
+    const a = getLayerOpacity(node, schema)
+    const b = getVisualOpacity(node)
+    const v = a * b
+    if (!Number.isFinite(v)) return 1
+    if (v < 0) return 0
+    if (v > 1) return 1
+    return v
+  })()
   const deg = typeof props['degree'] === 'number' ? (props['degree'] as number) : undefined
   const scale = deg ? Math.max(0.9, Math.min(1.6, 0.95 + Math.sqrt(Math.max(1, deg)) * 0.15)) : 1
   const radius = baseRadius * scale
@@ -68,21 +76,21 @@ export function NodeMesh({
   if (selection.mode === 'edge') {
     if (selection.isEdgeEndpoint) {
       displayColor = baseColor
-      displayOpacity = isMediaNode ? mediaLayerOpacity : 1
+      displayOpacity = isMediaNode ? mediaLayerOpacity : baseLayerOpacity
     } else {
       displayColor = dimmedColor
-      displayOpacity = isMediaNode ? mediaLayerOpacity : visuals.dimmedNodeOpacity
+      displayOpacity = isMediaNode ? mediaLayerOpacity : baseLayerOpacity * visuals.dimmedNodeOpacity
     }
   } else if (selection.mode === 'node') {
     if (selection.isSelected) {
       displayColor = visuals.selectedEdgeColor
-      displayOpacity = isMediaNode ? mediaLayerOpacity : 1
+      displayOpacity = isMediaNode ? mediaLayerOpacity : baseLayerOpacity
     } else if (selection.isNeighbor) {
       displayColor = baseColor
-      displayOpacity = isMediaNode ? mediaLayerOpacity : 1
+      displayOpacity = isMediaNode ? mediaLayerOpacity : baseLayerOpacity
     } else {
       displayColor = dimmedColor
-      displayOpacity = isMediaNode ? mediaLayerOpacity : visuals.dimmedNodeOpacity
+      displayOpacity = isMediaNode ? mediaLayerOpacity : baseLayerOpacity * visuals.dimmedNodeOpacity
     }
   }
   if (isMediaNode && selection.mode === 'none' && !selection.isSelected) {

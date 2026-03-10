@@ -19,6 +19,8 @@ import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layo
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { computeEvenlyDistributedPositions } from '@/lib/canvas/evenDistribute'
 import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/canvas/arrangeShortcuts'
+import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
+import { clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } from '@/lib/canvas/camera-options-2d'
 import { shouldStartSelectionDragForPreset } from '@/lib/canvas/viewport-controls'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import type { WebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutExport'
@@ -42,6 +44,10 @@ import { buildViewportSvgMarkupFromElement } from '@/lib/graph/svgSnapshot'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { applyMediaProxySrc, resolveUrlAgainstBase } from '@/lib/url'
 import { DesignRichMediaPreview } from '@/components/DesignRichMedia'
+import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
+import RichMediaPanel from '@/components/RichMediaPanel'
+import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars3d, computePanelRect, computePanelSizeFromContent16x9 } from '@/lib/render/mediaPanelLayout'
+import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 
 type FrameNode = {
   id: string
@@ -109,8 +115,39 @@ export default function DesignCanvas({
   const gRef = useRef<SVGGElement>(null)
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null)
   const labelsSelRef = useRef<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>(null)
+  const mediaOverlayPanRef = useRef<null | { pointerId: number; startTransform: d3.ZoomTransform }>(null)
   const dims = useContainerDims(containerRef)
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
+
+  const startDesignMediaOverlayPan = React.useCallback((args: { pointerId: number }) => {
+    if (!active) return
+    const svgEl = svgRef.current
+    if (!svgEl) return
+    disableAutoZoomModesForUserGesture(useGraphStore.getState())
+    mediaOverlayPanRef.current = { pointerId: args.pointerId, startTransform: d3.zoomTransform(svgEl) }
+  }, [active])
+
+  const moveDesignMediaOverlayPan = React.useCallback((args: { pointerId: number; dx: number; dy: number }) => {
+    const drag = mediaOverlayPanRef.current
+    if (!drag || drag.pointerId !== args.pointerId) return
+    const svgEl = svgRef.current
+    const zoom = zoomRef.current
+    if (!svgEl || !zoom) return
+    const st = useGraphStore.getState()
+    disableAutoZoomModesForUserGesture(st)
+    const interactionSpeed =
+      clampCanvasPanSpeedMultiplier(st.canvasPanSpeedMultiplier) * clampCanvasInteractionSpeedMultiplier(st.canvasInteractionSpeedMultiplier)
+    const next = d3.zoomIdentity
+      .translate(drag.startTransform.x + args.dx * interactionSpeed, drag.startTransform.y + args.dy * interactionSpeed)
+      .scale(drag.startTransform.k)
+    d3.select(svgEl).call(zoom.transform as never, next)
+  }, [])
+
+  const endDesignMediaOverlayPan = React.useCallback((args: { pointerId: number }) => {
+    const drag = mediaOverlayPanRef.current
+    if (!drag || drag.pointerId !== args.pointerId) return
+    mediaOverlayPanRef.current = null
+  }, [])
 
   useEffect(() => {
     const captureSvg = async (): Promise<string | null> => {
@@ -185,6 +222,13 @@ export default function DesignCanvas({
       documentStructureBaselineLock: s.documentStructureBaselineLock,
       renderMediaAsNodes: s.renderMediaAsNodes,
       mediaPanelDensity: s.mediaPanelDensity,
+      threeIframeOverlayPoolMax: s.threeIframeOverlayPoolMax,
+      threeIframeOverlayBaseWidthRatioDefault: s.threeIframeOverlayBaseWidthRatioDefault,
+      threeIframeOverlayBaseWidthRatioCompact: s.threeIframeOverlayBaseWidthRatioCompact,
+      threeIframeOverlayBaseWidthMinPxDefault: s.threeIframeOverlayBaseWidthMinPxDefault,
+      threeIframeOverlayBaseWidthMinPxCompact: s.threeIframeOverlayBaseWidthMinPxCompact,
+      threeIframeOverlayBaseWidthMaxPxDefault: s.threeIframeOverlayBaseWidthMaxPxDefault,
+      threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
       collapsedGroupIds: s.collapsedGroupIds,
       zoomStateByKey: s.zoomStateByKey,
       viewPinned: s.viewPinned,
@@ -792,6 +836,168 @@ export default function DesignCanvas({
   useEffect(() => {
     localGraphDataRef.current = localGraphData
   }, [localGraphData])
+
+  const designMediaOverlayNodes = useMemo(() => {
+    const nodes = Array.isArray(localGraphData?.nodes) ? (localGraphData.nodes as GraphNode[]) : []
+    const poolMax = typeof snapshot.threeIframeOverlayPoolMax === 'number' && Number.isFinite(snapshot.threeIframeOverlayPoolMax) ? snapshot.threeIframeOverlayPoolMax : 0
+    return listMediaOverlayNodes({ enabled: snapshot.renderMediaAsNodes === true, nodes, poolMax })
+  }, [localGraphData, snapshot.renderMediaAsNodes, snapshot.threeIframeOverlayPoolMax])
+
+  const designMediaOverlayElsRef = useRef<Map<string, HTMLDivElement>>(new Map())
+  const designMediaOverlayNodeIdsKey = useMemo(() => designMediaOverlayNodes.map(n => n.id).join('|'), [designMediaOverlayNodes])
+  useEffect(() => {
+    const next = new Map<string, HTMLDivElement>()
+    for (const n of designMediaOverlayNodes) {
+      const existing = designMediaOverlayElsRef.current.get(n.id)
+      if (existing) next.set(n.id, existing)
+    }
+    designMediaOverlayElsRef.current = next
+  }, [designMediaOverlayNodeIdsKey, designMediaOverlayNodes])
+
+  const designMediaHeaderDragRef = useRef<null | { id: string; pointerId: number; startX: number; startY: number; startK: number }>(null)
+
+  useEffect(() => {
+    if (!active) return
+    if (snapshot.renderMediaAsNodes !== true) return
+    if (designMediaOverlayNodes.length === 0) return
+    let raf: number | null = null
+    let lastKey = ''
+    let lastVars: ReturnType<typeof computeMediaPanelCssVars3d>['vars'] | null = null
+    let lastPanelW = 0
+    let lastPanelH = 0
+    const update = () => {
+      const svgEl = svgRef.current
+      if (!svgEl) return
+      const graph = localGraphDataRef.current
+      const nodes = Array.isArray(graph?.nodes) ? (graph.nodes as GraphNode[]) : []
+      const nodeById = new Map<string, GraphNode>()
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]
+        const id = String(n?.id || '').trim()
+        if (!id) continue
+        if (!nodeById.has(id)) nodeById.set(id, n)
+      }
+      const t = d3.zoomTransform(svgEl as unknown as SVGSVGElement)
+      const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+      const density = snapshot.mediaPanelDensity === 'compact' ? 'compact' : 'default'
+      const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v))
+      const widthRatioRaw = density === 'compact' ? snapshot.threeIframeOverlayBaseWidthRatioCompact : snapshot.threeIframeOverlayBaseWidthRatioDefault
+      const widthRatio = Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2
+      const widthMinRaw = density === 'compact' ? snapshot.threeIframeOverlayBaseWidthMinPxCompact : snapshot.threeIframeOverlayBaseWidthMinPxDefault
+      const widthMin = Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210
+      const widthMaxRaw = density === 'compact' ? snapshot.threeIframeOverlayBaseWidthMaxPxCompact : snapshot.threeIframeOverlayBaseWidthMaxPxDefault
+      const widthMax = Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360
+      const baseW = clamp(dims.width * widthRatio, widthMin, widthMax)
+      const MAX_PANEL_PX = 2048
+      const STEP_PX = 16
+      const quantize = (px: number) => Math.round(px / STEP_PX) * STEP_PX
+      const contentW = Math.max(2, Math.min(MAX_PANEL_PX, quantize(baseW * Math.max(0.001, k))))
+      const sizeScale = Math.max(0.001, contentW / Math.max(1, baseW))
+      const key = `${density}|${contentW}`
+      if (key !== lastKey || !lastVars) {
+        const computed = computeMediaPanelCssVars3d({ density, sizeScale })
+        const panel = computePanelSizeFromContent16x9({ contentW, metrics: computed.metrics })
+        lastVars = computed.vars
+        lastPanelW = panel.panelW
+        lastPanelH = panel.panelH
+        lastKey = key
+      }
+      for (const item of designMediaOverlayNodes) {
+        const el = designMediaOverlayElsRef.current.get(item.id)
+        if (!el) continue
+        const n = nodeById.get(item.id) || null
+        const center = readNodeCenterWorld2d(n, { coords: 'center' })
+        if (!center) {
+          try {
+            const hasPos = (el as unknown as { dataset?: Record<string, string> }).dataset?.kgOverlayHasPos === '1'
+            if (!hasPos) applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block', zIndex: 1 })
+          } catch {
+            applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block', zIndex: 1 })
+          }
+          continue
+        }
+        const cx = t.applyX(center.x)
+        const cy = t.applyY(center.y)
+        if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue
+        const rect = computePanelRect({ cx, cy, w: lastPanelW, h: lastPanelH })
+        applyMediaPanelCssVars(el, lastVars!)
+        try {
+          const applied = (el as unknown as { dataset?: Record<string, string> }).dataset?.kgMediaEagerApplied
+          if (!applied) {
+            const iframe = el.querySelector('iframe')
+            if (iframe) {
+              try {
+                ;(iframe as unknown as { loading?: string }).loading = 'eager'
+              } catch {
+                void 0
+              }
+              try {
+                iframe.setAttribute('loading', 'eager')
+              } catch {
+                void 0
+              }
+            }
+            const img = el.querySelector('img')
+            if (img) {
+              try {
+                ;(img as unknown as { loading?: string }).loading = 'eager'
+              } catch {
+                void 0
+              }
+              try {
+                img.setAttribute('loading', 'eager')
+              } catch {
+                void 0
+              }
+            }
+            try {
+              ;(el as unknown as { dataset?: Record<string, string> }).dataset!.kgMediaEagerApplied = '1'
+            } catch {
+              void 0
+            }
+          }
+        } catch {
+          void 0
+        }
+        const left = Math.round(rect.left)
+        const top = Math.round(rect.top)
+        applyPanelBox(el, { left, top, w: lastPanelW, h: lastPanelH, display: 'block' })
+        try {
+          ;(el as unknown as { dataset?: Record<string, string> }).dataset!.kgOverlayHasPos = '1'
+        } catch {
+          void 0
+        }
+      }
+    }
+    const tick = () => {
+      raf = null
+      update()
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => {
+      if (raf != null) {
+        try {
+          cancelAnimationFrame(raf)
+        } catch {
+          void 0
+        }
+      }
+    }
+  }, [
+    active,
+    designMediaOverlayNodeIdsKey,
+    designMediaOverlayNodes,
+    dims.width,
+    snapshot.mediaPanelDensity,
+    snapshot.renderMediaAsNodes,
+    snapshot.threeIframeOverlayBaseWidthMaxPxCompact,
+    snapshot.threeIframeOverlayBaseWidthMaxPxDefault,
+    snapshot.threeIframeOverlayBaseWidthMinPxCompact,
+    snapshot.threeIframeOverlayBaseWidthMinPxDefault,
+    snapshot.threeIframeOverlayBaseWidthRatioCompact,
+    snapshot.threeIframeOverlayBaseWidthRatioDefault,
+  ])
 
   const lastAutoFitWireframeKeyRef = useRef<string>('')
   useEffect(() => {
@@ -2966,7 +3172,7 @@ export default function DesignCanvas({
                   strokeDasharray={strokeDasharray}
                   filter={filter}
                 />
-                {styleById ? null : (() => {
+                {styleById || snapshot.renderMediaAsNodes === true ? null : (() => {
                   const preview = designMediaPreviewById.get(n.id) || null
                   if (!preview) return null
                   const padX = 14
@@ -2987,6 +3193,13 @@ export default function DesignCanvas({
                       innerH={innerH}
                       opacity={0.92}
                       interactive={false}
+                      forwardWheelTo={() => svgRef.current}
+                      onOverlayPanStart={({ pointerId, buttons }) => {
+                        if ((buttons & 1) !== 1 && (buttons & 4) !== 4) return
+                        startDesignMediaOverlayPan({ pointerId })
+                      }}
+                      onOverlayPan={({ pointerId, dx, dy }) => moveDesignMediaOverlayPan({ pointerId, dx, dy })}
+                      onOverlayPanEnd={({ pointerId }) => endDesignMediaOverlayPan({ pointerId })}
                     />
                   )
                 })()}
@@ -3040,7 +3253,7 @@ export default function DesignCanvas({
             )
           })}
 
-          {styleById ? (
+          {styleById && snapshot.renderMediaAsNodes !== true ? (
             <g data-kg-layer="wireframe-text" style={{ pointerEvents: 'none' }}>
               {renderNodes.map(n => {
                 const p = positions[n.id]
@@ -3062,6 +3275,13 @@ export default function DesignCanvas({
                           innerH={preview.innerH}
                           opacity={0.92}
                           interactive={false}
+                          forwardWheelTo={() => svgRef.current}
+                          onOverlayPanStart={({ pointerId, buttons }) => {
+                            if ((buttons & 1) !== 1 && (buttons & 4) !== 4) return
+                            startDesignMediaOverlayPan({ pointerId })
+                          }}
+                          onOverlayPan={({ pointerId, dx, dy }) => moveDesignMediaOverlayPan({ pointerId, dx, dy })}
+                          onOverlayPanEnd={({ pointerId }) => endDesignMediaOverlayPan({ pointerId })}
                         />
                       ) : (
                         <g opacity={0.92}>
@@ -3290,6 +3510,69 @@ export default function DesignCanvas({
           ) : null}
         </g>
       </svg>
+      {active && snapshot.renderMediaAsNodes === true && designMediaOverlayNodes.length > 0 ? (
+        <section aria-label="Design media overlay" className="absolute inset-0 z-[50] pointer-events-none">
+          {designMediaOverlayNodes.map(n => {
+            return (
+              <RichMediaPanel
+                key={n.id}
+                ref={(el) => {
+                  if (!el) {
+                    designMediaOverlayElsRef.current.delete(n.id)
+                    return
+                  }
+                  designMediaOverlayElsRef.current.set(n.id, el)
+                }}
+                data-kg-canvas-wheel-ignore="true"
+                data-kg-canvas-pointer-ignore="true"
+                className="absolute left-0 top-0 pointer-events-auto"
+                title={n.title}
+                url={n.url}
+                kind={n.kind}
+                interactive={n.interactive}
+                hideUntilReady={true}
+                iframeMode="srcdoc-when-needed"
+                forwardWheelTo={() => svgRef.current}
+                shouldStartHeaderDrag={() => {
+                  if (isSpacePanHeld()) return false
+                  if (snapshot.canvasPointerMode2d === 'pan') return false
+                  return true
+                }}
+                onOverlayPanStart={({ pointerId, buttons }) => {
+                  if ((buttons & 1) !== 1 && (buttons & 4) !== 4) return
+                  startDesignMediaOverlayPan({ pointerId })
+                }}
+                onOverlayPan={({ pointerId, dx, dy }) => moveDesignMediaOverlayPan({ pointerId, dx, dy })}
+                onOverlayPanEnd={({ pointerId }) => endDesignMediaOverlayPan({ pointerId })}
+                onHeaderDragStart={({ pointerId }) => {
+                  const p = positions[n.id]
+                  if (!p) return
+                  const svgEl = svgRef.current
+                  if (!svgEl) return
+                  const t = d3.zoomTransform(svgEl)
+                  const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+                  designMediaHeaderDragRef.current = { id: n.id, pointerId, startX: p.x, startY: p.y, startK: k }
+                }}
+                onHeaderDrag={({ dx, dy, pointerId }) => {
+                  const st = designMediaHeaderDragRef.current
+                  if (!st || st.id !== n.id || st.pointerId !== pointerId) return
+                  const k = Number.isFinite(st.startK) && st.startK > 0 ? st.startK : 1
+                  setDesignFramePosMany({ [n.id]: { x: st.startX + dx / k, y: st.startY + dy / k } })
+                }}
+                onHeaderDragEnd={({ pointerId }) => {
+                  const st = designMediaHeaderDragRef.current
+                  if (st && st.id === n.id && st.pointerId === pointerId) designMediaHeaderDragRef.current = null
+                }}
+                style={{
+                  transform: 'translate(-99999px, -99999px)',
+                  width: 1,
+                  height: 1,
+                }}
+              />
+            )
+          })}
+        </section>
+      ) : null}
     </section>
   )
 }

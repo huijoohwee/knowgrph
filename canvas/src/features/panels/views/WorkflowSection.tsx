@@ -97,7 +97,7 @@ export default function WorkflowSection({ searchQuery, onRegisterActions }: Work
     },
     [],
   );
-  useWorkflowExportActions({
+  const exportActions = useWorkflowExportActions({
     parserDataExports: parserDataProps,
     graphData,
     graphSchema: schema,
@@ -205,6 +205,7 @@ export default function WorkflowSection({ searchQuery, onRegisterActions }: Work
         hasSchema={hasSchema}
         graphDataLoaded={graphDataLoaded}
         searchQuery={searchQuery}
+        exportActions={exportActions}
         onOpenSchemaTab={handleOpenSchemaTab}
         onOpenParserScript={handleOpenParserScript}
         onOpenRenderTab={handleOpenRenderTab}

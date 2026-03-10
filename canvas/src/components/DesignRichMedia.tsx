@@ -32,6 +32,10 @@ export function DesignRichMediaPreview(props: {
   opacity?: number
   showBorder?: boolean
   interactive?: boolean
+  forwardWheelTo?: () => Element | null
+  onOverlayPanStart?: (args: { pointerId: number; clientX: number; clientY: number; buttons: number; shiftKey: boolean }) => void
+  onOverlayPan?: (args: { pointerId: number; clientX: number; clientY: number; dx: number; dy: number; buttons: number; shiftKey: boolean }) => void
+  onOverlayPanEnd?: (args: { pointerId: number; clientX: number; clientY: number; buttons: number; shiftKey: boolean }) => void
 }) {
   const {
     tag,
@@ -45,6 +49,10 @@ export function DesignRichMediaPreview(props: {
     opacity = 0.92,
     showBorder = true,
     interactive = true,
+    forwardWheelTo,
+    onOverlayPanStart,
+    onOverlayPan,
+    onOverlayPanEnd,
   } = props
 
   const normalizedUrl = React.useMemo(() => normalizeMediaUrl(tag, url), [tag, url])
@@ -82,32 +90,28 @@ export function DesignRichMediaPreview(props: {
           width={innerW}
           height={innerH}
           style={{ overflow: 'hidden', pointerEvents: interactive ? 'auto' : 'none' }}
-          onPointerDownCapture={stopEvent}
-          onPointerUpCapture={stopEvent}
-          onWheelCapture={stopEvent}
-          onClickCapture={stopEvent}
-          onDoubleClickCapture={stopEvent}
-          onContextMenuCapture={stopEvent}
         >
-          <section
-            style={{
-              width: '100%',
-              height: '100%',
-              borderRadius: `${mediaCorner}px`,
-              overflow: 'hidden',
-              background: 'transparent',
-              pointerEvents: interactive ? 'auto' : 'none',
-            }}
-          >
-            <video
-              src={normalizedUrl}
-              playsInline
-              muted
-              controls
-              preload="metadata"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          </section>
+          <RichMediaPanel
+            title={titleChip}
+            url={url}
+            kind="video"
+            interactive={interactive}
+            iframeMode="srcdoc-when-needed"
+            showHeader={false}
+            forwardWheelTo={forwardWheelTo}
+            onOverlayPanStart={onOverlayPanStart}
+            onOverlayPan={onOverlayPan}
+            onOverlayPanEnd={onOverlayPanEnd}
+            style={
+              {
+                width: '100%',
+                height: '100%',
+                boxShadow: 'none',
+                ['--kg-media-panel-padding' as never]: '0px',
+                ['--kg-media-panel-radius' as never]: `${mediaCorner}px`,
+              } as React.CSSProperties
+            }
+          />
         </foreignObject>
       ) : null}
 
@@ -118,12 +122,6 @@ export function DesignRichMediaPreview(props: {
           width={innerW}
           height={innerH}
           style={{ overflow: 'hidden', pointerEvents: interactive ? 'auto' : 'none' }}
-          onPointerDownCapture={stopEvent}
-          onPointerUpCapture={stopEvent}
-          onWheelCapture={stopEvent}
-          onClickCapture={stopEvent}
-          onDoubleClickCapture={stopEvent}
-          onContextMenuCapture={stopEvent}
         >
           <RichMediaPanel
             title={titleChip}
@@ -131,6 +129,10 @@ export function DesignRichMediaPreview(props: {
             interactive={interactive}
             iframeMode="srcdoc-when-needed"
             showHeader={false}
+            forwardWheelTo={forwardWheelTo}
+            onOverlayPanStart={onOverlayPanStart}
+            onOverlayPan={onOverlayPan}
+            onOverlayPanEnd={onOverlayPanEnd}
             style={
               {
                 width: '100%',

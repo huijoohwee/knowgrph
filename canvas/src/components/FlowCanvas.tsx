@@ -25,6 +25,8 @@ import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { computeEvenlyDistributedPositions } from '@/lib/canvas/evenDistribute'
 import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/canvas/arrangeShortcuts'
+import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
+import { clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } from '@/lib/canvas/camera-options-2d'
 import {
   createFlowNativeRuntime,
   requestFlowNativeDraw,
@@ -53,8 +55,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 import RichMediaPanel from '@/components/RichMediaPanel'
-import { computeMediaPanelWorldDims } from '@/lib/render/mediaPanelSpec'
-import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars2d, computeMediaPanelPixelSize2d, computePanelRect } from '@/lib/render/mediaPanelLayout'
+import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars3d, computePanelRect, computePanelSizeFromContent16x9 } from '@/lib/render/mediaPanelLayout'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 
 const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
@@ -259,6 +260,12 @@ export default function FlowCanvas({
     renderMediaAsNodes,
     mediaPanelDensity,
     threeIframeOverlayPoolMax,
+    threeIframeOverlayBaseWidthRatioDefault,
+    threeIframeOverlayBaseWidthRatioCompact,
+    threeIframeOverlayBaseWidthMinPxDefault,
+    threeIframeOverlayBaseWidthMinPxCompact,
+    threeIframeOverlayBaseWidthMaxPxDefault,
+    threeIframeOverlayBaseWidthMaxPxCompact,
     canvasRenderMode,
     canvas2dRenderer,
     viewportControlsPreset,
@@ -290,6 +297,12 @@ export default function FlowCanvas({
       renderMediaAsNodes: s.renderMediaAsNodes,
       mediaPanelDensity: s.mediaPanelDensity,
       threeIframeOverlayPoolMax: s.threeIframeOverlayPoolMax,
+      threeIframeOverlayBaseWidthRatioDefault: s.threeIframeOverlayBaseWidthRatioDefault,
+      threeIframeOverlayBaseWidthRatioCompact: s.threeIframeOverlayBaseWidthRatioCompact,
+      threeIframeOverlayBaseWidthMinPxDefault: s.threeIframeOverlayBaseWidthMinPxDefault,
+      threeIframeOverlayBaseWidthMinPxCompact: s.threeIframeOverlayBaseWidthMinPxCompact,
+      threeIframeOverlayBaseWidthMaxPxDefault: s.threeIframeOverlayBaseWidthMaxPxDefault,
+      threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
       canvasRenderMode: s.canvasRenderMode,
       canvas2dRenderer: s.canvas2dRenderer,
       viewportControlsPreset: s.viewportControlsPreset,
@@ -413,10 +426,76 @@ export default function FlowCanvas({
     mediaOverlayElsRef.current = next
   }, [mediaNodeIdsKey, mediaNodes])
 
-  const mediaPanelDimsWorld = React.useMemo(() => {
-    const density = mediaPanelDensity === 'compact' ? 'compact' : 'default'
-    return computeMediaPanelWorldDims(density)
-  }, [mediaPanelDensity])
+  const mediaOverlayPanRef = React.useRef<null | { pointerId: number; startTransform: d3.ZoomTransform }>(null)
+  const mediaOverlayHeaderDragRef = React.useRef<null | { id: string; pointerId: number; startX: number; startY: number; startK: number }>(null)
+  const requestCommitRef = React.useRef<null | (() => void)>(null)
+
+  const startMediaOverlayPan = React.useCallback((args: { pointerId: number }) => {
+    if (!active) return
+    const rt = runtimeRef.current
+    if (!rt) return
+    disableAutoZoomModesForUserGesture(useGraphStore.getState())
+    mediaOverlayPanRef.current = { pointerId: args.pointerId, startTransform: rt.transform || d3.zoomIdentity }
+  }, [active])
+
+  const moveMediaOverlayPan = React.useCallback((args: { pointerId: number; dx: number; dy: number }) => {
+    const drag = mediaOverlayPanRef.current
+    if (!drag || drag.pointerId !== args.pointerId) return
+    const rt = runtimeRef.current
+    if (!rt) return
+    const st = useGraphStore.getState()
+    disableAutoZoomModesForUserGesture(st)
+    const interactionSpeed =
+      clampCanvasPanSpeedMultiplier(st.canvasPanSpeedMultiplier) * clampCanvasInteractionSpeedMultiplier(st.canvasInteractionSpeedMultiplier)
+    const next = d3.zoomIdentity
+      .translate(drag.startTransform.x + args.dx * interactionSpeed, drag.startTransform.y + args.dy * interactionSpeed)
+      .scale(drag.startTransform.k)
+    setFlowNativeTransform(rt, next)
+    requestFlowNativeDraw(rt, buildDrawArgs())
+    requestCommitRef.current?.()
+    onInteractionFrame?.()
+  }, [buildDrawArgs, onInteractionFrame])
+
+  const endMediaOverlayPan = React.useCallback((args: { pointerId: number }) => {
+    const drag = mediaOverlayPanRef.current
+    if (!drag || drag.pointerId !== args.pointerId) return
+    mediaOverlayPanRef.current = null
+  }, [])
+
+  const beginMediaOverlayHeaderDrag = React.useCallback((id: string, pointerId: number) => {
+    if (!active) return
+    const rt = runtimeRef.current
+    const scene = rt?.scene
+    if (!rt || !scene) return
+    const node = scene.nodeById.get(id)
+    if (!node) return
+    disableAutoZoomModesForUserGesture(useGraphStore.getState())
+    mediaOverlayHeaderDragRef.current = { id, pointerId, startX: node.x, startY: node.y, startK: rt.transform?.k || 1 }
+  }, [active])
+
+  const moveMediaOverlayHeaderDrag = React.useCallback((id: string, args: { pointerId: number; dx: number; dy: number }) => {
+    const drag = mediaOverlayHeaderDragRef.current
+    if (!drag || drag.id !== id || drag.pointerId !== args.pointerId) return
+    const rt = runtimeRef.current
+    const scene = rt?.scene
+    if (!rt || !scene) return
+    const node = scene.nodeById.get(id)
+    if (!node) return
+    const k = Number.isFinite(drag.startK) && drag.startK > 0 ? drag.startK : 1
+    node.x = drag.startX + args.dx / k
+    node.y = drag.startY + args.dy / k
+    rt.dirty = true
+    positionsDirtySinceCommitRef.current = true
+    requestFlowNativeDraw(rt, buildDrawArgs())
+    requestCommitRef.current?.()
+    onInteractionFrame?.()
+  }, [buildDrawArgs, onInteractionFrame])
+
+  const endMediaOverlayHeaderDrag = React.useCallback((id: string, pointerId: number) => {
+    const drag = mediaOverlayHeaderDragRef.current
+    if (!drag || drag.id !== id || drag.pointerId !== pointerId) return
+    mediaOverlayHeaderDragRef.current = null
+  }, [])
 
   React.useEffect(() => {
     if (!active) return
@@ -431,9 +510,27 @@ export default function FlowCanvas({
         raf = requestAnimationFrame(tick)
         return
       }
-      const k = Number.isFinite(rt.transform.k) ? Math.max(0.001, rt.transform.k) : 1
-      const { metrics, vars } = computeMediaPanelCssVars2d({ zoomK: k, dimsWorld: mediaPanelDimsWorld })
-      const { panelW, panelH } = computeMediaPanelPixelSize2d({ zoomK: k, dimsWorld: mediaPanelDimsWorld })
+      const t = rt.transform || d3.zoomIdentity
+      const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+      const density = mediaPanelDensity === 'compact' ? 'compact' : 'default'
+      const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v))
+      const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
+      const widthRatio = Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2
+      const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
+      const widthMin = Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210
+      const widthMaxRaw = density === 'compact' ? threeIframeOverlayBaseWidthMaxPxCompact : threeIframeOverlayBaseWidthMaxPxDefault
+      const widthMax = Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360
+      const baseW = clamp(viewportW * widthRatio, widthMin, widthMax)
+      const MAX_PANEL_PX = 2048
+      const STEP_PX = 16
+      const quantize = (px: number) => Math.round(px / STEP_PX) * STEP_PX
+      const contentW = Math.max(2, Math.min(MAX_PANEL_PX, quantize(baseW * Math.max(0.001, k))))
+      const sizeScale = Math.max(0.001, contentW / Math.max(1, baseW))
+      const computed = computeMediaPanelCssVars3d({ density, sizeScale })
+      const panel = computePanelSizeFromContent16x9({ contentW, metrics: computed.metrics })
+      const vars = computed.vars
+      const panelW = panel.panelW
+      const panelH = panel.panelH
       for (const n of mediaNodes) {
         const el = mediaOverlayElsRef.current.get(n.id)
         if (!el) continue
@@ -448,12 +545,50 @@ export default function FlowCanvas({
           continue
         }
         const rect = computePanelRect({
-          cx: rt.transform.applyX(center.x),
-          cy: rt.transform.applyY(center.y),
+          cx: t.applyX(center.x),
+          cy: t.applyY(center.y),
           w: panelW,
           h: panelH,
         })
         applyMediaPanelCssVars(el, vars)
+        try {
+          const applied = (el as unknown as { dataset?: Record<string, string> }).dataset?.kgMediaEagerApplied
+          if (!applied) {
+            const iframe = el.querySelector('iframe')
+            if (iframe) {
+              try {
+                ;(iframe as unknown as { loading?: string }).loading = 'eager'
+              } catch {
+                void 0
+              }
+              try {
+                iframe.setAttribute('loading', 'eager')
+              } catch {
+                void 0
+              }
+            }
+            const img = el.querySelector('img')
+            if (img) {
+              try {
+                ;(img as unknown as { loading?: string }).loading = 'eager'
+              } catch {
+                void 0
+              }
+              try {
+                img.setAttribute('loading', 'eager')
+              } catch {
+                void 0
+              }
+            }
+            try {
+              ;(el as unknown as { dataset?: Record<string, string> }).dataset!.kgMediaEagerApplied = '1'
+            } catch {
+              void 0
+            }
+          }
+        } catch {
+          void 0
+        }
         applyPanelBox(el, { left: rect.left, top: rect.top, w: panelW, h: panelH, display: 'block' })
       }
       raf = requestAnimationFrame(tick)
@@ -468,7 +603,20 @@ export default function FlowCanvas({
         }
       }
     }
-  }, [active, mediaNodes, mediaNodeIdsKey, mediaPanelDimsWorld, renderMediaAsNodes])
+  }, [
+    active,
+    mediaNodes,
+    mediaNodeIdsKey,
+    mediaPanelDensity,
+    renderMediaAsNodes,
+    threeIframeOverlayBaseWidthMaxPxCompact,
+    threeIframeOverlayBaseWidthMaxPxDefault,
+    threeIframeOverlayBaseWidthMinPxCompact,
+    threeIframeOverlayBaseWidthMinPxDefault,
+    threeIframeOverlayBaseWidthRatioCompact,
+    threeIframeOverlayBaseWidthRatioDefault,
+    viewportW,
+  ])
 
   const layoutViewKey = React.useMemo(() => {
     return buildLayoutViewKey({
@@ -893,6 +1041,7 @@ export default function FlowCanvas({
     lastCommittedPositionsRef,
     buildDrawArgs,
   })
+  requestCommitRef.current = requestCommit
 
   const selectedIds = React.useMemo(() => {
     const set = new Set<string>()
@@ -1463,19 +1612,29 @@ export default function FlowCanvas({
                   }
                   mediaOverlayElsRef.current.set(n.id, el)
                 }}
+                data-kg-canvas-wheel-ignore="true"
+                data-kg-canvas-pointer-ignore="true"
                 className="absolute left-0 top-0 pointer-events-auto"
                 title={n.title}
                 url={n.url}
                 kind={n.kind}
                 interactive={n.interactive}
                 iframeMode="srcdoc-when-needed"
+                forwardWheelTo={() => canvasRef.current}
+                onOverlayPanStart={({ pointerId, buttons }) => {
+                  if ((buttons & 1) !== 1 && (buttons & 4) !== 4) return
+                  startMediaOverlayPan({ pointerId })
+                }}
+                onOverlayPan={({ pointerId, dx, dy }) => moveMediaOverlayPan({ pointerId, dx, dy })}
+                onOverlayPanEnd={({ pointerId }) => endMediaOverlayPan({ pointerId })}
+                onHeaderDragStart={({ pointerId }) => beginMediaOverlayHeaderDrag(n.id, pointerId)}
+                onHeaderDrag={({ dx, dy, pointerId }) => moveMediaOverlayHeaderDrag(n.id, { pointerId, dx, dy })}
+                onHeaderDragEnd={({ pointerId }) => endMediaOverlayHeaderDrag(n.id, pointerId)}
                 style={{
                   transform: 'translate(-99999px, -99999px)',
                   width: 1,
                   height: 1,
                 }}
-                onPointerDownCapture={stopEvent}
-                onPointerUpCapture={stopEvent}
                 onWheelCapture={stopEvent}
                 onClickCapture={stopEvent}
                 onDoubleClickCapture={stopEvent}

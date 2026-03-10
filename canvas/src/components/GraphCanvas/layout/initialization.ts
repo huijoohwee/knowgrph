@@ -66,7 +66,7 @@ export const seedMissingNodePositions = (
   const innerH = Math.max(1, Math.floor(height) - pad * 2)
   const area = innerW * innerH
   const spacingBase = Math.sqrt(area / Math.max(1, sorted.length))
-  const spacing = Math.max(64, Math.min(220, spacingBase * 1.6))
+  const spacing = Math.max(72, Math.min(320, spacingBase * 1.9))
 
   const coerceCommunityKey = (n: GraphNode): string => {
     const props = (n.properties || {}) as Record<string, unknown>
@@ -121,7 +121,7 @@ export const seedMissingNodePositions = (
 
   const communityKeys = Array.from(missingByCommunity.keys()).sort((a, b) => a.localeCompare(b))
   const clusterCount = communityKeys.length
-  const clusterSpacing = Math.max(220, Math.min(560, spacing * 3.1))
+  const clusterSpacing = Math.max(260, Math.min(720, spacing * 3.1))
   const aspect = innerW / Math.max(1, innerH)
   const idealClusterCols = Math.ceil(Math.sqrt(Math.max(1, clusterCount) * Math.max(0.55, aspect)))
   const maxClusterColsByWidth = Math.max(1, Math.floor(innerW / clusterSpacing))
@@ -132,7 +132,7 @@ export const seedMissingNodePositions = (
   const clusterStartX = cx - clusterGridW / 2
   const clusterStartY = cy - clusterGridH / 2
 
-  const microSpacing = Math.max(42, Math.min(160, spacing * 0.72))
+  const microSpacing = Math.max(48, Math.min(200, spacing * 0.72))
 
   for (let gi = 0; gi < communityKeys.length; gi += 1) {
     const key = communityKeys[gi]!
