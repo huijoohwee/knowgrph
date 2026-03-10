@@ -12,7 +12,7 @@ import { getRenderNodeRadius2d, getEdgeStrokeWidth } from '@/components/GraphCan
 import { Physics3D, type Vec3 } from './layout'
 import type { NodeSelectionMode } from './selection'
 import { getSelectionVisuals } from './selection'
-import { DirectionalParticles, ArrowHead, EdgeMesh, CurvedEdgeMesh } from './visuals'
+import { DirectionalParticles, ArrowHead, EdgeMesh, CurvedEdgeMesh, ShaderLineEdges } from './visuals'
 import { NodeMesh } from './NodeMesh'
 import { Starfield } from './Starfield'
 import { getCameraConfig } from './camera'
@@ -56,6 +56,8 @@ export function Scene({
   const selectEdge = useGraphStore(s => s.selectEdge)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
+  const threeEdgeRenderer = useGraphStore(s => s.threeEdgeRenderer)
+  const threeShaderLineWidthPx = useGraphStore(s => s.threeShaderLineWidthPx)
   const selectionSets = React.useMemo(() => {
     const nodeIds =
       Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0
@@ -136,6 +138,7 @@ export function Scene({
   const motionIntensity = typeof threeCfg.nodeMotionIntensity === 'number'
     ? Math.max(0, Math.min(2, threeCfg.nodeMotionIntensity))
     : 1
+  const motionIntensityEffective = renderMediaAsNodes ? 0 : motionIntensity
 
   const cameraConfig = getCameraConfig(schema)
   const hiddenNodeIds = React.useMemo(() => new Set<string>(), [])
@@ -208,7 +211,7 @@ export function Scene({
     const g = sceneGroupRef.current
     if (!g) return
     const t = clock.getElapsedTime()
-    const i = motionIntensity
+    const i = motionIntensityEffective
     g.position.x = Math.sin(t * 0.12) * (0.08 * i)
     g.position.y = Math.cos(t * 0.15) * (0.08 * i)
     g.rotation.z = Math.sin(t * 0.04) * (0.002 * i)
@@ -233,7 +236,31 @@ export function Scene({
       ) : null}
       <group ref={sceneGroupRef}>
         <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragOverridesRef} paused={paused} />
-        {data.edges.map((e) => {
+        {threeEdgeRenderer === 'shaderLine' ? (
+          <ShaderLineEdges
+            edges={data.edges}
+            positions={positions}
+            nodeRadiusById={nodeRadiusMap}
+            colorByLabel={colorByLabel}
+            neutralEdgeColor={neutralEdgeColor}
+            selectedEdgeColor={selectedEdgeColor}
+            selectionMode={selectionMode}
+            selectedEdgeIdSet={selectionSets.selectedEdgeIdSet}
+            selectedNodeIdSet={selectionSets.selectedNodeIdSet}
+            dimmedEdgeOpacity={selectionVisuals.dimmedEdgeOpacity}
+            selectedEdgeWidth={selectionVisuals.selectedEdgeWidth}
+            paused={paused}
+            motionIntensity={motionIntensityEffective}
+            draggedNodeId={draggedNodeId}
+            lineWidthPx={threeShaderLineWidthPx}
+            onSelectEdge={(id) => {
+              setSelectionSource('canvas')
+              selectEdge(id)
+            }}
+            onHoverEdge={onHoverEdge}
+          />
+        ) : (
+          data.edges.map((e) => {
           const a = positions[e.source]
           const b = positions[e.target]
           if (!a || !b) return null
@@ -341,16 +368,17 @@ export function Scene({
               }}
             >
               {curvature > 0.001
-                ? <CurvedEdgeMesh a={a} b={b} color={resolvedFinalColor} width={width} opacity={finalOpacity} curvature={curvature} resolution={resolution} rotation={curveRotation} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensity} draggedNodeId={draggedNodeId} />
-                : <EdgeMesh a={a} b={b} color={resolvedFinalColor} width={width} opacity={finalOpacity} resolution={resolution} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensity} draggedNodeId={draggedNodeId} />
+                ? <CurvedEdgeMesh a={a} b={b} color={resolvedFinalColor} width={width} opacity={finalOpacity} curvature={curvature} resolution={resolution} rotation={curveRotation} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityEffective} draggedNodeId={draggedNodeId} />
+                : <EdgeMesh a={a} b={b} color={resolvedFinalColor} width={width} opacity={finalOpacity} resolution={resolution} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityEffective} draggedNodeId={draggedNodeId} />
               }
-              <ArrowHead start={a} end={b} color={resolvedFinalColor} height={arrowLen} relPos={arrowRelPos} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensity} draggedNodeId={draggedNodeId} />
+              <ArrowHead start={a} end={b} color={resolvedFinalColor} height={arrowLen} relPos={arrowRelPos} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityEffective} draggedNodeId={draggedNodeId} />
               {particles > 0 && particleSpeed > 0 ? (
-                <DirectionalParticles start={a} end={b} count={particles} color={resolvedFinalColor} speed={particleSpeed} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensity} draggedNodeId={draggedNodeId} />
+                <DirectionalParticles start={a} end={b} count={particles} color={resolvedFinalColor} speed={particleSpeed} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityEffective} draggedNodeId={draggedNodeId} />
               ) : null}
             </group>
           )
-        })}
+        })
+        )}
         {data.nodes.map((n) => {
           const p = positions[n.id]
           if (!p) return null
@@ -373,7 +401,7 @@ export function Scene({
               onDragEnd={allowNodeDrag ? handleDragEnd : undefined}
               onHoverChange={onHoverNode}
               setNodeDragActive={allowNodeDrag ? onDragNode : undefined}
-              motionIntensity={motionIntensity}
+              motionIntensity={motionIntensityEffective}
               draggedNodeId={draggedNodeId}
             />
           )

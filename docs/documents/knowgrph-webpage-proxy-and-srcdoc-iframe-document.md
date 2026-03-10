@@ -242,7 +242,7 @@ For local repo-relative inputs, `Import URL` accepts both `path/to/file.html` an
 
 The canonical place for these controls is the Markdown toolbar `nav` ("Webpage" group): `View`, `Script`, `Imgs`, `Fid`, and an explicit `Sync` action.
 
-Markdown rendering supports safe rich-media HTML blocks through an allowlist renderer (no `dangerouslySetInnerHTML`), including `<svg>`, `<iframe>`, `<video>`, `<audio>`, `<details>/<summary>`, plus layout-safe media wrappers like `<picture>`, `<figure>`, and `<figcaption>`. The same shared rich-media SSOT (URL heuristics + iframe sandbox policy) is reused across Markdown Viewer, Canvas 2D/3D, Design, and Document/Geospatial modes.
+Markdown rendering supports safe rich-media HTML blocks through an allowlist renderer (no `dangerouslySetInnerHTML`), including `<svg>`, `<iframe>`, `<video>`, `<audio>`, `<details>/<summary>`, plus layout-safe media wrappers like `<picture>`, `<figure>`, and `<figcaption>`. The same shared rich-media SSOT (URL heuristics + iframe sandbox policy + auto Script/Imgs/Fid defaults) is reused across Markdown Viewer, Canvas 2D/3D, Design, and Document/Geospatial modes; per-doc frontmatter is an optional override and must not be required for normal Rich Media rendering.
 
 ## Shared Signal Tokens (Mode-Independent)
 

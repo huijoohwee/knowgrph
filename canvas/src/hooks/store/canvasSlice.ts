@@ -563,12 +563,12 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
         [mode]: fns || undefined,
       },
     })),
-  captureCanvasPngSnapshot: async (mode?: '2d' | '3d') => {
+  captureCanvasPngSnapshot: async (mode?: '2d' | '3d', pixelRatio?: number) => {
     const state = get();
     const m = mode || state.canvasRenderMode;
     const fns = state.canvasSnapshotFns?.[m];
     if (fns?.capturePng) {
-      return fns.capturePng();
+      return fns.capturePng(pixelRatio);
     }
     return null;
   },

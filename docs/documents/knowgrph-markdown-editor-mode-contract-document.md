@@ -42,6 +42,12 @@ The canonical UI for webpage-backed docs is the Markdown toolbar `nav` ("Webpage
 
 No other surface should duplicate these controls.
 
+## Rich Media SSOT (Markdown Viewer ↔ Canvas)
+
+- Rich Media detection is shared: a neutral `getNodeMediaSpec`-style heuristic inspects node/document properties to decide whether a block should render as image/svg/video/iframe, independent of renderer (Markdown Viewer, Canvas 2D/3D, Design, Geospatial).
+- Script/Imgs/Fid defaults are auto and driven by shared rich-media + iframe heuristics; frontmatter overrides are optional escape hatches and must not be required for normal imports.
+- Canvas 2D (D3) and Canvas 3D reuse the same Rich Media SSOT: media nodes render as bounded overlay panels (DOM, not SVG/WebGL), scheduled via a shared RAF-coalesced overlay scheduler so drag/pan/zoom/3D motion do not induce per-frame React rerenders or recomputation loops.
+
 ## Round-Trip Rules
 
 - Switching view modes must be lossless for frontmatter keys.

@@ -10,12 +10,23 @@ import { selectionPerfEnd, selectionPerfStart } from '@/lib/selectionPerf'
 import type { Vec3 } from './layout'
 import { applyZoomStep, fitCameraToPositions, type CameraRequestType, getCameraConfig } from './camera'
 
-export function Controls({ schema, positions, paused }: { schema: GraphSchema; positions: Record<string, Vec3>; paused?: boolean }) {
+export function Controls({
+  schema,
+  positions,
+  paused,
+  onControlsChange,
+}: {
+  schema: GraphSchema
+  positions: Record<string, Vec3>
+  paused?: boolean
+  onControlsChange?: () => void
+}) {
   const { camera, gl } = useThree()
   const perspectiveCamera = camera as THREE.PerspectiveCamera
   const controls = useMemo(() => {
     const c = new OrbitControls(camera, gl.domElement)
     c.enableDamping = true
+    c.minDistance = 0.05
     return c
   }, [camera, gl])
   const threeCameraRequest = useGraphStore(s => s.threeCameraRequest)
@@ -24,14 +35,61 @@ export function Controls({ schema, positions, paused }: { schema: GraphSchema; p
   const requestThreeCamera = useGraphStore(s => s.requestThreeCamera)
   const registerThreeCameraSnapshotFns = useGraphStore(s => s.registerThreeCameraSnapshotFns)
   const viewPinned = useGraphStore(s => s.viewPinned)
+  const threeCameraAutoClip = useGraphStore(s => s.threeCameraAutoClip)
+  const threeCameraAutoClipNearFactor = useGraphStore(s => s.threeCameraAutoClipNearFactor)
+  const threeCameraAutoClipFarFactor = useGraphStore(s => s.threeCameraAutoClipFarFactor)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const zoomToSelectionMode = useGraphStore(s => s.zoomToSelectionMode)
   const expansionCfg = schema.behavior?.expansion || {}
   const zoomOnSelectionEnabled = expansionCfg.enabled !== false && expansionCfg.zoomOnSelection !== false
+  React.useEffect(() => {
+    if (!onControlsChange) return
+    const handler = () => {
+      try {
+        onControlsChange()
+      } catch {
+        void 0
+      }
+    }
+    try {
+      controls.addEventListener('change', handler)
+    } catch {
+      void 0
+    }
+    return () => {
+      try {
+        controls.removeEventListener('change', handler)
+      } catch {
+        void 0
+      }
+    }
+  }, [controls, onControlsChange])
   useFrame(() => {
     if (paused) return
     controls.update()
+    if (!threeCameraAutoClip) return
+    const dist = camera.position.distanceTo(controls.target)
+    if (!Number.isFinite(dist) || dist <= 0) return
+    const nearFactor = typeof threeCameraAutoClipNearFactor === 'number' && Number.isFinite(threeCameraAutoClipNearFactor) && threeCameraAutoClipNearFactor > 0
+      ? threeCameraAutoClipNearFactor
+      : 0.0001
+    const farFactor = typeof threeCameraAutoClipFarFactor === 'number' && Number.isFinite(threeCameraAutoClipFarFactor) && threeCameraAutoClipFarFactor > 1
+      ? threeCameraAutoClipFarFactor
+      : 200
+    const nextNear = Math.max(0.000001, dist * nearFactor)
+    const nextFar = Math.max(nextNear + 1, dist * farFactor)
+    const pc = perspectiveCamera
+    const nearChanged = Math.abs((pc.near || 0) - nextNear) / Math.max(1e-6, pc.near || 1) > 0.15
+    const farChanged = Math.abs((pc.far || 0) - nextFar) / Math.max(1e-6, pc.far || 1) > 0.15
+    if (!nearChanged && !farChanged) return
+    pc.near = nextNear
+    pc.far = nextFar
+    try {
+      pc.updateProjectionMatrix()
+    } catch {
+      void 0
+    }
   })
   const lastFitDepsRef = React.useRef<{ nodesCount: number } | null>(null)
   React.useEffect(() => {

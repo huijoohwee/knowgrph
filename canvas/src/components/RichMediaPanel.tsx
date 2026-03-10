@@ -9,6 +9,8 @@ export type RichMediaPanelProps = {
   interactive?: boolean
   iframeMode?: RichMediaIframeMode
   showHeader?: boolean
+  hideUntilReady?: boolean
+  headerPassthrough?: boolean
   className?: string
   style?: React.CSSProperties
   onPointerDownCapture?: React.PointerEventHandler<HTMLDivElement>
@@ -25,6 +27,13 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
   const showHeader = props.showHeader !== false
   const kind: 'iframe' | 'image' | 'svg' | 'video' = props.kind === 'image' || props.kind === 'svg' || props.kind === 'video' ? props.kind : 'iframe'
   const proxiedUrl = React.useMemo(() => applyMediaProxySrc(String(props.url || '').trim()), [props.url])
+  const hideUntilReady = props.hideUntilReady === true
+  const headerPassthrough = props.headerPassthrough === true
+  const [ready, setReady] = React.useState<boolean>(() => !hideUntilReady)
+  React.useEffect(() => {
+    setReady(!hideUntilReady)
+  }, [hideUntilReady, proxiedUrl, kind, mode])
+  const contentInteractive = props.interactive !== false && (!hideUntilReady || ready)
 
   return (
     <div
@@ -33,13 +42,19 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
       style={{
         boxSizing: 'border-box',
         overflow: 'hidden',
+        contain: 'layout paint',
+        isolation: 'isolate',
         borderRadius: 'var(--kg-media-panel-radius, 10px)',
         border: 'var(--kg-media-panel-border-w, 1px) solid var(--kg-border)',
-        background: 'var(--kg-panel-bg, rgba(255,255,255,0.92))',
+        background: 'var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.92)))',
         boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
-        pointerEvents: props.interactive === false ? 'none' : 'auto',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
+        willChange: 'left, top, transform, width, height',
+        pointerEvents: headerPassthrough ? 'none' : (contentInteractive ? 'auto' : 'none'),
         display: 'flex',
         flexDirection: 'column',
+        opacity: hideUntilReady && !ready ? 0 : 1,
         ...(props.style || null),
       }}
       onPointerDownCapture={props.onPointerDownCapture}
@@ -61,7 +76,7 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
             justifyContent: 'center',
             paddingLeft: 'var(--kg-media-panel-padding, 6px)',
             paddingRight: 'var(--kg-media-panel-padding, 6px)',
-            background: 'var(--kg-panel-bg, rgba(255,255,255,0.96))',
+            background: 'var(--kg-media-panel-header-bg, var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.96))))',
             borderBottom: 'var(--kg-media-panel-border-w, 1px) solid var(--kg-border)',
             color: 'var(--kg-text-primary, var(--kg-text))',
             fontSize: 'var(--kg-media-panel-title-size, 12px)',
@@ -70,13 +85,22 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
+            pointerEvents: headerPassthrough ? 'none' : 'auto',
           }}
           title={title}
         >
           {title}
         </header>
       ) : null}
-      <section style={{ flex: 1, padding: 'var(--kg-media-panel-padding, 6px)', boxSizing: 'border-box', minHeight: 0 }}>
+      <section
+        style={{
+          flex: 1,
+          padding: 'var(--kg-media-panel-padding, 6px)',
+          boxSizing: 'border-box',
+          minHeight: 0,
+          pointerEvents: headerPassthrough ? (contentInteractive ? 'auto' : 'none') : undefined,
+        }}
+      >
         {kind === 'iframe' ? (
           <RichMediaIframe
             title={title}
@@ -88,7 +112,11 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
               height: '100%',
               border: 0,
               borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
+              background: 'transparent',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
             }}
+            onLoad={() => setReady(true)}
           />
         ) : kind === 'video' ? (
           <video
@@ -97,6 +125,8 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
             muted
             controls
             preload="metadata"
+            onLoadedData={() => setReady(true)}
+            onError={() => setReady(true)}
             style={{
               display: 'block',
               width: '100%',
@@ -105,6 +135,8 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
               borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
               objectFit: 'cover',
               background: 'transparent',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
             }}
           />
         ) : (
@@ -112,6 +144,8 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
             src={proxiedUrl}
             alt={title}
             loading="lazy"
+            onLoad={() => setReady(true)}
+            onError={() => setReady(true)}
             style={{
               display: 'block',
               width: '100%',
@@ -120,6 +154,8 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
               borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
               objectFit: 'cover',
               background: 'transparent',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
             }}
           />
         )}

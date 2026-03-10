@@ -145,10 +145,16 @@ export function testSelectionHighlightMediaOpacityRespectsRenderToggleAndLayerOp
   if (Math.abs(v.opacity - 0.4) > 1e-6) {
     throw new Error(`expected media opacity to respect layer opacity (got ${v.opacity})`)
   }
+  if (v.fill !== 'transparent' || v.stroke !== 'transparent') {
+    throw new Error('expected media node visual to hide node fill/stroke under rich media overlays')
+  }
 
   const vOff = computeNodeVisual(data.nodes[0], { ...baseParams, renderMediaAsNodes: false, neighborIds })
   if (Math.abs(vOff.opacity - 0.8) > 1e-6) {
     throw new Error(`expected media node to use layer opacity when Rich Media is off (got ${vOff.opacity})`)
+  }
+  if (vOff.fill === 'transparent') {
+    throw new Error('expected non-media rendering to preserve node fill')
   }
 }
 

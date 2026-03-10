@@ -54,7 +54,8 @@ import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manage
 import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { computeMediaPanelWorldDims } from '@/lib/render/mediaPanelSpec'
-import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars2d, computePanelRect, computePanelSizeFromContent16x9 } from '@/lib/render/mediaPanelLayout'
+import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars2d, computeMediaPanelPixelSize2d, computePanelRect } from '@/lib/render/mediaPanelLayout'
+import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 
 const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
 
@@ -315,6 +316,8 @@ export default function FlowCanvas({
 
   const graphDataRevision = typeof graphDataRevisionOverride === 'number' ? graphDataRevisionOverride : baseGraphDataRevision
 
+  const mediaHideNodeIdsRef = React.useRef<string[]>([])
+
   React.useEffect(() => {
     const nodeIdSet = new Set<string>((selectedNodeIds || []).map(v => String(v)))
     if (selectedNodeId) nodeIdSet.add(String(selectedNodeId))
@@ -328,10 +331,12 @@ export default function FlowCanvas({
     drawArgsRef.current.selectedEdgeIds = nextSelectedEdgeIds
     const explicitHideNodeIds = (hideNodeIds || []).map(v => String(v)).filter(Boolean)
     const explicitHidePortHandleNodeIds = (hidePortHandleNodeIds || []).map(v => String(v)).filter(Boolean)
+    const mediaHideNodeIds = renderMediaAsNodes === true ? mediaHideNodeIdsRef.current : []
+    const baseHideNodeIds = explicitHideNodeIds.length > 0 || mediaHideNodeIds.length > 0 ? Array.from(new Set([...explicitHideNodeIds, ...mediaHideNodeIds])) : []
     drawArgsRef.current.hideNodeIds = hideSelectedNodeGlyph
-      ? Array.from(new Set([...nextSelectedNodeIds, ...explicitHideNodeIds]))
-      : explicitHideNodeIds.length > 0
-        ? explicitHideNodeIds
+      ? Array.from(new Set([...nextSelectedNodeIds, ...baseHideNodeIds]))
+      : baseHideNodeIds.length > 0
+        ? baseHideNodeIds
         : undefined
     drawArgsRef.current.hidePortHandleNodeIds = hideSelectedNodePortHandles
       ? Array.from(new Set([...nextSelectedNodeIds, ...explicitHidePortHandleNodeIds]))
@@ -352,6 +357,7 @@ export default function FlowCanvas({
     renderEdges,
     renderGroups,
     renderNodes,
+    renderMediaAsNodes,
     selectedEdgeId,
     selectedEdgeIds,
     selectedNodeId,
@@ -390,10 +396,13 @@ export default function FlowCanvas({
   const mediaNodes = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as GraphNode[]) : []
     const poolMax = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
-    return listMediaOverlayNodes({ enabled: renderMediaAsNodes === true, nodes, poolMax, kinds: ['iframe'] })
+    return listMediaOverlayNodes({ enabled: renderMediaAsNodes === true, nodes, poolMax })
   }, [renderMediaAsNodes, sceneGraphData, threeIframeOverlayPoolMax])
 
   const mediaNodeIdsKey = React.useMemo(() => mediaNodes.map(n => n.id).join('|'), [mediaNodes])
+  React.useEffect(() => {
+    mediaHideNodeIdsRef.current = renderMediaAsNodes === true ? mediaNodes.map(n => n.id) : []
+  }, [mediaNodeIdsKey, mediaNodes, renderMediaAsNodes])
   const mediaOverlayElsRef = React.useRef<Map<string, HTMLDivElement>>(new Map())
   React.useEffect(() => {
     const next = new Map<string, HTMLDivElement>()
@@ -424,7 +433,7 @@ export default function FlowCanvas({
       }
       const k = Number.isFinite(rt.transform.k) ? Math.max(0.001, rt.transform.k) : 1
       const { metrics, vars } = computeMediaPanelCssVars2d({ zoomK: k, dimsWorld: mediaPanelDimsWorld })
-      const { panelW, panelH } = computePanelSizeFromContent16x9({ contentW: mediaPanelDimsWorld.panelWidth * k, metrics })
+      const { panelW, panelH } = computeMediaPanelPixelSize2d({ zoomK: k, dimsWorld: mediaPanelDimsWorld })
       for (const n of mediaNodes) {
         const el = mediaOverlayElsRef.current.get(n.id)
         if (!el) continue
@@ -433,9 +442,14 @@ export default function FlowCanvas({
           applyPanelBox(el, { left: 0, top: 0, w: 1, h: 1, display: 'none' })
           continue
         }
+        const center = readNodeCenterWorld2d(node as unknown as { x?: unknown; y?: unknown; width?: unknown; height?: unknown }, { coords: 'topLeft' })
+        if (!center) {
+          applyPanelBox(el, { left: 0, top: 0, w: 1, h: 1, display: 'none' })
+          continue
+        }
         const rect = computePanelRect({
-          cx: rt.transform.applyX(node.x + node.width / 2),
-          cy: rt.transform.applyY(node.y + node.height / 2),
+          cx: rt.transform.applyX(center.x),
+          cy: rt.transform.applyY(center.y),
           w: panelW,
           h: panelH,
         })
@@ -1452,6 +1466,7 @@ export default function FlowCanvas({
                 className="absolute left-0 top-0 pointer-events-auto"
                 title={n.title}
                 url={n.url}
+                kind={n.kind}
                 interactive={n.interactive}
                 iframeMode="srcdoc-when-needed"
                 style={{

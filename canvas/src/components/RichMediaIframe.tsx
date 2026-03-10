@@ -9,6 +9,7 @@ export type RichMediaIframeProps = {
   mode?: RichMediaIframeMode
   className?: string
   style?: React.CSSProperties
+  onLoad?: React.ReactEventHandler<HTMLIFrameElement>
 }
 
 export default function RichMediaIframe(props: RichMediaIframeProps) {
@@ -54,6 +55,7 @@ export default function RichMediaIframe(props: RichMediaIframeProps) {
       loading="lazy"
       className={props.className}
       style={props.style}
+      onLoad={props.onLoad}
     />
   )
 }

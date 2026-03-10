@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useFrame } from '@react-three/fiber'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
@@ -26,6 +26,18 @@ const ControlsLazy = React.lazy(() =>
   })),
 )
 
+function OverlayFrameSync({ enabled, scheduleRef }: { enabled: boolean; scheduleRef: React.MutableRefObject<(() => void) | null> }) {
+  useFrame(() => {
+    if (!enabled) return
+    try {
+      scheduleRef.current?.()
+    } catch {
+      void 0
+    }
+  })
+  return null
+}
+
 export default function ThreeGraph({ active = true }: { active?: boolean }) {
   const {
     schema,
@@ -47,6 +59,9 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     threeIframeOverlayBaseWidthMinPxCompact,
     threeIframeOverlayBaseWidthMaxPxDefault,
     threeIframeOverlayBaseWidthMaxPxCompact,
+    threeIframeOverlaySizeScaleFactor,
+    selectedNodeId,
+    selectedNodeIds,
   } = useGraphStore(
     useShallow(s => ({
       renderMediaAsNodes: s.renderMediaAsNodes === true,
@@ -62,6 +77,9 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
       threeIframeOverlayBaseWidthMinPxCompact: s.threeIframeOverlayBaseWidthMinPxCompact,
       threeIframeOverlayBaseWidthMaxPxDefault: s.threeIframeOverlayBaseWidthMaxPxDefault,
       threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
+      threeIframeOverlaySizeScaleFactor: s.threeIframeOverlaySizeScaleFactor,
+      selectedNodeId: s.selectedNodeId,
+      selectedNodeIds: s.selectedNodeIds,
     })),
   )
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
@@ -72,6 +90,11 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   const threeGlRef = React.useRef<WebGLRenderer | null>(null)
   const iframeOverlayElsRef = React.useRef<Map<string, HTMLDivElement>>(new Map())
   const iframeOverlayVisibleIdsRef = React.useRef<Set<string>>(new Set())
+  const iframeOverlayScheduleRef = React.useRef<(() => void) | null>(null)
+  const iframeOverlayRefFnByIdRef = React.useRef<Map<string, (el: HTMLDivElement | null) => void>>(new Map())
+  const iframeOverlayScheduleRafRef = React.useRef<number | null>(null)
+  const iframeOverlaySchedulePendingRef = React.useRef<boolean>(false)
+  const overlayPointerOverrideActiveRef = React.useRef<boolean>(false)
   const [webglSupported, setWebglSupported] = useState<boolean | null>(null)
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -179,6 +202,98 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   }, [renderGraph, renderMediaAsNodes, threeIframeOverlayPoolMax])
 
   const mediaNodesKey = useMemo(() => mediaNodesPool.map(n => n.id).join('|'), [mediaNodesPool])
+  const requestIframeOverlaySchedule = useCallback(() => {
+    const schedule = iframeOverlayScheduleRef.current
+    if (schedule) {
+      schedule()
+      return
+    }
+    iframeOverlaySchedulePendingRef.current = true
+    if (iframeOverlayScheduleRafRef.current != null) return
+    iframeOverlayScheduleRafRef.current = requestAnimationFrame(() => {
+      iframeOverlayScheduleRafRef.current = null
+      try {
+        iframeOverlayScheduleRef.current?.()
+      } catch {
+        void 0
+      }
+    })
+  }, [])
+  useEffect(() => {
+    return () => {
+      const raf = iframeOverlayScheduleRafRef.current
+      if (raf == null) return
+      iframeOverlayScheduleRafRef.current = null
+      try {
+        cancelAnimationFrame(raf)
+      } catch {
+        void 0
+      }
+    }
+  }, [])
+  useEffect(() => {
+    if (!active || !renderMediaAsNodes) return
+    const schedule = () => {
+      try {
+        requestIframeOverlaySchedule()
+      } catch {
+        void 0
+      }
+    }
+    schedule()
+    const canvas = glCanvasRef.current
+    const container = containerRef.current
+    let ro: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined') {
+      try {
+        ro = new ResizeObserver(() => schedule())
+        if (canvas) ro.observe(canvas)
+        if (container) ro.observe(container)
+      } catch {
+        ro = null
+      }
+    }
+    window.addEventListener('resize', schedule, { passive: true })
+    return () => {
+      try {
+        window.removeEventListener('resize', schedule)
+      } catch {
+        void 0
+      }
+      try {
+        ro?.disconnect()
+      } catch {
+        void 0
+      }
+    }
+  }, [active, renderMediaAsNodes, requestIframeOverlaySchedule])
+  const getOverlayRefForId = useCallback((id: string) => {
+    const key = String(id || '').trim()
+    if (!key) return () => void 0
+    const cached = iframeOverlayRefFnByIdRef.current.get(key)
+    if (cached) return cached
+    const fn = (el: HTMLDivElement | null) => {
+      if (!el) {
+        iframeOverlayElsRef.current.delete(key)
+        return
+      }
+      const prev = iframeOverlayElsRef.current.get(key)
+      if (prev === el) return
+      iframeOverlayElsRef.current.set(key, el)
+      try {
+        applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block' })
+      } catch {
+        void 0
+      }
+      try {
+        requestIframeOverlaySchedule()
+      } catch {
+        void 0
+      }
+    }
+    iframeOverlayRefFnByIdRef.current.set(key, fn)
+    return fn
+  }, [requestIframeOverlaySchedule])
 
   useEffect(() => {
     const keep = new Set<string>(mediaNodesPool.map(n => n.id))
@@ -186,23 +301,29 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     for (const [id] of overlayMap) {
       if (!keep.has(id)) overlayMap.delete(id)
     }
+    const refMap = iframeOverlayRefFnByIdRef.current
+    for (const [id] of refMap) {
+      if (!keep.has(id)) refMap.delete(id)
+    }
   }, [mediaNodesKey, mediaNodesPool])
 
   useEffect(() => {
+    iframeOverlayScheduleRef.current = null
     if (!active) return
     if (mediaNodesPool.length === 0) return
     let raf: number | null = null
     const world = new Vector3()
     const v3 = new Vector3()
+    const camSpace = new Vector3()
+    const dir = new Vector3()
+    const nearPoint = new Vector3()
     const candidates: Array<{ id: string; sx: number; sy: number; dist: number; sizeScale: number }> = []
-    const tick = () => {
-      raf = null
+    const selectedIds = new Set<string>()
+    const candidateById = new Map<string, { id: string; sx: number; sy: number; dist: number; sizeScale: number }>()
+    const update = () => {
       const camera = threeCameraRef.current
       const gl = threeGlRef.current
-      if (!camera || !gl) {
-        raf = requestAnimationFrame(tick)
-        return
-      }
+      if (!camera || !gl) return
       const w = Math.max(1, gl.domElement.clientWidth || 1)
       const h = Math.max(1, gl.domElement.clientHeight || 1)
       const density = mediaPanelDensity === 'compact' ? 'compact' : 'default'
@@ -210,6 +331,16 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
       const maxCount = Number.isFinite(maxCountRaw) ? Math.max(0, Math.floor(maxCountRaw)) : 0
       const maxDistanceRaw = density === 'compact' ? threeIframeOverlayMaxDistanceCompact : threeIframeOverlayMaxDistanceDefault
       const maxDistance = Number.isFinite(maxDistanceRaw) ? Math.max(0, Number(maxDistanceRaw)) : 0
+      const prevVisibleIds = iframeOverlayVisibleIdsRef.current
+      if (maxCount === 0 || maxDistance <= 0) {
+        for (const id of prevVisibleIds) {
+          const el = iframeOverlayElsRef.current.get(id)
+          if (!el) continue
+          applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block', zIndex: 1 })
+        }
+        iframeOverlayVisibleIdsRef.current = new Set<string>()
+        return
+      }
       const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
       const widthRatio = Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2
       const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
@@ -218,52 +349,198 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
       const widthMax = Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360
       const baseW = Math.min(widthMax, Math.max(widthMin, w * widthRatio))
       const margin = 12
+      selectedIds.clear()
+      const selOne = String(selectedNodeId || '').trim()
+      if (selOne) selectedIds.add(selOne)
+      if (Array.isArray(selectedNodeIds)) {
+        for (let i = 0; i < selectedNodeIds.length; i += 1) {
+          const id = String(selectedNodeIds[i] || '').trim()
+          if (id) selectedIds.add(id)
+        }
+      }
       candidates.length = 0
       for (let i = 0; i < mediaNodesPool.length; i += 1) {
         const node = mediaNodesPool[i]
-        const pos = positions[node.id] || null
-        if (!pos) continue
-        world.set(pos[0], pos[1], pos[2])
+        const pos3 = positions[node.id] || null
+        if (!pos3) continue
+        world.set(pos3[0], pos3[1], pos3[2])
         const dist = camera.position.distanceTo(world)
         if (!Number.isFinite(dist) || dist > maxDistance) continue
-        v3.copy(world).project(camera)
-        const ndcX = v3.x
-        const ndcY = v3.y
-        const ndcZ = v3.z
-        if (!Number.isFinite(ndcX) || !Number.isFinite(ndcY) || !Number.isFinite(ndcZ) || ndcZ < -1 || ndcZ > 1) continue
+        try {
+          camSpace.copy(world).applyMatrix4((camera as unknown as { matrixWorldInverse: unknown }).matrixWorldInverse as never)
+        } catch {
+          camSpace.set(0, 0, -1)
+        }
+        if (camSpace.z > 1e-6) continue
+        const nearRaw = (camera as unknown as { near?: unknown }).near
+        const near = typeof nearRaw === 'number' && Number.isFinite(nearRaw) && nearRaw > 0 ? nearRaw : 0.1
+        const tooNear = Math.abs(camSpace.z) < near * 1.1
+        const initialPoint = (() => {
+          if (!tooNear) return world
+          dir.subVectors(world, camera.position)
+          const len = dir.length()
+          if (len < 1e-6) return world
+          dir.multiplyScalar(1 / len)
+          nearPoint.copy(camera.position).addScaledVector(dir, near * 1.01)
+          return nearPoint
+        })()
+        v3.copy(initialPoint).project(camera)
+        let ndcX = v3.x
+        let ndcY = v3.y
+        let ndcZ = v3.z
+        const unstable =
+          !Number.isFinite(ndcX) ||
+          !Number.isFinite(ndcY) ||
+          !Number.isFinite(ndcZ) ||
+          Math.abs(ndcX) > 8 ||
+          Math.abs(ndcY) > 8 ||
+          Math.abs(ndcZ) > 8
+        if (!Number.isFinite(ndcX) || !Number.isFinite(ndcY) || !Number.isFinite(ndcZ)) {
+          dir.subVectors(world, camera.position)
+          const len = dir.length()
+          if (len < 1e-6) {
+            ndcX = 0
+            ndcY = 0
+            ndcZ = 0
+          } else {
+            dir.multiplyScalar(1 / len)
+            nearPoint.copy(camera.position).addScaledVector(dir, near * 1.01)
+            v3.copy(nearPoint).project(camera)
+            ndcX = v3.x
+            ndcY = v3.y
+            ndcZ = v3.z
+          }
+        }
+        if (unstable) {
+          dir.subVectors(world, camera.position)
+          const len = dir.length()
+          if (len >= 1e-6) {
+            dir.multiplyScalar(1 / len)
+            nearPoint.copy(camera.position).addScaledVector(dir, near * 1.01)
+            v3.copy(nearPoint).project(camera)
+            ndcX = v3.x
+            ndcY = v3.y
+            ndcZ = v3.z
+          }
+        }
+        if (!Number.isFinite(ndcX) || !Number.isFinite(ndcY) || !Number.isFinite(ndcZ)) continue
         const sx = (ndcX * 0.5 + 0.5) * w
         const sy = (-ndcY * 0.5 + 0.5) * h
-        const sizeScale = Math.max(0.72, Math.min(1.05, 260 / (dist + 1)))
+        const sizeFactor =
+          typeof threeIframeOverlaySizeScaleFactor === 'number' && Number.isFinite(threeIframeOverlaySizeScaleFactor) && threeIframeOverlaySizeScaleFactor > 0
+            ? threeIframeOverlaySizeScaleFactor
+            : 260
+        const sizeScale = Math.max(0.001, Math.min(256, sizeFactor / Math.max(0.001, dist)))
         candidates.push({ id: node.id, sx, sy, dist, sizeScale })
       }
-      candidates.sort((a, b) => a.dist - b.dist)
+      candidates.sort((a, b) => {
+        const d = a.dist - b.dist
+        if (d) return d
+        if (a.id < b.id) return -1
+        if (a.id > b.id) return 1
+        return 0
+      })
       const nextVisibleIds = new Set<string>()
+      candidateById.clear()
+      for (let i = 0; i < candidates.length; i += 1) {
+        const c = candidates[i]!
+        candidateById.set(c.id, c)
+      }
+      const tryAdd = (id: string) => {
+        if (nextVisibleIds.size >= maxCount) return
+        if (!iframeOverlayElsRef.current.has(id)) return
+        if (!candidateById.has(id)) return
+        nextVisibleIds.add(id)
+      }
+      for (const id of selectedIds) {
+        tryAdd(id)
+      }
+      for (const id of prevVisibleIds) {
+        tryAdd(id)
+      }
       let shown = 0
+      shown = nextVisibleIds.size
       for (let i = 0; i < candidates.length && shown < maxCount; i += 1) {
         const c = candidates[i]!
         if (!iframeOverlayElsRef.current.has(c.id)) continue
+        if (nextVisibleIds.has(c.id)) continue
         nextVisibleIds.add(c.id)
         shown += 1
       }
-      const prevVisibleIds = iframeOverlayVisibleIdsRef.current
       for (const id of prevVisibleIds) {
         if (nextVisibleIds.has(id)) continue
         const el = iframeOverlayElsRef.current.get(id)
         if (!el) continue
-        applyPanelBox(el, { left: 0, top: 0, w: 1, h: 1, display: 'none' })
+        applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block', zIndex: 1 })
       }
       for (let i = 0; i < candidates.length; i += 1) {
         const c = candidates[i]!
         if (!nextVisibleIds.has(c.id)) continue
         const el = iframeOverlayElsRef.current.get(c.id)
         if (!el) continue
-        const { metrics, vars } = computeMediaPanelCssVars3d({ density, sizeScale: c.sizeScale })
-        const { panelW, panelH } = computePanelSizeFromContent16x9({ contentW: Math.round(baseW * c.sizeScale), metrics })
-        const rect = computePanelRect({ cx: c.sx, cy: c.sy, w: panelW, h: panelH, clamp: { viewportW: w, viewportH: h, margin } })
-        applyMediaPanelCssVars(el, vars)
+        try {
+          const applied = (el as unknown as { dataset?: Record<string, string> }).dataset?.kgMediaEagerApplied
+          if (!applied) {
+            const iframe = el.querySelector('iframe')
+            if (iframe) {
+              try {
+                ;(iframe as unknown as { loading?: string }).loading = 'eager'
+              } catch {
+                void 0
+              }
+              try {
+                iframe.setAttribute('loading', 'eager')
+              } catch {
+                void 0
+              }
+            }
+            const img = el.querySelector('img')
+            if (img) {
+              try {
+                ;(img as unknown as { loading?: string }).loading = 'eager'
+              } catch {
+                void 0
+              }
+              try {
+                img.setAttribute('loading', 'eager')
+              } catch {
+                void 0
+              }
+            }
+            try {
+              ;(el as unknown as { dataset?: Record<string, string> }).dataset!.kgMediaEagerApplied = '1'
+            } catch {
+              void 0
+            }
+          }
+        } catch {
+          void 0
+        }
+        const MAX_PANEL_PX = 2048
+        const STEP_PX = 16
+        const maxW = Math.max(2, Math.min(MAX_PANEL_PX, Math.floor(w - margin * 2)))
+        const maxH = Math.max(2, Math.min(MAX_PANEL_PX, Math.floor(h - margin * 2)))
+        let contentW = Math.max(2, Math.round((baseW * c.sizeScale) / STEP_PX) * STEP_PX)
+        contentW = Math.min(contentW, MAX_PANEL_PX)
+        let sizeScale = Math.max(0.001, contentW / Math.max(1, baseW))
+        let computed = computeMediaPanelCssVars3d({ density, sizeScale })
+        let panel = computePanelSizeFromContent16x9({ contentW, metrics: computed.metrics })
+        if (panel.panelW > maxW || panel.panelH > maxH) {
+          const ratio = Math.min(maxW / panel.panelW, maxH / panel.panelH)
+          const nextContentW = Math.max(2, Math.round((contentW * ratio) / STEP_PX) * STEP_PX)
+          contentW = Math.min(MAX_PANEL_PX, nextContentW)
+          sizeScale = Math.max(0.001, contentW / Math.max(1, baseW))
+          computed = computeMediaPanelCssVars3d({ density, sizeScale })
+          panel = computePanelSizeFromContent16x9({ contentW, metrics: computed.metrics })
+        }
+        const rect = computePanelRect({ cx: c.sx, cy: c.sy, w: panel.panelW, h: panel.panelH })
+        const { panelW, panelH } = panel
+        applyMediaPanelCssVars(el, computed.vars)
+        const left = Math.round(rect.left * 10) / 10
+        const top = Math.round(rect.top * 10) / 10
         applyPanelBox(el, {
-          left: Math.round(rect.left),
-          top: Math.round(rect.top),
+          left,
+          top,
           w: panelW,
           h: panelH,
           zIndex: 2000 - Math.max(0, Math.min(1500, Math.floor(c.dist))),
@@ -271,9 +548,20 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
         })
       }
       iframeOverlayVisibleIdsRef.current = nextVisibleIds
-      raf = requestAnimationFrame(tick)
     }
-    raf = requestAnimationFrame(tick)
+    const schedule = () => {
+      if (raf != null) return
+      raf = requestAnimationFrame(() => {
+        raf = null
+        update()
+      })
+    }
+    iframeOverlayScheduleRef.current = schedule
+    if (iframeOverlaySchedulePendingRef.current) {
+      iframeOverlaySchedulePendingRef.current = false
+      schedule()
+    }
+    schedule()
     return () => {
       if (raf != null) {
         try {
@@ -282,6 +570,8 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
           void 0
         }
       }
+      raf = null
+      if (iframeOverlayScheduleRef.current === schedule) iframeOverlayScheduleRef.current = null
     }
   }, [
     active,
@@ -299,7 +589,54 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     threeIframeOverlayBaseWidthMinPxDefault,
     threeIframeOverlayBaseWidthMaxPxCompact,
     threeIframeOverlayBaseWidthMaxPxDefault,
+    threeIframeOverlaySizeScaleFactor,
+    selectedNodeId,
+    selectedNodeIds,
   ])
+
+  useEffect(() => {
+    const canvas = glCanvasRef.current
+    if (!active || !canvas) return
+    const setOverlayPointerOverride = (enabled: boolean) => {
+      if (overlayPointerOverrideActiveRef.current === enabled) return
+      overlayPointerOverrideActiveRef.current = enabled
+      for (const [, el] of iframeOverlayElsRef.current) {
+        if (!el) continue
+        if (enabled) el.style.pointerEvents = 'none'
+        else el.style.removeProperty('pointer-events')
+      }
+    }
+    const onDown = () => setOverlayPointerOverride(true)
+    const onUp = () => setOverlayPointerOverride(false)
+    const onCancel = () => setOverlayPointerOverride(false)
+    canvas.addEventListener('pointerdown', onDown, { passive: true })
+    window.addEventListener('pointerup', onUp, { passive: true })
+    window.addEventListener('pointercancel', onCancel, { passive: true })
+    window.addEventListener('blur', onUp)
+    return () => {
+      try {
+        canvas.removeEventListener('pointerdown', onDown)
+      } catch {
+        void 0
+      }
+      try {
+        window.removeEventListener('pointerup', onUp)
+      } catch {
+        void 0
+      }
+      try {
+        window.removeEventListener('pointercancel', onCancel)
+      } catch {
+        void 0
+      }
+      try {
+        window.removeEventListener('blur', onUp)
+      } catch {
+        void 0
+      }
+      setOverlayPointerOverride(false)
+    }
+  }, [active])
 
   const stopEvent = useCallback((event: React.SyntheticEvent) => {
     try {
@@ -335,6 +672,11 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
           threeGlRef.current = gl
           threeCameraRef.current = camera || null
           threeSceneRef.current = scene || null
+          try {
+            requestIframeOverlaySchedule()
+          } catch {
+            void 0
+          }
           const capturePng = async (pixelRatio?: number): Promise<Blob | null> => {
             try {
               const canvas = glCanvasRef.current
@@ -409,7 +751,19 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
             draggedNodeId={draggedNodeId}
             theme={theme}
           />
-          <ControlsLazy schema={effectiveSchema as GraphSchema} positions={positions} paused={paused} />
+          <ControlsLazy
+            schema={effectiveSchema as GraphSchema}
+            positions={positions}
+            paused={paused}
+            onControlsChange={() => {
+              try {
+                iframeOverlayScheduleRef.current?.()
+              } catch {
+                void 0
+              }
+            }}
+          />
+          <OverlayFrameSync enabled={active && renderMediaAsNodes} scheduleRef={iframeOverlayScheduleRef} />
         </React.Suspense>
       </Canvas>
       {active && renderMediaAsNodes && mediaNodesPool.length > 0 ? (
@@ -418,13 +772,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
             return (
               <RichMediaPanel
                 key={n.id}
-                ref={(el) => {
-                  if (!el) {
-                    iframeOverlayElsRef.current.delete(n.id)
-                    return
-                  }
-                  iframeOverlayElsRef.current.set(n.id, el)
-                }}
+                ref={getOverlayRefForId(n.id)}
                 data-kg-canvas-wheel-ignore="true"
                 data-kg-canvas-pointer-ignore="true"
                 className="absolute left-0 top-0 pointer-events-auto"
@@ -432,12 +780,9 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
                 url={n.url}
                 kind={n.kind}
                 interactive={n.interactive}
+                hideUntilReady={true}
+                headerPassthrough={true}
                 iframeMode="srcdoc-when-needed"
-                style={{
-                  transform: 'translate(-99999px, -99999px)',
-                  width: 1,
-                  height: 1,
-                }}
                 onPointerDownCapture={stopEvent}
                 onPointerUpCapture={stopEvent}
                 onWheelCapture={stopEvent}

@@ -14,11 +14,133 @@ import {
 } from '@/lib/canvas/flow-zoom-tuning'
 import { CANVAS_INTERACTION_SPEED_MULTIPLIER_DEFAULT, CANVAS_PAN_SPEED_MULTIPLIER_DEFAULT } from '@/lib/canvas/camera-options-2d'
 import { CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT } from '@/lib/canvas/zoom-input'
+import { DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE } from '@/lib/graph/layoutDefaults'
+import type { GraphSchema } from '@/lib/graph/schema'
 import type { SettingMeta } from './types'
 
 const s = () => useGraphStore.getState()
 
 export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
+  {
+    key: 'schema.zoom.minScale',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema | null
+      const v = schema?.performance?.zoom?.minScale
+      return typeof v === 'number' && Number.isFinite(v) ? v : DEFAULT_ZOOM_MIN_SCALE
+    },
+    write: (v) => {
+      const st = s()
+      const schema = st.schema as GraphSchema
+      const perf = schema.performance || {}
+      const zoom = perf.zoom || {}
+      st.setSchema({ ...schema, performance: { ...perf, zoom: { ...zoom, minScale: Number(v) } } } as GraphSchema)
+    },
+    docKey: 'schema.zoom.minScale',
+    default: () => DEFAULT_ZOOM_MIN_SCALE,
+  },
+  {
+    key: 'schema.zoom.maxScale',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema | null
+      const v = schema?.performance?.zoom?.maxScale
+      return typeof v === 'number' && Number.isFinite(v) ? v : DEFAULT_ZOOM_MAX_SCALE
+    },
+    write: (v) => {
+      const st = s()
+      const schema = st.schema as GraphSchema
+      const perf = schema.performance || {}
+      const zoom = perf.zoom || {}
+      st.setSchema({ ...schema, performance: { ...perf, zoom: { ...zoom, maxScale: Number(v) } } } as GraphSchema)
+    },
+    docKey: 'schema.zoom.maxScale',
+    default: () => DEFAULT_ZOOM_MAX_SCALE,
+  },
+  {
+    key: 'zoom.labelScaleMode2d',
+    type: 'string',
+    source: 'store',
+    read: () => s().zoomLabelScaleMode2d,
+    write: (v) => {
+      const raw = String(v || '')
+      const next = raw === 'smooth' || raw === 'power' ? raw : 'clampAt1'
+      s().setZoomLabelScaleMode2d(next as 'clampAt1' | 'smooth' | 'power')
+    },
+    docKey: 'zoom.labelScaleMode2d',
+    default: () => 'clampAt1',
+    options: ['clampAt1', 'smooth', 'power'],
+  },
+  {
+    key: 'zoom.labelScaleExponent2d',
+    type: 'number',
+    source: 'store',
+    read: () => s().zoomLabelScaleExponent2d,
+    write: (v) => s().setZoomLabelScaleExponent2d(Number(v)),
+    docKey: 'zoom.labelScaleExponent2d',
+    default: () => 1,
+  },
+  {
+    key: 'zoom.labelScaleClampMin2d',
+    type: 'number',
+    source: 'store',
+    read: () => s().zoomLabelScaleClampMin2d,
+    write: (v) => s().setZoomLabelScaleClampMin2d(Number(v)),
+    docKey: 'zoom.labelScaleClampMin2d',
+    default: () => 0.000001,
+  },
+  {
+    key: 'zoom.labelScaleClampMax2d',
+    type: 'number',
+    source: 'store',
+    read: () => s().zoomLabelScaleClampMax2d,
+    write: (v) => s().setZoomLabelScaleClampMax2d(Number(v)),
+    docKey: 'zoom.labelScaleClampMax2d',
+    default: () => 1000000,
+  },
+  {
+    key: 'zoom.strokeScaleMode2d',
+    type: 'string',
+    source: 'store',
+    read: () => s().zoomStrokeScaleMode2d,
+    write: (v) => {
+      const raw = String(v || '')
+      const next = raw === 'screenConstant' || raw === 'power' ? raw : 'zoomScaled'
+      s().setZoomStrokeScaleMode2d(next as 'zoomScaled' | 'screenConstant' | 'power')
+    },
+    docKey: 'zoom.strokeScaleMode2d',
+    default: () => 'zoomScaled',
+    options: ['zoomScaled', 'screenConstant', 'power'],
+  },
+  {
+    key: 'zoom.strokeScaleExponent2d',
+    type: 'number',
+    source: 'store',
+    read: () => s().zoomStrokeScaleExponent2d,
+    write: (v) => s().setZoomStrokeScaleExponent2d(Number(v)),
+    docKey: 'zoom.strokeScaleExponent2d',
+    default: () => 1,
+  },
+  {
+    key: 'zoom.strokeScaleClampMin2d',
+    type: 'number',
+    source: 'store',
+    read: () => s().zoomStrokeScaleClampMin2d,
+    write: (v) => s().setZoomStrokeScaleClampMin2d(Number(v)),
+    docKey: 'zoom.strokeScaleClampMin2d',
+    default: () => 0.000001,
+  },
+  {
+    key: 'zoom.strokeScaleClampMax2d',
+    type: 'number',
+    source: 'store',
+    read: () => s().zoomStrokeScaleClampMax2d,
+    write: (v) => s().setZoomStrokeScaleClampMax2d(Number(v)),
+    docKey: 'zoom.strokeScaleClampMax2d',
+    default: () => 1000,
+  },
   {
     key: 'historyDebounceMs',
     type: 'number',

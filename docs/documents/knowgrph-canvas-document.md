@@ -101,6 +101,16 @@ Canonical guidelines: `knowgrph/docs/documents/knowgrph-pipeline-document.md` an
 
 - A small non-interactive viewport readout overlay may be shown in Canvas mode for debugging drift (zoom % and viewport center). If shown, it must remain single-surface and must not trigger per-frame React rerenders.
 
+### Rich Media Rendering (2D/3D, Viewer, Export)
+
+- **Rich Media nodes** are neutral graph nodes whose properties resolve to URL-like media (image, svg, video, iframe) via shared `getNodeMediaSpec` heuristics; the same detection is reused across 2D (D3/Flow/Design), 3D, and Markdown Viewer surfaces.
+- **Overlay pool**: Rich Media rendering uses a bounded DOM overlay pool per canvas. Overlays are mounted once, keyed by node id, and scheduled via a shared RAF-coalesced scheduler so drag/pan/zoom/3D motion do not cause per-frame React rerenders or repeated layout computation.
+- **2D D3**: media panels render in a dedicated DOM overlay layer positioned over the SVG via zoom transform + layout-derived node centers. Scheduling is idempotent and tolerant of transient NaN/undefined positions; once positioned, overlays do not hide offscreen on bad frames and do not clamp to viewport borders during workspace pane resizes.
+- **3D**: media panels render in a DOM overlay layer driven by the 3D camera and synchronized every render frame via `useFrame`. Overlay distance, pool size, and density (base width, min/max px) are schema/settings-driven; panels are sorted by depth and clamped by a bounded visibility budget to avoid unbounded DOM growth.
+- **Viewer + Script/Imgs/Fid**: Script/Imgs/Fid defaults are auto and driven by the same rich-media + iframe heuristics used by Markdown Viewer and Canvas; per-doc frontmatter (`kgWebpageScriptPolicy`, `kgWebpageIncludeImages`, `kgWebpageFidelityLevel`) is optional and treated as an escape hatch only.
+- **Export HTML Canvas (2D/3D)**: Canvas HTML export reuses the same Rich Media overlays and layout SSOT. 2D exports prefer centered SVG markup; PNG fallbacks are captured via a pixelRatio-aware snapshot API (hi-DPI, bounded to a safe max) and embedded as `<img>` in the export HTML. 3D exports embed a GLB + module script plus an immediate hi-DPI PNG snapshot that displays while Three.js initializes, then hides after the first successful render.
+- **Single-surface invariant**: at most one Rich Media overlay surface per canvas is allowed (2D overlay layer or 3D overlay layer); Editor/Table split and embedded preview must reuse the same canvas overlay layer and must not mount second “preview-only” Rich Media surfaces.
+
 ### Editor Workspace Sections (Markdown vs Graph Data Table)
 
 - The Editor workspace reuses the **Markdown Workspace** as the SSOT for document text (Explorer + Editor/Viewer/Split/Presentation/Slides).

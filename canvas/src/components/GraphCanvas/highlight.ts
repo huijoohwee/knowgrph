@@ -139,51 +139,55 @@ export const computeNodeVisual = (
   const mediaLayerOpacity = Math.max(0, Math.min(1, mediaOpacity * baseLayerOpacity))
   const visualOpacity = getVisualOpacity(node)
   const withVisualOpacity = (opacity: number) => Math.max(0, Math.min(1, opacity * visualOpacity))
+  const withMediaHiding = (v: NodeVisual): NodeVisual => {
+    if (!isMediaNode) return v
+    return { ...v, fill: 'transparent', stroke: 'transparent' }
+  }
   
   if (selectedEdgeIdSet.size > 0) {
     if (selectedNodeIdSet.has(node.id)) {
-      return {
+      return withMediaHiding({
         fill: highlightFill,
         opacity: isMediaNode ? withVisualOpacity(mediaLayerOpacity) : withVisualOpacity(1),
         stroke: highlightFill,
         strokeWidth: baseStrokeWidth * 1.5,
-      }
+      })
     }
     const isEndpoint = selectedEdgeEndpointNodeIdSet.has(node.id)
     const fill = isEndpoint ? getNodeBaseFill(node, schema) : dimmedFill
     const opacity = isMediaNode ? withVisualOpacity(mediaLayerOpacity) : withVisualOpacity(isEndpoint ? 1 : 0.2)
     const stroke = isEndpoint ? baseStroke : dimmedFill
     const strokeWidth = isEndpoint ? baseStrokeWidth : baseStrokeWidth
-    return { fill, opacity, stroke, strokeWidth }
+    return withMediaHiding({ fill, opacity, stroke, strokeWidth })
   }
   if (selectedNodeIdSet.size > 0) {
     if (selectedNodeIdSet.has(node.id)) {
-      return {
+      return withMediaHiding({
         fill: highlightFill,
         opacity: isMediaNode ? withVisualOpacity(mediaLayerOpacity) : withVisualOpacity(1),
         stroke: highlightFill,
         strokeWidth: baseStrokeWidth * 1.5,
-      }
+      })
     }
     if (neighborIds.has(node.id)) {
       const opacity = isMediaNode ? withVisualOpacity(mediaLayerOpacity) : withVisualOpacity(1)
-      return {
+      return withMediaHiding({
         fill: getNodeBaseFill(node, schema),
         opacity,
         stroke: baseStroke,
         strokeWidth: baseStrokeWidth,
-      }
+      })
     }
     const opacity = isMediaNode ? withVisualOpacity(mediaLayerOpacity) : withVisualOpacity(0.2)
-    return {
+    return withMediaHiding({
       fill: dimmedFill,
       opacity,
       stroke: dimmedFill,
       strokeWidth: baseStrokeWidth,
-    }
+    })
   }
   const opacity = isMediaNode ? withVisualOpacity(mediaLayerOpacity) : withVisualOpacity(baseLayerOpacity)
-  return { fill: getNodeBaseFill(node, schema), opacity, stroke: baseStroke, strokeWidth: baseStrokeWidth }
+  return withMediaHiding({ fill: getNodeBaseFill(node, schema), opacity, stroke: baseStroke, strokeWidth: baseStrokeWidth })
 }
 
 export const computeLabelVisual = (

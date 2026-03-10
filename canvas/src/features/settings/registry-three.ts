@@ -7,6 +7,65 @@ const s = () => useGraphStore.getState()
 
 export const threeSettingsRegistry: SettingMeta[] = [
   {
+    key: 'three.camera.autoClip',
+    type: 'boolean',
+    source: 'store',
+    read: () => s().threeCameraAutoClip === true,
+    write: (v) => s().setThreeCameraAutoClip(Boolean(v)),
+    docKey: 'three.camera.autoClip',
+    default: () => true,
+  },
+  {
+    key: 'three.camera.autoClipNearFactor',
+    type: 'number',
+    source: 'store',
+    read: () => s().threeCameraAutoClipNearFactor,
+    write: (v) => s().setThreeCameraAutoClipNearFactor(Number(v)),
+    docKey: 'three.camera.autoClipNearFactor',
+    default: () => 0.0001,
+  },
+  {
+    key: 'three.camera.autoClipFarFactor',
+    type: 'number',
+    source: 'store',
+    read: () => s().threeCameraAutoClipFarFactor,
+    write: (v) => s().setThreeCameraAutoClipFarFactor(Number(v)),
+    docKey: 'three.camera.autoClipFarFactor',
+    default: () => 200,
+  },
+  {
+    key: 'three.iframeOverlay.sizeScaleFactor',
+    type: 'number',
+    source: 'store',
+    read: () => s().threeIframeOverlaySizeScaleFactor,
+    write: (v) => s().setThreeIframeOverlaySizeScaleFactor(Number(v)),
+    docKey: 'three.iframeOverlay.sizeScaleFactor',
+    default: () => 260,
+  },
+  {
+    key: 'three.graph.edgeRenderer',
+    type: 'string',
+    source: 'store',
+    read: () => s().threeEdgeRenderer,
+    write: (v) => {
+      const raw = String(v || '')
+      const next = raw === 'shaderLine' ? raw : 'mesh'
+      s().setThreeEdgeRenderer(next as 'mesh' | 'shaderLine')
+    },
+    docKey: 'three.graph.edgeRenderer',
+    default: () => 'mesh',
+    options: ['mesh', 'shaderLine'],
+  },
+  {
+    key: 'three.graph.shaderLineWidthPx',
+    type: 'number',
+    source: 'store',
+    read: () => s().threeShaderLineWidthPx,
+    write: (v) => s().setThreeShaderLineWidthPx(Number(v)),
+    docKey: 'three.graph.shaderLineWidthPx',
+    default: () => 2,
+  },
+  {
     key: 'three.selection.selectedNodeGlowIntensity',
     type: 'number',
     source: 'store',

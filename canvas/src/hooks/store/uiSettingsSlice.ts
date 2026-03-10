@@ -11,7 +11,7 @@ import type {
 } from '@/features/graph-data-table/graphDataTable';
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal';
 import { LS_KEYS, SESSION_KEYS, UI_COPY } from '@/lib/config';
-import { lsFloat, lsInt, lsSetFloat, lsSetInt } from '@/lib/persistence'
+import { lsBool, lsFloat, lsInt, lsSetBool, lsSetFloat, lsSetInt } from '@/lib/persistence'
 import { ssSetString, ssString, getLocalStorage } from '@/lib/persistence';
 import { ThemeMode, ResolvedThemeMode, getInitialThemeMode, persistThemeMode, applyThemeMode, resolveThemeMode, getSystemTheme } from '@/lib/ui/theme';
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
@@ -67,6 +67,29 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
     const n = Number.isFinite(v) ? Number(v) : fallback
     return n < opts.min ? opts.min : n > opts.max ? opts.max : n
   }
+  const readLsString = (key: string, fallback: string) => {
+    const storage = getLocalStorage()
+    if (!storage) return fallback
+    try {
+      const raw = storage.getItem(key)
+      if (raw == null) return fallback
+      const s = String(raw || '').trim()
+      return s ? s : fallback
+    } catch {
+      return fallback
+    }
+  }
+  const writeLsString = (key: string, value: string) => {
+    const storage = getLocalStorage()
+    const next = String(value || '').trim()
+    if (!storage) return next
+    try {
+      storage.setItem(key, next)
+    } catch {
+      void 0
+    }
+    return next
+  }
   return ({
   renderMediaAsNodes: true,
   setRenderMediaAsNodes: (v: boolean) => set({ renderMediaAsNodes: v }),
@@ -111,6 +134,63 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
 
   threeIframeOverlayBaseWidthMaxPxCompact: clampInt(lsInt(LS_KEYS.renderThreeIframeOverlayBaseWidthMaxPxCompact, 300), 300, { min: 80, max: 4000 }),
   setThreeIframeOverlayBaseWidthMaxPxCompact: (v: number) => set({ threeIframeOverlayBaseWidthMaxPxCompact: lsSetInt(LS_KEYS.renderThreeIframeOverlayBaseWidthMaxPxCompact, v, { min: 80, max: 4000 }) }),
+
+  zoomLabelScaleMode2d: (() => {
+    const raw = readLsString(LS_KEYS.zoomLabelScaleMode2d, 'clampAt1')
+    const next = raw === 'smooth' || raw === 'power' ? raw : 'clampAt1'
+    return next as 'clampAt1' | 'smooth' | 'power'
+  })(),
+  setZoomLabelScaleMode2d: (v: 'clampAt1' | 'smooth' | 'power') => {
+    const next = v === 'smooth' || v === 'power' ? v : 'clampAt1'
+    writeLsString(LS_KEYS.zoomLabelScaleMode2d, next)
+    set({ zoomLabelScaleMode2d: next })
+  },
+  zoomLabelScaleExponent2d: clampFloat(lsFloat(LS_KEYS.zoomLabelScaleExponent2d, 1, { min: 0.05, max: 4 }), 1, { min: 0.05, max: 4 }),
+  setZoomLabelScaleExponent2d: (v: number) => set({ zoomLabelScaleExponent2d: lsSetFloat(LS_KEYS.zoomLabelScaleExponent2d, v, { min: 0.05, max: 4 }) }),
+  zoomLabelScaleClampMin2d: clampFloat(lsFloat(LS_KEYS.zoomLabelScaleClampMin2d, 0.000001, { min: 0.000001, max: 10 }), 0.000001, { min: 0.000001, max: 10 }),
+  setZoomLabelScaleClampMin2d: (v: number) => set({ zoomLabelScaleClampMin2d: lsSetFloat(LS_KEYS.zoomLabelScaleClampMin2d, v, { min: 0.000001, max: 10 }) }),
+  zoomLabelScaleClampMax2d: clampFloat(lsFloat(LS_KEYS.zoomLabelScaleClampMax2d, 1000000, { min: 1, max: 1000000 }), 1000000, { min: 1, max: 1000000 }),
+  setZoomLabelScaleClampMax2d: (v: number) => set({ zoomLabelScaleClampMax2d: lsSetFloat(LS_KEYS.zoomLabelScaleClampMax2d, v, { min: 1, max: 1000000 }) }),
+
+  zoomStrokeScaleMode2d: (() => {
+    const raw = readLsString(LS_KEYS.zoomStrokeScaleMode2d, 'zoomScaled')
+    const next = raw === 'screenConstant' || raw === 'power' ? raw : 'zoomScaled'
+    return next as 'zoomScaled' | 'screenConstant' | 'power'
+  })(),
+  setZoomStrokeScaleMode2d: (v: 'zoomScaled' | 'screenConstant' | 'power') => {
+    const next = v === 'screenConstant' || v === 'power' ? v : 'zoomScaled'
+    writeLsString(LS_KEYS.zoomStrokeScaleMode2d, next)
+    set({ zoomStrokeScaleMode2d: next })
+  },
+  zoomStrokeScaleExponent2d: clampFloat(lsFloat(LS_KEYS.zoomStrokeScaleExponent2d, 1, { min: 0.05, max: 4 }), 1, { min: 0.05, max: 4 }),
+  setZoomStrokeScaleExponent2d: (v: number) => set({ zoomStrokeScaleExponent2d: lsSetFloat(LS_KEYS.zoomStrokeScaleExponent2d, v, { min: 0.05, max: 4 }) }),
+  zoomStrokeScaleClampMin2d: clampFloat(lsFloat(LS_KEYS.zoomStrokeScaleClampMin2d, 0.000001, { min: 0.000001, max: 1000 }), 0.000001, { min: 0.000001, max: 1000 }),
+  setZoomStrokeScaleClampMin2d: (v: number) => set({ zoomStrokeScaleClampMin2d: lsSetFloat(LS_KEYS.zoomStrokeScaleClampMin2d, v, { min: 0.000001, max: 1000 }) }),
+  zoomStrokeScaleClampMax2d: clampFloat(lsFloat(LS_KEYS.zoomStrokeScaleClampMax2d, 1000, { min: 0.000001, max: 1000 }), 1000, { min: 0.000001, max: 1000 }),
+  setZoomStrokeScaleClampMax2d: (v: number) => set({ zoomStrokeScaleClampMax2d: lsSetFloat(LS_KEYS.zoomStrokeScaleClampMax2d, v, { min: 0.000001, max: 1000 }) }),
+
+  threeCameraAutoClip: lsBool(LS_KEYS.threeCameraAutoClip, true),
+  setThreeCameraAutoClip: (v: boolean) => set({ threeCameraAutoClip: lsSetBool(LS_KEYS.threeCameraAutoClip, v) }),
+  threeCameraAutoClipNearFactor: clampFloat(lsFloat(LS_KEYS.threeCameraAutoClipNearFactor, 0.0001, { min: 0.000001, max: 0.1 }), 0.0001, { min: 0.000001, max: 0.1 }),
+  setThreeCameraAutoClipNearFactor: (v: number) => set({ threeCameraAutoClipNearFactor: lsSetFloat(LS_KEYS.threeCameraAutoClipNearFactor, v, { min: 0.000001, max: 0.1 }) }),
+  threeCameraAutoClipFarFactor: clampFloat(lsFloat(LS_KEYS.threeCameraAutoClipFarFactor, 200, { min: 10, max: 1000000 }), 200, { min: 10, max: 1000000 }),
+  setThreeCameraAutoClipFarFactor: (v: number) => set({ threeCameraAutoClipFarFactor: lsSetFloat(LS_KEYS.threeCameraAutoClipFarFactor, v, { min: 10, max: 1000000 }) }),
+
+  threeIframeOverlaySizeScaleFactor: clampFloat(lsFloat(LS_KEYS.threeIframeOverlaySizeScaleFactor, 260, { min: 1, max: 20000 }), 260, { min: 1, max: 20000 }),
+  setThreeIframeOverlaySizeScaleFactor: (v: number) => set({ threeIframeOverlaySizeScaleFactor: lsSetFloat(LS_KEYS.threeIframeOverlaySizeScaleFactor, v, { min: 1, max: 20000 }) }),
+
+  threeEdgeRenderer: (() => {
+    const raw = readLsString(LS_KEYS.threeEdgeRenderer, 'mesh')
+    const next = raw === 'shaderLine' ? raw : 'mesh'
+    return next as 'mesh' | 'shaderLine'
+  })(),
+  setThreeEdgeRenderer: (v: 'mesh' | 'shaderLine') => {
+    const next = v === 'shaderLine' ? v : 'mesh'
+    writeLsString(LS_KEYS.threeEdgeRenderer, next)
+    set({ threeEdgeRenderer: next })
+  },
+  threeShaderLineWidthPx: clampFloat(lsFloat(LS_KEYS.threeShaderLineWidthPx, 2, { min: 0.5, max: 20 }), 2, { min: 0.5, max: 20 }),
+  setThreeShaderLineWidthPx: (v: number) => set({ threeShaderLineWidthPx: lsSetFloat(LS_KEYS.threeShaderLineWidthPx, v, { min: 0.5, max: 20 }) }),
   themeMode,
   resolvedThemeMode,
   setThemeMode: (mode: ThemeMode) => {

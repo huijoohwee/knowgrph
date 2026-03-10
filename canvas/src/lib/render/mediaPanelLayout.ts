@@ -46,7 +46,7 @@ export function computeMediaPanelCssVars3d(args: { density: MediaPanelDensity; s
   const padding = Math.max(2, Math.round(paddingBase * s))
   const radius = Math.max(3, Math.round(radiusBase * s))
   const borderW = Math.max(1, Math.round(borderBase * s))
-  const titleSize = Math.max(10, Math.min(40, Math.round(titleBase * s)))
+  const titleSize = Math.max(10, Math.round(titleBase * s))
   const metrics: MediaPanelCssMetrics = { headerH, borderW, radius, padding, titleSize }
   const vars: MediaPanelCssVars = {
     '--kg-media-panel-header-h': `${headerH}px`,
@@ -71,6 +71,16 @@ export function computePanelSizeFromContent16x9(args: { contentW: number; metric
   const panelW = Math.max(2, contentW + padding * 2)
   const panelH = Math.max(2, contentH + headerH + padding * 2)
   return { panelW, panelH, contentW, contentH }
+}
+
+export function computeMediaPanelPixelSize2d(args: { zoomK: number; dimsWorld: { panelWidth: number; panelHeight: number } }): {
+  panelW: number
+  panelH: number
+} {
+  const k = Number.isFinite(args.zoomK) ? Math.max(0.001, Number(args.zoomK)) : 1
+  const panelW = Math.max(2, Number(args.dimsWorld.panelWidth) * k)
+  const panelH = Math.max(2, Number(args.dimsWorld.panelHeight) * k)
+  return { panelW, panelH }
 }
 
 export function computePanelRect(args: {
@@ -109,12 +119,26 @@ export function applyPanelBox(el: HTMLElement, args: { left: number; top: number
   const w = Number.isFinite(args.w) ? args.w : 1
   const h = Number.isFinite(args.h) ? args.h : 1
   const display = args.display === 'none' ? 'none' : 'block'
+  const mode = (() => {
+    try {
+      const d = (el as unknown as { dataset?: Record<string, string> }).dataset
+      return d && d.kgPanelBox === 'leftTop' ? 'leftTop' : 'transform'
+    } catch {
+      return 'transform'
+    }
+  })()
   const z = args.zIndex != null ? String(args.zIndex) : ''
-  const sig = `${display}|${z}|${left}|${top}|${w}|${h}`
+  const sig = `${mode}|${display}|${z}|${left}|${top}|${w}|${h}`
   if (BOX_CACHE.get(el) === sig) return
   el.style.display = display
   if (display !== 'none') {
-    el.style.transform = `translate(${left}px, ${top}px)`
+    if (mode === 'leftTop') {
+      el.style.left = `${left}px`
+      el.style.top = `${top}px`
+      el.style.transform = 'translate3d(0px, 0px, 0px)'
+    } else {
+      el.style.transform = `translate3d(${left}px, ${top}px, 0px)`
+    }
     el.style.width = `${w}px`
     el.style.height = `${h}px`
     if (z) el.style.zIndex = z

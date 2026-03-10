@@ -59,7 +59,6 @@ export function NodeMesh({
 
   const mediaSpec = getNodeMediaSpec(node)
   const isMediaNode = !!renderMediaAsNodes && !!mediaSpec
-  const hideNodeBody = isMediaNode
   const mediaLayerOpacity = Math.max(0, Math.min(1, mediaNodeOpacity * baseLayerOpacity))
 
   let displayColor = baseColor
@@ -85,6 +84,9 @@ export function NodeMesh({
       displayColor = dimmedColor
       displayOpacity = isMediaNode ? mediaLayerOpacity : visuals.dimmedNodeOpacity
     }
+  }
+  if (isMediaNode && selection.mode === 'none' && !selection.isSelected) {
+    displayColor = dimmedColor
   }
   const isSelectedNode = selection.isSelected
   const emissiveColor = isSelectedNode ? visuals.selectedEdgeColor : '#000000'
@@ -179,9 +181,8 @@ export function NodeMesh({
         <meshLambertMaterial
           color={resolvedColor}
           transparent
-          opacity={hideNodeBody ? 0 : displayOpacity}
-          depthWrite={!hideNodeBody}
-          colorWrite={!hideNodeBody}
+          opacity={isMediaNode ? 0 : displayOpacity}
+          depthWrite={!isMediaNode}
           emissive={resolvedEmissive}
           emissiveIntensity={emissiveIntensity}
         />

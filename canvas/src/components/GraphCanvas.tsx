@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as d3 from 'd3'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
@@ -47,10 +47,12 @@ import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/can
 import { readElementLocalPoint } from '@/lib/canvas/canvas-event-coords'
 import { invertZoomPoint } from '@/lib/canvas/viewport-transform'
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
-import { computeMediaPanelWorldDims } from '@/lib/render/mediaPanelSpec'
-import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars2d, computePanelRect, computePanelSizeFromContent16x9 } from '@/lib/render/mediaPanelLayout'
+import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars3d, computePanelRect, computePanelSizeFromContent16x9 } from '@/lib/render/mediaPanelLayout'
 import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
+import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import RichMediaPanel from '@/components/RichMediaPanel'
+import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
+import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null);
@@ -90,6 +92,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const simulationRef = useRef<d3.Simulation<GraphNode, GraphEdge> | null>(null);
   const sceneGraphDataRef = useRef<GraphData | null>(null);
   const beforeRenderFrameRef = useRef<(() => void) | null>(null);
+  const beforeRenderFrameWrappedSourceRef = useRef<(() => void) | null>(null)
   const nodesPresentationAppliedKeyRef = useRef<string | null>(null);
   const groupsPresentationAppliedKeyRef = useRef<string | null>(null);
   const sceneCleanupRef = useRef<null | (() => void)>(null)
@@ -163,6 +166,12 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     renderMediaAsNodes,
     mediaPanelDensity,
     threeIframeOverlayPoolMax,
+    threeIframeOverlayBaseWidthRatioDefault,
+    threeIframeOverlayBaseWidthRatioCompact,
+    threeIframeOverlayBaseWidthMinPxDefault,
+    threeIframeOverlayBaseWidthMinPxCompact,
+    threeIframeOverlayBaseWidthMaxPxDefault,
+    threeIframeOverlayBaseWidthMaxPxCompact,
     setLayoutPositionsForMode,
     frontmatterModeEnabled,
     documentSemanticMode,
@@ -188,6 +197,12 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       renderMediaAsNodes: s.renderMediaAsNodes,
       mediaPanelDensity: s.mediaPanelDensity,
       threeIframeOverlayPoolMax: s.threeIframeOverlayPoolMax,
+      threeIframeOverlayBaseWidthRatioDefault: s.threeIframeOverlayBaseWidthRatioDefault,
+      threeIframeOverlayBaseWidthRatioCompact: s.threeIframeOverlayBaseWidthRatioCompact,
+      threeIframeOverlayBaseWidthMinPxDefault: s.threeIframeOverlayBaseWidthMinPxDefault,
+      threeIframeOverlayBaseWidthMinPxCompact: s.threeIframeOverlayBaseWidthMinPxCompact,
+      threeIframeOverlayBaseWidthMaxPxDefault: s.threeIframeOverlayBaseWidthMaxPxDefault,
+      threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
       setLayoutPositionsForMode: s.setLayoutPositionsForMode,
       frontmatterModeEnabled: s.frontmatterModeEnabled || false,
       documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
@@ -313,14 +328,80 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const lastCanvasLayoutRef = useRef<null | { w: number; h: number; x: number; y: number }>(null)
 
   const mediaOverlayNodes = useMemo(() => {
-    const nodes = Array.isArray(renderGraphData?.nodes) ? (renderGraphData!.nodes as GraphNode[]) : []
-    const poolMax = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
+    const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
+    const poolMaxRaw = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
+    const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
     return listMediaOverlayNodes({ enabled: renderMediaAsNodes === true, nodes, poolMax })
-  }, [renderGraphData, renderMediaAsNodes, threeIframeOverlayPoolMax])
+  }, [renderMediaAsNodes, sceneGraphData, threeIframeOverlayPoolMax])
 
   const mediaOverlayNodeIdsKey = useMemo(() => mediaOverlayNodes.map(n => n.id).join('|'), [mediaOverlayNodes])
+  useEffect(() => {
+    const anyImportMeta = import.meta as unknown as { env?: { DEV?: boolean } }
+    if (!anyImportMeta.env?.DEV) return
+    if (!active) return
+    const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
+    let specCount = 0
+    let iframeCount = 0
+    let imageCount = 0
+    let videoCount = 0
+    let svgCount = 0
+    for (let i = 0; i < nodes.length; i += 1) {
+      const spec = getNodeMediaSpec(nodes[i]!)
+      if (!spec) continue
+      specCount += 1
+      if (spec.kind === 'iframe') iframeCount += 1
+      else if (spec.kind === 'image') imageCount += 1
+      else if (spec.kind === 'video') videoCount += 1
+      else if (spec.kind === 'svg') svgCount += 1
+    }
+    emitMarkdownPanelMetric('canvas.2d.d3.richMedia.pool', {
+      enabled: renderMediaAsNodes === true,
+      nodes: nodes.length,
+      mediaSpecCount: specCount,
+      iframeCount,
+      imageCount,
+      videoCount,
+      svgCount,
+      overlayPoolSize: mediaOverlayNodes.length,
+      overlayIds: mediaOverlayNodes.slice(0, 6).map(n => n.id),
+      poolMaxRaw: threeIframeOverlayPoolMax,
+    })
+  }, [active, mediaOverlayNodeIdsKey, mediaOverlayNodes, renderMediaAsNodes, sceneGraphData, threeIframeOverlayPoolMax])
   const iframeOverlayElsRef = useRef<Map<string, HTMLDivElement>>(new Map())
-  const iframeNodeByIdRef = useRef<{ rev: number; map: Map<string, GraphNode> }>({ rev: -1, map: new Map() })
+  const iframeNodeByIdRef = useRef<{ rev: number; sim: unknown | null; map: Map<string, GraphNode> }>({ rev: -1, sim: null, map: new Map() })
+  const mediaOverlayScheduleRef = useRef<(() => void) | null>(null)
+  const mediaOverlayScheduleRafRef = useRef<number | null>(null)
+  const mediaOverlaySchedulePendingRef = useRef<boolean>(false)
+  const iframeOverlayRefFnByIdRef = useRef<Map<string, (el: HTMLDivElement | null) => void>>(new Map())
+  const requestMediaOverlaySchedule = useCallback(() => {
+    const schedule = mediaOverlayScheduleRef.current
+    if (schedule) {
+      schedule()
+      return
+    }
+    mediaOverlaySchedulePendingRef.current = true
+    if (mediaOverlayScheduleRafRef.current != null) return
+    mediaOverlayScheduleRafRef.current = requestAnimationFrame(() => {
+      mediaOverlayScheduleRafRef.current = null
+      try {
+        mediaOverlayScheduleRef.current?.()
+      } catch {
+        void 0
+      }
+    })
+  }, [])
+  useEffect(() => {
+    return () => {
+      const raf = mediaOverlayScheduleRafRef.current
+      if (raf == null) return
+      mediaOverlayScheduleRafRef.current = null
+      try {
+        cancelAnimationFrame(raf)
+      } catch {
+        void 0
+      }
+    }
+  }, [])
   useEffect(() => {
     const next = new Map<string, HTMLDivElement>()
     for (const n of mediaOverlayNodes) {
@@ -328,34 +409,60 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       if (existing) next.set(n.id, existing)
     }
     iframeOverlayElsRef.current = next
+    const keep = new Set<string>(mediaOverlayNodes.map(n => n.id))
+    const refMap = iframeOverlayRefFnByIdRef.current
+    for (const [id] of refMap) {
+      if (!keep.has(id)) refMap.delete(id)
+    }
   }, [mediaOverlayNodeIdsKey, mediaOverlayNodes])
 
-  const mediaPanelDimsWorld = useMemo(() => {
-    const density = mediaPanelDensity === 'compact' ? 'compact' : 'default'
-    return computeMediaPanelWorldDims(density)
-  }, [mediaPanelDensity])
+  const getOverlayRefForId = useCallback((id: string) => {
+    const key = String(id || '').trim()
+    if (!key) return () => void 0
+    const cached = iframeOverlayRefFnByIdRef.current.get(key)
+    if (cached) return cached
+    const fn = (el: HTMLDivElement | null) => {
+      if (!el) {
+        iframeOverlayElsRef.current.delete(key)
+        return
+      }
+      const prev = iframeOverlayElsRef.current.get(key)
+      if (prev === el) return
+      iframeOverlayElsRef.current.set(key, el)
+      try {
+        applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block', zIndex: 1 })
+      } catch {
+        void 0
+      }
+      try {
+        requestMediaOverlaySchedule()
+      } catch {
+        void 0
+      }
+    }
+    iframeOverlayRefFnByIdRef.current.set(key, fn)
+    return fn
+  }, [requestMediaOverlaySchedule])
 
   useEffect(() => {
+    mediaOverlayScheduleRef.current = null
     if (!active) return
     if (renderMediaAsNodes !== true) return
     if (mediaOverlayNodes.length === 0) return
     let raf: number | null = null
-    let lastZoomK = -1
-    let lastVars: ReturnType<typeof computeMediaPanelCssVars2d>['vars'] | null = null
-    let lastMetrics: ReturnType<typeof computeMediaPanelCssVars2d>['metrics'] | null = null
+    mediaOverlaySchedulePendingRef.current = false
+    let lastKey = ''
+    let lastVars: ReturnType<typeof computeMediaPanelCssVars3d>['vars'] | null = null
     let lastPanelW = 0
     let lastPanelH = 0
-    const tick = () => {
-      raf = null
+    const update = () => {
       const svgEl = svgRef.current
-      if (!svgEl) {
-        raf = requestAnimationFrame(tick)
-        return
-      }
+      if (!svgEl) return
       const graph = sceneGraphDataRef.current
-      const nodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
+      const sim = simulationRef.current
+      const nodes = sim ? (sim.nodes() as unknown as GraphNode[]) : Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
       const rev = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? graphDataRevision : 0
-      if (iframeNodeByIdRef.current.rev !== rev) {
+      if (iframeNodeByIdRef.current.rev !== rev || iframeNodeByIdRef.current.sim !== sim) {
         const map = new Map<string, GraphNode>()
         for (let i = 0; i < nodes.length; i += 1) {
           const n = nodes[i]
@@ -363,49 +470,114 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
           if (!id) continue
           map.set(id, n)
         }
-        iframeNodeByIdRef.current = { rev, map }
+        iframeNodeByIdRef.current = { rev, sim: sim || null, map }
       }
       const nodeById = iframeNodeByIdRef.current.map
       const t = d3.zoomTransform(svgEl as unknown as SVGSVGElement)
       const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
-      if (Math.abs(k - lastZoomK) > 0.000001 || !lastVars || !lastMetrics) {
-        const computed = computeMediaPanelCssVars2d({ zoomK: k, dimsWorld: mediaPanelDimsWorld })
+      const density = mediaPanelDensity === 'compact' ? 'compact' : 'default'
+      const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v))
+      const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
+      const widthRatio = Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2
+      const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
+      const widthMin = Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210
+      const widthMaxRaw = density === 'compact' ? threeIframeOverlayBaseWidthMaxPxCompact : threeIframeOverlayBaseWidthMaxPxDefault
+      const widthMax = Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360
+      const baseW = clamp(sceneWidth * widthRatio, widthMin, widthMax)
+      const MAX_PANEL_PX = 2048
+      const STEP_PX = 16
+      const quantize = (px: number) => Math.round(px / STEP_PX) * STEP_PX
+      const contentW = Math.max(2, Math.min(MAX_PANEL_PX, quantize(baseW * Math.max(0.001, k))))
+      const sizeScale = Math.max(0.001, contentW / Math.max(1, baseW))
+      const key = `${density}|${contentW}`
+      if (key !== lastKey || !lastVars) {
+        const computed = computeMediaPanelCssVars3d({ density, sizeScale })
+        const panel = computePanelSizeFromContent16x9({ contentW, metrics: computed.metrics })
         lastVars = computed.vars
-        lastMetrics = computed.metrics
-        const panel = computePanelSizeFromContent16x9({ contentW: mediaPanelDimsWorld.panelWidth * k, metrics: computed.metrics })
         lastPanelW = panel.panelW
         lastPanelH = panel.panelH
-        lastZoomK = k
+        lastKey = key
       }
       for (const item of mediaOverlayNodes) {
         const el = iframeOverlayElsRef.current.get(item.id)
         if (!el) continue
         const n = nodeById.get(item.id) || null
-        const x = n && typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-        const y = n && typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-        let cx: number | null = null
-        let cy: number | null = null
-        if (x != null && y != null) {
-          cx = t.applyX(x)
-          cy = t.applyY(y)
-        }
-        if (cx == null || cy == null) {
-          applyPanelBox(el, { left: 0, top: 0, w: 1, h: 1, display: 'none' })
+        const center = readNodeCenterWorld2d(n, { coords: 'center' })
+        if (!center) {
+          try {
+            const hasPos = (el as unknown as { dataset?: Record<string, string> }).dataset?.kgOverlayHasPos === '1'
+            if (!hasPos) applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block', zIndex: 1 })
+          } catch {
+            applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block', zIndex: 1 })
+          }
           continue
         }
-        const rect = computePanelRect({
-          cx,
-          cy,
-          w: lastPanelW,
-          h: lastPanelH,
-          clamp: { viewportW: sceneWidth, viewportH: sceneHeight, margin: 6 },
-        })
+        const cx = t.applyX(center.x)
+        const cy = t.applyY(center.y)
+        if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue
+        const rect = computePanelRect({ cx, cy, w: lastPanelW, h: lastPanelH })
         applyMediaPanelCssVars(el, lastVars!)
-        applyPanelBox(el, { left: rect.left, top: rect.top, w: lastPanelW, h: lastPanelH, display: 'block' })
+        try {
+          const applied = (el as unknown as { dataset?: Record<string, string> }).dataset?.kgMediaEagerApplied
+          if (!applied) {
+            const iframe = el.querySelector('iframe')
+            if (iframe) {
+              try {
+                ;(iframe as unknown as { loading?: string }).loading = 'eager'
+              } catch {
+                void 0
+              }
+              try {
+                iframe.setAttribute('loading', 'eager')
+              } catch {
+                void 0
+              }
+            }
+            const img = el.querySelector('img')
+            if (img) {
+              try {
+                ;(img as unknown as { loading?: string }).loading = 'eager'
+              } catch {
+                void 0
+              }
+              try {
+                img.setAttribute('loading', 'eager')
+              } catch {
+                void 0
+              }
+            }
+            try {
+              ;(el as unknown as { dataset?: Record<string, string> }).dataset!.kgMediaEagerApplied = '1'
+            } catch {
+              void 0
+            }
+          }
+        } catch {
+          void 0
+        }
+        const left = Math.round(rect.left)
+        const top = Math.round(rect.top)
+        applyPanelBox(el, { left, top, w: lastPanelW, h: lastPanelH, display: 'block' })
+        try {
+          ;(el as unknown as { dataset?: Record<string, string> }).dataset!.kgOverlayHasPos = '1'
+        } catch {
+          void 0
+        }
       }
-      raf = requestAnimationFrame(tick)
     }
-    raf = requestAnimationFrame(tick)
+    const schedule = () => {
+      if (raf != null) return
+      raf = requestAnimationFrame(() => {
+        raf = null
+        update()
+      })
+    }
+    mediaOverlayScheduleRef.current = schedule
+    if (mediaOverlaySchedulePendingRef.current) {
+      mediaOverlaySchedulePendingRef.current = false
+      schedule()
+    }
+    schedule()
     return () => {
       if (raf != null) {
         try {
@@ -414,16 +586,27 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
           void 0
         }
       }
+      raf = null
+      if (mediaOverlayScheduleRef.current === schedule) {
+        mediaOverlayScheduleRef.current = null
+      }
     }
   }, [
     active,
     graphDataRevision,
     mediaOverlayNodes,
     mediaOverlayNodeIdsKey,
-    mediaPanelDimsWorld,
+    mediaPanelDensity,
     renderMediaAsNodes,
     sceneWidth,
     sceneHeight,
+    threeIframeOverlayBaseWidthRatioCompact,
+    threeIframeOverlayBaseWidthRatioDefault,
+    threeIframeOverlayBaseWidthMaxPxCompact,
+    threeIframeOverlayBaseWidthMaxPxDefault,
+    threeIframeOverlayBaseWidthMinPxCompact,
+    threeIframeOverlayBaseWidthMinPxDefault,
+    requestMediaOverlaySchedule,
   ])
 
   useEffect(() => {
@@ -1021,6 +1204,11 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         edgeScrollEnabled: () => useGraphStore.getState().viewPinned !== true,
         onZoomTransform: t => {
           zoomCommitLatestTransformRef.current = t
+          try {
+            requestMediaOverlaySchedule()
+          } catch {
+            void 0
+          }
           if (zoomCommitPendingRef.current) return
           zoomCommitPendingRef.current = true
           if (zoomCommitRafIdRef.current != null) {
@@ -1051,6 +1239,18 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         layoutCacheKey: cacheKey,
         setLayoutPositionsForMode,
       });
+      const baseBefore = beforeRenderFrameRef.current
+      if (baseBefore && beforeRenderFrameWrappedSourceRef.current !== baseBefore) {
+        beforeRenderFrameWrappedSourceRef.current = baseBefore
+        beforeRenderFrameRef.current = () => {
+          baseBefore()
+          try {
+            requestMediaOverlaySchedule()
+          } catch {
+            void 0
+          }
+        }
+      }
       sceneBuildKeyRef.current = buildKey
 
     });
@@ -1353,6 +1553,48 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         if (!fn) return
         try {
           fn()
+        } catch {
+          void 0
+        }
+      },
+    )
+    return () => {
+      try {
+        unsubscribe()
+      } catch {
+        void 0
+      }
+    }
+  }, [active])
+
+  useEffect(() => {
+    if (!active) return
+    const unsubscribe = useGraphStore.subscribe(
+      s =>
+        [
+          s.zoomLabelScaleMode2d,
+          s.zoomLabelScaleExponent2d,
+          s.zoomLabelScaleClampMin2d,
+          s.zoomLabelScaleClampMax2d,
+          s.zoomStrokeScaleMode2d,
+          s.zoomStrokeScaleExponent2d,
+          s.zoomStrokeScaleClampMin2d,
+          s.zoomStrokeScaleClampMax2d,
+        ].join(':'),
+      () => {
+        const svgEl = svgRef.current
+        const zoom = zoomRef.current
+        if (!svgEl || !zoom) return
+        try {
+          const svg = d3.select(svgEl)
+          const t0 = d3.zoomTransform(svgEl)
+          svg.call(
+            zoom.transform as unknown as (
+              sel: d3.Selection<SVGSVGElement, unknown, null, undefined>,
+              t: d3.ZoomTransform,
+            ) => void,
+            t0,
+          )
         } catch {
           void 0
         }
@@ -1754,26 +1996,16 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
             return (
               <RichMediaPanel
                 key={n.id}
-                ref={(el) => {
-                  if (!el) {
-                    iframeOverlayElsRef.current.delete(n.id)
-                    return
-                  }
-                  iframeOverlayElsRef.current.set(n.id, el)
-                }}
+                ref={getOverlayRefForId(n.id)}
                 data-kg-canvas-wheel-ignore="true"
                 data-kg-canvas-pointer-ignore="true"
+                data-kg-panel-box="leftTop"
                 className="absolute left-0 top-0 pointer-events-auto"
                 title={n.title}
                 url={n.url}
                 kind={n.kind}
                 interactive={n.interactive}
                 iframeMode="srcdoc-when-needed"
-                style={{
-                  transform: 'translate(-99999px, -99999px)',
-                  width: 1,
-                  height: 1,
-                }}
                 onPointerDownCapture={stopEvent}
                 onPointerUpCapture={stopEvent}
                 onWheelCapture={stopEvent}

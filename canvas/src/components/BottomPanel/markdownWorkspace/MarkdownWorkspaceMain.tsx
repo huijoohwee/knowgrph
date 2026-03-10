@@ -2103,7 +2103,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             nodeMotionIntensity,
             bg: exportBg,
           })
-          bodyHtml = `<div class="kgExportCanvasRoot kgExportThreeRoot"><canvas id="kgExportThreeCanvas"></canvas></div>`
+          bodyHtml = `<div class="kgExportCanvasRoot kgExportThreeRoot"><img class="kgExportCanvasImg kgExportThreeSnapshot" alt="Canvas snapshot" style="display:none" /><canvas id="kgExportThreeCanvas"></canvas></div>`
           threeModuleScript = [
             'const PREFER_CDN = false;',
             `const GLB_URL = ${glbJs};`,
@@ -2147,6 +2147,13 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             'const canvas = document.getElementById("kgExportThreeCanvas");',
             'if (!(canvas instanceof HTMLCanvasElement)) throw new Error("Missing canvas");',
             'const root = document.querySelector(".kgExportThreeRoot");',
+            'try {',
+            '  const img = document.querySelector(".kgExportThreeSnapshot");',
+            '  if (img && __KG_THREE_FALLBACK_PNG) {',
+            '    img.src = String(__KG_THREE_FALLBACK_PNG);',
+            '    img.style.display = "block";',
+            '  }',
+            '} catch { }',
             'const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });',
             'try {',
             '  const bg = THREE_CFG && typeof THREE_CFG.bg === "string" ? String(THREE_CFG.bg).trim() : "";',
@@ -2183,10 +2190,12 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             '  const h = (root && (root instanceof HTMLElement) ? root.clientHeight : window.innerHeight) || 1;',
             '  camera.aspect = w / h;',
             '  camera.updateProjectionMatrix();',
-            '  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));',
+            '  const dpr = window.devicePixelRatio || 1;',
+            '  renderer.setPixelRatio((Number.isFinite(dpr) && dpr > 0) ? dpr : 1);',
             '  renderer.setSize(w, h, false);',
             '};',
             'let needsRender = true;',
+            'let __kgSnapshotHidden = false;',
             'const render = () => { needsRender = true; };',
             'controls.addEventListener("change", render);',
             'window.addEventListener("resize", () => { setSize(); render(); });',
@@ -2634,6 +2643,13 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             '    needsRender = false;',
             '    updateOverlayLabels();',
             '    renderer.render(scene, camera);',
+            '    if (!__kgSnapshotHidden) {',
+            '      __kgSnapshotHidden = true;',
+            '      try {',
+            '        const img = document.querySelector(".kgExportThreeSnapshot");',
+            '        if (img && img instanceof HTMLImageElement) img.style.display = "none";',
+            '      } catch { }',
+            '    }',
             '  }',
             '  requestAnimationFrame(tick);',
             '};',
@@ -2643,7 +2659,16 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
 
         if (threeModuleScript) {
           try {
-            const fallbackPng = (await store.captureCanvasPngSnapshot('3d')) || (await captureVisibleCanvasPngBlobFromDom())
+            const pr = (() => {
+              try {
+                const dpr = window.devicePixelRatio || 1
+                if (!Number.isFinite(dpr) || dpr <= 0) return 1
+                return Math.max(1, Math.min(4, dpr))
+              } catch {
+                return 1
+              }
+            })()
+            const fallbackPng = (await store.captureCanvasPngSnapshot('3d', pr)) || (await captureVisibleCanvasPngBlobFromDom())
             if (fallbackPng) threeFallbackPngDataUrl = await blobToDataUrl(fallbackPng)
           } catch {
             void 0
@@ -2664,10 +2689,28 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
               }
 
               if (store.canvasRenderMode === '3d') {
-                return (await store.captureCanvasPngSnapshot('3d')) || (await captureVisibleCanvasPngBlobFromDom())
+                const pr = (() => {
+                  try {
+                    const dpr = window.devicePixelRatio || 1
+                    if (!Number.isFinite(dpr) || dpr <= 0) return 1
+                    return Math.max(1, Math.min(4, dpr))
+                  } catch {
+                    return 1
+                  }
+                })()
+                return (await store.captureCanvasPngSnapshot('3d', pr)) || (await captureVisibleCanvasPngBlobFromDom())
               }
 
-              return (await store.captureCanvasPngSnapshot('2d')) || (await captureVisibleCanvasPngBlobFromDom())
+              const pr = (() => {
+                try {
+                  const dpr = window.devicePixelRatio || 1
+                  if (!Number.isFinite(dpr) || dpr <= 0) return 1
+                  return Math.max(1, Math.min(4, dpr))
+                } catch {
+                  return 1
+                }
+              })()
+              return (await store.captureCanvasPngSnapshot('2d', pr)) || (await captureVisibleCanvasPngBlobFromDom())
             })()
         if (!png && !threeModuleScript && !geospatialEnabled && !wants3dExport) {
           try {
@@ -2745,8 +2788,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '    body { height: 100%; }',
         `    body { margin: 0; background: ${exportBg}; color: ${exportFg}; }`,
         '    .kgExportCanvasRoot { width: 100vw; height: 100vh; display: grid; place-items: center; overflow: hidden; }',
-        '    .kgExportThreeRoot { place-items: stretch; }',
+        '    .kgExportThreeRoot { place-items: stretch; position: relative; }',
         '    #kgExportThreeCanvas { width: 100%; height: 100%; display: block; }',
+        '    .kgExportThreeSnapshot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 1; }',
+        '    .kgExportThreeRoot canvas { position: relative; z-index: 2; }',
         `    .kgExportTooltip { position: fixed; z-index: 2147483647; padding: 6px 8px; border-radius: 8px; font-size: 12px; line-height: 1.2; max-width: min(560px, 70vw); white-space: pre-wrap; pointer-events: none; user-select: none; background: ${tooltipBgToken}; color: ${tooltipTextToken}; border: 1px solid rgba(255,255,255,0.18); box-shadow: 0 10px 30px rgba(0,0,0,0.35); }`,
         '    @keyframes kgNodeBob { 0% { translate: 0 0; } 50% { translate: 0 calc(var(--kg-bob-amp, 2px) * -1); } 100% { translate: 0 0; } }',
         '    .kgExportCanvasRoot svg { width: 100%; height: 100%; display: block; touch-action: none; }',

@@ -44,6 +44,7 @@ export const createZoom = (
   let lastHidden: boolean | null = null;
   let lastResponsiveTs = 0
   let lastKEffective: number | null = null
+  let lastStrokeKey: string | null = null
   const [schemaMinScale, schemaMaxScale] = readZoomScaleExtent(schema)
   let scaleExtent = mergeScaleExtentWithCurrent({ schemaMinK: schemaMinScale, schemaMaxK: schemaMaxScale })
   const baseFontSizeRaw = schema.labelStyles?.fontSize
@@ -113,7 +114,21 @@ export const createZoom = (
       const k = transform.k || 1;
       lastK = k
 
-      const kEffective = Math.max(1, k)
+      const st = useGraphStore.getState()
+      const mode = st.zoomLabelScaleMode2d === 'smooth' || st.zoomLabelScaleMode2d === 'power' ? st.zoomLabelScaleMode2d : 'clampAt1'
+      const exponentRaw = st.zoomLabelScaleExponent2d
+      const exponent = typeof exponentRaw === 'number' && Number.isFinite(exponentRaw) && exponentRaw > 0 ? exponentRaw : 1
+      const clampMinRaw = st.zoomLabelScaleClampMin2d
+      const clampMaxRaw = st.zoomLabelScaleClampMax2d
+      const clampMin = typeof clampMinRaw === 'number' && Number.isFinite(clampMinRaw) && clampMinRaw > 0 ? clampMinRaw : 0.000001
+      const clampMax = typeof clampMaxRaw === 'number' && Number.isFinite(clampMaxRaw) && clampMaxRaw > 0 ? clampMaxRaw : 1000000
+      const clampScale = (v: number): number => Math.max(clampMin, Math.min(clampMax, v))
+      const kEffective =
+        mode === 'clampAt1'
+          ? clampScale(Math.max(1, k))
+          : mode === 'power'
+            ? clampScale(Math.pow(Math.max(0.000001, k), exponent))
+            : clampScale(Math.max(0.000001, k))
       if (!lastResponsiveTs || now - lastResponsiveTs > 16) {
         lastResponsiveTs = now
         const rounded = Math.round(kEffective * 1000) / 1000
@@ -143,6 +158,78 @@ export const createZoom = (
           g.selectAll<SVGTextElement, unknown>('[data-kg-layer="edge-labels"] text')
             .attr('font-size', Math.max(9 / kEffective, (baseFontSize * 0.9) / kEffective))
             .attr('stroke-width', Math.max(2 / kEffective, scaledHaloWidth * 0.85))
+
+          const strokeModeRaw = st.zoomStrokeScaleMode2d
+          const strokeMode = strokeModeRaw === 'screenConstant' || strokeModeRaw === 'power' ? strokeModeRaw : 'zoomScaled'
+          const strokeExponentRaw = st.zoomStrokeScaleExponent2d
+          const strokeExponent =
+            typeof strokeExponentRaw === 'number' && Number.isFinite(strokeExponentRaw) && strokeExponentRaw > 0 ? strokeExponentRaw : 1
+          const strokeClampMinRaw = st.zoomStrokeScaleClampMin2d
+          const strokeClampMaxRaw = st.zoomStrokeScaleClampMax2d
+          const strokeClampMin =
+            typeof strokeClampMinRaw === 'number' && Number.isFinite(strokeClampMinRaw) && strokeClampMinRaw > 0 ? strokeClampMinRaw : 0.000001
+          const strokeClampMax =
+            typeof strokeClampMaxRaw === 'number' && Number.isFinite(strokeClampMaxRaw) && strokeClampMaxRaw > 0 ? strokeClampMaxRaw : 1000
+          const clampStrokeScale = (v: number): number => Math.max(strokeClampMin, Math.min(strokeClampMax, v))
+          const strokeScale =
+            strokeMode === 'power'
+              ? clampStrokeScale(Math.pow(Math.max(0.000001, k), strokeExponent))
+              : strokeMode === 'screenConstant'
+                ? 1
+                : 1
+          const strokeKey =
+            strokeMode === 'power'
+              ? `${strokeMode}:${Math.round(strokeScale * 1000) / 1000}`
+              : strokeMode
+          if (lastStrokeKey !== strokeKey) {
+            lastStrokeKey = strokeKey
+            const strokeSel = g.selectAll<SVGElement, unknown>(
+              [
+                '[data-kg-layer="links"] line',
+                '[data-kg-layer="groups"] rect',
+                '[data-kg-layer="groups"] path',
+                '[data-kg-layer="nodes"] circle',
+                '[data-kg-layer="nodes"] rect',
+                '[data-kg-layer="nodes"] path[data-kg-node-shape]',
+                '[data-kg-layer="node-chevrons"] path[data-kg-node-chevron]',
+                '[data-kg-layer="group-labels"] path[data-kg-group-chevron]',
+                '[data-kg-layer="port-handles"] circle',
+                '[data-kg-layer="temp-link"]',
+              ].join(','),
+            )
+            const baseAttr = 'data-kg-base-stroke-w'
+            if (strokeMode === 'zoomScaled') {
+              strokeSel.each(function () {
+                const el = this as unknown as SVGElement
+                const base = el.getAttribute(baseAttr)
+                if (base != null && base !== '') {
+                  const b = Number(base)
+                  if (Number.isFinite(b)) {
+                    el.setAttribute('stroke-width', String(b))
+                  }
+                } else {
+                  const sw = el.getAttribute('stroke-width')
+                  if (sw != null && sw !== '') el.setAttribute(baseAttr, sw)
+                }
+                el.removeAttribute('vector-effect')
+              })
+            } else {
+              strokeSel.each(function () {
+                const el = this as unknown as SVGElement
+                let base = el.getAttribute(baseAttr)
+                if (base == null || base === '') {
+                  base = el.getAttribute('stroke-width') || ''
+                  if (base) el.setAttribute(baseAttr, base)
+                }
+                const b = Number(base)
+                if (Number.isFinite(b)) {
+                  const next = strokeMode === 'power' ? Math.max(0, b * strokeScale) : b
+                  el.setAttribute('stroke-width', String(next))
+                }
+                el.setAttribute('vector-effect', 'non-scaling-stroke')
+              })
+            }
+          }
         }
       }
 

@@ -1,8 +1,12 @@
 import React, { useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
+import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js'
+import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
 import type { Vec3 } from './layout'
 import { computeNodeMotion, type NodeMotionState } from './animation'
+import type { GraphEdge } from '@/lib/graph/types'
 
 type MotionProps = {
   sourceId?: string
@@ -275,5 +279,244 @@ export function CurvedEdgeMesh({ a, b, color, width, opacity, curvature, resolut
     <mesh ref={ref} name={name}>
       <meshLambertMaterial color={color} transparent opacity={opacity} />
     </mesh>
+  )
+}
+
+export function ShaderLineEdges({
+  edges,
+  positions,
+  nodeRadiusById,
+  colorByLabel,
+  neutralEdgeColor,
+  selectedEdgeColor,
+  selectionMode,
+  selectedEdgeIdSet,
+  selectedNodeIdSet,
+  dimmedEdgeOpacity,
+  selectedEdgeWidth,
+  paused,
+  motionIntensity,
+  draggedNodeId,
+  lineWidthPx,
+  onSelectEdge,
+  onHoverEdge,
+}: {
+  edges: GraphEdge[]
+  positions: Record<string, Vec3>
+  nodeRadiusById: Map<string, number>
+  colorByLabel: (label: string) => string
+  neutralEdgeColor: string
+  selectedEdgeColor: string
+  selectionMode: 'none' | 'node' | 'edge'
+  selectedEdgeIdSet: Set<string>
+  selectedNodeIdSet: Set<string>
+  dimmedEdgeOpacity: number
+  selectedEdgeWidth: number
+  paused?: boolean
+  motionIntensity?: number
+  draggedNodeId?: string | null
+  lineWidthPx: number
+  onSelectEdge: (id: string) => void
+  onHoverEdge?: (info: { id: string; clientX: number; clientY: number } | null) => void
+}) {
+  const { size, gl } = useThree()
+  const lineRef = React.useRef<LineSegments2 | null>(null)
+  const geomRef = React.useRef<LineSegmentsGeometry | null>(null)
+  const posArrayRef = React.useRef<Float32Array>(new Float32Array(0))
+  const colorArrayRef = React.useRef<Float32Array>(new Float32Array(0))
+  const edgeIdsRef = React.useRef<string[]>([])
+  const motionRef = React.useRef<{ intensity: number; draggedNodeId?: string | null }>({ intensity: 0, draggedNodeId: null })
+  motionRef.current = { intensity: motionIntensity || 0, draggedNodeId: draggedNodeId || null }
+
+  React.useEffect(() => {
+    const n = edges.length
+    const posArray = new Float32Array(Math.max(1, n * 6))
+    const colorArray = new Float32Array(Math.max(1, n * 6))
+    const ids: string[] = new Array(n)
+    for (let i = 0; i < n; i += 1) ids[i] = String(edges[i]?.id || '')
+    posArrayRef.current = posArray
+    colorArrayRef.current = colorArray
+    edgeIdsRef.current = ids
+
+    const geom = new LineSegmentsGeometry()
+    geom.setPositions(posArray)
+    geom.setColors(colorArray)
+    geomRef.current = geom
+
+    const mat = new LineMaterial({
+      color: 0xffffff,
+      linewidth: Math.max(0.5, Number(lineWidthPx) || 2),
+      vertexColors: true,
+      transparent: true,
+      opacity: 1,
+      depthTest: true,
+      depthWrite: false,
+    })
+    mat.resolution.set(Math.max(1, size.width), Math.max(1, size.height))
+
+    const line = new LineSegments2(geom, mat)
+    line.frustumCulled = false
+    lineRef.current = line
+
+    return () => {
+      try {
+        lineRef.current = null
+      } catch {
+        void 0
+      }
+      try {
+        geom.dispose()
+      } catch {
+        void 0
+      }
+      try {
+        mat.dispose()
+      } catch {
+        void 0
+      }
+      geomRef.current = null
+    }
+  }, [edges])
+
+  React.useEffect(() => {
+    const line = lineRef.current
+    if (!line) return
+    const mat = line.material as LineMaterial
+    mat.linewidth = Math.max(0.5, Number(lineWidthPx) || 2)
+  }, [lineWidthPx])
+
+  React.useEffect(() => {
+    const line = lineRef.current
+    if (!line) return
+    const mat = line.material as LineMaterial
+    mat.resolution.set(Math.max(1, size.width), Math.max(1, size.height))
+  }, [size.height, size.width, gl])
+
+  React.useEffect(() => {
+    const geom = geomRef.current
+    if (!geom) return
+    const colors = colorArrayRef.current
+    const n = edges.length
+    const bg = new THREE.Color(0, 0, 0)
+    const tmp = new THREE.Color()
+    for (let i = 0; i < n; i += 1) {
+      const e = edges[i]
+      const srcId = String(e.source)
+      const tgtId = String(e.target)
+      const isSelectedEdge = selectedEdgeIdSet.has(String(e.id))
+      const isIncidentToSelectedNode = selectedNodeIdSet.size > 0 && (selectedNodeIdSet.has(srcId) || selectedNodeIdSet.has(tgtId))
+      let finalColor = colorByLabel(e.label)
+      let finalOpacity = 1
+      if (selectionMode === 'edge') {
+        if (isSelectedEdge) {
+          finalColor = selectedEdgeColor
+          finalOpacity = 1
+        } else {
+          finalColor = neutralEdgeColor
+          finalOpacity = Math.min(1, dimmedEdgeOpacity)
+        }
+      } else if (selectionMode === 'node') {
+        if (isIncidentToSelectedNode) {
+          finalColor = selectedEdgeColor
+          finalOpacity = 1
+        } else {
+          finalColor = colorByLabel(e.label)
+          finalOpacity = Math.min(1, dimmedEdgeOpacity)
+        }
+      }
+      void selectedEdgeWidth
+      tmp.set(finalColor)
+      tmp.lerp(bg, 1 - Math.max(0, Math.min(1, finalOpacity)))
+      const r = tmp.r
+      const g = tmp.g
+      const b = tmp.b
+      const o = i * 6
+      colors[o + 0] = r
+      colors[o + 1] = g
+      colors[o + 2] = b
+      colors[o + 3] = r
+      colors[o + 4] = g
+      colors[o + 5] = b
+    }
+    const attr = geom.attributes.instanceColorStart as THREE.InterleavedBufferAttribute | undefined
+    if (attr && attr.data) {
+      attr.data.needsUpdate = true
+    }
+  }, [colorByLabel, dimmedEdgeOpacity, edges, neutralEdgeColor, selectedEdgeColor, selectedEdgeIdSet, selectedNodeIdSet, selectionMode, selectedEdgeWidth])
+
+  useFrame(({ clock }) => {
+    if (paused) return
+    const geom = geomRef.current
+    if (!geom) return
+    const arr = posArrayRef.current
+    const n = edges.length
+    const t = clock.getElapsedTime()
+    const ms: NodeMotionState = { intensity: motionRef.current.intensity, draggedNodeId: motionRef.current.draggedNodeId || null }
+    for (let i = 0; i < n; i += 1) {
+      const e = edges[i]
+      const a = positions[String(e.source)]
+      const b = positions[String(e.target)]
+      const o = i * 6
+      if (!a || !b) {
+        arr[o + 0] = 0
+        arr[o + 1] = 0
+        arr[o + 2] = 0
+        arr[o + 3] = 0
+        arr[o + 4] = 0
+        arr[o + 5] = 0
+        continue
+      }
+      const srcId = String(e.source)
+      const tgtId = String(e.target)
+      const srcR = nodeRadiusById.get(srcId) || 5
+      const tgtR = nodeRadiusById.get(tgtId) || 5
+      const p0 = ms.intensity > 0 ? computeNodeMotion(srcId, a, srcR, ms, t) : a
+      const p1 = ms.intensity > 0 ? computeNodeMotion(tgtId, b, tgtR, ms, t) : b
+      arr[o + 0] = p0[0]
+      arr[o + 1] = p0[1]
+      arr[o + 2] = p0[2]
+      arr[o + 3] = p1[0]
+      arr[o + 4] = p1[1]
+      arr[o + 5] = p1[2]
+    }
+    const attr = geom.attributes.instanceStart as THREE.InterleavedBufferAttribute | undefined
+    if (attr && attr.data) {
+      attr.data.needsUpdate = true
+    }
+  })
+
+  const obj = lineRef.current
+  if (!obj) return null
+  return (
+    <primitive
+      object={obj}
+      onClick={(evt: unknown) => {
+        const e = evt as { stopPropagation?: () => void; instanceId?: number }
+        if (e.stopPropagation) e.stopPropagation()
+        const idx = typeof e.instanceId === 'number' ? e.instanceId : null
+        const id = idx != null ? edgeIdsRef.current[idx] : null
+        if (id) onSelectEdge(id)
+      }}
+      onPointerOver={(evt: unknown) => {
+        if (!onHoverEdge) return
+        const e = evt as { instanceId?: number; clientX: number; clientY: number }
+        const idx = typeof e.instanceId === 'number' ? e.instanceId : null
+        const id = idx != null ? edgeIdsRef.current[idx] : null
+        if (!id) return
+        onHoverEdge({ id, clientX: e.clientX, clientY: e.clientY })
+      }}
+      onPointerMove={(evt: unknown) => {
+        if (!onHoverEdge) return
+        const e = evt as { instanceId?: number; clientX: number; clientY: number }
+        const idx = typeof e.instanceId === 'number' ? e.instanceId : null
+        const id = idx != null ? edgeIdsRef.current[idx] : null
+        if (!id) return
+        onHoverEdge({ id, clientX: e.clientX, clientY: e.clientY })
+      }}
+      onPointerOut={() => {
+        if (!onHoverEdge) return
+        onHoverEdge(null)
+      }}
+    />
   )
 }

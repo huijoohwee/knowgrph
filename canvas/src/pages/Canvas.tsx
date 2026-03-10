@@ -144,6 +144,8 @@ export default function CanvasPage() {
     setEnableLaunchSpotlight,
     workspaceViewMode,
     workspaceCanvasPaneOpen,
+    setWorkspaceCanvasPaneOpen,
+    renderMediaAsNodes,
   } = useGraphStore(
     useShallow(s => ({
       uiOverlayOpacity: s.uiOverlayOpacity,
@@ -161,6 +163,8 @@ export default function CanvasPage() {
       setEnableLaunchSpotlight: s.setEnableLaunchSpotlight,
       workspaceViewMode: s.workspaceViewMode,
       workspaceCanvasPaneOpen: s.workspaceCanvasPaneOpen,
+      setWorkspaceCanvasPaneOpen: s.setWorkspaceCanvasPaneOpen,
+      renderMediaAsNodes: s.renderMediaAsNodes === true,
     })),
   )
 
@@ -380,6 +384,18 @@ export default function CanvasPage() {
       requestThreeCamera: s.requestThreeCamera,
     })),
   )
+
+  React.useEffect(() => {
+    const isSplit = workspaceViewMode === 'editor' || workspaceViewMode === 'table'
+    if (!isSplit) return
+    if (workspaceCanvasPaneOpen) return
+    if (canvasRenderMode !== '3d' && !renderMediaAsNodes) return
+    try {
+      setWorkspaceCanvasPaneOpen(true)
+    } catch {
+      void 0
+    }
+  }, [canvasRenderMode, renderMediaAsNodes, setWorkspaceCanvasPaneOpen, workspaceCanvasPaneOpen, workspaceViewMode])
 
   const activeGraphData = useActiveGraphRenderData(!isEmbeddedPreview)
   const gympgrphBridge = useGraphStore(
