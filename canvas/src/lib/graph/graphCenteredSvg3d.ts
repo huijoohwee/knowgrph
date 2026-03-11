@@ -113,6 +113,30 @@ const parseRgba = (value: string): { color: string; alpha: number } | null => {
   return { color: `rgb(${rr}, ${gg}, ${bb})`, alpha: aa }
 }
 
+const parseHsla = (value: string): { color: string; alpha: number } | null => {
+  const m = String(value || '').trim().match(/^hsla\(\s*([-0-9.]+)\s*(?:deg)?\s*,\s*([0-9.]+)%\s*,\s*([0-9.]+)%\s*,\s*([0-9]*\.?[0-9]+)\s*\)$/i)
+  if (!m) return null
+  const h = Number(m[1])
+  const s = Number(m[2])
+  const l = Number(m[3])
+  const a = Number(m[4])
+  if (![h, s, l, a].every(Number.isFinite)) return null
+  const hh = Math.round(h * 1000) / 1000
+  const ss = Math.max(0, Math.min(100, Math.round(s * 1000) / 1000))
+  const ll = Math.max(0, Math.min(100, Math.round(l * 1000) / 1000))
+  const aa = Math.max(0, Math.min(1, a))
+  return { color: `hsl(${hh}deg ${ss}% ${ll}%)`, alpha: aa }
+}
+
+const splitCssColorAlpha = (value: string): { color: string; alpha: number } => {
+  const v = String(value || '').trim()
+  const rgba = parseRgba(v)
+  if (rgba) return rgba
+  const hsla = parseHsla(v)
+  if (hsla) return hsla
+  return { color: v, alpha: 1 }
+}
+
 const computeCenteredViewBoxForAspect = (args: {
   halfW: number
   halfH: number
@@ -168,14 +192,16 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
     const threeEdgeRenderer = args.threeEdgeRenderer === 'shaderLine' ? 'shaderLine' : 'mesh'
 
     const canvasBg = resolveCssColor(readCssVar('--kg-canvas-bg', 'white'), 'white')
-    const labelFill = resolveCssColor(
+    const labelFillResolved = resolveCssColor(
       readCssVar('--kg-canvas-label-fill', readCssVar('--kg-text-primary', 'rgba(0,0,0,0.86)')),
       'rgba(0,0,0,0.86)',
     )
-    const nodeStroke = resolveCssColor(
+    const nodeStrokeResolved = resolveCssColor(
       readCssVar('--kg-canvas-node-stroke', readCssVar('--kg-border', 'rgba(0,0,0,0.45)')),
       'rgba(0,0,0,0.45)',
     )
+    const labelFillParsed = splitCssColorAlpha(labelFillResolved)
+    const nodeStrokeParsed = splitCssColorAlpha(nodeStrokeResolved)
 
     const positions = computePositions3d(nodes, schema)
     const posById = new Map<string, Vec3>()
@@ -287,15 +313,27 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
       return String(v)
     }
 
+    const colorCache = new Map<string, { color: string; alpha: number }>()
+    const resolveColorAlpha = (raw: string): { color: string; alpha: number } => {
+      const key = String(raw || '').trim()
+      if (!key) return { color: '', alpha: 1 }
+      const cached = colorCache.get(key)
+      if (cached) return cached
+      const resolved = resolveCssColor(key, key)
+      const parsed = splitCssColorAlpha(resolved)
+      colorCache.set(key, parsed)
+      return parsed
+    }
+
     const nodeData = nodes.map(n => {
       const id = String(n.id || '').trim()
       const p = posById.get(id) || [0, 0, 0]
       const baseR = Math.max(4, getNodeRenderRadius(n, schema) || 10)
       const fillRaw = String(getNodeBaseFill(n, schema) || '')
-      const fill = resolveCssColor(fillRaw, fillRaw)
+      const fillParsed = resolveColorAlpha(fillRaw)
       const label = String(n.label || id)
       const layerOpacity = Math.max(0, Math.min(1, getLayerOpacity(n, schema) * getVisualOpacity(n)))
-      return { id, p, baseR, fill, label, layerOpacity }
+      return { id, p, baseR, fill: fillParsed.color, fillAlpha: fillParsed.alpha, label, layerOpacity }
     }).filter(x => x.id)
 
     const edgeData = edges.map(e => {
@@ -304,9 +342,7 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
       const t = String(e.target || '').trim()
       const props = (e.properties || {}) as Record<string, unknown>
       const rawStroke = String(getEdgeBaseStroke(e, schema) || '')
-      const rgba = rawStroke ? parseRgba(rawStroke) : null
-      const rawColor = rgba ? rgba.color : rawStroke
-      const baseStroke = resolveCssColor(rawColor, rawColor)
+      const strokeParsed = resolveColorAlpha(rawStroke)
       const baseWidth = (() => {
         const w = getEdgeStrokeWidth(e, schema)
         const clamped = Math.max(0.5, Math.min(5, w))
@@ -316,11 +352,8 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
       const opacityByLabel: Record<string, number> = threeCfg.edgeOpacityByLabel || {}
       const cfgOpacity = typeof opacityByLabel[e.label] === 'number' ? Math.max(0, Math.min(1, opacityByLabel[e.label] as number)) : linkOpacityDefault
       const propOpacity = typeof props['opacity'] === 'number' ? Math.max(0, Math.min(1, props['opacity'] as number)) : null
-      const baseOpacity =
-        threeEdgeRenderer === 'shaderLine'
-          ? 1
-          : (propOpacity == null ? (rgba ? rgba.alpha : cfgOpacity) : propOpacity)
-      return { id, s, t, stroke: baseStroke, baseWidth, baseOpacity }
+      const baseOpacity = propOpacity == null ? cfgOpacity : propOpacity
+      return { id, s, t, stroke: strokeParsed.color, baseWidth, baseOpacity, strokeAlpha: strokeParsed.alpha }
     }).filter(x => x.id && x.s && x.t)
 
     const projectAt = (id: string, p0: Vec3, angY: number, tSec: number) => {
@@ -340,10 +373,13 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
       nodeFrame0.set(nd.id, pr)
       const r = nd.baseR * pr.k
       const op = depthOpacity(pr.z) * Math.max(0, Math.min(1, nd.layerOpacity))
+      const fillOp = op * (typeof nd.fillAlpha === 'number' && Number.isFinite(nd.fillAlpha) ? Math.max(0, Math.min(1, nd.fillAlpha)) : 1)
+      const strokeOp = op * Math.max(0, Math.min(1, nodeStrokeParsed.alpha))
+      const textOp = op * Math.max(0, Math.min(1, labelFillParsed.alpha))
       nodeParts.push(
         `<g data-node-id="${escapeXml(nd.id)}">` +
-          `<circle data-role="node-circle" cx="${fmt(pr.x)}" cy="${fmt(pr.y)}" r="${fmt(r)}" fill="${escapeXml(nd.fill)}" stroke="${escapeXml(nodeStroke)}" stroke-width="1" opacity="${fmtOp(op)}"/>` +
-          `<text data-role="node-label" x="${fmt(pr.x)}" y="${fmt(pr.y - r - labelPadY)}" font-size="${fontSizePx}" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" text-anchor="middle" fill="${escapeXml(labelFill)}" opacity="${fmtOp(op)}">${escapeXml(nd.label)}</text>` +
+          `<circle data-role="node-circle" cx="${fmt(pr.x)}" cy="${fmt(pr.y)}" r="${fmt(r)}" fill="${escapeXml(nd.fill)}" stroke="${escapeXml(nodeStrokeParsed.color)}" stroke-width="1" fill-opacity="${fmtOp(fillOp)}" stroke-opacity="${fmtOp(strokeOp)}"/>` +
+          `<text data-role="node-label" x="${fmt(pr.x)}" y="${fmt(pr.y - r - labelPadY)}" font-size="${fontSizePx}" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" text-anchor="middle" fill="${escapeXml(labelFillParsed.color)}" opacity="${fmtOp(textOp)}">${escapeXml(nd.label)}</text>` +
         `</g>`,
       )
     }
@@ -354,7 +390,7 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
       const ps = nodeFrame0.get(ed.s)
       const pt = nodeFrame0.get(ed.t)
       if (!ps || !pt) continue
-      const op = Math.min(depthOpacity(ps.z), depthOpacity(pt.z)) * Math.max(0, Math.min(1, ed.baseOpacity))
+      const op = Math.min(depthOpacity(ps.z), depthOpacity(pt.z)) * Math.max(0, Math.min(1, ed.baseOpacity)) * Math.max(0, Math.min(1, ed.strokeAlpha))
       const kAvg = (ps.k + pt.k) * 0.5
       const w = Math.max(0.25, ed.baseWidth * kAvg)
       edgeParts.push(
@@ -377,11 +413,14 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
         autoRotate,
         autoRotateSpeed,
         motion,
+        nodeStrokeAlpha: nodeStrokeParsed.alpha,
+        labelFillAlpha: labelFillParsed.alpha,
         nodes: nodeData.map(n => ({
           id: n.id,
           p: n.p,
           baseR: n.baseR,
           layerOpacity: n.layerOpacity,
+          fillAlpha: typeof n.fillAlpha === 'number' && Number.isFinite(n.fillAlpha) ? n.fillAlpha : 1,
         })),
         edges: edgeData,
       }),
@@ -402,6 +441,8 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
           `var minZ=Number(payload.minZ)||-1,maxZ=Number(payload.maxZ)||1;` +
           `var zSpan=Math.max(1e-6,maxZ-minZ);` +
           `var depthOpacity=function(z){return 1;};` +
+          `var nodeStrokeAlpha=Number(payload.nodeStrokeAlpha);if(!isFinite(nodeStrokeAlpha))nodeStrokeAlpha=1;` +
+          `var labelFillAlpha=Number(payload.labelFillAlpha);if(!isFinite(labelFillAlpha))labelFillAlpha=1;` +
           `var motionRaw=Number(payload.motion);var motion=(isFinite(motionRaw)?Math.max(0,Math.min(2,motionRaw)):1);` +
           `var amp=0.2*motion;` +
           `var autoRotate=payload.autoRotate===true;` +
@@ -410,13 +451,14 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
           `var omega=(Math.PI*2/60)*(autoRotate?autoRotateSpeed:0);` +
           `var labelPadY=Number(payload.labelPadY);if(!isFinite(labelPadY))labelPadY=8;` +
           `var nodeEls=new Map();` +
+          `var nodeOffsetById=root.__kgNodeOffsetById||(root.__kgNodeOffsetById={});` +
           `var nodeGs=root.querySelectorAll('[data-node-id]');` +
           `for(var gi=0;gi<nodeGs.length;gi++){var g=nodeGs[gi];var gid=String(g.getAttribute('data-node-id')||'');if(!gid)continue;var c=g.querySelector('[data-role="node-circle"]');var t=g.querySelector('[data-role="node-label"]');if(c&&t)nodeEls.set(gid,{g:g,c:c,t:t});}` +
           `var edgeElById=new Map();` +
           `var edgeLs=root.querySelectorAll('[data-edge-id]');` +
           `for(var li=0;li<edgeLs.length;li++){var el=edgeLs[li];var eid=String(el.getAttribute('data-edge-id')||'');if(eid)edgeElById.set(eid,el);}` +
           `var edgeEls=[];` +
-          `for(var j=0;j<edges.length;j++){var eid=String(edges[j].id||'');if(!eid)continue;var el=edgeElById.get(eid);if(!el)continue;edgeEls.push({id:eid,el:el,s:String(edges[j].s||edges[j].source||''),t:String(edges[j].t||edges[j].target||''),baseWidth:Number(edges[j].baseWidth)||1,baseOpacity:Number(edges[j].baseOpacity)||0.6});}` +
+          `for(var j=0;j<edges.length;j++){var eid=String(edges[j].id||'');if(!eid)continue;var el=edgeElById.get(eid);if(!el)continue;edgeEls.push({id:eid,el:el,s:String(edges[j].s||edges[j].source||''),t:String(edges[j].t||edges[j].target||''),baseWidth:Number(edges[j].baseWidth)||1,baseOpacity:Number(edges[j].baseOpacity)||0.6,strokeAlpha:Number(edges[j].strokeAlpha)||1});}` +
           `var rotateY=function(x,y,z,a){var c=Math.cos(a),s=Math.sin(a);return [x*c+z*s,y,-x*s+z*c];};` +
           `var rotateX=function(x,y,z,a){var c=Math.cos(a),s=Math.sin(a);return [x,y*c-z*s,y*s+z*c];};` +
           `var project=function(x,y,z){var denom=Math.max(1e-3,cameraZ-z);var k=cameraZ/denom;return {x:x*k,y:y*k,k:k,z:z};};` +
@@ -436,19 +478,22 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
               `var x=(Number(p[0])||0)-cx+wobX;var y=(Number(p[1])||0)-cy+wobY;var z=(Number(p[2])||0)-cz;` +
               `var r1=rotateY(x,y,z,ang);var r2=rotateX(r1[0],r1[1],r1[2],tiltX);` +
               `var pr=project(r2[0],r2[1],r2[2]);` +
+              `var off=nodeOffsetById[id];if(off){pr.x+=Number(off.x)||0;pr.y+=Number(off.y)||0;}` +
               `projById.set(id,pr);` +
               `nodeOrder.push({id:id,z:pr.z});` +
               `var el=nodeEls.get(id);if(!el)continue;` +
               `var baseR=Number(nd.baseR)||10;var r=baseR*pr.k;` +
               `var op=depthOpacity(pr.z)*(isFinite(nd.layerOpacity)?Math.max(0,Math.min(1,nd.layerOpacity)):1);` +
-              `el.c.setAttribute('cx',String(pr.x));el.c.setAttribute('cy',String(pr.y));el.c.setAttribute('r',String(r));el.c.setAttribute('opacity',String(op));` +
-              `el.t.setAttribute('x',String(pr.x));el.t.setAttribute('y',String(pr.y-r-labelPadY));el.t.setAttribute('opacity',String(op));` +
+              `var fillAlpha=isFinite(nd.fillAlpha)?Math.max(0,Math.min(1,Number(nd.fillAlpha))):1;` +
+              `el.c.setAttribute('cx',String(pr.x));el.c.setAttribute('cy',String(pr.y));el.c.setAttribute('r',String(r));` +
+              `el.c.setAttribute('fill-opacity',String(op*fillAlpha));el.c.setAttribute('stroke-opacity',String(op*nodeStrokeAlpha));` +
+              `el.t.setAttribute('x',String(pr.x));el.t.setAttribute('y',String(pr.y-r-labelPadY));el.t.setAttribute('opacity',String(op*labelFillAlpha));` +
             `}` +
             `var edgeOrder=[];` +
             `for(var e2=0;e2<edgeEls.length;e2++){` +
               `var ed=edgeEls[e2];var ps=projById.get(ed.s);var pt=projById.get(ed.t);` +
               `if(!ps||!pt)continue;` +
-              `var opEdge=Math.min(depthOpacity(ps.z),depthOpacity(pt.z))*Math.max(0,Math.min(1,ed.baseOpacity));` +
+              `var opEdge=Math.min(depthOpacity(ps.z),depthOpacity(pt.z))*Math.max(0,Math.min(1,ed.baseOpacity))*Math.max(0,Math.min(1,Number(ed.strokeAlpha)||1));` +
               `var kAvg=(ps.k+pt.k)*0.5;` +
               `var w=Math.max(0.25,(ed.baseWidth||1)*kAvg);` +
               `ed.el.setAttribute('x1',String(ps.x));ed.el.setAttribute('y1',String(ps.y));ed.el.setAttribute('x2',String(pt.x));ed.el.setAttribute('y2',String(pt.y));` +

@@ -28,6 +28,7 @@ export function NodeMesh({
   setNodeDragActive,
   motionIntensity,
   draggedNodeId,
+  dragOverridesRef,
 }: {
   node: GraphNode;
   pos: Vec3;
@@ -43,6 +44,7 @@ export function NodeMesh({
   setNodeDragActive?: (id: string, active: boolean) => void;
   motionIntensity?: number;
   draggedNodeId?: string | null;
+  dragOverridesRef?: React.MutableRefObject<Record<string, Vec3>>;
 }) {
   const hoveredRef = useRef(false)
   const sphereRef = useRef<THREE.Mesh>(null!)
@@ -123,7 +125,8 @@ export function NodeMesh({
     if (dragging && !draggedNodeId) {
       ms.draggedNodeId = node.id
     }
-    const p = computeNodeMotion(node.id, pos, radius, ms, t)
+    const basePos = dragOverridesRef?.current?.[node.id] || pos
+    const p = computeNodeMotion(node.id, basePos, radius, ms, t)
     
     const s = hoveredRef.current ? 1.06 : 1
     sphereRef.current.scale.set(s, s, s)

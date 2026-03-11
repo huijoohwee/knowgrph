@@ -66,6 +66,26 @@ export async function buildGraphHtmlViewerMarkup(args: {
   })()
 
   const mediaNodesJson = JSON.stringify(mediaNodes)
+
+  const groupMembersByIdJson = (() => {
+    const graph = args.graphData
+    const nodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
+    const out: Record<string, string[]> = {}
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const id = String(n?.id || '').trim()
+      if (!id) continue
+      const props = (n as unknown as { properties?: unknown }).properties
+      const p = props && typeof props === 'object' && !Array.isArray(props) ? (props as Record<string, unknown>) : null
+      if (!p) continue
+      const gid = typeof p['kg:groupId'] === 'string' ? String(p['kg:groupId'] || '').trim() : ''
+      if (!gid) continue
+      const arr = out[gid] || (out[gid] = [])
+      arr.push(id)
+    }
+    return JSON.stringify(out)
+  })()
+
   const nodePosByIdJson = (() => {
     const graph = args.graphData
     const nodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
@@ -112,11 +132,11 @@ export async function buildGraphHtmlViewerMarkup(args: {
     #kg-svgWrap svg{display:block}
     #kg-svgWrap text{pointer-events:none}
     #kg-overlay{position:absolute;left:0;top:0;pointer-events:none}
-    .kg-media{position:absolute;left:0;top:0;pointer-events:auto;background:var(--kg-panel-bg);border:var(--kg-media-panel-border-w) solid var(--kg-border);border-radius:var(--kg-media-panel-radius);box-shadow:0 10px 30px rgba(0,0,0,.12);overflow:hidden}
-    .kg-mediaHeader{height:var(--kg-media-panel-header-h);display:flex;align-items:center;gap:8px;padding:0 10px;background:rgba(0,0,0,0.04);border-bottom:var(--kg-media-panel-border-w) solid var(--kg-border);cursor:grab;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;pointer-events:none}
+    .kg-media{position:absolute;left:0;top:0;display:flex;flex-direction:column;pointer-events:auto;background:var(--kg-panel-bg);border:var(--kg-media-panel-border-w) solid var(--kg-border);border-radius:var(--kg-media-panel-radius);box-shadow:0 10px 30px rgba(0,0,0,.12);overflow:hidden;box-sizing:border-box}
+    .kg-mediaHeader{height:var(--kg-media-panel-header-h);display:flex;align-items:center;gap:8px;padding:0 10px;background:rgba(0,0,0,0.04);border-bottom:var(--kg-media-panel-border-w) solid var(--kg-border);cursor:grab;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none;pointer-events:auto}
     .kg-mediaTitle{font-size:var(--kg-media-panel-title-size);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--kg-text-tertiary);pointer-events:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-    .kg-mediaBody{position:relative;padding:var(--kg-media-panel-padding)}
-    .kg-mediaBody iframe,.kg-mediaBody img,.kg-mediaBody video{display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius) * 0.8);background:rgba(0,0,0,0.02);pointer-events:var(--kg-media-pointer-events)}
+    .kg-mediaBody{position:relative;flex:1;padding:var(--kg-media-panel-padding);box-sizing:border-box}
+    .kg-mediaBody iframe,.kg-mediaBody img,.kg-mediaBody video{display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius) * 0.8);background:rgba(0,0,0,0.02);pointer-events:var(--kg-media-pointer-events);box-sizing:border-box}
     #kg-hud{position:fixed;left:12px;top:12px;display:flex;gap:8px;z-index:1000}
     .kg-btn{border:1px solid var(--kg-border);background:var(--kg-panel-bg);color:var(--kg-text);border-radius:10px;padding:8px 10px;font-size:12px;cursor:pointer}
     .kg-btn.kg-active{outline:2px solid rgba(59,130,246,0.6);outline-offset:0}
@@ -150,10 +170,155 @@ export async function buildGraphHtmlViewerMarkup(args: {
     var lastOverlayKey = '';
     var mediaNodes = ${mediaNodesJson};
     var nodePosById = ${nodePosByIdJson};
-    var overlayFollowAnimation = !!(svg && svg.getAttribute && svg.getAttribute('data-kg-3d-payload'));
-    var svgNodeById = {};
+    var groupMembersById = ${groupMembersByIdJson};
+    var overlayFollowAnimation = (function(){
+      try {
+        if (!svg || !svg.getAttribute) return false;
+        var raw = String(svg.getAttribute('data-kg-3d-payload') || '').trim();
+        if (!raw) return false;
+        var payload = JSON.parse(raw);
+        return !!(payload && payload.animated === true);
+      } catch (err) {
+        return false;
+      }
+    })();
+    var svgNodeById = Object.create(null);
+    var svgNodeElsById = Object.create(null);
+    var svgGroupElsById = Object.create(null);
+    var edgeRefsByNodeId = Object.create(null);
     var mediaInteractive = false;
     var panHeld = false;
+
+    function rebuildSvgNodeIndex(){
+      svgNodeById = Object.create(null);
+      svgNodeElsById = Object.create(null);
+      svgGroupElsById = Object.create(null);
+      edgeRefsByNodeId = Object.create(null);
+      if (!svg || !svg.querySelectorAll) return;
+      var nodeEls = svg.querySelectorAll('[data-node-id]');
+      for (var i = 0; i < nodeEls.length; i += 1) {
+        var el = nodeEls[i];
+        if (!el || !el.getAttribute) continue;
+        var id = String(el.getAttribute('data-node-id') || '');
+        if (!id) continue;
+        if (!svgNodeById[id]) svgNodeById[id] = el;
+        var arr = svgNodeElsById[id] || (svgNodeElsById[id] = []);
+        arr.push(el);
+      }
+      var groupEls = svg.querySelectorAll('[data-kg-group-id]');
+      for (var j = 0; j < groupEls.length; j += 1) {
+        var ge = groupEls[j];
+        if (!ge || !ge.getAttribute) continue;
+        var gid = String(ge.getAttribute('data-kg-group-id') || '');
+        if (!gid) continue;
+        var garr = svgGroupElsById[gid] || (svgGroupElsById[gid] = []);
+        garr.push(ge);
+      }
+      var edgeEls = svg.querySelectorAll('line[data-source-id][data-target-id], line[data-source][data-target]');
+      for (var k = 0; k < edgeEls.length; k += 1) {
+        var ee = edgeEls[k];
+        if (!ee || !ee.getAttribute) continue;
+        var src = String(ee.getAttribute('data-source-id') || ee.getAttribute('data-source') || '').trim();
+        var tgt = String(ee.getAttribute('data-target-id') || ee.getAttribute('data-target') || '').trim();
+        if (!src || !tgt) continue;
+        var a0 = edgeRefsByNodeId[src] || (edgeRefsByNodeId[src] = []);
+        a0.push({ el: ee, end: 's' });
+        var a1 = edgeRefsByNodeId[tgt] || (edgeRefsByNodeId[tgt] = []);
+        a1.push({ el: ee, end: 't' });
+      }
+      try { rebuildNodePosFromSvg(); } catch (err) {}
+    }
+
+    function rebuildNodePosFromSvg(){
+      if (!svg || !svg.querySelectorAll) return;
+
+      function readTranslate(tr){
+        var m = String(tr || '').match(/translate\\(\\s*([-0-9.]+)\\s*[ ,]\\s*([-0-9.]+)\\s*\\)/);
+        if (!m) return null;
+        var x = parseFloat(m[1]);
+        var y = parseFloat(m[2]);
+        if (!isFinite(x) || !isFinite(y)) return null;
+        return { x: x, y: y };
+      }
+
+      function readCenterFromEl(el){
+        if (!el || !el.getAttribute) return null;
+        var tag = String(el.tagName || '').toLowerCase();
+        if (tag === 'circle') {
+          var cx = parseFloat(el.getAttribute('cx') || 'NaN');
+          var cy = parseFloat(el.getAttribute('cy') || 'NaN');
+          if (isFinite(cx) && isFinite(cy)) return { x: cx, y: cy };
+        }
+        if (tag === 'rect') {
+          var x0 = parseFloat(el.getAttribute('x') || 'NaN');
+          var y0 = parseFloat(el.getAttribute('y') || 'NaN');
+          var w0 = parseFloat(el.getAttribute('width') || 'NaN');
+          var h0 = parseFloat(el.getAttribute('height') || 'NaN');
+          if (isFinite(x0) && isFinite(y0) && isFinite(w0) && isFinite(h0)) return { x: x0 + w0 / 2, y: y0 + h0 / 2 };
+        }
+        var tr = readTranslate(el.getAttribute('transform'));
+        if (tag === 'g' && el.querySelector) {
+          var base = null;
+          var c = el.querySelector('circle[data-role="node-circle"], circle[cx][cy]');
+          if (c && c.getAttribute) {
+            var ccx = parseFloat(c.getAttribute('cx') || 'NaN');
+            var ccy = parseFloat(c.getAttribute('cy') || 'NaN');
+            if (isFinite(ccx) && isFinite(ccy)) base = { x: ccx, y: ccy };
+          }
+          if (!base) {
+            var r = el.querySelector('rect[x][y][width][height]');
+            if (r && r.getAttribute) {
+              var rx = parseFloat(r.getAttribute('x') || 'NaN');
+              var ry = parseFloat(r.getAttribute('y') || 'NaN');
+              var rw = parseFloat(r.getAttribute('width') || 'NaN');
+              var rh = parseFloat(r.getAttribute('height') || 'NaN');
+              if (isFinite(rx) && isFinite(ry) && isFinite(rw) && isFinite(rh)) base = { x: rx + rw / 2, y: ry + rh / 2 };
+            }
+          }
+          if (base && tr) return { x: base.x + tr.x, y: base.y + tr.y };
+          if (base) return base;
+          if (tr) return tr;
+        }
+        if (tr) return tr;
+        return null;
+      }
+
+      var ids = Object.create(null);
+      for (var id in svgNodeById) ids[id] = 1;
+      for (var id2 in edgeRefsByNodeId) ids[id2] = 1;
+      for (var mi = 0; mi < (mediaNodes ? mediaNodes.length : 0); mi += 1) {
+        var m = mediaNodes[mi];
+        var mid = m && m.id ? String(m.id || '').trim() : '';
+        if (mid) ids[mid] = 1;
+      }
+
+      for (var id3 in ids) {
+        if (!id3) continue;
+        var el0 = svgNodeById[id3] || null;
+        var p = el0 ? readCenterFromEl(el0) : null;
+        if (!p) {
+          var list = svgNodeElsById[id3] || null;
+          if (list && list.length) p = readCenterFromEl(list[0]);
+        }
+        if (!p) {
+          var refs = edgeRefsByNodeId[id3] || null;
+          if (refs && refs.length) {
+            var r0 = refs[0];
+            if (r0 && r0.el && r0.el.getAttribute) {
+              var ax = r0.end === 's' ? 'x1' : 'x2';
+              var ay = r0.end === 's' ? 'y1' : 'y2';
+              var ex = parseFloat(r0.el.getAttribute(ax) || 'NaN');
+              var ey = parseFloat(r0.el.getAttribute(ay) || 'NaN');
+              if (isFinite(ex) && isFinite(ey)) p = { x: ex, y: ey };
+            }
+          }
+        }
+        if (p && isFinite(p.x) && isFinite(p.y)) {
+          if (!nodePosById) nodePosById = Object.create(null);
+          nodePosById[id3] = { x: p.x, y: p.y };
+        }
+      }
+    }
 
     function clearSelection(){
       try {
@@ -271,22 +436,14 @@ export async function buildGraphHtmlViewerMarkup(args: {
       if (overlay.__kgMediaBuilt) return;
       overlay.__kgMediaBuilt = true;
       overlay.__kgMediaById = {};
-      overlay.__kgSvgNodeById = {};
       for (var i = 0; i < mediaNodes.length; i += 1) {
         var n = mediaNodes[i];
         var el = document.createElement('div');
         el.className = 'kg-media';
         var id = String(n.id || '');
         el.setAttribute('data-node-id', id);
-        try {
-          var esc = (typeof CSS !== 'undefined' && CSS && CSS.escape) ? CSS.escape(id) : id;
-          var nodeEl0 = svg ? svg.querySelector('[data-node-id=\"' + esc + '\"]') : null;
-          overlay.__kgSvgNodeById[id] = nodeEl0;
-          svgNodeById[id] = nodeEl0;
-        } catch (err) {
-          overlay.__kgSvgNodeById[id] = null;
-          svgNodeById[id] = null;
-        }
+        var nodeEl0 = svgNodeById && svgNodeById[id] ? svgNodeById[id] : null;
+        svgNodeById[id] = nodeEl0;
         var header = document.createElement('div');
         header.className = 'kg-mediaHeader';
         var title = document.createElement('div');
@@ -298,6 +455,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
         body.className = 'kg-mediaBody';
         var kind = String(n.kind || 'iframe');
         var url = String(n.url || '');
+        el.setAttribute('data-kg-kind', kind);
         if (kind === 'image' || kind === 'svg') {
           var imgEl = document.createElement('img');
           imgEl.loading = 'eager';
@@ -447,18 +605,370 @@ export async function buildGraphHtmlViewerMarkup(args: {
       }
     }
 
+    function isMediaHeaderTarget(t){
+      try {
+        if (!(t instanceof Element)) return false;
+        return !!t.closest('.kg-mediaHeader');
+      } catch (err) {
+        return false;
+      }
+    }
+
+    var headerDrag = null;
+    var nodeDrag = null;
+    var groupDrag = null;
+    var edgeDrag = null;
+
+    function getWorldFromClient(clientX, clientY){
+      var k = isFinite(state.k) ? state.k : 1;
+      if (!isFinite(k) || k <= 0) k = 1;
+      return { x: (clientX - state.x) / k, y: (clientY - state.y) / k };
+    }
+
+    function addDeltaToElement(el, dx, dy){
+      if (!el || !el.getAttribute || !el.setAttribute) return;
+      var tag = String(el.tagName || '').toLowerCase();
+      if (tag === 'line') return;
+      if (el.hasAttribute('cx') && el.hasAttribute('cy')) {
+        var cx = parseFloat(el.getAttribute('cx') || 'NaN');
+        var cy = parseFloat(el.getAttribute('cy') || 'NaN');
+        if (isFinite(cx) && isFinite(cy)) {
+          el.setAttribute('cx', String(cx + dx));
+          el.setAttribute('cy', String(cy + dy));
+          return;
+        }
+      }
+      if (el.hasAttribute('x') && el.hasAttribute('y')) {
+        var x = parseFloat(el.getAttribute('x') || 'NaN');
+        var y = parseFloat(el.getAttribute('y') || 'NaN');
+        if (isFinite(x) && isFinite(y)) {
+          el.setAttribute('x', String(x + dx));
+          el.setAttribute('y', String(y + dy));
+          return;
+        }
+      }
+      var tr = String(el.getAttribute('transform') || '');
+      var m = tr.match(/translate\\(\\s*([-0-9.]+)\\s*[ ,]\\s*([-0-9.]+)\\s*\\)/);
+      if (m) {
+        var tx = parseFloat(m[1]);
+        var ty = parseFloat(m[2]);
+        if (isFinite(tx) && isFinite(ty)) {
+          el.setAttribute('transform', tr.replace(m[0], 'translate(' + (tx + dx) + ',' + (ty + dy) + ')'));
+          return;
+        }
+      }
+
+      try {
+        var d = el.dataset || {};
+        var base = (d.kgBaseTransform != null) ? String(d.kgBaseTransform || '') : String(tr || '');
+        if (d.kgBaseTransform == null) d.kgBaseTransform = base;
+        var ox = isFinite(Number(d.kgTx)) ? Number(d.kgTx) : 0;
+        var oy = isFinite(Number(d.kgTy)) ? Number(d.kgTy) : 0;
+        var nx = ox + dx;
+        var ny = oy + dy;
+        d.kgTx = String(nx);
+        d.kgTy = String(ny);
+        el.setAttribute('transform', ('translate(' + nx + ',' + ny + ') ' + base).trim());
+      } catch (err) {}
+    }
+
+    function addDeltaToEdgeEnd(el, end, dx, dy){
+      if (!el || !el.getAttribute || !el.setAttribute) return;
+      var ax = end === 's' ? 'x1' : 'x2';
+      var ay = end === 's' ? 'y1' : 'y2';
+      var x = parseFloat(el.getAttribute(ax) || 'NaN');
+      var y = parseFloat(el.getAttribute(ay) || 'NaN');
+      if (!isFinite(x) || !isFinite(y)) return;
+      el.setAttribute(ax, String(x + dx));
+      el.setAttribute(ay, String(y + dy));
+    }
+
+    function translateNodeByDelta(nodeId, dx, dy){
+      if (!nodeId) return;
+      try {
+        if (overlayFollowAnimation && svg && (svg.__kgNodeOffsetById || (svg.__kgNodeOffsetById = {}))) {
+          var map = svg.__kgNodeOffsetById;
+          var prev = map[nodeId] || null;
+          var ox = prev && isFinite(prev.x) ? prev.x : 0;
+          var oy = prev && isFinite(prev.y) ? prev.y : 0;
+          map[nodeId] = { x: ox + dx, y: oy + dy };
+          return;
+        }
+      } catch (err) {}
+      var els = svgNodeElsById[nodeId] || null;
+      if (els) {
+        for (var i = 0; i < els.length; i += 1) addDeltaToElement(els[i], dx, dy);
+      }
+      var p = nodePosById && nodePosById[nodeId] ? nodePosById[nodeId] : null;
+      if (p && isFinite(p.x) && isFinite(p.y)) {
+        p.x += dx;
+        p.y += dy;
+      }
+      var refs = edgeRefsByNodeId[nodeId] || null;
+      if (refs) {
+        for (var j = 0; j < refs.length; j += 1) {
+          var r = refs[j];
+          if (!r || !r.el) continue;
+          addDeltaToEdgeEnd(r.el, r.end, dx, dy);
+        }
+      }
+    }
+
+    function translateGroupByDelta(groupId, dx, dy){
+      if (!groupId) return;
+      try {
+        if (overlayFollowAnimation && svg && (svg.__kgNodeOffsetById || (svg.__kgNodeOffsetById = {}))) {
+          var map = svg.__kgNodeOffsetById;
+          var members = groupMembersById && groupMembersById[groupId] ? groupMembersById[groupId] : null;
+          if (members && members.length) {
+            for (var j = 0; j < members.length; j += 1) {
+              var id = String(members[j] || '');
+              if (!id) continue;
+              var prev = map[id] || null;
+              var ox = prev && isFinite(prev.x) ? prev.x : 0;
+              var oy = prev && isFinite(prev.y) ? prev.y : 0;
+              map[id] = { x: ox + dx, y: oy + dy };
+            }
+          }
+          return;
+        }
+      } catch (err) {}
+      var gels = svgGroupElsById[groupId] || null;
+      if (gels) {
+        for (var i = 0; i < gels.length; i += 1) addDeltaToElement(gels[i], dx, dy);
+      }
+      var members = groupMembersById && groupMembersById[groupId] ? groupMembersById[groupId] : null;
+      if (members && members.length) {
+        for (var j = 0; j < members.length; j += 1) {
+          var id = String(members[j] || '');
+          if (!id) continue;
+          translateNodeByDelta(id, dx, dy);
+        }
+      }
+    }
+
+    function startHeaderDrag(nodeId, pointerId, clientX, clientY){
+      var w = getWorldFromClient(clientX, clientY);
+      if (!nodePosById) nodePosById = Object.create(null);
+      var p = nodePosById && nodePosById[nodeId] ? nodePosById[nodeId] : null;
+      if (!p || !isFinite(p.x) || !isFinite(p.y)) {
+        try { rebuildNodePosFromSvg(); } catch (err) {}
+        p = nodePosById && nodePosById[nodeId] ? nodePosById[nodeId] : null;
+      }
+      if (!p || !isFinite(p.x) || !isFinite(p.y)) {
+        p = { x: w.x, y: w.y };
+        nodePosById[nodeId] = p;
+      }
+      headerDrag = { id: nodeId, pointerId: pointerId, wx: w.x, wy: w.y };
+      try { if (root && root.setPointerCapture) root.setPointerCapture(pointerId); } catch (err) {}
+    }
+
+    function moveHeaderDrag(pointerId, clientX, clientY){
+      if (!headerDrag || headerDrag.pointerId !== pointerId) return;
+      var w = getWorldFromClient(clientX, clientY);
+      var dx = w.x - headerDrag.wx;
+      var dy = w.y - headerDrag.wy;
+      headerDrag.wx = w.x;
+      headerDrag.wy = w.y;
+      if (!isFinite(dx) || !isFinite(dy)) return;
+      if (!nodePosById) nodePosById = Object.create(null);
+      var p = nodePosById && nodePosById[headerDrag.id] ? nodePosById[headerDrag.id] : null;
+      if (!p || !isFinite(p.x) || !isFinite(p.y)) {
+        nodePosById[headerDrag.id] = { x: w.x, y: w.y };
+      } else {
+        p.x += dx;
+        p.y += dy;
+      }
+      try { translateNodeByDelta(headerDrag.id, dx, dy); } catch (err) {}
+      try { scheduleOverlayUpdate(); } catch (err) {}
+    }
+
+    function endHeaderDrag(pointerId){
+      if (!headerDrag || headerDrag.pointerId !== pointerId) return;
+      headerDrag = null;
+    }
+
+    function startNodeDrag(nodeId, pointerId, clientX, clientY){
+      var w = getWorldFromClient(clientX, clientY);
+      nodeDrag = { id: nodeId, pointerId: pointerId, wx: w.x, wy: w.y };
+      try { if (root && root.setPointerCapture) root.setPointerCapture(pointerId); } catch (err) {}
+    }
+
+    function moveNodeDrag(pointerId, clientX, clientY){
+      if (!nodeDrag || nodeDrag.pointerId !== pointerId) return;
+      var w = getWorldFromClient(clientX, clientY);
+      var dx = w.x - nodeDrag.wx;
+      var dy = w.y - nodeDrag.wy;
+      nodeDrag.wx = w.x;
+      nodeDrag.wy = w.y;
+      if (!isFinite(dx) || !isFinite(dy)) return;
+      translateNodeByDelta(nodeDrag.id, dx, dy);
+      try { scheduleOverlayUpdate(); } catch (err) {}
+    }
+
+    function endNodeDrag(pointerId){
+      if (!nodeDrag || nodeDrag.pointerId !== pointerId) return;
+      nodeDrag = null;
+    }
+
+    function startGroupDrag(groupId, pointerId, clientX, clientY){
+      var w = getWorldFromClient(clientX, clientY);
+      groupDrag = { id: groupId, pointerId: pointerId, wx: w.x, wy: w.y };
+      try { if (root && root.setPointerCapture) root.setPointerCapture(pointerId); } catch (err) {}
+    }
+
+    function moveGroupDrag(pointerId, clientX, clientY){
+      if (!groupDrag || groupDrag.pointerId !== pointerId) return;
+      var w = getWorldFromClient(clientX, clientY);
+      var dx = w.x - groupDrag.wx;
+      var dy = w.y - groupDrag.wy;
+      groupDrag.wx = w.x;
+      groupDrag.wy = w.y;
+      if (!isFinite(dx) || !isFinite(dy)) return;
+      translateGroupByDelta(groupDrag.id, dx, dy);
+      try { scheduleOverlayUpdate(); } catch (err) {}
+    }
+
+    function endGroupDrag(pointerId){
+      if (!groupDrag || groupDrag.pointerId !== pointerId) return;
+      groupDrag = null;
+    }
+
+    function startEdgeDrag(sourceId, targetId, pointerId, clientX, clientY){
+      var w = getWorldFromClient(clientX, clientY);
+      edgeDrag = { s: sourceId, t: targetId, pointerId: pointerId, wx: w.x, wy: w.y };
+      try { if (root && root.setPointerCapture) root.setPointerCapture(pointerId); } catch (err) {}
+    }
+
+    function moveEdgeDrag(pointerId, clientX, clientY){
+      if (!edgeDrag || edgeDrag.pointerId !== pointerId) return;
+      var w = getWorldFromClient(clientX, clientY);
+      var dx = w.x - edgeDrag.wx;
+      var dy = w.y - edgeDrag.wy;
+      edgeDrag.wx = w.x;
+      edgeDrag.wy = w.y;
+      if (!isFinite(dx) || !isFinite(dy)) return;
+      translateNodeByDelta(edgeDrag.s, dx, dy);
+      translateNodeByDelta(edgeDrag.t, dx, dy);
+      try { scheduleOverlayUpdate(); } catch (err) {}
+    }
+
+    function endEdgeDrag(pointerId){
+      if (!edgeDrag || edgeDrag.pointerId !== pointerId) return;
+      edgeDrag = null;
+    }
+
     function onPointerDown(e){
-      if (!panHeld && mediaInteractive && isMediaTarget(e.target)) return;
+      try { clearSelection(); } catch (err) {}
+      if (!panHeld && isMediaHeaderTarget(e.target)) {
+        try {
+          var headerEl = e.target instanceof Element ? e.target.closest('.kg-mediaHeader') : null;
+          var panelEl = headerEl ? headerEl.closest('.kg-media') : null;
+          if (panelEl) {
+            var nid = String(panelEl.getAttribute('data-node-id') || '').trim();
+            if (nid) {
+              startHeaderDrag(nid, e.pointerId, e.clientX, e.clientY);
+            }
+            try { e.preventDefault(); } catch (err) {}
+            try { e.stopPropagation(); } catch (err) {}
+            return;
+          }
+        } catch (err) {}
+      }
+      try {
+        if (e && e.target && e.target instanceof Element) {
+          var edgeEl = e.target.closest('line[data-edge-id]');
+          if (edgeEl && edgeEl.getAttribute && !e.target.closest('.kg-media')) {
+            var sid = String(edgeEl.getAttribute('data-source-id') || edgeEl.getAttribute('data-source') || '').trim();
+            var tid = String(edgeEl.getAttribute('data-target-id') || edgeEl.getAttribute('data-target') || '').trim();
+            if (sid && tid) {
+              startEdgeDrag(sid, tid, e.pointerId, e.clientX, e.clientY);
+              try { e.preventDefault(); } catch (err) {}
+              try { e.stopPropagation(); } catch (err) {}
+              return;
+            }
+          }
+          var groupEl = e.target.closest('[data-kg-group-id]');
+          if (groupEl && groupEl.getAttribute) {
+            var gid = String(groupEl.getAttribute('data-kg-group-id') || '').trim();
+            if (gid) {
+              startGroupDrag(gid, e.pointerId, e.clientX, e.clientY);
+              try { e.preventDefault(); } catch (err) {}
+              try { e.stopPropagation(); } catch (err) {}
+              return;
+            }
+          }
+          var nodeEl = e.target.closest('[data-node-id]');
+          if (nodeEl && !e.target.closest('.kg-media') && nodeEl.getAttribute) {
+            var nid = String(nodeEl.getAttribute('data-node-id') || '').trim();
+            if (nid) {
+              startNodeDrag(nid, e.pointerId, e.clientX, e.clientY);
+              try { e.preventDefault(); } catch (err) {}
+              try { e.stopPropagation(); } catch (err) {}
+              return;
+            }
+          }
+        }
+      } catch (err) {}
+      if (!panHeld && mediaInteractive && isMediaTarget(e.target) && !isMediaHeaderTarget(e.target)) return;
       startDrag(e.pointerId, e.clientX, e.clientY);
       try { root.setPointerCapture(e.pointerId); } catch (err) {}
       e.preventDefault();
     }
     function onPointerMove(e){
+      if (headerDrag && headerDrag.pointerId === e.pointerId) {
+        moveHeaderDrag(e.pointerId, e.clientX, e.clientY);
+        try { e.preventDefault(); } catch (err) {}
+        try { e.stopPropagation(); } catch (err) {}
+        return;
+      }
+      if (edgeDrag && edgeDrag.pointerId === e.pointerId) {
+        moveEdgeDrag(e.pointerId, e.clientX, e.clientY);
+        try { e.preventDefault(); } catch (err) {}
+        try { e.stopPropagation(); } catch (err) {}
+        return;
+      }
+      if (nodeDrag && nodeDrag.pointerId === e.pointerId) {
+        moveNodeDrag(e.pointerId, e.clientX, e.clientY);
+        try { e.preventDefault(); } catch (err) {}
+        try { e.stopPropagation(); } catch (err) {}
+        return;
+      }
+      if (groupDrag && groupDrag.pointerId === e.pointerId) {
+        moveGroupDrag(e.pointerId, e.clientX, e.clientY);
+        try { e.preventDefault(); } catch (err) {}
+        try { e.stopPropagation(); } catch (err) {}
+        return;
+      }
       if (!drag || drag.id !== e.pointerId) return;
       moveDrag(e.clientX, e.clientY);
       e.preventDefault();
     }
     function onPointerUp(e){
+      if (headerDrag && headerDrag.pointerId === e.pointerId) {
+        endHeaderDrag(e.pointerId);
+        try { e.preventDefault(); } catch (err) {}
+        try { e.stopPropagation(); } catch (err) {}
+        return;
+      }
+      if (edgeDrag && edgeDrag.pointerId === e.pointerId) {
+        endEdgeDrag(e.pointerId);
+        try { e.preventDefault(); } catch (err) {}
+        try { e.stopPropagation(); } catch (err) {}
+        return;
+      }
+      if (nodeDrag && nodeDrag.pointerId === e.pointerId) {
+        endNodeDrag(e.pointerId);
+        try { e.preventDefault(); } catch (err) {}
+        try { e.stopPropagation(); } catch (err) {}
+        return;
+      }
+      if (groupDrag && groupDrag.pointerId === e.pointerId) {
+        endGroupDrag(e.pointerId);
+        try { e.preventDefault(); } catch (err) {}
+        try { e.stopPropagation(); } catch (err) {}
+        return;
+      }
       if (!drag || drag.id !== e.pointerId) return;
       endDrag();
       e.preventDefault();
@@ -466,7 +976,8 @@ export async function buildGraphHtmlViewerMarkup(args: {
 
     function onMouseDown(e){
       if (typeof window !== 'undefined' && window.PointerEvent) return;
-      if (!panHeld && mediaInteractive && isMediaTarget(e.target)) return;
+      try { clearSelection(); } catch (err) {}
+      if (!panHeld && mediaInteractive && isMediaTarget(e.target) && !isMediaHeaderTarget(e.target)) return;
       startDrag('mouse', e.clientX, e.clientY);
       e.preventDefault();
     }
@@ -482,6 +993,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
     }
 
     root.addEventListener('wheel', onWheel, { passive: false, capture: true });
+    root.addEventListener('pointerdown', function(){ try { clearSelection(); } catch (err) {} }, { passive: true, capture: true });
     root.addEventListener('pointerdown', onPointerDown, { passive: false });
     root.addEventListener('pointermove', onPointerMove, { passive: false });
     root.addEventListener('pointerup', onPointerUp, { passive: false });
@@ -547,6 +1059,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
     requestAnimationFrame(function(){
       setMediaInteractive(false);
       setPanHeld(false);
+      rebuildSvgNodeIndex();
       fitToCenter();
       updateOverlays();
       if (overlayFollowAnimation && mediaNodes && mediaNodes.length > 0) {

@@ -212,6 +212,7 @@ export function exportGraphAsCenteredSvgMarkup(args: {
     const edgeParts: string[] = []
     for (let i = 0; i < edges.length; i += 1) {
       const e = edges[i]!
+      const eid = String(e.id || '').trim() || `e-${i}`
       const s = String(e.source || '').trim()
       const t = String(e.target || '').trim()
       const ps = posById.get(s)
@@ -225,10 +226,10 @@ export function exportGraphAsCenteredSvgMarkup(args: {
       const begin = ((i % 13) * 0.12).toFixed(2)
       edgeParts.push(
         animated
-          ? `<line x1="${ps.x}" y1="${ps.y}" x2="${pt.x}" y2="${pt.y}" stroke="${stroke}" stroke-width="1.6" stroke-opacity="0.85" stroke-linecap="round" stroke-dasharray="${len}" stroke-dashoffset="${len}">` +
+          ? `<line data-edge-id="${escapeXml(eid)}" data-source="${escapeXml(s)}" data-target="${escapeXml(t)}" x1="${ps.x}" y1="${ps.y}" x2="${pt.x}" y2="${pt.y}" stroke="${stroke}" stroke-width="1.6" stroke-opacity="0.85" stroke-linecap="round" stroke-dasharray="${len}" stroke-dashoffset="${len}">` +
               `<animate attributeName="stroke-dashoffset" values="${len};0" dur="1.8s" repeatCount="indefinite" begin="${begin}s"/>` +
             `</line>`
-          : `<line x1="${ps.x}" y1="${ps.y}" x2="${pt.x}" y2="${pt.y}" stroke="${stroke}" stroke-width="1.6" stroke-opacity="0.85" stroke-linecap="round"/>`,
+          : `<line data-edge-id="${escapeXml(eid)}" data-source="${escapeXml(s)}" data-target="${escapeXml(t)}" x1="${ps.x}" y1="${ps.y}" x2="${pt.x}" y2="${pt.y}" stroke="${stroke}" stroke-width="1.6" stroke-opacity="0.85" stroke-linecap="round"/>`,
       )
     }
 
@@ -247,16 +248,16 @@ export function exportGraphAsCenteredSvgMarkup(args: {
       const pulseR = (r * 1.06).toFixed(2)
       nodeParts.push(
         animated
-          ? `<g>` +
+          ? `<g data-node-id="${escapeXml(id)}">` +
               `<animateTransform attributeName="transform" type="translate" values="0 0;0 -${floatDy};0 0" dur="2.4s" repeatCount="indefinite" begin="${begin}s"/>` +
-              `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${fill}" stroke="${escapeXml(nodeStroke)}" stroke-width="1">` +
+              `<circle data-role="node-circle" cx="${p.x}" cy="${p.y}" r="${r}" fill="${fill}" stroke="${escapeXml(nodeStroke)}" stroke-width="1">` +
                 `<animate attributeName="r" values="${r};${pulseR};${r}" dur="1.6s" repeatCount="indefinite" begin="${begin}s"/>` +
               `</circle>` +
-              `<text x="${p.x}" y="${p.y - r - labelPadY}" font-size="${fontSizePx}" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" text-anchor="middle" fill="${escapeXml(labelFill)}">${label}</text>` +
+              `<text data-role="node-label" x="${p.x}" y="${p.y - r - labelPadY}" font-size="${fontSizePx}" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" text-anchor="middle" fill="${escapeXml(labelFill)}">${label}</text>` +
             `</g>`
-          : `<g>` +
-              `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${fill}" stroke="${escapeXml(nodeStroke)}" stroke-width="1"/>` +
-              `<text x="${p.x}" y="${p.y - r - labelPadY}" font-size="${fontSizePx}" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" text-anchor="middle" fill="${escapeXml(labelFill)}">${label}</text>` +
+          : `<g data-node-id="${escapeXml(id)}">` +
+              `<circle data-role="node-circle" cx="${p.x}" cy="${p.y}" r="${r}" fill="${fill}" stroke="${escapeXml(nodeStroke)}" stroke-width="1"/>` +
+              `<text data-role="node-label" x="${p.x}" y="${p.y - r - labelPadY}" font-size="${fontSizePx}" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" text-anchor="middle" fill="${escapeXml(labelFill)}">${label}</text>` +
             `</g>`,
       )
     }

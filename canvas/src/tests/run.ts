@@ -1011,7 +1011,8 @@ export const runAllTests = async () => {
     if (filter && !name.toLowerCase().includes(filter.toLowerCase())) return
     try {
       ensureHtmlIFrameCtor()
-      if (process.env.KG_TEST_QUIET !== '1') console.log(`RUN ${name}`)
+      const startedAt = Date.now()
+      console.log(`RUN ${name}`)
       const timeoutMs = (() => {
         const raw = Number(process.env.KG_TEST_CASE_TIMEOUT_MS)
         if (Number.isFinite(raw) && raw > 1_000) return Math.max(5_000, Math.min(10 * 60_000, Math.floor(raw)))
@@ -1026,12 +1027,15 @@ export const runAllTests = async () => {
       } finally {
         if (timeoutId != null) clearTimeout(timeoutId)
       }
+      const durationMs = Date.now() - startedAt
+      console.log(`DONE ${name} (${durationMs}ms)`)
       results.push({ name, ok: true })
     } catch (e: unknown) {
       const msg = (() => {
         const em = e as { message?: unknown }
         return String(em?.message ?? e)
       })()
+      console.log(`DONE ${name} (error)`)
       results.push({ name, ok: false, error: msg })
     }
   }

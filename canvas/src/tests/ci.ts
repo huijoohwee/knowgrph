@@ -48,6 +48,28 @@ const ensurePeerSymlinks = () => {
 
 ensurePeerSymlinks()
 
+try {
+  const stripFlag = (args: string[], name: string) => {
+    for (let i = args.length - 1; i >= 0; i -= 1) {
+      const cur = args[i]
+      if (cur !== name && !cur.startsWith(name + '=')) continue
+      if (cur.startsWith(name + '=')) {
+        args.splice(i, 1)
+        continue
+      }
+      const next = args[i + 1]
+      const hasValue = typeof next === 'string' && next.trim() !== '' && !next.startsWith('-')
+      args.splice(i, hasValue ? 2 : 1)
+    }
+  }
+  stripFlag(process.argv, '--localstorage-file')
+  stripFlag(process.argv, '--localstorageFile')
+  stripFlag(process.execArgv, '--localstorage-file')
+  stripFlag(process.execArgv, '--localstorageFile')
+} catch {
+  void 0
+}
+
 if (process.env.KG_TEST_QUIET !== '0') process.env.KG_TEST_QUIET = '1'
 
 const originalConsoleError = console.error.bind(console)

@@ -259,6 +259,7 @@ export function Scene({
             paused={paused}
             motionIntensity={motionIntensityEffective}
             draggedNodeId={draggedNodeId}
+            dragOverridesRef={dragRef}
             lineWidthPx={threeShaderLineWidthPx}
             onSelectEdge={(id) => {
               setSelectionSource('canvas')
@@ -372,12 +373,12 @@ export function Scene({
               }}
             >
               {curvature > 0.001
-                ? <CurvedEdgeMesh a={a} b={b} color={resolvedFinalColor} width={width} opacity={finalOpacity} curvature={curvature} resolution={resolution} rotation={curveRotation} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityEffective} draggedNodeId={draggedNodeId} />
-                : <EdgeMesh a={a} b={b} color={resolvedFinalColor} width={width} opacity={finalOpacity} resolution={resolution} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityEffective} draggedNodeId={draggedNodeId} />
+                ? <CurvedEdgeMesh a={a} b={b} color={resolvedFinalColor} width={width} opacity={finalOpacity} curvature={curvature} resolution={resolution} rotation={curveRotation} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityEffective} draggedNodeId={draggedNodeId} dragOverridesRef={dragRef} />
+                : <EdgeMesh a={a} b={b} color={resolvedFinalColor} width={width} opacity={finalOpacity} resolution={resolution} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityEffective} draggedNodeId={draggedNodeId} dragOverridesRef={dragRef} />
               }
-              <ArrowHead start={a} end={b} color={resolvedFinalColor} height={arrowLen} relPos={arrowRelPos} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityEffective} draggedNodeId={draggedNodeId} />
+              <ArrowHead start={a} end={b} color={resolvedFinalColor} height={arrowLen} relPos={arrowRelPos} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityEffective} draggedNodeId={draggedNodeId} dragOverridesRef={dragRef} />
               {particles > 0 && particleSpeed > 0 ? (
-                <DirectionalParticles start={a} end={b} count={particles} color={resolvedFinalColor} speed={particleSpeed} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityEffective} draggedNodeId={draggedNodeId} />
+                <DirectionalParticles start={a} end={b} count={particles} color={resolvedFinalColor} speed={particleSpeed} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityEffective} draggedNodeId={draggedNodeId} dragOverridesRef={dragRef} />
               ) : null}
             </group>
           )
@@ -407,6 +408,7 @@ export function Scene({
               setNodeDragActive={allowNodeDrag ? onDragNode : undefined}
               motionIntensity={motionIntensityEffective}
               draggedNodeId={draggedNodeId}
+              dragOverridesRef={dragRef}
             />
           )
         })}

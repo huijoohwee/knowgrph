@@ -3,11 +3,14 @@ import React from 'react'
 export function useForbidBrowserZoomWheel(
   targetRef: React.RefObject<HTMLElement | null>,
   enabled: boolean = true,
+  opts?: { stopPropagation?: boolean },
 ) {
   React.useEffect(() => {
     if (!enabled) return
     const el = targetRef.current
     if (!el) return
+
+    const stopProp = opts?.stopPropagation !== false
 
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey !== true && e.metaKey !== true) return
@@ -16,10 +19,12 @@ export function useForbidBrowserZoomWheel(
       } catch {
         void 0
       }
-      try {
-        e.stopPropagation()
-      } catch {
-        void 0
+      if (stopProp) {
+        try {
+          e.stopPropagation()
+        } catch {
+          void 0
+        }
       }
     }
 
@@ -42,6 +47,5 @@ export function useForbidBrowserZoomWheel(
       el.removeEventListener('gesturechange', handleGesture, { capture: true } as EventListenerOptions)
       el.removeEventListener('gestureend', handleGesture, { capture: true } as EventListenerOptions)
     }
-  }, [enabled, targetRef])
+  }, [enabled, opts?.stopPropagation, targetRef])
 }
-

@@ -15,6 +15,7 @@ type MotionProps = {
   targetRadius?: number
   motionIntensity?: number
   draggedNodeId?: string | null
+  dragOverridesRef?: React.MutableRefObject<Record<string, Vec3>>
 }
 
 const PARTICLE_GEOMETRY = new THREE.SphereGeometry(1.4, 8, 8)
@@ -23,7 +24,7 @@ const MAX_PARTICLE_INSTANCES = 64
 
 type DirectionalParticlesProps = { start: Vec3; end: Vec3; count: number; color: string; speed: number }
 
-export function DirectionalParticles({ start, end, count, color, speed, paused, name, sourceId, targetId, sourceRadius, targetRadius, motionIntensity, draggedNodeId }: DirectionalParticlesProps & MotionProps & { paused?: boolean; name?: string }) {
+export function DirectionalParticles({ start, end, count, color, speed, paused, name, sourceId, targetId, sourceRadius, targetRadius, motionIntensity, draggedNodeId, dragOverridesRef }: DirectionalParticlesProps & MotionProps & { paused?: boolean; name?: string }) {
   const meshRef = useRef<THREE.InstancedMesh | null>(null)
   const offsetsRef = useRef<number[]>([])
   const instanceCountRef = useRef(0)
@@ -52,17 +53,19 @@ export function DirectionalParticles({ start, end, count, color, speed, paused, 
     if (!offsets.length) return
 
     const t = clock.getElapsedTime()
-    let sx = start[0], sy = start[1], sz = start[2]
-    let ex = end[0], ey = end[1], ez = end[2]
+    const srcBase = (sourceId && dragOverridesRef?.current?.[sourceId]) || start
+    const tgtBase = (targetId && dragOverridesRef?.current?.[targetId]) || end
+    let sx = srcBase[0], sy = srcBase[1], sz = srcBase[2]
+    let ex = tgtBase[0], ey = tgtBase[1], ez = tgtBase[2]
 
     if (sourceId && motionIntensity && motionIntensity > 0) {
       const ms: NodeMotionState = { intensity: motionIntensity, draggedNodeId }
-      const p = computeNodeMotion(sourceId, start, sourceRadius || 5, ms, t)
+      const p = computeNodeMotion(sourceId, srcBase, sourceRadius || 5, ms, t)
       sx = p[0]; sy = p[1]; sz = p[2]
     }
     if (targetId && motionIntensity && motionIntensity > 0) {
       const ms: NodeMotionState = { intensity: motionIntensity, draggedNodeId }
-      const p = computeNodeMotion(targetId, end, targetRadius || 5, ms, t)
+      const p = computeNodeMotion(targetId, tgtBase, targetRadius || 5, ms, t)
       ex = p[0]; ey = p[1]; ez = p[2]
     }
 
@@ -102,7 +105,7 @@ export function DirectionalParticles({ start, end, count, color, speed, paused, 
 
 type ArrowHeadProps = { start: Vec3; end: Vec3; color: string; height: number; relPos: number }
 
-export function ArrowHead({ start, end, color, height, relPos, paused, name, sourceId, targetId, sourceRadius, targetRadius, motionIntensity, draggedNodeId }: ArrowHeadProps & MotionProps & { paused?: boolean; name?: string }) {
+export function ArrowHead({ start, end, color, height, relPos, paused, name, sourceId, targetId, sourceRadius, targetRadius, motionIntensity, draggedNodeId, dragOverridesRef }: ArrowHeadProps & MotionProps & { paused?: boolean; name?: string }) {
   const ref = useRef<THREE.Mesh>(null!)
   const dir = useRef(new THREE.Vector3())
   const pos = useRef(new THREE.Vector3())
@@ -112,17 +115,19 @@ export function ArrowHead({ start, end, color, height, relPos, paused, name, sou
     if (paused) return
     if (!ref.current) return
     const t = clock.getElapsedTime()
-    let sx = start[0], sy = start[1], sz = start[2]
-    let ex = end[0], ey = end[1], ez = end[2]
+    const srcBase = (sourceId && dragOverridesRef?.current?.[sourceId]) || start
+    const tgtBase = (targetId && dragOverridesRef?.current?.[targetId]) || end
+    let sx = srcBase[0], sy = srcBase[1], sz = srcBase[2]
+    let ex = tgtBase[0], ey = tgtBase[1], ez = tgtBase[2]
     
     if (sourceId && motionIntensity && motionIntensity > 0) {
       const ms: NodeMotionState = { intensity: motionIntensity, draggedNodeId }
-      const p = computeNodeMotion(sourceId, start, sourceRadius || 5, ms, t)
+      const p = computeNodeMotion(sourceId, srcBase, sourceRadius || 5, ms, t)
       sx = p[0]; sy = p[1]; sz = p[2]
     }
     if (targetId && motionIntensity && motionIntensity > 0) {
       const ms: NodeMotionState = { intensity: motionIntensity, draggedNodeId }
-      const p = computeNodeMotion(targetId, end, targetRadius || 5, ms, t)
+      const p = computeNodeMotion(targetId, tgtBase, targetRadius || 5, ms, t)
       ex = p[0]; ey = p[1]; ez = p[2]
     }
 
@@ -150,7 +155,7 @@ export function ArrowHead({ start, end, color, height, relPos, paused, name, sou
 
 type EdgeMeshProps = { a: Vec3; b: Vec3; color: string; width: number; opacity: number; resolution: number }
 
-export function EdgeMesh({ a, b, color, width, opacity, resolution, paused, name, sourceId, targetId, sourceRadius, targetRadius, motionIntensity, draggedNodeId }: EdgeMeshProps & MotionProps & { paused?: boolean; name?: string }) {
+export function EdgeMesh({ a, b, color, width, opacity, resolution, paused, name, sourceId, targetId, sourceRadius, targetRadius, motionIntensity, draggedNodeId, dragOverridesRef }: EdgeMeshProps & MotionProps & { paused?: boolean; name?: string }) {
   const ref = useRef<THREE.Mesh>(null!)
   const diff = useRef(new THREE.Vector3())
   const mid = useRef(new THREE.Vector3())
@@ -160,17 +165,19 @@ export function EdgeMesh({ a, b, color, width, opacity, resolution, paused, name
     if (paused) return
     if (!ref.current) return
     const t = clock.getElapsedTime()
-    let ax = a[0], ay = a[1], az = a[2]
-    let bx = b[0], by = b[1], bz = b[2]
+    const srcBase = (sourceId && dragOverridesRef?.current?.[sourceId]) || a
+    const tgtBase = (targetId && dragOverridesRef?.current?.[targetId]) || b
+    let ax = srcBase[0], ay = srcBase[1], az = srcBase[2]
+    let bx = tgtBase[0], by = tgtBase[1], bz = tgtBase[2]
     
     if (sourceId && motionIntensity && motionIntensity > 0) {
       const ms: NodeMotionState = { intensity: motionIntensity, draggedNodeId }
-      const p = computeNodeMotion(sourceId, a, sourceRadius || 5, ms, t)
+      const p = computeNodeMotion(sourceId, srcBase, sourceRadius || 5, ms, t)
       ax = p[0]; ay = p[1]; az = p[2]
     }
     if (targetId && motionIntensity && motionIntensity > 0) {
       const ms: NodeMotionState = { intensity: motionIntensity, draggedNodeId }
-      const p = computeNodeMotion(targetId, b, targetRadius || 5, ms, t)
+      const p = computeNodeMotion(targetId, tgtBase, targetRadius || 5, ms, t)
       bx = p[0]; by = p[1]; bz = p[2]
     }
 
@@ -207,7 +214,7 @@ type CurvedEdgeMeshProps = {
   name?: string
 }
 
-export function CurvedEdgeMesh({ a, b, color, width, opacity, curvature, resolution, rotation, paused, name, sourceId, targetId, sourceRadius, targetRadius, motionIntensity, draggedNodeId }: CurvedEdgeMeshProps & MotionProps & { paused?: boolean }) {
+export function CurvedEdgeMesh({ a, b, color, width, opacity, curvature, resolution, rotation, paused, name, sourceId, targetId, sourceRadius, targetRadius, motionIntensity, draggedNodeId, dragOverridesRef }: CurvedEdgeMeshProps & MotionProps & { paused?: boolean }) {
   const ref = useRef<THREE.Mesh>(null!)
   const geomRef = useRef<THREE.BufferGeometry>(null!)
   const startRef = useRef(new THREE.Vector3())
@@ -222,17 +229,19 @@ export function CurvedEdgeMesh({ a, b, color, width, opacity, curvature, resolut
   useFrame(({ clock }) => {
     if (paused) return
     const t = clock.getElapsedTime()
-    let ax = a[0], ay = a[1], az = a[2]
-    let bx = b[0], by = b[1], bz = b[2]
+    const srcBase = (sourceId && dragOverridesRef?.current?.[sourceId]) || a
+    const tgtBase = (targetId && dragOverridesRef?.current?.[targetId]) || b
+    let ax = srcBase[0], ay = srcBase[1], az = srcBase[2]
+    let bx = tgtBase[0], by = tgtBase[1], bz = tgtBase[2]
     
     if (sourceId && motionIntensity && motionIntensity > 0) {
       const ms: NodeMotionState = { intensity: motionIntensity, draggedNodeId }
-      const p = computeNodeMotion(sourceId, a, sourceRadius || 5, ms, t)
+      const p = computeNodeMotion(sourceId, srcBase, sourceRadius || 5, ms, t)
       ax = p[0]; ay = p[1]; az = p[2]
     }
     if (targetId && motionIntensity && motionIntensity > 0) {
       const ms: NodeMotionState = { intensity: motionIntensity, draggedNodeId }
-      const p = computeNodeMotion(targetId, b, targetRadius || 5, ms, t)
+      const p = computeNodeMotion(targetId, tgtBase, targetRadius || 5, ms, t)
       bx = p[0]; by = p[1]; bz = p[2]
     }
 
@@ -297,6 +306,7 @@ export function ShaderLineEdges({
   paused,
   motionIntensity,
   draggedNodeId,
+  dragOverridesRef,
   lineWidthPx,
   onSelectEdge,
   onHoverEdge,
@@ -315,6 +325,7 @@ export function ShaderLineEdges({
   paused?: boolean
   motionIntensity?: number
   draggedNodeId?: string | null
+  dragOverridesRef?: React.MutableRefObject<Record<string, Vec3>>
   lineWidthPx: number
   onSelectEdge: (id: string) => void
   onHoverEdge?: (info: { id: string; clientX: number; clientY: number } | null) => void
@@ -454,8 +465,10 @@ export function ShaderLineEdges({
     const ms: NodeMotionState = { intensity: motionRef.current.intensity, draggedNodeId: motionRef.current.draggedNodeId || null }
     for (let i = 0; i < n; i += 1) {
       const e = edges[i]
-      const a = positions[String(e.source)]
-      const b = positions[String(e.target)]
+      const srcId = String(e.source)
+      const tgtId = String(e.target)
+      const a = dragOverridesRef?.current?.[srcId] || positions[srcId]
+      const b = dragOverridesRef?.current?.[tgtId] || positions[tgtId]
       const o = i * 6
       if (!a || !b) {
         arr[o + 0] = 0
@@ -466,8 +479,6 @@ export function ShaderLineEdges({
         arr[o + 5] = 0
         continue
       }
-      const srcId = String(e.source)
-      const tgtId = String(e.target)
       const srcR = nodeRadiusById.get(srcId) || 5
       const tgtR = nodeRadiusById.get(tgtId) || 5
       const p0 = ms.intensity > 0 ? computeNodeMotion(srcId, a, srcR, ms, t) : a

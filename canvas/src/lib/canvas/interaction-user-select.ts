@@ -19,6 +19,12 @@ export function lockGlobalUserSelect(): void {
   if (typeof document === 'undefined') return
   lockCount += 1
   if (lockCount !== 1) return
+  try {
+    const s = typeof window !== 'undefined' && typeof window.getSelection === 'function' ? window.getSelection() : null
+    if (s && typeof s.removeAllRanges === 'function') s.removeAllRanges()
+  } catch {
+    void 0
+  }
   const el = document.documentElement
   const style = el.style as CSSStyleDeclaration & { webkitUserSelect?: string; msUserSelect?: string }
   restoreStyles = {

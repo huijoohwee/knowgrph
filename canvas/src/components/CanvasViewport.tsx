@@ -6,6 +6,7 @@ import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { importWithRetry } from '@/lib/react/importWithRetry'
 import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 
 import { InfiniteCanvasWorkspaceOverlay } from '@/features/canvas/InfiniteCanvasWorkspaceOverlay'
 
@@ -141,6 +142,8 @@ export type CanvasViewportProps = {
 export function CanvasViewport(props: CanvasViewportProps) {
   const { variant, layout = 'full', geospatialModeEnabled, activeGraphData, canvasRenderMode, canvas2dRenderer, mounted2dRenderers, gympgrphBridge } = props
   const safeGraphData = activeGraphData || ({ nodes: [], edges: [] } as GraphData)
+  const rootRef = React.useRef<HTMLElement | null>(null)
+  useForbidBrowserZoomWheel(rootRef, true, { stopPropagation: false })
   const { fitToScreenMode, zoomToSelectionMode, viewPinned, selectedNodeId, selectedNodeIds, selectedEdgeId } = useGraphStore(
     useShallow(s => ({
       fitToScreenMode: s.fitToScreenMode === true,
@@ -201,7 +204,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
   }, [geospatialModeEnabled, selectedEdgeId, selectedNodeId, selectedNodeIds, viewPinned, zoomToSelectionMode])
 
   return (
-    <section className="relative w-full h-full overflow-hidden" aria-label={variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}>
+    <section ref={rootRef} className="relative w-full h-full overflow-hidden" aria-label={variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}>
       <React.Suspense fallback={null}>
         {geospatialModeEnabled && (
           <GeospatialOverlayHostLazy

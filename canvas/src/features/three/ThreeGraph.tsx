@@ -3,7 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
-import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
+import type { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types'
 import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
 import { usePositions } from './layout'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
@@ -365,7 +365,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
       candidates.length = 0
       for (let i = 0; i < mediaNodesPool.length; i += 1) {
         const node = mediaNodesPool[i]
-        const pos3 = positions[node.id] || null
+        const pos3 = dragOverridesRef.current[node.id] || positions[node.id] || null
         if (!pos3) continue
         world.set(pos3[0], pos3[1], pos3[2])
         const dist = camera.position.distanceTo(world)
@@ -844,7 +844,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
                 onHeaderDragStart={({ clientX, clientY, pointerId }) => {
                   const camera = threeCameraRef.current
                   const gl = threeGlRef.current
-                  const p = positions[n.id]
+                  const p = dragOverridesRef.current[n.id] || positions[n.id]
                   if (!camera || !gl || !p) return
                   const w = gl.domElement.clientWidth || 1
                   const h = gl.domElement.clientHeight || 1
@@ -853,6 +853,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
                   const sx = (ndc.x * 0.5 + 0.5) * w
                   const sy = (-ndc.y * 0.5 + 0.5) * h
                   overlayHeaderDrag3dRef.current = { id: n.id, pointerId, sx, sy, ndcZ: ndc.z, w, h }
+                  setDraggedNodeId(n.id)
                   void clientX
                   void clientY
                 }}
@@ -877,7 +878,20 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
                 onHeaderDragEnd={({ pointerId }) => {
                   const st = overlayHeaderDrag3dRef.current
                   if (st && st.id === n.id && st.pointerId === pointerId) overlayHeaderDrag3dRef.current = null
+                  const p = dragOverridesRef.current[n.id]
+                  if (p && useGraphStore.getState().workspaceViewMode === 'editor') {
+                    const s = useGraphStore.getState()
+                    const node0 = s.graphData?.nodes?.find(nn => String(nn.id) === String(n.id)) || null
+                    const baseProps = (node0?.properties || {}) as Record<string, JSONValue>
+                    const nextProps: Record<string, JSONValue> = { ...baseProps, pos3d: [p[0], p[1], p[2]] as unknown as JSONValue }
+                    try {
+                      s.updateNode(n.id, { properties: nextProps })
+                    } catch {
+                      void 0
+                    }
+                  }
                   delete dragOverridesRef.current[n.id]
+                  setDraggedNodeId(null)
                 }}
                 onWheelCapture={stopEvent}
                 onClickCapture={stopEvent}

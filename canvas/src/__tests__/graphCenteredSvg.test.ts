@@ -32,6 +32,12 @@ export function testGraphCenteredSvgPutsCentroidInViewCenter() {
   if (!(Math.abs(cx - 50) < 1e-6)) throw new Error(`expected center x ~= 50, got ${cx}`)
   if (!(Math.abs(cy - 0) < 1e-6)) throw new Error(`expected center y ~= 0, got ${cy}`)
   if (!svg.includes('>A<') || !svg.includes('>B<')) throw new Error('expected labels present')
+  if (!svg.includes('data-node-id="a"') || !svg.includes('data-node-id="b"')) {
+    throw new Error('expected exported centered svg to include node id data attributes')
+  }
+  if (!svg.includes('data-edge-id="e1"') || !svg.includes('data-source="a"') || !svg.includes('data-target="b"')) {
+    throw new Error('expected exported centered svg to include edge endpoint metadata')
+  }
 }
 
 export function testGraphCenteredSvgIncludesAnimationWhenEnabled() {

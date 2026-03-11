@@ -359,8 +359,16 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
             textOverflow: 'ellipsis',
             userSelect: 'none',
             WebkitUserSelect: 'none',
+            WebkitTouchCallout: 'none',
             cursor: installHeaderDrag ? 'grab' : undefined,
             pointerEvents: headerPassthrough ? 'none' : 'auto',
+          }}
+          onPointerDownCapture={e => {
+            try {
+              e.preventDefault()
+            } catch {
+              void 0
+            }
           }}
           title={title}
           onPointerDown={installHeaderDrag ? onHeaderPointerDown : undefined}

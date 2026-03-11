@@ -37,6 +37,7 @@ import { buildWorkspaceFileJsonLdV1 } from './workspaceImport'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { exportGraphAsCenteredSvgMarkup } from '@/lib/graph/graphCenteredSvg'
+import { buildGraphHtmlViewerMarkup } from '@/lib/graph/graphHtmlViewer'
 import { exportGraphAsCentered3dSvgMarkup } from '@/lib/graph/graphCenteredSvg3d'
 import { getNodeBaseFill, getEdgeBaseStroke } from '@/lib/graph/visualStyles'
 import { loadThreeOfflineModuleSources } from '@/lib/three/offlineModules'
@@ -1453,6 +1454,25 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
           return { nodes: {}, edges: {}, groups: {} }
         }
       })()
+
+      const edgeEndpointsForExport = (() => {
+        try {
+          const gd = store.graphData as unknown as { edges?: Array<{ id?: unknown; source?: unknown; target?: unknown }> } | null
+          const out: Record<string, { s: string; t: string }> = {}
+          if (!gd || !Array.isArray(gd.edges)) return out
+          for (let i = 0; i < gd.edges.length; i += 1) {
+            const e = gd.edges[i]
+            const id = String(e?.id ?? '').trim()
+            const s = String(e?.source ?? '').trim()
+            const t = String(e?.target ?? '').trim()
+            if (!id || !s || !t) continue
+            out[id] = { s, t }
+          }
+          return out
+        } catch {
+          return {}
+        }
+      })()
       const labelColorsForExport: { nodes: Record<string, string>; edges: Record<string, string>; groups: Record<string, string> } = {
         nodes: {},
         edges: {},
@@ -1544,6 +1564,28 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         (store.canvasRenderModeIsAuto === true && store.canvasRenderModeLastFree === '3d')
 
       let svgMarkup: string | null = null
+      if (wants3dExport && !geospatialEnabled) {
+        try {
+          const graphData = store.graphData
+          const schema = store.schema
+          if (graphData && schema) {
+            const centered3d = exportGraphAsCentered3dSvgMarkup({
+              graphData,
+              schema,
+              widthPx: Math.max(800, fallbackSize.w || 0),
+              heightPx: Math.max(600, fallbackSize.h || 0),
+              paddingPx: 96,
+              includeXmlDeclaration: false,
+              animated: false,
+              threeEdgeRenderer: store.threeEdgeRenderer,
+            })
+            const trimmed = String(centered3d || '').trim()
+            if (trimmed) svgMarkup = trimmed
+          }
+        } catch {
+          void 0
+        }
+      }
       const canvasViewportEl = document.querySelector('section[aria-label="Canvas viewport"]') as HTMLElement | null
       const bg = (() => {
         try {
@@ -2018,65 +2060,66 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
 
       let bodyHtml = ''
       let threeModuleScript: string | null = null
-      let threeFallbackPngDataUrl = ''
+
+      const mediaOverlayHtml = (() => {
+        if (store.renderMediaAsNodes !== true) return ''
+        const nodes = Array.isArray((store.graphData as { nodes?: unknown[] } | null)?.nodes)
+          ? ((store.graphData as unknown as { nodes: GraphNode[] }).nodes as GraphNode[])
+          : []
+        if (!nodes.length) return ''
+        const poolMax = (() => {
+          const raw = (store as unknown as { threeIframeOverlayPoolMax?: unknown }).threeIframeOverlayPoolMax
+          const n = typeof raw === 'number' ? raw : Number(raw)
+          if (!Number.isFinite(n)) return 24
+          const v = Math.floor(n)
+          if (v <= 0) return 0
+          return Math.min(200, Math.max(0, v))
+        })()
+        const escapeAttr = (v: string): string =>
+          String(v || '')
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+        const escapeText = (v: string): string =>
+          String(v || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+        const parts: string[] = []
+        let picked = 0
+        for (let i = 0; i < nodes.length; i += 1) {
+          if (poolMax > 0 && picked >= poolMax) break
+          const n = nodes[i]
+          const id = String(n?.id ?? '').trim()
+          if (!id) continue
+          const spec = getNodeMediaSpec(n)
+          if (!spec) continue
+          const titleRaw = String(n?.label ?? n?.id ?? '').trim() || 'Media node'
+          const title = escapeText(titleRaw)
+          const url = escapeAttr(String(spec.url || '').trim())
+          const interactive = spec.interactive !== false ? '1' : '0'
+          const kind = spec.kind === 'image' || spec.kind === 'svg' || spec.kind === 'video' ? spec.kind : 'iframe'
+          const content =
+            kind === 'iframe'
+              ? `<iframe title="${escapeAttr(titleRaw)}" src="${url}" loading="eager" referrerpolicy="no-referrer" allow="fullscreen; autoplay; clipboard-read; clipboard-write; geolocation" style="display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius, 10px) * 0.8);background:transparent;"></iframe>`
+              : kind === 'video'
+                ? `<video src="${url}" playsinline muted controls preload="metadata" style="display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius, 10px) * 0.8);object-fit:cover;background:transparent;"></video>`
+                : `<img src="${url}" alt="${escapeAttr(titleRaw)}" loading="eager" style="display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius, 10px) * 0.8);object-fit:cover;background:transparent;" />`
+          parts.push(
+            `<div class="kgExportMediaPanel" data-node-id="${escapeAttr(id)}" data-kg-media-kind="${escapeAttr(kind)}" data-kg-media-interactive="${interactive}">` +
+              `<header class="kgExportMediaHeader" title="${escapeAttr(titleRaw)}">${title}</header>` +
+              `<section class="kgExportMediaBody">${content}</section>` +
+            `</div>`,
+          )
+          picked += 1
+        }
+        if (!parts.length) return ''
+        return `<div class="kgExportMediaOverlayRoot">${parts.join('')}</div>`
+      })()
+
       if (svgMarkup) {
         const stripped = svgMarkup.replace(/^\s*<\?xml[^>]*>\s*/i, '')
-        const mediaOverlayHtml = (() => {
-          if (store.renderMediaAsNodes !== true) return ''
-          const nodes = Array.isArray((store.graphData as { nodes?: unknown[] } | null)?.nodes)
-            ? ((store.graphData as unknown as { nodes: GraphNode[] }).nodes as GraphNode[])
-            : []
-          if (!nodes.length) return ''
-          const poolMax = (() => {
-            const raw = (store as unknown as { threeIframeOverlayPoolMax?: unknown }).threeIframeOverlayPoolMax
-            const n = typeof raw === 'number' ? raw : Number(raw)
-            if (!Number.isFinite(n)) return 24
-            const v = Math.floor(n)
-            if (v <= 0) return 0
-            return Math.min(200, Math.max(0, v))
-          })()
-          const escapeAttr = (v: string): string =>
-            String(v || '')
-              .replace(/&/g, '&amp;')
-              .replace(/"/g, '&quot;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;')
-          const escapeText = (v: string): string =>
-            String(v || '')
-              .replace(/&/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;')
-          const parts: string[] = []
-          let picked = 0
-          for (let i = 0; i < nodes.length; i += 1) {
-            if (poolMax > 0 && picked >= poolMax) break
-            const n = nodes[i]
-            const id = String(n?.id ?? '').trim()
-            if (!id) continue
-            const spec = getNodeMediaSpec(n)
-            if (!spec) continue
-            const titleRaw = String(n?.label ?? n?.id ?? '').trim() || 'Media node'
-            const title = escapeText(titleRaw)
-            const url = escapeAttr(String(spec.url || '').trim())
-            const interactive = spec.interactive !== false ? '1' : '0'
-            const kind = spec.kind === 'image' || spec.kind === 'svg' || spec.kind === 'video' ? spec.kind : 'iframe'
-            const content =
-              kind === 'iframe'
-                ? `<iframe title="${escapeAttr(titleRaw)}" src="${url}" loading="lazy" allow="fullscreen; autoplay; clipboard-read; clipboard-write; geolocation" style="display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius, 10px) * 0.8);background:transparent;"></iframe>`
-                : kind === 'video'
-                  ? `<video src="${url}" playsinline muted controls preload="metadata" style="display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius, 10px) * 0.8);object-fit:cover;background:transparent;"></video>`
-                  : `<img src="${url}" alt="${escapeAttr(titleRaw)}" loading="lazy" style="display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius, 10px) * 0.8);object-fit:cover;background:transparent;" />`
-            parts.push(
-              `<div class="kgExportMediaPanel" data-node-id="${escapeAttr(id)}" data-kg-media-kind="${escapeAttr(kind)}" data-kg-media-interactive="${interactive}">` +
-                `<header class="kgExportMediaHeader" title="${escapeAttr(titleRaw)}">${title}</header>` +
-                `<section class="kgExportMediaBody">${content}</section>` +
-              `</div>`,
-            )
-            picked += 1
-          }
-          if (!parts.length) return ''
-          return `<div class="kgExportMediaOverlayRoot">${parts.join('')}</div>`
-        })()
         bodyHtml = `<div class="kgExportCanvasRoot"><div class="kgExportCanvasStage">${stripped}${mediaOverlayHtml}</div></div>`
       } else {
         const shouldTry3dFit = !geospatialEnabled && wants3dExport
@@ -2148,6 +2191,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
           const labelColorsJs = JSON.stringify(labelColorsForExport)
           const shapeColorsJs = JSON.stringify(shapeColorsForExport)
           const shapeOpacityJs = JSON.stringify(shapeOpacityForExport)
+          const edgeEndpointsJs = JSON.stringify(edgeEndpointsForExport)
           const threeCfgJs = JSON.stringify({
             fogColor,
             fogNear,
@@ -2161,7 +2205,28 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             nodeMotionIntensity,
             bg: exportBg,
           })
-          bodyHtml = `<div class="kgExportCanvasRoot kgExportThreeRoot"><img class="kgExportCanvasImg kgExportThreeSnapshot" alt="Canvas snapshot" style="display:none" /><canvas id="kgExportThreeCanvas"></canvas></div>`
+          const mediaCfgForThreeJs = (() => {
+            const density = store.mediaPanelDensity === 'compact' ? 'compact' : 'default'
+            const num = (v: unknown, fallback: number) => {
+              const n = typeof v === 'number' ? v : Number(v)
+              return Number.isFinite(n) ? n : fallback
+            }
+            return JSON.stringify({
+              density,
+              widthRatioDefault: num((store as unknown as { threeIframeOverlayBaseWidthRatioDefault?: unknown }).threeIframeOverlayBaseWidthRatioDefault, 0.2),
+              widthRatioCompact: num((store as unknown as { threeIframeOverlayBaseWidthRatioCompact?: unknown }).threeIframeOverlayBaseWidthRatioCompact, 0.16),
+              widthMinDefault: num((store as unknown as { threeIframeOverlayBaseWidthMinPxDefault?: unknown }).threeIframeOverlayBaseWidthMinPxDefault, 210),
+              widthMinCompact: num((store as unknown as { threeIframeOverlayBaseWidthMinPxCompact?: unknown }).threeIframeOverlayBaseWidthMinPxCompact, 180),
+              widthMaxDefault: num((store as unknown as { threeIframeOverlayBaseWidthMaxPxDefault?: unknown }).threeIframeOverlayBaseWidthMaxPxDefault, 360),
+              widthMaxCompact: num((store as unknown as { threeIframeOverlayBaseWidthMaxPxCompact?: unknown }).threeIframeOverlayBaseWidthMaxPxCompact, 300),
+              maxVisibleDefault: num((store as unknown as { threeIframeOverlayMaxVisibleDefault?: unknown }).threeIframeOverlayMaxVisibleDefault, 10),
+              maxVisibleCompact: num((store as unknown as { threeIframeOverlayMaxVisibleCompact?: unknown }).threeIframeOverlayMaxVisibleCompact, 8),
+              maxDistanceDefault: num((store as unknown as { threeIframeOverlayMaxDistanceDefault?: unknown }).threeIframeOverlayMaxDistanceDefault, 380),
+              maxDistanceCompact: num((store as unknown as { threeIframeOverlayMaxDistanceCompact?: unknown }).threeIframeOverlayMaxDistanceCompact, 320),
+              sizeScaleFactor: num((store as unknown as { threeIframeOverlaySizeScaleFactor?: unknown }).threeIframeOverlaySizeScaleFactor, 260),
+            })
+          })()
+          bodyHtml = `<div class="kgExportCanvasRoot kgExportThreeRoot"><canvas id="kgExportThreeCanvas"></canvas>${mediaOverlayHtml}</div>`
           threeModuleScript = [
             'const PREFER_CDN = false;',
             `const GLB_URL = ${glbJs};`,
@@ -2171,7 +2236,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             `const LABEL_COLORS = ${labelColorsJs};`,
             `const SHAPE_COLORS = ${shapeColorsJs};`,
             `const SHAPE_OPACITY = ${shapeOpacityJs};`,
+            `const EDGE_ENDPOINTS = ${edgeEndpointsJs};`,
             `const THREE_CFG = ${threeCfgJs};`,
+            `const MEDIA_CFG = ${mediaCfgForThreeJs};`,
             'const loadThree = async () => {',
             '  const cdnBase = "https://unpkg.com/three@0.170.0/";',
             '  const loadCdn = async () => {',
@@ -2205,13 +2272,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             'const canvas = document.getElementById("kgExportThreeCanvas");',
             'if (!(canvas instanceof HTMLCanvasElement)) throw new Error("Missing canvas");',
             'const root = document.querySelector(".kgExportThreeRoot");',
-            'try {',
-            '  const img = document.querySelector(".kgExportThreeSnapshot");',
-            '  if (img && __KG_THREE_FALLBACK_PNG) {',
-            '    img.src = String(__KG_THREE_FALLBACK_PNG);',
-            '    img.style.display = "block";',
-            '  }',
-            '} catch { }',
             'const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });',
             'try {',
             '  const bg = THREE_CFG && typeof THREE_CFG.bg === "string" ? String(THREE_CFG.bg).trim() : "";',
@@ -2503,6 +2563,159 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             '    it.obj = fallbackMeshes[fallbackNodeCursor++] || null;',
             '  }',
             '}',
+            'const mediaRoot = root && root.querySelector ? root.querySelector(".kgExportMediaOverlayRoot") : null;',
+            'const mediaPanels = mediaRoot ? Array.from(mediaRoot.querySelectorAll(".kgExportMediaPanel[data-node-id]")) : [];',
+            'const mediaEntries = [];',
+            'for (let i = 0; i < mediaPanels.length; i += 1) {',
+            '  const el = mediaPanels[i];',
+            '  if (!el || !(el instanceof HTMLElement)) continue;',
+            '  const id = String(el.getAttribute("data-node-id") || "");',
+            '  if (!id) continue;',
+            '  mediaEntries.push({ id, el, obj: null, box: new THREE.Box3(), center: new THREE.Vector3(), screen: new THREE.Vector3(), dist: 0, sx: 0, sy: 0, sizeScale: 1, visible: false });',
+            '}',
+            'for (let i = 0; i < mediaEntries.length; i += 1) {',
+            '  const it = mediaEntries[i];',
+            '  it.obj = findBestTaggedObject("node", it.id);',
+            '}',
+            'const mediaCandidates = [];',
+            'const computeMediaVars = (density, sizeScale) => {',
+            '  const s = Number.isFinite(sizeScale) ? Math.max(0.001, Number(sizeScale)) : 1;',
+            '  const d = density === "compact" ? "compact" : "default";',
+            '  const headerBase = d === "compact" ? 22 : 28;',
+            '  const paddingBase = d === "compact" ? 6 : 8;',
+            '  const radiusBase = d === "compact" ? 9 : 10;',
+            '  const borderBase = 1;',
+            '  const titleBase = d === "compact" ? 11 : 12;',
+            '  const headerH = Math.max(14, Math.round(headerBase * s));',
+            '  const padding = Math.max(2, Math.round(paddingBase * s));',
+            '  const radius = Math.max(3, Math.round(radiusBase * s));',
+            '  const borderW = Math.max(1, Math.round(borderBase * s));',
+            '  const titleSize = Math.max(10, Math.round(titleBase * s));',
+            '  const metrics = { headerH, padding, radius, borderW, titleSize };',
+            '  const vars = {',
+            '    "--kg-media-panel-header-h": `${headerH}px`,',
+            '    "--kg-media-panel-border-w": `${borderW}px`,',
+            '    "--kg-media-panel-radius": `${radius}px`,',
+            '    "--kg-media-panel-padding": `${padding}px`,',
+            '    "--kg-media-panel-title-size": `${titleSize}px`,',
+            '  };',
+            '  return { metrics, vars };',
+            '};',
+            'const computePanelSize16x9 = (contentW, headerH, padding) => {',
+            '  const cw = Math.max(2, Number(contentW) || 2);',
+            '  const ch = Math.max(2, (cw * 9) / 16);',
+            '  const p = Math.max(0, Number(padding) || 0);',
+            '  const hh = Math.max(0, Number(headerH) || 0);',
+            '  const panelW = Math.max(2, cw + p * 2);',
+            '  const panelH = Math.max(2, ch + hh + p * 2);',
+            '  return { panelW, panelH, contentW: cw, contentH: ch };',
+            '};',
+            'const updateOverlayMedia = () => {',
+            '  if (!mediaEntries.length) return;',
+            '  const rect = renderer.domElement.getBoundingClientRect();',
+            '  const w = Math.max(1, rect.width || 0);',
+            '  const h = Math.max(1, rect.height || 0);',
+            '  const density = MEDIA_CFG && MEDIA_CFG.density === "compact" ? "compact" : "default";',
+            '  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));',
+            '  const maxCountRaw = density === "compact" ? Number(MEDIA_CFG.maxVisibleCompact || 0) : Number(MEDIA_CFG.maxVisibleDefault || 0);',
+            '  const maxDistanceRaw = density === "compact" ? Number(MEDIA_CFG.maxDistanceCompact || 0) : Number(MEDIA_CFG.maxDistanceDefault || 0);',
+            '  const maxCount = Number.isFinite(maxCountRaw) ? Math.max(0, Math.floor(maxCountRaw)) : mediaEntries.length;',
+            '  const maxDistance = Number.isFinite(maxDistanceRaw) ? Math.max(0, Number(maxDistanceRaw)) : 0;',
+            '  if (maxCount <= 0 || maxDistance <= 0) {',
+            '    for (let i = 0; i < mediaEntries.length; i += 1) {',
+            '      const it = mediaEntries[i];',
+            '      it.visible = false;',
+            '      it.el.style.visibility = "hidden";',
+            '      it.el.style.opacity = "0";',
+            '    }',
+            '    return;',
+            '  }',
+            '  const widthRatio = density === "compact" ? Number(MEDIA_CFG.widthRatioCompact || 0.16) : Number(MEDIA_CFG.widthRatioDefault || 0.2);',
+            '  const widthMin = density === "compact" ? Number(MEDIA_CFG.widthMinCompact || 180) : Number(MEDIA_CFG.widthMinDefault || 210);',
+            '  const widthMax = density === "compact" ? Number(MEDIA_CFG.widthMaxCompact || 300) : Number(MEDIA_CFG.widthMaxDefault || 360);',
+            '  const baseW = clamp(w * Math.max(0.001, Math.min(0.9, widthRatio)), Math.max(1, widthMin), Math.max(1, widthMax));',
+            '  const sizeFactorRaw = Number(MEDIA_CFG.sizeScaleFactor || 260);',
+            '  const sizeFactor = Number.isFinite(sizeFactorRaw) && sizeFactorRaw > 0 ? sizeFactorRaw : 260;',
+            '  const MAX_PANEL_PX = 2048;',
+            '  const STEP_PX = 16;',
+            '  const quantize = (px) => Math.round(px / STEP_PX) * STEP_PX;',
+            '  mediaCandidates.length = 0;',
+            '  for (let i = 0; i < mediaEntries.length; i += 1) {',
+            '    const it = mediaEntries[i];',
+            '    it.visible = false;',
+            '    if (!it.obj) { it.el.style.visibility = "hidden"; it.el.style.opacity = "0"; continue; }',
+            '    try {',
+            '      it.box.setFromObject(it.obj);',
+            '      if (it.box.isEmpty()) { it.el.style.visibility = "hidden"; it.el.style.opacity = "0"; continue; }',
+            '      it.box.getCenter(it.center);',
+            '      it.dist = camera.position.distanceTo(it.center);',
+            '      if (!Number.isFinite(it.dist) || it.dist > maxDistance) { it.el.style.visibility = "hidden"; it.el.style.opacity = "0"; continue; }',
+            '      it.screen.copy(it.center).project(camera);',
+            '      if (!Number.isFinite(it.screen.x) || !Number.isFinite(it.screen.y) || !Number.isFinite(it.screen.z) || it.screen.z <= -1 || it.screen.z >= 1) { it.el.style.visibility = "hidden"; it.el.style.opacity = "0"; continue; }',
+            '      it.sx = (it.screen.x * 0.5 + 0.5) * w;',
+            '      it.sy = (-it.screen.y * 0.5 + 0.5) * h;',
+            '      it.sizeScale = clamp(sizeFactor / Math.max(0.001, it.dist), 0.001, 256);',
+            '      mediaCandidates.push(it);',
+            '    } catch {',
+            '      it.el.style.visibility = "hidden";',
+            '      it.el.style.opacity = "0";',
+            '    }',
+            '  }',
+            '  mediaCandidates.sort((a, b) => (a.dist - b.dist) || String(a.id).localeCompare(String(b.id)));',
+            '  const count = Math.min(maxCount, mediaCandidates.length);',
+            '  for (let i = 0; i < count; i += 1) {',
+            '    mediaCandidates[i].visible = true;',
+            '  }',
+            '  const margin = 12;',
+            '  for (let i = 0; i < mediaEntries.length; i += 1) {',
+            '    const it = mediaEntries[i];',
+            '    if (!it.visible) {',
+            '      it.el.style.visibility = "hidden";',
+            '      it.el.style.opacity = "0";',
+            '      continue;',
+            '    }',
+            '    const contentW0 = clamp(quantize(baseW * it.sizeScale), 2, MAX_PANEL_PX);',
+            '    const sizeScale2 = Math.max(0.001, contentW0 / Math.max(1, baseW));',
+            '    const varsKey = `${density}|${Math.round(contentW0)}`;',
+            '    const prevKey = it.el.dataset ? it.el.dataset.kgVarsKey : "";',
+            '    let metrics = null;',
+            '    if (prevKey !== varsKey) {',
+            '      const computed = computeMediaVars(density, sizeScale2);',
+            '      metrics = computed.metrics;',
+            '      if (it.el.dataset) it.el.dataset.kgVarsKey = varsKey;',
+            '      const keys = Object.keys(computed.vars);',
+            '      for (let k = 0; k < keys.length; k += 1) it.el.style.setProperty(keys[k], String(computed.vars[keys[k]]));',
+            '    } else {',
+            '      metrics = computeMediaVars(density, sizeScale2).metrics;',
+            '    }',
+            '    const panel = computePanelSize16x9(contentW0, metrics.headerH, metrics.padding);',
+            '    const panelW = panel.panelW;',
+            '    const panelH = panel.panelH;',
+            '    const left = clamp(Math.round(it.sx - panelW / 2), margin, Math.max(margin, w - margin - panelW));',
+            '    const top = clamp(Math.round(it.sy - panelH / 2), margin, Math.max(margin, h - margin - panelH));',
+            '    const z = String(2000 - Math.max(0, Math.min(1500, Math.floor(it.dist))));',
+            '    const sig = `${left}|${top}|${Math.round(panelW)}|${Math.round(panelH)}|${z}`;',
+            '    const prevSig = it.el.dataset ? it.el.dataset.kgBoxSig : "";',
+            '    if (prevSig !== sig) {',
+            '      if (it.el.dataset) it.el.dataset.kgBoxSig = sig;',
+            '      it.el.style.width = `${Math.round(panelW)}px`;',
+            '      it.el.style.height = `${Math.round(panelH)}px`;',
+            '      it.el.style.transform = `translate3d(${left}px, ${top}px, 0px)`;',
+            '      it.el.style.zIndex = z;',
+            '    }',
+            '    if (it.el.dataset && !it.el.dataset.kgMediaEagerApplied) {',
+            '      try {',
+            '        const iframe = it.el.querySelector("iframe");',
+            '        if (iframe) { try { iframe.loading = "eager"; } catch { } try { iframe.setAttribute("loading", "eager"); } catch { } }',
+            '        const img = it.el.querySelector("img");',
+            '        if (img) { try { img.loading = "eager"; } catch { } try { img.setAttribute("loading", "eager"); } catch { } }',
+            '      } catch { }',
+            '      try { it.el.dataset.kgMediaEagerApplied = "1"; } catch { }',
+            '    }',
+            '    it.el.style.visibility = "visible";',
+            '    it.el.style.opacity = "1";',
+            '  }',
+            '};',
             'const tooltip = document.createElement("div");',
             'tooltip.className = "kgExportTooltip";',
             'tooltip.style.display = "none";',
@@ -2577,16 +2790,157 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             '  if (!name.startsWith("kg_node:")) return;',
             '  const id = name.slice("kg_node:".length);',
             '  const seed = id ? id.length : 0;',
-            '  nodeBases.push({ o, base: o.position.clone(), seed });',
+            '  nodeBases.push({ id, o, base: o.position.clone(), seed });',
             '});',
             'if (!nodeBases.length) {',
             '  let i = 0;',
             '  gltf.scene.traverse(o => {',
             '    if (i > 200) return;',
             '    if (!o || !o.isMesh) return;',
-            '    nodeBases.push({ o, base: o.position.clone(), seed: i });',
+            '    nodeBases.push({ id: "", o, base: o.position.clone(), seed: i });',
             '    i += 1;',
             '  });',
+            '}',
+            'const nodeById = new Map();',
+            'for (let i = 0; i < nodeBases.length; i += 1) {',
+            '  const p = nodeBases[i];',
+            '  if (p && p.id) nodeById.set(String(p.id), p);',
+            '}',
+            'try {',
+            '  gltf.scene.traverse(o => {',
+            '    const n = String(o && o.name ? o.name : "");',
+            '    if (n.startsWith("kg_edge:")) o.visible = false;',
+            '  });',
+            '} catch { }',
+            'const dynEdgeGroup = new THREE.Group();',
+            'dynEdgeGroup.name = "kg_dyn_edges";',
+            'scene.add(dynEdgeGroup);',
+            'const dynEdges = [];',
+            'const readEdgeColor = (id) => {',
+            '  try {',
+            '    const v = SHAPE_COLORS && SHAPE_COLORS.edges ? String(SHAPE_COLORS.edges[id] || "").trim() : "";',
+            '    if (!v) return null;',
+            '    const c = new THREE.Color(v);',
+            '    return c;',
+            '  } catch {',
+            '    return null;',
+            '  }',
+            '};',
+            'const readEdgeOpacity = (id) => {',
+            '  try {',
+            '    const raw = SHAPE_OPACITY && SHAPE_OPACITY.edges ? Number(SHAPE_OPACITY.edges[id]) : NaN;',
+            '    if (!Number.isFinite(raw)) return 0.9;',
+            '    return Math.max(0, Math.min(1, raw));',
+            '  } catch {',
+            '    return 0.9;',
+            '  }',
+            '};',
+            'for (const id of Object.keys(EDGE_ENDPOINTS || {})) {',
+            '  const ep = EDGE_ENDPOINTS[id];',
+            '  if (!ep || !ep.s || !ep.t) continue;',
+            '  const geo = new THREE.BufferGeometry();',
+            '  const arr = new Float32Array(6);',
+            '  geo.setAttribute("position", new THREE.BufferAttribute(arr, 3));',
+            '  const col = readEdgeColor(id) || new THREE.Color(0x94a3b8);',
+            '  const op = readEdgeOpacity(id);',
+            '  const mat = new THREE.LineBasicMaterial({ color: col, transparent: op < 0.999, opacity: op });',
+            '  const line = new THREE.Line(geo, mat);',
+            '  line.name = `kg_dyn_edge:${id}`;',
+            '  dynEdgeGroup.add(line);',
+            '  dynEdges.push({ id, s: String(ep.s), t: String(ep.t), line, arr });',
+            '}',
+            'const __tmpW0 = new THREE.Vector3();',
+            'const __tmpW1 = new THREE.Vector3();',
+            'const updateDynamicEdges = () => {',
+            '  if (!dynEdges.length) return;',
+            '  for (let i = 0; i < dynEdges.length; i += 1) {',
+            '    const it = dynEdges[i];',
+            '    const a = nodeById.get(it.s);',
+            '    const b = nodeById.get(it.t);',
+            '    if (!a || !b || !a.o || !b.o) { it.line.visible = false; continue; }',
+            '    it.line.visible = true;',
+            '    a.o.getWorldPosition(__tmpW0);',
+            '    b.o.getWorldPosition(__tmpW1);',
+            '    it.arr[0] = __tmpW0.x; it.arr[1] = __tmpW0.y; it.arr[2] = __tmpW0.z;',
+            '    it.arr[3] = __tmpW1.x; it.arr[4] = __tmpW1.y; it.arr[5] = __tmpW1.z;',
+            '    const pos = it.line.geometry.getAttribute("position");',
+            '    if (pos) pos.needsUpdate = true;',
+            '  }',
+            '};',
+            'let mediaDrag = null;',
+            'const __tmpDragWorld = new THREE.Vector3();',
+            'const __tmpDragLocal = new THREE.Vector3();',
+            'const __tmpDragNdc = new THREE.Vector3();',
+            'const __tmpDragProj = new THREE.Vector3();',
+            'const beginMediaDrag = (panelEl, pointerId, clientX, clientY) => {',
+            '  if (!panelEl) return;',
+            '  const id = String(panelEl.getAttribute("data-node-id") || "").trim();',
+            '  if (!id) return;',
+            '  const entry = nodeById.get(id);',
+            '  if (!entry || !entry.o) return;',
+            '  entry.o.getWorldPosition(__tmpDragWorld);',
+            '  __tmpDragProj.copy(__tmpDragWorld).project(camera);',
+            '  const rect = renderer.domElement.getBoundingClientRect();',
+            '  mediaDrag = { id, pointerId, ndcZ: __tmpDragProj.z, rectW: Math.max(1, rect.width), rectH: Math.max(1, rect.height) };',
+            '  try { panelEl.setPointerCapture(pointerId); } catch { }',
+            '};',
+            'const moveMediaDrag = (pointerId, clientX, clientY) => {',
+            '  if (!mediaDrag || mediaDrag.pointerId !== pointerId) return;',
+            '  const entry = nodeById.get(mediaDrag.id);',
+            '  if (!entry || !entry.o) return;',
+            '  const rect = renderer.domElement.getBoundingClientRect();',
+            '  const w = Math.max(1, rect.width);',
+            '  const h = Math.max(1, rect.height);',
+            '  const cx = clientX - rect.left;',
+            '  const cy = clientY - rect.top;',
+            '  const ndcX = (cx / w) * 2 - 1;',
+            '  const ndcY = -(cy / h) * 2 + 1;',
+            '  __tmpDragNdc.set(ndcX, ndcY, mediaDrag.ndcZ);',
+            '  __tmpDragLocal.copy(__tmpDragNdc).unproject(camera);',
+            '  if (entry.o.parent) {',
+            '    __tmpDragWorld.copy(__tmpDragLocal);',
+            '    entry.o.parent.worldToLocal(__tmpDragWorld);',
+            '    entry.o.position.copy(__tmpDragWorld);',
+            '    entry.base.copy(entry.o.position);',
+            '  } else {',
+            '    entry.o.position.copy(__tmpDragLocal);',
+            '    entry.base.copy(entry.o.position);',
+            '  }',
+            '  needsRender = true;',
+            '};',
+            'const endMediaDrag = (pointerId) => {',
+            '  if (!mediaDrag || mediaDrag.pointerId !== pointerId) return;',
+            '  mediaDrag = null;',
+            '};',
+            'if (mediaRoot && mediaRoot.addEventListener) {',
+            '  mediaRoot.addEventListener("pointerdown", (e) => {',
+            '    if (!e || typeof e.pointerId !== "number") return;',
+            '    const t = e.target instanceof Element ? e.target : null;',
+            '    const panel = t ? t.closest(".kgExportMediaPanel[data-node-id]") : null;',
+            '    if (!panel) return;',
+            '    beginMediaDrag(panel, e.pointerId, e.clientX, e.clientY);',
+            '    try { e.preventDefault(); } catch { }',
+            '    try { e.stopPropagation(); } catch { }',
+            '  }, { passive: false, capture: true });',
+            '  mediaRoot.addEventListener("pointermove", (e) => {',
+            '    if (!e || typeof e.pointerId !== "number") return;',
+            '    if (!mediaDrag || e.pointerId !== mediaDrag.pointerId) return;',
+            '    moveMediaDrag(e.pointerId, e.clientX, e.clientY);',
+            '    try { e.preventDefault(); } catch { }',
+            '    try { e.stopPropagation(); } catch { }',
+            '  }, { passive: false, capture: true });',
+            '  mediaRoot.addEventListener("pointerup", (e) => {',
+            '    if (!e || typeof e.pointerId !== "number") return;',
+            '    if (!mediaDrag || e.pointerId !== mediaDrag.pointerId) return;',
+            '    endMediaDrag(e.pointerId);',
+            '    try { e.preventDefault(); } catch { }',
+            '    try { e.stopPropagation(); } catch { }',
+            '  }, { passive: false, capture: true });',
+            '  mediaRoot.addEventListener("pointercancel", (e) => {',
+            '    if (!e || typeof e.pointerId !== "number") return;',
+            '    if (!mediaDrag || e.pointerId !== mediaDrag.pointerId) return;',
+            '    endMediaDrag(e.pointerId);',
+            '  }, { passive: true, capture: true });',
             '}',
             'const starfield = gltf.scene.getObjectByName("kg_starfield");',
             'try {',
@@ -2699,15 +3053,11 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             '  }',
             '  if (needsRender) {',
             '    needsRender = false;',
+            '    try { updateDynamicEdges(); } catch { }',
             '    updateOverlayLabels();',
+            '    try { updateOverlayMedia(); } catch { }',
             '    renderer.render(scene, camera);',
-            '    if (!__kgSnapshotHidden) {',
-            '      __kgSnapshotHidden = true;',
-            '      try {',
-            '        const img = document.querySelector(".kgExportThreeSnapshot");',
-            '        if (img && img instanceof HTMLImageElement) img.style.display = "none";',
-            '      } catch { }',
-            '    }',
+            '    if (!__kgSnapshotHidden) { __kgSnapshotHidden = true; }',
             '  }',
             '  requestAnimationFrame(tick);',
             '};',
@@ -2715,24 +3065,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
           ].join('\n')
         }
 
-        if (threeModuleScript) {
-          try {
-            const pr = (() => {
-              try {
-                const dpr = window.devicePixelRatio || 1
-                if (!Number.isFinite(dpr) || dpr <= 0) return 1
-                return Math.max(1, Math.min(4, dpr))
-              } catch {
-                return 1
-              }
-            })()
-            const fallbackPng = (await store.captureCanvasPngSnapshot('3d', pr)) || (await captureVisibleCanvasPngBlobFromDom())
-            if (fallbackPng) threeFallbackPngDataUrl = await blobToDataUrl(fallbackPng)
-          } catch {
-            void 0
-          }
-        }
-        const png = threeModuleScript
+        const allowRasterFallback = false
+
+        const png = !allowRasterFallback || threeModuleScript
           ? null
           : await (async () => {
               if (geospatialEnabled) {
@@ -2747,16 +3082,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
               }
 
               if (store.canvasRenderMode === '3d') {
-                const pr = (() => {
-                  try {
-                    const dpr = window.devicePixelRatio || 1
-                    if (!Number.isFinite(dpr) || dpr <= 0) return 1
-                    return Math.max(1, Math.min(4, dpr))
-                  } catch {
-                    return 1
-                  }
-                })()
-                return (await store.captureCanvasPngSnapshot('3d', pr)) || (await captureVisibleCanvasPngBlobFromDom())
+                return null
               }
 
               const pr = (() => {
@@ -2770,7 +3096,29 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
               })()
               return (await store.captureCanvasPngSnapshot('2d', pr)) || (await captureVisibleCanvasPngBlobFromDom())
             })()
-        if (!png && !threeModuleScript && !geospatialEnabled && !wants3dExport) {
+        if (!threeModuleScript && !geospatialEnabled && wants3dExport && !bodyHtml) {
+          try {
+            const centered3d = exportGraphAsCentered3dSvgMarkup({
+              graphData: store.graphData,
+              schema: store.schema,
+              widthPx: Math.max(800, fallbackSize.w || 0),
+              heightPx: Math.max(600, fallbackSize.h || 0),
+              paddingPx: 96,
+              includeXmlDeclaration: false,
+              animated: false,
+              threeEdgeRenderer: store.threeEdgeRenderer,
+            })
+            if (centered3d && centered3d.trim()) {
+              svgMarkup = centered3d.trim()
+              const stripped = svgMarkup.replace(/^\s*<\?xml[^>]*>\s*/i, '')
+              bodyHtml = `<div class="kgExportCanvasRoot">${stripped}</div>`
+            }
+          } catch {
+            void 0
+          }
+        }
+
+        if (!threeModuleScript && !geospatialEnabled && !wants3dExport && !bodyHtml) {
           try {
             const centered = exportGraphAsCenteredSvgMarkup({
               graphData: store.graphData,
@@ -2779,7 +3127,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
               heightPx: Math.max(600, fallbackSize.h || 0),
               paddingPx: 96,
               includeXmlDeclaration: false,
-              animated: true,
+              animated: false,
             })
             if (centered && centered.trim()) {
               svgMarkup = centered.trim()
@@ -2795,8 +3143,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
           return
         }
         if (!bodyHtml && png && !threeModuleScript) {
-          const dataUrl = await blobToDataUrl(png)
-          bodyHtml = `<div class="kgExportCanvasRoot"><img class="kgExportCanvasImg" src="${dataUrl.replace(/"/g, '&quot;')}" alt="Canvas snapshot" /></div>`
+          pushUiToast({ id: 'export-html-raster-disabled', kind: 'warning', message: 'Raster fallback disabled; export requires inline SVG.' })
+          return
         }
 
         if (shouldTry3dFit && prev3d) {
@@ -2849,15 +3197,70 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         })
       })()
 
+      const groupMembersJson = (() => {
+        try {
+          const gd = store.graphData as unknown as { nodes?: Array<{ id?: unknown; properties?: Record<string, unknown> }> } | null
+          const out: Record<string, string[]> = {}
+          if (!gd || !Array.isArray(gd.nodes)) return JSON.stringify(out)
+          for (let i = 0; i < gd.nodes.length; i += 1) {
+            const n = gd.nodes[i]
+            const id = String(n?.id ?? '').trim()
+            if (!id) continue
+            const p = n?.properties
+            const gid = typeof p?.['kg:groupId'] === 'string' ? String(p['kg:groupId'] || '').trim() : ''
+            if (!gid) continue
+            const arr = out[gid] || (out[gid] = [])
+            arr.push(id)
+          }
+          return JSON.stringify(out)
+        } catch {
+          return JSON.stringify({})
+        }
+      })()
+
+      try {
+        const svgOnly = String(svgMarkup || '').replace(/^\s*<\?xml[^>]*>\s*/i, '').trim()
+        if (!svgOnly) {
+          pushUiToast({ id: 'export-html-missing-canvas', kind: 'warning', message: 'No inline SVG canvas snapshot available.' })
+          return
+        }
+        const htmlViewer = await buildGraphHtmlViewerMarkup({
+          title: `${exportBaseName} (Canvas)`,
+          svgMarkup: svgOnly,
+          graphData: store.graphData,
+          includeRichMediaOverlays: true,
+          mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
+          threeIframeOverlayBaseWidthRatioDefault: (store as unknown as { threeIframeOverlayBaseWidthRatioDefault?: number }).threeIframeOverlayBaseWidthRatioDefault,
+          threeIframeOverlayBaseWidthRatioCompact: (store as unknown as { threeIframeOverlayBaseWidthRatioCompact?: number }).threeIframeOverlayBaseWidthRatioCompact,
+          threeIframeOverlayBaseWidthMinPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMinPxDefault?: number }).threeIframeOverlayBaseWidthMinPxDefault,
+          threeIframeOverlayBaseWidthMinPxCompact: (store as unknown as { threeIframeOverlayBaseWidthMinPxCompact?: number }).threeIframeOverlayBaseWidthMinPxCompact,
+          threeIframeOverlayBaseWidthMaxPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMaxPxDefault?: number }).threeIframeOverlayBaseWidthMaxPxDefault,
+          threeIframeOverlayBaseWidthMaxPxCompact: (store as unknown as { threeIframeOverlayBaseWidthMaxPxCompact?: number }).threeIframeOverlayBaseWidthMaxPxCompact,
+        })
+        if (!htmlViewer || !htmlViewer.trim()) {
+          pushUiToast({ id: 'export-html-missing-canvas', kind: 'warning', message: 'Failed to build HTML canvas export.' })
+          return
+        }
+        const blob = new Blob([htmlViewer], { type: 'text/html;charset=utf-8' })
+        const name = `${exportBaseName}.canvas-${wants3dExport ? '3d' : '2d'}.html`
+        const saved = await saveBlobWithPicker(blob, name, { description: 'HTML Files', accept: { 'text/html': ['.html'] } })
+        if (saved === '') return
+        if (!saved) downloadBlob(blob, name)
+        return
+      } catch {
+        void 0
+      }
+
       const html = [
         '<!doctype html>',
         `<html lang="en" data-theme="${themeAttr}"${exportHtmlClass ? ` class="${exportHtmlClass.replace(/"/g, '&quot;')}"` : ''}>`,
         '<head>',
         '  <meta charset="utf-8" />',
-        '  <meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+        '  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />',
         `  <title>${exportBaseName} (Canvas)</title>`,
         '  <style>',
         varsCss || '',
+        '    :root{--kg-export-media-pointer-events:none;--kg-export-media-panel-pointer-events:none}',
         `    html { height: 100%; color-scheme: ${themeAttr}; }`,
         '    body { height: 100%; }',
         `    body { margin: 0; background: ${exportBg}; color: ${exportFg}; }`,
@@ -2865,13 +3268,12 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '    .kgExportCanvasStage { width: 100%; height: 100%; position: relative; }',
         '    .kgExportCanvasStage > svg { position: absolute; inset: 0; }',
         '    .kgExportMediaOverlayRoot { position: absolute; inset: 0; z-index: 3; pointer-events: none; }',
-        '    .kgExportMediaPanel { position: absolute; left: 0; top: 0; box-sizing: border-box; overflow: hidden; contain: layout paint; isolation: isolate; border-radius: var(--kg-media-panel-radius, 10px); border: var(--kg-media-panel-border-w, 1px) solid var(--kg-border); background: var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.92))); box-shadow: 0 10px 30px rgba(0,0,0,0.18); backface-visibility: hidden; -webkit-backface-visibility: hidden; will-change: transform, width, height; pointer-events: none; display: flex; flex-direction: column; visibility: hidden; opacity: 0; }',
-        '    .kgExportMediaPanel[data-kg-media-interactive="1"] { pointer-events: auto; }',
-        '    .kgExportMediaHeader { height: var(--kg-media-panel-header-h, 28px); min-height: var(--kg-media-panel-header-h, 28px); box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding-left: var(--kg-media-panel-padding, 6px); padding-right: var(--kg-media-panel-padding, 6px); background: var(--kg-media-panel-header-bg, var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.96)))); border-bottom: var(--kg-media-panel-border-w, 1px) solid var(--kg-border); color: var(--kg-text-primary, var(--kg-text)); font-size: var(--kg-media-panel-title-size, 12px); font-weight: 600; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: auto; user-select: none; }',
+        '    .kgExportMediaPanel { position: absolute; left: 0; top: 0; box-sizing: border-box; overflow: hidden; contain: layout paint; isolation: isolate; border-radius: var(--kg-media-panel-radius, 10px); border: var(--kg-media-panel-border-w, 1px) solid var(--kg-border); background: var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.92))); box-shadow: 0 10px 30px rgba(0,0,0,0.18); backface-visibility: hidden; -webkit-backface-visibility: hidden; will-change: transform, width, height; pointer-events: auto; display: flex; flex-direction: column; visibility: hidden; opacity: 0; touch-action: none; }',
+        '    .kgExportMediaHeader { height: var(--kg-media-panel-header-h, 28px); min-height: var(--kg-media-panel-header-h, 28px); box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding-left: var(--kg-media-panel-padding, 6px); padding-right: var(--kg-media-panel-padding, 6px); background: var(--kg-media-panel-header-bg, var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.96)))); border-bottom: var(--kg-media-panel-border-w, 1px) solid var(--kg-border); color: var(--kg-text-primary, var(--kg-text)); font-size: var(--kg-media-panel-title-size, 12px); font-weight: 600; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: grab; touch-action: none; pointer-events: auto; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }',
         '    .kgExportMediaBody { flex: 1; padding: var(--kg-media-panel-padding, 6px); box-sizing: border-box; min-height: 0; }',
+        '    .kgExportMediaBody iframe,.kgExportMediaBody img,.kgExportMediaBody video { pointer-events: var(--kg-export-media-pointer-events, none); }',
         '    .kgExportThreeRoot { place-items: stretch; position: relative; }',
         '    #kgExportThreeCanvas { width: 100%; height: 100%; display: block; }',
-        '    .kgExportThreeSnapshot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 1; }',
         '    .kgExportThreeRoot canvas { position: relative; z-index: 2; }',
         `    .kgExportTooltip { position: fixed; z-index: 2147483647; padding: 6px 8px; border-radius: 8px; font-size: 12px; line-height: 1.2; max-width: min(560px, 70vw); white-space: pre-wrap; pointer-events: none; user-select: none; background: ${tooltipBgToken}; color: ${tooltipTextToken}; border: 1px solid rgba(255,255,255,0.18); box-shadow: 0 10px 30px rgba(0,0,0,0.35); }`,
         '    @keyframes kgNodeBob { 0% { translate: 0 0; } 50% { translate: 0 calc(var(--kg-bob-amp, 2px) * -1); } 100% { translate: 0 0; } }',
@@ -2888,7 +3290,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         bodyHtml,
         threeModuleScript
           ? '  <script type="module">\n' +
-            `const __KG_THREE_FALLBACK_PNG = ${JSON.stringify(threeFallbackPngDataUrl)};\n` +
             'window.__KG_EXPORT_THREE_STATUS = "init";\n' +
             'const __kgMarkThreeStatus = (kind, detail) => {\n' +
             '  try {\n' +
@@ -2916,18 +3317,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             '\n__kgMarkThreeStatus("ok", "");\n' +
             '\n} catch (e) {\n' +
             '  try { console.error(e); } catch {}\n' +
-            '  __kgMarkThreeStatus("fallback", `3D export fallback: ${e && e.message ? e.message : e}`);\n' +
-            '  try {\n' +
-            '    const root = document.querySelector(".kgExportCanvasRoot");\n' +
-            '    if (root && __KG_THREE_FALLBACK_PNG) {\n' +
-            '      root.classList.remove("kgExportThreeRoot");\n' +
-            '      const img = document.createElement("img");\n' +
-            '      img.className = "kgExportCanvasImg";\n' +
-            '      img.alt = "Canvas snapshot";\n' +
-            '      img.src = String(__KG_THREE_FALLBACK_PNG);\n' +
-            '      root.replaceChildren(img);\n' +
-            '    }\n' +
-            '  } catch {}\n' +
+            '  __kgMarkThreeStatus("error", `3D export error: ${e && e.message ? e.message : e}`);\n' +
             '}\n' +
             '  </script>'
           : '',
@@ -2939,6 +3329,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '      const img = root.querySelector("img.kgExportCanvasImg");',
         '      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));',
         `      const MEDIA_CFG = ${mediaCfgJson};`,
+        `      const GROUP_MEMBERS = ${groupMembersJson};`,
         `      const LABELS = (() => {`,
         `        try {`,
         `          const raw = "${labelsForExportB64}";`,
@@ -2993,8 +3384,33 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '          const h = Number(el.getAttribute("height"));',
         '          if ([x,y,w,h].every(n => Number.isFinite(n))) return { x: x + w / 2, y: y + h / 2 };',
         '        }',
-        '        if (tag === "path" || tag === "g") {',
+        '        if (tag === "path") {',
         '          const t = parseTranslate(el.getAttribute("transform"));',
+        '          if (t) return t;',
+        '        }',
+        '        if (tag === "g") {',
+        '          const t = parseTranslate(el.getAttribute("transform"));',
+        '          let base = null;',
+        '          try {',
+        '            const c = el.querySelector && el.querySelector("circle[data-role=\\"node-circle\\"],circle[cx][cy]");',
+        '            if (c) {',
+        '              const cx = Number(c.getAttribute("cx"));',
+        '              const cy = Number(c.getAttribute("cy"));',
+        '              if (Number.isFinite(cx) && Number.isFinite(cy)) base = { x: cx, y: cy };',
+        '            }',
+        '            if (!base) {',
+        '              const r = el.querySelector && el.querySelector("rect[x][y][width][height]");',
+        '              if (r) {',
+        '                const x = Number(r.getAttribute("x"));',
+        '                const y = Number(r.getAttribute("y"));',
+        '                const w = Number(r.getAttribute("width"));',
+        '                const h = Number(r.getAttribute("height"));',
+        '                if ([x,y,w,h].every(n => Number.isFinite(n))) base = { x: x + w / 2, y: y + h / 2 };',
+        '              }',
+        '            }',
+        '          } catch { }',
+        '          if (base && t) return { x: base.x + t.x, y: base.y + t.y };',
+        '          if (base) return base;',
         '          if (t) return t;',
         '        }',
         '        return null;',
@@ -3061,29 +3477,77 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '          tooltip.style.display = "";',
         '        };',
         '        const hideTip = () => { tooltip.style.display = "none"; };',
+        '        const clearSelection = () => {',
+        '          try {',
+        '            const s = (window.getSelection && window.getSelection()) || null;',
+        '            if (s && s.removeAllRanges) s.removeAllRanges();',
+        '          } catch { }',
+        '        };',
+        '        const resolveHitElement = (clientX, clientY, fallback) => {',
+        '          try {',
+        '            const list = typeof document.elementsFromPoint === "function" ? document.elementsFromPoint(clientX, clientY) : null;',
+        '            if (list && list.length) {',
+        '              for (let i = 0; i < list.length; i += 1) {',
+        '                const el = list[i];',
+        '                if (!(el instanceof Element)) continue;',
+        '                if (el.classList && el.classList.contains("kgExportMediaOverlayRoot")) continue;',
+        '                return el;',
+        '              }',
+        '            }',
+        '          } catch { }',
+        '          try {',
+        '            if (fallback && fallback instanceof Element) return fallback;',
+        '            if (fallback && fallback.parentElement) return fallback.parentElement;',
+        '          } catch { }',
+        '          return null;',
+        '        };',
         '        let pan = null;',
-        '        svg.addEventListener("pointerdown", (e) => {',
-        '          if (e.button !== 0) return;',
-        '          if (e.target !== svg) return;',
+        '        const isMediaHeaderTarget = (t) => {',
+        '          try { return (t instanceof Element) ? !!t.closest(".kgExportMediaHeader") : false; } catch { return false; }',
+        '        };',
+        '        const isMediaBodyTarget = (t) => {',
+        '          try { return (t instanceof Element) ? !!t.closest(".kgExportMediaBody") : false; } catch { return false; }',
+        '        };',
+        '        root.addEventListener("pointerdown", (e) => {',
+        '          if (!e) return;',
+        '          try {',
+        '            const hid = hitHeaderNodeId(e.clientX, e.clientY);',
+        '            if (hid) { startHeaderDrag(e, hid); return; }',
+        '          } catch { }',
+        '          if (e.defaultPrevented) return;',
+        '          if (typeof e.button === "number" && e.button !== 0) return;',
+        '          const t = resolveHitElement(e.clientX, e.clientY, e.target);',
+        '          if (isMediaHeaderTarget(t)) return;',
+        '          try { clearSelection(); } catch { }',
+        '          if (getComputedStyle(document.documentElement).getPropertyValue("--kg-export-media-pointer-events").trim() === "auto" && isMediaBodyTarget(t)) return;',
         '          const p = svgPoint(e.clientX, e.clientY);',
         '          if (!p) return;',
-        '          try { svg.setPointerCapture(e.pointerId); } catch { }',
+        '          try { root.setPointerCapture(e.pointerId); } catch { }',
         '          pan = { sx: p.x, sy: p.y, vb: { ...vb }, pointerId: e.pointerId };',
-          '          hideTip();',
+        '          hideTip();',
         '          try { e.preventDefault(); } catch { }',
         '        }, { passive: false });',
-        '        svg.addEventListener("pointermove", (e) => {',
+        '        root.addEventListener("pointermove", (e) => {',
+        '          if (!e) return;',
+        '          if (e.defaultPrevented) return;',
         '          if (!pan || e.pointerId !== pan.pointerId) return;',
         '          const p = svgPoint(e.clientX, e.clientY);',
         '          if (!p) return;',
         '          vb = { ...pan.vb, x: pan.vb.x - (p.x - pan.sx), y: pan.vb.y - (p.y - pan.sy) };',
         '          applyVb(vb);',
         '          try { updateMediaOverlays(); } catch { }',
-        '        });',
-        '        svg.addEventListener("pointerup", (e) => {',
+        '          try { e.preventDefault(); } catch { }',
+        '        }, { passive: false });',
+        '        root.addEventListener("pointerup", (e) => {',
+        '          if (!e) return;',
         '          if (!pan || e.pointerId !== pan.pointerId) return;',
         '          pan = null;',
-        '        });',
+        '        }, { passive: false });',
+        '        root.addEventListener("pointercancel", (e) => {',
+        '          if (!e) return;',
+        '          if (!pan || e.pointerId !== pan.pointerId) return;',
+        '          pan = null;',
+        '        }, { passive: false });',
         '        svg.addEventListener("wheel", (e) => {',
         '          const p = svgPoint(e.clientX, e.clientY);',
         '          if (!p) return;',
@@ -3102,12 +3566,24 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '          const cur = m.get(k);',
         '          if (cur) cur.push(v); else m.set(k, [v]);',
         '        };',
-        '        const nodeShapeSelector = \'circle[data-node-id],rect[data-node-id],path[data-node-id][data-kg-node-shape],g.media-node-panel[data-node-id]\';',
+        '        const nodeShapeSelector = \'circle[data-node-id],rect[data-node-id],path[data-node-id][data-kg-node-shape],g.media-node-panel[data-node-id],g[data-node-id]\';',
         '        const nodeShapesById = new Map();',
         '        for (const el of Array.from(svg.querySelectorAll(nodeShapeSelector))) {',
         '          const id = String(el.getAttribute("data-node-id") || "");',
         '          pushMap(nodeShapesById, id, el);',
         '        }',
+        '        try {',
+        '          for (const g of Array.from(svg.querySelectorAll("g[data-node-id]"))) {',
+        '            if (!(g instanceof Element)) continue;',
+        '            const id = String(g.getAttribute("data-node-id") || "");',
+        '            if (!id) continue;',
+        '            const derived = g.querySelectorAll ? g.querySelectorAll("circle[cx][cy],rect[x][y][width][height],text[x][y]") : [];',
+        '            for (const el of Array.from(derived)) {',
+        '              if (!(el instanceof Element)) continue;',
+        '              pushMap(nodeShapesById, id, el);',
+        '            }',
+        '          }',
+        '        } catch { }',
         '        const mediaRoot = root.querySelector(".kgExportMediaOverlayRoot");',
         '        const mediaPanels = mediaRoot ? Array.from(mediaRoot.querySelectorAll(".kgExportMediaPanel[data-node-id]")) : [];',
         '        let lastMediaVarsKey = "";',
@@ -3194,7 +3670,15 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '            const id = String(panelEl.getAttribute("data-node-id") || "");',
         '            if (!id) continue;',
         '            const list = nodeShapesById.get(id);',
-        '            const shapeEl = list && list.length ? list[0] : null;',
+        '            let shapeEl = null;',
+        '            if (list && list.length) {',
+        '              for (let i = 0; i < list.length; i += 1) {',
+        '                const el = list[i];',
+        '                if (!(el instanceof Element)) continue;',
+        '                if ((el.hasAttribute("cx") && el.hasAttribute("cy")) || (el.hasAttribute("x") && el.hasAttribute("y"))) { shapeEl = el; break; }',
+        '              }',
+        '              if (!shapeEl) shapeEl = list[0];',
+        '            }',
         '            const center = shapeEl ? getNodeCenter(shapeEl) : null;',
         '            if (!center) {',
         '              panelEl.style.visibility = "hidden";',
@@ -3209,8 +3693,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '            }',
         '            const cx = client.x - rect.left;',
         '            const cy = client.y - rect.top;',
-        '            const left = Math.round(cx - lastMediaPanelW / 2);',
-        '            const top = Math.round(cy - lastMediaPanelH / 2);',
+        '            let left = Math.round(cx - lastMediaPanelW / 2);',
+        '            let top = Math.round(cy - lastMediaPanelH / 2);',
         '            if (varsChanged) applyVars(panelEl, lastMediaVars);',
         '            panelEl.style.width = `${Math.round(lastMediaPanelW)}px`;',
         '            panelEl.style.height = `${Math.round(lastMediaPanelH)}px`;',
@@ -3221,6 +3705,173 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '        };',
         '        try { updateMediaOverlays(); } catch { }',
         '        try { window.addEventListener("resize", () => { try { updateMediaOverlays(); } catch { } }); } catch { }',
+        '        let headerDrag = null;',
+        '        let prevUserSelect = "";',
+        '        let prevBodyUserSelect = "";',
+        '        const lockUserSelect = () => {',
+        '          try { prevUserSelect = document.documentElement.style.userSelect || ""; document.documentElement.style.userSelect = "none"; } catch { }',
+        '          try { prevBodyUserSelect = document.body.style.userSelect || ""; document.body.style.userSelect = "none"; } catch { }',
+        '        };',
+        '        const unlockUserSelect = () => {',
+        '          try { document.documentElement.style.userSelect = prevUserSelect || ""; } catch { }',
+        '          try { document.body.style.userSelect = prevBodyUserSelect || ""; } catch { }',
+        '        };',
+        '        const hitHeaderNodeId = (clientX, clientY) => {',
+        '          try {',
+        '            const list = typeof document.elementsFromPoint === "function" ? document.elementsFromPoint(clientX, clientY) : null;',
+        '            if (list && list.length) {',
+        '              for (let i = 0; i < list.length; i += 1) {',
+        '                const el = list[i];',
+        '                if (!(el instanceof Element)) continue;',
+        '                const header = el.closest ? el.closest(".kgExportMediaHeader") : null;',
+        '                if (!header) continue;',
+        '                const panel = header.closest ? header.closest(".kgExportMediaPanel[data-node-id]") : null;',
+        '                if (!panel) continue;',
+        '                const id = String(panel.getAttribute("data-node-id") || "");',
+        '                if (id) return id;',
+        '              }',
+        '            }',
+        '          } catch { }',
+        '          try {',
+        '            if (!mediaPanels || !mediaPanels.length) return "";',
+        '            for (let i = 0; i < mediaPanels.length; i += 1) {',
+        '              const panelEl = mediaPanels[i];',
+        '              if (!(panelEl instanceof Element)) continue;',
+        '              const id = String(panelEl.getAttribute("data-node-id") || "");',
+        '              if (!id) continue;',
+        '              const r = panelEl.getBoundingClientRect();',
+        '              if (!r || !Number.isFinite(r.left) || !Number.isFinite(r.top)) continue;',
+        '              if (clientX < r.left || clientX > r.right || clientY < r.top || clientY > r.bottom) continue;',
+        '              let hh = 0;',
+        '              try {',
+        '                const header = panelEl.querySelector && panelEl.querySelector(".kgExportMediaHeader");',
+        '                if (header && header.getBoundingClientRect) {',
+        '                  const hr = header.getBoundingClientRect();',
+        '                  if (hr && Number.isFinite(hr.height)) hh = hr.height;',
+        '                }',
+        '              } catch { }',
+        '              if (!(hh > 0)) {',
+        '                try {',
+        '                  const v = parseFloat(String(getComputedStyle(panelEl).getPropertyValue("--kg-media-panel-header-h") || "").trim() || "NaN");',
+        '                  if (Number.isFinite(v) && v > 0) hh = v;',
+        '                } catch { }',
+        '              }',
+        '              const headerH = Math.max(8, Number.isFinite(hh) && hh > 0 ? hh : 28);',
+        '              if (clientY <= r.top + headerH) return id;',
+        '            }',
+        '          } catch { }',
+        '          return "";',
+        '        };',
+        '        const onHeaderMove = (ev) => {',
+        '          const s = headerDrag;',
+        '          if (!s || !ev || ev.pointerId !== s.pointerId) return;',
+        '          const p = svgPoint(ev.clientX, ev.clientY);',
+        '          if (!p) return;',
+        '          const dx = p.x - s.px;',
+        '          const dy = p.y - s.py;',
+        '          s.px = p.x;',
+        '          s.py = p.y;',
+        '          if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;',
+        '          translateNodeByDelta(s.id, dx, dy);',
+        '          try { updateMediaOverlays(); } catch { }',
+        '        };',
+        '        const endHeaderDrag = (ev) => {',
+        '          const s = headerDrag;',
+        '          if (!s || !ev || ev.pointerId !== s.pointerId) return;',
+        '          headerDrag = null;',
+        '          unlockUserSelect();',
+        '          try { window.removeEventListener("pointermove", onHeaderMove, true); } catch { }',
+        '          try { window.removeEventListener("pointerup", endHeaderDrag, true); } catch { }',
+        '          try { window.removeEventListener("pointercancel", endHeaderDrag, true); } catch { }',
+        '        };',
+        '        const onHeaderMouseMove = (ev) => {',
+        '          const s = headerDrag;',
+        '          if (!s || s.pointerId !== -1) return;',
+        '          const p = svgPoint(ev.clientX, ev.clientY);',
+        '          if (!p) return;',
+        '          const dx = p.x - s.px;',
+        '          const dy = p.y - s.py;',
+        '          s.px = p.x;',
+        '          s.py = p.y;',
+        '          if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;',
+        '          translateNodeByDelta(s.id, dx, dy);',
+        '          try { updateMediaOverlays(); } catch { }',
+        '        };',
+        '        const endHeaderMouseDrag = () => {',
+        '          const s = headerDrag;',
+        '          if (!s || s.pointerId !== -1) return;',
+        '          headerDrag = null;',
+        '          unlockUserSelect();',
+        '          try { window.removeEventListener("mousemove", onHeaderMouseMove, true); } catch { }',
+        '          try { window.removeEventListener("mouseup", endHeaderMouseDrag, true); } catch { }',
+        '        };',
+        '        const startHeaderDrag = (e, id) => {',
+        '          if (!e || !id) return false;',
+        '          if (headerDrag) return false;',
+        '          try {',
+        '            const p0 = svgPoint(e.clientX, e.clientY);',
+        '            if (!p0) return false;',
+        '            lockUserSelect();',
+        '            headerDrag = { id, pointerId: e.pointerId, px: p0.x, py: p0.y };',
+        '            try { e.preventDefault(); } catch { }',
+        '            try { e.stopPropagation(); } catch { }',
+        '            try { window.addEventListener("pointermove", onHeaderMove, { passive: true, capture: true }); } catch { }',
+        '            try { window.addEventListener("pointerup", endHeaderDrag, { passive: true, capture: true }); } catch { }',
+        '            try { window.addEventListener("pointercancel", endHeaderDrag, { passive: true, capture: true }); } catch { }',
+        '            return true;',
+        '          } catch {',
+        '            return false;',
+        '          }',
+        '        };',
+        '        const startHeaderMouseDrag = (e, id) => {',
+        '          if (!e || !id) return false;',
+        '          if (headerDrag) return false;',
+        '          try {',
+        '            const p0 = svgPoint(e.clientX, e.clientY);',
+        '            if (!p0) return false;',
+        '            lockUserSelect();',
+        '            headerDrag = { id, pointerId: -1, px: p0.x, py: p0.y };',
+        '            try { e.preventDefault(); } catch { }',
+        '            try { e.stopPropagation(); } catch { }',
+        '            try { window.addEventListener("mousemove", onHeaderMouseMove, { passive: true, capture: true }); } catch { }',
+        '            try { window.addEventListener("mouseup", endHeaderMouseDrag, { passive: true, capture: true }); } catch { }',
+        '            return true;',
+        '          } catch {',
+        '            return false;',
+        '          }',
+        '        };',
+        '        try {',
+        '          window.addEventListener("pointerdown", (e) => {',
+        '            if (!e) return;',
+        '            if (typeof e.button === "number" && e.button !== 0) return;',
+        '            if (e.defaultPrevented) return;',
+        '            const hid = hitHeaderNodeId(e.clientX, e.clientY);',
+        '            if (!hid) return;',
+        '            startHeaderDrag(e, hid);',
+        '          }, { passive: false, capture: true });',
+        '          window.addEventListener("mousedown", (e) => {',
+        '            if (!e) return;',
+        '            if (typeof e.button === "number" && e.button !== 0) return;',
+        '            if (e.defaultPrevented) return;',
+        '            const hid = hitHeaderNodeId(e.clientX, e.clientY);',
+        '            if (!hid) return;',
+        '            startHeaderMouseDrag(e, hid);',
+        '          }, { passive: false, capture: true });',
+        '        } catch { }',
+        '        try {',
+        '          for (const panelEl of mediaPanels) {',
+        '            const id = String(panelEl.getAttribute("data-node-id") || "");',
+        '            if (!id) continue;',
+        '            const headerEl = panelEl.querySelector && panelEl.querySelector(".kgExportMediaHeader");',
+        '            if (!(headerEl instanceof Element)) continue;',
+        '            headerEl.addEventListener("pointerdown", (e) => {',
+        '              if (!e) return;',
+        '              if (typeof e.button === "number" && e.button !== 0) return;',
+        '              if (e.defaultPrevented) return;',
+              '              startHeaderDrag(e, id);',
+        '            }, { passive: false, capture: true });',
+        '          }',
+        '        } catch { }',
         '        const nodeLabelsById = new Map();',
         '        for (const el of Array.from(svg.querySelectorAll(\'g[data-kg-layer="labels"] text[data-node-id]\'))) {',
         '          const id = String(el.getAttribute("data-node-id") || "");',
@@ -3236,16 +3887,14 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '          const id = String(el.getAttribute("data-node-id") || "");',
         '          pushMap(portHandlesById, id, el);',
         '        }',
-        '        const edgeEls = Array.from(svg.querySelectorAll("line[data-source-id][data-target-id]"));',
-        '        const edgeByNode = new Map();',
+        '        const edgeEls = Array.from(svg.querySelectorAll("line[data-source-id][data-target-id],line[data-source][data-target]"));',
+        '        const edgeRefsByNode = new Map();',
         '        for (const el of edgeEls) {',
-        '          const s = String(el.getAttribute("data-source-id") || "");',
-        '          const t = String(el.getAttribute("data-target-id") || "");',
+        '          const s = String(el.getAttribute("data-source-id") || el.getAttribute("data-source") || "");',
+        '          const t = String(el.getAttribute("data-target-id") || el.getAttribute("data-target") || "");',
         '          if (!s || !t) continue;',
-        '          if (!edgeByNode.has(s)) edgeByNode.set(s, []);',
-        '          if (!edgeByNode.has(t)) edgeByNode.set(t, []);',
-        '          edgeByNode.get(s).push(el);',
-        '          edgeByNode.get(t).push(el);',
+        '          pushMap(edgeRefsByNode, s, { el, end: "s" });',
+        '          pushMap(edgeRefsByNode, t, { el, end: "t" });',
         '        }',
         '        const edgeLabelsById = new Map();',
         '        for (const el of Array.from(svg.querySelectorAll(\'g[data-kg-layer="edge-labels"] text[data-edge-id]\'))) {',
@@ -3253,6 +3902,223 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         '          if (!id) continue;',
         '          edgeLabelsById.set(id, el);',
         '        }',
+        '        const groupElsById = new Map();',
+        '        for (const el of Array.from(svg.querySelectorAll("[data-kg-group-id]"))) {',
+        '          const gid = String(el.getAttribute("data-kg-group-id") || "");',
+        '          if (!gid) continue;',
+        '          pushMap(groupElsById, gid, el);',
+        '        }',
+        '        const addDeltaToEl = (el, dx, dy) => {',
+        '          if (!(el instanceof Element)) return;',
+        '          const tag = String(el.tagName || "").toLowerCase();',
+        '          if (el.hasAttribute("cx") && el.hasAttribute("cy")) {',
+        '            const cx = Number(el.getAttribute("cx"));',
+        '            const cy = Number(el.getAttribute("cy"));',
+        '            if (Number.isFinite(cx) && Number.isFinite(cy)) {',
+        '              el.setAttribute("cx", String(cx + dx));',
+        '              el.setAttribute("cy", String(cy + dy));',
+        '              return;',
+        '            }',
+        '          }',
+        '          if (el.hasAttribute("x") && el.hasAttribute("y")) {',
+        '            const x = Number(el.getAttribute("x"));',
+        '            const y = Number(el.getAttribute("y"));',
+        '            if (Number.isFinite(x) && Number.isFinite(y)) {',
+        '              el.setAttribute("x", String(x + dx));',
+        '              el.setAttribute("y", String(y + dy));',
+        '              return;',
+        '            }',
+        '          }',
+        '          const tr = String(el.getAttribute("transform") || "");',
+        '          const m = tr.match(/translate\\(\\s*([-0-9.]+)\\s*[ ,]\\s*([-0-9.]+)\\s*\\)/);',
+        '          if (m) {',
+        '            const tx = Number(m[1]);',
+        '            const ty = Number(m[2]);',
+        '            if (Number.isFinite(tx) && Number.isFinite(ty)) {',
+        '              el.setAttribute("transform", tr.replace(m[0], `translate(${tx + dx},${ty + dy})`));',
+        '              return;',
+        '            }',
+        '          }',
+        '          if (tag === "path" || tag === "g") {',
+        '            try {',
+        '              const base = el.dataset && typeof el.dataset.kgBaseTransform === "string" ? String(el.dataset.kgBaseTransform || "") : tr;',
+        '              if (el.dataset && typeof el.dataset.kgBaseTransform !== "string") el.dataset.kgBaseTransform = base;',
+        '              const ox = el.dataset && Number.isFinite(Number(el.dataset.kgTx)) ? Number(el.dataset.kgTx) : 0;',
+        '              const oy = el.dataset && Number.isFinite(Number(el.dataset.kgTy)) ? Number(el.dataset.kgTy) : 0;',
+        '              const nx = ox + dx;',
+        '              const ny = oy + dy;',
+        '              if (el.dataset) { el.dataset.kgTx = String(nx); el.dataset.kgTy = String(ny); }',
+        '              el.setAttribute("transform", (`translate(${nx},${ny}) ${base}`).trim());',
+        '            } catch { }',
+        '          }',
+        '        };',
+        '        const addDeltaToEdgeEnd = (el, end, dx, dy) => {',
+        '          if (!(el instanceof Element)) return;',
+        '          const ax = end === "s" ? "x1" : "x2";',
+        '          const ay = end === "s" ? "y1" : "y2";',
+        '          if (!el.hasAttribute(ax) || !el.hasAttribute(ay)) return;',
+        '          const x = Number(el.getAttribute(ax) || "NaN");',
+        '          const y = Number(el.getAttribute(ay) || "NaN");',
+        '          if (!Number.isFinite(x) || !Number.isFinite(y)) return;',
+        '          el.setAttribute(ax, String(x + dx));',
+        '          el.setAttribute(ay, String(y + dy));',
+        '        };',
+        '        const translateNodeByDelta = (id, dx, dy) => {',
+        '          const s = String(id || "");',
+        '          if (!s) return;',
+        '          const lists = [nodeShapesById.get(s), nodeLabelsById.get(s), nodeChevronsById.get(s), portHandlesById.get(s)];',
+        '          for (let i = 0; i < lists.length; i += 1) {',
+        '            const arr = lists[i];',
+        '            if (!arr || !arr.length) continue;',
+        '            for (let j = 0; j < arr.length; j += 1) addDeltaToEl(arr[j], dx, dy);',
+        '          }',
+        '          const refs = edgeRefsByNode.get(s);',
+        '          if (refs && refs.length) {',
+        '            for (let i = 0; i < refs.length; i += 1) {',
+        '              const r = refs[i];',
+        '              if (!r || !r.el) continue;',
+        '              addDeltaToEdgeEnd(r.el, r.end, dx, dy);',
+        '            }',
+        '          }',
+        '        };',
+        '        const translateGroupByDelta = (gid, dx, dy) => {',
+        '          const g = String(gid || "");',
+        '          if (!g) return;',
+        '          const gels = groupElsById.get(g);',
+        '          if (gels && gels.length) {',
+        '            for (let i = 0; i < gels.length; i += 1) addDeltaToEl(gels[i], dx, dy);',
+        '          }',
+        '          const members = GROUP_MEMBERS && typeof GROUP_MEMBERS === "object" ? GROUP_MEMBERS[g] : null;',
+        '          if (Array.isArray(members) && members.length) {',
+        '            for (let i = 0; i < members.length; i += 1) translateNodeByDelta(members[i], dx, dy);',
+        '          }',
+        '        };',
+        '        let nodeDrag = null;',
+        '        let groupDrag = null;',
+        '        let edgeDrag = null;',
+        '        root.addEventListener("pointerdown", (e) => {',
+        '          if (!e) return;',
+        '          try {',
+        '            const hid = hitHeaderNodeId(e.clientX, e.clientY);',
+        '            if (hid) { startHeaderDrag(e, hid); return; }',
+        '          } catch { }',
+        '          if (typeof e.button === "number" && e.button !== 0) return;',
+        '          const t = resolveHitElement(e.clientX, e.clientY, e.target);',
+        '          if (!(t instanceof Element)) return;',
+        '          if (t.closest && t.closest(".kgExportMediaHeader")) return;',
+        '          try {',
+        '            const path = typeof e.composedPath === "function" ? e.composedPath() : null;',
+        '            let panelFromPath = null;',
+        '            if (Array.isArray(path)) {',
+        '              for (let i = 0; i < path.length; i += 1) {',
+        '                const it = path[i];',
+        '                if (!(it instanceof Element)) continue;',
+        '                const p = it.closest ? it.closest(".kgExportMediaPanel[data-node-id]") : null;',
+        '                if (p) { panelFromPath = p; break; }',
+        '              }',
+        '            }',
+        '            const panel = panelFromPath || (t.closest ? t.closest(".kgExportMediaPanel[data-node-id]") : null);',
+        '            if (panel) {',
+        '              const pid = String(panel.getAttribute("data-node-id") || "");',
+        '              if (pid) {',
+        '                const p0 = svgPoint(e.clientX, e.clientY);',
+        '                if (p0) {',
+        '                  nodeDrag = { id: pid, pointerId: e.pointerId, x: p0.x, y: p0.y };',
+        '                  try { root.setPointerCapture(e.pointerId); } catch { }',
+        '                  try { clearSelection(); } catch { }',
+        '                  try { e.preventDefault(); } catch { }',
+        '                  try { e.stopPropagation(); } catch { }',
+        '                  return;',
+        '                }',
+        '              }',
+        '            }',
+        '          } catch { }',
+        '          const mediaBody = t.closest(".kgExportMediaBody");',
+        '          if (mediaBody) {',
+        '            const panel = mediaBody.closest(".kgExportMediaPanel");',
+        '            const kind = panel ? String(panel.getAttribute("data-kg-media-kind") || "") : "";',
+        '            if (kind === "iframe") return;',
+        '          }',
+        '          const p = svgPoint(e.clientX, e.clientY);',
+        '          if (!p) return;',
+        '          const edgeEl = t.closest("line[data-edge-id]");',
+        '          if (edgeEl) {',
+        '            const sid = String(edgeEl.getAttribute("data-source-id") || edgeEl.getAttribute("data-source") || "");',
+        '            const tid = String(edgeEl.getAttribute("data-target-id") || edgeEl.getAttribute("data-target") || "");',
+        '            if (sid && tid) {',
+        '              edgeDrag = { s: sid, t: tid, pointerId: e.pointerId, x: p.x, y: p.y };',
+        '              try { root.setPointerCapture(e.pointerId); } catch { }',
+        '              try { clearSelection(); } catch { }',
+        '              try { e.preventDefault(); } catch { }',
+        '              try { e.stopPropagation(); } catch { }',
+        '              return;',
+        '            }',
+        '          }',
+        '          const gEl = t.closest("[data-kg-group-id]");',
+        '          if (gEl) {',
+        '            const gid = String(gEl.getAttribute("data-kg-group-id") || "");',
+        '            if (gid) { groupDrag = { id: gid, pointerId: e.pointerId, x: p.x, y: p.y }; try { root.setPointerCapture(e.pointerId); } catch { } try { clearSelection(); } catch { } try { e.preventDefault(); } catch { } try { e.stopPropagation(); } catch { } return; }',
+        '          }',
+        '          const nEl = t.closest("[data-node-id]");',
+        '          if (nEl) {',
+        '            const id = String(nEl.getAttribute("data-node-id") || "");',
+        '            if (id) { nodeDrag = { id, pointerId: e.pointerId, x: p.x, y: p.y }; try { root.setPointerCapture(e.pointerId); } catch { } try { clearSelection(); } catch { } try { e.preventDefault(); } catch { } try { e.stopPropagation(); } catch { } }',
+        '          }',
+        '        }, { passive: false, capture: true });',
+        '        root.addEventListener("pointermove", (e) => {',
+        '          if (!e) return;',
+        '          if (edgeDrag && e.pointerId === edgeDrag.pointerId) {',
+        '            const p = svgPoint(e.clientX, e.clientY);',
+        '            if (!p) return;',
+        '            const dx = p.x - edgeDrag.x;',
+        '            const dy = p.y - edgeDrag.y;',
+        '            edgeDrag.x = p.x;',
+        '            edgeDrag.y = p.y;',
+        '            translateNodeByDelta(edgeDrag.s, dx, dy);',
+        '            translateNodeByDelta(edgeDrag.t, dx, dy);',
+        '            try { updateMediaOverlays(); } catch { }',
+        '            try { e.preventDefault(); } catch { }',
+        '            try { e.stopPropagation(); } catch { }',
+        '            return;',
+        '          }',
+        '          if (nodeDrag && e.pointerId === nodeDrag.pointerId) {',
+        '            const p = svgPoint(e.clientX, e.clientY);',
+        '            if (!p) return;',
+        '            const dx = p.x - nodeDrag.x;',
+        '            const dy = p.y - nodeDrag.y;',
+        '            nodeDrag.x = p.x;',
+        '            nodeDrag.y = p.y;',
+        '            translateNodeByDelta(nodeDrag.id, dx, dy);',
+        '            try { updateMediaOverlays(); } catch { }',
+        '            try { e.preventDefault(); } catch { }',
+        '            try { e.stopPropagation(); } catch { }',
+        '            return;',
+        '          }',
+        '          if (groupDrag && e.pointerId === groupDrag.pointerId) {',
+        '            const p = svgPoint(e.clientX, e.clientY);',
+        '            if (!p) return;',
+        '            const dx = p.x - groupDrag.x;',
+        '            const dy = p.y - groupDrag.y;',
+        '            groupDrag.x = p.x;',
+        '            groupDrag.y = p.y;',
+        '            translateGroupByDelta(groupDrag.id, dx, dy);',
+        '            try { updateMediaOverlays(); } catch { }',
+        '            try { e.preventDefault(); } catch { }',
+        '            try { e.stopPropagation(); } catch { }',
+        '          }',
+        '        }, { passive: false, capture: true });',
+        '        root.addEventListener("pointerup", (e) => {',
+        '          if (!e) return;',
+        '          if (edgeDrag && e.pointerId === edgeDrag.pointerId) { edgeDrag = null; try { e.preventDefault(); } catch { } try { e.stopPropagation(); } catch { } }',
+        '          if (nodeDrag && e.pointerId === nodeDrag.pointerId) { nodeDrag = null; try { e.preventDefault(); } catch { } try { e.stopPropagation(); } catch { } }',
+        '          if (groupDrag && e.pointerId === groupDrag.pointerId) { groupDrag = null; try { e.preventDefault(); } catch { } try { e.stopPropagation(); } catch { } }',
+        '        }, { passive: false, capture: true });',
+        '        root.addEventListener("pointercancel", (e) => {',
+        '          if (!e) return;',
+        '          if (edgeDrag && e.pointerId === edgeDrag.pointerId) edgeDrag = null;',
+        '          if (nodeDrag && e.pointerId === nodeDrag.pointerId) nodeDrag = null;',
+        '          if (groupDrag && e.pointerId === groupDrag.pointerId) groupDrag = null;',
+        '        }, { passive: true, capture: true });',
         '        let lastTipKey = "";',
         '        const tipForNode = (id) => {',
         '          const s = String(id || "");',
@@ -3556,7 +4422,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       ].join('\n')
 
       const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-      const name = `${exportBaseName}.canvas.html`
+      const name = `${exportBaseName}.canvas-${wants3dExport ? '3d' : '2d'}.html`
       const saved = await saveBlobWithPicker(blob, name, { description: 'HTML Files', accept: { 'text/html': ['.html'] } })
       if (saved === '') return
       if (!saved) downloadBlob(blob, name)
