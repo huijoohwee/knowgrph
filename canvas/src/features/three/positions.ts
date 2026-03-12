@@ -1,6 +1,7 @@
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeConfig } from '@/lib/graph/schema'
+import { resolveGroupCollisions, type CollisionGroupItem } from '@/lib/graph/collision/boxCollision'
 
 export type Vec3 = [number, number, number]
 
@@ -69,6 +70,11 @@ export function computePositions3d(nodes: GraphNode[], schema: GraphSchema | nul
     return map
   })()
   const layerSpacing = 20
+  const canRelax = typeof minSpacingCfg === 'number' && Number.isFinite(minSpacingCfg) && minSpacingCfg > 0
+  const nodeIndexById = new Map<string, number>()
+  const relaxNodes: Array<{ vx: number; vy: number; vz: number }> = []
+  const relaxGroups: CollisionGroupItem[] = []
+
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i]
     const p = asVec3((node.properties || {})['pos3d'])
@@ -90,7 +96,68 @@ export function computePositions3d(nodes: GraphNode[], schema: GraphSchema | nul
         : 0
     const z = s[2] + offsetIndex * layerSpacing
     out[node.id] = [s[0], s[1], z]
+
+    if (canRelax) {
+      const id = String(node.id || '').trim()
+      nodeIndexById.set(id, relaxGroups.length)
+      relaxNodes.push({ vx: 0, vy: 0, vz: 0 })
+      const half = Math.max(1e-6, Number(minSpacingCfg) * 0.5)
+      relaxGroups.push({
+        id,
+        cx: s[0],
+        cy: s[1],
+        cz: z,
+        halfW: half,
+        halfH: half,
+        halfD: half,
+        hasZ: true,
+        gap: 0,
+        movableIdxs: [relaxGroups.length],
+      })
+    }
+  }
+
+  if (canRelax && relaxGroups.length >= 2) {
+    const applyBackToOut = () => {
+      for (let i = 0; i < relaxGroups.length; i += 1) {
+        const g = relaxGroups[i]
+        const id = String(g.id || '').trim()
+        if (!id) continue
+        const prev = out[id]
+        if (!prev) continue
+        out[id] = [g.cx, g.cy, typeof g.cz === 'number' && Number.isFinite(g.cz) ? g.cz : prev[2]]
+      }
+    }
+
+    for (let k = 0; k < 14; k += 1) {
+      for (let i = 0; i < relaxNodes.length; i += 1) {
+        relaxNodes[i].vx = 0
+        relaxNodes[i].vy = 0
+        relaxNodes[i].vz = 0
+      }
+
+      resolveGroupCollisions({
+        groups: relaxGroups,
+        nodes: relaxNodes as unknown as any,
+        strength: 0.9,
+        touchEpsilon: 1,
+        skipSameGroup: true,
+      })
+
+      for (let i = 0; i < relaxGroups.length; i += 1) {
+        const g = relaxGroups[i]
+        const v = relaxNodes[i]
+        const vx = typeof v?.vx === 'number' && Number.isFinite(v.vx) ? v.vx : 0
+        const vy = typeof v?.vy === 'number' && Number.isFinite(v.vy) ? v.vy : 0
+        const vz = typeof v?.vz === 'number' && Number.isFinite(v.vz) ? v.vz : 0
+        if (!vx && !vy && !vz) continue
+        g.cx += vx
+        g.cy += vy
+        g.cz = (typeof g.cz === 'number' && Number.isFinite(g.cz) ? g.cz : 0) + vz
+      }
+    }
+
+    applyBackToOut()
   }
   return out
 }
-

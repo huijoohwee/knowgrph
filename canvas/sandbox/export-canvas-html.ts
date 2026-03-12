@@ -73,6 +73,9 @@ async function main() {
         paddingPx: 96,
         includeXmlDeclaration: false,
         animated: true,
+        exportAutoRotate: true,
+        exportAutoRotateSpeed: 0.85,
+        exportMotionIntensityMultiplier: 1.75,
       })
     }
 
@@ -230,6 +233,10 @@ async function main() {
     graphData,
     includeRichMediaOverlays: true,
     mediaPanelDensity: 'default',
+    viewportWidthPx: 1920,
+    viewportHeightPx: 1080,
+    viewportScaleToFit: true,
+    enableDecorativeAnimation: true,
     zoomMinK: readZoomScaleExtent(defaultSchema)[0],
     zoomMaxK: readZoomScaleExtent(defaultSchema)[1],
     wheelBehavior: readWheelBehavior(defaultSchema),

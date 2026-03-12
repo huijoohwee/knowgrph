@@ -31,6 +31,10 @@ export async function buildGraphHtmlViewerMarkup(args: {
   includeRichMediaOverlays?: boolean
   mediaOverlayPoolMax?: number
   mediaPanelDensity?: 'default' | 'compact'
+  viewportWidthPx?: number
+  viewportHeightPx?: number
+  viewportScaleToFit?: boolean
+  enableDecorativeAnimation?: boolean
   threeIframeOverlayBaseWidthRatioDefault?: number
   threeIframeOverlayBaseWidthRatioCompact?: number
   threeIframeOverlayBaseWidthMinPxDefault?: number
@@ -139,6 +143,12 @@ export async function buildGraphHtmlViewerMarkup(args: {
   const allowEdgeDrag = args.allowEdgeDrag !== false
   const allowGroupDrag = args.allowGroupDrag !== false
 
+  const viewportWidthPx = isFiniteNum(args.viewportWidthPx) ? Math.max(1, Math.floor(args.viewportWidthPx)) : 0
+  const viewportHeightPx = isFiniteNum(args.viewportHeightPx) ? Math.max(1, Math.floor(args.viewportHeightPx)) : 0
+  const fixedViewportEnabled = viewportWidthPx > 0 && viewportHeightPx > 0
+  const viewportScaleToFit = args.viewportScaleToFit !== false
+  const enableDecorativeAnimation = args.enableDecorativeAnimation === true
+
   const interactionCfgJson = JSON.stringify({
     scaleExtent,
     wheelBehavior,
@@ -158,6 +168,8 @@ export async function buildGraphHtmlViewerMarkup(args: {
     allowNodeDrag,
     allowEdgeDrag,
     allowGroupDrag,
+    fixedViewport: fixedViewportEnabled ? { widthPx: viewportWidthPx, heightPx: viewportHeightPx, scaleToFit: viewportScaleToFit } : null,
+    enableDecorativeAnimation,
   })
 
   const groupMembersByIdJson = (() => {
@@ -224,20 +236,26 @@ export async function buildGraphHtmlViewerMarkup(args: {
     html,body{height:100%;width:100%;margin:0;background:var(--kg-canvas-bg);color:var(--kg-text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;-webkit-user-select:none;user-select:none}
     #kg-root{position:fixed;inset:0;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;cursor:grab}
     #kg-root.kg-dragging{cursor:grabbing}
+    #kg-root.kg-fixedViewport{inset:auto;left:50%;top:50%;width:var(--kg-fixed-w,1920px);height:var(--kg-fixed-h,1080px);transform:translate(-50%,-50%) scale(var(--kg-fixed-scale,1));transform-origin:center}
     #kg-root *{-webkit-user-select:none;user-select:none}
     #kg-stage{position:fixed;inset:0}
     #kg-svgWrap{position:fixed;inset:0}
+    #kg-root.kg-fixedViewport #kg-stage{position:absolute;inset:0}
+    #kg-root.kg-fixedViewport #kg-svgWrap{position:absolute;inset:0}
     #kg-svgWrap svg{display:block;width:100%;height:100%;overflow:visible;shape-rendering:geometricPrecision;text-rendering:geometricPrecision}
     #kg-svgWrap text{user-select:none;-webkit-user-select:none}
     #kg-overlay{position:fixed;inset:0;pointer-events:auto}
+    #kg-root.kg-fixedViewport #kg-overlay{position:absolute;inset:0}
     .kg-media{position:absolute;left:0;top:0;display:flex;flex-direction:column;pointer-events:auto;background:var(--kg-panel-bg);border:var(--kg-media-panel-border-w) solid var(--kg-border);border-radius:var(--kg-media-panel-radius);box-shadow:0 10px 30px rgba(0,0,0,.12);overflow:hidden;box-sizing:border-box}
     .kg-mediaHeader{height:var(--kg-media-panel-header-h);display:flex;align-items:center;gap:8px;padding:0 10px;background:rgba(0,0,0,0.04);border-bottom:var(--kg-media-panel-border-w) solid var(--kg-border);cursor:grab;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none;pointer-events:auto}
     .kg-mediaTitle{font-size:var(--kg-media-panel-title-size);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--kg-text-tertiary);pointer-events:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
     .kg-mediaBody{position:relative;flex:1;padding:var(--kg-media-panel-padding);box-sizing:border-box}
     .kg-mediaBody iframe,.kg-mediaBody img,.kg-mediaBody video{display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius) * 0.8);background:rgba(0,0,0,0.02);pointer-events:var(--kg-media-pointer-events);box-sizing:border-box}
     #kg-hud{position:fixed;left:12px;top:12px;display:flex;gap:8px;z-index:1000}
+    #kg-root.kg-fixedViewport #kg-hud{position:absolute;left:12px;top:12px}
     .kg-btn{border:1px solid var(--kg-border);background:var(--kg-panel-bg);color:var(--kg-text);border-radius:10px;padding:8px 10px;font-size:12px;cursor:pointer}
     .kg-btn.kg-active{outline:2px solid rgba(59,130,246,0.6);outline-offset:0}
+    @keyframes kgNodeBob{0%{transform:translateY(0)}50%{transform:translateY(calc(var(--kg-bob-amp,2px) * -1))}100%{transform:translateY(0)}}
   </style>
 </head>
 <body>
@@ -304,6 +322,290 @@ export async function buildGraphHtmlViewerMarkup(args: {
         return false;
       }
     })();
+
+    function applyFixedViewport(){
+      try {
+        if (!cfg || !cfg.fixedViewport) return;
+        var w = cfg.fixedViewport.widthPx;
+        var h = cfg.fixedViewport.heightPx;
+        if (!(w > 0 && h > 0)) return;
+        root.classList.add('kg-fixedViewport');
+        root.style.setProperty('--kg-fixed-w', w + 'px');
+        root.style.setProperty('--kg-fixed-h', h + 'px');
+        var scale = 1;
+        if (cfg.fixedViewport.scaleToFit !== false) {
+          var sw = Math.max(1, window.innerWidth || 1);
+          var sh = Math.max(1, window.innerHeight || 1);
+          scale = Math.min(1, sw / w, sh / h);
+        }
+        root.style.setProperty('--kg-fixed-scale', String(scale));
+      } catch {}
+    }
+
+    function installDecorativeAnimations(){
+      try {
+        if (!cfg || cfg.enableDecorativeAnimation !== true) return;
+        if (!svg || !svg.querySelectorAll) return;
+        var els = svg.querySelectorAll('circle[data-node-id],rect[data-node-id],path[data-node-id],g.media-node-panel[data-node-id]');
+        for (var i = 0; i < els.length; i += 1) {
+          var el = els[i];
+          var id = (el.getAttribute && el.getAttribute('data-node-id')) ? String(el.getAttribute('data-node-id') || '') : '';
+          if (!id) continue;
+          var hash = 2166136261;
+          for (var j = 0; j < id.length; j += 1) { hash ^= id.charCodeAt(j); hash = Math.imul(hash, 16777619); }
+          var seed01 = (hash >>> 0) / 4294967295;
+          var dur = 2.8 + seed01 * 1.6;
+          var delay = (((hash >>> 7) % 1000) / 1000) * 1.2;
+          var amp = 1.5 + (((hash >>> 13) % 1000) / 1000) * 1.8;
+          var prev = String(el.getAttribute('style') || '');
+          var next = (prev ? (prev.replace(/;?\\s*$/, ';')) : '') + 'transform-box:fill-box;transform-origin:center;--kg-bob-amp:' + amp.toFixed(2) + 'px;animation:kgNodeBob ' + dur.toFixed(2) + 's ease-in-out ' + delay.toFixed(2) + 's infinite;';
+          el.setAttribute('style', next);
+        }
+      } catch {}
+    }
+
+    function executeEmbeddedSvgScriptsOnce(){
+      try {
+        if (!svg || !svg.querySelectorAll) return;
+        if (svg.__kgScriptsExecuted) return;
+        svg.__kgScriptsExecuted = true;
+        var scripts = svg.querySelectorAll('script');
+        if (!scripts || scripts.length === 0) return;
+        for (var i = 0; i < scripts.length; i += 1) {
+          var old = scripts[i];
+          if (!old) continue;
+          var code = '';
+          try { code = String(old.textContent || ''); } catch (e) { code = ''; }
+          if (!code || !code.trim()) continue;
+          var type = '';
+          try { type = String(old.getAttribute('type') || ''); } catch (e) { type = ''; }
+          try { old.parentNode && old.parentNode.removeChild(old); } catch (e) {}
+          try {
+            var s = document.createElementNS('http://www.w3.org/2000/svg', 'script');
+            if (type && type.trim()) s.setAttribute('type', type.trim());
+            s.textContent = code;
+            svg.appendChild(s);
+          } catch (e) {}
+        }
+      } catch (err) {}
+    }
+
+    function install3dSvgAnimatorOnce(){
+      try {
+        if (!overlayFollowAnimation) return;
+        if (!svg || !svg.getAttribute) return;
+        if (svg.__kg3dAnimatorInstalled) return;
+        svg.__kg3dAnimatorInstalled = true;
+
+        var payload = null;
+        try { payload = JSON.parse(String(svg.getAttribute('data-kg-3d-payload') || '').trim() || '{}'); } catch (e) { payload = null; }
+        if (!payload || payload.animated !== true) return;
+        var nodes = Array.isArray(payload.nodes) ? payload.nodes : [];
+        var edges = Array.isArray(payload.edges) ? payload.edges : [];
+
+        var cameraZ = (typeof payload.cameraZ === 'number' && isFinite(payload.cameraZ)) ? payload.cameraZ : 220;
+        var tiltX = (typeof payload.tiltX === 'number' && isFinite(payload.tiltX)) ? payload.tiltX : 0;
+        var cx = (typeof payload.cx === 'number' && isFinite(payload.cx)) ? payload.cx : 0;
+        var cy = (typeof payload.cy === 'number' && isFinite(payload.cy)) ? payload.cy : 0;
+        var cz = (typeof payload.cz === 'number' && isFinite(payload.cz)) ? payload.cz : 0;
+        var nodeStrokeAlpha = (typeof payload.nodeStrokeAlpha === 'number' && isFinite(payload.nodeStrokeAlpha)) ? payload.nodeStrokeAlpha : 1;
+        var labelFillAlpha = (typeof payload.labelFillAlpha === 'number' && isFinite(payload.labelFillAlpha)) ? payload.labelFillAlpha : 1;
+        var motion = (typeof payload.motion === 'number' && isFinite(payload.motion)) ? Math.max(0, Math.min(2, payload.motion)) : 1;
+        var autoRotate = payload.autoRotate === true;
+        var autoRotateSpeed = (typeof payload.autoRotateSpeed === 'number' && isFinite(payload.autoRotateSpeed)) ? payload.autoRotateSpeed : 0.4;
+        var omega = (Math.PI * 2 / 60) * (autoRotate ? autoRotateSpeed : 0);
+        var labelPadY = (typeof payload.labelPadY === 'number' && isFinite(payload.labelPadY)) ? payload.labelPadY : 8;
+
+        var clamp = function(v, lo, hi){ if (!isFinite(v)) return lo; return Math.max(lo, Math.min(hi, v)); };
+        var hash01 = function(s){
+          try {
+            var str = String(s || '');
+            var h = 2166136261;
+            for (var i = 0; i < str.length; i += 1) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+            return ((h >>> 0) % 1000) / 1000;
+          } catch (e) {
+            return 0;
+          }
+        };
+        var TAU = Math.PI * 2;
+        var buildNodeMotionParams = function(nd){
+          var id = String((nd && nd.id) || '');
+          if (!id) return null;
+          var baseR = (nd && typeof nd.baseR === 'number' && isFinite(nd.baseR)) ? nd.baseR : 10;
+          var amp = clamp(baseR * 0.08, 0.3, 6) * motion;
+          var seed = hash01(id) * TAU;
+          var fx = hash01(id + ':fx');
+          var fy = hash01(id + ':fy');
+          var fz = hash01(id + ':fz');
+          return { id: id, amp: amp, seed: seed, fx: fx, fy: fy, fz: fz, baseR: baseR };
+        };
+        var nodeMotionById = Object.create(null);
+        for (var mi = 0; mi < nodes.length; mi += 1) {
+          var mp = buildNodeMotionParams(nodes[mi]);
+          if (mp) nodeMotionById[mp.id] = mp;
+        }
+
+        var nodeEls = new Map();
+        var nodeGs = svg.querySelectorAll('[data-node-id]');
+        for (var gi = 0; gi < nodeGs.length; gi += 1) {
+          var g = nodeGs[gi];
+          if (!g || !g.getAttribute) continue;
+          var gid = String(g.getAttribute('data-node-id') || '');
+          if (!gid) continue;
+          var cEl = g.querySelector && g.querySelector('[data-role="node-circle"]');
+          var tEl = g.querySelector && g.querySelector('[data-role="node-label"]');
+          if (cEl && tEl) nodeEls.set(gid, { g: g, c: cEl, t: tEl });
+        }
+
+        var edgeElById = new Map();
+        var edgeLs = svg.querySelectorAll('[data-edge-id]');
+        for (var li = 0; li < edgeLs.length; li += 1) {
+          var el = edgeLs[li];
+          if (!el || !el.getAttribute) continue;
+          var eid0 = String(el.getAttribute('data-edge-id') || '');
+          if (eid0) edgeElById.set(eid0, el);
+        }
+        var edgeEls = [];
+        for (var j = 0; j < edges.length; j += 1) {
+          var e = edges[j];
+          var eid = String((e && (e.id || '')) || '');
+          if (!eid) continue;
+          var el2 = edgeElById.get(eid);
+          if (!el2) continue;
+          edgeEls.push({
+            id: eid,
+            el: el2,
+            s: String((e && (e.s || e.source || '')) || ''),
+            t: String((e && (e.t || e.target || '')) || ''),
+            baseWidth: (e && typeof e.baseWidth === 'number' && isFinite(e.baseWidth)) ? e.baseWidth : 1,
+            baseOpacity: (e && typeof e.baseOpacity === 'number' && isFinite(e.baseOpacity)) ? e.baseOpacity : 0.6,
+            strokeAlpha: (e && typeof e.strokeAlpha === 'number' && isFinite(e.strokeAlpha)) ? e.strokeAlpha : 1,
+          });
+        }
+
+        var rotateY = function(x, y, z, a){ var c = Math.cos(a), s = Math.sin(a); return [x * c + z * s, y, -x * s + z * c]; };
+        var rotateX = function(x, y, z, a){ var c = Math.cos(a), s = Math.sin(a); return [x, y * c - z * s, y * s + z * c]; };
+        var project = function(x, y, z){ var denom = Math.max(1e-3, cameraZ - z); var k = cameraZ / denom; return { x: x * k, y: y * k, k: k, z: z }; };
+        var depthOpacity = function(){ return 1; };
+
+        var q2 = function(n){ return Math.round(n * 100) / 100; };
+        var nodeAttrCache = Object.create(null);
+        var edgeAttrCache = Object.create(null);
+
+        var nodeOffsetById = svg.__kgNodeOffsetById || (svg.__kgNodeOffsetById = {});
+        var started = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        var lastSortAt = 0;
+        var projById = new Map();
+        var nodeOrder = [];
+        var edgeOrder = [];
+        var nodesGroup = null;
+        var edgesGroup = null;
+        try { nodesGroup = svg.querySelector('[data-layer="nodes"]'); } catch (e) { nodesGroup = null; }
+        try { edgesGroup = svg.querySelector('[data-layer="edges"]'); } catch (e) { edgesGroup = null; }
+        var tick = function(){
+          var now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+          var tSec = (now - started) / 1000;
+          var ang = omega * tSec;
+          projById.clear();
+          nodeOrder.length = 0;
+          for (var i2 = 0; i2 < nodes.length; i2 += 1) {
+            var nd = nodes[i2];
+            var id2 = String((nd && nd.id) || '');
+            if (!id2) continue;
+            var p = (nd && nd.p) ? nd.p : [0, 0, 0];
+            var mp = nodeMotionById[id2];
+            var wobX = 0, wobY = 0, wobZ = 0;
+            if (mp && mp.amp > 1e-6) {
+              wobX = Math.sin(tSec * (0.65 + 0.7 * mp.fx) + mp.seed) * mp.amp;
+              wobY = Math.cos(tSec * (0.72 + 0.7 * mp.fy) + 1.31 * mp.seed) * mp.amp;
+              wobZ = Math.sin(tSec * (0.48 + 0.45 * mp.fz) + 2.17 * mp.seed) * (0.35 * mp.amp);
+            }
+            var x0 = (Number(p[0]) || 0) - cx + wobX;
+            var y0 = (Number(p[1]) || 0) - cy + wobY;
+            var z0 = (Number(p[2]) || 0) - cz + wobZ;
+            var r1 = rotateY(x0, y0, z0, ang);
+            var r2 = rotateX(r1[0], r1[1], r1[2], tiltX);
+            var pr = project(r2[0], r2[1], r2[2]);
+            var off = nodeOffsetById[id2];
+            if (off) { pr.x += Number(off.x) || 0; pr.y += Number(off.y) || 0; }
+            projById.set(id2, pr);
+            nodeOrder.push({ id: id2, z: pr.z });
+
+            var el = nodeEls.get(id2);
+            if (!el) continue;
+            var baseR = (nd && typeof nd.baseR === 'number' && isFinite(nd.baseR)) ? nd.baseR : 10;
+            var r = baseR * pr.k;
+            var op = depthOpacity(pr.z);
+            var fillAlpha = (nd && typeof nd.fillAlpha === 'number' && isFinite(nd.fillAlpha)) ? Math.max(0, Math.min(1, nd.fillAlpha)) : 1;
+            var cxAttr = q2(pr.x);
+            var cyAttr = q2(pr.y);
+            var rAttr = q2(r);
+            var labelYAttr = q2(pr.y - r - labelPadY);
+            var fillOpAttr = q2(op * fillAlpha);
+            var strokeOpAttr = q2(op * nodeStrokeAlpha);
+            var textOpAttr = q2(op * labelFillAlpha);
+            var prevA = nodeAttrCache[id2];
+            try {
+              if (!prevA || prevA.cx !== cxAttr) el.c.setAttribute('cx', String(cxAttr));
+              if (!prevA || prevA.cy !== cyAttr) el.c.setAttribute('cy', String(cyAttr));
+              if (!prevA || prevA.r !== rAttr) el.c.setAttribute('r', String(rAttr));
+              if (!prevA || prevA.fo !== fillOpAttr) el.c.setAttribute('fill-opacity', String(fillOpAttr));
+              if (!prevA || prevA.so !== strokeOpAttr) el.c.setAttribute('stroke-opacity', String(strokeOpAttr));
+              if (!prevA || prevA.cx !== cxAttr) el.t.setAttribute('x', String(cxAttr));
+              if (!prevA || prevA.ly !== labelYAttr) el.t.setAttribute('y', String(labelYAttr));
+              if (!prevA || prevA.to !== textOpAttr) el.t.setAttribute('opacity', String(textOpAttr));
+            } catch (e) {}
+            nodeAttrCache[id2] = { cx: cxAttr, cy: cyAttr, r: rAttr, ly: labelYAttr, fo: fillOpAttr, so: strokeOpAttr, to: textOpAttr };
+          }
+
+          edgeOrder.length = 0;
+          for (var e2 = 0; e2 < edgeEls.length; e2 += 1) {
+            var ed = edgeEls[e2];
+            var ps = projById.get(ed.s);
+            var pt = projById.get(ed.t);
+            if (!ps || !pt) continue;
+            var opEdge = Math.min(depthOpacity(ps.z), depthOpacity(pt.z)) * Math.max(0, Math.min(1, ed.baseOpacity)) * Math.max(0, Math.min(1, ed.strokeAlpha));
+            var kAvg = (ps.k + pt.k) * 0.5;
+            var w = Math.max(0.25, (ed.baseWidth || 1) * kAvg);
+            var x1a = q2(ps.x);
+            var y1a = q2(ps.y);
+            var x2a = q2(pt.x);
+            var y2a = q2(pt.y);
+            var opa = q2(opEdge);
+            var wa = q2(w);
+            var prevE = edgeAttrCache[ed.id];
+            try {
+              if (!prevE || prevE.x1 !== x1a) ed.el.setAttribute('x1', String(x1a));
+              if (!prevE || prevE.y1 !== y1a) ed.el.setAttribute('y1', String(y1a));
+              if (!prevE || prevE.x2 !== x2a) ed.el.setAttribute('x2', String(x2a));
+              if (!prevE || prevE.y2 !== y2a) ed.el.setAttribute('y2', String(y2a));
+              if (!prevE || prevE.o !== opa) ed.el.setAttribute('stroke-opacity', String(opa));
+              if (!prevE || prevE.w !== wa) ed.el.setAttribute('stroke-width', String(wa));
+            } catch (e) {}
+            edgeAttrCache[ed.id] = { x1: x1a, y1: y1a, x2: x2a, y2: y2a, o: opa, w: wa };
+            edgeOrder.push({ id: ed.id, z: (ps.z + pt.z) * 0.5, el: ed.el });
+          }
+
+          if (nodesGroup && edgesGroup) {
+            if (now - lastSortAt > 33) {
+              lastSortAt = now;
+              nodeOrder.sort(function(a, b){ return a.z - b.z; });
+              for (var si = 0; si < nodeOrder.length; si += 1) {
+                var ne = nodeEls.get(nodeOrder[si].id);
+                if (ne && ne.g) try { nodesGroup.appendChild(ne.g); } catch (e) {}
+              }
+              edgeOrder.sort(function(a, b){ return a.z - b.z; });
+              for (var sj = 0; sj < edgeOrder.length; sj += 1) {
+                try { edgesGroup.appendChild(edgeOrder[sj].el); } catch (e) {}
+              }
+            }
+          }
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      } catch (err) {}
+    }
+
     var svgNodeById = Object.create(null);
     var svgNodeElsById = Object.create(null);
     var svgGroupElsById = Object.create(null);
@@ -317,6 +619,8 @@ export async function buildGraphHtmlViewerMarkup(args: {
     var pointerMode = 'select';
 
     var UI_IGNORE_SELECTOR = '[data-kg-canvas-wheel-ignore="true"], [data-kg-canvas-pointer-ignore="true"]';
+
+    applyFixedViewport();
 
     function easeOutCubic01(t){
       if (!(t > 0)) return 0;
@@ -582,12 +886,52 @@ export async function buildGraphHtmlViewerMarkup(args: {
     }
     function startWheelZoomAnimation(args){
       cancelWheelZoomAnimation();
+      cancelViewAnimation();
       wheelZoomFrom = safeViewportTransform(args.from);
       wheelZoomToK = (typeof args.toK === 'number' && isFinite(args.toK)) ? args.toK : wheelZoomFrom.k;
       wheelZoomAnchor = { sx: args.anchor.sx, sy: args.anchor.sy };
       wheelZoomAnimDurationMs = Math.max(0, Math.floor(args.durationMs));
       wheelZoomAnimStart = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
       wheelZoomAnimRaf = requestAnimationFrame(tickWheelZoomAnimation);
+    }
+
+    var viewAnimRaf = null;
+    var viewAnimFrom = { k: 1, x: 0, y: 0 };
+    var viewAnimTo = { k: 1, x: 0, y: 0 };
+    var viewAnimDurationMs = 0;
+    var viewAnimStart = 0;
+    function cancelViewAnimation(){
+      if (viewAnimRaf == null) return;
+      try { cancelAnimationFrame(viewAnimRaf); } catch (err) {}
+      viewAnimRaf = null;
+    }
+    function tickViewAnimation(now){
+      if (viewAnimRaf == null) return;
+      var tNow = (typeof now === 'number' && isFinite(now)) ? now : ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now());
+      var elapsed = tNow - viewAnimStart;
+      var raw01 = viewAnimDurationMs > 0 ? elapsed / viewAnimDurationMs : 1;
+      var eased = easeOutCubic01(raw01);
+      var k = lerpNumber(viewAnimFrom.k, viewAnimTo.k, eased);
+      var x = lerpNumber(viewAnimFrom.x, viewAnimTo.x, eased);
+      var y = lerpNumber(viewAnimFrom.y, viewAnimTo.y, eased);
+      state.k = k; state.x = x; state.y = y;
+      applyTransform();
+      if (!(raw01 < 1)) { viewAnimRaf = null; return; }
+      viewAnimRaf = requestAnimationFrame(tickViewAnimation);
+    }
+    function startViewAnimation(args){
+      cancelViewAnimation();
+      viewAnimFrom = safeViewportTransform(args && args.from ? args.from : null);
+      viewAnimTo = safeViewportTransform(args && args.to ? args.to : null);
+      viewAnimDurationMs = Math.max(0, Math.floor(args && isFinite(args.durationMs) ? args.durationMs : 0));
+      viewAnimStart = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      if (viewAnimDurationMs <= 0) {
+        state.k = viewAnimTo.k; state.x = viewAnimTo.x; state.y = viewAnimTo.y;
+        applyTransform();
+        viewAnimRaf = null;
+        return;
+      }
+      viewAnimRaf = requestAnimationFrame(tickViewAnimation);
     }
 
     function rebuildSvgNodeIndex(){
@@ -1176,14 +1520,13 @@ export async function buildGraphHtmlViewerMarkup(args: {
       k = clamp(k, minK, maxK);
       var cx = bb.x + bb.width / 2;
       var cy = bb.y + bb.height / 2;
-      state.k = k;
-      state.x = vp.w / 2 - ox - cx * k * baseSx;
-      state.y = vp.h / 2 - oy - cy * k * baseSy;
-      applyTransform();
+      var next = { k: k, x: vp.w / 2 - ox - cx * k * baseSx, y: vp.h / 2 - oy - cy * k * baseSy };
+      startViewAnimation({ from: { k: state.k, x: state.x, y: state.y }, to: next, durationMs: 300 });
     }
 
     function resetView(){
-      state.k = 1; state.x = 0; state.y = 0; applyTransform();
+      cancelWheelZoomAnimation();
+      startViewAnimation({ from: { k: state.k, x: state.x, y: state.y }, to: { k: 1, x: 0, y: 0 }, durationMs: 0 });
     }
 
     function computeMediaPanelCssVars3d(args){
@@ -2206,14 +2549,18 @@ export async function buildGraphHtmlViewerMarkup(args: {
     if (resetBtn) resetBtn.addEventListener('click', function(){ resetView(); });
     if (panBtn) panBtn.addEventListener('click', function(){ setPointerMode(pointerMode === 'pan' ? 'select' : 'pan'); });
     if (mediaBtn) mediaBtn.addEventListener('click', function(){ setMediaInteractive(!mediaInteractive); });
-    window.addEventListener('resize', function(){ refreshViewport(); fitToCenter(); });
+    window.addEventListener('resize', function(){ applyFixedViewport(); refreshViewport(); fitToCenter(); });
 
     requestAnimationFrame(function(){
+      applyFixedViewport();
       setMediaInteractive(false);
       setPanHeld(false);
       setPointerMode('select');
       refreshViewport();
       rebuildSvgNodeIndex();
+      if (!overlayFollowAnimation) executeEmbeddedSvgScriptsOnce();
+      install3dSvgAnimatorOnce();
+      installDecorativeAnimations();
       fitToCenter();
       updateOverlays();
       if (overlayFollowAnimation && mediaNodes && mediaNodes.length > 0) {

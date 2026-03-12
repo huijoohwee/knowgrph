@@ -172,6 +172,9 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
   durationSec?: number
   frames?: number
   threeEdgeRenderer?: 'mesh' | 'shaderLine'
+  exportAutoRotate?: boolean
+  exportAutoRotateSpeed?: number
+  exportMotionIntensityMultiplier?: number
 }): string | null {
   try {
     const graph = args.graphData
@@ -250,12 +253,21 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
 
     const threeCfg = getThreeConfig(schema)
     const motionRaw = threeCfg.nodeMotionIntensity
-    const motion = typeof motionRaw === 'number' ? Math.max(0, Math.min(2, motionRaw)) : 1
+    const motionBase = typeof motionRaw === 'number' ? Math.max(0, Math.min(2, motionRaw)) : 1
+    const motionMulRaw = typeof args.exportMotionIntensityMultiplier === 'number' && Number.isFinite(args.exportMotionIntensityMultiplier)
+      ? args.exportMotionIntensityMultiplier
+      : 1
+    const motion = Math.max(0, Math.min(3, motionBase * Math.max(0, Math.min(3, motionMulRaw))))
+
     const amp = 0.2 * motion
 
-    const autoRotate = !!threeCfg.cameraAutoRotate
-    const autoRotateSpeed = typeof threeCfg.cameraAutoRotateSpeed === 'number' ? threeCfg.cameraAutoRotateSpeed : 0.4
-    const omega = (Math.PI * 2 / 60) * (autoRotateSpeed || 0)
+    const autoRotateBase = !!threeCfg.cameraAutoRotate
+    const autoRotate = autoRotateBase || args.exportAutoRotate === true
+    const autoRotateSpeedBase = typeof threeCfg.cameraAutoRotateSpeed === 'number' ? threeCfg.cameraAutoRotateSpeed : 0.4
+    const autoRotateSpeed = typeof args.exportAutoRotateSpeed === 'number' && Number.isFinite(args.exportAutoRotateSpeed)
+      ? args.exportAutoRotateSpeed
+      : autoRotateSpeedBase
+    const omega = (Math.PI * 2 / 60) * (autoRotate ? (autoRotateSpeed || 0) : 0)
 
     const angleSamples = (() => {
       if (!animated || !autoRotate || omega === 0) return [0]

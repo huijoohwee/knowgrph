@@ -38,6 +38,7 @@ import { LS_KEYS } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { exportGraphAsCenteredSvgMarkup } from '@/lib/graph/graphCenteredSvg'
 import { buildGraphHtmlViewerMarkup } from '@/lib/graph/graphHtmlViewer'
+import { renderGraphCanvasSvgForHtmlExport } from '@/lib/graph/htmlCanvasSvgExport'
 import { defaultSchema } from '@/lib/graph/schema'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { readPanSpeed, readWheelBehavior, readZoomSpeed } from '@/lib/canvas/camera-options-2d'
@@ -1579,7 +1580,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
               heightPx: Math.max(600, fallbackSize.h || 0),
               paddingPx: 96,
               includeXmlDeclaration: false,
-              animated: false,
+              animated: true,
+              exportAutoRotate: true,
+              exportAutoRotateSpeed: 0.85,
+              exportMotionIntensityMultiplier: 1.75,
               threeEdgeRenderer: store.threeEdgeRenderer,
             })
             const trimmed = String(centered3d || '').trim()
@@ -3108,7 +3112,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
               heightPx: Math.max(600, fallbackSize.h || 0),
               paddingPx: 96,
               includeXmlDeclaration: false,
-              animated: false,
+              animated: true,
               threeEdgeRenderer: store.threeEdgeRenderer,
             })
             if (centered3d && centered3d.trim()) {
@@ -3130,7 +3134,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
               heightPx: Math.max(600, fallbackSize.h || 0),
               paddingPx: 96,
               includeXmlDeclaration: false,
-              animated: false,
+              animated: true,
             })
             if (centered && centered.trim()) {
               svgMarkup = centered.trim()
@@ -3222,40 +3226,53 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       })()
 
       try {
-        const svgOnly = (() => {
+        const svgOnly = await (async () => {
           if (!geospatialEnabled) {
-            try {
-              const graphData = store.graphData
-              const schema = store.schema
-              if (graphData && schema) {
-                if (wants3dExport) {
-                  const centered3d = exportGraphAsCentered3dSvgMarkup({
-                    graphData,
-                    schema,
-                    widthPx: Math.max(800, fallbackSize.w || 0),
-                    heightPx: Math.max(600, fallbackSize.h || 0),
-                    paddingPx: 96,
-                    includeXmlDeclaration: false,
-                    animated: false,
-                    threeEdgeRenderer: store.threeEdgeRenderer,
-                  })
-                  const trimmed = String(centered3d || '').trim()
-                  if (trimmed) return trimmed
-                } else {
-                  const centered = exportGraphAsCenteredSvgMarkup({
-                    graphData,
-                    schema,
-                    widthPx: Math.max(800, fallbackSize.w || 0),
-                    heightPx: Math.max(600, fallbackSize.h || 0),
-                    paddingPx: 96,
-                    includeXmlDeclaration: false,
-                  })
-                  const trimmed = String(centered || '').trim()
-                  if (trimmed) return trimmed
-                }
+            const graphData = store.graphData
+            const schema = store.schema
+            if (graphData && schema) {
+              if (wants3dExport) {
+                const centered3d = exportGraphAsCentered3dSvgMarkup({
+                  graphData,
+                  schema,
+                  widthPx: 1920,
+                  heightPx: 1080,
+                  paddingPx: 96,
+                  includeXmlDeclaration: false,
+                  animated: true,
+                  exportAutoRotate: true,
+                  exportAutoRotateSpeed: 0.85,
+                  exportMotionIntensityMultiplier: 1.75,
+                  threeEdgeRenderer: store.threeEdgeRenderer,
+                })
+                const trimmed = String(centered3d || '').trim()
+                if (trimmed) return trimmed
+              } else {
+                const viewportControlsPreset =
+                  (store as unknown as { viewportControlsPreset?: 'map' | 'design' }).viewportControlsPreset === 'design' ? 'design' : 'map'
+                const mediaPanelDensity = store.mediaPanelDensity === 'compact' ? 'compact' : 'default'
+                const rendered = await renderGraphCanvasSvgForHtmlExport({
+                  graphData,
+                  schema,
+                  widthPx: 1920,
+                  heightPx: 1080,
+                  viewportControlsPreset,
+                  renderMediaAsNodes: false,
+                  mediaPanelDensity,
+                })
+                if (rendered) return rendered
+                const centered = exportGraphAsCenteredSvgMarkup({
+                  graphData,
+                  schema,
+                  widthPx: 1920,
+                  heightPx: 1080,
+                  paddingPx: 96,
+                  includeXmlDeclaration: false,
+                  animated: true,
+                })
+                const trimmed = String(centered || '').trim()
+                if (trimmed) return trimmed
               }
-            } catch {
-              void 0
             }
           }
           return String(svgMarkup || '').replace(/^\s*<\?xml[^>]*>\s*/i, '').trim()
@@ -3270,6 +3287,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
           graphData: store.graphData,
           includeRichMediaOverlays: true,
           mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
+          viewportWidthPx: 1920,
+          viewportHeightPx: 1080,
+          viewportScaleToFit: true,
+          enableDecorativeAnimation: true,
           threeIframeOverlayBaseWidthRatioDefault: (store as unknown as { threeIframeOverlayBaseWidthRatioDefault?: number }).threeIframeOverlayBaseWidthRatioDefault,
           threeIframeOverlayBaseWidthRatioCompact: (store as unknown as { threeIframeOverlayBaseWidthRatioCompact?: number }).threeIframeOverlayBaseWidthRatioCompact,
           threeIframeOverlayBaseWidthMinPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMinPxDefault?: number }).threeIframeOverlayBaseWidthMinPxDefault,
@@ -4549,6 +4570,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             paddingPx: 96,
             includeXmlDeclaration: true,
             animated: true,
+            exportAutoRotate: true,
+            exportAutoRotateSpeed: 0.85,
+            exportMotionIntensityMultiplier: 1.75,
             threeEdgeRenderer: store.threeEdgeRenderer,
           })
           if (centered3d && centered3d.trim()) {
