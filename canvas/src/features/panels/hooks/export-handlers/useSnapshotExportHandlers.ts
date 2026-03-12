@@ -1,5 +1,7 @@
 import { useCallback } from 'react'
 import { exportHtmlCanvasSnapshot, exportHtmlSnapshot, exportSvgSnapshot, exportPngSnapshot } from '@/lib/graph/file'
+import { writeTextFileToDirectoryDetailed } from '@/lib/fsAccess/writeTextFileToDirectory'
+import { writeBlobToFileHandle } from '@/lib/graph/save'
 import { IMPORT_EXPORT_STATUS_COPY } from '@/lib/config.copy'
 import { verifyWorkflowPresetStorage } from '@/features/parsers/workflowPresets'
 import { captureVisibleCanvasPngBlobFromDom, readCanvasViewportSizeFromDom, wrapPngBlobAsSvgMarkup } from '@/lib/graph/svgSnapshot'
@@ -507,7 +509,67 @@ export function useSnapshotExportHandlers({
           return
         }
 
-        await exportHtmlCanvasSnapshot(trimmed, wants3dExport ? '3d' : '2d', suggested)
+        const mode = wants3dExport ? '3d' : '2d'
+        const publishHandle = store.htmlCanvasPublishFolderHandle
+        const publishFolderName = store.htmlCanvasPublishFolderName
+        const publishFileHandle = store.htmlCanvasPublishFileHandle
+        const publishFileName = store.htmlCanvasPublishFileName
+        const publishPathTemplate = String(store.htmlCanvasPublishPath || 'index.html')
+        const publishPath = publishPathTemplate.replace(/\{mode\}/g, mode)
+        if (publishHandle) {
+          const res = await writeTextFileToDirectoryDetailed({
+            rootHandle: publishHandle,
+            relativePath: publishPath,
+            text: trimmed,
+          })
+          if (res.ok) {
+            store.pushUiToast({
+              id: 'export-html-canvas-published',
+              kind: 'success',
+              message: `Published HTML canvas to ${publishFolderName || 'Local folder'}/${publishPath}`,
+            })
+            markExported()
+            setTransientExportStatus(IMPORT_EXPORT_STATUS_COPY.htmlCanvasExported)
+            return
+          } else if ('reason' in res) {
+            const reason = res.reason
+            store.pushUiToast({
+              id: 'export-html-canvas-publish-folder-failed',
+              kind: 'warning',
+              message:
+                reason === 'invalid-path'
+                  ? 'Publish failed: invalid publish path.'
+                  : reason === 'permission-denied'
+                    ? 'Publish failed: folder write permission was not granted.'
+                    : 'Publish failed: unable to write into the selected folder.',
+            })
+          } else {
+            store.pushUiToast({
+              id: 'export-html-canvas-publish-folder-failed',
+              kind: 'warning',
+              message: 'Publish failed: unable to write into the selected folder.',
+            })
+          }
+        }
+
+        if (publishFileHandle) {
+          const ok = await writeBlobToFileHandle(
+            publishFileHandle,
+            new Blob([trimmed], { type: 'text/html;charset=utf-8' }),
+          )
+          if (ok) {
+            store.pushUiToast({
+              id: 'export-html-canvas-published-file',
+              kind: 'success',
+              message: `Published HTML canvas to ${publishFileName || 'Selected file'}`,
+            })
+            markExported()
+            setTransientExportStatus(IMPORT_EXPORT_STATUS_COPY.htmlCanvasExported)
+            return
+          }
+        }
+
+        await exportHtmlCanvasSnapshot(trimmed, mode, suggested)
         markExported()
         setTransientExportStatus(IMPORT_EXPORT_STATUS_COPY.htmlCanvasExported)
       } catch {

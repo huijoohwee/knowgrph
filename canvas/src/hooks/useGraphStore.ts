@@ -16,6 +16,7 @@ import { createFlowEditorManagerSlice } from '@/hooks/store/flowEditorManagerSli
 import { createDesignRendererSlice } from '@/hooks/store/designRendererSlice'
 import { createSourceFilesSlice } from '@/hooks/store/sourceFilesSlice';
 import { createLocalMarkdownFolderSlice } from '@/hooks/store/localMarkdownFolderSlice'
+import { createHtmlCanvasPublishSlice } from '@/hooks/store/htmlCanvasPublishSlice'
 import { getLocalStorage } from '@/lib/persistence';
 import type { GraphState, NodePosition2d } from '@/hooks/store/types';
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -219,6 +220,7 @@ export const useGraphStore = create<GraphState>()(
   ...createDesignRendererSlice(set, get),
   ...createSourceFilesSlice(set, get, api),
   ...createLocalMarkdownFolderSlice(set, get, api),
+  ...createHtmlCanvasPublishSlice(set, get, api),
   ...createCanvasSlice(set, get),
   ...createSchemaSlice(set, get),
 })),

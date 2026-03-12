@@ -20,6 +20,7 @@ import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import type { Canvas2dRendererId } from '@/lib/config'
 import type { DesignLayerNode, DesignLayerState } from '@/features/design/designLayersState'
 import type { DesignFramePos, DesignFrameSize } from '@/hooks/store/designRendererSlice'
+import type { SaveFilePickerHandle } from '@/lib/graph/save'
 
 export type CanvasSnapshotFns = {
   capturePng?: (pixelRatio?: number) => Promise<Blob | null>;
@@ -193,6 +194,16 @@ export interface GraphState {
   setLocalMarkdownFolderCacheId: (cacheId: string | null, folderName?: string | null) => void
   setLocalMarkdownSelectedFolderPath: (path: string | null) => void
   clearLocalMarkdownFolder: () => void
+
+  htmlCanvasPublishFolderHandle: FileSystemDirectoryHandle | null
+  htmlCanvasPublishFolderName: string | null
+  htmlCanvasPublishFileHandle: SaveFilePickerHandle | null
+  htmlCanvasPublishFileName: string | null
+  htmlCanvasPublishPath: string
+  setHtmlCanvasPublishFolder: (handle: FileSystemDirectoryHandle | null, folderName?: string | null) => void
+  setHtmlCanvasPublishFile: (handle: SaveFilePickerHandle | null, fileName?: string | null) => void
+  setHtmlCanvasPublishPath: (path: string) => void
+  clearHtmlCanvasPublishTarget: () => void
 
   graphDataRevision: number;
   documentSemanticMode: DocumentSemanticMode;
