@@ -175,6 +175,10 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
   exportAutoRotate?: boolean
   exportAutoRotateSpeed?: number
   exportMotionIntensityMultiplier?: number
+  exportTiltXRad?: number
+  exportCameraZ?: number
+  exportDepthOpacityMin?: number
+  exportDepthOpacityMax?: number
 }): string | null {
   try {
     const graph = args.graphData
@@ -231,8 +235,12 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
 
     const fontSizePx = 12
     const labelPadY = 8
-    const cameraZ = 220
-    const tiltX = 0
+    const cameraZ = typeof args.exportCameraZ === 'number' && Number.isFinite(args.exportCameraZ)
+      ? Math.max(80, Math.min(1200, args.exportCameraZ))
+      : 220
+    const tiltX = typeof args.exportTiltXRad === 'number' && Number.isFinite(args.exportTiltXRad)
+      ? Math.max(-Math.PI * 0.45, Math.min(Math.PI * 0.45, args.exportTiltXRad))
+      : 0
 
     let minZ = Infinity
     let maxZ = -Infinity
@@ -244,8 +252,14 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
       minZ = -1
       maxZ = 1
     }
-    const depthOpacity = (_z: number) => {
-      return 1
+    const depthOpacity = (z: number) => {
+      const span = Math.max(1e-6, maxZ - minZ)
+      const t = Math.max(0, Math.min(1, (z - minZ) / span))
+      const oMinRaw = typeof args.exportDepthOpacityMin === 'number' && Number.isFinite(args.exportDepthOpacityMin) ? args.exportDepthOpacityMin : 0.35
+      const oMaxRaw = typeof args.exportDepthOpacityMax === 'number' && Number.isFinite(args.exportDepthOpacityMax) ? args.exportDepthOpacityMax : 1
+      const oMin = Math.max(0, Math.min(1, oMinRaw))
+      const oMax = Math.max(oMin, Math.min(1, oMaxRaw))
+      return oMin + (oMax - oMin) * t
     }
 
     let maxAbsX = 1
@@ -452,7 +466,7 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
           `var cx=Number(payload.cx)||0,cy=Number(payload.cy)||0,cz=Number(payload.cz)||0;` +
           `var minZ=Number(payload.minZ)||-1,maxZ=Number(payload.maxZ)||1;` +
           `var zSpan=Math.max(1e-6,maxZ-minZ);` +
-          `var depthOpacity=function(z){return 1;};` +
+          `var depthOpacity=function(z){var t=(Number(z)-minZ)/zSpan;if(!isFinite(t))t=0;t=Math.max(0,Math.min(1,t));return 0.35+0.65*t;};` +
           `var nodeStrokeAlpha=Number(payload.nodeStrokeAlpha);if(!isFinite(nodeStrokeAlpha))nodeStrokeAlpha=1;` +
           `var labelFillAlpha=Number(payload.labelFillAlpha);if(!isFinite(labelFillAlpha))labelFillAlpha=1;` +
           `var motionRaw=Number(payload.motion);var motion=(isFinite(motionRaw)?Math.max(0,Math.min(2,motionRaw)):1);` +

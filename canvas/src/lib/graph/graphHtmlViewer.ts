@@ -408,6 +408,9 @@ export async function buildGraphHtmlViewerMarkup(args: {
         var cx = (typeof payload.cx === 'number' && isFinite(payload.cx)) ? payload.cx : 0;
         var cy = (typeof payload.cy === 'number' && isFinite(payload.cy)) ? payload.cy : 0;
         var cz = (typeof payload.cz === 'number' && isFinite(payload.cz)) ? payload.cz : 0;
+        var minZ = (typeof payload.minZ === 'number' && isFinite(payload.minZ)) ? payload.minZ : -1;
+        var maxZ = (typeof payload.maxZ === 'number' && isFinite(payload.maxZ)) ? payload.maxZ : 1;
+        var zSpan = Math.max(1e-6, maxZ - minZ);
         var nodeStrokeAlpha = (typeof payload.nodeStrokeAlpha === 'number' && isFinite(payload.nodeStrokeAlpha)) ? payload.nodeStrokeAlpha : 1;
         var labelFillAlpha = (typeof payload.labelFillAlpha === 'number' && isFinite(payload.labelFillAlpha)) ? payload.labelFillAlpha : 1;
         var motion = (typeof payload.motion === 'number' && isFinite(payload.motion)) ? Math.max(0, Math.min(2, payload.motion)) : 1;
@@ -486,7 +489,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
         var rotateY = function(x, y, z, a){ var c = Math.cos(a), s = Math.sin(a); return [x * c + z * s, y, -x * s + z * c]; };
         var rotateX = function(x, y, z, a){ var c = Math.cos(a), s = Math.sin(a); return [x, y * c - z * s, y * s + z * c]; };
         var project = function(x, y, z){ var denom = Math.max(1e-3, cameraZ - z); var k = cameraZ / denom; return { x: x * k, y: y * k, k: k, z: z }; };
-        var depthOpacity = function(){ return 1; };
+        var depthOpacity = function(z){ var t = (Number(z) - minZ) / zSpan; if (!isFinite(t)) t = 0; t = Math.max(0, Math.min(1, t)); return 0.35 + 0.65 * t; };
 
         var q2 = function(n){ return Math.round(n * 100) / 100; };
         var nodeAttrCache = Object.create(null);
@@ -515,10 +518,15 @@ export async function buildGraphHtmlViewerMarkup(args: {
             var p = (nd && nd.p) ? nd.p : [0, 0, 0];
             var mp = nodeMotionById[id2];
             var wobX = 0, wobY = 0, wobZ = 0;
-            if (mp && mp.amp > 1e-6) {
-              wobX = Math.sin(tSec * (0.65 + 0.7 * mp.fx) + mp.seed) * mp.amp;
-              wobY = Math.cos(tSec * (0.72 + 0.7 * mp.fy) + 1.31 * mp.seed) * mp.amp;
-              wobZ = Math.sin(tSec * (0.48 + 0.45 * mp.fz) + 2.17 * mp.seed) * (0.35 * mp.amp);
+            var draggedId = (nodeDrag && nodeDrag.nodeId) ? String(nodeDrag.nodeId || '') : '';
+            var viewK = (state && isFinite(state.k)) ? Math.max(0.001, state.k) : 1;
+            var baseSx0 = (svgBase && isFinite(svgBase.sx) && svgBase.sx > 0) ? svgBase.sx : 1;
+            var wobScale = 1 / (viewK * baseSx0);
+            if (mp && mp.amp > 1e-6 && (!draggedId || draggedId !== id2)) {
+              var a0 = mp.amp * wobScale;
+              wobX = Math.sin(tSec * (0.65 + 0.7 * mp.fx) + mp.seed) * a0;
+              wobY = Math.cos(tSec * (0.72 + 0.7 * mp.fy) + 1.31 * mp.seed) * a0;
+              wobZ = Math.sin(tSec * (0.48 + 0.45 * mp.fz) + 2.17 * mp.seed) * (0.35 * a0);
             }
             var x0 = (Number(p[0]) || 0) - cx + wobX;
             var y0 = (Number(p[1]) || 0) - cy + wobY;

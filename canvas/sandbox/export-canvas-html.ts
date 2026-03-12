@@ -74,8 +74,10 @@ async function main() {
         includeXmlDeclaration: false,
         animated: true,
         exportAutoRotate: true,
-        exportAutoRotateSpeed: 0.85,
-        exportMotionIntensityMultiplier: 1.75,
+        exportAutoRotateSpeed: 1.2,
+        exportMotionIntensityMultiplier: 2.2,
+        exportTiltXRad: 0.45,
+        exportCameraZ: 200,
       })
     }
 

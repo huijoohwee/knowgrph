@@ -1582,8 +1582,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
               includeXmlDeclaration: false,
               animated: true,
               exportAutoRotate: true,
-              exportAutoRotateSpeed: 0.85,
-              exportMotionIntensityMultiplier: 1.75,
+              exportAutoRotateSpeed: 1.2,
+              exportMotionIntensityMultiplier: 2.2,
+              exportTiltXRad: 0.45,
+              exportCameraZ: 200,
               threeEdgeRenderer: store.threeEdgeRenderer,
             })
             const trimmed = String(centered3d || '').trim()
@@ -3241,8 +3243,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
                   includeXmlDeclaration: false,
                   animated: true,
                   exportAutoRotate: true,
-                  exportAutoRotateSpeed: 0.85,
-                  exportMotionIntensityMultiplier: 1.75,
+                  exportAutoRotateSpeed: 1.2,
+                  exportMotionIntensityMultiplier: 2.2,
+                  exportTiltXRad: 0.45,
+                  exportCameraZ: 200,
                   threeEdgeRenderer: store.threeEdgeRenderer,
                 })
                 const trimmed = String(centered3d || '').trim()
@@ -4571,8 +4575,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
             includeXmlDeclaration: true,
             animated: true,
             exportAutoRotate: true,
-            exportAutoRotateSpeed: 0.85,
-            exportMotionIntensityMultiplier: 1.75,
+            exportAutoRotateSpeed: 1.2,
+            exportMotionIntensityMultiplier: 2.2,
+            exportTiltXRad: 0.45,
+            exportCameraZ: 200,
             threeEdgeRenderer: store.threeEdgeRenderer,
           })
           if (centered3d && centered3d.trim()) {
