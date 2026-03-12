@@ -398,6 +398,7 @@ export function WorkflowSteps({
           onExportSvgSnapshot={exportActions.exportSvgSnapshotAction}
           onExportPngSnapshot={exportActions.exportPngSnapshotAction}
           onExportHtmlViewer={exportActions.exportHtmlViewerAction}
+          onExportHtmlCanvas={exportActions.exportHtmlCanvasAction}
           onCopyGraphJsonLd={exportActions.copyGraphJsonLd}
           onCopyGraphJson={exportActions.copyGraphJson}
           onExportValidationJson={exportActions.exportValidationJson}

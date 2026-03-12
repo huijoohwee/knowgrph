@@ -34,6 +34,9 @@ export async function testExportHtmlViewerIsSvgOnlyAndBlocksBrowserZoomAndSelect
   if (!html.includes('scheduleOverlayUpdate')) {
     throw new Error('expected exported viewer to coalesce overlay updates (avoid churn)')
   }
+  if (!html.includes("pointerMode !== 'pan'") || !html.includes('applyMediaPointerEvents')) {
+    throw new Error('expected pan mode to disable media pointer events so overlay drag pans instead')
+  }
   if (html.includes('mediaOffsetById') || html.includes('startMediaHeaderDrag')) {
     throw new Error('expected exported viewer media header drag to move node (not detach panel)')
   }

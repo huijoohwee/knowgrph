@@ -49,6 +49,7 @@ const ensurePeerSymlinks = () => {
 ensurePeerSymlinks()
 
 try {
+  const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const stripFlag = (args: string[], name: string) => {
     for (let i = args.length - 1; i >= 0; i -= 1) {
       const cur = args[i]
@@ -66,6 +67,20 @@ try {
   stripFlag(process.argv, '--localstorageFile')
   stripFlag(process.execArgv, '--localstorage-file')
   stripFlag(process.execArgv, '--localstorageFile')
+
+  const stripFromNodeOptions = (name: string) => {
+    const v = process.env.NODE_OPTIONS
+    if (!v) return
+    const n = escapeRe(name)
+    const re = new RegExp(
+      `(?:^|\\s)${n}(?:=(?:"[^"]*"|'[^']*'|\\S+)|\\s+(?:"[^"]*"|'[^']*'|\\S+))?(?=\\s|$)`,
+      'g',
+    )
+    const next = v.replace(re, ' ').replace(/\s+/g, ' ').trim()
+    process.env.NODE_OPTIONS = next
+  }
+  stripFromNodeOptions('--localstorage-file')
+  stripFromNodeOptions('--localstorageFile')
 } catch {
   void 0
 }

@@ -371,6 +371,29 @@ export async function exportHtmlSnapshot(htmlMarkup: string, suggestedName?: str
   }
 }
 
+export async function exportHtmlCanvasSnapshot(htmlMarkup: string, mode: '2d' | '3d', suggestedName?: string): Promise<void> {
+  try {
+    const trimmed = String(htmlMarkup || '').trim()
+    if (!trimmed) return
+    const blob = new Blob([trimmed], { type: 'text/html;charset=utf-8' })
+    const prefs = readExportPrefs()
+    const pref = (typeof (prefs as Record<string, unknown>).filename === 'string' && (prefs as Record<string, unknown>).format === 'html-canvas')
+      ? ((prefs as Record<string, unknown>).filename as string) : `graph.canvas-${mode}.html`
+    const base = typeof suggestedName === 'string' && suggestedName.trim() ? suggestedName : pref
+    const baseStem = base.replace(/\.[a-z0-9]+$/i, '')
+    const name = ensureExt(`${baseStem}.canvas-${mode}.html`, ['.html', '.htm'], `graph.canvas-${mode}.html`)
+    const saved = await saveBlobWithPicker(blob, name, { description: 'HTML Files', accept: { 'text/html': ['.html', '.htm'] } })
+    if (saved === '') return
+    if (saved) {
+      writeExportPrefs({ format: 'html-canvas', filename: saved })
+      return
+    }
+    downloadBlob(blob, `graph.canvas-${mode}.html`)
+  } catch {
+    void 0
+  }
+}
+
 export async function exportValidationSummaryAsJSON(summary: GraphValidationSummary, suggestedName?: string): Promise<void> {
   try {
     const blob = new Blob([JSON.stringify(summary, null, 2)], { type: 'application/json' });

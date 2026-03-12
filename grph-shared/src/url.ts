@@ -276,6 +276,64 @@ export function shouldUseRemoteFetchProxy(): boolean {
 export function applyMediaProxySrc(src: string): string {
   const raw = String(src || '').trim()
   if (!raw) return ''
+  if (/^data:image\/svg\+xml;base64,/i.test(raw)) {
+    try {
+      const b64 = raw.replace(/^data:image\/svg\+xml;base64,/i, '')
+      const decodeBase64Utf8 = (input: string): string => {
+        const bin = typeof atob === 'function' ? atob(input) : ''
+        if (!bin) return ''
+        const bytes = new Uint8Array(bin.length)
+        for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i) & 0xff
+        try {
+          if (typeof TextDecoder === 'function') return new TextDecoder('utf-8').decode(bytes)
+        } catch {
+          void 0
+        }
+        try {
+          let s = ''
+          for (let i = 0; i < bytes.length; i += 1) s += String.fromCharCode(bytes[i] || 0)
+          return decodeURIComponent(escape(s))
+        } catch {
+          return ''
+        }
+      }
+      const encodeUtf8Base64 = (text: string): string => {
+        let bytes: Uint8Array
+        try {
+          if (typeof TextEncoder === 'function') bytes = new TextEncoder().encode(text)
+          else throw new Error('no TextEncoder')
+        } catch {
+          const esc = unescape(encodeURIComponent(text))
+          bytes = new Uint8Array(esc.length)
+          for (let i = 0; i < esc.length; i += 1) bytes[i] = esc.charCodeAt(i) & 0xff
+        }
+        let bin = ''
+        for (let i = 0; i < bytes.length; i += 1) bin += String.fromCharCode(bytes[i] || 0)
+        return typeof btoa === 'function' ? btoa(bin) : ''
+      }
+
+      const svg = decodeBase64Utf8(b64)
+      if (svg) {
+        const idx = svg.toLowerCase().indexOf('<svg')
+        if (idx >= 0) {
+          const head = svg.slice(idx)
+          const tagEnd = head.indexOf('>')
+          if (tagEnd > 0) {
+            const openTag = head.slice(0, tagEnd + 1)
+            if (!/\bxmlns\s*=/.test(openTag)) {
+              const injected = openTag.replace(/<svg\b/i, '<svg xmlns="http://www.w3.org/2000/svg"')
+              const nextSvg = svg.slice(0, idx) + injected + head.slice(tagEnd + 1)
+              const nextB64 = encodeUtf8Base64(nextSvg)
+              if (nextB64) return `data:image/svg+xml;base64,${nextB64}`
+            }
+          }
+        }
+      }
+    } catch {
+      void 0
+    }
+    return raw
+  }
   if (typeof window === 'undefined') return raw
   try {
     const base = window.location.origin

@@ -38,6 +38,9 @@ import { LS_KEYS } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { exportGraphAsCenteredSvgMarkup } from '@/lib/graph/graphCenteredSvg'
 import { buildGraphHtmlViewerMarkup } from '@/lib/graph/graphHtmlViewer'
+import { defaultSchema } from '@/lib/graph/schema'
+import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
+import { readPanSpeed, readWheelBehavior, readZoomSpeed } from '@/lib/canvas/camera-options-2d'
 import { exportGraphAsCentered3dSvgMarkup } from '@/lib/graph/graphCenteredSvg3d'
 import { getNodeBaseFill, getEdgeBaseStroke } from '@/lib/graph/visualStyles'
 import { loadThreeOfflineModuleSources } from '@/lib/three/offlineModules'
@@ -3219,7 +3222,44 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       })()
 
       try {
-        const svgOnly = String(svgMarkup || '').replace(/^\s*<\?xml[^>]*>\s*/i, '').trim()
+        const svgOnly = (() => {
+          if (!geospatialEnabled) {
+            try {
+              const graphData = store.graphData
+              const schema = store.schema
+              if (graphData && schema) {
+                if (wants3dExport) {
+                  const centered3d = exportGraphAsCentered3dSvgMarkup({
+                    graphData,
+                    schema,
+                    widthPx: Math.max(800, fallbackSize.w || 0),
+                    heightPx: Math.max(600, fallbackSize.h || 0),
+                    paddingPx: 96,
+                    includeXmlDeclaration: false,
+                    animated: false,
+                    threeEdgeRenderer: store.threeEdgeRenderer,
+                  })
+                  const trimmed = String(centered3d || '').trim()
+                  if (trimmed) return trimmed
+                } else {
+                  const centered = exportGraphAsCenteredSvgMarkup({
+                    graphData,
+                    schema,
+                    widthPx: Math.max(800, fallbackSize.w || 0),
+                    heightPx: Math.max(600, fallbackSize.h || 0),
+                    paddingPx: 96,
+                    includeXmlDeclaration: false,
+                  })
+                  const trimmed = String(centered || '').trim()
+                  if (trimmed) return trimmed
+                }
+              }
+            } catch {
+              void 0
+            }
+          }
+          return String(svgMarkup || '').replace(/^\s*<\?xml[^>]*>\s*/i, '').trim()
+        })()
         if (!svgOnly) {
           pushUiToast({ id: 'export-html-missing-canvas', kind: 'warning', message: 'No inline SVG canvas snapshot available.' })
           return
@@ -3236,6 +3276,25 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
           threeIframeOverlayBaseWidthMinPxCompact: (store as unknown as { threeIframeOverlayBaseWidthMinPxCompact?: number }).threeIframeOverlayBaseWidthMinPxCompact,
           threeIframeOverlayBaseWidthMaxPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMaxPxDefault?: number }).threeIframeOverlayBaseWidthMaxPxDefault,
           threeIframeOverlayBaseWidthMaxPxCompact: (store as unknown as { threeIframeOverlayBaseWidthMaxPxCompact?: number }).threeIframeOverlayBaseWidthMaxPxCompact,
+          zoomMinK: readZoomScaleExtent(store.schema || defaultSchema)[0],
+          zoomMaxK: readZoomScaleExtent(store.schema || defaultSchema)[1],
+          wheelBehavior: readWheelBehavior(store.schema || defaultSchema),
+          viewportControlsPreset: (store as unknown as { viewportControlsPreset?: 'map' | 'design' }).viewportControlsPreset === 'design' ? 'design' : 'map',
+          panSpeed: readPanSpeed(store.schema || defaultSchema),
+          zoomSpeed: readZoomSpeed(store.schema || defaultSchema),
+          flowWheelZoomSpeedMultiplier: (store as unknown as { flowWheelZoomSpeedMultiplier?: number }).flowWheelZoomSpeedMultiplier,
+          flowWheelZoomIncrementMultiplier: (store as unknown as { flowWheelZoomIncrementMultiplier?: number }).flowWheelZoomIncrementMultiplier,
+          flowWheelZoomSmoothMinDurationMs: (store as unknown as { flowWheelZoomSmoothMinDurationMs?: number }).flowWheelZoomSmoothMinDurationMs,
+          flowWheelZoomSmoothMaxDurationMs: (store as unknown as { flowWheelZoomSmoothMaxDurationMs?: number }).flowWheelZoomSmoothMaxDurationMs,
+          wheelZoomCtrlMetaBoostMultiplier: (store as unknown as { wheelZoomCtrlMetaBoostMultiplier?: number }).wheelZoomCtrlMetaBoostMultiplier,
+          canvasInteractionSpeedMultiplier: (store as unknown as { canvasInteractionSpeedMultiplier?: number }).canvasInteractionSpeedMultiplier,
+          canvasPanSpeedMultiplier: (store as unknown as { canvasPanSpeedMultiplier?: number }).canvasPanSpeedMultiplier,
+          snapGridEnabled: !!store.schema?.behavior?.snapGrid?.enabled,
+          snapGridSize: store.schema?.behavior?.snapGrid?.size,
+          dragConstraint: (store.schema?.behavior?.dragConstraint as any) || 'free',
+          allowNodeDrag: (store.schema?.behavior as any)?.allowNodeDrag !== false,
+          allowEdgeDrag: (store.schema?.behavior as any)?.allowNodeDrag !== false,
+          allowGroupDrag: (store.schema?.behavior as any)?.allowGroupDrag !== false,
         })
         if (!htmlViewer || !htmlViewer.trim()) {
           pushUiToast({ id: 'export-html-missing-canvas', kind: 'warning', message: 'Failed to build HTML canvas export.' })

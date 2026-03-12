@@ -18,6 +18,7 @@ type WorkflowExportActionsProps = {
   onExportSvgSnapshot: () => void
   onExportPngSnapshot: () => void
   onExportHtmlViewer?: () => void
+  onExportHtmlCanvas?: () => void
   onCopyGraphJsonLd: () => void
   onCopyGraphJson: () => void
   onExportValidationJson: () => void
@@ -57,6 +58,7 @@ export default function WorkflowExportActions({
   onExportSvgSnapshot,
   onExportPngSnapshot,
   onExportHtmlViewer,
+  onExportHtmlCanvas,
   onCopyGraphJsonLd,
   onCopyGraphJson,
   onExportValidationJson,
@@ -208,6 +210,15 @@ export default function WorkflowExportActions({
             onClick={onExportHtmlViewer}
           >
             Export Graph HTML Viewer
+          </button>
+        ) : null}
+        {onExportHtmlCanvas ? (
+          <button
+            type="button"
+            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+            onClick={onExportHtmlCanvas}
+          >
+            Export HTML Canvas
           </button>
         ) : null}
         <button

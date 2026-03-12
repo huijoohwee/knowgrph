@@ -30,6 +30,8 @@ const looksLikePipeLayoutLine = (line: string): boolean => {
   return false
 }
 
+const isEllipsisPipeLayoutLine = (line: string): boolean => /^\s*(?:\.\.\.|…)\s*\|\s*/.test(String(line || ''))
+
 const normalizeInline = (raw: string): string => String(raw || '').replace(/\s+/g, ' ').trim()
 
 const truncate = (raw: string, max: number): string => {
@@ -107,8 +109,9 @@ export function normalizeMarkdownAsciiBlocks(markdown: string): string {
       const body = fenceLines.slice(1, fenceLines.length - 1)
       const nonEmpty = body.filter(l => String(l || '').trim() !== '')
       const pipeCount = nonEmpty.filter(looksLikePipeLayoutLine).length
+      const ellipsisPipeCount = nonEmpty.filter(isEllipsisPipeLayoutLine).length
       const hasBox = nonEmpty.some(looksLikeBoxDrawingLine)
-      if (!hasBox && pipeCount >= 2 && pipeCount === nonEmpty.length) {
+      if (!hasBox && pipeCount >= 2 && pipeCount === nonEmpty.length && ellipsisPipeCount !== nonEmpty.length) {
         const rendered = renderPipeLayoutAsBoxTable(nonEmpty)
         fenceLines = [open, ...rendered, close]
       }
