@@ -287,6 +287,9 @@ export async function buildGraphHtmlViewerMarkup(args: {
     var allowEdgeDrag = !(cfg && cfg.allowEdgeDrag === false);
     var allowGroupDrag = !(cfg && cfg.allowGroupDrag === false);
     var lastOverlayKey = '';
+    var lastVars = null;
+    var lastPanelW = 0;
+    var lastPanelH = 0;
     var mediaNodes = ${mediaNodesJson};
     var nodePosById = ${nodePosByIdJson};
     var groupMembersById = ${groupMembersByIdJson};
@@ -1183,43 +1186,93 @@ export async function buildGraphHtmlViewerMarkup(args: {
       state.k = 1; state.x = 0; state.y = 0; applyTransform();
     }
 
-    function computeMediaPanelForZoom(k){
-      var density = ${JSON.stringify(density)};
-      var vp = getViewport();
-      var widthRatio = density === 'compact' ? ${widthRatioCompact} : ${widthRatioDefault};
-      var widthMin = density === 'compact' ? ${widthMinCompact} : ${widthMinDefault};
-      var widthMax = density === 'compact' ? ${widthMaxCompact} : ${widthMaxDefault};
-      var baseW = clamp(vp.w * widthRatio, widthMin, widthMax);
-      var MAX_PANEL_PX = 2048;
-      var STEP_PX = 16;
-      var quantize = function(px){ return Math.round(px / STEP_PX) * STEP_PX; };
-      var contentW = clamp(quantize(baseW * clamp(k, 0.001, 1000)), 2, MAX_PANEL_PX);
-      var sizeScale = Math.max(0.001, contentW / Math.max(1, baseW));
+    function computeMediaPanelCssVars3d(args){
+      var s = (typeof args.sizeScale === 'number' && isFinite(args.sizeScale)) ? Math.max(0.001, Number(args.sizeScale)) : 1;
+      var density = String(args.density || 'default') === 'compact' ? 'compact' : 'default';
       var headerBase = density === 'compact' ? 22 : 28;
       var paddingBase = density === 'compact' ? 6 : 8;
       var radiusBase = density === 'compact' ? 9 : 10;
       var borderBase = 1;
       var titleBase = density === 'compact' ? 11 : 12;
-      var headerH = Math.max(14, Math.round(headerBase * sizeScale));
-      var padding = Math.max(2, Math.round(paddingBase * sizeScale));
-      var radius = Math.max(3, Math.round(radiusBase * sizeScale));
-      var borderW = Math.max(1, Math.round(borderBase * sizeScale));
-      var titleSize = Math.max(10, Math.round(titleBase * sizeScale));
+      var headerH = Math.max(14, Math.round(headerBase * s));
+      var padding = Math.max(2, Math.round(paddingBase * s));
+      var radius = Math.max(3, Math.round(radiusBase * s));
+      var borderW = Math.max(1, Math.round(borderBase * s));
+      var titleSize = Math.max(10, Math.round(titleBase * s));
+      var metrics = { headerH: headerH, borderW: borderW, radius: radius, padding: padding, titleSize: titleSize };
+      var vars = {
+        '--kg-media-panel-header-h': headerH + 'px',
+        '--kg-media-panel-border-w': borderW + 'px',
+        '--kg-media-panel-radius': radius + 'px',
+        '--kg-media-panel-padding': padding + 'px',
+        '--kg-media-panel-title-size': titleSize + 'px',
+      };
+      return { metrics: metrics, vars: vars };
+    }
+
+    function computePanelSizeFromContent16x9(args){
+      var contentW = Math.max(2, Number(args.contentW) || 2);
       var contentH = Math.max(2, (contentW * 9) / 16);
+      var padding = Math.max(0, Number(args.metrics && args.metrics.padding) || 0);
+      var headerH = Math.max(0, Number(args.metrics && args.metrics.headerH) || 0);
       var panelW = Math.max(2, contentW + padding * 2);
       var panelH = Math.max(2, contentH + headerH + padding * 2);
-      return {
-        key: density + '|' + contentW,
-        vars: {
-          '--kg-media-panel-header-h': headerH + 'px',
-          '--kg-media-panel-border-w': borderW + 'px',
-          '--kg-media-panel-radius': radius + 'px',
-          '--kg-media-panel-padding': padding + 'px',
-          '--kg-media-panel-title-size': titleSize + 'px'
-        },
-        panelW: panelW,
-        panelH: panelH
-      };
+      return { panelW: panelW, panelH: panelH, contentW: contentW, contentH: contentH };
+    }
+
+    function computePanelRect(args){
+      var w = Math.max(1, Number(args.w) || 1);
+      var h = Math.max(1, Number(args.h) || 1);
+      var left = (Number(args.cx) || 0) - w / 2;
+      var top = (Number(args.cy) || 0) - h / 2;
+      return { left: left, top: top, w: w, h: h };
+    }
+
+    function applyMediaPanelCssVars(el, vars){
+      if (!el || !el.style || !vars) return;
+      var sig = '';
+      var keys = Object.keys(vars);
+      for (var i = 0; i < keys.length; i += 1) {
+        var k = keys[i];
+        sig += k + ':' + vars[k] + ';';
+      }
+      if (el.__kgVarsSig === sig) return;
+      for (var i2 = 0; i2 < keys.length; i2 += 1) {
+        var kk = keys[i2];
+        el.style.setProperty(kk, vars[kk]);
+      }
+      el.__kgVarsSig = sig;
+    }
+
+    function applyPanelBox(el, args){
+      if (!el || !el.style) return;
+      var left = (typeof args.left === 'number' && isFinite(args.left)) ? args.left : 0;
+      var top = (typeof args.top === 'number' && isFinite(args.top)) ? args.top : 0;
+      var w = (typeof args.w === 'number' && isFinite(args.w)) ? args.w : 1;
+      var h = (typeof args.h === 'number' && isFinite(args.h)) ? args.h : 1;
+      var display = args.display === 'none' ? 'none' : 'block';
+      var mode = 'transform';
+      try {
+        var d = el.dataset || null;
+        mode = d && d.kgPanelBox === 'leftTop' ? 'leftTop' : 'transform';
+      } catch (err) { mode = 'transform'; }
+      var z = args.zIndex != null ? String(args.zIndex) : '';
+      var sig = mode + '|' + display + '|' + z + '|' + left + '|' + top + '|' + w + '|' + h;
+      if (el.__kgBoxSig === sig) return;
+      el.style.display = display;
+      if (display !== 'none') {
+        if (mode === 'leftTop') {
+          el.style.left = left + 'px';
+          el.style.top = top + 'px';
+          el.style.transform = 'translate3d(0px, 0px, 0px)';
+        } else {
+          el.style.transform = 'translate3d(' + left + 'px, ' + top + 'px, 0px)';
+        }
+        el.style.width = w + 'px';
+        el.style.height = h + 'px';
+        if (z) el.style.zIndex = z;
+      }
+      el.__kgBoxSig = sig;
     }
 
     function ensureMediaDom(){
@@ -1283,17 +1336,41 @@ export async function buildGraphHtmlViewerMarkup(args: {
       });
     }
 
+
     function updateOverlays(){
       if (!overlay || !svg) return;
       ensureMediaDom();
       if (!mediaNodes || mediaNodes.length === 0) return;
-      var panel = computeMediaPanelForZoom(state.k);
-      if (panel.key !== lastOverlayKey) {
-        lastOverlayKey = panel.key;
-        var keys = Object.keys(panel.vars);
-        for (var i = 0; i < keys.length; i += 1) {
-          document.documentElement.style.setProperty(keys[i], panel.vars[keys[i]]);
-        }
+      var vp = getViewport();
+      var density = ${JSON.stringify(density)};
+      var widthRatio = density === 'compact' ? ${widthRatioCompact} : ${widthRatioDefault};
+      var widthMin = density === 'compact' ? ${widthMinCompact} : ${widthMinDefault};
+      var widthMax = density === 'compact' ? ${widthMaxCompact} : ${widthMaxDefault};
+      var baseW = clamp(vp.w * widthRatio, widthMin, widthMax);
+      var MAX_PANEL_PX = 2048;
+      var STEP_PX = 16;
+      var quantize = function(px){ return Math.round(px / STEP_PX) * STEP_PX; };
+      var k0 = clamp(state.k, 0.001, 1000);
+      var contentW = clamp(quantize(baseW * k0), 2, MAX_PANEL_PX);
+      var sizeScale = Math.max(0.001, contentW / Math.max(1, baseW));
+      var key = density + '|' + contentW;
+      var vars = null;
+      var panelW = 0;
+      var panelH = 0;
+      if (key !== lastOverlayKey || !lastPanelW || !lastPanelH || !lastVars) {
+        var computed = computeMediaPanelCssVars3d({ density: density, sizeScale: sizeScale });
+        vars = computed.vars;
+        var panelSize = computePanelSizeFromContent16x9({ contentW: contentW, metrics: computed.metrics });
+        panelW = panelSize.panelW;
+        panelH = panelSize.panelH;
+        lastVars = vars;
+        lastPanelW = panelW;
+        lastPanelH = panelH;
+        lastOverlayKey = key;
+      } else {
+        vars = lastVars;
+        panelW = lastPanelW;
+        panelH = lastPanelH;
       }
       var byId = overlay.__kgMediaById || {};
       var nodeById = overlay.__kgSvgNodeById || svgNodeById || {};
@@ -1345,30 +1422,42 @@ export async function buildGraphHtmlViewerMarkup(args: {
           }
         }
         if (cx == null || cy == null) {
-          var last0 = el.__kgLastStyle || null;
-          if (!last0 || last0.d !== 'none') {
-            el.style.display = 'none';
-            el.__kgLastStyle = { d: 'none' };
-          }
+          applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block', zIndex: 1 });
           continue;
         }
-        var last = el.__kgLastStyle || (el.__kgLastStyle = {});
-        if (last.d !== 'block') { el.style.display = 'block'; last.d = 'block'; }
-        if (last.w !== panel.panelW) { el.style.width = panel.panelW + 'px'; last.w = panel.panelW; }
-        if (last.h !== panel.panelH) { el.style.height = panel.panelH + 'px'; last.h = panel.panelH; }
         var baseSx = (svgBase && isFinite(svgBase.sx) && svgBase.sx > 0) ? svgBase.sx : 1;
         var baseSy = (svgBase && isFinite(svgBase.sy) && svgBase.sy > 0) ? svgBase.sy : 1;
         var ox = (svgBase && isFinite(svgBase.ox)) ? svgBase.ox : 0;
         var oy = (svgBase && isFinite(svgBase.oy)) ? svgBase.oy : 0;
         var sx = cx * state.k * baseSx + state.x + ox;
         var sy = cy * state.k * baseSy + state.y + oy;
-        var tx = sx - panel.panelW / 2;
-        var ty = sy - panel.panelH / 2;
-        if (last.x !== tx || last.y !== ty) {
-          el.style.transform = 'translate3d(' + tx + 'px,' + ty + 'px,0)';
-          last.x = tx;
-          last.y = ty;
-        }
+
+        var rect = computePanelRect({ cx: sx, cy: sy, w: panelW, h: panelH });
+        applyMediaPanelCssVars(el, vars);
+        try {
+          var applied = (el.dataset && el.dataset.kgMediaEagerApplied) || '';
+          if (!applied) {
+            var iframe = el.querySelector('iframe');
+            if (iframe) {
+              try { iframe.loading = 'eager'; } catch (err) {}
+              try { iframe.setAttribute('loading', 'eager'); } catch (err) {}
+            }
+            var img = el.querySelector('img');
+            if (img) {
+              try { img.loading = 'eager'; } catch (err) {}
+              try { img.setAttribute('loading', 'eager'); } catch (err) {}
+            }
+            try { el.dataset.kgMediaEagerApplied = '1'; } catch (err) {}
+          }
+        } catch (err) {}
+
+        applyPanelBox(el, {
+          left: Math.round(rect.left),
+          top: Math.round(rect.top),
+          w: panelW,
+          h: panelH,
+          display: 'block',
+        });
       }
     }
 

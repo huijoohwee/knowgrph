@@ -70,6 +70,7 @@ async function renderGraphCanvasSvgForHtmlExport(args: {
       layoutPositions[id] = { x, y }
     }
   }
+  const hasStablePositions = Object.keys(layoutPositions).length >= 2
 
   const edgesForSim = normalizeEdgesForSim((graphData.nodes ?? []) as any, (graphData.edges ?? []) as any)
   const groupsDerivation = deriveSceneGroups({
@@ -113,14 +114,14 @@ async function renderGraphCanvasSvgForHtmlExport(args: {
     zoomOnDoubleClick: false,
     renderMediaAsNodes,
     mediaPanelDensity,
-    enableTightInitialLayout: true,
+    enableTightInitialLayout: !hasStablePositions,
     fitToScreenMode: false,
     viewportControlsPreset,
     initialZoomTransform: { k: 1, x: 0, y: 0 },
-    layoutPositionsForMode: layoutPositions,
+    layoutPositionsForMode: hasStablePositions ? layoutPositions : null,
     baselineLayoutPositions: null,
-    prevPositions: layoutPositions,
-    skipInitialLayout: true,
+    prevPositions: hasStablePositions ? layoutPositions : null,
+    skipInitialLayout: hasStablePositions,
     freezeSimulation: true,
     groupsForBboxCollide: groupsDerivation?.allGroups || [],
     layoutGroupKeyByNodeId: groupsDerivation?.layoutGroupKeyByNodeId || null,
@@ -164,6 +165,22 @@ async function renderGraphCanvasSvgForHtmlExport(args: {
     setLayoutPositionsForMode: null,
   })
 
+  try {
+    const sim = simulationRef.current
+    if (sim && !hasStablePositions) {
+      try {
+        sim.alpha(1)
+      } catch {
+        void 0
+      }
+      const ticks = Math.min(520, Math.max(80, Math.floor(((graphData.nodes?.length || 0) + (graphData.edges?.length || 0)) * 6)))
+      for (let i = 0; i < ticks; i += 1) sim.tick()
+      const tickHandler = sim.on('tick')
+      if (typeof tickHandler === 'function') tickHandler()
+    }
+  } catch {
+    void 0
+  }
   try {
     const before = beforeRenderFrameRef.current
     if (typeof before === 'function') before()
