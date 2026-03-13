@@ -1,4 +1,4 @@
-import type { GraphState, CanvasSnapshotFns, ThreeCameraPose, ThreeCameraSnapshotFns, ThreeGlbSnapshotFns } from '@/hooks/store/types'
+import type { GraphState, CanvasSnapshotFns, ThreeCameraPose, ThreeCameraSnapshotFns, ThreeGlbSnapshotFns, ThreeLayoutSnapshotFns } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
 import { LS_KEYS, DEFAULT_CANVAS_2D_RENDERER, DEFAULT_VIEWPORT_CONTROLS_PRESET, UI_COPY } from '@/lib/config'
@@ -608,6 +608,18 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     if (!fns) return null
     try {
       return await fns.captureGlb()
+    } catch {
+      return null
+    }
+  },
+
+  threeLayoutSnapshotFns: null,
+  registerThreeLayoutSnapshotFns: (fns) => set({ threeLayoutSnapshotFns: fns || null }),
+  captureThreeLayoutPositions: () => {
+    const fns = get().threeLayoutSnapshotFns
+    if (!fns) return null
+    try {
+      return fns.capturePositions()
     } catch {
       return null
     }

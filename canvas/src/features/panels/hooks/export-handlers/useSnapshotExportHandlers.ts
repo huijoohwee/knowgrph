@@ -200,6 +200,61 @@ async function renderGraphCanvasSvgForHtmlExport(args: {
   return String(markup || '').trim()
 }
 
+function normalizeCapturedSvgForHtmlEmbed(raw: string): string {
+  const s = String(raw || '').trim()
+  if (!s) return ''
+  const noXml = s.replace(/^<\?xml[^>]*>\s*/i, '')
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(noXml, 'image/svg+xml')
+    const svg = doc.querySelector('svg')
+    if (!svg) return noXml
+    const g = svg.querySelector('g')
+    if (g) g.removeAttribute('transform')
+    return svg.outerHTML
+  } catch {
+    return noXml
+  }
+}
+
+function extractCapturedViewportTransform(raw: string): { k: number; x: number; y: number } | null {
+  const s = String(raw || '').trim()
+  if (!s) return null
+  const noXml = s.replace(/^<\?xml[^>]*>\s*/i, '')
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(noXml, 'image/svg+xml')
+    const svg = doc.querySelector('svg')
+    if (!svg) return null
+    const g = svg.querySelector('g')
+    const tr = String(g?.getAttribute('transform') || '').trim()
+    if (!tr) return null
+
+    const m = tr.match(/matrix\(\s*([-0-9.]+)\s*[ ,]\s*([-0-9.]+)\s*[ ,]\s*([-0-9.]+)\s*[ ,]\s*([-0-9.]+)\s*[ ,]\s*([-0-9.]+)\s*[ ,]\s*([-0-9.]+)\s*\)/i)
+    if (m) {
+      const a = Number(m[1])
+      const b = Number(m[2])
+      const e = Number(m[5])
+      const f = Number(m[6])
+      const k = Math.sqrt(a * a + b * b)
+      if (Number.isFinite(k) && Number.isFinite(e) && Number.isFinite(f) && k > 0) return { k, x: e, y: f }
+    }
+
+    const mt = tr.match(/translate\(\s*([-0-9.]+)\s*[, ]\s*([-0-9.]+)\s*\)/i)
+    const ms = tr.match(/scale\(\s*([-0-9.]+)\s*\)/i)
+    if (mt && ms) {
+      const x = Number(mt[1])
+      const y = Number(mt[2])
+      const k = Number(ms[1])
+      if (Number.isFinite(k) && Number.isFinite(x) && Number.isFinite(y) && k > 0) return { k, x, y }
+    }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
 export function useSnapshotExportHandlers({
   captureCanvasSvgSnapshot,
   captureCanvasPngSnapshot,
@@ -287,7 +342,11 @@ export function useSnapshotExportHandlers({
           setTransientExportStatus(IMPORT_EXPORT_STATUS_COPY.svgSnapshotNoSnapshotAvailable)
           return
         }
-        const vp = { w: 1920, h: 1080 }
+        const vpRaw = readCanvasViewportSizeFromDom()
+        const vp = {
+          w: vpRaw && vpRaw.w > 0 ? vpRaw.w : 1920,
+          h: vpRaw && vpRaw.h > 0 ? vpRaw.h : 1080,
+        }
         const wrapped = await wrapPngBlobAsSvgMarkup(png, { includeXmlDeclaration: true, width: vp.w, height: vp.h })
         const wrappedTrimmed = String(wrapped || '').trim()
         if (!wrappedTrimmed) {
@@ -338,11 +397,30 @@ export function useSnapshotExportHandlers({
           return base ? `${base} (Graph viewer)` : 'Graph viewer'
         })()
 
+        let initialView: { k: number; x: number; y: number } | null = null
+
         const svgMarkup = await (async () => {
           if (wants3dExport) {
             const graphData = store.graphData
             const schema = store.schema
             if (graphData && schema) {
+              const pose = store.captureThreeCameraPose()
+              const positionsById = store.captureThreeLayoutPositions() || undefined
+              const cam = (() => {
+                if (!pose) return { exportCameraZ: undefined, exportTiltXRad: undefined, exportYaw0Rad: undefined }
+                const dx = Number(pose.position.x) - Number(pose.target.x)
+                const dy = Number(pose.position.y) - Number(pose.target.y)
+                const dz = Number(pose.position.z) - Number(pose.target.z)
+                const horiz = Math.hypot(dx, dz)
+                const dist = Math.hypot(dx, dy, dz)
+                const pitch = Math.atan2(dy, Math.max(1e-6, horiz))
+                const yaw = Math.atan2(dx, dz)
+                return {
+                  exportCameraZ: Number.isFinite(dist) ? Math.max(80, Math.min(1200, dist)) : undefined,
+                  exportTiltXRad: Number.isFinite(pitch) ? Math.max(-Math.PI * 0.45, Math.min(Math.PI * 0.45, pitch)) : undefined,
+                  exportYaw0Rad: Number.isFinite(yaw) ? -yaw : undefined,
+                }
+              })()
               const centered3d = exportGraphAsCentered3dSvgMarkup({
                 graphData,
                 schema,
@@ -351,12 +429,26 @@ export function useSnapshotExportHandlers({
                 paddingPx: 96,
                 includeXmlDeclaration: false,
                 animated: true,
+                includeInternalScript: false,
+                exportIncludeLabels: false,
                 threeEdgeRenderer: store.threeEdgeRenderer,
+                exportShaderLineWidthPx: store.threeShaderLineWidthPx,
+                positionsById,
+                exportCameraPose: pose || undefined,
+                exportCameraZ: cam.exportCameraZ,
+                exportTiltXRad: cam.exportTiltXRad,
+                exportYaw0Rad: cam.exportYaw0Rad,
+                exportDepthOpacityMin: 1,
+                exportDepthOpacityMax: 1,
               })
               return String(centered3d || '').trim()
             }
             return ''
           }
+          const captured = await captureCanvasSvgSnapshot('2d')
+          initialView = extractCapturedViewportTransform(String(captured || ''))
+          const normalized = normalizeCapturedSvgForHtmlEmbed(String(captured || ''))
+          if (normalized) return normalized
           const graphData = store.graphData
           const schema = store.schema
           if (!graphData || !schema) return ''
@@ -378,6 +470,17 @@ export function useSnapshotExportHandlers({
           title,
           svgMarkup: svgMarkup || null,
           graphData: store.graphData,
+          preferWebgl3d: wants3dExport,
+          initialView: initialView || undefined,
+          zoomLabelScaleMode2d: store.zoomLabelScaleMode2d,
+          zoomLabelScaleExponent2d: store.zoomLabelScaleExponent2d,
+          zoomLabelScaleClampMin2d: store.zoomLabelScaleClampMin2d,
+          zoomLabelScaleClampMax2d: store.zoomLabelScaleClampMax2d,
+          zoomStrokeScaleMode2d: store.zoomStrokeScaleMode2d,
+          zoomStrokeScaleExponent2d: store.zoomStrokeScaleExponent2d,
+          zoomStrokeScaleClampMin2d: store.zoomStrokeScaleClampMin2d,
+          zoomStrokeScaleClampMax2d: store.zoomStrokeScaleClampMax2d,
+          hideLabelsBelowScale: store.schema?.performance?.lod?.hideLabelsBelowScale,
           includeRichMediaOverlays: store.renderMediaAsNodes === true,
           mediaOverlayPoolMax: store.threeIframeOverlayPoolMax,
           mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
@@ -403,9 +506,9 @@ export function useSnapshotExportHandlers({
           snapGridEnabled: !!(store.schema && store.schema.behavior && (store.schema.behavior as any).snapGrid && (store.schema.behavior as any).snapGrid.enabled),
           snapGridSize: store.schema && store.schema.behavior && (store.schema.behavior as any).snapGrid ? (store.schema.behavior as any).snapGrid.size : undefined,
           dragConstraint: store.schema && store.schema.behavior ? ((store.schema.behavior as any).dragConstraint as any) : undefined,
-          allowNodeDrag: !(store.schema && store.schema.behavior && (store.schema.behavior as any).allowNodeDrag === false),
-          allowEdgeDrag: !(store.schema && store.schema.behavior && (store.schema.behavior as any).allowNodeDrag === false),
-          allowGroupDrag: !(store.schema && store.schema.behavior && (store.schema.behavior as any).allowGroupDrag === false),
+          allowNodeDrag: true,
+          allowEdgeDrag: true,
+          allowGroupDrag: true,
         })
         const trimmed = String(html || '').trim()
         if (!trimmed) {
@@ -437,6 +540,8 @@ export function useSnapshotExportHandlers({
           return base ? `${base} (Canvas)` : 'Canvas'
         })()
 
+        let initialView: { k: number; x: number; y: number } | null = null
+
         const graphData = store.graphData
         const schema = store.schema
         if (!graphData || !schema) {
@@ -445,35 +550,78 @@ export function useSnapshotExportHandlers({
         }
 
         const svgOnly = await (async () => {
-          return wants3dExport
-            ? exportGraphAsCentered3dSvgMarkup({
-                graphData,
-                schema,
-                widthPx: vp.w,
-                heightPx: vp.h,
-                paddingPx: 96,
-                includeXmlDeclaration: false,
-                animated: true,
-                threeEdgeRenderer: store.threeEdgeRenderer,
-              })
-            : await renderGraphCanvasSvgForHtmlExport({
-                graphData,
-                schema,
-                widthPx: vp.w,
-                heightPx: vp.h,
-                viewportControlsPreset:
-                  (store as unknown as { viewportControlsPreset?: 'map' | 'design' }).viewportControlsPreset === 'design'
-                    ? 'design'
-                    : 'map',
-                renderMediaAsNodes: store.renderMediaAsNodes === true,
-                mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
-              })
+          if (wants3dExport) {
+            const pose = store.captureThreeCameraPose()
+            const positionsById = store.captureThreeLayoutPositions() || undefined
+            const cam = (() => {
+              if (!pose) return { exportCameraZ: undefined, exportTiltXRad: undefined, exportYaw0Rad: undefined }
+              const dx = Number(pose.position.x) - Number(pose.target.x)
+              const dy = Number(pose.position.y) - Number(pose.target.y)
+              const dz = Number(pose.position.z) - Number(pose.target.z)
+              const horiz = Math.hypot(dx, dz)
+              const dist = Math.hypot(dx, dy, dz)
+              const pitch = Math.atan2(dy, Math.max(1e-6, horiz))
+              const yaw = Math.atan2(dx, dz)
+              return {
+                exportCameraZ: Number.isFinite(dist) ? Math.max(80, Math.min(1200, dist)) : undefined,
+                exportTiltXRad: Number.isFinite(pitch) ? Math.max(-Math.PI * 0.45, Math.min(Math.PI * 0.45, pitch)) : undefined,
+                exportYaw0Rad: Number.isFinite(yaw) ? -yaw : undefined,
+              }
+            })()
+            return exportGraphAsCentered3dSvgMarkup({
+              graphData,
+              schema,
+              widthPx: vp.w,
+              heightPx: vp.h,
+              paddingPx: 96,
+              includeXmlDeclaration: false,
+              animated: true,
+              includeInternalScript: false,
+              exportIncludeLabels: false,
+              threeEdgeRenderer: store.threeEdgeRenderer,
+              exportShaderLineWidthPx: store.threeShaderLineWidthPx,
+              positionsById,
+              exportCameraPose: pose || undefined,
+              exportCameraZ: cam.exportCameraZ,
+              exportTiltXRad: cam.exportTiltXRad,
+              exportYaw0Rad: cam.exportYaw0Rad,
+              exportDepthOpacityMin: 1,
+              exportDepthOpacityMax: 1,
+            })
+          }
+          const captured = await captureCanvasSvgSnapshot('2d')
+          initialView = extractCapturedViewportTransform(String(captured || ''))
+          const normalized = normalizeCapturedSvgForHtmlEmbed(String(captured || ''))
+          if (normalized) return normalized
+          return await renderGraphCanvasSvgForHtmlExport({
+            graphData,
+            schema,
+            widthPx: vp.w,
+            heightPx: vp.h,
+            viewportControlsPreset:
+              (store as unknown as { viewportControlsPreset?: 'map' | 'design' }).viewportControlsPreset === 'design'
+                ? 'design'
+                : 'map',
+            renderMediaAsNodes: store.renderMediaAsNodes === true,
+            mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
+          })
         })()
 
         const html = await buildGraphHtmlViewerMarkup({
           title,
           svgMarkup: String(svgOnly || '').trim() || null,
           graphData,
+          preferWebgl3d: wants3dExport,
+          initialView: initialView || undefined,
+          zoomLabelScaleMode2d: store.zoomLabelScaleMode2d,
+          zoomLabelScaleExponent2d: store.zoomLabelScaleExponent2d,
+          zoomLabelScaleClampMin2d: store.zoomLabelScaleClampMin2d,
+          zoomLabelScaleClampMax2d: store.zoomLabelScaleClampMax2d,
+          zoomStrokeScaleMode2d: store.zoomStrokeScaleMode2d,
+          zoomStrokeScaleExponent2d: store.zoomStrokeScaleExponent2d,
+          zoomStrokeScaleClampMin2d: store.zoomStrokeScaleClampMin2d,
+          zoomStrokeScaleClampMax2d: store.zoomStrokeScaleClampMax2d,
+          hideLabelsBelowScale: store.schema?.performance?.lod?.hideLabelsBelowScale,
           includeRichMediaOverlays: store.renderMediaAsNodes === true,
           mediaOverlayPoolMax: store.threeIframeOverlayPoolMax,
           mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
@@ -499,9 +647,9 @@ export function useSnapshotExportHandlers({
           snapGridEnabled: !!(store.schema && store.schema.behavior && (store.schema.behavior as any).snapGrid && (store.schema.behavior as any).snapGrid.enabled),
           snapGridSize: store.schema && store.schema.behavior && (store.schema.behavior as any).snapGrid ? (store.schema.behavior as any).snapGrid.size : undefined,
           dragConstraint: store.schema && store.schema.behavior ? ((store.schema.behavior as any).dragConstraint as any) : undefined,
-          allowNodeDrag: !(store.schema && store.schema.behavior && (store.schema.behavior as any).allowNodeDrag === false),
-          allowEdgeDrag: !(store.schema && store.schema.behavior && (store.schema.behavior as any).allowNodeDrag === false),
-          allowGroupDrag: !(store.schema && store.schema.behavior && (store.schema.behavior as any).allowGroupDrag === false),
+          allowNodeDrag: true,
+          allowEdgeDrag: true,
+          allowGroupDrag: true,
         })
         const trimmed = String(html || '').trim()
         if (!trimmed) {

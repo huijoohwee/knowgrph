@@ -85,6 +85,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   )
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
   const registerThreeGlbSnapshotFns = useGraphStore(s => s.registerThreeGlbSnapshotFns)
+  const registerThreeLayoutSnapshotFns = useGraphStore(s => s.registerThreeLayoutSnapshotFns)
   const glCanvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const threeSceneRef = React.useRef<ThreeScene | null>(null)
   const threeCameraRef = React.useRef<Camera | null>(null)
@@ -129,6 +130,8 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   const hasGraph = !!(renderGraph && Array.isArray(renderGraph.nodes) && Array.isArray(renderGraph.edges))
   const hoverEnabled = (effectiveSchema as GraphSchema).behavior?.hover?.enabled !== false
   const positions = usePositions(hasGraph ? (renderGraph as GraphData).nodes : [], hasGraph ? (effectiveSchema as GraphSchema) : null)
+  const positionsRef = React.useRef<Record<string, [number, number, number]>>({})
+  positionsRef.current = positions as unknown as Record<string, [number, number, number]>
   const containerRef = React.useRef<HTMLDivElement | null>(null)
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null)
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null)
@@ -151,8 +154,39 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
       } catch {
         void 0
       }
+      try {
+        registerThreeLayoutSnapshotFns(null)
+      } catch {
+        void 0
+      }
     }
-  }, [registerCanvasSnapshotFns, registerThreeGlbSnapshotFns])
+  }, [registerCanvasSnapshotFns, registerThreeGlbSnapshotFns, registerThreeLayoutSnapshotFns])
+
+  useEffect(() => {
+    registerThreeLayoutSnapshotFns({
+      capturePositions: () => {
+        try {
+          const cur = positionsRef.current
+          const out: Record<string, [number, number, number]> = {}
+          for (const id in cur) {
+            const p = cur[id]
+            if (!p) continue
+            const x = Number(p[0])
+            const y = Number(p[1])
+            const z = Number(p[2])
+            if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue
+            out[id] = [x, y, z]
+          }
+          return out
+        } catch {
+          return null
+        }
+      },
+    })
+    return () => {
+      registerThreeLayoutSnapshotFns(null)
+    }
+  }, [registerThreeLayoutSnapshotFns])
   const onSelectNode = (id: string) => {
     setSelectionSource('canvas')
     selectNode(id)

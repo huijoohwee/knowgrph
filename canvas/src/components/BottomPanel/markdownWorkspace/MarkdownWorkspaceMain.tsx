@@ -3317,9 +3317,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
           snapGridEnabled: !!store.schema?.behavior?.snapGrid?.enabled,
           snapGridSize: store.schema?.behavior?.snapGrid?.size,
           dragConstraint: (store.schema?.behavior?.dragConstraint as any) || 'free',
-          allowNodeDrag: (store.schema?.behavior as any)?.allowNodeDrag !== false,
-          allowEdgeDrag: (store.schema?.behavior as any)?.allowNodeDrag !== false,
-          allowGroupDrag: (store.schema?.behavior as any)?.allowGroupDrag !== false,
+          allowNodeDrag: true,
+          allowEdgeDrag: true,
+          allowGroupDrag: true,
         })
         if (!htmlViewer || !htmlViewer.trim()) {
           pushUiToast({ id: 'export-html-missing-canvas', kind: 'warning', message: 'Failed to build HTML canvas export.' })

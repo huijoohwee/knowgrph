@@ -44,6 +44,10 @@ export type ThreeGlbSnapshotFns = {
   captureGlb: () => Promise<Blob | null>
 }
 
+export type ThreeLayoutSnapshotFns = {
+  capturePositions: () => Record<string, [number, number, number]> | null
+}
+
 export type GraphDataTableScope = 'all' | 'nodes' | 'edges';
 
 export type GraphDataTableFreezeMode = 'none' | 'label' | 'id';
@@ -881,4 +885,8 @@ export interface GraphState {
   threeGlbSnapshotFns: ThreeGlbSnapshotFns | null;
   registerThreeGlbSnapshotFns: (fns: ThreeGlbSnapshotFns | null) => void;
   captureThreeGlbSnapshot: () => Promise<Blob | null>;
+
+  threeLayoutSnapshotFns: ThreeLayoutSnapshotFns | null;
+  registerThreeLayoutSnapshotFns: (fns: ThreeLayoutSnapshotFns | null) => void;
+  captureThreeLayoutPositions: () => Record<string, [number, number, number]> | null;
 }
