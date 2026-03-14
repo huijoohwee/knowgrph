@@ -176,6 +176,180 @@ export function buildHtmlViewerRuntimeScript(args: {
     'var inferred = kgInferMediaKindFromUrl(url0);',
     'var inferred = (typeof kgInferMediaKindFromUrl2 === "function" ? kgInferMediaKindFromUrl2(url0) : "") || kgInferMediaKindFromUrl(url0);',
   )
+
+  out = replaceOnceExact(
+    out,
+    "var allEdgeEls = svg ? svg.querySelectorAll('line[data-edge-id],path[data-edge-id],polyline[data-edge-id]') : null;",
+    "try {\n" +
+      "        if (svg && edgeMetaById && nodePosById) {\n" +
+      "          var existingEdges = svg.querySelectorAll('line[data-edge-id],path[data-edge-id],polyline[data-edge-id]');\n" +
+      "          if (!existingEdges || existingEdges.length === 0) {\n" +
+      "            var linksRoot = svg.querySelector('[data-kg-layer=\"links\"]');\n" +
+      "            if (linksRoot) {\n" +
+      "              for (var eid2 in edgeMetaById) {\n" +
+      "                if (!Object.prototype.hasOwnProperty.call(edgeMetaById, eid2)) continue;\n" +
+      "                var meta2 = edgeMetaById[eid2];\n" +
+      "                if (!meta2) continue;\n" +
+      "                var s2 = String(meta2.s || '').trim();\n" +
+      "                var t2 = String(meta2.t || '').trim();\n" +
+      "                if (!s2 || !t2) continue;\n" +
+      "                var ps2 = nodePosById && nodePosById[s2] ? nodePosById[s2] : null;\n" +
+      "                var pt2 = nodePosById && nodePosById[t2] ? nodePosById[t2] : null;\n" +
+      "                if (!ps2 || !pt2) continue;\n" +
+      "                var sx2 = Number(ps2.x);\n" +
+      "                var sy2 = Number(ps2.y);\n" +
+      "                var tx2 = Number(pt2.x);\n" +
+      "                var ty2 = Number(pt2.y);\n" +
+      "                if (!isFinite(sx2) || !isFinite(sy2) || !isFinite(tx2) || !isFinite(ty2)) continue;\n" +
+      "                var line2 = svg.ownerDocument && svg.ownerDocument.createElementNS\n" +
+      "                  ? svg.ownerDocument.createElementNS(svg.namespaceURI || 'http://www.w3.org/2000/svg', 'line')\n" +
+      "                  : null;\n" +
+      "                if (!line2) continue;\n" +
+      "                line2.setAttribute('data-edge-id', eid2);\n" +
+      "                line2.setAttribute('data-source-id', s2);\n" +
+      "                line2.setAttribute('data-target-id', t2);\n" +
+      "                line2.setAttribute('x1', String(sx2));\n" +
+      "                line2.setAttribute('y1', String(sy2));\n" +
+      "                line2.setAttribute('x2', String(tx2));\n" +
+      "                line2.setAttribute('y2', String(ty2));\n" +
+      "                line2.setAttribute('stroke', 'var(--kg-canvas-edge-stroke)');\n" +
+      "                line2.setAttribute('stroke-opacity', '1');\n" +
+      "                line2.setAttribute('stroke-width', '2');\n" +
+      "                line2.setAttribute('stroke-linecap', 'round');\n" +
+      "                line2.setAttribute('fill', 'none');\n" +
+      "                try { line2.style.pointerEvents = 'none'; } catch (e0) {}\n" +
+      "                linksRoot.appendChild(line2);\n" +
+      "                try {\n" +
+      "                  if (typeof edgeLineByEdgeId === 'object' && edgeLineByEdgeId) {\n" +
+      "                    if (!edgeLineByEdgeId[eid2]) edgeLineByEdgeId[eid2] = line2;\n" +
+      "                  }\n" +
+      "                } catch (e1) {}\n" +
+      "                try {\n" +
+      "                  if (typeof edgeRefsByNodeId === 'object' && edgeRefsByNodeId) {\n" +
+      "                    var r0 = edgeRefsByNodeId[s2] || (edgeRefsByNodeId[s2] = []);\n" +
+      "                    r0.push({ el: line2, end: 's' });\n" +
+      "                    var r1 = edgeRefsByNodeId[t2] || (edgeRefsByNodeId[t2] = []);\n" +
+      "                    r1.push({ el: line2, end: 't' });\n" +
+      "                  }\n" +
+      "                } catch (e2) {}\n" +
+      "              }\n" +
+      "            }\n" +
+      "          }\n" +
+      "        }\n" +
+      "      } catch (e) {}\n" +
+      "      var allEdgeEls = svg ? svg.querySelectorAll('line[data-edge-id],path[data-edge-id],polyline[data-edge-id]') : null;",
+  )
+
+  out = replaceOnceExact(
+    out,
+    "p.x = targetX;\n      p.y = targetY;\n      translateNodeByDelta(nodeDrag.id, dx, dy);",
+    "translateNodeByDelta(nodeDrag.id, dx, dy);",
+  )
+
+  out = replaceOnceExact(
+    out,
+    'var dx = targetX - p.x;\n      var dy = targetY - p.y;',
+    "try {\n" +
+      "        if (groupMembersById && svgGroupElsById && nodeDrag && nodeDrag.id) {\n" +
+      "          var gidList = null;\n" +
+      "          for (var gid0 in groupMembersById) {\n" +
+      "            if (!Object.prototype.hasOwnProperty.call(groupMembersById, gid0)) continue;\n" +
+      "            var gels0 = svgGroupElsById[gid0] || null;\n" +
+      "            if (!gels0 || !gels0.length) continue;\n" +
+      "            var m0 = groupMembersById[gid0];\n" +
+      "            if (!m0 || !m0.length) continue;\n" +
+      "            for (var mi0 = 0; mi0 < m0.length; mi0 += 1) {\n" +
+      "              if (String(m0[mi0] || '') === nodeDrag.id) { (gidList || (gidList = [])).push(gid0); break; }\n" +
+      "            }\n" +
+      "          }\n" +
+      "          if (gidList && gidList.length) {\n" +
+      "            var bounds = null;\n" +
+      "            for (var gi0 = 0; gi0 < gidList.length; gi0 += 1) {\n" +
+      "              var gid = gidList[gi0];\n" +
+      "              var gels = svgGroupElsById[gid] || null;\n" +
+      "              if (!gels || !gels.length) continue;\n" +
+      "              var rect = null;\n" +
+      "              try { rect = gels[0].querySelector ? gels[0].querySelector('rect[data-kg-shape=\"group-rect\"]') : null; } catch (e0) { rect = null; }\n" +
+      "              if (!rect || !rect.getAttribute) continue;\n" +
+      "              var gx = parseFloat(rect.getAttribute('x') || 'NaN');\n" +
+      "              var gy = parseFloat(rect.getAttribute('y') || 'NaN');\n" +
+      "              var gw = parseFloat(rect.getAttribute('width') || 'NaN');\n" +
+      "              var gh = parseFloat(rect.getAttribute('height') || 'NaN');\n" +
+      "              if (!isFinite(gx) || !isFinite(gy) || !isFinite(gw) || !isFinite(gh) || !(gw > 0) || !(gh > 0)) continue;\n" +
+      "              var b = { x1: gx, y1: gy, x2: gx + gw, y2: gy + gh };\n" +
+      "              if (!bounds) bounds = b;\n" +
+      "              else {\n" +
+      "                bounds.x1 = Math.max(bounds.x1, b.x1);\n" +
+      "                bounds.y1 = Math.max(bounds.y1, b.y1);\n" +
+      "                bounds.x2 = Math.min(bounds.x2, b.x2);\n" +
+      "                bounds.y2 = Math.min(bounds.y2, b.y2);\n" +
+      "              }\n" +
+      "            }\n" +
+      "            if (bounds && bounds.x2 > bounds.x1 && bounds.y2 > bounds.y1) {\n" +
+      "              var pad = 12;\n" +
+      "              try {\n" +
+      "                var nodeEl0 = svgNodeById && svgNodeById[nodeDrag.id] ? svgNodeById[nodeDrag.id] : null;\n" +
+      "                if (nodeEl0 && nodeEl0.getAttribute) {\n" +
+      "                  var tag0 = String(nodeEl0.tagName || '').toLowerCase();\n" +
+      "                  if (tag0 === 'circle') {\n" +
+      "                    var rr = parseFloat(nodeEl0.getAttribute('r') || 'NaN');\n" +
+      "                    if (isFinite(rr) && rr > 0) pad = Math.max(pad, rr + 2);\n" +
+      "                  }\n" +
+      "                }\n" +
+      "              } catch (e1) {}\n" +
+      "              var clamp0 = function(v, a, b){ return Math.max(a, Math.min(b, v)); };\n" +
+      "              targetX = clamp0(targetX, bounds.x1 + pad, bounds.x2 - pad);\n" +
+      "              targetY = clamp0(targetY, bounds.y1 + pad, bounds.y2 - pad);\n" +
+      "            }\n" +
+      "          }\n" +
+      "        }\n" +
+      "      } catch (e) {}\n\n" +
+      "      var dx = targetX - p.x;\n      var dy = targetY - p.y;",
+  )
+
+  out = replaceOnceExact(
+    out,
+    "var edgeLs = svg.querySelectorAll('[data-edge-id]');",
+    "if (svg && edgeMetaById && nodePosById) {\n" +
+      "      try {\n" +
+      "        var linksRoot = svg.querySelector('[data-kg-layer=\"links\"]');\n" +
+      "        if (linksRoot && !linksRoot.querySelector('[data-edge-id]')) {\n" +
+      "          for (var eid in edgeMetaById) {\n" +
+      "            if (!Object.prototype.hasOwnProperty.call(edgeMetaById, eid)) continue;\n" +
+      "            var meta = edgeMetaById[eid];\n" +
+      "            if (!meta) continue;\n" +
+      "            var s = String(meta.s || '').trim();\n" +
+      "            var t = String(meta.t || '').trim();\n" +
+      "            if (!s || !t) continue;\n" +
+      "            var ps = nodePosById && nodePosById[s] ? nodePosById[s] : null;\n" +
+      "            var pt = nodePosById && nodePosById[t] ? nodePosById[t] : null;\n" +
+      "            if (!ps || !pt) continue;\n" +
+      "            var sx = Number(ps.x);\n" +
+      "            var sy = Number(ps.y);\n" +
+      "            var tx = Number(pt.x);\n" +
+      "            var ty = Number(pt.y);\n" +
+      "            if (!isFinite(sx) || !isFinite(sy) || !isFinite(tx) || !isFinite(ty)) continue;\n" +
+      "            var line = svg.ownerDocument && svg.ownerDocument.createElementNS\n" +
+      "              ? svg.ownerDocument.createElementNS(svg.namespaceURI || 'http://www.w3.org/2000/svg', 'line')\n" +
+      "              : null;\n" +
+      "            if (!line) continue;\n" +
+      "            line.setAttribute('data-edge-id', eid);\n" +
+      "            line.setAttribute('data-source-id', s);\n" +
+      "            line.setAttribute('data-target-id', t);\n" +
+      "            line.setAttribute('x1', String(sx));\n" +
+      "            line.setAttribute('y1', String(sy));\n" +
+      "            line.setAttribute('x2', String(tx));\n" +
+      "            line.setAttribute('y2', String(ty));\n" +
+      "            line.setAttribute('stroke', 'var(--kg-canvas-edge-stroke)');\n" +
+      "            line.setAttribute('stroke-width', '2');\n" +
+      "            line.setAttribute('fill', 'none');\n" +
+      "            linksRoot.appendChild(line);\n" +
+      "          }\n" +
+      "        }\n" +
+      "      } catch (e) {}\n" +
+      "    }\n" +
+      "    var edgeLs = svg.querySelectorAll('[data-edge-id]');",
+  )
   out = replaceAllExact(out, '__KG_PROXY_ORIGIN__', JSON.stringify(String(args.proxyOrigin || '')))
   return out
 }

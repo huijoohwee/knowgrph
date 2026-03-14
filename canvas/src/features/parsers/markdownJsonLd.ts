@@ -61,6 +61,30 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
   const { meta, startIndex } = parseMarkdownFrontmatter(rawLines)
   const blocks = parseMarkdownBlocks(rawLines, startIndex)
 
+  const frontmatterNodeAnchorById = (() => {
+    const out = new Map<string, string>()
+    const metaRec = meta as unknown
+    if (!metaRec || typeof metaRec !== 'object' || Array.isArray(metaRec)) return out
+    const rec = metaRec as Record<string, unknown>
+    const nodesRaw = rec.nodes
+    if (!Array.isArray(nodesRaw)) return out
+    for (let i = 0; i < nodesRaw.length; i += 1) {
+      const row = nodesRaw[i]
+      if (!row || typeof row !== 'object' || Array.isArray(row)) continue
+      const node = row as Record<string, unknown>
+      const id = typeof node.id === 'string' ? node.id.trim() : ''
+      if (!id) continue
+      const propsRaw = node.properties
+      if (!propsRaw || typeof propsRaw !== 'object' || Array.isArray(propsRaw)) continue
+      const props = propsRaw as Record<string, unknown>
+      const anchorRaw = props['doc:anchorId']
+      const anchorId = typeof anchorRaw === 'string' ? anchorRaw.trim() : ''
+      if (!anchorId) continue
+      if (!out.has(id)) out.set(id, anchorId)
+    }
+    return out
+  })()
+
   const mediaPoiImageUrlByName = (() => {
     const out = new Map<string, string>()
     const metaRec = meta as unknown
@@ -583,14 +607,40 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     for (;;) {
       const match = wikiRe.exec(line)
       if (!match) break
-      const inner = String(match[1] || '').trim()
-      if (!inner.startsWith('#')) continue
-      const isBlock = inner.startsWith('#^')
-      const rawTarget = isBlock ? `^${inner.slice(2).trim()}` : slugify(inner.slice(1).trim())
+      const innerRaw = String(match[1] || '').trim()
+      if (!innerRaw) continue
+      if (innerRaw.startsWith('#')) {
+        const isBlock = innerRaw.startsWith('#^')
+        const rawTarget = isBlock ? `^${innerRaw.slice(2).trim()}` : slugify(innerRaw.slice(1).trim())
+        if (!rawTarget) continue
+        const label = isBlock ? rawTarget : innerRaw.slice(1).trim()
+        const linkId = `internal-wikilink:${gid}:${slugify(label || rawTarget)}:${slugify(rawTarget)}`
+        builder.createInternalLinkNode(
+          linkId,
+          label || rawTarget,
+          { anchorId: rawTarget, label, kind: 'wikilink' },
+          mkMeta(lineNo, lineNo),
+        )
+        const anchorNodeId = `anchor:${gid}:${rawTarget}`
+        if (builder.hasAnchor(anchorNodeId)) {
+          builder.addRel(linkId, 'pointsTo', anchorNodeId)
+        }
+        continue
+      }
+
+      const nodeId = innerRaw
+      const anchorFromFrontmatter = frontmatterNodeAnchorById.get(nodeId)
+      if (!anchorFromFrontmatter) continue
+      const rawTarget = anchorFromFrontmatter
       if (!rawTarget) continue
-      const label = isBlock ? rawTarget : inner.slice(1).trim()
+      const label = nodeId
       const linkId = `internal-wikilink:${gid}:${slugify(label || rawTarget)}:${slugify(rawTarget)}`
-      builder.createInternalLinkNode(linkId, label || rawTarget, { anchorId: rawTarget, label, kind: 'wikilink' }, mkMeta(lineNo, lineNo))
+      builder.createInternalLinkNode(
+        linkId,
+        label || rawTarget,
+        { anchorId: rawTarget, label, kind: 'wikilink', nodeId },
+        mkMeta(lineNo, lineNo),
+      )
       const anchorNodeId = `anchor:${gid}:${rawTarget}`
       if (builder.hasAnchor(anchorNodeId)) {
         builder.addRel(linkId, 'pointsTo', anchorNodeId)

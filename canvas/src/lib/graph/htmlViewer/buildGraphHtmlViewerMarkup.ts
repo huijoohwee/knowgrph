@@ -279,6 +279,27 @@ export async function buildGraphHtmlViewerMarkup(args: {
   const groupMembersByIdJson = (() => {
     const graph = args.graphData
     if (!graph) return JSON.stringify({})
+    const nodes = Array.isArray((graph as unknown as { nodes?: unknown }).nodes)
+      ? ((graph as unknown as { nodes: GraphNode[] }).nodes as GraphNode[])
+      : []
+    const nodeIdSet = new Set<string>()
+    const nodeIdBySuffix: Record<string, string> = {}
+    for (let i = 0; i < nodes.length; i += 1) {
+      const rawId = String(nodes[i]?.id || '').trim()
+      if (!rawId) continue
+      nodeIdSet.add(rawId)
+      const suffix = rawId.split('::').pop() || ''
+      if (suffix && !nodeIdBySuffix[suffix]) nodeIdBySuffix[suffix] = rawId
+    }
+    const normalizeMemberId = (raw: string): string => {
+      const id = String(raw || '').trim()
+      if (!id) return ''
+      if (nodeIdSet.has(id)) return id
+      const suffix = id.split('::').pop() || ''
+      if (!suffix) return ''
+      const full = nodeIdBySuffix[suffix]
+      return full || id
+    }
     const meta = (graph.metadata || {}) as Record<string, unknown>
     const isKeywordGraph = meta.kind === 'keyword'
     const groups = deriveGraphGroups(graph, { forceDocumentStructure: !isKeywordGraph })
@@ -290,7 +311,9 @@ export async function buildGraphHtmlViewerMarkup(args: {
       const membersRaw = (g as unknown as { memberNodeIds?: unknown }).memberNodeIds
       const members = Array.isArray(membersRaw) ? membersRaw.map(v => String(v)).filter(Boolean) : []
       if (members.length === 0) continue
-      out[id] = members
+      const normalized = members.map(normalizeMemberId).filter(m => m && nodeIdSet.has(m))
+      if (normalized.length === 0) continue
+      out[id] = normalized
     }
     return JSON.stringify(out)
   })()
@@ -429,11 +452,11 @@ export async function buildGraphHtmlViewerMarkup(args: {
     .kg-mediaBody iframe,.kg-mediaBody img,.kg-mediaBody video{display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius) * 0.8);background:rgba(0,0,0,0.02);pointer-events:var(--kg-media-pointer-events);box-sizing:border-box}
     #kg-hud{position:fixed;left:max(12px, env(safe-area-inset-left));top:max(12px, env(safe-area-inset-top));display:flex;gap:8px;flex-wrap:wrap;align-items:center;z-index:1000;max-width:calc(100vw - 24px)}
     #kg-root.kg-fixedViewport #kg-hud{position:absolute;left:max(12px, env(safe-area-inset-left));top:max(12px, env(safe-area-inset-top))}
-    .kg-btn{border:1px solid var(--kg-border);background:var(--kg-panel-bg);color:var(--kg-text);border-radius:10px;padding:8px 10px;font-size:12px;cursor:pointer}
+    .kg-btn{border:1px solid var(--kg-border);background:var(--kg-panel-bg);color:var(--kg-text);border-radius:10px;padding:8px 10px;font-size:12px;cursor:pointer;min-width:32px;min-height:32px;line-height:1.2}
     .kg-btn.kg-active{outline:2px solid rgba(59,130,246,0.6);outline-offset:0}
     .kg-tip{position:fixed;left:0;top:0;transform:translate3d(-99999px,-99999px,0);max-width:min(420px,calc(100vw - 24px));padding:8px 10px;border-radius:12px;background:rgba(17,24,39,.9);color:#fff;font-size:12px;line-height:1.25;pointer-events:none;z-index:9999;backdrop-filter: blur(10px);-webkit-backdrop-filter: blur(10px);border:1px solid rgba(255,255,255,0.08)}
     .kg-tip strong{font-weight:600}
-    @media (max-width:520px){.kg-btn{padding:10px 12px;font-size:14px;border-radius:12px}}
+    @media (max-width:520px){.kg-btn{padding:10px 12px;font-size:14px;border-radius:12px;min-width:40px;min-height:40px}}
     @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
     @keyframes kgNodeBob{0%{transform:translateY(0)}50%{transform:translateY(calc(var(--kg-bob-amp,2px) * -1))}100%{transform:translateY(0)}}
   </style>
