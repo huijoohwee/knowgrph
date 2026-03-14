@@ -9,6 +9,10 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
   try {
     ;(globalThis as unknown as { fetch: unknown }).fetch = async (input: unknown) => {
       const url = typeof input === 'string' ? input : (input && typeof (input as { url?: unknown }).url === 'string' ? (input as { url: string }).url : '')
+      if (typeof url === 'string' && url.includes('/__fetch_remote?url=')) {
+        const html = '<!doctype html><html><head><title>Example</title></head><body><h1>Hello</h1></body></html>'
+        return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+      }
       if (typeof url === 'string' && url.includes('/__webpage_proxy?url=')) {
         const html = '<!doctype html><html><head><title>Example</title></head><body><h1>Hello</h1></body></html>'
         return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
@@ -38,6 +42,10 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
       'Autolink PNG:',
       '',
       '<https://substackcdn.com/image/fetch/$s_!kA4x!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0bc01ebb-a883-4e5c-bd2b-fa7aaa872edb_1600x1059.png>',
+      '',
+      'WeChat img (no extension):',
+      '',
+      '![](https://mmbiz.qpic.cn/mmbiz_png/test/640?wx_fmt=jpeg)',
       '',
       'Video:',
       '',
@@ -124,6 +132,18 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
       throw new Error(`expected autolink image url to render as img, got: ${imgSrcs.join(', ')}`)
     }
 
+    const hasWeChat = imgSrcs.some(s => {
+      const raw = String(s || '')
+      try {
+        return decodeURIComponent(raw).includes('mmbiz.qpic.cn/mmbiz_png/test/640?wx_fmt=jpeg')
+      } catch {
+        return raw.includes('mmbiz.qpic.cn')
+      }
+    })
+    if (!hasWeChat) {
+      throw new Error(`expected wechat image url to render as img, got: ${imgSrcs.join(', ')}`)
+    }
+
     const video = container.querySelector('video') as HTMLVideoElement | null
     if (!video) throw new Error('expected markdown image with mp4 to render as video')
     const videoSrc = String(video.getAttribute('src') || '')
@@ -136,20 +156,17 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
 
     const iframes = Array.from(container.querySelectorAll('iframe')) as HTMLIFrameElement[]
     if (iframes.length < 2) throw new Error('expected iframe + webpage url to render as iframes')
-    const iframeSrcDocs = iframes.map(el => String(el.getAttribute('srcdoc') || ''))
-    if (!iframeSrcDocs.some(s => /<base\s+href="https:\/\/example\.com\/?"/i.test(s))) {
-      throw new Error(`expected iframe srcdoc to include base href example.com, got: ${iframeSrcDocs.join(', ')}`)
+    const iframeSrcs = iframes.map(el => String(el.getAttribute('src') || ''))
+    const hasExample = iframeSrcs.some(s => s.startsWith('/__webpage_proxy?url=') && decodeURIComponent(s).includes('https://example.com/'))
+    if (!hasExample) {
+      throw new Error(`expected iframe src to use webpage proxy for example.com, got: ${iframeSrcs.join(', ')}`)
     }
-    if (
-      !iframeSrcDocs.some(s =>
-        /<base\s+href="https:\/\/www\.ycombinator\.com\/library\/8d-how-to-build-a-great-series-a-pitch-and-deck\/?"/i.test(
-          s,
-        ),
-      )
-    ) {
-      throw new Error(
-        `expected webpage srcdoc to include base href ycombinator, got: ${iframeSrcDocs.join(', ')}`,
-      )
+    const hasYc = iframeSrcs.some(s =>
+      s.startsWith('/__webpage_proxy?url=') &&
+      decodeURIComponent(s).includes('https://www.ycombinator.com/library/8d-how-to-build-a-great-series-a-pitch-and-deck'),
+    )
+    if (!hasYc) {
+      throw new Error(`expected webpage iframe src to use proxy for ycombinator, got: ${iframeSrcs.join(', ')}`)
     }
 
     root.unmount()

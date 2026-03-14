@@ -33,6 +33,8 @@
 
 **Design Principles**: Unidirectional Flow | Visual Isolation | Configurable Layouts
 
+Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-export-document.md`.
+
 ### High-Level Components
 
 - **GraphCanvas**:
@@ -46,6 +48,46 @@
 - **Layout Engine**:
   - `canvas/src/components/GraphCanvas/layout/*.ts` handles positioning (Force, Radial, Tree, Mermaid).
   - Uses `layoutPositionCacheByMode` to persist stable layouts across re-renders.
+
+### Renderer Mode Matrix (2D/3D × Rich Media × Frontmatter)
+
+- **Shared derivation SSOT**:
+  - All renderers (2D D3/Flow/Design/Flow Editor, 3D, Geospatial) consume the same SSOT-derived `graphDataForDisplay`.
+  - Derivation order: keyword base → optional frontmatter filter (Document mode only) → optional group collapse. Renderer toggles must not re-derive or fork this pipeline.
+- **Frontmatter Mode On/Off**:
+  - Frontmatter Mode **On**: when the active Markdown file defines a Flow frontmatter graph (`nodes`/`connections`/`'kg:subgraphs'`), both 2D D3 and Flow treat that graph as the layout SSOT (no hidden per-renderer nodes).
+  - Frontmatter Mode **Off**: renderers fall back to the Markdown→JSON‑LD pipeline; the active graph is still `graphDataForDisplay`, and mode switches are view‑only (no store mutations of imported Markdown/JSON‑LD).
+- **2D vs 3D renderer parity**:
+  - 2D D3 runs force/layout; 2D Flow/Design reuse the same visibility, collective fit geometry, and zoom behavior without re-running D3 forces.
+  - 3D reuses 2D layout positions (when present) as a baseline and applies its own camera + depth presentation, but must not introduce a separate derivation pipeline or a different node/edge set.
+  - Switching 2D↔3D must preserve selection and view keys (per‑renderer zoom keys are isolated; layout caches are renderer‑variant aware but share the same schema/layout fingerprint).
+- **Rich Media On/Off**:
+  - Rich Media detection (image/svg/video/iframe) is shared across Markdown Viewer, 2D/3D Canvas, Design, and Geospatial surfaces via `getNodeMediaSpec` and friends; Script/Imgs/Fid defaults are auto, driven by shared heuristics.
+  - Rich Media **Off** hides overlay panels but does not change GraphData; media nodes remain regular nodes in the layout and fit pipelines.
+  - Rich Media **On** instantiates a bounded overlay pool per canvas (2D and 3D) and anchors overlays by node id; overlays track node world→screen transforms and can be dragged via headers without breaking node/edge/group connectivity.
+- **HTML Canvas export parity**:
+  - HTML Viewer/Canvas exports use the same renderer matrix semantics: the exported SVG is rendered from the display‑derived graph (including group envelopes) via GraphCanvas (live or off‑screen), and the exported runtime script instantiates Rich Media overlays from a serialized `mediaNodes` list.
+  - Flow‑based HTML Canvas exports do not snapshot the Flow canvas; they re‑render into off‑screen SVG using the same layout/fit rules as GraphCanvas and reuse group membership (`deriveGraphGroups`) so dragging groups or nodes in the export keeps nodes, edges, and overlays interconnected.
+  - Repo‑relative Rich Media URLs (e.g., `/__repo_file/...`) are resolved by the runtime helper and may be inlined as `data:` URLs during export when safe and within size bounds; exports opened via `file://` must still resolve local media using the probed dev/preview origin.
+
+### Frontmatter + Markdown + Rich Media Linking (Renderer View)
+
+- Renderer surfaces (Canvas D3/Flow/3D, HTML Viewer/Canvas) treat:
+  - Frontmatter-defined graphs (`nodes` / `connections` / `'kg:subgraphs'`) and Mermaid diagrams as structural inputs.
+  - Markdown body anchors (`<a id="...">`, heading ids, `^block-id` markers), `[[wikilinks]]`, and `{{templates}}` as semantic link targets and text templates.
+  - Rich Media nodes as graph nodes with media-specific properties (image/svg/video/iframe) plus optional node-to-body anchor metadata (e.g., `doc:anchorId`).
+- Linking rules:
+  - Mermaid `click` directives targeting `#anchor` must map to edges from diagram nodes to Anchor nodes generated from body anchors; Canvas and exported HTML viewers use the same mapping so clicking from Mermaid or Graph views lands on the same markdown location.
+  - Graph nodes that carry document anchor metadata may be surfaced as clickable targets or overlay entries that navigate back into the Markdown Viewer using `documentPath` + anchor id; exports must preserve this mapping without requiring absolute filesystem paths.
+  - Rich Media overlays (2D/3D) must keep their node ids and anchor links intact across live Canvas and HTML exports; toggling Rich Media On/Off is view-only and must not change the underlying graph or markdown links.
+  - Exported HTML Canvas viewer exposes a compact HUD for renderer/Rich Media/Frontmatter toggles (2D↔3D, Rich, Media, FM). HUD toggles are strictly view‑only, reuse the same SSOT GraphData/fit/zoom semantics as Canvas mode, and support desktop+mobile via full‑viewport canvas with pointer/touch pan/drag/pinch.
+
+#### How to use HTML Canvas export (end-user)
+
+- From Canvas mode, open the toolbar Export menu and select **HTML Canvas**.
+- Choose **Scope** (Current viewport vs Fit to content), quality (pixel ratio), and background, then download the HTML file.
+- Open the HTML export in a browser to get an interactive viewer with pan/zoom and HUD toggles (2D/3D, Rich, Media, Frontmatter) that mirror Canvas behavior.
+- Prefer **2D** exports when you want a clear, static graph snapshot or flow diagram; prefer **3D** exports when depth, occlusion, or camera movement helps explain the structure.
 
 ---
 

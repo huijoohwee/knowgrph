@@ -24,6 +24,12 @@ export function applyGraphCanvasZOrder(g: GSelection, schema?: GraphSchema | nul
     }
   }
 
+  const groupsRank = rankByLayerId['groups']
+  const linksRank = rankByLayerId['links']
+  if (typeof groupsRank === 'number' && typeof linksRank === 'number' && groupsRank >= linksRank) {
+    rankByLayerId['groups'] = linksRank - 10
+  }
+
   const parent = g.node()
   if (!parent) return
 

@@ -72,17 +72,32 @@ export const testFrontmatterOnlyDocDetection = () => {
   if (isFrontmatterOnlyDoc(withBody)) throw new Error('expected body doc to not be frontmatter-only')
 }
 
-export const testWebpageFrontmatterSupportsDomAndRawViews = () => {
-  const input = '# Title\n\nHello\n'
-  const withDom = upsertWebpageFrontmatterMeta(input, { url: 'https://localhost/path', view: 'dom' })
-  const domParsed = parseWebpageFrontmatterMeta(withDom)
+export const testWebpageFrontmatterLegacyDomAndRawMapToHtmlAndJson = () => {
+  const input = [
+    '---',
+    'kgWebpageUrl: "https://localhost/path"',
+    'kgWebpageView: "dom"',
+    '---',
+    '',
+    '# Title',
+    '',
+  ].join('\n')
+  const domParsed = parseWebpageFrontmatterMeta(input)
   if (!domParsed) throw new Error('expected meta')
-  if (domParsed.view !== 'dom') throw new Error('view mismatch')
+  if (domParsed.view !== 'html') throw new Error('expected legacy dom to map to html')
 
-  const withRaw = upsertWebpageFrontmatterMeta(input, { url: 'https://localhost/path', view: 'raw' })
-  const rawParsed = parseWebpageFrontmatterMeta(withRaw)
+  const input2 = [
+    '---',
+    'kgWebpageUrl: "https://localhost/path"',
+    'kgWebpageView: "raw"',
+    '---',
+    '',
+    '# Title',
+    '',
+  ].join('\n')
+  const rawParsed = parseWebpageFrontmatterMeta(input2)
   if (!rawParsed) throw new Error('expected meta')
-  if (rawParsed.view !== 'raw') throw new Error('view mismatch')
+  if (rawParsed.view !== 'json') throw new Error('expected legacy raw to map to json')
 }
 
 export const testWebpageFrontmatterSupportsScriptPolicy = () => {

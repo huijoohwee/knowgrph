@@ -35,6 +35,7 @@ export const createGroupsLayer = (args: {
   documentSemanticMode?: 'document' | 'keyword'
   groupsOverride?: GraphGroup[]
   simulation: d3.Simulation<GraphNode, GraphEdge> | null
+  updateNode?: (id: string, updates: Partial<GraphNode>) => void
   hoverEnabled?: boolean
   setHoverInfo?: (updater: (prev: HoverInfo | null) => HoverInfo | null) => void
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void
@@ -47,6 +48,15 @@ export const createGroupsLayer = (args: {
   const cfg = schema.layout?.groups || {}
   const enabled = cfg.enabled !== false
   if (!enabled) return { update: () => {} }
+
+  const isMermaidLayout = (() => {
+    const gd = graphData as unknown as { context?: unknown; metadata?: unknown } | null
+    if (!gd) return false
+    if (String(gd.context || '') === 'frontmatter-mermaid') return true
+    const meta = gd.metadata
+    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
+    return String((meta as Record<string, unknown>).layoutEngine || '') === 'mermaid'
+  })()
 
   const groups =
     args.groupsOverride ||
@@ -85,6 +95,19 @@ export const createGroupsLayer = (args: {
     .attr('data-kg-group-id', d => d.id)
     .style('pointer-events', 'all')
     .style('cursor', 'grab')
+
+  const resizeHandleSel = (() => {
+    if (shape !== 'rect') return null
+    return itemSel
+      .append('circle')
+      .attr('data-kg-group-resize', 'br')
+      .attr('r', 6)
+      .attr('fill', 'transparent')
+      .attr('stroke', UI_THEME_COLORS_CSS.textSecondary)
+      .attr('stroke-width', 1.25)
+      .style('pointer-events', 'all')
+      .style('cursor', 'nwse-resize') as unknown as d3.Selection<SVGCircleElement, GroupDatum, SVGGElement, unknown>
+  })()
 
   const rectSel = itemSel
     .append('rect')
@@ -322,6 +345,9 @@ export const createGroupsLayer = (args: {
   if (allowDrag) {
     let dragNodes: GraphNode[] = []
     let frozen = false
+    let dragBoundsOnly = false
+    let dragBoundsRef: { x: number; y: number; width: number; height: number; labelX?: number; labelY?: number } | null = null
+    let dragZoomK = 1
     const dragBehavior = d3
       .drag<SVGTextElement, GroupDatum>()
       .on('start', (event, d) => {
@@ -332,6 +358,62 @@ export const createGroupsLayer = (args: {
 
         const svgEl = (event?.sourceEvent?.target as SVGElement | null)?.ownerSVGElement
         frozen = svgEl?.getAttribute('data-kg-layout-frozen') === '1'
+        try {
+          const k = d3.zoomTransform(svgEl as unknown as SVGSVGElement).k
+          dragZoomK = typeof k === 'number' && Number.isFinite(k) && k > 0 ? k : 1
+        } catch {
+          dragZoomK = 1
+        }
+
+        dragBoundsOnly = false
+        dragBoundsRef = null
+
+        const se = event?.sourceEvent as unknown as { altKey?: unknown; shiftKey?: unknown } | undefined
+        const altDown = !!(se && (se as any).altKey)
+        const shiftDown = !!(se && (se as any).shiftKey)
+        if (altDown && typeof args.updateNode === 'function') {
+          const id = String(d.id || '').trim()
+          const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
+          const zRaw = (d as unknown as { zIndex?: unknown }).zIndex
+          const curZ = typeof zRaw === 'number' && Number.isFinite(zRaw) ? Math.floor(zRaw) : 0
+          let minZ = curZ
+          let maxZ = curZ
+          for (let i = 0; i < visibleGroups.length; i += 1) {
+            const gg = visibleGroups[i]!
+            const dd = typeof gg.depth === 'number' && Number.isFinite(gg.depth) ? Math.max(0, Math.floor(gg.depth)) : 0
+            if (dd !== depth) continue
+            const zr = (gg as unknown as { zIndex?: unknown }).zIndex
+            const z = typeof zr === 'number' && Number.isFinite(zr) ? Math.floor(zr) : 0
+            minZ = Math.min(minZ, z)
+            maxZ = Math.max(maxZ, z)
+          }
+          const nextZ = shiftDown ? minZ - 1 : maxZ + 1
+          const subgraphNode = (graphData.nodes || []).find(n => String(n.id) === id) || null
+          if (subgraphNode) {
+            const props = ((subgraphNode as unknown as { properties?: unknown })?.properties || {}) as Record<string, unknown>
+            const nextProps = { ...props, 'visual:zIndexOverride': nextZ }
+            try {
+              args.updateNode(id, { properties: nextProps as never })
+            } catch {
+              void 0
+            }
+          }
+          return
+        }
+
+        const explicit = (d as unknown as { bounds?: unknown }).bounds
+        if (isMermaidLayout && explicit && typeof explicit === 'object' && !Array.isArray(explicit)) {
+          const bx = typeof (explicit as any).x === 'number' ? (explicit as any).x : Number.NaN
+          const by = typeof (explicit as any).y === 'number' ? (explicit as any).y : Number.NaN
+          const bw = typeof (explicit as any).width === 'number' ? (explicit as any).width : Number.NaN
+          const bh = typeof (explicit as any).height === 'number' ? (explicit as any).height : Number.NaN
+          if (Number.isFinite(bx) && Number.isFinite(by) && Number.isFinite(bw) && Number.isFinite(bh) && bw > 0 && bh > 0) {
+            dragBoundsOnly = true
+            dragBoundsRef = { ...(explicit as any) }
+            ;(d as unknown as { bounds?: unknown }).bounds = dragBoundsRef as any
+            return
+          }
+        }
 
         dragNodes = []
         for (let i = 0; i < d.memberNodeIds.length; i += 1) {
@@ -340,7 +422,7 @@ export const createGroupsLayer = (args: {
         }
         const structured = readLayoutMode(schema) === 'radial'
         if (simulation && !structured && !frozen && !event.active) {
-          simulation.alphaTarget(0.3).restart()
+          simulation.alphaTarget(0.08).restart()
         }
         for (let i = 0; i < dragNodes.length; i += 1) {
           const n = dragNodes[i]!
@@ -349,9 +431,22 @@ export const createGroupsLayer = (args: {
         }
       })
       .on('drag', (event) => {
-        const dx = typeof event.dx === 'number' && Number.isFinite(event.dx) ? event.dx : 0
-        const dy = typeof event.dy === 'number' && Number.isFinite(event.dy) ? event.dy : 0
+        const dx0 = typeof event.dx === 'number' && Number.isFinite(event.dx) ? event.dx : 0
+        const dy0 = typeof event.dy === 'number' && Number.isFinite(event.dy) ? event.dy : 0
+        const k = typeof dragZoomK === 'number' && Number.isFinite(dragZoomK) && dragZoomK > 0 ? dragZoomK : 1
+        const dx = dx0 / k
+        const dy = dy0 / k
         if (dx === 0 && dy === 0) return
+        if (dragBoundsOnly && dragBoundsRef) {
+          dragBoundsRef.x += dx
+          dragBoundsRef.y += dy
+          if (typeof dragBoundsRef.labelX === 'number' && Number.isFinite(dragBoundsRef.labelX)) dragBoundsRef.labelX += dx
+          if (typeof dragBoundsRef.labelY === 'number' && Number.isFinite(dragBoundsRef.labelY)) dragBoundsRef.labelY += dy
+          const d = event.subject as unknown as GroupDatum
+          const computed = computeBoundsAndLabel(d)
+          applyComputedToGroup(d, computed)
+          return
+        }
         const structured = readLayoutMode(schema) === 'radial'
         for (let i = 0; i < dragNodes.length; i += 1) {
           const n = dragNodes[i]!
@@ -374,6 +469,27 @@ export const createGroupsLayer = (args: {
         }
       })
       .on('end', (event) => {
+        if (dragBoundsOnly && dragBoundsRef && typeof args.updateNode === 'function') {
+          const d = event.subject as unknown as GroupDatum
+          const id = String(d.id || '').trim()
+          if (id) {
+            const subgraphNode = (graphData.nodes || []).find(n => String(n.id) === id) || null
+            if (subgraphNode) {
+              const props = ((subgraphNode as unknown as { properties?: unknown })?.properties || {}) as Record<string, unknown>
+              const nextProps = { ...props, 'visual:boundsOverride': { ...dragBoundsRef } }
+              try {
+                args.updateNode(id, { properties: nextProps as never })
+              } catch {
+                void 0
+              }
+            }
+          }
+          dragBoundsOnly = false
+          dragBoundsRef = null
+          dragNodes = []
+          frozen = false
+          return
+        }
         const structured = readLayoutMode(schema) === 'radial'
         if (simulation && !structured && !frozen && !event.active) {
           simulation.alphaTarget(0)
@@ -403,6 +519,25 @@ export const createGroupsLayer = (args: {
   const eps = 0.5
 
   const computeBoundsAndLabel = (d: GroupDatum) => {
+    const explicit = (d as unknown as { bounds?: unknown }).bounds
+    if (explicit && typeof explicit === 'object' && !Array.isArray(explicit)) {
+      const bx = typeof (explicit as any).x === 'number' ? (explicit as any).x : Number.NaN
+      const by = typeof (explicit as any).y === 'number' ? (explicit as any).y : Number.NaN
+      const bw = typeof (explicit as any).width === 'number' ? (explicit as any).width : Number.NaN
+      const bh = typeof (explicit as any).height === 'number' ? (explicit as any).height : Number.NaN
+      if (Number.isFinite(bx) && Number.isFinite(by) && Number.isFinite(bw) && Number.isFinite(bh) && bw > 0 && bh > 0) {
+        const labelText = computeGroupLabelText(d)
+        const fontSize = labelText.fontSize
+        const labelXRaw = typeof (explicit as any).labelX === 'number' ? (explicit as any).labelX : Number.NaN
+        const labelYRaw = typeof (explicit as any).labelY === 'number' ? (explicit as any).labelY : Number.NaN
+        const labelY = Number.isFinite(labelYRaw) ? labelYRaw : by + labelPadding
+        const labelX = Number.isFinite(labelXRaw) ? labelXRaw : bx + labelPadding + chevronSizePx + chevronGapPx
+        const chevronCx = labelX - chevronGapPx - chevronSizePx * 0.5
+        const chevronCy = labelY + fontSize * 0.55
+        return { x: bx, y: by, w: bw, h: bh, labelX, labelY, chevronCx, chevronCy, d: null }
+      }
+    }
+
     const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
     const extraPad = nestedPaddingStep > 0 ? nestedPaddingStep * Math.max(0, maxDepth - depth) : 0
     const effectivePadding = padding + extraPad
@@ -461,6 +596,109 @@ export const createGroupsLayer = (args: {
     return { x, y, w, h, labelX, labelY, chevronCx, chevronCy, d: null }
   }
 
+  const applyComputedToGroup = (d: GroupDatum, computed: { x: number; y: number; w: number; h: number; labelX: number; labelY: number; chevronCx: number; chevronCy: number; d: string | null }) => {
+    layoutCache.set(d.id, computed)
+    const item = itemSel.filter(x => x.id === d.id)
+    if (shape === 'rect') {
+      item
+        .select<SVGRectElement>('rect[data-kg-shape="group-rect"]')
+        .attr('x', computed.x)
+        .attr('y', computed.y)
+        .attr('width', computed.w)
+        .attr('height', computed.h)
+    } else {
+      item.select<SVGPathElement>('path[data-kg-shape="group-geo"]').attr('d', computed.d || '')
+    }
+    labelSel
+      .filter(x => x.id === d.id)
+      .attr('x', computed.labelX)
+      .attr('y', computed.labelY)
+    const dir = collapsedSet.has(String(d.id)) ? 'right' : 'down'
+    chevronSel
+      .filter(x => x.id === d.id)
+      .attr('d', buildChevronPathD({ cx: computed.chevronCx, cy: computed.chevronCy, size: chevronSizePx, direction: dir }))
+
+    if (resizeHandleSel) {
+      const canResize = isMermaidLayout && !!(d as unknown as { bounds?: unknown }).bounds
+      resizeHandleSel
+        .filter(x => x.id === d.id)
+        .attr('cx', computed.x + computed.w)
+        .attr('cy', computed.y + computed.h)
+        .style('display', canResize ? null : 'none')
+    }
+  }
+
+  if (resizeHandleSel && typeof args.updateNode === 'function') {
+    let active: GroupDatum | null = null
+    let start: { x: number; y: number; w: number; h: number; labelX?: number; labelY?: number } | null = null
+    let zoomK = 1
+    const dragResize = d3
+      .drag<SVGCircleElement, GroupDatum>()
+      .on('start', (event, d) => {
+        const explicit = (d as unknown as { bounds?: unknown }).bounds
+        if (!isMermaidLayout || !explicit || typeof explicit !== 'object' || Array.isArray(explicit)) {
+          active = null
+          start = null
+          return
+        }
+        const bx = typeof (explicit as any).x === 'number' ? (explicit as any).x : Number.NaN
+        const by = typeof (explicit as any).y === 'number' ? (explicit as any).y : Number.NaN
+        const bw = typeof (explicit as any).width === 'number' ? (explicit as any).width : Number.NaN
+        const bh = typeof (explicit as any).height === 'number' ? (explicit as any).height : Number.NaN
+        if (!Number.isFinite(bx) || !Number.isFinite(by) || !Number.isFinite(bw) || !Number.isFinite(bh)) {
+          active = null
+          start = null
+          return
+        }
+        const svgEl = (event?.sourceEvent?.target as SVGElement | null)?.ownerSVGElement
+        try {
+          const k = d3.zoomTransform(svgEl as unknown as SVGSVGElement).k
+          zoomK = typeof k === 'number' && Number.isFinite(k) && k > 0 ? k : 1
+        } catch {
+          zoomK = 1
+        }
+        active = d
+        start = { x: bx, y: by, w: bw, h: bh, labelX: (explicit as any).labelX, labelY: (explicit as any).labelY }
+        ;(d as unknown as { bounds?: unknown }).bounds = { ...(explicit as any) } as any
+      })
+      .on('drag', (event) => {
+        if (!active || !start) return
+        const explicit = (active as unknown as { bounds?: unknown }).bounds
+        if (!explicit || typeof explicit !== 'object' || Array.isArray(explicit)) return
+        const dx0 = typeof event.dx === 'number' && Number.isFinite(event.dx) ? event.dx : 0
+        const dy0 = typeof event.dy === 'number' && Number.isFinite(event.dy) ? event.dy : 0
+        const k = typeof zoomK === 'number' && Number.isFinite(zoomK) && zoomK > 0 ? zoomK : 1
+        const dx = dx0 / k
+        const dy = dy0 / k
+        if (!dx && !dy) return
+        ;(explicit as any).width = Math.max(24, start.w + dx)
+        ;(explicit as any).height = Math.max(24, start.h + dy)
+        const computed = computeBoundsAndLabel(active)
+        applyComputedToGroup(active, computed)
+      })
+      .on('end', () => {
+        if (!active) return
+        const id = String(active.id || '').trim()
+        const subgraphNode = (graphData.nodes || []).find(n => String(n.id) === id) || null
+        if (subgraphNode) {
+          const props = ((subgraphNode as unknown as { properties?: unknown })?.properties || {}) as Record<string, unknown>
+          const explicit = (active as unknown as { bounds?: unknown }).bounds
+          if (explicit && typeof explicit === 'object' && !Array.isArray(explicit)) {
+            const nextProps = { ...props, 'visual:boundsOverride': { ...(explicit as any) } }
+            try {
+              args.updateNode(id, { properties: nextProps as never })
+            } catch {
+              void 0
+            }
+          }
+        }
+        active = null
+        start = null
+      })
+
+    resizeHandleSel.call(dragResize as unknown as d3.DragBehavior<SVGCircleElement, GroupDatum, unknown>)
+  }
+
   const update = () => {
     itemSel.each(function (d) {
       const computed = computeBoundsAndLabel(d)
@@ -500,6 +738,15 @@ export const createGroupsLayer = (args: {
       chevronSel
         .filter(x => x.id === d.id)
         .attr('d', buildChevronPathD({ cx: computed.chevronCx, cy: computed.chevronCy, size: chevronSizePx, direction: dir }))
+
+      if (resizeHandleSel) {
+        const canResize = isMermaidLayout && !!(d as unknown as { bounds?: unknown }).bounds
+        resizeHandleSel
+          .filter(x => x.id === d.id)
+          .attr('cx', computed.x + computed.w)
+          .attr('cy', computed.y + computed.h)
+          .style('display', canResize ? null : 'none')
+      }
     })
   }
 

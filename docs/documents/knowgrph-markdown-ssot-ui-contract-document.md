@@ -35,6 +35,21 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 - Any memoized markdown token cache must be isolated by `activeDocumentPath` and must not return cached tokens when the stored document path differs (prevents cross-document bleed and “content disappears” on view switches).
 - When the host supports Geospatial Mode, Markdown preview surfaces must receive `geoDatasetIntegration` so fenced GeoJSON blocks can render previews and register datasets into the geospatial layer.
 
+### Frontmatter + Mermaid + Rich Media Linking (SSOT)
+
+- YAML frontmatter may define:
+  - Flow graphs via `nodes` / `connections` / `'kg:subgraphs'`.
+  - Mermaid diagrams via `mermaid: |` and diagram text.
+  - Rich Media nodes via `media_kind` + `media_url` / `iframe_url` (and optional `media_interactive`).
+- Markdown body may reference these structures using:
+  - `[[wikilinks]]` targeting node ids (e.g., `[[OPENCLAW]]`) or headings/block-ids (e.g., `[[#Phase 1]]`, `[[#^block-id]]`).
+  - Template placeholders `{{key}}` inside fenced code/param templates to describe how node properties/params are formatted into captions or prompts.
+  - Explicit anchors `<a id="..."></a>` placed near relevant paragraphs for Mermaid `click` targets or frontmatter-driven GraphData nodes.
+- Implementations must:
+  - Keep frontmatter graphs, Mermaid diagrams, body anchors, and Rich Media overlays in a **single semantic graph** (no export-only or renderer-only derivations).
+  - Forbid absolute in-repo filesystem paths in Markdown content; use repo-relative or logical identifiers instead, and rely on runtime helpers to resolve them.
+  - Preserve wikilinks and `{{}}` templates as plain Markdown syntax; Canvas/Graph parsers may interpret them structurally but must not require non-standard Markdown or mode-specific link syntax.
+
 ### Active Graph Render View (SSOT)
 
 - Graph Data Table, Graph Fields, Props Panel/Node Editor, Canvas (D3/Flow/3D), Canvas Preview, and Geospatial overlays must render from the same derived `GraphData` view (no per-surface re-derivation).

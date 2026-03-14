@@ -11,6 +11,7 @@ import { buildMarkdownJsonLd, slugify } from './markdownJsonLd'
 import { tryParseMarkdownFrontmatterFlowGraph } from './markdownFrontmatterFlowGraph'
 import { tryParseMarkdownPanelFlowGraph } from './markdownPanelFlowGraph'
 import { containsFrontmatterMermaid, isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
+import { applyMermaidFrontmatterGeometryToGraphData } from '@/lib/mermaid/mermaidFrontmatterGeometry'
 import { LS_KEYS } from '@/lib/config'
 import { lsJson } from '@/lib/persistence'
 
@@ -125,6 +126,87 @@ const markdownSpec: ParserSpec = {
       ingestionMetrics,
     }
     const graphData = { ...baseGraph, metadata: nextMeta }
+    return { graphData, warnings: [] }
+  },
+  parseAsync: async (name, text) => {
+    const raw = String(text || '')
+    const frontmatterFlow = tryParseMarkdownFrontmatterFlowGraph(name, raw)
+    if (frontmatterFlow) return frontmatterFlow
+    const panelFlow = tryParseMarkdownPanelFlowGraph(name, raw)
+    if (panelFlow) return panelFlow
+    const maxChars = 500000
+    if (raw.length > maxChars) {
+      const baseName = (name || '').replace(/\\/g, '/').split('/').pop() || ''
+      const stem = baseName.replace(/\.(md|markdown|mmd)$/i, '') || 'markdown'
+      const nodeId = `md:large:${slugify(stem)}`
+      const label = stem || baseName || 'Markdown Document'
+      const previewLimit = 32000
+      const preview = raw.slice(0, previewLimit)
+      const graphData: GraphData = {
+        type: 'Graph',
+        context: 'markdown-large',
+        nodes: [
+          {
+            id: nodeId,
+            label,
+            type: 'Document',
+            properties: {
+              format: 'text/markdown',
+              path: baseName,
+              length: raw.length,
+              preview,
+            },
+            metadata: {
+              truncated: raw.length > previewLimit,
+            },
+          },
+        ],
+        edges: [],
+        metadata: {
+          ingestionMetrics: {
+            kind: 'markdown-large',
+            originalLength: raw.length,
+            previewLength: preview.length,
+            truncated: raw.length > preview.length,
+          },
+        },
+      }
+      return {
+        graphData,
+        warnings: ['Very large markdown document ingested as a summary-only graph for performance.'],
+      }
+    }
+
+    const t0 = Date.now()
+    const jsonld = buildMarkdownJsonLd(name, text)
+    const t1 = Date.now()
+    const baseGraph = parseJsonLd(jsonld)
+    const t2 = Date.now()
+
+    const baseMeta =
+      baseGraph.metadata && typeof baseGraph.metadata === 'object' && !Array.isArray(baseGraph.metadata)
+        ? baseGraph.metadata
+        : ({} as Record<string, JSONValue>)
+    const ingestionMetrics: Record<string, JSONValue> = {
+      kind: 'markdown',
+      buildMarkdownJsonLdMs: t1 - t0,
+      parseJsonLdMs: t2 - t1,
+      totalMs: t2 - t0,
+    }
+    const nextMeta: Record<string, JSONValue> = {
+      ...baseMeta,
+      ingestionMetrics,
+    }
+
+    let graphData: GraphData = { ...baseGraph, metadata: nextMeta }
+    if (containsFrontmatterMermaid(raw)) {
+      try {
+        graphData = await applyMermaidFrontmatterGeometryToGraphData(graphData)
+      } catch {
+        void 0
+      }
+    }
+
     return { graphData, warnings: [] }
   },
 }

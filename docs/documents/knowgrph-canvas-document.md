@@ -4,6 +4,8 @@
 
 Canonical guidelines: `knowgrph/docs/documents/knowgrph-pipeline-document.md` and `huijoohwee.github.io/schema/AgenticRAG/README.md`.
 
+Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-export-document.md`.
+
 ## Design Mantras
 
 ```
@@ -110,6 +112,14 @@ Canonical guidelines: `knowgrph/docs/documents/knowgrph-pipeline-document.md` an
 - **Viewer + Script/Imgs/Fid**: Script/Imgs/Fid defaults are auto and driven by the same rich-media + iframe heuristics used by Markdown Viewer and Canvas; per-doc frontmatter (`kgWebpageScriptPolicy`, `kgWebpageIncludeImages`, `kgWebpageFidelityLevel`) is optional and treated as an escape hatch only.
 - **Export HTML Canvas (2D/3D)**: Canvas HTML export reuses the same Rich Media overlays and layout SSOT. 2D exports prefer centered SVG markup; PNG fallbacks are captured via a pixelRatio-aware snapshot API (hi-DPI, bounded to a safe max) and embedded as `<img>` in the export HTML. 3D exports embed a GLB + module script plus an immediate hi-DPI PNG snapshot that displays while Three.js initializes, then hides after the first successful render.
 - **Single-surface invariant**: at most one Rich Media overlay surface per canvas is allowed (2D overlay layer or 3D overlay layer); Editor/Table split and embedded preview must reuse the same canvas overlay layer and must not mount second “preview-only” Rich Media surfaces.
+  - Exported HTML Canvas viewer uses a full-viewport canvas (100vw×100vh) with the same pan/zoom semantics as Canvas mode and a compact HUD exposing 2D↔3D, Rich, Media, and Frontmatter toggles. These toggles are strictly view-only and may only gate renderer/overlay/media interaction, not GraphData or layout derivation.
+
+#### How to use HTML Canvas export (end-user)
+
+- In Canvas mode, open the toolbar Export menu and choose **HTML Canvas**.
+- Pick **Scope** (Current viewport or Fit to content), background (transparent or solid), and pixel ratio, then download the HTML file.
+- Open the downloaded HTML in a browser and use pan/zoom and HUD toggles (2D/3D, Rich, Media, Frontmatter) just like in Canvas.
+- Prefer 2D exports for static graph snapshots and flow diagrams; prefer 3D exports when depth, overlap, or camera motion is important for understanding the graph.
 
 ### Editor Workspace Sections (Markdown vs Graph Data Table)
 

@@ -1,6 +1,6 @@
 import React from 'react'
 import RichMediaIframe, { type RichMediaIframeMode } from '@/components/RichMediaIframe'
-import { applyMediaProxySrc } from '@/lib/url'
+import { applyImageLikeProxySrc } from '@/lib/url'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 
 export type RichMediaPanelProps = {
@@ -40,7 +40,11 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
   const mode: RichMediaIframeMode = props.iframeMode === 'proxy-url' ? 'proxy-url' : 'srcdoc-when-needed'
   const showHeader = props.showHeader !== false
   const kind: 'iframe' | 'image' | 'svg' | 'video' = props.kind === 'image' || props.kind === 'svg' || props.kind === 'video' ? props.kind : 'iframe'
-  const proxiedUrl = React.useMemo(() => applyMediaProxySrc(String(props.url || '').trim()), [props.url])
+  const rawUrl = String(props.url || '').trim()
+  const proxiedUrl = React.useMemo(() => {
+    if (kind === 'iframe') return rawUrl
+    return applyImageLikeProxySrc(rawUrl)
+  }, [kind, rawUrl])
   const hideUntilReady = props.hideUntilReady === true
   const headerPassthrough = props.headerPassthrough === true
   const forwardingEnabled = typeof props.forwardWheelTo === 'function' || typeof props.forwardPointerTo === 'function'
@@ -48,6 +52,16 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
   React.useEffect(() => {
     setReady(!hideUntilReady)
   }, [hideUntilReady, proxiedUrl, kind, mode])
+  React.useEffect(() => {
+    if (!hideUntilReady) return
+    if (ready) return
+    const t = window.setTimeout(() => {
+      setReady(true)
+    }, 1400)
+    return () => {
+      window.clearTimeout(t)
+    }
+  }, [hideUntilReady, ready, proxiedUrl, kind, mode])
   const contentInteractive = props.interactive !== false && (!hideUntilReady || ready)
   const setRefs = React.useCallback((el: HTMLDivElement | null) => {
     rootRef.current = el
@@ -388,7 +402,7 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
         {kind === 'iframe' ? (
           <RichMediaIframe
             title={title}
-            url={props.url}
+            url={proxiedUrl}
             mode={mode}
             style={{
               display: 'block',

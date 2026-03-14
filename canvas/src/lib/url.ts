@@ -1,4 +1,4 @@
-import { unwrapUserProvidedText } from 'grph-shared/url'
+import { applyMediaProxySrc, unwrapUserProvidedText } from 'grph-shared/url'
 
 export * from 'grph-shared/url'
 
@@ -49,4 +49,44 @@ export function resolveUrlAgainstBase(baseUrl: string | null | undefined, rawUrl
   } catch {
     return raw
   }
+}
+
+export function isWeChatHotlinkProtectedAssetUrl(absUrl: string): boolean {
+  const raw = String(absUrl || '').trim()
+  if (!/^https?:\/\//i.test(raw)) return false
+  try {
+    const u = new URL(raw)
+    const host = u.hostname.toLowerCase()
+    if (host === 'mmbiz.qpic.cn' || host.endsWith('.qpic.cn')) return true
+    if (host === 'mmbiz.qlogo.cn' || host.endsWith('.qlogo.cn')) return true
+    if (host === 'wx.qlogo.cn' || host.endsWith('.wx.qlogo.cn')) return true
+    return false
+  } catch {
+    return false
+  }
+}
+
+export function buildWebpageAssetPathProxyUrl(absUrl: string): string {
+  const raw = String(absUrl || '').trim()
+  if (!raw) return ''
+  if (raw.startsWith('/__webpage_asset_path/')) return raw
+  if (raw.startsWith('/__webpage_asset_proxy?url=')) return raw
+  if (!/^https?:\/\//i.test(raw)) return raw
+  try {
+    const u = new URL(raw)
+    const originEnc = encodeURIComponent(u.origin)
+    const p = u.pathname || '/'
+    const q = u.search || ''
+    return `/__webpage_asset_path/${originEnc}${p}${q}`
+  } catch {
+    return raw
+  }
+}
+
+export function applyImageLikeProxySrc(src: string): string {
+  const raw = String(src || '').trim()
+  if (!raw) return ''
+  const normalized = raw.startsWith('//') ? `https:${raw}` : raw
+  if (isWeChatHotlinkProtectedAssetUrl(normalized)) return buildWebpageAssetPathProxyUrl(normalized)
+  return applyMediaProxySrc(normalized)
 }

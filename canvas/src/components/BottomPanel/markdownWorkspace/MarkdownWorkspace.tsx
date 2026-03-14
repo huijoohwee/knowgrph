@@ -145,8 +145,7 @@ export function MarkdownWorkspace() {
   const setActivePath = useMarkdownExplorerStore(s => s.setActivePath)
   const requestedRevealLine = useMarkdownExplorerStore(s => s.requestedRevealLine)
   const requestRevealLine = useMarkdownExplorerStore(s => s.requestRevealLine)
-  const lastCanvasSyncSig = useMarkdownExplorerStore(s => s.lastCanvasSyncSig)
-  const setLastCanvasSyncSig = useMarkdownExplorerStore(s => s.setLastCanvasSyncSig)
+  const lastAutoApplySigRef = React.useRef<string | null>(null)
 
   const [entries, setEntries] = React.useState<WorkspaceEntry[]>([])
   const [sourcesByPath, setSourcesByPath] = React.useState(() => loadWorkspaceSourceIndex())
@@ -723,8 +722,8 @@ export function MarkdownWorkspace() {
         const fs = await getFs()
 
         if (view === 'markdown') {
-          setWebpageWorkspaceEditorTextOverride(null)
-          setWebpageWorkspaceViewerTextOverride(null)
+          setWebpageWorkspaceEditorTextOverride(prev => (prev == null ? prev : null))
+          setWebpageWorkspaceViewerTextOverride(prev => (prev == null ? prev : null))
         }
 
         const prevText = await (async () => {
@@ -755,56 +754,11 @@ export function MarkdownWorkspace() {
 
           const store = useGraphStore.getState()
           const includeImages = webpageWorkspaceMeta.includeImages ?? (store.webpageImportIncludeImages !== false)
-          const fidelityLevel = webpageWorkspaceMeta.fidelityLevel ?? (() => {
-            const raw = store.webpageArtifactFidelityMaxLevel
-            const n = Number.isFinite(raw) ? Math.floor(Number(raw)) : 4
-            return n <= 1 ? 1 : n >= 4 ? 4 : (n as 1 | 2 | 3)
-          })()
 
           const isHttp = (() => {
             const u = String(webpageWorkspaceMeta.url || '').trim().toLowerCase()
             return u.startsWith('http://') || u.startsWith('https://')
           })()
-
-          try {
-            const [{ exportWebpageDomViaHiddenIframe }, { convertHtmlToMarkdownUnified }, { postprocessWebpageMarkdownSsot }] = await Promise.all([
-              import('@/lib/websites/webpageDomExport'),
-              import('@/lib/markdown/htmlToMarkdownUnified'),
-              import('@/lib/markdown/webpageMarkdownPostprocess'),
-            ])
-            const dom = await exportWebpageDomViaHiddenIframe({
-              url: webpageWorkspaceMeta.url,
-              mode: 'html',
-              timeoutMs: 45_000,
-              maxChars: 12_000_000,
-              scrollCrawl: true,
-              expandFaq: true,
-              minWaitAfterLoadMs: 650,
-            })
-            const domHtml = String(dom?.text || '')
-            if (domHtml.trim()) {
-              const converted = await convertHtmlToMarkdownUnified({
-                html: domHtml,
-                baseUrl: webpageWorkspaceMeta.url,
-                maxInputChars: 10_000_000,
-                includeImages,
-                fidelityLevel,
-                  includeHeadSection: false,
-              })
-              if (converted.ok === true && converted.markdown.trim()) {
-                const processed = postprocessWebpageMarkdownSsot(converted.markdown)
-                return upsertWebpageFrontmatterMeta(processed, {
-                  url: webpageWorkspaceMeta.url,
-                  view: 'markdown',
-                  scriptPolicy: webpageWorkspaceMeta.scriptPolicy,
-                  includeImages: webpageWorkspaceMeta.includeImages,
-                  fidelityLevel: webpageWorkspaceMeta.fidelityLevel,
-                })
-              }
-            }
-          } catch {
-            void 0
-          }
 
           if (!isHttp && websiteImportMeta?.importId && websiteImportMeta?.nodeId) {
             const outputDirRel = String(
@@ -899,72 +853,6 @@ export function MarkdownWorkspace() {
           includeImages: patch.includeImages,
           fidelityLevel: patch.fidelityLevel,
         })
-        await fs.writeFileText(activePath, nextText)
-        lastLoadedRef.current = { path: activePath, text: nextText }
-        const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
-        const inlineText = nextText.length <= maxInline ? nextText : undefined
-        setEntries(prev => prev.map(e => (e.path === activePath ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
-        setActiveTextProgrammatic(nextText)
-        setStatusWithAutoClear('Updated', 1200)
-      } catch (e) {
-        setStatusError(`Update failed: ${String((e as { message?: unknown })?.message ?? e)}`)
-      }
-    },
-    [activePath, getFs, setActiveTextProgrammatic, setEntries, setStatusError, setStatusProgress, setStatusWithAutoClear, webpageWorkspaceMeta],
-  )
-
-  const syncActiveWebpageMarkdownFromDom = React.useCallback(
-    async () => {
-      if (!activePath || !webpageWorkspaceMeta) return
-      try {
-        setStatusProgress('Fetching')
-        const fs = await getFs()
-        const store = useGraphStore.getState()
-
-        const includeImages = webpageWorkspaceMeta.includeImages ?? (store.webpageImportIncludeImages !== false)
-        const fidelityLevel = webpageWorkspaceMeta.fidelityLevel ?? (() => {
-          const raw = store.webpageArtifactFidelityMaxLevel
-          const n = Number.isFinite(raw) ? Math.floor(Number(raw)) : 4
-          return n <= 1 ? 1 : n >= 4 ? 4 : (n as 1 | 2 | 3)
-        })()
-
-        const [{ exportWebpageDomViaHiddenIframe }, { convertHtmlToMarkdownUnified }] = await Promise.all([
-          import('@/lib/websites/webpageDomExport'),
-          import('@/lib/markdown/htmlToMarkdownUnified'),
-        ])
-
-        const dom = await exportWebpageDomViaHiddenIframe({
-          url: webpageWorkspaceMeta.url,
-          mode: 'html',
-          timeoutMs: 30_000,
-          maxChars: 10_000_000,
-          scrollCrawl: true,
-          expandFaq: true,
-        })
-        const domHtml = String(dom?.text || '')
-        if (!domHtml.trim()) throw new Error('DOM capture failed')
-
-        setStatusProgress('Converting')
-        const converted = await convertHtmlToMarkdownUnified({
-          html: domHtml,
-          baseUrl: webpageWorkspaceMeta.url,
-          maxInputChars: 10_000_000,
-          includeImages,
-          fidelityLevel,
-          includeHeadSection: false,
-        })
-        if (converted.ok !== true) throw new Error(converted.error || 'Conversion failed')
-
-        const nextText = upsertWebpageFrontmatterMeta(converted.markdown, {
-          url: webpageWorkspaceMeta.url,
-          view: 'markdown',
-          siteRootRel: webpageWorkspaceMeta.siteRootRel,
-          scriptPolicy: webpageWorkspaceMeta.scriptPolicy,
-          includeImages: webpageWorkspaceMeta.includeImages,
-          fidelityLevel: webpageWorkspaceMeta.fidelityLevel,
-        })
-
-        setStatusProgress('Writing')
         await fs.writeFileText(activePath, nextText)
         lastLoadedRef.current = { path: activePath, text: nextText }
         const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
@@ -2320,10 +2208,10 @@ export function MarkdownWorkspace() {
     const isGraphEmpty = !g || !Array.isArray(g.nodes) || !Array.isArray(g.edges) || (g.nodes.length === 0 && g.edges.length === 0)
     if (!isGraphEmpty) return
     const sig = `${name}:${text.length}:${text.slice(0, 96)}`
-    if (lastCanvasSyncSig === sig) return
-    setLastCanvasSyncSig(sig)
+    if (lastAutoApplySigRef.current === sig) return
+    lastAutoApplySigRef.current = sig
     void handleApply()
-  }, [activeDocumentKey, activeText, graphData, handleApply, lastCanvasSyncSig, setLastCanvasSyncSig, workspaceCanvasPaneOpen])
+  }, [activeDocumentKey, activeText, graphData, handleApply, workspaceCanvasPaneOpen])
 
   const handleFormatAction = React.useCallback(
     (action: MarkdownFormatAction) => {
@@ -2525,7 +2413,6 @@ export function MarkdownWorkspace() {
         webpageWorkspaceMeta={webpageWorkspaceMeta}
         onWebpageChangeView={(view) => void switchActiveWebpageWorkspaceView(view)}
         onWebpageUpdateMeta={patch => void updateActiveWebpageWorkspaceMeta(patch)}
-        onWebpageSyncMarkdownFromDom={() => void syncActiveWebpageMarkdownFromDom()}
         activeText={effectiveActiveText}
         setActiveText={effectiveSetActiveText}
         editorTextOverride={effectiveEditorTextOverride}

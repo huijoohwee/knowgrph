@@ -47,6 +47,17 @@ async function main() {
   ;(globalThis as unknown as { getComputedStyle?: unknown }).getComputedStyle = dom.window.getComputedStyle
   ;(globalThis as unknown as { Element?: unknown }).Element = dom.window.Element
   ;(globalThis as unknown as { HTMLElement?: unknown }).HTMLElement = dom.window.HTMLElement
+  ;(globalThis as unknown as { CSS?: unknown }).CSS = (dom.window as unknown as { CSS?: unknown }).CSS
+  try {
+    const css = (globalThis as unknown as { CSS?: { escape?: (s: string) => string } }).CSS
+    if (!css || typeof css.escape !== 'function') {
+      ;(globalThis as unknown as { CSS?: { escape: (s: string) => string } }).CSS = {
+        escape: (s: string) => String(s || '').replace(/[^a-zA-Z0-9_\-]/g, ch => `\\${ch}`),
+      }
+    }
+  } catch {
+    void 0
+  }
   ;(globalThis as unknown as { SVGElement?: unknown }).SVGElement = (dom.window as unknown as { SVGElement?: unknown }).SVGElement
   ;(globalThis as unknown as { SVGSVGElement?: unknown }).SVGSVGElement = (dom.window as unknown as { SVGSVGElement?: unknown }).SVGSVGElement
   ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = dom.window.requestAnimationFrame
@@ -235,6 +246,7 @@ async function main() {
     graphData,
     includeRichMediaOverlays: true,
     mediaPanelDensity: 'default',
+    preferWebgl3d: mode === '3d',
     viewportWidthPx: 1920,
     viewportHeightPx: 1080,
     viewportScaleToFit: true,

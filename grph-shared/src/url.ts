@@ -202,6 +202,29 @@ export function isLikelyImageUrl(url: string): boolean {
   if (isLikelySvgUrl(u)) return true
   if (isSubstackCdnImageFetchUrl(u) && /(\.png|\.jpe?g|\.gif|\.webp|\.svg)(\?|#|$)/i.test(decodeURIComponentSafe(u))) return true
   if (isSubstackCdnImageFetchUrl(u)) return true
+
+  try {
+    const parsed = new URL(u)
+    const host = parsed.hostname.toLowerCase()
+    const isWeChatAssetHost =
+      host === 'mmbiz.qpic.cn' ||
+      host.endsWith('.qpic.cn') ||
+      host === 'mmbiz.qlogo.cn' ||
+      host.endsWith('.qlogo.cn') ||
+      host === 'wx.qlogo.cn' ||
+      host.endsWith('.wx.qlogo.cn')
+    if (isWeChatAssetHost) {
+      const wxFmt = String(parsed.searchParams.get('wx_fmt') || '').toLowerCase()
+      if (wxFmt && /(png|jpe?g|gif|webp|svg)/i.test(wxFmt)) return true
+      const tp = String(parsed.searchParams.get('tp') || '').toLowerCase()
+      if (tp && /(png|jpe?g|gif|webp|svg)/i.test(tp)) return true
+      const p = parsed.pathname.toLowerCase()
+      if (p.includes('/mmbiz_png/') || p.includes('/mmbiz_jpg/') || p.includes('/mmbiz_gif/') || p.includes('/mmbiz_webp/')) return true
+      if (p.includes('/mmbiz/') && (p.includes('wx_fmt=') || p.includes('tp='))) return true
+    }
+  } catch {
+    void 0
+  }
   return false
 }
 
@@ -233,7 +256,10 @@ export function inferIframeScriptPolicyFromHtml(html: string): 'strip' | 'allow'
     /enable-javascript\.com/i.test(h) ||
     /requires\s+java\s*script/i.test(h) ||
     /failed\s+to\s+load\s+posts/i.test(h) ||
-    /substackcdn\.com/i.test(h)
+    /substackcdn\.com/i.test(h) ||
+    /<noscript\b[\s\S]*?(enable\s+javascript|requires\s+javascript|turn\s+on\s+javascript)/i.test(h) ||
+    /__NEXT_DATA__|webpackChunk|__NUXT__|data-reactroot|__APOLLO_STATE__/i.test(h) ||
+    (h.match(/<script\b/gi) || []).length >= 6
   return needsJs ? 'allow' : 'strip'
 }
 

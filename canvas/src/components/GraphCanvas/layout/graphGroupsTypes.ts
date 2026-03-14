@@ -3,6 +3,8 @@ export type GraphGroup = {
   label: string
   depth: number
   xIndex?: number
+  zIndex?: number
+  zMode?: 'group' | 'absolute'
   yIndex?: number
   memberNodeIds: string[]
   style: {
@@ -10,5 +12,12 @@ export type GraphGroup = {
     stroke?: string
     strokeWidth?: number
   }
+  bounds?: {
+    x: number
+    y: number
+    width: number
+    height: number
+    labelX?: number
+    labelY?: number
+  }
 }
-

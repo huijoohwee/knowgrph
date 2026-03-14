@@ -446,6 +446,17 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       m = /^([A-Za-z0-9_.-]+)\s*\(\(\(([^)]+)\)\)\)$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'circle')
 
+      // Circle: id((label))
+      m = /^([A-Za-z0-9_.-]+)\s*\(\((.+)\)\)$/.exec(cleanStr)
+      if (m) {
+        const raw = String(m[2] || '').trim()
+        const unquoted =
+          raw.length >= 2 && ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'")))
+            ? raw.slice(1, -1)
+            : raw
+        return finish(m[1], unquoted, 'circle')
+      }
+
       // Standard Box: id["label"]
       m = /^([A-Za-z0-9_.-]+)\s*\["(.+)"\]$/.exec(cleanStr)
       if (m) return finish(m[1], m[2], 'rect') 
@@ -494,7 +505,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     // Updated to support multi-directional and circle/cross edges:
     // o--o, x--x, <-->
     // And labeled edges without pipes: -- text -->, -. text .->, == text ==>
-    const arrowRegex = /\s*((?:--+|-\.-+|==+)(?:\s+[^|]+\s+)(?:--+|-\.-+|==+)>?|(?:--+|-\.-+|==+|o--+o|x--+x|<--+>)(?:>)?(?:\|[^|]+\|)?)\s*/
+    const arrowRegex = /\s*((?:--+|-\.-+|==+)(?:\s+[^|]+\s+)(?:--+|-\.-+|==+)>?|(?:--+|-\.-+|==+|o--+o|x--+x|<--+>)(?:>)?(?:\s*\|[^|]+\|\s*)?)\s*/
     const parts = trimmed.split(arrowRegex)
     
     if (parts.length === 1) {

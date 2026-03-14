@@ -235,8 +235,9 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   const mediaNodesPool = useMemo(() => {
     const graph = renderGraph as GraphData | null
     const nodes = graph && Array.isArray(graph.nodes) ? (graph.nodes as GraphNode[]) : []
-    const poolMax = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
-    return listMediaOverlayNodes({ enabled: renderMediaAsNodes === true, nodes, poolMax })
+    const poolMaxRaw = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
+    const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
+    return listMediaOverlayNodes({ enabled: true, nodes, poolMax })
   }, [renderGraph, renderMediaAsNodes, threeIframeOverlayPoolMax])
 
   const mediaNodesKey = useMemo(() => mediaNodesPool.map(n => n.id).join('|'), [mediaNodesPool])

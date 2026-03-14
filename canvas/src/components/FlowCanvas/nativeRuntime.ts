@@ -39,6 +39,13 @@ export type FlowNativeEdge = {
   label?: string
   color?: string
   widthPx?: number
+  zIndex?: number
+  svgPathD?: string
+  svgArrowD?: string
+  svgPathTx?: number
+  svgPathTy?: number
+  labelX?: number
+  labelY?: number
 }
 
 export type FlowNativeScene = {
@@ -290,6 +297,16 @@ export const computeFlowGroupAabb = (args: {
   paddingPx: number
   labelTopExtraPx: number
 }): { minX: number; minY: number; maxX: number; maxY: number } | null => {
+  const explicit = (args.group as unknown as { bounds?: unknown }).bounds
+  if (explicit && typeof explicit === 'object' && !Array.isArray(explicit)) {
+    const x = typeof (explicit as any).x === 'number' ? (explicit as any).x : Number.NaN
+    const y = typeof (explicit as any).y === 'number' ? (explicit as any).y : Number.NaN
+    const w = typeof (explicit as any).width === 'number' ? (explicit as any).width : Number.NaN
+    const h = typeof (explicit as any).height === 'number' ? (explicit as any).height : Number.NaN
+    if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+      return { minX: x, minY: y, maxX: x + w, maxY: y + h }
+    }
+  }
   const memberIds = Array.isArray(args.group.memberNodeIds) ? args.group.memberNodeIds : []
   if (memberIds.length === 0) return null
   const padding = Math.max(0, args.paddingPx)
@@ -621,6 +638,41 @@ const drawEdge = (
   const s = args.source
   const t = args.target
   const k = rt.transform.k || 1
+
+  const svgPathD = typeof e.svgPathD === 'string' ? e.svgPathD.trim() : ''
+  if (svgPathD) {
+    const widthPx = typeof e.widthPx === 'number' && Number.isFinite(e.widthPx) ? Math.max(1, Math.min(12, e.widthPx)) : 1
+    ctx.save()
+    const tx = typeof e.svgPathTx === 'number' && Number.isFinite(e.svgPathTx) ? e.svgPathTx : 0
+    const ty = typeof e.svgPathTy === 'number' && Number.isFinite(e.svgPathTy) ? e.svgPathTy : 0
+    if (tx || ty) ctx.translate(tx, ty)
+    ctx.lineWidth = (args.selected ? Math.max(2, widthPx + 1) : widthPx) / Math.max(1e-6, k)
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    ctx.strokeStyle = args.selected ? rt.theme.edgeSelected : (e.color || rt.theme.edge)
+    try {
+      const p = new Path2D(svgPathD)
+      ctx.stroke(p)
+    } catch {
+      void 0
+    }
+
+    const arrowD = typeof e.svgArrowD === 'string' ? e.svgArrowD.trim() : ''
+    if (arrowD) {
+      ctx.fillStyle = args.selected ? rt.theme.edgeSelected : (e.color || rt.theme.edge)
+      try {
+        const a = new Path2D(arrowD)
+        ctx.fill(a)
+      } catch {
+        void 0
+      }
+    }
+    ctx.restore()
+    void s
+    void t
+    void rankdir
+    return
+  }
   const portHandlesEnabled = rt.presentation.portHandles.enabled
   const sPct = portHandlesEnabled ? ((s.outHandleTopPctById[e.outHandleId] ?? 50) as number) : 50
   const tPct = portHandlesEnabled ? ((t.inHandleTopPctById[e.inHandleId] ?? 50) as number) : 50
@@ -895,6 +947,10 @@ const drawEdgeLabels = (
       return { x: (sxx + txx) / 2, y: (syy + tyy) / 2 }
     })()
 
+    const lx = typeof (e as unknown as { labelX?: unknown }).labelX === 'number' ? ((e as unknown as { labelX: number }).labelX) : Number.NaN
+    const ly = typeof (e as unknown as { labelY?: unknown }).labelY === 'number' ? ((e as unknown as { labelY: number }).labelY) : Number.NaN
+    const mid2 = Number.isFinite(lx) && Number.isFinite(ly) ? { x: lx, y: ly } : mid
+
     const maxChars = estimateMaxCharsForWidthPx(Math.max(0, 160), fontSizePx)
     const clipped = truncateTextWithEllipsis(labelRaw, Math.max(6, Math.min(60, maxChars)))
     const textW = Math.max(6, clipped.length * charWWorld)
@@ -904,7 +960,7 @@ const drawEdgeLabels = (
     let placedRect: AabbRect | null = null
     for (let oi = 0; oi < offsets.length; oi += 1) {
       const o = offsets[oi]
-      const rect: AabbRect = { x: mid.x + o.dx, y: mid.y + o.dy, halfW, halfH }
+      const rect: AabbRect = { x: mid2.x + o.dx, y: mid2.y + o.dy, halfW, halfH }
       let ok = true
       for (let bi = 0; bi < blockers.length; bi += 1) {
         if (aabbOverlaps(rect, blockers[bi])) { ok = false; break }

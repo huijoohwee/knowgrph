@@ -7,11 +7,9 @@ import { lsJson, lsSetJson } from '@/lib/persistence'
 type MarkdownExplorerState = {
   activePath: WorkspacePath | null
   requestedRevealLine: number | null
-  lastCanvasSyncSig: string | null
   lastSetActivePath: { path: WorkspacePath; atMs: number } | null
   setActivePath: (path: WorkspacePath | null) => void
   requestRevealLine: (line: number | null) => void
-  setLastCanvasSyncSig: (sig: string | null) => void
 }
 
 export const useMarkdownExplorerStore = create<MarkdownExplorerState>(set => ({
@@ -29,7 +27,6 @@ export const useMarkdownExplorerStore = create<MarkdownExplorerState>(set => ({
     },
   ),
   requestedRevealLine: null,
-  lastCanvasSyncSig: null,
   lastSetActivePath: null,
   setActivePath: (path: WorkspacePath | null) => {
     const normalized = path ? normalizeWorkspacePath(path) : null
@@ -41,5 +38,4 @@ export const useMarkdownExplorerStore = create<MarkdownExplorerState>(set => ({
   },
   requestRevealLine: (line: number | null) =>
     set({ requestedRevealLine: typeof line === 'number' && Number.isFinite(line) ? Math.max(1, Math.floor(line)) : null }),
-  setLastCanvasSyncSig: (sig: string | null) => set({ lastCanvasSyncSig: sig ? String(sig) : null }),
 }))

@@ -34,7 +34,7 @@ export function buildAndSetFlowNativeScene(args: {
   const edgeList = Array.isArray(g?.edges) ? g?.edges : []
   const pos = args.positions || null
   const context = String((g as unknown as { context?: unknown })?.context || '')
-  const useVisualNodeSize = context === 'webpageLayout' || context === 'frontmatter-flow'
+  const useVisualNodeSize = context === 'webpageLayout' || context === 'frontmatter-flow' || context === 'frontmatter-mermaid'
 
   const socketStyleByType = (() => {
     const meta = (g?.metadata && typeof g.metadata === 'object' && !Array.isArray(g.metadata))
@@ -250,13 +250,19 @@ export function buildAndSetFlowNativeScene(args: {
     inputNodeById.set(id, n)
   }
   nodes.sort((a, b) => {
+    const az = typeof (a as unknown as { zIndex?: unknown }).zIndex === 'number' ? ((a as unknown as { zIndex: number }).zIndex) : 0
+    const bz = typeof (b as unknown as { zIndex?: unknown }).zIndex === 'number' ? ((b as unknown as { zIndex: number }).zIndex) : 0
+    if (context === 'frontmatter-mermaid') {
+      if (az !== bz) return az - bz
+      if (a.y !== b.y) return a.y - b.y
+      if (a.x !== b.x) return a.x - b.x
+      return a.id.localeCompare(b.id)
+    }
+
     const ag = bestGroupByNodeId.get(a.id) || { depth: -1, size: Number.POSITIVE_INFINITY }
     const bg = bestGroupByNodeId.get(b.id) || { depth: -1, size: Number.POSITIVE_INFINITY }
     if (ag.depth !== bg.depth) return ag.depth - bg.depth
     if (ag.size !== bg.size) return bg.size - ag.size
-
-    const az = typeof (a as unknown as { zIndex?: unknown }).zIndex === 'number' ? ((a as unknown as { zIndex: number }).zIndex) : 0
-    const bz = typeof (b as unknown as { zIndex?: unknown }).zIndex === 'number' ? ((b as unknown as { zIndex: number }).zIndex) : 0
     if (az !== bz) return az - bz
 
     const ay = typeof (a as unknown as { yIndex?: unknown }).yIndex === 'number' ? ((a as unknown as { yIndex: number }).yIndex) : 0
@@ -315,6 +321,30 @@ export function buildAndSetFlowNativeScene(args: {
       return typeof w === 'number' && Number.isFinite(w) ? w : null
     })()
 
+    const visual =
+      e.properties && typeof e.properties === 'object' && !Array.isArray(e.properties)
+        ? (e.properties as Record<string, unknown>)
+        : null
+    const svgPathD = visual && typeof visual['visual:pathD'] === 'string' ? String(visual['visual:pathD'] || '').trim() : ''
+    const svgArrowD = visual && typeof visual['visual:arrowD'] === 'string' ? String(visual['visual:arrowD'] || '').trim() : ''
+    const zIndex = (() => {
+      const raw = visual ? visual['visual:zIndex'] : null
+      const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+      return typeof n === 'number' && Number.isFinite(n) ? Math.floor(n) : 0
+    })()
+    const svgPathTx = (() => {
+      const raw = visual ? visual['visual:pathTx'] : null
+      const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+      return typeof n === 'number' && Number.isFinite(n) ? n : 0
+    })()
+    const svgPathTy = (() => {
+      const raw = visual ? visual['visual:pathTy'] : null
+      const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+      return typeof n === 'number' && Number.isFinite(n) ? n : 0
+    })()
+    const labelX = visual && typeof visual['visual:labelX'] === 'number' && Number.isFinite(visual['visual:labelX'] as number) ? (visual['visual:labelX'] as number) : null
+    const labelY = visual && typeof visual['visual:labelY'] === 'number' && Number.isFinite(visual['visual:labelY'] as number) ? (visual['visual:labelY'] as number) : null
+
     edges.push({
       id: edgeId,
       source,
@@ -324,6 +354,20 @@ export function buildAndSetFlowNativeScene(args: {
       ...(label ? { label } : {}),
       ...(edgeColor ? { color: edgeColor } : {}),
       ...(edgeWidthPx != null ? { widthPx: edgeWidthPx } : {}),
+      ...(zIndex ? { zIndex } : {}),
+      ...(svgPathD ? { svgPathD } : {}),
+      ...(svgArrowD ? { svgArrowD } : {}),
+      ...((svgPathTx || svgPathTy) && svgPathD ? { svgPathTx, svgPathTy } : {}),
+      ...(labelX != null && labelY != null ? { labelX, labelY } : {}),
+    })
+  }
+
+  if (context === 'frontmatter-mermaid') {
+    edges.sort((a, b) => {
+      const az = typeof (a as unknown as { zIndex?: unknown }).zIndex === 'number' ? ((a as unknown as { zIndex: number }).zIndex) : 0
+      const bz = typeof (b as unknown as { zIndex?: unknown }).zIndex === 'number' ? ((b as unknown as { zIndex: number }).zIndex) : 0
+      if (az !== bz) return az - bz
+      return a.id.localeCompare(b.id)
     })
   }
 

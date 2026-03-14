@@ -83,3 +83,59 @@ export async function testExportHtmlViewerMediaPanelHasNonZeroLayout() {
     throw new Error('expected exported viewer media content to size to container')
   }
 }
+
+export async function testExportHtmlViewerTreatsIFrameKindWithImageUrlAsImage() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
+  const html = await buildGraphHtmlViewerMarkup({
+    title: 'T',
+    svgMarkup: svg,
+    includeRichMediaOverlays: true,
+    graphData: {
+      type: 'Graph',
+      nodes: [
+        {
+          id: 'm1',
+          label: 'Media',
+          type: 'Entity',
+          properties: { media_kind: 'iframe', media_url: 'https://example.com/a.png' },
+        },
+      ],
+      edges: [],
+    },
+  })
+  if (!html) throw new Error('expected html')
+  if (!html.includes('kgInferMediaKindFromUrl')) {
+    throw new Error('expected exported html viewer to include url-based media kind inference')
+  }
+  if (!html.includes('kgInferMediaKindFromUrl2')) {
+    throw new Error('expected exported html viewer to include extended media kind inference')
+  }
+  if (!html.includes('wx_fmt=')) {
+    throw new Error('expected exported html viewer to treat wx_fmt images as images')
+  }
+  if (!html.includes("inferredKind && (kind === 'iframe'")) {
+    throw new Error('expected iframe kind to be overridden by inferred image kind')
+  }
+}
+
+export async function testExportHtmlViewerHudIncludesModeToggles() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
+  const html = await buildGraphHtmlViewerMarkup({ title: 'T', svgMarkup: svg })
+  if (!html) throw new Error('expected html')
+  if (!html.includes('kg-3d-toggle') || !html.includes('kg-rich-toggle') || !html.includes('kg-frontmatter-toggle')) {
+    throw new Error('expected exported html viewer to include 3d/rich/frontmatter toggle controls')
+  }
+}
+
+export async function testExportHtmlViewerRuntimeSupportsCentroidFitAndTouchDrag() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="n"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
+  const html = await buildGraphHtmlViewerMarkup({
+    title: 'T',
+    svgMarkup: svg,
+    graphData: { nodes: [{ id: 'n', label: 'n', x: 0, y: 0 }], edges: [] } as any,
+  })
+  if (!html) throw new Error('expected html')
+  if (!html.includes('getContentCentroid') || !html.includes('moveNodeDrag(-1')) {
+    throw new Error('expected exported html viewer runtime to support centroid fit and touch node dragging')
+  }
+}

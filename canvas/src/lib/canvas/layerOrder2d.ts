@@ -21,4 +21,3 @@ export const MERMAID_RENDER_ORDER_KEY_TO_LAYER_ID_2D: Readonly<Record<string, st
   edgeLabels: 'edge-labels',
   nodeLabels: 'labels',
 }
-

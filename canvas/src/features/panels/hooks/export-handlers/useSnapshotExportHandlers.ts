@@ -481,7 +481,7 @@ export function useSnapshotExportHandlers({
           zoomStrokeScaleClampMin2d: store.zoomStrokeScaleClampMin2d,
           zoomStrokeScaleClampMax2d: store.zoomStrokeScaleClampMax2d,
           hideLabelsBelowScale: store.schema?.performance?.lod?.hideLabelsBelowScale,
-          includeRichMediaOverlays: store.renderMediaAsNodes === true,
+          includeRichMediaOverlays: true,
           mediaOverlayPoolMax: store.threeIframeOverlayPoolMax,
           mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
           threeIframeOverlayBaseWidthRatioDefault: store.threeIframeOverlayBaseWidthRatioDefault,

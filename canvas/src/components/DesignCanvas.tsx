@@ -839,8 +839,10 @@ export default function DesignCanvas({
 
   const designMediaOverlayNodes = useMemo(() => {
     const nodes = Array.isArray(localGraphData?.nodes) ? (localGraphData.nodes as GraphNode[]) : []
-    const poolMax = typeof snapshot.threeIframeOverlayPoolMax === 'number' && Number.isFinite(snapshot.threeIframeOverlayPoolMax) ? snapshot.threeIframeOverlayPoolMax : 0
-    return listMediaOverlayNodes({ enabled: snapshot.renderMediaAsNodes === true, nodes, poolMax })
+    const poolMaxRaw =
+      typeof snapshot.threeIframeOverlayPoolMax === 'number' && Number.isFinite(snapshot.threeIframeOverlayPoolMax) ? snapshot.threeIframeOverlayPoolMax : 0
+    const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
+    return listMediaOverlayNodes({ enabled: true, nodes, poolMax })
   }, [localGraphData, snapshot.renderMediaAsNodes, snapshot.threeIframeOverlayPoolMax])
 
   const designMediaOverlayElsRef = useRef<Map<string, HTMLDivElement>>(new Map())
@@ -858,7 +860,6 @@ export default function DesignCanvas({
 
   useEffect(() => {
     if (!active) return
-    if (snapshot.renderMediaAsNodes !== true) return
     if (designMediaOverlayNodes.length === 0) return
     let raf: number | null = null
     let lastKey = ''
@@ -906,16 +907,7 @@ export default function DesignCanvas({
         const el = designMediaOverlayElsRef.current.get(item.id)
         if (!el) continue
         const n = nodeById.get(item.id) || null
-        const center = readNodeCenterWorld2d(n, { coords: 'center' })
-        if (!center) {
-          try {
-            const hasPos = (el as unknown as { dataset?: Record<string, string> }).dataset?.kgOverlayHasPos === '1'
-            if (!hasPos) applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block', zIndex: 1 })
-          } catch {
-            applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block', zIndex: 1 })
-          }
-          continue
-        }
+        const center = readNodeCenterWorld2d(n, { coords: 'center' }) || { x: 0, y: 0 }
         const cx = t.applyX(center.x)
         const cy = t.applyY(center.y)
         if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue
@@ -3510,8 +3502,8 @@ export default function DesignCanvas({
           ) : null}
         </g>
       </svg>
-      {active && snapshot.renderMediaAsNodes === true && designMediaOverlayNodes.length > 0 ? (
-        <section aria-label="Design media overlay" className="absolute inset-0 z-[50] pointer-events-none">
+      {active && designMediaOverlayNodes.length > 0 ? (
+        <section aria-label="Design media overlay" className="absolute inset-0 z-[80] pointer-events-none">
           {designMediaOverlayNodes.map(n => {
             return (
               <RichMediaPanel

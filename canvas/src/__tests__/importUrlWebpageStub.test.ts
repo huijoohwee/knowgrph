@@ -12,7 +12,7 @@ export const testImportUrlWebpageCreatesHtmlFrontmatterStub = async () => {
     throw new Error('expected kgWebpageView to be html')
   }
   const body = text.replace(/^---[\s\S]*?\n---\n?/m, '')
-  if (body.trim()) throw new Error('expected stub body to be empty')
+  if (!body.includes('https://grapesjs.com/pricing')) throw new Error('expected stub body to include the webpage URL')
 }
 
 export const testImportUrlWebpageRefreshUsesSourceFaithfulForMultipleUrls = async () => {

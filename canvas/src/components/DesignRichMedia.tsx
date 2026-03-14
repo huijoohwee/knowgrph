@@ -1,5 +1,5 @@
 import React from 'react'
-import { applyMediaProxySrc } from '@/lib/url'
+import { applyImageLikeProxySrc } from '@/lib/url'
 import RichMediaPanel from '@/components/RichMediaPanel'
 
 export type DesignRichMediaTag = 'IMG' | 'VIDEO' | 'IFRAME'
@@ -15,9 +15,9 @@ const stopEvent = (event: React.SyntheticEvent) => {
 const normalizeMediaUrl = (tag: DesignRichMediaTag, rawUrl: string): string => {
   const url = String(rawUrl || '').trim()
   if (!url) return ''
-  if (tag === 'VIDEO') return applyMediaProxySrc(url)
+  if (tag === 'VIDEO') return applyImageLikeProxySrc(url)
   if (/^data:image\//i.test(url)) return url
-  return applyMediaProxySrc(url)
+  return applyImageLikeProxySrc(url)
 }
 
 export function DesignRichMediaPreview(props: {

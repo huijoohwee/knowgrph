@@ -42,6 +42,7 @@ import { formatMarkdownWorkspaceStatusLabel } from './markdownWorkspace/markdown
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { WorkspaceModeSelect } from './markdownWorkspace/WorkspaceModeSelect'
 import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/frontmatter'
+import { WORKSPACE_IMPORT_IMAGE_URL_TEST, WORKSPACE_IMPORT_URL_TEST } from '@/lib/config'
 
 export type MarkdownWorkspaceToolbarProps = {
   explorerOpen: boolean
@@ -96,7 +97,6 @@ export type MarkdownWorkspaceToolbarProps = {
   webpageWorkspaceMeta?: WebpageFrontmatterMeta | null
   onWebpageChangeView?: (view: WebpageViewMode) => void
   onWebpageUpdateMeta?: (patch: { scriptPolicy?: 'strip' | 'allow'; includeImages?: boolean; fidelityLevel?: 1 | 2 | 3 | 4 }) => void
-  onWebpageSyncMarkdownFromDom?: () => void
 }
 
 const TOOLBAR_BUTTON_CLASSNAME = `h-7 w-7 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
@@ -144,7 +144,6 @@ export function MarkdownWorkspaceToolbar({
   webpageWorkspaceMeta,
   onWebpageChangeView,
   onWebpageUpdateMeta,
-  onWebpageSyncMarkdownFromDom,
 }: MarkdownWorkspaceToolbarProps) {
   const panelTypography = usePanelTypography()
   const canNavigateSlides = layoutMode === 'presentation'
@@ -337,8 +336,6 @@ export function MarkdownWorkspaceToolbar({
                 options={[
                   { value: 'markdown', label: 'Markdown' },
                   { value: 'html', label: 'HTML' },
-                  { value: 'dom', label: 'DOM' },
-                  { value: 'raw', label: 'Raw' },
                   { value: 'json', label: 'JSON' },
                 ]}
                 onChange={next => onWebpageChangeView(next)}
@@ -392,20 +389,6 @@ export function MarkdownWorkspaceToolbar({
                 }}
               />
             </li>
-            {onWebpageSyncMarkdownFromDom ? (
-              <li className="list-none">
-                <button
-                  type="button"
-                  className={TOOLBAR_BUTTON_CLASSNAME}
-                  title="Sync DOM to Markdown"
-                  aria-label="Sync DOM to Markdown"
-                  onClick={() => onWebpageSyncMarkdownFromDom()}
-                  disabled={!isEditing}
-                >
-                  <Upload className="w-4 h-4" strokeWidth={1.6} />
-                </button>
-              </li>
-            ) : null}
           </menu>
         ) : null}
         <input
@@ -489,6 +472,13 @@ export function MarkdownWorkspaceToolbar({
                   setUrlInputOpen(false)
                   return
                 }
+                if (!draft) {
+                  if (WORKSPACE_IMPORT_URL_TEST) {
+                    setUrlDraft(WORKSPACE_IMPORT_URL_TEST)
+                  } else if (WORKSPACE_IMPORT_IMAGE_URL_TEST) {
+                    setUrlDraft(WORKSPACE_IMPORT_IMAGE_URL_TEST)
+                  }
+                }
                 setUrlInputOpen(true)
               }}
             >
@@ -502,42 +492,73 @@ export function MarkdownWorkspaceToolbar({
               }
               aria-label="Import URL input"
             >
-              <section className="w-72 flex items-stretch gap-1" aria-label="URL import controls">
-                <input
-                  ref={urlInputRef}
-                  className={`flex-1 min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border box-border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${panelTypography.fontClass} ${panelTypography.textSizeClass}`}
-                  placeholder={SOURCE_FILES_COPY.urlPlaceholder}
-                  aria-label="Import URL"
-                  value={urlDraft}
-                  onChange={e => setUrlDraft(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Escape') {
+              <section className="w-72" aria-label="URL import controls">
+                {WORKSPACE_IMPORT_URL_TEST || WORKSPACE_IMPORT_IMAGE_URL_TEST ? (
+                  <section className="mb-1 flex items-center gap-1" aria-label="URL import test shortcuts">
+                    {WORKSPACE_IMPORT_URL_TEST ? (
+                      <button
+                        type="button"
+                        className={`h-6 px-2 inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} ${panelTypography.fontClass}`}
+                        title="Use test-url"
+                        onClick={() => {
+                          setUrlDraft(WORKSPACE_IMPORT_URL_TEST)
+                        }}
+                      >
+                        Test URL
+                      </button>
+                    ) : null}
+                    {WORKSPACE_IMPORT_IMAGE_URL_TEST ? (
+                      <button
+                        type="button"
+                        className={`h-6 px-2 inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} ${panelTypography.fontClass}`}
+                        title="Use test-image-url"
+                        onClick={() => {
+                          setUrlDraft(WORKSPACE_IMPORT_IMAGE_URL_TEST)
+                        }}
+                      >
+                        Test image
+                      </button>
+                    ) : null}
+                  </section>
+                ) : null}
+
+                <section className="flex items-stretch gap-1">
+                  <input
+                    ref={urlInputRef}
+                    className={`flex-1 min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border box-border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${panelTypography.fontClass} ${panelTypography.textSizeClass}`}
+                    placeholder={SOURCE_FILES_COPY.urlPlaceholder}
+                    aria-label="Import URL"
+                    value={urlDraft}
+                    onChange={e => setUrlDraft(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Escape') {
+                        e.preventDefault()
+                        setUrlInputOpen(false)
+                        return
+                      }
+                      if (e.key !== 'Enter') return
                       e.preventDefault()
+                      const next = String(urlDraft || '').trim()
+                      if (!next) return
+                      onImportUrl(next)
                       setUrlInputOpen(false)
-                      return
-                    }
-                    if (e.key !== 'Enter') return
-                    e.preventDefault()
-                    const next = String(urlDraft || '').trim()
-                    if (!next) return
-                    onImportUrl(next)
-                    setUrlInputOpen(false)
-                  }}
-                />
-                <button
-                  type="button"
-                  className={`h-[var(--kg-control-height,28px)] w-[var(--kg-control-height,28px)] inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                  title="Import website (sitemap)"
-                  aria-label="Import website"
-                  onClick={() => {
-                    const next = String(urlDraft || '').trim()
-                    if (!next) return
-                    onImportWebsite(next)
-                    setUrlInputOpen(false)
-                  }}
-                >
-                  <Globe className="w-4 h-4" strokeWidth={1.6} />
-                </button>
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className={`h-[var(--kg-control-height,28px)] w-[var(--kg-control-height,28px)] inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                    title="Import website (sitemap)"
+                    aria-label="Import website"
+                    onClick={() => {
+                      const next = String(urlDraft || '').trim()
+                      if (!next) return
+                      onImportWebsite(next)
+                      setUrlInputOpen(false)
+                    }}
+                  >
+                    <Globe className="w-4 h-4" strokeWidth={1.6} />
+                  </button>
+                </section>
               </section>
             </section>
           </li>

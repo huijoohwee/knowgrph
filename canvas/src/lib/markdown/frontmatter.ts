@@ -32,7 +32,7 @@ export function readYamlFrontmatterValue(fmBlock: string, key: string): string {
   return v
 }
 
-export type WebpageViewMode = 'markdown' | 'json' | 'html' | 'dom' | 'raw'
+export type WebpageViewMode = 'markdown' | 'json' | 'html'
 export type WebpageScriptPolicy = 'strip' | 'allow'
 export type WebpageFidelityLevel = 1 | 2 | 3 | 4
 export type WebpageFrontmatterMeta = {
@@ -53,12 +53,12 @@ export function parseWebpageFrontmatterMeta(rawText: string): WebpageFrontmatter
   const view: WebpageViewMode =
     viewRaw === 'html'
       ? 'html'
-      : viewRaw === 'json'
-        ? 'json'
-        : viewRaw === 'dom'
-          ? 'dom'
+      : viewRaw === 'dom'
+        ? 'html'
+        : viewRaw === 'json'
+          ? 'json'
           : viewRaw === 'raw'
-            ? 'raw'
+            ? 'json'
             : viewRaw
               ? 'markdown'
               : 'html'

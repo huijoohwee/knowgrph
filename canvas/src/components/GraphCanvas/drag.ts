@@ -29,7 +29,7 @@ export const nodeDragBehavior = (
 
       frozenDrag = isFrozenFromEl(this as unknown as SVGElement)
       if (!structured && !frozenDrag && !event.active) {
-        simulation.alphaTarget(0.3).restart();
+        simulation.alphaTarget(0.08).restart();
       }
       d.fx = d.x;
       d.fy = d.y;
@@ -138,7 +138,7 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
         const structured = mode === 'radial'
         frozenDrag = isFrozenFromEl(this as unknown as SVGElement)
         if (!structured && !frozenDrag && !event.active) {
-          simulation.alphaTarget(0.3).restart();
+          simulation.alphaTarget(0.08).restart();
         }
         
         // Fix nodes

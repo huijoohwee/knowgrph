@@ -730,14 +730,15 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
       'Access-Control-Expose-Headers',
       'Content-Type, Content-Length, Content-Range, Accept-Ranges, ETag, Last-Modified, Cache-Control, Expires',
     )
-    const urlParam = (() => {
+    const parsedReq = (() => {
       try {
-        const parsed = new URL(req.url || '', `http://${req.headers.host}`)
-        return parsed.searchParams.get('url')
+        return new URL(req.url || '', `http://${req.headers.host}`)
       } catch {
         return null
       }
     })()
+    const urlParam = parsedReq ? parsedReq.searchParams.get('url') : null
+    const scriptPolicyParam = parsedReq ? parsedReq.searchParams.get('kg_script_policy') : null
     const rangeHeader = typeof req.headers.range === 'string' ? req.headers.range : ''
     const ifRangeHeader = typeof req.headers['if-range'] === 'string' ? req.headers['if-range'] : ''
 
@@ -784,6 +785,7 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
            const injected = injectWebpageProxyHtml({
              html: content,
              originalUrl: urlParam,
+             scriptPolicy: scriptPolicyParam,
            })
            res.statusCode = 200
            res.setHeader('Content-Type', 'text/html; charset=utf-8')
@@ -820,6 +822,40 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
        res.end('Invalid URL')
        return
     }
+
+    const upstreamHost = (() => {
+      try {
+        return new URL(urlParam).hostname.toLowerCase()
+      } catch {
+        return ''
+      }
+    })()
+    const shouldSpoofWeChat =
+      upstreamHost === 'mp.weixin.qq.com' ||
+      upstreamHost.endsWith('.mp.weixin.qq.com') ||
+      upstreamHost === 'mmbiz.qpic.cn' ||
+      upstreamHost.endsWith('.qpic.cn') ||
+      upstreamHost === 'mmbiz.qlogo.cn' ||
+      upstreamHost.endsWith('.qlogo.cn') ||
+      upstreamHost === 'wx.qlogo.cn' ||
+      upstreamHost.endsWith('.wx.qlogo.cn')
+
+    const upstreamReferer = (() => {
+      if (shouldSpoofWeChat) return 'https://mp.weixin.qq.com/'
+      try {
+        const u = new URL(urlParam)
+        return `${u.origin}/`
+      } catch {
+        return undefined
+      }
+    })()
+
+    const acceptLanguage =
+      typeof req.headers['accept-language'] === 'string' && req.headers['accept-language'].trim()
+        ? req.headers['accept-language']
+        : shouldSpoofWeChat
+          ? 'zh-CN,zh;q=0.9,en;q=0.8'
+          : 'en-US,en;q=0.9'
 
     let controller: AbortController | null = null
     let timeoutId: ReturnType<typeof setTimeout> | null = null
@@ -863,9 +899,10 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           // Use generic accept for remote fetch to avoid 406/403 on raw files
-          Accept: '*/*',
-          'Accept-Language': 'en-US,en;q=0.9',
+          Accept: typeof req.headers.accept === 'string' && req.headers.accept.trim() ? req.headers.accept : '*/*',
+          'Accept-Language': acceptLanguage,
           'Accept-Encoding': 'identity',
+          ...(upstreamReferer ? { Referer: upstreamReferer } : {}),
           ...(rangeHeader ? { Range: rangeHeader } : {}),
           ...(ifRangeHeader ? { 'If-Range': ifRangeHeader } : {}),
         },
@@ -1111,12 +1148,154 @@ function rewriteWebpageMediaAssetsToProxy(opts: { html: string; originalUrl: str
   return out
 }
 
-function injectWebpageProxyHtml(opts: { html: string; originalUrl: string }): string {
-  const html = rewriteWebpageMediaAssetsToProxy({
-    html: stripWebpageSecurityMetasAndBase(String(opts.html || '')),
-    originalUrl: opts.originalUrl,
-  })
+function injectWebpageProxyHtml(opts: { html: string; originalUrl: string; scriptPolicy?: string | null }): string {
+  const injectWeChatUnhideStyle = (html: string, originalUrl: string): string => {
+    const raw = String(html || '')
+    const base = String(originalUrl || '').trim()
+    const isWeChat = /mp\.weixin\.qq\.com/i.test(base) || /mp\.weixin\.qq\.com/i.test(raw)
+    if (!isWeChat) return raw
+    const stripHiddenInlineStyle = (s: string): string => {
+      const input = String(s || '')
+      if (!/js_content/i.test(input) || !/style\s*=/.test(input)) return input
+      return input.replace(
+        /(<[^>]+\bid\s*=\s*("|')js_content\2[^>]*\bstyle\s*=\s*("|'))([^"']*)(\3)/gi,
+        (_m, head: string, _q1: string, q: string, styleValue: string, tail: string) => {
+          let next = String(styleValue || '')
+          next = next.replace(/\bvisibility\s*:\s*hidden\s*;?/gi, '')
+          next = next.replace(/\bopacity\s*:\s*0\s*;?/gi, '')
+          next = next.replace(/\bdisplay\s*:\s*none\s*;?/gi, '')
+          next = next.replace(/\s{2,}/g, ' ').trim()
+          return `${head}${next}${tail}`
+        },
+      )
+    }
+    const cleaned = stripHiddenInlineStyle(raw)
+    const css = [
+      '#js_content{visibility:visible !important;opacity:1 !important;display:block !important;}',
+      '.rich_media_content{visibility:visible !important;opacity:1 !important;display:block !important;}',
+      '.rich_media_content *{visibility:visible !important;}',
+      '.rich_media_content img{visibility:visible !important;opacity:1 !important;}',
+      'img{visibility:visible !important;opacity:1 !important;}',
+      'img{max-width:100% !important;height:auto !important;}',
+      'body{opacity:1 !important;}',
+    ].join('')
+    const styleTag = `<style data-kg-wechat-unhide="1">${css}</style>`
+    const lower = cleaned.toLowerCase()
+    const headClose = lower.indexOf('</head>')
+    if (headClose >= 0) return `${cleaned.slice(0, headClose)}\n${styleTag}\n${cleaned.slice(headClose)}`
+    const headOpen = lower.indexOf('<head')
+    if (headOpen >= 0) {
+      const headEnd = lower.indexOf('>', headOpen)
+      if (headEnd >= 0) return `${cleaned.slice(0, headEnd + 1)}\n${styleTag}\n${cleaned.slice(headEnd + 1)}`
+    }
+    const htmlOpen = lower.indexOf('<html')
+    if (htmlOpen >= 0) {
+      const htmlEnd = lower.indexOf('>', htmlOpen)
+      if (htmlEnd >= 0) return `${cleaned.slice(0, htmlEnd + 1)}\n<head>\n${styleTag}\n</head>\n${cleaned.slice(htmlEnd + 1)}`
+    }
+    return `<!doctype html><html><head>${styleTag}</head><body>${cleaned}</body></html>`
+  }
+
+  const stripScriptTags = (html: string): string => {
+    const raw = String(html || '')
+    if (!/<script\b/i.test(raw)) return raw
+    let next = raw
+    next = next.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+    next = next.replace(/<script\b[^>]*\/\s*>/gi, '')
+    return next
+  }
+
+  const rewriteWeChatAssetHostsToAssetPathProxy = (html: string): string => {
+    const raw = String(html || '')
+    if (!/(mmbiz\.qpic\.cn|mmbiz\.qlogo\.cn|wx\.qlogo\.cn)/i.test(raw)) return raw
+    const map: Array<{ from: RegExp; to: string }> = [
+      { from: /https?:\/\/mmbiz\.qpic\.cn/gi, to: '/__webpage_asset_path/https%3A%2F%2Fmmbiz.qpic.cn' },
+      { from: /\/\/mmbiz\.qpic\.cn/gi, to: '/__webpage_asset_path/https%3A%2F%2Fmmbiz.qpic.cn' },
+      { from: /https?:\/\/mmbiz\.qlogo\.cn/gi, to: '/__webpage_asset_path/https%3A%2F%2Fmmbiz.qlogo.cn' },
+      { from: /\/\/mmbiz\.qlogo\.cn/gi, to: '/__webpage_asset_path/https%3A%2F%2Fmmbiz.qlogo.cn' },
+      { from: /https?:\/\/wx\.qlogo\.cn/gi, to: '/__webpage_asset_path/https%3A%2F%2Fwx.qlogo.cn' },
+      { from: /\/\/wx\.qlogo\.cn/gi, to: '/__webpage_asset_path/https%3A%2F%2Fwx.qlogo.cn' },
+    ]
+    let next = raw
+    for (const { from, to } of map) next = next.replace(from, to)
+    return next
+  }
+
+  const promoteLazyLoadedImages = (html: string): string => {
+    const raw = String(html || '')
+    if (!/<img\b/i.test(raw)) return raw
+    const pickUrl = (tag: string): string => {
+      const m =
+        /\bdata-src\s*=\s*("([^"]+)"|'([^']+)'|([^\s>]+))/i.exec(tag) ||
+        /\bdata-original\s*=\s*("([^"]+)"|'([^']+)'|([^\s>]+))/i.exec(tag) ||
+        /\bdata-lazy-src\s*=\s*("([^"]+)"|'([^']+)'|([^\s>]+))/i.exec(tag)
+      if (!m) return ''
+      return String(m[2] || m[3] || m[4] || '').trim()
+    }
+    const hasMeaningfulSrc = (tag: string): boolean => {
+      const m = /\bsrc\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(tag)
+      const v = m ? String(m[2] || m[3] || m[4] || '').trim() : ''
+      if (!v) return false
+      if (/^about:blank$/i.test(v)) return false
+      if (new RegExp('^data:image\\/gif;base64,r0lgodlhAQABAIAAAAAAAP\\/\\/\\/ywAAAAAAQABAAACAUwAOw==$','i').test(v)) return false
+      return true
+    }
+    return raw.replace(/<img\b[^>]*>/gi, (tag) => {
+      if (hasMeaningfulSrc(tag)) return tag
+      const u = pickUrl(tag)
+      if (!u) return tag
+      const esc = u.replace(/"/g, '&quot;')
+      if (/\bsrc\s*=\s*/i.test(tag)) {
+        return tag.replace(/\bsrc\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/i, `src="${esc}"`)
+      }
+      return tag.replace(/<img\b/i, `<img src="${esc}"`)
+    })
+  }
+
+  const promoteLazyLoadedIframes = (html: string): string => {
+    const raw = String(html || '')
+    if (!/<iframe\b/i.test(raw)) return raw
+    const pickUrl = (tag: string): string => {
+      const m =
+        /\bdata-src\s*=\s*("([^"]+)"|'([^']+)'|([^\s>]+))/i.exec(tag) ||
+        /\bdata-original\s*=\s*("([^"]+)"|'([^']+)'|([^\s>]+))/i.exec(tag) ||
+        /\bdata-lazy-src\s*=\s*("([^"]+)"|'([^']+)'|([^\s>]+))/i.exec(tag)
+      if (!m) return ''
+      return String(m[2] || m[3] || m[4] || '').trim()
+    }
+    const hasMeaningfulSrc = (tag: string): boolean => {
+      const m = /\bsrc\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(tag)
+      const v = m ? String(m[2] || m[3] || m[4] || '').trim() : ''
+      if (!v) return false
+      if (/^about:blank$/i.test(v)) return false
+      return true
+    }
+    return raw.replace(/<iframe\b[^>]*>/gi, (tag) => {
+      if (hasMeaningfulSrc(tag)) return tag
+      let u = pickUrl(tag)
+      if (!u) return tag
+      if (u.startsWith('//')) u = `https:${u}`
+      const esc = u.replace(/"/g, '&quot;')
+      if (/\bsrc\s*=\s*/i.test(tag)) {
+        return tag.replace(/\bsrc\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/i, `src="${esc}"`)
+      }
+      return tag.replace(/<iframe\b/i, `<iframe src="${esc}"`)
+    })
+  }
+
   const originalUrl = String(opts.originalUrl || '').trim()
+  const scriptPolicy = String(opts.scriptPolicy || '').trim().toLowerCase()
+  const rawInput = stripWebpageSecurityMetasAndBase(String(opts.html || ''))
+  const isWeChat = /mp\.weixin\.qq\.com/i.test(originalUrl) || /mp\.weixin\.qq\.com/i.test(rawInput)
+  const html = (() => {
+    let out = rewriteWebpageMediaAssetsToProxy({ html: rawInput, originalUrl })
+    out = rewriteWeChatAssetHostsToAssetPathProxy(out)
+    out = injectWeChatUnhideStyle(out, originalUrl)
+    out = promoteLazyLoadedImages(out)
+    out = promoteLazyLoadedIframes(out)
+    if (scriptPolicy === 'strip' || isWeChat) out = stripScriptTags(out)
+    return out
+  })()
   if (!html) return html
 
   const injection = [
@@ -2372,14 +2551,15 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
       return
     }
 
-    const urlParam = (() => {
+    const parsedReq = (() => {
       try {
-        const parsed = new URL(req.url || '', `http://${req.headers.host}`)
-        return parsed.searchParams.get('url')
+        return new URL(req.url || '', `http://${req.headers.host}`)
       } catch {
         return null
       }
     })()
+    const urlParam = parsedReq ? parsedReq.searchParams.get('url') : null
+    const scriptPolicyParam = parsedReq ? parsedReq.searchParams.get('kg_script_policy') : null
 
     if (!urlParam) {
       res.statusCode = 400
@@ -2487,6 +2667,20 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
       req.on('aborted', abort)
 
       timeoutId = setTimeout(() => ctrl.abort(), timeoutMs)
+      const upstreamUrl = (() => {
+        try {
+          return new URL(urlParam)
+        } catch {
+          return null
+        }
+      })()
+      const upstreamHost = upstreamUrl ? upstreamUrl.hostname.toLowerCase() : ''
+      const shouldSpoofWeChat = upstreamHost === 'mp.weixin.qq.com' || upstreamHost.endsWith('.mp.weixin.qq.com')
+      const acceptLanguage = shouldSpoofWeChat
+        ? 'zh-CN,zh;q=0.9,en;q=0.8'
+        : 'en-US,en;q=0.9'
+      const referer = shouldSpoofWeChat ? 'https://mp.weixin.qq.com/' : undefined
+
       const upstream = await fetch(urlParam, {
         method: req.method,
         redirect: 'follow',
@@ -2494,9 +2688,12 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           Accept: 'text/html,*/*;q=0.9',
-          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Language': acceptLanguage,
+          ...(referer ? { Referer: referer } : null),
         },
       })
+
+      const upstreamContentType = String(upstream.headers.get('content-type') || '').toLowerCase()
 
       if (ctrl.signal.aborted) {
         finished = true
@@ -2517,6 +2714,34 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
       if (req.method === 'HEAD') {
         res.end()
+        finished = true
+        return
+      }
+
+      const isHtmlLike =
+        upstreamContentType.includes('text/html') ||
+        upstreamContentType.includes('application/xhtml+xml') ||
+        upstreamContentType.includes('application/xml')
+      if (!isHtmlLike) {
+        const escapedUrl = String(urlParam).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+        const proxied = `/__fetch_remote?url=${encodeURIComponent(urlParam)}`
+        const escapedProxied = proxied.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+        const wrapper = (() => {
+          if (upstreamContentType.startsWith('image/')) {
+            return `<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>Image</title><style>html,body{height:100%;margin:0}body{display:flex;align-items:center;justify-content:center;background:#fff}img{max-width:100%;max-height:100%;object-fit:contain}</style></head><body><img src="${escapedProxied}" alt="${escapedUrl}"></body></html>`
+          }
+          if (upstreamContentType.startsWith('video/')) {
+            return `<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>Video</title><style>html,body{height:100%;margin:0}body{display:flex;align-items:center;justify-content:center;background:#000}video{max-width:100%;max-height:100%}</style></head><body><video controls src="${escapedProxied}"></video></body></html>`
+          }
+          if (upstreamContentType.startsWith('audio/')) {
+            return `<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>Audio</title><style>html,body{height:100%;margin:0}body{display:flex;align-items:center;justify-content:center;background:#fff}audio{width:min(720px,100%);}</style></head><body><audio controls src="${escapedProxied}"></audio></body></html>`
+          }
+          if (upstreamContentType.includes('application/pdf')) {
+            return `<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>PDF</title><style>html,body{height:100%;margin:0}iframe{border:0;width:100%;height:100%}</style></head><body><iframe src="${escapedProxied}" title="${escapedUrl}"></iframe></body></html>`
+          }
+          return `<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>Resource</title><style>body{font-family:ui-sans-serif,system-ui;margin:16px}a{word-break:break-all}</style></head><body><p>Non-HTML resource:</p><p><a href="${escapedProxied}" target="_blank" rel="noreferrer">${escapedUrl}</a></p></body></html>`
+        })()
+        res.end(wrapper, 'utf8')
         finished = true
         return
       }
@@ -2555,6 +2780,7 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
       const injected = injectWebpageProxyHtml({
         html: raw,
         originalUrl: urlParam,
+        scriptPolicy: scriptPolicyParam,
       })
       res.end(injected, 'utf8')
     } catch (error) {
@@ -2740,14 +2966,40 @@ function createWebpageAssetProxyHandler(): import('vite').Connect.NextHandleFunc
       req.on('aborted', abort)
 
       timeoutId = setTimeout(() => ctrl.abort(), timeoutMs)
+      const upstreamUrl = (() => {
+        try {
+          return new URL(normalizedUrlParam)
+        } catch {
+          return null
+        }
+      })()
+      const upstreamHost = upstreamUrl ? upstreamUrl.hostname.toLowerCase() : ''
+      const shouldSpoofWeChat =
+        upstreamHost === 'mp.weixin.qq.com' ||
+        upstreamHost.endsWith('.mp.weixin.qq.com') ||
+        upstreamHost === 'mmbiz.qpic.cn' ||
+        upstreamHost.endsWith('.qpic.cn') ||
+        upstreamHost === 'mmbiz.qlogo.cn' ||
+        upstreamHost.endsWith('.qlogo.cn') ||
+        upstreamHost === 'wx.qlogo.cn' ||
+        upstreamHost.endsWith('.wx.qlogo.cn')
+      const acceptLanguage =
+        typeof req.headers['accept-language'] === 'string' && req.headers['accept-language'].trim()
+          ? req.headers['accept-language']
+          : shouldSpoofWeChat
+            ? 'zh-CN,zh;q=0.9,en;q=0.8'
+            : 'en-US,en;q=0.9'
+      const referer = shouldSpoofWeChat ? 'https://mp.weixin.qq.com/' : upstreamUrl ? `${upstreamUrl.origin}/` : undefined
+
       const upstream = await fetch(normalizedUrlParam, {
         method: req.method,
         redirect: 'follow',
         signal: ctrl.signal,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          Accept: '*/*',
-          'Accept-Language': 'en-US,en;q=0.9',
+          Accept: typeof req.headers.accept === 'string' && req.headers.accept.trim() ? req.headers.accept : '*/*',
+          'Accept-Language': acceptLanguage,
+          ...(referer ? { Referer: referer } : null),
         },
       })
       if (ctrl.signal.aborted) {
@@ -2899,6 +3151,22 @@ function createWebpageAssetPathProxyHandler(): import('vite').Connect.NextHandle
     }
 
     const upstreamUrl = `${origin}${upstreamPath}${parsed.search || ''}`
+    const upstreamHost = (() => {
+      try {
+        return new URL(upstreamUrl).hostname.toLowerCase()
+      } catch {
+        return ''
+      }
+    })()
+    const shouldSpoofWeChat =
+      upstreamHost === 'mp.weixin.qq.com' ||
+      upstreamHost.endsWith('.mp.weixin.qq.com') ||
+      upstreamHost === 'mmbiz.qpic.cn' ||
+      upstreamHost.endsWith('.qpic.cn') ||
+      upstreamHost === 'mmbiz.qlogo.cn' ||
+      upstreamHost.endsWith('.qlogo.cn') ||
+      upstreamHost === 'wx.qlogo.cn' ||
+      upstreamHost.endsWith('.wx.qlogo.cn')
 
     let controller: AbortController | null = null
     let timeoutId: ReturnType<typeof setTimeout> | null = null
@@ -2960,8 +3228,11 @@ function createWebpageAssetPathProxyHandler(): import('vite').Connect.NextHandle
         'Accept-Language':
           typeof req.headers['accept-language'] === 'string' && req.headers['accept-language'].trim()
             ? req.headers['accept-language']
-            : 'en-US,en;q=0.9',
+            : shouldSpoofWeChat
+              ? 'zh-CN,zh;q=0.9,en;q=0.8'
+              : 'en-US,en;q=0.9',
       }
+      upstreamHeaders.Referer = shouldSpoofWeChat ? 'https://mp.weixin.qq.com/' : `${origin.replace(/\/+$/, '')}/`
       if (typeof req.headers['content-type'] === 'string' && req.headers['content-type'].trim()) {
         upstreamHeaders['Content-Type'] = req.headers['content-type']
       }

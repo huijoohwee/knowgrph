@@ -12,7 +12,7 @@ import {
   hasNodeMedia,
 } from '@/components/GraphCanvas/helpers';
 import { nodeDragBehavior } from '@/components/GraphCanvas/utils';
-import { applyMediaProxySrc } from '@/lib/url';
+import { applyImageLikeProxySrc } from '@/lib/url';
 import { DEFAULT_ZOOM_MAX_SCALE } from '@/lib/graph/layoutDefaults'
 import {
   computeMediaPanelWorldDims,
@@ -40,6 +40,7 @@ export const createNodesLayer = (args: {
   schema: GraphSchema;
   zoomOnDoubleClick: boolean;
   renderMediaAsNodes: boolean;
+  mediaOverlayNodeIdSet?: Set<string>;
   preferDomMediaOverlays?: boolean;
   mediaPanelDensity: 'default' | 'compact';
   nodeZKeyById?: Map<string, NodeZKey>;
@@ -91,6 +92,7 @@ export const createNodesLayer = (args: {
   const rawNodes = Array.isArray(graphData.nodes) ? graphData.nodes : [];
   const nodes = rawNodes;
   const preferDomMediaOverlays = args.preferDomMediaOverlays === true
+  const mediaOverlayNodeIdSet = args.mediaOverlayNodeIdSet
   const shapeByNodeId = new Map<string, ReturnType<typeof getNodeRenderShape2d>>();
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i];
@@ -108,7 +110,14 @@ export const createNodesLayer = (args: {
   const shouldHideNodeBody = (d: GraphNode): boolean => {
     if (!renderMediaAsNodes) return false
     const spec = mediaByNodeId.get(String(d.id))
-    return !!spec
+    if (!spec) return false
+    if (!preferDomMediaOverlays) return true
+    if (!mediaOverlayNodeIdSet) return true
+    if (!mediaOverlayNodeIdSet.has(String(d.id))) return false
+    const x = (d as unknown as { x?: unknown }).x
+    const y = (d as unknown as { y?: unknown }).y
+    if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) return false
+    return true
   }
 
   const mediaLayer = g.append('g').attr('data-kg-layer', 'media');
@@ -164,10 +173,10 @@ export const createNodesLayer = (args: {
           .attr('rx', corner)
           .attr('ry', corner)
           .attr('fill', panelFill)
-          .attr('fill-opacity', isIframe ? 0 : panelFillOpacity)
+          .attr('fill-opacity', panelFillOpacity)
           .attr('stroke', baseStroke || MEDIA_PANEL_BORDER_COLOR)
           .attr('stroke-width', dims.borderWidth)
-          .attr('stroke-opacity', isIframe ? 0 : 1);
+          .attr('stroke-opacity', 1);
         const header = panel
           .append('g')
           .attr('class', 'media-panel-header')
@@ -179,7 +188,7 @@ export const createNodesLayer = (args: {
           .attr('width', panelWidth)
           .attr('height', headerHeight)
           .attr('fill', headerFill)
-          .attr('fill-opacity', isIframe ? 0 : headerFillOpacity);
+          .attr('fill-opacity', headerFillOpacity);
         header
           .append('text')
           .attr('x', 0)
@@ -188,7 +197,7 @@ export const createNodesLayer = (args: {
           .attr('dominant-baseline', 'middle')
           .attr('font-size', 10)
           .attr('fill', UI_THEME_COLORS_CSS.text)
-          .attr('opacity', isIframe ? 0 : 1)
+          .attr('opacity', 1)
           .text(fullTitle);
         const contentX = -panelWidth / 2 + padding;
         const contentY = -panelHeight / 2 + headerHeight + padding;
@@ -204,7 +213,7 @@ export const createNodesLayer = (args: {
             .attr('height', contentHeight)
             .attr('preserveAspectRatio', 'xMidYMid meet')
             .attr('crossorigin', 'anonymous')
-            .attr('href', () => applyMediaProxySrc(spec.url))
+            .attr('href', () => applyImageLikeProxySrc(spec.url))
             .style('pointer-events', 'none');
         } else if (spec.kind === 'video') {
           const fo = panel
@@ -233,7 +242,7 @@ export const createNodesLayer = (args: {
               .style('overflow', 'hidden')
               .style('background', UI_THEME_COLORS_CSS.bg)
               .style('pointer-events', spec.interactive ? 'auto' : 'none');
-            const url = applyMediaProxySrc(spec.url);
+            const url = applyImageLikeProxySrc(spec.url);
             const video = container
               .append('xhtml:video')
               .attr('src', url)
@@ -258,6 +267,18 @@ export const createNodesLayer = (args: {
                 event.stopPropagation();
               });
           });
+        }
+        if (isIframe) {
+          panel
+            .append('text')
+            .attr('x', 0)
+            .attr('y', -panelHeight / 2 + headerHeight + contentHeight / 2 + padding)
+            .attr('text-anchor', 'middle')
+            .attr('dominant-baseline', 'middle')
+            .attr('font-size', 12)
+            .attr('fill', UI_THEME_COLORS_CSS.text)
+            .attr('opacity', 0.7)
+            .text('IFRAME');
         }
         panel.append('title').text(fullTitle);
         bg.lower();
@@ -395,7 +416,7 @@ export const createNodesLayer = (args: {
 
   if (nodeZKeyById) {
     const keyForId = (id: string): NodeZKey =>
-      nodeZKeyById.get(id) || { id, groupDepth: -1, groupSize: Number.POSITIVE_INFINITY, zIndex: 0, yIndex: 0, xIndex: 0 }
+      nodeZKeyById.get(id) || { id, groupDepth: -1, groupSize: Number.POSITIVE_INFINITY, zIndex: 0, zMode: 'group', yIndex: 0, xIndex: 0 }
     const cmp = (a: GraphNode, b: GraphNode) => compareNodeZKey(keyForId(String(a.id)), keyForId(String(b.id)))
     node.sort(cmp)
     if (mediaPanelSel) mediaPanelSel.sort(cmp)
@@ -626,7 +647,7 @@ export const createNodesLayer = (args: {
       });
     if (nodeZKeyById) {
       const keyForId = (id: string): NodeZKey =>
-        nodeZKeyById.get(id) || { id, groupDepth: -1, groupSize: Number.POSITIVE_INFINITY, zIndex: 0, yIndex: 0, xIndex: 0 }
+        nodeZKeyById.get(id) || { id, groupDepth: -1, groupSize: Number.POSITIVE_INFINITY, zIndex: 0, zMode: 'group', yIndex: 0, xIndex: 0 }
       portHandlesSel.sort((a, b) => compareNodeZKey(keyForId(a.nodeId), keyForId(b.nodeId)))
     }
   }

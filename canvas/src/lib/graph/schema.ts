@@ -292,6 +292,10 @@ export const defaultSchema: GraphSchema = {
 export function getNodeRadiusFromSchema(node: GraphNode, schema: GraphSchema): number {
   const nodeSizes = schema.nodeSizes || {};
   const properties = node.properties || {};
+  const rawRadius = (properties as Record<string, unknown>)['visual:radius']
+  if (typeof rawRadius === 'number' && Number.isFinite(rawRadius) && rawRadius > 0) {
+    return rawRadius
+  }
   const rawSize = properties['visual:nodeSize'];
   if (typeof rawSize === 'number' && Number.isFinite(rawSize) && rawSize > 0) {
     return rawSize;

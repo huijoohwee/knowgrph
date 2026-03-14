@@ -1,5 +1,7 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 
+import { buildWebpageAssetPathProxyUrl, isWeChatHotlinkProtectedAssetUrl } from '@/lib/url'
+
 import type { WebpageLayoutSnapshot, WebpageLayoutElement } from './webpageLayoutExport'
 
 export type WebpageLayoutToGraphOptions = {
@@ -1451,6 +1453,26 @@ export function convertWebpageLayoutToGraphData(
       'dom:attrs:href': href as unknown as JSONValue,
       'dom:attrs:src': src as unknown as JSONValue,
       'dom:attrs:alt': alt as unknown as JSONValue,
+    }
+    const normalizedSrc0 = src.startsWith('//') ? `https:${src}` : src
+    const normalizedSrc = isWeChatHotlinkProtectedAssetUrl(normalizedSrc0) ? buildWebpageAssetPathProxyUrl(normalizedSrc0) : normalizedSrc0
+    if (tag === 'IMG' && normalizedSrc) {
+      properties.media_kind = 'image' as unknown as JSONValue
+      properties.image = normalizedSrc as unknown as JSONValue
+      properties.media_url = normalizedSrc as unknown as JSONValue
+      properties.media = normalizedSrc as unknown as JSONValue
+    } else if (tag === 'VIDEO' && normalizedSrc) {
+      properties.media_kind = 'video' as unknown as JSONValue
+      properties.video = normalizedSrc as unknown as JSONValue
+      properties.media_url = normalizedSrc as unknown as JSONValue
+      properties.media = normalizedSrc as unknown as JSONValue
+      properties.media_interactive = true as unknown as JSONValue
+    } else if (tag === 'IFRAME' && normalizedSrc) {
+      properties.media_kind = 'iframe' as unknown as JSONValue
+      properties.iframe_url = normalizedSrc as unknown as JSONValue
+      properties.media_url = normalizedSrc as unknown as JSONValue
+      properties.media = normalizedSrc as unknown as JSONValue
+      properties.media_interactive = true as unknown as JSONValue
     }
     if (text) properties['dom:textPreview'] = truncateForPreview(text, 360) as unknown as JSONValue
     const kind = isMediaTag(tag) ? 'media' : isInteractiveTag(tag) ? 'interactive' : isContainerTag(tag) ? 'container' : 'element'

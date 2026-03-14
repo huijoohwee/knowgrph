@@ -203,8 +203,12 @@ function inferMediaKindFromUrl(url: string): NodeMediaKind {
 }
 
 function isSafeIframeUrl(value: string): boolean {
+  const raw = String(value || '').trim()
+  if (!raw) return false
+  if (raw.startsWith('/__webpage_proxy?url=')) return true
+  if (raw.startsWith('/__repo_file/')) return true
   try {
-    const u = new URL(value)
+    const u = new URL(raw)
     if (u.protocol !== 'https:' && u.protocol !== 'http:') return false
     const host = u.hostname.toLowerCase()
 
@@ -262,7 +266,36 @@ export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     videoUrl ||
     generic
 
-  if (!url) return null
+  const domTag = (() => {
+    const t = (props as Record<string, unknown>)['dom:tag']
+    return typeof t === 'string' ? t.trim().toUpperCase() : ''
+  })()
+  const domSrc = (() => {
+    const s = (props as Record<string, unknown>)['dom:attrs:src']
+    const raw = typeof s === 'string' ? s.trim() : ''
+    if (!raw) return ''
+    if (raw.startsWith('//')) return `https:${raw}`
+    return raw
+  })()
+  const domMediaUrl = (() => {
+    if (!domTag) return ''
+    if (domTag === 'IMG' || domTag === 'VIDEO' || domTag === 'IFRAME' || domTag === 'SVG') return domSrc
+    return ''
+  })()
+
+  const domKindForced: NodeMediaKind | null =
+    domTag === 'IFRAME'
+      ? 'iframe'
+      : domTag === 'VIDEO'
+        ? 'video'
+        : domTag === 'SVG'
+          ? 'svg'
+          : domTag === 'IMG'
+            ? 'image'
+            : null
+
+  const resolvedUrl = url || (domMediaUrl ? coerceMediaUrl(domMediaUrl) : null)
+  if (!resolvedUrl) return null
 
   const kind: NodeMediaKind = kindForced
     ? kindForced
@@ -270,7 +303,9 @@ export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
       ? 'iframe'
       : videoUrl
         ? 'video'
-        : inferMediaKindFromUrl(url)
+        : domKindForced
+          ? domKindForced
+          : inferMediaKindFromUrl(resolvedUrl)
 
   const rawInteractive = (props as Record<string, unknown>).media_interactive
   const explicitInteractive =
@@ -279,12 +314,12 @@ export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     explicitInteractive != null ? explicitInteractive : kind === 'video' || kind === 'iframe'
 
   if (kind === 'iframe') {
-    const normalized = normalizeIframeUrl(url)
+    const normalized = normalizeIframeUrl(resolvedUrl)
     if (!isSafeIframeUrl(normalized)) return null
     return { kind, url: normalized, interactive }
   }
 
-  return { kind, url, interactive }
+  return { kind, url: resolvedUrl, interactive }
 }
 
 export function hasNodeMedia(node: GraphNode): boolean {

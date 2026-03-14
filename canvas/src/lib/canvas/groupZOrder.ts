@@ -14,9 +14,29 @@ export const getGroupMemberCount = (g: GraphGroup): number => {
 }
 
 export const compareGroupsForZOrder = (a: GraphGroup, b: GraphGroup): number => {
+  const aMode = String((a as unknown as { zMode?: unknown }).zMode || '') === 'absolute' ? 'absolute' : 'group'
+  const bMode = String((b as unknown as { zMode?: unknown }).zMode || '') === 'absolute' ? 'absolute' : 'group'
+  if (aMode === 'absolute' && bMode === 'absolute') {
+    const ad = getGroupDepth(a)
+    const bd = getGroupDepth(b)
+    if (ad !== bd) return ad - bd
+    const azRaw = (a as unknown as { zIndex?: unknown }).zIndex
+    const bzRaw = (b as unknown as { zIndex?: unknown }).zIndex
+    const az = typeof azRaw === 'number' && Number.isFinite(azRaw) ? Math.floor(azRaw) : 0
+    const bz = typeof bzRaw === 'number' && Number.isFinite(bzRaw) ? Math.floor(bzRaw) : 0
+    if (az !== bz) return az - bz
+    return String(a.id).localeCompare(String(b.id))
+  }
+
   const ad = getGroupDepth(a)
   const bd = getGroupDepth(b)
   if (ad !== bd) return ad - bd
+
+  const azRaw = (a as unknown as { zIndex?: unknown }).zIndex
+  const bzRaw = (b as unknown as { zIndex?: unknown }).zIndex
+  const az = typeof azRaw === 'number' && Number.isFinite(azRaw) ? Math.floor(azRaw) : null
+  const bz = typeof bzRaw === 'number' && Number.isFinite(bzRaw) ? Math.floor(bzRaw) : null
+  if (az != null && bz != null && az !== bz) return az - bz
 
   const as = getGroupMemberCount(a)
   const bs = getGroupMemberCount(b)
@@ -67,6 +87,7 @@ export type NodeZKey = {
   groupDepth: number
   groupSize: number
   zIndex: number
+  zMode: 'group' | 'absolute'
   yIndex: number
   xIndex: number
 }
@@ -100,11 +121,13 @@ export const buildNodeZKeyById = (args: { nodes: ReadonlyArray<GraphNode>; group
     if (!id) continue
     const props = (n.properties || {}) as Record<string, unknown>
     const best = bestGroupByNodeId.get(id) || null
+    const zMode = String(props['visual:zIndexMode'] || '') === 'absolute' ? 'absolute' : 'group'
     out.set(id, {
       id,
       groupDepth: best ? best.depth : -1,
       groupSize: best ? best.size : Number.POSITIVE_INFINITY,
       zIndex: readNodeZIndex(n),
+      zMode,
       yIndex: readNodeIndex(props, 'visual:yIndex'),
       xIndex: readNodeIndex(props, 'visual:xIndex'),
     })
@@ -113,6 +136,12 @@ export const buildNodeZKeyById = (args: { nodes: ReadonlyArray<GraphNode>; group
 }
 
 export const compareNodeZKey = (a: NodeZKey, b: NodeZKey): number => {
+  if (a.zMode === 'absolute' && b.zMode === 'absolute') {
+    if (a.zIndex !== b.zIndex) return a.zIndex - b.zIndex
+    if (a.yIndex !== b.yIndex) return a.yIndex - b.yIndex
+    if (a.xIndex !== b.xIndex) return a.xIndex - b.xIndex
+    return a.id.localeCompare(b.id)
+  }
   if (a.groupDepth !== b.groupDepth) return a.groupDepth - b.groupDepth
   if (a.groupSize !== b.groupSize) return b.groupSize - a.groupSize
   if (a.zIndex !== b.zIndex) return a.zIndex - b.zIndex
@@ -120,4 +149,3 @@ export const compareNodeZKey = (a: NodeZKey, b: NodeZKey): number => {
   if (a.xIndex !== b.xIndex) return a.xIndex - b.xIndex
   return a.id.localeCompare(b.id)
 }
-

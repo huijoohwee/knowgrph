@@ -162,12 +162,13 @@ export const attachSimulationTick = (args: {
       nodeMetricsCache.set(id, next)
       return next
     }
-    const updateLinkEndpoints = (
-      sel: d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown> | null,
-    ) => {
+    const updateLinkEndpoints = (sel: d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null) => {
       if (!sel) return
+      const lineSel = sel.filter(function () {
+        return String((this as unknown as { tagName?: unknown }).tagName || '').toLowerCase() === 'line'
+      }) as unknown as d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown>
       if (portHandlesEnabled) {
-        sel
+        lineSel
           .attr('x1', (d: GraphEdge) => {
             const edge = d as unknown as EdgeWithRuntime
             const src = resolveNode(edge.source)
@@ -228,7 +229,7 @@ export const attachSimulationTick = (args: {
           return { x: fx + ux * dist, y: fy + uy * dist }
         }
 
-        sel
+        lineSel
           .attr('x1', (d: GraphEdge) => {
             const edge = d as unknown as EdgeWithRuntime
             const src = resolveNode(edge.source)
@@ -904,6 +905,26 @@ export const attachSimulationTick = (args: {
         edgeLabelSel.each(function (d: GraphEdge) {
           const el = this as unknown as SVGTextElement
           const edge = d as unknown as EdgeWithRuntime
+          const edgeProps =
+            edge.properties && typeof edge.properties === 'object' && !Array.isArray(edge.properties)
+              ? (edge.properties as Record<string, unknown>)
+              : null
+          const lx = edgeProps && typeof edgeProps['visual:labelX'] === 'number' ? (edgeProps['visual:labelX'] as number) : Number.NaN
+          const ly = edgeProps && typeof edgeProps['visual:labelY'] === 'number' ? (edgeProps['visual:labelY'] as number) : Number.NaN
+          if (Number.isFinite(lx) && Number.isFinite(ly)) {
+            const sx2 = t.applyX(lx)
+            const sy2 = t.applyY(ly)
+            const farPad = 240
+            const isNearViewport = sx2 > -farPad && sx2 < width + farPad && sy2 > -farPad && sy2 < height + farPad
+            if (!isNearViewport) {
+              el.style.display = 'none'
+              return
+            }
+            el.style.display = ''
+            el.setAttribute('x', String(lx))
+            el.setAttribute('y', String(ly))
+            return
+          }
           const srcNode = resolveNode(edge.source)
           const tgtNode = resolveNode(edge.target)
           if (!srcNode || !tgtNode) {

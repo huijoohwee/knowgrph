@@ -204,6 +204,7 @@ export default function FlowCanvas({
     () => drawArgsRef.current,
     [],
   )
+
   const drawRafRef = React.useRef<number | null>(null)
   const scheduleFlowDraw = React.useCallback(() => {
     if (drawRafRef.current != null) return
@@ -400,21 +401,32 @@ export default function FlowCanvas({
     return buildCollapsedGroupIdsKey(collapsedGroupIds)
   }, [collapsedGroupIds])
 
-  const sceneGraphData = React.useMemo(() => {
+  const clonedGraphData = React.useMemo(() => {
     if (!renderGraphData) return null
-    const cloned = cloneGraphDataForRender(renderGraphData)
-    return deriveSceneDisplayGraph({ graphData: cloned as GraphData })?.displayGraphData || (cloned as GraphData)
+    return cloneGraphDataForRender(renderGraphData) as GraphData
   }, [renderGraphData])
+
+  const sceneDisplayGraphDerivation = React.useMemo(() => {
+    if (!clonedGraphData) return null
+    return deriveSceneDisplayGraph({ graphData: clonedGraphData })
+  }, [clonedGraphData])
+
+  const sceneGraphData = React.useMemo(() => {
+    if (!clonedGraphData) return null
+    return sceneDisplayGraphDerivation?.displayGraphData || clonedGraphData
+  }, [clonedGraphData, sceneDisplayGraphDerivation])
+
 
   const mediaNodes = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as GraphNode[]) : []
-    const poolMax = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
-    return listMediaOverlayNodes({ enabled: renderMediaAsNodes === true, nodes, poolMax })
+    const poolMaxRaw = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
+    const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
+    return listMediaOverlayNodes({ enabled: true, nodes, poolMax })
   }, [renderMediaAsNodes, sceneGraphData, threeIframeOverlayPoolMax])
 
   const mediaNodeIdsKey = React.useMemo(() => mediaNodes.map(n => n.id).join('|'), [mediaNodes])
   React.useEffect(() => {
-    mediaHideNodeIdsRef.current = renderMediaAsNodes === true ? mediaNodes.map(n => n.id) : []
+    mediaHideNodeIdsRef.current = []
   }, [mediaNodeIdsKey, mediaNodes, renderMediaAsNodes])
   const mediaOverlayElsRef = React.useRef<Map<string, HTMLDivElement>>(new Map())
   React.useEffect(() => {
@@ -499,7 +511,6 @@ export default function FlowCanvas({
 
   React.useEffect(() => {
     if (!active) return
-    if (renderMediaAsNodes !== true) return
     if (mediaNodes.length === 0) return
     let raf: number | null = null
     const tick = () => {
@@ -534,16 +545,8 @@ export default function FlowCanvas({
       for (const n of mediaNodes) {
         const el = mediaOverlayElsRef.current.get(n.id)
         if (!el) continue
-        const node = scene.nodeById.get(n.id)
-        if (!node) {
-          applyPanelBox(el, { left: 0, top: 0, w: 1, h: 1, display: 'none' })
-          continue
-        }
-        const center = readNodeCenterWorld2d(node as unknown as { x?: unknown; y?: unknown; width?: unknown; height?: unknown }, { coords: 'topLeft' })
-        if (!center) {
-          applyPanelBox(el, { left: 0, top: 0, w: 1, h: 1, display: 'none' })
-          continue
-        }
+        const node = scene.nodeById.get(n.id) as unknown as { x?: unknown; y?: unknown; width?: unknown; height?: unknown } | undefined
+        const center = readNodeCenterWorld2d(node || { x: 0, y: 0 }, { coords: 'topLeft' }) || { x: 0, y: 0 }
         const rect = computePanelRect({
           cx: t.applyX(center.x),
           cy: t.applyY(center.y),
@@ -680,8 +683,23 @@ export default function FlowCanvas({
 
   const flowPresentation = React.useMemo(() => {
     const p = readFlowPresentation({ schema, documentSemanticMode })
-    return p
-  }, [documentSemanticMode, schema])
+    const gd = sceneGraphData as unknown as { context?: unknown; metadata?: unknown } | null
+    const isMermaidLayout = (() => {
+      if (!gd) return false
+      if (String(gd.context || '') === 'frontmatter-mermaid') return true
+      const meta = gd.metadata
+      if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
+      return String((meta as Record<string, unknown>).layoutEngine || '') === 'mermaid'
+    })()
+    if (!isMermaidLayout) return p
+    return {
+      ...p,
+      edges: {
+        ...p.edges,
+        underlay: { ...p.edges.underlay, enabled: false },
+      },
+    }
+  }, [documentSemanticMode, schema, sceneGraphData])
 
   const layoutVariant = React.useMemo(() => {
     return [
@@ -698,13 +716,13 @@ export default function FlowCanvas({
 
   const sceneGroupsDerivation = React.useMemo(() => {
     return deriveSceneGroups({
-      graphData: sceneGraphData as GraphData | null,
+      graphData: clonedGraphData,
       graphDataRevision,
       schema,
       documentSemanticMode: String(documentSemanticMode || ''),
       frontmatterModeEnabled: !!effectiveFrontmatter,
     })
-  }, [documentSemanticMode, effectiveFrontmatter, graphDataRevision, sceneGraphData, schema])
+  }, [clonedGraphData, documentSemanticMode, effectiveFrontmatter, graphDataRevision, schema])
 
   const sceneGroups = React.useMemo(() => {
     if (!flowPresentation.groups.enabled) return []
@@ -874,6 +892,70 @@ export default function FlowCanvas({
     })
   }, [canvas2dRenderer, flowConfigEffective.node.heightPx, flowConfigEffective.node.widthPx, graphDataForZoom, nodesForFlowTransformGuard])
 
+  const mediaPanelWorldSizeForFit = React.useMemo(() => {
+    const density = mediaPanelDensity === 'compact' ? 'compact' : 'default'
+    const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v))
+    const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
+    const widthRatio = Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2
+    const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
+    const widthMin = Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210
+    const widthMaxRaw = density === 'compact' ? threeIframeOverlayBaseWidthMaxPxCompact : threeIframeOverlayBaseWidthMaxPxDefault
+    const widthMax = Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360
+    const baseW0 = clamp(viewportW * widthRatio, widthMin, widthMax)
+    const STEP_PX = 16
+    const quantize = (px: number) => Math.round(px / STEP_PX) * STEP_PX
+    const baseW = Math.max(2, quantize(baseW0))
+    const computed = computeMediaPanelCssVars3d({ density, sizeScale: 1 })
+    const panel = computePanelSizeFromContent16x9({ contentW: baseW, metrics: computed.metrics })
+    return { panelW: panel.panelW, panelH: panel.panelH }
+  }, [
+    mediaPanelDensity,
+    threeIframeOverlayBaseWidthMaxPxCompact,
+    threeIframeOverlayBaseWidthMaxPxDefault,
+    threeIframeOverlayBaseWidthMinPxCompact,
+    threeIframeOverlayBaseWidthMinPxDefault,
+    threeIframeOverlayBaseWidthRatioCompact,
+    threeIframeOverlayBaseWidthRatioDefault,
+    viewportW,
+  ])
+
+  const nodesForFlowZoomCollective = React.useMemo(() => {
+    if (!Array.isArray(nodesForFlowZoom) || nodesForFlowZoom.length === 0) return nodesForFlowZoom
+    if (!Array.isArray(mediaNodes) || mediaNodes.length === 0) return nodesForFlowZoom
+    const nodeById = new Map<string, GraphNode>()
+    for (let i = 0; i < nodesForFlowZoom.length; i += 1) {
+      const n = nodesForFlowZoom[i]
+      const id = String(n?.id || '').trim()
+      if (!id) continue
+      nodeById.set(id, n)
+    }
+    const panelW = Math.max(2, Number(mediaPanelWorldSizeForFit.panelW) || 2)
+    const panelH = Math.max(2, Number(mediaPanelWorldSizeForFit.panelH) || 2)
+    const extras: GraphNode[] = []
+    for (let i = 0; i < mediaNodes.length; i += 1) {
+      const id = String(mediaNodes[i]?.id || '').trim()
+      if (!id) continue
+      const base = nodeById.get(id)
+      if (!base) continue
+      const x = typeof base.x === 'number' && Number.isFinite(base.x) ? base.x : null
+      const y = typeof base.y === 'number' && Number.isFinite(base.y) ? base.y : null
+      if (x == null || y == null) continue
+      extras.push({
+        id: `__fit_media_panel__:${id}`,
+        type: 'MediaPanel',
+        label: '',
+        x,
+        y,
+        properties: {
+          'visual:shape': 'rect',
+          'visual:width': panelW,
+          'visual:height': panelH,
+        },
+      })
+    }
+    return extras.length > 0 ? [...nodesForFlowZoom, ...extras] : nodesForFlowZoom
+  }, [mediaNodes, mediaPanelWorldSizeForFit.panelH, mediaPanelWorldSizeForFit.panelW, nodesForFlowZoom])
+
   const flowEditorReservedW = React.useMemo(() => {
     if (canvas2dRenderer !== 'flowEditor') return 0
     const openCount = openQuickEditorNodeIds.length
@@ -934,8 +1016,8 @@ export default function FlowCanvas({
 
   const graphDataForZoomRequests = React.useMemo(() => {
     if (!graphDataForZoom) return null
-    return { ...graphDataForZoom, nodes: nodesForFlowZoom }
-  }, [graphDataForZoom, nodesForFlowZoom])
+    return { ...graphDataForZoom, nodes: nodesForFlowZoomCollective }
+  }, [graphDataForZoom, nodesForFlowZoomCollective])
 
   React.useEffect(() => {
     if (!active) return
@@ -1238,7 +1320,7 @@ export default function FlowCanvas({
     const effectiveZoomToSelectionMode = zoomToSelectionMode
 
     const nodesForTransformGuard = nodesForFlowTransformGuard
-    const nodesForFit = nodesForFlowZoom
+    const nodesForFit = nodesForFlowZoomCollective
 
     if (documentSemanticMode === 'keyword') {
       const meta = (sceneGraphData?.metadata || null) as Record<string, unknown> | null
@@ -1333,24 +1415,23 @@ export default function FlowCanvas({
     const centered = (() => {
       if (effectiveFitToScreenMode || effectiveZoomToSelectionMode) return null
       if (!nodesForFit || nodesForFit.length === 0) return null
-      const zoomK = 1
-      const targetSx = fitW / 2
-      const targetSy = viewportH / 2
-
-      let sumX = 0
-      let sumY = 0
-      let count = 0
-      for (let i = 0; i < nodesForFit.length; i += 1) {
-        const n = nodesForFit[i] as unknown as { x?: unknown; y?: unknown }
-        const x = typeof n?.x === 'number' && Number.isFinite(n.x) ? (n.x as number) : null
-        const y = typeof n?.y === 'number' && Number.isFinite(n.y) ? (n.y as number) : null
-        if (x == null || y == null) continue
-        sumX += x
-        sumY += y
-        count += 1
-      }
-
       if (isFlowEditor) {
+        const zoomK = 1
+        const targetSx = fitW / 2
+        const targetSy = viewportH / 2
+
+        let sumX = 0
+        let sumY = 0
+        let count = 0
+        for (let i = 0; i < nodesForFit.length; i += 1) {
+          const n = nodesForFit[i] as unknown as { x?: unknown; y?: unknown }
+          const x = typeof n?.x === 'number' && Number.isFinite(n.x) ? (n.x as number) : null
+          const y = typeof n?.y === 'number' && Number.isFinite(n.y) ? (n.y as number) : null
+          if (x == null || y == null) continue
+          sumX += x
+          sumY += y
+          count += 1
+        }
         const openIds = openQuickEditorNodeIds || []
         const pinnedById = flowNodeQuickEditorPinnedByNodeId || {}
         const worldById = flowNodeQuickEditorWorldPosByNodeId || {}
@@ -1370,12 +1451,23 @@ export default function FlowCanvas({
           sumY += wp.y + panelWorldH / 2
           count += 1
         }
+        if (count <= 0) return null
+        const cx = sumX / count
+        const cy = sumY / count
+        return { k: zoomK, x: targetSx - cx * zoomK, y: targetSy - cy * zoomK }
       }
 
-      if (count <= 0) return null
-      const cx = sumX / count
-      const cy = sumY / count
-      return { k: zoomK, x: targetSx - cx * zoomK, y: targetSy - cy * zoomK }
+      const t = fitAllTransform(nodesForFit, fitW, viewportH, {
+        ...opts,
+        graphData: graphDataForZoomRequests || undefined,
+        minScale: 1,
+        maxScale: 1,
+        maxScaleHardCap: 1,
+        enforceAspectRatio: false,
+        useCentroidCentering: true,
+        centerMode: 'centroid',
+      })
+      return { k: t.k, x: t.x, y: t.y }
     })()
     const next = (() => {
       if (!seeded) return centered ? d3.zoomIdentity.translate(centered.x, centered.y).scale(centered.k) : fit
@@ -1414,7 +1506,7 @@ export default function FlowCanvas({
     zoomToSelectionMode,
     zoomViewKey,
     nodesForFlowTransformGuard,
-    nodesForFlowZoom,
+    nodesForFlowZoomCollective,
     documentSemanticMode,
     sceneGraphData,
     flowEditorReservedW,
@@ -1599,8 +1691,8 @@ export default function FlowCanvas({
         className={CANVAS_INTERACTIVE_CLASS}
         draggable={false}
       />
-      {active && renderMediaAsNodes === true && mediaNodes.length > 0 ? (
-        <section aria-label="Flow media overlay" className="absolute inset-0 pointer-events-none">
+      {active && mediaNodes.length > 0 ? (
+        <section aria-label="Flow media overlay" className="absolute inset-0 z-[80] pointer-events-none">
           {mediaNodes.map(n => {
             return (
               <RichMediaPanel

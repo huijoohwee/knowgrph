@@ -4,6 +4,8 @@ import { deriveSceneGroups } from '@/lib/scene/sceneDerivation'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
+import { fitAllTransform } from '@/components/GraphCanvas/fit'
+import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 
 export async function renderGraphCanvasSvgForHtmlExport(args: {
   graphData: GraphData
@@ -13,9 +15,21 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
   viewportControlsPreset: ViewportControlsPreset
   renderMediaAsNodes: boolean
   mediaPanelDensity: 'default' | 'compact'
+  documentSemanticMode: 'document' | 'keyword'
+  frontmatterModeEnabled: boolean
 }): Promise<string> {
   if (typeof document === 'undefined') return ''
-  const { graphData, schema, widthPx, heightPx, viewportControlsPreset, renderMediaAsNodes, mediaPanelDensity } = args
+  const {
+    graphData,
+    schema,
+    widthPx,
+    heightPx,
+    viewportControlsPreset,
+    renderMediaAsNodes,
+    mediaPanelDensity,
+    documentSemanticMode,
+    frontmatterModeEnabled,
+  } = args
 
   const container = document.createElement('div')
   container.style.position = 'fixed'
@@ -84,9 +98,28 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     graphData,
     graphDataRevision: 0,
     schema,
-    documentSemanticMode: 'document',
-    frontmatterModeEnabled: false,
+    documentSemanticMode,
+    frontmatterModeEnabled,
   })
+
+  const initialZoomTransform = (() => {
+    try {
+      const mode = readLayoutMode(schema)
+      const baseOpts = readFitAllOptions({ schema, mode, intent: 'fitToScreen' })
+      const opts = {
+        ...baseOpts,
+        centerMode: 'centroid',
+        schema,
+        graphData,
+        deriveGroupsOptions: { forceDocumentStructure: documentSemanticMode === 'document' },
+      }
+      const t = fitAllTransform((graphData.nodes ?? []) as any, Math.max(1, widthPx), Math.max(1, Math.floor(heightPx)), opts as any)
+      if (!t || !(typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0)) return { k: 1, x: 0, y: 0 }
+      return { k: t.k, x: t.x, y: t.y }
+    } catch {
+      return { k: 1, x: 0, y: 0 }
+    }
+  })()
 
   const gRef = ref<unknown>(null)
   const nodesSelRef = ref<any>(null)
@@ -113,7 +146,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     graphData,
     graphDataRevision: 0,
     schema,
-    documentSemanticMode: 'document',
+    documentSemanticMode,
     edgesForSim,
     width: widthPx,
     height: heightPx,
@@ -124,7 +157,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     enableTightInitialLayout: !hasStablePositions,
     fitToScreenMode: false,
     viewportControlsPreset,
-    initialZoomTransform: { k: 1, x: 0, y: 0 },
+    initialZoomTransform,
     layoutPositionsForMode: hasStablePositions ? layoutPositions : null,
     baselineLayoutPositions: null,
     prevPositions: hasStablePositions ? layoutPositions : null,

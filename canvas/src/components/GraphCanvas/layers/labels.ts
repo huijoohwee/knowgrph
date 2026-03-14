@@ -88,7 +88,7 @@ export const createLabelsLayer = (args: {
 
   if (nodeZKeyById) {
     const keyForId = (id: string): NodeZKey =>
-      nodeZKeyById.get(id) || { id, groupDepth: -1, groupSize: Number.POSITIVE_INFINITY, zIndex: 0, yIndex: 0, xIndex: 0 }
+      nodeZKeyById.get(id) || { id, groupDepth: -1, groupSize: Number.POSITIVE_INFINITY, zIndex: 0, zMode: 'group', yIndex: 0, xIndex: 0 }
     label.sort((a, b) => compareNodeZKey(keyForId(String(a.id)), keyForId(String(b.id))))
   }
 

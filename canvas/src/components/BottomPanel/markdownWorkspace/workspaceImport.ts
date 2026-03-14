@@ -498,6 +498,15 @@ export async function fetchWorkspaceUrlContent(
 
   const normalizedUrl = normalizeGitHubBlobLikeUrl(rawUrl) || rawUrl
   const normalizedLower = normalizedUrl.toLowerCase()
+  const isWeChatArticleUrl = (() => {
+    try {
+      const u = new URL(normalizedUrl)
+      const host = u.hostname.toLowerCase()
+      return host === 'mp.weixin.qq.com' || host.endsWith('.mp.weixin.qq.com')
+    } catch {
+      return false
+    }
+  })()
 
   const isHttpUrl = /^https?:\/\//i.test(normalizedUrl)
   const isFileUrl = /^file:\/\//i.test(normalizedUrl)
@@ -569,6 +578,18 @@ export async function fetchWorkspaceUrlContent(
     }
   }
 
+  const looksLikeImage = /\.(png|jpe?g|webp|gif|svg)(\?|#|$)/i.test(normalizedLower)
+  if (looksLikeImage) {
+    const base = deriveFilenameFromUrl(normalizedUrl, 'image')
+    const baseNoExt = base.replace(/\.[a-z0-9]+$/i, '') || 'image'
+    const name = `${baseNoExt}.md`
+    return {
+      normalizedUrl,
+      name,
+      text: ['# Image', '', `![](${normalizedUrl})`, '', `[](${normalizedUrl})`, ''].join('\n'),
+    }
+  }
+
   const looksLikeCodeOrData = /\.(json|jsonld|geojson|csv|yaml|yml|txt|js|ts|py|md|markdown|mdx|svg)(\?|#|$)/i.test(normalizedLower)
   const looksLikeLocalHtml = isLocalRepoPath && /\.(html|htm)(\?|#|$)/i.test(normalizedLower)
   if (!looksLikeCodeOrData) {
@@ -590,7 +611,7 @@ export async function fetchWorkspaceUrlContent(
       return {
         normalizedUrl,
         name,
-        text: ['---', `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`, 'kgWebpageView: "html"', '---', '', ''].join('\n'),
+        text: ['---', `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`, 'kgWebpageView: "html"', '---', '', `[](${normalizedUrl})`, '', ''].join('\n'),
       }
     }
     const ctrl = new AbortController()
@@ -635,7 +656,7 @@ export async function fetchWorkspaceUrlContent(
           includeImages: isSubstackLike ? true : looksHuge ? false : includeImages,
           fidelityLevel: (isSubstackLike ? 4 : looksHuge ? 2 : fidelityLevel) as 1 | 2 | 3 | 4,
           defaultView: (isSubstackLike ? 'markdown' : defaultView) as 'markdown' | 'json' | 'html',
-          shouldConvertToMarkdown: opts?.mode !== 'refresh' ? true : isSubstackLike,
+          shouldConvertToMarkdown: opts?.mode !== 'refresh' ? true : isSubstackLike || isWeChatArticleUrl,
         }
         return tuned
       }
@@ -945,16 +966,60 @@ export function buildWebpageWorkspaceEntryTextFromUpstreamMarkdown(args: {
   const title = String(args.title || '').replace(/\s+/g, ' ').trim()
   const diag = String(args.diag || '').trim()
   const bodyText = String(normalizedBody || '').trim()
+  const sourceLinkLine = url ? `[](${url})` : ''
+  const bodyWithSourceLink = sourceLinkLine
+    ? bodyText.includes(url)
+      ? bodyText
+      : [sourceLinkLine, '', bodyText].join('\n').trim()
+    : bodyText
+
+  const normalizeLocalProxyUrls = (text: string): string => {
+    let next = String(text || '')
+    if (!next) return next
+    next = next.replace(/\\&/g, '&')
+    next = next.replace(
+      /https?:\/\/[^\s)]+(\/__(?:webpage_asset_path|webpage_asset_proxy|webpage_proxy|fetch_remote)[^\s)]*)/gi,
+      '$1',
+    )
+    return next
+  }
+
+  const normalizeAutolinksToCards = (text: string): string => {
+    let next = String(text || '')
+    if (!next) return next
+    const labelForUrl = (rawUrl: string): string => {
+      const uRaw = String(rawUrl || '').trim()
+      if (!uRaw) return 'link'
+      try {
+        const u = new URL(uRaw)
+        const host = u.hostname.toLowerCase()
+        if (host === 'mp.weixin.qq.com' || host.endsWith('.mp.weixin.qq.com')) return 'WeChat'
+        const compact = uRaw.length <= 72 ? uRaw : u.hostname
+        return compact || 'link'
+      } catch {
+        return uRaw.length <= 72 ? uRaw : 'link'
+      }
+    }
+
+    next = next.replace(/(^|[\s(])!\s*<\s*(https?:\/\/[^>\s]+)\s*>(?=$|[\s)])/g, '$1![]($2)')
+    next = next.replace(/(^|[\s(])!\s*(https?:\/\/[^\s)]+)(?=$|[\s)])/g, '$1![]($2)')
+    next = next.replace(/<\s*(https?:\/\/[^>\s]+)\s*>/gi, (_m, u: string) => `[${labelForUrl(u)}](${u})`)
+    next = next.replace(/\*\*\s*\[\]\((https?:\/\/[^)\s]+)\)/g, (_m, u: string) => `[${labelForUrl(u)}](${u})`)
+    next = next.replace(/\[\]\((https?:\/\/[^)\s]+)\)/g, (_m, u: string) => `[${labelForUrl(u)}](${u})`)
+    return next
+  }
+
+  const finalBody = normalizeLocalProxyUrls(normalizeAutolinksToCards(bodyWithSourceLink))
   if (
     diag &&
-    bodyText &&
-    bodyText.length <= 140 &&
-    (!title || bodyText.replace(/\s+/g, ' ').trim() === title)
+    bodyWithSourceLink &&
+    bodyWithSourceLink.length <= 140 &&
+    (!title || bodyWithSourceLink.replace(/\s+/g, ' ').trim() === title)
   ) {
     fmLines.push(...yamlBlockScalar('kgWebpageDiagnostics', diag))
   }
   fmLines.push('---', '')
-  return [...fmLines, bodyText].join('\n').trimEnd() + '\n'
+  return [...fmLines, finalBody].join('\n').trimEnd() + '\n'
 }
 
 export function buildWebsiteImportWebpageDocFromUpstreamMarkdown(args: {

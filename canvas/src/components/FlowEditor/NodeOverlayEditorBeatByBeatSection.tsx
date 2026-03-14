@@ -73,35 +73,14 @@ export const NodeOverlayEditorBeatByBeatSection = React.memo(function NodeOverla
 }) {
   const { node, graphMetaKind, edges, microLabelClass, monospaceTextClass, compact = false } = props
   const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow'
-  if (!isFrontmatterFlow) return null
 
   const nodeId = String(node.id || '').trim()
   const beatIndex = parseBeatIndexFromNodeId(nodeId)
   const beatRefFromParams = readBeatRefFromParams(node)
   const beatRef = beatRefFromParams || (beatIndex != null ? `beat_${pad2(beatIndex)}` : '')
-  if (!beatRef) return null
 
   const clipNodeId = nodeId.startsWith('NODE_CLIP_') ? nodeId : beatIndex != null ? `NODE_CLIP_${pad2(beatIndex)}` : ''
   const overlayNodeId = nodeId.startsWith('NODE_OVERLAY_') ? nodeId : beatIndex != null ? `NODE_OVERLAY_${pad2(beatIndex)}` : ''
-  if (!clipNodeId || !overlayNodeId) return null
-
-  if (compact) {
-    return (
-      <section className="min-w-0 mt-4" aria-label="Beat-by-beat script">
-        <header className="min-w-0">
-          <h3 className={cn('font-semibold', UI_THEME_TOKENS.text.primary)}>
-            <span>{beatRef}</span>
-            <span>{' · '}</span>
-            <code className={cn(monospaceTextClass, UI_THEME_TOKENS.text.secondary)}>{`{{timeline.beats.${beatRef}.label}}`}</code>
-            <span>{' · '}</span>
-            <code className={cn(monospaceTextClass, UI_THEME_TOKENS.text.secondary)}>{clipNodeId}</code>
-            <span>{' → '}</span>
-            <code className={cn(monospaceTextClass, UI_THEME_TOKENS.text.secondary)}>{overlayNodeId}</code>
-          </h3>
-        </header>
-      </section>
-    )
-  }
 
   const beatNo = beatIndex != null ? pad2(beatIndex) : beatRef.replace(/^beat_/, '')
   const clipKey = `clip_${beatNo}`
@@ -133,6 +112,26 @@ export const NodeOverlayEditorBeatByBeatSection = React.memo(function NodeOverla
     if (beatRef === 'beat_04') return `wired from NODE_AUDIO_VO`
     return ''
   }, [beatRef])
+
+  if (!isFrontmatterFlow || !beatRef || !clipNodeId || !overlayNodeId) return null
+
+  if (compact) {
+    return (
+      <section className="min-w-0 mt-4" aria-label="Beat-by-beat script">
+        <header className="min-w-0">
+          <h3 className={cn('font-semibold', UI_THEME_TOKENS.text.primary)}>
+            <span>{beatRef}</span>
+            <span>{' · '}</span>
+            <code className={cn(monospaceTextClass, UI_THEME_TOKENS.text.secondary)}>{`{{timeline.beats.${beatRef}.label}}`}</code>
+            <span>{' · '}</span>
+            <code className={cn(monospaceTextClass, UI_THEME_TOKENS.text.secondary)}>{clipNodeId}</code>
+            <span>{' → '}</span>
+            <code className={cn(monospaceTextClass, UI_THEME_TOKENS.text.secondary)}>{overlayNodeId}</code>
+          </h3>
+        </header>
+      </section>
+    )
+  }
 
   return (
     <section className="min-w-0 mt-4" aria-label="Beat-by-beat script">

@@ -115,6 +115,16 @@ export function useFlowComputedPositions(args: {
     const run = async () => {
       const nodeW = Math.max(1, Math.floor(flowConfig.node.widthPx))
       const nodeH = Math.max(1, Math.floor(flowConfig.node.heightPx))
+      const usePerNodeVisualSize = String((g as unknown as { context?: unknown })?.context || '') === 'frontmatter-mermaid'
+      const nodeById = new Map<string, unknown>()
+      if (usePerNodeVisualSize) {
+        for (let i = 0; i < nodeList.length; i += 1) {
+          const n = nodeList[i] as unknown as { id?: unknown }
+          const id = String(n?.id || '')
+          if (id) nodeById.set(id, n)
+        }
+      }
+
       const centerToTopLeft = (positions: Record<string, { x: number; y: number }> | null): Record<string, { x: number; y: number }> | null => {
         if (!positions) return null
         const out: Record<string, { x: number; y: number }> = {}
@@ -126,7 +136,15 @@ export function useFlowComputedPositions(args: {
           const x = p.x
           const y = p.y
           if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-          out[id] = { x: x - nodeW / 2, y: y - nodeH / 2 }
+          const dims = (() => {
+            if (!usePerNodeVisualSize) return { w: nodeW, h: nodeH }
+            const n = nodeById.get(id) as unknown as { properties?: unknown } | undefined
+            const props = n?.properties && typeof n.properties === 'object' && !Array.isArray(n.properties) ? (n.properties as Record<string, unknown>) : null
+            const vw = props && typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width'] as number) ? (props['visual:width'] as number) : null
+            const vh = props && typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height'] as number) ? (props['visual:height'] as number) : null
+            return { w: vw != null ? Math.max(1, Math.floor(vw)) : nodeW, h: vh != null ? Math.max(1, Math.floor(vh)) : nodeH }
+          })()
+          out[id] = { x: x - dims.w / 2, y: y - dims.h / 2 }
         }
         return out
       }
@@ -168,7 +186,12 @@ export function useFlowComputedPositions(args: {
       const nodesUnstable = nodesCoverageOk && looksUnstablePositions({ nodes: nodeList, positions: seededFromNodes, nodeSize: { widthPx: nodeW, heightPx: nodeH } })
       const allowNodes = nodesCoverageOk && !nodesUnstable
 
-      const computed = allowCache
+      const preferMermaid = usePerNodeVisualSize && nodesCoverageOk && seededFromNodes
+
+      const isMermaidLayout = usePerNodeVisualSize
+      const computed = isMermaidLayout && seededFromNodes && nodesCoverageOk
+        ? seededFromNodes
+        : allowCache
         ? cached
         : allowOther
           ? seededFromOtherRenderer
@@ -258,7 +281,9 @@ export function useFlowComputedPositions(args: {
         return collisions / used
       }
       const overlapPressure = estimateOverlapPressure(computed)
-      const shouldRelax = computedUnstable || overlapPressure >= 0.005
+      const shouldRelax =
+        !isMermaidLayout &&
+        ((computedUnstable && overlapPressure >= 0.01) || overlapPressure >= 0.02)
       const relaxed =
         shouldRelax && sceneGraphData && schema
           ? relaxFlowPositionsWithCollision({
@@ -272,11 +297,57 @@ export function useFlowComputedPositions(args: {
                 sizePx: flowPresentation.portHandles.sizePx,
                 offsetPx: flowPresentation.portHandles.offsetPx,
               },
-              defaultSteps: semanticMode === 'keyword' ? 12 : (sceneGroups.length > 0 ? 18 : 12),
+              defaultSteps: semanticMode === 'keyword' ? 10 : (sceneGroups.length > 0 ? 12 : 8),
             })
           : computed
+      const hasMultipleComponents = (() => {
+        if (!relaxed) return false
+        if (nodeList.length < 2) return false
+        const nodeIds = nodeList.map(n => String(n.id)).filter(Boolean)
+        const adj = new Map<string, string[]>()
+        for (let i = 0; i < nodeIds.length; i += 1) adj.set(nodeIds[i]!, [])
+        for (let i = 0; i < edgeList.length; i += 1) {
+          const e = edgeList[i] as unknown as { source?: unknown; target?: unknown }
+          const s = String(e.source || '').trim()
+          const t = String(e.target || '').trim()
+          if (!s || !t) continue
+          const a = adj.get(s)
+          const b = adj.get(t)
+          if (!a || !b) continue
+          a.push(t)
+          b.push(s)
+        }
+        const visited = new Set<string>()
+        let comps = 0
+        for (let i = 0; i < nodeIds.length; i += 1) {
+          const start = nodeIds[i]!
+          if (visited.has(start)) continue
+          comps += 1
+          if (comps > 1) return true
+          const q = [start]
+          visited.add(start)
+          while (q.length) {
+            const cur = q.pop()!
+            const ns = adj.get(cur) || []
+            for (let j = 0; j < ns.length; j += 1) {
+              const nxt = ns[j]!
+              if (visited.has(nxt)) continue
+              visited.add(nxt)
+              q.push(nxt)
+            }
+          }
+        }
+        return false
+      })()
+
+      const shouldPack = !isMermaidLayout && hasMultipleComponents && overlapPressure >= 0.02
+
       const packed =
-        relaxed
+        isMermaidLayout
+          ? relaxed
+          : !shouldPack
+          ? relaxed
+          : relaxed
           ? packDisjointPositions2d({
               nodeIds: nodeList.map(n => String(n.id)),
               edges: edgeList.map(e => ({ source: String((e as { source?: unknown }).source), target: String((e as { target?: unknown }).target) })),
@@ -311,13 +382,15 @@ export function useFlowComputedPositions(args: {
       const outHash = hashPositions(packed, nodeIds)
       if (outHash && outHash === lastOutputHashRef.current) return
       lastOutputHashRef.current = outHash
-      if (
-        cacheKey &&
-        typeof setLayoutPositionsForMode === 'function' &&
-        packed &&
-        Object.keys(packed).length > 0
-      ) {
-        setLayoutPositionsForMode(cacheKey, packed)
+      if (!isMermaidLayout) {
+        if (
+          cacheKey &&
+          typeof setLayoutPositionsForMode === 'function' &&
+          packed &&
+          Object.keys(packed).length > 0
+        ) {
+          setLayoutPositionsForMode(cacheKey, packed)
+        }
       }
       setComputedPositions(packed)
     }

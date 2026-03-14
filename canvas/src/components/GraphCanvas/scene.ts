@@ -47,6 +47,7 @@ type SetupGraphSceneArgs = {
   hoverEnabled: boolean
   zoomOnDoubleClick: boolean
   renderMediaAsNodes: boolean
+  mediaOverlayNodeIdSet?: Set<string>
   mediaPanelDensity: 'default' | 'compact'
   enableTightInitialLayout?: boolean
   fitToScreenMode?: boolean
@@ -113,6 +114,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     hoverEnabled,
     zoomOnDoubleClick,
     renderMediaAsNodes,
+    mediaOverlayNodeIdSet,
     mediaPanelDensity,
     fitToScreenMode,
     viewportControlsPreset,
@@ -169,7 +171,28 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   const graphDataForDisplay = display?.displayGraphData || graphData
   sceneGraphDataRef.current = graphDataForDisplay
   const displayNodes = Array.isArray(graphDataForDisplay.nodes) ? (graphDataForDisplay.nodes as GraphNode[]) : []
-  const edgesForDisplay = Array.isArray(graphDataForDisplay.edges) ? (graphDataForDisplay.edges as GraphEdge[]) : []
+  const edgesForDisplayUnsorted = Array.isArray(graphDataForDisplay.edges) ? (graphDataForDisplay.edges as GraphEdge[]) : []
+  const edgesForDisplay = (() => {
+    const edges = edgesForDisplayUnsorted
+    const needsSort = edges.some(e => {
+      const props = (e as unknown as { properties?: unknown }).properties
+      return props && typeof props === 'object' && !Array.isArray(props) && typeof (props as Record<string, unknown>)['visual:zIndex'] !== 'undefined'
+    })
+    if (!needsSort) return edges
+    const getZ = (e: GraphEdge): number => {
+      const props = (e as unknown as { properties?: unknown }).properties
+      if (!props || typeof props !== 'object' || Array.isArray(props)) return 0
+      const raw = (props as Record<string, unknown>)['visual:zIndex']
+      const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+      return typeof n === 'number' && Number.isFinite(n) ? Math.floor(n) : 0
+    }
+    return edges.slice().sort((a, b) => {
+      const az = getZ(a)
+      const bz = getZ(b)
+      if (az !== bz) return az - bz
+      return String((a as any).id || '').localeCompare(String((b as any).id || ''))
+    })
+  })()
 
   const zoom = createZoom(svg, g, labelsSelRef, schema, viewportControlsPreset, onZoomTransform, () => {
     if (!nodesSelRef.current && !labelsSelRef.current && !linksSelRef.current && !mediaSelRef.current) return
@@ -265,6 +288,15 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     return false
   })()
 
+  const isMermaidLayout = (() => {
+    const gd = args.graphData as unknown as { context?: unknown; metadata?: unknown } | null
+    if (!gd) return false
+    if (String(gd.context || '') === 'frontmatter-mermaid') return true
+    const meta = gd.metadata
+    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
+    return String((meta as Record<string, unknown>).layoutEngine || '') === 'mermaid'
+  })()
+
   const groupKeyByNodeId = args.layoutGroupKeyByNodeId
   const groupKeyOf = (n: GraphNode): string | null => {
     const id = String(n.id || '').trim()
@@ -290,29 +322,32 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     })
   }
 
-  pipelinePerfMeasureSync({
-    name: 'render',
-    stage: 'layout:init',
-    detail: {
-      nodes: displayNodes.length,
-      edges: edgesForDisplay.length,
-      hasCachedPositions: !!layoutPositionsSource,
-      skipInitialLayout: !!skipInitialLayout,
-    },
-    run: () =>
-      initializeGraphLayout({
-        nodes: displayNodes,
-        edges: edgesForDisplay,
-        width,
-        height,
-        schema,
-        seedCenter,
-        groupKeyOf,
-        layoutPositions: layoutPositionsSource,
-      }),
-  })
+  if (!isMermaidLayout) {
+    pipelinePerfMeasureSync({
+      name: 'render',
+      stage: 'layout:init',
+      detail: {
+        nodes: displayNodes.length,
+        edges: edgesForDisplay.length,
+        hasCachedPositions: !!layoutPositionsSource,
+        skipInitialLayout: !!skipInitialLayout,
+      },
+      run: () =>
+        initializeGraphLayout({
+          nodes: displayNodes,
+          edges: edgesForDisplay,
+          width,
+          height,
+          schema,
+          seedCenter,
+          groupKeyOf,
+          layoutPositions: layoutPositionsSource,
+        }),
+    })
+  }
 
   const effectiveSkipInitialLayout = (() => {
+    if (isMermaidLayout) return true
     if (!skipInitialLayout) return false
     if (layoutLooksUnstableForViewport({ nodes: displayNodes, width, height, viewportCenter: seedCenter })) return false
     return true
@@ -338,9 +373,9 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     svg.attr('data-kg-layout-frozen', '1')
   }
 
-  const shouldApplyInitialTightLayout = args.enableTightInitialLayout === true
+  const shouldApplyInitialTightLayout = !isMermaidLayout && args.enableTightInitialLayout === true
 
-  if (!effectiveSkipInitialLayout && displayNodes.length > 1) {
+  if (!isMermaidLayout && !effectiveSkipInitialLayout && displayNodes.length > 1) {
     const dupCounts = new Map<string, number>()
     for (let i = 0; i < displayNodes.length; i += 1) {
       const n = displayNodes[i]
@@ -431,7 +466,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     svg.attr('data-kg-layout-frozen', '1')
   }
 
-  const allGroupsForZOrder = deriveGraphGroups(graphDataForDisplay, { forceDocumentStructure: args.documentSemanticMode === 'document' })
+  const allGroupsForZOrder = deriveGraphGroups(graphData, { forceDocumentStructure: args.documentSemanticMode === 'document' })
   const nodeZKeyById = buildNodeZKeyById({ nodes: displayNodes, groups: allGroupsForZOrder })
 
   const groupsLayer = createGroupsLayer({
@@ -442,6 +477,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     documentSemanticMode: args.documentSemanticMode,
     simulation,
     groupsOverride: allGroupsForZOrder,
+    updateNode: args.updateNode,
     hoverEnabled,
     setHoverInfo,
     setSelectionSource,
@@ -472,6 +508,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     graphData: graphDataForDisplay,
     schema,
     renderMediaAsNodes,
+    mediaOverlayNodeIdSet,
     preferDomMediaOverlays: true,
     mediaPanelDensity,
     zoomOnDoubleClick,
@@ -569,6 +606,16 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   const isForceLayout = readLayoutMode(schema) === 'force'
 
   const storeLayoutPositions = () => {
+    const isMermaidLayout = (() => {
+      if (args.freezeSimulation === true) return true
+      const gd = args.graphData as unknown as { context?: unknown; metadata?: unknown } | null
+      if (!gd) return false
+      if (String(gd.context || '') === 'frontmatter-mermaid') return true
+      const meta = gd.metadata
+      if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
+      return String((meta as Record<string, unknown>).layoutEngine || '') === 'mermaid'
+    })()
+    if (isMermaidLayout) return
     if (!layoutCacheKey || typeof setLayoutPositionsForMode !== 'function') return
     const positions: Record<string, { x: number; y: number }> = {}
     for (let i = 0; i < graphDataForDisplay.nodes.length; i += 1) {
@@ -613,6 +660,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       height,
       beforeRenderFrameRef,
       afterRenderFrame: ({ alpha, tick }) => {
+        if (isMermaidLayout) return
         if (!isForceLayout) return
         if (finalFitApplied) return
         if (args.freezeSimulation === true) return
@@ -755,6 +803,7 @@ export const updateGraphSceneNodesPresentation = (args: {
   hoverEnabled: boolean
   zoomOnDoubleClick: boolean
   renderMediaAsNodes: boolean
+  mediaOverlayNodeIdSet?: Set<string>
   mediaPanelDensity: 'default' | 'compact'
   tempLinkSelRef: MutableRefObject<TempLinkSelection>
   linkDragRef: MutableRefObject<PendingLink | null>
@@ -802,6 +851,7 @@ export const updateGraphSceneNodesPresentation = (args: {
     graphData,
     schema: args.schema,
     renderMediaAsNodes: args.renderMediaAsNodes,
+    mediaOverlayNodeIdSet: args.mediaOverlayNodeIdSet,
     preferDomMediaOverlays: true,
     mediaPanelDensity: args.mediaPanelDensity,
     zoomOnDoubleClick: args.zoomOnDoubleClick,

@@ -186,6 +186,7 @@ export const createZoom = (
             const strokeSel = g.selectAll<SVGElement, unknown>(
               [
                 '[data-kg-layer="links"] line',
+                '[data-kg-layer="links"] path',
                 '[data-kg-layer="groups"] rect',
                 '[data-kg-layer="groups"] path',
                 '[data-kg-layer="nodes"] circle',

@@ -64,7 +64,19 @@ import {
   testGroupBboxCollideByDepthSeparatesOuterAndInnerSiblings,
   testNestedGroupInnerBorderDoesNotTouchParentOuterBorder,
 } from '@/__tests__/groupOverlapByDepthForce.test'
-import { testGraphCanvasIframeNodesHideBodyWhenRichMediaOn } from '@/__tests__/graphCanvasIframeNodesHideBody.test'
+import {
+  testGraphCanvasIframeNodesHideBodyWhenRichMediaOn,
+  testGraphCanvasMediaNodesKeepBodyWhenOverlayPoolClips,
+} from '@/__tests__/graphCanvasIframeNodesHideBody.test'
+import {
+  testWebpageSandboxPromotesLazyImageDataSrc,
+  testWebpageSandboxProxiesWeChatImgSrc,
+  testWebpageSandboxInjectsWeChatUnhideStyle,
+  testWebpageSandboxAbsolutizesLocalProxyUrlsInsteadOfChangingBase,
+} from '@/__tests__/webpageSandboxLazyImages.test'
+import { testWorkspaceImportNormalizesLocalProxyUrlsAndAutolinks } from '@/__tests__/workspaceImportNormalizeProxyUrls.test'
+import { testNodeMediaSpecAllowsLocalProxyIframeUrl } from '@/__tests__/nodeMediaSpecAllowsLocalProxyIframe.test'
+import { testNodeMediaSpecDetectsWebpageElementIframeProxy, testNodeMediaSpecDetectsWebpageElementImg } from '@/__tests__/nodeMediaSpecFromWebpageElement.test'
 import {
   testIsNodePointerTargetAcceptsPathNodes,
   testNodesLayerRendersDiamondAndHexPaths,
@@ -78,6 +90,7 @@ import {
   testWebpageFrontmatterUpsertPreservesOtherKeys,
   testWebpageFrontmatterSupportsJsonView,
   testWebpageFrontmatterSupportsMarkdownView,
+  testWebpageFrontmatterLegacyDomAndRawMapToHtmlAndJson,
   testFrontmatterOnlyDocDetection,
 } from '@/__tests__/webpageFrontmatter.test'
 import {
@@ -219,6 +232,14 @@ import {
 } from '@/__tests__/graphCenteredSvg3d.test'
 import { testExportHtmlViewerIsSvgOnlyAndBlocksBrowserZoomAndSelection } from '@/__tests__/graphHtmlViewer.test'
 import { testExportHtmlViewerIncludesRichMediaNodesWithDefaultPoolMax } from '@/__tests__/graphHtmlViewer.test'
+import { testExportHtmlViewerTreatsIFrameKindWithImageUrlAsImage } from '@/__tests__/graphHtmlViewer.test'
+import { testHtmlViewerRuntimeScriptReplacesProxyOriginPlaceholder } from '@/__tests__/htmlViewerRuntimeScriptProxyOrigin.test'
+import { testExportHtmlCanvasHonorsPreferWebgl3d } from '@/__tests__/exportHtmlCanvasPreferWebgl3d.test'
+import {
+  testGraphHtmlViewerMediaPanelsAreNotPointerIgnored,
+  testGraphHtmlViewerOverlayDoesNotBlockCanvasPointerEvents,
+} from '@/__tests__/graphHtmlViewerInteractionSurface.test'
+import { testNormalizeInteractiveSvgExtractsInitialViewAndStripsTransform } from '@/__tests__/normalizeInteractiveSvgForHtmlViewer.test'
 import { testParseKindCsv } from '@/__tests__/csvKind.test'
 import {
   testCsvRoundTrip,
@@ -296,8 +317,12 @@ import { testDesignLayersNormalizePreservesOrderAndAddsNew, testDesignLayersTogg
 import { testDesignFramePosEqDetectsEquality, testDesignFrameSizeEqDetectsEquality } from '@/__tests__/designRendererSlice.test'
 import { testDesignRendererWebpageGraphSetterNoopsOnSameKey } from '@/__tests__/designRendererWebpageGraph.test'
 import { testDesignWireframeSettingsDefaultsAndClamp } from '@/__tests__/designWireframeSettings.test'
+import { testApplyImageLikeProxySrcUsesWebpageAssetPathForWeChatCdn } from '@/__tests__/urlWeChatAssetProxy.test'
+import { testIsLikelyImageUrlDetectsWeChatWxFmtWithoutExtension } from '@/__tests__/urlWeChatAssetProxy.test'
+import { testInferIframeScriptPolicyUsesAllowForReactLikePages } from '@/__tests__/inferIframeScriptPolicy.test'
 import {
   testWebpageLayoutToGraphCentersAndFilters,
+  testWebpageLayoutToGraphAddsMediaProps,
   testWebpageLayoutToGraphDropsTinyDecorativeSvgIcon,
   testWebpageLayoutToGraphEffectiveOpacityAndStackKey,
   testWebpageLayoutToGraphAssignsGridChildIndices,
@@ -357,6 +382,8 @@ import {
   testMarkdownPreviewViewerForcesPrimaryTextColor,
   testMarkdownWorkspaceAvoidsHardcodedLightThemeClasses,
 } from '@/__tests__/markdownWorkspaceTheme.test'
+import { testMermaidFrontmatterModeKeepsMermaidNodesAndGroups } from '@/__tests__/mermaidFrontmatterRender.test'
+import { testMermaidFidelityRendererIsRuntimeSafeInNode } from '@/__tests__/mermaidFidelityRuntimeSafe.test'
 import { testMarkdownWorkspacePresentationResolvesRelativeAssetsAndRendersTables } from '@/__tests__/markdownWorkspacePresentationRelativeAssets.test'
 import { testMarkdownPresentationRendersPdfAssetImagesFromSandboxFixture } from '@/__tests__/markdownPdfImportPresentationRender.test'
 import { testMarkdownSelectionTargetEmptyDocPathFallsBackToAnyDocument } from '@/__tests__/markdownSelectionTargetEmptyDocPath.test'
@@ -1100,6 +1127,8 @@ export const runAllTests = async () => {
   await exec('url.resolveAgainstBase.relative', testResolveUrlAgainstBaseResolvesRelativeUrls)
   await exec('markdown.fastMode.parsesHtmlTables', testMarkdownLargeDocFastModeParsesHtmlTables)
   await exec('importRenderPipeline.modesAndLayouts.slideDemo', testImportRenderPipelineAcrossModesAndLayouts)
+  await exec('importRenderPipeline.frontmatterMermaid.groups', testMermaidFrontmatterModeKeepsMermaidNodesAndGroups)
+  await exec('mermaidFidelity.runtimeSafe', testMermaidFidelityRendererIsRuntimeSafeInNode)
   await exec('importRenderPipeline.layout.radialForces2d', testImportRenderPipelineRadialLayoutForces2d)
   await exec('importRenderPipeline.three.fibSphereStable', testImportRenderPipelineThreeFibSphereStable)
   await exec('importRenderPipeline.forbidHardcodedMarkdownSlideDemoAbsPath', testForbidHardcodedMarkdownSlideDemoAbsolutePath)
@@ -1562,6 +1591,7 @@ export const runAllTests = async () => {
   await exec('webpage.frontmatter.supportsJsonView', testWebpageFrontmatterSupportsJsonView)
   await exec('webpage.frontmatter.supportsMarkdownView', testWebpageFrontmatterSupportsMarkdownView)
   await exec('webpage.frontmatter.frontmatterOnlyDocDetection', testFrontmatterOnlyDocDetection)
+  await exec('webpage.frontmatter.legacyDomAndRawMapToHtmlAndJson', testWebpageFrontmatterLegacyDomAndRawMapToHtmlAndJson)
   await exec('webpage.import.defaults.preferHtmlAllowScripts', testWebpageImportDefaultsPreferHtmlAndAllowScripts)
   await exec('webpage.frontmatter.defaultsToHtmlViewWhenMissingViewKey', testWebpageFrontmatterDefaultsToHtmlViewWhenMissingViewKey)
   await exec('websiteImport.sitemap.extractsLocs', testWebsiteImportSitemapExtractsLocs)
@@ -1631,6 +1661,20 @@ export const runAllTests = async () => {
   await exec('markdown.preview.rendersInlineHtmlRichMedia', testMarkdownPreviewRendersInlineHtmlRichMedia)
   await exec('markdown.preview.rendersMarkdownImageVideoAudioIframe', testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe)
   await exec('graphCanvas.richMedia.iframeNodes.hideBody', testGraphCanvasIframeNodesHideBodyWhenRichMediaOn)
+  await exec('graphCanvas.richMedia.overlayPool.clippedNodesKeepBody', testGraphCanvasMediaNodesKeepBodyWhenOverlayPoolClips)
+  await exec('webpageSandbox.promotesLazyImageDataSrc', testWebpageSandboxPromotesLazyImageDataSrc)
+  await exec('webpageSandbox.proxiesWeChatImgSrc', testWebpageSandboxProxiesWeChatImgSrc)
+  await exec('webpageSandbox.injectsWeChatUnhideStyle', testWebpageSandboxInjectsWeChatUnhideStyle)
+  await exec('webpageSandbox.absolutizesLocalProxyUrlsInsteadOfChangingBase', testWebpageSandboxAbsolutizesLocalProxyUrlsInsteadOfChangingBase)
+  await exec('workspaceImport.normalizesProxyUrlsAndAutolinks', testWorkspaceImportNormalizesLocalProxyUrlsAndAutolinks)
+  await exec('nodeMediaSpec.allowsLocalProxyIframeUrl', testNodeMediaSpecAllowsLocalProxyIframeUrl)
+  await exec('nodeMediaSpec.detectsWebpageElementImg', testNodeMediaSpecDetectsWebpageElementImg)
+  await exec('nodeMediaSpec.detectsWebpageElementIframeProxy', testNodeMediaSpecDetectsWebpageElementIframeProxy)
+  await exec('url.applyImageLikeProxySrc.usesWebpageAssetPathForWeChatCdn', testApplyImageLikeProxySrcUsesWebpageAssetPathForWeChatCdn)
+  await exec('url.isLikelyImageUrl.detectsWeChatWxFmtWithoutExtension', testIsLikelyImageUrlDetectsWeChatWxFmtWithoutExtension)
+  await exec('iframePolicy.usesAllowForReactLikePages', testInferIframeScriptPolicyUsesAllowForReactLikePages)
+  await exec('webpageLayoutToGraph.centersAndFilters', testWebpageLayoutToGraphCentersAndFilters)
+  await exec('webpageLayoutToGraph.addsMediaProps', testWebpageLayoutToGraphAddsMediaProps)
   await exec('preview.panel.graphMediaSelection.opensMarkdownPanel', testPreviewPanelGraphMediaSelectionOpensMarkdownPanel)
   await exec('preview.panel.standaloneLinks.webpageAndTweetSelectable', testPreviewPanelStandaloneLinkWebpageAndTweetSelectable)
   await exec('markdown.ingest.githubBlob.producesMediaNodes', testMarkdownGithubBlobIngestionProducesMediaNodes)
@@ -1649,6 +1693,12 @@ export const runAllTests = async () => {
   await exec('export.svg.3d.nodeVisualOpacity', testGraphCenteredSvg3dNodeVisualOpacityAffectsSvgOpacity)
   await exec('export.htmlViewer.svgOnly.blocksBrowserZoom', testExportHtmlViewerIsSvgOnlyAndBlocksBrowserZoomAndSelection)
   await exec('export.htmlViewer.richMedia.defaultPool', testExportHtmlViewerIncludesRichMediaNodesWithDefaultPoolMax)
+  await exec('export.htmlViewer.richMedia.inferKindFromUrlOverridesIframe', testExportHtmlViewerTreatsIFrameKindWithImageUrlAsImage)
+  await exec('export.htmlViewer.runtimeScript.proxyOriginReplaced', testHtmlViewerRuntimeScriptReplacesProxyOriginPlaceholder)
+  await exec('export.htmlViewer.overlay.pointerEvents.none', testGraphHtmlViewerOverlayDoesNotBlockCanvasPointerEvents)
+  await exec('export.htmlViewer.richMedia.notPointerIgnored', testGraphHtmlViewerMediaPanelsAreNotPointerIgnored)
+  await exec('export.htmlCanvas.normalizeSvg.extractsInitialView', testNormalizeInteractiveSvgExtractsInitialViewAndStripsTransform)
+  await exec('export.htmlCanvas.preferWebgl3d.embedded', testExportHtmlCanvasHonorsPreferWebgl3d)
   await exec('csv.kindFormat', testParseKindCsv)
   await exec('csv.roundTrip', testCsvRoundTrip)
   await exec('export.graphMl', testGraphMlExport)

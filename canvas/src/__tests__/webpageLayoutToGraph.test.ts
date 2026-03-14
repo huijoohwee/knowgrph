@@ -1351,6 +1351,63 @@ export function testWebpageLayoutToGraphCentersAndFilters() {
   if (typeof mainFill === 'string' && mainFill.trim()) throw new Error('expected transparent background to omit visual:fill')
 }
 
+export function testWebpageLayoutToGraphAddsMediaProps() {
+  const snap: WebpageLayoutSnapshot = {
+    meta: {
+      kind: 'layout',
+      title: 'WeChat',
+      href: 'https://mp.weixin.qq.com/s/test',
+      viewport: { w: 1000, h: 800 },
+      scroll: { x: 0, y: 0, height: 2000 },
+      ts: 1,
+    },
+    elements: [
+      {
+        id: 'img1',
+        pid: '',
+        tag: 'IMG',
+        rect: { x: 0, y: 0, w: 200, h: 100 },
+        text: '',
+        attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: 'https://mmbiz.qpic.cn/mmbiz_png/test/640?wx_fmt=png', alt: 'cover' },
+        style: {
+          display: 'block',
+          position: 'static',
+          zIndex: 'auto',
+          backgroundColor: 'rgba(0,0,0,0)',
+          color: 'rgb(0,0,0)',
+          borderRadius: '0px',
+          borderColor: 'rgb(0,0,0)',
+          borderWidth: '0px',
+          padding: '0px',
+          margin: '0px',
+          gap: '0px',
+          justifyContent: 'normal',
+          alignItems: 'normal',
+          flexDirection: 'row',
+          flexWrap: 'nowrap',
+          fontSize: '12px',
+          fontWeight: '400',
+          fontFamily: 'Inter',
+          lineHeight: '16px',
+          letterSpacing: '0px',
+          textTransform: 'none',
+          textAlign: 'start',
+          boxShadow: 'none',
+          opacity: '1',
+        },
+      },
+    ],
+  }
+  const g = convertWebpageLayoutToGraphData(snap, { maxNodes: 50, minAreaPx: 1, fidelityLevel: 3 })
+  const nodes = (g.nodes || []) as GraphNode[]
+  const img = nodes.find(n => String(n.id) === 'img1')
+  if (!img) throw new Error('missing img node')
+  const props = (img.properties || {}) as Record<string, JSONValue>
+  if (String(props.media_kind || '') !== 'image') throw new Error('expected media_kind=image')
+  if (!String(props.media_url || '').includes('mmbiz.qpic.cn')) throw new Error('expected media_url')
+  if (!String(props.image || '').includes('mmbiz.qpic.cn')) throw new Error('expected image url')
+}
+
 export function testWebpageLayoutToGraphWrapperSingleChildPrune() {
   const snap: WebpageLayoutSnapshot = {
     meta: { kind: 'layout', title: 'Wrapper', href: 'https://example.invalid/', viewport: { w: 1000, h: 800 }, scroll: { x: 0, y: 0, height: 1600 }, ts: 1 },

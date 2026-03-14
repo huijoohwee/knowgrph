@@ -69,8 +69,10 @@ export const filterGraphToFrontmatterMermaid = (data: GraphData): GraphData => {
     queue.push(id)
   }
 
-  while (queue.length > 0) {
-    const cur = queue.shift() as string
+  let qi = 0
+  while (qi < queue.length) {
+    const cur = queue[qi] as string
+    qi += 1
     const next = pointsToAdj.get(cur) || []
     for (const tgt of next) {
       if (!included.has(tgt)) {

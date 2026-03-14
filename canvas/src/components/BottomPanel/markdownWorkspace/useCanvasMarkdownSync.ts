@@ -3,7 +3,6 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { ancestorPathsForWorkspacePath, normalizeWorkspacePath, workspaceDocumentKey } from '@/features/workspace-fs/path'
 import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
-import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { MarkdownWorkspaceStatus } from './markdownWorkspaceTypes'
@@ -75,8 +74,7 @@ export function useCanvasMarkdownSync(args: {
   const graphData = useGraphStore(s => s.graphData) as GraphData | null
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
 
-  const lastCanvasSyncSig = useMarkdownExplorerStore(s => s.lastCanvasSyncSig)
-  const setLastCanvasSyncSig = useMarkdownExplorerStore(s => s.setLastCanvasSyncSig)
+  const lastCanvasSyncSigRef = React.useRef<string>('')
 
   React.useEffect(() => {
     if (selectionSource !== 'canvas' && selectionSource !== 'table') return
@@ -86,7 +84,8 @@ export function useCanvasMarkdownSync(args: {
     const edgeId = !nodeId && selectedEdgeId ? String(selectedEdgeId) : ''
     const sig = nodeId ? `node:${nodeId}` : edgeId ? `edge:${edgeId}` : ''
     if (!sig) return
-    if (lastCanvasSyncSig === sig) return
+    if (lastCanvasSyncSigRef.current === sig) return
+    lastCanvasSyncSigRef.current = sig
 
     const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
     const edges = Array.isArray(graphData.edges) ? (graphData.edges as GraphEdge[]) : []
@@ -95,7 +94,6 @@ export function useCanvasMarkdownSync(args: {
     const meta = node?.metadata ?? edge?.metadata ?? null
     const location = getDocumentLocationFromMetadata(meta)
     if (!location) {
-      setLastCanvasSyncSig(sig)
       return
     }
 
@@ -103,7 +101,6 @@ export function useCanvasMarkdownSync(args: {
     const targetPath = findWorkspacePathForDocumentKey(entries, docKey)
     if (!targetPath) {
       setStatusLabel({ kind: 'error', label: `Missing file: ${docKey}` })
-      setLastCanvasSyncSig(sig)
       return
     }
 
@@ -119,7 +116,6 @@ export function useCanvasMarkdownSync(args: {
     setWorkspaceViewMode('editor')
     if (layoutMode !== 'split' && layoutMode !== 'editor') setLayoutMode('split')
     revealLineInEditor(location.lineStart, location.lineEnd)
-    setLastCanvasSyncSig(sig)
   }, [
     activePath,
     entries,
@@ -132,9 +128,7 @@ export function useCanvasMarkdownSync(args: {
     setActivePathSafe,
     setExpandedPaths,
     setLayoutMode,
-    setLastCanvasSyncSig,
     setStatusLabel,
     setWorkspaceViewMode,
-    lastCanvasSyncSig,
   ])
 }

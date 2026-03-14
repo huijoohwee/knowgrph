@@ -7,6 +7,15 @@ type SubgraphMembership = {
   childSubgraphIds: Set<string>
 }
 
+type VisualBounds = {
+  x: number
+  y: number
+  width: number
+  height: number
+  labelX?: number
+  labelY?: number
+}
+
 const isEdgeMembership = (e: GraphEdge): e is GraphEdge => {
   return e.label === 'hasMermaidNode' || e.label === 'hasMermaidSubgraph'
 }
@@ -27,6 +36,20 @@ const readNumberProp = (props: Record<string, unknown> | null | undefined, key: 
   const n = typeof v === 'number' ? v : Number.NaN
   if (!Number.isFinite(n)) return null
   return n
+}
+
+const readBoundsProp = (props: Record<string, unknown> | null | undefined, key: string): VisualBounds | null => {
+  if (!props) return null
+  const v = (props as Record<string, unknown>)[key]
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null
+  const x = typeof (v as any).x === 'number' ? (v as any).x : Number.NaN
+  const y = typeof (v as any).y === 'number' ? (v as any).y : Number.NaN
+  const width = typeof (v as any).width === 'number' ? (v as any).width : Number.NaN
+  const height = typeof (v as any).height === 'number' ? (v as any).height : Number.NaN
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(width) || !Number.isFinite(height)) return null
+  const labelX = typeof (v as any).labelX === 'number' && Number.isFinite((v as any).labelX) ? (v as any).labelX : undefined
+  const labelY = typeof (v as any).labelY === 'number' && Number.isFinite((v as any).labelY) ? (v as any).labelY : undefined
+  return { x, y, width, height, ...(labelX != null ? { labelX } : {}), ...(labelY != null ? { labelY } : {}) }
 }
 
 export const deriveMermaidSubgraphGroups = (data: GraphData): MermaidSubgraphGroup[] => {
@@ -108,6 +131,8 @@ export const deriveMermaidSubgraphGroups = (data: GraphData): MermaidSubgraphGro
     }
     const xIndex = readNumberProp(props, 'visual:xIndex')
     const yIndex = readNumberProp(props, 'visual:yIndex')
+    const bounds = readBoundsProp(props, 'visual:boundsOverride') ?? readBoundsProp(props, 'visual:bounds')
+    const zIndex = readNumberProp(props, 'visual:zIndexOverride') ?? readNumberProp(props, 'visual:zIndex')
     groups.push({
       id,
       label,
@@ -116,6 +141,9 @@ export const deriveMermaidSubgraphGroups = (data: GraphData): MermaidSubgraphGro
       yIndex: yIndex ?? undefined,
       memberNodeIds: collectLeafNodes(id),
       style,
+      ...(zIndex != null ? { zIndex } : {}),
+      ...(zIndex != null ? { zMode: 'absolute' } : {}),
+      ...(bounds ? { bounds } : {}),
     })
   })
 

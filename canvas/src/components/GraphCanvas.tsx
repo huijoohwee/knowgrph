@@ -517,21 +517,30 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     return buildCollapsedGroupIdsKey(collapsedGroupIds)
   }, [collapsedGroupIds])
 
-  const sceneGraphData = useMemo(() => {
+  const clonedGraphData = useMemo(() => {
     if (!renderGraphData) return null
-    const cloned = cloneGraphDataForRender(renderGraphData)
-    return deriveSceneDisplayGraph({ graphData: cloned as GraphData })?.displayGraphData || (cloned as GraphData)
+    return cloneGraphDataForRender(renderGraphData) as GraphData
   }, [renderGraphData])
+
+  const sceneDisplayGraphDerivation = useMemo(() => {
+    if (!clonedGraphData) return null
+    return deriveSceneDisplayGraph({ graphData: clonedGraphData })
+  }, [clonedGraphData])
+
+  const sceneGraphData = useMemo(() => {
+    if (!clonedGraphData) return null
+    return sceneDisplayGraphDerivation?.displayGraphData || clonedGraphData
+  }, [clonedGraphData, sceneDisplayGraphDerivation])
 
   const sceneGroupsDerivation = useMemo(() => {
     return deriveSceneGroups({
-      graphData: sceneGraphData,
+      graphData: clonedGraphData,
       graphDataRevision: graphDataRevision || 0,
       schema,
       documentSemanticMode: String(documentSemanticMode || ''),
       frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
     })
-  }, [documentSemanticMode, effectiveFrontmatterModeEnabled, graphDataRevision, sceneGraphData, schema])
+  }, [clonedGraphData, documentSemanticMode, effectiveFrontmatterModeEnabled, graphDataRevision, schema])
 
   useEffect(() => {
     schemaRef.current = schema
@@ -547,13 +556,21 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const lastCanvasLayoutRef = useRef<null | { w: number; h: number; x: number; y: number }>(null)
 
   const mediaOverlayNodes = useMemo(() => {
+    if (renderMediaAsNodes !== true) return []
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
     const poolMaxRaw = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
-    return listMediaOverlayNodes({ enabled: renderMediaAsNodes === true, nodes, poolMax })
+    return listMediaOverlayNodes({ enabled: true, nodes, poolMax })
   }, [renderMediaAsNodes, sceneGraphData, threeIframeOverlayPoolMax])
 
-  const mediaOverlayNodeIdsKey = useMemo(() => mediaOverlayNodes.map(n => n.id).join('|'), [mediaOverlayNodes])
+  const { mediaOverlayNodeIdsKey, mediaOverlayNodeIdSet } = useMemo(() => {
+    const ids = mediaOverlayNodes.map(n => n.id)
+    const sortedIds = ids.length <= 1 ? ids : ids.slice().sort()
+    return {
+      mediaOverlayNodeIdsKey: sortedIds.join('|'),
+      mediaOverlayNodeIdSet: new Set(sortedIds),
+    }
+  }, [mediaOverlayNodes])
   useEffect(() => {
     const anyImportMeta = import.meta as unknown as { env?: { DEV?: boolean } }
     if (!anyImportMeta.env?.DEV) return
@@ -643,9 +660,9 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   useEffect(() => {
     mediaOverlayScheduleRef.current = null
     if (!active) return
-    if (renderMediaAsNodes !== true) return
     if (mediaOverlayNodes.length === 0) return
     let raf: number | null = null
+    let loopRaf: number | null = null
     mediaOverlaySchedulePendingRef.current = false
     let lastKey = ''
     let lastVars: ReturnType<typeof computeMediaPanelCssVars3d>['vars'] | null = null
@@ -656,12 +673,19 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       if (!svgEl) return
       const graph = sceneGraphDataRef.current
       const sim = simulationRef.current
-      const nodes = sim ? (sim.nodes() as unknown as GraphNode[]) : Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
+      const simNodes = sim ? (sim.nodes() as unknown as GraphNode[]) : []
+      const graphNodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
       const rev = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? graphDataRevision : 0
       if (iframeNodeByIdRef.current.rev !== rev || iframeNodeByIdRef.current.sim !== sim) {
         const map = new Map<string, GraphNode>()
-        for (let i = 0; i < nodes.length; i += 1) {
-          const n = nodes[i]
+        for (let i = 0; i < graphNodes.length; i += 1) {
+          const n = graphNodes[i]
+          const id = String(n?.id || '').trim()
+          if (!id) continue
+          map.set(id, n)
+        }
+        for (let i = 0; i < simNodes.length; i += 1) {
+          const n = simNodes[i]
           const id = String(n?.id || '').trim()
           if (!id) continue
           map.set(id, n)
@@ -698,16 +722,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         const el = iframeOverlayElsRef.current.get(item.id)
         if (!el) continue
         const n = nodeById.get(item.id) || null
-        const center = readNodeCenterWorld2d(n, { coords: 'center' })
-        if (!center) {
-          try {
-            const hasPos = (el as unknown as { dataset?: Record<string, string> }).dataset?.kgOverlayHasPos === '1'
-            if (!hasPos) applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block', zIndex: 1 })
-          } catch {
-            applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block', zIndex: 1 })
-          }
-          continue
-        }
+        const center = readNodeCenterWorld2d(n, { coords: 'center' }) || { x: 0, y: 0 }
         const cx = t.applyX(center.x)
         const cy = t.applyY(center.y)
         if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue
@@ -773,7 +788,11 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       mediaOverlaySchedulePendingRef.current = false
       schedule()
     }
-    schedule()
+    const tick = () => {
+      loopRaf = requestAnimationFrame(tick)
+      update()
+    }
+    loopRaf = requestAnimationFrame(tick)
     return () => {
       if (raf != null) {
         try {
@@ -782,7 +801,15 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
           void 0
         }
       }
+      if (loopRaf != null) {
+        try {
+          cancelAnimationFrame(loopRaf)
+        } catch {
+          void 0
+        }
+      }
       raf = null
+      loopRaf = null
       if (mediaOverlayScheduleRef.current === schedule) {
         mediaOverlayScheduleRef.current = null
       }
@@ -1128,6 +1155,15 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         return
       }
 
+      const isMermaidLayout = (() => {
+        const gd = sceneGraphData as unknown as { context?: unknown; metadata?: unknown } | null
+        if (!gd) return false
+        if (String(gd.context || '') === 'frontmatter-mermaid') return true
+        const meta = gd.metadata
+        if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
+        return String((meta as Record<string, unknown>).layoutEngine || '') === 'mermaid'
+      })()
+
       if (sceneCleanupRef.current) {
         try {
           const prevPositions: Record<string, { x: number; y: number }> = {}
@@ -1138,7 +1174,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
               }
             })
           }
-          if (Object.keys(prevPositions).length > 0) {
+          if (!isMermaidLayout && Object.keys(prevPositions).length > 0) {
             const state = useGraphStore.getState()
             const prevDatasetKey = lastDatasetKeyRef.current
             const prevMode = lastLayoutModeRef.current
@@ -1345,6 +1381,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         hoverEnabled,
         zoomOnDoubleClick,
         renderMediaAsNodes,
+        mediaOverlayNodeIdSet,
         mediaPanelDensity,
         enableTightInitialLayout: (() => {
           if (isEmbeddedPreview) return false
@@ -1361,7 +1398,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         baselineLayoutPositions,
         prevPositions: Object.keys(prevPositions).length > 0 ? prevPositions : null,
         skipInitialLayout: effectiveSkipInitialLayout,
-        freezeSimulation: isEmbeddedPreview,
+        freezeSimulation: isEmbeddedPreview || isMermaidLayout,
         groupsForBboxCollide: sceneGroupsDerivation?.allGroups || [],
         layoutGroupKeyByNodeId: sceneGroupsDerivation?.layoutGroupKeyByNodeId || null,
         gRef,
@@ -1664,6 +1701,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       hoverEnabled,
       zoomOnDoubleClick,
       renderMediaAsNodes,
+      mediaOverlayNodeIdSet,
       mediaPanelDensity,
       tempLinkSelRef,
       linkDragRef,
@@ -2186,8 +2224,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
           }
         }}
       />
-      {active && renderMediaAsNodes === true && mediaOverlayNodes.length > 0 ? (
-        <section aria-label="D3 rich media overlay" className="absolute inset-0 z-10 pointer-events-none">
+      {active && mediaOverlayNodes.length > 0 ? (
+        <section aria-label="D3 rich media overlay" className="absolute inset-0 z-[80] pointer-events-none">
           {mediaOverlayNodes.map(n => {
             return (
               <RichMediaPanel
