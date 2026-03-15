@@ -242,69 +242,20 @@ export function buildHtmlViewerRuntimeScript(args: {
 
   out = replaceOnceExact(
     out,
-    "p.x = targetX;\n      p.y = targetY;\n      translateNodeByDelta(nodeDrag.id, dx, dy);",
-    "translateNodeByDelta(nodeDrag.id, dx, dy);",
+    "if (overlayFollowAnimation && svg && (svg.__kgNodeOffsetById || (svg.__kgNodeOffsetById = {}))) {\n          var map = svg.__kgNodeOffsetById;\n          var prev = map[nodeId] || null;\n          var ox = prev && isFinite(prev.x) ? prev.x : 0;\n          var oy = prev && isFinite(prev.y) ? prev.y : 0;\n          map[nodeId] = { x: ox + dx, y: oy + dy };\n          return;\n        }",
+    "if (overlayFollowAnimation && svg && (svg.__kgNodeOffsetById || (svg.__kgNodeOffsetById = {}))) {\n          try {\n            if (nodeDrag && nodeDrag.id && String(nodeDrag.id) === String(nodeId)) {\n              void 0;\n            } else if (headerDrag && headerDrag.id && String(headerDrag.id) === String(nodeId)) {\n              void 0;\n            } else {\n              var map = svg.__kgNodeOffsetById;\n              var prev = map[nodeId] || null;\n              var ox = prev && isFinite(prev.x) ? prev.x : 0;\n              var oy = prev && isFinite(prev.y) ? prev.y : 0;\n              map[nodeId] = { x: ox + dx, y: oy + dy };\n              return;\n            }\n          } catch (e0) {\n            var map = svg.__kgNodeOffsetById;\n            var prev = map[nodeId] || null;\n            var ox = prev && isFinite(prev.x) ? prev.x : 0;\n            var oy = prev && isFinite(prev.y) ? prev.y : 0;\n            map[nodeId] = { x: ox + dx, y: oy + dy };\n            return;\n          }\n        }",
   )
 
   out = replaceOnceExact(
     out,
-    'var dx = targetX - p.x;\n      var dy = targetY - p.y;',
-    "try {\n" +
-      "        if (groupMembersById && svgGroupElsById && nodeDrag && nodeDrag.id) {\n" +
-      "          var gidList = null;\n" +
-      "          for (var gid0 in groupMembersById) {\n" +
-      "            if (!Object.prototype.hasOwnProperty.call(groupMembersById, gid0)) continue;\n" +
-      "            var gels0 = svgGroupElsById[gid0] || null;\n" +
-      "            if (!gels0 || !gels0.length) continue;\n" +
-      "            var m0 = groupMembersById[gid0];\n" +
-      "            if (!m0 || !m0.length) continue;\n" +
-      "            for (var mi0 = 0; mi0 < m0.length; mi0 += 1) {\n" +
-      "              if (String(m0[mi0] || '') === nodeDrag.id) { (gidList || (gidList = [])).push(gid0); break; }\n" +
-      "            }\n" +
-      "          }\n" +
-      "          if (gidList && gidList.length) {\n" +
-      "            var bounds = null;\n" +
-      "            for (var gi0 = 0; gi0 < gidList.length; gi0 += 1) {\n" +
-      "              var gid = gidList[gi0];\n" +
-      "              var gels = svgGroupElsById[gid] || null;\n" +
-      "              if (!gels || !gels.length) continue;\n" +
-      "              var rect = null;\n" +
-      "              try { rect = gels[0].querySelector ? gels[0].querySelector('rect[data-kg-shape=\"group-rect\"]') : null; } catch (e0) { rect = null; }\n" +
-      "              if (!rect || !rect.getAttribute) continue;\n" +
-      "              var gx = parseFloat(rect.getAttribute('x') || 'NaN');\n" +
-      "              var gy = parseFloat(rect.getAttribute('y') || 'NaN');\n" +
-      "              var gw = parseFloat(rect.getAttribute('width') || 'NaN');\n" +
-      "              var gh = parseFloat(rect.getAttribute('height') || 'NaN');\n" +
-      "              if (!isFinite(gx) || !isFinite(gy) || !isFinite(gw) || !isFinite(gh) || !(gw > 0) || !(gh > 0)) continue;\n" +
-      "              var b = { x1: gx, y1: gy, x2: gx + gw, y2: gy + gh };\n" +
-      "              if (!bounds) bounds = b;\n" +
-      "              else {\n" +
-      "                bounds.x1 = Math.max(bounds.x1, b.x1);\n" +
-      "                bounds.y1 = Math.max(bounds.y1, b.y1);\n" +
-      "                bounds.x2 = Math.min(bounds.x2, b.x2);\n" +
-      "                bounds.y2 = Math.min(bounds.y2, b.y2);\n" +
-      "              }\n" +
-      "            }\n" +
-      "            if (bounds && bounds.x2 > bounds.x1 && bounds.y2 > bounds.y1) {\n" +
-      "              var pad = 12;\n" +
-      "              try {\n" +
-      "                var nodeEl0 = svgNodeById && svgNodeById[nodeDrag.id] ? svgNodeById[nodeDrag.id] : null;\n" +
-      "                if (nodeEl0 && nodeEl0.getAttribute) {\n" +
-      "                  var tag0 = String(nodeEl0.tagName || '').toLowerCase();\n" +
-      "                  if (tag0 === 'circle') {\n" +
-      "                    var rr = parseFloat(nodeEl0.getAttribute('r') || 'NaN');\n" +
-      "                    if (isFinite(rr) && rr > 0) pad = Math.max(pad, rr + 2);\n" +
-      "                  }\n" +
-      "                }\n" +
-      "              } catch (e1) {}\n" +
-      "              var clamp0 = function(v, a, b){ return Math.max(a, Math.min(b, v)); };\n" +
-      "              targetX = clamp0(targetX, bounds.x1 + pad, bounds.x2 - pad);\n" +
-      "              targetY = clamp0(targetY, bounds.y1 + pad, bounds.y2 - pad);\n" +
-      "            }\n" +
-      "          }\n" +
-      "        }\n" +
-      "      } catch (e) {}\n\n" +
-      "      var dx = targetX - p.x;\n      var dy = targetY - p.y;",
+    "try { scheduleEdgeGeometryUpdateForNode(nodeId); } catch (e0) {}\n    }\n\n    function translateGroupByDelta(groupId, dx, dy){",
+    "try { scheduleEdgeGeometryUpdateForNode(nodeId); } catch (e0) {}\n    }\n\n    var __kgGroupRectCacheById = Object.create(null);\n    var __kgGroupIdsByNodeId = null;\n\n    function __kgClampNum(v, a, b){\n      var x = Number(v);\n      if (!isFinite(x)) return a;\n      if (x < a) return a;\n      if (x > b) return b;\n      return x;\n    }\n\n    function __kgGetNodeHalfExtents(nodeId){\n      try {\n        if (!nodeId) return { hw: 12, hh: 12 };\n        var el = (svgNodeById && svgNodeById[nodeId]) ? svgNodeById[nodeId] : null;\n        if (!el && svgNodeElsById && svgNodeElsById[nodeId] && svgNodeElsById[nodeId].length) el = svgNodeElsById[nodeId][0];\n        if (!el) return { hw: 12, hh: 12 };\n\n        var tag = String(el.tagName || '').toLowerCase();\n        if (tag !== 'circle' && tag !== 'rect') {\n          try {\n            var c = el.querySelector ? el.querySelector('circle[r]') : null;\n            if (c) { el = c; tag = 'circle'; }\n          } catch (e0) {}\n          if (tag !== 'circle') {\n            try {\n              var r = el.querySelector ? el.querySelector('rect[width][height]') : null;\n              if (r) { el = r; tag = 'rect'; }\n            } catch (e1) {}\n          }\n        }\n\n        if (tag === 'circle' && el.getAttribute) {\n          var rr = parseFloat(el.getAttribute('r') || 'NaN');\n          if (isFinite(rr) && rr > 0) return { hw: Math.max(1, rr), hh: Math.max(1, rr) };\n          return { hw: 12, hh: 12 };\n        }\n        if (tag === 'rect' && el.getAttribute) {\n          var w = parseFloat(el.getAttribute('width') || 'NaN');\n          var h = parseFloat(el.getAttribute('height') || 'NaN');\n          if (isFinite(w) && isFinite(h) && w > 0 && h > 0) return { hw: Math.max(1, w / 2), hh: Math.max(1, h / 2) };\n          return { hw: 12, hh: 12 };\n        }\n      } catch (e) {}\n      return { hw: 12, hh: 12 };\n    }\n\n    function __kgEnsureGroupIdsByNodeId(){\n      if (__kgGroupIdsByNodeId) return __kgGroupIdsByNodeId;\n      var out = Object.create(null);\n      try {\n        if (!groupMembersById) { __kgGroupIdsByNodeId = out; return out; }\n        for (var gid in groupMembersById) {\n          if (!Object.prototype.hasOwnProperty.call(groupMembersById, gid)) continue;\n          var members = groupMembersById[gid];\n          if (!members || !members.length) continue;\n          for (var i = 0; i < members.length; i += 1) {\n            var nid = String(members[i] || '').trim();\n            if (!nid) continue;\n            var arr = out[nid] || (out[nid] = []);\n            arr.push(gid);\n          }\n        }\n      } catch (e) {}\n      __kgGroupIdsByNodeId = out;\n      return out;\n    }\n\n    function __kgComputeGroupMemberBounds(gid){\n      try {\n        var members = groupMembersById && groupMembersById[gid] ? groupMembersById[gid] : null;\n        if (!members || !members.length) return null;\n        var minX = Infinity;\n        var minY = Infinity;\n        var maxX = -Infinity;\n        var maxY = -Infinity;\n        var saw = false;\n        for (var i = 0; i < members.length; i += 1) {\n          var nid = String(members[i] || '').trim();\n          if (!nid) continue;\n          var p = nodePosById && nodePosById[nid] ? nodePosById[nid] : null;\n          if (!p) continue;\n          var x = Number(p.x);\n          var y = Number(p.y);\n          if (!isFinite(x) || !isFinite(y)) continue;\n          var ext = __kgGetNodeHalfExtents(nid);\n          var hw = (ext && isFinite(ext.hw)) ? Math.max(1, Number(ext.hw)) : 12;\n          var hh = (ext && isFinite(ext.hh)) ? Math.max(1, Number(ext.hh)) : 12;\n          if (x - hw < minX) minX = x - hw;\n          if (y - hh < minY) minY = y - hh;\n          if (x + hw > maxX) maxX = x + hw;\n          if (y + hh > maxY) maxY = y + hh;\n          saw = true;\n        }\n        if (!saw || !(maxX > minX) || !(maxY > minY)) return null;\n        return { minX: minX, minY: minY, maxX: maxX, maxY: maxY };\n      } catch (e) {\n        return null;\n      }\n    }\n\n    function __kgInitGroupRectCache(gid, rectEl){\n      try {\n        var rX = parseFloat(rectEl.getAttribute('x') || 'NaN');\n        var rY = parseFloat(rectEl.getAttribute('y') || 'NaN');\n        var rW = parseFloat(rectEl.getAttribute('width') || 'NaN');\n        var rH = parseFloat(rectEl.getAttribute('height') || 'NaN');\n        if (!isFinite(rX) || !isFinite(rY) || !isFinite(rW) || !isFinite(rH) || !(rW > 0) || !(rH > 0)) return null;\n        var b = __kgComputeGroupMemberBounds(gid);\n        var padL = 24;\n        var padR = 24;\n        var padT = 24;\n        var padB = 24;\n        if (b) {\n          padL = __kgClampNum(b.minX - rX, 0, 800);\n          padR = __kgClampNum((rX + rW) - b.maxX, 0, 800);\n          padT = __kgClampNum(b.minY - rY, 0, 800);\n          padB = __kgClampNum((rY + rH) - b.maxY, 0, 800);\n          if (!(padL > 0)) padL = 24;\n          if (!(padR > 0)) padR = 24;\n          if (!(padT > 0)) padT = 24;\n          if (!(padB > 0)) padB = 24;\n        }\n\n        var labelDx = null;\n        var labelDy = null;\n        var labelEl = null;\n        var chevronEl = null;\n        try {\n          var gels = svgGroupElsById && svgGroupElsById[gid] ? svgGroupElsById[gid] : null;\n          if (gels && gels.length) {\n            for (var i = 0; i < gels.length; i += 1) {\n              var el = gels[i];\n              if (!el || !el.getAttribute) continue;\n              var tag = String(el.tagName || '').toLowerCase();\n              if (!labelEl && tag === 'text' && String(el.getAttribute('data-kg-group-label') || '') === '1') labelEl = el;\n              if (!chevronEl && tag === 'path' && String(el.getAttribute('data-kg-group-chevron') || '') === '1') chevronEl = el;\n              if (labelEl && chevronEl) break;\n            }\n          }\n        } catch (e0) {}\n\n        if (labelEl && labelEl.getAttribute) {\n          var lx = parseFloat(labelEl.getAttribute('x') || 'NaN');\n          var ly = parseFloat(labelEl.getAttribute('y') || 'NaN');\n          if (isFinite(lx) && isFinite(ly)) {\n            labelDx = lx - rX;\n            labelDy = ly - rY;\n          }\n        }\n\n        var handleEl = null;\n        try {\n          var pg = rectEl.parentNode && rectEl.parentNode.querySelector ? rectEl.parentNode : null;\n          if (pg) handleEl = pg.querySelector('circle[data-kg-group-resize]');\n        } catch (e1) {\n          handleEl = null;\n        }\n\n        return {\n          padL: padL,\n          padR: padR,\n          padT: padT,\n          padB: padB,\n          labelDx: labelDx,\n          labelDy: labelDy,\n          labelEl: labelEl,\n          chevronEl: chevronEl,\n          handleEl: handleEl,\n          lastX: rX,\n          lastY: rY,\n        };\n      } catch (e) {\n        return null;\n      }\n    }\n\n    function __kgUpdateGroupRectForGroupId(gid){\n      try {\n        if (!gid) return;\n        var gels = svgGroupElsById && svgGroupElsById[gid] ? svgGroupElsById[gid] : null;\n        if (!gels || !gels.length) return;\n\n        var groupRoot = null;\n        for (var i = 0; i < gels.length; i += 1) {\n          var el = gels[i];\n          if (!el || !el.querySelector) continue;\n          var rect0 = null;\n          try { rect0 = el.querySelector('rect[data-kg-shape=\"group-rect\"]'); } catch (e0) { rect0 = null; }\n          if (rect0) { groupRoot = el; break; }\n        }\n        if (!groupRoot) return;\n\n        var rectEl = null;\n        try { rectEl = groupRoot.querySelector('rect[data-kg-shape=\"group-rect\"]'); } catch (e1) { rectEl = null; }\n        if (!rectEl || !rectEl.getAttribute || !rectEl.setAttribute) return;\n\n        var cache = __kgGroupRectCacheById[gid] || null;\n        if (!cache) {\n          cache = __kgInitGroupRectCache(gid, rectEl);\n          if (!cache) return;\n          __kgGroupRectCacheById[gid] = cache;\n        }\n\n        var b = __kgComputeGroupMemberBounds(gid);\n        if (!b) return;\n\n        var nx = b.minX - cache.padL;\n        var ny = b.minY - cache.padT;\n        var nw = (b.maxX - b.minX) + cache.padL + cache.padR;\n        var nh = (b.maxY - b.minY) + cache.padT + cache.padB;\n\n        if (!isFinite(nx) || !isFinite(ny) || !isFinite(nw) || !isFinite(nh) || !(nw > 0) || !(nh > 0)) return;\n\n        var prevX = cache.lastX;\n        var prevY = cache.lastY;\n        var dx = isFinite(prevX) ? (nx - prevX) : 0;\n        var dy = isFinite(prevY) ? (ny - prevY) : 0;\n\n        rectEl.setAttribute('x', String(nx));\n        rectEl.setAttribute('y', String(ny));\n        rectEl.setAttribute('width', String(nw));\n        rectEl.setAttribute('height', String(nh));\n\n        if (cache.handleEl && cache.handleEl.setAttribute) {\n          try { cache.handleEl.setAttribute('cx', String(nx + nw)); } catch (e2) {}\n          try { cache.handleEl.setAttribute('cy', String(ny + nh)); } catch (e3) {}\n        }\n\n        if (cache.labelEl && cache.labelEl.setAttribute && cache.labelDx != null && cache.labelDy != null) {\n          try { cache.labelEl.setAttribute('x', String(nx + cache.labelDx)); } catch (e4) {}\n          try { cache.labelEl.setAttribute('y', String(ny + cache.labelDy)); } catch (e5) {}\n        }\n\n        if (cache.chevronEl && (dx !== 0 || dy !== 0)) {\n          try { addDeltaToElement(cache.chevronEl, dx, dy); } catch (e6) {}\n        }\n\n        cache.lastX = nx;\n        cache.lastY = ny;\n      } catch (e) {\n        void 0;\n      }\n    }\n\n    function __kgUpdateGroupRectsForNodeId(nodeId){\n      try {\n        var idx = __kgEnsureGroupIdsByNodeId();\n        var gids = idx && nodeId && idx[nodeId] ? idx[nodeId] : null;\n        if (!gids || !gids.length) return;\n        for (var i = 0; i < gids.length; i += 1) {\n          var gid = String(gids[i] || '').trim();\n          if (!gid) continue;\n          __kgUpdateGroupRectForGroupId(gid);\n        }\n      } catch (e) {\n        void 0;\n      }\n    }\n\n    function translateGroupByDelta(groupId, dx, dy){",
+  )
+
+  out = replaceOnceExact(
+    out,
+    "p.x = targetX;\n      p.y = targetY;\n      translateNodeByDelta(nodeDrag.id, dx, dy);",
+    "translateNodeByDelta(nodeDrag.id, dx, dy);\n      try { __kgUpdateGroupRectsForNodeId(nodeDrag.id); } catch (err0) {}",
   )
 
   out = replaceOnceExact(

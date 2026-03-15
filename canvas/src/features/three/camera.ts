@@ -68,12 +68,26 @@ export function applyZoomStep(controls: OrbitControls, camera: THREE.Perspective
   camera.updateProjectionMatrix()
 }
 
-function collectFitIds(graph: GraphData, selectedNodeId: string | null, selectedEdgeId: string | null, requestType: CameraRequestType) {
-  if (requestType === 'selection') {
+function collectFitIds(args: {
+  graph: GraphData
+  requestType: CameraRequestType
+  selectedNodeId: string | null
+  selectedEdgeId: string | null
+  selectedGroupId?: string | null
+  selectedNodeIds?: string[]
+  selectedEdgeIds?: string[]
+  selectedGroupIds?: string[]
+}) {
+  const graph = args.graph
+  if (args.requestType === 'selection') {
     const selectionIds = computeZoomTargetNodeIds({
       graphData: graph,
-      selectedNodeId,
-      selectedEdgeId,
+      selectedNodeId: args.selectedNodeId,
+      selectedEdgeId: args.selectedEdgeId,
+      selectedGroupId: args.selectedGroupId,
+      selectedNodeIds: args.selectedNodeIds,
+      selectedEdgeIds: args.selectedEdgeIds,
+      selectedGroupIds: args.selectedGroupIds,
     })
     if (selectionIds.size > 0) {
       return selectionIds
@@ -115,9 +129,13 @@ export function fitCameraToGraph(options: {
   requestType: CameraRequestType
   selectedNodeId: string | null
   selectedEdgeId: string | null
+  selectedGroupId?: string | null
+  selectedNodeIds?: string[]
+  selectedEdgeIds?: string[]
+  selectedGroupIds?: string[]
 }) {
-  const { graph, controls, camera, requestType, selectedNodeId, selectedEdgeId } = options
-  const ids = collectFitIds(graph, selectedNodeId, selectedEdgeId, requestType)
+  const { graph, controls, camera, requestType, selectedNodeId, selectedEdgeId, selectedGroupId, selectedNodeIds, selectedEdgeIds, selectedGroupIds } = options
+  const ids = collectFitIds({ graph, requestType, selectedNodeId, selectedEdgeId, selectedGroupId, selectedNodeIds, selectedEdgeIds, selectedGroupIds })
   return fitCameraToPoints({ controls, camera, requestType, points: toPointsFromGraph(graph.nodes, ids) })
 }
 
@@ -129,9 +147,13 @@ export function fitCameraToPositions(options: {
   requestType: CameraRequestType
   selectedNodeId: string | null
   selectedEdgeId: string | null
+  selectedGroupId?: string | null
+  selectedNodeIds?: string[]
+  selectedEdgeIds?: string[]
+  selectedGroupIds?: string[]
 }) {
-  const { graph, positions, controls, camera, requestType, selectedNodeId, selectedEdgeId } = options
-  const ids = collectFitIds(graph, selectedNodeId, selectedEdgeId, requestType)
+  const { graph, positions, controls, camera, requestType, selectedNodeId, selectedEdgeId, selectedGroupId, selectedNodeIds, selectedEdgeIds, selectedGroupIds } = options
+  const ids = collectFitIds({ graph, requestType, selectedNodeId, selectedEdgeId, selectedGroupId, selectedNodeIds, selectedEdgeIds, selectedGroupIds })
   return fitCameraToPoints({ controls, camera, requestType, points: toPointsFromPositions(positions, ids) })
 }
 

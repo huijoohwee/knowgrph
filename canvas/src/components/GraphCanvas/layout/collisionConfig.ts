@@ -162,33 +162,18 @@ export function readCollisionConfig(schema: GraphSchema): CollisionConfig {
     borderGapMinPx: groupBboxBorderGapPx,
   })
   const groupBboxExtraGapZPx = clampNonNegative(forces.groupBboxCollideExtraGapZPx, groupBboxExtraGapPx)
-  const groupBboxTouchEpsilonPx = clampNonNegative(
-    forces.groupBboxCollideTouchEpsilonPx,
-    DEFAULT_GROUP_COLLISION_TOUCH_EPSILON_PX,
+  const groupBboxTouchEpsilonPx = Math.max(
+    1,
+    clampNonNegative(forces.groupBboxCollideTouchEpsilonPx, DEFAULT_GROUP_COLLISION_TOUCH_EPSILON_PX),
   )
-  const groupBboxTouchEpsilonXPx = clampNonNegative(forces.groupBboxCollideTouchEpsilonXPx, groupBboxTouchEpsilonPx)
-  const groupBboxTouchEpsilonYPx = clampNonNegative(forces.groupBboxCollideTouchEpsilonYPx, groupBboxTouchEpsilonPx)
-  const groupBboxTouchEpsilonZPx = clampNonNegative(
-    forces.groupBboxCollideTouchEpsilonZPx,
-    groupBboxTouchEpsilonPx,
-  )
+  const groupBboxTouchEpsilonXPx = Math.max(1, clampNonNegative(forces.groupBboxCollideTouchEpsilonXPx, groupBboxTouchEpsilonPx))
+  const groupBboxTouchEpsilonYPx = Math.max(1, clampNonNegative(forces.groupBboxCollideTouchEpsilonYPx, groupBboxTouchEpsilonPx))
+  const groupBboxTouchEpsilonZPx = Math.max(1, clampNonNegative(forces.groupBboxCollideTouchEpsilonZPx, groupBboxTouchEpsilonPx))
 
-  const groupBboxNestedTouchEpsilonPx = clampNonNegative(
-    forces.groupBboxCollideNestedTouchEpsilonPx,
-    groupBboxTouchEpsilonPx,
-  )
-  const groupBboxNestedTouchEpsilonXPx = clampNonNegative(
-    forces.groupBboxCollideNestedTouchEpsilonXPx,
-    groupBboxNestedTouchEpsilonPx,
-  )
-  const groupBboxNestedTouchEpsilonYPx = clampNonNegative(
-    forces.groupBboxCollideNestedTouchEpsilonYPx,
-    groupBboxNestedTouchEpsilonPx,
-  )
-  const groupBboxNestedTouchEpsilonZPx = clampNonNegative(
-    forces.groupBboxCollideNestedTouchEpsilonZPx,
-    groupBboxNestedTouchEpsilonPx,
-  )
+  const groupBboxNestedTouchEpsilonPx = Math.max(1, clampNonNegative(forces.groupBboxCollideNestedTouchEpsilonPx, groupBboxTouchEpsilonPx))
+  const groupBboxNestedTouchEpsilonXPx = Math.max(1, clampNonNegative(forces.groupBboxCollideNestedTouchEpsilonXPx, groupBboxNestedTouchEpsilonPx))
+  const groupBboxNestedTouchEpsilonYPx = Math.max(1, clampNonNegative(forces.groupBboxCollideNestedTouchEpsilonYPx, groupBboxNestedTouchEpsilonPx))
+  const groupBboxNestedTouchEpsilonZPx = Math.max(1, clampNonNegative(forces.groupBboxCollideNestedTouchEpsilonZPx, groupBboxNestedTouchEpsilonPx))
   const groupBboxStrengthRaw = clampNonNegative(forces.groupBboxCollideStrength, DEFAULT_GROUP_BBOX_COLLIDE_STRENGTH)
   const groupBboxStrength = groupBboxEnabled ? Math.max(0.05, groupBboxStrengthRaw) : 0
   const groupBboxIterations = clampPositiveInt(forces.groupBboxCollideIterations, DEFAULT_GROUP_BBOX_COLLIDE_ITERATIONS)

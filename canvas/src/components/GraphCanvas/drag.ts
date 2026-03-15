@@ -5,11 +5,12 @@ import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig';
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
 
 export const nodeDragBehavior = (
   simulation: d3.Simulation<GraphNode, GraphEdge>,
   schema: GraphSchema,
-  opts?: { onNodeDragEnd?: (node: GraphNode) => void },
+  opts?: { onNodeDragEnd?: (node: GraphNode) => void; clampNodePosition?: (args: { node: GraphNode; x: number; y: number }) => { x: number; y: number } },
 ) =>
   (() => {
     let locked = false
@@ -39,8 +40,7 @@ export const nodeDragBehavior = (
       if (isSpacePanHeld()) return
       const mode = readLayoutMode(schema)
       const structured = mode === 'radial'
-      const gridEnabled = !!schema.behavior.snapGrid?.enabled;
-      const gridSize = Math.max(1, schema.behavior.snapGrid?.size ?? 10);
+      const grid = readSnapGridConfigFromSchema(schema)
       const src = event && typeof event === 'object' && 'sourceEvent' in event ? (event as { sourceEvent?: unknown }).sourceEvent : null
       const altDown = !!(src && typeof src === 'object' && 'altKey' in (src as Record<string, unknown>) && (src as { altKey?: unknown }).altKey)
       
@@ -48,9 +48,20 @@ export const nodeDragBehavior = (
       let nx = event.x;
       let ny = event.y;
       
-      if (gridEnabled && !altDown) {
-        nx = Math.round(nx / gridSize) * gridSize;
-        ny = Math.round(ny / gridSize) * gridSize;
+      if (grid.enabled && !altDown) {
+        const snapped = snapPointToGrid({ x: nx, y: ny }, grid.size)
+        nx = snapped.x
+        ny = snapped.y
+      }
+
+      if (opts?.clampNodePosition) {
+        try {
+          const clamped = opts.clampNodePosition({ node: d, x: nx, y: ny })
+          nx = clamped.x
+          ny = clamped.y
+        } catch {
+          void 0
+        }
       }
       
       const constraint = schema.behavior.dragConstraint || 'free';

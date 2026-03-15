@@ -308,6 +308,7 @@ export function ShaderLineEdges({
   draggedNodeId,
   dragOverridesRef,
   lineWidthPx,
+  renderOrder,
   onSelectEdge,
   onHoverEdge,
 }: {
@@ -327,6 +328,7 @@ export function ShaderLineEdges({
   draggedNodeId?: string | null
   dragOverridesRef?: React.MutableRefObject<Record<string, Vec3>>
   lineWidthPx: number
+  renderOrder?: number
   onSelectEdge: (id: string) => void
   onHoverEdge?: (info: { id: string; clientX: number; clientY: number } | null) => void
 }) {
@@ -498,6 +500,9 @@ export function ShaderLineEdges({
 
   const obj = lineRef.current
   if (!obj) return null
+  if (typeof renderOrder === 'number' && Number.isFinite(renderOrder)) {
+    obj.renderOrder = renderOrder
+  }
   return (
     <primitive
       object={obj}

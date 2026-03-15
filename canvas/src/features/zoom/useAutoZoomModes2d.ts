@@ -1,9 +1,9 @@
 import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { shouldAutoFitToScreen2d, shouldAutoZoomSelection2d } from '@/features/zoom/autoZoom2dPolicy'
 import type { GraphData } from '@/lib/graph/types'
+import { buildAutoFitToScreenSignature, buildAutoZoomSelectionSignature } from '@/lib/zoom/autoModeSignatures'
 
 export function useAutoZoomModes2d(args: {
   viewportW: number
@@ -62,15 +62,15 @@ export function useAutoZoomModes2d(args: {
           height: Math.max(1, Math.floor(dimsRef.current.viewportH)),
         }
         const schema = state.schema as GraphSchema | null
-        const [minScale, maxScale] = schema ? readZoomScaleExtent(schema) : [0.1, 4]
-        const fitSig = schema
-          ? `${String(schema.layout?.fitPadding ?? '')}|${String(schema.layout?.fitDetectClusters ?? '')}|${String(
-              schema.layout?.fitTargetAspectRatio ?? '',
-            )}|${String(schema.layout?.fitEnforceAspectRatio ?? '')}|${minScale}|${maxScale}|${String(state.mediaPanelDensity ?? '')}|${String(
-              state.renderMediaAsNodes ? 1 : 0,
-            )}`
-          : `${minScale}|${maxScale}|${String(state.mediaPanelDensity ?? '')}|${String(state.renderMediaAsNodes ? 1 : 0)}`
-        const sig = `${nodes.length}|${panelDims.width}x${panelDims.height}|${graphDataRevision}|${fitSig}`
+        const sig = buildAutoFitToScreenSignature({
+          nodeCount: nodes.length,
+          viewportW: panelDims.width,
+          viewportH: panelDims.height,
+          graphDataRevision,
+          schema,
+          mediaPanelDensity: state.mediaPanelDensity,
+          renderMediaAsNodes: state.renderMediaAsNodes === true,
+        })
         if (lastFitSigRef.current === sig) return
         lastFitSigRef.current = sig
         state.requestZoom('fit', { intent: 'fitToScreen' })
@@ -129,26 +129,16 @@ export function useAutoZoomModes2d(args: {
         if (!zoomOnSelection) return
         const override = graphOverrideRef.current ? graphOverrideRef.current() : null
         const graphDataRevision = override?.graphDataRevision ?? state.graphDataRevision
-        const nodeIds =
-          Array.isArray(state.selectedNodeIds) && state.selectedNodeIds.length > 0
-            ? state.selectedNodeIds
-            : state.selectedNodeId
-              ? [state.selectedNodeId]
-              : []
-        const edgeIds =
-          Array.isArray(state.selectedEdgeIds) && state.selectedEdgeIds.length > 0
-            ? state.selectedEdgeIds
-            : state.selectedEdgeId
-              ? [state.selectedEdgeId]
-              : []
-        const groupIds =
-          Array.isArray(state.selectedGroupIds) && state.selectedGroupIds.length > 0
-            ? state.selectedGroupIds
-            : state.selectedGroupId
-              ? [state.selectedGroupId]
-              : []
-        if (nodeIds.length === 0 && edgeIds.length === 0 && groupIds.length === 0) return
-        const key = `${nodeIds.join(',')}|${edgeIds.join(',')}|${groupIds.join(',')}|${graphDataRevision}`
+        const key = buildAutoZoomSelectionSignature({
+          graphDataRevision,
+          selectedNodeId: state.selectedNodeId,
+          selectedEdgeId: state.selectedEdgeId,
+          selectedGroupId: state.selectedGroupId,
+          selectedNodeIds: state.selectedNodeIds,
+          selectedEdgeIds: state.selectedEdgeIds,
+          selectedGroupIds: state.selectedGroupIds,
+        })
+        if (!key) return
         if (lastAutoZoomSelRef.current === key) return
         lastAutoZoomSelRef.current = key
         state.requestZoom('selection')

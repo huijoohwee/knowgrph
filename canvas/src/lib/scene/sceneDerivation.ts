@@ -6,6 +6,8 @@ import { createLayoutGroupKeyOfNode, selectLayoutGroups } from '@/components/Gra
 import { getDisplayEdges, getDisplayNodes } from '@/components/GraphCanvas/displayFilter'
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
+import { applySchemaGroupBoundsOverrides, readSchemaGroupBoundsOverrides } from '@/lib/canvas/groupBoundsOverrides'
+import { SCHEMA_META_KEY_GROUP_BOUNDS_OVERRIDES } from '@/lib/config.render'
 
 export type SceneGroupsDerivation = {
   key: string
@@ -26,6 +28,8 @@ export type SceneDisplayGraphDerivation = {
 }
 
 const cache = new LRUCache<string, SceneGroupsDerivation>(128)
+
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 
 type DisplayNodesDerivation = {
   displayNodes: GraphNode[]
@@ -55,6 +59,17 @@ const buildKey = (args: {
   const revKey = `rev:${String(args.graphDataRevision || 0)}`
   const layerKey = layerHash ? `h:${layerHash}` : ''
   const schemaGroupsKey = JSON.stringify(args.schema?.layout?.groups || null)
+  const boundsOverridesKey = (() => {
+    const metaRaw = (args.schema as unknown as { metadata?: unknown })?.metadata
+    if (!isRecord(metaRaw)) return ''
+    const raw = (metaRaw as Record<string, unknown>)[SCHEMA_META_KEY_GROUP_BOUNDS_OVERRIDES]
+    if (!raw) return ''
+    try {
+      return JSON.stringify(raw)
+    } catch {
+      return ''
+    }
+  })()
   return [
     revKey,
     layerKey,
@@ -64,6 +79,7 @@ const buildKey = (args: {
     `sem:${String(args.documentSemanticMode || '')}`,
     `fm:${args.frontmatterModeEnabled ? 1 : 0}`,
     `groups:${schemaGroupsKey}`,
+    boundsOverridesKey ? `groupBounds:${boundsOverridesKey}` : '',
   ].filter(Boolean).join('|')
 }
 
@@ -86,8 +102,11 @@ export const deriveSceneGroups = (args: {
   const cached = cache.get(key)
   if (cached) return cached
 
-  const allGroups = deriveGraphGroups(g, { forceDocumentStructure: args.documentSemanticMode === 'document' })
-  const layoutGroups = selectLayoutGroups({ graphData: g, schema: args.schema, groups: allGroups })
+  const boundsById = readSchemaGroupBoundsOverrides(args.schema)
+  const allGroupsBase = deriveGraphGroups(g, { forceDocumentStructure: args.documentSemanticMode === 'document' })
+  const allGroups = applySchemaGroupBoundsOverrides(allGroupsBase, boundsById)
+  const layoutGroupsBase = selectLayoutGroups({ graphData: g, schema: args.schema, groups: allGroups })
+  const layoutGroups = applySchemaGroupBoundsOverrides(layoutGroupsBase, boundsById)
   const keyOfNode = createLayoutGroupKeyOfNode({ graphData: g, schema: args.schema, groups: allGroups })
 
   const nodes = Array.isArray(g.nodes) ? (g.nodes as GraphNode[]) : ([] as GraphNode[])

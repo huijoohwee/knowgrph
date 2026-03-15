@@ -7,6 +7,7 @@ import { calcMouseGraphPosition, isNodePointerTarget } from '@/features/canvas/u
 import { getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
 import type { EdgeWithRuntime } from '@/components/GraphCanvas/utils'
 import { getEdgeEndpointFromPorts, getPortHandlePosition, getPortHandlesConfig, type PortHandleDatum } from '@/components/GraphCanvas/portHandles'
+import { getFlowPortHandlePosition2d, type FlowPortHandleDatum2d } from '@/components/GraphCanvas/flowPortHandles2d'
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { buildNodeShapePathD } from '@/components/GraphCanvas/shapePaths2d'
 import { buildChevronPathD } from '@/components/GraphCanvas/layers/svgChevron'
@@ -27,7 +28,9 @@ export const attachSimulationTick = (args: {
   nodeSelRef: MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>
   groupChevronSelRef: MutableRefObject<d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown> | null>
   mediaSelRef: MutableRefObject<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>
-  portHandlesSelRef: MutableRefObject<d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null>
+  portHandlesSelRef: MutableRefObject<
+    d3.Selection<SVGCircleElement, PortHandleDatum | FlowPortHandleDatum2d, SVGGElement, unknown> | null
+  >
   linkHitSelRef: MutableRefObject<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>
   linkSelRef: MutableRefObject<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>
   edgeLabelSel?: d3.Selection<SVGTextElement, GraphEdge, SVGGElement, unknown> | null
@@ -495,12 +498,16 @@ export const attachSimulationTick = (args: {
         .attr('cx', d => {
           const n = nodeById.get(d.nodeId)
           if (!n) return 0
-          return getPortHandlePosition({ datum: d, node: n, schema, cfg: portHandlesCfg }).x
+          const anyD = d as any
+          if (anyD && typeof anyD.dir === 'string') return getFlowPortHandlePosition2d({ datum: anyD, node: n, schema }).x
+          return getPortHandlePosition({ datum: d as any, node: n, schema, cfg: portHandlesCfg }).x
         })
         .attr('cy', d => {
           const n = nodeById.get(d.nodeId)
           if (!n) return 0
-          return getPortHandlePosition({ datum: d, node: n, schema, cfg: portHandlesCfg }).y
+          const anyD = d as any
+          if (anyD && typeof anyD.dir === 'string') return getFlowPortHandlePosition2d({ datum: anyD, node: n, schema }).y
+          return getPortHandlePosition({ datum: d as any, node: n, schema, cfg: portHandlesCfg }).y
         })
     }
 

@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { LS_KEYS, UI_LAYOUT } from '@/lib/config';
 import { lsBool, lsNum, lsSetBool, lsSetNum } from '@/lib/persistence';
 import { usePinnedLs } from '@/lib/ui/panelPinned';
+import { clampOverlayCenterToViewport } from '@/lib/ui/overlayClamp';
 
 export type MainPanelTabKey =
   | 'workflow'
@@ -75,29 +76,17 @@ export function useMainPanelDrag() {
     const toolbarBottomPx = toolbar instanceof HTMLElement ? toolbar.getBoundingClientRect().bottom : toolbarOffsetPx;
 
     const rect = mainPanelCardRef.current?.getBoundingClientRect();
-    const defaultHalfWidthPx = Math.round(window.innerWidth * 0.4);
-    const defaultHalfHeightPx = Math.round(window.innerHeight * 0.4);
-    const halfWidthPx = rect ? Math.round(rect.width / 2) : defaultHalfWidthPx;
-    const halfHeightPx = rect
-      ? Math.round(rect.height / 2)
-      : mainPanelCollapsed
-        ? 120
-        : defaultHalfHeightPx;
-
-    const visible = 32;
-
-    const minTop = toolbarBottomPx + toolbarOffsetPx + visible - halfHeightPx;
-    const maxTop = window.innerHeight - visible + halfHeightPx;
-    const minLeft = visible - halfWidthPx;
-    const maxLeft = window.innerWidth - visible + halfWidthPx;
-
-    const clampedTop = Math.min(Math.max(pos.top, minTop), maxTop);
-    const clampedLeft = Math.min(Math.max(pos.left, minLeft), maxLeft);
-
-    return {
-      top: clampedTop,
-      left: clampedLeft,
-    };
+    const fallbackW = Math.min(Math.round(window.innerWidth * 0.8), 960);
+    const fallbackH = mainPanelCollapsed ? 240 : Math.min(Math.round(window.innerHeight * 0.8), 800);
+    const width = rect ? Math.max(1, Math.round(rect.width)) : fallbackW;
+    const height = rect ? Math.max(1, Math.round(rect.height)) : fallbackH;
+    return clampOverlayCenterToViewport({
+      pos,
+      size: { width, height },
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      visiblePx: 32,
+      inset: { top: toolbarBottomPx + toolbarOffsetPx },
+    });
   }, [mainPanelCollapsed]);
 
   const setMainPanelDragPosSynced = useCallback((pos: { top: number; left: number }) => {

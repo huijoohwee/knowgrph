@@ -237,7 +237,18 @@ export const validateSchema = (s: Partial<GraphSchema>): GraphSchema => {
     },
     accessibility: { ...(base.accessibility || {}), ...(s.accessibility || {}) },
     legend: { ...(base.legend || {}), ...(s.legend || {}) },
-    behavior: { ...(base.behavior || {}), ...(s.behavior || {}) } as import('@/lib/graph/schema').GraphBehavior,
+    behavior: {
+      ...(base.behavior || {}),
+      ...(s.behavior || {}),
+      snapGrid: {
+        ...((base.behavior as any)?.snapGrid || {}),
+        ...((s.behavior as any)?.snapGrid || {}),
+      },
+      canvasGrid: {
+        ...((base.behavior as any)?.canvasGrid || {}),
+        ...((s.behavior as any)?.canvasGrid || {}),
+      },
+    } as import('@/lib/graph/schema').GraphBehavior,
     serialization: {
       ...(base.serialization || {}),
       ...(s.serialization || {}),

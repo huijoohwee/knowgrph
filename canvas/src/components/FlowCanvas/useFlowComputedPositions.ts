@@ -9,6 +9,9 @@ import { pickSeedFromOtherRendererCache } from '@/components/FlowCanvas/seed'
 import { extractNodePositions, hasCacheCoverage, looksUnstablePositions } from '@/components/FlowCanvas/seedPositions'
 import { relaxFlowPositionsWithCollision } from '@/components/FlowCanvas/relaxPositions'
 import { packDisjointPositions2d } from '@/components/GraphCanvas/layout/collectivePackPositions'
+import { readCollisionConfig, readGroupLabelTopExtra } from '@/components/GraphCanvas/layout/collisionConfig'
+import { computeBorderGapPx } from '@/lib/graph/collision/borderGap'
+import { readGroupStrokeWidthPx } from '@/lib/graph/collision/strokeWidth'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
@@ -253,7 +256,7 @@ export function useFlowComputedPositions(args: {
       const computedUnstable =
         computedCoverageOk &&
         looksUnstablePositions({ nodes: nodeList, positions: computed, nodeSize: { widthPx: nodeW, heightPx: nodeH } })
-      const estimateOverlapPressure = (positions: Record<string, { x: number; y: number }> | null): number => {
+      const estimateNodeOverlapPressure = (positions: Record<string, { x: number; y: number }> | null): number => {
         if (!positions) return 0
         if (nodeList.length < 3) return 0
         const cell = Math.max(8, Math.floor(Math.max(nodeW, nodeH) * 0.75))
@@ -280,7 +283,125 @@ export function useFlowComputedPositions(args: {
         }
         return collisions / used
       }
-      const overlapPressure = estimateOverlapPressure(computed)
+
+      const estimateGroupOverlapPressure = (positions: Record<string, { x: number; y: number }> | null): number => {
+        if (!positions) return 0
+        if (!schema) return 0
+        if (!sceneGroups || sceneGroups.length < 2) return 0
+
+        const groupPadRaw = schema.layout?.groups?.padding
+        const groupPad = typeof groupPadRaw === 'number' && Number.isFinite(groupPadRaw) ? Math.max(0, groupPadRaw) : 0
+        const labelTopExtra = readGroupLabelTopExtra(schema)
+        const borderGapMinPx = readCollisionConfig(schema).groupBbox.borderGapPx
+
+        const maxDepth = (() => {
+          let m = 0
+          for (let i = 0; i < sceneGroups.length; i += 1) {
+            const d = sceneGroups[i]
+            const depth = typeof d?.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
+            if (depth > m) m = depth
+          }
+          return m
+        })()
+
+        const nodeById = new Map<string, { w: number; h: number }>()
+        for (let i = 0; i < nodeList.length; i += 1) {
+          const n = nodeList[i]
+          const id = String(n?.id || '').trim()
+          if (!id) continue
+          const props = (n?.properties || {}) as Record<string, unknown>
+          const wRaw = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? (props['visual:width'] as number) : null
+          const hRaw = typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? (props['visual:height'] as number) : null
+          const w = wRaw != null && wRaw > 0 ? Math.max(24, Math.min(2400, Math.floor(wRaw))) : nodeW
+          const h = hRaw != null && hRaw > 0 ? Math.max(16, Math.min(1800, Math.floor(hRaw))) : nodeH
+          nodeById.set(id, { w, h })
+        }
+
+        type GroupAabb = { minX: number; minY: number; maxX: number; maxY: number; w: number; h: number }
+        const aabbs: GroupAabb[] = []
+
+        for (let gi = 0; gi < sceneGroups.length; gi += 1) {
+          const g = sceneGroups[gi]
+          const memberNodeIds = Array.isArray(g?.memberNodeIds) ? g.memberNodeIds : []
+          if (memberNodeIds.length === 0) continue
+
+          const depth = typeof g?.depth === 'number' && Number.isFinite(g.depth) ? Math.max(0, Math.floor(g.depth)) : 0
+          const strokeWidthPx = readGroupStrokeWidthPx(schema, depth, maxDepth)
+          const borderGapPx = computeBorderGapPx(strokeWidthPx, borderGapMinPx)
+          const pad = Math.max(0, groupPad + borderGapPx)
+
+          let minX = Infinity
+          let minY = Infinity
+          let maxX = -Infinity
+          let maxY = -Infinity
+          let used = 0
+
+          for (let mi = 0; mi < memberNodeIds.length; mi += 1) {
+            const nid = String(memberNodeIds[mi] || '').trim()
+            if (!nid) continue
+            const p = positions[nid]
+            if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) continue
+            const sz = nodeById.get(nid) || { w: nodeW, h: nodeH }
+            minX = Math.min(minX, p.x - pad)
+            minY = Math.min(minY, p.y - pad - labelTopExtra)
+            maxX = Math.max(maxX, p.x + sz.w + pad)
+            maxY = Math.max(maxY, p.y + sz.h + pad)
+            used += 1
+          }
+
+          if (used === 0 || !Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) continue
+          const w = Math.max(1, maxX - minX)
+          const h = Math.max(1, maxY - minY)
+          aabbs.push({ minX, minY, maxX, maxY, w, h })
+        }
+
+        if (aabbs.length < 2) return 0
+
+        let sumW = 0
+        let sumH = 0
+        for (let i = 0; i < aabbs.length; i += 1) {
+          sumW += aabbs[i]!.w
+          sumH += aabbs[i]!.h
+        }
+        const avgW = sumW / aabbs.length
+        const avgH = sumH / aabbs.length
+        const cell = Math.max(48, Math.floor(Math.max(32, Math.min(1200, Math.max(avgW, avgH) * 0.6))))
+
+        const buckets = new Map<string, number>()
+        const add = (gx: number, gy: number) => {
+          const key = `${gx}:${gy}`
+          buckets.set(key, (buckets.get(key) || 0) + 1)
+        }
+
+        for (let i = 0; i < aabbs.length; i += 1) {
+          const b = aabbs[i]!
+          const gx0 = Math.floor(b.minX / cell)
+          const gx1 = Math.floor(b.maxX / cell)
+          const gy0 = Math.floor(b.minY / cell)
+          const gy1 = Math.floor(b.maxY / cell)
+          const span = (gx1 - gx0 + 1) * (gy1 - gy0 + 1)
+          if (!Number.isFinite(span) || span <= 0) continue
+          if (span > 36) {
+            const cx = (b.minX + b.maxX) * 0.5
+            const cy = (b.minY + b.maxY) * 0.5
+            add(Math.floor(cx / cell), Math.floor(cy / cell))
+            continue
+          }
+          for (let gx = gx0; gx <= gx1; gx += 1) {
+            for (let gy = gy0; gy <= gy1; gy += 1) add(gx, gy)
+          }
+        }
+
+        let collisions = 0
+        for (const c of buckets.values()) {
+          if (c > 1) collisions += c - 1
+        }
+        return collisions / aabbs.length
+      }
+
+      const nodeOverlapPressure = estimateNodeOverlapPressure(computed)
+      const groupOverlapPressure = estimateGroupOverlapPressure(computed)
+      const overlapPressure = Math.max(nodeOverlapPressure, groupOverlapPressure)
       const shouldRelax =
         !isMermaidLayout &&
         ((computedUnstable && overlapPressure >= 0.01) || overlapPressure >= 0.02)
@@ -340,7 +461,7 @@ export function useFlowComputedPositions(args: {
         return false
       })()
 
-      const shouldPack = !isMermaidLayout && hasMultipleComponents && overlapPressure >= 0.02
+      const shouldPack = !isMermaidLayout && hasMultipleComponents && nodeOverlapPressure >= 0.02
 
       const packed =
         isMermaidLayout

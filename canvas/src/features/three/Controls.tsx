@@ -9,6 +9,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { selectionPerfEnd, selectionPerfStart } from '@/lib/selectionPerf'
 import type { Vec3 } from './layout'
 import { applyZoomStep, fitCameraToPositions, type CameraRequestType, getCameraConfig } from './camera'
+import { buildAutoFitToScreenSignature, buildAutoZoomSelectionSignature } from '@/lib/zoom/autoModeSignatures'
 
 export function Controls({
   schema,
@@ -21,7 +22,7 @@ export function Controls({
   paused?: boolean
   onControlsChange?: () => void
 }) {
-  const { camera, gl } = useThree()
+  const { camera, gl, size } = useThree()
   const perspectiveCamera = camera as THREE.PerspectiveCamera
   const controls = useMemo(() => {
     const c = new OrbitControls(camera, gl.domElement)
@@ -40,6 +41,10 @@ export function Controls({
   const threeCameraAutoClipFarFactor = useGraphStore(s => s.threeCameraAutoClipFarFactor)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
+  const selectedGroupId = useGraphStore(s => s.selectedGroupId)
+  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds)
+  const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds)
+  const selectedGroupIds = useGraphStore(s => s.selectedGroupIds)
   const zoomToSelectionMode = useGraphStore(s => s.zoomToSelectionMode)
   const expansionCfg = schema.behavior?.expansion || {}
   const zoomOnSelectionEnabled = expansionCfg.enabled !== false && expansionCfg.zoomOnSelection !== false
@@ -91,46 +96,69 @@ export function Controls({
       void 0
     }
   })
-  const lastFitDepsRef = React.useRef<{ nodesCount: number } | null>(null)
+  const lastFitSigRef = React.useRef<string | null>(null)
   React.useEffect(() => {
     if (paused || viewPinned) return
     if (!fitToScreenMode) {
-      lastFitDepsRef.current = null
+      lastFitSigRef.current = null
       return
     }
     const graph = data as GraphData | null
     if (!graph || !Array.isArray(graph.nodes) || graph.nodes.length === 0) return
-    const next = { nodesCount: graph.nodes.length }
-    const prev = lastFitDepsRef.current
-    if (prev && prev.nodesCount === next.nodesCount) {
-      return
-    }
-    lastFitDepsRef.current = next
+    const sig = buildAutoFitToScreenSignature({
+      nodeCount: graph.nodes.length,
+      viewportW: size.width,
+      viewportH: size.height,
+      graphDataRevision: useGraphStore.getState().graphDataRevision || 0,
+      schema: schema as GraphSchema,
+      mediaPanelDensity: useGraphStore.getState().mediaPanelDensity,
+      renderMediaAsNodes: useGraphStore.getState().renderMediaAsNodes === true,
+    })
+    if (lastFitSigRef.current === sig) return
+    lastFitSigRef.current = sig
     try {
       requestThreeCamera('fit')
     } catch {
       void 0
     }
-  }, [paused, viewPinned, fitToScreenMode, data, requestThreeCamera])
-  const lastSelectionRef = React.useRef<{ nodeId: string | null; edgeId: string | null } | null>(null)
+  }, [paused, viewPinned, fitToScreenMode, data, requestThreeCamera, schema, size.height, size.width])
+  const lastSelectionKeyRef = React.useRef<string | null>(null)
   React.useEffect(() => {
     if (paused || viewPinned) return
     if (!zoomToSelectionMode || !zoomOnSelectionEnabled) {
-      lastSelectionRef.current = { nodeId: selectedNodeId, edgeId: selectedEdgeId }
+      lastSelectionKeyRef.current = null
       return
     }
-    const prev = lastSelectionRef.current
-    if (prev && prev.nodeId === selectedNodeId && prev.edgeId === selectedEdgeId) {
-      return
-    }
-    lastSelectionRef.current = { nodeId: selectedNodeId, edgeId: selectedEdgeId }
-    if (!selectedNodeId && !selectedEdgeId) return
+    const key = buildAutoZoomSelectionSignature({
+      graphDataRevision: useGraphStore.getState().graphDataRevision || 0,
+      selectedNodeId,
+      selectedEdgeId,
+      selectedGroupId,
+      selectedNodeIds,
+      selectedEdgeIds,
+      selectedGroupIds,
+    })
+    if (!key) return
+    if (lastSelectionKeyRef.current === key) return
+    lastSelectionKeyRef.current = key
     try {
       requestThreeCamera('selection')
     } catch {
       void 0
     }
-  }, [paused, viewPinned, zoomToSelectionMode, zoomOnSelectionEnabled, selectedNodeId, selectedEdgeId, requestThreeCamera])
+  }, [
+    paused,
+    viewPinned,
+    zoomToSelectionMode,
+    zoomOnSelectionEnabled,
+    selectedEdgeId,
+    selectedEdgeIds,
+    selectedGroupId,
+    selectedGroupIds,
+    selectedNodeId,
+    selectedNodeIds,
+    requestThreeCamera,
+  ])
   React.useEffect(() => {
     const cfg = getCameraConfig(schema)
     controls.dampingFactor = cfg.dampingFactor
@@ -229,6 +257,10 @@ export function Controls({
       requestType,
       selectedNodeId,
       selectedEdgeId,
+      selectedGroupId,
+      selectedNodeIds,
+      selectedEdgeIds,
+      selectedGroupIds,
     })
     useGraphStore.getState().clearThreeCameraRequest()
     selectionPerfEnd('three', t0)

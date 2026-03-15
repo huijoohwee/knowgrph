@@ -13,6 +13,7 @@ import type { UiToastInput } from '@/hooks/store/types'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
+import { readCanvasViewportSizeFromDom } from '@/lib/graph/svgSnapshot'
 import { normalizeInteractiveSvgForHtmlViewer } from './normalizeInteractiveSvg'
 
 export async function exportHtmlCanvasFromWorkspace(args: {
@@ -48,7 +49,11 @@ export async function exportHtmlCanvasFromWorkspace(args: {
       graphData,
     })
 
-    const fixedViewport = { widthPx: 1920, heightPx: 1080 }
+    const vp = readCanvasViewportSizeFromDom()
+    const fixedViewport = {
+      widthPx: Math.max(1, Math.floor(Number(vp.w) || 1920)),
+      heightPx: Math.max(1, Math.floor(Number(vp.h) || 1080)),
+    }
     const fitInitialView2d = (() => {
       try {
         const mode = readLayoutMode(schema)
@@ -91,8 +96,8 @@ export async function exportHtmlCanvasFromWorkspace(args: {
           const centered3d = exportGraphAsCentered3dSvgMarkup({
             graphData,
             schema,
-            widthPx: 1920,
-            heightPx: 1080,
+            widthPx: fixedViewport.widthPx,
+            heightPx: fixedViewport.heightPx,
             paddingPx: 96,
             includeXmlDeclaration: false,
             animated: true,
@@ -119,10 +124,10 @@ export async function exportHtmlCanvasFromWorkspace(args: {
           const rendered = await renderGraphCanvasSvgForHtmlExport({
             graphData,
             schema,
-            widthPx: 1920,
-            heightPx: 1080,
+            widthPx: fixedViewport.widthPx,
+            heightPx: fixedViewport.heightPx,
             viewportControlsPreset,
-            renderMediaAsNodes: false,
+            renderMediaAsNodes: store.renderMediaAsNodes === true,
             mediaPanelDensity,
             documentSemanticMode,
             frontmatterModeEnabled,
@@ -131,8 +136,8 @@ export async function exportHtmlCanvasFromWorkspace(args: {
           const centered = exportGraphAsCenteredSvgMarkup({
             graphData,
             schema,
-            widthPx: 1920,
-            heightPx: 1080,
+            widthPx: fixedViewport.widthPx,
+            heightPx: fixedViewport.heightPx,
             paddingPx: 96,
             includeXmlDeclaration: false,
             animated: true,
@@ -155,15 +160,11 @@ export async function exportHtmlCanvasFromWorkspace(args: {
       title: `${exportBaseName} (Canvas)`,
       svgMarkup: exportView.svgMarkup,
       graphData: store.graphData,
-      includeRichMediaOverlays: true,
+      includeRichMediaOverlays: store.renderMediaAsNodes === true,
       mediaOverlayPoolMax: (store as unknown as { threeIframeOverlayPoolMax?: number }).threeIframeOverlayPoolMax,
       mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
-      viewportWidthPx: 1920,
-      viewportHeightPx: 1080,
-      viewportScaleToFit: true,
       enableDecorativeAnimation: true,
       preferWebgl3d: wants3dExport,
-      initialView: wants3dExport ? exportView.initialView : fitInitialView2d || exportView.initialView,
       threeIframeOverlayBaseWidthRatioDefault: (store as unknown as { threeIframeOverlayBaseWidthRatioDefault?: number }).threeIframeOverlayBaseWidthRatioDefault,
       threeIframeOverlayBaseWidthRatioCompact: (store as unknown as { threeIframeOverlayBaseWidthRatioCompact?: number }).threeIframeOverlayBaseWidthRatioCompact,
       threeIframeOverlayBaseWidthMinPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMinPxDefault?: number }).threeIframeOverlayBaseWidthMinPxDefault,

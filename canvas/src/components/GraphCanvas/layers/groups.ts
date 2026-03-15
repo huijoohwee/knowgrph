@@ -4,29 +4,30 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { getNodeAabbHalfExtentsWithLabel } from '@/components/GraphCanvas/layout/overlap'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
-import { buildClosedPathD, computeConvexRing, type Point2d } from '@/lib/geometry/convexRing'
 import { getMarkdownBodyFontSizePx, getMarkdownHeadingFontSizePx } from '@/features/markdown/ui/markdownTypography'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { estimateLabelCharWidthPx, estimateMaxCharsForWidthPx, truncateTextWithEllipsis, truncateTextWithWordEllipsis } from '@/components/GraphCanvas/layout/utils'
 import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
 import { isDisplayNode } from '@/components/GraphCanvas/displayFilter'
 import { collapsedGroupNodeIdFor } from '@/components/GraphCanvas/viewDerivation'
-import { buildChevronPathD } from '@/components/GraphCanvas/layers/svgChevron'
 import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens'
 import { computeGroupDepthStyle } from '@/lib/graph/groupDepthStyle'
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { DEFAULT_GROUP_NESTED_PADDING_STEP } from '@/lib/graph/layoutDefaults'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { compareGroupsForZOrder } from '@/lib/canvas/groupZOrder'
-
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { readSchemaGroupBoundsOverrides } from '../../../lib/canvas/groupBoundsOverrides'
+import { commitGroupBoundsOverrideToStore } from '../../../lib/canvas/groupBoundsOverridesStore'
+import { readAllowGroupResize } from '../../../lib/canvas/groupResizePolicy'
+import { readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfig'
+import { createGroupsLayoutEngine } from '@/components/GraphCanvas/layers/groupsLayout'
+import { bindGroupsResizeHandle } from '@/components/GraphCanvas/layers/groupsResizeHandle'
+import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
 type GroupDatum = GraphGroup
-
 export type GroupsLayer = {
   update: () => void
 }
-
-const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
-
 export const createGroupsLayer = (args: {
   g: d3.Selection<SVGGElement, unknown, null, undefined>
   graphData: GraphData
@@ -49,19 +50,13 @@ export const createGroupsLayer = (args: {
   const enabled = cfg.enabled !== false
   if (!enabled) return { update: () => {} }
 
-  const isMermaidLayout = (() => {
-    const gd = graphData as unknown as { context?: unknown; metadata?: unknown } | null
-    if (!gd) return false
-    if (String(gd.context || '') === 'frontmatter-mermaid') return true
-    const meta = gd.metadata
-    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
-    return String((meta as Record<string, unknown>).layoutEngine || '') === 'mermaid'
-  })()
-
   const groups =
     args.groupsOverride ||
     deriveGraphGroups(graphData, { forceDocumentStructure: args.documentSemanticMode === 'document' })
   if (groups.length === 0) return { update: () => {} }
+
+  const allowResize = readAllowGroupResize(schema)
+  const boundsOverridesById = readSchemaGroupBoundsOverrides(schema)
 
   const shape: 'rect' | 'geo' = cfg.shape === 'geo' ? 'geo' : 'rect'
 
@@ -79,35 +74,36 @@ export const createGroupsLayer = (args: {
     nodeById.set(String(n.id), n)
   }
 
+  const nodeHalfExtentsById = new Map<string, { halfW: number; halfH: number }>()
+  for (const [id, n] of nodeById.entries()) {
+    const ext = getNodeAabbHalfExtentsWithLabel(n, schema)
+    nodeHalfExtentsById.set(id, ext)
+  }
+
   const visibleGroups = groups
     .filter(d => d.memberNodeIds.some(id => nodeById.has(String(id))))
+    .map(g => {
+      const id = String(g.id || '').trim()
+      if (!id) return g
+      if (g.bounds) return g
+      const b = boundsOverridesById[id]
+      return b ? ({ ...g, bounds: b } as GraphGroup) : g
+    })
     .slice()
     .sort(compareGroupsForZOrder)
   if (visibleGroups.length === 0) return { update: () => {} }
 
-  const shapesLayer = g.append('g').attr('data-kg-layer', 'groups')
+  const shapesLayer = g.append('g').attr('data-kg-layer', 'groups').style('pointer-events', 'none')
+  const hitLayer = g.append('g').attr('data-kg-layer', 'groups-hit')
   const labelsLayer = g.append('g').attr('data-kg-layer', 'group-labels')
+  const resizeHandlesLayer = g.append('g').attr('data-kg-layer', 'group-resize-handles')
 
   const itemSel = shapesLayer
     .selectAll<SVGGElement, GroupDatum>('g')
     .data(visibleGroups, d => d.id)
     .join('g')
     .attr('data-kg-group-id', d => d.id)
-    .style('pointer-events', 'all')
-    .style('cursor', 'grab')
-
-  const resizeHandleSel = (() => {
-    if (shape !== 'rect') return null
-    return itemSel
-      .append('circle')
-      .attr('data-kg-group-resize', 'br')
-      .attr('r', 6)
-      .attr('fill', 'transparent')
-      .attr('stroke', UI_THEME_COLORS_CSS.textSecondary)
-      .attr('stroke-width', 1.25)
-      .style('pointer-events', 'all')
-      .style('cursor', 'nwse-resize') as unknown as d3.Selection<SVGCircleElement, GroupDatum, SVGGElement, unknown>
-  })()
+    .style('pointer-events', 'none')
 
   const rectSel = itemSel
     .append('rect')
@@ -122,6 +118,83 @@ export const createGroupsLayer = (args: {
     .attr('stroke-linejoin', 'round')
     .attr('stroke-linecap', 'round')
     .style('display', shape === 'geo' ? null : 'none')
+
+  const hitStrokeWidthPx = 18
+  const hitRectSel = hitLayer
+    .selectAll<SVGRectElement, GroupDatum>('rect[data-kg-group-hit-rect]')
+    .data(visibleGroups, d => d.id)
+    .join('rect')
+    .attr('data-kg-group-hit-rect', '1')
+    .attr('data-kg-group-id', d => d.id)
+    .attr('rx', typeof cfg.cornerRadius === 'number' && Number.isFinite(cfg.cornerRadius) ? cfg.cornerRadius : 12)
+    .attr('ry', typeof cfg.cornerRadius === 'number' && Number.isFinite(cfg.cornerRadius) ? cfg.cornerRadius : 12)
+    .attr('fill', 'none')
+    .attr('stroke', 'transparent')
+    .attr('stroke-width', hitStrokeWidthPx)
+    .style('display', shape === 'rect' ? null : 'none')
+    .style('pointer-events', 'stroke')
+    .style('cursor', 'grab')
+
+  const hitGeoSel = hitLayer
+    .selectAll<SVGPathElement, GroupDatum>('path[data-kg-group-hit-geo]')
+    .data(visibleGroups, d => d.id)
+    .join('path')
+    .attr('data-kg-group-hit-geo', '1')
+    .attr('data-kg-group-id', d => d.id)
+    .attr('fill', 'none')
+    .attr('stroke', 'transparent')
+    .attr('stroke-width', hitStrokeWidthPx)
+    .attr('stroke-linejoin', 'round')
+    .attr('stroke-linecap', 'round')
+    .style('display', shape === 'geo' ? null : 'none')
+    .style('pointer-events', 'stroke')
+    .style('cursor', 'grab')
+
+  const resizeHandleGroupSel = (() => {
+    if (shape !== 'rect') return null
+    const sel = resizeHandlesLayer
+      .selectAll<SVGGElement, GroupDatum>('g[data-kg-group-resize="br"]')
+      .data(visibleGroups, d => d.id)
+      .join('g')
+      .attr('data-kg-group-resize', 'br')
+      .attr('data-kg-group-id', d => d.id)
+      .style('pointer-events', 'all')
+      .style('cursor', 'nwse-resize') as unknown as d3.Selection<SVGGElement, GroupDatum, SVGGElement, unknown>
+
+    const cfg = readGroupResizeHandleConfig(schema)
+    sel
+      .selectAll<SVGCircleElement, GroupDatum>('circle[data-kg-group-resize-hit]')
+      .data(d => [d])
+      .join('circle')
+      .attr('data-kg-group-resize-hit', '1')
+      .attr('r', cfg.hitRadiusPx)
+      .attr('fill', 'transparent')
+      .attr('stroke', 'transparent')
+      .style('pointer-events', 'all')
+
+    sel
+      .selectAll<SVGCircleElement, GroupDatum>('circle[data-kg-group-resize-dot]')
+      .data(d => [d])
+      .join('circle')
+      .attr('data-kg-group-resize-dot', '1')
+      .attr('r', cfg.dotRadiusPx)
+      .attr('fill', UI_THEME_COLORS_CSS.bg)
+      .attr('fill-opacity', 0.72)
+      .attr('stroke', UI_THEME_COLORS_CSS.textSecondary)
+      .attr('stroke-width', cfg.strokeWidthPx)
+      .style('pointer-events', 'none')
+
+    return sel
+  })()
+
+  const resizeHandleHitSel = resizeHandleGroupSel
+    ? (resizeHandleGroupSel.select<SVGCircleElement>('circle[data-kg-group-resize-hit="1"]') as unknown as d3.Selection<
+        SVGCircleElement,
+        GroupDatum,
+        SVGGElement,
+        unknown
+      >)
+    : null
 
   const padding = typeof cfg.padding === 'number' && Number.isFinite(cfg.padding) ? Math.max(0, cfg.padding) : 24
   const nestedPaddingStep = typeof cfg.nestedPaddingStep === 'number' && Number.isFinite(cfg.nestedPaddingStep)
@@ -184,12 +257,20 @@ export const createGroupsLayer = (args: {
     return Math.max(baseFontSize, Math.max(fallback, clamped))
   }
 
-  const computeGroupLabelText = (d: GroupDatum) => {
+  const groupLabelTextById = new Map<string, { full: string; fontSize: number; visible: string; labelWidthPx: number }>()
+  const getGroupLabelText = (d: GroupDatum) => {
+    const id = String(d.id || '').trim()
+    const cached = id ? groupLabelTextById.get(id) : null
+    if (cached) return cached
     const full = String(d.label || '')
     const fontSize = getGroupLabelFontSizePx(d)
     const maxChars = Math.max(8, Math.min(120, estimateMaxCharsForWidthPx(260, fontSize)))
     const wordLimited = truncateTextWithWordEllipsis(full, 24)
-    return { full, fontSize, visible: truncateTextWithEllipsis(wordLimited, maxChars) }
+    const visible = truncateTextWithEllipsis(wordLimited, maxChars)
+    const labelWidthPx = Math.min(800, Math.max(0, visible.length) * estimateLabelCharWidthPx(fontSize))
+    const next = { full, fontSize, visible, labelWidthPx }
+    if (id) groupLabelTextById.set(id, next)
+    return next
   }
 
   const labelSel = labelsLayer
@@ -200,7 +281,7 @@ export const createGroupsLayer = (args: {
     .attr('data-kg-group-id', d => d.id)
     .each(function (d) {
       const el = this as unknown as SVGTextElement
-      const t = computeGroupLabelText(d)
+      const t = getGroupLabelText(d)
       el.setAttribute('data-label-full', t.full.length > 600 ? `${t.full.slice(0, 599)}…` : t.full)
       el.textContent = t.visible
     })
@@ -210,7 +291,7 @@ export const createGroupsLayer = (args: {
     .attr('text-anchor', 'start')
     .attr('dominant-baseline', 'hanging')
     .style('font-size', d => {
-      return `${getGroupLabelFontSizePx(d)}px`
+      return `${getGroupLabelText(d).fontSize}px`
     })
 
   const collapsedSet = (() => {
@@ -297,6 +378,41 @@ export const createGroupsLayer = (args: {
       selectNode(collapsedGroupNodeIdFor(d.id))
     })
 
+  const bindHitInteractions = <E extends SVGElement>(sel: d3.Selection<E, GroupDatum, SVGGElement, unknown>) => {
+    sel
+      .on('mouseover', updateGroupHover)
+      .on('mousemove', updateGroupHover)
+      .on('mouseout', clearGroupHover)
+      .on('click', (event: MouseEvent, d: GroupDatum) => {
+        if ((event as unknown as { defaultPrevented?: unknown }).defaultPrevented) return
+        event.stopPropagation()
+        clearClickTimer(d.id)
+        const handle = window.setTimeout(() => {
+          setSelectionSource('canvas')
+          selectGroup(d.id)
+        }, 200)
+        clickTimerById.set(d.id, handle)
+      })
+      .on('dblclick', (event: MouseEvent, d: GroupDatum) => {
+        event.stopPropagation()
+        clearClickTimer(d.id)
+        setSelectionSource('canvas')
+        const isAlt = (event as unknown as { altKey?: unknown }).altKey === true
+        if (isAlt) {
+          const members = d.memberNodeIds.map(x => String(x)).filter(Boolean)
+          const memberSet = memberIdSetOf(d)
+          const edgeIds = edgeIdsWithinMembers(memberSet)
+          selectGroupExpanded({ id: d.id, nodeIds: members, edgeIds })
+          return
+        }
+        toggleGroupCollapsed(d.id)
+        selectNode(collapsedGroupNodeIdFor(d.id))
+      })
+  }
+
+  bindHitInteractions(hitRectSel as unknown as d3.Selection<SVGRectElement, GroupDatum, SVGGElement, unknown>)
+  bindHitInteractions(hitGeoSel as unknown as d3.Selection<SVGPathElement, GroupDatum, SVGGElement, unknown>)
+
   itemSel
     .on('mouseover', updateGroupHover)
     .on('mousemove', updateGroupHover)
@@ -349,7 +465,7 @@ export const createGroupsLayer = (args: {
     let dragBoundsRef: { x: number; y: number; width: number; height: number; labelX?: number; labelY?: number } | null = null
     let dragZoomK = 1
     const dragBehavior = d3
-      .drag<SVGTextElement, GroupDatum>()
+      .drag<SVGElement, GroupDatum>()
       .on('start', (event, d) => {
         const srcEv = (event as unknown as { sourceEvent?: { stopPropagation?: () => void } }).sourceEvent
         if (srcEv && typeof srcEv.stopPropagation === 'function') srcEv.stopPropagation()
@@ -391,7 +507,7 @@ export const createGroupsLayer = (args: {
           const subgraphNode = (graphData.nodes || []).find(n => String(n.id) === id) || null
           if (subgraphNode) {
             const props = ((subgraphNode as unknown as { properties?: unknown })?.properties || {}) as Record<string, unknown>
-            const nextProps = { ...props, 'visual:zIndexOverride': nextZ }
+            const nextProps = { ...props, 'visual:zIndex': nextZ }
             try {
               args.updateNode(id, { properties: nextProps as never })
             } catch {
@@ -401,18 +517,12 @@ export const createGroupsLayer = (args: {
           return
         }
 
-        const explicit = (d as unknown as { bounds?: unknown }).bounds
-        if (isMermaidLayout && explicit && typeof explicit === 'object' && !Array.isArray(explicit)) {
-          const bx = typeof (explicit as any).x === 'number' ? (explicit as any).x : Number.NaN
-          const by = typeof (explicit as any).y === 'number' ? (explicit as any).y : Number.NaN
-          const bw = typeof (explicit as any).width === 'number' ? (explicit as any).width : Number.NaN
-          const bh = typeof (explicit as any).height === 'number' ? (explicit as any).height : Number.NaN
-          if (Number.isFinite(bx) && Number.isFinite(by) && Number.isFinite(bw) && Number.isFinite(bh) && bw > 0 && bh > 0) {
-            dragBoundsOnly = true
-            dragBoundsRef = { ...(explicit as any) }
-            ;(d as unknown as { bounds?: unknown }).bounds = dragBoundsRef as any
-            return
-          }
+        const explicit = readExplicitBounds(d)
+        if (explicit) {
+          dragBoundsOnly = true
+          dragBoundsRef = { ...explicit }
+          ;(d as unknown as { bounds?: unknown }).bounds = dragBoundsRef as any
+          return
         }
 
         dragNodes = []
@@ -444,7 +554,7 @@ export const createGroupsLayer = (args: {
           if (typeof dragBoundsRef.labelY === 'number' && Number.isFinite(dragBoundsRef.labelY)) dragBoundsRef.labelY += dy
           const d = event.subject as unknown as GroupDatum
           const computed = computeBoundsAndLabel(d)
-          applyComputedToGroup(d, computed)
+          applyComputedToGroup(d, computed, String(d.id || '').trim())
           return
         }
         const structured = readLayoutMode(schema) === 'radial'
@@ -469,21 +579,10 @@ export const createGroupsLayer = (args: {
         }
       })
       .on('end', (event) => {
-        if (dragBoundsOnly && dragBoundsRef && typeof args.updateNode === 'function') {
+        if (dragBoundsOnly && dragBoundsRef) {
           const d = event.subject as unknown as GroupDatum
           const id = String(d.id || '').trim()
-          if (id) {
-            const subgraphNode = (graphData.nodes || []).find(n => String(n.id) === id) || null
-            if (subgraphNode) {
-              const props = ((subgraphNode as unknown as { properties?: unknown })?.properties || {}) as Record<string, unknown>
-              const nextProps = { ...props, 'visual:boundsOverride': { ...dragBoundsRef } }
-              try {
-                args.updateNode(id, { properties: nextProps as never })
-              } catch {
-                void 0
-              }
-            }
-          }
+          if (id) commitGroupBounds(id, dragBoundsRef)
           dragBoundsOnly = false
           dragBoundsRef = null
           dragNodes = []
@@ -509,200 +608,84 @@ export const createGroupsLayer = (args: {
       })
     
     labelSel.call(dragBehavior as unknown as d3.DragBehavior<SVGTextElement, GroupDatum, unknown>)
-    itemSel.call(dragBehavior as unknown as d3.DragBehavior<SVGGElement, GroupDatum, unknown>)
+    hitRectSel.call(dragBehavior as unknown as d3.DragBehavior<SVGRectElement, GroupDatum, unknown>)
+    hitGeoSel.call(dragBehavior as unknown as d3.DragBehavior<SVGPathElement, GroupDatum, unknown>)
   }
 
-  const layoutCache = new Map<
-    string,
-    { x: number; y: number; w: number; h: number; labelX: number; labelY: number; chevronCx: number; chevronCy: number; d: string | null }
-  >()
   const eps = 0.5
 
-  const computeBoundsAndLabel = (d: GroupDatum) => {
-    const explicit = (d as unknown as { bounds?: unknown }).bounds
-    if (explicit && typeof explicit === 'object' && !Array.isArray(explicit)) {
-      const bx = typeof (explicit as any).x === 'number' ? (explicit as any).x : Number.NaN
-      const by = typeof (explicit as any).y === 'number' ? (explicit as any).y : Number.NaN
-      const bw = typeof (explicit as any).width === 'number' ? (explicit as any).width : Number.NaN
-      const bh = typeof (explicit as any).height === 'number' ? (explicit as any).height : Number.NaN
-      if (Number.isFinite(bx) && Number.isFinite(by) && Number.isFinite(bw) && Number.isFinite(bh) && bw > 0 && bh > 0) {
-        const labelText = computeGroupLabelText(d)
-        const fontSize = labelText.fontSize
-        const labelXRaw = typeof (explicit as any).labelX === 'number' ? (explicit as any).labelX : Number.NaN
-        const labelYRaw = typeof (explicit as any).labelY === 'number' ? (explicit as any).labelY : Number.NaN
-        const labelY = Number.isFinite(labelYRaw) ? labelYRaw : by + labelPadding
-        const labelX = Number.isFinite(labelXRaw) ? labelXRaw : bx + labelPadding + chevronSizePx + chevronGapPx
-        const chevronCx = labelX - chevronGapPx - chevronSizePx * 0.5
-        const chevronCy = labelY + fontSize * 0.55
-        return { x: bx, y: by, w: bw, h: bh, labelX, labelY, chevronCx, chevronCy, d: null }
-      }
-    }
+  const { layoutCache, computeBoundsAndLabel, applyComputedToGroup, readExplicitBounds } =
+    createGroupsLayoutEngine<GroupDatum>({
+      shape,
+      schema,
+      nodeById,
+      nodeHalfExtentsById,
+      padding,
+      nestedPaddingStep,
+      maxDepth,
+      labelPadding,
+      chevronSizePx,
+      chevronGapPx,
+      collapsedSet,
+      allowResize,
+      getGroupLabelText,
+      rectSel,
+      geoSel,
+      labelSel,
+      chevronSel,
+      resizeHandleGroupSel,
+      hitRectSel,
+      hitGeoSel,
+    })
 
-    const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
-    const extraPad = nestedPaddingStep > 0 ? nestedPaddingStep * Math.max(0, maxDepth - depth) : 0
-    const effectivePadding = padding + extraPad
-    let minX = Infinity
-    let maxX = -Infinity
-    let minY = Infinity
-    let maxY = -Infinity
-    let valid = 0
-    const geoPoints: Point2d[] = []
-    for (let i = 0; i < d.memberNodeIds.length; i += 1) {
-      const id = d.memberNodeIds[i]
-      const n = nodeById.get(id)
-      if (!n) continue
-      if (!isFiniteNumber(n.x) || !isFiniteNumber(n.y)) continue
-      const ext = getNodeAabbHalfExtentsWithLabel(n, schema)
-      const halfW = ext.halfW
-      const halfH = ext.halfH
-      const x0 = n.x - halfW
-      const x1 = n.x + halfW
-      const y0 = n.y - halfH
-      const y1 = n.y + halfH
-      if (x0 < minX) minX = x0
-      if (x1 > maxX) maxX = x1
-      if (y0 < minY) minY = y0
-      if (y1 > maxY) maxY = y1
-      const px = halfW + effectivePadding
-      const py = halfH + effectivePadding
-      geoPoints.push({ x: n.x - px, y: n.y - py })
-      geoPoints.push({ x: n.x + px, y: n.y - py })
-      geoPoints.push({ x: n.x + px, y: n.y + py })
-      geoPoints.push({ x: n.x - px, y: n.y + py })
-      valid += 1
-    }
-    if (valid === 0 || minX === Infinity) {
-      return { x: 0, y: 0, w: 0, h: 0, labelX: 0, labelY: 0, chevronCx: 0, chevronCy: 0, d: null }
-    }
-    const labelText = computeGroupLabelText(d)
-    const fontSize = labelText.fontSize
-    const topPad = effectivePadding + labelPadding + fontSize * 1.25
-    const x = minX - effectivePadding
-    const y = minY - topPad
-    const w0 = Math.max(1, maxX - minX + effectivePadding * 2)
-    const h = Math.max(1, maxY - minY + effectivePadding + topPad)
-    const chevronCx = x + labelPadding + chevronSizePx * 0.5
-    const chevronCy = y + labelPadding + fontSize * 0.55
-    const labelX = x + labelPadding + chevronSizePx + chevronGapPx
-    const labelY = y + labelPadding
-    const labelWidth = Math.min(800, Math.max(0, labelText.visible.length) * estimateLabelCharWidthPx(fontSize))
-    const w = Math.max(w0, labelX - x + labelWidth + labelPadding)
+  const groupDatumById = new Map<string, GroupDatum>()
+  itemSel.each(function (d) {
+    const id = String(d.id || '').trim()
+    if (!id) return
+    groupDatumById.set(id, d)
+  })
+  let lastSelectedGroupId = ''
 
-    if (shape === 'geo') {
-      const ring = computeConvexRing(geoPoints)
-      const dPath = buildClosedPathD(ring)
-      return { x, y, w, h, labelX, labelY, chevronCx, chevronCy, d: dPath }
-    }
-    return { x, y, w, h, labelX, labelY, chevronCx, chevronCy, d: null }
+  function commitGroupBounds(groupId: string, bounds: { x: number; y: number; width: number; height: number; labelX?: number; labelY?: number }) {
+    const id = String(groupId || '').trim()
+    if (!id) return
+    commitGroupBoundsOverrideToStore(id, bounds)
   }
 
-  const applyComputedToGroup = (d: GroupDatum, computed: { x: number; y: number; w: number; h: number; labelX: number; labelY: number; chevronCx: number; chevronCy: number; d: string | null }) => {
-    layoutCache.set(d.id, computed)
-    const item = itemSel.filter(x => x.id === d.id)
-    if (shape === 'rect') {
-      item
-        .select<SVGRectElement>('rect[data-kg-shape="group-rect"]')
-        .attr('x', computed.x)
-        .attr('y', computed.y)
-        .attr('width', computed.w)
-        .attr('height', computed.h)
-    } else {
-      item.select<SVGPathElement>('path[data-kg-shape="group-geo"]').attr('d', computed.d || '')
-    }
-    labelSel
-      .filter(x => x.id === d.id)
-      .attr('x', computed.labelX)
-      .attr('y', computed.labelY)
-    const dir = collapsedSet.has(String(d.id)) ? 'right' : 'down'
-    chevronSel
-      .filter(x => x.id === d.id)
-      .attr('d', buildChevronPathD({ cx: computed.chevronCx, cy: computed.chevronCy, size: chevronSizePx, direction: dir }))
-
-    if (resizeHandleSel) {
-      const canResize = isMermaidLayout && !!(d as unknown as { bounds?: unknown }).bounds
-      resizeHandleSel
-        .filter(x => x.id === d.id)
-        .attr('cx', computed.x + computed.w)
-        .attr('cy', computed.y + computed.h)
-        .style('display', canResize ? null : 'none')
-    }
-  }
-
-  if (resizeHandleSel && typeof args.updateNode === 'function') {
-    let active: GroupDatum | null = null
-    let start: { x: number; y: number; w: number; h: number; labelX?: number; labelY?: number } | null = null
-    let zoomK = 1
-    const dragResize = d3
-      .drag<SVGCircleElement, GroupDatum>()
-      .on('start', (event, d) => {
-        const explicit = (d as unknown as { bounds?: unknown }).bounds
-        if (!isMermaidLayout || !explicit || typeof explicit !== 'object' || Array.isArray(explicit)) {
-          active = null
-          start = null
-          return
-        }
-        const bx = typeof (explicit as any).x === 'number' ? (explicit as any).x : Number.NaN
-        const by = typeof (explicit as any).y === 'number' ? (explicit as any).y : Number.NaN
-        const bw = typeof (explicit as any).width === 'number' ? (explicit as any).width : Number.NaN
-        const bh = typeof (explicit as any).height === 'number' ? (explicit as any).height : Number.NaN
-        if (!Number.isFinite(bx) || !Number.isFinite(by) || !Number.isFinite(bw) || !Number.isFinite(bh)) {
-          active = null
-          start = null
-          return
-        }
-        const svgEl = (event?.sourceEvent?.target as SVGElement | null)?.ownerSVGElement
-        try {
-          const k = d3.zoomTransform(svgEl as unknown as SVGSVGElement).k
-          zoomK = typeof k === 'number' && Number.isFinite(k) && k > 0 ? k : 1
-        } catch {
-          zoomK = 1
-        }
-        active = d
-        start = { x: bx, y: by, w: bw, h: bh, labelX: (explicit as any).labelX, labelY: (explicit as any).labelY }
-        ;(d as unknown as { bounds?: unknown }).bounds = { ...(explicit as any) } as any
-      })
-      .on('drag', (event) => {
-        if (!active || !start) return
-        const explicit = (active as unknown as { bounds?: unknown }).bounds
-        if (!explicit || typeof explicit !== 'object' || Array.isArray(explicit)) return
-        const dx0 = typeof event.dx === 'number' && Number.isFinite(event.dx) ? event.dx : 0
-        const dy0 = typeof event.dy === 'number' && Number.isFinite(event.dy) ? event.dy : 0
-        const k = typeof zoomK === 'number' && Number.isFinite(zoomK) && zoomK > 0 ? zoomK : 1
-        const dx = dx0 / k
-        const dy = dy0 / k
-        if (!dx && !dy) return
-        ;(explicit as any).width = Math.max(24, start.w + dx)
-        ;(explicit as any).height = Math.max(24, start.h + dy)
-        const computed = computeBoundsAndLabel(active)
-        applyComputedToGroup(active, computed)
-      })
-      .on('end', () => {
-        if (!active) return
-        const id = String(active.id || '').trim()
-        const subgraphNode = (graphData.nodes || []).find(n => String(n.id) === id) || null
-        if (subgraphNode) {
-          const props = ((subgraphNode as unknown as { properties?: unknown })?.properties || {}) as Record<string, unknown>
-          const explicit = (active as unknown as { bounds?: unknown }).bounds
-          if (explicit && typeof explicit === 'object' && !Array.isArray(explicit)) {
-            const nextProps = { ...props, 'visual:boundsOverride': { ...(explicit as any) } }
-            try {
-              args.updateNode(id, { properties: nextProps as never })
-            } catch {
-              void 0
-            }
-          }
-        }
-        active = null
-        start = null
-      })
-
-    resizeHandleSel.call(dragResize as unknown as d3.DragBehavior<SVGCircleElement, GroupDatum, unknown>)
-  }
+  bindGroupsResizeHandle<GroupDatum>({
+    resizeHandleHitSel,
+    allowResize,
+    minBoundsSizePx: readGroupResizeHandleConfig(schema).minBoundsSizePx,
+    snapGrid: readSnapGridConfigFromSchema(schema),
+    setSelectionSource,
+    selectGroup,
+    readExplicitBounds,
+    computeBoundsAndLabel,
+    applyComputedToGroup,
+    commitBounds: commitGroupBounds,
+  })
 
   const update = () => {
+    const selectedGroupId = String(useGraphStore.getState().selectedGroupId || '').trim()
+    const prevSelectedGroupId = lastSelectedGroupId
+    if (allowResize && selectedGroupId !== prevSelectedGroupId) {
+      const ids = [prevSelectedGroupId, selectedGroupId]
+      for (let i = 0; i < ids.length; i += 1) {
+        const id = String(ids[i] || '').trim()
+        if (!id) continue
+        const d = groupDatumById.get(id) || null
+        if (!d) continue
+        const cached = layoutCache.get(id) || null
+        const computed = cached || computeBoundsAndLabel(d)
+        applyComputedToGroup(d, computed, selectedGroupId)
+      }
+    }
+    lastSelectedGroupId = selectedGroupId
     itemSel.each(function (d) {
+      const idKey = String(d.id || '').trim()
+      if (!idKey) return
       const computed = computeBoundsAndLabel(d)
-      const prev = layoutCache.get(d.id) || null
+      const prev = layoutCache.get(idKey) || null
       if (
         prev &&
         Math.abs(prev.x - computed.x) < eps &&
@@ -717,36 +700,7 @@ export const createGroupsLayer = (args: {
       ) {
         return
       }
-      layoutCache.set(d.id, computed)
-
-      const item = d3.select(this)
-      if (shape === 'rect') {
-        item
-          .select<SVGRectElement>('rect[data-kg-shape="group-rect"]')
-          .attr('x', computed.x)
-          .attr('y', computed.y)
-          .attr('width', computed.w)
-          .attr('height', computed.h)
-      } else {
-        item.select<SVGPathElement>('path[data-kg-shape="group-geo"]').attr('d', computed.d || '')
-      }
-      labelSel
-        .filter(x => x.id === d.id)
-        .attr('x', computed.labelX)
-        .attr('y', computed.labelY)
-      const dir = collapsedSet.has(String(d.id)) ? 'right' : 'down'
-      chevronSel
-        .filter(x => x.id === d.id)
-        .attr('d', buildChevronPathD({ cx: computed.chevronCx, cy: computed.chevronCy, size: chevronSizePx, direction: dir }))
-
-      if (resizeHandleSel) {
-        const canResize = isMermaidLayout && !!(d as unknown as { bounds?: unknown }).bounds
-        resizeHandleSel
-          .filter(x => x.id === d.id)
-          .attr('cx', computed.x + computed.w)
-          .attr('cy', computed.y + computed.h)
-          .style('display', canResize ? null : 'none')
-      }
+      applyComputedToGroup(d, computed, selectedGroupId)
     })
   }
 

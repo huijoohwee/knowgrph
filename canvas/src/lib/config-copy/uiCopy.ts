@@ -176,6 +176,7 @@ export const UI_COPY = {
   pinToViewTooltip:
     'Pin to View: toggle to keep the current camera transform across graph updates and turn off Fit to Screen / Zoom to Selection while pinned.',
   zoomToSelectionTooltip: 'Zoom to Selection mode: toggle to keep the camera centered on the active selection and turn off Fit to Screen while focused.',
+  canvasGridTooltip: 'Grid: toggle grid visibility + snap-to-grid. Configure variant/size in Settings. Hold Alt while dragging to temporarily disable snapping.',
   renderMediaAsNodesTooltip: 'Rich Media: shows or hides media overlays on media-capable nodes without reloading.',
   launchTooltip: 'Launch',
   threeDModeOnTitle: '3D Mode (On)',

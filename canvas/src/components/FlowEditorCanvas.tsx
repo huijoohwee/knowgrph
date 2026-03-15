@@ -44,8 +44,8 @@ import {
   pickDefaultSchemaFieldPortKey,
   readSchemaFieldSpecs,
 } from '@/lib/graph/flowPorts'
-import { resolveFlowSocketTypesForEdge } from '@/lib/graph/flowSocketTypes'
 import { canAddEdge } from '@/features/schema/validation'
+import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import { FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY, FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
@@ -1036,6 +1036,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   const overlayEdgesSvgRef = React.useRef<SVGSVGElement | null>(null)
   const overlayEdgePathByIdRef = React.useRef<Map<string, SVGPathElement>>(new Map())
+  const overlayPendingEdgePathRef = React.useRef<SVGPathElement | null>(null)
   const overlayEdgeRafRef = React.useRef<number | null>(null)
   const overlayEdgeSocketTypesRef = React.useRef<unknown>(null)
   const overlayEdgeSocketStyleByTypeRef = React.useRef<Map<string, { color: string; edgeWidthPx: number | null }>>(new Map())
@@ -1044,6 +1045,21 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     registry: ReadonlyArray<NodeQuickEditorRegistryEntry> | null
     map: Map<string, Map<string, number>>
   } | null>(null)
+
+  const pendingEdgePreviewRef = React.useRef<{ toolMode: ToolMode; sourceId: string | null; sourcePortKey: string | null }>({
+    toolMode: 'select',
+    sourceId: null,
+    sourcePortKey: null,
+  })
+  const pendingEdgeCursorRef = React.useRef<null | { x: number; y: number; ts: number }>(null)
+
+  React.useEffect(() => {
+    pendingEdgePreviewRef.current = {
+      toolMode,
+      sourceId: pendingEdgeSourceId ? String(pendingEdgeSourceId || '').trim() : null,
+      sourcePortKey: pendingEdgeSourcePortKey ? String(pendingEdgeSourcePortKey || '').trim() : null,
+    }
+  }, [pendingEdgeSourceId, pendingEdgeSourcePortKey, toolMode])
 
   const scheduleOverlayEdgeUpdate = React.useCallback(() => {
     if (!active) return
@@ -1065,6 +1081,14 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           }
         }
         overlayEdgePathByIdRef.current.clear()
+        if (overlayPendingEdgePathRef.current) {
+          try {
+            overlayPendingEdgePathRef.current.remove()
+          } catch {
+            void 0
+          }
+          overlayPendingEdgePathRef.current = null
+        }
         return
       }
 
@@ -1247,6 +1271,62 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       if (baseLeft == null || baseTop == null) return
       const keep = new Set<string>()
 
+      {
+        const pending = pendingEdgePreviewRef.current
+        const cursor = pendingEdgeCursorRef.current
+        const wants = pending.toolMode === 'addEdge' && !!pending.sourceId && !!cursor && Date.now() - cursor.ts < 4_000
+        if (!wants) {
+          const prev = overlayPendingEdgePathRef.current
+          if (prev) {
+            try {
+              prev.remove()
+            } catch {
+              void 0
+            }
+            overlayPendingEdgePathRef.current = null
+          }
+        } else {
+          const sourceId = String(pending.sourceId || '').trim()
+          const sRect = sourceId ? overlayRectsByNodeId.get(sourceId) : null
+          const sTop = sRect && Number.isFinite(sRect.top) ? sRect.top : null
+          const sRight = sRect && Number.isFinite(sRect.right) ? sRect.right : null
+          const sHeight = sRect && Number.isFinite(sRect.height) ? sRect.height : null
+          if (sTop != null && sRight != null && sHeight != null && sHeight > 0 && cursor) {
+            const handleKey = String(pending.sourcePortKey || firstSchemaPortKeyByNodeId.get(sourceId) || '__flow_default_handle__').trim()
+            const outHandleId = buildFlowHandleId({ dir: 'out', edgeId: handleKey })
+            const sPct = topPctByNodeAndHandle.get(sourceId)?.get(outHandleId) ?? 50
+            const sx = sRight - baseLeft
+            const sy = sTop - baseTop + (Math.max(0, Math.min(100, sPct)) / 100) * sHeight
+            const tx = cursor.x
+            const ty = cursor.y
+            if (Number.isFinite(sx) && Number.isFinite(sy) && Number.isFinite(tx) && Number.isFinite(ty)) {
+              const dx = tx - sx
+              const c = 0.5
+              const c1x = sx + dx * c
+              const c1y = sy
+              const c2x = tx - dx * c
+              const c2y = ty
+              const d = `M ${sx.toFixed(2)} ${sy.toFixed(2)} C ${c1x.toFixed(2)} ${c1y.toFixed(2)} ${c2x.toFixed(2)} ${c2y.toFixed(2)} ${tx.toFixed(2)} ${ty.toFixed(2)}`
+              const existing = overlayPendingEdgePathRef.current
+              const pathEl = existing || document.createElementNS('http://www.w3.org/2000/svg', 'path')
+              if (!existing) {
+                pathEl.setAttribute('fill', 'none')
+                pathEl.setAttribute('stroke', 'currentColor')
+                pathEl.setAttribute('stroke-width', '1.5')
+                pathEl.setAttribute('stroke-linejoin', 'round')
+                pathEl.setAttribute('stroke-linecap', 'round')
+                pathEl.setAttribute('stroke-dasharray', '4 4')
+                pathEl.setAttribute('opacity', '0.75')
+                pathEl.setAttribute('pointer-events', 'none')
+                svg.appendChild(pathEl)
+                overlayPendingEdgePathRef.current = pathEl
+              }
+              if (pathEl.getAttribute('d') !== d) pathEl.setAttribute('d', d)
+            }
+          }
+        }
+      }
+
       for (let i = 0; i < edges.length; i += 1) {
         const e = edges[i]
         const edgeId = String(e?.id || '').trim()
@@ -1315,6 +1395,31 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   React.useEffect(() => {
     if (!active) return
     if (!overlayOnlyModeEnabled) return
+    const onMove = (e: MouseEvent) => {
+      const root = rootRef.current
+      if (!root) return
+      const rect = root.getBoundingClientRect()
+      const baseLeft = Number.isFinite(rect.left) ? rect.left : null
+      const baseTop = Number.isFinite(rect.top) ? rect.top : null
+      if (baseLeft == null || baseTop == null) return
+      const cx = typeof e.clientX === 'number' && Number.isFinite(e.clientX) ? e.clientX : baseLeft
+      const cy = typeof e.clientY === 'number' && Number.isFinite(e.clientY) ? e.clientY : baseTop
+      pendingEdgeCursorRef.current = { x: cx - baseLeft, y: cy - baseTop, ts: Date.now() }
+      scheduleOverlayEdgeUpdate()
+    }
+    window.addEventListener('mousemove', onMove, { passive: true })
+    return () => {
+      try {
+        window.removeEventListener('mousemove', onMove)
+      } catch {
+        void 0
+      }
+    }
+  }, [active, overlayOnlyModeEnabled, scheduleOverlayEdgeUpdate])
+
+  React.useEffect(() => {
+    if (!active) return
+    if (!overlayOnlyModeEnabled) return
     scheduleOverlayEdgeUpdate()
     const onInteractionFrame = () => scheduleOverlayEdgeUpdate()
     window.addEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onInteractionFrame as EventListener)
@@ -1339,6 +1444,14 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         }
       }
       overlayEdgePathByIdRef.current.clear()
+      if (overlayPendingEdgePathRef.current) {
+        try {
+          overlayPendingEdgePathRef.current.remove()
+        } catch {
+          void 0
+        }
+        overlayPendingEdgePathRef.current = null
+      }
     }
   }, [active, overlayOnlyModeEnabled, scheduleOverlayEdgeUpdate])
 
@@ -1550,62 +1663,32 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const explicitTarget = typeof portKey === 'string' && portKey.trim() ? portKey.trim() : null
       const targetPort = explicitTarget || pickDefaultSchemaFieldPortKey(targetNode) || null
 
-      const socketRes = resolveFlowSocketTypesForEdge({
-        graphData: draftGraphData,
-        sourceNode,
-        targetNode,
-        sourcePortKey: sourcePort,
-        targetPortKey: targetPort,
+      const result = finalizeEdgeAuthoring({
+        mode: 'create',
+        data: draftGraphData,
+        schema,
+        label: 'linksTo',
+        selectedEdgeId: null,
+        from: { nodeId: pendingEdgeSourceId, portKey: sourcePort },
+        to: { nodeId: id, portKey: targetPort },
       })
-      if (!socketRes.ok) {
-        upsertUiToast({
-          id: 'flow-editor-edge-denied',
-          kind: 'warning',
-          message: `Incompatible port types: ${socketRes.outType || '∅'} → ${socketRes.inType || '∅'}.`,
-          ttlMs: 2200,
-        })
+
+      if (result.kind === 'blocked') {
+        const message =
+          result.reason === 'socket'
+            ? `Incompatible port types: ${result.outType || '∅'} → ${result.inType || '∅'}.`
+            : result.reason === 'schema'
+              ? 'Edge blocked by schema rules.'
+              : null
+        if (message) {
+          upsertUiToast({ id: 'flow-editor-edge-denied', kind: 'warning', message, ttlMs: 2200 })
+        }
         return
       }
-      const edgeSocketType = socketRes.edgeType || ''
 
-      const usedEdgeIds = new Set((draftGraphData.edges || []).map(e => String(e.id || '')).filter(Boolean))
-      const edgeId = createUniqueId('e', usedEdgeIds)
-      const nextEdge: GraphEdge = {
-        id: edgeId,
-        source: pendingEdgeSourceId,
-        target: id,
-        label: 'linksTo',
-        ...(edgeSocketType ? { type: edgeSocketType } : {}),
-        properties: {
-          ...(sourcePort ? { [FLOW_EDGE_SOURCE_PORT_KEY]: sourcePort } : {}),
-          ...(targetPort ? { [FLOW_EDGE_TARGET_PORT_KEY]: targetPort } : {}),
-          ...(edgeSocketType ? ({ 'flow:socketType': edgeSocketType } as unknown as Record<string, JSONValue>) : {}),
-        },
-      }
-
-      const displayLabel = buildFlowEdgeDisplayLabelFromPorts({
-        sourceNode,
-        targetNode,
-        sourcePortKey: sourcePort,
-        targetPortKey: targetPort,
-      })
-      if (displayLabel) {
-        ;(nextEdge.properties as Record<string, unknown>)[FLOW_EDGE_DISPLAY_LABEL_KEY] = displayLabel
-      }
-
-      const duplicate = (draftGraphData.edges || []).find(e => {
-        if (String(e.source) !== String(nextEdge.source)) return false
-        if (String(e.target) !== String(nextEdge.target)) return false
-        if (String(e.label || '') !== String(nextEdge.label || '')) return false
-        const sp = (e.properties as Record<string, unknown> | null | undefined)?.[FLOW_EDGE_SOURCE_PORT_KEY]
-        const tp = (e.properties as Record<string, unknown> | null | undefined)?.[FLOW_EDGE_TARGET_PORT_KEY]
-        const nsp = (nextEdge.properties as Record<string, unknown> | null | undefined)?.[FLOW_EDGE_SOURCE_PORT_KEY]
-        const ntp = (nextEdge.properties as Record<string, unknown> | null | undefined)?.[FLOW_EDGE_TARGET_PORT_KEY]
-        return String(sp || '') === String(nsp || '') && String(tp || '') === String(ntp || '')
-      })
-      if (duplicate) {
+      if (result.kind === 'select-existing') {
         setSelectionSource('canvas')
-        selectEdge(String(duplicate.id || ''))
+        selectEdge(String(result.edgeId || ''))
         selectNode(null)
         setPendingEdgeSourceId(null)
         setPendingEdgeSourcePortKey(null)
@@ -1613,19 +1696,12 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         return
       }
 
-      if (!canAddEdge(schema, draftGraphData, nextEdge)) {
-        upsertUiToast({
-          id: 'flow-editor-edge-denied',
-          kind: 'warning',
-          message: 'Edge blocked by schema rules.',
-          ttlMs: 2200,
-        })
-        return
+      if (result.kind === 'create') {
+        addEdge(result.edge)
+        setPendingEdgeSourceId(null)
+        setPendingEdgeSourcePortKey(null)
+        setToolMode('select')
       }
-      addEdge(nextEdge)
-      setPendingEdgeSourceId(null)
-      setPendingEdgeSourcePortKey(null)
-      setToolMode('select')
     },
     [active, addEdge, draftGraphData, pendingEdgeSourceId, pendingEdgeSourcePortKey, schema, selectEdge, selectNode, setSelectionSource, toolMode, upsertUiToast],
   )

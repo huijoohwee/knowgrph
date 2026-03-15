@@ -11,20 +11,22 @@ import {
   getRenderNodeRadius2d,
   hasNodeMedia,
 } from '@/components/GraphCanvas/helpers';
-import { nodeDragBehavior } from '@/components/GraphCanvas/utils';
 import { applyImageLikeProxySrc } from '@/lib/url';
 import { DEFAULT_ZOOM_MAX_SCALE } from '@/lib/graph/layoutDefaults'
 import {
   computeMediaPanelWorldDims,
 } from '@/lib/render/mediaPanelSpec'
-import { getPortHandlePosition, getPortHandlesConfig, listPortHandlesForNodes, type PortHandleDatum } from '@/components/GraphCanvas/portHandles';
+import { getPortHandlesConfig } from '@/components/GraphCanvas/portHandles';
+import { getFlowPortHandlePosition2d, listFlowPortHandleDatums2d, type FlowPortHandleDatum2d } from '@/components/GraphCanvas/flowPortHandles2d'
+import { bindGraphCanvasFlowPortHandleInteractions } from '@/components/GraphCanvas/flowPortHandleInteractions'
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d';
 import { buildNodeShapePathD } from '@/components/GraphCanvas/shapePaths2d';
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
-import { createEdgeScrollController } from '@/lib/canvas/edge-scroll'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { compareNodeZKey, type NodeZKey } from '@/lib/canvas/groupZOrder'
+import { bindNodeDraggingWithGroupContainment } from '@/components/GraphCanvas/layers/nodesDragBinding'
+import { createNodeGroupChevronSel } from '@/components/GraphCanvas/layers/nodesGroupChevrons'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
@@ -63,7 +65,7 @@ export const createNodesLayer = (args: {
 }): {
   nodeSel: d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>;
   mediaSel: d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null;
-  portHandlesSel: d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null;
+  portHandlesSel: d3.Selection<SVGCircleElement, FlowPortHandleDatum2d, SVGGElement, unknown> | null;
   groupChevronSel: d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown> | null;
 } => {
   const {
@@ -390,29 +392,7 @@ export const createNodesLayer = (args: {
 
   const mediaInteractiveSel = mediaPanelSel as unknown as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null
 
-  const groupChevronSel = (() => {
-    const groupNodes = nodes.filter((n) => {
-      const props = (n.properties || {}) as Record<string, unknown>
-      const groupId = typeof props['kg:groupId'] === 'string' ? String(props['kg:groupId'] || '').trim() : ''
-      return !!groupId
-    })
-    if (groupNodes.length === 0) return null
-    const layer = g.append('g').attr('data-kg-layer', 'node-chevrons')
-    return layer
-      .selectAll<SVGPathElement, GraphNode>('path[data-kg-node-chevron]')
-      .data(groupNodes, (d: unknown) => String((d as GraphNode).id))
-      .enter()
-      .append('path')
-      .attr('data-kg-node-chevron', '1')
-      .attr('data-node-id', (d: GraphNode) => String(d.id))
-      .attr('fill', 'none')
-      .attr('stroke', UI_THEME_COLORS_CSS.textSecondary)
-      .attr('stroke-width', 1.75)
-      .attr('stroke-linecap', 'round')
-      .attr('stroke-linejoin', 'round')
-      .style('pointer-events', 'all')
-      .style('cursor', 'pointer') as unknown as d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown>
-  })()
+  const groupChevronSel = createNodeGroupChevronSel({ g, nodes })
 
   if (nodeZKeyById) {
     const keyForId = (id: string): NodeZKey =>
@@ -424,62 +404,16 @@ export const createNodesLayer = (args: {
   }
 
   if (schema.behavior?.allowNodeDrag !== false) {
-    const dragBehavior = nodeDragBehavior(simulation, schema, {
-      onNodeDragEnd: (d) => {
-        const id = String(d.id || '').trim()
-        const x = typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : null
-        const y = typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : null
-        if (!id || x == null || y == null) return
-        try {
-          onCommitNodePosition?.({ id, x, y })
-        } catch {
-          void 0
-        }
-      },
-    });
-
-    if (args.edgeScroll) {
-      const edgeScroll = createEdgeScrollController()
-      dragBehavior.on('start.kgEdgeScroll', () => edgeScroll.reset())
-      dragBehavior.on('drag.kgEdgeScroll', (event: unknown) => {
-        if (!args.edgeScroll) return
-        if (!args.edgeScroll.enabled()) {
-          edgeScroll.reset()
-          return
-        }
-        const ev = event as { sourceEvent?: unknown }
-        const src = ev?.sourceEvent as { clientX?: unknown; clientY?: unknown; pointerType?: unknown } | undefined
-        const clientX = typeof src?.clientX === 'number' ? src.clientX : NaN
-        const clientY = typeof src?.clientY === 'number' ? src.clientY : NaN
-        if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return
-        const svgEl = args.g.node()?.ownerSVGElement
-        if (!svgEl) return
-        const rect = svgEl.getBoundingClientRect()
-        const sx = clientX - rect.left
-        const sy = clientY - rect.top
-        const d = edgeScroll.update({
-          nowMs: Date.now(),
-          pointer: {
-            sx,
-            sy,
-            kind: src?.pointerType === 'touch' ? 'touch' : src?.pointerType === 'pen' ? 'pen' : 'mouse',
-          },
-          viewport: { w: rect.width, h: rect.height },
-          zoomK: d3.zoomTransform(svgEl).k || 1,
-          enabled: true,
-        })
-        if (Math.abs(d.dx) > 1e-6 || Math.abs(d.dy) > 1e-6) {
-          args.edgeScroll.panByPx(d.dx, d.dy)
-        }
-      })
-      dragBehavior.on('end.kgEdgeScroll', () => edgeScroll.reset())
-    }
-
-    const draggable = (node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>)
-    draggable.call(dragBehavior as d3.DragBehavior<SVGElement, GraphNode, unknown>)
-    if (mediaInteractiveSel) {
-      mediaInteractiveSel.call(dragBehavior as d3.DragBehavior<SVGElement, GraphNode, unknown>)
-    }
+    bindNodeDraggingWithGroupContainment({
+      g,
+      nodeSel: node as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown>,
+      mediaInteractiveSel,
+      simulation,
+      graphData,
+      schema,
+      onCommitNodePosition,
+      edgeScroll: args.edgeScroll,
+    })
   }
 
   const onContextMenu = (event: MouseEvent, d: GraphNode) => {
@@ -507,6 +441,7 @@ export const createNodesLayer = (args: {
       if (args.linkDragRef.current) {
         finalizePendingEdge(
           String(d.id),
+          null,
           graphData,
           getSelectedEdgeId(),
           args.tempLinkSelRef,
@@ -516,6 +451,7 @@ export const createNodesLayer = (args: {
           id => selectEdge(id),
           src => setSelectionSource(src),
           schema,
+          { label: 'link' },
         )
         return
       }
@@ -610,44 +546,39 @@ export const createNodesLayer = (args: {
     groupChevronSel.on('click', onGroupChevronClick)
   }
 
-  const portHandlesCfg = getPortHandlesConfig(schema);
-  const portHandlesEnabled = portHandlesCfg.enabled;
+  const portHandlesCfg = getPortHandlesConfig(schema)
+  const portHandlesEnabled = portHandlesCfg.enabled
   const portHandlesSel = (() => {
-    if (!portHandlesEnabled) return null;
-    const portLayer = g.append('g').attr('data-kg-layer', 'port-handles');
-    const data = listPortHandlesForNodes(nodes, graphData.edges);
-    if (!data.length) return null;
-    return (portLayer
-      .selectAll<SVGCircleElement, PortHandleDatum>('circle')
-      .data(data, d => `${d.nodeId}:${d.side}`)
-      .enter()
-      .append('circle')
-      .attr('data-node-id', (d: PortHandleDatum) => String(d.nodeId))
-      .attr('data-port-side', (d: PortHandleDatum) => String(d.side))
-      .attr('r', portHandlesCfg.size)
-      .attr('fill', portHandlesCfg.fill)
-      .attr('stroke', portHandlesCfg.stroke)
-      .attr('stroke-width', portHandlesCfg.strokeWidth)
-      .style('pointer-events', 'none')) as d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown>;
-  })();
+    if (!portHandlesEnabled) return null
+    const portLayer = g.append('g').attr('data-kg-layer', 'port-handles')
+    const data = listFlowPortHandleDatums2d({ schema, nodes, edges: graphData.edges || [] })
+    if (!data.length) return null
+    return portLayer.selectAll<SVGCircleElement, FlowPortHandleDatum2d>('circle')
+      .data(data, d => `${d.nodeId}:${d.dir}:${d.portKey}`).enter().append('circle')
+      .attr('data-node-id', d => String(d.nodeId)).attr('data-port-dir', d => String(d.dir)).attr('data-port-key', d => String(d.portKey))
+      .attr('r', portHandlesCfg.size).attr('fill', portHandlesCfg.fill).attr('stroke', portHandlesCfg.stroke).attr('stroke-width', portHandlesCfg.strokeWidth)
+      .style('pointer-events', 'all')
+  })()
 
   if (portHandlesSel) {
-    const nodeById = new Map<string, GraphNode>();
-    for (let i = 0; i < nodes.length; i += 1) nodeById.set(String(nodes[i].id), nodes[i]);
+    const nodeById = new Map<string, GraphNode>()
+    for (let i = 0; i < nodes.length; i += 1) nodeById.set(String(nodes[i].id), nodes[i])
     portHandlesSel
       .attr('cx', d => {
-        const n = nodeById.get(d.nodeId);
-        if (!n) return 0;
-        return getPortHandlePosition({ datum: d, node: n, schema, cfg: portHandlesCfg }).x;
+        const n = nodeById.get(d.nodeId)
+        if (!n) return 0
+        return getFlowPortHandlePosition2d({ datum: d, node: n, schema }).x
       })
       .attr('cy', d => {
-        const n = nodeById.get(d.nodeId);
-        if (!n) return 0;
-        return getPortHandlePosition({ datum: d, node: n, schema, cfg: portHandlesCfg }).y;
-      });
+        const n = nodeById.get(d.nodeId)
+        if (!n) return 0
+        return getFlowPortHandlePosition2d({ datum: d, node: n, schema }).y
+      })
+    bindGraphCanvasFlowPortHandleInteractions({ selection: portHandlesSel, nodeById, graphData, schema, enableEditorGestures: enableEditorGestures === true,
+      allowEdgeCreation: schema?.behavior?.allowEdgeCreation !== false, tempLinkSelRef: args.tempLinkSelRef, linkDragRef: args.linkDragRef,
+      getSelectedEdgeId, addEdge, updateEdge, selectEdge, selectNode, setSelectionSource })
     if (nodeZKeyById) {
-      const keyForId = (id: string): NodeZKey =>
-        nodeZKeyById.get(id) || { id, groupDepth: -1, groupSize: Number.POSITIVE_INFINITY, zIndex: 0, zMode: 'group', yIndex: 0, xIndex: 0 }
+      const keyForId = (id: string): NodeZKey => nodeZKeyById.get(id) || { id, groupDepth: -1, groupSize: Number.POSITIVE_INFINITY, zIndex: 0, zMode: 'group', yIndex: 0, xIndex: 0 }
       portHandlesSel.sort((a, b) => compareNodeZKey(keyForId(a.nodeId), keyForId(b.nodeId)))
     }
   }

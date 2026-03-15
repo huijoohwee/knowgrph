@@ -1,0 +1,139 @@
+import * as d3 from 'd3'
+
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { requestFlowNativeDraw } from '@/components/FlowCanvas/nativeRuntime'
+import { commitGroupBoundsOverrideToStore } from '@/lib/canvas/groupBoundsOverridesStore'
+import { unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
+
+import type { FlowNativeInteractionsContext } from '@/components/FlowCanvas/interactions/context'
+
+export function createFlowNativePointerUpHandler(ctx: FlowNativeInteractionsContext) {
+  const runtime = ctx.runtime
+
+  return (e: PointerEvent) => {
+    if (ctx.args.userSelectLockPointerIdRef.current === e.pointerId) {
+      ctx.args.userSelectLockPointerIdRef.current = null
+      unlockGlobalUserSelect()
+    }
+
+    const drag = ctx.args.dragRef.current
+    if (!drag) return
+
+    if (e.pointerType === 'touch') {
+      ctx.touchPointsById.delete(e.pointerId)
+    }
+
+    if (drag.type === 'pinch') {
+      if (e.pointerId !== drag.pointerIdA && e.pointerId !== drag.pointerIdB) return
+      ctx.args.dragRef.current = null
+      ctx.edgeScroll.reset()
+      ctx.args.requestCommit()
+      try {
+        e.preventDefault()
+      } catch {
+        void 0
+      }
+      return
+    }
+
+    if (drag.pointerId !== e.pointerId) return
+
+    if (drag.type === 'groupResize') {
+      ctx.args.dragRef.current = null
+      ctx.edgeScroll.reset()
+      const scene = runtime.scene
+      const group = scene?.groups?.find(g => String(g.id || '').trim() === String(drag.groupId || '').trim()) || null
+      const explicit =
+        group &&
+        (group as unknown as { bounds?: unknown }).bounds &&
+        typeof (group as any).bounds === 'object' &&
+        !Array.isArray((group as any).bounds)
+          ? (group as any).bounds
+          : null
+      if (explicit) {
+        const x = typeof explicit.x === 'number' ? explicit.x : Number.NaN
+        const y = typeof explicit.y === 'number' ? explicit.y : Number.NaN
+        const width = typeof explicit.width === 'number' ? explicit.width : Number.NaN
+        const height = typeof explicit.height === 'number' ? explicit.height : Number.NaN
+        if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+          commitGroupBoundsOverrideToStore(drag.groupId, { x, y, width, height })
+        }
+      }
+      ctx.args.requestCommit()
+      try {
+        e.preventDefault()
+      } catch {
+        void 0
+      }
+      return
+    }
+
+    if (drag.type === 'lasso') {
+      ctx.args.dragRef.current = null
+      ctx.edgeScroll.reset()
+      ctx.args.setSelectionBox(null)
+      const scene = runtime.scene
+      if (!scene) {
+        ctx.args.requestCommit()
+        return
+      }
+      const t0 = runtime.transform || d3.zoomIdentity
+      const leftSx = Math.min(drag.startSx, drag.lastSx)
+      const topSy = Math.min(drag.startSy, drag.lastSy)
+      const rightSx = Math.max(drag.startSx, drag.lastSx)
+      const bottomSy = Math.max(drag.startSy, drag.lastSy)
+      const minX = (leftSx - t0.x) / t0.k
+      const minY = (topSy - t0.y) / t0.k
+      const maxX = (rightSx - t0.x) / t0.k
+      const maxY = (bottomSy - t0.y) / t0.k
+      const selected: string[] = []
+      for (let i = 0; i < scene.nodes.length; i += 1) {
+        const n = scene.nodes[i]
+        const nMinX = n.x
+        const nMinY = n.y
+        const nMaxX = n.x + n.width
+        const nMaxY = n.y + n.height
+        const intersects = nMinX <= maxX && nMaxX >= minX && nMinY <= maxY && nMaxY >= minY
+        if (intersects) selected.push(String(n.id))
+      }
+      const state = useGraphStore.getState()
+      state.setSelectionSource('canvas')
+      const prevIdsRaw = Array.isArray(state.selectedNodeIds) ? state.selectedNodeIds : []
+      const prevIds = prevIdsRaw.map(v => String(v || '').trim()).filter(Boolean)
+      if (drag.mode === 'remove') {
+        const drop = new Set<string>(selected.map(v => String(v || '').trim()).filter(Boolean))
+        const next = prevIds.filter(id => !drop.has(id))
+        state.selectNodesExpanded({ nodeIds: next, activeNodeId: next.length > 0 ? next[next.length - 1] : null })
+      } else if (drag.mode === 'add') {
+        const set = new Set<string>(prevIds)
+        for (let i = 0; i < selected.length; i += 1) {
+          const id = String(selected[i] || '').trim()
+          if (id) set.add(id)
+        }
+        const next = Array.from(set)
+        state.selectNodesExpanded({ nodeIds: next, activeNodeId: next.length > 0 ? next[next.length - 1] : null })
+      } else {
+        state.selectNodesExpanded({ nodeIds: selected, activeNodeId: selected.length > 0 ? selected[selected.length - 1] : null })
+      }
+      requestFlowNativeDraw(runtime, ctx.args.buildDrawArgs())
+      ctx.args.requestCommit()
+      ctx.args.onInteractionFrame?.()
+      try {
+        e.preventDefault()
+      } catch {
+        void 0
+      }
+      return
+    }
+
+    ctx.args.dragRef.current = null
+    ctx.edgeScroll.reset()
+    ctx.args.requestCommit()
+    try {
+      e.preventDefault()
+    } catch {
+      void 0
+    }
+  }
+}
+

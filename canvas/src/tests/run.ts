@@ -34,6 +34,10 @@ import { testForbidPenpotRepoLiteral } from '@/__tests__/forbidPenpotRepoLiteral
 import { testFlowCanvasSpacePanCanStartFromOverlay } from '@/__tests__/flowCanvasSpacePanOverlayProxyRegression.test'
 import { testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay } from '@/__tests__/flowCanvasWheelOverlayProxyRegression.test'
 import { testFlowCanvasHandlesSafariGesturePinchZoom } from '@/__tests__/flowCanvasGesturePinchZoomRegression.test'
+import {
+  testGraphCanvasLayerOrderSsotIncludesResizeHandlesAndGroupHit,
+  testGraphCanvasGroupDragWritesVisualZIndexNotOverrideKey,
+} from '@/__tests__/viewportD3LayerOrderRegression.test'
 import { testFlowEditorFlyoutOverlayRootHasQuickEditorDataAttr } from '@/__tests__/flowEditorFlyoutOverlayRootDataAttrRegression.test'
 import { testFlowEditorOverlayDragDoesNotStartCanvasPanProxyWithoutSpace } from '@/__tests__/flowEditorOverlayDragDoesNotStartCanvasPanProxyRegression.test'
 import { testFlowEditorOverlayCollisionResolveIsNotScheduledFromLiveInteractionTick } from '@/__tests__/flowEditorOverlayCollisionResolverNotTiedToLiveTickRegression.test'
@@ -64,6 +68,8 @@ import {
   testGroupBboxCollideByDepthSeparatesOuterAndInnerSiblings,
   testNestedGroupInnerBorderDoesNotTouchParentOuterBorder,
 } from '@/__tests__/groupOverlapByDepthForce.test'
+import { testGroupBoundsOverridesApplyDoesNotOverwriteExistingBounds, testGroupBoundsOverridesReadWrite } from '@/__tests__/groupBoundsOverrides.test'
+import { testGroupsLayerResizeHandleVisibleWhenSelected } from '@/__tests__/groupsResizeHandleVisibility.test'
 import {
   testGraphCanvasIframeNodesHideBodyWhenRichMediaOn,
   testGraphCanvasMediaNodesKeepBodyWhenOverlayPoolClips,
@@ -1177,6 +1183,9 @@ export const runAllTests = async () => {
   await exec('interaction.userSelect.failsafeInstalled', testGlobalUserSelectLockHasFailsafeAndIsInstalled)
   await exec('interaction.userSelect.d3NodeDrag.endUnlock', testGraphCanvasNodeDragDoesNotLeakUserSelectLockWhenSpacePanHeld)
 
+  await exec('viewport.d3.layerOrder.ssot', testGraphCanvasLayerOrderSsotIncludesResizeHandlesAndGroupHit)
+  await exec('viewport.d3.groups.zIndexOverrideKey', testGraphCanvasGroupDragWritesVisualZIndexNotOverrideKey)
+
   await exec('viewport.flowEditor.doesNotForceDesignPreset', testFlowEditorViewportControlsPresetDoesNotForceDesign)
   await exec('viewport.flowEditor.overlay.pointerCaptureRegression', testFlowEditorOverlayDoesNotFreezePanOrZoomAfterOverlayDrag)
   await exec('viewport.flowEditor.overlay.dragDoesNotStartPanProxy', testFlowEditorOverlayDragDoesNotStartCanvasPanProxyWithoutSpace)
@@ -1346,6 +1355,9 @@ export const runAllTests = async () => {
   await exec('layout.edges.opacity.usesBaseWhenGroupsDisabled', testEdgeOpacityUsesBaseOpacityWhenGroupsDisabled)
 
   await exec('graph.groups.nestedBorder.noTouchParentOuter', testNestedGroupInnerBorderDoesNotTouchParentOuterBorder)
+  await exec('graph.groups.boundsOverrides.schemaReadWrite', testGroupBoundsOverridesReadWrite)
+  await exec('graph.groups.boundsOverrides.applyPreservesExisting', testGroupBoundsOverridesApplyDoesNotOverwriteExistingBounds)
+  await exec('graph.groups.resizeHandle.visibleWhenSelected', testGroupsLayerResizeHandleVisibleWhenSelected)
 
   await exec('frontmatterMode.effective.noopWhenNoSeeds', testFrontmatterModeEffectiveNoopWhenNoSeeds)
   await exec('frontmatterMode.effective.whenSeedsExist', testFrontmatterModeEffectiveWhenSeedsExist)

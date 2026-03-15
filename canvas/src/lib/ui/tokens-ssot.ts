@@ -29,6 +29,8 @@ export const KG_TOKEN_DEFS: readonly KgTokenDef[] = [
   { cssVar: '--kg-canvas-accent', light: '#3b82f6', dark: '#60a5fa' },
   { cssVar: '--kg-canvas-label-halo', light: '#f3f4f6', dark: '#020617' },
   { cssVar: '--kg-canvas-label-fill', light: '#111827', dark: '#e5e7eb' },
+  { cssVar: '--kg-canvas-grid-minor', light: '#111827', dark: '#f3f4f6' },
+  { cssVar: '--kg-canvas-grid-major', light: '#111827', dark: '#f3f4f6' },
   { cssVar: '--kg-media-panel-bg', light: '#ffffff', dark: '#020b2a' },
   { cssVar: '--kg-media-panel-header-bg', light: '#f9fafb', dark: 'rgba(11, 18, 32, 0.75)' },
   { cssVar: '--kg-statusbar-bg', light: '#f9fafb', dark: 'rgba(11, 18, 32, 0.85)' },

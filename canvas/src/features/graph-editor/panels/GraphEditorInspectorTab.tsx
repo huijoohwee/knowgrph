@@ -5,10 +5,14 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { readSubgraphs, subgraphGroupId, writeSubgraphs } from '@/lib/graph/subgraphs'
+import type { GraphSchema } from '@/lib/graph/schema'
+import { readGroupBoundsOverrideSource } from '@/lib/canvas/groupBoundsOverrides'
+import { resetGroupBoundsOverrideInStore } from '@/lib/canvas/groupBoundsOverridesStore'
 
 export function GraphEditorInspectorTab() {
   const {
     graphData,
+    schema,
     selectedNodeId,
     selectedEdgeId,
     selectedGroupId,
@@ -19,6 +23,7 @@ export function GraphEditorInspectorTab() {
   } = useGraphStore(
     useShallow(s => ({
       graphData: s.graphData as GraphData | null,
+      schema: s.schema as GraphSchema,
       selectedNodeId: (typeof s.selectedNodeId === 'string' ? s.selectedNodeId : null) as string | null,
       selectedEdgeId: (typeof s.selectedEdgeId === 'string' ? s.selectedEdgeId : null) as string | null,
       selectedGroupId: (typeof s.selectedGroupId === 'string' ? s.selectedGroupId : null) as string | null,
@@ -47,6 +52,12 @@ export function GraphEditorInspectorTab() {
     if (!match) return null
     return subgraphs.find(sg => sg.id === match) || null
   }, [graphData, selectedGroupId, subgraphs])
+
+  const selectedGroupBoundsOverride = React.useMemo(() => {
+    if (!graphData || !schema || !selectedGroupId) return { source: null, bounds: null } as { source: 'node' | 'schema' | null; bounds: unknown }
+    const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : ([] as GraphNode[])
+    return readGroupBoundsOverrideSource({ groupId: selectedGroupId, graphNodes: nodes, schema })
+  }, [graphData, schema, selectedGroupId])
 
   const nodeSubgraphId = React.useMemo(() => {
     if (!selectedNodeId) return ''
@@ -154,6 +165,47 @@ export function GraphEditorInspectorTab() {
         <div className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Subgraph</div>
         <div className={`font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{subgraphGroupId(selectedSubgraph.id)}</div>
         <div className={`text-sm ${UI_THEME_TOKENS.text.secondary}`}>{selectedSubgraph.memberNodeIds.length} nodes</div>
+        {selectedGroupBoundsOverride.source ? (
+          <div className="space-y-2" aria-label="Bounds override">
+            <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Bounds override</div>
+            <div className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>Source: {selectedGroupBoundsOverride.source}</div>
+            <button
+              type="button"
+              className={`w-full rounded-md border px-2 py-1 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+              onClick={() => {
+                resetGroupBoundsOverrideInStore(subgraphGroupId(selectedSubgraph.id))
+              }}
+            >
+              Reset bounds to auto
+            </button>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (selectedGroupId) {
+    return (
+      <div className="space-y-3" aria-label="Inspector group">
+        <div className={`text-xs font-medium ${UI_THEME_TOKENS.text.secondary}`}>Group</div>
+        <div className={`font-mono text-xs ${UI_THEME_TOKENS.text.secondary}`}>{selectedGroupId}</div>
+        {selectedGroupBoundsOverride.source ? (
+          <div className="space-y-2" aria-label="Bounds override">
+            <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>Bounds override</div>
+            <div className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>Source: {selectedGroupBoundsOverride.source}</div>
+            <button
+              type="button"
+              className={`w-full rounded-md border px-2 py-1 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+              onClick={() => {
+                resetGroupBoundsOverrideInStore(selectedGroupId)
+              }}
+            >
+              Reset bounds to auto
+            </button>
+          </div>
+        ) : (
+          <div className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>No bounds override set.</div>
+        )}
       </div>
     )
   }

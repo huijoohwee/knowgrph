@@ -9,7 +9,10 @@ import { computeGroupDepthStyle } from '@/lib/graph/groupDepthStyle'
 import { aabbOverlaps, type AabbRect } from '@/lib/ui/labels/aabb'
 import { estimateLabelCharWidthPx, estimateMaxCharsForWidthPx, truncateTextWithEllipsis, truncateTextWithWordEllipsis, wrapTextByMaxChars } from '@/lib/ui/text/labelText'
 import { getKgTokenFallback, getKgThemeFromDom, resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
+import { readCanvasGridStrokeFallbacks } from '@/lib/canvas/canvasGridPaint'
 import { screenToWorld as screenToWorldViewport } from '@/lib/zoom/viewport'
+import { pxToWorld, readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfig'
+import { drawInfiniteGridInWorldContext } from '@/lib/canvas/infiniteGrid'
 
 export type FlowNativeNodeShape = 'circle' | 'rect' | 'diamond' | 'hex'
 
@@ -143,6 +146,7 @@ export type FlowNativeRuntime = {
     hidePortHandleNodeIdsRef: string[] | null
     hidePortHandleNodeIds: Set<string>
   }
+  groupAabbByIdCache: Map<string, FlowGroupAabb>
 }
 
 export const defaultFlowTheme = (): FlowNativeTheme => ({
@@ -288,6 +292,7 @@ export const createFlowNativeRuntime = (args: {
       hidePortHandleNodeIdsRef: null,
       hidePortHandleNodeIds: new Set<string>(),
     },
+    groupAabbByIdCache: new Map<string, FlowGroupAabb>(),
   }
 }
 
@@ -1108,11 +1113,42 @@ const drawGroups = (rt: FlowNativeRuntime, groupAabbById: Map<string, FlowGroupA
 export type FlowNativeDrawArgs = {
   selectedNodeIds: string[]
   selectedEdgeIds: string[]
+  selectedGroupId?: string | null
+  showGroupResizeHandle?: boolean
   hideNodeIds?: string[]
   hidePortHandleNodeIds?: string[]
   renderEdges?: boolean
   renderGroups?: boolean
   renderNodes?: boolean
+  grid?: { enabled: boolean; size: number; variant?: 'lines' | 'dots'; majorEvery?: number; dotRadiusPx?: number } | null
+}
+
+const drawGroupResizeHandleOverlay = (rt: FlowNativeRuntime, args: { groupAabbById: Map<string, FlowGroupAabb> | null; selectedGroupId: string; enabled: boolean }) => {
+  if (!args.enabled) return
+  const id = String(args.selectedGroupId || '').trim()
+  if (!id) return
+  const scene = rt.scene
+  if (!scene?.groups || scene.groups.length === 0) return
+  const aabb = (args.groupAabbById ? args.groupAabbById.get(id) || null : null) || null
+  if (!aabb) return
+  const ctx = rt.ctx
+  const k = typeof rt.transform?.k === 'number' && Number.isFinite(rt.transform.k) && rt.transform.k > 0 ? rt.transform.k : 1
+  const cfg = readGroupResizeHandleConfig(null)
+  const rWorld = pxToWorld(cfg.dotRadiusPx, k)
+  const strokeWorld = pxToWorld(cfg.strokeWidthPx, k)
+  const cx = aabb.maxX
+  const cy = aabb.maxY
+  ctx.save()
+  ctx.globalAlpha = 0.98
+  ctx.fillStyle = rt.theme.bg
+  ctx.strokeStyle = rt.theme.edgeSelected
+  ctx.lineWidth = strokeWorld
+  ctx.beginPath()
+  ctx.arc(cx, cy, rWorld, 0, Math.PI * 2)
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
+  ctx.restore()
 }
 
 export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) => {
@@ -1127,6 +1163,22 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
   ctx.fillRect(0, 0, rt.canvas.width, rt.canvas.height)
 
   applyDprAndWorldTransform(rt)
+
+  const grid = args.grid
+  if (grid && grid.enabled === true) {
+    const fallbacks = readCanvasGridStrokeFallbacks()
+    const minorStroke = resolveCssVarCached(rt, '--kg-canvas-grid-minor', fallbacks.minor)
+    const majorStroke = resolveCssVarCached(rt, '--kg-canvas-grid-major', fallbacks.major)
+    drawInfiniteGridInWorldContext(rt.ctx, {
+      enabled: true,
+      gridSize: grid.size,
+      viewportW: rt.viewportW,
+      viewportH: rt.viewportH,
+      dpr: rt.dpr,
+      transform: { k: rt.transform.k, x: rt.transform.x, y: rt.transform.y },
+      paint: { minorStroke, majorStroke, variant: grid.variant, majorEvery: grid.majorEvery, dotRadiusPx: grid.dotRadiusPx },
+    })
+  }
 
   const scene = rt.scene
   if (!scene) return
@@ -1178,6 +1230,8 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
   const renderEdges = args.renderEdges !== false
   const renderGroups = args.renderGroups !== false
   const renderNodes = args.renderNodes !== false
+  const selectedGroupId = String(args.selectedGroupId || '').trim()
+  const showGroupResizeHandle = args.showGroupResizeHandle === true
 
   const groupAabbById = (() => {
     const gCfg = rt.presentation.groups
@@ -1185,7 +1239,8 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
     if (!scene.groups || scene.groups.length === 0) return null
     const padding = Math.max(0, gCfg.paddingPx)
     const topExtra = Math.max(0, gCfg.labelTopExtraPx)
-    const m = new Map<string, FlowGroupAabb>()
+    const m = rt.groupAabbByIdCache
+    m.clear()
     for (let i = 0; i < scene.groups.length; i += 1) {
       const g = scene.groups[i]
       const aabb = computeFlowGroupAabb({ scene, group: g, paddingPx: padding, labelTopExtraPx: topExtra })
@@ -1226,6 +1281,8 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
       if (!hiddenPortHandleNodeIds.has(n.id)) drawPortHandles(rt, n)
     }
   }
+
+  if (selectedGroupId) drawGroupResizeHandleOverlay(rt, { groupAabbById, selectedGroupId, enabled: showGroupResizeHandle })
 }
 
 export const requestFlowNativeDraw = (

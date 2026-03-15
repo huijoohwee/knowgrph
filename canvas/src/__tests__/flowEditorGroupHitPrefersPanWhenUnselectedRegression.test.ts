@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testFlowEditorGroupHitPrefersPanWhenUnselected() {
-  const p = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'bindNativeInteractions.ts')
+  const p = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'interactions', 'pointerDown.ts')
   const text = readFileSync(p, 'utf8')
   if (!text.includes('hitTestGroup')) {
     throw new Error('expected FlowCanvas to hit-test groups')

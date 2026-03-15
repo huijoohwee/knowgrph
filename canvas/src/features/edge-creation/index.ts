@@ -1,9 +1,14 @@
 import type * as d3 from 'd3'
 import { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { GraphSchema } from '@/lib/graph/schema'
-import { canAddEdge } from '@/features/schema/validation'
+import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
 
-export type PendingLink = { mode: 'create' | 'update-source' | 'update-target'; fromId: string }
+export type PendingLink = {
+  mode: 'create' | 'update-source' | 'update-target'
+  fromId: string
+  fromPortKey?: string | null
+  start?: { x: number; y: number } | null
+}
 
 export type TempLinkSelection = d3.Selection<SVGLineElement, unknown, SVGGElement, unknown> | null
 
@@ -11,14 +16,22 @@ export function startEdgeFromNode(
   node: GraphNode,
   tempLinkSelRef: { current: TempLinkSelection },
   linkDragRef: { current: PendingLink | null },
+  opts?: { portKey?: string | null; start?: { x: number; y: number } | null },
 ) {
-  linkDragRef.current = { mode: 'create', fromId: node.id }
+  const startX = opts?.start && Number.isFinite(opts.start.x) ? opts.start.x : node.x || 0
+  const startY = opts?.start && Number.isFinite(opts.start.y) ? opts.start.y : node.y || 0
+  linkDragRef.current = {
+    mode: 'create',
+    fromId: node.id,
+    fromPortKey: typeof opts?.portKey === 'string' && opts.portKey.trim() ? opts.portKey.trim() : null,
+    start: { x: startX, y: startY },
+  }
   if (tempLinkSelRef.current) {
     tempLinkSelRef.current
-      .attr('x1', node.x || 0)
-      .attr('y1', node.y || 0)
-      .attr('x2', node.x || 0)
-      .attr('y2', node.y || 0)
+      .attr('x1', startX)
+      .attr('y1', startY)
+      .attr('x2', startX)
+      .attr('y2', startY)
       .style('display', null)
   }
 }
@@ -32,7 +45,7 @@ export function startUpdateEdgeEndpoint(
   selectEdge: (id: string) => void,
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void,
 ) {
-  linkDragRef.current = { mode, fromId: endpointNode.id }
+  linkDragRef.current = { mode, fromId: endpointNode.id, fromPortKey: null, start: { x: endpointNode.x || 0, y: endpointNode.y || 0 } }
   if (tempLinkSelRef.current) {
     tempLinkSelRef.current
       .attr('x1', endpointNode.x || 0)
@@ -72,6 +85,7 @@ export function requestUpdateEdgeEndpointByEdge(
 
 export function finalizePendingEdge(
   toNodeId: string,
+  toPortKey: string | null | undefined,
   data: GraphData,
   selectedEdgeId: string | null,
   tempLinkSelRef: { current: TempLinkSelection },
@@ -81,59 +95,44 @@ export function finalizePendingEdge(
   selectEdge: (id: string) => void,
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void,
   schema?: GraphSchema,
+  opts?: { label?: string },
 ) {
   if (!linkDragRef.current) return false
   if (tempLinkSelRef.current) tempLinkSelRef.current.style('display', 'none')
-  const { mode, fromId } = linkDragRef.current
+  const { mode, fromId, fromPortKey } = linkDragRef.current
   linkDragRef.current = null
-  if (mode === 'create') {
-    const exists = data.edges.some(e => String(e.source) === fromId && String(e.target) === toNodeId)
-    if (!exists) {
-      // Prevent self-loops if configured
-      if (schema?.behavior?.preventSelfLoopsGlobal && fromId === toNodeId) {
-        return true
-      }
-      const newEdge: GraphEdge = {
-        id: `e-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-        source: fromId,
-        target: toNodeId,
-        label: 'link',
-        properties: {},
-      }
-      // Enforce endpoint matrix and cardinality if schema provided
-      if (schema && !canAddEdge(schema, data, newEdge)) {
-        return true
-      }
-      addEdge(newEdge)
-      setSelectionSource('canvas')
-      selectEdge(newEdge.id)
-    } else {
-      const dup = data.edges.find(e => String(e.source) === fromId && String(e.target) === toNodeId)!
-      setSelectionSource('canvas')
-      selectEdge(dup.id)
-    }
+  const label = String(opts?.label || '').trim() || 'link'
+  const result = finalizeEdgeAuthoring({
+    mode,
+    data,
+    schema: schema || null,
+    label,
+    selectedEdgeId,
+    from: { nodeId: fromId, portKey: typeof fromPortKey === 'string' ? fromPortKey : null },
+    to: { nodeId: toNodeId, portKey: typeof toPortKey === 'string' ? toPortKey : null },
+  })
+  if (result.kind === 'create') {
+    addEdge(result.edge)
+    setSelectionSource('canvas')
+    selectEdge(result.edge.id)
     return true
   }
-  if (selectedEdgeId) {
-    const existing = data.edges.find(e => e.id === selectedEdgeId)
-    if (existing) {
-      const next: GraphEdge = {
-        ...existing,
-        source: mode === 'update-source' ? toNodeId : existing.source,
-        target: mode === 'update-target' ? toNodeId : existing.target,
-      }
-      if (schema?.behavior?.preventSelfLoopsGlobal && String(next.source) === String(next.target)) {
-        return true
-      }
-      if (!schema || canAddEdge(schema, data, next)) {
-        if (mode === 'update-source') updateEdge(selectedEdgeId, { source: toNodeId })
-        else if (mode === 'update-target') updateEdge(selectedEdgeId, { target: toNodeId })
-      } else {
-        return true
-      }
-    }
+  if (result.kind === 'select-existing') {
     setSelectionSource('canvas')
-    selectEdge(selectedEdgeId)
+    selectEdge(result.edgeId)
+    return true
+  }
+  if (result.kind === 'update') {
+    updateEdge(result.edgeId, result.patch)
+    setSelectionSource('canvas')
+    selectEdge(result.edgeId)
+    return true
+  }
+  if (result.kind === 'blocked') {
+    if (selectedEdgeId) {
+      setSelectionSource('canvas')
+      selectEdge(selectedEdgeId)
+    }
     return true
   }
   return false

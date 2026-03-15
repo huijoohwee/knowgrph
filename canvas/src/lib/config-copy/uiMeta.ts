@@ -131,6 +131,7 @@ export const UI_LABELS = {
   fitToScreen: 'Fit to Screen',
   pinToView: 'Pin to View',
   zoomToSelection: 'Zoom to Selection',
+  grid: 'Grid',
   multiSelectMode: 'Multi-select Mode',
   layerMode: 'Layer Mode',
   graphLayersMode: 'Clusters',

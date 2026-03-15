@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, FileCode, Table, Lock, Unlock, Pencil, Compass, Palette, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Grid3x3, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, FileCode, Table, Lock, Unlock, Pencil, Compass, Palette, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
@@ -95,6 +95,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const workspaceViewModeBeforeTable = useGraphStore(s => s.workspaceViewModeBeforeTable)
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes);
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes);
+  const setBehavior = useGraphStore(s => s.setBehavior)
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const setCanvas2dRenderer = useGraphStore(s => s.setCanvas2dRenderer)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
@@ -118,6 +119,20 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const upsertUiToast = useGraphStore(s => s.upsertUiToast)
 
   const isWorkspaceOverlayMode = workspaceViewMode === 'editor' || workspaceViewMode === 'table'
+
+  const snapGridEnabled = !!schema?.behavior?.snapGrid?.enabled
+  const snapGridSize = typeof schema?.behavior?.snapGrid?.size === 'number' && Number.isFinite(schema.behavior.snapGrid.size)
+    ? Math.max(2, Math.floor(schema.behavior.snapGrid.size))
+    : 10
+
+  const canvasGridEnabled = !!schema?.behavior?.canvasGrid?.enabled
+  const canvasGridVariant = schema?.behavior?.canvasGrid?.variant === 'lines' ? 'lines' : 'dots'
+  const canvasGridMajorEvery = typeof schema?.behavior?.canvasGrid?.majorEvery === 'number' && Number.isFinite(schema.behavior.canvasGrid.majorEvery)
+    ? Math.max(2, Math.min(20, Math.floor(schema.behavior.canvasGrid.majorEvery)))
+    : 5
+  const canvasGridDotRadiusPx = typeof schema?.behavior?.canvasGrid?.dotRadiusPx === 'number' && Number.isFinite(schema.behavior.canvasGrid.dotRadiusPx)
+    ? Math.max(0.5, Math.min(6, schema.behavior.canvasGrid.dotRadiusPx))
+    : 1
   const [workspaceToolbarExpanded, setWorkspaceToolbarExpanded] = useState(true)
   React.useEffect(() => {
     if (!isWorkspaceOverlayMode) return
@@ -596,6 +611,28 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         showTooltip
       >
         <Focus className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
+      <IconButton
+        className={`App-toolbar__btn ${
+          (snapGridEnabled || canvasGridEnabled) ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+        }`}
+        title={UI_LABELS.grid}
+        tooltipContent={UI_COPY.canvasGridTooltip}
+        onClick={() => {
+          const nextEnabled = !(snapGridEnabled || canvasGridEnabled)
+          setBehavior({
+            snapGrid: { enabled: nextEnabled, size: snapGridSize },
+            canvasGrid: {
+              enabled: nextEnabled,
+              variant: canvasGridVariant,
+              majorEvery: canvasGridMajorEvery,
+              dotRadiusPx: canvasGridDotRadiusPx,
+            },
+          })
+        }}
+        showTooltip
+      >
+        <Grid3x3 className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${

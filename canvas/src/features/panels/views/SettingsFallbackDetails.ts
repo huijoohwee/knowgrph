@@ -1,6 +1,12 @@
 export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: string; notes?: string }> = {
   uiPanelOpacity: { area: 'Global Translucency', responsibility: 'Main Panel opacity' },
   uiToolbarOpacity: { area: 'Global Translucency', responsibility: 'Toolbar opacity' },
+  canvasSnapEnabled: { area: 'Canvas Grid', responsibility: 'Snap-to-grid enabled (affects dragging, resizing, nudging)' },
+  canvasSnapGridSize: { area: 'Canvas Grid', responsibility: 'Snap grid size (world units)', notes: 'Alt disables snapping while dragging. Arrow nudges follow the grid when enabled.' },
+  canvasGridVisible: { area: 'Canvas Grid', responsibility: 'Show/hide the infinite canvas grid background' },
+  canvasGridVariant: { area: 'Canvas Grid', responsibility: 'Grid background variant (dots or lines)' },
+  canvasGridMajorEvery: { area: 'Canvas Grid', responsibility: 'Every N minor steps, draw a major grid' },
+  canvasGridDotRadiusPx: { area: 'Canvas Grid', responsibility: 'Dot radius (px) when variant=dots' },
   historyDebounceMs: { area: 'Editor Behavior & Timing', responsibility: 'Debounce history' },
   codeHighlightDurationMs: { area: 'Editor Behavior & Timing', responsibility: 'Code highlight duration' },
   codeSelectThrottleMs: { area: 'Editor Behavior & Timing', responsibility: 'Code→Canvas selection throttle' },

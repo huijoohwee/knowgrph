@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testFlowCanvasSpacePanCanStartFromOverlay() {
-  const p = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'bindNativeInteractions.ts')
+  const p = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'interactions', 'listeners.ts')
   const text = readFileSync(p, 'utf8')
   if (!text.includes('onWindowPointerDownCapture')) {
     throw new Error('expected FlowCanvas to install a window pointerdown capture handler for overlay space-pan')

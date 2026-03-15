@@ -28,6 +28,7 @@ export const testFinalizeCreateEdge = () => {
   let selected: string | null = null
   const ok = finalizePendingEdge(
     'b',
+    null,
     data,
     null,
     temp,
@@ -60,6 +61,7 @@ export const testFinalizeUseExistingEdge = () => {
   let selected: string | null = null
   const ok = finalizePendingEdge(
     'b',
+    null,
     data,
     null,
     temp,
@@ -90,6 +92,7 @@ export const testFinalizeUpdateSource = () => {
   let selected: string | null = null
   const ok = finalizePendingEdge(
     'c',
+    null,
     data,
     'e1',
     temp,
@@ -122,6 +125,7 @@ export const testFinalizeUpdateTarget = () => {
   let selected: string | null = null
   const ok = finalizePendingEdge(
     'c',
+    null,
     data,
     'e1',
     temp,

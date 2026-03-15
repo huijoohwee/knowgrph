@@ -8,6 +8,9 @@ import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
 import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
 import { commitZoomTransformToStore } from '@/lib/canvas/zoom-commit'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
+import { InfiniteGridCanvasOverlay } from '@/components/InfiniteGridCanvasOverlay'
+import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
+import { readCanvasGridConfigFromSchema, readCanvasGridWorldStepFromSchema } from '@/lib/canvas/canvasGridConfig'
 import { invertZoomPoint } from '@/lib/canvas/viewport-transform'
 import { readElementLocalPoint } from '@/lib/canvas/canvas-event-coords'
 import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects'
@@ -23,6 +26,7 @@ import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes
 import { clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } from '@/lib/canvas/camera-options-2d'
 import { shouldStartSelectionDragForPreset } from '@/lib/canvas/viewport-controls'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
+import { computeGroupResizeBottomRight, computeMinGroupResizeSize } from '@/lib/canvas/groupResizeMath2d'
 import type { WebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutExport'
 import { getCachedWebpageLayoutSnapshot, setCachedWebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutCache'
 import { convertWebpageLayoutToGraphData } from '@/lib/websites/webpageLayoutToGraph'
@@ -33,7 +37,9 @@ import type { WebpageFrontmatterMeta, WebpageFidelityLevel } from '@/lib/markdow
 import { createProgressTicker } from '@/lib/progress/progressTicker'
 import type { WebpageDomProbeResult } from '@/lib/websites/webpageDomExport'
 import { hashText } from '@/features/parsers/hash'
+import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 
+import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { estimateLabelCharWidthPx, estimateMaxCharsForWidthPx, truncateTextWithEllipsis, wrapTextByMaxChars } from '@/lib/ui/text/labelText'
 import { relaxAabbLabels, type AabbLabelParticle } from '@/lib/ui/labels/relaxAabbLabels'
@@ -43,11 +49,17 @@ import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { buildViewportSvgMarkupFromElement } from '@/lib/graph/svgSnapshot'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { applyMediaProxySrc, resolveUrlAgainstBase } from '@/lib/url'
+import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
+import { readAllowGroupResize } from '@/lib/canvas/groupResizePolicy'
+import { readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfig'
+import { buildDeepestGroupRectByNodeId, buildGroupRectByIdFromSchemaOverrides } from '@/lib/canvas/groupExplicitBounds'
+import { clampDelta, computeDeltaClampForTopLeftNodes, type DeltaClamp, type RectBounds } from '@/lib/canvas/groupContainment'
+import { commitGroupBoundsOverrideToStore } from '@/lib/canvas/groupBoundsOverridesStore'
 import { DesignRichMediaPreview } from '@/components/DesignRichMedia'
 import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 import RichMediaPanel from '@/components/RichMediaPanel'
-import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars3d, computePanelRect, computePanelSizeFromContent16x9 } from '@/lib/render/mediaPanelLayout'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
+import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 
 type FrameNode = {
   id: string
@@ -236,6 +248,7 @@ export default function DesignCanvas({
       zoomToSelectionMode: s.zoomToSelectionMode,
       selectedNodeId: s.selectedNodeId,
       selectedNodeIds: s.selectedNodeIds,
+      selectedGroupId: s.selectedGroupId,
       viewportControlsPreset: s.viewportControlsPreset,
       canvasPointerMode2d: s.canvasPointerMode2d,
       designLayerState: s.designLayerState,
@@ -837,6 +850,68 @@ export default function DesignCanvas({
     localGraphDataRef.current = localGraphData
   }, [localGraphData])
 
+  const designGroups = useMemo(() => deriveGraphGroups(localGraphData), [localGraphData])
+  const allowGroupResize = readAllowGroupResize(snapshot.schema as GraphSchema | null)
+  const groupHandleCfg = readGroupResizeHandleConfig(snapshot.schema as GraphSchema | null)
+
+  const explicitGroupRectById = useMemo(() => {
+    const schema = snapshot.schema as GraphSchema | null
+    const nodes = Array.isArray(localGraphData?.nodes) ? (localGraphData.nodes as GraphNode[]) : []
+    if (!schema || nodes.length === 0 || designGroups.length === 0) return new Map<string, RectBounds>()
+    return buildGroupRectByIdFromSchemaOverrides({ groups: designGroups as any, graphNodes: nodes, schema })
+  }, [designGroups, localGraphData?.nodes, snapshot.schema])
+
+  const explicitGroupRectByNodeId = useMemo(() => {
+    if (designGroups.length === 0 || explicitGroupRectById.size === 0) return new Map<string, RectBounds>()
+    return buildDeepestGroupRectByNodeId({ groups: designGroups as any, groupRectById: explicitGroupRectById })
+  }, [designGroups, explicitGroupRectById])
+
+  const designGroupBoundsById = useMemo(() => {
+    const schema = snapshot.schema as GraphSchema | null
+    const cfg = schema?.layout?.groups as unknown as { padding?: unknown } | null
+    const padding = typeof cfg?.padding === 'number' && Number.isFinite(cfg.padding) ? Math.max(0, cfg.padding) : 24
+    const out: Record<string, { x: number; y: number; w: number; h: number; explicit: boolean }> = {}
+    for (let i = 0; i < designGroups.length; i += 1) {
+      const g = designGroups[i]
+      const id = String(g.id || '').trim()
+      if (!id) continue
+      const explicit = explicitGroupRectById.get(id) || null
+      if (explicit) {
+        out[id] = { x: explicit.x, y: explicit.y, w: explicit.width, h: explicit.height, explicit: true }
+        continue
+      }
+      const members = Array.isArray(g.memberNodeIds) ? g.memberNodeIds : []
+      let minX = Infinity
+      let minY = Infinity
+      let maxX = -Infinity
+      let maxY = -Infinity
+      let valid = 0
+      for (let j = 0; j < members.length; j += 1) {
+        const nodeId = String(members[j] || '').trim()
+        if (!nodeId) continue
+        const p = positions[nodeId]
+        if (!p) continue
+        const x0 = p.x
+        const y0 = p.y
+        const x1 = p.x + p.w
+        const y1 = p.y + p.h
+        if (!Number.isFinite(x0) || !Number.isFinite(y0) || !Number.isFinite(x1) || !Number.isFinite(y1)) continue
+        if (x0 < minX) minX = x0
+        if (y0 < minY) minY = y0
+        if (x1 > maxX) maxX = x1
+        if (y1 > maxY) maxY = y1
+        valid += 1
+      }
+      if (!valid || minX === Infinity) continue
+      const x = minX - padding
+      const y = minY - padding
+      const w = Math.max(1, maxX - minX + padding * 2)
+      const h = Math.max(1, maxY - minY + padding * 2)
+      out[id] = { x, y, w, h, explicit: false }
+    }
+    return out
+  }, [designGroups, explicitGroupRectById, positions, snapshot.schema])
+
   const designMediaOverlayNodes = useMemo(() => {
     const nodes = Array.isArray(localGraphData?.nodes) ? (localGraphData.nodes as GraphNode[]) : []
     const poolMaxRaw =
@@ -846,6 +921,7 @@ export default function DesignCanvas({
   }, [localGraphData, snapshot.renderMediaAsNodes, snapshot.threeIframeOverlayPoolMax])
 
   const designMediaOverlayElsRef = useRef<Map<string, HTMLDivElement>>(new Map())
+  const designMediaOverlayNodeByIdRef = useRef<{ graph: unknown | null; map: Map<string, GraphNode> }>({ graph: null, map: new Map() })
   const designMediaOverlayNodeIdsKey = useMemo(() => designMediaOverlayNodes.map(n => n.id).join('|'), [designMediaOverlayNodes])
   useEffect(() => {
     const next = new Map<string, HTMLDivElement>()
@@ -861,126 +937,54 @@ export default function DesignCanvas({
   useEffect(() => {
     if (!active) return
     if (designMediaOverlayNodes.length === 0) return
-    let raf: number | null = null
-    let lastKey = ''
-    let lastVars: ReturnType<typeof computeMediaPanelCssVars3d>['vars'] | null = null
-    let lastPanelW = 0
-    let lastPanelH = 0
-    const update = () => {
-      const svgEl = svgRef.current
-      if (!svgEl) return
-      const graph = localGraphDataRef.current
-      const nodes = Array.isArray(graph?.nodes) ? (graph.nodes as GraphNode[]) : []
-      const nodeById = new Map<string, GraphNode>()
-      for (let i = 0; i < nodes.length; i += 1) {
-        const n = nodes[i]
-        const id = String(n?.id || '').trim()
-        if (!id) continue
-        if (!nodeById.has(id)) nodeById.set(id, n)
-      }
-      const t = d3.zoomTransform(svgEl as unknown as SVGSVGElement)
-      const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
-      const density = snapshot.mediaPanelDensity === 'compact' ? 'compact' : 'default'
-      const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v))
-      const widthRatioRaw = density === 'compact' ? snapshot.threeIframeOverlayBaseWidthRatioCompact : snapshot.threeIframeOverlayBaseWidthRatioDefault
-      const widthRatio = Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2
-      const widthMinRaw = density === 'compact' ? snapshot.threeIframeOverlayBaseWidthMinPxCompact : snapshot.threeIframeOverlayBaseWidthMinPxDefault
-      const widthMin = Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210
-      const widthMaxRaw = density === 'compact' ? snapshot.threeIframeOverlayBaseWidthMaxPxCompact : snapshot.threeIframeOverlayBaseWidthMaxPxDefault
-      const widthMax = Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360
-      const baseW = clamp(dims.width * widthRatio, widthMin, widthMax)
-      const MAX_PANEL_PX = 2048
-      const STEP_PX = 16
-      const quantize = (px: number) => Math.round(px / STEP_PX) * STEP_PX
-      const contentW = Math.max(2, Math.min(MAX_PANEL_PX, quantize(baseW * Math.max(0.001, k))))
-      const sizeScale = Math.max(0.001, contentW / Math.max(1, baseW))
-      const key = `${density}|${contentW}`
-      if (key !== lastKey || !lastVars) {
-        const computed = computeMediaPanelCssVars3d({ density, sizeScale })
-        const panel = computePanelSizeFromContent16x9({ contentW, metrics: computed.metrics })
-        lastVars = computed.vars
-        lastPanelW = panel.panelW
-        lastPanelH = panel.panelH
-        lastKey = key
-      }
-      for (const item of designMediaOverlayNodes) {
-        const el = designMediaOverlayElsRef.current.get(item.id)
-        if (!el) continue
-        const n = nodeById.get(item.id) || null
-        const center = readNodeCenterWorld2d(n, { coords: 'center' }) || { x: 0, y: 0 }
-        const cx = t.applyX(center.x)
-        const cy = t.applyY(center.y)
-        if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue
-        const rect = computePanelRect({ cx, cy, w: lastPanelW, h: lastPanelH })
-        applyMediaPanelCssVars(el, lastVars!)
-        try {
-          const applied = (el as unknown as { dataset?: Record<string, string> }).dataset?.kgMediaEagerApplied
-          if (!applied) {
-            const iframe = el.querySelector('iframe')
-            if (iframe) {
-              try {
-                ;(iframe as unknown as { loading?: string }).loading = 'eager'
-              } catch {
-                void 0
-              }
-              try {
-                iframe.setAttribute('loading', 'eager')
-              } catch {
-                void 0
-              }
-            }
-            const img = el.querySelector('img')
-            if (img) {
-              try {
-                ;(img as unknown as { loading?: string }).loading = 'eager'
-              } catch {
-                void 0
-              }
-              try {
-                img.setAttribute('loading', 'eager')
-              } catch {
-                void 0
-              }
-            }
-            try {
-              ;(el as unknown as { dataset?: Record<string, string> }).dataset!.kgMediaEagerApplied = '1'
-            } catch {
-              void 0
-            }
+    const density = snapshot.mediaPanelDensity === 'compact' ? 'compact' : 'default'
+    const widthRatioRaw = density === 'compact' ? snapshot.threeIframeOverlayBaseWidthRatioCompact : snapshot.threeIframeOverlayBaseWidthRatioDefault
+    const widthMinRaw = density === 'compact' ? snapshot.threeIframeOverlayBaseWidthMinPxCompact : snapshot.threeIframeOverlayBaseWidthMinPxDefault
+    const widthMaxRaw = density === 'compact' ? snapshot.threeIframeOverlayBaseWidthMaxPxCompact : snapshot.threeIframeOverlayBaseWidthMaxPxDefault
+
+    const loop = startMediaOverlayLayoutLoop2d({
+      enabled: true,
+      loop: 'always',
+      items: designMediaOverlayNodes,
+      density,
+      viewportW: dims.width,
+      viewportH: dims.height,
+      readTransform: () => {
+        const svgEl = svgRef.current
+        if (!svgEl) return null
+        return d3.zoomTransform(svgEl as unknown as SVGSVGElement)
+      },
+      getElementForId: (id) => designMediaOverlayElsRef.current.get(id) || null,
+      getNodeWorldCenterForId: (id) => {
+        const graph = localGraphDataRef.current
+        if (designMediaOverlayNodeByIdRef.current.graph !== graph) {
+          const nodes = Array.isArray((graph as any)?.nodes) ? ((graph as any).nodes as GraphNode[]) : []
+          const map = new Map<string, GraphNode>()
+          for (let i = 0; i < nodes.length; i += 1) {
+            const n = nodes[i]
+            const key = String(n?.id || '').trim()
+            if (!key) continue
+            if (!map.has(key)) map.set(key, n)
           }
-        } catch {
-          void 0
+          designMediaOverlayNodeByIdRef.current = { graph, map }
         }
-        const left = Math.round(rect.left)
-        const top = Math.round(rect.top)
-        applyPanelBox(el, { left, top, w: lastPanelW, h: lastPanelH, display: 'block' })
-        try {
-          ;(el as unknown as { dataset?: Record<string, string> }).dataset!.kgOverlayHasPos = '1'
-        } catch {
-          void 0
-        }
-      }
-    }
-    const tick = () => {
-      raf = null
-      update()
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => {
-      if (raf != null) {
-        try {
-          cancelAnimationFrame(raf)
-        } catch {
-          void 0
-        }
-      }
-    }
+        const n = designMediaOverlayNodeByIdRef.current.map.get(id) || null
+        return readNodeCenterWorld2d(n, { coords: 'center' })
+      },
+      sizingConfig: {
+        widthRatio: Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2,
+        widthMinPx: Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210,
+        widthMaxPx: Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360,
+      },
+    })
+
+    return () => loop.stop()
   }, [
     active,
     designMediaOverlayNodeIdsKey,
     designMediaOverlayNodes,
     dims.width,
+    dims.height,
     snapshot.mediaPanelDensity,
     snapshot.renderMediaAsNodes,
     snapshot.threeIframeOverlayBaseWidthMaxPxCompact,
@@ -1049,12 +1053,33 @@ export default function DesignCanvas({
   const frameElByIdRef = useRef<Map<string, SVGGElement>>(new Map())
   const frameRectElByIdRef = useRef<Map<string, SVGRectElement>>(new Map())
   const frameStatusElByIdRef = useRef<Map<string, SVGPathElement>>(new Map())
+  const groupRectElByIdRef = useRef<Map<string, SVGRectElement>>(new Map())
+  const groupHandleElByIdRef = useRef<Map<string, SVGGElement>>(new Map())
   const resizeOverlayElRef = useRef<SVGGElement | null>(null)
   const dragRef = useRef<
-    null | { id: string; startWorld: { x: number; y: number }; startPos: { x: number; y: number }; ids: string[]; startPosById: Record<string, { x: number; y: number }> }
+    null | {
+      id: string
+      startWorld: { x: number; y: number }
+      startPos: { x: number; y: number }
+      ids: string[]
+      startPosById: Record<string, { x: number; y: number }>
+      deltaClamp: DeltaClamp | null
+    }
   >(null)
   const dragRafRef = useRef<number | null>(null)
   const dragPendingRef = useRef<null | { ids: string[]; nextPosById: Record<string, { x: number; y: number }> }>(null)
+  const groupResizeRef = useRef<
+    null | {
+      groupId: string
+      pointerId: number
+      startWorld: { x: number; y: number }
+      startBounds: { x: number; y: number; w: number; h: number }
+      minW: number
+      minH: number
+    }
+  >(null)
+  const groupResizeRafRef = useRef<number | null>(null)
+  const groupResizePendingRef = useRef<null | { groupId: string; x: number; y: number; w: number; h: number }>(null)
   const resizeRef = useRef<
     null | {
       id: string
@@ -1095,6 +1120,16 @@ export default function DesignCanvas({
       }
       resizePendingRef.current = null
       resizeRef.current = null
+      if (groupResizeRafRef.current != null) {
+        try {
+          window.cancelAnimationFrame(groupResizeRafRef.current)
+        } catch {
+          void 0
+        }
+        groupResizeRafRef.current = null
+      }
+      groupResizePendingRef.current = null
+      groupResizeRef.current = null
     }
   }, [])
 
@@ -1204,6 +1239,38 @@ export default function DesignCanvas({
     }
   }, [])
 
+  const scheduleGroupResizeVisual = useMemo(() => {
+    return () => {
+      if (groupResizeRafRef.current != null) return
+      groupResizeRafRef.current = window.requestAnimationFrame(() => {
+        groupResizeRafRef.current = null
+        const pending = groupResizePendingRef.current
+        if (!pending) return
+        const id = String(pending.groupId || '').trim()
+        if (!id) return
+        const rectEl = groupRectElByIdRef.current.get(id)
+        if (rectEl) {
+          try {
+            rectEl.setAttribute('x', String(pending.x))
+            rectEl.setAttribute('y', String(pending.y))
+            rectEl.setAttribute('width', String(Math.max(1, pending.w)))
+            rectEl.setAttribute('height', String(Math.max(1, pending.h)))
+          } catch {
+            void 0
+          }
+        }
+        const handleEl = groupHandleElByIdRef.current.get(id)
+        if (handleEl) {
+          try {
+            handleEl.setAttribute('transform', `translate(${pending.x + pending.w},${pending.y + pending.h})`)
+          } catch {
+            void 0
+          }
+        }
+      })
+    }
+  }, [])
+
   const pointerToWorld = useMemo(() => {
     return (ev: React.PointerEvent, svgEl: SVGSVGElement): { x: number; y: number } | null => {
       const local = readElementLocalPoint({ el: svgEl, event: ev })
@@ -1260,8 +1327,28 @@ export default function DesignCanvas({
     dimsRef.current = { width: dims.width, height: dims.height }
   }, [dims.width, dims.height])
 
-  const zoomCommitRafRef = useRef<number | null>(null)
-  const pendingZoomTransformRef = useRef<{ k: number; x: number; y: number } | null>(null)
+  const zoomCommitSchedulerRef = useRef(
+    createRafLatestScheduler<{ k: number; x: number; y: number }>((pending) => {
+      const store = useGraphStore.getState()
+      const key = zoomViewKeyRef.current
+      if (!key) return
+      const d = dimsRef.current
+      commitZoomTransformToStore({
+        state: {
+          viewPinned: store.viewPinned,
+          zoomState: store.zoomState,
+          zoomStateByKey: store.zoomStateByKey,
+          setZoomState: store.setZoomState,
+          setZoomStateForKey: store.setZoomStateForKey,
+        },
+        zoomViewKey: key,
+        transform: { k: pending.k, x: pending.x, y: pending.y },
+        viewportW: d.width,
+        viewportH: d.height,
+        graphDataRevision: store.graphDataRevision,
+      })
+    }),
+  )
 
   const zoomViewKey = useMemo(() => {
     return buildActive2dZoomViewKey({
@@ -1323,32 +1410,7 @@ export default function DesignCanvas({
 
     const zoom = createZoom(svg, g, labelsSelRef, snapshot.schema, snapshot.viewportControlsPreset, t => {
       if (!active) return
-      pendingZoomTransformRef.current = { k: t.k, x: t.x, y: t.y }
-      if (zoomCommitRafRef.current != null) return
-      zoomCommitRafRef.current = requestAnimationFrame(() => {
-        zoomCommitRafRef.current = null
-        const pending = pendingZoomTransformRef.current
-        pendingZoomTransformRef.current = null
-        if (!pending) return
-        const store = useGraphStore.getState()
-        const key = zoomViewKeyRef.current
-        if (!key) return
-        const d = dimsRef.current
-        commitZoomTransformToStore({
-          state: {
-            viewPinned: store.viewPinned,
-            zoomState: store.zoomState,
-            zoomStateByKey: store.zoomStateByKey,
-            setZoomState: store.setZoomState,
-            setZoomStateForKey: store.setZoomStateForKey,
-          },
-          zoomViewKey: key,
-          transform: { k: pending.k, x: pending.x, y: pending.y },
-          viewportW: d.width,
-          viewportH: d.height,
-          graphDataRevision: store.graphDataRevision,
-        })
-      })
+      zoomCommitSchedulerRef.current.schedule({ k: t.k, x: t.x, y: t.y })
     })
 
     zoomRef.current = zoom
@@ -1453,11 +1515,7 @@ export default function DesignCanvas({
         void 0
       }
       zoomRef.current = null
-      if (zoomCommitRafRef.current != null) {
-        cancelAnimationFrame(zoomCommitRafRef.current)
-        zoomCommitRafRef.current = null
-      }
-      pendingZoomTransformRef.current = null
+      zoomCommitSchedulerRef.current.cancel()
     }
   }, [active, dims.height, dims.width, snapshot.schema, snapshot.viewportControlsPreset, zoomViewKey])
 
@@ -2419,9 +2477,9 @@ export default function DesignCanvas({
       const ref = refId ? positions[refId] : null
       if (!ref) return
       const updates: Record<string, { x: number; y: number }> = {}
-      const grid = snapshot.schema?.behavior?.snapGrid
-      const gridSize = grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) ? Math.max(4, Math.floor(grid.size)) : 0
-      const snap = (v: number) => (gridSize ? Math.round(v / gridSize) * gridSize : v)
+      const grid = readSnapGridConfigFromSchema(snapshot.schema)
+      const gridSize = grid.enabled ? grid.size : 0
+      const snap = (v: number) => (grid.enabled ? snapScalarToGrid(v, grid.size) : v)
 
       if (action === 'distribute-x' || action === 'distribute-y') {
         const pts = selectedIds.map((id) => {
@@ -2470,10 +2528,8 @@ export default function DesignCanvas({
         return
       }
       if (selectedIds.length === 0) return
-      const grid = snapshot.schema?.behavior?.snapGrid
-      const gridSize =
-        grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) ? Math.max(4, Math.floor(grid.size)) : 1
-      const delta = readNudgeDelta({ e, snapGridEnabled: !!grid?.enabled, snapGridSize: gridSize })
+      const grid = readSnapGridConfigFromSchema(snapshot.schema)
+      const delta = readNudgeDelta({ e, snapGridEnabled: grid.enabled, snapGridSize: grid.size })
       if (!delta) return
       e.preventDefault()
       const updates: Record<string, { x: number; y: number }> = {}
@@ -2490,6 +2546,15 @@ export default function DesignCanvas({
       window.removeEventListener('keydown', onKeyDown, { capture: true } as AddEventListenerOptions)
     }
   }, [active, applyArrange, positions, selectedIds, setDesignFramePosMany, snapshot.schema?.behavior?.snapGrid])
+
+  const canvasGrid = React.useMemo(() => readCanvasGridConfigFromSchema(snapshot.schema), [snapshot.schema])
+  const canvasGridStep = React.useMemo(() => readCanvasGridWorldStepFromSchema(snapshot.schema), [snapshot.schema])
+  const getZoomTransform = React.useCallback(() => {
+    const el = svgRef.current
+    if (!el) return null
+    return d3.zoomTransform(el)
+  }, [])
+  const getZoomEventTarget = React.useCallback(() => svgRef.current, [])
 
   return (
     <section
@@ -2625,6 +2690,18 @@ export default function DesignCanvas({
           </button>
         </div>
       ) : null}
+      <InfiniteGridCanvasOverlay
+        enabled={canvasGrid.enabled}
+        gridSize={canvasGridStep}
+        variant={canvasGrid.variant}
+        majorEvery={canvasGrid.majorEvery}
+        dotRadiusPx={canvasGrid.dotRadiusPx}
+        width={dims.width}
+        height={dims.height}
+        dpr={dims.dpr}
+        getTransform={getZoomTransform}
+        getEventTarget={getZoomEventTarget}
+      />
       <svg
         ref={svgRef}
         className={`${CANVAS_INTERACTIVE_CLASS} block h-full w-full select-none`}
@@ -2656,6 +2733,26 @@ export default function DesignCanvas({
           setMarqueeBox({ x: world.x, y: world.y, w: 0, h: 0 })
         }}
         onPointerMove={e => {
+          const gr = groupResizeRef.current
+          if (gr && e.pointerId === gr.pointerId) {
+            if (!active) return
+            const svgEl = svgRef.current
+            if (!svgEl) return
+            const world = pointerToWorld(e, svgEl)
+            if (!world) return
+            const next = computeGroupResizeBottomRight({
+              startBounds: gr.startBounds,
+              startWorld: gr.startWorld,
+              world,
+              minW: gr.minW,
+              minH: gr.minH,
+              snapGrid: readSnapGridConfigFromSchema(snapshot.schema),
+              altDown: e.altKey,
+            })
+            groupResizePendingRef.current = { groupId: gr.groupId, x: next.x, y: next.y, w: next.w, h: next.h }
+            scheduleGroupResizeVisual()
+            return
+          }
           const r = resizeRef.current
           if (r && e.pointerId === r.pointerId) {
             if (!active) return
@@ -2701,21 +2798,13 @@ export default function DesignCanvas({
             if (r.handle.includes('w')) x = r.startRect.x + (r.startRect.w - w)
             if (r.handle.includes('n')) y = r.startRect.y + (r.startRect.h - h)
 
-            const grid = snapshot.schema?.behavior?.snapGrid
-            const gridEnabled = !!(grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) && grid.size > 2)
-            const allowSnap = gridEnabled && !e.altKey
+            const grid = readSnapGridConfigFromSchema(snapshot.schema)
+            const allowSnap = grid.enabled && !e.altKey
             if (allowSnap) {
-              const size = Math.max(4, Math.floor(grid!.size))
-              const nx = Math.round(x / size) * size
-              const ny = Math.round(y / size) * size
-              const nw = Math.round(w / size) * size
-              const nh = Math.round(h / size) * size
-              if (Number.isFinite(nx) && Number.isFinite(ny) && Number.isFinite(nw) && Number.isFinite(nh)) {
-                x = nx
-                y = ny
-                w = Math.max(minW, nw)
-                h = Math.max(minH, nh)
-              }
+              x = snapScalarToGrid(x, grid.size)
+              y = snapScalarToGrid(y, grid.size)
+              w = Math.max(minW, snapScalarToGrid(w, grid.size))
+              h = Math.max(minH, snapScalarToGrid(h, grid.size))
             }
 
             resizePendingRef.current = { id: r.id, x, y, w, h }
@@ -2737,6 +2826,28 @@ export default function DesignCanvas({
           setMarqueeBox({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 })
         }}
         onPointerUp={e => {
+          const gr = groupResizeRef.current
+          if (gr && e.pointerId === gr.pointerId) {
+            groupResizeRef.current = null
+            const pending = groupResizePendingRef.current
+            groupResizePendingRef.current = null
+            if (groupResizeRafRef.current != null) {
+              try {
+                window.cancelAnimationFrame(groupResizeRafRef.current)
+              } catch {
+                void 0
+              }
+              groupResizeRafRef.current = null
+            }
+            if (!active) return
+            if (!pending) return
+            const id = String(gr.groupId || '').trim()
+            if (!id) return
+            if (pending.groupId !== id) return
+            if (!Number.isFinite(pending.x) || !Number.isFinite(pending.y) || !Number.isFinite(pending.w) || !Number.isFinite(pending.h)) return
+            commitGroupBoundsOverrideToStore(id, { x: pending.x, y: pending.y, width: pending.w, height: pending.h })
+            return
+          }
           const r = resizeRef.current
           if (r && e.pointerId === r.pointerId) {
             resizeRef.current = null
@@ -2792,6 +2903,21 @@ export default function DesignCanvas({
           store.selectNodesExpanded({ nodeIds, activeNodeId: nodeIds.length > 0 ? nodeIds[nodeIds.length - 1] : null })
         }}
         onPointerCancel={() => {
+          const gr = groupResizeRef.current
+          if (gr) {
+            groupResizeRef.current = null
+            groupResizePendingRef.current = { groupId: gr.groupId, x: gr.startBounds.x, y: gr.startBounds.y, w: gr.startBounds.w, h: gr.startBounds.h }
+            scheduleGroupResizeVisual()
+            groupResizePendingRef.current = null
+            if (groupResizeRafRef.current != null) {
+              try {
+                window.cancelAnimationFrame(groupResizeRafRef.current)
+              } catch {
+                void 0
+              }
+              groupResizeRafRef.current = null
+            }
+          }
           const r = resizeRef.current
           if (r) {
             resizeRef.current = null
@@ -2821,6 +2947,150 @@ export default function DesignCanvas({
         </defs>
 
         <g ref={gRef}>
+          {designGroups.length > 0 ? (
+            <g data-kg-layer="design-groups">
+              {designGroups.map(g => {
+                const id = String(g.id || '').trim()
+                if (!id) return null
+                const b = designGroupBoundsById[id]
+                if (!b) return null
+                const selected = String(snapshot.selectedGroupId || '').trim() === id
+                const stroke = selected ? 'var(--kg-canvas-accent)' : 'var(--kg-border)'
+                const strokeWidth = selected ? 2 : 1.5
+                const canResize = allowGroupResize && selected
+                return (
+                  <g key={id} data-kg-group-id={id} style={{ pointerEvents: 'all' }}>
+                    <rect
+                      ref={el => {
+                        const map = groupRectElByIdRef.current
+                        if (el) map.set(id, el)
+                        else map.delete(id)
+                      }}
+                      data-kg-design-group-rect="1"
+                      x={b.x}
+                      y={b.y}
+                      width={b.w}
+                      height={b.h}
+                      fill="transparent"
+                      stroke={stroke}
+                      strokeWidth={strokeWidth}
+                      rx={12}
+                      ry={12}
+                      onPointerDown={e => {
+                        if (!active) return
+                        if (isSpacePanHeld()) return
+                        e.stopPropagation()
+                        const store = useGraphStore.getState()
+                        store.setSelectionSource('canvas')
+                        try {
+                          store.selectNode(null)
+                        } catch {
+                          void 0
+                        }
+                        store.selectGroup(id)
+                      }}
+                    />
+                    <g
+                      ref={el => {
+                        const map = groupHandleElByIdRef.current
+                        if (el) map.set(id, el)
+                        else map.delete(id)
+                      }}
+                      data-kg-group-resize="br"
+                      transform={`translate(${b.x + b.w},${b.y + b.h})`}
+                      style={{ display: canResize ? undefined : 'none', pointerEvents: 'all', cursor: 'nwse-resize' }}
+                    >
+                      <circle
+                        data-kg-group-resize-hit="1"
+                        r={groupHandleCfg.hitRadiusPx}
+                        fill="transparent"
+                        stroke="transparent"
+                        onPointerDown={e => {
+                          if (!active) return
+                          if (!allowGroupResize) return
+                          if (isSpacePanHeld()) return
+                          e.stopPropagation()
+                          try {
+                            e.preventDefault()
+                          } catch {
+                            void 0
+                          }
+                          const svgEl = svgRef.current
+                          if (!svgEl) return
+                          const world = pointerToWorld(e, svgEl)
+                          if (!world) return
+                          try {
+                            ;(svgEl as unknown as { setPointerCapture?: (id: number) => void }).setPointerCapture?.(e.pointerId)
+                          } catch {
+                            void 0
+                          }
+                          const store = useGraphStore.getState()
+                          store.setSelectionSource('canvas')
+                          store.selectGroup(id)
+                          const schema = store.schema as GraphSchema | null
+                          const cfg = schema?.layout?.groups as unknown as { padding?: unknown } | null
+                          const padding = typeof cfg?.padding === 'number' && Number.isFinite(cfg.padding) ? Math.max(0, cfg.padding) : 24
+                          const members = Array.isArray(g.memberNodeIds) ? g.memberNodeIds : []
+                          let minX = Infinity
+                          let minY = Infinity
+                          let maxX = -Infinity
+                          let maxY = -Infinity
+                          let valid = 0
+                          for (let j = 0; j < members.length; j += 1) {
+                            const nodeId = String(members[j] || '').trim()
+                            if (!nodeId) continue
+                            const p = positions[nodeId]
+                            if (!p) continue
+                            const x0 = p.x
+                            const y0 = p.y
+                            const x1 = p.x + p.w
+                            const y1 = p.y + p.h
+                            if (!Number.isFinite(x0) || !Number.isFinite(y0) || !Number.isFinite(x1) || !Number.isFinite(y1)) continue
+                            if (x0 < minX) minX = x0
+                            if (y0 < minY) minY = y0
+                            if (x1 > maxX) maxX = x1
+                            if (y1 > maxY) maxY = y1
+                            valid += 1
+                          }
+                          const autoW = valid && minX !== Infinity ? Math.max(1, maxX - minX + padding * 2) : 0
+                          const autoH = valid && minY !== Infinity ? Math.max(1, maxY - minY + padding * 2) : 0
+                          const autoX = valid && minX !== Infinity ? minX - padding : Number.NaN
+                          const autoY = valid && minY !== Infinity ? minY - padding : Number.NaN
+                          const start = designGroupBoundsById[id]
+                          if (!start) return
+                          const min = computeMinGroupResizeSize({
+                            minBoundsSizePx: groupHandleCfg.minBoundsSizePx,
+                            explicitBounds: { x: start.x, y: start.y, w: start.w, h: start.h },
+                            autoBounds:
+                              valid && Number.isFinite(autoX) && Number.isFinite(autoY) && autoW > 0 && autoH > 0
+                                ? { x: autoX, y: autoY, w: autoW, h: autoH }
+                                : null,
+                          })
+                          groupResizeRef.current = {
+                            groupId: id,
+                            pointerId: e.pointerId,
+                            startWorld: world,
+                            startBounds: { x: start.x, y: start.y, w: start.w, h: start.h },
+                            minW: min.minW,
+                            minH: min.minH,
+                          }
+                        }}
+                      />
+                      <circle
+                        data-kg-group-resize-dot="1"
+                        r={groupHandleCfg.dotRadiusPx}
+                        fill="var(--kg-panel-bg)"
+                        fillOpacity={0.72}
+                        stroke="var(--kg-text-secondary)"
+                        strokeWidth={groupHandleCfg.strokeWidthPx}
+                        style={{ pointerEvents: 'none' }}
+                      />
+                    </g>
+                  </g>
+                )
+              })}
+            </g>
+          ) : null}
           {styleById && wireframeEdges.length > 0 ? (
             <g data-kg-layer="wireframe-edges" style={{ pointerEvents: 'none' }}>
               {wireframeEdges.map(e => (
@@ -2940,7 +3210,17 @@ export default function DesignCanvas({
                     if (!base) continue
                     startPosById[id] = { x: base.x, y: base.y }
                   }
-                  dragRef.current = { id: n.id, startWorld: world, startPos: { x: p.x, y: p.y }, ids, startPosById }
+                  const startPosMap = new Map<string, { x: number; y: number }>()
+                  const sizeById = new Map<string, { w: number; h: number }>()
+                  for (let i = 0; i < ids.length; i += 1) {
+                    const id = ids[i]!
+                    const sp = startPosById[id]
+                    if (sp) startPosMap.set(id, sp)
+                    const base = positions[id]
+                    if (base) sizeById.set(id, { w: base.w, h: base.h })
+                  }
+                  const deltaClamp = explicitGroupRectByNodeId.size > 0 ? computeDeltaClampForTopLeftNodes({ nodeIds: ids, startPosById: startPosMap, sizeById, rectByNodeId: explicitGroupRectByNodeId }) : null
+                  dragRef.current = { id: n.id, startWorld: world, startPos: { x: p.x, y: p.y }, ids, startPosById, deltaClamp }
                 }}
                 onPointerMove={e => {
                   const drag = dragRef.current
@@ -2954,20 +3234,20 @@ export default function DesignCanvas({
                   const dy = world.y - drag.startWorld.y
                   let sx = dx
                   let sy = dy
-                  const schema = snapshot.schema
-                  const grid = schema?.behavior?.snapGrid
-                  const gridEnabled = !!(grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) && grid.size > 2)
-                  const allowSnap = gridEnabled && !e.altKey
+                  const grid = readSnapGridConfigFromSchema(snapshot.schema)
+                  const allowSnap = grid.enabled && !e.altKey
                   if (allowSnap) {
-                    const size = Math.max(4, Math.floor(grid!.size))
                     const nx = drag.startPos.x + dx
                     const ny = drag.startPos.y + dy
-                    const snappedX = Math.round(nx / size) * size
-                    const snappedY = Math.round(ny / size) * size
-                    if (Number.isFinite(snappedX) && Number.isFinite(snappedY)) {
-                      sx = snappedX - drag.startPos.x
-                      sy = snappedY - drag.startPos.y
-                    }
+                    const snappedX = snapScalarToGrid(nx, grid.size)
+                    const snappedY = snapScalarToGrid(ny, grid.size)
+                    sx = snappedX - drag.startPos.x
+                    sy = snappedY - drag.startPos.y
+                  }
+                  if (drag.deltaClamp) {
+                    const clamped = clampDelta({ clamp: drag.deltaClamp, dx: sx, dy: sy })
+                    sx = clamped.dx
+                    sy = clamped.dy
                   }
                   const nextPosById: Record<string, { x: number; y: number }> = {}
                   const ids = drag.ids || []

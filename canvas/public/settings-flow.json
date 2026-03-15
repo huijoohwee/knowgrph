@@ -648,6 +648,108 @@
     ],
     "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L361; canvas/src/hooks/store/uiSlice.ts:L530"
   },
+  "canvasSnapEnabled": {
+    "area": "Canvas Grid",
+    "responsibility": "Snap-to-grid enabled (affects dragging, resizing, nudging)",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.canvas-grid.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setBehavior"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L23; canvas/src/hooks/store/schemaSlice.ts:L196"
+  },
+  "canvasSnapGridSize": {
+    "area": "Canvas Grid",
+    "responsibility": "Snap grid size (world units)",
+    "notes": "Alt disables snapping while dragging. Arrow nudges follow the grid when enabled.",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.canvas-grid.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setBehavior"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L34; canvas/src/hooks/store/schemaSlice.ts:L196"
+  },
+  "canvasGridVisible": {
+    "area": "Canvas Grid",
+    "responsibility": "Show/hide the infinite canvas grid background",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.canvas-grid.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setBehavior"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L46; canvas/src/hooks/store/schemaSlice.ts:L196"
+  },
+  "canvasGridVariant": {
+    "area": "Canvas Grid",
+    "responsibility": "Grid background variant (dots or lines)",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.canvas-grid.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setBehavior"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L61; canvas/src/hooks/store/schemaSlice.ts:L196"
+  },
+  "canvasGridMajorEvery": {
+    "area": "Canvas Grid",
+    "responsibility": "Every N minor steps, draw a major grid",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.canvas-grid.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setBehavior"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L81; canvas/src/hooks/store/schemaSlice.ts:L196"
+  },
+  "canvasGridDotRadiusPx": {
+    "area": "Canvas Grid",
+    "responsibility": "Dot radius (px) when variant=dots",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.canvas-grid.ts",
+      "canvas/src/hooks/store/schemaSlice.ts"
+    ],
+    "classes": [],
+    "functions": [
+      "setBehavior"
+    ],
+    "imports": [
+      "zustand"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L100; canvas/src/hooks/store/schemaSlice.ts:L196"
+  },
   "markdownWordWrap": {
     "area": "—",
     "responsibility": "markdown word wrap",

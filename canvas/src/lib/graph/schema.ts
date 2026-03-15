@@ -225,6 +225,7 @@ export const defaultSchema: GraphSchema = {
     nodeShapeMode: 'circle',
     dragConstraint: 'free',
     snapGrid: { enabled: false, size: 10 },
+    canvasGrid: { enabled: false, variant: 'dots', majorEvery: 5, dotRadiusPx: 1 },
     preventDuplicatesGlobal: true,
     preventSelfLoopsGlobal: true,
     portHandles: {

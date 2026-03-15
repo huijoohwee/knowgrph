@@ -19,6 +19,7 @@ import { attachGlobalHandlers, attachSimulationTick } from '@/components/GraphCa
 import { applyGraphCanvasZOrder } from '@/components/GraphCanvas/zOrder'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
+import type { FlowPortHandleDatum2d } from '@/components/GraphCanvas/flowPortHandles2d'
 import { buildNodeZKeyById } from '@/lib/canvas/groupZOrder'
 import {
   initializeGraphLayout,
@@ -65,7 +66,7 @@ type SetupGraphSceneArgs = {
   groupChevronSelRef: MutableRefObject<d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown> | null>
   mediaSelRef: MutableRefObject<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>
   portHandlesSelRef: MutableRefObject<
-    d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null
+    d3.Selection<SVGCircleElement, PortHandleDatum | FlowPortHandleDatum2d, SVGGElement, unknown> | null
   >
   linksHitSelRef: MutableRefObject<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>
   linksSelRef: MutableRefObject<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>
@@ -813,7 +814,7 @@ export const updateGraphSceneNodesPresentation = (args: {
   groupChevronSelRef: MutableRefObject<d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown> | null>
   mediaSelRef: MutableRefObject<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>
   portHandlesSelRef: MutableRefObject<
-    d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null
+    d3.Selection<SVGCircleElement, PortHandleDatum | FlowPortHandleDatum2d, SVGGElement, unknown> | null
   >
   labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>
   setHoverInfo: (updater: (prev: HoverInfo | null) => HoverInfo | null) => void

@@ -2,13 +2,18 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testFlowCanvasWheelCanRecoverFromStaleDrag() {
-  const p = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'bindNativeInteractions.ts')
-  const text = readFileSync(p, 'utf8')
-  if (!text.includes('cancelActiveDragIfStale')) {
+  const bindPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'interactions', 'bindFlowCanvasNativeInteractions.ts')
+  const bindText = readFileSync(bindPath, 'utf8')
+  if (!bindText.includes('cancelActiveDragIfStale')) {
     throw new Error('expected FlowCanvas to include stale-drag recovery helper')
   }
-  if (!text.includes('if (cancelActiveDragIfStale(drag))')) {
+
+  const wheelPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'interactions', 'wheelAndGesture.ts')
+  const wheelText = readFileSync(wheelPath, 'utf8')
+  if (!wheelText.includes('cancelActiveDragIfStale')) {
+    throw new Error('expected wheel handling to call stale-drag recovery helper')
+  }
+  if (!wheelText.includes('return handleWheel(e, opts)') && !wheelText.includes('return handleWheel(e')) {
     throw new Error('expected wheel handling to cancel stale drag and retry')
   }
 }
-

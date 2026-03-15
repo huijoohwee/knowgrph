@@ -43,20 +43,26 @@ import { deriveSceneDisplayGraph, deriveSceneGroups } from '@/lib/scene/sceneDer
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { computeCenteredTransformToWorldPoint } from '@/lib/canvas/centerTransform'
 import { computeEvenlyDistributedPositions } from '@/lib/canvas/evenDistribute'
+import { computeArrangeCenters, type ArrangeAction2d } from '@/lib/canvas/arrange2d'
 import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/canvas/arrangeShortcuts'
 import { readElementLocalPoint } from '@/lib/canvas/canvas-event-coords'
 import { invertZoomPoint } from '@/lib/canvas/viewport-transform'
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } from '@/lib/canvas/camera-options-2d'
-import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars3d, computePanelRect, computePanelSizeFromContent16x9 } from '@/lib/render/mediaPanelLayout'
+import { applyPanelBox } from '@/lib/render/mediaPanelLayout'
 import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
+import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
+import { InfiniteGridCanvasOverlay } from '@/components/InfiniteGridCanvasOverlay'
+import { readSnapGridConfigFromSchema, snapPointToGrid, snapScalarToGrid } from '@/lib/canvas/gridSnap'
+import { readCanvasGridConfigFromSchema, readCanvasGridWorldStepFromSchema } from '@/lib/canvas/canvasGridConfig'
+import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null);
@@ -238,9 +244,33 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const marqueeRef = useRef<
     null | { start: { sx: number; sy: number }; end: { sx: number; sy: number }; mode: 'replace' | 'add' | 'remove'; pointerId: number }
   >(null)
-  const zoomCommitRafIdRef = useRef<number | null>(null)
-  const zoomCommitPendingRef = useRef(false)
-  const zoomCommitLatestTransformRef = useRef<{ k: number; x: number; y: number } | null>(null)
+  const zoomCommitParamsRef = useRef<{ zoomViewKey: string; viewportW: number; viewportH: number; graphDataRevision: number }>({
+    zoomViewKey: '',
+    viewportW: 0,
+    viewportH: 0,
+    graphDataRevision: 0,
+  })
+  const zoomCommitSchedulerRef = useRef(
+    createRafLatestScheduler<{ k: number; x: number; y: number }>((transform) => {
+      const params = zoomCommitParamsRef.current
+      if (!params.zoomViewKey) return
+      const store = useGraphStore.getState()
+      commitZoomTransformToStore({
+        state: {
+          viewPinned: store.viewPinned === true,
+          zoomState: store.zoomState,
+          zoomStateByKey: store.zoomStateByKey,
+          setZoomState: store.setZoomState,
+          setZoomStateForKey: store.setZoomStateForKey,
+        },
+        zoomViewKey: params.zoomViewKey,
+        transform,
+        viewportW: params.viewportW,
+        viewportH: params.viewportH,
+        graphDataRevision: params.graphDataRevision,
+      })
+    }),
+  )
   const schemaRef = useRef(schema)
   const iframeOverlayElsRef = useRef<Map<string, HTMLDivElement>>(new Map())
   const iframeNodeByIdRef = useRef<{ rev: number; sim: unknown | null; map: Map<string, GraphNode> }>({ rev: -1, sim: null, map: new Map() })
@@ -338,11 +368,11 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
     const nx = st.baseX + dx / k
     const ny = st.baseY + dy / k
-    const gridEnabled = !!schemaRef.current.behavior.snapGrid?.enabled
-    const gridSize = Math.max(1, schemaRef.current.behavior.snapGrid?.size ?? 10)
     const constraint = schemaRef.current.behavior.dragConstraint || 'free'
-    const snapX = gridEnabled ? Math.round(nx / gridSize) * gridSize : nx
-    const snapY = gridEnabled ? Math.round(ny / gridSize) * gridSize : ny
+    const grid = readSnapGridConfigFromSchema(schemaRef.current)
+    const snapped = grid.enabled ? snapPointToGrid({ x: nx, y: ny }, grid.size) : { x: nx, y: ny }
+    const snapX = snapped.x
+    const snapY = snapped.y
     if (constraint === 'axis-x') {
       node.fx = snapX
       if (st.structured || st.frozen) node.x = snapX
@@ -545,7 +575,17 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   useEffect(() => {
     schemaRef.current = schema
   }, [schema])
-  const { width, height, left, top } = useContainerDims(containerRef);
+  const { width, height, left, top, dpr } = useContainerDims(containerRef);
+
+  const canvasGrid = useMemo(() => readCanvasGridConfigFromSchema(schema), [schema])
+  const canvasGridStep = useMemo(() => readCanvasGridWorldStepFromSchema(schema), [schema])
+  const getZoomTransform = useCallback(() => {
+    const el = svgRef.current
+    if (!el) return null
+    return d3.zoomTransform(el)
+  }, [])
+  const getZoomEventTarget = useCallback(() => svgRef.current, [])
+
   const debouncedWidth = useDebouncedValue(width, 100);
   const debouncedHeight = useDebouncedValue(height, 100);
   const sceneWidth = useMemo(() => Math.max(1, Math.floor(debouncedWidth)), [debouncedWidth]);
@@ -661,156 +701,65 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     mediaOverlayScheduleRef.current = null
     if (!active) return
     if (mediaOverlayNodes.length === 0) return
-    let raf: number | null = null
-    let loopRaf: number | null = null
-    mediaOverlaySchedulePendingRef.current = false
-    let lastKey = ''
-    let lastVars: ReturnType<typeof computeMediaPanelCssVars3d>['vars'] | null = null
-    let lastPanelW = 0
-    let lastPanelH = 0
-    const update = () => {
-      const svgEl = svgRef.current
-      if (!svgEl) return
-      const graph = sceneGraphDataRef.current
-      const sim = simulationRef.current
-      const simNodes = sim ? (sim.nodes() as unknown as GraphNode[]) : []
-      const graphNodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
-      const rev = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? graphDataRevision : 0
-      if (iframeNodeByIdRef.current.rev !== rev || iframeNodeByIdRef.current.sim !== sim) {
-        const map = new Map<string, GraphNode>()
-        for (let i = 0; i < graphNodes.length; i += 1) {
-          const n = graphNodes[i]
-          const id = String(n?.id || '').trim()
-          if (!id) continue
-          map.set(id, n)
-        }
-        for (let i = 0; i < simNodes.length; i += 1) {
-          const n = simNodes[i]
-          const id = String(n?.id || '').trim()
-          if (!id) continue
-          map.set(id, n)
-        }
-        iframeNodeByIdRef.current = { rev, sim: sim || null, map }
-      }
-      const nodeById = iframeNodeByIdRef.current.map
-      const t = d3.zoomTransform(svgEl as unknown as SVGSVGElement)
-      const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
-      const density = mediaPanelDensity === 'compact' ? 'compact' : 'default'
-      const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v))
-      const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
-      const widthRatio = Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2
-      const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
-      const widthMin = Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210
-      const widthMaxRaw = density === 'compact' ? threeIframeOverlayBaseWidthMaxPxCompact : threeIframeOverlayBaseWidthMaxPxDefault
-      const widthMax = Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360
-      const baseW = clamp(sceneWidth * widthRatio, widthMin, widthMax)
-      const MAX_PANEL_PX = 2048
-      const STEP_PX = 16
-      const quantize = (px: number) => Math.round(px / STEP_PX) * STEP_PX
-      const contentW = Math.max(2, Math.min(MAX_PANEL_PX, quantize(baseW * Math.max(0.001, k))))
-      const sizeScale = Math.max(0.001, contentW / Math.max(1, baseW))
-      const key = `${density}|${contentW}`
-      if (key !== lastKey || !lastVars) {
-        const computed = computeMediaPanelCssVars3d({ density, sizeScale })
-        const panel = computePanelSizeFromContent16x9({ contentW, metrics: computed.metrics })
-        lastVars = computed.vars
-        lastPanelW = panel.panelW
-        lastPanelH = panel.panelH
-        lastKey = key
-      }
-      for (const item of mediaOverlayNodes) {
-        const el = iframeOverlayElsRef.current.get(item.id)
-        if (!el) continue
-        const n = nodeById.get(item.id) || null
-        const center = readNodeCenterWorld2d(n, { coords: 'center' }) || { x: 0, y: 0 }
-        const cx = t.applyX(center.x)
-        const cy = t.applyY(center.y)
-        if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue
-        const rect = computePanelRect({ cx, cy, w: lastPanelW, h: lastPanelH })
-        applyMediaPanelCssVars(el, lastVars!)
-        try {
-          const applied = (el as unknown as { dataset?: Record<string, string> }).dataset?.kgMediaEagerApplied
-          if (!applied) {
-            const iframe = el.querySelector('iframe')
-            if (iframe) {
-              try {
-                ;(iframe as unknown as { loading?: string }).loading = 'eager'
-              } catch {
-                void 0
-              }
-              try {
-                iframe.setAttribute('loading', 'eager')
-              } catch {
-                void 0
-              }
-            }
-            const img = el.querySelector('img')
-            if (img) {
-              try {
-                ;(img as unknown as { loading?: string }).loading = 'eager'
-              } catch {
-                void 0
-              }
-              try {
-                img.setAttribute('loading', 'eager')
-              } catch {
-                void 0
-              }
-            }
-            try {
-              ;(el as unknown as { dataset?: Record<string, string> }).dataset!.kgMediaEagerApplied = '1'
-            } catch {
-              void 0
-            }
+    const density = mediaPanelDensity === 'compact' ? 'compact' : 'default'
+    const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
+    const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
+    const widthMaxRaw = density === 'compact' ? threeIframeOverlayBaseWidthMaxPxCompact : threeIframeOverlayBaseWidthMaxPxDefault
+
+    const loop = startMediaOverlayLayoutLoop2d({
+      enabled: true,
+      loop: 'always',
+      items: mediaOverlayNodes,
+      density,
+      viewportW: sceneWidth,
+      viewportH: sceneHeight,
+      readTransform: () => {
+        const svgEl = svgRef.current
+        if (!svgEl) return null
+        return d3.zoomTransform(svgEl as unknown as SVGSVGElement)
+      },
+      getElementForId: (id) => iframeOverlayElsRef.current.get(id) || null,
+      getNodeWorldCenterForId: (id) => {
+        const graph = sceneGraphDataRef.current
+        const sim = simulationRef.current
+        const simNodes = sim ? (sim.nodes() as unknown as GraphNode[]) : []
+        const graphNodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
+        const rev = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? graphDataRevision : 0
+        if (iframeNodeByIdRef.current.rev !== rev || iframeNodeByIdRef.current.sim !== sim) {
+          const map = new Map<string, GraphNode>()
+          for (let i = 0; i < graphNodes.length; i += 1) {
+            const n = graphNodes[i]
+            const key = String(n?.id || '').trim()
+            if (!key) continue
+            map.set(key, n)
           }
-        } catch {
-          void 0
+          for (let i = 0; i < simNodes.length; i += 1) {
+            const n = simNodes[i]
+            const key = String(n?.id || '').trim()
+            if (!key) continue
+            map.set(key, n)
+          }
+          iframeNodeByIdRef.current = { rev, sim: sim || null, map }
         }
-        const left = Math.round(rect.left)
-        const top = Math.round(rect.top)
-        applyPanelBox(el, { left, top, w: lastPanelW, h: lastPanelH, display: 'block' })
-        try {
-          ;(el as unknown as { dataset?: Record<string, string> }).dataset!.kgOverlayHasPos = '1'
-        } catch {
-          void 0
-        }
-      }
-    }
-    const schedule = () => {
-      if (raf != null) return
-      raf = requestAnimationFrame(() => {
-        raf = null
-        update()
-      })
-    }
-    mediaOverlayScheduleRef.current = schedule
+        const n = iframeNodeByIdRef.current.map.get(id) || null
+        return readNodeCenterWorld2d(n, { coords: 'center' })
+      },
+      sizingConfig: {
+        widthRatio: Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2,
+        widthMinPx: Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210,
+        widthMaxPx: Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360,
+      },
+    })
+
+    mediaOverlayScheduleRef.current = loop.schedule
     if (mediaOverlaySchedulePendingRef.current) {
       mediaOverlaySchedulePendingRef.current = false
-      schedule()
+      loop.schedule()
     }
-    const tick = () => {
-      loopRaf = requestAnimationFrame(tick)
-      update()
-    }
-    loopRaf = requestAnimationFrame(tick)
+
     return () => {
-      if (raf != null) {
-        try {
-          cancelAnimationFrame(raf)
-        } catch {
-          void 0
-        }
-      }
-      if (loopRaf != null) {
-        try {
-          cancelAnimationFrame(loopRaf)
-        } catch {
-          void 0
-        }
-      }
-      raf = null
-      loopRaf = null
-      if (mediaOverlayScheduleRef.current === schedule) {
+      loop.stop()
+      if (mediaOverlayScheduleRef.current === loop.schedule) {
         mediaOverlayScheduleRef.current = null
       }
     }
@@ -820,7 +769,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     mediaOverlayNodes,
     mediaOverlayNodeIdsKey,
     mediaPanelDensity,
-    renderMediaAsNodes,
     sceneWidth,
     sceneHeight,
     threeIframeOverlayBaseWidthRatioCompact,
@@ -829,7 +777,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     threeIframeOverlayBaseWidthMaxPxDefault,
     threeIframeOverlayBaseWidthMinPxCompact,
     threeIframeOverlayBaseWidthMinPxDefault,
-    requestMediaOverlaySchedule,
   ])
 
   useEffect(() => {
@@ -1436,36 +1383,18 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
         edgeScrollEnabled: () => useGraphStore.getState().viewPinned !== true,
         onZoomTransform: t => {
-          zoomCommitLatestTransformRef.current = t
           try {
             requestMediaOverlaySchedule()
           } catch {
             void 0
           }
-          if (zoomCommitPendingRef.current) return
-          zoomCommitPendingRef.current = true
-          if (zoomCommitRafIdRef.current != null) {
-            try {
-              cancelAnimationFrame(zoomCommitRafIdRef.current)
-            } catch {
-              void 0
-            }
+          zoomCommitParamsRef.current = {
+            zoomViewKey,
+            viewportW: sceneWidth,
+            viewportH: sceneHeight,
+            graphDataRevision: graphDataRevisionRef.current,
           }
-          zoomCommitRafIdRef.current = requestAnimationFrame(() => {
-            zoomCommitRafIdRef.current = null
-            zoomCommitPendingRef.current = false
-            const latest = zoomCommitLatestTransformRef.current
-            if (!latest) return
-            const state = useGraphStore.getState()
-            commitZoomTransformToStore({
-              state,
-              zoomViewKey,
-              transform: latest,
-              viewportW: sceneWidth,
-              viewportH: sceneHeight,
-              graphDataRevision: graphDataRevisionRef.current,
-            })
-          })
+          zoomCommitSchedulerRef.current.schedule(t)
         },
         getSchema: () => schemaRef.current,
         getRenderMediaAsNodes: () => useGraphStore.getState().renderMediaAsNodes === true,
@@ -1489,15 +1418,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     });
     return () => {
       if (rafId != null) cancelAnimationFrame(rafId);
-      if (zoomCommitRafIdRef.current != null) {
-        try {
-          cancelAnimationFrame(zoomCommitRafIdRef.current)
-        } catch {
-          void 0
-        }
-      }
-      zoomCommitRafIdRef.current = null
-      zoomCommitPendingRef.current = false
+      zoomCommitSchedulerRef.current.cancel()
     };
   }, [
     active,
@@ -1885,16 +1806,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   }, [selectedNodeId, selectedNodeIds])
 
   const applyArrange = useMemo(() => {
-    type Action =
-      | 'align-left'
-      | 'align-center-x'
-      | 'align-right'
-      | 'align-top'
-      | 'align-center-y'
-      | 'align-bottom'
-      | 'distribute-x'
-      | 'distribute-y'
-    return (action: Action) => {
+    return (action: ArrangeAction2d) => {
       if (!active) return
       if (selectedIds.length < 2) return
       const graphDataNow = sceneGraphDataRef.current
@@ -1908,71 +1820,34 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         if (a && selectedIds.includes(a)) return a
         return selectedIds[0] || ''
       })()
-      const ref = refId ? byId.get(refId) : null
-      if (!ref) return
-      const refX = typeof ref.x === 'number' && Number.isFinite(ref.x) ? ref.x : null
-      const refY = typeof ref.y === 'number' && Number.isFinite(ref.y) ? ref.y : null
-      if (refX == null || refY == null) return
-      const grid = schema?.behavior?.snapGrid
-      const gridSize = grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) ? Math.max(4, Math.floor(grid.size)) : 0
-      const snap = (v: number) => (gridSize ? Math.round(v / gridSize) * gridSize : v)
+      const grid = readSnapGridConfigFromSchema(schema)
+      const gridSize = grid.enabled ? grid.size : 0
+      const snap = (v: number) => (grid.enabled ? snapScalarToGrid(v, grid.size) : v)
 
-      const halfRef = getNodeHalfExtents2d(ref, schema)
-      const refLeft = refX - halfRef.halfW
-      const refRight = refX + halfRef.halfW
-      const refTop = refY - halfRef.halfH
-      const refBottom = refY + halfRef.halfH
-
-      if (action === 'distribute-x' || action === 'distribute-y') {
-        const pts = selectedIds
-          .map((id) => {
-            const n = byId.get(id)
-            if (!n) return null
-            const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-            const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-            if (x == null || y == null) return null
-            return { id, x, y }
-          })
-          .filter(Boolean) as { id: string; x: number; y: number }[]
-        if (pts.length < 3) return
-        const next = computeEvenlyDistributedPositions({ nodes: pts, axis: action === 'distribute-x' ? 'x' : 'y', minSpacing: gridSize || 120 })
-        const byNext = new Map<string, { x: number; y: number }>(Object.entries(next))
-        for (let i = 0; i < nodes.length; i += 1) {
-          const n = nodes[i]!
-          const id = String(n.id)
-          const p = byNext.get(id)
-          if (!p) continue
-          n.x = snap(p.x)
-          n.y = snap(p.y)
-          n.fx = n.x
-          n.fy = n.y
-          n.vx = 0
-          n.vy = 0
-        }
-      } else {
-        for (let i = 0; i < selectedIds.length; i += 1) {
-          const id = selectedIds[i]!
+      const items = selectedIds
+        .map(id => {
           const n = byId.get(id)
-          if (!n) continue
-          const x0 = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-          const y0 = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-          if (x0 == null || y0 == null) continue
+          if (!n) return null
+          const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+          const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+          if (x == null || y == null) return null
           const half = getNodeHalfExtents2d(n, schema)
-          let x = x0
-          let y = y0
-          if (action === 'align-left') x = refLeft + half.halfW
-          if (action === 'align-right') x = refRight - half.halfW
-          if (action === 'align-center-x') x = refX
-          if (action === 'align-top') y = refTop + half.halfH
-          if (action === 'align-bottom') y = refBottom - half.halfH
-          if (action === 'align-center-y') y = refY
-          n.x = snap(x)
-          n.y = snap(y)
-          n.fx = n.x
-          n.fy = n.y
-          n.vx = 0
-          n.vy = 0
-        }
+          return { id, cx: x, cy: y, w: half.halfW * 2, h: half.halfH * 2 }
+        })
+        .filter(Boolean) as { id: string; cx: number; cy: number; w: number; h: number }[]
+      if (items.length < 2) return
+      const next = computeArrangeCenters({ action, items, refId, minSpacing: gridSize || 120 })
+      for (let i = 0; i < items.length; i += 1) {
+        const id = items[i]!.id
+        const n = byId.get(id)
+        const p = next[id]
+        if (!n || !p) continue
+        n.x = snap(p.cx)
+        n.y = snap(p.cy)
+        n.fx = n.x
+        n.fy = n.y
+        n.vx = 0
+        n.vy = 0
       }
 
       try {
@@ -2021,10 +1896,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         return
       }
       if (selectedIds.length === 0) return
-      const grid = schema?.behavior?.snapGrid
-      const gridSize =
-        grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) ? Math.max(4, Math.floor(grid.size)) : 1
-      const delta = readNudgeDelta({ e, snapGridEnabled: !!grid?.enabled, snapGridSize: gridSize })
+      const grid = readSnapGridConfigFromSchema(schema)
+      const delta = readNudgeDelta({ e, snapGridEnabled: grid.enabled, snapGridSize: grid.size })
       if (!delta) return
       const graphDataNow = sceneGraphDataRef.current
       if (!graphDataNow) return
@@ -2123,9 +1996,21 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
           </button>
         </div>
       ) : null}
+      <InfiniteGridCanvasOverlay
+        enabled={canvasGrid.enabled}
+        gridSize={canvasGridStep}
+        variant={canvasGrid.variant}
+        majorEvery={canvasGrid.majorEvery}
+        dotRadiusPx={canvasGrid.dotRadiusPx}
+        width={width}
+        height={height}
+        dpr={dpr}
+        getTransform={getZoomTransform}
+        getEventTarget={getZoomEventTarget}
+      />
       <svg
         ref={svgRef}
-        className={`${CANVAS_INTERACTIVE_CLASS} z-0`}
+        className={`${CANVAS_INTERACTIVE_CLASS} z-10`}
         data-kg-canvas-interactive="1"
         viewBox={`0 0 ${Math.max(1, Math.floor(width))} ${Math.max(1, Math.floor(height))}`}
         preserveAspectRatio="xMidYMid meet"

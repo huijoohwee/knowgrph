@@ -3,7 +3,7 @@ import { useThree, useFrame } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import type { GraphData } from '@/lib/graph/types'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
 import { resolveCssVar } from '@/lib/ui/theme-tokens'
 import { getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
@@ -19,6 +19,11 @@ import { Starfield } from './Starfield'
 import { getCameraConfig } from './camera'
 import { resolveThreeColor } from './resolveColor'
 import type { KgTheme } from '@/lib/ui/tokens-ssot'
+import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
+import { buildDeepestGroupRectByNodeId, buildGroupRectByIdFromSchemaOverrides } from '@/lib/canvas/groupExplicitBounds'
+import { clampNodeCenterToRect } from '@/lib/canvas/groupContainment'
+import { GroupOverlays3d } from '@/features/three/GroupOverlays'
+import { THREE_RENDER_ORDER } from '@/features/three/renderOrder'
 
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min
@@ -104,6 +109,26 @@ export function Scene({
   )
   const selectionMode: NodeSelectionMode =
     selectionSets.selectedEdgeIdSet.size > 0 ? 'edge' : selectionSets.selectedNodeIdSet.size > 0 ? 'node' : 'none'
+
+  const nodeById = React.useMemo(() => {
+    const m = new Map<string, GraphNode>()
+    for (let i = 0; i < data.nodes.length; i += 1) {
+      const n = data.nodes[i]
+      const id = String(n?.id || '').trim()
+      if (id && !m.has(id)) m.set(id, n)
+    }
+    return m
+  }, [data.nodes])
+
+  const groups = React.useMemo(() => deriveGraphGroups(data), [data])
+  const explicitGroupRectById = React.useMemo(() => {
+    if (!groups.length) return new Map<string, { x: number; y: number; width: number; height: number }>()
+    return buildGroupRectByIdFromSchemaOverrides({ groups: groups as any, graphNodes: data.nodes as GraphNode[], schema })
+  }, [data.nodes, groups, schema])
+  const explicitGroupRectByNodeId = React.useMemo(() => {
+    if (!groups.length || explicitGroupRectById.size === 0) return new Map<string, { x: number; y: number; width: number; height: number }>()
+    return buildDeepestGroupRectByNodeId({ groups: groups as any, groupRectById: explicitGroupRectById as any })
+  }, [explicitGroupRectById, groups])
   
   // Memoize resolved colors to depend on theme
   const {
@@ -196,20 +221,44 @@ export function Scene({
   const dragRef = dragOverridesRef || localDragOverridesRef
   const handleDragStart = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
-    const p = e.point
+    const p = e.point.clone()
+    const rect = explicitGroupRectByNodeId.get(String(id)) || null
+    const n = nodeById.get(String(id)) || null
+    if (rect && n) {
+      const r = getRenderNodeRadius2d(n, schema)
+      const clamped = clampNodeCenterToRect({ cx: p.x, cy: p.y, halfW: r, halfH: r, rect })
+      p.x = clamped.cx
+      p.y = clamped.cy
+    }
     dragRef.current[id] = [p.x, p.y, p.z]
-  }, [])
+  }, [dragRef, explicitGroupRectByNodeId, nodeById, schema])
   const handleDrag = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
-    const p = e.point
+    const p = e.point.clone()
+    const rect = explicitGroupRectByNodeId.get(String(id)) || null
+    const n = nodeById.get(String(id)) || null
+    if (rect && n) {
+      const r = getRenderNodeRadius2d(n, schema)
+      const clamped = clampNodeCenterToRect({ cx: p.x, cy: p.y, halfW: r, halfH: r, rect })
+      p.x = clamped.cx
+      p.y = clamped.cy
+    }
     dragRef.current[id] = [p.x, p.y, p.z]
-  }, [])
+  }, [dragRef, explicitGroupRectByNodeId, nodeById, schema])
   const handleDragEnd = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
-    const p = e.point
+    const p = e.point.clone()
+    const rect = explicitGroupRectByNodeId.get(String(id)) || null
+    const n = nodeById.get(String(id)) || null
+    if (rect && n) {
+      const r = getRenderNodeRadius2d(n, schema)
+      const clamped = clampNodeCenterToRect({ cx: p.x, cy: p.y, halfW: r, halfH: r, rect })
+      p.x = clamped.cx
+      p.y = clamped.cy
+    }
     dragRef.current[id] = [p.x, p.y, p.z]
     delete dragRef.current[id]
-  }, [])
+  }, [dragRef, explicitGroupRectByNodeId, nodeById, schema])
   const allowNodeDrag = schema.behavior ? schema.behavior.allowNodeDrag !== false : true
 
   const sceneGroupRef = React.useRef<THREE.Group | null>(null)
@@ -243,6 +292,7 @@ export function Scene({
       ) : null}
       <group ref={sceneGroupRef}>
         <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragRef} paused={paused} />
+        <GroupOverlays3d data={data} schema={schema} positions={positions} dragOverridesRef={dragRef} renderOrder={THREE_RENDER_ORDER.groups} />
         {threeEdgeRenderer === 'shaderLine' ? (
           <ShaderLineEdges
             edges={data.edges}
@@ -261,6 +311,7 @@ export function Scene({
             draggedNodeId={draggedNodeId}
             dragOverridesRef={dragRef}
             lineWidthPx={threeShaderLineWidthPx}
+            renderOrder={THREE_RENDER_ORDER.edges}
             onSelectEdge={(id) => {
               setSelectionSource('canvas')
               selectEdge(id)
@@ -351,6 +402,7 @@ export function Scene({
             <group
               key={e.id}
               name={`kg_edge:${e.id}`}
+              renderOrder={THREE_RENDER_ORDER.edges}
               onClick={(evt) => {
                 evt.stopPropagation()
                 setSelectionSource('canvas')
@@ -397,6 +449,7 @@ export function Scene({
               node={n}
               pos={p}
               schema={schema}
+              renderOrder={THREE_RENDER_ORDER.nodes}
               onClick={onSelectNode}
               selection={{ mode: selectionMode, isSelected, isNeighbor, isEdgeEndpoint }}
               visuals={selectionVisuals}

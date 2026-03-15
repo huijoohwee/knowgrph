@@ -8,10 +8,9 @@ export function testWheelZoomUsesCtrlKeyBoostHelper() {
     throw new Error('expected D3 wheel zoom to use computeZoomWheelDeltaYpx helper')
   }
 
-  const flowP = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'bindNativeInteractions.ts')
+  const flowP = resolve(process.cwd(), 'src', 'lib', 'canvas', 'infinite-canvas-engine', 'controller.ts')
   const flowText = readFileSync(flowP, 'utf8')
   if (!flowText.includes('computeZoomWheelDeltaYpx')) {
     throw new Error('expected Flow wheel zoom to use computeZoomWheelDeltaYpx helper')
   }
 }
-

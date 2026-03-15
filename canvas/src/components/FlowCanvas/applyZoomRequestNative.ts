@@ -3,13 +3,12 @@ import * as d3 from 'd3'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import type { ZoomRequest } from '@/lib/zoom/requests'
-import { computeZoomTransformFromRequest } from '@/lib/zoom/actions'
 import type { GraphData } from '@/lib/graph/types'
 import { setFlowNativeTransform, type FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import { easeOutCubic01, lerpNumber } from '@/lib/canvas/zoom-smoothing'
 import { getFlowAutoMinScale, setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
 import { DEFAULT_TOOLBAR_ZOOM_CONFIG } from '@/lib/zoom/toolbarZoom'
-import { resolveScaleExtentForZoomRequest } from '@/lib/zoom/scaleExtentPolicy'
+import { resolveZoomRequest2d } from '@/lib/zoom/resolveZoomRequest2d'
 
 const FLOW_ZOOM_REQUEST_ANIMS = new WeakMap<FlowNativeRuntime, { rafId: number | null; token: number }>()
 
@@ -56,25 +55,17 @@ export const applyZoomRequestNative = (args: {
   const t0 = args.runtime.transform || d3.zoomIdentity
   const [schemaMinK, schemaMaxK] = readZoomScaleExtent(schema)
   const autoMinK = getFlowAutoMinScale(args.runtime)
-  const scaleExtent = resolveScaleExtentForZoomRequest({
+  const resolved = resolveZoomRequest2d({
     zoomRequest: args.zoomRequest,
-    schemaExtent: { minK: schemaMinK, maxK: schemaMaxK },
-    currentExtent: { minK: autoMinK ?? schemaMinK, maxK: schemaMaxK },
-    currentTransform: t0,
-    toolbarZoom: DEFAULT_TOOLBAR_ZOOM_CONFIG,
-  })
-  const res = computeZoomTransformFromRequest(args.zoomRequest, {
     graphData: args.graphData,
     schema,
     documentSemanticMode: (state.documentSemanticMode as 'document' | 'keyword' | undefined) ?? undefined,
     graphDataRevision: state.graphDataRevision || 0,
     viewportW: Math.max(1, Math.floor(args.width)),
     viewportH: Math.max(1, Math.floor(args.height)),
-    pinned: state.viewPinned === true,
-    durations: {
-      fitMs: state.zoomDurationFitMs,
-      selectionMs: state.zoomDurationSelectionMs,
-    },
+    viewPinned: state.viewPinned === true,
+    durations: { fitMs: state.zoomDurationFitMs, selectionMs: state.zoomDurationSelectionMs },
+    toolbarZoom: DEFAULT_TOOLBAR_ZOOM_CONFIG,
     selectedNodeId: args.selectedNodeId,
     selectedEdgeId: args.selectedEdgeId,
     selectedGroupId: args.selectedGroupId,
@@ -82,25 +73,25 @@ export const applyZoomRequestNative = (args: {
     selectedEdgeIds: args.selectedEdgeIds,
     selectedGroupIds: args.selectedGroupIds,
     currentTransform: t0,
-    scaleExtent,
+    schemaExtent: { minK: schemaMinK, maxK: schemaMaxK },
+    currentExtent: { minK: autoMinK ?? schemaMinK, maxK: schemaMaxK },
     cacheKeyBase: '2d',
-    toolbarZoom: DEFAULT_TOOLBAR_ZOOM_CONFIG,
   })
-  if (!res) {
+  if (!resolved) {
     clear()
     return
   }
-  const nextMinScale = res.nextMinScale
+  const nextMinScale = resolved.nextMinScale
   if (typeof nextMinScale === 'number' && Number.isFinite(nextMinScale) && nextMinScale < schemaMinK) {
     const prev = getFlowAutoMinScale(args.runtime)
     const combined = prev == null ? nextMinScale : Math.min(prev, nextMinScale)
     setFlowAutoMinScale(args.runtime, combined)
   }
   clear()
-  const durationMs = Math.max(0, Math.floor(res.durationMs))
+  const durationMs = Math.max(0, Math.floor(resolved.durationMs))
   if (durationMs === 0) {
     cancelFlowZoomRequestAnim(args.runtime)
-    setFlowNativeTransform(args.runtime, res.nextTransform)
+    setFlowNativeTransform(args.runtime, resolved.nextTransform)
     args.onFrame?.()
     return
   }
@@ -110,7 +101,7 @@ export const applyZoomRequestNative = (args: {
   FLOW_ZOOM_REQUEST_ANIMS.set(args.runtime, { rafId: null, token })
   const start = performance.now()
   const from = t0
-  const to = res.nextTransform
+  const to = resolved.nextTransform
   const tick = (now: number) => {
     const st = FLOW_ZOOM_REQUEST_ANIMS.get(args.runtime)
     if (!st || st.token !== token) return

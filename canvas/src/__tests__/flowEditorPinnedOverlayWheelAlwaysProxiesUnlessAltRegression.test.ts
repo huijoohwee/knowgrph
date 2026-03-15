@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testFlowEditorPinnedOverlayWheelAlwaysProxiesUnlessAlt() {
-  const p = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'bindNativeInteractions.ts')
+  const p = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'interactions', 'wheelAndGesture.ts')
   const text = readFileSync(p, 'utf8')
   if (!text.includes('shouldProxyWheelFromOverlay')) {
     throw new Error('expected FlowCanvas to include overlay wheel proxy decision helper')

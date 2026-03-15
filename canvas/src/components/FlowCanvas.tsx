@@ -23,10 +23,13 @@ import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
-import { computeEvenlyDistributedPositions } from '@/lib/canvas/evenDistribute'
+import { computeArrangeCenters, type ArrangeAction2d } from '@/lib/canvas/arrange2d'
 import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/canvas/arrangeShortcuts'
+import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
+import { readCanvasGridConfigFromSchema, readCanvasGridWorldStepFromSchema } from '@/lib/canvas/canvasGridConfig'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } from '@/lib/canvas/camera-options-2d'
+import { readAllowGroupResize } from '@/lib/canvas/groupResizePolicy'
 import {
   createFlowNativeRuntime,
   requestFlowNativeDraw,
@@ -55,8 +58,9 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 import RichMediaPanel from '@/components/RichMediaPanel'
-import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars3d, computePanelRect, computePanelSizeFromContent16x9 } from '@/lib/render/mediaPanelLayout'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
+import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
+import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 
 const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
 
@@ -112,11 +116,14 @@ export default function FlowCanvas({
   const drawArgsRef = React.useRef<FlowNativeDrawArgs>({
     selectedNodeIds: [],
     selectedEdgeIds: [],
+    selectedGroupId: null,
+    showGroupResizeHandle: false,
     hideNodeIds: undefined,
     hidePortHandleNodeIds: undefined,
     renderEdges: undefined,
     renderGroups: undefined,
     renderNodes: undefined,
+    grid: null,
   })
   const lastPointerInCanvasRef = React.useRef<null | { sx: number; sy: number; ts: number }>(null)
   const lastWheelIntentRef = React.useRef<null | { dir: 'in' | 'out'; ts: number }>(null)
@@ -277,6 +284,7 @@ export default function FlowCanvas({
     selectedEdgeId,
     selectedNodeIds,
     selectedEdgeIds,
+    selectedGroupId,
     zoomRequest,
     viewPinned,
     fitToScreenMode,
@@ -314,6 +322,7 @@ export default function FlowCanvas({
       selectedEdgeId: s.selectedEdgeId,
       selectedNodeIds: s.selectedNodeIds,
       selectedEdgeIds: s.selectedEdgeIds,
+      selectedGroupId: s.selectedGroupId,
       zoomRequest: s.zoomRequest,
       viewPinned: s.viewPinned === true,
       fitToScreenMode: s.fitToScreenMode === true,
@@ -343,6 +352,18 @@ export default function FlowCanvas({
     selectedEdgeIdsRef.current = nextSelectedEdgeIds
     drawArgsRef.current.selectedNodeIds = nextSelectedNodeIds
     drawArgsRef.current.selectedEdgeIds = nextSelectedEdgeIds
+    drawArgsRef.current.selectedGroupId = selectedGroupId ? String(selectedGroupId || '').trim() : null
+    drawArgsRef.current.showGroupResizeHandle = readAllowGroupResize(schema)
+    const canvasGrid = readCanvasGridConfigFromSchema(schema)
+    drawArgsRef.current.grid = canvasGrid.enabled
+      ? {
+          enabled: true,
+          size: readCanvasGridWorldStepFromSchema(schema),
+          variant: canvasGrid.variant,
+          majorEvery: canvasGrid.majorEvery,
+          dotRadiusPx: canvasGrid.dotRadiusPx,
+        }
+      : null
     const explicitHideNodeIds = (hideNodeIds || []).map(v => String(v)).filter(Boolean)
     const explicitHidePortHandleNodeIds = (hidePortHandleNodeIds || []).map(v => String(v)).filter(Boolean)
     const mediaHideNodeIds = renderMediaAsNodes === true ? mediaHideNodeIdsRef.current : []
@@ -374,9 +395,11 @@ export default function FlowCanvas({
     renderMediaAsNodes,
     selectedEdgeId,
     selectedEdgeIds,
+    selectedGroupId,
     selectedNodeId,
     selectedNodeIds,
     scheduleFlowDraw,
+    schema,
   ])
 
   useAutoZoomModes2d({
@@ -512,100 +535,32 @@ export default function FlowCanvas({
   React.useEffect(() => {
     if (!active) return
     if (mediaNodes.length === 0) return
-    let raf: number | null = null
-    const tick = () => {
-      raf = null
-      const rt = runtimeRef.current
-      const scene = rt?.scene
-      if (!rt || !scene) {
-        raf = requestAnimationFrame(tick)
-        return
-      }
-      const t = rt.transform || d3.zoomIdentity
-      const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
-      const density = mediaPanelDensity === 'compact' ? 'compact' : 'default'
-      const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v))
-      const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
-      const widthRatio = Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2
-      const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
-      const widthMin = Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210
-      const widthMaxRaw = density === 'compact' ? threeIframeOverlayBaseWidthMaxPxCompact : threeIframeOverlayBaseWidthMaxPxDefault
-      const widthMax = Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360
-      const baseW = clamp(viewportW * widthRatio, widthMin, widthMax)
-      const MAX_PANEL_PX = 2048
-      const STEP_PX = 16
-      const quantize = (px: number) => Math.round(px / STEP_PX) * STEP_PX
-      const contentW = Math.max(2, Math.min(MAX_PANEL_PX, quantize(baseW * Math.max(0.001, k))))
-      const sizeScale = Math.max(0.001, contentW / Math.max(1, baseW))
-      const computed = computeMediaPanelCssVars3d({ density, sizeScale })
-      const panel = computePanelSizeFromContent16x9({ contentW, metrics: computed.metrics })
-      const vars = computed.vars
-      const panelW = panel.panelW
-      const panelH = panel.panelH
-      for (const n of mediaNodes) {
-        const el = mediaOverlayElsRef.current.get(n.id)
-        if (!el) continue
-        const node = scene.nodeById.get(n.id) as unknown as { x?: unknown; y?: unknown; width?: unknown; height?: unknown } | undefined
-        const center = readNodeCenterWorld2d(node || { x: 0, y: 0 }, { coords: 'topLeft' }) || { x: 0, y: 0 }
-        const rect = computePanelRect({
-          cx: t.applyX(center.x),
-          cy: t.applyY(center.y),
-          w: panelW,
-          h: panelH,
-        })
-        applyMediaPanelCssVars(el, vars)
-        try {
-          const applied = (el as unknown as { dataset?: Record<string, string> }).dataset?.kgMediaEagerApplied
-          if (!applied) {
-            const iframe = el.querySelector('iframe')
-            if (iframe) {
-              try {
-                ;(iframe as unknown as { loading?: string }).loading = 'eager'
-              } catch {
-                void 0
-              }
-              try {
-                iframe.setAttribute('loading', 'eager')
-              } catch {
-                void 0
-              }
-            }
-            const img = el.querySelector('img')
-            if (img) {
-              try {
-                ;(img as unknown as { loading?: string }).loading = 'eager'
-              } catch {
-                void 0
-              }
-              try {
-                img.setAttribute('loading', 'eager')
-              } catch {
-                void 0
-              }
-            }
-            try {
-              ;(el as unknown as { dataset?: Record<string, string> }).dataset!.kgMediaEagerApplied = '1'
-            } catch {
-              void 0
-            }
-          }
-        } catch {
-          void 0
-        }
-        applyPanelBox(el, { left: rect.left, top: rect.top, w: panelW, h: panelH, display: 'block' })
-      }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => {
-      if (raf != null) {
-        try {
-          cancelAnimationFrame(raf)
-        } catch {
-          void 0
-        }
-      }
-    }
+    const density = mediaPanelDensity === 'compact' ? 'compact' : 'default'
+    const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
+    const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
+    const widthMaxRaw = density === 'compact' ? threeIframeOverlayBaseWidthMaxPxCompact : threeIframeOverlayBaseWidthMaxPxDefault
+
+    const loop = startMediaOverlayLayoutLoop2d({
+      enabled: true,
+      loop: 'always',
+      items: mediaNodes,
+      density,
+      viewportW,
+      viewportH,
+      readTransform: () => runtimeRef.current?.transform || d3.zoomIdentity,
+      getElementForId: (id) => mediaOverlayElsRef.current.get(id) || null,
+      getNodeWorldCenterForId: (id) => {
+        const rt = runtimeRef.current
+        const node = rt?.scene?.nodeById.get(id) as unknown as { x?: unknown; y?: unknown; width?: unknown; height?: unknown } | undefined
+        return readNodeCenterWorld2d(node || { x: 0, y: 0 }, { coords: 'topLeft' })
+      },
+      sizingConfig: {
+        widthRatio: Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2,
+        widthMinPx: Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210,
+        widthMaxPx: Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360,
+      },
+    })
+    return () => loop.stop()
   }, [
     active,
     mediaNodes,
@@ -619,6 +574,7 @@ export default function FlowCanvas({
     threeIframeOverlayBaseWidthRatioCompact,
     threeIframeOverlayBaseWidthRatioDefault,
     viewportW,
+    viewportH,
   ])
 
   const layoutViewKey = React.useMemo(() => {
@@ -894,20 +850,19 @@ export default function FlowCanvas({
 
   const mediaPanelWorldSizeForFit = React.useMemo(() => {
     const density = mediaPanelDensity === 'compact' ? 'compact' : 'default'
-    const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v))
     const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
     const widthRatio = Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2
     const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
     const widthMin = Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210
     const widthMaxRaw = density === 'compact' ? threeIframeOverlayBaseWidthMaxPxCompact : threeIframeOverlayBaseWidthMaxPxDefault
     const widthMax = Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360
-    const baseW0 = clamp(viewportW * widthRatio, widthMin, widthMax)
-    const STEP_PX = 16
-    const quantize = (px: number) => Math.round(px / STEP_PX) * STEP_PX
-    const baseW = Math.max(2, quantize(baseW0))
-    const computed = computeMediaPanelCssVars3d({ density, sizeScale: 1 })
-    const panel = computePanelSizeFromContent16x9({ contentW: baseW, metrics: computed.metrics })
-    return { panelW: panel.panelW, panelH: panel.panelH }
+    const sizing = computeMediaOverlaySizing({
+      density,
+      viewportW,
+      zoomK: 1,
+      config: { widthRatio, widthMinPx: widthMin, widthMaxPx: widthMax },
+    })
+    return { panelW: sizing.panelW, panelH: sizing.panelH }
   }, [
     mediaPanelDensity,
     threeIframeOverlayBaseWidthMaxPxCompact,
@@ -1140,16 +1095,7 @@ export default function FlowCanvas({
   }, [selectedNodeId, selectedNodeIds])
 
   const applyArrange = React.useMemo(() => {
-    type Action =
-      | 'align-left'
-      | 'align-center-x'
-      | 'align-right'
-      | 'align-top'
-      | 'align-center-y'
-      | 'align-bottom'
-      | 'distribute-x'
-      | 'distribute-y'
-    return (action: Action) => {
+    return (action: ArrangeAction2d) => {
       if (!active) return
       if (selectedIds.length < 2) return
       const runtime = runtimeRef.current
@@ -1161,47 +1107,28 @@ export default function FlowCanvas({
         if (a && selectedIds.includes(a)) return a
         return selectedIds[0] || ''
       })()
-      const ref = refId ? byId.get(refId) : null
-      if (!ref) return
-      const grid = schema?.behavior?.snapGrid
-      const gridSize = grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) ? Math.max(4, Math.floor(grid.size)) : 0
-      const snap = (v: number) => (gridSize ? Math.round(v / gridSize) * gridSize : v)
+      const grid = readSnapGridConfigFromSchema(schema)
+      const gridSize = grid.enabled ? grid.size : 0
+      const snap = (v: number) => (grid.enabled ? snapScalarToGrid(v, grid.size) : v)
 
-      if (action === 'distribute-x' || action === 'distribute-y') {
-        const pts = selectedIds
-          .map((id) => {
-            const n = byId.get(id)
-            if (!n) return null
-            return { id, x: n.x + n.width / 2, y: n.y + n.height / 2 }
-          })
-          .filter(Boolean) as { id: string; x: number; y: number }[]
-        if (pts.length < 3) return
-        const next = computeEvenlyDistributedPositions({ nodes: pts, axis: action === 'distribute-x' ? 'x' : 'y', minSpacing: gridSize || 24 })
-        for (let i = 0; i < pts.length; i += 1) {
-          const id = pts[i]!.id
+      const items = selectedIds
+        .map(id => {
           const n = byId.get(id)
-          const p = next[id]
-          if (!n || !p) continue
-          if (action === 'distribute-x') n.x = snap(p.x - n.width / 2)
-          if (action === 'distribute-y') n.y = snap(p.y - n.height / 2)
-        }
-        runtime.dirty = true
-        positionsDirtySinceCommitRef.current = true
-        scheduleFlowDraw()
-        requestCommit()
-        return
-      }
-
-      for (let i = 0; i < selectedIds.length; i += 1) {
-        const id = selectedIds[i]!
+          if (!n) return null
+          const cx = n.x + n.width / 2
+          const cy = n.y + n.height / 2
+          return { id, cx, cy, w: n.width, h: n.height }
+        })
+        .filter(Boolean) as { id: string; cx: number; cy: number; w: number; h: number }[]
+      if (items.length < 2) return
+      const next = computeArrangeCenters({ action, items, refId, minSpacing: gridSize || 24 })
+      for (let i = 0; i < items.length; i += 1) {
+        const id = items[i]!.id
         const n = byId.get(id)
-        if (!n) continue
-        if (action === 'align-left') n.x = snap(ref.x)
-        if (action === 'align-right') n.x = snap(ref.x + ref.width - n.width)
-        if (action === 'align-center-x') n.x = snap(ref.x + ref.width / 2 - n.width / 2)
-        if (action === 'align-top') n.y = snap(ref.y)
-        if (action === 'align-bottom') n.y = snap(ref.y + ref.height - n.height)
-        if (action === 'align-center-y') n.y = snap(ref.y + ref.height / 2 - n.height / 2)
+        const p = next[id]
+        if (!n || !p) continue
+        n.x = snap(p.cx - n.width / 2)
+        n.y = snap(p.cy - n.height / 2)
       }
       runtime.dirty = true
       positionsDirtySinceCommitRef.current = true
@@ -1221,10 +1148,8 @@ export default function FlowCanvas({
         return
       }
       if (selectedIds.length === 0) return
-      const grid = schema?.behavior?.snapGrid
-      const gridSize =
-        grid && grid.enabled && typeof grid.size === 'number' && Number.isFinite(grid.size) ? Math.max(4, Math.floor(grid.size)) : 1
-      const delta = readNudgeDelta({ e, snapGridEnabled: !!grid?.enabled, snapGridSize: gridSize })
+      const grid = readSnapGridConfigFromSchema(schema)
+      const delta = readNudgeDelta({ e, snapGridEnabled: grid.enabled, snapGridSize: grid.size })
       if (!delta) return
       const runtime = runtimeRef.current
       const scene = runtime?.scene

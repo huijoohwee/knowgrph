@@ -6,6 +6,12 @@ export interface GraphBehavior {
   nodeShapeMode?: 'circle' | 'rect' | 'diamond' | 'hex';
   dragConstraint?: 'free' | 'axis-x' | 'axis-y' | 'none';
   snapGrid?: { enabled: boolean; size: number };
+  canvasGrid?: {
+    enabled: boolean
+    variant?: 'lines' | 'dots'
+    majorEvery?: number
+    dotRadiusPx?: number
+  }
   preventDuplicatesGlobal?: boolean;
   preventSelfLoopsGlobal?: boolean;
   selectMode?: 'single' | 'multi' | 'lasso';

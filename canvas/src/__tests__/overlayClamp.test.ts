@@ -1,4 +1,4 @@
-import { clampOverlayTopLeftFullyInViewport, clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
+import { clampOverlayCenterToViewport, clampOverlayTopLeftFullyInViewport, clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 
 export function testOverlayClampKeepsPanelInViewport() {
   const clamped = clampOverlayTopLeftToViewport({
@@ -35,4 +35,20 @@ export function testOverlayClampFullyInViewport() {
   if (!(clamped.left <= 500 - 200)) throw new Error('expected left to be clamped to max inside bound')
   if (!(clamped.top >= 0)) throw new Error('expected top to be clamped to 0')
   if (!(clamped.top <= 400 - 120)) throw new Error('expected top to be clamped to max inside bound')
+}
+
+export function testOverlayClampCenterRespectsInset() {
+  const clamped = clampOverlayCenterToViewport({
+    pos: { top: -999, left: -999 },
+    size: { width: 200, height: 100 },
+    viewport: { width: 500, height: 400 },
+    visiblePx: 32,
+    inset: { top: 50 },
+  })
+  const halfH = 50
+  const halfW = 100
+  const minTop = 50 + 32 - halfH
+  const minLeft = 0 + 32 - halfW
+  if (!(clamped.top >= minTop)) throw new Error('expected center top to respect top inset')
+  if (!(clamped.left >= minLeft)) throw new Error('expected center left to respect visible bound')
 }

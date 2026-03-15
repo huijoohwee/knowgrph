@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testFlowCanvasOverlayPanProxyClearsPointerIdOnPointerUpAndLostCapture() {
-  const p = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'bindNativeInteractions.ts')
+  const p = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'interactions', 'listeners.ts')
   const text = readFileSync(p, 'utf8')
   if (!text.includes('proxyPanPointerId = null')) {
     throw new Error('expected FlowCanvas overlay pan proxy to clear proxyPanPointerId')
@@ -14,4 +14,3 @@ export function testFlowCanvasOverlayPanProxyClearsPointerIdOnPointerUpAndLostCa
     throw new Error('expected FlowCanvas overlay pan proxy to clear state on lostpointercapture')
   }
 }
-

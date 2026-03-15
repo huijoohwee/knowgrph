@@ -17,6 +17,7 @@ export function NodeMesh({
   node,
   pos,
   schema,
+  renderOrder,
   paused,
   onClick,
   selection,
@@ -33,6 +34,7 @@ export function NodeMesh({
   node: GraphNode;
   pos: Vec3;
   schema: GraphSchema;
+  renderOrder?: number;
   paused?: boolean;
   onClick: (id: string) => void;
   selection: NodeSelectionState;
@@ -160,10 +162,11 @@ export function NodeMesh({
     }
   }
   return (
-    <group name={`kg_node:${node.id}`}>
+    <group name={`kg_node:${node.id}`} renderOrder={renderOrder}>
       <mesh
         ref={sphereRef}
         name={`kg_node:${node.id}`}
+        renderOrder={renderOrder}
         rotation={meshRotation}
         onClick={() => onClick(node.id)}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
