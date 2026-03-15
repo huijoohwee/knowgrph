@@ -1,6 +1,7 @@
 import type { GraphNode } from '@/lib/graph/types'
 import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
 import { coerceMediaUrl } from '@/lib/url'
+import { inferMediaKindFromResourceUrl, prefersIframeFromLinkContext } from '@/lib/graph/mediaUrlKind'
 import { inferMediaKindFromUrl } from 'grph-shared/rich-media/mediaKind'
 import { isSafeIframeUrl, normalizeIframeUrl } from 'grph-shared/rich-media/iframe'
 
@@ -12,7 +13,30 @@ export type NodeMediaSpec = {
   interactive: boolean
 }
 
-export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
+const mediaSpecCache = new WeakMap<GraphNode, { cacheKey: string; spec: NodeMediaSpec | null }>()
+
+function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
+  return [
+    node.id,
+    node.type,
+    node.label,
+    props.media_kind,
+    props.media_url,
+    props.iframe_url,
+    props.image,
+    props.video,
+    props.media,
+    props.url,
+    props.label,
+    props['dom:tag'],
+    props['dom:attrs:src'],
+    props.media_interactive,
+  ]
+    .map(v => String(v ?? ''))
+    .join('\n')
+}
+
+function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const props = node.properties || {}
   const kindRaw = typeof props.media_kind === 'string' ? props.media_kind.trim().toLowerCase() : ''
   const kindForced: NodeMediaKind | null =
@@ -23,8 +47,12 @@ export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const imageUrl = coerceMediaUrl((props as Record<string, unknown>).image)
   const videoUrl = coerceMediaUrl((props as Record<string, unknown>).video)
   const generic = coerceMediaUrl((props as Record<string, unknown>).media)
+  const linkUrl = coerceMediaUrl((props as Record<string, unknown>).url)
+  const linkLabel = String((props as Record<string, unknown>).label || node.label || '').trim()
 
-  const url = iframeUrl || mediaUrl || imageUrl || videoUrl || generic
+  const inferredLinkKind = inferMediaKindFromResourceUrl(linkUrl || '')
+  const inferLinkAsIframe = inferredLinkKind == null && prefersIframeFromLinkContext({ label: linkLabel, url: linkUrl || undefined })
+  const url = iframeUrl || mediaUrl || imageUrl || videoUrl || generic || (inferredLinkKind || inferLinkAsIframe ? linkUrl : null)
 
   const domTag = (() => {
     const t = (props as Record<string, unknown>)['dom:tag']
@@ -65,7 +93,11 @@ export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
         ? 'video'
         : domKindForced
           ? domKindForced
-          : ((inferMediaKindFromUrl(resolvedUrl) || 'image') as NodeMediaKind)
+          : inferredLinkKind
+            ? inferredLinkKind
+            : inferLinkAsIframe
+              ? 'iframe'
+              : ((inferMediaKindFromUrl(resolvedUrl) || 'image') as NodeMediaKind)
 
   const rawInteractive = (props as Record<string, unknown>).media_interactive
   const explicitInteractive = rawInteractive === true ? true : rawInteractive === false ? false : null
@@ -85,6 +117,16 @@ export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   }
 
   return { kind, url: resolvedUrl, interactive }
+}
+
+export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
+  const props = (node.properties || {}) as Record<string, unknown>
+  const cacheKey = getCacheKey(node, props)
+  const cached = mediaSpecCache.get(node)
+  if (cached && cached.cacheKey === cacheKey) return cached.spec
+  const spec = computeNodeMediaSpec(node)
+  mediaSpecCache.set(node, { cacheKey, spec })
+  return spec
 }
 
 export function hasNodeMedia(node: GraphNode): boolean {

@@ -1,5 +1,6 @@
 import { slugify } from './markdownJsonLdUtils'
 import { isYouTubeUrl } from '@/lib/url'
+import { inferMediaKindFromResourceUrl, prefersIframeFromLinkContext } from '@/lib/graph/mediaUrlKind'
 
 export interface BuilderContext {
   gid: string
@@ -185,11 +186,46 @@ export class MarkdownGraphBuilder {
           return null
         }
       })()
-      const genericWebpageMediaProps = (() => {
-        if (opts?.preferMedia !== true) return null
+      const inlineLinkMediaProps = (() => {
         const raw = String(url || '').trim()
-        if (!/^https?:\/\//i.test(raw)) return null
-        if (/\.(png|jpe?g|gif|webp|svg|mp4|webm|ogg|mp3|wav|m4a|aac|flac|pdf)(\?|#|$)/i.test(raw)) return null
+        if (!raw) return null
+        const kind = inferMediaKindFromResourceUrl(raw)
+        if (kind === 'image' || kind === 'svg') {
+          return {
+            media_kind: kind,
+            media_url: raw,
+            media: raw,
+            image: raw,
+            'visual:shape': 'rect',
+          }
+        }
+        if (kind === 'video') {
+          return {
+            media_kind: 'video',
+            media_url: raw,
+            media: raw,
+            video: raw,
+            media_interactive: true,
+            'visual:shape': 'rect',
+          }
+        }
+        if (kind === 'iframe') {
+          return {
+            media_kind: 'iframe',
+            iframe_url: raw,
+            media_url: raw,
+            media: raw,
+            media_interactive: true,
+            'visual:shape': 'rect',
+          }
+        }
+        return null
+      })()
+      const genericWebpageMediaProps = (() => {
+        if (!prefersIframeFromLinkContext({ label, url, preferMedia: opts?.preferMedia === true })) return null
+        const raw = String(url || '').trim()
+        if (!/^https?:\/\//i.test(raw) && !/^\/__repo_file\//i.test(raw)) return null
+        if (inlineLinkMediaProps) return null
         return {
           media_kind: 'iframe',
           iframe_url: raw,
@@ -205,7 +241,7 @@ export class MarkdownGraphBuilder {
         labels: ['Link'],
         name: label || url,
         chunk_text: (label || url).slice(0, 800),
-        properties: { url, label, ...(mediaProps || genericWebpageMediaProps || {}) },
+        properties: { url, label, ...(mediaProps || inlineLinkMediaProps || genericWebpageMediaProps || {}) },
         metadata: meta,
       })
     }

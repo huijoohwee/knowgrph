@@ -82,7 +82,13 @@ import {
 } from '@/__tests__/webpageSandboxLazyImages.test'
 import { testWorkspaceImportNormalizesLocalProxyUrlsAndAutolinks } from '@/__tests__/workspaceImportNormalizeProxyUrls.test'
 import { testNodeMediaSpecAllowsLocalProxyIframeUrl } from '@/__tests__/nodeMediaSpecAllowsLocalProxyIframe.test'
-import { testNodeMediaSpecDetectsWebpageElementIframeProxy, testNodeMediaSpecDetectsWebpageElementImg } from '@/__tests__/nodeMediaSpecFromWebpageElement.test'
+import {
+  testNodeMediaSpecDetectsMarkdownLinkIframeFromLabelAndLocalHtml,
+  testNodeMediaSpecDetectsMarkdownLinkImageWithoutMediaKind,
+  testNodeMediaSpecDetectsWebpageElementIframeProxy,
+  testNodeMediaSpecDetectsWebpageElementImg,
+  testNodeMediaSpecSkipsPlainHttpLinkWithoutMediaHint,
+} from '@/__tests__/nodeMediaSpecFromWebpageElement.test'
 import {
   testIsNodePointerTargetAcceptsPathNodes,
   testNodesLayerRendersDiamondAndHexPaths,
@@ -209,6 +215,7 @@ import {
   testMarkdownHtmlImgIngestionProducesMediaNodes,
   testMarkdownAutolinkImageIngestionProducesMediaNodes,
   testMarkdownHtmlIframeIngestionProducesMediaNodes,
+  testMarkdownInlineImageLinkIngestionProducesImageMediaNode,
   testMarkdownStandaloneLinkWebpageIngestionProducesIframeNode,
   testMarkdownHtmlVideoIngestionProducesMediaNodes,
 } from '@/__tests__/markdownGithubIngestion.test'
@@ -1706,6 +1713,9 @@ export const runAllTests = async () => {
   await exec('nodeMediaSpec.allowsLocalProxyIframeUrl', testNodeMediaSpecAllowsLocalProxyIframeUrl)
   await exec('nodeMediaSpec.detectsWebpageElementImg', testNodeMediaSpecDetectsWebpageElementImg)
   await exec('nodeMediaSpec.detectsWebpageElementIframeProxy', testNodeMediaSpecDetectsWebpageElementIframeProxy)
+  await exec('nodeMediaSpec.detectsMarkdownLinkImageWithoutMediaKind', testNodeMediaSpecDetectsMarkdownLinkImageWithoutMediaKind)
+  await exec('nodeMediaSpec.detectsMarkdownLinkIframeFromLabelAndLocalHtml', testNodeMediaSpecDetectsMarkdownLinkIframeFromLabelAndLocalHtml)
+  await exec('nodeMediaSpec.skipsPlainHttpLinkWithoutMediaHint', testNodeMediaSpecSkipsPlainHttpLinkWithoutMediaHint)
   await exec('url.applyImageLikeProxySrc.usesWebpageAssetPathForWeChatCdn', testApplyImageLikeProxySrcUsesWebpageAssetPathForWeChatCdn)
   await exec('url.isLikelyImageUrl.detectsWeChatWxFmtWithoutExtension', testIsLikelyImageUrlDetectsWeChatWxFmtWithoutExtension)
   await exec('iframePolicy.usesAllowForReactLikePages', testInferIframeScriptPolicyUsesAllowForReactLikePages)
@@ -1717,6 +1727,7 @@ export const runAllTests = async () => {
   await exec('markdown.ingest.htmlImg.producesMediaNodes', testMarkdownHtmlImgIngestionProducesMediaNodes)
   await exec('markdown.ingest.autolinkImage.producesMediaNodes', testMarkdownAutolinkImageIngestionProducesMediaNodes)
   await exec('markdown.ingest.htmlIframe.producesMediaNodes', testMarkdownHtmlIframeIngestionProducesMediaNodes)
+  await exec('markdown.ingest.inlineImageLink.producesImageMediaNode', testMarkdownInlineImageLinkIngestionProducesImageMediaNode)
   await exec('markdown.ingest.standaloneLinks.webpageAndEmbeds', testMarkdownStandaloneLinkWebpageIngestionProducesIframeNode)
   await exec('markdown.ingest.htmlVideo.producesMediaNodes', testMarkdownHtmlVideoIngestionProducesMediaNodes)
   await exec('export.parseCombinedCsv', testParseCombinedCsv)

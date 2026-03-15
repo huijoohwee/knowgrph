@@ -184,6 +184,34 @@ export async function testMarkdownStandaloneLinkWebpageIngestionProducesIframeNo
   await Promise.resolve()
 }
 
+export async function testMarkdownInlineImageLinkIngestionProducesImageMediaNode() {
+  resetParsers()
+  builtInParsers.forEach(p => registerParser(p))
+
+  const markdown = [
+    '# Title',
+    '',
+    'Inline markdown link to image:',
+    '[cover](https://mmbiz.qpic.cn/mmbiz_png/test/640?wx_fmt=png&from=appmsg)',
+    '',
+  ].join('\n')
+
+  const jsonld = buildMarkdownJsonLd('https://example.invalid/doc.md', markdown)
+  const res = applyParser(toParserId('jsonld'), { name: 'doc.jsonld', text: JSON.stringify(jsonld) })
+  if (!res) throw new Error('jsonld parse returned null')
+  if (res.warnings && res.warnings.length > 0) throw new Error(`jsonld parse warnings: ${res.warnings.join('; ')}`)
+
+  const nodes = res.graphData.nodes || []
+  const hasMediaImageLink = nodes.some(n => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    return (
+      String(props.media_kind || '') === 'image'
+      && String(props.media_url || '').includes('mmbiz.qpic.cn/mmbiz_png/test/640')
+    )
+  })
+  if (!hasMediaImageLink) throw new Error('expected markdown []() image link to ingest as image media node')
+}
+
 export async function testMarkdownHtmlVideoIngestionProducesMediaNodes() {
   resetParsers()
   builtInParsers.forEach(p => registerParser(p))
