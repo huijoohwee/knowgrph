@@ -187,7 +187,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
             if (!p) continue
             startPosById.set(id, p)
           }
-          const deltaClamp = computeFlowDeltaClampForNodes({ scene, nodeIds: memberNodeIds, startPosById })
+          const deltaClamp = computeFlowDeltaClampForNodes({ runtime, nodeIds: memberNodeIds, startPosById })
           startDrag({
             type: 'nodes',
             memberNodeIds,
@@ -200,7 +200,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
         } else {
           const node = scene.nodeById.get(hit)
           if (node) {
-            const clamp = computeFlowNodeClamp({ scene, nodeId: hit })
+            const clamp = computeFlowNodeClamp({ runtime, nodeId: hit })
             startDrag({
               type: 'node',
               nodeId: hit,
@@ -381,4 +381,3 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
     })
   }
 }
-

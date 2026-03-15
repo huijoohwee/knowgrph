@@ -17,6 +17,7 @@ import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import { buildBestGroupInfoByNodeId } from '@/lib/canvas/groupZOrder'
+import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
 
 export function buildAndSetFlowNativeScene(args: {
   runtime: FlowNativeRuntime
@@ -103,7 +104,19 @@ export function buildAndSetFlowNativeScene(args: {
   const nodeById = new Map<string, NonNullable<FlowNativeScene['nodes']>[number]>()
   const inputNodeById = new Map<string, unknown>()
   const nodes: NonNullable<FlowNativeScene['nodes']> = []
-  const bestGroupByNodeId = buildBestGroupInfoByNodeId(args.sceneGroups || [])
+  const collapsedSet = (() => {
+    const meta = g?.metadata && typeof g.metadata === 'object' && !Array.isArray(g.metadata) ? (g.metadata as Record<string, unknown>) : null
+    const view = meta && meta['kg:view'] && typeof meta['kg:view'] === 'object' && !Array.isArray(meta['kg:view']) ? (meta['kg:view'] as Record<string, unknown>) : null
+    const ids = view && Array.isArray(view.collapsedGroupIds) ? (view.collapsedGroupIds as unknown[]) : []
+    return new Set<string>(ids.map(x => String(x || '').trim()).filter(Boolean))
+  })()
+
+  const sceneGroups = filterGroupsByCollapsedAncestors({
+    groups: args.sceneGroups || [],
+    collapsedGroupIdSet: collapsedSet,
+  })
+
+  const bestGroupByNodeId = buildBestGroupInfoByNodeId(sceneGroups)
   for (let i = 0; i < nodeList.length; i += 1) {
     const n = nodeList[i]
     const id = String(n?.id || '').trim()
@@ -371,7 +384,7 @@ export function buildAndSetFlowNativeScene(args: {
     })
   }
 
-  const groups = args.sceneGroups
+  const groups = sceneGroups
   const groupIdsByNodeId = (() => {
     if (!groups || groups.length === 0) return new Map<string, string[]>()
     const m = new Map<string, string[]>()

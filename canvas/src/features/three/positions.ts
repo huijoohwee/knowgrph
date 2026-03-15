@@ -41,7 +41,11 @@ export function asVec3(v: unknown): Vec3 | null {
   return [a, b, c]
 }
 
-export function computePositions3d(nodes: GraphNode[], schema: GraphSchema | null): Record<string, Vec3> {
+export function computePositions3d(
+  nodes: GraphNode[],
+  schema: GraphSchema | null,
+  opts?: { seed2dPositions?: Record<string, { x: number; y: number }> | null },
+): Record<string, Vec3> {
   const out: Record<string, Vec3> = {}
   const n = Math.max(1, nodes.length)
   const cfg = getThreeConfig(schema || undefined)
@@ -75,6 +79,15 @@ export function computePositions3d(nodes: GraphNode[], schema: GraphSchema | nul
   const relaxNodes: Array<{ vx: number; vy: number; vz: number }> = []
   const relaxGroups: CollisionGroupItem[] = []
 
+  const seed2d = opts?.seed2dPositions || null
+  const readSeedXy = (id: string): { x: number; y: number } | null => {
+    if (seed2d) {
+      const p = seed2d[id]
+      if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) return { x: p.x, y: p.y }
+    }
+    return null
+  }
+
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i]
     const p = asVec3((node.properties || {})['pos3d'])
@@ -82,7 +95,7 @@ export function computePositions3d(nodes: GraphNode[], schema: GraphSchema | nul
       out[node.id] = p
       continue
     }
-    const s = sphere[i] || [0, 0, 0]
+
     const rawLayer = (node.properties || {})['visual:layer']
     const layerVal =
       typeof rawLayer === 'number'
@@ -94,19 +107,30 @@ export function computePositions3d(nodes: GraphNode[], schema: GraphSchema | nul
       typeof layerVal === 'number' && Number.isFinite(layerVal)
         ? (layerValues.get(layerVal) ?? 0)
         : 0
-    const z = s[2] + offsetIndex * layerSpacing
-    out[node.id] = [s[0], s[1], z]
+    const z = offsetIndex * layerSpacing
 
+    const seed = readSeedXy(String(node.id || '').trim())
+    const nx = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : null
+    const ny = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : null
+    if (seed) {
+      out[node.id] = [seed.x, seed.y, z]
+    } else if (nx != null && ny != null) {
+      out[node.id] = [nx, ny, z]
+    } else {
+      const s = sphere[i] || [0, 0, 0]
+      out[node.id] = [s[0], s[1], s[2] + z]
+    }
     if (canRelax) {
       const id = String(node.id || '').trim()
       nodeIndexById.set(id, relaxGroups.length)
       relaxNodes.push({ vx: 0, vy: 0, vz: 0 })
       const half = Math.max(1e-6, Number(minSpacingCfg) * 0.5)
+      const cur = out[id] || [0, 0, 0]
       relaxGroups.push({
         id,
-        cx: s[0],
-        cy: s[1],
-        cz: z,
+        cx: cur[0],
+        cy: cur[1],
+        cz: cur[2],
         halfW: half,
         halfH: half,
         halfD: half,
@@ -116,6 +140,7 @@ export function computePositions3d(nodes: GraphNode[], schema: GraphSchema | nul
       })
     }
   }
+
 
   if (canRelax && relaxGroups.length >= 2) {
     const applyBackToOut = () => {

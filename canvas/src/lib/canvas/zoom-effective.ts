@@ -1,11 +1,4 @@
-export type ZoomStateLike = {
-  k: number
-  x: number
-  y: number
-  graphDataRevision?: number
-  viewportW?: number
-  viewportH?: number
-}
+import { pickZoomStateWithCrossRendererFallback, type ZoomStateLike } from '@/lib/canvas/zoomSeed'
 
 export function pickZoomStateForView(args: {
   zoomViewKey: string | null | undefined
@@ -16,19 +9,14 @@ export function pickZoomStateForView(args: {
 }): ZoomStateLike | null {
   if (!args.zoomViewKey) return null
   if (!args.viewPinned && (args.fitToScreenMode || args.zoomToSelectionMode)) return null
-  const map = args.zoomStateByKey
-  if (!map) return null
-  return map[args.zoomViewKey] ?? null
+  return pickZoomStateWithCrossRendererFallback({ zoomViewKey: args.zoomViewKey, zoomStateByKey: args.zoomStateByKey })
 }
 
 export function getZoomStateForKey(args: {
   zoomViewKey: string | null | undefined
   zoomStateByKey: Record<string, ZoomStateLike | null | undefined> | null | undefined
 }): ZoomStateLike | null {
-  if (!args.zoomViewKey) return null
-  const map = args.zoomStateByKey
-  if (!map) return null
-  return map[args.zoomViewKey] ?? null
+  return pickZoomStateWithCrossRendererFallback({ zoomViewKey: args.zoomViewKey, zoomStateByKey: args.zoomStateByKey })
 }
 
 export function getEffectiveZoomStateForKey(args: {
@@ -36,6 +24,6 @@ export function getEffectiveZoomStateForKey(args: {
   zoomStateByKey: Record<string, ZoomStateLike | null | undefined> | null | undefined
   zoomState: ZoomStateLike | null | undefined
 }): ZoomStateLike | null {
-  const keyed = args.zoomViewKey && args.zoomStateByKey ? (args.zoomStateByKey[args.zoomViewKey] ?? null) : null
+  const keyed = pickZoomStateWithCrossRendererFallback({ zoomViewKey: args.zoomViewKey, zoomStateByKey: args.zoomStateByKey })
   return keyed || args.zoomState || null
 }

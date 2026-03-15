@@ -3,15 +3,66 @@ import { useFrame } from '@react-three/fiber'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeConfig } from '@/lib/graph/schema'
+import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
+import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
+import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
+import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { computeLayoutDatasetKey, buildLayoutViewKey, buildLayoutPositionCacheKey } from '@/lib/canvas/layoutPositioning'
+import { pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { computePositions3d, type Vec3 } from './positions'
 
 export { fibSphere } from './positions'
 export type { Vec3 } from './positions'
 
 export function usePositions(nodes: GraphNode[], schema: GraphSchema | null): Record<string, Vec3> {
+  const layoutPositionCacheByMode = useGraphStore(s => s.layoutPositionCacheByMode)
+  const graphDataRevision = useGraphStore(s => s.graphDataRevision)
+  const graphData = useGraphStore(s => s.graphData)
+  const documentSemanticMode = useGraphStore(s => s.documentSemanticMode)
+  const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled)
+  const documentStructureBaselineLock = useGraphStore(s => s.documentStructureBaselineLock)
+  const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
+  const mediaPanelDensity = useGraphStore(s => s.mediaPanelDensity)
+  const collapsedGroupIds = useGraphStore(s => s.collapsedGroupIds)
+
   return useMemo(() => {
-    return computePositions3d(nodes, schema)
-  }, [nodes, schema])
+    const mode = schema ? (schema.layout?.mode as string) || 'force' : 'force'
+    const semanticMode = String(documentSemanticMode || 'document')
+    const graphDataForView = (graphData as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null) || null
+    const effectiveFrontmatter = computeEffectiveFrontmatterMode({
+      frontmatterModeEnabled: frontmatterModeEnabled === true && documentStructureBaselineLock !== true,
+      documentSemanticMode: semanticMode,
+      graphData: graphData as any,
+    })
+    const datasetKey = computeLayoutDatasetKey({ graphData: graphDataForView, graphDataRevision })
+    const graphMetaKey = buildGraphMetaKey(graphData as any)
+    const collapsedGroupIdsKey = buildCollapsedGroupIdsKey(collapsedGroupIds)
+    const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(schema)
+    const viewKey = buildLayoutViewKey({
+      schemaLayoutEngineJson,
+      frontmatterModeEnabled: effectiveFrontmatter,
+      documentSemanticMode: semanticMode,
+      graphMetaKey,
+      renderMediaAsNodes: renderMediaAsNodes === true,
+      mediaPanelDensity: String(mediaPanelDensity),
+      collapsedGroupIdsKey,
+    })
+    const baseKey = buildLayoutPositionCacheKey({
+      datasetKey,
+      mode,
+      frontmatterMode: effectiveFrontmatter,
+      semanticMode,
+      renderMode: '2d',
+      viewKey,
+    })
+    const seed2d = pickSeedFromOtherRendererCache({
+      nodes,
+      cache: layoutPositionCacheByMode as any,
+      baseKey,
+    })
+    return computePositions3d(nodes, schema, { seed2dPositions: seed2d })
+  }, [collapsedGroupIds, documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, graphData, graphDataRevision, layoutPositionCacheByMode, mediaPanelDensity, nodes, renderMediaAsNodes, schema])
 }
 
 export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paused }: { positions: Record<string, Vec3>; nodes: GraphNode[]; edges: GraphData['edges']; schema: GraphSchema; dragOverrides?: React.MutableRefObject<Record<string, Vec3>>; paused?: boolean }) {

@@ -413,7 +413,12 @@ import {
   testGraphMetaKeyIgnoringPendingStaysStableAcrossPendingFlag,
 } from '@/__tests__/graphMetaKeyPending.test'
 import { testDeriveGraphGroupsKeepsCollapsedGroupRenderable } from '@/__tests__/collapsedGroupDerivesRenderableGroup.test'
-import { testDeriveGraphGroupsComputesNestedDepthFromParentId, testDeriveGraphGroupsIncludesUserSubgraphs } from '@/__tests__/subgraphs.test'
+import {
+  testDeriveGraphGroupsComputesNestedDepthFromParentId,
+  testDeriveGraphGroupsIncludesUserSubgraphs,
+  testDeriveGraphGroupsNestedParentIncludesDescendantMembers,
+  testFilterGroupsByCollapsedAncestorsHidesDescendants,
+} from '@/__tests__/subgraphs.test'
 import {
   testGraphTableDbAllocatesAndCreatesRows,
   testGraphTableDbConcurrentSyncDoesNotConflict,
@@ -622,7 +627,13 @@ import {
   testLayoutPositioningDoesNotReuseCacheAcrossDatasets,
   testLayoutPositioningForcesLayoutWhenVariantChanges,
   testLayoutPositioningSkipsReseedOnToggle,
+  testLayoutPositioningReusesCacheAcross2dRenderers,
 } from '@/__tests__/layoutPositioning.test'
+import { testThreePositionsSeedFrom2dUsesStableXy } from '@/__tests__/threePositionsSeedFrom2dRegression.test'
+import {
+  testZoomCrossRendererSeedFallsBackToOther2dRenderer,
+  testZoomCrossRendererSeedIgnoresDesignWebpageSuffix,
+} from '@/__tests__/zoomCrossRendererSeed.test'
 import {
   testLayoutInitRespectsStableCachedPositions,
   testLayoutInitSeedsOnlyMissingPositionsWhenStable,
@@ -878,6 +889,7 @@ import {
 } from '@/__tests__/mmdNormalization.test'
 import { testMarkdownSlideThemeNeversinkAliasesToAcademic } from '@/__tests__/markdownThemeAlias.test'
 import { testMarkdownViewerShowsMissingDocumentPathMessage } from '@/__tests__/markdownMissingDocumentPathMessage.test'
+import { testMarkdownWorkspaceCanvasHtmlIndexGuardSkipsExports } from '@/__tests__/markdownWorkspaceCanvasHtmlIndexGuard.test'
 import { testWorkspaceFolderSelectionDoesNotClearMarkdownDocument } from '@/__tests__/workspaceImportFolderDoesNotClearMarkdownDocument.test'
 import { testMarkdownWorkspaceFolderModeContractOpensDocs } from '@/__tests__/markdownWorkspaceFolderModeContract.test'
 import { testMarkdownWorkspaceEditorUsesGraphStoreFallbackWhenActiveTextEmpty } from '@/__tests__/markdownWorkspaceEditorSsoFallback.test'
@@ -1219,6 +1231,12 @@ export const runAllTests = async () => {
   await exec('zoom.viewKey.schemaLayoutEngineJson.includesFlowKey', testSchemaLayoutEngineJson2dIncludesFlowKey)
   await exec('ui.flowNodeQuickEditor.defaultFloatingPos.dependsOnViewport', testNodeQuickEditorDefaultFloatingPosDependsOnViewport)
 
+  await exec('layout.positioning.crossRendererSeed', testLayoutPositioningReusesCacheAcross2dRenderers)
+  await exec('three.positions.seedFrom2d', testThreePositionsSeedFrom2dUsesStableXy)
+
+  await exec('zoom.crossRenderer.seed', testZoomCrossRendererSeedFallsBackToOther2dRenderer)
+  await exec('zoom.crossRenderer.seed.designWebpageSuffix', testZoomCrossRendererSeedIgnoresDesignWebpageSuffix)
+
   await exec('perf.flow.commitHook.usesRefs', testFlowRequestCommitUsesSchemaAndGraphRefsToAvoidChurn)
 
   await exec('dom.pointerDrag.lostCapture.callsCancel', testPointerDragCallsOnCancelOnLostPointerCapture)
@@ -1341,6 +1359,8 @@ export const runAllTests = async () => {
   await exec('graph.groups.layers.deriveFromVisualLayer', testDeriveGraphGroupsCreatesLayerGroupsFromVisualLayer)
   await exec('graph.groups.subgraphs.derive', testDeriveGraphGroupsIncludesUserSubgraphs)
   await exec('graph.groups.subgraphs.depthFromParent', testDeriveGraphGroupsComputesNestedDepthFromParentId)
+  await exec('graph.groups.subgraphs.parentIncludesDescendants', testDeriveGraphGroupsNestedParentIncludesDescendantMembers)
+  await exec('graph.groups.visibility.collapsedAncestors', testFilterGroupsByCollapsedAncestorsHidesDescendants)
   await exec('zoom.invariants.semanticMode.carriesZoomState', testSemanticModeSwitchCarriesZoomStateAcrossKeys)
   await exec('zoom.invariants.schemaUpdate.carriesZoomState', testSchemaUpdateCarriesZoomStateAcrossLayoutKey)
   await exec('zoom.wheel.anchor.fallbackWhenOutside', testWheelAnchorFallsBackWhenClientCoordsOutsideRect)
@@ -1487,6 +1507,10 @@ export const runAllTests = async () => {
   await exec('markdown.workspace.folderDoesNotClearMarkdown', testWorkspaceFolderSelectionDoesNotClearMarkdownDocument)
   await exec('markdown.workspace.folderModeContract.opensDocs', testMarkdownWorkspaceFolderModeContractOpensDocs)
   await exec('markdown.workspace.editorSsoFallback', testMarkdownWorkspaceEditorUsesGraphStoreFallbackWhenActiveTextEmpty)
+  await exec(
+    'markdown.workspace.canvasHtmlIndexGuard.skipsCanvasExports',
+    testMarkdownWorkspaceCanvasHtmlIndexGuardSkipsExports,
+  )
   await exec('markdown.loader.normalizesBasename', testMarkdownLoaderKeyNormalizesBasename)
   await exec('markdown.loader.prefersImportedBasenameMatch', testMarkdownLoaderPrefersImportedForBasenameMatch)
   await exec('policy.hashing.sharedContract', testHashStringContractIsSharedAcrossRepos)

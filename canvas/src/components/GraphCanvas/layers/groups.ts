@@ -24,6 +24,7 @@ import { readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfi
 import { createGroupsLayoutEngine } from '@/components/GraphCanvas/layers/groupsLayout'
 import { bindGroupsResizeHandle } from '@/components/GraphCanvas/layers/groupsResizeHandle'
 import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
+import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
 type GroupDatum = GraphGroup
 export type GroupsLayer = {
   update: () => void
@@ -80,7 +81,15 @@ export const createGroupsLayer = (args: {
     nodeHalfExtentsById.set(id, ext)
   }
 
-  const visibleGroups = groups
+  const collapsedSet = (() => {
+    const meta = (graphData.metadata || {}) as Record<string, unknown>
+    const view = (meta['kg:view'] || null) as Record<string, unknown> | null
+    const ids = view && Array.isArray(view.collapsedGroupIds) ? (view.collapsedGroupIds as unknown[]) : []
+    return new Set<string>(ids.map(x => String(x || '').trim()).filter(Boolean))
+  })()
+
+  const visibleGroups = filterGroupsByCollapsedAncestors({
+    groups: groups
     .filter(d => d.memberNodeIds.some(id => nodeById.has(String(id))))
     .map(g => {
       const id = String(g.id || '').trim()
@@ -90,7 +99,9 @@ export const createGroupsLayer = (args: {
       return b ? ({ ...g, bounds: b } as GraphGroup) : g
     })
     .slice()
-    .sort(compareGroupsForZOrder)
+    .sort(compareGroupsForZOrder),
+    collapsedGroupIdSet: collapsedSet,
+  })
   if (visibleGroups.length === 0) return { update: () => {} }
 
   const shapesLayer = g.append('g').attr('data-kg-layer', 'groups').style('pointer-events', 'none')
@@ -294,12 +305,6 @@ export const createGroupsLayer = (args: {
       return `${getGroupLabelText(d).fontSize}px`
     })
 
-  const collapsedSet = (() => {
-    const meta = (graphData.metadata || {}) as Record<string, unknown>
-    const view = (meta['kg:view'] || null) as Record<string, unknown> | null
-    const ids = view && Array.isArray(view.collapsedGroupIds) ? (view.collapsedGroupIds as unknown[]) : []
-    return new Set<string>(ids.map(x => String(x || '').trim()).filter(Boolean))
-  })()
   const chevronSizePx = 12
   const chevronGapPx = 6
   const chevronSel = labelsLayer

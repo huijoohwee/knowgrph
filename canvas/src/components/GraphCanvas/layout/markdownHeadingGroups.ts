@@ -99,11 +99,14 @@ export const deriveMarkdownHeadingGroups = (data: GraphData): GraphGroup[] => {
   const groups: GraphGroup[] = []
   sectionById.forEach((node, id) => {
     const label = String(node.label || id)
+    const parent = parentSectionById.get(id) || null
     groups.push({
       id: `md:${id}`,
       label,
+      source: 'markdownHeading',
       depth: computeDepth(id),
       memberNodeIds: collectLeafMembers(id, new Set()),
+      parentGroupId: parent ? `md:${parent}` : null,
       style: {},
     })
   })
@@ -114,4 +117,3 @@ export const deriveMarkdownHeadingGroups = (data: GraphData): GraphGroup[] => {
   })
   return groups
 }
-

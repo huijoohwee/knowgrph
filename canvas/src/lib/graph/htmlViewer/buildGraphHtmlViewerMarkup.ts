@@ -4,6 +4,7 @@ import { ensureKgTokensInstalled, resolveCssVarWithKgFallback } from '@/lib/ui/t
 import { safeScaleExtent } from '@/lib/zoom/scaleExtent'
 import { buildHtmlViewerRuntimeScript } from './runtimeScript'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
+import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
 
 type HtmlViewerMediaNode = {
   id: string
@@ -302,7 +303,13 @@ export async function buildGraphHtmlViewerMarkup(args: {
     }
     const meta = (graph.metadata || {}) as Record<string, unknown>
     const isKeywordGraph = meta.kind === 'keyword'
-    const groups = deriveGraphGroups(graph, { forceDocumentStructure: !isKeywordGraph })
+    const view = meta['kg:view'] && typeof meta['kg:view'] === 'object' && !Array.isArray(meta['kg:view']) ? (meta['kg:view'] as Record<string, unknown>) : null
+    const collapsedIds = view && Array.isArray(view.collapsedGroupIds) ? (view.collapsedGroupIds as unknown[]) : []
+    const collapsedSet = new Set<string>(collapsedIds.map(x => String(x || '').trim()).filter(Boolean))
+    const groups = filterGroupsByCollapsedAncestors({
+      groups: deriveGraphGroups(graph, { forceDocumentStructure: !isKeywordGraph }),
+      collapsedGroupIdSet: collapsedSet,
+    })
     const out: Record<string, string[]> = {}
     for (let i = 0; i < groups.length; i += 1) {
       const g = groups[i]

@@ -12,6 +12,7 @@ import { readAllowGroupResize } from '@/lib/canvas/groupResizePolicy'
 import { readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfig'
 import { commitGroupBoundsOverrideToStore } from '@/lib/canvas/groupBoundsOverridesStore'
 import { buildGroupRectByIdFromSchemaOverrides } from '@/lib/canvas/groupExplicitBounds'
+import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
 
 type Vec3 = [number, number, number]
 
@@ -112,7 +113,13 @@ export function GroupOverlays3d(args: {
     return m
   }, [args.data.nodes])
 
-  const groups = React.useMemo(() => deriveGraphGroups(args.data), [args.data])
+  const groups = React.useMemo(() => {
+    const meta = args.data.metadata && typeof args.data.metadata === 'object' && !Array.isArray(args.data.metadata) ? (args.data.metadata as Record<string, unknown>) : null
+    const view = meta && meta['kg:view'] && typeof meta['kg:view'] === 'object' && !Array.isArray(meta['kg:view']) ? (meta['kg:view'] as Record<string, unknown>) : null
+    const ids = view && Array.isArray(view.collapsedGroupIds) ? (view.collapsedGroupIds as unknown[]) : []
+    const collapsedSet = new Set<string>(ids.map(x => String(x || '').trim()).filter(Boolean))
+    return filterGroupsByCollapsedAncestors({ groups: deriveGraphGroups(args.data), collapsedGroupIdSet: collapsedSet })
+  }, [args.data])
   const explicitById = React.useMemo(() => buildGroupRectByIdFromSchemaOverrides({ groups: groups as GraphGroup[], graphNodes: args.data.nodes as GraphNode[], schema: args.schema }), [args.data.nodes, args.schema, groups])
 
   const dragStateRef = React.useRef<null | { groupId: string; start: { x: number; y: number; w: number; h: number }; startWorld: { x: number; y: number }; minW: number; minH: number }>(null)

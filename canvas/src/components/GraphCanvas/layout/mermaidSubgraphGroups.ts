@@ -136,11 +136,13 @@ export const deriveMermaidSubgraphGroups = (data: GraphData): MermaidSubgraphGro
     groups.push({
       id,
       label,
+      source: 'mermaidSubgraph',
       depth: computeDepth(id),
       xIndex: xIndex ?? undefined,
       yIndex: yIndex ?? undefined,
       memberNodeIds: collectLeafNodes(id),
       style,
+      parentGroupId: parentBySubgraphId.get(id) || null,
       ...(zIndex != null ? { zIndex } : {}),
       ...(zIndex != null ? { zMode: 'absolute' } : {}),
       ...(bounds ? { bounds } : {}),

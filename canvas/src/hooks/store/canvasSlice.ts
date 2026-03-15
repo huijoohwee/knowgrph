@@ -22,6 +22,13 @@ import {
   coerceFlowWheelZoomSmoothRange,
 } from '@/lib/canvas/flow-zoom-tuning'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
+import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
+import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
+import { buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey } from '@/lib/canvas/layoutPositioning'
+import { pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
+import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
+import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { readLayoutMode2d } from '@/lib/graph/layoutMode'
 import {
   CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT,
   CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MAX,
@@ -334,6 +341,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   canvasRenderModeLastFree: '2d' as '2d' | '3d',
   canvasRenderModeIsAuto: false as boolean,
   setCanvasRenderMode: (m: '2d' | '3d') => {
+    const prevMode = get().canvasRenderMode
     const cur = get()
     if (cur.documentStructureBaselineLock === true) {
       if (cur.canvasRenderMode !== '2d') {
@@ -376,6 +384,72 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       }
       return { canvasRenderMode: requested, canvasRenderModeLastFree: requested, canvasRenderModeIsAuto: false }
     })
+
+    const nextMode = get().canvasRenderMode
+    if (prevMode === '3d' && nextMode === '2d') {
+      const st = get()
+      const nodes = Array.isArray(st.graphData?.nodes) ? st.graphData.nodes : []
+      if (nodes.length > 0) {
+        const posPatch: Record<string, { x: number; y: number }> = {}
+        for (let i = 0; i < nodes.length; i += 1) {
+          const n = nodes[i] as any
+          const id = String(n?.id || '').trim()
+          if (!id) continue
+          const p = (n?.properties || {})['pos3d']
+          if (!Array.isArray(p) || p.length !== 3) continue
+          const x = typeof p[0] === 'number' ? p[0] : Number.NaN
+          const y = typeof p[1] === 'number' ? p[1] : Number.NaN
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+          posPatch[id] = { x, y }
+        }
+
+        if (Object.keys(posPatch).length > 0) {
+          const semanticMode = String(st.documentSemanticMode || 'document')
+          const graphDataForView = (st.graphData as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null) || null
+          const frontmatter = computeEffectiveFrontmatterMode({
+            frontmatterModeEnabled: st.frontmatterModeEnabled === true && st.documentStructureBaselineLock !== true,
+            documentSemanticMode: semanticMode,
+            graphData: (st.graphData as any) || null,
+          })
+          const datasetKey = computeLayoutDatasetKey({ graphData: graphDataForView, graphDataRevision: st.graphDataRevision || 0 })
+          const mode = st.schema ? readLayoutMode2d(st.schema) : 'force'
+          const graphMetaKey = buildGraphMetaKey((st.graphData as any) || null)
+          const collapsedGroupIdsKey = buildCollapsedGroupIdsKey(st.collapsedGroupIds)
+          const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(st.schema || null)
+          const viewKey = buildLayoutViewKey({
+            schemaLayoutEngineJson,
+            frontmatterModeEnabled: frontmatter,
+            documentSemanticMode: semanticMode,
+            graphMetaKey,
+            renderMediaAsNodes: st.renderMediaAsNodes === true,
+            mediaPanelDensity: String(st.mediaPanelDensity),
+            collapsedGroupIdsKey,
+          })
+          const baseKey = buildLayoutPositionCacheKey({
+            datasetKey,
+            mode,
+            frontmatterMode: frontmatter,
+            semanticMode,
+            renderMode: '2d',
+            viewKey,
+          })
+          const seed = pickSeedFromOtherRendererCache({
+            nodes: nodes as any,
+            cache: (st.layoutPositionCacheByMode as any) || null,
+            baseKey,
+          })
+          const merged = { ...(seed || {}) }
+          for (const [id, p] of Object.entries(posPatch)) {
+            merged[id] = p
+          }
+          try {
+            st.setLayoutPositionsForMode(baseKey as any, merged)
+          } catch {
+            void 0
+          }
+        }
+      }
+    }
   },
   setCanvas2dRenderer: (id: Canvas2dRendererId) => {
     const cur = get()

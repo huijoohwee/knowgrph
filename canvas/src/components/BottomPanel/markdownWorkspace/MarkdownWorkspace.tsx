@@ -1588,6 +1588,21 @@ export function MarkdownWorkspace() {
           const hash = hashStringToHex(nextText)
           const last = lastIndexedRef.current
           if (!(last && last.path === path && last.textHash === hash)) {
+            const ext = workspaceExtLower(path)
+            const isCanvasHtmlExport = (() => {
+              if (ext !== '.html' && ext !== '.htm') return false
+              const sample = nextText.slice(0, 4096)
+              const lower = sample.toLowerCase()
+              if (!lower.includes('<!doctype html')) return false
+              if (!sample.includes('id="kg-root"') && !sample.includes("id='kg-root'")) return false
+              if (!sample.includes('#kg-stage') || !sample.includes('#kg-svgwrap')) return false
+              return true
+            })()
+            if (isCanvasHtmlExport) {
+              lastIndexedRef.current = { path, textHash: hash }
+              setStatusWithAutoClear('Indexed')
+              return
+            }
             const jobId = ++indexJobRef.current
             if (bytesTotalHint && bytesTotalHint > 0) {
               setStatusProgress(indexLabel, 1, 1, bytesTotalHint, bytesTotalHint)

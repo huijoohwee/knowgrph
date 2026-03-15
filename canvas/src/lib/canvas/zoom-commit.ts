@@ -1,5 +1,6 @@
 import { isSameZoomState } from '@/lib/zoom/zoomStateEq'
 import { quantizeZoomStateForCommit } from '@/lib/zoom/zoomStateQuantize'
+import { stripZoomViewKeyVariant } from '@/lib/canvas/zoomViewKeyBase'
 
 export type ZoomTransform = { k: number; x: number; y: number }
 
@@ -40,5 +41,13 @@ export function commitZoomTransformToStore(args: {
   if (sameGlobal && sameKeyed) return false
   if (!sameGlobal) args.state.setZoomState(next)
   if (!sameKeyed) args.state.setZoomStateForKey(args.zoomViewKey, next)
+
+  const base = stripZoomViewKeyVariant(args.zoomViewKey).base
+  if (base && base !== args.zoomViewKey) {
+    const existingBase = args.state.zoomStateByKey?.[base] || null
+    if (!isSameZoomState(existingBase, next)) {
+      args.state.setZoomStateForKey(base, next)
+    }
+  }
   return true
 }

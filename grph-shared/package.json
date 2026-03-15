@@ -109,6 +109,11 @@
       "import": "./dist/dom/pointerDrag.js",
       "default": "./dist/dom/pointerDrag.js"
     },
+    "./dom/wheelGuards": {
+      "types": "./dist/dom/wheelGuards.d.ts",
+      "import": "./dist/dom/wheelGuards.js",
+      "default": "./dist/dom/wheelGuards.js"
+    },
     "./geospatial/constants": {
       "types": "./dist/geospatial/constants.d.ts",
       "import": "./dist/geospatial/constants.js",
@@ -168,6 +173,16 @@
       "types": "./dist/websites/signalTokens.d.ts",
       "import": "./dist/websites/signalTokens.js",
       "default": "./dist/websites/signalTokens.js"
+    },
+    "./rich-media/mediaKind": {
+      "types": "./dist/rich-media/mediaKind.d.ts",
+      "import": "./dist/rich-media/mediaKind.js",
+      "default": "./dist/rich-media/mediaKind.js"
+    },
+    "./rich-media/iframe": {
+      "types": "./dist/rich-media/iframe.d.ts",
+      "import": "./dist/rich-media/iframe.js",
+      "default": "./dist/rich-media/iframe.js"
     }
   },
   "files": [

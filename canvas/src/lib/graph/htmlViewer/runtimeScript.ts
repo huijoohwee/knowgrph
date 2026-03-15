@@ -93,6 +93,18 @@ export function buildHtmlViewerRuntimeScript(args: {
 
   out = replaceOnceExact(
     out,
+    'var kgResolveMediaSrc = function(url, kind){',
+    "var kgIsWeChatHotlinkProtectedAssetUrl = function(absUrl){\n      try {\n        var raw = String(absUrl || '').trim();\n        if (!/^https?:\\/\\//i.test(raw)) return false;\n        var p = new URL(raw);\n        var host = String(p.hostname || '').toLowerCase();\n        if (host === 'mmbiz.qpic.cn' || host.endsWith('.qpic.cn')) return true;\n        if (host === 'mmbiz.qlogo.cn' || host.endsWith('.qlogo.cn')) return true;\n        if (host === 'wx.qlogo.cn' || host.endsWith('.wx.qlogo.cn')) return true;\n        return false;\n      } catch (e) {\n        return false;\n      }\n    };\n\n    var kgBuildWebpageAssetPathProxyUrl = function(absUrl){\n      try {\n        var raw = String(absUrl || '').trim();\n        if (!raw) return '';\n        if (raw.startsWith('/__webpage_asset_path/')) return raw;\n        if (raw.startsWith('/__webpage_asset_proxy?url=')) return raw;\n        if (!/^https?:\\/\\//i.test(raw)) return raw;\n        var p = new URL(raw);\n        var originEnc = encodeURIComponent(p.origin);\n        var pp = String(p.pathname || '/');\n        var qq = String(p.search || '');\n        var out = '/__webpage_asset_path/' + originEnc + pp + qq;\n        try {\n          var origin = kgGetProxyOrigin();\n          if (/^https?:\\/\\//i.test(origin || '') && window && window.location && String(window.location.protocol || '') === 'file:') {\n            return String(origin).replace(/\\/+$/, '') + out;\n          }\n        } catch (e0) {\n          void 0;\n        }\n        return out;\n      } catch (e) {\n        return String(absUrl || '').trim();\n      }\n    };\n\n    var kgResolveMediaSrc = function(url, kind){",
+  )
+
+  out = replaceOnceExact(
+    out,
+    "if (k === 'video' || k === 'image' || k === 'svg') return kgBuildRemoteFetchProxyUrl(u);",
+    "if (k === 'image' || k === 'svg') {\n        if (kgIsWeChatHotlinkProtectedAssetUrl(u)) return kgBuildWebpageAssetPathProxyUrl(u);\n        return kgBuildRemoteFetchProxyUrl(u);\n      }\n      if (k === 'video') return kgBuildRemoteFetchProxyUrl(u);",
+  )
+
+  out = replaceOnceExact(
+    out,
     "if (u.startsWith('/__') || u.startsWith('/@')) return u;",
     "if (u.startsWith('/__') || u.startsWith('/@')) {\n        try {\n          var origin = kgGetProxyOrigin();\n          if (/^https?:\\/\\//i.test(origin || '') && window && window.location && String(window.location.protocol || '') === 'file:') {\n            return String(origin).replace(/\\/+$/, '') + u;\n          }\n        } catch (e0) {\n          void 0;\n        }\n        return u;\n      }",
   )

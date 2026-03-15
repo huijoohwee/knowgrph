@@ -161,10 +161,13 @@ export function Controls({
   ])
   React.useEffect(() => {
     const cfg = getCameraConfig(schema)
+    const st = useGraphStore.getState()
+    const m = typeof st.canvasInteractionSpeedMultiplier === 'number' && Number.isFinite(st.canvasInteractionSpeedMultiplier) ? st.canvasInteractionSpeedMultiplier : 1
+    const safe = Math.max(0.1, Math.min(10, m))
     controls.dampingFactor = cfg.dampingFactor
-    controls.rotateSpeed = cfg.rotateSpeed
-    controls.zoomSpeed = cfg.zoomSpeed
-    controls.panSpeed = cfg.panSpeed
+    controls.rotateSpeed = cfg.rotateSpeed * safe
+    controls.zoomSpeed = cfg.zoomSpeed * safe
+    controls.panSpeed = cfg.panSpeed * safe
     controls.autoRotate = cfg.autoRotate && !viewPinned
     controls.autoRotateSpeed = cfg.autoRotateSpeed
   }, [controls, schema, viewPinned])

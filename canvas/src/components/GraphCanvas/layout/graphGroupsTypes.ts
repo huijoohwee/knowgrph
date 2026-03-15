@@ -1,12 +1,21 @@
 export type GraphGroup = {
   id: string
   label: string
+  source?:
+    | 'mermaidSubgraph'
+    | 'markdownHeading'
+    | 'keywordRole'
+    | 'keywordNer'
+    | 'community'
+    | 'layer'
+    | 'userSubgraph'
   depth: number
   xIndex?: number
   zIndex?: number
   zMode?: 'group' | 'absolute'
   yIndex?: number
   memberNodeIds: string[]
+  parentGroupId?: string | null
   style: {
     fill?: string
     stroke?: string

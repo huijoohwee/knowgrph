@@ -5,6 +5,7 @@ import { deriveMarkdownHeadingGroups } from '@/components/GraphCanvas/layout/mar
 import { readSubgraphs, subgraphGroupId } from '@/lib/graph/subgraphs'
 import { compareGroupsForZOrder } from '@/lib/canvas/groupZOrder'
 import { getKgThemeFromDom, resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
+import { deriveNestedGroups } from '@/lib/graph/groupNesting'
 
 export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStructure?: boolean }): GraphGroup[] => {
   const theme = getKgThemeFromDom()
@@ -58,6 +59,7 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
       out.push({
         id: `keyword-layer:${key}`,
         label,
+        source: 'keywordRole',
         depth: 1,
         memberNodeIds: ids,
         style: { stroke: roleStroke[role] },
@@ -116,6 +118,7 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
     return keep.map(g => ({
       id: `keyword-ner:${g.ner}`,
       label: g.ner,
+      source: 'keywordNer' as const,
       depth: 2,
       memberNodeIds: g.ids,
       style: { stroke: strokeFor(g.ner) },
@@ -174,6 +177,7 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
       out.push({
         id: `community:${key}`,
         label: `Community ${key}`,
+        source: 'community',
         depth: props?.depth ?? 0,
         xIndex: props?.xIndex,
         yIndex: props?.yIndex,
@@ -238,6 +242,7 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
       out.push({
         id: `layer:${key}`,
         label: key,
+        source: 'layer',
         depth: props?.depth ?? 0,
         xIndex: props?.xIndex,
         yIndex: props?.yIndex,
@@ -262,34 +267,28 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
       })
     }
 
-    const depthById = new Map<string, number>()
-    const visiting = new Set<string>()
-    const resolveDepth = (id: string): number => {
-      const cached = depthById.get(id)
-      if (cached != null) return cached
-      if (visiting.has(id)) return 0
-      visiting.add(id)
-      const row = byId.get(id)
-      const parentId = row?.parentId || null
-      const depth = parentId && byId.has(parentId) ? resolveDepth(parentId) + 1 : 0
-      visiting.delete(id)
-      depthById.set(id, depth)
-      return depth
-    }
+    const nesting = deriveNestedGroups(
+      Array.from(byId.entries()).map(([id, row]) => ({ id, parentId: row.parentId, memberNodeIds: row.memberNodeIds })),
+    )
 
     const out: GraphGroup[] = []
     byId.forEach((row, id) => {
       const gid = subgraphGroupId(id)
       if (!gid) return
-      const depth = resolveDepth(id)
+      const depth = nesting.depthById.get(id) ?? 0
+      const parentId = nesting.parentIdById.get(id) ?? null
+      const parentGroupId = parentId ? subgraphGroupId(parentId) : null
+      const memberNodeIds = nesting.descendantMemberNodeIdsById.get(id) || row.memberNodeIds
       out.push({
         id: gid,
         label: row.label,
+        source: 'userSubgraph',
         depth,
-        memberNodeIds: row.memberNodeIds,
+        memberNodeIds,
+        parentGroupId,
         style:
           row.kind === 'cluster'
-            ? { stroke: theme === 'dark' ? '#38bdf8' : '#0284c7', strokeWidth: 2, fill: theme === 'dark' ? 'rgba(56,189,248,0.16)' : 'rgba(2,132,199,0.10)' }
+            ? { stroke: theme === 'dark' ? '#38bdf8' : '#0ea5e9', strokeWidth: 2, fill: theme === 'dark' ? 'rgba(56,189,248,0.16)' : 'rgba(14,165,233,0.10)' }
             : { stroke: theme === 'dark' ? '#a78bfa' : '#7c3aed', strokeWidth: 2, fill: theme === 'dark' ? 'rgba(167,139,250,0.14)' : 'rgba(124,58,237,0.08)' },
       })
     })

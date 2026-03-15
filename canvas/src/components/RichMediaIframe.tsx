@@ -1,5 +1,6 @@
 import React from 'react'
-import { buildIframeSrcDocForUrl, buildWebpageProxyUrl, isIframeDirectEmbedUrl } from '@/lib/render/richMediaEmbed'
+import { buildIframeSrcDocForUrl } from '@/lib/render/richMediaEmbed'
+import { resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
 
 export type RichMediaIframeMode = 'proxy-url' | 'srcdoc-when-needed'
 
@@ -15,11 +16,10 @@ export type RichMediaIframeProps = {
 export default function RichMediaIframe(props: RichMediaIframeProps) {
   const mode: RichMediaIframeMode = props.mode === 'proxy-url' ? 'proxy-url' : 'srcdoc-when-needed'
   const rawUrl = String(props.url || '').trim()
-  const direct = isIframeDirectEmbedUrl(rawUrl)
-  const src = direct ? rawUrl : buildWebpageProxyUrl(rawUrl)
-  const sandbox = direct
-    ? 'allow-scripts allow-same-origin allow-forms allow-popups allow-presentation'
-    : 'allow-scripts allow-presentation'
+  const embed = React.useMemo(() => resolveIframeEmbed({ url: rawUrl }), [rawUrl])
+  const direct = embed.direct
+  const src = embed.iframeSrc
+  const sandbox = embed.sandbox
   const [srcDoc, setSrcDoc] = React.useState<string>('')
 
   React.useEffect(() => {

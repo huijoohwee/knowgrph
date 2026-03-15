@@ -236,6 +236,48 @@ export const testLayoutPositioningDoesNotReuseCacheAcrossDatasets = () => {
   }
 }
 
+export const testLayoutPositioningReusesCacheAcross2dRenderers = () => {
+  const datasetKey = 'graphId:test'
+  const nodes: GraphNode[] = [
+    { id: 'a', label: 'a', type: 'T', properties: {} },
+    { id: 'b', label: 'b', type: 'T', properties: {} },
+  ]
+
+  const base = `${datasetKey}:document:default:force:2d`
+  const flowKey = `${base}:flow`
+  const cache = {
+    [flowKey]: {
+      a: { x: 10, y: 20 },
+      b: { x: 30, y: 40 },
+    },
+  }
+
+  const d3 = determineLayoutPositions({
+    datasetKey,
+    mode: 'force',
+    frontmatterMode: false,
+    semanticMode: 'document',
+    renderMode: '2d',
+    renderVariant: 'd3',
+    prevViewKey: null,
+    prevDatasetKey: datasetKey,
+    prevMode: 'force',
+    prevFrontmatterMode: false,
+    prevSemanticMode: 'document',
+    prevRenderMode: '2d',
+    prevRenderVariant: 'flow',
+    nodes,
+    layoutPositionCacheByMode: cache,
+  })
+
+  if (!d3.layoutPositionsForMode) {
+    throw new Error('expected D3 to reuse cached positions from other 2D renderer')
+  }
+  if (d3.layoutPositionsForMode.a.x !== 10 || d3.layoutPositionsForMode.b.y !== 40) {
+    throw new Error('expected D3 to pick flow cached positions')
+  }
+}
+
 export const testLayoutPositioningCacheKeyIncludesViewKey = () => {
   const datasetKey = 'graphId:test'
   const base = {

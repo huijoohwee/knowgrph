@@ -1,6 +1,8 @@
 import type { GraphNode } from '@/lib/graph/types'
 import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
-import { coerceMediaUrl, isLikelyImageUrl, isLikelySvgUrl, isLikelyVideoUrl } from '@/lib/url'
+import { coerceMediaUrl } from '@/lib/url'
+import { inferMediaKindFromUrl } from 'grph-shared/rich-media/mediaKind'
+import { isSafeIframeUrl, normalizeIframeUrl } from 'grph-shared/rich-media/iframe'
 
 export type NodeMediaKind = 'image' | 'svg' | 'video' | 'iframe'
 
@@ -8,57 +10,6 @@ export type NodeMediaSpec = {
   kind: NodeMediaKind
   url: string
   interactive: boolean
-}
-
-function inferMediaKindFromUrl(url: string): NodeMediaKind {
-  const raw = String(url || '').trim()
-  if (isLikelyVideoUrl(raw)) return 'video'
-  if (isLikelySvgUrl(raw)) return 'svg'
-  if (isLikelyImageUrl(raw)) return 'image'
-  return 'image'
-}
-
-function isSafeIframeUrl(value: string): boolean {
-  const raw = String(value || '').trim()
-  if (!raw) return false
-  if (raw.startsWith('/__webpage_proxy?url=')) return true
-  if (raw.startsWith('/__repo_file/')) return true
-  try {
-    const u = new URL(raw)
-    if (u.protocol !== 'https:' && u.protocol !== 'http:') return false
-    const host = u.hostname.toLowerCase()
-
-    if (host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtu.be' || host.endsWith('.youtu.be')) {
-      return false
-    }
-
-    const allowed = String(IFRAME_ALLOWED_HOSTS || '')
-      .split(/[,\s]+/)
-      .map(s => s.trim().toLowerCase())
-      .filter(Boolean)
-    if (allowed.length === 0) return true
-    return allowed.some(h => host === h || host.endsWith(`.${h}`))
-  } catch {
-    return false
-  }
-}
-
-function normalizeIframeUrl(value: string): string {
-  try {
-    const u = new URL(value)
-    const host = u.hostname.toLowerCase()
-
-    if (host === 'vimeo.com' || host.endsWith('.vimeo.com')) {
-      const m = u.pathname.match(/^\/(\d+)(\/|$)/)
-      if (m && m[1]) {
-        return `https://player.vimeo.com/video/${m[1]}`
-      }
-    }
-
-    return value
-  } catch {
-    return value
-  }
 }
 
 export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
@@ -114,7 +65,7 @@ export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
         ? 'video'
         : domKindForced
           ? domKindForced
-          : inferMediaKindFromUrl(resolvedUrl)
+          : ((inferMediaKindFromUrl(resolvedUrl) || 'image') as NodeMediaKind)
 
   const rawInteractive = (props as Record<string, unknown>).media_interactive
   const explicitInteractive = rawInteractive === true ? true : rawInteractive === false ? false : null
@@ -122,7 +73,14 @@ export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
 
   if (kind === 'iframe') {
     const normalized = normalizeIframeUrl(resolvedUrl)
-    if (!isSafeIframeUrl(normalized)) return null
+    if (
+      !isSafeIframeUrl(normalized, {
+        allowedHostsCsv: IFRAME_ALLOWED_HOSTS,
+        allowYouTube: false,
+        allowInternalPaths: true,
+      })
+    )
+      return null
     return { kind, url: normalized, interactive }
   }
 
@@ -132,4 +90,3 @@ export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
 export function hasNodeMedia(node: GraphNode): boolean {
   return getNodeMediaSpec(node) != null
 }
-

@@ -3,6 +3,7 @@ import { LS_KEYS, UI_LAYOUT } from '@/lib/config';
 import { lsBool, lsNum, lsSetBool, lsSetNum } from '@/lib/persistence';
 import { usePinnedLs } from '@/lib/ui/panelPinned';
 import { clampOverlayCenterToViewport } from '@/lib/ui/overlayClamp';
+import { startPointerDrag } from 'grph-shared/dom/pointerDrag';
 
 export type MainPanelTabKey =
   | 'workflow'
@@ -105,6 +106,7 @@ export function useMainPanelDrag() {
     if (event.button !== 0) return;
     const el = mainPanelCardRef.current;
     if (!el) return;
+    const native = event.nativeEvent;
     try {
       event.preventDefault();
     } catch {
@@ -120,23 +122,27 @@ export function useMainPanelDrag() {
       startLeft,
     };
     setMainPanelDragPosSynced(clampMainPanelPos({ top: startTop, left: startLeft }));
-    const handleMove = (e: PointerEvent) => {
-      const state = mainPanelDragStateRef.current;
-      if (!state) return;
-      const dx = e.clientX - state.startX;
-      const dy = e.clientY - state.startY;
-      setMainPanelDragPosSynced(clampMainPanelPos({ top: state.startTop + dy, left: state.startLeft + dx }));
-    };
-    const handleUp = () => {
-      mainPanelDragStateRef.current = null;
-      window.removeEventListener('pointermove', handleMove);
-      window.removeEventListener('pointerup', handleUp);
-      const pos = mainPanelDragPosRef.current;
-      if (!pos) return;
-      persistMainPanelPos(pos);
-    };
-    window.addEventListener('pointermove', handleMove);
-    window.addEventListener('pointerup', handleUp);
+
+    startPointerDrag({
+      ev: native,
+      cursor: 'grabbing',
+      onMove: e => {
+        const state = mainPanelDragStateRef.current;
+        if (!state) return;
+        const dx = e.clientX - state.startX;
+        const dy = e.clientY - state.startY;
+        setMainPanelDragPosSynced(clampMainPanelPos({ top: state.startTop + dy, left: state.startLeft + dx }));
+      },
+      onEnd: () => {
+        mainPanelDragStateRef.current = null;
+        const pos = mainPanelDragPosRef.current;
+        if (!pos) return;
+        persistMainPanelPos(pos);
+      },
+      onCancel: () => {
+        mainPanelDragStateRef.current = null;
+      },
+    });
   }, [clampMainPanelPos, persistMainPanelPos, setMainPanelDragPosSynced]);
 
   const handleMainPanelRestore = useCallback(() => {

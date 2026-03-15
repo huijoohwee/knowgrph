@@ -1,5 +1,6 @@
 import { inferIframeScriptPolicyFromHtml, isDirectIframeEmbedUrl, isHttpUrl } from '@/lib/url'
 import { buildWebpageHtmlSrcdocAsync, fetchWebpageHtmlViaProxy } from '@/lib/websites/webpageIframeSrcdoc'
+export { buildWebpageProxyUrl } from 'grph-shared/rich-media/iframe'
 
 const IFRAME_SRCDOC_CACHE_MAX = 32
 const IFRAME_SRCDOC_CACHE_TTL_MS = 10 * 60 * 1000
@@ -32,13 +33,6 @@ function writeCachedIframeSrcDoc(url: string, value: IframeSrcDocResult): void {
     if (typeof oldest !== 'string') break
     iframeSrcDocCache.delete(oldest)
   }
-}
-
-export function buildWebpageProxyUrl(rawUrl: string): string {
-  const u = String(rawUrl || '').trim()
-  if (!u) return ''
-  if (!isHttpUrl(u)) return u
-  return `/__webpage_proxy?url=${encodeURIComponent(u)}`
 }
 
 export async function buildIframeSrcDocForUrl(args: {
