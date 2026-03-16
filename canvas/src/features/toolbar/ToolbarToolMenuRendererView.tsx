@@ -49,6 +49,13 @@ export function ToolbarToolMenuRendererView() {
     })),
   )
 
+  const { richMediaPanelMode, setRichMediaPanelMode } = useGraphStore(
+    useShallow(s => ({
+      richMediaPanelMode: s.richMediaPanelMode,
+      setRichMediaPanelMode: s.setRichMediaPanelMode,
+    })),
+  )
+
   const [toolId, setToolId] = React.useState<GraphEditorToolId>('select')
 
   React.useEffect(() => {
@@ -64,6 +71,25 @@ export function ToolbarToolMenuRendererView() {
     <div className="flex flex-col gap-2">
       <RendererPaletteSettings />
       <RendererHoverSettings />
+      <section className="flex flex-col gap-1" aria-label="Rich media rendering">
+        <div className={`text-xs font-semibold ${UI_THEME_TOKENS.button.text}`}>
+          Rich media
+        </div>
+        <label className="flex items-center gap-2 text-xs">
+          <span className="min-w-0">Panel mode</span>
+          <select
+            className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+            value={richMediaPanelMode}
+            onChange={e => {
+              const v = String(e.target.value || '')
+              setRichMediaPanelMode(v === 'embed' ? 'embed' : 'snapshot')
+            }}
+          >
+            <option value="snapshot">Snapshot preview</option>
+            <option value="embed">Interactive embed</option>
+          </select>
+        </label>
+      </section>
       {showDesignWireframeUi ? <DesignWireframeSettings /> : null}
       {showGraphEditorUi ? (
         <section className="flex gap-2" aria-label="Graph editor tools and inspector">

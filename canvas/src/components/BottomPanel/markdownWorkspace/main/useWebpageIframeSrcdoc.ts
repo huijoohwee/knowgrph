@@ -17,8 +17,8 @@ export function useWebpageIframeSrcdoc(args: {
   url: string
   view: 'html' | 'json'
   websiteImportMeta: { importId: string; nodeId: string; outputDirRel?: string } | null
+  includeImages?: boolean
   htmlOverride?: string | null
-  scriptPolicyOverride?: 'strip' | 'allow' | null
   siteRootRel?: string | null
   onStatusProgress?: (label: string, current?: number | null, total?: number | null, bytesCurrent?: number | null, bytesTotal?: number | null) => void
   onStatusWithAutoClear?: (label: string, ttlMs?: number) => void
@@ -47,10 +47,10 @@ export function useWebpageIframeSrcdoc(args: {
       String(args.view || ''),
       String(debouncedUrl || '').trim(),
       String(args.siteRootRel || ''),
-      String(args.scriptPolicyOverride || ''),
       String(args.websiteImportMeta?.importId || ''),
       String(args.websiteImportMeta?.nodeId || ''),
       String(args.websiteImportMeta?.outputDirRel || ''),
+      args.includeImages == null ? 'inherit' : (args.includeImages ? 'on' : 'off'),
       typeof debouncedHtmlOverride === 'string' ? String(debouncedHtmlOverride.length) : 'null',
     ].join('|')
     try {
@@ -81,6 +81,9 @@ export function useWebpageIframeSrcdoc(args: {
 
     let cancelled = false
     const ctrl = new AbortController()
+    const includeImages = args.includeImages ?? (useGraphStore.getState().webpageImportIncludeImages !== false)
+    const richMediaPanelMode = useGraphStore.getState().richMediaPanelMode
+    const preferEmbed = richMediaPanelMode === 'embed'
 
     void (async () => {
       onStatusProgressRef.current?.('Updating view')
@@ -103,7 +106,7 @@ export function useWebpageIframeSrcdoc(args: {
           }
           return await fetchWebpageConversionJsonViaConvert({
             url,
-            includeImages: useGraphStore.getState().webpageImportIncludeImages ?? true,
+            includeImages,
             signal: ctrl.signal,
           })
         })()
@@ -155,16 +158,9 @@ export function useWebpageIframeSrcdoc(args: {
         })
       })()
 
-      const scriptPolicy =
-        args.scriptPolicyOverride === 'allow'
-          ? 'allow'
-          : args.scriptPolicyOverride === 'strip'
-            ? 'strip'
-            : useGraphStore.getState().webpageViewerScriptPolicy === 'allow'
-              ? 'allow'
-              : inferIframeScriptPolicyFromHtml(rawHtml)
+      const scriptPolicy = preferEmbed ? 'allow' : inferIframeScriptPolicyFromHtml(rawHtml)
 
-      if (args.view === 'html' && override == null && isHttpUrl(url)) {
+      if (args.view === 'html' && override == null && !args.websiteImportMeta && isHttpUrl(url)) {
         const nextSrc = `/__webpage_proxy?url=${encodeURIComponent(url)}&kg_script_policy=${encodeURIComponent(scriptPolicy)}`
         return { kind: 'proxy' as const, src: nextSrc }
       }
@@ -278,9 +274,9 @@ export function useWebpageIframeSrcdoc(args: {
     args.enabled,
     debouncedHtmlOverride,
     debouncedUrl,
-    args.scriptPolicyOverride,
     args.view,
     args.siteRootRel,
+    args.includeImages,
     args.websiteImportMeta?.importId,
     args.websiteImportMeta?.nodeId,
     args.websiteImportMeta?.outputDirRel,

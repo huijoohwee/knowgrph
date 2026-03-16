@@ -96,7 +96,9 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   const iframeOverlayRefFnByIdRef = React.useRef<Map<string, (el: HTMLDivElement | null) => void>>(new Map())
   const iframeOverlayScheduleRafRef = React.useRef<number | null>(null)
   const iframeOverlaySchedulePendingRef = React.useRef<boolean>(false)
+  const iframeOverlayMissFramesRef = React.useRef<Map<string, number>>(new Map())
   const overlayPointerOverrideActiveRef = React.useRef<boolean>(false)
+  const overlayPointerOverrideResetTimerRef = React.useRef<number | null>(null)
   const dragOverridesRef = React.useRef<Record<string, [number, number, number]>>({})
   const overlayHeaderDrag3dRef = React.useRef<null | { id: string; pointerId: number; sx: number; sy: number; ndcZ: number; w: number; h: number }>(null)
   const overlayPan3dRef = React.useRef<null | { pointerId: number; pose: ThreeCameraPose }>(null)
@@ -237,8 +239,10 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     const nodes = graph && Array.isArray(graph.nodes) ? (graph.nodes as GraphNode[]) : []
     const poolMaxRaw = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
-    return listMediaOverlayNodes({ enabled: true, nodes, poolMax })
-  }, [renderGraph, renderMediaAsNodes, threeIframeOverlayPoolMax])
+    const st = useGraphStore.getState() as unknown as { selectedNodeId?: unknown; selectedNodeIds?: unknown }
+    const preferredNodeIds = [st.selectedNodeId, ...(Array.isArray(st.selectedNodeIds) ? st.selectedNodeIds : [])]
+    return listMediaOverlayNodes({ enabled: true, nodes, poolMax, preferredNodeIds })
+  }, [renderGraph, threeIframeOverlayPoolMax])
 
   const mediaNodesKey = useMemo(() => mediaNodesPool.map(n => n.id).join('|'), [mediaNodesPool])
   const requestIframeOverlaySchedule = useCallback(() => {
@@ -271,7 +275,8 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     }
   }, [])
   useEffect(() => {
-    if (!active || !renderMediaAsNodes) return
+    if (!active) return
+    if (mediaNodesPool.length === 0) return
     const schedule = () => {
       try {
         requestIframeOverlaySchedule()
@@ -305,7 +310,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
         void 0
       }
     }
-  }, [active, renderMediaAsNodes, requestIframeOverlaySchedule])
+  }, [active, mediaNodesKey, mediaNodesPool.length, requestIframeOverlaySchedule])
   const getOverlayRefForId = useCallback((id: string) => {
     const key = String(id || '').trim()
     if (!key) return () => void 0
@@ -314,6 +319,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     const fn = (el: HTMLDivElement | null) => {
       if (!el) {
         iframeOverlayElsRef.current.delete(key)
+        iframeOverlayMissFramesRef.current.delete(key)
         return
       }
       const prev = iframeOverlayElsRef.current.get(key)
@@ -343,6 +349,10 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     const refMap = iframeOverlayRefFnByIdRef.current
     for (const [id] of refMap) {
       if (!keep.has(id)) refMap.delete(id)
+    }
+    const missMap = iframeOverlayMissFramesRef.current
+    for (const [id] of missMap) {
+      if (!keep.has(id)) missMap.delete(id)
     }
   }, [mediaNodesKey, mediaNodesPool])
 
@@ -377,6 +387,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
           if (!el) continue
           applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block', zIndex: 1 })
         }
+        iframeOverlayMissFramesRef.current.clear()
         iframeOverlayVisibleIdsRef.current = new Set<string>()
         return
       }
@@ -510,11 +521,18 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
         if (nextVisibleIds.has(id)) continue
         const el = iframeOverlayElsRef.current.get(id)
         if (!el) continue
+        const missCount = (iframeOverlayMissFramesRef.current.get(id) || 0) + 1
+        if (missCount <= 10) {
+          iframeOverlayMissFramesRef.current.set(id, missCount)
+          continue
+        }
+        iframeOverlayMissFramesRef.current.delete(id)
         applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block', zIndex: 1 })
       }
       for (let i = 0; i < candidates.length; i += 1) {
         const c = candidates[i]!
         if (!nextVisibleIds.has(c.id)) continue
+        iframeOverlayMissFramesRef.current.delete(c.id)
         const el = iframeOverlayElsRef.current.get(c.id)
         if (!el) continue
         try {
@@ -636,6 +654,16 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   useEffect(() => {
     const canvas = glCanvasRef.current
     if (!active || !canvas) return
+    const clearPointerResetTimer = () => {
+      const timer = overlayPointerOverrideResetTimerRef.current
+      if (timer == null) return
+      overlayPointerOverrideResetTimerRef.current = null
+      try {
+        window.clearTimeout(timer)
+      } catch {
+        void 0
+      }
+    }
     const setOverlayPointerOverride = (enabled: boolean) => {
       if (overlayPointerOverrideActiveRef.current === enabled) return
       overlayPointerOverrideActiveRef.current = enabled
@@ -645,12 +673,30 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
         else el.style.removeProperty('pointer-events')
       }
     }
-    const onDown = () => setOverlayPointerOverride(true)
-    const onUp = () => setOverlayPointerOverride(false)
-    const onCancel = () => setOverlayPointerOverride(false)
+    const onDown = () => {
+      setOverlayPointerOverride(true)
+      clearPointerResetTimer()
+      overlayPointerOverrideResetTimerRef.current = window.setTimeout(() => {
+        overlayPointerOverrideResetTimerRef.current = null
+        setOverlayPointerOverride(false)
+      }, 1500)
+    }
+    const onUp = () => {
+      clearPointerResetTimer()
+      setOverlayPointerOverride(false)
+    }
+    const onCancel = () => {
+      clearPointerResetTimer()
+      setOverlayPointerOverride(false)
+    }
+    const onWindowMove = (event: PointerEvent) => {
+      if ((event.buttons || 0) !== 0) return
+      onUp()
+    }
     canvas.addEventListener('pointerdown', onDown, { passive: true })
     window.addEventListener('pointerup', onUp, { passive: true })
     window.addEventListener('pointercancel', onCancel, { passive: true })
+    window.addEventListener('pointermove', onWindowMove, { passive: true })
     window.addEventListener('blur', onUp)
     return () => {
       try {
@@ -669,10 +715,16 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
         void 0
       }
       try {
+        window.removeEventListener('pointermove', onWindowMove)
+      } catch {
+        void 0
+      }
+      try {
         window.removeEventListener('blur', onUp)
       } catch {
         void 0
       }
+      clearPointerResetTimer()
       setOverlayPointerOverride(false)
     }
   }, [active])
@@ -803,10 +855,10 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
               }
             }}
           />
-          <OverlayFrameSync enabled={active && renderMediaAsNodes} scheduleRef={iframeOverlayScheduleRef} />
+          <OverlayFrameSync enabled={active} scheduleRef={iframeOverlayScheduleRef} />
         </React.Suspense>
       </Canvas>
-      {active && renderMediaAsNodes && mediaNodesPool.length > 0 ? (
+      {active && mediaNodesPool.length > 0 ? (
         <section aria-label="3D media overlay" className="absolute inset-0 z-[50] pointer-events-none">
           {mediaNodesPool.map(n => {
             return (
@@ -818,9 +870,10 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
                 className="absolute left-0 top-0 pointer-events-auto"
                 title={n.title}
                 url={n.url}
+                openUrl={n.openUrl}
                 kind={n.kind}
-                interactive={n.interactive}
-                hideUntilReady={true}
+                interactive={renderMediaAsNodes === true && n.interactive}
+                hideUntilReady={false}
                 iframeMode="srcdoc-when-needed"
                 forwardWheelTo={() => glCanvasRef.current}
                 onOverlayPanStart={({ pointerId }) => {

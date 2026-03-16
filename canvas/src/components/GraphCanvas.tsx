@@ -596,12 +596,13 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const lastCanvasLayoutRef = useRef<null | { w: number; h: number; x: number; y: number }>(null)
 
   const mediaOverlayNodes = useMemo(() => {
-    if (renderMediaAsNodes !== true) return []
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
     const poolMaxRaw = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
-    return listMediaOverlayNodes({ enabled: true, nodes, poolMax })
-  }, [renderMediaAsNodes, sceneGraphData, threeIframeOverlayPoolMax])
+    const st = useGraphStore.getState() as unknown as { selectedNodeId?: unknown; selectedNodeIds?: unknown }
+    const preferredNodeIds = [st.selectedNodeId, ...(Array.isArray(st.selectedNodeIds) ? st.selectedNodeIds : [])]
+    return listMediaOverlayNodes({ enabled: true, nodes, poolMax, preferredNodeIds })
+  }, [sceneGraphData, threeIframeOverlayPoolMax])
 
   const { mediaOverlayNodeIdsKey, mediaOverlayNodeIdSet } = useMemo(() => {
     const ids = mediaOverlayNodes.map(n => n.id)
@@ -2122,8 +2123,9 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
                 className="absolute left-0 top-0 pointer-events-auto"
                 title={n.title}
                 url={n.url}
+                openUrl={n.openUrl}
                 kind={n.kind}
-                interactive={n.interactive}
+                interactive={renderMediaAsNodes === true && n.interactive}
                 iframeMode="srcdoc-when-needed"
                 forwardWheelTo={() => svgRef.current}
                 shouldStartHeaderDrag={() => {

@@ -1634,6 +1634,7 @@ export default function FlowCanvas({
                 className="absolute left-0 top-0 pointer-events-auto"
                 title={n.title}
                 url={n.url}
+                openUrl={n.openUrl}
                 kind={n.kind}
                 interactive={n.interactive}
                 iframeMode="srcdoc-when-needed"

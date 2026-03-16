@@ -1032,7 +1032,6 @@ export function useWorkspaceFileActions(args: {
         const prevFm = prevText ? extractYamlFrontmatterBlock(prevText) : null
         const prevMeta = prevText ? parseWebpageFrontmatterMeta(prevText) : null
         const prevViewRaw = prevFm ? readYamlFrontmatterValue(prevFm.rawBlock, 'kgWebpageView') : ''
-        const prevHasScript = !!(prevFm && readYamlFrontmatterValue(prevFm.rawBlock, 'kgWebpageScriptPolicy'))
         const prevHasImages = !!(prevFm && readYamlFrontmatterValue(prevFm.rawBlock, 'kgWebpageIncludeImages'))
         const prevHasFidelity = !!(prevFm && readYamlFrontmatterValue(prevFm.rawBlock, 'kgWebpageFidelityLevel'))
 
@@ -1044,12 +1043,11 @@ export function useWorkspaceFileActions(args: {
         if (prevMeta && prevMeta.url) {
           const desiredView = prevViewRaw === 'html' ? 'html' : prevViewRaw === 'json' ? 'json' : prevViewRaw === 'markdown' ? 'markdown' : ''
           if (desiredView) nextText = normalizeWebpageFrontmatterView(nextText, desiredView as 'html' | 'json' | 'markdown')
-          if (prevHasScript || prevHasImages || prevHasFidelity || prevMeta.siteRootRel) {
+          if (prevHasImages || prevHasFidelity || prevMeta.siteRootRel) {
             nextText = upsertWebpageFrontmatterMeta(nextText, {
               url: prevMeta.url,
               view: desiredView === 'json' ? 'json' : desiredView === 'html' ? 'html' : 'markdown',
               siteRootRel: prevMeta.siteRootRel,
-              scriptPolicy: prevHasScript ? prevMeta.scriptPolicy : undefined,
               includeImages: prevHasImages ? prevMeta.includeImages : undefined,
               fidelityLevel: prevHasFidelity ? prevMeta.fidelityLevel : undefined,
             })

@@ -155,19 +155,22 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
     if (!/demo\.mp3/i.test(decodeURIComponent(audioSrc))) throw new Error(`expected mp3 audio src, got: ${audioSrc}`)
 
     const iframes = Array.from(container.querySelectorAll('iframe')) as HTMLIFrameElement[]
-    if (iframes.length < 2) throw new Error('expected iframe + webpage url to render as iframes')
-    const iframeSrcs = iframes.map(el => String(el.getAttribute('src') || ''))
-    const hasExample = iframeSrcs.some(s => s.startsWith('/__webpage_proxy?url=') && decodeURIComponent(s).includes('https://example.com/'))
-    if (!hasExample) {
-      throw new Error(`expected iframe src to use webpage proxy for example.com, got: ${iframeSrcs.join(', ')}`)
+    const nonSrcDocIframes = iframes.filter(el => !!el.getAttribute('src'))
+    if (nonSrcDocIframes.length > 0) {
+      throw new Error(
+        `expected non-direct iframe embeds to render as snapshot previews; iframe srcs=${nonSrcDocIframes
+          .map(el => String(el.getAttribute('src') || ''))
+          .join(', ')}`,
+      )
     }
-    const hasYc = iframeSrcs.some(s =>
-      s.startsWith('/__webpage_proxy?url=') &&
-      decodeURIComponent(s).includes('https://www.ycombinator.com/library/8d-how-to-build-a-great-series-a-pitch-and-deck'),
+
+    const snapshots = Array.from(container.querySelectorAll('[data-kg-webpage-snapshot="1"]'))
+    const hasExampleSnapshot = snapshots.some(el => String(el.getAttribute('data-src') || '').includes('https://example.com/'))
+    if (!hasExampleSnapshot) throw new Error(`expected iframe-marked url to render as snapshot preview; html=${container.innerHTML}`)
+    const hasYcSnapshot = snapshots.some(el =>
+      String(el.getAttribute('data-src') || '').includes('https://www.ycombinator.com/library/8d-how-to-build-a-great-series-a-pitch-and-deck'),
     )
-    if (!hasYc) {
-      throw new Error(`expected webpage iframe src to use proxy for ycombinator, got: ${iframeSrcs.join(', ')}`)
-    }
+    if (!hasYcSnapshot) throw new Error(`expected webpage url to render as snapshot preview; html=${container.innerHTML}`)
 
     root.unmount()
   } finally {

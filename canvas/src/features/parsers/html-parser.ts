@@ -3,6 +3,7 @@ import { isJsonValue } from '@/lib/graph/jsonValue'
 import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { convertHtmlToMarkdownUnified } from '@/lib/markdown/htmlToMarkdownUnified'
+import { pickFirstSrcsetUrl } from 'grph-shared/markdown/mediaHtml'
 
 function decodeBase64Utf8(base64: string): string {
   const b64 = String(base64 || '').trim()
@@ -306,10 +307,7 @@ function pickImageSrc(el: HTMLElement): string {
   const dataSrc = String(el.getAttribute('data-src') || el.getAttribute('data-original') || '').trim()
   if (dataSrc) return dataSrc
   const srcSet = String(el.getAttribute('srcset') || '').trim()
-  if (!srcSet) return ''
-  const first = srcSet.split(',')[0] || ''
-  const url = first.trim().split(/\s+/)[0] || ''
-  return url.trim()
+  return pickFirstSrcsetUrl(srcSet)
 }
 
 function htmlFragmentToMarkdown(fragment: string): string {

@@ -1,4 +1,6 @@
 import { buildGraphHtmlViewerMarkup } from '@/lib/graph/graphHtmlViewer'
+import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
+import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 
 export async function testExportHtmlViewerIsSvgOnlyAndBlocksBrowserZoomAndSelection() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
@@ -127,6 +129,36 @@ export async function testExportHtmlViewerHudIncludesModeToggles() {
   }
 }
 
+export async function testExportHtmlViewerMarkdownSnippetWeChatImageAppearsInOverlayPoolAndHtml() {
+  const snippet =
+    '![mmbiz.qpic.cn](https://mmbiz.qpic.cn/mmbiz_png/gdEn3pxzatSHAib7vomhHSibH0icqO2xD72VBSBEgWDypepymkibpnpmW9iczvnTShtBHPyGRN7MttLwmWbFCIz9MtLKtVxml3cXeO1icZ0DicibLew/640?wx_fmt=png&from=appmsg)'
+  const parsed = await loadGraphDataFromTextViaParser('sandbox/test-data/snippet-wechat-image.md', snippet, { applyToStore: false })
+  if (!parsed || !parsed.graphData) throw new Error('expected graphData from markdown snippet parser')
+  const graphData = parsed.graphData
+  const overlayNodes = listMediaOverlayNodes({
+    enabled: true,
+    nodes: graphData.nodes || [],
+    poolMax: 24,
+  })
+  const expectedHost = 'mmbiz.qpic.cn/mmbiz_png/'
+  const expectedQuery = 'wx_fmt=png'
+  const inOverlayPool = overlayNodes.some(n => n.kind === 'image' && n.url.includes(expectedHost) && n.url.includes(expectedQuery))
+  if (!inOverlayPool) {
+    throw new Error('expected markdown snippet WeChat image to appear in media overlay node pool')
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="n"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
+  const html = await buildGraphHtmlViewerMarkup({
+    title: 'snippet-wechat-image',
+    svgMarkup: svg,
+    includeRichMediaOverlays: true,
+    graphData,
+  })
+  if (!html) throw new Error('expected html')
+  if (!html.includes(expectedHost) || !html.includes(expectedQuery)) {
+    throw new Error('expected markdown snippet WeChat image to be embedded in html viewer runtime payload')
+  }
+}
+
 export async function testExportHtmlViewerRuntimeSupportsCentroidFitAndTouchDrag() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="n"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
   const html = await buildGraphHtmlViewerMarkup({
@@ -137,5 +169,26 @@ export async function testExportHtmlViewerRuntimeSupportsCentroidFitAndTouchDrag
   if (!html) throw new Error('expected html')
   if (!html.includes('getContentCentroid') || !html.includes('moveNodeDrag(-1')) {
     throw new Error('expected exported html viewer runtime to support centroid fit and touch node dragging')
+  }
+}
+
+export async function testExportHtmlViewerRuntimeFallsBackToRawMediaWhenProxyFails() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="n"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
+  const html = await buildGraphHtmlViewerMarkup({
+    title: 'T',
+    svgMarkup: svg,
+    includeRichMediaOverlays: true,
+    graphData: {
+      type: 'Graph',
+      nodes: [{ id: 'm1', label: 'Media', type: 'Image', properties: { media_kind: 'image', media_url: 'https://mmbiz.qpic.cn/a.png?wx_fmt=png' } }],
+      edges: [],
+    },
+  })
+  if (!html) throw new Error('expected html')
+  if (!html.includes('imgEl.onerror = function()') || !html.includes('vid.onerror = function()')) {
+    throw new Error('expected html viewer runtime to attach media proxy fallback handlers')
+  }
+  if (!html.includes("cur !== raw")) {
+    throw new Error('expected html viewer runtime fallback to switch source from proxy to raw url')
   }
 }

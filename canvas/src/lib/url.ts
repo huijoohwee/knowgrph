@@ -1,4 +1,4 @@
-import { applyMediaProxySrc, unwrapUserProvidedText } from 'grph-shared/url'
+import { applyMediaProxySrc, shouldUseRemoteFetchProxy, unwrapUserProvidedText } from 'grph-shared/url'
 
 export * from 'grph-shared/url'
 
@@ -87,6 +87,12 @@ export function applyImageLikeProxySrc(src: string): string {
   const raw = String(src || '').trim()
   if (!raw) return ''
   const normalized = raw.startsWith('//') ? `https:${raw}` : raw
-  if (isWeChatHotlinkProtectedAssetUrl(normalized)) return buildWebpageAssetPathProxyUrl(normalized)
+  if (isWeChatHotlinkProtectedAssetUrl(normalized)) {
+    if (typeof window === 'undefined') return normalized
+    const origin = window.location?.origin
+    if (!origin) return normalized
+    if (!shouldUseRemoteFetchProxy()) return normalized
+    return applyMediaProxySrc(normalized)
+  }
   return applyMediaProxySrc(normalized)
 }

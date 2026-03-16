@@ -32,6 +32,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   let rafLoop: number | null = null
   let lastSizingKey = ''
   let lastSizing: MediaOverlaySizing | null = null
+  const fallbackCenterById = new Map<string, { cx: number; cy: number }>()
 
   const update = () => {
     const t = args.readTransform()
@@ -54,15 +55,42 @@ export function startMediaOverlayLayoutLoop2d(args: {
       ? { viewportW: args.viewportW, viewportH: args.viewportH, margin: args.clampToViewport.margin }
       : undefined
 
+    const ensureFallbackCenter = (id: string, idx: number): { cx: number; cy: number } => {
+      const cached = fallbackCenterById.get(id)
+      if (cached) return cached
+      const w = Math.max(2, useSizing.panelW)
+      const h = Math.max(2, useSizing.panelH)
+      const vw = Math.max(1, args.viewportW)
+      const vh = Math.max(1, args.viewportH)
+      const margin = clamp ? Math.max(0, clamp.margin) : 12
+      const stepX = w + 12
+      const stepY = h + 12
+      const cols = Math.max(1, Math.floor(Math.max(1, vw - margin * 2) / Math.max(1, stepX)))
+      const col = cols > 0 ? (idx % cols) : 0
+      const row = cols > 0 ? Math.floor(idx / cols) : idx
+      const left = margin + col * stepX
+      const top = margin + row * stepY
+      const cx = left + w / 2
+      const cy = top + h / 2
+      const out = { cx, cy }
+      fallbackCenterById.set(id, out)
+      return out
+    }
+
     for (let i = 0; i < args.items.length; i += 1) {
       const id = String(args.items[i]?.id || '').trim()
       if (!id) continue
       const el = args.getElementForId(id)
       if (!el) continue
       const center = args.getNodeWorldCenterForId(id)
-      if (!center) continue
-      const cx = t.applyX(center.x)
-      const cy = t.applyY(center.y)
+      const cx = (() => {
+        if (center) return t.applyX(center.x)
+        return ensureFallbackCenter(id, i).cx
+      })()
+      const cy = (() => {
+        if (center) return t.applyY(center.y)
+        return ensureFallbackCenter(id, i).cy
+      })()
       if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue
       const rect = computePanelRect({ cx, cy, w: useSizing.panelW, h: useSizing.panelH, clamp })
       applyMediaPanelCssVars(el, useSizing.vars)
@@ -115,4 +143,3 @@ export function startMediaOverlayLayoutLoop2d(args: {
     },
   }
 }
-

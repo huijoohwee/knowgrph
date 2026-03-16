@@ -1,6 +1,7 @@
 import { hashText } from '../../features/parsers/hash'
 import { LRUCache } from '../cache/LRUCache'
 import { postprocessWebpageMarkdownSsot } from './webpageMarkdownPostprocess'
+import { pickFirstSrcsetUrl } from 'grph-shared/markdown/mediaHtml'
 
 type HastNode = {
   type?: unknown
@@ -152,14 +153,6 @@ const fillEmptyAnchorText = (root: HastNode): void => {
   }
 
   visit(root)
-}
-
-const pickFirstSrcsetUrl = (srcsetRaw: unknown): string => {
-  const raw = typeof srcsetRaw === 'string' ? srcsetRaw.trim() : ''
-  if (!raw) return ''
-  const firstChunk = raw.split(',')[0] || ''
-  const urlPart = firstChunk.trim().split(/\s+/)[0] || ''
-  return urlPart.trim()
 }
 
 const fillMissingMediaSrc = (node: HastNode): void => {

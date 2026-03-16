@@ -15,11 +15,7 @@ import {
 import { useMarkdownPreviewLexedMarkdown } from '@/features/markdown/ui/useMarkdownPreviewTokens'
 import {
   buildMarkdownPreviewMediaKey,
-  applyMediaProxySrc,
   extractAttr,
-  getVimeoId,
-  buildYouTubeEmbedUrl,
-  getTwitterStatusId,
   isAbsoluteWebUrl,
   isSafeHref,
   isSafeMediaSrc,
@@ -27,6 +23,8 @@ import {
   looksLikeSingleTagBlock,
   resolveHref,
 } from '@/features/markdown/ui/markdownPreviewLinks'
+import { buildTwitterEmbedUrl, buildVimeoEmbedUrl, buildYouTubeEmbedUrl } from 'grph-shared/rich-media/providers'
+import { extractScriptEmbedAnchorHref, pickFirstSrcsetUrl } from 'grph-shared/markdown/mediaHtml'
 import {
   MermaidDiagram,
 } from '@/features/panels/views/preview-panel/ui/MermaidDiagram'
@@ -42,7 +40,7 @@ import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY } from '@/lib/config'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
-import RichMediaIframe from '@/components/RichMediaIframe'
+import RichMediaPanel from '@/components/RichMediaPanel'
 
 export default function PreviewPanelView() {
   const markdownText = useGraphStore(s => s.markdownDocumentText || '')
@@ -95,13 +93,16 @@ export default function PreviewPanelView() {
     () => String((meta as Record<string, unknown>).mermaid || '').trim(),
     [meta],
   )
+  const frontmatterMermaidDiagrams = React.useMemo(
+    () => (frontmatterMermaidCode ? splitMermaidIntoDiagrams(frontmatterMermaidCode) : []),
+    [frontmatterMermaidCode],
+  )
 
   React.useEffect(() => {
     if (!frontmatterModeEnabled) return
     if (!frontmatterMermaidCode) return
     const current = String(mermaidFocusCode || '').trim()
-    const split = splitMermaidIntoDiagrams(frontmatterMermaidCode)
-    const next = String(split[0] || '').trim()
+    const next = String(frontmatterMermaidDiagrams[0] || '').trim()
     if (!next) return
     if (current === next) return
     setActiveMediaKey(null)
@@ -111,7 +112,7 @@ export default function PreviewPanelView() {
     })
   }, [
     frontmatterModeEnabled,
-    frontmatterMermaidCode,
+    frontmatterMermaidDiagrams,
     mermaidFocusCode,
     mermaidFrontmatterConfig,
     setActiveMediaKey,
@@ -156,6 +157,7 @@ export default function PreviewPanelView() {
     code?: string
     mermaidConfig?: MermaidInitConfig | null
     src?: string
+    openUrl?: string
     alt?: string
   }
 
@@ -169,7 +171,7 @@ export default function PreviewPanelView() {
       /\.(mp3|wav|m4a|aac|flac|ogg)(\?|#|$)/i.test(href)
 
     if (frontmatterMermaid) {
-      const diagrams = splitMermaidIntoDiagrams(frontmatterMermaid)
+      const diagrams = frontmatterMermaidDiagrams
       for (let i = 0; i < diagrams.length; i += 1) {
         const code = diagrams[i]
         const key = `frontmatter-mermaid:${i}`
@@ -216,7 +218,7 @@ export default function PreviewPanelView() {
         const html = String((t as unknown as TokensHTML).text || '').trim()
 
         if (looksLikeSingleTagBlock(html, 'iframe')) {
-          const srcRaw = extractAttr(html, 'src')
+          const srcRaw = extractAttr(html, 'src') || extractAttr(html, 'data-src')
           if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
             const src = resolveHref(srcRaw, docPath)
             const key = buildMarkdownPreviewMediaKey('iframe', t.startLine, srcRaw)
@@ -227,13 +229,33 @@ export default function PreviewPanelView() {
               startLine: t.startLine,
               label: `Embedded content ${list.length + 1}`,
               src,
+              openUrl: src,
+            })
+          }
+          continue
+        }
+
+        if (looksLikeSingleTagBlock(html, 'embed') || looksLikeSingleTagBlock(html, 'object')) {
+          const srcRaw =
+            extractAttr(html, 'src') || extractAttr(html, 'data') || extractAttr(html, 'data-src')
+          if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
+            const src = resolveHref(srcRaw, docPath)
+            const key = buildMarkdownPreviewMediaKey('iframe', t.startLine, srcRaw)
+            list.push({
+              key,
+              kind: 'iframe',
+              source: 'markdown',
+              startLine: t.startLine,
+              label: `Embedded content ${list.length + 1}`,
+              src,
+              openUrl: src,
             })
           }
           continue
         }
 
         if (looksLikeSingleTagBlock(html, 'video')) {
-          const srcRaw = extractAttr(html, 'src')
+          const srcRaw = extractAttr(html, 'src') || extractAttr(html, 'data-src')
           if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
             const src = resolveHref(srcRaw, docPath)
             const key = buildMarkdownPreviewMediaKey('video', t.startLine, srcRaw)
@@ -244,17 +266,20 @@ export default function PreviewPanelView() {
               startLine: t.startLine,
               label: `Video ${list.length + 1}`,
               src,
+              openUrl: src,
             })
           }
           continue
         }
 
         if (looksLikeSingleTagBlock(html, 'img')) {
-          const srcRaw = extractAttr(html, 'src')
-          if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
-            const src = resolveHref(srcRaw, docPath)
+          const srcRaw = extractAttr(html, 'src') || extractAttr(html, 'data-src')
+          const srcsetRaw = extractAttr(html, 'srcset') || extractAttr(html, 'data-srcset')
+          const srcCandidate = srcRaw || pickFirstSrcsetUrl(srcsetRaw)
+          if (srcCandidate && isSafeHref(srcCandidate) && isSafeMediaSrc(srcCandidate)) {
+            const src = resolveHref(srcCandidate, docPath)
             const alt = extractAttr(html, 'alt')
-            const key = buildMarkdownPreviewMediaKey('image', t.startLine, srcRaw)
+            const key = buildMarkdownPreviewMediaKey('image', t.startLine, srcCandidate)
             list.push({
               key,
               kind: 'image',
@@ -262,9 +287,26 @@ export default function PreviewPanelView() {
               startLine: t.startLine,
               label: alt || `Image ${list.length + 1}`,
               src,
+              openUrl: src,
               alt,
             })
           }
+          continue
+        }
+
+        const scriptEmbedHref = extractScriptEmbedAnchorHref(html)
+        if (scriptEmbedHref && isSafeHref(scriptEmbedHref) && isSafeMediaSrc(scriptEmbedHref)) {
+          const src = resolveHref(scriptEmbedHref, docPath)
+          const key = buildMarkdownPreviewMediaKey('webpage', t.startLine, scriptEmbedHref)
+          list.push({
+            key,
+            kind: 'webpage',
+            source: 'markdown',
+            startLine: t.startLine,
+            label: `Webpage ${list.length + 1}`,
+            src,
+            openUrl: src,
+          })
           continue
         }
 
@@ -274,7 +316,7 @@ export default function PreviewPanelView() {
       if (tt.type === 'paragraph') {
         const href = isStandaloneLinkParagraph(t) || isStandaloneTextUrlParagraph(t)
         if (href && isSafeHref(href) && isAbsoluteWebUrl(href)) {
-          const youtube = buildYouTubeEmbedUrl(href)
+          const youtube = buildYouTubeEmbedUrl(href, { noCookie: true, includeOrigin: false })
           if (youtube) {
             const src = youtube
             const key = buildMarkdownPreviewMediaKey('youtube', t.startLine, href)
@@ -285,12 +327,13 @@ export default function PreviewPanelView() {
               startLine: t.startLine,
               label: `YouTube ${list.length + 1}`,
               src,
+              openUrl: href,
             })
             continue
           }
-          const vimeo = getVimeoId(href)
+          const vimeo = buildVimeoEmbedUrl(href)
           if (vimeo) {
-            const src = `https://player.vimeo.com/video/${vimeo}`
+            const src = vimeo
             const key = buildMarkdownPreviewMediaKey('vimeo', t.startLine, href)
             list.push({
               key,
@@ -299,6 +342,7 @@ export default function PreviewPanelView() {
               startLine: t.startLine,
               label: `Vimeo ${list.length + 1}`,
               src,
+              openUrl: href,
             })
             continue
           }
@@ -312,15 +356,16 @@ export default function PreviewPanelView() {
               startLine: t.startLine,
               label: `Video ${list.length + 1}`,
               src,
+              openUrl: href,
             })
             continue
           }
 
           const normalizedHref = normalizeWebpageLikeUrl(href)
-          const tweetId = getTwitterStatusId(normalizedHref)
-          if (tweetId) {
+          const tweet = buildTwitterEmbedUrl(normalizedHref)
+          if (tweet) {
             const theme = String(rootThemeMode || '').toLowerCase() === 'dark' ? 'dark' : 'light'
-            const src = `https://platform.twitter.com/embed/Tweet.html?id=${tweetId}&theme=${theme}`
+            const src = `${tweet}&theme=${theme}`
             const key = buildMarkdownPreviewMediaKey('tweet', t.startLine, href)
             list.push({
               key,
@@ -329,6 +374,7 @@ export default function PreviewPanelView() {
               startLine: t.startLine,
               label: `X ${list.length + 1}`,
               src,
+              openUrl: href,
             })
             continue
           }
@@ -342,6 +388,7 @@ export default function PreviewPanelView() {
             startLine: t.startLine,
             label: `Webpage ${list.length + 1}`,
             src,
+            openUrl: href,
           })
           continue
         }
@@ -377,6 +424,7 @@ export default function PreviewPanelView() {
             startLine: t.startLine,
             label: alt || (treatAsWebpage ? `Webpage ${list.length + 1}` : `Image ${list.length + 1}`),
             src,
+            openUrl: hrefRaw,
             alt,
           })
         }
@@ -403,6 +451,7 @@ export default function PreviewPanelView() {
           startLine: 0,
           label,
           src,
+          openUrl: src,
           alt: baseLabel || undefined,
           nodeId,
         })
@@ -503,14 +552,18 @@ export default function PreviewPanelView() {
     }
 
     if (activeMedia.kind === 'image') {
-      const src = applyMediaProxySrc(activeMedia.src)
       return (
         <div className="w-full h-full flex items-center justify-center">
-          <div className="aspect-video w-full max-w-4xl bg-black/5 rounded border border-gray-200 overflow-hidden flex items-center justify-center">
-            <img
-              src={src}
-              alt={activeMedia.alt || activeMedia.label}
-              className="w-full h-full object-contain"
+          <div className={`aspect-video w-full max-w-4xl rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`}>
+            <RichMediaPanel
+              title={activeMedia.alt || activeMedia.label}
+              url={activeMedia.src}
+              openUrl={activeMedia.openUrl || activeMedia.src}
+              kind="image"
+              interactive={false}
+              iframeMode="srcdoc-when-needed"
+              showHeader={true}
+              style={{ width: '100%', height: '100%', boxShadow: 'none' }}
             />
           </div>
         </div>
@@ -518,13 +571,19 @@ export default function PreviewPanelView() {
     }
 
     if (activeMedia.kind === 'video') {
-      const src = applyMediaProxySrc(activeMedia.src)
       return (
         <div className="w-full h-full flex items-center justify-center">
-          <div className="aspect-video w-full max-w-4xl bg-black rounded border border-gray-800 overflow-hidden">
-            <video controls className="w-full h-full">
-              <source src={src} />
-            </video>
+          <div className={`aspect-video w-full max-w-4xl rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`}>
+            <RichMediaPanel
+              title={activeMedia.label}
+              url={activeMedia.src}
+              openUrl={activeMedia.openUrl || activeMedia.src}
+              kind="video"
+              interactive={true}
+              iframeMode="srcdoc-when-needed"
+              showHeader={true}
+              style={{ width: '100%', height: '100%', boxShadow: 'none' }}
+            />
           </div>
         </div>
       )
@@ -542,20 +601,16 @@ export default function PreviewPanelView() {
         <div className="w-full h-full flex items-center justify-center">
           <div className={`aspect-video w-full max-w-4xl bg-black/5 rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`}>
             {loaded ? (
-              activeMedia.kind === 'webpage' ? (
-                <RichMediaIframe url={activeMedia.src} title={activeMedia.label} className="w-full h-full" />
-              ) : (
-                <iframe
-                  src={activeMedia.src}
-                  title={activeMedia.label}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  sandbox="allow-scripts allow-same-origin allow-presentation"
-                  referrerPolicy="no-referrer"
-                  loading="lazy"
-                  className="w-full h-full"
-                />
-              )
+              <RichMediaPanel
+                title={activeMedia.label}
+                url={activeMedia.src}
+                openUrl={activeMedia.openUrl || activeMedia.src}
+                kind="iframe"
+                interactive={true}
+                iframeMode="srcdoc-when-needed"
+                showHeader={true}
+                style={{ width: '100%', height: '100%', boxShadow: 'none' }}
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <div className="flex items-center gap-2">
@@ -566,7 +621,7 @@ export default function PreviewPanelView() {
                   >
                     {UI_COPY.markdownMediaLoadEmbedLabel}
                   </button>
-                  <a className="text-xs underline" href={activeMedia.src} target="_blank" rel="noreferrer">
+                  <a className="text-xs underline" href={activeMedia.openUrl || activeMedia.src} target="_blank" rel="noreferrer">
                     {UI_COPY.markdownMediaOpenInNewTabLabel}
                   </a>
                 </div>

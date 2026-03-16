@@ -10,6 +10,7 @@ type HtmlViewerMediaNode = {
   id: string
   title: string
   url: string
+  openUrl?: string
   interactive: boolean
   kind: 'iframe' | 'image' | 'svg' | 'video'
 }

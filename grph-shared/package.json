@@ -39,6 +39,11 @@
       "import": "./dist/markdown/formatting.js",
       "default": "./dist/markdown/formatting.js"
     },
+    "./markdown/mediaHtml": {
+      "types": "./dist/markdown/mediaHtml.d.ts",
+      "import": "./dist/markdown/mediaHtml.js",
+      "default": "./dist/markdown/mediaHtml.js"
+    },
     "./markdown/toc": {
       "types": "./dist/markdown/toc.d.ts",
       "import": "./dist/markdown/toc.js",
@@ -183,6 +188,21 @@
       "types": "./dist/rich-media/iframe.d.ts",
       "import": "./dist/rich-media/iframe.js",
       "default": "./dist/rich-media/iframe.js"
+    },
+    "./rich-media/providers": {
+      "types": "./dist/rich-media/providers.d.ts",
+      "import": "./dist/rich-media/providers.js",
+      "default": "./dist/rich-media/providers.js"
+    },
+    "./rich-media/markdownUrls": {
+      "types": "./dist/rich-media/markdownUrls.d.ts",
+      "import": "./dist/rich-media/markdownUrls.js",
+      "default": "./dist/rich-media/markdownUrls.js"
+    },
+    "./rich-media/webpageSnapshot": {
+      "types": "./dist/rich-media/webpageSnapshot.d.ts",
+      "import": "./dist/rich-media/webpageSnapshot.js",
+      "default": "./dist/rich-media/webpageSnapshot.js"
     }
   },
   "files": [

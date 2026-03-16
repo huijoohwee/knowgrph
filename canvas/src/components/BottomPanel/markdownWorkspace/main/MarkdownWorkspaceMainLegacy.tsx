@@ -63,7 +63,7 @@ export type MarkdownWorkspaceMainProps = {
 
   webpageWorkspaceMeta?: WebpageFrontmatterMeta | null
   onWebpageChangeView?: (view: WebpageViewMode) => void
-  onWebpageUpdateMeta?: (patch: { scriptPolicy?: 'strip' | 'allow'; includeImages?: boolean; fidelityLevel?: 1 | 2 | 3 | 4 }) => void
+  onWebpageUpdateMeta?: (patch: { fidelityLevel?: 1 | 2 | 3 | 4 }) => void
 
   contentMode?: 'document' | 'nodeQuickEditor'
   setContentMode?: (mode: 'document' | 'nodeQuickEditor') => void
@@ -490,4 +490,3 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     />
   )
 })
-

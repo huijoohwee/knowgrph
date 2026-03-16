@@ -16,7 +16,8 @@ class Block:
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 LIST_RE = re.compile(r"^(\s*)([-*+]|(\d+)\.)\s+(.*)$")
 FENCE_RE = re.compile(r"^```(\s*\w+)?\s*$")
-LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+LINK_RE = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)]+)\)")
+IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)")
 
 
 def split_lines(text: str) -> List[str]:
@@ -264,4 +265,14 @@ def extract_links(text: str) -> List[Tuple[str, str]]:
         url = (m.group(2) or "").strip()
         if label and url:
             out.append((label, url))
+    return out
+
+
+def extract_images(text: str) -> List[Tuple[str, str]]:
+    out: List[Tuple[str, str]] = []
+    for m in IMAGE_RE.finditer(text):
+        alt = (m.group(1) or "").strip()
+        url = (m.group(2) or "").strip()
+        if url:
+            out.append((alt, url))
     return out

@@ -96,7 +96,7 @@ export type MarkdownWorkspaceToolbarProps = {
 
   webpageWorkspaceMeta?: WebpageFrontmatterMeta | null
   onWebpageChangeView?: (view: WebpageViewMode) => void
-  onWebpageUpdateMeta?: (patch: { scriptPolicy?: 'strip' | 'allow'; includeImages?: boolean; fidelityLevel?: 1 | 2 | 3 | 4 }) => void
+  onWebpageUpdateMeta?: (patch: { fidelityLevel?: 1 | 2 | 3 | 4 }) => void
 }
 
 const TOOLBAR_BUTTON_CLASSNAME = `h-7 w-7 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
@@ -191,8 +191,6 @@ export function MarkdownWorkspaceToolbar({
     const meta = webpageWorkspaceMeta
     if (!meta || !meta.url) return null
     const view = meta.view
-    const scriptMode = (meta.scriptPolicy || 'inherit') as 'inherit' | 'strip' | 'allow'
-    const imagesMode: 'inherit' | 'on' | 'off' = meta.includeImages === true ? 'on' : meta.includeImages === false ? 'off' : 'inherit'
     const fidelityMode: 'inherit' | '1' | '2' | '3' | '4' =
       meta.fidelityLevel === 1
         ? '1'
@@ -203,7 +201,7 @@ export function MarkdownWorkspaceToolbar({
             : meta.fidelityLevel === 4
               ? '4'
               : 'inherit'
-    return { view, scriptMode, imagesMode, fidelityMode }
+    return { view, fidelityMode }
   }, [webpageWorkspaceMeta])
 
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
@@ -339,36 +337,6 @@ export function MarkdownWorkspaceToolbar({
                   { value: 'json', label: 'JSON' },
                 ]}
                 onChange={next => onWebpageChangeView(next)}
-              />
-            </li>
-            <li className="list-none">
-              <WorkspaceModeSelect<'inherit' | 'strip' | 'allow'>
-                ariaLabel="Webpage script policy"
-                value={webpageControls.scriptMode}
-                isActive={true}
-                options={[
-                  { value: 'inherit', label: 'Script: Auto' },
-                  { value: 'allow', label: 'Script: Allow' },
-                  { value: 'strip', label: 'Script: Strip' },
-                ]}
-                onChange={next => onWebpageUpdateMeta({ scriptPolicy: next === 'inherit' ? undefined : next })}
-              />
-            </li>
-            <li className="list-none">
-              <WorkspaceModeSelect<'inherit' | 'on' | 'off'>
-                ariaLabel="Webpage include images"
-                value={webpageControls.imagesMode}
-                isActive={true}
-                options={[
-                  { value: 'inherit', label: 'Imgs: Auto' },
-                  { value: 'on', label: 'Imgs: On' },
-                  { value: 'off', label: 'Imgs: Off' },
-                ]}
-                onChange={next =>
-                  onWebpageUpdateMeta({
-                    includeImages: next === 'inherit' ? undefined : next === 'on',
-                  })
-                }
               />
             </li>
             <li className="list-none">

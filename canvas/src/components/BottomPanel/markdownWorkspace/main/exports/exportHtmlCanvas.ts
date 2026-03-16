@@ -160,7 +160,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
       title: `${exportBaseName} (Canvas)`,
       svgMarkup: exportView.svgMarkup,
       graphData: store.graphData,
-      includeRichMediaOverlays: store.renderMediaAsNodes === true,
+      includeRichMediaOverlays: true,
       mediaOverlayPoolMax: (store as unknown as { threeIframeOverlayPoolMax?: number }).threeIframeOverlayPoolMax,
       mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
       enableDecorativeAnimation: true,

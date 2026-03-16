@@ -65,7 +65,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L37; canvas/src/hooks/store/uiSettingsSlice.ts:L601"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L37; canvas/src/hooks/store/uiSettingsSlice.ts:L611"
   },
   "selectionFlashOpacity": {
     "area": "Selection Flash",
@@ -82,7 +82,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L46; canvas/src/hooks/store/uiSettingsSlice.ts:L606"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L46; canvas/src/hooks/store/uiSettingsSlice.ts:L616"
   },
   "uiIconScale": {
     "area": "UI Density: Icons",
@@ -473,7 +473,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L265; canvas/src/hooks/store/uiSettingsSlice.ts:L196"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L265; canvas/src/hooks/store/uiSettingsSlice.ts:L206"
   },
   "floatingPanelWidthRatio": {
     "area": "Floating Panel Layout",
@@ -491,7 +491,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L280; canvas/src/hooks/store/panelLayoutUiSlice.ts:L85; canvas/src/hooks/store/uiSettingsSlice.ts:L303"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L280; canvas/src/hooks/store/panelLayoutUiSlice.ts:L85; canvas/src/hooks/store/uiSettingsSlice.ts:L313"
   },
   "floatingPanelHeightRatio": {
     "area": "Floating Panel Layout",
@@ -509,7 +509,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L289; canvas/src/hooks/store/panelLayoutUiSlice.ts:L89; canvas/src/hooks/store/uiSettingsSlice.ts:L304"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L289; canvas/src/hooks/store/panelLayoutUiSlice.ts:L89; canvas/src/hooks/store/uiSettingsSlice.ts:L314"
   },
   "floatingPanelZIndex": {
     "area": "Floating Panel Layout",
@@ -527,7 +527,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L298; canvas/src/hooks/store/panelLayoutUiSlice.ts:L93; canvas/src/hooks/store/uiSettingsSlice.ts:L305"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L298; canvas/src/hooks/store/panelLayoutUiSlice.ts:L93; canvas/src/hooks/store/uiSettingsSlice.ts:L315"
   },
   "enableLaunchSpotlight": {
     "area": "Launch Spotlight",
@@ -561,7 +561,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L316; canvas/src/hooks/store/uiSettingsSlice.ts:L613"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L316; canvas/src/hooks/store/uiSettingsSlice.ts:L623"
   },
   "spotlight.nearTopThreshold": {
     "area": "Launch Spotlight Layout",
@@ -578,7 +578,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L325; canvas/src/hooks/store/uiSettingsSlice.ts:L617"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L325; canvas/src/hooks/store/uiSettingsSlice.ts:L627"
   },
   "chatEndpointUrl": {
     "area": "Chat",
@@ -811,7 +811,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L672; canvas/src/hooks/store/uiSlice.ts:L541"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L682; canvas/src/hooks/store/uiSlice.ts:L541"
   },
   "pdfImportMaxPages": {
     "area": "—",
@@ -1355,7 +1355,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L631"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L641"
   },
   "youtubeTranscriptOutputFormat": {
     "area": "—",
@@ -1372,7 +1372,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L634"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L644"
   },
   "webpageImportIncludeImages": {
     "area": "—",
@@ -1389,7 +1389,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L637"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L647"
   },
   "webpageImportView": {
     "area": "—",
@@ -1406,7 +1406,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L640"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L650"
   },
   "webpageViewerScriptPolicy": {
     "area": "—",
@@ -1423,7 +1423,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L30; canvas/src/hooks/store/uiSettingsSlice.ts:L643"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L30; canvas/src/hooks/store/uiSettingsSlice.ts:L653"
   },
   "webpageArtifactFidelityMaxLevel": {
     "area": "—",
@@ -1440,7 +1440,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L40; canvas/src/hooks/store/uiSettingsSlice.ts:L646"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L40; canvas/src/hooks/store/uiSettingsSlice.ts:L656"
   },
   "websiteImportDiscoverSitemap": {
     "area": "—",
@@ -1457,7 +1457,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L49; canvas/src/hooks/store/uiSettingsSlice.ts:L652"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L49; canvas/src/hooks/store/uiSettingsSlice.ts:L662"
   },
   "websiteImportGenerateWebpageArtifactDocs": {
     "area": "—",
@@ -1474,7 +1474,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L58; canvas/src/hooks/store/uiSettingsSlice.ts:L655"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L58; canvas/src/hooks/store/uiSettingsSlice.ts:L665"
   },
   "websiteImportMaxPages": {
     "area": "—",
@@ -1491,7 +1491,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L67; canvas/src/hooks/store/uiSettingsSlice.ts:L658"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L67; canvas/src/hooks/store/uiSettingsSlice.ts:L668"
   },
   "websiteImportConcurrency": {
     "area": "—",
@@ -1508,7 +1508,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L76; canvas/src/hooks/store/uiSettingsSlice.ts:L664"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L76; canvas/src/hooks/store/uiSettingsSlice.ts:L674"
   },
   "websiteImportOutputDirRel": {
     "area": "—",
@@ -1525,7 +1525,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L85; canvas/src/hooks/store/uiSettingsSlice.ts:L670"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L85; canvas/src/hooks/store/uiSettingsSlice.ts:L680"
   },
   "graphFields.settingsById": {
     "area": "Graph Fields",
@@ -1724,7 +1724,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L125; canvas/src/hooks/store/uiSettingsSlice.ts:L597"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L125; canvas/src/hooks/store/uiSettingsSlice.ts:L607"
   },
   "graphDataTable.overscanMultiplier": {
     "area": "Graph Data Table Virtualization",
@@ -1741,7 +1741,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L134; canvas/src/hooks/store/uiSettingsSlice.ts:L598"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L134; canvas/src/hooks/store/uiSettingsSlice.ts:L608"
   },
   "graphDataTable.minRows": {
     "area": "Graph Data Table Virtualization",
@@ -1758,7 +1758,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L143; canvas/src/hooks/store/uiSettingsSlice.ts:L599"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L143; canvas/src/hooks/store/uiSettingsSlice.ts:L609"
   },
   "graphDataTable.debugLogRanges": {
     "area": "Graph Data Table Virtualization",
@@ -1775,7 +1775,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L152; canvas/src/hooks/store/uiSettingsSlice.ts:L600"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L152; canvas/src/hooks/store/uiSettingsSlice.ts:L610"
   },
   "graphDataTable.aggregateIncludeMixedNumericFields": {
     "area": "Graph Data Table Aggregation",
@@ -1792,7 +1792,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L161; canvas/src/hooks/store/uiSettingsSlice.ts:L587"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L161; canvas/src/hooks/store/uiSettingsSlice.ts:L597"
   },
   "graphDataTable.aggregateIncludeIdAsNumeric": {
     "area": "Graph Data Table Aggregation",
@@ -1809,7 +1809,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L170; canvas/src/hooks/store/uiSettingsSlice.ts:L589"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L170; canvas/src/hooks/store/uiSettingsSlice.ts:L599"
   },
   "graphDataTable.aggregateIncludeSourceAsNumeric": {
     "area": "Graph Data Table Aggregation",
@@ -1826,7 +1826,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L179; canvas/src/hooks/store/uiSettingsSlice.ts:L590"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L179; canvas/src/hooks/store/uiSettingsSlice.ts:L600"
   },
   "graphDataTable.aggregateIncludeTargetAsNumeric": {
     "area": "Graph Data Table Aggregation",
@@ -1843,7 +1843,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L188; canvas/src/hooks/store/uiSettingsSlice.ts:L591"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L188; canvas/src/hooks/store/uiSettingsSlice.ts:L601"
   },
   "graphDataTable.aggregateDefaultVizMode": {
     "area": "Graph Data Table Aggregation",
@@ -1860,7 +1860,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L197; canvas/src/hooks/store/uiSettingsSlice.ts:L585"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L197; canvas/src/hooks/store/uiSettingsSlice.ts:L595"
   },
   "graphDataTable.numericSampleLimit": {
     "area": "Graph Data Table",
@@ -1877,7 +1877,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L209; canvas/src/hooks/store/uiSettingsSlice.ts:L592"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L209; canvas/src/hooks/store/uiSettingsSlice.ts:L602"
   },
   "graphDataTable.numericSampleMinCount": {
     "area": "Graph Data Table",
@@ -1894,7 +1894,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L218; canvas/src/hooks/store/uiSettingsSlice.ts:L593"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L218; canvas/src/hooks/store/uiSettingsSlice.ts:L603"
   },
   "graphDataTable.numericSampleMinRatio": {
     "area": "Graph Data Table",
@@ -1911,7 +1911,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L227; canvas/src/hooks/store/uiSettingsSlice.ts:L594"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L227; canvas/src/hooks/store/uiSettingsSlice.ts:L604"
   },
   "graphDataTable.frozenDragStepNoneLabelPx": {
     "area": "Graph Data Table",
@@ -1928,7 +1928,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L236; canvas/src/hooks/store/uiSettingsSlice.ts:L595"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L236; canvas/src/hooks/store/uiSettingsSlice.ts:L605"
   },
   "graphDataTable.frozenDragStepLabelIdPx": {
     "area": "Graph Data Table",
@@ -1945,7 +1945,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L245; canvas/src/hooks/store/uiSettingsSlice.ts:L596"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L245; canvas/src/hooks/store/uiSettingsSlice.ts:L606"
   },
   "schema.zoom.minScale": {
     "area": "—",
@@ -2002,7 +2002,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L63; canvas/src/hooks/store/uiSettingsSlice.ts:L143"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L63; canvas/src/hooks/store/uiSettingsSlice.ts:L153"
   },
   "zoom.labelScaleExponent2d": {
     "area": "—",
@@ -2019,7 +2019,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L77; canvas/src/hooks/store/uiSettingsSlice.ts:L149"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L77; canvas/src/hooks/store/uiSettingsSlice.ts:L159"
   },
   "zoom.labelScaleClampMin2d": {
     "area": "—",
@@ -2036,7 +2036,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L86; canvas/src/hooks/store/uiSettingsSlice.ts:L151"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L86; canvas/src/hooks/store/uiSettingsSlice.ts:L161"
   },
   "zoom.labelScaleClampMax2d": {
     "area": "—",
@@ -2053,7 +2053,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L95; canvas/src/hooks/store/uiSettingsSlice.ts:L153"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L95; canvas/src/hooks/store/uiSettingsSlice.ts:L163"
   },
   "zoom.strokeScaleMode2d": {
     "area": "—",
@@ -2070,7 +2070,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L104; canvas/src/hooks/store/uiSettingsSlice.ts:L160"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L104; canvas/src/hooks/store/uiSettingsSlice.ts:L170"
   },
   "zoom.strokeScaleExponent2d": {
     "area": "—",
@@ -2087,7 +2087,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L118; canvas/src/hooks/store/uiSettingsSlice.ts:L166"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L118; canvas/src/hooks/store/uiSettingsSlice.ts:L176"
   },
   "zoom.strokeScaleClampMin2d": {
     "area": "—",
@@ -2104,7 +2104,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L127; canvas/src/hooks/store/uiSettingsSlice.ts:L168"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L127; canvas/src/hooks/store/uiSettingsSlice.ts:L178"
   },
   "zoom.strokeScaleClampMax2d": {
     "area": "—",
@@ -2121,7 +2121,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L136; canvas/src/hooks/store/uiSettingsSlice.ts:L170"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L136; canvas/src/hooks/store/uiSettingsSlice.ts:L180"
   },
   "historyDebounceMs": {
     "area": "Editor Behavior & Timing",
@@ -2155,7 +2155,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L154; canvas/src/hooks/store/uiSettingsSlice.ts:L512"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L154; canvas/src/hooks/store/uiSettingsSlice.ts:L522"
   },
   "keyword.source.maxChars": {
     "area": "—",
@@ -2172,7 +2172,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L163; canvas/src/hooks/store/uiSettingsSlice.ts:L518"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L163; canvas/src/hooks/store/uiSettingsSlice.ts:L528"
   },
   "keyword.graph.previewDebounceMs": {
     "area": "—",
@@ -2189,7 +2189,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L172; canvas/src/hooks/store/uiSettingsSlice.ts:L524"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L172; canvas/src/hooks/store/uiSettingsSlice.ts:L534"
   },
   "keyword.graph.fullDebounceMs": {
     "area": "—",
@@ -2206,7 +2206,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L181; canvas/src/hooks/store/uiSettingsSlice.ts:L530"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L181; canvas/src/hooks/store/uiSettingsSlice.ts:L540"
   },
   "keyword.graph.edgesPerNode": {
     "area": "—",
@@ -2223,7 +2223,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L190; canvas/src/hooks/store/uiSettingsSlice.ts:L536"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L190; canvas/src/hooks/store/uiSettingsSlice.ts:L546"
   },
   "keyword.graph.maxEdges": {
     "area": "—",
@@ -2240,7 +2240,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L199; canvas/src/hooks/store/uiSettingsSlice.ts:L542"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L199; canvas/src/hooks/store/uiSettingsSlice.ts:L552"
   },
   "keyword.graph.mentionEdgesPerSourceNode": {
     "area": "—",
@@ -2257,7 +2257,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L208; canvas/src/hooks/store/uiSettingsSlice.ts:L548"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L208; canvas/src/hooks/store/uiSettingsSlice.ts:L558"
   },
   "codeHighlightDurationMs": {
     "area": "Editor Behavior & Timing",
@@ -2325,7 +2325,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L244; canvas/src/hooks/store/uiSettingsSlice.ts:L622"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L244; canvas/src/hooks/store/uiSettingsSlice.ts:L632"
   },
   "enableVirtualTables": {
     "area": "Graph Data Table Virtualization",
@@ -2342,7 +2342,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L253; canvas/src/hooks/store/uiSettingsSlice.ts:L623"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L253; canvas/src/hooks/store/uiSettingsSlice.ts:L633"
   },
   "canvasRenderMode": {
     "area": "Canvas Rendering",
@@ -2682,7 +2682,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L472; canvas/src/hooks/store/panelLayoutUiSlice.ts:L101; canvas/src/hooks/store/uiSettingsSlice.ts:L554"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L472; canvas/src/hooks/store/panelLayoutUiSlice.ts:L101; canvas/src/hooks/store/uiSettingsSlice.ts:L564"
   },
   "schema.behavior.hover.content.type": {
     "area": "Graph Hover Preview",
@@ -2959,7 +2959,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L856; canvas/src/hooks/store/uiSettingsSlice.ts:L276"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L856; canvas/src/hooks/store/uiSettingsSlice.ts:L286"
   },
   "graphHoverPreview.showNodeName": {
     "area": "Graph Hover Preview",
@@ -2976,7 +2976,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L865; canvas/src/hooks/store/uiSettingsSlice.ts:L276"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L865; canvas/src/hooks/store/uiSettingsSlice.ts:L286"
   },
   "graphHoverPreview.showNodeLabel": {
     "area": "Graph Hover Preview",
@@ -2993,7 +2993,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L874; canvas/src/hooks/store/uiSettingsSlice.ts:L276"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L874; canvas/src/hooks/store/uiSettingsSlice.ts:L286"
   },
   "graphHoverPreview.showNodeDescription": {
     "area": "Graph Hover Preview",
@@ -3010,7 +3010,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L883; canvas/src/hooks/store/uiSettingsSlice.ts:L276"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L883; canvas/src/hooks/store/uiSettingsSlice.ts:L286"
   },
   "graphHoverPreview.showNodeProperties": {
     "area": "Graph Hover Preview",
@@ -3027,7 +3027,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L892; canvas/src/hooks/store/uiSettingsSlice.ts:L276"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L892; canvas/src/hooks/store/uiSettingsSlice.ts:L286"
   },
   "graphHoverPreview.showEdgeId": {
     "area": "Graph Hover Preview",
@@ -3044,7 +3044,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L901; canvas/src/hooks/store/uiSettingsSlice.ts:L276"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L901; canvas/src/hooks/store/uiSettingsSlice.ts:L286"
   },
   "graphHoverPreview.showEdgeLabel": {
     "area": "Graph Hover Preview",
@@ -3061,7 +3061,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L910; canvas/src/hooks/store/uiSettingsSlice.ts:L276"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L910; canvas/src/hooks/store/uiSettingsSlice.ts:L286"
   },
   "graphHoverPreview.showEdgeWeight": {
     "area": "Graph Hover Preview",
@@ -3078,7 +3078,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L919; canvas/src/hooks/store/uiSettingsSlice.ts:L276"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L919; canvas/src/hooks/store/uiSettingsSlice.ts:L286"
   },
   "graphHoverPreview.showEdgeProperties": {
     "area": "Graph Hover Preview",
@@ -3095,7 +3095,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L928; canvas/src/hooks/store/uiSettingsSlice.ts:L276"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L928; canvas/src/hooks/store/uiSettingsSlice.ts:L286"
   },
   "three.camera.autoClip": {
     "area": "—",
@@ -3112,7 +3112,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L10; canvas/src/hooks/store/uiSettingsSlice.ts:L173"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L10; canvas/src/hooks/store/uiSettingsSlice.ts:L183"
   },
   "three.camera.autoClipNearFactor": {
     "area": "—",
@@ -3129,7 +3129,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L19; canvas/src/hooks/store/uiSettingsSlice.ts:L175"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L19; canvas/src/hooks/store/uiSettingsSlice.ts:L185"
   },
   "three.camera.autoClipFarFactor": {
     "area": "—",
@@ -3146,7 +3146,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L28; canvas/src/hooks/store/uiSettingsSlice.ts:L177"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L28; canvas/src/hooks/store/uiSettingsSlice.ts:L187"
   },
   "three.iframeOverlay.sizeScaleFactor": {
     "area": "—",
@@ -3163,7 +3163,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L37; canvas/src/hooks/store/uiSettingsSlice.ts:L180"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L37; canvas/src/hooks/store/uiSettingsSlice.ts:L190"
   },
   "three.graph.edgeRenderer": {
     "area": "—",
@@ -3180,7 +3180,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L46; canvas/src/hooks/store/uiSettingsSlice.ts:L187"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L46; canvas/src/hooks/store/uiSettingsSlice.ts:L197"
   },
   "three.graph.shaderLineWidthPx": {
     "area": "—",
@@ -3197,7 +3197,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L60; canvas/src/hooks/store/uiSettingsSlice.ts:L193"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L60; canvas/src/hooks/store/uiSettingsSlice.ts:L203"
   },
   "three.selection.selectedNodeGlowIntensity": {
     "area": "3D Selection",
@@ -3809,7 +3809,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L520; canvas/src/hooks/store/uiSettingsSlice.ts:L106"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L520; canvas/src/hooks/store/uiSettingsSlice.ts:L116"
   },
   "three.media.iframeOverlay.maxVisibleDefault": {
     "area": "—",
@@ -3826,7 +3826,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L529; canvas/src/hooks/store/uiSettingsSlice.ts:L109"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L529; canvas/src/hooks/store/uiSettingsSlice.ts:L119"
   },
   "three.media.iframeOverlay.maxVisibleCompact": {
     "area": "—",
@@ -3843,7 +3843,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L538; canvas/src/hooks/store/uiSettingsSlice.ts:L112"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L538; canvas/src/hooks/store/uiSettingsSlice.ts:L122"
   },
   "three.media.iframeOverlay.maxDistanceDefault": {
     "area": "—",
@@ -3860,7 +3860,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L547; canvas/src/hooks/store/uiSettingsSlice.ts:L115"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L547; canvas/src/hooks/store/uiSettingsSlice.ts:L125"
   },
   "three.media.iframeOverlay.maxDistanceCompact": {
     "area": "—",
@@ -3877,7 +3877,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L556; canvas/src/hooks/store/uiSettingsSlice.ts:L118"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L556; canvas/src/hooks/store/uiSettingsSlice.ts:L128"
   },
   "three.media.iframeOverlay.baseWidthRatioDefault": {
     "area": "—",
@@ -3894,7 +3894,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L565; canvas/src/hooks/store/uiSettingsSlice.ts:L121"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L565; canvas/src/hooks/store/uiSettingsSlice.ts:L131"
   },
   "three.media.iframeOverlay.baseWidthRatioCompact": {
     "area": "—",
@@ -3911,7 +3911,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L574; canvas/src/hooks/store/uiSettingsSlice.ts:L124"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L574; canvas/src/hooks/store/uiSettingsSlice.ts:L134"
   },
   "three.media.iframeOverlay.baseWidthMinPxDefault": {
     "area": "—",
@@ -3928,7 +3928,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L583; canvas/src/hooks/store/uiSettingsSlice.ts:L127"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L583; canvas/src/hooks/store/uiSettingsSlice.ts:L137"
   },
   "three.media.iframeOverlay.baseWidthMinPxCompact": {
     "area": "—",
@@ -3945,7 +3945,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L592; canvas/src/hooks/store/uiSettingsSlice.ts:L130"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L592; canvas/src/hooks/store/uiSettingsSlice.ts:L140"
   },
   "three.media.iframeOverlay.baseWidthMaxPxDefault": {
     "area": "—",
@@ -3962,7 +3962,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L601; canvas/src/hooks/store/uiSettingsSlice.ts:L133"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L601; canvas/src/hooks/store/uiSettingsSlice.ts:L143"
   },
   "three.media.iframeOverlay.baseWidthMaxPxCompact": {
     "area": "—",
@@ -3979,7 +3979,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L610; canvas/src/hooks/store/uiSettingsSlice.ts:L136"
+    "lineRange": "canvas/src/features/settings/registry-three.ts:L610; canvas/src/hooks/store/uiSettingsSlice.ts:L146"
   },
   "three.preset.presentation3d": {
     "area": "3D Presets",

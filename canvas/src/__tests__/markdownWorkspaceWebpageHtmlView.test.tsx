@@ -340,7 +340,7 @@ export async function testMarkdownWorkspaceImportUrlHtmlPageSsotAndViewModes() {
     throw new Error('expected Import URL stub to keep Script: Auto (omit kgWebpageScriptPolicy)')
   }
   if (frontmatterPrefix.includes('kgWebpageIncludeImages:')) {
-    throw new Error('expected Import URL stub to keep Imgs: Auto (omit kgWebpageIncludeImages)')
+    throw new Error('expected Import URL stub to omit explicit kgWebpageIncludeImages and auto-route image inclusion')
   }
   if (frontmatterPrefix.includes('kgWebpageFidelityLevel:')) {
     throw new Error('expected Import URL stub to keep Fid: Auto (omit kgWebpageFidelityLevel)')

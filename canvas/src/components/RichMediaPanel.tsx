@@ -1,12 +1,16 @@
 import React from 'react'
 import RichMediaIframe, { type RichMediaIframeMode } from '@/components/RichMediaIframe'
+import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'
 import { applyImageLikeProxySrc } from '@/lib/url'
 import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
+import { resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export type RichMediaPanelProps = {
   title: string
   url: string
+  openUrl?: string
   kind?: 'iframe' | 'image' | 'svg' | 'video'
   interactive?: boolean
   iframeMode?: RichMediaIframeMode
@@ -40,13 +44,47 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
   const showHeader = props.showHeader !== false
   const kind: 'iframe' | 'image' | 'svg' | 'video' = props.kind === 'image' || props.kind === 'svg' || props.kind === 'video' ? props.kind : 'iframe'
   const rawUrl = String(props.url || '').trim()
+  const openUrl = String(props.openUrl || '').trim() || rawUrl
+  const safeOpenUrl = React.useMemo(() => {
+    const raw = String(openUrl || '').trim()
+    if (!raw) return ''
+    try {
+      const base = typeof window !== 'undefined' && window.location && typeof window.location.origin === 'string' ? window.location.origin : 'http://localhost'
+      const u = new URL(raw, base)
+      const proto = String(u.protocol || '').toLowerCase()
+      if (proto === 'http:' || proto === 'https:' || proto === 'mailto:' || proto === 'tel:') return u.toString()
+      return ''
+    } catch {
+      return ''
+    }
+  }, [openUrl])
+  const openSafeUrl = React.useCallback(() => {
+    if (!safeOpenUrl) return
+    try {
+      window.open(safeOpenUrl, '_blank', 'noopener,noreferrer')
+    } catch {
+      void 0
+    }
+  }, [safeOpenUrl])
   const proxiedUrl = React.useMemo(() => {
     if (kind === 'iframe') return rawUrl
     return applyImageLikeProxySrc(rawUrl)
   }, [kind, rawUrl])
+
+  const iframeEmbed = React.useMemo(() => {
+    if (kind !== 'iframe') return null
+    return resolveIframeEmbed({ url: rawUrl })
+  }, [kind, rawUrl])
+  const [mediaSrc, setMediaSrc] = React.useState<string>(proxiedUrl)
+  React.useEffect(() => {
+    setMediaSrc(proxiedUrl)
+  }, [proxiedUrl])
   const hideUntilReady = props.hideUntilReady === true
   const headerPassthrough = props.headerPassthrough === true
-  const forwardingEnabled = typeof props.forwardWheelTo === 'function' || typeof props.forwardPointerTo === 'function'
+  const richMediaPanelMode = useGraphStore(s => s.richMediaPanelMode)
+  const preferEmbed = richMediaPanelMode === 'embed'
+  const forwardingEnabled =
+    !preferEmbed && (typeof props.forwardWheelTo === 'function' || typeof props.forwardPointerTo === 'function')
   const [ready, setReady] = React.useState<boolean>(() => !hideUntilReady)
   React.useEffect(() => {
     setReady(!hideUntilReady)
@@ -61,7 +99,13 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
       window.clearTimeout(t)
     }
   }, [hideUntilReady, ready, proxiedUrl, kind, mode])
-  const contentInteractive = props.interactive !== false && (!hideUntilReady || ready)
+  const fallbackToRawSrc = React.useCallback(() => {
+    if (!rawUrl || rawUrl === mediaSrc) return false
+    setMediaSrc(rawUrl)
+    return true
+  }, [mediaSrc, rawUrl])
+  const contentInteractive = (preferEmbed || props.interactive !== false) && (!hideUntilReady || ready)
+  const canClickToOpen = !headerPassthrough && !contentInteractive && !!safeOpenUrl
   const setRefs = React.useCallback((el: HTMLDivElement | null) => {
     rootRef.current = el
     const r = ref as unknown
@@ -83,12 +127,12 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
     if (!el) return
 
     return installWheelForwardingAndBrowserZoomGuards(el, {
-      forwardWheelTo: typeof props.forwardWheelTo === 'function' ? props.forwardWheelTo : undefined,
+      forwardWheelTo: forwardingEnabled && typeof props.forwardWheelTo === 'function' ? props.forwardWheelTo : undefined,
       stopPropagationOnForward: true,
       stopPropagationOnPreventZoom: false,
       forwardedFlagKey: '__kgForwarded',
     })
-  }, [props.forwardWheelTo])
+  }, [forwardingEnabled, props.forwardWheelTo])
 
   const installHeaderDrag = props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd
 
@@ -105,6 +149,8 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
     const pointerId = native.pointerId
     const x0 = native.clientX
     const y0 = native.clientY
+    const thresholdSq = 7 * 7
+    let moved = false
     try {
       props.onHeaderDragStart?.({ pointerId, clientX: x0, clientY: y0 })
     } catch {
@@ -117,6 +163,7 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
       onMove: ev => {
         const dx = ev.clientX - x0
         const dy = ev.clientY - y0
+        if (!moved && dx * dx + dy * dy > thresholdSq) moved = true
         try {
           props.onHeaderDrag?.({ pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY, dx, dy })
         } catch {
@@ -124,6 +171,19 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
         }
       },
       onEnd: ev => {
+        if (!moved && safeOpenUrl && (ev.button === 0 || ev.button == null)) {
+          try {
+            ev.preventDefault()
+          } catch {
+            void 0
+          }
+          try {
+            ev.stopPropagation()
+          } catch {
+            void 0
+          }
+          openSafeUrl()
+        }
         try {
           props.onHeaderDragEnd?.({ pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY })
         } catch {
@@ -138,7 +198,7 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
         }
       },
     })
-  }, [installHeaderDrag, props])
+  }, [installHeaderDrag, openSafeUrl, props, safeOpenUrl])
 
   const onRootPointerDownCapture = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const native = e.nativeEvent
@@ -248,7 +308,7 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
         backfaceVisibility: 'hidden',
         WebkitBackfaceVisibility: 'hidden',
         willChange: 'left, top, transform, width, height',
-        pointerEvents: headerPassthrough ? 'none' : (contentInteractive ? 'auto' : 'none'),
+        pointerEvents: headerPassthrough ? 'none' : ((contentInteractive || canClickToOpen) ? 'auto' : 'none'),
         display: 'flex',
         flexDirection: 'column',
         opacity: hideUntilReady && !ready ? 0 : 1,
@@ -296,6 +356,20 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
               void 0
             }
           }}
+          onClick={installHeaderDrag ? undefined : (e => {
+            if (!safeOpenUrl) return
+            try {
+              e.preventDefault()
+            } catch {
+              void 0
+            }
+            try {
+              e.stopPropagation()
+            } catch {
+              void 0
+            }
+            openSafeUrl()
+          })}
           title={title}
           onPointerDown={installHeaderDrag ? onHeaderPointerDown : undefined}
         >
@@ -308,36 +382,104 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
           padding: 'var(--kg-media-panel-padding, 6px)',
           boxSizing: 'border-box',
           minHeight: 0,
+          position: 'relative',
           pointerEvents: headerPassthrough ? (contentInteractive ? 'auto' : 'none') : undefined,
         }}
       >
-        {kind === 'iframe' ? (
-          <RichMediaIframe
-            title={title}
-            url={proxiedUrl}
-            mode={mode}
+        {canClickToOpen ? (
+          <a
+            href={safeOpenUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={title}
             style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 2,
               display: 'block',
-              width: '100%',
-              height: '100%',
-              border: 0,
-              borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
+              pointerEvents: 'auto',
+              textDecoration: 'none',
               background: 'transparent',
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-              pointerEvents: forwardingEnabled ? 'none' : undefined,
+              cursor: 'pointer',
+              touchAction: 'none',
             }}
-            onLoad={() => setReady(true)}
+            onPointerDownCapture={e => {
+              try {
+                e.preventDefault()
+              } catch {
+                void 0
+              }
+              try {
+                e.stopPropagation()
+              } catch {
+                void 0
+              }
+            }}
+            onClick={e => {
+              try {
+                e.preventDefault()
+              } catch {
+                void 0
+              }
+              try {
+                e.stopPropagation()
+              } catch {
+                void 0
+              }
+              openSafeUrl()
+            }}
           />
+        ) : null}
+        {kind === 'iframe' ? (
+          !preferEmbed && iframeEmbed && !iframeEmbed.direct ? (
+            <WebpageSnapshotPreview
+              url={proxiedUrl}
+              title={title}
+              className="w-full h-full"
+              style={{
+                display: 'block',
+                width: '100%',
+                height: '100%',
+                border: 0,
+                borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
+                overflow: 'hidden',
+                background: 'transparent',
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+                pointerEvents: forwardingEnabled ? 'none' : undefined,
+              }}
+            />
+          ) : (
+            <RichMediaIframe
+              title={title}
+              url={proxiedUrl}
+              mode={mode}
+              style={{
+                display: 'block',
+                width: '100%',
+                height: '100%',
+                border: 0,
+                borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
+                background: 'transparent',
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+                pointerEvents: forwardingEnabled ? 'none' : undefined,
+                touchAction: 'auto',
+              }}
+              onLoad={() => setReady(true)}
+            />
+          )
         ) : kind === 'video' ? (
           <video
-            src={proxiedUrl}
+            src={mediaSrc}
             playsInline
             muted
             controls
             preload="metadata"
             onLoadedData={() => setReady(true)}
-            onError={() => setReady(true)}
+            onError={() => {
+              if (!fallbackToRawSrc()) setReady(true)
+            }}
             style={{
               display: 'block',
               width: '100%',
@@ -353,11 +495,13 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
           />
         ) : (
           <img
-            src={proxiedUrl}
+            src={mediaSrc}
             alt={title}
             loading="lazy"
             onLoad={() => setReady(true)}
-            onError={() => setReady(true)}
+            onError={() => {
+              if (!fallbackToRawSrc()) setReady(true)
+            }}
             style={{
               display: 'block',
               width: '100%',

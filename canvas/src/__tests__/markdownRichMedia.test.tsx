@@ -69,12 +69,12 @@ export async function testMarkdownPreviewRendersSvgAndIframeHtmlBlocks() {
     if (!svg) throw new Error('expected svg to be rendered')
     const iframe = container.querySelector('iframe')
     if (!iframe) throw new Error('expected iframe to be rendered')
-    const protocolIframe = (Array.from(container.querySelectorAll('iframe')) as unknown as HTMLIFrameElement[]).find(el =>
-      String(el.getAttribute('src') || '').includes('example.com/embed'),
+    const protocolSnapshot = (Array.from(container.querySelectorAll('[data-kg-webpage-snapshot="1"]')) as unknown as HTMLElement[]).find(el =>
+      String(el.getAttribute('data-src') || '').includes('example.com/embed'),
     )
-    if (!protocolIframe) throw new Error('expected protocol-relative iframe to be rendered')
-    if (!String(protocolIframe.getAttribute('src') || '').startsWith('https://')) {
-      throw new Error('expected protocol-relative iframe src to be normalized to https://')
+    if (!protocolSnapshot) throw new Error('expected protocol-relative iframe to render as snapshot preview')
+    if (!String(protocolSnapshot.getAttribute('data-src') || '').startsWith('https://')) {
+      throw new Error('expected protocol-relative iframe url to be normalized to https://')
     }
     const details = container.querySelector('details')
     if (!details) throw new Error('expected details to be rendered')

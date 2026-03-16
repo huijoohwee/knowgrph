@@ -1,5 +1,16 @@
 import { saveBlobWithPicker, downloadBlob } from '@/lib/graph/save'
 import type { UiToastInput } from '@/hooks/store/types'
+import { applyImageLikeProxySrc } from '@/lib/url'
+import { applyMediaProxySrc } from 'grph-shared/url'
+
+export type SnapshotInlineAssetKind = 'image' | 'media' | 'asset'
+
+export function resolveSnapshotInlineFetchUrl(absUrl: string, kind: SnapshotInlineAssetKind): string {
+  const u = String(absUrl || '').trim()
+  if (!u) return ''
+  if (kind === 'image') return applyImageLikeProxySrc(u)
+  return applyMediaProxySrc(u)
+}
 
 export async function exportHtmlViewerSnapshot(args: {
   exportBaseName: string
@@ -22,35 +33,35 @@ export async function exportHtmlViewerSnapshot(args: {
       })
     }
 
-    const tryInlineUrlAsData = async (url: string): Promise<string | null> => {
+    const tryInlineUrlAsData = async (cacheKey: string, fetchUrl: string): Promise<string | null> => {
       try {
-        const cached = assetCache.get(url)
+        const cached = assetCache.get(cacheKey)
         if (cached !== undefined) return cached
-        const resp = await fetch(url)
+        const resp = await fetch(fetchUrl)
         if (!resp.ok) {
-          assetCache.set(url, null)
+          assetCache.set(cacheKey, null)
           return null
         }
         const len = Number(resp.headers.get('content-length') || '')
         if (Number.isFinite(len) && len > 0 && len > MAX_INLINE_ASSET_BYTES) {
-          assetCache.set(url, null)
+          assetCache.set(cacheKey, null)
           return null
         }
         const blob = await resp.blob()
         if (blob.size > MAX_INLINE_ASSET_BYTES) {
-          assetCache.set(url, null)
+          assetCache.set(cacheKey, null)
           return null
         }
         const dataUrl = await blobToDataUrl(blob)
         if (!dataUrl.startsWith('data:')) return null
-        assetCache.set(url, dataUrl)
+        assetCache.set(cacheKey, dataUrl)
         return dataUrl
       } catch {
         return null
       }
     }
 
-    const inlineUrlString = async (rawUrl: string, baseUrl: string): Promise<string | null> => {
+    const inlineUrlString = async (rawUrl: string, baseUrl: string, kind: SnapshotInlineAssetKind): Promise<string | null> => {
       try {
         const u = String(rawUrl || '').trim()
         if (!u) return null
@@ -58,7 +69,8 @@ export async function exportHtmlViewerSnapshot(args: {
         if (u.startsWith('#')) return null
         if (/^javascript:/i.test(u)) return null
         const abs = new URL(u, baseUrl).toString()
-        return await tryInlineUrlAsData(abs)
+        const fetchUrl = resolveSnapshotInlineFetchUrl(abs, kind) || abs
+        return await tryInlineUrlAsData(abs, fetchUrl)
       } catch {
         return null
       }
@@ -71,7 +83,7 @@ export async function exportHtmlViewerSnapshot(args: {
           const src = String(img.getAttribute('src') || '').trim()
           if (!src) continue
           if (src.startsWith('data:') || src.startsWith('blob:')) continue
-          const dataUrl = await inlineUrlString(src, window.location.href)
+          const dataUrl = await inlineUrlString(src, window.location.href, 'image')
           if (!dataUrl) continue
           img.setAttribute('src', dataUrl)
           img.removeAttribute('srcset')
@@ -88,7 +100,7 @@ export async function exportHtmlViewerSnapshot(args: {
         try {
           const src = String(el.getAttribute('src') || '').trim()
           if (src) {
-            const dataUrl = await inlineUrlString(src, window.location.href)
+            const dataUrl = await inlineUrlString(src, window.location.href, 'media')
             if (dataUrl) el.setAttribute('src', dataUrl)
           }
         } catch {
@@ -101,7 +113,7 @@ export async function exportHtmlViewerSnapshot(args: {
         try {
           const src = String(s.getAttribute('src') || '').trim()
           if (!src) continue
-          const dataUrl = await inlineUrlString(src, window.location.href)
+          const dataUrl = await inlineUrlString(src, window.location.href, 'media')
           if (!dataUrl) continue
           s.setAttribute('src', dataUrl)
         } catch {
@@ -114,7 +126,7 @@ export async function exportHtmlViewerSnapshot(args: {
         try {
           const poster = String(v.getAttribute('poster') || '').trim()
           if (!poster) continue
-          const dataUrl = await inlineUrlString(poster, window.location.href)
+          const dataUrl = await inlineUrlString(poster, window.location.href, 'image')
           if (!dataUrl) continue
           v.setAttribute('poster', dataUrl)
         } catch {
@@ -144,7 +156,8 @@ export async function exportHtmlViewerSnapshot(args: {
       if (!unique.size) return raw
       const mapping = new Map<string, string>()
       for (const abs of unique) {
-        const dataUrl = await tryInlineUrlAsData(abs)
+        const fetchUrl = resolveSnapshotInlineFetchUrl(abs, 'asset') || abs
+        const dataUrl = await tryInlineUrlAsData(abs, fetchUrl)
         if (!dataUrl) continue
         mapping.set(abs, dataUrl)
       }
@@ -384,4 +397,3 @@ export async function exportHtmlViewerSnapshot(args: {
     void 0
   }
 }
-

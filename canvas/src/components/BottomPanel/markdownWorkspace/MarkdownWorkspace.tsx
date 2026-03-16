@@ -774,7 +774,6 @@ export function MarkdownWorkspace() {
             return upsertWebpageFrontmatterMeta(raw, {
               url: webpageWorkspaceMeta.url,
               view: 'markdown',
-              scriptPolicy: webpageWorkspaceMeta.scriptPolicy,
               includeImages: webpageWorkspaceMeta.includeImages,
               fidelityLevel: webpageWorkspaceMeta.fidelityLevel,
             })
@@ -785,7 +784,6 @@ export function MarkdownWorkspace() {
           return upsertWebpageFrontmatterMeta(String(res.markdown || ''), {
             url: webpageWorkspaceMeta.url,
             view: 'markdown',
-            scriptPolicy: webpageWorkspaceMeta.scriptPolicy,
             includeImages: webpageWorkspaceMeta.includeImages,
             fidelityLevel: webpageWorkspaceMeta.fidelityLevel,
           })
@@ -821,7 +819,7 @@ export function MarkdownWorkspace() {
   )
 
   const updateActiveWebpageWorkspaceMeta = React.useCallback(
-    async (patch: { scriptPolicy?: 'strip' | 'allow'; includeImages?: boolean; fidelityLevel?: 1 | 2 | 3 | 4 }) => {
+    async (patch: { fidelityLevel?: 1 | 2 | 3 | 4 }) => {
       if (!activePath || !webpageWorkspaceMeta) return
       try {
         setStatusProgress('Updating view')
@@ -849,8 +847,6 @@ export function MarkdownWorkspace() {
           url: meta.url,
           view: meta.view,
           siteRootRel: meta.siteRootRel,
-          scriptPolicy: patch.scriptPolicy,
-          includeImages: patch.includeImages,
           fidelityLevel: patch.fidelityLevel,
         })
         await fs.writeFileText(activePath, nextText)

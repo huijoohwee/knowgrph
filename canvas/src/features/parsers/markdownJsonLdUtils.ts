@@ -1,4 +1,6 @@
-import { isLikelyImageUrl, isYouTubeUrl } from '@/lib/url'
+import { isLikelyImageUrl } from '@/lib/url'
+import { extractHtmlAttr, extractScriptEmbedAnchorHref } from 'grph-shared/markdown/mediaHtml'
+import { buildBilibiliEmbedUrl, buildTwitterEmbedUrl, buildVimeoEmbedUrl, buildYouTubeEmbedUrl } from 'grph-shared/rich-media/providers'
 
 export { slugify } from 'grph-shared/markdown/slugify'
 
@@ -21,12 +23,6 @@ export const coerceMarkdownParenUrl = (raw: string): string => {
     trimmed.startsWith('<') && trimmed.endsWith('>') ? trimmed.slice(1, -1).trim() : trimmed
   const firstToken = unwrapped.split(/\s+/)[0] || ''
   return firstToken.trim()
-}
-
-export const extractHtmlAttr = (html: string, attr: string): string => {
-  const re = new RegExp(`${attr}\\s*=\\s*(?:"([^"]+)"|'([^']+)'|([^\\s>]+))`, 'i')
-  const m = String(html || '').match(re)
-  return String(m?.[1] ?? m?.[2] ?? m?.[3] ?? '').trim()
 }
 
 export const extractMarkdownInlineRefs = (
@@ -86,6 +82,21 @@ export const extractMarkdownInlineRefs = (
   while ((match = htmlIframeRe.exec(raw))) {
     const tag = match[0] || ''
     const src = extractHtmlAttr(tag, 'src') || extractHtmlAttr(tag, 'data-src')
+    if (!src) continue
+    const url = resolveUrl(baseUrl, src)
+    if (!url) continue
+    const key = `iframe:${url}`
+    if (!seenMedia.has(key)) {
+      seenMedia.add(key)
+      images.push({ alt: 'iframe', url })
+    }
+  }
+
+  const htmlEmbedLikeRe = /<(?:embed|object)\b[^>]*>/gi
+  htmlEmbedLikeRe.lastIndex = 0
+  while ((match = htmlEmbedLikeRe.exec(raw))) {
+    const tag = match[0] || ''
+    const src = extractHtmlAttr(tag, 'src') || extractHtmlAttr(tag, 'data') || extractHtmlAttr(tag, 'data-src')
     if (!src) continue
     const url = resolveUrl(baseUrl, src)
     if (!url) continue
@@ -192,6 +203,18 @@ export const extractMarkdownInlineRefs = (
     images.push({ alt: '', url: resolved })
   }
 
+  const scriptEmbedHref = extractScriptEmbedAnchorHref(raw)
+  if (scriptEmbedHref) {
+    const resolved = resolveUrl(baseUrl, scriptEmbedHref)
+    if (resolved) {
+      const key = `iframe:${resolved}`
+      if (!seenMedia.has(key)) {
+        seenMedia.add(key)
+        images.push({ alt: 'iframe', url: resolved })
+      }
+    }
+  }
+
   return { links, images }
 }
 
@@ -224,32 +247,9 @@ export const classifyMediaFromAltAndUrl = (
 ): { type: 'Image' | 'Video' | 'IFrame'; props: Record<string, unknown> } => {
   const altRaw = String(alt || '')
   const altNorm = altRaw.trim().toLowerCase()
-  const yt = (() => {
-    try {
-      if (!isYouTubeUrl(url)) return ''
-      const u = new URL(url)
-      const host = u.hostname.toLowerCase()
-      if (host === 'youtu.be' || host === 'www.youtu.be') return u.pathname.replace(/^\/+/, '').trim()
-      if (host === 'youtube.com' || host.endsWith('.youtube.com')) return String(u.searchParams.get('v') || '').trim()
-      return ''
-    } catch {
-      return ''
-    }
-  })()
-  const tweetId = (() => {
-    try {
-      const u = new URL(url)
-      const host = u.hostname.toLowerCase()
-      const isX = host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com')
-      if (!isX) return ''
-      const m = u.pathname.match(/\/status\/(\d+)(?:\/|$)/)
-      return m && m[1] ? m[1] : ''
-    } catch {
-      return ''
-    }
-  })()
-  if (yt) {
-    const embed = `https://www.youtube.com/embed/${yt}`
+  const youtube = buildYouTubeEmbedUrl(url, { noCookie: true, includeOrigin: false })
+  if (youtube) {
+    const embed = youtube
     return {
       type: 'IFrame',
       props: {
@@ -264,8 +264,45 @@ export const classifyMediaFromAltAndUrl = (
       },
     }
   }
-  if (tweetId) {
-    const embed = `https://platform.twitter.com/embed/Tweet.html?id=${tweetId}`
+  const tweet = buildTwitterEmbedUrl(url)
+  if (tweet) {
+    const embed = tweet
+    return {
+      type: 'IFrame',
+      props: {
+        url,
+        alt,
+        media_url: embed,
+        media: embed,
+        'visual:shape': 'rect',
+        media_kind: 'iframe',
+        iframe_url: embed,
+        original_url: url,
+      },
+    }
+  }
+
+  const vimeo = buildVimeoEmbedUrl(url)
+  if (vimeo) {
+    const embed = vimeo
+    return {
+      type: 'IFrame',
+      props: {
+        url,
+        alt,
+        media_url: embed,
+        media: embed,
+        'visual:shape': 'rect',
+        media_kind: 'iframe',
+        iframe_url: embed,
+        original_url: url,
+      },
+    }
+  }
+
+  const bilibili = buildBilibiliEmbedUrl(url)
+  if (bilibili) {
+    const embed = bilibili
     return {
       type: 'IFrame',
       props: {

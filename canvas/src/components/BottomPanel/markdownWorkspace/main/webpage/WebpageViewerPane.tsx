@@ -1,4 +1,5 @@
 import React from 'react'
+import { resolveIframeSandbox } from 'grph-shared/rich-media/iframe'
 
 export function WebpageViewerPane(props: {
   url: string
@@ -21,12 +22,12 @@ export function WebpageViewerPane(props: {
         title={props.url || 'Webpage'}
         src={props.iframeSrc || undefined}
         srcDoc={props.iframeSrcDoc || undefined}
-        sandbox="allow-scripts"
+        sandbox={resolveIframeSandbox('proxied')}
         loading="lazy"
-        allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"
+        allow="fullscreen; geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"
+        allowFullScreen
         referrerPolicy="no-referrer"
       />
     </section>
   )
 }
-

@@ -3,7 +3,8 @@ import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
 import { coerceMediaUrl } from '@/lib/url'
 import { inferMediaKindFromResourceUrl, prefersIframeFromLinkContext } from '@/lib/graph/mediaUrlKind'
 import { inferMediaKindFromUrl } from 'grph-shared/rich-media/mediaKind'
-import { isSafeIframeUrl, normalizeIframeUrl } from 'grph-shared/rich-media/iframe'
+import { isSafeIframeUrl, normalizeIframeUrl, resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
+import { buildBilibiliEmbedUrl, buildTwitterEmbedUrl, buildVimeoEmbedUrl, buildYouTubeEmbedUrl } from 'grph-shared/rich-media/providers'
 
 export type NodeMediaKind = 'image' | 'svg' | 'video' | 'iframe'
 
@@ -15,6 +16,53 @@ export type NodeMediaSpec = {
 
 const mediaSpecCache = new WeakMap<GraphNode, { cacheKey: string; spec: NodeMediaSpec | null }>()
 
+function normalizeExternalUrl(u: string): string {
+  const trimmed = String(u || '').trim()
+  if (!trimmed) return ''
+  if (trimmed.startsWith('//')) return `https:${trimmed}`
+  return trimmed
+}
+
+function extractStandaloneMarkdownLinkUrl(text: string): string {
+  const raw = String(text || '')
+  const m = raw.match(/^\s*\[[^\]]+\]\(([^)]+)\)\s*$/)
+  if (!m || !m[1]) return ''
+  return String(m[1]).trim()
+}
+
+function extractFirstMarkdownMediaUrl(text: string): { kind: NodeMediaKind; url: string } | null {
+  const raw = String(text || '')
+  if (!raw.trim()) return null
+
+  const standaloneLink = extractStandaloneMarkdownLinkUrl(raw)
+  if (standaloneLink) {
+    const resolved = normalizeExternalUrl(standaloneLink)
+    const yt = buildYouTubeEmbedUrl(resolved, { noCookie: false, includeOrigin: false })
+    if (yt) return { kind: 'iframe', url: yt }
+    const x = buildTwitterEmbedUrl(resolved)
+    if (x) return { kind: 'iframe', url: x }
+    const vimeo = buildVimeoEmbedUrl(resolved)
+    if (vimeo) return { kind: 'iframe', url: vimeo }
+    const bili = buildBilibiliEmbedUrl(resolved)
+    if (bili) return { kind: 'iframe', url: bili }
+    return { kind: 'iframe', url: resolved }
+  }
+
+  const iframeMatch = raw.match(/<iframe\b[^>]*\bsrc=("|')([^"']+)("|')[^>]*>/i)
+  if (iframeMatch) {
+    const u = String(iframeMatch[2] || '').trim()
+    if (u) return { kind: 'iframe', url: u }
+  }
+
+  const imgMatch = raw.match(/!\[[^\]]*\]\(([^)]+)\)/)
+  if (imgMatch) {
+    const u = String(imgMatch[1] || '').trim()
+    if (u) return { kind: 'image', url: u }
+  }
+
+  return null
+}
+
 function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
   return [
     node.id,
@@ -24,13 +72,18 @@ function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
     props.media_url,
     props.iframe_url,
     props.image,
+    props.image_url,
     props.video,
+    props.video_url,
     props.media,
     props.url,
+    props.src,
     props.label,
     props['dom:tag'],
     props['dom:attrs:src'],
     props.media_interactive,
+    props.text,
+    props.markdown,
   ]
     .map(v => String(v ?? ''))
     .join('\n')
@@ -45,14 +98,48 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const iframeUrl = coerceMediaUrl((props as Record<string, unknown>).iframe_url)
   const mediaUrl = coerceMediaUrl((props as Record<string, unknown>).media_url)
   const imageUrl = coerceMediaUrl((props as Record<string, unknown>).image)
+  const imageUrlLegacy = coerceMediaUrl((props as Record<string, unknown>).image_url)
   const videoUrl = coerceMediaUrl((props as Record<string, unknown>).video)
+  const videoUrlLegacy = coerceMediaUrl((props as Record<string, unknown>).video_url)
   const generic = coerceMediaUrl((props as Record<string, unknown>).media)
+  const srcUrl = coerceMediaUrl((props as Record<string, unknown>).src)
   const linkUrl = coerceMediaUrl((props as Record<string, unknown>).url)
   const linkLabel = String((props as Record<string, unknown>).label || node.label || '').trim()
 
+  let markdownMedia: { kind: NodeMediaKind; url: string } | null = null
+  const getMarkdownMediaOnce = () => {
+    if (markdownMedia !== null) return markdownMedia
+    const t = (props as Record<string, unknown>).text
+    const m = (props as Record<string, unknown>).markdown
+    const rawText = typeof t === 'string' ? t : typeof m === 'string' ? m : ''
+    const extracted = extractFirstMarkdownMediaUrl(rawText)
+    if (!extracted) {
+      markdownMedia = null
+      return null
+    }
+    const coerced = coerceMediaUrl(extracted.url)
+    if (!coerced) {
+      markdownMedia = null
+      return null
+    }
+    markdownMedia = { kind: extracted.kind, url: coerced }
+    return markdownMedia
+  }
+
   const inferredLinkKind = inferMediaKindFromResourceUrl(linkUrl || '')
   const inferLinkAsIframe = inferredLinkKind == null && prefersIframeFromLinkContext({ label: linkLabel, url: linkUrl || undefined })
-  const url = iframeUrl || mediaUrl || imageUrl || videoUrl || generic || (inferredLinkKind || inferLinkAsIframe ? linkUrl : null)
+  let url =
+    iframeUrl
+    || mediaUrl
+    || imageUrl
+    || imageUrlLegacy
+    || videoUrl
+    || videoUrlLegacy
+    || generic
+    || srcUrl
+    || (inferredLinkKind || inferLinkAsIframe ? linkUrl : null)
+
+  if (!url) url = getMarkdownMediaOnce()?.url || null
 
   const domTag = (() => {
     const t = (props as Record<string, unknown>)['dom:tag']
@@ -89,7 +176,7 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     ? kindForced
     : iframeUrl
       ? 'iframe'
-      : videoUrl
+      : (videoUrl || videoUrlLegacy)
         ? 'video'
         : domKindForced
           ? domKindForced
@@ -97,7 +184,7 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
             ? inferredLinkKind
             : inferLinkAsIframe
               ? 'iframe'
-              : ((inferMediaKindFromUrl(resolvedUrl) || 'image') as NodeMediaKind)
+              : (getMarkdownMediaOnce()?.kind || ((inferMediaKindFromUrl(resolvedUrl) || 'image') as NodeMediaKind))
 
   const rawInteractive = (props as Record<string, unknown>).media_interactive
   const explicitInteractive = rawInteractive === true ? true : rawInteractive === false ? false : null
@@ -105,14 +192,13 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
 
   if (kind === 'iframe') {
     const normalized = normalizeIframeUrl(resolvedUrl)
-    if (
-      !isSafeIframeUrl(normalized, {
-        allowedHostsCsv: IFRAME_ALLOWED_HOSTS,
-        allowYouTube: false,
-        allowInternalPaths: true,
-      })
-    )
-      return null
+    const embed = resolveIframeEmbed({ url: normalized })
+    const enforceAllowedHosts = embed.direct
+    if (!isSafeIframeUrl(embed.iframeSrc, {
+      allowedHostsCsv: enforceAllowedHosts ? IFRAME_ALLOWED_HOSTS : '',
+      allowYouTube: true,
+      allowInternalPaths: true,
+    })) return null
     return { kind, url: normalized, interactive }
   }
 

@@ -383,6 +383,8 @@ export interface GraphState {
   mediaPanelDensity: 'default' | 'compact';
   threeIframeOverlayPoolMax: number;
   setThreeIframeOverlayPoolMax: (v: number) => void;
+  richMediaPanelMode: 'snapshot' | 'embed';
+  setRichMediaPanelMode: (v: 'snapshot' | 'embed') => void;
   threeIframeOverlayMaxVisibleDefault: number;
   setThreeIframeOverlayMaxVisibleDefault: (v: number) => void;
   threeIframeOverlayMaxVisibleCompact: number;

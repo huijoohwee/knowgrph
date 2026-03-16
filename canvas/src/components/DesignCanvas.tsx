@@ -917,7 +917,8 @@ export default function DesignCanvas({
     const poolMaxRaw =
       typeof snapshot.threeIframeOverlayPoolMax === 'number' && Number.isFinite(snapshot.threeIframeOverlayPoolMax) ? snapshot.threeIframeOverlayPoolMax : 0
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
-    return listMediaOverlayNodes({ enabled: true, nodes, poolMax })
+    const enabled = snapshot.renderMediaAsNodes === true
+    return listMediaOverlayNodes({ enabled, nodes, poolMax })
   }, [localGraphData, snapshot.renderMediaAsNodes, snapshot.threeIframeOverlayPoolMax])
 
   const designMediaOverlayElsRef = useRef<Map<string, HTMLDivElement>>(new Map())
@@ -3800,6 +3801,7 @@ export default function DesignCanvas({
                 className="absolute left-0 top-0 pointer-events-auto"
                 title={n.title}
                 url={n.url}
+                openUrl={n.openUrl}
                 kind={n.kind}
                 interactive={n.interactive}
                 hideUntilReady={true}

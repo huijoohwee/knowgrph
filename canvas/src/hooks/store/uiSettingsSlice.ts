@@ -102,6 +102,16 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   mediaPanelDensity: 'default' as const,
   setMediaPanelDensity: (v: 'default' | 'compact') => set({ mediaPanelDensity: v }),
 
+  richMediaPanelMode: (() => {
+    const raw = readLsString(LS_KEYS.renderRichMediaPanelMode, 'snapshot')
+    return (raw === 'embed' ? 'embed' : 'snapshot') as 'snapshot' | 'embed'
+  })(),
+  setRichMediaPanelMode: (v: 'snapshot' | 'embed') => {
+    const next = v === 'embed' ? 'embed' : 'snapshot'
+    writeLsString(LS_KEYS.renderRichMediaPanelMode, next)
+    set({ richMediaPanelMode: next })
+  },
+
   threeIframeOverlayPoolMax: clampInt(lsInt(LS_KEYS.renderThreeIframeOverlayPoolMax, 24), 24, { min: 1, max: 200 }),
   setThreeIframeOverlayPoolMax: (v: number) => set({ threeIframeOverlayPoolMax: lsSetInt(LS_KEYS.renderThreeIframeOverlayPoolMax, v, { min: 1, max: 200 }) }),
 

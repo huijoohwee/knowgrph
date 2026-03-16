@@ -12,6 +12,36 @@ type IframeSrcDocResult = { srcDoc: string; scriptPolicy: 'strip' | 'allow' }
 const iframeSrcDocCache = new Map<string, { value: IframeSrcDocResult; updatedAtMs: number }>()
 const iframeSrcDocInFlight = new Map<string, Promise<IframeSrcDocResult>>()
 
+function linkAbortSignals(parent: AbortSignal, child: AbortController): () => void {
+  if (parent.aborted) {
+    try {
+      child.abort()
+    } catch {
+      void 0
+    }
+    return () => void 0
+  }
+  const onAbort = () => {
+    try {
+      child.abort()
+    } catch {
+      void 0
+    }
+  }
+  try {
+    parent.addEventListener('abort', onAbort, { once: true })
+  } catch {
+    void 0
+  }
+  return () => {
+    try {
+      parent.removeEventListener('abort', onAbort)
+    } catch {
+      void 0
+    }
+  }
+}
+
 function readCachedIframeSrcDoc(url: string): IframeSrcDocResult | null {
   const entry = iframeSrcDocCache.get(url)
   if (!entry) return null
@@ -57,16 +87,21 @@ export async function buildIframeSrcDocForUrl(args: {
 
   const promise: Promise<IframeSrcDocResult> = (async () => {
     const ctrl = new AbortController()
-    const html = await fetchWebpageHtmlViaProxy({ url: raw, signal: ctrl.signal })
-    const scriptPolicy = inferIframeScriptPolicyFromHtml(html)
-    const built = await buildWebpageHtmlSrcdocAsync({ html, baseHref: raw, scriptPolicy })
-    return { srcDoc: built.tooLargeForSrcdoc ? '' : built.html, scriptPolicy }
+    const detachAbort = linkAbortSignals(args.signal, ctrl)
+    try {
+      const html = await fetchWebpageHtmlViaProxy({ url: raw, signal: ctrl.signal })
+      const scriptPolicy = inferIframeScriptPolicyFromHtml(html)
+      const built = await buildWebpageHtmlSrcdocAsync({ html, baseHref: raw, scriptPolicy })
+      return { srcDoc: built.tooLargeForSrcdoc ? '' : built.html, scriptPolicy }
+    } finally {
+      detachAbort()
+    }
   })()
 
   iframeSrcDocInFlight.set(cacheKey, promise)
   try {
     const result = await promise
-    if (result.srcDoc) writeCachedIframeSrcDoc(cacheKey, result)
+    writeCachedIframeSrcDoc(cacheKey, result)
     if (args.signal.aborted) return { srcDoc: '', scriptPolicy: 'strip' }
     return result
   } finally {

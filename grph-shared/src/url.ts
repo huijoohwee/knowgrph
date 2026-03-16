@@ -246,6 +246,8 @@ export function isDirectIframeEmbedUrl(url: string): boolean {
   if (/(^|\/\/)player\.vimeo\.com\//i.test(u)) return true
   if (/(^|\/\/)platform\.twitter\.com\//i.test(u)) return true
   if (/(^|\/\/)twitframe\.com\//i.test(u)) return true
+  if (/(^|\/\/)player\.bilibili\.com\//i.test(u)) return true
+  if (/(^|\/\/)(www\.)?linkedin\.com\/embed\//i.test(u)) return true
   return false
 }
 

@@ -153,6 +153,14 @@ export async function testMarkdownStandaloneLinkWebpageIngestionProducesIframeNo
     '',
     '[Tweet](https://x.com/HuiJooHwee/status/2023774971982672097?s=20)',
     '',
+    '[Bilibili](https://www.bilibili.com/video/BV15KqbBaEAG)',
+    '',
+    '<iframe src="https://www.linkedin.com/embed/feed/update/urn:li:ugcPost:7423892590258798592" height="800" width="504" frameborder="0" allowfullscreen="" title="Embedded post"></iframe>',
+    '',
+    '<blockquote class="reddit-embed-bq" data-embed-height="969">',
+    '<a href="https://www.reddit.com/r/Trae_ai/comments/1ovcca2/comment/nojw5gz/">Comment</a>',
+    '</blockquote><script async src="https://embed.reddit.com/widgets.js" charset="UTF-8"></script>',
+    '',
   ].join('\n')
 
   const jsonld = buildMarkdownJsonLd('https://example.invalid/doc.md', markdown)
@@ -180,6 +188,25 @@ export async function testMarkdownStandaloneLinkWebpageIngestionProducesIframeNo
     return String(props.media_kind || '') === 'iframe' && String(props.iframe_url || '').includes('platform.twitter.com/embed/Tweet.html?id=2023774971982672097')
   })
   if (!hasTweetEmbed) throw new Error('expected x.com status to ingest as platform.twitter.com tweet iframe embed')
+
+  const hasBilibiliEmbed = nodes.some(n => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    const src = String(props.iframe_url || '')
+    return String(props.media_kind || '') === 'iframe' && src.includes('player.bilibili.com/player.html') && src.includes('bvid=BV15KqbBaEAG')
+  })
+  if (!hasBilibiliEmbed) throw new Error('expected bilibili standalone link to ingest as player.bilibili.com iframe embed')
+
+  const hasLinkedInEmbed = nodes.some(n => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    return String(props.media_kind || '') === 'iframe' && String(props.iframe_url || '').includes('linkedin.com/embed/feed/update/')
+  })
+  if (!hasLinkedInEmbed) throw new Error('expected linkedin embed iframe to ingest as iframe media node')
+
+  const hasRedditScriptEmbed = nodes.some(n => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    return String(props.media_kind || '') === 'iframe' && String(props.iframe_url || '').includes('reddit.com/r/Trae_ai/comments/1ovcca2/comment/nojw5gz/')
+  })
+  if (!hasRedditScriptEmbed) throw new Error('expected reddit script embed to ingest as iframe media node')
 
   await Promise.resolve()
 }

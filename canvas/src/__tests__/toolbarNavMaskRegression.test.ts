@@ -9,7 +9,7 @@ export function testToolbarNavMasksCanvasUnderlay() {
   } catch {
     throw new Error(`Expected to read ${filePath}`)
   }
-  if (!text.includes('relative flex h-screen w-screen')) {
+  if (!text.includes('relative flex h-screen w-full')) {
     throw new Error('Expected root canvas container to be positioned (relative) so split-mode header can overlay the canvas')
   }
   if (!text.includes('bg-transparent')) {
@@ -21,7 +21,7 @@ export function testToolbarNavMasksCanvasUnderlay() {
   if (!text.includes('pointer-events-auto')) {
     throw new Error('Expected toolbar content to remain interactive inside a pointer-events-none nav wrapper')
   }
-  if (!text.includes('header className="absolute top-0 inset-x-0 z-[400]"')) {
+  if (!text.includes('header className="absolute top-0 inset-x-0 z-[400]')) {
     throw new Error('Expected workspace toolbar header to be an absolute overlay in editor/table mode')
   }
   if (!text.includes('absolute top-0 inset-x-0 z-[200]')) {

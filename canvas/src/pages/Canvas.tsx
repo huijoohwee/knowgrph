@@ -890,7 +890,7 @@ export default function CanvasPage() {
       <SourceFilesPersistenceBootstrap />
       <SsotEventBridge />
       <section
-        className="relative flex h-screen w-screen flex-col overflow-hidden bg-[var(--kg-canvas-bg)] transition-colors duration-300"
+        className="relative flex h-screen w-full max-w-full flex-col overflow-hidden bg-[var(--kg-canvas-bg)] transition-colors duration-300"
         aria-label="Knowgrph Canvas"
       >
         {isEmbeddedPreview ? (

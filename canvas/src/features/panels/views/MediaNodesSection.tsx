@@ -242,7 +242,7 @@ export default function MediaNodesSection({
                 'text-gray-600',
               ].join(' ')}
             >
-              Iframe allowlist (VITE_IFRAME_ALLOWED_HOSTS)
+              Iframe allowlist (direct embeds)
             </span>
             <span
               className={[
@@ -253,7 +253,7 @@ export default function MediaNodesSection({
             >
               {hasIframeHosts
                 ? iframeHostList.join(', ')
-                : 'Disabled — set VITE_IFRAME_ALLOWED_HOSTS for iframe media panels'}
+                : 'Unrestricted — set VITE_IFRAME_ALLOWED_HOSTS to limit direct embeds'}
             </span>
             {!hasIframeHosts && (
               <span
@@ -263,7 +263,7 @@ export default function MediaNodesSection({
                   'text-gray-500',
                 ].join(' ')}
               >
-                Local dev/test example: VITE_IFRAME_ALLOWED_HOSTS=www.youtube.com,youtu.be,vimeo.com
+                Non-direct iframes load via /__webpage_proxy by default.
               </span>
             )}
           </div>

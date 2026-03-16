@@ -39,6 +39,7 @@ import { testMarkdownPreviewRendersInlineHtmlRichMedia } from '@/__tests__/markd
 import { testMarkdownPreviewRendersHtmlGridWithCalcGapImportant } from '@/__tests__/markdownHtmlGridCalcGapPreview.test'
 import { testHtmlToMarkdownUnifiedPreservesGridSectionsAsHtml } from '@/__tests__/htmlToMarkdownUnifiedLayoutPreserve.test'
 import { testHtmlToMarkdownUnifiedRewritesSrcsetPosterAndDataSrc } from '@/__tests__/htmlToMarkdownUnifiedUrlRewrite.test'
+import { testMarkdownPreviewRendersWebpageSnapshotForStandaloneLinkAndScriptEmbed } from '@/__tests__/markdownEmbedSnapshotPreview.test'
 import {
   testMarkdownNormalizeAsciiBlocksWrapsPipeLayoutAndBoxDrawing,
   testMarkdownPreviewLexNormalizesAsciiBlocksToAsciiLangCodeTokens,
@@ -80,6 +81,7 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.preview.htmlTableDivAndPicture', testMarkdownPreviewRendersHtmlTableDivAndPictureSources)
   await execTest(results, 'markdown.preview.inlineHtmlRichMedia', testMarkdownPreviewRendersInlineHtmlRichMedia)
   await execTest(results, 'markdown.preview.htmlGridCalcGapImportant', testMarkdownPreviewRendersHtmlGridWithCalcGapImportant)
+  await execTest(results, 'markdown.preview.webpageSnapshotEmbeds', testMarkdownPreviewRendersWebpageSnapshotForStandaloneLinkAndScriptEmbed)
   await execTest(results, 'markdown.preview.pipelinePreservesGridHtml', testHtmlToMarkdownUnifiedPreservesGridSectionsAsHtml)
   await execTest(results, 'markdown.htmlToMdUnified.urlRewrite', testHtmlToMarkdownUnifiedRewritesSrcsetPosterAndDataSrc)
 }

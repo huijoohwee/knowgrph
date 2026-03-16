@@ -136,6 +136,16 @@ export async function testPreviewPanelStandaloneLinkWebpageAndTweetSelectable() 
     const state = useGraphStore.getState()
     state.setGraphData({ type: 'Graph', nodes: [], edges: [] })
     state.setMarkdownDocument('doc.md', markdown)
+    try {
+      state.setFrontmatterModeEnabled(false)
+    } catch {
+      void 0
+    }
+    try {
+      useGraphStore.setState({ frontmatterModeEnabled: false })
+    } catch {
+      void 0
+    }
     state.setMarkdownPreviewMermaidFocus(null)
     state.setMarkdownPreviewActiveMediaKey(null)
 
@@ -148,6 +158,22 @@ export async function testPreviewPanelStandaloneLinkWebpageAndTweetSelectable() 
 
     webpageCard.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
     await waitForNextFrame(dom.window)
+
+    const loadButtons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
+    const loadEmbed = loadButtons.find(btn => String(btn.textContent || '').toLowerCase().includes('load embed'))
+    if (!loadEmbed) {
+      const sample = loadButtons
+        .map(b => String(b.textContent || '').replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .slice(0, 30)
+        .join(' | ')
+      throw new Error(`load embed button not found. buttons=${sample}`)
+    }
+    loadEmbed.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    await waitForNextFrame(dom.window)
+
+    const mediaHeader = doc.querySelector('[data-kg-media-panel-header="1"]')
+    if (!mediaHeader) throw new Error('expected RichMediaPanel header in active media preview')
 
     const expectedWebpageKey = buildMarkdownPreviewMediaKey(
       'webpage',

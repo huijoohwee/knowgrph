@@ -1,4 +1,5 @@
 import { buildWebpageAssetPathProxyUrl, isWeChatHotlinkProtectedAssetUrl } from '@/lib/url'
+import { pickFirstSrcsetUrl } from 'grph-shared/markdown/mediaHtml'
 
 export type WebpageSandboxScriptPolicy = 'strip' | 'allow'
 
@@ -201,14 +202,6 @@ const promoteLazyLoadedImages = (html: string): string => {
     const hasUsableSrc = !!srcValue && !/^data:/i.test(srcValue)
     if (hasUsableSrc) return tag
 
-    const pickFirstUrlFromSrcset = (srcset: string): string => {
-      const s = String(srcset || '').trim()
-      if (!s) return ''
-      const first = s.split(',')[0] || ''
-      const token = first.trim().split(/\s+/)[0] || ''
-      return token.trim()
-    }
-
     const dataSrcMatch = /\bdata-(src|original|actualsrc)\s*=\s*("([^"]*)"|'([^']*)')/i.exec(tag)
     const dataSrcValue = dataSrcMatch ? (dataSrcMatch[3] ?? dataSrcMatch[4] ?? '') : ''
     const dataSrcsetMatch = /\bdata-srcset\s*=\s*("([^"]*)"|'([^']*)')/i.exec(tag)
@@ -216,7 +209,7 @@ const promoteLazyLoadedImages = (html: string): string => {
     const srcsetMatch = /\bsrcset\s*=\s*("([^"]*)"|'([^']*)')/i.exec(tag)
     const srcsetValue = srcsetMatch ? (srcsetMatch[2] ?? srcsetMatch[3] ?? '') : ''
 
-    const candidateRaw = dataSrcValue || pickFirstUrlFromSrcset(dataSrcsetValue) || pickFirstUrlFromSrcset(srcsetValue)
+    const candidateRaw = dataSrcValue || pickFirstSrcsetUrl(dataSrcsetValue) || pickFirstSrcsetUrl(srcsetValue)
     const normalizedCandidate = normalizeInlineUrl(candidateRaw)
     if (!isSafeSrc(normalizedCandidate)) return tag
 

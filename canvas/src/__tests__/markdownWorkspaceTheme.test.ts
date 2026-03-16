@@ -45,3 +45,14 @@ export const testMarkdownPreviewViewerForcesPrimaryTextColor = () => {
     throw new Error('Markdown panel layout should apply UI_THEME_TOKENS.text.primary at the frame level')
   }
 }
+
+export const testMarkdownWorkspaceToolbarAutoRoutesImageModeWithoutManualSelector = () => {
+  const toolbarPath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'MarkdownWorkspaceToolbar.tsx')
+  const toolbar = readUtf8(toolbarPath)
+  if (toolbar.includes('Imgs: Auto') || toolbar.includes('Imgs: On') || toolbar.includes('Imgs: Off')) {
+    throw new Error('Workspace toolbar should not expose manual image mode selector labels')
+  }
+  if (!toolbar.includes('Fid: Auto')) {
+    throw new Error('Workspace toolbar should keep fidelity auto selector for webpage conversion routing')
+  }
+}

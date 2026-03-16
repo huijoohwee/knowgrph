@@ -13,7 +13,7 @@ from .common import (
     slugify,
     utc_now_iso,
 )
-from .markdown_blocks import Block, parse_blocks, split_lines, parse_frontmatter, extract_links
+from .markdown_blocks import Block, parse_blocks, split_lines, parse_frontmatter, extract_images, extract_links
 from .config_utils import (
     env_float,
     env_int,
@@ -22,7 +22,6 @@ from .config_utils import (
     parse_float,
     parse_int,
 )
-from .semantic_processor import process_semantics
 
 def _make_meta(
     start_line: int,
@@ -105,6 +104,7 @@ def _process_blocks(
     current_section_id: str = doc_node_id
     last_block_id: Optional[str] = None
     block_index_by_parent: Dict[str, int] = {}
+    node_id_set = {str(n.get("@id")) for n in nodes if isinstance(n, dict) and n.get("@id")}
 
     for b in blocks:
         start_line = b.start_line + content_start
@@ -180,7 +180,7 @@ def _process_blocks(
 
             for label, url in extract_links(b.text):
                 link_id = f"link:{slugify(url)}"
-                if not any(n.get("@id") == link_id for n in nodes):
+                if link_id not in node_id_set:
                     nodes.append({
                         "@id": link_id,
                         "@type": "Link",
@@ -190,7 +190,32 @@ def _process_blocks(
                         "properties": {"url": url, "label": label},
                         "metadata": meta_block,
                     })
+                    node_id_set.add(link_id)
                 _add_edge(edges, p_id, "linksTo", link_id, props={"text": label}, meta=meta_block)
+
+            for alt, url in extract_images(b.text):
+                img_id = f"img:{slugify(url)}"
+                if img_id not in node_id_set:
+                    name = (alt or url).strip() if isinstance(alt, str) else url
+                    nodes.append({
+                        "@id": img_id,
+                        "@type": "Image",
+                        "labels": ["Image"],
+                        "name": name,
+                        "chunk_text": name[:800] if isinstance(name, str) else "",
+                        "properties": {
+                            "url": url,
+                            "alt": alt,
+                            "media_kind": "image",
+                            "media_url": url,
+                            "media": url,
+                            "image": url,
+                            "visual:shape": "rect",
+                        },
+                        "metadata": meta_block,
+                    })
+                    node_id_set.add(img_id)
+                _add_edge(edges, p_id, "embedsImage", img_id, props={"alt": alt}, meta=meta_block)
             continue
 
         if b.kind == "code":
@@ -430,6 +455,8 @@ def parse_markdown_text_to_graph_jsonld(
 
     semantic_doc_profile: Dict[str, Any] = {}
     if sem_enabled:
+        from .semantic_processor import process_semantics
+
         semantic_doc_profile = process_semantics(
             semantic_sources,
             sem_defaults,

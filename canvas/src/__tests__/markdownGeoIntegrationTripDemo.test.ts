@@ -2,6 +2,7 @@ import { loadDatasetFeatureCollection, LS_KEYS, parseGeoJsonFromText } from 'gym
 import { createMarkdownGeoDatasetIntegration } from '@/features/geospatial/markdownGeoDatasetIntegration'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
+import path from 'node:path'
 import {
   readTripDemo,
   readTripDemoMmd,
@@ -10,6 +11,7 @@ import {
 } from '@/tests/lib/tripDemo'
 import type { GraphData } from '@/lib/graph/types'
 import { LRUCache } from 'grph-shared/cache/LRUCache'
+import { resolveSandboxRoot } from '@/tests/lib/sandboxRoot'
 
 const extractFirstGeoJsonFromJsonFences = (markdown: string): string | null => {
   const lines = String(markdown || '').split('\n')
@@ -265,8 +267,11 @@ export async function testGeospatialDatasetLoaderParsesEmbeddedGeoJsonFromMarkdo
   const originalFetch = (globalThis as unknown as { fetch?: unknown }).fetch
 
   try {
-    const url = '/Users/huijoohwee/Documents/GitHub/sandbox/demo/trip-demo.md'
-    const expectedFetchUrl = 'http://localhost:5173/@fs/Users/huijoohwee/Documents/GitHub/sandbox/demo/trip-demo.md'
+    const sandboxRoot = resolveSandboxRoot()
+    if (!sandboxRoot) return
+    const abs = path.resolve(path.join(sandboxRoot, 'demo', 'trip-demo.md')).replace(/\\/g, '/')
+    const url = abs
+    const expectedFetchUrl = `http://localhost:5173/@fs${abs.startsWith('/') ? '' : '/'}${abs}`
 
     ;(globalThis as unknown as { fetch: unknown }).fetch = (async (input: unknown) => {
       const u = typeof input === 'string' ? input : ''
