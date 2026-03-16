@@ -206,6 +206,11 @@ export function isLikelyImageUrl(url: string): boolean {
   try {
     const parsed = new URL(u)
     const host = parsed.hostname.toLowerCase()
+
+    if ((host === 'media.licdn.com' || host.endsWith('.licdn.com')) && /\/(dms\/image|image)\//i.test(parsed.pathname || '')) {
+      return true
+    }
+
     const isWeChatAssetHost =
       host === 'mmbiz.qpic.cn' ||
       host.endsWith('.qpic.cn') ||

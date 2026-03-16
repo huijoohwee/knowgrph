@@ -6,9 +6,12 @@ export type WebpageDomProbeResult =
   | { ok: true; result: WebpageDomExportResult }
   | { ok: false; stage: string; error: string; attempts?: { src: string; sandbox: string }[] }
 
+import { looksLikeNetworkSecurityBlockText } from 'grph-shared/rich-media/webpagePreview'
+
 const KG_EXPORT_DOM_KIND = 'kg-export-dom'
 const KG_WEBPAGE_NET_KIND = 'kg-webpage-net'
 const KG_WEBPAGE_DOM_KIND = 'kg-webpage-dom'
+
 
 async function waitMs(ms: number, signal?: AbortSignal): Promise<void> {
   await new Promise<void>(resolve => {
@@ -286,7 +289,11 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
   iframe.style.opacity = '0'
   iframe.style.pointerEvents = 'none'
 
-  const iframePath = `/__webpage_proxy?url=${encodeURIComponent(url)}`
+  const iframePath = (() => {
+    const base = `/__webpage_proxy?url=${encodeURIComponent(url)}`
+    if (args.mode === 'layout' || args.mode === 'text') return `${base}&kg_script_policy=strip`
+    return base
+  })()
   const candidates = (() => {
     const out: { src: string; sandbox: string }[] = []
     const seen = new Set<string>()
@@ -358,11 +365,23 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
 
     const id = `${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`
 
+    const isIframeShowingBlockedPage = (): boolean => {
+      try {
+        const doc = iframe.contentDocument
+        const body = doc?.body
+        const t = typeof body?.innerText === 'string' ? body.innerText : String(body?.textContent || '')
+        return looksLikeNetworkSecurityBlockText(t)
+      } catch {
+        return false
+      }
+    }
+
     const tryDirectRead = (): WebpageDomExportResult | null => {
       try {
         const doc = iframe.contentDocument
         if (!doc) return null
         const title = String(doc.title || '').trim()
+        if (isIframeShowingBlockedPage()) return null
         if (args.mode === 'text') {
           const body = doc.body
           const innerText = body && typeof body.innerText === 'string' ? body.innerText : ''
@@ -869,6 +888,11 @@ async function probeWebpageDomViaHiddenIframeOnce(args: {
       const minScore = args.mode === 'layout' ? 350 : 0
       if (stableRounds >= 2 && best.text.length >= minLen && bestLayoutScore >= minScore) break
     }
+
+    if (isIframeShowingBlockedPage()) {
+      return { ok: false, stage: 'blocked', error: 'Upstream blocked by network security', attempts: loadedCandidate ? [loadedCandidate] : candidates }
+    }
+
     return { ok: true, result: best }
   } catch (e) {
     if (e && typeof e === 'object' && 'message' in e && String((e as { message?: unknown }).message || '') === 'ABORT') {

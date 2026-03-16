@@ -49,7 +49,7 @@ export async function testMarkdownPreviewRendersWebpageSnapshotForStandaloneLink
 
     for (let i = 0; i < 12; i += 1) await tick()
 
-    const snapshots = Array.from(container.querySelectorAll('[data-kg-webpage-snapshot="1"]'))
+    const snapshots = Array.from(container.querySelectorAll('[data-kg-webpage-snapshot="1"]')) as Element[]
     if (snapshots.length < 2) throw new Error(`expected >=2 webpage snapshots, got: ${snapshots.length}`)
 
     const standalone = snapshots.find(el => String(el.getAttribute('data-src') || '').includes('example.com/abc'))
@@ -62,4 +62,3 @@ export async function testMarkdownPreviewRendersWebpageSnapshotForStandaloneLink
     restoreDom()
   }
 }
-

@@ -1,0 +1,256 @@
+import React from 'react'
+import type { WorkspacePath } from '@/features/workspace-fs/types'
+import {
+  WORKSPACE_ROOT_PATH,
+  ancestorPathsForWorkspacePath,
+  normalizeWorkspacePath,
+  workspaceDocumentKey,
+} from '@/features/workspace-fs/path'
+import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY, UI_COPY } from '@/lib/config'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
+import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
+import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
+import { setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
+import type { StatusHelpers, UseWorkspaceFileActionsArgs } from './types'
+
+export function shouldForceDocumentSemanticModeForImport(nameForParse: string): boolean {
+  const lower = String(nameForParse || '').trim().toLowerCase()
+  if (!lower) return false
+  if (isMarkdownLikeFileName(lower)) return false
+  return (
+    lower.endsWith('.json') ||
+    lower.endsWith('.jsonld') ||
+    lower.endsWith('.csv') ||
+    lower.endsWith('.geojson') ||
+    lower.endsWith('.yaml') ||
+    lower.endsWith('.yml')
+  )
+}
+
+export function useWorkspaceStatusHelpers(setStatusLabel: UseWorkspaceFileActionsArgs['setStatusLabel']): StatusHelpers {
+  const buildWebpageImportStageLabel = React.useCallback((pctRaw: number): string => {
+    const pct = Math.max(0, Math.min(100, Math.floor(Number.isFinite(pctRaw) ? pctRaw : 0)))
+    if (pct < 20) return 'Fetching webpage HTML'
+    if (pct < 60) return 'Processing webpage DOM'
+    if (pct < 90) return 'Converting webpage to Markdown'
+    return 'Finalizing webpage document'
+  }, [])
+
+  const setStatusInfo = React.useCallback(
+    (label: string) => {
+      const msg = String(label || '').trim()
+      if (!msg) return
+      setStatusLabel({ kind: 'info', label: msg })
+    },
+    [setStatusLabel],
+  )
+
+  const setStatusError = React.useCallback(
+    (label: string) => {
+      const msg = String(label || '').trim()
+      if (!msg) return
+      setStatusLabel({ kind: 'error', label: msg })
+    },
+    [setStatusLabel],
+  )
+
+  const setStatusProgress = React.useCallback(
+    (
+      label: string,
+      current?: number | null,
+      total?: number | null,
+      bytesCurrent?: number | null,
+      bytesTotal?: number | null,
+    ) => {
+      const msg = String(label || '').trim()
+      if (!msg) return
+      setStatusLabel({
+        kind: 'progress',
+        label: msg,
+        current: typeof current === 'number' ? current : null,
+        total: typeof total === 'number' ? total : null,
+        bytesCurrent: typeof bytesCurrent === 'number' ? bytesCurrent : null,
+        bytesTotal: typeof bytesTotal === 'number' ? bytesTotal : null,
+      })
+    },
+    [setStatusLabel],
+  )
+
+  return { setStatusInfo, setStatusError, setStatusProgress, buildWebpageImportStageLabel }
+}
+
+export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): {
+  importJobRef: React.MutableRefObject<number>
+  status: StatusHelpers
+  focusAfterImport: (createdPath: WorkspacePath, opts?: { sourceUrl?: string | null; applyToGraph?: boolean; jobId?: number }) => Promise<void>
+  createNewFile: (opts?: { parentPath?: WorkspacePath }) => Promise<void>
+  createNewFolder: (opts?: { parentPath?: WorkspacePath }) => Promise<void>
+} {
+  const {
+    getFs,
+    refresh,
+    setExpandedPaths,
+    setActivePathSafe,
+    setSelectionPathSafe,
+    activeDocumentSourceUrl,
+    setActiveText,
+    lastLoadedRef,
+    setActiveMarkdownDocument,
+    applyMarkdownDocumentToGraph,
+  } = args
+
+  const importJobRef = React.useRef(0)
+  const status = useWorkspaceStatusHelpers(args.setStatusLabel)
+
+  const applyImportedTextToGraph = React.useCallback(
+    async (inner: { nameForParse: string; text: string }) => {
+      const storeBefore = useGraphStore.getState()
+      const resolvedText = await (async (): Promise<string> => {
+        const meta = parsePdfWorkspaceFrontmatter(inner.text)
+        if (!meta) return inner.text
+        try {
+          const controller = new AbortController()
+          const timeoutMs = 1500
+          const t = setTimeout(() => controller.abort(), timeoutMs)
+          const fetched = await fetchPdfWorkspaceDoc({ docId: meta.docId, outputDirRel: meta.outputDirRel, signal: controller.signal }).finally(() => clearTimeout(t))
+          if (fetched.ok !== true) return inner.text
+          const markdown = String(fetched.markdown || '')
+          return markdown.trim() ? markdown : inner.text
+        } catch {
+          return inner.text
+        }
+      })()
+
+      const okMarkdown = await applyMarkdownDocumentToGraph(inner.nameForParse, resolvedText, { force: true })
+      if (!okMarkdown) {
+        const { loadGraphDataFromTextViaParser } = (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
+        await loadGraphDataFromTextViaParser(inner.nameForParse, resolvedText, { applyToStore: true })
+      }
+
+      const store = useGraphStore.getState()
+      const baselineLocked = store.documentStructureBaselineLock === true
+      const graphData = store.graphData
+      const hasAnyGraph = !!(graphData && (((graphData.nodes || []).length > 0) || ((graphData.edges || []).length > 0)))
+      if (!hasAnyGraph) return
+
+      if (!baselineLocked && shouldForceDocumentSemanticModeForImport(inner.nameForParse)) {
+        store.setDocumentSemanticMode('document')
+      }
+
+      const meta = (graphData?.metadata || {}) as Record<string, unknown>
+      const hasQuickEditorRegistry = Array.isArray(meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY])
+        ? (meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY] as unknown[]).length > 0
+        : false
+
+      if (hasQuickEditorRegistry) {
+        if (baselineLocked) {
+          store.upsertUiToast({ id: 'baseline-locked', kind: 'warning', message: UI_COPY.baselineLockedToast, ttlMs: 6000 })
+          return
+        }
+        const schema = store.schema
+        if (schema) {
+          const { enableHandlesForAllInputsInSchema } = (await import('@/lib/flowEditor/flowEditorActions')) as typeof import('@/lib/flowEditor/flowEditorActions')
+          const res = enableHandlesForAllInputsInSchema(schema)
+          if (res.changed) store.setSchema(res.schema)
+        }
+        store.setCanvasRenderMode('2d')
+        store.setCanvas2dRenderer('flowEditor')
+        store.setWorkspaceViewMode('canvas')
+        return
+      }
+
+      if (!baselineLocked && storeBefore.workspaceViewMode !== 'table') {
+        store.setWorkspaceViewMode('table')
+      }
+    },
+    [applyMarkdownDocumentToGraph],
+  )
+
+  const focusAfterImport = React.useCallback(
+    async (createdPath: WorkspacePath, opts?: { sourceUrl?: string | null; applyToGraph?: boolean; jobId?: number }) => {
+      if (opts?.jobId != null && importJobRef.current !== opts.jobId) return
+      setActivePathSafe(createdPath)
+      setSelectionPathSafe(createdPath)
+      setExpandedPaths(prev => {
+        const next = new Set(prev)
+        for (const ancestor of ancestorPathsForWorkspacePath(createdPath)) next.add(ancestor)
+        return next
+      })
+      if (opts?.applyToGraph) {
+        try {
+          const fs = await getFs()
+          const text = await fs.readFileText(createdPath)
+          if (opts?.jobId != null && importJobRef.current !== opts.jobId) return
+          const docKey = workspaceDocumentKey(createdPath)
+          const content = String(text || '')
+          lastLoadedRef.current = { path: createdPath, text: content }
+          setActiveText(content)
+          if (docKey && content.trim()) {
+            void setActiveMarkdownDocument({
+              name: docKey,
+              text: content,
+              normalizeMermaidMmd: false,
+              sourceUrl: typeof opts?.sourceUrl === 'string' ? opts.sourceUrl : activeDocumentSourceUrl,
+            })
+            await applyImportedTextToGraph({ nameForParse: docKey, text: content })
+          }
+        } catch (e) {
+          status.setStatusError(`Apply failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+        }
+      }
+    },
+    [
+      activeDocumentSourceUrl,
+      applyImportedTextToGraph,
+      getFs,
+      lastLoadedRef,
+      setActiveMarkdownDocument,
+      setActivePathSafe,
+      setActiveText,
+      setExpandedPaths,
+      setSelectionPathSafe,
+      status,
+    ],
+  )
+
+  const createNewFile = React.useCallback(
+    async (opts?: { parentPath?: WorkspacePath }) => {
+      status.setStatusProgress('Creating')
+      try {
+        const fs = await getFs()
+        const parentPath = opts?.parentPath ? normalizeWorkspacePath(opts.parentPath) : WORKSPACE_ROOT_PATH
+        const path = await fs.createFile({ parentPath, name: 'note.md', text: '' })
+        setWorkspaceEntrySource(path, { kind: 'local', originalName: null })
+        await refresh()
+        setActivePathSafe(path)
+        setSelectionPathSafe(path)
+        status.setStatusInfo('Created')
+      } catch (e) {
+        status.setStatusError(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+      }
+    },
+    [getFs, refresh, setActivePathSafe, setSelectionPathSafe, status],
+  )
+
+  const createNewFolder = React.useCallback(
+    async (opts?: { parentPath?: WorkspacePath }) => {
+      status.setStatusProgress('Creating')
+      try {
+        const fs = await getFs()
+        const parentPath = opts?.parentPath ? normalizeWorkspacePath(opts.parentPath) : WORKSPACE_ROOT_PATH
+        const path = await fs.createFolder({ parentPath, name: 'folder' })
+        setExpandedPaths(prev => new Set(prev).add(path))
+        await refresh()
+        setSelectionPathSafe(path)
+        status.setStatusInfo('Created')
+      } catch (e) {
+        status.setStatusError(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+      }
+    },
+    [getFs, refresh, setExpandedPaths, setSelectionPathSafe, status],
+  )
+
+  return { importJobRef, status, focusAfterImport, createNewFile, createNewFolder }
+}
+

@@ -164,7 +164,7 @@ export async function testMarkdownPreviewRendersMarkdownImageAndVideoAudioIframe
       )
     }
 
-    const snapshots = Array.from(container.querySelectorAll('[data-kg-webpage-snapshot="1"]'))
+    const snapshots = Array.from(container.querySelectorAll('[data-kg-webpage-snapshot="1"]')) as Element[]
     const hasExampleSnapshot = snapshots.some(el => String(el.getAttribute('data-src') || '').includes('https://example.com/'))
     if (!hasExampleSnapshot) throw new Error(`expected iframe-marked url to render as snapshot preview; html=${container.innerHTML}`)
     const hasYcSnapshot = snapshots.some(el =>

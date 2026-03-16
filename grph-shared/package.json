@@ -203,6 +203,26 @@
       "types": "./dist/rich-media/webpageSnapshot.d.ts",
       "import": "./dist/rich-media/webpageSnapshot.js",
       "default": "./dist/rich-media/webpageSnapshot.js"
+    },
+    "./rich-media/webpageFallback": {
+      "types": "./dist/rich-media/webpageFallback.d.ts",
+      "import": "./dist/rich-media/webpageFallback.js",
+      "default": "./dist/rich-media/webpageFallback.js"
+    },
+    "./rich-media/webpageMeta": {
+      "types": "./dist/rich-media/webpageMeta.d.ts",
+      "import": "./dist/rich-media/webpageMeta.js",
+      "default": "./dist/rich-media/webpageMeta.js"
+    },
+    "./rich-media/webpagePreview": {
+      "types": "./dist/rich-media/webpagePreview.d.ts",
+      "import": "./dist/rich-media/webpagePreview.js",
+      "default": "./dist/rich-media/webpagePreview.js"
+    },
+    "./rich-media/videoThumbnail": {
+      "types": "./dist/rich-media/videoThumbnail.d.ts",
+      "import": "./dist/rich-media/videoThumbnail.js",
+      "default": "./dist/rich-media/videoThumbnail.js"
     }
   },
   "files": [

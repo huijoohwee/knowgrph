@@ -83,6 +83,32 @@ export function DesignRichMediaPreview(props: {
         </g>
       ) : null}
 
+      {!interactive && String(url || '').trim() ? (
+        <rect
+          x={innerX}
+          y={innerY}
+          width={innerW}
+          height={innerH}
+          rx={mediaCorner}
+          fill="rgba(0,0,0,0)"
+          style={{ cursor: 'pointer' }}
+          onPointerDown={stopEvent}
+          onPointerMove={stopEvent}
+          onPointerUp={stopEvent}
+          onClick={(event) => {
+            stopEvent(event)
+            try {
+              const openUrl = String(url || '').trim()
+              if (!openUrl) return
+              if (typeof window === 'undefined') return
+              window.open(openUrl, '_blank', 'noopener,noreferrer')
+            } catch {
+              void 0
+            }
+          }}
+        />
+      ) : null}
+
       {tag === 'VIDEO' ? (
         <foreignObject
           x={innerX}

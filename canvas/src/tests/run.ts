@@ -81,6 +81,7 @@ import {
   testWebpageSandboxAbsolutizesLocalProxyUrlsInsteadOfChangingBase,
 } from '@/__tests__/webpageSandboxLazyImages.test'
 import { testWorkspaceImportNormalizesLocalProxyUrlsAndAutolinks } from '@/__tests__/workspaceImportNormalizeProxyUrls.test'
+import { testWorkspaceImportUrlStubDoesNotFetch } from '@/__tests__/workspaceImportUrlStubNoFetch.test'
 import { testNodeMediaSpecAllowsLocalProxyIframeUrl } from '@/__tests__/nodeMediaSpecAllowsLocalProxyIframe.test'
 import {
   testNodeMediaSpecDetectsMarkdownLinkIframeFromLabelAndLocalHtml,
@@ -183,7 +184,10 @@ import {
 } from '@/__tests__/markdownWorkspaceWebpageHtmlView.test'
 import { testWebpageHtmlSrcdocShrinksLargeHtmlInsteadOfFailing } from '@/__tests__/webpageIframeSrcdocLargeHtml.test'
 import { testMarkdownPreviewRendersSvgAndIframeHtmlBlocks } from '@/__tests__/markdownRichMedia.test'
-import { testRichMediaPanelRendersSnapshotForNonDirectIframe } from '@/__tests__/richMediaPanelSnapshotFallback.test'
+import {
+  testRichMediaPanelClickToOpenUsesBodyNotHeader,
+  testRichMediaPanelRendersSnapshotForNonDirectIframe,
+} from '@/__tests__/richMediaPanelSnapshotFallback.test'
 import { testMarkdownPreviewRendersHtmlGridAndPreCodeBlocks } from '@/__tests__/markdownGridAndCodeHtmlBlocks.test'
 import { testMarkdownPreviewRendersInlineHtmlGridInsideParagraph } from '@/__tests__/markdownInlineHtmlGridInParagraph.test'
 import { testMarkdownPreviewRendersArticleGridAndDisablesWrapForAsciiTables } from '@/__tests__/markdownHtmlArticleGridAndAsciiNoWrap.test'
@@ -1138,6 +1142,7 @@ export const runAllTests = async () => {
   await exec('webpage.iframeSrcdoc.shrinksLargeHtml', testWebpageHtmlSrcdocShrinksLargeHtmlInsteadOfFailing)
   await exec('design.richMedia.preview.rendersImageVideoAndIframe', testDesignRichMediaPreviewRendersImageVideoAndIframe)
   await exec('richMedia.panel.nonDirectIframeRendersSnapshot', testRichMediaPanelRendersSnapshotForNonDirectIframe)
+  await exec('richMedia.panel.bodyClickOpensUrl', testRichMediaPanelClickToOpenUsesBodyNotHeader)
   await exec('pdf.streamDecode.respectsMaxDecodeBytes', testPdfReadStreamRespectsMaxDecodeBytes)
   await exec('pdf.contentTokenizer.advancesOnDictDelimiters', testPdfContentTextTokenizerAdvancesOnDictDelimiters)
   await exec('pdf.http.fetchBytes.respectsMaxBytes', testPdfHttpFetchBytesRespectsMaxBytes)
@@ -1732,6 +1737,7 @@ export const runAllTests = async () => {
   await exec('webpageSandbox.injectsWeChatUnhideStyle', testWebpageSandboxInjectsWeChatUnhideStyle)
   await exec('webpageSandbox.absolutizesLocalProxyUrlsInsteadOfChangingBase', testWebpageSandboxAbsolutizesLocalProxyUrlsInsteadOfChangingBase)
   await exec('workspaceImport.normalizesProxyUrlsAndAutolinks', testWorkspaceImportNormalizesLocalProxyUrlsAndAutolinks)
+  await exec('workspaceImport.urlStub.doesNotFetch', testWorkspaceImportUrlStubDoesNotFetch)
   await exec('nodeMediaSpec.allowsLocalProxyIframeUrl', testNodeMediaSpecAllowsLocalProxyIframeUrl)
   await exec('nodeMediaSpec.detectsWebpageElementImg', testNodeMediaSpecDetectsWebpageElementImg)
   await exec('nodeMediaSpec.detectsWebpageElementIframeProxy', testNodeMediaSpecDetectsWebpageElementIframeProxy)

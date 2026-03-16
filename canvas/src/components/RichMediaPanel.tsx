@@ -4,7 +4,8 @@ import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'
 import { applyImageLikeProxySrc } from '@/lib/url'
 import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
-import { resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
+import { resolveIframeEmbed, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
+import { getOrCreateVideoThumbnail } from 'grph-shared/rich-media/videoThumbnail'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 export type RichMediaPanelProps = {
@@ -75,6 +76,11 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
     if (kind !== 'iframe') return null
     return resolveIframeEmbed({ url: rawUrl })
   }, [kind, rawUrl])
+
+  const forceSnapshotIframe = React.useMemo(() => {
+    if (kind !== 'iframe') return false
+    return shouldForceSnapshotIframeUrl(rawUrl)
+  }, [kind, rawUrl])
   const [mediaSrc, setMediaSrc] = React.useState<string>(proxiedUrl)
   React.useEffect(() => {
     setMediaSrc(proxiedUrl)
@@ -83,6 +89,7 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
   const headerPassthrough = props.headerPassthrough === true
   const richMediaPanelMode = useGraphStore(s => s.richMediaPanelMode)
   const preferEmbed = richMediaPanelMode === 'embed'
+  const [videoThumb, setVideoThumb] = React.useState<string>('')
   const forwardingEnabled =
     !preferEmbed && (typeof props.forwardWheelTo === 'function' || typeof props.forwardPointerTo === 'function')
   const [ready, setReady] = React.useState<boolean>(() => !hideUntilReady)
@@ -104,8 +111,34 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
     setMediaSrc(rawUrl)
     return true
   }, [mediaSrc, rawUrl])
-  const contentInteractive = (preferEmbed || props.interactive !== false) && (!hideUntilReady || ready)
+  const isSnapshotIframe =
+    kind === 'iframe'
+    && !!(iframeEmbed && !iframeEmbed.direct)
+    && (!preferEmbed || forceSnapshotIframe)
+  const isSnapshotVideo = !preferEmbed && kind === 'video'
+  const isSnapshotStaticMedia = !preferEmbed && (kind === 'image' || kind === 'svg' || kind === 'video')
+  const contentInteractive =
+    (preferEmbed || (props.interactive !== false && !isSnapshotIframe && !isSnapshotVideo && !isSnapshotStaticMedia))
+    && (!hideUntilReady || ready)
   const canClickToOpen = !headerPassthrough && !contentInteractive && !!safeOpenUrl
+
+  React.useEffect(() => {
+    let cancelled = false
+    if (!isSnapshotVideo) {
+      setVideoThumb(prev => (prev ? '' : prev))
+      return
+    }
+    const u = rawUrl
+    if (!u) return
+    void getOrCreateVideoThumbnail(u).then((t) => {
+      if (cancelled) return
+      const next = String(t || '').trim()
+      setVideoThumb(prev => (prev === next ? prev : next))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [isSnapshotVideo, rawUrl])
   const setRefs = React.useCallback((el: HTMLDivElement | null) => {
     rootRef.current = el
     const r = ref as unknown
@@ -171,19 +204,6 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
         }
       },
       onEnd: ev => {
-        if (!moved && safeOpenUrl && (ev.button === 0 || ev.button == null)) {
-          try {
-            ev.preventDefault()
-          } catch {
-            void 0
-          }
-          try {
-            ev.stopPropagation()
-          } catch {
-            void 0
-          }
-          openSafeUrl()
-        }
         try {
           props.onHeaderDragEnd?.({ pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY })
         } catch {
@@ -198,7 +218,7 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
         }
       },
     })
-  }, [installHeaderDrag, openSafeUrl, props, safeOpenUrl])
+  }, [installHeaderDrag, props, safeOpenUrl])
 
   const onRootPointerDownCapture = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const native = e.nativeEvent
@@ -356,20 +376,6 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
               void 0
             }
           }}
-          onClick={installHeaderDrag ? undefined : (e => {
-            if (!safeOpenUrl) return
-            try {
-              e.preventDefault()
-            } catch {
-              void 0
-            }
-            try {
-              e.stopPropagation()
-            } catch {
-              void 0
-            }
-            openSafeUrl()
-          })}
           title={title}
           onPointerDown={installHeaderDrag ? onHeaderPointerDown : undefined}
         >
@@ -431,7 +437,7 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
           />
         ) : null}
         {kind === 'iframe' ? (
-          !preferEmbed && iframeEmbed && !iframeEmbed.direct ? (
+          iframeEmbed && !iframeEmbed.direct && (!preferEmbed || forceSnapshotIframe) ? (
             <WebpageSnapshotPreview
               url={proxiedUrl}
               title={title}
@@ -470,29 +476,51 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
             />
           )
         ) : kind === 'video' ? (
-          <video
-            src={mediaSrc}
-            playsInline
-            muted
-            controls
-            preload="metadata"
-            onLoadedData={() => setReady(true)}
-            onError={() => {
-              if (!fallbackToRawSrc()) setReady(true)
-            }}
-            style={{
-              display: 'block',
-              width: '100%',
-              height: '100%',
-              border: 0,
-              borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-              objectFit: 'cover',
-              background: 'transparent',
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-              pointerEvents: forwardingEnabled ? 'none' : undefined,
-            }}
-          />
+          preferEmbed ? (
+            <video
+              src={mediaSrc}
+              playsInline
+              muted
+              controls
+              preload="metadata"
+              onLoadedData={() => setReady(true)}
+              onError={() => {
+                if (!fallbackToRawSrc()) setReady(true)
+              }}
+              style={{
+                display: 'block',
+                width: '100%',
+                height: '100%',
+                border: 0,
+                borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
+                objectFit: 'cover',
+                background: 'transparent',
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+                pointerEvents: forwardingEnabled ? 'none' : undefined,
+              }}
+            />
+          ) : (
+            <img
+              src={videoThumb || undefined}
+              alt={title}
+              loading="lazy"
+              onLoad={() => setReady(true)}
+              onError={() => setReady(true)}
+              style={{
+                display: 'block',
+                width: '100%',
+                height: '100%',
+                border: 0,
+                borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
+                objectFit: 'cover',
+                background: 'transparent',
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+                pointerEvents: forwardingEnabled ? 'none' : undefined,
+              }}
+            />
+          )
         ) : (
           <img
             src={mediaSrc}

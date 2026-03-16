@@ -2,6 +2,9 @@ import React from 'react'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/MarkdownRendererTypes'
 import type { HighlightedLineRange, MarkdownPresentationApi } from '../../markdownWorkspaceTypes'
+import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { resolveIframeSandbox } from 'grph-shared/rich-media/iframe'
 
 export function MarkdownWorkspacePresentationSurface(props: {
   showWebpageHtml: boolean
@@ -23,19 +26,32 @@ export function MarkdownWorkspacePresentationSurface(props: {
   showInPresentation: (line: number) => void
   showInSlidesGallery: (line: number) => void
 }) {
+  const richMediaPanelMode = useGraphStore(s => s.richMediaPanelMode)
+  const preferEmbed = richMediaPanelMode === 'embed'
+  const hasHttpUrl = /^https?:\/\//i.test(String(props.webpageUrl || '').trim())
+
   if (props.showWebpageHtml) {
     return (
       <section className="flex-1 min-h-0 flex" aria-label="Webpage Presentation Surface">
-        <iframe
-          className="flex-1 min-h-0 w-full border-0"
-          title={props.webpageUrl || 'Webpage'}
-          src={props.iframeSrc || undefined}
-          srcDoc={props.iframeSrcDoc || undefined}
-          sandbox="allow-scripts"
-          loading="lazy"
-          allow="geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"
-          referrerPolicy="no-referrer"
-        />
+        {!preferEmbed && hasHttpUrl ? (
+          <WebpageSnapshotPreview
+            url={props.webpageUrl}
+            title={props.webpageUrl || 'Webpage'}
+            className="flex-1 min-h-0 w-full"
+          />
+        ) : (
+          <iframe
+            className="flex-1 min-h-0 w-full border-0"
+            title={props.webpageUrl || 'Webpage'}
+            src={props.iframeSrc || undefined}
+            srcDoc={props.iframeSrcDoc || undefined}
+            sandbox={resolveIframeSandbox('proxied')}
+            loading="lazy"
+            allow="fullscreen; geolocation 'none'; microphone 'none'; camera 'none'; payment 'none'; usb 'none'; clipboard-read 'none'; clipboard-write 'none'"
+            allowFullScreen
+            referrerPolicy="no-referrer"
+          />
+        )}
       </section>
     )
   }
@@ -68,4 +84,3 @@ export function MarkdownWorkspacePresentationSurface(props: {
     </section>
   )
 }
-

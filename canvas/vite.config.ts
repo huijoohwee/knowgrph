@@ -452,12 +452,32 @@ const webpageProxyDevPlugin = {
     server.middlewares.use('/__webpage_proxy', createWebpageProxyHandler())
     server.middlewares.use('/__webpage_asset_proxy', createWebpageAssetProxyHandler())
     server.middlewares.use('/__webpage_asset_path', createWebpageAssetPathProxyHandler())
+    server.middlewares.use('/__webpage_meta', async (req, res, next) => {
+      try {
+        const mod = await import('./src/lib/websites/webpageMetaServer')
+        return mod.createWebpageMetaHandler()(req, res, next)
+      } catch {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify({ ok: false, error: 'webpage meta handler failed' }))
+      }
+    })
     server.middlewares.use('/__repo_file', createRepoFileHandler())
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
     server.middlewares.use('/__webpage_proxy', createWebpageProxyHandler())
     server.middlewares.use('/__webpage_asset_proxy', createWebpageAssetProxyHandler())
     server.middlewares.use('/__webpage_asset_path', createWebpageAssetPathProxyHandler())
+    server.middlewares.use('/__webpage_meta', async (req, res, next) => {
+      try {
+        const mod = await import('./src/lib/websites/webpageMetaServer')
+        return mod.createWebpageMetaHandler()(req, res, next)
+      } catch {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify({ ok: false, error: 'webpage meta handler failed' }))
+      }
+    })
     server.middlewares.use('/__repo_file', createRepoFileHandler())
   },
 }
@@ -844,6 +864,8 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
       if (shouldSpoofWeChat) return 'https://mp.weixin.qq.com/'
       try {
         const u = new URL(urlParam)
+        const host = u.hostname.toLowerCase()
+        if (host === 'media.licdn.com' || host.endsWith('.licdn.com')) return 'https://www.linkedin.com/'
         return `${u.origin}/`
       } catch {
         return undefined
@@ -1300,7 +1322,9 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string; scrip
 
   const injection = [
     `<base href="/">`,
-    '<meta name="referrer" content="no-referrer">',
+    scriptPolicy === 'allow' || scriptPolicy === 'strip'
+      ? '<meta name="referrer" content="strict-origin-when-cross-origin">'
+      : '<meta name="referrer" content="no-referrer">',
     '<script>',
     '(() => {',
     `  const KG_ORIGINAL_URL = ${JSON.stringify(originalUrl)};`,
@@ -2536,6 +2560,48 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string; scrip
 }
 
 function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction {
+  const looksLikeUpstreamBlockedHtml = (html: string): boolean => {
+    const raw = String(html || '')
+    if (!raw) return false
+    const lower = raw
+      .toLowerCase()
+      .replace(/[\u2018\u2019\u201b\u2032]/g, "'")
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (!lower) return false
+    if (lower.includes('blocked by network security')) return true
+    if (lower.includes("you've been blocked") && lower.includes('security')) return true
+    if (lower.includes('you have been blocked') && lower.includes('security')) return true
+    if (lower.includes('access denied') && (lower.includes('security') || lower.includes('blocked'))) return true
+    if (lower.includes('your request has been blocked')) return true
+    if (lower.includes('unusual traffic') && (lower.includes('blocked') || lower.includes('verify'))) return true
+    if (lower.includes('attention required') && lower.includes('cloudflare')) return true
+    if (lower.includes('incapsula') && (lower.includes('blocked') || lower.includes('access denied'))) return true
+    return false
+  }
+
+  const buildUpstreamBlockedHtml = (originalUrl: string): string => {
+    const safeUrl = String(originalUrl || '').trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    return [
+      '<!doctype html>',
+      '<html>',
+      '<head>',
+      '<meta charset="utf-8">',
+      '<meta name="referrer" content="no-referrer">',
+      '<title>Blocked</title>',
+      '<style>html,body{height:100%;margin:0}body{display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#0f172a;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}a{word-break:break-all}</style>',
+      '</head>',
+      '<body>',
+      `<div style="max-width:min(720px,92vw);border:1px solid rgba(148,163,184,0.5);border-radius:12px;background:#fff;padding:16px 18px;box-shadow:0 12px 30px rgba(15,23,42,0.08)">`,
+      '<div style="font-size:12px;font-weight:700;margin-bottom:6px">Preview unavailable</div>',
+      '<div style="font-size:12px;opacity:0.78;margin-bottom:10px">The upstream site requires cookies or blocks proxy requests.</div>',
+      `<div style="font-size:12px"><a href="${safeUrl}" target="_blank" rel="noreferrer">Open in new tab</a></div>`,
+      '</div>',
+      '</body>',
+      '</html>',
+    ].join('\n')
+  }
+
   return async (req, res, next) => {
     if (req.method === 'OPTIONS') {
       res.statusCode = 204
@@ -2777,6 +2843,15 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
       finished = true
 
       const raw = buf.toString('utf8')
+
+      if (looksLikeUpstreamBlockedHtml(raw)) {
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'text/html; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-store')
+        res.end(buildUpstreamBlockedHtml(urlParam), 'utf8')
+        return
+      }
+
       const injected = injectWebpageProxyHtml({
         html: raw,
         originalUrl: urlParam,
@@ -2989,7 +3064,13 @@ function createWebpageAssetProxyHandler(): import('vite').Connect.NextHandleFunc
           : shouldSpoofWeChat
             ? 'zh-CN,zh;q=0.9,en;q=0.8'
             : 'en-US,en;q=0.9'
-      const referer = shouldSpoofWeChat ? 'https://mp.weixin.qq.com/' : upstreamUrl ? `${upstreamUrl.origin}/` : undefined
+      const referer = (() => {
+        if (shouldSpoofWeChat) return 'https://mp.weixin.qq.com/'
+        if (!upstreamUrl) return undefined
+        const host = String(upstreamUrl.hostname || '').toLowerCase()
+        if (host === 'media.licdn.com' || host.endsWith('.licdn.com')) return 'https://www.linkedin.com/'
+        return `${upstreamUrl.origin}/`
+      })()
 
       const upstream = await fetch(normalizedUrlParam, {
         method: req.method,

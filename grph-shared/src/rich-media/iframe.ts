@@ -8,6 +8,22 @@ const ALLOW_SANDBOX_PROXIED = 'allow-scripts allow-presentation'
 
 const allowedHostsCache = new Map<string, string[]>()
 
+export function shouldForceSnapshotIframeUrl(rawUrl: string): boolean {
+  const u = String(rawUrl || '').trim()
+  if (!u) return false
+  if (!/^https?:\/\//i.test(u)) return false
+  try {
+    const parsed = new URL(u)
+    const host = String(parsed.hostname || '').toLowerCase()
+    if (!host) return false
+    if (host === 'reddit.com' || host.endsWith('.reddit.com')) return true
+    if (host === 'redd.it' || host.endsWith('.redd.it')) return true
+    return false
+  } catch {
+    return false
+  }
+}
+
 function parseAllowedHostsCsv(value: string): string[] {
   const raw = String(value || '').trim()
   const cached = allowedHostsCache.get(raw)
@@ -139,13 +155,24 @@ export function resolveIframeEmbed(args: {
   const raw = String(args.url || '').trim()
   const normalized = normalizeIframeUrl(raw)
   const direct = args.embedMode === 'direct' ? true : args.embedMode === 'proxy' ? false : isDirectIframeEmbedUrl(normalized)
+  const effectiveScriptPolicy: 'strip' | 'allow' | '' = (() => {
+    const p = args.scriptPolicy === 'allow' ? 'allow' : args.scriptPolicy === 'strip' ? 'strip' : ''
+    if (!p) return ''
+    try {
+      const u = new URL(normalized)
+      const host = String(u.hostname || '').toLowerCase()
+      if (host === 'aljazeera.com' || host.endsWith('.aljazeera.com')) return 'strip'
+    } catch {
+      void 0
+    }
+    return p
+  })()
   const iframeSrc = (() => {
     if (direct) return normalized
     const base = buildWebpageProxyUrl(normalized)
-    const p = args.scriptPolicy === 'allow' ? 'allow' : args.scriptPolicy === 'strip' ? 'strip' : ''
-    if (!p) return base
+    if (!effectiveScriptPolicy) return base
     const joiner = base.includes('?') ? '&' : '?'
-    return `${base}${joiner}kg_script_policy=${encodeURIComponent(p)}`
+    return `${base}${joiner}kg_script_policy=${encodeURIComponent(effectiveScriptPolicy)}`
   })()
   const sandbox = resolveIframeSandbox(direct ? 'direct' : 'proxied')
   return { iframeSrc, sandbox, direct }

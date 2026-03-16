@@ -158,7 +158,17 @@ export function useWebpageIframeSrcdoc(args: {
         })
       })()
 
-      const scriptPolicy = preferEmbed ? 'allow' : inferIframeScriptPolicyFromHtml(rawHtml)
+      const scriptPolicy = (() => {
+        const p = preferEmbed ? 'allow' : inferIframeScriptPolicyFromHtml(rawHtml)
+        try {
+          const u = new URL(url)
+          const host = String(u.hostname || '').toLowerCase()
+          if (host === 'aljazeera.com' || host.endsWith('.aljazeera.com')) return 'strip'
+        } catch {
+          void 0
+        }
+        return p
+      })()
 
       if (args.view === 'html' && override == null && !args.websiteImportMeta && isHttpUrl(url)) {
         const nextSrc = `/__webpage_proxy?url=${encodeURIComponent(url)}&kg_script_policy=${encodeURIComponent(scriptPolicy)}`
