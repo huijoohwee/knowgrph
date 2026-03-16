@@ -6,6 +6,8 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 
 export async function testMarkdownPreviewRendersInlineHtmlRichMedia() {
   const { dom, restore: restoreDom } = initJsdomHarness()
+  const state = useGraphStore.getState()
+  const prevMode = state.richMediaPanelMode
   try {
     const doc = dom.window.document
     const container = doc.createElement('div')
@@ -27,7 +29,7 @@ export async function testMarkdownPreviewRendersInlineHtmlRichMedia() {
       '',
     ].join('\n')
 
-    useGraphStore.getState().setRichMediaPanelMode('snapshot')
+    state.setRichMediaPanelMode('snapshot')
 
     root.render(
       React.createElement(MarkdownPreview, {
@@ -76,13 +78,14 @@ export async function testMarkdownPreviewRendersInlineHtmlRichMedia() {
     const thumb = redditSnap.querySelector('[data-kg-media-thumbnail="1"]') as HTMLElement | null
     if (!thumb) throw new Error('expected reddit snapshot to include thumbnail-click surface')
 
-    useGraphStore.getState().setRichMediaPanelMode('embed')
+    state.setRichMediaPanelMode('embed')
     for (let i = 0; i < 10; i += 1) await tick()
     const iframe1 = container.querySelector('iframe') as HTMLIFrameElement | null
     if (!iframe1) throw new Error(`expected inline HTML iframe to render in embed mode; html=${container.innerHTML}`)
 
     root.unmount()
   } finally {
+    state.setRichMediaPanelMode(prevMode)
     restoreDom()
   }
 }

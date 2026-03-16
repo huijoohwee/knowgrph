@@ -68,10 +68,15 @@ export function useFlowComputedPositions(args: {
   const seededFromOtherRendererKeyRef = React.useRef<string>('')
   const seededFromOtherRendererPositionsRef = React.useRef<Record<string, { x: number; y: number }> | null>(null)
   const lastOutputHashRef = React.useRef<string>('')
+  const layoutPositionsForModeRef = React.useRef<Record<string, { x: number; y: number }> | null>(layoutPositionsForMode || null)
 
   React.useEffect(() => {
     computedPositionsRef.current = computedPositions
   }, [computedPositions])
+
+  React.useEffect(() => {
+    layoutPositionsForModeRef.current = layoutPositionsForMode || null
+  }, [layoutPositionsForMode])
 
   const hashPositions = (
     positions: Record<string, { x: number; y: number }> | null,
@@ -101,8 +106,18 @@ export function useFlowComputedPositions(args: {
     if (!active) return
     void cacheKey
     const next = layoutPositionsForMode || null
-    setComputedPositions(prev => (prev === next ? prev : next))
-  }, [active, cacheKey, layoutPositionsForMode])
+    setComputedPositions(prev => {
+      if (prev === next) return prev
+      const ids = Array.isArray(sceneGraphData?.nodes)
+        ? sceneGraphData!.nodes.map(n => String(n.id || '')).filter(Boolean)
+        : []
+      const prevHash = hashPositions(prev, ids)
+      const nextHash = hashPositions(next, ids)
+      if (prevHash && nextHash && prevHash === nextHash) return prev
+      if (!prevHash && !nextHash) return prev
+      return next
+    })
+  }, [active, cacheKey, layoutPositionsForMode, sceneGraphData])
 
   React.useEffect(() => {
     let cancelled = false
@@ -152,7 +167,7 @@ export function useFlowComputedPositions(args: {
         return out
       }
 
-      const cached = layoutPositionsForMode || null
+      const cached = layoutPositionsForModeRef.current || null
       const seededFromOtherRenderer = (() => {
         const seedKey = `${graphKey}:${String(documentSemanticMode || 'document')}:${effectiveFrontmatter ? '1' : '0'}:${layoutMode}`
         if (seededFromOtherRendererKeyRef.current === seedKey) return seededFromOtherRendererPositionsRef.current
@@ -530,7 +545,6 @@ export function useFlowComputedPositions(args: {
     flowPresentation,
     graphDataRevision,
     layoutMode,
-    layoutPositionsForMode,
     layoutVariant,
     layoutViewKey,
     rankdir,

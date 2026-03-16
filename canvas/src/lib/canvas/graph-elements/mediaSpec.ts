@@ -11,6 +11,7 @@ export type NodeMediaKind = 'image' | 'svg' | 'video' | 'iframe'
 export type NodeMediaSpec = {
   kind: NodeMediaKind
   url: string
+  srcDoc?: string
   interactive: boolean
 }
 
@@ -81,6 +82,7 @@ function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
     props.label,
     props['dom:tag'],
     props['dom:attrs:src'],
+    props['dom:attrs:srcdoc'],
     props.media_interactive,
     props.text,
     props.markdown,
@@ -152,6 +154,10 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     if (raw.startsWith('//')) return `https:${raw}`
     return raw
   })()
+  const domSrcDoc = (() => {
+    const s = (props as Record<string, unknown>)['dom:attrs:srcdoc']
+    return typeof s === 'string' ? s.trim() : ''
+  })()
   const domMediaUrl = (() => {
     if (!domTag) return ''
     if (domTag === 'IMG' || domTag === 'VIDEO' || domTag === 'IFRAME' || domTag === 'SVG') return domSrc
@@ -170,7 +176,15 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
             : null
 
   const resolvedUrl = url || (domMediaUrl ? coerceMediaUrl(domMediaUrl) : null)
-  if (!resolvedUrl) return null
+  if (!resolvedUrl) {
+    if (domTag === 'IFRAME' && domSrcDoc) {
+      if (/<\s*script\b/i.test(domSrcDoc)) return null
+      if (/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i.test(domSrcDoc)) return null
+      if (/\bjavascript\s*:/i.test(domSrcDoc)) return null
+      return { kind: 'iframe', url: '', srcDoc: domSrcDoc, interactive: true }
+    }
+    return null
+  }
 
   const kind: NodeMediaKind = kindForced
     ? kindForced

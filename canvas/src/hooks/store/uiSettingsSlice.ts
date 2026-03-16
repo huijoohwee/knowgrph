@@ -562,8 +562,10 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
     set({ keywordGraphMentionEdgesPerSourceNode: clamped })
   },
   setSchemaDeriveCacheCapacity: (n: number) => set({ schemaDeriveCacheCapacity: n }),
-  setGraphFieldSettingsById: (next: GraphFieldSettingsById) => set({ graphFieldSettingsById: next }),
-  setSelectedGraphFieldId: (id: GraphFieldId | null) => set({ selectedGraphFieldId: id }),
+  setGraphFieldSettingsById: (next: GraphFieldSettingsById) =>
+    set(state => (state.graphFieldSettingsById === next ? state : { graphFieldSettingsById: next })),
+  setSelectedGraphFieldId: (id: GraphFieldId | null) =>
+    set(state => (state.selectedGraphFieldId === id ? state : { selectedGraphFieldId: id })),
   setGraphDataTableVisibleColumns: (next: GraphDataTableColumnVisibilityByKey) => set({ graphDataTableVisibleColumns: next }),
   setGraphDataTableColumnOrder: (next: GraphDataTableColumnKey[]) =>
     set({ graphDataTableColumnOrder: Array.from(new Set(next)) as GraphDataTableColumnKey[] }),

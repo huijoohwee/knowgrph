@@ -2123,6 +2123,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
                 className="absolute left-0 top-0 pointer-events-auto"
                 title={n.title}
                 url={n.url}
+                srcDoc={n.srcDoc}
                 openUrl={n.openUrl}
                 kind={n.kind}
                 interactive={renderMediaAsNodes === true && n.interactive}

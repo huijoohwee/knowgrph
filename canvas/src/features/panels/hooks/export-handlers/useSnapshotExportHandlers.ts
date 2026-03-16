@@ -8,6 +8,7 @@ import { captureVisibleCanvasPngBlobFromDom, readCanvasViewportSizeFromDom, wrap
 import { LS_KEYS } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { exportGraphAsCenteredSvgMarkup } from '@/lib/graph/graphCenteredSvg'
 import { exportGraphAsCentered3dSvgMarkup } from '@/lib/graph/graphCenteredSvg3d'
 import { buildGraphHtmlViewerMarkup } from '@/lib/graph/graphHtmlViewer'
@@ -35,9 +36,21 @@ async function renderGraphCanvasSvgForHtmlExport(args: {
   viewportControlsPreset: ViewportControlsPreset
   renderMediaAsNodes: boolean
   mediaPanelDensity: 'default' | 'compact'
+  documentSemanticMode: 'document' | 'keyword'
+  frontmatterModeEnabled: boolean
 }): Promise<string> {
   if (typeof document === 'undefined') return ''
-  const { graphData, schema, widthPx, heightPx, viewportControlsPreset, renderMediaAsNodes, mediaPanelDensity } = args
+  const {
+    graphData,
+    schema,
+    widthPx,
+    heightPx,
+    viewportControlsPreset,
+    renderMediaAsNodes,
+    mediaPanelDensity,
+    documentSemanticMode,
+    frontmatterModeEnabled,
+  } = args
 
   const container = document.createElement('div')
   container.style.position = 'fixed'
@@ -79,8 +92,8 @@ async function renderGraphCanvasSvgForHtmlExport(args: {
     graphData,
     graphDataRevision: 0,
     schema,
-    documentSemanticMode: 'document',
-    frontmatterModeEnabled: false,
+    documentSemanticMode,
+    frontmatterModeEnabled,
   })
 
   const gRef = ref<unknown>(null)
@@ -108,7 +121,7 @@ async function renderGraphCanvasSvgForHtmlExport(args: {
     graphData,
     graphDataRevision: 0,
     schema,
-    documentSemanticMode: 'document',
+    documentSemanticMode,
     edgesForSim,
     width: widthPx,
     height: heightPx,
@@ -261,6 +274,7 @@ export function useSnapshotExportHandlers({
   markExported,
   setTransientExportStatus,
 }: UseSnapshotExportHandlersParams) {
+  const activeRenderGraphData = useActiveGraphRenderData()
   const exportSvgSnapshotAction = useCallback(() => {
     void (async () => {
       try {
@@ -387,6 +401,14 @@ export function useSnapshotExportHandlers({
         const storage = verifyWorkflowPresetStorage()
         const suggested = storage.lastApplied ? String(storage.lastApplied.datasetFileName || '') : undefined
         const store = useGraphStore.getState()
+        const graphData = (activeRenderGraphData || store.graphData) as GraphData | null
+        const schema = store.schema
+        if (!graphData || !schema) {
+          setTransientExportStatus(IMPORT_EXPORT_STATUS_COPY.htmlViewerNoSnapshotAvailable)
+          return
+        }
+        const documentSemanticMode = store.documentSemanticMode === 'keyword' ? 'keyword' : 'document'
+        const frontmatterModeEnabled = store.frontmatterModeEnabled === true
         const wants3dExport =
           store.canvasRenderMode === '3d' ||
           (store.canvasRenderModeIsAuto === true && store.canvasRenderModeLastFree === '3d')
@@ -401,8 +423,6 @@ export function useSnapshotExportHandlers({
 
         const svgMarkup = await (async () => {
           if (wants3dExport) {
-            const graphData = store.graphData
-            const schema = store.schema
             if (graphData && schema) {
               const pose = store.captureThreeCameraPose()
               const positionsById = store.captureThreeLayoutPositions() || undefined
@@ -449,9 +469,6 @@ export function useSnapshotExportHandlers({
           initialView = extractCapturedViewportTransform(String(captured || ''))
           const normalized = normalizeCapturedSvgForHtmlEmbed(String(captured || ''))
           if (normalized) return normalized
-          const graphData = store.graphData
-          const schema = store.schema
-          if (!graphData || !schema) return ''
           return await renderGraphCanvasSvgForHtmlExport({
             graphData,
             schema,
@@ -463,13 +480,15 @@ export function useSnapshotExportHandlers({
                 : 'map',
             renderMediaAsNodes: store.renderMediaAsNodes === true,
             mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
+            documentSemanticMode,
+            frontmatterModeEnabled,
           })
         })()
 
         const html = await buildGraphHtmlViewerMarkup({
           title,
           svgMarkup: svgMarkup || null,
-          graphData: store.graphData,
+          graphData,
           preferWebgl3d: wants3dExport,
           initialView: initialView || undefined,
           zoomLabelScaleMode2d: store.zoomLabelScaleMode2d,
@@ -522,7 +541,7 @@ export function useSnapshotExportHandlers({
         setTransientExportStatus(IMPORT_EXPORT_STATUS_COPY.htmlViewerExportFailed)
       }
     })()
-  }, [captureCanvasPngSnapshot, captureCanvasSvgSnapshot, markExported, setTransientExportStatus])
+  }, [activeRenderGraphData, captureCanvasPngSnapshot, captureCanvasSvgSnapshot, markExported, setTransientExportStatus])
 
   const exportHtmlCanvasAction = useCallback(() => {
     void (async () => {
@@ -530,6 +549,14 @@ export function useSnapshotExportHandlers({
         const storage = verifyWorkflowPresetStorage()
         const suggested = storage.lastApplied ? String(storage.lastApplied.datasetFileName || '') : undefined
         const store = useGraphStore.getState()
+        const graphData = (activeRenderGraphData || store.graphData) as GraphData | null
+        const schema = store.schema
+        if (!graphData || !schema) {
+          setTransientExportStatus(IMPORT_EXPORT_STATUS_COPY.htmlCanvasNoSnapshotAvailable)
+          return
+        }
+        const documentSemanticMode = store.documentSemanticMode === 'keyword' ? 'keyword' : 'document'
+        const frontmatterModeEnabled = store.frontmatterModeEnabled === true
         const wants3dExport =
           store.canvasRenderMode === '3d' ||
           (store.canvasRenderModeIsAuto === true && store.canvasRenderModeLastFree === '3d')
@@ -541,13 +568,6 @@ export function useSnapshotExportHandlers({
         })()
 
         let initialView: { k: number; x: number; y: number } | null = null
-
-        const graphData = store.graphData
-        const schema = store.schema
-        if (!graphData || !schema) {
-          setTransientExportStatus(IMPORT_EXPORT_STATUS_COPY.htmlCanvasNoSnapshotAvailable)
-          return
-        }
 
         const svgOnly = await (async () => {
           if (wants3dExport) {
@@ -604,6 +624,8 @@ export function useSnapshotExportHandlers({
                 : 'map',
             renderMediaAsNodes: store.renderMediaAsNodes === true,
             mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
+            documentSemanticMode,
+            frontmatterModeEnabled,
           })
         })()
 
@@ -724,7 +746,7 @@ export function useSnapshotExportHandlers({
         setTransientExportStatus(IMPORT_EXPORT_STATUS_COPY.htmlCanvasExportFailed)
       }
     })()
-  }, [markExported, setTransientExportStatus])
+  }, [activeRenderGraphData, markExported, setTransientExportStatus])
 
   return {
     exportSvgSnapshotAction,

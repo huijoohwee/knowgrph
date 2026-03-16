@@ -15,7 +15,7 @@ import { computePositions3d, type Vec3 } from './positions'
 export { fibSphere } from './positions'
 export type { Vec3 } from './positions'
 
-export function usePositions(nodes: GraphNode[], schema: GraphSchema | null): Record<string, Vec3> {
+export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, graphDataForViewOverride?: GraphData | null): Record<string, Vec3> {
   const layoutPositionCacheByMode = useGraphStore(s => s.layoutPositionCacheByMode)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
   const graphData = useGraphStore(s => s.graphData)
@@ -29,14 +29,17 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null): Re
   return useMemo(() => {
     const mode = schema ? (schema.layout?.mode as string) || 'force' : 'force'
     const semanticMode = String(documentSemanticMode || 'document')
-    const graphDataForView = (graphData as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null) || null
+    const graphDataForView =
+      (graphDataForViewOverride as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null) ||
+      (graphData as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null) ||
+      null
     const effectiveFrontmatter = computeEffectiveFrontmatterMode({
       frontmatterModeEnabled: frontmatterModeEnabled === true && documentStructureBaselineLock !== true,
       documentSemanticMode: semanticMode,
-      graphData: graphData as any,
+      graphData: (graphDataForViewOverride || graphData) as any,
     })
     const datasetKey = computeLayoutDatasetKey({ graphData: graphDataForView, graphDataRevision })
-    const graphMetaKey = buildGraphMetaKey(graphData as any)
+    const graphMetaKey = buildGraphMetaKey((graphDataForViewOverride || graphData) as any)
     const collapsedGroupIdsKey = buildCollapsedGroupIdsKey(collapsedGroupIds)
     const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(schema)
     const viewKey = buildLayoutViewKey({
@@ -62,7 +65,7 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null): Re
       baseKey,
     })
     return computePositions3d(nodes, schema, { seed2dPositions: seed2d })
-  }, [collapsedGroupIds, documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, graphData, graphDataRevision, layoutPositionCacheByMode, mediaPanelDensity, nodes, renderMediaAsNodes, schema])
+  }, [collapsedGroupIds, documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, graphData, graphDataForViewOverride, graphDataRevision, layoutPositionCacheByMode, mediaPanelDensity, nodes, renderMediaAsNodes, schema])
 }
 
 export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paused }: { positions: Record<string, Vec3>; nodes: GraphNode[]; edges: GraphData['edges']; schema: GraphSchema; dragOverrides?: React.MutableRefObject<Record<string, Vec3>>; paused?: boolean }) {

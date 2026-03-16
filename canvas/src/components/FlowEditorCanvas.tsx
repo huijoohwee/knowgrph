@@ -6,7 +6,10 @@ import { useShallow } from 'zustand/react/shallow'
 import FlowCanvas from '@/components/FlowCanvas'
 import FlowEditorInspector, { type InspectorTab } from '@/components/FlowEditor/FlowEditorInspector'
 import NodeOverlayEditor from '@/components/FlowEditor/NodeOverlayEditor'
+import { computeFlowGroupAabb } from '@/components/FlowCanvas/nativeRuntime'
 import { coerceJsonObject, safeJsonStringify, tryParseJson } from '@/components/FlowEditor/flowEditorJson'
+import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useContainerDims } from '@/hooks/useContainerDims'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useGraphStoreKeyRef } from '@/hooks/useGraphStoreKeyRef'
@@ -24,6 +27,7 @@ import {
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { screenToWorld, viewportCenterToWorld, worldToScreen } from '@/lib/zoom/viewport'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
+import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { getZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import {
   convertNodeToLoopInGraphData,
@@ -44,6 +48,8 @@ import {
   pickDefaultSchemaFieldPortKey,
   readSchemaFieldSpecs,
 } from '@/lib/graph/flowPorts'
+import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import { canAddEdge } from '@/features/schema/validation'
 import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
@@ -94,6 +100,7 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
   stackIndex?: number
   getLiveNodeWorldPos?: (nodeId: string) => { x: number; y: number } | null
   getLiveZoomTransform?: () => { k: number; x: number; y: number } | null
+  getLiveContainmentGroupAabbForNode?: (nodeId: string) => { groupId: string; minX: number; minY: number; maxX: number; maxY: number } | null
   toolMode: ToolMode
   pendingEdgeSourceId: string | null
   onBeginAddEdgeFromNode: (nodeId: string, portKey?: string | null) => void
@@ -132,6 +139,7 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
       stackIndex={args.stackIndex}
       getLiveNodeWorldPos={args.getLiveNodeWorldPos}
       getLiveZoomTransform={args.getLiveZoomTransform}
+      getLiveContainmentGroupAabbForNode={args.getLiveContainmentGroupAabbForNode}
       onSetLabel={args.onSetLabel}
       onSetType={args.onSetType}
       onPatchProperties={args.onPatchProperties}
@@ -248,12 +256,45 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const setSchema = useGraphStore(s => s.setSchema)
   const toggleGroupCollapsed = useGraphStore(s => s.toggleGroupCollapsed)
 
+  const storeRenderGraphData = useActiveGraphRenderData(active)
+  const storeRenderGraphKind = React.useMemo(() => {
+    const meta = (storeRenderGraphData?.metadata || {}) as Record<string, unknown>
+    return String(meta.kind || '').trim() || null
+  }, [storeRenderGraphData])
+  const keywordModeActive = documentSemanticMode === 'keyword' || storeRenderGraphKind === 'keyword'
+  const canEdit = active && !keywordModeActive
+  const zoomGraphData = React.useMemo((): GraphData | null => {
+    if (keywordModeActive) return (storeRenderGraphData || null) as GraphData | null
+    const base = (baseGraphData || null) as GraphData | null
+    if (!base) return null
+    const effectiveFrontmatter = computeEffectiveFrontmatterMode({
+      frontmatterModeEnabled: frontmatterModeEnabled === true && documentStructureBaselineLock !== true,
+      documentSemanticMode,
+      graphData: base,
+    })
+    const frontmatterFiltered = effectiveFrontmatter ? filterGraphToFrontmatterMermaid(base) : base
+    const collapsedKey = buildCollapsedGroupIdsKey(collapsedGroupIds)
+    if (!collapsedKey) return frontmatterFiltered
+    return deriveGraphDataWithGroupCollapse({
+      graphData: frontmatterFiltered,
+      collapsedGroupIds: collapsedKey.split('|').filter(Boolean),
+    })
+  }, [
+    baseGraphData,
+    collapsedGroupIds,
+    documentSemanticMode,
+    documentStructureBaselineLock,
+    frontmatterModeEnabled,
+    keywordModeActive,
+    storeRenderGraphData,
+  ])
+
   const zoomViewKey = React.useMemo(() => {
     return buildActive2dZoomViewKey({
       canvasRenderMode,
       canvas2dRenderer,
       schema,
-      graphData: (baseGraphData || null) as GraphData | null,
+      graphData: zoomGraphData,
       documentSemanticMode,
       frontmatterModeEnabled,
       documentStructureBaselineLock,
@@ -262,7 +303,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       collapsedGroupIds,
     })
   }, [
-    baseGraphData,
     canvas2dRenderer,
     canvasRenderMode,
     collapsedGroupIds,
@@ -272,7 +312,10 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     mediaPanelDensity,
     renderMediaAsNodes,
     schema,
+    zoomGraphData,
   ])
+
+  const collapsedGroupIdsKey = React.useMemo(() => buildCollapsedGroupIdsKey(collapsedGroupIds), [collapsedGroupIds])
 
   const zoomViewKeyRef = React.useRef<string | null>(zoomViewKey)
   React.useEffect(() => {
@@ -318,6 +361,63 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const y = typeof t?.y === 'number' && Number.isFinite(t.y) ? t.y : null
     if (k == null || x == null || y == null) return null
     return { k, x, y }
+  }, [])
+
+  const getLiveContainmentGroupAabbForNode = React.useCallback((nodeId: string) => {
+    const id = String(nodeId || '').trim()
+    if (!id) return null
+    const runtime = flowRuntimeRefRef.current?.current
+    const scene = runtime?.scene
+    if (!runtime || !scene) return null
+    const groupIds = scene.groupIdsByNodeId?.get(id) || []
+    if (!groupIds.length) return null
+    const groups = Array.isArray(scene.groups) ? scene.groups : []
+    if (groups.length === 0) return null
+
+    const groupById = new Map<string, (typeof groups)[number]>()
+    for (let i = 0; i < groups.length; i += 1) {
+      const g = groups[i]
+      const gid = String(g?.id || '').trim()
+      if (gid && !groupById.has(gid)) groupById.set(gid, g)
+    }
+
+    const isContainmentGroup = (g: { id?: unknown; source?: unknown } | null): boolean => {
+      if (!g) return false
+      const src = String(g.source || '').trim()
+      if (src === 'userSubgraph' || src === 'mermaidSubgraph' || src === 'layer' || src === 'community') return true
+      const gid = String(g.id || '')
+      if (gid.startsWith('subgraph:') || gid.startsWith('layer:') || gid.startsWith('community:')) return true
+      return false
+    }
+
+    let bestId: string | null = null
+    let bestDepth = -Infinity
+    let bestSize = Infinity
+    for (let i = 0; i < groupIds.length; i += 1) {
+      const gid = String(groupIds[i] || '').trim()
+      if (!gid) continue
+      const g = groupById.get(gid) || null
+      if (!isContainmentGroup(g)) continue
+      const depthRaw = (g as unknown as { depth?: unknown })?.depth
+      const depth = typeof depthRaw === 'number' && Number.isFinite(depthRaw) ? Math.max(0, Math.floor(depthRaw)) : 0
+      const members = Array.isArray((g as unknown as { memberNodeIds?: unknown })?.memberNodeIds)
+        ? ((g as unknown as { memberNodeIds: unknown[] }).memberNodeIds as unknown[])
+        : []
+      const size = members.length
+      if (bestId == null || depth > bestDepth || (depth === bestDepth && size < bestSize) || (depth === bestDepth && size === bestSize && gid.localeCompare(bestId) < 0)) {
+        bestId = gid
+        bestDepth = depth
+        bestSize = size
+      }
+    }
+    if (!bestId) return null
+    const best = groupById.get(bestId) || null
+    if (!best) return null
+
+    const cfg = runtime.presentation.groups
+    const aabb = computeFlowGroupAabb({ scene, group: best as never, paddingPx: cfg.paddingPx, labelTopExtraPx: cfg.labelTopExtraPx })
+    if (!aabb) return null
+    return { groupId: bestId, ...aabb }
   }, [])
 
   const seededPinnedQuickEditorWorldPosKeyRef = React.useRef<string>('')
@@ -455,13 +555,44 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   React.useEffect(() => {
     if (!active) return
+    if (!canEdit) {
+      setDraftGraphData(prev => (prev === null ? prev : null))
+      return
+    }
     const base = baseGraphData as GraphData | null
     setDraftGraphData(prev => (prev === base ? prev : base))
-  }, [active, baseGraphData, baseGraphDataRevision])
+  }, [active, baseGraphData, baseGraphDataRevision, canEdit])
+
+  const renderGraphDataOverride = React.useMemo((): GraphData | null => {
+    if (keywordModeActive) return (storeRenderGraphData || null) as GraphData | null
+    if (!draftGraphData) return null
+
+    const effectiveFrontmatter = computeEffectiveFrontmatterMode({
+      frontmatterModeEnabled: frontmatterModeEnabled === true && documentStructureBaselineLock !== true,
+      documentSemanticMode,
+      graphData: draftGraphData,
+    })
+
+    const base = effectiveFrontmatter ? filterGraphToFrontmatterMermaid(draftGraphData) : draftGraphData
+    if (!collapsedGroupIdsKey) return base
+
+    return deriveGraphDataWithGroupCollapse({
+      graphData: base,
+      collapsedGroupIds: collapsedGroupIdsKey.split('|').filter(Boolean),
+    })
+  }, [
+    collapsedGroupIdsKey,
+    documentSemanticMode,
+    documentStructureBaselineLock,
+    draftGraphData,
+    frontmatterModeEnabled,
+    keywordModeActive,
+    storeRenderGraphData,
+  ])
 
   const overlayOnlyModeEnabled = React.useMemo(() => {
-    return Array.isArray(nodeQuickEditorRegistry) && nodeQuickEditorRegistry.length > 0
-  }, [nodeQuickEditorRegistry])
+    return canEdit
+  }, [canEdit])
 
   const overlayCollisionResolveRafRef = React.useRef<number | null>(null)
   const overlayCollisionResolveKeyRef = React.useRef<string>('')
@@ -502,6 +633,46 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       overlayCollisionWarmupStartedAtMsRef.current = null
       overlayCollisionWarmupAttemptsRef.current = 0
 
+      const graphKind = (() => {
+        const meta = (renderGraphDataOverride?.metadata || null) as Record<string, unknown> | null
+        if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return ''
+        return String(meta.kind || '').trim()
+      })()
+      const isFrontmatterFlow = graphKind === 'frontmatter-flow'
+      const nodeById = (() => {
+        const nodes = Array.isArray(renderGraphDataOverride?.nodes) ? (renderGraphDataOverride?.nodes as GraphNode[]) : []
+        const m = new Map<string, GraphNode>()
+        for (let i = 0; i < nodes.length; i += 1) {
+          const n = nodes[i]
+          const id = String(n?.id || '').trim()
+          if (!id || m.has(id)) continue
+          m.set(id, n)
+        }
+        return m
+      })()
+      const readNum = (v: unknown): number => {
+        const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : Number.NaN
+        return typeof n === 'number' && Number.isFinite(n) ? n : 0
+      }
+      const compareByVisualIndex = (aId: string, bId: string): number => {
+        if (!aId || !bId) return String(aId || '').localeCompare(String(bId || ''))
+        if (aId === bId) return 0
+        const readKey = (id: string) => {
+          const n = nodeById.get(id)
+          const props = (n?.properties || {}) as Record<string, unknown>
+          const z = readNum(props['visual:zIndex'] ?? props['visual:depth'] ?? props['visual:layer'])
+          const y = readNum(props['visual:yIndex'])
+          const x = readNum(props['visual:xIndex'])
+          return { z, y, x, id }
+        }
+        const a = readKey(aId)
+        const b = readKey(bId)
+        if (a.z !== b.z) return a.z - b.z
+        if (a.y !== b.y) return a.y - b.y
+        if (a.x !== b.x) return a.x - b.x
+        return a.id.localeCompare(b.id)
+      }
+
       const overlayNodeIds = (() => {
         const next: string[] = []
         const seen = new Set<string>()
@@ -511,7 +682,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           seen.add(id)
           next.push(id)
         }
-        return next.sort((a, b) => a.localeCompare(b))
+        return isFrontmatterFlow ? next.sort(compareByVisualIndex) : next.sort((a, b) => a.localeCompare(b))
       })()
       if (overlayNodeIds.length < 2) return
 
@@ -627,17 +798,37 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         height: Math.round(typicalSize.height * 0.76) + gapPx,
       }
 
-      const marginLeft = 20
-      const marginRight = 20
-      const marginTop = 96
-      const marginBottom = 24
-      const rowsMax = Math.max(1, Math.floor((overlayViewport.height - marginTop - marginBottom) / Math.max(1, cellSize.height)))
-      const colsNeeded = Math.max(1, Math.ceil(Math.max(1, unpinnedCount) / rowsMax))
-      const colsMax = Math.max(1, Math.min(3, Math.floor((overlayViewport.width - marginLeft - marginRight) / Math.max(1, cellSize.width))))
-      const dockCols = Math.max(1, Math.min(colsNeeded, colsMax))
-      const dockWidth = dockCols * cellSize.width - gapPx
-      const dockLeft = Math.max(marginLeft, overlayViewport.width - marginRight - dockWidth)
-      const dockTop = marginTop
+      const marginLeft = isFrontmatterFlow ? Math.max(20, Math.floor(overlayViewport.width * 0.1)) : 20
+      const marginRight = isFrontmatterFlow ? Math.max(20, Math.floor(overlayViewport.width * 0.1)) : 20
+      const marginTop = isFrontmatterFlow ? Math.max(64, Math.floor(overlayViewport.height * 0.1)) : 96
+      const marginBottom = isFrontmatterFlow ? Math.max(24, Math.floor(overlayViewport.height * 0.1)) : 24
+      const usableW = Math.max(1, overlayViewport.width - marginLeft - marginRight)
+      const usableH = Math.max(1, overlayViewport.height - marginTop - marginBottom)
+
+      const rowsMaxFit = Math.max(1, Math.floor(usableH / Math.max(1, cellSize.height)))
+      const colsMaxFit = Math.max(1, Math.floor(usableW / Math.max(1, cellSize.width)))
+      let rowsMax = rowsMaxFit
+      let dockCols = Math.max(1, Math.min(Math.max(1, Math.ceil(Math.max(1, unpinnedCount) / rowsMaxFit)), colsMaxFit))
+      let dockWidth = dockCols * cellSize.width - gapPx
+      let dockLeft = Math.max(marginLeft, overlayViewport.width - marginRight - dockWidth)
+      let dockTop = marginTop
+
+      if (isFrontmatterFlow) {
+        const aspect = usableW / Math.max(1, usableH)
+        let cols = Math.max(1, Math.min(colsMaxFit, Math.ceil(Math.sqrt(Math.max(1, unpinnedCount) * aspect))))
+        let rows = Math.max(1, Math.ceil(Math.max(1, unpinnedCount) / cols))
+        if (rows > rowsMaxFit) {
+          cols = Math.max(1, Math.min(colsMaxFit, Math.ceil(Math.max(1, unpinnedCount) / rowsMaxFit)))
+          rows = Math.max(1, Math.ceil(Math.max(1, unpinnedCount) / cols))
+        }
+        const usedW = cols * cellSize.width - gapPx
+        const usedH = rows * cellSize.height - gapPx
+        dockCols = cols
+        rowsMax = rows
+        dockWidth = usedW
+        dockLeft = marginLeft + Math.max(0, Math.floor((usableW - usedW) / 2))
+        dockTop = marginTop + Math.max(0, Math.floor((usableH - usedH) / 2))
+      }
 
       const pinnedObstacles: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
       const items: Array<{ id: string; top: number; left: number; movable: boolean; width?: number; height?: number; pinnedInCanvas: boolean }> = []
@@ -667,8 +858,12 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           if (!hasStored) return fallback
           const left = (stored as { top: number; left: number }).left
           const top = (stored as { top: number; left: number }).top
-          const okX = left >= marginLeft - 12 && left <= overlayViewport.width - marginRight - 12
-          const okY = top >= marginTop - 12 && top <= overlayViewport.height - marginBottom - 12
+          const okX = isFrontmatterFlow
+            ? left >= -12 && left <= overlayViewport.width - 12
+            : left >= marginLeft - 12 && left <= overlayViewport.width - marginRight - 12
+          const okY = isFrontmatterFlow
+            ? top >= -12 && top <= overlayViewport.height - 12
+            : top >= marginTop - 12 && top <= overlayViewport.height - marginBottom - 12
           return okX && okY ? (stored as { top: number; left: number }) : fallback
         })()
         const clamped = clampOverlayTopLeftFullyInViewport({
@@ -970,6 +1165,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     getLiveNodeWorldPos,
     getLiveZoomTransform,
     overlayOnlyModeEnabled,
+    renderGraphDataOverride?.metadata,
+    renderGraphDataOverride?.nodes,
     schema,
     selectedNodeId,
     viewportH,
@@ -1214,13 +1411,16 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const overlayRectsByNodeId = (() => {
         if (typeof document === 'undefined') return new Map<string, DOMRect>()
         const m = new Map<string, DOMRect>()
+        const elById = new Map<string, HTMLElement>()
         const els = Array.from(document.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
         for (let i = 0; i < els.length; i += 1) {
           const el = els[i]
           const id = String(el?.dataset?.kgNodeQuickEditor || '').trim()
           if (!id || !nodeIds.has(id)) continue
           m.set(id, el.getBoundingClientRect())
+          elById.set(id, el)
         }
+        overlayElByNodeIdRef.current = elById
         return m
       })()
 
@@ -1271,6 +1471,45 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       if (baseLeft == null || baseTop == null) return
       const keep = new Set<string>()
 
+      const overlayElByNodeId = overlayElByNodeIdRef.current
+      const esc = (s: string) => {
+        const v = String(s || '')
+        const c = (globalThis as unknown as { CSS?: { escape?: (s: string) => string } }).CSS
+        if (c?.escape) return c.escape(v)
+        return v.replace(/[^a-zA-Z0-9_\-]/g, ch => `\\${ch}`)
+      }
+      const readAnchor = (args: {
+        nodeId: string
+        dir: 'in' | 'out'
+        portKey: string
+        fallbackRect: DOMRect
+        fallbackPct: number
+      }): { x: number; y: number } | null => {
+        const el = overlayElByNodeId.get(args.nodeId)
+        const portKey = String(args.portKey || '').trim()
+        if (el && portKey) {
+          const sel = `button[data-kg-port-handle="1"][data-kg-port-dir="${args.dir}"][data-kg-port-key="${esc(portKey)}"]`
+          const btn = el.querySelector(sel) as HTMLElement | null
+          if (btn) {
+            const r = btn.getBoundingClientRect()
+            const x = args.dir === 'out' ? r.right : r.left
+            const y = r.top + r.height / 2
+            if (Number.isFinite(x) && Number.isFinite(y)) return { x, y }
+          }
+        }
+        const rect = args.fallbackRect
+        const top = Number.isFinite(rect.top) ? rect.top : null
+        const left = Number.isFinite(rect.left) ? rect.left : null
+        const right = Number.isFinite(rect.right) ? rect.right : null
+        const height = Number.isFinite(rect.height) ? rect.height : null
+        if (top == null || left == null || right == null || height == null || height <= 0) return null
+        const pct = Math.max(0, Math.min(100, args.fallbackPct)) / 100
+        return {
+          x: args.dir === 'out' ? right : left,
+          y: top + pct * height,
+        }
+      }
+
       {
         const pending = pendingEdgePreviewRef.current
         const cursor = pendingEdgeCursorRef.current
@@ -1295,8 +1534,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             const handleKey = String(pending.sourcePortKey || firstSchemaPortKeyByNodeId.get(sourceId) || '__flow_default_handle__').trim()
             const outHandleId = buildFlowHandleId({ dir: 'out', edgeId: handleKey })
             const sPct = topPctByNodeAndHandle.get(sourceId)?.get(outHandleId) ?? 50
-            const sx = sRight - baseLeft
-            const sy = sTop - baseTop + (Math.max(0, Math.min(100, sPct)) / 100) * sHeight
+            const a = readAnchor({ nodeId: sourceId, dir: 'out', portKey: handleKey, fallbackRect: sRect as never, fallbackPct: sPct })
+            const sx = a ? a.x - baseLeft : sRight - baseLeft
+            const sy = a ? a.y - baseTop : sTop - baseTop + (Math.max(0, Math.min(100, sPct)) / 100) * sHeight
             const tx = cursor.x
             const ty = cursor.y
             if (Number.isFinite(sx) && Number.isFinite(sy) && Number.isFinite(tx) && Number.isFinite(ty)) {
@@ -1351,10 +1591,12 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         if (sTop == null || tTop == null || sRight == null || tLeft == null || sHeight == null || tHeight == null) continue
         if (sHeight <= 0 || tHeight <= 0) continue
 
-        const sx = sRight - baseLeft
-        const tx = tLeft - baseLeft
-        const sy = sTop - baseTop + (Math.max(0, Math.min(100, sPct)) / 100) * sHeight
-        const ty = tTop - baseTop + (Math.max(0, Math.min(100, tPct)) / 100) * tHeight
+        const sAnchor = readAnchor({ nodeId: source, dir: 'out', portKey: e.sourcePortKey || edgeId, fallbackRect: sRect as never, fallbackPct: sPct })
+        const tAnchor = readAnchor({ nodeId: target, dir: 'in', portKey: e.targetPortKey || edgeId, fallbackRect: tRect as never, fallbackPct: tPct })
+        const sx = (sAnchor ? sAnchor.x : sRight) - baseLeft
+        const tx = (tAnchor ? tAnchor.x : tLeft) - baseLeft
+        const sy = (sAnchor ? sAnchor.y : sTop + (Math.max(0, Math.min(100, sPct)) / 100) * sHeight) - baseTop
+        const ty = (tAnchor ? tAnchor.y : tTop + (Math.max(0, Math.min(100, tPct)) / 100) * tHeight) - baseTop
         if (!Number.isFinite(sx) || !Number.isFinite(sy) || !Number.isFinite(tx) || !Number.isFinite(ty)) continue
 
         const dx = tx - sx
@@ -2617,6 +2859,122 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   )
 
   const overlayEditorNodeIds = React.useMemo(() => {
+    const kind = String(((renderGraphDataOverride?.metadata || {}) as Record<string, unknown>).kind || '').trim()
+    const nodes = Array.isArray(renderGraphDataOverride?.nodes) ? (renderGraphDataOverride?.nodes as GraphNode[]) : []
+    const nodeById = (() => {
+      const m = new Map<string, GraphNode>()
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]
+        const id = String(n?.id || '').trim()
+        if (!id || m.has(id)) continue
+        m.set(id, n)
+      }
+      return m
+    })()
+    const readNum = (v: unknown): number => {
+      const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : Number.NaN
+      return typeof n === 'number' && Number.isFinite(n) ? n : 0
+    }
+    const compareByVisualIndex = (aId: string, bId: string): number => {
+      if (!aId || !bId) return String(aId || '').localeCompare(String(bId || ''))
+      if (aId === bId) return 0
+      const readKey = (id: string) => {
+        const n = nodeById.get(id)
+        const props = (n?.properties || {}) as Record<string, unknown>
+        const z = readNum(props['visual:zIndex'] ?? props['visual:depth'] ?? props['visual:layer'])
+        const y = readNum(props['visual:yIndex'])
+        const x = readNum(props['visual:xIndex'])
+        return { z, y, x, id }
+      }
+      const a = readKey(aId)
+      const b = readKey(bId)
+      if (a.z !== b.z) return a.z - b.z
+      if (a.y !== b.y) return a.y - b.y
+      if (a.x !== b.x) return a.x - b.x
+      return a.id.localeCompare(b.id)
+    }
+    const MAX_AUTO = 48
+    if (kind === 'frontmatter-flow' && nodes.length > 0 && nodes.length <= MAX_AUTO) {
+      const next: string[] = []
+      const seen = new Set<string>()
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]
+        const id = String(n?.id || '').trim()
+        if (!id || seen.has(id)) continue
+        if (String(n?.type || '') === 'Section') continue
+        seen.add(id)
+        next.push(id)
+      }
+      return next.sort(compareByVisualIndex)
+    }
+
+    if (kind === 'frontmatter-flow' && nodes.length > 0 && nodes.length > MAX_AUTO) {
+      const MAX_VIEW = 28
+      const pad = 160
+      const st = useGraphStore.getState()
+      const t =
+        getLiveZoomTransform() ||
+        getEffectiveZoomStateForKey({
+          zoomViewKey: zoomViewKeyRef.current,
+          zoomStateByKey: st.zoomStateByKey,
+          zoomState: st.zoomState,
+        })
+
+      const candidates: Array<{ id: string; sx: number; sy: number }> = []
+      const positioned: Array<{ id: string; x: number; y: number }> = []
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]
+        const id = String(n?.id || '').trim()
+        if (!id) continue
+        if (String(n?.type || '') === 'Section') continue
+        const x = (n as unknown as { x?: unknown }).x
+        const y = (n as unknown as { y?: unknown }).y
+        if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) continue
+        positioned.push({ id, x, y })
+        const p = worldToScreen({ transform: t as unknown as { k: number; x: number; y: number }, x, y })
+        if (p.sx < -pad || p.sy < -pad || p.sx > viewportW + pad || p.sy > viewportH + pad) continue
+        candidates.push({ id, sx: p.sx, sy: p.sy })
+      }
+      candidates.sort((a, b) => (a.sy - b.sy) || (a.sx - b.sx) || a.id.localeCompare(b.id))
+
+      const next: string[] = []
+      const seen = new Set<string>()
+      if (candidates.length > 0) {
+        for (let i = 0; i < candidates.length && next.length < MAX_VIEW; i += 1) {
+          const id = candidates[i].id
+          if (seen.has(id)) continue
+          seen.add(id)
+          next.push(id)
+        }
+      } else if (positioned.length > 0) {
+        const center = viewportCenterToWorld({ transform: t as unknown as { k: number; x: number; y: number }, viewportW, viewportH })
+        const scored = positioned
+          .map(p => {
+            const dx = p.x - center.x
+            const dy = p.y - center.y
+            return { id: p.id, dist2: dx * dx + dy * dy, x: p.x, y: p.y }
+          })
+          .sort((a, b) => (a.dist2 - b.dist2) || (a.y - b.y) || (a.x - b.x) || a.id.localeCompare(b.id))
+        for (let i = 0; i < scored.length && next.length < MAX_VIEW; i += 1) {
+          const id = scored[i].id
+          if (seen.has(id)) continue
+          seen.add(id)
+          next.push(id)
+        }
+      }
+
+      const open = Array.isArray(openQuickEditorNodeIds) ? openQuickEditorNodeIds : []
+      for (let i = 0; i < open.length; i += 1) {
+        const s = String(open[i] || '').trim()
+        if (!s || seen.has(s)) continue
+        seen.add(s)
+        next.push(s)
+      }
+      const sel = String(overlayDraftNode?.id || '').trim()
+      if (sel && !seen.has(sel)) next.push(sel)
+      return next.sort(compareByVisualIndex)
+    }
+
     const next: string[] = []
     const seen = new Set<string>()
     for (const id of openQuickEditorNodeIds) {
@@ -2628,21 +2986,50 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const sel = String(overlayDraftNode?.id || '').trim()
     if (sel && !seen.has(sel)) next.push(sel)
     return next
-  }, [openQuickEditorNodeIds, overlayDraftNode?.id])
+  }, [getLiveZoomTransform, openQuickEditorNodeIds, overlayDraftNode?.id, renderGraphDataOverride?.metadata, renderGraphDataOverride?.nodes, viewportH, viewportW])
+
+  const seededFrontmatterAutoQuickEditorsKeyRef = React.useRef<string>('')
+  React.useEffect(() => {
+    if (!active) return
+    const kind = String(((renderGraphDataOverride?.metadata || {}) as Record<string, unknown>).kind || '').trim()
+    if (kind !== 'frontmatter-flow') return
+    if (overlayEditorNodeIds.length === 0) return
+
+    const st = useGraphStore.getState()
+    const pinnedById = st.flowNodeQuickEditorPinnedByNodeId || {}
+    const hasAnyExplicit = overlayEditorNodeIds.some(id => Object.prototype.hasOwnProperty.call(pinnedById, id))
+    const seedKey = `${baseGraphDataRevision}|${overlayEditorNodeIds.join(',')}|${hasAnyExplicit ? 1 : 0}`
+    if (seededFrontmatterAutoQuickEditorsKeyRef.current === seedKey) return
+    seededFrontmatterAutoQuickEditorsKeyRef.current = seedKey
+    if (hasAnyExplicit) return
+
+    const nextPinned = { ...pinnedById }
+    let changed = false
+    for (let i = 0; i < overlayEditorNodeIds.length; i += 1) {
+      const id = overlayEditorNodeIds[i]
+      if (!id) continue
+      if (Object.prototype.hasOwnProperty.call(nextPinned, id)) continue
+      nextPinned[id] = false
+      changed = true
+    }
+    if (!changed) return
+    st.setFlowNodeQuickEditorPinnedByNodeId(nextPinned)
+    scheduleOverlayCollisionResolve()
+  }, [active, baseGraphDataRevision, overlayEditorNodeIds, renderGraphDataOverride?.metadata, scheduleOverlayCollisionResolve])
 
   const connectedValuesByNodeId = React.useMemo(() => {
     const targetNodeIds = new Set(overlayEditorNodeIds)
     return computeFlowConnectedValuesBySchemaPath({
-      graphData: draftGraphData,
+      graphData: renderGraphDataOverride,
       registry: Array.isArray(nodeQuickEditorRegistry) ? nodeQuickEditorRegistry : [],
       targetNodeIds,
     })
-  }, [draftGraphData, nodeQuickEditorRegistry, overlayEditorNodeIds])
+  }, [nodeQuickEditorRegistry, overlayEditorNodeIds, renderGraphDataOverride])
 
   const overlayEditorElements = React.useMemo(() => {
-    if (!active) return []
-    const edges = (draftGraphData?.edges || []) as GraphEdge[]
-    const nodes = Array.isArray(draftGraphData?.nodes) ? (draftGraphData?.nodes as GraphNode[]) : []
+    if (!canEdit) return []
+    const edges = (renderGraphDataOverride?.edges || []) as GraphEdge[]
+    const nodes = Array.isArray(renderGraphDataOverride?.nodes) ? (renderGraphDataOverride?.nodes as GraphNode[]) : []
     const nodeById = new Map<string, GraphNode>()
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
@@ -2650,7 +3037,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       if (!id) continue
       if (!nodeById.has(id)) nodeById.set(id, n)
     }
-    const graphMetaKind = String(((draftGraphData?.metadata || {}) as Record<string, unknown>).kind || '').trim() || null
+    const graphMetaKind = String(((renderGraphDataOverride?.metadata || {}) as Record<string, unknown>).kind || '').trim() || null
     const forcePinnedToCanvas = false
     const resolveNode = (id: string) => {
       const found = nodeById.get(id) || null
@@ -2687,6 +3074,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             stackIndex={stackIndex}
             getLiveNodeWorldPos={getLiveNodeWorldPos}
             getLiveZoomTransform={getLiveZoomTransform}
+            getLiveContainmentGroupAabbForNode={getLiveContainmentGroupAabbForNode}
             onSetLabel={(label) => setNodeLabelById(id, label)}
             onSetType={(type) => setNodeTypeById(id, type)}
             onPatchProperties={(patch) => patchNodePropertiesById(id, patch)}
@@ -2708,19 +3096,18 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       })
       .filter(Boolean)
   }, [
-    active,
+    canEdit,
     beginAddEdgeFromNode,
     canvasWindowOffset,
     clearNodeOutputById,
     convertNodeToLoopById,
     connectedValuesByNodeId,
-    draftGraphData?.edges,
-    draftGraphData?.nodes,
     duplicateNodeById,
     enableHandlesForAllInputs,
     finalizePendingEdge,
     getLiveNodeWorldPos,
     getLiveZoomTransform,
+    getLiveContainmentGroupAabbForNode,
     lastDroppedQuickEditorToken,
     overlayEditorNodeIds,
     patchNodePropertiesById,
@@ -2738,16 +3125,18 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     viewportH,
     viewportW,
     zoomViewKey,
+    renderGraphDataOverride?.edges,
+    renderGraphDataOverride?.nodes,
   ])
 
   const hasOverlayEditors = overlayEditorElements.length > 0
   const overlayOnlyActive = overlayOnlyModeEnabled && hasOverlayEditors
   const overlayOnlyHidePortHandleNodeIds = React.useMemo(() => {
     if (!overlayOnlyActive) return undefined
-    const nodes = Array.isArray(draftGraphData?.nodes) ? draftGraphData?.nodes : []
+    const nodes = Array.isArray(renderGraphDataOverride?.nodes) ? renderGraphDataOverride?.nodes : []
     return nodes.map(n => String((n as { id?: unknown })?.id || '')).filter(Boolean)
-  }, [draftGraphData?.nodes, overlayOnlyActive])
-  const noGraphLoaded = !draftGraphData
+  }, [overlayOnlyActive, renderGraphDataOverride?.nodes])
+  const noGraphLoaded = !renderGraphDataOverride
 
   return (
     <section
@@ -2755,7 +3144,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       className="absolute inset-0 z-0"
       aria-label="Flow Editor"
       onDragOverCapture={(ev) => {
-        if (!active) return
+        if (!canEdit) return
         ev.preventDefault()
         try {
           ev.dataTransfer.dropEffect = 'copy'
@@ -2764,7 +3153,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         }
       }}
       onDropCapture={(ev) => {
-        if (!active) return
+        if (!canEdit) return
         const payload = readFlowNodeQuickEditorDragPayloadFromDataTransfer({ getData: mime => ev.dataTransfer.getData(mime) })
         if (!payload) return
         const entry = (nodeQuickEditorRegistry || []).find(e => e && e.isEnabled && e.id === payload.registryEntryId) || null
@@ -2809,7 +3198,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     >
       <FlowCanvas
         active={active}
-        graphDataOverride={draftGraphData}
+        allowNodeDragOverride={canEdit}
+        graphDataOverride={renderGraphDataOverride}
         graphDataRevisionOverride={baseGraphDataRevision}
         exposeRuntimeRef={ref => {
           flowRuntimeRefRef.current = ref
@@ -2851,7 +3241,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
               setPendingEdgeSourceId(null)
             }}
             aria-label="Tool: Select"
-            disabled={!active}
+            disabled={!canEdit}
           >
             Select
           </button>
@@ -2860,7 +3250,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
             onClick={addNode}
             aria-label="Add node"
-            disabled={!active}
+            disabled={!canEdit}
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -2877,7 +3267,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
               setPendingEdgeSourceId(null)
             }}
             aria-label="Add edge"
-            disabled={!active}
+            disabled={!canEdit}
           >
             <Link2 className="h-4 w-4" />
           </button>
@@ -2886,7 +3276,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
             onClick={deleteSelection}
             aria-label="Delete selection"
-            disabled={!active}
+            disabled={!canEdit}
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -2898,7 +3288,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       </nav>
       )}
 
-      {!hasOverlayEditors && toolMode === 'addEdge' && active && (
+      {!hasOverlayEditors && toolMode === 'addEdge' && canEdit && (
         <aside className="absolute top-16 left-3 z-[220]" aria-label="Add edge hint">
           <section className={`rounded-lg border px-3 py-2 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.input.border}`}>
             <p className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>

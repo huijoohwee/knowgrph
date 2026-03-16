@@ -1,84 +1,170 @@
 import { execTest, TestResult } from './testRunnerUtils'
-import { testParserRegistryCrud } from '@/__tests__/parserRegistry.test'
-import { testCustomParserConversion } from '@/__tests__/customParser.test'
-import { testCustomParserTransforms } from '@/__tests__/customParserTransforms.test'
-import { testTransformArrayPath } from '@/__tests__/transformArrayPath.test'
-import { testWildcardAggregation } from '@/__tests__/wildcardAgg.test'
-import { testWildcardMinMaxAvg } from '@/__tests__/wildcardMinMaxAvg.test'
-import { testWildcardPercentile } from '@/__tests__/wildcardPercentile.test'
-import { testWildcardPercentileNearest } from '@/__tests__/wildcardPercentileMethod.test'
-import { testWildcardPercentileTukeyHazen } from '@/__tests__/wildcardPercentileTukeyHazen.test'
-import { testWildcardPercentileHF } from '@/__tests__/wildcardPercentileHF.test'
-import { testCustomParserTypeMethodWarning } from '@/__tests__/customParserWarnings.test'
-import { testParserAutoSelectOnLoad } from '@/__tests__/parserAutoApply.test'
-import { testParserUIStateHydration } from '@/__tests__/parserUiState.test'
-import { testYamlTransformsValidation } from '@/__tests__/yamlTransforms.test'
-import { testParserCacheCfgKey } from '@/__tests__/parserCacheCfgKey.test'
-import { testParserWorkflowPresetStorage } from '@/__tests__/parserWorkflowPersistence.test'
-import {
-  testRawJsonNodesArrayIngestion,
-  testRawJsonExtendedNodesIngestion,
-} from '@/__tests__/rawJsonIngestion.test'
-import { testRawJsonWorkflowShapeIngestion } from '@/__tests__/rawJsonWorkflowShapeIngestion.test'
-import {
-  testMermaidSubgraphParsingAddsParentId,
-  testMermaidSubgraphDerivationBuildsGroups,
-} from '@/__tests__/mermaidSubgraphGroups.test'
-import { testMermaidSeedLayoutSpreadsGroupsAndCenters } from '@/__tests__/mermaidSeedLayout.test'
-import { testMermaidParserCapturesNodeShapes } from '@/__tests__/mermaidNodeShapes.test'
-import {
-  testGraphRagTextPipelineBuildsGraphAcrossDomains,
-  testGraphRagTextPipelineCentralityConfigDisablesMetrics,
-  testGraphRagTextPipelineMatchesDemoFixture,
-  testGraphRagTextParserSpecMatchesTxt,
-  testGraphRagTextParserSelectionPrefersGraphRagOnPlainMd,
-} from '@/__tests__/graphragTextPipeline.test'
-import { testGraphRagTextPipelineExtractsFromAieBookSnippets } from '@/__tests__/aieBookGraphRagTextPipeline.test'
-import {
-  testQuickEditorBundleParseProducesGraphDataWithRegistryMetadata,
-  testQuickEditorRegistryAppliedFromGraphMetadata,
-  testQuickEditorAiFlowImportBuildsGraphAndRegistry,
-  testQuickEditorComfyUiImportBuildsGraphAndRegistry,
-} from '@/__tests__/quickEditorBundleImport.test'
-import {
-  testFlowEditorManagerBuildDraftFromSmartFields,
-  testFlowEditorManagerBuildGenerateVideoDraftUsesSsotTypeId,
-} from '@/__tests__/flowEditorManagerAddFromQuickEditor.test'
+
+const modParserRegistry = () => import('@/__tests__/parserRegistry.test')
+const modCustomParser = () => import('@/__tests__/customParser.test')
+const modCustomParserTransforms = () => import('@/__tests__/customParserTransforms.test')
+const modTransformArrayPath = () => import('@/__tests__/transformArrayPath.test')
+const modWildcardAgg = () => import('@/__tests__/wildcardAgg.test')
+const modWildcardMinMaxAvg = () => import('@/__tests__/wildcardMinMaxAvg.test')
+const modWildcardPercentile = () => import('@/__tests__/wildcardPercentile.test')
+const modWildcardPercentileMethod = () => import('@/__tests__/wildcardPercentileMethod.test')
+const modWildcardPercentileTukeyHazen = () => import('@/__tests__/wildcardPercentileTukeyHazen.test')
+const modWildcardPercentileHF = () => import('@/__tests__/wildcardPercentileHF.test')
+const modCustomParserWarnings = () => import('@/__tests__/customParserWarnings.test')
+const modParserAutoApply = () => import('@/__tests__/parserAutoApply.test')
+const modParserUiState = () => import('@/__tests__/parserUiState.test')
+const modYamlTransforms = () => import('@/__tests__/yamlTransforms.test')
+const modParserCacheCfgKey = () => import('@/__tests__/parserCacheCfgKey.test')
+const modParserWorkflowPersistence = () => import('@/__tests__/parserWorkflowPersistence.test')
+const modRawJsonIngestion = () => import('@/__tests__/rawJsonIngestion.test')
+const modRawJsonWorkflowShapeIngestion = () => import('@/__tests__/rawJsonWorkflowShapeIngestion.test')
+const modMermaidSubgraphGroups = () => import('@/__tests__/mermaidSubgraphGroups.test')
+const modMermaidSeedLayout = () => import('@/__tests__/mermaidSeedLayout.test')
+const modMermaidNodeShapes = () => import('@/__tests__/mermaidNodeShapes.test')
+const modGraphragTextPipeline = () => import('@/__tests__/graphragTextPipeline.test')
+const modAieBookGraphRagTextPipeline = () => import('@/__tests__/aieBookGraphRagTextPipeline.test')
+const modQuickEditorBundleImport = () => import('@/__tests__/quickEditorBundleImport.test')
+const modFlowEditorManagerAddFromQuickEditor = () => import('@/__tests__/flowEditorManagerAddFromQuickEditor.test')
 
 export const runParserTests = async (results: TestResult[]) => {
-  await execTest(results, 'parser.registryCrud', testParserRegistryCrud)
-  await execTest(results, 'parser.customConversion', testCustomParserConversion)
-  await execTest(results, 'parser.customTransforms', testCustomParserTransforms)
-  await execTest(results, 'parser.arrayPath', testTransformArrayPath)
-  await execTest(results, 'parser.wildcardAgg', testWildcardAggregation)
-  await execTest(results, 'parser.wildcardMinMaxAvg', testWildcardMinMaxAvg)
-  await execTest(results, 'parser.wildcardPercentile', testWildcardPercentile)
-  await execTest(results, 'parser.wildcardPercentileNearest', testWildcardPercentileNearest)
-  await execTest(results, 'parser.wildcardPercentileTukeyHazen', testWildcardPercentileTukeyHazen)
-  await execTest(results, 'parser.wildcardPercentileHF', testWildcardPercentileHF)
-  await execTest(results, 'parser.typeMethodWarning', testCustomParserTypeMethodWarning)
-  await execTest(results, 'parser.autoSelectOnLoad', testParserAutoSelectOnLoad)
-  await execTest(results, 'parser.uiStateHydration', testParserUIStateHydration)
-  await execTest(results, 'parser.yamlTransformsValidation', testYamlTransformsValidation)
-  await execTest(results, 'parser.cacheCfgKey', testParserCacheCfgKey)
-  await execTest(results, 'parser.workflowPresetStorage', testParserWorkflowPresetStorage)
-  await execTest(results, 'parser.rawJson.nodesArrayIngestion', testRawJsonNodesArrayIngestion)
-  await execTest(results, 'parser.rawJson.extendedNodesIngestion', testRawJsonExtendedNodesIngestion)
-  await execTest(results, 'parser.rawJson.workflowShapeIngestion', testRawJsonWorkflowShapeIngestion)
-  await execTest(results, 'parser.mermaid.subgraphParentId', testMermaidSubgraphParsingAddsParentId)
-  await execTest(results, 'parser.mermaid.subgraphGroupDerivation', testMermaidSubgraphDerivationBuildsGroups)
-  await execTest(results, 'parser.mermaid.seedLayoutSpreadAndCenter', testMermaidSeedLayoutSpreadsGroupsAndCenters)
-  await execTest(results, 'parser.mermaid.nodeShapes', testMermaidParserCapturesNodeShapes)
-  await execTest(results, 'parser.graphragText.pipelineBuildsGraphAcrossDomains', testGraphRagTextPipelineBuildsGraphAcrossDomains)
-  await execTest(results, 'parser.graphragText.centralityConfigDisablesMetrics', testGraphRagTextPipelineCentralityConfigDisablesMetrics)
-  await execTest(results, 'parser.graphragText.pipelineMatchesDemoFixture', testGraphRagTextPipelineMatchesDemoFixture)
-  await execTest(results, 'parser.graphragText.pipelineExtractsFromAieBookSnippets', testGraphRagTextPipelineExtractsFromAieBookSnippets)
-  await execTest(results, 'parser.graphragText.parserSpecMatchesTxt', testGraphRagTextParserSpecMatchesTxt)
-  await execTest(results, 'parser.graphragText.bestMatchPrefersGraphRagOnPlainMd', testGraphRagTextParserSelectionPrefersGraphRagOnPlainMd)
-  await execTest(results, 'parser.quickEditor.bundleParseAddsRegistryMetadata', testQuickEditorBundleParseProducesGraphDataWithRegistryMetadata)
-  await execTest(results, 'parser.quickEditor.applyRegistryFromMetadata', testQuickEditorRegistryAppliedFromGraphMetadata)
-  await execTest(results, 'parser.quickEditor.aiFlowImportBuildsGraphAndRegistry', testQuickEditorAiFlowImportBuildsGraphAndRegistry)
-  await execTest(results, 'parser.quickEditor.comfyUiImportBuildsGraphAndRegistry', testQuickEditorComfyUiImportBuildsGraphAndRegistry)
-  await execTest(results, 'parser.quickEditor.managerAddFromQuickEditorBuildsDraft', testFlowEditorManagerBuildDraftFromSmartFields)
-  await execTest(results, 'parser.quickEditor.managerGenerateVideoDraftUsesSsotTypeId', testFlowEditorManagerBuildGenerateVideoDraftUsesSsotTypeId)
+  await execTest(results, 'parser.registryCrud', async () => {
+    const mod = await modParserRegistry()
+    await mod.testParserRegistryCrud()
+  })
+  await execTest(results, 'parser.customConversion', async () => {
+    const mod = await modCustomParser()
+    await mod.testCustomParserConversion()
+  })
+  await execTest(results, 'parser.customTransforms', async () => {
+    const mod = await modCustomParserTransforms()
+    await mod.testCustomParserTransforms()
+  })
+  await execTest(results, 'parser.arrayPath', async () => {
+    const mod = await modTransformArrayPath()
+    await mod.testTransformArrayPath()
+  })
+  await execTest(results, 'parser.wildcardAgg', async () => {
+    const mod = await modWildcardAgg()
+    await mod.testWildcardAggregation()
+  })
+  await execTest(results, 'parser.wildcardMinMaxAvg', async () => {
+    const mod = await modWildcardMinMaxAvg()
+    await mod.testWildcardMinMaxAvg()
+  })
+  await execTest(results, 'parser.wildcardPercentile', async () => {
+    const mod = await modWildcardPercentile()
+    await mod.testWildcardPercentile()
+  })
+  await execTest(results, 'parser.wildcardPercentileNearest', async () => {
+    const mod = await modWildcardPercentileMethod()
+    await mod.testWildcardPercentileNearest()
+  })
+  await execTest(results, 'parser.wildcardPercentileTukeyHazen', async () => {
+    const mod = await modWildcardPercentileTukeyHazen()
+    await mod.testWildcardPercentileTukeyHazen()
+  })
+  await execTest(results, 'parser.wildcardPercentileHF', async () => {
+    const mod = await modWildcardPercentileHF()
+    await mod.testWildcardPercentileHF()
+  })
+  await execTest(results, 'parser.typeMethodWarning', async () => {
+    const mod = await modCustomParserWarnings()
+    await mod.testCustomParserTypeMethodWarning()
+  })
+  await execTest(results, 'parser.autoSelectOnLoad', async () => {
+    const mod = await modParserAutoApply()
+    await mod.testParserAutoSelectOnLoad()
+  })
+  await execTest(results, 'parser.uiStateHydration', async () => {
+    const mod = await modParserUiState()
+    await mod.testParserUIStateHydration()
+  })
+  await execTest(results, 'parser.yamlTransformsValidation', async () => {
+    const mod = await modYamlTransforms()
+    await mod.testYamlTransformsValidation()
+  })
+  await execTest(results, 'parser.cacheCfgKey', async () => {
+    const mod = await modParserCacheCfgKey()
+    await mod.testParserCacheCfgKey()
+  })
+  await execTest(results, 'parser.workflowPresetStorage', async () => {
+    const mod = await modParserWorkflowPersistence()
+    await mod.testParserWorkflowPresetStorage()
+  })
+  await execTest(results, 'parser.rawJson.nodesArrayIngestion', async () => {
+    const mod = await modRawJsonIngestion()
+    await mod.testRawJsonNodesArrayIngestion()
+  })
+  await execTest(results, 'parser.rawJson.extendedNodesIngestion', async () => {
+    const mod = await modRawJsonIngestion()
+    await mod.testRawJsonExtendedNodesIngestion()
+  })
+  await execTest(results, 'parser.rawJson.workflowShapeIngestion', async () => {
+    const mod = await modRawJsonWorkflowShapeIngestion()
+    await mod.testRawJsonWorkflowShapeIngestion()
+  })
+  await execTest(results, 'parser.mermaid.subgraphParentId', async () => {
+    const mod = await modMermaidSubgraphGroups()
+    await mod.testMermaidSubgraphParsingAddsParentId()
+  })
+  await execTest(results, 'parser.mermaid.subgraphGroupDerivation', async () => {
+    const mod = await modMermaidSubgraphGroups()
+    await mod.testMermaidSubgraphDerivationBuildsGroups()
+  })
+  await execTest(results, 'parser.mermaid.seedLayoutSpreadAndCenter', async () => {
+    const mod = await modMermaidSeedLayout()
+    await mod.testMermaidSeedLayoutSpreadsGroupsAndCenters()
+  })
+  await execTest(results, 'parser.mermaid.nodeShapes', async () => {
+    const mod = await modMermaidNodeShapes()
+    await mod.testMermaidParserCapturesNodeShapes()
+  })
+  await execTest(results, 'parser.graphragText.pipelineBuildsGraphAcrossDomains', async () => {
+    const mod = await modGraphragTextPipeline()
+    await mod.testGraphRagTextPipelineBuildsGraphAcrossDomains()
+  })
+  await execTest(results, 'parser.graphragText.centralityConfigDisablesMetrics', async () => {
+    const mod = await modGraphragTextPipeline()
+    await mod.testGraphRagTextPipelineCentralityConfigDisablesMetrics()
+  })
+  await execTest(results, 'parser.graphragText.pipelineMatchesDemoFixture', async () => {
+    const mod = await modGraphragTextPipeline()
+    await mod.testGraphRagTextPipelineMatchesDemoFixture()
+  })
+  await execTest(results, 'parser.graphragText.pipelineExtractsFromAieBookSnippets', async () => {
+    const mod = await modAieBookGraphRagTextPipeline()
+    await mod.testGraphRagTextPipelineExtractsFromAieBookSnippets()
+  })
+  await execTest(results, 'parser.graphragText.parserSpecMatchesTxt', async () => {
+    const mod = await modGraphragTextPipeline()
+    await mod.testGraphRagTextParserSpecMatchesTxt()
+  })
+  await execTest(results, 'parser.graphragText.bestMatchPrefersGraphRagOnPlainMd', async () => {
+    const mod = await modGraphragTextPipeline()
+    await mod.testGraphRagTextParserSelectionPrefersGraphRagOnPlainMd()
+  })
+  await execTest(results, 'parser.quickEditor.bundleParseAddsRegistryMetadata', async () => {
+    const mod = await modQuickEditorBundleImport()
+    await mod.testQuickEditorBundleParseProducesGraphDataWithRegistryMetadata()
+  })
+  await execTest(results, 'parser.quickEditor.applyRegistryFromMetadata', async () => {
+    const mod = await modQuickEditorBundleImport()
+    await mod.testQuickEditorRegistryAppliedFromGraphMetadata()
+  })
+  await execTest(results, 'parser.quickEditor.aiFlowImportBuildsGraphAndRegistry', async () => {
+    const mod = await modQuickEditorBundleImport()
+    await mod.testQuickEditorAiFlowImportBuildsGraphAndRegistry()
+  })
+  await execTest(results, 'parser.quickEditor.comfyUiImportBuildsGraphAndRegistry', async () => {
+    const mod = await modQuickEditorBundleImport()
+    await mod.testQuickEditorComfyUiImportBuildsGraphAndRegistry()
+  })
+  await execTest(results, 'parser.quickEditor.managerAddFromQuickEditorBuildsDraft', async () => {
+    const mod = await modFlowEditorManagerAddFromQuickEditor()
+    await mod.testFlowEditorManagerBuildDraftFromSmartFields()
+  })
+  await execTest(results, 'parser.quickEditor.managerGenerateVideoDraftUsesSsotTypeId', async () => {
+    const mod = await modFlowEditorManagerAddFromQuickEditor()
+    await mod.testFlowEditorManagerBuildGenerateVideoDraftUsesSsotTypeId()
+  })
 }

@@ -2,7 +2,11 @@ import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/typ
 import { splitMarkdownLines, parseMarkdownFrontmatter, parseMarkdownBlocks } from '@/lib/markdown'
 import { hashText } from '@/features/parsers/hash'
 import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
-import { FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+import { FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config'
+import {
+  FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
+  FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
+} from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import { FLOW_EDGE_DISPLAY_LABEL_KEY, FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 
@@ -264,9 +268,14 @@ function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNode[]; re
       ...visualOverrides,
       ...(portTypes != null && propsFromRow[FLOW_PORT_TYPES_KEY] == null ? ({ [FLOW_PORT_TYPES_KEY]: portTypes } as unknown as Record<string, JSONValue>) : {}),
       ...(paramsFromRow != null ? ({ params: paramsFromRow } as unknown as Record<string, JSONValue>) : {}),
-      ...(row[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] == null
-        ? ({ [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: formId } as unknown as Record<string, JSONValue>)
-        : {}),
+      ...(type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
+        ? ({
+            [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'ports',
+            [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: formId,
+          } as unknown as Record<string, JSONValue>)
+        : row[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] == null
+          ? ({ [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: formId } as unknown as Record<string, JSONValue>)
+          : {}),
     }
 
     nodes.push({
@@ -283,7 +292,7 @@ function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNode[]; re
         id: `qer-fm-${cleanIdPart(type) || 'node'}-${cleanIdPart(id) || hashText(id)}`,
         isEnabled: true,
         nodeTypeId: type,
-        quickEditorTypeId: 'default',
+        quickEditorTypeId: type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID ? 'ports' : 'default',
         formId,
         fields: [],
         ports,
@@ -304,6 +313,12 @@ function normalizeEdgesFromNodeInputs(nodes: ReadonlyArray<Record<string, unknow
   const out: GraphEdge[] = []
   const seen = new Set<string>()
   let n = 0
+
+  const buildDisplayLabel = (fromPort: string, toPort: string, socketType: string): string => {
+    const base = `${fromPort} → ${toPort}`
+    const t = String(socketType || '').trim()
+    return t ? `${base} · ${t}` : base
+  }
 
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]
@@ -337,7 +352,7 @@ function normalizeEdgesFromNodeInputs(nodes: ReadonlyArray<Record<string, unknow
         properties: {
           [FLOW_EDGE_SOURCE_PORT_KEY]: fromPort,
           [FLOW_EDGE_TARGET_PORT_KEY]: toPort,
-          [FLOW_EDGE_DISPLAY_LABEL_KEY]: `${fromPort} → ${toPort}`,
+          [FLOW_EDGE_DISPLAY_LABEL_KEY]: buildDisplayLabel(fromPort, toPort, socketType),
           ...(socketType ? ({ 'flow:socketType': socketType } as unknown as Record<string, JSONValue>) : {}),
         },
       })
@@ -392,6 +407,12 @@ function parseConnections(meta: Record<string, unknown>): { edges: GraphEdge[]; 
   const declared: ParsedConnection[] = []
   const seen = new Set<string>()
 
+  const buildDisplayLabel = (fromPort: string, toPort: string, socketType: string): string => {
+    const base = `${fromPort} → ${toPort}`
+    const t = String(socketType || '').trim()
+    return t ? `${base} · ${t}` : base
+  }
+
   for (let i = 0; i < raw.length; i += 1) {
     const rowRaw = raw[i]
     if (!isRecord(rowRaw)) continue
@@ -409,7 +430,7 @@ function parseConnections(meta: Record<string, unknown>): { edges: GraphEdge[]; 
     const properties: Record<string, JSONValue> = {
       [FLOW_EDGE_SOURCE_PORT_KEY]: endpoints.fromPort,
       [FLOW_EDGE_TARGET_PORT_KEY]: endpoints.toPort,
-      [FLOW_EDGE_DISPLAY_LABEL_KEY]: `${endpoints.fromPort} → ${endpoints.toPort}`,
+      [FLOW_EDGE_DISPLAY_LABEL_KEY]: buildDisplayLabel(endpoints.fromPort, endpoints.toPort, socketType),
       ...(socketType ? ({ 'flow:socketType': socketType } as unknown as Record<string, JSONValue>) : {}),
     }
     edges.push({

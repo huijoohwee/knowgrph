@@ -359,10 +359,6 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
           void 0
         }
 
-        if (!shouldConvertToMarkdown && mode === 'refresh') {
-          return ''
-        }
-
         const fetchImpl = (globalThis as unknown as { fetch?: unknown }).fetch
         const rawHtml = await fetchWebpageHtmlAuto({
           url: normalizedUrl,
@@ -388,7 +384,10 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
         shouldFallbackToPlainText = tuned.shouldFallbackToPlainText
         opts?.onProgress?.(65)
 
-        if (!tuned.shouldConvertToMarkdown) return ''
+        if (!tuned.shouldConvertToMarkdown) {
+          const recovered = normalizeWebpageCardAndListBlocks(htmlFallbackToMarkdownAllText(boundedHtml))
+          return recovered.trim()
+        }
 
         const markdown = await (async () => {
           try {

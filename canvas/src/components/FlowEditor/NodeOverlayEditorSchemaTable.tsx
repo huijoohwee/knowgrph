@@ -156,6 +156,9 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
                       type="button"
                       aria-label={inAria}
                       title={inAria}
+                      data-kg-port-handle="1"
+                      data-kg-port-dir="in"
+                      data-kg-port-key={portKey}
                       className={cn('absolute top-1/2 left-0', UI_THEME_TOKENS.button.text)}
                       style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px`, transform: 'translate(0, -50%)' }}
                       onPointerDown={e => {
@@ -216,6 +219,9 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
                       type="button"
                       aria-label={outAria}
                       title={outAria}
+                      data-kg-port-handle="1"
+                      data-kg-port-dir="out"
+                      data-kg-port-key={portKey}
                       className={cn('absolute top-1/2 right-0', UI_THEME_TOKENS.button.text)}
                       style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px`, transform: 'translate(0, -50%)' }}
                       onPointerDown={e => {

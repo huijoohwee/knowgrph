@@ -324,6 +324,9 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
           type="button"
           aria-label={aria}
           title={aria}
+          data-kg-port-handle="1"
+          data-kg-port-dir={isIn ? 'in' : 'out'}
+          data-kg-port-key={portKey}
           className={cn('relative', UI_THEME_TOKENS.button.text)}
           style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px` }}
           onPointerDown={e => {

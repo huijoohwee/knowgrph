@@ -140,6 +140,36 @@ export async function testMarkdownHtmlIframeIngestionProducesMediaNodes() {
   await Promise.resolve()
 }
 
+export async function testMarkdownHtmlIframeSrcdocIngestionProducesMediaNodes() {
+  resetParsers()
+  builtInParsers.forEach(p => registerParser(p))
+
+  const markdown = [
+    '# Title',
+    '',
+    'Paragraph with HTML iframe srcdoc:',
+    '',
+    '<iframe title="Inline" srcdoc="<div style=\'font-family: ui-sans-serif\'><h1>Hello</h1><p>Inline iframe</p></div>"></iframe>',
+    '',
+  ].join('\n')
+
+  const jsonld = buildMarkdownJsonLd('https://example.invalid/doc.md', markdown)
+  const res = applyParser(toParserId('jsonld'), { name: 'doc.jsonld', text: JSON.stringify(jsonld) })
+  if (!res) throw new Error('jsonld parse returned null')
+  if (res.warnings && res.warnings.length > 0) throw new Error(`jsonld parse warnings: ${res.warnings.join('; ')}`)
+
+  const nodes = res.graphData.nodes || []
+  const iframeSrcdocNodes = nodes.filter(n => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    const kind = String(props.media_kind || '')
+    const tag = String(props['dom:tag'] || '')
+    const srcdoc = String(props['dom:attrs:srcdoc'] || '')
+    return kind === 'iframe' && tag.toUpperCase() === 'IFRAME' && srcdoc.includes('<h1>Hello</h1>')
+  })
+  if (iframeSrcdocNodes.length === 0) throw new Error('expected iframe srcdoc to ingest as media-capable node')
+  await Promise.resolve()
+}
+
 export async function testMarkdownStandaloneLinkWebpageIngestionProducesIframeNode() {
   resetParsers()
   builtInParsers.forEach(p => registerParser(p))

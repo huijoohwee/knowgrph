@@ -49,6 +49,7 @@ export function buildHtmlViewerRuntimeScript(args: {
   mediaNodesJson: string
   nodeLabelByIdJson: string
   edgeMetaByIdJson: string
+  frontmatterVisibilityJson: string
   nodePosByIdJson: string
   groupMembersByIdJson: string
   density: 'default' | 'compact'
@@ -154,7 +155,151 @@ export function buildHtmlViewerRuntimeScript(args: {
   out = replaceOnceExact(
     out,
     'if (mediaBtn) mediaBtn.addEventListener(\'click\', function(){ setMediaInteractive(!mediaInteractive); });',
-    "var richVisible = true;\n    var frontmatterEnabled = false;\n    var mode3dVisible = false;\n\n    function setRichVisible(next){\n      richVisible = !!next;\n      try { if (overlay && overlay.style) overlay.style.display = richVisible ? '' : 'none'; } catch (e0) {}\n      try { if (richBtn && richBtn.classList) richBtn.classList.toggle('kg-active', richVisible); } catch (e1) {}\n    }\n\n    function setFrontmatterEnabled(next){\n      frontmatterEnabled = !!next;\n      try { if (root && root.classList) root.classList.toggle('kg-frontmatter', frontmatterEnabled); } catch (e0) {}\n      try { if (frontmatterBtn && frontmatterBtn.classList) frontmatterBtn.classList.toggle('kg-active', frontmatterEnabled); } catch (e1) {}\n    }\n\n    function set3dVisible(next){\n      mode3dVisible = !!next;\n      try { if (cfg && mode3dVisible) cfg.preferWebgl3d = true; } catch (e0) {}\n      if (mode3dVisible) {\n        try { install3dCanvasRendererOnce(); } catch (e1) {}\n        try { if (root && root.classList) root.classList.add('kg-canvas3d'); } catch (e2) {}\n        try { if (schedule3dFrame) schedule3dFrame(); } catch (e3) {}\n        try { if (scheduleWebgl3dFrame) scheduleWebgl3dFrame(); } catch (e4) {}\n      } else {\n        try { if (root && root.classList) root.classList.remove('kg-canvas3d'); } catch (e5) {}\n      }\n      try { if (mode3dBtn && mode3dBtn.classList) mode3dBtn.classList.toggle('kg-active', mode3dVisible); } catch (e6) {}\n    }\n\n    if (mediaBtn) mediaBtn.addEventListener('click', function(){ setMediaInteractive(!mediaInteractive); });\n    if (richBtn) richBtn.addEventListener('click', function(){ setRichVisible(!richVisible); });\n    if (frontmatterBtn) frontmatterBtn.addEventListener('click', function(){ setFrontmatterEnabled(!frontmatterEnabled); });\n    if (mode3dBtn) mode3dBtn.addEventListener('click', function(){ set3dVisible(!mode3dVisible); });\n\n    setRichVisible(true);\n    setFrontmatterEnabled(false);\n    try {\n      var kgPanelMode = '';\n      try { kgPanelMode = String((window && window.localStorage) ? (window.localStorage.getItem('kg:render:richMedia:panelMode') || '') : ''); } catch (e0) { kgPanelMode = ''; }\n      setMediaInteractive(String(kgPanelMode || '').trim() === 'embed');\n    } catch (e8) {}\n    try { set3dVisible(!!(root && root.classList && root.classList.contains('kg-canvas3d'))); } catch (e7) {}",
+    `var __kgFrontmatterVis = ${args.frontmatterVisibilityJson};
+    var __kgFrontmatterNodeSet = null;
+    var __kgFrontmatterEdgeSet = null;
+    var __kgAllNodeEls = null;
+    var __kgAllEdgeEls = null;
+    var __kgAllGroupEls = null;
+
+    function __kgEnsureFrontmatterSets(){
+      if (__kgFrontmatterNodeSet && __kgFrontmatterEdgeSet) return;
+      __kgFrontmatterNodeSet = Object.create(null);
+      __kgFrontmatterEdgeSet = Object.create(null);
+      try {
+        var nids = (__kgFrontmatterVis && __kgFrontmatterVis.nodeIds) ? __kgFrontmatterVis.nodeIds : [];
+        for (var i = 0; i < nids.length; i += 1) {
+          var id = String(nids[i] || '').trim();
+          if (id) __kgFrontmatterNodeSet[id] = 1;
+        }
+      } catch (e0) {
+        void 0;
+      }
+      try {
+        var eids = (__kgFrontmatterVis && __kgFrontmatterVis.edgeIds) ? __kgFrontmatterVis.edgeIds : [];
+        for (var j = 0; j < eids.length; j += 1) {
+          var eid = String(eids[j] || '').trim();
+          if (eid) __kgFrontmatterEdgeSet[eid] = 1;
+        }
+      } catch (e1) {
+        void 0;
+      }
+    }
+
+    function __kgEnsureAllNodeEls(){
+      if (__kgAllNodeEls) return __kgAllNodeEls;
+      try {
+        __kgAllNodeEls = root ? Array.prototype.slice.call(root.querySelectorAll('[data-node-id]')) : (svg ? Array.prototype.slice.call(svg.querySelectorAll('[data-node-id]')) : []);
+      } catch (e) {
+        __kgAllNodeEls = [];
+      }
+      return __kgAllNodeEls;
+    }
+
+    function __kgEnsureAllEdgeEls(){
+      if (__kgAllEdgeEls) return __kgAllEdgeEls;
+      try { __kgAllEdgeEls = svg ? Array.prototype.slice.call(svg.querySelectorAll('line[data-edge-id],path[data-edge-id],polyline[data-edge-id]')) : []; } catch (e) { __kgAllEdgeEls = []; }
+      return __kgAllEdgeEls;
+    }
+
+    function __kgEnsureAllGroupEls(){
+      if (__kgAllGroupEls) return __kgAllGroupEls;
+      try { __kgAllGroupEls = svg ? Array.prototype.slice.call(svg.querySelectorAll('[data-kg-group-id]')) : []; } catch (e) { __kgAllGroupEls = []; }
+      return __kgAllGroupEls;
+    }
+
+    function __kgApplyFrontmatterVisibility(){
+      try {
+        if (!svg) return;
+        __kgEnsureFrontmatterSets();
+        var showAll = !frontmatterEnabled;
+
+        __kgAllNodeEls = null;
+        var nodes = __kgEnsureAllNodeEls();
+        for (var i = 0; i < nodes.length; i += 1) {
+          var el = nodes[i];
+          if (!el || !el.getAttribute || !el.style) continue;
+          var nid = String(el.getAttribute('data-node-id') || '').trim();
+          if (showAll) { el.style.display = ''; continue; }
+          el.style.display = (__kgFrontmatterNodeSet && __kgFrontmatterNodeSet[nid] === 1) ? '' : 'none';
+        }
+
+        var edges = __kgEnsureAllEdgeEls();
+        for (var j = 0; j < edges.length; j += 1) {
+          var ee = edges[j];
+          if (!ee || !ee.getAttribute || !ee.style) continue;
+          var eid = String(ee.getAttribute('data-edge-id') || '').trim();
+          if (showAll) { ee.style.display = ''; continue; }
+          ee.style.display = (__kgFrontmatterEdgeSet && __kgFrontmatterEdgeSet[eid] === 1) ? '' : 'none';
+        }
+
+        var groups = __kgEnsureAllGroupEls();
+        for (var k = 0; k < groups.length; k += 1) {
+          var ge = groups[k];
+          if (!ge || !ge.getAttribute || !ge.style) continue;
+          if (showAll) { ge.style.display = ''; continue; }
+          var gid = String(ge.getAttribute('data-kg-group-id') || '').trim();
+          var members = (groupMembersById && gid && groupMembersById[gid]) ? groupMembersById[gid] : null;
+          var any = false;
+          if (members && members.length) {
+            for (var mi = 0; mi < members.length; mi += 1) {
+              var mid = String(members[mi] || '').trim();
+              if (mid && __kgFrontmatterNodeSet && __kgFrontmatterNodeSet[mid] === 1) { any = true; break; }
+            }
+          }
+          ge.style.display = any ? '' : 'none';
+        }
+
+        try { if (typeof scheduleOverlayUpdate === 'function') scheduleOverlayUpdate(); } catch (e2) { void 0; }
+      } catch (e) {
+        void 0;
+      }
+    }
+
+    var richVisible = true;
+    var frontmatterEnabled = false;
+    var mode3dVisible = false;
+
+    function setRichVisible(next){
+      richVisible = !!next;
+      try { if (overlay && overlay.style) overlay.style.display = richVisible ? '' : 'none'; } catch (e0) {}
+      try { if (richBtn && richBtn.classList) richBtn.classList.toggle('kg-active', richVisible); } catch (e1) {}
+    }
+
+    function setFrontmatterEnabled(next){
+      frontmatterEnabled = !!next;
+      try { if (root && root.classList) root.classList.toggle('kg-frontmatter', frontmatterEnabled); } catch (e0) {}
+      try { if (frontmatterBtn && frontmatterBtn.classList) frontmatterBtn.classList.toggle('kg-active', frontmatterEnabled); } catch (e1) {}
+      try { __kgApplyFrontmatterVisibility(); } catch (e2) { void 0; }
+    }
+
+    function set3dVisible(next){
+      mode3dVisible = !!next;
+      try { if (cfg && mode3dVisible) cfg.preferWebgl3d = true; } catch (e0) {}
+      if (mode3dVisible) {
+        try { install3dCanvasRendererOnce(); } catch (e1) {}
+        try { if (root && root.classList) root.classList.add('kg-canvas3d'); } catch (e2) {}
+        try { if (schedule3dFrame) schedule3dFrame(); } catch (e3) {}
+        try { if (scheduleWebgl3dFrame) scheduleWebgl3dFrame(); } catch (e4) {}
+      } else {
+        try { if (root && root.classList) root.classList.remove('kg-canvas3d'); } catch (e5) {}
+      }
+      try { if (mode3dBtn && mode3dBtn.classList) mode3dBtn.classList.toggle('kg-active', mode3dVisible); } catch (e6) {}
+    }
+
+    if (mediaBtn) mediaBtn.addEventListener('click', function(){ setMediaInteractive(!mediaInteractive); });
+    if (richBtn) richBtn.addEventListener('click', function(){ setRichVisible(!richVisible); });
+    if (frontmatterBtn) frontmatterBtn.addEventListener('click', function(){ setFrontmatterEnabled(!frontmatterEnabled); });
+    if (mode3dBtn) mode3dBtn.addEventListener('click', function(){ set3dVisible(!mode3dVisible); });
+
+    setRichVisible(true);
+    setFrontmatterEnabled(false);
+    try {
+      var kgPanelMode = '';
+      try { kgPanelMode = String((window && window.localStorage) ? (window.localStorage.getItem('kg:render:richMedia:panelMode') || '') : ''); } catch (e0) { kgPanelMode = ''; }
+      setMediaInteractive(String(kgPanelMode || '').trim() === 'embed');
+    } catch (e8) {}
+    try { set3dVisible(!!(root && root.classList && root.classList.contains('kg-canvas3d'))); } catch (e7) {}`,
   )
 
   out = replaceOnceExact(

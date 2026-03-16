@@ -2,10 +2,15 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export async function testMarkdownPreviewRendersHtmlVideoAutoplayAndGridSpans() {
   const { dom, restore: restoreDom } = initJsdomHarness()
+  const state = useGraphStore.getState()
+  const prevMode = state.richMediaPanelMode
   try {
+    state.setRichMediaPanelMode('embed')
+
     const doc = dom.window.document
     const container = doc.createElement('div')
     container.id = 'root'
@@ -98,7 +103,9 @@ export async function testMarkdownPreviewRendersHtmlVideoAutoplayAndGridSpans() 
     if (!poster) throw new Error('expected poster attribute to be preserved')
 
     root.unmount()
+
   } finally {
+    state.setRichMediaPanelMode(prevMode)
     restoreDom()
   }
 }

@@ -37,12 +37,17 @@ export const testFlowNodeQuickEditorRendersPortHandleGutterWhenEnabled = async (
     ),
   )
 
-  await new Promise<void>(resolve => setTimeout(resolve, 0))
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
 
   const inputButtons = host.querySelectorAll('button[aria-label^="Input handle"]')
   const outputButtons = host.querySelectorAll('button[aria-label^="Output handle"]')
   if (inputButtons.length !== 1) throw new Error(`expected 1 input handle button, got ${inputButtons.length}`)
   if (outputButtons.length !== 1) throw new Error(`expected 1 output handle button, got ${outputButtons.length}`)
+
+  const inputDisabled = (inputButtons[0] as HTMLButtonElement).disabled
+  const outputDisabled = (outputButtons[0] as HTMLButtonElement).disabled
+  if (inputDisabled !== true) throw new Error('expected input handle to be disabled in select mode')
+  if (outputDisabled !== false) throw new Error('expected output handle to be enabled in select mode')
 
   root.unmount()
 }

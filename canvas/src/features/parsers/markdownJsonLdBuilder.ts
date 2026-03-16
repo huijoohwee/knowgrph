@@ -14,6 +14,7 @@ export class MarkdownGraphBuilder {
   private nodes: Record<string, unknown>[] = []
   private linkNodeIds = new Set<string>()
   private imageNodeIds = new Set<string>()
+  private webpageElementNodeIds = new Set<string>()
   private anchorNodeIds = new Set<string>()
 
   constructor(private ctx: BuilderContext) {}
@@ -206,6 +207,35 @@ export class MarkdownGraphBuilder {
       })
     }
     this.addRel(parentId, 'linksTo', linkId)
+  }
+
+  createWebpageElementNode(args: {
+    id: string
+    tag: string
+    name: string
+    chunkText: string
+    props: Record<string, unknown>
+    meta: Record<string, unknown>
+    parentId: string
+  }) {
+    const id = String(args.id || '').trim()
+    if (!id) return
+    if (!this.webpageElementNodeIds.has(id)) {
+      this.webpageElementNodeIds.add(id)
+      this.ensureNode({
+        '@id': id,
+        '@type': 'WebpageElement',
+        labels: ['WebpageElement'],
+        name: args.name,
+        chunk_text: args.chunkText,
+        properties: {
+          'dom:tag': args.tag,
+          ...args.props,
+        },
+        metadata: args.meta,
+      })
+    }
+    this.addRel(args.parentId, 'embedsMedia', id)
   }
 
   createImageNode(id: string, type: string, name: string, chunkText: string, props: Record<string, unknown>, meta: Record<string, unknown>, parentId: string) {

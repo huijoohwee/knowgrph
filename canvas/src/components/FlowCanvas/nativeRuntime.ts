@@ -25,6 +25,9 @@ export type FlowNativeNode = {
   height: number
   zIndex?: number
   opacity?: number
+  fill?: string
+  stroke?: string
+  strokeWidthPx?: number
   shape: FlowNativeNodeShape
   handles: FlowNodeHandles
   inHandleTopPctById: Partial<Record<FlowHandleId, number>>
@@ -303,17 +306,17 @@ export const computeFlowGroupAabb = (args: {
   labelTopExtraPx: number
 }): { minX: number; minY: number; maxX: number; maxY: number } | null => {
   const explicit = (args.group as unknown as { bounds?: unknown }).bounds
-  if (explicit && typeof explicit === 'object' && !Array.isArray(explicit)) {
+  const explicitAabb = (() => {
+    if (!explicit || typeof explicit !== 'object' || Array.isArray(explicit)) return null
     const x = typeof (explicit as any).x === 'number' ? (explicit as any).x : Number.NaN
     const y = typeof (explicit as any).y === 'number' ? (explicit as any).y : Number.NaN
     const w = typeof (explicit as any).width === 'number' ? (explicit as any).width : Number.NaN
     const h = typeof (explicit as any).height === 'number' ? (explicit as any).height : Number.NaN
-    if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
-      return { minX: x, minY: y, maxX: x + w, maxY: y + h }
-    }
-  }
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return null
+    return { minX: x, minY: y, maxX: x + w, maxY: y + h }
+  })()
   const memberIds = Array.isArray(args.group.memberNodeIds) ? args.group.memberNodeIds : []
-  if (memberIds.length === 0) return null
+  if (memberIds.length === 0) return explicitAabb
   const padding = Math.max(0, args.paddingPx)
   const topExtra = Math.max(0, args.labelTopExtraPx)
 
@@ -336,8 +339,19 @@ export const computeFlowGroupAabb = (args: {
     maxX = Math.max(maxX, x1)
     maxY = Math.max(maxY, y1)
   }
-  if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) return null
-  return { minX, minY: minY - topExtra, maxX, maxY }
+  const computed =
+    !Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)
+      ? null
+      : ({ minX, minY: minY - topExtra, maxX, maxY } as { minX: number; minY: number; maxX: number; maxY: number })
+
+  if (!explicitAabb) return computed
+  if (!computed) return explicitAabb
+  return {
+    minX: Math.min(explicitAabb.minX, computed.minX),
+    minY: Math.min(explicitAabb.minY, computed.minY),
+    maxX: Math.max(explicitAabb.maxX, computed.maxX),
+    maxY: Math.max(explicitAabb.maxY, computed.maxY),
+  }
 }
 
 export type FlowGroupAabb = NonNullable<ReturnType<typeof computeFlowGroupAabb>>
@@ -500,10 +514,17 @@ const drawNode = (rt: FlowNativeRuntime, n: FlowNativeNode, args: { selected: bo
   } else {
     ctx.rect(n.x, n.y, n.width, n.height)
   }
-  ctx.fillStyle = rt.theme.nodeFill
+  ctx.fillStyle = resolveColor(rt, (n as unknown as { fill?: unknown }).fill as string | null, rt.theme.nodeFill)
   ctx.fill()
-  ctx.lineWidth = 1
-  ctx.strokeStyle = args.selected ? rt.theme.nodeStrokeSelected : rt.theme.nodeStroke
+  ctx.lineWidth = (() => {
+    const raw = (n as unknown as { strokeWidthPx?: unknown }).strokeWidthPx
+    const v = typeof raw === 'number' && Number.isFinite(raw) ? raw : 1
+    return Math.max(0, Math.min(24, v))
+  })()
+  ctx.strokeStyle =
+    args.selected
+      ? rt.theme.nodeStrokeSelected
+      : resolveColor(rt, (n as unknown as { stroke?: unknown }).stroke as string | null, rt.theme.nodeStroke)
   ctx.stroke()
 
   const label = String(n.label || '').trim()

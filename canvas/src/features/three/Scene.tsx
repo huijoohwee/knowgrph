@@ -24,6 +24,7 @@ import { buildDeepestGroupRectByNodeId, buildGroupRectByIdFromSchemaOverrides } 
 import { clampNodeCenterToRect } from '@/lib/canvas/groupContainment'
 import { GroupOverlays3d } from '@/features/three/GroupOverlays'
 import { THREE_RENDER_ORDER } from '@/features/three/renderOrder'
+import { readThreeRenderOrderOffset } from '@/features/three/zOrder'
 
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min
@@ -402,7 +403,7 @@ export function Scene({
             <group
               key={e.id}
               name={`kg_edge:${e.id}`}
-              renderOrder={THREE_RENDER_ORDER.edges}
+              renderOrder={THREE_RENDER_ORDER.edges + readThreeRenderOrderOffset(props as Record<string, unknown>)}
               onClick={(evt) => {
                 evt.stopPropagation()
                 setSelectionSource('canvas')
@@ -443,13 +444,14 @@ export function Scene({
           const isSelected = selectionSets.selectedNodeIdSet.has(n.id)
           const isNeighbor = neighborIds.has(n.id)
           const isEdgeEndpoint = selectionSets.selectedEdgeEndpointNodeIdSet.has(n.id)
+          const nodeProps = (n.properties || {}) as Record<string, unknown>
           return (
             <NodeMesh
               key={n.id}
               node={n}
               pos={p}
               schema={schema}
-              renderOrder={THREE_RENDER_ORDER.nodes}
+              renderOrder={THREE_RENDER_ORDER.nodes + readThreeRenderOrderOffset(nodeProps)}
               onClick={onSelectNode}
               selection={{ mode: selectionMode, isSelected, isNeighbor, isEdgeEndpoint }}
               visuals={selectionVisuals}

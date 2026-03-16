@@ -130,17 +130,25 @@ export default function FlowEditorMappingTab({
     return (nodeQuickEditorRegistry || []).find(e => e.id === id) || null
   }, [nodeQuickEditorRegistry, selectedId])
 
+  const lastAppliedSelectionKeyRef = React.useRef<string>('')
+
   React.useEffect(() => {
-    if (!selectedId) {
+    const id = String(selectedId || '').trim()
+    if (!id || !selected) {
+      lastAppliedSelectionKeyRef.current = ''
       if (editorMode === 'edit') setEditorMode('none')
       return
     }
-    if (!selected) {
-      if (editorMode === 'edit') setEditorMode('none')
+
+    const selKey = `${selected.id}|${String(selected.updatedAt || '')}`
+    if (lastAppliedSelectionKeyRef.current === selKey) {
+      if (editorMode !== 'edit') setEditorMode('edit')
       return
     }
-    setEditorError(null)
-    setEditorMode('edit')
+    lastAppliedSelectionKeyRef.current = selKey
+
+    setEditorError(prev => (prev === null ? prev : null))
+    if (editorMode !== 'edit') setEditorMode('edit')
     const nextDraft: Omit<NodeQuickEditorRegistryEntry, 'updatedAt'> = {
       id: selected.id,
       isEnabled: selected.isEnabled,
@@ -169,18 +177,18 @@ export default function FlowEditorMappingTab({
   )
 
   React.useEffect(() => {
-    if (!selectedId) return
-    if (selected) return
-    setSelectedId(null)
-  }, [selected, selectedId])
-
-  React.useEffect(() => {
-    if (selectionMode !== 'auto') return
+    if (selectionMode !== 'auto') {
+      if (selectedId && !selected) setSelectedId(null)
+      return
+    }
     if (editorMode !== 'none') return
     const nextId = resolvedFromSelection?.id || null
-    if (selectedId === nextId) return
+    if (selectedId === nextId) {
+      if (selectedId && !selected) setSelectedId(null)
+      return
+    }
     setSelectedId(nextId)
-  }, [editorMode, resolvedFromSelection, selectedId, selectionMode])
+  }, [editorMode, resolvedFromSelection, selected, selectedId, selectionMode])
 
   const handleSelect = React.useCallback((id: string | null) => {
     setSelectionMode('manual')
@@ -554,19 +562,27 @@ export default function FlowEditorMappingTab({
     }
   }, [editorDraft, editorMode, editorRows, selected])
 
+  const registerActionsSigRef = React.useRef<string>('')
+  const registerActionsFnsRef = React.useRef<{ save: () => void; reset: () => void } | null>(null)
+  registerActionsFnsRef.current = { save: saveEditor, reset: resetEditor }
+
   React.useEffect(() => {
     if (!onRegisterActions) return
+    const sig = `${editorMode}|${isDirty ? 1 : 0}`
+    if (registerActionsSigRef.current === sig) return
+    registerActionsSigRef.current = sig
+
     if (editorMode === 'none') {
       onRegisterActions({ apply: undefined, reset: undefined, applyDisabled: true, resetDisabled: true })
       return
     }
     onRegisterActions({
-      apply: saveEditor,
-      reset: resetEditor,
+      apply: () => registerActionsFnsRef.current?.save(),
+      reset: () => registerActionsFnsRef.current?.reset(),
       applyDisabled: !isDirty,
       resetDisabled: false,
     })
-  }, [editorMode, isDirty, onRegisterActions, resetEditor, saveEditor])
+  }, [editorMode, isDirty, onRegisterActions])
 
   return (
     <section className="h-full min-h-0 flex flex-col" aria-label="Flow Editor Mapping">

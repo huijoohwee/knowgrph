@@ -93,6 +93,17 @@ export function buildAndSetFlowNativeScene(args: {
     return { in: normalize(inRec), out: normalize(outRec) }
   }
 
+  const readVisualColor = (props: Record<string, unknown>, key: string): string => {
+    const v = props[key]
+    return typeof v === 'string' ? v.trim() : ''
+  }
+
+  const readVisualStrokeWidthPx = (props: Record<string, unknown>): number | null => {
+    const v = props['visual:strokeWidth'] ?? props['visual:strokeWidthPx']
+    const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : null
+    return typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.min(24, n)) : null
+  }
+
   setFlowNativeRankdir(args.runtime, args.rankdir)
 
   const handlesByNode = computeFlowHandlesByNode({
@@ -171,6 +182,10 @@ export function buildAndSetFlowNativeScene(args: {
       if (typeof n === 'number' && Number.isFinite(n)) return Math.max(0, Math.min(1, n))
       return 1
     })()
+
+    const nodeFill = readVisualColor(props, 'visual:fill')
+    const nodeStroke = readVisualColor(props, 'visual:stroke')
+    const nodeStrokeWidthPx = readVisualStrokeWidthPx(props)
     const inHandleTopPctById: Partial<Record<FlowHandleId, number>> = {}
     const outHandleTopPctById: Partial<Record<FlowHandleId, number>> = {}
     for (let j = 0; j < handles.in.length; j += 1) {
@@ -251,6 +266,9 @@ export function buildAndSetFlowNativeScene(args: {
       yIndex,
       xIndex,
       opacity,
+      ...(nodeFill ? { fill: nodeFill } : {}),
+      ...(nodeStroke ? { stroke: nodeStroke } : {}),
+      ...(nodeStrokeWidthPx != null ? { strokeWidthPx: nodeStrokeWidthPx } : {}),
       shape,
       handles,
       inHandleTopPctById,

@@ -115,7 +115,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   }, [idBase])
 
   const schemaFields = React.useMemo(() => readSchemaFieldSpecs(node), [node])
-  const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled)
+  const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled) || String(graphMetaKind || '').trim() === 'frontmatter-flow'
   const { sizePx: dotSizePx, hitSizePx: dotHitPx } = React.useMemo(() => {
     const m = readPortHandleUiMetrics(schema)
     return { sizePx: Math.max(10, m.sizePx), hitSizePx: Math.max(18, m.hitSizePx + 2) }

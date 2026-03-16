@@ -48,6 +48,67 @@ export const resolveSandboxDemoDir = (): string | null => {
   return isDirectory(demoDir) ? demoDir : null
 }
 
+export const resolveSandboxSubdir = (subdir: string): string | null => {
+  const sandboxRoot = resolveSandboxRoot()
+  if (!sandboxRoot) return null
+  const s = String(subdir || '').trim()
+  if (!s) return null
+  const p = path.join(sandboxRoot, s)
+  return isDirectory(p) ? p : null
+}
+
+export const pickSandboxMarkdownFile = (args: {
+  preferBasename?: string
+  predicate?: (text: string) => boolean
+  envVarPathKey?: string
+  subdirs?: string[]
+}): string | null => {
+  const envVarKey = String(args.envVarPathKey || '').trim()
+  if (envVarKey) {
+    const explicit = String(process.env[envVarKey] || '').trim()
+    if (explicit && existsSync(explicit) && isFile(explicit)) return explicit
+  }
+
+  const subdirs = Array.isArray(args.subdirs) ? args.subdirs : []
+  const dirs = subdirs
+    .map(s => resolveSandboxSubdir(s))
+    .filter((p): p is string => !!p)
+
+  const checkedFiles: string[] = []
+  for (const dir of dirs) {
+    let entries: string[] = []
+    try {
+      entries = readdirSync(dir)
+    } catch {
+      entries = []
+    }
+    for (const name of entries) {
+      if (!name.toLowerCase().endsWith('.md')) continue
+      const p = path.join(dir, name)
+      if (isFile(p)) checkedFiles.push(p)
+    }
+  }
+
+  const prefer = String(args.preferBasename || '').trim()
+  if (prefer) {
+    const match = checkedFiles.find(p => path.basename(p) === prefer)
+    if (match) return match
+  }
+
+  if (typeof args.predicate === 'function') {
+    for (const p of checkedFiles) {
+      try {
+        const text = readFileSync(p, 'utf8')
+        if (args.predicate(text)) return p
+      } catch {
+        void 0
+      }
+    }
+  }
+
+  return checkedFiles[0] || null
+}
+
 export const pickSandboxDemoMarkdownFile = (args: {
   preferBasename?: string
   predicate?: (text: string) => boolean

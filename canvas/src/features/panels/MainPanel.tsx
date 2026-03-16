@@ -91,6 +91,24 @@ export default function MainPanel({
   }>({ allCollapsed: true })
 
   const panelTypography = usePanelTypography()
+  const setGraphFieldsStatusStable = React.useCallback((next: string) => {
+    setGraphFieldsStatus(prev => (prev === next ? prev : next))
+  }, [])
+  const setFlowEditorManagerActionsStable = React.useCallback((next: {
+    apply?: () => void
+    reset?: () => void
+    applyDisabled?: boolean
+    resetDisabled?: boolean
+  }) => {
+    setFlowEditorManagerActions(prev => {
+      const same =
+        prev.apply === next.apply &&
+        prev.reset === next.reset &&
+        prev.applyDisabled === next.applyDisabled &&
+        prev.resetDisabled === next.resetDisabled
+      return same ? prev : next
+    })
+  }, [])
   const { lastTraversalSummary } = useGraphStore(
     useShallow(s => ({ lastTraversalSummary: s.lastTraversalSummary })),
   )
@@ -304,11 +322,11 @@ export default function MainPanel({
           hidden={tab !== 'flowEditorManager'}
         >
           {tab === 'flowEditorManager' && (
-            <FlowEditorManagerView searchQuery={search} onRegisterActions={setFlowEditorManagerActions} />
+            <FlowEditorManagerView searchQuery={search} onRegisterActions={setFlowEditorManagerActionsStable} />
           )}
         </section>
         <section role="tabpanel" id="main-panel-graphFields-panel" aria-labelledby="main-panel-graphFields-tab" hidden={tab !== 'graphFields'}>
-          {tab === 'graphFields' && <GraphFieldsView onStatusChange={setGraphFieldsStatus} searchQuery={search} />}
+          {tab === 'graphFields' && <GraphFieldsView onStatusChange={setGraphFieldsStatusStable} searchQuery={search} />}
         </section>
         <section role="tabpanel" id="main-panel-dashboard-panel" aria-labelledby="main-panel-dashboard-tab" hidden={tab !== 'dashboard'}>
           {tab === 'dashboard' && <DashboardView />}

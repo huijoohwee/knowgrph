@@ -1,87 +1,215 @@
 import { execTest, TestResult } from './testRunnerUtils'
-import { testMarkdownOutlineAndBacklinks, testWorkspaceFsSeedAndCrud } from '@/__tests__/markdownExplorerWorkspaceFs.test'
-import { testWorkspaceEnsureSeedReseedsAfterStorageWipeWhenNotUserCleared } from '@/__tests__/workspaceSeedReseedAfterStorageWipe.test'
-import { testMarkdownWorkspaceSyncsSourceUrlFromWorkspaceIndex } from '@/__tests__/markdownWorkspaceSourceUrlSync.test'
-import { testMarkdownWorkspaceRefreshFromUrlUpdatesActiveDocumentAndGraphStore } from '@/__tests__/markdownWorkspaceRefreshFromUrl.test'
-import { testMarkdownFileTreeFolderClickDoesNotClearSelection } from '@/__tests__/markdownFileTreeFolderClick.test'
-import { testMarkdownWorkspaceViewerUsesMarkdownPreviewSsot } from '@/__tests__/markdownWorkspaceViewerSsot.test'
-import { testMarkdownWorkspaceViewerRendersRemotionArtifactRichMedia } from '@/__tests__/markdownWorkspaceRemotionViewerRenders.test'
-import {
-  testGeospatialDatasetLoaderParsesEmbeddedGeoJsonFromMarkdownUrl,
-  testMarkdownTripDemoJsonFenceLoadsGraphData,
-  testMarkdownTripDemoJsonFenceRegistersAsGeoDataset,
-  testMarkdownTripDemoMmdJsonFenceLoadsGraphData,
-  testMarkdownTripDemoMmdJsonFenceRegistersAsGeoDataset,
-} from '@/__tests__/markdownGeoIntegrationTripDemo.test'
-import { testMarkdownPoiImagesRegistryEnrichesMatchingNodes } from '@/__tests__/markdownPoiImagesRegistry.test'
-import { testMarkdownApplyWithoutFrontmatterBuildsGraph } from '@/__tests__/markdownApplyWithoutFrontmatter.test'
-import { testMermaidElkLayoutRegistersLoadersBeforeInit } from '@/__tests__/mermaidElkLayoutSupport.test'
-import {
-  testWebpageLayoutAsciiExtractsTextFence,
-  testWebpageLayoutAsciiExtractsMockupBeforeLegend,
-  testWebpageLayoutAsciiUpsertCreatesFenceWhenMissing,
-  testWebpageLayoutAsciiUpsertPreservesBodyOutsideFence,
-  testWebpageLayoutAsciiUpsertPreservesLegendTail,
-} from '@/__tests__/webpageLayoutAscii.test'
-import {
-  testWebpageMarkdownPostprocessHandlesCollapsedRemotionPricingBlob,
-  testWebpageMarkdownPostprocessRemotionPricingToAsciiTable,
-} from '@/__tests__/webpageMarkdownPostprocessRemotionPricing.test'
-import {
-  testWebpageMarkdownPostprocessCoalescesPlainCardBlocksIntoMarkdownTable,
-  testWebpageMarkdownPostprocessNormalizesPlainListsIntoBullets,
-  testWebpageMarkdownPostprocessCoalescesNavLinksToTable,
-  testWebpageMarkdownPostprocessCoalescesHtmlGridNavIntoTable,
-} from '@/__tests__/webpageMarkdownPostprocessCardGrid.test'
-import { testMarkdownPreviewRendersHtmlVideoAutoplayAndGridSpans } from '@/__tests__/markdownHtmlRichMediaAndGridPreview.test'
-import { testMarkdownPreviewRendersHtmlTableDivAndPictureSources } from '@/__tests__/markdownHtmlTableDivAndPicturePreview.test'
-import { testMarkdownPreviewRendersInlineHtmlRichMedia } from '@/__tests__/markdownInlineHtmlRichMediaPreview.test'
-import { testMarkdownPreviewRendersHtmlGridWithCalcGapImportant } from '@/__tests__/markdownHtmlGridCalcGapPreview.test'
-import { testHtmlToMarkdownUnifiedPreservesGridSectionsAsHtml } from '@/__tests__/htmlToMarkdownUnifiedLayoutPreserve.test'
-import { testHtmlToMarkdownUnifiedRewritesSrcsetPosterAndDataSrc } from '@/__tests__/htmlToMarkdownUnifiedUrlRewrite.test'
-import { testMarkdownPreviewRendersWebpageSnapshotForStandaloneLinkAndScriptEmbed } from '@/__tests__/markdownEmbedSnapshotPreview.test'
-import {
-  testMarkdownNormalizeAsciiBlocksWrapsPipeLayoutAndBoxDrawing,
-  testMarkdownPreviewLexNormalizesAsciiBlocksToAsciiLangCodeTokens,
-  testMarkdownNormalizeAsciiBlocksWrapsLooseBoxDrawingSectionFromRemotionLikePricing,
-} from '@/__tests__/markdownAsciiBlocksNormalize.test'
+
+const modMarkdownExplorerWorkspaceFs = () => import('@/__tests__/markdownExplorerWorkspaceFs.test')
+const modWorkspaceSeedReseedAfterStorageWipe = () => import('@/__tests__/workspaceSeedReseedAfterStorageWipe.test')
+const modMarkdownWorkspaceSourceUrlSync = () => import('@/__tests__/markdownWorkspaceSourceUrlSync.test')
+const modMarkdownWorkspaceRefreshFromUrl = () => import('@/__tests__/markdownWorkspaceRefreshFromUrl.test')
+const modMarkdownFileTreeFolderClick = () => import('@/__tests__/markdownFileTreeFolderClick.test')
+const modMarkdownWorkspaceViewerSsot = () => import('@/__tests__/markdownWorkspaceViewerSsot.test')
+const modMarkdownWorkspaceRemotionViewerRenders = () => import('@/__tests__/markdownWorkspaceRemotionViewerRenders.test')
+const modMarkdownGeoIntegrationTripDemo = () => import('@/__tests__/markdownGeoIntegrationTripDemo.test')
+const modMarkdownPoiImagesRegistry = () => import('@/__tests__/markdownPoiImagesRegistry.test')
+const modMarkdownApplyWithoutFrontmatter = () => import('@/__tests__/markdownApplyWithoutFrontmatter.test')
+const modMermaidElkLayoutSupport = () => import('@/__tests__/mermaidElkLayoutSupport.test')
+const modWebpageLayoutAscii = () => import('@/__tests__/webpageLayoutAscii.test')
+const modWebpageMarkdownPostprocessRemotionPricing = () => import('@/__tests__/webpageMarkdownPostprocessRemotionPricing.test')
+const modWebpageMarkdownPostprocessCardGrid = () => import('@/__tests__/webpageMarkdownPostprocessCardGrid.test')
+const modMarkdownHtmlRichMediaAndGridPreview = () => import('@/__tests__/markdownHtmlRichMediaAndGridPreview.test')
+const modMarkdownHtmlTableDivAndPicturePreview = () => import('@/__tests__/markdownHtmlTableDivAndPicturePreview.test')
+const modMarkdownInlineHtmlRichMediaPreview = () => import('@/__tests__/markdownInlineHtmlRichMediaPreview.test')
+const modMarkdownHtmlGridCalcGapPreview = () => import('@/__tests__/markdownHtmlGridCalcGapPreview.test')
+const modHtmlToMarkdownUnifiedLayoutPreserve = () => import('@/__tests__/htmlToMarkdownUnifiedLayoutPreserve.test')
+const modHtmlToMarkdownUnifiedUrlRewrite = () => import('@/__tests__/htmlToMarkdownUnifiedUrlRewrite.test')
+const modMarkdownEmbedSnapshotPreview = () => import('@/__tests__/markdownEmbedSnapshotPreview.test')
+const modMarkdownAsciiBlocksNormalize = () => import('@/__tests__/markdownAsciiBlocksNormalize.test')
+const modMarkdownFlowInternalRefs = () => import('@/__tests__/markdownFlowInternalRefs.test')
+const modMarkdownValidationExternalFile = () => import('@/__tests__/markdownValidationExternalFile.test')
+const modMarkdownTemplateVarsInBlockquoteAndTable = () => import('@/__tests__/markdownTemplateVarsInBlockquoteAndTable.test')
+const modFlowGroupAabbIncludesMembersWhenBoundsExplicit = () => import('@/__tests__/flowGroupAabbIncludesMembersWhenBoundsExplicit.test')
+const modFlowCanvasFrontmatterFlowPortHandlesEnabledRegression = () => import('@/__tests__/flowCanvasFrontmatterFlowPortHandlesEnabledRegression.test')
+const modFlowNodeQuickEditorPinnedContainmentClampRegression = () => import('@/__tests__/flowNodeQuickEditorPinnedContainmentClampRegression.test')
+const modFlowNodeQuickEditorFrontmatterPortHandlePadRegression = () => import('@/__tests__/flowNodeQuickEditorFrontmatterPortHandlePadRegression.test')
+const modFlowEditorFrontmatterFlowDefaultQuickEditorsInitRegression = () => import('@/__tests__/flowEditorFrontmatterFlowDefaultQuickEditorsInitRegression.test')
 
 export const runMarkdownTests = async (results: TestResult[]) => {
-  await execTest(results, 'workspaceFs.seedAndCrud', testWorkspaceFsSeedAndCrud)
-  await execTest(results, 'workspaceFs.seed.reseedsAfterStorageWipe', testWorkspaceEnsureSeedReseedsAfterStorageWipeWhenNotUserCleared)
-  await execTest(results, 'markdownExplorer.outlineAndBacklinks', testMarkdownOutlineAndBacklinks)
-  await execTest(results, 'markdownFileTree.folderClickKeepsSelection', testMarkdownFileTreeFolderClickDoesNotClearSelection)
-  await execTest(results, 'markdown.geospatial.tripDemoRegistersGeoDataset', testMarkdownTripDemoJsonFenceRegistersAsGeoDataset)
-  await execTest(results, 'markdown.geospatial.tripDemoLoadsGraphData', testMarkdownTripDemoJsonFenceLoadsGraphData)
-  await execTest(results, 'markdown.geospatial.tripDemoMmdRegistersGeoDataset', testMarkdownTripDemoMmdJsonFenceRegistersAsGeoDataset)
-  await execTest(results, 'markdown.geospatial.tripDemoMmdLoadsGraphData', testMarkdownTripDemoMmdJsonFenceLoadsGraphData)
-  await execTest(results, 'markdown.geospatial.markdownUrlEmbedsGeoJsonLoadsAsDataset', testGeospatialDatasetLoaderParsesEmbeddedGeoJsonFromMarkdownUrl)
-  await execTest(results, 'markdown.mediaRegistry.poiImagesEnrichMatchingNodes', testMarkdownPoiImagesRegistryEnrichesMatchingNodes)
-  await execTest(results, 'markdown.applyWithoutFrontmatterBuildsGraph', testMarkdownApplyWithoutFrontmatterBuildsGraph)
-  await execTest(results, 'markdown.mermaid.elkLayoutRegistersLoaders', testMermaidElkLayoutRegistersLoadersBeforeInit)
-  await execTest(results, 'markdownWorkspace.sourceUrlSync', testMarkdownWorkspaceSyncsSourceUrlFromWorkspaceIndex)
-  await execTest(results, 'markdownWorkspace.refreshFromUrl', testMarkdownWorkspaceRefreshFromUrlUpdatesActiveDocumentAndGraphStore)
-  await execTest(results, 'markdownWorkspace.viewer.ssot', testMarkdownWorkspaceViewerUsesMarkdownPreviewSsot)
-  await execTest(results, 'markdownWorkspace.viewer.remotionRichMedia', testMarkdownWorkspaceViewerRendersRemotionArtifactRichMedia)
-  await execTest(results, 'markdown.webpageLayoutAscii.extractsTextFence', testWebpageLayoutAsciiExtractsTextFence)
-  await execTest(results, 'markdown.webpageLayoutAscii.extractsMockupBeforeLegend', testWebpageLayoutAsciiExtractsMockupBeforeLegend)
-  await execTest(results, 'markdown.webpageLayoutAscii.upsertPreservesBody', testWebpageLayoutAsciiUpsertPreservesBodyOutsideFence)
-  await execTest(results, 'markdown.webpageLayoutAscii.upsertPreservesLegendTail', testWebpageLayoutAsciiUpsertPreservesLegendTail)
-  await execTest(results, 'markdown.webpageLayoutAscii.upsertCreatesFence', testWebpageLayoutAsciiUpsertCreatesFenceWhenMissing)
-  await execTest(results, 'markdown.asciiBlocks.normalize.wrapsPipeAndBoxDrawing', testMarkdownNormalizeAsciiBlocksWrapsPipeLayoutAndBoxDrawing)
-  await execTest(results, 'markdown.asciiBlocks.previewLex.asciiLangTokens', testMarkdownPreviewLexNormalizesAsciiBlocksToAsciiLangCodeTokens)
-  await execTest(results, 'markdown.asciiBlocks.normalize.wrapsLooseBoxDrawingSection', testMarkdownNormalizeAsciiBlocksWrapsLooseBoxDrawingSectionFromRemotionLikePricing)
-  await execTest(results, 'markdown.webpagePostprocess.remotionPricingAscii', testWebpageMarkdownPostprocessRemotionPricingToAsciiTable)
-  await execTest(results, 'markdown.webpagePostprocess.remotionPricingBlobAscii', testWebpageMarkdownPostprocessHandlesCollapsedRemotionPricingBlob)
-  await execTest(results, 'markdown.webpagePostprocess.cardsToTable', testWebpageMarkdownPostprocessCoalescesPlainCardBlocksIntoMarkdownTable)
-  await execTest(results, 'markdown.webpagePostprocess.plainLinesToBullets', testWebpageMarkdownPostprocessNormalizesPlainListsIntoBullets)
-  await execTest(results, 'markdown.webpagePostprocess.navLinksToTable', testWebpageMarkdownPostprocessCoalescesNavLinksToTable)
-  await execTest(results, 'markdown.webpagePostprocess.htmlGridNavToTable', testWebpageMarkdownPostprocessCoalescesHtmlGridNavIntoTable)
-  await execTest(results, 'markdown.preview.htmlVideoAndGrid', testMarkdownPreviewRendersHtmlVideoAutoplayAndGridSpans)
-  await execTest(results, 'markdown.preview.htmlTableDivAndPicture', testMarkdownPreviewRendersHtmlTableDivAndPictureSources)
-  await execTest(results, 'markdown.preview.inlineHtmlRichMedia', testMarkdownPreviewRendersInlineHtmlRichMedia)
-  await execTest(results, 'markdown.preview.htmlGridCalcGapImportant', testMarkdownPreviewRendersHtmlGridWithCalcGapImportant)
-  await execTest(results, 'markdown.preview.webpageSnapshotEmbeds', testMarkdownPreviewRendersWebpageSnapshotForStandaloneLinkAndScriptEmbed)
-  await execTest(results, 'markdown.preview.pipelinePreservesGridHtml', testHtmlToMarkdownUnifiedPreservesGridSectionsAsHtml)
-  await execTest(results, 'markdown.htmlToMdUnified.urlRewrite', testHtmlToMarkdownUnifiedRewritesSrcsetPosterAndDataSrc)
+  await execTest(results, 'workspaceFs.seedAndCrud', async () => {
+    const mod = await modMarkdownExplorerWorkspaceFs()
+    await mod.testWorkspaceFsSeedAndCrud()
+  })
+  await execTest(results, 'workspaceFs.seed.reseedsAfterStorageWipe', async () => {
+    const mod = await modWorkspaceSeedReseedAfterStorageWipe()
+    await mod.testWorkspaceEnsureSeedReseedsAfterStorageWipeWhenNotUserCleared()
+  })
+  await execTest(results, 'markdownExplorer.outlineAndBacklinks', async () => {
+    const mod = await modMarkdownExplorerWorkspaceFs()
+    await mod.testMarkdownOutlineAndBacklinks()
+  })
+  await execTest(results, 'markdownFileTree.folderClickKeepsSelection', async () => {
+    const mod = await modMarkdownFileTreeFolderClick()
+    await mod.testMarkdownFileTreeFolderClickDoesNotClearSelection()
+  })
+  await execTest(results, 'markdown.geospatial.tripDemoRegistersGeoDataset', async () => {
+    const mod = await modMarkdownGeoIntegrationTripDemo()
+    await mod.testMarkdownTripDemoJsonFenceRegistersAsGeoDataset()
+  })
+  await execTest(results, 'markdown.geospatial.tripDemoLoadsGraphData', async () => {
+    const mod = await modMarkdownGeoIntegrationTripDemo()
+    await mod.testMarkdownTripDemoJsonFenceLoadsGraphData()
+  })
+  await execTest(results, 'markdown.geospatial.tripDemoMmdRegistersGeoDataset', async () => {
+    const mod = await modMarkdownGeoIntegrationTripDemo()
+    await mod.testMarkdownTripDemoMmdJsonFenceRegistersAsGeoDataset()
+  })
+  await execTest(results, 'markdown.geospatial.tripDemoMmdLoadsGraphData', async () => {
+    const mod = await modMarkdownGeoIntegrationTripDemo()
+    await mod.testMarkdownTripDemoMmdJsonFenceLoadsGraphData()
+  })
+  await execTest(results, 'markdown.geospatial.markdownUrlEmbedsGeoJsonLoadsAsDataset', async () => {
+    const mod = await modMarkdownGeoIntegrationTripDemo()
+    await mod.testGeospatialDatasetLoaderParsesEmbeddedGeoJsonFromMarkdownUrl()
+  })
+  await execTest(results, 'markdown.mediaRegistry.poiImagesEnrichMatchingNodes', async () => {
+    const mod = await modMarkdownPoiImagesRegistry()
+    await mod.testMarkdownPoiImagesRegistryEnrichesMatchingNodes()
+  })
+  await execTest(results, 'markdown.applyWithoutFrontmatterBuildsGraph', async () => {
+    const mod = await modMarkdownApplyWithoutFrontmatter()
+    await mod.testMarkdownApplyWithoutFrontmatterBuildsGraph()
+  })
+  await execTest(results, 'markdown.flow.internalRefs.resolveToFlowNodes', async () => {
+    const mod = await modMarkdownFlowInternalRefs()
+    await mod.testMarkdownFlowInternalRefsResolveToFlowNodes()
+  })
+  await execTest(results, 'markdown.validation.externalFile.parsesAndLinks', async () => {
+    const mod = await modMarkdownValidationExternalFile()
+    await mod.testMarkdownValidationExternalFileParsesAndLinksGraphElements()
+  })
+  await execTest(results, 'flow.groupAabb.explicitBoundsStillContainMembers', async () => {
+    const mod = await modFlowGroupAabbIncludesMembersWhenBoundsExplicit()
+    await mod.testFlowGroupAabbIncludesMembersWhenBoundsExplicit()
+  })
+  await execTest(results, 'flow.frontmatterFlow.portHandles.enabled', async () => {
+    const mod = await modFlowCanvasFrontmatterFlowPortHandlesEnabledRegression()
+    await mod.testFlowCanvasFrontmatterFlowEnablesPortHandles()
+  })
+  await execTest(results, 'flow.quickEditor.pinned.clampsToContainmentGroup', async () => {
+    const mod = await modFlowNodeQuickEditorPinnedContainmentClampRegression()
+    await mod.testFlowNodeQuickEditorPinnedClampsToContainmentGroup()
+  })
+  await execTest(results, 'flow.quickEditor.frontmatter.padAccountsForPortHandles', async () => {
+    const mod = await modFlowNodeQuickEditorFrontmatterPortHandlePadRegression()
+    await mod.testFlowNodeQuickEditorFrontmatterPadAccountsForPortHandles()
+  })
+  await execTest(results, 'flow.frontmatterFlow.quickEditors.defaultInit.unpinnedAndCentered', async () => {
+    const mod = await modFlowEditorFrontmatterFlowDefaultQuickEditorsInitRegression()
+    await mod.testFlowEditorFrontmatterFlowDefaultsUnpinnedAndCenteredLayout()
+  })
+  await execTest(results, 'markdown.templateVars.blockquoteAndTable', async () => {
+    const mod = await modMarkdownTemplateVarsInBlockquoteAndTable()
+    await mod.testMarkdownTemplateVarsExtractFromBlockquotesAndTables()
+  })
+  await execTest(results, 'markdown.mermaid.elkLayoutRegistersLoaders', async () => {
+    const mod = await modMermaidElkLayoutSupport()
+    await mod.testMermaidElkLayoutRegistersLoadersBeforeInit()
+  })
+  await execTest(results, 'markdownWorkspace.sourceUrlSync', async () => {
+    const mod = await modMarkdownWorkspaceSourceUrlSync()
+    await mod.testMarkdownWorkspaceSyncsSourceUrlFromWorkspaceIndex()
+  })
+  await execTest(results, 'markdownWorkspace.refreshFromUrl', async () => {
+    const mod = await modMarkdownWorkspaceRefreshFromUrl()
+    await mod.testMarkdownWorkspaceRefreshFromUrlUpdatesActiveDocumentAndGraphStore()
+  })
+  await execTest(results, 'markdownWorkspace.viewer.ssot', async () => {
+    const mod = await modMarkdownWorkspaceViewerSsot()
+    await mod.testMarkdownWorkspaceViewerUsesMarkdownPreviewSsot()
+  })
+  await execTest(results, 'markdownWorkspace.viewer.remotionRichMedia', async () => {
+    const mod = await modMarkdownWorkspaceRemotionViewerRenders()
+    await mod.testMarkdownWorkspaceViewerRendersRemotionArtifactRichMedia()
+  })
+  await execTest(results, 'markdown.webpageLayoutAscii.extractsTextFence', async () => {
+    const mod = await modWebpageLayoutAscii()
+    await mod.testWebpageLayoutAsciiExtractsTextFence()
+  })
+  await execTest(results, 'markdown.webpageLayoutAscii.extractsMockupBeforeLegend', async () => {
+    const mod = await modWebpageLayoutAscii()
+    await mod.testWebpageLayoutAsciiExtractsMockupBeforeLegend()
+  })
+  await execTest(results, 'markdown.webpageLayoutAscii.upsertPreservesBody', async () => {
+    const mod = await modWebpageLayoutAscii()
+    await mod.testWebpageLayoutAsciiUpsertPreservesBodyOutsideFence()
+  })
+  await execTest(results, 'markdown.webpageLayoutAscii.upsertPreservesLegendTail', async () => {
+    const mod = await modWebpageLayoutAscii()
+    await mod.testWebpageLayoutAsciiUpsertPreservesLegendTail()
+  })
+  await execTest(results, 'markdown.webpageLayoutAscii.upsertCreatesFence', async () => {
+    const mod = await modWebpageLayoutAscii()
+    await mod.testWebpageLayoutAsciiUpsertCreatesFenceWhenMissing()
+  })
+  await execTest(results, 'markdown.asciiBlocks.normalize.wrapsPipeAndBoxDrawing', async () => {
+    const mod = await modMarkdownAsciiBlocksNormalize()
+    await mod.testMarkdownNormalizeAsciiBlocksWrapsPipeLayoutAndBoxDrawing()
+  })
+  await execTest(results, 'markdown.asciiBlocks.previewLex.asciiLangTokens', async () => {
+    const mod = await modMarkdownAsciiBlocksNormalize()
+    await mod.testMarkdownPreviewLexNormalizesAsciiBlocksToAsciiLangCodeTokens()
+  })
+  await execTest(results, 'markdown.asciiBlocks.normalize.wrapsLooseBoxDrawingSection', async () => {
+    const mod = await modMarkdownAsciiBlocksNormalize()
+    await mod.testMarkdownNormalizeAsciiBlocksWrapsLooseBoxDrawingSectionFromRemotionLikePricing()
+  })
+  await execTest(results, 'markdown.webpagePostprocess.remotionPricingAscii', async () => {
+    const mod = await modWebpageMarkdownPostprocessRemotionPricing()
+    await mod.testWebpageMarkdownPostprocessRemotionPricingToAsciiTable()
+  })
+  await execTest(results, 'markdown.webpagePostprocess.remotionPricingBlobAscii', async () => {
+    const mod = await modWebpageMarkdownPostprocessRemotionPricing()
+    await mod.testWebpageMarkdownPostprocessHandlesCollapsedRemotionPricingBlob()
+  })
+  await execTest(results, 'markdown.webpagePostprocess.cardsToTable', async () => {
+    const mod = await modWebpageMarkdownPostprocessCardGrid()
+    await mod.testWebpageMarkdownPostprocessCoalescesPlainCardBlocksIntoMarkdownTable()
+  })
+  await execTest(results, 'markdown.webpagePostprocess.plainLinesToBullets', async () => {
+    const mod = await modWebpageMarkdownPostprocessCardGrid()
+    await mod.testWebpageMarkdownPostprocessNormalizesPlainListsIntoBullets()
+  })
+  await execTest(results, 'markdown.webpagePostprocess.navLinksToTable', async () => {
+    const mod = await modWebpageMarkdownPostprocessCardGrid()
+    await mod.testWebpageMarkdownPostprocessCoalescesNavLinksToTable()
+  })
+  await execTest(results, 'markdown.webpagePostprocess.htmlGridNavToTable', async () => {
+    const mod = await modWebpageMarkdownPostprocessCardGrid()
+    await mod.testWebpageMarkdownPostprocessCoalescesHtmlGridNavIntoTable()
+  })
+  await execTest(results, 'markdown.preview.htmlVideoAndGrid', async () => {
+    const mod = await modMarkdownHtmlRichMediaAndGridPreview()
+    await mod.testMarkdownPreviewRendersHtmlVideoAutoplayAndGridSpans()
+  })
+  await execTest(results, 'markdown.preview.htmlTableDivAndPicture', async () => {
+    const mod = await modMarkdownHtmlTableDivAndPicturePreview()
+    await mod.testMarkdownPreviewRendersHtmlTableDivAndPictureSources()
+  })
+  await execTest(results, 'markdown.preview.inlineHtmlRichMedia', async () => {
+    const mod = await modMarkdownInlineHtmlRichMediaPreview()
+    await mod.testMarkdownPreviewRendersInlineHtmlRichMedia()
+  })
+  await execTest(results, 'markdown.preview.htmlGridCalcGapImportant', async () => {
+    const mod = await modMarkdownHtmlGridCalcGapPreview()
+    await mod.testMarkdownPreviewRendersHtmlGridWithCalcGapImportant()
+  })
+  await execTest(results, 'markdown.preview.webpageSnapshotEmbeds', async () => {
+    const mod = await modMarkdownEmbedSnapshotPreview()
+    await mod.testMarkdownPreviewRendersWebpageSnapshotForStandaloneLinkAndScriptEmbed()
+  })
+  await execTest(results, 'markdown.preview.pipelinePreservesGridHtml', async () => {
+    const mod = await modHtmlToMarkdownUnifiedLayoutPreserve()
+    await mod.testHtmlToMarkdownUnifiedPreservesGridSectionsAsHtml()
+  })
+  await execTest(results, 'markdown.htmlToMdUnified.urlRewrite', async () => {
+    const mod = await modHtmlToMarkdownUnifiedUrlRewrite()
+    await mod.testHtmlToMarkdownUnifiedRewritesSrcsetPosterAndDataSrc()
+  })
 }

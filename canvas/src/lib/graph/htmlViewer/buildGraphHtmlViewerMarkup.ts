@@ -5,6 +5,7 @@ import { safeScaleExtent } from '@/lib/zoom/scaleExtent'
 import { buildHtmlViewerRuntimeScript } from './runtimeScript'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
+import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 
 type HtmlViewerMediaNode = {
   id: string
@@ -278,6 +279,17 @@ export async function buildGraphHtmlViewerMarkup(args: {
     return JSON.stringify(out)
   })()
 
+  const frontmatterVisibilityJson = (() => {
+    const graph = args.graphData
+    if (!graph) return JSON.stringify({ nodeIds: [], edgeIds: [] })
+    const fm = filterGraphToFrontmatterMermaid(graph)
+    const nodes = Array.isArray(fm.nodes) ? (fm.nodes as GraphNode[]) : []
+    const edges = Array.isArray(fm.edges) ? (fm.edges as GraphEdge[]) : []
+    const nodeIds = nodes.map(n => String(n?.id || '').trim()).filter(Boolean)
+    const edgeIds = edges.map(e => String(e?.id || '').trim()).filter(Boolean)
+    return JSON.stringify({ nodeIds, edgeIds })
+  })()
+
   const groupMembersByIdJson = (() => {
     const graph = args.graphData
     if (!graph) return JSON.stringify({})
@@ -398,6 +410,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
     mediaNodesJson,
     nodeLabelByIdJson,
     edgeMetaByIdJson,
+    frontmatterVisibilityJson,
     nodePosByIdJson,
     groupMembersByIdJson,
     density,

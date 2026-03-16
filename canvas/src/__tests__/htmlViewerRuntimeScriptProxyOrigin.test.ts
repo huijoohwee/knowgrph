@@ -6,6 +6,7 @@ export function testHtmlViewerRuntimeScriptReplacesProxyOriginPlaceholder() {
     mediaNodesJson: '[]',
     nodeLabelByIdJson: '{}',
     edgeMetaByIdJson: '{}',
+    frontmatterVisibilityJson: '{"nodeIds":[],"edgeIds":[]}',
     nodePosByIdJson: '{}',
     groupMembersByIdJson: '{}',
     density: 'default',
@@ -23,5 +24,8 @@ export function testHtmlViewerRuntimeScriptReplacesProxyOriginPlaceholder() {
   }
   if (!out.includes('http://localhost:5173')) {
     throw new Error('Expected proxy origin string to be embedded into runtime script')
+  }
+  if (!out.includes("root ? Array.prototype.slice.call(root.querySelectorAll('[data-node-id]'))")) {
+    throw new Error('Expected frontmatter visibility to include non-SVG node elements')
   }
 }

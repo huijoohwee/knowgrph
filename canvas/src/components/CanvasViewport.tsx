@@ -7,6 +7,7 @@ import { importWithRetry } from '@/lib/react/importWithRetry'
 import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
+import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 
 import { InfiniteCanvasWorkspaceOverlay } from '@/features/canvas/InfiniteCanvasWorkspaceOverlay'
 
@@ -142,6 +143,10 @@ export type CanvasViewportProps = {
 export function CanvasViewport(props: CanvasViewportProps) {
   const { variant, layout = 'full', geospatialModeEnabled, activeGraphData, canvasRenderMode, canvas2dRenderer, mounted2dRenderers, gympgrphBridge } = props
   const safeGraphData = activeGraphData || ({ nodes: [], edges: [] } as GraphData)
+  const geospatialGraphData = React.useMemo(() => {
+    const derived = deriveSceneDisplayGraph({ graphData: safeGraphData })?.displayGraphData || null
+    return (derived || safeGraphData) as GraphData
+  }, [safeGraphData])
   const rootRef = React.useRef<HTMLElement | null>(null)
   useForbidBrowserZoomWheel(rootRef, true, { stopPropagation: false })
   const { fitToScreenMode, zoomToSelectionMode, viewPinned, selectedNodeId, selectedNodeIds, selectedEdgeId } = useGraphStore(
@@ -210,7 +215,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
           <GeospatialOverlayHostLazy
             active
             snapshot={{
-              graphData: safeGraphData,
+              graphData: geospatialGraphData,
               zoomState: gympgrphBridge.zoomState,
               canvasRenderMode: gympgrphBridge.canvasRenderMode,
               viewportControlsPreset: gympgrphBridge.viewportControlsPreset,

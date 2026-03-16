@@ -1,46 +1,75 @@
 import { execTest, TestResult } from './testRunnerUtils'
-import {
-  testValidateSchemaFillsDefaults,
-  testValidateSchemaBehaviorDefaults,
-  testAddRenameRemoveNodeType,
-  testUpsertRemoveNodeProperty,
-  testClampAlphaDecay,
-  testSchemaTabEnterText,
-  testSchemaPersistenceWrites,
-  testResetImportSchemaTabTextSync,
-  testResetImportSchemaTabApplyModifiedSync,
-  testSchemaUiApplyUsesLatestStoreSchema,
-  testSchemaUiApplyRegistrationGuardsAgainstImportRace,
-  testParseSchemaTextRejectsInvalidJson,
-  testClampCollisionRadiusUsesSharedBounds,
-  testRenderNodeRadiusSemanticRespectsNodeSizeAndImportance,
-} from '@/__tests__/schema.test'
-import {
-  testLayoutPositioningCacheKeyUsesRenderVariant,
-  testLayoutPositioningForcesLayoutWhenVariantChanges,
-  testLayoutPositioningSkipsReseedOnToggle,
-} from '@/__tests__/layoutPositioning.test'
+
+const modSchema = () => import('@/__tests__/schema.test')
+const modLayoutPositioning = () => import('@/__tests__/layoutPositioning.test')
 
 export const runSchemaTests = async (results: TestResult[]) => {
-  await execTest(results, 'schema.validateDefaults', testValidateSchemaFillsDefaults)
-  await execTest(results, 'schema.behaviorDefaults', testValidateSchemaBehaviorDefaults)
-  await execTest(results, 'schema.typeCRUD', testAddRenameRemoveNodeType)
-  await execTest(results, 'schema.nodePropertyCRUD', testUpsertRemoveNodeProperty)
-  await execTest(results, 'schema.alphaDecayClamp', testClampAlphaDecay)
-  await execTest(results, 'schema.collisionRadiusClamp', testClampCollisionRadiusUsesSharedBounds)
-  await execTest(results, 'schema.semanticNodeRadiusUsesProps', testRenderNodeRadiusSemanticRespectsNodeSizeAndImportance)
-  await execTest(results, 'layout.positioning.cacheKeyAndSkip', testLayoutPositioningSkipsReseedOnToggle)
-  await execTest(results, 'layout.positioning.cacheKeyUsesRenderVariant', testLayoutPositioningCacheKeyUsesRenderVariant)
-  await execTest(results, 'layout.positioning.variantChangeForcesLayout', testLayoutPositioningForcesLayoutWhenVariantChanges)
-  await execTest(results, 'schema.tabEnterText', testSchemaTabEnterText)
-  await execTest(results, 'schema.persistenceWrites', testSchemaPersistenceWrites)
-  await execTest(results, 'schema.resetImportTextSync', testResetImportSchemaTabTextSync)
-  await execTest(results, 'schema.resetImportApplyModifiedTextSync', testResetImportSchemaTabApplyModifiedSync)
-  await execTest(results, 'schema.uiApplyUsesLatestStoreSchema', testSchemaUiApplyUsesLatestStoreSchema)
-  await execTest(
-    results,
-    'schema.uiApplyRegistrationGuardsAgainstImportRace',
-    testSchemaUiApplyRegistrationGuardsAgainstImportRace,
-  )
-  await execTest(results, 'schema.parseSchemaTextRejectsInvalidJson', testParseSchemaTextRejectsInvalidJson)
+  await execTest(results, 'schema.validateDefaults', async () => {
+    const mod = await modSchema()
+    await mod.testValidateSchemaFillsDefaults()
+  })
+  await execTest(results, 'schema.behaviorDefaults', async () => {
+    const mod = await modSchema()
+    await mod.testValidateSchemaBehaviorDefaults()
+  })
+  await execTest(results, 'schema.typeCRUD', async () => {
+    const mod = await modSchema()
+    await mod.testAddRenameRemoveNodeType()
+  })
+  await execTest(results, 'schema.nodePropertyCRUD', async () => {
+    const mod = await modSchema()
+    await mod.testUpsertRemoveNodeProperty()
+  })
+  await execTest(results, 'schema.alphaDecayClamp', async () => {
+    const mod = await modSchema()
+    await mod.testClampAlphaDecay()
+  })
+  await execTest(results, 'schema.collisionRadiusClamp', async () => {
+    const mod = await modSchema()
+    await mod.testClampCollisionRadiusUsesSharedBounds()
+  })
+  await execTest(results, 'schema.semanticNodeRadiusUsesProps', async () => {
+    const mod = await modSchema()
+    await mod.testRenderNodeRadiusSemanticRespectsNodeSizeAndImportance()
+  })
+  await execTest(results, 'layout.positioning.cacheKeyAndSkip', async () => {
+    const mod = await modLayoutPositioning()
+    await mod.testLayoutPositioningSkipsReseedOnToggle()
+  })
+  await execTest(results, 'layout.positioning.cacheKeyUsesRenderVariant', async () => {
+    const mod = await modLayoutPositioning()
+    await mod.testLayoutPositioningCacheKeyUsesRenderVariant()
+  })
+  await execTest(results, 'layout.positioning.variantChangeForcesLayout', async () => {
+    const mod = await modLayoutPositioning()
+    await mod.testLayoutPositioningForcesLayoutWhenVariantChanges()
+  })
+  await execTest(results, 'schema.tabEnterText', async () => {
+    const mod = await modSchema()
+    await mod.testSchemaTabEnterText()
+  })
+  await execTest(results, 'schema.persistenceWrites', async () => {
+    const mod = await modSchema()
+    await mod.testSchemaPersistenceWrites()
+  })
+  await execTest(results, 'schema.resetImportTextSync', async () => {
+    const mod = await modSchema()
+    await mod.testResetImportSchemaTabTextSync()
+  })
+  await execTest(results, 'schema.resetImportApplyModifiedTextSync', async () => {
+    const mod = await modSchema()
+    await mod.testResetImportSchemaTabApplyModifiedSync()
+  })
+  await execTest(results, 'schema.uiApplyUsesLatestStoreSchema', async () => {
+    const mod = await modSchema()
+    await mod.testSchemaUiApplyUsesLatestStoreSchema()
+  })
+  await execTest(results, 'schema.uiApplyRegistrationGuardsAgainstImportRace', async () => {
+    const mod = await modSchema()
+    await mod.testSchemaUiApplyRegistrationGuardsAgainstImportRace()
+  })
+  await execTest(results, 'schema.parseSchemaTextRejectsInvalidJson', async () => {
+    const mod = await modSchema()
+    await mod.testParseSchemaTextRejectsInvalidJson()
+  })
 }

@@ -65,7 +65,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L37; canvas/src/hooks/store/uiSettingsSlice.ts:L611"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L37; canvas/src/hooks/store/uiSettingsSlice.ts:L613"
   },
   "selectionFlashOpacity": {
     "area": "Selection Flash",
@@ -82,7 +82,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L46; canvas/src/hooks/store/uiSettingsSlice.ts:L616"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L46; canvas/src/hooks/store/uiSettingsSlice.ts:L618"
   },
   "uiIconScale": {
     "area": "UI Density: Icons",
@@ -561,7 +561,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L316; canvas/src/hooks/store/uiSettingsSlice.ts:L623"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L316; canvas/src/hooks/store/uiSettingsSlice.ts:L625"
   },
   "spotlight.nearTopThreshold": {
     "area": "Launch Spotlight Layout",
@@ -578,7 +578,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L325; canvas/src/hooks/store/uiSettingsSlice.ts:L627"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L325; canvas/src/hooks/store/uiSettingsSlice.ts:L629"
   },
   "chatEndpointUrl": {
     "area": "Chat",
@@ -811,7 +811,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L682; canvas/src/hooks/store/uiSlice.ts:L541"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L684; canvas/src/hooks/store/uiSlice.ts:L541"
   },
   "pdfImportMaxPages": {
     "area": "—",
@@ -1355,7 +1355,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L641"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L643"
   },
   "youtubeTranscriptOutputFormat": {
     "area": "—",
@@ -1372,7 +1372,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L644"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L646"
   },
   "webpageImportIncludeImages": {
     "area": "—",
@@ -1389,7 +1389,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L647"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L649"
   },
   "webpageImportView": {
     "area": "—",
@@ -1406,7 +1406,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L650"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L652"
   },
   "webpageViewerScriptPolicy": {
     "area": "—",
@@ -1423,7 +1423,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L30; canvas/src/hooks/store/uiSettingsSlice.ts:L653"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L30; canvas/src/hooks/store/uiSettingsSlice.ts:L655"
   },
   "webpageArtifactFidelityMaxLevel": {
     "area": "—",
@@ -1440,7 +1440,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L40; canvas/src/hooks/store/uiSettingsSlice.ts:L656"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L40; canvas/src/hooks/store/uiSettingsSlice.ts:L658"
   },
   "websiteImportDiscoverSitemap": {
     "area": "—",
@@ -1457,7 +1457,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L49; canvas/src/hooks/store/uiSettingsSlice.ts:L662"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L49; canvas/src/hooks/store/uiSettingsSlice.ts:L664"
   },
   "websiteImportGenerateWebpageArtifactDocs": {
     "area": "—",
@@ -1474,7 +1474,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L58; canvas/src/hooks/store/uiSettingsSlice.ts:L665"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L58; canvas/src/hooks/store/uiSettingsSlice.ts:L667"
   },
   "websiteImportMaxPages": {
     "area": "—",
@@ -1491,7 +1491,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L67; canvas/src/hooks/store/uiSettingsSlice.ts:L668"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L67; canvas/src/hooks/store/uiSettingsSlice.ts:L670"
   },
   "websiteImportConcurrency": {
     "area": "—",
@@ -1508,7 +1508,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L76; canvas/src/hooks/store/uiSettingsSlice.ts:L674"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L76; canvas/src/hooks/store/uiSettingsSlice.ts:L676"
   },
   "websiteImportOutputDirRel": {
     "area": "—",
@@ -1525,7 +1525,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L85; canvas/src/hooks/store/uiSettingsSlice.ts:L680"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L85; canvas/src/hooks/store/uiSettingsSlice.ts:L682"
   },
   "graphFields.settingsById": {
     "area": "Graph Fields",
@@ -1724,7 +1724,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L125; canvas/src/hooks/store/uiSettingsSlice.ts:L607"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L125; canvas/src/hooks/store/uiSettingsSlice.ts:L609"
   },
   "graphDataTable.overscanMultiplier": {
     "area": "Graph Data Table Virtualization",
@@ -1741,7 +1741,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L134; canvas/src/hooks/store/uiSettingsSlice.ts:L608"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L134; canvas/src/hooks/store/uiSettingsSlice.ts:L610"
   },
   "graphDataTable.minRows": {
     "area": "Graph Data Table Virtualization",
@@ -1758,7 +1758,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L143; canvas/src/hooks/store/uiSettingsSlice.ts:L609"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L143; canvas/src/hooks/store/uiSettingsSlice.ts:L611"
   },
   "graphDataTable.debugLogRanges": {
     "area": "Graph Data Table Virtualization",
@@ -1775,7 +1775,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L152; canvas/src/hooks/store/uiSettingsSlice.ts:L610"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L152; canvas/src/hooks/store/uiSettingsSlice.ts:L612"
   },
   "graphDataTable.aggregateIncludeMixedNumericFields": {
     "area": "Graph Data Table Aggregation",
@@ -1792,7 +1792,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L161; canvas/src/hooks/store/uiSettingsSlice.ts:L597"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L161; canvas/src/hooks/store/uiSettingsSlice.ts:L599"
   },
   "graphDataTable.aggregateIncludeIdAsNumeric": {
     "area": "Graph Data Table Aggregation",
@@ -1809,7 +1809,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L170; canvas/src/hooks/store/uiSettingsSlice.ts:L599"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L170; canvas/src/hooks/store/uiSettingsSlice.ts:L601"
   },
   "graphDataTable.aggregateIncludeSourceAsNumeric": {
     "area": "Graph Data Table Aggregation",
@@ -1826,7 +1826,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L179; canvas/src/hooks/store/uiSettingsSlice.ts:L600"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L179; canvas/src/hooks/store/uiSettingsSlice.ts:L602"
   },
   "graphDataTable.aggregateIncludeTargetAsNumeric": {
     "area": "Graph Data Table Aggregation",
@@ -1843,7 +1843,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L188; canvas/src/hooks/store/uiSettingsSlice.ts:L601"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L188; canvas/src/hooks/store/uiSettingsSlice.ts:L603"
   },
   "graphDataTable.aggregateDefaultVizMode": {
     "area": "Graph Data Table Aggregation",
@@ -1860,7 +1860,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L197; canvas/src/hooks/store/uiSettingsSlice.ts:L595"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L197; canvas/src/hooks/store/uiSettingsSlice.ts:L597"
   },
   "graphDataTable.numericSampleLimit": {
     "area": "Graph Data Table",
@@ -1877,7 +1877,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L209; canvas/src/hooks/store/uiSettingsSlice.ts:L602"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L209; canvas/src/hooks/store/uiSettingsSlice.ts:L604"
   },
   "graphDataTable.numericSampleMinCount": {
     "area": "Graph Data Table",
@@ -1894,7 +1894,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L218; canvas/src/hooks/store/uiSettingsSlice.ts:L603"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L218; canvas/src/hooks/store/uiSettingsSlice.ts:L605"
   },
   "graphDataTable.numericSampleMinRatio": {
     "area": "Graph Data Table",
@@ -1911,7 +1911,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L227; canvas/src/hooks/store/uiSettingsSlice.ts:L604"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L227; canvas/src/hooks/store/uiSettingsSlice.ts:L606"
   },
   "graphDataTable.frozenDragStepNoneLabelPx": {
     "area": "Graph Data Table",
@@ -1928,7 +1928,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L236; canvas/src/hooks/store/uiSettingsSlice.ts:L605"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L236; canvas/src/hooks/store/uiSettingsSlice.ts:L607"
   },
   "graphDataTable.frozenDragStepLabelIdPx": {
     "area": "Graph Data Table",
@@ -1945,7 +1945,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L245; canvas/src/hooks/store/uiSettingsSlice.ts:L606"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-data-table.ts:L245; canvas/src/hooks/store/uiSettingsSlice.ts:L608"
   },
   "schema.zoom.minScale": {
     "area": "—",
@@ -2325,7 +2325,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L244; canvas/src/hooks/store/uiSettingsSlice.ts:L632"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L244; canvas/src/hooks/store/uiSettingsSlice.ts:L634"
   },
   "enableVirtualTables": {
     "area": "Graph Data Table Virtualization",
@@ -2342,7 +2342,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L253; canvas/src/hooks/store/uiSettingsSlice.ts:L633"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L253; canvas/src/hooks/store/uiSettingsSlice.ts:L635"
   },
   "canvasRenderMode": {
     "area": "Canvas Rendering",

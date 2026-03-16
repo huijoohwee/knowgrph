@@ -7,6 +7,7 @@ export type MediaOverlayNode = {
   id: string
   title: string
   url: string
+  srcDoc?: string
   openUrl: string
   interactive: boolean
   kind: MediaOverlayKind
@@ -16,6 +17,7 @@ type RankedMediaNode = {
   id: string
   title: string
   url: string
+  srcDoc?: string
   openUrl: string
   interactive: boolean
   kind: MediaOverlayKind
@@ -27,6 +29,7 @@ type Candidate = {
   id: string
   title: string
   url: string
+  srcDoc?: string
   openUrl: string
   interactive: boolean
   kind: MediaOverlayKind
@@ -146,6 +149,9 @@ export function listMediaOverlayNodes(args: {
       id,
       title,
       url: spec.url,
+      ...(typeof (spec as { srcDoc?: unknown }).srcDoc === 'string' && String((spec as { srcDoc?: string }).srcDoc || '').trim()
+        ? { srcDoc: String((spec as { srcDoc?: string }).srcDoc || '') }
+        : {}),
       openUrl,
       interactive: spec.interactive,
       kind,
@@ -159,7 +165,7 @@ export function listMediaOverlayNodes(args: {
   for (let i = 0; i < candidates.length; i += 1) {
     const c = candidates[i]!
     const keyUrl = c.openUrl || c.url
-    const key = `${c.kind}\n${keyUrl}`
+    const key = `${c.kind}\n${keyUrl || c.id}`
     const prev = bestByKey.get(key)
     if (!prev) {
       bestByKey.set(key, c)
@@ -180,5 +186,13 @@ export function listMediaOverlayNodes(args: {
     return a.idx - b.idx
   })
   const picked = unique.slice(0, poolMax)
-  return picked.map(n => ({ id: n.id, title: n.title, url: n.url, openUrl: n.openUrl, interactive: n.interactive, kind: n.kind }))
+  return picked.map(n => ({
+    id: n.id,
+    title: n.title,
+    url: n.url,
+    ...(n.srcDoc ? { srcDoc: n.srcDoc } : {}),
+    openUrl: n.openUrl,
+    interactive: n.interactive,
+    kind: n.kind,
+  }))
 }

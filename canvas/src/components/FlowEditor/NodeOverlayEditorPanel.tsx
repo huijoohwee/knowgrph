@@ -3,10 +3,8 @@ import React from 'react'
 import IconButton from '@/components/IconButton'
 import { FloatingPanel } from '@/components/ui/FloatingPanel'
 import { NodeOverlayEditorForm } from '@/components/FlowEditor/NodeOverlayEditorForm'
-import { NodeOverlayEditorPortHandles } from '@/components/FlowEditor/NodeOverlayEditorPortHandles'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { readSchemaFieldSpecs } from '@/lib/graph/flowPorts'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
@@ -98,8 +96,6 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
 
   const iconSizeClass = getIconSizeClass(uiIconScale)
 
-  const hasSchemaFields = React.useMemo(() => readSchemaFieldSpecs(node).length > 0, [node])
-
   const beatByBeatTitle = React.useMemo(() => {
     const kind = String(graphMetaKind || '').trim()
     if (kind !== 'frontmatter-flow') return null
@@ -167,21 +163,6 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
         height: minimized ? undefined : NODE_QUICK_EDITOR_BASE_SIZE.height,
       }}
     >
-      {!hasSchemaFields && (
-        <NodeOverlayEditorPortHandles
-          active={active}
-          node={node}
-          schema={schema}
-          registryEntries={registryEntries}
-          edges={portHandleEdges}
-          minimized={minimized}
-          toolMode={toolMode}
-          pendingEdgeSourceId={pendingEdgeSourceId}
-          onBeginAddEdgeFromNode={onBeginAddEdgeFromNode}
-          onFinalizeAddEdgeToNode={onFinalizeAddEdgeToNode}
-        />
-      )}
-
       <header
         className={cn(
           'border-b',

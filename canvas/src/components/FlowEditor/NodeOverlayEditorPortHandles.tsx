@@ -54,6 +54,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
   registryEntries?: ReadonlyArray<NodeQuickEditorRegistryEntry>
   edges: ReadonlyArray<GraphEdge>
   minimized: boolean
+  forceEnabled?: boolean
   toolMode?: FlowEditorToolMode
   pendingEdgeSourceId?: string | null
   onBeginAddEdgeFromNode?: (nodeId: string, portKey?: string | null) => void
@@ -84,11 +85,11 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
       nodeQuickEditorRegistry: args.registryEntries || null,
     })
     const base = byNode[nodeId] || { in: [], out: [] }
-    if (!shouldInjectDefaultFlowHandles(args.schema)) return base
+    if (args.forceEnabled !== true && !shouldInjectDefaultFlowHandles(args.schema)) return base
     return ensureFlowHandlesHaveDefaults(base)
-  }, [args.node?.properties, args.node?.type, args.registryEntries, args.schema, edges, nodeId])
+  }, [args.forceEnabled, args.node?.properties, args.node?.type, args.registryEntries, args.schema, edges, nodeId])
 
-  const enabled = Boolean(args.schema?.behavior?.portHandles?.enabled)
+  const enabled = args.forceEnabled === true || Boolean(args.schema?.behavior?.portHandles?.enabled)
   if (!enabled) return null
   if (args.minimized) return null
   if (!nodeId) return null
@@ -97,7 +98,15 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
 
   const isAddEdge = args.toolMode === 'addEdge'
   const isSource = isAddEdge && args.pendingEdgeSourceId === nodeId
-  const canInteract = args.active && isAddEdge
+
+  const canClickHandle = (dir: 'in' | 'out'): boolean => {
+    if (!args.active) return false
+    if (args.toolMode !== 'addEdge') return dir === 'out'
+    const pending = String(args.pendingEdgeSourceId || '').trim()
+    if (!pending) return dir === 'out'
+    if (pending === nodeId) return dir === 'out'
+    return true
+  }
 
   const handleClick = (dir: 'in' | 'out', portKey: string) => {
     if (!args.active) return
@@ -133,8 +142,9 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
     const isIn = p.dir === 'in'
     const aria = isIn ? `Input handle ${p.idx + 1}` : `Output handle ${p.idx + 1}`
     const ringClass = isSource ? `ring-2 ring-inset ${UI_THEME_TOKENS.button.ring}` : ''
-    const hoverClass = canInteract ? 'hover:opacity-100' : 'opacity-90'
-    const cursorClass = canInteract ? 'cursor-pointer' : 'cursor-default'
+    const clickable = canClickHandle(p.dir)
+    const hoverClass = clickable ? 'hover:opacity-100' : 'opacity-90'
+    const cursorClass = clickable ? 'cursor-pointer' : 'cursor-default'
     const portKey = parseFlowHandleKey(p.handleId as never)
     const socketType = readFlowPortSocketType(args.node?.properties, p.dir, portKey)
     const stroke = socketType ? socketStyleByType.get(socketType)?.color || '' : ''
@@ -167,7 +177,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
           }
           handleClick(p.dir, parseFlowHandleKey(p.handleId as never))
         }}
-        disabled={!canInteract}
+        disabled={!clickable}
       >
         <span
           aria-hidden={true}

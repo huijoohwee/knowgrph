@@ -15,6 +15,69 @@ import { applyMermaidFrontmatterGeometryToGraphData } from '@/lib/mermaid/mermai
 import { LS_KEYS } from '@/lib/config'
 import { lsJson } from '@/lib/persistence'
 
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+
+function mergeGraphDataPreferOverlay(args: { base: GraphData; overlay: GraphData }): GraphData {
+  const base = args.base
+  const overlay = args.overlay
+
+  const overlayNodes = Array.isArray(overlay.nodes) ? overlay.nodes : []
+  const baseNodes = Array.isArray(base.nodes) ? base.nodes : []
+  const nodes: GraphData['nodes'] = []
+  const seenNodeIds = new Set<string>()
+  for (let i = 0; i < overlayNodes.length; i += 1) {
+    const n = overlayNodes[i]
+    const id = String((n as { id?: unknown })?.id || '').trim()
+    if (!id || seenNodeIds.has(id)) continue
+    seenNodeIds.add(id)
+    nodes.push(n)
+  }
+  for (let i = 0; i < baseNodes.length; i += 1) {
+    const n = baseNodes[i]
+    const id = String((n as { id?: unknown })?.id || '').trim()
+    if (!id || seenNodeIds.has(id)) continue
+    seenNodeIds.add(id)
+    nodes.push(n)
+  }
+
+  const overlayEdges = Array.isArray(overlay.edges) ? overlay.edges : []
+  const baseEdges = Array.isArray(base.edges) ? base.edges : []
+  const edges: GraphData['edges'] = []
+  const seenEdgeIds = new Set<string>()
+  for (let i = 0; i < overlayEdges.length; i += 1) {
+    const e = overlayEdges[i]
+    const id = String((e as { id?: unknown })?.id || '').trim()
+    if (!id || seenEdgeIds.has(id)) continue
+    seenEdgeIds.add(id)
+    edges.push(e)
+  }
+  for (let i = 0; i < baseEdges.length; i += 1) {
+    const e = baseEdges[i]
+    const id = String((e as { id?: unknown })?.id || '').trim()
+    if (!id || seenEdgeIds.has(id)) continue
+    seenEdgeIds.add(id)
+    edges.push(e)
+  }
+
+  const baseMeta = isRecord(base.metadata) ? (base.metadata as Record<string, JSONValue>) : ({} as Record<string, JSONValue>)
+  const overlayMeta = isRecord(overlay.metadata) ? (overlay.metadata as Record<string, JSONValue>) : ({} as Record<string, JSONValue>)
+  const kind = String(overlayMeta.kind ?? baseMeta.kind ?? '').trim()
+  const metadata: Record<string, JSONValue> = {
+    ...baseMeta,
+    ...overlayMeta,
+    ...(kind ? ({ kind } as unknown as Record<string, JSONValue>) : {}),
+  }
+
+  const context = String(overlay.context || base.context || '').trim()
+  return {
+    type: 'Graph',
+    context,
+    nodes,
+    edges,
+    metadata,
+  }
+}
+
 export { buildMarkdownJsonLd } from './markdownJsonLd'
 
 const hasMarkdownStructure = (raw: string): boolean =>
@@ -59,11 +122,11 @@ const markdownSpec: ParserSpec = {
   parse: (name, text) => {
     const raw = String(text || '')
     const frontmatterFlow = tryParseMarkdownFrontmatterFlowGraph(name, raw)
-    if (frontmatterFlow) return frontmatterFlow
-    const panelFlow = tryParseMarkdownPanelFlowGraph(name, raw)
-    if (panelFlow) return panelFlow
+    const panelFlow = frontmatterFlow ? null : tryParseMarkdownPanelFlowGraph(name, raw)
     const maxChars = 500000
     if (raw.length > maxChars) {
+      if (frontmatterFlow) return frontmatterFlow
+      if (panelFlow) return panelFlow
       const baseName = (name || '').replace(/\\/g, '/').split('/').pop() || ''
       const stem = baseName.replace(/\.(md|markdown|mmd)$/i, '') || 'markdown'
       const nodeId = `md:large:${slugify(stem)}`
@@ -125,17 +188,23 @@ const markdownSpec: ParserSpec = {
       ...baseMeta,
       ingestionMetrics,
     }
-    const graphData = { ...baseGraph, metadata: nextMeta }
-    return { graphData, warnings: [] }
+    let graphData: GraphData = { ...baseGraph, metadata: nextMeta }
+    const extra = frontmatterFlow?.graphData || panelFlow?.graphData || null
+    const extraWarnings = frontmatterFlow?.warnings || panelFlow?.warnings || []
+    if (extra) {
+      graphData = mergeGraphDataPreferOverlay({ base: graphData, overlay: extra })
+    }
+    const warnings = Array.from(new Set([...(extraWarnings || [])].filter(Boolean))).sort((a, b) => a.localeCompare(b))
+    return { graphData, warnings }
   },
   parseAsync: async (name, text) => {
     const raw = String(text || '')
     const frontmatterFlow = tryParseMarkdownFrontmatterFlowGraph(name, raw)
-    if (frontmatterFlow) return frontmatterFlow
-    const panelFlow = tryParseMarkdownPanelFlowGraph(name, raw)
-    if (panelFlow) return panelFlow
+    const panelFlow = frontmatterFlow ? null : tryParseMarkdownPanelFlowGraph(name, raw)
     const maxChars = 500000
     if (raw.length > maxChars) {
+      if (frontmatterFlow) return frontmatterFlow
+      if (panelFlow) return panelFlow
       const baseName = (name || '').replace(/\\/g, '/').split('/').pop() || ''
       const stem = baseName.replace(/\.(md|markdown|mmd)$/i, '') || 'markdown'
       const nodeId = `md:large:${slugify(stem)}`
@@ -199,6 +268,11 @@ const markdownSpec: ParserSpec = {
     }
 
     let graphData: GraphData = { ...baseGraph, metadata: nextMeta }
+    const extra = frontmatterFlow?.graphData || panelFlow?.graphData || null
+    const extraWarnings = frontmatterFlow?.warnings || panelFlow?.warnings || []
+    if (extra) {
+      graphData = mergeGraphDataPreferOverlay({ base: graphData, overlay: extra })
+    }
     if (containsFrontmatterMermaid(raw)) {
       try {
         graphData = await applyMermaidFrontmatterGeometryToGraphData(graphData)
@@ -207,7 +281,8 @@ const markdownSpec: ParserSpec = {
       }
     }
 
-    return { graphData, warnings: [] }
+    const warnings = Array.from(new Set([...(extraWarnings || [])].filter(Boolean))).sort((a, b) => a.localeCompare(b))
+    return { graphData, warnings }
   },
 }
 

@@ -5,6 +5,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import type { GraphData, GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types'
 import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
+import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { usePositions } from './layout'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
@@ -129,9 +130,18 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     renderGraphRef.current = graph
     return graph
   }, [paused, graph])
-  const hasGraph = !!(renderGraph && Array.isArray(renderGraph.nodes) && Array.isArray(renderGraph.edges))
+  const sceneGraph = useMemo(() => {
+    const g = renderGraph as GraphData | null
+    if (!g) return null
+    return deriveSceneDisplayGraph({ graphData: g })?.displayGraphData || g
+  }, [renderGraph])
+  const hasGraph = !!(sceneGraph && Array.isArray(sceneGraph.nodes) && Array.isArray(sceneGraph.edges))
   const hoverEnabled = (effectiveSchema as GraphSchema).behavior?.hover?.enabled !== false
-  const positions = usePositions(hasGraph ? (renderGraph as GraphData).nodes : [], hasGraph ? (effectiveSchema as GraphSchema) : null)
+  const positions = usePositions(
+    hasGraph ? (sceneGraph as GraphData).nodes : [],
+    hasGraph ? (effectiveSchema as GraphSchema) : null,
+    hasGraph ? (sceneGraph as GraphData) : null,
+  )
   const positionsRef = React.useRef<Record<string, [number, number, number]>>({})
   positionsRef.current = positions as unknown as Record<string, [number, number, number]>
   const containerRef = React.useRef<HTMLDivElement | null>(null)
@@ -235,14 +245,14 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   }, [clearHoverClearTimer])
 
   const mediaNodesPool = useMemo(() => {
-    const graph = renderGraph as GraphData | null
+    const graph = sceneGraph as GraphData | null
     const nodes = graph && Array.isArray(graph.nodes) ? (graph.nodes as GraphNode[]) : []
     const poolMaxRaw = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
     const st = useGraphStore.getState() as unknown as { selectedNodeId?: unknown; selectedNodeIds?: unknown }
     const preferredNodeIds = [st.selectedNodeId, ...(Array.isArray(st.selectedNodeIds) ? st.selectedNodeIds : [])]
     return listMediaOverlayNodes({ enabled: true, nodes, poolMax, preferredNodeIds })
-  }, [renderGraph, threeIframeOverlayPoolMax])
+  }, [sceneGraph, threeIframeOverlayPoolMax])
 
   const mediaNodesKey = useMemo(() => mediaNodesPool.map(n => n.id).join('|'), [mediaNodesPool])
   const requestIframeOverlaySchedule = useCallback(() => {
@@ -831,7 +841,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
       >
         <React.Suspense fallback={null}>
           <SceneLazy
-            data={renderGraph as GraphData}
+            data={sceneGraph as GraphData}
             schema={effectiveSchema as GraphSchema}
             positions={positions}
             paused={paused}
@@ -859,7 +869,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
         </React.Suspense>
       </Canvas>
       {active && mediaNodesPool.length > 0 ? (
-        <section aria-label="3D media overlay" className="absolute inset-0 z-[50] pointer-events-none">
+        <section aria-label="3D media overlay" className="absolute inset-0 z-[80] pointer-events-none">
           {mediaNodesPool.map(n => {
             return (
               <RichMediaPanel
@@ -870,6 +880,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
                 className="absolute left-0 top-0 pointer-events-auto"
                 title={n.title}
                 url={n.url}
+                srcDoc={n.srcDoc}
                 openUrl={n.openUrl}
                 kind={n.kind}
                 interactive={renderMediaAsNodes === true && n.interactive}
@@ -993,8 +1004,8 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
       <GraphHoverTooltip
         hoverInfo={hoverInfo}
         containerRef={containerRef as unknown as React.RefObject<HTMLElement | null>}
-        nodes={(renderGraph as GraphData | null)?.nodes as GraphNode[] | undefined}
-        edges={(renderGraph as GraphData | null)?.edges as GraphEdge[] | undefined}
+        nodes={(sceneGraph as GraphData | null)?.nodes as GraphNode[] | undefined}
+        edges={(sceneGraph as GraphData | null)?.edges as GraphEdge[] | undefined}
         schema={effectiveSchema as GraphSchema | null}
         tooltipInteractive={false}
       />

@@ -21,6 +21,7 @@ import { deriveSceneGroups } from '@/lib/scene/sceneDerivation'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { filterGraphToFrontmatterFlow } from '@/lib/graph/layerDerivation'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { computeArrangeCenters, type ArrangeAction2d } from '@/lib/canvas/arrange2d'
@@ -412,6 +413,8 @@ export default function FlowCanvas({
 
   const storeGraphData = useActiveGraphRenderData(active)
   const renderGraphData = graphDataOverride !== undefined ? graphDataOverride : storeGraphData
+
+  const allowMutations = allowNodeDragOverride !== false
   const effectiveFrontmatter = React.useMemo(() => {
     return computeEffectiveFrontmatterMode({
       frontmatterModeEnabled: frontmatterModeEnabled === true && documentStructureBaselineLock !== true,
@@ -429,15 +432,22 @@ export default function FlowCanvas({
     return cloneGraphDataForRender(renderGraphData) as GraphData
   }, [renderGraphData])
 
-  const sceneDisplayGraphDerivation = React.useMemo(() => {
+  const filteredGraphDataForRenderer = React.useMemo(() => {
     if (!clonedGraphData) return null
-    return deriveSceneDisplayGraph({ graphData: clonedGraphData })
-  }, [clonedGraphData])
+    if (effectiveFrontmatter) return clonedGraphData
+    if (canvas2dRenderer !== 'flow' && canvas2dRenderer !== 'flowEditor') return clonedGraphData
+    return filterGraphToFrontmatterFlow(clonedGraphData)
+  }, [canvas2dRenderer, clonedGraphData, effectiveFrontmatter])
+
+  const sceneDisplayGraphDerivation = React.useMemo(() => {
+    if (!filteredGraphDataForRenderer) return null
+    return deriveSceneDisplayGraph({ graphData: filteredGraphDataForRenderer })
+  }, [filteredGraphDataForRenderer])
 
   const sceneGraphData = React.useMemo(() => {
-    if (!clonedGraphData) return null
-    return sceneDisplayGraphDerivation?.displayGraphData || clonedGraphData
-  }, [clonedGraphData, sceneDisplayGraphDerivation])
+    if (!filteredGraphDataForRenderer) return null
+    return sceneDisplayGraphDerivation?.displayGraphData || filteredGraphDataForRenderer
+  }, [filteredGraphDataForRenderer, sceneDisplayGraphDerivation])
 
 
   const mediaNodes = React.useMemo(() => {
@@ -640,6 +650,12 @@ export default function FlowCanvas({
   const flowPresentation = React.useMemo(() => {
     const p = readFlowPresentation({ schema, documentSemanticMode })
     const gd = sceneGraphData as unknown as { context?: unknown; metadata?: unknown } | null
+    const metaKind = (() => {
+      const meta = gd?.metadata
+      if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return ''
+      return String((meta as Record<string, unknown>).kind || '').trim()
+    })()
+    const isFrontmatterFlow = metaKind === 'frontmatter-flow'
     const isMermaidLayout = (() => {
       if (!gd) return false
       if (String(gd.context || '') === 'frontmatter-mermaid') return true
@@ -647,12 +663,25 @@ export default function FlowCanvas({
       if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
       return String((meta as Record<string, unknown>).layoutEngine || '') === 'mermaid'
     })()
-    if (!isMermaidLayout) return p
+    const base =
+      !isMermaidLayout
+        ? p
+        : {
+            ...p,
+            edges: {
+              ...p.edges,
+              underlay: { ...p.edges.underlay, enabled: false },
+            },
+          }
+    if (!isFrontmatterFlow) return base
     return {
-      ...p,
-      edges: {
-        ...p.edges,
-        underlay: { ...p.edges.underlay, enabled: false },
+      ...base,
+      portHandles: {
+        ...base.portHandles,
+        enabled: true,
+        sizePx: Math.max(10, base.portHandles.sizePx),
+        offsetPx: Math.max(4, base.portHandles.offsetPx),
+        strokeWidthPx: Math.max(1.5, base.portHandles.strokeWidthPx),
       },
     }
   }, [documentSemanticMode, schema, sceneGraphData])
@@ -672,13 +701,13 @@ export default function FlowCanvas({
 
   const sceneGroupsDerivation = React.useMemo(() => {
     return deriveSceneGroups({
-      graphData: clonedGraphData,
+      graphData: filteredGraphDataForRenderer,
       graphDataRevision,
       schema,
       documentSemanticMode: String(documentSemanticMode || ''),
       frontmatterModeEnabled: !!effectiveFrontmatter,
     })
-  }, [clonedGraphData, documentSemanticMode, effectiveFrontmatter, graphDataRevision, schema])
+  }, [documentSemanticMode, effectiveFrontmatter, filteredGraphDataForRenderer, graphDataRevision, schema])
 
   const sceneGroups = React.useMemo(() => {
     if (!flowPresentation.groups.enabled) return []
@@ -1581,7 +1610,7 @@ export default function FlowCanvas({
 
   return (
     <section ref={containerRef} className={CANVAS_SURFACE_CLASS}>
-      {active && selectedIds.length >= 2 ? (
+      {active && allowMutations && selectedIds.length >= 2 ? (
         <div className="pointer-events-none absolute right-3 top-3 z-50 flex flex-wrap gap-1 rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] p-2 text-xs text-[var(--kg-text)] shadow">
           <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-left')}>
             Align L
@@ -1634,6 +1663,7 @@ export default function FlowCanvas({
                 className="absolute left-0 top-0 pointer-events-auto"
                 title={n.title}
                 url={n.url}
+                srcDoc={n.srcDoc}
                 openUrl={n.openUrl}
                 kind={n.kind}
                 interactive={n.interactive}

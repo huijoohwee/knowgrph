@@ -22,6 +22,7 @@ import {
 import { MarkdownGraphBuilder } from './markdownJsonLdBuilder'
 import * as wikiLinks from 'grph-shared/markdown/wikiLinks'
 import { normalizeMarkdownAsciiBlocks } from 'grph-shared/markdown/asciiBlocks'
+import { extractHtmlAttr, looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
 
 export { slugify } from './markdownJsonLdUtils'
 
@@ -82,6 +83,94 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       if (!anchorId) continue
       if (!out.has(id)) out.set(id, anchorId)
     }
+    return out
+  })()
+
+  const frontmatterNodeIdSet = (() => {
+    const out = new Set<string>()
+    const metaRec = meta as unknown
+    if (!metaRec || typeof metaRec !== 'object' || Array.isArray(metaRec)) return out
+    const rec = metaRec as Record<string, unknown>
+    const nodesRaw = rec.nodes
+    if (!Array.isArray(nodesRaw)) return out
+    for (let i = 0; i < nodesRaw.length; i += 1) {
+      const row = nodesRaw[i]
+      if (!row || typeof row !== 'object' || Array.isArray(row)) continue
+      const node = row as Record<string, unknown>
+      const id = typeof node.id === 'string' ? node.id.trim() : ''
+      if (id) out.add(id)
+    }
+    return out
+  })()
+
+  const frontmatterTemplateVarSourceByName = (() => {
+    const out = new Map<string, { nodeId: string; portKey: string }>()
+    const metaRec = meta as unknown
+    if (!metaRec || typeof metaRec !== 'object' || Array.isArray(metaRec)) return out
+    const rec = metaRec as Record<string, unknown>
+    const nodesRaw = rec.nodes
+    if (!Array.isArray(nodesRaw)) return out
+
+    const baseNameFromPort = (portKey: string): string => {
+      const raw = String(portKey || '').trim()
+      if (!raw) return ''
+      const lowered = raw.toLowerCase()
+      const strip = (suffix: string) =>
+        lowered.endsWith(suffix) ? raw.slice(0, Math.max(0, raw.length - suffix.length)).trim() : ''
+      return strip('_out') || strip('_output') || strip('out') || raw
+    }
+
+    for (let i = 0; i < nodesRaw.length; i += 1) {
+      const row = nodesRaw[i]
+      if (!row || typeof row !== 'object' || Array.isArray(row)) continue
+      const node = row as Record<string, unknown>
+      const nodeId = typeof node.id === 'string' ? node.id.trim() : ''
+      if (!nodeId) continue
+      const outputsRaw = node.outputs
+      if (!Array.isArray(outputsRaw)) continue
+      for (let j = 0; j < outputsRaw.length; j += 1) {
+        const outRow = outputsRaw[j]
+        if (!outRow || typeof outRow !== 'object' || Array.isArray(outRow)) continue
+        const outRec = outRow as Record<string, unknown>
+        const portKey = typeof outRec.port === 'string' ? outRec.port.trim() : ''
+        if (!portKey) continue
+        const base = baseNameFromPort(portKey)
+        const k = base.trim().toLowerCase()
+        if (!k) continue
+        if (!out.has(k)) out.set(k, { nodeId, portKey })
+      }
+    }
+    return out
+  })()
+
+  const frontmatterNamespaceSource = (() => {
+    const out = new Map<string, { nodeId: string }>()
+    const metaRec = meta as unknown
+    if (!metaRec || typeof metaRec !== 'object' || Array.isArray(metaRec)) return out
+    const rec = metaRec as Record<string, unknown>
+    const nodesRaw = rec.nodes
+    if (!Array.isArray(nodesRaw)) return out
+
+    const addFirstByType = (namespace: string, typeId: string) => {
+      const key = namespace.toLowerCase()
+      if (out.has(key)) return
+      for (let i = 0; i < nodesRaw.length; i += 1) {
+        const row = nodesRaw[i]
+        if (!row || typeof row !== 'object' || Array.isArray(row)) continue
+        const node = row as Record<string, unknown>
+        const nodeType = typeof node.type === 'string' ? node.type.trim() : ''
+        if (nodeType !== typeId) continue
+        const nodeId = typeof node.id === 'string' ? node.id.trim() : ''
+        if (!nodeId) continue
+        out.set(key, { nodeId })
+        return
+      }
+    }
+
+    addFirstByType('strings', 'SourceStrings')
+    addFirstByType('variables', 'SourceVariables')
+    addFirstByType('constants', 'SourceConstants')
+    addFirstByType('svo', 'SourceSVO')
     return out
   })()
 
@@ -159,6 +248,204 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
 
   const docId = `doc:${gid}`
   const builder = new MarkdownGraphBuilder({ gid, docId, sourceUrl, mkMeta })
+
+  if (frontmatterNodeIdSet.size > 0) {
+    const metaRec = meta as unknown
+    const nodesRaw =
+      metaRec && typeof metaRec === 'object' && !Array.isArray(metaRec) ? (metaRec as Record<string, unknown>).nodes : null
+    if (Array.isArray(nodesRaw)) {
+      for (let i = 0; i < nodesRaw.length; i += 1) {
+        const row = nodesRaw[i]
+        if (!row || typeof row !== 'object' || Array.isArray(row)) continue
+        const node = row as Record<string, unknown>
+        const id = typeof node.id === 'string' ? node.id.trim() : ''
+        if (!id || !frontmatterNodeIdSet.has(id)) continue
+        const type = typeof node.type === 'string' && node.type.trim() ? node.type.trim() : 'FlowNode'
+        const label = typeof node.label === 'string' && node.label.trim() ? node.label.trim() : id
+        builder.ensureNode({
+          '@id': id,
+          '@type': type,
+          labels: [type],
+          name: label,
+          chunk_text: label,
+          properties: { placeholder: true },
+          metadata: mkMeta(1, 1),
+        })
+      }
+    } else {
+      for (const id of frontmatterNodeIdSet) {
+        builder.ensureNode({
+          '@id': id,
+          '@type': 'FlowNode',
+          labels: ['FlowNode'],
+          name: id,
+          chunk_text: id,
+          properties: { placeholder: true },
+          metadata: mkMeta(1, 1),
+        })
+      }
+    }
+  }
+
+  const wikiDocNodeIdByKey = new Map<string, string>()
+  const ensureWikiDocNode = (docKey: string, lineNo: number): string => {
+    const key = String(docKey || '').trim()
+    if (!key) return ''
+    const existing = wikiDocNodeIdByKey.get(key)
+    if (existing) return existing
+    const id = `wikidoc:${gid}:${slugify(key)}`
+    wikiDocNodeIdByKey.set(key, id)
+    builder.ensureNode({
+      '@id': id,
+      '@type': 'WikiDocument',
+      labels: ['WikiDocument'],
+      name: key,
+      chunk_text: key,
+      properties: { docKey: key },
+      metadata: mkMeta(lineNo, lineNo),
+    })
+    return id
+  }
+
+  const emitInternalLinkFromHref = (args: {
+    href: string
+    label: string
+    lineNo: number
+    parentId?: string
+  }): void => {
+    const hrefRaw = String(args.href || '').trim()
+    const label = String(args.label || '').trim()
+    if (!hrefRaw) return
+    const lineNo = Math.max(1, Math.floor(args.lineNo))
+    const parentId = typeof args.parentId === 'string' && args.parentId.trim() ? args.parentId.trim() : null
+
+    const tryEmitForWikiHref = (): boolean => {
+      if (!hrefRaw.startsWith(wikiLinks.MARKDOWN_WIKI_HREF_PREFIX)) return false
+      const parsed = wikiLinks.parseMarkdownWikiHref(hrefRaw)
+      if (!parsed) return true
+      const docKey = String(parsed.docKey || '').trim()
+      const anchorId = typeof parsed.anchorId === 'string' ? parsed.anchorId.trim() : ''
+      const isFrontmatterNode = docKey ? frontmatterNodeIdSet.has(docKey) : false
+      const resolvedTargetId = (() => {
+        if (isFrontmatterNode) return docKey
+        if (docKey) return ensureWikiDocNode(docKey, lineNo)
+        if (anchorId) return `anchor:${gid}:${anchorId}`
+        return ''
+      })()
+
+      const internalId = `internal-wikilink:${gid}:${slugify(label || docKey || anchorId)}:${slugify(docKey || anchorId)}`
+      builder.createInternalLinkNode(
+        internalId,
+        label || docKey || anchorId || hrefRaw,
+        {
+          kind: 'wikilink',
+          label,
+          ...(docKey ? { docKey } : {}),
+          ...(anchorId ? { anchorId } : {}),
+          ...(isFrontmatterNode ? { nodeId: docKey } : {}),
+        },
+        mkMeta(lineNo, lineNo),
+      )
+      if (resolvedTargetId) {
+        builder.addRel(internalId, 'pointsTo', resolvedTargetId)
+      }
+      if (parentId) builder.addRel(parentId, 'hasInternalLink', internalId)
+      return true
+    }
+
+    if (tryEmitForWikiHref()) return
+    if (!hrefRaw.startsWith('#')) return
+    const anchorIdRaw = hrefRaw.slice(1).trim()
+    if (!anchorIdRaw) return
+    const internalId = `internal-link:${gid}:${slugify(label || anchorIdRaw)}:${slugify(anchorIdRaw)}`
+    builder.createInternalLinkNode(internalId, label || anchorIdRaw, { anchorId: anchorIdRaw, label }, mkMeta(lineNo, lineNo))
+    const anchorNodeId = `anchor:${gid}:${anchorIdRaw}`
+    if (builder.hasAnchor(anchorNodeId)) {
+      builder.addRel(internalId, 'pointsTo', anchorNodeId)
+    }
+    if (parentId) builder.addRel(parentId, 'hasInternalLink', internalId)
+  }
+
+  const emitTemplateVarInternalLinks = (args: {
+    text: string
+    parentId: string
+    startLine: number
+    endLine: number
+    scopeKey: string
+  }): void => {
+    const text = String(args.text || '')
+    if (!text.includes('{{')) return
+    const parentId = String(args.parentId || '').trim()
+    if (!parentId) return
+    const startLine = Math.max(1, Math.floor(args.startLine))
+    const endLine = Math.max(startLine, Math.floor(args.endLine))
+    const scopeKey = String(args.scopeKey || '').trim() || parentId
+
+    const templateVarRe = /\{\{\s*([A-Za-z0-9_.-]{1,64})\s*\}\}/g
+    templateVarRe.lastIndex = 0
+    let idx = 0
+    for (;;) {
+      const m = templateVarRe.exec(text)
+      if (!m) break
+      idx += 1
+      const rawVar = String(m[1] || '').trim()
+      const key = rawVar.toLowerCase()
+      if (!key) continue
+      const internalId = `template-var:${gid}:${slugify(rawVar)}:${startLine}:${slugify(scopeKey)}:${idx}`
+      const source = frontmatterTemplateVarSourceByName.get(key)
+      const dotted = rawVar.includes('.') ? rawVar : ''
+      const ns = dotted ? rawVar.slice(0, rawVar.indexOf('.')).trim().toLowerCase() : ''
+      const nsRest = dotted ? rawVar.slice(rawVar.indexOf('.') + 1).trim() : ''
+      const nsSource = !source && ns ? frontmatterNamespaceSource.get(ns) || null : null
+      const metaSource = !source && ns === 'meta' ? `frontmatter-meta:${gid}` : ''
+
+      if (metaSource) {
+        const metaRec = meta as unknown
+        const metaObj = metaRec && typeof metaRec === 'object' && !Array.isArray(metaRec) ? (metaRec as Record<string, unknown>).meta : null
+        if (metaObj && typeof metaObj === 'object' && !Array.isArray(metaObj)) {
+          const json = (() => {
+            try {
+              return JSON.stringify(metaObj)
+            } catch {
+              return ''
+            }
+          })()
+          builder.ensureNode({
+            '@id': metaSource,
+            '@type': 'FrontmatterMeta',
+            labels: ['FrontmatterMeta'],
+            name: 'Frontmatter Meta',
+            chunk_text: json ? json.slice(0, 800) : 'Frontmatter Meta',
+            properties: { placeholder: false },
+            metadata: mkMeta(1, 1),
+          })
+        }
+      }
+      builder.createInternalLinkNode(
+        internalId,
+        rawVar,
+        {
+          kind: 'templateVar',
+          varName: rawVar,
+          originKey: scopeKey,
+          ...(source ? { nodeId: source.nodeId, portKey: source.portKey } : {}),
+          ...(nsSource ? { nodeId: nsSource.nodeId, path: nsRest || undefined } : {}),
+          ...(metaSource ? { nodeId: metaSource, path: nsRest || undefined } : {}),
+        },
+        mkMeta(startLine, endLine),
+      )
+      if (source?.nodeId) {
+        builder.addRel(internalId, 'pointsTo', source.nodeId)
+      }
+      if (nsSource?.nodeId) {
+        builder.addRel(internalId, 'pointsTo', nsSource.nodeId)
+      }
+      if (metaSource) {
+        builder.addRel(internalId, 'pointsTo', metaSource)
+      }
+      builder.addRel(parentId, 'hasInternalLink', internalId)
+    }
+  }
   
   let mermaidTreeLayout: {
     orientation?: 'vertical' | 'horizontal'
@@ -290,6 +577,15 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     return out
   }
 
+  const sanitizeInlineIframeSrcdoc = (rawSrcDoc: string): string => {
+    let s = String(rawSrcDoc || '')
+    if (!s.trim()) return ''
+    s = s.replace(/<\s*script\b[\s\S]*?<\/\s*script\s*>/gi, '')
+    s = s.replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    s = s.replace(/\bjavascript\s*:/gi, '')
+    return s.trim()
+  }
+
   for (const b of blocks) {
     const scanStart = Math.max(1, b.startLine - 2)
     const scanEnd = Math.max(1, b.startLine - 1)
@@ -411,6 +707,49 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
             : {}),
         }
         builder.createParagraphNode(id, b.text, props, mkMeta(b.startLine, b.endLine), parentId)
+
+        const tryCreateHtmlMediaNode = () => {
+          const rawHtml = String(b.text || '').trim()
+          if (!rawHtml) return
+          if (!rawHtml.toLowerCase().includes('<iframe')) return
+          if (!looksLikeSingleTagBlock(rawHtml, 'iframe')) return
+          const title = extractHtmlAttr(rawHtml, 'title')
+          const src = extractHtmlAttr(rawHtml, 'src')
+          const srcdocRaw = extractHtmlAttr(rawHtml, 'srcdoc')
+          const srcdoc = srcdocRaw ? sanitizeInlineIframeSrcdoc(srcdocRaw) : ''
+          if (!src && !srcdoc) return
+          const style = extractHtmlAttr(rawHtml, 'style')
+          const iframeId = `dom:${gid}:iframe:${b.startLine}:${order}`
+          const name = title || 'Inline Iframe'
+          const chunkText = title || 'iframe'
+          const domProps: Record<string, unknown> = {
+            ...(src ? { 'dom:attrs:src': src } : {}),
+            ...(srcdoc ? { 'dom:attrs:srcdoc': srcdoc } : {}),
+            ...(title ? { 'dom:attrs:title': title } : {}),
+            ...(style ? { 'dom:attrs:style': style } : {}),
+            media_kind: 'iframe',
+            media_interactive: true,
+          }
+          builder.createWebpageElementNode({
+            id: iframeId,
+            tag: 'IFRAME',
+            name,
+            chunkText,
+            props: domProps,
+            meta: mkMeta(b.startLine, b.endLine),
+            parentId: id,
+          })
+        }
+        tryCreateHtmlMediaNode()
+
+        emitTemplateVarInternalLinks({
+          text: b.text || '',
+          parentId: id,
+          startLine: b.startLine,
+          endLine: b.endLine,
+          scopeKey: `p:${b.startLine}:${order}`,
+        })
+
         if (isCallout && currentAnchorId) {
           builder.addRel(id, 'pointsTo', `anchor:${gid}:${currentAnchorId}`)
         }
@@ -433,8 +772,14 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
         })()
         const refs = extractMarkdownInlineRefs(b.text || '', { baseUrl: sourceUrl || undefined })
         for (const link of refs.links) {
-          builder.createLinkNode(link.url, link.label, mkMeta(b.startLine, b.endLine), id, {
-            preferMedia: !!standaloneUrl && standaloneUrl === link.url,
+          const url = String(link.url || '').trim()
+          if (!url) continue
+          if (url.startsWith('#')) {
+            emitInternalLinkFromHref({ href: url, label: link.label || '', lineNo: b.startLine, parentId: id })
+            continue
+          }
+          builder.createLinkNode(url, link.label, mkMeta(b.startLine, b.endLine), id, {
+            preferMedia: !!standaloneUrl && standaloneUrl === url,
           })
         }
         const bareUrls = extractBareHttpUrls(b.text || '', { baseUrl: sourceUrl || undefined })
@@ -510,6 +855,34 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
           mkMeta(b.startLine, b.endLine),
           parentId,
         )
+
+        if (header.length > 0) {
+          for (let c = 0; c < header.length; c += 1) {
+            const cell = header[c] || ''
+            emitTemplateVarInternalLinks({
+              text: cell,
+              parentId: id,
+              startLine: b.startLine,
+              endLine: b.endLine,
+              scopeKey: `t:${b.startLine}:${order}:h:${c + 1}`,
+            })
+          }
+        }
+        if (rows.length > 0) {
+          for (let r = 0; r < rows.length; r += 1) {
+            const row = rows[r] || []
+            for (let c = 0; c < row.length; c += 1) {
+              const cell = row[c] || ''
+              emitTemplateVarInternalLinks({
+                text: cell,
+                parentId: id,
+                startLine: b.startLine,
+                endLine: b.endLine,
+                scopeKey: `t:${b.startLine}:${order}:r:${r + 1}:c:${c + 1}`,
+              })
+            }
+          }
+        }
         
         builder.setNext(lastBlockId, id)
         lastBlockId = id
@@ -531,6 +904,14 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
             index: item.index ?? null,
             order: idx + 1,
           }, mkMeta(b.startLine, b.endLine), listId)
+
+          emitTemplateVarInternalLinks({
+            text: item.text || '',
+            parentId: itId,
+            startLine: b.startLine,
+            endLine: b.endLine,
+            scopeKey: `li:${b.startLine}:${idx + 1}`,
+          })
         }
         continue
       }
@@ -593,13 +974,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       const label = String(match[1] || '').trim()
       const anchorIdRaw = String(match[2] || '').trim()
       if (!anchorIdRaw) continue
-      const linkId = `internal-link:${gid}:${slugify(label || anchorIdRaw)}:${slugify(anchorIdRaw)}`
-      builder.createInternalLinkNode(linkId, label || anchorIdRaw, { anchorId: anchorIdRaw, label }, mkMeta(lineNo, lineNo))
-
-      const anchorNodeId = `anchor:${gid}:${anchorIdRaw}`
-      if (builder.hasAnchor(anchorNodeId)) {
-        builder.addRel(linkId, 'pointsTo', anchorNodeId)
-      }
+      emitInternalLinkFromHref({ href: `#${anchorIdRaw}`, label, lineNo })
     }
 
     const wikiRe = /\[\[([^\]\r\n]+)\]\]/g
@@ -630,20 +1005,26 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
 
       const nodeId = innerRaw
       const anchorFromFrontmatter = frontmatterNodeAnchorById.get(nodeId)
-      if (!anchorFromFrontmatter) continue
-      const rawTarget = anchorFromFrontmatter
-      if (!rawTarget) continue
       const label = nodeId
-      const linkId = `internal-wikilink:${gid}:${slugify(label || rawTarget)}:${slugify(rawTarget)}`
-      builder.createInternalLinkNode(
-        linkId,
-        label || rawTarget,
-        { anchorId: rawTarget, label, kind: 'wikilink', nodeId },
-        mkMeta(lineNo, lineNo),
-      )
-      const anchorNodeId = `anchor:${gid}:${rawTarget}`
-      if (builder.hasAnchor(anchorNodeId)) {
-        builder.addRel(linkId, 'pointsTo', anchorNodeId)
+      if (frontmatterNodeIdSet.has(nodeId)) {
+        const linkId = `internal-wikilink:${gid}:${slugify(label || nodeId)}:${slugify(nodeId)}`
+        builder.createInternalLinkNode(
+          linkId,
+          label || nodeId,
+          { label, kind: 'wikilink', nodeId, docKey: nodeId },
+          mkMeta(lineNo, lineNo),
+        )
+        builder.addRel(linkId, 'pointsTo', nodeId)
+      } else {
+        const wikiDocId = ensureWikiDocNode(nodeId, lineNo)
+        const linkId = `internal-wikilink:${gid}:${slugify(label || nodeId)}:${slugify(nodeId)}`
+        builder.createInternalLinkNode(
+          linkId,
+          label || nodeId,
+          { label, kind: 'wikilink', docKey: nodeId },
+          mkMeta(lineNo, lineNo),
+        )
+        if (wikiDocId) builder.addRel(linkId, 'pointsTo', wikiDocId)
       }
     }
 

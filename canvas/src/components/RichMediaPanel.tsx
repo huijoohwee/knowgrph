@@ -4,13 +4,14 @@ import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'
 import { applyImageLikeProxySrc } from '@/lib/url'
 import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
-import { resolveIframeEmbed, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
+import { resolveIframeEmbed, resolveIframeSandbox, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
 import { getOrCreateVideoThumbnail } from 'grph-shared/rich-media/videoThumbnail'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 export type RichMediaPanelProps = {
   title: string
   url: string
+  srcDoc?: string
   openUrl?: string
   kind?: 'iframe' | 'image' | 'svg' | 'video'
   interactive?: boolean
@@ -76,6 +77,12 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
     if (kind !== 'iframe') return null
     return resolveIframeEmbed({ url: rawUrl })
   }, [kind, rawUrl])
+
+  const inlineSrcDoc = React.useMemo(() => {
+    if (kind !== 'iframe') return ''
+    const s = typeof props.srcDoc === 'string' ? props.srcDoc.trim() : ''
+    return s
+  }, [kind, props.srcDoc])
 
   const forceSnapshotIframe = React.useMemo(() => {
     if (kind !== 'iframe') return false
@@ -437,6 +444,30 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
           />
         ) : null}
         {kind === 'iframe' ? (
+          inlineSrcDoc ? (
+            <iframe
+              src="about:blank"
+              srcDoc={inlineSrcDoc}
+              title={title}
+              allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              sandbox={resolveIframeSandbox('proxied')}
+              referrerPolicy="no-referrer"
+              loading="lazy"
+              style={{
+                display: 'block',
+                width: '100%',
+                height: '100%',
+                border: 0,
+                borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
+                background: 'transparent',
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+                pointerEvents: forwardingEnabled ? 'none' : undefined,
+                touchAction: 'auto',
+              }}
+              onLoad={() => setReady(true)}
+            />
+          ) : (
           iframeEmbed && !iframeEmbed.direct && (!preferEmbed || forceSnapshotIframe) ? (
             <WebpageSnapshotPreview
               url={proxiedUrl}
@@ -474,6 +505,7 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
               }}
               onLoad={() => setReady(true)}
             />
+          )
           )
         ) : kind === 'video' ? (
           preferEmbed ? (

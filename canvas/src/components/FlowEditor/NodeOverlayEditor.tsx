@@ -41,6 +41,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 
 const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE = 140
 const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED = 170
@@ -57,6 +58,7 @@ type NodeOverlayEditorProps = {
   stackIndex?: number
   getLiveNodeWorldPos?: (nodeId: string) => { x: number; y: number } | null
   getLiveZoomTransform?: () => { k: number; x: number; y: number } | null
+  getLiveContainmentGroupAabbForNode?: (nodeId: string) => { groupId: string; minX: number; minY: number; maxX: number; maxY: number } | null
   graphMetaKind?: string | null
   edges: ReadonlyArray<GraphEdge>
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
@@ -91,6 +93,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   stackIndex,
   getLiveNodeWorldPos,
   getLiveZoomTransform,
+  getLiveContainmentGroupAabbForNode,
   graphMetaKind,
   edges,
   connectedValuesBySchemaPath,
@@ -436,16 +439,9 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       y: world.y,
     })
     const port = schemaRef.current?.behavior?.portHandles || null
-    const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled)
-    const portSizePx =
-      typeof (port as { size?: unknown } | null)?.size === 'number' && Number.isFinite((port as { size: number }).size)
-        ? Math.max(0, (port as { size: number }).size)
-        : 4
-    const portOffsetPx =
-      typeof (port as { offset?: unknown } | null)?.offset === 'number' && Number.isFinite((port as { offset: number }).offset)
-        ? Math.max(0, (port as { offset: number }).offset)
-        : 2
-    const portExtraPadScreenPx = portEnabled ? portSizePx + portOffsetPx + 8 : 0
+    const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled) || String(graphMetaKind || '').trim() === 'frontmatter-flow'
+    const portMetrics = readPortHandleUiMetrics(schemaRef.current || null)
+    const portExtraPadScreenPx = portEnabled ? Math.max(0, portMetrics.railWidthPx + 8) : 0
     const anchoredLeftPx = screenX + DEFAULT_FLOW_NODE_WIDTH_PX * zoomK + 16 + portExtraPadScreenPx
     const anchoredTopPx = screenY - 12
     anchoredPosRef.current = { top: anchoredTopPx, left: anchoredLeftPx }
@@ -488,7 +484,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       const left = floatingViewport.width - scaled.width - dock.gapPx
       return Number.isFinite(left) ? left : null
     })()
-    const pos = shouldClampFloating
+    const posBase = shouldClampFloating
       ? clampOverlayTopLeftToViewport({
           pos: { top: safeBasePos.top, left: dockedFloatingLeftPx != null ? dockedFloatingLeftPx : safeBasePos.left },
           size: scaled,
@@ -497,6 +493,31 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
           snapPx: 1,
         })
       : safeBasePos
+
+    const pos = (() => {
+      if (floating || dragOverride) return posBase
+      const aabb = getLiveContainmentGroupAabbForNode?.(nodeId)
+      if (!aabb) return posBase
+
+      const a = worldToScreen({ transform: z, x: aabb.minX, y: aabb.minY })
+      const b = worldToScreen({ transform: z, x: aabb.maxX, y: aabb.maxY })
+      const left0 = Math.min(a.sx, b.sx)
+      const right0 = Math.max(a.sx, b.sx)
+      const top0 = Math.min(a.sy, b.sy)
+      const bottom0 = Math.max(a.sy, b.sy)
+      if (!Number.isFinite(left0) || !Number.isFinite(right0) || !Number.isFinite(top0) || !Number.isFinite(bottom0)) return posBase
+
+      const INSET_PX = 8
+      const minLeft = left0 + INSET_PX
+      const minTop = top0 + INSET_PX
+      const maxLeft = Math.max(minLeft, right0 - INSET_PX - scaled.width)
+      const maxTop = Math.max(minTop, bottom0 - INSET_PX - scaled.height)
+      const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
+      return {
+        left: clamp(posBase.left, minLeft, maxLeft),
+        top: clamp(posBase.top, minTop, maxTop),
+      }
+    })()
 
     if (shouldClampFloating && (pos.top !== safeBasePos.top || pos.left !== safeBasePos.left)) scheduleClampCommit(pos)
     if (

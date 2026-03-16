@@ -88,13 +88,30 @@ try {
 if (process.env.KG_TEST_QUIET !== '0') process.env.KG_TEST_QUIET = '1'
 
 const originalConsoleError = console.error.bind(console)
+const originalConsoleWarn = console.warn.bind(console)
+const ignoreLogMessage = (text: string): boolean => {
+  return (
+    text.includes('not wrapped in act') ||
+    text.includes('wrap-tests-with-act') ||
+    text.includes('No character metrics for') ||
+    text.includes('LaTeX-incompatible input and strict mode is set to')
+  )
+}
 console.error = (...args: unknown[]) => {
   for (let i = 0; i < args.length; i += 1) {
     const v = args[i]
     if (typeof v !== 'string') continue
-    if (v.includes('not wrapped in act') || v.includes('wrap-tests-with-act')) return
+    if (ignoreLogMessage(v)) return
   }
   originalConsoleError(...args)
+}
+console.warn = (...args: unknown[]) => {
+  for (let i = 0; i < args.length; i += 1) {
+    const v = args[i]
+    if (typeof v !== 'string') continue
+    if (ignoreLogMessage(v)) return
+  }
+  originalConsoleWarn(...args)
 }
 
 type WindowStub = Pick<

@@ -397,7 +397,7 @@ export default function CanvasPage() {
     }
   }, [canvasRenderMode, renderMediaAsNodes, setWorkspaceCanvasPaneOpen, workspaceCanvasPaneOpen, workspaceViewMode])
 
-  const activeGraphData = useActiveGraphRenderData(!isEmbeddedPreview)
+  const activeGraphData = useActiveGraphRenderData(true)
   const gympgrphBridge = useGraphStore(
     useShallow(s => ({
       zoomState: s.zoomState,
@@ -604,7 +604,6 @@ export default function CanvasPage() {
   React.useEffect(() => {
     if (documentSemanticMode !== 'document') return
     if (!frontmatterModeEnabled) return
-    if (canvasRenderMode === '2d' && canvas2dRenderer === 'flowEditor') return
     const text = String(markdownDocumentText || '')
     if (!text.trim()) return
     const base = graphData as unknown as { nodes?: unknown[]; edges?: unknown[] } | null

@@ -224,7 +224,22 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
   if (seeded.changed) persist(initial)
 
   const pickEffective = (global: NodeQuickEditorRegistryEntry[], doc: NodeQuickEditorRegistryEntry[]) => {
-    return doc.length > 0 ? doc : global
+    const g = Array.isArray(global) ? global : []
+    const d = Array.isArray(doc) ? doc : []
+    if (d.length === 0) return g
+    if (g.length === 0) return d
+
+    const uniqKey = (e: NodeQuickEditorRegistryEntry) => `${e.nodeTypeId}|${e.quickEditorTypeId}|${e.formId}`
+    const docKeySet = new Set(d.map(uniqKey))
+    const merged: NodeQuickEditorRegistryEntry[] = []
+    for (let i = 0; i < g.length; i += 1) {
+      const e = g[i]
+      if (!e) continue
+      if (docKeySet.has(uniqKey(e))) continue
+      merged.push(e)
+    }
+    merged.push(...d)
+    return normalizeNodeQuickEditorRegistryEntries(merged)
   }
 
   const upsert = (entry: Omit<NodeQuickEditorRegistryEntry, 'id' | 'updatedAt'> & { id?: string | null }) => {

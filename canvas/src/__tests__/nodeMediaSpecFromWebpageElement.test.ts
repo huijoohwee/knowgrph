@@ -108,7 +108,10 @@ export async function testNodeMediaSpecAllowsYouTubeEmbedIframeUrl() {
   const spec = getNodeMediaSpec(node)
   if (!spec) throw new Error('expected media spec for YouTube embed iframe')
   if (spec.kind !== 'iframe') throw new Error(`expected iframe kind, got ${String((spec as any).kind)}`)
-  if (!String(spec.url).includes('youtube.com/embed/')) throw new Error('expected normalized YouTube embed URL')
+  const u = String(spec.url)
+  if (!u.includes('youtube-nocookie.com/embed/') && !u.includes('youtube.com/embed/')) {
+    throw new Error('expected normalized YouTube embed URL')
+  }
 }
 
 export async function testNodeMediaSpecDetectsMarkdownImageInParagraphText() {

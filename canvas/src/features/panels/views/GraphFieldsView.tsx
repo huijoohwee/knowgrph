@@ -113,25 +113,25 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
 
   React.useEffect(() => {
     if (!graphData) {
-      setSelectedFieldId(null)
-      setSelectedGlobalView(null)
+      if (selectedFieldId !== null) setSelectedFieldId(null)
+      setSelectedGlobalView(prev => (prev === null ? prev : null))
       onStatusChange(UI_COPY.noGraphLoaded)
       return
     }
     if (selectedGlobalView) {
-      setSelectedFieldId(null)
+      if (selectedFieldId !== null) setSelectedFieldId(null)
       return
     }
     if (!selectedFieldId || !fields.some(f => f.id === selectedFieldId)) {
       const nextId = fields.length > 0 ? fields[0].id : null
-      setSelectedFieldId(nextId)
+      if (selectedFieldId !== nextId) setSelectedFieldId(nextId)
     }
     if (fields.length > 0) {
       onStatusChange(UI_COPY.syncedFieldsStatus(fields.length))
     } else {
       onStatusChange(UI_COPY.syncedNoFieldsFoundStatus)
     }
-  }, [graphData, fields, onStatusChange, selectedFieldId, selectedGlobalView, setSelectedFieldId])
+  }, [fields, graphData, onStatusChange, selectedFieldId, selectedGlobalView, setSelectedFieldId])
 
   const selectedField = React.useMemo(() => {
     if (!selectedFieldId) return null

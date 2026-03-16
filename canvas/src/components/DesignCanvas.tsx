@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react'
 import * as d3 from 'd3'
 import { useShallow } from 'zustand/react/shallow'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useContainerDims } from '@/hooks/useContainerDims'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
@@ -48,6 +49,7 @@ import { tryExtractDesignDocumentUrl } from '@/lib/render/designDocumentUrl'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { buildViewportSvgMarkupFromElement } from '@/lib/graph/svgSnapshot'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
+import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { applyMediaProxySrc, resolveUrlAgainstBase } from '@/lib/url'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { readAllowGroupResize } from '@/lib/canvas/groupResizePolicy'
@@ -261,6 +263,7 @@ export default function DesignCanvas({
       setDesignRendererWebpageGraph: s.setDesignRendererWebpageGraph,
     })),
   )
+  const activeRenderGraphData = useActiveGraphRenderData(active)
 
   const directDocumentUrl = useMemo(() => tryExtractDesignDocumentUrl(snapshot.graphData as GraphData | null), [snapshot.graphData])
   const [documentUrl, setDocumentUrl] = React.useState<string | null>(directDocumentUrl)
@@ -523,10 +526,10 @@ export default function DesignCanvas({
   }, [active, documentUrl, snapshot.designWireframeCacheEpoch, webpageLayoutRetryNonce])
 
   const designGraphDataForDisplay = useMemo(() => {
-    const g = snapshot.graphData
+    const g = (activeRenderGraphData || snapshot.graphData) as GraphData | null
     if (!g) return null
-    return deriveSceneDisplayGraph({ graphData: g as GraphData })?.displayGraphData || (g as GraphData)
-  }, [snapshot.graphData])
+    return deriveSceneDisplayGraph({ graphData: g })?.displayGraphData || g
+  }, [activeRenderGraphData, snapshot.graphData])
 
   const webpageLayoutGraphData = useMemo(() => {
     if (!webpageLayout) return null
@@ -623,15 +626,31 @@ export default function DesignCanvas({
     }
     return final
   }, [documentUrl, webpageFrontmatter?.fidelityLevel, webpageLayout])
+  const useWebpageLayoutGraph = useMemo(() => {
+    const graphForMode = (activeRenderGraphData || snapshot.graphData) as GraphData | null
+    const effectiveFrontmatter = computeEffectiveFrontmatterMode({
+      frontmatterModeEnabled: snapshot.frontmatterModeEnabled === true && snapshot.documentStructureBaselineLock !== true,
+      documentSemanticMode: snapshot.documentSemanticMode,
+      graphData: graphForMode,
+    })
+    return snapshot.documentSemanticMode === 'document' && !effectiveFrontmatter
+  }, [
+    activeRenderGraphData,
+    snapshot.documentSemanticMode,
+    snapshot.documentStructureBaselineLock,
+    snapshot.frontmatterModeEnabled,
+    snapshot.graphData,
+  ])
+  const activeWebpageLayoutGraphData = useMemo(() => (useWebpageLayoutGraph ? webpageLayoutGraphData : null), [useWebpageLayoutGraph, webpageLayoutGraphData])
 
   useEffect(() => {
     if (!documentUrl) return
     if (webpageLayoutStatus !== 'ready') return
     const elCount = Array.isArray(webpageLayout?.elements) ? webpageLayout!.elements.length : 0
-    const nodeCount = Array.isArray(webpageLayoutGraphData?.nodes) ? webpageLayoutGraphData!.nodes.length : 0
+    const nodeCount = Array.isArray(activeWebpageLayoutGraphData?.nodes) ? activeWebpageLayoutGraphData!.nodes.length : 0
     if (nodeCount > 0) setWebpageLayoutMessage(`Wireframe ready — elements=${elCount}, nodes=${nodeCount}`)
     else setWebpageLayoutMessage(`Wireframe ready — elements=${elCount}, nodes=0`)
-  }, [documentUrl, webpageLayout?.elements, webpageLayoutGraphData, webpageLayoutStatus])
+  }, [activeWebpageLayoutGraphData, documentUrl, webpageLayout?.elements, webpageLayoutStatus])
 
   const webpageLayoutKey = useMemo(() => {
     const url = String(documentUrl || '').trim()
@@ -641,7 +660,7 @@ export default function DesignCanvas({
     if (ts == null || n == null) return null
     const fidelity: WebpageFidelityLevel = webpageFrontmatter?.fidelityLevel === 1 || webpageFrontmatter?.fidelityLevel === 2 || webpageFrontmatter?.fidelityLevel === 3 || webpageFrontmatter?.fidelityLevel === 4 ? webpageFrontmatter.fidelityLevel : 3
     const base = `${url}#${ts}#${n}::f${fidelity}`
-    const nodes = Array.isArray(webpageLayoutGraphData?.nodes) ? (webpageLayoutGraphData!.nodes as GraphNode[]) : null
+    const nodes = Array.isArray(activeWebpageLayoutGraphData?.nodes) ? (activeWebpageLayoutGraphData!.nodes as GraphNode[]) : null
     if (!nodes || nodes.length === 0) return base
     const ids: string[] = []
     for (let i = 0; i < nodes.length && ids.length < 240; i += 1) {
@@ -651,19 +670,19 @@ export default function DesignCanvas({
     ids.sort()
     const sig = hashText(`${ids.join('|')}|${nodes.length}`)
     return `${base}::g${sig}`
-  }, [documentUrl, webpageFrontmatter?.fidelityLevel, webpageLayout?.elements, webpageLayout?.meta?.ts, webpageLayoutGraphData?.nodes])
+  }, [activeWebpageLayoutGraphData?.nodes, documentUrl, webpageFrontmatter?.fidelityLevel, webpageLayout?.elements, webpageLayout?.meta?.ts])
 
   const webpageGraphNodesById = useMemo(() => {
-    if (!webpageLayoutGraphData?.nodes || webpageLayoutGraphData.nodes.length === 0) return null
+    if (!activeWebpageLayoutGraphData?.nodes || activeWebpageLayoutGraphData.nodes.length === 0) return null
     const out: Record<string, GraphNode> = {}
-    for (let i = 0; i < webpageLayoutGraphData.nodes.length; i += 1) {
-      const n = webpageLayoutGraphData.nodes[i] as GraphNode
+    for (let i = 0; i < activeWebpageLayoutGraphData.nodes.length; i += 1) {
+      const n = activeWebpageLayoutGraphData.nodes[i] as GraphNode
       const id = String(n.id || '').trim()
       if (!id) continue
       out[id] = n
     }
     return out
-  }, [webpageLayoutGraphData])
+  }, [activeWebpageLayoutGraphData])
 
   useEffect(() => {
     if (!active) {
@@ -675,10 +694,10 @@ export default function DesignCanvas({
   }, [active, snapshot.setDesignRendererWebpageGraph, webpageGraphNodesById, webpageLayoutKey])
 
   const baseFrameNodes = useMemo(() => {
-    if (webpageLayoutGraphData?.nodes && webpageLayoutGraphData.nodes.length > 0) {
+    if (activeWebpageLayoutGraphData?.nodes && activeWebpageLayoutGraphData.nodes.length > 0) {
       const out: FrameNode[] = []
-      for (let i = 0; i < webpageLayoutGraphData.nodes.length; i += 1) {
-        const n = webpageLayoutGraphData.nodes[i] as GraphNode
+      for (let i = 0; i < activeWebpageLayoutGraphData.nodes.length; i += 1) {
+        const n = activeWebpageLayoutGraphData.nodes[i] as GraphNode
         const props = (n.properties || {}) as Record<string, unknown>
         const tag = typeof props['dom:tag'] === 'string' ? String(props['dom:tag'] || '').trim() : ''
         const domClass = typeof props['dom:attrs:class'] === 'string' ? String(props['dom:attrs:class'] || '').trim() : ''
@@ -697,8 +716,21 @@ export default function DesignCanvas({
       if (webpageLayoutStatus === 'error') return [{ id: 'kg:webpage:error', label: 'Webpage export failed — click Retry', type: 'Webpage' }]
       return [{ id: 'kg:webpage:idle', label: 'Preparing webpage wireframe…', type: 'Webpage' }]
     }
+    if (designGraphDataForDisplay?.nodes && designGraphDataForDisplay.nodes.length > 0) {
+      const out: FrameNode[] = []
+      for (let i = 0; i < designGraphDataForDisplay.nodes.length; i += 1) {
+        const n = designGraphDataForDisplay.nodes[i] as GraphNode
+        const id = String(n.id || '').trim()
+        if (!id) continue
+        const props = (n.properties || {}) as Record<string, unknown>
+        const visualLabel = typeof props['visual:label'] === 'string' ? String(props['visual:label'] || '').trim() : ''
+        const label = visualLabel || String(n.label || id).trim() || id
+        out.push({ id, label, ...(n.type ? { type: String(n.type) } : {}) })
+      }
+      return out
+    }
     return []
-  }, [documentUrl, webpageLayoutGraphData, webpageLayoutStatus])
+  }, [activeWebpageLayoutGraphData, designGraphDataForDisplay?.nodes, documentUrl, webpageLayoutStatus])
 
   const FRAME_W = 320
   const FRAME_H = 240
@@ -761,10 +793,10 @@ export default function DesignCanvas({
     const overrides = snapshot.designFramePosById || {}
     const sizeOverrides = snapshot.designFrameSizeById || {}
     const out: Record<string, { x: number; y: number; w: number; h: number }> = {}
-    if (webpageLayoutGraphData?.nodes && webpageLayoutGraphData.nodes.length > 0) {
+    if (activeWebpageLayoutGraphData?.nodes && activeWebpageLayoutGraphData.nodes.length > 0) {
       const byId = new Map<string, GraphNode>()
-      for (let i = 0; i < webpageLayoutGraphData.nodes.length; i += 1) {
-        const n = webpageLayoutGraphData.nodes[i] as GraphNode
+      for (let i = 0; i < activeWebpageLayoutGraphData.nodes.length; i += 1) {
+        const n = activeWebpageLayoutGraphData.nodes[i] as GraphNode
         byId.set(String(n.id), n)
       }
       for (let i = 0; i < visibleNodes.length; i += 1) {
@@ -801,19 +833,40 @@ export default function DesignCanvas({
       }
       return out
     }
+    if (visibleNodes.length > 0) {
+      const byId = designGraphNodeById
+      for (let i = 0; i < visibleNodes.length; i += 1) {
+        const n = visibleNodes[i]
+        const base = byId.get(n.id)
+        if (!base) continue
+        const props = (base.properties || {}) as Record<string, unknown>
+        const w0 = typeof props['visual:width'] === 'number' ? (props['visual:width'] as number) : FRAME_W
+        const h0 = typeof props['visual:height'] === 'number' ? (props['visual:height'] as number) : FRAME_H
+        const so = sizeOverrides[n.id]
+        const w = so && Number.isFinite(so.w) ? Math.max(24, so.w) : w0
+        const h = so && Number.isFinite(so.h) ? Math.max(18, so.h) : h0
+        const cx = typeof base.x === 'number' && Number.isFinite(base.x) ? base.x : 0
+        const cy = typeof base.y === 'number' && Number.isFinite(base.y) ? base.y : 0
+        const basePos = { x: cx - w / 2, y: cy - h / 2, w, h }
+        const o = overrides[n.id]
+        if (o && Number.isFinite(o.x) && Number.isFinite(o.y)) out[n.id] = { x: o.x, y: o.y, w: basePos.w, h: basePos.h }
+        else out[n.id] = basePos
+      }
+      return out
+    }
     return out
-  }, [dims.height, dims.width, documentUrl, snapshot.designFramePosById, snapshot.designFrameSizeById, visibleNodes, webpageLayoutGraphData])
+  }, [activeWebpageLayoutGraphData, designGraphNodeById, dims.height, dims.width, documentUrl, snapshot.designFramePosById, snapshot.designFrameSizeById, visibleNodes])
 
   const localGraphData: GraphData = useMemo(() => {
-    if (webpageLayoutGraphData?.nodes && webpageLayoutGraphData.nodes.length > 0) {
+    if (activeWebpageLayoutGraphData?.nodes && activeWebpageLayoutGraphData.nodes.length > 0) {
       const byId = new Map<string, GraphNode>()
-      for (let i = 0; i < webpageLayoutGraphData.nodes.length; i += 1) {
-        const n = webpageLayoutGraphData.nodes[i] as GraphNode
+      for (let i = 0; i < activeWebpageLayoutGraphData.nodes.length; i += 1) {
+        const n = activeWebpageLayoutGraphData.nodes[i] as GraphNode
         byId.set(String(n.id), n)
       }
       return {
         type: 'Graph',
-        context: webpageLayoutGraphData.context,
+        context: activeWebpageLayoutGraphData.context,
         nodes: visibleNodes.map(n => {
           const base = byId.get(n.id)
           const p = positions[n.id]
@@ -834,16 +887,40 @@ export default function DesignCanvas({
           }
         }),
         edges: [],
-        metadata: webpageLayoutGraphData.metadata,
+        metadata: activeWebpageLayoutGraphData.metadata,
       }
     }
+    const fallbackNodes = Array.isArray(designGraphDataForDisplay?.nodes) ? (designGraphDataForDisplay.nodes as GraphNode[]) : []
+    const fallbackEdges = Array.isArray(designGraphDataForDisplay?.edges) ? (designGraphDataForDisplay.edges as GraphEdge[]) : []
+    const visibleNodeIdSet = new Set(visibleNodes.map(n => String(n.id || '').trim()).filter(Boolean))
+    const nodes = fallbackNodes
+      .filter(n => visibleNodeIdSet.has(String(n?.id || '').trim()))
+      .map(n => {
+        const id = String(n?.id || '').trim()
+        const p = positions[id]
+        if (!p) return n
+        const props = (n.properties || {}) as Record<string, unknown>
+        return {
+          ...n,
+          properties: {
+            ...props,
+            'visual:width': typeof props['visual:width'] === 'number' ? props['visual:width'] : p.w,
+            'visual:height': typeof props['visual:height'] === 'number' ? props['visual:height'] : p.h,
+          },
+          x: p.x + p.w / 2,
+          y: p.y + p.h / 2,
+        }
+      })
+    const nodeIdSet = new Set(nodes.map(n => String(n?.id || '').trim()).filter(Boolean))
+    const edges = fallbackEdges.filter(e => nodeIdSet.has(String(e?.source || '').trim()) && nodeIdSet.has(String(e?.target || '').trim()))
     return {
       type: 'Graph',
-      nodes: [],
-      edges: [],
-      metadata: snapshot.graphData?.metadata,
+      context: designGraphDataForDisplay?.context,
+      nodes,
+      edges,
+      metadata: designGraphDataForDisplay?.metadata || snapshot.graphData?.metadata,
     }
-  }, [positions, snapshot.graphData?.metadata, visibleNodes, webpageLayoutGraphData])
+  }, [activeWebpageLayoutGraphData, designGraphDataForDisplay, positions, snapshot.graphData?.metadata, visibleNodes])
 
   const localGraphDataRef = useRef<GraphData>(localGraphData)
   useEffect(() => {
@@ -1008,19 +1085,19 @@ export default function DesignCanvas({
     const g0 = localGraphDataRef.current
     const nodes0 = Array.isArray(g0.nodes) ? (g0.nodes as GraphNode[]) : ([] as GraphNode[])
     if (nodes0.length === 0) {
-      const total = Array.isArray(webpageLayoutGraphData?.nodes) ? webpageLayoutGraphData!.nodes.length : 0
+      const total = Array.isArray(activeWebpageLayoutGraphData?.nodes) ? activeWebpageLayoutGraphData!.nodes.length : 0
       if (total > 0) {
         const hidden = snapshot.designLayerState?.hiddenById || {}
         let hiddenCount = 0
-        for (let i = 0; i < webpageLayoutGraphData!.nodes.length; i += 1) {
-          const id = String((webpageLayoutGraphData!.nodes[i] as GraphNode)?.id || '').trim()
+        for (let i = 0; i < activeWebpageLayoutGraphData!.nodes.length; i += 1) {
+          const id = String((activeWebpageLayoutGraphData!.nodes[i] as GraphNode)?.id || '').trim()
           if (!id) continue
           if (hidden[id] === true) hiddenCount += 1
         }
         if (hiddenCount >= total) {
           const ids: string[] = []
-          for (let i = 0; i < webpageLayoutGraphData!.nodes.length; i += 1) {
-            const id = String((webpageLayoutGraphData!.nodes[i] as GraphNode)?.id || '').trim()
+          for (let i = 0; i < activeWebpageLayoutGraphData!.nodes.length; i += 1) {
+            const id = String((activeWebpageLayoutGraphData!.nodes[i] as GraphNode)?.id || '').trim()
             if (id) ids.push(id)
           }
           try {
@@ -1046,7 +1123,7 @@ export default function DesignCanvas({
     const opts = readFitAllOptions({ schema: snapshot.schema, mode, intent: 'initialFit' })
     const t = fitAllTransform(nodes0, Math.max(1, dims.width), Math.max(1, dims.height), { ...opts, graphData: g0 })
     d3.select(svgEl).call(zoom.transform as never, d3.zoomIdentity.translate(t.x, t.y).scale(t.k))
-  }, [active, dims.height, dims.width, documentUrl, snapshot.designLayerState?.hiddenById, snapshot.schema, webpageLayout?.meta?.ts, webpageLayoutGraphData, webpageLayoutStatus])
+  }, [active, activeWebpageLayoutGraphData, dims.height, dims.width, documentUrl, snapshot.designLayerState?.hiddenById, snapshot.schema, webpageLayout?.meta?.ts, webpageLayoutStatus])
 
   const setDesignFramePosMany = snapshot.setDesignFramePosMany
   const setDesignFrameSizeMany = snapshot.setDesignFrameSizeMany
@@ -1356,7 +1433,7 @@ export default function DesignCanvas({
       canvasRenderMode: snapshot.canvasRenderMode,
       canvas2dRenderer: snapshot.canvas2dRenderer,
       schema: snapshot.schema,
-      graphData: snapshot.graphData,
+      graphData: localGraphData,
       documentSemanticMode: snapshot.documentSemanticMode,
       frontmatterModeEnabled: snapshot.frontmatterModeEnabled,
       documentStructureBaselineLock: snapshot.documentStructureBaselineLock,
@@ -1372,7 +1449,7 @@ export default function DesignCanvas({
     snapshot.documentSemanticMode,
     snapshot.documentStructureBaselineLock,
     snapshot.frontmatterModeEnabled,
-    snapshot.graphData,
+    localGraphData,
     snapshot.mediaPanelDensity,
     snapshot.renderMediaAsNodes,
     snapshot.schema,
@@ -1521,7 +1598,12 @@ export default function DesignCanvas({
   }, [active, dims.height, dims.width, snapshot.schema, snapshot.viewportControlsPreset, zoomViewKey])
 
   const styleById = useMemo(() => {
-    if (!webpageLayoutGraphData?.nodes || webpageLayoutGraphData.nodes.length === 0) return null
+    const sourceNodes = Array.isArray(activeWebpageLayoutGraphData?.nodes) && activeWebpageLayoutGraphData.nodes.length > 0
+      ? (activeWebpageLayoutGraphData.nodes as GraphNode[])
+      : Array.isArray(localGraphData?.nodes)
+        ? (localGraphData.nodes as GraphNode[])
+        : []
+    if (sourceNodes.length === 0) return null
     const map = new Map<
       string,
       {
@@ -1540,8 +1622,8 @@ export default function DesignCanvas({
         tag?: string
       }
     >()
-    for (let i = 0; i < webpageLayoutGraphData.nodes.length; i += 1) {
-      const n = webpageLayoutGraphData.nodes[i] as GraphNode
+    for (let i = 0; i < sourceNodes.length; i += 1) {
+      const n = sourceNodes[i] as GraphNode
       const props = (n.properties || {}) as Record<string, unknown>
       const fill = typeof props['visual:fill'] === 'string' ? String(props['visual:fill'] || '').trim() : ''
       const stroke = typeof props['visual:stroke'] === 'string' ? String(props['visual:stroke'] || '').trim() : ''
@@ -1581,7 +1663,20 @@ export default function DesignCanvas({
       })
     }
     return map
-  }, [webpageLayoutGraphData])
+  }, [activeWebpageLayoutGraphData?.nodes, localGraphData?.nodes])
+
+  const wireframeNodeById = useMemo(() => {
+    if (webpageGraphNodesById) return webpageGraphNodesById
+    const out: Record<string, GraphNode> = {}
+    const nodes = Array.isArray(localGraphData?.nodes) ? (localGraphData.nodes as GraphNode[]) : []
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const id = String(n?.id || '').trim()
+      if (!id) continue
+      out[id] = n
+    }
+    return Object.keys(out).length > 0 ? out : null
+  }, [localGraphData?.nodes, webpageGraphNodesById])
 
   const denseRender = visibleNodes.length > 450
   const renderNodes = useMemo(() => {
@@ -1658,7 +1753,7 @@ export default function DesignCanvas({
       const minSide = Math.min(p.w, p.h)
       if (minSide < 4 || area < 180) continue
 
-      const base = webpageGraphNodesById ? webpageGraphNodesById[n.id] : null
+      const base = wireframeNodeById ? wireframeNodeById[n.id] : null
       const props = (base?.properties || {}) as Record<string, unknown>
       const hasText =
         typeof props['dom:textPreview'] === 'string'
@@ -1742,11 +1837,11 @@ export default function DesignCanvas({
     rest.sort((a, b) => b.area - a.area)
     const cap = Math.max(0, 1800 - fixed.length)
     return fixed.concat(rest.slice(0, cap).map(r => r.n))
-  }, [positions, snapshot.selectedNodeId, snapshot.selectedNodeIds, styleById, visibleNodes, webpageGraphNodesById])
+  }, [positions, snapshot.selectedNodeId, snapshot.selectedNodeIds, styleById, visibleNodes, wireframeNodeById])
 
   const domDepthById = useMemo(() => {
     const out = new Map<string, number>()
-    if (!webpageGraphNodesById) return out
+    if (!wireframeNodeById) return out
     const ids = visibleNodes.map(n => String(n.id || '').trim()).filter(Boolean)
     const compute = (id: string): number => {
       if (!id) return 0
@@ -1757,7 +1852,7 @@ export default function DesignCanvas({
       while (d < 12) {
         if (seen.has(cur)) break
         seen.add(cur)
-        const node = webpageGraphNodesById[cur]
+        const node = wireframeNodeById[cur]
         const pid = String((node?.metadata as unknown as { domParentId?: unknown })?.domParentId || '').trim()
         if (!pid) break
         d += 1
@@ -1768,7 +1863,7 @@ export default function DesignCanvas({
     }
     for (let i = 0; i < ids.length; i += 1) compute(ids[i]!)
     return out
-  }, [visibleNodes, webpageGraphNodesById])
+  }, [visibleNodes, wireframeNodeById])
 
   const wireframeSettings = useMemo(() => readDesignWireframeSettings(snapshot.schema), [snapshot.schema])
 
@@ -2171,7 +2266,7 @@ export default function DesignCanvas({
   const wireframeEdges = useMemo(() => {
     if (!styleById) return [] as Array<{ id: string; x1: number; y1: number; x2: number; y2: number; opacity: number }>
     if (!wireframeSettings.showEdges) return [] as Array<{ id: string; x1: number; y1: number; x2: number; y2: number; opacity: number }>
-    const edges = Array.isArray(webpageLayoutGraphData?.edges) ? (webpageLayoutGraphData!.edges as unknown as GraphEdge[]) : []
+    const edges = Array.isArray(localGraphData?.edges) ? (localGraphData.edges as unknown as GraphEdge[]) : []
     if (edges.length === 0) return []
     const out: Array<{ id: string; x1: number; y1: number; x2: number; y2: number; opacity: number }> = []
     const maxEdges = Math.max(0, Math.min(5000, Math.floor(wireframeSettings.maxEdges)))
@@ -2198,7 +2293,7 @@ export default function DesignCanvas({
       out.push({ id, x1, y1, x2, y2, opacity })
     }
     return out
-  }, [domDepthById, positions, snapshot.selectedNodeId, styleById, webpageLayoutGraphData?.edges, wireframeSettings.maxEdges, wireframeSettings.showEdges])
+  }, [domDepthById, localGraphData?.edges, positions, snapshot.selectedNodeId, styleById, wireframeSettings.maxEdges, wireframeSettings.showEdges])
 
   const wireframePreviewById = useMemo(() => {
     type Preview =
@@ -2220,7 +2315,7 @@ export default function DesignCanvas({
     const map = new Map<string, Preview>()
     if (!styleById) return map
     if (!wireframeSettings.showTextPreview && !wireframeSettings.showMediaPreview) return map
-    if (!webpageGraphNodesById) return map
+    if (!wireframeNodeById) return map
     const safeCssColor = (raw: unknown): string | null => {
       const s = typeof raw === 'string' ? String(raw || '').trim() : ''
       if (!s) return null
@@ -2280,7 +2375,7 @@ export default function DesignCanvas({
       const selected = selectedId === n.id
       if (denseRender && !selected) continue
 
-      const base = webpageGraphNodesById[n.id]
+      const base = wireframeNodeById[n.id]
       const props = (base?.properties || {}) as Record<string, unknown>
       const domTextRaw =
         typeof props['dom:textPreview'] === 'string'
@@ -2437,7 +2532,7 @@ export default function DesignCanvas({
     renderNodes,
     snapshot.selectedNodeId,
     styleById,
-    webpageGraphNodesById,
+    wireframeNodeById,
     wireframeSettings.showMediaPreview,
     wireframeSettings.showTextPreview,
   ])
@@ -3114,14 +3209,14 @@ export default function DesignCanvas({
             if (!p) return null
             const selected = snapshot.selectedNodeId === n.id
             const style = styleById ? styleById.get(n.id) || null : null
-            const base = webpageGraphNodesById ? webpageGraphNodesById[n.id] : null
+            const base = wireframeNodeById ? wireframeNodeById[n.id] : null
             const baseProps = (base?.properties || {}) as Record<string, unknown>
             const domTag = typeof baseProps['dom:tag'] === 'string' ? String(baseProps['dom:tag'] || '').trim().toUpperCase() : ''
             const domClass = typeof baseProps['dom:attrs:class'] === 'string' ? String(baseProps['dom:attrs:class'] || '').trim() : ''
             const isSynthSection = domTag === 'SECTION' && domClass.includes('kg-synth-section')
             const kind = style?.kind || ''
             const depth = wireframeSettings.depthFade ? (domDepthById.get(n.id) ?? 0) : 0
-            const isWebpageOverlay = !!(webpageLayoutGraphData?.nodes && webpageLayoutGraphData.nodes.length > 0)
+            const isWebpageOverlay = !!(activeWebpageLayoutGraphData?.nodes && activeWebpageLayoutGraphData.nodes.length > 0)
             const fill = (() => {
               const hasFill = !!(styleById && style?.fill && style.fill !== 'transparent')
               if (isWebpageOverlay) {
@@ -3291,7 +3386,7 @@ export default function DesignCanvas({
                     }
                   }
 
-                  if (webpageLayoutGraphData?.nodes && webpageLayoutGraphData.nodes.length > 0) {
+                  if (activeWebpageLayoutGraphData?.nodes && activeWebpageLayoutGraphData.nodes.length > 0) {
                     if (Object.keys(updates).length > 0) setDesignFramePosMany(updates)
                     return
                   }
@@ -3801,6 +3896,7 @@ export default function DesignCanvas({
                 className="absolute left-0 top-0 pointer-events-auto"
                 title={n.title}
                 url={n.url}
+                srcDoc={n.srcDoc}
                 openUrl={n.openUrl}
                 kind={n.kind}
                 interactive={n.interactive}
