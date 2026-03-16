@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils'
 import { NODE_QUICK_EDITOR_BASE_SIZE } from '@/components/FlowEditor/nodeQuickEditorZoom'
 import { ChevronDown, ChevronUp, Pin, PinOff, CheckCircle, Minimize2, Maximize2 } from 'lucide-react'
 import { resolveBeatRefForNode, resolveBeatClipOverlayIdsForNode } from '@/components/FlowEditor/beatByBeat'
+import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { NodeOverlayEditorPortHandles } from '@/components/FlowEditor/NodeOverlayEditorPortHandles'
 
 export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel(args: {
   active: boolean
@@ -154,6 +156,18 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
             e.preventDefault()
           }
           e.stopPropagation()
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
+          }
+        } catch {
+          void 0
+        }
+      }}
+      onScrollCapture={() => {
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
+          }
         } catch {
           void 0
         }
@@ -273,6 +287,20 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
           registryEntries={registryEntries}
         />
       )}
+
+      <NodeOverlayEditorPortHandles
+        active={active}
+        node={{ id: node.id, type: node.type, properties: node.properties }}
+        schema={schema}
+        registryEntries={registryEntries}
+        edges={portHandleEdges}
+        minimized={minimized}
+        forceEnabled={String(graphMetaKind || '').trim() === 'frontmatter-flow'}
+        toolMode={toolMode}
+        pendingEdgeSourceId={pendingEdgeSourceId}
+        onBeginAddEdgeFromNode={onBeginAddEdgeFromNode}
+        onFinalizeAddEdgeToNode={onFinalizeAddEdgeToNode}
+      />
     </FloatingPanel>
   )
 })

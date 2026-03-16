@@ -1235,6 +1235,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const overlayEdgePathByIdRef = React.useRef<Map<string, SVGPathElement>>(new Map())
   const overlayPendingEdgePathRef = React.useRef<SVGPathElement | null>(null)
   const overlayEdgeRafRef = React.useRef<number | null>(null)
+  const overlayElByNodeIdRef = React.useRef<Map<string, HTMLElement>>(new Map())
   const overlayEdgeSocketTypesRef = React.useRef<unknown>(null)
   const overlayEdgeSocketStyleByTypeRef = React.useRef<Map<string, { color: string; edgeWidthPx: number | null }>>(new Map())
   const overlayEdgeTopPctCacheRef = React.useRef<{
@@ -1488,8 +1489,11 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const el = overlayElByNodeId.get(args.nodeId)
         const portKey = String(args.portKey || '').trim()
         if (el && portKey) {
-          const sel = `button[data-kg-port-handle="1"][data-kg-port-dir="${args.dir}"][data-kg-port-key="${esc(portKey)}"]`
-          const btn = el.querySelector(sel) as HTMLElement | null
+          const baseSel = `[data-kg-port-handle="1"][data-kg-port-dir="${args.dir}"][data-kg-port-key="${esc(portKey)}"]`
+          const btn =
+            (el.querySelector(`button${baseSel}[data-kg-port-handle-kind="dot"]`) as HTMLElement | null)
+            || (el.querySelector(`button${baseSel}[data-kg-port-handle-kind="rail"]`) as HTMLElement | null)
+            || (el.querySelector(`button${baseSel}`) as HTMLElement | null)
           if (btn) {
             const r = btn.getBoundingClientRect()
             const x = args.dir === 'out' ? r.right : r.left

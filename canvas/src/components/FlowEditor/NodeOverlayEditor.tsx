@@ -495,7 +495,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       : safeBasePos
 
     const pos = (() => {
-      if (floating || dragOverride) return posBase
+      if (floating) return posBase
       const aabb = getLiveContainmentGroupAabbForNode?.(nodeId)
       if (!aabb) return posBase
 

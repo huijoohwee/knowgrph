@@ -91,7 +91,6 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
 
   const enabled = args.forceEnabled === true || Boolean(args.schema?.behavior?.portHandles?.enabled)
   if (!enabled) return null
-  if (args.minimized) return null
   if (!nodeId) return null
 
   const { sizePx, hitSizePx, railWidthPx } = readPortHandleUiMetrics(args.schema)
@@ -154,6 +153,10 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
         type="button"
         aria-label={aria}
         title={aria}
+        data-kg-port-handle="1"
+        data-kg-port-handle-kind="rail"
+        data-kg-port-dir={p.dir}
+        data-kg-port-key={parseFlowHandleKey(p.handleId as never)}
         className={cn('absolute pointer-events-auto', cursorClass)}
         style={{
           top: `${Math.max(0, Math.min(100, p.topPct))}%`,

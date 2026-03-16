@@ -30,6 +30,7 @@ const modFlowCanvasFrontmatterFlowPortHandlesEnabledRegression = () => import('@
 const modFlowNodeQuickEditorPinnedContainmentClampRegression = () => import('@/__tests__/flowNodeQuickEditorPinnedContainmentClampRegression.test')
 const modFlowNodeQuickEditorFrontmatterPortHandlePadRegression = () => import('@/__tests__/flowNodeQuickEditorFrontmatterPortHandlePadRegression.test')
 const modFlowEditorFrontmatterFlowDefaultQuickEditorsInitRegression = () => import('@/__tests__/flowEditorFrontmatterFlowDefaultQuickEditorsInitRegression.test')
+const modFlowQuickEditorPortHandleDomAnchors = () => import('@/__tests__/flowQuickEditorPortHandleDomAnchors.test')
 
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'workspaceFs.seedAndCrud', async () => {
@@ -103,6 +104,10 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'flow.frontmatterFlow.quickEditors.defaultInit.unpinnedAndCentered', async () => {
     const mod = await modFlowEditorFrontmatterFlowDefaultQuickEditorsInitRegression()
     await mod.testFlowEditorFrontmatterFlowDefaultsUnpinnedAndCenteredLayout()
+  })
+  await execTest(results, 'flow.quickEditor.portHandles.domAnchors', async () => {
+    const mod = await modFlowQuickEditorPortHandleDomAnchors()
+    await mod.testFlowQuickEditorPortHandleDomAnchorsPresent()
   })
   await execTest(results, 'markdown.templateVars.blockquoteAndTable', async () => {
     const mod = await modMarkdownTemplateVarsInBlockquoteAndTable()
