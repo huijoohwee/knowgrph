@@ -1,6 +1,7 @@
 import React from 'react'
 import { ChevronDown, ChevronRight, LayoutGrid, SlidersHorizontal, Table as TableIcon, Trash2, Copy } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownDataViewModel'
 import {
   defaultColumnTypeForInferredKind,
@@ -124,10 +125,10 @@ export function WorkspaceDataViewSettingsDialog(props: {
         e.preventDefault()
         props.onClose()
       }}
-      aria-label="View settings"
+      aria-label={MARKDOWN_DATA_VIEW_COPY.viewSettingsLabel}
     >
       <header className={['flex items-center gap-2 px-4 py-3 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}>
-        <h3 className={['text-base font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>View settings</h3>
+        <h3 className={['text-base font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.viewSettingsLabel}</h3>
         <button
           type="button"
           className={['ml-auto inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
@@ -157,13 +158,13 @@ export function WorkspaceDataViewSettingsDialog(props: {
           <div className="mt-2 flex gap-2">
             <LayoutChoice
               active={props.viewerLayout === 'table'}
-              label="Table View"
+              label={MARKDOWN_DATA_VIEW_COPY.tableViewLabel}
               icon={<TableIcon className="w-6 h-6" aria-hidden="true" />}
               onClick={() => props.onChangeLayout('table')}
             />
             <LayoutChoice
               active={props.viewerLayout === 'kanban'}
-              label="Kanban View"
+              label={MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel}
               icon={<LayoutGrid className="w-6 h-6" aria-hidden="true" />}
               onClick={() => props.onChangeLayout('kanban')}
             />
@@ -237,7 +238,7 @@ export function WorkspaceDataViewSettingsDialog(props: {
 
           <SettingsRow
             icon={<span className={UI_THEME_TOKENS.text.secondary}>⦿</span>}
-            label="Filter"
+            label={MARKDOWN_DATA_VIEW_COPY.filterLabel}
             value={String(props.viewConfig.filterGroups.reduce((n, g) => n + g.rules.length, 0) || '')}
             onClick={() => {}}
           />

@@ -2,6 +2,7 @@ import React from 'react'
 import { ArrowUpDown, Filter, LayoutGrid, MoreHorizontal, Plus, Search, Table } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import type { MarkdownWorkspaceDerivedViewerMode } from './MarkdownWorkspaceDerivedViewer'
 import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownDataViewModel'
 import type { MarkdownDataViewColumnType } from '@/features/markdown/ui/markdownDataViewColumnType'
@@ -11,6 +12,12 @@ import { WorkspaceDataViewFilterMenu } from './WorkspaceDataViewFilterMenu'
 import { WorkspaceDataViewSettingsDialog } from './WorkspaceDataViewSettingsDialog'
 
 type SortMode = 'none' | 'title_asc' | 'title_desc'
+
+const SORT_OPTIONS: readonly { key: SortMode; label: string }[] = [
+  { key: 'none', label: 'None' },
+  { key: 'title_asc', label: 'Title (A → Z)' },
+  { key: 'title_desc', label: 'Title (Z → A)' },
+] as const
 
 export type WorkspaceDataViewHeaderState = {
   searchQuery: string
@@ -51,24 +58,24 @@ export function WorkspaceDataViewHeader(props: {
 
   return (
     <header className={['border-b', UI_THEME_TOKENS.panel.border].join(' ')} aria-label="Data view header">
-      <div className="flex items-center gap-2 px-3 pt-2">
+      <section className="flex items-center gap-2 px-3 pt-2" aria-label="Data view controls">
         <h2 className={['text-base font-semibold leading-6', UI_THEME_TOKENS.text.primary].join(' ')}>{viewTitle}</h2>
         <div className="ml-auto flex items-center gap-2">
-          <label className={['flex items-center gap-2 px-2 py-1 rounded border', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')}>
+          <form className={['flex items-center gap-2 px-2 py-1 rounded border', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')} role="search">
             <Search className={icon12Class} aria-hidden="true" />
-            <span className="sr-only">Search</span>
+            <span className="sr-only">{MARKDOWN_DATA_VIEW_COPY.searchLabel}</span>
             <input
               className={['bg-transparent outline-none text-xs w-[180px]', UI_THEME_TOKENS.input.text].join(' ')}
-              placeholder="Search…"
+              placeholder={MARKDOWN_DATA_VIEW_COPY.searchPlaceholder}
               value={props.state.searchQuery}
               onChange={e => setState({ ...props.state, searchQuery: e.target.value })}
             />
-          </label>
+          </form>
 
           <details className="relative" ref={filterDetailsRef}>
             <summary
               className={['list-none flex items-center justify-center w-8 h-8 rounded border cursor-pointer', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
-              aria-label="Filter"
+              aria-label={MARKDOWN_DATA_VIEW_COPY.filterLabel}
             >
               <Filter className={icon14Class} aria-hidden="true" />
             </summary>
@@ -78,7 +85,7 @@ export function WorkspaceDataViewHeader(props: {
                 UI_THEME_TOKENS.panel.bg,
                 UI_THEME_TOKENS.panel.border,
               ].join(' ')}
-              aria-label="Filter menu"
+              aria-label={MARKDOWN_DATA_VIEW_COPY.filterMenuAriaLabel}
             >
               <li className="list-none">
                 <WorkspaceDataViewFilterMenu
@@ -97,7 +104,7 @@ export function WorkspaceDataViewHeader(props: {
           <details className="relative">
             <summary
               className={['list-none flex items-center justify-center w-8 h-8 rounded border cursor-pointer', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
-              aria-label="Sort"
+              aria-label={MARKDOWN_DATA_VIEW_COPY.sortLabel}
             >
               <ArrowUpDown className={icon14Class} aria-hidden="true" />
             </summary>
@@ -107,15 +114,9 @@ export function WorkspaceDataViewHeader(props: {
                 UI_THEME_TOKENS.panel.bg,
                 UI_THEME_TOKENS.panel.border,
               ].join(' ')}
-              aria-label="Sort menu"
+              aria-label={MARKDOWN_DATA_VIEW_COPY.sortMenuAriaLabel}
             >
-              {(
-                [
-                  { key: 'none', label: 'None' },
-                  { key: 'title_asc', label: 'Title (A → Z)' },
-                  { key: 'title_desc', label: 'Title (Z → A)' },
-                ] as const
-              ).map(o => (
+              {SORT_OPTIONS.map(o => (
                 <li key={o.key} className="list-none">
                   <button
                     type="button"
@@ -154,7 +155,7 @@ export function WorkspaceDataViewHeader(props: {
                 UI_THEME_TOKENS.panel.bg,
                 UI_THEME_TOKENS.panel.border,
               ].join(' ')}
-              aria-label="More menu"
+              aria-label={MARKDOWN_DATA_VIEW_COPY.moreMenuAriaLabel}
             >
               <li className="list-none">
                 <button
@@ -162,7 +163,7 @@ export function WorkspaceDataViewHeader(props: {
                   className={['w-full text-left px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
                   onClick={() => props.openSettings()}
                 >
-                  View settings
+                  {MARKDOWN_DATA_VIEW_COPY.viewSettingsLabel}
                 </button>
               </li>
               <li className={['list-none my-2 h-px', UI_THEME_TOKENS.panel.divider].join(' ')} />
@@ -219,13 +220,13 @@ export function WorkspaceDataViewHeader(props: {
               onClick={() => props.onNewRecord?.()}
             >
               <Plus className={icon14Class} aria-hidden="true" />
-              <span className={['text-xs font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>New Record</span>
+              <span className={['text-xs font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.newRecordLabel}</span>
             </button>
           ) : null}
         </div>
-      </div>
+      </section>
 
-      <div className="flex items-center gap-2 px-3 pb-2">
+      <section className="flex items-center gap-2 px-3 pb-2" aria-label="Data view modes and source">
         <nav aria-label="Data view modes">
           <ul className="flex items-center gap-1 list-none m-0 p-0">
             <li className="list-none">
@@ -240,7 +241,7 @@ export function WorkspaceDataViewHeader(props: {
                 onClick={() => props.onChangeViewerMode?.('kanban')}
               >
                 <LayoutGrid className={icon14Class} aria-hidden="true" />
-                <span className={['text-xs font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>Kanban View</span>
+                <span className={['text-xs font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel}</span>
               </button>
             </li>
             <li className="list-none">
@@ -255,14 +256,14 @@ export function WorkspaceDataViewHeader(props: {
                 onClick={() => props.onChangeViewerMode?.('table')}
               >
                 <Table className={icon14Class} aria-hidden="true" />
-                <span className={['text-xs font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>Table View</span>
+                <span className={['text-xs font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.tableViewLabel}</span>
               </button>
             </li>
             <li className="list-none">
               <button
                 type="button"
                 className={['inline-flex items-center justify-center w-8 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
-                aria-label="Add view"
+                aria-label={MARKDOWN_DATA_VIEW_COPY.addViewAriaLabel}
                 aria-disabled={true}
                 disabled
               >
@@ -280,7 +281,7 @@ export function WorkspaceDataViewHeader(props: {
             </div>
           </div>
         ) : null}
-      </div>
+      </section>
 
       {props.viewConfig ? (
         <WorkspaceDataViewSettingsDialog

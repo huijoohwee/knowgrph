@@ -1,4 +1,5 @@
 import React from 'react'
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -124,7 +125,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
       return
     }
     const fallback = defaultWorkspaceDataViewConfig({
-      title: props.viewerMode === 'kanban' ? 'Kanban View' : 'Table View',
+      title: props.viewerMode === 'kanban' ? MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel : MARKDOWN_DATA_VIEW_COPY.tableViewLabel,
       layout: props.viewerMode === 'table' ? 'table' : 'kanban',
       groupByColumnId: selected.view.groupByColumnId || null,
     })

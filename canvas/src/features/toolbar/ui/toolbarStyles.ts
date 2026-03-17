@@ -1,20 +1,21 @@
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_INTENT_TOKENS } from 'grph-shared/ui/intentTokens'
 
-export const UI_COLOR_PRIMARY_BLUE = 'text-blue-600 dark:text-blue-400'
+export const UI_COLOR_PRIMARY_BLUE = UI_INTENT_TOKENS.primary.text
 
-export const UI_COLOR_PRIMARY_BLUE_BORDER = 'border-blue-500 dark:border-blue-400'
+export const UI_COLOR_PRIMARY_BLUE_BORDER = UI_INTENT_TOKENS.primary.border
 
-export const UI_COLOR_PRIMARY_BLUE_BG = 'bg-blue-50 dark:bg-blue-900/20'
+export const UI_COLOR_PRIMARY_BLUE_BG = UI_INTENT_TOKENS.primary.bg
 
-export const UI_COLOR_PRIMARY_BLUE_INDICATOR = '#60A5FA'
+export const UI_COLOR_PRIMARY_BLUE_INDICATOR = UI_INTENT_TOKENS.primary.indicator
 
-export const UI_RING_PRIMARY_BLUE_INDICATOR = 'ring-blue-400'
+export const UI_RING_PRIMARY_BLUE_INDICATOR = UI_INTENT_TOKENS.primary.ringIndicator
 
-export const UI_COLOR_DANGER_RED_BORDER = 'border-red-300 dark:border-red-500'
+export const UI_COLOR_DANGER_RED_BORDER = UI_INTENT_TOKENS.danger.border
 
-export const UI_COLOR_DANGER_RED_BG = 'bg-red-50 dark:bg-red-900/20'
+export const UI_COLOR_DANGER_RED_BG = UI_INTENT_TOKENS.danger.bg
 
-export const UI_COLOR_DANGER_RED_TEXT = 'text-red-700 dark:text-red-400'
+export const UI_COLOR_DANGER_RED_TEXT = UI_INTENT_TOKENS.danger.text
 
 export const uiPrimaryIconActiveClassName = `${UI_COLOR_PRIMARY_BLUE} ${UI_COLOR_PRIMARY_BLUE_BG}`
 

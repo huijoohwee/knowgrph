@@ -1,0 +1,24 @@
+import { UI_COPY } from './uiCopy'
+
+export const MARKDOWN_DATA_VIEW_COPY = {
+  kanbanViewLabel: UI_COPY.markdownDataViewKanbanViewLabel,
+  tableViewLabel: UI_COPY.markdownDataViewTableViewLabel,
+  newRecordLabel: UI_COPY.markdownDataViewNewRecordLabel,
+  searchLabel: 'Search',
+  searchPlaceholder: UI_COPY.markdownDataViewSearchPlaceholder,
+  ungroupedLabel: 'Ungrouped',
+  filterLabel: 'Filter',
+  sortLabel: 'Sort',
+  viewSettingsLabel: 'View settings',
+  addViewAriaLabel: 'Add view',
+  moreMenuAriaLabel: 'More menu',
+  filterMenuAriaLabel: 'Filter menu',
+  sortMenuAriaLabel: 'Sort menu',
+  expandCardLabel: 'Expand Card',
+  cardMenuLabel: 'Card menu',
+  cardActionsLabel: 'Card actions',
+  moveToLabel: 'Move To',
+  multiTagTypeHerePlaceholder: 'Type here...',
+  multiTagHelperText: 'Select tag or create one',
+  multiTagCreateLabel: (name: string) => `Create "${String(name || '').trim()}"`,
+} as const

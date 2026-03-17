@@ -169,6 +169,21 @@
       "import": "./dist/ui/panelTypography.js",
       "default": "./dist/ui/panelTypography.js"
     },
+    "./ui/kgTokens": {
+      "types": "./dist/ui/kgTokens.d.ts",
+      "import": "./dist/ui/kgTokens.js",
+      "default": "./dist/ui/kgTokens.js"
+    },
+    "./ui/themeTokens": {
+      "types": "./dist/ui/themeTokens.d.ts",
+      "import": "./dist/ui/themeTokens.js",
+      "default": "./dist/ui/themeTokens.js"
+    },
+    "./ui/intentTokens": {
+      "types": "./dist/ui/intentTokens.d.ts",
+      "import": "./dist/ui/intentTokens.js",
+      "default": "./dist/ui/intentTokens.js"
+    },
     "./ui/tailwindTextSize": {
       "types": "./dist/ui/tailwindTextSize.d.ts",
       "import": "./dist/ui/tailwindTextSize.js",

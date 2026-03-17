@@ -1,12 +1,6 @@
-import MarkdownIt from 'markdown-it'
-import markdownItFootnote from 'markdown-it-footnote'
-import markdownItSub from 'markdown-it-sub'
-import markdownItSup from 'markdown-it-sup'
-import markdownItMark from 'markdown-it-mark'
-import markdownItAnchor from 'markdown-it-anchor'
+import { getMarkdownIt, getMarkdownItFast, getMarkdownItFastHtml } from '@/features/markdown/markdownIt'
 import { parseMarkdownFrontmatter, splitMarkdownLines, type MarkdownFrontmatter } from '@/lib/markdown'
 import { hashText } from '@/features/parsers/hash'
-import { slugify } from 'grph-shared/markdown/slugify'
 import { normalizeMarkdownWikiLinksAndBlockIds } from 'grph-shared/markdown/wikiLinks'
 import { normalizeMarkdownAsciiBlocks } from 'grph-shared/markdown/asciiBlocks'
 import { normalizeHtmlHrefLikeValue } from 'grph-shared/markdown/mediaHtml'
@@ -21,28 +15,7 @@ import { buildBlockTokens } from './markdownPreviewLexBlock'
 export type { TokenWithLines } from './markdownPreviewLexUtils'
 export { addLineRangesToTokens } from './markdownPreviewLexUtils'
 
-const md = new MarkdownIt({
-  html: true,
-  linkify: true,
-  typographer: false,
-  breaks: false,
-})
-  .use(markdownItFootnote)
-  .use(markdownItSub)
-  .use(markdownItSup)
-  .use(markdownItMark)
-  .use(markdownItAnchor, {
-    permalink: false,
-    slugify: (s: string) => slugify(s),
-  })
-
-const allowlistedDataImageRe = /^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,/i
-const defaultValidateLink = md.validateLink.bind(md)
-md.validateLink = (url: string) => {
-  const s = String(url || '').trim()
-  if (allowlistedDataImageRe.test(s)) return true
-  return defaultValidateLink(s)
-}
+const md = getMarkdownIt()
 
 const LARGE_DOC_FAST_MODE_CHARS = 200_000
 
@@ -234,26 +207,8 @@ const normalizeRedditEmbedHtmlBlocks = (text: string): string => {
   return next === raw ? raw : next
 }
 
-const mdFast = new MarkdownIt({
-  html: false,
-  linkify: false,
-  typographer: false,
-  breaks: false,
-})
-
-const mdFastHtml = new MarkdownIt({
-  html: true,
-  linkify: false,
-  typographer: false,
-  breaks: false,
-})
-
-const defaultValidateLinkFastHtml = mdFastHtml.validateLink.bind(mdFastHtml)
-mdFastHtml.validateLink = (url: string) => {
-  const s = String(url || '').trim()
-  if (allowlistedDataImageRe.test(s)) return true
-  return defaultValidateLinkFastHtml(s)
-}
+const mdFast = getMarkdownItFast()
+const mdFastHtml = getMarkdownItFastHtml()
 
 export const lexMarkdown = (
   markdownText: string,

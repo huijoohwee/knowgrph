@@ -1,24 +1,25 @@
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_INTENT_TOKENS } from 'grph-shared/ui/intentTokens'
 
-export const UI_COLOR_PRIMARY_BLUE = 'text-blue-600 dark:text-blue-400'
+export const UI_COLOR_PRIMARY_BLUE = UI_INTENT_TOKENS.primary.text
 
-export const UI_COLOR_PRIMARY_BLUE_BORDER = 'border-blue-500 dark:border-blue-400'
+export const UI_COLOR_PRIMARY_BLUE_BORDER = UI_INTENT_TOKENS.primary.border
 
-export const UI_COLOR_PRIMARY_BLUE_BG = 'bg-blue-50 dark:bg-blue-900/20'
+export const UI_COLOR_PRIMARY_BLUE_BG = UI_INTENT_TOKENS.primary.bg
 
-export const UI_COLOR_PRIMARY_BLUE_INDICATOR = '#60A5FA'
+export const UI_COLOR_PRIMARY_BLUE_INDICATOR = UI_INTENT_TOKENS.primary.indicator
 
-export const UI_RING_PRIMARY_BLUE_INDICATOR = 'ring-blue-400'
+export const UI_RING_PRIMARY_BLUE_INDICATOR = UI_INTENT_TOKENS.primary.ringIndicator
 
-export const UI_COLOR_WARNING_AMBER_BORDER = 'border-amber-400 dark:border-amber-500'
+export const UI_COLOR_WARNING_AMBER_BORDER = UI_INTENT_TOKENS.warning.border
 
-export const UI_COLOR_WARNING_AMBER_BG = 'bg-amber-50 dark:bg-amber-900/20'
+export const UI_COLOR_WARNING_AMBER_BG = UI_INTENT_TOKENS.warning.bg
 
-export const UI_COLOR_DANGER_RED_BORDER = 'border-red-300 dark:border-red-500'
+export const UI_COLOR_DANGER_RED_BORDER = UI_INTENT_TOKENS.danger.border
 
-export const UI_COLOR_DANGER_RED_BG = 'bg-red-50 dark:bg-red-900/20'
+export const UI_COLOR_DANGER_RED_BG = UI_INTENT_TOKENS.danger.bg
 
-export const UI_COLOR_DANGER_RED_TEXT = 'text-red-700 dark:text-red-400'
+export const UI_COLOR_DANGER_RED_TEXT = UI_INTENT_TOKENS.danger.text
 
 export const uiDangerButtonClassName =
   `App-toolbar__btn border ${UI_COLOR_DANGER_RED_BORDER} ${UI_COLOR_DANGER_RED_BG} ${UI_COLOR_DANGER_RED_TEXT}`
@@ -30,7 +31,7 @@ export const uiDataTableToggleActiveClassName = `${UI_COLOR_PRIMARY_BLUE_BORDER}
 export const uiPrimaryToggleActiveClassName = uiToolbarToggleActiveClassName
 
 export const uiSecondaryToggleActiveClassName =
-  `${UI_COLOR_WARNING_AMBER_BORDER} ${UI_COLOR_WARNING_AMBER_BG} text-amber-800 dark:text-amber-200`
+  `${UI_COLOR_WARNING_AMBER_BORDER} ${UI_COLOR_WARNING_AMBER_BG} ${UI_INTENT_TOKENS.warning.text}`
 
 export const uiPrimaryPillActiveClassName = `${UI_COLOR_PRIMARY_BLUE_BG} ${UI_THEME_TOKENS.button.activeText}`
 
@@ -49,6 +50,6 @@ export const uiPrimaryLinkButtonClassName = `underline ${UI_COLOR_PRIMARY_BLUE} 
 export const graphDataTableToolbarButtonClassName = (active: boolean) =>
   `inline-flex items-center justify-center whitespace-nowrap font-normal transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} rounded-md h-7 px-2 shrink-0 truncate ${
     active ? `${UI_THEME_TOKENS.button.hoverBg}` : `${UI_THEME_TOKENS.panel.border}`
-  }`;
+  }`
 
-export const GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS = `!${UI_THEME_TOKENS.panel.bg} !${UI_THEME_TOKENS.button.activeText} !${UI_COLOR_PRIMARY_BLUE_BORDER}`;
+export const GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS = `!${UI_THEME_TOKENS.panel.bg} !${UI_THEME_TOKENS.button.activeText} !${UI_COLOR_PRIMARY_BLUE_BORDER}`

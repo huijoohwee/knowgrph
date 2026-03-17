@@ -6,7 +6,9 @@ import {
   defaultColumnTypeForInferredKind,
 } from './markdownDataViewColumnType'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import { DataViewTagChip } from './MarkdownDataViewChips'
+import { MarkdownDataViewMultiTagSelect } from './MarkdownDataViewMultiTagSelect'
 import { MarkdownDataViewColumnTypeMenu } from './MarkdownDataViewColumnTypeMenu'
 import { iconByColumnType } from './markdownDataViewColumnTypeMenuIcons'
 import { MarkdownDataViewAddColumnMenu } from './MarkdownDataViewAddColumnMenu'
@@ -39,6 +41,22 @@ const safeLinkHref = (raw: string): string | null => {
   const lower = v.toLowerCase()
   if (lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('mailto:')) return v
   return null
+}
+
+const splitMultiValues = (raw: string): string[] => {
+  const s = String(raw ?? '')
+    .split(',')
+    .map(x => String(x ?? '').replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const v of s) {
+    const key = v.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(v)
+  }
+  return out
 }
 
 export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTableView(props: MarkdownDataViewTableViewProps) {
@@ -91,6 +109,34 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
         if (set.size >= 64) break
       }
       out.set(i, Array.from(set))
+    }
+    return out
+  }, [view.columns, view.rows])
+
+  const multiOptionsByColumnIndex = React.useMemo(() => {
+    const out = new Map<number, string[]>()
+    for (let i = 0; i < view.columns.length; i += 1) {
+      const c = view.columns[i]
+      if (c.kind !== 'multi-select') continue
+      const base = Array.isArray(c.options) ? c.options.map(x => String(x || '').trim()).filter(Boolean) : []
+      if (base.length) {
+        out.set(i, splitMultiValues(base.join(',')))
+        continue
+      }
+      const set = new Set<string>()
+      const list: string[] = []
+      for (const r of view.rows) {
+        const vals = splitMultiValues(String(r.cells[i] ?? ''))
+        for (const v of vals) {
+          const key = v.toLowerCase()
+          if (set.has(key)) continue
+          set.add(key)
+          list.push(v)
+          if (list.length >= 96) break
+        }
+        if (list.length >= 96) break
+      }
+      out.set(i, list)
     }
     return out
   }, [view.columns, view.rows])
@@ -173,6 +219,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                   const isCheckbox = uiType === 'checkbox'
                   const isMulti = baseKind === 'multi-select'
                   const derivedOptions = isSelect ? (selectOptionsByColumnIndex.get(colIndex) || []) : []
+                  const derivedMultiOptions = isMulti ? (multiOptionsByColumnIndex.get(colIndex) || []) : []
                   return (
                     <td key={c.id} className={cellBase}>
                       {isCheckbox ? (
@@ -205,6 +252,20 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                             </option>
                           ))}
                         </select>
+                      ) : isMulti ? (
+                        <MarkdownDataViewMultiTagSelect
+                          autoFocus
+                          canCreate={true}
+                          value={draft}
+                          options={derivedMultiOptions}
+                          onChange={(next) => {
+                            setDraft(next)
+                            onUpdateCell({ rowId: r.id, columnId: c.id, nextValue: next })
+                          }}
+                          onRequestClose={() => {
+                            setEditing(null)
+                          }}
+                        />
                       ) : (
                         <input
                           autoFocus
@@ -213,7 +274,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                           max={uiType === 'progress' ? 100 : undefined}
                           className={['w-full text-xs px-2 py-1 rounded border', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.text.primary].join(' ')}
                           value={draft}
-                          placeholder={isMulti ? 'A, B, C' : ''}
+                          placeholder={''}
                           onChange={e => setDraft(e.target.value)}
                           onBlur={commit}
                           onKeyDown={e => {
@@ -295,7 +356,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                   onClick={() => props.onNewRecord?.()}
                 >
                   <Plus className={['w-3 h-3', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-                  New Record
+                  {MARKDOWN_DATA_VIEW_COPY.newRecordLabel}
                 </button>
               </td>
             </tr>

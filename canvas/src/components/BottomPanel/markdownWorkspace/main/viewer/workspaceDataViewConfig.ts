@@ -4,6 +4,7 @@ import { getLocalStorage, readJsonFromStorage, writeJsonToStorage } from '@/lib/
 import type { MarkdownDataViewColumnKind } from '@/features/markdown/ui/markdownDataViewModel'
 import type { MarkdownDataViewColumnType } from '@/features/markdown/ui/markdownDataViewColumnType'
 import { coerceMarkdownDataViewColumnType } from '@/features/markdown/ui/markdownDataViewColumnType'
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 
 export type WorkspaceDataViewLayout = 'kanban' | 'table'
 
@@ -36,7 +37,7 @@ export type WorkspaceDataViewConfig = WorkspaceDataViewConfigV1
 
 const DEFAULT: WorkspaceDataViewConfigV1 = {
   v: 1,
-  name: 'Kanban View',
+  name: MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel,
   layout: 'kanban',
   groupByColumnId: null,
   visibleColumnIds: null,
