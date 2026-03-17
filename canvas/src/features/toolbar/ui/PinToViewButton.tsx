@@ -7,7 +7,7 @@ import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
 import {
   uiPrimaryIconActiveClassName,
   uiPrimaryIconInactiveClassName,
-} from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
+} from '@/features/toolbar/ui/toolbarStyles'
 
 export const PinToViewButton = () => {
   const {

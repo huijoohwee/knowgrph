@@ -3,7 +3,7 @@ import CollapsibleSection from '@/features/panels/ui/CollapsibleSection';
 import { HELP_STEP_COPY } from '@/features/panels/config';
 import { UI_COPY } from '@/lib/config';
 import { useGraphStore } from '@/hooks/useGraphStore';
-import { uiPrimaryPillActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
+import { uiPrimaryPillActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
 import {
   CANVAS_PRECEDENCE_RULES,
   CANVAS_SHORTCUTS,

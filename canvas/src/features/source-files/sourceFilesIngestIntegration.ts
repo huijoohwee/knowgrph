@@ -17,7 +17,7 @@ import { findNextSourceFileIndex } from '@/features/source-files/sourceFileNamin
 import { writeLocalMarkdownFileText } from '@/features/source-files/localMarkdownFolder'
 import { getMostRecentCachedMarkdownFolderId, writeCachedMarkdownText } from '@/features/source-files/markdownFsCache'
 import { useGympgrphStore } from 'gympgrph'
-import type { MarkdownSourceFilesIngestIntegration } from 'curagrph/features/markdown/ui/MarkdownSourceFilesIngestIntegration.ts'
+import type { MarkdownSourceFilesIngestIntegration } from '@/features/markdown/ui/MarkdownSourceFilesIngestIntegration'
 import { convertPdfFileToMarkdown, convertPdfUrlToMarkdown, fetchYouTubeTranscriptMarkdown, fetchWebpageMarkdown } from '@/lib/net/remoteMarkdownConversions'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 

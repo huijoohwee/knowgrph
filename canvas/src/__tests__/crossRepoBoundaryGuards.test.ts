@@ -21,9 +21,9 @@ export function testForbidSiblingRepoSourceImports() {
   const files = listFilesRecursively(SRC_DIR).filter(f => /\.(ts|tsx)$/.test(f))
   const violations: Array<{ file: string; pattern: string }> = []
   const patterns: RegExp[] = [
-    /\bfrom\s+['"][^'"]*(?:curagrph|gympgrph)\/src\//,
-    /\bimport\(\s*['"][^'"]*(?:curagrph|gympgrph)\/src\//,
-    /\brequire\(\s*['"][^'"]*(?:curagrph|gympgrph)\/src\//,
+    /\bfrom\s+['"][^'"]*gympgrph\/src\//,
+    /\bimport\(\s*['"][^'"]*gympgrph\/src\//,
+    /\brequire\(\s*['"][^'"]*gympgrph\/src\//,
     /\bfrom\s+['"][^'"]*grph-shared\/src\//,
     /\bimport\(\s*['"][^'"]*grph-shared\/src\//,
     /\brequire\(\s*['"][^'"]*grph-shared\/src\//,
@@ -131,33 +131,14 @@ export function testForbidMagicLocalStorageKeysOutsideCentralConstants() {
   }
 }
 
-export function testCuragrphAliasContractInViteConfig() {
-  const viteConfigPath = resolve(process.cwd(), 'vite.config.ts')
-  const text = readFileSync(viteConfigPath, 'utf8')
-  const requiredSnippets = [
-    "./node_modules/curagrph/src/components/BottomPanel/$1",
-    "./node_modules/curagrph/src/features/graph-data-table/$1",
-    "./node_modules/curagrph/src/features/json/$1",
-    "./node_modules/curagrph/src/features/markdown/$1",
-    "./node_modules/curagrph/src/features/panels/views/preview-panel/ui/$1",
-  ]
-  const missing = requiredSnippets.filter(s => !text.includes(s))
-  if (missing.length) {
-    const msg = missing.map(s => `missing: ${s}`).join('\n')
-    throw new Error(`Curagrph alias contract missing in vite.config.ts:\n${msg}`)
-  }
-}
-
 export function testForbidEditorJsDependencies() {
   const ignoreDirNames = new Set(['node_modules', 'dist', 'build', 'coverage', '.git'])
   const repoRoot = resolve(process.cwd(), '..', '..', '..')
   const repoSrcDirs = [
     SRC_DIR,
-    resolve(repoRoot, 'curagrph', 'src'),
     resolve(repoRoot, 'gympgrph', 'src'),
   ]
   const pkgJsonPaths = [
-    resolve(repoRoot, 'curagrph', 'package.json'),
     resolve(repoRoot, 'gympgrph', 'package.json'),
   ]
 
@@ -224,12 +205,10 @@ export function testForbidReactFlowAndLiteGraphDependencies() {
   const repoRoot = resolve(process.cwd(), '..', '..', '..')
   const repoSrcDirs = [
     SRC_DIR,
-    resolve(repoRoot, 'curagrph', 'src'),
     resolve(repoRoot, 'gympgrph', 'src'),
   ]
   const pkgJsonPaths = [
     resolve(repoRoot, 'knowgrph', 'canvas', 'package.json'),
-    resolve(repoRoot, 'curagrph', 'package.json'),
     resolve(repoRoot, 'gympgrph', 'package.json'),
   ]
 
@@ -296,7 +275,6 @@ export function testForbidHardcodedSandboxAbsolutePaths() {
   const repoRoot = resolve(process.cwd(), '..', '..', '..')
   const repoSrcDirs = [
     SRC_DIR,
-    resolve(repoRoot, 'curagrph', 'src'),
     resolve(repoRoot, 'gympgrph', 'src'),
     resolve(repoRoot, 'grph-shared', 'src'),
   ]

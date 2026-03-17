@@ -5,7 +5,7 @@ import { Trash2 } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
-import { UI_RING_PRIMARY_BLUE_INDICATOR } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
+import { UI_RING_PRIMARY_BLUE_INDICATOR } from '@/features/toolbar/ui/toolbarStyles'
 import { GripDotsIcon, VisibilityIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 
 import type { FlowEditorMappingRow, FlowMappingRowDirection, FlowMappingRowType } from '@/features/flow-editor-manager/mappingRows'

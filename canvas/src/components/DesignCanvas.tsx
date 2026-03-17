@@ -62,6 +62,7 @@ import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
+import { MarkdownDesignOverlay } from '@/features/markdown-edgeless/MarkdownDesignOverlay'
 
 type FrameNode = {
   id: string
@@ -261,6 +262,8 @@ export default function DesignCanvas({
       setDesignFrameSizeMany: s.setDesignFrameSizeMany,
       setDesignRendererNodes: s.setDesignRendererNodes,
       setDesignRendererWebpageGraph: s.setDesignRendererWebpageGraph,
+      markdownDocumentName: s.markdownDocumentName,
+      markdownDocumentText: s.markdownDocumentText,
     })),
   )
   const activeRenderGraphData = useActiveGraphRenderData(active)
@@ -684,14 +687,25 @@ export default function DesignCanvas({
     return out
   }, [activeWebpageLayoutGraphData])
 
+  const markdownOverlayKey = useMemo(() => {
+    const name = String(snapshot.markdownDocumentName || '').trim()
+    const text = String(snapshot.markdownDocumentText || '')
+    if (!name || !text.trim()) return null
+    return `md:${name}::${hashText(text)}`
+  }, [snapshot.markdownDocumentName, snapshot.markdownDocumentText])
+
   useEffect(() => {
     if (!active) {
       snapshot.setDesignRendererWebpageGraph({ key: null, nodesById: {} })
       return
     }
+    if (markdownOverlayKey) {
+      snapshot.setDesignRendererWebpageGraph({ key: markdownOverlayKey, nodesById: {} })
+      return
+    }
     if (webpageLayoutKey && webpageGraphNodesById) snapshot.setDesignRendererWebpageGraph({ key: webpageLayoutKey, nodesById: webpageGraphNodesById })
     else snapshot.setDesignRendererWebpageGraph({ key: null, nodesById: {} })
-  }, [active, snapshot.setDesignRendererWebpageGraph, webpageGraphNodesById, webpageLayoutKey])
+  }, [active, markdownOverlayKey, snapshot.setDesignRendererWebpageGraph, webpageGraphNodesById, webpageLayoutKey])
 
   const baseFrameNodes = useMemo(() => {
     if (activeWebpageLayoutGraphData?.nodes && activeWebpageLayoutGraphData.nodes.length > 0) {
@@ -927,7 +941,11 @@ export default function DesignCanvas({
     localGraphDataRef.current = localGraphData
   }, [localGraphData])
 
-  const designGroups = useMemo(() => deriveGraphGroups(localGraphData), [localGraphData])
+  const designGroups = useMemo(() => {
+    const g = snapshot.graphData
+    if (!g) return []
+    return deriveGraphGroups(g, { forceDocumentStructure: snapshot.documentSemanticMode === 'document' })
+  }, [snapshot.documentSemanticMode, snapshot.graphData])
   const allowGroupResize = readAllowGroupResize(snapshot.schema as GraphSchema | null)
   const groupHandleCfg = readGroupResizeHandleConfig(snapshot.schema as GraphSchema | null)
 
@@ -998,11 +1016,11 @@ export default function DesignCanvas({
     return listMediaOverlayNodes({ enabled, nodes, poolMax })
   }, [localGraphData, snapshot.renderMediaAsNodes, snapshot.threeIframeOverlayPoolMax])
 
-  const designMediaOverlayElsRef = useRef<Map<string, HTMLDivElement>>(new Map())
+  const designMediaOverlayElsRef = useRef<Map<string, HTMLElement>>(new Map())
   const designMediaOverlayNodeByIdRef = useRef<{ graph: unknown | null; map: Map<string, GraphNode> }>({ graph: null, map: new Map() })
   const designMediaOverlayNodeIdsKey = useMemo(() => designMediaOverlayNodes.map(n => n.id).join('|'), [designMediaOverlayNodes])
   useEffect(() => {
-    const next = new Map<string, HTMLDivElement>()
+    const next = new Map<string, HTMLElement>()
     for (const n of designMediaOverlayNodes) {
       const existing = designMediaOverlayElsRef.current.get(n.id)
       if (existing) next.set(n.id, existing)
@@ -3054,6 +3072,9 @@ export default function DesignCanvas({
                 const stroke = selected ? 'var(--kg-canvas-accent)' : 'var(--kg-border)'
                 const strokeWidth = selected ? 2 : 1.5
                 const canResize = allowGroupResize && selected
+                const isHeadingGroup = g.source === 'markdownHeading' || id.startsWith('md:')
+                const fill = isHeadingGroup ? (g.style?.fill || 'var(--kg-panel-bg)') : 'transparent'
+                const fillOpacity = isHeadingGroup ? 0.16 : 0
                 return (
                   <g key={id} data-kg-group-id={id} style={{ pointerEvents: 'all' }}>
                     <rect
@@ -3067,7 +3088,8 @@ export default function DesignCanvas({
                       y={b.y}
                       width={b.w}
                       height={b.h}
-                      fill="transparent"
+                      fill={fill}
+                      fillOpacity={fillOpacity}
                       stroke={stroke}
                       strokeWidth={strokeWidth}
                       rx={12}
@@ -3086,6 +3108,20 @@ export default function DesignCanvas({
                         store.selectGroup(id)
                       }}
                     />
+                    {isHeadingGroup ? (
+                      <text
+                        x={b.x + 14}
+                        y={b.y + 12}
+                        dominantBaseline="hanging"
+                        textAnchor="start"
+                        fill="var(--kg-text-primary)"
+                        fontSize={13}
+                        fontWeight={600}
+                        style={{ userSelect: 'none', pointerEvents: 'none' }}
+                      >
+                        {String(g.label || '').trim()}
+                      </text>
+                    ) : null}
                     <g
                       ref={el => {
                         const map = groupHandleElByIdRef.current
@@ -3878,6 +3914,12 @@ export default function DesignCanvas({
           ) : null}
         </g>
       </svg>
+      <MarkdownDesignOverlay
+        enabled={active && !!String(snapshot.markdownDocumentText || '').trim()}
+        svgRef={svgRef}
+        markdownDocumentName={snapshot.markdownDocumentName}
+        markdownDocumentText={snapshot.markdownDocumentText}
+      />
       {active && designMediaOverlayNodes.length > 0 ? (
         <section aria-label="Design media overlay" className="absolute inset-0 z-[80] pointer-events-none">
           {designMediaOverlayNodes.map(n => {

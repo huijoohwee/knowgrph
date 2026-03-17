@@ -22,7 +22,7 @@ import { getPillClass, getChipClass } from '@/lib/ui'
 import {
   uiPrimaryToggleActiveClassName,
   uiPrimaryIconInactiveClassName,
-} from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
+} from '@/features/toolbar/ui/toolbarStyles'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value)

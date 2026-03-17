@@ -7,6 +7,7 @@ import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { resolveIframeEmbed, resolveIframeSandbox, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
 import { getOrCreateVideoThumbnail } from 'grph-shared/rich-media/videoThumbnail'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { PANEL_FRAME_BODY_STYLE, PANEL_FRAME_HEADER_STYLE, PANEL_FRAME_ROOT_STYLE } from '@/lib/ui/panelFrame'
 
 export type RichMediaPanelProps = {
   title: string
@@ -39,8 +40,8 @@ export type RichMediaPanelProps = {
   onContextMenuCapture?: React.MouseEventHandler<HTMLDivElement>
 }
 
-const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Panel(props, ref) {
-  const rootRef = React.useRef<HTMLDivElement | null>(null)
+const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(props, ref) {
+  const rootRef = React.useRef<HTMLElement | null>(null)
   const title = String(props.title || '').trim() || 'Media node'
   const mode: RichMediaIframeMode = props.iframeMode === 'proxy-url' ? 'proxy-url' : 'srcdoc-when-needed'
   const showHeader = props.showHeader !== false
@@ -146,7 +147,7 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
       cancelled = true
     }
   }, [isSnapshotVideo, rawUrl])
-  const setRefs = React.useCallback((el: HTMLDivElement | null) => {
+  const setRefs = React.useCallback((el: HTMLElement | null) => {
     rootRef.current = el
     const r = ref as unknown
     if (typeof r === 'function') {
@@ -320,24 +321,12 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
   }, [props])
 
   return (
-    <div
+    <article
       ref={setRefs}
       className={props.className}
       style={{
-        boxSizing: 'border-box',
-        overflow: 'hidden',
-        contain: 'layout paint',
-        isolation: 'isolate',
-        borderRadius: 'var(--kg-media-panel-radius, 10px)',
-        border: 'var(--kg-media-panel-border-w, 1px) solid var(--kg-border)',
-        background: 'var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.92)))',
-        boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
-        backfaceVisibility: 'hidden',
-        WebkitBackfaceVisibility: 'hidden',
-        willChange: 'left, top, transform, width, height',
+        ...PANEL_FRAME_ROOT_STYLE,
         pointerEvents: headerPassthrough ? 'none' : ((contentInteractive || canClickToOpen) ? 'auto' : 'none'),
-        display: 'flex',
-        flexDirection: 'column',
         opacity: hideUntilReady && !ready ? 0 : 1,
         ...(props.style || null),
       }}
@@ -353,26 +342,8 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
           data-kg-media-panel-header="1"
           aria-hidden={true}
           style={{
-            height: 'var(--kg-media-panel-header-h, 28px)',
-            minHeight: 'var(--kg-media-panel-header-h, 28px)',
-            boxSizing: 'border-box',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingLeft: 'var(--kg-media-panel-padding, 6px)',
-            paddingRight: 'var(--kg-media-panel-padding, 6px)',
-            background: 'var(--kg-media-panel-header-bg, var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.96))))',
+            ...PANEL_FRAME_HEADER_STYLE,
             borderBottom: 'var(--kg-media-panel-border-w, 1px) solid var(--kg-border)',
-            color: 'var(--kg-text-primary, var(--kg-text))',
-            fontSize: 'var(--kg-media-panel-title-size, 12px)',
-            fontWeight: 600,
-            lineHeight: 1,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-            WebkitTouchCallout: 'none',
             cursor: installHeaderDrag ? 'grab' : undefined,
             pointerEvents: headerPassthrough ? 'none' : 'auto',
           }}
@@ -391,11 +362,7 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
       ) : null}
       <section
         style={{
-          flex: 1,
-          padding: 'var(--kg-media-panel-padding, 6px)',
-          boxSizing: 'border-box',
-          minHeight: 0,
-          position: 'relative',
+          ...PANEL_FRAME_BODY_STYLE,
           pointerEvents: headerPassthrough ? (contentInteractive ? 'auto' : 'none') : undefined,
         }}
       >
@@ -577,7 +544,7 @@ const Panel = React.forwardRef<HTMLDivElement, RichMediaPanelProps>(function Pan
           />
         )}
       </section>
-    </div>
+    </article>
   )
 })
 

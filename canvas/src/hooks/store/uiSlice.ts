@@ -15,16 +15,16 @@ export const createUiSlice = (set: SetGraph) => {
 
     isEditMode: false,
 
-    workspaceViewMode: lsJson<'canvas' | 'editor' | 'table'>(
+    workspaceViewMode: lsJson<'canvas' | 'editor'>(
       LS_KEYS.workspaceViewMode,
       'canvas',
-      value => (value === 'editor' || value === 'canvas' || value === 'table' ? value : 'canvas'),
+      value => (value === 'editor' || value === 'canvas' ? value : 'canvas'),
     ),
 
-    workspaceViewModeBeforeTable: lsJson<'canvas' | 'editor'>(
-      LS_KEYS.workspaceViewModeBeforeTable,
-      'canvas',
-      value => (value === 'editor' || value === 'canvas' ? value : 'canvas'),
+    editorWorkspacePane: lsJson<'markdown' | 'graphTable'>(
+      LS_KEYS.editorWorkspacePane,
+      'markdown',
+      value => (value === 'graphTable' || value === 'markdown' ? value : 'markdown'),
     ),
 
     workspaceCanvasPaneOpen: lsBool(LS_KEYS.workspaceCanvasPaneOpen, true),
@@ -319,17 +319,17 @@ export const createUiSlice = (set: SetGraph) => {
 
     setEditMode: (mode: boolean) => set({ isEditMode: mode }),
 
-    setWorkspaceViewMode: (mode: 'canvas' | 'editor' | 'table') =>
-      set(s => {
-        const nextMode = mode === 'editor' ? 'editor' : mode === 'table' ? 'table' : 'canvas'
-        const next: Partial<GraphState> = {
-          workspaceViewMode: lsSetJson(LS_KEYS.workspaceViewMode, nextMode),
-        }
-        if (nextMode === 'table') {
-          const currentNonTable = s.workspaceViewMode === 'editor' ? 'editor' : 'canvas'
-          next.workspaceViewModeBeforeTable = lsSetJson(LS_KEYS.workspaceViewModeBeforeTable, currentNonTable)
-        }
-        return next
+    setWorkspaceViewMode: (mode: 'canvas' | 'editor') =>
+      set(() => {
+        const nextMode = mode === 'editor' ? 'editor' : 'canvas'
+        return { workspaceViewMode: lsSetJson(LS_KEYS.workspaceViewMode, nextMode) }
+      }),
+
+    setEditorWorkspacePane: (pane: 'markdown' | 'graphTable') =>
+      set(state => {
+        const next = pane === 'graphTable' ? 'graphTable' : 'markdown'
+        if (state.editorWorkspacePane === next) return {}
+        return { editorWorkspacePane: lsSetJson(LS_KEYS.editorWorkspacePane, next) } as Partial<GraphState>
       }),
     toggleWorkspaceViewMode: () =>
       set(s => {

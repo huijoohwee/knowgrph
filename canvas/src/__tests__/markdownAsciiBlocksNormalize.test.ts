@@ -1,5 +1,5 @@
 import { normalizeMarkdownAsciiBlocks } from 'grph-shared/markdown/asciiBlocks'
-import { lexMarkdown } from 'curagrph/features/markdown/ui/markdownPreviewLex.ts'
+import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 
 export function testMarkdownNormalizeAsciiBlocksWrapsPipeLayoutAndBoxDrawing() {
   const input = [

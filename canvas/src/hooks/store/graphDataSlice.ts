@@ -101,7 +101,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       get().setJsonSourceDocument(name, nextJson)
     }
     const viewMode = args?.workspaceViewMode ?? null
-    if (viewMode === 'canvas' || viewMode === 'editor' || viewMode === 'table') {
+    if (viewMode === 'canvas' || viewMode === 'editor') {
       try {
         get().setWorkspaceViewMode(viewMode)
       } catch {

@@ -1,5 +1,5 @@
 import { convertHtmlToMarkdownUnified } from '@/lib/markdown/htmlToMarkdownUnified'
-import { parseAsciiBoxTable } from 'curagrph/features/markdown/ui/codeblock/asciiBoxTable.ts'
+import { parseAsciiBoxTable } from '@/features/markdown/ui/codeblock/asciiBoxTable'
 
 export function testParseAsciiBoxTableDetectsUnicodeBoxDrawing() {
   const input = [

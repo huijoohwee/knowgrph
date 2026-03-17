@@ -91,10 +91,10 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   const threeSceneRef = React.useRef<ThreeScene | null>(null)
   const threeCameraRef = React.useRef<Camera | null>(null)
   const threeGlRef = React.useRef<WebGLRenderer | null>(null)
-  const iframeOverlayElsRef = React.useRef<Map<string, HTMLDivElement>>(new Map())
+  const iframeOverlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
   const iframeOverlayVisibleIdsRef = React.useRef<Set<string>>(new Set())
   const iframeOverlayScheduleRef = React.useRef<(() => void) | null>(null)
-  const iframeOverlayRefFnByIdRef = React.useRef<Map<string, (el: HTMLDivElement | null) => void>>(new Map())
+  const iframeOverlayRefFnByIdRef = React.useRef<Map<string, (el: HTMLElement | null) => void>>(new Map())
   const iframeOverlayScheduleRafRef = React.useRef<number | null>(null)
   const iframeOverlaySchedulePendingRef = React.useRef<boolean>(false)
   const iframeOverlayMissFramesRef = React.useRef<Map<string, number>>(new Map())
@@ -326,7 +326,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     if (!key) return () => void 0
     const cached = iframeOverlayRefFnByIdRef.current.get(key)
     if (cached) return cached
-    const fn = (el: HTMLDivElement | null) => {
+    const fn = (el: HTMLElement | null) => {
       if (!el) {
         iframeOverlayElsRef.current.delete(key)
         iframeOverlayMissFramesRef.current.delete(key)

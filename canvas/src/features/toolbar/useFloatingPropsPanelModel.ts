@@ -234,7 +234,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const doOpenNodeNodesTab = React.useCallback(() => {
     if (!graphData || !nodeContextId) return
     setSelectionSource('toolbar')
-    setWorkspaceViewMode('table')
+    setWorkspaceViewMode('canvas')
     selectNode(nodeContextId)
   }, [graphData, nodeContextId, setSelectionSource, setWorkspaceViewMode, selectNode])
 
@@ -245,7 +245,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     selectNode(nodeContextId)
     const prov = node ? resolveMarkdownProvenance(node.metadata) : null
     if (!prov) {
-      setWorkspaceViewMode('table')
+      setWorkspaceViewMode('canvas')
       return
     }
     try {
@@ -448,7 +448,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const doOpenEdgeEdgesTab = React.useCallback(() => {
     if (!graphData || !edgeContextId) return
     setSelectionSource('toolbar')
-    setWorkspaceViewMode('table')
+    setWorkspaceViewMode('canvas')
     selectEdge(edgeContextId)
   }, [edgeContextId, graphData, selectEdge, setSelectionSource, setWorkspaceViewMode])
 
@@ -459,7 +459,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     selectEdge(edgeContextId)
     const prov = edge ? resolveMarkdownProvenance(edge.metadata) : null
     if (!prov) {
-      setWorkspaceViewMode('table')
+      setWorkspaceViewMode('canvas')
       return
     }
     try {

@@ -32,6 +32,7 @@
   --kg-app-bg: var(--app-bg);
   --kg-surface-bg: var(--island-bg);
   --kg-panel-bg: var(--panel-bg);
+  --kg-panel-bg-hover: #f9fafb;
   --kg-border: var(--island-border-color);
   --kg-divider: var(--divider-color);
   --kg-text-primary: #111827;
@@ -74,6 +75,7 @@
   --island-bg: #0b1220;
   --panel-bg-rgb: 2, 11, 42;
   --island-bg-rgb: 11, 18, 32;
+  --kg-panel-bg-hover: rgba(11, 18, 32, 0.85);
   --kg-text-primary: #f3f4f6;
   --kg-text-secondary: #9ca3af;
   --kg-text-tertiary: #6b7280;

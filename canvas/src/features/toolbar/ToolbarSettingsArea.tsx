@@ -1,7 +1,7 @@
 import React from 'react'
 import { EXPORT_UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { uiPrimaryIconActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
+import { uiPrimaryIconActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 interface ToolbarSettingsAreaProps {
   onExportSettingsJsonLd: () => void

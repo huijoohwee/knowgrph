@@ -9,6 +9,8 @@ import { createRequire } from 'node:module'
 import { existsSync, createReadStream } from 'node:fs'
 import fs from 'node:fs/promises'
 import { unwrapUserProvidedText } from 'grph-shared/url'
+import { createPdfAssetsHandler, createPdfConvertHandler } from './src/lib/pdf/server/pdfConvertServer'
+import { createPdfWorkspaceHandler } from './src/lib/pdf/server/pdfWorkspaceServer'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -507,112 +509,28 @@ const localGeoDatasetDevPlugin = {
 const pdfConvertDevPlugin = {
   name: 'knowgrph-pdf-convert-dev',
   configureServer(server: import('vite').ViteDevServer) {
-    let modPromise: Promise<{
-      createPdfConvertHandler: () => import('vite').Connect.NextHandleFunction
-      createPdfAssetsHandler: () => import('vite').Connect.NextHandleFunction
-    }> | null = null
-    const get = async () => {
-      modPromise = modPromise || import('./src/lib/pdf/server/pdfConvertServer')
-      return await modPromise
-    }
-    server.middlewares.use('/__convert_pdf', async (req, res, next) => {
-      try {
-        const mod = await get()
-        return mod.createPdfConvertHandler()(req, res, next)
-      } catch {
-        res.statusCode = 500
-        res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ ok: false, error: 'PDF convert handler failed to load' }))
-      }
-    })
-    server.middlewares.use('/__pdf_assets', async (req, res, next) => {
-      try {
-        const mod = await get()
-        return mod.createPdfAssetsHandler()(req, res, next)
-      } catch {
-        res.statusCode = 500
-        res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ ok: false, error: 'PDF assets handler failed to load' }))
-      }
-    })
+    const convertHandler = createPdfConvertHandler()
+    const assetsHandler = createPdfAssetsHandler()
+    server.middlewares.use('/__convert_pdf', convertHandler)
+    server.middlewares.use('/__pdf_assets', assetsHandler)
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
-    let modPromise: Promise<{
-      createPdfConvertHandler: () => import('vite').Connect.NextHandleFunction
-      createPdfAssetsHandler: () => import('vite').Connect.NextHandleFunction
-    }> | null = null
-    const get = async () => {
-      modPromise = modPromise || import('./src/lib/pdf/server/pdfConvertServer')
-      return await modPromise
-    }
-    server.middlewares.use('/__convert_pdf', async (req, res, next) => {
-      try {
-        const mod = await get()
-        return mod.createPdfConvertHandler()(req, res, next)
-      } catch {
-        res.statusCode = 500
-        res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ ok: false, error: 'PDF convert handler failed to load' }))
-      }
-    })
-    server.middlewares.use('/__pdf_assets', async (req, res, next) => {
-      try {
-        const mod = await get()
-        return mod.createPdfAssetsHandler()(req, res, next)
-      } catch {
-        res.statusCode = 500
-        res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ ok: false, error: 'PDF assets handler failed to load' }))
-      }
-    })
+    const convertHandler = createPdfConvertHandler()
+    const assetsHandler = createPdfAssetsHandler()
+    server.middlewares.use('/__convert_pdf', convertHandler)
+    server.middlewares.use('/__pdf_assets', assetsHandler)
   },
 }
 
 const pdfWorkspaceDevPlugin = {
   name: 'knowgrph-pdf-workspace-dev',
   configureServer(server: import('vite').ViteDevServer) {
-    let handlerPromise: Promise<import('vite').Connect.NextHandleFunction> | null = null
-    const get = async () => {
-      handlerPromise =
-        handlerPromise ||
-        (async () => {
-          const mod = await import('./src/lib/pdf/server/pdfWorkspaceServer')
-          return mod.createPdfWorkspaceHandler({ repoRoot })
-        })()
-      return await handlerPromise
-    }
-    server.middlewares.use(async (req, res, next) => {
-      try {
-        const h = await get()
-        return h(req, res, next)
-      } catch {
-        res.statusCode = 500
-        res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ ok: false, error: 'PDF workspace handler failed to load' }))
-      }
-    })
+    const handler = createPdfWorkspaceHandler({ repoRoot })
+    server.middlewares.use(handler)
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
-    let handlerPromise: Promise<import('vite').Connect.NextHandleFunction> | null = null
-    const get = async () => {
-      handlerPromise =
-        handlerPromise ||
-        (async () => {
-          const mod = await import('./src/lib/pdf/server/pdfWorkspaceServer')
-          return mod.createPdfWorkspaceHandler({ repoRoot })
-        })()
-      return await handlerPromise
-    }
-    server.middlewares.use(async (req, res, next) => {
-      try {
-        const h = await get()
-        return h(req, res, next)
-      } catch {
-        res.statusCode = 500
-        res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ ok: false, error: 'PDF workspace handler failed to load' }))
-      }
-    })
+    const handler = createPdfWorkspaceHandler({ repoRoot })
+    server.middlewares.use(handler)
   },
 }
 
@@ -3588,7 +3506,7 @@ export default defineConfig(({ command }) => ({
   },
   optimizeDeps: {
     include: ['highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'dagre', 'elkjs', 'cesium'],
-    exclude: ['gympgrph', 'curagrph', 'grph-shared', 'entities'],
+    exclude: ['gympgrph', 'grph-shared', 'entities'],
     esbuildOptions: {
       sourcemap: false,
       plugins: [
@@ -3656,35 +3574,9 @@ export default defineConfig(({ command }) => ({
       { find: /^gympgrph\/datasets$/, replacement: path.resolve(__dirname, '../../gympgrph/src/geospatialDatasets.ts') },
       { find: /^gympgrph\/datasets-ui$/, replacement: path.resolve(__dirname, '../../gympgrph/src/geospatialDatasetsUi.ts') },
       { find: /^gympgrph\/testkit$/, replacement: path.resolve(__dirname, '../../gympgrph/src/testkit.ts') },
-      { find: /^curagrph$/, replacement: path.resolve(__dirname, '../../curagrph/src/index.ts') },
-      { find: /^curagrph\/components\/(.*)$/, replacement: path.resolve(__dirname, '../../curagrph/src/components/$1') },
-      { find: /^curagrph\/features\/(.*)$/, replacement: path.resolve(__dirname, '../../curagrph/src/features/$1') },
       {
         find: /^@\/components\/BottomPanel\/BottomPanelMarkdownSection$/,
         replacement: path.resolve(__dirname, './src/components/BottomPanel/BottomPanelMarkdownSection.tsx'),
-      },
-      {
-        find: /^@\/components\/BottomPanel\/(.*)$/,
-        replacement: path.resolve(__dirname, './node_modules/curagrph/src/components/BottomPanel/$1'),
-      },
-      {
-        find: /^@\/features\/graph-data-table\/(.*)$/,
-        replacement: path.resolve(__dirname, './node_modules/curagrph/src/features/graph-data-table/$1'),
-      },
-      {
-        find: /^@\/features\/markdown\/(.*)$/,
-        replacement: path.resolve(__dirname, './node_modules/curagrph/src/features/markdown/$1'),
-      },
-      {
-        find: /^@\/features\/json\/(.*)$/,
-        replacement: path.resolve(__dirname, './node_modules/curagrph/src/features/json/$1'),
-      },
-      {
-        find: /^@\/features\/panels\/views\/preview-panel\/ui\/(.*)$/,
-        replacement: path.resolve(
-          __dirname,
-          './node_modules/curagrph/src/features/panels/views/preview-panel/ui/$1',
-        ),
       },
       { find: '@', replacement: path.resolve(__dirname, './src') },
     ]
@@ -3696,7 +3588,6 @@ export default defineConfig(({ command }) => ({
       allow: [
         path.resolve(__dirname, '..'),
         path.resolve(__dirname, '../../gympgrph'),
-        path.resolve(__dirname, '../../curagrph'),
         path.resolve(__dirname, '../../grph'),
         path.resolve(__dirname, '../../sandbox'),
       ]

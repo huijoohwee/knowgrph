@@ -86,7 +86,7 @@ export const coerceCodebaseRelPath = (raw: unknown): string => {
     }
   }
 
-  for (const anchor of ['/sandbox/', '/knowgrph/', '/curagrph/']) {
+  for (const anchor of ['/sandbox/', '/knowgrph/']) {
     const idx = candidateAbs.lastIndexOf(anchor)
     if (idx >= 0) {
       const rel = candidateAbs.slice(idx + 1)

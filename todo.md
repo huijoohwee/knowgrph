@@ -48,7 +48,7 @@ https://www.citriniresearch.com/p/2028gic
 ```
 # 2D Renderer (Design) 
  ## ENHANCE HTML/CSS/JS hydration/DOM/heuristics -> 2D Renderer (Design) PIPELINE 
- - refer to `https://github.com/penpot/penpot.git` , ENHANCE penpot-like functionalities for webpage UI components & layout; 
+- refer to Penpot (upstream), ENHANCE penpot-like functionalities for webpage UI components & layout; 
  - ALIGN 2D Renderer (D3, Flow, Flow Editor) with 2D Renderer (Design) ENSURE consistency across modes/layouts; 
  - ENFORCE high UI wireframe layout fidelity with `https://astro.build/`  ; 
  - ENHANCE heuristics processing of patterns; 

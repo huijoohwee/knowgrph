@@ -77,7 +77,7 @@ export function useCanvasMarkdownSync(args: {
   const lastCanvasSyncSigRef = React.useRef<string>('')
 
   React.useEffect(() => {
-    if (selectionSource !== 'canvas' && selectionSource !== 'table') return
+    if (selectionSource !== 'canvas') return
     if (!graphData) return
 
     const nodeId = selectedNodeId ? String(selectedNodeId) : ''

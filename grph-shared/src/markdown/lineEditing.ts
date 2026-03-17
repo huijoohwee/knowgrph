@@ -14,3 +14,22 @@ export function insertMarkdownLineAfter(args: {
   return next.join('\n')
 }
 
+export function replaceMarkdownLineRange(args: {
+  markdownText: string
+  startLine: number
+  endLine: number
+  replacementLines: string[]
+}): string {
+  const text = String(args.markdownText || '')
+  const lines = text.split('\n')
+  const startLine = Math.max(1, Math.floor(args.startLine || 1))
+  const endLine = Math.max(startLine, Math.floor(args.endLine || startLine))
+
+  const startIndex = startLine - 1
+  const endIndexExclusive = Math.max(startIndex, Math.min(lines.length, endLine))
+  const replacementLines = Array.isArray(args.replacementLines) ? args.replacementLines : []
+
+  const next = [...lines]
+  next.splice(startIndex, endIndexExclusive - startIndex, ...replacementLines)
+  return next.join('\n')
+}

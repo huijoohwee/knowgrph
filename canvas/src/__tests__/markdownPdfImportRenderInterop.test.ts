@@ -1,5 +1,5 @@
-import { lexMarkdown } from 'curagrph/features/markdown/ui/markdownPreviewLex.ts'
-import { resolveHref } from 'curagrph/features/markdown/ui/markdownPreviewLinks.tsx'
+import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
+import { resolveHref } from '@/features/markdown/ui/markdownPreviewLinks'
 
 export function testMarkdownResolveHrefPreservesInternalAssetRoutes() {
   const href = '/__pdf_assets/123e4567-e89b-12d3-a456-426614174000/page-0001.jpg'

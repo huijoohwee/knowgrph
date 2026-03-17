@@ -159,10 +159,6 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
         store.setWorkspaceViewMode('canvas')
         return
       }
-
-      if (!baselineLocked && storeBefore.workspaceViewMode !== 'table') {
-        store.setWorkspaceViewMode('table')
-      }
     },
     [applyMarkdownDocumentToGraph],
   )
@@ -253,4 +249,3 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
 
   return { importJobRef, status, focusAfterImport, createNewFile, createNewFolder }
 }
-

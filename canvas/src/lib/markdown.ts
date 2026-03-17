@@ -1,5 +1,5 @@
 import { load as parseYaml } from 'js-yaml'
-import { parseAsciiBoxTable } from 'curagrph/features/markdown/ui/codeblock/asciiBoxTable.ts'
+import { parseAsciiBoxTable } from '../features/markdown/ui/codeblock/asciiBoxTable'
 
 export type MarkdownFrontmatter = Record<string, unknown>
 

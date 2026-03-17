@@ -461,9 +461,9 @@ export default function FlowCanvas({
   React.useEffect(() => {
     mediaHideNodeIdsRef.current = []
   }, [mediaNodeIdsKey, mediaNodes, renderMediaAsNodes])
-  const mediaOverlayElsRef = React.useRef<Map<string, HTMLDivElement>>(new Map())
+  const mediaOverlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
   React.useEffect(() => {
-    const next = new Map<string, HTMLDivElement>()
+    const next = new Map<string, HTMLElement>()
     for (const n of mediaNodes) {
       const existing = mediaOverlayElsRef.current.get(n.id)
       if (existing) next.set(n.id, existing)

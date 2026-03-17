@@ -62,7 +62,7 @@ export function LaunchSpotlightTourCard({
       }
     } else if (currentStep.id === 2) {
       try {
-        useGraphStore.getState().setWorkspaceViewMode('table')
+        useGraphStore.getState().setWorkspaceViewMode('canvas')
       } catch {
         void 0
       }
@@ -210,7 +210,7 @@ export function LaunchSpotlightTourCard({
                   className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50`}
                   onClick={() => {
                     try {
-                      useGraphStore.getState().setWorkspaceViewMode('table')
+                      useGraphStore.getState().setWorkspaceViewMode('canvas')
                     } catch {
                       void 0
                     }

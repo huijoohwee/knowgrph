@@ -62,7 +62,9 @@ export type BottomTab = 'stats' | 'render' | 'settings' | 'history'
 
 export type SchemaBySemanticMode = Record<DocumentSemanticMode, GraphSchema>
 
-export type WorkspaceViewMode = 'canvas' | 'editor' | 'table'
+export type WorkspaceViewMode = 'canvas' | 'editor'
+
+export type EditorWorkspacePane = 'markdown' | 'graphTable'
 
 export type PdfImportProvider = 'native' | 'docling-remote'
 
@@ -249,13 +251,14 @@ export interface GraphState {
   orchestratorOpMsg: string;
   renderOpOk: boolean | null;
   renderOpMsg: string;
-  selectionSource: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'table' | 'unknown';
-  setSelectionSource: (src: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'table' | 'unknown') => void;
+  selectionSource: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown';
+  setSelectionSource: (src: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown') => void;
   setFlowNodeQuickEditorPinnedByNodeId: (pinnedById: Record<string, boolean>) => void;
 
   isEditMode: boolean;
   workspaceViewMode: WorkspaceViewMode;
-  workspaceViewModeBeforeTable: Exclude<WorkspaceViewMode, 'table'>
+  editorWorkspacePane: EditorWorkspacePane
+  setEditorWorkspacePane: (pane: EditorWorkspacePane) => void
   workspaceCanvasPaneOpen: boolean
   setWorkspaceCanvasPaneOpen: (open: boolean) => void
   documentStructureBaselineLock: boolean;

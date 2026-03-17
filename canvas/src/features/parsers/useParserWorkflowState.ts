@@ -275,7 +275,7 @@ export function useParserWorkflowState() {
       }
     }
     try {
-      useGraphStore.getState().setWorkspaceViewMode('table')
+      useGraphStore.getState().setWorkspaceViewMode('canvas')
     } catch {
       void 0
     }
@@ -425,7 +425,7 @@ export function useParserWorkflowState() {
       void 0
     }
     try {
-      useGraphStore.getState().setWorkspaceViewMode('table')
+      useGraphStore.getState().setWorkspaceViewMode('canvas')
     } catch {
       void 0
     }

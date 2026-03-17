@@ -1,11 +1,11 @@
-import { lexMarkdown } from 'curagrph/features/markdown/ui/markdownPreviewLex.ts'
+import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import {
   extractAttr,
   getYouTubeId,
   isSafeHref,
   isSafeMediaSrc,
   looksLikeSingleTagBlock,
-} from 'curagrph/features/markdown/ui/markdownPreviewLinks.tsx'
+} from '@/features/markdown/ui/markdownPreviewLinks'
 import { extractEmbeddedGeoJsonFeatureCollections } from '@/lib/markdown/embeddedGeoJson'
 import { readMarkdownSlideDemo } from '@/tests/lib/markdownSlideDemo'
 import { slugify } from 'grph-shared/markdown/slugify'

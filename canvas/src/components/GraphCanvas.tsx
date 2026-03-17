@@ -55,6 +55,7 @@ import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import RichMediaPanel from '@/components/RichMediaPanel'
+import { MarkdownDesignOverlay } from '@/features/markdown-edgeless/MarkdownDesignOverlay'
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
@@ -198,6 +199,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     clearGraphCanvasArrangeRequest,
     selectedNodeId,
     selectedNodeIds,
+    markdownDocumentName,
+    markdownDocumentText,
   } = useGraphStore(
     useShallow((s) => ({
       graphDataRevision: s.graphDataRevision,
@@ -229,6 +232,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       clearGraphCanvasArrangeRequest: s.clearGraphCanvasArrangeRequest,
       selectedNodeId: s.selectedNodeId,
       selectedNodeIds: s.selectedNodeIds,
+      markdownDocumentName: s.markdownDocumentName,
+      markdownDocumentText: s.markdownDocumentText,
     })),
   );
   const prevCanvasRenderModeRef = useRef<'2d' | '3d'>(canvasRenderMode)
@@ -272,7 +277,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     }),
   )
   const schemaRef = useRef(schema)
-  const iframeOverlayElsRef = useRef<Map<string, HTMLDivElement>>(new Map())
+  const iframeOverlayElsRef = useRef<Map<string, HTMLElement>>(new Map())
   const iframeNodeByIdRef = useRef<{ rev: number; sim: unknown | null; map: Map<string, GraphNode> }>({ rev: -1, sim: null, map: new Map() })
   const mediaOverlayScheduleRef = useRef<(() => void) | null>(null)
   const mediaOverlayScheduleRafRef = useRef<number | null>(null)
@@ -657,7 +662,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     }
   }, [])
   useEffect(() => {
-    const next = new Map<string, HTMLDivElement>()
+    const next = new Map<string, HTMLElement>()
     for (const n of mediaOverlayNodes) {
       const existing = iframeOverlayElsRef.current.get(n.id)
       if (existing) next.set(n.id, existing)
@@ -675,7 +680,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     if (!key) return () => void 0
     const cached = iframeOverlayRefFnByIdRef.current.get(key)
     if (cached) return cached
-    const fn = (el: HTMLDivElement | null) => {
+    const fn = (el: HTMLElement | null) => {
       if (!el) {
         iframeOverlayElsRef.current.delete(key)
         return
@@ -2163,6 +2168,13 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         edges={(sceneGraphData as GraphData | null)?.edges}
         schema={schema as GraphSchema | null}
         onRequestClose={() => setHoverInfo(null)}
+      />
+      <MarkdownDesignOverlay
+        enabled={active && !!String(markdownDocumentText || '').trim()}
+        svgRef={svgRef}
+        markdownDocumentName={markdownDocumentName}
+        markdownDocumentText={markdownDocumentText}
+        allowedKinds={['table', 'code', 'blockquote']}
       />
     </main>
   );

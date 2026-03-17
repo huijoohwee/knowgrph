@@ -25,6 +25,9 @@ const modMarkdownAsciiBlocksNormalize = () => import('@/__tests__/markdownAsciiB
 const modMarkdownFlowInternalRefs = () => import('@/__tests__/markdownFlowInternalRefs.test')
 const modMarkdownValidationExternalFile = () => import('@/__tests__/markdownValidationExternalFile.test')
 const modMarkdownTemplateVarsInBlockquoteAndTable = () => import('@/__tests__/markdownTemplateVarsInBlockquoteAndTable.test')
+const modMarkdownDataViewRoundTrip = () => import('@/__tests__/markdownDataViewRoundTrip.test')
+const modMarkdownDataViewSourceMap = () => import('@/__tests__/markdownDataViewSourceMap.test')
+const modMarkdownEdgelessLayout = () => import('@/__tests__/markdownEdgelessLayout.test')
 const modFlowGroupAabbIncludesMembersWhenBoundsExplicit = () => import('@/__tests__/flowGroupAabbIncludesMembersWhenBoundsExplicit.test')
 const modFlowCanvasFrontmatterFlowPortHandlesEnabledRegression = () => import('@/__tests__/flowCanvasFrontmatterFlowPortHandlesEnabledRegression.test')
 const modFlowNodeQuickEditorPinnedContainmentClampRegression = () => import('@/__tests__/flowNodeQuickEditorPinnedContainmentClampRegression.test')
@@ -112,6 +115,26 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.templateVars.blockquoteAndTable', async () => {
     const mod = await modMarkdownTemplateVarsInBlockquoteAndTable()
     await mod.testMarkdownTemplateVarsExtractFromBlockquotesAndTables()
+  })
+  await execTest(results, 'markdown.dataView.infersGroupAndTitleColumns', async () => {
+    const mod = await modMarkdownDataViewRoundTrip()
+    await mod.testMarkdownDataViewInfersGroupAndTitleColumns()
+  })
+  await execTest(results, 'markdown.dataView.editsRoundTripToMarkdownTable', async () => {
+    const mod = await modMarkdownDataViewRoundTrip()
+    await mod.testMarkdownDataViewEditsRoundTripToMarkdownTable()
+  })
+  await execTest(results, 'markdown.dataViewSourceMap.rowIndexParsing', async () => {
+    const mod = await modMarkdownDataViewSourceMap()
+    await mod.testMarkdownDataViewRowIndexParsing()
+  })
+  await execTest(results, 'markdown.dataViewSourceMap.rowLineMapping', async () => {
+    const mod = await modMarkdownDataViewSourceMap()
+    await mod.testMarkdownDataViewRowLineMappingClampsToTable()
+  })
+  await execTest(results, 'markdown.edgeless.layoutDerivesBlocks', async () => {
+    const mod = await modMarkdownEdgelessLayout()
+    await mod.testMarkdownEdgelessLayoutDerivesBlocksWithStableIds()
   })
   await execTest(results, 'markdown.mermaid.elkLayoutRegistersLoaders', async () => {
     const mod = await modMermaidElkLayoutSupport()

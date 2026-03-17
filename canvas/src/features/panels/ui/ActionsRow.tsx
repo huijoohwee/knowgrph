@@ -4,7 +4,7 @@ import IconButton from '@/components/IconButton'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import type { Action } from '@/features/panels/ui/ActionsRowModel'
-import { uiPrimaryIconActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
+import { uiPrimaryIconActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 function ActionsRowImpl({ actions, className }: { actions: Action[]; className?: string }) {
   const uiIconScale = useGraphStore(s => s.uiIconScale)

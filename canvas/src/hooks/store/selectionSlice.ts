@@ -42,8 +42,8 @@ export const createSelectionSlice = (set: SetGraph, get: GetGraph) => ({
   selectedNodeIds: [] as string[],
   selectedEdgeIds: [] as string[],
   selectedGroupIds: [] as string[],
-  selectionSource: null as null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'table' | 'unknown',
-  setSelectionSource: (src: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'table' | 'unknown') =>
+  selectionSource: null as null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown',
+  setSelectionSource: (src: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown') =>
     set({ selectionSource: src }),
   selectNode: (id: string | null) => {
     const state = get()
@@ -97,7 +97,7 @@ export const createSelectionSlice = (set: SetGraph, get: GetGraph) => ({
       selectedEdgeIds: [],
       selectedGroupIds: [],
     })
-    if (state.workspaceViewMode === 'editor' || state.workspaceViewMode === 'table') {
+    if (state.workspaceViewMode === 'editor') {
       try {
         const graphData = get().graphData
         const node = (graphData?.nodes || []).find(n => String(n.id || '') === id) || null

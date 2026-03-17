@@ -14,7 +14,7 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
   const meta = (data.metadata || {}) as Record<string, unknown>
   const isKeywordGraph = meta.kind === 'keyword'
   const mermaid = (!isKeywordGraph || options?.forceDocumentStructure) ? (deriveMermaidSubgraphGroups(data) as GraphGroup[]) : []
-  const headings = (!isKeywordGraph || options?.forceDocumentStructure) ? deriveMarkdownHeadingGroups(data) : []
+  const headings = options?.forceDocumentStructure ? deriveMarkdownHeadingGroups(data) : []
   const keywordLayers = (() => {
     // Check if we have keyword roles in the data
     const nodes = Array.isArray(data.nodes) ? data.nodes : []

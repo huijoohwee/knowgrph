@@ -8,4 +8,3 @@ export function parseMarkdownWorkspaceLayoutMode(value: unknown): MarkdownWorksp
   if (value === 'slides-gallery') return 'slides-gallery'
   return 'viewer'
 }
-

@@ -1,5 +1,4 @@
 import {
-  testCuragrphAliasContractInViteConfig,
   testForbidSiblingRepoSourceImports,
   testHostGympgrphIntegrationUsesPackageRootOnly,
 } from '@/__tests__/crossRepoBoundaryGuards.test'
@@ -27,7 +26,6 @@ type TestCase = { name: string; run: () => unknown | Promise<unknown> }
 const cases: TestCase[] = [
   { name: 'crossRepo: forbid sibling src imports', run: testForbidSiblingRepoSourceImports },
   { name: 'crossRepo: gympgrph uses package root only', run: testHostGympgrphIntegrationUsesPackageRootOnly },
-  { name: 'crossRepo: curagrph alias contract in vite config', run: testCuragrphAliasContractInViteConfig },
   { name: 'fetchRemoteText: validate supports string+args', run: testFetchRemoteTextValidateSupportsStringAndArgs },
   { name: 'fetchRemoteText: preflight HEAD guards too large', run: testFetchRemoteTextPreflightHeadGuardsTooLarge },
   { name: 'fetchRemoteText: wrapper useProxy boolean', run: testFetchRemoteTextWrapperUseProxyBoolean },

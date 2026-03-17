@@ -5,6 +5,7 @@ import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { HighlightedLineRange, MarkdownPresentationApi, MarkdownWorkspaceStatus } from '../markdownWorkspaceTypes'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { splitMarkdownLines } from '@/lib/markdown'
+import { replaceMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
 import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/MarkdownRendererTypes'
 import { extractYamlFrontmatterBlock, type WebpageFrontmatterMeta, type WebpageViewMode, type WebsiteImportFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import { summarizeCategorizedSignalsFromMarkdown } from '@/lib/websites/signalTokens'
@@ -12,6 +13,8 @@ import { buildWebpageLayoutWireframeAsciiFromMarkdown } from '@/lib/websites/web
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
+import { LS_KEYS } from '@/lib/config'
+import { lsJson, lsSetJson } from '@/lib/persistence'
 import { WebpageViewerPane } from './webpage/WebpageViewerPane'
 import { deriveWebpageFrontmatterMetaFromBlock, deriveWebsiteImportFrontmatterMetaFromBlock, shouldRenderWebpageIframe } from './webpage/webpageMeta'
 import { useWebpageIframeView } from './webpage/useWebpageIframeView'
@@ -20,6 +23,7 @@ import { MarkdownWorkspaceLayout } from './layout/MarkdownWorkspaceLayout'
 import { MarkdownWorkspacePresentationSurface } from './presentation/MarkdownWorkspacePresentationSurface'
 import { MarkdownWorkspaceSlidesGallerySurface } from './presentation/MarkdownWorkspaceSlidesGallerySurface'
 import { useWorkspaceScrollSync } from './scroll/useWorkspaceScrollSync'
+import { MarkdownWorkspaceDerivedViewer, type MarkdownWorkspaceDerivedViewerKind, type MarkdownWorkspaceDerivedViewerMode } from './viewer/MarkdownWorkspaceDerivedViewer'
 import { exportWorkspaceFileJsonLd } from './exports/exportWorkspaceFile'
 import { exportMarkdownFile } from './exports/exportMarkdown'
 import { exportHtmlViewerSnapshot } from './exports/exportHtmlViewer'
@@ -174,6 +178,30 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
 
   const showWebpageHtml = shouldRenderWebpageIframe(webpageMeta)
 
+  const [viewerKind, setViewerKind] = React.useState<MarkdownWorkspaceDerivedViewerKind>(() => {
+    return lsJson(LS_KEYS.markdownDerivedViewerKind, 'markdown' as MarkdownWorkspaceDerivedViewerKind, (raw) => {
+      const v = String(raw || '').trim().toLowerCase()
+      if (v === 'html') return 'html'
+      if (v === 'markdown') return 'markdown'
+      return null
+    })
+  })
+  const [viewerMode, setViewerMode] = React.useState<MarkdownWorkspaceDerivedViewerMode>(() => {
+    return lsJson(LS_KEYS.markdownDerivedViewerMode, 'read' as MarkdownWorkspaceDerivedViewerMode, (raw) => {
+      const v = String(raw || '').trim().toLowerCase()
+      if (v === 'kanban') return 'kanban'
+      if (v === 'table') return 'table'
+      if (v === 'read') return 'read'
+      return null
+    })
+  })
+  React.useEffect(() => {
+    lsSetJson(LS_KEYS.markdownDerivedViewerKind, viewerKind)
+  }, [viewerKind])
+  React.useEffect(() => {
+    lsSetJson(LS_KEYS.markdownDerivedViewerMode, viewerMode)
+  }, [viewerMode])
+
   const needsMarkdownViewerText = !showWebpageHtml && layoutMode !== 'editor'
   const viewerTextRaw = needsMarkdownViewerText ? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText) : ''
   const viewerText = React.useMemo(
@@ -279,6 +307,29 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     [activeText, disableViewerMutations, setActiveText],
   )
 
+  const handleReplaceLineRange = React.useCallback(
+    (args: { startLine: number; endLine: number; replacementLines: string[] }) => {
+      if (disableViewerMutations) return
+      const startLine = Math.max(1, Math.floor(args.startLine || 1))
+      const endLine = Math.max(startLine, Math.floor(args.endLine || startLine))
+      const replacementLines = Array.isArray(args.replacementLines) ? args.replacementLines : []
+      const next = replaceMarkdownLineRange({
+        markdownText: activeText,
+        startLine,
+        endLine,
+        replacementLines,
+      })
+      if (next === activeText) return
+      setActiveText(next)
+      try {
+        revealLineInEditor(startLine)
+      } catch {
+        void 0
+      }
+    },
+    [activeText, disableViewerMutations, revealLineInEditor, setActiveText],
+  )
+
   const viewer = showWebpageHtml ? (
     <WebpageViewerPane
       url={webpageMeta?.url || ''}
@@ -289,7 +340,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         viewerRef.current = el
       }}
     />
-  ) : (
+  ) : viewerMode === 'read' && viewerKind === 'markdown' ? (
     <MarkdownPreview
       ref={handleViewerRootRef}
       markdownText={viewerText}
@@ -310,8 +361,32 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       viewMode="viewer"
       onInsertLineAfter={handleInsertLineAfter}
       onReorderLineBlock={handleReorderLineBlock}
+      onReplaceLineRange={handleReplaceLineRange}
+    />
+  ) : (
+    <MarkdownWorkspaceDerivedViewer
+      viewerKind={viewerKind}
+      viewerMode={viewerMode}
+      onChangeViewerMode={setViewerMode}
+      markdownText={viewerText}
+      title={String(activeDocumentKey || '').split('/').filter(Boolean).pop() || 'Workspace'}
+      activeDocumentPath={activeDocumentKey}
+      highlightedLineRange={highlightedLineRange}
+      markdownWordWrap={markdownWordWrap}
+      markdownTextHighlight={markdownTextHighlight}
+      uiPanelTextFontClass={uiPanelTextFontClass}
+      uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+      webpageLayoutWireframeAscii={webpageLayoutWireframeAscii}
+      geoDatasetIntegration={geoDatasetIntegration}
+      disableViewerMutations={!!disableViewerMutations}
+      onInsertLineAfter={handleInsertLineAfter}
+      onReorderLineBlock={handleReorderLineBlock}
+      onReplaceLineRange={handleReplaceLineRange}
+      onRevealLineInEditor={line => revealLineInEditor(line)}
+      onViewerRootRef={handleViewerRootRef}
     />
   )
+
 
   const exportBaseName = React.useMemo(() => {
     const raw = String(activeDocumentKey || '').trim() || 'document'
@@ -450,6 +525,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         setMarkdownWordWrap,
         markdownTextHighlight,
         setMarkdownTextHighlight,
+        viewerKind,
+        setViewerKind,
+        viewerMode,
+        setViewerMode,
         onApply,
         onSave,
         onSaveAs,

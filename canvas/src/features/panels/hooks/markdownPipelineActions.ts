@@ -218,7 +218,7 @@ export async function runMarkdownPipelineAndLoadArtifacts(): Promise<boolean> {
     }
 
     try {
-      useGraphStore.getState().setWorkspaceViewMode('table')
+      useGraphStore.getState().setWorkspaceViewMode('canvas')
     } catch {
       void 0;
     }

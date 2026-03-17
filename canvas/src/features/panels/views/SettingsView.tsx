@@ -6,7 +6,7 @@ import {
   uiDangerButtonClassName,
   uiToolbarToggleActiveClassName,
   UI_COLOR_DANGER_RED_BORDER,
-} from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
+} from '@/features/toolbar/ui/toolbarStyles'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   buildSettingsAreaTooltip,

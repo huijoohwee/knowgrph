@@ -18,7 +18,7 @@ import { ToolbarMenuLauncher } from '@/features/toolbar/ToolbarMenuLauncher';
 import {
   uiPrimaryIconActiveClassName,
   uiPrimaryIconInactiveClassName,
-} from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
+} from '@/features/toolbar/ui/toolbarStyles'
 import { useToolbarActions } from '@/features/toolbar/hooks/useToolbarActions';
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
 import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
@@ -56,6 +56,9 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     setSelectMode,
   } = useToolbarState();
 
+  const editorWorkspacePane = useGraphStore(s => s.editorWorkspacePane)
+  const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
+
   const {
     isMainPanelOpen,
     setIsMainPanelOpen,
@@ -92,7 +95,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
   const toggleWorkspaceViewMode = useGraphStore(s => s.toggleWorkspaceViewMode)
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
-  const workspaceViewModeBeforeTable = useGraphStore(s => s.workspaceViewModeBeforeTable)
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes);
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes);
   const setBehavior = useGraphStore(s => s.setBehavior)
@@ -118,7 +120,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const setDocumentStructureBaselineLock = useGraphStore(s => s.setDocumentStructureBaselineLock)
   const upsertUiToast = useGraphStore(s => s.upsertUiToast)
 
-  const isWorkspaceOverlayMode = workspaceViewMode === 'editor' || workspaceViewMode === 'table'
+  const isWorkspaceOverlayMode = workspaceViewMode === 'editor'
 
   const snapGridEnabled = !!schema?.behavior?.snapGrid?.enabled
   const snapGridSize = typeof schema?.behavior?.snapGrid?.size === 'number' && Number.isFinite(schema.behavior.snapGrid.size)
@@ -270,19 +272,19 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
 
       <IconButton
         className={`App-toolbar__btn ${
-          workspaceViewMode === 'table'
+          workspaceViewMode === 'editor' && editorWorkspacePane === 'graphTable'
             ? uiPrimaryIconActiveClassName
             : uiPrimaryIconInactiveClassName
         }`}
         title={UI_COPY.toolbarGraphDataTableToggleTitle}
         tooltipContent={
-          workspaceViewMode === 'table'
+          workspaceViewMode === 'editor' && editorWorkspacePane === 'graphTable'
             ? UI_COPY.toolbarGraphDataTableWorkspaceOnTooltip
             : UI_COPY.toolbarGraphDataTableWorkspaceOffTooltip
         }
         onClick={() => {
-          if (workspaceViewMode === 'table') setWorkspaceViewMode(workspaceViewModeBeforeTable)
-          else setWorkspaceViewMode('table')
+          if (workspaceViewMode !== 'editor') setWorkspaceViewMode('editor')
+          setEditorWorkspacePane(editorWorkspacePane === 'graphTable' ? 'markdown' : 'graphTable')
         }}
         showTooltip
       >

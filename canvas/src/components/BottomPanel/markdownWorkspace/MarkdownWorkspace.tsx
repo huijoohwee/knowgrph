@@ -32,6 +32,7 @@ import { SIDEBAR_MAX_PX, SIDEBAR_MIN_PX, isMarkdownPath, languageForPath } from 
 import { loadWorkspaceSourceIndex, setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { useWorkspaceFileActions } from './useWorkspaceFileActions'
 import { useCanvasMarkdownSync } from './useCanvasMarkdownSync'
+import { useMarkdownEditorSsotSync } from './useMarkdownEditorSsotSync'
 import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { shouldAutosaveWorkspaceFile } from './workspaceAutosave'
 import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
@@ -1162,6 +1163,13 @@ export function MarkdownWorkspace() {
     const url = source && source.kind === 'url' ? String(source.url || '').trim() : ''
     return url ? url : null
   }, [activePath, sourcesByPath])
+
+  useMarkdownEditorSsotSync({
+    activeDocumentKey,
+    activeDocumentSourceUrl,
+    activeText,
+    setActiveMarkdownDocument,
+  })
 
   React.useEffect(() => {
     const path = activePath

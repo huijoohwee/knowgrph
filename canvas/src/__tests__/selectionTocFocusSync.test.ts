@@ -22,7 +22,7 @@ export function testSelectionDispatchesTocFocusInSplitViews() {
     }
 
     const store = useGraphStore.getState()
-    store.setWorkspaceViewMode('table')
+    store.setWorkspaceViewMode('editor')
     store.setGraphData({
       type: 'Graph',
       context: 'test',
@@ -42,4 +42,3 @@ export function testSelectionDispatchesTocFocusInSplitViews() {
     g.CustomEvent = prevCustomEvent
   }
 }
-

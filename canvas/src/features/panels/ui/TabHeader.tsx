@@ -7,7 +7,7 @@ import {
   uiPrimaryPillActiveClassName,
   uiToolbarToggleActiveClassName,
   uiPrimaryIconInactiveClassName,
-} from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
+} from '@/features/toolbar/ui/toolbarStyles'
 
 type Tab = { key: string; label: string }
 

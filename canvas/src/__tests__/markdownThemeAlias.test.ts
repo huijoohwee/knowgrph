@@ -1,4 +1,4 @@
-import { normalizeThemeStyle } from 'curagrph/features/markdown/ui/markdownSlideVisuals.ts'
+import { normalizeThemeStyle } from '@/features/markdown/ui/markdownSlideVisuals'
 
 export function testMarkdownSlideThemeNeversinkAliasesToAcademic() {
   const theme = normalizeThemeStyle('neversink')
@@ -6,4 +6,3 @@ export function testMarkdownSlideThemeNeversinkAliasesToAcademic() {
     throw new Error('Expected neversink to alias to academic')
   }
 }
-

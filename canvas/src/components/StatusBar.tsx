@@ -1,7 +1,7 @@
 import React from 'react';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { useShallow } from 'zustand/react/shallow';
-import { uiPrimaryIconActiveClassName, uiPrimaryIconInactiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles';
+import { uiPrimaryIconActiveClassName, uiPrimaryIconInactiveClassName } from '@/features/toolbar/ui/toolbarStyles'
 import {
   type SelectionPerfSubscriber,
   setSelectionPerfEnabled,

@@ -70,7 +70,7 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
           store.setWorkspaceViewMode('canvas')
           return
         }
-        store.setWorkspaceViewMode('table')
+        store.setWorkspaceViewMode('canvas')
       },
     })
   } catch {
@@ -86,7 +86,7 @@ export async function performCsvImport() {
     await runImportFlow({
       nameForParse: picked.name,
       textForParse: picked.text,
-      openWorkspaceViewMode: 'table',
+      openWorkspaceViewMode: 'canvas',
       onSuccess: (res) => {
         if (!res.input || !res.input.text.trim()) return
         const rawName = String(res.input.name || '')

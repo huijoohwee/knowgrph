@@ -57,6 +57,11 @@ export type MarkdownWorkspaceToolbarProps = {
   setMarkdownWordWrap: (next: boolean) => void
   markdownTextHighlight: boolean
   setMarkdownTextHighlight: (next: boolean) => void
+
+  viewerKind?: 'markdown' | 'html'
+  setViewerKind?: (next: 'markdown' | 'html') => void
+  viewerMode?: 'read' | 'kanban' | 'table'
+  setViewerMode?: (next: 'read' | 'kanban' | 'table') => void
   onApply: () => void
   applyStatus?: MarkdownWorkspaceStatus
   applyDisabled?: boolean
@@ -113,6 +118,10 @@ export function MarkdownWorkspaceToolbar({
   setMarkdownWordWrap,
   markdownTextHighlight,
   setMarkdownTextHighlight,
+  viewerKind,
+  setViewerKind,
+  viewerMode,
+  setViewerMode,
   onApply,
   applyStatus,
   applyDisabled,
@@ -359,6 +368,35 @@ export function MarkdownWorkspaceToolbar({
             </li>
           </menu>
         ) : null}
+
+        {!webpageControls && viewerKind && setViewerKind && viewerMode && setViewerMode ? (
+          <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Derived views">
+            <li className="list-none">
+              <WorkspaceModeSelect<'markdown' | 'html'>
+                ariaLabel="Viewer content"
+                value={viewerKind}
+                options={[
+                  { value: 'markdown', label: 'Markdown' },
+                  { value: 'html', label: 'HTML' },
+                ]}
+                onChange={setViewerKind}
+              />
+            </li>
+            <li className="list-none">
+              <WorkspaceModeSelect<'read' | 'kanban' | 'table'>
+                ariaLabel="Viewer mode"
+                value={viewerMode}
+                options={[
+                  { value: 'read', label: 'Read' },
+                  { value: 'kanban', label: 'Kanban' },
+                  { value: 'table', label: 'Table' },
+                ]}
+                onChange={setViewerMode}
+              />
+            </li>
+          </menu>
+        ) : null}
+
         <input
           ref={el => {
             fileInputRef.current = el

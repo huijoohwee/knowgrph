@@ -53,7 +53,7 @@ export async function performPdfImport(type: PdfImportType, providedUrl?: string
     await runImportFlow({
       nameForParse: picked.name,
       textForParse: picked.markdown,
-      openWorkspaceViewMode: 'table',
+      openWorkspaceViewMode: 'canvas',
       onSuccess: (res) => {
         if (!res.input || !res.input.text.trim()) return
         const name = res.input.name

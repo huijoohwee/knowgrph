@@ -107,7 +107,11 @@ export const deriveMarkdownHeadingGroups = (data: GraphData): GraphGroup[] => {
       depth: computeDepth(id),
       memberNodeIds: collectLeafMembers(id, new Set()),
       parentGroupId: parent ? `md:${parent}` : null,
-      style: {},
+      style: {
+        fill: 'var(--kg-panel-bg)',
+        stroke: 'var(--kg-border)',
+        strokeWidth: 1.5,
+      },
     })
   })
 

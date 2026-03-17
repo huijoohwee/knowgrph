@@ -39,7 +39,6 @@ const ensurePeerSymlinks = () => {
       linkPeer(nodeModulesDir, 'grph-shared')
     }
 
-    ensureForPackage('curagrph')
     ensureForPackage('gympgrph')
   } catch {
     void 0

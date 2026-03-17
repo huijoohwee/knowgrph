@@ -6,7 +6,6 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
     "../../gympgrph/src/**/*.{js,ts,jsx,tsx}",
-    "./node_modules/curagrph/src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     container: {

@@ -113,7 +113,6 @@ const reorderIds = (args: {
 
 export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode }) {
   const panelTypography = usePanelTypography()
-  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
   const baseGraphData = useGraphStore(s => s.graphData)
   const collapsedGroupIds = useGraphStore(s => (s.collapsedGroupIds || []) as string[])
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
@@ -271,7 +270,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode }
   }, [activeTableId])
 
   useEffect(() => {
-    if (selectionSource === 'table') return
+    if (selectionSource === 'toolbar') return
     if (selectedNodeId) {
       setActiveTableId('nodes')
       setInspectorRowId(selectedNodeId)
@@ -525,7 +524,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode }
               columns={orderedColumns.map(c => ({ columnId: c.columnId, name: c.name }))}
               inspectorOpen={inspectorOpen}
               setInspectorOpen={setInspectorOpen}
-              canvasPreviewAvailable={workspaceViewMode === 'table' && !!props.canvasPreview}
+              canvasPreviewAvailable={!!props.canvasPreview}
               canvasPreviewCollapsed={canvasPreviewCollapsed}
               setCanvasPreviewCollapsed={setCanvasPreviewCollapsed}
               columnVisibilityById={columnVisibilityById}
@@ -574,7 +573,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode }
             rows={rows}
             selectedRowIds={selectedRowIds}
             focusRowId={inspectorRowId}
-            autoScrollToFocusRow={selectionSource !== 'table'}
+            autoScrollToFocusRow={selectionSource !== 'toolbar'}
             columnVisibilityById={columnVisibilityById}
             filterMatch={filterMatch}
             filterClauses={filterClauses}
@@ -591,7 +590,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode }
               setSelectedRowIds([rowId])
               try {
                 const store = useGraphStore.getState()
-                store.setSelectionSource('table')
+                store.setSelectionSource('toolbar')
                 if (activeTableId === 'nodes') store.selectNode(rowId)
                 else store.selectEdge(rowId)
               } catch {
@@ -642,7 +641,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode }
     </section>
   )
 
-  if (workspaceViewMode !== 'table' || !props.canvasPreview) return left
+  if (!props.canvasPreview) return left
 
   return (
     <EmbeddedWorkspaceShell

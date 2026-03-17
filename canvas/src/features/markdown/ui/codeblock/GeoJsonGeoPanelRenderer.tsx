@@ -1,0 +1,339 @@
+import React from 'react'
+import { Database, Map as MapIcon, Network } from 'lucide-react'
+import type { RenderOpts } from '@/features/markdown/ui/MarkdownRendererTypes'
+import { uiPrimaryIconActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
+import IconButton from '@/components/IconButton'
+import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
+import { ErrorFeedback } from '@/components/ui/ErrorFeedback'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_COPY } from '@/lib/config'
+import { HighlightedCode } from './HighlightedCode'
+
+const AUTO_REGISTER_TTL_MS = 20 * 60 * 1000
+const AUTO_REGISTER_MAX_KEYS = 800
+const autoRegisterKeyToMs = new globalThis.Map<string, number>()
+
+const markAutoRegisterKey = (key: string): boolean => {
+  const now = Date.now()
+  const prev = autoRegisterKeyToMs.get(key)
+  if (typeof prev === 'number' && now - prev <= AUTO_REGISTER_TTL_MS) return false
+  autoRegisterKeyToMs.set(key, now)
+  if (autoRegisterKeyToMs.size > AUTO_REGISTER_MAX_KEYS) {
+    const entries = Array.from(autoRegisterKeyToMs.entries()).sort((a, b) => a[1] - b[1])
+    for (let i = 0; i < Math.ceil(AUTO_REGISTER_MAX_KEYS / 4); i += 1) {
+      const k = entries[i]?.[0]
+      if (k) autoRegisterKeyToMs.delete(k)
+    }
+  }
+  return true
+}
+
+const buildGeoReq = (args: {
+  activeDocumentPath: string
+  lang: 'geojson' | 'json'
+  text: string
+  startLine: number
+  endLine: number
+}) => {
+  return {
+    sourceDocumentPath: args.activeDocumentPath,
+    codeBlock: { lang: args.lang, text: args.text, startLine: args.startLine, endLine: args.endLine },
+  }
+}
+
+const isRenderableGeoJsonCodeBlock = (args: {
+  lang: 'geojson' | 'json'
+  req: { sourceDocumentPath: string; codeBlock: { lang: 'geojson' | 'json'; text: string; startLine: number; endLine: number } }
+  isGeoJsonCodeBlock?: ((req: any) => boolean) | undefined
+}): boolean => {
+  if (args.lang === 'geojson') return true
+  if (args.lang !== 'json') return false
+  if (typeof args.isGeoJsonCodeBlock !== 'function') return false
+  try {
+    return !!args.isGeoJsonCodeBlock(args.req)
+  } catch {
+    return false
+  }
+}
+
+export function GeoJsonGeoPanelRenderer(props: {
+  lang: 'geojson' | 'json'
+  text: string
+  startLine: number
+  endLine: number
+  opts: RenderOpts
+  monospaceCodeClass: string
+}) {
+  const { lang, text, startLine, endLine, opts, monospaceCodeClass } = props
+  const integration = opts.geoDatasetIntegration
+  const isGeoJsonCodeBlock = integration?.isGeoJsonCodeBlock
+  const register = integration?.registerGeoJsonFeatureCollection
+  const loadGraphData = integration?.loadGeoJsonAsGraphData
+  const requestOpen = integration?.requestOpenGeoPanel
+  const renderGeo = integration?.renderGeoJsonFeatureCollection
+
+  const [isFullscreenOpen, setIsFullscreenOpen] = React.useState(false)
+  const [datasetState, setDatasetState] = React.useState<'idle' | 'registering' | 'registered' | 'error'>('idle')
+  const [datasetError, setDatasetError] = React.useState<string | null>(null)
+  const [graphState, setGraphState] = React.useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
+  const [graphError, setGraphError] = React.useState<string | null>(null)
+
+  const trimmed = String(text || '').trim()
+  const req = React.useMemo(
+    () => buildGeoReq({ activeDocumentPath: opts.activeDocumentPath, lang, text, startLine, endLine }),
+    [endLine, lang, opts.activeDocumentPath, startLine, text],
+  )
+
+  const shouldTreatAsGeoJson = isRenderableGeoJsonCodeBlock({ lang, req, isGeoJsonCodeBlock })
+  const canAttemptRegister = shouldTreatAsGeoJson && !!trimmed && typeof register === 'function'
+  const canAttemptLoadGraph = shouldTreatAsGeoJson && !!trimmed && typeof loadGraphData === 'function'
+  const canOpenPanel = typeof requestOpen === 'function'
+
+  const geospatialModeOn = React.useMemo(() => {
+    if (typeof integration?.isGeospatialModeEnabled !== 'function') return false
+    try {
+      return integration.isGeospatialModeEnabled() === true
+    } catch {
+      return false
+    }
+  }, [integration])
+
+  const autoRegisterKey = React.useMemo(() => {
+    const head = trimmed.slice(0, 128)
+    return `${opts.activeDocumentPath}|${lang}|${startLine}|${endLine}|${trimmed.length}|${head}`
+  }, [endLine, lang, opts.activeDocumentPath, startLine, trimmed])
+
+  React.useEffect(() => {
+    if (!geospatialModeOn) return
+    if (!canAttemptRegister) return
+    if (datasetState !== 'idle') return
+    if (!markAutoRegisterKey(autoRegisterKey)) return
+
+    setDatasetState('registering')
+    setDatasetError(null)
+    Promise.resolve(register?.(req))
+      .then(res => {
+        if (res && res.ok) {
+          setDatasetState('registered')
+          return
+        }
+        setDatasetState('error')
+        setDatasetError(res && typeof res.error === 'string' && res.error.trim() ? res.error.trim() : 'Registration failed')
+      })
+      .catch(err => {
+        setDatasetState('error')
+        if (err && typeof err === 'object' && 'message' in err) {
+          const msg = (err as { message?: unknown }).message
+          setDatasetError(String(msg || 'Registration failed'))
+          return
+        }
+        setDatasetError('Registration failed')
+      })
+  }, [autoRegisterKey, canAttemptRegister, datasetState, geospatialModeOn, register, req])
+
+  const handleRegisterDataset = React.useCallback(() => {
+    if (!canAttemptRegister) return
+    setDatasetState('registering')
+    setDatasetError(null)
+    Promise.resolve(register?.(req))
+      .then(res => {
+        if (res && res.ok) {
+          setDatasetState('registered')
+          return
+        }
+        setDatasetState('error')
+        setDatasetError(res && typeof res.error === 'string' && res.error.trim() ? res.error.trim() : 'Registration failed')
+      })
+      .catch(err => {
+        setDatasetState('error')
+        if (err && typeof err === 'object' && 'message' in err) {
+          const msg = (err as { message?: unknown }).message
+          setDatasetError(String(msg || 'Registration failed'))
+          return
+        }
+        setDatasetError('Registration failed')
+      })
+  }, [canAttemptRegister, register, req])
+
+  const handleLoadGraphData = React.useCallback(() => {
+    if (!canAttemptLoadGraph) return
+    setGraphState('loading')
+    setGraphError(null)
+    Promise.resolve(loadGraphData?.(req))
+      .then(res => {
+        if (res && res.ok) {
+          setGraphState('loaded')
+          return
+        }
+        setGraphState('error')
+        setGraphError(res && typeof res.error === 'string' && res.error.trim() ? res.error.trim() : 'Graph conversion failed')
+      })
+      .catch(err => {
+        setGraphState('error')
+        if (err && typeof err === 'object' && 'message' in err) {
+          const msg = (err as { message?: unknown }).message
+          setGraphError(String(msg || 'Graph conversion failed'))
+          return
+        }
+        setGraphError('Graph conversion failed')
+      })
+  }, [canAttemptLoadGraph, loadGraphData, req])
+
+  const { mapNode, mapError } = React.useMemo(() => {
+    if (typeof window === 'undefined') return { mapNode: null as React.ReactNode | null, mapError: null as unknown }
+    if (!trimmed) return { mapNode: null as React.ReactNode | null, mapError: null as unknown }
+    if (!shouldTreatAsGeoJson) return { mapNode: null as React.ReactNode | null, mapError: null as unknown }
+    if (!renderGeo) {
+      return { mapNode: null as React.ReactNode | null, mapError: new Error('Map preview unavailable') }
+    }
+    try {
+      const node = renderGeo(req)
+      if (!node) return { mapNode: null as React.ReactNode | null, mapError: new Error('GeoJSON renderer returned no output') }
+      return { mapNode: node, mapError: null as unknown }
+    } catch (err) {
+      return { mapNode: null as React.ReactNode | null, mapError: err }
+    }
+  }, [renderGeo, req, shouldTreatAsGeoJson, trimmed])
+
+  if (typeof window === 'undefined') {
+    return (
+      <section className="relative overflow-auto p-4 bg-white dark:bg-[#0d1117]">
+        <pre className={`m-0 p-0 bg-transparent whitespace-pre ${monospaceCodeClass}`}>
+          <HighlightedCode code={text} lang={lang} highlightLines={null} />
+        </pre>
+      </section>
+    )
+  }
+
+  if (!trimmed) {
+    return (
+      <section className="w-full h-[120px] flex items-center justify-center">
+        <p className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>Empty GeoJSON block.</p>
+      </section>
+    )
+  }
+
+  if (!shouldTreatAsGeoJson) {
+    return (
+      <section className="relative overflow-auto p-4 bg-white dark:bg-[#0d1117]">
+        <pre className={`m-0 p-0 bg-transparent whitespace-pre ${monospaceCodeClass}`}>
+          <HighlightedCode code={text} lang={lang} highlightLines={null} />
+        </pre>
+      </section>
+    )
+  }
+
+  
+
+  const fallbackNode = (
+    <section className="relative overflow-auto p-4 bg-white dark:bg-[#0d1117]">
+      <pre className={`m-0 p-0 bg-transparent whitespace-pre ${monospaceCodeClass}`}>
+        <HighlightedCode code={text} lang={lang} highlightLines={null} />
+      </pre>
+    </section>
+  )
+
+  const effectiveNode = mapNode ?? fallbackNode
+  const mapFrameClass = opts.markdownPresentationMode ? 'w-full h-[420px]' : 'w-full h-[320px]'
+  const statusText = (() => {
+    if (datasetState === 'registering') return 'Registering GeoJSON as a dataset…'
+    if (datasetState === 'registered') return 'GeoJSON registered as a dataset.'
+    if (datasetState === 'error') return datasetError || 'GeoJSON dataset registration failed.'
+    if (graphState === 'loading') return 'Converting GeoJSON into graph nodes…'
+    if (graphState === 'loaded') return 'GeoJSON converted into graph nodes.'
+    if (graphState === 'error') return graphError || 'GeoJSON graph conversion failed.'
+    return 'GeoJSON ready.'
+  })()
+
+  return (
+    <section className="w-full">
+      {mapError ? (
+        <section className="mb-2">
+          <ErrorFeedback title="GeoJSON render failed" error={mapError} variant="compact" className="mt-0 mb-2" />
+        </section>
+      ) : null}
+
+      <section className="w-full">
+        {mapNode ? (
+          <>
+            <figure
+              className="m-0 p-0 w-full"
+              onDoubleClick={() => {
+                if (opts.markdownPresentationMode || opts.previewOverlayScope === 'container') {
+                  setIsFullscreenOpen(true)
+                  return
+                }
+                requestOpen?.()
+              }}
+              aria-label="GeoJSON map"
+            >
+              <section className={mapFrameClass}>{effectiveNode}</section>
+              <figcaption className="sr-only">GeoJSON map preview</figcaption>
+            </figure>
+            <PreviewOverlay
+              open={isFullscreenOpen}
+              onClose={() => setIsFullscreenOpen(false)}
+              scope={opts.previewOverlayScope}
+              portalTarget={opts.previewOverlayPortalTarget}
+            >
+              <section className="w-[min(1200px,calc(100vw-40px))] h-[min(720px,calc(100vh-80px))]">
+                {mapNode ? (
+                  <section className="w-full h-full">{mapNode}</section>
+                ) : (
+                  <ErrorFeedback
+                    title="GeoJSON render failed"
+                    error="GeoJSON renderer returned no output"
+                    className="mt-0"
+                  />
+                )}
+              </section>
+            </PreviewOverlay>
+          </>
+        ) : (
+          effectiveNode
+        )}
+      </section>
+
+      {(canAttemptRegister || canAttemptLoadGraph || canOpenPanel) ? (
+        <section className="mt-2 flex items-center justify-between gap-2">
+          <p className={`m-0 text-xs ${UI_THEME_TOKENS.text.tertiary}`}>
+            {statusText}
+          </p>
+          <menu className="flex items-center gap-1" aria-label="GeoJSON actions">
+            {canAttemptLoadGraph ? (
+              <IconButton
+                className={`App-toolbar__btn ${uiPrimaryIconActiveClassName}`}
+                title={UI_COPY.markdownGeoJsonLoadGraphTitle}
+                onClick={handleLoadGraphData}
+                disabled={graphState === 'loading'}
+                showTooltip
+              >
+                <Network className="w-4 h-4 LaunchButton__icon" aria-hidden="true" strokeWidth={1.5} />
+              </IconButton>
+            ) : null}
+            {canAttemptRegister ? (
+              <IconButton
+                className={`App-toolbar__btn ${uiPrimaryIconActiveClassName}`}
+                title={UI_COPY.markdownGeoJsonAddDatasetTitle}
+                onClick={handleRegisterDataset}
+                disabled={datasetState === 'registering'}
+                showTooltip
+              >
+                <Database className="w-4 h-4 LaunchButton__icon" aria-hidden="true" strokeWidth={1.5} />
+              </IconButton>
+            ) : null}
+            <IconButton
+              className={`App-toolbar__btn ${uiPrimaryIconActiveClassName}`}
+              title={UI_COPY.geospatialModeOnTitle}
+              onClick={() => requestOpen?.()}
+              disabled={!canOpenPanel}
+              showTooltip
+            >
+              <MapIcon className="w-4 h-4 LaunchButton__icon" aria-hidden="true" strokeWidth={1.5} />
+            </IconButton>
+          </menu>
+        </section>
+      ) : null}
+    </section>
+  )
+}

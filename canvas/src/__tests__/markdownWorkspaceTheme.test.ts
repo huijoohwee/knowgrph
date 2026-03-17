@@ -34,8 +34,9 @@ export const testMarkdownWorkspaceAvoidsHardcodedLightThemeClasses = () => {
 }
 
 export const testMarkdownPreviewViewerForcesPrimaryTextColor = () => {
-  const viewerPath = path.resolve(process.cwd(), '..', '..', 'curagrph', 'src', 'features', 'markdown', 'ui', 'MarkdownPreviewViewer.tsx')
-  const layoutPath = path.resolve(process.cwd(), '..', '..', 'curagrph', 'src', 'features', 'markdown', 'ui', 'MarkdownPanelLayout.tsx')
+  const root = process.cwd()
+  const viewerPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownPreviewViewer.tsx')
+  const layoutPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownPanelLayout.tsx')
   const viewer = readUtf8(viewerPath)
   const layout = readUtf8(layoutPath)
   if (!viewer.includes('UI_THEME_TOKENS.text.primary')) {

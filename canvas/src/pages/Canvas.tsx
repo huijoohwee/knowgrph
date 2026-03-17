@@ -24,7 +24,6 @@ import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 
 const ToolbarLazy = React.lazy(() => import('@/components/Toolbar'))
-const GraphTableWorkspaceLazy = React.lazy(() => import('@/features/graph-table/ui/GraphTableWorkspace'))
 
 export default function CanvasPage() {
   const location = useLocation()
@@ -386,7 +385,7 @@ export default function CanvasPage() {
   )
 
   React.useEffect(() => {
-    const isSplit = workspaceViewMode === 'editor' || workspaceViewMode === 'table'
+    const isSplit = workspaceViewMode === 'editor'
     if (!isSplit) return
     if (workspaceCanvasPaneOpen) return
     if (canvasRenderMode !== '3d' && !renderMediaAsNodes) return
@@ -906,7 +905,7 @@ export default function CanvasPage() {
           </main>
         ) : (
           <>
-            {workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? (
+            {workspaceViewMode === 'editor' ? (
               <header className="absolute top-0 inset-x-0 z-[400] pointer-events-none" aria-label="Workspace Toolbar Header">
                 <nav className="absolute top-2 right-2 z-[200] flex items-center justify-end bg-transparent" aria-label="Canvas Toolbar" role="navigation">
                   <div className="pointer-events-auto">
@@ -924,19 +923,13 @@ export default function CanvasPage() {
               <section className="flex-1 flex flex-col overflow-hidden" aria-label="Workspace stage">
                 <section className="flex-1 min-h-0 overflow-hidden flex" aria-label="Workspace split">
                   <section
-                    className={`relative z-[300] flex-1 min-w-0 min-h-0 overflow-hidden ${workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? 'flex flex-col' : 'hidden'}`}
+                    className={`relative z-[300] flex-1 min-w-0 min-h-0 overflow-hidden ${workspaceViewMode === 'editor' ? 'flex flex-col' : 'hidden'}`}
                     aria-label="Workspace left pane"
                   >
-                    {workspaceViewMode === 'editor' ? (
-                      <EmbeddedEditorShell />
-                    ) : workspaceViewMode === 'table' ? (
-                      <React.Suspense fallback={null}>
-                        <GraphTableWorkspaceLazy />
-                      </React.Suspense>
-                    ) : null}
+                    {workspaceViewMode === 'editor' ? <EmbeddedEditorShell /> : null}
                   </section>
 
-                  {workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? (
+                  {workspaceViewMode === 'editor' ? (
                     <VerticalResizeSeparatorHr
                       ref={el => {
                         resizeHandleRef.current = el
@@ -947,11 +940,11 @@ export default function CanvasPage() {
                   ) : null}
 
                   <section
-                    className={`min-h-0 overflow-hidden relative bg-[var(--kg-canvas-bg)] ${workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? (workspaceCanvasPaneOpen ? 'shrink-0' : 'hidden') : 'flex-1'}`}
-                    style={workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? (workspaceCanvasPaneOpen ? { width: `${workspacePreviewWidthPx}px` } : undefined) : undefined}
+                    className={`min-h-0 overflow-hidden relative bg-[var(--kg-canvas-bg)] ${workspaceViewMode === 'editor' ? (workspaceCanvasPaneOpen ? 'shrink-0' : 'hidden') : 'flex-1'}`}
+                    style={workspaceViewMode === 'editor' ? (workspaceCanvasPaneOpen ? { width: `${workspacePreviewWidthPx}px` } : undefined) : undefined}
                     aria-label="Canvas pane"
                   >
-                    {workspaceViewMode !== 'editor' && workspaceViewMode !== 'table' ? (
+                    {workspaceViewMode !== 'editor' ? (
                       <nav
                         className="absolute top-0 inset-x-0 z-[200] flex items-center justify-center pt-2 pb-2 bg-transparent pointer-events-none"
                         aria-label="Canvas Toolbar"
@@ -966,7 +959,7 @@ export default function CanvasPage() {
                     ) : null}
                     <CanvasViewport
                       variant="workspace"
-                      layout={workspaceViewMode === 'editor' || workspaceViewMode === 'table' ? 'pane' : 'full'}
+                      layout={workspaceViewMode === 'editor' ? 'pane' : 'full'}
                       geospatialModeEnabled={geospatialModeEnabled}
                       activeGraphData={activeGraphData}
                       canvasRenderMode={canvasRenderMode}

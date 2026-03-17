@@ -50,7 +50,6 @@ async function stripSourcemapComments(dir) {
 
 const roots = [
   path.resolve(process.cwd(), 'node_modules/entities/lib/esm'),
-  path.resolve(process.cwd(), 'node_modules/curagrph/node_modules/entities/lib/esm'),
 ]
 
 for (const root of roots) {
@@ -59,4 +58,3 @@ for (const root of roots) {
     process.stdout.write(`[strip-entities-sourcemaps] ${root} scanned=${scanned} changed=${changed}\n`)
   }
 }
-

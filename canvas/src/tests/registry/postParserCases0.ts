@@ -77,7 +77,6 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["policy.boundary.canvas2dSwitchWarmsInactiveRenderer","@/__tests__/crossRepoBoundaryGuards.test","testCanvas2dRendererSwitchWarmsInactiveRenderer"],
   ["policy.boundary.forbidTopLevelElkImport","@/__tests__/crossRepoBoundaryGuards.test","testForbidTopLevelElkImportInFlowLayout"],
   ["policy.persistence.forbidMagicLocalStorageKeys","@/__tests__/crossRepoBoundaryGuards.test","testForbidMagicLocalStorageKeysOutsideCentralConstants"],
-  ["policy.curagrph.aliasContractInViteConfig","@/__tests__/crossRepoBoundaryGuards.test","testCuragrphAliasContractInViteConfig"],
   ["policy.markdown.forbidEditorJs","@/__tests__/crossRepoBoundaryGuards.test","testForbidEditorJsDependencies"],
   ["policy.toolbar.forbidLegacyToolMenuAreasSystem","@/__tests__/crossRepoBoundaryGuards.test","testForbidLegacyToolbarToolMenuAreasSystem"],
   ["toolbar.editorToggle.togglesWorkspaceViewMode","@/__tests__/embeddedEditorMode.test","testToolbarEditorButtonTogglesWorkspaceViewMode"],
@@ -202,4 +201,3 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["ui.typography.graphTable.usesUiSettings","@/__tests__/graphTableTypography.test","testGraphTableTypographyUsesUiSettings"],
   ["pdf.viewer.ssot.usesMarkdownPreview","@/__tests__/pdfDocumentViewerSsot.test","testPdfDocumentViewerUsesMarkdownPreviewSsot"],
 ]
-

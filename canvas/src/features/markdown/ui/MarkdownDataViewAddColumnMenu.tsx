@@ -1,0 +1,107 @@
+import React from 'react'
+import { Plus, ChevronDown } from 'lucide-react'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import type { MarkdownDataViewColumnType } from './markdownDataViewColumnType'
+import { labelForMarkdownDataViewColumnType } from './markdownDataViewColumnType'
+import { iconByColumnType } from './markdownDataViewColumnTypeMenuIcons'
+import { MarkdownDataViewColumnTypeMenu } from './MarkdownDataViewColumnTypeMenu'
+
+export function MarkdownDataViewAddColumnMenu(props: {
+  ariaLabel: string
+  nextColumnNumber: number
+  canMutate: boolean
+  onAddColumn?: (args: { name: string; columnType: MarkdownDataViewColumnType }) => void
+  summaryClassName: string
+  summaryContent?: React.ReactNode
+  menuPositionClassName: string
+}) {
+  const detailsRef = React.useRef<HTMLDetailsElement | null>(null)
+  const nameId = React.useId()
+  const [name, setName] = React.useState('')
+  const [type, setType] = React.useState<MarkdownDataViewColumnType>('text')
+
+  const close = React.useCallback(() => {
+    const el = detailsRef.current
+    if (el) el.open = false
+  }, [])
+
+  const add = React.useCallback(() => {
+    if (!props.onAddColumn) return
+    const nextName = String(name || '').trim() || `Column ${props.nextColumnNumber}`
+    props.onAddColumn({ name: nextName, columnType: type })
+    setName('')
+    setType('text')
+    close()
+  }, [close, name, props, type])
+
+  if (!props.canMutate || !props.onAddColumn) return null
+
+  const TypeIcon = iconByColumnType[type]
+
+  return (
+    <details className="relative" ref={detailsRef}>
+      <summary className={props.summaryClassName} aria-label={props.ariaLabel}>
+        {props.summaryContent || <Plus className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />}
+      </summary>
+      <menu
+        className={[
+          props.menuPositionClassName,
+          'rounded border shadow-sm p-2 z-20',
+          UI_THEME_TOKENS.panel.bg,
+          UI_THEME_TOKENS.panel.border,
+        ].join(' ')}
+        aria-label="Add column menu"
+      >
+        <li className="list-none">
+          <header className={['text-xs font-semibold px-1 py-1', UI_THEME_TOKENS.text.primary].join(' ')}>New column</header>
+        </li>
+        <li className="list-none px-1 pb-2">
+          <label className={['block text-[10px] mb-1', UI_THEME_TOKENS.text.secondary].join(' ')} htmlFor={nameId}>
+            Name
+          </label>
+          <input
+            id={nameId}
+            className={['w-full text-xs px-2 py-1 rounded border', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.text.primary].join(' ')}
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder={`Column ${props.nextColumnNumber}`}
+          />
+        </li>
+        <li className="list-none px-1 pb-2">
+          <div className={['block text-[10px] mb-1', UI_THEME_TOKENS.text.secondary].join(' ')}>Type</div>
+          <details className="relative">
+            <summary
+              className={[
+                'list-none w-full flex items-center gap-2 px-2 py-1 rounded border cursor-pointer text-xs',
+                UI_THEME_TOKENS.input.bg,
+                UI_THEME_TOKENS.input.border,
+                UI_THEME_TOKENS.text.primary,
+              ].join(' ')}
+            >
+              <TypeIcon className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+              <span className="flex-1 text-left">{labelForMarkdownDataViewColumnType(type)}</span>
+              <ChevronDown className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+            </summary>
+            <MarkdownDataViewColumnTypeMenu
+              ariaLabel="Select column type"
+              value={type}
+              className="absolute left-0 mt-2 w-full"
+              onSelect={setType}
+            />
+          </details>
+        </li>
+        <li className={['list-none my-2 h-px', UI_THEME_TOKENS.panel.divider].join(' ')} />
+        <li className="list-none px-1">
+          <button
+            type="button"
+            className={['w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded border text-xs', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+            onClick={add}
+          >
+            <Plus className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
+            Add
+          </button>
+        </li>
+      </menu>
+    </details>
+  )
+}

@@ -24,7 +24,7 @@ export function applyImportedMarkdownToStore(args: {
     normalizeMermaidMmd: false,
     sourceUrl,
     jsonSourceText: null,
-    workspaceViewMode: args.curationView === 'markdown' ? 'editor' : args.curationView === 'grid' ? 'table' : null,
+    workspaceViewMode: args.curationView === 'markdown' ? 'editor' : args.curationView === 'grid' ? 'canvas' : null,
     recent: args.recent,
     applyToGraph: true,
     forceApplyToGraph: true,

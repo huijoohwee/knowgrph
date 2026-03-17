@@ -4,7 +4,7 @@ import { getBottomTabLabel } from '@/features/panels/config'
 import { toSchemaImportFileName } from '@/features/schema-editor/utils'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { UI_ANCHORS } from '@/lib/config'
-import { uiPrimaryLinkButtonClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
+import { uiPrimaryLinkButtonClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 interface SchemaSummaryProps {
   className?: string

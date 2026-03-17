@@ -63,7 +63,6 @@ const roots = (() => {
     ? raw.split(',').map(s => s.trim()).filter(Boolean)
     : [
         'knowgrph/canvas/src',
-        'curagrph/src',
         'gympgrph/src',
         'grph-shared/src',
         'knowgrph/docs/documents',
@@ -140,4 +139,3 @@ if (jsonOut) {
     process.stdout.write(`${m.file}:${m.line}: ${m.text}\n`)
   }
 }
-

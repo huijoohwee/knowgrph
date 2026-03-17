@@ -10,6 +10,7 @@ export const KG_TOKEN_DEFS: readonly KgTokenDef[] = [
   { cssVar: '--kg-app-bg', light: '#f3f4f6', dark: '#020617' },
   { cssVar: '--kg-surface-bg', light: '#ffffff', dark: '#0b1220' },
   { cssVar: '--kg-panel-bg', light: '#ffffff', dark: '#020b2a' },
+  { cssVar: '--kg-panel-bg-hover', light: '#f9fafb', dark: 'rgba(11, 18, 32, 0.85)' },
   { cssVar: '--kg-border', light: '#e5e7eb', dark: '#4b5563' },
   { cssVar: '--kg-divider', light: '#d1d5db', dark: '#4b5563' },
   { cssVar: '--kg-text-primary', light: '#111827', dark: '#f3f4f6' },

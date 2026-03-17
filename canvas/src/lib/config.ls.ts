@@ -33,6 +33,9 @@ export const LS_KEYS = {
   markdownPresentationMode: 'kg:ui:markdown:presentationMode',
   markdownLayoutMode: 'kg:ui:markdown:layoutMode',
   markdownViewerWidthMode: 'kg:ui:markdown:viewerWidthMode',
+  markdownDerivedViewerKind: 'kg:ui:markdown:viewer:kind',
+  markdownDerivedViewerMode: 'kg:ui:markdown:viewer:mode',
+  markdownDataViewConfigPrefix: 'kg:ui:markdown:dataView:config:',
   markdownTextHighlight: 'kg:ui:markdown:textHighlight',
   markdownSelectionFlashMode: 'kg:ui:markdown:flashMode',
   markdownAnnotateDisplay: 'kg:ui:markdown:annotateDisplay',
@@ -209,7 +212,7 @@ export const LS_KEYS = {
   chatSystemPrompt: 'kg:chat:systemPrompt',
   chatHistoryPrefix: 'kg:chat:history:',
   workspaceViewMode: 'kg:ui:workspace:viewMode',
-  workspaceViewModeBeforeTable: 'kg:ui:workspace:viewModeBeforeTable',
+  editorWorkspacePane: 'kg:ui:workspace:editor:pane',
   documentStructureBaselineLock: 'kg:ui:baseline:documentStructureLock',
   workspacePreviewWidthPx: 'kg:ui:workspace:previewWidthPx',
   workspaceCanvasPaneOpen: 'kg:ui:workspace:canvasPaneOpen',
@@ -278,7 +281,8 @@ export type LsStorageKey =
   | (typeof LS_KEYS)[LsKeyId]
   | SchemaSubsectionStorageKey
   | ChatHistoryStorageKey
-  | MarkdownCollapsedHeadingIdsStorageKey;
+  | MarkdownCollapsedHeadingIdsStorageKey
+  | MarkdownDataViewConfigStorageKey;
 
 export type SchemaSubsectionStorageKeyPrefix = (typeof LS_KEYS)['schemaSubsectionPrefix'];
 export type SchemaSubsectionStorageKey = `${SchemaSubsectionStorageKeyPrefix}${string}`;
@@ -295,8 +299,14 @@ export const getChatHistoryStorageKey = (graphSignature: string): ChatHistorySto
 export type MarkdownCollapsedHeadingIdsStorageKeyPrefix = (typeof LS_KEYS)['markdownCollapsedHeadingIds'];
 export type MarkdownCollapsedHeadingIdsStorageKey = `${MarkdownCollapsedHeadingIdsStorageKeyPrefix}:${string}`;
 
+export type MarkdownDataViewConfigStorageKeyPrefix = (typeof LS_KEYS)['markdownDataViewConfigPrefix'];
+export type MarkdownDataViewConfigStorageKey = `${MarkdownDataViewConfigStorageKeyPrefix}${string}`;
+
 export const getMarkdownCollapsedHeadingIdsStorageKey = (scopeKey: string): MarkdownCollapsedHeadingIdsStorageKey =>
   `${LS_KEYS.markdownCollapsedHeadingIds}:${String(scopeKey ?? '')}` as MarkdownCollapsedHeadingIdsStorageKey;
+
+export const getMarkdownDataViewConfigStorageKey = (scopeKey: string): MarkdownDataViewConfigStorageKey =>
+  `${LS_KEYS.markdownDataViewConfigPrefix}${String(scopeKey ?? '')}` as MarkdownDataViewConfigStorageKey;
 
 export type LsKeyOwner =
   | 'ui.overlayOpacity'
@@ -373,6 +383,9 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   markdownPresentationMode: 'ui.bottomPanel',
   markdownLayoutMode: 'ui.bottomPanel',
   markdownViewerWidthMode: 'ui.bottomPanel',
+  markdownDerivedViewerKind: 'ui.bottomPanel',
+  markdownDerivedViewerMode: 'ui.bottomPanel',
+  markdownDataViewConfigPrefix: 'ui.bottomPanel',
   markdownTextHighlight: 'ui.bottomPanel',
   markdownSelectionFlashMode: 'ui.bottomPanel',
   markdownAnnotateDisplay: 'ui.bottomPanel',
@@ -521,7 +534,7 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   schemaDeriveCacheCapacity: 'schema.deriveCache',
   launchSpotlightEnabled: 'ui.launchSpotlight',
   statusPanelPinned: 'ui.statusPanelPinned',
-  workspaceViewModeBeforeTable: 'ui.workspace',
+  editorWorkspacePane: 'ui.workspace',
   graphTablePreviewCollapsed: 'ui.workspace',
   graphTablePreviewWidthPx: 'ui.workspace',
   graphTablePanelCollapsed: 'ui.workspace',
