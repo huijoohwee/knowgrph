@@ -128,6 +128,8 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["ui.graphTable.header.propertyTypeMenu","@/__tests__/graphTableHeaderPropertyTypeMenu.test","testGraphTableFastGridHeaderPropertyTypeMenuCallsOnSelect"],
   ["markdownDataView.header.propertyTypeMenu","@/__tests__/markdownDataViewHeaderPropertyTypeMenu.test","testMarkdownDataViewHeaderPropertyTypeMenuCallsOnChangeColumnType"],
   ["markdownDataView.header.propertyTypeMenu.readOnly","@/__tests__/markdownDataViewHeaderPropertyTypeMenuReadOnly.test","testMarkdownDataViewHeaderPropertyTypeMenuOpensInReadOnly"],
+  ["markdownDataView.header.propertyTypeMenu.configMode","@/__tests__/markdownDataViewHeaderPropertyTypeMenuConfigMode.test","testMarkdownDataViewHeaderPropertyTypeMenuAllowsConfigWhenCellsReadOnly"],
+  ["markdownDataView.block.headerMenu.clickable","@/__tests__/markdownDataViewBlockHeaderMenu.test","testMarkdownDataViewBlockColumnHeaderTypeMenuIsClickable"],
   ["markdownWorkspace.explorer.toc.hn","@/__tests__/markdownWorkspaceTocHn.test","testMarkdownWorkspaceExplorerTocShowsHeadingNumbers"],
   ["markdownWorkspace.viewer.rendersMarkdownImage","@/__tests__/markdownWorkspaceViewerRendersImage.test","testMarkdownWorkspaceViewerRendersMarkdownImage"],
   ["workspaceFs.seed.noReseedAfterUserDeletesAll","@/__tests__/workspaceSeedPersistence.test","testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles"],

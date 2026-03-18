@@ -47,8 +47,6 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
     const next: React.CSSProperties = {
       position: 'fixed',
       top,
-      zIndex: Z_INDEX_MENU,
-      pointerEvents: 'auto',
     }
     if (placement === 'bottom-end') {
       next.left = Math.round(rect.right)
@@ -159,13 +157,15 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
 
       {props.portal && isOpen && menu && portalStyle
         ? createPortal(
-            <div
-              ref={el => {
-                portalRootRef.current = el
-              }}
-              style={portalStyle}
-            >
-              {menu}
+            <div style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_MENU, pointerEvents: 'auto', isolation: 'isolate', background: 'transparent' }}>
+              <div
+                ref={el => {
+                  portalRootRef.current = el
+                }}
+                style={{ ...portalStyle, pointerEvents: 'auto' }}
+              >
+                {menu}
+              </div>
             </div>,
             document.body,
           )

@@ -4,6 +4,7 @@ import type { MarkdownDataViewColumnType } from './markdownDataViewColumnType'
 import {
   columnTypeToBaseKind,
   defaultColumnTypeForInferredKind,
+  labelForMarkdownDataViewColumnType,
 } from './markdownDataViewColumnType'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
@@ -14,22 +15,23 @@ import { MarkdownDataViewColumnTypeMenu } from './MarkdownDataViewColumnTypeMenu
 import { iconByColumnType } from './markdownDataViewColumnTypeMenuIcons'
 import { MarkdownDataViewAddColumnMenu } from './MarkdownDataViewAddColumnMenu'
 import { ColumnHeaderPropertyTypeMenu } from '@/components/ui/ColumnHeaderPropertyTypeMenu'
-import {
-  Type,
-  ChevronDown,
-  Plus,
-} from 'lucide-react'
+import { Plus, Type } from 'lucide-react'
+import { ColumnHeaderMenu } from '@/components/ui/ColumnHeaderMenu'
 
 type MarkdownDataViewTableViewProps = {
   view: MarkdownDataView
   visibleColumnIds?: string[] | null
   columnTypesById?: Record<string, MarkdownDataViewColumnType> | null
   canMutate: boolean
+  canConfigure?: boolean
   onUpdateCell: (args: { rowId: string; columnId: string; nextValue: string }) => void
   onActivateRow?: (rowId: string) => void
   onNewRecord?: () => void
   onAddColumn?: (args: { name: string; columnType: MarkdownDataViewColumnType }) => void
   onChangeColumnType?: (args: { columnId: string; nextType: MarkdownDataViewColumnType }) => void
+  onHideColumnInView?: (columnId: string) => void
+  onUpsertColumnFilter?: (args: { columnId: string; columnKind: MarkdownDataView['columns'][number]['kind']; op: 'contains' | 'equals' | 'includes'; value: string }) => void
+  onSetColumnSort?: (args: { columnId: string; direction: 'asc' | 'desc' }) => void
 }
 
 const isTruthy = (raw: string): boolean => {
@@ -63,6 +65,7 @@ const splitMultiValues = (raw: string): string[] => {
 
 export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTableView(props: MarkdownDataViewTableViewProps) {
   const { view, visibleColumnIds, columnTypesById, canMutate, onUpdateCell, onActivateRow } = props
+  const canConfigure = props.canConfigure ?? canMutate
   const [editing, setEditing] = React.useState<{ rowId: string; colId: string } | null>(null)
   const [draft, setDraft] = React.useState('')
 
@@ -160,7 +163,13 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
             {visibleColumnMeta.map(({ col: c }) => {
               const type = (columnTypesById && columnTypesById[c.id]) || defaultColumnTypeForInferredKind(c.kind)
               const Icon = iconByColumnType[type] || Type
-              const allowTypeEdit = Boolean(canMutate && props.onChangeColumnType)
+              const allowTypeEdit = Boolean(canConfigure && props.onChangeColumnType)
+              const canSort = Boolean(canConfigure && props.onSetColumnSort && c.id === view.titleColumnId)
+              const filterOps = c.kind === 'multi-select'
+                ? [{ key: 'includes', label: 'includes' }, { key: 'contains', label: 'contains' }, { key: 'equals', label: 'equals' }]
+                : c.kind === 'select'
+                  ? [{ key: 'equals', label: 'equals' }, { key: 'contains', label: 'contains' }]
+                  : [{ key: 'contains', label: 'contains' }, { key: 'equals', label: 'equals' }]
               return (
               <th
                 key={c.id}
@@ -175,16 +184,49 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                     portalPlacement="bottom-start"
                     toggleTargets="icon+chevron"
                     menu={({ close }) => (
-                      <MarkdownDataViewColumnTypeMenu
-                        ariaLabel={`Column type: ${c.name}`}
-                        value={type}
-                        close={close}
-                        disabled={!allowTypeEdit}
-                        className="w-[240px]"
-                        onSelect={(next) => {
-                          if (!allowTypeEdit) return
-                          props.onChangeColumnType?.({ columnId: c.id, nextType: next })
-                        }}
+                      <ColumnHeaderMenu
+                        ariaLabel={`Column menu: ${c.name}`}
+                        closeMenu={close}
+                        typeSummaryLabel="Type"
+                        typeValueLabel={labelForMarkdownDataViewColumnType(type)}
+                        disableTypeChange={!allowTypeEdit}
+                        renderTypeMenu={() => (
+                          <MarkdownDataViewColumnTypeMenu
+                            ariaLabel={`Column type: ${c.name}`}
+                            value={type}
+                            close={close}
+                            disabled={!allowTypeEdit}
+                            className="w-[240px]"
+                            onSelect={(next) => {
+                              if (!allowTypeEdit) return
+                              props.onChangeColumnType?.({ columnId: c.id, nextType: next })
+                            }}
+                          />
+                        )}
+                        onHideInView={canConfigure && props.onHideColumnInView ? () => props.onHideColumnInView?.(c.id) : undefined}
+                        filter={
+                          canConfigure && props.onUpsertColumnFilter
+                            ? {
+                                ops: filterOps,
+                                defaultOp: filterOps[0]?.key || 'contains',
+                                onApply: ({ op, value }) =>
+                                  props.onUpsertColumnFilter?.({
+                                    columnId: c.id,
+                                    columnKind: c.kind,
+                                    op: (op === 'includes' ? 'includes' : op === 'equals' ? 'equals' : 'contains'),
+                                    value,
+                                  }),
+                              }
+                            : undefined
+                        }
+                        onSortAsc={canSort ? () => props.onSetColumnSort?.({ columnId: c.id, direction: 'asc' }) : undefined}
+                        onSortDesc={canSort ? () => props.onSetColumnSort?.({ columnId: c.id, direction: 'desc' }) : undefined}
+                        disableSort={!canSort}
+                        disableInsert
+                        disableDuplicate
+                        disableDelete
+                        disableMoveLeft
+                        disableMoveRight
                       />
                     )}
                   />

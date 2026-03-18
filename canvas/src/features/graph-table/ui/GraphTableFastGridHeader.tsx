@@ -4,8 +4,10 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { clamp, binarySearchFloor } from '@/features/graph-table/ui/fast-grid/fastGridMath'
 import { useGraphTableGridModel } from '@/features/graph-table/ui/fast-grid/useGraphTableGridModel'
 import { ColumnHeaderPropertyTypeMenu } from '@/components/ui/ColumnHeaderPropertyTypeMenu'
-import { GraphTableColumnKindMenu } from '@/features/graph-table/ui/GraphTableColumnKindMenu'
+import { GraphTableColumnKindMenu, labelForGraphColumnKind } from '@/features/graph-table/ui/GraphTableColumnKindMenu'
 import type { GraphColumnKind } from '@/features/graph-table-db/graphTableDb'
+import { ColumnHeaderMenu } from '@/components/ui/ColumnHeaderMenu'
+import type { GraphTableFilterOperator, GraphTableSortDirection } from '@/features/graph-table/ui/graphTableViewState'
 
 type GraphTableGridModel = ReturnType<typeof useGraphTableGridModel>
 
@@ -28,6 +30,9 @@ export function GraphTableFastGridHeader(props: {
   onRequestReorderColumn: (fromColumnId: string, toColumnId: string, side: 'left' | 'right') => void
   onColumnWidthChanged: (columnId: string, widthPx: number) => void
   onColumnKindChanged?: (columnId: string, nextKind: GraphColumnKind) => void
+  onHideColumnInView?: (columnId: string) => void
+  onUpsertColumnFilter?: (args: { columnId: string; operator: GraphTableFilterOperator; value: string }) => void
+  onSetSingleColumnSort?: (args: { columnId: string; direction: GraphTableSortDirection }) => void
 }) {
   const headerLayout = React.useMemo(() => {
     const pinned = props.model.layout.pinned
@@ -141,11 +146,13 @@ export function GraphTableFastGridHeader(props: {
               transform: `translateX(${-props.scrollRef.current.left}px)`,
             }}
           >
-            {headerLayout.scrollable.map(col => {
+            {headerLayout.scrollable.map((col, colIndex) => {
               const selected = props.selectedColumnIdRef.current === col.id
               const bg = selected ? 'color-mix(in srgb, var(--kg-canvas-accent) 10%, transparent)' : 'transparent'
               const sortMeta = props.model.sortIndexByColumnId[col.id]
               const kind = col.kind === 'data' ? (col.dataKind as GraphColumnKind | undefined) : undefined
+              const canMoveLeft = colIndex > 0
+              const canMoveRight = colIndex < headerLayout.scrollable.length - 1
               return (
                 <section
                   key={col.id}
@@ -254,17 +261,75 @@ export function GraphTableFastGridHeader(props: {
                         },
                       })
                     }}
-                    menu={({ close }) =>
-                      kind && props.onColumnKindChanged ? (
-                        <GraphTableColumnKindMenu
-                          ariaLabel={`Property type for ${col.title}`}
-                          value={kind}
-                          close={close}
-                          className="w-[240px]"
-                          onSelect={(next) => props.onColumnKindChanged?.(col.id, next)}
-                        />
-                      ) : null
-                    }
+                    menu={({ close }) => (
+                      <ColumnHeaderMenu
+                        ariaLabel={`Column menu: ${col.title}`}
+                        closeMenu={close}
+                        typeSummaryLabel="Type"
+                        typeValueLabel={kind ? labelForGraphColumnKind(kind) : ''}
+                        disableTypeChange={!kind || !props.onColumnKindChanged}
+                        renderTypeMenu={() =>
+                          kind && props.onColumnKindChanged ? (
+                            <GraphTableColumnKindMenu
+                              ariaLabel={`Property type for ${col.title}`}
+                              value={kind}
+                              close={close}
+                              className="w-[240px]"
+                              onSelect={(next) => props.onColumnKindChanged?.(col.id, next)}
+                            />
+                          ) : null
+                        }
+                        onHideInView={props.onHideColumnInView ? () => props.onHideColumnInView?.(col.id) : undefined}
+                        filter={
+                          props.onUpsertColumnFilter
+                            ? {
+                                ops: [
+                                  { key: 'contains', label: 'contains' },
+                                  { key: 'equals', label: 'equals' },
+                                  { key: 'startsWith', label: 'startsWith' },
+                                  { key: 'endsWith', label: 'endsWith' },
+                                ],
+                                defaultOp: 'contains',
+                                onApply: ({ op, value }) =>
+                                  props.onUpsertColumnFilter?.({ columnId: col.id, operator: op as GraphTableFilterOperator, value }),
+                              }
+                            : undefined
+                        }
+                        onSortAsc={
+                          props.onSetSingleColumnSort
+                            ? () => props.onSetSingleColumnSort?.({ columnId: col.id, direction: 'asc' })
+                            : undefined
+                        }
+                        onSortDesc={
+                          props.onSetSingleColumnSort
+                            ? () => props.onSetSingleColumnSort?.({ columnId: col.id, direction: 'desc' })
+                            : undefined
+                        }
+                        disableInsert
+                        onMoveLeft={
+                          canMoveLeft
+                            ? () => {
+                                const prev = headerLayout.scrollable[colIndex - 1]
+                                if (!prev) return
+                                props.onRequestReorderColumn(col.id, prev.id, 'left')
+                              }
+                            : undefined
+                        }
+                        onMoveRight={
+                          canMoveRight
+                            ? () => {
+                                const next = headerLayout.scrollable[colIndex + 1]
+                                if (!next) return
+                                props.onRequestReorderColumn(col.id, next.id, 'right')
+                              }
+                            : undefined
+                        }
+                        disableMoveLeft={!canMoveLeft}
+                        disableMoveRight={!canMoveRight}
+                        disableDuplicate
+                        disableDelete
+                      />
+                    )}
                   />
                   <div
                     data-kg-col-resize="true"

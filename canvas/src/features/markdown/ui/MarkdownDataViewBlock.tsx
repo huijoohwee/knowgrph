@@ -10,6 +10,7 @@ import {
   updateMarkdownDataViewCell,
   type MarkdownDataView,
 } from './markdownDataViewModel'
+import type { MarkdownDataViewColumnType } from './markdownDataViewColumnType'
 import { serializeMarkdownDataViewToTableLines } from './markdownDataViewSerialize'
 import { MarkdownDataViewKanbanView } from './MarkdownDataViewKanbanView'
 import { MarkdownDataViewTableView } from './MarkdownDataViewTableView'
@@ -24,6 +25,29 @@ type MarkdownDataViewBlockProps = {
 
 const normalizeSearch = (v: string): string => String(v || '').trim().toLowerCase()
 
+type ColumnFilterOp = 'contains' | 'equals' | 'includes'
+
+const splitMultiValues = (raw: string): string[] => {
+  return String(raw ?? '')
+    .split(',')
+    .map(x => String(x ?? '').replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+}
+
+const matchFilter = (cell: string, kind: MarkdownDataView['columns'][number]['kind'], op: ColumnFilterOp, needle: string): boolean => {
+  const n = String(needle ?? '').trim().toLowerCase()
+  if (!n) return true
+  const v = String(cell ?? '').trim()
+  const lower = v.toLowerCase()
+
+  if (op === 'equals') return lower === n
+  if (op === 'includes') {
+    if (kind !== 'multi-select') return lower.includes(n)
+    return splitMultiValues(v).some(x => x.toLowerCase() === n)
+  }
+  return lower.includes(n)
+}
+
 export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(props: MarkdownDataViewBlockProps) {
   const { token, table, highlightClass, highlightStyle, opts } = props
   const startLine = token.startLine
@@ -36,6 +60,12 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
     return dv?.groupByColumnId ? 'kanban' : 'table'
   })
   const [query, setQuery] = React.useState('')
+  const [columnTypesById, setColumnTypesById] = React.useState<Record<string, MarkdownDataViewColumnType>>({})
+  const [visibleColumnIds, setVisibleColumnIds] = React.useState<string[] | null>(null)
+  const [columnFiltersById, setColumnFiltersById] = React.useState<
+    Record<string, { columnKind: MarkdownDataView['columns'][number]['kind']; op: ColumnFilterOp; value: string }>
+  >({})
+  const [sortMode, setSortMode] = React.useState<'none' | 'title_asc' | 'title_desc'>('none')
 
   React.useEffect(() => {
     const next = buildMarkdownDataViewFromTableToken(table)
@@ -45,10 +75,45 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
   const filteredView = React.useMemo((): MarkdownDataView | null => {
     if (!view) return null
     const q = normalizeSearch(query)
-    if (!q) return view
-    const rows = view.rows.filter(r => r.cells.some(c => normalizeSearch(c).includes(q)))
-    return rows.length === view.rows.length ? view : { ...view, rows }
-  }, [query, view])
+    const titleIndex = view.columns.findIndex(c => c.id === view.titleColumnId)
+    const columnIndexById = new Map<string, number>()
+    for (let i = 0; i < view.columns.length; i += 1) {
+      columnIndexById.set(view.columns[i].id, i)
+    }
+
+    const activeFilters = Object.entries(columnFiltersById).filter(([, f]) => String(f.value || '').trim())
+    const needsFilter = Boolean(q || activeFilters.length)
+    const needsSort = sortMode !== 'none' && titleIndex >= 0
+
+    if (!needsFilter && !needsSort) return view
+
+    let rows = view.rows
+    if (needsFilter) {
+      rows = rows.filter(r => {
+        if (q && !r.cells.some(c => normalizeSearch(c).includes(q))) return false
+        for (const [columnId, f] of activeFilters) {
+          const idx = columnIndexById.get(columnId) ?? -1
+          if (idx < 0) continue
+          if (!matchFilter(String(r.cells[idx] ?? ''), f.columnKind, f.op, f.value)) return false
+        }
+        return true
+      })
+    }
+
+    if (needsSort) {
+      const dir = sortMode === 'title_desc' ? -1 : 1
+      const sorted = rows.slice().sort((a, b) => {
+        const av = String(a.cells[titleIndex] ?? '').toLowerCase()
+        const bv = String(b.cells[titleIndex] ?? '').toLowerCase()
+        if (av < bv) return -1 * dir
+        if (av > bv) return 1 * dir
+        return 0
+      })
+      rows = sorted
+    }
+
+    return rows === view.rows ? view : { ...view, rows }
+  }, [columnFiltersById, query, sortMode, view])
 
   const commitView = React.useCallback(
     (next: MarkdownDataView) => {
@@ -76,6 +141,49 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
       commitView(next)
     },
     [commitView, view],
+  )
+
+  const handleChangeColumnType = React.useCallback((args: { columnId: string; nextType: MarkdownDataViewColumnType }) => {
+    setColumnTypesById(prev => {
+      if (prev[args.columnId] === args.nextType) return prev
+      return { ...prev, [args.columnId]: args.nextType }
+    })
+  }, [])
+
+  const handleHideColumnInView = React.useCallback(
+    (columnId: string) => {
+      if (!view) return
+      setVisibleColumnIds(prev => {
+        const base = prev || view.columns.map(c => c.id)
+        return base.filter(id => id !== columnId)
+      })
+    },
+    [view],
+  )
+
+  const handleUpsertColumnFilter = React.useCallback(
+    (args: { columnId: string; columnKind: MarkdownDataView['columns'][number]['kind']; op: ColumnFilterOp; value: string }) => {
+      setColumnFiltersById(prev => {
+        const value = String(args.value ?? '')
+        const next = { ...prev }
+        if (!value.trim()) {
+          delete next[args.columnId]
+          return next
+        }
+        next[args.columnId] = { columnKind: args.columnKind, op: args.op, value }
+        return next
+      })
+    },
+    [],
+  )
+
+  const handleSetColumnSort = React.useCallback(
+    (args: { columnId: string; direction: 'asc' | 'desc' }) => {
+      if (!view) return
+      if (args.columnId !== view.titleColumnId) return
+      setSortMode(args.direction === 'desc' ? 'title_desc' : 'title_asc')
+    },
+    [view],
   )
 
   if (!filteredView) return null
@@ -166,7 +274,14 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
           <MarkdownDataViewTableView
             view={filteredView}
             canMutate={canMutate}
+            canConfigure={true}
             onUpdateCell={handleUpdateCell}
+            visibleColumnIds={visibleColumnIds}
+            columnTypesById={columnTypesById}
+            onChangeColumnType={handleChangeColumnType}
+            onHideColumnInView={handleHideColumnInView}
+            onUpsertColumnFilter={handleUpsertColumnFilter}
+            onSetColumnSort={handleSetColumnSort}
           />
         )}
       </div>

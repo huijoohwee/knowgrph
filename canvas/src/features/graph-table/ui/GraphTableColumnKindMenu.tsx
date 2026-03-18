@@ -12,6 +12,11 @@ const GRAPH_TABLE_COLUMN_KIND_OPTIONS = [
   { key: 'json', label: 'JSON', icon: Code },
 ] as const satisfies readonly { key: GraphColumnKind; label: string; icon: React.ComponentType<{ className?: string }> }[]
 
+export function labelForGraphColumnKind(kind: GraphColumnKind): string {
+  const found = GRAPH_TABLE_COLUMN_KIND_OPTIONS.find(o => o.key === kind)
+  return found ? found.label : String(kind)
+}
+
 
 export function GraphTableColumnKindMenu(props: {
   ariaLabel: string

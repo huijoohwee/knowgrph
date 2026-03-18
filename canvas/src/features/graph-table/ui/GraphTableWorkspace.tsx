@@ -42,6 +42,8 @@ import {
   type GraphTableFilterMatch,
   type GraphTableRowHeightPreset,
   type GraphTableSortRule,
+  type GraphTableFilterOperator,
+  type GraphTableSortDirection,
 } from '@/features/graph-table/ui/graphTableViewState'
 import { applyCellUpdateToGraphStore } from '@/features/graph-table/lib/applyCellUpdateToGraphStore'
 import { useGraphTableDbSync } from '@/features/graph-table/hooks/useGraphTableDbSync'
@@ -444,6 +446,31 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode }
     [activeTableId, columns],
   )
 
+  const handleHideColumnInView = useCallback((columnId: string) => {
+    setColumnVisibilityById(prev => {
+      if (prev[columnId] === false) return prev
+      return { ...prev, [columnId]: false }
+    })
+  }, [])
+
+  const handleUpsertColumnFilter = useCallback((args: { columnId: string; operator: GraphTableFilterOperator; value: string }) => {
+    setFilterClauses(prev => {
+      const idx = prev.findIndex(c => c.columnId === args.columnId)
+      if (idx >= 0) {
+        const existing = prev[idx]
+        const next = { ...existing, operator: args.operator, value: args.value }
+        const out = prev.slice()
+        out[idx] = next
+        return out
+      }
+      return [...prev, { id: makeGraphTableRuleId(), columnId: args.columnId, operator: args.operator, value: args.value }]
+    })
+  }, [])
+
+  const handleSetSingleColumnSort = useCallback((args: { columnId: string; direction: GraphTableSortDirection }) => {
+    setSortRules([{ id: makeGraphTableRuleId(), columnId: args.columnId, direction: args.direction }])
+  }, [])
+
   useEffect(() => {
     const available = orderedColumns
     const first = available[0]?.columnId || 'id'
@@ -540,6 +567,9 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode }
               onRequestReorderColumn={handleRequestReorderColumn}
               onCellValueChanged={handleCellValueChanged}
               onColumnKindChanged={handleColumnKindChanged}
+              onHideColumnInView={handleHideColumnInView}
+              onUpsertColumnFilter={handleUpsertColumnFilter}
+              onSetSingleColumnSort={handleSetSingleColumnSort}
               onRowClicked={handleActivateRow}
               onSelectionChanged={ids => {
                 setSelectedRowIds(ids)

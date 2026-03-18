@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MarkdownDataViewTableView } from '@/features/markdown/ui/MarkdownDataViewTableView'
 import type { MarkdownDataView } from '@/features/markdown/ui/markdownDataViewModel'
+import type { MarkdownDataViewColumnType } from '@/features/markdown/ui/markdownDataViewColumnType'
 
 const tick = async () => {
   await new Promise<void>(resolve => {
@@ -11,7 +12,7 @@ const tick = async () => {
   })
 }
 
-export async function testMarkdownDataViewHeaderPropertyTypeMenuOpensInReadOnly() {
+export async function testMarkdownDataViewHeaderPropertyTypeMenuAllowsConfigWhenCellsReadOnly() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   const doc = dom.window.document
   const container = doc.createElement('div')
@@ -22,33 +23,28 @@ export async function testMarkdownDataViewHeaderPropertyTypeMenuOpensInReadOnly(
   try {
     const view: MarkdownDataView = {
       columns: [{ id: 'col_0', name: 'Status', kind: 'text' }],
-      rows: [
-        { id: 'row_0', cells: ['Todo'] },
-        { id: 'row_1', cells: ['Doing'] },
-      ],
+      rows: [{ id: 'row_0', cells: ['Todo'] }],
       titleColumnId: 'col_0',
       groupByColumnId: null,
     }
 
-    let called = false
+    const calls: Array<{ columnId: string; nextType: MarkdownDataViewColumnType }> = []
     root.render(
       React.createElement(MarkdownDataViewTableView, {
         view,
         canMutate: false,
+        canConfigure: true,
         onUpdateCell: () => void 0,
-        onChangeColumnType: () => {
-          called = true
-        },
+        onChangeColumnType: (args) => calls.push(args),
       }),
     )
 
-    for (let i = 0; i < 30; i += 1) await tick()
+    for (let i = 0; i < 40; i += 1) await tick()
 
     const summary = doc.querySelector('summary[aria-label="Column type: Status"]') as HTMLElement | null
     if (!summary) throw new Error('Expected Status header summary')
     const svg = summary.querySelector('svg') as SVGElement | null
     if (!svg) throw new Error('Expected svg in summary')
-
     svg.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
 
     let columnMenu: HTMLElement | null = null
@@ -57,7 +53,7 @@ export async function testMarkdownDataViewHeaderPropertyTypeMenuOpensInReadOnly(
       columnMenu = doc.querySelector('menu[aria-label="Column menu: Status"]') as HTMLElement | null
       if (columnMenu) break
     }
-    if (!columnMenu) throw new Error('Expected menu to open in read-only')
+    if (!columnMenu) throw new Error('Expected Column menu to open')
 
     const typeDetails = columnMenu.querySelector('details') as HTMLDetailsElement | null
     if (!typeDetails) throw new Error('Expected Type details')
@@ -70,12 +66,15 @@ export async function testMarkdownDataViewHeaderPropertyTypeMenuOpensInReadOnly(
     const buttons = Array.from(typeMenu.querySelectorAll('button')) as HTMLButtonElement[]
     const selectBtn = buttons.find(b => String(b.textContent || '').trim() === 'Select') || null
     if (!selectBtn) throw new Error('Expected Select option button')
-    if (!selectBtn.disabled) throw new Error('Expected options to be disabled in read-only')
-
+    if (selectBtn.disabled) throw new Error('Expected Select option enabled in config mode')
     selectBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
     await tick()
 
-    if (called) throw new Error('Expected onChangeColumnType not to run in read-only')
+    const last = calls[calls.length - 1]
+    if (!last) throw new Error('Expected onChangeColumnType to be called')
+    if (last.columnId !== 'col_0' || last.nextType !== 'select') {
+      throw new Error(`Unexpected call: ${JSON.stringify(last)}`)
+    }
   } finally {
     try {
       root.unmount()
@@ -85,3 +84,4 @@ export async function testMarkdownDataViewHeaderPropertyTypeMenuOpensInReadOnly(
     restoreDom()
   }
 }
+

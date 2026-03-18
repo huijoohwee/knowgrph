@@ -8,7 +8,9 @@ import type {
   GraphTableFilterClause,
   GraphTableFilterMatch,
   GraphTableRowHeightPreset,
+  GraphTableFilterOperator,
   GraphTableSortRule,
+  GraphTableSortDirection,
 } from '@/features/graph-table/ui/graphTableViewState'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { CanvasCellEditor, type CanvasCellEditorState } from '@/features/graph-table/ui/fast-grid/CanvasCellEditor'
@@ -39,6 +41,9 @@ export type GraphTableFastGridProps = {
   onSelectionChanged: (selectedRowIds: string[]) => void
   onCellValueChanged: (rowId: string, columnId: string, next: unknown) => void
   onColumnKindChanged?: (columnId: string, nextKind: GraphColumnDoc['kind']) => void
+  onHideColumnInView?: (columnId: string) => void
+  onUpsertColumnFilter?: (args: { columnId: string; operator: GraphTableFilterOperator; value: string }) => void
+  onSetSingleColumnSort?: (args: { columnId: string; direction: GraphTableSortDirection }) => void
   panelTypography?: PanelTypography
 }
 
@@ -293,7 +298,10 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
         onSelectionChanged={props.onSelectionChanged}
         onRequestReorderColumn={props.onRequestReorderColumn}
         onColumnWidthChanged={props.onColumnWidthChanged}
-          onColumnKindChanged={props.onColumnKindChanged}
+        onColumnKindChanged={props.onColumnKindChanged}
+        onHideColumnInView={props.onHideColumnInView}
+        onUpsertColumnFilter={props.onUpsertColumnFilter}
+        onSetSingleColumnSort={props.onSetSingleColumnSort}
       />
       <section
         ref={el => {

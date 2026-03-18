@@ -110,15 +110,23 @@ export async function testGraphTableFastGridHeaderPropertyTypeMenuCallsOnSelect(
 
     toggle.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
 
-    let menu: HTMLElement | null = null
+    let columnMenu: HTMLElement | null = null
     for (let i = 0; i < 60; i += 1) {
       await tick()
-      menu = doc.querySelector('menu[aria-label="Property type for label"]') as HTMLElement | null
-      if (menu) break
+      columnMenu = doc.querySelector('menu[aria-label="Column menu: label"]') as HTMLElement | null
+      if (columnMenu) break
     }
-    if (!menu) throw new Error('Expected property type menu to render')
+    if (!columnMenu) throw new Error('Expected column menu to render')
 
-    const buttons = Array.from(menu.querySelectorAll('button')) as HTMLButtonElement[]
+    const typeDetails = columnMenu.querySelector('details') as HTMLDetailsElement | null
+    if (!typeDetails) throw new Error('Expected Type details')
+    typeDetails.dispatchEvent(new dom.window.MouseEvent('mouseenter', { bubbles: true }))
+    await tick()
+
+    const typeMenu = doc.querySelector('menu[aria-label="Property type for label"]') as HTMLElement | null
+    if (!typeMenu) throw new Error('Expected property type submenu to render')
+
+    const buttons = Array.from(typeMenu.querySelectorAll('button')) as HTMLButtonElement[]
     const dateBtn = buttons.find(b => String(b.textContent || '').trim() === 'Date') || null
     if (!dateBtn) throw new Error('Expected Date option button')
     dateBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))

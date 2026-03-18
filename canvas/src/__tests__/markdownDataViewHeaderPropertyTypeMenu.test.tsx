@@ -55,15 +55,23 @@ export async function testMarkdownDataViewHeaderPropertyTypeMenuCallsOnChangeCol
 
     svg.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
 
-    let menu: HTMLElement | null = null
+    let columnMenu: HTMLElement | null = null
     for (let i = 0; i < 60; i += 1) {
       await tick()
-      menu = doc.querySelector('menu[aria-label="Column type: Status"]') as HTMLElement | null
-      if (menu) break
+      columnMenu = doc.querySelector('menu[aria-label="Column menu: Status"]') as HTMLElement | null
+      if (columnMenu) break
     }
-    if (!menu) throw new Error('Expected Column type menu to open')
+    if (!columnMenu) throw new Error('Expected Column menu to open')
 
-    const buttons = Array.from(menu.querySelectorAll('button')) as HTMLButtonElement[]
+    const typeDetails = columnMenu.querySelector('details') as HTMLDetailsElement | null
+    if (!typeDetails) throw new Error('Expected Type details')
+    typeDetails.dispatchEvent(new dom.window.MouseEvent('mouseenter', { bubbles: true }))
+    await tick()
+
+    const typeMenu = doc.querySelector('menu[aria-label="Column type: Status"]') as HTMLElement | null
+    if (!typeMenu) throw new Error('Expected Column type submenu to render')
+
+    const buttons = Array.from(typeMenu.querySelectorAll('button')) as HTMLButtonElement[]
     const selectBtn = buttons.find(b => String(b.textContent || '').trim() === 'Select') || null
     if (!selectBtn) throw new Error('Expected Select option button')
     selectBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
@@ -83,4 +91,3 @@ export async function testMarkdownDataViewHeaderPropertyTypeMenuCallsOnChangeCol
     restoreDom()
   }
 }
-

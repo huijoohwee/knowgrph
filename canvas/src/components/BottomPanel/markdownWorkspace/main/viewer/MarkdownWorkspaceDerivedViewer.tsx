@@ -14,6 +14,7 @@ import {
   buildMarkdownDataViewFromTableToken,
   updateMarkdownDataViewCell,
   type MarkdownDataView,
+  type MarkdownDataViewColumnKind,
 } from '@/features/markdown/ui/markdownDataViewModel'
 import { serializeMarkdownDataViewToTableLines } from '@/features/markdown/ui/markdownDataViewSerialize'
 import { MarkdownDataViewKanbanView } from '@/features/markdown/ui/MarkdownDataViewKanbanView'
@@ -32,6 +33,7 @@ import {
   readWorkspaceDataViewConfig,
   type WorkspaceDataViewConfig,
   type WorkspaceDataViewFilterGroup,
+  type WorkspaceDataViewFilterOp,
   writeWorkspaceDataViewConfig,
 } from './workspaceDataViewConfig'
 import { LRUCache } from '@/lib/cache/LRUCache'
@@ -341,6 +343,55 @@ export function MarkdownWorkspaceDerivedViewer(props: {
     [selected],
   )
 
+  const onHideColumnInView = React.useCallback(
+    (columnId: string) => {
+      if (!selected) return
+      setViewConfig(prev => {
+        if (!prev) return prev
+        const allIds = selected.view.columns.map(c => c.id)
+        const base = prev.visibleColumnIds ? prev.visibleColumnIds : allIds
+        const next = base.filter(id => id !== columnId)
+        return { ...prev, visibleColumnIds: next }
+      })
+    },
+    [selected],
+  )
+
+  const onUpsertColumnFilter = React.useCallback(
+    (args: { columnId: string; columnKind: MarkdownDataViewColumnKind; op: WorkspaceDataViewFilterOp; value: string }) => {
+      if (!selected) return
+      const value = String(args.value ?? '').trim()
+      setViewConfig(prev => {
+        if (!prev) return prev
+        const makeId = () => {
+          if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
+          return `id_${Math.random().toString(16).slice(2)}_${Date.now()}`
+        }
+        const groups = prev.filterGroups.length ? prev.filterGroups : [{ id: 'g0', rules: [] }]
+        const first = groups[0]
+        const rest = groups.slice(1)
+        const remaining = first.rules.filter(r => r.columnId !== args.columnId)
+        const nextRules = value
+          ? [...remaining, { id: makeId(), columnId: args.columnId, columnKind: args.columnKind, op: args.op, value }]
+          : remaining
+        return { ...prev, filterGroups: [{ ...first, rules: nextRules }, ...rest] }
+      })
+    },
+    [selected],
+  )
+
+  const onSetColumnSort = React.useCallback(
+    (args: { columnId: string; direction: 'asc' | 'desc' }) => {
+      if (!selected) return
+      if (args.columnId !== selected.view.titleColumnId) return
+      setHeaderState(prev => ({
+        ...prev,
+        sortMode: args.direction === 'desc' ? 'title_desc' : 'title_asc',
+      }))
+    },
+    [selected],
+  )
+
   if (props.viewerMode === 'read') {
     if (props.viewerKind === 'html') {
       return (
@@ -429,11 +480,15 @@ export function MarkdownWorkspaceDerivedViewer(props: {
             visibleColumnIds={visibleColumnIds}
             columnTypesById={columnTypesById}
             canMutate={canMutate}
+            canConfigure={true}
             onUpdateCell={onUpdateCell}
             onActivateRow={onActivateRow}
             onNewRecord={canMutate ? () => onNewRecord() : undefined}
             onAddColumn={canMutate ? onAddColumn : undefined}
             onChangeColumnType={onChangeColumnType}
+            onHideColumnInView={onHideColumnInView}
+            onUpsertColumnFilter={onUpsertColumnFilter}
+            onSetColumnSort={onSetColumnSort}
           />
         )}
       </main>
