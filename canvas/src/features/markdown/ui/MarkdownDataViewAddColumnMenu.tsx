@@ -40,7 +40,7 @@ export function MarkdownDataViewAddColumnMenu(props: {
 
   return (
     <details className="relative" ref={detailsRef}>
-      <summary className={props.summaryClassName} aria-label={props.ariaLabel}>
+      <summary className={[props.summaryClassName, 'list-none'].join(' ')} aria-label={props.ariaLabel}>
         {props.summaryContent || <Plus className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />}
       </summary>
       <menu

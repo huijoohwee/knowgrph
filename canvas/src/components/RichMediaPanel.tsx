@@ -7,7 +7,14 @@ import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { resolveIframeEmbed, resolveIframeSandbox, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
 import { getOrCreateVideoThumbnail } from 'grph-shared/rich-media/videoThumbnail'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { PANEL_FRAME_BODY_STYLE, PANEL_FRAME_HEADER_STYLE, PANEL_FRAME_ROOT_STYLE } from '@/lib/ui/panelFrame'
+import { ExternalLink } from 'lucide-react'
+import {
+  PANEL_FRAME_BODY_STYLE,
+  PANEL_FRAME_HEADER_ACTION_STYLE,
+  PANEL_FRAME_HEADER_STYLE,
+  PANEL_FRAME_HEADER_TITLE_STYLE,
+  PANEL_FRAME_ROOT_STYLE,
+} from '@/lib/ui/panelFrame'
 
 export type RichMediaPanelProps = {
   title: string
@@ -227,6 +234,26 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       },
     })
   }, [installHeaderDrag, props, safeOpenUrl])
+  const onHeaderActionPointerDownCapture = React.useCallback((e: React.PointerEvent<HTMLElement>) => {
+    try {
+      e.stopPropagation()
+    } catch {
+      void 0
+    }
+  }, [])
+  const onHeaderActionClick = React.useCallback((e: React.MouseEvent<HTMLElement>) => {
+    try {
+      e.preventDefault()
+    } catch {
+      void 0
+    }
+    try {
+      e.stopPropagation()
+    } catch {
+      void 0
+    }
+    openSafeUrl()
+  }, [openSafeUrl])
 
   const onRootPointerDownCapture = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const native = e.nativeEvent
@@ -340,7 +367,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       {showHeader ? (
         <header
           data-kg-media-panel-header="1"
-          aria-hidden={true}
           style={{
             ...PANEL_FRAME_HEADER_STYLE,
             borderBottom: 'var(--kg-media-panel-border-w, 1px) solid var(--kg-border)',
@@ -348,6 +374,8 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             pointerEvents: headerPassthrough ? 'none' : 'auto',
           }}
           onPointerDownCapture={e => {
+            const target = e.target
+            if (target instanceof Element && target.closest('[data-kg-panel-action="1"]')) return
             try {
               e.preventDefault()
             } catch {
@@ -357,7 +385,23 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           title={title}
           onPointerDown={installHeaderDrag ? onHeaderPointerDown : undefined}
         >
-          {title}
+          <h3 style={PANEL_FRAME_HEADER_TITLE_STYLE}>{title}</h3>
+          <menu className="m-0 p-0 list-none flex items-center gap-1" aria-label="Panel actions">
+            {safeOpenUrl ? (
+              <li className="list-none">
+                <button
+                  type="button"
+                  data-kg-panel-action="1"
+                  aria-label="Open source"
+                  style={PANEL_FRAME_HEADER_ACTION_STYLE}
+                  onPointerDownCapture={onHeaderActionPointerDownCapture}
+                  onClick={onHeaderActionClick}
+                >
+                  <ExternalLink size={14} aria-hidden="true" />
+                </button>
+              </li>
+            ) : null}
+          </menu>
         </header>
       ) : null}
       <section

@@ -186,21 +186,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       return null
     })
   })
-  const [viewerMode, setViewerMode] = React.useState<MarkdownWorkspaceDerivedViewerMode>(() => {
-    return lsJson(LS_KEYS.markdownDerivedViewerMode, 'read' as MarkdownWorkspaceDerivedViewerMode, (raw) => {
-      const v = String(raw || '').trim().toLowerCase()
-      if (v === 'kanban') return 'kanban'
-      if (v === 'table') return 'table'
-      if (v === 'read') return 'read'
-      return null
-    })
-  })
+  const viewerMode: MarkdownWorkspaceDerivedViewerMode = 'read'
   React.useEffect(() => {
     lsSetJson(LS_KEYS.markdownDerivedViewerKind, viewerKind)
   }, [viewerKind])
-  React.useEffect(() => {
-    lsSetJson(LS_KEYS.markdownDerivedViewerMode, viewerMode)
-  }, [viewerMode])
 
   const needsMarkdownViewerText = !showWebpageHtml && layoutMode !== 'editor'
   const viewerTextRaw = needsMarkdownViewerText ? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText) : ''
@@ -367,7 +356,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     <MarkdownWorkspaceDerivedViewer
       viewerKind={viewerKind}
       viewerMode={viewerMode}
-      onChangeViewerMode={setViewerMode}
       markdownText={viewerText}
       title={String(activeDocumentKey || '').split('/').filter(Boolean).pop() || 'Workspace'}
       activeDocumentPath={activeDocumentKey}
@@ -528,7 +516,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         viewerKind,
         setViewerKind,
         viewerMode,
-        setViewerMode,
         onApply,
         onSave,
         onSaveAs,

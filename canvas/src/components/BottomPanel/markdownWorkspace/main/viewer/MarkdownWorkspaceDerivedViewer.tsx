@@ -34,6 +34,7 @@ import {
   type WorkspaceDataViewFilterGroup,
   writeWorkspaceDataViewConfig,
 } from './workspaceDataViewConfig'
+import { LRUCache } from '@/lib/cache/LRUCache'
 
 export type MarkdownWorkspaceDerivedViewerKind = 'markdown' | 'html'
 export type MarkdownWorkspaceDerivedViewerMode = 'read' | 'kanban' | 'table'
@@ -45,7 +46,11 @@ type DataViewCandidate = {
   view: MarkdownDataView
 }
 
-const buildDataViewCandidates = (markdownText: string): DataViewCandidate[] => {
+const DATA_VIEW_CANDIDATES_CACHE = new LRUCache<string, DataViewCandidate[]>(60)
+
+const buildDataViewCandidates = (markdownText: string, candidatesKey: string): DataViewCandidate[] => {
+  const cached = DATA_VIEW_CANDIDATES_CACHE.get(candidatesKey)
+  if (cached) return cached
   const { tokens } = lexMarkdown(markdownText)
   const tables = tokens.filter((t): t is TokenWithLines & TokensTable => t.type === 'table')
   const candidates: DataViewCandidate[] = []
@@ -60,6 +65,7 @@ const buildDataViewCandidates = (markdownText: string): DataViewCandidate[] => {
       view,
     })
   }
+  DATA_VIEW_CANDIDATES_CACHE.set(candidatesKey, candidates)
   return candidates
 }
 
@@ -102,7 +108,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
 
   const candidates = React.useMemo(() => {
     if (props.viewerMode === 'read') return []
-    return buildDataViewCandidates(props.markdownText)
+    return buildDataViewCandidates(props.markdownText, candidatesKey)
   }, [props.markdownText, props.viewerMode, candidatesKey])
 
   React.useEffect(() => {

@@ -725,14 +725,16 @@ export const GraphDataTable = React.memo(function GraphDataTable({
           style={{ left: frozenAreaDragIndicatorLeft }}
         />
       )}
-      <table className={`min-w-full w-max table-fixed border-separate border-spacing-0 ${UI_THEME_TOKENS.table.rowBg}`}>
+      <table
+        className={`min-w-full w-max table-fixed border-separate border-spacing-0 ${UI_THEME_TOKENS.table.rowBg} ${UI_THEME_TOKENS.table.text}`}
+      >
         <colgroup>
           <col style={{ width: 32 }} />
           {orderedVisibleColumnKeys.map(columnKey => (
             <col key={columnKey} style={{ width: resolvedColumnWidths[columnKey] }} />
           ))}
         </colgroup>
-        <thead ref={headerRef} className={`z-30 ${UI_THEME_TOKENS.table.headerBg}`}>
+        <thead ref={headerRef} className={`z-30 ${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.table.text}`}>
           <tr className="text-left">
             <th
               scope="col"

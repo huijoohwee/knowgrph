@@ -3,8 +3,10 @@ import { getMarkdownIt } from '@/features/markdown/markdownIt'
 import { buildMarkdownTokensKey } from '@/features/markdown/ui/markdownPreviewLex'
 import { buildMarkdownHtmlViewerDocument } from '@/features/markdown/htmlViewerCss'
 import { buildWebpageHtmlSrcdoc } from '@/lib/websites/webpageIframeSrcdoc'
+import { LRUCache } from '@/lib/cache/LRUCache'
 
 const md = getMarkdownIt()
+const HTML_VIEWER_SRCDOC_CACHE = new LRUCache<string, string>(40)
 
 export function MarkdownWorkspaceHtmlViewerPane(props: {
   markdownText: string
@@ -14,8 +16,11 @@ export function MarkdownWorkspaceHtmlViewerPane(props: {
   const renderKey = React.useMemo(() => buildMarkdownTokensKey(props.markdownText), [props.markdownText])
 
   const srcDoc = React.useMemo(() => {
-    const body = md.render(props.markdownText)
     const title = String(props.title || 'HTML Viewer')
+    const cacheKey = `${renderKey}::${title}`
+    const cached = HTML_VIEWER_SRCDOC_CACHE.get(cacheKey)
+    if (cached) return cached
+    const body = md.render(props.markdownText)
     const html = buildMarkdownHtmlViewerDocument({ title, bodyHtml: body })
     const baseHref = (() => {
       try {
@@ -26,7 +31,9 @@ export function MarkdownWorkspaceHtmlViewerPane(props: {
         return 'https://example.invalid/'
       }
     })()
-    return buildWebpageHtmlSrcdoc({ html, baseHref, scriptPolicy: 'strip' })
+    const next = buildWebpageHtmlSrcdoc({ html, baseHref, scriptPolicy: 'strip' })
+    HTML_VIEWER_SRCDOC_CACHE.set(cacheKey, next)
+    return next
   }, [props.markdownText, props.title, renderKey])
 
   return (

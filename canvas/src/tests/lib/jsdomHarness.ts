@@ -40,6 +40,18 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   ;(g as unknown as { IS_REACT_ACT_ENVIRONMENT?: unknown }).IS_REACT_ACT_ENVIRONMENT = true
 
   try {
+    const proto = (dom.window.HTMLElement as unknown as { prototype?: Record<string, unknown> }).prototype
+    if (proto && typeof proto.attachEvent !== 'function') {
+      proto.attachEvent = () => void 0
+    }
+    if (proto && typeof proto.detachEvent !== 'function') {
+      proto.detachEvent = () => void 0
+    }
+  } catch {
+    void 0
+  }
+
+  try {
     const proto = (dom.window as unknown as { HTMLCanvasElement?: { prototype?: { getContext?: unknown } } }).HTMLCanvasElement?.prototype
     if (proto) {
       ;(proto as unknown as { getContext?: unknown }).getContext = (() => {

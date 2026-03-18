@@ -82,6 +82,16 @@ export const UI_THEME_TOKENS = {
     headerBg: 'bg-[color-mix(in_srgb,var(--kg-panel-bg)_75%,transparent)]',
     divider: 'border-[color:var(--kg-divider)]',
   },
+  kanban: {
+    groupBg: 'bg-[var(--kg-kanban-group-bg)]',
+    cardBg: 'bg-[var(--kg-kanban-card-bg)]',
+    cardHoverBg: 'hover:bg-[var(--kg-kanban-card-bg-hover)]',
+    cellBg: 'bg-[var(--kg-kanban-cell-bg)]',
+    cardRadius: 'rounded-[var(--kg-kanban-card-radius)]',
+    cardShadow: 'shadow-[var(--kg-kanban-card-shadow)]',
+    cardHoverShadow: 'hover:shadow-[var(--kg-kanban-card-shadow-hover)]',
+    actionIconButton: 'bg-[var(--kg-panel-action-bg)] hover:bg-[var(--kg-panel-action-bg-hover)]',
+  },
   text: {
     primary: 'text-[color:var(--kg-text-primary)]',
     secondary: 'text-[color:var(--kg-text-secondary)]',
@@ -108,9 +118,13 @@ export const UI_THEME_TOKENS = {
   },
   status: {
     success: 'text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30',
+    info: 'text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30',
     warning: 'text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/30',
     error: 'text-red-700 dark:text-red-400 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30',
     neutral: 'text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800',
+    lilac: 'text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20',
+    pink: 'text-rose-800 dark:text-rose-200 border-rose-200 dark:border-rose-700 bg-rose-50 dark:bg-rose-900/20',
+    orange: 'text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20',
   },
   tooltip: {
     bg: 'bg-[var(--kg-tooltip-bg)]',

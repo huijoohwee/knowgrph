@@ -1,9 +1,16 @@
 import React from 'react'
 import * as d3 from 'd3'
+import { Expand } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { lexMarkdown, buildMarkdownTokensKey } from '@/features/markdown/ui/markdownPreviewLex'
-import { PANEL_FRAME_BODY_STYLE, PANEL_FRAME_HEADER_STYLE, PANEL_FRAME_ROOT_STYLE } from '@/lib/ui/panelFrame'
+import {
+  PANEL_FRAME_BODY_STYLE,
+  PANEL_FRAME_HEADER_ACTION_STYLE,
+  PANEL_FRAME_HEADER_STYLE,
+  PANEL_FRAME_HEADER_TITLE_STYLE,
+  PANEL_FRAME_ROOT_STYLE,
+} from '@/lib/ui/panelFrame'
 import {
   deriveMarkdownDesignLayout,
   patchMarkdownDesignLayoutPositions,
@@ -176,6 +183,14 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
   }, [blocks, drag, dragging, layout, svgRef])
 
   if (!enabled || !layout || visibleBlocks.length === 0) return null
+
+  const onHeaderActionPointerDownCapture = (e: React.PointerEvent<HTMLElement>) => {
+    try {
+      e.stopPropagation()
+    } catch {
+      void 0
+    }
+  }
 
   const renderBlockBody = (b: MarkdownDesignBlock) => {
     const p = b.preview
@@ -366,7 +381,35 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
                 onPreviewClick?.(b.startLine)
               }}
             >
-              <h3 className={['text-xs font-semibold truncate', UI_THEME_TOKENS.text.primary].join(' ')}>{b.title}</h3>
+              <h3 style={PANEL_FRAME_HEADER_TITLE_STYLE}>{b.title}</h3>
+              {onPreviewClick ? (
+                <menu className="m-0 p-0 list-none flex items-center gap-1" aria-label="Block actions">
+                  <li className="list-none">
+                    <button
+                      type="button"
+                      data-kg-panel-action="1"
+                      aria-label="Reveal block in editor"
+                      style={PANEL_FRAME_HEADER_ACTION_STYLE}
+                      onPointerDownCapture={onHeaderActionPointerDownCapture}
+                      onClick={e => {
+                        try {
+                          e.preventDefault()
+                        } catch {
+                          void 0
+                        }
+                        try {
+                          e.stopPropagation()
+                        } catch {
+                          void 0
+                        }
+                        onPreviewClick(b.startLine)
+                      }}
+                    >
+                      <Expand size={14} aria-hidden="true" />
+                    </button>
+                  </li>
+                </menu>
+              ) : null}
             </header>
             <section
               className="text-xs overflow-hidden"

@@ -36,6 +36,15 @@ export const KG_TOKEN_DEFS: readonly KgTokenDef[] = [
   { cssVar: '--kg-media-panel-header-bg', light: '#f9fafb', dark: 'rgba(11, 18, 32, 0.75)' },
   { cssVar: '--kg-statusbar-bg', light: '#f9fafb', dark: 'rgba(11, 18, 32, 0.85)' },
   { cssVar: '--kg-statusbar-text', light: '#4b5563', dark: '#9ca3af' },
+  { cssVar: '--kg-kanban-group-bg', light: '#f8fafc', dark: 'rgba(11, 18, 32, 0.7)' },
+  { cssVar: '--kg-kanban-card-bg', light: '#ffffff', dark: '#020b2a' },
+  { cssVar: '--kg-kanban-card-bg-hover', light: '#f9fafb', dark: 'rgba(11, 18, 32, 0.85)' },
+  { cssVar: '--kg-kanban-cell-bg', light: '#f8fafc', dark: 'rgba(2, 6, 23, 0.55)' },
+  { cssVar: '--kg-kanban-card-radius', light: '12px', dark: '12px' },
+  { cssVar: '--kg-kanban-card-shadow', light: '0 1px 2px rgba(0,0,0,0.06)', dark: '0 1px 2px rgba(0,0,0,0.35)' },
+  { cssVar: '--kg-kanban-card-shadow-hover', light: '0 10px 24px rgba(0,0,0,0.10)', dark: '0 12px 30px rgba(0,0,0,0.50)' },
+  { cssVar: '--kg-panel-action-bg', light: 'rgba(0,0,0,0.04)', dark: 'rgba(255,255,255,0.06)' },
+  { cssVar: '--kg-panel-action-bg-hover', light: 'rgba(0,0,0,0.07)', dark: 'rgba(255,255,255,0.10)' },
 ] as const
 
 export const getKgThemeFromDom = (): KgTheme => {
@@ -98,4 +107,3 @@ export const extractKgCssVarsFromCssText = (cssText: string): Set<string> => {
   }
   return set
 }
-

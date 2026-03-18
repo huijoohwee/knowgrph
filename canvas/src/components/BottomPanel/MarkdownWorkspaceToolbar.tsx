@@ -369,7 +369,7 @@ export function MarkdownWorkspaceToolbar({
           </menu>
         ) : null}
 
-        {!webpageControls && viewerKind && setViewerKind && viewerMode && setViewerMode ? (
+        {!webpageControls && viewerKind && setViewerKind ? (
           <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Derived views">
             <li className="list-none">
               <WorkspaceModeSelect<'markdown' | 'html'>
@@ -380,18 +380,6 @@ export function MarkdownWorkspaceToolbar({
                   { value: 'html', label: 'HTML' },
                 ]}
                 onChange={setViewerKind}
-              />
-            </li>
-            <li className="list-none">
-              <WorkspaceModeSelect<'read' | 'kanban' | 'table'>
-                ariaLabel="Viewer mode"
-                value={viewerMode}
-                options={[
-                  { value: 'read', label: 'Read' },
-                  { value: 'kanban', label: 'Kanban' },
-                  { value: 'table', label: 'Table' },
-                ]}
-                onChange={setViewerMode}
               />
             </li>
           </menu>

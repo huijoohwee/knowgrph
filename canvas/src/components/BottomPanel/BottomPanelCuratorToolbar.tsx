@@ -1,6 +1,6 @@
 import React from 'react'
 import { DropdownPanel } from '@/lib/ui/overlay'
-import { ArrowUpDown, BarChart3, ChevronDown, Filter, Focus, Group, Plus, SlidersHorizontal, Eraser } from 'lucide-react'
+import { ArrowUpDown, BarChart3, ChevronDown, Filter, Group, Plus, SlidersHorizontal, Eraser } from 'lucide-react'
 import { UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import type { GraphDataTablePanel } from '@/features/graph-data-table/ui/GraphDataTablePanelOverlay'
@@ -10,6 +10,9 @@ import type { GraphDataTableScope } from './BottomPanelCuratorToolbarModel'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { WorkspaceHeader, WorkspaceHeaderRow } from '@/components/ui/WorkspaceHeader'
+import { WorkspaceModeSelect } from '@/components/BottomPanel/markdownWorkspace/WorkspaceModeSelect'
+import { useShallow } from 'zustand/react/shallow'
 
 interface BottomPanelCuratorToolbarProps {
   graphDataTablePanel: GraphDataTablePanel
@@ -58,25 +61,34 @@ export function BottomPanelCuratorToolbar({
   isAutoScrollDisabled,
   setIsAutoScrollDisabled,
 }: BottomPanelCuratorToolbarProps) {
-  const filterClauses = useGraphStore(s => s.graphDataTableFilterClauses)
-  const sortRules = useGraphStore(s => s.graphDataTableSortRules)
-  const visibleColumns = useGraphStore(s => s.graphDataTableVisibleColumns)
-  const lastTraversalSummary = useGraphStore(s => s.lastTraversalSummary)
-  const uiIconScale = useGraphStore(s => s.uiIconScale)
-  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
-  const uiPanelMonospaceTextClass = useGraphStore(
-    s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
+  const {
+    filterClauses,
+    sortRules,
+    visibleColumns,
+    lastTraversalSummary,
+    uiIconScale,
+    uiIconStrokeWidth,
+    uiPanelMonospaceTextClass,
+    uiPanelKeyValueTextSizeClass,
+    aggregateDefaultVizMode,
+    setAggregateDefaultVizMode,
+  } = useGraphStore(
+    useShallow(s => ({
+      filterClauses: s.graphDataTableFilterClauses,
+      sortRules: s.graphDataTableSortRules,
+      visibleColumns: s.graphDataTableVisibleColumns,
+      lastTraversalSummary: s.lastTraversalSummary,
+      uiIconScale: s.uiIconScale,
+      uiIconStrokeWidth: s.uiIconStrokeWidth,
+      uiPanelMonospaceTextClass: s.uiPanelMonospaceTextClass || 'font-mono text-xs',
+      uiPanelKeyValueTextSizeClass: s.uiPanelKeyValueTextSizeClass || 'text-xs',
+      aggregateDefaultVizMode: s.graphDataTableAggregateDefaultVizMode,
+      setAggregateDefaultVizMode: s.setGraphDataTableAggregateDefaultVizMode,
+    })),
   )
-  const uiPanelKeyValueTextSizeClass = useGraphStore(
-    s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
-  )
-  const aggregateDefaultVizMode = useGraphStore(s => s.graphDataTableAggregateDefaultVizMode)
-  const setAggregateDefaultVizMode = useGraphStore(s => s.setGraphDataTableAggregateDefaultVizMode)
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const [isAddMenuOpen, setIsAddMenuOpen] = React.useState(false)
   const addMenuRef = React.useRef<HTMLButtonElement>(null)
-  const [isScopeMenuOpen, setIsScopeMenuOpen] = React.useState(false)
-  const scopeMenuRef = React.useRef<HTMLButtonElement>(null)
   const [isDensityMenuOpen, setIsDensityMenuOpen] = React.useState(false)
   const densityMenuRef = React.useRef<HTMLButtonElement>(null)
 
@@ -89,52 +101,108 @@ export function BottomPanelCuratorToolbar({
 
   React.useEffect(() => {
     setIsAddMenuOpen(false)
-    setIsScopeMenuOpen(false)
     setIsDensityMenuOpen(false)
   }, [resetToken])
 
-  return (
-    <div className={`flex h-[48px] items-center border-b ${UI_THEME_TOKENS.panel.divider} px-2 py-2 gap-2`}>
-      <button
-        ref={addMenuRef}
-        type="button"
-        className={graphDataTableToolbarButtonClassName(false)}
-        onClick={() => setIsAddMenuOpen(value => !value)}
-      >
-        <Plus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-        Add record
-        <ChevronDown className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-      </button>
-      {isAddMenuOpen && (
-        <DropdownPanel anchorRef={addMenuRef} open={isAddMenuOpen} onClose={() => setIsAddMenuOpen(false)} align="bottom-left">
-          <div className="p-1 flex flex-col gap-1 w-40">
-            <button
-              type="button"
-              className={graphDataTableToolbarButtonClassName(false)}
-              onClick={() => {
-                setIsAddMenuOpen(false)
-                onAddNode()
-              }}
-            >
-              Add Node
-            </button>
-            <button
-              type="button"
-              className={graphDataTableToolbarButtonClassName(false)}
-              onClick={() => {
-                setIsAddMenuOpen(false)
-                onAddEdge()
-              }}
-              disabled={nodesCount < 2}
-            >
-              Add Edge
-            </button>
-          </div>
-        </DropdownPanel>
-      )}
+  const scopeOptions = React.useMemo(
+    () =>
+      [
+        { value: 'all' as const, label: 'All' },
+        { value: 'nodes' as const, label: 'Nodes' },
+        { value: 'edges' as const, label: 'Edges' },
+      ] satisfies Array<{ value: GraphDataTableScope; label: string }>,
+    [],
+  )
 
-      <div className="flex flex-1 items-center justify-between">
-        <div className="flex items-center gap-1">
+  const viewModeOptions = React.useMemo(
+    () =>
+      [
+        { value: 'allRows' as const, label: 'All rows' },
+        { value: 'selectionNeighborhood' as const, label: 'Selection view' },
+        { value: 'traversalSequence' as const, label: 'Traversal view' },
+      ] satisfies Array<{ value: BottomPanelCuratorToolbarProps['viewMode']; label: string }>,
+    [],
+  )
+
+  const hasTraversalEdges =
+    !!lastTraversalSummary && Array.isArray(lastTraversalSummary.edgeIds) && lastTraversalSummary.edgeIds.length > 0
+
+  const setViewModeSafe = React.useCallback(
+    (next: BottomPanelCuratorToolbarProps['viewMode']) => {
+      if (next === 'selectionNeighborhood') {
+        if (!selectedNodeId && !selectedEdgeId) return
+        setGraphDataTableScope('all')
+        setViewMode('selectionNeighborhood')
+        return
+      }
+      if (next === 'traversalSequence') {
+        if (!hasTraversalEdges) return
+        setGraphDataTableScope('all')
+        setViewMode('traversalSequence')
+        return
+      }
+      setViewMode('allRows')
+    },
+    [hasTraversalEdges, selectedEdgeId, selectedNodeId, setGraphDataTableScope, setViewMode],
+  )
+
+  return (
+    <WorkspaceHeader ariaLabel="Graph Data Table header" border="divider" className="px-2">
+      <WorkspaceHeaderRow ariaLabel="Graph Data Table controls" className="px-0 py-2 gap-2 flex-wrap">
+        <section className="flex items-center gap-2 min-w-0" aria-label="Graph Data Table title and add">
+          <h2 className={`text-sm font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>{UI_LABELS.graphDataTable}</h2>
+
+          <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Create">
+            <li className="list-none">
+              <button
+                ref={addMenuRef}
+                type="button"
+                className={graphDataTableToolbarButtonClassName(false)}
+                onClick={() => setIsAddMenuOpen(value => !value)}
+              >
+                <Plus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
+                Add
+                <ChevronDown className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
+              </button>
+            </li>
+          </menu>
+          {isAddMenuOpen && (
+            <DropdownPanel anchorRef={addMenuRef} open={isAddMenuOpen} onClose={() => setIsAddMenuOpen(false)} align="bottom-left">
+              <menu className={`p-1 flex flex-col gap-1 w-40 list-none m-0 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md`}>
+                <li className="list-none">
+                  <button
+                    type="button"
+                    className={graphDataTableToolbarButtonClassName(false)}
+                    onClick={() => {
+                      setIsAddMenuOpen(false)
+                      onAddNode()
+                    }}
+                  >
+                    Add Node
+                  </button>
+                </li>
+                <li className="list-none">
+                  <button
+                    type="button"
+                    className={graphDataTableToolbarButtonClassName(false)}
+                    onClick={() => {
+                      setIsAddMenuOpen(false)
+                      onAddEdge()
+                    }}
+                    disabled={nodesCount < 2}
+                  >
+                    Add Edge
+                  </button>
+                </li>
+              </menu>
+            </DropdownPanel>
+          )}
+        </section>
+
+        <nav
+          className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto"
+          aria-label="Graph Data Table toolbar"
+        >
           <button
             ref={fieldsMenuRef}
             type="button"
@@ -155,7 +223,9 @@ export function BottomPanelCuratorToolbar({
           >
             <SlidersHorizontal className={iconSizeClass} strokeWidth={uiIconStrokeWidth} /> {UI_LABELS.graphFields}
             {hiddenColumnCount > 0 && (
-              <span className={`${uiPanelKeyValueTextSizeClass} text-gray-500 ml-1`}>({hiddenColumnCount} hidden)</span>
+              <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} ml-1`}>
+                ({hiddenColumnCount} hidden)
+              </span>
             )}
           </button>
           <button
@@ -188,59 +258,30 @@ export function BottomPanelCuratorToolbar({
           >
             <Group className={iconSizeClass} strokeWidth={uiIconStrokeWidth} /> Group
           </button>
-          <button
-            ref={scopeMenuRef}
-            type="button"
-            className={`${graphDataTableToolbarButtonClassName(isScopeMenuOpen)} ${
-              isScopeMenuOpen ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS : ''
-            }`}
-            onClick={() => setIsScopeMenuOpen(value => !value)}
-          >
-            {graphDataTableScope === 'all' ? 'All' : graphDataTableScope === 'nodes' ? 'Nodes' : 'Edges'}{' '}
-            <ChevronDown className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-          </button>
-          {isScopeMenuOpen && (
-            <DropdownPanel anchorRef={scopeMenuRef} open={isScopeMenuOpen} onClose={() => setIsScopeMenuOpen(false)} align="bottom-left">
-              <div className="p-1 flex flex-col gap-1 w-32">
-                <button
-                  type="button"
-                  className={`${graphDataTableToolbarButtonClassName(graphDataTableScope === 'all')} ${
-                    graphDataTableScope === 'all' ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS : ''
-                  }`}
-                  onClick={() => {
-                    setGraphDataTableScope('all')
-                    setIsScopeMenuOpen(false)
-                  }}
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  className={`${graphDataTableToolbarButtonClassName(graphDataTableScope === 'nodes')} ${
-                    graphDataTableScope === 'nodes' ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS : ''
-                  }`}
-                  onClick={() => {
-                    setGraphDataTableScope('nodes')
-                    setIsScopeMenuOpen(false)
-                  }}
-                >
-                  Nodes
-                </button>
-                <button
-                  type="button"
-                  className={`${graphDataTableToolbarButtonClassName(graphDataTableScope === 'edges')} ${
-                    graphDataTableScope === 'edges' ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS : ''
-                  }`}
-                  onClick={() => {
-                    setGraphDataTableScope('edges')
-                    setIsScopeMenuOpen(false)
-                  }}
-                >
-                  Edges
-                </button>
-              </div>
-            </DropdownPanel>
+
+          <WorkspaceModeSelect<GraphDataTableScope>
+            ariaLabel="Graph Data Table scope"
+            value={graphDataTableScope}
+            options={scopeOptions}
+            onChange={setGraphDataTableScope}
+          />
+
+          <WorkspaceModeSelect<BottomPanelCuratorToolbarProps['viewMode']>
+            ariaLabel="Graph Data Table view"
+            value={viewMode}
+            isActive={viewMode !== 'allRows'}
+            options={viewModeOptions}
+            onChange={setViewModeSafe}
+          />
+
+          {viewMode === 'traversalSequence' && hasTraversalEdges && (
+            <output className={`ml-1 px-2 py-0.5 rounded-full ${uiPrimaryChipActiveClassName} ${uiPanelMonospaceTextClass}`}>
+              {(lastTraversalSummary?.edgeIds?.length ?? 0).toLocaleString()} edges
+            </output>
           )}
+
+          <span className={`mx-2 h-5 w-px ${UI_THEME_TOKENS.panel.divider}`} aria-hidden="true" />
+
           <div className="relative">
             <button
               ref={densityMenuRef}
@@ -249,9 +290,9 @@ export function BottomPanelCuratorToolbar({
                 isDensityMenuOpen ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS : ''
               }`}
               onClick={() => setIsDensityMenuOpen(value => !value)}
-          >
+            >
               <BarChart3 className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-              Table view
+              View
               <ChevronDown className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
             </button>
             {isDensityMenuOpen && (
@@ -261,10 +302,8 @@ export function BottomPanelCuratorToolbar({
                 onClose={() => setIsDensityMenuOpen(false)}
                 align="bottom-left"
               >
-                <div className="flex flex-col gap-2 w-48 p-3 text-xs">
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium text-gray-800">Table view</div>
-                  </div>
+                <section className={`flex flex-col gap-2 w-56 p-3 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`} aria-label="View settings">
+                  <div className={`font-medium ${UI_THEME_TOKENS.text.secondary}`}>Row density</div>
                   <div className="flex flex-col gap-1">
                     <button
                       type="button"
@@ -276,7 +315,7 @@ export function BottomPanelCuratorToolbar({
                         setIsDensityMenuOpen(false)
                       }}
                     >
-                      Compact rows
+                      Compact
                     </button>
                     <button
                       type="button"
@@ -288,151 +327,85 @@ export function BottomPanelCuratorToolbar({
                         setIsDensityMenuOpen(false)
                       }}
                     >
-                      Expanded rows
+                      Expanded
                     </button>
-                    <div className="h-px my-2 bg-gray-200" />
-                    <div className="flex flex-col gap-1">
-                      <div className="font-medium text-gray-800">{UI_COPY.graphDataTableAggregateChartsTitle}</div>
-                      <button
-                        type="button"
-                        className={`${graphDataTableToolbarButtonClassName(
-                          aggregateDefaultVizMode === 'none',
-                        )} ${
-                          aggregateDefaultVizMode === 'none'
-                            ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS
-                            : ''
-                        }`}
-                        onClick={() => {
-                          setAggregateDefaultVizMode('none')
-                          setIsDensityMenuOpen(false)
-                        }}
-                      >
-                        {UI_COPY.graphDataTableAggregateChartsStartOff}
-                      </button>
-                      <button
-                        type="button"
-                        className={`${graphDataTableToolbarButtonClassName(
-                          aggregateDefaultVizMode === 'radial',
-                        )} ${
-                          aggregateDefaultVizMode === 'radial'
-                            ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS
-                            : ''
-                        }`}
-                        onClick={() => {
-                          setAggregateDefaultVizMode('radial')
-                          setIsDensityMenuOpen(false)
-                        }}
-                      >
-                        {UI_COPY.graphDataTableAggregateChartsStartRadial}
-                      </button>
-                      <button
-                        type="button"
-                        className={`${graphDataTableToolbarButtonClassName(
-                          aggregateDefaultVizMode === 'bars',
-                        )} ${
-                          aggregateDefaultVizMode === 'bars'
-                            ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS
-                            : ''
-                        }`}
-                        onClick={() => {
-                          setAggregateDefaultVizMode('bars')
-                          setIsDensityMenuOpen(false)
-                        }}
-                      >
-                        {UI_COPY.graphDataTableAggregateChartsStartBars}
-                      </button>
-                      <button
-                        type="button"
-                        className={`${graphDataTableToolbarButtonClassName(
-                          aggregateDefaultVizMode === 'sparkline',
-                        )} ${
-                          aggregateDefaultVizMode === 'sparkline'
-                            ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS
-                            : ''
-                        }`}
-                        onClick={() => {
-                          setAggregateDefaultVizMode('sparkline')
-                          setIsDensityMenuOpen(false)
-                        }}
-                      >
-                        {UI_COPY.graphDataTableAggregateChartsStartSparkline}
-                      </button>
-                    </div>
-                    <div className="h-px my-2 bg-gray-200" />
+                  </div>
+
+                  <hr className={`my-1 border-0 h-px ${UI_THEME_TOKENS.panel.divider}`} />
+
+                  <div className={`font-medium ${UI_THEME_TOKENS.text.secondary}`}>{UI_COPY.graphDataTableAggregateChartsTitle}</div>
+                  <div className="flex flex-col gap-1">
                     <button
                       type="button"
-                      className={`${graphDataTableToolbarButtonClassName(isAutoScrollDisabled)} ${
-                        isAutoScrollDisabled ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS : ''
+                      className={`${graphDataTableToolbarButtonClassName(aggregateDefaultVizMode === 'none')} ${
+                        aggregateDefaultVizMode === 'none' ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS : ''
                       }`}
                       onClick={() => {
-                        setIsAutoScrollDisabled(!isAutoScrollDisabled)
+                        setAggregateDefaultVizMode('none')
                         setIsDensityMenuOpen(false)
                       }}
                     >
-                      {isAutoScrollDisabled ? 'Enable auto-scroll' : 'Disable auto-scroll'}
+                      {UI_COPY.graphDataTableAggregateChartsStartOff}
+                    </button>
+                    <button
+                      type="button"
+                      className={`${graphDataTableToolbarButtonClassName(aggregateDefaultVizMode === 'radial')} ${
+                        aggregateDefaultVizMode === 'radial' ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS : ''
+                      }`}
+                      onClick={() => {
+                        setAggregateDefaultVizMode('radial')
+                        setIsDensityMenuOpen(false)
+                      }}
+                    >
+                      {UI_COPY.graphDataTableAggregateChartsStartRadial}
+                    </button>
+                    <button
+                      type="button"
+                      className={`${graphDataTableToolbarButtonClassName(aggregateDefaultVizMode === 'bars')} ${
+                        aggregateDefaultVizMode === 'bars' ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS : ''
+                      }`}
+                      onClick={() => {
+                        setAggregateDefaultVizMode('bars')
+                        setIsDensityMenuOpen(false)
+                      }}
+                    >
+                      {UI_COPY.graphDataTableAggregateChartsStartBars}
+                    </button>
+                    <button
+                      type="button"
+                      className={`${graphDataTableToolbarButtonClassName(aggregateDefaultVizMode === 'sparkline')} ${
+                        aggregateDefaultVizMode === 'sparkline' ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS : ''
+                      }`}
+                      onClick={() => {
+                        setAggregateDefaultVizMode('sparkline')
+                        setIsDensityMenuOpen(false)
+                      }}
+                    >
+                      {UI_COPY.graphDataTableAggregateChartsStartSparkline}
                     </button>
                   </div>
-                </div>
+
+                  <hr className={`my-1 border-0 h-px ${UI_THEME_TOKENS.panel.divider}`} />
+
+                  <button
+                    type="button"
+                    className={`${graphDataTableToolbarButtonClassName(isAutoScrollDisabled)} ${
+                      isAutoScrollDisabled ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS : ''
+                    }`}
+                    onClick={() => {
+                      setIsAutoScrollDisabled(!isAutoScrollDisabled)
+                      setIsDensityMenuOpen(false)
+                    }}
+                  >
+                    {isAutoScrollDisabled ? 'Enable auto-scroll' : 'Disable auto-scroll'}
+                  </button>
+                </section>
               </DropdownPanel>
             )}
           </div>
-          <button
-            type="button"
-            className={`${graphDataTableToolbarButtonClassName(viewMode === 'selectionNeighborhood')} ${
-              viewMode === 'selectionNeighborhood' ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS : ''
-            }`}
-            onClick={() => {
-              if (!selectedNodeId && !selectedEdgeId) return
-              if (viewMode === 'selectionNeighborhood') {
-                setViewMode('allRows')
-              } else {
-                setGraphDataTableScope('all')
-                setViewMode('selectionNeighborhood')
-              }
-            }}
-            disabled={!selectedNodeId && !selectedEdgeId}
-          >
-            <Focus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-            Selection view
-          </button>
-          <button
-            type="button"
-            className={`${graphDataTableToolbarButtonClassName(viewMode === 'traversalSequence')} ${
-              viewMode === 'traversalSequence' ? GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS : ''
-            }`}
-            onClick={() => {
-              const hasTraversalEdges =
-                !!lastTraversalSummary && Array.isArray(lastTraversalSummary.edgeIds) && lastTraversalSummary.edgeIds.length > 0
-              if (!hasTraversalEdges) return
-              if (viewMode === 'traversalSequence') {
-                setViewMode('allRows')
-              } else {
-                setGraphDataTableScope('all')
-                setViewMode('traversalSequence')
-              }
-            }}
-            disabled={
-              !lastTraversalSummary ||
-              !Array.isArray(lastTraversalSummary.edgeIds) ||
-              lastTraversalSummary.edgeIds.length === 0
-            }
-          >
-            <Focus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-            Traversal view
-          </button>
-          {viewMode === 'traversalSequence' &&
-            lastTraversalSummary &&
-            Array.isArray(lastTraversalSummary.edgeIds) &&
-            lastTraversalSummary.edgeIds.length > 0 && (
-              <span
-                className={`ml-1 px-2 py-0.5 rounded-full ${uiPrimaryChipActiveClassName} ${uiPanelMonospaceTextClass}`}
-              >
-                {lastTraversalSummary.edgeIds.length.toLocaleString()} edges
-              </span>
-            )}
-        </div>
+        </nav>
 
-        <div className="flex items-center gap-1">
+        <nav className="flex items-center gap-1" aria-label="Graph Data Table actions">
           <button
             type="button"
             className={graphDataTableToolbarButtonClassName(false)}
@@ -446,8 +419,8 @@ export function BottomPanelCuratorToolbar({
             <Eraser className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
             Delete
           </button>
-        </div>
-      </div>
-    </div>
+        </nav>
+      </WorkspaceHeaderRow>
+    </WorkspaceHeader>
   )
 }

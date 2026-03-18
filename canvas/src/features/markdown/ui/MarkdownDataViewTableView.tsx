@@ -9,9 +9,11 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import { DataViewTagChip } from './MarkdownDataViewChips'
 import { MarkdownDataViewMultiTagSelect } from './MarkdownDataViewMultiTagSelect'
+import { MarkdownDataViewSingleSelect } from './MarkdownDataViewSingleSelect'
 import { MarkdownDataViewColumnTypeMenu } from './MarkdownDataViewColumnTypeMenu'
 import { iconByColumnType } from './markdownDataViewColumnTypeMenuIcons'
 import { MarkdownDataViewAddColumnMenu } from './MarkdownDataViewAddColumnMenu'
+import { ColumnHeaderPropertyTypeMenu } from '@/components/ui/ColumnHeaderPropertyTypeMenu'
 import {
   Type,
   ChevronDown,
@@ -95,8 +97,12 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
     const out = new Map<number, string[]>()
     for (let i = 0; i < view.columns.length; i += 1) {
       const c = view.columns[i]
-      if (c.kind !== 'select') continue
-      const base = Array.isArray(c.options) ? c.options.map(x => String(x || '').trim()).filter(Boolean) : []
+      const uiType = (columnTypesById && columnTypesById[c.id]) || defaultColumnTypeForInferredKind(c.kind)
+      const baseKind = columnTypeToBaseKind(uiType)
+      if (baseKind !== 'select' || uiType === 'checkbox') continue
+      const base = c.kind === 'select' && Array.isArray(c.options)
+        ? c.options.map(x => String(x || '').trim()).filter(Boolean)
+        : []
       if (base.length) {
         out.set(i, base)
         continue
@@ -111,14 +117,18 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
       out.set(i, Array.from(set))
     }
     return out
-  }, [view.columns, view.rows])
+  }, [columnTypesById, view.columns, view.rows])
 
   const multiOptionsByColumnIndex = React.useMemo(() => {
     const out = new Map<number, string[]>()
     for (let i = 0; i < view.columns.length; i += 1) {
       const c = view.columns[i]
-      if (c.kind !== 'multi-select') continue
-      const base = Array.isArray(c.options) ? c.options.map(x => String(x || '').trim()).filter(Boolean) : []
+      const uiType = (columnTypesById && columnTypesById[c.id]) || defaultColumnTypeForInferredKind(c.kind)
+      const baseKind = columnTypeToBaseKind(uiType)
+      if (baseKind !== 'multi-select') continue
+      const base = c.kind === 'multi-select' && Array.isArray(c.options)
+        ? c.options.map(x => String(x || '').trim()).filter(Boolean)
+        : []
       if (base.length) {
         out.set(i, splitMultiValues(base.join(',')))
         continue
@@ -139,7 +149,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
       out.set(i, list)
     }
     return out
-  }, [view.columns, view.rows])
+  }, [columnTypesById, view.columns, view.rows])
 
 
   return (
@@ -150,29 +160,34 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
             {visibleColumnMeta.map(({ col: c }) => {
               const type = (columnTypesById && columnTypesById[c.id]) || defaultColumnTypeForInferredKind(c.kind)
               const Icon = iconByColumnType[type] || Type
+              const allowTypeEdit = Boolean(canMutate && props.onChangeColumnType)
               return (
               <th
                 key={c.id}
                 className={`px-3 py-2 text-left font-semibold border-b ${UI_THEME_TOKENS.table.cellBorder} sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <Icon className={['w-3 h-3 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-                  {props.onChangeColumnType && canMutate ? (
-                    <details className="relative min-w-0">
-                      <summary className={['list-none cursor-pointer flex items-center gap-1 min-w-0', UI_THEME_TOKENS.button.hoverBg].join(' ')}>
-                        <span className="truncate">{c.name}</span>
-                        <ChevronDown className={['w-3 h-3 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-                      </summary>
-                        <MarkdownDataViewColumnTypeMenu
-                          ariaLabel={`Column type: ${c.name}`}
-                          value={type}
-                          className="absolute left-0 mt-2 w-[240px]"
-                          onSelect={(next) => props.onChangeColumnType?.({ columnId: c.id, nextType: next })}
-                        />
-                    </details>
-                  ) : (
-                    <span className="truncate">{c.name}</span>
-                  )}
+                  <ColumnHeaderPropertyTypeMenu
+                    ariaLabel={`Column type: ${c.name}`}
+                    label={c.name}
+                    Icon={Icon}
+                    portal
+                    portalPlacement="bottom-start"
+                    toggleTargets="icon+chevron"
+                    menu={({ close }) => (
+                      <MarkdownDataViewColumnTypeMenu
+                        ariaLabel={`Column type: ${c.name}`}
+                        value={type}
+                        close={close}
+                        disabled={!allowTypeEdit}
+                        className="w-[240px]"
+                        onSelect={(next) => {
+                          if (!allowTypeEdit) return
+                          props.onChangeColumnType?.({ columnId: c.id, nextType: next })
+                        }}
+                      />
+                    )}
+                  />
                 </div>
               </th>
               )
@@ -235,23 +250,20 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                           />
                           <span className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>{isTruthy(value) ? 'Checked' : 'Unchecked'}</span>
                         </label>
-                      ) : isSelect && derivedOptions.length ? (
-                        <select
-                          className={['w-full text-xs px-2 py-1 rounded border', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border].join(' ')}
+                      ) : isSelect ? (
+                        <MarkdownDataViewSingleSelect
+                          autoFocus
+                          canCreate
                           value={draft}
-                          onChange={e => {
-                            setDraft(e.target.value)
-                            onUpdateCell({ rowId: r.id, columnId: c.id, nextValue: e.target.value })
+                          options={derivedOptions}
+                          onChange={(next) => {
+                            setDraft(next)
+                            onUpdateCell({ rowId: r.id, columnId: c.id, nextValue: next })
+                          }}
+                          onRequestClose={() => {
                             setEditing(null)
                           }}
-                        >
-                          <option value=""></option>
-                          {derivedOptions.map(o => (
-                            <option key={o} value={o}>
-                              {o}
-                            </option>
-                          ))}
-                        </select>
+                        />
                       ) : isMulti ? (
                         <MarkdownDataViewMultiTagSelect
                           autoFocus

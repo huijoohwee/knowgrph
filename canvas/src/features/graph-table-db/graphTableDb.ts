@@ -614,6 +614,23 @@ export const updateGraphTableCell = async (
   })
 }
 
+export const updateGraphTableColumnKind = async (
+  tableId: GraphTableId,
+  columnId: string,
+  nextKind: GraphColumnKind,
+): Promise<void> => {
+  await withGraphTableDbWrite(async () => {
+    const { collections } = await getGraphTableDb()
+    const pk = pkOfColumn(tableId, columnId)
+    const doc = await collections.columns.findOne(pk).exec()
+    if (!doc) return
+    const prev = doc.get('kind') as unknown
+    const prevKind = String(prev || '') as GraphColumnKind
+    if (prevKind === nextKind) return
+    await doc.incrementalPatch({ kind: nextKind, updatedAtMs: Date.now() })
+  })
+}
+
 export const allocateNewRowId = async (tableId: GraphTableId): Promise<string> => {
   return withGraphTableDbWrite(async () => {
     const { collections } = await getGraphTableDb()
