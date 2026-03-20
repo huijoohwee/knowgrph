@@ -50,7 +50,6 @@ export async function testMarkdownWorkspaceExplorerTocShowsHeadingNumbers() {
         onCreateNewFile: () => void 0,
         onCreateNewFolder: () => void 0,
         onRefresh: () => void 0,
-        statusLabel: null,
         activeEntryName: '',
         activeEntryKind: '',
         canClearActiveSelection: false,

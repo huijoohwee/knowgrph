@@ -31,7 +31,7 @@ function ToastCard({ toast, onDismiss }: { toast: UiToast; onDismiss: (id: strin
   const message = sanitizeMessageText(toast.message, { maxLines: 4 })
   if (!message) return null
   return (
-    <div
+    <aside
       className={cn(
         'pointer-events-auto flex-none w-[520px] max-w-[calc(100vw-24px)]',
         'rounded border shadow-sm',
@@ -39,6 +39,7 @@ function ToastCard({ toast, onDismiss }: { toast: UiToast; onDismiss: (id: strin
         UI_THEME_TOKENS.panel.border,
         getKindClasses(toast.kind),
       )}
+      role={toast.kind === 'error' ? 'alert' : 'status'}
     >
       <div className="flex items-start gap-2 px-3 py-2">
         <Icon className="w-4 h-4 mt-[1px] flex-shrink-0" strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
@@ -59,7 +60,7 @@ function ToastCard({ toast, onDismiss }: { toast: UiToast; onDismiss: (id: strin
           </button>
         ) : null}
       </div>
-    </div>
+    </aside>
   )
 }
 
@@ -92,22 +93,25 @@ export function ToastHost() {
   if (!orderedToasts || orderedToasts.length === 0) return null
 
   return createPortal(
-    <div
+    <section
       className="fixed pointer-events-none"
       style={{
         top: TOAST_TOP_PX,
         right: 12,
         zIndex: Z_INDEX_TOAST,
       }}
+      aria-label="Notifications"
       aria-live="polite"
       aria-relevant="additions removals"
     >
-      <div className="flex flex-col gap-2 items-end" style={{ width: 520, maxWidth: 'calc(100vw - 24px)' }}>
+      <ol className="flex flex-col gap-2 items-end" style={{ width: 520, maxWidth: 'calc(100vw - 24px)' }} aria-label="Toast list">
         {orderedToasts.map(t => (
-          <ToastCard key={t.id} toast={t} onDismiss={dismissUiToast} />
+          <li key={t.id} className="list-none">
+            <ToastCard toast={t} onDismiss={dismissUiToast} />
+          </li>
         ))}
-      </div>
-    </div>,
+      </ol>
+    </section>,
     document.body,
   )
 }

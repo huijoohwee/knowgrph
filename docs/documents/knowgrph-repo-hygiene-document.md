@@ -21,7 +21,6 @@ Apply the same “no large local artifacts in git history” rule to these repos
 
 - `/GitHub/knowgrph`
 - `/GitHub/curagrph`
-- `/GitHub/gympgrph`
 - `/GitHub/chatgrph`
 - `/GitHub/sandbox`
 

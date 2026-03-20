@@ -16,6 +16,7 @@ function listFilesRecursively(dir: string, opts?: { ignoreDirNames?: Set<string>
 }
 
 const SRC_DIR = resolve(process.cwd(), 'src')
+const KNOWGRPH_ROOT = resolve(process.cwd(), '..')
 
 export function testForbidSiblingRepoSourceImports() {
   const files = listFilesRecursively(SRC_DIR).filter(f => /\.(ts|tsx)$/.test(f))
@@ -133,13 +134,12 @@ export function testForbidMagicLocalStorageKeysOutsideCentralConstants() {
 
 export function testForbidEditorJsDependencies() {
   const ignoreDirNames = new Set(['node_modules', 'dist', 'build', 'coverage', '.git'])
-  const repoRoot = resolve(process.cwd(), '..', '..', '..')
   const repoSrcDirs = [
     SRC_DIR,
-    resolve(repoRoot, 'gympgrph', 'src'),
+    resolve(KNOWGRPH_ROOT, 'gympgrph', 'src'),
   ]
   const pkgJsonPaths = [
-    resolve(repoRoot, 'gympgrph', 'package.json'),
+    resolve(KNOWGRPH_ROOT, 'gympgrph', 'package.json'),
   ]
 
   const files = repoSrcDirs
@@ -202,14 +202,13 @@ export function testForbidEditorJsDependencies() {
 
 export function testForbidReactFlowAndLiteGraphDependencies() {
   const ignoreDirNames = new Set(['node_modules', 'dist', 'build', 'coverage', '.git'])
-  const repoRoot = resolve(process.cwd(), '..', '..', '..')
   const repoSrcDirs = [
     SRC_DIR,
-    resolve(repoRoot, 'gympgrph', 'src'),
+    resolve(KNOWGRPH_ROOT, 'gympgrph', 'src'),
   ]
   const pkgJsonPaths = [
-    resolve(repoRoot, 'knowgrph', 'canvas', 'package.json'),
-    resolve(repoRoot, 'gympgrph', 'package.json'),
+    resolve(KNOWGRPH_ROOT, 'canvas', 'package.json'),
+    resolve(KNOWGRPH_ROOT, 'gympgrph', 'package.json'),
   ]
 
   const files = repoSrcDirs
@@ -272,11 +271,10 @@ export function testForbidReactFlowAndLiteGraphDependencies() {
 
 export function testForbidHardcodedSandboxAbsolutePaths() {
   const ignoreDirNames = new Set(['node_modules', 'dist', 'build', 'coverage', '.git', '.trae'])
-  const repoRoot = resolve(process.cwd(), '..', '..', '..')
   const repoSrcDirs = [
     SRC_DIR,
-    resolve(repoRoot, 'gympgrph', 'src'),
-    resolve(repoRoot, 'grph-shared', 'src'),
+    resolve(KNOWGRPH_ROOT, 'gympgrph', 'src'),
+    resolve(KNOWGRPH_ROOT, 'grph-shared', 'src'),
   ]
   const files = repoSrcDirs
     .flatMap(dir => {

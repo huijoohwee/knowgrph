@@ -13,6 +13,19 @@ import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
 import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
 import { setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import type { StatusHelpers, UseWorkspaceFileActionsArgs } from './types'
+import type { MarkdownWorkspaceStatus } from '../markdownWorkspaceTypes'
+import { formatMarkdownWorkspaceStatusLabel } from '../markdownWorkspaceStatusUi'
+
+const DEFAULT_WORKSPACE_STATUS_TOAST_ID = 'markdown-workspace-status'
+
+const lastToastSigById = new Map<string, string>()
+
+const shouldSkipToast = (id: string, sig: string): boolean => {
+  const prev = lastToastSigById.get(id)
+  if (prev === sig) return true
+  lastToastSigById.set(id, sig)
+  return false
+}
 
 export function shouldForceDocumentSemanticModeForImport(nameForParse: string): boolean {
   const lower = String(nameForParse || '').trim().toLowerCase()
@@ -28,7 +41,9 @@ export function shouldForceDocumentSemanticModeForImport(nameForParse: string): 
   )
 }
 
-export function useWorkspaceStatusHelpers(setStatusLabel: UseWorkspaceFileActionsArgs['setStatusLabel']): StatusHelpers {
+export function useWorkspaceStatusHelpers(opts?: { toastId?: string }): StatusHelpers {
+  const toastId = String(opts?.toastId || DEFAULT_WORKSPACE_STATUS_TOAST_ID).trim() || DEFAULT_WORKSPACE_STATUS_TOAST_ID
+
   const buildWebpageImportStageLabel = React.useCallback((pctRaw: number): string => {
     const pct = Math.max(0, Math.min(100, Math.floor(Number.isFinite(pctRaw) ? pctRaw : 0)))
     if (pct < 20) return 'Fetching webpage HTML'
@@ -37,22 +52,53 @@ export function useWorkspaceStatusHelpers(setStatusLabel: UseWorkspaceFileAction
     return 'Finalizing webpage document'
   }, [])
 
+  const emitToast = React.useCallback(
+    (args: { kind: 'neutral' | 'success' | 'warning' | 'error'; message: string; ttlMs?: number | null; dismissible?: boolean; log?: boolean }) => {
+      const message = String(args.message || '').trim()
+      if (!message) return
+      const kind = args.kind
+      const ttlMs = typeof args.ttlMs === 'undefined' ? 1400 : args.ttlMs
+      const dismissible = typeof args.dismissible === 'boolean' ? args.dismissible : kind === 'error'
+      const sig = `${kind}|${ttlMs ?? 'null'}|${dismissible ? '1' : '0'}|${message}`
+      if (shouldSkipToast(toastId, sig)) return
+      try {
+        useGraphStore.getState().upsertUiToast({
+          id: toastId,
+          kind,
+          message,
+          ttlMs,
+          dismissible,
+          log: args.log === true,
+        })
+      } catch {
+        void 0
+      }
+    },
+    [toastId],
+  )
+
   const setStatusInfo = React.useCallback(
-    (label: string) => {
+    (label: string, statusOpts?: { ttlMs?: number | null }) => {
       const msg = String(label || '').trim()
       if (!msg) return
-      setStatusLabel({ kind: 'info', label: msg })
+      emitToast({ kind: 'neutral', message: msg, ttlMs: statusOpts?.ttlMs })
     },
-    [setStatusLabel],
+    [emitToast],
   )
 
   const setStatusError = React.useCallback(
-    (label: string) => {
+    (label: string, statusOpts?: { ttlMs?: number | null; dismissible?: boolean }) => {
       const msg = String(label || '').trim()
       if (!msg) return
-      setStatusLabel({ kind: 'error', label: msg })
+      emitToast({
+        kind: 'error',
+        message: msg,
+        ttlMs: typeof statusOpts?.ttlMs === 'undefined' ? null : statusOpts.ttlMs,
+        dismissible: typeof statusOpts?.dismissible === 'boolean' ? statusOpts.dismissible : true,
+        log: true,
+      })
     },
-    [setStatusLabel],
+    [emitToast],
   )
 
   const setStatusProgress = React.useCallback(
@@ -62,22 +108,38 @@ export function useWorkspaceStatusHelpers(setStatusLabel: UseWorkspaceFileAction
       total?: number | null,
       bytesCurrent?: number | null,
       bytesTotal?: number | null,
+      statusOpts?: { ttlMs?: number | null },
     ) => {
       const msg = String(label || '').trim()
       if (!msg) return
-      setStatusLabel({
+      const status: MarkdownWorkspaceStatus = {
         kind: 'progress',
         label: msg,
         current: typeof current === 'number' ? current : null,
         total: typeof total === 'number' ? total : null,
         bytesCurrent: typeof bytesCurrent === 'number' ? bytesCurrent : null,
         bytesTotal: typeof bytesTotal === 'number' ? bytesTotal : null,
+      }
+      emitToast({
+        kind: 'neutral',
+        message: formatMarkdownWorkspaceStatusLabel(status),
+        ttlMs: typeof statusOpts?.ttlMs === 'undefined' ? null : statusOpts.ttlMs,
+        dismissible: false,
       })
     },
-    [setStatusLabel],
+    [emitToast],
   )
 
-  return { setStatusInfo, setStatusError, setStatusProgress, buildWebpageImportStageLabel }
+  const clearStatus = React.useCallback(() => {
+    try {
+      useGraphStore.getState().dismissUiToast(toastId)
+    } catch {
+      void 0
+    }
+    lastToastSigById.delete(toastId)
+  }, [toastId])
+
+  return { setStatusInfo, setStatusError, setStatusProgress, clearStatus, buildWebpageImportStageLabel }
 }
 
 export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): {
@@ -101,7 +163,7 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
   } = args
 
   const importJobRef = React.useRef(0)
-  const status = useWorkspaceStatusHelpers(args.setStatusLabel)
+  const status = useWorkspaceStatusHelpers()
 
   const applyImportedTextToGraph = React.useCallback(
     async (inner: { nameForParse: string; text: string }) => {

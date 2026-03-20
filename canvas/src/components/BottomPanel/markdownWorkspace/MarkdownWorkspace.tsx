@@ -30,7 +30,7 @@ import { MarkdownWorkspaceMain } from './MarkdownWorkspaceMain'
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import { SIDEBAR_MAX_PX, SIDEBAR_MIN_PX, isMarkdownPath, languageForPath } from './markdownWorkspaceUtils'
 import { loadWorkspaceSourceIndex, setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
-import { useWorkspaceFileActions } from './useWorkspaceFileActions'
+import { useWorkspaceFileActions, useWorkspaceStatusHelpers } from './useWorkspaceFileActions'
 import { useCanvasMarkdownSync } from './useCanvasMarkdownSync'
 import { useMarkdownEditorSsotSync } from './useMarkdownEditorSsotSync'
 import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
@@ -168,7 +168,7 @@ export function MarkdownWorkspace() {
   const [layoutMode, setLayoutMode] = React.useState<MarkdownWorkspaceLayoutMode>(() =>
     lsJson<MarkdownWorkspaceLayoutMode>(LS_KEYS.markdownLayoutMode, 'viewer', parseMarkdownWorkspaceLayoutMode),
   )
-  const [statusLabel, setStatusLabel] = React.useState<MarkdownWorkspaceStatus>(null)
+  const status = useWorkspaceStatusHelpers()
   const [expandedPaths, setExpandedPaths] = React.useState<Set<string>>(() => {
     const arr = lsJson(LS_KEYS.markdownExplorerSourceFilesExpandedPaths, [] as string[], parseStringArray)
     return new Set((arr || []).map(p => normalizeWorkspacePath(p)))
@@ -206,36 +206,9 @@ export function MarkdownWorkspace() {
   const activeTextRef = React.useRef('')
   activeTextRef.current = activeText
 
-  const setStatusInfo = React.useCallback((label: string) => {
-    const msg = String(label || '').trim()
-    if (!msg) return
-    setStatusLabel({ kind: 'info', label: msg })
-  }, [])
-
-  const setStatusError = React.useCallback((label: string) => {
-    const msg = String(label || '').trim()
-    if (!msg) return
-    setStatusLabel({ kind: 'error', label: msg })
-  }, [])
-
-  const setStatusProgress = React.useCallback((
-    label: string,
-    current?: number | null,
-    total?: number | null,
-    bytesCurrent?: number | null,
-    bytesTotal?: number | null,
-  ) => {
-    const msg = String(label || '').trim()
-    if (!msg) return
-    setStatusLabel({
-      kind: 'progress',
-      label: msg,
-      current: typeof current === 'number' ? current : null,
-      total: typeof total === 'number' ? total : null,
-      bytesCurrent: typeof bytesCurrent === 'number' ? bytesCurrent : null,
-      bytesTotal: typeof bytesTotal === 'number' ? bytesTotal : null,
-    })
-  }, [])
+  const setStatusInfo = status.setStatusInfo
+  const setStatusError = status.setStatusError
+  const setStatusProgress = status.setStatusProgress
   const userEditedActiveTextRef = React.useRef(false)
   const setActiveTextProgrammatic = React.useCallback((next: string) => {
     userEditedActiveTextRef.current = false
@@ -409,12 +382,12 @@ export function MarkdownWorkspace() {
     }
   }, [getFs, setStatusError, setStatusInfo, setStatusProgress])
 
-  const statusClearRef = React.useRef<number | null>(null)
-  const setStatusWithAutoClear = React.useCallback((label: string, ttlMs: number = 1400) => {
-    setStatusInfo(label)
-    if (statusClearRef.current != null) window.clearTimeout(statusClearRef.current)
-    statusClearRef.current = window.setTimeout(() => setStatusLabel(null), ttlMs)
-  }, [setStatusInfo])
+  const setStatusWithAutoClear = React.useCallback(
+    (label: string, ttlMs: number = 1400) => {
+      setStatusInfo(label, { ttlMs })
+    },
+    [setStatusInfo],
+  )
 
   const pdfWorkspaceMeta = React.useMemo(() => {
     if (!activePath) return null
@@ -1461,8 +1434,8 @@ export function MarkdownWorkspace() {
     if (activePathRef.current !== path) return
     setActiveTextProgrammatic('')
     setHighlightedLineRange(null)
-    setStatusLabel(null)
-  }, [activeEntry, activePath, setActiveTextProgrammatic])
+    status.clearStatus()
+  }, [activeEntry, activePath, setActiveTextProgrammatic, status.clearStatus])
 
   React.useEffect(() => {
     const path = activePath
@@ -1803,7 +1776,6 @@ export function MarkdownWorkspace() {
     setStatusError,
     setStatusProgress,
     setStatusWithAutoClear,
-    setStatusLabel,
     setActiveText,
     setEntries,
     sourcesByPath,
@@ -1951,7 +1923,7 @@ export function MarkdownWorkspace() {
     layoutMode,
     setLayoutMode,
     revealLineInEditor,
-    setStatusLabel,
+    setStatusError,
   })
 
   const showInViewer = React.useCallback(
@@ -2217,6 +2189,11 @@ export function MarkdownWorkspace() {
     }
   }, [activeDocumentKey, activeText, applyMarkdownDocumentToGraph, contentMode, geoDatasetIntegration, markdownDocumentName, markdownDocumentText, quickEditorEditorText, setStatusError, setStatusInfo, setStatusProgress])
 
+  const saveAndApplyActiveFileNow = React.useCallback(async () => {
+    await saveActiveFileNow()
+    await handleApply()
+  }, [handleApply, saveActiveFileNow])
+
   React.useEffect(() => {
     if (!workspaceCanvasPaneOpen) return
     const name = String(activeDocumentKey || '').trim()
@@ -2274,7 +2251,6 @@ export function MarkdownWorkspace() {
   const fileActions = useWorkspaceFileActions({
     getFs,
     refresh,
-    setStatusLabel,
     openedPath: activePath,
     selectionPath,
     selectionEntryKind: selectionEntry?.kind ?? null,
@@ -2376,7 +2352,12 @@ export function MarkdownWorkspace() {
             onCreateNewFile={() => void fileActions.createNewFile({ parentPath: createParentPath })}
             onCreateNewFolder={() => void fileActions.createNewFolder({ parentPath: createParentPath })}
             onRefresh={() => void refresh()}
-            statusLabel={statusLabel}
+            onSave={() => void saveAndApplyActiveFileNow()}
+            saveDisabled={!effectiveIsEditing || activeEntryKind !== 'file' || !String(activeDocumentKey || '').trim()}
+            onImportLocalFiles={fileActions.handleImportLocalFiles}
+            onImportLocalFolder={fileActions.handleImportLocalFolder}
+            onImportUrl={fileActions.handleImportUrl}
+            onImportWebsite={fileActions.handleImportWebsite}
             activeEntryName={selectionEntry?.name || ''}
             activeEntryKind={selectionEntry?.kind || ''}
             canClearActiveSelection={fileActions.canClearActiveSelection}
@@ -2408,11 +2389,8 @@ export function MarkdownWorkspace() {
         setMarkdownWordWrap={setMarkdownWordWrap}
         markdownTextHighlight={markdownTextHighlight}
         setMarkdownTextHighlight={setMarkdownTextHighlight}
-        statusLabel={statusLabel}
         onStatusProgress={setStatusProgress}
         onStatusWithAutoClear={(label, ttlMs) => setStatusWithAutoClear(label, ttlMs)}
-        onApply={() => void handleApply()}
-        onSave={() => void saveActiveFileNow()}
         onSaveAs={() => void saveAsActiveFileNow()}
         onToggleFullscreen={toggleFullscreen}
         presentationApiRef={presentationApiRef}
@@ -2425,10 +2403,6 @@ export function MarkdownWorkspace() {
         isEditing={effectiveIsEditing}
         isMarkdown={effectiveIsMarkdown}
         onFormatAction={handleFormatAction}
-        onImportLocalFiles={fileActions.handleImportLocalFiles}
-        onImportLocalFolder={fileActions.handleImportLocalFolder}
-        onImportUrl={fileActions.handleImportUrl}
-        onImportWebsite={fileActions.handleImportWebsite}
         webpageWorkspaceMeta={webpageWorkspaceMeta}
         onWebpageChangeView={(view) => void switchActiveWebpageWorkspaceView(view)}
         onWebpageUpdateMeta={patch => void updateActiveWebpageWorkspaceMeta(patch)}

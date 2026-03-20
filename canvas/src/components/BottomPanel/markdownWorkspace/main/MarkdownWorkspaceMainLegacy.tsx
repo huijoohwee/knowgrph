@@ -2,7 +2,7 @@ import React from 'react'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
-import type { HighlightedLineRange, MarkdownPresentationApi, MarkdownWorkspaceStatus } from '../markdownWorkspaceTypes'
+import type { HighlightedLineRange, MarkdownPresentationApi } from '../markdownWorkspaceTypes'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { splitMarkdownLines } from '@/lib/markdown'
 import { replaceMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
@@ -48,11 +48,8 @@ export type MarkdownWorkspaceMainProps = {
   markdownTextHighlight: boolean
   setMarkdownTextHighlight: (next: boolean) => void
 
-  statusLabel: MarkdownWorkspaceStatus
   onStatusProgress?: (label: string, current?: number | null, total?: number | null, bytesCurrent?: number | null, bytesTotal?: number | null) => void
   onStatusWithAutoClear?: (label: string, ttlMs?: number) => void
-  onApply: () => void
-  onSave?: () => void
   onSaveAs?: () => void
   onToggleFullscreen: () => void
   presentationApiRef: React.MutableRefObject<MarkdownPresentationApi | null>
@@ -60,10 +57,6 @@ export type MarkdownWorkspaceMainProps = {
   isEditing: boolean
   isMarkdown: boolean
   onFormatAction: (action: MarkdownFormatAction) => void
-  onImportLocalFiles: (files: FileList | null) => void
-  onImportLocalFolder: (files: FileList | null) => void
-  onImportUrl: (url: string) => void
-  onImportWebsite: (url: string) => void
 
   webpageWorkspaceMeta?: WebpageFrontmatterMeta | null
   onWebpageChangeView?: (view: WebpageViewMode) => void
@@ -124,21 +117,14 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     setMarkdownWordWrap,
     markdownTextHighlight,
     setMarkdownTextHighlight,
-    statusLabel,
     onStatusProgress,
     onStatusWithAutoClear,
-    onApply,
-    onSave,
     onSaveAs,
     onToggleFullscreen,
     presentationApiRef,
     isEditing,
     isMarkdown,
     onFormatAction,
-    onImportLocalFiles,
-    onImportLocalFolder,
-    onImportUrl,
-    onImportWebsite,
     webpageWorkspaceMeta,
     onWebpageChangeView,
     onWebpageUpdateMeta,
@@ -516,8 +502,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         viewerKind,
         setViewerKind,
         viewerMode,
-        onApply,
-        onSave,
         onSaveAs,
         onExportWorkspaceFile: handleExportWorkspaceFile,
         onExportMarkdown: handleExportMarkdown,
@@ -526,8 +510,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         onExportJson: handleExportJson,
         onExportSvg: handleExportSvg,
         onExportPdf: handleExportPdf,
-        applyStatus: statusLabel,
-        applyDisabled: !isEditing || !String(activeDocumentKey || '').trim(),
         onToggleFullscreen,
         presentationApiRef,
         contentMode,
@@ -539,10 +521,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         isEditing,
         isMarkdown,
         onFormatAction,
-        onImportLocalFiles,
-        onImportLocalFolder,
-        onImportUrl,
-        onImportWebsite,
         webpageSignalSummary,
         webpageWorkspaceMeta,
         onWebpageChangeView,

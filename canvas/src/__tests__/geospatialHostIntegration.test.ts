@@ -73,14 +73,14 @@ export const testGympgrphDefaultInteractionModeIsAlways = () => {
 }
 
 export const testHoldSpaceKeyHandlingPreventsScrollAndIgnoresInputs = () => {
-  const heldKeyPath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'features', 'geospatial', 'useHeldKey.ts')
+  const heldKeyPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useHeldKey.ts')
   const text = readUtf8(heldKeyPath)
   if (!text.includes('preventDefault')) throw new Error('Expected Space hold to preventDefault to avoid page scroll')
   if (!text.includes('closest(')) throw new Error('Expected hold-space logic to ignore input/textarea/select/contenteditable')
 }
 
 export const testHostEnableForcesAlwaysInteractionMode = () => {
-  const hostBridgePath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'hostBridge.ts')
+  const hostBridgePath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'hostBridge.ts')
   const text = readUtf8(hostBridgePath)
   if (!text.includes("s.setGeospatialInteractionMode('always')")) {
     throw new Error('Expected enabling Geospatial Mode to force interactionMode=always for immediate navigation')
@@ -90,7 +90,7 @@ export const testHostEnableForcesAlwaysInteractionMode = () => {
 export const testHostTailwindScansGympgrphClasses = () => {
   const tailwindConfigPath = path.resolve(process.cwd(), 'tailwind.config.js')
   const text = readUtf8(tailwindConfigPath)
-  if (!text.includes('../../gympgrph/src/**/*.{js,ts,jsx,tsx}')) {
+  if (!text.includes('../gympgrph/src/**/*.{js,ts,jsx,tsx}')) {
     throw new Error('Expected knowgrph host Tailwind config to scan gympgrph sources for class generation')
   }
 }
@@ -123,7 +123,7 @@ export const testGeospatialModeEventContractIsShared = () => {
     throw new Error('Toolbar must not attach raw GEOSPATIAL_MODE_CHANGED_EVENT listener (use helper)')
   }
 
-  const slicePath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
+  const slicePath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
   const sliceText = readUtf8(slicePath)
   if (!sliceText.includes("emitGeospatialModeChanged({")) {
     throw new Error('Expected gympgrph geospatialSlice to emit via emitGeospatialModeChanged helper')

@@ -41,6 +41,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { MarkdownSourceFilesPanelIntegration } from '@/features/markdown/ui/MarkdownSourceFilesPanel'
 import type { MarkdownSourceFilesIngestIntegration } from '@/features/markdown/ui/MarkdownSourceFilesIngestIntegration'
+import { CollapsibleToolbar } from '@/components/ui/CollapsibleToolbar'
 
 const MARKDOWN_TOOLBAR_GROUP_CLASSNAME = cn('flex items-center mr-1', UI_THEME_TOKENS.badge.toolbarGroup)
 const MARKDOWN_TOOLBAR_MENU_CLASSNAME = cn(MARKDOWN_TOOLBAR_GROUP_CLASSNAME, 'list-none m-0')
@@ -215,7 +216,7 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
           <Edit3 className="w-4 h-4" strokeWidth={1.5} aria-hidden="true" />
         </span>
       </span>
-      <nav className="flex items-center gap-1 flex-wrap justify-end" aria-label="Markdown Toolbar">
+      <CollapsibleToolbar className="kg-toolbar flex items-center gap-1 justify-end" ariaLabel="Markdown Toolbar">
         {sourceFilesIngestIntegration ? (
           <menu className={MARKDOWN_TOOLBAR_MENU_CLASSNAME} aria-label="Source Files ingest">
             <li className="list-none">
@@ -743,7 +744,7 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
         >
           <Maximize2 className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
         </IconButton>
-      </nav>
+      </CollapsibleToolbar>
     </section>
   )
 }

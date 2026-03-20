@@ -1,5 +1,5 @@
 import React from 'react'
-import { Check, ChevronDown, ChevronRight, FileText, Folder, FolderPlus, GripVertical, Loader2, MoreHorizontal, Plus, RefreshCcw, Search, Link2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, FileText, Folder, FolderPlus, GripVertical, MoreHorizontal, Plus, RefreshCcw, Search, Link2 } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { MarkdownExplorerSection } from '../MarkdownExplorerSection'
@@ -10,8 +10,8 @@ import { buildTocTree, type TocItem } from '@/features/markdown/ui/markdownSecti
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { computeMarkdownTocReorder } from 'grph-shared/markdown/toc'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
-import type { MarkdownWorkspaceStatus } from './markdownWorkspaceTypes'
-import { formatMarkdownWorkspaceStatusLabel } from './markdownWorkspaceStatusUi'
+import { CollapsibleToolbar } from '@/components/ui/CollapsibleToolbar'
+import { MarkdownWorkspaceExplorerHeaderActions } from './MarkdownWorkspaceExplorerHeaderActions'
 
 export type MarkdownWorkspaceExplorerProps = {
   uiPanelTextFontClass: string
@@ -52,7 +52,12 @@ export type MarkdownWorkspaceExplorerProps = {
   onCreateNewFolder: () => void
   onRefresh: () => void
 
-  statusLabel: MarkdownWorkspaceStatus
+  onSave?: () => void
+  saveDisabled?: boolean
+  onImportLocalFiles?: (files: FileList | null) => void
+  onImportLocalFolder?: (files: FileList | null) => void
+  onImportUrl?: (url: string) => void
+  onImportWebsite?: (url: string) => void
 
   activeEntryName: string
   activeEntryKind: 'file' | 'folder' | ''
@@ -208,7 +213,12 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
     onCreateNewFile,
     onCreateNewFolder,
     onRefresh,
-    statusLabel,
+    onSave,
+    saveDisabled,
+    onImportLocalFiles,
+    onImportLocalFolder,
+    onImportUrl,
+    onImportWebsite,
     activeEntryName,
     activeEntryKind,
     canClearActiveSelection,
@@ -417,33 +427,28 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
       aria-label="Markdown Explorer"
     >
       <header
-        className={`flex items-center justify-between gap-2 px-2 py-1 border-b ${UI_THEME_TOKENS.panel.border}`}
+        className={`kg-toolbar flex items-center justify-between gap-2 px-2 py-1 border-b ${UI_THEME_TOKENS.panel.border}`}
         aria-label="Explorer header"
       >
         <section className="min-w-0 flex-1 flex items-center gap-2" aria-label="Explorer title">
           <h2 className={`shrink-0 ${panelTypography.microLabelClass} font-semibold tracking-wide uppercase ${UI_THEME_TOKENS.text.secondary}`}>Explorer</h2>
-          {statusLabel ? (
-            <span
-              className={`min-w-0 inline-flex items-center gap-1.5 h-6 rounded-full border px-2 ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
-              aria-label="Workspace status"
-            >
-              {statusLabel.kind === 'progress' ? <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={1.8} /> : null}
-              {statusLabel.kind === 'info' ? <Check className="w-3.5 h-3.5" strokeWidth={1.8} /> : null}
-              <span className="truncate">
-                {(() => {
-                  return formatMarkdownWorkspaceStatusLabel(statusLabel)
-                })()}
-              </span>
-            </span>
-          ) : null}
         </section>
-        <nav aria-label="Explorer actions">
+        <CollapsibleToolbar ariaLabel="Explorer actions" className="kg-toolbar flex items-center justify-end">
           <ul className="flex items-center gap-1 list-none m-0 p-0" aria-label="Explorer actions list">
+            <MarkdownWorkspaceExplorerHeaderActions
+              microLabelClass={panelTypography.microLabelClass}
+              onSave={onSave}
+              saveDisabled={saveDisabled}
+              onImportLocalFiles={onImportLocalFiles}
+              onImportLocalFolder={onImportLocalFolder}
+              onImportUrl={onImportUrl}
+              onImportWebsite={onImportWebsite}
+            />
             {hasSelectionActions ? (
               <li className="list-none relative" ref={el => (selectionMenuRootRef.current = el)}>
                 <button
                   type="button"
-                  className={`h-6 w-6 shrink-0 inline-flex items-center justify-center rounded cursor-pointer ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                  className={`kg-toolbar-btn shrink-0 inline-flex items-center justify-center rounded cursor-pointer ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
                   aria-label={activeEntryName ? `Actions for ${activeEntryName}` : 'Selection actions'}
                   aria-haspopup="menu"
                   aria-expanded={selectionMenuOpen}
@@ -513,7 +518,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
             <li className="list-none">
               <button
                 type="button"
-                className={`h-6 w-6 shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                className={`kg-toolbar-btn shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={onCreateNewFile}
                 aria-label="New file"
                 title="New file"
@@ -524,7 +529,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
             <li className="list-none">
               <button
                 type="button"
-                className={`h-6 w-6 shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                className={`kg-toolbar-btn shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={onCreateNewFolder}
                 aria-label="New folder"
                 title="New folder"
@@ -536,7 +541,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
               <li className="list-none">
                 <button
                   type="button"
-                  className={`h-6 w-6 shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                  className={`kg-toolbar-btn shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
                   onClick={onRefreshActiveFromSource}
                   aria-label={activeEntryName ? `Refresh ${activeEntryName}` : 'Refresh from URL'}
                   title="Refresh from URL"
@@ -548,7 +553,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
             <li className="list-none">
               <button
                 type="button"
-                className={`h-6 w-6 shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                className={`kg-toolbar-btn shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={onRefresh}
                 aria-label="Refresh"
                 title="Refresh"
@@ -557,7 +562,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
               </button>
             </li>
           </ul>
-        </nav>
+        </CollapsibleToolbar>
       </header>
 
       <form className="px-2 py-1" role="search" aria-label="Search files">

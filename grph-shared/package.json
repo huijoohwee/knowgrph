@@ -109,6 +109,21 @@
       "import": "./dist/cache/LRUCache.js",
       "default": "./dist/cache/LRUCache.js"
     },
+    "./math/clamp01": {
+      "types": "./dist/math/clamp01.d.ts",
+      "import": "./dist/math/clamp01.js",
+      "default": "./dist/math/clamp01.js"
+    },
+    "./data/recordEntries": {
+      "types": "./dist/data/recordEntries.d.ts",
+      "import": "./dist/data/recordEntries.js",
+      "default": "./dist/data/recordEntries.js"
+    },
+    "./config/env": {
+      "types": "./dist/config/env.d.ts",
+      "import": "./dist/config/env.js",
+      "default": "./dist/config/env.js"
+    },
     "./dom/pointerDrag": {
       "types": "./dist/dom/pointerDrag.d.ts",
       "import": "./dist/dom/pointerDrag.js",

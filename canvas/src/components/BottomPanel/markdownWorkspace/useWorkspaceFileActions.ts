@@ -1,10 +1,10 @@
 import type { WorkspaceFileActions, UseWorkspaceFileActionsArgs } from './useWorkspaceFileActions/types'
-import { shouldForceDocumentSemanticModeForImport, useWorkspaceFileActionsCore } from './useWorkspaceFileActions/core'
+import { shouldForceDocumentSemanticModeForImport, useWorkspaceFileActionsCore, useWorkspaceStatusHelpers } from './useWorkspaceFileActions/core'
 import { useWorkspaceImportActions } from './useWorkspaceFileActions/importActions'
 import { useWorkspaceWebsiteImportAction } from './useWorkspaceFileActions/websiteImportAction'
 import { useWorkspaceMutationActions } from './useWorkspaceFileActions/mutationActions'
 
-export { shouldForceDocumentSemanticModeForImport }
+export { shouldForceDocumentSemanticModeForImport, useWorkspaceStatusHelpers }
 
 export function useWorkspaceFileActions(args: UseWorkspaceFileActionsArgs): WorkspaceFileActions {
   const core = useWorkspaceFileActionsCore(args)
@@ -60,4 +60,3 @@ export function useWorkspaceFileActions(args: UseWorkspaceFileActionsArgs): Work
     onDeleteActive: mutationActions.onDeleteActive,
   }
 }
-

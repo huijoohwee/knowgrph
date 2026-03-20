@@ -31,17 +31,11 @@ export async function testMarkdownEditorTextareaHeightAlignsAndSyncScrollsInSpli
         setMarkdownWordWrap={() => {}}
         markdownTextHighlight={false}
         setMarkdownTextHighlight={() => {}}
-        statusLabel={null}
-        onApply={() => {}}
         onToggleFullscreen={() => {}}
         presentationApiRef={presentationApiRef as never}
         isEditing={true}
         isMarkdown={true}
         onFormatAction={() => {}}
-        onImportLocalFiles={() => {}}
-        onImportLocalFolder={() => {}}
-        onImportUrl={() => {}}
-        onImportWebsite={() => {}}
         activeText={'# Title\n\nLine 1\n\nLine 2\n'}
         setActiveText={() => {}}
         activeDocumentKey="doc"

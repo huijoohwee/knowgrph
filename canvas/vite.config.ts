@@ -3570,10 +3570,6 @@ export default defineConfig(({ command }) => ({
         find: /^grph-shared\/collision\/boxCollision$/,
         replacement: path.resolve(__dirname, '../grph-shared/dist/collision/boxCollision.js'),
       },
-      { find: /^gympgrph$/, replacement: path.resolve(__dirname, '../../gympgrph/src/index.ts') },
-      { find: /^gympgrph\/datasets$/, replacement: path.resolve(__dirname, '../../gympgrph/src/geospatialDatasets.ts') },
-      { find: /^gympgrph\/datasets-ui$/, replacement: path.resolve(__dirname, '../../gympgrph/src/geospatialDatasetsUi.ts') },
-      { find: /^gympgrph\/testkit$/, replacement: path.resolve(__dirname, '../../gympgrph/src/testkit.ts') },
       {
         find: /^@\/components\/BottomPanel\/BottomPanelMarkdownSection$/,
         replacement: path.resolve(__dirname, './src/components/BottomPanel/BottomPanelMarkdownSection.tsx'),
@@ -3587,7 +3583,6 @@ export default defineConfig(({ command }) => ({
     fs: {
       allow: [
         path.resolve(__dirname, '..'),
-        path.resolve(__dirname, '../../gympgrph'),
         path.resolve(__dirname, '../../grph'),
         path.resolve(__dirname, '../../sandbox'),
       ]

@@ -55,10 +55,10 @@ export function GraphTableWorkspaceHeader(props: {
   return (
     <WorkspaceHeader ariaLabel="Table header" border="divider">
       <WorkspaceHeaderRow ariaLabel="Table header row">
-        <section className="min-w-0 flex items-center gap-3" aria-label="Table navigation">
+        <section className="kg-toolbar min-w-0 flex items-center gap-3" aria-label="Table navigation">
           <h1 className="font-semibold">{UI_LABELS.graphDataTable}</h1>
 
-          <nav className="flex items-center gap-2" aria-label="Dataset selector">
+          <nav className="kg-toolbar flex items-center gap-2" aria-label="Dataset selector">
             <button
               type="button"
               className={`App-toolbar__btn ${props.panelTypography.microLabelClass} ${props.activeTableId === 'nodes' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
@@ -112,7 +112,7 @@ export function GraphTableWorkspaceHeader(props: {
           />
         </section>
 
-        <nav className="flex items-center gap-2" aria-label="Table actions">
+        <nav className="kg-toolbar flex items-center gap-2" aria-label="Table actions">
           <button
             type="button"
             className={`App-toolbar__btn ${props.panelTypography.microLabelClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}

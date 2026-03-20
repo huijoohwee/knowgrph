@@ -3,7 +3,7 @@ import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/Markd
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
-import type { HighlightedLineRange, MarkdownPresentationApi, MarkdownWorkspaceStatus } from '../markdownWorkspaceTypes'
+import type { HighlightedLineRange, MarkdownPresentationApi } from '../markdownWorkspaceTypes'
 import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/frontmatter'
 
 export type MarkdownWorkspaceMainProps = {
@@ -22,11 +22,8 @@ export type MarkdownWorkspaceMainProps = {
   markdownTextHighlight: boolean
   setMarkdownTextHighlight: (next: boolean) => void
 
-  statusLabel: MarkdownWorkspaceStatus
   onStatusProgress?: (label: string, current?: number | null, total?: number | null, bytesCurrent?: number | null, bytesTotal?: number | null) => void
   onStatusWithAutoClear?: (label: string, ttlMs?: number) => void
-  onApply: () => void
-  onSave?: () => void
   onSaveAs?: () => void
   onToggleFullscreen: () => void
   presentationApiRef: React.MutableRefObject<MarkdownPresentationApi | null>
@@ -34,10 +31,6 @@ export type MarkdownWorkspaceMainProps = {
   isEditing: boolean
   isMarkdown: boolean
   onFormatAction: (action: MarkdownFormatAction) => void
-  onImportLocalFiles: (files: FileList | null) => void
-  onImportLocalFolder: (files: FileList | null) => void
-  onImportUrl: (url: string) => void
-  onImportWebsite: (url: string) => void
 
   webpageWorkspaceMeta?: WebpageFrontmatterMeta | null
   onWebpageChangeView?: (view: WebpageViewMode) => void

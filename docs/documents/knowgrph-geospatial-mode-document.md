@@ -133,7 +133,7 @@
 
 - `gympgrph` treats `maplibre-gl` as a host-level dependency (peer) to prevent duplicated nested installs and to allow the host bundler to prebundle the CommonJS/UMD build for ESM dev servers.
 - `gympgrph` uses Tailwind utility classes in its UI (panel + overlay). When hosted inside Knowgrph, Tailwind must scan `gympgrph/src` so required classes (including stacking / pointer capture) are generated.
-  - Knowgrph host config: `canvas/tailwind.config.js` includes `../../gympgrph/src/**/*.{js,ts,jsx,tsx}` in `content`.
+  - Knowgrph host config: `canvas/tailwind.config.js` includes `../gympgrph/src/**/*.{js,ts,jsx,tsx}` in `content`.
 - The overlay container hardens critical layout properties (full-screen fixed positioning, z-index, pointer-events) via inline styles to avoid “map visible but non-interactive” failures when utility-class CSS is stale or missing.
 
 ### Dataset Fetch Limits (UI)

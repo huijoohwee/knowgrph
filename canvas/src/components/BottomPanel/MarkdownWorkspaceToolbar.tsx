@@ -1,24 +1,19 @@
 import React from 'react'
 import {
   Bold,
-  Check,
   ChevronLeft,
   ChevronRight,
   Code,
   Columns,
   Edit3,
   Eye,
-  FolderOpen,
   Heading2,
   Italic,
   LayoutGrid,
   LayoutPanelTop,
   Link,
-  Globe,
   List,
   ListOrdered,
-  Loader2,
-  Save,
   Copy,
   Maximize2,
   PanelLeftClose,
@@ -27,22 +22,18 @@ import {
   PanelRightOpen,
   Quote,
   Strikethrough,
-  Upload,
   WrapText,
 } from 'lucide-react'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { WorkspaceHeader, WorkspaceHeaderRow } from '@/components/ui/WorkspaceHeader'
 import IconButton from '@/components/IconButton'
+import { CollapsibleToolbar } from '@/components/ui/CollapsibleToolbar'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
-import { SOURCE_FILES_COPY, SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import type { MarkdownPresentationApi } from './markdownWorkspace/markdownWorkspaceTypes'
-import type { MarkdownWorkspaceStatus } from './markdownWorkspace/markdownWorkspaceTypes'
-import { formatMarkdownWorkspaceStatusLabel } from './markdownWorkspace/markdownWorkspaceStatusUi'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { WorkspaceModeSelect } from './markdownWorkspace/WorkspaceModeSelect'
 import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/frontmatter'
-import { WORKSPACE_IMPORT_IMAGE_URL_TEST, WORKSPACE_IMPORT_URL_TEST } from '@/lib/config'
 
 export type MarkdownWorkspaceToolbarProps = {
   explorerOpen: boolean
@@ -62,10 +53,6 @@ export type MarkdownWorkspaceToolbarProps = {
   setViewerKind?: (next: 'markdown' | 'html') => void
   viewerMode?: 'read' | 'kanban' | 'table'
   setViewerMode?: (next: 'read' | 'kanban' | 'table') => void
-  onApply: () => void
-  applyStatus?: MarkdownWorkspaceStatus
-  applyDisabled?: boolean
-  onSave?: () => void
   onSaveAs?: () => void
   onExportWorkspaceFile?: () => void
   onExportMarkdown?: () => void
@@ -87,10 +74,6 @@ export type MarkdownWorkspaceToolbarProps = {
   isEditing: boolean
   isMarkdown: boolean
   onFormatAction: (action: MarkdownFormatAction) => void
-  onImportLocalFiles: (files: FileList | null) => void
-  onImportLocalFolder: (files: FileList | null) => void
-  onImportUrl: (url: string) => void
-  onImportWebsite: (url: string) => void
 
   webpageSignalSummary?: {
     nav: number
@@ -104,8 +87,7 @@ export type MarkdownWorkspaceToolbarProps = {
   onWebpageUpdateMeta?: (patch: { fidelityLevel?: 1 | 2 | 3 | 4 }) => void
 }
 
-const TOOLBAR_BUTTON_CLASSNAME = `h-7 w-7 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
-const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
+const TOOLBAR_BUTTON_CLASSNAME = `kg-toolbar-btn inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
 
 export function MarkdownWorkspaceToolbar({
   explorerOpen,
@@ -122,10 +104,6 @@ export function MarkdownWorkspaceToolbar({
   setViewerKind,
   viewerMode,
   setViewerMode,
-  onApply,
-  applyStatus,
-  applyDisabled,
-  onSave,
   onSaveAs,
   onExportWorkspaceFile,
   onExportMarkdown,
@@ -145,10 +123,6 @@ export function MarkdownWorkspaceToolbar({
   isEditing,
   isMarkdown,
   onFormatAction,
-  onImportLocalFiles,
-  onImportLocalFolder,
-  onImportUrl,
-  onImportWebsite,
   webpageSignalSummary,
   webpageWorkspaceMeta,
   onWebpageChangeView,
@@ -213,32 +187,6 @@ export function MarkdownWorkspaceToolbar({
     return { view, fidelityMode }
   }, [webpageWorkspaceMeta])
 
-  const fileInputRef = React.useRef<HTMLInputElement | null>(null)
-  const folderInputRef = React.useRef<HTMLInputElement | null>(null)
-  const urlInputRef = React.useRef<HTMLInputElement | null>(null)
-  const [urlDraft, setUrlDraft] = React.useState('')
-  const [urlInputOpen, setUrlInputOpen] = React.useState(false)
-
-  const statusNode = React.useMemo(() => {
-    if (!applyStatus) return null
-    const text = formatMarkdownWorkspaceStatusLabel(applyStatus)
-    if (!text) return null
-    const baseClass = `inline-flex items-center gap-1.5 h-6 rounded-full border px-2 ${panelTypography.microLabelClass}`
-    const toneClass =
-      applyStatus.kind === 'error'
-        ? `border-red-200 bg-red-50 text-red-700`
-        : applyStatus.kind === 'progress'
-          ? `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`
-          : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`
-    return (
-      <span className={`${baseClass} ${toneClass}`} aria-label="Workspace status">
-        {applyStatus.kind === 'progress' ? <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={1.8} /> : null}
-        {applyStatus.kind === 'info' ? <Check className="w-3.5 h-3.5" strokeWidth={1.8} /> : null}
-        <span className="truncate max-w-[14rem]">{text}</span>
-      </span>
-    )
-  }, [applyStatus, panelTypography.microLabelClass])
-
   const webpageSignalsNode = React.useMemo(() => {
     const s = webpageSignalSummary
     if (!s) return null
@@ -276,45 +224,15 @@ export function MarkdownWorkspaceToolbar({
     )
   }, [panelTypography.microLabelClass, webpageSignalSummary])
 
-  React.useEffect(() => {
-    if (!urlInputOpen) return
-    const id = requestAnimationFrame(() => {
-      try {
-        urlInputRef.current?.focus()
-      } catch {
-        void 0
-      }
-    })
-    return () => cancelAnimationFrame(id)
-  }, [urlInputOpen])
-
-  const openFilePicker = React.useCallback((el: HTMLInputElement | null) => {
-    if (!el) return
-    try {
-      const anyEl = el as unknown as { showPicker?: () => void }
-      if (typeof anyEl.showPicker === 'function') {
-        anyEl.showPicker()
-        return
-      }
-    } catch {
-      void 0
-    }
-    try {
-      el.click()
-    } catch {
-      void 0
-    }
-  }, [])
 
   return (
     <WorkspaceHeader ariaLabel="Markdown Toolbar" border="border">
-      <WorkspaceHeaderRow className="gap-2" ariaLabel="Markdown toolbar row">
+      <WorkspaceHeaderRow className="gap-2 kg-toolbar" ariaLabel="Markdown toolbar row">
         <span className="min-w-0">
-          <span className={`${panelTypography.microLabelClass} uppercase tracking-wide font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Markdown</span>
-          {statusNode ? <span className="ml-2 inline-flex min-w-0">{statusNode}</span> : null}
+          <span className={`${panelTypography.microLabelClass} uppercase tracking-wide font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Workspace editor</span>
           {webpageSignalsNode}
         </span>
-        <nav className="flex items-center gap-1 flex-wrap justify-end" aria-label="Markdown view controls">
+        <CollapsibleToolbar className="kg-toolbar flex items-center gap-1 justify-end" ariaLabel="Markdown view controls">
           <IconButton
             title={explorerOpen ? 'Hide Explorer' : 'Show Explorer'}
             onClick={() => setExplorerOpen(!explorerOpen)}
@@ -384,179 +302,6 @@ export function MarkdownWorkspaceToolbar({
             </li>
           </menu>
         ) : null}
-
-        <input
-          ref={el => {
-            fileInputRef.current = el
-          }}
-          type="file"
-          className="sr-only"
-          accept={WORKSPACE_IMPORT_ACCEPT}
-          multiple
-          onChange={e => {
-            onImportLocalFiles(e.target.files)
-            try {
-              e.currentTarget.value = ''
-            } catch {
-              void 0
-            }
-          }}
-        />
-        <input
-          ref={el => {
-            folderInputRef.current = el
-            if (!el) return
-            try {
-              el.setAttribute('webkitdirectory', '')
-              el.setAttribute('directory', '')
-            } catch {
-              void 0
-            }
-          }}
-          type="file"
-          className="sr-only"
-          multiple
-          onChange={e => {
-            onImportLocalFolder(e.target.files)
-            try {
-              e.currentTarget.value = ''
-            } catch {
-              void 0
-            }
-          }}
-        />
-        <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Import">
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              title="Import local files"
-              onClick={() => {
-                openFilePicker(fileInputRef.current)
-              }}
-            >
-              <Upload className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              title="Import folder"
-              onClick={() => {
-                openFilePicker(folderInputRef.current)
-              }}
-            >
-              <FolderOpen className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
-          <li className="list-none relative">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              title="Import URL"
-              onClick={() => {
-                const draft = String(urlDraft || '').trim()
-                if (urlInputOpen) {
-                  if (!draft) {
-                    setUrlInputOpen(false)
-                    return
-                  }
-                  onImportUrl(draft)
-                  setUrlInputOpen(false)
-                  return
-                }
-                if (!draft) {
-                  if (WORKSPACE_IMPORT_URL_TEST) {
-                    setUrlDraft(WORKSPACE_IMPORT_URL_TEST)
-                  } else if (WORKSPACE_IMPORT_IMAGE_URL_TEST) {
-                    setUrlDraft(WORKSPACE_IMPORT_IMAGE_URL_TEST)
-                  }
-                }
-                setUrlInputOpen(true)
-              }}
-            >
-              <Link className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-            <section
-              className={
-                urlInputOpen
-                  ? 'absolute right-full top-0 mr-1 w-72 opacity-100'
-                  : 'absolute right-full top-0 mr-1 w-0 opacity-0 pointer-events-none'
-              }
-              aria-label="Import URL input"
-            >
-              <section className="w-72" aria-label="URL import controls">
-                {WORKSPACE_IMPORT_URL_TEST || WORKSPACE_IMPORT_IMAGE_URL_TEST ? (
-                  <section className="mb-1 flex items-center gap-1" aria-label="URL import test shortcuts">
-                    {WORKSPACE_IMPORT_URL_TEST ? (
-                      <button
-                        type="button"
-                        className={`h-6 px-2 inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} ${panelTypography.fontClass}`}
-                        title="Use test-url"
-                        onClick={() => {
-                          setUrlDraft(WORKSPACE_IMPORT_URL_TEST)
-                        }}
-                      >
-                        Test URL
-                      </button>
-                    ) : null}
-                    {WORKSPACE_IMPORT_IMAGE_URL_TEST ? (
-                      <button
-                        type="button"
-                        className={`h-6 px-2 inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} ${panelTypography.fontClass}`}
-                        title="Use test-image-url"
-                        onClick={() => {
-                          setUrlDraft(WORKSPACE_IMPORT_IMAGE_URL_TEST)
-                        }}
-                      >
-                        Test image
-                      </button>
-                    ) : null}
-                  </section>
-                ) : null}
-
-                <section className="flex items-stretch gap-1">
-                  <input
-                    ref={urlInputRef}
-                    className={`flex-1 min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border box-border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${panelTypography.fontClass} ${panelTypography.textSizeClass}`}
-                    placeholder={SOURCE_FILES_COPY.urlPlaceholder}
-                    aria-label="Import URL"
-                    value={urlDraft}
-                    onChange={e => setUrlDraft(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Escape') {
-                        e.preventDefault()
-                        setUrlInputOpen(false)
-                        return
-                      }
-                      if (e.key !== 'Enter') return
-                      e.preventDefault()
-                      const next = String(urlDraft || '').trim()
-                      if (!next) return
-                      onImportUrl(next)
-                      setUrlInputOpen(false)
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className={`h-[var(--kg-control-height,28px)] w-[var(--kg-control-height,28px)] inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                    title="Import website (sitemap)"
-                    aria-label="Import website"
-                    onClick={() => {
-                      const next = String(urlDraft || '').trim()
-                      if (!next) return
-                      onImportWebsite(next)
-                      setUrlInputOpen(false)
-                    }}
-                  >
-                    <Globe className="w-4 h-4" strokeWidth={1.6} />
-                  </button>
-                </section>
-              </section>
-            </section>
-          </li>
-        </menu>
         {typeof setContentMode === 'function' ? (
           <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Content">
             <li className="list-none">
@@ -841,18 +586,6 @@ export function MarkdownWorkspaceToolbar({
           </li>
         </menu>
         <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Actions">
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              title="Save"
-              aria-label="Save"
-              onClick={() => onSave?.()}
-              disabled={!isEditing || !onSave}
-            >
-              <Save className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
           <li
             ref={el => {
               saveAsWrapRef.current = el
@@ -975,17 +708,12 @@ export function MarkdownWorkspaceToolbar({
             ) : null}
           </li>
           <li className="list-none">
-            <button type="button" className={TOOLBAR_BUTTON_CLASSNAME} title="Apply" onClick={onApply} disabled={applyDisabled}>
-              <Check className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
-          <li className="list-none">
             <button type="button" className={TOOLBAR_BUTTON_CLASSNAME} title="Fullscreen" onClick={onToggleFullscreen}>
               <Maximize2 className="w-4 h-4" strokeWidth={1.6} />
             </button>
           </li>
         </menu>
-        </nav>
+        </CollapsibleToolbar>
       </WorkspaceHeaderRow>
     </WorkspaceHeader>
   )

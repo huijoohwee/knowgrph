@@ -36,7 +36,12 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
     <li className="list-none">
       <section
         data-kg-kanban-group="1"
-        className={['w-[260px] flex-shrink-0 rounded-lg border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.kanban.groupBg].join(' ')}
+        className={[
+          'w-[260px] flex-shrink-0 border',
+          'rounded-[var(--kg-kanban-card-radius)]',
+          UI_THEME_TOKENS.panel.border,
+          UI_THEME_TOKENS.kanban.groupBg,
+        ].join(' ')}
         aria-label={`Group: ${props.group.key}`}
       >
         <header className={['flex items-center gap-2 px-2 py-2 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}>

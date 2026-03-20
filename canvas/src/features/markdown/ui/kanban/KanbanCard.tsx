@@ -7,6 +7,7 @@ import { DataViewStatusChip, DataViewTagChip } from '../MarkdownDataViewChips'
 import { isInteractiveEventTarget, useDismissableMenu } from './kanbanMenu'
 import { KanbanCell } from './KanbanCell'
 import { KanbanTypeBadge } from './KanbanTypeBadge'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 export type KanbanCardProps = {
   row: MarkdownDataViewRow
@@ -127,7 +128,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
       ref={articleRef}
       data-kg-kanban-card="1"
       className={[
-        'relative border overflow-hidden transition-transform transition-shadow duration-150 ease-out',
+        'relative border transition-transform transition-shadow duration-150 ease-out',
         UI_THEME_TOKENS.kanban.cardBg,
         UI_THEME_TOKENS.kanban.cardHoverBg,
         'rounded-[var(--kg-kanban-card-radius)]',
@@ -143,10 +144,13 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
       onKeyDown={onActivateByKeyboard}
       aria-label={props.title ? `Card: ${props.title}` : 'Card'}
     >
-      <header className={['flex items-start justify-between gap-2 px-3 py-2 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}>
-        <h4 className={['text-sm font-semibold leading-5 m-0 min-w-0 truncate', UI_THEME_TOKENS.text.primary].join(' ')}>
-          {props.title || (props.canMutate ? 'Untitled' : '')}
-        </h4>
+      <header className={['flex items-center justify-between gap-2 px-3 py-2 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <KanbanTypeBadge size="sm" />
+          <h4 className={['text-sm font-semibold leading-5 m-0', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>
+            {props.title || (props.canMutate ? 'Untitled' : '')}
+          </h4>
+        </div>
         <menu
           data-kg-kanban-actions="1"
           className="m-0 p-0 list-none flex items-center gap-1 opacity-0 pointer-events-none transition-opacity"
@@ -287,10 +291,6 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
       </header>
 
       <section className="px-3 py-2" aria-label="Card body">
-        <section className="mb-2" aria-label="Type">
-          <KanbanTypeBadge />
-        </section>
-
         <section className="flex items-center gap-2 mb-2" aria-label="Status">
           <CircleChevronDown className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
           <DataViewStatusChip value={statusValue} checked={false} hideIcon />

@@ -16,6 +16,7 @@ export async function testMarkdownWorkspaceToolbarRendersSaveControls() {
 
     const editorRef = { current: null as MonacoTextEditorHandle | null }
     const presentationApiRef = { current: null as unknown }
+    let saveAsCalls = 0
 
     const root = createRoot(container)
     root.render(
@@ -31,19 +32,14 @@ export async function testMarkdownWorkspaceToolbarRendersSaveControls() {
         setMarkdownWordWrap={() => {}}
         markdownTextHighlight={false}
         setMarkdownTextHighlight={() => {}}
-        statusLabel={null}
-        onApply={() => {}}
-        onSave={() => {}}
-        onSaveAs={() => {}}
+        onSaveAs={() => {
+          saveAsCalls += 1
+        }}
         onToggleFullscreen={() => {}}
         presentationApiRef={presentationApiRef as never}
         isEditing={true}
         isMarkdown={true}
         onFormatAction={() => {}}
-        onImportLocalFiles={() => {}}
-        onImportLocalFolder={() => {}}
-        onImportUrl={() => {}}
-        onImportWebsite={() => {}}
         activeText={'# Title\n'}
         setActiveText={() => {}}
         activeDocumentKey="doc"
@@ -61,11 +57,19 @@ export async function testMarkdownWorkspaceToolbarRendersSaveControls() {
 
     await tick()
     const save = dom.window.document.querySelector('button[aria-label="Save"]') as HTMLButtonElement | null
-    if (!save) throw new Error('expected Save button')
-    if (save.disabled) throw new Error('expected Save button enabled')
-    const saveAs = dom.window.document.querySelector('button[aria-label="Save As"]') as HTMLButtonElement | null
-    if (!saveAs) throw new Error('expected Save As button')
-    if (saveAs.disabled) throw new Error('expected Save As button enabled')
+    if (save) throw new Error('expected Save to be moved out of toolbar')
+
+    const exportBtn = dom.window.document.querySelector('button[aria-label="Export"]') as HTMLButtonElement | null
+    if (!exportBtn) throw new Error('expected Export button')
+    if (exportBtn.disabled) throw new Error('expected Export button enabled')
+
+    exportBtn.click()
+    await tick()
+    const menuButtons = Array.from(dom.window.document.querySelectorAll('button')) as HTMLButtonElement[]
+    const duplicate = menuButtons.find(b => String(b.textContent || '').trim() === 'Duplicate in workspace') || null
+    if (!duplicate) throw new Error('expected Duplicate in workspace item')
+    duplicate.click()
+    if (saveAsCalls !== 1) throw new Error(`expected onSaveAs to be called once, got: ${saveAsCalls}`)
 
     root.unmount()
   } finally {

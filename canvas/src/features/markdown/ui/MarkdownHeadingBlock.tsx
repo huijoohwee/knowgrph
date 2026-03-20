@@ -12,6 +12,7 @@ import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY } from '@/lib/config'
 import { getStickyHeadingCascadeOffsets } from './markdownSectionUtils'
 import { getMarkdownHeadingTextSizeClass } from '@/features/markdown/ui/markdownTypography'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import {
   MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
   MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
@@ -212,7 +213,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
             />
           </>
         )}
-        <bdi className="flex-1 min-w-0 overflow-hidden">{content}</bdi>
+        <bdi className={['flex-1', UI_TEXT_TRUNCATE].join(' ')}>{content}</bdi>
         <span className="ml-auto flex items-center gap-1 shrink-0">
           {id && (
             <a

@@ -1,11 +1,9 @@
 import type React from 'react'
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
-import type { MarkdownWorkspaceStatus } from '../markdownWorkspaceTypes'
 
 export type UseWorkspaceFileActionsArgs = {
   getFs: () => Promise<WorkspaceFs>
   refresh: () => Promise<void>
-  setStatusLabel: (next: MarkdownWorkspaceStatus) => void
 
   openedPath: WorkspacePath | null
   selectionPath: WorkspacePath | null
@@ -52,14 +50,16 @@ export type WorkspaceFileActions = {
 }
 
 export type StatusHelpers = {
-  setStatusInfo: (label: string) => void
-  setStatusError: (label: string) => void
+  setStatusInfo: (label: string, opts?: { ttlMs?: number | null }) => void
+  setStatusError: (label: string, opts?: { ttlMs?: number | null; dismissible?: boolean }) => void
   setStatusProgress: (
     label: string,
     current?: number | null,
     total?: number | null,
     bytesCurrent?: number | null,
     bytesTotal?: number | null,
+    opts?: { ttlMs?: number | null },
   ) => void
+  clearStatus: () => void
   buildWebpageImportStageLabel: (pctRaw: number) => string
 }

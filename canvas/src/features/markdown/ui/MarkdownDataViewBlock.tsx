@@ -14,6 +14,7 @@ import type { MarkdownDataViewColumnType } from './markdownDataViewColumnType'
 import { serializeMarkdownDataViewToTableLines } from './markdownDataViewSerialize'
 import { MarkdownDataViewKanbanView } from './MarkdownDataViewKanbanView'
 import { MarkdownDataViewTableView } from './MarkdownDataViewTableView'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 type MarkdownDataViewBlockProps = {
   token: TokenWithLines
@@ -212,7 +213,7 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
   return (
     <section className={wrapperClass} style={highlightStyle}>
       <div className={headerClass}>
-        <div className={['flex-1 min-w-0 text-sm font-medium truncate', UI_THEME_TOKENS.text.primary].join(' ')}>
+        <div className={['flex-1 text-sm font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>
           {UI_COPY.markdownDataViewTitleDefault}
         </div>
 

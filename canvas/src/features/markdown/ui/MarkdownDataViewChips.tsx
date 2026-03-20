@@ -1,6 +1,7 @@
 import React from 'react'
 import { CheckCircle2, Circle } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
 
 const chipToneClasses = [
   UI_THEME_TOKENS.status.neutral,
@@ -42,7 +43,13 @@ export const DataViewTagChip = React.memo(function DataViewTagChip(props: { valu
   const v = String(props.value || '').trim()
   if (!v) return null
   return (
-    <span className={['inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-medium', resolveDataViewChipClass(v)].join(' ')}>
+    <span
+      className={[
+        'inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-medium',
+        UI_TEXT_TRUNCATE_CHIP,
+        resolveDataViewChipClass(v),
+      ].join(' ')}
+    >
       {v}
     </span>
   )
@@ -52,13 +59,19 @@ export const DataViewStatusChip = React.memo(function DataViewStatusChip(props: 
   const v = String(props.value || '').trim()
   if (!v) return null
   return (
-    <span className={['inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-medium', props.hideIcon ? '' : 'gap-1.5', resolveDataViewChipClass(v)].join(' ')}>
+    <span
+      className={[
+        'inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-medium',
+        props.hideIcon ? '' : 'gap-1.5',
+        resolveDataViewChipClass(v),
+      ].join(' ')}
+    >
       {props.hideIcon ? null : props.checked ? (
         <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
       ) : (
         <Circle className="w-3 h-3" aria-hidden="true" />
       )}
-      {v}
+      <span className={UI_TEXT_TRUNCATE_CHIP}>{v}</span>
     </span>
   )
 })
