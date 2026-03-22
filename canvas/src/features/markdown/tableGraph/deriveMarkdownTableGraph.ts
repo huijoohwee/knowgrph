@@ -21,6 +21,33 @@ type DeriveArgs = {
 
 const cache = new LRUCache<string, GraphData | null>(32, 30_000)
 
+const fnv1a32PushString = (h0: number, input: string): number => {
+  let h = h0 >>> 0
+  for (let i = 0; i < input.length; i += 1) {
+    h ^= input.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return h >>> 0
+}
+
+const hashTableContentToHex = (header: string[], rows: string[][]): string => {
+  let h = 0x811c9dc5
+  h = fnv1a32PushString(h, `h:${header.length}|r:${rows.length}`)
+  for (let i = 0; i < header.length; i += 1) {
+    h = fnv1a32PushString(h, '\u0001')
+    h = fnv1a32PushString(h, header[i] ?? '')
+  }
+  for (let rIdx = 0; rIdx < rows.length; rIdx += 1) {
+    const row = rows[rIdx]!
+    h = fnv1a32PushString(h, '\u0002')
+    for (let cIdx = 0; cIdx < row.length; cIdx += 1) {
+      h = fnv1a32PushString(h, '\u0001')
+      h = fnv1a32PushString(h, row[cIdx] ?? '')
+    }
+  }
+  return (h >>> 0).toString(16).padStart(8, '0')
+}
+
 const normalizeText = (v: unknown): string => String(v ?? '').replace(/\s+/g, ' ').trim()
 
 const splitMulti = (raw: string): string[] => {
@@ -190,10 +217,9 @@ export function deriveMarkdownTableGraphForFrontmatterMode(args: DeriveArgs): Gr
         .map(([k, v]) => `${k}:${v}`)
         .join('|')}`,
     )
+    const tableHash = hashTableContentToHex(header, rows)
     const cacheKey = hashStringToHex(
-      `mdtbl|${documentPath || meta.documentPath || ''}|${tableId}|${cfgKey}|${header.join('|')}|${rows
-        .map(r => r.join('|'))
-        .join(';')}`,
+      `mdtbl|${documentPath || meta.documentPath || ''}|${tableId}|${cfgKey}|${tableHash}`,
     )
     const cached = cache.get(cacheKey)
     if (cached !== undefined) return cached

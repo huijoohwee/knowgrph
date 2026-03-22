@@ -143,10 +143,26 @@ export type CanvasViewportProps = {
 export function CanvasViewport(props: CanvasViewportProps) {
   const { variant, layout = 'full', geospatialModeEnabled, activeGraphData, canvasRenderMode, canvas2dRenderer, mounted2dRenderers, gympgrphBridge } = props
   const safeGraphData = activeGraphData || ({ nodes: [], edges: [] } as GraphData)
+  const activeSurface = geospatialModeEnabled ? 'geo' : canvasRenderMode === '3d' ? '3d' : '2d'
+  const [geospatialWarmed, setGeospatialWarmed] = React.useState(geospatialModeEnabled)
+  const [threeWarmed, setThreeWarmed] = React.useState(!geospatialModeEnabled && canvasRenderMode === '3d')
+  React.useEffect(() => {
+    if (geospatialModeEnabled) setGeospatialWarmed(true)
+  }, [geospatialModeEnabled])
+  React.useEffect(() => {
+    if (!geospatialModeEnabled && canvasRenderMode === '3d') setThreeWarmed(true)
+  }, [canvasRenderMode, geospatialModeEnabled])
+
+  const geoGraphLastRef = React.useRef<GraphData>(safeGraphData)
   const geospatialGraphData = React.useMemo(() => {
+    if (activeSurface !== 'geo') return geoGraphLastRef.current
     const derived = deriveSceneDisplayGraph({ graphData: safeGraphData })?.displayGraphData || null
     return (derived || safeGraphData) as GraphData
-  }, [safeGraphData])
+  }, [activeSurface, safeGraphData])
+  React.useEffect(() => {
+    if (activeSurface !== 'geo') return
+    geoGraphLastRef.current = geospatialGraphData
+  }, [activeSurface, geospatialGraphData])
   const rootRef = React.useRef<HTMLElement | null>(null)
   useForbidBrowserZoomWheel(rootRef, true, { stopPropagation: false })
   const { fitToScreenMode, zoomToSelectionMode, viewPinned, selectedNodeId, selectedNodeIds, selectedEdgeId } = useGraphStore(
@@ -208,53 +224,74 @@ export function CanvasViewport(props: CanvasViewportProps) {
       .catch(() => void 0)
   }, [geospatialModeEnabled, selectedEdgeId, selectedNodeId, selectedNodeIds, viewPinned, zoomToSelectionMode])
 
+  const render2dLayer = React.useCallback(
+    (
+      id: Canvas2dRendererId,
+      enabled: boolean,
+      LazyComponent: React.ComponentType<{ active?: boolean }>,
+    ) => {
+      if (!enabled) return null
+      const active = activeSurface === '2d' && canvas2dRenderer === id
+      return (
+        <div
+          key={id}
+          className={`absolute inset-0 ${active ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}
+          aria-hidden={!active}
+        >
+          <LazyComponent active={active} />
+        </div>
+      )
+    },
+    [activeSurface, canvas2dRenderer],
+  )
+
   return (
     <section ref={rootRef} className="relative w-full h-full overflow-hidden" aria-label={variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}>
       <React.Suspense fallback={null}>
-        {geospatialModeEnabled && (
-          <GeospatialOverlayHostLazy
-            active
-            snapshot={{
-              graphData: geospatialGraphData,
-              zoomState: gympgrphBridge.zoomState,
-              canvasRenderMode: gympgrphBridge.canvasRenderMode,
-              viewportControlsPreset: gympgrphBridge.viewportControlsPreset,
-              selectedNodeId: gympgrphBridge.selectedNodeId,
-              selectedNodeIds: gympgrphBridge.selectedNodeIds,
-              selectedEdgeId: gympgrphBridge.selectedEdgeId,
-            }}
-            handlers={{
-              selectNode: gympgrphBridge.selectNode,
-              selectEdge: gympgrphBridge.selectEdge,
-              setSelectionSource: gympgrphBridge.setSelectionSource,
-              requestZoom: gympgrphBridge.requestZoom,
-              requestThreeCamera: gympgrphBridge.requestThreeCamera,
-              pushUiToast: gympgrphBridge.pushUiToast,
-              upsertUiToast: gympgrphBridge.upsertUiToast,
-              dismissUiToast: gympgrphBridge.dismissUiToast,
-            }}
-          />
-        )}
+        <div className="absolute inset-0 z-[10]">
+          {render2dLayer('d3', mounted2dRenderers.d3, GraphCanvasLazy)}
+          {render2dLayer('flow', mounted2dRenderers.flow, FlowCanvasLazy)}
+          {render2dLayer('design', mounted2dRenderers.design, DesignCanvasLazy)}
+          {render2dLayer('flowEditor', mounted2dRenderers.flowEditor, FlowEditorCanvasLazy)}
+        </div>
 
-        {!geospatialModeEnabled && canvasRenderMode === '2d' && (
-          <div className="absolute inset-0 z-[10]">
-            {canvas2dRenderer === 'd3' && mounted2dRenderers.d3 ? <GraphCanvasLazy active /> : null}
-            {canvas2dRenderer === 'flow' && mounted2dRenderers.flow ? <FlowCanvasLazy active /> : null}
-            {canvas2dRenderer === 'design' && mounted2dRenderers.design ? <DesignCanvasLazy active /> : null}
-            {canvas2dRenderer === 'flowEditor' && mounted2dRenderers.flowEditor ? <FlowEditorCanvasLazy active /> : null}
+        {threeWarmed ? (
+          <div className={`absolute inset-0 z-[10] ${activeSurface === '3d' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
+            <ThreeGraphLazy active={activeSurface === '3d'} />
           </div>
-        )}
+        ) : null}
 
-        {!geospatialModeEnabled && canvasRenderMode === '3d' && (
-          <div className="absolute inset-0 z-[10]">
-            <ThreeGraphLazy active />
+        {geospatialWarmed ? (
+          <div className={`absolute inset-0 z-[10] ${activeSurface === 'geo' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
+            <GeospatialOverlayHostLazy
+              active={activeSurface === 'geo'}
+              snapshot={{
+                graphData: geospatialGraphData,
+                zoomState: gympgrphBridge.zoomState,
+                canvasRenderMode: gympgrphBridge.canvasRenderMode,
+                viewportControlsPreset: gympgrphBridge.viewportControlsPreset,
+                selectedNodeId: gympgrphBridge.selectedNodeId,
+                selectedNodeIds: gympgrphBridge.selectedNodeIds,
+                selectedEdgeId: gympgrphBridge.selectedEdgeId,
+              }}
+              handlers={{
+                selectNode: gympgrphBridge.selectNode,
+                selectEdge: gympgrphBridge.selectEdge,
+                setSelectionSource: gympgrphBridge.setSelectionSource,
+                requestZoom: gympgrphBridge.requestZoom,
+                requestThreeCamera: gympgrphBridge.requestThreeCamera,
+                pushUiToast: gympgrphBridge.pushUiToast,
+                upsertUiToast: gympgrphBridge.upsertUiToast,
+                dismissUiToast: gympgrphBridge.dismissUiToast,
+              }}
+            />
           </div>
-        )}
+        ) : null}
 
         {variant === 'workspace' ? (
           <>
             {layout === 'full' ? <LaunchSpotlight /> : null}
-            {!geospatialModeEnabled && canvasRenderMode === '2d' && (canvas2dRenderer === 'd3' || canvas2dRenderer === 'flow' || canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'design') ? (
+            {activeSurface === '2d' && (canvas2dRenderer === 'd3' || canvas2dRenderer === 'flow' || canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'design') ? (
               <aside
                 className={`${layout === 'pane' ? 'absolute' : 'fixed'} left-3 z-[201] pointer-events-auto`}
                 style={layout === 'pane' ? undefined : { bottom: 'calc(40px + 12px)' }}

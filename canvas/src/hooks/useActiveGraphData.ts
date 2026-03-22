@@ -920,7 +920,7 @@ export function deriveGraphDataForActiveView(args: {
   const base = (() => {
     if (args.multiDimTableModeEnabled === true) {
       const tableGraph = deriveMarkdownTableGraphForFrontmatterMode({ graphData: args.graphData })
-      return tableGraph || { ...args.graphData, nodes: [], edges: [] }
+      return tableGraph || args.graphData
     }
     const effective = computeEffectiveFrontmatterMode({
       frontmatterModeEnabled: args.frontmatterModeEnabled,
@@ -928,7 +928,7 @@ export function deriveGraphDataForActiveView(args: {
       graphData: args.graphData,
     })
     if (!args.frontmatterModeEnabled) return args.graphData
-    return effective ? filterGraphToFrontmatterMermaid(args.graphData) : { ...args.graphData, nodes: [], edges: [] }
+    return effective ? filterGraphToFrontmatterMermaid(args.graphData) : args.graphData
   })()
 
   const collapsedGroupIds = Array.isArray(args.collapsedGroupIds) ? args.collapsedGroupIds : []
@@ -979,7 +979,7 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
       documentStructureBaselineLock,
       collapsedGroupIds: [],
     })
-  }, [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, graphData, multiDimTableModeEnabled])
+  }, [documentSemanticMode, frontmatterModeEnabled, graphData, multiDimTableModeEnabled])
 
   const computed = React.useMemo(() => {
     if (!viewGraphData) return null

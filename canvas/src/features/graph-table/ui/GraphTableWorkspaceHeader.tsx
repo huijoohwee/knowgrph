@@ -52,6 +52,7 @@ export function GraphTableWorkspaceHeader(props: {
   onAddRow: () => void
   onDeleteSelected: () => void
   hasSelection: boolean
+  onClose: () => void
 }) {
   return (
     <WorkspaceHeader ariaLabel="Table header" border="divider">
@@ -128,6 +129,13 @@ export function GraphTableWorkspaceHeader(props: {
             disabled={!props.hasSelection}
           >
             Delete
+          </button>
+          <button
+            type="button"
+            className={`App-toolbar__btn ${props.panelTypography.microLabelClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+            onClick={props.onClose}
+          >
+            {UI_LABELS.close}
           </button>
         </nav>
       </WorkspaceHeaderRow>

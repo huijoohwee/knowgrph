@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Grid3x3, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, FileCode, Table, Lock, Unlock, Pencil, Compass, Palette, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Grid3x3, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Lock, Unlock, Compass, ChevronLeft, ChevronRight } from 'lucide-react';
 import MainPanel from '@/features/panels/MainPanel';
 import IconButton from '@/components/IconButton';
 import { DropdownPanel } from '@/lib/ui/overlay';
@@ -13,12 +13,12 @@ import {
 } from '@/features/toolbar/ui/toolbarStyles'
 import { useCanvasToolbarContext } from '@/components/toolbar/useCanvasToolbarContext';
 import { DocumentModeSelect } from '@/components/toolbar/DocumentModeSelect';
+import { Canvas2dRendererSelect } from '@/components/toolbar/Canvas2dRendererSelect';
+import { EditorWorkspaceSelect } from '@/components/toolbar/EditorWorkspaceSelect';
 
 import { CANVAS_INTERACTION_MODE_LABELS } from '@/lib/canvas/interaction-ssot'
 
-import { FitToScreenButton } from '@/features/toolbar/ui/FitToScreenButton';
-import { FitToViewButton } from '@/features/toolbar/ui/FitToViewButton';
-import { PinToViewButton } from '@/features/toolbar/ui/PinToViewButton';
+import { ZoomModeSelect } from '@/components/toolbar/ZoomModeSelect';
 
 interface ToolbarProps {
   onZoomIn?: () => void;
@@ -30,7 +30,6 @@ interface ToolbarProps {
 export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection }: ToolbarProps) {
   const {
     actions,
-    canvas2dRenderer,
     canvasGridDotRadiusPx,
     canvasGridEnabled,
     canvasGridMajorEvery,
@@ -38,12 +37,10 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     canvasRenderMode,
     clampMainPanelPos,
     documentStructureBaselineLock,
-    editorWorkspacePane,
     enableLaunchSpotlight,
     ensureBaselineUnlocked,
     geospatialEnabled,
     groupShapeMode,
-    handleCycleCanvas2dRenderer,
     handleMainPanelHeaderDragStart,
     handleMainPanelRestore,
     iconSizeClass,
@@ -70,7 +67,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     setBehavior,
     setCanvasRenderMode,
     setDocumentStructureBaselineLock,
-    setEditorWorkspacePane,
     setFitToScreenMode,
     setIsMainPanelOpen,
     setMainPanelCollapsed,
@@ -79,16 +75,12 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     setSelectMode,
     setSelectionSource,
     setWorkspaceToolbarExpanded,
-    setWorkspaceViewMode,
     snapGridEnabled,
     snapGridSize,
     themeMode,
     toggleFitToScreenMode,
-    toggleWorkspaceViewMode,
     toolbarCollapsed,
     toolbarNavRef,
-    workspaceViewMode,
-    zoomToSelectionMode,
   } = useCanvasToolbarContext({ onReset, onZoomSelection })
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -126,42 +118,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
 
       {toolbarCollapsed ? null : (
         <>
-      <IconButton
-        className={`App-toolbar__btn ${
-          workspaceViewMode === 'editor' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={UI_LABELS.editor}
-        tooltipContent={
-          workspaceViewMode === 'editor'
-            ? UI_COPY.toolbarEditorWorkspaceOnTooltip
-            : UI_COPY.toolbarEditorWorkspaceOffTooltip
-        }
-        onClick={toggleWorkspaceViewMode}
-        showTooltip
-      >
-        <FileCode className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-
-      <IconButton
-        className={`App-toolbar__btn ${
-          workspaceViewMode === 'editor' && editorWorkspacePane === 'graphTable'
-            ? uiPrimaryIconActiveClassName
-            : uiPrimaryIconInactiveClassName
-        }`}
-        title={UI_COPY.toolbarGraphDataTableToggleTitle}
-        tooltipContent={
-          workspaceViewMode === 'editor' && editorWorkspacePane === 'graphTable'
-            ? UI_COPY.toolbarGraphDataTableWorkspaceOnTooltip
-            : UI_COPY.toolbarGraphDataTableWorkspaceOffTooltip
-        }
-        onClick={() => {
-          if (workspaceViewMode !== 'editor') setWorkspaceViewMode('editor')
-          setEditorWorkspacePane(editorWorkspacePane === 'graphTable' ? 'markdown' : 'graphTable')
-        }}
-        showTooltip
-      >
-        <Table className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
+      <EditorWorkspaceSelect iconSizeClass={iconSizeClass} iconStrokeWidth={iconStrokeWidth} />
 
       <IconButton
         className={`App-toolbar__btn ${
@@ -216,48 +173,12 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         )}
       </IconButton>
 
-      <IconButton
-        className={`App-toolbar__btn ${
-          canvasRenderMode === '2d' && canvas2dRenderer !== 'd3'
-            ? uiPrimaryIconActiveClassName
-            : uiPrimaryIconInactiveClassName
-        }`}
-        title={
-          canvas2dRenderer === 'flowEditor'
-            ? UI_COPY.twoDRendererFlowEditorTitle
-            : canvas2dRenderer === 'flow'
-              ? UI_COPY.twoDRendererFlowTitle
-              : canvas2dRenderer === 'design'
-                ? UI_COPY.twoDRendererDesignTitle
-              : UI_COPY.twoDRendererD3Title
-        }
-        tooltipContent={UI_COPY.twoDRendererToggleTooltip}
+      <Canvas2dRendererSelect
+        iconSizeClass={iconSizeClass}
+        iconStrokeWidth={iconStrokeWidth}
+        ensureBaselineUnlocked={ensureBaselineUnlocked}
         disabled={canvasRenderMode !== '2d' || geospatialEnabled}
-        onClick={handleCycleCanvas2dRenderer}
-        showTooltip
-      >
-        {canvas2dRenderer === 'flowEditor' ? (
-          <div className="flex items-center gap-1">
-            <Pencil className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-            <span className="text-xs">Edit</span>
-          </div>
-        ) : canvas2dRenderer === 'design' ? (
-          <div className="flex items-center gap-1">
-            <Palette className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-            <span className="text-xs">Design</span>
-          </div>
-        ) : canvas2dRenderer === 'flow' ? (
-          <div className="flex items-center gap-1">
-            <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-            <span className="text-xs">Flow</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1">
-            <CircleDot className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-            <span className="text-xs">D3</span>
-          </div>
-        )}
-      </IconButton>
+      />
       <DocumentModeSelect
         iconSizeClass={iconSizeClass}
         iconStrokeWidth={iconStrokeWidth}
@@ -437,20 +358,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       <IconButton className="App-toolbar__btn" title={UI_LABELS.zoomOut} onClick={onZoomOut} showTooltip>
         <ZoomOut className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
-      <PinToViewButton />
-      <FitToViewButton />
-      <FitToScreenButton />
-      <IconButton
-        className={`App-toolbar__btn ${
-          zoomToSelectionMode ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={UI_LABELS.zoomToSelection}
-        tooltipContent={UI_COPY.zoomToSelectionTooltip}
-        onClick={actions.handleToggleZoomToSelection}
-        showTooltip
-      >
-        <Focus className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
+      <ZoomModeSelect iconSizeClass={iconSizeClass} iconStrokeWidth={iconStrokeWidth} onZoomSelection={onZoomSelection} />
       <IconButton
         className={`App-toolbar__btn ${
           (snapGridEnabled || canvasGridEnabled) ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName

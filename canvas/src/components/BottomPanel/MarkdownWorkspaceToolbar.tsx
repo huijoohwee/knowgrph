@@ -1,28 +1,19 @@
 import React from 'react'
 import {
-  Bold,
-  ChevronLeft,
-  ChevronRight,
-  Code,
   Columns,
+  Code,
   Edit3,
   Eye,
-  Heading2,
-  Italic,
   LayoutGrid,
   LayoutPanelTop,
-  Link,
-  List,
-  ListOrdered,
   Copy,
   Maximize2,
+  X,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
   Quote,
-  Strikethrough,
-  WrapText,
 } from 'lucide-react'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -34,6 +25,13 @@ import type { MarkdownPresentationApi } from './markdownWorkspace/markdownWorksp
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { WorkspaceModeSelect } from './markdownWorkspace/WorkspaceModeSelect'
 import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/frontmatter'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_LABELS } from '@/lib/config'
+import {
+  MarkdownWorkspaceDisplayMenu,
+  MarkdownWorkspaceFormattingMenu,
+  MarkdownWorkspacePresentationNavMenu,
+} from '@/components/BottomPanel/MarkdownWorkspaceToolbarInlineMenus'
 
 export type MarkdownWorkspaceToolbarProps = {
   explorerOpen: boolean
@@ -129,6 +127,7 @@ export function MarkdownWorkspaceToolbar({
   onWebpageUpdateMeta,
 }: MarkdownWorkspaceToolbarProps) {
   const panelTypography = usePanelTypography()
+  const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const canNavigateSlides = layoutMode === 'presentation'
 
   const saveAsWrapRef = React.useRef<HTMLLIElement | null>(null)
@@ -425,166 +424,24 @@ export function MarkdownWorkspaceToolbar({
             </button>
           </li>
         </menu>
-        {canNavigateSlides ? (
-          <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Presentation navigation">
-            <li className="list-none">
-              <button
-                type="button"
-                className={TOOLBAR_BUTTON_CLASSNAME}
-                title="Previous slide"
-                onClick={() => presentationApiRef.current?.prev()}
-              >
-                <ChevronLeft className="w-4 h-4" strokeWidth={1.6} />
-              </button>
-            </li>
-            <li className="list-none">
-              <button
-                type="button"
-                className={TOOLBAR_BUTTON_CLASSNAME}
-                title="Next slide"
-                onClick={() => presentationApiRef.current?.next()}
-              >
-                <ChevronRight className="w-4 h-4" strokeWidth={1.6} />
-              </button>
-            </li>
-          </menu>
-        ) : null}
-        <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Formatting">
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              title="Heading"
-              disabled={!isEditing || !isMarkdown}
-              onClick={() => onFormatAction('heading2')}
-            >
-              <Heading2 className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              title="Bold"
-              disabled={!isEditing || !isMarkdown}
-              onClick={() => onFormatAction('bold')}
-            >
-              <Bold className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              title="Italic"
-              disabled={!isEditing || !isMarkdown}
-              onClick={() => onFormatAction('italic')}
-            >
-              <Italic className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              title="Strikethrough"
-              disabled={!isEditing || !isMarkdown}
-              onClick={() => onFormatAction('strike')}
-            >
-              <Strikethrough className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              title="Inline code"
-              disabled={!isEditing || !isMarkdown}
-              onClick={() => onFormatAction('inlineCode')}
-            >
-              <Code className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              title="Link"
-              disabled={!isEditing || !isMarkdown}
-              onClick={() => onFormatAction('link')}
-            >
-              <Link className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              title="Bulleted list"
-              disabled={!isEditing || !isMarkdown}
-              onClick={() => onFormatAction('bulletList')}
-            >
-              <List className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              title="Numbered list"
-              disabled={!isEditing || !isMarkdown}
-              onClick={() => onFormatAction('numberedList')}
-            >
-              <ListOrdered className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              title="Quote"
-              disabled={!isEditing || !isMarkdown}
-              onClick={() => onFormatAction('blockquote')}
-            >
-              <Quote className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              title="Normalize ASCII blocks"
-              disabled={!isEditing || !isMarkdown}
-              onClick={() => onFormatAction('normalizeAsciiBlocks')}
-            >
-              <span className={panelTypography.microLabelClass}>ASCII</span>
-            </button>
-          </li>
-        </menu>
-        <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Display">
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              aria-pressed={markdownTextHighlight}
-              title="Toggle text highlight"
-              onClick={() => setMarkdownTextHighlight(!markdownTextHighlight)}
-            >
-              <Eye className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              aria-pressed={markdownWordWrap}
-              title="Toggle word wrap"
-              onClick={() => setMarkdownWordWrap(!markdownWordWrap)}
-            >
-              <WrapText className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
-        </menu>
+        <MarkdownWorkspacePresentationNavMenu
+          canNavigateSlides={canNavigateSlides}
+          toolbarButtonClassName={TOOLBAR_BUTTON_CLASSNAME}
+          presentationApiRef={presentationApiRef}
+        />
+        <MarkdownWorkspaceFormattingMenu
+          toolbarButtonClassName={TOOLBAR_BUTTON_CLASSNAME}
+          isEditing={isEditing}
+          isMarkdown={isMarkdown}
+          onFormatAction={onFormatAction}
+        />
+        <MarkdownWorkspaceDisplayMenu
+          toolbarButtonClassName={TOOLBAR_BUTTON_CLASSNAME}
+          markdownTextHighlight={markdownTextHighlight}
+          setMarkdownTextHighlight={setMarkdownTextHighlight}
+          markdownWordWrap={markdownWordWrap}
+          setMarkdownWordWrap={setMarkdownWordWrap}
+        />
         <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Actions">
           <li
             ref={el => {
@@ -710,6 +567,16 @@ export function MarkdownWorkspaceToolbar({
           <li className="list-none">
             <button type="button" className={TOOLBAR_BUTTON_CLASSNAME} title="Fullscreen" onClick={onToggleFullscreen}>
               <Maximize2 className="w-4 h-4" strokeWidth={1.6} />
+            </button>
+          </li>
+          <li className="list-none">
+            <button
+              type="button"
+              className={TOOLBAR_BUTTON_CLASSNAME}
+              title={UI_LABELS.close}
+              onClick={() => setWorkspaceViewMode('canvas')}
+            >
+              <X className="w-4 h-4" strokeWidth={1.6} />
             </button>
           </li>
         </menu>

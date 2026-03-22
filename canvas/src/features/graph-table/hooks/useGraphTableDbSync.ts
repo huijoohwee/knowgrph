@@ -13,8 +13,10 @@ export const useGraphTableDbSync = (
   graphDataRevision: number,
   renderGraphData: GraphData | null | undefined,
   viewKey: string = '',
+  enabled: boolean = true,
 ): UseGraphTableDbSyncResult => {
   useEffect(() => {
+    if (!enabled) return
     let cancelled = false
     void (async () => {
       const key = `${graphDataRevision}:${viewKey}`
@@ -30,7 +32,7 @@ export const useGraphTableDbSync = (
     return () => {
       cancelled = true
     }
-  }, [graphDataRevision, renderGraphData, viewKey])
+  }, [enabled, graphDataRevision, renderGraphData, viewKey])
 
   const noteGraphWrite = useCallback((nextGraphRevision: number) => {
     lastGraphWriteKeyGlobal = `${nextGraphRevision}:${viewKey}`

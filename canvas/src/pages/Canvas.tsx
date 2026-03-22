@@ -167,6 +167,11 @@ export default function CanvasPage() {
     })),
   )
 
+  const [editorShellWarmed, setEditorShellWarmed] = React.useState(workspaceViewMode === 'editor')
+  React.useEffect(() => {
+    if (workspaceViewMode === 'editor') setEditorShellWarmed(true)
+  }, [workspaceViewMode])
+
   const setLifecycleStage = useGraphStore(s => s.setLifecycleStage)
   const { markdownDocumentName, markdownDocumentText, frontmatterModeEnabled, documentSemanticMode, graphData } = useGraphStore(
     useShallow(s => ({
@@ -926,7 +931,7 @@ export default function CanvasPage() {
                     className={`relative z-[300] flex-1 min-w-0 min-h-0 overflow-hidden ${workspaceViewMode === 'editor' ? 'flex flex-col' : 'hidden'}`}
                     aria-label="Workspace left pane"
                   >
-                    {workspaceViewMode === 'editor' ? <EmbeddedEditorShell /> : null}
+                    {editorShellWarmed ? <EmbeddedEditorShell active={workspaceViewMode === 'editor'} /> : null}
                   </section>
 
                   {workspaceViewMode === 'editor' ? (

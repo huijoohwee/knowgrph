@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import type { Subscription } from 'rxjs'
 import type { RxChangeEvent } from 'rxdb'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useShallow } from 'zustand/react/shallow'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -9,7 +10,6 @@ import { hashString32 } from 'grph-shared/hash/stringHash'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsInt, lsJson, lsSetBool, lsSetInt, lsSetJson } from '@/lib/persistence'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
-import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import {
   allocateNewRowId,
   createRowFromGraphEntity,
@@ -22,9 +22,7 @@ import {
 } from '@/features/graph-table-db/graphTableDb'
 import type { GraphTableGridRow } from '@/features/graph-table/ui/graphTableTypes'
 import { GraphTableInspector, type GraphTableInspectorRow } from '@/features/graph-table/ui/GraphTableInspector'
-import { GraphTableFastGrid } from '@/features/graph-table/ui/GraphTableFastGrid'
-import { GraphTableKanbanView } from '@/features/graph-table/ui/GraphTableKanbanView'
-import { GraphTableWorkspaceHeader } from '@/features/graph-table/ui/GraphTableWorkspaceHeader'
+import { GraphTableWorkspaceLeft } from '@/features/graph-table/ui/GraphTableWorkspaceLeft'
 import { EmbeddedWorkspaceShell } from '@/components/EmbeddedWorkspaceShell'
 import {
   makeGraphTableRuleId,
@@ -52,15 +50,37 @@ import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { parseGraphTableViewMode, type GraphTableViewMode } from '@/features/graph-table/ui/graphTableViewMode'
 import { applyColumnOrder, getRowTocId, mapRowDocToGridRow, reorderIds } from '@/features/graph-table/ui/graphTableWorkspaceUtils'
 
-export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode }) {
+const INACTIVE_GRAPH_SLICE = {
+  baseGraphData: null,
+  collapsedGroupIds: [] as string[],
+  graphDataRevision: 0,
+  selectionSource: 'toolbar',
+  selectedNodeId: null as string | null,
+  selectedEdgeId: null as string | null,
+  openQuickEditorNodeIds: [] as string[],
+} as const
+
+export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; active?: boolean }) {
   const panelTypography = usePanelTypography()
-  const baseGraphData = useGraphStore(s => s.graphData)
-  const collapsedGroupIds = useGraphStore(s => (s.collapsedGroupIds || []) as string[])
-  const graphDataRevision = useGraphStore(s => s.graphDataRevision)
-  const selectionSource = useGraphStore(s => s.selectionSource)
-  const selectedNodeId = useGraphStore(s => s.selectedNodeId)
-  const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
-  const openQuickEditorNodeIds = useGraphStore(s => s.openQuickEditorNodeIds || [])
+  const active = props.active !== false
+  const selector = useMemo(
+    () =>
+      active
+        ? (s: ReturnType<typeof useGraphStore.getState>) => ({
+            baseGraphData: s.graphData,
+            collapsedGroupIds: (s.collapsedGroupIds || []) as string[],
+            graphDataRevision: s.graphDataRevision,
+            selectionSource: s.selectionSource,
+            selectedNodeId: s.selectedNodeId,
+            selectedEdgeId: s.selectedEdgeId,
+            openQuickEditorNodeIds: s.openQuickEditorNodeIds || [],
+          })
+        : () => INACTIVE_GRAPH_SLICE,
+    [active],
+  )
+  const { baseGraphData, collapsedGroupIds, graphDataRevision, selectionSource, selectedNodeId, selectedEdgeId, openQuickEditorNodeIds } =
+    useGraphStore(useShallow(selector))
+  const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
   const [activeTableId, setActiveTableId] = useState<GraphTableId>('nodes')
   const [viewMode, setViewMode] = useState<GraphTableViewMode>(() => lsJson(LS_KEYS.graphTableViewMode, 'table' as const, parseGraphTableViewMode))
   const [columns, setColumns] = useState<GraphColumnDoc[]>([])
@@ -109,7 +129,11 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode }
     return deriveGraphDataWithGroupCollapse({ graphData: baseGraphData, collapsedGroupIds: collapsedGroupIdsKey.split('|').filter(Boolean) })
   }, [baseGraphData, collapsedGroupIdsKey])
 
-  const { noteGraphWrite } = useGraphTableDbSync(graphDataRevision, syncGraphData, `baseline:${collapsedGroupIdsKey}`)
+  const handleCloseWorkspace = useCallback(() => {
+    setEditorWorkspacePane('markdown')
+  }, [setEditorWorkspacePane])
+
+  const { noteGraphWrite } = useGraphTableDbSync(graphDataRevision, syncGraphData, `baseline:${collapsedGroupIdsKey}`, active)
 
   useEffect(() => {
     lsSetBool(LS_KEYS.graphTablePreviewCollapsed, canvasPreviewCollapsed)
@@ -497,114 +521,58 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode }
   }, [activeTableId, orderedColumns])
 
   const left = (
-    <section className={`flex-1 min-h-0 overflow-hidden flex flex-col ${UI_THEME_TOKENS.text.primary}`} aria-label="Graph Data Table">
-      <GraphTableWorkspaceHeader
-        panelTypography={panelTypography}
-        activeTableId={activeTableId}
-        setActiveTableId={setActiveTableId}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        rowCountLabel={rowCountLabel}
-        orderedColumns={orderedColumns.map(c => ({ columnId: c.columnId, name: c.name }))}
-        inspectorOpen={inspectorOpen}
-        setInspectorOpen={setInspectorOpen}
-        canvasPreviewAvailable={!!props.canvasPreview}
-        canvasPreviewCollapsed={canvasPreviewCollapsed}
-        setCanvasPreviewCollapsed={setCanvasPreviewCollapsed}
-        columnVisibilityById={columnVisibilityById}
-        setColumnVisibilityById={setColumnVisibilityById}
-        filterMatch={filterMatch}
-        setFilterMatch={setFilterMatch}
-        filterClauses={filterClauses}
-        setFilterClauses={setFilterClauses}
-        groupBy={groupBy}
-        setGroupBy={setGroupBy}
-        sortRules={sortRules}
-        setSortRules={setSortRules}
-        rowHeightPreset={rowHeightPreset}
-        setRowHeightPreset={setRowHeightPreset}
-        columnWidthsPxById={columnWidthsPxById}
-        resetColumnWidths={resetColumnWidths}
-        onAddRow={handleAddRow}
-        onDeleteSelected={handleDeleteSelected}
-        hasSelection={selectedRowIds.length > 0}
-      />
-
-      <section className="flex-1 min-h-0 overflow-hidden flex" aria-label="Table workspace">
-        <section className="flex-1 min-w-0 min-h-0 overflow-hidden flex" aria-label="Table and inspector">
-          {viewMode === 'kanban' ? (
-            <GraphTableKanbanView
-              tableId={activeTableId}
-              columns={columns}
-              rows={rows}
-              columnVisibilityById={columnVisibilityById}
-              filterMatch={filterMatch}
-              filterClauses={filterClauses}
-              groupBy={groupBy}
-              sortRules={sortRules}
-              columnOrderIds={columnOrderByTableId[activeTableId]}
-              selectedRowIds={selectedRowIds}
-              onRowClicked={handleActivateRow}
-            />
-          ) : (
-            <GraphTableFastGrid
-              tableId={activeTableId}
-              panelTypography={panelTypography}
-              columns={columns}
-              rows={rows}
-              selectedRowIds={selectedRowIds}
-              focusRowId={inspectorRowId}
-              autoScrollToFocusRow={selectionSource !== 'toolbar'}
-              columnVisibilityById={columnVisibilityById}
-              filterMatch={filterMatch}
-              filterClauses={filterClauses}
-              groupBy={groupBy}
-              sortRules={sortRules}
-              rowHeightPreset={rowHeightPreset}
-              columnWidthsPxById={columnWidthsPxById}
-              columnOrderIds={columnOrderByTableId[activeTableId]}
-              onColumnWidthChanged={handleColumnWidthChanged}
-              onRequestReorderColumn={handleRequestReorderColumn}
-              onCellValueChanged={handleCellValueChanged}
-              onColumnKindChanged={handleColumnKindChanged}
-              onHideColumnInView={handleHideColumnInView}
-              onUpsertColumnFilter={handleUpsertColumnFilter}
-              onSetSingleColumnSort={handleSetSingleColumnSort}
-              onRowClicked={handleActivateRow}
-              onSelectionChanged={ids => {
-                setSelectedRowIds(ids)
-                setInspectorRowId(ids[0] || null)
-              }}
-            />
-          )}
-          {showInspector && (
-            <>
-              <VerticalResizeSeparatorHr
-                ref={el => {
-                  inspectorDragHandleRef.current = el
-                }}
-                ariaLabel="Resize inspector"
-              />
-              <GraphTableInspector
-                widthPx={inspectorWidthPx}
-                columns={columns}
-                row={selectedRow}
-                onClose={() => setInspectorRowId(null)}
-                onChangeCell={(columnId, next) => {
-                  if (!selectedRow) return
-                  handleCellValueChanged(selectedRow.rowId, columnId, next)
-                }}
-                onDeleteRow={() => {
-                  if (!selectedRow) return
-                  setSelectedRowIds([selectedRow.rowId])
-                  handleDeleteSelected()
-                }}
-              />
-            </>
-          )}
-        </section>
-      </section>
-    </section>
+    <GraphTableWorkspaceLeft
+      panelTypography={panelTypography}
+      activeTableId={activeTableId}
+      setActiveTableId={setActiveTableId}
+      viewMode={viewMode}
+      setViewMode={setViewMode}
+      rowCountLabel={rowCountLabel}
+      orderedColumns={orderedColumns.map(c => ({ columnId: c.columnId, name: c.name }))}
+      inspectorOpen={inspectorOpen}
+      setInspectorOpen={setInspectorOpen}
+      canvasPreviewAvailable={!!props.canvasPreview}
+      canvasPreviewCollapsed={canvasPreviewCollapsed}
+      setCanvasPreviewCollapsed={setCanvasPreviewCollapsed}
+      columnVisibilityById={columnVisibilityById}
+      setColumnVisibilityById={setColumnVisibilityById}
+      filterMatch={filterMatch}
+      setFilterMatch={setFilterMatch}
+      filterClauses={filterClauses}
+      setFilterClauses={setFilterClauses}
+      groupBy={groupBy}
+      setGroupBy={setGroupBy}
+      sortRules={sortRules}
+      setSortRules={setSortRules}
+      rowHeightPreset={rowHeightPreset}
+      setRowHeightPreset={setRowHeightPreset}
+      columnWidthsPxById={columnWidthsPxById}
+      resetColumnWidths={resetColumnWidths}
+      onAddRow={handleAddRow}
+      onDeleteSelected={handleDeleteSelected}
+      hasSelection={selectedRowIds.length > 0}
+      onClose={handleCloseWorkspace}
+      columns={columns}
+      rows={rows}
+      selectedRowIds={selectedRowIds}
+      inspectorRowId={inspectorRowId}
+      selectionSource={selectionSource}
+      setSelectedRowIds={setSelectedRowIds}
+      setInspectorRowId={setInspectorRowId}
+      showInspector={showInspector}
+      inspectorWidthPx={inspectorWidthPx}
+      inspectorDragHandleRef={inspectorDragHandleRef}
+      selectedRow={selectedRow}
+      onColumnWidthChanged={handleColumnWidthChanged}
+      onRequestReorderColumn={handleRequestReorderColumn}
+      onCellValueChanged={handleCellValueChanged}
+      onColumnKindChanged={handleColumnKindChanged}
+      onHideColumnInView={handleHideColumnInView}
+      onUpsertColumnFilter={handleUpsertColumnFilter}
+      onSetSingleColumnSort={handleSetSingleColumnSort}
+      onRowClicked={handleActivateRow}
+      columnOrderIds={columnOrderByTableId[activeTableId]}
+    />
   )
 
   if (!props.canvasPreview) return left

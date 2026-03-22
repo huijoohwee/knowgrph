@@ -6,7 +6,6 @@ import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { useLaunchSpotlight } from '@/features/panels/hooks/useLaunchSpotlight'
 import { LS_KEYS, UI_COPY } from '@/lib/config'
-import { getNextCanvas2dRendererId } from '@/lib/renderer/canvas2dRendererRegistry'
 import { lsBool } from '@/lib/persistence'
 import { useToolbarActions } from '@/features/toolbar/hooks/useToolbarActions'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
@@ -41,18 +40,12 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
   } = useToolbarState()
 
   const {
-    editorWorkspacePane,
-    setEditorWorkspacePane,
     themeMode,
     setThemeMode,
     workspaceViewMode,
-    toggleWorkspaceViewMode,
-    setWorkspaceViewMode,
     renderMediaAsNodes,
     setRenderMediaAsNodes,
     setBehavior,
-    canvas2dRenderer,
-    setCanvas2dRenderer,
     selectedNodeId,
     selectedEdgeId,
     selectedGroupId,
@@ -69,18 +62,12 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     graphData,
   } = useGraphStore(
     useShallow(s => ({
-      editorWorkspacePane: s.editorWorkspacePane,
-      setEditorWorkspacePane: s.setEditorWorkspacePane,
       themeMode: s.themeMode,
       setThemeMode: s.setThemeMode,
       workspaceViewMode: s.workspaceViewMode,
-      toggleWorkspaceViewMode: s.toggleWorkspaceViewMode,
-      setWorkspaceViewMode: s.setWorkspaceViewMode,
       renderMediaAsNodes: s.renderMediaAsNodes,
       setRenderMediaAsNodes: s.setRenderMediaAsNodes,
       setBehavior: s.setBehavior,
-      canvas2dRenderer: s.canvas2dRenderer,
-      setCanvas2dRenderer: s.setCanvas2dRenderer,
       selectedNodeId: s.selectedNodeId,
       selectedEdgeId: s.selectedEdgeId,
       selectedGroupId: s.selectedGroupId,
@@ -237,14 +224,8 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     })
   }, [])
 
-  const handleCycleCanvas2dRenderer = useCallback(() => {
-    if (!ensureBaselineUnlocked()) return
-    setCanvas2dRenderer(getNextCanvas2dRendererId(canvas2dRenderer))
-  }, [canvas2dRenderer, ensureBaselineUnlocked, setCanvas2dRenderer])
-
   return {
     actions,
-    canvas2dRenderer,
     canvasGridDotRadiusPx,
     canvasGridEnabled,
     canvasGridMajorEvery,
@@ -252,13 +233,11 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     canvasRenderMode,
     clampMainPanelPos,
     documentStructureBaselineLock,
-    editorWorkspacePane,
     enableLaunchSpotlight,
     ensureBaselineUnlocked,
     geospatialEnabled,
     graphData,
     groupShapeMode,
-    handleCycleCanvas2dRenderer,
     handleMainPanelHeaderDragStart,
     handleMainPanelRestore,
     iconSizeClass,
@@ -286,7 +265,6 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     setBehavior,
     setCanvasRenderMode,
     setDocumentStructureBaselineLock,
-    setEditorWorkspacePane,
     setFitToScreenMode,
     setGeospatialEnabled,
     setIsMainPanelOpen,
@@ -296,16 +274,13 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     setSelectMode,
     setSelectionSource,
     setWorkspaceToolbarExpanded,
-    setWorkspaceViewMode,
     snapGridEnabled,
     snapGridSize,
     themeMode,
     toggleFitToScreenMode,
-    toggleWorkspaceViewMode,
     toolbarCollapsed,
     toolbarNavRef,
     workspaceToolbarExpanded,
-    workspaceViewMode,
     zoomToSelectionMode,
   }
 }

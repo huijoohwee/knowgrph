@@ -65,7 +65,7 @@ export async function testEmbeddedEditorShellRendersMarkdownWorkspace() {
 
     const root = createRoot(container)
     await act(async () => {
-      root.render(<EmbeddedEditorShell />)
+      root.render(<EmbeddedEditorShell active={true} />)
     })
 
     const workspace = dom.window.document.querySelector('section[aria-label="Markdown Workspace"]') as HTMLElement | null
