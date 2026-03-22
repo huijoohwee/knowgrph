@@ -34,3 +34,26 @@ export const testSceneDisplayDerivationMemoizesDisplayGraphAndMaps = () => {
   if (o1.edgeIndexById !== o2.edgeIndexById) throw new Error('expected override edgeIndexById to be memoized per edges array identity')
 }
 
+export const testSceneDisplayDerivationPreservesEdgesWhenHiddenEndpoints = () => {
+  const graphData: GraphData = {
+    type: 'Graph',
+    context: 'frontmatter-mermaid',
+    metadata: { layoutEngine: 'mermaid' },
+    nodes: [
+      { id: 'sg', type: 'MermaidSubgraph', label: 'Subgraph', properties: {}, metadata: {} },
+      { id: 'n1', type: 'MermaidNode', label: 'Node', properties: {}, metadata: {} },
+    ],
+    edges: [
+      { id: 'e1', source: 'sg', target: 'n1', label: 'hasMermaidNode', properties: {}, metadata: {} },
+    ],
+  }
+
+  const d = deriveSceneDisplayGraph({ graphData })
+  if (!d) throw new Error('expected derivation to return non-null')
+  if (d.displayEdges.length !== 1) {
+    throw new Error(`expected membership edge to remain visible, got ${d.displayEdges.length}`)
+  }
+  if (d.displayNodes.length !== 2) {
+    throw new Error(`expected both endpoints to remain visible, got ${d.displayNodes.length}`)
+  }
+}

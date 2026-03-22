@@ -8,6 +8,7 @@ import LaunchSpotlight from '@/features/spotlight/LaunchSpotlight'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
+import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 
 import { InfiniteCanvasWorkspaceOverlay } from '@/features/canvas/InfiniteCanvasWorkspaceOverlay'
 
@@ -144,6 +145,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const { variant, layout = 'full', geospatialModeEnabled, activeGraphData, canvasRenderMode, canvas2dRenderer, mounted2dRenderers, gympgrphBridge } = props
   const safeGraphData = activeGraphData || ({ nodes: [], edges: [] } as GraphData)
   const activeSurface = geospatialModeEnabled ? 'geo' : canvasRenderMode === '3d' ? '3d' : '2d'
+  const isNarrowViewport = useMediaQuery('(max-width: 768px)')
   const [geospatialWarmed, setGeospatialWarmed] = React.useState(geospatialModeEnabled)
   const [threeWarmed, setThreeWarmed] = React.useState(!geospatialModeEnabled && canvasRenderMode === '3d')
   React.useEffect(() => {
@@ -291,7 +293,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
         {variant === 'workspace' ? (
           <>
             {layout === 'full' ? <LaunchSpotlight /> : null}
-            {activeSurface === '2d' && (canvas2dRenderer === 'd3' || canvas2dRenderer === 'flow' || canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'design') ? (
+            {activeSurface === '2d' && !isNarrowViewport && (canvas2dRenderer === 'd3' || canvas2dRenderer === 'flow' || canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'design') ? (
               <aside
                 className={`${layout === 'pane' ? 'absolute' : 'fixed'} left-3 z-[201] pointer-events-auto`}
                 style={layout === 'pane' ? undefined : { bottom: 'calc(40px + 12px)' }}

@@ -31,6 +31,7 @@ export const createZoom = (
   viewportControlsPreset: ViewportControlsPreset,
   onZoomTransform?: (t: { k: number; x: number; y: number }) => void,
   onLabelLodVisibilityChange?: (hidden: boolean) => void,
+  isActive?: () => boolean,
 ) => {
   const __kgWheelZoomSsot = (deltaYpx: number, increment: number, rect: DOMRect) => {
     const nowMs = Date.now()
@@ -84,10 +85,21 @@ export const createZoom = (
   const svgEl = svg.node()
   if (svgEl) {
     let wheelAnchorFallback: { sx: number; sy: number; ts: number } | null = null
-    const any = svgEl as unknown as { __kgViewportControllerDestroy?: (() => void) | null }
+    const active = typeof isActive === 'function' ? isActive : () => true
+    const any = svgEl as unknown as {
+      __kgViewportControllerDestroy?: (() => void) | null
+      __kgWindowGestureDestroy?: (() => void) | null
+    }
     if (typeof any.__kgViewportControllerDestroy === 'function') {
       try {
         any.__kgViewportControllerDestroy()
+      } catch {
+        void 0
+      }
+    }
+    if (typeof any.__kgWindowGestureDestroy === 'function') {
+      try {
+        any.__kgWindowGestureDestroy()
       } catch {
         void 0
       }
@@ -101,7 +113,7 @@ export const createZoom = (
     }
 
     const controller = createInfiniteCanvasViewportController({
-      active: () => true,
+      active,
       adapter: {
         getTransform: () => d3.zoomTransform(svgEl),
         setTransform: (t) => {
@@ -176,7 +188,7 @@ export const createZoom = (
     })
 
     const gestureZoom = createSafariGestureZoomController({
-      active: () => true,
+      active,
       adapter: {
         getTransform: () => d3.zoomTransform(svgEl),
         setTransform: (t) => {
@@ -192,6 +204,55 @@ export const createZoom = (
       readLocalPoint: (e) => readElementLocalPoint({ el: svgEl, event: e }),
       getBoundingRect: () => svgEl.getBoundingClientRect(),
     })
+
+    const windowGestureDestroy = (() => {
+      if (typeof window === 'undefined') return null
+      const withinRect = (event: Event): boolean => {
+        const cx = (event as unknown as { clientX?: unknown }).clientX
+        const cy = (event as unknown as { clientY?: unknown }).clientY
+        if (typeof cx !== 'number' || !Number.isFinite(cx) || typeof cy !== 'number' || !Number.isFinite(cy)) return false
+        const rect = svgEl.getBoundingClientRect()
+        if (!rect || rect.width <= 1 || rect.height <= 1) return false
+        return cx >= rect.left && cx <= rect.right && cy >= rect.top && cy <= rect.bottom
+      }
+
+      const onStart = (event: Event) => {
+        if (!active()) return
+        if (!withinRect(event)) return
+        gestureZoom.handleGestureStart(event)
+      }
+      const onChange = (event: Event) => {
+        if (!active()) return
+        if (!withinRect(event)) return
+        gestureZoom.handleGestureChange(event)
+      }
+      const onEnd = (event: Event) => {
+        if (!active()) return
+        gestureZoom.handleGestureEnd(event)
+      }
+      const onCancel = (event: Event) => {
+        if (!active()) return
+        gestureZoom.handleGestureCancel(event)
+      }
+
+      window.addEventListener('gesturestart', onStart as EventListener, { passive: false, capture: true })
+      window.addEventListener('gesturechange', onChange as EventListener, { passive: false, capture: true })
+      window.addEventListener('gestureend', onEnd as EventListener, { passive: false, capture: true })
+      window.addEventListener('gesturecancel', onCancel as EventListener, { passive: false, capture: true })
+
+      return () => {
+        try {
+          window.removeEventListener('gesturestart', onStart as EventListener, true)
+          window.removeEventListener('gesturechange', onChange as EventListener, true)
+          window.removeEventListener('gestureend', onEnd as EventListener, true)
+          window.removeEventListener('gesturecancel', onCancel as EventListener, true)
+        } catch {
+          void 0
+        }
+      }
+    })()
+
+    any.__kgWindowGestureDestroy = windowGestureDestroy
 
     svg.on('gesturestart.kgGestureZoom', (event: unknown) => {
       gestureZoom.handleGestureStart(event as Event)

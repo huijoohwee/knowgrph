@@ -36,6 +36,7 @@ import { createUniqueId } from '@/lib/ids'
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
 type SetupGraphSceneArgs = {
+  active: () => boolean
   svgEl: SVGSVGElement
   svgRef: RefObject<SVGSVGElement>
   graphData: GraphData
@@ -105,6 +106,7 @@ type SetupGraphSceneArgs = {
 
 export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   const {
+    active,
     svgEl,
     svgRef,
     graphData,
@@ -211,7 +213,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
           selectedEdgeIdsRef.current,
           getRenderMediaAsNodes(),
         )
-  })
+  },
+  active)
   zoomRef.current = zoom
   const applyInitialTransform = (t: { k: number; x: number; y: number } | null) => {
     if (!t) return
@@ -779,6 +782,23 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   })
 
   return () => {
+    const any = svgEl as unknown as { __kgViewportControllerDestroy?: (() => void) | null; __kgWindowGestureDestroy?: (() => void) | null }
+    if (typeof any.__kgViewportControllerDestroy === 'function') {
+      try {
+        any.__kgViewportControllerDestroy()
+      } catch {
+        void 0
+      }
+      any.__kgViewportControllerDestroy = null
+    }
+    if (typeof any.__kgWindowGestureDestroy === 'function') {
+      try {
+        any.__kgWindowGestureDestroy()
+      } catch {
+        void 0
+      }
+      any.__kgWindowGestureDestroy = null
+    }
     storeLayoutPositions()
     simulation.on('end.layoutCache', null)
     simulation.stop()

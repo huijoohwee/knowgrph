@@ -64,10 +64,12 @@ import { InfiniteGridCanvasOverlay } from '@/components/InfiniteGridCanvasOverla
 import { readSnapGridConfigFromSchema, snapPointToGrid, snapScalarToGrid } from '@/lib/canvas/gridSnap'
 import { readCanvasGridConfigFromSchema, readCanvasGridWorldStepFromSchema } from '@/lib/canvas/canvasGridConfig'
 import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
+import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const coarsePointer = useMediaQuery('(pointer: coarse)')
   const isEmbeddedPreview = useMemo(() => {
     try {
       const q = new URLSearchParams(String(window.location.search || '')).get('kgPreview') === '1'
@@ -1069,7 +1071,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     if (!sceneGraphData || !svgRef.current) return;
     const schemaValue = schemaRef.current;
     if (!schemaValue) return;
-    const hoverEnabled = schemaValue.behavior?.hover?.enabled !== false;
+    const hoverEnabled = schemaValue.behavior?.hover?.enabled !== false && !coarsePointer;
     const expansionCfg = schemaValue.behavior?.expansion || {};
     const expansionEnabled = expansionCfg.enabled !== false;
     const zoomOnDoubleClick = expansionEnabled && expansionCfg.zoomOnDoubleClick !== false;
@@ -1331,6 +1333,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       lastLayoutViewKeyRef.current = layoutViewKey
       activeLayoutCacheKeyRef.current = cacheKey
       sceneCleanupRef.current = setupGraphScene({
+        active: () => activeRef.current,
         svgEl: svgRef.current,
         svgRef,
         graphData: sceneGraphData,
@@ -1437,6 +1440,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     };
   }, [
     active,
+    coarsePointer,
     graphDataRevision,
     graphDataRevisionRef,
     isEmbeddedPreview,
@@ -1593,7 +1597,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     if (!simulationRef.current) return
     if (!sceneGraphDataRef.current) return
     const schemaValue = schemaRef.current
-    const hoverEnabled = schemaValue.behavior?.hover?.enabled !== false
+    const hoverEnabled = schemaValue.behavior?.hover?.enabled !== false && !coarsePointer
     const expansionCfg = schemaValue.behavior?.expansion || {}
     const expansionEnabled = expansionCfg.enabled !== false
     const zoomOnDoubleClick = expansionEnabled && expansionCfg.zoomOnDoubleClick !== false
@@ -1667,6 +1671,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     })
     nodesPresentationAppliedKeyRef.current = schemaNodesPresentationJson
   }, [
+    coarsePointer,
     edgesForSim,
     mediaPanelDensity,
     renderMediaAsNodes,
@@ -1684,7 +1689,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     if (groupsPresentationAppliedKeyRef.current === schemaGroupsPresentationJson) return
     const schemaValue = schemaRef.current
     if (!sceneGraphData) return
-    const hoverEnabled = schemaValue.behavior?.hover?.enabled !== false
+    const hoverEnabled = schemaValue.behavior?.hover?.enabled !== false && !coarsePointer
     updateGraphSceneGroupsPresentation({
       gRef,
       schema: schemaValue,
@@ -1702,7 +1707,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
     })
     groupsPresentationAppliedKeyRef.current = schemaGroupsPresentationJson
-  }, [schemaGroupsPresentationJson, sceneGraphData])
+  }, [coarsePointer, schemaGroupsPresentationJson, sceneGraphData])
 
 
   useSelectionHighlight({

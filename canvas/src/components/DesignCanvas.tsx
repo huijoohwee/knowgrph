@@ -1507,7 +1507,7 @@ export default function DesignCanvas({
     const zoom = createZoom(svg, g, labelsSelRef, snapshot.schema, snapshot.viewportControlsPreset, t => {
       if (!active) return
       zoomCommitSchedulerRef.current.schedule({ k: t.k, x: t.x, y: t.y })
-    })
+    }, undefined, () => active)
 
     zoomRef.current = zoom
 
@@ -1596,6 +1596,23 @@ export default function DesignCanvas({
     }
 
     return () => {
+      const any = svgEl as unknown as { __kgViewportControllerDestroy?: (() => void) | null; __kgWindowGestureDestroy?: (() => void) | null }
+      if (typeof any.__kgViewportControllerDestroy === 'function') {
+        try {
+          any.__kgViewportControllerDestroy()
+        } catch {
+          void 0
+        }
+        any.__kgViewportControllerDestroy = null
+      }
+      if (typeof any.__kgWindowGestureDestroy === 'function') {
+        try {
+          any.__kgWindowGestureDestroy()
+        } catch {
+          void 0
+        }
+        any.__kgWindowGestureDestroy = null
+      }
       try {
         svg.on('.zoom', null)
         svg.on('.kgPointerPan', null)

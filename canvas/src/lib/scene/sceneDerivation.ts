@@ -3,7 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { createLayoutGroupKeyOfNode, selectLayoutGroups } from '@/components/GraphCanvas/layout/layoutGroupKey'
-import { getDisplayEdges, getDisplayNodes } from '@/components/GraphCanvas/displayFilter'
+import { getGraphDataForDisplay } from '@/components/GraphCanvas/displayFilter'
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import { applySchemaGroupBoundsOverrides, readSchemaGroupBoundsOverrides } from '@/lib/canvas/groupBoundsOverrides'
@@ -29,17 +29,11 @@ export type SceneDisplayGraphDerivation = {
 
 const cache = new LRUCache<string, SceneGroupsDerivation>(128)
 
+const EMPTY_EDGES: GraphEdge[] = []
+
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 
-type DisplayNodesDerivation = {
-  displayNodes: GraphNode[]
-  displayNodeIdSet: Set<string>
-  nodeIndexById: Map<string, number>
-  nodeById: Map<string, GraphNode>
-  edgesCache: WeakMap<GraphEdge[], { displayEdges: GraphEdge[]; edgeIndexById: Map<string, number>; displayGraphData: GraphData }>
-}
-
-const displayNodesCache = new WeakMap<object, DisplayNodesDerivation>()
+const displayGraphCache = new WeakMap<object, WeakMap<GraphEdge[], SceneDisplayGraphDerivation>>()
 
 const buildKey = (args: {
   graphData: GraphData
@@ -129,11 +123,33 @@ export const deriveSceneGroups = (args: {
   return derived
 }
 
-const getDisplayNodesDerivation = (graphData: GraphData): DisplayNodesDerivation => {
-  const cached = displayNodesCache.get(graphData as unknown as object)
+const getEdgesSource = (args: { graphData: GraphData; edges?: GraphEdge[] | null }): GraphEdge[] => {
+  if (Array.isArray(args.edges)) return args.edges
+  if (Array.isArray(args.graphData.edges)) return args.graphData.edges as GraphEdge[]
+  return EMPTY_EDGES
+}
+
+export const deriveSceneDisplayGraph = (args: {
+  graphData: GraphData | null
+  edges?: GraphEdge[] | null
+}): SceneDisplayGraphDerivation | null => {
+  const graphData = args.graphData
+  if (!graphData) return null
+
+  const edgesSource = getEdgesSource({ graphData, edges: args.edges })
+  const graphKey = graphData as unknown as object
+
+  const perGraph = displayGraphCache.get(graphKey) || new WeakMap<GraphEdge[], SceneDisplayGraphDerivation>()
+  if (!displayGraphCache.has(graphKey)) displayGraphCache.set(graphKey, perGraph)
+
+  const cached = perGraph.get(edgesSource)
   if (cached) return cached
 
-  const displayNodes = getDisplayNodes(graphData)
+  const overrideEdges = Array.isArray(args.edges) ? args.edges : null
+  const displayGraphData = getGraphDataForDisplay({ graphData, edges: overrideEdges })
+  const displayNodes = Array.isArray(displayGraphData.nodes) ? (displayGraphData.nodes as GraphNode[]) : ([] as GraphNode[])
+  const displayEdges = Array.isArray(displayGraphData.edges) ? (displayGraphData.edges as GraphEdge[]) : ([] as GraphEdge[])
+
   const displayNodeIdSet = new Set<string>()
   const nodeIndexById = new Map<string, number>()
   const nodeById = new Map<string, GraphNode>()
@@ -146,24 +162,6 @@ const getDisplayNodesDerivation = (graphData: GraphData): DisplayNodesDerivation
     if (!nodeById.has(id)) nodeById.set(id, n)
   }
 
-  const derived: DisplayNodesDerivation = {
-    displayNodes,
-    displayNodeIdSet,
-    nodeIndexById,
-    nodeById,
-    edgesCache: new WeakMap(),
-  }
-  displayNodesCache.set(graphData as unknown as object, derived)
-  return derived
-}
-
-const deriveDisplayEdgesForSource = (args: {
-  displayNodeIdSet: Set<string>
-  edgesSource: GraphEdge[]
-  graphData: GraphData
-  displayNodes: GraphNode[]
-}): { displayEdges: GraphEdge[]; edgeIndexById: Map<string, number>; displayGraphData: GraphData } => {
-  const displayEdges = getDisplayEdges({ edges: args.edgesSource, displayNodeIdSet: args.displayNodeIdSet })
   const edgeIndexById = new Map<string, number>()
   for (let i = 0; i < displayEdges.length; i += 1) {
     const e = displayEdges[i] as unknown as { id?: unknown }
@@ -172,51 +170,17 @@ const deriveDisplayEdgesForSource = (args: {
     if (!edgeIndexById.has(id)) edgeIndexById.set(id, i)
   }
 
-  const displayGraphData: GraphData = {
-    ...args.graphData,
-    nodes: args.displayNodes,
-    edges: displayEdges,
-  }
-
-  return { displayEdges, edgeIndexById, displayGraphData }
-}
-
-export const deriveSceneDisplayGraph = (args: {
-  graphData: GraphData | null
-  edges?: GraphEdge[] | null
-}): SceneDisplayGraphDerivation | null => {
-  const graphData = args.graphData
-  if (!graphData) return null
-
-  const nodesDerived = getDisplayNodesDerivation(graphData)
-
-  const edgesSource = Array.isArray(args.edges)
-    ? (args.edges as GraphEdge[])
-    : Array.isArray(graphData.edges)
-      ? (graphData.edges as GraphEdge[])
-      : ([] as GraphEdge[])
-
-  const edgesCached = nodesDerived.edgesCache.get(edgesSource as unknown as GraphEdge[])
-  const edgesDerived =
-    edgesCached ||
-    deriveDisplayEdgesForSource({
-      graphData,
-      displayNodes: nodesDerived.displayNodes,
-      displayNodeIdSet: nodesDerived.displayNodeIdSet,
-      edgesSource,
-    })
-  if (!edgesCached) nodesDerived.edgesCache.set(edgesSource as unknown as GraphEdge[], edgesDerived)
-
-  const displayGraphData = edgesDerived.displayGraphData
-
-  return {
+  const derived: SceneDisplayGraphDerivation = {
     graphData,
     displayGraphData,
-    displayNodes: nodesDerived.displayNodes,
-    displayEdges: edgesDerived.displayEdges,
-    displayNodeIdSet: nodesDerived.displayNodeIdSet,
-    nodeIndexById: nodesDerived.nodeIndexById,
-    edgeIndexById: edgesDerived.edgeIndexById,
-    nodeById: nodesDerived.nodeById,
+    displayNodes,
+    displayEdges,
+    displayNodeIdSet,
+    nodeIndexById,
+    edgeIndexById,
+    nodeById,
   }
+
+  perGraph.set(edgesSource, derived)
+  return derived
 }

@@ -116,6 +116,7 @@ async function renderGraphCanvasSvgForHtmlExport(args: {
   const selectedEdgeIdsRef = ref<string[] | undefined>(undefined)
 
   const cleanup = setupGraphScene({
+    active: () => true,
     svgEl,
     svgRef,
     graphData,

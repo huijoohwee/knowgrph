@@ -18,7 +18,7 @@ import { DEFAULT_CENTER_STRENGTH, readFitPadding, readForceCharge, readForceLink
 import { ZOOM_VIEWPORT_PRESET_16_9 } from 'grph-shared/zoom/presets'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 
-type EdgeEndpointLike = GraphEdge['source'] | { id?: string } | null | undefined;
+type EdgeEndpointLike = GraphEdge['source'] | { id?: string | number } | null | undefined;
 
 export type EdgeWithRuntime = GraphEdge & {
   source?: EdgeEndpointLike;
@@ -27,8 +27,11 @@ export type EdgeWithRuntime = GraphEdge & {
 
 const coerceEndpointId = (value: EdgeEndpointLike): string | null => {
   if (typeof value === 'string') return value;
-  if (value && typeof value === 'object' && typeof (value as { id?: unknown }).id === 'string') {
-    return (value as { id: string }).id;
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : null;
+  if (value && typeof value === 'object') {
+    const id = (value as { id?: unknown }).id;
+    if (typeof id === 'string') return id;
+    if (typeof id === 'number') return Number.isFinite(id) ? String(id) : null;
   }
   return null;
 };
@@ -39,7 +42,7 @@ export const getEdgeEndpoints = (edge: EdgeWithRuntime): { src: string | null; t
 });
 
 export const normalizeEdgesForSim = (nodes: GraphNode[], edges: GraphEdge[]): GraphEdge[] => {
-  const nodeIds = new Set<string>((nodes || []).map(n => n.id));
+  const nodeIds = new Set<string>((nodes || []).map(n => String(n.id)));
   const out: GraphEdge[] = [];
   for (const e of edges || []) {
     const source = coerceEndpointId(e.source);
@@ -167,7 +170,7 @@ export const buildSimulation = (
   }
   const linkForce = d3
     .forceLink<GraphNode, GraphEdge>(edgesForSim)
-    .id(d => d.id)
+    .id(d => String(d.id))
     .distance(linkDist);
   
   if (mode === 'radial') {

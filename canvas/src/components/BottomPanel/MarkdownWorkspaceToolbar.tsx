@@ -27,6 +27,7 @@ import { WorkspaceModeSelect } from './markdownWorkspace/WorkspaceModeSelect'
 import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/frontmatter'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_LABELS } from '@/lib/config'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import {
   MarkdownWorkspaceDisplayMenu,
   MarkdownWorkspaceFormattingMenu,
@@ -228,7 +229,7 @@ export function MarkdownWorkspaceToolbar({
     <WorkspaceHeader ariaLabel="Markdown Toolbar" border="border">
       <WorkspaceHeaderRow className="gap-2 kg-toolbar" ariaLabel="Markdown toolbar row">
         <span className="min-w-0">
-          <span className={`${panelTypography.microLabelClass} uppercase tracking-wide font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Workspace editor</span>
+          <span className={`${panelTypography.microLabelClass} uppercase tracking-wide font-semibold ${UI_THEME_TOKENS.text.secondary} ${UI_TEXT_TRUNCATE}`}>Workspace editor</span>
           {webpageSignalsNode}
         </span>
         <CollapsibleToolbar className="kg-toolbar flex items-center gap-1 justify-end" ariaLabel="Markdown view controls">

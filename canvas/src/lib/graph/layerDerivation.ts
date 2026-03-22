@@ -40,8 +40,12 @@ export const filterGraphToFrontmatterMermaid = (data: GraphData): GraphData => {
   const normalizeEndpointId = (v: unknown): string => {
     if (!v) return ''
     if (typeof v === 'string') return v
+    if (typeof v === 'number') return Number.isFinite(v) ? String(v) : ''
     if (typeof v === 'object' && !Array.isArray(v) && 'id' in (v as Record<string, unknown>)) {
-      return String((v as Record<string, unknown>).id || '')
+      const id = (v as Record<string, unknown>).id
+      if (typeof id === 'string') return id
+      if (typeof id === 'number') return Number.isFinite(id) ? String(id) : ''
+      return ''
     }
     return ''
   }

@@ -12,6 +12,7 @@ import { computeMarkdownTocReorder } from 'grph-shared/markdown/toc'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { CollapsibleToolbar } from '@/components/ui/CollapsibleToolbar'
 import { MarkdownWorkspaceExplorerHeaderActions } from './MarkdownWorkspaceExplorerHeaderActions'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 export type MarkdownWorkspaceExplorerProps = {
   uiPanelTextFontClass: string
@@ -431,7 +432,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
         aria-label="Explorer header"
       >
         <section className="min-w-0 flex-1 flex items-center gap-2" aria-label="Explorer title">
-          <h2 className={`shrink-0 ${panelTypography.microLabelClass} font-semibold tracking-wide uppercase ${UI_THEME_TOKENS.text.secondary}`}>Explorer</h2>
+          <h2 className={`${panelTypography.microLabelClass} font-semibold tracking-wide uppercase ${UI_THEME_TOKENS.text.secondary} ${UI_TEXT_TRUNCATE}`}>Explorer</h2>
         </section>
         <CollapsibleToolbar ariaLabel="Explorer actions" className="kg-toolbar flex items-center justify-end">
           <ul className="flex items-center gap-1 list-none m-0 p-0" aria-label="Explorer actions list">

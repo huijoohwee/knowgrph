@@ -175,6 +175,8 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["cache.lruBasic","@/__tests__/cache.test","testLRUCacheBasic"],
   ["cache.lruClear","@/__tests__/cache.test","testLRUCacheClear"],
   ["scene.displayDerivation.memoizesDisplayGraphAndMaps","@/__tests__/sceneDisplayDerivation.test","testSceneDisplayDerivationMemoizesDisplayGraphAndMaps"],
+  ["scene.displayDerivation.preservesEdgesWhenHiddenEndpoints","@/__tests__/sceneDisplayDerivation.test","testSceneDisplayDerivationPreservesEdgesWhenHiddenEndpoints"],
+  ["scene.displayDerivation.mddemo.edgesVisible","@/__tests__/mddemoEdgesVisible.test","testMddemoEdgesVisibleInDisplayGraph"],
   ["util.reorderList.basicMoves","@/__tests__/reorder.test","testReorderListBasicMoves"],
   ["util.reorderList.noopAndBounds","@/__tests__/reorder.test","testReorderListNoopAndBounds"],
   ["graphTable.date.normalizeYmd","@/__tests__/dateCellValue.test","testGraphTableDateNormalizeAcceptsYmd"],

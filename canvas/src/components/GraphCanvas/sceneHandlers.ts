@@ -515,7 +515,7 @@ export const attachSimulationTick = (args: {
     if (!labelsSel) return
 
     const t = d3.zoomTransform(svgEl)
-    const labelMode: 'compact' = 'compact'
+    const labelMode = 'compact' as const
     const shouldRelaxLabels = (() => {
       if (maxNodesForRelax > 0 && nodes.length > maxNodesForRelax) return false
       if (maxNodesForRelax === 0) return false
@@ -725,9 +725,12 @@ export const attachSimulationTick = (args: {
         const n = raw != null ? Number(raw) : Number.NaN
         return Number.isFinite(n) ? Math.max(1, Math.floor(n)) : 1
       })()
-      const estWidthPx = Math.max(0, charCount) * labelFontSize * k * 0.6
       const sx = t.applyX(x)
       const sy = t.applyY(y)
+      const k = typeof (t as unknown as { k?: unknown }).k === 'number' && Number.isFinite((t as unknown as { k: number }).k) && (t as unknown as { k: number }).k > 0
+        ? (t as unknown as { k: number }).k
+        : 1
+      const estWidthPx = Math.max(0, charCount) * labelFontSize * k * 0.6
       const baseDxAttr = el.getAttribute('data-base-dx')
       const baseDx = (() => {
         const parsed = baseDxAttr != null ? Number(baseDxAttr) : Number.NaN
