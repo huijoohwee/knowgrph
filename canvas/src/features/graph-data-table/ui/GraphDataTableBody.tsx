@@ -125,9 +125,7 @@ export const BodyCell = React.memo(function BodyCell({
     return (
       <td
         className={`${bodyCellBaseClassName} ${UI_THEME_TOKENS.text.secondary} ${
-          isExpandedCell
-            ? 'whitespace-pre-wrap break-words'
-            : 'truncate max-w-16 overflow-hidden whitespace-nowrap'
+          'truncate max-w-16 overflow-hidden whitespace-nowrap'
         }`}
         style={cellStyle}
         onClick={() => {
@@ -143,9 +141,7 @@ export const BodyCell = React.memo(function BodyCell({
 
   if (columnKey === 'id') {
     const isFrozen = freezeFirstDataColumn === 'id'
-    const overflowClass = isExpandedCell
-      ? 'whitespace-pre-wrap break-words'
-      : 'truncate max-w-52 overflow-hidden whitespace-nowrap'
+    const overflowClass = 'truncate max-w-52 overflow-hidden whitespace-nowrap'
     const style: React.CSSProperties | undefined = isFrozen
       ? { ...(cellStyle || {}), left: FROZEN_DATA_COLUMN_LEFT }
       : cellStyle
@@ -172,9 +168,7 @@ export const BodyCell = React.memo(function BodyCell({
 
   if (columnKey === 'label') {
     const isFrozen = freezeFirstDataColumn === 'label'
-    const overflowClass = isExpandedCell
-      ? 'whitespace-pre-wrap break-words'
-      : 'truncate overflow-hidden whitespace-nowrap'
+    const overflowClass = 'truncate overflow-hidden whitespace-nowrap'
     const style: React.CSSProperties | undefined = isFrozen
       ? { ...(cellStyle || {}), left: FROZEN_DATA_COLUMN_LEFT }
       : cellStyle
@@ -212,9 +206,7 @@ export const BodyCell = React.memo(function BodyCell({
   }
 
   if (columnKey === 'type') {
-    const overflowClass = isExpandedCell
-      ? 'whitespace-pre-wrap break-words'
-      : 'truncate max-w-40 overflow-hidden whitespace-nowrap'
+    const overflowClass = 'truncate max-w-40 overflow-hidden whitespace-nowrap'
     return (
       <td
         className={`${bodyCellBaseClassName} ${UI_THEME_TOKENS.text.secondary} ${overflowClass}`}
@@ -246,9 +238,7 @@ export const BodyCell = React.memo(function BodyCell({
     return (
       <td
         className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} ${
-          isExpandedCell
-            ? 'whitespace-pre-wrap break-words'
-            : 'truncate max-w-40 overflow-hidden whitespace-nowrap'
+          'truncate max-w-40 overflow-hidden whitespace-nowrap'
         }`}
         style={cellStyle}
         onClick={() => {
@@ -279,9 +269,7 @@ export const BodyCell = React.memo(function BodyCell({
     return (
       <td
         className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} ${
-          isExpandedCell
-            ? 'whitespace-pre-wrap break-words'
-            : 'truncate max-w-40 overflow-hidden whitespace-nowrap'
+          'truncate max-w-40 overflow-hidden whitespace-nowrap'
         }`}
         style={cellStyle}
         onClick={() => {
@@ -312,9 +300,7 @@ export const BodyCell = React.memo(function BodyCell({
     return (
       <td
         className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} align-top ${
-          isExpandedCell
-            ? 'whitespace-pre-wrap break-words'
-            : 'truncate max-w-40 overflow-hidden whitespace-nowrap'
+          'truncate max-w-40 overflow-hidden whitespace-nowrap'
         }`}
         style={cellStyle}
         onClick={() => {
@@ -347,9 +333,7 @@ export const BodyCell = React.memo(function BodyCell({
     return (
       <td
         className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.secondary} align-top ${
-          isExpandedCell
-            ? 'whitespace-pre-wrap break-words'
-            : 'truncate max-w-40 overflow-hidden whitespace-nowrap'
+          'truncate max-w-40 overflow-hidden whitespace-nowrap'
         }`}
         style={cellStyle}
         onClick={() => {
@@ -382,9 +366,7 @@ export const BodyCell = React.memo(function BodyCell({
     return (
       <td
         className={`${bodyCellBaseClassName} ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.primary} align-top ${
-          isExpandedCell
-            ? 'whitespace-pre-wrap break-words'
-            : 'truncate max-w-40 overflow-hidden whitespace-nowrap'
+          'truncate max-w-40 overflow-hidden whitespace-nowrap'
         }`}
         style={cellStyle}
         onClick={() => {
@@ -420,9 +402,7 @@ export const BodyCell = React.memo(function BodyCell({
       return (
         <td
           className={`${bodyCellBaseClassName} ${UI_THEME_TOKENS.text.primary} ${
-            isExpandedCell
-              ? 'whitespace-pre-wrap break-words'
-              : 'truncate max-w-40 overflow-hidden whitespace-nowrap'
+            'truncate max-w-40 overflow-hidden whitespace-nowrap'
           }`}
           style={cellStyle}
           onClick={() => {
@@ -434,11 +414,11 @@ export const BodyCell = React.memo(function BodyCell({
           {filteredValues.length === 0 ? (
             ''
           ) : (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-nowrap gap-1 overflow-hidden whitespace-nowrap">
               {filteredValues.map((value, i) => (
                 <span
                   key={`${value}-${i}`}
-                  className={`inline-flex items-center rounded-full ${UI_THEME_TOKENS.badge.chip} px-2 py-0.5 leading-tight ${UI_THEME_TOKENS.text.primary} max-w-full`}
+                  className={`inline-flex items-center rounded-full ${UI_THEME_TOKENS.badge.chip} px-2 py-0.5 leading-tight ${UI_THEME_TOKENS.text.primary} max-w-full truncate overflow-hidden whitespace-nowrap`}
                 >
                   {value}
                 </span>
@@ -453,9 +433,7 @@ export const BodyCell = React.memo(function BodyCell({
   return (
     <td
       className={`${bodyCellBaseClassName} ${UI_THEME_TOKENS.text.primary} ${
-        isExpandedCell
-          ? 'whitespace-pre-wrap break-words'
-          : 'truncate max-w-40 overflow-hidden whitespace-nowrap'
+        'truncate max-w-40 overflow-hidden whitespace-nowrap'
       }`}
       style={cellStyle}
       onClick={() => {

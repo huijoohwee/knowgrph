@@ -4,7 +4,7 @@ import type { GraphNode } from '@/lib/graph/types';
 import type { GraphSchema } from '@/lib/graph/schema';
 import { truncateTextWithEllipsis, truncateTextWithWordEllipsis, estimateMaxCharsForWidthPx } from '@/components/GraphCanvas/layout/utils'
 import { getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
-import { computeVisibleLabelLines2d, getNodeLabelFullText2d } from '@/components/GraphCanvas/labelLayout2d'
+import { getNodeLabelFullText2d } from '@/components/GraphCanvas/labelLayout2d'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
@@ -37,7 +37,6 @@ export const createLabelsLayer = (args: {
   const labelFill = labelPresentation.color || 'var(--kg-canvas-label-fill)';
   const haloColor = labelPresentation.haloColor || 'var(--kg-canvas-label-halo)';
   const haloWidth = labelPresentation.haloWidthPx
-  const lineHeightEm = 1.2
   const getBaseDxForNode = (d: GraphNode) => {
     if (getNodeRenderShape2d(d, schema) !== 'circle') return 0
     return schema.labelStyles?.offset?.dx ?? 12
@@ -92,39 +91,23 @@ export const createLabelsLayer = (args: {
     label.sort((a, b) => compareNodeZKey(keyForId(String(a.id)), keyForId(String(b.id))))
   }
 
-    const maxCharsPerLine = Math.max(8, Math.min(34, estimateMaxCharsForWidthPx(180, labelFontSize)));
-    const compactChars = Math.max(6, Math.min(18, Math.floor(maxCharsPerLine * 0.55)));
+  const maxChars = Math.max(10, Math.min(72, estimateMaxCharsForWidthPx(260, labelFontSize)));
     
-    label.each(function (d: GraphNode) {
-      const el = d3.select(this)
-      const baseLabelFull = String(getNodeLabelFullText2d(d) || '')
-      const labelFullAttr = baseLabelFull.length > 600 ? `${baseLabelFull.slice(0, 599)}…` : baseLabelFull
-      const baseLabel = truncateTextWithWordEllipsis(baseLabelFull, 20)
-      const layout = computeVisibleLabelLines2d(d, schema, { documentSemanticMode })
-      const wrapped = layout.wrappedText
-      const visibleLines = layout.visibleLines
-      const compact = truncateTextWithEllipsis(baseLabel, compactChars)
-      const lineCount = Math.max(1, visibleLines.length)
-      let maxLen = 0
-      for (let i = 0; i < visibleLines.length; i += 1) {
-        const len = visibleLines[i].length
-        if (len > maxLen) maxLen = len
-      }
-
-      const dy0Em = -((Math.max(1, lineCount) - 1) / 2) * lineHeightEm
-      
-      el
-        .attr('data-label-mode', 'wrap')
-        .attr('data-label-full', labelFullAttr)
-        .attr('data-label-wrap', wrapped.length > 600 ? `${wrapped.slice(0, 599)}…` : wrapped)
-        .attr('data-label-compact', compact.length > 120 ? `${compact.slice(0, 119)}…` : compact)
-        .attr('data-label-linecount', String(lineCount))
-        .attr('data-label-maxlen', String(maxLen))
-      el.text(null)
-      for (let i = 0; i < visibleLines.length; i += 1) {
-        el.append('tspan').attr('dy', i === 0 ? `${dy0Em}em` : `${lineHeightEm}em`).text(visibleLines[i])
-      }
-    })
+  label.each(function (d: GraphNode) {
+    const el = d3.select(this)
+    const baseLabelFull = String(getNodeLabelFullText2d(d) || '')
+    const labelFullAttr = baseLabelFull.length > 600 ? `${baseLabelFull.slice(0, 599)}…` : baseLabelFull
+    const baseLabel = truncateTextWithWordEllipsis(baseLabelFull, 80)
+    const compact = truncateTextWithEllipsis(baseLabel, maxChars)
+    el
+      .attr('data-label-mode', 'compact')
+      .attr('data-label-full', labelFullAttr)
+      .attr('data-label-wrap', '')
+      .attr('data-label-compact', compact.length > 120 ? `${compact.slice(0, 119)}…` : compact)
+      .attr('data-label-linecount', '1')
+      .attr('data-label-maxlen', String(compact.length))
+    el.text(compact)
+  })
 
   const onContextMenu = (event: MouseEvent, d: GraphNode) => {
     event.preventDefault();

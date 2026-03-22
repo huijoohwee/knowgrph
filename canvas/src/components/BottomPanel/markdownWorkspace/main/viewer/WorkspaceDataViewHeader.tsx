@@ -94,8 +94,13 @@ export function WorkspaceDataViewHeader(props: {
 
   return (
     <WorkspaceHeader ariaLabel="Data view header" border="border">
-      <section className="flex items-center gap-2 px-3 pt-2" aria-label="Data view controls">
-        <h2 className={['text-base font-semibold leading-6', UI_THEME_TOKENS.text.primary].join(' ')}>{viewTitle}</h2>
+      <section className="flex items-center gap-2 px-3 pt-2 min-w-0" aria-label="Data view controls">
+        <h2
+          className={['text-base font-semibold leading-6 truncate overflow-hidden whitespace-nowrap', UI_THEME_TOKENS.text.primary].join(' ')}
+          title={viewTitle}
+        >
+          {viewTitle}
+        </h2>
         <span className={['text-xs px-2 py-1 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}>
           {viewModeLabel}
         </span>

@@ -515,8 +515,7 @@ export const attachSimulationTick = (args: {
     if (!labelsSel) return
 
     const t = d3.zoomTransform(svgEl)
-    const k = t.k || 1
-    const labelMode: 'compact' | 'wrap' = k < 0.55 ? 'compact' : 'wrap'
+    const labelMode: 'compact' = 'compact'
     const shouldRelaxLabels = (() => {
       if (maxNodesForRelax > 0 && nodes.length > maxNodesForRelax) return false
       if (maxNodesForRelax === 0) return false
@@ -706,31 +705,14 @@ export const attachSimulationTick = (args: {
       const nodeId = String((d as unknown as { id?: unknown }).id ?? '')
       el.style.display = ''
       
-      const desiredMode = labelMode
-      const currentMode = (el.getAttribute('data-label-mode') as 'compact' | 'wrap' | null) ?? 'wrap'
-      if (desiredMode !== currentMode) {
-        const nextText =
-          desiredMode === 'compact'
-            ? String(el.getAttribute('data-label-compact') || '')
-            : String(el.getAttribute('data-label-wrap') || el.getAttribute('data-label-full') || '')
-        const lines = String(nextText).replace(/\r\n?/g, '\n').split('\n')
-        const lineCount = Math.max(1, lines.length)
-        let maxLen = 0
-        for (let i = 0; i < lines.length; i += 1) {
-          const len = lines[i].length
-          if (len > maxLen) maxLen = len
-        }
-        const dy0 = -((Math.max(1, lineCount) - 1) / 2) * (labelFontSize * 1.2)
+      const currentMode = (el.getAttribute('data-label-mode') as 'compact' | 'wrap' | null) ?? 'compact'
+      if (currentMode !== 'compact') {
+        const nextText = String(el.getAttribute('data-label-compact') || '')
         while (el.firstChild) el.removeChild(el.firstChild)
-        for (let i = 0; i < lines.length; i += 1) {
-          const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan')
-          tspan.setAttribute('dy', i === 0 ? `${dy0}px` : `${labelFontSize * 1.2}px`)
-          tspan.textContent = lines[i]
-          el.appendChild(tspan)
-        }
-        el.setAttribute('data-label-mode', desiredMode)
-        el.setAttribute('data-label-linecount', String(lineCount))
-        el.setAttribute('data-label-maxlen', String(maxLen))
+        el.textContent = nextText
+        el.setAttribute('data-label-mode', 'compact')
+        el.setAttribute('data-label-linecount', '1')
+        el.setAttribute('data-label-maxlen', String(nextText.length))
       }
 
       const charCount = (() => {

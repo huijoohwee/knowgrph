@@ -182,7 +182,7 @@ export function GraphDataTableRows({
                 className={`${bodyCellBaseClassName} ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.table.textSecondary}`}
                 colSpan={showFrozen ? restColSpan : effectiveColumnCount - 1}
               >
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <div className="flex flex-nowrap items-center gap-x-3 overflow-hidden whitespace-nowrap">
                   <span>
                     {item.count.toLocaleString()}{' '}
                     {item.count === 1
