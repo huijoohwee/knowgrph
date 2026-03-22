@@ -115,9 +115,7 @@ export const createLinksHitLayer = (args: {
     .attr('x2', (d: GraphEdge) => getEndpointPosOrZero((d as any).target).x)
     .attr('y2', (d: GraphEdge) => getEndpointPosOrZero((d as any).target).y)
 
-  const link = (pathSel as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>).merge(
-    lineSel as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>,
-  );
+  const link = linkRoot.selectAll<SVGElement, GraphEdge>('path, line');
 
   (link as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>)
     .attr('data-edge-id', (d: GraphEdge) => coerceEdgeId((d as any).id))
@@ -195,9 +193,7 @@ export const createLinksLayer = (args: {
     .attr('x2', (d: GraphEdge) => getEndpointPosOrZero((d as any).target).x)
     .attr('y2', (d: GraphEdge) => getEndpointPosOrZero((d as any).target).y)
 
-  const link = (pathSel as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>).merge(
-    lineSel as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>,
-  )
+  const link = linkRoot.selectAll<SVGElement, GraphEdge>('path.kg-edge-path, line')
 
   ;(link as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>)
     .attr('data-edge-id', (d: GraphEdge) => coerceEdgeId((d as any).id))

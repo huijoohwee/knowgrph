@@ -212,6 +212,7 @@ export const attachSimulationTick = (args: {
           const ty = typeof to.y === 'number' && Number.isFinite(to.y) ? to.y : fy
           const dx = tx - fx
           const dy = ty - fy
+          if (dx === 0 && dy === 0) return { x: fx, y: fy }
           const norm = Math.sqrt(dx * dx + dy * dy) || 1
           const ux = dx / norm
           const uy = dy / norm
