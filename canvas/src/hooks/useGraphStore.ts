@@ -14,6 +14,7 @@ import { createUiToastSlice } from '@/hooks/store/uiToastSlice';
 import { createUiLogSlice } from '@/hooks/store/uiLogSlice'
 import { createFlowEditorManagerSlice } from '@/hooks/store/flowEditorManagerSlice'
 import { createDesignRendererSlice } from '@/hooks/store/designRendererSlice'
+import { createDesignSystemSlice } from '@/hooks/store/designSystemSlice'
 import { createSourceFilesSlice } from '@/hooks/store/sourceFilesSlice';
 import { createLocalMarkdownFolderSlice } from '@/hooks/store/localMarkdownFolderSlice'
 import { createHtmlCanvasPublishSlice } from '@/hooks/store/htmlCanvasPublishSlice'
@@ -216,6 +217,7 @@ export const useGraphStore = create<GraphState>()(
   ...createUiSlice(set),
   ...createUiToastSlice(set),
   ...createUiLogSlice(set),
+  ...createDesignSystemSlice(set, get),
   ...createFlowEditorManagerSlice(set, get),
   ...createDesignRendererSlice(set, get),
   ...createSourceFilesSlice(set, get, api),

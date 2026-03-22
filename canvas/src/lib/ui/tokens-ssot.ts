@@ -1,1 +1,18 @@
 export * from 'grph-shared/ui/kgTokens'
+
+import type { KgTheme, KgTokenDef } from 'grph-shared/ui/kgTokens'
+import { KG_TOKEN_DEFS } from 'grph-shared/ui/kgTokens'
+
+export function buildKgTokensCssText(theme: KgTheme, opts?: { selector?: string }): string {
+  const selector = String(opts?.selector || ':root')
+  const lines: string[] = []
+  lines.push(`${selector} {`)
+  for (let i = 0; i < KG_TOKEN_DEFS.length; i += 1) {
+    const def: KgTokenDef = KG_TOKEN_DEFS[i]!
+    const value = theme === 'dark' ? def.dark : def.light
+    lines.push(`  ${def.cssVar}: ${value};`)
+  }
+  lines.push('}')
+  lines.push('')
+  return lines.join('\n')
+}

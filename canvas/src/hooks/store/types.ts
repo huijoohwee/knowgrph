@@ -22,6 +22,13 @@ import type { DesignLayerNode, DesignLayerState } from '@/features/design/design
 import type { DesignFramePos, DesignFrameSize } from '@/hooks/store/designRendererSlice'
 import type { SaveFilePickerHandle } from '@/lib/graph/save'
 
+export type DesignSystemPageId = 'hub' | 'tokens' | 'utilities'
+
+export type DesignSystemSlice = {
+  designSystemRequestedPage: DesignSystemPageId | null
+  setDesignSystemRequestedPage: (page: DesignSystemPageId | null) => void
+}
+
 export type CanvasSnapshotFns = {
   capturePng?: (pixelRatio?: number) => Promise<Blob | null>;
   captureSvg?: () => Promise<string | null>;
@@ -456,6 +463,8 @@ export interface GraphState {
   setThemeMode: (mode: ThemeMode) => void;
   resolvedThemeMode: ResolvedThemeMode;
   refreshResolvedThemeModeFromSystem: () => void;
+  designSystemRequestedPage: DesignSystemPageId | null
+  setDesignSystemRequestedPage: (page: DesignSystemPageId | null) => void
   selectionFlashDurationMs: number;
   selectionFlashOpacity: number;
   markdownSelectionFlashMode: 'auto' | 'manual';
@@ -551,6 +560,7 @@ export interface GraphState {
   enableLaunchSpotlight: boolean;
   statusPanelPinned: boolean;
   frontmatterModeEnabled: boolean;
+  multiDimTableModeEnabled: boolean;
   schemaDeriveCacheCapacity: number;
   graphFieldSettingsById: GraphFieldSettingsById;
   selectedGraphFieldId: GraphFieldId | null;
@@ -657,6 +667,7 @@ export interface GraphState {
   setEnableLaunchSpotlight: (v: boolean) => void;
   setStatusPanelPinned: (v: boolean) => void;
   setFrontmatterModeEnabled: (enabled: boolean) => void;
+  setMultiDimTableModeEnabled: (enabled: boolean) => void;
   setSchemaDeriveCacheCapacity: (n: number) => void;
   setGraphFieldSettingsById: (next: GraphFieldSettingsById) => void;
   setSelectedGraphFieldId: (id: GraphFieldId | null) => void;

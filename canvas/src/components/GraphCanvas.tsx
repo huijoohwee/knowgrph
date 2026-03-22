@@ -84,7 +84,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   }, [])
   const lastLayoutModeRef = useRef<null | 'force' | 'radial'>(null);
   const lastFrontmatterModeRef = useRef<boolean | null>(null);
-  const lastSemanticModeRef = useRef<'document' | 'keyword' | null>(null)
+  const lastSemanticModeRef = useRef<string | null>(null)
   const lastLayoutVariantRef = useRef<string | null>(null)
   const lastDatasetKeyRef = useRef<string | null>(null)
   const lastLayoutViewKeyRef = useRef<string | null>(null)
@@ -185,6 +185,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     threeIframeOverlayBaseWidthMaxPxCompact,
     setLayoutPositionsForMode,
     frontmatterModeEnabled,
+    multiDimTableModeEnabled,
     documentSemanticMode,
     documentStructureBaselineLock,
     canvasRenderMode,
@@ -218,6 +219,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
       setLayoutPositionsForMode: s.setLayoutPositionsForMode,
       frontmatterModeEnabled: s.frontmatterModeEnabled || false,
+      multiDimTableModeEnabled: (s as unknown as { multiDimTableModeEnabled?: unknown }).multiDimTableModeEnabled === true,
       documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
       documentStructureBaselineLock: s.documentStructureBaselineLock === true,
       canvasRenderMode: s.canvasRenderMode,
@@ -236,6 +238,12 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       markdownDocumentText: s.markdownDocumentText,
     })),
   );
+
+  const layoutSemanticModeKey = useMemo(() => {
+    const base = String(documentSemanticMode || 'document')
+    return multiDimTableModeEnabled ? `${base}:mdtbl` : base
+  }, [documentSemanticMode, multiDimTableModeEnabled])
+
   const prevCanvasRenderModeRef = useRef<'2d' | '3d'>(canvasRenderMode)
   const prevRenderVariantRef = useRef<string>(canvasRenderMode === '2d' ? String(canvas2dRenderer || '') : '')
   const lastKnownZoomTransformRef = useRef<{ k: number; x: number; y: number } | null>(null)
@@ -542,11 +550,11 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const renderGraphData = useActiveGraphRenderData(active)
   const effectiveFrontmatterModeEnabled = useMemo(() => {
     return computeEffectiveFrontmatterMode({
-      frontmatterModeEnabled: frontmatterModeEnabled === true && documentStructureBaselineLock !== true,
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
       documentSemanticMode,
       graphData: renderGraphData,
     })
-  }, [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, renderGraphData])
+  }, [documentSemanticMode, frontmatterModeEnabled, renderGraphData])
 
   const collapsedGroupIdsKey = useMemo(() => {
     return buildCollapsedGroupIdsKey(collapsedGroupIds)
@@ -945,11 +953,12 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     const state = useGraphStore.getState()
     const schemaValue = schemaRef.current
     const mode = schemaValue ? readLayoutMode(schemaValue) : 'force'
-    const semanticMode = String(state.documentSemanticMode || 'document')
+    const semanticModeBase = String(state.documentSemanticMode || 'document')
+    const semanticModeKey = state.multiDimTableModeEnabled === true ? `${semanticModeBase}:mdtbl` : semanticModeBase
     const graphDataForView = sceneGraphDataRef.current ?? ((state.graphData as unknown as import('@/lib/graph/types').GraphData | null) ?? null)
     const frontmatter = computeEffectiveFrontmatterMode({
-      frontmatterModeEnabled: state.frontmatterModeEnabled === true && state.documentStructureBaselineLock !== true,
-      documentSemanticMode: semanticMode as 'document' | 'keyword',
+      frontmatterModeEnabled: state.frontmatterModeEnabled === true,
+      documentSemanticMode: semanticModeBase as 'document' | 'keyword',
       graphData: graphDataForView,
     })
     const datasetKey = computeLayoutDatasetKey({
@@ -965,7 +974,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     const viewKey = buildLayoutViewKey({
       schemaLayoutEngineJson,
       frontmatterModeEnabled: frontmatter,
-      documentSemanticMode: semanticMode,
+      documentSemanticMode: semanticModeKey,
       graphMetaKey,
       renderMediaAsNodes: state.renderMediaAsNodes === true,
       mediaPanelDensity: String(state.mediaPanelDensity),
@@ -975,7 +984,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       datasetKey,
       mode,
       frontmatterMode: frontmatter,
-      semanticMode,
+      semanticMode: semanticModeKey,
       renderMode: '2d',
       viewKey,
       renderVariant: 'd3',
@@ -1169,7 +1178,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         canvas2dRenderer,
         schemaLayoutEngineJson,
         frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
-        documentSemanticMode: String(documentSemanticMode),
+        documentSemanticMode: layoutSemanticModeKey,
         graphMetaKey: graphMetaKeyForZoom,
         renderMediaAsNodes: renderMediaAsNodes === true,
         mediaPanelDensity: String(mediaPanelDensity),
@@ -1178,7 +1187,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       const layoutViewKey = buildLayoutViewKey({
         schemaLayoutEngineJson,
         frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
-        documentSemanticMode: String(documentSemanticMode),
+        documentSemanticMode: layoutSemanticModeKey,
         graphMetaKey,
         renderMediaAsNodes: renderMediaAsNodes === true,
         mediaPanelDensity: String(mediaPanelDensity),
@@ -1225,7 +1234,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         datasetKey,
         mode,
         frontmatterMode: !!effectiveFrontmatterModeEnabled,
-        semanticMode: documentSemanticMode,
+        semanticMode: layoutSemanticModeKey,
         renderMode: canvasRenderMode,
         renderVariant: canvasRenderMode === '2d' ? canvas2dRenderer : '',
         layoutVariant,
@@ -1316,7 +1325,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
 
       lastLayoutModeRef.current = mode
       lastFrontmatterModeRef.current = !!effectiveFrontmatterModeEnabled
-      lastSemanticModeRef.current = documentSemanticMode
+      lastSemanticModeRef.current = layoutSemanticModeKey
       lastLayoutVariantRef.current = layoutVariant
       lastDatasetKeyRef.current = datasetKey
       lastLayoutViewKeyRef.current = layoutViewKey

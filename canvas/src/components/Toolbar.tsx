@@ -1,27 +1,18 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Grid3x3, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Tags, FileCode, Table, Lock, Unlock, Pencil, Compass, Palette, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useGraphStore } from '@/hooks/useGraphStore';
-import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState';
-import { useMainPanelDrag, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag';
+import React, { useRef, useState } from 'react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Focus, Grid3x3, Rocket, History as HistoryIcon, Box, Map, SunMoon, BarChart3, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, FileCode, Table, Lock, Unlock, Pencil, Compass, Palette, ChevronLeft, ChevronRight } from 'lucide-react';
 import MainPanel from '@/features/panels/MainPanel';
 import IconButton from '@/components/IconButton';
 import { DropdownPanel } from '@/lib/ui/overlay';
-import { getIconSizeClass } from '@/lib/ui';
 import SearchPanel from '@/components/SearchPanel';
-import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect';
-import { useLaunchSpotlight } from '@/features/panels/hooks/useLaunchSpotlight';
-import { LS_KEYS, UI_LABELS, UI_COPY } from '@/lib/config';
-import { getNextCanvas2dRendererId } from '@/lib/renderer/canvas2dRendererRegistry'
-import { lsBool } from '@/lib/persistence'
+import { UI_LABELS, UI_COPY } from '@/lib/config';
 import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons';
 import { ToolbarMenuLauncher } from '@/features/toolbar/ToolbarMenuLauncher';
 import {
   uiPrimaryIconActiveClassName,
   uiPrimaryIconInactiveClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
-import { useToolbarActions } from '@/features/toolbar/hooks/useToolbarActions';
-import { onGeospatialModeChanged } from '@/features/geospatial/events'
-import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
+import { useCanvasToolbarContext } from '@/components/toolbar/useCanvasToolbarContext';
+import { DocumentModeSelect } from '@/components/toolbar/DocumentModeSelect';
 
 import { CANVAS_INTERACTION_MODE_LABELS } from '@/lib/canvas/interaction-ssot'
 
@@ -38,190 +29,71 @@ interface ToolbarProps {
 
 export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection }: ToolbarProps) {
   const {
+    actions,
+    canvas2dRenderer,
+    canvasGridDotRadiusPx,
+    canvasGridEnabled,
+    canvasGridMajorEvery,
+    canvasGridVariant,
     canvasRenderMode,
-    setCanvasRenderMode,
-    schema,
-    setSchema,
-    fitToScreenMode,
-    toggleFitToScreenMode,
-    zoomToSelectionMode,
-    setZoomToSelectionMode,
-    setFitToScreenMode,
+    clampMainPanelPos,
+    documentStructureBaselineLock,
+    editorWorkspacePane,
     enableLaunchSpotlight,
-    launchSpotlightMode,
-    uiIconScale,
-    uiIconStrokeWidth,
-    uiIconAnimationEnabled,
-    selectMode,
-    setSelectMode,
-  } = useToolbarState();
-
-  const editorWorkspacePane = useGraphStore(s => s.editorWorkspacePane)
-  const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
-
-  const {
-    isMainPanelOpen,
-    setIsMainPanelOpen,
-    mainPanelRequestedTab,
-    mainPanelCardRef,
-    mainPanelPinned,
-    setMainPanelPinned,
-    mainPanelCollapsed,
-    setMainPanelCollapsed,
-    mainPanelDragPos,
-    openMainPanel,
+    ensureBaselineUnlocked,
+    geospatialEnabled,
+    groupShapeMode,
+    handleCycleCanvas2dRenderer,
     handleMainPanelHeaderDragStart,
     handleMainPanelRestore,
-    clampMainPanelPos,
-  } = useMainPanelDrag();
+    iconSizeClass,
+    iconStrokeWidth,
+    isMainPanelOpen,
+    isNavigateModeActive,
+    launchIconClass,
+    launchSpotlightMode,
+    layoutMode,
+    mainPanelCardRef,
+    mainPanelCollapsed,
+    mainPanelDragPos,
+    mainPanelPinned,
+    mainPanelRequestedTab,
+    nodeShapeMode,
+    openMainPanel,
+    portHandlesEnabled,
+    renderMediaAsNodes,
+    schema,
+    selectEdge,
+    selectGroup,
+    selectMode,
+    selectNode,
+    setBehavior,
+    setCanvasRenderMode,
+    setDocumentStructureBaselineLock,
+    setEditorWorkspacePane,
+    setFitToScreenMode,
+    setIsMainPanelOpen,
+    setMainPanelCollapsed,
+    setMainPanelPinned,
+    setSchema,
+    setSelectMode,
+    setSelectionSource,
+    setWorkspaceToolbarExpanded,
+    setWorkspaceViewMode,
+    snapGridEnabled,
+    snapGridSize,
+    themeMode,
+    toggleFitToScreenMode,
+    toggleWorkspaceViewMode,
+    toolbarCollapsed,
+    toolbarNavRef,
+    workspaceViewMode,
+    zoomToSelectionMode,
+  } = useCanvasToolbarContext({ onReset, onZoomSelection })
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [geospatialEnabled, setGeospatialEnabled] = useState<boolean>(() => {
-    try {
-      return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
-    } catch {
-      return false
-    }
-  })
-
-  const toolbarNavRef = useRef<HTMLElement>(null)
-  useForbidBrowserZoomWheel(toolbarNavRef, true)
-
   const searchBtnRef = useRef<HTMLButtonElement>(null);
   const searchPanelRef = useRef<HTMLDivElement>(null);
-
-  const themeMode = useGraphStore(s => s.themeMode)
-  const setThemeMode = useGraphStore(s => s.setThemeMode)
-  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
-  const toggleWorkspaceViewMode = useGraphStore(s => s.toggleWorkspaceViewMode)
-  const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
-  const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes);
-  const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes);
-  const setBehavior = useGraphStore(s => s.setBehavior)
-  const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
-  const setCanvas2dRenderer = useGraphStore(s => s.setCanvas2dRenderer)
-  const selectedNodeId = useGraphStore(s => s.selectedNodeId)
-  const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
-  const selectedGroupId = useGraphStore(s => s.selectedGroupId)
-  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds)
-  const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds)
-  const selectedGroupIds = useGraphStore(s => s.selectedGroupIds)
-  const selectNode = useGraphStore(s => s.selectNode)
-  const selectEdge = useGraphStore(s => s.selectEdge)
-  const selectGroup = useGraphStore(s => s.selectGroup)
-  const setSelectionSource = useGraphStore(s => s.setSelectionSource)
-  const launchSpotlight = useLaunchSpotlight();
-  const iconSizeClass = getIconSizeClass(uiIconScale);
-  const iconStrokeWidth = uiIconStrokeWidth;
-  const launchIconClass = uiIconAnimationEnabled ? 'LaunchButton__icon' : '';
-  const layoutMode = schema.layout?.mode || 'force';
-  const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false);
-  const documentStructureBaselineLock = useGraphStore(s => s.documentStructureBaselineLock === true)
-  const setDocumentStructureBaselineLock = useGraphStore(s => s.setDocumentStructureBaselineLock)
-  const upsertUiToast = useGraphStore(s => s.upsertUiToast)
-
-  const isWorkspaceOverlayMode = workspaceViewMode === 'editor'
-
-  const snapGridEnabled = !!schema?.behavior?.snapGrid?.enabled
-  const snapGridSize = typeof schema?.behavior?.snapGrid?.size === 'number' && Number.isFinite(schema.behavior.snapGrid.size)
-    ? Math.max(2, Math.floor(schema.behavior.snapGrid.size))
-    : 10
-
-  const canvasGridEnabled = !!schema?.behavior?.canvasGrid?.enabled
-  const canvasGridVariant = schema?.behavior?.canvasGrid?.variant === 'lines' ? 'lines' : 'dots'
-  const canvasGridMajorEvery = typeof schema?.behavior?.canvasGrid?.majorEvery === 'number' && Number.isFinite(schema.behavior.canvasGrid.majorEvery)
-    ? Math.max(2, Math.min(20, Math.floor(schema.behavior.canvasGrid.majorEvery)))
-    : 5
-  const canvasGridDotRadiusPx = typeof schema?.behavior?.canvasGrid?.dotRadiusPx === 'number' && Number.isFinite(schema.behavior.canvasGrid.dotRadiusPx)
-    ? Math.max(0.5, Math.min(6, schema.behavior.canvasGrid.dotRadiusPx))
-    : 1
-  const [workspaceToolbarExpanded, setWorkspaceToolbarExpanded] = useState(true)
-  React.useEffect(() => {
-    if (!isWorkspaceOverlayMode) return
-    setWorkspaceToolbarExpanded(false)
-  }, [isWorkspaceOverlayMode])
-  const toolbarCollapsed = workspaceToolbarExpanded !== true
-
-  const ensureBaselineUnlocked = useCallback((): boolean => {
-    if (documentStructureBaselineLock !== true) return true
-    upsertUiToast({
-      id: 'baseline-locked',
-      kind: 'warning',
-      message: UI_COPY.baselineLockedToast,
-      ttlMs: 6000,
-    })
-    return false
-  }, [documentStructureBaselineLock, upsertUiToast])
-
-  const hasAnySelection = Boolean(
-    selectedNodeId ||
-      selectedEdgeId ||
-      selectedGroupId ||
-      (selectedNodeIds || []).length ||
-      (selectedEdgeIds || []).length ||
-      (selectedGroupIds || []).length,
-  )
-  const isNavigateModeActive = !hasAnySelection && !(selectMode === 'multi' || selectMode === 'lasso')
-  const setFrontmatterModeEnabled = useGraphStore(s => s.setFrontmatterModeEnabled);
-  const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled);
-  const rawNodeShapeMode = schema.behavior?.nodeShapeMode
-  const nodeShapeMode =
-    rawNodeShapeMode === 'rect' || rawNodeShapeMode === 'diamond' || rawNodeShapeMode === 'hex'
-      ? rawNodeShapeMode
-      : 'circle'
-  const groupShapeMode = schema.layout?.groups?.shape === 'geo' ? 'polygon' : 'rect'
-  const documentSemanticMode = useGraphStore(s => s.documentSemanticMode || 'document')
-  const setDocumentSemanticMode = useGraphStore(s => s.setDocumentSemanticMode)
-  const actions = useToolbarActions(
-    schema,
-    setSchema,
-    setCanvasRenderMode,
-    themeMode,
-    setThemeMode,
-    launchSpotlight,
-    openMainPanel,
-    onReset,
-    onZoomSelection,
-    setZoomToSelectionMode,
-    setFitToScreenMode,
-    toggleFitToScreenMode,
-    fitToScreenMode,
-    zoomToSelectionMode,
-    renderMediaAsNodes,
-    setRenderMediaAsNodes,
-    canvasRenderMode,
-    setGeospatialEnabled,
-  );
-
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const handler = (ev: Event) => {
-      const e = ev as CustomEvent<{ tab?: MainPanelTabKey } | undefined>;
-      const detailTab = e.detail && e.detail.tab;
-      const tab: MainPanelTabKey =
-        detailTab === 'graphFields'
-          || detailTab === 'workflow'
-          || detailTab === 'help'
-          || detailTab === 'preview'
-          || detailTab === 'settings'
-          || detailTab === 'history'
-          ? detailTab
-          : 'help';
-      openMainPanel(tab);
-    };
-    window.addEventListener(MAIN_PANEL_OPEN_EVENT, handler as EventListener);
-    return () => {
-      window.removeEventListener(MAIN_PANEL_OPEN_EVENT, handler as EventListener);
-    };
-  }, [openMainPanel]);
-
-  React.useEffect(() => {
-    return onGeospatialModeChanged(detail => {
-      const enabled = typeof detail.enabled === 'boolean' ? detail.enabled : null
-      if (enabled == null) return
-      setGeospatialEnabled(enabled)
-    })
-  }, [])
 
   const navClassBase = 'Island App-toolbar App-toolbar--compact w-fit'
 
@@ -361,10 +233,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         }
         tooltipContent={UI_COPY.twoDRendererToggleTooltip}
         disabled={canvasRenderMode !== '2d' || geospatialEnabled}
-        onClick={() => {
-          if (!ensureBaselineUnlocked()) return
-          setCanvas2dRenderer(getNextCanvas2dRendererId(canvas2dRenderer))
-        }}
+        onClick={handleCycleCanvas2dRenderer}
         showTooltip
       >
         {canvas2dRenderer === 'flowEditor' ? (
@@ -389,24 +258,11 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           </div>
         )}
       </IconButton>
-      <IconButton
-        className={`App-toolbar__btn ${
-          documentSemanticMode === 'keyword' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={documentSemanticMode === 'keyword' ? UI_LABELS.keywordMode : UI_LABELS.documentStructureMode}
-        tooltipContent={documentSemanticMode === 'keyword' ? UI_COPY.keywordModeTooltip : UI_COPY.documentStructureModeTooltip}
-        onClick={() => {
-          if (!ensureBaselineUnlocked()) return
-          setDocumentSemanticMode(documentSemanticMode === 'keyword' ? 'document' : 'keyword')
-        }}
-        showTooltip
-      >
-        {documentSemanticMode === 'keyword' ? (
-          <Tags className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        ) : (
-          <FileText className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        )}
-      </IconButton>
+      <DocumentModeSelect
+        iconSizeClass={iconSizeClass}
+        iconStrokeWidth={iconStrokeWidth}
+        ensureBaselineUnlocked={ensureBaselineUnlocked}
+      />
       <div className="App-toolbar__divider" />
       <IconButton
         className={`App-toolbar__btn ${
@@ -429,25 +285,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         ) : (
           <Circle className={iconSizeClass} strokeWidth={iconStrokeWidth} />
         )}
-      </IconButton>
-      <IconButton
-        className={`App-toolbar__btn ${
-          frontmatterModeEnabled ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={frontmatterModeEnabled ? UI_LABELS.frontmatterModeMermaidFocus : UI_LABELS.frontmatterMode}
-        tooltipContent={
-          frontmatterModeEnabled
-            ? UI_COPY.frontmatterModeTooltip
-            : UI_COPY.frontmatterModeToggleTooltip
-        }
-        onClick={() => {
-          if (!ensureBaselineUnlocked()) return
-          const next = !frontmatterModeEnabled;
-          setFrontmatterModeEnabled(next);
-        }}
-        showTooltip
-      >
-        <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${

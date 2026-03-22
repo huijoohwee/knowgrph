@@ -15,10 +15,11 @@ import { WorkspaceHeader, WorkspaceHeaderRow } from '@/components/ui/WorkspaceHe
 import { GraphTableToolbar } from '@/features/graph-table/ui/GraphTableToolbar'
 import type { GraphTableViewMode } from '@/features/graph-table/ui/graphTableViewMode'
 import { WorkspaceModeSelect } from '@/components/BottomPanel/markdownWorkspace/WorkspaceModeSelect'
+import { UI_COPY } from '@/lib/config'
 
 const GRAPH_TABLE_VIEW_MODE_OPTIONS: Array<{ value: GraphTableViewMode; label: string }> = [
-  { value: 'kanban', label: 'Kanban View' },
-  { value: 'table', label: 'Table View' },
+  { value: 'kanban', label: UI_COPY.markdownDataViewKanbanViewLabel },
+  { value: 'table', label: UI_COPY.markdownDataViewTableViewLabel },
 ]
 
 export function GraphTableWorkspaceHeader(props: {

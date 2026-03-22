@@ -7,8 +7,6 @@ export function computeEffectiveFrontmatterMode(args: {
   graphData: GraphData | null
 }): boolean {
   if (args.frontmatterModeEnabled !== true) return false
-  if (String(args.documentSemanticMode) === 'keyword') return false
   if (!args.graphData) return false
   return hasFrontmatterMermaidSeeds(args.graphData)
 }
-

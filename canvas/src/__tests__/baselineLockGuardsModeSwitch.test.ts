@@ -4,6 +4,7 @@ export const testDocumentStructureBaselineLockGuardsModeSwitches = () => {
   const api = useGraphStore.getState()
   api.resetAll()
 
+  api.setFrontmatterModeEnabled(false)
   api.setDocumentStructureBaselineLock(true)
   if (useGraphStore.getState().documentStructureBaselineLock !== true) {
     throw new Error('expected baseline lock to be enabled')
@@ -17,8 +18,8 @@ export const testDocumentStructureBaselineLockGuardsModeSwitches = () => {
 
   const beforeFrontmatter = useGraphStore.getState().frontmatterModeEnabled
   api.setFrontmatterModeEnabled(true)
-  if (useGraphStore.getState().frontmatterModeEnabled !== beforeFrontmatter) {
-    throw new Error('expected frontmatter mode switch to be blocked under baseline lock')
+  if (useGraphStore.getState().frontmatterModeEnabled === beforeFrontmatter) {
+    throw new Error('expected frontmatter mode switch to be allowed under baseline lock')
   }
 
   const beforeRenderer = useGraphStore.getState().canvas2dRenderer

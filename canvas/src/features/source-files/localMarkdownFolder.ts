@@ -21,6 +21,29 @@ const isHiddenName = (name: string): boolean => {
   return trimmed.startsWith('.')
 }
 
+const looksLikeUrl = (raw: string): boolean => {
+  const s = String(raw || '').trim().toLowerCase()
+  if (!s) return false
+  if (/^[a-z][a-z0-9+.-]*:\/\//.test(s)) return true
+  if (s.startsWith('www.')) return true
+  return false
+}
+
+const getLocalMarkdownPathCandidate = (file: SourceFile): string | null => {
+  if (!file) return null
+  if (file.source && file.source.kind !== 'local') return null
+
+  const rawPath =
+    file.source?.kind === 'local'
+      ? String(file.source.path || file.name || '')
+      : String(file.name || '')
+  const path = toLogicalPath(rawPath)
+  if (!path) return null
+  if (looksLikeUrl(path)) return null
+  if (!isMarkdownLikeFileName(path)) return null
+  return path
+}
+
 const buildLocalSourceFileId = (relativePath: string): string => {
   const key = `local-md:${String(relativePath || '').trim().toLowerCase()}`
   return `sf_local_${hashStringToHex(key)}`
@@ -214,19 +237,17 @@ export const syncLocalMarkdownFolderToSourceFiles = async (args?: {
       .sort((a, b) => a.path.localeCompare(b.path))
 
     const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
-    const nonLocal = existing.filter(f => f?.source?.kind !== 'local')
-    const existingLocalById = new Map<string, SourceFile>()
+    const existingLocalByPath = new Map<string, SourceFile>()
     for (const f of existing) {
-      if (f?.source?.kind !== 'local') continue
-      if (!f.id) continue
-      existingLocalById.set(String(f.id), f)
+      const p = getLocalMarkdownPathCandidate(f)
+      if (!p) continue
+      existingLocalByPath.set(p, f)
     }
     const nextLocal: SourceFile[] = found.map(({ path }) => {
-      const id = buildLocalSourceFileId(path)
-      const prev = existingLocalById.get(id)
+      const prev = existingLocalByPath.get(path)
       return {
         ...(prev || {}),
-        id,
+        id: buildLocalSourceFileId(path),
         name: path,
         enabled: prev ? !!prev.enabled : true,
         status: prev?.status || 'idle',
@@ -234,6 +255,7 @@ export const syncLocalMarkdownFolderToSourceFiles = async (args?: {
         source: { kind: 'local', path },
       }
     })
+    const nonLocal = existing.filter(f => !getLocalMarkdownPathCandidate(f))
     store.setSourceFiles([...nextLocal, ...nonLocal])
     return
   }
@@ -260,19 +282,17 @@ export const syncLocalMarkdownFolderToSourceFiles = async (args?: {
   found.sort((a, b) => a.path.localeCompare(b.path))
 
   const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
-  const nonLocal = existing.filter(f => f?.source?.kind !== 'local')
-  const existingLocalById = new Map<string, SourceFile>()
+  const existingLocalByPath = new Map<string, SourceFile>()
   for (const f of existing) {
-    if (f?.source?.kind !== 'local') continue
-    if (!f.id) continue
-    existingLocalById.set(String(f.id), f)
+    const p = getLocalMarkdownPathCandidate(f)
+    if (!p) continue
+    existingLocalByPath.set(p, f)
   }
   const nextLocal: SourceFile[] = found.map(({ path }) => {
-    const id = buildLocalSourceFileId(path)
-    const prev = existingLocalById.get(id)
+    const prev = existingLocalByPath.get(path)
     return {
       ...(prev || {}),
-      id,
+      id: buildLocalSourceFileId(path),
       name: path,
       enabled: prev ? !!prev.enabled : true,
       status: prev?.status || 'idle',
@@ -280,6 +300,7 @@ export const syncLocalMarkdownFolderToSourceFiles = async (args?: {
       source: { kind: 'local', path },
     }
   })
+  const nonLocal = existing.filter(f => !getLocalMarkdownPathCandidate(f))
   store.setSourceFiles([...nextLocal, ...nonLocal])
 }
 

@@ -638,100 +638,100 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     const k = d3.zoomTransform(svgEl).k || 1
     const hidden = hideBelow > 0 && k < hideBelow
     labelsSelRef.current.attr('data-zoom-lod-hidden', hidden ? '1' : '0')
-
-    let stableTicks = 0
-    let finalFitApplied = false
-    attachSimulationTick({
-      svgEl,
-      simulation,
-      nodeSelRef: nodesSelRef,
-      groupChevronSelRef,
-      mediaSelRef,
-      portHandlesSelRef,
-      linkHitSelRef: linksHitSelRef,
-      linkSelRef: linksSelRef,
-      edgeLabelSel,
-      labelsSelRef,
-      nodes: graphDataForDisplay.nodes,
-      nodeById: display?.nodeById || null,
-      groupsForBboxCollide: args.groupsForBboxCollide,
-      getSchema,
-      documentSemanticMode: args.documentSemanticMode,
-      width,
-      height,
-      beforeRenderFrameRef,
-      afterRenderFrame: ({ alpha, tick }) => {
-        if (isMermaidLayout) return
-        if (!isForceLayout) return
-        if (finalFitApplied) return
-        if (args.freezeSimulation === true) return
-        if (args.enableTightInitialLayout !== true) return
-        if (effectiveSkipInitialLayout) return
-        if (tick < 20) return
-
-        if (alpha < 0.045) {
-          stableTicks += 1
-        } else {
-          stableTicks = 0
-        }
-        if (stableTicks < 12) return
-
-        const allowAutoFit = !initialZoomTransform
-        if (allowAutoFit) {
-          applyCollectiveGraphLayout({
-            nodes: displayNodes,
-            edges: edgesForDisplay,
-            width: Math.max(1, width),
-            height: Math.max(1, Math.floor(height)),
-            schema: getSchema(),
-          })
-
-          relaxNodesWithCollision({
-            nodes: displayNodes,
-            edges: edgesForDisplay,
-            schema: getSchema(),
-            defaultSteps: (args.groupsForBboxCollide || []).length > 0 ? 10 : 6,
-            groups: args.groupsForBboxCollide,
-            groupKeyOf,
-          })
-          for (let i = 0; i < displayNodes.length; i += 1) {
-            const n = displayNodes[i]
-            n.vx = 0
-            n.vy = 0
-          }
-
-          const padPx = Math.max(24, Math.floor(readFitPadding(getSchema())))
-          postFitNodesToViewport({
-            nodes: displayNodes,
-            width: Math.max(1, width),
-            height: Math.max(1, Math.floor(height)),
-            paddingPx: padPx,
-            minScale: 0.04,
-            maxScale: 1.8,
-          })
-
-          const intent = fitToScreenMode ? 'fitToScreen' : 'fitToView'
-          const schemaValue = getSchema()
-          const mode = readLayoutMode(schemaValue)
-          const baseOpts = readFitAllOptions({ schema: schemaValue, mode, intent })
-          const opts = baseOpts
-          const t = fitAllTransform(displayNodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
-          applyInitialTransform({ k: t.k, x: t.x, y: t.y })
-        }
-        finalFitApplied = true
-
-        try {
-          simulation.alphaTarget(0)
-          simulation.alpha(0)
-          simulation.stop()
-        } catch {
-          void 0
-        }
-        svg.attr('data-kg-layout-frozen', '1')
-        storeLayoutPositions()
-      },
-    })
   }
+
+  let stableTicks = 0
+  let finalFitApplied = false
+  attachSimulationTick({
+    svgEl,
+    simulation,
+    nodeSelRef: nodesSelRef,
+    groupChevronSelRef,
+    mediaSelRef,
+    portHandlesSelRef,
+    linkHitSelRef: linksHitSelRef,
+    linkSelRef: linksSelRef,
+    edgeLabelSel,
+    labelsSelRef,
+    nodes: graphDataForDisplay.nodes,
+    nodeById: display?.nodeById || null,
+    groupsForBboxCollide: args.groupsForBboxCollide,
+    getSchema,
+    documentSemanticMode: args.documentSemanticMode,
+    width,
+    height,
+    beforeRenderFrameRef,
+    afterRenderFrame: ({ alpha, tick }) => {
+      if (isMermaidLayout) return
+      if (!isForceLayout) return
+      if (finalFitApplied) return
+      if (args.freezeSimulation === true) return
+      if (args.enableTightInitialLayout !== true) return
+      if (effectiveSkipInitialLayout) return
+      if (tick < 20) return
+
+      if (alpha < 0.045) {
+        stableTicks += 1
+      } else {
+        stableTicks = 0
+      }
+      if (stableTicks < 12) return
+
+      const allowAutoFit = !initialZoomTransform
+      if (allowAutoFit) {
+        applyCollectiveGraphLayout({
+          nodes: displayNodes,
+          edges: edgesForDisplay,
+          width: Math.max(1, width),
+          height: Math.max(1, Math.floor(height)),
+          schema: getSchema(),
+        })
+
+        relaxNodesWithCollision({
+          nodes: displayNodes,
+          edges: edgesForDisplay,
+          schema: getSchema(),
+          defaultSteps: (args.groupsForBboxCollide || []).length > 0 ? 10 : 6,
+          groups: args.groupsForBboxCollide,
+          groupKeyOf,
+        })
+        for (let i = 0; i < displayNodes.length; i += 1) {
+          const n = displayNodes[i]
+          n.vx = 0
+          n.vy = 0
+        }
+
+        const padPx = Math.max(24, Math.floor(readFitPadding(getSchema())))
+        postFitNodesToViewport({
+          nodes: displayNodes,
+          width: Math.max(1, width),
+          height: Math.max(1, Math.floor(height)),
+          paddingPx: padPx,
+          minScale: 0.04,
+          maxScale: 1.8,
+        })
+
+        const intent = fitToScreenMode ? 'fitToScreen' : 'fitToView'
+        const schemaValue = getSchema()
+        const mode = readLayoutMode(schemaValue)
+        const baseOpts = readFitAllOptions({ schema: schemaValue, mode, intent })
+        const opts = baseOpts
+        const t = fitAllTransform(displayNodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
+        applyInitialTransform({ k: t.k, x: t.x, y: t.y })
+      }
+      finalFitApplied = true
+
+      try {
+        simulation.alphaTarget(0)
+        simulation.alpha(0)
+        simulation.stop()
+      } catch {
+        void 0
+      }
+      svg.attr('data-kg-layout-frozen', '1')
+      storeLayoutPositions()
+    },
+  })
 
   applyGraphCanvasZOrder(g, args.schema)
 

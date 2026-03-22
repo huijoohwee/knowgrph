@@ -1,6 +1,17 @@
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 
+const coerceEndpointId = (v: unknown): string => {
+  if (typeof v === 'string') return v
+  if (typeof v === 'number') return Number.isFinite(v) ? String(v) : ''
+  if (v && typeof v === 'object') {
+    const id = (v as { id?: unknown }).id
+    if (typeof id === 'string') return id
+    if (typeof id === 'number') return Number.isFinite(id) ? String(id) : ''
+  }
+  return ''
+}
+
 export const isDisplayNode = (n: GraphNode): boolean => {
   if (getNodeMediaSpec(n)) return true
   if (String(n.type || '') === 'MermaidSubgraph') return false
@@ -18,19 +29,9 @@ export const getDisplayNodes = (graphData: GraphData): GraphNode[] => {
 
 export const getDisplayEdges = (args: { edges: GraphEdge[]; displayNodeIdSet: Set<string> }): GraphEdge[] => {
   const edges = Array.isArray(args.edges) ? args.edges : []
-  const endpointId = (v: unknown): string => {
-    if (typeof v === 'string') return v
-    if (typeof v === 'number') return Number.isFinite(v) ? String(v) : ''
-    if (v && typeof v === 'object') {
-      const id = (v as { id?: unknown }).id
-      if (typeof id === 'string') return id
-      if (typeof id === 'number') return Number.isFinite(id) ? String(id) : ''
-    }
-    return ''
-  }
   const base = edges.filter(e => {
-    const s = endpointId(e.source)
-    const t = endpointId(e.target)
+    const s = coerceEndpointId(e.source)
+    const t = coerceEndpointId(e.target)
     if (!s || !t) return false
     if (!args.displayNodeIdSet.has(s) || !args.displayNodeIdSet.has(t)) return false
     return true
@@ -45,9 +46,33 @@ export const getDisplayEdges = (args: { edges: GraphEdge[]; displayNodeIdSet: Se
 
 export const getGraphDataForDisplay = (args: { graphData: GraphData; edges?: GraphEdge[] | null }): GraphData => {
   const graphData = args.graphData
-  const displayNodes = getDisplayNodes(graphData)
-  const displayNodeIdSet = new Set<string>(displayNodes.map(n => String(n.id)))
-  const edgesSource = Array.isArray(args.edges) ? args.edges : (Array.isArray(graphData.edges) ? (graphData.edges as GraphEdge[]) : [])
-  const edgesForDisplay = getDisplayEdges({ edges: edgesSource, displayNodeIdSet })
-  return { ...graphData, nodes: displayNodes, edges: edgesForDisplay }
+
+  const allNodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
+  const edgesSource = Array.isArray(args.edges)
+    ? args.edges
+    : Array.isArray(graphData.edges)
+      ? (graphData.edges as GraphEdge[])
+      : []
+
+  const preferredNodes = allNodes.filter(isDisplayNode)
+  const baseNodes = preferredNodes.length > 0 ? preferredNodes : allNodes
+  const baseNodeIdSet = new Set<string>(baseNodes.map(n => String(n.id)))
+  const edgesForBase = getDisplayEdges({ edges: edgesSource, displayNodeIdSet: baseNodeIdSet })
+
+  if (preferredNodes.length > 0 && edgesSource.length > 0 && edgesForBase.length === 0) {
+    const required = new Set<string>(baseNodeIdSet)
+    for (let i = 0; i < edgesSource.length; i += 1) {
+      const e = edgesSource[i]
+      const s = coerceEndpointId(e.source)
+      const t = coerceEndpointId(e.target)
+      if (s) required.add(s)
+      if (t) required.add(t)
+    }
+    const connectedNodes = allNodes.filter(n => required.has(String(n.id)))
+    const connectedNodeIdSet = new Set<string>(connectedNodes.map(n => String(n.id)))
+    const edgesForConnected = getDisplayEdges({ edges: edgesSource, displayNodeIdSet: connectedNodeIdSet })
+    return { ...graphData, nodes: connectedNodes, edges: edgesForConnected }
+  }
+
+  return { ...graphData, nodes: baseNodes, edges: edgesForBase }
 }

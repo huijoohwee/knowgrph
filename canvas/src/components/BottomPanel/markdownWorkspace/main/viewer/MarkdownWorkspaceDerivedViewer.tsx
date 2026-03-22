@@ -29,12 +29,15 @@ import { MarkdownWorkspaceHtmlViewerPane } from './MarkdownWorkspaceHtmlViewerPa
 import { rowIdToMarkdownLineInTable } from './markdownDataViewSourceMap'
 import { WorkspaceDataViewHeader, type WorkspaceDataViewHeaderState } from './WorkspaceDataViewHeader'
 import {
+  applyWorkspaceDataViewQuery,
+  computeWorkspaceDataViewGroupOptions,
   defaultWorkspaceDataViewConfig,
   readWorkspaceDataViewConfig,
+  readWorkspaceDataViewStateWithMeta,
   type WorkspaceDataViewConfig,
-  type WorkspaceDataViewFilterGroup,
   type WorkspaceDataViewFilterOp,
   writeWorkspaceDataViewConfig,
+  writeWorkspaceDataViewState,
 } from './workspaceDataViewConfig'
 import { LRUCache } from '@/lib/cache/LRUCache'
 
@@ -43,6 +46,7 @@ export type MarkdownWorkspaceDerivedViewerMode = 'read' | 'kanban' | 'table'
 
 type DataViewCandidate = {
   id: string
+  legacyId?: string
   label: string
   table: TokenWithLines & TokensTable
   view: MarkdownDataView
@@ -60,8 +64,12 @@ const buildDataViewCandidates = (markdownText: string, candidatesKey: string): D
     const table = tables[i]
     const view = buildMarkdownDataViewFromTableToken(table)
     if (!view) continue
+    const startLine = Math.max(1, Math.floor(Number((table as unknown as { startLine?: unknown }).startLine || 0)))
+    const endLine = Math.max(startLine, Math.floor(Number((table as unknown as { endLine?: unknown }).endLine || 0)))
+    const stableId = `md-block:${startLine}-${endLine}`
     candidates.push({
-      id: `table_${i}`,
+      id: stableId,
+      legacyId: `table_${i}`,
       label: `Table ${candidates.length + 1}`,
       table,
       view,
@@ -137,22 +145,59 @@ export function MarkdownWorkspaceDerivedViewer(props: {
       layout: props.viewerMode === 'table' ? 'table' : 'kanban',
       groupByColumnId: selected.view.groupByColumnId || null,
     })
-    const cfg = readWorkspaceDataViewConfig({
-      activeDocumentPath: props.activeDocumentPath ?? null,
-      tableId: selected.id,
-      fallback,
+
+    const docPath = props.activeDocumentPath ?? null
+    const stableId = selected.id
+    const legacyId = selected.legacyId
+
+    const stableMeta = readWorkspaceDataViewStateWithMeta({
+      activeDocumentPath: docPath,
+      tableId: stableId,
     })
+    if (!stableMeta.hasStoredValue && legacyId) {
+      const legacyMeta = readWorkspaceDataViewStateWithMeta({
+        activeDocumentPath: docPath,
+        tableId: legacyId,
+      })
+      if (legacyMeta.hasStoredValue) {
+        writeWorkspaceDataViewState({
+          activeDocumentPath: docPath,
+          tableId: stableId,
+          value: legacyMeta.state,
+        })
+      }
+    }
+
+    const cfg = readWorkspaceDataViewConfig({ activeDocumentPath: docPath, tableId: stableId, fallback })
     setViewConfig(cfg)
   }, [props.activeDocumentPath, props.viewerMode, selected])
 
+  const persistConfigTimerRef = React.useRef<number | null>(null)
   React.useEffect(() => {
     if (!selected) return
     if (!viewConfig) return
-    writeWorkspaceDataViewConfig({
-      activeDocumentPath: props.activeDocumentPath ?? null,
-      tableId: selected.id,
-      value: viewConfig,
-    })
+    if (typeof window === 'undefined') return
+
+    if (persistConfigTimerRef.current != null) {
+      window.clearTimeout(persistConfigTimerRef.current)
+      persistConfigTimerRef.current = null
+    }
+
+    const docPath = props.activeDocumentPath ?? null
+    const tableId = selected.id
+    const value = viewConfig
+
+    persistConfigTimerRef.current = window.setTimeout(() => {
+      persistConfigTimerRef.current = null
+      writeWorkspaceDataViewConfig({ activeDocumentPath: docPath, tableId, value })
+    }, 200)
+
+    return () => {
+      if (persistConfigTimerRef.current != null) {
+        window.clearTimeout(persistConfigTimerRef.current)
+        persistConfigTimerRef.current = null
+      }
+    }
   }, [props.activeDocumentPath, selected, viewConfig])
 
   const canMutate = !props.disableViewerMutations
@@ -163,98 +208,16 @@ export function MarkdownWorkspaceDerivedViewer(props: {
 
   const displayedView = React.useMemo((): MarkdownDataView | null => {
     if (!selected) return null
-    const base: MarkdownDataView = viewConfig?.groupByColumnId
-      ? { ...selected.view, groupByColumnId: viewConfig.groupByColumnId }
-      : selected.view
-    const q = String(headerState.searchQuery || '').trim().toLowerCase()
-    const filterGroups = headerState.visibleGroups
-    const sortMode = headerState.sortMode
-    const dataFilters: WorkspaceDataViewFilterGroup[] = viewConfig?.filterGroups || []
-    const needsFilter = !!(q || filterGroups || dataFilters.some(g => g.rules.length))
-    const needsSort = sortMode !== 'none'
-    if (!needsFilter && !needsSort) return base
-
-    const titleIndex = base.columns.findIndex(c => c.id === base.titleColumnId)
-    const groupIndex = base.groupByColumnId ? base.columns.findIndex(c => c.id === base.groupByColumnId) : -1
-    const allowedGroups = filterGroups ? new Set(filterGroups.map(x => String(x || '').trim())) : null
-
-    const ruleMatch = (row: (typeof base.rows)[number], rule: WorkspaceDataViewFilterGroup['rules'][number]): boolean => {
-      const colIndex = base.columns.findIndex(c => c.id === rule.columnId)
-      if (colIndex < 0) return true
-      const cell = String(row.cells[colIndex] ?? '')
-      const v = String(rule.value ?? '').trim()
-      if (!v) return true
-      if (rule.op === 'equals') return cell.trim() === v
-      if (rule.op === 'includes') {
-        const tokens = cell.split(',').map(x => x.trim()).filter(Boolean)
-        return tokens.includes(v)
-      }
-      return cell.toLowerCase().includes(v.toLowerCase())
-    }
-
-    const rowPassesDataFilters = (row: (typeof base.rows)[number]): boolean => {
-      if (!dataFilters.length) return true
-      for (const g of dataFilters) {
-        if (!g.rules.length) continue
-        let ok = true
-        for (const r of g.rules) {
-          if (!ruleMatch(row, r)) {
-            ok = false
-            break
-          }
-        }
-        if (ok) return true
-      }
-      return dataFilters.every(g => g.rules.length === 0)
-    }
-
-    let rows = base.rows
-    if (needsFilter) {
-      rows = rows.filter(r => {
-        if (allowedGroups && groupIndex >= 0) {
-          const g = String(r.cells[groupIndex] ?? '').trim() || 'Ungrouped'
-          if (!allowedGroups.has(g)) return false
-        }
-        if (!rowPassesDataFilters(r)) return false
-        if (!q) return true
-        const title = titleIndex >= 0 ? String(r.cells[titleIndex] ?? '') : ''
-        if (title.toLowerCase().includes(q)) return true
-        for (let i = 0; i < base.columns.length; i += 1) {
-          if (i === titleIndex) continue
-          const v = String(r.cells[i] ?? '')
-          if (v && v.toLowerCase().includes(q)) return true
-        }
-        return false
-      })
-    }
-
-    if (needsSort && titleIndex >= 0) {
-      const dir = sortMode === 'title_desc' ? -1 : 1
-      rows = [...rows].sort((a, b) => {
-        const ta = String(a.cells[titleIndex] ?? '')
-        const tb = String(b.cells[titleIndex] ?? '')
-        return dir * ta.localeCompare(tb)
-      })
-    }
-
-    return { ...base, rows }
+    const base: MarkdownDataView = viewConfig?.groupByColumnId ? { ...selected.view, groupByColumnId: viewConfig.groupByColumnId } : selected.view
+    return applyWorkspaceDataViewQuery({ view: base, viewConfig, state: headerState })
   }, [headerState.searchQuery, headerState.sortMode, headerState.visibleGroups, selected, viewConfig])
 
   const groupOptions = React.useMemo((): string[] => {
     if (!selected) return []
-    const groupById = viewConfig?.groupByColumnId || selected.view.groupByColumnId
-    if (!groupById) return []
-    const groupIndex = selected.view.columns.findIndex(c => c.id === groupById)
-    if (groupIndex < 0) return []
-    const col = selected.view.columns[groupIndex]
-    const opts = Array.isArray(col.options) ? col.options.map(x => String(x || '').trim()).filter(Boolean) : []
-    if (opts.length) return opts
-    const set = new Set<string>()
-    for (const r of selected.view.rows) {
-      const g = String(r.cells[groupIndex] ?? '').trim() || 'Ungrouped'
-      set.add(g)
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b))
+    return computeWorkspaceDataViewGroupOptions({
+      view: selected.view,
+      groupByColumnId: viewConfig?.groupByColumnId || selected.view.groupByColumnId,
+    })
   }, [selected, viewConfig?.groupByColumnId])
 
   const visibleColumnIds = viewConfig?.visibleColumnIds ?? null

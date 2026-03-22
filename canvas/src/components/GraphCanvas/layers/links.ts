@@ -51,6 +51,20 @@ function coerceEdgeId(v: unknown): string {
   return ''
 }
 
+function readEndpointPos(endpoint: unknown): { x: number; y: number } | null {
+  if (!endpoint || typeof endpoint !== 'object' || Array.isArray(endpoint)) return null
+  const x = (endpoint as { x?: unknown }).x
+  const y = (endpoint as { y?: unknown }).y
+  const nx = typeof x === 'number' && Number.isFinite(x) ? x : NaN
+  const ny = typeof y === 'number' && Number.isFinite(y) ? y : NaN
+  if (!Number.isFinite(nx) || !Number.isFinite(ny)) return null
+  return { x: nx, y: ny }
+}
+
+function getEndpointPosOrZero(endpoint: unknown): { x: number; y: number } {
+  return readEndpointPos(endpoint) || { x: 0, y: 0 }
+}
+
 export const createLinksHitLayer = (args: {
   g: GSelection;
   edgesForDisplay: GraphEdge[];
@@ -94,6 +108,12 @@ export const createLinksHitLayer = (args: {
     .data(withoutPath)
     .enter()
     .append('line')
+
+  lineSel
+    .attr('x1', (d: GraphEdge) => getEndpointPosOrZero((d as any).source).x)
+    .attr('y1', (d: GraphEdge) => getEndpointPosOrZero((d as any).source).y)
+    .attr('x2', (d: GraphEdge) => getEndpointPosOrZero((d as any).target).x)
+    .attr('y2', (d: GraphEdge) => getEndpointPosOrZero((d as any).target).y)
 
   const link = (pathSel as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>).merge(
     lineSel as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>,
@@ -168,6 +188,12 @@ export const createLinksLayer = (args: {
     })
 
   const lineSel = linkRoot.selectAll<SVGLineElement, GraphEdge>('line').data(withoutPath).enter().append('line')
+
+  lineSel
+    .attr('x1', (d: GraphEdge) => getEndpointPosOrZero((d as any).source).x)
+    .attr('y1', (d: GraphEdge) => getEndpointPosOrZero((d as any).source).y)
+    .attr('x2', (d: GraphEdge) => getEndpointPosOrZero((d as any).target).x)
+    .attr('y2', (d: GraphEdge) => getEndpointPosOrZero((d as any).target).y)
 
   const link = (pathSel as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>).merge(
     lineSel as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>,

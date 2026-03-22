@@ -16,6 +16,7 @@ import { ssSetString, ssString, getLocalStorage } from '@/lib/persistence';
 import { ThemeMode, ResolvedThemeMode, getInitialThemeMode, persistThemeMode, applyThemeMode, resolveThemeMode, getSystemTheme } from '@/lib/ui/theme';
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import type { GraphData } from '@/lib/graph/types'
+import type { ZoomRequest } from '@/lib/zoom/requests'
 
 const nodeHasMediaLikeProps = (node: { properties?: unknown } | null): boolean => {
   if (!node) return false
@@ -227,6 +228,7 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   floatingPanelZIndex: 40,
   bottomPanelTab: 'stats' as BottomTab,
   frontmatterModeEnabled: true,
+  multiDimTableModeEnabled: false,
   documentSemanticMode: 'document' as DocumentSemanticMode,
   keywordSourceMaxLines: keywordDefaults.sourceMaxLines,
   keywordSourceMaxChars: keywordDefaults.sourceMaxChars,
@@ -315,19 +317,12 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   setFloatingPanelZIndex: (v: number) => set({ floatingPanelZIndex: v }),
   setBottomPanelTab: (tab: BottomTab) => set({ bottomPanelTab: tab }),
   setFrontmatterModeEnabled: (v: boolean) => {
-    if (get().documentStructureBaselineLock === true) {
-      get().upsertUiToast({
-        id: 'baseline-locked',
-        kind: 'warning',
-        message: UI_COPY.baselineLockedToast,
-        ttlMs: 6000,
-      })
-      return
-    }
     set(state => {
       const nextEnabled = v === true
       const prevEnabled = state.frontmatterModeEnabled === true
       if (nextEnabled === prevEnabled) return {}
+
+      const nextTable = nextEnabled ? false : state.multiDimTableModeEnabled === true
 
       const prevZoomKey = buildActive2dZoomViewKey({
         canvasRenderMode: state.canvasRenderMode,
@@ -336,6 +331,7 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
         graphData: (state.graphData as unknown as GraphData | null),
         documentSemanticMode: state.documentSemanticMode,
         frontmatterModeEnabled: prevEnabled,
+        multiDimTableModeEnabled: state.multiDimTableModeEnabled === true,
         documentStructureBaselineLock: state.documentStructureBaselineLock,
         renderMediaAsNodes: state.renderMediaAsNodes,
         mediaPanelDensity: state.mediaPanelDensity,
@@ -348,6 +344,7 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
         graphData: (state.graphData as unknown as GraphData | null),
         documentSemanticMode: state.documentSemanticMode,
         frontmatterModeEnabled: nextEnabled,
+        multiDimTableModeEnabled: nextTable,
         documentStructureBaselineLock: state.documentStructureBaselineLock,
         renderMediaAsNodes: state.renderMediaAsNodes,
         mediaPanelDensity: state.mediaPanelDensity,
@@ -360,7 +357,71 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
           ? { ...(state.zoomStateByKey || {}), [nextZoomKey]: prevZoom }
           : state.zoomStateByKey
 
-      return { frontmatterModeEnabled: nextEnabled, zoomStateByKey }
+      const zoomRequest: ZoomRequest | null =
+        nextEnabled && state.canvasRenderMode === '2d'
+          ? { type: 'fit', intent: 'fitToView', at: Date.now() }
+          : null
+
+      return zoomRequest
+        ? { frontmatterModeEnabled: nextEnabled, multiDimTableModeEnabled: nextTable, zoomStateByKey, zoomRequest }
+        : { frontmatterModeEnabled: nextEnabled, multiDimTableModeEnabled: nextTable, zoomStateByKey }
+    })
+  },
+
+  setMultiDimTableModeEnabled: (v: boolean) => {
+    set(state => {
+      const nextEnabled = v === true
+      const prevEnabled = state.multiDimTableModeEnabled === true
+      if (nextEnabled === prevEnabled) return {}
+
+      const nextFrontmatter = nextEnabled ? false : state.frontmatterModeEnabled === true
+
+      const prevZoomKey = buildActive2dZoomViewKey({
+        canvasRenderMode: state.canvasRenderMode,
+        canvas2dRenderer: state.canvas2dRenderer,
+        schema: state.schema,
+        graphData: (state.graphData as unknown as GraphData | null),
+        documentSemanticMode: state.documentSemanticMode,
+        frontmatterModeEnabled: state.frontmatterModeEnabled,
+        multiDimTableModeEnabled: prevEnabled,
+        documentStructureBaselineLock: state.documentStructureBaselineLock,
+        renderMediaAsNodes: state.renderMediaAsNodes,
+        mediaPanelDensity: state.mediaPanelDensity,
+        collapsedGroupIds: state.collapsedGroupIds,
+      })
+      const nextZoomKey = buildActive2dZoomViewKey({
+        canvasRenderMode: state.canvasRenderMode,
+        canvas2dRenderer: state.canvas2dRenderer,
+        schema: state.schema,
+        graphData: (state.graphData as unknown as GraphData | null),
+        documentSemanticMode: state.documentSemanticMode,
+        frontmatterModeEnabled: nextFrontmatter,
+        multiDimTableModeEnabled: nextEnabled,
+        documentStructureBaselineLock: state.documentStructureBaselineLock,
+        renderMediaAsNodes: state.renderMediaAsNodes,
+        mediaPanelDensity: state.mediaPanelDensity,
+        collapsedGroupIds: state.collapsedGroupIds,
+      })
+      const prevZoom = prevZoomKey ? state.zoomStateByKey?.[prevZoomKey] ?? null : null
+      const nextZoomExists = nextZoomKey ? Boolean(state.zoomStateByKey?.[nextZoomKey]) : false
+      const zoomStateByKey =
+        prevZoom && nextZoomKey && !nextZoomExists
+          ? { ...(state.zoomStateByKey || {}), [nextZoomKey]: prevZoom }
+          : state.zoomStateByKey
+
+      const zoomRequest: ZoomRequest | null =
+        nextEnabled && state.canvasRenderMode === '2d'
+          ? { type: 'fit', intent: 'fitToView', at: Date.now() }
+          : null
+
+      return zoomRequest
+        ? {
+            multiDimTableModeEnabled: nextEnabled,
+            frontmatterModeEnabled: nextFrontmatter,
+            zoomStateByKey,
+            zoomRequest,
+          }
+        : { multiDimTableModeEnabled: nextEnabled, frontmatterModeEnabled: nextFrontmatter, zoomStateByKey }
     })
   },
   setDocumentSemanticMode: (v: DocumentSemanticMode) => {

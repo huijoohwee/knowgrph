@@ -1,5 +1,5 @@
 import React from 'react'
-import { ArrowUpDown, ChevronDown, Filter, MoreHorizontal, Plus, Search } from 'lucide-react'
+import { ArrowUpDown, ChevronDown, Filter, MoreHorizontal, Plus, Search, SlidersHorizontal } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
@@ -56,12 +56,13 @@ export function WorkspaceDataViewHeader(props: {
   const icon12Class = ['w-3 h-3', UI_THEME_TOKENS.icon.color].join(' ')
   const icon14Class = ['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')
 
-  const viewTitle =
+  const viewTitle = props.viewerMode === 'read' ? `Read ${props.title}` : MARKDOWN_DATA_VIEW_COPY.titleDefault
+  const viewModeLabel =
     props.viewerMode === 'read'
-      ? `Read ${props.title}`
+      ? 'Read'
       : props.viewerMode === 'kanban'
-        ? `Kanban for ${props.title}`
-        : `Table for ${props.title}`
+        ? MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel
+        : MARKDOWN_DATA_VIEW_COPY.tableViewLabel
   const hasActiveFilters = !!(props.state.searchQuery.trim() || props.state.visibleGroups || props.state.sortMode !== 'none')
 
   const groupByOptions = React.useMemo(() => {
@@ -95,6 +96,9 @@ export function WorkspaceDataViewHeader(props: {
     <WorkspaceHeader ariaLabel="Data view header" border="border">
       <section className="flex items-center gap-2 px-3 pt-2" aria-label="Data view controls">
         <h2 className={['text-base font-semibold leading-6', UI_THEME_TOKENS.text.primary].join(' ')}>{viewTitle}</h2>
+        <span className={['text-xs px-2 py-1 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}>
+          {viewModeLabel}
+        </span>
         <div className="ml-auto flex items-center gap-2">
           <form className={['flex items-center gap-2 px-2 py-1 rounded border', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')} role="search">
             <Search className={icon12Class} aria-hidden="true" />
@@ -193,16 +197,6 @@ export function WorkspaceDataViewHeader(props: {
               aria-label={MARKDOWN_DATA_VIEW_COPY.moreMenuAriaLabel}
             >
               <li className="list-none">
-                <button
-                  type="button"
-                  className={['w-full text-left px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
-                  onClick={() => props.openSettings()}
-                >
-                  {MARKDOWN_DATA_VIEW_COPY.viewSettingsLabel}
-                </button>
-              </li>
-              <li className={['list-none my-2 h-px', UI_THEME_TOKENS.panel.divider].join(' ')} />
-              <li className="list-none">
                 <div className={['text-xs font-medium mb-1 px-2', UI_THEME_TOKENS.text.secondary].join(' ')}>Visible columns</div>
                 <div className="flex flex-wrap gap-1 px-2 pb-1">
                   {props.groupOptions.map(k => {
@@ -247,6 +241,15 @@ export function WorkspaceDataViewHeader(props: {
               </li>
             </menu>
           </details>
+
+          <button
+            type="button"
+            className={['inline-flex items-center gap-2 px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+            onClick={() => props.openSettings()}
+          >
+            <SlidersHorizontal className={icon14Class} aria-hidden="true" />
+            <span className={['text-xs font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.viewSettingsLabel}</span>
+          </button>
 
           {props.canMutate && props.onNewRecord ? (
             <button

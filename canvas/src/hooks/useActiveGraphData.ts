@@ -9,6 +9,7 @@ import { hasNodeMedia } from '@/components/GraphCanvas/helpers'
 import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { deriveMarkdownTableGraphForFrontmatterMode } from '@/features/markdown/tableGraph/deriveMarkdownTableGraph'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import { LRUCache } from '@/lib/cache/LRUCache'
@@ -911,17 +912,24 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
 export function deriveGraphDataForActiveView(args: {
   graphData: GraphData
   frontmatterModeEnabled: boolean
+  multiDimTableModeEnabled: boolean
   documentSemanticMode: string
   documentStructureBaselineLock: boolean
   collapsedGroupIds: string[]
 }): GraphData {
-  const base = computeEffectiveFrontmatterMode({
-    frontmatterModeEnabled: args.frontmatterModeEnabled && args.documentStructureBaselineLock !== true,
-    documentSemanticMode: args.documentSemanticMode,
-    graphData: args.graphData,
-  })
-    ? filterGraphToFrontmatterMermaid(args.graphData)
-    : args.graphData
+  const base = (() => {
+    if (args.multiDimTableModeEnabled === true) {
+      const tableGraph = deriveMarkdownTableGraphForFrontmatterMode({ graphData: args.graphData })
+      return tableGraph || { ...args.graphData, nodes: [], edges: [] }
+    }
+    const effective = computeEffectiveFrontmatterMode({
+      frontmatterModeEnabled: args.frontmatterModeEnabled,
+      documentSemanticMode: args.documentSemanticMode,
+      graphData: args.graphData,
+    })
+    if (!args.frontmatterModeEnabled) return args.graphData
+    return effective ? filterGraphToFrontmatterMermaid(args.graphData) : { ...args.graphData, nodes: [], edges: [] }
+  })()
 
   const collapsedGroupIds = Array.isArray(args.collapsedGroupIds) ? args.collapsedGroupIds : []
   if (collapsedGroupIds.length === 0) return base
@@ -930,6 +938,7 @@ export function deriveGraphDataForActiveView(args: {
 
 const INACTIVE_RENDER_SLICE = {
   frontmatterModeEnabled: false,
+  multiDimTableModeEnabled: false,
   documentSemanticMode: 'document',
   documentStructureBaselineLock: false,
   collapsedGroupIds: [] as string[],
@@ -943,6 +952,7 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
       enabled
         ? (s: GraphState) => ({
             frontmatterModeEnabled: s.frontmatterModeEnabled === true,
+            multiDimTableModeEnabled: s.multiDimTableModeEnabled === true,
             documentSemanticMode: String(s.documentSemanticMode || 'document'),
             documentStructureBaselineLock: s.documentStructureBaselineLock === true,
             collapsedGroupIds: (s.collapsedGroupIds || []) as string[],
@@ -951,7 +961,7 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     [enabled],
   )
 
-  const { frontmatterModeEnabled, documentSemanticMode, documentStructureBaselineLock, collapsedGroupIds } = useGraphStore(useShallow(selector))
+  const { frontmatterModeEnabled, multiDimTableModeEnabled, documentSemanticMode, documentStructureBaselineLock, collapsedGroupIds } = useGraphStore(useShallow(selector))
 
   const lastRef = React.useRef<GraphData | null>(null)
 
@@ -959,25 +969,26 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     return buildCollapsedGroupIdsKey(collapsedGroupIds)
   }, [collapsedGroupIds])
 
-  const frontmatterGraphData = React.useMemo(() => {
+  const viewGraphData = React.useMemo(() => {
     if (!graphData) return null
-    const effective = computeEffectiveFrontmatterMode({
-      frontmatterModeEnabled: frontmatterModeEnabled && documentStructureBaselineLock !== true,
-      documentSemanticMode,
+    return deriveGraphDataForActiveView({
       graphData,
+      frontmatterModeEnabled,
+      multiDimTableModeEnabled,
+      documentSemanticMode,
+      documentStructureBaselineLock,
+      collapsedGroupIds: [],
     })
-    if (!effective) return graphData
-    return filterGraphToFrontmatterMermaid(graphData)
-  }, [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, graphData])
+  }, [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, graphData, multiDimTableModeEnabled])
 
   const computed = React.useMemo(() => {
-    if (!frontmatterGraphData) return null
-    if (!collapsedGroupIdsKey) return frontmatterGraphData
+    if (!viewGraphData) return null
+    if (!collapsedGroupIdsKey) return viewGraphData
     return deriveGraphDataWithGroupCollapse({
-      graphData: frontmatterGraphData,
+      graphData: viewGraphData,
       collapsedGroupIds: collapsedGroupIdsKey.split('|').filter(Boolean),
     })
-  }, [collapsedGroupIdsKey, frontmatterGraphData])
+  }, [collapsedGroupIdsKey, viewGraphData])
 
   React.useEffect(() => {
     if (!enabled) return

@@ -1,6 +1,7 @@
 import { UI_COPY } from './uiCopy'
 
 export const MARKDOWN_DATA_VIEW_COPY = {
+  titleDefault: UI_COPY.markdownDataViewTitleDefault,
   kanbanViewLabel: UI_COPY.markdownDataViewKanbanViewLabel,
   tableViewLabel: UI_COPY.markdownDataViewTableViewLabel,
   newRecordLabel: UI_COPY.markdownDataViewNewRecordLabel,

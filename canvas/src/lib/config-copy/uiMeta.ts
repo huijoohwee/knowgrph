@@ -111,6 +111,7 @@ export const UI_LABELS = {
   menu: 'Menu',
   documentStructureMode: 'Document Structure Mode',
   keywordMode: 'Keyword Mode',
+  multiDimTableMode: 'Multi-dimensional Table Mode',
   name: 'Name',
   scope: 'Scope',
   type: 'Type',
@@ -151,7 +152,7 @@ export const UI_LABELS = {
   mermaidFocus: 'Mermaid Focus',
   status: 'Status',
   editor: 'Editor',
-  graphDataTable: 'Graph Data Table',
+  graphDataTable: 'Table',
   nodeShapeMode: 'Node Shape',
   groupShapeRect: 'Cluster Shape: Rect',
   groupShapePolygon: 'Cluster Shape: Polygon',
@@ -223,6 +224,7 @@ export const UI_LABELS = {
   unpinPanel: 'Unpin',
   minimizePanel: 'Minimize panel',
   restorePanel: 'Restore panel',
+  designSystem: 'Design System',
 } as const;
 
 export const COPY_ZOOM_FIT_SCREEN = UI_LABELS.fitToScreen

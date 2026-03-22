@@ -13,6 +13,7 @@ export function buildActive2dZoomViewKey(args: {
   graphData: GraphData | null
   documentSemanticMode: unknown
   frontmatterModeEnabled: unknown
+  multiDimTableModeEnabled?: unknown
   documentStructureBaselineLock: unknown
   renderMediaAsNodes: unknown
   mediaPanelDensity: unknown
@@ -25,7 +26,8 @@ export function buildActive2dZoomViewKey(args: {
   const schema = args.schema
   const graphData = args.graphData
   const documentSemanticMode = String(args.documentSemanticMode || '')
-  const frontmatterModeEnabled = args.frontmatterModeEnabled === true && args.documentStructureBaselineLock !== true
+  const frontmatterModeEnabled = args.frontmatterModeEnabled === true
+  const multiDimTableModeEnabled = args.multiDimTableModeEnabled === true
 
   const effectiveFrontmatter = computeEffectiveFrontmatterMode({
     frontmatterModeEnabled,
@@ -40,12 +42,14 @@ export function buildActive2dZoomViewKey(args: {
 
   const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(schema)
 
+  const semanticKey = multiDimTableModeEnabled ? `${documentSemanticMode}:mdtbl` : documentSemanticMode
+
   const base = buildZoomViewKey({
     canvasRenderMode,
     canvas2dRenderer,
     schemaLayoutEngineJson,
     frontmatterModeEnabled: effectiveFrontmatter,
-    documentSemanticMode,
+    documentSemanticMode: semanticKey,
     graphMetaKey: buildGraphMetaKeyIgnoringPending(graphData),
     renderMediaAsNodes,
     mediaPanelDensity,

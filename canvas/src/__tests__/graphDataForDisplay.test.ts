@@ -25,3 +25,42 @@ export const testGraphDataForDisplayFiltersNodesAndEdgesTogether = () => {
   if (!edgeIds.has('e2')) throw new Error('expected edge between display endpoints to remain')
 }
 
+export const testGraphDataForDisplayKeepsFilteredEndpointsWhenAllEdgesWouldDisappear = () => {
+  const graphData: GraphData = {
+    type: 'Graph',
+    context: 'test',
+    metadata: {},
+    nodes: [
+      { id: 'h1', type: 'Section', label: 'H1', properties: { level: 1 }, metadata: {} },
+      { id: 'p1', type: 'Paragraph', label: 'P1', properties: {}, metadata: {} },
+    ],
+    edges: [{ id: 'e1', source: 'h1', target: 'p1', label: 'hasSection', properties: {}, metadata: {} }],
+  }
+
+  const display = getGraphDataForDisplay({ graphData })
+  const nodeIds = new Set((display.nodes || []).map(n => String((n as { id?: unknown }).id)))
+  if (!nodeIds.has('h1')) throw new Error('expected filtered heading node to be restored when it carries all edges')
+  if (!nodeIds.has('p1')) throw new Error('expected paragraph node to remain')
+  const edgeIds = new Set((display.edges || []).map(e => String((e as { id?: unknown }).id)))
+  if (!edgeIds.has('e1')) throw new Error('expected edge to be preserved when it would otherwise disappear')
+}
+
+export const testGraphDataForDisplayKeepsKeywordSourceWhenAllEdgesWouldDisappear = () => {
+  const graphData: GraphData = {
+    type: 'Graph',
+    context: 'test',
+    metadata: {},
+    nodes: [
+      { id: 'doc:a', type: 'KeywordSource', label: 'A', properties: {}, metadata: {} },
+      { id: 'kw:x', type: 'Entity', label: 'X', properties: {}, metadata: {} },
+    ],
+    edges: [{ id: 'e1', source: 'doc:a', target: 'kw:x', label: 'mentions', properties: {}, metadata: {} }],
+  }
+
+  const display = getGraphDataForDisplay({ graphData })
+  const nodeIds = new Set((display.nodes || []).map(n => String((n as { id?: unknown }).id)))
+  if (!nodeIds.has('doc:a')) throw new Error('expected KeywordSource node to be restored when it carries all edges')
+  if (!nodeIds.has('kw:x')) throw new Error('expected keyword node to remain')
+  const edgeIds = new Set((display.edges || []).map(e => String((e as { id?: unknown }).id)))
+  if (!edgeIds.has('e1')) throw new Error('expected mention edge to be preserved')
+}

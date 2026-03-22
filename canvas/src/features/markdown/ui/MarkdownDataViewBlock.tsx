@@ -6,15 +6,30 @@ import { UI_COPY } from '@/lib/config'
 import type { TokensTable } from './MarkdownTokens'
 import {
   appendMarkdownDataViewRow,
+  appendMarkdownDataViewColumn,
   buildMarkdownDataViewFromTableToken,
   updateMarkdownDataViewCell,
   type MarkdownDataView,
+  type MarkdownDataViewColumnKind,
 } from './markdownDataViewModel'
-import type { MarkdownDataViewColumnType } from './markdownDataViewColumnType'
+import {
+  columnTypeToBaseKind,
+  defaultColumnTypeForInferredKind,
+  type MarkdownDataViewColumnType,
+} from './markdownDataViewColumnType'
 import { serializeMarkdownDataViewToTableLines } from './markdownDataViewSerialize'
 import { MarkdownDataViewKanbanView } from './MarkdownDataViewKanbanView'
 import { MarkdownDataViewTableView } from './MarkdownDataViewTableView'
-import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { WorkspaceDataViewHeader } from '@/components/BottomPanel/markdownWorkspace/main/viewer/WorkspaceDataViewHeader'
+import {
+  applyWorkspaceDataViewQuery,
+  computeWorkspaceDataViewGroupOptions,
+  defaultWorkspaceDataViewConfig,
+  readWorkspaceDataViewConfig,
+  type WorkspaceDataViewConfig,
+  type WorkspaceDataViewFilterOp,
+  writeWorkspaceDataViewConfig,
+} from '@/components/BottomPanel/markdownWorkspace/main/viewer/workspaceDataViewConfig'
 
 type MarkdownDataViewBlockProps = {
   token: TokenWithLines
@@ -24,31 +39,6 @@ type MarkdownDataViewBlockProps = {
   opts: RenderOpts
 }
 
-const normalizeSearch = (v: string): string => String(v || '').trim().toLowerCase()
-
-type ColumnFilterOp = 'contains' | 'equals' | 'includes'
-
-const splitMultiValues = (raw: string): string[] => {
-  return String(raw ?? '')
-    .split(',')
-    .map(x => String(x ?? '').replace(/\s+/g, ' ').trim())
-    .filter(Boolean)
-}
-
-const matchFilter = (cell: string, kind: MarkdownDataView['columns'][number]['kind'], op: ColumnFilterOp, needle: string): boolean => {
-  const n = String(needle ?? '').trim().toLowerCase()
-  if (!n) return true
-  const v = String(cell ?? '').trim()
-  const lower = v.toLowerCase()
-
-  if (op === 'equals') return lower === n
-  if (op === 'includes') {
-    if (kind !== 'multi-select') return lower.includes(n)
-    return splitMultiValues(v).some(x => x.toLowerCase() === n)
-  }
-  return lower.includes(n)
-}
-
 export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(props: MarkdownDataViewBlockProps) {
   const { token, table, highlightClass, highlightStyle, opts } = props
   const startLine = token.startLine
@@ -56,65 +46,61 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
   const canMutate = !!opts.onReplaceLineRange
 
   const view = React.useMemo(() => buildMarkdownDataViewFromTableToken(table), [table])
-  const [viewMode, setViewMode] = React.useState<'kanban' | 'table'>(() => {
-    const dv = buildMarkdownDataViewFromTableToken(table)
-    return dv?.groupByColumnId ? 'kanban' : 'table'
-  })
-  const [query, setQuery] = React.useState('')
-  const [columnTypesById, setColumnTypesById] = React.useState<Record<string, MarkdownDataViewColumnType>>({})
-  const [visibleColumnIds, setVisibleColumnIds] = React.useState<string[] | null>(null)
-  const [columnFiltersById, setColumnFiltersById] = React.useState<
-    Record<string, { columnKind: MarkdownDataView['columns'][number]['kind']; op: ColumnFilterOp; value: string }>
-  >({})
-  const [sortMode, setSortMode] = React.useState<'none' | 'title_asc' | 'title_desc'>('none')
+  const tableId = React.useMemo(() => `md-block:${startLine}-${endLine}`, [endLine, startLine])
+  const activeDocumentPath = opts.activeDocumentPath ?? null
+
+  const [viewConfig, setViewConfig] = React.useState<WorkspaceDataViewConfig | null>(null)
+  const [settingsOpen, setSettingsOpen] = React.useState(false)
+  const [headerState, setHeaderState] = React.useState(() => ({
+    searchQuery: '',
+    visibleGroups: null as readonly string[] | null,
+    sortMode: 'none' as 'none' | 'title_asc' | 'title_desc',
+  }))
 
   React.useEffect(() => {
-    const next = buildMarkdownDataViewFromTableToken(table)
-    if (!next?.groupByColumnId && viewMode === 'kanban') setViewMode('table')
-  }, [table, viewMode])
-
-  const filteredView = React.useMemo((): MarkdownDataView | null => {
-    if (!view) return null
-    const q = normalizeSearch(query)
-    const titleIndex = view.columns.findIndex(c => c.id === view.titleColumnId)
-    const columnIndexById = new Map<string, number>()
-    for (let i = 0; i < view.columns.length; i += 1) {
-      columnIndexById.set(view.columns[i].id, i)
+    if (!view) {
+      setViewConfig(null)
+      return
     }
+    const fallback = defaultWorkspaceDataViewConfig({
+      title: UI_COPY.markdownDataViewTitleDefault,
+      layout: view.groupByColumnId ? 'kanban' : 'table',
+      groupByColumnId: view.groupByColumnId || null,
+    })
+    const cfg = readWorkspaceDataViewConfig({ activeDocumentPath, tableId, fallback })
+    setViewConfig(cfg)
+  }, [activeDocumentPath, tableId, view])
 
-    const activeFilters = Object.entries(columnFiltersById).filter(([, f]) => String(f.value || '').trim())
-    const needsFilter = Boolean(q || activeFilters.length)
-    const needsSort = sortMode !== 'none' && titleIndex >= 0
-
-    if (!needsFilter && !needsSort) return view
-
-    let rows = view.rows
-    if (needsFilter) {
-      rows = rows.filter(r => {
-        if (q && !r.cells.some(c => normalizeSearch(c).includes(q))) return false
-        for (const [columnId, f] of activeFilters) {
-          const idx = columnIndexById.get(columnId) ?? -1
-          if (idx < 0) continue
-          if (!matchFilter(String(r.cells[idx] ?? ''), f.columnKind, f.op, f.value)) return false
-        }
-        return true
-      })
+  const persistTimerRef = React.useRef<number | null>(null)
+  React.useEffect(() => {
+    if (!viewConfig) return
+    if (typeof window === 'undefined') return
+    if (persistTimerRef.current != null) {
+      window.clearTimeout(persistTimerRef.current)
+      persistTimerRef.current = null
     }
-
-    if (needsSort) {
-      const dir = sortMode === 'title_desc' ? -1 : 1
-      const sorted = rows.slice().sort((a, b) => {
-        const av = String(a.cells[titleIndex] ?? '').toLowerCase()
-        const bv = String(b.cells[titleIndex] ?? '').toLowerCase()
-        if (av < bv) return -1 * dir
-        if (av > bv) return 1 * dir
-        return 0
-      })
-      rows = sorted
+    persistTimerRef.current = window.setTimeout(() => {
+      persistTimerRef.current = null
+      writeWorkspaceDataViewConfig({ activeDocumentPath, tableId, value: viewConfig })
+    }, 200)
+    return () => {
+      if (persistTimerRef.current != null) {
+        window.clearTimeout(persistTimerRef.current)
+        persistTimerRef.current = null
+      }
     }
+  }, [activeDocumentPath, tableId, viewConfig])
 
-    return rows === view.rows ? view : { ...view, rows }
-  }, [columnFiltersById, query, sortMode, view])
+  React.useEffect(() => {
+    if (!view) return
+    setViewConfig(prev => {
+      if (!prev) return prev
+      if (prev.layout === 'kanban' && !prev.groupByColumnId && !view.groupByColumnId) {
+        return { ...prev, layout: 'table' }
+      }
+      return prev
+    })
+  }, [view])
 
   const commitView = React.useCallback(
     (next: MarkdownDataView) => {
@@ -144,35 +130,71 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
     [commitView, view],
   )
 
+  const handleAddColumn = React.useCallback(
+    (args: { name: string; columnType: MarkdownDataViewColumnType }) => {
+      if (!view) return
+      if (!canMutate) return
+      const next = appendMarkdownDataViewColumn({ view, name: args.name, kind: columnTypeToBaseKind(args.columnType) })
+      commitView(next)
+
+      const newColId = next.columns[next.columns.length - 1]?.id
+      if (!newColId) return
+      setViewConfig(prev => {
+        if (!prev) return prev
+        const nextVisible = prev.visibleColumnIds ? [...prev.visibleColumnIds, newColId] : prev.visibleColumnIds
+        const nextTypes = { ...(prev.columnTypesById ?? {}), [newColId]: args.columnType }
+        return { ...prev, visibleColumnIds: nextVisible, columnTypesById: nextTypes }
+      })
+    },
+    [canMutate, commitView, view],
+  )
+
   const handleChangeColumnType = React.useCallback((args: { columnId: string; nextType: MarkdownDataViewColumnType }) => {
-    setColumnTypesById(prev => {
-      if (prev[args.columnId] === args.nextType) return prev
-      return { ...prev, [args.columnId]: args.nextType }
+    if (!view) return
+    setViewConfig(prev => {
+      if (!prev) return prev
+      const col = view.columns.find(c => c.id === args.columnId)
+      const defaultType = col ? defaultColumnTypeForInferredKind(col.kind) : 'text'
+      const nextMap = { ...(prev.columnTypesById ?? {}) }
+      if (args.nextType === defaultType) delete nextMap[args.columnId]
+      else nextMap[args.columnId] = args.nextType
+      const normalized = Object.keys(nextMap).length ? nextMap : null
+      if (prev.columnTypesById === normalized) return prev
+      return { ...prev, columnTypesById: normalized }
     })
-  }, [])
+  }, [view])
 
   const handleHideColumnInView = React.useCallback(
     (columnId: string) => {
       if (!view) return
-      setVisibleColumnIds(prev => {
-        const base = prev || view.columns.map(c => c.id)
-        return base.filter(id => id !== columnId)
+      setViewConfig(prev => {
+        if (!prev) return prev
+        const allIds = view.columns.map(c => c.id)
+        const base = prev.visibleColumnIds ? prev.visibleColumnIds : allIds
+        const next = base.filter(id => id !== columnId)
+        return { ...prev, visibleColumnIds: next }
       })
     },
     [view],
   )
 
   const handleUpsertColumnFilter = React.useCallback(
-    (args: { columnId: string; columnKind: MarkdownDataView['columns'][number]['kind']; op: ColumnFilterOp; value: string }) => {
-      setColumnFiltersById(prev => {
-        const value = String(args.value ?? '')
-        const next = { ...prev }
-        if (!value.trim()) {
-          delete next[args.columnId]
-          return next
+    (args: { columnId: string; columnKind: MarkdownDataViewColumnKind; op: WorkspaceDataViewFilterOp; value: string }) => {
+      const value = String(args.value ?? '').trim()
+      setViewConfig(prev => {
+        if (!prev) return prev
+        const makeId = () => {
+          if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
+          return `id_${Math.random().toString(16).slice(2)}_${Date.now()}`
         }
-        next[args.columnId] = { columnKind: args.columnKind, op: args.op, value }
-        return next
+        const groups = prev.filterGroups.length ? prev.filterGroups : [{ id: 'g0', rules: [] }]
+        const first = groups[0]
+        const rest = groups.slice(1)
+        const remaining = first.rules.filter(r => r.columnId !== args.columnId)
+        const nextRules = value
+          ? [...remaining, { id: makeId(), columnId: args.columnId, columnKind: args.columnKind, op: args.op, value }]
+          : remaining
+        return { ...prev, filterGroups: [{ ...first, rules: nextRules }, ...rest] }
       })
     },
     [],
@@ -182,103 +204,97 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
     (args: { columnId: string; direction: 'asc' | 'desc' }) => {
       if (!view) return
       if (args.columnId !== view.titleColumnId) return
-      setSortMode(args.direction === 'desc' ? 'title_desc' : 'title_asc')
+      setHeaderState(prev => ({ ...prev, sortMode: args.direction === 'desc' ? 'title_desc' : 'title_asc' }))
     },
     [view],
   )
 
-  if (!filteredView) return null
+  const effectiveGroupByColumnId = React.useMemo(() => {
+    if (!view) return null
+    const preferred = viewConfig?.groupByColumnId || null
+    return preferred || view.groupByColumnId || null
+  }, [view, viewConfig?.groupByColumnId])
 
-  const headerClass = [
-    'flex items-center gap-2 min-w-0',
-    'h-10 px-2 rounded-t-lg border-b',
-    UI_THEME_TOKENS.panel.headerBg,
-    UI_THEME_TOKENS.panel.divider,
-  ].join(' ')
+  const baseView = React.useMemo((): MarkdownDataView | null => {
+    if (!view) return null
+    if (!effectiveGroupByColumnId) {
+      if (!view.groupByColumnId) return view
+      return { ...view, groupByColumnId: null }
+    }
+    if (view.groupByColumnId === effectiveGroupByColumnId) return view
+    return { ...view, groupByColumnId: effectiveGroupByColumnId }
+  }, [effectiveGroupByColumnId, view])
 
-  const wrapperClass = [
-    'rounded-lg border overflow-hidden',
-    UI_THEME_TOKENS.panel.border,
-    highlightClass,
-  ]
-    .filter(Boolean)
-    .join(' ')
+  const displayedView = React.useMemo((): MarkdownDataView | null => {
+    if (!baseView) return null
+    if (!viewConfig) return baseView
+    return applyWorkspaceDataViewQuery({ view: baseView, viewConfig, state: headerState })
+  }, [baseView, headerState, viewConfig])
 
-  const buttonBase = `text-xs px-2 py-1 rounded border ${UI_THEME_TOKENS.panel.divider}`
-  const buttonOn = `${buttonBase} bg-blue-600 border-blue-600 text-white hover:bg-blue-700`
-  const buttonOff = `${buttonBase} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary} hover:bg-black/5 dark:hover:bg-white/5`
+  const groupOptions = React.useMemo((): string[] => {
+    if (!view) return []
+    return computeWorkspaceDataViewGroupOptions({ view, groupByColumnId: effectiveGroupByColumnId })
+  }, [effectiveGroupByColumnId, view])
 
-  const showKanban = !!filteredView.groupByColumnId
+  const viewerMode: 'kanban' | 'table' = React.useMemo(() => {
+    if (!viewConfig) return 'table'
+    return viewConfig.layout === 'table' || !effectiveGroupByColumnId ? 'table' : 'kanban'
+  }, [effectiveGroupByColumnId, viewConfig?.layout])
+
+  if (!view) return null
+  if (!viewConfig) return null
+  if (!displayedView) return null
+
+  const wrapperClass = ['rounded-lg border overflow-hidden', UI_THEME_TOKENS.panel.border, highlightClass].filter(Boolean).join(' ')
 
   return (
     <section className={wrapperClass} style={highlightStyle}>
-      <div className={headerClass}>
-        <div className={['flex-1 text-sm font-medium', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}>
-          {UI_COPY.markdownDataViewTitleDefault}
-        </div>
-
-        <div className="flex items-center gap-1">
-          {showKanban ? (
-            <button
-              type="button"
-              className={viewMode === 'kanban' ? buttonOn : buttonOff}
-              onClick={() => setViewMode('kanban')}
-            >
-              {UI_COPY.markdownDataViewKanbanViewLabel}
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className={viewMode === 'table' ? buttonOn : buttonOff}
-            onClick={() => setViewMode('table')}
-          >
-            {UI_COPY.markdownDataViewTableViewLabel}
-          </button>
-        </div>
-
-        <label className="flex items-center gap-2 min-w-[180px]">
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder={UI_COPY.markdownDataViewSearchPlaceholder}
-            className={[
-              'w-full text-xs px-2 py-1 rounded border',
-              UI_THEME_TOKENS.input.bg,
-              UI_THEME_TOKENS.input.border,
-              UI_THEME_TOKENS.text.primary,
-            ].join(' ')}
-          />
-        </label>
-
-        <button
-          type="button"
-          disabled={!canMutate}
-          className={[
-            'text-xs px-2 py-1 rounded border',
-            canMutate ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700' : `bg-black/5 dark:bg-white/5 ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.text.tertiary}`,
-          ].join(' ')}
-          onClick={() => handleNewRecord()}
-        >
-          {UI_COPY.markdownDataViewNewRecordLabel}
-        </button>
-      </div>
+      <WorkspaceDataViewHeader
+        title={UI_COPY.markdownDataViewTitleDefault}
+        viewerMode={viewerMode}
+        canMutate={canMutate}
+        columns={view.columns}
+        groupByColumnId={effectiveGroupByColumnId}
+        groupOptions={groupOptions}
+        state={headerState}
+        onChangeState={setHeaderState}
+        onChangeViewerMode={(mode) => {
+          setViewConfig(prev => {
+            if (!prev) return prev
+            const nextLayout = mode === 'table' ? 'table' : 'kanban'
+            if (prev.layout === nextLayout) return prev
+            return { ...prev, layout: nextLayout }
+          })
+        }}
+        onNewRecord={canMutate ? () => handleNewRecord() : undefined}
+        onAddColumn={canMutate ? handleAddColumn : undefined}
+        viewConfig={viewConfig}
+        setViewConfig={setViewConfig}
+        openSettings={() => setSettingsOpen(true)}
+        settingsOpen={settingsOpen}
+        closeSettings={() => setSettingsOpen(false)}
+        onReset={() => setHeaderState({ searchQuery: '', visibleGroups: null, sortMode: 'none' })}
+      />
 
       <div className={UI_THEME_TOKENS.panel.bg}>
-        {viewMode === 'kanban' && showKanban ? (
+        {viewerMode === 'kanban' ? (
           <MarkdownDataViewKanbanView
-            view={filteredView}
+            view={displayedView}
+            visibleColumnIds={viewConfig.visibleColumnIds}
             canMutate={canMutate}
             onUpdateCell={handleUpdateCell}
             onNewRecord={handleNewRecord}
           />
         ) : (
           <MarkdownDataViewTableView
-            view={filteredView}
+            view={displayedView}
             canMutate={canMutate}
             canConfigure={true}
             onUpdateCell={handleUpdateCell}
-            visibleColumnIds={visibleColumnIds}
-            columnTypesById={columnTypesById}
+            onNewRecord={canMutate ? () => handleNewRecord() : undefined}
+            onAddColumn={canMutate ? handleAddColumn : undefined}
+            visibleColumnIds={viewConfig.visibleColumnIds}
+            columnTypesById={viewConfig.columnTypesById}
             onChangeColumnType={handleChangeColumnType}
             onHideColumnInView={handleHideColumnInView}
             onUpsertColumnFilter={handleUpsertColumnFilter}
