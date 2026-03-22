@@ -23,6 +23,7 @@ const KEYWORD_SOURCE_EDGE_LABELS = new Set<string>([
   'hasItem',
   'contains',
   'embedsImage',
+  'embedsMedia',
   'linksTo',
   'mentions',
 ])

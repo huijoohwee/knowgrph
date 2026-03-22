@@ -1,5 +1,7 @@
 export const GEOSPATIAL_MODE_CHANGED_EVENT = 'kg:geospatialModeChanged' as const
 
+export const GEOSPATIAL_STYLE_URL_CHANGED_EVENT = 'kg:geospatialStyleUrlChanged' as const
+
 export const GEOSPATIAL_LS_KEYS = {
   geospatialOverlayEnabled: 'kg:ui:geospatial:overlayEnabled',
   geospatialViewMode: 'kg:ui:geospatial:viewMode',
@@ -24,4 +26,3 @@ export const GEOSPATIAL_LS_KEYS = {
   geospatialClusterRadius: 'kg:ui:geospatial:clusterRadius',
   geospatialClusterMaxZoom: 'kg:ui:geospatial:clusterMaxZoom',
 } as const
-

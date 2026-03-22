@@ -429,6 +429,32 @@ export default function CanvasPage() {
   })
 
   React.useEffect(() => {
+    const anyImportMeta = import.meta as unknown as { env?: { DEV?: boolean } }
+    if (!anyImportMeta.env?.DEV) return
+    if (typeof window === 'undefined') return
+    try {
+      const params = new URLSearchParams(String(window.location.search || ''))
+      if (params.get('kgGeo') !== '1') return
+      void import('gympgrph')
+        .then(m => {
+          const gm = m as unknown as { setGeospatialModeEnabled?: (enabled: boolean) => void }
+          if (typeof gm.setGeospatialModeEnabled === 'function') {
+            gm.setGeospatialModeEnabled(true)
+          } else {
+            window.localStorage.setItem(LS_KEYS.geospatialOverlayEnabled, 'true')
+            setGeospatialModeEnabled(true)
+          }
+        })
+        .catch(() => {
+          window.localStorage.setItem(LS_KEYS.geospatialOverlayEnabled, 'true')
+          setGeospatialModeEnabled(true)
+        })
+    } catch {
+      void 0
+    }
+  }, [])
+
+  React.useEffect(() => {
     if (typeof window === 'undefined') return
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null

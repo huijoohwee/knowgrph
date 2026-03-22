@@ -35,6 +35,11 @@ export function lockGlobalUserSelect(): void {
   style.userSelect = 'none'
   style.webkitUserSelect = 'none'
   style.msUserSelect = 'none'
+  try {
+    document.body?.classList?.add('kg-no-select')
+  } catch {
+    void 0
+  }
   document.addEventListener('selectstart', preventDefaultCapture, true)
   document.addEventListener('dragstart', preventDefaultCapture, true)
 }
@@ -52,6 +57,11 @@ export function unlockGlobalUserSelect(): void {
     style.msUserSelect = restoreStyles.msUserSelect
   }
   restoreStyles = null
+  try {
+    document.body?.classList?.remove('kg-no-select')
+  } catch {
+    void 0
+  }
   document.removeEventListener('selectstart', preventDefaultCapture, true)
   document.removeEventListener('dragstart', preventDefaultCapture, true)
 }
@@ -67,6 +77,11 @@ export function resetGlobalUserSelectLock(): void {
     style.msUserSelect = restoreStyles.msUserSelect
   }
   restoreStyles = null
+  try {
+    document.body?.classList?.remove('kg-no-select')
+  } catch {
+    void 0
+  }
   document.removeEventListener('selectstart', preventDefaultCapture, true)
   document.removeEventListener('dragstart', preventDefaultCapture, true)
 }

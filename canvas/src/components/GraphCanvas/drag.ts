@@ -6,6 +6,9 @@ import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/inter
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
+import { DEFAULT_DRAG_ALPHA_TARGET } from '@/lib/graph/layoutDefaults'
+import { markGraphCanvasUserInteracted } from '@/components/GraphCanvas/userInteractionFlag'
+import { cancelPendingRefreeze, scheduleSimulationRefreezeAfterDrag } from '@/components/GraphCanvas/dragRefreeze'
 
 export const nodeDragBehavior = (
   simulation: d3.Simulation<GraphNode, GraphEdge>,
@@ -14,7 +17,8 @@ export const nodeDragBehavior = (
 ) =>
   (() => {
     let locked = false
-    let frozenDrag = false
+    let shouldRefreeze = false
+    let refreezeSvg: SVGSVGElement | null = null
     const isFrozenFromEl = (el: SVGElement | null): boolean => {
       const svg = el?.ownerSVGElement
       return svg?.getAttribute('data-kg-layout-frozen') === '1'
@@ -28,9 +32,27 @@ export const nodeDragBehavior = (
       const mode = readLayoutMode(schema)
       const structured = mode === 'radial'
 
-      frozenDrag = isFrozenFromEl(this as unknown as SVGElement)
-      if (!structured && !frozenDrag && !event.active) {
-        simulation.alphaTarget(0.08).restart();
+      const svgEl = (this as unknown as SVGElement).ownerSVGElement
+      cancelPendingRefreeze(svgEl as unknown as SVGSVGElement | null)
+      markGraphCanvasUserInteracted(svgEl)
+      const frozenAtStart = isFrozenFromEl(this as unknown as SVGElement)
+      shouldRefreeze = !structured && frozenAtStart
+      refreezeSvg = shouldRefreeze ? (svgEl as unknown as SVGSVGElement | null) : null
+      if (shouldRefreeze) {
+        try {
+          svgEl?.setAttribute('data-kg-layout-frozen', '0')
+        } catch {
+          void 0
+        }
+        try {
+          simulation.on('end.kgFreeze', null)
+        } catch {
+          void 0
+        }
+      }
+
+      if (!structured && !event.active) {
+        simulation.alphaTarget(DEFAULT_DRAG_ALPHA_TARGET).restart();
       }
       d.fx = d.x;
       d.fy = d.y;
@@ -67,23 +89,23 @@ export const nodeDragBehavior = (
       const constraint = schema.behavior.dragConstraint || 'free';
       if (constraint === 'axis-x') {
         d.fx = nx;
-        if (structured || frozenDrag) d.x = nx;
+        if (structured) d.x = nx;
       } else if (constraint === 'axis-y') {
         d.fy = ny;
-        if (structured || frozenDrag) d.y = ny;
+        if (structured) d.y = ny;
       } else if (constraint === 'none') {
         d.fx = d.x; // Keep original if 'none' constraint, though usually 'free' is default
         d.fy = d.y;
       } else {
         d.fx = nx;
         d.fy = ny;
-        if (structured || frozenDrag) {
+        if (structured) {
           d.x = nx;
           d.y = ny;
         }
       }
 
-      if (structured || frozenDrag) {
+      if (structured) {
         const tickHandler = simulation.on('tick')
         if (typeof tickHandler === 'function') {
           ;(tickHandler as unknown as () => void)()
@@ -98,14 +120,21 @@ export const nodeDragBehavior = (
       }
       const mode = readLayoutMode(schema)
       const structured = mode === 'radial'
-      if (!structured && !frozenDrag) {
+      if (!structured) {
         if (!event.active) simulation.alphaTarget(0);
         d.fx = null;
         d.fy = null;
       }
       d.vx = 0;
       d.vy = 0;
-      frozenDrag = false
+      const shouldFreezeAfter = shouldRefreeze
+      shouldRefreeze = false
+
+      if (shouldFreezeAfter) {
+        const svg = refreezeSvg
+        scheduleSimulationRefreezeAfterDrag({ simulation, svgEl: svg })
+      }
+      refreezeSvg = null
 
       try {
         opts?.onNodeDragEnd?.(d)
@@ -122,7 +151,8 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
     let locked = false
     let sourceNode: GraphNode | undefined
     let targetNode: GraphNode | undefined
-    let frozenDrag = false
+    let shouldRefreeze = false
+    let refreezeSvg: SVGSVGElement | null = null
 
     const isFrozenFromEl = (el: SVGElement | null): boolean => {
       const svg = el?.ownerSVGElement
@@ -147,9 +177,27 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
 
         const mode = readLayoutMode(schema)
         const structured = mode === 'radial'
-        frozenDrag = isFrozenFromEl(this as unknown as SVGElement)
-        if (!structured && !frozenDrag && !event.active) {
-          simulation.alphaTarget(0.08).restart();
+        const svgEl = (this as unknown as SVGElement).ownerSVGElement
+        cancelPendingRefreeze(svgEl as unknown as SVGSVGElement | null)
+        markGraphCanvasUserInteracted(svgEl)
+        const frozenAtStart = isFrozenFromEl(this as unknown as SVGElement)
+        shouldRefreeze = !structured && frozenAtStart
+        refreezeSvg = shouldRefreeze ? (svgEl as unknown as SVGSVGElement | null) : null
+        if (shouldRefreeze) {
+          try {
+            svgEl?.setAttribute('data-kg-layout-frozen', '0')
+          } catch {
+            void 0
+          }
+          try {
+            simulation.on('end.kgFreeze', null)
+          } catch {
+            void 0
+          }
+        }
+
+        if (!structured && !event.active) {
+          simulation.alphaTarget(DEFAULT_DRAG_ALPHA_TARGET).restart();
         }
         
         // Fix nodes
@@ -175,7 +223,7 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
         const mode = readLayoutMode(schema)
         const structured = mode === 'radial'
         
-        if (structured || frozenDrag) {
+        if (structured) {
              if (sourceNode.x != null) sourceNode.x += dx
              if (sourceNode.y != null) sourceNode.y += dy
              if (targetNode.x != null) targetNode.x += dx
@@ -196,16 +244,16 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
         
         const mode = readLayoutMode(schema)
         const structured = mode === 'radial'
-        if (!structured && !frozenDrag) {
-            if (!event.active) simulation.alphaTarget(0);
-            if (sourceNode) {
-                sourceNode.fx = null
-                sourceNode.fy = null
-            }
-            if (targetNode) {
-                targetNode.fx = null
-                targetNode.fy = null
-            }
+        if (!structured) {
+          if (!event.active) simulation.alphaTarget(0);
+          if (sourceNode) {
+            sourceNode.fx = null
+            sourceNode.fy = null
+          }
+          if (targetNode) {
+            targetNode.fx = null
+            targetNode.fy = null
+          }
         }
         
         if (sourceNode) { sourceNode.vx = 0; sourceNode.vy = 0; }
@@ -213,7 +261,14 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
 
         sourceNode = undefined
         targetNode = undefined
-        frozenDrag = false
+        const shouldFreezeAfter = shouldRefreeze
+        shouldRefreeze = false
+
+        if (shouldFreezeAfter) {
+          const svg = refreezeSvg
+          scheduleSimulationRefreezeAfterDrag({ simulation, svgEl: svg })
+        }
+        refreezeSvg = null
         
         if (structured) simulation.stop();
       })

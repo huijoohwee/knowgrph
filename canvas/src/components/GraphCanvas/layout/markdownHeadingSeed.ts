@@ -2,6 +2,7 @@ import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { computeSeedGrid, getSeedGridCellBox } from '@/components/GraphCanvas/layout/seedGrid'
 import { DEFAULT_FIT_PADDING, readFitPadding } from '@/lib/graph/layoutDefaults'
+import { DOCUMENT_CONTAINMENT_EDGE_LABELS } from '@/lib/graph/documentContainmentEdgeLabels'
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 
@@ -48,7 +49,7 @@ export const applyMarkdownHeadingSeedLayout = (args: {
   for (let i = 0; i < edges.length; i += 1) {
     const e = edges[i]
     const lbl = String(e.label || '')
-    if (lbl !== 'hasSection' && lbl !== 'hasBlock' && lbl !== 'hasItem' && lbl !== 'embedsImage') continue
+    if (!DOCUMENT_CONTAINMENT_EDGE_LABELS.has(lbl)) continue
     const src = String(e.source || '')
     const tgt = String(e.target || '')
     if (!src || !tgt) continue

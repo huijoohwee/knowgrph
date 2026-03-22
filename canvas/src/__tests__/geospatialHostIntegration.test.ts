@@ -35,7 +35,7 @@ export const testCanvasForbidsGraphWhenGeospatialEnabled = () => {
 }
 
 export const testGympgrphGeospatialKeysAreNamespacedOnly = () => {
-  const configPath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'lib', 'config.ts')
+  const configPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'lib', 'config.ts')
   const text = readUtf8(configPath)
   if (text.includes("'ui:geospatial:") || text.includes('"ui:geospatial:')) {
     throw new Error('Legacy ui:geospatial keys must not exist (collision risk)')
@@ -48,7 +48,7 @@ export const testGympgrphGeospatialKeysAreNamespacedOnly = () => {
 }
 
 export const testGympgrphDefaultViewModeIs2d = () => {
-  const slicePath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
+  const slicePath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
   const text = readUtf8(slicePath)
   if (!text.includes('LS_KEYS.geospatialViewMode')) {
     throw new Error('Expected geospatialViewMode persistence key usage')
@@ -59,14 +59,21 @@ export const testGympgrphDefaultViewModeIs2d = () => {
 }
 
 export const testGeospatialOverlayHostSupportsCesiumRenderer = () => {
-  const hostPath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
   const text = readUtf8(hostPath)
   if (!text.includes('CesiumOverlayLazy')) throw new Error('Expected CesiumOverlay host lazy import')
   if (!text.includes('geospatialViewMode')) throw new Error('Expected host to read geospatialViewMode')
 }
 
+export const testGeospatialPanelHostIsNotEmpty = () => {
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialPanelHost.tsx')
+  const text = readUtf8(hostPath)
+  if (!text.includes('Basemap style URL')) throw new Error('Expected GeospatialPanelHost to render basemap style controls')
+  if (!text.includes('Fit to data')) throw new Error('Expected GeospatialPanelHost to render fit controls')
+}
+
 export const testGympgrphDefaultInteractionModeIsAlways = () => {
-  const slicePath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
+  const slicePath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
   const text = readUtf8(slicePath)
   if (!text.includes("LS_KEYS.geospatialInteractionMode")) throw new Error('Expected geospatialInteractionMode persistence key usage')
   if (!text.includes("'always'")) throw new Error('Expected default interaction mode to include always')
@@ -151,7 +158,7 @@ export const testRemoteFetchProxyDoesNotAbortOnCloseOrTruncate = () => {
 }
 
 export const testGympgrphCesiumOverlayAutoFitsToGeoBounds = () => {
-  const overlayPath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'features', 'geospatial', 'CesiumOverlay.tsx')
+  const overlayPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'CesiumOverlay.tsx')
   const text = readUtf8(overlayPath)
   if (!text.includes('autoFitEnabled')) throw new Error('Expected CesiumOverlay to reference autoFitEnabled')
   if (!text.includes('computeBoundsFromCollections')) throw new Error('Expected CesiumOverlay to compute bounds for auto-fit')
@@ -160,7 +167,7 @@ export const testGympgrphCesiumOverlayAutoFitsToGeoBounds = () => {
 }
 
 export const testGympgrphMapLibreLoggerSuppressesAbortNoise = () => {
-  const hookPath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
+  const hookPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
   const text = readUtf8(hookPath)
   if (!text.includes('setLogger')) throw new Error('Expected MapLibre logger override to be installed')
   if (!text.includes('/__fetch_remote')) throw new Error('Expected logger to filter /__fetch_remote abort noise')
@@ -170,7 +177,7 @@ export const testGympgrphMapLibreLoggerSuppressesAbortNoise = () => {
 }
 
 export const testGympgrphFitToSelectionRequestExists = () => {
-  const fitPath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'geospatialFit.ts')
+  const fitPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'geospatialFit.ts')
   const fitText = readUtf8(fitPath)
   if (!fitText.includes('requestGeospatialFitToSelection')) {
     throw new Error('Expected gympgrph to export requestGeospatialFitToSelection')
@@ -178,12 +185,12 @@ export const testGympgrphFitToSelectionRequestExists = () => {
   if (!fitText.includes('store.requestGeospatialFitToSelection')) {
     throw new Error('Expected requestGeospatialFitToSelection to delegate to store.requestGeospatialFitToSelection')
   }
-  const typesPath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'hooks', 'store', 'types.ts')
+  const typesPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'hooks', 'store', 'types.ts')
   const typesText = readUtf8(typesPath)
   if (!typesText.includes("mode: 'data' | 'selection'")) {
     throw new Error("Expected geospatial fit request mode to include 'selection'")
   }
-  const slicePath = path.resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
+  const slicePath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
   const sliceText = readUtf8(slicePath)
   if (!sliceText.includes("mode: 'selection'")) {
     throw new Error("Expected geospatialSlice requestGeospatialFitToSelection to set mode: 'selection'")

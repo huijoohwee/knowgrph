@@ -10,7 +10,8 @@ import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { computeLayoutDatasetKey, buildLayoutViewKey, buildLayoutPositionCacheKey } from '@/lib/canvas/layoutPositioning'
 import { pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { computePositions3d, type Vec3 } from './positions'
+import { computeLayerOffsetIndices, computePositions3d, THREE_LAYER_SPACING, type Vec3 } from './positions'
+import { projectPositionsToSphereShell } from './sphereConstraint'
 
 export { fibSphere } from './positions'
 export type { Vec3 } from './positions'
@@ -70,6 +71,7 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, gra
 
 export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paused }: { positions: Record<string, Vec3>; nodes: GraphNode[]; edges: GraphData['edges']; schema: GraphSchema; dragOverrides?: React.MutableRefObject<Record<string, Vec3>>; paused?: boolean }) {
   const n = nodes.length
+  const layerOffsetIndices = useMemo(() => computeLayerOffsetIndices(nodes), [nodes])
   const idxById = useMemo(() => {
     const m = new Map<string, number>()
     for (let i = 0; i < n; i++) m.set(nodes[i].id, i)
@@ -92,9 +94,16 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
   const repelRadius = Math.max(10, Math.min(sphereRadius, (typeof threeCfg['minSpacing'] === 'number' ? Math.max(threeCfg['minSpacing'], 24) : 48)))
   const repelStrength = Math.max(10, Math.abs(effectiveCharge)) * 1.5
   const springStrength = 0.06
-  const sphereStrength = 0.12
   const damping = 0.85
   const maxSpeed = 6.0
+  const targetRByIndex = useMemo(() => {
+    const out = new Float32Array(Math.max(1, n))
+    for (let i = 0; i < n; i += 1) {
+      const off = Number.isFinite(layerOffsetIndices[i]) ? layerOffsetIndices[i]! : 0
+      out[i] = sphereRadius + off * THREE_LAYER_SPACING
+    }
+    return out
+  }, [layerOffsetIndices, n, sphereRadius])
   const edgePairs = useMemo(() => {
     const linkDistanceByLabel = (schema.layout && schema.layout.forces && schema.layout.forces.linkDistanceByLabel) || {}
     const arr: Array<[number, number, number]> = []
@@ -123,6 +132,7 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
     const px = posX.current, py = posY.current, pz = posZ.current
     const vx = velX.current, vy = velY.current, vz = velZ.current
     const overrides = dragOverrides ? dragOverrides.current : undefined
+    const skipProjection = overrides ? new Set<number>() : null
     if (overrides) {
       const behavior = schema.behavior || { allowEdgeCreation: true, allowNodeDrag: true }
       const gridEnabled = !!behavior.snapGrid?.enabled
@@ -149,6 +159,7 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
         }
         px[i] = nx; py[i] = ny; pz[i] = nz
         vx[i] = 0; vy[i] = 0; vz[i] = 0
+        skipProjection?.add(i)
       }
     }
     const cellSize = repelRadius
@@ -212,35 +223,6 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
       vx[ti] -= fx; vy[ti] -= fy; vz[ti] -= fz
     }
     
-    // 16:9 Ellipsoid Constraint
-    // Target ratio: X=1.6, Y=0.9 (1.6/0.9 ~= 1.77)
-    const radX = sphereRadius * 1.6
-    const radY = sphereRadius * 0.9
-    const radZ = sphereRadius
-    const radX2 = radX * radX
-    const radY2 = radY * radY
-    const radZ2 = radZ * radZ
-
-    for (let i = 0; i < n; i++) {
-      const rx = px[i], ry = py[i], rz = pz[i]
-      const rlen = Math.sqrt(rx * rx + ry * ry + rz * rz) || 1
-      const nx = rx / rlen
-      const ny = ry / rlen
-      const nz = rz / rlen
-
-      // Calculate distance to ellipsoid surface in this direction
-      // r = 1 / sqrt(nx^2/a^2 + ny^2/b^2 + nz^2/c^2)
-      const term = (nx * nx) / radX2 + (ny * ny) / radY2 + (nz * nz) / radZ2
-      const targetR = 1 / Math.sqrt(term)
-
-      const diff = rlen - targetR
-      const factor = rlen > targetR * 1.2 ? 2.5 : 1.0
-      const f = sphereStrength * diff * dt * factor
-      
-      vx[i] -= nx * f
-      vy[i] -= ny * f
-      vz[i] -= nz * f
-    }
     for (let i = 0; i < n; i++) {
       vx[i] *= damping; vy[i] *= damping; vz[i] *= damping
       const s = Math.sqrt(vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i])
@@ -250,6 +232,8 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
       }
       px[i] += vx[i]; py[i] += vy[i]; pz[i] += vz[i]
     }
+
+    projectPositionsToSphereShell({ px, py, pz, vx, vy, vz, targetRByIndex, skipIndexSet: skipProjection })
     for (let i = 0; i < n; i++) {
       const id = nodes[i].id
       const p = positions[id]

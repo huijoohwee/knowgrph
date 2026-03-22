@@ -59,10 +59,10 @@ export const testD3EdgesVisibleInDocumentStructureMode = () => {
     context: 'test',
     metadata: {},
     nodes: [
-      { id: 1, type: 'Section', label: 'H1', properties: { level: 1 } },
+      { id: '1', type: 'Section', label: 'H1', properties: { level: 1 } },
       { id: '2', type: 'Paragraph', label: 'P1', properties: {} },
     ],
-    edges: [{ id: 'e1', source: 1, target: '2', label: 'contains', properties: {} }],
+    edges: [{ id: 'e1', source: '1', target: '2', label: 'contains', properties: {} }],
   }
   assertVisibleEdgesIn2dPipeline(graphData, 'document')
 }
@@ -74,9 +74,9 @@ export const testD3EdgesVisibleInKeywordMode = () => {
     metadata: {},
     nodes: [
       { id: 'doc:1', type: 'KeywordSource', label: 'Source', properties: {} },
-      { id: 10, type: 'Entity', label: 'Keyword', properties: { 'keyword:kind': 'keyword' } },
+      { id: '10', type: 'Entity', label: 'Keyword', properties: { 'keyword:kind': 'keyword' } },
     ],
-    edges: [{ id: 'e1', source: 'doc:1', target: 10, label: 'mentions', properties: { 'keyword:kind': 'mention' } }],
+    edges: [{ id: 'e1', source: 'doc:1', target: '10', label: 'mentions', properties: { 'keyword:kind': 'mention' } }],
   }
   assertVisibleEdgesIn2dPipeline(graphData, 'keyword')
 }
@@ -87,10 +87,10 @@ export const testD3EdgesVisibleInFrontmatterMode = () => {
     context: 'frontmatter-view',
     metadata: {},
     nodes: [
-      { id: 100, type: 'MermaidNode', label: 'A', properties: { isMermaidFrontmatter: true } },
+      { id: '100', type: 'MermaidNode', label: 'A', properties: { isMermaidFrontmatter: true } },
       { id: '200', type: 'MermaidNode', label: 'B', properties: {} },
     ],
-    edges: [{ id: 'e1', source: 100, target: '200', label: 'pointsTo', properties: {} }],
+    edges: [{ id: 'e1', source: '100', target: '200', label: 'pointsTo', properties: {} }],
   }
   assertVisibleEdgesIn2dPipeline(graphData, 'frontmatter')
 }
@@ -101,10 +101,10 @@ export const testD3EdgesVisibleInMultiDimensionalTableMode = () => {
     context: 'markdown-table-graph',
     metadata: {},
     nodes: [
-      { id: 1, type: 'Task', label: 'A', properties: {} },
+      { id: '1', type: 'Task', label: 'A', properties: {} },
       { id: '2', type: 'Task', label: 'B', properties: {} },
     ],
-    edges: [{ id: 'e1', source: 1, target: '2', label: 'dependsOn', properties: {} }],
+    edges: [{ id: 'e1', source: '1', target: '2', label: 'dependsOn', properties: {} }],
   }
   assertVisibleEdgesIn2dPipeline(graphData, 'multiDimTable')
 }

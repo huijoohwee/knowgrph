@@ -2,6 +2,9 @@
   "name": "knowgrph",
   "private": true,
   "scripts": {
+    "setup": "npm --prefix canvas install",
+    "postinstall": "npm run setup",
+    "predev": "npm run setup",
     "dev": "npm --prefix canvas run dev --",
     "build": "npm --prefix canvas run build",
     "preview": "npm --prefix canvas run preview --",

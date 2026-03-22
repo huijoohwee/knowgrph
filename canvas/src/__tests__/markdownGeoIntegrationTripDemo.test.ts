@@ -293,13 +293,7 @@ export async function testGeospatialDatasetLoaderParsesEmbeddedGeoJsonFromMarkdo
       } as unknown as Response
     }) as unknown as typeof fetch
 
-    const cache = new LRUCache<string, any>(10, 10_000)
-    const fc = await loadDatasetFeatureCollection(
-      url,
-      'auto',
-      { timeoutMs: 5_000, maxBytes: 5 * 1024 * 1024 },
-      cache as any,
-    )
+    const fc = await loadDatasetFeatureCollection({ url, timeoutMs: 5_000 })
 
     const features = Array.isArray(fc.features) ? fc.features : []
     if (features.length === 0) throw new Error('Expected markdown dataset URL to produce GeoJSON features')

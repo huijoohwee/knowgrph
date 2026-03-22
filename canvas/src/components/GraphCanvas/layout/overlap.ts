@@ -3,6 +3,7 @@ import { GraphNode, GraphEdge } from '@/lib/graph/types'
 import { GraphSchema, getNodeRenderRadius } from '@/lib/graph/schema'
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { estimateNodeLabelAabbHalfExtents2d } from '@/components/GraphCanvas/labelLayout2d'
+import { getNodeLabelFullText2d } from '@/components/GraphCanvas/labelLayout2d'
 import { getPortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig'
 import { readCollisionConfig } from '@/components/GraphCanvas/layout/collisionConfig'
 import { applyAabbOverlapPush, PackedRTree, tieBreakOverlaps2d } from '@/lib/graph/collision/boxCollision'
@@ -18,30 +19,83 @@ import {
 
 export type NodeHalfExtents = { halfW: number; halfH: number }
 
-const extentsCache = new WeakMap<GraphNode, { schema: GraphSchema; extents: NodeHalfExtents }>()
-const radiusCache = new WeakMap<GraphNode, { schema: GraphSchema; radius: number }>()
+type ExtentsCacheEntry = {
+  schema: GraphSchema
+  labelSig: string
+  visualW: number | null
+  visualH: number | null
+  radius: number | null
+  extents: NodeHalfExtents
+}
+
+type RadiusCacheEntry = {
+  schema: GraphSchema
+  labelSig: string
+  visualW: number | null
+  visualH: number | null
+  radiusProp: number | null
+  radius: number
+}
+
+const extentsCache = new WeakMap<GraphNode, ExtentsCacheEntry>()
+const radiusCache = new WeakMap<GraphNode, RadiusCacheEntry>()
+
+const readNodeSizingSig = (node: GraphNode, schema: GraphSchema): { labelSig: string; visualW: number | null; visualH: number | null; radius: number | null } => {
+  const props = (node.properties || {}) as Record<string, unknown>
+  const labelSig = String(getNodeLabelFullText2d(node) || '')
+
+  const wRaw = props['visual:width']
+  const hRaw = props['visual:height']
+  const visualW = typeof wRaw === 'number' && Number.isFinite(wRaw) && wRaw > 0 ? wRaw : null
+  const visualH = typeof hRaw === 'number' && Number.isFinite(hRaw) && hRaw > 0 ? hRaw : null
+
+  const r = getNodeRenderRadius(node, schema)
+  const radius = typeof r === 'number' && Number.isFinite(r) && r > 0 ? r : null
+
+  return { labelSig, visualW, visualH, radius }
+}
 
 export const getNodeAabbHalfExtentsWithLabel = (node: GraphNode, schema: GraphSchema): NodeHalfExtents => {
+  const sig = readNodeSizingSig(node, schema)
   const cached = extentsCache.get(node)
-  if (cached && cached.schema === schema) return cached.extents
+  if (
+    cached &&
+    cached.schema === schema &&
+    cached.labelSig === sig.labelSig &&
+    cached.visualW === sig.visualW &&
+    cached.visualH === sig.visualH &&
+    cached.radius === sig.radius
+  ) {
+    return cached.extents
+  }
 
   const baseExtents = getNodeHalfExtents2d(node, schema)
   const portCfg = getPortHandlesConfig(schema)
   const portExtra = portCfg.enabled ? Math.max(0, portCfg.offset + portCfg.size + portCfg.strokeWidth) : 0
   const extentsWithPorts = portExtra > 0 ? { halfW: baseExtents.halfW + portExtra, halfH: baseExtents.halfH + portExtra } : baseExtents
   const extentsWithLabel = estimateNodeLabelAabbHalfExtents2d(node, schema, extentsWithPorts)
-  extentsCache.set(node, { schema, extents: extentsWithLabel })
+  extentsCache.set(node, { schema, labelSig: sig.labelSig, visualW: sig.visualW, visualH: sig.visualH, radius: sig.radius, extents: extentsWithLabel })
   return extentsWithLabel
 }
 
 export const getNodeCollisionRadius = (node: GraphNode, schema: GraphSchema): number => {
+  const sig = readNodeSizingSig(node, schema)
   const cached = radiusCache.get(node)
-  if (cached && cached.schema === schema) return cached.radius
+  if (
+    cached &&
+    cached.schema === schema &&
+    cached.labelSig === sig.labelSig &&
+    cached.visualW === sig.visualW &&
+    cached.visualH === sig.visualH &&
+    cached.radiusProp === sig.radius
+  ) {
+    return cached.radius
+  }
   const ext = getNodeAabbHalfExtentsWithLabel(node, schema)
-  const baseRadius = getNodeRenderRadius(node, schema) || 20
+  const baseRadius = sig.radius ?? 20
   const base = Math.max(8, ext.halfW, ext.halfH, baseRadius)
   const r = Math.max(8, base * 1.05 + 8, baseRadius * 1.25)
-  radiusCache.set(node, { schema, radius: r })
+  radiusCache.set(node, { schema, labelSig: sig.labelSig, visualW: sig.visualW, visualH: sig.visualH, radiusProp: sig.radius, radius: r })
   return r
 }
 

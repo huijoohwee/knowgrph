@@ -27,11 +27,17 @@ import {
   seedKeywordEntityNodesFromBaselineSources,
   layoutLooksUnstableForViewport,
 } from '@/components/GraphCanvas/layout/initialization'
+import { pickLayoutPositionsSource } from '@/components/GraphCanvas/layout/positionSource'
 import { applyCollectiveGraphLayout } from '@/components/GraphCanvas/layout/collectiveFit'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { readFitPadding } from '@/lib/graph/layoutDefaults'
 import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
 import { createUniqueId } from '@/lib/ids'
+import {
+  clearGraphCanvasUserInteracted,
+  hasGraphCanvasUserInteracted,
+  resetGraphCanvasUserInteracted,
+} from '@/components/GraphCanvas/userInteractionFlag'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
@@ -162,6 +168,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   } = args
 
   const svg = d3.select(svgEl)
+  resetGraphCanvasUserInteracted(svgEl)
   svg.selectAll('*').remove()
   svg.attr('data-kg-layout-frozen', null)
 
@@ -234,6 +241,11 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   const computeAutoCenterTransform = (): { k: number; x: number; y: number } | null => {
     if (initialZoomTransform) return null
     if (fitToScreenMode) return null
+
+    if (readLayoutMode(schema) === 'force' && schema.layout?.forces?.disjointComponents !== false) {
+      return { k: 1, x: width / 2, y: height / 2 }
+    }
+
     const nodes = displayNodes
     if (!nodes || nodes.length === 0) return null
     let minX = Number.POSITIVE_INFINITY
@@ -265,11 +277,16 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   const layoutPositionsSource = (() => {
     const cached = layoutPositionsForMode && Object.keys(layoutPositionsForMode).length > 0 ? layoutPositionsForMode : null
     const prev = prevPositions && Object.keys(prevPositions).length > 0 ? prevPositions : null
-    return cached || prev
+    return pickLayoutPositionsSource({ nodes: displayNodes, cached, prev })
   })()
 
   const seedCenter = (() => {
-    if (!initialZoomTransform) return null
+    if (!initialZoomTransform) {
+      if (readLayoutMode(schema) === 'force' && schema.layout?.forces?.disjointComponents !== false) {
+        return { x: 0, y: 0 }
+      }
+      return null
+    }
     const k =
       typeof initialZoomTransform.k === 'number' && Number.isFinite(initialZoomTransform.k) && initialZoomTransform.k > 0
         ? initialZoomTransform.k
@@ -310,7 +327,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   if (isKeywordGraph && baselineLayoutPositions) {
     const overwriteExisting =
-      !skipInitialLayout || layoutLooksUnstableForViewport({ nodes: displayNodes, width, height, viewportCenter: seedCenter })
+      !skipInitialLayout
     seedKeywordEntityNodesFromBaselineSources({
       keywordNodes: displayNodes,
       allNodes: Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : ([] as GraphNode[]),
@@ -353,7 +370,6 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   const effectiveSkipInitialLayout = (() => {
     if (isMermaidLayout) return true
     if (!skipInitialLayout) return false
-    if (layoutLooksUnstableForViewport({ nodes: displayNodes, width, height, viewportCenter: seedCenter })) return false
     return true
   })()
 
@@ -362,7 +378,6 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     groupKeyOf,
     groupsForBboxCollide: args.groupsForBboxCollide,
     treatKeywordGraphAsDocument: isKeywordGraph,
-    viewportCenter: seedCenter || undefined,
   })
   simulationRef.current = simulation
 
@@ -377,7 +392,8 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     svg.attr('data-kg-layout-frozen', '1')
   }
 
-  const shouldApplyInitialTightLayout = !isMermaidLayout && args.enableTightInitialLayout === true
+  const disjointEnabled = schema.layout?.forces?.disjointComponents !== false
+  const shouldApplyInitialTightLayout = !isMermaidLayout && args.enableTightInitialLayout === true && !disjointEnabled
 
   if (!isMermaidLayout && !effectiveSkipInitialLayout && displayNodes.length > 1) {
     const dupCounts = new Map<string, number>()
@@ -431,15 +447,17 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     }
 
     const padPx = Math.max(24, Math.floor(readFitPadding(schema)))
-    postFitNodesToViewport({
-      nodes: displayNodes,
-      width: Math.max(1, width),
-      height: Math.max(1, Math.floor(height)),
-      paddingPx: padPx,
-      minScale: 0.06,
-      maxScale: 2.2,
-      viewportCenter: seedCenter || undefined,
-    })
+    if (schema.layout?.forces?.postFitForce === true) {
+      postFitNodesToViewport({
+        nodes: displayNodes,
+        width: Math.max(1, width),
+        height: Math.max(1, Math.floor(height)),
+        paddingPx: padPx,
+        minScale: 0.06,
+        maxScale: 2.2,
+        viewportCenter: seedCenter || undefined,
+      })
+    }
 
     if (readLayoutMode(schema) === 'force' && args.freezeSimulation !== true) {
       try {
@@ -669,70 +687,25 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       if (!isForceLayout) return
       if (finalFitApplied) return
       if (args.freezeSimulation === true) return
-      if (args.enableTightInitialLayout !== true) return
       if (effectiveSkipInitialLayout) return
-      if (tick < 20) return
+      if (tick < 40) return
 
-      if (alpha < 0.045) {
+      if (alpha < 0.03) {
         stableTicks += 1
       } else {
         stableTicks = 0
       }
-      if (stableTicks < 12) return
-
-      const allowAutoFit = !initialZoomTransform
-      if (allowAutoFit) {
-        applyCollectiveGraphLayout({
-          nodes: displayNodes,
-          edges: edgesForDisplay,
-          width: Math.max(1, width),
-          height: Math.max(1, Math.floor(height)),
-          schema: getSchema(),
-        })
-
-        relaxNodesWithCollision({
-          nodes: displayNodes,
-          edges: edgesForDisplay,
-          schema: getSchema(),
-          defaultSteps: (args.groupsForBboxCollide || []).length > 0 ? 10 : 6,
-          groups: args.groupsForBboxCollide,
-          groupKeyOf,
-        })
-        for (let i = 0; i < displayNodes.length; i += 1) {
-          const n = displayNodes[i]
-          n.vx = 0
-          n.vy = 0
-        }
-
-        const padPx = Math.max(24, Math.floor(readFitPadding(getSchema())))
-        postFitNodesToViewport({
-          nodes: displayNodes,
-          width: Math.max(1, width),
-          height: Math.max(1, Math.floor(height)),
-          paddingPx: padPx,
-          minScale: 0.04,
-          maxScale: 1.8,
-        })
-
-        const intent = fitToScreenMode ? 'fitToScreen' : 'fitToView'
-        const schemaValue = getSchema()
-        const mode = readLayoutMode(schemaValue)
-        const baseOpts = readFitAllOptions({ schema: schemaValue, mode, intent })
-        const opts = baseOpts
-        const t = fitAllTransform(displayNodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
-        applyInitialTransform({ k: t.k, x: t.x, y: t.y })
-      }
-      finalFitApplied = true
+      if (stableTicks < 18) return
 
       try {
         simulation.alphaTarget(0)
-        simulation.alpha(0)
         simulation.stop()
       } catch {
         void 0
       }
       svg.attr('data-kg-layout-frozen', '1')
       storeLayoutPositions()
+      finalFitApplied = true
     },
   })
 
@@ -800,6 +773,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       any.__kgWindowGestureDestroy = null
     }
     storeLayoutPositions()
+    clearGraphCanvasUserInteracted(svgEl)
     simulation.on('end.layoutCache', null)
     simulation.stop()
     simulationRef.current = null

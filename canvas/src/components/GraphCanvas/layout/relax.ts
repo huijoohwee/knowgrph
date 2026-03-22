@@ -3,7 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { createBboxCollideForce } from './overlap'
 import { createGroupBboxCollideForce } from './groupOverlap'
 import { createGroupBboxCollideForceByDepth } from './groupOverlapByDepth'
-import { createComponentBboxCollideForce } from './componentOverlap'
+
 import { createGroupKeyOfNode, type GroupKeyOfNode } from './grouping'
 import { readCollisionConfig, readStructuredRelaxSteps } from './collisionConfig'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
@@ -111,22 +111,6 @@ export function relaxNodesWithCollision(args: {
   if (groupForce) groupForce.initialize(nodes, rand)
   const applyGroupForce = groupForce as unknown as ((alpha: number) => void) | null
 
-  const componentForce = collision.componentBbox.enabled
-    ? createComponentBboxCollideForce({
-        schema,
-        edges,
-        paddingX: collision.componentBbox.paddingX,
-        paddingY: collision.componentBbox.paddingY,
-        touchEpsilonPx: collision.componentBbox.touchEpsilonPx,
-        touchEpsilonXPx: collision.componentBbox.touchEpsilonXPx,
-        touchEpsilonYPx: collision.componentBbox.touchEpsilonYPx,
-        strength: collision.componentBbox.strength,
-        iterations: collision.componentBbox.iterations,
-      })
-    : null
-  if (componentForce) componentForce.initialize(nodes, rand)
-  const applyComponentForce = componentForce as unknown as ((alpha: number) => void) | null
-
   const pullToBase = (alpha: number) => {
     const strength = 0.06 * alpha
     if (strength <= 0) return
@@ -140,7 +124,7 @@ export function relaxNodesWithCollision(args: {
     }
   }
 
-  const forces = [applyNodeForce, applyGroupForce, applyComponentForce, pullToBase].filter(Boolean) as Array<(alpha: number) => void>
+  const forces = [applyNodeForce, applyGroupForce, pullToBase].filter(Boolean) as Array<(alpha: number) => void>
   runRelaxSteps({
     nodes,
     steps,

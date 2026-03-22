@@ -1,0 +1,34 @@
+{
+  "name": "gympgrph",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./testkit": {
+      "import": "./src/testkit.ts",
+      "default": "./src/testkit.ts"
+    }
+  },
+  "dependencies": {
+    "@turf/bbox": "^7.2.0",
+    "@types/geojson": "^7946.0.16",
+    "grph-shared": "file:../grph-shared",
+    "zustand": "^5.0.3"
+  },
+  "peerDependencies": {
+    "cesium": "^1.133.1",
+    "maplibre-gl": "^5.7.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "~5.8.3"
+  }
+}

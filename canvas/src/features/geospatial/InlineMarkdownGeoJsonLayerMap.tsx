@@ -474,13 +474,13 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     <div ref={el => {
       rootRef.current = el
     }} className={`relative ${className || ''}`} style={{ height: rootHeight, minHeight: rootMinHeight }}>
-      <div className="absolute inset-0 z-10 pointer-events-none">
+      <div className="absolute inset-0 z-0 pointer-events-none">
         <GeoGraticuleSvg height={rootHeight} className="w-full" />
         {parsed.fc ? <GeoJsonSvgPreview fc={parsed.fc} color={svgColor} height={rootHeight} className="w-full" /> : null}
       </div>
       <div ref={el => {
         containerRef.current = el
-      }} data-testid="geojson-map-container" className="absolute inset-0 z-0" style={containerGridStyle} />
+      }} data-testid="geojson-map-container" className="absolute inset-0 z-10" style={containerGridStyle} />
       {overlayMessage && (
         <div
           data-testid="geojson-map-overlay"

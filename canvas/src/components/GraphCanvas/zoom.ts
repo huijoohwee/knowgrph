@@ -184,7 +184,15 @@ export const createZoom = (
       controller.handleContextMenu(event as MouseEvent)
     })
     svg.on('mousedown.kgInfiniteViewport', (event: unknown) => {
-      controller.handleMouseDown(event as MouseEvent)
+      const e = event as MouseEvent
+      if (active() && !shouldIgnorePointerTarget(e.target)) {
+        try {
+          e.preventDefault()
+        } catch {
+          void 0
+        }
+      }
+      controller.handleMouseDown(e)
     })
 
     const gestureZoom = createSafariGestureZoomController({

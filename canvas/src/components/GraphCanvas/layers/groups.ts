@@ -13,6 +13,8 @@ import { collapsedGroupNodeIdFor } from '@/components/GraphCanvas/viewDerivation
 import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens'
 import { computeGroupDepthStyle } from '@/lib/graph/groupDepthStyle'
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
+import { DEFAULT_DRAG_ALPHA_TARGET } from '@/lib/graph/layoutDefaults'
+import { markGraphCanvasUserInteracted } from '@/components/GraphCanvas/userInteractionFlag'
 import { DEFAULT_GROUP_NESTED_PADDING_STEP } from '@/lib/graph/layoutDefaults'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { compareGroupsForZOrder } from '@/lib/canvas/groupZOrder'
@@ -478,6 +480,7 @@ export const createGroupsLayer = (args: {
         selectGroup(d.id)
 
         const svgEl = (event?.sourceEvent?.target as SVGElement | null)?.ownerSVGElement
+        markGraphCanvasUserInteracted(svgEl)
         frozen = svgEl?.getAttribute('data-kg-layout-frozen') === '1'
         try {
           const k = d3.zoomTransform(svgEl as unknown as SVGSVGElement).k
@@ -537,7 +540,7 @@ export const createGroupsLayer = (args: {
         }
         const structured = readLayoutMode(schema) === 'radial'
         if (simulation && !structured && !frozen && !event.active) {
-          simulation.alphaTarget(0.08).restart()
+          simulation.alphaTarget(DEFAULT_DRAG_ALPHA_TARGET).restart()
         }
         for (let i = 0; i < dragNodes.length; i += 1) {
           const n = dragNodes[i]!

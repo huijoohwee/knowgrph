@@ -30,11 +30,10 @@
 
 **Stack**: Markdown → Graph Derivation → Force Seed → Force Simulation → Canvas Render
 
-**Key idea**: For disconnected graphs, use D3 positioning forces (`forceX`/`forceY`) to softly attract nodes (or components) to targets, instead of using uniform translation-based centering that can cause counter-motion artifacts during interaction.
+**Key idea**: For disconnected graphs, use D3 positioning forces (`forceX`/`forceY`) to attract nodes to the viewport center, instead of using uniform translation-based centering that can cause counter-motion artifacts during interaction or complex spiral packing that causes nodes to escape the viewport. This aligns exactly with the [D3 Disjoint Force-Directed Graph](https://observablehq.com/@d3/disjoint-force-directed-graph/2) behavior.
 
 **Core modules**
 
-- Disjoint component anchors: [disjoint.ts](../../canvas/src/components/GraphCanvas/layout/disjoint.ts)
 - Overlap resolution (native broadphase): [overlap.ts](../../canvas/src/components/GraphCanvas/layout/overlap.ts)
 - Simulation orchestration: [simulation.ts](../../canvas/src/components/GraphCanvas/simulation.ts)
 - Heuristic Clustering (Seed): [heuristic-cluster.ts](../../canvas/src/components/GraphCanvas/layout/heuristic-cluster.ts)
@@ -44,20 +43,17 @@
 
 ## Module Specifications
 
-### Module: Disjoint Component Anchors
+### Module: Disjoint Components (Center Attraction)
 
-**Responsibility**: Compute connected components → compute per-component target anchors (spiral packing) → return lookup maps.
+**Responsibility**: Prevent disconnected subgraphs from drifting infinitely away due to `forceManyBody` repulsion.
 
-**Interface**: `computeDisjointComponentTargets({ nodes, edges, width, height, schema, padding })`
+**Interface**: Handled directly in `simulation.ts` via `d3.forceX(centerX)` and `d3.forceY(centerY)`.
 
 **Decision logic**
 
-- Component detection: undirected connectivity over `edges` (BFS/DFS).
-- Deterministic ordering: sort by `(size desc, minId asc)`.
-- Anchor placement: deterministic spiral search with overlap rejection; larger components placed earlier.
-- Enhancement: Aligned with [D3 Disjoint Force](https://observablehq.com/@d3/disjoint-force-directed-graph/2) principles but adds deterministic anchoring for stability.
-
-**Implementation**: [computeDisjointComponentTargets](../../canvas/src/components/GraphCanvas/layout/disjoint.ts)
+- Instead of complex spiral component packing, apply a weak `forceX` and `forceY` towards the viewport center to all nodes.
+- When `disjointComponents` is enabled in the schema, the anchor strength is slightly increased to ensure subgraphs pack naturally without escaping the viewport.
+- Enhancement: Aligned exactly with [D3 Disjoint Force](https://observablehq.com/@d3/disjoint-force-directed-graph/2) principles, simplifying the layout engine and avoiding out-of-bounds nodes.
 
 ### Module: Force Simulation (Force Mode)
 
@@ -114,7 +110,7 @@ layout:
 
 | Layer/Subsystem | Path/Module | Component | Interface/Method | Responsibility (S-V-O) | Contracts |
 |---|---|---|---|---|---|
-| Layout | [disjoint.ts](../../canvas/src/components/GraphCanvas/layout/disjoint.ts) | Component anchors | computeDisjointComponentTargets | Module computes anchors → separates components → returns targets | Deterministic ordering |
+| Layout | [simulation.ts](../../canvas/src/components/GraphCanvas/simulation.ts) | Disjoint attraction | d3.forceX / forceY | Simulation anchors components → pulls nodes to center | Center viewport |
 | Layout | [overlap.ts](../../canvas/src/components/GraphCanvas/layout/overlap.ts) | Overlap force | createBboxCollideForce | Force resolves overlaps → adjusts velocities → respects pinned nodes | Label-aware AABB |
 | Layout | [simulation.ts](../../canvas/src/components/GraphCanvas/simulation.ts) | Simulation | buildSimulation | Builder constructs forces → seeds nodes → returns simulation | Honors schema.layout.forces |
 | Derivation | [layerDerivation.ts](../../canvas/src/lib/graph/layerDerivation.ts) | Frontmatter filter | filterGraphToFrontmatterMermaid | Filter scopes graph → keeps Mermaid frontmatter → returns scoped graph | Mermaid-only scope |
@@ -123,13 +119,12 @@ layout:
 
 ## Data Flow
 
-**Pipeline**: Markdown → (Frontmatter toggle) → Graph Derivation → Seed (cluster-aware) → Disjoint Anchors → Force Simulation → Render
+**Pipeline**: Markdown → (Frontmatter toggle) → Graph Derivation → Seed (cluster-aware) → Force Simulation (Center attraction) → Render
 
 | Stage | Input | Output | Performance Consideration |
 |---|---|---|---|
 | Scope | frontmatterModeEnabled | scoped graph | O(n+e) filter |
 | Seed | nodes | seeded positions | avoids first-frame chaos |
-| Disjoint | nodes + edges | component targets | component count k ≪ n |
 | Simulate | nodes + edges + schema | stable positions | warm-start when stable |
 
 ---

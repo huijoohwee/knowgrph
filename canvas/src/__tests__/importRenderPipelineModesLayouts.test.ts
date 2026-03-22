@@ -12,8 +12,11 @@ import { computeLayoutDatasetKey, determineLayoutPositions } from '@/components/
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { readMarkdownSlideDemo, resolveMarkdownSlideDemoDocumentPath } from '@/tests/lib/markdownSlideDemo'
 import { fibSphere } from '@/features/three/layout'
+import { computePositions3d } from '@/features/three/positions'
+import { projectPositionsToSphereShell } from '@/features/three/sphereConstraint'
 import { computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults } from '@/components/FlowCanvas/handles'
 import { togglePortHandlesEnabledInSchema, shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
+import type { GraphNode } from '@/lib/graph/types'
 
 const readSlideDemoOrFallback = (): { nameForParse: string; text: string; documentPath: string } => {
   const docPath = resolveMarkdownSlideDemoDocumentPath() || 'sandbox/demo/markdown-slide-demo.md'
@@ -182,6 +185,66 @@ export const testImportRenderPipelineThreeFibSphereStable = () => {
       const v = p[j] as number
       if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error('expected finite fibSphere coordinate')
     }
+  }
+}
+
+export const testImportRenderPipelineThreeSeedNotPlanar = () => {
+  const nodes: GraphNode[] = []
+  const seed2d: Record<string, { x: number; y: number }> = {}
+  for (let i = 0; i < 80; i += 1) {
+    const id = `n${i}`
+    nodes.push({ id, type: 'Node', label: id, x: 0, y: 0, properties: {} } as unknown as GraphNode)
+    seed2d[id] = { x: (i % 10) * 12, y: Math.floor(i / 10) * 12 }
+  }
+  const schema = { three: { sphereRadius: 120, seed: 42, minSpacing: 10 } } as any
+  const pos = computePositions3d(nodes, schema, { seed2dPositions: seed2d })
+  let minZ = Infinity
+  let maxZ = -Infinity
+  let count = 0
+  for (let i = 0; i < nodes.length; i += 1) {
+    const p = pos[nodes[i].id]
+    if (!p) continue
+    const z = p[2]
+    if (!(typeof z === 'number' && Number.isFinite(z))) continue
+    minZ = Math.min(minZ, z)
+    maxZ = Math.max(maxZ, z)
+    count += 1
+  }
+  if (count < 2) throw new Error('expected multiple 3d seed positions')
+  if (!(maxZ - minZ > 1e-3)) {
+    throw new Error(`expected non-planar 3d seed (z span), got span=${maxZ - minZ}`)
+  }
+}
+
+export const testImportRenderPipelineThreeSphereConstraintProjects = () => {
+  const n = 60
+  const px = new Float32Array(n)
+  const py = new Float32Array(n)
+  const pz = new Float32Array(n)
+  const vx = new Float32Array(n)
+  const vy = new Float32Array(n)
+  const vz = new Float32Array(n)
+  const targetRByIndex = new Float32Array(n)
+  for (let i = 0; i < n; i += 1) {
+    px[i] = (i - n / 2) * 3.1
+    py[i] = ((i * 7) % n - n / 2) * 2.7
+    pz[i] = ((i * 13) % n - n / 2) * 2.3
+    vx[i] = ((i * 3) % 9) - 4
+    vy[i] = ((i * 5) % 9) - 4
+    vz[i] = ((i * 7) % 9) - 4
+    targetRByIndex[i] = 140
+  }
+  projectPositionsToSphereShell({ px, py, pz, vx, vy, vz, targetRByIndex })
+  for (let i = 0; i < n; i += 1) {
+    const r = Math.sqrt(px[i] * px[i] + py[i] * py[i] + pz[i] * pz[i])
+    if (!Number.isFinite(r)) throw new Error('expected finite projected radius')
+    if (Math.abs(r - 140) > 1e-2) throw new Error(`expected projected radius≈140, got ${r}`)
+    const inv = r > 1e-6 ? 1 / r : 0
+    const nx = px[i] * inv
+    const ny = py[i] * inv
+    const nz = pz[i] * inv
+    const vr = vx[i] * nx + vy[i] * ny + vz[i] * nz
+    if (Math.abs(vr) > 1e-3) throw new Error(`expected tangential velocity after projection, got vr=${vr}`)
   }
 }
 

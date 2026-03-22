@@ -314,7 +314,7 @@ export const determineLayoutPositions = ({
     !!cachedPositions &&
     coverageFromCache >= 0.95 &&
     (spreadQualityFromCache || !!cachedPositionsSpread) &&
-    (isDatasetChange || isModeChange || isFrontmatterChange || isSemanticChange || isRenderModeChange || isRenderVariantChange || isLayoutVariantChange || coverageFromNodes < 0.95 || !spreadQualityFromNodes);
+    (isDatasetChange || isModeChange || isFrontmatterChange || isSemanticChange || isRenderModeChange || isRenderVariantChange || isLayoutVariantChange || coverageFromNodes < 0.95);
 
   const layoutPositionsForMode =
     mode === 'radial'
@@ -324,7 +324,7 @@ export const determineLayoutPositions = ({
         : prevCachePositions
 
   const skipInitialLayout =
-    Boolean(layoutPositionsForMode) || ((isInitial || !isLayoutEngineChange) && mode !== 'radial' && coverageFromNodes >= 0.95 && spreadQualityFromNodes);
+    Boolean(layoutPositionsForMode) || ((isInitial || !isLayoutEngineChange) && mode !== 'radial' && coverageFromNodes >= 0.95);
 
   return {
     layoutPositionsForMode,

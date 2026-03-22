@@ -373,6 +373,14 @@ export function createInfiniteCanvasViewportController(args: {
     if (!a || !b) return false
     cancelWheelZoomAnimation()
     args.disableAutoZoomModes()
+    if (userSelectLockedPointerId == null) {
+      userSelectLockedPointerId = pointerIdA
+      try {
+        args.lockUserSelect()
+      } catch {
+        void 0
+      }
+    }
     drag = {
       type: 'pinch',
       pointerIdA,
@@ -508,6 +516,7 @@ export function createInfiniteCanvasViewportController(args: {
   }
 
   const handlePointerUp: InfiniteCanvasViewportController['handlePointerUp'] = (e) => {
+    let nextLockPointerId: number | null = null
     if (e.pointerType === 'touch') {
       touchPointsById.delete(e.pointerId)
       if (drag?.type === 'pinch' && (drag.pointerIdA === e.pointerId || drag.pointerIdB === e.pointerId)) {
@@ -518,19 +527,51 @@ export function createInfiniteCanvasViewportController(args: {
           const remainingId = ids[0]!
           const pt = touchPointsById.get(remainingId)!
           drag = { type: 'pan', pointerId: remainingId, startSx: pt.sx, startSy: pt.sy, startTransform: args.adapter.getTransform() || d3.zoomIdentity }
+          nextLockPointerId = remainingId
         } else {
           drag = null
         }
       }
     }
+    if (!nextLockPointerId && drag?.type === 'pan') nextLockPointerId = drag.pointerId
+    if (!nextLockPointerId && drag?.type === 'pinch') nextLockPointerId = drag.pointerIdA
     endPointer(e.pointerId)
+    if (nextLockPointerId != null && userSelectLockedPointerId == null && drag != null) {
+      userSelectLockedPointerId = nextLockPointerId
+      try {
+        args.lockUserSelect()
+      } catch {
+        void 0
+      }
+      try {
+        args.pointerCapture.setPointerCapture(nextLockPointerId)
+      } catch {
+        void 0
+      }
+    }
     return false
   }
 
   const handlePointerCancel: InfiniteCanvasViewportController['handlePointerCancel'] = (e) => {
+    let nextLockPointerId: number | null = null
     touchPointsById.delete(e.pointerId)
     endPointer(e.pointerId)
     if (drag?.type === 'pinch' && (drag.pointerIdA === e.pointerId || drag.pointerIdB === e.pointerId)) drag = null
+    if (!nextLockPointerId && drag?.type === 'pan') nextLockPointerId = drag.pointerId
+    if (!nextLockPointerId && drag?.type === 'pinch') nextLockPointerId = drag.pointerIdA
+    if (nextLockPointerId != null && userSelectLockedPointerId == null && drag != null) {
+      userSelectLockedPointerId = nextLockPointerId
+      try {
+        args.lockUserSelect()
+      } catch {
+        void 0
+      }
+      try {
+        args.pointerCapture.setPointerCapture(nextLockPointerId)
+      } catch {
+        void 0
+      }
+    }
     return false
   }
 

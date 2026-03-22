@@ -248,6 +248,8 @@ export const initializeGraphLayout = (args: {
 }) => {
   const { nodes, edges, width, height, schema, seedCenter, groupKeyOf, layoutPositions } = args
 
+  const postFitEnabled = schema.layout?.forces?.postFitForce === true
+
   if (!nodes || nodes.length < 2) return
 
   const needsRepair = (): boolean => {
@@ -295,7 +297,12 @@ export const initializeGraphLayout = (args: {
       applied += 1
     }
 
-    if (applied >= nodes.length * 0.8 && !needsRepair()) {
+    if (applied >= 3 && applied / Math.max(1, nodes.length) >= 0.2) {
+      seedMissingNodePositions(nodes, width, height, seedCenter)
+      return
+    }
+
+    if (applied >= nodes.length * 0.8) {
       seedMissingNodePositions(nodes, width, height, seedCenter)
       return
     }
@@ -306,53 +313,19 @@ export const initializeGraphLayout = (args: {
     if (!hasFiniteXY(nodes[i]!)) missing += 1
   }
 
+  const disjointForceMode = schema.layout?.forces?.disjointComponents !== false
+  if (disjointForceMode) {
+    if (missing > 0) seedMissingNodePositions(nodes, width, height, seedCenter)
+    return
+  }
+
   const repair = needsRepair()
   if (!repair) {
     if (missing === 0) {
-      if (usedLayoutPositions) return
-      if (!layoutLooksUnstableForViewport({ nodes, width, height, viewportCenter: seedCenter })) return
-      const padPx = Math.max(24, Math.floor(readFitPadding(schema)))
-      applyCollectiveGraphLayout({
-        nodes,
-        edges,
-        width: Math.max(1, width),
-        height: Math.max(1, Math.floor(height)),
-        schema,
-        padding: Math.max(80, padPx),
-      })
-      postFitNodesToViewport({
-        nodes,
-        width: Math.max(1, width),
-        height: Math.max(1, Math.floor(height)),
-        paddingPx: padPx,
-        minScale: 0.06,
-        maxScale: 2.2,
-        viewportCenter: seedCenter || undefined,
-      })
       return
     }
     seedMissingNodePositions(nodes, width, height, seedCenter)
     if (missing < nodes.length) {
-      if (usedLayoutPositions) return
-      if (!layoutLooksUnstableForViewport({ nodes, width, height, viewportCenter: seedCenter })) return
-      const padPx = Math.max(24, Math.floor(readFitPadding(schema)))
-      applyCollectiveGraphLayout({
-        nodes,
-        edges,
-        width: Math.max(1, width),
-        height: Math.max(1, Math.floor(height)),
-        schema,
-        padding: Math.max(80, padPx),
-      })
-      postFitNodesToViewport({
-        nodes,
-        width: Math.max(1, width),
-        height: Math.max(1, Math.floor(height)),
-        paddingPx: padPx,
-        minScale: 0.06,
-        maxScale: 2.2,
-        viewportCenter: seedCenter || undefined,
-      })
       return
     }
   }
@@ -363,15 +336,17 @@ export const initializeGraphLayout = (args: {
   applyCollectiveGraphLayout({ nodes, edges, width, height, schema })
 
   const padPx = Math.max(24, Math.floor(readFitPadding(schema)))
-  postFitNodesToViewport({
-    nodes,
-    width: Math.max(1, width),
-    height: Math.max(1, Math.floor(height)),
-    paddingPx: padPx,
-    minScale: 0.06,
-    maxScale: 2.2,
-    viewportCenter: seedCenter || undefined,
-  })
+  if (postFitEnabled) {
+    postFitNodesToViewport({
+      nodes,
+      width: Math.max(1, width),
+      height: Math.max(1, Math.floor(height)),
+      paddingPx: padPx,
+      minScale: 0.06,
+      maxScale: 2.2,
+      viewportCenter: seedCenter || undefined,
+    })
+  }
 }
 
 const coerceEndpointId = (value: unknown): string | null => {

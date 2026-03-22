@@ -30,15 +30,34 @@ import DesignDomInspectPanel from '@/features/design/DesignDomInspectPanel'
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
 import { requestGeospatialTraversalRun } from '@/features/geospatial/gympgrphBridge'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
 
 type FloatingPanelView = 'propsPanel' | 'interaction' | 'designLayers' | 'domTree' | 'domInspect' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
 
-const GeospatialPanelHostLazy = React.lazy(async () => {
-  const m = await import('gympgrph')
-  return { default: m.GeospatialPanelHost }
+type GeospatialPanelHostProps = {
+  active?: boolean
+  showDatasetsManager?: boolean
+  panelTypography?: unknown
+  snapshot?: unknown
+  handlers?: unknown
+}
+
+const MissingGeospatialPanelHost = React.memo(function MissingGeospatialPanelHost(_props: GeospatialPanelHostProps) {
+  return (
+    <div className="h-full w-full flex items-center justify-center text-xs text-gray-700 dark:text-gray-200">
+      Geospatial panel unavailable
+    </div>
+  )
+})
+
+const GeospatialPanelHostLazy = React.lazy(async (): Promise<{ default: React.ComponentType<GeospatialPanelHostProps> }> => {
+  const m = (await import('gympgrph')) as unknown as Record<string, unknown>
+  const c = m.GeospatialPanelHost as unknown
+  if (!c) return { default: MissingGeospatialPanelHost }
+  return { default: c as React.ComponentType<GeospatialPanelHostProps> }
 })
 
 const GraphTableSelectionInspectorLazy = React.lazy(
@@ -91,36 +110,48 @@ const GeoView = React.memo(function GeoView(props: { geospatialModeEnabled: bool
   )
 
   return (
-    <section className="h-full" aria-label="Geospatial panel">
-      {geospatialModeEnabled ? (
-        <React.Suspense fallback={null}>
-          <GeospatialPanelHostLazy
-            active
-            showDatasetsManager={false}
-            panelTypography={panelTypography}
-            snapshot={{
-              graphData: activeGraphData,
-              zoomState: gympgrphBridge.zoomState,
-              canvasRenderMode: gympgrphBridge.canvasRenderMode,
-              selectedNodeId: gympgrphBridge.selectedNodeId,
-              selectedNodeIds: gympgrphBridge.selectedNodeIds,
-              selectedEdgeId: gympgrphBridge.selectedEdgeId,
-            }}
-            handlers={{
-              selectNode: gympgrphBridge.selectNode,
-              selectEdge: gympgrphBridge.selectEdge,
-              setSelectionSource: gympgrphBridge.setSelectionSource,
-              requestZoom: gympgrphBridge.requestZoom,
-              requestThreeCamera: gympgrphBridge.requestThreeCamera,
-              pushUiToast: gympgrphBridge.pushUiToast,
-              upsertUiToast: gympgrphBridge.upsertUiToast,
-              dismissUiToast: gympgrphBridge.dismissUiToast,
-            }}
-          />
+    <section className="h-full flex flex-col" aria-label="Geospatial panel">
+      {!geospatialModeEnabled ? (
+        <div className={cn('px-2 py-2 text-xs', UI_THEME_TOKENS.text.secondary)}>
+          Geospatial Mode is off. You can still configure settings here.
+        </div>
+      ) : null}
+
+      <ErrorBoundary>
+        <React.Suspense
+          fallback={
+            <div className="p-3 text-xs text-gray-600 dark:text-gray-300">
+              Loading geospatial panel...
+            </div>
+          }
+        >
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+            <GeospatialPanelHostLazy
+              active={geospatialModeEnabled}
+              showDatasetsManager={false}
+              panelTypography={panelTypography}
+              snapshot={{
+                graphData: activeGraphData,
+                zoomState: gympgrphBridge.zoomState,
+                canvasRenderMode: gympgrphBridge.canvasRenderMode,
+                selectedNodeId: gympgrphBridge.selectedNodeId,
+                selectedNodeIds: gympgrphBridge.selectedNodeIds,
+                selectedEdgeId: gympgrphBridge.selectedEdgeId,
+              }}
+              handlers={{
+                selectNode: gympgrphBridge.selectNode,
+                selectEdge: gympgrphBridge.selectEdge,
+                setSelectionSource: gympgrphBridge.setSelectionSource,
+                requestZoom: gympgrphBridge.requestZoom,
+                requestThreeCamera: gympgrphBridge.requestThreeCamera,
+                pushUiToast: gympgrphBridge.pushUiToast,
+                upsertUiToast: gympgrphBridge.upsertUiToast,
+                dismissUiToast: gympgrphBridge.dismissUiToast,
+              }}
+            />
+          </div>
         </React.Suspense>
-      ) : (
-        <p className={cn('p-3 text-sm', UI_THEME_TOKENS.text.secondary)}>Enable Geospatial Mode to view this panel.</p>
-      )}
+      </ErrorBoundary>
     </section>
   )
 })
@@ -336,7 +367,7 @@ export function ToolbarToolMenu({
       <IconButton
         title={UI_LABELS.geo}
         onClick={() => handleSelectView('geo')}
-        disabled={!geospatialModeEnabled}
+        disabled={false}
         className={`App-toolbar__btn ${
           floatingPanelView === 'geo' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
         }`}
@@ -391,14 +422,6 @@ export function ToolbarToolMenu({
     setFloatingPanelMinimized(false)
     setFloatingPanelView(requestedFloatingPanelView)
   }, [requestedFloatingPanelView, requestedFloatingPanelViewSeq])
-
-  React.useEffect(() => {
-    if (geospatialModeEnabled) {
-      if (floatingPanelView === 'inspector') setFloatingPanelView('geo')
-      return
-    }
-    if (floatingPanelView === 'geo') setFloatingPanelView('inspector')
-  }, [floatingPanelView, geospatialModeEnabled])
 
   React.useEffect(() => {
     const handleOpenGraphTraversal = () => {

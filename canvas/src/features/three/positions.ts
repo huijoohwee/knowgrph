@@ -5,6 +5,47 @@ import { resolveGroupCollisions, type CollisionGroupItem } from '@/lib/graph/col
 
 export type Vec3 = [number, number, number]
 
+export const THREE_LAYER_SPACING = 20
+
+const computeLayerOffsetMap = (nodes: GraphNode[]): Map<number, number> => {
+  const vals: number[] = []
+  for (let i = 0; i < nodes.length; i += 1) {
+    const raw = (nodes[i]?.properties || {})['visual:layer']
+    if (typeof raw === 'number' && Number.isFinite(raw)) vals.push(raw)
+    else if (typeof raw === 'string') {
+      const parsed = Number(raw.trim())
+      if (Number.isFinite(parsed)) vals.push(parsed)
+    }
+  }
+  const unique = Array.from(new Set(vals)).sort((a, b) => a - b)
+  const map = new Map<number, number>()
+  const mid = (unique.length - 1) / 2
+  for (let i = 0; i < unique.length; i += 1) {
+    map.set(unique[i]!, i - mid)
+  }
+  return map
+}
+
+export const computeLayerOffsetIndices = (nodes: GraphNode[]): Float32Array => {
+  const out = new Float32Array(Math.max(1, nodes.length))
+  if (!nodes || nodes.length === 0) return out
+  const layerValues = computeLayerOffsetMap(nodes)
+  for (let i = 0; i < nodes.length; i += 1) {
+    const rawLayer = (nodes[i]?.properties || {})['visual:layer']
+    const layerVal =
+      typeof rawLayer === 'number'
+        ? rawLayer
+        : typeof rawLayer === 'string'
+          ? Number(rawLayer.trim())
+          : null
+    out[i] =
+      typeof layerVal === 'number' && Number.isFinite(layerVal)
+        ? (layerValues.get(layerVal) ?? 0)
+        : 0
+  }
+  return out
+}
+
 export function fibSphere(n: number, radius: number, seed?: number, minSpacing?: number): Vec3[] {
   if (n <= 0) return []
   const out: Vec3[] = []
@@ -55,25 +96,7 @@ export function computePositions3d(
   const radiusAuto = Math.max(60, Math.min(140, n * 2.2))
   const radius = radiusCfg && radiusCfg > 0 ? radiusCfg : radiusAuto
   const sphere = fibSphere(n, radius, seedCfg, minSpacingCfg)
-  const layerValues = (() => {
-    const vals: number[] = []
-    for (let i = 0; i < nodes.length; i += 1) {
-      const raw = (nodes[i]?.properties || {})['visual:layer']
-      if (typeof raw === 'number' && Number.isFinite(raw)) vals.push(raw)
-      else if (typeof raw === 'string') {
-        const parsed = Number(raw.trim())
-        if (Number.isFinite(parsed)) vals.push(parsed)
-      }
-    }
-    const unique = Array.from(new Set(vals)).sort((a, b) => a - b)
-    const map = new Map<number, number>()
-    const mid = (unique.length - 1) / 2
-    for (let i = 0; i < unique.length; i += 1) {
-      map.set(unique[i]!, i - mid)
-    }
-    return map
-  })()
-  const layerSpacing = 20
+  const layerOffsetIndices = computeLayerOffsetIndices(nodes)
   const canRelax = typeof minSpacingCfg === 'number' && Number.isFinite(minSpacingCfg) && minSpacingCfg > 0
   const nodeIndexById = new Map<string, number>()
   const relaxNodes: Array<{ vx: number; vy: number; vz: number }> = []
@@ -96,29 +119,21 @@ export function computePositions3d(
       continue
     }
 
-    const rawLayer = (node.properties || {})['visual:layer']
-    const layerVal =
-      typeof rawLayer === 'number'
-        ? rawLayer
-        : typeof rawLayer === 'string'
-          ? Number(rawLayer.trim())
-          : null
-    const offsetIndex =
-      typeof layerVal === 'number' && Number.isFinite(layerVal)
-        ? (layerValues.get(layerVal) ?? 0)
-        : 0
-    const z = offsetIndex * layerSpacing
+    const offsetIndex = Number.isFinite(layerOffsetIndices[i]) ? layerOffsetIndices[i]! : 0
+    const targetR = radius + offsetIndex * THREE_LAYER_SPACING
 
     const seed = readSeedXy(String(node.id || '').trim())
     const nx = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : null
     const ny = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : null
+    const s = sphere[i] || [0, 0, 0]
+    const seedZ = (s[2] / Math.max(1e-6, radius)) * targetR
     if (seed) {
-      out[node.id] = [seed.x, seed.y, z]
+      out[node.id] = [seed.x, seed.y, seedZ]
     } else if (nx != null && ny != null) {
-      out[node.id] = [nx, ny, z]
+      out[node.id] = [nx, ny, seedZ]
     } else {
-      const s = sphere[i] || [0, 0, 0]
-      out[node.id] = [s[0], s[1], s[2] + z]
+      const scale = targetR / Math.max(1e-6, radius)
+      out[node.id] = [s[0] * scale, s[1] * scale, s[2] * scale]
     }
     if (canRelax) {
       const id = String(node.id || '').trim()

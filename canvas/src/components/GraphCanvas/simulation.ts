@@ -2,21 +2,23 @@ import * as d3 from 'd3';
 import { GraphNode, GraphEdge } from '@/lib/graph/types';
 import { GraphSchema } from '@/lib/graph/schema';
 import { applyRadialClusterLayout } from './layout/radial';
-import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d';
-import { computeDisjointComponentTargets } from './layout/disjoint';
-import { createDisjointComponentsForce } from './layout/disjointForce';
 import { applyForceModeSeeds } from './layout/seeding';
 import { readMermaidAxisFromNodes } from './layout/mermaidDirection';
 import { createBboxCollideForce, getNodeCollisionRadius } from './layout/overlap';
 import { createGroupBboxCollideForce } from './layout/groupOverlap';
-import { createGroupBboxCollideForceByDepth } from './layout/groupOverlapByDepth'
-import { createComponentBboxCollideForce } from './layout/componentOverlap';
-import { createGroupKeyOfNode, computeGroupTargets, type GroupKeyOfNode } from './layout/grouping';
+import { createGroupBboxCollideForceByDepth } from './layout/groupOverlapByDepth';
+import { createGroupKeyOfNode, type GroupKeyOfNode } from './layout/grouping';
 import { readCollisionConfig } from './layout/collisionConfig';
 import { readLayoutMode } from './layout/fitConfig';
-import { DEFAULT_CENTER_STRENGTH, readFitPadding, readForceCharge, readForceLinkDistance } from '@/lib/graph/layoutDefaults';
-import { ZOOM_VIEWPORT_PRESET_16_9 } from 'grph-shared/zoom/presets'
-import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
+import {
+  DEFAULT_CENTER_STRENGTH,
+  DEFAULT_DISJOINT_MIN_BASE_STRENGTH,
+  DEFAULT_DISJOINT_STRENGTH,
+  readForceCharge,
+  readForceLinkDistance,
+} from '@/lib/graph/layoutDefaults';
+import { ZOOM_VIEWPORT_PRESET_16_9 } from 'grph-shared/zoom/presets';
+import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes';
 
 type EdgeEndpointLike = GraphEdge['source'] | { id?: string | number } | null | undefined;
 
@@ -54,6 +56,108 @@ export const normalizeEdgesForSim = (nodes: GraphNode[], edges: GraphEdge[]): Gr
   return out;
 };
 
+const updateManyBodyForce = (args: {
+  simulation: d3.Simulation<GraphNode, GraphEdge>
+  name: string
+  strength: number
+  distanceMax: number
+}) => {
+  const raw = args.simulation.force(args.name) as unknown
+  const f =
+    raw && typeof raw === 'function' && typeof (raw as { strength?: unknown }).strength === 'function'
+      ? (raw as unknown as d3.ForceManyBody<GraphNode>)
+      : null
+  if (!f) {
+    args.simulation.force(
+      args.name,
+      d3.forceManyBody<GraphNode>().strength(args.strength).distanceMax(args.distanceMax),
+    )
+    return
+  }
+  f.strength(args.strength)
+  f.distanceMax(args.distanceMax)
+}
+
+const updatePositioningForce = (args: {
+  simulation: d3.Simulation<GraphNode, GraphEdge>
+  name: string
+  axis: 'x' | 'y'
+  target: number
+  strength: number
+}) => {
+  const raw = args.simulation.force(args.name) as unknown
+  const f = (() => {
+    if (!raw || typeof raw !== 'function') return null
+    if (typeof (raw as { strength?: unknown }).strength !== 'function') return null
+    if (args.axis === 'x') {
+      if (typeof (raw as { x?: unknown }).x !== 'function') return null
+      return raw as unknown as d3.ForceX<GraphNode>
+    }
+    if (typeof (raw as { y?: unknown }).y !== 'function') return null
+    return raw as unknown as d3.ForceY<GraphNode>
+  })()
+
+  if (!f) {
+    args.simulation.force(
+      args.name,
+      args.axis === 'x'
+        ? d3.forceX<GraphNode>(() => args.target).strength(args.strength)
+        : d3.forceY<GraphNode>(() => args.target).strength(args.strength),
+    )
+    return
+  }
+
+  if (args.axis === 'x') {
+    ;(f as unknown as d3.ForceX<GraphNode>).x(() => args.target)
+  } else {
+    ;(f as unknown as d3.ForceY<GraphNode>).y(() => args.target)
+  }
+  f.strength(args.strength)
+}
+
+const computeCollideIterations = (nodeCount: number): number =>
+  nodeCount <= 450 ? 4 : nodeCount <= 1600 ? 3 : 2
+
+type SimulationPresentationSignature = {
+  disjointEnabled: boolean
+  chargeStrength: number
+  anchorStrength: number
+  centerX: number
+  centerY: number
+  bboxEnabled: boolean
+  groupBboxEnabled: boolean
+  collideEnabled: boolean
+  collideIterations: number
+  collideKey: string
+  bboxKey: string
+  groupBboxKey: string
+}
+
+const presentationSignatureCache = new WeakMap<object, SimulationPresentationSignature>()
+
+const computeAnchorStrength2d = (args: {
+  schema: GraphSchema
+  isKeywordGraph: boolean
+  disjointEnabled: boolean
+  disjointStrength: number
+}): number => {
+  if (args.disjointEnabled) {
+    return Math.max(
+      0,
+      Math.min(2, Math.max(DEFAULT_DISJOINT_MIN_BASE_STRENGTH, args.disjointStrength)),
+    )
+  }
+
+  const raw = args.schema.layout?.forces?.centerStrength
+  const centerStrength = (() => {
+    if (typeof raw === 'number' && Number.isFinite(raw)) return raw
+    if (args.isKeywordGraph) return Math.max(DEFAULT_CENTER_STRENGTH, 0.18)
+    return Math.max(DEFAULT_CENTER_STRENGTH, 0.15)
+  })()
+
+  return Math.max(0, Math.min(2, centerStrength)) * 0.25
+}
+
 export const buildSimulation = (
   nodes: GraphNode[],
   edgesForSim: GraphEdge[],
@@ -71,7 +175,7 @@ export const buildSimulation = (
   const frameW = width > 100 ? width : ZOOM_VIEWPORT_PRESET_16_9.maxWidth
   const frameH = height > 100 ? height : ZOOM_VIEWPORT_PRESET_16_9.maxHeight
 
-  const viewportCenter = options?.viewportCenter || { x: frameW / 2, y: frameH / 2 }
+  const viewportCenter = options?.viewportCenter || { x: 0, y: 0 }
   const centerX = viewportCenter.x
   const centerY = viewportCenter.y
 
@@ -118,7 +222,18 @@ export const buildSimulation = (
     return typeof v === 'number' && Number.isFinite(v) && v > 0
   }
 
+  const mode = readLayoutMode(schema);
+  const disjointEnabled = schema.layout?.forces?.disjointComponents !== false;
+  const disjointStrength =
+    typeof schema.layout?.forces?.disjointStrength === 'number' ? schema.layout.forces.disjointStrength : DEFAULT_DISJOINT_STRENGTH;
+
   const linkDist = (e: GraphEdge) => {
+    if (disjointEnabled) {
+      const label = typeof e.label === 'string' ? e.label : String(e.label || '')
+      if (label && hasExplicitLinkDistance(label)) return readForceLinkDistance(schema, e)
+      return 30
+    }
+
     const base = readForceLinkDistance(schema, e)
     if (!isKeywordGraph) return base
     const label = typeof e.label === 'string' ? e.label : String(e.label || '')
@@ -128,6 +243,10 @@ export const buildSimulation = (
 
   const chargeStrength = (() => {
     const raw = schema.layout?.forces?.charge
+    if (disjointEnabled) {
+      return typeof raw === 'number' && Number.isFinite(raw) ? raw : -30
+    }
+
     const base = readForceCharge(schema)
     if (!isKeywordGraph) return base
     if (typeof raw === 'number' && Number.isFinite(raw)) return base
@@ -136,25 +255,25 @@ export const buildSimulation = (
     return -mag
   })();
   const collisionRadiusByType = schema.layout?.forces?.collisionByType || {};
-  const mode = readLayoutMode(schema);
-  const disjointEnabled = schema.layout?.forces?.disjointComponents !== false;
-  const disjointStrength =
-    typeof schema.layout?.forces?.disjointStrength === 'number' ? schema.layout.forces.disjointStrength : 0.1;
-  const disjointPadding = Math.max(40, readFitPadding(schema));
-  const allowDisjointLayout = mode === 'force' && disjointEnabled && nodes.length <= 5200 && edgesForSim.length <= 18_000;
-  const disjointLayout =
-    allowDisjointLayout
-      ? computeDisjointComponentTargets({
-          nodes,
-          edges: edgesForSim,
-          width: frameW,
-          height: frameH,
-          schema,
-          padding: disjointPadding,
-        })
-      : null;
 
   if (!options?.skipInitialLayout) {
+    if (disjointEnabled) {
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]!
+        const fx = (n as unknown as { fx?: unknown }).fx
+        const fy = (n as unknown as { fy?: unknown }).fy
+        const hasFx = typeof fx === 'number' && Number.isFinite(fx)
+        const hasFy = typeof fy === 'number' && Number.isFinite(fy)
+        if (!hasFx && !hasFy) continue
+
+        if (hasFx && !(typeof n.x === 'number' && Number.isFinite(n.x))) n.x = fx as number
+        if (hasFy && !(typeof n.y === 'number' && Number.isFinite(n.y))) n.y = fy as number
+
+        ;(n as unknown as { fx?: null }).fx = null
+        ;(n as unknown as { fy?: null }).fy = null
+      }
+    }
+
     const seedGroupKeyOf = options?.groupKeyOf || createGroupKeyOfNode({ nodes, edges: edgesForSim })
     if (mode === 'radial') {
       applyRadialClusterLayout(nodes, edgesForSim, frameW, frameH, schema, seedGroupKeyOf, options?.groupsForBboxCollide)
@@ -164,8 +283,37 @@ export const buildSimulation = (
         n.vy = 0
       }
     }
-    if (mode === 'force') {
+    if (mode === 'force' && !disjointEnabled) {
       applyForceModeSeeds({ nodes, edges: edgesForSim, width: frameW, height: frameH, schema, groupKeyOf: seedGroupKeyOf })
+    }
+
+    if (disjointEnabled && centerX === 0 && centerY === 0) {
+      let sumX = 0
+      let sumY = 0
+      let count = 0
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]!
+        const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+        const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+        if (x == null || y == null) continue
+        sumX += x
+        sumY += y
+        count += 1
+      }
+      if (count > 0) {
+        const meanX = sumX / count
+        const meanY = sumY / count
+        if (Number.isFinite(meanX) && Number.isFinite(meanY) && (Math.abs(meanX) > 1e-6 || Math.abs(meanY) > 1e-6)) {
+          for (let i = 0; i < nodes.length; i += 1) {
+            const n = nodes[i]!
+            const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+            const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+            if (x == null || y == null) continue
+            n.x = x - meanX
+            n.y = y - meanY
+          }
+        }
+      }
     }
   }
   const linkForce = d3
@@ -189,7 +337,7 @@ export const buildSimulation = (
 
     const collisionCfg = readCollisionConfig(schema)
     const bboxCfg = collisionCfg.nodeBbox
-    const collideIterations = nodes.length <= 450 ? 4 : nodes.length <= 1600 ? 3 : 2
+    const collideIterations = computeCollideIterations(nodes.length)
 
     const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
     const hasMermaidNodes = portHandlesEnabled && nodes.some(n => String(n.type || '') === 'MermaidNode')
@@ -233,72 +381,26 @@ export const buildSimulation = (
     }
 
     const groupKeyOf = options?.groupKeyOf || createGroupKeyOfNode({ nodes, edges: edgesForSim })
-    const { readGroupTarget } = computeGroupTargets({ nodes, groupKeyOf })
 
-    const xTarget = (n: GraphNode) => {
-      if (portHandlesEnabled) {
-        const nid = String(n.id)
-        const ind = inDegree.get(nid) || 0
-        const outd = outDegree.get(nid) || 0
-        const role = ind === 0 && outd > 0 ? 'input' : outd === 0 && ind > 0 ? 'output' : ind > 0 || outd > 0 ? 'process' : ''
-        if (portAxis?.axis === 'x') {
-          if (role === 'input') return portAxis.forward > 0 ? 40 : frameW - 40
-          if (role === 'output') return portAxis.forward > 0 ? frameW - 40 : 40
-        }
-        const gt = readGroupTarget(n)
-        if (gt) return gt.x
-      }
+    const xTarget = () => centerX
+    const yTarget = () => centerY
 
-      const gt = readGroupTarget(n)
-      if (gt) return gt.x
-      
-      if (!disjointLayout) return centerX
-      const comp = disjointLayout.componentByNodeId.get(String(n.id))
-      if (comp == null) return centerX
-      const t = disjointLayout.targetsByComponent.get(comp)
-      return t ? t.x : centerX
-    }
-    const yTarget = (n: GraphNode) => {
-      if (portHandlesEnabled) {
-        const nid = String(n.id)
-        const ind = inDegree.get(nid) || 0
-        const outd = outDegree.get(nid) || 0
-        const role = ind === 0 && outd > 0 ? 'input' : outd === 0 && ind > 0 ? 'output' : null
-        if (portAxis?.axis === 'y') {
-          if (role === 'input') return portAxis.forward > 0 ? 40 : frameH - 40
-          if (role === 'output') return portAxis.forward > 0 ? frameH - 40 : 40
-        }
-        const gt = readGroupTarget(n)
-        if (gt) return gt.y
-      }
-      const gt = readGroupTarget(n)
-      if (gt) return gt.y
-      if (!disjointLayout) return centerY
-      const comp = disjointLayout.componentByNodeId.get(String(n.id))
-      if (comp == null) return centerY
-      const t = disjointLayout.targetsByComponent.get(comp)
-      return t ? t.y : centerY
-    }
+    const anchorStrength = computeAnchorStrength2d({ schema, isKeywordGraph, disjointEnabled, disjointStrength })
 
-
-
-    const centerStrength = (() => {
-      const raw = schema.layout?.forces?.centerStrength
-      if (typeof raw === 'number' && Number.isFinite(raw)) return raw
-      if (isKeywordGraph) return Math.max(DEFAULT_CENTER_STRENGTH, 0.18)
-      return Math.max(DEFAULT_CENTER_STRENGTH, 0.15)
-    })()
-    const anchorStrength = Math.max(0, Math.min(2, disjointStrength)) * 0.08 + Math.max(0, Math.min(2, centerStrength)) * 0.12
-    let antiLineTick = 0
-    if (!disjointLayout) {
-      simulation.force('center', d3.forceCenter(centerX, centerY).strength(1))
-    }
     simulation
-      .force('charge', d3.forceManyBody().strength(chargeStrength).distanceMax(Math.max(frameW, frameH) * 1.2))
-      .force('collide', d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.92).iterations(collideIterations))
+      .force(
+        'charge',
+        disjointEnabled
+          ? d3.forceManyBody().strength(chargeStrength)
+          : d3.forceManyBody().strength(chargeStrength).distanceMax(Math.max(frameW, frameH) * 1.2),
+      )
+      .force(
+        'collide',
+        !disjointEnabled ? d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.92).iterations(collideIterations) : null,
+      )
       .force(
         'bboxCollide',
-        bboxCfg.enabled
+        !disjointEnabled && bboxCfg.enabled
           ? createBboxCollideForce({
               schema,
               paddingX: bboxCfg.paddingX,
@@ -315,7 +417,7 @@ export const buildSimulation = (
       )
       .force(
         'groupBboxCollide',
-        collisionCfg.groupBbox.enabled
+        !disjointEnabled && collisionCfg.groupBbox.enabled
           ? (options?.groupsForBboxCollide && options.groupsForBboxCollide.length > 0
               ? createGroupBboxCollideForceByDepth({
                   schema,
@@ -346,255 +448,8 @@ export const buildSimulation = (
                 }))
           : null,
       )
-      .force(
-        'componentBboxCollide',
-        collisionCfg.componentBbox.enabled
-          ? createComponentBboxCollideForce({
-              schema,
-              edges: edgesForSim,
-              paddingX: collisionCfg.componentBbox.paddingX,
-              paddingY: collisionCfg.componentBbox.paddingY,
-              touchEpsilonPx: collisionCfg.componentBbox.touchEpsilonPx,
-              touchEpsilonXPx: collisionCfg.componentBbox.touchEpsilonXPx,
-              touchEpsilonYPx: collisionCfg.componentBbox.touchEpsilonYPx,
-              strength: collisionCfg.componentBbox.strength,
-              iterations: collisionCfg.componentBbox.iterations,
-            })
-          : null,
-      )
       .force('x', d3.forceX<GraphNode>(xTarget).strength(anchorStrength))
       .force('y', d3.forceY<GraphNode>(yTarget).strength(anchorStrength))
-      .force(
-        'disjointComponents',
-        disjointLayout
-          ? createDisjointComponentsForce({
-              schema,
-              disjointLayout,
-              paddingPx: disjointPadding,
-              strength: Math.max(0.02, Math.min(0.6, disjointStrength)),
-              alphaMin: 0.03,
-              tickInterval: 6,
-              maxPairwiseComponents: 90,
-            })
-          : null,
-      )
-       .force('box', () => {
-         const enabled = schema.layout?.forces?.boxForce !== false;
-         if (!enabled) return;
-         const strength = schema.layout?.forces?.boxForceStrength ?? 0.05;
-         const alpha = simulation.alpha();
-         const alphaMinRaw = (schema.layout?.forces as unknown as { boxForceAlphaMin?: number } | undefined)?.boxForceAlphaMin
-         const alphaMin =
-           typeof alphaMinRaw === 'number' && Number.isFinite(alphaMinRaw)
-             ? Math.max(0.0, Math.min(1.0, alphaMinRaw))
-             : 0.12
-         if (alpha < alphaMin) return
-         const k = alpha * strength;
-         const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled);
-         const pad = portHandlesEnabled ? 20 : 28;
-         const minX = centerX - frameW / 2 + pad;
-         const minY = centerY - frameH / 2 + pad;
-         const maxX = centerX + frameW / 2 - pad;
-         const maxY = centerY + frameH / 2 - pad;
-         for (const d of nodes) {
-           if (d.x == null || d.y == null) continue;
-           const { halfW, halfH } = getNodeHalfExtents2d(d, schema);
-           const loX = minX + halfW;
-           const hiX = maxX - halfW;
-           const loY = minY + halfH;
-           const hiY = maxY - halfH;
-           if (d.x < loX) d.vx = (d.vx ?? 0) + (loX - d.x) * k * 2.2;
-           if (d.x > hiX) d.vx = (d.vx ?? 0) - (d.x - hiX) * k * 2.2;
-           if (d.y < loY) d.vy = (d.vy ?? 0) + (loY - d.y) * k * 2.2;
-           if (d.y > hiY) d.vy = (d.vy ?? 0) - (d.y - hiY) * k * 2.2;
-         }
-       })
-       .force('antiLine', () => {
-         const enabled = (schema.layout as unknown as { forces?: { antiLineForce?: boolean; antiLineStrength?: number } })?.forces?.antiLineForce !== false
-         if (!enabled) return
-         const strengthRaw = (schema.layout as unknown as { forces?: { antiLineStrength?: number } })?.forces?.antiLineStrength
-         const strength = typeof strengthRaw === 'number' && Number.isFinite(strengthRaw) ? strengthRaw : 0.04
-         const alpha = simulation.alpha()
-         antiLineTick += 1
-         const alphaMinRaw = (schema.layout as unknown as { forces?: { antiLineAlphaMin?: number } })?.forces?.antiLineAlphaMin
-         const alphaMin = typeof alphaMinRaw === 'number' && Number.isFinite(alphaMinRaw) ? Math.max(0.0, Math.min(1.0, alphaMinRaw)) : 0.14
-         if (alpha < alphaMin) return
-         const intervalRaw = (schema.layout as unknown as { forces?: { antiLineTickInterval?: number } })?.forces?.antiLineTickInterval
-         const interval = typeof intervalRaw === 'number' && Number.isFinite(intervalRaw) ? Math.max(1, Math.floor(intervalRaw)) : 2
-         if (antiLineTick % interval !== 0) return
-         const k = alpha * strength
-         if (k <= 0) return
-
-         let minX = Infinity
-         let maxX = -Infinity
-         let minY = Infinity
-         let maxY = -Infinity
-         let sumX = 0
-         let sumY = 0
-         let count = 0
-         for (let i = 0; i < nodes.length; i += 1) {
-           const n = nodes[i]
-           const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-           const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-           if (x == null || y == null) continue
-           if (x < minX) minX = x
-           if (x > maxX) maxX = x
-           if (y < minY) minY = y
-           if (y > maxY) maxY = y
-           sumX += x
-           sumY += y
-           count += 1
-         }
-         if (count < 6 || minX === Infinity) return
-         const spanX = maxX - minX
-         const spanY = maxY - minY
-         const cx = sumX / count
-         const cy = sumY / count
-         const ratio = spanX / Math.max(1e-6, spanY)
-
-         let cov = 0
-         let varX = 0
-         let varY = 0
-         for (let i = 0; i < nodes.length; i += 1) {
-           const n = nodes[i]
-           const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-           const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-           if (x == null || y == null) continue
-           const dx = x - cx
-           const dy = y - cy
-           cov += dx * dy
-           varX += dx * dx
-           varY += dy * dy
-         }
-         const denom = Math.sqrt(Math.max(1e-6, varX) * Math.max(1e-6, varY))
-         const corr = denom > 0 ? cov / denom : 0
-
-         const hash01 = (id: string): number => {
-           let h = 2166136261
-           for (let i = 0; i < id.length; i += 1) {
-             h ^= id.charCodeAt(i)
-             h = Math.imul(h, 16777619)
-           }
-           const u = (h >>> 0) / 4294967296
-           return u
-         }
-
-         const scale = Math.max(40, Math.min(420, Math.max(spanX, spanY) * 0.06))
-
-         if (ratio > 6) {
-           for (let i = 0; i < nodes.length; i += 1) {
-             const n = nodes[i]
-             if (n.x == null || n.y == null) continue
-             const u = hash01(String(n.id))
-             const s = (u - 0.5) * 2
-             n.vy = (n.vy ?? 0) + s * k * scale
-           }
-           return
-         }
-         if (ratio < 1 / 6) {
-           for (let i = 0; i < nodes.length; i += 1) {
-             const n = nodes[i]
-             if (n.x == null || n.y == null) continue
-             const u = hash01(String(n.id))
-             const s = (u - 0.5) * 2
-             n.vx = (n.vx ?? 0) + s * k * scale
-           }
-           return
-         }
-
-         if (Math.abs(corr) > 0.96) {
-           const span = Math.max(1e-6, Math.max(spanX, spanY))
-           for (let i = 0; i < nodes.length; i += 1) {
-             const n = nodes[i]
-             const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-             const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-             if (x == null || y == null) continue
-             const u = hash01(String(n.id))
-             const s = (u - 0.5) * 2
-             const dx = x - cx
-             const dy = y - cy
-             const px = -dy
-             const py = dx
-             const norm = Math.sqrt(px * px + py * py) || 1
-             n.vx = (n.vx ?? 0) + (px / norm) * s * k * (span * 0.25)
-             n.vy = (n.vy ?? 0) + (py / norm) * s * k * (span * 0.25)
-           }
-         }
-       })
-      .force('postFit', () => {
-        const enabled = (schema.layout as unknown as { forces?: { postFitForce?: boolean; postFitStrength?: number; postFitAlphaMax?: number } })?.forces?.postFitForce !== false
-        if (!enabled) return
-        const alpha = simulation.alpha()
-        const alphaMaxRaw = (schema.layout as unknown as { forces?: { postFitAlphaMax?: number } })?.forces?.postFitAlphaMax
-        const alphaMax = typeof alphaMaxRaw === 'number' && Number.isFinite(alphaMaxRaw) ? Math.max(0.01, Math.min(0.4, alphaMaxRaw)) : 0.095
-        if (alpha > alphaMax) return
-        const strengthRaw = (schema.layout as unknown as { forces?: { postFitStrength?: number } })?.forces?.postFitStrength
-        const strength = typeof strengthRaw === 'number' && Number.isFinite(strengthRaw) ? Math.max(0, Math.min(0.6, strengthRaw)) : 0.28
-        const k = Math.max(0.00001, strength) * Math.max(0.02, alphaMax)
-        const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
-        const pad = portHandlesEnabled ? 28 : 48
-
-        let minX = Infinity
-        let maxX = -Infinity
-        let minY = Infinity
-        let maxY = -Infinity
-        let sumX = 0
-        let sumY = 0
-        let count = 0
-        for (let i = 0; i < nodes.length; i += 1) {
-          const n = nodes[i]
-          const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-          const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-          if (x == null || y == null) continue
-          if (x < minX) minX = x
-          if (x > maxX) maxX = x
-          if (y < minY) minY = y
-          if (y > maxY) maxY = y
-          sumX += x
-          sumY += y
-          count += 1
-        }
-        if (count < 3 || minX === Infinity) return
-
-        const spanX = Math.max(1e-6, maxX - minX)
-        const spanY = Math.max(1e-6, maxY - minY)
-        const targetW = Math.max(1, frameW - pad * 2)
-        const targetH = Math.max(1, frameH - pad * 2)
-        const scale = Math.min(targetW / spanX, targetH / spanY)
-        
-        // Stricter expansion control
-        const desired = scale < 0.9 ? Math.max(0.6, Math.min(0.96, scale)) : scale > 1.15 ? Math.min(1.25, Math.max(1.02, scale)) : 1
-        
-        const cx = sumX / count
-        const cy = sumY / count
-        const tx = centerX
-        const ty = centerY
-        
-        // Centering force
-        const centerK = k * 0.5
-        
-        for (let i = 0; i < nodes.length; i += 1) {
-          const n = nodes[i]
-          const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-          const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-          if (x == null || y == null) continue
-          
-          let nx = x
-          let ny = y
-          
-          if (desired !== 1) {
-             nx = tx + (x - cx) * desired
-             ny = ty + (y - cy) * desired
-          }
-          
-          // Pull collective centroid to viewport center
-          const driftX = tx - cx
-          const driftY = ty - cy
-          
-          n.vx = (n.vx ?? 0) + (nx - x) * k + driftX * centerK
-          n.vy = (n.vy ?? 0) + (ny - y) * k + driftY * centerK
-        }
-      })
 
   if (schema.layout?.forces?.alphaDecay != null) {
     simulation.alphaDecay(schema.layout.forces.alphaDecay!);
@@ -620,7 +475,7 @@ export const updateForceSimulationPresentation = (args: {
   const frameW = width > 100 ? width : ZOOM_VIEWPORT_PRESET_16_9.maxWidth
   const frameH = height > 100 ? height : ZOOM_VIEWPORT_PRESET_16_9.maxHeight
 
-  const viewportCenter = args.viewportCenter || { x: frameW / 2, y: frameH / 2 }
+  const viewportCenter = args.viewportCenter || { x: 0, y: 0 }
   const centerX = viewportCenter.x
   const centerY = viewportCenter.y
 
@@ -642,20 +497,7 @@ export const updateForceSimulationPresentation = (args: {
 
   const disjointEnabled = schema.layout?.forces?.disjointComponents !== false;
   const disjointStrength =
-    typeof schema.layout?.forces?.disjointStrength === 'number' ? schema.layout.forces.disjointStrength : 0.1;
-  const disjointPadding = Math.max(40, readFitPadding(schema));
-  const allowDisjointLayout = mode === 'force' && disjointEnabled && nodes.length <= 5200 && edges.length <= 18_000;
-  const disjointLayout =
-    allowDisjointLayout
-      ? computeDisjointComponentTargets({
-          nodes,
-          edges,
-          width: frameW,
-          height: frameH,
-          schema,
-          padding: disjointPadding,
-        })
-      : null;
+    typeof schema.layout?.forces?.disjointStrength === 'number' ? schema.layout.forces.disjointStrength : DEFAULT_DISJOINT_STRENGTH;
 
   const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
   const hasMermaidNodes = portHandlesEnabled && nodes.some(n => String(n.type || '') === 'MermaidNode')
@@ -669,56 +511,40 @@ export const updateForceSimulationPresentation = (args: {
         return !!s && !!t && topologyNodeIds?.has(String(s)) && topologyNodeIds?.has(String(t))
       })
     : edges
-  const { inDegree, outDegree } = portHandlesEnabled ? computeTopology(topologyNodes, topologyEdges) : { inDegree: new Map(), outDegree: new Map() }
+  const { inDegree, outDegree } = portHandlesEnabled
+    ? computeTopology(topologyNodes, topologyEdges)
+    : { inDegree: new Map(), outDegree: new Map() }
   const portAxis = portHandlesEnabled ? readMermaidAxisFromNodes(nodes) : null
 
-  const groupKeyOf = args.groupKeyOf || createGroupKeyOfNode({ nodes, edges })
-  const { readGroupTarget } = computeGroupTargets({ nodes, groupKeyOf })
+  if (portHandlesEnabled && portAxis) {
+    for (let i = 0; i < topologyNodes.length; i += 1) {
+      const n = topologyNodes[i]
+      try {
+        ;(n.properties as Record<string, unknown>)['visual:portAxis'] = portAxis.axis
+        ;(n.properties as Record<string, unknown>)['visual:portForward'] = portAxis.forward
+      } catch {
+        void 0
+      }
+    }
+  }
 
-  const xTarget = (n: GraphNode) => {
-    if (portHandlesEnabled) {
+  if (portHandlesEnabled) {
+    for (let i = 0; i < topologyNodes.length; i += 1) {
+      const n = topologyNodes[i]
       const nid = String(n.id)
       const ind = inDegree.get(nid) || 0
       const outd = outDegree.get(nid) || 0
       const role = ind === 0 && outd > 0 ? 'input' : outd === 0 && ind > 0 ? 'output' : ind > 0 || outd > 0 ? 'process' : ''
-      if (portAxis?.axis === 'x') {
-        if (role === 'input') return portAxis.forward > 0 ? 40 : frameW - 40
-        if (role === 'output') return portAxis.forward > 0 ? frameW - 40 : 40
+      if (!role) continue
+      try {
+        ;(n.properties as Record<string, unknown>)['visual:portRole'] = role
+      } catch {
+        void 0
       }
-      const gt = readGroupTarget(n)
-      if (gt) return gt.x
     }
+  }
 
-    const gt = readGroupTarget(n)
-    if (gt) return gt.x
-    
-    if (!disjointLayout) return centerX
-    const comp = disjointLayout.componentByNodeId.get(String(n.id))
-    if (comp == null) return centerX
-    const t = disjointLayout.targetsByComponent.get(comp)
-    return t ? t.x : centerX
-  }
-  const yTarget = (n: GraphNode) => {
-    if (portHandlesEnabled) {
-      const nid = String(n.id)
-      const ind = inDegree.get(nid) || 0
-      const outd = outDegree.get(nid) || 0
-      const role = ind === 0 && outd > 0 ? 'input' : outd === 0 && ind > 0 ? 'output' : null
-      if (portAxis?.axis === 'y') {
-        if (role === 'input') return portAxis.forward > 0 ? 40 : frameH - 40
-        if (role === 'output') return portAxis.forward > 0 ? frameH - 40 : 40
-      }
-      const gt = readGroupTarget(n)
-      if (gt) return gt.y
-    }
-    const gt = readGroupTarget(n)
-    if (gt) return gt.y
-    if (!disjointLayout) return centerY
-    const comp = disjointLayout.componentByNodeId.get(String(n.id))
-    if (comp == null) return centerY
-    const t = disjointLayout.targetsByComponent.get(comp)
-    return t ? t.y : centerY
-  }
+  const groupKeyOf = args.groupKeyOf || createGroupKeyOfNode({ nodes, edges })
 
   const isKeywordGraph = (() => {
       for (let i = 0; i < nodes.length; i += 1) {
@@ -736,13 +562,23 @@ export const updateForceSimulationPresentation = (args: {
       return false
     })()
 
-    const centerStrength = (() => {
-      const raw = schema.layout?.forces?.centerStrength
-      if (typeof raw === 'number' && Number.isFinite(raw)) return raw
-      if (isKeywordGraph) return Math.max(DEFAULT_CENTER_STRENGTH, 0.18)
-      return Math.max(DEFAULT_CENTER_STRENGTH, 0.15)
+    const frameArea = frameW * frameH
+    const idealSpacing = Math.max(48, Math.min(240, Math.sqrt(frameArea / Math.max(1, nodes.length)) * 1.45))
+    const chargeStrength = (() => {
+      const raw = schema.layout?.forces?.charge
+      if (disjointEnabled) {
+        return typeof raw === 'number' && Number.isFinite(raw) ? raw : -30
+      }
+
+      const base = readForceCharge(schema)
+      if (!isKeywordGraph) return base
+      if (typeof raw === 'number' && Number.isFinite(raw)) return base
+      const density = edges.length / Math.max(1, nodes.length)
+      const mag = Math.max(140, Math.min(720, idealSpacing * (density < 0.35 ? 1.8 : 2.6)))
+      return -mag
     })()
-    const anchorStrength = Math.max(0, Math.min(2, disjointStrength)) * 0.08 + Math.max(0, Math.min(2, centerStrength)) * 0.12
+
+    const anchorStrength = computeAnchorStrength2d({ schema, isKeywordGraph, disjointEnabled, disjointStrength })
 
     const collisionRadiusByType = schema.layout?.forces?.collisionByType || {}
     const collideRadiusFn = (d: GraphNode) => {
@@ -753,185 +589,221 @@ export const updateForceSimulationPresentation = (args: {
 
     const collisionCfg = readCollisionConfig(schema)
     const bboxCfg = collisionCfg.nodeBbox
+    const collideIterations = computeCollideIterations(nodes.length)
 
-  simulation.force('center', disjointLayout ? null : d3.forceCenter(centerX, centerY).strength(1))
-  simulation.force('collide', d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.9).iterations(3))
-  simulation.force(
-    'bboxCollide',
-    bboxCfg.enabled
-      ? createBboxCollideForce({
-          schema,
-          paddingX: bboxCfg.paddingX,
-          paddingY: bboxCfg.paddingY,
-          paddingZ: bboxCfg.paddingZ,
-          touchEpsilonPx: bboxCfg.touchEpsilonPx,
-          touchEpsilonXPx: bboxCfg.touchEpsilonXPx,
-          touchEpsilonYPx: bboxCfg.touchEpsilonYPx,
-          touchEpsilonZPx: bboxCfg.touchEpsilonZPx,
-          strength: bboxCfg.strength,
-          iterations: bboxCfg.iterations,
-        })
-      : null,
-  )
-  simulation.force(
-    'groupBboxCollide',
-    collisionCfg.groupBbox.enabled
-      ? (args.groupsForBboxCollide && args.groupsForBboxCollide.length > 0
-          ? createGroupBboxCollideForceByDepth({
-              schema,
-              groups: args.groupsForBboxCollide,
-              paddingX: collisionCfg.groupBbox.paddingX,
-              paddingY: collisionCfg.groupBbox.paddingY,
-              paddingZ: collisionCfg.groupBbox.paddingZ,
-              extraGapPx: collisionCfg.groupBbox.extraGapPx,
-              extraGapZPx: collisionCfg.groupBbox.extraGapZPx,
-              touchEpsilonPx: collisionCfg.groupBbox.touchEpsilonPx,
-              touchEpsilonXPx: collisionCfg.groupBbox.touchEpsilonXPx,
-              touchEpsilonYPx: collisionCfg.groupBbox.touchEpsilonYPx,
-              touchEpsilonZPx: collisionCfg.groupBbox.touchEpsilonZPx,
-              nestedTouchEpsilonPx: collisionCfg.groupBbox.nestedTouchEpsilonPx,
-              nestedTouchEpsilonXPx: collisionCfg.groupBbox.nestedTouchEpsilonXPx,
-              nestedTouchEpsilonYPx: collisionCfg.groupBbox.nestedTouchEpsilonYPx,
-              nestedTouchEpsilonZPx: collisionCfg.groupBbox.nestedTouchEpsilonZPx,
-              strength: collisionCfg.groupBbox.strength,
-              iterations: collisionCfg.groupBbox.iterations,
-            })
-          : createGroupBboxCollideForce({
-              schema,
-              paddingX: collisionCfg.groupBbox.paddingX,
-              paddingY: collisionCfg.groupBbox.paddingY,
-              strength: collisionCfg.groupBbox.strength,
-              iterations: collisionCfg.groupBbox.iterations,
-              groupKeyOf: args.groupKeyOf,
-            }))
-      : null,
-  )
-  simulation.force('x', d3.forceX<GraphNode>(xTarget).strength(anchorStrength))
-  simulation.force('y', d3.forceY<GraphNode>(yTarget).strength(anchorStrength))
-  simulation.force(
-    'disjointComponents',
-    disjointLayout
-      ? createDisjointComponentsForce({
-          schema,
-          disjointLayout,
-          paddingPx: disjointPadding,
-          strength: Math.max(0.02, Math.min(0.6, disjointStrength)),
-          alphaMin: 0.03,
-          tickInterval: 6,
-          maxPairwiseComponents: 90,
-        })
-      : null,
-  )
-  simulation.force('box', () => {
-    const enabled = schema.layout?.forces?.boxForce !== false
-    if (!enabled) return
-    const strength = schema.layout?.forces?.boxForceStrength ?? 0.05
-    const alpha = simulation.alpha()
-    const alphaMinRaw = (schema.layout?.forces as unknown as { boxForceAlphaMin?: number } | undefined)?.boxForceAlphaMin
-    const alphaMin =
-      typeof alphaMinRaw === 'number' && Number.isFinite(alphaMinRaw)
-        ? Math.max(0.0, Math.min(1.0, alphaMinRaw))
-        : 0.12
-    if (alpha < alphaMin) return
-    const k = alpha * strength
-    const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
-    const pad = portHandlesEnabled ? 20 : 28
-    const minX = centerX - frameW / 2 + pad
-    const minY = centerY - frameH / 2 + pad
-    const maxX = centerX + frameW / 2 - pad
-    const maxY = centerY + frameH / 2 - pad
-    for (const d of nodes) {
-      if (d.x == null || d.y == null) continue
-      const { halfW, halfH } = getNodeHalfExtents2d(d, schema)
-      const loX = minX + halfW
-      const hiX = maxX - halfW
-      const loY = minY + halfH
-      const hiY = maxY - halfH
-      if (d.x < loX) d.vx = (d.vx ?? 0) + (loX - d.x) * k * 2.2
-      if (d.x > hiX) d.vx = (d.vx ?? 0) - (d.x - hiX) * k * 2.2
-      if (d.y < loY) d.vy = (d.vy ?? 0) + (loY - d.y) * k * 2.2
-      if (d.y > hiY) d.vy = (d.vy ?? 0) - (d.y - hiY) * k * 2.2
+  const sortedKeyFromRecord = (rec: Record<string, unknown>): string => {
+    const keys = Object.keys(rec)
+    keys.sort()
+    const parts: string[] = []
+    for (let i = 0; i < keys.length; i += 1) {
+      const k = keys[i]!
+      const v = rec[k]
+      parts.push(`${k}=${typeof v === 'number' && Number.isFinite(v) ? v : String(v)}`)
     }
+    return parts.join(',')
+  }
+
+  const collideKey = (() => {
+    if (disjointEnabled) return 'disjoint'
+    const byType = typeof schema.layout?.forces?.collisionByType === 'object' && schema.layout?.forces?.collisionByType
+      ? (schema.layout.forces.collisionByType as Record<string, unknown>)
+      : {}
+    return `iter=${collideIterations}|byType=${sortedKeyFromRecord(byType)}`
+  })()
+
+  const bboxKey = (() => {
+    if (disjointEnabled || !bboxCfg.enabled) return ''
+    const nums = [
+      bboxCfg.paddingX,
+      bboxCfg.paddingY,
+      bboxCfg.paddingZ,
+      bboxCfg.touchEpsilonPx,
+      bboxCfg.touchEpsilonXPx,
+      bboxCfg.touchEpsilonYPx,
+      bboxCfg.touchEpsilonZPx,
+      bboxCfg.strength,
+      bboxCfg.iterations,
+    ]
+    return nums.map(v => (typeof v === 'number' && Number.isFinite(v) ? String(v) : '')).join(',')
+  })()
+
+  const groupBboxKey = (() => {
+    if (disjointEnabled || !collisionCfg.groupBbox.enabled) return ''
+    const g = collisionCfg.groupBbox
+    const nums = [
+      g.paddingX,
+      g.paddingY,
+      g.paddingZ,
+      g.extraGapPx,
+      g.extraGapZPx,
+      g.touchEpsilonPx,
+      g.touchEpsilonXPx,
+      g.touchEpsilonYPx,
+      g.touchEpsilonZPx,
+      g.nestedTouchEpsilonPx,
+      g.nestedTouchEpsilonXPx,
+      g.nestedTouchEpsilonYPx,
+      g.nestedTouchEpsilonZPx,
+      g.strength,
+      g.iterations,
+    ]
+    const byDepth = !!(args.groupsForBboxCollide && args.groupsForBboxCollide.length > 0)
+    return `${byDepth ? 'depth' : 'flat'}|${nums
+      .map(v => (typeof v === 'number' && Number.isFinite(v) ? String(v) : ''))
+      .join(',')}`
+  })()
+
+  const signature: SimulationPresentationSignature = {
+    disjointEnabled,
+    chargeStrength,
+    anchorStrength,
+    centerX,
+    centerY,
+    bboxEnabled: !disjointEnabled && bboxCfg.enabled,
+    groupBboxEnabled: !disjointEnabled && collisionCfg.groupBbox.enabled,
+    collideEnabled: !disjointEnabled,
+    collideIterations,
+    collideKey,
+    bboxKey,
+    groupBboxKey,
+  }
+  const prevSignature = presentationSignatureCache.get(simulation as unknown as object) || null
+  const shouldReheat =
+    !!prevSignature &&
+    (prevSignature.disjointEnabled !== signature.disjointEnabled ||
+      Math.abs(prevSignature.chargeStrength - signature.chargeStrength) > 1e-6 ||
+      Math.abs(prevSignature.anchorStrength - signature.anchorStrength) > 1e-6 ||
+      Math.abs(prevSignature.centerX - signature.centerX) > 1e-6 ||
+      Math.abs(prevSignature.centerY - signature.centerY) > 1e-6)
+  presentationSignatureCache.set(simulation as unknown as object, signature)
+
+  updateManyBodyForce({
+    simulation,
+    name: 'charge',
+    strength: chargeStrength,
+    distanceMax: disjointEnabled ? Number.POSITIVE_INFINITY : Math.max(frameW, frameH) * 1.2,
   })
-  simulation.force('postFit', () => {
-    const enabled = (schema.layout as unknown as { forces?: { postFitForce?: boolean; postFitStrength?: number; postFitAlphaMax?: number } })?.forces?.postFitForce !== false
-    if (!enabled) return
-    const alpha = simulation.alpha()
-    const alphaMaxRaw = (schema.layout as unknown as { forces?: { postFitAlphaMax?: number } })?.forces?.postFitAlphaMax
-    const alphaMax = typeof alphaMaxRaw === 'number' && Number.isFinite(alphaMaxRaw) ? Math.max(0.01, Math.min(0.4, alphaMaxRaw)) : 0.095
-    if (alpha > alphaMax) return
-    const strengthRaw = (schema.layout as unknown as { forces?: { postFitStrength?: number } })?.forces?.postFitStrength
-    const strength = typeof strengthRaw === 'number' && Number.isFinite(strengthRaw) ? Math.max(0, Math.min(0.6, strengthRaw)) : 0.28
-    const k = Math.max(0.00001, strength) * Math.max(0.02, alphaMax)
-    const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
-    const pad = portHandlesEnabled ? 28 : 48
 
-    let minX = Infinity
-    let maxX = -Infinity
-    let minY = Infinity
-    let maxY = -Infinity
-    let sumX = 0
-    let sumY = 0
-    let count = 0
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]
-      const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-      const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-      if (x == null || y == null) continue
-      if (x < minX) minX = x
-      if (x > maxX) maxX = x
-      if (y < minY) minY = y
-      if (y > maxY) maxY = y
-      sumX += x
-      sumY += y
-      count += 1
+  const desiredCollideEnabled = !disjointEnabled
+  const desiredBboxEnabled = !disjointEnabled && bboxCfg.enabled
+  const desiredGroupBboxEnabled = !disjointEnabled && collisionCfg.groupBbox.enabled
+
+  const shouldUpdateCollide = (() => {
+    if (!prevSignature) {
+      const existing = simulation.force('collide')
+      return desiredCollideEnabled ? !existing : !!existing
     }
-    if (count < 3 || minX === Infinity) return
-
-    const spanX = Math.max(1e-6, maxX - minX)
-    const spanY = Math.max(1e-6, maxY - minY)
-    const targetW = Math.max(1, frameW - pad * 2)
-    const targetH = Math.max(1, frameH - pad * 2)
-    const scale = Math.min(targetW / spanX, targetH / spanY)
-    
-    // Stricter expansion control
-    const desired = scale < 0.9 ? Math.max(0.6, Math.min(0.96, scale)) : scale > 1.15 ? Math.min(1.25, Math.max(1.02, scale)) : 1
-    
-    const cx = sumX / count
-    const cy = sumY / count
-    const tx = centerX
-    const ty = centerY
-    
-    // Centering force
-    const centerK = k * 0.5
-    
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]
-      const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-      const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-      if (x == null || y == null) continue
-      
-      let nx = x
-      let ny = y
-      
-      if (desired !== 1) {
-         nx = tx + (x - cx) * desired
-         ny = ty + (y - cy) * desired
+    return prevSignature.collideEnabled !== signature.collideEnabled || prevSignature.collideKey !== signature.collideKey
+  })()
+  if (shouldUpdateCollide) {
+    if (!desiredCollideEnabled) {
+      simulation.force('collide', null)
+    } else {
+      const existing = simulation.force('collide') as unknown as
+        | { radius?: (fn: (d: GraphNode) => number) => unknown; iterations?: (n: number) => unknown; strength?: (v: number) => unknown }
+        | null
+      const canMutate =
+        !!existing &&
+        typeof existing.radius === 'function' &&
+        typeof existing.iterations === 'function' &&
+        typeof existing.strength === 'function'
+      if (canMutate) {
+        existing.radius!(collideRadiusFn)
+        existing.iterations!(collideIterations)
+        existing.strength!(0.92)
+      } else {
+        simulation.force('collide', d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.92).iterations(collideIterations))
       }
-      
-      // Pull collective centroid to viewport center
-      const driftX = tx - cx
-      const driftY = ty - cy
-      
-      n.vx = (n.vx ?? 0) + (nx - x) * k + driftX * centerK
-      n.vy = (n.vy ?? 0) + (ny - y) * k + driftY * centerK
     }
-  })
+  }
+
+  const shouldUpdateBbox = (() => {
+    if (!prevSignature) {
+      const existing = simulation.force('bboxCollide')
+      return desiredBboxEnabled ? !existing : !!existing
+    }
+    return prevSignature.bboxEnabled !== signature.bboxEnabled || prevSignature.bboxKey !== signature.bboxKey
+  })()
+  if (shouldUpdateBbox) {
+    simulation.force(
+      'bboxCollide',
+      desiredBboxEnabled
+        ? createBboxCollideForce({
+            schema,
+            paddingX: bboxCfg.paddingX,
+            paddingY: bboxCfg.paddingY,
+            paddingZ: bboxCfg.paddingZ,
+            touchEpsilonPx: bboxCfg.touchEpsilonPx,
+            touchEpsilonXPx: bboxCfg.touchEpsilonXPx,
+            touchEpsilonYPx: bboxCfg.touchEpsilonYPx,
+            touchEpsilonZPx: bboxCfg.touchEpsilonZPx,
+            strength: bboxCfg.strength,
+            iterations: bboxCfg.iterations,
+          })
+        : null,
+    )
+  }
+
+  const shouldUpdateGroupBbox = (() => {
+    if (!prevSignature) {
+      const existing = simulation.force('groupBboxCollide')
+      return desiredGroupBboxEnabled ? !existing : !!existing
+    }
+    return (
+      prevSignature.groupBboxEnabled !== signature.groupBboxEnabled || prevSignature.groupBboxKey !== signature.groupBboxKey
+    )
+  })()
+  if (shouldUpdateGroupBbox) {
+    simulation.force(
+      'groupBboxCollide',
+      desiredGroupBboxEnabled
+        ? (args.groupsForBboxCollide && args.groupsForBboxCollide.length > 0
+            ? createGroupBboxCollideForceByDepth({
+                schema,
+                groups: args.groupsForBboxCollide,
+                paddingX: collisionCfg.groupBbox.paddingX,
+                paddingY: collisionCfg.groupBbox.paddingY,
+                paddingZ: collisionCfg.groupBbox.paddingZ,
+                extraGapPx: collisionCfg.groupBbox.extraGapPx,
+                extraGapZPx: collisionCfg.groupBbox.extraGapZPx,
+                touchEpsilonPx: collisionCfg.groupBbox.touchEpsilonPx,
+                touchEpsilonXPx: collisionCfg.groupBbox.touchEpsilonXPx,
+                touchEpsilonYPx: collisionCfg.groupBbox.touchEpsilonYPx,
+                touchEpsilonZPx: collisionCfg.groupBbox.touchEpsilonZPx,
+                nestedTouchEpsilonPx: collisionCfg.groupBbox.nestedTouchEpsilonPx,
+                nestedTouchEpsilonXPx: collisionCfg.groupBbox.nestedTouchEpsilonXPx,
+                nestedTouchEpsilonYPx: collisionCfg.groupBbox.nestedTouchEpsilonYPx,
+                nestedTouchEpsilonZPx: collisionCfg.groupBbox.nestedTouchEpsilonZPx,
+                strength: collisionCfg.groupBbox.strength,
+                iterations: collisionCfg.groupBbox.iterations,
+              })
+            : createGroupBboxCollideForce({
+                schema,
+                paddingX: collisionCfg.groupBbox.paddingX,
+                paddingY: collisionCfg.groupBbox.paddingY,
+                strength: collisionCfg.groupBbox.strength,
+                iterations: collisionCfg.groupBbox.iterations,
+                groupKeyOf,
+              }))
+        : null,
+    )
+  }
+  updatePositioningForce({ simulation, name: 'x', axis: 'x', target: centerX, strength: anchorStrength })
+  updatePositioningForce({ simulation, name: 'y', axis: 'y', target: centerY, strength: anchorStrength })
 
   if (schema.layout?.forces?.alphaDecay != null) {
     simulation.alphaDecay(schema.layout.forces.alphaDecay!)
   }
-  simulation.alphaTarget(0.12).restart()
+  if (shouldReheat) {
+    try {
+      simulation.alphaTarget(0)
+      const alpha = simulation.alpha()
+      const targetAlpha = disjointEnabled ? 0.35 : 0.28
+      simulation.alpha(Math.max(alpha, targetAlpha)).restart()
+    } catch {
+      void 0
+    }
+  }
 }
 
 export const buildNeighborIds = (data: { nodes: GraphNode[]; edges: GraphEdge[] }, selectedNodeId?: string | null) => {

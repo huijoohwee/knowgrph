@@ -97,5 +97,7 @@ export const applyRadialClusterLayout = (
   }
 
   relaxNodesWithCollision({ nodes, edges: edgesForSim, schema, defaultSteps: 6, groupKeyOf, groups })
-  postFitNodesToViewport({ nodes, width: viewW, height: viewH, paddingPx: Math.max(24, Math.floor(padding)) })
+  if (schema.layout?.forces?.postFitForce === true) {
+    postFitNodesToViewport({ nodes, width: viewW, height: viewH, paddingPx: Math.max(24, Math.floor(padding)) })
+  }
 }

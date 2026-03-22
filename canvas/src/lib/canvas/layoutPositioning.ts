@@ -2,7 +2,8 @@ import { hashStringToHex } from '@/lib/hash/stringHash'
 
 type LayoutDatasetGraph = {
   metadata?: unknown
-  nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }>
+  nodes?: Array<{ id?: unknown; type?: unknown; properties?: unknown; metadata?: unknown }>
+  edges?: Array<{ source?: unknown; target?: unknown; label?: unknown; id?: unknown }>
 } | null
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -43,6 +44,35 @@ export const computeLayoutDatasetKey = (args: { graphData: LayoutDatasetGraph; g
     const docPath = typeof nMeta.documentPath === 'string' ? nMeta.documentPath.trim() : ''
     if (docPath) return `doc:${docPath}`
     break
+  }
+
+  const edges = Array.isArray(graphData?.edges) ? graphData!.edges! : []
+  const maxIds = 900
+  const nodeIds: string[] = []
+  const edgePairs: string[] = []
+
+  for (let i = 0; i < nodes.length && nodeIds.length < maxIds; i += 1) {
+    const raw = (nodes[i] as unknown as { id?: unknown })?.id
+    const id = typeof raw === 'string' ? raw.trim() : typeof raw === 'number' && Number.isFinite(raw) ? String(raw) : ''
+    if (id) nodeIds.push(id)
+  }
+
+  for (let i = 0; i < edges.length && edgePairs.length < maxIds; i += 1) {
+    const e = edges[i] as unknown as { source?: unknown; target?: unknown }
+    const s = typeof e?.source === 'string' ? e.source.trim() : typeof e?.source === 'number' && Number.isFinite(e.source) ? String(e.source) : ''
+    const t = typeof e?.target === 'string' ? e.target.trim() : typeof e?.target === 'number' && Number.isFinite(e.target) ? String(e.target) : ''
+    if (!s || !t) continue
+    edgePairs.push(`${s}->${t}`)
+  }
+
+  if (nodeIds.length > 0 || edgePairs.length > 0) {
+    const signature = [
+      `n=${nodes.length}`,
+      `e=${edges.length}`,
+      `ns=${nodeIds.sort().join(',')}`,
+      `es=${edgePairs.sort().join(',')}`,
+    ].join('|')
+    return `shape:${hashStringToHex(signature)}`
   }
 
   return `rev:${rev}`
@@ -89,4 +119,3 @@ export const buildLayoutPositionCacheKey = (args: {
   if (lv) parts.push(lv)
   return parts.join(':')
 }
-

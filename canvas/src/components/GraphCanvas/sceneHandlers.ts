@@ -974,7 +974,26 @@ export const attachSimulationTick = (args: {
       afterRenderFrame({ alpha: simulation.alpha(), tick })
     }
   }
-  simulation.on('tick', renderFrame)
+
+  const raf =
+    typeof (globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame === 'function'
+      ? ((globalThis as unknown as { requestAnimationFrame: (cb: (t: number) => void) => number }).requestAnimationFrame)
+      : ((cb: (t: number) => void) => {
+          return setTimeout(() => cb(Date.now()), 16) as unknown as number
+        })
+
+  let rafPending = false
+  const scheduleRender = () => {
+    if (rafPending) return
+    rafPending = true
+    raf(() => {
+      rafPending = false
+      if (!svgEl.isConnected) return
+      renderFrame()
+    })
+  }
+
+  simulation.on('tick', scheduleRender)
   renderFrame()
 }
 

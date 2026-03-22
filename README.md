@@ -101,6 +101,11 @@ At runtime the pipeline is structured into three phases, as described in `docs/k
 **Canvas Application**
 Navigate to canvas directory, install dependencies, start development server. Access at local development URL with hot module replacement.
 
+```bash
+npm --prefix canvas install
+npm run dev
+```
+
 **Parser Scripts**
 Create virtual environment, install Python requirements, run transformation scripts from repository root.
 
@@ -434,15 +439,15 @@ Validate selection sync between canvas and panels, verify zoom/pan on selection.
 This runbook mirrors the core pipeline (Data Ingestion → Normalization → Schema Application → Visualization → Export) and exercises the responsibilities cataloged in `docs/knowgrph-codebase-audit-catalog.md` and `docs/knowgrph-codebase-raci-audit-catalog.md`. As of 2025-12-16, a repository scan confirms that all rows currently marked ✅ in those catalogs match the implementation and their Recommended Action guidance.
 
 **Step 1: Verify Data Ingestion**
-- From the repository root, run: `cd canvas && pnpm install`.
-- Run canvas ingestion and parser tests: `pnpm run test:ci`.
+- From the repository root, run: `npm --prefix canvas install`.
+- Run canvas ingestion and parser tests: `npm --prefix canvas run test:ci`.
 - What this covers:
   - CSV/JSON/JSON-LD parsing and combined CSV export (`canvas/src/__tests__/roundtrip.test.ts:1-65`, `canvas/src/__tests__/export.test.ts:1-23`).
   - Format auto-detection and loader heuristics (`canvas/src/__tests__/loaderFlow.test.ts:1-14`, `canvas/src/__tests__/parserRegistry.test.ts:1-80`).
   - AI-KG JSON-LD ingestion via worker using `test-data/ai-kg-viz.json` and `test-data/ai-kg-viz-links.json` (`canvas/src/__tests__/roundtrip.test.ts:67-152`, `canvas/src/__tests__/roundtrip.test.ts:458-525`).
 
 **Step 2: Verify Normalization**
-- Still in `canvas`, reuse `pnpm run test:ci`.
+- Still in `canvas`, reuse `npm run test:ci`.
 - Focus on tests that assert normalized `GraphData` structure:
   - Graph validation and metrics on the unicorn dataset using `test-data/unicorn-investors-top-3-test.json` (`canvas/src/__tests__/graphValidation.test.ts:94-152`).
   - Structural JSON-LD to GraphData conversions for AI-KG fixtures (`canvas/src/__tests__/roundtrip.test.ts:118-345`).
@@ -452,27 +457,27 @@ This runbook mirrors the core pipeline (Data Ingestion → Normalization → Sch
 - These commands confirm that canonical JSON/JSON-LD inputs normalize into consistent `GraphData` nodes/edges across both knowgrph_parser and canvas.
 
 **Step 3: Verify Schema Application**
-- In `canvas`, `pnpm run test:ci` exercises schema defaults and validation:
+- In `canvas`, `npm run test:ci` exercises schema defaults and validation:
   - Schema defaults and behavior flags (`canvas/src/__tests__/schema.test.ts:1-25`).
   - Schema-driven validation rules and error reporting (`canvas/src/__tests__/graphValidation.test.ts:64-92`).
   - Settings registry behavior for schema-related UI controls (`canvas/src/__tests__/settings.test.ts:1-15`).
 - Manual check (optional but recommended):
-  - Start dev server: `pnpm run dev`.
+  - Start dev server: `npm run dev`.
   - Load `test-data/ai-kg-viz.json` and import `schema-config/ai-kg-viz-schema.json`.
   - Confirm node/edge styling, layout, and validation behavior match expectations described in the Schema and Visualization workflow sections above.
 
 **Step 4: Verify Visualization**
-- Automated checks via `pnpm run test:ci`:
+- Automated checks via `npm run test:ci`:
   - GraphCanvas and ThreeGraph consumption of generic `GraphData` (smoke-checked via selection, traversal, and export tests: `canvas/src/__tests__/graphRagTraversal.test.ts:1-69`, `canvas/src/__tests__/roundtrip.test.ts:458-525`).
   - Minimap view rectangle math and unified panel exports (`canvas/src/__tests__/minimap.test.ts:1-17`, `canvas/src/__tests__/panel.test.ts:1-7`).
-- Manual checks (requires `pnpm run dev`):
+- Manual checks (requires `npm run dev`):
   - Use workflow presets to load AI-KG and unicorn demos, then:
     - Switch between 2D and 3D modes.
     - Adjust render and layout settings in the bottom panel.
     - Trigger AI-KG traversal to verify stepwise highlighting of `graphRAGPath.traverse`.
 
 **Step 5: Verify Export and Round-Trip**
-- In `canvas`, `pnpm run test:ci` covers:
+- In `canvas`, `npm run test:ci` covers:
   - Combined CSV and GraphML/Cypher export (`canvas/src/__tests__/roundtrip.test.ts:1-65`).
 - JSON-LD round-trip for generic graphs and AI-KG fixtures (`canvas/src/__tests__/roundtrip.test.ts:67-152`).
 - On the Python side, from the repo root run:

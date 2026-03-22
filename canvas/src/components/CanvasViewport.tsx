@@ -12,9 +12,25 @@ import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 
 import { InfiniteCanvasWorkspaceOverlay } from '@/features/canvas/InfiniteCanvasWorkspaceOverlay'
 
-const GeospatialOverlayHostLazy = React.lazy(async () => {
-  const m = await import('gympgrph')
-  return { default: m.GeospatialOverlayHost }
+type GeospatialOverlayHostProps = {
+  active?: boolean
+  snapshot?: unknown
+  handlers?: unknown
+}
+
+const MissingGeospatialOverlayHost = React.memo(function MissingGeospatialOverlayHost(_props: GeospatialOverlayHostProps) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-700 dark:text-gray-200 bg-white/70 dark:bg-black/40">
+      Geospatial overlay unavailable
+    </div>
+  )
+})
+
+const GeospatialOverlayHostLazy = React.lazy(async (): Promise<{ default: React.ComponentType<GeospatialOverlayHostProps> }> => {
+  const m = (await import('gympgrph')) as unknown as Record<string, unknown>
+  const c = m.GeospatialOverlayHost as unknown
+  if (!c) return { default: MissingGeospatialOverlayHost }
+  return { default: c as React.ComponentType<GeospatialOverlayHostProps> }
 })
 
 const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
@@ -226,45 +242,34 @@ export function CanvasViewport(props: CanvasViewportProps) {
       .catch(() => void 0)
   }, [geospatialModeEnabled, selectedEdgeId, selectedNodeId, selectedNodeIds, viewPinned, zoomToSelectionMode])
 
-  const render2dLayer = React.useCallback(
-    (
-      id: Canvas2dRendererId,
-      enabled: boolean,
-      LazyComponent: React.ComponentType<{ active?: boolean }>,
-    ) => {
-      if (!enabled) return null
-      const active = activeSurface === '2d' && canvas2dRenderer === id
-      return (
-        <div
-          key={id}
-          className={`absolute inset-0 ${active ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}
-          aria-hidden={!active}
-        >
-          <LazyComponent active={active} />
-        </div>
-      )
-    },
-    [activeSurface, canvas2dRenderer],
-  )
-
   return (
     <section ref={rootRef} className="relative w-full h-full overflow-hidden" aria-label={variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}>
       <React.Suspense fallback={null}>
-        <div className="absolute inset-0 z-[10]">
-          {render2dLayer('d3', mounted2dRenderers.d3, GraphCanvasLazy)}
-          {render2dLayer('flow', mounted2dRenderers.flow, FlowCanvasLazy)}
-          {render2dLayer('design', mounted2dRenderers.design, DesignCanvasLazy)}
-          {render2dLayer('flowEditor', mounted2dRenderers.flowEditor, FlowEditorCanvasLazy)}
-        </div>
+        {!geospatialModeEnabled && canvasRenderMode === '2d' && (
+          <div className="absolute inset-0 z-[10]">
+            <div className={`absolute inset-0 ${canvas2dRenderer === 'd3' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={canvas2dRenderer !== 'd3'}>
+              {mounted2dRenderers.d3 ? <GraphCanvasLazy active={canvas2dRenderer === 'd3'} /> : null}
+            </div>
+            <div className={`absolute inset-0 ${canvas2dRenderer === 'flow' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={canvas2dRenderer !== 'flow'}>
+              {mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} /> : null}
+            </div>
+            <div className={`absolute inset-0 ${canvas2dRenderer === 'design' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={canvas2dRenderer !== 'design'}>
+              {mounted2dRenderers.design ? <DesignCanvasLazy active={canvas2dRenderer === 'design'} /> : null}
+            </div>
+            <div className={`absolute inset-0 ${canvas2dRenderer === 'flowEditor' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={canvas2dRenderer !== 'flowEditor'}>
+              {mounted2dRenderers.flowEditor ? <FlowEditorCanvasLazy active={canvas2dRenderer === 'flowEditor'} /> : null}
+            </div>
+          </div>
+        )}
 
-        {threeWarmed ? (
+        {!geospatialModeEnabled && canvasRenderMode === '3d' && threeWarmed ? (
           <div className={`absolute inset-0 z-[10] ${activeSurface === '3d' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
             <ThreeGraphLazy active={activeSurface === '3d'} />
           </div>
         ) : null}
 
         {geospatialWarmed ? (
-          <div className={`absolute inset-0 z-[10] ${activeSurface === 'geo' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
+          <div className={`absolute inset-0 z-[20] ${activeSurface === 'geo' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
             <GeospatialOverlayHostLazy
               active={activeSurface === 'geo'}
               snapshot={{
@@ -293,7 +298,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
         {variant === 'workspace' ? (
           <>
             {layout === 'full' ? <LaunchSpotlight /> : null}
-            {activeSurface === '2d' && !isNarrowViewport && (canvas2dRenderer === 'd3' || canvas2dRenderer === 'flow' || canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'design') ? (
+            {!geospatialModeEnabled && activeSurface === '2d' && !isNarrowViewport && (canvas2dRenderer === 'd3' || canvas2dRenderer === 'flow' || canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'design') ? (
               <aside
                 className={`${layout === 'pane' ? 'absolute' : 'fixed'} left-3 z-[201] pointer-events-auto`}
                 style={layout === 'pane' ? undefined : { bottom: 'calc(40px + 12px)' }}

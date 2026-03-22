@@ -1,6 +1,5 @@
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
-
-const EDGE_LABELS_THAT_DEFINE_PARENT = new Set(['hasSection', 'hasBlock', 'hasItem', 'embedsImage'])
+import { DOCUMENT_CONTAINMENT_EDGE_LABELS } from '@/lib/graph/documentContainmentEdgeLabels'
 
 export type GroupKeyOfNode = (n: GraphNode) => string | null
 
@@ -27,31 +26,46 @@ export function createGroupKeyOfNode(args: { nodes: GraphNode[]; edges: GraphEdg
   for (let i = 0; i < args.edges.length; i += 1) {
     const e = args.edges[i]
     const lbl = String(e.label || '')
-    if (!EDGE_LABELS_THAT_DEFINE_PARENT.has(lbl)) continue
+    if (!DOCUMENT_CONTAINMENT_EDGE_LABELS.has(lbl)) continue
     const src = coerceEndpointId(e.source)
     const tgt = coerceEndpointId(e.target)
     if (!src || !tgt) continue
     if (!parentOf.has(tgt)) parentOf.set(tgt, src)
   }
 
+  const topSectionCache = new Map<string, string | null>()
+
   const topSectionOf = (nodeId: string): string | null => {
     if (!sectionIds.size) return null
-    const seen = new Set<string>()
+    const cached = topSectionCache.get(nodeId)
+    if (cached !== undefined) return cached
+
+    const visited: string[] = []
     let cur: string | null = nodeId
     let section: string | null = null
-    while (cur && !seen.has(cur)) {
-      seen.add(cur)
+    while (cur) {
+      if (topSectionCache.has(cur)) {
+        section = topSectionCache.get(cur) || null
+        break
+      }
+      visited.push(cur)
       if (sectionIds.has(cur)) section = cur
       cur = parentOf.get(cur) || null
     }
-    if (!section) return null
+    if (!section) {
+      for (let i = 0; i < visited.length; i += 1) topSectionCache.set(visited[i]!, null)
+      return null
+    }
     cur = section
     while (cur) {
       const p = parentOf.get(cur)
       if (!p || !sectionIds.has(p)) break
       cur = p
     }
-    return cur || section
+
+    const top = cur || section
+    for (let i = 0; i < visited.length; i += 1) topSectionCache.set(visited[i]!, top)
+    return top
   }
 
   const groupKeyOf: GroupKeyOfNode = (n: GraphNode): string | null => {
@@ -66,36 +80,3 @@ export function createGroupKeyOfNode(args: { nodes: GraphNode[]; edges: GraphEdg
 
   return groupKeyOf
 }
-
-export function computeGroupTargets(args: { nodes: GraphNode[]; groupKeyOf: GroupKeyOfNode }): {
-  readGroupTarget: (n: GraphNode) => { x: number; y: number } | null
-} {
-  const groupAcc = new Map<string, { sx: number; sy: number; n: number }>()
-  for (let i = 0; i < args.nodes.length; i += 1) {
-    const n = args.nodes[i]
-    const id = String(n.id)
-    if (!id) continue
-    const gid = args.groupKeyOf(n)
-    if (!gid) continue
-    const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-    const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-    if (x == null || y == null) continue
-    const prev = groupAcc.get(gid) || { sx: 0, sy: 0, n: 0 }
-    groupAcc.set(gid, { sx: prev.sx + x, sy: prev.sy + y, n: prev.n + 1 })
-  }
-
-  const groupTarget = new Map<string, { x: number; y: number }>()
-  groupAcc.forEach((v, gid) => {
-    if (v.n <= 0) return
-    groupTarget.set(gid, { x: v.sx / v.n, y: v.sy / v.n })
-  })
-
-  const readGroupTarget = (n: GraphNode): { x: number; y: number } | null => {
-    const gid = args.groupKeyOf(n)
-    if (!gid) return null
-    return groupTarget.get(gid) || null
-  }
-
-  return { readGroupTarget }
-}
-

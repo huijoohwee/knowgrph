@@ -37,6 +37,8 @@ const ensurePeerSymlinks = () => {
       linkPeer(nodeModulesDir, 'react')
       linkPeer(nodeModulesDir, 'react-dom')
       linkPeer(nodeModulesDir, 'grph-shared')
+      linkPeer(nodeModulesDir, 'zustand')
+      linkPeer(nodeModulesDir, 'maplibre-gl')
     }
 
     ensureForPackage('gympgrph')

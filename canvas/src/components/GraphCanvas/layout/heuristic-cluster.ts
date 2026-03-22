@@ -188,5 +188,7 @@ export const applyClusterAwareHeuristicSeedLayout = (args: {
     placeCluster(entries[idx].nodes, cx, cy)
   }
 
-  postFitNodesToViewport({ nodes, width: w, height: h, paddingPx: Math.max(24, Math.floor(nodeSpacing * 0.6)) })
+  if (schema.layout?.forces?.postFitForce === true) {
+    postFitNodesToViewport({ nodes, width: w, height: h, paddingPx: Math.max(24, Math.floor(nodeSpacing * 0.6)) })
+  }
 }

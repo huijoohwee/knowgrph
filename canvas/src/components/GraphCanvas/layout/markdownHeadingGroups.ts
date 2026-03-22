@@ -1,5 +1,6 @@
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
+import { DOCUMENT_CONTAINMENT_EDGE_LABELS } from '@/lib/graph/documentContainmentEdgeLabels'
 
 const isHeadingSectionNode = (n: GraphNode): boolean => {
   if (String(n.type || '') !== 'Section') return false
@@ -10,7 +11,7 @@ const isHeadingSectionNode = (n: GraphNode): boolean => {
 const isSectionEdge = (e: GraphEdge): boolean => String(e.label || '') === 'hasSection'
 const isBlockEdge = (e: GraphEdge): boolean => String(e.label || '') === 'hasBlock'
 const isItemEdge = (e: GraphEdge): boolean => String(e.label || '') === 'hasItem'
-const isImageEdge = (e: GraphEdge): boolean => String(e.label || '') === 'embedsImage'
+const isContainmentEdge = (e: GraphEdge): boolean => DOCUMENT_CONTAINMENT_EDGE_LABELS.has(String(e.label || ''))
 
 export const deriveMarkdownHeadingGroups = (data: GraphData): GraphGroup[] => {
   const nodes = Array.isArray(data.nodes) ? data.nodes : []
@@ -80,7 +81,7 @@ export const deriveMarkdownHeadingGroups = (data: GraphData): GraphGroup[] => {
     const sectionOut = outEdgesBySrc.get(sectionId) || []
     for (let i = 0; i < sectionOut.length; i += 1) {
       const e = sectionOut[i]
-      if (isBlockEdge(e) || isImageEdge(e)) {
+      if (isContainmentEdge(e) && !isSectionEdge(e)) {
         visitNode(String(e.target || ''))
       } else if (isSectionEdge(e)) {
         const childId = String(e.target || '')

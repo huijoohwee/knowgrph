@@ -2,6 +2,7 @@ import { execTest, TestResult } from './testRunnerUtils'
 
 const modSchema = () => import('@/__tests__/schema.test')
 const modLayoutPositioning = () => import('@/__tests__/layoutPositioning.test')
+const modLayoutDatasetKeyStable = () => import('@/__tests__/layoutDatasetKeyStable.test')
 
 export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'schema.validateDefaults', async () => {
@@ -43,6 +44,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'layout.positioning.variantChangeForcesLayout', async () => {
     const mod = await modLayoutPositioning()
     await mod.testLayoutPositioningForcesLayoutWhenVariantChanges()
+  })
+  await execTest(results, 'layout.datasetKey.stableAcrossRevision', async () => {
+    const mod = await modLayoutDatasetKeyStable()
+    await mod.testLayoutDatasetKeyStableAcrossRevision()
   })
   await execTest(results, 'schema.tabEnterText', async () => {
     const mod = await modSchema()
