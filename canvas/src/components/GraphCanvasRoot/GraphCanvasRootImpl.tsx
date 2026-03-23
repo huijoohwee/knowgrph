@@ -21,6 +21,7 @@ import { MarkdownDesignOverlay } from '@/features/markdown-edgeless/MarkdownDesi
 import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { deriveMarkdownDesignLayout, MARKDOWN_DESIGN_LAYOUT, type MarkdownDesignBlock, type MarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
+import { useOverlayInteractions2d } from '@/components/GraphCanvasRoot/hooks/useOverlayInteractions2d'
 import { InfiniteGridCanvasOverlay } from '@/components/InfiniteGridCanvasOverlay'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
@@ -700,6 +701,16 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     sceneHeight,
   })
 
+  const overlayInteractions = useOverlayInteractions2d({
+    activeRef,
+    svgRef,
+    zoomRef,
+    simulationRef,
+    sceneGraphDataRef,
+    schemaRef: schemaRef as unknown as React.MutableRefObject<GraphSchema>,
+    requestOverlaySchedule: richMedia.requestMediaOverlaySchedule,
+  })
+
   useD3GraphScene2d({
     active,
     activeRef,
@@ -891,13 +902,13 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         getOverlayRefForId={richMedia.getOverlayRefForId}
         svgRef={svgRef}
         renderMediaAsNodes={renderMediaAsNodes === true}
-        stopEvent={richMedia.stopEvent}
-        onOverlayPanStart={richMedia.startMediaOverlayPan}
-        onOverlayPan={richMedia.moveMediaOverlayPan}
-        onOverlayPanEnd={richMedia.endMediaOverlayPan}
-        onHeaderDragStart={({ id, clientX, clientY }) => richMedia.beginMediaHeaderDrag(id, clientX, clientY)}
-        onHeaderDrag={({ dx, dy }) => richMedia.moveMediaHeaderDrag(dx, dy)}
-        onHeaderDragEnd={() => richMedia.endMediaHeaderDrag()}
+        stopEvent={overlayInteractions.stopEvent}
+        onOverlayPanStart={overlayInteractions.startOverlayPan}
+        onOverlayPan={overlayInteractions.moveOverlayPan}
+        onOverlayPanEnd={overlayInteractions.endOverlayPan}
+        onHeaderDragStart={({ id, clientX, clientY }) => overlayInteractions.beginHeaderDrag(id, clientX, clientY)}
+        onHeaderDrag={({ dx, dy }) => overlayInteractions.moveHeaderDrag(dx, dy)}
+        onHeaderDragEnd={() => overlayInteractions.endHeaderDrag()}
       />
       <MarqueeBoxOverlay marqueeBox={marquee.marqueeBox} />
       <GraphHoverTooltip
@@ -917,13 +928,13 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         layoutOverride={graphBlockPanel?.layout || markdownDesignLayout || null}
         anchorNodeIdByBlockId={markdownAnchorNodeIdByBlockId}
         getNodeWorldCenterForId={getNodeWorldCenterForId}
-        stopEvent={richMedia.stopEvent}
-        onOverlayPanStart={richMedia.startMediaOverlayPan}
-        onOverlayPan={richMedia.moveMediaOverlayPan}
-        onOverlayPanEnd={richMedia.endMediaOverlayPan}
-        onHeaderDragStart={({ id, clientX, clientY }) => richMedia.beginMediaHeaderDrag(id, clientX, clientY)}
-        onHeaderDrag={({ dx, dy }) => richMedia.moveMediaHeaderDrag(dx, dy)}
-        onHeaderDragEnd={() => richMedia.endMediaHeaderDrag()}
+        stopEvent={overlayInteractions.stopEvent}
+        onOverlayPanStart={overlayInteractions.startOverlayPan}
+        onOverlayPan={overlayInteractions.moveOverlayPan}
+        onOverlayPanEnd={overlayInteractions.endOverlayPan}
+        onHeaderDragStart={({ id, clientX, clientY }) => overlayInteractions.beginHeaderDrag(id, clientX, clientY)}
+        onHeaderDrag={({ dx, dy }) => overlayInteractions.moveHeaderDrag(dx, dy)}
+        onHeaderDragEnd={() => overlayInteractions.endHeaderDrag()}
       />
     </main>
   )

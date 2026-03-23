@@ -7,11 +7,13 @@ import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
+import { getGraphDataForDisplay } from '@/components/GraphCanvas/displayFilter'
 
 import { applyGraphCanvasStyles2d } from '@/components/GraphCanvas/useGraphCanvasStyles'
 import type { MarkdownDesignBlock } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { injectMarkdownDesignBlocksIntoSvgEl } from '@/lib/graph/htmlViewer/markdownDesignSvgOverlay'
 import { looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
+import { DEFAULT_OVERLAY_SIZING_CONFIG } from '@/lib/render/overlaySizing2d'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
@@ -72,6 +74,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     graphData,
     graphDataRevision: typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? Math.floor(graphDataRevision) : 0,
   })
+  const effectiveGraphDataRevision = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? Math.floor(graphDataRevision) : 0
   const layoutMode = readLayoutMode(schema)
   const semanticModeKey = String(layoutSemanticModeKey || documentSemanticMode || 'document')
   const layoutViewKey = buildLayoutViewKey({
@@ -277,10 +280,13 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     return out
   })()
 
-  const edgesForSim = normalizeEdgesForSim((graphData.nodes ?? []) as any, (graphData.edges ?? []) as any)
+  const graphDataForDisplay = getGraphDataForDisplay({ graphData, edges: null })
+  const displayNodes = (graphDataForDisplay.nodes ?? []) as any
+  const displayEdges = (graphDataForDisplay.edges ?? []) as any
+  const edgesForSim = normalizeEdgesForSim(displayNodes, displayEdges)
   const groupsDerivation = deriveSceneGroups({
-    graphData,
-    graphDataRevision: 0,
+    graphData: graphDataForDisplay,
+    graphDataRevision: effectiveGraphDataRevision,
     schema,
     documentSemanticMode,
     frontmatterModeEnabled,
@@ -294,7 +300,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
         ...baseOpts,
         centerMode: 'centroid',
         schema,
-        graphData,
+        graphData: graphDataForDisplay,
         deriveGroupsOptions: { forceDocumentStructure: documentSemanticMode === 'document' },
       }
       const t = fitAllTransform((graphData.nodes ?? []) as any, Math.max(1, widthPx), Math.max(1, Math.floor(heightPx)), opts as any)
@@ -329,7 +335,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     svgEl,
     svgRef,
     graphData,
-    graphDataRevision: 0,
+    graphDataRevision: effectiveGraphDataRevision,
     schema,
     documentSemanticMode,
     edgesForSim,
@@ -344,28 +350,34 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     overlayBaseWidthRatioDefault:
       typeof overlayBaseWidthRatioDefault === 'number' && Number.isFinite(overlayBaseWidthRatioDefault)
         ? Math.max(0.001, overlayBaseWidthRatioDefault)
-        : 0.2,
+        : DEFAULT_OVERLAY_SIZING_CONFIG.widthRatio,
     overlayBaseWidthRatioCompact:
       typeof overlayBaseWidthRatioCompact === 'number' && Number.isFinite(overlayBaseWidthRatioCompact)
         ? Math.max(0.001, overlayBaseWidthRatioCompact)
-        : 0.2,
+        : DEFAULT_OVERLAY_SIZING_CONFIG.widthRatio,
     overlayBaseWidthMinPxDefault:
       typeof overlayBaseWidthMinPxDefault === 'number' && Number.isFinite(overlayBaseWidthMinPxDefault)
         ? Math.max(1, Math.floor(overlayBaseWidthMinPxDefault))
-        : 210,
+        : DEFAULT_OVERLAY_SIZING_CONFIG.widthMinPx,
     overlayBaseWidthMinPxCompact:
       typeof overlayBaseWidthMinPxCompact === 'number' && Number.isFinite(overlayBaseWidthMinPxCompact)
         ? Math.max(1, Math.floor(overlayBaseWidthMinPxCompact))
-        : 210,
+        : DEFAULT_OVERLAY_SIZING_CONFIG.widthMinPx,
     overlayBaseWidthMaxPxDefault:
       typeof overlayBaseWidthMaxPxDefault === 'number' && Number.isFinite(overlayBaseWidthMaxPxDefault)
         ? Math.max(1, Math.floor(overlayBaseWidthMaxPxDefault))
-        : 360,
+        : DEFAULT_OVERLAY_SIZING_CONFIG.widthMaxPx,
     overlayBaseWidthMaxPxCompact:
       typeof overlayBaseWidthMaxPxCompact === 'number' && Number.isFinite(overlayBaseWidthMaxPxCompact)
         ? Math.max(1, Math.floor(overlayBaseWidthMaxPxCompact))
-        : 360,
-    enableTightInitialLayout: !hasStablePositions,
+        : DEFAULT_OVERLAY_SIZING_CONFIG.widthMaxPx,
+    enableTightInitialLayout: (() => {
+      const nodesCount = Array.isArray(graphData?.nodes) ? graphData.nodes.length : 0
+      const edgesCount = Array.isArray(graphData?.edges) ? graphData.edges.length : 0
+      if (nodesCount > 2600) return false
+      if (edgesCount > 8200) return false
+      return true
+    })(),
     fitToScreenMode: false,
     viewportControlsPreset,
     initialZoomTransform,
@@ -424,8 +436,10 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
       } catch {
         void 0
       }
-      const ticks = Math.min(520, Math.max(80, Math.floor(((graphData.nodes?.length || 0) + (graphData.edges?.length || 0)) * 6)))
-      for (let i = 0; i < ticks; i += 1) sim.tick()
+      const maxTicks = Math.min(520, Math.max(80, Math.floor(((graphData.nodes?.length || 0) + (graphData.edges?.length || 0)) * 6)))
+      let i = 0
+      const minAlpha = typeof sim.alphaMin === 'function' ? sim.alphaMin() : 0.001
+      for (; i < maxTicks && sim.alpha() > minAlpha; i += 1) sim.tick()
     }
     const tickHandler = sim?.on('tick')
     if (typeof tickHandler === 'function') tickHandler()

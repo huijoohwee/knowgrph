@@ -22,10 +22,11 @@ export function createResizeHandlesLayer(args: {
   getSchema: () => GraphSchema
   nodes: GraphNode[]
   getSelectedNodeId: () => string | null
+  hiddenNodeIdSet?: Set<string> | null
   enabled: boolean
   commitResize: (args: { id: string; width: number; height: number; properties: Record<string, JSONValue> }) => void
 }) {
-  const { g, svgRef, getSchema, nodes, getSelectedNodeId, enabled, commitResize } = args
+  const { g, svgRef, getSchema, nodes, getSelectedNodeId, enabled, commitResize, hiddenNodeIdSet } = args
   const layer = g.append('g').attr('data-kg-layer', 'resize-handles').style('display', 'none')
   const outline = layer
     .append('rect')
@@ -64,6 +65,10 @@ export function createResizeHandlesLayer(args: {
       layer.style('display', 'none')
       return
     }
+    if (hiddenNodeIdSet && hiddenNodeIdSet.has(selectedId)) {
+      layer.style('display', 'none')
+      return
+    }
     const node = nodes.find(n => String(n.id || '') === selectedId) || null
     if (!node) {
       layer.style('display', 'none')
@@ -98,6 +103,7 @@ export function createResizeHandlesLayer(args: {
     if (!enabled) return
     const selectedId = getSelectedNodeId()
     if (!selectedId) return
+    if (hiddenNodeIdSet && hiddenNodeIdSet.has(selectedId)) return
     const node = nodes.find(n => String(n.id || '') === selectedId) || null
     if (!node) return
     const schema = getSchema()

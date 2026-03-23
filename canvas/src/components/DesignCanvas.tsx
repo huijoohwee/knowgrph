@@ -25,6 +25,7 @@ import { computeEvenlyDistributedPositions } from '@/lib/canvas/evenDistribute'
 import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/canvas/arrangeShortcuts'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } from '@/lib/canvas/camera-options-2d'
+import { computeOverlayDraggedPoint2d, computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
 import { shouldStartSelectionDragForPreset } from '@/lib/canvas/viewport-controls'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { computeGroupResizeBottomRight, computeMinGroupResizeSize } from '@/lib/canvas/groupResizeMath2d'
@@ -150,11 +151,13 @@ export default function DesignCanvas({
     if (!svgEl || !zoom) return
     const st = useGraphStore.getState()
     disableAutoZoomModesForUserGesture(st)
-    const interactionSpeed =
-      clampCanvasPanSpeedMultiplier(st.canvasPanSpeedMultiplier) * clampCanvasInteractionSpeedMultiplier(st.canvasInteractionSpeedMultiplier)
-    const next = d3.zoomIdentity
-      .translate(drag.startTransform.x + args.dx * interactionSpeed, drag.startTransform.y + args.dy * interactionSpeed)
-      .scale(drag.startTransform.k)
+    const next = computeOverlayPanTransform2d({
+      startTransform: drag.startTransform,
+      dxClientPx: args.dx,
+      dyClientPx: args.dy,
+      canvasPanSpeedMultiplier: st.canvasPanSpeedMultiplier,
+      canvasInteractionSpeedMultiplier: st.canvasInteractionSpeedMultiplier,
+    })
     d3.select(svgEl).call(zoom.transform as never, next)
   }, [])
 
@@ -3985,8 +3988,21 @@ export default function DesignCanvas({
                 onHeaderDrag={({ dx, dy, pointerId }) => {
                   const st = designMediaHeaderDragRef.current
                   if (!st || st.id !== n.id || st.pointerId !== pointerId) return
-                  const k = Number.isFinite(st.startK) && st.startK > 0 ? st.startK : 1
-                  setDesignFramePosMany({ [n.id]: { x: st.startX + dx / k, y: st.startY + dy / k } })
+                  const schema = (snapshot as unknown as { schema?: unknown }).schema || (useGraphStore.getState() as unknown as { schema?: unknown }).schema
+                  if (!schema) {
+                    const k = Number.isFinite(st.startK) && st.startK > 0 ? st.startK : 1
+                    setDesignFramePosMany({ [n.id]: { x: st.startX + dx / k, y: st.startY + dy / k } })
+                    return
+                  }
+                  const p = computeOverlayDraggedPoint2d({
+                    baseX: st.startX,
+                    baseY: st.startY,
+                    dxClientPx: dx,
+                    dyClientPx: dy,
+                    zoomK: st.startK,
+                    schema: schema as GraphSchema,
+                  })
+                  setDesignFramePosMany({ [n.id]: { x: p.x, y: p.y } })
                 }}
                 onHeaderDragEnd={({ pointerId }) => {
                   const st = designMediaHeaderDragRef.current

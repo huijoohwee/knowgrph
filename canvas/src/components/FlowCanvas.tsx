@@ -62,6 +62,7 @@ import RichMediaPanel from '@/components/RichMediaPanel'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
+import { computeOverlayDraggedPoint2d, computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
 
 const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
 
@@ -490,11 +491,13 @@ export default function FlowCanvas({
     if (!rt) return
     const st = useGraphStore.getState()
     disableAutoZoomModesForUserGesture(st)
-    const interactionSpeed =
-      clampCanvasPanSpeedMultiplier(st.canvasPanSpeedMultiplier) * clampCanvasInteractionSpeedMultiplier(st.canvasInteractionSpeedMultiplier)
-    const next = d3.zoomIdentity
-      .translate(drag.startTransform.x + args.dx * interactionSpeed, drag.startTransform.y + args.dy * interactionSpeed)
-      .scale(drag.startTransform.k)
+    const next = computeOverlayPanTransform2d({
+      startTransform: drag.startTransform,
+      dxClientPx: args.dx,
+      dyClientPx: args.dy,
+      canvasPanSpeedMultiplier: st.canvasPanSpeedMultiplier,
+      canvasInteractionSpeedMultiplier: st.canvasInteractionSpeedMultiplier,
+    })
     setFlowNativeTransform(rt, next)
     requestFlowNativeDraw(rt, buildDrawArgs())
     requestCommitRef.current?.()
@@ -526,9 +529,16 @@ export default function FlowCanvas({
     if (!rt || !scene) return
     const node = scene.nodeById.get(id)
     if (!node) return
-    const k = Number.isFinite(drag.startK) && drag.startK > 0 ? drag.startK : 1
-    node.x = drag.startX + args.dx / k
-    node.y = drag.startY + args.dy / k
+    const p = computeOverlayDraggedPoint2d({
+      baseX: drag.startX,
+      baseY: drag.startY,
+      dxClientPx: args.dx,
+      dyClientPx: args.dy,
+      zoomK: drag.startK,
+      schema,
+    })
+    node.x = p.x
+    node.y = p.y
     rt.dirty = true
     positionsDirtySinceCommitRef.current = true
     requestFlowNativeDraw(rt, buildDrawArgs())

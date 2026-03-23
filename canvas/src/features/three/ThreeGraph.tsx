@@ -15,6 +15,14 @@ import type { ThreeCameraPose } from '@/hooks/store/types'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars3d, computePanelRect, computePanelSizeFromContent16x9 } from '@/lib/render/mediaPanelLayout'
 import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
+import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
+import { deriveMarkdownDesignLayout, type MarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
+import { listMarkdownPanelOverlayNodes, buildPanelOnlyNodeIdSetFromGraphNodes } from '@/lib/render/markdownPanelOverlayPool'
+import {
+  computeOverlayDragStartScreenSpace3d,
+  computeOverlayDraggedWorldPos3d,
+  computeThreeCameraPoseAfterOverlayPan,
+} from '@/lib/canvas/overlayInteractions3d'
 
 const SceneLazy = React.lazy(() =>
   import('./Scene').then(mod => ({
@@ -64,6 +72,8 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     threeIframeOverlaySizeScaleFactor,
     selectedNodeId,
     selectedNodeIds,
+    markdownDocumentText,
+    markdownDocumentName,
   } = useGraphStore(
     useShallow(s => ({
       renderMediaAsNodes: s.renderMediaAsNodes === true,
@@ -82,6 +92,8 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
       threeIframeOverlaySizeScaleFactor: s.threeIframeOverlaySizeScaleFactor,
       selectedNodeId: s.selectedNodeId,
       selectedNodeIds: s.selectedNodeIds,
+      markdownDocumentText: s.markdownDocumentText,
+      markdownDocumentName: s.markdownDocumentName,
     })),
   )
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
@@ -254,7 +266,45 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     return listMediaOverlayNodes({ enabled: true, nodes, poolMax, preferredNodeIds })
   }, [sceneGraph, threeIframeOverlayPoolMax])
 
-  const mediaNodesKey = useMemo(() => mediaNodesPool.map(n => n.id).join('|'), [mediaNodesPool])
+  const markdownDesignLayout: MarkdownDesignLayout | null = useMemo(() => {
+    const text = String(markdownDocumentText || '')
+    const name = String(markdownDocumentName || '')
+    if (!text.trim()) return null
+    const { tokens } = lexMarkdown(text)
+    const markdownTokensKey = buildMarkdownTokensKey(text)
+    return deriveMarkdownDesignLayout({ activeDocumentPath: name || 'document', markdownTokensKey, tokens })
+  }, [markdownDocumentName, markdownDocumentText])
+
+  const markdownPanelNodesPool = useMemo(() => {
+    const graph = sceneGraph as GraphData | null
+    const nodes = graph && Array.isArray(graph.nodes) ? (graph.nodes as GraphNode[]) : []
+    const exclude = new Set<string>(mediaNodesPool.map(n => n.id))
+    return listMarkdownPanelOverlayNodes({ nodes, layout: markdownDesignLayout, excludeNodeIdSet: exclude })
+  }, [mediaNodesPool, markdownDesignLayout, sceneGraph])
+
+  const overlayNodesPool = useMemo(() => {
+    if (markdownPanelNodesPool.length === 0) return mediaNodesPool
+    if (mediaNodesPool.length === 0) return markdownPanelNodesPool
+    const seen = new Set<string>()
+    const out = [] as typeof mediaNodesPool
+    for (let i = 0; i < mediaNodesPool.length; i += 1) {
+      const n = mediaNodesPool[i]!
+      if (!seen.has(n.id)) {
+        seen.add(n.id)
+        out.push(n)
+      }
+    }
+    for (let i = 0; i < markdownPanelNodesPool.length; i += 1) {
+      const n = markdownPanelNodesPool[i]!
+      if (!seen.has(n.id)) {
+        seen.add(n.id)
+        out.push(n)
+      }
+    }
+    return out
+  }, [markdownPanelNodesPool, mediaNodesPool])
+
+  const mediaNodesKey = useMemo(() => overlayNodesPool.map(n => n.id).join('|'), [overlayNodesPool])
   const requestIframeOverlaySchedule = useCallback(() => {
     const schedule = iframeOverlayScheduleRef.current
     if (schedule) {
@@ -351,7 +401,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   }, [requestIframeOverlaySchedule])
 
   useEffect(() => {
-    const keep = new Set<string>(mediaNodesPool.map(n => n.id))
+    const keep = new Set<string>(overlayNodesPool.map(n => n.id))
     const overlayMap = iframeOverlayElsRef.current
     for (const [id] of overlayMap) {
       if (!keep.has(id)) overlayMap.delete(id)
@@ -364,12 +414,12 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     for (const [id] of missMap) {
       if (!keep.has(id)) missMap.delete(id)
     }
-  }, [mediaNodesKey, mediaNodesPool])
+  }, [mediaNodesKey, overlayNodesPool])
 
   useEffect(() => {
     iframeOverlayScheduleRef.current = null
     if (!active) return
-    if (mediaNodesPool.length === 0) return
+    if (overlayNodesPool.length === 0) return
     let raf: number | null = null
     const world = new Vector3()
     const v3 = new Vector3()
@@ -419,8 +469,8 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
         }
       }
       candidates.length = 0
-      for (let i = 0; i < mediaNodesPool.length; i += 1) {
-        const node = mediaNodesPool[i]
+      for (let i = 0; i < overlayNodesPool.length; i += 1) {
+        const node = overlayNodesPool[i]
         const pos3 = dragOverridesRef.current[node.id] || positions[node.id] || null
         if (!pos3) continue
         world.set(pos3[0], pos3[1], pos3[2])
@@ -643,7 +693,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   }, [
     active,
     mediaNodesKey,
-    mediaNodesPool,
+    overlayNodesPool,
     mediaPanelDensity,
     positions,
     threeIframeOverlayMaxVisibleCompact,
@@ -660,6 +710,18 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     selectedNodeId,
     selectedNodeIds,
   ])
+
+  const panelOnlyNodeIdSet = useMemo(() => {
+    const graph = sceneGraph as GraphData | null
+    const nodes = graph && Array.isArray(graph.nodes) ? (graph.nodes as GraphNode[]) : []
+    return buildPanelOnlyNodeIdSetFromGraphNodes(nodes)
+  }, [sceneGraph])
+
+  const overlayHiddenNodeIdSet = useMemo(() => {
+    const ids = new Set<string>(overlayNodesPool.map(n => n.id))
+    for (const id of panelOnlyNodeIdSet) ids.add(id)
+    return ids
+  }, [overlayNodesPool, panelOnlyNodeIdSet])
 
   useEffect(() => {
     const canvas = glCanvasRef.current
@@ -852,6 +914,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
             draggedNodeId={draggedNodeId}
             theme={theme}
             dragOverridesRef={dragOverridesRef as unknown as React.MutableRefObject<Record<string, [number, number, number]>>}
+            hiddenNodeIdSet={overlayHiddenNodeIdSet}
           />
           <ControlsLazy
             schema={effectiveSchema as GraphSchema}
@@ -868,9 +931,9 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
           <OverlayFrameSync enabled={active} scheduleRef={iframeOverlayScheduleRef} />
         </React.Suspense>
       </Canvas>
-      {active && mediaNodesPool.length > 0 ? (
+      {active && overlayNodesPool.length > 0 ? (
         <section aria-label="3D media overlay" className="absolute inset-0 z-[80] pointer-events-none">
-          {mediaNodesPool.map(n => {
+          {overlayNodesPool.map(n => {
             return (
               <RichMediaPanel
                 key={n.id}
@@ -895,45 +958,13 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
                 onOverlayPan={({ pointerId, dx, dy, shiftKey }) => {
                   const st = overlayPan3dRef.current
                   if (!st || st.pointerId !== pointerId) return
-                  const pose = st.pose
-                  const isPan = shiftKey === true
-                  const target = new Vector3(pose.target.x, pose.target.y, pose.target.z)
-                  const pos0 = new Vector3(pose.position.x, pose.position.y, pose.position.z)
-                  const startQuat = new Quaternion(pose.quaternion.x, pose.quaternion.y, pose.quaternion.z, pose.quaternion.w)
-                  const worldUp = new Vector3(0, 1, 0)
-                  const offset = pos0.clone().sub(target)
-                  if (isPan) {
-                    const dist = Math.max(1e-3, offset.length())
-                    const scale = dist * 0.0012
-                    const right = new Vector3(1, 0, 0).applyQuaternion(startQuat).normalize()
-                    const up = new Vector3(0, 1, 0).applyQuaternion(startQuat).normalize()
-                    const delta = right.multiplyScalar(-dx * scale).add(up.multiplyScalar(dy * scale))
-                    const nextTarget = target.clone().add(delta)
-                    const nextPos = pos0.clone().add(delta)
-                    const m = new Matrix4().lookAt(nextPos, nextTarget, worldUp)
-                    const q = new Quaternion().setFromRotationMatrix(m)
-                    useGraphStore.getState().restoreThreeCameraPose({
-                      position: { x: nextPos.x, y: nextPos.y, z: nextPos.z },
-                      quaternion: { x: q.x, y: q.y, z: q.z, w: q.w },
-                      target: { x: nextTarget.x, y: nextTarget.y, z: nextTarget.z },
-                    })
-                    return
-                  }
-                  const sensitivity = 0.0025
-                  const yaw = -dx * sensitivity
-                  const pitch = -dy * sensitivity
-                  const right = new Vector3(1, 0, 0).applyQuaternion(startQuat).normalize()
-                  const qYaw = new Quaternion().setFromAxisAngle(worldUp, yaw)
-                  const qPitch = new Quaternion().setFromAxisAngle(right, pitch)
-                  offset.applyQuaternion(qYaw).applyQuaternion(qPitch)
-                  const nextPos = target.clone().add(offset)
-                  const m = new Matrix4().lookAt(nextPos, target, worldUp)
-                  const q = new Quaternion().setFromRotationMatrix(m)
-                  useGraphStore.getState().restoreThreeCameraPose({
-                    position: { x: nextPos.x, y: nextPos.y, z: nextPos.z },
-                    quaternion: { x: q.x, y: q.y, z: q.z, w: q.w },
-                    target: { x: target.x, y: target.y, z: target.z },
+                  const nextPose = computeThreeCameraPoseAfterOverlayPan({
+                    pose: st.pose,
+                    dxClientPx: dx,
+                    dyClientPx: dy,
+                    shiftKey: shiftKey === true,
                   })
+                  useGraphStore.getState().restoreThreeCameraPose(nextPose)
                 }}
                 onOverlayPanEnd={({ pointerId }) => {
                   const st = overlayPan3dRef.current
@@ -947,11 +978,13 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
                   if (!camera || !gl || !p) return
                   const w = gl.domElement.clientWidth || 1
                   const h = gl.domElement.clientHeight || 1
-                  const world = new Vector3(p[0], p[1], p[2])
-                  const ndc = world.clone().project(camera as unknown as Camera)
-                  const sx = (ndc.x * 0.5 + 0.5) * w
-                  const sy = (-ndc.y * 0.5 + 0.5) * h
-                  overlayHeaderDrag3dRef.current = { id: n.id, pointerId, sx, sy, ndcZ: ndc.z, w, h }
+                  const start = computeOverlayDragStartScreenSpace3d({
+                    camera: camera as unknown as Camera,
+                    world: { x: p[0], y: p[1], z: p[2] },
+                    viewportW: w,
+                    viewportH: h,
+                  })
+                  overlayHeaderDrag3dRef.current = { id: n.id, pointerId, sx: start.sx, sy: start.sy, ndcZ: start.ndcZ, w: start.w, h: start.h }
                   setDraggedNodeId(n.id)
                   void clientX
                   void clientY
@@ -963,16 +996,18 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
                   if (st.pointerId !== pointerId) return
                   const camera = threeCameraRef.current
                   if (!camera) return
-                  const w = st.w || 1
-                  const h = st.h || 1
-                  const sx = st.sx + dx
-                  const sy = st.sy + dy
-                  const ndcX = (sx / w) * 2 - 1
-                  const ndcY = -((sy / h) * 2 - 1)
-                  const ndcZ = st.ndcZ
-                  if (!Number.isFinite(ndcX) || !Number.isFinite(ndcY) || !Number.isFinite(ndcZ)) return
-                  const nextWorld = new Vector3(ndcX, ndcY, ndcZ).unproject(camera as unknown as Camera)
-                  dragOverridesRef.current[n.id] = [nextWorld.x, nextWorld.y, nextWorld.z]
+                  const next = computeOverlayDraggedWorldPos3d({
+                    camera: camera as unknown as Camera,
+                    startSx: st.sx,
+                    startSy: st.sy,
+                    dxClientPx: dx,
+                    dyClientPx: dy,
+                    ndcZ: st.ndcZ,
+                    viewportW: st.w || 1,
+                    viewportH: st.h || 1,
+                  })
+                  if (!next) return
+                  dragOverridesRef.current[n.id] = [next.x, next.y, next.z]
                 }}
                 onHeaderDragEnd={({ pointerId }) => {
                   const st = overlayHeaderDrag3dRef.current

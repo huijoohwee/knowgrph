@@ -44,6 +44,7 @@ export function Scene({
   draggedNodeId,
   theme,
   dragOverridesRef,
+  hiddenNodeIdSet,
 }: {
   data: GraphData;
   schema: GraphSchema;
@@ -56,6 +57,7 @@ export function Scene({
   draggedNodeId?: string | null;
   theme?: KgTheme;
   dragOverridesRef?: React.MutableRefObject<Record<string, Vec3>>;
+  hiddenNodeIdSet?: Set<string>;
 }) {
   const { gl } = useThree()
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
@@ -173,7 +175,7 @@ export function Scene({
   const motionIntensityEffective = renderMediaAsNodes ? 0 : motionIntensity
 
   const cameraConfig = getCameraConfig(schema)
-  const hiddenNodeIds = React.useMemo(() => new Set<string>(), [])
+  const hiddenNodeIds = hiddenNodeIdSet || null
   React.useEffect(() => {
     // Force dependency on theme
     void theme
@@ -324,11 +326,7 @@ export function Scene({
           const a = positions[e.source]
           const b = positions[e.target]
           if (!a || !b) return null
-          if (hiddenNodeIds.size > 0) {
-            const srcId = String(e.source)
-            const tgtId = String(e.target)
-            if (hiddenNodeIds.has(srcId) || hiddenNodeIds.has(tgtId)) return null
-          }
+          void hiddenNodeIds
           const props = e.properties || {}
           const parseRgba = (value: string): { color: string; alpha: number } | null => {
             const m = value.match(/^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*([0-9]*\.?[0-9]+)\s*\)$/i)
@@ -440,7 +438,7 @@ export function Scene({
         {data.nodes.map((n) => {
           const p = positions[n.id]
           if (!p) return null
-          if (hiddenNodeIds.size > 0 && hiddenNodeIds.has(String(n.id))) return null
+          if (hiddenNodeIds && hiddenNodeIds.has(String(n.id))) return null
           const isSelected = selectionSets.selectedNodeIdSet.has(n.id)
           const isNeighbor = neighborIds.has(n.id)
           const isEdgeEndpoint = selectionSets.selectedEdgeEndpointNodeIdSet.has(n.id)

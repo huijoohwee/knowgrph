@@ -621,6 +621,13 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
         getSchema,
         nodes: graphDataForDisplay.nodes,
         getSelectedNodeId: () => selectedNodeIdRef.current,
+        hiddenNodeIdSet: (() => {
+          if (!panelOnlyNodeIdSet && !mediaOverlayNodeIdSet) return null
+          const set = new Set<string>()
+          if (panelOnlyNodeIdSet) for (const id of panelOnlyNodeIdSet) set.add(id)
+          if (mediaOverlayNodeIdSet) for (const id of mediaOverlayNodeIdSet) set.add(id)
+          return set
+        })(),
         enabled: true,
         commitResize: ({ id, properties }) => {
           args.updateNode(id, { properties })

@@ -19,7 +19,7 @@ import { integrateNodePositionWithVelocity, runRelaxSteps } from '@/lib/graph/co
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { aabbOverlaps, aabbOverlapsAny } from '@/lib/ui/labels/aabb'
-import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
+import { computeOverlayHalfExtentsWorld, normalizeOverlaySizingConfig } from '@/lib/render/overlaySizing2d'
 import {
   computeBboxCollideIterations2d,
   computeGroupBboxCollideIterations2d,
@@ -247,18 +247,11 @@ export const attachSimulationTick = (args: {
         const ratio = density === 'compact' ? overlayBaseWidthRatioCompact : overlayBaseWidthRatioDefault
         const minPx = density === 'compact' ? overlayBaseWidthMinPxCompact : overlayBaseWidthMinPxDefault
         const maxPx = density === 'compact' ? overlayBaseWidthMaxPxCompact : overlayBaseWidthMaxPxDefault
-        const cfg = {
-          widthRatio: Number.isFinite(ratio) ? Math.max(0.001, Number(ratio)) : 0.2,
-          widthMinPx: Number.isFinite(minPx) ? Math.max(1, Math.floor(Number(minPx))) : 210,
-          widthMaxPx: Number.isFinite(maxPx) ? Math.max(1, Math.floor(Number(maxPx))) : 360,
-        }
+        const cfg = normalizeOverlaySizingConfig({ widthRatio: Number(ratio), widthMinPx: Number(minPx), widthMaxPx: Number(maxPx) })
         const key = `${density}|${width}|${zoomK}|${cfg.widthRatio}|${cfg.widthMinPx}|${cfg.widthMaxPx}`
         if (key === lastOverlayHalfExtentsKey) return lastOverlayHalfExtents
 
-        const sizing = computeMediaOverlaySizing({ density, viewportW: width, zoomK, config: cfg })
-        const halfW = sizing.panelW / Math.max(0.001, zoomK) / 2
-        const halfH = sizing.panelH / Math.max(0.001, zoomK) / 2
-        const out = { halfW: Math.max(1, halfW), halfH: Math.max(1, halfH) }
+        const out = computeOverlayHalfExtentsWorld({ density, viewportW: width, zoomK, config: cfg })
         lastOverlayHalfExtentsKey = key
         lastOverlayHalfExtents = out
         return out
