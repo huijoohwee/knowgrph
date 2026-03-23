@@ -40,6 +40,7 @@ export function useRichMediaOverlays2d(args: {
   threeIframeOverlayBaseWidthMaxPxCompact: unknown
   sceneWidth: number
   sceneHeight: number
+  freezeOverlayMembership?: boolean
 }) {
   const {
     active,
@@ -64,6 +65,7 @@ export function useRichMediaOverlays2d(args: {
     threeIframeOverlayBaseWidthMaxPxCompact,
     sceneWidth,
     sceneHeight,
+    freezeOverlayMembership,
   } = args
 
   const iframeOverlayElsRef = useRef<Map<string, HTMLElement>>(new Map())
@@ -72,6 +74,8 @@ export function useRichMediaOverlays2d(args: {
   const mediaOverlayScheduleRafRef = useRef<number | null>(null)
   const mediaOverlaySchedulePendingRef = useRef<boolean>(false)
   const iframeOverlayRefFnByIdRef = useRef<Map<string, (el: HTMLDivElement | null) => void>>(new Map())
+  const stickyOverlayNodeByIdRef = useRef<Map<string, ReturnType<typeof listMediaOverlayNodes>[number]>>(new Map())
+  const stickyOverlayOrderRef = useRef<string[]>([])
 
   const requestMediaOverlaySchedule = useCallback(() => {
     const schedule = mediaOverlayScheduleRef.current
@@ -97,8 +101,114 @@ export function useRichMediaOverlays2d(args: {
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
     const st = useGraphStore.getState() as unknown as { selectedNodeId?: unknown; selectedNodeIds?: unknown }
     const preferredNodeIds = [st.selectedNodeId, ...(Array.isArray(st.selectedNodeIds) ? st.selectedNodeIds : [])]
-    return listMediaOverlayNodes({ enabled: true, nodes, poolMax, preferredNodeIds, excludeNodeIdSet })
-  }, [excludeNodeIdsKey, sceneGraphData, threeIframeOverlayPoolMax])
+    const suggested = listMediaOverlayNodes({ enabled: true, nodes, poolMax, preferredNodeIds, excludeNodeIdSet })
+
+    const stickyMap = stickyOverlayNodeByIdRef.current
+    for (let i = 0; i < suggested.length; i += 1) {
+      const n = suggested[i]!
+      stickyMap.set(n.id, n)
+    }
+
+    const pinnedOrder = Array.from(iframeOverlayElsRef.current.keys())
+    const prevOrder = stickyOverlayOrderRef.current
+    if (freezeOverlayMembership === true) {
+      const frozenSource = pinnedOrder.length > 0 ? pinnedOrder : prevOrder
+      const frozenIds: string[] = []
+      for (let i = 0; i < frozenSource.length; i += 1) {
+        if (frozenIds.length >= poolMax) break
+        const id = String(frozenSource[i] || '').trim()
+        if (!id) continue
+        if (frozenIds.includes(id)) continue
+        const n = stickyMap.get(id)
+        if (!n) continue
+        frozenIds.push(id)
+      }
+      if (frozenIds.length > 0) {
+        stickyOverlayOrderRef.current = frozenIds
+        const outFrozen: typeof suggested = []
+        for (let i = 0; i < frozenIds.length; i += 1) {
+          const n = stickyMap.get(frozenIds[i]!)
+          if (n) outFrozen.push(n)
+        }
+        return outFrozen
+      }
+    }
+    const needed = new Set<string>()
+    for (let i = 0; i < pinnedOrder.length; i += 1) {
+      const id = String(pinnedOrder[i] || '').trim()
+      if (id) needed.add(id)
+    }
+    for (let i = 0; i < prevOrder.length; i += 1) {
+      const id = String(prevOrder[i] || '').trim()
+      if (id) needed.add(id)
+    }
+    for (let i = 0; i < suggested.length; i += 1) {
+      const id = String(suggested[i]!.id || '').trim()
+      if (id) needed.add(id)
+    }
+
+    const nodeById = new Map<string, GraphNode>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]!
+      const id = String(n?.id || '').trim()
+      if (!id) continue
+      if (!needed.has(id)) continue
+      nodeById.set(id, n)
+    }
+
+    const isValidOverlayId = (id: string): boolean => {
+      const key = String(id || '').trim()
+      if (!key) return false
+      if (excludeNodeIdSet?.has(key)) return false
+      const n = nodeById.get(key)
+      if (!n) return false
+      const spec = getNodeMediaSpec(n)
+      if (!spec) return false
+      return true
+    }
+
+    const nextIds: string[] = []
+    for (let i = 0; i < pinnedOrder.length; i += 1) {
+      if (nextIds.length >= poolMax) break
+      const id = String(pinnedOrder[i] || '').trim()
+      if (!id) continue
+      if (nextIds.includes(id)) continue
+      if (!stickyMap.has(id)) continue
+      if (!isValidOverlayId(id)) continue
+      nextIds.push(id)
+    }
+    for (let i = 0; i < prevOrder.length; i += 1) {
+      if (nextIds.length >= poolMax) break
+      const id = String(prevOrder[i] || '').trim()
+      if (!id) continue
+      if (nextIds.includes(id)) continue
+      if (!stickyMap.has(id)) continue
+      if (!isValidOverlayId(id)) continue
+      nextIds.push(id)
+    }
+    for (let i = 0; i < suggested.length; i += 1) {
+      if (nextIds.length >= poolMax) break
+      const id = String(suggested[i]!.id || '').trim()
+      if (!id) continue
+      if (nextIds.includes(id)) continue
+      nextIds.push(id)
+    }
+
+    stickyOverlayOrderRef.current = nextIds
+    const out: typeof suggested = []
+    for (let i = 0; i < nextIds.length; i += 1) {
+      const n = stickyMap.get(nextIds[i]!)
+      if (n) out.push(n)
+    }
+    if (stickyMap.size > Math.max(96, poolMax * 6)) {
+      const keep = new Set<string>(nextIds)
+      for (const id of suggested) keep.add(id.id)
+      for (const [id] of stickyMap) {
+        if (!keep.has(id)) stickyMap.delete(id)
+      }
+    }
+    return out
+  }, [excludeNodeIdsKey, freezeOverlayMembership, sceneGraphData, threeIframeOverlayPoolMax])
 
   const { mediaOverlayNodeIdsKey, mediaOverlayNodeIdSet } = useMemo(() => {
     const ids = mediaOverlayNodes.map(n => n.id)

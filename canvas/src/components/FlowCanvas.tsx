@@ -57,7 +57,8 @@ import { computeNodeQuickEditorMaxAnchorShiftPx } from '@/components/FlowEditor/
 import { DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
-import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
+import { listMediaOverlayNodes, type MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
+import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
@@ -341,7 +342,9 @@ export default function FlowCanvas({
 
   const graphDataRevision = typeof graphDataRevisionOverride === 'number' ? graphDataRevisionOverride : baseGraphDataRevision
 
-  const mediaHideNodeIdsRef = React.useRef<string[]>([])
+  const stickyOverlayNodeByIdRef = React.useRef<Map<string, MediaOverlayNode>>(new Map())
+  const stickyOverlayOrderRef = React.useRef<string[]>([])
+  const mediaOverlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
 
   React.useEffect(() => {
     const nodeIdSet = new Set<string>((selectedNodeIds || []).map(v => String(v)))
@@ -368,7 +371,7 @@ export default function FlowCanvas({
       : null
     const explicitHideNodeIds = (hideNodeIds || []).map(v => String(v)).filter(Boolean)
     const explicitHidePortHandleNodeIds = (hidePortHandleNodeIds || []).map(v => String(v)).filter(Boolean)
-    const mediaHideNodeIds = renderMediaAsNodes === true ? mediaHideNodeIdsRef.current : []
+    const mediaHideNodeIds = Array.from(mediaOverlayElsRef.current.keys())
     const baseHideNodeIds = explicitHideNodeIds.length > 0 || mediaHideNodeIds.length > 0 ? Array.from(new Set([...explicitHideNodeIds, ...mediaHideNodeIds])) : []
     drawArgsRef.current.hideNodeIds = hideSelectedNodeGlyph
       ? Array.from(new Set([...nextSelectedNodeIds, ...baseHideNodeIds]))
@@ -455,14 +458,89 @@ export default function FlowCanvas({
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as GraphNode[]) : []
     const poolMaxRaw = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
-    return listMediaOverlayNodes({ enabled: true, nodes, poolMax })
-  }, [renderMediaAsNodes, sceneGraphData, threeIframeOverlayPoolMax])
+    const suggested = listMediaOverlayNodes({ enabled: true, nodes, poolMax })
+
+    const pinnedOrder = Array.from(mediaOverlayElsRef.current.keys())
+    const prevOrder = stickyOverlayOrderRef.current
+    const stickyMap = stickyOverlayNodeByIdRef.current
+    for (let i = 0; i < suggested.length; i += 1) {
+      const n = suggested[i]!
+      stickyMap.set(n.id, n)
+    }
+
+    const needed = new Set<string>()
+    for (let i = 0; i < pinnedOrder.length; i += 1) {
+      const id = String(pinnedOrder[i] || '').trim()
+      if (id) needed.add(id)
+    }
+    for (let i = 0; i < prevOrder.length; i += 1) {
+      const id = String(prevOrder[i] || '').trim()
+      if (id) needed.add(id)
+    }
+    for (let i = 0; i < suggested.length; i += 1) {
+      const id = String(suggested[i]!.id || '').trim()
+      if (id) needed.add(id)
+    }
+    const nodeById = new Map<string, GraphNode>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]!
+      const id = String(n?.id || '').trim()
+      if (!id) continue
+      if (!needed.has(id)) continue
+      nodeById.set(id, n)
+    }
+    const isValid = (id: string): boolean => {
+      const key = String(id || '').trim()
+      if (!key) return false
+      const n = nodeById.get(key)
+      if (!n) return false
+      return !!getNodeMediaSpec(n)
+    }
+
+    const nextIds: string[] = []
+    for (let i = 0; i < pinnedOrder.length; i += 1) {
+      if (nextIds.length >= poolMax) break
+      const id = String(pinnedOrder[i] || '').trim()
+      if (!id) continue
+      if (nextIds.includes(id)) continue
+      if (!stickyMap.has(id)) continue
+      if (!isValid(id)) continue
+      nextIds.push(id)
+    }
+    for (let i = 0; i < prevOrder.length; i += 1) {
+      if (nextIds.length >= poolMax) break
+      const id = String(prevOrder[i] || '').trim()
+      if (!id) continue
+      if (nextIds.includes(id)) continue
+      if (!stickyMap.has(id)) continue
+      if (!isValid(id)) continue
+      nextIds.push(id)
+    }
+    for (let i = 0; i < suggested.length; i += 1) {
+      if (nextIds.length >= poolMax) break
+      const id = String(suggested[i]!.id || '').trim()
+      if (!id) continue
+      if (nextIds.includes(id)) continue
+      nextIds.push(id)
+    }
+
+    stickyOverlayOrderRef.current = nextIds
+    const out: MediaOverlayNode[] = []
+    for (let i = 0; i < nextIds.length; i += 1) {
+      const n = stickyMap.get(nextIds[i]!)
+      if (n) out.push(n)
+    }
+    if (stickyMap.size > Math.max(96, poolMax * 6)) {
+      const keep = new Set<string>(nextIds)
+      for (let i = 0; i < suggested.length; i += 1) keep.add(String(suggested[i]!.id || ''))
+      for (const [id] of stickyMap) {
+        if (!keep.has(id)) stickyMap.delete(id)
+      }
+    }
+    return out
+  }, [sceneGraphData, threeIframeOverlayPoolMax])
 
   const mediaNodeIdsKey = React.useMemo(() => mediaNodes.map(n => n.id).join('|'), [mediaNodes])
-  React.useEffect(() => {
-    mediaHideNodeIdsRef.current = []
-  }, [mediaNodeIdsKey, mediaNodes, renderMediaAsNodes])
-  const mediaOverlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
   React.useEffect(() => {
     const next = new Map<string, HTMLElement>()
     for (const n of mediaNodes) {
@@ -542,7 +620,6 @@ export default function FlowCanvas({
     rt.dirty = true
     positionsDirtySinceCommitRef.current = true
     requestFlowNativeDraw(rt, buildDrawArgs())
-    requestCommitRef.current?.()
     onInteractionFrame?.()
   }, [buildDrawArgs, onInteractionFrame])
 
@@ -550,6 +627,7 @@ export default function FlowCanvas({
     const drag = mediaOverlayHeaderDragRef.current
     if (!drag || drag.id !== id || drag.pointerId !== pointerId) return
     mediaOverlayHeaderDragRef.current = null
+    requestCommitRef.current?.()
   }, [])
 
   React.useEffect(() => {
@@ -1664,9 +1742,25 @@ export default function FlowCanvas({
                 ref={(el) => {
                   if (!el) {
                     mediaOverlayElsRef.current.delete(n.id)
+                    drawArgsRef.current.hideNodeIds = (() => {
+                      const explicit = (hideNodeIds || []).map(v => String(v)).filter(Boolean)
+                      const overlays = Array.from(mediaOverlayElsRef.current.keys())
+                      const base = explicit.length > 0 || overlays.length > 0 ? Array.from(new Set([...explicit, ...overlays])) : []
+                      if (hideSelectedNodeGlyph) return Array.from(new Set([...(selectedNodeIdsRef.current || []), ...base]))
+                      return base.length > 0 ? base : undefined
+                    })()
+                    scheduleFlowDraw()
                     return
                   }
                   mediaOverlayElsRef.current.set(n.id, el)
+                  drawArgsRef.current.hideNodeIds = (() => {
+                    const explicit = (hideNodeIds || []).map(v => String(v)).filter(Boolean)
+                    const overlays = Array.from(mediaOverlayElsRef.current.keys())
+                    const base = explicit.length > 0 || overlays.length > 0 ? Array.from(new Set([...explicit, ...overlays])) : []
+                    if (hideSelectedNodeGlyph) return Array.from(new Set([...(selectedNodeIdsRef.current || []), ...base]))
+                    return base.length > 0 ? base : undefined
+                  })()
+                  scheduleFlowDraw()
                 }}
                 data-kg-canvas-wheel-ignore="true"
                 data-kg-canvas-pointer-ignore="true"

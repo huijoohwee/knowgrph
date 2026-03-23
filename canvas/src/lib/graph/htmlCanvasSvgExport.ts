@@ -67,11 +67,12 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     layoutSemanticModeKey,
   } = args
 
+  const graphDataForDisplay = getGraphDataForDisplay({ graphData, edges: null })
   const collapsedGroupIdsKey = buildCollapsedGroupIdsKey(collapsedGroupIds)
   const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(schema)
-  const graphMetaKey = buildGraphMetaKeyIgnoringPending(graphData)
+  const graphMetaKey = buildGraphMetaKeyIgnoringPending(graphDataForDisplay)
   const datasetKey = computeLayoutDatasetKey({
-    graphData,
+    graphData: graphDataForDisplay,
     graphDataRevision: typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? Math.floor(graphDataRevision) : 0,
   })
   const effectiveGraphDataRevision = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? Math.floor(graphDataRevision) : 0
@@ -106,7 +107,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     prevRenderMode: null,
     prevRenderVariant: null,
     prevLayoutVariant: null,
-    nodes: Array.isArray(graphData.nodes) ? graphData.nodes : [],
+    nodes: Array.isArray(graphDataForDisplay.nodes) ? graphDataForDisplay.nodes : [],
     layoutPositionCacheByMode: layoutPositionCacheByMode ?? null,
   })
 
@@ -116,8 +117,8 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     if (!cache) return null
 
     const baselineGraphMetaKey = (() => {
-      const meta = graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
-        ? (graphData.metadata as Record<string, unknown>)
+      const meta = graphDataForDisplay.metadata && typeof graphDataForDisplay.metadata === 'object' && !Array.isArray(graphDataForDisplay.metadata)
+        ? (graphDataForDisplay.metadata as Record<string, unknown>)
         : null
       const raw = meta && typeof meta.baselineGraphMetaKey === 'string' ? meta.baselineGraphMetaKey.trim() : ''
       return raw || graphMetaKey
@@ -152,7 +153,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
 
   const hasStablePositions = (() => {
     if (effectiveSkipInitialLayout && pickedLayoutSeed.layoutPositionsForMode) return true
-    const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
+    const nodes = Array.isArray(graphDataForDisplay.nodes) ? graphDataForDisplay.nodes : []
     let ok = 0
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i] as any
@@ -165,7 +166,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
   })()
 
   const panelOnlyNodeIdSet = (() => {
-    const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
+    const nodes = Array.isArray(graphDataForDisplay.nodes) ? graphDataForDisplay.nodes : []
     if (nodes.length === 0) return undefined
     const ids: string[] = []
     for (let i = 0; i < nodes.length; i += 1) {
@@ -280,7 +281,6 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     return out
   })()
 
-  const graphDataForDisplay = getGraphDataForDisplay({ graphData, edges: null })
   const displayNodes = (graphDataForDisplay.nodes ?? []) as any
   const displayEdges = (graphDataForDisplay.edges ?? []) as any
   const edgesForSim = normalizeEdgesForSim(displayNodes, displayEdges)
@@ -303,7 +303,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
         graphData: graphDataForDisplay,
         deriveGroupsOptions: { forceDocumentStructure: documentSemanticMode === 'document' },
       }
-      const t = fitAllTransform((graphData.nodes ?? []) as any, Math.max(1, widthPx), Math.max(1, Math.floor(heightPx)), opts as any)
+      const t = fitAllTransform((graphDataForDisplay.nodes ?? []) as any, Math.max(1, widthPx), Math.max(1, Math.floor(heightPx)), opts as any)
       if (!t || !(typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0)) return { k: 1, x: 0, y: 0 }
       return { k: t.k, x: t.x, y: t.y }
     } catch {
@@ -334,7 +334,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     active: () => true,
     svgEl,
     svgRef,
-    graphData,
+    graphData: graphDataForDisplay,
     graphDataRevision: effectiveGraphDataRevision,
     schema,
     documentSemanticMode,
@@ -372,8 +372,8 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
         ? Math.max(1, Math.floor(overlayBaseWidthMaxPxCompact))
         : DEFAULT_OVERLAY_SIZING_CONFIG.widthMaxPx,
     enableTightInitialLayout: (() => {
-      const nodesCount = Array.isArray(graphData?.nodes) ? graphData.nodes.length : 0
-      const edgesCount = Array.isArray(graphData?.edges) ? graphData.edges.length : 0
+      const nodesCount = Array.isArray(graphDataForDisplay?.nodes) ? graphDataForDisplay.nodes.length : 0
+      const edgesCount = Array.isArray(graphDataForDisplay?.edges) ? graphDataForDisplay.edges.length : 0
       if (nodesCount > 2600) return false
       if (edgesCount > 8200) return false
       return true
@@ -436,7 +436,10 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
       } catch {
         void 0
       }
-      const maxTicks = Math.min(520, Math.max(80, Math.floor(((graphData.nodes?.length || 0) + (graphData.edges?.length || 0)) * 6)))
+      const maxTicks = Math.min(
+        520,
+        Math.max(80, Math.floor(((graphDataForDisplay.nodes?.length || 0) + (graphDataForDisplay.edges?.length || 0)) * 6))
+      )
       let i = 0
       const minAlpha = typeof sim.alphaMin === 'function' ? sim.alphaMin() : 0.001
       for (; i < maxTicks && sim.alpha() > minAlpha; i += 1) sim.tick()
@@ -453,7 +456,6 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     void 0
   }
 
-  // Apply visual fidelity styles and animations to the generated SVG elements
   try {
     applyGraphCanvasStyles2d({
       gRef: gRef as any,

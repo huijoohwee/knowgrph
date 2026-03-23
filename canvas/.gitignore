@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+*.tsbuildinfo
+
+public/cesium/
+
 .knowgrph-workspace/
 
 # Editor directories and files

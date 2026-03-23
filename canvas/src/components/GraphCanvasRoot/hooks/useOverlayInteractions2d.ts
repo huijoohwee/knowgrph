@@ -233,6 +233,72 @@ export function useOverlayInteractions2d(args: {
     overlayPanRef.current = null
   }, [])
 
+  React.useEffect(() => {
+    const onUp = (e: PointerEvent) => {
+      const h = headerDragRef.current
+      if (h) {
+        try {
+          endHeaderDrag()
+        } catch {
+          try {
+            headerDragRef.current = null
+            unlockGlobalUserSelect()
+          } catch {
+            void 0
+          }
+        }
+      }
+      const p = overlayPanRef.current
+      if (p) {
+        try {
+          endOverlayPan({ pointerId: p.pointerId })
+        } catch {
+          try {
+            overlayPanRef.current = null
+          } catch {
+            void 0
+          }
+        }
+      }
+      void e
+    }
+    const onBlur = () => {
+      const h = headerDragRef.current
+      if (h) {
+        try {
+          endHeaderDrag()
+        } catch {
+          try {
+            headerDragRef.current = null
+            unlockGlobalUserSelect()
+          } catch {
+            void 0
+          }
+        }
+      }
+      const p = overlayPanRef.current
+      if (p) {
+        try {
+          endOverlayPan({ pointerId: p.pointerId })
+        } catch {
+          try {
+            overlayPanRef.current = null
+          } catch {
+            void 0
+          }
+        }
+      }
+    }
+    window.addEventListener('pointerup', onUp, { capture: true })
+    window.addEventListener('pointercancel', onUp, { capture: true })
+    window.addEventListener('blur', onBlur)
+    return () => {
+      window.removeEventListener('pointerup', onUp, { capture: true } as AddEventListenerOptions)
+      window.removeEventListener('pointercancel', onUp, { capture: true } as AddEventListenerOptions)
+      window.removeEventListener('blur', onBlur)
+    }
+  }, [endHeaderDrag, endOverlayPan])
+
   return {
     stopEvent,
     shouldStartHeaderDrag,

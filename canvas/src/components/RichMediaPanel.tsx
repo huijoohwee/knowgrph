@@ -194,6 +194,14 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         return
       }
     }
+    try {
+      const st = useGraphStore.getState() as unknown as { selectNode?: (id: string | null) => void; selectEdge?: (id: string | null) => void; setSelectionSource?: (src: string) => void }
+      st.setSelectionSource?.('canvas')
+      st.selectEdge?.(null)
+      st.selectNode?.(null)
+    } catch {
+      void 0
+    }
     const pointerId = native.pointerId
     const x0 = native.clientX
     const y0 = native.clientY
@@ -278,6 +286,14 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       const x0 = native.clientX
       const y0 = native.clientY
       try {
+        const st = useGraphStore.getState() as unknown as { selectNode?: (id: string | null) => void; selectEdge?: (id: string | null) => void; setSelectionSource?: (src: string) => void }
+        st.setSelectionSource?.('canvas')
+        st.selectEdge?.(null)
+        st.selectNode?.(null)
+      } catch {
+        void 0
+      }
+      try {
         props.onOverlayPanStart?.({
           pointerId,
           clientX: x0,
@@ -351,9 +367,10 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     <article
       ref={setRefs}
       className={props.className}
+      data-kg-canvas-pointer-ignore="true"
       style={{
         ...PANEL_FRAME_ROOT_STYLE,
-        pointerEvents: headerPassthrough ? 'none' : ((contentInteractive || canClickToOpen) ? 'auto' : 'none'),
+        pointerEvents: hideUntilReady && !ready ? 'none' : (headerPassthrough ? 'none' : ((contentInteractive || canClickToOpen) ? 'auto' : 'none')),
         opacity: hideUntilReady && !ready ? 0 : 1,
         ...(props.style || null),
       }}

@@ -5,6 +5,8 @@ import { inferMediaKindFromResourceUrl, prefersIframeFromLinkContext } from '@/l
 import { inferMediaKindFromUrl } from 'grph-shared/rich-media/mediaKind'
 import { isSafeIframeUrl, normalizeIframeUrl, resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
 import { buildBilibiliEmbedUrl, buildTwitterEmbedUrl, buildVimeoEmbedUrl, buildYouTubeEmbedUrl } from 'grph-shared/rich-media/providers'
+import { coerceMarkdownParenUrl, extractMarkdownInlineRefs } from '@/features/parsers/markdownJsonLdUtils'
+import { fixBrokenMarkdownImageSyntax } from '@/lib/markdown/sanitizeImportedMarkdown'
 
 export type NodeMediaKind = 'image' | 'svg' | 'video' | 'iframe'
 
@@ -24,41 +26,69 @@ function normalizeExternalUrl(u: string): string {
   return trimmed
 }
 
-function extractStandaloneMarkdownLinkUrl(text: string): string {
-  const raw = String(text || '')
-  const m = raw.match(/^\s*\[[^\]]+\]\(([^)]+)\)\s*$/)
-  if (!m || !m[1]) return ''
-  return String(m[1]).trim()
-}
-
-function extractFirstMarkdownMediaUrl(text: string): { kind: NodeMediaKind; url: string } | null {
+function extractMarkdownMediaUrl(text: string): { kind: NodeMediaKind; url: string } | null {
   const raw = String(text || '')
   if (!raw.trim()) return null
+  const normalized = fixBrokenMarkdownImageSyntax(raw).text
+  const trimmed = normalized.trim()
 
-  const standaloneLink = extractStandaloneMarkdownLinkUrl(raw)
-  if (standaloneLink) {
-    const resolved = normalizeExternalUrl(standaloneLink)
-    const yt = buildYouTubeEmbedUrl(resolved, { noCookie: false, includeOrigin: false })
-    if (yt) return { kind: 'iframe', url: yt }
-    const x = buildTwitterEmbedUrl(resolved)
-    if (x) return { kind: 'iframe', url: x }
-    const vimeo = buildVimeoEmbedUrl(resolved)
-    if (vimeo) return { kind: 'iframe', url: vimeo }
-    const bili = buildBilibiliEmbedUrl(resolved)
-    if (bili) return { kind: 'iframe', url: bili }
-    return { kind: 'iframe', url: resolved }
-  }
-
-  const iframeMatch = raw.match(/<iframe\b[^>]*\bsrc=("|')([^"']+)("|')[^>]*>/i)
+  const iframeMatch = trimmed.match(/<iframe\b[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/i)
   if (iframeMatch) {
-    const u = String(iframeMatch[2] || '').trim()
-    if (u) return { kind: 'iframe', url: u }
+    const u = String(iframeMatch[1] || iframeMatch[2] || iframeMatch[3] || '').trim()
+    const resolved = normalizeExternalUrl(u)
+    if (resolved) return { kind: 'iframe', url: resolved }
   }
 
-  const imgMatch = raw.match(/!\[[^\]]*\]\(([^)]+)\)/)
-  if (imgMatch) {
-    const u = String(imgMatch[1] || '').trim()
-    if (u) return { kind: 'image', url: u }
+  const videoMatch = trimmed.match(/<video\b[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/i)
+  if (videoMatch) {
+    const u = String(videoMatch[1] || videoMatch[2] || videoMatch[3] || '').trim()
+    const resolved = normalizeExternalUrl(u)
+    if (resolved) return { kind: 'video', url: resolved }
+  }
+
+  const imgStandalone = trimmed.match(/^!\[[^\]]*\]\(([^)]+)\)\s*$/)
+  if (imgStandalone && imgStandalone[1]) {
+    const u = coerceMarkdownParenUrl(imgStandalone[1])
+    const resolved = normalizeExternalUrl(u)
+    if (resolved) return { kind: 'image', url: resolved }
+  }
+
+  const linkStandalone = trimmed.match(/^\[[^\]]+\]\(([^)]+)\)\s*$/)
+  if (linkStandalone && linkStandalone[1]) {
+    const u = coerceMarkdownParenUrl(linkStandalone[1])
+    const resolved = normalizeExternalUrl(u)
+    if (resolved) {
+      const yt = buildYouTubeEmbedUrl(resolved, { noCookie: false, includeOrigin: false })
+      if (yt) return { kind: 'iframe', url: yt }
+      const x = buildTwitterEmbedUrl(resolved)
+      if (x) return { kind: 'iframe', url: x }
+      const vimeo = buildVimeoEmbedUrl(resolved)
+      if (vimeo) return { kind: 'iframe', url: vimeo }
+      const bili = buildBilibiliEmbedUrl(resolved)
+      if (bili) return { kind: 'iframe', url: bili }
+      const inferred = inferMediaKindFromResourceUrl(resolved)
+      if (inferred === 'video') return { kind: 'video', url: resolved }
+      if (inferred === 'svg') return { kind: 'svg', url: resolved }
+      if (inferred === 'image') return { kind: 'image', url: resolved }
+      return { kind: 'iframe', url: resolved }
+    }
+  }
+
+  const refs = extractMarkdownInlineRefs(normalized)
+  const firstImg = refs.images && refs.images.length > 0 ? refs.images[0] : null
+  if (firstImg && firstImg.url) {
+    const resolved = normalizeExternalUrl(firstImg.url)
+    if (resolved) return { kind: 'image', url: resolved }
+  }
+  const firstLink = refs.links && refs.links.length > 0 ? refs.links[0] : null
+  if (firstLink && firstLink.url) {
+    const resolved = normalizeExternalUrl(firstLink.url)
+    if (!resolved) return null
+    const inferred = inferMediaKindFromResourceUrl(resolved)
+    if (inferred === 'video') return { kind: 'video', url: resolved }
+    if (inferred === 'svg') return { kind: 'svg', url: resolved }
+    if (inferred === 'image') return { kind: 'image', url: resolved }
+    return { kind: 'iframe', url: resolved }
   }
 
   return null
@@ -114,7 +144,7 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     const t = (props as Record<string, unknown>).text
     const m = (props as Record<string, unknown>).markdown
     const rawText = typeof t === 'string' ? t : typeof m === 'string' ? m : ''
-    const extracted = extractFirstMarkdownMediaUrl(rawText)
+    const extracted = extractMarkdownMediaUrl(rawText)
     if (!extracted) {
       markdownMedia = null
       return null

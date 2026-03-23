@@ -1,5 +1,7 @@
 import type { GraphNode } from '@/lib/graph/types'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
+import { coerceMarkdownParenUrl } from '@/features/parsers/markdownJsonLdUtils'
+import { fixBrokenMarkdownImageSyntax } from '@/lib/markdown/sanitizeImportedMarkdown'
 
 export type MediaOverlayKind = 'iframe' | 'image' | 'svg' | 'video'
 
@@ -40,9 +42,10 @@ type Candidate = {
 
 function extractStandaloneMarkdownLinkUrlFromText(rawText: unknown): string {
   if (typeof rawText !== 'string') return ''
-  const m = rawText.match(/^\s*\[[^\]]+\]\(([^)]+)\)\s*$/)
+  const normalized = fixBrokenMarkdownImageSyntax(rawText).text
+  const m = normalized.match(/^\s*\[[^\]]+\]\(([^)]+)\)\s*$/)
   if (!m || !m[1]) return ''
-  return String(m[1]).trim()
+  return coerceMarkdownParenUrl(String(m[1]))
 }
 
 function chooseOpenUrl(node: GraphNode, specUrl: string): string {

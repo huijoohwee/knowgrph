@@ -15,6 +15,7 @@ interface AnchorOverlayProps {
 
 export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right', className = '', children }: AnchorOverlayProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const portalRootRef = useRef<HTMLDivElement | null>(null)
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
 
   useLayoutEffect(() => {
@@ -81,6 +82,28 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
     }
   }, [open, onClose, anchorRef, align])
 
+  useEffect(() => {
+    if (!open) return
+    if (typeof document === 'undefined') return
+    if (!document.body) return
+    if (!portalRootRef.current) {
+      portalRootRef.current = document.createElement('div')
+    }
+    const root = portalRootRef.current
+    try {
+      if (!document.body.contains(root)) document.body.appendChild(root)
+    } catch {
+      void 0
+    }
+    return () => {
+      try {
+        if (root.parentNode) root.parentNode.removeChild(root)
+      } catch {
+        void 0
+      }
+    }
+  }, [open])
+
   const style = useMemo<React.CSSProperties>(
     () => ({
       position: 'fixed',
@@ -93,11 +116,13 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
   )
 
   if (!open) return null
+  const portalRoot = portalRootRef.current
+  if (!portalRoot) return null
   return createPortal(
     <div ref={containerRef} style={style} className={className}>
       {children}
     </div>,
-    document.body,
+    portalRoot,
   )
 }
 

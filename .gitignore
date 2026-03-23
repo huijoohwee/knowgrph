@@ -16,8 +16,16 @@ git-error-*
 /git-error-*
 
 data/outputs/
+data/_tmp_md_smoke/
 logs/
 *.log
+
+youtube_urllib_debug.html
+sandbox/test-data/*.canvas-*.html
+sandbox/test-data/*.generated.md
+canvas/*.pdf
+canvas/sandbox/*.html
+decoded_template.js
 
 .venv/
 venv/

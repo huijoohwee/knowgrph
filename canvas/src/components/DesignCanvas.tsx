@@ -1019,6 +1019,15 @@ export default function DesignCanvas({
     return listMediaOverlayNodes({ enabled, nodes, poolMax })
   }, [localGraphData, snapshot.renderMediaAsNodes, snapshot.threeIframeOverlayPoolMax])
 
+  const designMediaOverlayNodeIdSet = useMemo(() => {
+    const ids = new Set<string>()
+    for (let i = 0; i < designMediaOverlayNodes.length; i += 1) {
+      const id = String(designMediaOverlayNodes[i]?.id || '').trim()
+      if (id) ids.add(id)
+    }
+    return ids
+  }, [designMediaOverlayNodes])
+
   const designMediaOverlayElsRef = useRef<Map<string, HTMLElement>>(new Map())
   const designMediaOverlayNodeByIdRef = useRef<{ graph: unknown | null; map: Map<string, GraphNode> }>({ graph: null, map: new Map() })
   const designMediaOverlayNodeIdsKey = useMemo(() => designMediaOverlayNodes.map(n => n.id).join('|'), [designMediaOverlayNodes])
@@ -1718,7 +1727,8 @@ export default function DesignCanvas({
 
   const denseRender = visibleNodes.length > 450
   const renderNodes = useMemo(() => {
-    if (!styleById) return visibleNodes
+    const base = designMediaOverlayNodeIdSet.size > 0 ? visibleNodes.filter(n => !designMediaOverlayNodeIdSet.has(n.id)) : visibleNodes
+    if (!styleById) return base
     const kindRank = (k: string): number => {
       if (k === 'container') return 0
       if (k === 'element') return 1
@@ -1726,7 +1736,7 @@ export default function DesignCanvas({
       if (k === 'interactive') return 3
       return 4
     }
-    const nodes = visibleNodes.slice()
+    const nodes = base.slice()
     nodes.sort((a, b) => {
       const sa = styleById.get(a.id)
       const sb = styleById.get(b.id)

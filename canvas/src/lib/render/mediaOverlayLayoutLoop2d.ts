@@ -32,6 +32,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   let rafLoop: number | null = null
   let lastSizingKey = ''
   let lastSizing: MediaOverlaySizing | null = null
+  const lastWorldCenterById = new Map<string, { x: number; y: number }>()
 
   const update = () => {
     const t = args.readTransform()
@@ -54,12 +55,19 @@ export function startMediaOverlayLayoutLoop2d(args: {
       ? { viewportW: args.viewportW, viewportH: args.viewportH, margin: args.clampToViewport.margin }
       : undefined
 
+    const keepIds = new Set<string>()
+
     for (let i = 0; i < args.items.length; i += 1) {
       const id = String(args.items[i]?.id || '').trim()
       if (!id) continue
+      keepIds.add(id)
       const el = args.getElementForId(id)
       if (!el) continue
-      const center = args.getNodeWorldCenterForId(id)
+      const centerNow = args.getNodeWorldCenterForId(id)
+      if (centerNow && Number.isFinite(centerNow.x) && Number.isFinite(centerNow.y)) {
+        lastWorldCenterById.set(id, centerNow)
+      }
+      const center = centerNow || lastWorldCenterById.get(id) || null
       if (!center) continue
       const cx = t.applyX(center.x)
       const cy = t.applyY(center.y)
@@ -73,6 +81,9 @@ export function startMediaOverlayLayoutLoop2d(args: {
       } catch {
         void 0
       }
+    }
+    for (const id of Array.from(lastWorldCenterById.keys())) {
+      if (!keepIds.has(id)) lastWorldCenterById.delete(id)
     }
   }
 

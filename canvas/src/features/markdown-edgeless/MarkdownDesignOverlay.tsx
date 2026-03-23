@@ -10,6 +10,7 @@ import { sanitizeIframeSrcdoc } from '@/lib/render/sanitizeIframeSrcdoc'
 import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
+import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import {
   PANEL_FRAME_BODY_STYLE,
   PANEL_FRAME_HEADER_ACTION_STYLE,
@@ -43,6 +44,7 @@ type MarkdownDesignOverlayProps = {
   onHeaderDragStart?: (args: { id: string; clientX: number; clientY: number }) => void
   onHeaderDrag?: (args: { dx: number; dy: number }) => void
   onHeaderDragEnd?: () => void
+  onVisibleNodeIdsChange?: (nodeIds: string[]) => void
 }
 
 export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(props: MarkdownDesignOverlayProps) {
@@ -60,10 +62,32 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
     return deriveMarkdownDesignLayout({ activeDocumentPath, markdownTokensKey, tokens: lexed.tokens as never })
   }, [activeDocumentPath, lexed.tokens, markdownText, markdownTokensKey, props.layoutOverride])
 
-  const [blocks, setBlocks] = React.useState<MarkdownDesignBlock[]>(layout?.blocks || [])
+  const lastLayoutRef = React.useRef<MarkdownDesignLayout | null>(layout)
   React.useEffect(() => {
-    setBlocks(layout?.blocks || [])
-  }, [layout?.blocks])
+    if (layout) lastLayoutRef.current = layout
+  }, [layout])
+  const layoutForRender = layout || lastLayoutRef.current
+
+  const [blocks, setBlocks] = React.useState<MarkdownDesignBlock[]>(layoutForRender?.blocks || [])
+  const lastStableBlocksRef = React.useRef<MarkdownDesignBlock[]>(layoutForRender?.blocks || [])
+  React.useEffect(() => {
+    const next = Array.isArray(layoutForRender?.blocks) ? layoutForRender!.blocks : []
+    if (next.length > 0) {
+      lastStableBlocksRef.current = next
+      setBlocks(next)
+      return
+    }
+    if (!enabled) {
+      lastStableBlocksRef.current = []
+      setBlocks([])
+      return
+    }
+    if (lastStableBlocksRef.current.length > 0) {
+      setBlocks(lastStableBlocksRef.current)
+      return
+    }
+    setBlocks([])
+  }, [enabled, layoutForRender?.blocks])
 
   const blocksRef = React.useRef<MarkdownDesignBlock[]>(blocks)
   React.useEffect(() => {
@@ -144,6 +168,14 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
       const anchorId = String(anchor?.[args0.blockId] || args0.blockId)
       if (!anchorId) return
       try {
+        const st = useGraphStore.getState() as unknown as { selectNode?: (id: string | null) => void; selectEdge?: (id: string | null) => void; setSelectionSource?: (src: string) => void }
+        st.setSelectionSource?.('canvas')
+        st.selectEdge?.(null)
+        st.selectNode?.(null)
+      } catch {
+        void 0
+      }
+      try {
         props.onHeaderDragStart?.({ id: anchorId, clientX: args0.clientX, clientY: args0.clientY })
       } catch {
         void 0
@@ -184,6 +216,14 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
       if (!props.onOverlayPanStart && !props.onOverlayPan && !props.onOverlayPanEnd) return
       const x0 = native.clientX
       const y0 = native.clientY
+      try {
+        const st = useGraphStore.getState() as unknown as { selectNode?: (id: string | null) => void; selectEdge?: (id: string | null) => void; setSelectionSource?: (src: string) => void }
+        st.setSelectionSource?.('canvas')
+        st.selectEdge?.(null)
+        st.selectNode?.(null)
+      } catch {
+        void 0
+      }
       try {
         props.onOverlayPanStart?.({ pointerId: native.pointerId, clientX: x0, clientY: y0 })
       } catch {
@@ -241,6 +281,23 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
     })
   }, [allowedKindsSet, blocks])
 
+  React.useEffect(() => {
+    const out = new Set<string>()
+    const anchor = anchorByBlockIdRef.current
+    for (let i = 0; i < visibleBlocks.length; i += 1) {
+      const b = visibleBlocks[i]!
+      const id = String(b.id || '').trim()
+      if (id) out.add(id)
+      const anchorId = String(anchor?.[id] || '').trim()
+      if (anchorId) out.add(anchorId)
+    }
+    try {
+      props.onVisibleNodeIdsChange?.(Array.from(out))
+    } catch {
+      void 0
+    }
+  }, [props.onVisibleNodeIdsChange, visibleBlocks])
+
   const blockIdsKey = React.useMemo(() => visibleBlocks.map(b => b.id).join('|'), [visibleBlocks])
   React.useEffect(() => {
     const next = new Map<string, HTMLElement>()
@@ -251,7 +308,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
     overlayElsRef.current = next
   }, [blockIdsKey, visibleBlocks])
 
-  const [drag, setDrag] = React.useState<null | { pointerId: number; blockId: string; startX: number; startY: number; startK: number; startClientX: number; startClientY: number }>(null)
+  const [drag, setDrag] = React.useState<null | { pointerId: number; blockId: string }>(null)
   const dragging = drag != null
 
   const viewportRef = React.useRef<{ w: number; h: number }>({ w: 1, h: 1 })
@@ -321,42 +378,55 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
     return () => loop.stop()
   }, [enabled, layout, svgRef])
 
-  React.useEffect(() => {
-    if (!dragging) return
+  const startBlockDrag = React.useCallback((args0: { blockId: string; native: PointerEvent; clientX: number; clientY: number }) => {
+    if (!allowDrag) return
+    const svgEl = svgRef.current
+    if (!svgEl) return
+    const blockId = String(args0.blockId || '').trim()
+    if (!blockId) return
+    const b0 = blocksRef.current.find(b => String(b?.id || '') === blockId) || null
+    if (!b0) return
+    lockGlobalUserSelect()
+    setDrag({ pointerId: args0.native.pointerId, blockId })
+    const startClientX = args0.clientX
+    const startClientY = args0.clientY
+    const startX = b0.x
+    const startY = b0.y
+    startPointerDrag({
+      ev: args0.native,
+      cursor: 'grabbing',
+      onMove: ev => {
+        const svgNow = svgRef.current
+        if (!svgNow) return
+        const t = d3.zoomTransform(svgNow)
+        const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+        const dx = (ev.clientX - startClientX) / k
+        const dy = (ev.clientY - startClientY) / k
+        setBlocks(prev => prev.map(b => (String(b.id) === blockId ? { ...b, x: startX + dx, y: startY + dy } : b)))
+      },
+      onEnd: () => {
+        try {
+          const moved = blocksRef.current.find(b => String(b?.id || '') === blockId) || null
+          if (moved && layoutForRender && !props.layoutOverride) {
+            patchMarkdownDesignLayoutPositions({ layoutKey: layoutForRender.key, updates: [{ id: moved.id, x: moved.x, y: moved.y }] })
+          }
+        } finally {
+          unlockGlobalUserSelect()
+          setDrag(null)
+        }
+      },
+      onCancel: () => {
+        try {
+          void 0
+        } finally {
+          unlockGlobalUserSelect()
+          setDrag(null)
+        }
+      },
+    })
+  }, [allowDrag, layoutForRender, props.layoutOverride, svgRef])
 
-    const onMove = (e: PointerEvent) => {
-      if (!drag) return
-      if (e.pointerId !== drag.pointerId) return
-      const svgEl = svgRef.current
-      if (!svgEl) return
-      const t = d3.zoomTransform(svgEl)
-      const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : drag.startK || 1
-      const dx = (e.clientX - drag.startClientX) / k
-      const dy = (e.clientY - drag.startClientY) / k
-      setBlocks(prev => prev.map(b => (b.id === drag.blockId ? { ...b, x: drag.startX + dx, y: drag.startY + dy } : b)))
-    }
-
-    const onUp = (e: PointerEvent) => {
-      if (!drag) return
-      if (e.pointerId !== drag.pointerId) return
-      const moved = blocks.find(b => b.id === drag.blockId)
-      if (moved && layout && !props.layoutOverride) {
-        patchMarkdownDesignLayoutPositions({ layoutKey: layout.key, updates: [{ id: moved.id, x: moved.x, y: moved.y }] })
-      }
-      setDrag(null)
-    }
-
-    window.addEventListener('pointermove', onMove, { capture: true })
-    window.addEventListener('pointerup', onUp, { capture: true })
-    window.addEventListener('pointercancel', onUp, { capture: true })
-    return () => {
-      window.removeEventListener('pointermove', onMove, { capture: true } as AddEventListenerOptions)
-      window.removeEventListener('pointerup', onUp, { capture: true } as AddEventListenerOptions)
-      window.removeEventListener('pointercancel', onUp, { capture: true } as AddEventListenerOptions)
-    }
-  }, [blocks, drag, dragging, layout, svgRef])
-
-  if (!enabled || !layout || visibleBlocks.length === 0) return null
+  if (!enabled || !layoutForRender || visibleBlocks.length === 0) return null
 
   const onHeaderActionPointerDownCapture = (e: React.PointerEvent<HTMLElement>) => {
     try {
@@ -610,21 +680,17 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
                   startHeaderDrag({ blockId: b.id, clientX: e.clientX, clientY: e.clientY, native })
                   return
                 }
-                if (!allowDrag) return
-                const svgEl = svgRef.current
-                if (!svgEl) return
-                e.stopPropagation()
-                const t = d3.zoomTransform(svgEl)
-                const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
-                setDrag({
-                  pointerId: e.pointerId,
-                  blockId: b.id,
-                  startX: b.x,
-                  startY: b.y,
-                  startK: k,
-                  startClientX: e.clientX,
-                  startClientY: e.clientY,
-                })
+                try {
+                  e.preventDefault()
+                } catch {
+                  void 0
+                }
+                try {
+                  e.stopPropagation()
+                } catch {
+                  void 0
+                }
+                startBlockDrag({ blockId: b.id, native, clientX: e.clientX, clientY: e.clientY })
               }}
               onDoubleClick={() => {
                 onPreviewClick?.(b.startLine)

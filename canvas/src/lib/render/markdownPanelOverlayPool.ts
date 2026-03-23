@@ -3,6 +3,7 @@ import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import type { MarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { buildMarkdownPanelSrcDoc } from '@/lib/render/markdownPanelSrcDoc'
 import { looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
+import { hasNodeMedia } from '@/components/GraphCanvas/helpers'
 
 function readLineStart(n: GraphNode): number | null {
   const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
@@ -19,6 +20,7 @@ function isPanelOnlyParagraphNode(n: GraphNode): boolean {
   if (propsObj && propsObj.calloutType === true) return true
   if (text.startsWith('>')) return true
   if (text && /<\s*iframe\b/i.test(text) && text.toLowerCase().startsWith('<iframe') && looksLikeSingleTagBlock(text, 'iframe')) return true
+  if (hasNodeMedia(n)) return true
   return false
 }
 
@@ -39,7 +41,6 @@ export function listMarkdownPanelOverlayNodes(args: {
     const n = nodes[i]!
     const id = String(n?.id || '').trim()
     if (!id) continue
-    if (!id.startsWith('blk:')) continue
     const start = readLineStart(n)
     if (start == null) continue
     const type = String(n.type || '').trim()
@@ -58,6 +59,7 @@ export function listMarkdownPanelOverlayNodes(args: {
       if (type === 'table') return tableByStart.get(start) || null
       if (type === 'code') return codeByStart.get(start) || null
       if (type === 'blockquote' || type === 'callout') return paraByStart.get(start) || null
+      if (type === 'html') return paraByStart.get(start) || null
       return null
     })()
     if (!nodeId) continue
@@ -84,7 +86,6 @@ export function buildPanelOnlyNodeIdSetFromGraphNodes(nodes: GraphNode[]): Set<s
     const n = list[i]!
     const id = String(n?.id || '').trim()
     if (!id) continue
-    if (!id.startsWith('blk:')) continue
     const type = String(n.type || '').trim()
     if (type === 'Table' || type === 'CodeBlock') {
       out.add(id)
@@ -94,4 +95,3 @@ export function buildPanelOnlyNodeIdSetFromGraphNodes(nodes: GraphNode[]): Set<s
   }
   return out
 }
-
