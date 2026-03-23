@@ -30,6 +30,10 @@
 
 ### P0-Critical
 
+#### 2026-03-23
+
+- [x] call graph diagram (file → function) showing the exact data flow → `docs/documents/knowgrph-html-canvas-export-callgraph.md`
+
 #### 2026-03-17
 
 frontmatter+highlight+link {{}} [[]]

@@ -116,6 +116,11 @@ export async function buildGraphHtmlViewerMarkup(args: {
   const mediaHeaderBg = resolveCssVarWithKgFallback('--kg-media-panel-header-bg') || 'rgba(0,0,0,0.04)'
 
   const density = args.mediaPanelDensity === 'compact' ? 'compact' : 'default'
+
+  const mediaPanelHeaderH = density === 'compact' ? 22 : 28
+  const mediaPanelRadius = density === 'compact' ? 9 : 10
+  const mediaPanelPadding = density === 'compact' ? 6 : 8
+  const mediaPanelTitleSize = density === 'compact' ? 11 : 12
   const widthRatioDefault = isFiniteNum(args.threeIframeOverlayBaseWidthRatioDefault)
     ? Math.max(0.001, args.threeIframeOverlayBaseWidthRatioDefault)
     : 0.2
@@ -367,11 +372,11 @@ export async function buildGraphHtmlViewerMarkup(args: {
       --kg-canvas-label-fill:${escapeHtml(canvasLabelFill)};
       --kg-canvas-label-halo:${escapeHtml(canvasLabelHalo)};
       --kg-media-panel-header-bg:${escapeHtml(mediaHeaderBg)};
-      --kg-media-panel-header-h:28px;
+      --kg-media-panel-header-h:${mediaPanelHeaderH}px;
       --kg-media-panel-border-w:1px;
-      --kg-media-panel-radius:10px;
-      --kg-media-panel-padding:8px;
-      --kg-media-panel-title-size:12px;
+      --kg-media-panel-radius:${mediaPanelRadius}px;
+      --kg-media-panel-padding:${mediaPanelPadding}px;
+      --kg-media-panel-title-size:${mediaPanelTitleSize}px;
       --kg-media-pointer-events:none;
     }
     html,body{height:100%;width:100%;margin:0;background:var(--kg-canvas-bg);color:var(--kg-text);font-family:${escapeHtml(fontFamily)};-webkit-user-select:none;user-select:none;-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior:none}

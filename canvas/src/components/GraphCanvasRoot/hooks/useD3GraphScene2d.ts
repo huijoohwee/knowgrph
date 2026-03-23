@@ -75,6 +75,14 @@ export function useD3GraphScene2d(args: {
   isEmbeddedPreview: boolean
   coarsePointer: boolean
   mediaOverlayNodeIdSet: Set<string>
+  panelOnlyNodeIdsKey: string
+  panelOnlyNodeIdSet: Set<string>
+  overlayBaseWidthRatioDefault: number
+  overlayBaseWidthRatioCompact: number
+  overlayBaseWidthMinPxDefault: number
+  overlayBaseWidthMinPxCompact: number
+  overlayBaseWidthMaxPxDefault: number
+  overlayBaseWidthMaxPxCompact: number
   requestMediaOverlaySchedule: () => void
   setLayoutPositionsForMode: (key: string, positions: Record<string, { x: number; y: number }>) => void
   selectedEdgeIdRef: MutableRefObject<string | null>
@@ -132,6 +140,14 @@ export function useD3GraphScene2d(args: {
     isEmbeddedPreview,
     coarsePointer,
     mediaOverlayNodeIdSet,
+    panelOnlyNodeIdsKey,
+    panelOnlyNodeIdSet,
+    overlayBaseWidthRatioDefault,
+    overlayBaseWidthRatioCompact,
+    overlayBaseWidthMinPxDefault,
+    overlayBaseWidthMinPxCompact,
+    overlayBaseWidthMaxPxDefault,
+    overlayBaseWidthMaxPxCompact,
     requestMediaOverlaySchedule,
     setLayoutPositionsForMode,
     selectedEdgeIdRef,
@@ -453,7 +469,14 @@ export function useD3GraphScene2d(args: {
         zoomOnDoubleClick,
         renderMediaAsNodes,
         mediaOverlayNodeIdSet,
+        panelOnlyNodeIdSet,
         mediaPanelDensity,
+        overlayBaseWidthRatioDefault,
+        overlayBaseWidthRatioCompact,
+        overlayBaseWidthMinPxDefault,
+        overlayBaseWidthMinPxCompact,
+        overlayBaseWidthMaxPxDefault,
+        overlayBaseWidthMaxPxCompact,
         enableTightInitialLayout: (() => {
           if (isEmbeddedPreview) return false
           const nodesCount = Array.isArray(sceneGraphData?.nodes) ? sceneGraphData.nodes.length : 0
@@ -559,6 +582,13 @@ export function useD3GraphScene2d(args: {
     layoutSemanticModeKey,
     mediaOverlayNodeIdSet,
     mediaPanelDensity,
+    overlayBaseWidthRatioDefault,
+    overlayBaseWidthRatioCompact,
+    overlayBaseWidthMinPxDefault,
+    overlayBaseWidthMinPxCompact,
+    overlayBaseWidthMaxPxDefault,
+    overlayBaseWidthMaxPxCompact,
+    panelOnlyNodeIdsKey,
     renderMediaAsNodes,
     requestMediaOverlaySchedule,
     sceneGraphData,

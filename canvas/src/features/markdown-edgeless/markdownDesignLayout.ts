@@ -17,6 +17,7 @@ export type MarkdownDesignBlock = {
     code?: { lang: string; lines: string[] }
     callout?: { calloutType: string; title: string; collapsed: boolean }
     blockquote?: { lines: string[] }
+    html?: { raw: string }
   }
   x: number
   y: number
@@ -199,7 +200,13 @@ const buildPreview = (t: TokenWithLines): MarkdownDesignBlock['preview'] => {
     return { kind: 'blockquote', blockquote: { lines } }
   }
   if (type === 'hr') return { kind: 'hr' }
-  if (type === 'html') return { kind: 'html' }
+  if (type === 'html') {
+    const anyTok = t as unknown as { raw?: unknown; text?: unknown }
+    const raw = typeof anyTok.raw === 'string' ? anyTok.raw : typeof anyTok.text === 'string' ? anyTok.text : ''
+    const trimmed = String(raw || '').trim()
+    const clip = trimmed.length > 2400 ? `${trimmed.slice(0, 2400)}…` : trimmed
+    return { kind: 'html', html: { raw: clip } }
+  }
   return { kind: 'other' }
 }
 

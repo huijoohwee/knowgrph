@@ -5,20 +5,71 @@ import {
 
 const isUrlAttr = (name: string): boolean => {
   const n = String(name || '').toLowerCase()
-  return n === 'href' || n === 'xlink:href' || n === 'src'
+  return n === 'href' || n === 'xlink:href' || n === 'src' || n === 'poster'
 }
 
-const readUrlAttr = (el: Element): { name: string; value: string } | null => {
+const isUrlSetAttr = (name: string): boolean => {
+  const n = String(name || '').toLowerCase()
+  return n === 'srcset'
+}
+
+const readUrlAttrs = (el: Element): Array<{ name: string; value: string }> => {
+  const out: Array<{ name: string; value: string }> = []
   const attrs = el.attributes
   for (let i = 0; i < attrs.length; i += 1) {
     const a = attrs.item(i)
     if (!a) continue
-    if (!isUrlAttr(a.name)) continue
+    if (!isUrlAttr(a.name) && !isUrlSetAttr(a.name) && String(a.name || '').toLowerCase() !== 'style') continue
     const v = String(a.value || '').trim()
     if (!v) continue
-    return { name: a.name, value: v }
+    out.push({ name: a.name, value: v })
   }
-  return null
+  return out
+}
+
+const parseAndRewriteSrcset = async (
+  srcset: string,
+  rewriteUrl: (u: string) => Promise<string>,
+): Promise<string> => {
+  const raw = String(srcset || '').trim()
+  if (!raw) return ''
+  const parts = raw
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+  if (parts.length === 0) return raw
+  const out: string[] = []
+  for (let i = 0; i < parts.length; i += 1) {
+    const p = parts[i]!
+    const tokens = p.split(/\s+/g).filter(Boolean)
+    if (tokens.length === 0) continue
+    const url0 = tokens[0]!
+    const url1 = await rewriteUrl(url0)
+    const rest = tokens.slice(1).join(' ')
+    out.push(rest ? `${url1} ${rest}` : url1)
+  }
+  return out.join(', ')
+}
+
+const rewriteCssUrls = async (cssText: string, rewriteUrl: (u: string) => Promise<string>): Promise<string> => {
+  const src = String(cssText || '')
+  if (!src.trim()) return src
+  const re = /url\(\s*(['"]?)([^'"\)]+)\1\s*\)/g
+  let out = ''
+  let last = 0
+  for (;;) {
+    const m = re.exec(src)
+    if (!m) break
+    const full = m[0]
+    const urlRaw = String(m[2] || '').trim()
+    out += src.slice(last, m.index)
+    last = m.index + full.length
+    const nextUrl = urlRaw ? await rewriteUrl(urlRaw) : urlRaw
+    const quote = m[1] || ''
+    out += `url(${quote}${nextUrl}${quote})`
+  }
+  out += src.slice(last)
+  return out
 }
 
 export async function rewriteSvgMarkupForStandaloneHtmlExport(args: {
@@ -46,21 +97,53 @@ export async function rewriteSvgMarkupForStandaloneHtmlExport(args: {
   const maxInlineRepoBytes =
     typeof args.maxInlineRepoBytes === 'number' && Number.isFinite(args.maxInlineRepoBytes) ? Math.max(0, Math.floor(args.maxInlineRepoBytes)) : 2_400_000
 
+  const rewriteUrl = async (raw: string): Promise<string> => {
+    const raw0 = String(raw || '').trim()
+    if (!raw0) return ''
+    const unwrapped = unwrapStandaloneProxyUrl(raw0)
+    const inlined = await inlineRepoFileUrlToDataUrl(unwrapped, { maxBytes: maxInlineRepoBytes })
+    return inlined || unwrapped
+  }
+
   for (let i = 0; i < all.length; i += 1) {
     const el = all[i]
-    const urlAttr = readUrlAttr(el)
-    if (!urlAttr) continue
+    const urlAttrs = readUrlAttrs(el)
+    if (urlAttrs.length === 0) continue
 
-    const raw = urlAttr.value
-    const unwrapped = unwrapStandaloneProxyUrl(raw)
+    for (let j = 0; j < urlAttrs.length; j += 1) {
+      const urlAttr = urlAttrs[j]!
+      const raw = urlAttr.value
+      const nameLower = String(urlAttr.name || '').toLowerCase()
 
-    const inlined = await inlineRepoFileUrlToDataUrl(unwrapped, { maxBytes: maxInlineRepoBytes })
-    const next = inlined || unwrapped
-    if (!next || next === raw) continue
-    try {
-      el.setAttribute(urlAttr.name, next)
-    } catch {
-      void 0
+      if (nameLower === 'srcset') {
+        const next = await parseAndRewriteSrcset(raw, rewriteUrl)
+        if (!next || next === raw) continue
+        try {
+          el.setAttribute(urlAttr.name, next)
+        } catch {
+          void 0
+        }
+        continue
+      }
+
+      if (nameLower === 'style') {
+        const next = await rewriteCssUrls(raw, rewriteUrl)
+        if (!next || next === raw) continue
+        try {
+          el.setAttribute(urlAttr.name, next)
+        } catch {
+          void 0
+        }
+        continue
+      }
+
+      const next = await rewriteUrl(raw)
+      if (!next || next === raw) continue
+      try {
+        el.setAttribute(urlAttr.name, next)
+      } catch {
+        void 0
+      }
     }
   }
 
@@ -71,4 +154,3 @@ export async function rewriteSvgMarkupForStandaloneHtmlExport(args: {
     return src
   }
 }
-

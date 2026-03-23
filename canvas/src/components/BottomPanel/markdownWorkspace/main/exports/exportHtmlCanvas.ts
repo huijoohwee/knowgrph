@@ -14,6 +14,9 @@ import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { readCanvasViewportSizeFromDom } from '@/lib/graph/svgSnapshot'
+import { deriveGraphDataForActiveView } from '@/hooks/useActiveGraphData'
+import { lexMarkdown, buildMarkdownTokensKey } from '@/features/markdown/ui/markdownPreviewLex'
+import { deriveMarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { normalizeInteractiveSvgForHtmlViewer } from './normalizeInteractiveSvg'
 import { rewriteSvgMarkupForStandaloneHtmlExport } from '@/lib/graph/htmlViewer/rewriteSvgMarkupForStandaloneHtmlExport'
 
@@ -36,19 +39,44 @@ export async function exportHtmlCanvasFromWorkspace(args: {
     const wants3dExport =
       store.canvasRenderMode === '3d' || (store.canvasRenderModeIsAuto === true && store.canvasRenderModeLastFree === '3d')
 
-    const graphData = store.graphData
+    const baseGraphData = store.graphData
     const schema = store.schema
-    if (!graphData || !schema) {
+    if (!baseGraphData || !schema) {
       args.pushUiToast({ id: 'export-html-missing-canvas', kind: 'warning', message: 'No canvas snapshot available.' })
       return
     }
 
     const documentSemanticMode = store.documentSemanticMode === 'keyword' ? 'keyword' : 'document'
+    const multiDimTableModeEnabled = store.multiDimTableModeEnabled === true
+    const layoutSemanticModeKey = multiDimTableModeEnabled ? `${documentSemanticMode}:mdtbl` : documentSemanticMode
     const frontmatterModeEnabled = computeEffectiveFrontmatterMode({
       frontmatterModeEnabled: store.frontmatterModeEnabled,
       documentSemanticMode: store.documentSemanticMode,
-      graphData,
+      graphData: baseGraphData,
     })
+
+    const graphData = deriveGraphDataForActiveView({
+      graphData: baseGraphData,
+      frontmatterModeEnabled: store.frontmatterModeEnabled === true,
+      multiDimTableModeEnabled,
+      documentSemanticMode,
+      documentStructureBaselineLock: store.documentStructureBaselineLock === true,
+      collapsedGroupIds: Array.isArray(store.collapsedGroupIds) ? store.collapsedGroupIds : [],
+    })
+
+    const markdownDesignBlocks = (() => {
+      try {
+        const markdownText = String(store.markdownDocumentText || '')
+        if (!markdownText.trim()) return []
+        const activeDocumentPath = String(store.markdownDocumentName || '').trim() || 'markdown'
+        const markdownTokensKey = buildMarkdownTokensKey(markdownText)
+        const lexed = lexMarkdown(markdownText)
+        const layout = deriveMarkdownDesignLayout({ activeDocumentPath, markdownTokensKey, tokens: lexed.tokens as never })
+        return Array.isArray(layout.blocks) ? layout.blocks : []
+      } catch {
+        return []
+      }
+    })()
 
     const vp = readCanvasViewportSizeFromDom()
     const fixedViewport = {
@@ -115,7 +143,20 @@ export async function exportHtmlCanvasFromWorkspace(args: {
           const trimmed = String(centered3d || '').trim()
           if (trimmed) return { svgMarkup: trimmed, initialView: null }
         } else {
-          const snap = await store.captureCanvasSvgSnapshot('2d')
+          const snap = await (async (): Promise<string | null> => {
+            const maxAttempts = 3
+            for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+              const v = await store.captureCanvasSvgSnapshot('2d')
+              const snapped = String(v || '')
+              if (snapped.trim()) return snapped
+              if (typeof requestAnimationFrame === 'function') {
+                await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+              } else {
+                await new Promise<void>(resolve => setTimeout(resolve, 30))
+              }
+            }
+            return null
+          })()
           const snapped = String(snap || '').replace(/^[\s\S]*?<svg/i, '<svg').replace(/\s*<\?xml[^>]*>\s*/i, '').trim()
           if (snapped) return normalizeInteractiveSvgForHtmlViewer(snapped)
 
@@ -124,6 +165,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
           const mediaPanelDensity = store.mediaPanelDensity === 'compact' ? 'compact' : 'default'
           const rendered = await renderGraphCanvasSvgForHtmlExport({
             graphData,
+            graphDataRevision: store.graphDataRevision,
             schema,
             widthPx: fixedViewport.widthPx,
             heightPx: fixedViewport.heightPx,
@@ -132,6 +174,17 @@ export async function exportHtmlCanvasFromWorkspace(args: {
             mediaPanelDensity,
             documentSemanticMode,
             frontmatterModeEnabled,
+            markdownDesignBlocks,
+            collapsedGroupIds: store.collapsedGroupIds,
+            layoutPositionCacheByMode: store.layoutPositionCacheByMode,
+            canvas2dRenderer: store.canvas2dRenderer,
+            overlayBaseWidthRatioDefault: (store as unknown as { threeIframeOverlayBaseWidthRatioDefault?: number }).threeIframeOverlayBaseWidthRatioDefault,
+            overlayBaseWidthRatioCompact: (store as unknown as { threeIframeOverlayBaseWidthRatioCompact?: number }).threeIframeOverlayBaseWidthRatioCompact,
+            overlayBaseWidthMinPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMinPxDefault?: number }).threeIframeOverlayBaseWidthMinPxDefault,
+            overlayBaseWidthMinPxCompact: (store as unknown as { threeIframeOverlayBaseWidthMinPxCompact?: number }).threeIframeOverlayBaseWidthMinPxCompact,
+            overlayBaseWidthMaxPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMaxPxDefault?: number }).threeIframeOverlayBaseWidthMaxPxDefault,
+            overlayBaseWidthMaxPxCompact: (store as unknown as { threeIframeOverlayBaseWidthMaxPxCompact?: number }).threeIframeOverlayBaseWidthMaxPxCompact,
+            layoutSemanticModeKey,
           })
           if (rendered) return normalizeInteractiveSvgForHtmlViewer(rendered)
           const centered = exportGraphAsCenteredSvgMarkup({
@@ -163,11 +216,12 @@ export async function exportHtmlCanvasFromWorkspace(args: {
       title: `${exportBaseName} (Canvas)`,
       svgMarkup,
       graphData,
-      includeRichMediaOverlays: true,
+      includeRichMediaOverlays: store.renderMediaAsNodes === true,
       mediaOverlayPoolMax: (store as unknown as { threeIframeOverlayPoolMax?: number }).threeIframeOverlayPoolMax,
       mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
       enableDecorativeAnimation: true,
       preferWebgl3d: wants3dExport,
+      initialView: !geospatialEnabled && !wants3dExport ? (fitInitialView2d || exportView.initialView || undefined) : undefined,
       threeIframeOverlayBaseWidthRatioDefault: (store as unknown as { threeIframeOverlayBaseWidthRatioDefault?: number }).threeIframeOverlayBaseWidthRatioDefault,
       threeIframeOverlayBaseWidthRatioCompact: (store as unknown as { threeIframeOverlayBaseWidthRatioCompact?: number }).threeIframeOverlayBaseWidthRatioCompact,
       threeIframeOverlayBaseWidthMinPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMinPxDefault?: number }).threeIframeOverlayBaseWidthMinPxDefault,

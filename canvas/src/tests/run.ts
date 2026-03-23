@@ -65,6 +65,16 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       'ui.collapsibleDefaultsCompactAndAnchoredToLsKeys',
       modCollapsible.testCollapsibleDefaultsCompactAndAnchoredToLsKeys,
     )
+
+    const modStandaloneRewrite = await import('@/__tests__/htmlCanvasStandaloneRewrite.test')
+    await execTest(
+      results,
+      'ui.export.htmlCanvas.standaloneRewriteRewritesAllUrlAttrs',
+      modStandaloneRewrite.testStandaloneSvgRewriteRewritesAllUrlAttrs,
+    )
+
+    const modDatasetRev = await import('@/__tests__/layoutDatasetKeyRevFallback.test')
+    await execTest(results, 'layout.datasetKey.revFallbackUsesRevision', modDatasetRev.testLayoutDatasetKeyRevFallbackUsesRevision)
   } finally {
     bootstrap?.restore()
   }

@@ -8,7 +8,8 @@ import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { cloneGraphDataForRender } from '@/components/GraphCanvas/renderClone'
 import { normalizeEdgesForSim } from '@/components/GraphCanvas/simulation'
-import { create2dSvgSnapshotFns, computeFlowState } from '@/components/GraphCanvas/helpers'
+import { create2dSvgSnapshotFns, computeFlowState, getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
+import { looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
 import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects'
 import { useEdgeCreationEffect } from '@/components/GraphCanvas/hooks/useEdgeCreationEffect'
 import { useSelectionHighlight } from '@/components/GraphCanvas/hooks/useSelectionHighlight'
@@ -17,6 +18,9 @@ import { useGraphCanvasStyles } from '@/components/GraphCanvas/useGraphCanvasSty
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
 import { MarkdownDesignOverlay } from '@/features/markdown-edgeless/MarkdownDesignOverlay'
+import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
+import { deriveMarkdownDesignLayout, MARKDOWN_DESIGN_LAYOUT, type MarkdownDesignBlock, type MarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
+import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { InfiniteGridCanvasOverlay } from '@/components/InfiniteGridCanvasOverlay'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
@@ -47,6 +51,8 @@ import { useArrangeRequestEffect2d } from '@/components/GraphCanvasRoot/hooks/us
 import { ArrangeToolbar2d } from '@/components/GraphCanvasRoot/components/ArrangeToolbar2d'
 import { useMarqueeSelection2d } from '@/components/GraphCanvasRoot/hooks/useMarqueeSelection2d'
 import { MarqueeBoxOverlay } from '@/components/GraphCanvasRoot/components/MarqueeBoxOverlay'
+
+const MARKDOWN_PANEL_ALLOWED_KINDS = ['table', 'code', 'blockquote', 'callout', 'html'] as const
 
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null)
@@ -258,29 +264,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const linkDragRef = useRef<PendingLink | null>(null)
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null)
 
-  const richMedia = useRichMediaOverlays2d({
-    active,
-    activeRef,
-    svgRef,
-    zoomRef,
-    simulationRef,
-    sceneGraphData,
-    sceneGraphDataRef,
-    graphDataRevision: graphDataRevision || 0,
-    schemaRef: schemaRef as unknown as React.MutableRefObject<GraphSchema>,
-    renderMediaAsNodes,
-    mediaPanelDensity,
-    threeIframeOverlayPoolMax,
-    threeIframeOverlayBaseWidthRatioDefault,
-    threeIframeOverlayBaseWidthRatioCompact,
-    threeIframeOverlayBaseWidthMinPxDefault,
-    threeIframeOverlayBaseWidthMinPxCompact,
-    threeIframeOverlayBaseWidthMaxPxDefault,
-    threeIframeOverlayBaseWidthMaxPxCompact,
-    sceneWidth,
-    sceneHeight,
-  })
-
   useCanvasContextMenu({ svgRef })
   useCanvasLayoutSync({ width, height, left, top, setCanvasDims, setCanvasPos })
   useZoomStateSeeding2d({
@@ -349,6 +332,374 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   }, [sceneGraphData])
   const flowState = useMemo(() => computeFlowState(sceneGraphData as GraphData | null), [sceneGraphData])
 
+  const markdownDesignLayout: MarkdownDesignLayout | null = useMemo(() => {
+    const markdownText = String(markdownDocumentText || '')
+    if (!markdownText.trim()) return null
+    const activeDocumentPath = String(markdownDocumentName || '').trim() || 'markdown'
+    const markdownTokensKey = buildMarkdownTokensKey(markdownText)
+    const lexed = lexMarkdown(markdownText)
+    return deriveMarkdownDesignLayout({ activeDocumentPath, markdownTokensKey, tokens: lexed.tokens as never })
+  }, [markdownDocumentName, markdownDocumentText])
+
+  const nodeByIdForPanelsRef = useRef<{ rev: number; sim: d3.Simulation<GraphNode, GraphEdge> | null; map: Map<string, GraphNode> }>({
+    rev: -1,
+    sim: null,
+    map: new Map(),
+  })
+  const getNodeWorldCenterForId = useCallback((idRaw: string) => {
+    const id = String(idRaw || '').trim()
+    if (!id) return null
+    const sim = simulationRef.current
+    const graph = sceneGraphDataRef.current
+    const graphNodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
+    const simNodes = sim ? (sim.nodes() as unknown as GraphNode[]) : []
+    const rev = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? Math.floor(graphDataRevision) : 0
+    const cached = nodeByIdForPanelsRef.current
+    if (cached.rev !== rev || cached.sim !== sim) {
+      const map = new Map<string, GraphNode>()
+      for (let i = 0; i < graphNodes.length; i += 1) {
+        const n = graphNodes[i]
+        const key = String(n?.id || '').trim()
+        if (!key) continue
+        map.set(key, n)
+      }
+      for (let i = 0; i < simNodes.length; i += 1) {
+        const n = simNodes[i]
+        const key = String(n?.id || '').trim()
+        if (!key) continue
+        map.set(key, n)
+      }
+      nodeByIdForPanelsRef.current = { rev, sim: sim || null, map }
+    }
+    const n = nodeByIdForPanelsRef.current.map.get(id) || null
+    return readNodeCenterWorld2d(n, { coords: 'center' })
+  }, [graphDataRevision])
+
+  const markdownAnchorNodeIdByBlockId = useMemo(() => {
+    if (!markdownDesignLayout) return null
+    const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
+    if (nodes.length === 0) return null
+
+    const tableByStart = new Map<number, string>()
+    const codeByStart = new Map<number, string>()
+    const paraByStart = new Map<number, string>()
+    const mediaIframeByStart = new Map<number, string>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]!
+      const id = String(n?.id || '').trim()
+      if (!id) continue
+      const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
+      const lineStartRaw = meta ? meta.lineStart : null
+      const lineStart = typeof lineStartRaw === 'number' ? lineStartRaw : typeof lineStartRaw === 'string' ? Number(lineStartRaw) : NaN
+      if (!Number.isFinite(lineStart)) continue
+      const start = Math.max(1, Math.floor(lineStart))
+      const type = String(n.type || '').trim()
+      if (type === 'Table' && !tableByStart.has(start)) tableByStart.set(start, id)
+      else if (type === 'CodeBlock' && !codeByStart.has(start)) codeByStart.set(start, id)
+      else if (type === 'Paragraph' && !paraByStart.has(start)) paraByStart.set(start, id)
+      const spec = getNodeMediaSpec(n)
+      if (spec?.kind === 'iframe' && !mediaIframeByStart.has(start)) mediaIframeByStart.set(start, id)
+    }
+
+    const out: Record<string, string> = {}
+    for (let i = 0; i < markdownDesignLayout.blocks.length; i += 1) {
+      const b = markdownDesignLayout.blocks[i]!
+      const start = Math.max(1, Math.floor(Number(b.startLine) || 1))
+      if (b.type === 'table') {
+        const nid = tableByStart.get(start)
+        if (nid) out[b.id] = nid
+      } else if (b.type === 'code') {
+        const nid = codeByStart.get(start)
+        if (nid) out[b.id] = nid
+      } else if (b.type === 'blockquote' || b.type === 'callout') {
+        const nid = paraByStart.get(start)
+        if (nid) out[b.id] = nid
+      } else if (b.type === 'html') {
+        const raw = String(b.preview.kind === 'html' ? (b.preview.html?.raw || '') : '').trim()
+        if (/<\s*iframe\b/i.test(raw)) {
+          const nid = mediaIframeByStart.get(start) || paraByStart.get(start)
+          if (nid) out[b.id] = nid
+        }
+      }
+    }
+    return Object.keys(out).length ? out : null
+  }, [markdownDesignLayout, sceneGraphData])
+
+  const graphBlockPanel = useMemo(() => {
+    const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
+    if (nodes.length === 0) return null
+
+    const blocks: MarkdownDesignBlock[] = []
+    const iframeNodeIds: string[] = []
+
+    const getNum = (v: unknown): number | null => {
+      if (typeof v === 'number' && Number.isFinite(v)) return v
+      if (typeof v === 'string') {
+        const n = Number(v)
+        if (Number.isFinite(n)) return n
+      }
+      return null
+    }
+
+    const escapeAttr = (s: string): string => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]!
+      const id = String(n?.id || '').trim()
+      if (!id) continue
+      const x = getNum((n as unknown as { x?: unknown }).x)
+      const y = getNum((n as unknown as { y?: unknown }).y)
+      if (x == null || y == null) continue
+
+      const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
+      const lineStart = getNum(meta ? meta.lineStart : null)
+      const lineEnd = getNum(meta ? meta.lineEnd : null)
+      const startLine = Math.max(1, Math.floor(lineStart ?? 1))
+      const endLine = Math.max(startLine, Math.floor(lineEnd ?? startLine))
+
+      const propsObj = n.properties && typeof n.properties === 'object' && !Array.isArray(n.properties) ? (n.properties as Record<string, unknown>) : null
+      const w = Math.max(1, Math.floor(getNum(propsObj ? propsObj['visual:width'] : null) ?? MARKDOWN_DESIGN_LAYOUT.block.widthPx))
+      const h = Math.max(1, Math.floor(getNum(propsObj ? propsObj['visual:height'] : null) ?? MARKDOWN_DESIGN_LAYOUT.block.minHeightPx))
+
+      const nodeType = String(n.type || '').trim()
+
+      if (nodeType === 'Table') {
+        const headerRaw = propsObj ? propsObj['table:header'] : null
+        const rowsRaw = propsObj ? propsObj['table:rows'] : null
+        const header = Array.isArray(headerRaw) ? headerRaw.map(v => String(v ?? '')) : []
+        const rows = Array.isArray(rowsRaw)
+          ? rowsRaw.map(r => (Array.isArray(r) ? r.map(v => String(v ?? '')) : [])).filter(r => r.length > 0)
+          : []
+        blocks.push({
+          id,
+          type: 'table',
+          title: String(n.label || '').trim() || 'Table',
+          summary: '',
+          startLine,
+          endLine,
+          x: x - w / 2,
+          y: y - h / 2,
+          w,
+          h,
+          preview: { kind: 'table', table: { columns: header, rows, rowCount: rows.length } },
+        })
+        continue
+      }
+
+      if (nodeType === 'CodeBlock') {
+        const lang = propsObj && typeof propsObj.language === 'string' ? String(propsObj.language || '') : ''
+        const code = propsObj && typeof propsObj.code === 'string' ? String(propsObj.code || '') : ''
+        const lines = code ? code.split(/\r?\n/).slice(0, 6) : []
+        blocks.push({
+          id,
+          type: 'code',
+          title: String(n.label || '').trim() || (lang ? `Code (${lang})` : 'Code'),
+          summary: '',
+          startLine,
+          endLine,
+          x: x - w / 2,
+          y: y - h / 2,
+          w,
+          h,
+          preview: { kind: 'code', code: { lang, lines } },
+        })
+        continue
+      }
+
+      if (nodeType === 'Paragraph') {
+        const text = propsObj && typeof propsObj['text'] === 'string' ? String(propsObj['text'] || '') : ''
+        const trimmed = text.trim()
+        const isCallout = propsObj && propsObj.calloutType === true
+        if (isCallout) {
+          const calloutType = String(propsObj?.calloutKind || 'note')
+          const title = String(propsObj?.calloutTitle || '').trim()
+          const collapsed = String(propsObj?.calloutFoldable || '') === '-'
+          blocks.push({
+            id,
+            type: 'blockquote',
+            title: String(n.label || '').trim() || 'Callout',
+            summary: '',
+            startLine,
+            endLine,
+            x: x - w / 2,
+            y: y - h / 2,
+            w,
+            h,
+            preview: { kind: 'callout', callout: { calloutType, title, collapsed } },
+          })
+          continue
+        }
+        if (trimmed.startsWith('>')) {
+          const lines = trimmed.split(/\r?\n/).map(l => l.replace(/^\s*>\s?/, '')).filter(Boolean).slice(0, 6)
+          blocks.push({
+            id,
+            type: 'blockquote',
+            title: String(n.label || '').trim() || 'Blockquote',
+            summary: '',
+            startLine,
+            endLine,
+            x: x - w / 2,
+            y: y - h / 2,
+            w,
+            h,
+            preview: { kind: 'blockquote', blockquote: { lines } },
+          })
+          continue
+        }
+      }
+
+      const spec = getNodeMediaSpec(n)
+      if (spec?.kind === 'iframe') {
+        const url = String(spec.url || '').trim()
+        if (!url) continue
+        iframeNodeIds.push(id)
+        const title = String(n.label || 'Iframe').trim() || 'Iframe'
+        const raw = `<iframe src="${escapeAttr(url)}" title="${escapeAttr(title)}"></iframe>`
+        blocks.push({
+          id,
+          type: 'html',
+          title,
+          summary: '',
+          startLine,
+          endLine,
+          x: x - w / 2,
+          y: y - h / 2,
+          w,
+          h,
+          preview: { kind: 'html', html: { raw } },
+        })
+        continue
+      }
+    }
+
+    if (blocks.length === 0) return null
+
+    const sortedIframes = Array.from(new Set(iframeNodeIds)).sort((a, b) => a.localeCompare(b))
+    const key = `graphBlocks|rev:${graphDataRevision || 0}|nodes:${nodes.length}`
+    return {
+      layout: { key, blocks } as MarkdownDesignLayout,
+      panelOnlyNodeIdsKey: blocks.map(b => b.id).sort((a, b) => a.localeCompare(b)).join('|'),
+      panelOnlyNodeIdSet: new Set(blocks.map(b => b.id)),
+      iframeNodeIdsKey: sortedIframes.join('|'),
+      iframeNodeIdSet: new Set(sortedIframes),
+    }
+  }, [graphDataRevision, sceneGraphData])
+
+  const markdownPanelLineRanges = useMemo(() => {
+    const layout = markdownDesignLayout
+    if (!layout) return null
+    const table = new Set<number>()
+    const code = new Set<number>()
+    const blockquote = new Set<number>()
+    const iframe = new Set<number>()
+    for (let i = 0; i < layout.blocks.length; i += 1) {
+      const b = layout.blocks[i]!
+      const start = Math.max(1, Math.floor(Number(b.startLine) || 1))
+      if (b.type === 'table') table.add(start)
+      else if (b.type === 'code') code.add(start)
+      else if (b.type === 'blockquote' || b.type === 'callout') blockquote.add(start)
+      else if (b.type === 'html') {
+        const raw = String(b.preview.kind === 'html' ? (b.preview.html?.raw || '') : '').trim()
+        if (/<\s*iframe\b/i.test(raw)) iframe.add(start)
+      }
+    }
+    return { table, code, blockquote, iframe }
+  }, [markdownDesignLayout])
+
+  const { markdownIframeNodeIdsKey, markdownIframeNodeIdSet } = useMemo(() => {
+    const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
+    const ids: string[] = []
+    const iframeRanges = markdownPanelLineRanges?.iframe || null
+    if (!iframeRanges || iframeRanges.size === 0) return { markdownIframeNodeIdsKey: '', markdownIframeNodeIdSet: new Set<string>() }
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]!
+      const id = String(n?.id || '').trim()
+      if (!id) continue
+      const spec = getNodeMediaSpec(n)
+      if (spec?.kind !== 'iframe') continue
+      const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
+      const lineStartRaw = meta ? meta.lineStart : null
+      const lineStart = typeof lineStartRaw === 'number' ? lineStartRaw : typeof lineStartRaw === 'string' ? Number(lineStartRaw) : NaN
+      if (!Number.isFinite(lineStart)) continue
+      const start = Math.max(1, Math.floor(lineStart))
+      if (!iframeRanges.has(start)) continue
+      ids.push(id)
+    }
+    const sorted = Array.from(new Set(ids)).sort((a, b) => a.localeCompare(b))
+    return { markdownIframeNodeIdsKey: sorted.join('|'), markdownIframeNodeIdSet: new Set(sorted) }
+  }, [markdownPanelLineRanges, sceneGraphData])
+
+  const panelIframeNodeIdsKey = graphBlockPanel ? graphBlockPanel.iframeNodeIdsKey : markdownIframeNodeIdsKey
+  const panelIframeNodeIdSet = graphBlockPanel ? graphBlockPanel.iframeNodeIdSet : markdownIframeNodeIdSet
+
+  const { panelOnlyNodeIdsKey, panelOnlyNodeIdSet } = useMemo(() => {
+    if (graphBlockPanel) {
+      return { panelOnlyNodeIdsKey: graphBlockPanel.panelOnlyNodeIdsKey, panelOnlyNodeIdSet: graphBlockPanel.panelOnlyNodeIdSet }
+    }
+    const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
+    const ids: string[] = []
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]!
+      const id = String(n?.id || '').trim()
+      if (!id) continue
+
+      const nodeType = String(n.type || '').trim()
+      if (nodeType === 'Table' || nodeType === 'CodeBlock') ids.push(id)
+
+      if (panelIframeNodeIdSet.has(id)) ids.push(id)
+
+      if (nodeType === 'Paragraph') {
+        const propsObj = n.properties && typeof n.properties === 'object' && !Array.isArray(n.properties) ? (n.properties as Record<string, unknown>) : null
+        const text = propsObj && typeof propsObj.text === 'string' ? String(propsObj.text || '').trim() : ''
+        if (propsObj && propsObj.calloutType === true) ids.push(id)
+        else if (text.startsWith('>')) ids.push(id)
+        if (text && /<\s*iframe\b/i.test(text) && text.toLowerCase().startsWith('<iframe') && looksLikeSingleTagBlock(text, 'iframe')) {
+          ids.push(id)
+        }
+      }
+
+      if (!markdownPanelLineRanges) continue
+      if (!id.startsWith('blk:')) continue
+      const type = nodeType
+      if (type !== 'Table' && type !== 'CodeBlock' && type !== 'Paragraph') continue
+      const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
+      const lineStartRaw = meta ? meta.lineStart : null
+      const lineStart = typeof lineStartRaw === 'number' ? lineStartRaw : typeof lineStartRaw === 'string' ? Number(lineStartRaw) : NaN
+      if (!Number.isFinite(lineStart)) continue
+      const start = Math.max(1, Math.floor(lineStart))
+      if (type === 'Table' && markdownPanelLineRanges.table.has(start)) ids.push(id)
+      else if (type === 'CodeBlock' && markdownPanelLineRanges.code.has(start)) ids.push(id)
+      else if (type === 'Paragraph' && markdownPanelLineRanges.blockquote.has(start)) ids.push(id)
+    }
+    const sorted = Array.from(new Set(ids)).sort((a, b) => a.localeCompare(b))
+    return { panelOnlyNodeIdsKey: sorted.join('|'), panelOnlyNodeIdSet: new Set(sorted) }
+  }, [graphBlockPanel, markdownPanelLineRanges, panelIframeNodeIdsKey, panelIframeNodeIdSet, sceneGraphData])
+
+  const richMedia = useRichMediaOverlays2d({
+    active,
+    activeRef,
+    svgRef,
+    zoomRef,
+    simulationRef,
+    sceneGraphData,
+    sceneGraphDataRef,
+    graphDataRevision: graphDataRevision || 0,
+    schemaRef: schemaRef as unknown as React.MutableRefObject<GraphSchema>,
+    renderMediaAsNodes,
+    mediaPanelDensity,
+    excludeNodeIdsKey: panelIframeNodeIdsKey,
+    excludeNodeIdSet: panelIframeNodeIdSet,
+    threeIframeOverlayPoolMax,
+    threeIframeOverlayBaseWidthRatioDefault,
+    threeIframeOverlayBaseWidthRatioCompact,
+    threeIframeOverlayBaseWidthMinPxDefault,
+    threeIframeOverlayBaseWidthMinPxCompact,
+    threeIframeOverlayBaseWidthMaxPxDefault,
+    threeIframeOverlayBaseWidthMaxPxCompact,
+    sceneWidth,
+    sceneHeight,
+  })
+
   useD3GraphScene2d({
     active,
     activeRef,
@@ -398,6 +749,14 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     isEmbeddedPreview,
     coarsePointer: coarsePointer === true,
     mediaOverlayNodeIdSet: richMedia.mediaOverlayNodeIdSet,
+    panelOnlyNodeIdsKey,
+    panelOnlyNodeIdSet,
+    overlayBaseWidthRatioDefault: threeIframeOverlayBaseWidthRatioDefault,
+    overlayBaseWidthRatioCompact: threeIframeOverlayBaseWidthRatioCompact,
+    overlayBaseWidthMinPxDefault: threeIframeOverlayBaseWidthMinPxDefault,
+    overlayBaseWidthMinPxCompact: threeIframeOverlayBaseWidthMinPxCompact,
+    overlayBaseWidthMaxPxDefault: threeIframeOverlayBaseWidthMaxPxDefault,
+    overlayBaseWidthMaxPxCompact: threeIframeOverlayBaseWidthMaxPxCompact,
     requestMediaOverlaySchedule: richMedia.requestMediaOverlaySchedule,
     setLayoutPositionsForMode,
     selectedEdgeIdRef,
@@ -429,6 +788,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     renderMediaAsNodes,
     mediaPanelDensity,
     mediaOverlayNodeIdSet: richMedia.mediaOverlayNodeIdSet,
+    panelOnlyNodeIdsKey,
+    panelOnlyNodeIdSet,
     tempLinkSelRef,
     linkDragRef,
     nodesSelRef,
@@ -548,11 +909,21 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         onRequestClose={() => setHoverInfo(null)}
       />
       <MarkdownDesignOverlay
-        enabled={active && !!String(markdownDocumentText || '').trim()}
+        enabled={active && (!!String(markdownDocumentText || '').trim() || !!graphBlockPanel?.layout)}
         svgRef={svgRef}
         markdownDocumentName={markdownDocumentName}
         markdownDocumentText={markdownDocumentText}
-        allowedKinds={['table', 'code', 'blockquote']}
+        allowedKinds={MARKDOWN_PANEL_ALLOWED_KINDS}
+        layoutOverride={graphBlockPanel?.layout || markdownDesignLayout || null}
+        anchorNodeIdByBlockId={markdownAnchorNodeIdByBlockId}
+        getNodeWorldCenterForId={getNodeWorldCenterForId}
+        stopEvent={richMedia.stopEvent}
+        onOverlayPanStart={richMedia.startMediaOverlayPan}
+        onOverlayPan={richMedia.moveMediaOverlayPan}
+        onOverlayPanEnd={richMedia.endMediaOverlayPan}
+        onHeaderDragStart={({ id, clientX, clientY }) => richMedia.beginMediaHeaderDrag(id, clientX, clientY)}
+        onHeaderDrag={({ dx, dy }) => richMedia.moveMediaHeaderDrag(dx, dy)}
+        onHeaderDragEnd={() => richMedia.endMediaHeaderDrag()}
       />
     </main>
   )

@@ -210,7 +210,7 @@ export function MarkdownWorkspaceToolbar({
 
     return (
       <span
-        className="ml-2 inline-flex gap-1 flex-wrap"
+        className="inline-flex gap-1 flex-wrap"
         aria-label="Webpage signals"
         title="Derived from the current markdown: link labels (NAV/CTA) plus detected price/time tokens."
       >
@@ -228,10 +228,14 @@ export function MarkdownWorkspaceToolbar({
   return (
     <WorkspaceHeader ariaLabel="Markdown Toolbar" border="border">
       <WorkspaceHeaderRow className="gap-2 kg-toolbar" ariaLabel="Markdown toolbar row">
-        <span className="min-w-0">
-          <span className={`${panelTypography.microLabelClass} uppercase tracking-wide font-semibold ${UI_THEME_TOKENS.text.secondary} ${UI_TEXT_TRUNCATE}`}>Workspace editor</span>
-          {webpageSignalsNode}
-        </span>
+        {webpageSignalsNode ? (
+          <span className="min-w-0 flex items-center">
+            <span className="sr-only">Workspace editor</span>
+            {webpageSignalsNode}
+          </span>
+        ) : (
+          <span className="sr-only">Workspace editor</span>
+        )}
         <CollapsibleToolbar className="kg-toolbar flex items-center gap-1 justify-end" ariaLabel="Markdown view controls">
           <IconButton
             title={explorerOpen ? 'Hide Explorer' : 'Show Explorer'}

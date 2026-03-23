@@ -10,6 +10,8 @@ import { buildGraphHtmlViewerMarkup } from '@/lib/graph/graphHtmlViewer'
 import { ensureKgTokensInstalled } from '@/lib/ui/tokens-ssot'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { readPanSpeed, readWheelBehavior, readZoomSpeed } from '@/lib/canvas/camera-options-2d'
+import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
+import { deriveMarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
 import {
   FLOW_WHEEL_ZOOM_INCREMENT_MULTIPLIER_DEFAULT,
   FLOW_WHEEL_ZOOM_SMOOTH_MAX_DURATION_DEFAULT_MS,
@@ -161,6 +163,17 @@ async function main() {
   const text = await fs.readFile(input, 'utf8')
   const name = path.basename(input)
 
+  const markdownDesignBlocks = (() => {
+    try {
+      const lexed = lexMarkdown(text)
+      const markdownTokensKey = buildMarkdownTokensKey(text)
+      const layout = deriveMarkdownDesignLayout({ activeDocumentPath: name, markdownTokensKey, tokens: lexed.tokens })
+      return Array.isArray(layout.blocks) ? layout.blocks : []
+    } catch {
+      return []
+    }
+  })()
+
   const loaded = await loadGraphDataFromTextViaParser(name, text, { applyToStore: false, syncMarkdownDocument: false })
   const graphData = loaded?.graphData || null
   if (!graphData) throw new Error('No graphData produced from input')
@@ -226,6 +239,7 @@ async function main() {
       mediaPanelDensity: 'default',
       documentSemanticMode,
       frontmatterModeEnabled,
+      markdownDesignBlocks,
     })
     const normalized = normalizeInteractiveSvgForHtmlViewer(String(rendered || '').trim())
     const svgMarkup = inlineMissingEdgeGeometry({ dom, svgMarkup: normalized.svgMarkup, graphData })

@@ -58,7 +58,14 @@ type SetupGraphSceneArgs = {
   zoomOnDoubleClick: boolean
   renderMediaAsNodes: boolean
   mediaOverlayNodeIdSet?: Set<string>
+  panelOnlyNodeIdSet?: Set<string>
   mediaPanelDensity: 'default' | 'compact'
+  overlayBaseWidthRatioDefault: number
+  overlayBaseWidthRatioCompact: number
+  overlayBaseWidthMinPxDefault: number
+  overlayBaseWidthMinPxCompact: number
+  overlayBaseWidthMaxPxDefault: number
+  overlayBaseWidthMaxPxCompact: number
   enableTightInitialLayout?: boolean
   fitToScreenMode?: boolean
   viewportControlsPreset: ViewportControlsPreset
@@ -126,7 +133,14 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     zoomOnDoubleClick,
     renderMediaAsNodes,
     mediaOverlayNodeIdSet,
+    panelOnlyNodeIdSet,
     mediaPanelDensity,
+    overlayBaseWidthRatioDefault,
+    overlayBaseWidthRatioCompact,
+    overlayBaseWidthMinPxDefault,
+    overlayBaseWidthMinPxCompact,
+    overlayBaseWidthMaxPxDefault,
+    overlayBaseWidthMaxPxCompact,
     fitToScreenMode,
     viewportControlsPreset,
     initialZoomTransform,
@@ -556,6 +570,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     schema,
     renderMediaAsNodes,
     mediaOverlayNodeIdSet,
+    panelOnlyNodeIdSet,
     preferDomMediaOverlays: true,
     mediaPanelDensity,
     zoomOnDoubleClick,
@@ -642,6 +657,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     schema,
     documentSemanticMode: args.documentSemanticMode,
     nodeZKeyById,
+    panelOnlyNodeIdSet,
     labelsSelRef,
     hoverEnabled,
     setHoverInfo,
@@ -706,6 +722,15 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     documentSemanticMode: args.documentSemanticMode,
     width,
     height,
+    panelOnlyNodeIdSet: panelOnlyNodeIdSet || null,
+    mediaOverlayNodeIdSet: mediaOverlayNodeIdSet || null,
+    mediaPanelDensity,
+    overlayBaseWidthRatioDefault,
+    overlayBaseWidthRatioCompact,
+    overlayBaseWidthMinPxDefault,
+    overlayBaseWidthMinPxCompact,
+    overlayBaseWidthMaxPxDefault,
+    overlayBaseWidthMaxPxCompact,
     beforeRenderFrameRef,
     afterRenderFrame: ({ alpha, tick }) => {
       if (isMermaidLayout) return
@@ -824,6 +849,7 @@ export const updateGraphSceneNodesPresentation = (args: {
   zoomOnDoubleClick: boolean
   renderMediaAsNodes: boolean
   mediaOverlayNodeIdSet?: Set<string>
+  panelOnlyNodeIdSet?: Set<string>
   mediaPanelDensity: 'default' | 'compact'
   tempLinkSelRef: MutableRefObject<TempLinkSelection>
   linkDragRef: MutableRefObject<PendingLink | null>
@@ -872,6 +898,7 @@ export const updateGraphSceneNodesPresentation = (args: {
     schema: args.schema,
     renderMediaAsNodes: args.renderMediaAsNodes,
     mediaOverlayNodeIdSet: args.mediaOverlayNodeIdSet,
+    panelOnlyNodeIdSet: args.panelOnlyNodeIdSet,
     preferDomMediaOverlays: true,
     mediaPanelDensity: args.mediaPanelDensity,
     zoomOnDoubleClick: args.zoomOnDoubleClick,
@@ -921,6 +948,7 @@ export const updateGraphSceneNodesPresentation = (args: {
     schema: args.schema,
     documentSemanticMode: args.documentSemanticMode,
     nodeZKeyById,
+    panelOnlyNodeIdSet: args.panelOnlyNodeIdSet,
     labelsSelRef: args.labelsSelRef,
     hoverEnabled: args.hoverEnabled,
     setHoverInfo: args.setHoverInfo,

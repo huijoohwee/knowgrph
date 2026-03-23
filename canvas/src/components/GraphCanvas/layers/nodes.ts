@@ -43,6 +43,7 @@ export const createNodesLayer = (args: {
   zoomOnDoubleClick: boolean;
   renderMediaAsNodes: boolean;
   mediaOverlayNodeIdSet?: Set<string>;
+  panelOnlyNodeIdSet?: Set<string>;
   preferDomMediaOverlays?: boolean;
   mediaPanelDensity: 'default' | 'compact';
   nodeZKeyById?: Map<string, NodeZKey>;
@@ -95,27 +96,40 @@ export const createNodesLayer = (args: {
   const nodes = rawNodes;
   const preferDomMediaOverlays = args.preferDomMediaOverlays === true
   const mediaOverlayNodeIdSet = args.mediaOverlayNodeIdSet
+  const panelOnlyNodeIdSet = args.panelOnlyNodeIdSet
+  const overlayHiddenNodeIdSet = preferDomMediaOverlays ? mediaOverlayNodeIdSet : null
+  const renderNodes = (() => {
+    if (!panelOnlyNodeIdSet && !overlayHiddenNodeIdSet) return nodes
+    return nodes.filter(n => {
+      const id = String(n.id)
+      if (panelOnlyNodeIdSet?.has(id)) return false
+      if (overlayHiddenNodeIdSet?.has(id)) return false
+      return true
+    })
+  })()
   const shapeByNodeId = new Map<string, ReturnType<typeof getNodeRenderShape2d>>();
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i];
+  for (let i = 0; i < renderNodes.length; i += 1) {
+    const n = renderNodes[i];
     shapeByNodeId.set(String(n.id), getNodeRenderShape2d(n, schema));
   }
   const mediaByNodeId = new Map<string, ReturnType<typeof getNodeMediaSpec>>();
   if (renderMediaAsNodes) {
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i];
+    for (let i = 0; i < renderNodes.length; i += 1) {
+      const n = renderNodes[i];
       const spec = getNodeMediaSpec(n);
       if (!spec) continue;
       mediaByNodeId.set(String(n.id), spec);
     }
   }
   const shouldHideNodeBody = (d: GraphNode): boolean => {
+    const id = String(d.id)
+    if (panelOnlyNodeIdSet?.has(id)) return true
     if (!renderMediaAsNodes) return false
-    const spec = mediaByNodeId.get(String(d.id))
+    const spec = mediaByNodeId.get(id)
     if (!spec) return false
     if (!preferDomMediaOverlays) return true
     if (!mediaOverlayNodeIdSet) return true
-    if (!mediaOverlayNodeIdSet.has(String(d.id))) return false
+    if (!mediaOverlayNodeIdSet.has(id)) return false
     const x = (d as unknown as { x?: unknown }).x
     const y = (d as unknown as { y?: unknown }).y
     if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) return false
@@ -125,7 +139,7 @@ export const createNodesLayer = (args: {
   const mediaLayer = g.append('g').attr('data-kg-layer', 'media');
   let mediaPanelSel: d3.Selection<SVGGElement, GraphNode, SVGGElement, unknown> | null = null;
   if (!preferDomMediaOverlays && renderMediaAsNodes && mediaByNodeId.size > 0) {
-    const mediaNodes = nodes.filter(n => mediaByNodeId.has(String(n.id)));
+    const mediaNodes = renderNodes.filter(n => mediaByNodeId.has(String(n.id)));
     if (mediaNodes.length > 0) {
       const density = mediaPanelDensity === 'compact' ? 'compact' : 'default';
       const dims = computeMediaPanelWorldDims(density);
@@ -295,7 +309,7 @@ export const createNodesLayer = (args: {
 
   const nodeLayer = g.append('g').attr('data-kg-layer', 'nodes');
 
-  const eligibleNodes = nodes;
+  const eligibleNodes = renderNodes;
   const circleNodes = eligibleNodes.filter(n => shapeByNodeId.get(String(n.id)) === 'circle');
   const rectNodes = eligibleNodes.filter(n => shapeByNodeId.get(String(n.id)) === 'rect');
   const diamondNodes = eligibleNodes.filter(n => shapeByNodeId.get(String(n.id)) === 'diamond');
@@ -369,6 +383,18 @@ export const createNodesLayer = (args: {
   const node = nodeLayer.selectAll<SVGElement, GraphNode>('circle,rect,path[data-kg-node-shape]')
   node
     .attr('data-node-id', (d: GraphNode) => String(d.id))
+    .style('display', (d: GraphNode) => {
+      const id = String(d.id)
+      if (panelOnlyNodeIdSet?.has(id)) return 'none'
+      if (overlayHiddenNodeIdSet?.has(id)) return 'none'
+      return null
+    })
+    .style('pointer-events', (d: GraphNode) => {
+      const id = String(d.id)
+      if (panelOnlyNodeIdSet?.has(id)) return 'none'
+      if (overlayHiddenNodeIdSet?.has(id)) return 'none'
+      return 'all'
+    })
      .attr('fill', (d: GraphNode) => (shouldHideNodeBody(d) ? 'transparent' : getNodeBaseFill(d, schema)))
     .attr('stroke', (d: GraphNode) => {
       if (shouldHideNodeBody(d)) return 'transparent'
@@ -387,12 +413,11 @@ export const createNodesLayer = (args: {
     })
     .attr('stroke-dasharray', () => null)
     .style('user-select', 'none')
-    .style('cursor', 'pointer')
-    .style('pointer-events', 'all');
+    .style('cursor', 'pointer');
 
   const mediaInteractiveSel = mediaPanelSel as unknown as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null
 
-  const groupChevronSel = createNodeGroupChevronSel({ g, nodes })
+  const groupChevronSel = createNodeGroupChevronSel({ g, nodes: renderNodes })
 
   if (nodeZKeyById) {
     const keyForId = (id: string): NodeZKey =>
@@ -551,7 +576,7 @@ export const createNodesLayer = (args: {
   const portHandlesSel = (() => {
     if (!portHandlesEnabled) return null
     const portLayer = g.append('g').attr('data-kg-layer', 'port-handles')
-    const data = listFlowPortHandleDatums2d({ schema, nodes, edges: graphData.edges || [] })
+    const data = listFlowPortHandleDatums2d({ schema, nodes: renderNodes, edges: graphData.edges || [] })
     if (!data.length) return null
     return portLayer.selectAll<SVGCircleElement, FlowPortHandleDatum2d>('circle')
       .data(data, d => `${d.nodeId}:${d.dir}:${d.portKey}`).enter().append('circle')
@@ -562,7 +587,7 @@ export const createNodesLayer = (args: {
 
   if (portHandlesSel) {
     const nodeById = new Map<string, GraphNode>()
-    for (let i = 0; i < nodes.length; i += 1) nodeById.set(String(nodes[i].id), nodes[i])
+    for (let i = 0; i < renderNodes.length; i += 1) nodeById.set(String(renderNodes[i].id), renderNodes[i])
     portHandlesSel
       .attr('cx', d => {
         const n = nodeById.get(d.nodeId)

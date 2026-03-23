@@ -19,6 +19,7 @@ import { integrateNodePositionWithVelocity, runRelaxSteps } from '@/lib/graph/co
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { aabbOverlaps, aabbOverlapsAny } from '@/lib/ui/labels/aabb'
+import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 import {
   computeBboxCollideIterations2d,
   computeGroupBboxCollideIterations2d,
@@ -51,6 +52,15 @@ export const attachSimulationTick = (args: {
   documentSemanticMode?: 'document' | 'keyword'
   width: number
   height: number
+  panelOnlyNodeIdSet?: Set<string> | null
+  mediaOverlayNodeIdSet?: Set<string> | null
+  mediaPanelDensity?: 'default' | 'compact'
+  overlayBaseWidthRatioDefault?: number
+  overlayBaseWidthRatioCompact?: number
+  overlayBaseWidthMinPxDefault?: number
+  overlayBaseWidthMinPxCompact?: number
+  overlayBaseWidthMaxPxDefault?: number
+  overlayBaseWidthMaxPxCompact?: number
   beforeRenderFrameRef?: MutableRefObject<(() => void) | null>
   afterRenderFrame?: (args: { alpha: number; tick: number }) => void
 }) => {
@@ -69,11 +79,23 @@ export const attachSimulationTick = (args: {
     getSchema,
     width,
     height,
+    panelOnlyNodeIdSet,
+    mediaOverlayNodeIdSet,
+    mediaPanelDensity,
+    overlayBaseWidthRatioDefault,
+    overlayBaseWidthRatioCompact,
+    overlayBaseWidthMinPxDefault,
+    overlayBaseWidthMinPxCompact,
+    overlayBaseWidthMaxPxDefault,
+    overlayBaseWidthMaxPxCompact,
     beforeRenderFrameRef,
     afterRenderFrame,
   } = args
   const nodeById = args.nodeById || new Map<string, GraphNode>()
   const groupsForBboxCollide = Array.isArray(args.groupsForBboxCollide) ? args.groupsForBboxCollide : []
+
+  let lastOverlayHalfExtentsKey = ''
+  let lastOverlayHalfExtents: { halfW: number; halfH: number } | null = null
   if (!args.nodeById) {
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
@@ -210,61 +232,60 @@ export const attachSimulationTick = (args: {
       const lineSel = sel.filter(function () {
         return String((this as unknown as { tagName?: unknown }).tagName || '').toLowerCase() === 'line'
       }) as unknown as d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown>
-      if (portHandlesEnabled) {
-        lineSel
-          .attr('x1', (d: GraphEdge) => {
-            const edge = d as unknown as EdgeWithRuntime
-            const src = resolveNode(edge.source)
-            const tgt = resolveNode(edge.target)
-            if (!src || !tgt) return 0
-            const p = getEdgeEndpointFromPorts({ from: src, to: tgt, schema })
-            return p.x
-          })
-          .attr('y1', (d: GraphEdge) => {
-            const edge = d as unknown as EdgeWithRuntime
-            const src = resolveNode(edge.source)
-            const tgt = resolveNode(edge.target)
-            if (!src || !tgt) return 0
-            const p = getEdgeEndpointFromPorts({ from: src, to: tgt, schema })
-            return p.y
-          })
-          .attr('x2', (d: GraphEdge) => {
-            const edge = d as unknown as EdgeWithRuntime
-            const src = resolveNode(edge.source)
-            const tgt = resolveNode(edge.target)
-            if (!src || !tgt) return 0
-            const p = getEdgeEndpointFromPorts({ from: tgt, to: src, schema })
-            return p.x
-          })
-          .attr('y2', (d: GraphEdge) => {
-            const edge = d as unknown as EdgeWithRuntime
-            const src = resolveNode(edge.source)
-            const tgt = resolveNode(edge.target)
-            if (!src || !tgt) return 0
-            const p = getEdgeEndpointFromPorts({ from: tgt, to: src, schema })
-            return p.y
-          })
-      } else {
-        const pickEndpoint = (from: GraphNode, to: GraphNode, padOut: number): { x: number; y: number } => {
-          const fx = typeof from.x === 'number' && Number.isFinite(from.x) ? from.x : 0
-          const fy = typeof from.y === 'number' && Number.isFinite(from.y) ? from.y : 0
-          const tx = typeof to.x === 'number' && Number.isFinite(to.x) ? to.x : fx
-          const ty = typeof to.y === 'number' && Number.isFinite(to.y) ? to.y : fy
-          const dx = tx - fx
-          const dy = ty - fy
-          if (dx === 0 && dy === 0) return { x: fx, y: fy }
-          const norm = Math.sqrt(dx * dx + dy * dy) || 1
-          const ux = dx / norm
-          const uy = dy / norm
-          const shape = getNodeRenderShape2d(from, schema)
-          if (shape === 'circle') {
-            const r = getNodeMetrics(from).r
-            const dist = Math.max(0, r + padOut)
-            return { x: fx + ux * dist, y: fy + uy * dist }
-          }
-          const { width, height } = getNodeMetrics(from)
-          const halfW = Math.max(1, width / 2)
-          const halfH = Math.max(1, height / 2)
+
+      const zoomK = (() => {
+        const t = d3.zoomTransform(svgEl)
+        const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+        return k
+      })()
+
+      const overlayHalfExtentsWorld = (() => {
+        const hasSets = (panelOnlyNodeIdSet && panelOnlyNodeIdSet.size > 0) || (mediaOverlayNodeIdSet && mediaOverlayNodeIdSet.size > 0)
+        if (!hasSets) return null
+
+        const density: 'default' | 'compact' = mediaPanelDensity === 'compact' ? 'compact' : 'default'
+        const ratio = density === 'compact' ? overlayBaseWidthRatioCompact : overlayBaseWidthRatioDefault
+        const minPx = density === 'compact' ? overlayBaseWidthMinPxCompact : overlayBaseWidthMinPxDefault
+        const maxPx = density === 'compact' ? overlayBaseWidthMaxPxCompact : overlayBaseWidthMaxPxDefault
+        const cfg = {
+          widthRatio: Number.isFinite(ratio) ? Math.max(0.001, Number(ratio)) : 0.2,
+          widthMinPx: Number.isFinite(minPx) ? Math.max(1, Math.floor(Number(minPx))) : 210,
+          widthMaxPx: Number.isFinite(maxPx) ? Math.max(1, Math.floor(Number(maxPx))) : 360,
+        }
+        const key = `${density}|${width}|${zoomK}|${cfg.widthRatio}|${cfg.widthMinPx}|${cfg.widthMaxPx}`
+        if (key === lastOverlayHalfExtentsKey) return lastOverlayHalfExtents
+
+        const sizing = computeMediaOverlaySizing({ density, viewportW: width, zoomK, config: cfg })
+        const halfW = sizing.panelW / Math.max(0.001, zoomK) / 2
+        const halfH = sizing.panelH / Math.max(0.001, zoomK) / 2
+        const out = { halfW: Math.max(1, halfW), halfH: Math.max(1, halfH) }
+        lastOverlayHalfExtentsKey = key
+        lastOverlayHalfExtents = out
+        return out
+      })()
+
+      const isPanelNode = (n: GraphNode): boolean => {
+        const id = String(n.id)
+        if (panelOnlyNodeIdSet && panelOnlyNodeIdSet.has(id)) return true
+        if (mediaOverlayNodeIdSet && mediaOverlayNodeIdSet.has(id)) return true
+        return false
+      }
+
+      const pickEndpointRectOrCircle = (from: GraphNode, to: GraphNode, padOut: number): { x: number; y: number } => {
+        const fx = typeof from.x === 'number' && Number.isFinite(from.x) ? from.x : 0
+        const fy = typeof from.y === 'number' && Number.isFinite(from.y) ? from.y : 0
+        const tx = typeof to.x === 'number' && Number.isFinite(to.x) ? to.x : fx
+        const ty = typeof to.y === 'number' && Number.isFinite(to.y) ? to.y : fy
+        const dx = tx - fx
+        const dy = ty - fy
+        if (dx === 0 && dy === 0) return { x: fx, y: fy }
+        const norm = Math.sqrt(dx * dx + dy * dy) || 1
+        const ux = dx / norm
+        const uy = dy / norm
+
+        if (isPanelNode(from) && overlayHalfExtentsWorld) {
+          const halfW = overlayHalfExtentsWorld.halfW
+          const halfH = overlayHalfExtentsWorld.halfH
           const absUx = Math.abs(ux)
           const absUy = Math.abs(uy)
           const txRect = absUx > 1e-6 ? halfW / absUx : Number.POSITIVE_INFINITY
@@ -273,13 +294,37 @@ export const attachSimulationTick = (args: {
           return { x: fx + ux * dist, y: fy + uy * dist }
         }
 
+        const shape = getNodeRenderShape2d(from, schema)
+        if (shape === 'circle') {
+          const r = getNodeMetrics(from).r
+          const dist = Math.max(0, r + padOut)
+          return { x: fx + ux * dist, y: fy + uy * dist }
+        }
+        const { width, height } = getNodeMetrics(from)
+        const halfW = Math.max(1, width / 2)
+        const halfH = Math.max(1, height / 2)
+        const absUx = Math.abs(ux)
+        const absUy = Math.abs(uy)
+        const txRect = absUx > 1e-6 ? halfW / absUx : Number.POSITIVE_INFINITY
+        const tyRect = absUy > 1e-6 ? halfH / absUy : Number.POSITIVE_INFINITY
+        const dist = Math.max(0, Math.min(txRect, tyRect) + padOut)
+        return { x: fx + ux * dist, y: fy + uy * dist }
+      }
+
+      const endpoint = (from: GraphNode, to: GraphNode, padOut: number): { x: number; y: number } => {
+        if (!portHandlesEnabled) return pickEndpointRectOrCircle(from, to, padOut)
+        if (isPanelNode(from)) return pickEndpointRectOrCircle(from, to, padOut)
+        return getEdgeEndpointFromPorts({ from, to, schema })
+      }
+
+      if (portHandlesEnabled) {
         lineSel
           .attr('x1', (d: GraphEdge) => {
             const edge = d as unknown as EdgeWithRuntime
             const src = resolveNode(edge.source)
             const tgt = resolveNode(edge.target)
             if (!src || !tgt) return 0
-            const p = pickEndpoint(src, tgt, 3)
+            const p = endpoint(src, tgt, 3)
             return p.x
           })
           .attr('y1', (d: GraphEdge) => {
@@ -287,7 +332,7 @@ export const attachSimulationTick = (args: {
             const src = resolveNode(edge.source)
             const tgt = resolveNode(edge.target)
             if (!src || !tgt) return 0
-            const p = pickEndpoint(src, tgt, 3)
+            const p = endpoint(src, tgt, 3)
             return p.y
           })
           .attr('x2', (d: GraphEdge) => {
@@ -296,7 +341,7 @@ export const attachSimulationTick = (args: {
             const tgt = resolveNode(edge.target)
             if (!src || !tgt) return 0
             const hasArrow = Boolean(schema.edgeStyles?.[String(d.label || '')]?.arrow)
-            const p = pickEndpoint(tgt, src, hasArrow ? 8 : 3)
+            const p = endpoint(tgt, src, hasArrow ? 8 : 3)
             return p.x
           })
           .attr('y2', (d: GraphEdge) => {
@@ -305,7 +350,43 @@ export const attachSimulationTick = (args: {
             const tgt = resolveNode(edge.target)
             if (!src || !tgt) return 0
             const hasArrow = Boolean(schema.edgeStyles?.[String(d.label || '')]?.arrow)
-            const p = pickEndpoint(tgt, src, hasArrow ? 8 : 3)
+            const p = endpoint(tgt, src, hasArrow ? 8 : 3)
+            return p.y
+          })
+      } else {
+        lineSel
+          .attr('x1', (d: GraphEdge) => {
+            const edge = d as unknown as EdgeWithRuntime
+            const src = resolveNode(edge.source)
+            const tgt = resolveNode(edge.target)
+            if (!src || !tgt) return 0
+            const p = pickEndpointRectOrCircle(src, tgt, 3)
+            return p.x
+          })
+          .attr('y1', (d: GraphEdge) => {
+            const edge = d as unknown as EdgeWithRuntime
+            const src = resolveNode(edge.source)
+            const tgt = resolveNode(edge.target)
+            if (!src || !tgt) return 0
+            const p = pickEndpointRectOrCircle(src, tgt, 3)
+            return p.y
+          })
+          .attr('x2', (d: GraphEdge) => {
+            const edge = d as unknown as EdgeWithRuntime
+            const src = resolveNode(edge.source)
+            const tgt = resolveNode(edge.target)
+            if (!src || !tgt) return 0
+            const hasArrow = Boolean(schema.edgeStyles?.[String(d.label || '')]?.arrow)
+            const p = pickEndpointRectOrCircle(tgt, src, hasArrow ? 8 : 3)
+            return p.x
+          })
+          .attr('y2', (d: GraphEdge) => {
+            const edge = d as unknown as EdgeWithRuntime
+            const src = resolveNode(edge.source)
+            const tgt = resolveNode(edge.target)
+            if (!src || !tgt) return 0
+            const hasArrow = Boolean(schema.edgeStyles?.[String(d.label || '')]?.arrow)
+            const p = pickEndpointRectOrCircle(tgt, src, hasArrow ? 8 : 3)
             return p.y
           })
       }

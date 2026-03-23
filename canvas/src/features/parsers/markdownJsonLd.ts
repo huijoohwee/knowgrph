@@ -23,6 +23,7 @@ import { MarkdownGraphBuilder } from './markdownJsonLdBuilder'
 import * as wikiLinks from 'grph-shared/markdown/wikiLinks'
 import { normalizeMarkdownAsciiBlocks } from 'grph-shared/markdown/asciiBlocks'
 import { extractHtmlAttr, looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
+import { sanitizeIframeSrcdoc } from '@/lib/render/sanitizeIframeSrcdoc'
 
 export { slugify } from './markdownJsonLdUtils'
 
@@ -577,15 +578,6 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     return out
   }
 
-  const sanitizeInlineIframeSrcdoc = (rawSrcDoc: string): string => {
-    let s = String(rawSrcDoc || '')
-    if (!s.trim()) return ''
-    s = s.replace(/<\s*script\b[\s\S]*?<\/\s*script\s*>/gi, '')
-    s = s.replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    s = s.replace(/\bjavascript\s*:/gi, '')
-    return s.trim()
-  }
-
   for (const b of blocks) {
     const scanStart = Math.max(1, b.startLine - 2)
     const scanEnd = Math.max(1, b.startLine - 1)
@@ -716,7 +708,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
           const title = extractHtmlAttr(rawHtml, 'title')
           const src = extractHtmlAttr(rawHtml, 'src')
           const srcdocRaw = extractHtmlAttr(rawHtml, 'srcdoc')
-          const srcdoc = srcdocRaw ? sanitizeInlineIframeSrcdoc(srcdocRaw) : ''
+          const srcdoc = srcdocRaw ? sanitizeIframeSrcdoc(srcdocRaw) : ''
           if (!src && !srcdoc) return
           const style = extractHtmlAttr(rawHtml, 'style')
           const iframeId = `dom:${gid}:iframe:${b.startLine}:${order}`

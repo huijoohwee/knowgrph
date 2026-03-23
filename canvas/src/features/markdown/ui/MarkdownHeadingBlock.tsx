@@ -72,7 +72,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
     typeof opts.stickyHeadingCascadeBaseDepth === 'number' && Number.isFinite(opts.stickyHeadingCascadeBaseDepth)
       ? Math.min(6, Math.max(1, opts.stickyHeadingCascadeBaseDepth))
       : 1
-  const { topPx, zIndex } = getStickyHeadingCascadeOffsets({
+  const { topPx, zIndex, heightPx } = getStickyHeadingCascadeOffsets({
     depth,
     cascadeBaseDepth,
     baseTopPx,
@@ -82,6 +82,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
   const stickyStyle = {
     top: `${topPx}px`,
     zIndex,
+    height: `${heightPx}px`,
   } as React.CSSProperties
   const mergedStyle = { ...(highlightStyle || {}) } as React.CSSProperties
   const cls = ['font-semibold', size, color, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
@@ -181,7 +182,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
       className={[
         'sticky',
         stickyTopClass,
-        `${UI_THEME_TOKENS.panel.bg} backdrop-blur-md py-0.5 mb-2 border-b-0`,
+        `${UI_THEME_TOKENS.panel.bg} backdrop-blur-md py-0.5 mb-0 border-b-0`,
       ].join(' ')}
       style={stickyStyle}
     >

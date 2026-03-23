@@ -18,6 +18,7 @@ export const createLabelsLayer = (args: {
   schema: GraphSchema;
   documentSemanticMode?: 'document' | 'keyword'
   nodeZKeyById?: Map<string, NodeZKey>;
+  panelOnlyNodeIdSet?: Set<string>;
   labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>;
   hoverEnabled?: boolean;
   setHoverInfo?: (updater: (prev: HoverInfo | null) => HoverInfo | null) => void;
@@ -25,9 +26,9 @@ export const createLabelsLayer = (args: {
   selectEdge: (id: string | null) => void;
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void;
 }) => {
-  const { g, nodes: rawNodes, schema, documentSemanticMode, nodeZKeyById, labelsSelRef, hoverEnabled, setHoverInfo, selectNode, selectEdge, setSelectionSource } = args;
+  const { g, nodes: rawNodes, schema, documentSemanticMode, nodeZKeyById, panelOnlyNodeIdSet, labelsSelRef, hoverEnabled, setHoverInfo, selectNode, selectEdge, setSelectionSource } = args;
 
-  const nodes = rawNodes;
+  const nodes = panelOnlyNodeIdSet ? rawNodes.filter(n => !panelOnlyNodeIdSet.has(String(n.id))) : rawNodes;
 
   const labelLayer = g.append('g').attr('data-kg-layer', 'labels');
   

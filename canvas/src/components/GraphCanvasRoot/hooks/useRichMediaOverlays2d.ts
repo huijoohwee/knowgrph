@@ -28,6 +28,8 @@ export function useRichMediaOverlays2d(args: {
   graphDataRevision: number
   schemaRef: MutableRefObject<GraphSchema>
   renderMediaAsNodes: boolean
+  excludeNodeIdsKey?: string
+  excludeNodeIdSet?: Set<string>
   mediaPanelDensity: unknown
   threeIframeOverlayPoolMax: unknown
   threeIframeOverlayBaseWidthRatioDefault: unknown
@@ -50,6 +52,8 @@ export function useRichMediaOverlays2d(args: {
     graphDataRevision,
     schemaRef,
     renderMediaAsNodes,
+    excludeNodeIdsKey,
+    excludeNodeIdSet,
     mediaPanelDensity,
     threeIframeOverlayPoolMax,
     threeIframeOverlayBaseWidthRatioDefault,
@@ -315,8 +319,8 @@ export function useRichMediaOverlays2d(args: {
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
     const st = useGraphStore.getState() as unknown as { selectedNodeId?: unknown; selectedNodeIds?: unknown }
     const preferredNodeIds = [st.selectedNodeId, ...(Array.isArray(st.selectedNodeIds) ? st.selectedNodeIds : [])]
-    return listMediaOverlayNodes({ enabled: true, nodes, poolMax, preferredNodeIds })
-  }, [sceneGraphData, threeIframeOverlayPoolMax])
+    return listMediaOverlayNodes({ enabled: true, nodes, poolMax, preferredNodeIds, excludeNodeIdSet })
+  }, [excludeNodeIdsKey, sceneGraphData, threeIframeOverlayPoolMax])
 
   const { mediaOverlayNodeIdsKey, mediaOverlayNodeIdSet } = useMemo(() => {
     const ids = mediaOverlayNodes.map(n => n.id)

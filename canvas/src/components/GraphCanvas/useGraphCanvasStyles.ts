@@ -20,6 +20,132 @@ type UseGraphCanvasStylesProps = {
   graphDataRevision?: number;
 };
 
+export function applyGraphCanvasStyles2d({
+  gRef,
+  nodesSelRef,
+  linksSelRef,
+  labelsSelRef,
+  schema,
+  documentSemanticMode,
+}: Omit<UseGraphCanvasStylesProps, 'paused' | 'graphDataRevision'>) {
+  const colors = UI_THEME_COLORS_CSS;
+  const lp = readLabelPresentation2d({ schema, documentSemanticMode })
+  const labelFill = schema.labelStyles?.color ?? colors.labelFill
+  const haloColor = schema.labelStyles?.halo?.color ?? colors.labelHalo
+  const haloWidth = lp.haloWidthPx
+  const motionRaw = (schema as unknown as { three?: { nodeMotionIntensity?: unknown } }).three?.nodeMotionIntensity
+  const motion = typeof motionRaw === 'number' && Number.isFinite(motionRaw)
+    ? Math.max(0, Math.min(2, motionRaw))
+    : 1
+  const motionEnabled = motion > 1e-6
+  const hash01 = (s: string) => {
+    let h = 2166136261
+    for (let i = 0; i < s.length; i += 1) {
+      h ^= s.charCodeAt(i)
+      h = Math.imul(h, 16777619)
+    }
+    return ((h >>> 0) % 1000) / 1000
+  }
+
+  if (nodesSelRef.current) {
+    nodesSelRef.current.each(function (d: GraphNode) {
+      const radius = getRenderNodeRadius2d(d, schema);
+      const el = d3.select(this);
+      const id = String(d.id || '')
+      if (motionEnabled && id) {
+        const dur = 2.8 + hash01(id) * 1.6
+        const delay = hash01(id + ':d') * 1.2
+        const amp = (1.5 + hash01(id + ':a') * 1.8) * motion
+        el
+          .attr('data-kg-node-anim', '1')
+          .style('transform-box', 'fill-box')
+          .style('transform-origin', 'center')
+          .style('--kg-bob-amp', `${amp.toFixed(2)}px`)
+          .style('animation', `kgNodeBob ${dur.toFixed(2)}s ease-in-out ${delay.toFixed(2)}s infinite`)
+      } else {
+        const prev = String(el.attr('data-kg-node-anim') || '')
+        if (prev === '1') {
+          el
+            .attr('data-kg-node-anim', null)
+            .style('animation', null)
+            .style('--kg-bob-amp', null)
+            .style('transform-box', null)
+            .style('transform-origin', null)
+        }
+      }
+      if (this.tagName === 'circle') {
+        el.attr('r', radius);
+      } else if (this.tagName === 'rect') {
+        const x = typeof d.x === 'number' ? d.x : 0;
+        const y = typeof d.y === 'number' ? d.y : 0;
+        const { width: w, height: h } = getNodeRectDimensions2d(d, schema);
+        el.attr('x', x - w / 2)
+          .attr('y', y - h / 2)
+          .attr('width', w)
+          .attr('height', h);
+      }
+    });
+    nodesSelRef.current
+      .attr('stroke', (d: GraphNode) => {
+        const override = schema.nodeStroke?.[d.type]?.color;
+        if (override) return override;
+        return colors.nodeStroke;
+      })
+      .attr('stroke-width', (d: GraphNode) => {
+        const override = schema.nodeStroke?.[d.type]?.width;
+        if (typeof override === 'number' && Number.isFinite(override) && override >= 0) return override;
+        return 1.5;
+      });
+  }
+
+  if (linksSelRef.current) {
+    linksSelRef.current.attr('stroke', (d: GraphEdge) => {
+      return getEdgeBaseStroke(d, schema) || colors.edgeStroke;
+    });
+    linksSelRef.current.attr('stroke-opacity', () => {
+      return readEdgeOpacity2d(schema)
+    });
+    linksSelRef.current.attr('stroke-width', (d: GraphEdge) => {
+      return getEdgeStrokeWidth(d as EdgeWithRuntime, schema);
+    });
+    linksSelRef.current.attr(
+      'marker-end',
+      (d: GraphEdge) => (schema.edgeStyles[d.label]?.arrow ? 'url(#arrowhead)' : null),
+    );
+  }
+
+  if (labelsSelRef.current) {
+    labelsSelRef.current
+      .attr('font-size', lp.nodeFontSizePx)
+      .attr('fill', labelFill)
+      .attr('stroke', haloColor)
+      .attr('stroke-width', haloWidth)
+      .attr('stroke-linejoin', 'round')
+      .attr('paint-order', 'stroke')
+  }
+
+  const root = gRef?.current ?? null
+  if (root) {
+    const styleTextSel = (sel: d3.Selection<SVGTextElement, unknown, SVGGElement, unknown>, fontSizePx?: number) => {
+      sel
+        .attr('fill', labelFill)
+        .attr('stroke', haloColor)
+        .attr('stroke-width', Math.max(2, haloWidth * 0.85))
+        .attr('stroke-linejoin', 'round')
+        .attr('paint-order', 'stroke')
+      if (typeof fontSizePx === 'number' && Number.isFinite(fontSizePx) && fontSizePx > 0) {
+        sel.attr('font-size', fontSizePx)
+      }
+    }
+
+    styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="group-labels"] text'), lp.groupFontSizePx)
+    styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="edge-labels"] text'), lp.edgeFontSizePx)
+    root
+      .selectAll<SVGPathElement, unknown>('path[data-kg-group-chevron]')
+      .attr('stroke', labelFill)
+  }
+}
+
 export function useGraphCanvasStyles({
   gRef,
   nodesSelRef,
@@ -32,121 +158,13 @@ export function useGraphCanvasStyles({
 }: UseGraphCanvasStylesProps) {
   useEffect(() => {
     if (paused) return;
-    const colors = UI_THEME_COLORS_CSS;
-    const lp = readLabelPresentation2d({ schema, documentSemanticMode })
-    const labelFill = schema.labelStyles?.color ?? colors.labelFill
-    const haloColor = schema.labelStyles?.halo?.color ?? colors.labelHalo
-    const haloWidth = lp.haloWidthPx
-    const motionRaw = (schema as unknown as { three?: { nodeMotionIntensity?: unknown } }).three?.nodeMotionIntensity
-    const motion = typeof motionRaw === 'number' && Number.isFinite(motionRaw)
-      ? Math.max(0, Math.min(2, motionRaw))
-      : 1
-    const motionEnabled = motion > 1e-6
-    const hash01 = (s: string) => {
-      let h = 2166136261
-      for (let i = 0; i < s.length; i += 1) {
-        h ^= s.charCodeAt(i)
-        h = Math.imul(h, 16777619)
-      }
-      return ((h >>> 0) % 1000) / 1000
-    }
-
-    if (nodesSelRef.current) {
-      nodesSelRef.current.each(function (d: GraphNode) {
-        const radius = getRenderNodeRadius2d(d, schema);
-        const el = d3.select(this);
-        const id = String(d.id || '')
-        if (motionEnabled && id) {
-          const dur = 2.8 + hash01(id) * 1.6
-          const delay = hash01(id + ':d') * 1.2
-          const amp = (1.5 + hash01(id + ':a') * 1.8) * motion
-          el
-            .attr('data-kg-node-anim', '1')
-            .style('transform-box', 'fill-box')
-            .style('transform-origin', 'center')
-            .style('--kg-bob-amp', `${amp.toFixed(2)}px`)
-            .style('animation', `kgNodeBob ${dur.toFixed(2)}s ease-in-out ${delay.toFixed(2)}s infinite`)
-        } else {
-          const prev = String(el.attr('data-kg-node-anim') || '')
-          if (prev === '1') {
-            el
-              .attr('data-kg-node-anim', null)
-              .style('animation', null)
-              .style('--kg-bob-amp', null)
-              .style('transform-box', null)
-              .style('transform-origin', null)
-          }
-        }
-        if (this.tagName === 'circle') {
-          el.attr('r', radius);
-        } else if (this.tagName === 'rect') {
-          const x = typeof d.x === 'number' ? d.x : 0;
-          const y = typeof d.y === 'number' ? d.y : 0;
-          const { width: w, height: h } = getNodeRectDimensions2d(d, schema);
-          el.attr('x', x - w / 2)
-            .attr('y', y - h / 2)
-            .attr('width', w)
-            .attr('height', h);
-        }
-      });
-      nodesSelRef.current
-        .attr('stroke', (d: GraphNode) => {
-          const override = schema.nodeStroke?.[d.type]?.color;
-          if (override) return override;
-          return colors.nodeStroke;
-        })
-        .attr('stroke-width', (d: GraphNode) => {
-          const override = schema.nodeStroke?.[d.type]?.width;
-          if (typeof override === 'number' && Number.isFinite(override) && override >= 0) return override;
-          return 1.5;
-        });
-    }
-
-    if (linksSelRef.current) {
-      linksSelRef.current.attr('stroke', (d: GraphEdge) => {
-        return getEdgeBaseStroke(d, schema) || colors.edgeStroke;
-      });
-      linksSelRef.current.attr('stroke-opacity', () => {
-        return readEdgeOpacity2d(schema)
-      });
-      linksSelRef.current.attr('stroke-width', (d: GraphEdge) => {
-        return getEdgeStrokeWidth(d as EdgeWithRuntime, schema);
-      });
-      linksSelRef.current.attr(
-        'marker-end',
-        (d: GraphEdge) => (schema.edgeStyles[d.label]?.arrow ? 'url(#arrowhead)' : null),
-      );
-    }
-
-    if (labelsSelRef.current) {
-      labelsSelRef.current
-        .attr('font-size', lp.nodeFontSizePx)
-        .attr('fill', labelFill)
-        .attr('stroke', haloColor)
-        .attr('stroke-width', haloWidth)
-        .attr('stroke-linejoin', 'round')
-        .attr('paint-order', 'stroke')
-    }
-
-    const root = gRef?.current ?? null
-    if (root) {
-      const styleTextSel = (sel: d3.Selection<SVGTextElement, unknown, SVGGElement, unknown>, fontSizePx?: number) => {
-        sel
-          .attr('fill', labelFill)
-          .attr('stroke', haloColor)
-          .attr('stroke-width', Math.max(2, haloWidth * 0.85))
-          .attr('stroke-linejoin', 'round')
-          .attr('paint-order', 'stroke')
-        if (typeof fontSizePx === 'number' && Number.isFinite(fontSizePx) && fontSizePx > 0) {
-          sel.attr('font-size', fontSizePx)
-        }
-      }
-
-      styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="group-labels"] text'), lp.groupFontSizePx)
-      styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="edge-labels"] text'), lp.edgeFontSizePx)
-      root
-        .selectAll<SVGPathElement, unknown>('path[data-kg-group-chevron]')
-        .attr('stroke', labelFill)
-    }
+    applyGraphCanvasStyles2d({
+      gRef,
+      nodesSelRef,
+      linksSelRef,
+      labelsSelRef,
+      schema,
+      documentSemanticMode,
+    });
   }, [paused, gRef, nodesSelRef, linksSelRef, labelsSelRef, schema, documentSemanticMode, graphDataRevision]);
 }

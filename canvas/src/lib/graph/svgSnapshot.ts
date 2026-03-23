@@ -7,6 +7,7 @@ const DEFAULT_STYLE_PROPS: readonly string[] = [
   'display',
   'visibility',
   'pointer-events',
+  'cursor',
   'fill',
   'fill-opacity',
   'fill-rule',
@@ -18,10 +19,33 @@ const DEFAULT_STYLE_PROPS: readonly string[] = [
   'stroke-dasharray',
   'stroke-dashoffset',
   'stroke-opacity',
+  'marker',
+  'marker-start',
+  'marker-mid',
+  'marker-end',
   'paint-order',
   'vector-effect',
   'shape-rendering',
   'text-rendering',
+  'overflow',
+  'clip-rule',
+  'transform',
+  'transform-origin',
+  'transform-box',
+  'animation',
+  'animation-name',
+  'animation-duration',
+  'animation-timing-function',
+  'animation-delay',
+  'animation-iteration-count',
+  'animation-direction',
+  'animation-fill-mode',
+  'animation-play-state',
+  'transition',
+  'transition-property',
+  'transition-duration',
+  'transition-timing-function',
+  'transition-delay',
   'font-family',
   'font-size',
   'font-weight',
@@ -95,7 +119,7 @@ const removeClassesDeep = (root: Element) => {
   }
 }
 
-const inlineComputedStylesIntoClone = (srcSvg: SVGSVGElement, dstSvg: SVGSVGElement, props: readonly string[]) => {
+const inlineComputedStylesIntoClone = (srcSvg: Element, dstSvg: Element, props: readonly string[]) => {
   const srcAll = srcSvg.querySelectorAll('*')
   const dstAll = dstSvg.querySelectorAll('*')
   const len = Math.min(srcAll.length, dstAll.length)
@@ -185,6 +209,20 @@ const computeContentBBoxFromClone = (
     }
   }
 }
+
+const HTML_STYLE_PROPS: readonly string[] = [
+  ...DEFAULT_STYLE_PROPS,
+  'background', 'background-color', 'border', 'border-radius', 'border-top', 'border-bottom', 'border-left', 'border-right',
+  'border-color', 'border-width', 'border-style',
+  'padding', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right',
+  'margin', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right',
+  'box-sizing', 'width', 'height', 'overflow', 'white-space', 'text-overflow',
+  'text-decoration', 'text-transform', 'line-height', 'list-style', 'position',
+  'top', 'left', 'right', 'bottom', 'z-index', 'transform', 'transform-origin',
+  'align-items', 'justify-content', 'flex-direction', 'flex-wrap', 'display', 'gap',
+  'flex', 'flex-grow', 'flex-shrink', 'flex-basis', 'grid-template-columns', 'grid-template-rows',
+  'color', 'font-family', 'font-size', 'font-weight', 'font-style', 'text-align'
+]
 
 export const buildStandaloneSvgMarkupFromElement = (svgEl: SVGSVGElement, options?: SvgSnapshotOptions): string | null => {
   try {
@@ -279,6 +317,73 @@ export const buildViewportSvgMarkupFromElement = (svgEl: SVGSVGElement, options?
 
     if (inlineComputedStyles) {
       inlineComputedStylesIntoClone(svgEl, clone, styleProps)
+    }
+
+    try {
+      const findScopeEl = (): Element | null => {
+        let cur: Element | null = svgEl
+        for (let i = 0; i < 24 && cur; i += 1) {
+          const id = String((cur as any).id || '')
+          if (id === 'kg-root') return cur
+          cur = cur.parentElement
+        }
+        return svgEl.ownerDocument?.body ?? null
+      }
+
+      const scopeEl = findScopeEl()
+      const blocks = scopeEl ? scopeEl.querySelectorAll('[data-kg-markdown-design-block]') : null
+      if (blocks && blocks.length > 0) {
+        const zoomRoot = (() => {
+          const kids = Array.from(clone.children)
+          for (let i = 0; i < kids.length; i += 1) {
+            const el = kids[i] as Element
+            if (String((el as any).tagName || '').toLowerCase() === 'g') return el as SVGGElement
+          }
+          return null
+        })()
+        if (zoomRoot) {
+          let mdLayer = zoomRoot.querySelector('g[data-kg-layer="markdown-design-blocks"]')
+          if (!mdLayer) {
+            mdLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+            mdLayer.setAttribute('data-kg-layer', 'markdown-design-blocks')
+            zoomRoot.appendChild(mdLayer)
+          }
+          for (let i = 0; i < blocks.length; i += 1) {
+            const block = blocks[i] as HTMLElement
+            const wx = Number(block.getAttribute('data-kg-world-x'))
+            const wy = Number(block.getAttribute('data-kg-world-y'))
+            const ww = Number(block.getAttribute('data-kg-world-w'))
+            const wh = Number(block.getAttribute('data-kg-world-h'))
+            if (!Number.isFinite(wx) || !Number.isFinite(wy) || !Number.isFinite(ww) || !Number.isFinite(wh)) continue
+
+            const fo = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject')
+            fo.setAttribute('x', String(wx))
+            fo.setAttribute('y', String(wy))
+            fo.setAttribute('width', String(ww))
+            fo.setAttribute('height', String(wh))
+            fo.style.overflow = 'visible'
+
+            const content = block.cloneNode(true) as HTMLElement
+            content.removeAttribute('style')
+            content.style.margin = '0'
+            content.style.padding = '0'
+            content.style.width = '100%'
+            content.style.height = '100%'
+            content.style.overflow = 'hidden'
+            content.style.pointerEvents = 'none'
+
+            if (inlineComputedStyles) {
+              inlineComputedStylesIntoClone(block, content, HTML_STYLE_PROPS)
+            }
+
+            content.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml')
+            fo.appendChild(content)
+            mdLayer.appendChild(fo)
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to snapshot markdown design blocks', err)
     }
 
     const rect = (() => {

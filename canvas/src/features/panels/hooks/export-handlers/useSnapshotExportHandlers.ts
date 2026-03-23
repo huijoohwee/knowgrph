@@ -18,10 +18,16 @@ import { readPanSpeed, readWheelBehavior, readZoomSpeed } from '@/lib/canvas/cam
 import { setupGraphScene } from '@/components/GraphCanvas/scene'
 import { normalizeEdgesForSim } from '@/components/GraphCanvas/simulation'
 import { deriveSceneGroups } from '@/lib/scene/sceneDerivation'
+import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
+import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import type { WorkflowExportStatusDeps } from './useExportUtils'
+import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
+import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { determineLayoutPositions, buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey } from '@/components/GraphCanvas/layout/positioning'
 
 type UseSnapshotExportHandlersParams = {
   captureCanvasSvgSnapshot: (mode?: '2d' | '3d') => Promise<string | null>
@@ -30,6 +36,7 @@ type UseSnapshotExportHandlersParams = {
 
 async function renderGraphCanvasSvgForHtmlExport(args: {
   graphData: GraphData
+  graphDataRevision?: number
   schema: GraphSchema
   widthPx: number
   heightPx: number
@@ -38,10 +45,21 @@ async function renderGraphCanvasSvgForHtmlExport(args: {
   mediaPanelDensity: 'default' | 'compact'
   documentSemanticMode: 'document' | 'keyword'
   frontmatterModeEnabled: boolean
+  collapsedGroupIds?: unknown
+  layoutPositionCacheByMode?: Record<string, Record<string, { x: number; y: number }>> | null
+  canvas2dRenderer?: string
+  overlayBaseWidthRatioDefault?: number
+  overlayBaseWidthRatioCompact?: number
+  overlayBaseWidthMinPxDefault?: number
+  overlayBaseWidthMinPxCompact?: number
+  overlayBaseWidthMaxPxDefault?: number
+  overlayBaseWidthMaxPxCompact?: number
+  layoutSemanticModeKey?: string
 }): Promise<string> {
   if (typeof document === 'undefined') return ''
   const {
     graphData,
+    graphDataRevision,
     schema,
     widthPx,
     heightPx,
@@ -50,6 +68,16 @@ async function renderGraphCanvasSvgForHtmlExport(args: {
     mediaPanelDensity,
     documentSemanticMode,
     frontmatterModeEnabled,
+    collapsedGroupIds,
+    layoutPositionCacheByMode,
+    canvas2dRenderer,
+    overlayBaseWidthRatioDefault,
+    overlayBaseWidthRatioCompact,
+    overlayBaseWidthMinPxDefault,
+    overlayBaseWidthMinPxCompact,
+    overlayBaseWidthMaxPxDefault,
+    overlayBaseWidthMaxPxCompact,
+    layoutSemanticModeKey,
   } = args
 
   const container = document.createElement('div')
@@ -74,18 +102,108 @@ async function renderGraphCanvasSvgForHtmlExport(args: {
   const ref = <T,>(current: T | null) => ({ current })
   const svgRef = ref(svgEl)
 
-  const layoutPositions: Record<string, { x: number; y: number }> = {}
-  for (let i = 0; i < graphData.nodes.length; i += 1) {
-    const n = graphData.nodes[i]
-    const id = String((n as any).id || '').trim()
-    const x = (n as any).x
-    const y = (n as any).y
-    if (!id) continue
-    if (typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y)) {
-      layoutPositions[id] = { x, y }
+  const collapsedGroupIdsKey = buildCollapsedGroupIdsKey(collapsedGroupIds)
+  const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(schema)
+  const graphMetaKey = buildGraphMetaKeyIgnoringPending(graphData)
+  const datasetKey = computeLayoutDatasetKey({
+    graphData,
+    graphDataRevision: typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? Math.floor(graphDataRevision) : 0,
+  })
+  const layoutMode = readLayoutMode(schema)
+  const semanticModeKey = String(layoutSemanticModeKey || documentSemanticMode || 'document')
+  const layoutViewKey = buildLayoutViewKey({
+    schemaLayoutEngineJson,
+    frontmatterModeEnabled,
+    documentSemanticMode: semanticModeKey,
+    graphMetaKey,
+    renderMediaAsNodes,
+    mediaPanelDensity: String(mediaPanelDensity),
+    collapsedGroupIdsKey,
+  })
+
+  const layoutVariant = ''
+  const renderVariant = String(canvas2dRenderer || 'd3')
+  const pickedLayoutSeed = determineLayoutPositions({
+    datasetKey,
+    mode: layoutMode,
+    frontmatterMode: frontmatterModeEnabled,
+    semanticMode: semanticModeKey,
+    renderMode: '2d',
+    renderVariant,
+    layoutVariant,
+    viewKey: layoutViewKey,
+    prevViewKey: null,
+    prevDatasetKey: null,
+    prevMode: null,
+    prevFrontmatterMode: null,
+    prevSemanticMode: null,
+    prevRenderMode: null,
+    prevRenderVariant: null,
+    prevLayoutVariant: null,
+    nodes: Array.isArray(graphData.nodes) ? graphData.nodes : [],
+    layoutPositionCacheByMode: layoutPositionCacheByMode ?? null,
+  })
+
+  const baselineLayoutPositions = (() => {
+    if (String(documentSemanticMode || 'document') !== 'keyword') return null
+    const cache = layoutPositionCacheByMode
+    if (!cache) return null
+
+    const baselineGraphMetaKey = (() => {
+      const meta = graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
+        ? (graphData.metadata as Record<string, unknown>)
+        : null
+      const raw = meta && typeof meta.baselineGraphMetaKey === 'string' ? meta.baselineGraphMetaKey.trim() : ''
+      return raw || graphMetaKey
+    })()
+
+    const baselineLayoutViewKey = buildLayoutViewKey({
+      schemaLayoutEngineJson,
+      frontmatterModeEnabled,
+      documentSemanticMode: 'document',
+      graphMetaKey: baselineGraphMetaKey,
+      renderMediaAsNodes,
+      mediaPanelDensity: String(mediaPanelDensity),
+      collapsedGroupIdsKey,
+    })
+    const baselineKey = buildLayoutPositionCacheKey({
+      datasetKey,
+      mode: layoutMode,
+      frontmatterMode: frontmatterModeEnabled,
+      semanticMode: 'document',
+      renderMode: '2d',
+      viewKey: baselineLayoutViewKey,
+      renderVariant,
+      layoutVariant,
+    })
+    const found = cache[baselineKey] ?? null
+    if (!found) return null
+    return Object.keys(found).length > 0 ? found : null
+  })()
+
+  const effectiveSkipInitialLayout =
+    String(documentSemanticMode || 'document') === 'keyword' && !!baselineLayoutPositions ? true : pickedLayoutSeed.skipInitialLayout
+
+  const layoutPositions: Record<string, { x: number; y: number }> = (() => {
+    const seeded = pickedLayoutSeed.layoutPositionsForMode
+    if (seeded && Object.keys(seeded).length > 0) return seeded
+    const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
+    const out: Record<string, { x: number; y: number }> = {}
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i] as any
+      const id = String(n?.id || '').trim()
+      if (!id) continue
+      const x = n?.x
+      const y = n?.y
+      if (typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y)) out[id] = { x, y }
     }
-  }
-  const hasStablePositions = Object.keys(layoutPositions).length >= 2
+    return out
+  })()
+
+  const hasStablePositions = (() => {
+    if (effectiveSkipInitialLayout && pickedLayoutSeed.layoutPositionsForMode) return true
+    return Object.keys(layoutPositions).length >= 2
+  })()
 
   const edgesForSim = normalizeEdgesForSim((graphData.nodes ?? []) as any, (graphData.edges ?? []) as any)
   const groupsDerivation = deriveSceneGroups({
@@ -130,14 +248,38 @@ async function renderGraphCanvasSvgForHtmlExport(args: {
     zoomOnDoubleClick: false,
     renderMediaAsNodes,
     mediaPanelDensity,
+    overlayBaseWidthRatioDefault:
+      typeof overlayBaseWidthRatioDefault === 'number' && Number.isFinite(overlayBaseWidthRatioDefault)
+        ? Math.max(0.001, overlayBaseWidthRatioDefault)
+        : 0.2,
+    overlayBaseWidthRatioCompact:
+      typeof overlayBaseWidthRatioCompact === 'number' && Number.isFinite(overlayBaseWidthRatioCompact)
+        ? Math.max(0.001, overlayBaseWidthRatioCompact)
+        : 0.2,
+    overlayBaseWidthMinPxDefault:
+      typeof overlayBaseWidthMinPxDefault === 'number' && Number.isFinite(overlayBaseWidthMinPxDefault)
+        ? Math.max(1, Math.floor(overlayBaseWidthMinPxDefault))
+        : 210,
+    overlayBaseWidthMinPxCompact:
+      typeof overlayBaseWidthMinPxCompact === 'number' && Number.isFinite(overlayBaseWidthMinPxCompact)
+        ? Math.max(1, Math.floor(overlayBaseWidthMinPxCompact))
+        : 210,
+    overlayBaseWidthMaxPxDefault:
+      typeof overlayBaseWidthMaxPxDefault === 'number' && Number.isFinite(overlayBaseWidthMaxPxDefault)
+        ? Math.max(1, Math.floor(overlayBaseWidthMaxPxDefault))
+        : 360,
+    overlayBaseWidthMaxPxCompact:
+      typeof overlayBaseWidthMaxPxCompact === 'number' && Number.isFinite(overlayBaseWidthMaxPxCompact)
+        ? Math.max(1, Math.floor(overlayBaseWidthMaxPxCompact))
+        : 360,
     enableTightInitialLayout: !hasStablePositions,
     fitToScreenMode: false,
     viewportControlsPreset,
     initialZoomTransform: { k: 1, x: 0, y: 0 },
     layoutPositionsForMode: hasStablePositions ? layoutPositions : null,
-    baselineLayoutPositions: null,
+    baselineLayoutPositions,
     prevPositions: hasStablePositions ? layoutPositions : null,
-    skipInitialLayout: hasStablePositions,
+    skipInitialLayout: hasStablePositions ? effectiveSkipInitialLayout : false,
     freezeSimulation: true,
     groupsForBboxCollide: groupsDerivation?.allGroups || [],
     layoutGroupKeyByNodeId: groupsDerivation?.layoutGroupKeyByNodeId || null,
@@ -191,9 +333,9 @@ async function renderGraphCanvasSvgForHtmlExport(args: {
       }
       const ticks = Math.min(520, Math.max(80, Math.floor(((graphData.nodes?.length || 0) + (graphData.edges?.length || 0)) * 6)))
       for (let i = 0; i < ticks; i += 1) sim.tick()
-      const tickHandler = sim.on('tick')
-      if (typeof tickHandler === 'function') tickHandler()
     }
+    const tickHandler = sim?.on('tick')
+    if (typeof tickHandler === 'function') tickHandler()
   } catch {
     void 0
   }
@@ -409,7 +551,11 @@ export function useSnapshotExportHandlers({
           return
         }
         const documentSemanticMode = store.documentSemanticMode === 'keyword' ? 'keyword' : 'document'
-        const frontmatterModeEnabled = store.frontmatterModeEnabled === true
+        const frontmatterModeEnabled = computeEffectiveFrontmatterMode({
+          frontmatterModeEnabled: store.frontmatterModeEnabled,
+          documentSemanticMode: store.documentSemanticMode,
+          graphData,
+        })
         const wants3dExport =
           store.canvasRenderMode === '3d' ||
           (store.canvasRenderModeIsAuto === true && store.canvasRenderModeLastFree === '3d')
@@ -472,6 +618,7 @@ export function useSnapshotExportHandlers({
           if (normalized) return normalized
           return await renderGraphCanvasSvgForHtmlExport({
             graphData,
+            graphDataRevision: store.graphDataRevision,
             schema,
             widthPx: vp.w,
             heightPx: vp.h,
@@ -483,6 +630,16 @@ export function useSnapshotExportHandlers({
             mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
             documentSemanticMode,
             frontmatterModeEnabled,
+            collapsedGroupIds: store.collapsedGroupIds,
+            layoutPositionCacheByMode: store.layoutPositionCacheByMode,
+            canvas2dRenderer: store.canvas2dRenderer,
+            overlayBaseWidthRatioDefault: store.threeIframeOverlayBaseWidthRatioDefault,
+            overlayBaseWidthRatioCompact: store.threeIframeOverlayBaseWidthRatioCompact,
+            overlayBaseWidthMinPxDefault: store.threeIframeOverlayBaseWidthMinPxDefault,
+            overlayBaseWidthMinPxCompact: store.threeIframeOverlayBaseWidthMinPxCompact,
+            overlayBaseWidthMaxPxDefault: store.threeIframeOverlayBaseWidthMaxPxDefault,
+            overlayBaseWidthMaxPxCompact: store.threeIframeOverlayBaseWidthMaxPxCompact,
+            layoutSemanticModeKey: store.multiDimTableModeEnabled ? `${documentSemanticMode}:mdtbl` : documentSemanticMode,
           })
         })()
 
@@ -501,7 +658,7 @@ export function useSnapshotExportHandlers({
           zoomStrokeScaleClampMin2d: store.zoomStrokeScaleClampMin2d,
           zoomStrokeScaleClampMax2d: store.zoomStrokeScaleClampMax2d,
           hideLabelsBelowScale: store.schema?.performance?.lod?.hideLabelsBelowScale,
-          includeRichMediaOverlays: true,
+          includeRichMediaOverlays: store.renderMediaAsNodes === true,
           mediaOverlayPoolMax: store.threeIframeOverlayPoolMax,
           mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
           threeIframeOverlayBaseWidthRatioDefault: store.threeIframeOverlayBaseWidthRatioDefault,
@@ -557,7 +714,11 @@ export function useSnapshotExportHandlers({
           return
         }
         const documentSemanticMode = store.documentSemanticMode === 'keyword' ? 'keyword' : 'document'
-        const frontmatterModeEnabled = store.frontmatterModeEnabled === true
+        const frontmatterModeEnabled = computeEffectiveFrontmatterMode({
+          frontmatterModeEnabled: store.frontmatterModeEnabled,
+          documentSemanticMode: store.documentSemanticMode,
+          graphData,
+        })
         const wants3dExport =
           store.canvasRenderMode === '3d' ||
           (store.canvasRenderModeIsAuto === true && store.canvasRenderModeLastFree === '3d')
@@ -616,6 +777,7 @@ export function useSnapshotExportHandlers({
           if (normalized) return normalized
           return await renderGraphCanvasSvgForHtmlExport({
             graphData,
+            graphDataRevision: store.graphDataRevision,
             schema,
             widthPx: vp.w,
             heightPx: vp.h,
@@ -627,6 +789,16 @@ export function useSnapshotExportHandlers({
             mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
             documentSemanticMode,
             frontmatterModeEnabled,
+            collapsedGroupIds: store.collapsedGroupIds,
+            layoutPositionCacheByMode: store.layoutPositionCacheByMode,
+            canvas2dRenderer: store.canvas2dRenderer,
+            overlayBaseWidthRatioDefault: store.threeIframeOverlayBaseWidthRatioDefault,
+            overlayBaseWidthRatioCompact: store.threeIframeOverlayBaseWidthRatioCompact,
+            overlayBaseWidthMinPxDefault: store.threeIframeOverlayBaseWidthMinPxDefault,
+            overlayBaseWidthMinPxCompact: store.threeIframeOverlayBaseWidthMinPxCompact,
+            overlayBaseWidthMaxPxDefault: store.threeIframeOverlayBaseWidthMaxPxDefault,
+            overlayBaseWidthMaxPxCompact: store.threeIframeOverlayBaseWidthMaxPxCompact,
+            layoutSemanticModeKey: store.multiDimTableModeEnabled ? `${documentSemanticMode}:mdtbl` : documentSemanticMode,
           })
         })()
 

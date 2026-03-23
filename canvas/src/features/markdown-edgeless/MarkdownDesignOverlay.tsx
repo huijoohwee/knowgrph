@@ -3,7 +3,13 @@ import * as d3 from 'd3'
 import { Expand } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import RichMediaIframe from '@/components/RichMediaIframe'
 import { lexMarkdown, buildMarkdownTokensKey } from '@/features/markdown/ui/markdownPreviewLex'
+import { extractHtmlAttr, looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
+import { sanitizeIframeSrcdoc } from '@/lib/render/sanitizeIframeSrcdoc'
+import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
+import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
+import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import {
   PANEL_FRAME_BODY_STYLE,
   PANEL_FRAME_HEADER_ACTION_STYLE,
@@ -16,6 +22,7 @@ import {
   patchMarkdownDesignLayoutPositions,
   MARKDOWN_DESIGN_LAYOUT,
   type MarkdownDesignBlock,
+  type MarkdownDesignLayout,
 } from './markdownDesignLayout'
 import { startMarkdownPanelOverlayLoop2d } from './markdownPanelOverlayLoop2d'
 
@@ -25,24 +32,33 @@ type MarkdownDesignOverlayProps = {
   markdownDocumentName: string | null
   markdownDocumentText: string | null
   onPreviewClick?: (line: number) => void
-  allowedKinds?: ReadonlyArray<'table' | 'code' | 'blockquote'> | null
+  allowedKinds?: ReadonlyArray<'table' | 'code' | 'blockquote' | 'callout' | 'html'> | null
+  layoutOverride?: MarkdownDesignLayout | null
+  anchorNodeIdByBlockId?: Record<string, string> | null
+  getNodeWorldCenterForId?: (id: string) => { x: number; y: number } | null
+  stopEvent?: (e: React.SyntheticEvent) => void
+  onOverlayPanStart?: (args: { pointerId: number; clientX: number; clientY: number }) => void
+  onOverlayPan?: (args: { pointerId: number; clientX: number; clientY: number; dx: number; dy: number }) => void
+  onOverlayPanEnd?: (args: { pointerId: number }) => void
+  onHeaderDragStart?: (args: { id: string; clientX: number; clientY: number }) => void
+  onHeaderDrag?: (args: { dx: number; dy: number }) => void
+  onHeaderDragEnd?: () => void
 }
 
 export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(props: MarkdownDesignOverlayProps) {
   const { enabled, svgRef, markdownDocumentName, markdownDocumentText, onPreviewClick } = props
+  const allowDrag = !props.layoutOverride
 
   const activeDocumentPath = String(markdownDocumentName || '').trim() || 'markdown'
   const markdownText = String(markdownDocumentText || '')
 
   const markdownTokensKey = React.useMemo(() => (markdownText ? buildMarkdownTokensKey(markdownText) : null), [markdownText])
   const lexed = React.useMemo(() => (markdownText ? lexMarkdown(markdownText) : { tokens: [] as any[] }), [markdownText])
-  const layout = React.useMemo(
-    () =>
-      markdownText
-        ? deriveMarkdownDesignLayout({ activeDocumentPath, markdownTokensKey, tokens: lexed.tokens as never })
-        : null,
-    [activeDocumentPath, lexed.tokens, markdownText, markdownTokensKey],
-  )
+  const layout = React.useMemo(() => {
+    if (props.layoutOverride) return props.layoutOverride
+    if (!markdownText) return null
+    return deriveMarkdownDesignLayout({ activeDocumentPath, markdownTokensKey, tokens: lexed.tokens as never })
+  }, [activeDocumentPath, lexed.tokens, markdownText, markdownTokensKey, props.layoutOverride])
 
   const [blocks, setBlocks] = React.useState<MarkdownDesignBlock[]>(layout?.blocks || [])
   React.useEffect(() => {
@@ -53,6 +69,154 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
   React.useEffect(() => {
     blocksRef.current = blocks
   }, [blocks])
+
+  const anchorByBlockIdRef = React.useRef<Record<string, string> | null>(props.anchorNodeIdByBlockId || null)
+  React.useEffect(() => {
+    anchorByBlockIdRef.current = props.anchorNodeIdByBlockId || null
+  }, [props.anchorNodeIdByBlockId])
+
+  const wheelCleanupByIdRef = React.useRef<Map<string, () => void>>(new Map())
+  const overlayRefFnByIdRef = React.useRef<Map<string, (el: HTMLElement | null) => void>>(new Map())
+
+  React.useEffect(() => {
+    return () => {
+      const m = wheelCleanupByIdRef.current
+      for (const cleanup of m.values()) {
+        try {
+          cleanup()
+        } catch {
+          void 0
+        }
+      }
+      m.clear()
+    }
+  }, [])
+
+  const getOverlayRefForId = React.useCallback(
+    (id: string) => {
+      const key = String(id || '').trim()
+      const cached = overlayRefFnByIdRef.current.get(key)
+      if (cached) return cached
+      const fn = (el: HTMLElement | null) => {
+        const prevCleanup = wheelCleanupByIdRef.current.get(key)
+        if (prevCleanup) {
+          wheelCleanupByIdRef.current.delete(key)
+          try {
+            prevCleanup()
+          } catch {
+            void 0
+          }
+        }
+
+        if (!el) {
+          overlayElsRef.current.delete(key)
+          return
+        }
+
+        overlayElsRef.current.set(key, el)
+        try {
+          const cleanup = installWheelForwardingAndBrowserZoomGuards(el, {
+            forwardWheelTo: () => svgRef.current,
+            stopPropagationOnForward: true,
+            stopPropagationOnPreventZoom: false,
+            forwardedFlagKey: '__kgForwarded',
+          })
+          if (cleanup) wheelCleanupByIdRef.current.set(key, cleanup)
+        } catch {
+          void 0
+        }
+      }
+      overlayRefFnByIdRef.current.set(key, fn)
+      return fn
+    },
+    [svgRef],
+  )
+
+  const shouldStartHeaderDrag = React.useCallback((native: PointerEvent) => {
+    if (useGraphStore.getState().canvasPointerMode2d === 'pan') return false
+    if (isSpacePanHeld()) return false
+    return true
+  }, [])
+
+  const startHeaderDrag = React.useCallback(
+    (args0: { blockId: string; clientX: number; clientY: number; native: PointerEvent }) => {
+      const anchor = anchorByBlockIdRef.current
+      const anchorId = String(anchor?.[args0.blockId] || args0.blockId)
+      if (!anchorId) return
+      try {
+        props.onHeaderDragStart?.({ id: anchorId, clientX: args0.clientX, clientY: args0.clientY })
+      } catch {
+        void 0
+      }
+      const x0 = args0.clientX
+      const y0 = args0.clientY
+      startPointerDrag({
+        ev: args0.native,
+        cursor: 'grabbing',
+        onMove: ev => {
+          try {
+            props.onHeaderDrag?.({ dx: ev.clientX - x0, dy: ev.clientY - y0 })
+          } catch {
+            void 0
+          }
+        },
+        onEnd: () => {
+          try {
+            props.onHeaderDragEnd?.()
+          } catch {
+            void 0
+          }
+        },
+        onCancel: () => {
+          try {
+            props.onHeaderDragEnd?.()
+          } catch {
+            void 0
+          }
+        },
+      })
+    },
+    [props.onHeaderDrag, props.onHeaderDragEnd, props.onHeaderDragStart],
+  )
+
+  const startOverlayPan = React.useCallback(
+    (native: PointerEvent) => {
+      if (!props.onOverlayPanStart && !props.onOverlayPan && !props.onOverlayPanEnd) return
+      const x0 = native.clientX
+      const y0 = native.clientY
+      try {
+        props.onOverlayPanStart?.({ pointerId: native.pointerId, clientX: x0, clientY: y0 })
+      } catch {
+        void 0
+      }
+      startPointerDrag({
+        ev: native,
+        cursor: 'grabbing',
+        onMove: ev => {
+          try {
+            props.onOverlayPan?.({ pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY, dx: ev.clientX - x0, dy: ev.clientY - y0 })
+          } catch {
+            void 0
+          }
+        },
+        onEnd: ev => {
+          try {
+            props.onOverlayPanEnd?.({ pointerId: ev.pointerId })
+          } catch {
+            void 0
+          }
+        },
+        onCancel: ev => {
+          try {
+            props.onOverlayPanEnd?.({ pointerId: ev.pointerId })
+          } catch {
+            void 0
+          }
+        },
+      })
+    },
+    [props.onOverlayPan, props.onOverlayPanEnd, props.onOverlayPanStart],
+  )
 
   const overlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
 
@@ -69,7 +233,12 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
 
   const visibleBlocks = React.useMemo(() => {
     if (!allowedKindsSet) return blocks
-    return blocks.filter(b => allowedKindsSet.has(b.type as never))
+    return blocks.filter(b => {
+      if (!allowedKindsSet.has(b.type as never)) return false
+      if (b.preview.kind !== 'html') return true
+      const raw = String(b.preview.html?.raw || '').trim()
+      return /<\s*iframe\b/i.test(raw)
+    })
   }, [allowedKindsSet, blocks])
 
   const blockIdsKey = React.useMemo(() => visibleBlocks.map(b => b.id).join('|'), [visibleBlocks])
@@ -129,19 +298,24 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
       getItems: () => {
         const src = blocksRef.current
         const allow = allowedKindsRef.current
-        if (!allow) {
-          return src.map(b => ({ id: b.id, cx: b.x + b.w / 2, cy: b.y + b.h / 2 }))
+        const anchor = anchorByBlockIdRef.current
+        const getCenter = typeof props.getNodeWorldCenterForId === 'function' ? props.getNodeWorldCenterForId : null
+        const pick = (b: MarkdownDesignBlock) => {
+          const anchorId = String(anchor?.[b.id] || b.id)
+          const c = getCenter ? getCenter(anchorId) : null
+          const x = c ? c.x : b.x + b.w / 2
+          const y = c ? c.y : b.y + b.h / 2
+          return { id: b.id, cx: x, cy: y }
         }
-        return src
-          .filter(b => allow.has(b.type as never))
-          .map(b => ({ id: b.id, cx: b.x + b.w / 2, cy: b.y + b.h / 2 }))
+        if (!allow) return src.map(pick)
+        return src.filter(b => allow.has(b.type as never)).map(pick)
       },
       getViewport: () => viewportRef.current,
       readTransform: () => (svgRef.current ? d3.zoomTransform(svgRef.current) : null),
       getElementForId: id => overlayElsRef.current.get(id) || null,
       getDensity,
       getSizingConfig,
-      clampToViewport: { margin: 10 },
+      clampToViewport: null,
     })
 
     return () => loop.stop()
@@ -166,7 +340,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
       if (!drag) return
       if (e.pointerId !== drag.pointerId) return
       const moved = blocks.find(b => b.id === drag.blockId)
-      if (moved && layout) {
+      if (moved && layout && !props.layoutOverride) {
         patchMarkdownDesignLayoutPositions({ layoutKey: layout.key, updates: [{ id: moved.id, x: moved.x, y: moved.y }] })
       }
       setDrag(null)
@@ -302,6 +476,30 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
         </blockquote>
       )
     }
+    if (p.kind === 'html') {
+      const raw = String(p.html?.raw || '').trim()
+      const hasIframe = /<\s*iframe\b/i.test(raw)
+      if (!hasIframe) return <p className={UI_THEME_TOKENS.text.tertiary}>—</p>
+      const safe = looksLikeSingleTagBlock(raw, 'iframe') ? raw : raw
+      const title = extractHtmlAttr(safe, 'title') || b.title || 'Iframe'
+      const src = extractHtmlAttr(safe, 'src')
+      const srcdocRaw = extractHtmlAttr(safe, 'srcdoc')
+      const srcDoc = srcdocRaw ? sanitizeIframeSrcdoc(srcdocRaw) : ''
+      if (!src && srcDoc) {
+        return (
+          <iframe
+            title={title}
+            srcDoc={srcDoc}
+            sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
+            loading="lazy"
+            style={{ width: '100%', height: '100%', border: '0', borderRadius: 8, pointerEvents: 'none', touchAction: 'none' }}
+          />
+        )
+      }
+      const url = String(src || '').trim()
+      if (!url) return <p className={UI_THEME_TOKENS.text.tertiary}>—</p>
+      return <RichMediaIframe url={url} title={title} className="w-full h-full rounded" style={{ pointerEvents: 'none', touchAction: 'none' }} />
+    }
     if (b.summary) return <p className={UI_THEME_TOKENS.text.primary}>{b.summary}</p>
     return <p className={UI_THEME_TOKENS.text.tertiary}>—</p>
   }
@@ -331,26 +529,56 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
       ) : null}
 
       {visibleBlocks.map(b => {
+        const hideFooter = b.preview.kind === 'html' && /<\s*iframe\b/i.test(String(b.preview.html?.raw || ''))
         return (
           <article
             key={b.id}
-            ref={el => {
-              if (!el) {
-                overlayElsRef.current.delete(b.id)
-                return
-              }
-              overlayElsRef.current.set(b.id, el)
-            }}
+            ref={getOverlayRefForId(b.id)}
             className={['absolute left-0 top-0 pointer-events-auto select-none', UI_THEME_TOKENS.panel.border].join(' ')}
             role="group"
+            data-kg-canvas-wheel-ignore="true"
+            data-kg-canvas-pointer-ignore="true"
+            data-kg-panel-box="leftTop"
+            data-kg-markdown-design-block={b.id}
+            data-kg-world-x={b.x}
+            data-kg-world-y={b.y}
+            data-kg-world-w={b.w}
+            data-kg-world-h={b.h}
             aria-label={`Block ${b.title}`}
             style={{
               ...PANEL_FRAME_ROOT_STYLE,
+              touchAction: 'none',
               transform: 'translate(-99999px, -99999px)',
               width: 1,
               height: 1,
             }}
-            onDoubleClick={() => void 0}
+            onPointerDownCapture={e => {
+              const native = e.nativeEvent
+              const t = (native as unknown as { target?: unknown }).target
+              const isHeaderTarget = t instanceof Element && !!t.closest('[data-kg-media-panel-header="1"]')
+              const allowHeaderOverlayPan = (() => {
+                if (!isHeaderTarget) return true
+                if (!props.onHeaderDragStart && !props.onHeaderDrag && !props.onHeaderDragEnd) return true
+                return shouldStartHeaderDrag(native) !== true
+              })()
+              if (allowHeaderOverlayPan) {
+                try {
+                  e.preventDefault()
+                } catch {
+                  void 0
+                }
+                try {
+                  e.stopPropagation()
+                } catch {
+                  void 0
+                }
+                startOverlayPan(native)
+              }
+            }}
+            onWheelCapture={props.stopEvent}
+            onClickCapture={props.stopEvent}
+            onDoubleClickCapture={props.stopEvent}
+            onContextMenuCapture={props.stopEvent}
           >
             <header
               data-kg-media-panel-header="1"
@@ -360,8 +588,29 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
                 cursor: 'grab',
                 pointerEvents: 'auto',
               }}
+              onPointerDownCapture={e => {
+                const target = e.target
+                if (target instanceof Element && target.closest('[data-kg-panel-action="1"]')) return
+                try {
+                  e.preventDefault()
+                } catch {
+                  void 0
+                }
+              }}
               onPointerDown={e => {
                 if (e.button !== 0) return
+                const native = e.nativeEvent
+                if (props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd) {
+                  if (!shouldStartHeaderDrag(native)) return
+                  try {
+                    e.stopPropagation()
+                  } catch {
+                    void 0
+                  }
+                  startHeaderDrag({ blockId: b.id, clientX: e.clientX, clientY: e.clientY, native })
+                  return
+                }
+                if (!allowDrag) return
                 const svgEl = svgRef.current
                 if (!svgEl) return
                 e.stopPropagation()
@@ -419,9 +668,11 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
               }}
             >
               {renderBlockBody(b)}
-              <footer className={['mt-2 text-[10px]', UI_THEME_TOKENS.text.secondary].join(' ')} aria-label="Block metadata">
-                {`Lines ${b.startLine}-${b.endLine}`}
-              </footer>
+              {hideFooter ? null : (
+                <footer className={['mt-2 text-[10px]', UI_THEME_TOKENS.text.secondary].join(' ')} aria-label="Block metadata">
+                  {`Lines ${b.startLine}-${b.endLine}`}
+                </footer>
+              )}
             </section>
           </article>
         )

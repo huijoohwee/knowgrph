@@ -32,6 +32,8 @@ export function useD3PresentationUpdates2d(args: {
   renderMediaAsNodes: boolean
   mediaPanelDensity: 'default' | 'compact'
   mediaOverlayNodeIdSet: Set<string>
+  panelOnlyNodeIdsKey: string
+  panelOnlyNodeIdSet: Set<string>
   tempLinkSelRef: MutableRefObject<TempLinkSelection>
   linkDragRef: MutableRefObject<PendingLink | null>
   nodesSelRef: MutableRefObject<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>
@@ -65,6 +67,8 @@ export function useD3PresentationUpdates2d(args: {
     renderMediaAsNodes,
     mediaPanelDensity,
     mediaOverlayNodeIdSet,
+    panelOnlyNodeIdsKey,
+    panelOnlyNodeIdSet,
     tempLinkSelRef,
     linkDragRef,
     nodesSelRef,
@@ -80,7 +84,7 @@ export function useD3PresentationUpdates2d(args: {
   useEffect(() => {
     const g = gRef.current
     if (!g) return
-    if (nodesPresentationAppliedKeyRef.current === `${schemaNodesPresentationJson}|${sceneWidth}|${sceneHeight}`) return
+    if (nodesPresentationAppliedKeyRef.current === `${schemaNodesPresentationJson}|${sceneWidth}|${sceneHeight}|${panelOnlyNodeIdsKey}`) return
     if (!simulationRef.current) return
     if (!sceneGraphDataRef.current) return
     if (!activeRef.current) return
@@ -118,6 +122,7 @@ export function useD3PresentationUpdates2d(args: {
       zoomOnDoubleClick,
       renderMediaAsNodes,
       mediaOverlayNodeIdSet,
+      panelOnlyNodeIdSet,
       mediaPanelDensity,
       tempLinkSelRef,
       linkDragRef,
@@ -145,7 +150,7 @@ export function useD3PresentationUpdates2d(args: {
       requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
       toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
     })
-    nodesPresentationAppliedKeyRef.current = `${schemaNodesPresentationJson}|${sceneWidth}|${sceneHeight}`
+    nodesPresentationAppliedKeyRef.current = `${schemaNodesPresentationJson}|${sceneWidth}|${sceneHeight}|${panelOnlyNodeIdsKey}`
   }, [
     activeRef,
     coarsePointer,
@@ -157,6 +162,8 @@ export function useD3PresentationUpdates2d(args: {
     linkDragRef,
     mediaOverlayNodeIdSet,
     mediaPanelDensity,
+    panelOnlyNodeIdsKey,
+    panelOnlyNodeIdSet,
     mediaSelRef,
     nodesPresentationAppliedKeyRef,
     nodesSelRef,

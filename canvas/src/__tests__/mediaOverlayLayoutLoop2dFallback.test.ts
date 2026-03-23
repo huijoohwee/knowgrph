@@ -1,7 +1,7 @@
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 
-export async function testMediaOverlayLayoutLoop2dFallsBackWhenNodePosMissing() {
+export async function testMediaOverlayLayoutLoop2dSkipsWhenNodePosMissing() {
   const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
   try {
     const root = dom.window.document.getElementById('root')
@@ -34,11 +34,9 @@ export async function testMediaOverlayLayoutLoop2dFallsBackWhenNodePosMissing() 
     await new Promise<void>(resolve => setTimeout(resolve, 0))
     const left = Number.parseFloat(el.style.left || 'NaN')
     const top = Number.parseFloat(el.style.top || 'NaN')
-    if (!Number.isFinite(left) || !Number.isFinite(top)) throw new Error('expected fallback position to be applied')
-    if (left < 0 || top < 0) throw new Error('expected fallback position to be inside viewport')
+    if (Number.isFinite(left) || Number.isFinite(top)) throw new Error('expected overlay to remain unpositioned when node center is missing')
     loop.stop()
   } finally {
     restore()
   }
 }
-

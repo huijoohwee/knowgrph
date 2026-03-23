@@ -119,20 +119,23 @@ export function listMediaOverlayNodes(args: {
   poolMax: number
   kinds?: readonly MediaOverlayKind[]
   preferredNodeIds?: readonly string[]
+  excludeNodeIdSet?: Set<string>
 }): MediaOverlayNode[] {
   if (!args.enabled) return []
   const nodes = Array.isArray(args.nodes) ? args.nodes : []
   const poolMax = Number.isFinite(args.poolMax) ? Math.max(0, Math.floor(args.poolMax)) : 0
-  if (poolMax <= 0) return []
   const kinds = new Set<MediaOverlayKind>((args.kinds || ['iframe', 'image', 'svg', 'video']) as MediaOverlayKind[])
+  if (poolMax <= 0) return []
   const preferred = (args.preferredNodeIds || []).map(v => String(v || '').trim()).filter(Boolean)
   const preferredSet = preferred.length ? new Set(preferred) : null
+  const exclude = args.excludeNodeIdSet || null
 
   const candidates: Candidate[] = []
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i]
     const id = String(n?.id || '').trim()
     if (!id) continue
+    if (exclude?.has(id)) continue
     const spec = getNodeMediaSpec(n)
     if (!spec) continue
     const kind = spec.kind as MediaOverlayKind
@@ -185,8 +188,8 @@ export function listMediaOverlayNodes(args: {
     if (a.rank !== b.rank) return b.rank - a.rank
     return a.idx - b.idx
   })
-  const picked = unique.slice(0, poolMax)
-  return picked.map(n => ({
+
+  return unique.slice(0, poolMax).map(n => ({
     id: n.id,
     title: n.title,
     url: n.url,

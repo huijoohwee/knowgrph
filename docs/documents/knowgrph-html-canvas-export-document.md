@@ -102,6 +102,8 @@ graph TD
 - Single render pipeline:
   - Workspace and export call the same renderer entrypoints with the same scene model and style tokens.
   - 2D Flow-based export re-renders via an off-screen SVG using GraphCanvas fit rules and group membership.
+  - Export snapshot strictly mirrors workspace styling using the shared `applyGraphCanvasStyles2d` to ensure parity of CSS animations (`kgNodeBob`), node strokes, and colors.
+  - Full parity with DOM overlays (tables, blockquotes, codeblocks) is maintained by querying `[data-kg-markdown-design-block]` elements from the live workspace, applying computed HTML styles, and cloning them as `<foreignObject>`s inside the SVG snapshot `<g data-kg-layer="root">` so they pan and zoom natively.
 - Deterministic layout snapshot:
   - Export uses the current graph state (positions, styles, zoom, visibility) without re-running layout engines.
   - Layout and fit use display-derived graph bounds so exports stay aligned with Canvas.
