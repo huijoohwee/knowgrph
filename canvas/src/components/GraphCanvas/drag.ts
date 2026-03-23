@@ -7,8 +7,10 @@ import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
 import { DEFAULT_DRAG_ALPHA_TARGET } from '@/lib/graph/layoutDefaults'
+import { DEFAULT_DRAG_ALPHA_TARGET_HARD_CAP } from '@/lib/graph/layoutDefaults'
 import { markGraphCanvasUserInteracted } from '@/components/GraphCanvas/userInteractionFlag'
 import { cancelPendingRefreeze, scheduleSimulationRefreezeAfterDrag } from '@/components/GraphCanvas/dragRefreeze'
+import { beginDragForceTuning } from '@/components/GraphCanvas/dragForceTuning'
 
 export const nodeDragBehavior = (
   simulation: d3.Simulation<GraphNode, GraphEdge>,
@@ -19,6 +21,15 @@ export const nodeDragBehavior = (
     let locked = false
     let shouldRefreeze = false
     let refreezeSvg: SVGSVGElement | null = null
+    let endForceTune: null | (() => void) = null
+    const readDragAlphaTarget = () => {
+      try {
+        const v = useGraphStore.getState().graphDragAlphaTarget2d
+        return typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(0.6, v)) : DEFAULT_DRAG_ALPHA_TARGET
+      } catch {
+        return DEFAULT_DRAG_ALPHA_TARGET
+      }
+    }
     const isFrozenFromEl = (el: SVGElement | null): boolean => {
       const svg = el?.ownerSVGElement
       return svg?.getAttribute('data-kg-layout-frozen') === '1'
@@ -52,7 +63,9 @@ export const nodeDragBehavior = (
       }
 
       if (!structured && !event.active) {
-        simulation.alphaTarget(DEFAULT_DRAG_ALPHA_TARGET).restart();
+        endForceTune = beginDragForceTuning(simulation)
+        const alpha = Math.min(readDragAlphaTarget(), DEFAULT_DRAG_ALPHA_TARGET_HARD_CAP)
+        simulation.alphaTarget(alpha).restart();
       }
       d.fx = d.x;
       d.fy = d.y;
@@ -125,6 +138,16 @@ export const nodeDragBehavior = (
         d.fx = null;
         d.fy = null;
       }
+
+      if (endForceTune) {
+        try {
+          endForceTune()
+        } catch {
+          void 0
+        } finally {
+          endForceTune = null
+        }
+      }
       d.vx = 0;
       d.vy = 0;
       const shouldFreezeAfter = shouldRefreeze
@@ -153,6 +176,17 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
     let targetNode: GraphNode | undefined
     let shouldRefreeze = false
     let refreezeSvg: SVGSVGElement | null = null
+    let dragZoomK = 1
+    let endForceTune: null | (() => void) = null
+
+    const readDragAlphaTarget = () => {
+      try {
+        const v = useGraphStore.getState().graphDragAlphaTarget2d
+        return typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(0.6, v)) : DEFAULT_DRAG_ALPHA_TARGET
+      } catch {
+        return DEFAULT_DRAG_ALPHA_TARGET
+      }
+    }
 
     const isFrozenFromEl = (el: SVGElement | null): boolean => {
       const svg = el?.ownerSVGElement
@@ -178,6 +212,13 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
         const mode = readLayoutMode(schema)
         const structured = mode === 'radial'
         const svgEl = (this as unknown as SVGElement).ownerSVGElement
+        dragZoomK = 1
+        try {
+          const k = d3.zoomTransform(svgEl as unknown as SVGSVGElement).k
+          dragZoomK = typeof k === 'number' && Number.isFinite(k) && k > 0 ? k : 1
+        } catch {
+          dragZoomK = 1
+        }
         cancelPendingRefreeze(svgEl as unknown as SVGSVGElement | null)
         markGraphCanvasUserInteracted(svgEl)
         const frozenAtStart = isFrozenFromEl(this as unknown as SVGElement)
@@ -197,7 +238,9 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
         }
 
         if (!structured && !event.active) {
-          simulation.alphaTarget(DEFAULT_DRAG_ALPHA_TARGET).restart();
+          endForceTune = beginDragForceTuning(simulation)
+          const alpha = Math.min(readDragAlphaTarget(), DEFAULT_DRAG_ALPHA_TARGET_HARD_CAP)
+          simulation.alphaTarget(alpha).restart();
         }
         
         // Fix nodes
@@ -211,8 +254,8 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
         if (isSpacePanHeld()) return
         if (!sourceNode || !targetNode) return
 
-        const dx = event.dx
-        const dy = event.dy
+        const dx = event.dx / dragZoomK
+        const dy = event.dy / dragZoomK
         
         // Move both nodes
         if (sourceNode.fx != null) sourceNode.fx += dx
@@ -253,6 +296,16 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
           if (targetNode) {
             targetNode.fx = null
             targetNode.fy = null
+          }
+        }
+
+        if (endForceTune) {
+          try {
+            endForceTune()
+          } catch {
+            void 0
+          } finally {
+            endForceTune = null
           }
         }
         

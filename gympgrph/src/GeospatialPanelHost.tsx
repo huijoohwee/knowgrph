@@ -33,9 +33,11 @@ const writeLsString = (key: string, value: string): void => {
 
 export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.ReactElement {
   const active = props.active !== false
+  const geospatialViewMode = useGympgrphStore(s => s.geospatialViewMode)
   const geospatialAutoFitEnabled = useGympgrphStore(s => s.geospatialAutoFitEnabled)
   const geospatialDatasetTimeoutMs = useGympgrphStore(s => s.geospatialDatasetTimeoutMs)
   const geospatialDatasetMaxBytes = useGympgrphStore(s => s.geospatialDatasetMaxBytes)
+  const setGeospatialViewMode = useGympgrphStore(s => s.setGeospatialViewMode)
   const setGeospatialAutoFitEnabled = useGympgrphStore(s => s.setGeospatialAutoFitEnabled)
   const setGeospatialDatasetTimeoutMs = useGympgrphStore(s => s.setGeospatialDatasetTimeoutMs)
   const setGeospatialDatasetMaxBytes = useGympgrphStore(s => s.setGeospatialDatasetMaxBytes)
@@ -123,6 +125,28 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
       </div>
 
       <div className="mt-3 grid gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-[12px] text-gray-600 dark:text-gray-300">View</label>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+              disabled={disabled}
+              onClick={() => setGeospatialViewMode('2d')}
+            >
+              2D (MapLibre){geospatialViewMode === '2d' ? ' (active)' : ''}
+            </button>
+            <button
+              type="button"
+              className="px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+              disabled={disabled}
+              onClick={() => setGeospatialViewMode('3d')}
+            >
+              3D (Cesium){geospatialViewMode === '3d' ? ' (active)' : ''}
+            </button>
+          </div>
+        </div>
+
         <div className="flex items-center justify-between gap-2">
           <label className="text-[12px] text-gray-600 dark:text-gray-300">Auto-fit</label>
           <button

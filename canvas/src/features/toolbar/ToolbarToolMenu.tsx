@@ -111,47 +111,45 @@ const GeoView = React.memo(function GeoView(props: { geospatialModeEnabled: bool
 
   return (
     <section className="h-full flex flex-col" aria-label="Geospatial panel">
-      {!geospatialModeEnabled ? (
-        <div className={cn('px-2 py-2 text-xs', UI_THEME_TOKENS.text.secondary)}>
-          Geospatial Mode is off. You can still configure settings here.
-        </div>
-      ) : null}
-
-      <ErrorBoundary>
-        <React.Suspense
-          fallback={
-            <div className="p-3 text-xs text-gray-600 dark:text-gray-300">
-              Loading geospatial panel...
+      {geospatialModeEnabled ? (
+        <ErrorBoundary>
+          <React.Suspense
+            fallback={
+              <div className="p-3 text-xs text-gray-600 dark:text-gray-300">
+                Loading geospatial panel...
+              </div>
+            }
+          >
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+              <GeospatialPanelHostLazy
+                active
+                showDatasetsManager={false}
+                panelTypography={panelTypography}
+                snapshot={{
+                  graphData: activeGraphData,
+                  zoomState: gympgrphBridge.zoomState,
+                  canvasRenderMode: gympgrphBridge.canvasRenderMode,
+                  selectedNodeId: gympgrphBridge.selectedNodeId,
+                  selectedNodeIds: gympgrphBridge.selectedNodeIds,
+                  selectedEdgeId: gympgrphBridge.selectedEdgeId,
+                }}
+                handlers={{
+                  selectNode: gympgrphBridge.selectNode,
+                  selectEdge: gympgrphBridge.selectEdge,
+                  setSelectionSource: gympgrphBridge.setSelectionSource,
+                  requestZoom: gympgrphBridge.requestZoom,
+                  requestThreeCamera: gympgrphBridge.requestThreeCamera,
+                  pushUiToast: gympgrphBridge.pushUiToast,
+                  upsertUiToast: gympgrphBridge.upsertUiToast,
+                  dismissUiToast: gympgrphBridge.dismissUiToast,
+                }}
+              />
             </div>
-          }
-        >
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-            <GeospatialPanelHostLazy
-              active={geospatialModeEnabled}
-              showDatasetsManager={false}
-              panelTypography={panelTypography}
-              snapshot={{
-                graphData: activeGraphData,
-                zoomState: gympgrphBridge.zoomState,
-                canvasRenderMode: gympgrphBridge.canvasRenderMode,
-                selectedNodeId: gympgrphBridge.selectedNodeId,
-                selectedNodeIds: gympgrphBridge.selectedNodeIds,
-                selectedEdgeId: gympgrphBridge.selectedEdgeId,
-              }}
-              handlers={{
-                selectNode: gympgrphBridge.selectNode,
-                selectEdge: gympgrphBridge.selectEdge,
-                setSelectionSource: gympgrphBridge.setSelectionSource,
-                requestZoom: gympgrphBridge.requestZoom,
-                requestThreeCamera: gympgrphBridge.requestThreeCamera,
-                pushUiToast: gympgrphBridge.pushUiToast,
-                upsertUiToast: gympgrphBridge.upsertUiToast,
-                dismissUiToast: gympgrphBridge.dismissUiToast,
-              }}
-            />
-          </div>
-        </React.Suspense>
-      </ErrorBoundary>
+          </React.Suspense>
+        </ErrorBoundary>
+      ) : (
+        <p className={cn('p-3 text-sm', UI_THEME_TOKENS.text.secondary)}>Enable Geospatial Mode to view this panel.</p>
+      )}
     </section>
   )
 })
@@ -367,7 +365,7 @@ export function ToolbarToolMenu({
       <IconButton
         title={UI_LABELS.geo}
         onClick={() => handleSelectView('geo')}
-        disabled={false}
+        disabled={!geospatialModeEnabled}
         className={`App-toolbar__btn ${
           floatingPanelView === 'geo' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
         }`}
@@ -407,6 +405,14 @@ export function ToolbarToolMenu({
       setGeospatialModeEnabled(enabled)
     })
   }, [])
+
+  React.useEffect(() => {
+    if (geospatialModeEnabled) {
+      if (floatingPanelView === 'inspector') setFloatingPanelView('geo')
+      return
+    }
+    if (floatingPanelView === 'geo') setFloatingPanelView('inspector')
+  }, [floatingPanelView, geospatialModeEnabled])
 
   React.useEffect(() => {
     if (!floatingPanelPinned) return

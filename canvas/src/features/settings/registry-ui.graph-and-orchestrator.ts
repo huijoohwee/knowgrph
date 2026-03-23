@@ -14,13 +14,221 @@ import {
 } from '@/lib/canvas/flow-zoom-tuning'
 import { CANVAS_INTERACTION_SPEED_MULTIPLIER_DEFAULT, CANVAS_PAN_SPEED_MULTIPLIER_DEFAULT } from '@/lib/canvas/camera-options-2d'
 import { CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT } from '@/lib/canvas/zoom-input'
-import { DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE } from '@/lib/graph/layoutDefaults'
+import { DEFAULT_FIT_TO_SCREEN_FILL_RATIO, DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE } from '@/lib/graph/layoutDefaults'
+import { DEFAULT_PHYSICS2D_TUNING } from '@/lib/graph/physics2dTuning'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { SettingMeta } from './types'
 
 const s = () => useGraphStore.getState()
 
 export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
+  {
+    key: 'viewport.fitFillRatio',
+    type: 'number',
+    source: 'store',
+    read: () => s().viewportFitFillRatio,
+    write: (v) => s().setViewportFitFillRatio(Number(v)),
+    docKey: 'viewport.fitFillRatio',
+    default: () => DEFAULT_FIT_TO_SCREEN_FILL_RATIO,
+  },
+  {
+    key: 'schema.layout.forces.physics2dChargeScale',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { physics2dChargeScale?: unknown }).physics2dChargeScale
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : DEFAULT_PHYSICS2D_TUNING.chargeScale
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0.1, Math.min(2, next)) : DEFAULT_PHYSICS2D_TUNING.chargeScale
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, physics2dChargeScale: clamped } } })
+    },
+    docKey: 'schema.layout.forces.physics2dChargeScale',
+    default: () => DEFAULT_PHYSICS2D_TUNING.chargeScale,
+  },
+  {
+    key: 'schema.layout.forces.physics2dCollideStrengthScale',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { physics2dCollideStrengthScale?: unknown }).physics2dCollideStrengthScale
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : DEFAULT_PHYSICS2D_TUNING.collideStrengthScale
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0.1, Math.min(2, next)) : DEFAULT_PHYSICS2D_TUNING.collideStrengthScale
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, physics2dCollideStrengthScale: clamped } } })
+    },
+    docKey: 'schema.layout.forces.physics2dCollideStrengthScale',
+    default: () => DEFAULT_PHYSICS2D_TUNING.collideStrengthScale,
+  },
+  {
+    key: 'schema.layout.forces.physics2dBboxStrengthScale',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { physics2dBboxStrengthScale?: unknown }).physics2dBboxStrengthScale
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : DEFAULT_PHYSICS2D_TUNING.bboxStrengthScale
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0.1, Math.min(2, next)) : DEFAULT_PHYSICS2D_TUNING.bboxStrengthScale
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, physics2dBboxStrengthScale: clamped } } })
+    },
+    docKey: 'schema.layout.forces.physics2dBboxStrengthScale',
+    default: () => DEFAULT_PHYSICS2D_TUNING.bboxStrengthScale,
+  },
+  {
+    key: 'schema.layout.forces.physics2dVelocityDecayBias',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { physics2dVelocityDecayBias?: unknown }).physics2dVelocityDecayBias
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : DEFAULT_PHYSICS2D_TUNING.velocityDecayBias
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(-0.25, Math.min(0.25, next)) : DEFAULT_PHYSICS2D_TUNING.velocityDecayBias
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, physics2dVelocityDecayBias: clamped } } })
+    },
+    docKey: 'schema.layout.forces.physics2dVelocityDecayBias',
+    default: () => DEFAULT_PHYSICS2D_TUNING.velocityDecayBias,
+  },
+  {
+    key: 'schema.layout.forces.physics2dMaxSpeedScale',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { physics2dMaxSpeedScale?: unknown }).physics2dMaxSpeedScale
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : DEFAULT_PHYSICS2D_TUNING.maxSpeedScale
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0.3, Math.min(3, next)) : DEFAULT_PHYSICS2D_TUNING.maxSpeedScale
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, physics2dMaxSpeedScale: clamped } } })
+    },
+    docKey: 'schema.layout.forces.physics2dMaxSpeedScale',
+    default: () => DEFAULT_PHYSICS2D_TUNING.maxSpeedScale,
+  },
+  {
+    key: 'schema.layout.forces.physics2dStrictOverlapScale',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { physics2dStrictOverlapScale?: unknown }).physics2dStrictOverlapScale
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : DEFAULT_PHYSICS2D_TUNING.strictOverlapScale
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0.3, Math.min(3, next)) : DEFAULT_PHYSICS2D_TUNING.strictOverlapScale
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, physics2dStrictOverlapScale: clamped } } })
+    },
+    docKey: 'schema.layout.forces.physics2dStrictOverlapScale',
+    default: () => DEFAULT_PHYSICS2D_TUNING.strictOverlapScale,
+  },
+  {
+    key: 'schema.layout.forces.physics2dLabelNudgeScale',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { physics2dLabelNudgeScale?: unknown }).physics2dLabelNudgeScale
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : DEFAULT_PHYSICS2D_TUNING.labelNudgeScale
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0.2, Math.min(3, next)) : DEFAULT_PHYSICS2D_TUNING.labelNudgeScale
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, physics2dLabelNudgeScale: clamped } } })
+    },
+    docKey: 'schema.layout.forces.physics2dLabelNudgeScale',
+    default: () => DEFAULT_PHYSICS2D_TUNING.labelNudgeScale,
+  },
+  {
+    key: 'schema.layout.forces.physics2dDragChargeScale',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { physics2dDragChargeScale?: unknown }).physics2dDragChargeScale
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : DEFAULT_PHYSICS2D_TUNING.dragChargeScale
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0.1, Math.min(1, next)) : DEFAULT_PHYSICS2D_TUNING.dragChargeScale
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, physics2dDragChargeScale: clamped } } })
+    },
+    docKey: 'schema.layout.forces.physics2dDragChargeScale',
+    default: () => DEFAULT_PHYSICS2D_TUNING.dragChargeScale,
+  },
+  {
+    key: 'schema.layout.forces.physics2dDragDistanceMaxPx',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { physics2dDragDistanceMaxPx?: unknown }).physics2dDragDistanceMaxPx
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : DEFAULT_PHYSICS2D_TUNING.dragDistanceMaxPx
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(120, Math.min(6000, next)) : DEFAULT_PHYSICS2D_TUNING.dragDistanceMaxPx
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, physics2dDragDistanceMaxPx: clamped } } })
+    },
+    docKey: 'schema.layout.forces.physics2dDragDistanceMaxPx',
+    default: () => DEFAULT_PHYSICS2D_TUNING.dragDistanceMaxPx,
+  },
   {
     key: 'schema.zoom.minScale',
     type: 'number',

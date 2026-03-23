@@ -1,4 +1,16 @@
-import { lsNum, lsSetNum, lsBool, lsSetBool, lsInt, lsSetInt, lsJson, lsSetJson, getLocalStorage } from '@/lib/persistence'
+import {
+  lsBool,
+  lsSetBool,
+  lsInt,
+  lsSetInt,
+  lsJson,
+  lsSetJson,
+  getLocalStorage,
+  lsFloat,
+  lsSetFloat,
+  lsNum,
+  lsSetNum,
+} from '@/lib/persistence'
 import { LS_KEYS } from '@/lib/config'
 import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
@@ -6,6 +18,8 @@ import { getInitialLaunchSpotlightEnabled, persistLaunchSpotlightEnabled } from 
 import { createPanelLayoutUiSlice } from '@/hooks/store/panelLayoutUiSlice'
 import { DEFAULT_CANVAS_2D_RENDERER } from '@/lib/config'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
+import { clampFillRatio } from 'grph-shared/zoom/presets'
+import { DEFAULT_DRAG_ALPHA_TARGET, DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from '@/lib/graph/layoutDefaults'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
@@ -124,6 +138,25 @@ export const createUiSlice = (set: SetGraph) => {
     codeHighlightDurationMs: 1000,
     codeSelectThrottleMs: 100,
     codeHighlightUntilClick: true,
+
+    viewportFitFillRatio: clampFillRatio(lsFloat(LS_KEYS.viewportFitFillRatio, DEFAULT_FIT_TO_SCREEN_FILL_RATIO, { min: 0.2, max: 0.95 })),
+    setViewportFitFillRatio: (v: number) =>
+      set(state => {
+        const next = clampFillRatio(typeof v === 'number' && Number.isFinite(v) ? v : DEFAULT_FIT_TO_SCREEN_FILL_RATIO)
+        if (state.viewportFitFillRatio === next) return {}
+        lsSetFloat(LS_KEYS.viewportFitFillRatio, next, { min: 0.2, max: 0.95 })
+        return { viewportFitFillRatio: next } as Partial<GraphState>
+      }),
+
+    graphDragAlphaTarget2d: lsFloat(LS_KEYS.graphDragAlphaTarget2d, DEFAULT_DRAG_ALPHA_TARGET, { min: 0, max: 0.6 }),
+    setGraphDragAlphaTarget2d: (v: number) =>
+      set(state => {
+        const n = typeof v === 'number' && Number.isFinite(v) ? v : DEFAULT_DRAG_ALPHA_TARGET
+        const next = Math.max(0, Math.min(0.6, n))
+        if (state.graphDragAlphaTarget2d === next) return {}
+        lsSetFloat(LS_KEYS.graphDragAlphaTarget2d, next, { min: 0, max: 0.6 })
+        return { graphDragAlphaTarget2d: next } as Partial<GraphState>
+      }),
 
     uiPanelKeyValueTextSizeClass: lsJson<string>(
       LS_KEYS.panelKeyValueTextSizeClass,

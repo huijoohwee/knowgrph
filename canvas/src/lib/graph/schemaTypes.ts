@@ -180,6 +180,16 @@ export interface GraphSchema {
       postFitForce?: boolean;
       postFitStrength?: number;
       postFitAlphaMax?: number;
+
+      physics2dChargeScale?: number;
+      physics2dCollideStrengthScale?: number;
+      physics2dBboxStrengthScale?: number;
+      physics2dVelocityDecayBias?: number;
+      physics2dMaxSpeedScale?: number;
+      physics2dStrictOverlapScale?: number;
+      physics2dLabelNudgeScale?: number;
+      physics2dDragChargeScale?: number;
+      physics2dDragDistanceMaxPx?: number;
     };
     fitPadding?: number;
     fitDetectClusters?: boolean;

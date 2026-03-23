@@ -8,6 +8,8 @@ import {
   readZoomScaleExtent,
 } from '@/lib/graph/layoutDefaults'
 
+import { clampFillRatio } from 'grph-shared/zoom/presets'
+
 import { readLayoutMode2d, type LayoutMode2d } from '@/lib/graph/layoutMode'
 
 export type LayoutMode = LayoutMode2d
@@ -20,6 +22,7 @@ export function readFitAllOptions(args: {
   schema: GraphSchema
   mode: LayoutMode
   intent: 'fitToScreen' | 'initialFit' | 'fitToView' | 'fitSelection'
+  targetFillRatioOverride?: number
 }): FitAllTransformOptions {
   const { schema } = args
   const padding = schema.layout?.fitPadding
@@ -35,7 +38,10 @@ export function readFitAllOptions(args: {
   const [minScale, maxScale] = readZoomScaleExtent(schema)
   const detectClustersEffective =
     args.intent === 'fitToScreen' || args.intent === 'initialFit' ? detectClusters !== false : false
-  const targetFillRatio = DEFAULT_FIT_TO_SCREEN_FILL_RATIO
+  const targetFillRatio =
+    typeof args.targetFillRatioOverride === 'number' && Number.isFinite(args.targetFillRatioOverride)
+      ? clampFillRatio(args.targetFillRatioOverride)
+      : DEFAULT_FIT_TO_SCREEN_FILL_RATIO
   const minScaleEffective = args.intent === 'fitToView' ? Math.min(minScale, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP) : minScale
   const nodePadding = (schema.layout as unknown as { nodePadding?: number })?.nodePadding
   const nodePaddingEffective = typeof nodePadding === 'number' && Number.isFinite(nodePadding) ? Math.max(0, nodePadding) : 12

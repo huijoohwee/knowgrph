@@ -108,6 +108,42 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'Import: PDF',
     responsibility: 'Embed eligible images as data: URIs (bounded)',
   },
+  'schema.layout.forces.physics2dChargeScale': {
+    area: 'Graph Physics 2D',
+    responsibility: 'Scale auto-tuned D3 many-body repulsion (when schema.layout.forces.charge is unset)',
+  },
+  'schema.layout.forces.physics2dCollideStrengthScale': {
+    area: 'Graph Physics 2D',
+    responsibility: 'Scale auto-tuned node-node collision strength',
+  },
+  'schema.layout.forces.physics2dBboxStrengthScale': {
+    area: 'Graph Physics 2D',
+    responsibility: 'Scale bbox/group-bbox collision strength (nodes, groups, rich-media boxes)',
+  },
+  'schema.layout.forces.physics2dVelocityDecayBias': {
+    area: 'Graph Physics 2D',
+    responsibility: 'Bias velocityDecay (damping) to reduce sudden motion',
+  },
+  'schema.layout.forces.physics2dMaxSpeedScale': {
+    area: 'Graph Physics 2D',
+    responsibility: 'Scale per-tick max speed clamp (limits drastic jumps)',
+  },
+  'schema.layout.forces.physics2dStrictOverlapScale': {
+    area: 'Graph Physics 2D',
+    responsibility: 'Scale strict overlap correction (post-layout relax for nodes/groups)',
+  },
+  'schema.layout.forces.physics2dLabelNudgeScale': {
+    area: 'Graph Physics 2D',
+    responsibility: 'Scale group label-label nudge relaxation',
+  },
+  'schema.layout.forces.physics2dDragChargeScale': {
+    area: 'Graph Physics 2D',
+    responsibility: 'Scale drag-time charge softening while dragging',
+  },
+  'schema.layout.forces.physics2dDragDistanceMaxPx': {
+    area: 'Graph Physics 2D',
+    responsibility: 'Cap drag-time charge distanceMax (localizes repulsion during dragging)',
+  },
   pdfImportMaxExtractedImagesPerPage: {
     area: 'Import: PDF',
     responsibility: 'Max images extracted per page (0 disables extraction)',

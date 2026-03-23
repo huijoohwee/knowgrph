@@ -26,7 +26,7 @@ import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey } from '@/lib/canvas/layoutPositioning'
 import { pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
-import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { readLayoutMode2d } from '@/lib/graph/layoutMode'
 import {
@@ -413,7 +413,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
           })
           const datasetKey = computeLayoutDatasetKey({ graphData: graphDataForView, graphDataRevision: st.graphDataRevision || 0 })
           const mode = st.schema ? readLayoutMode2d(st.schema) : 'force'
-          const graphMetaKey = buildGraphMetaKey((st.graphData as any) || null)
+          const graphMetaKey = buildGraphMetaKeyIgnoringPending((st.graphData as any) || null)
           const collapsedGroupIdsKey = buildCollapsedGroupIdsKey(st.collapsedGroupIds)
           const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(st.schema || null)
           const viewKey = buildLayoutViewKey({

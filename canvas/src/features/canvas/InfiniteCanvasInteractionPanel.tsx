@@ -10,6 +10,7 @@ import type { PipelinePerfDetail } from '@/lib/pipelinePerf'
 import { viewportCenterToWorld } from '@/lib/zoom/viewport'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { readPanSpeed, readWheelBehavior, readZoomSpeed } from '@/lib/canvas/camera-options-2d'
+import { DEFAULT_PHYSICS2D_TUNING, readPhysics2dTuning } from '@/lib/graph/physics2dTuning'
 
 function Section(props: { title: string; children: React.ReactNode }) {
   return (
@@ -38,6 +39,8 @@ export function InfiniteCanvasInteractionPanel() {
     zoomDurationFitMs,
     zoomDurationSelectionMs,
     wheelZoomCtrlMetaBoostMultiplier,
+    graphDragAlphaTarget2d,
+    setGraphDragAlphaTarget2d,
     canvasInteractionSpeedMultiplier,
     canvasPanSpeedMultiplier,
     flowWheelZoomSpeedMultiplier,
@@ -64,6 +67,8 @@ export function InfiniteCanvasInteractionPanel() {
       zoomDurationFitMs: s.zoomDurationFitMs,
       zoomDurationSelectionMs: s.zoomDurationSelectionMs,
       wheelZoomCtrlMetaBoostMultiplier: s.wheelZoomCtrlMetaBoostMultiplier,
+      graphDragAlphaTarget2d: s.graphDragAlphaTarget2d,
+      setGraphDragAlphaTarget2d: s.setGraphDragAlphaTarget2d,
       canvasInteractionSpeedMultiplier: s.canvasInteractionSpeedMultiplier,
       canvasPanSpeedMultiplier: s.canvasPanSpeedMultiplier,
       flowWheelZoomSpeedMultiplier: s.flowWheelZoomSpeedMultiplier,
@@ -93,6 +98,26 @@ export function InfiniteCanvasInteractionPanel() {
     : selectedNodeId
       ? 1
       : 0
+
+  const physics2d = React.useMemo(() => readPhysics2dTuning(schema), [schema])
+  const setPhysics2d = React.useCallback(
+    (patch: Partial<{
+      physics2dChargeScale: number
+      physics2dCollideStrengthScale: number
+      physics2dBboxStrengthScale: number
+      physics2dVelocityDecayBias: number
+      physics2dMaxSpeedScale: number
+      physics2dStrictOverlapScale: number
+      physics2dLabelNudgeScale: number
+      physics2dDragChargeScale: number
+      physics2dDragDistanceMaxPx: number
+    }>) => {
+      const layout = schema.layout || {}
+      const forces = layout.forces || {}
+      setSchema({ ...schema, layout: { ...layout, forces: { ...forces, ...patch } } })
+    },
+    [schema, setSchema],
+  )
 
   const [perfOpen, setPerfOpen] = React.useState(false)
   const [rafFps, setRafFps] = React.useState(0)
@@ -283,6 +308,29 @@ export function InfiniteCanvasInteractionPanel() {
       </Section>
       <CollapsibleSection title="Interaction" defaultCollapsed={false} stickyHeader={false}>
         <div className="mt-2 space-y-2">
+          <div className={`rounded-md border p-2 ${UI_THEME_TOKENS.input.border}`}>
+            <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+              <Tooltip
+                content="Higher values make the simulation respond faster to drags but can cause large global movement."
+                maxWidthPx={260}
+                contentClassName={tooltipClassName}
+              >
+                <span>Drag alphaTarget</span>
+              </Tooltip>
+              <span className="font-mono">{Number.isFinite(graphDragAlphaTarget2d) ? graphDragAlphaTarget2d.toFixed(2) : '0.00'}</span>
+            </div>
+            <div className="mt-1">
+              <input
+                type="range"
+                min={0}
+                max={0.6}
+                step={0.01}
+                value={Number.isFinite(graphDragAlphaTarget2d) ? graphDragAlphaTarget2d : 0}
+                onChange={e => setGraphDragAlphaTarget2d(Number(e.target.value))}
+                className="w-full"
+              />
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -316,6 +364,111 @@ export function InfiniteCanvasInteractionPanel() {
               <option value="radial">Radial</option>
             </select>
           </label>
+
+          <div className={`rounded-md border p-2 ${UI_THEME_TOKENS.input.border}`}>
+            <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+              <Tooltip
+                content="Auto-tuning multipliers for collision/repulsion across nodes, groups, labels, and rich media."
+                maxWidthPx={280}
+                contentClassName={tooltipClassName}
+              >
+                <span>Physics 2D</span>
+              </Tooltip>
+              <button
+                type="button"
+                className={`rounded-md border px-2 py-0.5 text-[10px] transition ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                onClick={() => {
+                  setPhysics2d({
+                    physics2dChargeScale: DEFAULT_PHYSICS2D_TUNING.chargeScale,
+                    physics2dCollideStrengthScale: DEFAULT_PHYSICS2D_TUNING.collideStrengthScale,
+                    physics2dBboxStrengthScale: DEFAULT_PHYSICS2D_TUNING.bboxStrengthScale,
+                    physics2dVelocityDecayBias: DEFAULT_PHYSICS2D_TUNING.velocityDecayBias,
+                    physics2dMaxSpeedScale: DEFAULT_PHYSICS2D_TUNING.maxSpeedScale,
+                    physics2dStrictOverlapScale: DEFAULT_PHYSICS2D_TUNING.strictOverlapScale,
+                    physics2dLabelNudgeScale: DEFAULT_PHYSICS2D_TUNING.labelNudgeScale,
+                    physics2dDragChargeScale: DEFAULT_PHYSICS2D_TUNING.dragChargeScale,
+                    physics2dDragDistanceMaxPx: DEFAULT_PHYSICS2D_TUNING.dragDistanceMaxPx,
+                  })
+                }}
+              >
+                Reset
+              </button>
+            </div>
+
+            <div className="mt-2 space-y-2">
+              <div>
+                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+                  <span>Charge scale</span>
+                  <span className="font-mono">{physics2d.chargeScale.toFixed(2)}</span>
+                </div>
+                <input type="range" min={0.1} max={2} step={0.01} value={physics2d.chargeScale} onChange={e => setPhysics2d({ physics2dChargeScale: Number(e.target.value) })} className="w-full" />
+              </div>
+
+              <div>
+                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+                  <span>Collide strength</span>
+                  <span className="font-mono">{physics2d.collideStrengthScale.toFixed(2)}</span>
+                </div>
+                <input type="range" min={0.1} max={2} step={0.01} value={physics2d.collideStrengthScale} onChange={e => setPhysics2d({ physics2dCollideStrengthScale: Number(e.target.value) })} className="w-full" />
+              </div>
+
+              <div>
+                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+                  <span>BBox strength</span>
+                  <span className="font-mono">{physics2d.bboxStrengthScale.toFixed(2)}</span>
+                </div>
+                <input type="range" min={0.1} max={2} step={0.01} value={physics2d.bboxStrengthScale} onChange={e => setPhysics2d({ physics2dBboxStrengthScale: Number(e.target.value) })} className="w-full" />
+              </div>
+
+              <div>
+                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+                  <span>Velocity decay bias</span>
+                  <span className="font-mono">{physics2d.velocityDecayBias.toFixed(2)}</span>
+                </div>
+                <input type="range" min={-0.25} max={0.25} step={0.01} value={physics2d.velocityDecayBias} onChange={e => setPhysics2d({ physics2dVelocityDecayBias: Number(e.target.value) })} className="w-full" />
+              </div>
+
+              <div>
+                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+                  <span>Max speed scale</span>
+                  <span className="font-mono">{physics2d.maxSpeedScale.toFixed(2)}</span>
+                </div>
+                <input type="range" min={0.3} max={3} step={0.01} value={physics2d.maxSpeedScale} onChange={e => setPhysics2d({ physics2dMaxSpeedScale: Number(e.target.value) })} className="w-full" />
+              </div>
+
+              <div>
+                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+                  <span>Strict overlap</span>
+                  <span className="font-mono">{physics2d.strictOverlapScale.toFixed(2)}</span>
+                </div>
+                <input type="range" min={0.3} max={3} step={0.01} value={physics2d.strictOverlapScale} onChange={e => setPhysics2d({ physics2dStrictOverlapScale: Number(e.target.value) })} className="w-full" />
+              </div>
+
+              <div>
+                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+                  <span>Label nudge</span>
+                  <span className="font-mono">{physics2d.labelNudgeScale.toFixed(2)}</span>
+                </div>
+                <input type="range" min={0.2} max={3} step={0.01} value={physics2d.labelNudgeScale} onChange={e => setPhysics2d({ physics2dLabelNudgeScale: Number(e.target.value) })} className="w-full" />
+              </div>
+
+              <div>
+                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+                  <span>Drag charge scale</span>
+                  <span className="font-mono">{physics2d.dragChargeScale.toFixed(2)}</span>
+                </div>
+                <input type="range" min={0.1} max={1} step={0.01} value={physics2d.dragChargeScale} onChange={e => setPhysics2d({ physics2dDragChargeScale: Number(e.target.value) })} className="w-full" />
+              </div>
+
+              <div>
+                <div className={`flex items-center justify-between gap-2 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>
+                  <span>Drag distanceMax</span>
+                  <span className="font-mono">{Math.round(physics2d.dragDistanceMaxPx)}px</span>
+                </div>
+                <input type="range" min={120} max={6000} step={10} value={physics2d.dragDistanceMaxPx} onChange={e => setPhysics2d({ physics2dDragDistanceMaxPx: Number(e.target.value) })} className="w-full" />
+              </div>
+            </div>
+          </div>
         </div>
       </CollapsibleSection>
 

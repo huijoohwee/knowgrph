@@ -15,7 +15,7 @@ import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
 import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
 import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeScene'
-import { buildGraphMetaKey, buildGraphMetaKeyIgnoringPending, deriveRankdir } from '@/components/FlowCanvas/layout'
+import { buildGraphMetaKeyIgnoringPending, deriveRankdir } from '@/components/FlowCanvas/layout'
 import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'
 import { deriveSceneGroups } from '@/lib/scene/sceneDerivation'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
@@ -592,7 +592,7 @@ export default function FlowCanvas({
       schemaLayoutEngineJson,
       frontmatterModeEnabled: effectiveFrontmatter,
       documentSemanticMode: String(documentSemanticMode),
-      graphMetaKey: buildGraphMetaKey(sceneGraphData),
+      graphMetaKey: buildGraphMetaKeyIgnoringPending(sceneGraphData),
       renderMediaAsNodes: renderMediaAsNodes === true,
       mediaPanelDensity: String(mediaPanelDensity),
       collapsedGroupIdsKey,

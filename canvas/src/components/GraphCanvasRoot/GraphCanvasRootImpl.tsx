@@ -1,0 +1,559 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import * as d3 from 'd3'
+import { useShallow } from 'zustand/react/shallow'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { useGraphStoreKeyRef } from '@/hooks/useGraphStoreKeyRef'
+import { useContainerDims } from '@/hooks/useContainerDims'
+import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import { cloneGraphDataForRender } from '@/components/GraphCanvas/renderClone'
+import { normalizeEdgesForSim } from '@/components/GraphCanvas/simulation'
+import { create2dSvgSnapshotFns, computeFlowState } from '@/components/GraphCanvas/helpers'
+import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects'
+import { useEdgeCreationEffect } from '@/components/GraphCanvas/hooks/useEdgeCreationEffect'
+import { useSelectionHighlight } from '@/components/GraphCanvas/hooks/useSelectionHighlight'
+import { useGroupSelectionHighlight } from '@/components/GraphCanvas/hooks/useGroupSelectionHighlight'
+import { useGraphCanvasStyles } from '@/components/GraphCanvas/useGraphCanvasStyles'
+import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
+import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
+import { MarkdownDesignOverlay } from '@/features/markdown-edgeless/MarkdownDesignOverlay'
+import { InfiniteGridCanvasOverlay } from '@/components/InfiniteGridCanvasOverlay'
+import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
+import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
+import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
+import { readCanvasGridConfigFromSchema, readCanvasGridWorldStepFromSchema } from '@/lib/canvas/canvasGridConfig'
+import { deriveSceneDisplayGraph, deriveSceneGroups } from '@/lib/scene/sceneDerivation'
+import { useMediaQuery } from '@/lib/ui/useMediaQuery'
+import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import type { GraphSchema } from '@/lib/graph/schema'
+import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
+import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
+
+import { useEnsureSpacePanListener, useCanvasWheelAndGestureGuards } from '@/components/GraphCanvasRoot/hooks/useCanvasNativeGuards'
+import { useCanvasContextMenu } from '@/components/GraphCanvasRoot/hooks/useCanvasContextMenu'
+import { useCanvasLayoutSync } from '@/components/GraphCanvasRoot/hooks/useCanvasLayoutSync'
+import { useZoomStateSeeding2d } from '@/components/GraphCanvasRoot/hooks/useZoomStateSeeding2d'
+import { usePersistLayoutOnDeactivate2d } from '@/components/GraphCanvasRoot/hooks/usePersistLayoutOnDeactivate2d'
+import { useRichMediaOverlays2d } from '@/components/GraphCanvasRoot/hooks/useRichMediaOverlays2d'
+import { RichMediaOverlayLayer2d } from '@/components/GraphCanvasRoot/components/RichMediaOverlayLayer2d'
+import { useD3GraphScene2d } from '@/components/GraphCanvasRoot/hooks/useD3GraphScene2d'
+import { useD3PresentationUpdates2d } from '@/components/GraphCanvasRoot/hooks/useD3PresentationUpdates2d'
+import { useSelectionRerenderSubscription2d, useZoomScaleReapplySubscription2d } from '@/components/GraphCanvasRoot/hooks/usePresentationSubscriptions2d'
+import { useFlowLabelPresentation2d } from '@/components/GraphCanvasRoot/hooks/useFlowLabelPresentation2d'
+import { useArrange2d } from '@/components/GraphCanvasRoot/hooks/useArrange2d'
+import { useArrangeKeyboardShortcuts2d } from '@/components/GraphCanvasRoot/hooks/useArrangeKeyboardShortcuts2d'
+import { useArrangeRequestEffect2d } from '@/components/GraphCanvasRoot/hooks/useArrangeRequestEffect2d'
+import { ArrangeToolbar2d } from '@/components/GraphCanvasRoot/components/ArrangeToolbar2d'
+import { useMarqueeSelection2d } from '@/components/GraphCanvasRoot/hooks/useMarqueeSelection2d'
+import { MarqueeBoxOverlay } from '@/components/GraphCanvasRoot/components/MarqueeBoxOverlay'
+
+export default function GraphCanvas({ active = true }: { active?: boolean }) {
+  const containerRef = useRef<HTMLElement>(null)
+  const svgRef = useRef<SVGSVGElement>(null)
+  const coarsePointer = useMediaQuery('(pointer: coarse)')
+  const isEmbeddedPreview = useMemo(() => {
+    try {
+      const q = new URLSearchParams(String(window.location.search || '')).get('kgPreview') === '1'
+      if (q) return true
+      const w = window as unknown as { frameElement?: Element | null; parent?: Window | null }
+      const parent = w?.parent
+      if (!parent || parent === window) return false
+      const frameEl = w?.frameElement
+      if (!frameEl) return false
+      return String(frameEl.getAttribute('data-kg-preview') || '') === '1'
+    } catch {
+      return false
+    }
+  }, [])
+
+  const activeRef = useRef<boolean>(true)
+  activeRef.current = !!active
+
+  const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null)
+  const nodesSelRef = useRef<d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null>(null)
+  const groupChevronSelRef = useRef<d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown> | null>(null)
+  const mediaSelRef = useRef<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>(null)
+  const portHandlesSelRef = useRef<d3.Selection<SVGCircleElement, PortHandleDatum, SVGGElement, unknown> | null>(null)
+  const linksHitSelRef = useRef<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>(null)
+  const linksSelRef = useRef<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>(null)
+  const labelsSelRef = useRef<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>(null)
+  const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null)
+  const simulationRef = useRef<d3.Simulation<GraphNode, GraphEdge> | null>(null)
+  const sceneGraphDataRef = useRef<GraphData | null>(null)
+  const beforeRenderFrameRef = useRef<(() => void) | null>(null)
+  const beforeRenderFrameWrappedSourceRef = useRef<(() => void) | null>(null)
+  const nodesPresentationAppliedKeyRef = useRef<string | null>(null)
+  const groupsPresentationAppliedKeyRef = useRef<string | null>(null)
+  const sceneCleanupRef = useRef<null | (() => void)>(null)
+  const sceneBuildKeyRef = useRef<string | null>(null)
+  const activeLayoutCacheKeyRef = useRef<string | null>(null)
+
+  useEnsureSpacePanListener()
+  useCanvasWheelAndGestureGuards({ svgRef, activeRef })
+
+  const {
+    graphDataRevision,
+    setCanvasDims,
+    setCanvasPos,
+    schema,
+    renderMediaAsNodes,
+    mediaPanelDensity,
+    threeIframeOverlayPoolMax,
+    threeIframeOverlayBaseWidthRatioDefault,
+    threeIframeOverlayBaseWidthRatioCompact,
+    threeIframeOverlayBaseWidthMinPxDefault,
+    threeIframeOverlayBaseWidthMinPxCompact,
+    threeIframeOverlayBaseWidthMaxPxDefault,
+    threeIframeOverlayBaseWidthMaxPxCompact,
+    setLayoutPositionsForMode,
+    frontmatterModeEnabled,
+    multiDimTableModeEnabled,
+    documentSemanticMode,
+    canvasRenderMode,
+    canvas2dRenderer,
+    viewportControlsPreset,
+    collapsedGroupIds,
+    viewPinned,
+    zoomState,
+    fitToScreenMode,
+    zoomToSelectionMode,
+    graphCanvasArrangeRequest,
+    clearGraphCanvasArrangeRequest,
+    selectedNodeId,
+    selectedNodeIds,
+    markdownDocumentName,
+    markdownDocumentText,
+  } = useGraphStore(
+    useShallow(s => ({
+      graphDataRevision: s.graphDataRevision,
+      setCanvasDims: s.setCanvasDims,
+      setCanvasPos: s.setCanvasPos,
+      schema: s.schema,
+      renderMediaAsNodes: s.renderMediaAsNodes,
+      mediaPanelDensity: s.mediaPanelDensity,
+      threeIframeOverlayPoolMax: s.threeIframeOverlayPoolMax,
+      threeIframeOverlayBaseWidthRatioDefault: s.threeIframeOverlayBaseWidthRatioDefault,
+      threeIframeOverlayBaseWidthRatioCompact: s.threeIframeOverlayBaseWidthRatioCompact,
+      threeIframeOverlayBaseWidthMinPxDefault: s.threeIframeOverlayBaseWidthMinPxDefault,
+      threeIframeOverlayBaseWidthMinPxCompact: s.threeIframeOverlayBaseWidthMinPxCompact,
+      threeIframeOverlayBaseWidthMaxPxDefault: s.threeIframeOverlayBaseWidthMaxPxDefault,
+      threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
+      setLayoutPositionsForMode: s.setLayoutPositionsForMode,
+      frontmatterModeEnabled: s.frontmatterModeEnabled || false,
+      multiDimTableModeEnabled: (s as unknown as { multiDimTableModeEnabled?: unknown }).multiDimTableModeEnabled === true,
+      documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
+      canvasRenderMode: s.canvasRenderMode,
+      canvas2dRenderer: s.canvas2dRenderer,
+      viewportControlsPreset: s.viewportControlsPreset,
+      collapsedGroupIds: s.collapsedGroupIds || [],
+      viewPinned: s.viewPinned === true,
+      zoomState: s.zoomState || null,
+      fitToScreenMode: s.fitToScreenMode === true,
+      zoomToSelectionMode: s.zoomToSelectionMode === true,
+      graphCanvasArrangeRequest: s.graphCanvasArrangeRequest,
+      clearGraphCanvasArrangeRequest: s.clearGraphCanvasArrangeRequest,
+      selectedNodeId: s.selectedNodeId,
+      selectedNodeIds: s.selectedNodeIds,
+      markdownDocumentName: s.markdownDocumentName,
+      markdownDocumentText: s.markdownDocumentText,
+    })),
+  )
+
+  const layoutSemanticModeKey = useMemo(() => {
+    const base = String(documentSemanticMode || 'document')
+    return multiDimTableModeEnabled ? `${base}:mdtbl` : base
+  }, [documentSemanticMode, multiDimTableModeEnabled])
+
+  const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
+  const selectedNodeIdRef = useGraphStoreKeyRef('selectedNodeId')
+  const selectedEdgeIdRef = useGraphStoreKeyRef('selectedEdgeId')
+  const selectedNodeIdsRef = useGraphStoreKeyRef('selectedNodeIds')
+  const selectedEdgeIdsRef = useGraphStoreKeyRef('selectedEdgeIds')
+  const graphDataRevisionRef = useGraphStoreKeyRef('graphDataRevision')
+
+  const schemaRef = useRef(schema)
+  useEffect(() => {
+    schemaRef.current = schema
+  }, [schema])
+
+  const schemaLayoutEngineJson = useMemo(() => buildSchemaLayoutEngineJson2d(schema), [schema])
+  const schemaNodesPresentationJson = useMemo(() => {
+    return JSON.stringify({
+      nodeShapeMode: schema?.behavior?.nodeShapeMode || 'auto',
+      portHandles: schema?.behavior?.portHandles || null,
+      nodeShapes: schema?.nodeShapes || null,
+      allowNodeDrag: schema?.behavior?.allowNodeDrag !== false,
+      hoverEnabled: schema?.behavior?.hover?.enabled !== false,
+      expansion: schema?.behavior?.expansion || null,
+      renderMediaAsNodes,
+      mediaPanelDensity,
+    })
+  }, [
+    mediaPanelDensity,
+    renderMediaAsNodes,
+    schema?.behavior?.allowNodeDrag,
+    schema?.behavior?.expansion,
+    schema?.behavior?.hover?.enabled,
+    schema?.behavior?.nodeShapeMode,
+    schema?.behavior?.portHandles,
+    schema?.nodeShapes,
+  ])
+  const schemaGroupsPresentationJson = useMemo(() => {
+    return JSON.stringify({
+      groups: schema?.layout?.groups || null,
+      labelStyles: schema?.labelStyles || null,
+      nodeShapeMode: schema?.behavior?.nodeShapeMode || 'auto',
+      portHandles: schema?.behavior?.portHandles || null,
+    })
+  }, [schema?.behavior?.nodeShapeMode, schema?.behavior?.portHandles, schema?.labelStyles, schema?.layout?.groups])
+
+  const renderGraphData = useActiveGraphRenderData(active)
+  const effectiveFrontmatterModeEnabled = useMemo(() => {
+    return computeEffectiveFrontmatterMode({
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
+      documentSemanticMode,
+      graphData: renderGraphData,
+    })
+  }, [documentSemanticMode, frontmatterModeEnabled, renderGraphData])
+  const collapsedGroupIdsKey = useMemo(() => buildCollapsedGroupIdsKey(collapsedGroupIds), [collapsedGroupIds])
+
+  const clonedGraphData = useMemo(() => {
+    if (!renderGraphData) return null
+    return cloneGraphDataForRender(renderGraphData) as GraphData
+  }, [renderGraphData])
+  const sceneDisplayGraphDerivation = useMemo(() => {
+    if (!clonedGraphData) return null
+    return deriveSceneDisplayGraph({ graphData: clonedGraphData })
+  }, [clonedGraphData])
+  const sceneGraphData = useMemo(() => {
+    if (!clonedGraphData) return null
+    return sceneDisplayGraphDerivation?.displayGraphData || clonedGraphData
+  }, [clonedGraphData, sceneDisplayGraphDerivation])
+  const sceneGroupsDerivation = useMemo(() => {
+    return deriveSceneGroups({
+      graphData: clonedGraphData,
+      graphDataRevision: graphDataRevision || 0,
+      schema,
+      documentSemanticMode: String(documentSemanticMode || ''),
+      frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
+    })
+  }, [clonedGraphData, documentSemanticMode, effectiveFrontmatterModeEnabled, graphDataRevision, schema])
+
+  const { width, height, left, top, dpr } = useContainerDims(containerRef)
+  const canvasGrid = useMemo(() => readCanvasGridConfigFromSchema(schema), [schema])
+  const canvasGridStep = useMemo(() => readCanvasGridWorldStepFromSchema(schema), [schema])
+  const getZoomTransform = useCallback(() => {
+    const el = svgRef.current
+    if (!el) return null
+    return d3.zoomTransform(el)
+  }, [])
+  const getZoomEventTarget = useCallback(() => svgRef.current, [])
+
+  const debouncedWidth = useDebouncedValue(width, 100)
+  const debouncedHeight = useDebouncedValue(height, 100)
+  const sceneWidth = useMemo(() => Math.max(1, Math.floor(debouncedWidth)), [debouncedWidth])
+  const sceneHeight = useMemo(() => Math.max(1, Math.floor(debouncedHeight)), [debouncedHeight])
+  const tempLinkSelRef = useRef<TempLinkSelection>(null)
+  const linkDragRef = useRef<PendingLink | null>(null)
+  const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null)
+
+  const richMedia = useRichMediaOverlays2d({
+    active,
+    activeRef,
+    svgRef,
+    zoomRef,
+    simulationRef,
+    sceneGraphData,
+    sceneGraphDataRef,
+    graphDataRevision: graphDataRevision || 0,
+    schemaRef: schemaRef as unknown as React.MutableRefObject<GraphSchema>,
+    renderMediaAsNodes,
+    mediaPanelDensity,
+    threeIframeOverlayPoolMax,
+    threeIframeOverlayBaseWidthRatioDefault,
+    threeIframeOverlayBaseWidthRatioCompact,
+    threeIframeOverlayBaseWidthMinPxDefault,
+    threeIframeOverlayBaseWidthMinPxCompact,
+    threeIframeOverlayBaseWidthMaxPxDefault,
+    threeIframeOverlayBaseWidthMaxPxCompact,
+    sceneWidth,
+    sceneHeight,
+  })
+
+  useCanvasContextMenu({ svgRef })
+  useCanvasLayoutSync({ width, height, left, top, setCanvasDims, setCanvasPos })
+  useZoomStateSeeding2d({
+    active,
+    viewPinned,
+    zoomState,
+    fitToScreenMode,
+    zoomToSelectionMode,
+    svgRef,
+    gRef,
+    zoomRef,
+    sceneWidth,
+    sceneHeight,
+    canvasRenderMode,
+    canvas2dRenderer,
+    collapsedGroupIdsKey,
+    documentSemanticMode,
+    frontmatterModeEnabled,
+    mediaPanelDensity,
+    renderMediaAsNodes,
+    schemaLayoutEngineJson,
+  })
+
+  usePersistLayoutOnDeactivate2d({
+    active,
+    nodesSelRef,
+    schemaRef: schemaRef as unknown as React.MutableRefObject<GraphSchema>,
+    sceneGraphDataRef,
+  })
+
+  useEffect(() => {
+    return () => {
+      try {
+        sceneCleanupRef.current?.()
+      } catch {
+        void 0
+      } finally {
+        sceneCleanupRef.current = null
+        sceneBuildKeyRef.current = null
+      }
+    }
+  }, [])
+
+  useZoomEffects({ svgRef, zoomRef, width, height, paused: !active, graphDataOverride: sceneGraphData })
+  useAutoZoomModes2d({ viewportW: width, viewportH: height, paused: !active })
+  useEdgeCreationEffect({ paused: !active, tempLinkSelRef, linkDragRef })
+  useEffect(() => {
+    registerCanvasSnapshotFns('2d', svgRef.current ? create2dSvgSnapshotFns(svgRef) : null)
+    return () => {
+      registerCanvasSnapshotFns('2d', null)
+    }
+  }, [registerCanvasSnapshotFns])
+
+  useEffect(() => {
+    if (!active) {
+      try {
+        simulationRef.current?.stop()
+      } catch {
+        void 0
+      }
+    }
+  }, [active])
+
+  const edgesForSim = useMemo(() => {
+    return normalizeEdgesForSim((sceneGraphData?.nodes ?? []) as GraphNode[], (sceneGraphData?.edges ?? []) as GraphEdge[])
+  }, [sceneGraphData])
+  const flowState = useMemo(() => computeFlowState(sceneGraphData as GraphData | null), [sceneGraphData])
+
+  useD3GraphScene2d({
+    active,
+    activeRef,
+    svgRef,
+    gRef,
+    zoomRef,
+    simulationRef,
+    sceneGraphDataRef,
+    sceneCleanupRef,
+    sceneBuildKeyRef,
+    beforeRenderFrameRef,
+    beforeRenderFrameWrappedSourceRef,
+    nodesSelRef,
+    groupChevronSelRef,
+    mediaSelRef,
+    portHandlesSelRef,
+    linksHitSelRef,
+    linksSelRef,
+    labelsSelRef,
+    tempLinkSelRef,
+    linkDragRef,
+    schemaRef: schemaRef as unknown as React.MutableRefObject<GraphSchema>,
+    schemaLayoutEngineJson,
+    schemaNodesPresentationJson,
+    schemaGroupsPresentationJson,
+    nodesPresentationAppliedKeyRef,
+    groupsPresentationAppliedKeyRef,
+    activeLayoutCacheKeyRef,
+    graphDataRevision: graphDataRevision || 0,
+    graphDataRevisionRef,
+    sceneWidth,
+    sceneHeight,
+    sceneGraphData,
+    sceneGroupsDerivation,
+    edgesForSim,
+    effectiveFrontmatterModeEnabled,
+    documentSemanticMode,
+    layoutSemanticModeKey,
+    canvasRenderMode,
+    canvas2dRenderer,
+    renderMediaAsNodes,
+    mediaPanelDensity,
+    viewportControlsPreset,
+    collapsedGroupIdsKey,
+    fitToScreenMode,
+    zoomToSelectionMode,
+    isEmbeddedPreview,
+    coarsePointer: coarsePointer === true,
+    mediaOverlayNodeIdSet: richMedia.mediaOverlayNodeIdSet,
+    requestMediaOverlaySchedule: richMedia.requestMediaOverlaySchedule,
+    setLayoutPositionsForMode,
+    selectedEdgeIdRef,
+    selectedNodeIdRef,
+    selectedNodeIdsRef,
+    selectedEdgeIdsRef,
+    setHoverInfo,
+  })
+
+  useD3PresentationUpdates2d({
+    activeRef,
+    svgRef,
+    gRef,
+    zoomRef,
+    simulationRef,
+    sceneGraphDataRef,
+    sceneGraphData,
+    schemaRef: schemaRef as unknown as React.MutableRefObject<GraphSchema>,
+    documentSemanticMode,
+    coarsePointer: coarsePointer === true,
+    sceneWidth,
+    sceneHeight,
+    schemaNodesPresentationJson,
+    schemaGroupsPresentationJson,
+    nodesPresentationAppliedKeyRef,
+    groupsPresentationAppliedKeyRef,
+    edgesForSim,
+    sceneGroupsDerivation,
+    renderMediaAsNodes,
+    mediaPanelDensity,
+    mediaOverlayNodeIdSet: richMedia.mediaOverlayNodeIdSet,
+    tempLinkSelRef,
+    linkDragRef,
+    nodesSelRef,
+    groupChevronSelRef,
+    mediaSelRef,
+    portHandlesSelRef,
+    labelsSelRef,
+    beforeRenderFrameRef,
+    selectedEdgeIdRef,
+    setHoverInfo,
+  })
+
+  useSelectionHighlight({ paused: !active, nodesSelRef, mediaSelRef, labelsSelRef, linksSelRef })
+  useGroupSelectionHighlight({ gRef, paused: !active })
+  useSelectionRerenderSubscription2d({ active, beforeRenderFrameRef })
+  useZoomScaleReapplySubscription2d({ active, svgRef, zoomRef })
+  useFlowLabelPresentation2d({
+    active,
+    labelsSelRef,
+    sceneGraphData,
+    flowState: flowState as unknown as { valuesByNodeId: Record<string, unknown>; kindsByNodeId: Record<string, unknown> },
+    schemaNodesPresentationJson,
+  })
+  useGraphCanvasStyles({
+    gRef,
+    nodesSelRef,
+    linksSelRef,
+    labelsSelRef,
+    schema,
+    documentSemanticMode: documentSemanticMode ?? undefined,
+    paused: !active,
+    graphDataRevision: graphDataRevisionRef.current ?? 0,
+  })
+
+  const arrange = useArrange2d({
+    active,
+    schema,
+    svgRef,
+    simulationRef,
+    sceneGraphDataRef,
+    activeLayoutCacheKeyRef,
+    selectedNodeId,
+    selectedNodeIds,
+  })
+  useArrangeKeyboardShortcuts2d({
+    active,
+    schema,
+    selectedIds: arrange.selectedIds,
+    applyArrange: arrange.applyArrange,
+    svgRef,
+    simulationRef,
+    sceneGraphDataRef,
+    activeLayoutCacheKeyRef,
+  })
+  useArrangeRequestEffect2d({
+    active,
+    graphCanvasArrangeRequest,
+    clearGraphCanvasArrangeRequest,
+    svgRef,
+    sceneGraphDataRef,
+    selectedNodeIdRef,
+    selectedNodeIdsRef,
+    sceneWidth,
+    sceneHeight,
+    simulationRef,
+    activeLayoutCacheKeyRef,
+  })
+
+  const marquee = useMarqueeSelection2d({ active, schema: schema as GraphSchema | null, svgRef, sceneGraphDataRef })
+
+  return (
+    <main ref={containerRef} className={CANVAS_SURFACE_CLASS} role="main" aria-label="Graph Canvas">
+      <ArrangeToolbar2d active={active} selectedCount={arrange.selectedIds.length} onArrange={arrange.applyArrange} />
+      <InfiniteGridCanvasOverlay
+        enabled={canvasGrid.enabled}
+        gridSize={canvasGridStep}
+        variant={canvasGrid.variant}
+        majorEvery={canvasGrid.majorEvery}
+        dotRadiusPx={canvasGrid.dotRadiusPx}
+        width={width}
+        height={height}
+        dpr={dpr}
+        getTransform={getZoomTransform}
+        getEventTarget={getZoomEventTarget}
+      />
+      <svg
+        ref={svgRef}
+        className={`${CANVAS_INTERACTIVE_CLASS} z-10`}
+        data-kg-canvas-interactive="1"
+        viewBox={`0 0 ${Math.max(1, Math.floor(width))} ${Math.max(1, Math.floor(height))}`}
+        preserveAspectRatio="xMidYMid meet"
+        onPointerDown={marquee.svgPointerHandlers.onPointerDown}
+        onPointerMove={marquee.svgPointerHandlers.onPointerMove}
+        onPointerUp={marquee.svgPointerHandlers.onPointerUp}
+      />
+      <RichMediaOverlayLayer2d
+        active={active}
+        mediaOverlayNodes={richMedia.mediaOverlayNodes}
+        getOverlayRefForId={richMedia.getOverlayRefForId}
+        svgRef={svgRef}
+        renderMediaAsNodes={renderMediaAsNodes === true}
+        stopEvent={richMedia.stopEvent}
+        onOverlayPanStart={richMedia.startMediaOverlayPan}
+        onOverlayPan={richMedia.moveMediaOverlayPan}
+        onOverlayPanEnd={richMedia.endMediaOverlayPan}
+        onHeaderDragStart={({ id, clientX, clientY }) => richMedia.beginMediaHeaderDrag(id, clientX, clientY)}
+        onHeaderDrag={({ dx, dy }) => richMedia.moveMediaHeaderDrag(dx, dy)}
+        onHeaderDragEnd={() => richMedia.endMediaHeaderDrag()}
+      />
+      <MarqueeBoxOverlay marqueeBox={marquee.marqueeBox} />
+      <GraphHoverTooltip
+        hoverInfo={hoverInfo}
+        containerRef={containerRef as unknown as React.RefObject<HTMLElement | null>}
+        nodes={(sceneGraphData as GraphData | null)?.nodes}
+        edges={(sceneGraphData as GraphData | null)?.edges}
+        schema={schema as GraphSchema | null}
+        onRequestClose={() => setHoverInfo(null)}
+      />
+      <MarkdownDesignOverlay
+        enabled={active && !!String(markdownDocumentText || '').trim()}
+        svgRef={svgRef}
+        markdownDocumentName={markdownDocumentName}
+        markdownDocumentText={markdownDocumentText}
+        allowedKinds={['table', 'code', 'blockquote']}
+      />
+    </main>
+  )
+}

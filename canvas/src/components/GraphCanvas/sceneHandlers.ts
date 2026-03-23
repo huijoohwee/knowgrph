@@ -19,6 +19,15 @@ import { integrateNodePositionWithVelocity, runRelaxSteps } from '@/lib/graph/co
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { aabbOverlaps, aabbOverlapsAny } from '@/lib/ui/labels/aabb'
+import {
+  computeBboxCollideIterations2d,
+  computeGroupBboxCollideIterations2d,
+  computeGroupLabelRelaxTuning2d,
+  computeIdealSpacing2d,
+  computeMaxSpeed2d,
+  computeStrictOverlapTuning2d,
+  readPhysics2dTuning,
+} from '@/lib/graph/physics2dTuning'
 
 type SvgSelection = d3.Selection<SVGSVGElement, unknown, null, undefined>
 
@@ -99,6 +108,36 @@ export const attachSimulationTick = (args: {
 
   const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v))
 
+  const idealSpacing = computeIdealSpacing2d({ width, height, nodeCount: nodes.length })
+  let physicsTuning = readPhysics2dTuning(getSchema())
+  let physicsTick = 0
+  const applyMotionLimits = () => {
+    physicsTick += 1
+    if ((physicsTick & 1) !== 0) return
+    const alpha = simulation.alpha()
+    if (!(alpha > 0.0005)) return
+
+    const maxSpeed = computeMaxSpeed2d({ idealSpacing, alpha, tuning: physicsTuning })
+
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i] as unknown as { vx?: unknown; vy?: unknown; fx?: unknown; fy?: unknown }
+      const hasFx = typeof n.fx === 'number' && Number.isFinite(n.fx as number)
+      const hasFy = typeof n.fy === 'number' && Number.isFinite(n.fy as number)
+      if (hasFx || hasFy) {
+        ;(n as unknown as { vx: number }).vx = 0
+        ;(n as unknown as { vy: number }).vy = 0
+        continue
+      }
+      const vx = typeof n.vx === 'number' && Number.isFinite(n.vx) ? n.vx : 0
+      const vy = typeof n.vy === 'number' && Number.isFinite(n.vy) ? n.vy : 0
+      const s = Math.sqrt(vx * vx + vy * vy)
+      if (!(s > maxSpeed)) continue
+      const inv = maxSpeed / s
+      ;(n as unknown as { vx: number }).vx = vx * inv
+      ;(n as unknown as { vy: number }).vy = vy * inv
+    }
+  }
+
   const resolveNode = (endpoint: unknown): GraphNode | null => {
     if (endpoint && typeof endpoint === 'object') {
       const maybeNode = endpoint as Partial<GraphNode>
@@ -126,6 +165,7 @@ export const attachSimulationTick = (args: {
       nodeMetricsCache.clear()
       strictOverlapForcesCache = null
       lastSchema = schema
+      physicsTuning = readPhysics2dTuning(schema)
     }
     const portHandlesCfg = getPortHandlesConfig(schema)
     const portHandlesEnabled = portHandlesCfg.enabled
@@ -271,21 +311,25 @@ export const attachSimulationTick = (args: {
       }
     }
 
-    const strictOverlapSteps = (() => {
-      if (nodes.length < 2) return 0
-      if (nodes.length > 3200) return 0
-      if (tick < 8) return 0
-      const alpha = simulation.alpha()
-      if (alpha > 0.12) return 0
-      const minInterval = alpha > 0.08 ? 48 : alpha > 0.04 ? 84 : 120
-      if (tick - lastStrictOverlapTick < minInterval) return 0
-      if (nodes.length <= 120) return 2
-      if (nodes.length <= 520) return 1
-      return 1
-    })()
+    const strictOverlapAlpha = simulation.alpha()
+    const collision = readCollisionConfig(schema)
+    const maxPad = Math.max(
+      collision.nodeBbox.paddingX,
+      collision.nodeBbox.paddingY,
+      collision.groupBbox.paddingX,
+      collision.groupBbox.paddingY,
+    )
+    const strictTuning = computeStrictOverlapTuning2d({
+      nodeCount: nodes.length,
+      tick,
+      lastStrictOverlapTick,
+      alpha: strictOverlapAlpha,
+      maxPaddingPx: maxPad,
+      idealSpacing,
+      tuning: physicsTuning,
+    })
 
-    if (strictOverlapSteps > 0) {
-      const collision = readCollisionConfig(schema)
+    if (strictTuning.steps > 0) {
       const wantsNode = collision.nodeBbox.enabled
       const wantsGroup = collision.groupBbox.enabled && groupsForBboxCollide.length > 0 && nodes.length <= 3000
       if (wantsNode || wantsGroup) {
@@ -310,8 +354,8 @@ export const attachSimulationTick = (args: {
                 touchEpsilonXPx: collision.nodeBbox.touchEpsilonXPx,
                 touchEpsilonYPx: collision.nodeBbox.touchEpsilonYPx,
                 touchEpsilonZPx: collision.nodeBbox.touchEpsilonZPx,
-                strength: Math.max(0, collision.nodeBbox.strength),
-                iterations: Math.max(1, Math.floor(collision.nodeBbox.iterations * 2)),
+                strength: Math.max(0, collision.nodeBbox.strength) * strictTuning.nodeBboxStrengthScale,
+                iterations: computeBboxCollideIterations2d({ baseIterations: collision.nodeBbox.iterations, nodeCount: nodes.length }),
               }) as unknown as { initialize: (ns: GraphNode[], rand?: () => number) => void; (alpha: number): void })
             : null
           if (nodeForce) {
@@ -336,8 +380,8 @@ export const attachSimulationTick = (args: {
                 nestedTouchEpsilonXPx: collision.groupBbox.nestedTouchEpsilonXPx,
                 nestedTouchEpsilonYPx: collision.groupBbox.nestedTouchEpsilonYPx,
                 nestedTouchEpsilonZPx: collision.groupBbox.nestedTouchEpsilonZPx,
-                strength: Math.max(0, collision.groupBbox.strength),
-                iterations: Math.max(1, Math.floor(collision.groupBbox.iterations * 2)),
+                strength: Math.max(0, collision.groupBbox.strength) * strictTuning.groupBboxStrengthScale,
+                iterations: computeGroupBboxCollideIterations2d({ baseIterations: collision.groupBbox.iterations, nodeCount: nodes.length }),
               }) as unknown as { initialize: (ns: GraphNode[], rand?: () => number) => void; (alpha: number): void })
             : null
           if (groupForce) {
@@ -360,15 +404,8 @@ export const attachSimulationTick = (args: {
           const isPinned = (n: GraphNode): boolean =>
             (typeof (n as { fx?: unknown }).fx === 'number' && Number.isFinite((n as { fx: number }).fx)) ||
             (typeof (n as { fy?: unknown }).fy === 'number' && Number.isFinite((n as { fy: number }).fy))
-          const maxPad = Math.max(
-            collision.nodeBbox.paddingX,
-            collision.nodeBbox.paddingY,
-            collision.groupBbox.paddingX,
-            collision.groupBbox.paddingY,
-          )
-          const maxShift = Math.max(24, Math.min(200, 24 + maxPad * 1.15))
           const pullToBase = (alpha: number) => {
-            const strength = 0.06 * alpha
+            const strength = strictTuning.pullToBaseStrength * alpha
             if (strength <= 0) return
             for (let i = 0; i < nodes.length; i += 1) {
               const n = nodes[i]
@@ -381,9 +418,10 @@ export const attachSimulationTick = (args: {
           }
           runRelaxSteps({
             nodes,
-            steps: strictOverlapSteps,
+            steps: strictTuning.steps,
             forces: [...forces, pullToBase],
             maxOps: 80_000,
+            alphaForStep: strictTuning.forceAlphaForStep,
             integrate: n => {
               const fx = (n as unknown as { fx?: unknown }).fx
               const fy = (n as unknown as { fy?: unknown }).fy
@@ -395,13 +433,13 @@ export const attachSimulationTick = (args: {
                 n.y = fy
                 n.vy = 0
               }
-              integrateNodePositionWithVelocity(n, { damping: 0.55, z: { mode: 'never' } })
+              integrateNodePositionWithVelocity(n, { damping: strictTuning.integrateDamping, z: { mode: 'never' } })
               const base = baseByNode.get(n)
               if (!base) return
               const x = typeof n.x === 'number' && Number.isFinite(n.x) ? (n.x as number) : base.x
               const y = typeof n.y === 'number' && Number.isFinite(n.y) ? (n.y as number) : base.y
-              const dx = clamp(x - base.x, -maxShift, maxShift)
-              const dy = clamp(y - base.y, -maxShift, maxShift)
+              const dx = clamp(x - base.x, -strictTuning.maxShiftPx, strictTuning.maxShiftPx)
+              const dy = clamp(y - base.y, -strictTuning.maxShiftPx, strictTuning.maxShiftPx)
               n.x = base.x + dx
               n.y = base.y + dy
             },
@@ -609,6 +647,7 @@ export const attachSimulationTick = (args: {
     }
 
     if (shouldRelaxLabels && groupParticles.length > 1) {
+      const groupLabelTuning = computeGroupLabelRelaxTuning2d({ nodeCount: nodes.length, labelMode, tuning: physicsTuning })
       const collideGroups = (alpha: number) => {
         for (let i = 0; i < groupParticles.length; i += 1) {
           const a = groupParticles[i]
@@ -621,12 +660,12 @@ export const attachSimulationTick = (args: {
             if (!(ox > 0 && oy > 0)) continue
             if (ox < oy) {
               const s = dx >= 0 ? 1 : -1
-              const push = ox * 0.55 * alpha
+              const push = ox * groupLabelTuning.pushGain * alpha
               a.vx += push * s
               b.vx -= push * s
             } else {
               const s = dy >= 0 ? 1 : -1
-              const push = oy * 0.55 * alpha
+              const push = oy * groupLabelTuning.pushGain * alpha
               a.vy += push * s
               b.vy -= push * s
             }
@@ -634,7 +673,7 @@ export const attachSimulationTick = (args: {
         }
       }
       const pullToBase = (alpha: number) => {
-        const strength = 0.01 * alpha
+        const strength = groupLabelTuning.pullGain * alpha
         for (let i = 0; i < groupParticles.length; i += 1) {
           const p = groupParticles[i]
           p.vx += (p.baseX - p.x) * strength
@@ -643,11 +682,11 @@ export const attachSimulationTick = (args: {
       }
       runRelaxSteps({
         nodes: groupParticles,
-        steps: 16,
+        steps: groupLabelTuning.steps,
         forces: [collideGroups, pullToBase],
         maxOps: 18_000,
         integrate: n => {
-          integrateNodePositionWithVelocity(n, { damping: 0.62, z: { mode: 'never' } })
+          integrateNodePositionWithVelocity(n, { damping: groupLabelTuning.integrateDamping, z: { mode: 'never' } })
           const dx = clamp(n.x - n.baseX, n.dxMin, n.dxMax)
           const dy = clamp(n.y - n.baseY, n.dyMin, n.dyMax)
           n.x = n.baseX + dx
@@ -993,7 +1032,10 @@ export const attachSimulationTick = (args: {
     })
   }
 
-  simulation.on('tick', scheduleRender)
+  simulation.on('tick', () => {
+    applyMotionLimits()
+    scheduleRender()
+  })
   renderFrame()
 }
 

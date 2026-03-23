@@ -871,6 +871,8 @@ export interface GraphState {
   zoomDurationFitMs: number;
   zoomDurationSelectionMs: number;
   wheelZoomCtrlMetaBoostMultiplier: number;
+  viewportFitFillRatio: number;
+  graphDragAlphaTarget2d: number;
   canvasInteractionSpeedMultiplier: number;
   canvasPanSpeedMultiplier: number;
   canvasRenderModeLastFree: '2d' | '3d';
@@ -887,6 +889,8 @@ export interface GraphState {
   setZoomDurationFitMs: (v: number) => void;
   setZoomDurationSelectionMs: (v: number) => void;
   setWheelZoomCtrlMetaBoostMultiplier: (v: number) => void;
+  setViewportFitFillRatio: (v: number) => void;
+  setGraphDragAlphaTarget2d: (v: number) => void;
   setCanvasInteractionSpeedMultiplier: (v: number) => void;
   setCanvasPanSpeedMultiplier: (v: number) => void;
   resetAll: () => void;

@@ -15,6 +15,7 @@ import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { readCanvasViewportSizeFromDom } from '@/lib/graph/svgSnapshot'
 import { normalizeInteractiveSvgForHtmlViewer } from './normalizeInteractiveSvg'
+import { rewriteSvgMarkupForStandaloneHtmlExport } from '@/lib/graph/htmlViewer/rewriteSvgMarkupForStandaloneHtmlExport'
 
 export async function exportHtmlCanvasFromWorkspace(args: {
   exportBaseName: string
@@ -156,9 +157,11 @@ export async function exportHtmlCanvasFromWorkspace(args: {
       return
     }
 
+    const svgMarkup = await rewriteSvgMarkupForStandaloneHtmlExport({ svgMarkup: exportView.svgMarkup })
+
     const htmlViewer = await buildGraphHtmlViewerMarkup({
       title: `${exportBaseName} (Canvas)`,
-      svgMarkup: exportView.svgMarkup,
+      svgMarkup,
       graphData,
       includeRichMediaOverlays: true,
       mediaOverlayPoolMax: (store as unknown as { threeIframeOverlayPoolMax?: number }).threeIframeOverlayPoolMax,

@@ -13,12 +13,13 @@ import { collapsedGroupNodeIdFor } from '@/components/GraphCanvas/viewDerivation
 import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens'
 import { computeGroupDepthStyle } from '@/lib/graph/groupDepthStyle'
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
-import { DEFAULT_DRAG_ALPHA_TARGET } from '@/lib/graph/layoutDefaults'
+import { DEFAULT_DRAG_ALPHA_TARGET, DEFAULT_DRAG_ALPHA_TARGET_HARD_CAP } from '@/lib/graph/layoutDefaults'
+import { beginDragForceTuning } from '@/components/GraphCanvas/dragForceTuning'
 import { markGraphCanvasUserInteracted } from '@/components/GraphCanvas/userInteractionFlag'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { DEFAULT_GROUP_NESTED_PADDING_STEP } from '@/lib/graph/layoutDefaults'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { compareGroupsForZOrder } from '@/lib/canvas/groupZOrder'
-import { useGraphStore } from '@/hooks/useGraphStore'
 import { readSchemaGroupBoundsOverrides } from '../../../lib/canvas/groupBoundsOverrides'
 import { commitGroupBoundsOverrideToStore } from '../../../lib/canvas/groupBoundsOverridesStore'
 import { readAllowGroupResize } from '../../../lib/canvas/groupResizePolicy'
@@ -471,6 +472,7 @@ export const createGroupsLayer = (args: {
     let dragBoundsOnly = false
     let dragBoundsRef: { x: number; y: number; width: number; height: number; labelX?: number; labelY?: number } | null = null
     let dragZoomK = 1
+    let endForceTune: null | (() => void) = null
     const dragBehavior = d3
       .drag<SVGElement, GroupDatum>()
       .on('start', (event, d) => {
@@ -540,7 +542,16 @@ export const createGroupsLayer = (args: {
         }
         const structured = readLayoutMode(schema) === 'radial'
         if (simulation && !structured && !frozen && !event.active) {
-          simulation.alphaTarget(DEFAULT_DRAG_ALPHA_TARGET).restart()
+          const alphaTarget = (() => {
+            try {
+              const v = useGraphStore.getState().graphDragAlphaTarget2d
+              return typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(0.6, v)) : DEFAULT_DRAG_ALPHA_TARGET
+            } catch {
+              return DEFAULT_DRAG_ALPHA_TARGET
+            }
+          })()
+          endForceTune = beginDragForceTuning(simulation)
+          simulation.alphaTarget(Math.min(alphaTarget, DEFAULT_DRAG_ALPHA_TARGET_HARD_CAP)).restart()
         }
         for (let i = 0; i < dragNodes.length; i += 1) {
           const n = dragNodes[i]!
@@ -600,6 +611,15 @@ export const createGroupsLayer = (args: {
         const structured = readLayoutMode(schema) === 'radial'
         if (simulation && !structured && !frozen && !event.active) {
           simulation.alphaTarget(0)
+        }
+        if (endForceTune) {
+          try {
+            endForceTune()
+          } catch {
+            void 0
+          } finally {
+            endForceTune = null
+          }
         }
         for (let i = 0; i < dragNodes.length; i += 1) {
           const n = dragNodes[i]!

@@ -6,6 +6,11 @@ import { buildHtmlViewerRuntimeScript } from './runtimeScript'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
 import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
+import {
+  decodeRepoFileUrlToRelPath,
+  inlineRepoFileUrlToDataUrl,
+  unwrapStandaloneProxyUrl,
+} from '@/lib/graph/htmlViewer/standaloneAssetRewrite'
 
 type HtmlViewerMediaNode = {
   id: string
@@ -108,6 +113,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
   const canvasAccent = resolveCssVarWithKgFallback('--kg-canvas-accent') || '#3b82f6'
   const canvasLabelFill = resolveCssVarWithKgFallback('--kg-canvas-label-fill') || text
   const canvasLabelHalo = resolveCssVarWithKgFallback('--kg-canvas-label-halo') || canvasBg
+  const mediaHeaderBg = resolveCssVarWithKgFallback('--kg-media-panel-header-bg') || 'rgba(0,0,0,0.04)'
 
   const density = args.mediaPanelDensity === 'compact' ? 'compact' : 'default'
   const widthRatioDefault = isFiniteNum(args.threeIframeOverlayBaseWidthRatioDefault)
@@ -138,109 +144,26 @@ export async function buildGraphHtmlViewerMarkup(args: {
     return listMediaOverlayNodes({ enabled: true, nodes, poolMax })
   })()
 
-  const toBase64 = (bytes: Uint8Array): string => {
-    const buf = (globalThis as unknown as { Buffer?: { from: (b: Uint8Array) => { toString: (enc: string) => string } } }).Buffer
-    if (buf) return buf.from(bytes).toString('base64')
-    let binary = ''
-    const chunk = 0x8000
-    for (let i = 0; i < bytes.length; i += chunk) {
-      const sub = bytes.subarray(i, Math.min(bytes.length, i + chunk))
-      binary += String.fromCharCode(...sub)
-    }
-    const btoaFn = (globalThis as unknown as { btoa?: (s: string) => string }).btoa
-    if (!btoaFn) return ''
-    return btoaFn(binary)
-  }
-
-  const decodeRepoFileUrlToRelPath = (url: string): string | null => {
-    const raw = String(url || '').trim()
-    if (!raw.startsWith('/__repo_file/')) return null
-    const suffix = raw.slice('/__repo_file/'.length)
-    if (!suffix) return null
-    const decoded = suffix
-      .split('/')
-      .filter(Boolean)
-      .map(seg => {
-        try {
-          return decodeURIComponent(seg)
-        } catch {
-          return seg
-        }
-      })
-      .join('/')
-    return decoded || null
-  }
-
-  const inferMimeFromKindAndPath = (kind: HtmlViewerMediaNode['kind'], relPath: string | null): string => {
-    const ext = (() => {
-      if (!relPath) return ''
-      const i = relPath.lastIndexOf('.')
-      return i >= 0 ? relPath.slice(i + 1).toLowerCase() : ''
-    })()
-    if (kind === 'svg') return 'image/svg+xml'
-    if (kind === 'image') {
-      if (ext === 'png') return 'image/png'
-      if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg'
-      if (ext === 'gif') return 'image/gif'
-      if (ext === 'webp') return 'image/webp'
-      return 'image/*'
-    }
-    if (kind === 'video') {
-      if (ext === 'mp4') return 'video/mp4'
-      if (ext === 'webm') return 'video/webm'
-      return 'video/*'
-    }
-    return 'text/html'
-  }
-
-  const fetchBytes = async (url: string): Promise<Uint8Array | null> => {
-    try {
-      if (typeof fetch !== 'function') return null
-      const res = await fetch(url)
-      if (!res || !res.ok) return null
-      const ab = await res.arrayBuffer()
-      return new Uint8Array(ab)
-    } catch {
-      return null
-    }
-  }
-
   const inlineRepoFileMedia = async (nodes: HtmlViewerMediaNode[]): Promise<HtmlViewerMediaNode[]> => {
     if (!nodes || nodes.length === 0) return []
-    const MAX_BYTES = 900_000
+    const MAX_BYTES = 2_400_000
     const out: HtmlViewerMediaNode[] = []
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
-      const url = String(n.url || '').trim()
+      const url0 = String(n.url || '').trim()
+      const url = unwrapStandaloneProxyUrl(url0)
       const relPath = decodeRepoFileUrlToRelPath(url)
       if (!relPath) {
-        out.push(n)
+        out.push({ ...n, url })
         continue
       }
-      const absUrl = (() => {
-        try {
-          if (/^https?:\/\//i.test(url)) return url
-          if (typeof window !== 'undefined' && window.location && /^https?:$/.test(String(window.location.protocol || ''))) {
-            return String(window.location.origin || '').replace(/\/+$/, '') + url
-          }
-        } catch {
-          void 0
-        }
-        return url
-      })()
-      const bytes = await fetchBytes(absUrl)
-      if (!bytes || bytes.length === 0 || bytes.length > MAX_BYTES) {
-        out.push(n)
+
+      const inlined = await inlineRepoFileUrlToDataUrl(url, { maxBytes: MAX_BYTES })
+      if (!inlined) {
+        out.push({ ...n, url })
         continue
       }
-      const mime = inferMimeFromKindAndPath(n.kind, relPath)
-      const b64 = toBase64(bytes)
-      if (!b64) {
-        out.push(n)
-        continue
-      }
-      const dataUrl = `data:${mime};base64,${b64}`
-      out.push({ ...n, url: dataUrl })
+      out.push({ ...n, url: inlined })
     }
     return out
   }
@@ -443,6 +366,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
       --kg-canvas-accent:${escapeHtml(canvasAccent)};
       --kg-canvas-label-fill:${escapeHtml(canvasLabelFill)};
       --kg-canvas-label-halo:${escapeHtml(canvasLabelHalo)};
+      --kg-media-panel-header-bg:${escapeHtml(mediaHeaderBg)};
       --kg-media-panel-header-h:28px;
       --kg-media-panel-border-w:1px;
       --kg-media-panel-radius:10px;

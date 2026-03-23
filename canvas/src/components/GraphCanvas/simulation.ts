@@ -14,11 +14,25 @@ import {
   DEFAULT_CENTER_STRENGTH,
   DEFAULT_DISJOINT_MIN_BASE_STRENGTH,
   DEFAULT_DISJOINT_STRENGTH,
-  readForceCharge,
   readForceLinkDistance,
 } from '@/lib/graph/layoutDefaults';
+import { detectKeywordGraph } from '@/components/GraphCanvas/layout/graphKind'
 import { ZOOM_VIEWPORT_PRESET_16_9 } from 'grph-shared/zoom/presets';
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes';
+import {
+  clampCollideRadius2d,
+  computeChargeDistanceMin2d,
+  computeChargeStrength2d,
+  computeBboxCollideIterations2d,
+  computeBboxCollideStrength2d,
+  computeCollideRadiusMax2d,
+  computeCollideStrength2d,
+  computeGroupBboxCollideIterations2d,
+  computeGroupBboxCollideStrength2d,
+  computeIdealSpacing2d,
+  computeVelocityDecay2d,
+  readPhysics2dTuning,
+} from '@/lib/graph/physics2dTuning'
 
 type EdgeEndpointLike = GraphEdge['source'] | { id?: string | number } | null | undefined;
 
@@ -60,6 +74,7 @@ const updateManyBodyForce = (args: {
   simulation: d3.Simulation<GraphNode, GraphEdge>
   name: string
   strength: number
+  distanceMin?: number
   distanceMax: number
 }) => {
   const raw = args.simulation.force(args.name) as unknown
@@ -68,13 +83,23 @@ const updateManyBodyForce = (args: {
       ? (raw as unknown as d3.ForceManyBody<GraphNode>)
       : null
   if (!f) {
+    const distMin =
+      typeof args.distanceMin === 'number' && Number.isFinite(args.distanceMin) && args.distanceMin > 0 ? args.distanceMin : 1
     args.simulation.force(
       args.name,
-      d3.forceManyBody<GraphNode>().strength(args.strength).distanceMax(args.distanceMax),
+      d3.forceManyBody<GraphNode>().strength(args.strength).distanceMin(distMin).distanceMax(args.distanceMax),
     )
     return
   }
   f.strength(args.strength)
+  try {
+    const distMin = args.distanceMin
+    if (typeof distMin === 'number' && Number.isFinite(distMin) && distMin > 0) {
+      ;(f as unknown as { distanceMin?: (v: number) => unknown }).distanceMin?.(distMin)
+    }
+  } catch {
+    void 0
+  }
   f.distanceMax(args.distanceMax)
 }
 
@@ -158,6 +183,7 @@ const computeAnchorStrength2d = (args: {
   return Math.max(0, Math.min(2, centerStrength)) * 0.25
 }
 
+
 export const buildSimulation = (
   nodes: GraphNode[],
   edgesForSim: GraphEdge[],
@@ -195,25 +221,11 @@ export const buildSimulation = (
     return { inDegree, outDegree }
   }
 
-  const isKeywordGraph = (() => {
-    if (options?.treatKeywordGraphAsDocument === true) return false
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]
-      const props = (n.properties || {}) as Record<string, unknown>
-      const kind = props['keyword:kind']
-      if (typeof kind === 'string' && kind.trim()) return true
-    }
-    for (let i = 0; i < edgesForSim.length; i += 1) {
-      const e = edgesForSim[i]
-      const props = (e.properties || {}) as Record<string, unknown>
-      const kind = props['keyword:kind']
-      if (typeof kind === 'string' && kind.trim()) return true
-    }
-    return false
-  })()
+  const isKeywordGraph =
+    options?.treatKeywordGraphAsDocument === true ? false : detectKeywordGraph({ metadata: null, nodes, edges: edgesForSim })
 
-  const frameArea = frameW * frameH
-  const idealSpacing = Math.max(48, Math.min(240, Math.sqrt(frameArea / Math.max(1, nodes.length)) * 1.45))
+  const idealSpacing = computeIdealSpacing2d({ width: frameW, height: frameH, nodeCount: nodes.length })
+  const physicsTuning = readPhysics2dTuning(schema)
 
   const byLabelDistances = schema.layout?.forces?.linkDistanceByLabel || null
   const hasExplicitLinkDistance = (label: string): boolean => {
@@ -241,19 +253,16 @@ export const buildSimulation = (
     return Math.max(40, Math.min(base, Math.round(idealSpacing * 1.1)))
   };
 
-  const chargeStrength = (() => {
-    const raw = schema.layout?.forces?.charge
-    if (disjointEnabled) {
-      return typeof raw === 'number' && Number.isFinite(raw) ? raw : -30
-    }
-
-    const base = readForceCharge(schema)
-    if (!isKeywordGraph) return base
-    if (typeof raw === 'number' && Number.isFinite(raw)) return base
-    const density = edgesForSim.length / Math.max(1, nodes.length)
-    const mag = Math.max(140, Math.min(720, idealSpacing * (density < 0.35 ? 1.8 : 2.6)))
-    return -mag
-  })();
+  const chargeStrength = computeChargeStrength2d({
+    schema,
+    isKeywordGraph,
+    disjointEnabled,
+    idealSpacing,
+    nodeCount: nodes.length,
+    edgeCount: edgesForSim.length,
+    tuning: physicsTuning,
+  })
+  const chargeDistanceMin = computeChargeDistanceMin2d(idealSpacing)
   const collisionRadiusByType = schema.layout?.forces?.collisionByType || {};
 
   if (!options?.skipInitialLayout) {
@@ -329,15 +338,37 @@ export const buildSimulation = (
 
   const simulation = d3.forceSimulation<GraphNode>(nodes).force('link', linkForce);
 
+    const collideRadiusMax = computeCollideRadiusMax2d(idealSpacing)
     const collideRadiusFn = (d: GraphNode) => {
-      const configured = collisionRadiusByType[d.type];
-      if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) return configured;
-      return getNodeCollisionRadius(d, schema)
+      const configured = collisionRadiusByType[d.type]
+      if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) return clampCollideRadius2d(configured, collideRadiusMax)
+      return clampCollideRadius2d(getNodeCollisionRadius(d, schema), collideRadiusMax)
     }
 
     const collisionCfg = readCollisionConfig(schema)
     const bboxCfg = collisionCfg.nodeBbox
     const collideIterations = computeCollideIterations(nodes.length)
+    const collideStrength = computeCollideStrength2d({ isKeywordGraph, nodeCount: nodes.length, idealSpacing, tuning: physicsTuning })
+
+    const bboxStrength = computeBboxCollideStrength2d({
+      baseStrength: bboxCfg.strength,
+      nodeCount: nodes.length,
+      idealSpacing,
+      isKeywordGraph,
+      tuning: physicsTuning,
+    })
+    const bboxIterations = computeBboxCollideIterations2d({ baseIterations: bboxCfg.iterations, nodeCount: nodes.length })
+    const groupBboxStrength = computeGroupBboxCollideStrength2d({
+      baseStrength: collisionCfg.groupBbox.strength,
+      nodeCount: nodes.length,
+      idealSpacing,
+      isKeywordGraph,
+      tuning: physicsTuning,
+    })
+    const groupBboxIterations = computeGroupBboxCollideIterations2d({
+      baseIterations: collisionCfg.groupBbox.iterations,
+      nodeCount: nodes.length,
+    })
 
     const portHandlesEnabled = Boolean(schema.behavior?.portHandles?.enabled)
     const hasMermaidNodes = portHandlesEnabled && nodes.some(n => String(n.type || '') === 'MermaidNode')
@@ -391,12 +422,12 @@ export const buildSimulation = (
       .force(
         'charge',
         disjointEnabled
-          ? d3.forceManyBody().strength(chargeStrength)
-          : d3.forceManyBody().strength(chargeStrength).distanceMax(Math.max(frameW, frameH) * 1.2),
+          ? d3.forceManyBody().strength(chargeStrength).distanceMin(chargeDistanceMin)
+          : d3.forceManyBody().strength(chargeStrength).distanceMin(chargeDistanceMin).distanceMax(Math.max(frameW, frameH) * 1.2),
       )
       .force(
         'collide',
-        !disjointEnabled ? d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.92).iterations(collideIterations) : null,
+        !disjointEnabled ? d3.forceCollide<GraphNode>(collideRadiusFn).strength(collideStrength).iterations(collideIterations) : null,
       )
       .force(
         'bboxCollide',
@@ -410,8 +441,8 @@ export const buildSimulation = (
               touchEpsilonXPx: bboxCfg.touchEpsilonXPx,
               touchEpsilonYPx: bboxCfg.touchEpsilonYPx,
               touchEpsilonZPx: bboxCfg.touchEpsilonZPx,
-              strength: bboxCfg.strength,
-              iterations: bboxCfg.iterations,
+              strength: bboxStrength,
+              iterations: bboxIterations,
             })
           : null,
       )
@@ -435,21 +466,28 @@ export const buildSimulation = (
                   nestedTouchEpsilonXPx: collisionCfg.groupBbox.nestedTouchEpsilonXPx,
                   nestedTouchEpsilonYPx: collisionCfg.groupBbox.nestedTouchEpsilonYPx,
                   nestedTouchEpsilonZPx: collisionCfg.groupBbox.nestedTouchEpsilonZPx,
-                  strength: collisionCfg.groupBbox.strength,
-                  iterations: collisionCfg.groupBbox.iterations,
+                  strength: groupBboxStrength,
+                  iterations: groupBboxIterations,
                 })
               : createGroupBboxCollideForce({
                   schema,
                   paddingX: collisionCfg.groupBbox.paddingX,
                   paddingY: collisionCfg.groupBbox.paddingY,
-                  strength: collisionCfg.groupBbox.strength,
-                  iterations: collisionCfg.groupBbox.iterations,
+                  strength: groupBboxStrength,
+                  iterations: groupBboxIterations,
                   groupKeyOf,
                 }))
           : null,
       )
       .force('x', d3.forceX<GraphNode>(xTarget).strength(anchorStrength))
       .force('y', d3.forceY<GraphNode>(yTarget).strength(anchorStrength))
+
+  try {
+    const velocityDecay = computeVelocityDecay2d({ nodeCount: nodes.length, idealSpacing, isKeywordGraph, tuning: physicsTuning })
+    simulation.velocityDecay(velocityDecay)
+  } catch {
+    void 0
+  }
 
   if (schema.layout?.forces?.alphaDecay != null) {
     simulation.alphaDecay(schema.layout.forces.alphaDecay!);
@@ -546,50 +584,55 @@ export const updateForceSimulationPresentation = (args: {
 
   const groupKeyOf = args.groupKeyOf || createGroupKeyOfNode({ nodes, edges })
 
-  const isKeywordGraph = (() => {
-      for (let i = 0; i < nodes.length; i += 1) {
-        const n = nodes[i]
-        const props = (n.properties || {}) as Record<string, unknown>
-        const kind = props['keyword:kind']
-        if (typeof kind === 'string' && kind.trim()) return true
-      }
-      for (let i = 0; i < edges.length; i += 1) {
-        const e = edges[i]
-        const props = (e.properties || {}) as Record<string, unknown>
-        const kind = props['keyword:kind']
-        if (typeof kind === 'string' && kind.trim()) return true
-      }
-      return false
-    })()
+  const isKeywordGraph = detectKeywordGraph({ metadata: null, nodes, edges })
 
-    const frameArea = frameW * frameH
-    const idealSpacing = Math.max(48, Math.min(240, Math.sqrt(frameArea / Math.max(1, nodes.length)) * 1.45))
-    const chargeStrength = (() => {
-      const raw = schema.layout?.forces?.charge
-      if (disjointEnabled) {
-        return typeof raw === 'number' && Number.isFinite(raw) ? raw : -30
-      }
-
-      const base = readForceCharge(schema)
-      if (!isKeywordGraph) return base
-      if (typeof raw === 'number' && Number.isFinite(raw)) return base
-      const density = edges.length / Math.max(1, nodes.length)
-      const mag = Math.max(140, Math.min(720, idealSpacing * (density < 0.35 ? 1.8 : 2.6)))
-      return -mag
-    })()
+    const idealSpacing = computeIdealSpacing2d({ width: frameW, height: frameH, nodeCount: nodes.length })
+    const physicsTuning = readPhysics2dTuning(schema)
+    const chargeStrength = computeChargeStrength2d({
+      schema,
+      isKeywordGraph,
+      disjointEnabled,
+      idealSpacing,
+      nodeCount: nodes.length,
+      edgeCount: edges.length,
+      tuning: physicsTuning,
+    })
+    const chargeDistanceMin = computeChargeDistanceMin2d(idealSpacing)
 
     const anchorStrength = computeAnchorStrength2d({ schema, isKeywordGraph, disjointEnabled, disjointStrength })
 
     const collisionRadiusByType = schema.layout?.forces?.collisionByType || {}
+    const collideRadiusMax = computeCollideRadiusMax2d(idealSpacing)
     const collideRadiusFn = (d: GraphNode) => {
       const configured = collisionRadiusByType[d.type]
-      if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) return configured
-      return getNodeCollisionRadius(d, schema)
+      if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) return clampCollideRadius2d(configured, collideRadiusMax)
+      return clampCollideRadius2d(getNodeCollisionRadius(d, schema), collideRadiusMax)
     }
 
     const collisionCfg = readCollisionConfig(schema)
     const bboxCfg = collisionCfg.nodeBbox
     const collideIterations = computeCollideIterations(nodes.length)
+    const collideStrength = computeCollideStrength2d({ isKeywordGraph, nodeCount: nodes.length, idealSpacing, tuning: physicsTuning })
+
+    const bboxStrength = computeBboxCollideStrength2d({
+      baseStrength: bboxCfg.strength,
+      nodeCount: nodes.length,
+      idealSpacing,
+      isKeywordGraph,
+      tuning: physicsTuning,
+    })
+    const bboxIterations = computeBboxCollideIterations2d({ baseIterations: bboxCfg.iterations, nodeCount: nodes.length })
+    const groupBboxStrength = computeGroupBboxCollideStrength2d({
+      baseStrength: collisionCfg.groupBbox.strength,
+      nodeCount: nodes.length,
+      idealSpacing,
+      isKeywordGraph,
+      tuning: physicsTuning,
+    })
+    const groupBboxIterations = computeGroupBboxCollideIterations2d({
+      baseIterations: collisionCfg.groupBbox.iterations,
+      nodeCount: nodes.length,
+    })
 
   const sortedKeyFromRecord = (rec: Record<string, unknown>): string => {
     const keys = Object.keys(rec)
@@ -608,7 +651,9 @@ export const updateForceSimulationPresentation = (args: {
     const byType = typeof schema.layout?.forces?.collisionByType === 'object' && schema.layout?.forces?.collisionByType
       ? (schema.layout.forces.collisionByType as Record<string, unknown>)
       : {}
-    return `iter=${collideIterations}|byType=${sortedKeyFromRecord(byType)}`
+    const str = Math.round(collideStrength * 1000) / 1000
+    const rmax = Math.round(collideRadiusMax * 10) / 10
+    return `iter=${collideIterations}|str=${str}|rmax=${rmax}|byType=${sortedKeyFromRecord(byType)}`
   })()
 
   const bboxKey = (() => {
@@ -621,8 +666,8 @@ export const updateForceSimulationPresentation = (args: {
       bboxCfg.touchEpsilonXPx,
       bboxCfg.touchEpsilonYPx,
       bboxCfg.touchEpsilonZPx,
-      bboxCfg.strength,
-      bboxCfg.iterations,
+      bboxStrength,
+      bboxIterations,
     ]
     return nums.map(v => (typeof v === 'number' && Number.isFinite(v) ? String(v) : '')).join(',')
   })()
@@ -644,8 +689,8 @@ export const updateForceSimulationPresentation = (args: {
       g.nestedTouchEpsilonXPx,
       g.nestedTouchEpsilonYPx,
       g.nestedTouchEpsilonZPx,
-      g.strength,
-      g.iterations,
+      groupBboxStrength,
+      groupBboxIterations,
     ]
     const byDepth = !!(args.groupsForBboxCollide && args.groupsForBboxCollide.length > 0)
     return `${byDepth ? 'depth' : 'flat'}|${nums
@@ -671,18 +716,26 @@ export const updateForceSimulationPresentation = (args: {
   const shouldReheat =
     !!prevSignature &&
     (prevSignature.disjointEnabled !== signature.disjointEnabled ||
-      Math.abs(prevSignature.chargeStrength - signature.chargeStrength) > 1e-6 ||
-      Math.abs(prevSignature.anchorStrength - signature.anchorStrength) > 1e-6 ||
-      Math.abs(prevSignature.centerX - signature.centerX) > 1e-6 ||
-      Math.abs(prevSignature.centerY - signature.centerY) > 1e-6)
+      Math.abs(prevSignature.chargeStrength - signature.chargeStrength) > 1e-4 ||
+      Math.abs(prevSignature.anchorStrength - signature.anchorStrength) > 1e-4 ||
+      Math.abs(prevSignature.centerX - signature.centerX) > 0.25 ||
+      Math.abs(prevSignature.centerY - signature.centerY) > 0.25)
   presentationSignatureCache.set(simulation as unknown as object, signature)
 
   updateManyBodyForce({
     simulation,
     name: 'charge',
     strength: chargeStrength,
+    distanceMin: chargeDistanceMin,
     distanceMax: disjointEnabled ? Number.POSITIVE_INFINITY : Math.max(frameW, frameH) * 1.2,
   })
+
+  try {
+    const velocityDecay = computeVelocityDecay2d({ nodeCount: nodes.length, idealSpacing, isKeywordGraph, tuning: physicsTuning })
+    simulation.velocityDecay(velocityDecay)
+  } catch {
+    void 0
+  }
 
   const desiredCollideEnabled = !disjointEnabled
   const desiredBboxEnabled = !disjointEnabled && bboxCfg.enabled
@@ -710,9 +763,12 @@ export const updateForceSimulationPresentation = (args: {
       if (canMutate) {
         existing.radius!(collideRadiusFn)
         existing.iterations!(collideIterations)
-        existing.strength!(0.92)
+        existing.strength!(collideStrength)
       } else {
-        simulation.force('collide', d3.forceCollide<GraphNode>(collideRadiusFn).strength(0.92).iterations(collideIterations))
+        simulation.force(
+          'collide',
+          d3.forceCollide<GraphNode>(collideRadiusFn).strength(collideStrength).iterations(collideIterations),
+        )
       }
     }
   }
@@ -737,8 +793,8 @@ export const updateForceSimulationPresentation = (args: {
             touchEpsilonXPx: bboxCfg.touchEpsilonXPx,
             touchEpsilonYPx: bboxCfg.touchEpsilonYPx,
             touchEpsilonZPx: bboxCfg.touchEpsilonZPx,
-            strength: bboxCfg.strength,
-            iterations: bboxCfg.iterations,
+            strength: bboxStrength,
+            iterations: bboxIterations,
           })
         : null,
     )
@@ -774,15 +830,15 @@ export const updateForceSimulationPresentation = (args: {
                 nestedTouchEpsilonXPx: collisionCfg.groupBbox.nestedTouchEpsilonXPx,
                 nestedTouchEpsilonYPx: collisionCfg.groupBbox.nestedTouchEpsilonYPx,
                 nestedTouchEpsilonZPx: collisionCfg.groupBbox.nestedTouchEpsilonZPx,
-                strength: collisionCfg.groupBbox.strength,
-                iterations: collisionCfg.groupBbox.iterations,
+                strength: groupBboxStrength,
+                iterations: groupBboxIterations,
               })
             : createGroupBboxCollideForce({
                 schema,
                 paddingX: collisionCfg.groupBbox.paddingX,
                 paddingY: collisionCfg.groupBbox.paddingY,
-                strength: collisionCfg.groupBbox.strength,
-                iterations: collisionCfg.groupBbox.iterations,
+                strength: groupBboxStrength,
+                iterations: groupBboxIterations,
                 groupKeyOf,
               }))
         : null,

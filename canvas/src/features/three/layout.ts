@@ -2,16 +2,16 @@ import React, { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { getThreeConfig } from '@/lib/graph/schema'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
-import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { computeLayoutDatasetKey, buildLayoutViewKey, buildLayoutPositionCacheKey } from '@/lib/canvas/layoutPositioning'
 import { pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { computeLayerOffsetIndices, computePositions3d, THREE_LAYER_SPACING, type Vec3 } from './positions'
+import { computeLayerOffsetIndices, computePositions3d, type Vec3 } from './positions'
 import { projectPositionsToSphereShell } from './sphereConstraint'
+import { resolveMinSpacing, resolveSphereLayerSpacing, resolveSphereRadius } from './threeLayoutConfig'
 
 export { fibSphere } from './positions'
 export type { Vec3 } from './positions'
@@ -40,7 +40,7 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, gra
       graphData: (graphDataForViewOverride || graphData) as any,
     })
     const datasetKey = computeLayoutDatasetKey({ graphData: graphDataForView, graphDataRevision })
-    const graphMetaKey = buildGraphMetaKey((graphDataForViewOverride || graphData) as any)
+    const graphMetaKey = buildGraphMetaKeyIgnoringPending((graphDataForViewOverride || graphData) as any)
     const collapsedGroupIdsKey = buildCollapsedGroupIdsKey(collapsedGroupIds)
     const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(schema)
     const viewKey = buildLayoutViewKey({
@@ -77,33 +77,37 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
     for (let i = 0; i < n; i++) m.set(nodes[i].id, i)
     return m
   }, [nodes, n])
-  const posX = useRef<Float32Array>(new Float32Array(Math.max(1, n)))
-  const posY = useRef<Float32Array>(new Float32Array(Math.max(1, n)))
-  const posZ = useRef<Float32Array>(new Float32Array(Math.max(1, n)))
-  const velX = useRef<Float32Array>(new Float32Array(Math.max(1, n)))
-  const velY = useRef<Float32Array>(new Float32Array(Math.max(1, n)))
-  const velZ = useRef<Float32Array>(new Float32Array(Math.max(1, n)))
-  const threeCfg = (schema as unknown as { three?: Record<string, number> }).three || {}
+  const posX = useRef<Float32Array>(new Float32Array(1))
+  const posY = useRef<Float32Array>(new Float32Array(1))
+  const posZ = useRef<Float32Array>(new Float32Array(1))
+  const velX = useRef<Float32Array>(new Float32Array(1))
+  const velY = useRef<Float32Array>(new Float32Array(1))
+  const velZ = useRef<Float32Array>(new Float32Array(1))
+  const gridRef = useRef<Map<string, number[]>>(new Map())
+  const gridBucketPoolRef = useRef<number[][]>([])
+  const gridCellEntriesRef = useRef<Array<{ cx: number; cy: number; cz: number; key: string; bucket: number[] }>>([])
+  const gridCellEntryPoolRef = useRef<Array<{ cx: number; cy: number; cz: number; key: string; bucket: number[] }>>([])
+  const skipProjectionSetRef = useRef<Set<number>>(new Set())
   const chargeVal = (schema.layout && schema.layout.forces && typeof schema.layout.forces.charge === 'number') ? schema.layout.forces.charge! : -300
   // Stronger repulsion for 3D to avoid clustering
   const effectiveCharge = chargeVal * 2.0
-  const radiusCfg = typeof threeCfg['sphereRadius'] === 'number' ? threeCfg['sphereRadius'] : undefined
-  const radiusAuto = Math.max(60, Math.min(140, n * 2.2))
-  const sphereRadius = radiusCfg && radiusCfg > 0 ? radiusCfg : radiusAuto
+  const sphereRadius = resolveSphereRadius(schema, n)
   // Increase minimum spacing
-  const repelRadius = Math.max(10, Math.min(sphereRadius, (typeof threeCfg['minSpacing'] === 'number' ? Math.max(threeCfg['minSpacing'], 24) : 48)))
+  const minSpacingCfg = resolveMinSpacing(schema)
+  const repelRadius = Math.max(10, Math.min(sphereRadius, (typeof minSpacingCfg === 'number' ? Math.max(minSpacingCfg, 24) : 48)))
   const repelStrength = Math.max(10, Math.abs(effectiveCharge)) * 1.5
   const springStrength = 0.06
   const damping = 0.85
   const maxSpeed = 6.0
+  const layerSpacing = resolveSphereLayerSpacing(schema)
   const targetRByIndex = useMemo(() => {
     const out = new Float32Array(Math.max(1, n))
     for (let i = 0; i < n; i += 1) {
       const off = Number.isFinite(layerOffsetIndices[i]) ? layerOffsetIndices[i]! : 0
-      out[i] = sphereRadius + off * THREE_LAYER_SPACING
+      out[i] = sphereRadius + off * layerSpacing
     }
     return out
-  }, [layerOffsetIndices, n, sphereRadius])
+  }, [layerOffsetIndices, layerSpacing, n, sphereRadius])
   const edgePairs = useMemo(() => {
     const linkDistanceByLabel = (schema.layout && schema.layout.forces && schema.layout.forces.linkDistanceByLabel) || {}
     const arr: Array<[number, number, number]> = []
@@ -118,6 +122,14 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
     return arr
   }, [edges, idxById, schema, sphereRadius])
   React.useEffect(() => {
+    if (posX.current.length !== Math.max(1, n)) {
+      posX.current = new Float32Array(Math.max(1, n))
+      posY.current = new Float32Array(Math.max(1, n))
+      posZ.current = new Float32Array(Math.max(1, n))
+      velX.current = new Float32Array(Math.max(1, n))
+      velY.current = new Float32Array(Math.max(1, n))
+      velZ.current = new Float32Array(Math.max(1, n))
+    }
     const px = posX.current, py = posY.current, pz = posZ.current
     for (let i = 0; i < n; i++) {
       const id = nodes[i].id
@@ -126,13 +138,33 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
     }
     velX.current.fill(0); velY.current.fill(0); velZ.current.fill(0)
   }, [nodes, positions, n])
+
+  const reclaimGrid = () => {
+    const grid = gridRef.current
+    if (!grid.size) return
+    const pool = gridBucketPoolRef.current
+    const cellPool = gridCellEntryPoolRef.current
+    const entries = gridCellEntriesRef.current
+    for (const bucket of grid.values()) {
+      bucket.length = 0
+      pool.push(bucket)
+    }
+    for (let i = 0; i < entries.length; i += 1) {
+      const e = entries[i]
+      if (e) cellPool.push(e)
+    }
+    entries.length = 0
+    grid.clear()
+  }
+
   useFrame((_, delta) => {
     if (paused) return
     const dt = Math.max(0.008, Math.min(0.033, delta || 0.016))
     const px = posX.current, py = posY.current, pz = posZ.current
     const vx = velX.current, vy = velY.current, vz = velZ.current
     const overrides = dragOverrides ? dragOverrides.current : undefined
-    const skipProjection = overrides ? new Set<number>() : null
+    const skipProjection = overrides ? skipProjectionSetRef.current : null
+    skipProjection?.clear()
     if (overrides) {
       const behavior = schema.behavior || { allowEdgeCreation: true, allowNodeDrag: true }
       const gridEnabled = !!behavior.snapGrid?.enabled
@@ -163,35 +195,56 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
       }
     }
     const cellSize = repelRadius
-    const grid = new Map<string, number[]>()
+    const grid = gridRef.current
+    const pool = gridBucketPoolRef.current
+    const entries = gridCellEntriesRef.current
+    const entryPool = gridCellEntryPoolRef.current
+    reclaimGrid()
     for (let i = 0; i < n; i++) {
       const cx = Math.floor(px[i] / cellSize)
       const cy = Math.floor(py[i] / cellSize)
       const cz = Math.floor(pz[i] / cellSize)
       const key = `${cx}:${cy}:${cz}`
-      const arr = grid.get(key)
-      if (arr) { arr.push(i) } else { grid.set(key, [i]) }
+      const existing = grid.get(key)
+      if (existing) {
+        existing.push(i)
+      } else {
+        const bucket = pool.pop() || []
+        bucket.length = 0
+        bucket.push(i)
+        grid.set(key, bucket)
+
+        const entry = entryPool.pop() || { cx: 0, cy: 0, cz: 0, key: '', bucket: [] }
+        entry.cx = cx
+        entry.cy = cy
+        entry.cz = cz
+        entry.key = key
+        entry.bucket = bucket
+        entries.push(entry)
+      }
     }
-    const neigh = [-1, 0, 1]
-    for (const [key, list] of grid) {
-      const parts = key.split(':')
-      const cx = Number(parts[0]), cy = Number(parts[1]), cz = Number(parts[2])
-      for (let xi = 0; xi < neigh.length; xi++) {
-        for (let yi = 0; yi < neigh.length; yi++) {
-          for (let zi = 0; zi < neigh.length; zi++) {
-            const nk = `${cx + neigh[xi]}:${cy + neigh[yi]}:${cz + neigh[zi]}`
+    const rr = repelRadius * repelRadius
+    for (let ei = 0; ei < entries.length; ei += 1) {
+      const entry = entries[ei]
+      const list = entry.bucket
+      const cx = entry.cx
+      const cy = entry.cy
+      const cz = entry.cz
+      for (let dxCell = -1; dxCell <= 1; dxCell += 1) {
+        for (let dyCell = -1; dyCell <= 1; dyCell += 1) {
+          for (let dzCell = -1; dzCell <= 1; dzCell += 1) {
+            const nk = `${cx + dxCell}:${cy + dyCell}:${cz + dzCell}`
             const other = grid.get(nk)
             if (!other) continue
             for (let a = 0; a < list.length; a++) {
               const i = list[a]
               for (let b = 0; b < other.length; b++) {
                 const j = other[b]
-                if (j <= i && nk === key) continue
+                if (j <= i && nk === entry.key) continue
                 const dx = px[i] - px[j]
                 const dy = py[i] - py[j]
                 const dz = pz[i] - pz[j]
                 const d2 = dx * dx + dy * dy + dz * dz
-                const rr = repelRadius * repelRadius
                 if (d2 > rr || d2 < 1e-6) continue
                 const inv = 1 / Math.sqrt(d2)
                 const f = (repelStrength * dt) / (d2 + 1)
@@ -231,6 +284,35 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
         vx[i] *= inv; vy[i] *= inv; vz[i] *= inv
       }
       px[i] += vx[i]; py[i] += vy[i]; pz[i] += vz[i]
+    }
+
+    if (!overrides) {
+      let sumX = 0
+      let sumY = 0
+      let sumZ = 0
+      let count = 0
+      for (let i = 0; i < n; i++) {
+        const x = px[i]
+        const y = py[i]
+        const z = pz[i]
+        if (!(Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z))) continue
+        sumX += x
+        sumY += y
+        sumZ += z
+        count += 1
+      }
+      if (count > 0) {
+        const cx = sumX / count
+        const cy = sumY / count
+        const cz = sumZ / count
+        if (Number.isFinite(cx) && Number.isFinite(cy) && Number.isFinite(cz) && (Math.abs(cx) > 1e-3 || Math.abs(cy) > 1e-3 || Math.abs(cz) > 1e-3)) {
+          for (let i = 0; i < n; i++) {
+            px[i] -= cx
+            py[i] -= cy
+            pz[i] -= cz
+          }
+        }
+      }
     }
 
     projectPositionsToSphereShell({ px, py, pz, vx, vy, vz, targetRByIndex, skipIndexSet: skipProjection })

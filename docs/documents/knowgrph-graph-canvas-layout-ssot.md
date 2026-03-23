@@ -86,6 +86,11 @@ Notes:
 - D3 “collective fit + freeze” must include a bounded collision relax pass before final fit/transform to reduce residual overlaps without restarting simulation.
   - `layout.forces.antiLine*` controls a short de-line pass that breaks long thin bands while preserving macro layout.
   - `layout.forces.postFit*` controls the bounded expansion/settle pass that spreads the graph into the viewport before Fit/Freeze; toolbar Reset must not change these knobs.
+  - `layout.forces.physics2d*` controls collision/repulsion tuning across *all* 2D graph elements (nodes, groups, labels, rich media as nodes, panels):
+    - `physics2dChargeScale`, `physics2dCollideStrengthScale`, `physics2dBboxStrengthScale`
+    - `physics2dVelocityDecayBias`, `physics2dMaxSpeedScale`
+    - `physics2dStrictOverlapScale`, `physics2dLabelNudgeScale`
+    - `physics2dDragChargeScale`, `physics2dDragDistanceMaxPx`
 - Design surface must batch multi-frame position patches when resolving collisions (avoid per-node store writes that can cause rerender churn).
 - Group collision is always enforced when `layout.groups.enabled !== false` (schema may keep `groupBboxCollide` for backward compatibility, but it does not disable the constraint).
 - Group collision accounts for group label overhead (top padding) to reduce label-region overlap and to prevent group box overlap.

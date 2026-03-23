@@ -1,3 +1,3 @@
-import GraphCanvasRootImpl from '@/components/GraphCanvasRootImpl'
+import GraphCanvasRootImpl from '@/components/GraphCanvasRoot/GraphCanvasRootImpl'
 
 export default GraphCanvasRootImpl

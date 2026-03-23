@@ -29,6 +29,8 @@ import {
 } from '@/components/GraphCanvas/layout/initialization'
 import { pickLayoutPositionsSource } from '@/components/GraphCanvas/layout/positionSource'
 import { applyCollectiveGraphLayout } from '@/components/GraphCanvas/layout/collectiveFit'
+import { detectKeywordGraph } from '@/components/GraphCanvas/layout/graphKind'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { readFitPadding } from '@/lib/graph/layoutDefaults'
 import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
@@ -274,6 +276,36 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     return { k: 1, x, y }
   }
 
+  const computeInitialViewportFitTransform = (): { k: number; x: number; y: number } | null => {
+    if (initialZoomTransform) return null
+    const nodes = displayNodes
+    if (!nodes || nodes.length === 0) return null
+    const intent = fitToScreenMode ? 'fitToScreen' : 'initialFit'
+    const schemaValue = getSchema()
+    const mode = readLayoutMode(schemaValue)
+    const fillRatioOverride = (() => {
+      try {
+        const v = useGraphStore.getState().viewportFitFillRatio
+        return typeof v === 'number' && Number.isFinite(v) ? v : undefined
+      } catch {
+        return undefined
+      }
+    })()
+    const baseOpts = readFitAllOptions({ schema: schemaValue, mode, intent, targetFillRatioOverride: fillRatioOverride })
+    const opts = {
+      ...baseOpts,
+      centerMode: 'centroid' as const,
+      graphData: graphDataForDisplay,
+      deriveGroupsOptions: { forceDocumentStructure: args.documentSemanticMode === 'document' },
+    }
+    const t = fitAllTransform(nodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
+    const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+    const x = typeof t.x === 'number' && Number.isFinite(t.x) ? t.x : 0
+    const y = typeof t.y === 'number' && Number.isFinite(t.y) ? t.y : 0
+    if (!Number.isFinite(k) || !Number.isFinite(x) || !Number.isFinite(y)) return null
+    return { k, x, y }
+  }
+
   const layoutPositionsSource = (() => {
     const cached = layoutPositionsForMode && Object.keys(layoutPositionsForMode).length > 0 ? layoutPositionsForMode : null
     const prev = prevPositions && Object.keys(prevPositions).length > 0 ? prevPositions : null
@@ -296,18 +328,11 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     return { x: (width / 2 - x) / k, y: (height / 2 - y) / k }
   })()
 
-  const isKeywordGraph = (() => {
-    const meta = (graphDataForDisplay.metadata || {}) as Record<string, unknown>
-    if (meta.kind === 'keyword') return true
-    // Also check nodes for keyword properties to match simulation detection
-    const nodes = Array.isArray(graphDataForDisplay.nodes) ? graphDataForDisplay.nodes : []
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]
-      const props = (n.properties || {}) as Record<string, unknown>
-      if (typeof props['keyword:kind'] === 'string' && props['keyword:kind']) return true
-    }
-    return false
-  })()
+  const isKeywordGraph = detectKeywordGraph({
+    metadata: graphDataForDisplay.metadata,
+    nodes: Array.isArray(graphDataForDisplay.nodes) ? (graphDataForDisplay.nodes as GraphNode[]) : [],
+    edges: edgesForDisplay,
+  })
 
   const isMermaidLayout = (() => {
     const gd = args.graphData as unknown as { context?: unknown; metadata?: unknown } | null
@@ -474,7 +499,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   if (initialZoomTransform) {
     applyInitialTransform(initialZoomTransform)
   } else {
-    applyInitialTransform(computeAutoCenterTransform())
+    applyInitialTransform(computeInitialViewportFitTransform() || computeAutoCenterTransform())
   }
 
   if (args.freezeSimulation === true) {

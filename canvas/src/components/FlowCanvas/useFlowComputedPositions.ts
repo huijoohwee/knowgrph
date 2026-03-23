@@ -3,7 +3,7 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { DEFAULT_FLOW_DAGRE_MAX_NODES, DEFAULT_FLOW_ELK_MAX_NODES } from '@/lib/graph/layoutDefaults'
 import { buildElkLayout } from '@/components/FlowCanvas/elkLayout'
-import { buildDagreLayout, buildFastGridLayout, buildGraphMetaKey } from '@/components/FlowCanvas/layout'
+import { buildDagreLayout, buildFastGridLayout, buildGraphMetaKeyIgnoringPending } from '@/components/FlowCanvas/layout'
 import { buildLayoutPositionCacheKey } from '@/components/GraphCanvas/layout/positioning'
 import { pickSeedFromOtherRendererCache } from '@/components/FlowCanvas/seed'
 import { extractNodePositions, hasCacheCoverage, looksUnstablePositions } from '@/components/FlowCanvas/seedPositions'
@@ -126,7 +126,7 @@ export function useFlowComputedPositions(args: {
     const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
     const edgeList = Array.isArray(g?.edges) ? g?.edges : []
     const rev = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? Math.floor(graphDataRevision) : 0
-    const graphKey = `rev:${rev}:${nodeList.length}:${edgeList.length}:${buildGraphMetaKey(g)}:${layoutVariant}`
+    const graphKey = `rev:${rev}:${nodeList.length}:${edgeList.length}:${buildGraphMetaKeyIgnoringPending(g)}:${layoutVariant}`
     if (graphKey === lastLayoutGraphKeyRef.current && computedPositionsRef.current) return
     lastLayoutGraphKeyRef.current = graphKey
 

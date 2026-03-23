@@ -22,6 +22,7 @@ export function resolveZoomRequest2d(args: {
   graphDataRevision: number
   viewportW: number
   viewportH: number
+  fitFillRatio?: number
   viewPinned: boolean
   durations?: Partial<{ fitMs: number; selectionMs: number }>
   toolbarZoom: ToolbarZoomConfig
@@ -50,6 +51,7 @@ export function resolveZoomRequest2d(args: {
     graphDataRevision: args.graphDataRevision,
     viewportW: args.viewportW,
     viewportH: args.viewportH,
+    fitFillRatio: args.fitFillRatio,
     pinned: args.viewPinned,
     durations: args.durations,
     toolbarZoom: args.toolbarZoom,
@@ -66,4 +68,3 @@ export function resolveZoomRequest2d(args: {
   if (!res) return null
   return { nextTransform: res.nextTransform, durationMs: res.durationMs, scaleExtent, nextMinScale: res.nextMinScale }
 }
-

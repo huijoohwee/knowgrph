@@ -65,6 +65,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["importRenderPipeline.three.fibSphereStable","@/__tests__/importRenderPipelineModesLayouts.test","testImportRenderPipelineThreeFibSphereStable"],
   ["importRenderPipeline.three.seedNotPlanar","@/__tests__/importRenderPipelineModesLayouts.test","testImportRenderPipelineThreeSeedNotPlanar"],
   ["importRenderPipeline.three.sphereConstraintProjects","@/__tests__/importRenderPipelineModesLayouts.test","testImportRenderPipelineThreeSphereConstraintProjects"],
+  ["three.sphere.ssotAlignment","@/__tests__/threeSphereSsotAlignment.test","testThreeSphereLocalMatchesThreeJsClampAndContains"],
   ["importRenderPipeline.forbidHardcodedMarkdownSlideDemoAbsPath","@/__tests__/importRenderPipelineModesLayouts.test","testForbidHardcodedMarkdownSlideDemoAbsolutePath"],
   ["markdown.workspace.presentation.resolvesRelativeAssets","@/__tests__/markdownWorkspacePresentationRelativeAssets.test","testMarkdownWorkspacePresentationResolvesRelativeAssetsAndRendersTables"],
   ["pdf.markdown.embedsMultipleImagesUpToLimit","@/__tests__/pdfMarkdown.test","testPdfMarkdownEmbedsMultipleImagesUpToLimit"],

@@ -20,6 +20,7 @@ export type ZoomComputeContext = {
   graphDataRevision: number
   viewportW: number
   viewportH: number
+  fitFillRatio?: number
   pinned: boolean
   durations?: Partial<{ fitMs: number; selectionMs: number; inOutMs: number; resetMs: number }>
   toolbarZoom?: ToolbarZoomConfig
@@ -96,6 +97,7 @@ function getFitTransformCached(args: {
   graphDataRevision: number
   viewportW: number
   viewportH: number
+  fitFillRatio?: number
   intent: ZoomFitIntent | 'fitSelection'
   cacheKeyBase: string
   selectionKey?: string
@@ -108,6 +110,7 @@ function getFitTransformCached(args: {
     schema: args.schema,
     mode,
     intent: args.intent === 'fitSelection' ? 'fitSelection' : args.intent,
+    targetFillRatioOverride: args.fitFillRatio,
   })
   if (args.documentSemanticMode === 'document') {
     opts = applyDocumentSemanticFitPolicy(args.schema, opts)
@@ -191,6 +194,7 @@ export function computeZoomTransformFromRequest(
       graphDataRevision: ctx.graphDataRevision,
       viewportW: w,
       viewportH: h,
+      fitFillRatio: ctx.fitFillRatio,
       intent,
       cacheKeyBase: ctx.cacheKeyBase,
       nodes: graphData.nodes,
@@ -317,6 +321,7 @@ export function computeZoomTransformFromRequest(
         graphDataRevision: ctx.graphDataRevision,
         viewportW: w,
         viewportH: h,
+        fitFillRatio: ctx.fitFillRatio,
         intent: 'fitSelection',
         cacheKeyBase: ctx.cacheKeyBase,
         selectionKey,

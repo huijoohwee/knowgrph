@@ -1,11 +1,10 @@
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { getThreeConfig } from '@/lib/graph/schema'
 import { resolveGroupCollisions, type CollisionGroupItem } from '@/lib/graph/collision/boxCollision'
 
-export type Vec3 = [number, number, number]
+import { resolveMinSpacing, resolveSphereLayerSpacing, resolveSphereRadius, resolveThreeSeed } from './threeLayoutConfig'
 
-export const THREE_LAYER_SPACING = 20
+export type Vec3 = [number, number, number]
 
 const computeLayerOffsetMap = (nodes: GraphNode[]): Map<number, number> => {
   const vals: number[] = []
@@ -89,16 +88,13 @@ export function computePositions3d(
 ): Record<string, Vec3> {
   const out: Record<string, Vec3> = {}
   const n = Math.max(1, nodes.length)
-  const cfg = getThreeConfig(schema || undefined)
-  const radiusCfg = typeof cfg.sphereRadius === 'number' ? cfg.sphereRadius : undefined
-  const seedCfg = typeof cfg.seed === 'number' ? cfg.seed : undefined
-  const minSpacingCfg = typeof cfg.minSpacing === 'number' ? cfg.minSpacing : undefined
-  const radiusAuto = Math.max(60, Math.min(140, n * 2.2))
-  const radius = radiusCfg && radiusCfg > 0 ? radiusCfg : radiusAuto
+  const radius = resolveSphereRadius(schema, n)
+  const seedCfg = resolveThreeSeed(schema)
+  const minSpacingCfg = resolveMinSpacing(schema)
   const sphere = fibSphere(n, radius, seedCfg, minSpacingCfg)
   const layerOffsetIndices = computeLayerOffsetIndices(nodes)
   const canRelax = typeof minSpacingCfg === 'number' && Number.isFinite(minSpacingCfg) && minSpacingCfg > 0
-  const nodeIndexById = new Map<string, number>()
+  const layerSpacing = resolveSphereLayerSpacing(schema)
   const relaxNodes: Array<{ vx: number; vy: number; vz: number }> = []
   const relaxGroups: CollisionGroupItem[] = []
 
@@ -120,7 +116,7 @@ export function computePositions3d(
     }
 
     const offsetIndex = Number.isFinite(layerOffsetIndices[i]) ? layerOffsetIndices[i]! : 0
-    const targetR = radius + offsetIndex * THREE_LAYER_SPACING
+    const targetR = radius + offsetIndex * layerSpacing
 
     const seed = readSeedXy(String(node.id || '').trim())
     const nx = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : null
@@ -137,7 +133,6 @@ export function computePositions3d(
     }
     if (canRelax) {
       const id = String(node.id || '').trim()
-      nodeIndexById.set(id, relaxGroups.length)
       relaxNodes.push({ vx: 0, vy: 0, vz: 0 })
       const half = Math.max(1e-6, Number(minSpacingCfg) * 0.5)
       const cur = out[id] || [0, 0, 0]

@@ -570,7 +570,31 @@ graphHoverPreview.showEdgeProperties:
 | Fallback Safety      | Handle missing source gracefully| - [ ] Test fallback to defaults; verify warning logged; forbid build failure               |
 ---
 
-## Repository Health Checklist
+## Graph Physics Settings: 2D (Collision/Repulsion)
+
+**Scope**: MainPanel → Settings; FloatingPanel → Interaction → `Physics 2D`
+
+**Intent**: Centralize and expose safe multipliers for 2D collision/repulsion across nodes, groups, labels, and rich media (as nodes / panels) without code changes.
+
+**Keys (schema-backed)**
+
+- `schema.layout.forces.physics2dChargeScale`
+- `schema.layout.forces.physics2dCollideStrengthScale`
+- `schema.layout.forces.physics2dBboxStrengthScale`
+- `schema.layout.forces.physics2dVelocityDecayBias`
+- `schema.layout.forces.physics2dMaxSpeedScale`
+- `schema.layout.forces.physics2dStrictOverlapScale`
+- `schema.layout.forces.physics2dLabelNudgeScale`
+- `schema.layout.forces.physics2dDragChargeScale`
+- `schema.layout.forces.physics2dDragDistanceMaxPx`
+
+**Implementation anchors**
+- SSOT computations: `canvas/src/lib/graph/physics2dTuning.ts`
+- D3 simulation forces: `canvas/src/components/GraphCanvas/simulation.ts`
+- Strict overlap + label relax + max-speed clamp: `canvas/src/components/GraphCanvas/sceneHandlers.ts`
+- Drag-time force tuning: `canvas/src/components/GraphCanvas/dragForceTuning.ts`
+
+
 
 **Build Health**:
 | Context              | Status | Directive                                                                                   |

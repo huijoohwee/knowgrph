@@ -29,8 +29,10 @@ const readStyleUrl = (): string | null => {
 export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.ReactElement | null {
   const active = props.active !== false
   const geospatialViewMode = useGympgrphStore(s => s.geospatialViewMode)
+  const geospatialAutoFitEnabled = useGympgrphStore(s => s.geospatialAutoFitEnabled)
   const rootRef = React.useRef<HTMLDivElement | null>(null)
   const containerRef = React.useRef<HTMLDivElement | null>(null)
+  const cesiumRootRef = React.useRef<HTMLDivElement | null>(null)
   const [targetStyleUrl, setTargetStyleUrl] = React.useState<string | null>(() => readStyleUrl())
 
   React.useEffect(() => {
@@ -44,8 +46,11 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     }
   }, [])
 
+  const show2d = active && geospatialViewMode !== '3d'
+  const show3d = active && geospatialViewMode === '3d'
+
   const basemap = useMapLibreBasemap({
-    enabled: active,
+    enabled: show2d,
     rootRef,
     containerRef,
     targetStyleUrl,
@@ -66,7 +71,23 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
 
   return (
     <div ref={rootRef} className="relative w-full h-full" style={{ width: '100%', height: '100%' }}>
-      <div ref={containerRef} className="absolute inset-0" style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+      <div
+        ref={containerRef}
+        className={show2d ? 'absolute inset-0 pointer-events-auto opacity-100' : 'absolute inset-0 pointer-events-none opacity-0'}
+        style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+      />
+
+      <div
+        ref={cesiumRootRef}
+        className={show3d ? 'absolute inset-0 pointer-events-auto opacity-100' : 'absolute inset-0 pointer-events-none opacity-0'}
+        style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+      >
+        {show3d ? (
+          <React.Suspense fallback={null}>
+            <CesiumOverlayLazy collections={[]} autoFitEnabled={geospatialAutoFitEnabled} />
+          </React.Suspense>
+        ) : null}
+      </div>
       {debug ? (
         <div className="absolute top-2 right-2 z-20 pointer-events-none rounded-md border border-gray-200/60 bg-white/80 px-2 py-1 text-[11px] text-gray-700 dark:border-gray-800/60 dark:bg-black/60 dark:text-gray-200">
           <div>map: {basemap.map ? 'yes' : 'no'}</div>
@@ -77,11 +98,6 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
             zoom: {basemap.probe.zoom.toFixed(2)} center: {basemap.probe.lng.toFixed(4)},{basemap.probe.lat.toFixed(4)}
           </div>
           {basemap.mapError ? <div className="text-red-700 dark:text-red-300">err: {basemap.mapError}</div> : null}
-        </div>
-      ) : null}
-      {geospatialViewMode === '3d' ? (
-        <div className="absolute top-2 left-2 z-10 pointer-events-none px-2 py-1 rounded-md text-[11px] text-gray-700 dark:text-gray-200 bg-white/80 dark:bg-black/60 border border-gray-200/60 dark:border-gray-800/60">
-          3D geospatial mode is not enabled in this build
         </div>
       ) : null}
       {!debug && basemap.mapError ? (
