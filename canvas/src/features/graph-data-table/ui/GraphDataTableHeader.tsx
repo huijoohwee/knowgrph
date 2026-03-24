@@ -11,22 +11,18 @@ export const FROZEN_DATA_COLUMN_LEFT = '2rem'
 export const FROZEN_RESIZE_TOOLTIP_TEXT = 'Drag to adjust frozen area'
 
 interface FrozenAreaResizeHandleProps {
-  onStartDrag?: (clientX: number) => void
+  onPointerDown?: (event: React.PointerEvent) => void
   panelTypography: PanelTypography
 }
 
-export function FrozenAreaResizeHandle({ onStartDrag, panelTypography }: FrozenAreaResizeHandleProps) {
+export function FrozenAreaResizeHandle({ onPointerDown, panelTypography }: FrozenAreaResizeHandleProps) {
   return (
     <span className="absolute inset-y-0 right-0 flex items-center">
       <button
         type="button"
         className="group relative h-full w-2 cursor-col-resize"
         title={FROZEN_RESIZE_TOOLTIP_TEXT}
-        onMouseDown={event => {
-          event.preventDefault()
-          event.stopPropagation()
-          if (onStartDrag) onStartDrag(event.clientX)
-        }}
+        onPointerDown={onPointerDown}
         aria-label={FROZEN_RESIZE_TOOLTIP_TEXT}
       >
         <span className={`mx-auto h-5 w-3 rounded-full ${UI_THEME_TOKENS.button.activeBg} bg-opacity-70 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100`}>
@@ -64,13 +60,9 @@ interface HeaderCellProps {
   isColumnSelected?: boolean
   onSelectColumn?: (key: GraphDataTableColumnKey) => void
   showFrozenResizeHandle: boolean
-  onStartFrozenAreaDrag?: (clientX: number) => void
+  onFrozenAreaPointerDown?: (event: React.PointerEvent) => void
   width?: number
-  onStartColumnResize?: (payload: {
-    columnKey: GraphDataTableColumnKey
-    clientX: number
-    width: number
-  }) => void
+  onColumnResizePointerDown?: (event: React.PointerEvent, payload: { columnKey: GraphDataTableColumnKey; width: number }) => void
   onRequestAddFilter: (key: GraphDataTableColumnKey) => void
   onRequestGroupBy: (key: GraphDataTableColumnKey | '') => void
   onRequestHideColumn: (key: GraphDataTableColumnKey) => void
@@ -92,9 +84,9 @@ export const HeaderCell = React.memo(function HeaderCell({
   isColumnSelected,
   onSelectColumn,
   showFrozenResizeHandle,
-  onStartFrozenAreaDrag,
+  onFrozenAreaPointerDown,
   width,
-  onStartColumnResize,
+  onColumnResizePointerDown,
   onRequestAddFilter,
   onRequestGroupBy,
   onRequestHideColumn,
@@ -154,11 +146,6 @@ export const HeaderCell = React.memo(function HeaderCell({
           const target = event.target
           if (target instanceof HTMLElement && target.closest('.kg-col-resize')) return
           if (target instanceof HTMLElement && target.closest('summary')) return
-          try {
-            event.currentTarget.setPointerCapture(event.pointerId)
-          } catch {
-            void 0
-          }
           onReorderPointerDown(event, columnKey)
         }}
       >
@@ -264,17 +251,34 @@ export const HeaderCell = React.memo(function HeaderCell({
 
         <span
           className="absolute inset-y-0 right-0 w-1 cursor-col-resize kg-col-resize"
-          onMouseDown={event => {
-            if (!onStartColumnResize || !cellRef.current) return
-            event.preventDefault()
-            event.stopPropagation()
+          onPointerDown={event => {
+            if (!onColumnResizePointerDown || !cellRef.current) return
+            try {
+              event.preventDefault()
+              event.stopPropagation()
+            } catch {
+              void 0
+            }
             const rect = cellRef.current.getBoundingClientRect()
-            onStartColumnResize({ columnKey, clientX: event.clientX, width: rect.width })
+            const width = Math.max(1, Math.round(rect.width))
+            onColumnResizePointerDown(event, { columnKey, width })
           }}
         />
       </div>
       {showFrozenResizeHandle && (
-        <FrozenAreaResizeHandle onStartDrag={onStartFrozenAreaDrag} panelTypography={panelTypography} />
+        <FrozenAreaResizeHandle
+          onPointerDown={event => {
+            if (!onFrozenAreaPointerDown) return
+            try {
+              event.preventDefault()
+              event.stopPropagation()
+            } catch {
+              void 0
+            }
+            onFrozenAreaPointerDown(event)
+          }}
+          panelTypography={panelTypography}
+        />
       )}
     </th>
   )

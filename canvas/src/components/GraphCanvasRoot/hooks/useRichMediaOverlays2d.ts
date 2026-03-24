@@ -69,6 +69,20 @@ export function useRichMediaOverlays2d(args: {
   } = args
 
   const iframeOverlayElsRef = useRef<Map<string, HTMLElement>>(new Map())
+  const [mountedOverlayIdsKey, setMountedOverlayIdsKey] = React.useState<string>('')
+
+  const updateMountedOverlayIdsKey = React.useCallback(() => {
+    try {
+      const ids = Array.from(iframeOverlayElsRef.current.keys())
+        .map(v => String(v || '').trim())
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b))
+        .join('|')
+      setMountedOverlayIdsKey(prev => (prev === ids ? prev : ids))
+    } catch {
+      setMountedOverlayIdsKey('')
+    }
+  }, [])
   const iframeNodeByIdRef = useRef<{ rev: number; sim: unknown | null; map: Map<string, GraphNode> }>({ rev: -1, sim: null, map: new Map() })
   const mediaOverlayScheduleRef = useRef<(() => void) | null>(null)
   const mediaOverlayScheduleRafRef = useRef<number | null>(null)
@@ -277,6 +291,7 @@ export function useRichMediaOverlays2d(args: {
     for (const [id] of refMap) {
       if (!keep.has(id)) refMap.delete(id)
     }
+    updateMountedOverlayIdsKey()
   }, [mediaOverlayNodeIdsKey, mediaOverlayNodes])
 
   const getOverlayRefForId = useCallback(
@@ -288,11 +303,13 @@ export function useRichMediaOverlays2d(args: {
       const fn = (el: HTMLElement | null) => {
         if (!el) {
           iframeOverlayElsRef.current.delete(key)
+          updateMountedOverlayIdsKey()
           return
         }
         const prev = iframeOverlayElsRef.current.get(key)
         if (prev === el) return
         iframeOverlayElsRef.current.set(key, el)
+        updateMountedOverlayIdsKey()
         try {
           applyPanelBox(el, { left: -99999, top: -99999, w: 1, h: 1, display: 'block', zIndex: 1 })
         } catch {
@@ -309,6 +326,12 @@ export function useRichMediaOverlays2d(args: {
     },
     [requestMediaOverlaySchedule],
   )
+
+  const mediaOverlayHideNodeIdSet = React.useMemo(() => {
+    if (!mountedOverlayIdsKey) return undefined
+    const ids = mountedOverlayIdsKey.split('|').map(v => String(v || '').trim()).filter(Boolean)
+    return ids.length ? new Set(ids) : undefined
+  }, [mountedOverlayIdsKey])
 
   useEffect(() => {
     mediaOverlayScheduleRef.current = null
@@ -398,6 +421,7 @@ export function useRichMediaOverlays2d(args: {
   return {
     mediaOverlayNodes,
     mediaOverlayNodeIdSet,
+    mediaOverlayHideNodeIdSet,
     getOverlayRefForId,
     requestMediaOverlaySchedule,
   }

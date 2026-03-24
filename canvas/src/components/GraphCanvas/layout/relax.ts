@@ -1,6 +1,6 @@
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { createBboxCollideForce } from './overlap'
+import { createBboxCollideForce, type NodeHalfExtents } from './overlap'
 import { createGroupBboxCollideForce } from './groupOverlap'
 import { createGroupBboxCollideForceByDepth } from './groupOverlapByDepth'
 
@@ -27,6 +27,7 @@ export function relaxNodesWithCollision(args: {
   defaultSteps: number
   groupKeyOf?: GroupKeyOfNode
   groups?: GraphGroup[]
+  nodeHalfExtentsByNodeId?: Record<string, NodeHalfExtents> | null
 }): void {
   const { nodes, edges, schema } = args
   if (!nodes.length) return
@@ -70,6 +71,7 @@ export function relaxNodesWithCollision(args: {
         touchEpsilonXPx: collision.nodeBbox.touchEpsilonXPx,
         touchEpsilonYPx: collision.nodeBbox.touchEpsilonYPx,
         touchEpsilonZPx: collision.nodeBbox.touchEpsilonZPx,
+        halfExtentsByNodeId: args.nodeHalfExtentsByNodeId || null,
         strength: collision.nodeBbox.strength,
         iterations: collision.nodeBbox.iterations,
       })
@@ -96,6 +98,7 @@ export function relaxNodesWithCollision(args: {
             nestedTouchEpsilonXPx: collision.groupBbox.nestedTouchEpsilonXPx,
             nestedTouchEpsilonYPx: collision.groupBbox.nestedTouchEpsilonYPx,
             nestedTouchEpsilonZPx: collision.groupBbox.nestedTouchEpsilonZPx,
+            halfExtentsByNodeId: args.nodeHalfExtentsByNodeId || null,
             strength: collision.groupBbox.strength,
             iterations: collision.groupBbox.iterations,
           })
@@ -106,6 +109,7 @@ export function relaxNodesWithCollision(args: {
             strength: collision.groupBbox.strength,
             iterations: collision.groupBbox.iterations,
             groupKeyOf,
+            halfExtentsByNodeId: args.nodeHalfExtentsByNodeId || null,
           }))
     : null
   if (groupForce) groupForce.initialize(nodes, rand)

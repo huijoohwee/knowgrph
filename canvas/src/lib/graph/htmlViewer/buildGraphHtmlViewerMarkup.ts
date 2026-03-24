@@ -6,6 +6,9 @@ import { buildHtmlViewerRuntimeScript } from './runtimeScript'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
 import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
+import { extractNodePosByIdFromSvgMarkup } from '@/lib/graph/svgNodePos'
+import { ensureSvgHasEdgeGeometry } from '@/lib/graph/svgEdgeGeometry'
+import { deriveMarkdownDesignLayoutFromGraphBlocks } from '@/features/markdown-edgeless/markdownDesignLayout'
 import {
   decodeRepoFileUrlToRelPath,
   inlineRepoFileUrlToDataUrl,
@@ -89,6 +92,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
   zoomStrokeScaleClampMin2d?: number
   zoomStrokeScaleClampMax2d?: number
   hideLabelsBelowScale?: number
+  overlayHtml?: string
 }): Promise<string | null> {
   try {
     ensureKgTokensInstalled()
@@ -99,6 +103,55 @@ export async function buildGraphHtmlViewerMarkup(args: {
   const title = String(args.title || '').trim() || 'Graph viewer'
   const svgMarkupRaw = String(args.svgMarkup || '').trim()
 
+  const initialView =
+    args.initialView && isFiniteNum(args.initialView.k) && isFiniteNum(args.initialView.x) && isFiniteNum(args.initialView.y)
+      ? args.initialView
+      : null
+  const fixedViewport =
+    isFiniteNum(args.viewportWidthPx) && isFiniteNum(args.viewportHeightPx)
+      ? { w: Math.max(1, Math.floor(args.viewportWidthPx)), h: Math.max(1, Math.floor(args.viewportHeightPx)) }
+      : null
+
+  const preferredOverlayNodeIds = (() => {
+    if (!initialView) return []
+    const graph = args.graphData
+    const nodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
+    if (nodes.length === 0) return []
+
+    const nodePosById: Record<string, { x: number; y: number }> = {}
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const id = String(n?.id || '').trim()
+      if (!id) continue
+      const x = (n as unknown as { x?: unknown }).x
+      const y = (n as unknown as { y?: unknown }).y
+      if (!isFiniteNum(x) || !isFiniteNum(y)) continue
+      nodePosById[id] = { x, y }
+    }
+    const fromSvg = extractNodePosByIdFromSvgMarkup(svgMarkupRaw)
+    for (const id of Object.keys(fromSvg)) nodePosById[id] = fromSvg[id]!
+
+    const vpW = fixedViewport ? fixedViewport.w : 1920
+    const vpH = fixedViewport ? fixedViewport.h : 1080
+    const pad = 800
+    const k = Math.max(0.00001, Number(initialView.k))
+    const tx = Number(initialView.x)
+    const ty = Number(initialView.y)
+
+    const out: string[] = []
+    for (const id of Object.keys(nodePosById)) {
+      const p = nodePosById[id]
+      if (!p) continue
+      const sx = p.x * k + tx
+      const sy = p.y * k + ty
+      if (sx < -pad || sx > vpW + pad) continue
+      if (sy < -pad || sy > vpH + pad) continue
+      out.push(id)
+      if (out.length >= 800) break
+    }
+    return out
+  })()
+
   const hasSvg = !!svgMarkupRaw
   if (!hasSvg) return null
 
@@ -106,7 +159,10 @@ export async function buildGraphHtmlViewerMarkup(args: {
   const panelBg = resolveCssVarWithKgFallback('--kg-panel-bg') || 'rgba(255,255,255,0.92)'
   const border = resolveCssVarWithKgFallback('--kg-border') || 'rgba(0,0,0,0.12)'
   const text = resolveCssVarWithKgFallback('--kg-text-primary') || 'rgba(0,0,0,0.86)'
+  const textSecondary = resolveCssVarWithKgFallback('--kg-text-secondary') || 'rgba(0,0,0,0.7)'
   const textTertiary = resolveCssVarWithKgFallback('--kg-text-tertiary') || 'rgba(0,0,0,0.55)'
+  const panelActionBg = resolveCssVarWithKgFallback('--kg-panel-action-bg') || 'rgba(0,0,0,0.04)'
+  const panelActionBgHover = resolveCssVarWithKgFallback('--kg-panel-action-bg-hover') || 'rgba(0,0,0,0.06)'
 
   const canvasEdgeStroke = resolveCssVarWithKgFallback('--kg-canvas-edge-stroke') || '#9ca3af'
   const canvasNodeStroke = resolveCssVarWithKgFallback('--kg-canvas-node-stroke') || '#ffffff'
@@ -121,6 +177,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
   const mediaPanelRadius = density === 'compact' ? 9 : 10
   const mediaPanelPadding = density === 'compact' ? 6 : 8
   const mediaPanelTitleSize = density === 'compact' ? 11 : 12
+  const mediaPanelHeaderGap = 8
   const widthRatioDefault = isFiniteNum(args.threeIframeOverlayBaseWidthRatioDefault)
     ? Math.max(0.001, args.threeIframeOverlayBaseWidthRatioDefault)
     : 0.2
@@ -145,8 +202,8 @@ export async function buildGraphHtmlViewerMarkup(args: {
     const graph = args.graphData
     const nodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
     const poolMaxRaw = isFiniteNum(args.mediaOverlayPoolMax) ? Math.max(0, Math.floor(args.mediaOverlayPoolMax)) : 0
-    const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
-    return listMediaOverlayNodes({ enabled: true, nodes, poolMax })
+    const poolMax = poolMaxRaw > 0 ? poolMaxRaw : Math.min(2000, Math.max(24, nodes.length))
+    return listMediaOverlayNodes({ enabled: true, nodes, poolMax, preferredNodeIds: preferredOverlayNodeIds })
   })()
 
   const inlineRepoFileMedia = async (nodes: HtmlViewerMediaNode[]): Promise<HtmlViewerMediaNode[]> => {
@@ -191,6 +248,28 @@ export async function buildGraphHtmlViewerMarkup(args: {
     return JSON.stringify(out)
   })()
 
+  const nodeIdNormalizer = (() => {
+    const graph = args.graphData
+    const nodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
+    const nodeIdSet = new Set<string>()
+    const nodeIdBySuffix: Record<string, string> = {}
+    for (let i = 0; i < nodes.length; i += 1) {
+      const rawId = String(nodes[i]?.id || '').trim()
+      if (!rawId) continue
+      nodeIdSet.add(rawId)
+      const suffix = rawId.split('::').pop() || ''
+      if (suffix && !nodeIdBySuffix[suffix]) nodeIdBySuffix[suffix] = rawId
+    }
+    return (raw: string): string => {
+      const id = String(raw || '').trim()
+      if (!id) return ''
+      if (nodeIdSet.has(id)) return id
+      const suffix = id.split('::').pop() || ''
+      if (!suffix) return id
+      return nodeIdBySuffix[suffix] || id
+    }
+  })()
+
   const edgeMetaByIdJson = (() => {
     const out: Record<string, { label: string; s: string; t: string }> = {}
     const graph = args.graphData
@@ -200,8 +279,10 @@ export async function buildGraphHtmlViewerMarkup(args: {
       const id = String(e?.id || '').trim()
       if (!id) continue
       const label = String((e as unknown as { label?: unknown }).label || '').trim()
-      const s = String((e as unknown as { source?: unknown }).source || '').trim()
-      const t = String((e as unknown as { target?: unknown }).target || '').trim()
+      const s0 = String((e as unknown as { source?: unknown }).source || '').trim()
+      const t0 = String((e as unknown as { target?: unknown }).target || '').trim()
+      const s = nodeIdNormalizer(s0)
+      const t = nodeIdNormalizer(t0)
       out[id] = { label: label || '', s, t }
     }
     return JSON.stringify(out)
@@ -266,7 +347,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
     return JSON.stringify(out)
   })()
 
-  const nodePosByIdJson = (() => {
+  const nodePosByIdObj = (() => {
     const graph = args.graphData
     const nodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
     const out: Record<string, { x: number; y: number }> = {}
@@ -279,8 +360,29 @@ export async function buildGraphHtmlViewerMarkup(args: {
       if (!isFiniteNum(x) || !isFiniteNum(y)) continue
       out[id] = { x, y }
     }
-    return JSON.stringify(out)
+    const fromSvg = extractNodePosByIdFromSvgMarkup(svgMarkupRaw)
+    for (const id of Object.keys(fromSvg)) out[id] = fromSvg[id]!
+    return out
   })()
+  const nodePosByIdJson = JSON.stringify(nodePosByIdObj)
+
+  const markdownBlocksJson = (() => {
+    try {
+      const graph = args.graphData
+      if (!graph) return '[]'
+      const layout = deriveMarkdownDesignLayoutFromGraphBlocks({ graphData: graph, nodePosById: nodePosByIdObj })
+      const blocks = layout && Array.isArray(layout.blocks) ? layout.blocks : []
+      return JSON.stringify(blocks)
+    } catch {
+      return '[]'
+    }
+  })()
+
+  const svgMarkupWithEdgeGeometry = ensureSvgHasEdgeGeometry({
+    svgMarkup: svgMarkupRaw,
+    graphData: args.graphData || ({ nodes: [], edges: [] } as any),
+    nodePosById: nodePosByIdObj,
+  })
 
   const interactionCfgJson = JSON.stringify({
     scaleExtent: safeScaleExtent({ minK: args.zoomMinK, maxK: args.zoomMaxK }),
@@ -302,11 +404,8 @@ export async function buildGraphHtmlViewerMarkup(args: {
     allowEdgeDrag: args.allowEdgeDrag !== false,
     allowGroupDrag: args.allowGroupDrag !== false,
     preferWebgl3d: args.preferWebgl3d === true,
-    initialView: args.initialView || null,
-    fixedViewport:
-      isFiniteNum(args.viewportWidthPx) && isFiniteNum(args.viewportHeightPx)
-        ? { widthPx: Math.max(1, Math.floor(args.viewportWidthPx)), heightPx: Math.max(1, Math.floor(args.viewportHeightPx)), scaleToFit: args.viewportScaleToFit === true }
-        : null,
+    initialView: initialView || null,
+    fixedViewport: fixedViewport ? { widthPx: fixedViewport.w, heightPx: fixedViewport.h, scaleToFit: args.viewportScaleToFit === true } : null,
     enableDecorativeAnimation: args.enableDecorativeAnimation === true,
     zoomLabelScaleMode2d: args.zoomLabelScaleMode2d,
     zoomLabelScaleExponent2d: args.zoomLabelScaleExponent2d,
@@ -332,10 +431,11 @@ export async function buildGraphHtmlViewerMarkup(args: {
     }
   })()
 
-  const svgPlaceholder = svgMarkupRaw
+  const svgPlaceholder = svgMarkupWithEdgeGeometry
   const runtimeScript = buildHtmlViewerRuntimeScript({
     interactionCfgJson,
     mediaNodesJson,
+    markdownBlocksJson,
     nodeLabelByIdJson,
     edgeMetaByIdJson,
     frontmatterVisibilityJson,
@@ -353,6 +453,8 @@ export async function buildGraphHtmlViewerMarkup(args: {
 
   const fontFamily = tryReadCssVar('--kg-font-family', 'ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial')
 
+  const overlayHtml = String(args.overlayHtml || '')
+
   const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -363,9 +465,14 @@ export async function buildGraphHtmlViewerMarkup(args: {
     :root{
       --kg-canvas-bg:${escapeHtml(canvasBg)};
       --kg-panel-bg:${escapeHtml(panelBg)};
+      --kg-media-panel-bg:${escapeHtml(panelBg)};
       --kg-border:${escapeHtml(border)};
       --kg-text:${escapeHtml(text)};
+      --kg-text-primary:${escapeHtml(text)};
+      --kg-text-secondary:${escapeHtml(textSecondary)};
       --kg-text-tertiary:${escapeHtml(textTertiary)};
+      --kg-panel-action-bg:${escapeHtml(panelActionBg)};
+      --kg-panel-action-bg-hover:${escapeHtml(panelActionBgHover)};
       --kg-canvas-edge-stroke:${escapeHtml(canvasEdgeStroke)};
       --kg-canvas-node-stroke:${escapeHtml(canvasNodeStroke)};
       --kg-canvas-accent:${escapeHtml(canvasAccent)};
@@ -377,34 +484,54 @@ export async function buildGraphHtmlViewerMarkup(args: {
       --kg-media-panel-radius:${mediaPanelRadius}px;
       --kg-media-panel-padding:${mediaPanelPadding}px;
       --kg-media-panel-title-size:${mediaPanelTitleSize}px;
-      --kg-media-pointer-events:none;
+      --kg-media-panel-header-gap:${mediaPanelHeaderGap}px;
+      --kg-media-pointer-events:auto;
     }
     html,body{height:100%;width:100%;margin:0;background:var(--kg-canvas-bg);color:var(--kg-text);font-family:${escapeHtml(fontFamily)};-webkit-user-select:none;user-select:none;-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior:none}
     #kg-root{position:fixed;inset:0;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;cursor:grab;overscroll-behavior:none}
     #kg-root.kg-dragging{cursor:grabbing}
     #kg-root.kg-fixedViewport{inset:auto;left:50%;top:50%;width:var(--kg-fixed-w,1920px);height:var(--kg-fixed-h,1080px);transform:translate(-50%,-50%) scale(var(--kg-fixed-scale,1));transform-origin:center}
     #kg-root *{-webkit-user-select:none;user-select:none}
-    #kg-stage{position:fixed;inset:0}
-    #kg-webgl{position:fixed;inset:0;width:100%;height:100%;display:none;touch-action:none;outline:none}
+    #kg-stage{position:absolute;inset:0}
+    #kg-webgl{position:absolute;inset:0;width:100%;height:100%;display:none;touch-action:none;outline:none}
     #kg-root.kg-canvas3d #kg-webgl{display:block}
     #kg-root.kg-canvas3d #kg-svgWrap{display:none}
-    #kg-svgWrap{position:fixed;inset:0}
-    #kg-root.kg-fixedViewport #kg-stage{position:absolute;inset:0}
-    #kg-root.kg-fixedViewport #kg-svgWrap{position:absolute;inset:0}
+    #kg-svgWrap{position:absolute;inset:0}
     #kg-svgWrap svg{display:block;width:100%;height:100%;overflow:visible;shape-rendering:geometricPrecision;text-rendering:geometricPrecision}
     #kg-svgWrap text{user-select:none;-webkit-user-select:none}
+    #kg-svgWrap [data-kg-layer="markdown-design-blocks"]{display:block}
     #kg-overlay{position:fixed;inset:0;pointer-events:none}
-    #kg-root.kg-fixedViewport #kg-overlay{position:absolute;inset:0}
-    .kg-media{position:absolute;left:0;top:0;display:flex;flex-direction:column;pointer-events:auto;background:var(--kg-panel-bg);border:var(--kg-media-panel-border-w) solid var(--kg-border);border-radius:var(--kg-media-panel-radius);box-shadow:0 10px 30px rgba(0,0,0,.12);overflow:hidden;box-sizing:border-box}
-    .kg-mediaHeader{height:var(--kg-media-panel-header-h);display:flex;align-items:center;gap:8px;padding:0 10px;background:rgba(0,0,0,0.04);border-bottom:var(--kg-media-panel-border-w) solid var(--kg-border);cursor:grab;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none;pointer-events:auto}
-    .kg-mediaTitle{font-size:var(--kg-media-panel-title-size);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--kg-text-tertiary);pointer-events:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-    .kg-mediaBody{position:relative;flex:1;padding:var(--kg-media-panel-padding);box-sizing:border-box}
+    .kg-media{position:absolute;left:0;top:0;box-sizing:border-box;overflow:hidden;contain:layout paint;isolation:isolate;border-radius:var(--kg-media-panel-radius, 10px);border:var(--kg-media-panel-border-w, 1px) solid var(--kg-border);background:var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.92)));box-shadow:0 10px 30px rgba(0,0,0,0.18);backface-visibility:hidden;-webkit-backface-visibility:hidden;will-change:left, top, transform, width, height;display:flex;flex-direction:column;pointer-events:auto}
+    .kg-mediaHeader{height:var(--kg-media-panel-header-h, 28px);min-height:var(--kg-media-panel-header-h, 28px);box-sizing:border-box;display:flex;align-items:flex-start;justify-content:space-between;gap:var(--kg-media-panel-header-gap, 6px);padding-left:var(--kg-media-panel-padding, 6px);padding-right:var(--kg-media-panel-padding, 6px);padding-top:2px;padding-bottom:2px;background:var(--kg-media-panel-header-bg, var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.96))));color:var(--kg-text-primary, var(--kg-text));font-size:var(--kg-media-panel-title-size, 12px);font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;pointer-events:auto;cursor:grab;touch-action:none}
+    .kg-mediaTitle{margin:0;min-width:0;font-size:var(--kg-media-panel-title-size, 12px);font-weight:600;line-height:1.25;color:var(--kg-text-primary, var(--kg-text));white-space:nowrap;text-overflow:ellipsis;overflow:hidden;pointer-events:none}
+    .kg-mediaActions{margin:0;padding:0;list-style:none;display:flex;align-items:center;gap:4px;pointer-events:auto}
+    .kg-mediaActionBtn{width:calc(var(--kg-media-panel-header-h, 28px) - 6px);height:calc(var(--kg-media-panel-header-h, 28px) - 6px);min-width:calc(var(--kg-media-panel-header-h, 28px) - 6px);min-height:calc(var(--kg-media-panel-header-h, 28px) - 6px);border-radius:6px;color:var(--kg-text-secondary);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto}
+    button[data-kg-panel-action="1"]{background:var(--kg-panel-action-bg);border:1px solid var(--kg-border);transition:transform 140ms ease, box-shadow 140ms ease, background 140ms ease;touch-action:manipulation}
+    button[data-kg-panel-action="1"]:hover{background:var(--kg-panel-action-bg-hover)}
+    button[data-kg-panel-action="1"]:active{transform:translateY(1px)}
+    .kg-mediaBody{flex:1;padding:var(--kg-media-panel-padding, 6px);box-sizing:border-box;min-height:0;position:relative}
     .kg-mediaBody iframe,.kg-mediaBody img,.kg-mediaBody video{display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius) * 0.8);background:rgba(0,0,0,0.02);pointer-events:var(--kg-media-pointer-events);box-sizing:border-box}
-    #kg-hud{position:fixed;left:max(12px, env(safe-area-inset-left));top:max(12px, env(safe-area-inset-top));display:flex;gap:8px;flex-wrap:wrap;align-items:center;z-index:1000;max-width:calc(100vw - 24px)}
-    #kg-root.kg-fixedViewport #kg-hud{position:absolute;left:max(12px, env(safe-area-inset-left));top:max(12px, env(safe-area-inset-top))}
+    .kg-mediaSnap{position:absolute;inset:var(--kg-media-panel-padding, 6px);border-radius:calc(var(--kg-media-panel-radius) * 0.8);overflow:hidden;background:linear-gradient(135deg, rgba(15,23,42,0.06), rgba(148,163,184,0.10));border:1px solid rgba(0,0,0,0.06);display:flex;align-items:stretch;justify-content:stretch;pointer-events:none}
+    .kg-mediaSnapImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(1.05) contrast(1.02);opacity:0;transition:opacity 220ms ease}
+    .kg-mediaSnapMeta{position:absolute;left:0;right:0;bottom:0;padding:10px 10px 9px;background:linear-gradient(180deg, rgba(15,23,42,0), rgba(15,23,42,0.66));color:#fff;display:flex;flex-direction:column;gap:2px}
+    .kg-mediaSnapTitle{font-size:12px;line-height:1.25;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .kg-mediaSnapHost{font-size:11px;line-height:1.25;opacity:0.84;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .kg-md{position:absolute;left:0;top:0;display:flex;flex-direction:column;pointer-events:none;background:var(--kg-panel-bg);border:var(--kg-media-panel-border-w) solid var(--kg-border);border-radius:var(--kg-media-panel-radius);box-shadow:0 10px 30px rgba(0,0,0,.12);overflow:hidden;box-sizing:border-box}
+    .kg-mdHeader{height:var(--kg-media-panel-header-h);display:flex;align-items:center;gap:8px;padding:0 10px;background:rgba(0,0,0,0.04);border-bottom:var(--kg-media-panel-border-w) solid var(--kg-border)}
+    .kg-mdTitle{font-size:var(--kg-media-panel-title-size);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--kg-text-tertiary)}
+    .kg-mdBody{position:relative;flex:1;padding:var(--kg-media-panel-padding);box-sizing:border-box}
+    .kg-mdTable{width:100%;border-collapse:collapse;font-size:11px;line-height:1.25;color:var(--kg-text)}
+    .kg-mdTable th{ text-align:left; border:1px solid var(--kg-border); padding:2px 4px; background:rgba(0,0,0,0.04); font-weight:600 }
+    .kg-mdTable td{ border:1px solid var(--kg-border); padding:2px 4px; vertical-align:top }
+    .kg-mdCode{margin:0;padding:6px;border-radius:8px;background:rgba(0,0,0,0.06);font-size:11px;line-height:1.35;overflow:hidden;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;white-space:pre;color:var(--kg-text)}
+    .kg-mdQuote{border-left:3px solid var(--kg-border);padding-left:8px;color:var(--kg-text);font-size:12px;line-height:1.35;white-space:pre-wrap}
+    .kg-mdText{font-size:12px;line-height:1.35;color:var(--kg-text);white-space:pre-wrap}
+    .kg-mdCallout{border-left:3px solid var(--kg-canvas-accent);padding-left:8px;color:var(--kg-text);font-size:12px;line-height:1.35}
+    .kg-mdCalloutTitle{font-weight:700;margin-bottom:4px}
+    #kg-hud{position:absolute;left:max(12px, env(safe-area-inset-left));top:max(12px, env(safe-area-inset-top));display:flex;gap:8px;flex-wrap:wrap;align-items:center;z-index:1000;max-width:calc(100vw - 24px)}
     .kg-btn{border:1px solid var(--kg-border);background:var(--kg-panel-bg);color:var(--kg-text);border-radius:10px;padding:8px 10px;font-size:12px;cursor:pointer;min-width:32px;min-height:32px;line-height:1.2}
     .kg-btn.kg-active{outline:2px solid rgba(59,130,246,0.6);outline-offset:0}
-    .kg-tip{position:fixed;left:0;top:0;transform:translate3d(-99999px,-99999px,0);max-width:min(420px,calc(100vw - 24px));padding:8px 10px;border-radius:12px;background:rgba(17,24,39,.9);color:#fff;font-size:12px;line-height:1.25;pointer-events:none;z-index:9999;backdrop-filter: blur(10px);-webkit-backdrop-filter: blur(10px);border:1px solid rgba(255,255,255,0.08)}
+    .kg-tip{position:absolute;left:0;top:0;transform:translate3d(-99999px,-99999px,0);max-width:min(420px,calc(100vw - 24px));padding:8px 10px;border-radius:12px;background:rgba(17,24,39,.9);color:#fff;font-size:12px;line-height:1.25;pointer-events:none;z-index:9999;backdrop-filter: blur(10px);-webkit-backdrop-filter: blur(10px);border:1px solid rgba(255,255,255,0.08)}
     .kg-tip strong{font-weight:600}
     @media (max-width:520px){.kg-btn{padding:10px 12px;font-size:14px;border-radius:12px;min-width:40px;min-height:40px}}
     @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
@@ -417,42 +544,13 @@ export async function buildGraphHtmlViewerMarkup(args: {
       <canvas id="kg-webgl" aria-label="3D canvas" tabindex="-1"></canvas>
       <div id="kg-svgWrap">${svgPlaceholder}</div>
     </div>
-    <div id="kg-overlay"></div>
+    <div id="kg-overlay">${overlayHtml}</div>
     <div id="kg-hud" data-kg-canvas-wheel-ignore="true" data-kg-canvas-pointer-ignore="true">
       <button class="kg-btn" id="kg-fit" type="button">Fit</button>
       <button class="kg-btn" id="kg-reset" type="button">Reset</button>
-      <button class="kg-btn" id="kg-3d-toggle" type="button" title="Toggle 3D (3)">3D</button>
-      <button class="kg-btn" id="kg-rich-toggle" type="button" title="Toggle rich media overlays (R)">Rich</button>
-      <button class="kg-btn" id="kg-media-toggle" type="button" title="Toggle media interaction (I)">Media</button>
-      <button class="kg-btn" id="kg-frontmatter-toggle" type="button" title="Toggle frontmatter mode (F)">FM</button>
     </div>
   </div>
   <div id="kg-tooltip" class="kg-tip" aria-hidden="true"></div>
-  <script type="module">
-  (function(){
-    try {
-      if (window.__kgThreeReady) return;
-      window.__kgThreeReady = (async function(){
-        try {
-          var THREE = await import('https://unpkg.com/three@0.170.0/build/three.module.js');
-          var OrbitControlsMod = await import('https://unpkg.com/three@0.170.0/examples/jsm/controls/OrbitControls.js');
-          var Lines2 = await import('https://unpkg.com/three@0.170.0/examples/jsm/lines/Line2.js');
-          var LinesGeom = await import('https://unpkg.com/three@0.170.0/examples/jsm/lines/LineSegmentsGeometry.js');
-          var LinesMat = await import('https://unpkg.com/three@0.170.0/examples/jsm/lines/LineMaterial.js');
-          return {
-            THREE: THREE,
-            OrbitControls: OrbitControlsMod && OrbitControlsMod.OrbitControls ? OrbitControlsMod.OrbitControls : null,
-            Line2: Lines2 && Lines2.Line2 ? Lines2.Line2 : null,
-            LineSegmentsGeometry: LinesGeom && LinesGeom.LineSegmentsGeometry ? LinesGeom.LineSegmentsGeometry : null,
-            LineMaterial: LinesMat && LinesMat.LineMaterial ? LinesMat.LineMaterial : null,
-          };
-        } catch (e) {
-          return null;
-        }
-      })();
-    } catch (e) {}
-  })();
-  </script>
   <script>
 ${runtimeScript}
   </script>

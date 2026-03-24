@@ -54,13 +54,14 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
   const activeDocumentPath = String(markdownDocumentName || '').trim() || 'markdown'
   const markdownText = String(markdownDocumentText || '')
 
-  const markdownTokensKey = React.useMemo(() => (markdownText ? buildMarkdownTokensKey(markdownText) : null), [markdownText])
-  const lexed = React.useMemo(() => (markdownText ? lexMarkdown(markdownText) : { tokens: [] as any[] }), [markdownText])
+  const deferredMarkdownText = React.useDeferredValue(markdownText)
+  const markdownTokensKey = React.useMemo(() => (deferredMarkdownText ? buildMarkdownTokensKey(deferredMarkdownText) : null), [deferredMarkdownText])
+  const lexed = React.useMemo(() => (deferredMarkdownText ? lexMarkdown(deferredMarkdownText) : { tokens: [] as any[] }), [deferredMarkdownText])
   const layout = React.useMemo(() => {
     if (props.layoutOverride) return props.layoutOverride
-    if (!markdownText) return null
+    if (!deferredMarkdownText) return null
     return deriveMarkdownDesignLayout({ activeDocumentPath, markdownTokensKey, tokens: lexed.tokens as never })
-  }, [activeDocumentPath, lexed.tokens, markdownText, markdownTokensKey, props.layoutOverride])
+  }, [activeDocumentPath, lexed.tokens, deferredMarkdownText, markdownTokensKey, props.layoutOverride])
 
   const lastLayoutRef = React.useRef<MarkdownDesignLayout | null>(layout)
   React.useEffect(() => {
@@ -310,6 +311,35 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
 
   const [drag, setDrag] = React.useState<null | { pointerId: number; blockId: string }>(null)
   const dragging = drag != null
+
+  React.useEffect(() => {
+    if (!dragging) return
+    const end = () => {
+      try {
+        unlockGlobalUserSelect()
+      } catch {
+        void 0
+      }
+      setDrag(null)
+    }
+    const onVisibility = () => {
+      try {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') end()
+      } catch {
+        void 0
+      }
+    }
+    window.addEventListener('pointerup', end, { capture: true })
+    window.addEventListener('pointercancel', end, { capture: true })
+    window.addEventListener('blur', end)
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('pointerup', end, { capture: true } as AddEventListenerOptions)
+      window.removeEventListener('pointercancel', end, { capture: true } as AddEventListenerOptions)
+      window.removeEventListener('blur', end)
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [dragging])
 
   const viewportRef = React.useRef<{ w: number; h: number }>({ w: 1, h: 1 })
   React.useEffect(() => {
@@ -591,7 +621,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
             position: 'absolute',
             inset: 0,
             zIndex: 1,
-            pointerEvents: 'auto',
+            pointerEvents: 'none',
             borderRadius: `${maskBorderRadiusPx}px`,
           }}
           aria-hidden="true"

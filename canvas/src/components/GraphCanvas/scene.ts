@@ -40,6 +40,7 @@ import {
   hasGraphCanvasUserInteracted,
   resetGraphCanvasUserInteracted,
 } from '@/components/GraphCanvas/userInteractionFlag'
+import { computeOverlayHalfExtentsByNodeId2d } from '@/lib/render/overlayHalfExtentsByNodeId2d'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
@@ -406,6 +407,23 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     })
   }
 
+  const overlayHalfExtentsByNodeId = computeOverlayHalfExtentsByNodeId2d({
+    nodes: displayNodes,
+    panelOnlyNodeIdSet: panelOnlyNodeIdSet || null,
+    mediaOverlayNodeIdSet: mediaOverlayNodeIdSet || null,
+    viewportW: Math.max(1, Math.floor(width)),
+    zoomK: typeof initialZoomTransform?.k === 'number' && Number.isFinite(initialZoomTransform.k) ? Math.max(0.001, initialZoomTransform.k) : 1,
+    mediaPanelDensity,
+    overlaySizing: {
+      overlayBaseWidthRatioDefault,
+      overlayBaseWidthRatioCompact,
+      overlayBaseWidthMinPxDefault,
+      overlayBaseWidthMinPxCompact,
+      overlayBaseWidthMaxPxDefault,
+      overlayBaseWidthMaxPxCompact,
+    },
+  })
+
   const effectiveSkipInitialLayout = (() => {
     if (isMermaidLayout) return true
     if (!skipInitialLayout) return false
@@ -417,6 +435,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     groupKeyOf,
     groupsForBboxCollide: args.groupsForBboxCollide,
     treatKeywordGraphAsDocument: isKeywordGraph,
+    nodeHalfExtentsByNodeId: overlayHalfExtentsByNodeId,
   })
   simulationRef.current = simulation
 
@@ -477,6 +496,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       defaultSteps: (args.groupsForBboxCollide || []).length > 0 ? 18 : 12,
       groupKeyOf,
       groups: args.groupsForBboxCollide,
+      nodeHalfExtentsByNodeId: overlayHalfExtentsByNodeId,
     })
 
     for (let i = 0; i < displayNodes.length; i += 1) {

@@ -159,8 +159,12 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null)
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null)
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null)
+  const draggedNodeIdRef = React.useRef<string | null>(null)
   const hoverClearTimerRef = useRef<number | null>(null)
   const theme = useThemeDetector()
+  useEffect(() => {
+    draggedNodeIdRef.current = draggedNodeId
+  }, [draggedNodeId])
   useEffect(() => {
     if (!hoverEnabled) {
       setHoverInfo(null)
@@ -800,6 +804,54 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
       setOverlayPointerOverride(false)
     }
   }, [active])
+
+  useEffect(() => {
+    const clearStaleOverlayDragState = () => {
+      const header = overlayHeaderDrag3dRef.current
+      if (header) {
+        try {
+          delete dragOverridesRef.current[header.id]
+        } catch {
+          void 0
+        }
+        overlayHeaderDrag3dRef.current = null
+      }
+      if (overlayPan3dRef.current) overlayPan3dRef.current = null
+      if (draggedNodeIdRef.current != null) setDraggedNodeId(null)
+    }
+    const onAnyEnd = () => {
+      if (!overlayHeaderDrag3dRef.current && !overlayPan3dRef.current && draggedNodeIdRef.current == null) return
+      clearStaleOverlayDragState()
+    }
+    const onVisibility = () => {
+      try {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') onAnyEnd()
+      } catch {
+        void 0
+      }
+    }
+    window.addEventListener('pointerup', onAnyEnd, { capture: true })
+    window.addEventListener('pointercancel', onAnyEnd, { capture: true })
+    window.addEventListener('pointerdown', onAnyEnd, { capture: true })
+    window.addEventListener('blur', onAnyEnd)
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
+    const watchdog = window.setInterval(() => {
+      onAnyEnd()
+    }, 12000) as unknown as number
+    return () => {
+      window.removeEventListener('pointerup', onAnyEnd, { capture: true } as AddEventListenerOptions)
+      window.removeEventListener('pointercancel', onAnyEnd, { capture: true } as AddEventListenerOptions)
+      window.removeEventListener('pointerdown', onAnyEnd, { capture: true } as AddEventListenerOptions)
+      window.removeEventListener('blur', onAnyEnd)
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
+      try {
+        window.clearInterval(watchdog)
+      } catch {
+        void 0
+      }
+      clearStaleOverlayDragState()
+    }
+  }, [])
 
   const stopEvent = useCallback((event: React.SyntheticEvent) => {
     try {

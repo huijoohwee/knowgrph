@@ -8,6 +8,7 @@ export type SourceLayerInput = {
   source?: { kind: 'url' | 'local'; url?: string; path?: string }
   text?: string
   parsedTextHash?: string
+  parsedGraphRevision?: number
   parsedGraphData?: GraphData
 }
 
@@ -41,22 +42,24 @@ export function buildSourceLayerKeys(layers: SourceLayerInput[]): { contentKey: 
     id: String(l.id || '').trim(),
     included: Boolean(l.enabled && l.parsedGraphData),
     hash: computeTextHash(l),
+    rev: typeof l.parsedGraphRevision === 'number' ? l.parsedGraphRevision : 0,
   }))
   const contentKey = normalized
     .slice()
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    .map(l => `${l.id}:${l.included ? '1' : '0'}:${l.hash}`)
+    .map(l => `${l.id}:${l.included ? '1' : '0'}:${l.hash}:r${l.rev}`)
     .join('|')
-  const orderKey = normalized.map(l => `${l.id}:${l.included ? '1' : '0'}:${l.hash}`).join('|')
+  const orderKey = normalized.map(l => `${l.id}:${l.included ? '1' : '0'}:${l.hash}:r${l.rev}`).join('|')
   return { contentKey, orderKey }
 }
 
 export function composeGraphFromSourceLayers(args: {
   layers: SourceLayerInput[]
   fallbackType?: string
+  precomputedKeys?: { contentKey: string; orderKey: string }
 }): { graphData: GraphData; contentKey: string; orderKey: string } {
   const layers = args.layers || []
-  const { contentKey, orderKey } = buildSourceLayerKeys(layers)
+  const { contentKey, orderKey } = args.precomputedKeys || buildSourceLayerKeys(layers)
   const enabledParsed = layers.filter(l => l.enabled && l.parsedGraphData)
 
   const base = enabledParsed[0]?.parsedGraphData || null

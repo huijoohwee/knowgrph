@@ -125,6 +125,50 @@ export function GroupOverlays3d(args: {
   const dragStateRef = React.useRef<null | { groupId: string; start: { x: number; y: number; w: number; h: number }; startWorld: { x: number; y: number }; minW: number; minH: number }>(null)
   const transientBoundsRef = React.useRef<Map<string, { x: number; y: number; w: number; h: number }>>(new Map())
 
+  React.useEffect(() => {
+    const commitAndClearActiveResize = () => {
+      const st = dragStateRef.current
+      if (!st) return
+      const id = String(st.groupId || '').trim()
+      const b = id ? transientBoundsRef.current.get(id) || null : null
+      dragStateRef.current = null
+      if (id) transientBoundsRef.current.delete(id)
+      if (!id || !b) return
+      commitGroupBoundsOverrideToStore(id, { x: b.x, y: b.y, width: b.w, height: b.h })
+    }
+    const onAnyEnd = () => {
+      commitAndClearActiveResize()
+    }
+    const onVisibility = () => {
+      try {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') onAnyEnd()
+      } catch {
+        void 0
+      }
+    }
+    window.addEventListener('pointerup', onAnyEnd, { capture: true })
+    window.addEventListener('pointercancel', onAnyEnd, { capture: true })
+    window.addEventListener('pointerdown', onAnyEnd, { capture: true })
+    window.addEventListener('blur', onAnyEnd)
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
+    const watchdog = window.setInterval(() => {
+      onAnyEnd()
+    }, 12000) as unknown as number
+    return () => {
+      window.removeEventListener('pointerup', onAnyEnd, { capture: true } as AddEventListenerOptions)
+      window.removeEventListener('pointercancel', onAnyEnd, { capture: true } as AddEventListenerOptions)
+      window.removeEventListener('pointerdown', onAnyEnd, { capture: true } as AddEventListenerOptions)
+      window.removeEventListener('blur', onAnyEnd)
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
+      try {
+        window.clearInterval(watchdog)
+      } catch {
+        void 0
+      }
+      commitAndClearActiveResize()
+    }
+  }, [])
+
   const items = React.useMemo(() => {
     return groups
       .map(g => {

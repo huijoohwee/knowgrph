@@ -44,6 +44,7 @@ export function RichMediaOverlayLayer2d(props: {
           <RichMediaPanel
             key={n.id}
             ref={getOverlayRefForId(n.id)}
+            overlayId={n.id}
             data-kg-canvas-wheel-ignore="true"
             data-kg-canvas-pointer-ignore="true"
             data-kg-panel-box="leftTop"

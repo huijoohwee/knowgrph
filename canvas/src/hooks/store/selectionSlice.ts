@@ -43,8 +43,11 @@ export const createSelectionSlice = (set: SetGraph, get: GetGraph) => ({
   selectedEdgeIds: [] as string[],
   selectedGroupIds: [] as string[],
   selectionSource: null as null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown',
-  setSelectionSource: (src: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown') =>
-    set({ selectionSource: src }),
+  setSelectionSource: (src: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown') => {
+    const cur = get().selectionSource
+    if (cur === src) return
+    set({ selectionSource: src })
+  },
   selectNode: (id: string | null) => {
     const state = get()
     const mode = state.schema.behavior?.selectMode || 'single'
@@ -57,6 +60,19 @@ export const createSelectionSlice = (set: SetGraph, get: GetGraph) => ({
         selectedEdgeIds: [],
         selectedGroupIds: [],
       })
+      return
+    }
+    if (
+      mode === 'single' &&
+      state.selectedNodeId === id &&
+      state.selectedEdgeId == null &&
+      state.selectedGroupId == null &&
+      Array.isArray(state.selectedNodeIds) &&
+      state.selectedNodeIds.length === 1 &&
+      state.selectedNodeIds[0] === id &&
+      (!state.selectedEdgeIds || state.selectedEdgeIds.length === 0) &&
+      (!state.selectedGroupIds || state.selectedGroupIds.length === 0)
+    ) {
       return
     }
     if (mode === 'multi' || mode === 'lasso') {
@@ -178,6 +194,19 @@ export const createSelectionSlice = (set: SetGraph, get: GetGraph) => ({
       })
       return
     }
+    if (
+      mode === 'single' &&
+      state.selectedEdgeId === id &&
+      state.selectedNodeId == null &&
+      state.selectedGroupId == null &&
+      Array.isArray(state.selectedEdgeIds) &&
+      state.selectedEdgeIds.length === 1 &&
+      state.selectedEdgeIds[0] === id &&
+      (!state.selectedNodeIds || state.selectedNodeIds.length === 0) &&
+      (!state.selectedGroupIds || state.selectedGroupIds.length === 0)
+    ) {
+      return
+    }
     if (mode === 'multi' || mode === 'lasso') {
       const prevIds = state.selectedEdgeIds || []
       const exists = prevIds.includes(id)
@@ -214,6 +243,19 @@ export const createSelectionSlice = (set: SetGraph, get: GetGraph) => ({
         selectedEdgeIds: [],
         selectedGroupIds: [],
       })
+      return
+    }
+    if (
+      mode === 'single' &&
+      state.selectedGroupId === id &&
+      state.selectedNodeId == null &&
+      state.selectedEdgeId == null &&
+      Array.isArray(state.selectedGroupIds) &&
+      state.selectedGroupIds.length === 1 &&
+      state.selectedGroupIds[0] === id &&
+      (!state.selectedNodeIds || state.selectedNodeIds.length === 0) &&
+      (!state.selectedEdgeIds || state.selectedEdgeIds.length === 0)
+    ) {
       return
     }
     if (mode === 'multi' || mode === 'lasso') {

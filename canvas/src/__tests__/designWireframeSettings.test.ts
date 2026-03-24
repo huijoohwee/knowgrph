@@ -5,6 +5,22 @@ export function testDesignWireframeSettingsDefaultsAndClamp() {
   if (typeof base.showEdges !== 'boolean') throw new Error('expected boolean default showEdges')
   if (typeof base.maxEdges !== 'number' || base.maxEdges <= 0) throw new Error('expected numeric default maxEdges')
 
+  const graphOverride = readDesignWireframeSettings(
+    {
+      metadata: {
+        'renderer:designWireframe': {
+          showEdges: false,
+        },
+      },
+    } as unknown as never,
+    {
+      'renderer:designWireframe': {
+        showEdges: true,
+      },
+    } as unknown as never,
+  )
+  if (graphOverride.showEdges !== true) throw new Error('expected graph metadata to override showEdges')
+
   const bad = readDesignWireframeSettings({
     metadata: {
       'renderer:designWireframe': {

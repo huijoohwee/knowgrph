@@ -14,10 +14,18 @@ function decodeHtmlEntitiesBasic(text: string): string {
 }
 
 export function htmlFallbackToMarkdownAllText(html: string): string {
-  const src = String(html || '').replace(/\r/g, '')
+  const normalizeBrokenHeadingTags = (input: string): string => {
+    let s = String(input || '')
+    s = s.replace(/<\s*\/\s*h\s*([1-6])\b/gi, '</h$1')
+    s = s.replace(/<\s*h\s*([1-6])\b/gi, '<h$1')
+    return s
+  }
+
+  const src = normalizeBrokenHeadingTags(String(html || '').replace(/\r/g, ''))
   const stripTags = (s: string) => decodeHtmlEntitiesBasic(String(s || '').replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
 
   let out = src
+  out = out.replace(/<svg\b[\s\S]*?<\/svg\s*>/gi, '')
   out = out.replace(/<script\b[\s\S]*?<\/script>/gi, '')
   out = out.replace(/<style\b[\s\S]*?<\/style>/gi, '')
   out = out.replace(/<!--[\s\S]*?-->/g, '')
@@ -25,6 +33,9 @@ export function htmlFallbackToMarkdownAllText(html: string): string {
   out = out.replace(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi, (_, inner) => `\n# ${stripTags(String(inner || ''))}\n`)
   out = out.replace(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi, (_, inner) => `\n## ${stripTags(String(inner || ''))}\n`)
   out = out.replace(/<h3\b[^>]*>([\s\S]*?)<\/h3>/gi, (_, inner) => `\n### ${stripTags(String(inner || ''))}\n`)
+  out = out.replace(/<h4\b[^>]*>([\s\S]*?)<\/h4>/gi, (_, inner) => `\n#### ${stripTags(String(inner || ''))}\n`)
+  out = out.replace(/<h5\b[^>]*>([\s\S]*?)<\/h5>/gi, (_, inner) => `\n##### ${stripTags(String(inner || ''))}\n`)
+  out = out.replace(/<h6\b[^>]*>([\s\S]*?)<\/h6>/gi, (_, inner) => `\n###### ${stripTags(String(inner || ''))}\n`)
   out = out.replace(/<p\b[^>]*>([\s\S]*?)<\/p>/gi, (_, inner) => `\n\n${stripTags(String(inner || ''))}\n\n`)
   out = decodeHtmlEntitiesBasic(out.replace(/<[^>]+>/g, ''))
   out = out.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
@@ -38,4 +49,3 @@ export function normalizeWebpageCardAndListBlocks(markdown: string): string {
     return String(markdown || '')
   }
 }
-

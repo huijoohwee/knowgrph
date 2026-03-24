@@ -14,6 +14,11 @@ const modMermaidElkLayoutSupport = () => import('@/__tests__/mermaidElkLayoutSup
 const modWebpageLayoutAscii = () => import('@/__tests__/webpageLayoutAscii.test')
 const modWebpageMarkdownPostprocessRemotionPricing = () => import('@/__tests__/webpageMarkdownPostprocessRemotionPricing.test')
 const modWebpageMarkdownPostprocessCardGrid = () => import('@/__tests__/webpageMarkdownPostprocessCardGrid.test')
+const modUrlImportApiNativeReddit = () => import('@/__tests__/urlImportApiNativeReddit.test')
+const modUrlImportAuthWallStub = () => import('@/__tests__/urlImportAuthWallStub.test')
+const modUrlImportApiNativeJsonLd = () => import('@/__tests__/urlImportApiNativeJsonLd.test')
+const modWorkspaceImportLargeWebpageMarkdownClip = () => import('@/__tests__/workspaceImportLargeWebpageMarkdownClip.test')
+const modHtmlFallbackStripSvgAndFlex = () => import('@/__tests__/htmlFallbackStripSvgAndFlex.test')
 const modMarkdownHtmlRichMediaAndGridPreview = () => import('@/__tests__/markdownHtmlRichMediaAndGridPreview.test')
 const modMarkdownHtmlTableDivAndPicturePreview = () => import('@/__tests__/markdownHtmlTableDivAndPicturePreview.test')
 const modMarkdownInlineHtmlRichMediaPreview = () => import('@/__tests__/markdownInlineHtmlRichMediaPreview.test')
@@ -191,6 +196,42 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.webpagePostprocess.remotionPricingAscii', async () => {
     const mod = await modWebpageMarkdownPostprocessRemotionPricing()
     await mod.testWebpageMarkdownPostprocessRemotionPricingToAsciiTable()
+  })
+  await execTest(results, 'markdown.urlImport.apiNative.reddit', async () => {
+    const mod = await modUrlImportApiNativeReddit()
+    await mod.testUrlImportApiNativeRedditConvertsListingJsonToMarkdown()
+  })
+  await execTest(results, 'markdown.urlImport.apiNative.jsonLd', async () => {
+    const mod = await modUrlImportApiNativeJsonLd()
+    await mod.testUrlImportApiNativeJsonLdExtractsAndRendersMarkdown()
+  })
+  await execTest(results, 'markdown.urlImport.apiNative.jsonLd.mudahPrefersApiNative', async () => {
+    const mod = await modUrlImportApiNativeJsonLd()
+    await mod.testUrlImportApiNativeJsonLdPrefersApiNativeForMudah()
+  })
+  await execTest(results, 'markdown.urlImport.apiNative.jsonLd.importModeDoesNotFetch', async () => {
+    const mod = await modUrlImportApiNativeJsonLd()
+    await mod.testUrlImportApiNativeJsonLdImportModeDoesNotBlockOnHtmlFetch()
+  })
+  await execTest(results, 'markdown.urlImport.refresh.markdown.parsesMudahText', async () => {
+    const mod = await modUrlImportApiNativeJsonLd()
+    await mod.testUrlImportRefreshMarkdownParsesMudahTextFromHtml()
+  })
+  await execTest(results, 'workspace.importUrl.webpageMarkdown.clipsLarge', async () => {
+    const mod = await modWorkspaceImportLargeWebpageMarkdownClip()
+    await mod.testWorkspaceImportLargeWebpageMarkdownIsClipped()
+  })
+  await execTest(results, 'html.fallback.stripSvgAndFlex', async () => {
+    const mod = await modHtmlFallbackStripSvgAndFlex()
+    await mod.testHtmlFallbackStripsInlineSvgAndKeepsHeadingText()
+  })
+  await execTest(results, 'markdown.urlImport.stub.authWall.xHome', async () => {
+    const mod = await modUrlImportAuthWallStub()
+    await mod.testUrlImportAuthWallStubSkipsHydrationForXHome()
+  })
+  await execTest(results, 'markdown.urlImport.stub.authWall.linkedinFeed', async () => {
+    const mod = await modUrlImportAuthWallStub()
+    await mod.testUrlImportAuthWallStubSkipsHydrationForLinkedInFeed()
   })
   await execTest(results, 'markdown.webpagePostprocess.remotionPricingBlobAscii', async () => {
     const mod = await modWebpageMarkdownPostprocessRemotionPricing()

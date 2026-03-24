@@ -157,7 +157,7 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
 
       {props.portal && isOpen && menu && portalStyle
         ? createPortal(
-            <div style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_MENU, pointerEvents: 'auto', isolation: 'isolate', background: 'transparent' }}>
+            <div style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_MENU, pointerEvents: 'none', isolation: 'isolate' }}>
               <div
                 ref={el => {
                   portalRootRef.current = el

@@ -2,7 +2,7 @@ import * as d3 from 'd3'
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
-import { getNodeAabbHalfExtentsWithLabel } from '@/components/GraphCanvas/layout/overlap'
+import { getNodeAabbHalfExtentsWithLabel, type NodeHalfExtents } from '@/components/GraphCanvas/layout/overlap'
 import { readCollisionConfig, readGroupLabelTopExtra } from '@/components/GraphCanvas/layout/collisionConfig'
 import { computeBorderGapPx } from '@/lib/graph/collision/borderGap'
 import { readGroupStrokeWidthPx, readNodeStrokeWidthPx } from '@/lib/graph/collision/strokeWidth'
@@ -98,10 +98,12 @@ export const createGroupBboxCollideForceByDepth = (args: {
   nestedTouchEpsilonXPx?: number
   nestedTouchEpsilonYPx?: number
   nestedTouchEpsilonZPx?: number
+  halfExtentsByNodeId?: Record<string, NodeHalfExtents> | null
   strength: number
   iterations: number
 }): d3.Force<GraphNode, GraphEdge> => {
   const { schema } = args
+  const halfExtentsByNodeId = args.halfExtentsByNodeId || null
   let nodes: GraphNode[] = []
   const groupBboxCfg = readCollisionConfig(schema).groupBbox
   const borderGapMinPx = groupBboxCfg.borderGapPx
@@ -267,7 +269,7 @@ export const createGroupBboxCollideForceByDepth = (args: {
         const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
         const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
         if (x == null || y == null) continue
-        const ext = getNodeAabbHalfExtentsWithLabel(n, schema)
+        const ext = getNodeAabbHalfExtentsWithLabel(n, schema, halfExtentsByNodeId ? { halfExtentsByNodeId } : null)
         const loX = x - ext.halfW - visualPad
         const hiX = x + ext.halfW + visualPad
         const loY = y - ext.halfH - visualPad - topLabelExtra
@@ -354,7 +356,7 @@ export const createGroupBboxCollideForceByDepth = (args: {
       if (!zInfo.hasZ) nonZCount += 1
       const cz = zInfo.hasZ ? zInfo.z : 0
       const halfD = zInfo.hasZ ? readNodeHalfD(n) : 0
-      const ext = getNodeAabbHalfExtentsWithLabel(n, schema)
+      const ext = getNodeAabbHalfExtentsWithLabel(n, schema, halfExtentsByNodeId ? { halfExtentsByNodeId } : null)
       const borderGapPx = computeBorderGapPx(readNodeStrokeWidthPx(schema, n), nodeBorderGapMinPx)
       const halfW = ext.halfW + nodeBboxCfg.paddingX + borderGapPx
       const halfH = ext.halfH + nodeBboxCfg.paddingY + borderGapPx

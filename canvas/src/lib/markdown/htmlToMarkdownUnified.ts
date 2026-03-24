@@ -451,7 +451,20 @@ export async function convertHtmlToMarkdownUnified(args: {
       typeof args.maxInputChars === 'number' && Number.isFinite(args.maxInputChars)
         ? Math.max(10_000, Math.min(12_000_000, Math.floor(args.maxInputChars)))
         : 2_500_000
-    const html = raw.length > maxInputChars ? raw.slice(0, maxInputChars) : raw
+    const html = (() => {
+      const sliced = raw.length > maxInputChars ? raw.slice(0, maxInputChars) : raw
+      if (!sliced.trim()) return sliced
+
+      const scriptCount = (sliced.match(/<script\b/gi) || []).length
+      const styleCount = (sliced.match(/<style\b/gi) || []).length
+      const looksHeavy = sliced.length > 600_000 || scriptCount >= 8 || styleCount >= 3
+      if (!looksHeavy) return sliced
+
+      let next = sliced
+      next = next.replace(/<script\b[\s\S]*?<\/script\s*>/gi, '')
+      next = next.replace(/<style\b[\s\S]*?<\/style\s*>/gi, '')
+      return next
+    })()
     if (!html.trim()) return { ok: false, error: 'Missing HTML' }
 
     const cacheKey = [

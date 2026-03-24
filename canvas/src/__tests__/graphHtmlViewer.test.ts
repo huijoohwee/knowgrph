@@ -1,6 +1,8 @@
 import { buildGraphHtmlViewerMarkup } from '@/lib/graph/graphHtmlViewer'
 import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
+import { captureLiveRichMediaOverlayHtmlForHtmlViewerExport } from '@/lib/graph/htmlViewer/liveOverlayExport'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 export async function testExportHtmlViewerIsSvgOnlyAndBlocksBrowserZoomAndSelection() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
@@ -190,5 +192,86 @@ export async function testExportHtmlViewerRuntimeFallsBackToRawMediaWhenProxyFai
   }
   if (!html.includes("cur !== raw")) {
     throw new Error('expected html viewer runtime fallback to switch source from proxy to raw url')
+  }
+}
+
+export async function testExportHtmlViewerEmbedsProvidedOverlayHtml() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
+  const overlayHtml = '<article data-kg-rich-media-panel="1" data-node-id="m1"><div>Overlay</div></article>'
+  const html = await buildGraphHtmlViewerMarkup({ title: 'T', svgMarkup: svg, overlayHtml })
+  if (!html) throw new Error('expected html')
+  if (!html.includes(overlayHtml)) {
+    throw new Error('expected provided overlayHtml to be embedded in exported viewer')
+  }
+}
+
+export async function testExportHtmlViewerRuntimeScriptParsesWithOverlayHtml() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
+  const overlayHtml =
+    '<article data-kg-rich-media-panel="1" data-node-id="m1"><header class="kg-mediaHeader" data-kg-media-panel-header="1">H</header><section class="kg-mediaBody"><iframe src="about:blank"></iframe></section></article>'
+  const html = await buildGraphHtmlViewerMarkup({ title: 'T', svgMarkup: svg, overlayHtml })
+  if (!html) throw new Error('expected html')
+  const match = html.match(/<script>\n([\s\S]*?)\n\s*<\/script>/)
+  const js = match && match[1] ? match[1] : ''
+  if (!js.trim()) throw new Error('expected runtime script')
+  try {
+    new Function(js)
+  } catch (e) {
+    throw new Error(`expected runtime script to parse, got: ${String((e as Error)?.message || e)}`)
+  }
+}
+
+export async function testExportHtmlViewerMediaInteractivityDefaultsOn() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
+  const html = await buildGraphHtmlViewerMarkup({ title: 'T', svgMarkup: svg })
+  if (!html) throw new Error('expected html')
+  if (!html.includes('--kg-media-pointer-events:auto')) {
+    throw new Error('expected exported viewer to default to media interactivity enabled')
+  }
+  if (!html.includes('var mediaInteractive = true;')) {
+    throw new Error('expected runtime mediaInteractive default to be true')
+  }
+  if (!html.includes("var pe = (mediaInteractive && pointerMode !== 'pan'")) {
+    throw new Error('expected exported viewer to compute media pointer-events from mode state')
+  }
+}
+
+export async function testExportHtmlViewerMediaPointerEventsRespectsNodeInteractivity() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
+  const html = await buildGraphHtmlViewerMarkup({ title: 'T', svgMarkup: svg })
+  if (!html) throw new Error('expected html')
+  if (!html.includes('var interactive0 = !!n.interactive;')) {
+    throw new Error('expected runtime to apply media pointer-events per node interactive flag')
+  }
+  if (!html.includes("el.style.pointerEvents = perPe")) {
+    throw new Error('expected runtime to set inline pointerEvents per media element')
+  }
+}
+
+export async function testExportHtmlViewerOverlayExportStripsInteractionGuards() {
+  const bootstrap = typeof document === 'undefined' ? initJsdomHarness() : null
+  try {
+  const root = document.createElement('div')
+  const panel = document.createElement('article')
+  panel.setAttribute('data-kg-rich-media-panel', '1')
+  panel.setAttribute('data-node-id', 'm1')
+  panel.setAttribute('data-kg-canvas-pointer-ignore', 'true')
+  panel.setAttribute('data-kg-canvas-wheel-ignore', 'true')
+  panel.style.pointerEvents = 'auto'
+  panel.style.touchAction = 'none'
+  panel.style.userSelect = 'none'
+  panel.innerHTML = '<header class="kg-mediaHeader">H</header><section class="kg-mediaBody"><div style="pointer-events:auto">B</div></section>'
+  root.appendChild(panel)
+
+  const html = captureLiveRichMediaOverlayHtmlForHtmlViewerExport({ overlayRootEl: root })
+  if (!html) throw new Error('expected overlay html')
+  if (html.includes('data-kg-canvas-pointer-ignore') || html.includes('data-kg-canvas-wheel-ignore')) {
+    throw new Error('expected overlay export to strip canvas ignore attributes')
+  }
+  if (html.toLowerCase().includes('pointer-events')) {
+    throw new Error('expected overlay export to strip pointer-events inline styles')
+  }
+  } finally {
+    bootstrap?.restore()
   }
 }

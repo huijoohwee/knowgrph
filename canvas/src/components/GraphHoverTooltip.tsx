@@ -442,7 +442,7 @@ export type GraphHoverTooltipProps = {
   tooltipInteractive?: boolean;
 }
 
-export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schema, onRequestClose, tooltipInteractive = true }: GraphHoverTooltipProps) {
+export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schema, onRequestClose, tooltipInteractive = false }: GraphHoverTooltipProps) {
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconBadgeChipClass = useGraphStore(s => s.uiIconBadgeChipClass)
   const uiIconBadgeChipTextSizeClass = useGraphStore(s => s.uiIconBadgeChipTextSizeClass)
@@ -555,16 +555,27 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
   const hoverYRaw = hoverInfo.clientY - rect.top + 8
   const hoverX = Math.max(8, Math.min(Math.max(8, rect.width - 8), hoverXRaw))
   const hoverY = Math.max(8, Math.min(Math.max(8, rect.height - 8), hoverYRaw))
+  const anyPointerDragActive = (() => {
+    try {
+      const g = globalThis as unknown as { __kgActivePointerDragByKey?: unknown }
+      const map = g.__kgActivePointerDragByKey as unknown as Map<string, unknown> | undefined
+      return !!(map && typeof map.size === 'number' && map.size > 0)
+    } catch {
+      return false
+    }
+  })()
+  const effectiveInteractive = tooltipInteractive === true && anyPointerDragActive !== true
+
   return (
     <Tooltip
       content={<div data-kg-canvas-wheel-ignore="true">{content}</div>}
       open
-      className={tooltipInteractive ? 'absolute z-50 pointer-events-auto' : 'absolute z-50 pointer-events-none'}
+      className={effectiveInteractive ? 'absolute z-50 pointer-events-auto' : 'absolute z-50 pointer-events-none'}
       anchorStyle={{ left: hoverX, top: hoverY, width: 0, height: 0 }}
       maxWidthPx={260}
       contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text} shadow-md max-w-xs text-xs`}
       onContentMouseLeave={onRequestClose}
-      interactive={tooltipInteractive}
+      interactive={effectiveInteractive}
     >
       <span />
     </Tooltip>

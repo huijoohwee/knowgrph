@@ -1,4 +1,5 @@
 import React from 'react'
+import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import type { MermaidInitConfig } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import { LS_KEYS } from '@/lib/config'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
@@ -169,7 +170,7 @@ export function MermaidDiagram({
   const containerRef = React.useRef<HTMLElement | null>(null)
   const codeblockSvgRef = React.useRef<SVGSVGElement | null>(null)
   const codeblockViewBoxRef = React.useRef<{ x: number; y: number; w: number; h: number; baseW: number; baseH: number } | null>(null)
-  const codeblockPointerRef = React.useRef<{ active: boolean; pointerId: number; startX: number; startY: number; baseX: number; baseY: number } | null>(null)
+  const codeblockPointerRef = React.useRef<{ active: boolean; startX: number; startY: number; baseX: number; baseY: number } | null>(null)
   const codeblockWheelActiveRef = React.useRef(false)
   const id = React.useId().replace(/[^a-zA-Z0-9_-]/g, '_')
   const [error, setError] = React.useState<string | null>(null)
@@ -292,56 +293,47 @@ export function MermaidDiagram({
       codeblockWheelActiveRef.current = true
       codeblockPointerRef.current = {
         active: true,
-        pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
         baseX: vb.x,
         baseY: vb.y,
       }
-      try {
-        ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
-      } catch {
-        void 0
-      }
-    },
-    [enablePanZoom, variant],
-  )
 
-  const handleCodeblockPointerMove = React.useCallback(
-    (event: React.PointerEvent) => {
-      if (!(enablePanZoom && variant === 'codeblock')) return
-      const st = codeblockPointerRef.current
-      const vb = codeblockViewBoxRef.current
-      if (!st || !st.active || st.pointerId !== event.pointerId || !vb) return
-      const rect = getCodeblockRect()
-      if (!rect) return
-      const dx = event.clientX - st.startX
-      const dy = event.clientY - st.startY
-      if (Math.abs(dx) + Math.abs(dy) >= 3) didDragRef.current = true
-      const unitsPerPxX = vb.w / rect.width
-      const unitsPerPxY = vb.h / rect.height
-      const nextX = st.baseX - dx * unitsPerPxX
-      const nextY = st.baseY - dy * unitsPerPxY
-      applyCodeblockViewBox({ x: nextX, y: nextY, w: vb.w, h: vb.h })
+      startPointerDrag({
+        ev: event.nativeEvent,
+        cursor: 'grabbing',
+        shouldStart: down => {
+          if (!(enablePanZoom && variant === 'codeblock')) return false
+          if (down.pointerType === 'mouse' && down.button !== 0) return false
+          return true
+        },
+        onMove: mv => {
+          if (!(enablePanZoom && variant === 'codeblock')) return
+          const st = codeblockPointerRef.current
+          const vbNow = codeblockViewBoxRef.current
+          if (!st || !st.active || !vbNow) return
+          const rect = getCodeblockRect()
+          if (!rect) return
+          const dx = mv.clientX - st.startX
+          const dy = mv.clientY - st.startY
+          if (Math.abs(dx) + Math.abs(dy) >= 3) didDragRef.current = true
+          const unitsPerPxX = vbNow.w / rect.width
+          const unitsPerPxY = vbNow.h / rect.height
+          const nextX = st.baseX - dx * unitsPerPxX
+          const nextY = st.baseY - dy * unitsPerPxY
+          applyCodeblockViewBox({ x: nextX, y: nextY, w: vbNow.w, h: vbNow.h })
+        },
+        onEnd: () => {
+          codeblockPointerRef.current = null
+          codeblockWheelActiveRef.current = false
+        },
+        onCancel: () => {
+          codeblockPointerRef.current = null
+          codeblockWheelActiveRef.current = false
+        },
+      })
     },
     [applyCodeblockViewBox, enablePanZoom, getCodeblockRect, variant],
-  )
-
-  const handleCodeblockPointerUp = React.useCallback(
-    (event: React.PointerEvent) => {
-      if (!(enablePanZoom && variant === 'codeblock')) return
-      const st = codeblockPointerRef.current
-      if (st && st.pointerId === event.pointerId) {
-        codeblockPointerRef.current = null
-      }
-      codeblockWheelActiveRef.current = false
-      try {
-        ;(event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId)
-      } catch {
-        void 0
-      }
-    },
-    [enablePanZoom, variant],
   )
 
   React.useEffect(() => {
@@ -632,9 +624,6 @@ export function MermaidDiagram({
           style={enablePanZoom && variant === 'codeblock' ? ({ touchAction: 'none' } as React.CSSProperties) : undefined}
           onWheel={enablePanZoom && variant === 'codeblock' ? handleCodeblockWheel : undefined}
           onPointerDown={enablePanZoom && variant === 'codeblock' ? handleCodeblockPointerDown : undefined}
-          onPointerMove={enablePanZoom && variant === 'codeblock' ? handleCodeblockPointerMove : undefined}
-          onPointerUp={enablePanZoom && variant === 'codeblock' ? handleCodeblockPointerUp : undefined}
-          onPointerCancel={enablePanZoom && variant === 'codeblock' ? handleCodeblockPointerUp : undefined}
           onPointerLeave={enablePanZoom && variant === 'codeblock' ? (() => { codeblockWheelActiveRef.current = false }) : undefined}
         />
         <figcaption className="sr-only">Mermaid diagram visualization</figcaption>

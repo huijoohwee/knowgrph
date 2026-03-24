@@ -1,4 +1,5 @@
 import React from 'react'
+import { startPointerDrag } from 'grph-shared/dom/pointerDrag';
 import { Map as MapIcon } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -358,7 +359,6 @@ function Minimap() {
   }, [viewRect, zoomState]);
 
   const dragRef = React.useRef<{ mx: number; my: number; gx: number; gy: number } | null>(null);
-  const dragPidRef = React.useRef<number | null>(null);
   const rafRef = React.useRef<number | null>(null);
   const pendingRef = React.useRef<{ ngx: number; ngy: number } | null>(null);
 
@@ -413,137 +413,92 @@ function Minimap() {
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
     dragRef.current = { mx, my, gx: viewRectRaw.x, gy: viewRectRaw.y };
-    dragPidRef.current = e.pointerId;
-    try { (e.currentTarget as SVGRectElement).setPointerCapture(e.pointerId); } catch { void 0 }
-  };
 
-  const onRectPointerMove = (e: React.PointerEvent<SVGRectElement>) => {
-    e.preventDefault();
-    if (!dragRef.current) {
-      const r = (e.currentTarget as SVGRectElement).getBoundingClientRect();
-      const lx = e.clientX - r.left;
-      const ly = e.clientY - r.top;
-      const cx = viewRect.w / 2;
-      const cy = viewRect.h / 2;
-      const isCenter = Math.abs(lx - cx) <= centerThreshold && Math.abs(ly - cy) <= centerThreshold;
-      setHoverCenter(isCenter);
-      return;
-    }
-    if (dragPidRef.current != null && e.pointerId !== dragPidRef.current) return;
-    const svgEl = (e.currentTarget as SVGGraphicsElement).ownerSVGElement as (SVGSVGElement | null);
-    if (!svgEl) return;
-    const mrect = svgEl.getBoundingClientRect();
-    const curMx = e.clientX - mrect.left;
-    const curMy = e.clientY - mrect.top;
-    const dx = curMx - dragRef.current.mx;
-    const dy = curMy - dragRef.current.my;
-    const dxg = dx / sx;
-    const dyg = dy / sx;
-    const w0 = viewRectRaw.w;
-    const h0 = viewRectRaw.h;
-    const ngx = dragRef.current.gx + dxg;
-    const ngy = dragRef.current.gy + dyg;
-    pendingRef.current = { ngx, ngy };
-    if (rafRef.current == null) {
-      rafRef.current = requestAnimationFrame(() => {
-        const p = pendingRef.current;
-        if (p) {
-          const z = zoomStateRef.current || { k: 1, x: 0, y: 0 };
-          const t = computeTransformFromViewTopLeft(Math.max(1, canvasDims.w), Math.max(1, canvasDims.h), z.k, p.ngx, p.ngy);
+    startPointerDrag({
+      ev: e.nativeEvent,
+      cursor: 'grabbing',
+      shouldStart: (down) => {
+        if (down.pointerType === 'mouse' && down.button !== 0) return false;
+        return true;
+      },
+      onMove: (mv) => {
+        if (!dragRef.current) return;
+        const owner = (e.currentTarget as SVGGraphicsElement).ownerSVGElement as (SVGSVGElement | null);
+        if (!owner) return;
+        const mrect = owner.getBoundingClientRect();
+        const curMx = mv.clientX - mrect.left;
+        const curMy = mv.clientY - mrect.top;
+        const dx = curMx - dragRef.current.mx;
+        const dy = curMy - dragRef.current.my;
+        const dxg = dx / sx;
+        const dyg = dy / sx;
+        const ngx = dragRef.current.gx + dxg;
+        const ngy = dragRef.current.gy + dyg;
+        pendingRef.current = { ngx, ngy };
+        if (rafRef.current == null) {
+          rafRef.current = requestAnimationFrame(() => {
+            const p = pendingRef.current;
+            if (p) {
+              const z = zoomStateRef.current || { k: 1, x: 0, y: 0 };
+              const t = computeTransformFromViewTopLeft(Math.max(1, canvasDims.w), Math.max(1, canvasDims.h), z.k, p.ngx, p.ngy);
+              const EPS = 0.5;
+              const nearlySame = Math.abs(t.x - z.x) < EPS && Math.abs(t.y - z.y) < EPS && Math.abs((t.k || 1) - (z.k || 1)) < 1e-9;
+              if (!nearlySame) {
+                requestZoomTransform(t);
+              }
+            }
+            rafRef.current = null;
+          });
+        }
+      },
+      onEnd: (up) => {
+        const owner = (e.currentTarget as SVGGraphicsElement).ownerSVGElement as (SVGSVGElement | null);
+        const rect = owner?.getBoundingClientRect();
+        const hasPos = rect != null;
+        const z = zoomStateRef.current || { k: 1, x: 0, y: 0 };
+        const k = z.k || 1;
+        if (hasPos) {
+          const mx = up.clientX - (rect as DOMRect).left;
+          const my = up.clientY - (rect as DOMRect).top;
+          const ux = mx / sx + bounds.minX;
+          const uy = my / sx + bounds.minY;
+          const vw = Math.max(1, canvasDims.w);
+          const vh = Math.max(1, canvasDims.h);
+          const kk = clampZoomScale(k, minScale, maxScale)
+          const t = computeTransformFromCenter(vw, vh, ux, uy, kk, { minScale, maxScale });
           const EPS = 0.5;
           const nearlySame = Math.abs(t.x - z.x) < EPS && Math.abs(t.y - z.y) < EPS && Math.abs((t.k || 1) - (z.k || 1)) < 1e-9;
           if (!nearlySame) {
             requestZoomTransform(t);
           }
         }
-        rafRef.current = null;
-      });
-    }
+        dragRef.current = null;
+        if (rafRef.current != null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+        pendingRef.current = null;
+      },
+      onCancel: () => {
+        dragRef.current = null;
+        if (rafRef.current != null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+        pendingRef.current = null;
+      },
+    });
   };
 
-  const onRectPointerUp = (e: React.PointerEvent<SVGRectElement>) => {
-    if ((e.currentTarget as SVGRectElement).hasPointerCapture?.(e.pointerId)) {
-      try { (e.currentTarget as SVGRectElement).releasePointerCapture(e.pointerId); } catch { void 0 }
-    }
-    const svgEl = (e.currentTarget as SVGGraphicsElement).ownerSVGElement as (SVGSVGElement | null);
-    const rect = svgEl?.getBoundingClientRect();
-    const hasPos = rect != null;
-    const z = zoomStateRef.current || { k: 1, x: 0, y: 0 };
-    const k = z.k || 1;
-    if (hasPos) {
-      const mx = e.clientX - (rect as DOMRect).left;
-      const my = e.clientY - (rect as DOMRect).top;
-      const ux = mx / sx + bounds.minX;
-      const uy = my / sx + bounds.minY;
-      const vw = Math.max(1, canvasDims.w);
-      const vh = Math.max(1, canvasDims.h);
-      const kk = clampZoomScale(k, minScale, maxScale)
-      const t = computeTransformFromCenter(vw, vh, ux, uy, kk, { minScale, maxScale });
-      const EPS = 0.5;
-      const nearlySame = Math.abs(t.x - z.x) < EPS && Math.abs(t.y - z.y) < EPS && Math.abs((t.k || 1) - (z.k || 1)) < 1e-9;
-      if (!nearlySame) {
-        requestZoomTransform(t);
-      }
-    }
-    dragRef.current = null;
-    dragPidRef.current = null;
-    if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    pendingRef.current = null;
-  };
-
-  const onRectPointerCancel = () => {
-    dragRef.current = null;
-    dragPidRef.current = null;
-    if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    pendingRef.current = null;
-  };
-
-  const onRectLostCapture = () => {
-    dragRef.current = null;
-    dragPidRef.current = null;
-    if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    pendingRef.current = null;
-  };
-
-  const onRectPointerEnter = (e: React.PointerEvent<SVGRectElement>) => {
-    if (!(e.buttons & 1) || dragRef.current) return;
-    const svgEl = (e.currentTarget as SVGGraphicsElement).ownerSVGElement as (SVGSVGElement | null);
-    if (!svgEl) return;
+  const onRectPointerMove = (e: React.PointerEvent<SVGRectElement>) => {
+    if (dragRef.current) return;
     const r = (e.currentTarget as SVGRectElement).getBoundingClientRect();
     const lx = e.clientX - r.left;
     const ly = e.clientY - r.top;
     const cx = viewRect.w / 2;
     const cy = viewRect.h / 2;
-    const nearCenter = Math.abs(lx - cx) <= centerThreshold && Math.abs(ly - cy) <= centerThreshold;
-    if (!nearCenter) return;
-    const rect = svgEl.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    dragRef.current = { mx, my, gx: viewRectRaw.x, gy: viewRectRaw.y };
-    dragPidRef.current = e.pointerId;
-    try { (e.currentTarget as SVGRectElement).setPointerCapture(e.pointerId); } catch { void 0 }
-  };
-
-  const onRectPointerLeave = (e: React.PointerEvent<SVGRectElement>) => {
-    if ((e.currentTarget as SVGRectElement).hasPointerCapture?.(e.pointerId)) {
-      try { (e.currentTarget as SVGRectElement).releasePointerCapture(e.pointerId); } catch { void 0 }
-    }
-    dragRef.current = null;
-    dragPidRef.current = null;
-    if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    pendingRef.current = null;
+    const isCenter = Math.abs(lx - cx) <= centerThreshold && Math.abs(ly - cy) <= centerThreshold;
+    setHoverCenter(isCenter);
   };
 
   const [hoverCenter, setHoverCenter] = React.useState(false);
@@ -552,15 +507,6 @@ function Minimap() {
     const cy = viewRect.h / 2;
     return Math.abs(lx - cx) <= centerThreshold && Math.abs(ly - cy) <= centerThreshold;
   }, [viewRect, centerThreshold]);
-  const onRectMouseMove = (e: React.MouseEvent<SVGRectElement>) => {
-    if (dragRef.current) return;
-    const rectEl = e.currentTarget as SVGRectElement;
-    const rect = rectEl.getBoundingClientRect();
-    const localX = e.clientX - rect.left;
-    const localY = e.clientY - rect.top;
-    const isCenter = isNearCenter(localX, localY);
-    setHoverCenter(isCenter);
-  };
   const onRectMouseLeave = () => setHoverCenter(false);
 
   if (minimapCollapsed) {
@@ -614,20 +560,7 @@ function Minimap() {
             style={{ cursor: dragRef.current ? 'grabbing' : (hoverCenter ? 'grab' : 'auto'), touchAction: 'none' }}
             onPointerDown={onRectPointerDown}
             onPointerMove={onRectPointerMove}
-            onPointerUp={onRectPointerUp}
-            onPointerCancel={onRectPointerCancel}
-            onLostPointerCapture={onRectLostCapture}
-            onPointerEnter={(e) => {
-              const r = (e.currentTarget as SVGRectElement).getBoundingClientRect();
-              const lx = e.clientX - r.left;
-              const ly = e.clientY - r.top;
-              const near = isNearCenter(lx, ly);
-              setHoverCenter(near);
-              if (!(e.buttons & 1) || dragRef.current || !near) return;
-              onRectPointerEnter(e);
-            }}
-            onPointerLeave={onRectPointerLeave}
-            onMouseMove={onRectMouseMove}
+            onPointerLeave={() => setHoverCenter(false)}
             onMouseLeave={onRectMouseLeave}
           />
           {hoverCenter && (

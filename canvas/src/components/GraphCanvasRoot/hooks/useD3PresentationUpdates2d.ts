@@ -9,6 +9,7 @@ import { updateForceSimulationPresentation } from '@/components/GraphCanvas/simu
 import { updateGraphSceneGroupsPresentation, updateGraphSceneNodesPresentation } from '@/components/GraphCanvas/scene'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
+import { computeOverlayHalfExtentsByNodeId2d } from '@/lib/render/overlayHalfExtentsByNodeId2d'
 
 export function useD3PresentationUpdates2d(args: {
   activeRef: MutableRefObject<boolean>
@@ -110,6 +111,31 @@ export function useD3PresentationUpdates2d(args: {
       schema: schemaValue,
       groupKeyOf,
       groupsForBboxCollide: sceneGroupsDerivation?.allGroups || [],
+      nodeHalfExtentsByNodeId: computeOverlayHalfExtentsByNodeId2d({
+        nodes: Array.isArray(sceneGraphDataRef.current.nodes) ? (sceneGraphDataRef.current.nodes as GraphNode[]) : [],
+        panelOnlyNodeIdSet,
+        mediaOverlayNodeIdSet,
+        viewportW: Math.max(1, Math.floor(sceneWidth)),
+        zoomK: (() => {
+          try {
+            const el = svgRef.current
+            if (!el) return 1
+            const k = d3.zoomTransform(el).k
+            return typeof k === 'number' && Number.isFinite(k) && k > 0 ? k : 1
+          } catch {
+            return 1
+          }
+        })(),
+        mediaPanelDensity,
+        overlaySizing: {
+          overlayBaseWidthRatioDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthRatioDefault,
+          overlayBaseWidthRatioCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthRatioCompact,
+          overlayBaseWidthMinPxDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMinPxDefault,
+          overlayBaseWidthMinPxCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMinPxCompact,
+          overlayBaseWidthMaxPxDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMaxPxDefault,
+          overlayBaseWidthMaxPxCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMaxPxCompact,
+        },
+      }),
     })
     updateGraphSceneNodesPresentation({
       svgEl: svgRef.current,

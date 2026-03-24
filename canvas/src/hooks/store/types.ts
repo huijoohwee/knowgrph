@@ -166,6 +166,7 @@ export type SourceFile = {
   error?: string
   parsedParserId?: string
   parsedTextHash?: string
+  parsedGraphRevision?: number
   parsedGraphData?: GraphData
   source?: {
     kind: 'url' | 'local'

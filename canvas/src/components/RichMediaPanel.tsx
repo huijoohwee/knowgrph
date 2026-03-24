@@ -17,6 +17,7 @@ import {
 } from '@/lib/ui/panelFrame'
 
 export type RichMediaPanelProps = {
+  overlayId?: string
   title: string
   url: string
   srcDoc?: string
@@ -366,7 +367,12 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   return (
     <article
       ref={setRefs}
-      className={props.className}
+      className={['kg-media', props.className].filter(Boolean).join(' ')}
+      data-kg-rich-media-panel="1"
+      data-node-id={props.overlayId}
+      data-kg-kind={kind}
+      data-kg-url={rawUrl}
+      data-kg-open-url={openUrl}
       data-kg-canvas-pointer-ignore="true"
       style={{
         ...PANEL_FRAME_ROOT_STYLE,
@@ -384,6 +390,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       {showHeader ? (
         <header
           data-kg-media-panel-header="1"
+          className="kg-mediaHeader"
           style={{
             ...PANEL_FRAME_HEADER_STYLE,
             borderBottom: 'var(--kg-media-panel-border-w, 1px) solid var(--kg-border)',
@@ -402,7 +409,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           title={title}
           onPointerDown={installHeaderDrag ? onHeaderPointerDown : undefined}
         >
-          <h3 style={PANEL_FRAME_HEADER_TITLE_STYLE}>{title}</h3>
+          <h3 className="kg-mediaTitle" style={PANEL_FRAME_HEADER_TITLE_STYLE}>{title}</h3>
           <menu className="m-0 p-0 list-none flex items-center gap-1" aria-label="Panel actions">
             {safeOpenUrl ? (
               <li className="list-none">
@@ -422,6 +429,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         </header>
       ) : null}
       <section
+        className="kg-mediaBody"
         style={{
           ...PANEL_FRAME_BODY_STYLE,
           pointerEvents: headerPassthrough ? (contentInteractive ? 'auto' : 'none') : undefined,

@@ -3,6 +3,7 @@ import type React from 'react'
 import { LS_KEYS, UI_LAYOUT } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
+import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 
 type ToolMenuDragPosition = {
   top: number
@@ -21,6 +22,8 @@ export function useToolMenuState() {
     startTop: number
     startLeft: number
   } | null>(null)
+  const dragRafRef = useRef<number | null>(null)
+  const pendingDragPosRef = useRef<ToolMenuDragPosition | null>(null)
 
   const clampToolMenuPos = useCallback((pos: ToolMenuDragPosition): ToolMenuDragPosition => {
     if (typeof window === 'undefined') return pos
@@ -36,37 +39,72 @@ export function useToolMenuState() {
     })
   }, [])
 
-  const handleToolMenuCardPointerDown = (event: React.PointerEvent<HTMLElement>) => {
-    if (event.button !== 0) return
-    const el = toolMenuCardRef.current
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    toolMenuDragStateRef.current = {
-      startX: event.clientX,
-      startY: event.clientY,
-      startTop: rect.top,
-      startLeft: rect.left,
-    }
-    const handleMove = (e: PointerEvent) => {
-      const state = toolMenuDragStateRef.current
-      if (!state) return
-      const dx = e.clientX - state.startX
-      const dy = e.clientY - state.startY
-      setToolMenuDragPos(
-        clampToolMenuPos({
-          top: state.startTop + dy,
-          left: state.startLeft + dx,
-        }),
-      )
-    }
-    const handleUp = () => {
-      toolMenuDragStateRef.current = null
-      window.removeEventListener('pointermove', handleMove)
-      window.removeEventListener('pointerup', handleUp)
-    }
-    window.addEventListener('pointermove', handleMove)
-    window.addEventListener('pointerup', handleUp)
-  }
+  const handleToolMenuCardPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLElement>) => {
+      if (event.pointerType === 'mouse' && event.button !== 0) return
+      const el = toolMenuCardRef.current
+      if (!el) return
+
+      const rect = el.getBoundingClientRect()
+      toolMenuDragStateRef.current = {
+        startX: event.clientX,
+        startY: event.clientY,
+        startTop: rect.top,
+        startLeft: rect.left,
+      }
+
+      const flush = () => {
+        const next = pendingDragPosRef.current
+        pendingDragPosRef.current = null
+        dragRafRef.current = null
+        if (!next) return
+        setToolMenuDragPos(next)
+      }
+
+      startPointerDrag({
+        ev: event.nativeEvent,
+        cursor: 'grabbing',
+        shouldStart: down => {
+          if (down.pointerType === 'mouse' && down.button !== 0) return false
+          return true
+        },
+        onMove: mv => {
+          const state = toolMenuDragStateRef.current
+          if (!state) return
+          const dx = mv.clientX - state.startX
+          const dy = mv.clientY - state.startY
+          pendingDragPosRef.current = clampToolMenuPos({
+            top: state.startTop + dy,
+            left: state.startLeft + dx,
+          })
+          if (dragRafRef.current == null) dragRafRef.current = window.requestAnimationFrame(flush)
+        },
+        onEnd: () => {
+          toolMenuDragStateRef.current = null
+          if (dragRafRef.current != null) {
+            window.cancelAnimationFrame(dragRafRef.current)
+            dragRafRef.current = null
+          }
+          if (pendingDragPosRef.current) {
+            setToolMenuDragPos(pendingDragPosRef.current)
+            pendingDragPosRef.current = null
+          }
+        },
+        onCancel: () => {
+          toolMenuDragStateRef.current = null
+          if (dragRafRef.current != null) {
+            window.cancelAnimationFrame(dragRafRef.current)
+            dragRafRef.current = null
+          }
+          if (pendingDragPosRef.current) {
+            setToolMenuDragPos(pendingDragPosRef.current)
+            pendingDragPosRef.current = null
+          }
+        },
+      })
+    },
+    [clampToolMenuPos],
+  )
 
   const toolbarOffsetPx = UI_LAYOUT.toolbarOffsetPx
 

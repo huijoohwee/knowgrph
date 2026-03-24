@@ -31,6 +31,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
   documentSemanticMode: 'document' | 'keyword'
   frontmatterModeEnabled: boolean
   markdownDesignBlocks?: MarkdownDesignBlock[]
+  panelOnlyNodeIds?: string[]
   collapsedGroupIds?: unknown
   layoutPositionCacheByMode?: Record<string, Record<string, { x: number; y: number }>> | null
   canvas2dRenderer?: string
@@ -55,6 +56,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     documentSemanticMode,
     frontmatterModeEnabled,
     markdownDesignBlocks,
+    panelOnlyNodeIds,
     collapsedGroupIds,
     layoutPositionCacheByMode,
     canvas2dRenderer,
@@ -169,6 +171,13 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     const nodes = Array.isArray(graphDataForDisplay.nodes) ? graphDataForDisplay.nodes : []
     if (nodes.length === 0) return undefined
     const ids: string[] = []
+
+    const extra = Array.isArray(panelOnlyNodeIds) ? panelOnlyNodeIds : []
+    for (let i = 0; i < extra.length; i += 1) {
+      const id = String(extra[i] || '').trim()
+      if (id) ids.push(id)
+    }
+
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i] as any
       const id = String(n?.id || '').trim()
@@ -210,7 +219,8 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
       const id = String(n?.id || '').trim()
       if (!id) continue
       const spec = getNodeMediaSpec(n)
-      if (spec?.kind === 'iframe') ids.push(id)
+      if (!spec) continue
+      if (spec.kind === 'iframe' || spec.kind === 'image' || spec.kind === 'svg' || spec.kind === 'video') ids.push(id)
     }
     const unique = Array.from(new Set(ids))
     return unique.length ? new Set(unique) : undefined

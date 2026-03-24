@@ -197,7 +197,29 @@ export function useWorkspaceImportActions(args: {
         const createdPath = res.createdPaths.find(p => typeof p === 'string' && p.trim()) || null
         const source = createdPath ? res.sources.find(s => s.path === createdPath)?.source : res.sources[0]?.source
         const sourceUrl = source && source.kind === 'url' ? source.url : null
-        if (createdPath) await focusAfterImport(createdPath, { sourceUrl, applyToGraph: true, jobId })
+
+        const shouldApplyToGraph = await (async () => {
+          if (!createdPath) return true
+          try {
+            const current = await (await getFs()).readFileText(createdPath)
+            const meta = current ? parseWebpageFrontmatterMeta(current) : null
+            if (!meta || !meta.url) return true
+            const body = String(current || '').replace(/^---[\s\S]*?\n---\n?/m, '').trim()
+            if (body.length <= 2500) return true
+            return false
+          } catch {
+            return true
+          }
+        })()
+
+        if (createdPath) {
+          await focusAfterImport(createdPath, { sourceUrl, applyToGraph: shouldApplyToGraph, jobId })
+          if (!shouldApplyToGraph) {
+            useGraphStore
+              .getState()
+              .pushUiLog({ kind: 'neutral', message: 'Imported webpage; graph apply deferred to avoid canvas lag', source: 'workspace:importUrl' })
+          }
+        }
 
         const hydrateWebpageStub = async () => {
           if (!createdPath) return
@@ -209,6 +231,7 @@ export function useWorkspaceImportActions(args: {
             const meta = parseWebpageFrontmatterMeta(current)
             if (!meta || !meta.url) return
             if (meta.url !== sourceUrl) return
+            if (meta.hydrate === false) return
 
             const body = String(current || '').replace(/^---[\s\S]*?\n---\n?/m, '').trim()
             const needsHydration = (isFrontmatterOnlyDoc(current) || looksLikeJsShellText(body) || body.length < 220) && meta.view === 'markdown'

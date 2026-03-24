@@ -4,7 +4,12 @@ import { writeTextFileToDirectoryDetailed } from '@/lib/fsAccess/writeTextFileTo
 import { writeBlobToFileHandle } from '@/lib/graph/save'
 import { IMPORT_EXPORT_STATUS_COPY } from '@/lib/config.copy'
 import { verifyWorkflowPresetStorage } from '@/features/parsers/workflowPresets'
-import { captureVisibleCanvasPngBlobFromDom, readCanvasViewportSizeFromDom, wrapPngBlobAsSvgMarkup } from '@/lib/graph/svgSnapshot'
+import {
+  captureVisibleCanvasPngBlobFromDom,
+  injectLiveMarkdownDesignBlocksIntoSvgMarkupAnchored,
+  readCanvasViewportSizeFromDom,
+  wrapPngBlobAsSvgMarkup,
+} from '@/lib/graph/svgSnapshot'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -12,6 +17,8 @@ import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { exportGraphAsCenteredSvgMarkup } from '@/lib/graph/graphCenteredSvg'
 import { exportGraphAsCentered3dSvgMarkup } from '@/lib/graph/graphCenteredSvg3d'
 import { buildGraphHtmlViewerMarkup } from '@/lib/graph/graphHtmlViewer'
+import { captureLiveOverlayHtmlForHtmlViewerExport } from '@/lib/graph/htmlViewer/liveOverlayExport'
+import { readViewportControlsPresetFromLocalStorage } from '@/lib/graph/htmlViewer/exportViewportControls'
 import { defaultSchema } from '@/lib/graph/schema'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { readPanSpeed, readWheelBehavior, readZoomSpeed } from '@/lib/canvas/camera-options-2d'
@@ -30,6 +37,15 @@ import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { determineLayoutPositions, buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey } from '@/components/GraphCanvas/layout/positioning'
+import { rewriteSvgMarkupForStandaloneHtmlExport } from '@/lib/graph/htmlViewer/rewriteSvgMarkupForStandaloneHtmlExport'
+import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
+import { deriveMarkdownDesignLayout, deriveMarkdownDesignLayoutFromGraphBlocks } from '@/features/markdown-edgeless/markdownDesignLayout'
+import { computeMarkdownAnchorNodeIdByBlockId } from '@/lib/render/markdownPanelOverlayPool'
+import { extractNodePosByIdFromSvgMarkup } from '@/lib/graph/svgNodePos'
+import { pickLayoutSeedPositions2dForExport } from '@/lib/graph/exportLayoutSeed2d'
+import { ensureSvgHasEdgeGeometry } from '@/lib/graph/svgEdgeGeometry'
+import { injectMarkdownDesignBlocksIntoSvgEl } from '@/lib/graph/htmlViewer/markdownDesignSvgOverlay'
+import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 
 type UseSnapshotExportHandlersParams = {
   captureCanvasSvgSnapshot: (mode?: '2d' | '3d') => Promise<string | null>
@@ -212,6 +228,79 @@ async function renderGraphCanvasSvgForHtmlExport(args: {
   const displayNodes = (graphDataForDisplay.nodes ?? []) as any
   const displayEdges = (graphDataForDisplay.edges ?? []) as any
   const edgesForSim = normalizeEdgesForSim(displayNodes, displayEdges)
+
+  const markdownTableAnchorNodeIds = (() => {
+    try {
+      const layout = deriveMarkdownDesignLayoutFromGraphBlocks({
+        graphData: graphDataForDisplay,
+        graphDataRevision: effectiveGraphDataRevision,
+        nodePosById: layoutPositions,
+      })
+      const blocks = Array.isArray((layout as any)?.blocks) ? ((layout as any).blocks as any[]) : []
+      if (blocks.length === 0) return [] as string[]
+      const nodes = Array.isArray((graphDataForDisplay as any)?.nodes) ? ((graphDataForDisplay as any).nodes as any[]) : []
+      if (nodes.length === 0) return [] as string[]
+      const anchorByBlockId = computeMarkdownAnchorNodeIdByBlockId({ layout, nodes }) as any
+      const out: string[] = []
+      for (let i = 0; i < blocks.length; i += 1) {
+        const b = blocks[i] as any
+        const kind = String(b?.preview?.kind || '').trim()
+        if (kind !== 'table') continue
+        const blockId = String(b?.id || '').trim()
+        const anchorId = blockId ? String(anchorByBlockId?.[blockId] || '').trim() : ''
+        if (anchorId) out.push(anchorId)
+      }
+      return Array.from(new Set(out))
+    } catch {
+      return [] as string[]
+    }
+  })()
+
+  const panelOnlyNodeIdSet = (() => {
+    const nodes = Array.isArray(graphDataForDisplay.nodes) ? (graphDataForDisplay.nodes as any[]) : []
+    if (nodes.length === 0) return null
+    const ids: string[] = []
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i] as any
+      const id = String(n?.id || '').trim()
+      if (!id) continue
+      const type = String(n?.type || '').trim()
+      if (type === 'Table' || type === 'CodeBlock') {
+        ids.push(id)
+        continue
+      }
+      if (type === 'Paragraph') {
+        const props = n?.properties
+        const propsObj = props && typeof props === 'object' && !Array.isArray(props) ? (props as Record<string, unknown>) : null
+        const text = propsObj && typeof propsObj.text === 'string' ? String(propsObj.text || '').trim() : ''
+        if (propsObj && propsObj.calloutType === true) ids.push(id)
+        else if (text.startsWith('>')) ids.push(id)
+      }
+    }
+
+    for (let i = 0; i < markdownTableAnchorNodeIds.length; i += 1) {
+      const id = String(markdownTableAnchorNodeIds[i] || '').trim()
+      if (id) ids.push(id)
+    }
+    const unique = Array.from(new Set(ids))
+    return unique.length ? new Set(unique) : null
+  })()
+
+  const mediaOverlayNodeIdSet = (() => {
+    const nodes = Array.isArray(graphDataForDisplay.nodes) ? (graphDataForDisplay.nodes as any[]) : []
+    if (nodes.length === 0) return null
+    const ids: string[] = []
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i] as any
+      const id = String(n?.id || '').trim()
+      if (!id) continue
+      const spec = getNodeMediaSpec(n)
+      if (!spec) continue
+      ids.push(id)
+    }
+    const unique = Array.from(new Set(ids))
+    return unique.length ? new Set(unique) : null
+  })()
   const groupsDerivation = deriveSceneGroups({
     graphData: graphDataForDisplay,
     graphDataRevision: effectiveGraphDataRevision,
@@ -253,6 +342,8 @@ async function renderGraphCanvasSvgForHtmlExport(args: {
     hoverEnabled: true,
     zoomOnDoubleClick: false,
     renderMediaAsNodes,
+    panelOnlyNodeIdSet: panelOnlyNodeIdSet || undefined,
+    mediaOverlayNodeIdSet: mediaOverlayNodeIdSet || undefined,
     mediaPanelDensity,
     overlayBaseWidthRatioDefault:
       typeof overlayBaseWidthRatioDefault === 'number' && Number.isFinite(overlayBaseWidthRatioDefault)
@@ -660,10 +751,116 @@ export function useSnapshotExportHandlers({
           })
         })()
 
+        const markdownLayout = (() => {
+          try {
+            const st = useGraphStore.getState() as unknown as { markdownDocumentText?: unknown; markdownDocumentName?: unknown }
+            const markdownText = String(st.markdownDocumentText || '')
+            if (!markdownText.trim()) return null
+            const activeDocumentPath = String(st.markdownDocumentName || '').trim() || 'markdown'
+            const markdownTokensKey = buildMarkdownTokensKey(markdownText)
+            const lexed = lexMarkdown(markdownText)
+            return deriveMarkdownDesignLayout({ activeDocumentPath, markdownTokensKey, tokens: lexed.tokens as never })
+          } catch {
+            return null
+          }
+        })()
+
+        const svgDerivedNodePosById = extractNodePosByIdFromSvgMarkup(String(svgMarkup || ''))
+        const layoutSemanticModeKey = store.multiDimTableModeEnabled ? `${documentSemanticMode}:mdtbl` : documentSemanticMode
+        const layoutSeedPosById = pickLayoutSeedPositions2dForExport({
+          graphData,
+          graphDataRevision: store.graphDataRevision,
+          schema,
+          documentSemanticModeKey: layoutSemanticModeKey,
+          frontmatterModeEnabled,
+          renderMediaAsNodes: store.renderMediaAsNodes === true,
+          mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
+          collapsedGroupIds: store.collapsedGroupIds,
+          layoutPositionCacheByMode: store.layoutPositionCacheByMode,
+          canvas2dRenderer: store.canvas2dRenderer,
+        })
+        const nodePosById = (() => {
+          const out: Record<string, { x: number; y: number }> = { ...(layoutSeedPosById || {}) }
+          const nodes = Array.isArray((graphData as any)?.nodes) ? ((graphData as any).nodes as any[]) : []
+          for (let i = 0; i < nodes.length; i += 1) {
+            const n = nodes[i]
+            const id = String(n?.id || '').trim()
+            if (!id) continue
+            const x = Number(n?.x)
+            const y = Number(n?.y)
+            if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+            out[id] = { x, y }
+          }
+          for (const id of Object.keys(svgDerivedNodePosById)) out[id] = svgDerivedNodePosById[id]!
+          return out
+        })()
+
+        const graphDataForViewer = (() => {
+          const nodes = Array.isArray((graphData as any)?.nodes) ? ((graphData as any).nodes as any[]) : []
+          if (nodes.length === 0) return graphData
+          if (!nodePosById || Object.keys(nodePosById).length === 0) return graphData
+          let changed = false
+          const nextNodes = nodes.map(n => {
+            const id = String(n?.id || '').trim()
+            if (!id) return n
+            const p = nodePosById[id]
+            if (!p) return n
+            const nx = Number(p.x)
+            const ny = Number(p.y)
+            if (!Number.isFinite(nx) || !Number.isFinite(ny)) return n
+            const ox = Number((n as any).x)
+            const oy = Number((n as any).y)
+            if (ox === nx && oy === ny) return n
+            changed = true
+            return { ...(n as any), x: nx, y: ny }
+          })
+          return changed ? ({ ...(graphData as any), nodes: nextNodes } as GraphData) : graphData
+        })()
+
+        const markdownLayoutForSvgInjection = (() => {
+          const blocks = Array.isArray((markdownLayout as any)?.blocks) ? ((markdownLayout as any).blocks as any[]) : []
+          if (blocks.length > 0) return markdownLayout
+          return deriveMarkdownDesignLayoutFromGraphBlocks({ graphData, graphDataRevision: store.graphDataRevision, nodePosById })
+        })()
+
+        const anchorNodeIdByBlockId = computeMarkdownAnchorNodeIdByBlockId({
+          layout: markdownLayoutForSvgInjection,
+          nodes: Array.isArray((graphData as any)?.nodes) ? ((graphData as any).nodes as any) : [],
+        })
+
+        const svgMarkupInjected = injectLiveMarkdownDesignBlocksIntoSvgMarkupAnchored({
+          svgMarkup: String(svgMarkup || ''),
+          anchorNodeIdByBlockId,
+          nodePosById,
+        })
+        const svgWithEdgeGeometry = ensureSvgHasEdgeGeometry({ svgMarkup: svgMarkupInjected, graphData, nodePosById })
+        const svgWithMarkdownFallback = (() => {
+          const blocks = Array.isArray((markdownLayoutForSvgInjection as any)?.blocks)
+            ? ((markdownLayoutForSvgInjection as any).blocks as any[])
+            : []
+          if (svgWithEdgeGeometry.includes('data-kg-layer="markdown-design-blocks"')) return svgWithEdgeGeometry
+          if (blocks.length === 0) return svgWithEdgeGeometry
+          if (typeof DOMParser === 'undefined' || typeof XMLSerializer === 'undefined') return svgWithEdgeGeometry
+          try {
+            const doc = new DOMParser().parseFromString(svgWithEdgeGeometry.replace(/^<\?xml[^>]*>\s*/i, ''), 'image/svg+xml')
+            const svg = doc.querySelector('svg') as unknown as SVGSVGElement | null
+            if (!svg) return svgWithEdgeGeometry
+            injectMarkdownDesignBlocksIntoSvgEl({ svgEl: svg, blocks })
+            const out = new XMLSerializer().serializeToString(svg)
+            const trimmed = String(out || '').trim()
+            return trimmed || svgWithEdgeGeometry
+          } catch {
+            return svgWithEdgeGeometry
+          }
+        })()
+        const svgMarkupStandalone = await rewriteSvgMarkupForStandaloneHtmlExport({ svgMarkup: svgWithMarkdownFallback })
+
         const html = await buildGraphHtmlViewerMarkup({
           title,
-          svgMarkup: svgMarkup || null,
-          graphData,
+          svgMarkup: String(svgMarkupStandalone || '').trim() || null,
+          overlayHtml: captureLiveOverlayHtmlForHtmlViewerExport(),
+          graphData: graphDataForViewer,
+          viewportControlsPreset: readViewportControlsPresetFromLocalStorage() || 'map',
           preferWebgl3d: wants3dExport,
           initialView: initialView || undefined,
           zoomLabelScaleMode2d: store.zoomLabelScaleMode2d,
@@ -674,9 +871,15 @@ export function useSnapshotExportHandlers({
           zoomStrokeScaleExponent2d: store.zoomStrokeScaleExponent2d,
           zoomStrokeScaleClampMin2d: store.zoomStrokeScaleClampMin2d,
           zoomStrokeScaleClampMax2d: store.zoomStrokeScaleClampMax2d,
-          hideLabelsBelowScale: store.schema?.performance?.lod?.hideLabelsBelowScale,
-          includeRichMediaOverlays: store.renderMediaAsNodes === true,
-          mediaOverlayPoolMax: store.threeIframeOverlayPoolMax,
+          hideLabelsBelowScale: 0,
+          includeRichMediaOverlays: true,
+          mediaOverlayPoolMax: Math.max(
+            240,
+            Array.isArray((graphDataForViewer as any)?.nodes) ? ((graphDataForViewer as any).nodes as any[]).length : 0,
+            typeof store.threeIframeOverlayPoolMax === 'number' && Number.isFinite(store.threeIframeOverlayPoolMax)
+              ? Math.floor(store.threeIframeOverlayPoolMax || 0)
+              : 0,
+          ),
           mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
           threeIframeOverlayBaseWidthRatioDefault: store.threeIframeOverlayBaseWidthRatioDefault,
           threeIframeOverlayBaseWidthRatioCompact: store.threeIframeOverlayBaseWidthRatioCompact,
@@ -687,7 +890,6 @@ export function useSnapshotExportHandlers({
           zoomMinK: readZoomScaleExtent(store.schema || defaultSchema)[0],
           zoomMaxK: readZoomScaleExtent(store.schema || defaultSchema)[1],
           wheelBehavior: readWheelBehavior(store.schema || defaultSchema),
-          viewportControlsPreset: (store as unknown as { viewportControlsPreset?: 'map' | 'design' }).viewportControlsPreset === 'design' ? 'design' : 'map',
           panSpeed: readPanSpeed(store.schema || defaultSchema),
           zoomSpeed: readZoomSpeed(store.schema || defaultSchema),
           flowWheelZoomSpeedMultiplier: (store as unknown as { flowWheelZoomSpeedMultiplier?: number }).flowWheelZoomSpeedMultiplier,
@@ -819,10 +1021,114 @@ export function useSnapshotExportHandlers({
           })
         })()
 
+        const markdownLayout = (() => {
+          try {
+            const st = useGraphStore.getState() as unknown as { markdownDocumentText?: unknown; markdownDocumentName?: unknown }
+            const markdownText = String(st.markdownDocumentText || '')
+            if (!markdownText.trim()) return null
+            const activeDocumentPath = String(st.markdownDocumentName || '').trim() || 'markdown'
+            const markdownTokensKey = buildMarkdownTokensKey(markdownText)
+            const lexed = lexMarkdown(markdownText)
+            return deriveMarkdownDesignLayout({ activeDocumentPath, markdownTokensKey, tokens: lexed.tokens as never })
+          } catch {
+            return null
+          }
+        })()
+
+        const svgDerivedNodePosById = extractNodePosByIdFromSvgMarkup(String(svgOnly || ''))
+        const layoutSemanticModeKey = store.multiDimTableModeEnabled ? `${documentSemanticMode}:mdtbl` : documentSemanticMode
+        const layoutSeedPosById = pickLayoutSeedPositions2dForExport({
+          graphData,
+          graphDataRevision: store.graphDataRevision,
+          schema,
+          documentSemanticModeKey: layoutSemanticModeKey,
+          frontmatterModeEnabled,
+          renderMediaAsNodes: store.renderMediaAsNodes === true,
+          mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
+          collapsedGroupIds: store.collapsedGroupIds,
+          layoutPositionCacheByMode: store.layoutPositionCacheByMode,
+          canvas2dRenderer: store.canvas2dRenderer,
+        })
+        const nodePosById = (() => {
+          const out: Record<string, { x: number; y: number }> = { ...(layoutSeedPosById || {}) }
+          const nodes = Array.isArray((graphData as any)?.nodes) ? ((graphData as any).nodes as any[]) : []
+          for (let i = 0; i < nodes.length; i += 1) {
+            const n = nodes[i]
+            const id = String(n?.id || '').trim()
+            if (!id) continue
+            const x = Number(n?.x)
+            const y = Number(n?.y)
+            if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+            out[id] = { x, y }
+          }
+          for (const id of Object.keys(svgDerivedNodePosById)) out[id] = svgDerivedNodePosById[id]!
+          return out
+        })()
+
+        const graphDataForViewer = (() => {
+          const nodes = Array.isArray((graphData as any)?.nodes) ? ((graphData as any).nodes as any[]) : []
+          if (nodes.length === 0) return graphData
+          if (!nodePosById || Object.keys(nodePosById).length === 0) return graphData
+          let changed = false
+          const nextNodes = nodes.map(n => {
+            const id = String(n?.id || '').trim()
+            if (!id) return n
+            const p = nodePosById[id]
+            if (!p) return n
+            const nx = Number(p.x)
+            const ny = Number(p.y)
+            if (!Number.isFinite(nx) || !Number.isFinite(ny)) return n
+            const ox = Number((n as any).x)
+            const oy = Number((n as any).y)
+            if (ox === nx && oy === ny) return n
+            changed = true
+            return { ...(n as any), x: nx, y: ny }
+          })
+          return changed ? ({ ...(graphData as any), nodes: nextNodes } as GraphData) : graphData
+        })()
+
+        const markdownLayoutForSvgInjection = (() => {
+          const blocks = Array.isArray((markdownLayout as any)?.blocks) ? ((markdownLayout as any).blocks as any[]) : []
+          if (blocks.length > 0) return markdownLayout
+          return deriveMarkdownDesignLayoutFromGraphBlocks({ graphData, graphDataRevision: store.graphDataRevision, nodePosById })
+        })()
+
+        const anchorNodeIdByBlockId = computeMarkdownAnchorNodeIdByBlockId({
+          layout: markdownLayoutForSvgInjection,
+          nodes: Array.isArray((graphData as any)?.nodes) ? ((graphData as any).nodes as any) : [],
+        })
+
+        const svgOnlyInjected = injectLiveMarkdownDesignBlocksIntoSvgMarkupAnchored({
+          svgMarkup: String(svgOnly || ''),
+          anchorNodeIdByBlockId,
+          nodePosById,
+        })
+        const svgWithEdgeGeometry = ensureSvgHasEdgeGeometry({ svgMarkup: svgOnlyInjected, graphData, nodePosById })
+        const svgWithMarkdownFallback = (() => {
+          const blocks = Array.isArray((markdownLayoutForSvgInjection as any)?.blocks)
+            ? ((markdownLayoutForSvgInjection as any).blocks as any[])
+            : []
+          if (svgWithEdgeGeometry.includes('data-kg-layer="markdown-design-blocks"')) return svgWithEdgeGeometry
+          if (blocks.length === 0) return svgWithEdgeGeometry
+          if (typeof DOMParser === 'undefined' || typeof XMLSerializer === 'undefined') return svgWithEdgeGeometry
+          try {
+            const doc = new DOMParser().parseFromString(svgWithEdgeGeometry.replace(/^<\?xml[^>]*>\s*/i, ''), 'image/svg+xml')
+            const svg = doc.querySelector('svg') as unknown as SVGSVGElement | null
+            if (!svg) return svgWithEdgeGeometry
+            injectMarkdownDesignBlocksIntoSvgEl({ svgEl: svg, blocks })
+            const out = new XMLSerializer().serializeToString(svg)
+            const trimmed = String(out || '').trim()
+            return trimmed || svgWithEdgeGeometry
+          } catch {
+            return svgWithEdgeGeometry
+          }
+        })()
+        const svgOnlyStandalone = await rewriteSvgMarkupForStandaloneHtmlExport({ svgMarkup: svgWithMarkdownFallback })
+
         const html = await buildGraphHtmlViewerMarkup({
           title,
-          svgMarkup: String(svgOnly || '').trim() || null,
-          graphData,
+          svgMarkup: String(svgOnlyStandalone || '').trim() || null,
+          graphData: graphDataForViewer,
           preferWebgl3d: wants3dExport,
           initialView: initialView || undefined,
           zoomLabelScaleMode2d: store.zoomLabelScaleMode2d,
@@ -833,9 +1139,15 @@ export function useSnapshotExportHandlers({
           zoomStrokeScaleExponent2d: store.zoomStrokeScaleExponent2d,
           zoomStrokeScaleClampMin2d: store.zoomStrokeScaleClampMin2d,
           zoomStrokeScaleClampMax2d: store.zoomStrokeScaleClampMax2d,
-          hideLabelsBelowScale: store.schema?.performance?.lod?.hideLabelsBelowScale,
-          includeRichMediaOverlays: store.renderMediaAsNodes === true,
-          mediaOverlayPoolMax: store.threeIframeOverlayPoolMax,
+          hideLabelsBelowScale: 0,
+          includeRichMediaOverlays: true,
+          mediaOverlayPoolMax: Math.max(
+            240,
+            Array.isArray((graphDataForViewer as any)?.nodes) ? ((graphDataForViewer as any).nodes as any[]).length : 0,
+            typeof store.threeIframeOverlayPoolMax === 'number' && Number.isFinite(store.threeIframeOverlayPoolMax)
+              ? Math.floor(store.threeIframeOverlayPoolMax || 0)
+              : 0,
+          ),
           mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
           threeIframeOverlayBaseWidthRatioDefault: store.threeIframeOverlayBaseWidthRatioDefault,
           threeIframeOverlayBaseWidthRatioCompact: store.threeIframeOverlayBaseWidthRatioCompact,

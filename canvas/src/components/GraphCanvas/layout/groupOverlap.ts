@@ -1,7 +1,7 @@
 import * as d3 from 'd3'
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { getNodeAabbHalfExtentsWithLabel } from '@/components/GraphCanvas/layout/overlap'
+import { getNodeAabbHalfExtentsWithLabel, type NodeHalfExtents } from '@/components/GraphCanvas/layout/overlap'
 import type { GroupKeyOfNode } from '@/components/GraphCanvas/layout/grouping'
 import { readCollisionConfig, readGroupLabelTopExtra } from '@/components/GraphCanvas/layout/collisionConfig'
 import { resolveGroupCollisions, CollisionGroupItem } from '@/lib/graph/collision/boxCollision'
@@ -31,9 +31,11 @@ export const createGroupBboxCollideForce = (args: {
   strength: number
   iterations: number
   groupKeyOf?: GroupKeyOfNode
+  halfExtentsByNodeId?: Record<string, NodeHalfExtents> | null
 }): d3.Force<GraphNode, GraphEdge> => {
   const { schema } = args
   const groupKeyOf = args.groupKeyOf || getDefaultGroupKeyOfNode
+  const halfExtentsByNodeId = args.halfExtentsByNodeId || null
   const groupBboxCfg = readCollisionConfig(schema).groupBbox
   const borderGapMinPx = groupBboxCfg.borderGapPx
   const extraGapPx = groupBboxCfg.extraGapPx
@@ -98,7 +100,7 @@ export const createGroupBboxCollideForce = (args: {
       const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
       const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
       if (x == null || y == null) continue
-      const ext = getNodeAabbHalfExtentsWithLabel(n, schema)
+      const ext = getNodeAabbHalfExtentsWithLabel(n, schema, halfExtentsByNodeId ? { halfExtentsByNodeId } : null)
       const minX = x - ext.halfW - visualPad
       const maxX = x + ext.halfW + visualPad
       const minY = y - ext.halfH - visualPad - topLabelExtra

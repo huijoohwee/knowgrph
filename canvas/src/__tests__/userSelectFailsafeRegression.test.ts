@@ -16,5 +16,10 @@ export function testGlobalUserSelectLockHasFailsafeAndIsInstalled() {
   if (!app.includes('installGlobalUserSelectFailsafe')) {
     throw new Error('expected App to install the global user-select failsafe')
   }
+  if (!app.includes('ensureSpacePanKeyListenerInstalled')) {
+    throw new Error('expected App to install the space-pan key listener')
+  }
+  if (!app.includes('installGlobalInteractionRecovery')) {
+    throw new Error('expected App to install global interaction recovery')
+  }
 }
-

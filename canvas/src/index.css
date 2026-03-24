@@ -198,6 +198,12 @@ body.kg-no-select * {
   user-select: none;
 }
 
+body.kg-pointer-drag-active iframe,
+body.kg-pointer-drag-active embed,
+body.kg-pointer-drag-active object {
+  pointer-events: none !important;
+}
+
 body {
   background-color: var(--app-bg);
 }

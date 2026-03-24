@@ -1,4 +1,5 @@
 import React from 'react'
+import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphEdge, GraphNode, GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -205,11 +206,6 @@ export const GraphDataTable = React.memo(function GraphDataTable({
 
   const scrollContainerRef = React.useRef<HTMLDivElement>(null)
   const headerRef = React.useRef<HTMLTableSectionElement>(null)
-  const columnResizeStateRef = React.useRef<{
-    key: GraphDataTableColumnKey
-    startX: number
-    startWidth: number
-  } | null>(null)
   const isColumnResizingRef = React.useRef(false)
   const [expandedCell, setExpandedCell] = React.useState<{
     rowId: string
@@ -253,12 +249,10 @@ export const GraphDataTable = React.memo(function GraphDataTable({
     (event: React.PointerEvent, key: GraphDataTableColumnKey) => {
       if (event.pointerType === 'mouse' && event.button !== 0) return
 
-      const startClientX = event.clientX
-      const startClientY = event.clientY
-      const pointerId = event.pointerId
+      const ev = event.nativeEvent
+      const startClientX = ev.clientX
+      const startClientY = ev.clientY
       let didStartReorder = false
-
-      const previousUserSelect = document.body.style.userSelect
 
       const computeDropHint = (clientX: number, clientY: number, fromKey: GraphDataTableColumnKey) => {
         const header = headerRef.current
@@ -310,19 +304,10 @@ export const GraphDataTable = React.memo(function GraphDataTable({
         return { key: target.key, side }
       }
 
-      const cleanup = () => {
-        window.removeEventListener('pointermove', handlePointerMove as EventListener)
-        window.removeEventListener('pointerup', handlePointerUp as EventListener)
-        window.removeEventListener('pointercancel', handlePointerCancel as EventListener)
-        window.removeEventListener('keydown', handleKeyDown)
-        document.body.style.userSelect = previousUserSelect
-      }
-
       const startReorder = () => {
         didStartReorder = true
         setReorderFromKey(key)
         setDropHint(null)
-        document.body.style.userSelect = 'none'
         try {
           window.getSelection()?.removeAllRanges()
         } catch {
@@ -330,36 +315,10 @@ export const GraphDataTable = React.memo(function GraphDataTable({
         }
       }
 
-      const handlePointerMove = (e: PointerEvent) => {
-        if (e.pointerId !== pointerId) return
-        const dx = e.clientX - startClientX
-        const dy = e.clientY - startClientY
-        if (!didStartReorder) {
-          if (dx * dx + dy * dy < 25) return
-          startReorder()
-        }
-        try {
-          e.preventDefault()
-          e.stopPropagation()
-        } catch {
-          void 0
-        }
-        const hint = computeDropHint(e.clientX, e.clientY, key)
-        if (!hint) {
-          setDropHint(prev => (prev ? null : prev))
-          return
-        }
-        setDropHint(prev => {
-          if (prev && prev.key === hint.key && prev.side === hint.side) return prev
-          return hint
-        })
-      }
-
       const finish = (apply: boolean) => {
         const hint = dropHintRef.current
         setReorderFromKey(null)
         setDropHint(null)
-        cleanup()
         if (!apply) return
         if (!didStartReorder) return
         if (!hint) return
@@ -376,25 +335,29 @@ export const GraphDataTable = React.memo(function GraphDataTable({
         setGraphDataTableColumnOrder(next)
       }
 
-      const handlePointerUp = (e: PointerEvent) => {
-        if (e.pointerId !== pointerId) return
-        finish(true)
-      }
-
-      const handlePointerCancel = (e: PointerEvent) => {
-        if (e.pointerId !== pointerId) return
-        finish(false)
-      }
-
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key !== 'Escape') return
-        finish(false)
-      }
-
-      window.addEventListener('pointermove', handlePointerMove as EventListener, { passive: false })
-      window.addEventListener('pointerup', handlePointerUp as EventListener)
-      window.addEventListener('pointercancel', handlePointerCancel as EventListener)
-      window.addEventListener('keydown', handleKeyDown)
+      startPointerDrag({
+        ev,
+        cursor: 'grabbing',
+        onMove: mv => {
+          const dx = mv.clientX - startClientX
+          const dy = mv.clientY - startClientY
+          if (!didStartReorder) {
+            if (dx * dx + dy * dy < 25) return
+            startReorder()
+          }
+          const hint = computeDropHint(mv.clientX, mv.clientY, key)
+          if (!hint) {
+            setDropHint(prev => (prev ? null : prev))
+            return
+          }
+          setDropHint(prev => {
+            if (prev && prev.key === hint.key && prev.side === hint.side) return prev
+            return hint
+          })
+        },
+        onEnd: () => finish(true),
+        onCancel: () => finish(false),
+      })
     },
     [graphDataTableColumnOrder, orderedVisibleColumnKeys, setGraphDataTableColumnOrder],
   )
@@ -566,16 +529,32 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   }, [rowDensity, listItems])
 
 
-  const handleColumnResizeStart = React.useCallback(
-    (payload: { columnKey: GraphDataTableColumnKey; clientX: number; width: number }) => {
-      columnResizeStateRef.current = {
-        key: payload.columnKey,
-        startX: payload.clientX,
-        startWidth: payload.width,
-      }
+  const handleColumnResizePointerDown = React.useCallback(
+    (event: React.PointerEvent, payload: { columnKey: GraphDataTableColumnKey; width: number }) => {
+      if (event.pointerType === 'mouse' && event.button !== 0) return
+      const ev = event.nativeEvent
       isColumnResizingRef.current = true
+      const startX = ev.clientX
+      const startWidth = payload.width
+      startPointerDrag({
+        ev,
+        cursor: 'col-resize',
+        onMove: mv => {
+          if (!isColumnResizingRef.current) return
+          const deltaX = mv.clientX - startX
+          const nextWidth = startWidth + deltaX
+          if (!Number.isFinite(nextWidth) || nextWidth <= 0) return
+          setColumnWidth(payload.columnKey, nextWidth)
+        },
+        onEnd: () => {
+          isColumnResizingRef.current = false
+        },
+        onCancel: () => {
+          isColumnResizingRef.current = false
+        },
+      })
     },
-    [],
+    [setColumnWidth],
   )
 
   React.useEffect(() => {
@@ -620,31 +599,6 @@ export const GraphDataTable = React.memo(function GraphDataTable({
     observer.observe(header)
     return () => observer.disconnect()
   }, [])
-
-  React.useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
-      if (!isColumnResizingRef.current) return
-      const state = columnResizeStateRef.current
-      if (!state) return
-      const deltaX = event.clientX - state.startX
-      const nextWidth = state.startWidth + deltaX
-      if (!Number.isFinite(nextWidth) || nextWidth <= 0) return
-      setColumnWidth(state.key, nextWidth)
-    }
-
-    const handleMouseUp = () => {
-      if (!isColumnResizingRef.current) return
-      isColumnResizingRef.current = false
-      columnResizeStateRef.current = null
-    }
-
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [setColumnWidth])
 
   React.useEffect(() => {
     const container = scrollContainerRef.current
@@ -699,7 +653,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
     frozenBoundaryColumnKey,
     frozenAreaDragIndicatorLeft,
     isFrozenAreaIndicatorVisible,
-    handleFrozenAreaDragStart,
+    handleFrozenAreaPointerDown,
   } = useGraphDataTableFrozenArea({
     freezeFirstDataColumn,
     setFreezeFirstDataColumn,
@@ -761,9 +715,9 @@ export const GraphDataTable = React.memo(function GraphDataTable({
                 isColumnSelected={selectedColumnKey === columnKey}
                 onSelectColumn={handleSelectColumn}
                 showFrozenResizeHandle={columnKey === frozenBoundaryColumnKey}
-                onStartFrozenAreaDrag={handleFrozenAreaDragStart}
+                onFrozenAreaPointerDown={event => handleFrozenAreaPointerDown(event.nativeEvent)}
                 width={resolvedColumnWidths[columnKey]}
-                onStartColumnResize={handleColumnResizeStart}
+                onColumnResizePointerDown={handleColumnResizePointerDown}
                 onRequestAddFilter={onRequestAddFilter}
                 onRequestGroupBy={onRequestGroupBy}
                 onRequestHideColumn={onRequestHideColumn}
@@ -809,7 +763,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
             edgeScopeBorderColor={edgeScopeBorderColor}
             frozenBoundaryColumnKey={frozenBoundaryColumnKey}
             freezeFirstDataColumn={freezeFirstDataColumn}
-            onStartFrozenAreaDrag={handleFrozenAreaDragStart}
+            onFrozenAreaPointerDown={event => handleFrozenAreaPointerDown(event.nativeEvent)}
             expandedCellRowId={expandedCell?.rowId ?? null}
             expandedCellColumnKey={expandedCell?.columnKey ?? null}
             onToggleExpandCell={handleToggleExpandCell}

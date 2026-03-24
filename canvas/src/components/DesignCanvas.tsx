@@ -168,6 +168,7 @@ export default function DesignCanvas({
   }, [])
 
   useEffect(() => {
+    if (!active) return
     const captureSvg = async (): Promise<string | null> => {
       try {
         const el = svgRef.current
@@ -226,7 +227,7 @@ export default function DesignCanvas({
     return () => {
       registerCanvasSnapshotFns('2d', null)
     }
-  }, [registerCanvasSnapshotFns])
+  }, [active, registerCanvasSnapshotFns])
 
   const snapshot = useGraphStore(
     useShallow(s => ({
@@ -1241,6 +1242,200 @@ export default function DesignCanvas({
     }
   }, [])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const cancelAll = () => {
+      const svgEl = svgRef.current
+
+      const m = marqueeRef.current
+      if (m) {
+        marqueeRef.current = null
+        setMarqueeBox(null)
+        try {
+          svgEl?.releasePointerCapture?.(m.pointerId)
+        } catch {
+          void 0
+        }
+      }
+
+      const r = resizeRef.current
+      if (r) {
+        resizeRef.current = null
+        const pending = { id: r.id, x: r.startRect.x, y: r.startRect.y, w: r.startRect.w, h: r.startRect.h }
+        const id = String(pending.id || '').trim()
+        if (id) {
+          const el = frameElByIdRef.current.get(id)
+          if (el) {
+            try {
+              el.setAttribute('transform', `translate(${pending.x},${pending.y})`)
+            } catch {
+              void 0
+            }
+          }
+          const rectEl = frameRectElByIdRef.current.get(id)
+          if (rectEl) {
+            try {
+              rectEl.setAttribute('width', String(Math.max(1, pending.w)))
+              rectEl.setAttribute('height', String(Math.max(1, pending.h)))
+            } catch {
+              void 0
+            }
+          }
+          const statusEl = frameStatusElByIdRef.current.get(id)
+          if (statusEl) {
+            try {
+              const w = Math.max(1, pending.w)
+              statusEl.setAttribute('d', `M 0 8 Q 0 0 8 0 L ${w - 8} 0 Q ${w} 0 ${w} 8 L ${w} 32 L 0 32 Z`)
+            } catch {
+              void 0
+            }
+          }
+          const overlay = resizeOverlayElRef.current
+          if (overlay) {
+            try {
+              overlay.setAttribute('transform', `translate(${pending.x},${pending.y})`)
+            } catch {
+              void 0
+            }
+          }
+        }
+        if (resizeRafRef.current != null) {
+          try {
+            window.cancelAnimationFrame(resizeRafRef.current)
+          } catch {
+            void 0
+          }
+          resizeRafRef.current = null
+        }
+        try {
+          svgEl?.releasePointerCapture?.(r.pointerId)
+        } catch {
+          void 0
+        }
+      }
+
+      const gr = groupResizeRef.current
+      if (gr) {
+        groupResizeRef.current = null
+        const pending = { groupId: gr.groupId, x: gr.startBounds.x, y: gr.startBounds.y, w: gr.startBounds.w, h: gr.startBounds.h }
+        const id = String(pending.groupId || '').trim()
+        if (id) {
+          const rectEl = groupRectElByIdRef.current.get(id)
+          if (rectEl) {
+            try {
+              rectEl.setAttribute('x', String(pending.x))
+              rectEl.setAttribute('y', String(pending.y))
+              rectEl.setAttribute('width', String(Math.max(1, pending.w)))
+              rectEl.setAttribute('height', String(Math.max(1, pending.h)))
+            } catch {
+              void 0
+            }
+          }
+          const handleEl = groupHandleElByIdRef.current.get(id)
+          if (handleEl) {
+            try {
+              handleEl.setAttribute('transform', `translate(${pending.x + pending.w},${pending.y + pending.h})`)
+            } catch {
+              void 0
+            }
+          }
+        }
+        if (groupResizeRafRef.current != null) {
+          try {
+            window.cancelAnimationFrame(groupResizeRafRef.current)
+          } catch {
+            void 0
+          }
+          groupResizeRafRef.current = null
+        }
+        try {
+          svgEl?.releasePointerCapture?.(gr.pointerId)
+        } catch {
+          void 0
+        }
+      }
+
+      if (dragRef.current) {
+        const drag = dragRef.current
+        dragRef.current = null
+        dragPendingRef.current = null
+        if (dragRafRef.current != null) {
+          try {
+            window.cancelAnimationFrame(dragRafRef.current)
+          } catch {
+            void 0
+          }
+          dragRafRef.current = null
+        }
+        const ids = drag?.ids || []
+        for (let i = 0; i < ids.length; i += 1) {
+          const id = String(ids[i] || '').trim()
+          if (!id) continue
+          const pos = drag?.startPosById?.[id]
+          if (!pos) continue
+          const el = frameElByIdRef.current.get(id)
+          if (!el) continue
+          try {
+            el.setAttribute('transform', `translate(${pos.x},${pos.y})`)
+          } catch {
+            void 0
+          }
+        }
+      }
+
+      if (designMediaHeaderDragRef.current) {
+        designMediaHeaderDragRef.current = null
+      }
+    }
+
+    const onAnyEnd = () => {
+      if (
+        !dragRef.current &&
+        !resizeRef.current &&
+        !groupResizeRef.current &&
+        !marqueeRef.current &&
+        !designMediaHeaderDragRef.current
+      ) {
+        return
+      }
+      cancelAll()
+    }
+
+    const onVisibility = () => {
+      try {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') onAnyEnd()
+      } catch {
+        void 0
+      }
+    }
+
+    window.addEventListener('pointerup', onAnyEnd, { capture: true })
+    window.addEventListener('pointercancel', onAnyEnd, { capture: true })
+    window.addEventListener('lostpointercapture', onAnyEnd, { capture: true } as AddEventListenerOptions)
+    window.addEventListener('pointerdown', onAnyEnd, { capture: true })
+    window.addEventListener('blur', onAnyEnd)
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
+    const watchdog = window.setInterval(() => {
+      onAnyEnd()
+    }, 12000) as unknown as number
+
+    return () => {
+      window.removeEventListener('pointerup', onAnyEnd, { capture: true } as AddEventListenerOptions)
+      window.removeEventListener('pointercancel', onAnyEnd, { capture: true } as AddEventListenerOptions)
+      window.removeEventListener('lostpointercapture', onAnyEnd, { capture: true } as AddEventListenerOptions)
+      window.removeEventListener('pointerdown', onAnyEnd, { capture: true } as AddEventListenerOptions)
+      window.removeEventListener('blur', onAnyEnd)
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
+      try {
+        window.clearInterval(watchdog)
+      } catch {
+        void 0
+      }
+      cancelAll()
+    }
+  }, [])
+
   const scheduleDragVisual = useMemo(() => {
     return () => {
       if (dragRafRef.current != null) return
@@ -1913,7 +2108,7 @@ export default function DesignCanvas({
     return out
   }, [visibleNodes, wireframeNodeById])
 
-  const wireframeSettings = useMemo(() => readDesignWireframeSettings(snapshot.schema), [snapshot.schema])
+  const wireframeSettings = useMemo(() => readDesignWireframeSettings(snapshot.schema, localGraphData?.metadata || null), [localGraphData?.metadata, snapshot.schema])
 
   const designMediaPreviewById = useMemo(() => {
     type Preview = { tag: 'IMG' | 'VIDEO' | 'IFRAME'; titleChip: string; url: string; clipId: string }

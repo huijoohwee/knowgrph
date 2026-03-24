@@ -38,7 +38,7 @@ interface BodyCellProps {
   updateEdge: (id: string, patch: Partial<GraphEdge>) => void
   freezeFirstDataColumn: 'none' | 'label' | 'id'
   showFrozenResizeHandle: boolean
-  onStartFrozenAreaDrag?: (clientX: number) => void
+  onFrozenAreaPointerDown?: (event: React.PointerEvent) => void
   fieldSettingsByColumnKey: Map<GraphDataTableColumnKey, GraphFieldSettingsResolved>
 }
 
@@ -108,7 +108,7 @@ export const BodyCell = React.memo(function BodyCell({
   updateEdge,
   freezeFirstDataColumn,
   showFrozenResizeHandle,
-  onStartFrozenAreaDrag,
+  onFrozenAreaPointerDown,
   fieldSettingsByColumnKey,
 }: BodyCellProps) {
   const widthStyle: React.CSSProperties | undefined =
@@ -160,7 +160,19 @@ export const BodyCell = React.memo(function BodyCell({
       >
         {row.id}
         {showFrozenResizeHandle && (
-          <FrozenAreaResizeHandle onStartDrag={onStartFrozenAreaDrag} panelTypography={panelTypography} />
+          <FrozenAreaResizeHandle
+            onPointerDown={event => {
+              if (!onFrozenAreaPointerDown) return
+              try {
+                event.preventDefault()
+                event.stopPropagation()
+              } catch {
+                void 0
+              }
+              onFrozenAreaPointerDown(event)
+            }}
+            panelTypography={panelTypography}
+          />
         )}
       </td>
     )
@@ -199,7 +211,19 @@ export const BodyCell = React.memo(function BodyCell({
           row.label
         )}
         {showFrozenResizeHandle && (
-          <FrozenAreaResizeHandle onStartDrag={onStartFrozenAreaDrag} panelTypography={panelTypography} />
+          <FrozenAreaResizeHandle
+            onPointerDown={event => {
+              if (!onFrozenAreaPointerDown) return
+              try {
+                event.preventDefault()
+                event.stopPropagation()
+              } catch {
+                void 0
+              }
+              onFrozenAreaPointerDown(event)
+            }}
+            panelTypography={panelTypography}
+          />
         )}
       </td>
     )

@@ -19,6 +19,37 @@ export function useMarqueeSelection2d(args: {
     null | { start: { sx: number; sy: number }; end: { sx: number; sy: number }; mode: 'replace' | 'add' | 'remove'; pointerId: number }
   >(null)
 
+  React.useEffect(() => {
+    if (!marqueeBox) return
+    const end = () => {
+      marqueeRef.current = null
+      setMarqueeBox(null)
+    }
+    const onVisibility = () => {
+      try {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') end()
+      } catch {
+        void 0
+      }
+    }
+    window.addEventListener('pointerup', end, { capture: true })
+    window.addEventListener('pointercancel', end, { capture: true })
+    window.addEventListener('blur', end)
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
+    const watchdog = window.setTimeout(end, 12000) as unknown as number
+    return () => {
+      window.removeEventListener('pointerup', end, { capture: true } as AddEventListenerOptions)
+      window.removeEventListener('pointercancel', end, { capture: true } as AddEventListenerOptions)
+      window.removeEventListener('blur', end)
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
+      try {
+        window.clearTimeout(watchdog)
+      } catch {
+        void 0
+      }
+    }
+  }, [marqueeBox])
+
   const onPointerDown = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
       if (!active) return
@@ -134,4 +165,3 @@ export function useMarqueeSelection2d(args: {
     },
   }
 }
-

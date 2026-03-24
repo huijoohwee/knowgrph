@@ -2,6 +2,7 @@ import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/typ
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { KG_SUBGRAPHS_KEY, type UserSubgraph } from '@/lib/graph/subgraphs'
+import { DESIGN_WIREFRAME_META_KEY } from '@/lib/render/designWireframeSettings'
 import {
   readWorkspaceDataViewStateWithMeta,
   type WorkspaceDataViewGraphColumnRole,
@@ -357,14 +358,27 @@ export function deriveMarkdownTableGraphForFrontmatterMode(args: DeriveArgs): Gr
       subgraphs.push({ id, label: g.label || id, memberNodeIds, kind: 'cluster' })
     }
 
+    const baseGraphMeta = (graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
+      ? (graphData.metadata as Record<string, JSONValue>)
+      : ({} as Record<string, JSONValue>))
+    const existingWireframeRaw = Object.prototype.hasOwnProperty.call(baseGraphMeta, DESIGN_WIREFRAME_META_KEY)
+      ? (baseGraphMeta[DESIGN_WIREFRAME_META_KEY] as unknown)
+      : undefined
+    const existingWireframe =
+      existingWireframeRaw && typeof existingWireframeRaw === 'object' && !Array.isArray(existingWireframeRaw)
+        ? (existingWireframeRaw as Record<string, JSONValue>)
+        : ({} as Record<string, JSONValue>)
+    const nextWireframe = edgeCols.length > 0 ? ({ ...existingWireframe, showEdges: true } as unknown as JSONValue) : undefined
+
     const derived: GraphData = {
       type: 'Graph',
       context: 'markdown-table-graph',
       nodes: outNodes,
       edges,
       metadata: {
-        ...(graphData.metadata as Record<string, JSONValue>),
+        ...baseGraphMeta,
         [KG_SUBGRAPHS_KEY]: (subgraphs as unknown as JSONValue) || ([] as unknown as JSONValue),
+        ...(nextWireframe ? { [DESIGN_WIREFRAME_META_KEY]: nextWireframe } : null),
       },
     }
     cache.set(cacheKey, derived)

@@ -1,10 +1,11 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
-export function testSelectionDispatchesTocFocusInSplitViews() {
+export async function testSelectionDispatchesTocFocusInSplitViews() {
   const g: any = globalThis as any
-  const prevWindow = g.window
   const prevCustomEvent = g.CustomEvent
   const events: any[] = []
+  const bootstrap = initJsdomHarness('<!doctype html><html><body></body></html>')
   try {
     g.CustomEvent = class CustomEvent {
       type: string
@@ -14,11 +15,11 @@ export function testSelectionDispatchesTocFocusInSplitViews() {
         this.detail = init?.detail
       }
     }
-    g.window = {
-      dispatchEvent: (ev: any) => {
-        events.push(ev)
-        return true
-      },
+    const w = bootstrap.dom.window as unknown as Window
+    const prevDispatch = w.dispatchEvent.bind(w)
+    w.dispatchEvent = (ev: any) => {
+      events.push(ev)
+      return prevDispatch(ev)
     }
 
     const store = useGraphStore.getState()
@@ -38,7 +39,8 @@ export function testSelectionDispatchesTocFocusInSplitViews() {
       throw new Error(`expected tocFocus id to be h-hello, got ${String(ev?.detail?.id)}`)
     }
   } finally {
-    g.window = prevWindow
     g.CustomEvent = prevCustomEvent
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    bootstrap.restore()
   }
 }

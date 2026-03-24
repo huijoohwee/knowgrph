@@ -315,11 +315,12 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   useAutoZoomModes2d({ viewportW: width, viewportH: height, paused: !active })
   useEdgeCreationEffect({ paused: !active, tempLinkSelRef, linkDragRef })
   useEffect(() => {
+    if (!active) return
     registerCanvasSnapshotFns('2d', svgRef.current ? create2dSvgSnapshotFns(svgRef) : null)
     return () => {
       registerCanvasSnapshotFns('2d', null)
     }
-  }, [registerCanvasSnapshotFns])
+  }, [active, registerCanvasSnapshotFns])
 
   useEffect(() => {
     if (!active) {
@@ -336,14 +337,15 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   }, [sceneGraphData])
   const flowState = useMemo(() => computeFlowState(sceneGraphData as GraphData | null), [sceneGraphData])
 
+  const deferredMarkdownDocumentText = React.useDeferredValue(markdownDocumentText)
   const markdownDesignLayout: MarkdownDesignLayout | null = useMemo(() => {
-    const markdownText = String(markdownDocumentText || '')
+    const markdownText = String(deferredMarkdownDocumentText || '')
     if (!markdownText.trim()) return null
     const activeDocumentPath = String(markdownDocumentName || '').trim() || 'markdown'
     const markdownTokensKey = buildMarkdownTokensKey(markdownText)
     const lexed = lexMarkdown(markdownText)
     return deriveMarkdownDesignLayout({ activeDocumentPath, markdownTokensKey, tokens: lexed.tokens as never })
-  }, [markdownDocumentName, markdownDocumentText])
+  }, [markdownDocumentName, deferredMarkdownDocumentText])
 
   const nodeByIdForPanelsRef = useRef<{ rev: number; sim: d3.Simulation<GraphNode, GraphEdge> | null; map: Map<string, GraphNode> }>({
     rev: -1,
@@ -487,8 +489,9 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       const h = Math.max(1, Math.floor(getNum(propsObj ? propsObj['visual:height'] : null) ?? MARKDOWN_DESIGN_LAYOUT.block.minHeightPx))
 
       const nodeType = String(n.type || '').trim()
+      const typeLower = nodeType.toLowerCase()
 
-      if (nodeType === 'Table') {
+      if (typeLower === 'table') {
         const headerRaw = propsObj ? propsObj['table:header'] : null
         const rowsRaw = propsObj ? propsObj['table:rows'] : null
         const header = Array.isArray(headerRaw) ? headerRaw.map(v => String(v ?? '')) : []
@@ -511,7 +514,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         continue
       }
 
-      if (nodeType === 'CodeBlock') {
+      if (typeLower === 'codeblock') {
         const lang = propsObj && typeof propsObj.language === 'string' ? String(propsObj.language || '') : ''
         const code = propsObj && typeof propsObj.code === 'string' ? String(propsObj.code || '') : ''
         const lines = code ? code.split(/\r?\n/).slice(0, 6) : []
@@ -531,7 +534,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         continue
       }
 
-      if (nodeType === 'Paragraph') {
+      if (typeLower === 'paragraph') {
         const text = propsObj && typeof propsObj['text'] === 'string' ? String(propsObj['text'] || '') : ''
         const trimmed = text.trim()
         const isCallout = propsObj && propsObj.calloutType === true
@@ -666,6 +669,11 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   React.useEffect(() => {
     if (markdownPanelLayoutLive) markdownPanelLayoutRef.current = markdownPanelLayoutLive
   }, [markdownPanelLayoutLive])
+  const markdownPanelAllowedKinds = useMemo(() => {
+    if (multiDimTableModeEnabled) return ['code', 'blockquote', 'callout', 'html'] as const
+    return MARKDOWN_PANEL_ALLOWED_KINDS
+  }, [multiDimTableModeEnabled])
+
   const markdownPanelLayoutForOverlay = markdownPanelLayoutLive || markdownPanelLayoutRef.current
 
   const markdownOverlayEnabled = active && (!!String(markdownDocumentText || '').trim() || !!markdownPanelLayoutForOverlay)
@@ -690,11 +698,12 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       if (!id) continue
 
       const nodeType = String(n.type || '').trim()
-      if (nodeType === 'Table' || nodeType === 'CodeBlock') idsSet.add(id)
+      const typeLower = nodeType.toLowerCase()
+      if (typeLower === 'table' || typeLower === 'codeblock') idsSet.add(id)
 
       if (panelIframeNodeIdSet.has(id)) idsSet.add(id)
 
-      if (nodeType === 'Paragraph') {
+      if (typeLower === 'paragraph') {
         const propsObj = n.properties && typeof n.properties === 'object' && !Array.isArray(n.properties) ? (n.properties as Record<string, unknown>) : null
         const text = propsObj && typeof propsObj.text === 'string' ? String(propsObj.text || '').trim() : ''
         if (propsObj && propsObj.calloutType === true) idsSet.add(id)
@@ -707,15 +716,15 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       if (!markdownPanelLineRanges) continue
       if (!id.startsWith('blk:')) continue
       const type = nodeType
-      if (type !== 'Table' && type !== 'CodeBlock' && type !== 'Paragraph') continue
+      if (typeLower !== 'table' && typeLower !== 'codeblock' && typeLower !== 'paragraph') continue
       const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
       const lineStartRaw = meta ? meta.lineStart : null
       const lineStart = typeof lineStartRaw === 'number' ? lineStartRaw : typeof lineStartRaw === 'string' ? Number(lineStartRaw) : NaN
       if (!Number.isFinite(lineStart)) continue
       const start = Math.max(1, Math.floor(lineStart))
-      if (type === 'Table' && markdownPanelLineRanges.table.has(start)) idsSet.add(id)
-      else if (type === 'CodeBlock' && markdownPanelLineRanges.code.has(start)) idsSet.add(id)
-      else if (type === 'Paragraph' && markdownPanelLineRanges.blockquote.has(start)) idsSet.add(id)
+      if (typeLower === 'table' && markdownPanelLineRanges.table.has(start)) idsSet.add(id)
+      else if (typeLower === 'codeblock' && markdownPanelLineRanges.code.has(start)) idsSet.add(id)
+      else if (typeLower === 'paragraph' && markdownPanelLineRanges.blockquote.has(start)) idsSet.add(id)
     }
     const sorted = Array.from(idsSet).sort((a, b) => a.localeCompare(b))
     return { panelOnlyNodeIdsKey: sorted.join('|'), panelOnlyNodeIdSet: new Set(sorted) }
@@ -723,7 +732,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
 
   const panelOnlyNodeIdSetRef = React.useRef<Set<string> | null>(null)
   const panelOnlyNodeIdsKeyRef = React.useRef<string>('')
-  const [markdownOverlayVisibleNodeIds, setMarkdownOverlayVisibleNodeIds] = useState<string[]>([])
   React.useEffect(() => {
     if (panelOnlyNodeIdSet && panelOnlyNodeIdSet.size > 0) {
       panelOnlyNodeIdSetRef.current = panelOnlyNodeIdSet
@@ -731,38 +739,42 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     }
   }, [panelOnlyNodeIdSet, panelOnlyNodeIdsKey])
 
-  const panelOnlyNodeIdsMerged = useMemo(() => {
-    const out = new Set<string>()
-    const base = panelOnlyNodeIdSet && panelOnlyNodeIdSet.size > 0 ? panelOnlyNodeIdSet : panelOnlyNodeIdSetRef.current
-    if (base) {
-      for (const id of base) out.add(id)
-    }
-    for (let i = 0; i < markdownOverlayVisibleNodeIds.length; i += 1) {
-      const id = String(markdownOverlayVisibleNodeIds[i] || '').trim()
-      if (!id) continue
-      out.add(id)
-    }
-    return out
-  }, [markdownOverlayVisibleNodeIds, panelOnlyNodeIdSet])
-  const panelOnlyNodeIdsMergedKey = useMemo(
-    () => Array.from(panelOnlyNodeIdsMerged).sort((a, b) => a.localeCompare(b)).join('|'),
-    [panelOnlyNodeIdsMerged],
-  )
-  const panelOnlyNodeIdSetForScene = markdownOverlayEnabled ? panelOnlyNodeIdsMerged : null
-  const panelOnlyNodeIdsKeyForScene = markdownOverlayEnabled ? panelOnlyNodeIdsMergedKey : ''
+  const panelOnlyNodeIdSetForScene = useMemo(() => {
+    if (!markdownOverlayEnabled) return null
+    return panelOnlyNodeIdSetRef.current || panelOnlyNodeIdSet || new Set<string>()
+  }, [markdownOverlayEnabled, panelOnlyNodeIdSet])
+  const panelOnlyNodeIdsKeyForScene = useMemo(() => {
+    if (!markdownOverlayEnabled || !panelOnlyNodeIdSetForScene) return ''
+    return Array.from(panelOnlyNodeIdSetForScene).sort((a, b) => a.localeCompare(b)).join('|')
+  }, [markdownOverlayEnabled, panelOnlyNodeIdSetForScene])
   const [overlayInteractionActive, setOverlayInteractionActive] = useState(false)
   React.useEffect(() => {
     if (!overlayInteractionActive) return
-    const end = () => {
-      setOverlayInteractionActive(false)
+    const end = () => setOverlayInteractionActive(false)
+    const onVisibility = () => {
+      try {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') end()
+      } catch {
+        void 0
+      }
     }
     window.addEventListener('pointerup', end, { capture: true })
     window.addEventListener('pointercancel', end, { capture: true })
     window.addEventListener('blur', end)
+    window.addEventListener('pointerdown', end, { capture: true })
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
+    const watchdog = window.setTimeout(end, 12000) as unknown as number
     return () => {
       window.removeEventListener('pointerup', end, { capture: true } as AddEventListenerOptions)
       window.removeEventListener('pointercancel', end, { capture: true } as AddEventListenerOptions)
       window.removeEventListener('blur', end)
+      window.removeEventListener('pointerdown', end, { capture: true } as AddEventListenerOptions)
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
+      try {
+        window.clearTimeout(watchdog)
+      } catch {
+        void 0
+      }
     }
   }, [overlayInteractionActive])
 
@@ -778,8 +790,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     schemaRef: schemaRef as unknown as React.MutableRefObject<GraphSchema>,
     renderMediaAsNodes,
     mediaPanelDensity,
-    excludeNodeIdsKey: panelIframeNodeIdsKey,
-    excludeNodeIdSet: panelIframeNodeIdSet,
+    excludeNodeIdsKey: panelOnlyNodeIdsKeyForScene,
+    excludeNodeIdSet: panelOnlyNodeIdSetForScene || undefined,
     threeIframeOverlayPoolMax,
     threeIframeOverlayBaseWidthRatioDefault,
     threeIframeOverlayBaseWidthRatioCompact,
@@ -869,7 +881,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     zoomToSelectionMode,
     isEmbeddedPreview,
     coarsePointer: coarsePointer === true,
-    mediaOverlayNodeIdSet: richMedia.mediaOverlayNodeIdSet,
+    mediaOverlayNodeIdSet: richMedia.mediaOverlayHideNodeIdSet || richMedia.mediaOverlayNodeIdSet,
     panelOnlyNodeIdsKey: panelOnlyNodeIdsKeyForScene,
     panelOnlyNodeIdSet: panelOnlyNodeIdSetForScene,
     overlayBaseWidthRatioDefault: threeIframeOverlayBaseWidthRatioDefault,
@@ -1000,7 +1012,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         ref={svgRef}
         className={`${CANVAS_INTERACTIVE_CLASS} z-10`}
         data-kg-canvas-interactive="1"
-        viewBox={`0 0 ${Math.max(1, Math.floor(width))} ${Math.max(1, Math.floor(height))}`}
+        viewBox={`0 0 ${Math.max(1, width)} ${Math.max(1, height)}`}
         preserveAspectRatio="xMidYMid meet"
         onPointerDownCapture={() => {
           try {
@@ -1052,13 +1064,14 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         edges={(sceneGraphData as GraphData | null)?.edges}
         schema={schema as GraphSchema | null}
         onRequestClose={() => setHoverInfo(null)}
+        tooltipInteractive={false}
       />
       <MarkdownDesignOverlay
         enabled={markdownOverlayEnabled}
         svgRef={svgRef}
         markdownDocumentName={markdownDocumentName}
         markdownDocumentText={markdownDocumentText}
-        allowedKinds={MARKDOWN_PANEL_ALLOWED_KINDS}
+        allowedKinds={markdownPanelAllowedKinds}
         layoutOverride={markdownPanelLayoutForOverlay}
         anchorNodeIdByBlockId={markdownAnchorNodeIdByBlockId}
         getNodeWorldCenterForId={getNodeWorldCenterForId}
@@ -1081,7 +1094,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
           overlayInteractions.endHeaderDrag()
           setOverlayInteractionActive(false)
         }}
-        onVisibleNodeIdsChange={setMarkdownOverlayVisibleNodeIds}
+        onVisibleNodeIdsChange={undefined}
       />
     </main>
   )

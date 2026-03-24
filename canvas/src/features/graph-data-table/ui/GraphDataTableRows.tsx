@@ -62,7 +62,7 @@ export type GraphDataTableRowsProps = {
   edgeScopeBorderColor: string
   frozenBoundaryColumnKey: GraphDataTableColumnKey | null
   freezeFirstDataColumn: 'none' | 'label' | 'id'
-  onStartFrozenAreaDrag: (clientX: number) => void
+  onFrozenAreaPointerDown: (event: React.PointerEvent) => void
   expandedCellRowId: string | null
   expandedCellColumnKey: GraphDataTableColumnKey | null
   onToggleExpandCell: (columnKey: GraphDataTableColumnKey, rowId: string) => void
@@ -109,7 +109,7 @@ export function GraphDataTableRows({
   edgeScopeBorderColor,
   frozenBoundaryColumnKey,
   freezeFirstDataColumn,
-  onStartFrozenAreaDrag,
+  onFrozenAreaPointerDown,
   expandedCellRowId,
   expandedCellColumnKey,
   onToggleExpandCell,
@@ -380,7 +380,7 @@ export function GraphDataTableRows({
                 fieldSettingsByColumnKey={propertyFieldSettingsByColumnKey}
                 freezeFirstDataColumn={freezeFirstDataColumn}
                 showFrozenResizeHandle={columnKey === frozenBoundaryColumnKey}
-                onStartFrozenAreaDrag={onStartFrozenAreaDrag}
+                onFrozenAreaPointerDown={onFrozenAreaPointerDown}
                 expandedCellRowId={expandedCellRowId}
                 expandedCellColumnKey={expandedCellColumnKey}
                 onToggleExpandCell={onToggleExpandCell}

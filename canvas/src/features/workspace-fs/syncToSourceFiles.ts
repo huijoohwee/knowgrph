@@ -17,6 +17,35 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
   const entries = Array.isArray(args.workspaceEntries) ? args.workspaceEntries : []
   const sourcesByPath = args.sourcesByPath || {}
 
+  const sourceEqual = (a: SourceFile['source'] | undefined, b: SourceFile['source'] | undefined): boolean => {
+    if (!a && !b) return true
+    if (!a || !b) return false
+    if (a.kind !== b.kind) return false
+    if (String(a.path || '') !== String(b.path || '')) return false
+    if (a.kind === 'url') {
+      const aa = a as { url?: unknown }
+      const bb = b as { url?: unknown }
+      return String(aa.url || '') === String(bb.url || '')
+    }
+    return true
+  }
+
+  const workspaceFileEqual = (prev: SourceFile, next: SourceFile): boolean => {
+    if (prev === next) return true
+    if (String(prev.id || '') !== String(next.id || '')) return false
+    if (String(prev.name || '') !== String(next.name || '')) return false
+    if (String(prev.text || '') !== String(next.text || '')) return false
+    if (Boolean(prev.enabled) !== Boolean(next.enabled)) return false
+    if (Boolean(prev.geoLayerEnabled) !== Boolean(next.geoLayerEnabled)) return false
+    if (String(prev.status || '') !== String(next.status || '')) return false
+    if (String(prev.error || '') !== String(next.error || '')) return false
+    if (String(prev.parsedParserId || '') !== String(next.parsedParserId || '')) return false
+    if (String(prev.parsedTextHash || '') !== String(next.parsedTextHash || '')) return false
+    if (prev.parsedGraphData !== next.parsedGraphData) return false
+    if (!sourceEqual(prev.source, next.source)) return false
+    return true
+  }
+
   const nonWorkspace = existing.filter(f => {
     const path = String(f?.source?.path || '')
     return !path.startsWith('workspace:')
@@ -48,7 +77,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     const inlineText = typeof e.text === 'string' ? e.text : null
     const text = inlineText != null ? inlineText : (prev?.text ?? '')
 
-    nextWorkspace.push({
+    const candidate: SourceFile = {
       id,
       name: String(e.name || ''),
       text,
@@ -60,9 +89,25 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
       parsedTextHash: prev?.parsedTextHash,
       parsedGraphData: prev?.parsedGraphData,
       source,
-    })
+    }
+
+    if (prev && workspaceFileEqual(prev, candidate)) {
+      nextWorkspace.push(prev)
+    } else {
+      nextWorkspace.push(candidate)
+    }
   }
 
-  return [...nonWorkspace, ...nextWorkspace]
+  const next = [...nonWorkspace, ...nextWorkspace]
+  if (existing.length === next.length) {
+    let same = true
+    for (let i = 0; i < next.length; i += 1) {
+      if (existing[i] !== next[i]) {
+        same = false
+        break
+      }
+    }
+    if (same) return existing
+  }
+  return next
 }
-

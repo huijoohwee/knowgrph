@@ -11,6 +11,16 @@ export function useAutoZoomModes2d(args: {
   paused?: boolean
   getGraph?: () => { graphData: GraphData | null; graphDataRevision: number } | null
 }) {
+  const arrayEq = (a: unknown, b: unknown): boolean => {
+    const aa = Array.isArray(a) ? a : []
+    const bb = Array.isArray(b) ? b : []
+    if (aa.length !== bb.length) return false
+    for (let i = 0; i < aa.length; i += 1) {
+      if (String(aa[i] || '') !== String(bb[i] || '')) return false
+    }
+    return true
+  }
+
   const scheduleFitRef = React.useRef<(() => void) | null>(null)
   const dimsRef = React.useRef({ viewportW: args.viewportW, viewportH: args.viewportH })
   React.useEffect(() => {
@@ -96,6 +106,25 @@ export function useAutoZoomModes2d(args: {
         renderMediaAsNodes: s.renderMediaAsNodes,
       }),
       () => schedule(),
+      {
+        equalityFn: (a, b) => {
+          if (a.canvas2dRenderer !== b.canvas2dRenderer) return false
+          if (a.fitToScreenMode !== b.fitToScreenMode) return false
+          if (a.zoomToSelectionMode !== b.zoomToSelectionMode) return false
+          if (a.viewPinned !== b.viewPinned) return false
+          if (a.graphDataRevision !== b.graphDataRevision) return false
+          if (a.graphNodeCount !== b.graphNodeCount) return false
+          if (a.fitPadding !== b.fitPadding) return false
+          if (a.fitDetectClusters !== b.fitDetectClusters) return false
+          if (a.fitTargetAspectRatio !== b.fitTargetAspectRatio) return false
+          if (a.fitEnforceAspectRatio !== b.fitEnforceAspectRatio) return false
+          if (a.zoomMinScale !== b.zoomMinScale) return false
+          if (a.zoomMaxScale !== b.zoomMaxScale) return false
+          if (a.mediaPanelDensity !== b.mediaPanelDensity) return false
+          if (a.renderMediaAsNodes !== b.renderMediaAsNodes) return false
+          return true
+        },
+      },
     )
     return () => {
       unsub()
@@ -158,6 +187,21 @@ export function useAutoZoomModes2d(args: {
         viewPinned: s.viewPinned,
       }),
       () => schedule(),
+      {
+        equalityFn: (a, b) => {
+          if (a.canvas2dRenderer !== b.canvas2dRenderer) return false
+          if (a.zoomToSelectionMode !== b.zoomToSelectionMode) return false
+          if (a.selectedNodeId !== b.selectedNodeId) return false
+          if (a.selectedEdgeId !== b.selectedEdgeId) return false
+          if (a.selectedGroupId !== b.selectedGroupId) return false
+          if (!arrayEq(a.selectedNodeIds, b.selectedNodeIds)) return false
+          if (!arrayEq(a.selectedEdgeIds, b.selectedEdgeIds)) return false
+          if (!arrayEq(a.selectedGroupIds, b.selectedGroupIds)) return false
+          if (a.graphDataRevision !== b.graphDataRevision) return false
+          if (a.viewPinned !== b.viewPinned) return false
+          return true
+        },
+      },
     )
     return () => {
       unsub()

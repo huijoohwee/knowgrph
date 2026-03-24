@@ -13,6 +13,7 @@ import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
 import { htmlFallbackToMarkdownAllText, normalizeWebpageCardAndListBlocks } from './htmlTextFallback'
 import { yamlQuote } from './yaml'
 import { buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from './webpageEntryText'
+import { tryFetchApiNativeMarkdown } from './apiNative'
 import type { WorkspaceUrlContent } from './types'
 
 type WebpageViewMode = 'markdown' | 'json' | 'html'
@@ -29,6 +30,8 @@ type CacheItem = { atMs: number; value: WorkspaceUrlContent }
 const CACHE_TTL_MS_IMPORT = 45_000
 const CACHE_TTL_MS_REFRESH = 4 * 60_000
 const CACHE_MAX = 36
+
+const WORKSPACE_WEBPAGE_MARKDOWN_MAX_CHARS = 220_000
 
 const CACHE = new Map<string, CacheItem>()
 const INFLIGHT = new Map<string, Promise<WorkspaceUrlContent>>()
@@ -74,6 +77,23 @@ function shouldTreatAsSubstackUrl(url: string): boolean {
   }
 }
 
+function shouldSkipHydrationForMarkdownStub(url: string): boolean {
+  try {
+    const u = new URL(url)
+    const host = u.hostname.toLowerCase()
+    const path = String(u.pathname || '')
+    if ((host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com')) && /^\/home\/?$/i.test(path)) {
+      return true
+    }
+    if ((host === 'linkedin.com' || host.endsWith('.linkedin.com')) && /^\/feed\/?$/i.test(path)) {
+      return true
+    }
+  } catch {
+    void 0
+  }
+  return false
+}
+
 function looksLikeJsShellText(text: string): boolean {
   const t = String(text || '')
   if (!t.trim()) return false
@@ -81,6 +101,27 @@ function looksLikeJsShellText(text: string): boolean {
   if (/enable-javascript\.com/i.test(t)) return true
   if (/requires\s+java\s*script/i.test(t)) return true
   if (/page not foundlatesttopdiscussions/i.test(t.replace(/\s+/g, ''))) return true
+  return false
+}
+
+function clipLargeWebpageMarkdown(text: string): { text: string; clipped: boolean } {
+  const t = String(text || '')
+  if (!t) return { text: t, clipped: false }
+  if (t.length <= WORKSPACE_WEBPAGE_MARKDOWN_MAX_CHARS) return { text: t, clipped: false }
+  const keep = t.slice(0, WORKSPACE_WEBPAGE_MARKDOWN_MAX_CHARS)
+  const omitted = t.length - keep.length
+  return {
+    text: `${keep}\n\n…(clipped ${omitted} chars)…\n`,
+    clipped: true,
+  }
+}
+
+function shouldSkipUnifiedMarkdownConversion(html: string): boolean {
+  const h = String(html || '')
+  if (!h) return false
+  if (h.length > 1_500_000) return true
+  const scriptCount = (h.match(/<script\b/gi) || []).length
+  if (scriptCount > 18) return true
   return false
 }
 
@@ -216,6 +257,31 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
     }
   }
 
+  const modeForApiNative: FetchMode = opts?.mode === 'refresh' ? 'refresh' : 'import'
+  const viewHintForApiNative: WebpageViewMode | '' =
+    opts?.viewHint === 'json' ? 'json' : opts?.viewHint === 'html' ? 'html' : opts?.viewHint === 'markdown' ? 'markdown' : ''
+  if (modeForApiNative === 'refresh' || viewHintForApiNative === 'json') {
+    const apiNative = await tryFetchApiNativeMarkdown({
+      url: normalizedUrl,
+      mode: modeForApiNative,
+      viewHint: viewHintForApiNative,
+      onProgress: opts?.onProgress,
+    })
+    if (apiNative) {
+      const text = buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
+        upstreamMarkdown: apiNative.upstreamMarkdown,
+        url: apiNative.normalizedUrl,
+        view: 'markdown',
+        diag: apiNative.diagnostics,
+      })
+      return {
+        normalizedUrl: apiNative.normalizedUrl,
+        name: apiNative.name,
+        text,
+      }
+    }
+  }
+
   const looksLikeCodeOrData = /\.(json|jsonld|geojson|csv|yaml|yml|txt|js|ts|py|md|markdown|mdx|svg)(\?|#|$)/i.test(normalizedLower)
   const looksLikeLocalHtml = isLocalRepoPath && /\.(html|htm)(\?|#|$)/i.test(normalizedLower)
   if (!looksLikeCodeOrData) {
@@ -224,13 +290,35 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
     const name = `${baseNoExt}.md`
 
     const mode: FetchMode = opts?.mode === 'refresh' ? 'refresh' : 'import'
+    const viewHint: WebpageViewMode | '' =
+      opts?.viewHint === 'markdown' ? 'markdown' : opts?.viewHint === 'json' ? 'json' : opts?.viewHint === 'html' ? 'html' : ''
     const looksLikeSubstackUrl = shouldTreatAsSubstackUrl(normalizedUrl)
 
     if (mode === 'import' && !looksLikeSubstackUrl) {
+      const view: WebpageViewMode = viewHint || 'html'
+      const shouldSkipHydration = view === 'markdown' && shouldSkipHydrationForMarkdownStub(normalizedUrl)
+      const body = (() => {
+        if (view !== 'markdown') return `[](${normalizedUrl})\n`
+        const hint = shouldSkipHydration
+          ? 'This page likely requires a logged-in session. Import runs without your browser cookies, so content may be unavailable.'
+          : 'Fetching content in background…'
+        return [`[](${normalizedUrl})`, '', hint, ''].join('\n')
+      })()
       return {
         normalizedUrl,
         name,
-        text: ['---', `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`, 'kgWebpageView: "html"', '---', '', `[](${normalizedUrl})`, '', ''].join('\n'),
+        text: [
+          '---',
+          `kgWebpageUrl: ${yamlQuote(normalizedUrl)}`,
+          `kgWebpageView: ${yamlQuote(view)}`,
+          shouldSkipHydration ? `kgWebpageHydrate: ${yamlQuote('false')}` : null,
+          '---',
+          '',
+          body.trimEnd(),
+          '',
+        ]
+          .filter(Boolean)
+          .join('\n'),
       }
     }
 
@@ -390,6 +478,14 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
         }
 
         const markdown = await (async () => {
+          if (forceConvertToMarkdown && shouldSkipUnifiedMarkdownConversion(boundedHtml)) {
+            try {
+              const clipped = boundedHtml.length > 1_500_000 ? boundedHtml.slice(0, 1_500_000) : boundedHtml
+              return htmlFallbackToMarkdownAllText(clipped)
+            } catch {
+              return ''
+            }
+          }
           try {
             const converted = await runInIdle(
               async () =>
@@ -420,14 +516,15 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
       ticker?.stop()
       opts?.onProgress?.(95)
 
+      const clipped = clipLargeWebpageMarkdown(upstreamMarkdown)
       const text = await runInIdle(
         () =>
           buildWebpageWorkspaceEntryTextFromUpstreamMarkdown({
-            upstreamMarkdown,
+            upstreamMarkdown: clipped.text,
             url: normalizedUrl,
             view: defaultView,
             title: lastDomTitle,
-            diag: lastDomDiag,
+            diag: clipped.clipped ? [String(lastDomDiag || '').trim(), `clipped: ${WORKSPACE_WEBPAGE_MARKDOWN_MAX_CHARS}`].filter(Boolean).join('\n') : lastDomDiag,
             fidelityLevel,
             includeImages,
           }),

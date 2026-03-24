@@ -68,7 +68,7 @@ export function startMarkdownPanelOverlayLoop2d(args: {
 
       const rect = computePanelRect({ cx: sx, cy: sy, w: useSizing.panelW, h: useSizing.panelH, clamp })
       applyMediaPanelCssVars(el, useSizing.vars)
-      applyPanelBox(el, { left: Math.round(rect.left), top: Math.round(rect.top), w: useSizing.panelW, h: useSizing.panelH, display: 'block' })
+      applyPanelBox(el, { left: rect.left, top: rect.top, w: useSizing.panelW, h: useSizing.panelH, display: 'block' })
       try {
         ;(el as unknown as { dataset?: Record<string, string> }).dataset!.kgOverlayHasPos = '1'
       } catch {
@@ -102,4 +102,3 @@ export function startMarkdownPanelOverlayLoop2d(args: {
     },
   }
 }
-

@@ -19,6 +19,21 @@ import {
 
 export type NodeHalfExtents = { halfW: number; halfH: number }
 
+type ExtentsOverrideOpts = { halfExtentsByNodeId?: Record<string, NodeHalfExtents> | null } | null
+
+const readExtentsOverride = (node: GraphNode, opts?: ExtentsOverrideOpts): NodeHalfExtents | null => {
+  const map = opts?.halfExtentsByNodeId || null
+  if (!map) return null
+  const id = String(node?.id || '').trim()
+  if (!id) return null
+  const v = (map as Record<string, NodeHalfExtents>)[id]
+  if (!v) return null
+  const halfW = typeof v.halfW === 'number' && Number.isFinite(v.halfW) ? v.halfW : NaN
+  const halfH = typeof v.halfH === 'number' && Number.isFinite(v.halfH) ? v.halfH : NaN
+  if (!Number.isFinite(halfW) || !Number.isFinite(halfH)) return null
+  return { halfW: Math.max(1, halfW), halfH: Math.max(1, halfH) }
+}
+
 type ExtentsCacheEntry = {
   schema: GraphSchema
   labelSig: string
@@ -55,7 +70,9 @@ const readNodeSizingSig = (node: GraphNode, schema: GraphSchema): { labelSig: st
   return { labelSig, visualW, visualH, radius }
 }
 
-export const getNodeAabbHalfExtentsWithLabel = (node: GraphNode, schema: GraphSchema): NodeHalfExtents => {
+export const getNodeAabbHalfExtentsWithLabel = (node: GraphNode, schema: GraphSchema, opts?: ExtentsOverrideOpts): NodeHalfExtents => {
+  const override = readExtentsOverride(node, opts)
+  if (override) return override
   const sig = readNodeSizingSig(node, schema)
   const cached = extentsCache.get(node)
   if (
@@ -78,7 +95,12 @@ export const getNodeAabbHalfExtentsWithLabel = (node: GraphNode, schema: GraphSc
   return extentsWithLabel
 }
 
-export const getNodeCollisionRadius = (node: GraphNode, schema: GraphSchema): number => {
+export const getNodeCollisionRadius = (node: GraphNode, schema: GraphSchema, opts?: ExtentsOverrideOpts): number => {
+  const override = readExtentsOverride(node, opts)
+  if (override) {
+    const base = Math.max(8, override.halfW, override.halfH)
+    return Math.max(8, base * 1.05 + 8, base * 1.25)
+  }
   const sig = readNodeSizingSig(node, schema)
   const cached = radiusCache.get(node)
   if (
@@ -117,10 +139,12 @@ export const createBboxCollideForce = (args: {
   touchEpsilonXPx?: number
   touchEpsilonYPx?: number
   touchEpsilonZPx?: number
+  halfExtentsByNodeId?: Record<string, NodeHalfExtents> | null
   strength: number
   iterations: number
 }): d3.Force<GraphNode, GraphEdge> => {
   const { schema } = args
+  const halfExtentsByNodeId = args.halfExtentsByNodeId || null
   let nodes: GraphNode[] = []
   const borderGapMinPx = readCollisionConfig(schema).nodeBbox.borderGapPx
   const touchEpsilonPx = typeof args.touchEpsilonPx === 'number' && Number.isFinite(args.touchEpsilonPx) ? Math.max(0, args.touchEpsilonPx) : 0
@@ -179,7 +203,7 @@ export const createBboxCollideForce = (args: {
       if (!zInfo.hasZ) nonZCount += 1
       const cz = zInfo.hasZ ? zInfo.z : 0
       const halfD = zInfo.hasZ ? readNodeHalfD(n) : 0
-      const ext = getNodeAabbHalfExtentsWithLabel(n, schema)
+      const ext = getNodeAabbHalfExtentsWithLabel(n, schema, halfExtentsByNodeId ? { halfExtentsByNodeId } : null)
       const borderGapPx = computeBorderGapPx(readNodeStrokeWidthPx(schema, n), borderGapMinPx)
       const halfW = ext.halfW + paddingX + borderGapPx
       const halfH = ext.halfH + paddingY + borderGapPx

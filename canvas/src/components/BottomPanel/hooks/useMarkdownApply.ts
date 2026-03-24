@@ -113,6 +113,7 @@ export function useMarkdownApply(props: UseMarkdownApplyProps) {
           error: undefined,
           parsedParserId: res.parserId,
           parsedTextHash: hashStringToHex(markdownText),
+          parsedGraphRevision: 0,
           parsedGraphData: res.graphData,
         })
 
@@ -124,6 +125,7 @@ export function useMarkdownApply(props: UseMarkdownApplyProps) {
           source: f.source,
           text: f.text,
           parsedTextHash: f.parsedTextHash,
+          parsedGraphRevision: f.parsedGraphRevision,
           parsedGraphData: f.parsedGraphData,
         }))
         const { graphData, contentKey, orderKey } = composeGraphFromSourceLayers({ layers })

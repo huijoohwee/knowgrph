@@ -8,6 +8,7 @@ import type { TraversalSummary } from '@/features/panels/utils/orchestratorTrave
 import { isJsonValue } from '@/lib/graph/jsonValue'
 import { normalizeGraphData } from '@/lib/graph/normalize'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
 import {
   applyLayoutAutosuggestFromMetadata,
   applyNodeQuickEditorRegistryFromMetadata,
@@ -26,6 +27,97 @@ import {
 
 type SetGraph = StoreApi<GraphState>['setState']
 export type GetGraph = StoreApi<GraphState>['getState']
+
+type ParsedComposedId = { layerId: string; innerId: string }
+
+const COMPOSED_NODE_POSITION_KEYS = new Set(['x', 'y', 'vx', 'vy', 'fx', 'fy'])
+
+let composedPendingPositionWrites: Record<string, Record<string, Partial<GraphNode>>> = {}
+let composedPendingPositionWriteTimer: number | null = null
+
+function isPureComposedNodePositionUpdate(updates: Partial<GraphNode>): boolean {
+  const keys = Object.keys(updates || {})
+  if (keys.length === 0) return false
+  for (let i = 0; i < keys.length; i += 1) {
+    const k = keys[i]
+    if (!k) continue
+    if (!COMPOSED_NODE_POSITION_KEYS.has(k)) return false
+  }
+  return true
+}
+
+function scheduleFlushComposedPositionWrites(args: { set: SetGraph; get: GetGraph }): void {
+  if (typeof window === 'undefined') return
+  if (composedPendingPositionWriteTimer != null) {
+    try {
+      window.clearTimeout(composedPendingPositionWriteTimer)
+    } catch {
+      void 0
+    }
+    composedPendingPositionWriteTimer = null
+  }
+  composedPendingPositionWriteTimer = window.setTimeout(() => {
+    composedPendingPositionWriteTimer = null
+    const pending = composedPendingPositionWrites
+    composedPendingPositionWrites = {}
+    const sourceFiles = args.get().sourceFiles || []
+    if (sourceFiles.length === 0) return
+
+    let changed = false
+    const nextSourceFiles = sourceFiles.map(f => {
+      const byInnerId = pending[String(f.id || '')]
+      if (!byInnerId) return f
+      const pg = f.parsedGraphData
+      if (!pg || !Array.isArray(pg.nodes)) return f
+
+      let touched = false
+      const nextNodes = pg.nodes.map(n => {
+        const u = byInnerId[String(n.id || '')]
+        if (!u) return n
+        touched = true
+        return { ...n, ...u }
+      })
+      if (!touched) return f
+      changed = true
+      return {
+        ...f,
+        parsedGraphData: { ...pg, nodes: nextNodes },
+        parsedGraphRevision: (f.parsedGraphRevision || 0) + 1,
+      }
+    })
+
+    if (!changed) return
+    args.set({ sourceFiles: nextSourceFiles })
+  }, 350) as unknown as number
+}
+
+function parseComposedId(id: string | null | undefined): ParsedComposedId | null {
+  const text = String(id || '')
+  const idx = text.indexOf('::')
+  if (idx <= 0) return null
+  const layerId = text.slice(0, idx).trim()
+  const innerId = text.slice(idx + 2)
+  if (!layerId || !innerId) return null
+  return { layerId, innerId }
+}
+
+function isComposedGraphData(graphData: GraphData | null): boolean {
+  const meta = (graphData?.metadata || {}) as Record<string, unknown>
+  return String(meta.sourceLayerComposition || '') === 'compose'
+}
+
+function buildLayersFromSourceFiles(sourceFiles: GraphState['sourceFiles']) {
+  return (sourceFiles || []).map(f => ({
+    id: f.id,
+    name: f.name,
+    enabled: Boolean(f.enabled),
+    source: f.source,
+    text: f.text,
+    parsedTextHash: f.parsedTextHash,
+    parsedGraphRevision: f.parsedGraphRevision,
+    parsedGraphData: f.parsedGraphData,
+  }))
+}
 
 export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   graphData: null as GraphData | null,
@@ -536,6 +628,57 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   updateNode: (id: string, updates: Partial<GraphNode>) => {
     const { graphData, schema } = get();
     if (!graphData) return;
+    if (isComposedGraphData(graphData)) {
+      const parsed = parseComposedId(id)
+      if (parsed && !Object.prototype.hasOwnProperty.call(updates, 'id')) {
+        if (isPureComposedNodePositionUpdate(updates)) {
+          const nodes = graphData.nodes.map(n => (n.id === id ? { ...n, ...updates } : n))
+          const nextGraphDataBase = { ...graphData, nodes }
+          const nextRevision = (get().graphDataRevision || 0) + 1
+          const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
+          set({ graphData: nextGraphData, graphDataRevision: nextRevision, graphValidationStatus: null, graphValidationTimestamp: null })
+
+          const layerId = parsed.layerId
+          const innerId = parsed.innerId
+          const byLayer = composedPendingPositionWrites[layerId] || (composedPendingPositionWrites[layerId] = {})
+          byLayer[innerId] = { ...(byLayer[innerId] || {}), ...updates }
+          scheduleFlushComposedPositionWrites({ set, get })
+          return
+        }
+        const sourceFiles = get().sourceFiles || []
+        const idx = sourceFiles.findIndex(f => String(f.id || '') === parsed.layerId)
+        const file = idx >= 0 ? sourceFiles[idx] : null
+        const pg = file?.parsedGraphData || null
+        if (file && pg && Array.isArray(pg.nodes)) {
+          const nextNodes = pg.nodes.map(n => (String(n.id || '') === parsed.innerId ? { ...n, ...updates } : n))
+          const nextParsedGraphData = { ...pg, nodes: nextNodes }
+          const nextSourceFiles = sourceFiles.slice()
+          nextSourceFiles[idx] = {
+            ...file,
+            parsedGraphData: nextParsedGraphData,
+            parsedGraphRevision: (file.parsedGraphRevision || 0) + 1,
+          }
+          const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
+          const nextRevision = (get().graphDataRevision || 0) + 1
+          const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
+          set({
+            sourceFiles: nextSourceFiles,
+            graphData: nextGraphData,
+            graphDataRevision: nextRevision,
+            graphValidationStatus: null,
+            graphValidationTimestamp: null,
+          })
+          if (Object.prototype.hasOwnProperty.call(updates, 'properties')) {
+            try {
+              syncGraphFieldsWithGraphData(get, nextGraphData)
+            } catch { void 0 }
+          }
+          const fields = Object.keys(updates || {}).join(',') || 'none';
+          get().scheduleHistory(`Update Node: ${id} [${fields}]`);
+          return
+        }
+      }
+    }
     const current = graphData.nodes.find(n => n.id === id);
     const nextNode = current ? { ...current, ...updates } : null;
     if (!validateNodeProperties(schema, id, nextNode, graphData)) return;
@@ -562,6 +705,40 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     if (!graphData) return
     const tpl = schema.templates?.node?.[node.type] || {};
     const withTpl = { ...node, properties: { ...(node.properties || {}), ...tpl } };
+    if (isComposedGraphData(graphData)) {
+      const parsedId = parseComposedId(withTpl.id)
+      const selectedParsed = parseComposedId(get().selectedNodeId || '')
+      const fallbackLayer = (get().sourceFiles || []).find(f => f.enabled && !!f.parsedGraphData)?.id || null
+      const layerId = parsedId?.layerId || selectedParsed?.layerId || (fallbackLayer ? String(fallbackLayer) : '')
+      const innerId = parsedId?.innerId || String(withTpl.id || '').trim()
+      if (layerId && innerId) {
+        const sourceFiles = get().sourceFiles || []
+        const idx = sourceFiles.findIndex(f => String(f.id || '') === layerId)
+        const file = idx >= 0 ? sourceFiles[idx] : null
+        const pg = file?.parsedGraphData || null
+        if (file && pg && Array.isArray(pg.nodes)) {
+          const layerNode: GraphNode = { ...withTpl, id: innerId }
+          const nextParsedGraphData = { ...pg, nodes: [...pg.nodes, layerNode] }
+          const nextSourceFiles = sourceFiles.slice()
+          nextSourceFiles[idx] = {
+            ...file,
+            parsedGraphData: nextParsedGraphData,
+            parsedGraphRevision: (file.parsedGraphRevision || 0) + 1,
+          }
+          const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
+          const nextRevision = (get().graphDataRevision || 0) + 1
+          const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
+          set({ sourceFiles: nextSourceFiles, graphData: nextGraphData, graphDataRevision: nextRevision, graphValidationStatus: null, graphValidationTimestamp: null })
+          try {
+            syncGraphFieldsWithGraphData(get, nextGraphData)
+          } catch { void 0 }
+          const composedId = `${layerId}::${innerId}`
+          const extras = `label=${withTpl.label ?? node.label},type=${node.type}`;
+          get().scheduleHistory(`Add Node: ${composedId} [${extras}]`);
+          return
+        }
+      }
+    }
     const nodes = [...graphData.nodes, withTpl]
     const nextGraphDataBase = { ...graphData, nodes }
     const nextRevision = (get().graphDataRevision || 0) + 1
@@ -577,6 +754,60 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   removeNode: (id: string) => {
     const { graphData } = get();
     if (!graphData) return;
+    if (isComposedGraphData(graphData)) {
+      const parsed = parseComposedId(id)
+      if (parsed) {
+        const sourceFiles = get().sourceFiles || []
+        const idx = sourceFiles.findIndex(f => String(f.id || '') === parsed.layerId)
+        const file = idx >= 0 ? sourceFiles[idx] : null
+        const pg = file?.parsedGraphData || null
+        if (file && pg && Array.isArray(pg.nodes) && Array.isArray(pg.edges)) {
+          const nextNodes = pg.nodes.filter(n => String(n.id || '') !== parsed.innerId)
+          const nextEdges = pg.edges.filter(e => String(e.source || '') !== parsed.innerId && String(e.target || '') !== parsed.innerId)
+          const nextParsedGraphData =
+            nextNodes.length === pg.nodes.length && nextEdges.length === pg.edges.length
+              ? pg
+              : { ...pg, nodes: nextNodes, edges: nextEdges }
+          const nextSourceFiles = sourceFiles.slice()
+          nextSourceFiles[idx] = {
+            ...file,
+            parsedGraphData: nextParsedGraphData,
+            parsedGraphRevision: (file.parsedGraphRevision || 0) + 1,
+          }
+          const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
+          const nextRevision = (get().graphDataRevision || 0) + 1
+          const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
+          const state = get()
+          const selectedEdgeId = state.selectedEdgeId
+          const nextSelectedEdgeId =
+            selectedEdgeId && (nextGraphData.edges || []).some(e => String(e.id || '') === selectedEdgeId) ? selectedEdgeId : null
+          const nextSelectedNodeIds = (state.selectedNodeIds || []).filter(nodeId => nodeId !== id)
+          const nextSelectedEdgeIds = (state.selectedEdgeIds || []).filter(edgeId =>
+            (nextGraphData.edges || []).some(e => String(e.id || '') === edgeId),
+          )
+          set({
+            sourceFiles: nextSourceFiles,
+            graphData: nextGraphData,
+            graphDataRevision: nextRevision,
+            selectedNodeId: null,
+            selectedEdgeId: nextSelectedEdgeId,
+            selectedNodeIds: nextSelectedNodeIds,
+            selectedEdgeIds: nextSelectedEdgeIds,
+            graphValidationStatus: null,
+            graphValidationTimestamp: null,
+          })
+          try {
+            get().updateOpenQuickEditorNodeIds(prev => prev.filter(nodeId => nodeId !== id))
+          } catch { void 0 }
+          try {
+            syncGraphFieldsWithGraphData(get, nextGraphData)
+          } catch { void 0 }
+          const removedEdges = (pg.edges || []).filter(e => String(e.source || '') === parsed.innerId || String(e.target || '') === parsed.innerId).length;
+          get().scheduleHistory(`Remove Node: ${id} [edges=${removedEdges}]`);
+          return
+        }
+      }
+    }
     const nodes = graphData.nodes.filter(n => n.id !== id);
     const edges = graphData.edges.filter(e => e.source !== id && e.target !== id);
     const nextGraphDataBase = { ...graphData, nodes, edges }
@@ -616,6 +847,61 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       ;({ graphData, schema } = get())
     }
     if (!graphData) return
+    if (isComposedGraphData(graphData)) {
+      const srcParsed = parseComposedId(String(edge.source || ''))
+      const tgtParsed = parseComposedId(String(edge.target || ''))
+      if ((srcParsed && tgtParsed && srcParsed.layerId !== tgtParsed.layerId) || (!srcParsed && !tgtParsed)) {
+        const selectedParsed = parseComposedId(get().selectedNodeId || '')
+        if (!selectedParsed) return
+      }
+      const selectedParsed = parseComposedId(get().selectedNodeId || '')
+      const fallbackLayer = (get().sourceFiles || []).find(f => f.enabled && !!f.parsedGraphData)?.id || null
+      const layerId =
+        srcParsed?.layerId || tgtParsed?.layerId || selectedParsed?.layerId || (fallbackLayer ? String(fallbackLayer) : '')
+      const innerSource = srcParsed?.innerId || String(edge.source || '').trim()
+      const innerTarget = tgtParsed?.innerId || String(edge.target || '').trim()
+      if (!layerId || !innerSource || !innerTarget) return
+      const parsedId = parseComposedId(edge.id)
+      const innerId = parsedId?.innerId || String(edge.id || '').trim()
+      const viewEdge: GraphEdge = {
+        ...edge,
+        id: `${layerId}::${innerId}`,
+        source: `${layerId}::${innerSource}`,
+        target: `${layerId}::${innerTarget}`,
+      }
+      if (!canAddEdge(schema, graphData, viewEdge)) return
+      const tpl = schema.templates?.edge?.[edge.label] || {};
+      const withTpl = { ...viewEdge, properties: { ...(edge.properties || {}), ...tpl } };
+      const sourceFiles = get().sourceFiles || []
+      const idx = sourceFiles.findIndex(f => String(f.id || '') === layerId)
+      const file = idx >= 0 ? sourceFiles[idx] : null
+      const pg = file?.parsedGraphData || null
+      if (!file || !pg || !Array.isArray(pg.edges)) return
+      const layerEdge: GraphEdge = {
+        ...withTpl,
+        id: innerId,
+        source: innerSource,
+        target: innerTarget,
+      }
+      const nextParsedGraphData = { ...pg, edges: [...pg.edges, layerEdge] }
+      const nextSourceFiles = sourceFiles.slice()
+      nextSourceFiles[idx] = {
+        ...file,
+        parsedGraphData: nextParsedGraphData,
+        parsedGraphRevision: (file.parsedGraphRevision || 0) + 1,
+      }
+      const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
+      const nextRevision = (get().graphDataRevision || 0) + 1
+      const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
+      set({ sourceFiles: nextSourceFiles, graphData: nextGraphData, graphDataRevision: nextRevision, graphValidationStatus: null, graphValidationTimestamp: null })
+      try {
+        syncGraphFieldsWithGraphData(get, nextGraphData)
+      } catch { void 0 }
+      set({ lifecycleStage: 'edgeMutate' });
+      const extras = `source=${viewEdge.source},target=${viewEdge.target},label=${viewEdge.label}`;
+      get().scheduleHistory(`Add Edge: ${viewEdge.id} [${extras}]`);
+      return
+    }
     if (!canAddEdge(schema, graphData, edge)) return;
     const tpl = schema.templates?.edge?.[edge.label] || {};
     const withTpl = { ...edge, properties: { ...(edge.properties || {}), ...tpl } };
@@ -635,6 +921,56 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   updateEdge: (id: string, updates: Partial<GraphEdge>) => {
     const { graphData, schema } = get();
     if (!graphData) return;
+    if (isComposedGraphData(graphData)) {
+      const parsed = parseComposedId(id)
+      if (parsed && !Object.prototype.hasOwnProperty.call(updates, 'id')) {
+        const srcParsed = Object.prototype.hasOwnProperty.call(updates, 'source') ? parseComposedId(String((updates as any).source || '')) : null
+        const tgtParsed = Object.prototype.hasOwnProperty.call(updates, 'target') ? parseComposedId(String((updates as any).target || '')) : null
+        if ((srcParsed && srcParsed.layerId !== parsed.layerId) || (tgtParsed && tgtParsed.layerId !== parsed.layerId)) return
+        const sourceFiles = get().sourceFiles || []
+        const idx = sourceFiles.findIndex(f => String(f.id || '') === parsed.layerId)
+        const file = idx >= 0 ? sourceFiles[idx] : null
+        const pg = file?.parsedGraphData || null
+        if (file && pg && Array.isArray(pg.edges)) {
+          const normalizedUpdates: Partial<GraphEdge> = { ...updates }
+          if (typeof (normalizedUpdates as any).source === 'string') {
+            const v = String((normalizedUpdates as any).source || '').trim()
+            ;(normalizedUpdates as any).source = (parseComposedId(v)?.innerId || v)
+          }
+          if (typeof (normalizedUpdates as any).target === 'string') {
+            const v = String((normalizedUpdates as any).target || '').trim()
+            ;(normalizedUpdates as any).target = (parseComposedId(v)?.innerId || v)
+          }
+          const nextEdges = pg.edges.map(e => (String(e.id || '') === parsed.innerId ? { ...e, ...normalizedUpdates } : e))
+          const nextParsedGraphData = { ...pg, edges: nextEdges }
+          const nextSourceFiles = sourceFiles.slice()
+          nextSourceFiles[idx] = {
+            ...file,
+            parsedGraphData: nextParsedGraphData,
+            parsedGraphRevision: (file.parsedGraphRevision || 0) + 1,
+          }
+          const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
+          const nextRevision = (get().graphDataRevision || 0) + 1
+          const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
+          set({
+            sourceFiles: nextSourceFiles,
+            graphData: nextGraphData,
+            graphDataRevision: nextRevision,
+            graphValidationStatus: null,
+            graphValidationTimestamp: null,
+          })
+          if (Object.prototype.hasOwnProperty.call(updates, 'properties')) {
+            try {
+              syncGraphFieldsWithGraphData(get, nextGraphData)
+            } catch { void 0 }
+          }
+          set({ lifecycleStage: 'edgeMutate' });
+          const fields = Object.keys(updates || {}).join(',') || 'none';
+          get().scheduleHistory(`Update Edge: ${id} [${fields}]`);
+          return
+        }
+      }
+    }
     const current = graphData.edges.find(e => e.id === id);
     const normalizedUpdates: Partial<GraphEdge> = { ...updates }
     if (typeof normalizedUpdates.source === 'string') normalizedUpdates.source = normalizedUpdates.source.trim()
@@ -667,6 +1003,47 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   removeEdge: (id: string) => {
     const { graphData } = get();
     if (!graphData) return;
+    if (isComposedGraphData(graphData)) {
+      const parsed = parseComposedId(id)
+      if (parsed) {
+        const sourceFiles = get().sourceFiles || []
+        const idx = sourceFiles.findIndex(f => String(f.id || '') === parsed.layerId)
+        const file = idx >= 0 ? sourceFiles[idx] : null
+        const pg = file?.parsedGraphData || null
+        if (file && pg && Array.isArray(pg.edges)) {
+          const nextEdges = pg.edges.filter(e => String(e.id || '') !== parsed.innerId)
+          const nextParsedGraphData = nextEdges.length === pg.edges.length ? pg : { ...pg, edges: nextEdges }
+          const nextSourceFiles = sourceFiles.slice()
+          nextSourceFiles[idx] = {
+            ...file,
+            parsedGraphData: nextParsedGraphData,
+            parsedGraphRevision: (file.parsedGraphRevision || 0) + 1,
+          }
+          const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
+          const nextRevision = (get().graphDataRevision || 0) + 1
+          const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
+          const state = get()
+          const selectedEdgeId = state.selectedEdgeId
+          const nextSelectedEdgeId = selectedEdgeId === id ? null : selectedEdgeId
+          const nextSelectedEdgeIds = (state.selectedEdgeIds || []).filter(edgeId => edgeId !== id)
+          set({
+            sourceFiles: nextSourceFiles,
+            graphData: nextGraphData,
+            graphDataRevision: nextRevision,
+            selectedEdgeId: nextSelectedEdgeId,
+            selectedEdgeIds: nextSelectedEdgeIds,
+            graphValidationStatus: null,
+            graphValidationTimestamp: null,
+          })
+          try {
+            syncGraphFieldsWithGraphData(get, nextGraphData)
+          } catch { void 0 }
+          set({ lifecycleStage: 'edgeMutate' });
+          get().scheduleHistory(`Remove Edge: ${id}`);
+          return
+        }
+      }
+    }
     const edges = graphData.edges.filter(e => e.id !== id);
     const nextGraphDataBase = { ...graphData, edges }
     const state = get()

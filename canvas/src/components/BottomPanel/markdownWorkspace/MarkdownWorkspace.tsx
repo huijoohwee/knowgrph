@@ -35,12 +35,12 @@ import { useCanvasMarkdownSync } from './useCanvasMarkdownSync'
 import { useMarkdownEditorSsotSync } from './useMarkdownEditorSsotSync'
 import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { shouldAutosaveWorkspaceFile } from './workspaceAutosave'
-import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { reorderMarkdownHeadings } from '@/features/markdown/ui/markdownSectionUtils'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
+import { buildDocLocationIndex } from '@/features/markdown-explorer/docLocationIndex'
 import { ORCHESTRATOR_WORKFLOW_WORKSPACE_PATH } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { PARSER_SCRIPT_WORKSPACE_PATH } from '@/features/panels/utils/parserWorkspaceFiles'
 import { SCHEMA_CONFIG_WORKSPACE_PATH } from '@/features/panels/utils/schemaWorkspaceFiles'
@@ -344,7 +344,10 @@ export function MarkdownWorkspace() {
     return fs
   }, [])
 
-  const refresh = React.useCallback(async () => {
+  const refreshInFlightRef = React.useRef(false)
+  const refreshQueuedRef = React.useRef(false)
+
+  const refreshOnce = React.useCallback(async () => {
     setStatusProgress('Refreshing')
     setLoading(true)
     setLoadError('')
@@ -381,6 +384,22 @@ export function MarkdownWorkspace() {
       setStatusError('Refresh failed')
     }
   }, [getFs, setStatusError, setStatusInfo, setStatusProgress])
+
+  const refresh = React.useCallback(async () => {
+    if (refreshInFlightRef.current) {
+      refreshQueuedRef.current = true
+      return
+    }
+    refreshInFlightRef.current = true
+    try {
+      do {
+        refreshQueuedRef.current = false
+        await refreshOnce()
+      } while (refreshQueuedRef.current)
+    } finally {
+      refreshInFlightRef.current = false
+    }
+  }, [refreshOnce])
 
   const setStatusWithAutoClear = React.useCallback(
     (label: string, ttlMs: number = 1400) => {
@@ -1236,7 +1255,7 @@ export function MarkdownWorkspace() {
         const existing = current.find(f => String(f?.source?.path || '') === wsPath) || null
         if (existing) {
           store.updateSourceFile(existing.id, {
-            text: inlineText ?? '',
+            text: activeText,
             status: 'idle',
             error: undefined,
             parsedParserId: undefined,
@@ -1662,12 +1681,24 @@ export function MarkdownWorkspace() {
                 )
               : null
 
-            if (geoGraph) {
+            const shouldUseDirectGraphData = (() => {
+              if (store.canvasRenderMode === '2d' && store.canvas2dRenderer === 'flowEditor') {
+                const meta = (store.graphData?.metadata || {}) as Record<string, unknown>
+                return String(meta.sourceLayerComposition || '') !== 'compose'
+              }
+              return false
+            })()
+
+            const applyComposedFromSourceFiles = async () => {
               try {
-                store.setGraphData(geoGraph)
+                const mod = (await import('@/features/source-files/applyComposedGraphFromSourceFiles')) as typeof import('@/features/source-files/applyComposedGraphFromSourceFiles')
+                mod.scheduleApplyComposedGraphFromSourceFiles()
               } catch {
                 void 0
               }
+            }
+
+            if (geoGraph) {
               await maybeAutoEnableGeospatialModeForGraphData({ graphData: geoGraph, openSidePanel: true })
               try {
                 store.updateSourceFile(fileId, {
@@ -1675,10 +1706,20 @@ export function MarkdownWorkspace() {
                   error: undefined,
                   parsedParserId: geoGraph.context === 'geodata' ? 'geodata' : 'geojson',
                   parsedTextHash: hash,
+                  parsedGraphRevision: 0,
                   parsedGraphData: geoGraph,
                 })
               } catch {
                 void 0
+              }
+              if (shouldUseDirectGraphData) {
+                try {
+                  store.setGraphData(geoGraph)
+                } catch {
+                  void 0
+                }
+              } else {
+                await applyComposedFromSourceFiles()
               }
               if (cancelled) return
               if (activePathRef.current !== scheduledFor) return
@@ -1689,17 +1730,22 @@ export function MarkdownWorkspace() {
 
             if (cachedGraph && cachedHash === hash) {
               try {
-                store.setGraphData(cachedGraph)
-              } catch {
-                void 0
-              }
-              try {
                 store.updateSourceFile(fileId, {
                   status: 'parsed',
                   error: undefined,
+                  parsedGraphRevision: typeof existing?.parsedGraphRevision === 'number' ? existing!.parsedGraphRevision : 0,
                 })
               } catch {
                 void 0
+              }
+              if (shouldUseDirectGraphData) {
+                try {
+                  store.setGraphData(cachedGraph)
+                } catch {
+                  void 0
+                }
+              } else {
+                await applyComposedFromSourceFiles()
               }
             } else {
               const { loadGraphDataFromTextViaParser } = (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
@@ -1721,20 +1767,25 @@ export function MarkdownWorkspace() {
               const gd = res?.graphData || null
               if (gd) {
                 try {
-                  store.setGraphData(gd)
-                } catch {
-                  void 0
-                }
-                try {
                   store.updateSourceFile(fileId, {
                     status: 'parsed',
                     error: undefined,
                     parsedParserId: typeof res?.parserId === 'string' ? res!.parserId : undefined,
                     parsedTextHash: hash,
+                    parsedGraphRevision: 0,
                     parsedGraphData: gd,
                   })
                 } catch {
                   void 0
+                }
+                if (shouldUseDirectGraphData) {
+                  try {
+                    store.setGraphData(gd)
+                  } catch {
+                    void 0
+                  }
+                } else {
+                  await applyComposedFromSourceFiles()
                 }
               } else {
               try {
@@ -1972,6 +2023,10 @@ export function MarkdownWorkspace() {
     [activeDocumentKey],
   )
 
+  const docLocationIndex = React.useMemo(() => {
+    return buildDocLocationIndex({ graphData, matchesDoc: matchesActiveDoc })
+  }, [graphData, matchesActiveDoc])
+
   const lastCaretLineRef = React.useRef<number | null>(null)
   const onEditorCaretLine = React.useCallback(
     (line: number) => {
@@ -1980,43 +2035,21 @@ export function MarkdownWorkspace() {
       if (lastCaretLineRef.current === v) return
       lastCaretLineRef.current = v
       setHighlightedLineRange({ start: v, end: v })
-      if (!graphData) return
 
-      const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
-      for (const n of nodes) {
-        const loc = getDocumentLocationFromMetadata(n?.metadata)
-        if (!loc) continue
-        if (!matchesActiveDoc(loc.documentPath)) continue
-        const start = Math.max(1, Math.floor(loc.lineStart))
-        const end = Math.max(start, Math.floor(loc.lineEnd || loc.lineStart))
-        if (v < start || v > end) continue
-        const id = String(n.id || '')
-        if (!id) continue
-        if (selectedNodeId === id) return
+      const hit = docLocationIndex.find(v)
+      if (!hit) return
+      if (hit.kind === 'node') {
+        if (selectedNodeId === hit.id) return
         setSelectionSource('editor')
-        selectNode(id)
+        selectNode(hit.id)
         return
       }
-
-      const edges = Array.isArray(graphData.edges) ? (graphData.edges as GraphEdge[]) : []
-      for (const e of edges) {
-        const loc = getDocumentLocationFromMetadata(e?.metadata)
-        if (!loc) continue
-        if (!matchesActiveDoc(loc.documentPath)) continue
-        const start = Math.max(1, Math.floor(loc.lineStart))
-        const end = Math.max(start, Math.floor(loc.lineEnd || loc.lineStart))
-        if (v < start || v > end) continue
-        const id = String(e.id || '')
-        if (!id) continue
-        if (selectedEdgeId === id) return
-        setSelectionSource('editor')
-        selectEdge(id)
-        return
-      }
+      if (selectedEdgeId === hit.id) return
+      setSelectionSource('editor')
+      selectEdge(hit.id)
     },
     [
-      graphData,
-      matchesActiveDoc,
+      docLocationIndex,
       selectEdge,
       selectNode,
       selectedEdgeId,
@@ -2189,11 +2222,6 @@ export function MarkdownWorkspace() {
     }
   }, [activeDocumentKey, activeText, applyMarkdownDocumentToGraph, contentMode, geoDatasetIntegration, markdownDocumentName, markdownDocumentText, quickEditorEditorText, setStatusError, setStatusInfo, setStatusProgress])
 
-  const saveAndApplyActiveFileNow = React.useCallback(async () => {
-    await saveActiveFileNow()
-    await handleApply()
-  }, [handleApply, saveActiveFileNow])
-
   React.useEffect(() => {
     if (!workspaceCanvasPaneOpen) return
     const name = String(activeDocumentKey || '').trim()
@@ -2352,7 +2380,7 @@ export function MarkdownWorkspace() {
             onCreateNewFile={() => void fileActions.createNewFile({ parentPath: createParentPath })}
             onCreateNewFolder={() => void fileActions.createNewFolder({ parentPath: createParentPath })}
             onRefresh={() => void refresh()}
-            onSave={() => void saveAndApplyActiveFileNow()}
+            onSave={() => void saveActiveFileNow()}
             saveDisabled={!effectiveIsEditing || activeEntryKind !== 'file' || !String(activeDocumentKey || '').trim()}
             onImportLocalFiles={fileActions.handleImportLocalFiles}
             onImportLocalFolder={fileActions.handleImportLocalFolder}

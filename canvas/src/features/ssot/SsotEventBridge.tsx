@@ -25,15 +25,16 @@ export function SsotEventBridge() {
           entity: { kind: 'graph', id: graphId },
         })
       },
+      { equalityFn: (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2] },
     )
 
     const unsubFocus = useGraphStore.subscribe(
-      s => [s.selectedNodeId, s.selectedEdgeId, s.selectionSource, s.graphData] as const,
+      s => [s.selectedNodeId, s.selectedEdgeId, s.selectionSource, s.graphDataRevision] as const,
       next => {
         const selectedNodeId = next[0]
         const selectedEdgeId = next[1]
         const surface = surfaceFromSelectionSource(next[2])
-        const graphData = next[3]
+        const graphData = useGraphStore.getState().graphData
 
         const entity = selectedNodeId
           ? { kind: 'node' as const, id: String(selectedNodeId) }
@@ -63,6 +64,7 @@ export function SsotEventBridge() {
           lineRange,
         })
       },
+      { equalityFn: (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3] },
     )
 
     return () => {
@@ -81,4 +83,3 @@ export function SsotEventBridge() {
 
   return null
 }
-

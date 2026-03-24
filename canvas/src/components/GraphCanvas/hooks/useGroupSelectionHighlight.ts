@@ -13,6 +13,17 @@ export function useGroupSelectionHighlight(args: {
   const { paused, gRef } = args
   useEffect(() => {
     if (paused) return
+
+    const arrayEq = (a: unknown, b: unknown): boolean => {
+      const aa = Array.isArray(a) ? a : []
+      const bb = Array.isArray(b) ? b : []
+      if (aa.length !== bb.length) return false
+      for (let i = 0; i < aa.length; i += 1) {
+        if (String(aa[i] || '') !== String(bb[i] || '')) return false
+      }
+      return true
+    }
+
     let rafId: number | null = null
     const apply = () => {
       const g = gRef.current
@@ -76,6 +87,15 @@ export function useGroupSelectionHighlight(args: {
         schema: s.schema,
       }),
       () => schedule(),
+      {
+        equalityFn: (a, b) => {
+          if (a.selectedGroupId !== b.selectedGroupId) return false
+          if (!arrayEq(a.selectedGroupIds, b.selectedGroupIds)) return false
+          if (a.graphDataRevision !== b.graphDataRevision) return false
+          if (a.schema !== b.schema) return false
+          return true
+        },
+      },
     )
     schedule()
     return () => {

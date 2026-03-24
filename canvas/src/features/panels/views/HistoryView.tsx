@@ -100,6 +100,9 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
   const applySnapshot = React.useCallback(() => { addHistory('Manual Snapshot') }, [addHistory])
   const iconSizeClass = getIconSizeClass(uiIconScale)
 
+  const canUndo = historyIndex > 0
+  const canRedo = historyIndex >= 0 && historyIndex < history.length - 1
+
   // const handleOpen = React.useCallback(async (f: RecentFileEntry) => {
   //   if (f.type === 'markdown') {
   //     await performMarkdownImport(f.url ? 'url' : 'local', f.url || undefined)
@@ -115,10 +118,10 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
       <header className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.border}`}>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <IconButton className="App-toolbar__btn" title={UI_LABELS.undo} onClick={() => undoHistory()} showTooltip>
+            <IconButton className="App-toolbar__btn" title={UI_LABELS.undo} onClick={() => undoHistory()} disabled={!canUndo} showTooltip>
               <ResetIcon className={`${iconSizeClass} rotate-180`} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
             </IconButton>
-            <IconButton className="App-toolbar__btn" title={UI_LABELS.redo} onClick={() => redoHistory()} showTooltip>
+            <IconButton className="App-toolbar__btn" title={UI_LABELS.redo} onClick={() => redoHistory()} disabled={!canRedo} showTooltip>
               <ResetIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
             </IconButton>
             <IconButton className="App-toolbar__btn" title="Snapshot" onClick={applySnapshot} showTooltip>
@@ -197,11 +200,14 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
             <div className={`px-3 py-2 text-sm ${UI_THEME_TOKENS.text.tertiary}`}>{UI_COPY.historyNoHistoryYet}</div>
           ) : (
             <ul className="space-y-1">
-              {filteredHistory.map((h, idx) => (
+              {filteredHistory.map((h) => {
+                const originalIndex = history.findIndex(x => x.id === h.id)
+                const isSelected = originalIndex >= 0 && originalIndex === historyIndex
+                return (
                 <li
                   key={h.id}
-                  className={`px-3 py-2 text-sm flex items-center justify-between rounded ${
-                    idx === historyIndex ? UI_THEME_TOKENS.table.rowSelected : `hover:${UI_THEME_TOKENS.table.rowHover}`
+                  className={`group px-3 py-2 text-sm flex items-center justify-between rounded ${
+                    isSelected ? UI_THEME_TOKENS.table.rowSelected : `hover:${UI_THEME_TOKENS.table.rowHover}`
                   }`}
                 >
                   <div>
@@ -211,13 +217,17 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
                   <IconButton
                     className="App-toolbar__btn opacity-0 group-hover:opacity-100 focus:opacity-100"
                     title={UI_LABELS.restore}
-                    onClick={() => restoreHistory(history.findIndex(x => x.id === h.id))}
+                    onClick={() => {
+                      if (originalIndex < 0) return
+                      restoreHistory(originalIndex)
+                    }}
                     showTooltip
                   >
                     <RestoreIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
                   </IconButton>
                 </li>
-              ))}
+                )
+              })}
             </ul>
           )}
           </div>

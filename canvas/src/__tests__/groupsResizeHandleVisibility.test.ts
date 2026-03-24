@@ -39,7 +39,9 @@ export function testGroupsLayerResizeHandleVisibleWhenSelected() {
   const groupEl = svgEl.querySelector('g[data-kg-group-id="g1"]')
   if (!groupEl) throw new Error('expected group element')
 
-  const handleEl = groupEl.querySelector('g[data-kg-group-resize="br"]') as SVGGElement | null
+  const handleEl = svgEl.querySelector(
+    'g[data-kg-layer="group-resize-handles"] g[data-kg-group-resize="br"][data-kg-group-id="g1"]',
+  ) as SVGGElement | null
   if (!handleEl) throw new Error('expected resize handle group')
   if (handleEl.style.display !== 'none') throw new Error('expected resize handle to be hidden when no group is selected')
 
@@ -49,9 +51,11 @@ export function testGroupsLayerResizeHandleVisibleWhenSelected() {
   const dot = handleEl.querySelector('circle[data-kg-group-resize-dot="1"]')
   if (!dot) throw new Error('expected resize handle dot')
 
-  const lastChild = groupEl.lastElementChild
-  if (!lastChild) throw new Error('expected group children')
-  if (lastChild !== handleEl) throw new Error('expected resize handle to render above group shape')
+  const resizeLayer = svgEl.querySelector('g[data-kg-layer="group-resize-handles"]')
+  if (!resizeLayer) throw new Error('expected resize handles layer')
+  const lastChild = resizeLayer.lastElementChild
+  if (!lastChild) throw new Error('expected resize handles layer children')
+  if (lastChild !== handleEl) throw new Error('expected resize handle to render above group shapes')
 
   useGraphStore.setState({ selectedGroupId: null } as unknown as never)
   layer.update()

@@ -23,13 +23,23 @@ export function useContainerDims(ref: React.RefObject<HTMLElement | null>): Cont
       const el = ref.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
-      setDims({
-        width: Math.max(1, Math.floor(rect.width)),
-        height: Math.max(1, Math.floor(rect.height)),
+      const next = {
+        width: Math.max(1, rect.width),
+        height: Math.max(1, rect.height),
         left: rect.left,
         top: rect.top,
         dpr: Math.max(1, window.devicePixelRatio || 1),
-      });
+      };
+      const eq = (a: number, b: number) => Math.abs(a - b) < 0.01;
+      setDims(prev =>
+        eq(prev.width, next.width) &&
+        eq(prev.height, next.height) &&
+        eq(prev.left, next.left) &&
+        eq(prev.top, next.top) &&
+        eq(prev.dpr, next.dpr)
+          ? prev
+          : next,
+      );
     });
     ro.observe(ref.current);
     return () => ro.disconnect();
@@ -37,4 +47,3 @@ export function useContainerDims(ref: React.RefObject<HTMLElement | null>): Cont
 
   return dims;
 }
-

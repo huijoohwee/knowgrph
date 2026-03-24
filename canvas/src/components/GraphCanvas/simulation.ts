@@ -4,7 +4,7 @@ import { GraphSchema } from '@/lib/graph/schema';
 import { applyRadialClusterLayout } from './layout/radial';
 import { applyForceModeSeeds } from './layout/seeding';
 import { readMermaidAxisFromNodes } from './layout/mermaidDirection';
-import { createBboxCollideForce, getNodeCollisionRadius } from './layout/overlap';
+import { createBboxCollideForce, getNodeCollisionRadius, type NodeHalfExtents } from './layout/overlap';
 import { createGroupBboxCollideForce } from './layout/groupOverlap';
 import { createGroupBboxCollideForceByDepth } from './layout/groupOverlapByDepth';
 import { createGroupKeyOfNode, type GroupKeyOfNode } from './layout/grouping';
@@ -196,6 +196,7 @@ export const buildSimulation = (
     groupsForBboxCollide?: GraphGroup[]
     treatKeywordGraphAsDocument?: boolean
     viewportCenter?: { x: number; y: number }
+    nodeHalfExtentsByNodeId?: Record<string, NodeHalfExtents> | null
   }
 ) => {
   const frameW = width > 100 ? width : ZOOM_VIEWPORT_PRESET_16_9.maxWidth
@@ -338,11 +339,15 @@ export const buildSimulation = (
 
   const simulation = d3.forceSimulation<GraphNode>(nodes).force('link', linkForce);
 
+    const nodeHalfExtentsByNodeId = options?.nodeHalfExtentsByNodeId || null
     const collideRadiusMax = computeCollideRadiusMax2d(idealSpacing)
     const collideRadiusFn = (d: GraphNode) => {
       const configured = collisionRadiusByType[d.type]
       if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) return clampCollideRadius2d(configured, collideRadiusMax)
-      return clampCollideRadius2d(getNodeCollisionRadius(d, schema), collideRadiusMax)
+      return clampCollideRadius2d(
+        getNodeCollisionRadius(d, schema, nodeHalfExtentsByNodeId ? { halfExtentsByNodeId: nodeHalfExtentsByNodeId } : null),
+        collideRadiusMax,
+      )
     }
 
     const collisionCfg = readCollisionConfig(schema)
@@ -441,6 +446,7 @@ export const buildSimulation = (
               touchEpsilonXPx: bboxCfg.touchEpsilonXPx,
               touchEpsilonYPx: bboxCfg.touchEpsilonYPx,
               touchEpsilonZPx: bboxCfg.touchEpsilonZPx,
+              halfExtentsByNodeId: nodeHalfExtentsByNodeId,
               strength: bboxStrength,
               iterations: bboxIterations,
             })
@@ -466,6 +472,7 @@ export const buildSimulation = (
                   nestedTouchEpsilonXPx: collisionCfg.groupBbox.nestedTouchEpsilonXPx,
                   nestedTouchEpsilonYPx: collisionCfg.groupBbox.nestedTouchEpsilonYPx,
                   nestedTouchEpsilonZPx: collisionCfg.groupBbox.nestedTouchEpsilonZPx,
+                  halfExtentsByNodeId: nodeHalfExtentsByNodeId,
                   strength: groupBboxStrength,
                   iterations: groupBboxIterations,
                 })
@@ -476,6 +483,7 @@ export const buildSimulation = (
                   strength: groupBboxStrength,
                   iterations: groupBboxIterations,
                   groupKeyOf,
+                  halfExtentsByNodeId: nodeHalfExtentsByNodeId,
                 }))
           : null,
       )
@@ -505,6 +513,7 @@ export const updateForceSimulationPresentation = (args: {
   groupKeyOf?: GroupKeyOfNode
   groupsForBboxCollide?: GraphGroup[]
   viewportCenter?: { x: number; y: number }
+  nodeHalfExtentsByNodeId?: Record<string, NodeHalfExtents> | null
 }) => {
   const { simulation, nodes, edges, width, height, schema } = args
   const mode = readLayoutMode(schema)
@@ -602,11 +611,15 @@ export const updateForceSimulationPresentation = (args: {
     const anchorStrength = computeAnchorStrength2d({ schema, isKeywordGraph, disjointEnabled, disjointStrength })
 
     const collisionRadiusByType = schema.layout?.forces?.collisionByType || {}
+    const nodeHalfExtentsByNodeId = args.nodeHalfExtentsByNodeId || null
     const collideRadiusMax = computeCollideRadiusMax2d(idealSpacing)
     const collideRadiusFn = (d: GraphNode) => {
       const configured = collisionRadiusByType[d.type]
       if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) return clampCollideRadius2d(configured, collideRadiusMax)
-      return clampCollideRadius2d(getNodeCollisionRadius(d, schema), collideRadiusMax)
+      return clampCollideRadius2d(
+        getNodeCollisionRadius(d, schema, nodeHalfExtentsByNodeId ? { halfExtentsByNodeId: nodeHalfExtentsByNodeId } : null),
+        collideRadiusMax,
+      )
     }
 
     const collisionCfg = readCollisionConfig(schema)
@@ -793,6 +806,7 @@ export const updateForceSimulationPresentation = (args: {
             touchEpsilonXPx: bboxCfg.touchEpsilonXPx,
             touchEpsilonYPx: bboxCfg.touchEpsilonYPx,
             touchEpsilonZPx: bboxCfg.touchEpsilonZPx,
+            halfExtentsByNodeId: nodeHalfExtentsByNodeId,
             strength: bboxStrength,
             iterations: bboxIterations,
           })
@@ -830,6 +844,7 @@ export const updateForceSimulationPresentation = (args: {
                 nestedTouchEpsilonXPx: collisionCfg.groupBbox.nestedTouchEpsilonXPx,
                 nestedTouchEpsilonYPx: collisionCfg.groupBbox.nestedTouchEpsilonYPx,
                 nestedTouchEpsilonZPx: collisionCfg.groupBbox.nestedTouchEpsilonZPx,
+                halfExtentsByNodeId: nodeHalfExtentsByNodeId,
                 strength: groupBboxStrength,
                 iterations: groupBboxIterations,
               })
@@ -840,6 +855,7 @@ export const updateForceSimulationPresentation = (args: {
                 strength: groupBboxStrength,
                 iterations: groupBboxIterations,
                 groupKeyOf,
+                halfExtentsByNodeId: nodeHalfExtentsByNodeId,
               }))
         : null,
     )

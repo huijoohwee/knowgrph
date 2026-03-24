@@ -1,24 +1,5 @@
-import { getKgHtmlViewerRuntimeTemplateB64 } from './runtimeTemplateB64'
-
-const decodeBase64Utf8 = (b64: string): string => {
-  const trimmed = String(b64 || '').trim()
-  if (!trimmed) return ''
-  const buf = (globalThis as unknown as { Buffer?: { from: (s: string, enc: string) => { toString: (enc2: string) => string } } })
-    .Buffer
-  if (buf) return buf.from(trimmed, 'base64').toString('utf8')
-  const atobFn = (globalThis as unknown as { atob?: (s: string) => string }).atob
-  if (!atobFn) return ''
-  const binary = atobFn(trimmed)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
-  try {
-    return new TextDecoder('utf-8', { fatal: false }).decode(bytes)
-  } catch {
-    let out = ''
-    for (let i = 0; i < bytes.length; i += 1) out += String.fromCharCode(bytes[i])
-    return out
-  }
-}
+import { getKgHtmlViewerRuntimeTemplate } from './runtimeTemplate'
+import { LS_KEYS } from '../../config.ls'
 
 const replaceAllExact = (s: string, token: string, replacement: string): string => {
   if (!token) return s
@@ -47,6 +28,7 @@ const cookTemplateLiteral = (raw: string): string => {
 export function buildHtmlViewerRuntimeScript(args: {
   interactionCfgJson: string
   mediaNodesJson: string
+  markdownBlocksJson: string
   nodeLabelByIdJson: string
   edgeMetaByIdJson: string
   frontmatterVisibilityJson: string
@@ -61,13 +43,35 @@ export function buildHtmlViewerRuntimeScript(args: {
   widthMaxCompact: number
   proxyOrigin?: string
 }): string {
-  const templateRaw = decodeBase64Utf8(getKgHtmlViewerRuntimeTemplateB64())
-  const template = cookTemplateLiteral(templateRaw)
+  const safeMarkdownBlocksJson = (() => {
+    const s = String(args.markdownBlocksJson || '').trim()
+    if (!s) return '[]'
+    try {
+      const parsed = JSON.parse(s)
+      return Array.isArray(parsed) ? s : '[]'
+    } catch {
+      return '[]'
+    }
+  })()
+  const template = cookTemplateLiteral(getKgHtmlViewerRuntimeTemplate())
   if (!template) return ''
 
   let out = template
+
+  out = replaceOnceExact(
+    out,
+    "function ensureMediaDom(){\n      if (!overlay) return;\n      if (!mediaNodes || mediaNodes.length === 0) return;\n      if (overlay.__kgMediaBuilt) return;\n      overlay.__kgMediaBuilt = true;\n      overlay.__kgMediaById = {};\n      for (var i = 0; i < mediaNodes.length; i += 1) {\n        var n = mediaNodes[i];\n        var el = document.createElement('div');\n        el.className = 'kg-media';",
+    "function ensureMediaDom(){\n      if (!overlay) return;\n      if (overlay.__kgMediaBuilt) return;\n      overlay.__kgMediaBuilt = true;\n      overlay.__kgMediaById = {};\n\n      try {\n        var existing = overlay.querySelectorAll ? overlay.querySelectorAll(\\\"[data-kg-rich-media-panel='1'][data-node-id], .kg-media[data-node-id]\\\") : null;\n        if (existing && existing.length) {\n          for (var ei = 0; ei < existing.length; ei += 1) {\n            var ex = existing[ei];\n            if (!ex || !ex.getAttribute) continue;\n            var xid = String(ex.getAttribute('data-node-id') || '').trim();\n            if (!xid) continue;\n            try {\n              var curClass = String(ex.className || '');\n              if (curClass.indexOf('kg-media') < 0) ex.className = ('kg-media ' + curClass).trim();\n            } catch (e0) {\n              void 0;\n            }\n            overlay.__kgMediaById[xid] = ex;\n          }\n        }\n      } catch (e0) {\n        void 0;\n      }\n\n      if (!mediaNodes || mediaNodes.length === 0) return;\n      for (var i = 0; i < mediaNodes.length; i += 1) {\n        var n = mediaNodes[i];\n        var id = String(n.id || '');\n        if (overlay.__kgMediaById && overlay.__kgMediaById[id]) continue;\n        var el = document.createElement('div');\n        el.className = 'kg-media';",
+  )
+
+  out = replaceOnceExact(
+    out,
+    "var existing = overlay.querySelectorAll ? overlay.querySelectorAll(\\\"[data-kg-rich-media-panel='1'][data-node-id], .kg-media[data-node-id]\\\") : null;",
+    "var existing = overlay.querySelectorAll ? overlay.querySelectorAll('[data-kg-rich-media-panel=1][data-node-id], .kg-media[data-node-id]') : null;",
+  )
   out = replaceAllExact(out, '__KG_CFG__', args.interactionCfgJson)
   out = replaceAllExact(out, '__KG_MEDIA_NODES__', args.mediaNodesJson)
+  out = replaceAllExact(out, '__KG_MD_BLOCKS__', safeMarkdownBlocksJson)
   out = replaceAllExact(out, '__KG_NODE_META__', args.nodeLabelByIdJson)
   out = replaceAllExact(out, '__KG_EDGE_META__', args.edgeMetaByIdJson)
   out = replaceAllExact(out, '__KG_NODE_POS__', args.nodePosByIdJson)
@@ -82,9 +86,108 @@ export function buildHtmlViewerRuntimeScript(args: {
 
   out = replaceOnceExact(
     out,
-    "var panBtn = null;\n    var mediaBtn = document.getElementById('kg-media-toggle');",
-    "var panBtn = null;\n    var mode3dBtn = document.getElementById('kg-3d-toggle');\n    var richBtn = document.getElementById('kg-rich-toggle');\n    var frontmatterBtn = document.getElementById('kg-frontmatter-toggle');\n    var mediaBtn = document.getElementById('kg-media-toggle');",
+    'var mediaNodes = __KG_MEDIA_NODES__;\n    var nodeMetaById = __KG_NODE_META__;',
+    `var mediaNodes = __KG_MEDIA_NODES__;\n    var markdownBlocks = ${safeMarkdownBlocksJson};\n    var nodeMetaById = __KG_NODE_META__;`,
   )
+
+  out = replaceOnceExact(
+    out,
+    "el.className = 'kg-media';",
+    "el.className = 'kg-media';",
+  )
+
+  out = replaceOnceExact(
+    out,
+    "var header = document.createElement('div');\n        header.className = 'kg-mediaHeader';\n        var title = document.createElement('div');\n        title.className = 'kg-mediaTitle';",
+    "var header = document.createElement('header');\n        header.className = 'kg-mediaHeader';\n        try { header.setAttribute('data-kg-media-panel-header', '1'); } catch (e0) {}\n        var title = document.createElement('h3');\n        title.className = 'kg-mediaTitle';",
+  )
+
+  out = replaceOnceExact(
+    out,
+    'header.appendChild(title);\n        var body = document.createElement(\'div\');',
+    "header.appendChild(title);\n        try {\n          var openUrl = String(n.openUrl || '');\n          if (openUrl) {\n            var menu = document.createElement('menu');\n            menu.className = 'kg-mediaActions';\n            var li = document.createElement('li');\n            li.style.listStyle = 'none';\n            var btn = document.createElement('button');\n            btn.type = 'button';\n            btn.className = 'kg-mediaActionBtn';\n            btn.setAttribute('data-kg-panel-action', '1');\n            btn.setAttribute('aria-label', 'Open source');\n            btn.innerHTML = '<svg viewBox=\\\"0 0 24 24\\\" width=\\\"14\\\" height=\\\"14\\\" aria-hidden=\\\"true\\\" fill=\\\"none\\\" stroke=\\\"currentColor\\\" stroke-width=\\\"2\\\" stroke-linecap=\\\"round\\\" stroke-linejoin=\\\"round\\\"><path d=\\\"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6\\\"/><polyline points=\\\"15 3 21 3 21 9\\\"/><line x1=\\\"10\\\" y1=\\\"14\\\" x2=\\\"21\\\" y2=\\\"3\\\"/></svg>';\n            btn.addEventListener('pointerdown', function(e){ try { e.preventDefault(); e.stopPropagation(); } catch (e0) {} }, { capture: true });\n            btn.addEventListener('click', function(e){\n              try { if (e) { e.preventDefault(); e.stopPropagation(); } } catch (e0) {}\n              try { window.open(openUrl, '_blank', 'noopener,noreferrer'); } catch (e1) {}\n            });\n            li.appendChild(btn);\n            menu.appendChild(li);\n            header.appendChild(menu);\n          }\n        } catch (e0) {}\n        var body = document.createElement('div');",
+  )
+
+  out = replaceOnceExact(
+    out,
+    'if (fitBtn) fitBtn.addEventListener(\'click\', function(){ fitToCenter(); });\n    if (resetBtn) resetBtn.addEventListener(\'click\', function(){ resetView(); });\n    if (mediaBtn) mediaBtn.addEventListener(\'click\', function(){ setMediaInteractive(!mediaInteractive); });',
+    "if (fitBtn) fitBtn.addEventListener('click', function(){ fitToCenter(); });\n    if (resetBtn) resetBtn.addEventListener('click', function(){ resetView(); });\n    if (mediaBtn) mediaBtn.addEventListener('click', function(){ setMediaInteractive(!mediaInteractive); });\n\n    try {\n      window.addEventListener('keydown', function(e){\n        try {\n          if (!e) return;\n          if (e.defaultPrevented) return;\n          if (e.ctrlKey || e.metaKey || e.altKey) return;\n          var k = String(e.key || '').toLowerCase();\n          if (k !== 'i') return;\n          var t = e.target && (e.target instanceof Element) ? e.target : null;\n          if (t && t.closest && t.closest('input,textarea,select,[contenteditable=\"true\"]')) return;\n          setMediaInteractive(!mediaInteractive);\n          try { e.preventDefault(); } catch (e0) {}\n        } catch (err) {}\n      }, { capture: true });\n    } catch (err) {}",
+  )
+
+  out = replaceOnceExact(
+    out,
+    "var pe = (mediaInteractive && pointerMode !== 'pan' && !panHeld && !headerDrag) ? 'auto' : 'none';",
+    "var pe = (mediaInteractive && pointerMode !== 'pan' && !panHeld && !headerDrag) ? 'auto' : 'none';",
+  )
+
+  out = replaceOnceExact(
+    out,
+    "function applyMediaPointerEvents(){\n      var pe = (mediaInteractive && pointerMode !== 'pan' && !panHeld && !headerDrag) ? 'auto' : 'none';\n      try {\n        if (pe !== lastMediaPointerEvents) {\n          lastMediaPointerEvents = pe;\n          document.documentElement.style.setProperty('--kg-media-pointer-events', pe);\n        }\n      } catch (err) {}\n      try {\n        if (mediaBtn && mediaBtn.classList) {\n          if (lastMediaBtnActive !== mediaInteractive) {\n            lastMediaBtnActive = mediaInteractive;\n            if (mediaInteractive) mediaBtn.classList.add('kg-active');\n            else mediaBtn.classList.remove('kg-active');\n          }\n        }\n      } catch (err) {}\n    }",
+    "function applyMediaPointerEvents(){\n      var pe = (mediaInteractive && pointerMode !== 'pan' && !panHeld && !headerDrag) ? 'auto' : 'none';\n      try {\n        if (pe !== lastMediaPointerEvents) {\n          lastMediaPointerEvents = pe;\n          document.documentElement.style.setProperty('--kg-media-pointer-events', pe);\n        }\n      } catch (err) {}\n      try {\n        if (mediaBtn && mediaBtn.classList) {\n          if (lastMediaBtnActive !== mediaInteractive) {\n            lastMediaBtnActive = mediaInteractive;\n            if (mediaInteractive) mediaBtn.classList.add('kg-active');\n            else mediaBtn.classList.remove('kg-active');\n          }\n        }\n      } catch (err) {}\n      try {\n        if (overlay && overlay.__kgMediaById && mediaNodes && mediaNodes.length) {\n          for (var i = 0; i < mediaNodes.length; i += 1) {\n            var n = mediaNodes[i];\n            if (!n) continue;\n            var id = String(n.id || '');\n            if (!id) continue;\n            var holder = overlay.__kgMediaById[id];\n            if (!holder || !holder.querySelectorAll) continue;\n            var interactive0 = !!n.interactive;\n            var perPe = interactive0 ? pe : 'none';\n            var els = holder.querySelectorAll('iframe,img,video,source');\n            for (var j = 0; j < els.length; j += 1) {\n              var el = els[j];\n              if (!el || !el.style) continue;\n              try { el.style.pointerEvents = perPe; } catch (e0) {}\n            }\n          }\n        }\n      } catch (err) {}\n    }",
+  )
+
+  out = replaceOnceExact(out, 'var mediaInteractive = false;', 'var mediaInteractive = true;')
+
+  out = replaceOnceExact(
+    out,
+    "function isMediaHeaderTarget(t){\n      try {\n        if (!(t instanceof Element)) return false;\n        return !!t.closest('.kg-mediaHeader');\n      } catch (err) {\n        return false;\n      }\n    }",
+    "function isMediaHeaderTarget(t){\n      try {\n        if (!(t instanceof Element)) return false;\n        return !!t.closest('.kg-mediaHeader,[data-kg-media-panel-header=\\\"1\\\"]');\n      } catch (err) {\n        return false;\n      }\n    }",
+  )
+
+  out = replaceOnceExact(
+    out,
+    "if (isMediaHeaderTarget(e.target)) {",
+    "if (isMediaHeaderTarget(e.target)) {\n        try {\n          var headerEl = e.target instanceof Element ? e.target.closest('.kg-mediaHeader,[data-kg-media-panel-header=\"1\"]') : null;\n        } catch (err0) {}\n        try {\n          if (pointerMode === 'pan' || panHeld) {\n            startDrag(e.pointerId, e.clientX, e.clientY);\n            try { root.setPointerCapture(e.pointerId); } catch (err5) {}\n            try { e.preventDefault(); } catch (err6) {}\n            try { e.stopPropagation(); } catch (err7) {}\n            return;\n          }\n        } catch (err0) {}",
+  )
+
+  out = replaceOnceExact(
+    out,
+    "overlay.__kgMediaById[id] = el;\n      }\n    }\n\n    var overlayRaf = null;",
+    "overlay.__kgMediaById[id] = el;\n      }\n    }\n\n    function ensureMarkdownDom(){\n      if (!overlay) return;\n      if (!markdownBlocks || markdownBlocks.length === 0) return;\n      if (overlay.__kgMdBuilt) return;\n      overlay.__kgMdBuilt = true;\n      overlay.__kgMdById = {};\n      for (var i = 0; i < markdownBlocks.length; i += 1) {\n        var b = markdownBlocks[i];\n        if (!b) continue;\n        var id = String(b.id || '');\n        if (!id) continue;\n        try {\n          var pv = b.preview || null;\n          var kind = pv && pv.kind ? String(pv.kind) : '';\n          if (kind === 'html') {\n            var raw = pv && pv.html && pv.html.raw ? String(pv.html.raw || '') : '';\n            if (/<\\s*iframe\\b/i.test(raw)) continue;\n          }\n        } catch (e0) {}\n\n        var el = document.createElement('div');\n        el.className = 'kg-md';\n        el.setAttribute('data-md-id', id);\n        try { el.setAttribute('data-kg-canvas-wheel-ignore', 'true'); } catch (e1) {}\n        try { el.setAttribute('data-kg-canvas-pointer-ignore', 'true'); } catch (e2) {}\n        try { el.setAttribute('data-kg-panel-box', 'leftTop'); } catch (e3) {}\n\n        var header = document.createElement('div');\n        header.className = 'kg-mdHeader';\n        var title = document.createElement('div');\n        title.className = 'kg-mdTitle';\n        title.textContent = String(b.title || b.id || 'Block');\n        header.appendChild(title);\n\n        var body = document.createElement('div');\n        body.className = 'kg-mdBody';\n\n        try {\n          var preview = b.preview || null;\n          var k = preview && preview.kind ? String(preview.kind) : '';\n          if (k === 'table' && preview.table) {\n            var tbl = document.createElement('table');\n            tbl.className = 'kg-mdTable';\n            var cols = Array.isArray(preview.table.columns) ? preview.table.columns : [];\n            var rows = Array.isArray(preview.table.rows) ? preview.table.rows : [];\n            if (cols.length) {\n              var thead = document.createElement('thead');\n              var trh = document.createElement('tr');\n              for (var ci = 0; ci < cols.length; ci += 1) {\n                var th = document.createElement('th');\n                th.textContent = String(cols[ci] || '');\n                trh.appendChild(th);\n              }\n              thead.appendChild(trh);\n              tbl.appendChild(thead);\n            }\n            var tbody = document.createElement('tbody');\n            var maxRows = Math.max(1, Math.min(12, rows.length));\n            for (var ri = 0; ri < maxRows; ri += 1) {\n              var tr = document.createElement('tr');\n              var row = Array.isArray(rows[ri]) ? rows[ri] : [];\n              var cells = cols.length ? cols.length : row.length;\n              for (var cj = 0; cj < cells; cj += 1) {\n                var td = document.createElement('td');\n                td.textContent = String(row[cj] != null ? row[cj] : '');\n                tr.appendChild(td);\n              }\n              tbody.appendChild(tr);\n            }\n            tbl.appendChild(tbody);\n            body.appendChild(tbl);\n          } else if (k === 'code' && preview.code) {\n            var pre = document.createElement('pre');\n            pre.className = 'kg-mdCode';\n            var lines = Array.isArray(preview.code.lines) ? preview.code.lines : [];\n            pre.textContent = String(lines.slice(0, 18).join('\\n'));\n            body.appendChild(pre);\n          } else if (k === 'blockquote' && preview.blockquote) {\n            var div = document.createElement('div');\n            div.className = 'kg-mdQuote';\n            var qLines = Array.isArray(preview.blockquote.lines) ? preview.blockquote.lines : [];\n            div.textContent = String(qLines.slice(0, 10).join('\\n'));\n            body.appendChild(div);\n          } else if (k === 'callout' && preview.callout) {\n            var cdiv = document.createElement('div');\n            cdiv.className = 'kg-mdCallout';\n            var cTitle = (preview.callout.title ? String(preview.callout.title || '').trim() : '');\n            var ct = document.createElement('div');\n            ct.className = 'kg-mdCalloutTitle';\n            ct.textContent = cTitle || String(b.title || 'Callout');\n            cdiv.appendChild(ct);\n            body.appendChild(cdiv);\n          } else {\n            var p = document.createElement('div');\n            p.className = 'kg-mdText';\n            p.textContent = String(b.summary || b.title || '');\n            body.appendChild(p);\n          }\n        } catch (e4) {\n          void 0;\n        }\n\n        el.appendChild(header);\n        el.appendChild(body);\n        overlay.appendChild(el);\n        overlay.__kgMdById[id] = el;\n      }\n    }\n\n    var overlayRaf = null;",
+  )
+
+  out = replaceAllExact(
+    out,
+    "try { el.setAttribute('data-kg-canvas-pointer-ignore', 'true'); } catch (e2) {}",
+    '',
+  )
+
+  out = replaceAllExact(
+    out,
+    "try { el.setAttribute('data-kg-canvas-wheel-ignore', 'true'); } catch (e1) {}",
+    '',
+  )
+
+  out = replaceOnceExact(
+    out,
+    'overlay.__kgMdById = {};\n      for (var i = 0; i < markdownBlocks.length; i += 1) {',
+    "overlay.__kgMdById = {};\n\n      try {\n        var existing = overlay.querySelectorAll ? overlay.querySelectorAll('[data-md-id],[data-kg-markdown-design-block]') : null;\n        if (existing && existing.length) {\n          for (var ei = 0; ei < existing.length; ei += 1) {\n            var ex = existing[ei];\n            if (!ex || !ex.getAttribute) continue;\n            var xid = String(ex.getAttribute('data-md-id') || ex.getAttribute('data-kg-markdown-design-block') || '').trim();\n            if (!xid) continue;\n            try {\n              var curClass = String(ex.className || '');\n              if (curClass.indexOf('kg-md') < 0) ex.className = ('kg-md ' + curClass).trim();\n            } catch (e0) {\n              void 0;\n            }\n            overlay.__kgMdById[xid] = ex;\n          }\n        }\n      } catch (e0) {\n        void 0;\n      }\n\n      for (var i = 0; i < markdownBlocks.length; i += 1) {",
+  )
+
+  out = replaceOnceExact(
+    out,
+    'ensureMediaDom();\n      if (!mediaNodes || mediaNodes.length === 0) return;',
+    'ensureMediaDom();\n      ensureMarkdownDom();\n      if ((!mediaNodes || mediaNodes.length === 0) && (!markdownBlocks || markdownBlocks.length === 0)) return;',
+  )
+
+  out = replaceOnceExact(
+    out,
+    'if (!markdownBlocks || markdownBlocks.length === 0) return;',
+    "if (!markdownBlocks || markdownBlocks.length === 0) return;\n      try {\n        var hasOverlayMd = false;\n        try {\n          hasOverlayMd = !!(overlay && overlay.querySelector && overlay.querySelector('[data-md-id],[data-kg-markdown-design-block]'));\n        } catch (e0) {\n          hasOverlayMd = false;\n        }\n        if (!hasOverlayMd && typeof svg !== 'undefined' && svg && svg.querySelector && svg.querySelector('[data-kg-layer=\\\"markdown-design-blocks\\\"] foreignObject')) return;\n      } catch (eSkip) {}",
+  )
+
+  out = replaceOnceExact(
+    out,
+    'var offMap = svg.__kgNodeOffsetById || (svg.__kgNodeOffsetById = {});',
+    "var offMap = svg.__kgNodeOffsetById || (svg.__kgNodeOffsetById = {});\n\n          try {\n            var foList = svg.querySelectorAll('[data-kg-layer=\\\"markdown-design-blocks\\\"] foreignObject[data-kg-markdown-block-id]');\n            if (foList && foList.length) {\n              for (var fi = 0; fi < foList.length; fi += 1) {\n                var fo = foList[fi];\n                if (!fo || !fo.getAttribute) continue;\n                var fid = String(fo.getAttribute('data-kg-markdown-block-id') || '');\n                if (!fid) continue;\n                var pz = nodePosById && nodePosById[fid] ? nodePosById[fid] : null;\n                if (!pz) continue;\n                var nx = Number(pz.x);\n                var ny = Number(pz.y);\n                if (!isFinite(nx) || !isFinite(ny)) continue;\n                var fx = Number(fo.getAttribute('x'));\n                var fy = Number(fo.getAttribute('y'));\n                var fw = Number(fo.getAttribute('width'));\n                var fh = Number(fo.getAttribute('height'));\n                if (!isFinite(fx) || !isFinite(fy) || !isFinite(fw) || !isFinite(fh) || !(fw > 0) || !(fh > 0)) continue;\n\n                var nodeSx = nx * state.k * baseSx1 + state.x + ox1;\n                var nodeSy = ny * state.k * baseSy1 + state.y + oy1;\n                var anchorSx = (fx + fw * 0.5) * state.k * baseSx1 + state.x + ox1;\n                var anchorSy = fy * state.k * baseSy1 + state.y + oy1 - 6;\n                var dx = anchorSx - nodeSx;\n                var dy = anchorSy - nodeSy;\n                var prev = offMap[fid] || null;\n                if (!prev || Math.abs((Number(prev.x) || 0) - dx) > 0.5 || Math.abs((Number(prev.y) || 0) - dy) > 0.5) {\n                  offMap[fid] = { x: dx, y: dy };\n                  try { scheduleEdgeGeometryUpdateForNode(fid); } catch (eFo) {}\n                }\n              }\n            }\n          } catch (eF0) {}",
+  )
+
+  out = replaceOnceExact(
+    out,
+    "lastBoxById[id] = { left: left, top: top, w: panelW, h: panelH, display: 'block' };\n        }\n      }\n    }\n\n    function onWheel(e){",
+    "lastBoxById[id] = { left: left, top: top, w: panelW, h: panelH, display: 'block' };\n        }\n      }\n\n      try {\n        if (markdownBlocks && markdownBlocks.length) {\n          var mdById = overlay.__kgMdById || {};\n          var lastMdBoxById = overlay.__kgMdBoxById || (overlay.__kgMdBoxById = {});\n          var baseSx0 = (svgBase && isFinite(svgBase.sx) && svgBase.sx > 0) ? svgBase.sx : 1;\n          var baseSy0 = (svgBase && isFinite(svgBase.sy) && svgBase.sy > 0) ? svgBase.sy : 1;\n          var ox0 = (svgBase && isFinite(svgBase.ox)) ? svgBase.ox : 0;\n          var oy0 = (svgBase && isFinite(svgBase.oy)) ? svgBase.oy : 0;\n          for (var mi = 0; mi < markdownBlocks.length; mi += 1) {\n            var b = markdownBlocks[mi];\n            if (!b) continue;\n            var bid = String(b.id || '');\n            if (!bid) continue;\n            var el = mdById[bid] || null;\n            if (!el) continue;\n            var xw = Number(b.x);\n            var yw = Number(b.y);\n            var ww = Number(b.w);\n            var hh = Number(b.h);\n            if (!isFinite(xw) || !isFinite(yw) || !isFinite(ww) || !isFinite(hh) || !(ww > 0) || !(hh > 0)) continue;\n            var left = xw * state.k * baseSx0 + state.x + ox0;\n            var top = yw * state.k * baseSy0 + state.y + oy0;\n            var sw = ww * state.k * baseSx0;\n            var sh = hh * state.k * baseSy0;\n            var il = Math.round(left);\n            var it = Math.round(top);\n            var iw = Math.max(1, Math.round(sw));\n            var ih = Math.max(1, Math.round(sh));\n            var prev = lastMdBoxById[bid] || null;\n            if (!prev || prev.left !== il || prev.top !== it || prev.w !== iw || prev.h !== ih || prev.display !== 'block') {\n              applyPanelBox(el, { left: il, top: it, w: iw, h: ih, display: 'block', zIndex: 1 });\n              lastMdBoxById[bid] = { left: il, top: it, w: iw, h: ih, display: 'block' };\n            }\n          }\n        }\n      } catch (mdErr) {}\n\n      try {\n        if (svg && overlay && nodePosById) {\n          var baseSx1 = (svgBase && isFinite(svgBase.sx) && svgBase.sx > 0) ? svgBase.sx : 1;\n          var baseSy1 = (svgBase && isFinite(svgBase.sy) && svgBase.sy > 0) ? svgBase.sy : 1;\n          var ox1 = (svgBase && isFinite(svgBase.ox)) ? svgBase.ox : 0;\n          var oy1 = (svgBase && isFinite(svgBase.oy)) ? svgBase.oy : 0;\n          var density1 = __KG_DENSITY__;\n          var headerH = density1 === 'compact' ? 22 : 28;\n          var offMap = svg.__kgNodeOffsetById || (svg.__kgNodeOffsetById = {});\n\n          var mediaBoxById = overlay.__kgMediaBoxById || {};\n          if (mediaNodes && mediaNodes.length) {\n            for (var mi2 = 0; mi2 < mediaNodes.length; mi2 += 1) {\n              var n0 = mediaNodes[mi2];\n              var id0 = String(n0 && n0.id ? n0.id : '');\n              if (!id0) continue;\n              var box0 = mediaBoxById[id0] || null;\n              var p0 = nodePosById && nodePosById[id0] ? nodePosById[id0] : null;\n              if (!p0 || !box0) continue;\n              var x0 = Number(p0.x);\n              var y0 = Number(p0.y);\n              if (!isFinite(x0) || !isFinite(y0)) continue;\n              var asx = x0 * state.k * baseSx1 + state.x + ox1;\n              var asy = y0 * state.k * baseSy1 + state.y + oy1;\n              var dx0 = (Number(box0.left) || 0) + (Number(box0.w) || 0) * 0.5 - asx;\n              var dy0 = (Number(box0.top) || 0) + Math.min(headerH, Number(box0.h) || 0) * 0.5 - asy;\n              var prev0 = offMap[id0] || null;\n              if (!prev0 || Math.abs((Number(prev0.x) || 0) - dx0) > 0.5 || Math.abs((Number(prev0.y) || 0) - dy0) > 0.5) {\n                offMap[id0] = { x: dx0, y: dy0 };\n                try { scheduleEdgeGeometryUpdateForNode(id0); } catch (e0) {}\n              }\n            }\n          }\n\n          var mdBoxById = overlay.__kgMdBoxById || {};\n          if (markdownBlocks && markdownBlocks.length) {\n            for (var mi3 = 0; mi3 < markdownBlocks.length; mi3 += 1) {\n              var b0 = markdownBlocks[mi3];\n              if (!b0) continue;\n              var bid0 = String(b0.id || '');\n              if (!bid0) continue;\n              var box1 = mdBoxById[bid0] || null;\n              var p1 = nodePosById && nodePosById[bid0] ? nodePosById[bid0] : null;\n              if (!p1 || !box1) continue;\n              var x1 = Number(p1.x);\n              var y1 = Number(p1.y);\n              if (!isFinite(x1) || !isFinite(y1)) continue;\n              var bsx = x1 * state.k * baseSx1 + state.x + ox1;\n              var bsy = y1 * state.k * baseSy1 + state.y + oy1;\n              var dx1 = (Number(box1.left) || 0) + (Number(box1.w) || 0) * 0.5 - bsx;\n              var dy1 = (Number(box1.top) || 0) + Math.min(headerH, Number(box1.h) || 0) * 0.5 - bsy;\n              var prev1 = offMap[bid0] || null;\n              if (!prev1 || Math.abs((Number(prev1.x) || 0) - dx1) > 0.5 || Math.abs((Number(prev1.y) || 0) - dy1) > 0.5) {\n                offMap[bid0] = { x: dx1, y: dy1 };\n                try { scheduleEdgeGeometryUpdateForNode(bid0); } catch (e1) {}\n              }\n            }\n          }\n        }\n      } catch (errOff) {}\n    }\n\n    function onWheel(e){",
+  )
+
 
   out = replaceOnceExact(
     out,
@@ -95,13 +198,19 @@ export function buildHtmlViewerRuntimeScript(args: {
   out = replaceOnceExact(
     out,
     "var mediaBtn = document.getElementById('kg-media-toggle');",
-    "var mediaBtn = document.getElementById('kg-media-toggle');\n\n    var KG_PROXY_ORIGIN = __KG_PROXY_ORIGIN__;\n    var KG_PROXY_ORIGIN_RUNTIME = (typeof KG_PROXY_ORIGIN === 'string' ? String(KG_PROXY_ORIGIN || '').trim() : '');\n    var KG_PROXY_PROBE_STARTED = false;\n\n    var kgGetProxyOrigin = function(){\n      try { return String(KG_PROXY_ORIGIN_RUNTIME || '').trim(); } catch (e) { return ''; }\n    };\n\n    var kgShouldUseProxy = function(){\n      try {\n        if (kgGetProxyOrigin()) return true;\n      } catch (e) {\n        void 0;\n      }\n      try {\n        var host = String((window && window.location && window.location.hostname) ? window.location.hostname : '').toLowerCase();\n        if (!host) return false;\n        return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0';\n      } catch (e) {\n        return false;\n      }\n    };\n\n    var kgInferMediaKindFromUrl = function(rawUrl){\n      try {\n        var u = String(rawUrl || '').trim();\n        if (!u) return '';\n        if (/^data:image\\//i.test(u)) {\n          if (/^data:image\\/svg\\+xml/i.test(u)) return 'svg';\n          return 'image';\n        }\n        var noHash = u.split('#')[0] || u;\n        var noQuery = noHash.split('?')[0] || noHash;\n        var lower = String(noQuery).toLowerCase();\n        if (lower.endsWith('.svg')) return 'svg';\n        if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.gif') || lower.endsWith('.webp')) return 'image';\n        if (lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.mov') || lower.endsWith('.m4v')) return 'video';\n        return '';\n      } catch (e) {\n        return '';\n      }\n    };\n\n    var kgIsDirectIframeEmbedUrl = function(rawUrl){\n      try {\n        var u = String(rawUrl || '').trim();\n        if (!u) return false;\n        if (!/^https?:\\/\\//i.test(u)) return true;\n        if (/(^|\\/\\/)(www\\.)?youtube\\.com\\//i.test(u)) return true;\n        if (/(^|\\/\\/)(www\\.)?youtu\\.be\\//i.test(u)) return true;\n        if (/(^|\\/\\/)www\\.youtube-nocookie\\.com\\//i.test(u)) return true;\n        if (/(^|\\/\\/)player\\.vimeo\\.com\\//i.test(u)) return true;\n        if (/(^|\\/\\/)platform\\.twitter\\.com\\//i.test(u)) return true;\n        if (/(^|\\/\\/)twitframe\\.com\\//i.test(u)) return true;\n        return false;\n      } catch (e) {\n        return false;\n      }\n    };\n\n    var kgBuildRemoteFetchProxyUrl = function(rawUrl){\n      try {\n        var u = String(rawUrl || '').trim();\n        if (!u) return '';\n        if (u.startsWith('/__fetch_remote?url=')) return u;\n        var origin = kgGetProxyOrigin();\n        if (/^https?:\\/\\//i.test(origin || '')) return String(origin).replace(/\\/+$/, '') + '/__fetch_remote?url=' + encodeURIComponent(u);\n        if (!kgShouldUseProxy()) return u;\n        return '/__fetch_remote?url=' + encodeURIComponent(u);\n      } catch (e) {\n        return String(rawUrl || '').trim();\n      }\n    };\n\n    var kgBuildWebpageProxyUrl = function(rawUrl){\n      try {\n        var u = String(rawUrl || '').trim();\n        if (!u) return '';\n        if (u.startsWith('/__webpage_proxy?url=')) return u;\n        var origin = kgGetProxyOrigin();\n        if (/^https?:\\/\\//i.test(origin || '')) return String(origin).replace(/\\/+$/, '') + '/__webpage_proxy?url=' + encodeURIComponent(u);\n        if (!kgShouldUseProxy()) return u;\n        return '/__webpage_proxy?url=' + encodeURIComponent(u);\n      } catch (e) {\n        return String(rawUrl || '').trim();\n      }\n    };\n\n    var kgResolveMediaSrc = function(url, kind){\n      var u = String(url || '').trim();\n      if (!u) return '';\n      if (/^\\s*(data:|blob:|mailto:|tel:)/i.test(u)) return u;\n      if (u.startsWith('/__') || u.startsWith('/@')) return u;\n      var k = String(kind || '');\n      if (k === 'iframe') {\n        if (kgIsDirectIframeEmbedUrl(u)) return u;\n        return kgBuildWebpageProxyUrl(u);\n      }\n      if (k === 'video' || k === 'image' || k === 'svg') return kgBuildRemoteFetchProxyUrl(u);\n      return u;\n    };\n\n    var kgResolveIframeSandbox = function(url){\n      try {\n        return kgIsDirectIframeEmbedUrl(url)\n          ? 'allow-scripts allow-same-origin allow-forms allow-popups allow-presentation'\n          : 'allow-scripts allow-presentation';\n      } catch (e) {\n        return 'allow-scripts allow-presentation';\n      }\n    };\n\n    var kgApplyMediaSrcForEl = function(el){\n      try {\n        if (!el || !el.getAttribute) return;\n        var kind0 = String(el.getAttribute('data-kg-kind') || 'iframe');\n        var url0 = String(el.getAttribute('data-kg-url') || '');\n        var inferred = kgInferMediaKindFromUrl(url0);\n        var kind = (inferred && (kind0 === 'iframe' || kind0 === '')) ? inferred : kind0;\n        if (kind === 'image' || kind === 'svg') {\n          var img = el.querySelector ? el.querySelector('img') : null;\n          if (img) img.src = kgResolveMediaSrc(url0, kind);\n          return;\n        }\n        if (kind === 'video') {\n          var vid = el.querySelector ? el.querySelector('video') : null;\n          if (vid) vid.src = kgResolveMediaSrc(url0, kind);\n          return;\n        }\n        var iframe = el.querySelector ? el.querySelector('iframe') : null;\n        if (!iframe) return;\n        try { iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'); } catch (e0) { void 0; }\n        try { iframe.setAttribute('sandbox', kgResolveIframeSandbox(url0)); } catch (e1) { void 0; }\n        iframe.src = kgResolveMediaSrc(url0, 'iframe');\n      } catch (e) {\n        void 0;\n      }\n    };\n\n    var kgApplyMediaSrcToAll = function(){\n      try {\n        if (!overlay || !overlay.__kgMediaById) return;\n        var m = overlay.__kgMediaById;\n        for (var k in m) {\n          if (!k) continue;\n          kgApplyMediaSrcForEl(m[k]);\n        }\n      } catch (e) {\n        void 0;\n      }\n    };\n\n    var kgMaybeProbeProxyOrigin = function(){\n      try {\n        if (KG_PROXY_PROBE_STARTED) return;\n        if (kgGetProxyOrigin()) return;\n        if (!window || !window.location) return;\n        if (String(window.location.protocol || '') !== 'file:') return;\n        KG_PROXY_PROBE_STARTED = true;\n        var ports = [5173,5174,5175,5176,5177,5178,5179,5180];\n        var i = 0;\n        var probeNext = function(){\n          if (i >= ports.length) return;\n          var origin = 'http://localhost:' + ports[i++];\n          try {\n            var probeUrl = origin + '/__fetch_remote?url=' + encodeURIComponent('https://example.com/');\n            fetch(probeUrl, { method: 'HEAD', mode: 'cors' }).then(function(res){\n              if (!res) return probeNext();\n              if (res.status === 404) return probeNext();\n              KG_PROXY_ORIGIN_RUNTIME = origin;\n              kgApplyMediaSrcToAll();\n            }).catch(function(){ probeNext(); });\n          } catch (e) {\n            probeNext();\n          }\n        };\n        probeNext();\n      } catch (e) {\n        void 0;\n      }\n    };\n\n    kgMaybeProbeProxyOrigin();\n",
+    "var mediaBtn = document.getElementById('kg-media-toggle');\n\n    var KG_TOGGLE_MEDIA_INTERACTION_LABEL = 'Toggle media interaction';\n\n    var KG_PROXY_ORIGIN = __KG_PROXY_ORIGIN__;\n    var KG_PROXY_ORIGIN_RUNTIME = (typeof KG_PROXY_ORIGIN === 'string' ? String(KG_PROXY_ORIGIN || '').trim() : '');\n    var KG_PROXY_PROBE_STARTED = false;\n\n    var kgGetProxyOrigin = function(){\n      try { return String(KG_PROXY_ORIGIN_RUNTIME || '').trim(); } catch (e) { return ''; }\n    };\n\n    var kgShouldUseProxy = function(){\n      try {\n        if (kgGetProxyOrigin()) return true;\n      } catch (e) {\n        void 0;\n      }\n      try {\n        var host = String((window && window.location && window.location.hostname) ? window.location.hostname : '').toLowerCase();\n        if (!host) return false;\n        return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0';\n      } catch (e) {\n        return false;\n      }\n    };\n\n    var kgInferMediaKindFromUrl = function(rawUrl){\n      try {\n        var u = String(rawUrl || '').trim();\n        if (!u) return '';\n        if (/^data:image\\//i.test(u)) {\n          if (/^data:image\\/svg\\+xml/i.test(u)) return 'svg';\n          return 'image';\n        }\n        var noHash = u.split('#')[0] || u;\n        var noQuery = noHash.split('?')[0] || noHash;\n        var lower = String(noQuery).toLowerCase();\n        if (lower.endsWith('.svg')) return 'svg';\n        if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.gif') || lower.endsWith('.webp')) return 'image';\n        if (lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.mov') || lower.endsWith('.m4v')) return 'video';\n        return '';\n      } catch (e) {\n        return '';\n      }\n    };\n\n    var kgIsDirectIframeEmbedUrl = function(rawUrl){\n      try {\n        var u = String(rawUrl || '').trim();\n        if (!u) return false;\n        if (!/^https?:\\/\\//i.test(u)) return true;\n        if (/(^|\\/\\/)(www\\.)?youtube\\.com\\//i.test(u)) return true;\n        if (/(^|\\/\\/)(www\\.)?youtu\\.be\\//i.test(u)) return true;\n        if (/(^|\\/\\/)www\\.youtube-nocookie\\.com\\//i.test(u)) return true;\n        if (/(^|\\/\\/)player\\.vimeo\\.com\\//i.test(u)) return true;\n        if (/(^|\\/\\/)platform\\.twitter\\.com\\//i.test(u)) return true;\n        if (/(^|\\/\\/)twitframe\\.com\\//i.test(u)) return true;\n        return false;\n      } catch (e) {\n        return false;\n      }\n    };\n\n    var kgBuildRemoteFetchProxyUrl = function(rawUrl){\n      try {\n        var u = String(rawUrl || '').trim();\n        if (!u) return '';\n        if (u.startsWith('/__fetch_remote?url=')) return u;\n        var origin = kgGetProxyOrigin();\n        if (/^https?:\\/\\//i.test(origin || '')) return String(origin).replace(/\\/+$/, '') + '/__fetch_remote?url=' + encodeURIComponent(u);\n        if (!kgShouldUseProxy()) return u;\n        return '/__fetch_remote?url=' + encodeURIComponent(u);\n      } catch (e) {\n        return String(rawUrl || '').trim();\n      }\n    };\n\n    var kgBuildWebpageProxyUrl = function(rawUrl){\n      try {\n        var u = String(rawUrl || '').trim();\n        if (!u) return '';\n        if (u.startsWith('/__webpage_proxy?url=')) return u;\n        var origin = kgGetProxyOrigin();\n        if (/^https?:\\/\\//i.test(origin || '')) return String(origin).replace(/\\/+$/, '') + '/__webpage_proxy?url=' + encodeURIComponent(u);\n        if (!kgShouldUseProxy()) return u;\n        return '/__webpage_proxy?url=' + encodeURIComponent(u);\n      } catch (e) {\n        return String(rawUrl || '').trim();\n      }\n    };\n\n    var kgResolveMediaSrc = function(url, kind){\n      var u = String(url || '').trim();\n      if (!u) return '';\n      if (/^\\s*(data:|blob:|mailto:|tel:)/i.test(u)) return u;\n      if (u.startsWith('/__') || u.startsWith('/@')) return u;\n      var k = String(kind || '');\n      if (k === 'iframe') {\n        if (kgIsDirectIframeEmbedUrl(u)) return u;\n        return kgBuildWebpageProxyUrl(u);\n      }\n      if (k === 'video' || k === 'image' || k === 'svg') return kgBuildRemoteFetchProxyUrl(u);\n      return u;\n    };\n\n    var kgResolveIframeSandbox = function(url){\n      try {\n        return kgIsDirectIframeEmbedUrl(url)\n          ? 'allow-scripts allow-same-origin allow-forms allow-popups allow-presentation'\n          : 'allow-scripts allow-presentation';\n      } catch (e) {\n        return 'allow-scripts allow-presentation';\n      }\n    };\n\n    var kgApplyMediaSrcForEl = function(el){\n      try {\n        if (!el || !el.getAttribute) return;\n        var kind0 = String(el.getAttribute('data-kg-kind') || 'iframe');\n        var url0 = String(el.getAttribute('data-kg-url') || '');\n        var inferred = kgInferMediaKindFromUrl(url0);\n        var kind = (inferred && (kind0 === 'iframe' || kind0 === '')) ? inferred : kind0;\n        if (kind === 'image' || kind === 'svg') {\n          var img = el.querySelector ? el.querySelector('img') : null;\n          if (img) img.src = kgResolveMediaSrc(url0, kind);\n          return;\n        }\n        if (kind === 'video') {\n          var vid = el.querySelector ? el.querySelector('video') : null;\n          if (vid) vid.src = kgResolveMediaSrc(url0, kind);\n          return;\n        }\n        var iframe = el.querySelector ? el.querySelector('iframe') : null;\n        if (!iframe) return;\n        try { iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'); } catch (e0) { void 0; }\n        try { iframe.setAttribute('sandbox', kgResolveIframeSandbox(url0)); } catch (e1) { void 0; }\n        iframe.src = kgResolveMediaSrc(url0, 'iframe');\n      } catch (e) {\n        void 0;\n      }\n    };\n\n    var kgApplyMediaSrcToAll = function(){\n      try {\n        if (!overlay || !overlay.__kgMediaById) return;\n        var m = overlay.__kgMediaById;\n        for (var k in m) {\n          if (!k) continue;\n          kgApplyMediaSrcForEl(m[k]);\n        }\n      } catch (e) {\n        void 0;\n      }\n    };\n\n    var kgMaybeProbeProxyOrigin = function(){\n      try {\n        if (KG_PROXY_PROBE_STARTED) return;\n        if (kgGetProxyOrigin()) return;\n        if (!window || !window.location) return;\n        if (String(window.location.protocol || '') !== 'file:') return;\n        KG_PROXY_PROBE_STARTED = true;\n        var ports = [5173,5174,5175,5176,5177,5178,5179,5180];\n        var i = 0;\n        var probeNext = function(){\n          if (i >= ports.length) return;\n          var origin = 'http://localhost:' + ports[i++];\n          try {\n            var probeUrl = origin + '/__fetch_remote?url=' + encodeURIComponent('https://example.com/');\n            fetch(probeUrl, { method: 'HEAD', mode: 'cors' }).then(function(res){\n              if (!res) return probeNext();\n              if (res.status === 404) return probeNext();\n              KG_PROXY_ORIGIN_RUNTIME = origin;\n              kgApplyMediaSrcToAll();\n            }).catch(function(){ probeNext(); });\n          } catch (e) {\n            probeNext();\n          }\n        };\n        probeNext();\n      } catch (e) {\n        void 0;\n      }\n    };\n\n    kgMaybeProbeProxyOrigin();\n",
   )
 
   out = replaceOnceExact(
     out,
     'var kgResolveMediaSrc = function(url, kind){',
-    "var kgIsWeChatHotlinkProtectedAssetUrl = function(absUrl){\n      try {\n        var raw = String(absUrl || '').trim();\n        if (!/^https?:\\/\\//i.test(raw)) return false;\n        var p = new URL(raw);\n        var host = String(p.hostname || '').toLowerCase();\n        if (host === 'mmbiz.qpic.cn' || host.endsWith('.qpic.cn')) return true;\n        if (host === 'mmbiz.qlogo.cn' || host.endsWith('.qlogo.cn')) return true;\n        if (host === 'wx.qlogo.cn' || host.endsWith('.wx.qlogo.cn')) return true;\n        return false;\n      } catch (e) {\n        return false;\n      }\n    };\n\n    var kgBuildWebpageAssetPathProxyUrl = function(absUrl){\n      try {\n        var raw = String(absUrl || '').trim();\n        if (!raw) return '';\n        if (raw.startsWith('/__webpage_asset_path/')) return raw;\n        if (raw.startsWith('/__webpage_asset_proxy?url=')) return raw;\n        if (!/^https?:\\/\\//i.test(raw)) return raw;\n        var p = new URL(raw);\n        var originEnc = encodeURIComponent(p.origin);\n        var pp = String(p.pathname || '/');\n        var qq = String(p.search || '');\n        var out = '/__webpage_asset_path/' + originEnc + pp + qq;\n        try {\n          var origin = kgGetProxyOrigin();\n          if (/^https?:\\/\\//i.test(origin || '') && window && window.location && String(window.location.protocol || '') === 'file:') {\n            return String(origin).replace(/\\/+$/, '') + out;\n          }\n        } catch (e0) {\n          void 0;\n        }\n        return out;\n      } catch (e) {\n        return String(absUrl || '').trim();\n      }\n    };\n\n    var kgResolveMediaSrc = function(url, kind){",
+    "var kgIsWeChatHotlinkProtectedAssetUrl = function(absUrl){\n      try {\n        var raw = String(absUrl || '').trim();\n        if (!/^https?:\\/\\//i.test(raw)) return false;\n        var p = new URL(raw);\n        var host = String(p.hostname || '').toLowerCase();\n        if (host === 'mmbiz.qpic.cn' || host.endsWith('.qpic.cn')) return true;\n        if (host === 'mmbiz.qlogo.cn' || host.endsWith('.qlogo.cn')) return true;\n        if (host === 'wx.qlogo.cn' || host.endsWith('.wx.qlogo.cn')) return true;\n        return false;\n      } catch (e) {\n        return false;\n      }\n    };\n\n    var kgBuildWebpageAssetPathProxyUrl = function(absUrl){\n      try {\n        var raw = String(absUrl || '').trim();\n        if (!raw) return '';\n        if (raw.startsWith('/__webpage_asset_path/')) return raw;\n        if (raw.startsWith('/__webpage_asset_proxy?url=')) return raw;\n        if (!/^https?:\\/\\//i.test(raw)) return raw;\n        var p = new URL(raw);\n        var originEnc = encodeURIComponent(p.origin);\n        var pp = String(p.pathname || '/');\n        var qq = String(p.search || '');\n        var out = '/__webpage_asset_path/' + originEnc + pp + qq;\n        try {\n          var origin = kgGetProxyOrigin();\n          if (/^https?:\\/\\//i.test(origin || '') && window && window.location && String(window.location.protocol || '') === 'file:') {\n            return String(origin).replace(/\\/+$/, '') + out;\n          }\n        } catch (e0) {\n          void 0;\n        }\n        return out;\n      } catch (e) {\n        return String(absUrl || '').trim();\n      }\n    };\n\n    var kgBuildWebpageMetaProxyUrl = function(absUrl){\n      try {\n        var raw = String(absUrl || '').trim();\n        if (!raw) return '';\n        var out = '/__webpage_meta?url=' + encodeURIComponent(raw);\n        try {\n          var origin = kgGetProxyOrigin();\n          if (/^https?:\\/\\//i.test(origin || '') && window && window.location && String(window.location.protocol || '') === 'file:') {\n            return String(origin).replace(/\\/+$/, '') + out;\n          }\n        } catch (e0) {\n          void 0;\n        }\n        return out;\n      } catch (e) {\n        return '';\n      }\n    };\n\n    var kgGetWebpageMetaCache = function(){\n      try {\n        var w = (typeof window !== 'undefined') ? window : null;\n        if (!w) return null;\n        if (!w.__kgWebpageMetaCache) w.__kgWebpageMetaCache = Object.create(null);\n        return w.__kgWebpageMetaCache;\n      } catch (e) {\n        return null;\n      }\n    };\n\n    var kgFetchWebpageMeta = function(absUrl, onDone){\n      try {\n        var url = String(absUrl || '').trim();\n        if (!url) return;\n        var cache = kgGetWebpageMetaCache();\n        var now = (typeof Date !== 'undefined' && Date.now) ? Date.now() : 0;\n        var rec = (cache && cache[url]) ? cache[url] : null;\n        if (rec && rec.v && rec.exp && now && rec.exp > now) {\n          try { onDone && onDone(rec.v); } catch (e0) {}\n          return;\n        }\n        if (rec && rec.p) {\n          try { rec.p.then(function(v){ try { onDone && onDone(v); } catch (e0) {} }).catch(function(){ try { onDone && onDone(null); } catch (e1) {} }); } catch (e2) { try { onDone && onDone(null); } catch (e3) {} }\n          return;\n        }\n        var endpoint = kgBuildWebpageMetaProxyUrl(url);\n        if (!endpoint) { try { onDone && onDone(null); } catch (e4) {} return; }\n        var p = fetch(endpoint, { method: 'GET', headers: { Accept: 'application/json' } })\n          .then(function(res){\n            try { if (!res || !res.ok) return null; } catch (e0) { return null; }\n            try { return res.json(); } catch (e1) { return null; }\n          })\n          .then(function(json){\n            try {\n              if (!json || typeof json !== 'object' || Array.isArray(json)) return null;\n              if (json.ok !== true) return null;\n              return {\n                url: String(json.url || url),\n                title: String(json.title || ''),\n                siteName: String(json.siteName || ''),\n                imageUrl: String(json.imageUrl || ''),\n              };\n            } catch (e0) {\n              return null;\n            }\n          })\n          .catch(function(){ return null; });\n        if (cache) {\n          cache[url] = { v: null, exp: now + 8 * 60 * 1000, p: p };\n        }\n        p.then(function(v){\n          try {\n            if (cache) cache[url] = { v: v, exp: now + 8 * 60 * 1000 };\n          } catch (e0) {}\n          try { onDone && onDone(v); } catch (e1) {}\n        }).catch(function(){\n          try { if (cache) cache[url] = { v: null, exp: now + 60 * 1000 }; } catch (e0) {}\n          try { onDone && onDone(null); } catch (e1) {}\n        });\n      } catch (e) {\n        try { onDone && onDone(null); } catch (e0) {}\n      }\n    };\n\n    var kgCreateWebpageSnapshotPreview = function(args){\n      try {\n        var url = String((args && args.url) || '').trim();\n        var title = String((args && args.title) || '').trim();\n        var host = '';\n        try { host = url ? String((new URL(url)).hostname || '').trim() : ''; } catch (e0) { host = ''; }\n\n        var wrap = document.createElement('div');\n        wrap.className = 'kg-mediaSnap';\n\n        var img = document.createElement('img');\n        img.className = 'kg-mediaSnapImg';\n        img.setAttribute('alt', title || host || 'Webpage');\n        img.loading = 'lazy';\n\n        var meta = document.createElement('div');\n        meta.className = 'kg-mediaSnapMeta';\n        var t = document.createElement('div');\n        t.className = 'kg-mediaSnapTitle';\n        t.textContent = title || host || url || 'Webpage';\n        var h = document.createElement('div');\n        h.className = 'kg-mediaSnapHost';\n        h.textContent = host || '';\n        meta.appendChild(t);\n        meta.appendChild(h);\n\n        wrap.appendChild(img);\n        wrap.appendChild(meta);\n\n        img.addEventListener('load', function(){\n          try { img.style.opacity = '1'; } catch (e0) {}\n        });\n\n        if (url) {\n          kgFetchWebpageMeta(url, function(m){\n            try {\n              if (!m) return;\n              var imageUrl = String((m && m.imageUrl) || '').trim();\n              var mTitle = String((m && m.title) || '').trim();\n              var siteName = String((m && m.siteName) || '').trim();\n              if (mTitle && (!title || t.textContent === host || t.textContent === url)) t.textContent = mTitle;\n              if (siteName && (!h.textContent || h.textContent === host)) h.textContent = siteName;\n              if (imageUrl) {\n                var resolved = kgShouldUseProxy() ? kgBuildWebpageAssetPathProxyUrl(imageUrl) : kgResolveMediaSrc(imageUrl, 'image');\n                img.src = resolved || kgResolveMediaSrc(imageUrl, 'image');\n              }\n            } catch (e0) {\n              void 0;\n            }\n          });\n        }\n\n        return wrap;\n      } catch (e) {\n        return null;\n      }\n    };\n\n    var kgResolveMediaSrc = function(url, kind){",
+  )
+
+  out = replaceOnceExact(
+    out,
+    "} else {\n          var iframe = document.createElement('iframe');\n          iframe.loading = 'eager';\n          iframe.referrerPolicy = 'no-referrer';\n          iframe.src = url;\n          body.appendChild(iframe);\n        }",
+    "} else {\n          var useSnapshot = false;\n          try {\n            var srcDoc0 = String((n && (n.srcDoc || n.srcdoc)) || '');\n            if (srcDoc0 && String(srcDoc0).trim()) {\n              useSnapshot = false;\n            } else {\n              var direct = false;\n              try { direct = typeof kgIsDirectIframeEmbedUrl === 'function' ? kgIsDirectIframeEmbedUrl(url) : false; } catch (e0) { direct = false; }\n              var forceSnap = false;\n              try { forceSnap = (!direct) && (typeof kgShouldForceSnapshotUrl === 'function' ? kgShouldForceSnapshotUrl(url) : false); } catch (e1) { forceSnap = false; }\n              useSnapshot = (!mediaInteractive) || forceSnap;\n            }\n          } catch (e0) {\n            useSnapshot = (!mediaInteractive);\n          }\n\n          if (useSnapshot) {\n            try {\n              var snapUrl = '';\n              try { snapUrl = String((typeof openUrl !== 'undefined' && openUrl) ? openUrl : url); } catch (e1) { snapUrl = String(url || ''); }\n              var snap = kgCreateWebpageSnapshotPreview({ url: snapUrl, title: String(n && n.title ? n.title : '') });\n              if (snap) body.appendChild(snap);\n            } catch (e2) {\n              void 0;\n            }\n          } else {\n            var iframe = document.createElement('iframe');\n            iframe.loading = 'eager';\n            iframe.referrerPolicy = 'no-referrer';\n            iframe.src = url;\n            body.appendChild(iframe);\n          }\n        }",
   )
 
   out = replaceOnceExact(
@@ -132,6 +241,18 @@ export function buildHtmlViewerRuntimeScript(args: {
     out,
     "if (t && t.closest && (t.closest('[data-node-id]') || t.closest('[data-edge-id]') || t.closest('[data-kg-group-id]') || t.closest('.kg-media'))) return;",
     "if (t && t.closest && t.closest('[data-edge-id]')) return;",
+  )
+
+  out = replaceOnceExact(
+    out,
+    "map[nodeId] = { x: ox + dx, y: oy + dy };\n          return;",
+    "map[nodeId] = { x: ox + dx, y: oy + dy };\n          try { scheduleEdgeGeometryUpdateForNode(nodeId); } catch (e0) {}\n          return;",
+  )
+
+  out = replaceOnceExact(
+    out,
+    'map[id] = { x: ox + dx, y: oy + dy };',
+    'map[id] = { x: ox + dx, y: oy + dy };\n              try { scheduleEdgeGeometryUpdateForNode(id); } catch (e0) {}',
   )
 
   out = replaceOnceExact(
@@ -296,7 +417,7 @@ export function buildHtmlViewerRuntimeScript(args: {
     setFrontmatterEnabled(false);
     try {
       var kgPanelMode = '';
-      try { kgPanelMode = String((window && window.localStorage) ? (window.localStorage.getItem('kg:render:richMedia:panelMode') || '') : ''); } catch (e0) { kgPanelMode = ''; }
+      try { kgPanelMode = String((window && window.localStorage) ? (window.localStorage.getItem('${LS_KEYS.renderRichMediaPanelMode}') || '') : ''); } catch (e0) { kgPanelMode = ''; }
       setMediaInteractive(String(kgPanelMode || '').trim() === 'embed');
     } catch (e8) {}
     try { set3dVisible(!!(root && root.classList && root.classList.contains('kg-canvas3d'))); } catch (e7) {}`,
@@ -327,7 +448,119 @@ export function buildHtmlViewerRuntimeScript(args: {
   out = replaceOnceExact(
     out,
     'iframe.src = url;',
-    "iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');\n          iframe.setAttribute('sandbox', kgResolveIframeSandbox(url));\n          iframe.src = kgResolveMediaSrc(url, kind);",
+    "iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');\n          iframe.setAttribute('sandbox', kgResolveIframeSandbox(url));\n          var srcDoc = String((n && (n.srcDoc || n.srcdoc)) || '');\n          if (srcDoc && String(srcDoc).trim()) {\n            try { iframe.removeAttribute('src'); } catch (e0) {}\n            try { iframe.srcdoc = String(srcDoc); } catch (e1) {}\n          } else {\n            iframe.src = kgResolveMediaSrc(url, kind);\n          }",
+  )
+
+  const markdownBlockInteractionsSnippet = `var __kgMdDrag = null;
+
+    function installMarkdownBlockInteractions(){
+      try {
+        if (!svg) return;
+        if (svg.__kgMarkdownBlocksInstalled) return;
+        svg.__kgMarkdownBlocksInstalled = true;
+        var layer = svg.querySelector('g[data-kg-layer="markdown-design-blocks"]');
+        if (!layer) return;
+
+        try {
+          window.addEventListener('pointermove', function(ev){
+            try {
+              if (!__kgMdDrag || !ev) return;
+              if (ev.pointerId !== __kgMdDrag.pid) return;
+              var dx = (Number(ev.clientX) - Number(__kgMdDrag.sx)) / Math.max(0.001, state.k);
+              var dy = (Number(ev.clientY) - Number(__kgMdDrag.sy)) / Math.max(0.001, state.k);
+              var nx = Number(__kgMdDrag.x0) + dx;
+              var ny = Number(__kgMdDrag.y0) + dy;
+              if (!isFinite(nx) || !isFinite(ny)) return;
+              try { __kgMdDrag.fo.setAttribute('x', String(nx)); } catch (e0) {}
+              try { __kgMdDrag.fo.setAttribute('y', String(ny)); } catch (e1) {}
+              try {
+                var aid = String((__kgMdDrag.anchorId || '') || (__kgMdDrag.fo && __kgMdDrag.fo.getAttribute ? (__kgMdDrag.fo.getAttribute('data-kg-anchor-node-id') || '') : '')).trim();
+                if (aid && nodePosById && typeof nodePosById === 'object') {
+                  var w = Number(__kgMdDrag.w);
+                  var h = Number(__kgMdDrag.h);
+                  if (!isFinite(w) || w <= 0) {
+                    try { w = parseFloat(String(__kgMdDrag.fo.getAttribute('width') || 'NaN')); } catch (e2) { w = NaN; }
+                  }
+                  if (!isFinite(h) || h <= 0) {
+                    try { h = parseFloat(String(__kgMdDrag.fo.getAttribute('height') || 'NaN')); } catch (e3) { h = NaN; }
+                  }
+                  var cx = isFinite(w) ? (nx + w / 2) : nx;
+                  var cy = isFinite(h) ? (ny + h / 2) : ny;
+                  nodePosById[aid] = { x: cx, y: cy };
+                  try { scheduleEdgeGeometryUpdateForNode(aid); } catch (e4) { void 0; }
+                }
+              } catch (e5) { void 0; }
+            } catch (e6) { void 0; }
+          }, { passive: true });
+          window.addEventListener('pointerup', function(ev){
+            try {
+              if (!__kgMdDrag || !ev) return;
+              if (ev.pointerId !== __kgMdDrag.pid) return;
+              __kgMdDrag = null;
+            } catch (e0) { __kgMdDrag = null; }
+          }, { passive: true });
+          window.addEventListener('pointercancel', function(ev){
+            try {
+              if (!__kgMdDrag || !ev) return;
+              if (ev.pointerId !== __kgMdDrag.pid) return;
+              __kgMdDrag = null;
+            } catch (e0) { __kgMdDrag = null; }
+          }, { passive: true });
+        } catch (eBind) { void 0; }
+
+        var fos = layer.querySelectorAll('foreignObject');
+        for (var i = 0; i < fos.length; i += 1) {
+          var fo = fos[i];
+          if (!fo || !fo.querySelector) continue;
+          try { fo.style.pointerEvents = 'auto'; } catch (e0) {}
+          var rootEl = null;
+          try { rootEl = fo.querySelector('[data-kg-markdown-design-block],[data-kg-markdown-block-id]'); } catch (e1) { rootEl = null; }
+          if (!rootEl) {
+            try { rootEl = fo.firstElementChild; } catch (e2) { rootEl = null; }
+          }
+          if (rootEl && rootEl.style) {
+            try { rootEl.style.pointerEvents = 'auto'; } catch (e3) {}
+            try { rootEl.setAttribute('data-kg-md-panel', '1'); } catch (e4) {}
+            try {
+              rootEl.addEventListener('wheel', function(ev){
+                try { if (!ev) return; ev.stopPropagation(); } catch (e0) {}
+              }, { capture: true, passive: true });
+            } catch (e5) { void 0; }
+          }
+          var header = null;
+          try { header = rootEl && rootEl.querySelector ? rootEl.querySelector('[data-kg-media-panel-header="1"]') : null; } catch (e6) { header = null; }
+          if (header && !header.__kgMdBound) {
+            header.__kgMdBound = true;
+            try { header.style.pointerEvents = 'auto'; header.style.cursor = 'grab'; header.style.touchAction = 'none'; } catch (e7) {}
+            try {
+              header.addEventListener('pointerdown', function(ev){
+                try {
+                  if (!ev || ev.button !== 0) return;
+                  if (panHeld || pointerMode === 'pan' || ev.shiftKey) return;
+                  try { ev.preventDefault(); } catch (e0) {}
+                  try { ev.stopPropagation(); } catch (e1) {}
+                  var x0 = parseFloat(String(fo.getAttribute('x') || '0'));
+                  var y0 = parseFloat(String(fo.getAttribute('y') || '0'));
+                  var ww = parseFloat(String(fo.getAttribute('width') || 'NaN'));
+                  var hh = parseFloat(String(fo.getAttribute('height') || 'NaN'));
+                  var aid = String((fo.getAttribute('data-kg-anchor-node-id') || '')).trim();
+                  __kgMdDrag = { fo: fo, pid: ev.pointerId, sx: ev.clientX, sy: ev.clientY, x0: isFinite(x0) ? x0 : 0, y0: isFinite(y0) ? y0 : 0, w: isFinite(ww) ? ww : 0, h: isFinite(hh) ? hh : 0, anchorId: aid };
+                } catch (e2) { void 0; }
+              }, { passive: false });
+            } catch (e8) { void 0; }
+          }
+        }
+      } catch (e) { void 0; }
+    }
+
+    function updateOverlays(){`
+
+  out = replaceOnceExact(out, 'function updateOverlays(){', markdownBlockInteractionsSnippet)
+
+  out = replaceOnceExact(
+    out,
+    '      updateOverlays();',
+    '      updateOverlays();\n      try { installMarkdownBlockInteractions(); } catch (e0) {}',
   )
 
   out = replaceOnceExact(
@@ -346,6 +579,12 @@ export function buildHtmlViewerRuntimeScript(args: {
     out,
     'var inferred = kgInferMediaKindFromUrl(url0);',
     'var inferred = (typeof kgInferMediaKindFromUrl2 === "function" ? kgInferMediaKindFromUrl2(url0) : "") || kgInferMediaKindFromUrl(url0);',
+  )
+
+  out = replaceOnceExact(
+    out,
+    'var x1 = Number(a.x);\n      var y1 = Number(a.y);\n      var x2 = Number(b.x);\n      var y2 = Number(b.y);',
+    "var x1 = Number(a.x);\n      var y1 = Number(a.y);\n      var x2 = Number(b.x);\n      var y2 = Number(b.y);\n      try {\n        if (overlayFollowAnimation && svg && svg.__kgNodeOffsetById) {\n          var om = svg.__kgNodeOffsetById;\n          var oa = (om && om[src]) ? om[src] : null;\n          var ob = (om && om[tgt]) ? om[tgt] : null;\n          if (oa && isFinite(oa.x) && isFinite(oa.y)) { x1 += Number(oa.x); y1 += Number(oa.y); }\n          if (ob && isFinite(ob.x) && isFinite(ob.y)) { x2 += Number(ob.x); y2 += Number(ob.y); }\n        }\n      } catch (eOff) { void 0; }",
   )
 
   out = replaceOnceExact(

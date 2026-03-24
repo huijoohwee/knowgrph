@@ -32,9 +32,9 @@ export function WorkspaceDataViewSettingsDialog(props: {
     if (!el) return
     if (props.open) {
       if (!el.open) el.showModal()
-      setActivePanel('properties')
     } else {
       if (el.open) el.close()
+      setActivePanel('properties')
     }
   }, [props.open])
 
@@ -50,7 +50,7 @@ export function WorkspaceDataViewSettingsDialog(props: {
     <dialog
       ref={dialogRef}
       className={[
-        'rounded-lg p-0 border shadow-xl w-[720px] max-w-[92vw]',
+        'rounded-lg p-0 border shadow-xl w-[720px] max-w-[92vw] h-[560px] max-h-[85vh] overflow-hidden',
         UI_THEME_TOKENS.panel.bg,
         UI_THEME_TOKENS.panel.border,
       ].join(' ')}
@@ -65,52 +65,58 @@ export function WorkspaceDataViewSettingsDialog(props: {
       }}
       aria-label={MARKDOWN_DATA_VIEW_COPY.viewSettingsLabel}
     >
-      <header className={['flex items-center gap-2 px-4 py-3 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}>
-        <h3 className={['text-base font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.viewSettingsLabel}</h3>
-        <button
-          type="button"
-          className={['ml-auto inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
-          aria-label="Close"
-          onClick={() => props.onClose()}
-        >
-          <span className={UI_THEME_TOKENS.text.secondary}>✕</span>
-        </button>
-      </header>
+      <div className="h-full flex flex-col">
+        <header className={['flex items-center gap-2 px-4 py-3 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}>
+          <h3 className={['text-base font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.viewSettingsLabel}</h3>
+          <button
+            type="button"
+            className={['ml-auto inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+            aria-label="Close"
+            onClick={() => props.onClose()}
+          >
+            <span className={UI_THEME_TOKENS.text.secondary}>✕</span>
+          </button>
+        </header>
 
-      <main className="flex min-h-[420px]">
-        <nav className={['w-[220px] border-r p-2', UI_THEME_TOKENS.panel.divider].join(' ')} aria-label="View settings sections">
-          {([
-            { key: 'layout' as const, label: 'Layout', icon: <LayoutGrid className="w-4 h-4" aria-hidden="true" /> },
-            { key: 'properties' as const, label: 'Properties', icon: <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />, value: `${shownCount} shown` },
-            { key: 'filter' as const, label: MARKDOWN_DATA_VIEW_COPY.filterLabel, icon: <Filter className="w-4 h-4" aria-hidden="true" /> },
-            { key: 'sort' as const, label: MARKDOWN_DATA_VIEW_COPY.sortLabel, icon: <ArrowUpDown className="w-4 h-4" aria-hidden="true" /> },
-            { key: 'group' as const, label: 'Group', icon: <LayoutGrid className="w-4 h-4" aria-hidden="true" /> },
-            { key: 'duplicate' as const, label: 'Duplicate', icon: <Copy className="w-4 h-4" aria-hidden="true" /> },
-            { key: 'delete' as const, label: 'Delete', icon: <Trash2 className="w-4 h-4" aria-hidden="true" /> },
-          ] as const).map(item => {
-            const active = activePanel === item.key
-            return (
-              <button
-                key={item.key}
-                type="button"
-                className={[
-                  'w-full flex items-center gap-2 px-2 py-2 rounded text-sm',
-                  active ? [UI_THEME_TOKENS.button.activeBg, UI_THEME_TOKENS.button.activeText].join(' ') : [UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.primary].join(' '),
-                ].join(' ')}
-                onMouseEnter={() => setActivePanel(item.key)}
-                onFocus={() => setActivePanel(item.key)}
-              >
-                <span className={active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.icon.color}>{item.icon}</span>
-                <span className="min-w-0 truncate">{item.label}</span>
-                {'value' in item && item.value ? (
-                  <span className={['ml-auto text-xs', active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.text.secondary].join(' ')}>{item.value}</span>
-                ) : null}
-              </button>
-            )
-          })}
-        </nav>
+        <main className="flex flex-1 min-h-0">
+          <nav
+            className={['w-[220px] border-r p-2 overflow-y-auto', UI_THEME_TOKENS.panel.divider].join(' ')}
+            aria-label="View settings sections"
+          >
+            {([
+              { key: 'layout' as const, label: 'Layout', icon: <LayoutGrid className="w-4 h-4" aria-hidden="true" /> },
+              { key: 'properties' as const, label: 'Properties', icon: <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />, value: `${shownCount} shown` },
+              { key: 'filter' as const, label: MARKDOWN_DATA_VIEW_COPY.filterLabel, icon: <Filter className="w-4 h-4" aria-hidden="true" /> },
+              { key: 'sort' as const, label: MARKDOWN_DATA_VIEW_COPY.sortLabel, icon: <ArrowUpDown className="w-4 h-4" aria-hidden="true" /> },
+              { key: 'group' as const, label: 'Group', icon: <LayoutGrid className="w-4 h-4" aria-hidden="true" /> },
+              { key: 'duplicate' as const, label: 'Duplicate', icon: <Copy className="w-4 h-4" aria-hidden="true" /> },
+              { key: 'delete' as const, label: 'Delete', icon: <Trash2 className="w-4 h-4" aria-hidden="true" /> },
+            ] as const).map(item => {
+              const active = activePanel === item.key
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={[
+                    'w-full flex items-center gap-2 px-2 py-2 rounded text-sm',
+                    active
+                      ? [UI_THEME_TOKENS.button.activeBg, UI_THEME_TOKENS.button.activeText].join(' ')
+                      : [UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.text.primary].join(' '),
+                  ].join(' ')}
+                  onMouseEnter={() => setActivePanel(item.key)}
+                  onFocus={() => setActivePanel(item.key)}
+                >
+                  <span className={active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.icon.color}>{item.icon}</span>
+                  <span className="min-w-0 truncate">{item.label}</span>
+                  {'value' in item && item.value ? (
+                    <span className={['ml-auto text-xs', active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.text.secondary].join(' ')}>{item.value}</span>
+                  ) : null}
+                </button>
+              )
+            })}
+          </nav>
 
-        <section className="flex-1 p-4" aria-label="View settings panel">
+          <section className="flex-1 p-4 overflow-y-auto" aria-label="View settings panel">
           {activePanel === 'layout' ? (
             <section className="space-y-4" aria-label="Layout">
               <label className="block">
@@ -203,8 +209,9 @@ export function WorkspaceDataViewSettingsDialog(props: {
               <div className={['text-sm', UI_THEME_TOKENS.text.secondary].join(' ')}>Delete view is not available yet.</div>
             </section>
           ) : null}
-        </section>
-      </main>
+          </section>
+        </main>
+      </div>
     </dialog>
   )
 }

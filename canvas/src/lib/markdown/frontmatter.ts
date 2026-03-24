@@ -42,6 +42,7 @@ export type WebpageFrontmatterMeta = {
   scriptPolicy?: WebpageScriptPolicy
   fidelityLevel?: WebpageFidelityLevel
   includeImages?: boolean
+  hydrate?: boolean
 }
 
 export function parseWebpageFrontmatterMeta(rawText: string): WebpageFrontmatterMeta | null {
@@ -76,7 +77,10 @@ export function parseWebpageFrontmatterMeta(rawText: string): WebpageFrontmatter
   const includeImages: boolean | undefined =
     includeImagesRaw === 'true' ? true : includeImagesRaw === 'false' ? false : undefined
 
-  return { url, view, siteRootRel, scriptPolicy, fidelityLevel, includeImages }
+  const hydrateRaw = readYamlFrontmatterValue(block.rawBlock, 'kgWebpageHydrate')
+  const hydrate: boolean | undefined = hydrateRaw === 'false' ? false : hydrateRaw === 'true' ? true : undefined
+
+  return { url, view, siteRootRel, scriptPolicy, fidelityLevel, includeImages, hydrate }
 }
 
 export function upsertWebpageFrontmatterMeta(rawText: string, meta: WebpageFrontmatterMeta): string {

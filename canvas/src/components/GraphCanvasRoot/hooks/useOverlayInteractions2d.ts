@@ -233,6 +233,34 @@ export function useOverlayInteractions2d(args: {
     overlayPanRef.current = null
   }, [])
 
+  const cancelAllInteractions = useCallback(() => {
+    const h = headerDragRef.current
+    if (h) {
+      try {
+        endHeaderDrag()
+      } catch {
+        try {
+          headerDragRef.current = null
+          unlockGlobalUserSelect()
+        } catch {
+          void 0
+        }
+      }
+    }
+    const p = overlayPanRef.current
+    if (p) {
+      try {
+        endOverlayPan({ pointerId: p.pointerId })
+      } catch {
+        try {
+          overlayPanRef.current = null
+        } catch {
+          void 0
+        }
+      }
+    }
+  }, [endHeaderDrag, endOverlayPan])
+
   React.useEffect(() => {
     const onUp = (e: PointerEvent) => {
       const h = headerDragRef.current
@@ -292,12 +320,36 @@ export function useOverlayInteractions2d(args: {
     window.addEventListener('pointerup', onUp, { capture: true })
     window.addEventListener('pointercancel', onUp, { capture: true })
     window.addEventListener('blur', onBlur)
+    const onVisibility = () => {
+      try {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') onBlur()
+      } catch {
+        void 0
+      }
+    }
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
+    const onAnyPointerDown = () => {
+      if (!headerDragRef.current && !overlayPanRef.current) return
+      cancelAllInteractions()
+    }
+    window.addEventListener('pointerdown', onAnyPointerDown, { capture: true })
+    const watchdog = window.setTimeout(() => {
+      if (!headerDragRef.current && !overlayPanRef.current) return
+      cancelAllInteractions()
+    }, 12000) as unknown as number
     return () => {
       window.removeEventListener('pointerup', onUp, { capture: true } as AddEventListenerOptions)
       window.removeEventListener('pointercancel', onUp, { capture: true } as AddEventListenerOptions)
       window.removeEventListener('blur', onBlur)
+      window.removeEventListener('pointerdown', onAnyPointerDown, { capture: true } as AddEventListenerOptions)
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
+      try {
+        window.clearTimeout(watchdog)
+      } catch {
+        void 0
+      }
     }
-  }, [endHeaderDrag, endOverlayPan])
+  }, [cancelAllInteractions, endHeaderDrag, endOverlayPan])
 
   return {
     stopEvent,

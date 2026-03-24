@@ -24,6 +24,17 @@ export function useSelectionHighlight({
 }: UseSelectionHighlightProps) {
   useEffect(() => {
     if (paused) return
+
+    const arrayEq = (a: unknown, b: unknown): boolean => {
+      const aa = Array.isArray(a) ? a : []
+      const bb = Array.isArray(b) ? b : []
+      if (aa.length !== bb.length) return false
+      for (let i = 0; i < aa.length; i += 1) {
+        if (String(aa[i] || '') !== String(bb[i] || '')) return false
+      }
+      return true
+    }
+
     let rafId: number | null = null
     const apply = () => {
       const state = useGraphStore.getState()
@@ -65,8 +76,22 @@ export function useSelectionHighlight({
         mediaNodeOpacity: s.mediaNodeOpacity,
         renderMediaAsNodes: s.renderMediaAsNodes,
         graphDataRevision: s.graphDataRevision,
+        schema: s.schema,
       }),
       () => schedule(),
+      {
+        equalityFn: (a, b) => {
+          if (a.selectedNodeId !== b.selectedNodeId) return false
+          if (a.selectedEdgeId !== b.selectedEdgeId) return false
+          if (!arrayEq(a.selectedNodeIds, b.selectedNodeIds)) return false
+          if (!arrayEq(a.selectedEdgeIds, b.selectedEdgeIds)) return false
+          if (a.mediaNodeOpacity !== b.mediaNodeOpacity) return false
+          if (a.renderMediaAsNodes !== b.renderMediaAsNodes) return false
+          if (a.graphDataRevision !== b.graphDataRevision) return false
+          if (a.schema !== b.schema) return false
+          return true
+        },
+      },
     )
     schedule()
     return () => {

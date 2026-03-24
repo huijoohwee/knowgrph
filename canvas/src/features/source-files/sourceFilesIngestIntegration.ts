@@ -12,7 +12,7 @@ import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput
 import { runImportFlow } from '@/features/toolbar/importFlow'
 import { applyImportedCsvToStore, applyImportedJsonToStore } from '@/features/toolbar/importSideEffects'
 import { hashStringToHex } from '@/lib/hash/stringHash'
-import { applyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
+import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { findNextSourceFileIndex } from '@/features/source-files/sourceFileNaming'
 import { writeLocalMarkdownFileText } from '@/features/source-files/localMarkdownFolder'
 import { getMostRecentCachedMarkdownFolderId, writeCachedMarkdownText } from '@/features/source-files/markdownFsCache'
@@ -140,9 +140,10 @@ async function parseAndApplySourceFile(fileId: string): Promise<void> {
       error: undefined,
       parsedParserId: res?.parserId,
       parsedTextHash: hashStringToHex(text),
+      parsedGraphRevision: 0,
       parsedGraphData: res?.graphData,
     })
-    applyComposedGraphFromSourceFiles()
+    scheduleApplyComposedGraphFromSourceFiles()
     return
   }
 
@@ -150,7 +151,7 @@ async function parseAndApplySourceFile(fileId: string): Promise<void> {
     res && Array.isArray(res.warnings) && typeof res.warnings[0] === 'string' && res.warnings[0].trim()
       ? res.warnings[0].trim()
       : 'Parse failed'
-  store.updateSourceFile(fileId, { status: 'error', error: msg, parsedGraphData: undefined })
+  store.updateSourceFile(fileId, { status: 'error', error: msg, parsedGraphRevision: undefined, parsedGraphData: undefined })
 }
 
 function exportActiveSourceFile(args: { fileId: string | null }) {
@@ -199,6 +200,7 @@ function clearActiveSourceFile(args: { fileId: string | null }) {
     error: undefined,
     parsedParserId: undefined,
     parsedTextHash: undefined,
+    parsedGraphRevision: undefined,
     parsedGraphData: undefined,
   })
   syncDocumentViewFromSourceFile(
@@ -234,7 +236,7 @@ function clearActiveSourceFile(args: { fileId: string | null }) {
       })()
     }
   }
-  if (file.enabled) applyComposedGraphFromSourceFiles()
+  if (file.enabled) scheduleApplyComposedGraphFromSourceFiles()
 }
 
 async function importLocalIntoActive(args: { fileId: string | null }): Promise<void> {
@@ -271,6 +273,7 @@ async function importLocalIntoActive(args: { fileId: string | null }): Promise<v
       error: undefined,
       parsedParserId: undefined,
       parsedTextHash: undefined,
+      parsedGraphRevision: undefined,
       parsedGraphData: undefined,
       source: { kind: 'local', path: picked.name },
       enabled: true,
@@ -288,6 +291,7 @@ async function importLocalIntoActive(args: { fileId: string | null }): Promise<v
     error: undefined,
     parsedParserId: undefined,
     parsedTextHash: undefined,
+    parsedGraphRevision: undefined,
     parsedGraphData: undefined,
     source: { kind: 'local', path: picked.name },
     enabled: true,
@@ -348,6 +352,7 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
           error: undefined,
           parsedParserId: undefined,
           parsedTextHash: undefined,
+          parsedGraphRevision: undefined,
           parsedGraphData: undefined,
           source: { kind: 'url', url: normalizedUrl },
           enabled: true,
@@ -365,6 +370,7 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
         error: undefined,
         parsedParserId: undefined,
         parsedTextHash: undefined,
+        parsedGraphRevision: undefined,
         parsedGraphData: undefined,
         source: { kind: 'url', url: normalizedUrl },
         enabled: true,
@@ -392,6 +398,7 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
         error: undefined,
         parsedParserId: undefined,
         parsedTextHash: undefined,
+        parsedGraphRevision: undefined,
         parsedGraphData: undefined,
         source: { kind: 'url', url: normalizedUrl },
         enabled: true,
@@ -424,6 +431,7 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
           error: undefined,
           parsedParserId: undefined,
           parsedTextHash: undefined,
+          parsedGraphRevision: undefined,
           parsedGraphData: undefined,
           source: { kind: 'url', url: normalizedUrl },
           enabled: true,
@@ -452,6 +460,7 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
       error: undefined,
       parsedParserId: undefined,
       parsedTextHash: undefined,
+      parsedGraphRevision: undefined,
       parsedGraphData: undefined,
       source: { kind: 'url', url: normalizedUrl },
       enabled: true,

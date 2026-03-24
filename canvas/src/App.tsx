@@ -8,6 +8,8 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { subscribeToSystemThemeChanges } from '@/lib/ui/theme'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { installGlobalUserSelectFailsafe } from '@/lib/canvas/interaction-user-select'
+import { installGlobalInteractionRecovery } from '@/lib/canvas/interaction-recovery'
+import { ensureSpacePanKeyListenerInstalled } from '@/lib/canvas/space-pan'
 import { ensureKgTokensInstalled } from '@/lib/ui/tokens-ssot'
 
 const Canvas = lazy(() => import('@/pages/Canvas'))
@@ -15,6 +17,10 @@ const Canvas = lazy(() => import('@/pages/Canvas'))
 export default function App() {
   useEffect(() => {
     installGlobalUserSelectFailsafe()
+  }, [])
+  useEffect(() => {
+    ensureSpacePanKeyListenerInstalled()
+    installGlobalInteractionRecovery()
   }, [])
   useEffect(() => {
     ensureKgTokensInstalled()

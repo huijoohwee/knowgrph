@@ -27,6 +27,7 @@ export async function importWorkspaceUrl(args: {
   }
   const fetched = await fetchWorkspaceUrlContent(rawUrl, {
     mode: 'import',
+    viewHint: 'markdown',
     onProgress: p => {
       try {
         args.onProgress?.({ phase: 'fetching', current: p, total: 100, label: 'Fetching' })
@@ -54,4 +55,3 @@ export async function importWorkspaceUrl(args: {
     failed: [],
   }
 }
-

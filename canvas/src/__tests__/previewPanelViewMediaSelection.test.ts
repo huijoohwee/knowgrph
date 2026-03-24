@@ -61,6 +61,21 @@ export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
     const root = createRoot(container as unknown as HTMLElement)
 
     const state = useGraphStore.getState()
+    try {
+      state.setDocumentSemanticMode('document')
+    } catch {
+      void 0
+    }
+    try {
+      state.setFrontmatterModeEnabled(false)
+    } catch {
+      void 0
+    }
+    try {
+      useGraphStore.setState({ documentSemanticMode: 'document', frontmatterModeEnabled: false })
+    } catch {
+      void 0
+    }
     const graph = buildGraphWithMediaNode()
     state.setGraphData(graph)
     state.setMarkdownDocument('doc.md', buildMarkdown())

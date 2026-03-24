@@ -1,5 +1,6 @@
 import React from 'react'
 import type { GraphDataTableColumnKey } from '@/features/graph-data-table/graphDataTable'
+import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 
 type GraphDataTableFreezeMode = 'none' | 'label' | 'id'
 
@@ -16,7 +17,7 @@ type UseGraphDataTableFrozenAreaResult = {
   frozenBoundaryColumnKey: GraphDataTableColumnKey | null
   frozenAreaDragIndicatorLeft: number | null
   isFrozenAreaIndicatorVisible: boolean
-  handleFrozenAreaDragStart: (clientX: number) => void
+  handleFrozenAreaPointerDown: (event: PointerEvent) => void
 }
 
 const FROZEN_COLUMN_DRAG_NOISE_THRESHOLD_PX = 8
@@ -79,39 +80,8 @@ export function useGraphDataTableFrozenArea(
     return resolveFrozenBoundaryColumnKey(freezeFirstDataColumn, orderedVisibleColumnKeys)
   }, [freezeFirstDataColumn, orderedVisibleColumnKeys])
 
-  const handleFrozenAreaDragStart = React.useCallback(
-    (clientX: number) => {
-      if (frozenAreaSnapTimeoutRef.current != null) {
-        window.clearTimeout(frozenAreaSnapTimeoutRef.current)
-        frozenAreaSnapTimeoutRef.current = null
-      }
-      frozenAreaDragStartXRef.current = clientX
-      frozenAreaDragStartModeRef.current = freezeFirstDataColumn
-      frozenAreaAvailableModesRef.current = availableFreezeModes
-      isFrozenAreaDraggingRef.current = true
-      const container = scrollContainerRef.current
-      if (container) {
-        const rect = container.getBoundingClientRect()
-        const left = clientX - rect.left + container.scrollLeft
-        setFrozenAreaDragIndicatorLeft(left)
-        setIsFrozenAreaIndicatorVisible(true)
-      }
-    },
-    [availableFreezeModes, freezeFirstDataColumn, scrollContainerRef],
-  )
-
-  React.useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
-      if (!isFrozenAreaDraggingRef.current) return
-      const container = scrollContainerRef.current
-      if (!container) return
-      const rect = container.getBoundingClientRect()
-      const left = event.clientX - rect.left + container.scrollLeft
-      setFrozenAreaDragIndicatorLeft(left)
-    }
-
-    const handleMouseUp = (event: MouseEvent) => {
-      if (!isFrozenAreaDraggingRef.current) return
+  const finishFrozenAreaDrag = React.useCallback(
+    (clientX: number | null) => {
       isFrozenAreaDraggingRef.current = false
       const startX = frozenAreaDragStartXRef.current
       const startMode = frozenAreaDragStartModeRef.current
@@ -119,12 +89,13 @@ export function useGraphDataTableFrozenArea(
       frozenAreaDragStartXRef.current = null
       frozenAreaDragStartModeRef.current = null
       frozenAreaAvailableModesRef.current = []
-      if (startX == null || !startMode || modes.length === 0) {
+      if (startX == null || !startMode || modes.length === 0 || clientX == null) {
         setIsFrozenAreaIndicatorVisible(false)
         setFrozenAreaDragIndicatorLeft(null)
         return
       }
-      const deltaX = event.clientX - startX
+
+      const deltaX = clientX - startX
       const absoluteDeltaX = Math.abs(deltaX)
       const currentIndex = modes.indexOf(startMode)
       if (currentIndex === -1) {
@@ -132,6 +103,7 @@ export function useGraphDataTableFrozenArea(
         setFrozenAreaDragIndicatorLeft(null)
         return
       }
+
       let finalMode = startMode
       if (absoluteDeltaX >= FROZEN_COLUMN_DRAG_NOISE_THRESHOLD_PX) {
         if (deltaX > 0) {
@@ -139,12 +111,7 @@ export function useGraphDataTableFrozenArea(
           let index = currentIndex
           while (index < modes.length - 1) {
             const nextIndex = index + 1
-            const threshold = getFrozenDragStepThreshold(
-              modes[index],
-              modes[nextIndex],
-              stepNoneLabelPx,
-              stepLabelIdPx,
-            )
+            const threshold = getFrozenDragStepThreshold(modes[index], modes[nextIndex], stepNoneLabelPx, stepLabelIdPx)
             if (remaining < threshold) break
             remaining -= threshold
             index = nextIndex
@@ -155,12 +122,7 @@ export function useGraphDataTableFrozenArea(
           let index = currentIndex
           while (index > 0) {
             const nextIndex = index - 1
-            const threshold = getFrozenDragStepThreshold(
-              modes[index],
-              modes[nextIndex],
-              stepNoneLabelPx,
-              stepLabelIdPx,
-            )
+            const threshold = getFrozenDragStepThreshold(modes[index], modes[nextIndex], stepNoneLabelPx, stepLabelIdPx)
             if (remaining < threshold) break
             remaining -= threshold
             index = nextIndex
@@ -171,19 +133,15 @@ export function useGraphDataTableFrozenArea(
           setFreezeFirstDataColumn(finalMode)
         }
       }
-      const boundaryColumnKey = resolveFrozenBoundaryColumnKey(
-        finalMode,
-        orderedVisibleColumnKeys,
-      )
+
+      const boundaryColumnKey = resolveFrozenBoundaryColumnKey(finalMode, orderedVisibleColumnKeys)
       const container = scrollContainerRef.current
       if (!container || !boundaryColumnKey) {
         setIsFrozenAreaIndicatorVisible(false)
         setFrozenAreaDragIndicatorLeft(null)
         return
       }
-      const span = container.querySelector<HTMLSpanElement>(
-        `thead span[data-column-key="${boundaryColumnKey}"]`,
-      )
+      const span = container.querySelector<HTMLSpanElement>(`thead span[data-column-key="${boundaryColumnKey}"]`)
       const headerCell = span ? span.closest('th') : null
       if (!headerCell) {
         setIsFrozenAreaIndicatorVisible(false)
@@ -203,25 +161,55 @@ export function useGraphDataTableFrozenArea(
         setFrozenAreaDragIndicatorLeft(null)
         frozenAreaSnapTimeoutRef.current = null
       }, 160)
-    }
+    },
+    [orderedVisibleColumnKeys, scrollContainerRef, setFreezeFirstDataColumn, stepLabelIdPx, stepNoneLabelPx],
+  )
 
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
+  const handleFrozenAreaPointerDown = React.useCallback(
+    (event: PointerEvent) => {
       if (frozenAreaSnapTimeoutRef.current != null) {
         window.clearTimeout(frozenAreaSnapTimeoutRef.current)
         frozenAreaSnapTimeoutRef.current = null
       }
-    }
-  }, [orderedVisibleColumnKeys, scrollContainerRef, setFreezeFirstDataColumn, stepLabelIdPx, stepNoneLabelPx])
+      const clientX = event.clientX
+      frozenAreaDragStartXRef.current = clientX
+      frozenAreaDragStartModeRef.current = freezeFirstDataColumn
+      frozenAreaAvailableModesRef.current = availableFreezeModes
+      isFrozenAreaDraggingRef.current = true
+      const container = scrollContainerRef.current
+      if (container) {
+        const rect = container.getBoundingClientRect()
+        const left = clientX - rect.left + container.scrollLeft
+        setFrozenAreaDragIndicatorLeft(left)
+        setIsFrozenAreaIndicatorVisible(true)
+      }
+
+      startPointerDrag({
+        ev: event,
+        cursor: 'col-resize',
+        onMove: mv => {
+          if (!isFrozenAreaDraggingRef.current) return
+          const c = scrollContainerRef.current
+          if (!c) return
+          const r = c.getBoundingClientRect()
+          const left = mv.clientX - r.left + c.scrollLeft
+          setFrozenAreaDragIndicatorLeft(left)
+        },
+        onEnd: up => {
+          finishFrozenAreaDrag(up.clientX)
+        },
+        onCancel: () => {
+          finishFrozenAreaDrag(null)
+        },
+      })
+    },
+    [availableFreezeModes, finishFrozenAreaDrag, freezeFirstDataColumn, scrollContainerRef],
+  )
 
   return {
     frozenBoundaryColumnKey,
     frozenAreaDragIndicatorLeft,
     isFrozenAreaIndicatorVisible,
-    handleFrozenAreaDragStart,
+    handleFrozenAreaPointerDown,
   }
 }
-

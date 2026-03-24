@@ -1,5 +1,20 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
+import { buildSourceLayerKeys, composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
+
+let pendingComposeRaf: number | null = null
+
+export function scheduleApplyComposedGraphFromSourceFiles() {
+  if (pendingComposeRaf != null) return
+  const w = typeof window !== 'undefined' ? window : null
+  if (!w || typeof w.requestAnimationFrame !== 'function') {
+    applyComposedGraphFromSourceFiles()
+    return
+  }
+  pendingComposeRaf = w.requestAnimationFrame(() => {
+    pendingComposeRaf = null
+    applyComposedGraphFromSourceFiles()
+  })
+}
 
 export function applyComposedGraphFromSourceFiles() {
   const store = useGraphStore.getState()
@@ -14,9 +29,18 @@ export function applyComposedGraphFromSourceFiles() {
     source: f.source,
     text: f.text,
     parsedTextHash: f.parsedTextHash,
+    parsedGraphRevision: f.parsedGraphRevision,
     parsedGraphData: f.parsedGraphData,
   }))
-  const { graphData, contentKey, orderKey } = composeGraphFromSourceLayers({ layers })
+
+  const prevMeta = (store.graphData?.metadata || {}) as Record<string, unknown>
+  const prevContentKey = typeof prevMeta.sourceLayerHash === 'string' ? prevMeta.sourceLayerHash : ''
+  const prevOrderKey = typeof prevMeta.sourceLayerOrderHash === 'string' ? prevMeta.sourceLayerOrderHash : ''
+
+  const { contentKey, orderKey } = buildSourceLayerKeys(layers)
+  if (prevContentKey === contentKey && prevOrderKey === orderKey) return
+
+  const { graphData } = composeGraphFromSourceLayers({ layers, precomputedKeys: { contentKey, orderKey } })
 
   const composedHasContent = !!((graphData.nodes && graphData.nodes.length) || (graphData.edges && graphData.edges.length))
   const prevHasContent = !!(
@@ -29,10 +53,6 @@ export function applyComposedGraphFromSourceFiles() {
     if (hasPendingEnabledText && !hasAnyParsedEnabled) return
   }
 
-  const prevMeta = (store.graphData?.metadata || {}) as Record<string, unknown>
-  const prevContentKey = typeof prevMeta.sourceLayerHash === 'string' ? prevMeta.sourceLayerHash : ''
-  const prevOrderKey = typeof prevMeta.sourceLayerOrderHash === 'string' ? prevMeta.sourceLayerOrderHash : ''
-  if (prevContentKey === contentKey && prevOrderKey === orderKey) return
   if (prevContentKey === contentKey && prevOrderKey !== orderKey) {
     store.setGraphDataPreservingLayout(graphData)
     return

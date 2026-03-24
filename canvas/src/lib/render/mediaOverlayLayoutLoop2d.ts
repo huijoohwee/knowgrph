@@ -75,7 +75,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
       const rect = computePanelRect({ cx, cy, w: useSizing.panelW, h: useSizing.panelH, clamp })
       applyMediaPanelCssVars(el, useSizing.vars)
       applyMediaEagerLoadingOnce(el)
-      applyPanelBox(el, { left: Math.round(rect.left), top: Math.round(rect.top), w: useSizing.panelW, h: useSizing.panelH, display: 'block' })
+      applyPanelBox(el, { left: rect.left, top: rect.top, w: useSizing.panelW, h: useSizing.panelH, display: 'block' })
       try {
         ;(el as unknown as { dataset?: Record<string, string> }).dataset!.kgOverlayHasPos = '1'
       } catch {

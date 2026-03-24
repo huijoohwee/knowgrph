@@ -1,4 +1,5 @@
 import React from 'react'
+import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import type { LsStorageKey } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
 import { cancelIdle, scheduleIdle } from '@/features/panels/utils/idle'
@@ -255,34 +256,36 @@ export default function ZoomPanViewport({
           if (disablePan) return
           wheelActiveRef.current = true
           didUserInteractRef.current = true
-          try {
-            e.currentTarget.setPointerCapture(e.pointerId)
-          } catch {
-            void 0
-          }
           const prevPan = panRef.current
           dragRef.current = { active: true, startX: e.clientX, startY: e.clientY, baseX: prevPan.x, baseY: prevPan.y }
+
+          startPointerDrag({
+            ev: e.nativeEvent,
+            cursor: 'grabbing',
+            shouldStart: down => {
+              if (disablePan) return false
+              if (down.pointerType === 'mouse' && down.button !== 0) return false
+              return true
+            },
+            onMove: mv => {
+              const st = dragRef.current
+              if (!st || !st.active) return
+              const dx = mv.clientX - st.startX
+              const dy = mv.clientY - st.startY
+              scheduleApply({ zoom: zoomRef.current, pan: { x: st.baseX + dx, y: st.baseY + dy } })
+            },
+            onEnd: () => {
+              wheelActiveRef.current = false
+              dragRef.current = null
+            },
+            onCancel: () => {
+              wheelActiveRef.current = false
+              dragRef.current = null
+            },
+          })
         }}
         onPointerLeave={() => {
           wheelActiveRef.current = false
-        }}
-        onPointerMove={(e) => {
-          if (disablePan) return
-          const st = dragRef.current
-          if (!st || !st.active) return
-          const dx = e.clientX - st.startX
-          const dy = e.clientY - st.startY
-          scheduleApply({ zoom: zoomRef.current, pan: { x: st.baseX + dx, y: st.baseY + dy } })
-        }}
-        onPointerUp={(e) => {
-          if (disablePan) return
-          wheelActiveRef.current = false
-          try {
-            e.currentTarget.releasePointerCapture(e.pointerId)
-          } catch {
-            void 0
-          }
-          dragRef.current = null
         }}
       >
         <div className="w-full h-full flex items-center justify-center">

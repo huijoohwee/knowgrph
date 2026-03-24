@@ -235,26 +235,30 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
         for (const ancestor of ancestorPathsForWorkspacePath(createdPath)) next.add(ancestor)
         return next
       })
-      if (opts?.applyToGraph) {
-        try {
-          const fs = await getFs()
-          const text = await fs.readFileText(createdPath)
-          if (opts?.jobId != null && importJobRef.current !== opts.jobId) return
-          const docKey = workspaceDocumentKey(createdPath)
-          const content = String(text || '')
-          lastLoadedRef.current = { path: createdPath, text: content }
-          setActiveText(content)
-          if (docKey && content.trim()) {
-            void setActiveMarkdownDocument({
-              name: docKey,
-              text: content,
-              normalizeMermaidMmd: false,
-              sourceUrl: typeof opts?.sourceUrl === 'string' ? opts.sourceUrl : activeDocumentSourceUrl,
-            })
+      try {
+        const fs = await getFs()
+        const text = await fs.readFileText(createdPath)
+        if (opts?.jobId != null && importJobRef.current !== opts.jobId) return
+        const docKey = workspaceDocumentKey(createdPath)
+        const content = String(text || '')
+        lastLoadedRef.current = { path: createdPath, text: content }
+        setActiveText(content)
+        if (docKey && content.trim()) {
+          void setActiveMarkdownDocument({
+            name: docKey,
+            text: content,
+            normalizeMermaidMmd: false,
+            sourceUrl: typeof opts?.sourceUrl === 'string' ? opts.sourceUrl : activeDocumentSourceUrl,
+          })
+          if (opts?.applyToGraph) {
             await applyImportedTextToGraph({ nameForParse: docKey, text: content })
           }
-        } catch (e) {
+        }
+      } catch (e) {
+        if (opts?.applyToGraph) {
           status.setStatusError(`Apply failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+        } else {
+          status.setStatusError(`Open failed: ${String((e as { message?: unknown })?.message ?? e)}`)
         }
       }
     },

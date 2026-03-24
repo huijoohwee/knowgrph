@@ -26,6 +26,8 @@ export function useMainPanelDrag() {
     startLeft: number;
   } | null>(null);
   const mainPanelDragPosRef = useRef<{ top: number; left: number } | null>(null);
+  const dragRafRef = useRef<number | null>(null);
+  const pendingDragPosRef = useRef<{ top: number; left: number } | null>(null);
   const { pinned: mainPanelPinned, setPinned: setMainPanelPinned } = usePinnedLs(LS_KEYS.mainPanelPinned, true);
   const [mainPanelCollapsed, setMainPanelCollapsed] = useState<boolean>(() => lsBool(LS_KEYS.mainPanelCollapsed, false));
   const [mainPanelDragPos, setMainPanelDragPos] = useState<{ top: number; left: number }>(() => {
@@ -123,6 +125,14 @@ export function useMainPanelDrag() {
     };
     setMainPanelDragPosSynced(clampMainPanelPos({ top: startTop, left: startLeft }));
 
+    const flush = () => {
+      const next = pendingDragPosRef.current;
+      pendingDragPosRef.current = null;
+      dragRafRef.current = null;
+      if (!next) return;
+      setMainPanelDragPosSynced(next);
+    };
+
     startPointerDrag({
       ev: native,
       cursor: 'grabbing',
@@ -131,16 +141,30 @@ export function useMainPanelDrag() {
         if (!state) return;
         const dx = e.clientX - state.startX;
         const dy = e.clientY - state.startY;
-        setMainPanelDragPosSynced(clampMainPanelPos({ top: state.startTop + dy, left: state.startLeft + dx }));
+        pendingDragPosRef.current = clampMainPanelPos({ top: state.startTop + dy, left: state.startLeft + dx });
+        if (dragRafRef.current == null) dragRafRef.current = window.requestAnimationFrame(flush);
       },
       onEnd: () => {
         mainPanelDragStateRef.current = null;
+        if (dragRafRef.current != null) {
+          window.cancelAnimationFrame(dragRafRef.current);
+          dragRafRef.current = null;
+        }
+        if (pendingDragPosRef.current) {
+          setMainPanelDragPosSynced(pendingDragPosRef.current);
+          pendingDragPosRef.current = null;
+        }
         const pos = mainPanelDragPosRef.current;
         if (!pos) return;
         persistMainPanelPos(pos);
       },
       onCancel: () => {
         mainPanelDragStateRef.current = null;
+        if (dragRafRef.current != null) {
+          window.cancelAnimationFrame(dragRafRef.current);
+          dragRafRef.current = null;
+        }
+        pendingDragPosRef.current = null;
       },
     });
   }, [clampMainPanelPos, persistMainPanelPos, setMainPanelDragPosSynced]);

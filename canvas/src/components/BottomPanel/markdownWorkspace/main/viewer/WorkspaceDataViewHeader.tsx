@@ -1,5 +1,5 @@
 import React from 'react'
-import { ArrowUpDown, ChevronDown, Filter, MoreHorizontal, Plus, Search, SlidersHorizontal } from 'lucide-react'
+import { ArrowUpDown, Eye, Filter, Layers, LayoutGrid, MoreHorizontal, Plus, Search, SlidersHorizontal, Table as TableIcon } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
@@ -49,20 +49,24 @@ export function WorkspaceDataViewHeader(props: {
   const typography = usePanelTypography()
   const setState = props.onChangeState
 
+  const [searchExpandedRaw, setSearchExpandedRaw] = React.useState(false)
+  const searchExpanded = searchExpandedRaw || props.state.searchQuery.trim().length > 0
+  const searchInputRef = React.useRef<HTMLInputElement | null>(null)
+
   const groupByDetailsRef = React.useRef<HTMLDetailsElement | null>(null)
 
   const filterDetailsRef = React.useRef<HTMLDetailsElement | null>(null)
 
   const icon12Class = ['w-3 h-3', UI_THEME_TOKENS.icon.color].join(' ')
   const icon14Class = ['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')
+  const squareIconButtonClassName = ['inline-flex', UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
+  const squareIconSummaryClassName = ['list-none cursor-pointer', UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
 
   const viewTitle = props.viewerMode === 'read' ? `Read ${props.title}` : MARKDOWN_DATA_VIEW_COPY.titleDefault
   const viewModeLabel =
-    props.viewerMode === 'read'
-      ? 'Read'
-      : props.viewerMode === 'kanban'
-        ? MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel
-        : MARKDOWN_DATA_VIEW_COPY.tableViewLabel
+    props.viewerMode === 'read' ? 'Read' : props.viewerMode === 'kanban' ? MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel : MARKDOWN_DATA_VIEW_COPY.tableViewLabel
+  const viewModeIcon =
+    props.viewerMode === 'table' ? <TableIcon className={icon14Class} aria-hidden="true" /> : props.viewerMode === 'kanban' ? <LayoutGrid className={icon14Class} aria-hidden="true" /> : <Eye className={icon14Class} aria-hidden="true" />
   const hasActiveFilters = !!(props.state.searchQuery.trim() || props.state.visibleGroups || props.state.sortMode !== 'none')
 
   const groupByOptions = React.useMemo(() => {
@@ -101,24 +105,49 @@ export function WorkspaceDataViewHeader(props: {
         >
           {viewTitle}
         </h2>
-        <span className={['text-xs px-2 py-1 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary].join(' ')}>
-          {viewModeLabel}
-        </span>
+        <div className={[UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border].join(' ')} aria-label={viewModeLabel}>
+          {viewModeIcon}
+        </div>
         <div className="ml-auto flex items-center gap-2">
-          <form className={['flex items-center gap-2 px-2 py-1 rounded border', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')} role="search">
-            <Search className={icon12Class} aria-hidden="true" />
-            <span className="sr-only">{MARKDOWN_DATA_VIEW_COPY.searchLabel}</span>
-            <input
-              className={['bg-transparent outline-none text-xs w-[180px]', UI_THEME_TOKENS.input.text].join(' ')}
-              placeholder={MARKDOWN_DATA_VIEW_COPY.searchPlaceholder}
-              value={props.state.searchQuery}
-              onChange={e => setState({ ...props.state, searchQuery: e.target.value })}
-            />
-          </form>
+          {!searchExpanded ? (
+            <button
+              type="button"
+              className={squareIconButtonClassName}
+              aria-label={MARKDOWN_DATA_VIEW_COPY.searchLabel}
+              onClick={() => {
+                setSearchExpandedRaw(true)
+                requestAnimationFrame(() => searchInputRef.current?.focus())
+              }}
+            >
+              <Search className={icon14Class} aria-hidden="true" />
+            </button>
+          ) : (
+            <form
+              className={['flex items-center gap-2 px-2 py-1 rounded border', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.bg].join(' ')}
+              role="search"
+              onSubmit={e => e.preventDefault()}
+            >
+              <Search className={icon12Class} aria-hidden="true" />
+              <span className="sr-only">{MARKDOWN_DATA_VIEW_COPY.searchLabel}</span>
+              <input
+                ref={searchInputRef}
+                className={['bg-transparent outline-none text-xs w-[180px]', UI_THEME_TOKENS.input.text].join(' ')}
+                placeholder={MARKDOWN_DATA_VIEW_COPY.searchPlaceholder}
+                value={props.state.searchQuery}
+                onChange={e => setState({ ...props.state, searchQuery: e.target.value })}
+                onBlur={() => {
+                  if (!props.state.searchQuery.trim()) setSearchExpandedRaw(false)
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Escape' && !props.state.searchQuery.trim()) setSearchExpandedRaw(false)
+                }}
+              />
+            </form>
+          )}
 
           <details className="relative" ref={filterDetailsRef}>
             <summary
-              className={['list-none flex items-center justify-center w-8 h-8 rounded border cursor-pointer', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+              className={squareIconSummaryClassName}
               aria-label={MARKDOWN_DATA_VIEW_COPY.filterLabel}
             >
               <Filter className={icon14Class} aria-hidden="true" />
@@ -147,7 +176,7 @@ export function WorkspaceDataViewHeader(props: {
 
           <details className="relative">
             <summary
-              className={['list-none flex items-center justify-center w-8 h-8 rounded border cursor-pointer', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+              className={squareIconSummaryClassName}
               aria-label={MARKDOWN_DATA_VIEW_COPY.sortLabel}
             >
               <ArrowUpDown className={icon14Class} aria-hidden="true" />
@@ -182,13 +211,13 @@ export function WorkspaceDataViewHeader(props: {
             nextColumnNumber={props.columns.length + 1}
             canMutate={props.canMutate}
             onAddColumn={props.onAddColumn}
-            summaryClassName={['list-none flex items-center justify-center w-8 h-8 rounded border cursor-pointer', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+            summaryClassName={squareIconSummaryClassName}
             menuPositionClassName="absolute right-0 mt-2 w-[280px]"
           />
 
           <details className="relative">
             <summary
-              className={['list-none flex items-center justify-center w-8 h-8 rounded border cursor-pointer', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
+              className={squareIconSummaryClassName}
               aria-label="More"
             >
               <MoreHorizontal className={icon14Class} aria-hidden="true" />
@@ -247,13 +276,8 @@ export function WorkspaceDataViewHeader(props: {
             </menu>
           </details>
 
-          <button
-            type="button"
-            className={['inline-flex items-center gap-2 px-3 h-8 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}
-            onClick={() => props.openSettings()}
-          >
+          <button type="button" className={squareIconButtonClassName} aria-label={MARKDOWN_DATA_VIEW_COPY.viewSettingsLabel} onClick={() => props.openSettings()}>
             <SlidersHorizontal className={icon14Class} aria-hidden="true" />
-            <span className={['text-xs font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.viewSettingsLabel}</span>
           </button>
 
           {props.canMutate && props.onNewRecord ? (
@@ -274,17 +298,10 @@ export function WorkspaceDataViewHeader(props: {
         {props.viewerMode === 'kanban' ? (
           <details className="relative ml-2" ref={groupByDetailsRef}>
             <summary
-              className={[
-                'list-none cursor-pointer inline-flex items-center gap-2 px-3 h-8 rounded border',
-                UI_THEME_TOKENS.panel.border,
-                UI_THEME_TOKENS.button.hoverBg,
-              ].join(' ')}
-              aria-label="Group by"
+              className={squareIconSummaryClassName}
+              aria-label={`Group by: ${groupByLabel}`}
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <ChevronDown className={['w-3 h-3 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
-                <span className="truncate">{groupByLabel}</span>
-              </div>
+              <Layers className={icon14Class} aria-hidden="true" />
             </summary>
             <menu
               className={[

@@ -34,12 +34,80 @@ export const nodeDragBehavior = (
       const svg = el?.ownerSVGElement
       return svg?.getAttribute('data-kg-layout-frozen') === '1'
     }
+    let activeNode: GraphNode | null = null
+    let watchdogTimer = 0
+
+    const clearWatchdog = () => {
+      if (watchdogTimer) {
+        window.clearTimeout(watchdogTimer)
+        watchdogTimer = 0
+      }
+    }
+
+    const resetDragState = () => {
+      clearWatchdog()
+      if (locked) {
+        locked = false
+        unlockGlobalUserSelect()
+      }
+      if (endForceTune) {
+        try { endForceTune() } catch { void 0 }
+        endForceTune = null
+      }
+      if (activeNode) {
+        const mode = readLayoutMode(schema)
+        const structured = mode === 'radial'
+        if (!structured) {
+          simulation.alphaTarget(0)
+          activeNode.fx = null
+          activeNode.fy = null
+        }
+        activeNode.vx = 0
+        activeNode.vy = 0
+        
+        try {
+          opts?.onNodeDragEnd?.(activeNode)
+        } catch {
+          void 0
+        }
+        
+        if (structured) simulation.stop()
+        activeNode = null
+      }
+
+      if (shouldRefreeze) {
+        const svg = refreezeSvg
+        scheduleSimulationRefreezeAfterDrag({ simulation, svgEl: svg })
+      }
+      shouldRefreeze = false
+      refreezeSvg = null
+    }
+
+    const onGlobalRelease = () => {
+      if (activeNode) resetDragState()
+    }
+
     return d3.drag<SVGElement, GraphNode>()
     .on('start', function (event, d) {
       if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
       if (isSpacePanHeld()) return
       lockGlobalUserSelect()
       locked = true
+      activeNode = d
+      
+      clearWatchdog()
+      watchdogTimer = window.setInterval(() => {
+        if (!activeNode) return
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+          onGlobalRelease()
+        }
+      }, 1000)
+
+      if (typeof window !== 'undefined') {
+        window.addEventListener('pointerup', onGlobalRelease, { capture: true, once: true })
+        window.addEventListener('pointercancel', onGlobalRelease, { capture: true, once: true })
+      }
+
       const mode = readLayoutMode(schema)
       const structured = mode === 'radial'
 
@@ -126,46 +194,11 @@ export const nodeDragBehavior = (
       }
     })
     .on('end', (event, d) => {
-      if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
-      if (locked) {
-        locked = false
-        unlockGlobalUserSelect()
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('pointerup', onGlobalRelease, { capture: true })
+        window.removeEventListener('pointercancel', onGlobalRelease, { capture: true })
       }
-      const mode = readLayoutMode(schema)
-      const structured = mode === 'radial'
-      if (!structured) {
-        if (!event.active) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
-      }
-
-      if (endForceTune) {
-        try {
-          endForceTune()
-        } catch {
-          void 0
-        } finally {
-          endForceTune = null
-        }
-      }
-      d.vx = 0;
-      d.vy = 0;
-      const shouldFreezeAfter = shouldRefreeze
-      shouldRefreeze = false
-
-      if (shouldFreezeAfter) {
-        const svg = refreezeSvg
-        scheduleSimulationRefreezeAfterDrag({ simulation, svgEl: svg })
-      }
-      refreezeSvg = null
-
-      try {
-        opts?.onNodeDragEnd?.(d)
-      } catch {
-        void 0
-      }
-      
-      if (structured) simulation.stop();
+      if (activeNode) resetDragState()
     });
   })()
 
@@ -193,13 +226,79 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
       return svg?.getAttribute('data-kg-layout-frozen') === '1'
     }
 
+    let activeEdge: GraphEdge | null = null
+    let watchdogTimer = 0
+
+    const clearWatchdog = () => {
+      if (watchdogTimer) {
+        window.clearTimeout(watchdogTimer)
+        watchdogTimer = 0
+      }
+    }
+
+    const resetDragState = () => {
+      clearWatchdog()
+      if (locked) {
+        locked = false
+        unlockGlobalUserSelect()
+      }
+      if (endForceTune) {
+        try { endForceTune() } catch { void 0 }
+        endForceTune = null
+      }
+      if (sourceNode && targetNode) {
+        const mode = readLayoutMode(schema)
+        const structured = mode === 'radial'
+        if (!structured) {
+          simulation.alphaTarget(0)
+          sourceNode.fx = null
+          sourceNode.fy = null
+          targetNode.fx = null
+          targetNode.fy = null
+        }
+        sourceNode.vx = 0
+        sourceNode.vy = 0
+        targetNode.vx = 0
+        targetNode.vy = 0
+        if (structured) simulation.stop()
+      }
+      sourceNode = undefined
+      targetNode = undefined
+      activeEdge = null
+
+      if (shouldRefreeze) {
+        const svg = refreezeSvg
+        scheduleSimulationRefreezeAfterDrag({ simulation, svgEl: svg })
+      }
+      shouldRefreeze = false
+      refreezeSvg = null
+    }
+
+    const onGlobalRelease = () => {
+      if (activeEdge) resetDragState()
+    }
+
     return d3.drag<SVGElement, GraphEdge>()
       .on('start', function (event, d) {
         if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
         if (isSpacePanHeld()) return
         lockGlobalUserSelect()
         locked = true
+        activeEdge = d
         
+        clearWatchdog()
+        watchdogTimer = window.setInterval(() => {
+          if (!activeEdge) return
+          if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+            onGlobalRelease()
+          }
+        }, 1000)
+
+        if (typeof window !== 'undefined') {
+          window.addEventListener('pointerup', onGlobalRelease, { capture: true, once: true })
+          window.addEventListener('pointercancel', onGlobalRelease, { capture: true, once: true })
+        }
+
         // Find source and target nodes
         const nodes = simulation.nodes()
         const sId = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source
@@ -279,50 +378,10 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
         }
       })
       .on('end', (event) => {
-        if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
-        if (locked) {
-            locked = false
-            unlockGlobalUserSelect()
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('pointerup', onGlobalRelease, { capture: true })
+          window.removeEventListener('pointercancel', onGlobalRelease, { capture: true })
         }
-        
-        const mode = readLayoutMode(schema)
-        const structured = mode === 'radial'
-        if (!structured) {
-          if (!event.active) simulation.alphaTarget(0);
-          if (sourceNode) {
-            sourceNode.fx = null
-            sourceNode.fy = null
-          }
-          if (targetNode) {
-            targetNode.fx = null
-            targetNode.fy = null
-          }
-        }
-
-        if (endForceTune) {
-          try {
-            endForceTune()
-          } catch {
-            void 0
-          } finally {
-            endForceTune = null
-          }
-        }
-        
-        if (sourceNode) { sourceNode.vx = 0; sourceNode.vy = 0; }
-        if (targetNode) { targetNode.vx = 0; targetNode.vy = 0; }
-
-        sourceNode = undefined
-        targetNode = undefined
-        const shouldFreezeAfter = shouldRefreeze
-        shouldRefreeze = false
-
-        if (shouldFreezeAfter) {
-          const svg = refreezeSvg
-          scheduleSimulationRefreezeAfterDrag({ simulation, svgEl: svg })
-        }
-        refreezeSvg = null
-        
-        if (structured) simulation.stop();
+        if (activeEdge) resetDragState()
       })
   })()

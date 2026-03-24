@@ -1,4 +1,5 @@
 import React from 'react'
+import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 
 type Point = { top: number; left: number }
 
@@ -18,6 +19,8 @@ export function useSpotlightAnchor({ enabled, dismissed, ready, selector }: Spot
     startTop: number
     startLeft: number
   } | null>(null)
+  const dragRafRef = React.useRef<number | null>(null)
+  const pendingDragPosRef = React.useRef<Point | null>(null)
   const highlightRef = React.useRef<HTMLElement | null>(null)
   const observerRef = React.useRef<MutationObserver | null>(null)
   const cardRef = React.useRef<HTMLDivElement | null>(null)
@@ -117,8 +120,8 @@ export function useSpotlightAnchor({ enabled, dismissed, ready, selector }: Spot
     }
   }, [enabled, dismissed, ready, selector, updateAnchor, clearObserver])
 
-  const handleCardPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return
+  const handleCardPointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return
     const el = cardRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
@@ -130,28 +133,58 @@ export function useSpotlightAnchor({ enabled, dismissed, ready, selector }: Spot
       startTop,
       startLeft,
     }
-    setDragPos({
-      top: startTop,
-      left: startLeft,
+    setDragPos({ top: startTop, left: startLeft })
+
+    const flush = () => {
+      const next = pendingDragPosRef.current
+      pendingDragPosRef.current = null
+      dragRafRef.current = null
+      if (!next) return
+      setDragPos(next)
+    }
+
+    startPointerDrag({
+      ev: event.nativeEvent,
+      cursor: 'grabbing',
+      shouldStart: down => {
+        if (down.pointerType === 'mouse' && down.button !== 0) return false
+        return true
+      },
+      onMove: mv => {
+        const state = dragStateRef.current
+        if (!state) return
+        const dx = mv.clientX - state.startX
+        const dy = mv.clientY - state.startY
+        pendingDragPosRef.current = {
+          top: state.startTop + dy,
+          left: state.startLeft + dx,
+        }
+        if (dragRafRef.current == null) dragRafRef.current = window.requestAnimationFrame(flush)
+      },
+      onEnd: () => {
+        dragStateRef.current = null
+        if (dragRafRef.current != null) {
+          window.cancelAnimationFrame(dragRafRef.current)
+          dragRafRef.current = null
+        }
+        if (pendingDragPosRef.current) {
+          setDragPos(pendingDragPosRef.current)
+          pendingDragPosRef.current = null
+        }
+      },
+      onCancel: () => {
+        dragStateRef.current = null
+        if (dragRafRef.current != null) {
+          window.cancelAnimationFrame(dragRafRef.current)
+          dragRafRef.current = null
+        }
+        if (pendingDragPosRef.current) {
+          setDragPos(pendingDragPosRef.current)
+          pendingDragPosRef.current = null
+        }
+      },
     })
-    const handleMove = (e: PointerEvent) => {
-      const state = dragStateRef.current
-      if (!state) return
-      const dx = e.clientX - state.startX
-      const dy = e.clientY - state.startY
-      setDragPos({
-        top: state.startTop + dy,
-        left: state.startLeft + dx,
-      })
-    }
-    const handleUp = () => {
-      dragStateRef.current = null
-      window.removeEventListener('pointermove', handleMove)
-      window.removeEventListener('pointerup', handleUp)
-    }
-    window.addEventListener('pointermove', handleMove)
-    window.addEventListener('pointerup', handleUp)
-  }
+  }, [])
 
   return { anchor, dragPos, cardRef, handleCardPointerDown }
 }

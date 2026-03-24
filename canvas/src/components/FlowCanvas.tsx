@@ -21,7 +21,6 @@ import { deriveSceneGroups } from '@/lib/scene/sceneDerivation'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
-import { filterGraphToFrontmatterFlow } from '@/lib/graph/layerDerivation'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { computeArrangeCenters, type ArrangeAction2d } from '@/lib/canvas/arrange2d'
@@ -64,12 +63,23 @@ import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 import { computeOverlayDraggedPoint2d, computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
+import { renderGraphCanvasSvgForHtmlExport } from '@/lib/graph/htmlCanvasSvgExport'
+import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
+import { deriveMarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
 
 const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
 
 function clampFinite(v: number, lo: number, hi: number): number {
   if (!Number.isFinite(v)) return lo
   return Math.max(lo, Math.min(hi, v))
+}
+
+export function pickGraphDataForFlowRenderer(args: {
+  graphData: GraphData | null
+  effectiveFrontmatter: boolean
+}): GraphData | null {
+  if (!args.graphData) return null
+  return args.graphData
 }
 
 export default function FlowCanvas({
@@ -140,6 +150,7 @@ export default function FlowCanvas({
   const viewportH = Math.max(1, Math.floor(height))
 
   React.useEffect(() => {
+    if (!active) return
     const capturePng = async (pixelRatio?: number): Promise<Blob | null> => {
       try {
         const canvas = canvasRef.current
@@ -168,11 +179,87 @@ export default function FlowCanvas({
         return null
       }
     }
-    registerCanvasSnapshotFns('2d', { capturePng })
+
+    const captureSvg = async (): Promise<string | null> => {
+      try {
+        const store = useGraphStore.getState()
+        const graphData = (graphDataOverride || store.graphData) as GraphData | null
+        const schema = store.schema as GraphSchema | null
+        if (!graphData || !schema) return null
+
+        const documentSemanticMode = store.documentSemanticMode === 'keyword' ? 'keyword' : 'document'
+        const layoutSemanticModeKey = store.multiDimTableModeEnabled ? `${documentSemanticMode}:mdtbl` : documentSemanticMode
+        const frontmatterModeEnabled = computeEffectiveFrontmatterMode({
+          frontmatterModeEnabled: store.frontmatterModeEnabled,
+          documentSemanticMode: store.documentSemanticMode,
+          graphData,
+        })
+
+        const markdownDesignBlocks = (() => {
+          try {
+            const markdownText = String(store.markdownDocumentText || '')
+            if (!markdownText.trim()) return []
+            const activeDocumentPath = String(store.markdownDocumentName || '').trim() || 'markdown'
+            const markdownTokensKey = buildMarkdownTokensKey(markdownText)
+            const lexed = lexMarkdown(markdownText)
+            const layout = deriveMarkdownDesignLayout({ activeDocumentPath, markdownTokensKey, tokens: lexed.tokens as never })
+            return Array.isArray(layout.blocks) ? layout.blocks : []
+          } catch {
+            return []
+          }
+        })()
+
+        const svg = await renderGraphCanvasSvgForHtmlExport({
+          graphData,
+          graphDataRevision: store.graphDataRevision,
+          schema,
+          widthPx: viewportW,
+          heightPx: viewportH,
+          viewportControlsPreset: (store as unknown as { viewportControlsPreset?: 'map' | 'design' }).viewportControlsPreset === 'design' ? 'design' : 'map',
+          renderMediaAsNodes: store.renderMediaAsNodes === true,
+          mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
+          documentSemanticMode,
+          frontmatterModeEnabled,
+          markdownDesignBlocks,
+          collapsedGroupIds: store.collapsedGroupIds,
+          layoutPositionCacheByMode: store.layoutPositionCacheByMode,
+          canvas2dRenderer: store.canvas2dRenderer,
+          overlayBaseWidthRatioDefault: (store as unknown as { threeIframeOverlayBaseWidthRatioDefault?: number }).threeIframeOverlayBaseWidthRatioDefault,
+          overlayBaseWidthRatioCompact: (store as unknown as { threeIframeOverlayBaseWidthRatioCompact?: number }).threeIframeOverlayBaseWidthRatioCompact,
+          overlayBaseWidthMinPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMinPxDefault?: number }).threeIframeOverlayBaseWidthMinPxDefault,
+          overlayBaseWidthMinPxCompact: (store as unknown as { threeIframeOverlayBaseWidthMinPxCompact?: number }).threeIframeOverlayBaseWidthMinPxCompact,
+          overlayBaseWidthMaxPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMaxPxDefault?: number }).threeIframeOverlayBaseWidthMaxPxDefault,
+          overlayBaseWidthMaxPxCompact: (store as unknown as { threeIframeOverlayBaseWidthMaxPxCompact?: number }).threeIframeOverlayBaseWidthMaxPxCompact,
+          layoutSemanticModeKey,
+        })
+        const trimmed = String(svg || '').trim()
+        if (!trimmed) return null
+
+        const runtime = runtimeRef.current
+        const t = runtime?.transform || null
+        if (!t) return trimmed
+
+        try {
+          const noXml = trimmed.replace(/^<\?xml[^>]*>\s*/i, '')
+          const parser = new DOMParser()
+          const doc = parser.parseFromString(noXml, 'image/svg+xml')
+          const svgEl = doc.querySelector('svg')
+          const g = svgEl?.querySelector('g')
+          if (g) g.setAttribute('transform', `translate(${t.x},${t.y}) scale(${t.k})`)
+          return svgEl ? svgEl.outerHTML : trimmed
+        } catch {
+          return trimmed
+        }
+      } catch {
+        return null
+      }
+    }
+
+    registerCanvasSnapshotFns('2d', { capturePng, captureSvg })
     return () => {
       registerCanvasSnapshotFns('2d', null)
     }
-  }, [registerCanvasSnapshotFns])
+  }, [active, graphDataOverride, registerCanvasSnapshotFns, viewportH, viewportW])
 
   const [selectionBox, setSelectionBox] = React.useState<null | { left: number; top: number; width: number; height: number }>(null)
   const selectionBoxRafRef = React.useRef<number | null>(null)
@@ -437,11 +524,8 @@ export default function FlowCanvas({
   }, [renderGraphData])
 
   const filteredGraphDataForRenderer = React.useMemo(() => {
-    if (!clonedGraphData) return null
-    if (effectiveFrontmatter) return clonedGraphData
-    if (canvas2dRenderer !== 'flow' && canvas2dRenderer !== 'flowEditor') return clonedGraphData
-    return filterGraphToFrontmatterFlow(clonedGraphData)
-  }, [canvas2dRenderer, clonedGraphData, effectiveFrontmatter])
+    return pickGraphDataForFlowRenderer({ graphData: clonedGraphData, effectiveFrontmatter })
+  }, [clonedGraphData, effectiveFrontmatter])
 
   const sceneDisplayGraphDerivation = React.useMemo(() => {
     if (!filteredGraphDataForRenderer) return null
@@ -650,7 +734,7 @@ export default function FlowCanvas({
       getNodeWorldCenterForId: (id) => {
         const rt = runtimeRef.current
         const node = rt?.scene?.nodeById.get(id) as unknown as { x?: unknown; y?: unknown; width?: unknown; height?: unknown } | undefined
-        return readNodeCenterWorld2d(node || { x: 0, y: 0 }, { coords: 'topLeft' })
+        return readNodeCenterWorld2d(node, { coords: 'topLeft' })
       },
       sizingConfig: {
         widthRatio: Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2,

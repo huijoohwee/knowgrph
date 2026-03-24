@@ -13,12 +13,19 @@ import type { UiToastInput } from '@/hooks/store/types'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
-import { readCanvasViewportSizeFromDom } from '@/lib/graph/svgSnapshot'
+import { injectLiveMarkdownDesignBlocksIntoSvgMarkupAnchored, readCanvasViewportSizeFromDom } from '@/lib/graph/svgSnapshot'
 import { deriveGraphDataForActiveView } from '@/hooks/useActiveGraphData'
 import { lexMarkdown, buildMarkdownTokensKey } from '@/features/markdown/ui/markdownPreviewLex'
-import { deriveMarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
+import { deriveMarkdownDesignLayout, deriveMarkdownDesignLayoutFromGraphBlocks } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { normalizeInteractiveSvgForHtmlViewer } from './normalizeInteractiveSvg'
 import { rewriteSvgMarkupForStandaloneHtmlExport } from '@/lib/graph/htmlViewer/rewriteSvgMarkupForStandaloneHtmlExport'
+import { computeMarkdownAnchorNodeIdByBlockId } from '@/lib/render/markdownPanelOverlayPool'
+import { extractNodePosByIdFromSvgMarkup } from '@/lib/graph/svgNodePos'
+import { pickLayoutSeedPositions2dForExport } from '@/lib/graph/exportLayoutSeed2d'
+import { ensureSvgHasEdgeGeometry } from '@/lib/graph/svgEdgeGeometry'
+import { injectMarkdownDesignBlocksIntoSvgEl } from '@/lib/graph/htmlViewer/markdownDesignSvgOverlay'
+import { captureLiveOverlayHtmlForHtmlViewerExport } from '@/lib/graph/htmlViewer/liveOverlayExport'
+import { readViewportControlsPresetFromLocalStorage } from '@/lib/graph/htmlViewer/exportViewportControls'
 
 export async function exportHtmlCanvasFromWorkspace(args: {
   exportBaseName: string
@@ -64,17 +71,41 @@ export async function exportHtmlCanvasFromWorkspace(args: {
       collapsedGroupIds: Array.isArray(store.collapsedGroupIds) ? store.collapsedGroupIds : [],
     })
 
-    const markdownDesignBlocks = (() => {
+    const markdownDesignLayoutFromDoc = (() => {
       try {
         const markdownText = String(store.markdownDocumentText || '')
-        if (!markdownText.trim()) return []
+        if (!markdownText.trim()) return null
         const activeDocumentPath = String(store.markdownDocumentName || '').trim() || 'markdown'
         const markdownTokensKey = buildMarkdownTokensKey(markdownText)
         const lexed = lexMarkdown(markdownText)
-        const layout = deriveMarkdownDesignLayout({ activeDocumentPath, markdownTokensKey, tokens: lexed.tokens as never })
-        return Array.isArray(layout.blocks) ? layout.blocks : []
+        return deriveMarkdownDesignLayout({ activeDocumentPath, markdownTokensKey, tokens: lexed.tokens as never })
       } catch {
-        return []
+        return null
+      }
+    })()
+    let markdownDesignLayout = markdownDesignLayoutFromDoc
+    let markdownDesignBlocks = Array.isArray(markdownDesignLayoutFromDoc?.blocks) ? markdownDesignLayoutFromDoc!.blocks : []
+
+    const panelOnlyNodeIdsFromMarkdownTables = (() => {
+      try {
+        const layout = markdownDesignLayoutFromDoc
+        const blocks = Array.isArray(layout?.blocks) ? layout!.blocks : []
+        if (!layout || blocks.length === 0) return [] as string[]
+        const nodes = Array.isArray((graphData as any)?.nodes) ? ((graphData as any).nodes as any[]) : []
+        if (nodes.length === 0) return [] as string[]
+        const anchorByBlockId = computeMarkdownAnchorNodeIdByBlockId({ layout, nodes })
+        const out: string[] = []
+        for (let i = 0; i < blocks.length; i += 1) {
+          const b = blocks[i] as any
+          const kind = String(b?.preview?.kind || '').trim()
+          if (kind !== 'table') continue
+          const blockId = String(b?.id || '').trim()
+          const anchorNodeId = blockId ? String((anchorByBlockId as any)?.[blockId] || '').trim() : ''
+          if (anchorNodeId) out.push(anchorNodeId)
+        }
+        return Array.from(new Set(out))
+      } catch {
+        return [] as string[]
       }
     })()
 
@@ -175,6 +206,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
             documentSemanticMode,
             frontmatterModeEnabled,
             markdownDesignBlocks,
+            panelOnlyNodeIds: panelOnlyNodeIdsFromMarkdownTables,
             collapsedGroupIds: store.collapsedGroupIds,
             layoutPositionCacheByMode: store.layoutPositionCacheByMode,
             canvas2dRenderer: store.canvas2dRenderer,
@@ -210,18 +242,101 @@ export async function exportHtmlCanvasFromWorkspace(args: {
       return
     }
 
-    const svgMarkup = await rewriteSvgMarkupForStandaloneHtmlExport({ svgMarkup: exportView.svgMarkup })
+    const svgDerivedNodePosById = extractNodePosByIdFromSvgMarkup(String(exportView.svgMarkup || ''))
+    const layoutSeedPosById = pickLayoutSeedPositions2dForExport({
+      graphData,
+      graphDataRevision: store.graphDataRevision,
+      schema,
+      documentSemanticModeKey: layoutSemanticModeKey,
+      frontmatterModeEnabled,
+      renderMediaAsNodes: store.renderMediaAsNodes === true,
+      mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
+      collapsedGroupIds: store.collapsedGroupIds,
+      layoutPositionCacheByMode: store.layoutPositionCacheByMode,
+      canvas2dRenderer: store.canvas2dRenderer,
+    })
+    const mergedNodePosById = {
+      ...(layoutSeedPosById || {}),
+      ...(svgDerivedNodePosById || {}),
+    }
+
+    if (!markdownDesignBlocks || markdownDesignBlocks.length === 0) {
+      const graphBlocks = deriveMarkdownDesignLayoutFromGraphBlocks({
+        graphData,
+        graphDataRevision: store.graphDataRevision,
+        nodePosById: mergedNodePosById,
+      })
+      if (graphBlocks && Array.isArray(graphBlocks.blocks) && graphBlocks.blocks.length > 0) {
+        markdownDesignLayout = graphBlocks
+        markdownDesignBlocks = graphBlocks.blocks
+      }
+    }
+    const anchorNodeIdByBlockId = computeMarkdownAnchorNodeIdByBlockId({ layout: markdownDesignLayout, nodes: Array.isArray((graphData as any)?.nodes) ? ((graphData as any).nodes as any) : [] })
+    const svgInjected = injectLiveMarkdownDesignBlocksIntoSvgMarkupAnchored({
+      svgMarkup: String(exportView.svgMarkup || ''),
+      anchorNodeIdByBlockId,
+      nodePosById: mergedNodePosById,
+    })
+    const svgWithEdgeGeometry = ensureSvgHasEdgeGeometry({ svgMarkup: svgInjected, graphData, nodePosById: mergedNodePosById })
+    const svgWithMarkdownFallback = (() => {
+      if (svgWithEdgeGeometry.includes('data-kg-layer="markdown-design-blocks"')) return svgWithEdgeGeometry
+      if (markdownDesignBlocks.length === 0) return svgWithEdgeGeometry
+      if (typeof DOMParser === 'undefined' || typeof XMLSerializer === 'undefined') return svgWithEdgeGeometry
+      try {
+        const doc = new DOMParser().parseFromString(svgWithEdgeGeometry.replace(/^<\?xml[^>]*>\s*/i, ''), 'image/svg+xml')
+        const svg = doc.querySelector('svg') as unknown as SVGSVGElement | null
+        if (!svg) return svgWithEdgeGeometry
+        injectMarkdownDesignBlocksIntoSvgEl({ svgEl: svg, blocks: markdownDesignBlocks })
+        const out = new XMLSerializer().serializeToString(svg)
+        const trimmed = String(out || '').trim()
+        return trimmed || svgWithEdgeGeometry
+      } catch {
+        return svgWithEdgeGeometry
+      }
+    })()
+    const svgMarkup = await rewriteSvgMarkupForStandaloneHtmlExport({ svgMarkup: svgWithMarkdownFallback })
+
+    const graphDataForViewer = (() => {
+      const nodes = Array.isArray((graphData as any)?.nodes) ? ((graphData as any).nodes as any[]) : []
+      if (!nodes.length) return graphData
+      if (!svgDerivedNodePosById || Object.keys(svgDerivedNodePosById).length === 0) return graphData
+      let changed = false
+      const nextNodes = nodes.map(n => {
+        const id = String(n?.id || '').trim()
+        if (!id) return n
+        const p = mergedNodePosById[id]
+        if (!p) return n
+        const nx = Number(p.x)
+        const ny = Number(p.y)
+        if (!Number.isFinite(nx) || !Number.isFinite(ny)) return n
+        const ox = Number((n as any).x)
+        const oy = Number((n as any).y)
+        if (ox === nx && oy === ny) return n
+        changed = true
+        return { ...(n as any), x: nx, y: ny }
+      })
+      return changed ? ({ ...(graphData as any), nodes: nextNodes } as any) : graphData
+    })()
 
     const htmlViewer = await buildGraphHtmlViewerMarkup({
       title: `${exportBaseName} (Canvas)`,
       svgMarkup,
-      graphData,
-      includeRichMediaOverlays: store.renderMediaAsNodes === true,
-      mediaOverlayPoolMax: (store as unknown as { threeIframeOverlayPoolMax?: number }).threeIframeOverlayPoolMax,
+      overlayHtml: captureLiveOverlayHtmlForHtmlViewerExport(),
+      graphData: graphDataForViewer,
+      viewportControlsPreset: readViewportControlsPresetFromLocalStorage() || 'map',
+      includeRichMediaOverlays: true,
+      mediaOverlayPoolMax: Math.max(
+        240,
+        Array.isArray((graphDataForViewer as any)?.nodes) ? ((graphDataForViewer as any).nodes as any[]).length : 0,
+        typeof (store as unknown as { threeIframeOverlayPoolMax?: unknown }).threeIframeOverlayPoolMax === 'number' &&
+          Number.isFinite((store as unknown as { threeIframeOverlayPoolMax?: number }).threeIframeOverlayPoolMax)
+          ? Math.floor((store as unknown as { threeIframeOverlayPoolMax?: number }).threeIframeOverlayPoolMax || 0)
+          : 0,
+      ),
       mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
       enableDecorativeAnimation: true,
       preferWebgl3d: wants3dExport,
-      initialView: !geospatialEnabled && !wants3dExport ? (fitInitialView2d || exportView.initialView || undefined) : undefined,
+      initialView: !geospatialEnabled && !wants3dExport ? (exportView.initialView || fitInitialView2d || undefined) : undefined,
       threeIframeOverlayBaseWidthRatioDefault: (store as unknown as { threeIframeOverlayBaseWidthRatioDefault?: number }).threeIframeOverlayBaseWidthRatioDefault,
       threeIframeOverlayBaseWidthRatioCompact: (store as unknown as { threeIframeOverlayBaseWidthRatioCompact?: number }).threeIframeOverlayBaseWidthRatioCompact,
       threeIframeOverlayBaseWidthMinPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMinPxDefault?: number }).threeIframeOverlayBaseWidthMinPxDefault,
@@ -231,7 +346,6 @@ export async function exportHtmlCanvasFromWorkspace(args: {
       zoomMinK: readZoomScaleExtent(store.schema || defaultSchema)[0],
       zoomMaxK: readZoomScaleExtent(store.schema || defaultSchema)[1],
       wheelBehavior: readWheelBehavior(store.schema || defaultSchema),
-      viewportControlsPreset: (store as unknown as { viewportControlsPreset?: 'map' | 'design' }).viewportControlsPreset === 'design' ? 'design' : 'map',
       panSpeed: readPanSpeed(store.schema || defaultSchema),
       zoomSpeed: readZoomSpeed(store.schema || defaultSchema),
       flowWheelZoomSpeedMultiplier: (store as unknown as { flowWheelZoomSpeedMultiplier?: number }).flowWheelZoomSpeedMultiplier,
@@ -255,7 +369,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
       zoomStrokeScaleExponent2d: (store as unknown as { zoomStrokeScaleExponent2d?: number }).zoomStrokeScaleExponent2d,
       zoomStrokeScaleClampMin2d: (store as unknown as { zoomStrokeScaleClampMin2d?: number }).zoomStrokeScaleClampMin2d,
       zoomStrokeScaleClampMax2d: (store as unknown as { zoomStrokeScaleClampMax2d?: number }).zoomStrokeScaleClampMax2d,
-      hideLabelsBelowScale: store.schema?.performance?.lod?.hideLabelsBelowScale,
+      hideLabelsBelowScale: 0,
     })
 
     if (!htmlViewer || !htmlViewer.trim()) {

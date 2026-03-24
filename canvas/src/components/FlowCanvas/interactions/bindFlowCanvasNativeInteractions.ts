@@ -193,6 +193,13 @@ export function bindFlowCanvasNativeInteractions(args: BindFlowCanvasNativeInter
     },
   })
 
+  try {
+    ;(canvasEl as unknown as { __kgViewportControllerDestroy?: (() => void) | null }).__kgViewportControllerDestroy =
+      viewportWheelController.destroy
+  } catch {
+    void 0
+  }
+
   const ctx: FlowNativeInteractionsContext = {
     args,
     canvasEl,
@@ -223,7 +230,7 @@ export function bindFlowCanvasNativeInteractions(args: BindFlowCanvasNativeInter
     pendingDragRelaxRaf = null
   }
 
-  return bindFlowNativeInteractionListeners({
+  const unbind = bindFlowNativeInteractionListeners({
     ctx,
     handlers: {
       ...wheelAndGesture,
@@ -234,5 +241,14 @@ export function bindFlowCanvasNativeInteractions(args: BindFlowCanvasNativeInter
     },
     cancelPendingDragRelax,
   })
-}
 
+  return () => {
+    try {
+      const any = canvasEl as unknown as { __kgViewportControllerDestroy?: (() => void) | null }
+      if (any.__kgViewportControllerDestroy === viewportWheelController.destroy) any.__kgViewportControllerDestroy = null
+    } catch {
+      void 0
+    }
+    unbind()
+  }
+}

@@ -1,7 +1,7 @@
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 
-export async function testMediaOverlayLayoutLoop2dSkipsWhenNodePosMissing() {
+export async function testMediaOverlayLayoutLoop2dFallsBackWhenNodePosMissing() {
   const { dom, restore } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
   try {
     const root = dom.window.document.getElementById('root')
@@ -40,3 +40,5 @@ export async function testMediaOverlayLayoutLoop2dSkipsWhenNodePosMissing() {
     restore()
   }
 }
+
+export const testMediaOverlayLayoutLoop2dSkipsWhenNodePosMissing = testMediaOverlayLayoutLoop2dFallsBackWhenNodePosMissing

@@ -1,5 +1,7 @@
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { LRUCache } from '@/lib/cache/LRUCache'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 
 export type MarkdownDesignBlock = {
   id: string
@@ -47,6 +49,168 @@ export const MARKDOWN_DESIGN_LAYOUT = {
   cacheCapacity: 24,
   viewportOverscanPx: 600,
 } as const
+
+const getNumOrNull = (v: unknown): number | null => {
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'string') {
+    const n = Number(v)
+    if (Number.isFinite(n)) return n
+  }
+  return null
+}
+
+const escapeAttr = (s: string): string => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+
+export function deriveMarkdownDesignLayoutFromGraphBlocks(args: {
+  graphData: GraphData
+  graphDataRevision?: number
+  nodePosById?: Record<string, { x: number; y: number }> | null
+}): MarkdownDesignLayout | null {
+  const nodes = Array.isArray(args.graphData?.nodes) ? (args.graphData.nodes as GraphNode[]) : []
+  if (nodes.length === 0) return null
+
+  const outBlocks: MarkdownDesignBlock[] = []
+  const nodePosById = args.nodePosById || null
+
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i] as any
+    const id = String(n?.id || '').trim()
+    if (!id) continue
+
+    const p = nodePosById && nodePosById[id] ? nodePosById[id] : null
+    const x0 = p ? getNumOrNull(p.x) : getNumOrNull(n?.x)
+    const y0 = p ? getNumOrNull(p.y) : getNumOrNull(n?.y)
+    if (x0 == null || y0 == null) continue
+
+    const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
+    const lineStart = getNumOrNull(meta ? meta.lineStart : null)
+    const lineEnd = getNumOrNull(meta ? meta.lineEnd : null)
+    const startLine = Math.max(1, Math.floor(lineStart ?? 1))
+    const endLine = Math.max(startLine, Math.floor(lineEnd ?? startLine))
+
+    const propsObj = n.properties && typeof n.properties === 'object' && !Array.isArray(n.properties) ? (n.properties as Record<string, unknown>) : null
+    const w = Math.max(1, Math.floor(getNumOrNull(propsObj ? propsObj['visual:width'] : null) ?? MARKDOWN_DESIGN_LAYOUT.block.widthPx))
+    const h = Math.max(1, Math.floor(getNumOrNull(propsObj ? propsObj['visual:height'] : null) ?? MARKDOWN_DESIGN_LAYOUT.block.minHeightPx))
+
+    const nodeType = String(n.type || '').trim()
+
+    if (nodeType === 'Table') {
+      const headerRaw = propsObj ? propsObj['table:header'] : null
+      const rowsRaw = propsObj ? propsObj['table:rows'] : null
+      const header = Array.isArray(headerRaw) ? headerRaw.map(v => String(v ?? '')) : []
+      const rows = Array.isArray(rowsRaw)
+        ? rowsRaw.map(r => (Array.isArray(r) ? r.map(v => String(v ?? '')) : [])).filter(r => r.length > 0)
+        : []
+      outBlocks.push({
+        id,
+        type: 'table',
+        title: String(n.label || '').trim() || 'Table',
+        summary: '',
+        startLine,
+        endLine,
+        x: x0 - w / 2,
+        y: y0 - h / 2,
+        w,
+        h,
+        preview: { kind: 'table', table: { columns: header, rows, rowCount: rows.length } },
+      })
+      continue
+    }
+
+    if (nodeType === 'CodeBlock') {
+      const lang = propsObj && typeof propsObj.language === 'string' ? String(propsObj.language || '') : ''
+      const code = propsObj && typeof propsObj.code === 'string' ? String(propsObj.code || '') : ''
+      const lines = code ? code.split(/\r?\n/).slice(0, 6) : []
+      outBlocks.push({
+        id,
+        type: 'code',
+        title: String(n.label || '').trim() || (lang ? `Code (${lang})` : 'Code'),
+        summary: '',
+        startLine,
+        endLine,
+        x: x0 - w / 2,
+        y: y0 - h / 2,
+        w,
+        h,
+        preview: { kind: 'code', code: { lang, lines } },
+      })
+      continue
+    }
+
+    if (nodeType === 'Paragraph') {
+      const text = propsObj && typeof propsObj['text'] === 'string' ? String(propsObj['text'] || '') : ''
+      const trimmed = text.trim()
+      const isCallout = propsObj && propsObj.calloutType === true
+      if (isCallout) {
+        const calloutType = String(propsObj?.calloutKind || 'note')
+        const title = String(propsObj?.calloutTitle || '').trim()
+        const collapsed = String(propsObj?.calloutFoldable || '') === '-'
+        outBlocks.push({
+          id,
+          type: 'blockquote',
+          title: String(n.label || '').trim() || 'Callout',
+          summary: '',
+          startLine,
+          endLine,
+          x: x0 - w / 2,
+          y: y0 - h / 2,
+          w,
+          h,
+          preview: { kind: 'callout', callout: { calloutType, title, collapsed } },
+        })
+        continue
+      }
+      if (trimmed.startsWith('>')) {
+        const lines = trimmed
+          .split(/\r?\n/)
+          .map(l => l.replace(/^\s*>\s?/, ''))
+          .filter(Boolean)
+          .slice(0, 6)
+        outBlocks.push({
+          id,
+          type: 'blockquote',
+          title: String(n.label || '').trim() || 'Blockquote',
+          summary: '',
+          startLine,
+          endLine,
+          x: x0 - w / 2,
+          y: y0 - h / 2,
+          w,
+          h,
+          preview: { kind: 'blockquote', blockquote: { lines } },
+        })
+        continue
+      }
+    }
+
+    const spec = getNodeMediaSpec(n)
+    if (spec?.kind === 'iframe') {
+      const url = String(spec.url || '').trim()
+      if (!url) continue
+      const title = String(n.label || 'Iframe').trim() || 'Iframe'
+      const raw = `<iframe src="${escapeAttr(url)}" title="${escapeAttr(title)}"></iframe>`
+      outBlocks.push({
+        id,
+        type: 'html',
+        title,
+        summary: '',
+        startLine,
+        endLine,
+        x: x0 - w / 2,
+        y: y0 - h / 2,
+        w,
+        h,
+        preview: { kind: 'html', html: { raw } },
+      })
+      continue
+    }
+  }
+
+  if (outBlocks.length === 0) return null
+  const rev = typeof args.graphDataRevision === 'number' && Number.isFinite(args.graphDataRevision) ? Math.floor(args.graphDataRevision) : 0
+  const key = `graphBlocks|rev:${rev}|nodes:${nodes.length}`
+  return { key, blocks: outBlocks }
+}
 
 const layoutCache = new LRUCache<string, MarkdownDesignLayout>(MARKDOWN_DESIGN_LAYOUT.cacheCapacity)
 
