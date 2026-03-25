@@ -258,6 +258,15 @@ export async function testExportHtmlViewerRuntimeScriptParsesWithOverlayHtml() {
   const match = html.match(/<script>\n([\s\S]*?)\n\s*<\/script>/)
   const js = match && match[1] ? match[1] : ''
   if (!js.trim()) throw new Error('expected runtime script')
+  if (!js.includes('__kgMediaBoxById') || !js.includes('__kgMdBoxById')) {
+    throw new Error('expected runtime to track overlay boxes for edge-to-panel anchoring')
+  }
+  if (!js.includes('state.k * baseSx') || !js.includes('state.k * baseSy')) {
+    throw new Error('expected runtime to map world→screen using svgBase scaling for pan/zoom parity')
+  }
+  if (!js.includes('[data-node-id][data-kg-panel-box]')) {
+    throw new Error('expected runtime to index existing markdown-like overlay panels by node id for pan/zoom sync')
+  }
   try {
     new Function(js)
   } catch (e) {
@@ -342,6 +351,21 @@ export async function testExportHtmlViewerOverlayExportStripsTransformPositionin
   if (htmlLower.includes('transform:') || htmlLower.includes('translate(') || htmlLower.includes('translate3d(')) {
       throw new Error('expected overlay export to strip transform positioning styles for edge connectivity')
     }
+    if (
+      htmlLower.includes('left:') ||
+      htmlLower.includes('top:') ||
+      htmlLower.includes('right:') ||
+      htmlLower.includes('bottom:') ||
+      htmlLower.includes('position:')
+    ) {
+      throw new Error('expected overlay export to strip absolute positioning styles for runtime pan/zoom fidelity')
+    }
+    if (htmlLower.includes('z-index:') || htmlLower.includes('width:') || htmlLower.includes('height:')) {
+      throw new Error('expected overlay export to strip size/z-index styles for runtime layout fidelity')
+    }
+    if (!htmlLower.includes('display:none') && !htmlLower.includes('display: none')) {
+      throw new Error('expected overlay export to hide panels until runtime positions them')
+    }
 
     const mdRoot = document.createElement('div')
     const block = document.createElement('div')
@@ -358,6 +382,21 @@ export async function testExportHtmlViewerOverlayExportStripsTransformPositionin
   const mdLower = mdHtml.toLowerCase()
   if (mdLower.includes('transform:') || mdLower.includes('translate(') || mdLower.includes('translate3d(')) {
       throw new Error('expected markdown overlay export to strip transform positioning styles for edge connectivity')
+    }
+    if (
+      mdLower.includes('left:') ||
+      mdLower.includes('top:') ||
+      mdLower.includes('right:') ||
+      mdLower.includes('bottom:') ||
+      mdLower.includes('position:')
+    ) {
+      throw new Error('expected markdown overlay export to strip absolute positioning styles for runtime pan/zoom fidelity')
+    }
+    if (mdLower.includes('z-index:') || mdLower.includes('width:') || mdLower.includes('height:')) {
+      throw new Error('expected markdown overlay export to strip size/z-index styles for runtime layout fidelity')
+    }
+    if (!mdLower.includes('display:none') && !mdLower.includes('display: none')) {
+      throw new Error('expected markdown overlay export to hide blocks until runtime positions them')
     }
   } finally {
     bootstrap?.restore()

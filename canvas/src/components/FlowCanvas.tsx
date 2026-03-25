@@ -564,6 +564,14 @@ export default function FlowCanvas({
     updateOverlayHiddenDrawArgs()
   }, [panelOnlyNodeIdSet, updateOverlayHiddenDrawArgs])
 
+  React.useEffect(() => {
+    if (!panelOnlyNodeIdSet) return
+    const next = new Set<string>(plannedOverlayNodeIdSetRef.current)
+    for (const id of panelOnlyNodeIdSet) next.add(id)
+    plannedOverlayNodeIdSetRef.current = next
+    updateOverlayHiddenDrawArgs()
+  }, [panelOnlyNodeIdSet, updateOverlayHiddenDrawArgs])
+
   const deferredMarkdownText = React.useDeferredValue(String(markdownDocumentText || ''))
   const markdownDesignLayout = React.useMemo(() => {
     const text = String(deferredMarkdownText || '')
@@ -693,6 +701,24 @@ export default function FlowCanvas({
     return new Set(markdownPanelNodes.map(n => n.id))
   }, [markdownPanelNodes])
 
+  const plannedOverlayNodeIdsKey = React.useMemo(() => {
+    const ids: string[] = []
+    for (let i = 0; i < mediaNodes.length; i += 1) {
+      const id = String(mediaNodes[i]?.id || '').trim()
+      if (id) ids.push(id)
+    }
+    for (let i = 0; i < markdownPanelNodes.length; i += 1) {
+      const id = String(markdownPanelNodes[i]?.id || '').trim()
+      if (id) ids.push(id)
+    }
+    if (panelOnlyNodeIdSetRef.current) {
+      for (const id of panelOnlyNodeIdSetRef.current) ids.push(id)
+    }
+    const sorted = ids.length <= 1 ? ids : Array.from(new Set(ids)).sort((a, b) => a.localeCompare(b))
+    plannedOverlayNodeIdSetRef.current = new Set(sorted)
+    return sorted.join('|')
+  }, [markdownPanelNodes, mediaNodes])
+
   const mediaNodeIdsKey = React.useMemo(() => mediaNodes.map(n => n.id).join('|'), [mediaNodes])
   React.useEffect(() => {
     const next = new Map<string, HTMLElement>()
@@ -714,21 +740,9 @@ export default function FlowCanvas({
   }, [markdownPanelNodeIdsKey, markdownPanelNodes])
 
   React.useEffect(() => {
-    const next = new Set<string>()
-    for (let i = 0; i < mediaNodes.length; i += 1) {
-      const id = String(mediaNodes[i]?.id || '').trim()
-      if (id) next.add(id)
-    }
-    for (let i = 0; i < markdownPanelNodes.length; i += 1) {
-      const id = String(markdownPanelNodes[i]?.id || '').trim()
-      if (id) next.add(id)
-    }
-    if (panelOnlyNodeIdSetRef.current) {
-      for (const id of panelOnlyNodeIdSetRef.current) next.add(id)
-    }
-    plannedOverlayNodeIdSetRef.current = next
+    if (!plannedOverlayNodeIdsKey) return
     updateOverlayHiddenDrawArgs()
-  }, [markdownPanelNodes, mediaNodes, updateOverlayHiddenDrawArgs])
+  }, [plannedOverlayNodeIdsKey, updateOverlayHiddenDrawArgs])
 
   const mediaOverlayPanRef = React.useRef<null | { pointerId: number; startTransform: d3.ZoomTransform }>(null)
   const mediaOverlayHeaderDragRef = React.useRef<null | { id: string; pointerId: number; startX: number; startY: number; startK: number; lastDx: number; lastDy: number }>(null)

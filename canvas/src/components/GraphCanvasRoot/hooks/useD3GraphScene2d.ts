@@ -75,7 +75,6 @@ export function useD3GraphScene2d(args: {
   isEmbeddedPreview: boolean
   coarsePointer: boolean
   mediaOverlayNodeIdSet: Set<string>
-  mediaOverlayNodeIdsKey: string
   panelOnlyNodeIdsKey: string
   panelOnlyNodeIdSet: Set<string>
   overlayBaseWidthRatioDefault: number
@@ -144,7 +143,6 @@ export function useD3GraphScene2d(args: {
     isEmbeddedPreview,
     coarsePointer,
     mediaOverlayNodeIdSet,
-    mediaOverlayNodeIdsKey,
     panelOnlyNodeIdsKey,
     panelOnlyNodeIdSet,
     overlayBaseWidthRatioDefault,
@@ -243,8 +241,6 @@ export function useD3GraphScene2d(args: {
         `${String(sceneGraphData?.nodes?.length ?? 0)}:${String(sceneGraphData?.edges?.length ?? 0)}`,
         String(renderMediaAsNodes ? 1 : 0),
         String(mediaPanelDensity),
-        mediaOverlayNodeIdsKey,
-        panelOnlyNodeIdsKey,
         collapsedGroupIdsKey,
         String(enableEditorGestures ? 1 : 0),
       ].join('|')
@@ -269,6 +265,23 @@ export function useD3GraphScene2d(args: {
                 prevPositions[String(d.id)] = { x: d.x, y: d.y }
               }
             })
+          }
+          try {
+            const sim = simulationRef.current
+            const simNodes = sim ? (sim.nodes() as unknown as GraphNode[]) : []
+            for (let i = 0; i < simNodes.length; i += 1) {
+              const n = simNodes[i]!
+              const id = String(n?.id || '').trim()
+              if (!id) continue
+              if (prevPositions[id]) continue
+              const x = (n as unknown as { x?: unknown }).x
+              const y = (n as unknown as { y?: unknown }).y
+              if (typeof x !== 'number' || typeof y !== 'number') continue
+              if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+              prevPositions[id] = { x, y }
+            }
+          } catch {
+            void 0
           }
           if (!isMermaidLayout && Object.keys(prevPositions).length > 0) {
             const state = useGraphStore.getState()
@@ -453,6 +466,23 @@ export function useD3GraphScene2d(args: {
           }
         })
       }
+      try {
+        const sim = simulationRef.current
+        const simNodes = sim ? (sim.nodes() as unknown as GraphNode[]) : []
+        for (let i = 0; i < simNodes.length; i += 1) {
+          const n = simNodes[i]!
+          const id = String(n?.id || '').trim()
+          if (!id) continue
+          if (prevPositions[id]) continue
+          const x = (n as unknown as { x?: unknown }).x
+          const y = (n as unknown as { y?: unknown }).y
+          if (typeof x !== 'number' || typeof y !== 'number') continue
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+          prevPositions[id] = { x, y }
+        }
+      } catch {
+        void 0
+      }
 
       lastLayoutModeRef.current = mode
       lastFrontmatterModeRef.current = !!effectiveFrontmatterModeEnabled
@@ -591,7 +621,6 @@ export function useD3GraphScene2d(args: {
     isEmbeddedPreview,
     layoutSemanticModeKey,
     mediaOverlayNodeIdSet,
-    mediaOverlayNodeIdsKey,
     mediaPanelDensity,
     overlayBaseWidthRatioDefault,
     overlayBaseWidthRatioCompact,

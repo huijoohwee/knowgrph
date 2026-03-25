@@ -84,18 +84,31 @@ export function useD3PresentationUpdates2d(args: {
     setHoverInfo,
   } = args
 
+  const mediaOverlayNodeIdsKey = (() => {
+    try {
+      const ids = Array.from(mediaOverlayNodeIdSet || [])
+        .map(v => String(v || '').trim())
+        .filter(Boolean)
+      if (ids.length <= 1) return ids.join('|')
+      ids.sort((a, b) => a.localeCompare(b))
+      return ids.join('|')
+    } catch {
+      return ''
+    }
+  })()
+
   useEffect(() => {
     const g = gRef.current
     if (!g) return
     if (
       nodesPresentationAppliedKeyRef.current ===
-      `${schemaNodesPresentationJson}|${sceneWidth}|${sceneHeight}|${panelOnlyNodeIdsKey}|${enableEditorGestures ? 1 : 0}`
+      `${schemaNodesPresentationJson}|${sceneWidth}|${sceneHeight}|${panelOnlyNodeIdsKey}|${mediaOverlayNodeIdsKey}|${enableEditorGestures ? 1 : 0}`
     )
       return
     if (!simulationRef.current) return
     if (!sceneGraphDataRef.current) return
     if (!activeRef.current) return
-    if (svgRef.current?.getAttribute('data-kg-layout-frozen') === '1') return
+    const frozen = svgRef.current?.getAttribute('data-kg-layout-frozen') === '1'
     const schemaValue = schemaRef.current
     const hoverEnabled = schemaValue.behavior?.hover?.enabled !== false && !coarsePointer
     const expansionCfg = schemaValue.behavior?.expansion || {}
@@ -108,41 +121,43 @@ export function useD3PresentationUpdates2d(args: {
       if (!id || !groupKeyByNodeId) return null
       return groupKeyByNodeId[id] || null
     }
-    updateForceSimulationPresentation({
-      simulation: simulationRef.current,
-      nodes: Array.isArray(sceneGraphDataRef.current.nodes) ? (sceneGraphDataRef.current.nodes as GraphNode[]) : [],
-      edges: edgesForSim,
-      width: sceneWidth,
-      height: sceneHeight,
-      schema: schemaValue,
-      groupKeyOf,
-      groupsForBboxCollide: sceneGroupsDerivation?.allGroups || [],
-      nodeHalfExtentsByNodeId: computeOverlayHalfExtentsByNodeId2d({
+    if (!frozen) {
+      updateForceSimulationPresentation({
+        simulation: simulationRef.current,
         nodes: Array.isArray(sceneGraphDataRef.current.nodes) ? (sceneGraphDataRef.current.nodes as GraphNode[]) : [],
-        panelOnlyNodeIdSet,
-        mediaOverlayNodeIdSet,
-        viewportW: Math.max(1, Math.floor(sceneWidth)),
-        zoomK: (() => {
-          try {
-            const el = svgRef.current
-            if (!el) return 1
-            const k = d3.zoomTransform(el).k
-            return typeof k === 'number' && Number.isFinite(k) && k > 0 ? k : 1
-          } catch {
-            return 1
-          }
-        })(),
-        mediaPanelDensity,
-        overlaySizing: {
-          overlayBaseWidthRatioDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthRatioDefault,
-          overlayBaseWidthRatioCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthRatioCompact,
-          overlayBaseWidthMinPxDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMinPxDefault,
-          overlayBaseWidthMinPxCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMinPxCompact,
-          overlayBaseWidthMaxPxDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMaxPxDefault,
-          overlayBaseWidthMaxPxCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMaxPxCompact,
-        },
-      }),
-    })
+        edges: edgesForSim,
+        width: sceneWidth,
+        height: sceneHeight,
+        schema: schemaValue,
+        groupKeyOf,
+        groupsForBboxCollide: sceneGroupsDerivation?.allGroups || [],
+        nodeHalfExtentsByNodeId: computeOverlayHalfExtentsByNodeId2d({
+          nodes: Array.isArray(sceneGraphDataRef.current.nodes) ? (sceneGraphDataRef.current.nodes as GraphNode[]) : [],
+          panelOnlyNodeIdSet,
+          mediaOverlayNodeIdSet,
+          viewportW: Math.max(1, Math.floor(sceneWidth)),
+          zoomK: (() => {
+            try {
+              const el = svgRef.current
+              if (!el) return 1
+              const k = d3.zoomTransform(el).k
+              return typeof k === 'number' && Number.isFinite(k) && k > 0 ? k : 1
+            } catch {
+              return 1
+            }
+          })(),
+          mediaPanelDensity,
+          overlaySizing: {
+            overlayBaseWidthRatioDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthRatioDefault,
+            overlayBaseWidthRatioCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthRatioCompact,
+            overlayBaseWidthMinPxDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMinPxDefault,
+            overlayBaseWidthMinPxCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMinPxCompact,
+            overlayBaseWidthMaxPxDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMaxPxDefault,
+            overlayBaseWidthMaxPxCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMaxPxCompact,
+          },
+        }),
+      })
+    }
     updateGraphSceneNodesPresentation({
       svgEl: svgRef.current,
       zoomRef,
@@ -183,7 +198,7 @@ export function useD3PresentationUpdates2d(args: {
       toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
     })
     nodesPresentationAppliedKeyRef.current =
-      `${schemaNodesPresentationJson}|${sceneWidth}|${sceneHeight}|${panelOnlyNodeIdsKey}|${enableEditorGestures ? 1 : 0}`
+      `${schemaNodesPresentationJson}|${sceneWidth}|${sceneHeight}|${panelOnlyNodeIdsKey}|${mediaOverlayNodeIdsKey}|${enableEditorGestures ? 1 : 0}`
   }, [
     activeRef,
     coarsePointer,
@@ -195,6 +210,7 @@ export function useD3PresentationUpdates2d(args: {
     labelsSelRef,
     linkDragRef,
     mediaOverlayNodeIdSet,
+    mediaOverlayNodeIdsKey,
     mediaPanelDensity,
     panelOnlyNodeIdsKey,
     panelOnlyNodeIdSet,

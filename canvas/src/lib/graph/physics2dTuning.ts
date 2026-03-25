@@ -282,6 +282,7 @@ export const computeStrictOverlapTuning2d = (args: {
     if (n > 3200) return 0
     if (tick < 8) return 0
     if (alpha > 0.085) return 0
+    if (alpha < 0.055) return 0
     const minInterval = alpha > 0.06 ? 72 : alpha > 0.035 ? 120 : 168
     if (tick - lastTick < minInterval) return 0
     if (n <= 120) return 2

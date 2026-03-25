@@ -99,6 +99,7 @@ Notes:
 - Flow packing cohesion: collective packing must treat group membership as connectivity so subgraphs/groups/clusters remain cohesive even when edges are sparse.
 - Zoom Reset semantics: toolbar Reset is defined as Fit-to-View framing (centroid + group-aware bounds) and must not trigger any layout mutation.
 - The default baseline experience is anchored by `LS_KEYS.documentStructureBaselineLock` (default on): it disables mode switches (Keyword/Frontmatter/Renderer/3D/Select/Create) so Editor/Canvas/Table/Preview stay content-aligned.
+- Force-directed stability: once 2D D3 force layout has reached a near-settled alpha, strict-overlap relax passes must be disabled (no late “snap” adjustments), and overlay/panel membership changes must not restart the simulation or mutate settled node positions.
 
 ## Rebase & Conflict Resolution Notes
 

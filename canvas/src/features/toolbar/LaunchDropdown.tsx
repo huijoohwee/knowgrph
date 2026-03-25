@@ -7,6 +7,7 @@ import { WORKSPACE_IMPORT_IMAGE_URL_TEST, WORKSPACE_IMPORT_URL_TEST } from '@/li
 import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { cn } from '@/lib/utils'
+import { exportHtmlCanvasFallback, exportHtmlViewerFallback } from './exportHtmlFallback'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 
@@ -247,7 +248,19 @@ export function LaunchDropdown({
     'rounded shadow-md',
   )
 
-  const exportActions = bridge.export
+  const fallbackExportActions = React.useMemo(
+    () => ({
+      htmlViewer: () => {
+        void exportHtmlViewerFallback({ pushUiToast })
+      },
+      htmlCanvas: () => {
+        void exportHtmlCanvasFallback({ pushUiToast })
+      },
+    }),
+    [pushUiToast],
+  )
+
+  const exportActions = React.useMemo(() => ({ ...fallbackExportActions, ...(bridge.export || {}) }), [bridge.export, fallbackExportActions])
   const canExport = !!(
     exportActions?.duplicateInWorkspace ||
     exportActions?.workspaceFileJsonLd ||

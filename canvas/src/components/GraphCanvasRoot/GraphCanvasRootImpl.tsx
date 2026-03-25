@@ -436,11 +436,12 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       const xSim = simNode ? getNum((simNode as unknown as { x?: unknown }).x) : null
       const ySim = simNode ? getNum((simNode as unknown as { y?: unknown }).y) : null
       const prev = lastPos.get(id) || null
-      const x = xGraph ?? xSim ?? prev?.x ?? null
-      const y = yGraph ?? ySim ?? prev?.y ?? null
-      if (x == null || y == null) continue
-      keepPosIds.add(id)
-      lastPos.set(id, { x, y })
+      const x = xGraph ?? xSim ?? prev?.x ?? -99999
+      const y = yGraph ?? ySim ?? prev?.y ?? -99999
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        keepPosIds.add(id)
+        lastPos.set(id, { x, y })
+      }
 
       const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
       const lineStart = getNum(meta ? meta.lineStart : null)
@@ -699,12 +700,12 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   }, [panelOnlyNodeIdSet, panelOnlyNodeIdsKey])
 
   const panelOnlyNodeIdSetForScene = useMemo(() => {
-    if (!markdownOverlayEnabled) return null
-    const base = panelOnlyNodeIdSetRef.current || panelOnlyNodeIdSet || new Set<string>()
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
-    if (nodes.length === 0) return base
-    const extra = buildPanelOnlyNodeIdSetFromGraphNodes(nodes)
-    if (extra.size === 0) return base
+    const base = panelOnlyNodeIdSetRef.current || panelOnlyNodeIdSet || null
+    const extra = nodes.length > 0 ? buildPanelOnlyNodeIdSetFromGraphNodes(nodes) : null
+    if (!base && (!extra || extra.size === 0)) return null
+    if (!extra || extra.size === 0) return base
+    if (!base) return extra
     let needsCopy = false
     for (const id of extra) {
       if (!base.has(id)) {
@@ -716,11 +717,11 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     const out = new Set<string>(base)
     for (const id of extra) out.add(id)
     return out
-  }, [markdownOverlayEnabled, panelOnlyNodeIdSet, sceneGraphData])
+  }, [panelOnlyNodeIdSet, sceneGraphData])
   const panelOnlyNodeIdsKeyForScene = useMemo(() => {
-    if (!markdownOverlayEnabled || !panelOnlyNodeIdSetForScene) return ''
+    if (!panelOnlyNodeIdSetForScene) return ''
     return Array.from(panelOnlyNodeIdSetForScene).sort((a, b) => a.localeCompare(b)).join('|')
-  }, [markdownOverlayEnabled, panelOnlyNodeIdSetForScene])
+  }, [panelOnlyNodeIdSetForScene])
   const [overlayInteractionActive, setOverlayInteractionActive] = useState(false)
   React.useEffect(() => {
     if (!overlayInteractionActive) return
@@ -778,12 +779,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     freezeOverlayMembership: overlayInteractionActive,
   })
 
-  const mediaOverlayNodeIdsKeyForScene = useMemo(() => {
-    const ids = richMedia.mediaOverlayNodes.map(n => String(n.id || '').trim()).filter(Boolean)
-    if (ids.length <= 1) return ids.join('|')
-    ids.sort((a, b) => a.localeCompare(b))
-    return ids.join('|')
-  }, [richMedia.mediaOverlayNodes])
 
   const markdownOverlayScheduleRef = React.useRef<(() => void) | null>(null)
 
@@ -876,7 +871,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     isEmbeddedPreview,
     coarsePointer: coarsePointer === true,
     mediaOverlayNodeIdSet: richMedia.mediaOverlayNodeIdSet,
-    mediaOverlayNodeIdsKey: mediaOverlayNodeIdsKeyForScene,
     panelOnlyNodeIdsKey: panelOnlyNodeIdsKeyForScene,
     panelOnlyNodeIdSet: panelOnlyNodeIdSetForScene,
     overlayBaseWidthRatioDefault: threeIframeOverlayBaseWidthRatioDefault,

@@ -7,6 +7,25 @@ const stripOverlayTransformStyles = (el: Element) => {
     node.style.removeProperty('transform')
     node.style.removeProperty('transform-origin')
     node.style.removeProperty('translate')
+    node.style.removeProperty('left')
+    node.style.removeProperty('top')
+    node.style.removeProperty('right')
+    node.style.removeProperty('bottom')
+    node.style.removeProperty('inset')
+    node.style.removeProperty('position')
+    node.style.removeProperty('width')
+    node.style.removeProperty('height')
+    node.style.removeProperty('z-index')
+  } catch {
+    void 0
+  }
+}
+
+const hideOverlayUntilRuntimePositions = (el: Element) => {
+  const node = el as HTMLElement
+  if (!node || !node.style) return
+  try {
+    node.style.display = 'none'
   } catch {
     void 0
   }
@@ -89,6 +108,7 @@ export const captureLiveRichMediaOverlayHtmlForHtmlViewerExport = (args: {
       const clone = srcPanel.cloneNode(true) as Element
       inlineComputedStylesIntoClone(srcPanel, clone, HTML_STYLE_PROPS)
       stripOverlayTransformStyles(clone)
+      hideOverlayUntilRuntimePositions(clone)
       try {
         ensureMediaAttrs(srcPanel, clone)
       } catch {
@@ -118,6 +138,7 @@ export const captureLiveMarkdownDesignOverlayHtmlForHtmlViewerExport = (args: {
       const clone = srcBlock.cloneNode(true) as Element
       inlineComputedStylesIntoClone(srcBlock, clone, HTML_STYLE_PROPS)
       stripOverlayTransformStyles(clone)
+      hideOverlayUntilRuntimePositions(clone)
 
       try {
         const id = String(srcBlock.getAttribute('data-kg-markdown-design-block') || '').trim()

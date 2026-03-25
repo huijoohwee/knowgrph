@@ -217,11 +217,41 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       modThreeTableAllowed.testThreeGraphAllowsTableOverlaysEvenInMultiDimMode,
     )
 
-    const modD3SceneOverlayKeys = await import('../__tests__/d3GraphSceneBuildKeyIncludesOverlayKeysRegression.test')
+
+    const modD3ScenePreserve = await import('../__tests__/d3SceneRebuildPreservesSimPositionsRegression.test')
     await execTest(
       results,
-      'ui.d3Scene.buildKey.includesOverlayKeys',
-      modD3SceneOverlayKeys.testD3GraphSceneBuildKeyIncludesOverlayKeys,
+      'ui.d3Scene.rebuild.preservesSimPositions',
+      modD3ScenePreserve.testD3SceneRebuildPreservesSimulationPositions,
+    )
+
+
+    const modGraphCanvasRootPanelOnlyUngated = await import('../__tests__/graphCanvasRootPanelOnlyHideNotGatedByMarkdownRegression.test')
+    await execTest(
+      results,
+      'ui.graphCanvasRoot.panelOnly.hide.ungated',
+      modGraphCanvasRootPanelOnlyUngated.testGraphCanvasRootPanelOnlyHideIsNotGatedByMarkdownOverlayEnabled,
+    )
+
+    const modD3PresentationOverlayKey = await import('../__tests__/d3PresentationUpdatesIncludeMediaOverlayKeyRegression.test')
+    await execTest(
+      results,
+      'ui.d3Presentation.key.includesMediaOverlay',
+      modD3PresentationOverlayKey.testD3PresentationUpdatesKeyIncludesMediaOverlayIds,
+    )
+
+    const modStrictOverlapSettled = await import('../__tests__/strictOverlapDoesNotRunWhenSettledRegression.test')
+    await execTest(
+      results,
+      'ui.physics2d.strictOverlap.noLateJumps',
+      modStrictOverlapSettled.testStrictOverlapDoesNotRunWhenSettled,
+    )
+
+    const modGraphCanvasRootGraphBlockPanelFallback = await import('../__tests__/graphCanvasRootGraphBlockPanelDoesNotDropMissingPositionsRegression.test')
+    await execTest(
+      results,
+      'ui.graphCanvasRoot.graphBlockPanel.offscreenFallback',
+      modGraphCanvasRootGraphBlockPanelFallback.testGraphCanvasRootGraphBlockPanelDoesNotDropNodesWithoutPositions,
     )
 
     const modWorkspaceOverlayContract = await import('../__tests__/workspaceEditorOverlayPointerContract.test')
