@@ -1,35 +1,14 @@
 import { HTML_STYLE_PROPS, inlineComputedStylesIntoClone } from '@/lib/graph/svgSnapshot'
 
-const LIVE_OVERLAY_INLINE_STYLE_PROPS: readonly string[] = HTML_STYLE_PROPS.filter(
-  (p) => p !== 'pointer-events',
-)
-
-const stripCanvasIgnoreAttrsDeep = (el: Element) => {
-  const all: Element[] = [el, ...Array.from(el.querySelectorAll('*'))]
-  for (let i = 0; i < all.length; i += 1) {
-    const n = all[i]
-    try {
-      n.removeAttribute('data-kg-canvas-pointer-ignore')
-      n.removeAttribute('data-kg-canvas-wheel-ignore')
-    } catch {
-      void 0
-    }
-  }
-}
-
-const stripInlineInteractionStylesDeep = (el: Element) => {
-  const all: Element[] = [el, ...Array.from(el.querySelectorAll('*'))]
-  for (let i = 0; i < all.length; i += 1) {
-    const n = all[i] as HTMLElement
-    if (!n || !n.style) continue
-    try {
-      n.style.removeProperty('pointer-events')
-      n.style.removeProperty('touch-action')
-      n.style.removeProperty('user-select')
-      n.style.removeProperty('-webkit-user-select')
-    } catch {
-      void 0
-    }
+const stripOverlayTransformStyles = (el: Element) => {
+  const node = el as HTMLElement
+  if (!node || !node.style) return
+  try {
+    node.style.removeProperty('transform')
+    node.style.removeProperty('transform-origin')
+    node.style.removeProperty('translate')
+  } catch {
+    void 0
   }
 }
 
@@ -52,11 +31,6 @@ const ensureMediaAttrs = (src: Element, dst: Element) => {
           void 0
         }
       }
-      try {
-        di.style.removeProperty('pointer-events')
-      } catch {
-        void 0
-      }
       continue
     }
     if (tag === 'video' || tag === 'source') {
@@ -67,11 +41,6 @@ const ensureMediaAttrs = (src: Element, dst: Element) => {
         } catch {
           void 0
         }
-      }
-      try {
-        ;(d as HTMLElement).style.removeProperty('pointer-events')
-      } catch {
-        void 0
       }
       continue
     }
@@ -100,11 +69,6 @@ const ensureMediaAttrs = (src: Element, dst: Element) => {
           void 0
         }
       }
-      try {
-        di.style.removeProperty('pointer-events')
-      } catch {
-        void 0
-      }
     }
   }
 }
@@ -123,14 +87,13 @@ export const captureLiveRichMediaOverlayHtmlForHtmlViewerExport = (args: {
     for (let i = 0; i < panels.length; i += 1) {
       const srcPanel = panels[i] as Element
       const clone = srcPanel.cloneNode(true) as Element
-      inlineComputedStylesIntoClone(srcPanel, clone, LIVE_OVERLAY_INLINE_STYLE_PROPS)
+      inlineComputedStylesIntoClone(srcPanel, clone, HTML_STYLE_PROPS)
+      stripOverlayTransformStyles(clone)
       try {
         ensureMediaAttrs(srcPanel, clone)
       } catch {
         void 0
       }
-      stripCanvasIgnoreAttrsDeep(clone)
-      stripInlineInteractionStylesDeep(clone)
       wrap.appendChild(clone)
     }
     return wrap.innerHTML
@@ -153,9 +116,8 @@ export const captureLiveMarkdownDesignOverlayHtmlForHtmlViewerExport = (args: {
     for (let i = 0; i < blocks.length; i += 1) {
       const srcBlock = blocks[i] as Element
       const clone = srcBlock.cloneNode(true) as Element
-      inlineComputedStylesIntoClone(srcBlock, clone, LIVE_OVERLAY_INLINE_STYLE_PROPS)
-      stripCanvasIgnoreAttrsDeep(clone)
-      stripInlineInteractionStylesDeep(clone)
+      inlineComputedStylesIntoClone(srcBlock, clone, HTML_STYLE_PROPS)
+      stripOverlayTransformStyles(clone)
 
       try {
         const id = String(srcBlock.getAttribute('data-kg-markdown-design-block') || '').trim()

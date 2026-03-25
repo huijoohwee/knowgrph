@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Upload, CheckCircle, XCircle } from 'lucide-react'
+import { Rocket } from 'lucide-react'
 import IconButton from '@/components/IconButton'
-import { useParserUIState } from '@/features/parsers/uiState'
 import { useToolMenuShortcuts } from '@/features/toolbar/useToolMenuShortcuts'
 import { useToolMenuState } from '@/features/toolbar/useToolMenuState'
 import { ToolbarToolMenu } from '@/features/toolbar/ToolbarToolMenu'
+import { LaunchDropdown } from '@/features/toolbar/LaunchDropdown'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   DESIGN_LAYERS_PANEL_OPEN_EVENT,
@@ -15,7 +15,7 @@ import {
   type PropsPanelOpenEventDetail,
   type SidePanelOpenEventDetail,
 } from '@/features/canvas/utils'
-import { LS_KEYS, UI_LABELS } from '@/lib/config'
+import { LS_KEYS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass } from '@/lib/ui'
 import { lsBool } from '@/lib/persistence'
@@ -25,11 +25,18 @@ import { onGeospatialModeChanged } from '@/features/geospatial/events'
 
 type ToolbarMenuLauncherProps = {
   onOpenMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'settings') => void
+  onLaunchSpotlight?: () => void
+  onLaunchStatus?: () => void
+  onCloseMainPanel?: () => void
 }
 
-export function ToolbarMenuLauncher({ onOpenMainPanel: _onOpenMainPanel }: ToolbarMenuLauncherProps) {
-  const dataLoadOk = useParserUIState(s => s.dataLoadOk)
-  const dataLoadMsg = useParserUIState(s => s.dataLoadMsg)
+export function ToolbarMenuLauncher({
+  onOpenMainPanel: _onOpenMainPanel,
+  onLaunchSpotlight,
+  onLaunchStatus,
+  onCloseMainPanel,
+}: ToolbarMenuLauncherProps) {
+  const [launchOpen, setLaunchOpen] = useState(false)
 
   const floatingPanelRequestSeqRef = useRef(0)
   const [floatingPanelRequestedView, setFloatingPanelRequestedView] = useState<
@@ -192,36 +199,30 @@ export function ToolbarMenuLauncher({ onOpenMainPanel: _onOpenMainPanel }: Toolb
     <>
       <IconButton
         ref={toolMenuButtonRef}
-        className={`App-toolbar__btn ${
-          dataLoadOk === true
-            ? UI_THEME_TOKENS.status.success
-            : dataLoadOk === false
-              ? UI_THEME_TOKENS.status.error
-              : UI_THEME_TOKENS.icon.color
-        }`}
-        title={dataLoadOk === true ? UI_LABELS.openData : UI_LABELS.loadStatus}
+        className={`App-toolbar__btn ${UI_THEME_TOKENS.icon.color}`}
+        title="Launch"
+        tooltipContent="Launch"
+        showTooltip
         onClick={() => {
           closeToolMenu()
-          _onOpenMainPanel('workflow')
+          setLaunchOpen(v => !v)
         }}
       >
-        {dataLoadOk === true ? (
-          <div className="flex items-center gap-1">
-            <CheckCircle className={iconSizeClass} />
-            <span className="text-xs max-w-20 truncate">{dataLoadMsg}</span>
-          </div>
-        ) : dataLoadOk === false ? (
-          <div className="flex items-center gap-1">
-            <XCircle className={iconSizeClass} />
-            <span className="text-xs max-w-20 truncate">{dataLoadMsg}</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1">
-            <Upload className={iconSizeClass} />
-            <span className="text-xs max-w-20 truncate">{UI_LABELS.openData}</span>
-          </div>
-        )}
+        <Rocket className={iconSizeClass} />
       </IconButton>
+
+      <LaunchDropdown
+        anchorRef={toolMenuButtonRef}
+        open={launchOpen}
+        onClose={() => setLaunchOpen(false)}
+        onOpenWorkflowPanel={() => {
+          setLaunchOpen(false)
+          _onOpenMainPanel('workflow')
+        }}
+        onLaunchSpotlight={onLaunchSpotlight}
+        onLaunchStatus={onLaunchStatus}
+        onCloseMainPanel={onCloseMainPanel}
+      />
       {isToolMenuOpen && (
         <ToolbarToolMenu
           toolMenuCardRef={toolMenuCardRef}

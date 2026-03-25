@@ -27,7 +27,12 @@
 ## Data Sync (Import → RxDB → Grid)
 
 - **Source of truth**: Graph import commits `GraphData` into the store; the Graph Data Table mirrors the store via an RxDB materialized view.
-- **Sync key**: table sync is keyed by `(graphDataRevision, collapsedGroupIdsKey)` so collapsed-view toggles update the table even when graph revision is unchanged.
+- **Sync key**: table sync is keyed by a `(revision, collapsedGroupIdsKey)` pair plus a per-view `viewKey`:
+  - In **Static** Canvas Interaction Mode, the revision is `graphContentRevision` (structure-only) so position-only drags do not cause table recomputation.
+  - In **Interactive** Canvas Interaction Mode, the revision is `graphDataRevision` so table rows can reflect position-affecting edits when real-time sync is enabled.
+- **Workspace Sync Mode**:
+  - `canvasWorkspaceSyncMode = 'manual'` disables automatic sync and exposes a single **Sync now** button in the Graph Table header that runs a bounded GraphData→GraphTableDb sync for the current view.
+  - `canvasWorkspaceSyncMode = 'realtime'` enables automatic sync on revision changes using the same gated pipeline; sync remains deduped via per-view `lastGraphWriteRevision` and `lastSyncedRevision` to prevent loops.
 - **Baseline anchor**: table sync uses the document-structure baseline graph and applies only group-collapse derivation; it must not depend on keyword/frontmatter mode so mode switches do not rewrite the table.
 
 ## Quick Editor Parity

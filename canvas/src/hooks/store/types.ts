@@ -17,7 +17,7 @@ import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/req
 import type { LayoutMode2d } from '@/lib/graph/layoutMode'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
-import type { Canvas2dRendererId } from '@/lib/config'
+import type { Canvas2dRendererId, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
 import type { DesignLayerNode, DesignLayerState } from '@/features/design/designLayersState'
 import type { DesignFramePos, DesignFrameSize } from '@/hooks/store/designRendererSlice'
 import type { SaveFilePickerHandle } from '@/lib/graph/save'
@@ -179,6 +179,8 @@ export type LocalMarkdownFolderAccessMode = 'fs-access' | 'opfs' | 'file-input'
 
 export interface GraphState {
   graphData: GraphData | null;
+  graphContentRevision: number;
+  docLocationRevision: number;
 
   sourceFiles: SourceFile[];
   setSourceFiles: (files: SourceFile[]) => void;
@@ -338,6 +340,7 @@ export interface GraphState {
   resyncGraphFieldsFromGraphData: () => void;
   clearGraphData: () => void;
   updateNode: (id: string, updates: Partial<GraphNode>) => void;
+  flushComposedPositionWritesNow: () => void;
   updateEdge: (id: string, updates: Partial<GraphEdge>) => void;
   addNode: (node: GraphNode) => void;
   removeNode: (id: string) => void;
@@ -863,6 +866,8 @@ export interface GraphState {
   canvasRenderMode: '2d' | '3d';
   canvas2dRenderer: Canvas2dRendererId;
   viewportControlsPreset: ViewportControlsPreset;
+  infiniteCanvasInteractionMode: InfiniteCanvasInteractionMode;
+  canvasWorkspaceSyncMode: CanvasWorkspaceSyncMode;
   flowEditorSelectionOnDrag: boolean;
   flowEditorOverlayWheelProxyEnabled: boolean;
   flowWheelZoomSpeedMultiplier: number;
@@ -881,6 +886,8 @@ export interface GraphState {
   setCanvasRenderMode: (m: '2d' | '3d') => void;
   setCanvas2dRenderer: (id: Canvas2dRendererId) => void;
   setViewportControlsPreset: (preset: ViewportControlsPreset) => void;
+  setInfiniteCanvasInteractionMode: (mode: InfiniteCanvasInteractionMode) => void;
+  setCanvasWorkspaceSyncMode: (mode: CanvasWorkspaceSyncMode) => void;
   setFlowEditorSelectionOnDrag: (v: boolean) => void;
   setFlowEditorOverlayWheelProxyEnabled: (v: boolean) => void;
   setFlowWheelZoomSpeedMultiplier: (v: number) => void;

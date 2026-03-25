@@ -66,10 +66,15 @@ const buildFallbackInspectorRow = (selection: { tableId: GraphTableId; rowId: st
 }
 
 export default function GraphTableSelectionInspector() {
+  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const editorWorkspacePane = useGraphStore(s => s.editorWorkspacePane)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const openQuickEditorNodeIds = useGraphStore(s => s.openQuickEditorNodeIds || [])
+  const graphContentRevision = useGraphStore(s => s.graphContentRevision)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
+  const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
+  const canvasWorkspaceSyncMode = useGraphStore(s => s.canvasWorkspaceSyncMode)
   const baseGraphData = useGraphStore(s => s.graphData)
   const collapsedGroupIds = useGraphStore(s => (s.collapsedGroupIds || []) as string[])
 
@@ -83,7 +88,9 @@ export default function GraphTableSelectionInspector() {
     return deriveGraphDataWithGroupCollapse({ graphData: baseGraphData, collapsedGroupIds: collapsedGroupIdsKey.split('|').filter(Boolean) })
   }, [baseGraphData, collapsedGroupIdsKey])
 
-  const { noteGraphWrite } = useGraphTableDbSync(graphDataRevision, syncGraphData, `baseline:${collapsedGroupIdsKey}`)
+  const syncEnabled = (workspaceViewMode !== 'editor' || editorWorkspacePane !== 'graphTable') && canvasWorkspaceSyncMode === 'realtime'
+  const graphSyncRevision = infiniteCanvasInteractionMode === 'interactive' ? graphDataRevision : graphContentRevision
+  const { noteGraphWrite } = useGraphTableDbSync(graphSyncRevision, syncGraphData, `baseline:${collapsedGroupIdsKey}`, syncEnabled)
   const [columns, setColumns] = useState<GraphColumnDoc[]>([])
   const [row, setRow] = useState<GraphTableInspectorRow | null>(null)
   const rowHashRef = useRef<number>(0)

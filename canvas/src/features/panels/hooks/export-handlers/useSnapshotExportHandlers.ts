@@ -539,6 +539,11 @@ export function useSnapshotExportHandlers({
           }
         })()
         const store = useGraphStore.getState()
+        try {
+          store.flushComposedPositionWritesNow()
+        } catch {
+          void 0
+        }
         const workspaceEditorEnabled = store.workspaceViewMode === 'editor'
         const wants3dExport =
           store.canvasRenderMode === '3d' ||
@@ -652,6 +657,11 @@ export function useSnapshotExportHandlers({
         const storage = verifyWorkflowPresetStorage()
         const suggested = storage.lastApplied ? String(storage.lastApplied.datasetFileName || '') : undefined
         const store = useGraphStore.getState()
+        try {
+          store.flushComposedPositionWritesNow()
+        } catch {
+          void 0
+        }
         const graphData = (activeRenderGraphData || store.graphData) as GraphData | null
         const schema = store.schema
         if (!graphData || !schema) {
@@ -871,7 +881,8 @@ export function useSnapshotExportHandlers({
           zoomStrokeScaleExponent2d: store.zoomStrokeScaleExponent2d,
           zoomStrokeScaleClampMin2d: store.zoomStrokeScaleClampMin2d,
           zoomStrokeScaleClampMax2d: store.zoomStrokeScaleClampMax2d,
-          hideLabelsBelowScale: 0,
+          hideLabelsBelowScale: Number(store.schema?.performance?.lod?.hideLabelsBelowScale ?? 0),
+          initialFrontmatterEnabled: frontmatterModeEnabled,
           includeRichMediaOverlays: true,
           mediaOverlayPoolMax: Math.max(
             240,
@@ -926,6 +937,11 @@ export function useSnapshotExportHandlers({
         const storage = verifyWorkflowPresetStorage()
         const suggested = storage.lastApplied ? String(storage.lastApplied.datasetFileName || '') : undefined
         const store = useGraphStore.getState()
+        try {
+          store.flushComposedPositionWritesNow()
+        } catch {
+          void 0
+        }
         const graphData = (activeRenderGraphData || store.graphData) as GraphData | null
         const schema = store.schema
         if (!graphData || !schema) {
@@ -1139,7 +1155,8 @@ export function useSnapshotExportHandlers({
           zoomStrokeScaleExponent2d: store.zoomStrokeScaleExponent2d,
           zoomStrokeScaleClampMin2d: store.zoomStrokeScaleClampMin2d,
           zoomStrokeScaleClampMax2d: store.zoomStrokeScaleClampMax2d,
-          hideLabelsBelowScale: 0,
+          hideLabelsBelowScale: Number(store.schema?.performance?.lod?.hideLabelsBelowScale ?? 0),
+          initialFrontmatterEnabled: frontmatterModeEnabled,
           includeRichMediaOverlays: true,
           mediaOverlayPoolMax: Math.max(
             240,

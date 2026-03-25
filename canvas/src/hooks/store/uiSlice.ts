@@ -346,7 +346,7 @@ export const createUiSlice = (set: SetGraph) => {
     launchSpotlightMode: 'tour' as const,
     enableLaunchSpotlight: (() => {
       const storage = getLocalStorage();
-      return getInitialLaunchSpotlightEnabled(storage, true);
+      return getInitialLaunchSpotlightEnabled(storage, false);
     })(),
     statusPanelPinned: lsBool(LS_KEYS.statusPanelPinned, false),
 

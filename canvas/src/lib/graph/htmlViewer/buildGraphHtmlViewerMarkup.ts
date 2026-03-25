@@ -9,6 +9,7 @@ import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import { extractNodePosByIdFromSvgMarkup } from '@/lib/graph/svgNodePos'
 import { ensureSvgHasEdgeGeometry } from '@/lib/graph/svgEdgeGeometry'
 import { deriveMarkdownDesignLayoutFromGraphBlocks } from '@/features/markdown-edgeless/markdownDesignLayout'
+import { computeMarkdownAnchorNodeIdByBlockId } from '@/lib/render/markdownPanelOverlayPool'
 import {
   decodeRepoFileUrlToRelPath,
   inlineRepoFileUrlToDataUrl,
@@ -81,6 +82,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
   allowNodeDrag?: boolean
   allowEdgeDrag?: boolean
   allowGroupDrag?: boolean
+  initialFrontmatterEnabled?: boolean
   preferWebgl3d?: boolean
   initialView?: { k: number; x: number; y: number }
   zoomLabelScaleMode2d?: 'clampAt1' | 'smooth' | 'power'
@@ -372,7 +374,14 @@ export async function buildGraphHtmlViewerMarkup(args: {
       if (!graph) return '[]'
       const layout = deriveMarkdownDesignLayoutFromGraphBlocks({ graphData: graph, nodePosById: nodePosByIdObj })
       const blocks = layout && Array.isArray(layout.blocks) ? layout.blocks : []
-      return JSON.stringify(blocks)
+      const nodes = Array.isArray((graph as any)?.nodes) ? ((graph as any).nodes as any[]) : []
+      const anchorNodeIdByBlockId = computeMarkdownAnchorNodeIdByBlockId({ layout, nodes })
+      const blocksWithAnchor = blocks.map(b => {
+        const id = String((b as any)?.id || '').trim()
+        const anchorNodeId = id ? String((anchorNodeIdByBlockId as any)?.[id] || '').trim() : ''
+        return anchorNodeId ? ({ ...(b as any), anchorNodeId } as any) : b
+      })
+      return JSON.stringify(blocksWithAnchor)
     } catch {
       return '[]'
     }
@@ -439,6 +448,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
     nodeLabelByIdJson,
     edgeMetaByIdJson,
     frontmatterVisibilityJson,
+    initialFrontmatterEnabled: args.initialFrontmatterEnabled === true,
     nodePosByIdJson,
     groupMembersByIdJson,
     density,

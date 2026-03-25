@@ -4,6 +4,8 @@ import { LS_KEYS, UI_LAYOUT } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
 import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
+import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
+import { createRafOnceScheduler } from '@/lib/react/rafOnceScheduler'
 
 type ToolMenuDragPosition = {
   top: number
@@ -22,8 +24,7 @@ export function useToolMenuState() {
     startTop: number
     startLeft: number
   } | null>(null)
-  const dragRafRef = useRef<number | null>(null)
-  const pendingDragPosRef = useRef<ToolMenuDragPosition | null>(null)
+  const dragSchedulerRef = useRef(createRafValueScheduler((pos: ToolMenuDragPosition) => setToolMenuDragPos(pos)))
 
   const clampToolMenuPos = useCallback((pos: ToolMenuDragPosition): ToolMenuDragPosition => {
     if (typeof window === 'undefined') return pos
@@ -53,13 +54,7 @@ export function useToolMenuState() {
         startLeft: rect.left,
       }
 
-      const flush = () => {
-        const next = pendingDragPosRef.current
-        pendingDragPosRef.current = null
-        dragRafRef.current = null
-        if (!next) return
-        setToolMenuDragPos(next)
-      }
+      const scheduler = dragSchedulerRef.current
 
       startPointerDrag({
         ev: event.nativeEvent,
@@ -73,33 +68,20 @@ export function useToolMenuState() {
           if (!state) return
           const dx = mv.clientX - state.startX
           const dy = mv.clientY - state.startY
-          pendingDragPosRef.current = clampToolMenuPos({
+          scheduler.schedule(
+            clampToolMenuPos({
             top: state.startTop + dy,
             left: state.startLeft + dx,
-          })
-          if (dragRafRef.current == null) dragRafRef.current = window.requestAnimationFrame(flush)
+            }),
+          )
         },
         onEnd: () => {
           toolMenuDragStateRef.current = null
-          if (dragRafRef.current != null) {
-            window.cancelAnimationFrame(dragRafRef.current)
-            dragRafRef.current = null
-          }
-          if (pendingDragPosRef.current) {
-            setToolMenuDragPos(pendingDragPosRef.current)
-            pendingDragPosRef.current = null
-          }
+          scheduler.flush()
         },
         onCancel: () => {
           toolMenuDragStateRef.current = null
-          if (dragRafRef.current != null) {
-            window.cancelAnimationFrame(dragRafRef.current)
-            dragRafRef.current = null
-          }
-          if (pendingDragPosRef.current) {
-            setToolMenuDragPos(pendingDragPosRef.current)
-            pendingDragPosRef.current = null
-          }
+          scheduler.cancel()
         },
       })
     },
@@ -132,22 +114,24 @@ export function useToolMenuState() {
     if (!isToolMenuOpen) return
     if (toolMenuDragPos) return
     if (typeof window === 'undefined') return
-    const raf = window.requestAnimationFrame(() => {
+    const scheduler = createRafOnceScheduler(() => {
       setToolMenuDragPos(clampToolMenuPos(getDefaultToolMenuPos()))
     })
-    return () => window.cancelAnimationFrame(raf)
+    scheduler.schedule()
+    return () => scheduler.cancel()
   }, [clampToolMenuPos, getDefaultToolMenuPos, isToolMenuOpen, toolMenuDragPos])
 
   useEffect(() => {
     if (!isToolMenuOpen) return
     if (!toolMenuDragPos) return
     if (typeof window === 'undefined') return
-    const raf = window.requestAnimationFrame(() => {
+    const scheduler = createRafOnceScheduler(() => {
       const next = clampToolMenuPos(toolMenuDragPos)
       if (next.top === toolMenuDragPos.top && next.left === toolMenuDragPos.left) return
       setToolMenuDragPos(next)
     })
-    return () => window.cancelAnimationFrame(raf)
+    scheduler.schedule()
+    return () => scheduler.cancel()
   }, [clampToolMenuPos, isToolMenuOpen, toolMenuDragPos])
 
   const toolMenuCardStyle = useMemo(() => {

@@ -104,7 +104,10 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const hideUntilReady = props.hideUntilReady === true
   const headerPassthrough = props.headerPassthrough === true
   const richMediaPanelMode = useGraphStore(s => s.richMediaPanelMode)
-  const preferEmbed = richMediaPanelMode === 'embed'
+  const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
+  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const editorMode = workspaceViewMode === 'editor'
+  const preferEmbed = richMediaPanelMode === 'embed' || infiniteCanvasInteractionMode === 'interactive'
   const [videoThumb, setVideoThumb] = React.useState<string>('')
   const forwardingEnabled =
     !preferEmbed && (typeof props.forwardWheelTo === 'function' || typeof props.forwardPointerTo === 'function')
@@ -137,6 +140,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     (preferEmbed || (props.interactive !== false && !isSnapshotIframe && !isSnapshotVideo && !isSnapshotStaticMedia))
     && (!hideUntilReady || ready)
   const canClickToOpen = !headerPassthrough && !contentInteractive && !!safeOpenUrl
+  const allowClickToOpenOverlay = canClickToOpen && !editorMode
 
   React.useEffect(() => {
     let cancelled = false
@@ -376,7 +380,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       data-kg-canvas-pointer-ignore="true"
       style={{
         ...PANEL_FRAME_ROOT_STYLE,
-        pointerEvents: hideUntilReady && !ready ? 'none' : (headerPassthrough ? 'none' : ((contentInteractive || canClickToOpen) ? 'auto' : 'none')),
+        pointerEvents: hideUntilReady && !ready ? 'none' : (headerPassthrough ? 'none' : (editorMode ? 'auto' : ((contentInteractive || canClickToOpen) ? 'auto' : 'none'))),
         opacity: hideUntilReady && !ready ? 0 : 1,
         ...(props.style || null),
       }}
@@ -435,7 +439,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           pointerEvents: headerPassthrough ? (contentInteractive ? 'auto' : 'none') : undefined,
         }}
       >
-        {canClickToOpen ? (
+        {allowClickToOpenOverlay ? (
           <a
             href={safeOpenUrl}
             target="_blank"
@@ -455,11 +459,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             onPointerDownCapture={e => {
               try {
                 e.preventDefault()
-              } catch {
-                void 0
-              }
-              try {
-                e.stopPropagation()
               } catch {
                 void 0
               }
@@ -498,7 +497,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
                 background: 'transparent',
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
-                pointerEvents: forwardingEnabled ? 'none' : undefined,
+                pointerEvents: editorMode ? 'none' : (forwardingEnabled ? 'none' : undefined),
                 touchAction: 'auto',
               }}
               onLoad={() => setReady(true)}
@@ -519,7 +518,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
                 background: 'transparent',
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
-                pointerEvents: forwardingEnabled ? 'none' : undefined,
+                pointerEvents: editorMode ? 'none' : (forwardingEnabled ? 'none' : undefined),
               }}
             />
           ) : (
@@ -536,7 +535,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
                 background: 'transparent',
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
-                pointerEvents: forwardingEnabled ? 'none' : undefined,
+                pointerEvents: editorMode ? 'none' : (forwardingEnabled ? 'none' : undefined),
                 touchAction: 'auto',
               }}
               onLoad={() => setReady(true)}
@@ -565,7 +564,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
                 background: 'transparent',
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
-                pointerEvents: forwardingEnabled ? 'none' : undefined,
+                pointerEvents: editorMode ? 'none' : (forwardingEnabled ? 'none' : undefined),
               }}
             />
           ) : (
@@ -585,7 +584,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
                 background: 'transparent',
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
-                pointerEvents: forwardingEnabled ? 'none' : undefined,
+                pointerEvents: editorMode ? 'none' : (forwardingEnabled ? 'none' : undefined),
               }}
             />
           )
@@ -608,7 +607,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
               background: 'transparent',
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
-              pointerEvents: forwardingEnabled ? 'none' : undefined,
+                pointerEvents: editorMode ? 'none' : (forwardingEnabled ? 'none' : undefined),
             }}
           />
         )}

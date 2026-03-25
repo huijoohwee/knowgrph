@@ -52,6 +52,9 @@ export function GraphTableWorkspaceHeader(props: {
   onAddRow: () => void
   onDeleteSelected: () => void
   hasSelection: boolean
+  syncNowVisible?: boolean
+  syncNowDisabled?: boolean
+  onSyncNow?: () => void
   onClose: () => void
 }) {
   return (
@@ -115,6 +118,16 @@ export function GraphTableWorkspaceHeader(props: {
         </section>
 
         <nav className="kg-toolbar flex items-center gap-2" aria-label="Table actions">
+          {props.syncNowVisible ? (
+            <button
+              type="button"
+              className={`App-toolbar__btn ${props.panelTypography.microLabelClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+              onClick={props.onSyncNow}
+              disabled={props.syncNowDisabled}
+            >
+              {UI_LABELS.syncNow}
+            </button>
+          ) : null}
           <button
             type="button"
             className={`App-toolbar__btn ${props.panelTypography.microLabelClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}

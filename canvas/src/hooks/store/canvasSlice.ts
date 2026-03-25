@@ -1,10 +1,17 @@
 import type { GraphState, CanvasSnapshotFns, ThreeCameraPose, ThreeCameraSnapshotFns, ThreeGlbSnapshotFns, ThreeLayoutSnapshotFns } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
-import { LS_KEYS, DEFAULT_CANVAS_2D_RENDERER, DEFAULT_VIEWPORT_CONTROLS_PRESET, UI_COPY } from '@/lib/config'
+import {
+  LS_KEYS,
+  DEFAULT_CANVAS_2D_RENDERER,
+  DEFAULT_VIEWPORT_CONTROLS_PRESET,
+  DEFAULT_INFINITE_CANVAS_INTERACTION_MODE,
+  DEFAULT_CANVAS_WORKSPACE_SYNC_MODE,
+  UI_COPY,
+} from '@/lib/config'
 import { getLocalStorage, lsBool, lsFloat, lsInt, lsJson, lsSetBool, lsSetFloat, lsSetInt, lsSetJson } from '@/lib/persistence'
 import { coerceViewportControlsPreset } from '@/lib/canvas/viewport-controls'
-import type { Canvas2dRendererId } from '@/lib/config'
+import type { Canvas2dRendererId, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
 import {
   FLOW_WHEEL_ZOOM_SMOOTH_MAX_DURATION_DEFAULT_MS,
   FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MAX_MS,
@@ -99,6 +106,17 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
 
   const initialFlowEditorSelectionOnDrag = lsBool(LS_KEYS.flowEditorSelectionOnDrag, false)
   const initialFlowEditorOverlayWheelProxyEnabled = lsBool(LS_KEYS.flowEditorOverlayWheelProxyEnabled, true)
+
+  const initialInfiniteCanvasInteractionMode = lsJson(
+    LS_KEYS.infiniteCanvasInteractionMode,
+    DEFAULT_INFINITE_CANVAS_INTERACTION_MODE,
+    (v): InfiniteCanvasInteractionMode => (v === 'interactive' ? 'interactive' : 'static'),
+  )
+  const initialCanvasWorkspaceSyncMode = lsJson(
+    LS_KEYS.canvasWorkspaceSyncMode,
+    DEFAULT_CANVAS_WORKSPACE_SYNC_MODE,
+    (v): CanvasWorkspaceSyncMode => (v === 'realtime' ? 'realtime' : 'manual'),
+  )
 
   const initialPinnedStored = lsBool(LS_KEYS.viewportPinned, false)
   const initialFitToScreenStored = lsBool(LS_KEYS.viewportFitToScreen, true)
@@ -327,6 +345,8 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   canvasRenderMode: '2d' as '2d' | '3d',
   canvas2dRenderer: initialCanvas2dRenderer,
   viewportControlsPreset: initialViewportControlsPreset,
+  infiniteCanvasInteractionMode: initialInfiniteCanvasInteractionMode,
+  canvasWorkspaceSyncMode: initialCanvasWorkspaceSyncMode,
   flowEditorSelectionOnDrag: initialFlowEditorSelectionOnDrag,
   flowEditorOverlayWheelProxyEnabled: initialFlowEditorOverlayWheelProxyEnabled,
   flowWheelZoomSpeedMultiplier: initialFlowWheelZoomSpeedMultiplier,
@@ -509,6 +529,28 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     if (cur === next) return
     lsSetJson(LS_KEYS.viewportControlsPreset, next)
     set({ viewportControlsPreset: next })
+  },
+  setInfiniteCanvasInteractionMode: (mode: InfiniteCanvasInteractionMode) => {
+    const next: InfiniteCanvasInteractionMode = mode === 'interactive' ? 'interactive' : 'static'
+    const cur = get().infiniteCanvasInteractionMode
+    if (cur === next) return
+    try {
+      lsSetJson(LS_KEYS.infiniteCanvasInteractionMode, next)
+    } catch {
+      void 0
+    }
+    set({ infiniteCanvasInteractionMode: next })
+  },
+  setCanvasWorkspaceSyncMode: (mode: CanvasWorkspaceSyncMode) => {
+    const next: CanvasWorkspaceSyncMode = mode === 'realtime' ? 'realtime' : 'manual'
+    const cur = get().canvasWorkspaceSyncMode
+    if (cur === next) return
+    try {
+      lsSetJson(LS_KEYS.canvasWorkspaceSyncMode, next)
+    } catch {
+      void 0
+    }
+    set({ canvasWorkspaceSyncMode: next })
   },
   setFlowEditorSelectionOnDrag: (v: boolean) => {
     const next = Boolean(v)

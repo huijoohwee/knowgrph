@@ -57,6 +57,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   } = useGraphStore()
   const {
     renderMediaAsNodes,
+    infiniteCanvasInteractionMode,
     mediaPanelDensity,
     threeIframeOverlayPoolMax,
     threeIframeOverlayMaxVisibleDefault,
@@ -72,11 +73,13 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     threeIframeOverlaySizeScaleFactor,
     selectedNodeId,
     selectedNodeIds,
+    multiDimTableModeEnabled,
     markdownDocumentText,
     markdownDocumentName,
   } = useGraphStore(
     useShallow(s => ({
       renderMediaAsNodes: s.renderMediaAsNodes === true,
+      infiniteCanvasInteractionMode: (s.infiniteCanvasInteractionMode || 'static') as 'static' | 'interactive',
       mediaPanelDensity: s.mediaPanelDensity,
       threeIframeOverlayPoolMax: s.threeIframeOverlayPoolMax,
       threeIframeOverlayMaxVisibleDefault: s.threeIframeOverlayMaxVisibleDefault,
@@ -92,6 +95,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
       threeIframeOverlaySizeScaleFactor: s.threeIframeOverlaySizeScaleFactor,
       selectedNodeId: s.selectedNodeId,
       selectedNodeIds: s.selectedNodeIds,
+      multiDimTableModeEnabled: (s as unknown as { multiDimTableModeEnabled?: unknown }).multiDimTableModeEnabled === true,
       markdownDocumentText: s.markdownDocumentText,
       markdownDocumentName: s.markdownDocumentName,
     })),
@@ -270,21 +274,27 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     return listMediaOverlayNodes({ enabled: true, nodes, poolMax, preferredNodeIds })
   }, [sceneGraph, threeIframeOverlayPoolMax])
 
+  const markdownPanelAllowedKinds = useMemo(() => {
+    return ['table', 'code', 'blockquote', 'callout', 'html'] as const
+  }, [multiDimTableModeEnabled])
+
+  const deferredMarkdownText = React.useDeferredValue(String(markdownDocumentText || ''))
+
   const markdownDesignLayout: MarkdownDesignLayout | null = useMemo(() => {
-    const text = String(markdownDocumentText || '')
+    const text = String(deferredMarkdownText || '')
     const name = String(markdownDocumentName || '')
     if (!text.trim()) return null
     const { tokens } = lexMarkdown(text)
     const markdownTokensKey = buildMarkdownTokensKey(text)
     return deriveMarkdownDesignLayout({ activeDocumentPath: name || 'document', markdownTokensKey, tokens })
-  }, [markdownDocumentName, markdownDocumentText])
+  }, [deferredMarkdownText, markdownDocumentName])
 
   const markdownPanelNodesPool = useMemo(() => {
     const graph = sceneGraph as GraphData | null
     const nodes = graph && Array.isArray(graph.nodes) ? (graph.nodes as GraphNode[]) : []
     const exclude = new Set<string>(mediaNodesPool.map(n => n.id))
-    return listMarkdownPanelOverlayNodes({ nodes, layout: markdownDesignLayout, excludeNodeIdSet: exclude })
-  }, [mediaNodesPool, markdownDesignLayout, sceneGraph])
+    return listMarkdownPanelOverlayNodes({ nodes, layout: markdownDesignLayout, excludeNodeIdSet: exclude, allowedKinds: markdownPanelAllowedKinds })
+  }, [markdownPanelAllowedKinds, mediaNodesPool, markdownDesignLayout, sceneGraph])
 
   const overlayNodesPool = useMemo(() => {
     if (markdownPanelNodesPool.length === 0) return mediaNodesPool
@@ -986,6 +996,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
       {active && overlayNodesPool.length > 0 ? (
         <section aria-label="3D media overlay" className="absolute inset-0 z-[80] pointer-events-none">
           {overlayNodesPool.map(n => {
+            const allowEmbeddedMediaInteraction = infiniteCanvasInteractionMode === 'interactive'
             return (
               <RichMediaPanel
                 key={n.id}
@@ -998,10 +1009,10 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
                 srcDoc={n.srcDoc}
                 openUrl={n.openUrl}
                 kind={n.kind}
-                interactive={renderMediaAsNodes === true && n.interactive}
+                interactive={allowEmbeddedMediaInteraction ? true : (renderMediaAsNodes === true && n.interactive)}
                 hideUntilReady={false}
                 iframeMode="srcdoc-when-needed"
-                forwardWheelTo={() => glCanvasRef.current}
+                forwardWheelTo={allowEmbeddedMediaInteraction ? undefined : (() => glCanvasRef.current)}
                 onOverlayPanStart={({ pointerId }) => {
                   const pose = useGraphStore.getState().captureThreeCameraPose()
                   if (!pose) return

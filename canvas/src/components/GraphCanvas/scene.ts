@@ -76,6 +76,7 @@ type SetupGraphSceneArgs = {
   prevPositions?: Record<string, { x: number; y: number }> | null
   skipInitialLayout?: boolean
   freezeSimulation?: boolean
+  enableContinuousForceLayout?: boolean
   groupsForBboxCollide: GraphGroup[]
   layoutGroupKeyByNodeId: Record<string, string> | null
   gRef: MutableRefObject<GSelection | null>
@@ -439,7 +440,9 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
   })
   simulationRef.current = simulation
 
-  if (effectiveSkipInitialLayout && readLayoutMode(schema) === 'force' && args.freezeSimulation !== true) {
+  const continuousForceLayout = args.enableContinuousForceLayout === true && args.freezeSimulation !== true
+
+  if (effectiveSkipInitialLayout && readLayoutMode(schema) === 'force' && args.freezeSimulation !== true && !continuousForceLayout) {
     try {
       simulation.alphaTarget(0)
       simulation.alpha(0)
@@ -518,7 +521,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       })
     }
 
-    if (readLayoutMode(schema) === 'force' && args.freezeSimulation !== true) {
+    if (readLayoutMode(schema) === 'force' && args.freezeSimulation !== true && !continuousForceLayout) {
       try {
         simulation.alphaTarget(0)
         simulation.alpha(0)
@@ -527,6 +530,14 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
         void 0
       }
       svg.attr('data-kg-layout-frozen', '1')
+    }
+  }
+
+  if (continuousForceLayout) {
+    try {
+      svg.attr('data-kg-layout-frozen', '0')
+    } catch {
+      void 0
     }
   }
 

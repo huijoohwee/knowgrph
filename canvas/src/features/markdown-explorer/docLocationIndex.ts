@@ -1,5 +1,5 @@
 import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
-import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 
 export type DocLocationHit = {
   kind: 'node' | 'edge'
@@ -42,16 +42,17 @@ const lowerBoundPrefixMaxEndAtLeast = (prefixMaxEnd: number[], line: number, hi:
 }
 
 export function buildDocLocationIndex(args: {
-  graphData: GraphData | null
+  nodes: readonly GraphNode[] | null
+  edges: readonly GraphEdge[] | null
   matchesDoc: (documentPath: unknown) => boolean
 }): DocLocationIndex {
-  const { graphData, matchesDoc } = args
-  if (!graphData) return { size: 0, find: () => null }
+  const { nodes, edges, matchesDoc } = args
+  if (!nodes && !edges) return { size: 0, find: () => null }
 
   const ranges: RangeEntry[] = []
 
-  const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
-  for (const n of nodes) {
+  const nodeList = Array.isArray(nodes) ? (nodes as GraphNode[]) : []
+  for (const n of nodeList) {
     const id = String(n?.id || '')
     if (!id) continue
     const loc = getDocumentLocationFromMetadata(n?.metadata)
@@ -62,8 +63,8 @@ export function buildDocLocationIndex(args: {
     ranges.push({ start, end, kind: 'node', id })
   }
 
-  const edges = Array.isArray(graphData.edges) ? (graphData.edges as GraphEdge[]) : []
-  for (const e of edges) {
+  const edgeList = Array.isArray(edges) ? (edges as GraphEdge[]) : []
+  for (const e of edgeList) {
     const id = String(e?.id || '')
     if (!id) continue
     const loc = getDocumentLocationFromMetadata(e?.metadata)
@@ -107,4 +108,3 @@ export function buildDocLocationIndex(args: {
 
   return { size: ranges.length, find }
 }
-

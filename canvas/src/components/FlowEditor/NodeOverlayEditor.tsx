@@ -26,6 +26,7 @@ import { lsBool, lsSetBool } from '@/lib/persistence'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { clampOverlayTopLeftFullyInViewport, clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
+import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
@@ -844,13 +845,17 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       const startLeft = applied ? applied.left : pinnedLeftPx
       let pendingTop = startTop
       let pendingLeft = startLeft
-      let raf: number | null = null
 
       const flush = () => {
-        raf = null
         setPinnedTopPx(prev => (prev === pendingTop ? prev : pendingTop))
         setPinnedLeftPx(prev => (prev === pendingLeft ? prev : pendingLeft))
       }
+
+      const scheduler = createRafLatestScheduler((pos: { top: number; left: number }) => {
+        pendingTop = pos.top
+        pendingLeft = pos.left
+        flush()
+      })
 
       startPointerDrag({
         ev: nativeEv,
@@ -868,32 +873,19 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
           })
           pendingTop = next.top
           pendingLeft = next.left
-          if (raf != null) return
-          raf = requestAnimationFrame(flush)
+          scheduler.schedule({ top: pendingTop, left: pendingLeft })
         },
         onEnd: () => {
-          if (raf != null) {
-            try {
-              cancelAnimationFrame(raf)
-            } catch {
-              void 0
-            }
-            flush()
-          }
+          scheduler.cancel()
+          flush()
           persistFloatingPos({ top: pendingTop, left: pendingLeft })
           const cur = useGraphStore.getState().flowNodeQuickEditorDraggingNodeId
           if (cur === nodeId) useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
           unlockGlobalUserSelect()
         },
         onCancel: () => {
-          if (raf != null) {
-            try {
-              cancelAnimationFrame(raf)
-            } catch {
-              void 0
-            }
-            flush()
-          }
+          scheduler.cancel()
+          flush()
           persistFloatingPos({ top: pendingTop, left: pendingLeft })
           const cur = useGraphStore.getState().flowNodeQuickEditorDraggingNodeId
           if (cur === nodeId) useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
@@ -1011,13 +1003,11 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
         const grabDx = startPointerWorld.x - startWorld.x
         const grabDy = startPointerWorld.y - startWorld.y
 
-        let raf: number | null = null
         let pending: { x: number; y: number } | null = null
 
-        const flush = () => {
-          raf = null
-          if (!pending) return
-          worldDragOverrideRef.current = pending
+        const flush = (p: { x: number; y: number } | null) => {
+          if (!p) return
+          worldDragOverrideRef.current = p
           applyOverlayPosition()
           try {
             window.dispatchEvent(new CustomEvent(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
@@ -1025,6 +1015,11 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
             void 0
           }
         }
+
+        const scheduler = createRafLatestScheduler((p: { x: number; y: number }) => {
+          pending = p
+          flush(p)
+        })
 
         startPointerDrag({
           ev: event.nativeEvent,
@@ -1038,18 +1033,11 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
               sy: mv.clientY - offset.top,
             })
             pending = { x: pointerWorld.x - grabDx, y: pointerWorld.y - grabDy }
-            if (raf != null) return
-            raf = requestAnimationFrame(flush)
+            scheduler.schedule(pending)
           },
           onEnd: () => {
-            if (raf != null) {
-              try {
-                cancelAnimationFrame(raf)
-              } catch {
-                void 0
-              }
-              flush()
-            }
+            scheduler.cancel()
+            flush(pending)
             const out = worldDragOverrideRef.current || startWorld
             worldDragOverrideRef.current = null
             persistWorldPos(out)
@@ -1057,14 +1045,8 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
             unlockGlobalUserSelect()
           },
           onCancel: () => {
-            if (raf != null) {
-              try {
-                cancelAnimationFrame(raf)
-              } catch {
-                void 0
-              }
-              flush()
-            }
+            scheduler.cancel()
+            flush(pending)
             worldDragOverrideRef.current = null
             applyOverlayPosition()
             useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
@@ -1081,10 +1063,10 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(nodeId)
       let pendingTop = startTop
       let pendingLeft = startLeft
-      let raf: number | null = null
 
-      const flush = () => {
-        raf = null
+      const flush = (pos: { top: number; left: number }) => {
+        pendingTop = pos.top
+        pendingLeft = pos.left
         pinnedDragOverrideRef.current = { left: pendingLeft, top: pendingTop }
         applyOverlayPosition()
         try {
@@ -1094,6 +1076,10 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
         }
       }
 
+      const scheduler = createRafLatestScheduler((pos: { top: number; left: number }) => {
+        flush(pos)
+      })
+
       startPointerDrag({
         ev: event.nativeEvent,
         cursor: 'move',
@@ -1102,18 +1088,11 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
           const dy = mv.clientY - startY
           pendingTop = startTop + dy
           pendingLeft = startLeft + dx
-          if (raf != null) return
-          raf = requestAnimationFrame(flush)
+          scheduler.schedule({ top: pendingTop, left: pendingLeft })
         },
         onEnd: () => {
-          if (raf != null) {
-            try {
-              cancelAnimationFrame(raf)
-            } catch {
-              void 0
-            }
-            flush()
-          }
+          scheduler.cancel()
+          flush({ top: pendingTop, left: pendingLeft })
           pinnedDragOverrideRef.current = null
           const scaled = scaledSizeRef.current
           const viewportWidth = viewportRef.current.width
@@ -1134,14 +1113,8 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
           unlockGlobalUserSelect()
         },
         onCancel: () => {
-          if (raf != null) {
-            try {
-              cancelAnimationFrame(raf)
-            } catch {
-              void 0
-            }
-            flush()
-          }
+          scheduler.cancel()
+          flush({ top: pendingTop, left: pendingLeft })
           pinnedDragOverrideRef.current = null
           const scaled = scaledSizeRef.current
           const viewportWidth = viewportRef.current.width

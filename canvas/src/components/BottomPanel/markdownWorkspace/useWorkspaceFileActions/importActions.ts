@@ -56,6 +56,14 @@ export function useWorkspaceImportActions(args: {
         if (importJobRef.current !== jobId) return
         bulkSetWorkspaceEntrySources(res.sources)
         await refresh()
+        try {
+          const { applyWorkspaceImportToCanvas } = (await import('@/features/workspace-fs/applyWorkspaceImportToCanvas')) as typeof import(
+            '@/features/workspace-fs/applyWorkspaceImportToCanvas'
+          )
+          await applyWorkspaceImportToCanvas({ fs, createdPaths: res.createdPaths })
+        } catch {
+          void 0
+        }
         const imported = res.createdPaths.length
         const skipped = res.skipped.length
         const failed = res.failed.length
@@ -91,6 +99,14 @@ export function useWorkspaceImportActions(args: {
         if (importJobRef.current !== jobId) return
         bulkSetWorkspaceEntrySources(res.sources)
         await refresh()
+        try {
+          const { applyWorkspaceImportToCanvas } = (await import('@/features/workspace-fs/applyWorkspaceImportToCanvas')) as typeof import(
+            '@/features/workspace-fs/applyWorkspaceImportToCanvas'
+          )
+          await applyWorkspaceImportToCanvas({ fs, createdPaths: res.createdPaths })
+        } catch {
+          void 0
+        }
         const imported = res.createdPaths.length
         const skipped = res.skipped.length
         const failed = res.failed.length
@@ -211,6 +227,15 @@ export function useWorkspaceImportActions(args: {
             return true
           }
         })()
+
+        try {
+          const { applyWorkspaceImportToCanvas } = (await import('@/features/workspace-fs/applyWorkspaceImportToCanvas')) as typeof import(
+            '@/features/workspace-fs/applyWorkspaceImportToCanvas'
+          )
+          await applyWorkspaceImportToCanvas({ fs, createdPaths: res.createdPaths, opts: { applyToGraph: shouldApplyToGraph } })
+        } catch {
+          void 0
+        }
 
         if (createdPath) {
           await focusAfterImport(createdPath, { sourceUrl, applyToGraph: shouldApplyToGraph, jobId })

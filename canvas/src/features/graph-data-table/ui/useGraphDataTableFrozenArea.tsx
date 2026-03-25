@@ -66,8 +66,31 @@ export function useGraphDataTableFrozenArea(
   const frozenAreaAvailableModesRef = React.useRef<GraphDataTableFreezeMode[]>([])
   const isFrozenAreaDraggingRef = React.useRef(false)
   const frozenAreaSnapTimeoutRef = React.useRef<number | null>(null)
+  const frozenAreaIndicatorRafRef = React.useRef<number | null>(null)
+  const frozenAreaIndicatorLeftRef = React.useRef<number | null>(null)
   const [frozenAreaDragIndicatorLeft, setFrozenAreaDragIndicatorLeft] = React.useState<number | null>(null)
   const [isFrozenAreaIndicatorVisible, setIsFrozenAreaIndicatorVisible] = React.useState(false)
+
+  React.useEffect(() => {
+    return () => {
+      if (frozenAreaSnapTimeoutRef.current != null) {
+        try {
+          window.clearTimeout(frozenAreaSnapTimeoutRef.current)
+        } catch {
+          void 0
+        }
+        frozenAreaSnapTimeoutRef.current = null
+      }
+      if (frozenAreaIndicatorRafRef.current != null) {
+        try {
+          cancelAnimationFrame(frozenAreaIndicatorRafRef.current)
+        } catch {
+          void 0
+        }
+        frozenAreaIndicatorRafRef.current = null
+      }
+    }
+  }, [])
 
   const availableFreezeModes = React.useMemo<GraphDataTableFreezeMode[]>(() => {
     const modes: GraphDataTableFreezeMode[] = ['none']
@@ -180,6 +203,7 @@ export function useGraphDataTableFrozenArea(
       if (container) {
         const rect = container.getBoundingClientRect()
         const left = clientX - rect.left + container.scrollLeft
+        frozenAreaIndicatorLeftRef.current = left
         setFrozenAreaDragIndicatorLeft(left)
         setIsFrozenAreaIndicatorVisible(true)
       }
@@ -193,12 +217,35 @@ export function useGraphDataTableFrozenArea(
           if (!c) return
           const r = c.getBoundingClientRect()
           const left = mv.clientX - r.left + c.scrollLeft
-          setFrozenAreaDragIndicatorLeft(left)
+          frozenAreaIndicatorLeftRef.current = left
+          if (frozenAreaIndicatorRafRef.current != null) return
+          frozenAreaIndicatorRafRef.current = requestAnimationFrame(() => {
+            frozenAreaIndicatorRafRef.current = null
+            if (!isFrozenAreaDraggingRef.current) return
+            const next = frozenAreaIndicatorLeftRef.current
+            setFrozenAreaDragIndicatorLeft(prev => (prev === next ? prev : next))
+          })
         },
         onEnd: up => {
+          if (frozenAreaIndicatorRafRef.current != null) {
+            try {
+              cancelAnimationFrame(frozenAreaIndicatorRafRef.current)
+            } catch {
+              void 0
+            }
+            frozenAreaIndicatorRafRef.current = null
+          }
           finishFrozenAreaDrag(up.clientX)
         },
         onCancel: () => {
+          if (frozenAreaIndicatorRafRef.current != null) {
+            try {
+              cancelAnimationFrame(frozenAreaIndicatorRafRef.current)
+            } catch {
+              void 0
+            }
+            frozenAreaIndicatorRafRef.current = null
+          }
           finishFrozenAreaDrag(null)
         },
       })

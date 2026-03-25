@@ -34,7 +34,7 @@ export function EmbeddedEditorShell(props: { active: boolean }) {
   return (
     <div className={`relative w-full h-full ${props.active ? 'pointer-events-auto' : 'pointer-events-none'}`} aria-hidden={!props.active}>
       <div className={`absolute inset-0 ${showMarkdown ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <MarkdownWorkspace />
+        <MarkdownWorkspace active={props.active && showMarkdown} />
       </div>
 
       {graphTableWarmed ? (

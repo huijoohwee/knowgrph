@@ -2,10 +2,23 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { SettingMeta } from './types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { ThemeMode } from '@/lib/ui/theme'
+import { LS_KEYS } from '@/lib/config'
+import { lsBool, lsSetBool } from '@/lib/persistence'
 
 const s = () => useGraphStore.getState()
 
 export const uiUiSettingsRegistry: SettingMeta[] = [
+  {
+    key: 'startup.openWorkflowPanel',
+    type: 'boolean',
+    source: 'localStorage',
+    read: () => lsBool(LS_KEYS.startupOpenWorkflowPanel, false),
+    write: (v) => {
+      lsSetBool(LS_KEYS.startupOpenWorkflowPanel, Boolean(v))
+    },
+    docKey: 'startup.openWorkflowPanel',
+    default: () => false,
+  },
   {
     key: 'uiOverlayOpacity',
     type: 'number',
@@ -310,7 +323,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     read: () => s().enableLaunchSpotlight,
     write: (v) => s().setEnableLaunchSpotlight(Boolean(v)),
     docKey: 'enableLaunchSpotlight',
-    default: () => true,
+    default: () => false,
   },
   {
     key: 'spotlight.margin',

@@ -33,6 +33,9 @@ export function RichMediaOverlayLayer2d(props: {
     onHeaderDragEnd,
   } = props
 
+  const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
+  const allowEmbeddedMediaInteraction = infiniteCanvasInteractionMode === 'interactive'
+
   if (!active) return null
   if (mediaOverlayNodes.length === 0) return null
 
@@ -47,16 +50,15 @@ export function RichMediaOverlayLayer2d(props: {
             overlayId={n.id}
             data-kg-canvas-wheel-ignore="true"
             data-kg-canvas-pointer-ignore="true"
-            data-kg-panel-box="leftTop"
             className="absolute left-0 top-0 pointer-events-auto"
             title={n.title}
             url={n.url}
             srcDoc={n.srcDoc}
             openUrl={n.openUrl}
             kind={kind}
-            interactive={renderMediaAsNodes === true && n.interactive}
+            interactive={allowEmbeddedMediaInteraction ? true : (renderMediaAsNodes === true && n.interactive)}
             iframeMode="srcdoc-when-needed"
-            forwardWheelTo={() => svgRef.current}
+            forwardWheelTo={allowEmbeddedMediaInteraction ? undefined : (() => svgRef.current)}
             shouldStartHeaderDrag={() => {
               if (useGraphStore.getState().canvasPointerMode2d === 'pan') return false
               if (isSpacePanHeld()) return false

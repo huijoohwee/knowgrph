@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { PANEL_MIN_PX, PANEL_MAX_RATIO, PANEL_MIN_RATIO } from '@/features/panels/config'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
+import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 
 type PointerMoveListener = (mv: PointerEvent) => void
 
@@ -23,30 +24,35 @@ export function useDragResize({
   useEffect(() => {
     const el = handleRef?.current
     if (!el) return
-    let rafId: number | null = null
+    const scheduler = createRafLatestScheduler((mv: PointerEvent) => {
+      const startY = startYRef.current
+      const startRatio = startRatioRef.current
+      if (startY == null || startRatio == null) return
+      const dy = startY - mv.clientY
+      const vh = window.innerHeight
+      const dynamicMaxPx = Math.max(PANEL_MIN_PX, Math.min(vh * PANEL_MAX_RATIO, vh))
+      const startPx = vh * startRatio
+      const nextPxUnclamped = startPx + dy
+      const nextPx = Math.max(PANEL_MIN_PX, Math.min(dynamicMaxPx, nextPxUnclamped))
+      const nextRatio = Math.max(PANEL_MIN_RATIO, Math.min(PANEL_MAX_RATIO, nextPx / vh))
+      pendingRatioRef.current = nextRatio
+      setRatio(nextRatio)
+    })
+
+    const startYRef = { current: null as number | null }
+    const startRatioRef = { current: null as number | null }
+    const pendingRatioRef = { current: ratioRef.current as number }
 
     const onDown = (ev: PointerEvent) => {
       if (collapsedRef.current) return
       if (ev.button !== undefined && ev.button !== 0) return
 
-      const startY = ev.clientY
-      const startRatio = ratioRef.current
-      let pendingRatio = startRatio
+      startYRef.current = ev.clientY
+      startRatioRef.current = ratioRef.current
+      pendingRatioRef.current = ratioRef.current
 
       const onMove: PointerMoveListener = (mv) => {
-        const run = () => {
-          const dy = startY - mv.clientY
-          const vh = window.innerHeight
-          const dynamicMaxPx = Math.max(PANEL_MIN_PX, Math.min(vh * PANEL_MAX_RATIO, vh))
-          const startPx = vh * startRatio
-          const nextPxUnclamped = startPx + dy
-          const nextPx = Math.max(PANEL_MIN_PX, Math.min(dynamicMaxPx, nextPxUnclamped))
-          const nextRatio = Math.max(PANEL_MIN_RATIO, Math.min(PANEL_MAX_RATIO, nextPx / vh))
-          pendingRatio = nextRatio
-          setRatio(nextRatio)
-        }
-        if (rafId !== null) cancelAnimationFrame(rafId)
-        rafId = requestAnimationFrame(run)
+        scheduler.schedule(mv)
       }
 
       startPointerDrag({
@@ -59,28 +65,19 @@ export function useDragResize({
         },
         onMove,
         onEnd: () => {
-          if (rafId !== null) {
-            cancelAnimationFrame(rafId)
-            rafId = null
-          }
-          setRatio(pendingRatio)
+          scheduler.cancel()
+          setRatio(pendingRatioRef.current)
         },
         onCancel: () => {
-          if (rafId !== null) {
-            cancelAnimationFrame(rafId)
-            rafId = null
-          }
-          setRatio(pendingRatio)
+          scheduler.cancel()
+          setRatio(pendingRatioRef.current)
         },
       })
     }
     el.addEventListener('pointerdown', onDown)
     return () => {
       el.removeEventListener('pointerdown', onDown)
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId)
-        rafId = null
-      }
+      scheduler.cancel()
     }
   }, [handleRef, setRatio, collapsed])
 }

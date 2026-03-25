@@ -8,7 +8,7 @@ import type { TraversalSummary } from '@/features/panels/utils/orchestratorTrave
 import { isJsonValue } from '@/lib/graph/jsonValue'
 import { normalizeGraphData } from '@/lib/graph/normalize'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
-import { composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
+import { buildSourceLayerKeys, composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
 import {
   applyLayoutAutosuggestFromMetadata,
   applyNodeQuickEditorRegistryFromMetadata,
@@ -32,8 +32,55 @@ type ParsedComposedId = { layerId: string; innerId: string }
 
 const COMPOSED_NODE_POSITION_KEYS = new Set(['x', 'y', 'vx', 'vy', 'fx', 'fy'])
 
+function isPositionOnlyNodeUpdate(updates: Partial<GraphNode>): boolean {
+  const keys = Object.keys(updates || {})
+  if (keys.length === 0) return false
+  for (let i = 0; i < keys.length; i += 1) {
+    const k = keys[i]
+    if (!k) continue
+    if (!COMPOSED_NODE_POSITION_KEYS.has(k)) return false
+  }
+  return true
+}
+
+function mergeNodeForUpdate(current: GraphNode, updates: Partial<GraphNode>): GraphNode {
+  const hasX = Object.prototype.hasOwnProperty.call(updates, 'x')
+  const hasY = Object.prototype.hasOwnProperty.call(updates, 'y')
+  const isPositionCommit = hasX || hasY
+  if (!isPositionCommit) return { ...current, ...updates }
+
+  const hasFx = Object.prototype.hasOwnProperty.call(updates, 'fx')
+  const hasFy = Object.prototype.hasOwnProperty.call(updates, 'fy')
+  const hasVx = Object.prototype.hasOwnProperty.call(updates, 'vx')
+  const hasVy = Object.prototype.hasOwnProperty.call(updates, 'vy')
+  const clearPins = !hasFx && !hasFy
+  const clearVelocity = !hasVx && !hasVy
+
+  if (!clearPins && !clearVelocity) return { ...current, ...updates }
+
+  const any = current as unknown as Record<string, unknown>
+  const rest: Record<string, unknown> = { ...any }
+  if (clearPins) {
+    delete rest.fx
+    delete rest.fy
+  }
+  if (clearVelocity) {
+    delete rest.vx
+    delete rest.vy
+  }
+  return { ...(rest as unknown as GraphNode), ...updates }
+}
+
 let composedPendingPositionWrites: Record<string, Record<string, Partial<GraphNode>>> = {}
-let composedPendingPositionWriteTimer: number | null = null
+let composedPendingPositionWriteGraphKey = ''
+
+function readComposedPositionWriteGraphKey(graphData: GraphData | null): string {
+  if (!graphData || !isComposedGraphData(graphData)) return ''
+  const meta = (graphData.metadata || {}) as Record<string, unknown>
+  const content = typeof meta.sourceLayerHash === 'string' ? meta.sourceLayerHash : ''
+  const order = typeof meta.sourceLayerOrderHash === 'string' ? meta.sourceLayerOrderHash : ''
+  return `${content}|${order}`
+}
 
 function isPureComposedNodePositionUpdate(updates: Partial<GraphNode>): boolean {
   const keys = Object.keys(updates || {})
@@ -46,49 +93,76 @@ function isPureComposedNodePositionUpdate(updates: Partial<GraphNode>): boolean 
   return true
 }
 
-function scheduleFlushComposedPositionWrites(args: { set: SetGraph; get: GetGraph }): void {
-  if (typeof window === 'undefined') return
-  if (composedPendingPositionWriteTimer != null) {
+function flushComposedPositionWritesNow(args: { set: SetGraph; get: GetGraph }): void {
+  const stateForKey = args.get()
+  const currentKey = readComposedPositionWriteGraphKey(stateForKey.graphData)
+  if (composedPendingPositionWriteGraphKey && currentKey && composedPendingPositionWriteGraphKey !== currentKey) {
+    composedPendingPositionWrites = {}
+    composedPendingPositionWriteGraphKey = ''
+    return
+  }
+  const pending = composedPendingPositionWrites
+  composedPendingPositionWrites = {}
+  composedPendingPositionWriteGraphKey = ''
+  const sourceFiles = args.get().sourceFiles || []
+  if (sourceFiles.length === 0) return
+
+  let changed = false
+  const nextSourceFiles = sourceFiles.map(f => {
+    const byInnerId = pending[String(f.id || '')]
+    if (!byInnerId) return f
+    const pg = f.parsedGraphData
+    if (!pg || !Array.isArray(pg.nodes)) return f
+
+    let touched = false
+    const nextNodes = pg.nodes.map(n => {
+      const u = byInnerId[String(n.id || '')]
+      if (!u) return n
+      touched = true
+      return mergeNodeForUpdate(n as unknown as GraphNode, u)
+    })
+    if (!touched) return f
+    changed = true
+    return {
+      ...f,
+      parsedGraphData: { ...pg, nodes: nextNodes },
+      parsedGraphRevision: (f.parsedGraphRevision || 0) + 1,
+    }
+  })
+
+  if (!changed) return
+  const state = args.get()
+  const currentGraphData = state.graphData
+  if (currentGraphData && isComposedGraphData(currentGraphData)) {
     try {
-      window.clearTimeout(composedPendingPositionWriteTimer)
+      const layers = buildLayersFromSourceFiles(nextSourceFiles)
+      const { contentKey, orderKey } = buildSourceLayerKeys(layers)
+      const currentMeta = (currentGraphData.metadata && typeof currentGraphData.metadata === 'object'
+        ? (currentGraphData.metadata as Record<string, unknown>)
+        : {}) as Record<string, unknown>
+      const prevContentKey = typeof currentMeta.sourceLayerHash === 'string' ? currentMeta.sourceLayerHash : ''
+      const prevOrderKey = typeof currentMeta.sourceLayerOrderHash === 'string' ? currentMeta.sourceLayerOrderHash : ''
+      if (prevContentKey === contentKey && prevOrderKey === orderKey) {
+        args.set({ sourceFiles: nextSourceFiles })
+        return
+      }
+      args.set({
+        sourceFiles: nextSourceFiles,
+        graphData: {
+          ...currentGraphData,
+          metadata: {
+            ...(currentGraphData.metadata && typeof currentGraphData.metadata === 'object' ? currentGraphData.metadata : {}),
+            sourceLayerHash: contentKey,
+            sourceLayerOrderHash: orderKey,
+          } as unknown as GraphData['metadata'],
+        },
+      })
+      return
     } catch {
       void 0
     }
-    composedPendingPositionWriteTimer = null
   }
-  composedPendingPositionWriteTimer = window.setTimeout(() => {
-    composedPendingPositionWriteTimer = null
-    const pending = composedPendingPositionWrites
-    composedPendingPositionWrites = {}
-    const sourceFiles = args.get().sourceFiles || []
-    if (sourceFiles.length === 0) return
-
-    let changed = false
-    const nextSourceFiles = sourceFiles.map(f => {
-      const byInnerId = pending[String(f.id || '')]
-      if (!byInnerId) return f
-      const pg = f.parsedGraphData
-      if (!pg || !Array.isArray(pg.nodes)) return f
-
-      let touched = false
-      const nextNodes = pg.nodes.map(n => {
-        const u = byInnerId[String(n.id || '')]
-        if (!u) return n
-        touched = true
-        return { ...n, ...u }
-      })
-      if (!touched) return f
-      changed = true
-      return {
-        ...f,
-        parsedGraphData: { ...pg, nodes: nextNodes },
-        parsedGraphRevision: (f.parsedGraphRevision || 0) + 1,
-      }
-    })
-
-    if (!changed) return
-    args.set({ sourceFiles: nextSourceFiles })
-  }, 350) as unknown as number
+  args.set({ sourceFiles: nextSourceFiles })
 }
 
 function parseComposedId(id: string | null | undefined): ParsedComposedId | null {
@@ -122,6 +196,8 @@ function buildLayersFromSourceFiles(sourceFiles: GraphState['sourceFiles']) {
 export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   graphData: null as GraphData | null,
   graphDataRevision: 0,
+  graphContentRevision: 0,
+  docLocationRevision: 0,
   markdownDocumentName: null as string | null,
   markdownDocumentText: null as string | null,
   markdownTokens: null as import('@/features/markdown/ui/markdownPreviewLex').TokenWithLines[] | null,
@@ -359,6 +435,8 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
 
   setGraphData: (graphData: GraphData) => {
     if (graphData === get().graphData) return
+    composedPendingPositionWrites = {}
+    composedPendingPositionWriteGraphKey = ''
     const normalized = normalizeGraphData(graphData)
     const nodeIds = new Set<string>((normalized.nodes || []).map(n => n.id))
     const filteredEdges = (normalized.edges || []).filter(e => {
@@ -383,6 +461,8 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1
       const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
+      const nextContentRev = (s.graphContentRevision || 0) + 1
+      const nextDocRev = (s.docLocationRevision || 0) + 1
       const byKey = (s.collapsedGroupIdsByGraphMetaKey || {}) as Record<string, string[]>
       const nextCollapsed = collapsedKey ? (byKey[collapsedKey] || []) : (s.collapsedGroupIds || [])
       const designByKey = (s.designLayerStateByGraphMetaKey || {}) as Record<string, import('@/features/design/designLayersState').DesignLayerState>
@@ -396,6 +476,8 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       return {
         graphData: nextGraphData,
         graphDataRevision: nextRevision,
+        graphContentRevision: nextContentRev,
+        docLocationRevision: nextDocRev,
         graphValidationStatus: null,
         graphValidationTimestamp: null,
         ...(collapsedKey ? { collapsedGroupIds: nextCollapsed } : {}),
@@ -594,10 +676,14 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   },
 
   clearGraphData: () => {
+    composedPendingPositionWrites = {}
+    composedPendingPositionWriteGraphKey = ''
     get().cancelMinimapWorker?.();
     set(s => ({
       graphData: null,
       graphDataRevision: (s.graphDataRevision || 0) + 1,
+      graphContentRevision: (s.graphContentRevision || 0) + 1,
+      docLocationRevision: (s.docLocationRevision || 0) + 1,
       selectedNodeId: null,
       selectedEdgeId: null,
       selectedNodeIds: [],
@@ -632,7 +718,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       const parsed = parseComposedId(id)
       if (parsed && !Object.prototype.hasOwnProperty.call(updates, 'id')) {
         if (isPureComposedNodePositionUpdate(updates)) {
-          const nodes = graphData.nodes.map(n => (n.id === id ? { ...n, ...updates } : n))
+          const nodes = graphData.nodes.map(n => (n.id === id ? mergeNodeForUpdate(n, updates) : n))
           const nextGraphDataBase = { ...graphData, nodes }
           const nextRevision = (get().graphDataRevision || 0) + 1
           const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
@@ -640,9 +726,15 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
 
           const layerId = parsed.layerId
           const innerId = parsed.innerId
+          const keyNow = readComposedPositionWriteGraphKey(graphData)
+          if (!composedPendingPositionWriteGraphKey) {
+            composedPendingPositionWriteGraphKey = keyNow
+          } else if (keyNow && composedPendingPositionWriteGraphKey !== keyNow) {
+            composedPendingPositionWrites = {}
+            composedPendingPositionWriteGraphKey = keyNow
+          }
           const byLayer = composedPendingPositionWrites[layerId] || (composedPendingPositionWrites[layerId] = {})
           byLayer[innerId] = { ...(byLayer[innerId] || {}), ...updates }
-          scheduleFlushComposedPositionWrites({ set, get })
           return
         }
         const sourceFiles = get().sourceFiles || []
@@ -661,13 +753,15 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
           const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
           const nextRevision = (get().graphDataRevision || 0) + 1
           const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
-          set({
+          set(s => ({
             sourceFiles: nextSourceFiles,
             graphData: nextGraphData,
             graphDataRevision: nextRevision,
+            graphContentRevision: (s.graphContentRevision || 0) + 1,
+            ...(Object.prototype.hasOwnProperty.call(updates, 'metadata') ? { docLocationRevision: (s.docLocationRevision || 0) + 1 } : {}),
             graphValidationStatus: null,
             graphValidationTimestamp: null,
-          })
+          }))
           if (Object.prototype.hasOwnProperty.call(updates, 'properties')) {
             try {
               syncGraphFieldsWithGraphData(get, nextGraphData)
@@ -680,13 +774,21 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       }
     }
     const current = graphData.nodes.find(n => n.id === id);
-    const nextNode = current ? { ...current, ...updates } : null;
+    const nextNode = current ? mergeNodeForUpdate(current, updates) : null;
     if (!validateNodeProperties(schema, id, nextNode, graphData)) return;
-    const nodes = graphData.nodes.map(n => (n.id === id ? { ...n, ...updates } : n))
+    const nodes = graphData.nodes.map(n => (n.id === id ? mergeNodeForUpdate(n, updates) : n))
     const nextGraphDataBase = { ...graphData, nodes }
     const nextRevision = (get().graphDataRevision || 0) + 1
     const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
-    set({ graphData: nextGraphData, graphDataRevision: nextRevision, graphValidationStatus: null, graphValidationTimestamp: null })
+    const positionOnly = isPositionOnlyNodeUpdate(updates)
+    set(s => ({
+      graphData: nextGraphData,
+      graphDataRevision: nextRevision,
+      ...(positionOnly ? {} : { graphContentRevision: (s.graphContentRevision || 0) + 1 }),
+      ...(Object.prototype.hasOwnProperty.call(updates, 'metadata') ? { docLocationRevision: (s.docLocationRevision || 0) + 1 } : {}),
+      graphValidationStatus: null,
+      graphValidationTimestamp: null,
+    }))
     if (Object.prototype.hasOwnProperty.call(updates, 'properties')) {
       try {
         syncGraphFieldsWithGraphData(get, nextGraphData)
@@ -694,6 +796,14 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     }
     const fields = Object.keys(updates || {}).join(',') || 'none';
     get().scheduleHistory(`Update Node: ${id} [${fields}]`);
+  },
+
+  flushComposedPositionWritesNow: () => {
+    try {
+      flushComposedPositionWritesNow({ set, get })
+    } catch {
+      void 0
+    }
   },
 
   addNode: (node: GraphNode) => {
@@ -728,7 +838,15 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
           const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
           const nextRevision = (get().graphDataRevision || 0) + 1
           const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
-          set({ sourceFiles: nextSourceFiles, graphData: nextGraphData, graphDataRevision: nextRevision, graphValidationStatus: null, graphValidationTimestamp: null })
+          set(s => ({
+            sourceFiles: nextSourceFiles,
+            graphData: nextGraphData,
+            graphDataRevision: nextRevision,
+            graphContentRevision: (s.graphContentRevision || 0) + 1,
+            docLocationRevision: (s.docLocationRevision || 0) + 1,
+            graphValidationStatus: null,
+            graphValidationTimestamp: null,
+          }))
           try {
             syncGraphFieldsWithGraphData(get, nextGraphData)
           } catch { void 0 }
@@ -743,7 +861,14 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     const nextGraphDataBase = { ...graphData, nodes }
     const nextRevision = (get().graphDataRevision || 0) + 1
     const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
-    set({ graphData: nextGraphData, graphDataRevision: nextRevision, graphValidationStatus: null, graphValidationTimestamp: null })
+    set(s => ({
+      graphData: nextGraphData,
+      graphDataRevision: nextRevision,
+      graphContentRevision: (s.graphContentRevision || 0) + 1,
+      docLocationRevision: (s.docLocationRevision || 0) + 1,
+      graphValidationStatus: null,
+      graphValidationTimestamp: null,
+    }))
     try {
       syncGraphFieldsWithGraphData(get, nextGraphData)
     } catch { void 0 }
@@ -785,17 +910,19 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
           const nextSelectedEdgeIds = (state.selectedEdgeIds || []).filter(edgeId =>
             (nextGraphData.edges || []).some(e => String(e.id || '') === edgeId),
           )
-          set({
+          set(s => ({
             sourceFiles: nextSourceFiles,
             graphData: nextGraphData,
             graphDataRevision: nextRevision,
+            graphContentRevision: (s.graphContentRevision || 0) + 1,
+            docLocationRevision: (s.docLocationRevision || 0) + 1,
             selectedNodeId: null,
             selectedEdgeId: nextSelectedEdgeId,
             selectedNodeIds: nextSelectedNodeIds,
             selectedEdgeIds: nextSelectedEdgeIds,
             graphValidationStatus: null,
             graphValidationTimestamp: null,
-          })
+          }))
           try {
             get().updateOpenQuickEditorNodeIds(prev => prev.filter(nodeId => nodeId !== id))
           } catch { void 0 }
@@ -820,16 +947,18 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     )
     const nextRevision = (get().graphDataRevision || 0) + 1
     const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
-    set({
+    set(s => ({
       graphData: nextGraphData,
       graphDataRevision: nextRevision,
+      graphContentRevision: (s.graphContentRevision || 0) + 1,
+      docLocationRevision: (s.docLocationRevision || 0) + 1,
       selectedNodeId: null,
       selectedEdgeId: nextSelectedEdgeId,
       selectedNodeIds: nextSelectedNodeIds,
       selectedEdgeIds: nextSelectedEdgeIds,
       graphValidationStatus: null,
       graphValidationTimestamp: null,
-    });
+    }));
     try {
       get().updateOpenQuickEditorNodeIds(prev => prev.filter(nodeId => nodeId !== id))
     } catch { void 0 }
@@ -893,7 +1022,15 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
       const nextRevision = (get().graphDataRevision || 0) + 1
       const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
-      set({ sourceFiles: nextSourceFiles, graphData: nextGraphData, graphDataRevision: nextRevision, graphValidationStatus: null, graphValidationTimestamp: null })
+      set(s => ({
+        sourceFiles: nextSourceFiles,
+        graphData: nextGraphData,
+        graphDataRevision: nextRevision,
+        graphContentRevision: (s.graphContentRevision || 0) + 1,
+        docLocationRevision: (s.docLocationRevision || 0) + 1,
+        graphValidationStatus: null,
+        graphValidationTimestamp: null,
+      }))
       try {
         syncGraphFieldsWithGraphData(get, nextGraphData)
       } catch { void 0 }
@@ -909,7 +1046,14 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     const nextGraphDataBase = { ...graphData, edges }
     const nextRevision = (get().graphDataRevision || 0) + 1
     const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
-    set({ graphData: nextGraphData, graphDataRevision: nextRevision, graphValidationStatus: null, graphValidationTimestamp: null })
+    set(s => ({
+      graphData: nextGraphData,
+      graphDataRevision: nextRevision,
+      graphContentRevision: (s.graphContentRevision || 0) + 1,
+      docLocationRevision: (s.docLocationRevision || 0) + 1,
+      graphValidationStatus: null,
+      graphValidationTimestamp: null,
+    }))
     try {
       syncGraphFieldsWithGraphData(get, nextGraphData)
     } catch { void 0 }
@@ -952,13 +1096,15 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
           const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
           const nextRevision = (get().graphDataRevision || 0) + 1
           const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
-          set({
+          set(s => ({
             sourceFiles: nextSourceFiles,
             graphData: nextGraphData,
             graphDataRevision: nextRevision,
+            graphContentRevision: (s.graphContentRevision || 0) + 1,
+            ...(Object.prototype.hasOwnProperty.call(updates, 'metadata') ? { docLocationRevision: (s.docLocationRevision || 0) + 1 } : {}),
             graphValidationStatus: null,
             graphValidationTimestamp: null,
-          })
+          }))
           if (Object.prototype.hasOwnProperty.call(updates, 'properties')) {
             try {
               syncGraphFieldsWithGraphData(get, nextGraphData)
@@ -989,7 +1135,14 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     const nextGraphDataBase = { ...graphData, edges }
     const nextRevision = (get().graphDataRevision || 0) + 1
     const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
-    set({ graphData: nextGraphData, graphDataRevision: nextRevision, graphValidationStatus: null, graphValidationTimestamp: null })
+    set(s => ({
+      graphData: nextGraphData,
+      graphDataRevision: nextRevision,
+      graphContentRevision: (s.graphContentRevision || 0) + 1,
+      ...(Object.prototype.hasOwnProperty.call(updates, 'metadata') ? { docLocationRevision: (s.docLocationRevision || 0) + 1 } : {}),
+      graphValidationStatus: null,
+      graphValidationTimestamp: null,
+    }))
     if (Object.prototype.hasOwnProperty.call(updates, 'properties')) {
       try {
         syncGraphFieldsWithGraphData(get, nextGraphData)
@@ -1026,15 +1179,17 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
           const selectedEdgeId = state.selectedEdgeId
           const nextSelectedEdgeId = selectedEdgeId === id ? null : selectedEdgeId
           const nextSelectedEdgeIds = (state.selectedEdgeIds || []).filter(edgeId => edgeId !== id)
-          set({
+          set(s => ({
             sourceFiles: nextSourceFiles,
             graphData: nextGraphData,
             graphDataRevision: nextRevision,
+            graphContentRevision: (s.graphContentRevision || 0) + 1,
+            docLocationRevision: (s.docLocationRevision || 0) + 1,
             selectedEdgeId: nextSelectedEdgeId,
             selectedEdgeIds: nextSelectedEdgeIds,
             graphValidationStatus: null,
             graphValidationTimestamp: null,
-          })
+          }))
           try {
             syncGraphFieldsWithGraphData(get, nextGraphData)
           } catch { void 0 }
@@ -1052,14 +1207,16 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     const nextSelectedEdgeIds = (state.selectedEdgeIds || []).filter(edgeId => edgeId !== id)
     const nextRevision = (get().graphDataRevision || 0) + 1
     const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
-    set({
+    set(s => ({
       graphData: nextGraphData,
       graphDataRevision: nextRevision,
+      graphContentRevision: (s.graphContentRevision || 0) + 1,
+      docLocationRevision: (s.docLocationRevision || 0) + 1,
       selectedEdgeId: nextSelectedEdgeId,
       selectedEdgeIds: nextSelectedEdgeIds,
       graphValidationStatus: null,
       graphValidationTimestamp: null,
-    });
+    }));
     try {
       syncGraphFieldsWithGraphData(get, nextGraphData)
     } catch { void 0 }

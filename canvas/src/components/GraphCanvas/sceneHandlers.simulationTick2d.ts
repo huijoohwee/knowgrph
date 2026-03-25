@@ -251,7 +251,8 @@ export const attachSimulationTick = (args: {
           const absUy = Math.abs(uy)
           const txRect = absUx > 1e-6 ? halfW / absUx : Number.POSITIVE_INFINITY
           const tyRect = absUy > 1e-6 ? halfH / absUy : Number.POSITIVE_INFINITY
-          const dist = Math.max(0, Math.min(txRect, tyRect) + padOut)
+          const padOutWorld = Number.isFinite(padOut) ? padOut / zoomK : 0
+          const dist = Math.max(0, Math.min(txRect, tyRect) + padOutWorld)
           return { x: fx + ux * dist, y: fy + uy * dist }
         }
 
@@ -466,4 +467,3 @@ export const attachSimulationTick = (args: {
   })
   renderFrame()
 }
-

@@ -21,10 +21,14 @@ const ALL_POST_PARSER: TestCaseTuple[] = [
 const execTuple = async (results: TestResult[], tuple: TestCaseTuple) => {
   const [name, importPath, exportName] = tuple
   await execTest(results, name, async () => {
-    const mod = (await import(importPath)) as Record<string, unknown>
+    const resolvedPath =
+      typeof importPath === 'string' && importPath.startsWith('@/__tests__/')
+        ? `../__tests__/${importPath.slice('@/__tests__/'.length)}`
+        : importPath
+    const mod = (await import(resolvedPath)) as Record<string, unknown>
     const fn = mod[exportName]
     if (typeof fn !== 'function') {
-      throw new Error(`Missing test export: ${importPath} -> ${exportName}`)
+      throw new Error(`Missing test export: ${resolvedPath} -> ${exportName}`)
     }
     await (fn as () => void | Promise<void>)()
   })
@@ -43,7 +47,7 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
   }
 
   try {
-    const modShowOnCanvas = await import('@/__tests__/markdownPreviewShowOnCanvas.test')
+    const modShowOnCanvas = await import('../__tests__/markdownPreviewShowOnCanvas.test')
     await execTest(results, 'ui.markdown.preview.showOnCanvas', modShowOnCanvas.testMarkdownPreviewShowOnCanvasSelectsExpectedNode)
     await execTest(results, 'ui.markdown.preview.contextMenuRendersInsideRoot', modShowOnCanvas.testMarkdownPreviewContextMenuRendersInsideRoot)
     await execTest(
@@ -57,23 +61,23 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       modShowOnCanvas.testMarkdownPreviewViewModeSwitchDoesNotCrossDocumentPath,
     )
 
-    await import('@/__tests__/markdownSelectionScrollHighlight.test')
+    await import('../__tests__/markdownSelectionScrollHighlight.test')
 
-    const modCollapsible = await import('@/__tests__/collapsibleDefaults.test')
+    const modCollapsible = await import('../__tests__/collapsibleDefaults.test')
     await execTest(
       results,
       'ui.collapsibleDefaultsCompactAndAnchoredToLsKeys',
       modCollapsible.testCollapsibleDefaultsCompactAndAnchoredToLsKeys,
     )
 
-    const modStandaloneRewrite = await import('@/__tests__/htmlCanvasStandaloneRewrite.test')
+    const modStandaloneRewrite = await import('../__tests__/htmlCanvasStandaloneRewrite.test')
     await execTest(
       results,
       'ui.export.htmlCanvas.standaloneRewriteRewritesAllUrlAttrs',
       modStandaloneRewrite.testStandaloneSvgRewriteRewritesAllUrlAttrs,
     )
 
-    const modSvgInject = await import('@/__tests__/svgSnapshotMarkdownBlocksInject.test')
+    const modSvgInject = await import('../__tests__/svgSnapshotMarkdownBlocksInject.test')
     await execTest(
       results,
       'ui.export.svgSnapshot.injectLiveMarkdownBlocks',
@@ -86,49 +90,70 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       modSvgInject.testInjectLiveMarkdownDesignBlocksIntoSvgMarkupAnchoredUsesNodeCenter,
     )
 
-    const modSvgNodePos = await import('@/__tests__/svgNodePos.test')
+    const modSvgNodePos = await import('../__tests__/svgNodePos.test')
     await execTest(
       results,
       'ui.export.svgNodePos.extractNodePosByIdFromSvgMarkup',
       modSvgNodePos.testExtractNodePosByIdFromSvgMarkupReadsNodesAndEdges,
     )
 
-    const modFlowCanvasFilter = await import('@/__tests__/flowCanvasGraphFilterForOverlays.test')
+    const modFlowCanvasFilter = await import('../__tests__/flowCanvasGraphFilterForOverlays.test')
     await execTest(
       results,
       'ui.flowCanvas.graphFilter.keepsOverlayNodes',
       modFlowCanvasFilter.testFlowCanvasDoesNotFilterGraphForOverlays,
     )
 
-    const modMdGraphBlocks = await import('@/__tests__/markdownDesignLayoutGraphBlocks.test')
+    const modFlowCanvasBlank = await import('../__tests__/flowCanvasBlankClickClearsSelectionRegression.test')
+    await execTest(
+      results,
+      'ui.flowCanvas.blankClick.clearsSelection',
+      modFlowCanvasBlank.testFlowCanvasBlankPointerDownClearsSelection,
+    )
+
+    const modFlowCanvasPanelOnlyHide = await import('../__tests__/flowCanvasPanelOnlyHideListUpdatesRegression.test')
+    await execTest(
+      results,
+      'ui.flowCanvas.panelOnly.hideListUpdates',
+      modFlowCanvasPanelOnlyHide.testFlowCanvasPanelOnlyHideListUpdatesOnPanelOnlyChange,
+    )
+
+    const modFlowCanvasPlannedOverlayHide = await import('../__tests__/flowCanvasPlannedOverlayHideSetRegression.test')
+    await execTest(
+      results,
+      'ui.flowCanvas.overlays.hideSet.planned',
+      modFlowCanvasPlannedOverlayHide.testFlowCanvasHidesPlannedOverlayNodesNotJustMountedElements,
+    )
+
+    const modMdGraphBlocks = await import('../__tests__/markdownDesignLayoutGraphBlocks.test')
     await execTest(
       results,
       'ui.export.markdownDesignLayout.graphBlocks',
       modMdGraphBlocks.testDeriveMarkdownDesignLayoutFromGraphBlocksBuildsBlocks,
     )
 
-    const modSvgEdgeGeom = await import('@/__tests__/svgEdgeGeometry.test')
+    const modSvgEdgeGeom = await import('../__tests__/svgEdgeGeometry.test')
     await execTest(
       results,
       'ui.export.svgEdgeGeometry.ensureSvgHasEdgeGeometry',
       modSvgEdgeGeom.testEnsureSvgHasEdgeGeometryInjectsLines,
     )
 
-    const modHtmlViewerEdgeMeta = await import('@/__tests__/graphHtmlViewerEdgeMetaNormalize.test')
+    const modHtmlViewerEdgeMeta = await import('../__tests__/graphHtmlViewerEdgeMetaNormalize.test')
     await execTest(
       results,
       'ui.export.htmlViewer.normalizesEdgeMetaAndNodePos',
       modHtmlViewerEdgeMeta.testBuildGraphHtmlViewerNormalizesEdgeEndpointsAndNodePosFromSvg,
     )
 
-    const modHtmlViewerPrefersMedia = await import('@/__tests__/graphHtmlViewerPreferredMediaNodes.test')
+    const modHtmlViewerPrefersMedia = await import('../__tests__/graphHtmlViewerPreferredMediaNodes.test')
     await execTest(
       results,
       'ui.export.htmlViewer.prefersVisibleMediaNodes',
       modHtmlViewerPrefersMedia.testBuildGraphHtmlViewerPrefersVisibleMediaNodes,
     )
 
-    const modDatasetRev = await import('@/__tests__/layoutDatasetKeyRevFallback.test')
+    const modDatasetRev = await import('../__tests__/layoutDatasetKeyRevFallback.test')
     await execTest(results, 'layout.datasetKey.revFallbackUsesRevision', modDatasetRev.testLayoutDatasetKeyRevFallbackUsesRevision)
 
     const modPointerDrag = await import('../__tests__/pointerDragUnstickOnAnyPointerDownRegression.test')
@@ -171,6 +196,34 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
     )
     await execTest(results, 'ui.overlayInteractions2d.watchdogTimeout', modOverlayUnstick.testOverlayInteractions2dHasWatchdogTimeout)
 
+    const modGraphCanvasDragPointerCapture = await import('../__tests__/graphCanvasNodeDragPointerCaptureRegression.test')
+    await execTest(
+      results,
+      'ui.graphCanvas.drag.pointerCaptureAndFailsafe',
+      modGraphCanvasDragPointerCapture.testGraphCanvasDragSetsPointerCaptureAndHasFailsafePointerDown,
+    )
+
+    const modGraphCanvasRootOverlayHideSet = await import('../__tests__/graphCanvasRootOverlayHideSetPrefersPlannedOverMountedRegression.test')
+    await execTest(
+      results,
+      'ui.graphCanvasRoot.overlays.hideSet.prefersPlanned',
+      modGraphCanvasRootOverlayHideSet.testGraphCanvasRootPrefersPlannedOverlayHideSet,
+    )
+
+    const modThreeTableAllowed = await import('../__tests__/threeGraphAllowsTableOverlaysInMultiDimRegression.test')
+    await execTest(
+      results,
+      'ui.threeGraph.tableOverlays.allowedInMultiDim',
+      modThreeTableAllowed.testThreeGraphAllowsTableOverlaysEvenInMultiDimMode,
+    )
+
+    const modD3SceneOverlayKeys = await import('../__tests__/d3GraphSceneBuildKeyIncludesOverlayKeysRegression.test')
+    await execTest(
+      results,
+      'ui.d3Scene.buildKey.includesOverlayKeys',
+      modD3SceneOverlayKeys.testD3GraphSceneBuildKeyIncludesOverlayKeys,
+    )
+
     const modWorkspaceOverlayContract = await import('../__tests__/workspaceEditorOverlayPointerContract.test')
     await execTest(
       results,
@@ -183,6 +236,20 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       modWorkspaceOverlayContract.testGraphDataTableOverlayDoesNotUseFullscreenScrim,
     )
 
+    const modMarkdownWorkspaceGraphDataChurn = await import('../__tests__/markdownWorkspaceAvoidsGraphDataChurnRegression.test')
+    await execTest(
+      results,
+      'ui.markdownWorkspace.avoidsGraphDataChurnSubscriptions',
+      modMarkdownWorkspaceGraphDataChurn.testMarkdownWorkspaceAvoidsGraphDataIdentityChurnSubscriptions,
+    )
+
+    const modComposedWritebackManual = await import('../__tests__/composedPositionWritebackIsManualRegression.test')
+    await execTest(
+      results,
+      'store.composedPositionWriteback.manualOnly',
+      modComposedWritebackManual.testComposedPositionWritebackIsManualOnly,
+    )
+
     const modDetailsMenuPortal = await import('../__tests__/detailsMenuPortalNoFullscreenBlockerRegression.test')
     await execTest(
       results,
@@ -192,6 +259,23 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
 
     const modMarquee = await import('../__tests__/marqueeSelectionClearsOnBlurRegression.test')
     await execTest(results, 'ui.d3.marqueeSelection.failsafeCancels', modMarquee.testMarqueeSelectionHasGlobalCancelFailsafe)
+
+    const modArrayPatch = await import('../__tests__/sharedArrayPatchHelpersRegression.test')
+    await execTest(results, 'ui.shared.arrayPatchHelpers.basic', modArrayPatch.testPatchArrayHelpersBehaveAndAvoidUnnecessaryCopies)
+
+    const modOverlayCursor = await import('../__tests__/overlayDragCursorTrackingRegression.test')
+    await execTest(results, 'ui.overlay.drag.cursorTracking.noSnapDuringMove.d3', modOverlayCursor.testOverlayHeaderDragDisablesGridSnapDuringMove)
+    await execTest(results, 'ui.overlay.drag.edgeTracking.d3.xySyncedDuringDrag', modOverlayCursor.testOverlayHeaderDragKeepsNodeXySyncedDuringDrag)
+    await execTest(results, 'ui.overlay.drag.coalescesMoves.rafValueScheduler', modOverlayCursor.testOverlayInteractions2dUsesRafValueSchedulerForDragMoves)
+    await execTest(results, 'ui.overlay.drag.edgeTracking.d3.forcesTickRedraw', modOverlayCursor.testOverlayHeaderDragForcesTickRedrawDuringDrag)
+    await execTest(results, 'ui.overlay.drag.cursorTracking.noSnapDuringMove.flow', modOverlayCursor.testFlowCanvasOverlayHeaderDragDisablesGridSnapDuringMove)
+    await execTest(results, 'ui.overlay.drag.cursorTracking.noSnapDuringMove.design', modOverlayCursor.testDesignCanvasOverlayHeaderDragDisablesGridSnapDuringMove)
+    await execTest(results, 'ui.overlay.pan.cursorTracking.ignoresSpeedMultipliers', modOverlayCursor.testOverlayPanIgnoresSpeedMultipliersForCursorTracking)
+    await execTest(results, 'ui.overlay.schedule.includesMarkdownOverlays', modOverlayCursor.testGraphCanvasRootOverlayScheduleIncludesMarkdownOverlays)
+    await execTest(results, 'ui.overlay.edges.panelNodes.pixelConstantPadOut', modOverlayCursor.testPanelNodeEdgeEndpointsUsePixelConstantPadOut)
+
+    const modRichMediaEditorDrag = await import('../__tests__/richMediaPanelEditorModeDragRegression.test')
+    await execTest(results, 'ui.richMediaPanel.editorMode.disablesContentPointerEvents', modRichMediaEditorDrag.testRichMediaPanelEditorModeDisablesInteractiveContentForDragging)
 
     const modGdtDrag = await import('../__tests__/graphDataTableDragUsesSharedPointerDragRegression.test')
     await execTest(results, 'ui.graphDataTable.drag.usesSharedPointerDrag', modGdtDrag.testGraphDataTableDoesNotInstallGlobalMouseDragListeners)
@@ -239,11 +323,102 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       modComposedCrudSync.testComposedUpdateNodeSyncsToSourceFileAndRecomposes,
     )
 
+    const modPins = await import('../__tests__/nodePositionCommitClearsPinsRegression.test')
+    await execTest(
+      results,
+      'ui.graph.updateNode.positionCommitClearsPins',
+      modPins.testUpdateNodePositionCommitClearsFxFyPins,
+    )
+    await execTest(
+      results,
+      'ui.sourceFiles.compose.positionCommitClearsPins',
+      modPins.testComposedPositionCommitClearsFxFyPinsInViewAndSourceFiles,
+    )
+
+    const modPaneGate = await import('../__tests__/workspacePaneInactiveGatesBackgroundChurnRegression.test')
+    await execTest(
+      results,
+      'ui.workspacePane.gatesMarkdownWorkspaceWhenInactive',
+      modPaneGate.testEmbeddedEditorShellPassesActiveToMarkdownWorkspace,
+    )
+    await execTest(
+      results,
+      'ui.workspacePane.gatesGraphTableSubscriptionsWhenInactive',
+      modPaneGate.testGraphTableWorkspaceGatesRxdbSubscriptionsByActive,
+    )
+
     const modComposedPosDebounce = await import('../__tests__/sourceFilesComposedPositionDebounceRegression.test')
     await execTest(
       results,
       'ui.sourceFiles.compose.position.debouncedWriteBack',
       modComposedPosDebounce.testComposedPositionUpdateIsDebouncedToSourceFiles,
+    )
+
+    const modTableDragChurn = await import('../__tests__/graphDataTableRepeatedDragNoLayoutThrashRegression.test')
+    await execTest(
+      results,
+      'ui.graphDataTable.drag.reorderAvoidsPerMoveMeasure',
+      modTableDragChurn.testGraphDataTableHeaderReorderDoesNotMeasureAllHeaderCellsOnEveryPointerMove,
+    )
+    await execTest(
+      results,
+      'ui.graphDataTable.drag.frozenIndicatorRafThrottled',
+      modTableDragChurn.testGraphDataTableFrozenAreaDragIsRafThrottled,
+    )
+    await execTest(
+      results,
+      'ui.markdownDesignOverlay.drag.blockRafThrottled',
+      modTableDragChurn.testMarkdownDesignOverlayBlockDragIsRafThrottled,
+    )
+
+    const modComposedPosNoChurn = await import('../__tests__/sourceFilesComposedPositionWritebackAvoidsComposeChurnRegression.test')
+    await execTest(
+      results,
+      'ui.sourceFiles.compose.position.writebackUpdatesSourceLayerKeys',
+      modComposedPosNoChurn.testComposedPositionWritebackUpdatesSourceLayerKeysInGraphDataMetadata,
+    )
+
+    const modZoomCommitRev = await import('../__tests__/zoomCommitIgnoresRevisionOnlyChangesRegression.test')
+    await execTest(
+      results,
+      'ui.zoom.commit.ignoresRevisionOnlyChange',
+      modZoomCommitRev.testZoomCommitDoesNotWriteWhenOnlyGraphDataRevisionChanges,
+    )
+
+    const modGraphTableSync = await import('../__tests__/graphTableDbSyncDedupeRegression.test')
+    await execTest(
+      results,
+      'ui.graphTable.dbSync.noModuleGlobalGuards',
+      modGraphTableSync.testGraphTableDbSyncDoesNotUseModuleGlobalKeyGuards,
+    )
+    await execTest(
+      results,
+      'ui.graphTable.dbSync.selectionInspectorGatesSync',
+      modGraphTableSync.testGraphTableSelectionInspectorGatesDbSyncWhenGraphTablePaneIsActive,
+    )
+    await execTest(
+      results,
+      'ui.overlayInteractions2d.cleanupCancelsActiveDrags',
+      modGraphTableSync.testOverlayInteractions2dCleanupCancelsActiveDrags,
+    )
+
+    const modOverlayPanelBox = await import('../__tests__/overlayPanelsUseTransformBoxRegression.test')
+    await execTest(
+      results,
+      'ui.overlayPanels.d3RichMedia.usesTransformBox',
+      modOverlayPanelBox.testD3RichMediaOverlayDoesNotForceLeftTopPanelBox,
+    )
+    await execTest(
+      results,
+      'ui.overlayPanels.markdownDesign.usesTransformBox',
+      modOverlayPanelBox.testMarkdownDesignOverlayDoesNotForceLeftTopPanelBox,
+    )
+
+    const modFlowOverlayDrag = await import('../__tests__/flowEditorOverlayDragUsesRafLatestSchedulerRegression.test')
+    await execTest(
+      results,
+      'ui.flowEditor.nodeOverlay.drag.rafLatestScheduler',
+      modFlowOverlayDrag.testFlowEditorNodeOverlayEditorUsesRafLatestSchedulerForDrags,
     )
   } finally {
     bootstrap?.restore()

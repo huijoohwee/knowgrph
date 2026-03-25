@@ -4,6 +4,7 @@ import { lsBool, lsNum, lsSetBool, lsSetNum } from '@/lib/persistence';
 import { usePinnedLs } from '@/lib/ui/panelPinned';
 import { clampOverlayCenterToViewport } from '@/lib/ui/overlayClamp';
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag';
+import { createRafValueScheduler } from '@/lib/react/rafValueScheduler';
 
 export type MainPanelTabKey =
   | 'workflow'
@@ -26,8 +27,7 @@ export function useMainPanelDrag() {
     startLeft: number;
   } | null>(null);
   const mainPanelDragPosRef = useRef<{ top: number; left: number } | null>(null);
-  const dragRafRef = useRef<number | null>(null);
-  const pendingDragPosRef = useRef<{ top: number; left: number } | null>(null);
+  const dragSchedulerRef = useRef(createRafValueScheduler((pos: { top: number; left: number }) => setMainPanelDragPosSynced(pos)));
   const { pinned: mainPanelPinned, setPinned: setMainPanelPinned } = usePinnedLs(LS_KEYS.mainPanelPinned, true);
   const [mainPanelCollapsed, setMainPanelCollapsed] = useState<boolean>(() => lsBool(LS_KEYS.mainPanelCollapsed, false));
   const [mainPanelDragPos, setMainPanelDragPos] = useState<{ top: number; left: number }>(() => {
@@ -97,6 +97,10 @@ export function useMainPanelDrag() {
     setMainPanelDragPos(pos);
   }, []);
 
+  useEffect(() => {
+    dragSchedulerRef.current = createRafValueScheduler((pos: { top: number; left: number }) => setMainPanelDragPosSynced(pos));
+  }, [setMainPanelDragPosSynced]);
+
   const persistMainPanelPos = useCallback((pos: { top: number; left: number }) => {
     const clamped = clampMainPanelPos(pos);
     setMainPanelDragPosSynced(clamped);
@@ -125,13 +129,7 @@ export function useMainPanelDrag() {
     };
     setMainPanelDragPosSynced(clampMainPanelPos({ top: startTop, left: startLeft }));
 
-    const flush = () => {
-      const next = pendingDragPosRef.current;
-      pendingDragPosRef.current = null;
-      dragRafRef.current = null;
-      if (!next) return;
-      setMainPanelDragPosSynced(next);
-    };
+    const scheduler = dragSchedulerRef.current;
 
     startPointerDrag({
       ev: native,
@@ -141,30 +139,18 @@ export function useMainPanelDrag() {
         if (!state) return;
         const dx = e.clientX - state.startX;
         const dy = e.clientY - state.startY;
-        pendingDragPosRef.current = clampMainPanelPos({ top: state.startTop + dy, left: state.startLeft + dx });
-        if (dragRafRef.current == null) dragRafRef.current = window.requestAnimationFrame(flush);
+        scheduler.schedule(clampMainPanelPos({ top: state.startTop + dy, left: state.startLeft + dx }));
       },
       onEnd: () => {
         mainPanelDragStateRef.current = null;
-        if (dragRafRef.current != null) {
-          window.cancelAnimationFrame(dragRafRef.current);
-          dragRafRef.current = null;
-        }
-        if (pendingDragPosRef.current) {
-          setMainPanelDragPosSynced(pendingDragPosRef.current);
-          pendingDragPosRef.current = null;
-        }
+        scheduler.flush();
         const pos = mainPanelDragPosRef.current;
         if (!pos) return;
         persistMainPanelPos(pos);
       },
       onCancel: () => {
         mainPanelDragStateRef.current = null;
-        if (dragRafRef.current != null) {
-          window.cancelAnimationFrame(dragRafRef.current);
-          dragRafRef.current = null;
-        }
-        pendingDragPosRef.current = null;
+        scheduler.cancel();
       },
     });
   }, [clampMainPanelPos, persistMainPanelPos, setMainPanelDragPosSynced]);

@@ -335,6 +335,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
       ),
       mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
       enableDecorativeAnimation: true,
+      initialFrontmatterEnabled: frontmatterModeEnabled,
       preferWebgl3d: wants3dExport,
       initialView: !geospatialEnabled && !wants3dExport ? (exportView.initialView || fitInitialView2d || undefined) : undefined,
       threeIframeOverlayBaseWidthRatioDefault: (store as unknown as { threeIframeOverlayBaseWidthRatioDefault?: number }).threeIframeOverlayBaseWidthRatioDefault,
@@ -369,7 +370,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
       zoomStrokeScaleExponent2d: (store as unknown as { zoomStrokeScaleExponent2d?: number }).zoomStrokeScaleExponent2d,
       zoomStrokeScaleClampMin2d: (store as unknown as { zoomStrokeScaleClampMin2d?: number }).zoomStrokeScaleClampMin2d,
       zoomStrokeScaleClampMax2d: (store as unknown as { zoomStrokeScaleClampMax2d?: number }).zoomStrokeScaleClampMax2d,
-      hideLabelsBelowScale: 0,
+      hideLabelsBelowScale: Number(store.schema?.performance?.lod?.hideLabelsBelowScale ?? 0),
     })
 
     if (!htmlViewer || !htmlViewer.trim()) {

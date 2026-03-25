@@ -48,7 +48,6 @@ export async function testMarkdownWorkspaceExplorerTocShowsHeadingNumbers() {
         onOpenBacklink: () => void 0,
         onTocReorder: () => void 0,
         onCreateNewFile: () => void 0,
-        onCreateNewFolder: () => void 0,
         onRefresh: () => void 0,
         activeEntryName: '',
         activeEntryKind: '',

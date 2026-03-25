@@ -20,6 +20,7 @@ import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverToolti
 import { MarkdownDesignOverlay } from '@/features/markdown-edgeless/MarkdownDesignOverlay'
 import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { deriveMarkdownDesignLayout, MARKDOWN_DESIGN_LAYOUT, type MarkdownDesignBlock, type MarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
+import { buildPanelOnlyNodeIdSetFromGraphNodes, computeMarkdownAnchorNodeIdByBlockId } from '@/lib/render/markdownPanelOverlayPool'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { useOverlayInteractions2d } from '@/components/GraphCanvasRoot/hooks/useOverlayInteractions2d'
 import { resetGlobalUserSelectLock } from '@/lib/canvas/interaction-user-select'
@@ -174,6 +175,11 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     const base = String(documentSemanticMode || 'document')
     return multiDimTableModeEnabled ? `${base}:mdtbl` : base
   }, [documentSemanticMode, multiDimTableModeEnabled])
+
+  const markdownPanelAllowedKinds = useMemo(() => {
+    if (multiDimTableModeEnabled) return ['code', 'blockquote', 'callout', 'html'] as const
+    return MARKDOWN_PANEL_ALLOWED_KINDS
+  }, [multiDimTableModeEnabled])
 
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
   const selectedNodeIdRef = useGraphStoreKeyRef('selectedNodeId')
@@ -383,54 +389,12 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   }, [graphDataRevision])
 
   const markdownAnchorNodeIdByBlockId = useMemo(() => {
-    if (!markdownDesignLayout) return null
+    const layout = markdownDesignLayout
+    if (!layout) return null
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
     if (nodes.length === 0) return null
-
-    const tableByStart = new Map<number, string>()
-    const codeByStart = new Map<number, string>()
-    const paraByStart = new Map<number, string>()
-    const mediaIframeByStart = new Map<number, string>()
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]!
-      const id = String(n?.id || '').trim()
-      if (!id) continue
-      const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
-      const lineStartRaw = meta ? meta.lineStart : null
-      const lineStart = typeof lineStartRaw === 'number' ? lineStartRaw : typeof lineStartRaw === 'string' ? Number(lineStartRaw) : NaN
-      if (!Number.isFinite(lineStart)) continue
-      const start = Math.max(1, Math.floor(lineStart))
-      const type = String(n.type || '').trim()
-      if (type === 'Table' && !tableByStart.has(start)) tableByStart.set(start, id)
-      else if (type === 'CodeBlock' && !codeByStart.has(start)) codeByStart.set(start, id)
-      else if (type === 'Paragraph' && !paraByStart.has(start)) paraByStart.set(start, id)
-      const spec = getNodeMediaSpec(n)
-      if (spec?.kind === 'iframe' && !mediaIframeByStart.has(start)) mediaIframeByStart.set(start, id)
-    }
-
-    const out: Record<string, string> = {}
-    for (let i = 0; i < markdownDesignLayout.blocks.length; i += 1) {
-      const b = markdownDesignLayout.blocks[i]!
-      const start = Math.max(1, Math.floor(Number(b.startLine) || 1))
-      if (b.type === 'table') {
-        const nid = tableByStart.get(start)
-        if (nid) out[b.id] = nid
-      } else if (b.type === 'code') {
-        const nid = codeByStart.get(start)
-        if (nid) out[b.id] = nid
-      } else if (b.type === 'blockquote' || b.type === 'callout') {
-        const nid = paraByStart.get(start)
-        if (nid) out[b.id] = nid
-      } else if (b.type === 'html') {
-        const raw = String(b.preview.kind === 'html' ? (b.preview.html?.raw || '') : '').trim()
-        if (/<\s*iframe\b/i.test(raw)) {
-          const nid = mediaIframeByStart.get(start) || paraByStart.get(start)
-          if (nid) out[b.id] = nid
-        }
-      }
-    }
-    return Object.keys(out).length ? out : null
-  }, [markdownDesignLayout, sceneGraphData])
+    return computeMarkdownAnchorNodeIdByBlockId({ layout, nodes, allowedKinds: markdownPanelAllowedKinds })
+  }, [markdownDesignLayout, markdownPanelAllowedKinds, sceneGraphData])
 
   const graphBlockPanel = useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
@@ -669,11 +633,6 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   React.useEffect(() => {
     if (markdownPanelLayoutLive) markdownPanelLayoutRef.current = markdownPanelLayoutLive
   }, [markdownPanelLayoutLive])
-  const markdownPanelAllowedKinds = useMemo(() => {
-    if (multiDimTableModeEnabled) return ['code', 'blockquote', 'callout', 'html'] as const
-    return MARKDOWN_PANEL_ALLOWED_KINDS
-  }, [multiDimTableModeEnabled])
-
   const markdownPanelLayoutForOverlay = markdownPanelLayoutLive || markdownPanelLayoutRef.current
 
   const markdownOverlayEnabled = active && (!!String(markdownDocumentText || '').trim() || !!markdownPanelLayoutForOverlay)
@@ -741,8 +700,23 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
 
   const panelOnlyNodeIdSetForScene = useMemo(() => {
     if (!markdownOverlayEnabled) return null
-    return panelOnlyNodeIdSetRef.current || panelOnlyNodeIdSet || new Set<string>()
-  }, [markdownOverlayEnabled, panelOnlyNodeIdSet])
+    const base = panelOnlyNodeIdSetRef.current || panelOnlyNodeIdSet || new Set<string>()
+    const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
+    if (nodes.length === 0) return base
+    const extra = buildPanelOnlyNodeIdSetFromGraphNodes(nodes)
+    if (extra.size === 0) return base
+    let needsCopy = false
+    for (const id of extra) {
+      if (!base.has(id)) {
+        needsCopy = true
+        break
+      }
+    }
+    if (!needsCopy) return base
+    const out = new Set<string>(base)
+    for (const id of extra) out.add(id)
+    return out
+  }, [markdownOverlayEnabled, panelOnlyNodeIdSet, sceneGraphData])
   const panelOnlyNodeIdsKeyForScene = useMemo(() => {
     if (!markdownOverlayEnabled || !panelOnlyNodeIdSetForScene) return ''
     return Array.from(panelOnlyNodeIdSetForScene).sort((a, b) => a.localeCompare(b)).join('|')
@@ -804,6 +778,15 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     freezeOverlayMembership: overlayInteractionActive,
   })
 
+  const mediaOverlayNodeIdsKeyForScene = useMemo(() => {
+    const ids = richMedia.mediaOverlayNodes.map(n => String(n.id || '').trim()).filter(Boolean)
+    if (ids.length <= 1) return ids.join('|')
+    ids.sort((a, b) => a.localeCompare(b))
+    return ids.join('|')
+  }, [richMedia.mediaOverlayNodes])
+
+  const markdownOverlayScheduleRef = React.useRef<(() => void) | null>(null)
+
   React.useEffect(() => {
     const hasHiddenSelected =
       (typeof selectedNodeId === 'string' &&
@@ -830,7 +813,18 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     simulationRef,
     sceneGraphDataRef,
     schemaRef: schemaRef as unknown as React.MutableRefObject<GraphSchema>,
-    requestOverlaySchedule: richMedia.requestMediaOverlaySchedule,
+    requestOverlaySchedule: () => {
+      try {
+        richMedia.requestMediaOverlaySchedule()
+      } catch {
+        void 0
+      }
+      try {
+        markdownOverlayScheduleRef.current?.()
+      } catch {
+        void 0
+      }
+    },
   })
 
   useD3GraphScene2d({
@@ -881,7 +875,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     zoomToSelectionMode,
     isEmbeddedPreview,
     coarsePointer: coarsePointer === true,
-    mediaOverlayNodeIdSet: richMedia.mediaOverlayHideNodeIdSet || richMedia.mediaOverlayNodeIdSet,
+    mediaOverlayNodeIdSet: richMedia.mediaOverlayNodeIdSet,
+    mediaOverlayNodeIdsKey: mediaOverlayNodeIdsKeyForScene,
     panelOnlyNodeIdsKey: panelOnlyNodeIdsKeyForScene,
     panelOnlyNodeIdSet: panelOnlyNodeIdSetForScene,
     overlayBaseWidthRatioDefault: threeIframeOverlayBaseWidthRatioDefault,
@@ -890,7 +885,18 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     overlayBaseWidthMinPxCompact: threeIframeOverlayBaseWidthMinPxCompact,
     overlayBaseWidthMaxPxDefault: threeIframeOverlayBaseWidthMaxPxDefault,
     overlayBaseWidthMaxPxCompact: threeIframeOverlayBaseWidthMaxPxCompact,
-    requestMediaOverlaySchedule: richMedia.requestMediaOverlaySchedule,
+    requestOverlaySchedule: () => {
+      try {
+        richMedia.requestMediaOverlaySchedule()
+      } catch {
+        void 0
+      }
+      try {
+        markdownOverlayScheduleRef.current?.()
+      } catch {
+        void 0
+      }
+    },
     setLayoutPositionsForMode,
     selectedEdgeIdRef,
     selectedNodeIdRef,
@@ -1076,6 +1082,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         anchorNodeIdByBlockId={markdownAnchorNodeIdByBlockId}
         getNodeWorldCenterForId={getNodeWorldCenterForId}
         stopEvent={overlayInteractions.stopEvent}
+        requestOverlayScheduleRef={markdownOverlayScheduleRef}
         onOverlayPanStart={args0 => {
           setOverlayInteractionActive(true)
           overlayInteractions.startOverlayPan(args0)

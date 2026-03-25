@@ -50,6 +50,7 @@ import { parseSchemaText } from '@/features/schema/io'
 import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
 import { fetchWebpageMarkdown, fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
+import { registerMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
 import {
   isFrontmatterOnlyDoc,
   normalizeWebpageFrontmatterView,
@@ -117,8 +118,15 @@ function inferYoutubeVideoIdFromPath(path: string): string | null {
 }
 
 const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
+const EMPTY_GRAPH_NODES: GraphNode[] = []
+const EMPTY_GRAPH_EDGES: GraphEdge[] = []
 
-export function MarkdownWorkspace() {
+export function MarkdownWorkspace(props: { active?: boolean } = {}) {
+  const active = props.active !== false
+  const activeRef = React.useRef(active)
+  React.useEffect(() => {
+    activeRef.current = active
+  }, [active])
   const themeMode = useGraphStore(s => (s.resolvedThemeMode || 'light') as 'light' | 'dark')
   const bottomPanelCollapsed = useGraphStore(s => s.bottomPanelCollapsed)
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
@@ -133,10 +141,14 @@ export function MarkdownWorkspace() {
   const setGraphData = useGraphStore(s => s.setGraphData)
   const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
 
-  const graphData = useGraphStore(s => s.graphData) as GraphData | null
+  const graphNodes = useGraphStore(s => ((s.graphData as GraphData | null)?.nodes as GraphNode[] | undefined) || EMPTY_GRAPH_NODES)
+  const graphEdges = useGraphStore(s => ((s.graphData as GraphData | null)?.edges as GraphEdge[] | undefined) || EMPTY_GRAPH_EDGES)
+  const graphContentRevision = useGraphStore(s => (s.graphContentRevision || 0) as number)
+  const docLocationRevision = useGraphStore(s => (s.docLocationRevision || 0) as number)
   const nodeQuickEditorRegistry = useGraphStore(s => s.effectiveNodeQuickEditorRegistry ?? EMPTY_NODE_QUICK_EDITOR_REGISTRY)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
+  const selectionSource = useGraphStore(s => s.selectionSource)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const selectNode = useGraphStore(s => s.selectNode)
   const selectEdge = useGraphStore(s => s.selectEdge)
@@ -233,9 +245,20 @@ export function MarkdownWorkspace() {
   }, [])
   const [nodeQuickEditorFormat, setNodeQuickEditorFormat] = React.useState<'json' | 'markdown'>('json')
 
+  const graphNodesRef = React.useRef<GraphNode[]>(graphNodes)
+  React.useEffect(() => {
+    graphNodesRef.current = graphNodes
+  }, [graphNodes])
+
+  const graphEdgesRef = React.useRef<GraphEdge[]>(graphEdges)
+  React.useEffect(() => {
+    graphEdgesRef.current = graphEdges
+  }, [graphEdges])
+
   const activeQuickEditorNodeId = React.useMemo(() => {
-    const gd = graphData as unknown as { nodes?: unknown[] } | null
-    const nodes = Array.isArray(gd?.nodes) ? (gd?.nodes as Array<{ id?: unknown; type?: unknown; properties?: unknown }>) : []
+    const nodes = Array.isArray(graphNodesRef.current)
+      ? (graphNodesRef.current as Array<{ id?: unknown; type?: unknown; properties?: unknown }>)
+      : []
     const byId = new Map(nodes.map(n => [String(n.id || ''), n] as const))
 
     const isHeadingSectionNode = (n: { type?: unknown; properties?: unknown } | null): boolean => {
@@ -268,7 +291,7 @@ export function MarkdownWorkspace() {
       return id
     }
     return ''
-  }, [graphData, nodeQuickEditorRegistry, openQuickEditorNodeIds, selectedNodeId])
+  }, [graphContentRevision, nodeQuickEditorRegistry, openQuickEditorNodeIds, selectedNodeId])
 
   const nodeQuickEditorAvailable = Boolean(activeQuickEditorNodeId)
 
@@ -288,9 +311,8 @@ export function MarkdownWorkspace() {
 
   const quickEditorBundleJsonText = React.useMemo(() => {
     if (!activeQuickEditorNodeId) return ''
-    const gd = graphData as unknown as { nodes?: unknown[]; edges?: unknown[] } | null
-    const nodes = Array.isArray(gd?.nodes) ? (gd?.nodes as GraphNode[]) : []
-    const edges = Array.isArray(gd?.edges) ? (gd?.edges as GraphEdge[]) : []
+    const nodes = Array.isArray(graphNodesRef.current) ? graphNodesRef.current : []
+    const edges = Array.isArray(graphEdgesRef.current) ? graphEdgesRef.current : []
     const node = nodes.find(n => String(n.id || '') === activeQuickEditorNodeId) || null
     if (!node) return ''
 
@@ -309,7 +331,7 @@ export function MarkdownWorkspace() {
       edges: connectedEdges,
     }
     return nodeQuickEditorBundleToJsonText(buildNodeQuickEditorBundleV1({ registryEntries: registryForType, graphData: graph }))
-  }, [activeQuickEditorNodeId, graphData, nodeQuickEditorRegistry])
+  }, [activeQuickEditorNodeId, graphContentRevision, nodeQuickEditorRegistry])
 
   const quickEditorEditorText = React.useMemo(() => {
     if (!nodeQuickEditorAvailable) return ''
@@ -1233,6 +1255,11 @@ export function MarkdownWorkspace() {
     if (activeEntryKind === 'folder') return
     try {
       setStatusProgress('Saving')
+      try {
+        useGraphStore.getState().flushComposedPositionWritesNow()
+      } catch {
+        void 0
+      }
       const fs = await getFs()
       await fs.writeFileText(path, activeText)
       lastLoadedRef.current = { path, text: activeText }
@@ -1344,6 +1371,11 @@ export function MarkdownWorkspace() {
 
     try {
       setStatusProgress('Saving')
+      try {
+        useGraphStore.getState().flushComposedPositionWritesNow()
+      } catch {
+        void 0
+      }
       const fs = await getFs()
       const createdPath = await fs.createFile({ parentPath, name: finalName, text: activeText })
       setWorkspaceEntrySource(createdPath, { kind: 'local', originalName: null })
@@ -1457,6 +1489,7 @@ export function MarkdownWorkspace() {
   }, [activeEntry, activePath, setActiveTextProgrammatic, status.clearStatus])
 
   React.useEffect(() => {
+    if (!active) return
     const path = activePath
     if (!path) return
     if (activeEntryKind === 'folder') return
@@ -1815,6 +1848,7 @@ export function MarkdownWorkspace() {
       cancelled = true
     }
   }, [
+    active,
     activeDocumentKey,
     activeEntry,
     activeEntryKind,
@@ -1833,6 +1867,7 @@ export function MarkdownWorkspace() {
   ])
 
   React.useEffect(() => {
+    if (!active) return
     const path = activePath
     if (!path) return
     if (activeEntryKind === 'folder') return
@@ -1867,9 +1902,6 @@ export function MarkdownWorkspace() {
               text: inlineText ?? '',
               status: 'idle',
               error: undefined,
-              parsedParserId: undefined,
-              parsedTextHash: undefined,
-              parsedGraphData: undefined,
             })
           }
         } catch {
@@ -1910,6 +1942,7 @@ export function MarkdownWorkspace() {
       }
     })()
   }, [
+    active,
     activeDocumentKey,
     activeDocumentSourceUrl,
     activeEntryKind,
@@ -1977,6 +2010,14 @@ export function MarkdownWorkspace() {
     setStatusError,
   })
 
+  React.useEffect(() => {
+    if (selectionSource !== 'canvas') return
+    const nodeId = selectedNodeId ? String(selectedNodeId) : ''
+    const edgeId = !nodeId && selectedEdgeId ? String(selectedEdgeId) : ''
+    if (nodeId || edgeId) return
+    setHighlightedLineRange(null)
+  }, [selectedEdgeId, selectedNodeId, selectionSource, setHighlightedLineRange])
+
   const showInViewer = React.useCallback(
     (line: number) => {
       setLayoutMode('viewer')
@@ -2024,8 +2065,8 @@ export function MarkdownWorkspace() {
   )
 
   const docLocationIndex = React.useMemo(() => {
-    return buildDocLocationIndex({ graphData, matchesDoc: matchesActiveDoc })
-  }, [graphData, matchesActiveDoc])
+    return buildDocLocationIndex({ nodes: graphNodesRef.current, edges: graphEdgesRef.current, matchesDoc: matchesActiveDoc })
+  }, [docLocationRevision, matchesActiveDoc])
 
   const lastCaretLineRef = React.useRef<number | null>(null)
   const onEditorCaretLine = React.useCallback(
@@ -2228,14 +2269,15 @@ export function MarkdownWorkspace() {
     if (!name) return
     const text = String(activeText || '')
     if (!text.trim()) return
-    const g = graphData
-    const isGraphEmpty = !g || !Array.isArray(g.nodes) || !Array.isArray(g.edges) || (g.nodes.length === 0 && g.edges.length === 0)
+    const nodes = Array.isArray(graphNodesRef.current) ? graphNodesRef.current : []
+    const edges = Array.isArray(graphEdgesRef.current) ? graphEdgesRef.current : []
+    const isGraphEmpty = nodes.length === 0 && edges.length === 0
     if (!isGraphEmpty) return
     const sig = `${name}:${text.length}:${text.slice(0, 96)}`
     if (lastAutoApplySigRef.current === sig) return
     lastAutoApplySigRef.current = sig
     void handleApply()
-  }, [activeDocumentKey, activeText, graphData, handleApply, workspaceCanvasPaneOpen])
+  }, [activeDocumentKey, activeText, graphContentRevision, handleApply, workspaceCanvasPaneOpen])
 
   const handleFormatAction = React.useCallback(
     (action: MarkdownFormatAction) => {
@@ -2341,6 +2383,24 @@ export function MarkdownWorkspace() {
   const effectiveIsEditing = contentMode !== 'nodeQuickEditor' && isEditing && !webpageDerivedReadOnlyActive
   const effectiveIsMarkdown = contentMode !== 'nodeQuickEditor' && isMarkdown && !(webpageWorkspaceMeta && webpageWorkspaceMeta.view !== 'markdown')
 
+  const saveEnabled = effectiveIsEditing && activeEntryKind === 'file' && !!String(activeDocumentKey || '').trim()
+
+  const actionBridge = React.useMemo(
+    () => ({
+      importLocalFiles: fileActions.handleImportLocalFiles,
+      importLocalFolder: fileActions.handleImportLocalFolder,
+      importUrl: fileActions.handleImportUrl,
+      importWebsite: fileActions.handleImportWebsite,
+      createNewFolder: () => void fileActions.createNewFolder({ parentPath: createParentPath }),
+      save: saveEnabled ? () => void saveActiveFileNow() : undefined,
+    }),
+    [createParentPath, fileActions, saveActiveFileNow, saveEnabled],
+  )
+
+  React.useEffect(() => {
+    return registerMarkdownWorkspaceActionBridge('markdown-workspace-explorer', actionBridge)
+  }, [actionBridge])
+
   return (
     <section
       ref={workspaceRootRef}
@@ -2378,14 +2438,7 @@ export function MarkdownWorkspace() {
             onOpenBacklink={openBacklink}
             onTocReorder={onTocReorder}
             onCreateNewFile={() => void fileActions.createNewFile({ parentPath: createParentPath })}
-            onCreateNewFolder={() => void fileActions.createNewFolder({ parentPath: createParentPath })}
             onRefresh={() => void refresh()}
-            onSave={() => void saveActiveFileNow()}
-            saveDisabled={!effectiveIsEditing || activeEntryKind !== 'file' || !String(activeDocumentKey || '').trim()}
-            onImportLocalFiles={fileActions.handleImportLocalFiles}
-            onImportLocalFolder={fileActions.handleImportLocalFolder}
-            onImportUrl={fileActions.handleImportUrl}
-            onImportWebsite={fileActions.handleImportWebsite}
             activeEntryName={selectionEntry?.name || ''}
             activeEntryKind={selectionEntry?.kind || ''}
             canClearActiveSelection={fileActions.canClearActiveSelection}

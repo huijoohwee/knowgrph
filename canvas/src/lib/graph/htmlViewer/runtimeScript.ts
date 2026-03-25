@@ -7,11 +7,12 @@ const replaceAllExact = (s: string, token: string, replacement: string): string 
   return s.split(token).join(replacement)
 }
 
-const replaceOnceExact = (s: string, token: string, replacement: string): string => {
+const replaceOnceExact = (s: string, token: string, replacement: string, replacement2?: string): string => {
   if (!token) return s
+  const rep = typeof replacement2 === 'string' ? replacement2 : replacement
   const i = s.indexOf(token)
   if (i < 0) return s
-  return s.slice(0, i) + replacement + s.slice(i + token.length)
+  return s.slice(0, i) + rep + s.slice(i + token.length)
 }
 
 const cookTemplateLiteral = (raw: string): string => {
@@ -32,6 +33,7 @@ export function buildHtmlViewerRuntimeScript(args: {
   nodeLabelByIdJson: string
   edgeMetaByIdJson: string
   frontmatterVisibilityJson: string
+  initialFrontmatterEnabled?: boolean
   nodePosByIdJson: string
   groupMembersByIdJson: string
   density: 'default' | 'compact'
@@ -64,6 +66,84 @@ export function buildHtmlViewerRuntimeScript(args: {
     "function ensureMediaDom(){\n      if (!overlay) return;\n      if (overlay.__kgMediaBuilt) return;\n      overlay.__kgMediaBuilt = true;\n      overlay.__kgMediaById = {};\n\n      try {\n        var existing = overlay.querySelectorAll ? overlay.querySelectorAll(\\\"[data-kg-rich-media-panel='1'][data-node-id], .kg-media[data-node-id]\\\") : null;\n        if (existing && existing.length) {\n          for (var ei = 0; ei < existing.length; ei += 1) {\n            var ex = existing[ei];\n            if (!ex || !ex.getAttribute) continue;\n            var xid = String(ex.getAttribute('data-node-id') || '').trim();\n            if (!xid) continue;\n            try {\n              var curClass = String(ex.className || '');\n              if (curClass.indexOf('kg-media') < 0) ex.className = ('kg-media ' + curClass).trim();\n            } catch (e0) {\n              void 0;\n            }\n            overlay.__kgMediaById[xid] = ex;\n          }\n        }\n      } catch (e0) {\n        void 0;\n      }\n\n      if (!mediaNodes || mediaNodes.length === 0) return;\n      for (var i = 0; i < mediaNodes.length; i += 1) {\n        var n = mediaNodes[i];\n        var id = String(n.id || '');\n        if (overlay.__kgMediaById && overlay.__kgMediaById[id]) continue;\n        var el = document.createElement('div');\n        el.className = 'kg-media';",
   )
 
+  out = replaceAllExact(
+    out,
+    "el.setAttribute('data-kg-canvas-wheel-ignore', 'true');",
+    '',
+  )
+
+  out = replaceAllExact(
+    out,
+    "var UI_IGNORE_SELECTOR = '[data-kg-canvas-wheel-ignore=\"true\"], [data-kg-canvas-pointer-ignore=\"true\"]';",
+    "var UI_IGNORE_SELECTOR = '#kg-hud, #kg-hud *';",
+  )
+
+  out = replaceAllExact(
+    out,
+    "var pointerMode = 'select';",
+    "var pointerMode = 'pan';",
+  )
+
+  out = replaceAllExact(
+    out,
+    "var xid2 = String(ex2.getAttribute('data-node-id') || '').trim();",
+    "var xid2 = __kgResolveNodeId(String(ex2.getAttribute('data-node-id') || '').trim());",
+  )
+
+  out = replaceAllExact(
+    out,
+    "var xanchor = String(ex.getAttribute('data-kg-anchor-node-id') || '').trim();",
+    "var xanchor = __kgResolveNodeId(String(ex.getAttribute('data-kg-anchor-node-id') || '').trim());",
+  )
+
+  out = replaceAllExact(
+    out,
+    "var src = String(edgeEl.getAttribute('data-source-id') || edgeEl.getAttribute('data-source') || '').trim();\n      var tgt = String(edgeEl.getAttribute('data-target-id') || edgeEl.getAttribute('data-target') || '').trim();",
+    "var src = __kgResolveNodeId(String(edgeEl.getAttribute('data-source-id') || edgeEl.getAttribute('data-source') || '').trim());\n      var tgt = __kgResolveNodeId(String(edgeEl.getAttribute('data-target-id') || edgeEl.getAttribute('data-target') || '').trim());",
+  )
+
+  out = replaceAllExact(
+    out,
+    "var src = String(ee.getAttribute('data-source-id') || ee.getAttribute('data-source') || '').trim();",
+    "var src = __kgResolveNodeId(String(ee.getAttribute('data-source-id') || ee.getAttribute('data-source') || '').trim());",
+  )
+
+  out = replaceAllExact(
+    out,
+    "var tgt = String(ee.getAttribute('data-target-id') || ee.getAttribute('data-target') || '').trim();",
+    "var tgt = __kgResolveNodeId(String(ee.getAttribute('data-target-id') || ee.getAttribute('data-target') || '').trim());",
+  )
+
+  out = replaceAllExact(
+    out,
+    "var xid = String(ex.getAttribute('data-node-id') || '').trim();",
+    "var xid = __kgResolveNodeId(String(ex.getAttribute('data-node-id') || '').trim());",
+  )
+
+  out = replaceAllExact(
+    out,
+    "var xid2 = String(ex2.getAttribute('data-node-id') || '').trim();",
+    "var xid2 = __kgResolveNodeId(String(ex2.getAttribute('data-node-id') || '').trim());",
+  )
+
+  out = replaceAllExact(
+    out,
+    "var id = String(n.id || '');",
+    "var id = __kgResolveNodeId(String(n.id || '')); if (id) n.id = id;",
+  )
+
+  out = replaceAllExact(
+    out,
+    "var xid = String(ex.getAttribute('data-md-id') || ex.getAttribute('data-kg-markdown-design-block') || '').trim();\n            var xanchor = String(ex.getAttribute('data-kg-anchor-node-id') || '').trim();",
+    "var xid = String(ex.getAttribute('data-md-id') || ex.getAttribute('data-kg-markdown-design-block') || '').trim();\n            var xanchor = __kgResolveNodeId(String(ex.getAttribute('data-kg-anchor-node-id') || '').trim());",
+  )
+
+  out = replaceOnceExact(
+    out,
+    `overlay.__kgMediaById[xid] = ex;\n          }\n        }\n      } catch (e0) {\n        void 0;\n      }\n\n      if (!mediaNodes || mediaNodes.length === 0) return;`,
+    `overlay.__kgMediaById[xid] = ex;\n          }\n        }\n\n        try {\n          if ((!mediaNodes || mediaNodes.length === 0) && existing && existing.length) mediaNodes = [];\n          if (mediaNodes) {\n            var seen = Object.create(null);\n            for (var si = 0; si < mediaNodes.length; si += 1) {\n              var sn = mediaNodes[si];\n              var sid = sn && sn.id ? String(sn.id || '').trim() : '';\n              if (sid) seen[sid] = 1;\n            }\n            if (existing && existing.length) {\n              for (var ei2 = 0; ei2 < existing.length; ei2 += 1) {\n                var ex2 = existing[ei2];\n                if (!ex2 || !ex2.getAttribute) continue;\n                var xid2 = String(ex2.getAttribute('data-node-id') || '').trim();\n                if (!xid2 || seen[xid2]) continue;\n                seen[xid2] = 1;\n                var kind2 = '';\n                var url2 = '';\n                var open2 = '';\n                try { kind2 = String(ex2.getAttribute('data-kg-kind') || '').trim(); } catch (eK) { kind2 = ''; }\n                try { url2 = String(ex2.getAttribute('data-kg-url') || '').trim(); } catch (eU) { url2 = ''; }\n                try { open2 = String(ex2.getAttribute('data-kg-open-url') || '').trim(); } catch (eO) { open2 = ''; }\n                mediaNodes.push({ id: xid2, kind: kind2 || 'iframe', url: url2 || '', openUrl: open2 || '', title: xid2, interactive: true });\n              }\n            }\n          }\n        } catch (e2) {\n          void 0;\n        }\n      } catch (e0) {\n        void 0;\n      }\n\n      if (!mediaNodes || mediaNodes.length === 0) return;`,
+  )
+
   out = replaceOnceExact(
     out,
     "var existing = overlay.querySelectorAll ? overlay.querySelectorAll(\\\"[data-kg-rich-media-panel='1'][data-node-id], .kg-media[data-node-id]\\\") : null;",
@@ -87,7 +167,13 @@ export function buildHtmlViewerRuntimeScript(args: {
   out = replaceOnceExact(
     out,
     'var mediaNodes = __KG_MEDIA_NODES__;\n    var nodeMetaById = __KG_NODE_META__;',
-    `var mediaNodes = __KG_MEDIA_NODES__;\n    var markdownBlocks = ${safeMarkdownBlocksJson};\n    var nodeMetaById = __KG_NODE_META__;`,
+    `var mediaNodes = __KG_MEDIA_NODES__;\n    var markdownBlocks = ${safeMarkdownBlocksJson};\n    var nodeMetaById = __KG_NODE_META__;\n    var __kgNodeIdBySuffix = Object.create(null);\n    var __kgNodeIdSet = Object.create(null);\n    try {\n      if (nodePosById) {\n        for (var __kgNid in nodePosById) {\n          if (!Object.prototype.hasOwnProperty.call(nodePosById, __kgNid)) continue;\n          var __kgId = String(__kgNid || '').trim();\n          if (!__kgId) continue;\n          __kgNodeIdSet[__kgId] = 1;\n          var __kgSuffix = (__kgId.split('::').pop() || '').trim();\n          if (__kgSuffix && !__kgNodeIdBySuffix[__kgSuffix]) __kgNodeIdBySuffix[__kgSuffix] = __kgId;\n        }\n      }\n    } catch (e0) {\n      void 0;\n    }\n    function __kgResolveNodeId(raw){\n      try {\n        var id = String(raw || '').trim();\n        if (!id) return '';\n        if (__kgNodeIdSet[id] === 1) return id;\n        var suffix = (id.split('::').pop() || '').trim();\n        if (suffix && __kgNodeIdBySuffix[suffix]) return String(__kgNodeIdBySuffix[suffix] || '').trim();\n        return id;\n      } catch (e1) {\n        return String(raw || '').trim();\n      }\n    }\n    try {\n      if (mediaNodes && mediaNodes.length) {\n        for (var __kgMi = 0; __kgMi < mediaNodes.length; __kgMi += 1) {\n          var __kgMn = mediaNodes[__kgMi];\n          if (!__kgMn) continue;\n          var __kgMid = __kgResolveNodeId(__kgMn.id || '');\n          if (__kgMid) __kgMn.id = __kgMid;\n        }\n      }\n      if (markdownBlocks && markdownBlocks.length) {\n        for (var __kgBi = 0; __kgBi < markdownBlocks.length; __kgBi += 1) {\n          var __kgB = markdownBlocks[__kgBi];\n          if (!__kgB) continue;\n          try {\n            if (__kgB.anchorNodeId) __kgB.anchorNodeId = __kgResolveNodeId(__kgB.anchorNodeId);\n            if (__kgB.anchorId) __kgB.anchorId = __kgResolveNodeId(__kgB.anchorId);\n          } catch (e2) {\n            void 0;\n          }\n        }\n      }\n    } catch (e3) {\n      void 0;\n    }`,
+  )
+
+  out = replaceOnceExact(
+    out,
+    "var tip = document.getElementById('kg-tooltip');",
+    "var tip = document.getElementById('kg-tooltip');\n\n    var __kgNodeIdBySuffix = Object.create(null);\n    var __kgNodeIdSet = Object.create(null);\n    var __kgNodeIdMapReady = false;\n    function __kgEnsureNodeIdMap(){\n      if (__kgNodeIdMapReady) return;\n      __kgNodeIdMapReady = true;\n      try {\n        if (!nodePosById) return;\n        for (var __kgNid in nodePosById) {\n          if (!Object.prototype.hasOwnProperty.call(nodePosById, __kgNid)) continue;\n          var __kgId = String(__kgNid || '').trim();\n          if (!__kgId) continue;\n          __kgNodeIdSet[__kgId] = 1;\n          var __kgSuffix = (__kgId.split('::').pop() || '').trim();\n          if (__kgSuffix && !__kgNodeIdBySuffix[__kgSuffix]) __kgNodeIdBySuffix[__kgSuffix] = __kgId;\n        }\n      } catch (e0) {\n        void 0;\n      }\n    }\n    function __kgResolveNodeId(raw){\n      try {\n        __kgEnsureNodeIdMap();\n        var id = String(raw || '').trim();\n        if (!id) return '';\n        if (__kgNodeIdSet[id] === 1) return id;\n        var suffix = (id.split('::').pop() || '').trim();\n        if (suffix && __kgNodeIdBySuffix[suffix]) return String(__kgNodeIdBySuffix[suffix] || '').trim();\n        return id;\n      } catch (e1) {\n        return String(raw || '').trim();\n      }\n    }",
   )
 
   out = replaceOnceExact(
@@ -126,6 +212,13 @@ export function buildHtmlViewerRuntimeScript(args: {
     "function applyMediaPointerEvents(){\n      var pe = (mediaInteractive && pointerMode !== 'pan' && !panHeld && !headerDrag) ? 'auto' : 'none';\n      try {\n        if (pe !== lastMediaPointerEvents) {\n          lastMediaPointerEvents = pe;\n          document.documentElement.style.setProperty('--kg-media-pointer-events', pe);\n        }\n      } catch (err) {}\n      try {\n        if (mediaBtn && mediaBtn.classList) {\n          if (lastMediaBtnActive !== mediaInteractive) {\n            lastMediaBtnActive = mediaInteractive;\n            if (mediaInteractive) mediaBtn.classList.add('kg-active');\n            else mediaBtn.classList.remove('kg-active');\n          }\n        }\n      } catch (err) {}\n      try {\n        if (overlay && overlay.__kgMediaById && mediaNodes && mediaNodes.length) {\n          for (var i = 0; i < mediaNodes.length; i += 1) {\n            var n = mediaNodes[i];\n            if (!n) continue;\n            var id = String(n.id || '');\n            if (!id) continue;\n            var holder = overlay.__kgMediaById[id];\n            if (!holder || !holder.querySelectorAll) continue;\n            var interactive0 = !!n.interactive;\n            var perPe = interactive0 ? pe : 'none';\n            var els = holder.querySelectorAll('iframe,img,video,source');\n            for (var j = 0; j < els.length; j += 1) {\n              var el = els[j];\n              if (!el || !el.style) continue;\n              try { el.style.pointerEvents = perPe; } catch (e0) {}\n            }\n          }\n        }\n      } catch (err) {}\n    }",
   )
 
+  out = replaceOnceExact(
+    out,
+    "function updateEdgeGeometryByEl(edgeEl){\n      if (!edgeEl || !edgeEl.getAttribute) return;\n      var src = String(edgeEl.getAttribute('data-source-id') || edgeEl.getAttribute('data-source') || '').trim();\n      var tgt = String(edgeEl.getAttribute('data-target-id') || edgeEl.getAttribute('data-target') || '').trim();\n      if (!src || !tgt) return;\n      var a = nodePosById && nodePosById[src] ? nodePosById[src] : null;\n      var b = nodePosById && nodePosById[tgt] ? nodePosById[tgt] : null;\n      if (!a || !b) return;\n      var x1 = Number(a.x);\n      var y1 = Number(a.y);\n      var x2 = Number(b.x);\n      var y2 = Number(b.y);\n      if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) return;\n      var tag = String(edgeEl.tagName || '').toLowerCase();\n      if (tag === 'line') {\n        edgeEl.setAttribute('x1', String(x1));\n        edgeEl.setAttribute('y1', String(y1));\n        edgeEl.setAttribute('x2', String(x2));\n        edgeEl.setAttribute('y2', String(y2));\n        return;\n      }\n      if (tag === 'polyline') {\n        edgeEl.setAttribute('points', String(x1) + ',' + String(y1) + ' ' + String(x2) + ',' + String(y2));\n        return;\n      }\n      if (tag === 'path') {\n        edgeEl.setAttribute('d', 'M ' + String(x1) + ' ' + String(y1) + ' L ' + String(x2) + ' ' + String(y2));\n      }\n    }",
+    "function updateEdgeGeometryByEl(edgeEl){\n      if (!edgeEl || !edgeEl.getAttribute) return;\n      var src = String(edgeEl.getAttribute('data-source-id') || edgeEl.getAttribute('data-source') || '').trim();\n      var tgt = String(edgeEl.getAttribute('data-target-id') || edgeEl.getAttribute('data-target') || '').trim();\n      if (!src || !tgt) return;\n      var a = nodePosById && nodePosById[src] ? nodePosById[src] : null;\n      var b = nodePosById && nodePosById[tgt] ? nodePosById[tgt] : null;\n      if (!a || !b) return;\n      var x1 = Number(a.x);\n      var y1 = Number(a.y);\n      var x2 = Number(b.x);\n      var y2 = Number(b.y);\n      if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) return;\n\n      function applyPanelEndpointIntersection(nodeId, x, y, toX, toY){\n        try {\n          if (!overlay) return { x: x, y: y };\n          var box = null;\n          try {\n            if (overlay.__kgMediaBoxById && overlay.__kgMediaBoxById[nodeId]) box = overlay.__kgMediaBoxById[nodeId];\n          } catch (e0) {}\n          if (!box) {\n            try {\n              if (overlay.__kgMdBoxById && overlay.__kgMdBoxById[nodeId]) box = overlay.__kgMdBoxById[nodeId];\n            } catch (e1) {}\n          }\n          if (!box) return { x: x, y: y };\n\n          var baseSx = (svgBase && isFinite(svgBase.sx) && svgBase.sx > 0) ? svgBase.sx : 1;\n          var baseSy = (svgBase && isFinite(svgBase.sy) && svgBase.sy > 0) ? svgBase.sy : 1;\n          var k0 = (state && isFinite(state.k) && state.k > 0) ? state.k : 1;\n          var wpx = Number(box.w) || 0;\n          var hpx = Number(box.h) || 0;\n          if (!(wpx > 0) || !(hpx > 0)) return { x: x, y: y };\n\n          var hw = wpx / (2 * baseSx * k0);\n          var hh = hpx / (2 * baseSy * k0);\n          if (!(hw > 0) || !(hh > 0)) return { x: x, y: y };\n\n          var dx = toX - x;\n          var dy = toY - y;\n          if (!isFinite(dx) || !isFinite(dy)) return { x: x, y: y };\n          if (dx === 0 && dy === 0) return { x: x, y: y };\n\n          var sx = Math.abs(dx) / hw;\n          var sy = Math.abs(dy) / hh;\n          var m = Math.max(sx, sy);\n          if (!(m > 0) || !isFinite(m)) return { x: x, y: y };\n          var t = 1 / m;\n          if (!(t > 0) || !isFinite(t)) return { x: x, y: y };\n          return { x: x + dx * t, y: y + dy * t };\n        } catch (e) {\n          return { x: x, y: y };\n        }\n      }\n\n      try {\n        var a1 = applyPanelEndpointIntersection(src, x1, y1, x2, y2);\n        x1 = Number(a1.x);\n        y1 = Number(a1.y);\n        var b1 = applyPanelEndpointIntersection(tgt, x2, y2, x1, y1);\n        x2 = Number(b1.x);\n        y2 = Number(b1.y);\n      } catch (e0) {}\n\n      if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) return;\n      var tag = String(edgeEl.tagName || '').toLowerCase();\n      if (tag === 'line') {\n        edgeEl.setAttribute('x1', String(x1));\n        edgeEl.setAttribute('y1', String(y1));\n        edgeEl.setAttribute('x2', String(x2));\n        edgeEl.setAttribute('y2', String(y2));\n        return;\n      }\n      if (tag === 'polyline') {\n        edgeEl.setAttribute('points', String(x1) + ',' + String(y1) + ' ' + String(x2) + ',' + String(y2));\n        return;\n      }\n      if (tag === 'path') {\n        edgeEl.setAttribute('d', 'M ' + String(x1) + ' ' + String(y1) + ' L ' + String(x2) + ' ' + String(y2));\n      }\n    }",
+    "function updateEdgeGeometryByEl(edgeEl){\n      if (!edgeEl || !edgeEl.getAttribute) return;\n      var src = String(edgeEl.getAttribute('data-source-id') || edgeEl.getAttribute('data-source') || '').trim();\n      var tgt = String(edgeEl.getAttribute('data-target-id') || edgeEl.getAttribute('data-target') || '').trim();\n      if (!src || !tgt) return;\n      var a = nodePosById && nodePosById[src] ? nodePosById[src] : null;\n      var b = nodePosById && nodePosById[tgt] ? nodePosById[tgt] : null;\n      if (!a || !b) return;\n      var x1 = Number(a.x);\n      var y1 = Number(a.y);\n      var x2 = Number(b.x);\n      var y2 = Number(b.y);\n      if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) return;\n\n      var baseSx = (svgBase && isFinite(svgBase.sx) && svgBase.sx > 0) ? svgBase.sx : 1;\n      var baseSy = (svgBase && isFinite(svgBase.sy) && svgBase.sy > 0) ? svgBase.sy : 1;\n      var ox = (svgBase && isFinite(svgBase.ox)) ? svgBase.ox : 0;\n      var oy = (svgBase && isFinite(svgBase.oy)) ? svgBase.oy : 0;\n      var k0 = (state && isFinite(state.k) && state.k > 0) ? state.k : 1;\n\n      function applyNodeScreenOffset(nodeId, x, y){\n        try {\n          if (!svg) return { x: x, y: y };\n          var m = svg.__kgNodeOffsetById || null;\n          if (!m) return { x: x, y: y };\n          var o = m[nodeId] || null;\n          if (!o) return { x: x, y: y };\n          var dx = (Number(o.x) || 0) / (k0 * baseSx);\n          var dy = (Number(o.y) || 0) / (k0 * baseSy);\n          if (!isFinite(dx) || !isFinite(dy)) return { x: x, y: y };\n          return { x: x + dx, y: y + dy };\n        } catch (e0) {\n          return { x: x, y: y };\n        }\n      }\n\n      function rectWorldByNodeId(nodeId){\n        try {\n          if (!overlay) return null;\n          var box = null;\n          try { if (overlay.__kgMediaBoxById && overlay.__kgMediaBoxById[nodeId]) box = overlay.__kgMediaBoxById[nodeId]; } catch (e0) {}\n          if (!box) { try { if (overlay.__kgMdBoxById && overlay.__kgMdBoxById[nodeId]) box = overlay.__kgMdBoxById[nodeId]; } catch (e1) {} }\n          if (!box) return null;\n          var lpx = Number(box.left);\n          var tpx = Number(box.top);\n          var wpx = Number(box.w);\n          var hpx = Number(box.h);\n          if (!isFinite(lpx) || !isFinite(tpx) || !isFinite(wpx) || !isFinite(hpx) || !(wpx > 0) || !(hpx > 0)) return null;\n          var left = (lpx - state.x - ox) / (k0 * baseSx);\n          var top = (tpx - state.y - oy) / (k0 * baseSy);\n          var right = (lpx + wpx - state.x - ox) / (k0 * baseSx);\n          var bottom = (tpx + hpx - state.y - oy) / (k0 * baseSy);\n          if (!isFinite(left) || !isFinite(top) || !isFinite(right) || !isFinite(bottom)) return null;\n          if (right < left) { var tmp = right; right = left; left = tmp; }\n          if (bottom < top) { var tmp2 = bottom; bottom = top; top = tmp2; }\n          if (!(right > left) || !(bottom > top)) return null;\n          return { left: left, top: top, right: right, bottom: bottom };\n        } catch (e2) {\n          return null;\n        }\n      }\n\n      function clipToRectBoundary(nodeId, ax, ay, bx, by){\n        try {\n          var r = rectWorldByNodeId(nodeId);\n          if (!r) return { x: ax, y: ay };\n          var vx = bx - ax;\n          var vy = by - ay;\n          if (!isFinite(vx) || !isFinite(vy)) return { x: ax, y: ay };\n          if (vx === 0 && vy === 0) return { x: ax, y: ay };\n          var t = Infinity;\n          if (vx > 0) t = Math.min(t, (r.right - ax) / vx);\n          else if (vx < 0) t = Math.min(t, (r.left - ax) / vx);\n          if (vy > 0) t = Math.min(t, (r.bottom - ay) / vy);\n          else if (vy < 0) t = Math.min(t, (r.top - ay) / vy);\n          if (!isFinite(t) || t === Infinity || t < 0) return { x: ax, y: ay };\n          return { x: ax + vx * t, y: ay + vy * t };\n        } catch (e3) {\n          return { x: ax, y: ay };\n        }\n      }\n\n      var a0 = applyNodeScreenOffset(src, x1, y1);\n      var b0 = applyNodeScreenOffset(tgt, x2, y2);\n      x1 = Number(a0.x);\n      y1 = Number(a0.y);\n      x2 = Number(b0.x);\n      y2 = Number(b0.y);\n\n      try {\n        var p1 = clipToRectBoundary(src, x1, y1, x2, y2);\n        x1 = Number(p1.x);\n        y1 = Number(p1.y);\n        var p2 = clipToRectBoundary(tgt, x2, y2, x1, y1);\n        x2 = Number(p2.x);\n        y2 = Number(p2.y);\n      } catch (e4) {}\n\n      if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) return;\n      var tag = String(edgeEl.tagName || '').toLowerCase();\n      if (tag === 'line') {\n        edgeEl.setAttribute('x1', String(x1));\n        edgeEl.setAttribute('y1', String(y1));\n        edgeEl.setAttribute('x2', String(x2));\n        edgeEl.setAttribute('y2', String(y2));\n        return;\n      }\n      if (tag === 'polyline') {\n        edgeEl.setAttribute('points', String(x1) + ',' + String(y1) + ' ' + String(x2) + ',' + String(y2));\n        return;\n      }\n      if (tag === 'path') {\n        edgeEl.setAttribute('d', 'M ' + String(x1) + ' ' + String(y1) + ' L ' + String(x2) + ' ' + String(y2));\n      }\n    }",
+  )
+
   out = replaceOnceExact(out, 'var mediaInteractive = false;', 'var mediaInteractive = true;')
 
   out = replaceOnceExact(
@@ -133,6 +226,7 @@ export function buildHtmlViewerRuntimeScript(args: {
     "function isMediaHeaderTarget(t){\n      try {\n        if (!(t instanceof Element)) return false;\n        return !!t.closest('.kg-mediaHeader');\n      } catch (err) {\n        return false;\n      }\n    }",
     "function isMediaHeaderTarget(t){\n      try {\n        if (!(t instanceof Element)) return false;\n        return !!t.closest('.kg-mediaHeader,[data-kg-media-panel-header=\\\"1\\\"]');\n      } catch (err) {\n        return false;\n      }\n    }",
   )
+
 
   out = replaceOnceExact(
     out,
@@ -161,7 +255,7 @@ export function buildHtmlViewerRuntimeScript(args: {
   out = replaceOnceExact(
     out,
     'overlay.__kgMdById = {};\n      for (var i = 0; i < markdownBlocks.length; i += 1) {',
-    "overlay.__kgMdById = {};\n\n      try {\n        var existing = overlay.querySelectorAll ? overlay.querySelectorAll('[data-md-id],[data-kg-markdown-design-block]') : null;\n        if (existing && existing.length) {\n          for (var ei = 0; ei < existing.length; ei += 1) {\n            var ex = existing[ei];\n            if (!ex || !ex.getAttribute) continue;\n            var xid = String(ex.getAttribute('data-md-id') || ex.getAttribute('data-kg-markdown-design-block') || '').trim();\n            if (!xid) continue;\n            try {\n              var curClass = String(ex.className || '');\n              if (curClass.indexOf('kg-md') < 0) ex.className = ('kg-md ' + curClass).trim();\n            } catch (e0) {\n              void 0;\n            }\n            overlay.__kgMdById[xid] = ex;\n          }\n        }\n      } catch (e0) {\n        void 0;\n      }\n\n      for (var i = 0; i < markdownBlocks.length; i += 1) {",
+    "overlay.__kgMdById = {};\n\n      try {\n        var existing = overlay.querySelectorAll ? overlay.querySelectorAll('[data-md-id],[data-kg-markdown-design-block]') : null;\n        if (existing && existing.length) {\n          for (var ei = 0; ei < existing.length; ei += 1) {\n            var ex = existing[ei];\n            if (!ex || !ex.getAttribute) continue;\n            var xid = String(ex.getAttribute('data-md-id') || ex.getAttribute('data-kg-markdown-design-block') || '').trim();\n            var xanchor = String(ex.getAttribute('data-kg-anchor-node-id') || '').trim();\n            if (!xid && !xanchor) continue;\n            try {\n              var curClass = String(ex.className || '');\n              if (curClass.indexOf('kg-md') < 0) ex.className = ('kg-md ' + curClass).trim();\n            } catch (e0) {\n              void 0;\n            }\n            if (xid) overlay.__kgMdById[xid] = ex;\n            if (xanchor) overlay.__kgMdById[xanchor] = ex;\n          }\n        }\n      } catch (e0) {\n        void 0;\n      }\n\n      for (var i = 0; i < markdownBlocks.length; i += 1) {",
   )
 
   out = replaceOnceExact(
@@ -179,13 +273,13 @@ export function buildHtmlViewerRuntimeScript(args: {
   out = replaceOnceExact(
     out,
     'var offMap = svg.__kgNodeOffsetById || (svg.__kgNodeOffsetById = {});',
-    "var offMap = svg.__kgNodeOffsetById || (svg.__kgNodeOffsetById = {});\n\n          try {\n            var foList = svg.querySelectorAll('[data-kg-layer=\\\"markdown-design-blocks\\\"] foreignObject[data-kg-markdown-block-id]');\n            if (foList && foList.length) {\n              for (var fi = 0; fi < foList.length; fi += 1) {\n                var fo = foList[fi];\n                if (!fo || !fo.getAttribute) continue;\n                var fid = String(fo.getAttribute('data-kg-markdown-block-id') || '');\n                if (!fid) continue;\n                var pz = nodePosById && nodePosById[fid] ? nodePosById[fid] : null;\n                if (!pz) continue;\n                var nx = Number(pz.x);\n                var ny = Number(pz.y);\n                if (!isFinite(nx) || !isFinite(ny)) continue;\n                var fx = Number(fo.getAttribute('x'));\n                var fy = Number(fo.getAttribute('y'));\n                var fw = Number(fo.getAttribute('width'));\n                var fh = Number(fo.getAttribute('height'));\n                if (!isFinite(fx) || !isFinite(fy) || !isFinite(fw) || !isFinite(fh) || !(fw > 0) || !(fh > 0)) continue;\n\n                var nodeSx = nx * state.k * baseSx1 + state.x + ox1;\n                var nodeSy = ny * state.k * baseSy1 + state.y + oy1;\n                var anchorSx = (fx + fw * 0.5) * state.k * baseSx1 + state.x + ox1;\n                var anchorSy = fy * state.k * baseSy1 + state.y + oy1 - 6;\n                var dx = anchorSx - nodeSx;\n                var dy = anchorSy - nodeSy;\n                var prev = offMap[fid] || null;\n                if (!prev || Math.abs((Number(prev.x) || 0) - dx) > 0.5 || Math.abs((Number(prev.y) || 0) - dy) > 0.5) {\n                  offMap[fid] = { x: dx, y: dy };\n                  try { scheduleEdgeGeometryUpdateForNode(fid); } catch (eFo) {}\n                }\n              }\n            }\n          } catch (eF0) {}",
+    "var offMap = svg.__kgNodeOffsetById || (svg.__kgNodeOffsetById = {});\n\n          try {\n            var foList = svg.querySelectorAll('[data-kg-layer=\\\"markdown-design-blocks\\\"] foreignObject[data-kg-markdown-block-id]');\n            if (foList && foList.length) {\n              for (var fi = 0; fi < foList.length; fi += 1) {\n                var fo = foList[fi];\n                if (!fo || !fo.getAttribute) continue;\n                var fid = String(fo.getAttribute('data-kg-markdown-block-id') || '');\n                var fanchor = String(fo.getAttribute('data-kg-anchor-node-id') || '').trim();\n                var fkey = fanchor || fid;\n                if (!fkey) continue;\n                var pz = nodePosById && nodePosById[fkey] ? nodePosById[fkey] : null;\n                if (!pz) continue;\n                var nx = Number(pz.x);\n                var ny = Number(pz.y);\n                if (!isFinite(nx) || !isFinite(ny)) continue;\n                var fx = Number(fo.getAttribute('x'));\n                var fy = Number(fo.getAttribute('y'));\n                var fw = Number(fo.getAttribute('width'));\n                var fh = Number(fo.getAttribute('height'));\n                if (!isFinite(fx) || !isFinite(fy) || !isFinite(fw) || !isFinite(fh) || !(fw > 0) || !(fh > 0)) continue;\n\n                var nodeSx = nx * state.k * baseSx1 + state.x + ox1;\n                var nodeSy = ny * state.k * baseSy1 + state.y + oy1;\n                var anchorSx = (fx + fw * 0.5) * state.k * baseSx1 + state.x + ox1;\n                var anchorSy = fy * state.k * baseSy1 + state.y + oy1 - 6;\n                var dx = anchorSx - nodeSx;\n                var dy = anchorSy - nodeSy;\n                var prev = offMap[fkey] || null;\n                if (!prev || Math.abs((Number(prev.x) || 0) - dx) > 0.5 || Math.abs((Number(prev.y) || 0) - dy) > 0.5) {\n                  offMap[fkey] = { x: dx, y: dy };\n                  try { scheduleEdgeGeometryUpdateForNode(fkey); } catch (eFo) {}\n                }\n              }\n            }\n          } catch (eF0) {}",
   )
 
   out = replaceOnceExact(
     out,
     "lastBoxById[id] = { left: left, top: top, w: panelW, h: panelH, display: 'block' };\n        }\n      }\n    }\n\n    function onWheel(e){",
-    "lastBoxById[id] = { left: left, top: top, w: panelW, h: panelH, display: 'block' };\n        }\n      }\n\n      try {\n        if (markdownBlocks && markdownBlocks.length) {\n          var mdById = overlay.__kgMdById || {};\n          var lastMdBoxById = overlay.__kgMdBoxById || (overlay.__kgMdBoxById = {});\n          var baseSx0 = (svgBase && isFinite(svgBase.sx) && svgBase.sx > 0) ? svgBase.sx : 1;\n          var baseSy0 = (svgBase && isFinite(svgBase.sy) && svgBase.sy > 0) ? svgBase.sy : 1;\n          var ox0 = (svgBase && isFinite(svgBase.ox)) ? svgBase.ox : 0;\n          var oy0 = (svgBase && isFinite(svgBase.oy)) ? svgBase.oy : 0;\n          for (var mi = 0; mi < markdownBlocks.length; mi += 1) {\n            var b = markdownBlocks[mi];\n            if (!b) continue;\n            var bid = String(b.id || '');\n            if (!bid) continue;\n            var el = mdById[bid] || null;\n            if (!el) continue;\n            var xw = Number(b.x);\n            var yw = Number(b.y);\n            var ww = Number(b.w);\n            var hh = Number(b.h);\n            if (!isFinite(xw) || !isFinite(yw) || !isFinite(ww) || !isFinite(hh) || !(ww > 0) || !(hh > 0)) continue;\n            var left = xw * state.k * baseSx0 + state.x + ox0;\n            var top = yw * state.k * baseSy0 + state.y + oy0;\n            var sw = ww * state.k * baseSx0;\n            var sh = hh * state.k * baseSy0;\n            var il = Math.round(left);\n            var it = Math.round(top);\n            var iw = Math.max(1, Math.round(sw));\n            var ih = Math.max(1, Math.round(sh));\n            var prev = lastMdBoxById[bid] || null;\n            if (!prev || prev.left !== il || prev.top !== it || prev.w !== iw || prev.h !== ih || prev.display !== 'block') {\n              applyPanelBox(el, { left: il, top: it, w: iw, h: ih, display: 'block', zIndex: 1 });\n              lastMdBoxById[bid] = { left: il, top: it, w: iw, h: ih, display: 'block' };\n            }\n          }\n        }\n      } catch (mdErr) {}\n\n      try {\n        if (svg && overlay && nodePosById) {\n          var baseSx1 = (svgBase && isFinite(svgBase.sx) && svgBase.sx > 0) ? svgBase.sx : 1;\n          var baseSy1 = (svgBase && isFinite(svgBase.sy) && svgBase.sy > 0) ? svgBase.sy : 1;\n          var ox1 = (svgBase && isFinite(svgBase.ox)) ? svgBase.ox : 0;\n          var oy1 = (svgBase && isFinite(svgBase.oy)) ? svgBase.oy : 0;\n          var density1 = __KG_DENSITY__;\n          var headerH = density1 === 'compact' ? 22 : 28;\n          var offMap = svg.__kgNodeOffsetById || (svg.__kgNodeOffsetById = {});\n\n          var mediaBoxById = overlay.__kgMediaBoxById || {};\n          if (mediaNodes && mediaNodes.length) {\n            for (var mi2 = 0; mi2 < mediaNodes.length; mi2 += 1) {\n              var n0 = mediaNodes[mi2];\n              var id0 = String(n0 && n0.id ? n0.id : '');\n              if (!id0) continue;\n              var box0 = mediaBoxById[id0] || null;\n              var p0 = nodePosById && nodePosById[id0] ? nodePosById[id0] : null;\n              if (!p0 || !box0) continue;\n              var x0 = Number(p0.x);\n              var y0 = Number(p0.y);\n              if (!isFinite(x0) || !isFinite(y0)) continue;\n              var asx = x0 * state.k * baseSx1 + state.x + ox1;\n              var asy = y0 * state.k * baseSy1 + state.y + oy1;\n              var dx0 = (Number(box0.left) || 0) + (Number(box0.w) || 0) * 0.5 - asx;\n              var dy0 = (Number(box0.top) || 0) + Math.min(headerH, Number(box0.h) || 0) * 0.5 - asy;\n              var prev0 = offMap[id0] || null;\n              if (!prev0 || Math.abs((Number(prev0.x) || 0) - dx0) > 0.5 || Math.abs((Number(prev0.y) || 0) - dy0) > 0.5) {\n                offMap[id0] = { x: dx0, y: dy0 };\n                try { scheduleEdgeGeometryUpdateForNode(id0); } catch (e0) {}\n              }\n            }\n          }\n\n          var mdBoxById = overlay.__kgMdBoxById || {};\n          if (markdownBlocks && markdownBlocks.length) {\n            for (var mi3 = 0; mi3 < markdownBlocks.length; mi3 += 1) {\n              var b0 = markdownBlocks[mi3];\n              if (!b0) continue;\n              var bid0 = String(b0.id || '');\n              if (!bid0) continue;\n              var box1 = mdBoxById[bid0] || null;\n              var p1 = nodePosById && nodePosById[bid0] ? nodePosById[bid0] : null;\n              if (!p1 || !box1) continue;\n              var x1 = Number(p1.x);\n              var y1 = Number(p1.y);\n              if (!isFinite(x1) || !isFinite(y1)) continue;\n              var bsx = x1 * state.k * baseSx1 + state.x + ox1;\n              var bsy = y1 * state.k * baseSy1 + state.y + oy1;\n              var dx1 = (Number(box1.left) || 0) + (Number(box1.w) || 0) * 0.5 - bsx;\n              var dy1 = (Number(box1.top) || 0) + Math.min(headerH, Number(box1.h) || 0) * 0.5 - bsy;\n              var prev1 = offMap[bid0] || null;\n              if (!prev1 || Math.abs((Number(prev1.x) || 0) - dx1) > 0.5 || Math.abs((Number(prev1.y) || 0) - dy1) > 0.5) {\n                offMap[bid0] = { x: dx1, y: dy1 };\n                try { scheduleEdgeGeometryUpdateForNode(bid0); } catch (e1) {}\n              }\n            }\n          }\n        }\n      } catch (errOff) {}\n    }\n\n    function onWheel(e){",
+    "lastBoxById[id] = { left: left, top: top, w: panelW, h: panelH, display: 'block' };\n        }\n      }\n\n      try {\n        if (markdownBlocks && markdownBlocks.length) {\n          var mdById = overlay.__kgMdById || {};\n          var lastMdBoxById = overlay.__kgMdBoxById || (overlay.__kgMdBoxById = {});\n          var baseSx0 = (svgBase && isFinite(svgBase.sx) && svgBase.sx > 0) ? svgBase.sx : 1;\n          var baseSy0 = (svgBase && isFinite(svgBase.sy) && svgBase.sy > 0) ? svgBase.sy : 1;\n          var ox0 = (svgBase && isFinite(svgBase.ox)) ? svgBase.ox : 0;\n          var oy0 = (svgBase && isFinite(svgBase.oy)) ? svgBase.oy : 0;\n          for (var mi = 0; mi < markdownBlocks.length; mi += 1) {\n            var b = markdownBlocks[mi];\n            if (!b) continue;\n            var bid = String(b.id || '');\n            var anchorId = String((b && (b.anchorNodeId || b.anchorId)) || '').trim();\n            if (!bid && !anchorId) continue;\n            var el = mdById[bid] || mdById[anchorId] || null;\n            if (!el) continue;\n            var xw = Number(b.x);\n            var yw = Number(b.y);\n            var ww = Number(b.w);\n            var hh = Number(b.h);\n            if (!isFinite(xw) || !isFinite(yw) || !isFinite(ww) || !isFinite(hh) || !(ww > 0) || !(hh > 0)) continue;\n            var left = xw * state.k * baseSx0 + state.x + ox0;\n            var top = yw * state.k * baseSy0 + state.y + oy0;\n            var sw = ww * state.k * baseSx0;\n            var sh = hh * state.k * baseSy0;\n            var il = Math.round(left);\n            var it = Math.round(top);\n            var iw = Math.max(1, Math.round(sw));\n            var ih = Math.max(1, Math.round(sh));\n            var key0 = anchorId || bid;\n            var prev = lastMdBoxById[key0] || null;\n            if (!prev || prev.left !== il || prev.top !== it || prev.w !== iw || prev.h !== ih || prev.display !== 'block') {\n              applyPanelBox(el, { left: il, top: it, w: iw, h: ih, display: 'block', zIndex: 1 });\n              var boxVal = { left: il, top: it, w: iw, h: ih, display: 'block' };\n              if (bid) lastMdBoxById[bid] = boxVal;\n              if (anchorId) lastMdBoxById[anchorId] = boxVal;\n            }\n          }\n        }\n      } catch (mdErr) {}\n\n      try {\n        if (svg && overlay && nodePosById) {\n          var baseSx1 = (svgBase && isFinite(svgBase.sx) && svgBase.sx > 0) ? svgBase.sx : 1;\n          var baseSy1 = (svgBase && isFinite(svgBase.sy) && svgBase.sy > 0) ? svgBase.sy : 1;\n          var ox1 = (svgBase && isFinite(svgBase.ox)) ? svgBase.ox : 0;\n          var oy1 = (svgBase && isFinite(svgBase.oy)) ? svgBase.oy : 0;\n          var density1 = __KG_DENSITY__;\n          var headerH = density1 === 'compact' ? 22 : 28;\n          var offMap = svg.__kgNodeOffsetById || (svg.__kgNodeOffsetById = {});\n\n          var mediaBoxById = overlay.__kgMediaBoxById || {};\n          if (mediaNodes && mediaNodes.length) {\n            for (var mi2 = 0; mi2 < mediaNodes.length; mi2 += 1) {\n              var n0 = mediaNodes[mi2];\n              var id0 = String(n0 && n0.id ? n0.id : '');\n              if (!id0) continue;\n              var box0 = mediaBoxById[id0] || null;\n              var p0 = nodePosById && nodePosById[id0] ? nodePosById[id0] : null;\n              if (!p0 || !box0) continue;\n              var x0 = Number(p0.x);\n              var y0 = Number(p0.y);\n              if (!isFinite(x0) || !isFinite(y0)) continue;\n              var asx = x0 * state.k * baseSx1 + state.x + ox1;\n              var asy = y0 * state.k * baseSy1 + state.y + oy1;\n              var dx0 = (Number(box0.left) || 0) + (Number(box0.w) || 0) * 0.5 - asx;\n              var dy0 = (Number(box0.top) || 0) + Math.min(headerH, Number(box0.h) || 0) * 0.5 - asy;\n              var prev0 = offMap[id0] || null;\n              if (!prev0 || Math.abs((Number(prev0.x) || 0) - dx0) > 0.5 || Math.abs((Number(prev0.y) || 0) - dy0) > 0.5) {\n                offMap[id0] = { x: dx0, y: dy0 };\n                try { scheduleEdgeGeometryUpdateForNode(id0); } catch (e0) {}\n              }\n            }\n          }\n\n          var mdBoxById = overlay.__kgMdBoxById || {};\n          if (markdownBlocks && markdownBlocks.length) {\n            for (var mi3 = 0; mi3 < markdownBlocks.length; mi3 += 1) {\n              var b0 = markdownBlocks[mi3];\n              if (!b0) continue;\n              var bid0 = String(b0.id || '');\n              var anchorId0 = String((b0 && (b0.anchorNodeId || b0.anchorId)) || '').trim();\n              var key1 = anchorId0 || bid0;\n              if (!key1) continue;\n              var box1 = mdBoxById[key1] || mdBoxById[bid0] || null;\n              var p1 = nodePosById && nodePosById[key1] ? nodePosById[key1] : null;\n              if (!p1 || !box1) continue;\n              var x1 = Number(p1.x);\n              var y1 = Number(p1.y);\n              if (!isFinite(x1) || !isFinite(y1)) continue;\n              var bsx = x1 * state.k * baseSx1 + state.x + ox1;\n              var bsy = y1 * state.k * baseSy1 + state.y + oy1;\n              var dx1 = (Number(box1.left) || 0) + (Number(box1.w) || 0) * 0.5 - bsx;\n              var dy1 = (Number(box1.top) || 0) + (Number(box1.h) || 0) * 0.5 - bsy;\n              var prev1 = offMap[key1] || null;\n              if (!prev1 || Math.abs((Number(prev1.x) || 0) - dx1) > 0.5 || Math.abs((Number(prev1.y) || 0) - dy1) > 0.5) {\n                offMap[key1] = { x: dx1, y: dy1 };\n                try { scheduleEdgeGeometryUpdateForNode(key1); } catch (e1) {}\n              }\n            }\n          }\n        }\n      } catch (errOff) {}\n    }\n\n    function onWheel(e){",
   )
 
 
@@ -429,6 +523,18 @@ export function buildHtmlViewerRuntimeScript(args: {
     "var kgInferMediaKindFromUrl2 = function(rawUrl){\n      try {\n        var u = String(rawUrl || '').trim();\n        if (!u) return '';\n        try {\n          var k0 = typeof kgInferMediaKindFromUrl === 'function' ? kgInferMediaKindFromUrl(u) : '';\n          if (k0) return k0;\n        } catch (e0) {\n          void 0;\n        }\n        try {\n          var p = new URL(u);\n          var host = String(p.hostname || '').toLowerCase();\n          var path = String(p.pathname || '').toLowerCase();\n          var query = String(p.search || '').toLowerCase();\n          var isWeChatAssetHost =\n            host === 'mmbiz.qpic.cn' || host.endsWith('.qpic.cn') ||\n            host === 'mmbiz.qlogo.cn' || host.endsWith('.qlogo.cn') ||\n            host === 'wx.qlogo.cn' || host.endsWith('.wx.qlogo.cn');\n          if (isWeChatAssetHost) {\n            if (path.indexOf('/mmbiz_png/') >= 0 || path.indexOf('/mmbiz_jpg/') >= 0 || path.indexOf('/mmbiz_gif/') >= 0 || path.indexOf('/mmbiz_webp/') >= 0) return 'image';\n            if (query.indexOf('wx_fmt=') >= 0 || query.indexOf('tp=') >= 0) return 'image';\n          }\n          if ((host === 'substackcdn.com' || host.endsWith('.substackcdn.com')) && path.indexOf('/image/fetch') >= 0) return 'image';\n        } catch (e1) {\n          void 0;\n        }\n        return '';\n      } catch (e) {\n        return '';\n      }\n    };\n\n    var kgIsDirectIframeEmbedUrl = function(rawUrl){",
   )
 
+  out = replaceAllExact(
+    out,
+    'setFrontmatterEnabled(false);',
+    `setFrontmatterEnabled(${args.initialFrontmatterEnabled === true ? 'true' : 'false'});`,
+  )
+
+  out = replaceAllExact(
+    out,
+    "setMediaInteractive(String(kgPanelMode || '').trim() === 'embed');",
+    'setMediaInteractive(false);',
+  )
+
   out = replaceOnceExact(
     out,
     "el.className = 'kg-media';",
@@ -466,8 +572,10 @@ export function buildHtmlViewerRuntimeScript(args: {
             try {
               if (!__kgMdDrag || !ev) return;
               if (ev.pointerId !== __kgMdDrag.pid) return;
-              var dx = (Number(ev.clientX) - Number(__kgMdDrag.sx)) / Math.max(0.001, state.k);
-              var dy = (Number(ev.clientY) - Number(__kgMdDrag.sy)) / Math.max(0.001, state.k);
+              var baseSx0 = (svgBase && isFinite(svgBase.sx) && svgBase.sx > 0) ? svgBase.sx : 1;
+              var baseSy0 = (svgBase && isFinite(svgBase.sy) && svgBase.sy > 0) ? svgBase.sy : 1;
+              var dx = (Number(ev.clientX) - Number(__kgMdDrag.sx)) / Math.max(0.001, state.k * baseSx0);
+              var dy = (Number(ev.clientY) - Number(__kgMdDrag.sy)) / Math.max(0.001, state.k * baseSy0);
               var nx = Number(__kgMdDrag.x0) + dx;
               var ny = Number(__kgMdDrag.y0) + dy;
               if (!isFinite(nx) || !isFinite(ny)) return;
@@ -521,11 +629,6 @@ export function buildHtmlViewerRuntimeScript(args: {
           if (rootEl && rootEl.style) {
             try { rootEl.style.pointerEvents = 'auto'; } catch (e3) {}
             try { rootEl.setAttribute('data-kg-md-panel', '1'); } catch (e4) {}
-            try {
-              rootEl.addEventListener('wheel', function(ev){
-                try { if (!ev) return; ev.stopPropagation(); } catch (e0) {}
-              }, { capture: true, passive: true });
-            } catch (e5) { void 0; }
           }
           var header = null;
           try { header = rootEl && rootEl.querySelector ? rootEl.querySelector('[data-kg-media-panel-header="1"]') : null; } catch (e6) { header = null; }
@@ -711,6 +814,67 @@ export function buildHtmlViewerRuntimeScript(args: {
       "    }\n" +
       "    var edgeLs = svg.querySelectorAll('[data-edge-id]');",
   )
+
+  out = replaceOnceExact(
+    out,
+    "if (anchorId) lastMdBoxById[anchorId] = boxVal;\n            }\n          }\n        }\n      } catch (mdErr) {}",
+    "if (anchorId) lastMdBoxById[anchorId] = boxVal;\n            }\n          }\n        } else {\n          try {\n            var els0 = overlay && overlay.querySelectorAll ? overlay.querySelectorAll('[data-kg-markdown-design-block][data-kg-world-x][data-kg-world-y][data-kg-world-w][data-kg-world-h]') : null;\n            if (els0 && els0.length) {\n              var mdById0 = overlay.__kgMdById || (overlay.__kgMdById = {});\n              var lastMdBoxById0 = overlay.__kgMdBoxById || (overlay.__kgMdBoxById = {});\n              var baseSx0b = (svgBase && isFinite(svgBase.sx) && svgBase.sx > 0) ? svgBase.sx : 1;\n              var baseSy0b = (svgBase && isFinite(svgBase.sy) && svgBase.sy > 0) ? svgBase.sy : 1;\n              var ox0b = (svgBase && isFinite(svgBase.ox)) ? svgBase.ox : 0;\n              var oy0b = (svgBase && isFinite(svgBase.oy)) ? svgBase.oy : 0;\n              for (var ei = 0; ei < els0.length; ei += 1) {\n                var el0 = els0[ei];\n                if (!el0 || !el0.getAttribute) continue;\n                var bid0 = String(el0.getAttribute('data-kg-markdown-design-block') || el0.getAttribute('data-md-id') || '').trim();\n                var anchorId0 = String(el0.getAttribute('data-kg-anchor-node-id') || '').trim();\n                if (!bid0 && !anchorId0) continue;\n                if (bid0 && !mdById0[bid0]) mdById0[bid0] = el0;\n                if (anchorId0 && !mdById0[anchorId0]) mdById0[anchorId0] = el0;\n                var xw0 = parseFloat(el0.getAttribute('data-kg-world-x') || 'NaN');\n                var yw0 = parseFloat(el0.getAttribute('data-kg-world-y') || 'NaN');\n                var ww0 = parseFloat(el0.getAttribute('data-kg-world-w') || 'NaN');\n                var hh0 = parseFloat(el0.getAttribute('data-kg-world-h') || 'NaN');\n                if (!isFinite(xw0) || !isFinite(yw0) || !isFinite(ww0) || !isFinite(hh0) || !(ww0 > 0) || !(hh0 > 0)) continue;\n                var left0 = xw0 * state.k * baseSx0b + state.x + ox0b;\n                var top0 = yw0 * state.k * baseSy0b + state.y + oy0b;\n                var sw0 = ww0 * state.k * baseSx0b;\n                var sh0 = hh0 * state.k * baseSy0b;\n                var il0 = Math.round(left0);\n                var it0 = Math.round(top0);\n                var iw0 = Math.max(1, Math.round(sw0));\n                var ih0 = Math.max(1, Math.round(sh0));\n                var key0 = anchorId0 || bid0;\n                var prev0 = lastMdBoxById0[key0] || null;\n                if (!prev0 || prev0.left !== il0 || prev0.top !== it0 || prev0.w !== iw0 || prev0.h !== ih0 || prev0.display !== 'block') {\n                  applyPanelBox(el0, { left: il0, top: it0, w: iw0, h: ih0, display: 'block', zIndex: 1 });\n                  var boxVal0 = { left: il0, top: it0, w: iw0, h: ih0, display: 'block' };\n                  if (bid0) lastMdBoxById0[bid0] = boxVal0;\n                  if (anchorId0) lastMdBoxById0[anchorId0] = boxVal0;\n                  try { scheduleEdgeGeometryUpdateForNode(key0); } catch (e1) {}\n                }\n              }\n            }\n          } catch (e0) {}\n        }\n      } catch (mdErr) {}",
+  )
+
+  out = replaceAllExact(
+    out,
+    "lastBoxById[id] = { left: left, top: top, w: panelW, h: panelH, display: 'block' };",
+    "lastBoxById[id] = { left: left, top: top, w: panelW, h: panelH, display: 'block' };\n          try { scheduleEdgeGeometryUpdateForNode(id); } catch (e0) {}",
+  )
+
+  out = replaceAllExact(
+    out,
+    "if (bid) lastMdBoxById[bid] = boxVal;\n              if (anchorId) lastMdBoxById[anchorId] = boxVal;",
+    "if (bid) lastMdBoxById[bid] = boxVal;\n              if (anchorId) lastMdBoxById[anchorId] = boxVal;\n              try { scheduleEdgeGeometryUpdateForNode(anchorId || bid); } catch (e0) {}",
+  )
+
+  out = replaceOnceExact(
+    out,
+    "var mdBoxById = overlay.__kgMdBoxById || {};\n          if (markdownBlocks && markdownBlocks.length) {\n            for (var mi3 = 0; mi3 < markdownBlocks.length; mi3 += 1) {",
+    "var mdBoxById = overlay.__kgMdBoxById || {};\n          var hasMdBlocks0 = !!(markdownBlocks && markdownBlocks.length);\n          if (hasMdBlocks0) {\n            for (var mi3 = 0; mi3 < markdownBlocks.length; mi3 += 1) {",
+  )
+
+  out = replaceOnceExact(
+    out,
+    "              if (!prev1 || Math.abs((Number(prev1.x) || 0) - dx1) > 0.5 || Math.abs((Number(prev1.y) || 0) - dy1) > 0.5) {\n                offMap[key1] = { x: dx1, y: dy1 };\n                try { scheduleEdgeGeometryUpdateForNode(key1); } catch (e1) {}\n              }\n            }\n          }\n        }\n      } catch (errOff) {}\n    }\n\n    function onWheel(e){",
+    "              if (!prev1 || Math.abs((Number(prev1.x) || 0) - dx1) > 0.5 || Math.abs((Number(prev1.y) || 0) - dy1) > 0.5) {\n                offMap[key1] = { x: dx1, y: dy1 };\n                try { scheduleEdgeGeometryUpdateForNode(key1); } catch (e1) {}\n              }\n            }\n          }\n          if (!hasMdBlocks0 && mdBoxById) {\n            for (var mid0 in mdBoxById) {\n              if (!Object.prototype.hasOwnProperty.call(mdBoxById, mid0)) continue;\n              var key2 = String(mid0 || '').trim();\n              if (!key2) continue;\n              var p2 = nodePosById && nodePosById[key2] ? nodePosById[key2] : null;\n              var box2 = mdBoxById[key2] || null;\n              if (!p2 || !box2) continue;\n              var x2 = Number(p2.x);\n              var y2 = Number(p2.y);\n              if (!isFinite(x2) || !isFinite(y2)) continue;\n              var csx = x2 * state.k * baseSx1 + state.x + ox1;\n              var csy = y2 * state.k * baseSy1 + state.y + oy1;\n              var dx2 = (Number(box2.left) || 0) + (Number(box2.w) || 0) * 0.5 - csx;\n              var dy2 = (Number(box2.top) || 0) + (Number(box2.h) || 0) * 0.5 - csy;\n              var prev2 = offMap[key2] || null;\n              if (!prev2 || Math.abs((Number(prev2.x) || 0) - dx2) > 0.5 || Math.abs((Number(prev2.y) || 0) - dy2) > 0.5) {\n                offMap[key2] = { x: dx2, y: dy2 };\n                try { scheduleEdgeGeometryUpdateForNode(key2); } catch (e2) {}\n              }\n            }\n          }\n        }\n      } catch (errOff) {}\n    }\n\n    function onWheel(e){",
+  )
+
+  out = replaceAllExact(
+    out,
+    "var xid2 = String(ex2.getAttribute('data-node-id') || '').trim();",
+    "var xid2 = __kgResolveNodeId(String(ex2.getAttribute('data-node-id') || '').trim());",
+  )
+
+  out = replaceAllExact(
+    out,
+    "var xanchor = String(ex.getAttribute('data-kg-anchor-node-id') || '').trim();",
+    "var xanchor = __kgResolveNodeId(String(ex.getAttribute('data-kg-anchor-node-id') || '').trim());",
+  )
+
+  out = replaceAllExact(
+    out,
+    "var src = String(edgeEl.getAttribute('data-source-id') || edgeEl.getAttribute('data-source') || '').trim();\n      var tgt = String(edgeEl.getAttribute('data-target-id') || edgeEl.getAttribute('data-target') || '').trim();",
+    "var src = __kgResolveNodeId(String(edgeEl.getAttribute('data-source-id') || edgeEl.getAttribute('data-source') || '').trim());\n      var tgt = __kgResolveNodeId(String(edgeEl.getAttribute('data-target-id') || edgeEl.getAttribute('data-target') || '').trim());",
+  )
+
+  out = replaceAllExact(
+    out,
+    "el.setAttribute('data-kg-canvas-wheel-ignore', 'true');",
+    '',
+  )
+
+  out = replaceAllExact(
+    out,
+    "var UI_IGNORE_SELECTOR = '[data-kg-canvas-wheel-ignore=\"true\"], [data-kg-canvas-pointer-ignore=\"true\"]';",
+    "var UI_IGNORE_SELECTOR = '#kg-hud, #kg-hud *';",
+  )
+
   out = replaceAllExact(out, '__KG_PROXY_ORIGIN__', JSON.stringify(String(args.proxyOrigin || '')))
   return out
 }

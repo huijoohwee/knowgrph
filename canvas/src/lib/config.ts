@@ -30,6 +30,14 @@ export const WORKSPACE_IMPORT_IMAGE_URL_TEST = readEnvString('VITE_WORKSPACE_IMP
 
 export const WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS = 50_000
 
+export const WORKSPACE_IMPORT_AUTO_APPLY_ENABLED = true
+
+export const WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILES = 10
+
+export const WORKSPACE_IMPORT_AUTO_PARSE_MAX_TOTAL_CHARS = 500_000
+
+export const WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILE_CHARS = 250_000
+
 export * from './config.ls';
 export * from './config.copy';
 export * from './config.render';

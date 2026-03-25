@@ -50,6 +50,9 @@ export function GraphTableWorkspaceLeft(props: {
   onAddRow: () => void
   onDeleteSelected: () => void
   hasSelection: boolean
+  syncNowVisible?: boolean
+  syncNowDisabled?: boolean
+  onSyncNow?: () => void
   onClose: () => void
 
   columns: GraphColumnDoc[]
@@ -119,6 +122,9 @@ export function GraphTableWorkspaceLeft(props: {
         onAddRow={props.onAddRow}
         onDeleteSelected={props.onDeleteSelected}
         hasSelection={props.hasSelection}
+        syncNowVisible={props.syncNowVisible}
+        syncNowDisabled={props.syncNowDisabled}
+        onSyncNow={props.onSyncNow}
         onClose={props.onClose}
       />
 

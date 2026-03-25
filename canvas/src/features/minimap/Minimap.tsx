@@ -22,6 +22,7 @@ import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer'
 import { DEFAULT_FLOW_NODE_WIDTH_PX, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { computeNodeQuickEditorScale, NODE_QUICK_EDITOR_BASE_SIZE } from '@/components/FlowEditor/nodeQuickEditorZoom'
 import { computeDefaultNodeQuickEditorFloatingPos, computeNodeQuickEditorMaxAnchorShiftPx } from '@/components/FlowEditor/nodeQuickEditorLayout'
+import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 
 type ZoomT = { k: number; x: number; y: number };
 
@@ -359,8 +360,7 @@ function Minimap() {
   }, [viewRect, zoomState]);
 
   const dragRef = React.useRef<{ mx: number; my: number; gx: number; gy: number } | null>(null);
-  const rafRef = React.useRef<number | null>(null);
-  const pendingRef = React.useRef<{ ngx: number; ngy: number } | null>(null);
+
 
   const onMinimapClick = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = (e.target as SVGElement).closest('svg')!.getBoundingClientRect();
@@ -414,6 +414,15 @@ function Minimap() {
     const my = e.clientY - rect.top;
     dragRef.current = { mx, my, gx: viewRectRaw.x, gy: viewRectRaw.y };
 
+    const scheduler = createRafValueScheduler((p: { ngx: number; ngy: number }) => {
+      const z = zoomStateRef.current || { k: 1, x: 0, y: 0 }
+      const t = computeTransformFromViewTopLeft(Math.max(1, canvasDims.w), Math.max(1, canvasDims.h), z.k, p.ngx, p.ngy)
+      const EPS = 0.5
+      const nearlySame =
+        Math.abs(t.x - z.x) < EPS && Math.abs(t.y - z.y) < EPS && Math.abs((t.k || 1) - (z.k || 1)) < 1e-9
+      if (!nearlySame) requestZoomTransform(t)
+    })
+
     startPointerDrag({
       ev: e.nativeEvent,
       cursor: 'grabbing',
@@ -434,22 +443,7 @@ function Minimap() {
         const dyg = dy / sx;
         const ngx = dragRef.current.gx + dxg;
         const ngy = dragRef.current.gy + dyg;
-        pendingRef.current = { ngx, ngy };
-        if (rafRef.current == null) {
-          rafRef.current = requestAnimationFrame(() => {
-            const p = pendingRef.current;
-            if (p) {
-              const z = zoomStateRef.current || { k: 1, x: 0, y: 0 };
-              const t = computeTransformFromViewTopLeft(Math.max(1, canvasDims.w), Math.max(1, canvasDims.h), z.k, p.ngx, p.ngy);
-              const EPS = 0.5;
-              const nearlySame = Math.abs(t.x - z.x) < EPS && Math.abs(t.y - z.y) < EPS && Math.abs((t.k || 1) - (z.k || 1)) < 1e-9;
-              if (!nearlySame) {
-                requestZoomTransform(t);
-              }
-            }
-            rafRef.current = null;
-          });
-        }
+        scheduler.schedule({ ngx, ngy })
       },
       onEnd: (up) => {
         const owner = (e.currentTarget as SVGGraphicsElement).ownerSVGElement as (SVGSVGElement | null);
@@ -473,19 +467,11 @@ function Minimap() {
           }
         }
         dragRef.current = null;
-        if (rafRef.current != null) {
-          cancelAnimationFrame(rafRef.current);
-          rafRef.current = null;
-        }
-        pendingRef.current = null;
+        scheduler.cancel()
       },
       onCancel: () => {
         dragRef.current = null;
-        if (rafRef.current != null) {
-          cancelAnimationFrame(rafRef.current);
-          rafRef.current = null;
-        }
-        pendingRef.current = null;
+        scheduler.cancel()
       },
     });
   };

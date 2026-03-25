@@ -4,6 +4,7 @@ import type { LsStorageKey } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
 import { cancelIdle, scheduleIdle } from '@/features/panels/utils/idle'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 
 type ContentSize = { w: number; h: number }
 type Pan = { x: number; y: number }
@@ -65,8 +66,12 @@ export default function ZoomPanViewport({
   const viewportRef = React.useRef<HTMLDivElement | null>(null)
   const frameRef = React.useRef<HTMLDivElement | null>(null)
   const dragRef = React.useRef<{ active: boolean; startX: number; startY: number; baseX: number; baseY: number } | null>(null)
-  const rafRef = React.useRef<number | null>(null)
-  const pendingRef = React.useRef<{ zoom: number; pan: Pan } | null>(null)
+  const applySchedulerRef = React.useRef(
+    createRafValueScheduler((next: { zoom: number; pan: Pan }) => {
+      setZoom(next.zoom)
+      setPan(next.pan)
+    }),
+  )
   const zoomRef = React.useRef<number>(1)
   const panRef = React.useRef<Pan>({ x: 0, y: 0 })
   const wheelActiveRef = React.useRef(false)
@@ -129,25 +134,12 @@ export default function ZoomPanViewport({
   }, [frameAspectRatio, framePaddingPx, viewportSize.h, viewportSize.w])
 
   const scheduleApply = React.useCallback((next: { zoom: number; pan: Pan }) => {
-    pendingRef.current = next
-    if (rafRef.current != null) return
-    rafRef.current = window.requestAnimationFrame(() => {
-      rafRef.current = null
-      const pending = pendingRef.current
-      if (!pending) return
-      pendingRef.current = null
-      setZoom(pending.zoom)
-      setPan(pending.pan)
-    })
+    applySchedulerRef.current.schedule(next)
   }, [])
 
   React.useEffect(() => {
     return () => {
-      if (rafRef.current != null) {
-        window.cancelAnimationFrame(rafRef.current)
-        rafRef.current = null
-      }
-      pendingRef.current = null
+      applySchedulerRef.current.cancel()
     }
   }, [])
 

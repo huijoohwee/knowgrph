@@ -101,6 +101,20 @@
 
 ---
 
+## Canvas Interaction & Workspace Sync Modes
+
+- Canvas Interaction mode:
+  - `LS_KEYS.infiniteCanvasInteractionMode` (`'static' | 'interactive'`)
+    - `static` (default) runs 2D D3 force layout to a bounded stable state and then freezes the simulation; rich-media/markdown overlays forward wheel/pan to Canvas to keep pan/zoom primary and avoid per-frame overlay recomputation; Graph Data Table and GraphTableDb ignore pure position-only updates and only sync on content changes or explicit commands.
+    - `interactive` keeps D3 force simulation running and allows full embedded overlay interactivity (iframes/images/videos/markdown blocks accept wheel/pointer events and do not forward to Canvas when safe) while still using revision+viewKey-gated sync and SSOT GraphData/layout keys.
+
+- Workspace↔Canvas sync mode:
+  - `LS_KEYS.canvasWorkspaceSyncMode` (`'manual' | 'realtime'`)
+    - `manual` (default) disables automatic GraphTableDb sync from Canvas; the Graph Table header exposes a single **Sync now** action that runs a bounded GraphData→GraphTableDb sync keyed by viewKey and revision.
+    - `realtime` enables automatic sync on relevant revision changes: in static mode the sync key is `graphContentRevision` (structure-only), in interactive mode the sync key is `graphDataRevision` (includes position-only changes). Sync remains deduped via `lastGraphWriteRevision` and `lastSyncedRevision` to prevent loops and background churn.
+
+---
+
 ## Floating Panels (Tool Menu)
 
 - Floating panel shell and layout state:

@@ -11,7 +11,8 @@ export type MediaPanelCssMetrics = {
 export type MediaPanelCssVars = Record<string, string>
 
 const VARS_CACHE = new WeakMap<HTMLElement, string>()
-const BOX_CACHE = new WeakMap<HTMLElement, string>()
+const BOX_POS_CACHE = new WeakMap<HTMLElement, string>()
+const BOX_SIZE_CACHE = new WeakMap<HTMLElement, string>()
 
 export function computeMediaPanelCssVars2d(args: {
   zoomK: number
@@ -128,10 +129,25 @@ export function applyPanelBox(el: HTMLElement, args: { left: number; top: number
     }
   })()
   const z = args.zIndex != null ? String(args.zIndex) : ''
-  const sig = `${mode}|${display}|${z}|${left}|${top}|${w}|${h}`
-  if (BOX_CACHE.get(el) === sig) return
-  el.style.display = display
-  if (display !== 'none') {
+  const posSig = `${mode}|${left}|${top}`
+  const sizeSig = `${display}|${z}|${w}|${h}`
+
+  const prevPosSig = BOX_POS_CACHE.get(el) || ''
+  const prevSizeSig = BOX_SIZE_CACHE.get(el) || ''
+  if (prevPosSig === posSig && prevSizeSig === sizeSig) return
+
+  if (prevSizeSig !== sizeSig) {
+    el.style.display = display
+    if (display !== 'none') {
+      el.style.width = `${w}px`
+      el.style.height = `${h}px`
+      if (z) el.style.zIndex = z
+      else el.style.zIndex = ''
+    }
+    BOX_SIZE_CACHE.set(el, sizeSig)
+  }
+
+  if (display !== 'none' && prevPosSig !== posSig) {
     if (mode === 'leftTop') {
       el.style.left = `${left}px`
       el.style.top = `${top}px`
@@ -139,9 +155,6 @@ export function applyPanelBox(el: HTMLElement, args: { left: number; top: number
     } else {
       el.style.transform = `translate3d(${left}px, ${top}px, 0px)`
     }
-    el.style.width = `${w}px`
-    el.style.height = `${h}px`
-    if (z) el.style.zIndex = z
+    BOX_POS_CACHE.set(el, posSig)
   }
-  BOX_CACHE.set(el, sig)
 }

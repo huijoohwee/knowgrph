@@ -34,6 +34,11 @@
       "import": "./dist/array/reorderList.js",
       "default": "./dist/array/reorderList.js"
     },
+    "./array/patchArrayItem": {
+      "types": "./dist/array/patchArrayItem.d.ts",
+      "import": "./dist/array/patchArrayItem.js",
+      "default": "./dist/array/patchArrayItem.js"
+    },
     "./markdown/formatting": {
       "types": "./dist/markdown/formatting.d.ts",
       "import": "./dist/markdown/formatting.js",
@@ -118,6 +123,21 @@
       "types": "./dist/data/recordEntries.d.ts",
       "import": "./dist/data/recordEntries.js",
       "default": "./dist/data/recordEntries.js"
+    },
+    "./react/rafLatestScheduler": {
+      "types": "./dist/react/rafLatestScheduler.d.ts",
+      "import": "./dist/react/rafLatestScheduler.js",
+      "default": "./dist/react/rafLatestScheduler.js"
+    },
+    "./react/rafValueScheduler": {
+      "types": "./dist/react/rafValueScheduler.d.ts",
+      "import": "./dist/react/rafValueScheduler.js",
+      "default": "./dist/react/rafValueScheduler.js"
+    },
+    "./react/rafOnceScheduler": {
+      "types": "./dist/react/rafOnceScheduler.d.ts",
+      "import": "./dist/react/rafOnceScheduler.js",
+      "default": "./dist/react/rafOnceScheduler.js"
     },
     "./config/env": {
       "types": "./dist/config/env.d.ts",

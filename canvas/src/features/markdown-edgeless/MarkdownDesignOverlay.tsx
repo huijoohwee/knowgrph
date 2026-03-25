@@ -9,8 +9,10 @@ import { extractHtmlAttr, looksLikeSingleTagBlock } from 'grph-shared/markdown/m
 import { sanitizeIframeSrcdoc } from '@/lib/render/sanitizeIframeSrcdoc'
 import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
+import { patchById } from 'grph-shared/array/patchArrayItem'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
+import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import {
   PANEL_FRAME_BODY_STYLE,
   PANEL_FRAME_HEADER_ACTION_STYLE,
@@ -38,6 +40,7 @@ type MarkdownDesignOverlayProps = {
   anchorNodeIdByBlockId?: Record<string, string> | null
   getNodeWorldCenterForId?: (id: string) => { x: number; y: number } | null
   stopEvent?: (e: React.SyntheticEvent) => void
+  requestOverlayScheduleRef?: React.MutableRefObject<(() => void) | null>
   onOverlayPanStart?: (args: { pointerId: number; clientX: number; clientY: number }) => void
   onOverlayPan?: (args: { pointerId: number; clientX: number; clientY: number; dx: number; dy: number }) => void
   onOverlayPanEnd?: (args: { pointerId: number }) => void
@@ -50,6 +53,8 @@ type MarkdownDesignOverlayProps = {
 export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(props: MarkdownDesignOverlayProps) {
   const { enabled, svgRef, markdownDocumentName, markdownDocumentText, onPreviewClick } = props
   const allowDrag = !props.layoutOverride
+  const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
+  const allowEmbeddedContentInteraction = infiniteCanvasInteractionMode === 'interactive'
 
   const activeDocumentPath = String(markdownDocumentName || '').trim() || 'markdown'
   const markdownText = String(markdownDocumentText || '')
@@ -139,22 +144,24 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
         }
 
         overlayElsRef.current.set(key, el)
-        try {
-          const cleanup = installWheelForwardingAndBrowserZoomGuards(el, {
-            forwardWheelTo: () => svgRef.current,
-            stopPropagationOnForward: true,
-            stopPropagationOnPreventZoom: false,
-            forwardedFlagKey: '__kgForwarded',
-          })
-          if (cleanup) wheelCleanupByIdRef.current.set(key, cleanup)
-        } catch {
-          void 0
+        if (!allowEmbeddedContentInteraction) {
+          try {
+            const cleanup = installWheelForwardingAndBrowserZoomGuards(el, {
+              forwardWheelTo: () => svgRef.current,
+              stopPropagationOnForward: true,
+              stopPropagationOnPreventZoom: false,
+              forwardedFlagKey: '__kgForwarded',
+            })
+            if (cleanup) wheelCleanupByIdRef.current.set(key, cleanup)
+          } catch {
+            void 0
+          }
         }
       }
       overlayRefFnByIdRef.current.set(key, fn)
       return fn
     },
-    [svgRef],
+    [allowEmbeddedContentInteraction, svgRef],
   )
 
   const shouldStartHeaderDrag = React.useCallback((native: PointerEvent) => {
@@ -312,6 +319,21 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
   const [drag, setDrag] = React.useState<null | { pointerId: number; blockId: string }>(null)
   const dragging = drag != null
 
+  const blockDragLatestRef = React.useRef<null | { blockId: string; index: number; x: number; y: number }>(null)
+  const blockDragSchedulerRef = React.useRef(
+    createRafValueScheduler((latest: { blockId: string; index: number; x: number; y: number }) => {
+      setBlocks(prev =>
+        patchById(
+          prev,
+          latest.blockId,
+          b => String(b?.id || ''),
+          cur => (cur.x === latest.x && cur.y === latest.y ? cur : { ...cur, x: latest.x, y: latest.y }),
+          latest.index,
+        ),
+      )
+    }),
+  )
+
   React.useEffect(() => {
     if (!dragging) return
     const end = () => {
@@ -341,6 +363,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
     }
   }, [dragging])
 
+  const overlayLayoutScheduleRef = React.useRef<null | (() => void)>(null)
   const viewportRef = React.useRef<{ w: number; h: number }>({ w: 1, h: 1 })
   React.useEffect(() => {
     const svgEl = svgRef.current
@@ -350,6 +373,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
       const w = Number.isFinite(rect.width) ? Math.max(1, Math.floor(rect.width)) : 1
       const h = Number.isFinite(rect.height) ? Math.max(1, Math.floor(rect.height)) : 1
       viewportRef.current = { w, h }
+      overlayLayoutScheduleRef.current?.()
     })
     ro.observe(svgEl)
     return () => ro.disconnect()
@@ -381,7 +405,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
 
     const loop = startMarkdownPanelOverlayLoop2d({
       enabled: true,
-      loop: 'always',
+      loop: 'onDemand',
       getItems: () => {
         const src = blocksRef.current
         const allow = allowedKindsRef.current
@@ -405,8 +429,54 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
       clampToViewport: null,
     })
 
-    return () => loop.stop()
-  }, [enabled, layout, svgRef])
+    overlayLayoutScheduleRef.current = loop.schedule
+    if (props.requestOverlayScheduleRef) props.requestOverlayScheduleRef.current = loop.schedule
+    loop.schedule()
+
+    const pointerButtonsDownRef = { current: false }
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') {
+        pointerButtonsDownRef.current = true
+        loop.schedule()
+        return
+      }
+      pointerButtonsDownRef.current = typeof e.buttons === 'number' ? e.buttons !== 0 : true
+      loop.schedule()
+    }
+    const onPointerMove = () => {
+      if (!pointerButtonsDownRef.current) return
+      loop.schedule()
+    }
+    const onPointerEnd = () => {
+      if (!pointerButtonsDownRef.current) return
+      pointerButtonsDownRef.current = false
+      loop.schedule()
+    }
+    const onWheel = () => {
+      loop.schedule()
+    }
+
+    svgEl.addEventListener('pointerdown', onPointerDown, { passive: true })
+    svgEl.addEventListener('pointermove', onPointerMove, { passive: true })
+    svgEl.addEventListener('pointerup', onPointerEnd, { passive: true })
+    svgEl.addEventListener('pointercancel', onPointerEnd, { passive: true })
+    svgEl.addEventListener('wheel', onWheel, { passive: true })
+
+    return () => {
+      loop.stop()
+      svgEl.removeEventListener('pointerdown', onPointerDown)
+      svgEl.removeEventListener('pointermove', onPointerMove)
+      svgEl.removeEventListener('pointerup', onPointerEnd)
+      svgEl.removeEventListener('pointercancel', onPointerEnd)
+      svgEl.removeEventListener('wheel', onWheel)
+      if (overlayLayoutScheduleRef.current === loop.schedule) {
+        overlayLayoutScheduleRef.current = null
+      }
+      if (props.requestOverlayScheduleRef && props.requestOverlayScheduleRef.current === loop.schedule) {
+        props.requestOverlayScheduleRef.current = null
+      }
+    }
+  }, [enabled, layout, svgRef, props.requestOverlayScheduleRef])
 
   const startBlockDrag = React.useCallback((args0: { blockId: string; native: PointerEvent; clientX: number; clientY: number }) => {
     if (!allowDrag) return
@@ -422,6 +492,9 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
     const startClientY = args0.clientY
     const startX = b0.x
     const startY = b0.y
+    const startIdx = blocksRef.current.findIndex(b => String(b?.id || '') === blockId)
+
+    const scheduler = blockDragSchedulerRef.current
     startPointerDrag({
       ev: args0.native,
       cursor: 'grabbing',
@@ -432,23 +505,37 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
         const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
         const dx = (ev.clientX - startClientX) / k
         const dy = (ev.clientY - startClientY) / k
-        setBlocks(prev => prev.map(b => (String(b.id) === blockId ? { ...b, x: startX + dx, y: startY + dy } : b)))
+        const latest = { blockId, index: startIdx, x: startX + dx, y: startY + dy }
+        blockDragLatestRef.current = latest
+        scheduler.schedule(latest)
       },
       onEnd: () => {
+        try {
+          scheduler.flush()
+        } catch {
+          void 0
+        }
         try {
           const moved = blocksRef.current.find(b => String(b?.id || '') === blockId) || null
           if (moved && layoutForRender && !props.layoutOverride) {
             patchMarkdownDesignLayoutPositions({ layoutKey: layoutForRender.key, updates: [{ id: moved.id, x: moved.x, y: moved.y }] })
           }
         } finally {
+          blockDragLatestRef.current = null
           unlockGlobalUserSelect()
           setDrag(null)
         }
       },
       onCancel: () => {
         try {
+          scheduler.cancel()
+        } catch {
+          void 0
+        }
+        try {
           void 0
         } finally {
+          blockDragLatestRef.current = null
           unlockGlobalUserSelect()
           setDrag(null)
         }
@@ -598,7 +685,14 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
       }
       const url = String(src || '').trim()
       if (!url) return <p className={UI_THEME_TOKENS.text.tertiary}>—</p>
-      return <RichMediaIframe url={url} title={title} className="w-full h-full rounded" style={{ pointerEvents: 'none', touchAction: 'none' }} />
+      return (
+        <RichMediaIframe
+          url={url}
+          title={title}
+          className="w-full h-full rounded"
+          style={{ pointerEvents: allowEmbeddedContentInteraction ? 'auto' : 'none', touchAction: allowEmbeddedContentInteraction ? 'auto' : 'none' }}
+        />
+      )
     }
     if (b.summary) return <p className={UI_THEME_TOKENS.text.primary}>{b.summary}</p>
     return <p className={UI_THEME_TOKENS.text.tertiary}>—</p>
@@ -634,12 +728,20 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
           <article
             key={b.id}
             ref={getOverlayRefForId(b.id)}
-            className={['absolute left-0 top-0 pointer-events-auto select-none', UI_THEME_TOKENS.panel.border].join(' ')}
+            className={
+              [
+                'absolute left-0 top-0 pointer-events-auto',
+                allowEmbeddedContentInteraction ? '' : 'select-none',
+                UI_THEME_TOKENS.panel.border,
+              ]
+                .filter(Boolean)
+                .join(' ')
+            }
             role="group"
             data-kg-canvas-wheel-ignore="true"
             data-kg-canvas-pointer-ignore="true"
-            data-kg-panel-box="leftTop"
             data-kg-markdown-design-block={b.id}
+            data-kg-anchor-node-id={String(anchorByBlockIdRef.current?.[b.id] || '') || undefined}
             data-kg-world-x={b.x}
             data-kg-world-y={b.y}
             data-kg-world-w={b.w}
@@ -647,12 +749,13 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
             aria-label={`Block ${b.title}`}
             style={{
               ...PANEL_FRAME_ROOT_STYLE,
-              touchAction: 'none',
+              touchAction: allowEmbeddedContentInteraction ? 'auto' : 'none',
               transform: 'translate(-99999px, -99999px)',
               width: 1,
               height: 1,
             }}
             onPointerDownCapture={e => {
+              if (allowEmbeddedContentInteraction) return
               const native = e.nativeEvent
               const t = (native as unknown as { target?: unknown }).target
               const isHeaderTarget = t instanceof Element && !!t.closest('[data-kg-media-panel-header="1"]')

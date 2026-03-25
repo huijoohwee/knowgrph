@@ -12,6 +12,7 @@ import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes
 import { clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } from '@/lib/canvas/camera-options-2d'
 import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
 import { computeOverlayDraggedPoint2d, computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
+import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 
 export function useOverlayInteractions2d(args: {
   activeRef: MutableRefObject<boolean>
@@ -32,8 +33,86 @@ export function useOverlayInteractions2d(args: {
     }
   }, [])
 
-  const headerDragRef = useRef<null | { id: string; baseX: number; baseY: number; structured: boolean; frozen: boolean }>(null)
+  const headerDragRef = useRef<null | { id: string; baseX: number; baseY: number; structured: boolean; frozen: boolean; lastDx: number; lastDy: number }>(null)
   const overlayPanRef = useRef<null | { pointerId: number; startClientX: number; startClientY: number; startTransform: d3.ZoomTransform }>(null)
+
+  const headerDragMoveSchedulerRef = useRef(
+    createRafValueScheduler((args0: { dx: number; dy: number }) => {
+      const st = headerDragRef.current
+      if (!st) return
+      if (!shouldStartHeaderDrag()) return
+      const svgEl = svgRef.current
+      if (!svgEl) return
+      const sim = simulationRef.current
+      const graph = sceneGraphDataRef.current
+      const nodes = sim ? (sim.nodes() as unknown as GraphNode[]) : Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
+      let node: GraphNode | null = null
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]
+        if (String(n?.id || '') === st.id) {
+          node = n
+          break
+        }
+      }
+      if (!node) return
+      st.lastDx = args0.dx
+      st.lastDy = args0.dy
+      const t = d3.zoomTransform(svgEl as unknown as SVGSVGElement)
+      const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+      const p = computeOverlayDraggedPoint2d({
+        baseX: st.baseX,
+        baseY: st.baseY,
+        dxClientPx: args0.dx,
+        dyClientPx: args0.dy,
+        zoomK: k,
+        schema: schemaRef.current,
+        snapToGrid: false,
+      })
+      node.fx = p.x
+      node.fy = p.y
+      node.x = p.x
+      node.y = p.y
+      node.vx = 0
+      node.vy = 0
+      try {
+        const tickHandler = sim?.on('tick')
+        if (typeof tickHandler === 'function') {
+          ;(tickHandler as unknown as () => void)()
+        }
+      } catch {
+        void 0
+      }
+      try {
+        requestOverlaySchedule?.()
+      } catch {
+        void 0
+      }
+    }),
+  )
+
+  const overlayPanMoveSchedulerRef = useRef(
+    createRafValueScheduler((args0: { pointerId: number; dx: number; dy: number }) => {
+      const drag = overlayPanRef.current
+      if (!drag || drag.pointerId !== args0.pointerId) return
+      const svgEl = svgRef.current
+      const zoom = zoomRef.current
+      if (!svgEl || !zoom) return
+      const st = useGraphStore.getState()
+      disableAutoZoomModesForUserGesture(st)
+      const next = computeOverlayPanTransform2d({
+        startTransform: drag.startTransform,
+        dxClientPx: args0.dx,
+        dyClientPx: args0.dy,
+        canvasPanSpeedMultiplier: st.canvasPanSpeedMultiplier,
+        canvasInteractionSpeedMultiplier: st.canvasInteractionSpeedMultiplier,
+        applySpeedMultipliers: false,
+      })
+      d3.select(svgEl).call(
+        zoom.transform as unknown as (sel: d3.Selection<SVGSVGElement, unknown, null, undefined>, t: d3.ZoomTransform) => void,
+        next,
+      )
+    }),
+  )
 
   const shouldStartHeaderDrag = useCallback(() => {
     if (useGraphStore.getState().canvasPointerMode2d === 'pan') return false
@@ -65,7 +144,7 @@ export function useOverlayInteractions2d(args: {
       const structured = mode === 'radial'
       const frozen = svgEl.getAttribute('data-kg-layout-frozen') === '1'
       lockGlobalUserSelect()
-      headerDragRef.current = { id, baseX: x0, baseY: y0, structured, frozen }
+      headerDragRef.current = { id, baseX: x0, baseY: y0, structured, frozen, lastDx: 0, lastDy: 0 }
       if (sim && !structured && !frozen) {
         const alphaTarget = (() => {
           try {
@@ -91,51 +170,9 @@ export function useOverlayInteractions2d(args: {
 
   const moveHeaderDrag = useCallback(
     (dx: number, dy: number) => {
-      const st = headerDragRef.current
-      if (!st) return
-      if (!shouldStartHeaderDrag()) return
-      const svgEl = svgRef.current
-      if (!svgEl) return
-      const sim = simulationRef.current
-      const graph = sceneGraphDataRef.current
-      const nodes = sim ? (sim.nodes() as unknown as GraphNode[]) : Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
-      let node: GraphNode | null = null
-      for (let i = 0; i < nodes.length; i += 1) {
-        const n = nodes[i]
-        if (String(n?.id || '') === st.id) {
-          node = n
-          break
-        }
-      }
-      if (!node) return
-      const t = d3.zoomTransform(svgEl as unknown as SVGSVGElement)
-      const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
-      const p = computeOverlayDraggedPoint2d({ baseX: st.baseX, baseY: st.baseY, dxClientPx: dx, dyClientPx: dy, zoomK: k, schema: schemaRef.current })
-      node.fx = p.x
-      node.fy = p.y
-      if (st.structured || st.frozen) {
-        node.x = p.x
-        node.y = p.y
-      }
-      node.vx = 0
-      node.vy = 0
-      if (st.structured || st.frozen) {
-        try {
-          const tickHandler = sim?.on('tick')
-          if (typeof tickHandler === 'function') {
-            ;(tickHandler as unknown as () => void)()
-          }
-        } catch {
-          void 0
-        }
-      }
-      try {
-        requestOverlaySchedule?.()
-      } catch {
-        void 0
-      }
+      headerDragMoveSchedulerRef.current.schedule({ dx, dy })
     },
-    [requestOverlaySchedule, schemaRef, sceneGraphDataRef, shouldStartHeaderDrag, simulationRef, svgRef],
+    [],
   )
 
   const endHeaderDrag = useCallback(() => {
@@ -143,6 +180,7 @@ export function useOverlayInteractions2d(args: {
     if (!st) return
     headerDragRef.current = null
     unlockGlobalUserSelect()
+    const svgEl = svgRef.current
     const sim = simulationRef.current
     const graph = sceneGraphDataRef.current
     const nodes = sim ? (sim.nodes() as unknown as GraphNode[]) : Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
@@ -154,29 +192,44 @@ export function useOverlayInteractions2d(args: {
         break
       }
     }
+    if (node && !st.structured) {
+      node.fx = null
+      node.fy = null
+    }
     if (sim && !st.structured && !st.frozen) {
       try {
         sim.alphaTarget(0)
       } catch {
         void 0
       }
-      if (node) {
-        node.fx = null
-        node.fy = null
+    }
+    try {
+      headerDragMoveSchedulerRef.current.flush()
+    } catch {
+      void 0
+    }
+    if (!node) return
+    const t = svgEl ? d3.zoomTransform(svgEl as unknown as SVGSVGElement) : null
+    const k = t && typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+    const p = computeOverlayDraggedPoint2d({
+      baseX: st.baseX,
+      baseY: st.baseY,
+      dxClientPx: st.lastDx,
+      dyClientPx: st.lastDy,
+      zoomK: k,
+      schema: schemaRef.current,
+      snapToGrid: true,
+    })
+    node.x = p.x
+    node.y = p.y
+    if (useGraphStore.getState().workspaceViewMode === 'editor') {
+      try {
+        useGraphStore.getState().updateNode(st.id, { x: p.x, y: p.y })
+      } catch {
+        void 0
       }
     }
-    if (node) {
-      const x = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : typeof node.fx === 'number' ? node.fx : null
-      const y = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : typeof node.fy === 'number' ? node.fy : null
-      if (x != null && y != null && useGraphStore.getState().workspaceViewMode === 'editor') {
-        try {
-          useGraphStore.getState().updateNode(st.id, { x, y })
-        } catch {
-          void 0
-        }
-      }
-    }
-  }, [sceneGraphDataRef, simulationRef])
+  }, [schemaRef, sceneGraphDataRef, simulationRef, svgRef])
 
   const startOverlayPan = useCallback(
     (args0: { pointerId: number; clientX: number; clientY: number }) => {
@@ -203,33 +256,21 @@ export function useOverlayInteractions2d(args: {
 
   const moveOverlayPan = useCallback(
     (args0: { pointerId: number; clientX: number; clientY: number; dx: number; dy: number }) => {
-      const drag = overlayPanRef.current
-      if (!drag || drag.pointerId !== args0.pointerId) return
-      const svgEl = svgRef.current
-      const zoom = zoomRef.current
-      if (!svgEl || !zoom) return
-      const st = useGraphStore.getState()
-      disableAutoZoomModesForUserGesture(st)
-      const next = computeOverlayPanTransform2d({
-        startTransform: drag.startTransform,
-        dxClientPx: args0.dx,
-        dyClientPx: args0.dy,
-        canvasPanSpeedMultiplier: st.canvasPanSpeedMultiplier,
-        canvasInteractionSpeedMultiplier: st.canvasInteractionSpeedMultiplier,
-      })
-      d3.select(svgEl).call(
-        zoom.transform as unknown as (sel: d3.Selection<SVGSVGElement, unknown, null, undefined>, t: d3.ZoomTransform) => void,
-        next,
-      )
+      overlayPanMoveSchedulerRef.current.schedule({ pointerId: args0.pointerId, dx: args0.dx, dy: args0.dy })
       void args0.clientX
       void args0.clientY
     },
-    [svgRef, zoomRef],
+    [],
   )
 
   const endOverlayPan = useCallback((args0: { pointerId: number }) => {
     const drag = overlayPanRef.current
     if (!drag || drag.pointerId !== args0.pointerId) return
+    try {
+      overlayPanMoveSchedulerRef.current.flush()
+    } catch {
+      void 0
+    }
     overlayPanRef.current = null
   }, [])
 
@@ -338,6 +379,11 @@ export function useOverlayInteractions2d(args: {
       cancelAllInteractions()
     }, 12000) as unknown as number
     return () => {
+      try {
+        cancelAllInteractions()
+      } catch {
+        void 0
+      }
       window.removeEventListener('pointerup', onUp, { capture: true } as AddEventListenerOptions)
       window.removeEventListener('pointercancel', onUp, { capture: true } as AddEventListenerOptions)
       window.removeEventListener('blur', onBlur)

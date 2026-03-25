@@ -75,6 +75,7 @@ export function useD3GraphScene2d(args: {
   isEmbeddedPreview: boolean
   coarsePointer: boolean
   mediaOverlayNodeIdSet: Set<string>
+  mediaOverlayNodeIdsKey: string
   panelOnlyNodeIdsKey: string
   panelOnlyNodeIdSet: Set<string>
   overlayBaseWidthRatioDefault: number
@@ -83,7 +84,7 @@ export function useD3GraphScene2d(args: {
   overlayBaseWidthMinPxCompact: number
   overlayBaseWidthMaxPxDefault: number
   overlayBaseWidthMaxPxCompact: number
-  requestMediaOverlaySchedule: () => void
+  requestOverlaySchedule: () => void
   setLayoutPositionsForMode: (key: string, positions: Record<string, { x: number; y: number }>) => void
   selectedEdgeIdRef: MutableRefObject<string | null>
   selectedNodeIdRef: MutableRefObject<string | null>
@@ -91,6 +92,9 @@ export function useD3GraphScene2d(args: {
   selectedEdgeIdsRef: MutableRefObject<string[] | undefined>
   setHoverInfo: Dispatch<SetStateAction<HoverInfo | null>>
 }): void {
+  const enableEditorGestures = useGraphStore(s => s.workspaceViewMode === 'editor')
+  const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
+
   const {
     active,
     activeRef,
@@ -140,6 +144,7 @@ export function useD3GraphScene2d(args: {
     isEmbeddedPreview,
     coarsePointer,
     mediaOverlayNodeIdSet,
+    mediaOverlayNodeIdsKey,
     panelOnlyNodeIdsKey,
     panelOnlyNodeIdSet,
     overlayBaseWidthRatioDefault,
@@ -148,7 +153,7 @@ export function useD3GraphScene2d(args: {
     overlayBaseWidthMinPxCompact,
     overlayBaseWidthMaxPxDefault,
     overlayBaseWidthMaxPxCompact,
-    requestMediaOverlaySchedule,
+    requestOverlaySchedule,
     setLayoutPositionsForMode,
     selectedEdgeIdRef,
     selectedNodeIdRef,
@@ -238,7 +243,10 @@ export function useD3GraphScene2d(args: {
         `${String(sceneGraphData?.nodes?.length ?? 0)}:${String(sceneGraphData?.edges?.length ?? 0)}`,
         String(renderMediaAsNodes ? 1 : 0),
         String(mediaPanelDensity),
+        mediaOverlayNodeIdsKey,
+        panelOnlyNodeIdsKey,
         collapsedGroupIdsKey,
+        String(enableEditorGestures ? 1 : 0),
       ].join('|')
 
       if (sceneCleanupRef.current && sceneBuildKeyRef.current === buildKey) return
@@ -493,6 +501,7 @@ export function useD3GraphScene2d(args: {
         prevPositions: Object.keys(prevPositions).length > 0 ? prevPositions : null,
         skipInitialLayout: effectiveSkipInitialLayout,
         freezeSimulation: isEmbeddedPreview || isMermaidLayout,
+        enableContinuousForceLayout: infiniteCanvasInteractionMode === 'interactive',
         groupsForBboxCollide: sceneGroupsDerivation?.allGroups || [],
         layoutGroupKeyByNodeId: sceneGroupsDerivation?.layoutGroupKeyByNodeId || null,
         gRef,
@@ -523,14 +532,14 @@ export function useD3GraphScene2d(args: {
         updateNode: (id, u) => useGraphStore.getState().updateNode(id, u),
         addEdge: e => useGraphStore.getState().addEdge(e),
         updateEdge: (id, u) => useGraphStore.getState().updateEdge(id, u),
-        enableEditorGestures: useGraphStore.getState().workspaceViewMode === 'editor',
+        enableEditorGestures,
         setHoverInfo: updater => setHoverInfo(prev => updater(prev)),
         setLifecycleStageRendering: () => useGraphStore.getState().setLifecycleStage('rendering'),
         requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
         edgeScrollEnabled: () => useGraphStore.getState().viewPinned !== true,
         onZoomTransform: t => {
           try {
-            requestMediaOverlaySchedule()
+            requestOverlaySchedule()
           } catch {
             void 0
           }
@@ -554,7 +563,7 @@ export function useD3GraphScene2d(args: {
         beforeRenderFrameRef.current = () => {
           baseBefore()
           try {
-            requestMediaOverlaySchedule()
+            requestOverlaySchedule()
           } catch {
             void 0
           }
@@ -574,6 +583,7 @@ export function useD3GraphScene2d(args: {
     coarsePointer,
     documentSemanticMode,
     edgesForSim,
+    enableEditorGestures,
     effectiveFrontmatterModeEnabled,
     fitToScreenMode,
     graphDataRevision,
@@ -581,6 +591,7 @@ export function useD3GraphScene2d(args: {
     isEmbeddedPreview,
     layoutSemanticModeKey,
     mediaOverlayNodeIdSet,
+    mediaOverlayNodeIdsKey,
     mediaPanelDensity,
     overlayBaseWidthRatioDefault,
     overlayBaseWidthRatioCompact,
@@ -590,7 +601,7 @@ export function useD3GraphScene2d(args: {
     overlayBaseWidthMaxPxCompact,
     panelOnlyNodeIdsKey,
     renderMediaAsNodes,
-    requestMediaOverlaySchedule,
+    requestOverlaySchedule,
     sceneGraphData,
     sceneGraphDataRef,
     sceneGroupsDerivation?.allGroups,

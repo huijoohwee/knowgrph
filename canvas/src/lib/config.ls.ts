@@ -122,6 +122,8 @@ export const LS_KEYS = {
   viewportZoomToSelection: 'kg:ui:viewport:zoomToSelection',
   viewportControlsPreset: 'kg:ui:viewport:controlsPreset',
   graphDragAlphaTarget2d: 'kg:ui:graph:dragAlphaTarget2d',
+  infiniteCanvasInteractionMode: 'kg:ui:canvas:interactionMode',
+  canvasWorkspaceSyncMode: 'kg:ui:canvas:workspaceSyncMode',
   zoomDurationFitMs: 'kg:ui:zoom:durationFitMs',
   zoomDurationSelectionMs: 'kg:ui:zoom:durationSelectionMs',
   wheelZoomCtrlMetaBoostMultiplier: 'kg:ui:zoom:wheelCtrlMetaBoostMultiplier',
@@ -192,6 +194,7 @@ export const LS_KEYS = {
   mainPanelTop: 'kg:ui:mainPanel:top',
   mainPanelLeft: 'kg:ui:mainPanel:left',
   onboardingSpotlightEnabled: 'kg:ui:onboardingSpotlightEnabled',
+  startupOpenWorkflowPanel: 'kg:ui:startup:openWorkflowPanel',
   settingsCollapsedByArea: 'kg:settings:collapsedByArea',
   parserInputCollapsed: 'kg:parsers:panel:inputCollapsed',
   parserParsersCollapsed: 'kg:parsers:panel:parsersCollapsed',
@@ -337,6 +340,7 @@ export type LsKeyOwner =
   | 'render.prefs'
   | 'ui.statusPanelPinned'
   | 'ui.onboardingSpotlight'
+  | 'ui.startup'
   | 'settings.collapsedByArea'
   | 'parsers.panel'
   | 'parsers.editor'
@@ -472,6 +476,8 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   viewportZoomToSelection: 'ui.workspace',
   viewportControlsPreset: 'ui.workspace',
   graphDragAlphaTarget2d: 'ui.workspace',
+  infiniteCanvasInteractionMode: 'ui.workspace',
+  canvasWorkspaceSyncMode: 'ui.workspace',
   flowEditorSelectionOnDrag: 'ui.workspace',
   flowEditorOverlayWheelProxyEnabled: 'ui.workspace',
   zoomDurationFitMs: 'ui.workspace',
@@ -592,6 +598,7 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   mainPanelTop: 'ui.mainPanel',
   mainPanelLeft: 'ui.mainPanel',
   onboardingSpotlightEnabled: 'ui.onboardingSpotlight',
+  startupOpenWorkflowPanel: 'ui.startup',
   settingsCollapsedByArea: 'settings.collapsedByArea',
   parserInputCollapsed: 'parsers.panel',
   parserParsersCollapsed: 'parsers.panel',

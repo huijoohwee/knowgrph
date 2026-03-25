@@ -36,12 +36,16 @@ export const nodeDragBehavior = (
     }
     let activeNode: GraphNode | null = null
     let watchdogTimer = 0
+    let lastDragAtMs = 0
 
     const clearWatchdog = () => {
-      if (watchdogTimer) {
-        window.clearTimeout(watchdogTimer)
-        watchdogTimer = 0
+      if (!watchdogTimer) return
+      try {
+        window.clearInterval(watchdogTimer)
+      } catch {
+        void 0
       }
+      watchdogTimer = 0
     }
 
     const resetDragState = () => {
@@ -94,10 +98,26 @@ export const nodeDragBehavior = (
       lockGlobalUserSelect()
       locked = true
       activeNode = d
+      lastDragAtMs = Date.now()
+
+      try {
+        const src = event && typeof event === 'object' && 'sourceEvent' in event ? (event as { sourceEvent?: unknown }).sourceEvent : null
+        const pe = src instanceof PointerEvent ? src : null
+        if (pe && typeof pe.pointerId === 'number') {
+          const svgEl = (this as unknown as SVGElement).ownerSVGElement
+          svgEl?.setPointerCapture?.(pe.pointerId)
+        }
+      } catch {
+        void 0
+      }
       
       clearWatchdog()
       watchdogTimer = window.setInterval(() => {
         if (!activeNode) return
+        if (Date.now() - lastDragAtMs > 12_000) {
+          onGlobalRelease()
+          return
+        }
         if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
           onGlobalRelease()
         }
@@ -106,6 +126,7 @@ export const nodeDragBehavior = (
       if (typeof window !== 'undefined') {
         window.addEventListener('pointerup', onGlobalRelease, { capture: true, once: true })
         window.addEventListener('pointercancel', onGlobalRelease, { capture: true, once: true })
+        window.addEventListener('pointerdown', onGlobalRelease, { capture: true, once: true })
       }
 
       const mode = readLayoutMode(schema)
@@ -141,6 +162,7 @@ export const nodeDragBehavior = (
     .on('drag', (event, d) => {
       if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
       if (isSpacePanHeld()) return
+      lastDragAtMs = Date.now()
       const mode = readLayoutMode(schema)
       const structured = mode === 'radial'
       const grid = readSnapGridConfigFromSchema(schema)
@@ -197,6 +219,7 @@ export const nodeDragBehavior = (
       if (typeof window !== 'undefined') {
         window.removeEventListener('pointerup', onGlobalRelease, { capture: true })
         window.removeEventListener('pointercancel', onGlobalRelease, { capture: true })
+        window.removeEventListener('pointerdown', onGlobalRelease, { capture: true })
       }
       if (activeNode) resetDragState()
     });
@@ -228,12 +251,16 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
 
     let activeEdge: GraphEdge | null = null
     let watchdogTimer = 0
+    let lastDragAtMs = 0
 
     const clearWatchdog = () => {
-      if (watchdogTimer) {
-        window.clearTimeout(watchdogTimer)
-        watchdogTimer = 0
+      if (!watchdogTimer) return
+      try {
+        window.clearInterval(watchdogTimer)
+      } catch {
+        void 0
       }
+      watchdogTimer = 0
     }
 
     const resetDragState = () => {
@@ -285,10 +312,26 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
         lockGlobalUserSelect()
         locked = true
         activeEdge = d
+        lastDragAtMs = Date.now()
+
+        try {
+          const src = event && typeof event === 'object' && 'sourceEvent' in event ? (event as { sourceEvent?: unknown }).sourceEvent : null
+          const pe = src instanceof PointerEvent ? src : null
+          if (pe && typeof pe.pointerId === 'number') {
+            const svgEl = (this as unknown as SVGElement).ownerSVGElement
+            svgEl?.setPointerCapture?.(pe.pointerId)
+          }
+        } catch {
+          void 0
+        }
         
         clearWatchdog()
         watchdogTimer = window.setInterval(() => {
           if (!activeEdge) return
+          if (Date.now() - lastDragAtMs > 12_000) {
+            onGlobalRelease()
+            return
+          }
           if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
             onGlobalRelease()
           }
@@ -297,6 +340,7 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
         if (typeof window !== 'undefined') {
           window.addEventListener('pointerup', onGlobalRelease, { capture: true, once: true })
           window.addEventListener('pointercancel', onGlobalRelease, { capture: true, once: true })
+          window.addEventListener('pointerdown', onGlobalRelease, { capture: true, once: true })
         }
 
         // Find source and target nodes
@@ -352,6 +396,7 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
         if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
         if (isSpacePanHeld()) return
         if (!sourceNode || !targetNode) return
+        lastDragAtMs = Date.now()
 
         const dx = event.dx / dragZoomK
         const dy = event.dy / dragZoomK
@@ -381,6 +426,7 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
         if (typeof window !== 'undefined') {
           window.removeEventListener('pointerup', onGlobalRelease, { capture: true })
           window.removeEventListener('pointercancel', onGlobalRelease, { capture: true })
+          window.removeEventListener('pointerdown', onGlobalRelease, { capture: true })
         }
         if (activeEdge) resetDragState()
       })

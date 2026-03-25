@@ -30,9 +30,19 @@ const ensureExt = (name: string, allowed: string[], fallback: string): string =>
   return ok ? name : fallback
 }
 
+const readGraphDataForExport = () => {
+  const store = useGraphStore.getState()
+  try {
+    store.flushComposedPositionWritesNow()
+  } catch {
+    void 0
+  }
+  return store.graphData
+}
+
 export const exportGraphJsonLdFromStore = () => {
   try {
-    const current = useGraphStore.getState().graphData
+    const current = readGraphDataForExport()
     if (!current) return
     const { lastApplied } = verifyWorkflowPresetStorage()
     const suggested = lastApplied ? (lastApplied.datasetFileName as DatasetPath) : undefined
@@ -61,7 +71,7 @@ export const exportGraphJsonLdFromStore = () => {
 
 export const exportGraphJsonFromStore = () => {
   try {
-    const current = useGraphStore.getState().graphData
+    const current = readGraphDataForExport()
     if (!current) return
     const { lastApplied } = verifyWorkflowPresetStorage()
     const suggested = lastApplied ? (lastApplied.datasetFileName as DatasetPath) : undefined
@@ -94,7 +104,7 @@ export const exportGraphJsonFromStore = () => {
 
 export const exportGraphCsvCombinedFromStore = () => {
   try {
-    const current = useGraphStore.getState().graphData
+    const current = readGraphDataForExport()
     if (!current) return
     const { lastApplied } = verifyWorkflowPresetStorage()
     const suggested = lastApplied ? (lastApplied.datasetFileName as DatasetPath) : undefined
@@ -127,7 +137,7 @@ export const exportGraphCsvCombinedFromStore = () => {
 
 export const exportGraphMlFromStore = () => {
   try {
-    const current = useGraphStore.getState().graphData
+    const current = readGraphDataForExport()
     if (!current) return
     const { lastApplied } = verifyWorkflowPresetStorage()
     const suggested = lastApplied ? (lastApplied.datasetFileName as DatasetPath) : undefined
@@ -160,7 +170,7 @@ export const exportGraphMlFromStore = () => {
 
 export const exportCypherFromStore = () => {
   try {
-    const current = useGraphStore.getState().graphData
+    const current = readGraphDataForExport()
     if (!current) return
     const { lastApplied } = verifyWorkflowPresetStorage()
     const suggested = lastApplied ? (lastApplied.datasetFileName as DatasetPath) : undefined
@@ -193,7 +203,7 @@ export const exportCypherFromStore = () => {
 
 export const exportGraphMarkdownFromStore = () => {
   try {
-    const current = useGraphStore.getState().graphData
+    const current = readGraphDataForExport()
     if (!current) return
     const { lastApplied } = verifyWorkflowPresetStorage()
     const suggested = lastApplied ? (lastApplied.datasetFileName as DatasetPath) : undefined

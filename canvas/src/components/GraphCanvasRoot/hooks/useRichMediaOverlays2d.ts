@@ -16,6 +16,7 @@ import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
+import { createRafOnceScheduler } from '@/lib/react/rafOnceScheduler'
 
 export function useRichMediaOverlays2d(args: {
   active: boolean
@@ -85,8 +86,16 @@ export function useRichMediaOverlays2d(args: {
   }, [])
   const iframeNodeByIdRef = useRef<{ rev: number; sim: unknown | null; map: Map<string, GraphNode> }>({ rev: -1, sim: null, map: new Map() })
   const mediaOverlayScheduleRef = useRef<(() => void) | null>(null)
-  const mediaOverlayScheduleRafRef = useRef<number | null>(null)
   const mediaOverlaySchedulePendingRef = useRef<boolean>(false)
+  const mediaOverlayScheduleBootstrapRef = useRef(
+    createRafOnceScheduler(() => {
+      try {
+        mediaOverlayScheduleRef.current?.()
+      } catch {
+        void 0
+      }
+    }),
+  )
   const iframeOverlayRefFnByIdRef = useRef<Map<string, (el: HTMLDivElement | null) => void>>(new Map())
   const stickyOverlayNodeByIdRef = useRef<Map<string, ReturnType<typeof listMediaOverlayNodes>[number]>>(new Map())
   const stickyOverlayOrderRef = useRef<string[]>([])
@@ -98,15 +107,7 @@ export function useRichMediaOverlays2d(args: {
       return
     }
     mediaOverlaySchedulePendingRef.current = true
-    if (mediaOverlayScheduleRafRef.current != null) return
-    mediaOverlayScheduleRafRef.current = requestAnimationFrame(() => {
-      mediaOverlayScheduleRafRef.current = null
-      try {
-        mediaOverlayScheduleRef.current?.()
-      } catch {
-        void 0
-      }
-    })
+    mediaOverlayScheduleBootstrapRef.current.schedule()
   }, [])
 
   const mediaOverlayNodes = useMemo(() => {
@@ -268,11 +269,8 @@ export function useRichMediaOverlays2d(args: {
 
   useEffect(() => {
     return () => {
-      const raf = mediaOverlayScheduleRafRef.current
-      if (raf == null) return
-      mediaOverlayScheduleRafRef.current = null
       try {
-        cancelAnimationFrame(raf)
+        mediaOverlayScheduleBootstrapRef.current.cancel()
       } catch {
         void 0
       }
@@ -344,7 +342,7 @@ export function useRichMediaOverlays2d(args: {
 
     const loop = startMediaOverlayLayoutLoop2d({
       enabled: true,
-      loop: 'always',
+      loop: 'onDemand',
       items: mediaOverlayNodes,
       density,
       viewportW: sceneWidth,
@@ -392,6 +390,7 @@ export function useRichMediaOverlays2d(args: {
       mediaOverlaySchedulePendingRef.current = false
       loop.schedule()
     }
+    loop.schedule()
 
     return () => {
       loop.stop()

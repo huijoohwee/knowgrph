@@ -48,6 +48,9 @@ import { relaxAabbLabels, type AabbLabelParticle } from '@/lib/ui/labels/relaxAa
 import { readDesignWireframeSettings } from '@/lib/render/designWireframeSettings'
 import { tryExtractDesignDocumentUrl } from '@/lib/render/designDocumentUrl'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
+import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
+import { deriveMarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
+import { looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
 import { buildViewportSvgMarkupFromElement } from '@/lib/graph/svgSnapshot'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
@@ -157,6 +160,7 @@ export default function DesignCanvas({
       dyClientPx: args.dy,
       canvasPanSpeedMultiplier: st.canvasPanSpeedMultiplier,
       canvasInteractionSpeedMultiplier: st.canvasInteractionSpeedMultiplier,
+      applySpeedMultipliers: false,
     })
     d3.select(svgEl).call(zoom.transform as never, next)
   }, [])
@@ -238,6 +242,7 @@ export default function DesignCanvas({
       canvas2dRenderer: s.canvas2dRenderer,
       documentSemanticMode: s.documentSemanticMode,
       frontmatterModeEnabled: s.frontmatterModeEnabled,
+      multiDimTableModeEnabled: s.multiDimTableModeEnabled,
       documentStructureBaselineLock: s.documentStructureBaselineLock,
       renderMediaAsNodes: s.renderMediaAsNodes,
       mediaPanelDensity: s.mediaPanelDensity,
@@ -271,6 +276,37 @@ export default function DesignCanvas({
     })),
   )
   const activeRenderGraphData = useActiveGraphRenderData(active)
+
+  const deferredMarkdownText = React.useDeferredValue(String(snapshot.markdownDocumentText || ''))
+  const markdownPanelLineRanges = useMemo(() => {
+    const markdownText = String(deferredMarkdownText || '')
+    if (!markdownText.trim()) return null
+    const activeDocumentPath = String(snapshot.markdownDocumentName || '').trim() || 'markdown'
+    const markdownTokensKey = buildMarkdownTokensKey(markdownText)
+    const lexed = lexMarkdown(markdownText)
+    const layout = deriveMarkdownDesignLayout({ activeDocumentPath, markdownTokensKey, tokens: lexed.tokens as never })
+    const table = new Set<number>()
+    const code = new Set<number>()
+    const blockquote = new Set<number>()
+    const iframe = new Set<number>()
+    for (let i = 0; i < layout.blocks.length; i += 1) {
+      const b = layout.blocks[i]!
+      const start = Math.max(1, Math.floor(Number(b.startLine) || 1))
+      if (b.type === 'table') table.add(start)
+      else if (b.type === 'code') code.add(start)
+      else if (b.type === 'blockquote' || b.type === 'callout') blockquote.add(start)
+      else if (b.type === 'html') {
+        const raw = String(b.preview.kind === 'html' ? (b.preview.html?.raw || '') : '').trim()
+        if (/<\s*iframe\b/i.test(raw)) iframe.add(start)
+      }
+    }
+    return { table, code, blockquote, iframe }
+  }, [deferredMarkdownText, snapshot.markdownDocumentName])
+
+  const markdownPanelAllowedKinds = useMemo(() => {
+    if (snapshot.multiDimTableModeEnabled) return ['code', 'blockquote', 'callout', 'html'] as const
+    return ['table', 'code', 'blockquote', 'callout', 'html'] as const
+  }, [snapshot.multiDimTableModeEnabled])
 
   const directDocumentUrl = useMemo(() => tryExtractDesignDocumentUrl(snapshot.graphData as GraphData | null), [snapshot.graphData])
   const [documentUrl, setDocumentUrl] = React.useState<string | null>(directDocumentUrl)
@@ -940,6 +976,53 @@ export default function DesignCanvas({
     }
   }, [activeWebpageLayoutGraphData, designGraphDataForDisplay, positions, snapshot.graphData?.metadata, visibleNodes])
 
+  const panelOnlyNodeIdSet = useMemo(() => {
+    if (!active) return null
+    if (!markdownPanelLineRanges) return null
+    const nodes = Array.isArray(localGraphData?.nodes) ? (localGraphData.nodes as GraphNode[]) : []
+    if (nodes.length === 0) return null
+    const ids = new Set<string>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]!
+      const id = String(n?.id || '').trim()
+      if (!id) continue
+      const typeLower = String(n.type || '').trim().toLowerCase()
+      if (typeLower === 'table' || typeLower === 'codeblock') {
+        ids.add(id)
+        continue
+      }
+      if (typeLower === 'paragraph') {
+        const propsObj = n.properties && typeof n.properties === 'object' && !Array.isArray(n.properties) ? (n.properties as Record<string, unknown>) : null
+        const text = propsObj && typeof propsObj.text === 'string' ? String(propsObj.text || '').trim() : ''
+        if (propsObj && propsObj.calloutType === true) {
+          ids.add(id)
+          continue
+        }
+        if (text.startsWith('>')) {
+          ids.add(id)
+          continue
+        }
+        if (text && /<\s*iframe\b/i.test(text) && text.toLowerCase().startsWith('<iframe') && looksLikeSingleTagBlock(text, 'iframe')) {
+          ids.add(id)
+          continue
+        }
+      }
+      const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
+      const lineStartRaw = meta ? meta.lineStart : null
+      const lineStart = typeof lineStartRaw === 'number' ? lineStartRaw : typeof lineStartRaw === 'string' ? Number(lineStartRaw) : NaN
+      if (!Number.isFinite(lineStart)) continue
+      const start = Math.max(1, Math.floor(lineStart))
+      if (typeLower === 'table' && markdownPanelLineRanges.table.has(start)) ids.add(id)
+      else if (typeLower === 'codeblock' && markdownPanelLineRanges.code.has(start)) ids.add(id)
+      else if (typeLower === 'paragraph' && markdownPanelLineRanges.blockquote.has(start)) ids.add(id)
+      else {
+        const spec = getNodeMediaSpec(n)
+        if (spec?.kind === 'iframe' && markdownPanelLineRanges.iframe.has(start)) ids.add(id)
+      }
+    }
+    return ids.size > 0 ? ids : null
+  }, [active, localGraphData, markdownPanelLineRanges])
+
   const localGraphDataRef = useRef<GraphData>(localGraphData)
   useEffect(() => {
     localGraphDataRef.current = localGraphData
@@ -1041,7 +1124,7 @@ export default function DesignCanvas({
     designMediaOverlayElsRef.current = next
   }, [designMediaOverlayNodeIdsKey, designMediaOverlayNodes])
 
-  const designMediaHeaderDragRef = useRef<null | { id: string; pointerId: number; startX: number; startY: number; startK: number }>(null)
+  const designMediaHeaderDragRef = useRef<null | { id: string; pointerId: number; startX: number; startY: number; startK: number; lastDx: number; lastDy: number; schema: GraphSchema | null }>(null)
 
   useEffect(() => {
     if (!active) return
@@ -3466,6 +3549,7 @@ export default function DesignCanvas({
           ) : null}
 
           {renderNodes.map(n => {
+            if (panelOnlyNodeIdSet?.has(n.id)) return null
             const p = positions[n.id]
             if (!p) return null
             const selected = snapshot.selectedNodeId === n.id
@@ -3885,6 +3969,7 @@ export default function DesignCanvas({
           {styleById && snapshot.renderMediaAsNodes !== true ? (
             <g data-kg-layer="wireframe-text" style={{ pointerEvents: 'none' }}>
               {renderNodes.map(n => {
+                if (panelOnlyNodeIdSet?.has(n.id)) return null
                 const p = positions[n.id]
                 if (!p) return null
                 const preview = wireframePreviewById.get(n.id) || null
@@ -3999,6 +4084,7 @@ export default function DesignCanvas({
           {styleById ? (
             <g style={{ pointerEvents: 'none' }}>
               {renderNodes.map(n => {
+                if (panelOnlyNodeIdSet?.has(n.id)) return null
                 const p = positions[n.id]
                 if (!p) return null
                 const layout = labelLayoutById.get(n.id) || null
@@ -4144,6 +4230,7 @@ export default function DesignCanvas({
         svgRef={svgRef}
         markdownDocumentName={snapshot.markdownDocumentName}
         markdownDocumentText={snapshot.markdownDocumentText}
+        allowedKinds={markdownPanelAllowedKinds}
       />
       {active && designMediaOverlayNodes.length > 0 ? (
         <section aria-label="Design media overlay" className="absolute inset-0 z-[80] pointer-events-none">
@@ -4188,13 +4275,17 @@ export default function DesignCanvas({
                   if (!svgEl) return
                   const t = d3.zoomTransform(svgEl)
                   const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
-                  designMediaHeaderDragRef.current = { id: n.id, pointerId, startX: p.x, startY: p.y, startK: k }
+                  const schema = ((snapshot as unknown as { schema?: unknown }).schema || (useGraphStore.getState() as unknown as { schema?: unknown }).schema) as
+                    | GraphSchema
+                    | null
+                  designMediaHeaderDragRef.current = { id: n.id, pointerId, startX: p.x, startY: p.y, startK: k, lastDx: 0, lastDy: 0, schema }
                 }}
                 onHeaderDrag={({ dx, dy, pointerId }) => {
                   const st = designMediaHeaderDragRef.current
                   if (!st || st.id !== n.id || st.pointerId !== pointerId) return
-                  const schema = (snapshot as unknown as { schema?: unknown }).schema || (useGraphStore.getState() as unknown as { schema?: unknown }).schema
-                  if (!schema) {
+                  st.lastDx = dx
+                  st.lastDy = dy
+                  if (!st.schema) {
                     const k = Number.isFinite(st.startK) && st.startK > 0 ? st.startK : 1
                     setDesignFramePosMany({ [n.id]: { x: st.startX + dx / k, y: st.startY + dy / k } })
                     return
@@ -4205,13 +4296,31 @@ export default function DesignCanvas({
                     dxClientPx: dx,
                     dyClientPx: dy,
                     zoomK: st.startK,
-                    schema: schema as GraphSchema,
+                    schema: st.schema,
+                    snapToGrid: false,
                   })
                   setDesignFramePosMany({ [n.id]: { x: p.x, y: p.y } })
                 }}
                 onHeaderDragEnd={({ pointerId }) => {
                   const st = designMediaHeaderDragRef.current
-                  if (st && st.id === n.id && st.pointerId === pointerId) designMediaHeaderDragRef.current = null
+                  if (!st || st.id !== n.id || st.pointerId !== pointerId) return
+                  if (st.schema) {
+                    try {
+                      const p = computeOverlayDraggedPoint2d({
+                        baseX: st.startX,
+                        baseY: st.startY,
+                        dxClientPx: st.lastDx,
+                        dyClientPx: st.lastDy,
+                        zoomK: st.startK,
+                        schema: st.schema,
+                        snapToGrid: true,
+                      })
+                      setDesignFramePosMany({ [n.id]: { x: p.x, y: p.y } })
+                    } catch {
+                      void 0
+                    }
+                  }
+                  designMediaHeaderDragRef.current = null
                 }}
                 style={{
                   transform: 'translate(-99999px, -99999px)',

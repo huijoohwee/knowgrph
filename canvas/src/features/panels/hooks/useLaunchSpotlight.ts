@@ -21,15 +21,24 @@ export function useLaunchSpotlight() {
           schemaOpOk === false ||
           (typeof schemaLintCount === 'number' && schemaLintCount > 0)
 
-        const nextPinned = !statusPanelPinned
-        setStatusPanelPinned(nextPinned)
-        setLaunchSpotlightMode('stats')
-        if (nextPinned || hasProblem) {
+        if (hasProblem) {
+          setStatusPanelPinned(true)
+          setLaunchSpotlightMode('stats')
           setEnableLaunchSpotlight(true)
           setSpotlightDismissed(false)
           return
         }
-        setEnableLaunchSpotlight(false)
+
+        if (enableLaunchSpotlight && launchSpotlightMode === 'stats') {
+          setStatusPanelPinned(false)
+          setEnableLaunchSpotlight(false)
+          return
+        }
+
+        setStatusPanelPinned(true)
+        setLaunchSpotlightMode('stats')
+        setEnableLaunchSpotlight(true)
+        setSpotlightDismissed(false)
         return
       }
       if (enableLaunchSpotlight && launchSpotlightMode === nextMode) {

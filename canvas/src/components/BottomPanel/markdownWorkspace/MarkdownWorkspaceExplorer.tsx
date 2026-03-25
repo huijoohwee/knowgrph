@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronDown, ChevronRight, FileText, Folder, FolderPlus, GripVertical, MoreHorizontal, Plus, RefreshCcw, Search, Link2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, FileText, Folder, GripVertical, MoreHorizontal, Plus, RefreshCcw, Search, Link2 } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { MarkdownExplorerSection } from '../MarkdownExplorerSection'
@@ -11,7 +11,6 @@ import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { computeMarkdownTocReorder } from 'grph-shared/markdown/toc'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { CollapsibleToolbar } from '@/components/ui/CollapsibleToolbar'
-import { MarkdownWorkspaceExplorerHeaderActions } from './MarkdownWorkspaceExplorerHeaderActions'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 export type MarkdownWorkspaceExplorerProps = {
@@ -50,15 +49,7 @@ export type MarkdownWorkspaceExplorerProps = {
   onTocReorder: (parentId: string | null, fromIndex: number, toIndex: number) => void
 
   onCreateNewFile: () => void
-  onCreateNewFolder: () => void
   onRefresh: () => void
-
-  onSave?: () => void
-  saveDisabled?: boolean
-  onImportLocalFiles?: (files: FileList | null) => void
-  onImportLocalFolder?: (files: FileList | null) => void
-  onImportUrl?: (url: string) => void
-  onImportWebsite?: (url: string) => void
 
   activeEntryName: string
   activeEntryKind: 'file' | 'folder' | ''
@@ -212,14 +203,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
     onOpenBacklink,
     onTocReorder,
     onCreateNewFile,
-    onCreateNewFolder,
     onRefresh,
-    onSave,
-    saveDisabled,
-    onImportLocalFiles,
-    onImportLocalFolder,
-    onImportUrl,
-    onImportWebsite,
     activeEntryName,
     activeEntryKind,
     canClearActiveSelection,
@@ -436,15 +420,6 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
         </section>
         <CollapsibleToolbar ariaLabel="Explorer actions" className="kg-toolbar flex items-center justify-end">
           <ul className="flex items-center gap-1 list-none m-0 p-0" aria-label="Explorer actions list">
-            <MarkdownWorkspaceExplorerHeaderActions
-              microLabelClass={panelTypography.microLabelClass}
-              onSave={onSave}
-              saveDisabled={saveDisabled}
-              onImportLocalFiles={onImportLocalFiles}
-              onImportLocalFolder={onImportLocalFolder}
-              onImportUrl={onImportUrl}
-              onImportWebsite={onImportWebsite}
-            />
             {hasSelectionActions ? (
               <li className="list-none relative" ref={el => (selectionMenuRootRef.current = el)}>
                 <button
@@ -525,17 +500,6 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
                 title="New file"
               >
                 <Plus className="w-4 h-4" />
-              </button>
-            </li>
-            <li className="list-none">
-              <button
-                type="button"
-                className={`kg-toolbar-btn shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                onClick={onCreateNewFolder}
-                aria-label="New folder"
-                title="New folder"
-              >
-                <FolderPlus className="w-4 h-4" />
               </button>
             </li>
             {canRefreshActiveFromSource ? (

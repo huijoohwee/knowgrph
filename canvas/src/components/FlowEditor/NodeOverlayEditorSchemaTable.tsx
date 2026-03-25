@@ -7,6 +7,7 @@ import { buildSchemaFieldPortKey } from '@/lib/graph/flowPorts'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { Trash2 } from 'lucide-react'
+import { patchAtIndex } from 'grph-shared/array/patchArrayItem'
 
 type SchemaFieldRow = { id: string; title: string; type: string }
 
@@ -92,14 +93,14 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
       const nextTitle = String(next.title || '').trim()
       if (!nextTitle) {
         if (!prevId) return
-        const nextRows = rows.map((r, idx) => (idx === rowIndex ? { ...r, id: prevId, title: prevId } : r))
+        const nextRows = patchAtIndex(rows, rowIndex, r => ({ ...r, id: prevId, title: prevId }))
         commitRows(nextRows)
         return
       }
       if (rows.some((r, idx) => idx !== rowIndex && String(r.id || '').trim() === nextTitle)) {
         const rollback = prevId || String(next.id || '').trim()
         if (!rollback) return
-        const nextRows = rows.map((r, idx) => (idx === rowIndex ? { ...r, id: rollback, title: rollback } : r))
+        const nextRows = patchAtIndex(rows, rowIndex, r => ({ ...r, id: rollback, title: rollback }))
         commitRows(nextRows)
         return
       }
@@ -107,7 +108,7 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
       const nextId = nextTitle
       if (prevId && prevId !== nextId) onRenameSchemaFieldId?.({ prevId, nextId })
       if (String(next.id || '').trim() === nextId) return
-      const nextRows = rows.map((r, idx) => (idx === rowIndex ? { ...r, id: nextId, title: nextId } : r))
+      const nextRows = patchAtIndex(rows, rowIndex, r => ({ ...r, id: nextId, title: nextId }))
       commitRows(nextRows)
     },
     [commitRows, onRenameSchemaFieldId, rows],
@@ -208,7 +209,7 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
                       onChange={e => {
                         dirtyRef.current = true
                         const nextValue = e.target.value
-                        setRows(prev => prev.map((r, idx) => (idx === rowIndex ? { ...r, title: nextValue } : r)))
+                        setRows(prev => patchAtIndex(prev, rowIndex, r => ({ ...r, title: nextValue })))
                       }}
                       onBlur={() => {
                         commitRenameAtIndex(rowIndex)
@@ -274,7 +275,7 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
                     onChange={e => {
                       dirtyRef.current = true
                       const nextValue = e.target.value
-                      setRows(prev => prev.map((r, idx) => (idx === rowIndex ? { ...r, type: nextValue } : r)))
+                        setRows(prev => patchAtIndex(prev, rowIndex, r => ({ ...r, type: nextValue })))
                     }}
                     onBlur={() => {
                       const nextType = String(rows[rowIndex]?.type || '').trim()

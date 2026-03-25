@@ -36,16 +36,22 @@ export function commitZoomTransformToStore(args: {
   })
   const existingGlobal = args.state.zoomState || null
   const existingKeyed = args.state.zoomStateByKey?.[args.zoomViewKey] || null
-  const sameGlobal = isSameZoomState(existingGlobal, next)
-  const sameKeyed = isSameZoomState(existingKeyed, next)
-  if (sameGlobal && sameKeyed) return false
-  if (!sameGlobal) args.state.setZoomState(next)
-  if (!sameKeyed) args.state.setZoomStateForKey(args.zoomViewKey, next)
+
+  const sameTransform = (a: ZoomStateCommit | null, b: ZoomStateCommit): boolean => {
+    if (!a) return false
+    return a.k === b.k && a.x === b.x && a.y === b.y && a.viewportW === b.viewportW && a.viewportH === b.viewportH
+  }
+
+  const sameGlobalTransform = sameTransform(existingGlobal, next)
+  const sameKeyedTransform = sameTransform(existingKeyed, next)
+  if (sameGlobalTransform && sameKeyedTransform) return false
+  if (!sameGlobalTransform) args.state.setZoomState(next)
+  if (!sameKeyedTransform) args.state.setZoomStateForKey(args.zoomViewKey, next)
 
   const base = stripZoomViewKeyVariant(args.zoomViewKey).base
   if (base && base !== args.zoomViewKey) {
     const existingBase = args.state.zoomStateByKey?.[base] || null
-    if (!isSameZoomState(existingBase, next)) {
+    if (!sameTransform(existingBase, next)) {
       args.state.setZoomStateForKey(base, next)
     }
   }

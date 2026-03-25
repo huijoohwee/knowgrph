@@ -14,6 +14,7 @@ import {
   allocateNewRowId,
   createRowFromGraphEntity,
   getGraphTableDb,
+  syncGraphDataToGraphTableDb,
   updateGraphTableCell,
   updateGraphTableColumnKind,
   type GraphColumnDoc,
@@ -54,6 +55,9 @@ const INACTIVE_GRAPH_SLICE = {
   baseGraphData: null,
   collapsedGroupIds: [] as string[],
   graphDataRevision: 0,
+  graphContentRevision: 0,
+  infiniteCanvasInteractionMode: 'static' as const,
+  canvasWorkspaceSyncMode: 'manual' as const,
   selectionSource: 'toolbar',
   selectedNodeId: null as string | null,
   selectedEdgeId: null as string | null,
@@ -70,6 +74,9 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
             baseGraphData: s.graphData,
             collapsedGroupIds: (s.collapsedGroupIds || []) as string[],
             graphDataRevision: s.graphDataRevision,
+            graphContentRevision: s.graphContentRevision,
+            infiniteCanvasInteractionMode: s.infiniteCanvasInteractionMode,
+            canvasWorkspaceSyncMode: s.canvasWorkspaceSyncMode,
             selectionSource: s.selectionSource,
             selectedNodeId: s.selectedNodeId,
             selectedEdgeId: s.selectedEdgeId,
@@ -78,7 +85,18 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
         : () => INACTIVE_GRAPH_SLICE,
     [active],
   )
-  const { baseGraphData, collapsedGroupIds, graphDataRevision, selectionSource, selectedNodeId, selectedEdgeId, openQuickEditorNodeIds } =
+  const {
+    baseGraphData,
+    collapsedGroupIds,
+    graphDataRevision,
+    graphContentRevision,
+    infiniteCanvasInteractionMode,
+    canvasWorkspaceSyncMode,
+    selectionSource,
+    selectedNodeId,
+    selectedEdgeId,
+    openQuickEditorNodeIds,
+  } =
     useGraphStore(useShallow(selector))
   const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
   const [activeTableId, setActiveTableId] = useState<GraphTableId>('nodes')
@@ -133,7 +151,24 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
     setEditorWorkspacePane('markdown')
   }, [setEditorWorkspacePane])
 
-  const { noteGraphWrite } = useGraphTableDbSync(graphDataRevision, syncGraphData, `baseline:${collapsedGroupIdsKey}`, active)
+  const graphSyncRevision = infiniteCanvasInteractionMode === 'interactive' ? graphDataRevision : graphContentRevision
+  const syncEnabled = active && canvasWorkspaceSyncMode === 'realtime'
+  const { noteGraphWrite } = useGraphTableDbSync(graphSyncRevision, syncGraphData, `baseline:${collapsedGroupIdsKey}`, syncEnabled)
+
+  const [syncNowInFlight, setSyncNowInFlight] = useState(false)
+  const handleSyncNow = useCallback(() => {
+    if (syncNowInFlight) return
+    setSyncNowInFlight(true)
+    void (async () => {
+      try {
+        await syncGraphDataToGraphTableDb(syncGraphData || null)
+      } catch {
+        void 0
+      } finally {
+        setSyncNowInFlight(false)
+      }
+    })()
+  }, [syncGraphData, syncNowInFlight])
 
   useEffect(() => {
     lsSetBool(LS_KEYS.graphTablePreviewCollapsed, canvasPreviewCollapsed)
@@ -147,6 +182,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   >(new Map())
 
   useEffect(() => {
+    if (!active) return
     let sub: Subscription | null = null
     let rowSub: Subscription | null = null
     let colMap = new Map<string, GraphColumnDoc>()
@@ -233,7 +269,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       try { sub?.unsubscribe() } catch { void 0 }
       try { rowSub?.unsubscribe() } catch { void 0 }
     }
-  }, [activeTableId])
+  }, [active, activeTableId])
 
   useEffect(() => {
     if (selectionSource === 'toolbar') return
@@ -358,12 +394,13 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
           if (Object.is(normPrev, normNext)) return
         }
         await updateGraphTableCell(activeTableId, rowId, columnId, next)
-        const prev = useGraphStore.getState().graphDataRevision
+        const st = useGraphStore.getState()
+        const prev = infiniteCanvasInteractionMode === 'interactive' ? st.graphDataRevision : st.graphContentRevision
         noteGraphWrite(prev + 1)
         applyCellUpdateToGraphStore(activeTableId, rowId, columnId, next)
       })()
     },
-    [activeTableId, noteGraphWrite, rows],
+    [activeTableId, infiniteCanvasInteractionMode, noteGraphWrite, rows],
   )
 
   const handleColumnKindChanged = useCallback(
@@ -379,7 +416,8 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       if (activeTableId === 'nodes') {
         const node: GraphNode = { id: rowId, label: rowId, type: 'Entity', properties: {} }
         await createRowFromGraphEntity('nodes', rowId, node)
-        const prev = useGraphStore.getState().graphDataRevision
+        const st = useGraphStore.getState()
+        const prev = infiniteCanvasInteractionMode === 'interactive' ? st.graphDataRevision : st.graphContentRevision
         noteGraphWrite(prev + 1)
         useGraphStore.getState().addNode(node)
         return
@@ -389,11 +427,12 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       const target = nodes[1] || source
       const edge: GraphEdge = { id: rowId, label: 'relates_to', source, target, properties: {} }
       await createRowFromGraphEntity('edges', rowId, edge)
-      const prev = useGraphStore.getState().graphDataRevision
+      const st = useGraphStore.getState()
+      const prev = infiniteCanvasInteractionMode === 'interactive' ? st.graphDataRevision : st.graphContentRevision
       noteGraphWrite(prev + 1)
       useGraphStore.getState().addEdge(edge)
     })()
-  }, [activeTableId, baseGraphData, noteGraphWrite])
+  }, [activeTableId, baseGraphData, infiniteCanvasInteractionMode, noteGraphWrite])
 
   const handleDeleteSelected = useCallback(() => {
     void (async () => {
@@ -403,7 +442,8 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
         const pk = `${activeTableId}:${rowId}`
         const doc = await collections.rows.findOne(pk).exec()
         if (doc) await doc.remove()
-        const prev = useGraphStore.getState().graphDataRevision
+        const st = useGraphStore.getState()
+        const prev = infiniteCanvasInteractionMode === 'interactive' ? st.graphDataRevision : st.graphContentRevision
         noteGraphWrite(prev + 1)
         if (activeTableId === 'nodes') useGraphStore.getState().removeNode(rowId)
         else useGraphStore.getState().removeEdge(rowId)
@@ -411,7 +451,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       setSelectedRowIds([])
       setInspectorRowId(null)
     })()
-  }, [activeTableId, noteGraphWrite, selectedRowIds])
+  }, [activeTableId, infiniteCanvasInteractionMode, noteGraphWrite, selectedRowIds])
 
   const rowCountLabel = useMemo(() => `${rows.length} rows`, [rows.length])
   const showInspector = inspectorOpen && !!selectedRow
@@ -551,6 +591,9 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       onAddRow={handleAddRow}
       onDeleteSelected={handleDeleteSelected}
       hasSelection={selectedRowIds.length > 0}
+      syncNowVisible={canvasWorkspaceSyncMode === 'manual'}
+      syncNowDisabled={syncNowInFlight || !syncGraphData}
+      onSyncNow={handleSyncNow}
       onClose={handleCloseWorkspace}
       columns={columns}
       rows={rows}

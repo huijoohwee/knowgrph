@@ -7,6 +7,9 @@ import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/w
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { StatusHelpers } from './useWorkspaceFileActions/types'
 
+const EMPTY_GRAPH_NODES: GraphNode[] = []
+const EMPTY_GRAPH_EDGES: GraphEdge[] = []
+
 const stripLineFragment = (raw: string) => {
   const text = String(raw || '').trim()
   if (!text) return ''
@@ -71,14 +74,24 @@ export function useCanvasMarkdownSync(args: {
   const selectionSource = useGraphStore(s => s.selectionSource)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
-  const graphData = useGraphStore(s => s.graphData) as GraphData | null
+  const graphNodes = useGraphStore(s => ((s.graphData as GraphData | null)?.nodes as GraphNode[] | undefined) || EMPTY_GRAPH_NODES)
+  const graphEdges = useGraphStore(s => ((s.graphData as GraphData | null)?.edges as GraphEdge[] | undefined) || EMPTY_GRAPH_EDGES)
+  const docLocationRevision = useGraphStore(s => (s.docLocationRevision || 0) as number)
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
+
+  const graphNodesRef = React.useRef<GraphNode[]>(graphNodes)
+  React.useEffect(() => {
+    graphNodesRef.current = graphNodes
+  }, [graphNodes])
+  const graphEdgesRef = React.useRef<GraphEdge[]>(graphEdges)
+  React.useEffect(() => {
+    graphEdgesRef.current = graphEdges
+  }, [graphEdges])
 
   const lastCanvasSyncSigRef = React.useRef<string>('')
 
   React.useEffect(() => {
     if (selectionSource !== 'canvas') return
-    if (!graphData) return
 
     const nodeId = selectedNodeId ? String(selectedNodeId) : ''
     const edgeId = !nodeId && selectedEdgeId ? String(selectedEdgeId) : ''
@@ -87,8 +100,8 @@ export function useCanvasMarkdownSync(args: {
     if (lastCanvasSyncSigRef.current === sig) return
     lastCanvasSyncSigRef.current = sig
 
-    const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
-    const edges = Array.isArray(graphData.edges) ? (graphData.edges as GraphEdge[]) : []
+    const nodes = Array.isArray(graphNodesRef.current) ? graphNodesRef.current : []
+    const edges = Array.isArray(graphEdgesRef.current) ? graphEdgesRef.current : []
     const node = nodeId ? nodes.find(n => String(n.id || '') === nodeId) : null
     const edge = !node && edgeId ? edges.find(e => String(e.id || '') === edgeId) : null
     const meta = node?.metadata ?? edge?.metadata ?? null
@@ -119,12 +132,12 @@ export function useCanvasMarkdownSync(args: {
   }, [
     activePath,
     entries,
-    graphData,
     layoutMode,
     revealLineInEditor,
     selectedEdgeId,
     selectedNodeId,
     selectionSource,
+    docLocationRevision,
     setActivePathSafe,
     setExpandedPaths,
     setLayoutMode,

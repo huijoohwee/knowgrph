@@ -83,13 +83,20 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 
 ### Canvas Interaction Panel (Floating)
 
-- In Canvas mode, interaction + arrangement actions are consolidated into a single **Interaction** tab inside the Floating Panel (adjacent to the **Props** view in the header).
+- In Canvas mode, interaction + arrangement actions are consolidated into a single **Interaction** tab inside the Floating Panel (adjacent to the **Props** view in the header). Toolbar shortcuts (3D toggle, Canvas Interaction Mode, Workspace Sync Mode) are thin views over the same SSOT settings used by this panel and by the Settings view.
 - The Interaction tab hosts:
-  - **Viewport**: read-only Viewport status and SSOT field groups (Readout, Transform, Zoom Modes, Wheel, Speeds, Flow) derived from the active 2D renderer state, schema zoom settings, and canvas interaction settings.
+  - **Viewport**: read-only Viewport status and SSOT field groups (Readout, Transform, Zoom Modes, Wheel, Speeds, Flow) derived from the active 2D renderer state, schema zoom settings, and canvas interaction settings (including Canvas Interaction Mode).
   - **Interaction**: pointer mode (Pan vs Select/Drag) and layout selector (Force/Radial) that writes `schema.layout.mode`.
   - **Centering / Centroid**: Center on Selection and Center on All Items.
   - **Even Spread**: Distribute Horizontally/Vertically with a 3+ node guard and selection count helper text.
   - **Performance**: opt-in perf overlay toggle plus read-only perf metrics (render updates/sec, state updates/sec, last layout init).
+  - **Interaction Modes**:
+    - **Canvas Interaction Mode**: `infiniteCanvasInteractionMode∈{static,interactive}` controls how aggressively the infinite canvas applies force-directed layout and overlay interactivity:
+      - `static` (default) runs D3 force layout to a bounded stable state and then freezes simulation; rich media and markdown overlays forward wheel/pan to the canvas so drag/pan/zoom stay primary; Graph Data Table and GraphTableDb treat position-only updates as non-syncing metadata (no background churn).
+      - `interactive` keeps D3 forces running continuously and enables full overlay interactivity (iframes/images/videos/markdown blocks accept wheel/pointer events and do not forward to canvas) while preserving the same SSOT GraphData and layout keys.
+    - **Workspace Sync Mode**: `canvasWorkspaceSyncMode∈{manual,realtime}` controls when Canvas↔Graph Table syncing happens:
+      - `manual` (default) disables automatic GraphTableDb sync from Canvas and surfaces a single **Sync now** action in the Graph Table toolbar; Canvas edits only sync to tables on explicit user actions.
+      - `realtime` enables automatic sync, still gated by revision+viewKey to avoid loops: in static mode the sync key is `graphContentRevision` (structure-only), in interactive mode it is `graphDataRevision` (including position-only changes).
 - Viewport field groups are read-only views over the existing settings and schema; mutating the underlying behavior remains the responsibility of the Render and Settings panels.
 - Forbid duplicate/legacy “Arrange” surfaces (canvas overlays or editor tabs) that reintroduce conflicting gesture ownership, parallel Interaction UIs, or duplicate actions.
 
@@ -144,6 +151,9 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - Column resizing is pointer-drag based and must not reflow the app (only recompute layout for the grid).
   - Scrolling correctness is mandatory: native vertical/horizontal scroll must work for large datasets and must not induce scroll/resize feedback loops.
   - Visual correctness is mandatory: pinned header band and pinned columns must be fully opaque and must not show scrolled text underneath.
+  - Sync semantics are controlled by Workspace Sync Mode:
+    - In **Manual** mode, auto sync is disabled; the Graph Table header exposes a single **Sync now** button that runs a bounded GraphData→GraphTableDb sync using the derived view graph (including collapsed groups) and revision gating.
+    - In **Real-time** mode, the same sync pipeline is invoked automatically when the relevant graph revision changes; sync gates must ignore no-op writes and must key by viewKey to avoid cross-view churn.
 - Split/Inspector:
   - The table grid and the Record Inspector are split by a draggable vertical `<hr>`; inspector open state and width persist via `LS_KEYS.graphTableInspectorOpen` and `LS_KEYS.graphTableInspectorWidthPx`.
 

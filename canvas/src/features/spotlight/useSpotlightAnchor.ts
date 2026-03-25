@@ -1,5 +1,7 @@
 import React from 'react'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
+import { createRafOnceScheduler } from '@/lib/react/rafOnceScheduler'
+import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 
 type Point = { top: number; left: number }
 
@@ -19,8 +21,7 @@ export function useSpotlightAnchor({ enabled, dismissed, ready, selector }: Spot
     startTop: number
     startLeft: number
   } | null>(null)
-  const dragRafRef = React.useRef<number | null>(null)
-  const pendingDragPosRef = React.useRef<Point | null>(null)
+  const dragSchedulerRef = React.useRef(createRafValueScheduler((pos: Point) => setDragPos(pos)))
   const highlightRef = React.useRef<HTMLElement | null>(null)
   const observerRef = React.useRef<MutationObserver | null>(null)
   const cardRef = React.useRef<HTMLDivElement | null>(null)
@@ -102,26 +103,27 @@ export function useSpotlightAnchor({ enabled, dismissed, ready, selector }: Spot
 
   React.useEffect(() => {
     if (!enabled || dismissed || !ready || !selector) return
-    let frame: number | null = null
-    const handle = () => {
-      if (frame) return
-      frame = window.requestAnimationFrame(() => {
-        updateAnchor()
-        frame = null
-      })
-    }
+    const scheduler = createRafOnceScheduler(updateAnchor)
+    const handle = () => scheduler.schedule()
     window.addEventListener('resize', handle)
     window.addEventListener('scroll', handle, true)
     return () => {
       clearObserver()
       window.removeEventListener('resize', handle)
       window.removeEventListener('scroll', handle, true)
-      if (frame) window.cancelAnimationFrame(frame)
+      scheduler.cancel()
     }
   }, [enabled, dismissed, ready, selector, updateAnchor, clearObserver])
 
   const handleCardPointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return
+    const target = event.target as HTMLElement | null
+    if (target) {
+      const interactive = target.closest(
+        'button, a, input, textarea, select, option, summary, [role="button"], [role="link"], [data-kg-spotlight-ignore-drag="true"]',
+      )
+      if (interactive) return
+    }
     const el = cardRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
@@ -135,13 +137,7 @@ export function useSpotlightAnchor({ enabled, dismissed, ready, selector }: Spot
     }
     setDragPos({ top: startTop, left: startLeft })
 
-    const flush = () => {
-      const next = pendingDragPosRef.current
-      pendingDragPosRef.current = null
-      dragRafRef.current = null
-      if (!next) return
-      setDragPos(next)
-    }
+    const scheduler = dragSchedulerRef.current
 
     startPointerDrag({
       ev: event.nativeEvent,
@@ -155,33 +151,18 @@ export function useSpotlightAnchor({ enabled, dismissed, ready, selector }: Spot
         if (!state) return
         const dx = mv.clientX - state.startX
         const dy = mv.clientY - state.startY
-        pendingDragPosRef.current = {
+        scheduler.schedule({
           top: state.startTop + dy,
           left: state.startLeft + dx,
-        }
-        if (dragRafRef.current == null) dragRafRef.current = window.requestAnimationFrame(flush)
+        })
       },
       onEnd: () => {
         dragStateRef.current = null
-        if (dragRafRef.current != null) {
-          window.cancelAnimationFrame(dragRafRef.current)
-          dragRafRef.current = null
-        }
-        if (pendingDragPosRef.current) {
-          setDragPos(pendingDragPosRef.current)
-          pendingDragPosRef.current = null
-        }
+        scheduler.flush()
       },
       onCancel: () => {
         dragStateRef.current = null
-        if (dragRafRef.current != null) {
-          window.cancelAnimationFrame(dragRafRef.current)
-          dragRafRef.current = null
-        }
-        if (pendingDragPosRef.current) {
-          setDragPos(pendingDragPosRef.current)
-          pendingDragPosRef.current = null
-        }
+        scheduler.cancel()
       },
     })
   }, [])

@@ -46,6 +46,8 @@ export function useD3PresentationUpdates2d(args: {
   selectedEdgeIdRef: MutableRefObject<string | null>
   setHoverInfo: Dispatch<SetStateAction<HoverInfo | null>>
 }): void {
+  const enableEditorGestures = useGraphStore(s => s.workspaceViewMode === 'editor')
+
   const {
     activeRef,
     svgRef,
@@ -85,7 +87,11 @@ export function useD3PresentationUpdates2d(args: {
   useEffect(() => {
     const g = gRef.current
     if (!g) return
-    if (nodesPresentationAppliedKeyRef.current === `${schemaNodesPresentationJson}|${sceneWidth}|${sceneHeight}|${panelOnlyNodeIdsKey}`) return
+    if (
+      nodesPresentationAppliedKeyRef.current ===
+      `${schemaNodesPresentationJson}|${sceneWidth}|${sceneHeight}|${panelOnlyNodeIdsKey}|${enableEditorGestures ? 1 : 0}`
+    )
+      return
     if (!simulationRef.current) return
     if (!sceneGraphDataRef.current) return
     if (!activeRef.current) return
@@ -166,9 +172,9 @@ export function useD3PresentationUpdates2d(args: {
       addEdge: e => useGraphStore.getState().addEdge(e),
       updateEdge: (id, u) => useGraphStore.getState().updateEdge(id, u),
       getSelectedEdgeId: () => selectedEdgeIdRef.current,
-      enableEditorGestures: useGraphStore.getState().workspaceViewMode === 'editor',
+      enableEditorGestures,
       onCommitNodePosition:
-        useGraphStore.getState().workspaceViewMode === 'editor'
+        enableEditorGestures
           ? ({ id, x, y }) => {
               useGraphStore.getState().updateNode(id, { x, y })
             }
@@ -176,12 +182,14 @@ export function useD3PresentationUpdates2d(args: {
       requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
       toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
     })
-    nodesPresentationAppliedKeyRef.current = `${schemaNodesPresentationJson}|${sceneWidth}|${sceneHeight}|${panelOnlyNodeIdsKey}`
+    nodesPresentationAppliedKeyRef.current =
+      `${schemaNodesPresentationJson}|${sceneWidth}|${sceneHeight}|${panelOnlyNodeIdsKey}|${enableEditorGestures ? 1 : 0}`
   }, [
     activeRef,
     coarsePointer,
     documentSemanticMode,
     edgesForSim,
+    enableEditorGestures,
     gRef,
     groupChevronSelRef,
     labelsSelRef,

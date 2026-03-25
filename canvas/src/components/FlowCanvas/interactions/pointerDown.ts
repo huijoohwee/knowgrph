@@ -358,6 +358,24 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
       }
     }
 
+    if (
+      !groupHit &&
+      e.pointerType !== 'touch' &&
+      e.button === 0 &&
+      spacePanHeld !== true &&
+      e.shiftKey !== true &&
+      e.metaKey !== true &&
+      e.ctrlKey !== true &&
+      e.altKey !== true
+    ) {
+      const state = storeStateAtDown
+      state.setSelectionSource('canvas')
+      state.selectNode(null)
+      state.selectEdge(null)
+      state.selectGroup(null)
+      ctx.args.setSelectionBox(null)
+    }
+
     if (e.pointerType === 'touch') {
       startDrag({
         type: 'pan',

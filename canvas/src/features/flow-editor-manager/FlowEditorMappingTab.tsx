@@ -34,6 +34,7 @@ import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manage
 import NodeQuickEditorRegistryTable from '@/features/flow-editor-manager/NodeQuickEditorRegistryTable'
 import { FlowEditorMappingSettingsPanel } from '@/features/flow-editor-manager/FlowEditorMappingSettingsPanel'
 import { applyMappingRowsToRegistryEntry, buildMappingRowsFromRegistryEntry, validateMappingRows, type FlowEditorMappingRow } from '@/features/flow-editor-manager/mappingRows'
+import { patchById } from 'grph-shared/array/patchArrayItem'
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -437,7 +438,7 @@ export default function FlowEditorMappingTab({
   const updateEditorRow = React.useCallback((id: string, patch: Partial<FlowEditorMappingRow>) => {
     const target = String(id || '').trim()
     if (!target) return
-    setEditorRows(prev => prev.map(r => (r.id === target ? { ...r, ...patch } : r)))
+    setEditorRows(prev => patchById(prev, target, r => r.id, r => ({ ...r, ...patch })))
   }, [])
 
   const deleteEditorRow = React.useCallback((id: string) => {

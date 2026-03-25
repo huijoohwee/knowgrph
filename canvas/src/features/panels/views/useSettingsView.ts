@@ -24,6 +24,8 @@ export function useSettingsView({
   }) => void
 }) {
   const shouldHideSetting = React.useCallback((key: string, area?: string) => {
+    if (key === 'infiniteCanvasInteractionMode') return false
+    if (key === 'canvasWorkspaceSyncMode') return false
     if (key === 'wheelZoomCtrlMetaBoostMultiplier') return false
     if (key.startsWith('flowWheelZoom')) return false
     if (key === 'canvasRenderMode') return true

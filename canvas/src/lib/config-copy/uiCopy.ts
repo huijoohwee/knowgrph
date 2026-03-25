@@ -367,6 +367,18 @@ export const UI_COPY = {
     `Added ${count.toLocaleString()} option ${count === 1 ? 'value' : 'values'} from samples`,
   graphFieldsJsonDefaultClearedStatus: 'Cleared JSON default',
   graphFieldsJsonDefaultInvalidStatus: 'Invalid JSON default',
+
+  infiniteCanvasInteractionStaticLabel: 'Static',
+  infiniteCanvasInteractionInteractiveLabel: 'Interactive',
+  infiniteCanvasInteractionStaticTooltip:
+    'Static: no metadata churn/writeback while dragging. Canvas position-only updates do not force table sync/recompute; Save/Export persists composed positions.',
+  infiniteCanvasInteractionInteractiveTooltip:
+    'Interactive: allow real-time propagation of canvas changes (including position-only updates) into workspace surfaces. Heavier on large graphs.',
+
+  canvasWorkspaceSyncManualLabel: 'Manual sync',
+  canvasWorkspaceSyncRealtimeLabel: 'Real-time sync',
+  canvasWorkspaceSyncManualTooltip: 'Manual sync: workspace tables do not auto-sync from canvas; use Sync now when needed.',
+  canvasWorkspaceSyncRealtimeTooltip: 'Real-time sync: workspace tables auto-sync from canvas based on interaction mode.',
   graphFieldsJsonDefaultAppliedStatus: 'Applied JSON default',
   graphFieldsJsonDefaultFormattedStatus: 'Formatted JSON default',
   graphFieldsNodeColorLabel: 'Node field color',

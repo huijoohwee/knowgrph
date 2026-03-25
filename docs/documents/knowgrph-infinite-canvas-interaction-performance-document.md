@@ -80,10 +80,16 @@ It is strictly code-backed: it documents the current behavior and forbids duplic
 - Forbid recomputation loops when switching modes/layouts.
 - Cache layout positions by the active layout cache key; do not reseed unless inputs change.
 - Perf overlay is opt-in and must not run unless the user enables it.
+- Canvas Interaction Mode + Workspace Sync Mode must never introduce background churn:
+  - **Static** mode keeps D3 forces bounded and frozen post-stabilization and forwards overlay wheel to Canvas so pointer streams remain owned by the canvas; Graph Data Table and GraphTableDb ignore pure position-only updates and only sync on content changes or explicit Sync commands.
+  - **Interactive** mode enables continuous D3 forces and overlay interactivity (no wheel forwarding when safe) but still uses revision+viewKey-gated sync to GraphTableDb and must not introduce polling loops or cross-view write amplification.
+  - **Manual** workspace sync disables auto sync and surfaces a single Sync action that runs a bounded GraphData→GraphTableDb sync; **Real-time** works via the same code path but is triggered by revision changes, not by timers.
 
 ## Implementation Pointers
 
 - Floating Panel shell + views: `knowgrph/canvas/src/features/toolbar/ToolbarToolMenu.tsx`
 - Interaction tab body (Viewport + Interaction/Centering/Even Spread/Performance groups): `knowgrph/canvas/src/features/canvas/InfiniteCanvasInteractionPanel.tsx`
+- Canvas Interaction Mode + Workspace Sync Mode store+LS wiring: `knowgrph/canvas/src/hooks/store/{canvasSlice.ts,types.ts}`, `knowgrph/canvas/src/lib/config.{ls.ts,render.ts}`
+- Toolbar toggles for Canvas Interaction Mode and Workspace Sync Mode: `knowgrph/canvas/src/components/Toolbar.tsx`
 - D3 drag guard in Pan mode: `knowgrph/canvas/src/components/GraphCanvas/drag.ts`
 - D3 zoom/pan behavior: `knowgrph/canvas/src/components/GraphCanvas/zoom.ts`

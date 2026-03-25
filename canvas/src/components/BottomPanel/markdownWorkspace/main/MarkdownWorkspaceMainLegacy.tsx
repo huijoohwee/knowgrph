@@ -31,6 +31,7 @@ import { exportHtmlCanvasFromWorkspace } from './exports/exportHtmlCanvas'
 import { exportCanvasSvg } from './exports/exportSvg'
 import { exportGraphJson } from './exports/exportJson'
 import { exportViewerPdf } from './exports/exportPdf'
+import { registerMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
 
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
@@ -368,17 +369,28 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     return base.replace(/\.[a-z0-9]+$/i, '') || 'document'
   }, [activeDocumentKey])
 
+  const flushGraphWritebackForExport = React.useCallback(() => {
+    try {
+      useGraphStore.getState().flushComposedPositionWritesNow()
+    } catch {
+      void 0
+    }
+  }, [])
+
   const handleExportWorkspaceFile = React.useCallback(async () => {
+    flushGraphWritebackForExport()
     const text = String(typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText)
     await exportWorkspaceFileJsonLd({ activeDocumentKey, exportBaseName, text })
-  }, [activeDocumentKey, activeText, exportBaseName, viewerTextOverride])
+  }, [activeDocumentKey, activeText, exportBaseName, flushGraphWritebackForExport, viewerTextOverride])
 
   const handleExportMarkdown = React.useCallback(async () => {
+    flushGraphWritebackForExport()
     const text = String(typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText)
     await exportMarkdownFile({ exportBaseName, text })
-  }, [activeText, exportBaseName, viewerTextOverride])
+  }, [activeText, exportBaseName, flushGraphWritebackForExport, viewerTextOverride])
 
   const handleExportHtmlViewer = React.useCallback(async () => {
+    flushGraphWritebackForExport()
     await exportHtmlViewerSnapshot({
       exportBaseName,
       showWebpageHtml,
@@ -387,27 +399,61 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       viewerRefCurrent: viewerRef.current,
       pushUiToast,
     })
-  }, [exportBaseName, iframeSrcDoc, pushUiToast, showWebpageHtml, viewerEl])
+  }, [exportBaseName, flushGraphWritebackForExport, iframeSrcDoc, pushUiToast, showWebpageHtml, viewerEl])
 
   const handleExportHtmlCanvas = React.useCallback(async () => {
+    flushGraphWritebackForExport()
     await exportHtmlCanvasFromWorkspace({ exportBaseName, pushUiToast })
-  }, [exportBaseName, pushUiToast])
+  }, [exportBaseName, flushGraphWritebackForExport, pushUiToast])
 
   const handleExportSvg = React.useCallback(async () => {
+    flushGraphWritebackForExport()
     await exportCanvasSvg({
       exportBaseName,
       pushUiToast,
       getStore: () => useGraphStore.getState(),
     })
-  }, [exportBaseName, pushUiToast])
+  }, [exportBaseName, flushGraphWritebackForExport, pushUiToast])
 
   const handleExportJson = React.useCallback(async () => {
-    await exportGraphJson({ graphData, exportBaseName, pushUiToast })
-  }, [exportBaseName, graphData, pushUiToast])
+    flushGraphWritebackForExport()
+    const gd = useGraphStore.getState().graphData
+    await exportGraphJson({ graphData: gd, exportBaseName, pushUiToast })
+  }, [exportBaseName, flushGraphWritebackForExport, pushUiToast])
 
   const handleExportPdf = React.useCallback(async () => {
+    flushGraphWritebackForExport()
     await exportViewerPdf({ exportBaseName, viewerEl, viewerRefCurrent: viewerRef.current, pushUiToast })
-  }, [exportBaseName, pushUiToast, viewerEl])
+  }, [exportBaseName, flushGraphWritebackForExport, pushUiToast, viewerEl])
+
+  const exportBridge = React.useMemo(
+    () => ({
+      export: {
+        duplicateInWorkspace: onSaveAs,
+        workspaceFileJsonLd: () => void handleExportWorkspaceFile(),
+        markdown: () => void handleExportMarkdown(),
+        htmlViewer: () => void handleExportHtmlViewer(),
+        htmlCanvas: () => void handleExportHtmlCanvas(),
+        json: () => void handleExportJson(),
+        svg: () => void handleExportSvg(),
+        pdf: () => void handleExportPdf(),
+      },
+    }),
+    [
+      handleExportHtmlCanvas,
+      handleExportHtmlViewer,
+      handleExportJson,
+      handleExportMarkdown,
+      handleExportPdf,
+      handleExportSvg,
+      handleExportWorkspaceFile,
+      onSaveAs,
+    ],
+  )
+
+  React.useEffect(() => {
+    return registerMarkdownWorkspaceActionBridge('markdown-workspace-export', exportBridge)
+  }, [exportBridge])
 
   const presentation = (
     <MarkdownWorkspacePresentationSurface

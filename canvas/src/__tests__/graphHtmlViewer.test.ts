@@ -2,6 +2,7 @@ import { buildGraphHtmlViewerMarkup } from '@/lib/graph/graphHtmlViewer'
 import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { captureLiveRichMediaOverlayHtmlForHtmlViewerExport } from '@/lib/graph/htmlViewer/liveOverlayExport'
+import { captureLiveMarkdownDesignOverlayHtmlForHtmlViewerExport } from '@/lib/graph/htmlViewer/liveOverlayExport'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 export async function testExportHtmlViewerIsSvgOnlyAndBlocksBrowserZoomAndSelection() {
@@ -172,6 +173,49 @@ export async function testExportHtmlViewerRuntimeSupportsCentroidFitAndTouchDrag
   if (!html.includes('getContentCentroid') || !html.includes('moveNodeDrag(-1')) {
     throw new Error('expected exported html viewer runtime to support centroid fit and touch node dragging')
   }
+  if (!html.includes('state.k * baseSx0') || !html.includes('state.k * baseSy0')) {
+    throw new Error('expected markdown drag conversion to account for base svg scaling to keep edges connected')
+  }
+  if (!html.includes('if (!hasMdBlocks0 && mdBoxById)')) {
+    throw new Error('expected markdown overlay fallback offset sync when markdownBlocks payload is empty')
+  }
+  if (!html.includes('function __kgResolveNodeId(raw)')) {
+    throw new Error('expected runtime node-id resolver for overlay/edge parity')
+  }
+  if (!html.includes("__kgResolveNodeId(String(ex.getAttribute('data-node-id') || '').trim())")) {
+    throw new Error('expected runtime to normalize existing overlay node ids before edge sync')
+  }
+  if (!html.includes("__kgResolveNodeId(String(edgeEl.getAttribute('data-source-id') || edgeEl.getAttribute('data-source') || '').trim())")) {
+    throw new Error('expected runtime to normalize edge endpoint ids before geometry sync')
+  }
+  if (!html.includes("__kgResolveNodeId(String(ee.getAttribute('data-source-id') || ee.getAttribute('data-source') || '').trim())")) {
+    throw new Error('expected runtime to normalize edge index ids for edgeRefsByNodeId')
+  }
+  if (html.includes("el.setAttribute('data-kg-canvas-wheel-ignore', 'true');")) {
+    throw new Error('expected exported runtime overlays to not block wheel pan/zoom interactions')
+  }
+  if (html.includes("rootEl.addEventListener('wheel'")) {
+    throw new Error('expected markdown panel runtime to not stop wheel propagation from canvas')
+  }
+  if (!html.includes('setMediaInteractive(false);')) {
+    throw new Error('expected exported runtime to default media interactivity to pan/zoom-friendly mode')
+  }
+  if (!html.includes("var pointerMode = 'pan';")) {
+    throw new Error('expected exported runtime to default to pan mode for viewer parity')
+  }
+}
+
+export async function testExportHtmlViewerRuntimeRespectsInitialFrontmatterMode() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="n"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
+  const html = await buildGraphHtmlViewerMarkup({
+    title: 'T',
+    svgMarkup: svg,
+    initialFrontmatterEnabled: true,
+  })
+  if (!html) throw new Error('expected html')
+  if (!html.includes('setFrontmatterEnabled(true);')) {
+    throw new Error('expected exported html viewer runtime to honor initial frontmatter mode from workspace')
+  }
 }
 
 export async function testExportHtmlViewerRuntimeFallsBackToRawMediaWhenProxyFails() {
@@ -248,7 +292,7 @@ export async function testExportHtmlViewerMediaPointerEventsRespectsNodeInteract
   }
 }
 
-export async function testExportHtmlViewerOverlayExportStripsInteractionGuards() {
+export async function testExportHtmlViewerOverlayExportPreservesInteractionGuards() {
   const bootstrap = typeof document === 'undefined' ? initJsdomHarness() : null
   try {
   const root = document.createElement('div')
@@ -265,13 +309,74 @@ export async function testExportHtmlViewerOverlayExportStripsInteractionGuards()
 
   const html = captureLiveRichMediaOverlayHtmlForHtmlViewerExport({ overlayRootEl: root })
   if (!html) throw new Error('expected overlay html')
-  if (html.includes('data-kg-canvas-pointer-ignore') || html.includes('data-kg-canvas-wheel-ignore')) {
-    throw new Error('expected overlay export to strip canvas ignore attributes')
+  if (!html.includes('data-kg-canvas-pointer-ignore') || !html.includes('data-kg-canvas-wheel-ignore')) {
+    throw new Error('expected overlay export to preserve canvas ignore attributes')
   }
-  if (html.toLowerCase().includes('pointer-events')) {
-    throw new Error('expected overlay export to strip pointer-events inline styles')
+  if (!html.toLowerCase().includes('pointer-events')) {
+    throw new Error('expected overlay export to preserve pointer-events inline styles')
   }
   } finally {
     bootstrap?.restore()
+  }
+}
+
+export async function testExportHtmlViewerOverlayExportStripsTransformPositioning() {
+  const bootstrap = typeof document === 'undefined' ? initJsdomHarness() : null
+  try {
+    const root = document.createElement('div')
+
+    const panel = document.createElement('article')
+    panel.setAttribute('data-kg-rich-media-panel', '1')
+    panel.setAttribute('data-node-id', 'm1')
+    panel.style.position = 'absolute'
+    panel.style.left = '123px'
+    panel.style.top = '456px'
+    panel.style.transform = 'translate3d(12px,34px,0)'
+    panel.style.zIndex = '999'
+    panel.innerHTML = '<header class="kg-mediaHeader">H</header><section class="kg-mediaBody"><div>B</div></section>'
+    root.appendChild(panel)
+
+    const html = captureLiveRichMediaOverlayHtmlForHtmlViewerExport({ overlayRootEl: root })
+    if (!html) throw new Error('expected overlay html')
+  const htmlLower = html.toLowerCase()
+  if (htmlLower.includes('transform:') || htmlLower.includes('translate(') || htmlLower.includes('translate3d(')) {
+      throw new Error('expected overlay export to strip transform positioning styles for edge connectivity')
+    }
+
+    const mdRoot = document.createElement('div')
+    const block = document.createElement('div')
+    block.setAttribute('data-kg-markdown-design-block', 'b1')
+    block.style.position = 'absolute'
+    block.style.left = '10px'
+    block.style.top = '20px'
+    block.style.transform = 'translate(1px,2px)'
+    block.innerHTML = '<table><tr><td>t</td></tr></table>'
+    mdRoot.appendChild(block)
+
+    const mdHtml = captureLiveMarkdownDesignOverlayHtmlForHtmlViewerExport({ overlayRootEl: mdRoot })
+    if (!mdHtml) throw new Error('expected markdown overlay html')
+  const mdLower = mdHtml.toLowerCase()
+  if (mdLower.includes('transform:') || mdLower.includes('translate(') || mdLower.includes('translate3d(')) {
+      throw new Error('expected markdown overlay export to strip transform positioning styles for edge connectivity')
+    }
+  } finally {
+    bootstrap?.restore()
+  }
+}
+
+export async function testExportHtmlViewerMarkdownOverlaySupportsAnchorNodeIds() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="n1"><circle cx="0" cy="0" r="5" fill="red"/></g><g data-kg-layer="markdown-design-blocks"><foreignObject x="-5" y="-5" width="10" height="10" data-kg-markdown-block-id="b1" data-kg-anchor-node-id="n1"></foreignObject></g></svg>`
+  const overlayHtml =
+    '<article data-kg-markdown-design-block="b1" data-kg-anchor-node-id="n1"><header data-kg-media-panel-header="1">H</header><section><table><tr><td>T</td></tr></table></section></article>'
+  const html = await buildGraphHtmlViewerMarkup({ title: 'T', svgMarkup: svg, overlayHtml })
+  if (!html) throw new Error('expected html')
+  if (!html.includes('data-kg-anchor-node-id')) {
+    throw new Error('expected runtime to map existing markdown overlays by anchor node id')
+  }
+  if (!html.includes('if (xanchor) overlay.__kgMdById[xanchor] = ex;')) {
+    throw new Error('expected runtime to index markdown overlays by anchor node id')
+  }
+  if (!html.includes('data-kg-anchor-node-id="n1"')) {
+    throw new Error('expected provided overlay html to preserve markdown anchor node id')
   }
 }

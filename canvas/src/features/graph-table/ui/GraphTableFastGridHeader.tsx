@@ -1,5 +1,6 @@
 import React from 'react'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
+import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { clamp, binarySearchFloor } from '@/features/graph-table/ui/fast-grid/fastGridMath'
 import { useGraphTableGridModel } from '@/features/graph-table/ui/fast-grid/useGraphTableGridModel'
@@ -34,6 +35,12 @@ export function GraphTableFastGridHeader(props: {
   onUpsertColumnFilter?: (args: { columnId: string; operator: GraphTableFilterOperator; value: string }) => void
   onSetSingleColumnSort?: (args: { columnId: string; direction: GraphTableSortDirection }) => void
 }) {
+  const resizeSchedulerRef = React.useRef(
+    createRafLatestScheduler((next: { columnId: string; widthPx: number }) => {
+      props.onColumnWidthChanged(next.columnId, next.widthPx)
+    }),
+  )
+
   const headerLayout = React.useMemo(() => {
     const pinned = props.model.layout.pinned
     const scrollable = props.model.layout.scrollable
@@ -51,6 +58,7 @@ export function GraphTableFastGridHeader(props: {
   const startResize = React.useCallback(
     (columnId: string, startX: number, startWidth: number, ev: React.PointerEvent) => {
       let pending = startWidth
+      const scheduler = resizeSchedulerRef.current
       startPointerDrag({
         ev: ev.nativeEvent,
         cursor: 'col-resize',
@@ -61,10 +69,16 @@ export function GraphTableFastGridHeader(props: {
         onMove: mv => {
           const dx = mv.clientX - startX
           pending = Math.max(80, Math.min(720, Math.round(startWidth + dx)))
+          scheduler.schedule({ columnId, widthPx: pending })
+        },
+        onEnd: () => {
+          scheduler.cancel()
           props.onColumnWidthChanged(columnId, pending)
         },
-        onEnd: () => props.onColumnWidthChanged(columnId, pending),
-        onCancel: () => props.onColumnWidthChanged(columnId, pending),
+        onCancel: () => {
+          scheduler.cancel()
+          props.onColumnWidthChanged(columnId, pending)
+        },
       })
     },
     [props.onColumnWidthChanged],

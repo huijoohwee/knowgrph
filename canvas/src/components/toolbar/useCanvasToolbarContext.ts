@@ -224,6 +224,14 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     })
   }, [])
 
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (isMainPanelOpen) return
+    if (lsBool(LS_KEYS.startupOpenWorkflowPanel, false)) {
+      openMainPanel('workflow')
+    }
+  }, [isMainPanelOpen, openMainPanel])
+
   return {
     actions,
     canvasGridDotRadiusPx,

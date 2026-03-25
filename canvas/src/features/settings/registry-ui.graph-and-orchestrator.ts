@@ -495,6 +495,34 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     options: ['map', 'design'],
   },
   {
+    key: 'infiniteCanvasInteractionMode',
+    type: 'string',
+    source: 'store',
+    read: () => s().infiniteCanvasInteractionMode,
+    write: (v) => {
+      const raw = String(v || '')
+      const mode = raw === 'interactive' ? 'interactive' : 'static'
+      s().setInfiniteCanvasInteractionMode(mode)
+    },
+    docKey: 'infiniteCanvasInteractionMode',
+    default: () => 'static',
+    options: ['static', 'interactive'],
+  },
+  {
+    key: 'canvasWorkspaceSyncMode',
+    type: 'string',
+    source: 'store',
+    read: () => s().canvasWorkspaceSyncMode,
+    write: (v) => {
+      const raw = String(v || '')
+      const mode = raw === 'realtime' ? 'realtime' : 'manual'
+      s().setCanvasWorkspaceSyncMode(mode)
+    },
+    docKey: 'canvasWorkspaceSyncMode',
+    default: () => 'manual',
+    options: ['manual', 'realtime'],
+  },
+  {
     key: 'flowEditorSelectionOnDrag',
     type: 'boolean',
     source: 'store',

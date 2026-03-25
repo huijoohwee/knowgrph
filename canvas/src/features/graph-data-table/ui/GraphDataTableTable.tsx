@@ -195,7 +195,16 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   const graphDataTableVirtualDebugLogRanges = useGraphStore(s => s.graphDataTableVirtualDebugLogRanges)
   const selectionSource = useGraphStore(s => s.selectionSource)
   const selectionFlashDurationMs = useGraphStore(s => s.selectionFlashDurationMs || 500)
-  const graphData = useActiveGraphRenderData() as GraphData | null
+  const graphDataRaw = useActiveGraphRenderData() as GraphData | null
+  const graphContentRevision = useGraphStore(s => s.graphContentRevision)
+  const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
+  const stableGraphDataRef = React.useRef<GraphData | null>(null)
+  const stableGraphContentRevisionRef = React.useRef<number>(-1)
+  if (stableGraphContentRevisionRef.current !== graphContentRevision) {
+    stableGraphDataRef.current = graphDataRaw
+    stableGraphContentRevisionRef.current = graphContentRevision
+  }
+  const graphData = infiniteCanvasInteractionMode === 'interactive' ? graphDataRaw : stableGraphDataRef.current
   const schema = useGraphStore(s => s.schema) as GraphSchema | null
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
   const columnWidths = useGraphStore(s => s.graphDataTableColumnWidths)
@@ -207,6 +216,21 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   const scrollContainerRef = React.useRef<HTMLDivElement>(null)
   const headerRef = React.useRef<HTMLTableSectionElement>(null)
   const isColumnResizingRef = React.useRef(false)
+  const headerReorderRafRef = React.useRef<number | null>(null)
+  const headerReorderLatestPointRef = React.useRef<{ x: number; y: number } | null>(null)
+  const headerReorderLayoutRef = React.useRef<
+    | null
+    | {
+        scrollLeft: number
+        containerTop: number
+        containerBottom: number
+        headerTop: number
+        headerBottom: number
+        columns: Array<{ key: GraphDataTableColumnKey; left: number; right: number; mid: number }>
+      }
+  >(null)
+  const columnResizeRafRef = React.useRef<number | null>(null)
+  const columnResizeLatestWidthRef = React.useRef<number | null>(null)
   const [expandedCell, setExpandedCell] = React.useState<{
     rowId: string
     columnKey: GraphDataTableColumnKey
@@ -254,53 +278,66 @@ export const GraphDataTable = React.memo(function GraphDataTable({
       const startClientY = ev.clientY
       let didStartReorder = false
 
-      const computeDropHint = (clientX: number, clientY: number, fromKey: GraphDataTableColumnKey) => {
+      const computeLayoutSnapshot = () => {
         const header = headerRef.current
         const container = scrollContainerRef.current
         if (!header || !container) return null
-
         const containerRect = container.getBoundingClientRect()
         const headerRect = header.getBoundingClientRect()
-        const insideContainerY = clientY >= containerRect.top && clientY <= containerRect.bottom
-        const nearHeaderY = clientY >= headerRect.top - 12 && clientY <= headerRect.bottom + 12
-        if (!insideContainerY && !nearHeaderY) return null
 
         const ths = Array.from(header.querySelectorAll('th[data-kg-col-key]')) as HTMLElement[]
         if (ths.length === 0) return null
-
-        const keyedRects: Array<{ key: GraphDataTableColumnKey; rect: DOMRect }> = []
+        const columns: Array<{ key: GraphDataTableColumnKey; left: number; right: number; mid: number }> = []
         for (const th of ths) {
           const rawKey = th.getAttribute('data-kg-col-key')
           if (!rawKey) continue
-          keyedRects.push({ key: rawKey as GraphDataTableColumnKey, rect: th.getBoundingClientRect() })
+          const rect = th.getBoundingClientRect()
+          const left = Number.isFinite(rect.left) ? rect.left : 0
+          const right = Number.isFinite(rect.right) ? rect.right : left
+          columns.push({ key: rawKey as GraphDataTableColumnKey, left, right, mid: (left + right) / 2 })
         }
-        if (keyedRects.length === 0) return null
+        if (columns.length === 0) return null
+        return {
+          scrollLeft: container.scrollLeft,
+          containerTop: containerRect.top,
+          containerBottom: containerRect.bottom,
+          headerTop: headerRect.top,
+          headerBottom: headerRect.bottom,
+          columns,
+        }
+      }
 
-        let target = keyedRects.find(r => clientX >= r.rect.left && clientX <= r.rect.right)
+      const computeDropHintFromSnapshot = (snapshot: NonNullable<ReturnType<typeof computeLayoutSnapshot>>, clientX: number, clientY: number, fromKey: GraphDataTableColumnKey) => {
+        const insideContainerY = clientY >= snapshot.containerTop && clientY <= snapshot.containerBottom
+        const nearHeaderY = clientY >= snapshot.headerTop - 12 && clientY <= snapshot.headerBottom + 12
+        if (!insideContainerY && !nearHeaderY) return null
+
+        const columns = snapshot.columns
+        let target = columns.find(r => clientX >= r.left && clientX <= r.right) || null
         if (!target) {
-          const first = keyedRects[0]
-          const last = keyedRects[keyedRects.length - 1]
-          if (clientX < first.rect.left) target = first
-          else if (clientX > last.rect.right) target = last
+          const first = columns[0] || null
+          const last = columns[columns.length - 1] || null
+          if (!first || !last) return null
+          if (clientX < first.left) target = first
+          else if (clientX > last.right) target = last
           else {
-            let best: { key: GraphDataTableColumnKey; rect: DOMRect } | null = null
+            let best: (typeof columns)[number] | null = null
             let bestDist = Number.POSITIVE_INFINITY
-            for (const r of keyedRects) {
-              const mid = (r.rect.left + r.rect.right) / 2
-              const dist = Math.abs(clientX - mid)
+            for (let i = 0; i < columns.length; i += 1) {
+              const r = columns[i]!
+              const dist = Math.abs(clientX - r.mid)
               if (dist < bestDist) {
                 bestDist = dist
                 best = r
               }
             }
-            if (best) target = best
+            target = best
           }
         }
 
         if (!target) return null
         if (target.key === fromKey) return null
-        const mid = (target.rect.left + target.rect.right) / 2
-        const side: 'left' | 'right' = clientX < mid ? 'left' : 'right'
+        const side: 'left' | 'right' = clientX < target.mid ? 'left' : 'right'
         return { key: target.key, side }
       }
 
@@ -308,6 +345,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
         didStartReorder = true
         setReorderFromKey(key)
         setDropHint(null)
+        headerReorderLayoutRef.current = computeLayoutSnapshot()
         try {
           window.getSelection()?.removeAllRanges()
         } catch {
@@ -317,6 +355,16 @@ export const GraphDataTable = React.memo(function GraphDataTable({
 
       const finish = (apply: boolean) => {
         const hint = dropHintRef.current
+        if (headerReorderRafRef.current != null) {
+          try {
+            cancelAnimationFrame(headerReorderRafRef.current)
+          } catch {
+            void 0
+          }
+          headerReorderRafRef.current = null
+        }
+        headerReorderLatestPointRef.current = null
+        headerReorderLayoutRef.current = null
         setReorderFromKey(null)
         setDropHint(null)
         if (!apply) return
@@ -345,14 +393,33 @@ export const GraphDataTable = React.memo(function GraphDataTable({
             if (dx * dx + dy * dy < 25) return
             startReorder()
           }
-          const hint = computeDropHint(mv.clientX, mv.clientY, key)
-          if (!hint) {
-            setDropHint(prev => (prev ? null : prev))
-            return
-          }
-          setDropHint(prev => {
-            if (prev && prev.key === hint.key && prev.side === hint.side) return prev
-            return hint
+          headerReorderLatestPointRef.current = { x: mv.clientX, y: mv.clientY }
+          if (headerReorderRafRef.current != null) return
+          headerReorderRafRef.current = requestAnimationFrame(() => {
+            headerReorderRafRef.current = null
+            const latest = headerReorderLatestPointRef.current
+            if (!latest) return
+            const container = scrollContainerRef.current
+            if (!container) return
+            if (!headerReorderLayoutRef.current) {
+              headerReorderLayoutRef.current = computeLayoutSnapshot()
+            }
+            const snapshot = headerReorderLayoutRef.current
+            if (!snapshot) return
+            if (Math.abs(container.scrollLeft - snapshot.scrollLeft) > 1) {
+              headerReorderLayoutRef.current = computeLayoutSnapshot()
+            }
+            const useSnapshot = headerReorderLayoutRef.current
+            if (!useSnapshot) return
+            const hint = computeDropHintFromSnapshot(useSnapshot, latest.x, latest.y, key)
+            if (!hint) {
+              setDropHint(prev => (prev ? null : prev))
+              return
+            }
+            setDropHint(prev => {
+              if (prev && prev.key === hint.key && prev.side === hint.side) return prev
+              return hint
+            })
           })
         },
         onEnd: () => finish(true),
@@ -544,13 +611,36 @@ export const GraphDataTable = React.memo(function GraphDataTable({
           const deltaX = mv.clientX - startX
           const nextWidth = startWidth + deltaX
           if (!Number.isFinite(nextWidth) || nextWidth <= 0) return
-          setColumnWidth(payload.columnKey, nextWidth)
+          columnResizeLatestWidthRef.current = nextWidth
+          if (columnResizeRafRef.current != null) return
+          columnResizeRafRef.current = requestAnimationFrame(() => {
+            columnResizeRafRef.current = null
+            const w = columnResizeLatestWidthRef.current
+            if (w == null) return
+            setColumnWidth(payload.columnKey, w)
+          })
         },
         onEnd: () => {
           isColumnResizingRef.current = false
+          if (columnResizeRafRef.current != null) {
+            try {
+              cancelAnimationFrame(columnResizeRafRef.current)
+            } catch {
+              void 0
+            }
+            columnResizeRafRef.current = null
+          }
         },
         onCancel: () => {
           isColumnResizingRef.current = false
+          if (columnResizeRafRef.current != null) {
+            try {
+              cancelAnimationFrame(columnResizeRafRef.current)
+            } catch {
+              void 0
+            }
+            columnResizeRafRef.current = null
+          }
         },
       })
     },
