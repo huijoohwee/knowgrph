@@ -260,7 +260,6 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   zoomRequest: null as ZoomRequest | null,
   requestZoom: (type: ZoomCommandType, opts?: { intent?: ZoomFitIntent }) =>
     set(state => {
-      if (state.viewPinned && type === 'selection') return {}
       const isAutoFit = type === 'fit' && (opts?.intent || 'fitToView') === 'fitToScreen'
       const shouldDisableAutoModes = !state.viewPinned && !isAutoFit && (type === 'in' || type === 'out' || type === 'reset' || type === 'selection' || type === 'fit')
       const modePatch = (() => {
@@ -283,10 +282,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   requestZoomTransform: (payload: { k: number; x: number; y: number }) =>
     set({ zoomRequest: { type: 'transform', at: Date.now(), payload } }),
   requestZoomBounds: (payload: { bounds: { x: number; y: number; w: number; h: number }; insetPx?: number; origin?: { x: number; y: number } }) =>
-    set(state => {
-      if (state.viewPinned) return {}
-      return { zoomRequest: { type: 'bounds', at: Date.now(), payload } }
-    }),
+    set({ zoomRequest: { type: 'bounds', at: Date.now(), payload } }),
   clearZoomRequest: () => set({ zoomRequest: null }),
 
   canvasPointerMode2d: 'select' as 'select' | 'pan',
@@ -334,10 +330,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     }),
   threeCameraRequest: null as null | { type: 'in' | 'out' | 'fit' | 'reset' | 'selection'; at: number },
   requestThreeCamera: (type: 'in' | 'out' | 'fit' | 'reset' | 'selection') =>
-    set(state => {
-      if (state.viewPinned && type === 'selection') return {}
-      return { threeCameraRequest: { type, at: Date.now() } }
-    }),
+    set({ threeCameraRequest: { type, at: Date.now() } }),
   clearThreeCameraRequest: () => set({ threeCameraRequest: null }),
   edgeCreationRequest: null as null | { type: 'create' | 'update-source' | 'update-target'; fromId: string; at: number },
   requestEdgeCreation: (req: { type: 'create' | 'update-source' | 'update-target'; fromId: string }) => set({ edgeCreationRequest: { ...req, at: Date.now() } }),

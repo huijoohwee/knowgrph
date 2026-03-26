@@ -88,9 +88,39 @@ export const createLinksHitLayer = (args: {
     selectEdge,
   } = args;
 
+  const eligibleEdges = (() => {
+    if (!Array.isArray(edgesForDisplay) || edgesForDisplay.length < 2) return edgesForDisplay
+    let hasAnyZ = false
+    for (let i = 0; i < edgesForDisplay.length; i += 1) {
+      const e = edgesForDisplay[i]
+      const props = (e as unknown as { properties?: unknown }).properties
+      if (!props || typeof props !== 'object' || Array.isArray(props)) continue
+      const z = (props as Record<string, unknown>)['visual:zIndex']
+      if (typeof z === 'number' && Number.isFinite(z)) {
+        hasAnyZ = true
+        break
+      }
+    }
+    if (!hasAnyZ) return edgesForDisplay
+    const readZ = (e: GraphEdge): number => {
+      const props = (e as unknown as { properties?: unknown }).properties
+      if (!props || typeof props !== 'object' || Array.isArray(props)) return 0
+      const z = (props as Record<string, unknown>)['visual:zIndex']
+      return typeof z === 'number' && Number.isFinite(z) ? z : 0
+    }
+    return edgesForDisplay
+      .slice()
+      .sort((a, b) => {
+        const za = readZ(a)
+        const zb = readZ(b)
+        if (za !== zb) return za - zb
+        return String(a.id || '').localeCompare(String(b.id || ''))
+      })
+  })()
+
   const linkRoot = g.append('g').attr('data-kg-layer', 'links-hit');
-  const withPath = edgesForDisplay.filter(e => !!readEdgeVisualPathD(e))
-  const withoutPath = edgesForDisplay.filter(e => !readEdgeVisualPathD(e))
+  const withPath = eligibleEdges.filter(e => !!readEdgeVisualPathD(e))
+  const withoutPath = eligibleEdges.filter(e => !readEdgeVisualPathD(e))
 
   const pathSel = linkRoot
     .selectAll<SVGPathElement, GraphEdge>('path')
@@ -152,10 +182,40 @@ export const createLinksLayer = (args: {
 }): d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> => {
   const { g, edgesForDisplay, schema } = args
 
+  const eligibleEdges = (() => {
+    if (!Array.isArray(edgesForDisplay) || edgesForDisplay.length < 2) return edgesForDisplay
+    let hasAnyZ = false
+    for (let i = 0; i < edgesForDisplay.length; i += 1) {
+      const e = edgesForDisplay[i]
+      const props = (e as unknown as { properties?: unknown }).properties
+      if (!props || typeof props !== 'object' || Array.isArray(props)) continue
+      const z = (props as Record<string, unknown>)['visual:zIndex']
+      if (typeof z === 'number' && Number.isFinite(z)) {
+        hasAnyZ = true
+        break
+      }
+    }
+    if (!hasAnyZ) return edgesForDisplay
+    const readZ = (e: GraphEdge): number => {
+      const props = (e as unknown as { properties?: unknown }).properties
+      if (!props || typeof props !== 'object' || Array.isArray(props)) return 0
+      const z = (props as Record<string, unknown>)['visual:zIndex']
+      return typeof z === 'number' && Number.isFinite(z) ? z : 0
+    }
+    return edgesForDisplay
+      .slice()
+      .sort((a, b) => {
+        const za = readZ(a)
+        const zb = readZ(b)
+        if (za !== zb) return za - zb
+        return String(a.id || '').localeCompare(String(b.id || ''))
+      })
+  })()
+
   const linkRoot = g.append('g').attr('data-kg-layer', 'links')
 
-  const withPath = edgesForDisplay.filter(e => !!readEdgeVisualPathD(e))
-  const withoutPath = edgesForDisplay.filter(e => !readEdgeVisualPathD(e))
+  const withPath = eligibleEdges.filter(e => !!readEdgeVisualPathD(e))
+  const withoutPath = eligibleEdges.filter(e => !readEdgeVisualPathD(e))
 
   const arrowEdges = withPath.filter(e => !!readEdgeVisualArrowD(e))
   linkRoot

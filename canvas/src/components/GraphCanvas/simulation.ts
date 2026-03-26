@@ -140,6 +140,131 @@ const updatePositioningForce = (args: {
   f.strength(args.strength)
 }
 
+const updatePositioningForceFn = (args: {
+  simulation: d3.Simulation<GraphNode, GraphEdge>
+  name: string
+  axis: 'x' | 'y'
+  target: (d: GraphNode) => number
+  strength: number
+  enabled: boolean
+}) => {
+  if (!args.enabled || !(args.strength > 0)) {
+    args.simulation.force(args.name, null)
+    return
+  }
+
+  const raw = args.simulation.force(args.name) as unknown
+  const f = (() => {
+    if (!raw || typeof raw !== 'function') return null
+    if (typeof (raw as { strength?: unknown }).strength !== 'function') return null
+    if (args.axis === 'x') {
+      if (typeof (raw as { x?: unknown }).x !== 'function') return null
+      return raw as unknown as d3.ForceX<GraphNode>
+    }
+    if (typeof (raw as { y?: unknown }).y !== 'function') return null
+    return raw as unknown as d3.ForceY<GraphNode>
+  })()
+
+  if (!f) {
+    args.simulation.force(
+      args.name,
+      args.axis === 'x' ? d3.forceX<GraphNode>(args.target).strength(args.strength) : d3.forceY<GraphNode>(args.target).strength(args.strength),
+    )
+    return
+  }
+
+  if (args.axis === 'x') {
+    ;(f as unknown as d3.ForceX<GraphNode>).x(args.target)
+  } else {
+    ;(f as unknown as d3.ForceY<GraphNode>).y(args.target)
+  }
+  f.strength(args.strength)
+}
+
+const readIndexNumber = (raw: unknown): number | null => {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw
+  if (typeof raw === 'string' && raw.trim()) {
+    const v = Number(raw)
+    if (Number.isFinite(v)) return v
+  }
+  return null
+}
+
+const computeIndexAnchorPlan2d = (args: {
+  nodes: GraphNode[]
+  idealSpacing: number
+  anchorStrength: number
+  disjointEnabled: boolean
+}): {
+  enabled: boolean
+  strength: number
+  dxByNode: WeakMap<GraphNode, number>
+  dyByNode: WeakMap<GraphNode, number>
+} => {
+  const nodes = args.nodes
+  const dxByNode = new WeakMap<GraphNode, number>()
+  const dyByNode = new WeakMap<GraphNode, number>()
+  if (!Array.isArray(nodes) || nodes.length === 0) return { enabled: false, strength: 0, dxByNode, dyByNode }
+
+  let countXY = 0
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+
+  let countZ = 0
+  let minZ = Infinity
+  let maxZ = -Infinity
+
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]!
+    const props = (n.properties || {}) as Record<string, unknown>
+    const ix = readIndexNumber(props['visual:xIndex'])
+    const iy = readIndexNumber(props['visual:yIndex'])
+    if (ix != null && iy != null) {
+      countXY += 1
+      if (ix < minX) minX = ix
+      if (ix > maxX) maxX = ix
+      if (iy < minY) minY = iy
+      if (iy > maxY) maxY = iy
+    }
+    const iz = readIndexNumber(props['visual:zIndex'] ?? props['visual:depth'] ?? props['visual:layer'])
+    if (iz != null) {
+      countZ += 1
+      if (iz < minZ) minZ = iz
+      if (iz > maxZ) maxZ = iz
+    }
+  }
+
+  const ratioXY = countXY / Math.max(1, nodes.length)
+  const enabled = countXY >= Math.max(6, Math.floor(nodes.length * 0.22)) && ratioXY >= 0.22 && minX <= maxX && minY <= maxY
+  if (!enabled) return { enabled: false, strength: 0, dxByNode, dyByNode }
+
+  const midX = (minX + maxX) / 2
+  const midY = (minY + maxY) / 2
+  const spacing = Math.max(160, Math.min(900, Math.round(Math.max(240, args.idealSpacing * 1.35))))
+
+  const zEnabled = countZ / Math.max(1, nodes.length) >= 0.45 && minZ <= maxZ
+  const midZ = zEnabled ? (minZ + maxZ) / 2 : 0
+  const zSpacing = Math.max(40, Math.min(240, Math.round(spacing * 0.25)))
+
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]!
+    const props = (n.properties || {}) as Record<string, unknown>
+    const ix = readIndexNumber(props['visual:xIndex'])
+    const iy = readIndexNumber(props['visual:yIndex'])
+    if (ix == null || iy == null) continue
+    const dx = (ix - midX) * spacing
+    const iz = zEnabled ? readIndexNumber(props['visual:zIndex'] ?? props['visual:depth'] ?? props['visual:layer']) : null
+    const dy = (iy - midY) * spacing + (zEnabled && iz != null ? (iz - midZ) * zSpacing : 0)
+    dxByNode.set(n, dx)
+    dyByNode.set(n, dy)
+  }
+
+  const strength = args.disjointEnabled ? 0.35 : 0.85
+  return { enabled: true, strength, dxByNode, dyByNode }
+}
+
 const computeCollideIterations = (nodeCount: number): number =>
   nodeCount <= 450 ? 4 : nodeCount <= 1600 ? 3 : 2
 
@@ -293,8 +418,16 @@ export const buildSimulation = (
         n.vy = 0
       }
     }
-    if (mode === 'force' && !disjointEnabled) {
-      applyForceModeSeeds({ nodes, edges: edgesForSim, width: frameW, height: frameH, schema, groupKeyOf: seedGroupKeyOf })
+    if (mode === 'force') {
+      applyForceModeSeeds({
+        nodes,
+        edges: edgesForSim,
+        width: frameW,
+        height: frameH,
+        schema,
+        groupKeyOf: seedGroupKeyOf,
+        groupsForBboxCollide: Array.isArray(options?.groupsForBboxCollide) ? options!.groupsForBboxCollide : [],
+      })
     }
 
     if (disjointEnabled && centerX === 0 && centerY === 0) {
@@ -423,6 +556,8 @@ export const buildSimulation = (
 
     const anchorStrength = computeAnchorStrength2d({ schema, isKeywordGraph, disjointEnabled, disjointStrength })
 
+    const indexPlan = computeIndexAnchorPlan2d({ nodes, idealSpacing, anchorStrength, disjointEnabled })
+
     simulation
       .force(
         'charge',
@@ -485,6 +620,18 @@ export const buildSimulation = (
                   groupKeyOf,
                   halfExtentsByNodeId: nodeHalfExtentsByNodeId,
                 }))
+          : null,
+      )
+      .force(
+        'xIndex',
+        indexPlan.enabled
+          ? d3.forceX<GraphNode>(d => centerX + (indexPlan.dxByNode.get(d) || 0)).strength(indexPlan.strength)
+          : null,
+      )
+      .force(
+        'yIndex',
+        indexPlan.enabled
+          ? d3.forceY<GraphNode>(d => centerY + (indexPlan.dyByNode.get(d) || 0)).strength(indexPlan.strength)
           : null,
       )
       .force('x', d3.forceX<GraphNode>(xTarget).strength(anchorStrength))
@@ -862,6 +1009,24 @@ export const updateForceSimulationPresentation = (args: {
   }
   updatePositioningForce({ simulation, name: 'x', axis: 'x', target: centerX, strength: anchorStrength })
   updatePositioningForce({ simulation, name: 'y', axis: 'y', target: centerY, strength: anchorStrength })
+
+  const indexPlan = computeIndexAnchorPlan2d({ nodes, idealSpacing, anchorStrength, disjointEnabled })
+  updatePositioningForceFn({
+    simulation,
+    name: 'xIndex',
+    axis: 'x',
+    target: d => centerX + (indexPlan.dxByNode.get(d) || 0),
+    strength: indexPlan.strength,
+    enabled: indexPlan.enabled,
+  })
+  updatePositioningForceFn({
+    simulation,
+    name: 'yIndex',
+    axis: 'y',
+    target: d => centerY + (indexPlan.dyByNode.get(d) || 0),
+    strength: indexPlan.strength,
+    enabled: indexPlan.enabled,
+  })
 
   if (schema.layout?.forces?.alphaDecay != null) {
     simulation.alphaDecay(schema.layout.forces.alphaDecay!)

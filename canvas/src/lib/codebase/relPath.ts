@@ -86,14 +86,6 @@ export const coerceCodebaseRelPath = (raw: unknown): string => {
     }
   }
 
-  for (const anchor of ['/sandbox/', '/knowgrph/']) {
-    const idx = candidateAbs.lastIndexOf(anchor)
-    if (idx >= 0) {
-      const rel = candidateAbs.slice(idx + 1)
-      return normalizeRelSegments(rel)
-    }
-  }
-
   const isAbsLike = candidateAbs.startsWith('/') || /^[a-zA-Z]:\//.test(candidateAbs)
   if (isAbsLike && looksLikeHostAbsoluteFsPath(candidateAbs)) {
     const base = basenameOf(candidateAbs)

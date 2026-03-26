@@ -2,6 +2,7 @@ import { getPortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig
 import { readGroupLabelTopExtra } from '@/components/GraphCanvas/layout/collisionConfig'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
+import { readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfig'
 
 export function readFlowPresentation(args: { schema: GraphSchema | null; documentSemanticMode?: 'document' | 'keyword' }) {
   const schema = args.schema
@@ -17,6 +18,17 @@ export function readFlowPresentation(args: { schema: GraphSchema | null; documen
   const cornerRadiusPx = typeof groupsCfg.cornerRadius === 'number' && Number.isFinite(groupsCfg.cornerRadius) ? Math.max(0, groupsCfg.cornerRadius) : 12
   const strokeWidthPx = typeof groupsCfg.strokeWidth === 'number' && Number.isFinite(groupsCfg.strokeWidth) ? Math.max(0, groupsCfg.strokeWidth) : 1.5
   const fillOpacity = typeof groupsCfg.fillOpacity === 'number' && Number.isFinite(groupsCfg.fillOpacity) ? Math.max(0, Math.min(1, groupsCfg.fillOpacity)) : 0.08
+
+  const groupResizeHandle = (() => {
+    const cfg = readGroupResizeHandleConfig(s)
+    const dotRadiusPx = Math.max(0.8, Number.isFinite(portCfg.size) ? portCfg.size * 0.35 : cfg.dotRadiusPx)
+    const hitRadiusPx = Math.max(dotRadiusPx + 1, cfg.hitRadiusPx)
+    const strokeWidthPx = Math.max(0.5, Number.isFinite(portCfg.strokeWidth) ? portCfg.strokeWidth : cfg.strokeWidthPx)
+    const minBoundsSizePx = cfg.minBoundsSizePx
+    const dragSensitivity = cfg.dragSensitivity
+    const dragDeadzonePx = cfg.dragDeadzonePx
+    return { dotRadiusPx, hitRadiusPx, strokeWidthPx, minBoundsSizePx, dragSensitivity, dragDeadzonePx }
+  })()
 
   const depthStyleCfg = (groupsCfg as typeof groupsCfg & { depthStyle?: unknown }).depthStyle as
     | { enabled?: unknown; outerMaxBoostSteps?: unknown; outerStrokeWidthStepPx?: unknown; outerFillOpacityStep?: unknown }
@@ -81,6 +93,7 @@ export function readFlowPresentation(args: { schema: GraphSchema | null; documen
       strokeWidthPx,
       fillOpacity,
       depthStyle,
+      resizeHandle: groupResizeHandle,
     },
     edges: edgesPresentation,
   }

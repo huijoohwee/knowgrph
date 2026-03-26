@@ -9,7 +9,6 @@ export function useFitToViewAction() {
     requestZoom,
     requestThreeCamera,
     canvasRenderMode,
-    viewPinned,
     selectedNodeId,
     selectedEdgeId,
     selectedGroupId,
@@ -21,7 +20,6 @@ export function useFitToViewAction() {
       requestZoom: s.requestZoom,
       requestThreeCamera: s.requestThreeCamera,
       canvasRenderMode: s.canvasRenderMode,
-      viewPinned: s.viewPinned === true,
       selectedNodeId: s.selectedNodeId,
       selectedEdgeId: s.selectedEdgeId,
       selectedGroupId: s.selectedGroupId,
@@ -31,7 +29,7 @@ export function useFitToViewAction() {
     })),
   )
 
-  const disabled = canvasRenderMode !== '3d' && viewPinned
+  const disabled = false
 
   const handleFitToView = React.useCallback(() => {
     const hasSelection =
@@ -92,4 +90,3 @@ export function useFitToViewAction() {
 
   return { disabled, handleFitToView }
 }
-

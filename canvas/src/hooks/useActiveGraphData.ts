@@ -12,6 +12,7 @@ import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { deriveMarkdownTableGraphForFrontmatterMode } from '@/features/markdown/tableGraph/deriveMarkdownTableGraph'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
+import { applyMermaidFrontmatterGeometryToGraphData } from '@/lib/mermaid/mermaidFrontmatterGeometry'
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { pipelinePerfEnd, pipelinePerfStart } from '@/lib/pipelinePerf'
 import { deriveKeywordGraphInWorker, deriveKeywordGraphPreviewInWorker } from '@/features/semantic-mode/keywordGraphWorker'
@@ -963,6 +964,50 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
   )
 
   const { frontmatterModeEnabled, multiDimTableModeEnabled, documentSemanticMode, documentStructureBaselineLock, collapsedGroupIds } = useGraphStore(useShallow(selector))
+
+  const applyMermaidGeometryAttemptKeyRef = React.useRef<string>('')
+  const applyMermaidGeometryInFlightRef = React.useRef(false)
+  React.useEffect(() => {
+    if (!enabled) return
+    if (!frontmatterModeEnabled) return
+    if (documentStructureBaselineLock === true) return
+    if (String(documentSemanticMode || 'document') !== 'document') return
+    const base = graphData
+    if (!base) return
+    if (String((base as unknown as { context?: unknown }).context || '') === 'frontmatter-mermaid') return
+    const meta =
+      base.metadata && typeof base.metadata === 'object' && !Array.isArray(base.metadata)
+        ? (base.metadata as Record<string, unknown>)
+        : null
+    if (meta && String(meta.layoutEngine || '') === 'mermaid') return
+    if (!computeEffectiveFrontmatterMode({ frontmatterModeEnabled: true, documentSemanticMode, graphData: base })) return
+    if (typeof window === 'undefined' || typeof document === 'undefined') return
+
+    const attemptKey = `mermaidGeom:${buildGraphMetaKey(base)}:${base.nodes?.length || 0}:${base.edges?.length || 0}`
+    if (applyMermaidGeometryAttemptKeyRef.current === attemptKey) return
+    applyMermaidGeometryAttemptKeyRef.current = attemptKey
+    if (applyMermaidGeometryInFlightRef.current) return
+    applyMermaidGeometryInFlightRef.current = true
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const updated = await applyMermaidFrontmatterGeometryToGraphData(base)
+        if (cancelled) return
+        if (!updated || updated === base) return
+        if (String((updated as unknown as { context?: unknown }).context || '') !== 'frontmatter-mermaid') return
+        useGraphStore.getState().setGraphDataPreservingLayout(updated)
+      } catch {
+        void 0
+      } finally {
+        applyMermaidGeometryInFlightRef.current = false
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [documentSemanticMode, documentStructureBaselineLock, enabled, frontmatterModeEnabled, graphData])
 
   const lastRef = React.useRef<GraphData | null>(null)
 

@@ -33,6 +33,11 @@ export function integrateNodePositionWithVelocity<T extends { x?: unknown; y?: u
   node: T,
   args: {
     damping: number
+    maxStep?: {
+      x?: number
+      y?: number
+      z?: number
+    }
     z?:
       | {
           mode: 'always'
@@ -46,8 +51,16 @@ export function integrateNodePositionWithVelocity<T extends { x?: unknown; y?: u
         }
   },
 ): void {
-  const vx = readFiniteNumber(node.vx, 0)
-  const vy = readFiniteNumber(node.vy, 0)
+  const clampAbs = (v: number, maxAbs: number | null): number => {
+    if (!Number.isFinite(v)) return 0
+    if (maxAbs == null || !Number.isFinite(maxAbs) || maxAbs <= 0) return v
+    const a = Math.abs(v)
+    if (a <= maxAbs) return v
+    return v < 0 ? -maxAbs : maxAbs
+  }
+
+  const vx = clampAbs(readFiniteNumber(node.vx, 0), typeof args.maxStep?.x === 'number' ? args.maxStep.x : null)
+  const vy = clampAbs(readFiniteNumber(node.vy, 0), typeof args.maxStep?.y === 'number' ? args.maxStep.y : null)
   const x = readFiniteNumber(node.x, 0)
   const y = readFiniteNumber(node.y, 0)
 
@@ -60,13 +73,13 @@ export function integrateNodePositionWithVelocity<T extends { x?: unknown; y?: u
   if (!zConfig || zConfig.mode === 'never') return
   if (zConfig.mode === 'predicate' && zConfig.enabled(node) !== true) {
     const anyNode = node as unknown as { vz?: unknown }
-    const vz = readFiniteNumber(anyNode.vz, 0)
+    const vz = clampAbs(readFiniteNumber(anyNode.vz, 0), typeof args.maxStep?.z === 'number' ? args.maxStep.z : null)
     anyNode.vz = vz * args.damping
     return
   }
 
   const anyNode = node as unknown as { z?: unknown; vz?: unknown }
-  const vz = readFiniteNumber(anyNode.vz, 0)
+  const vz = clampAbs(readFiniteNumber(anyNode.vz, 0), typeof args.maxStep?.z === 'number' ? args.maxStep.z : null)
   const z = readFiniteNumber(anyNode.z, 0)
   anyNode.z = z + vz
   anyNode.vz = vz * args.damping

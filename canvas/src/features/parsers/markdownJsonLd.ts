@@ -361,9 +361,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     const internalId = `internal-link:${gid}:${slugify(label || anchorIdRaw)}:${slugify(anchorIdRaw)}`
     builder.createInternalLinkNode(internalId, label || anchorIdRaw, { anchorId: anchorIdRaw, label }, mkMeta(lineNo, lineNo))
     const anchorNodeId = `anchor:${gid}:${anchorIdRaw}`
-    if (builder.hasAnchor(anchorNodeId)) {
-      builder.addRel(internalId, 'pointsTo', anchorNodeId)
-    }
+    builder.addRel(internalId, 'pointsTo', anchorNodeId)
     if (parentId) builder.addRel(parentId, 'hasInternalLink', internalId)
   }
 
@@ -588,6 +586,15 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
         const anchorNodeId = `anchor:${gid}:${id}`
         builder.createAnchorNode(anchorNodeId, id, { anchorId: id, kind: 'html' }, mkMeta(ln, ln))
         pendingExplicitAnchorId = { id, line: ln }
+      }
+    }
+
+    for (let ln = Math.max(1, b.startLine); ln <= Math.max(1, Math.min(b.endLine, rawLines.length)); ln += 1) {
+      const line = rawLines[ln - 1] ?? ''
+      const ids = extractHtmlAnchorIds(line)
+      for (const id of ids) {
+        const anchorNodeId = `anchor:${gid}:${id}`
+        builder.createAnchorNode(anchorNodeId, id, { anchorId: id, kind: 'html' }, mkMeta(ln, ln))
       }
     }
 
@@ -1062,6 +1069,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     hasItem: { '@id': 'kg:hasItem', '@type': '@id' },
     linksTo: { '@id': 'kg:linksTo', '@type': '@id' },
     embedsImage: { '@id': 'kg:embedsImage', '@type': '@id' },
+    embedsMedia: { '@id': 'kg:embedsMedia', '@type': '@id' },
     hasMermaid: { '@id': 'kg:hasMermaid', '@type': '@id' },
     hasMermaidNode: { '@id': 'kg:hasMermaidNode', '@type': '@id' },
     hasAnchor: { '@id': 'kg:hasAnchor', '@type': '@id' },

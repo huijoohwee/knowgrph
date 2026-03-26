@@ -68,6 +68,24 @@ export function buildHtmlViewerRuntimeScript(args: {
 
   out = replaceAllExact(
     out,
+    "var b = markdownBlocks[i];\n        if (!b) continue;\n        var id = String(b.id || '');\n        if (!id) continue;",
+    "var b = markdownBlocks[i];\n        if (!b) continue;\n        var id = String(b.id || '');\n        if (!id) continue;\n        var anchorId0 = __kgResolveNodeId(String((b && (b.anchorNodeId || b.anchorId)) || '').trim());\n        if (overlay.__kgMdById[id] || (anchorId0 && overlay.__kgMdById[anchorId0])) continue;",
+  )
+
+  out = replaceAllExact(
+    out,
+    "el.setAttribute('data-md-id', id);",
+    "el.setAttribute('data-md-id', id);\n        if (anchorId0) {\n          try { el.setAttribute('data-kg-anchor-node-id', anchorId0); } catch (e0a) {}\n        }",
+  )
+
+  out = replaceAllExact(
+    out,
+    "overlay.__kgMdById[id] = el;",
+    "overlay.__kgMdById[id] = el;\n        if (anchorId0) overlay.__kgMdById[anchorId0] = el;",
+  )
+
+  out = replaceAllExact(
+    out,
     "el.setAttribute('data-kg-canvas-wheel-ignore', 'true');",
     '',
   )
@@ -258,10 +276,28 @@ export function buildHtmlViewerRuntimeScript(args: {
     "overlay.__kgMdById = {};\n\n      try {\n        var existing = overlay.querySelectorAll ? overlay.querySelectorAll('[data-md-id],[data-kg-markdown-design-block],[data-node-id][data-kg-panel-box]') : null;\n        if (existing && existing.length) {\n          for (var ei = 0; ei < existing.length; ei += 1) {\n            var ex = existing[ei];\n            if (!ex || !ex.getAttribute) continue;\n            var xid = String(ex.getAttribute('data-md-id') || ex.getAttribute('data-kg-markdown-design-block') || ex.getAttribute('data-node-id') || '').trim();\n            var xanchor = __kgResolveNodeId(String(ex.getAttribute('data-kg-anchor-node-id') || ex.getAttribute('data-node-id') || '').trim());\n            xid = __kgResolveNodeId(xid);\n            if (!xid && !xanchor) continue;\n            try {\n              var curClass = String(ex.className || '');\n              if (curClass.indexOf('kg-md') < 0) ex.className = ('kg-md ' + curClass).trim();\n            } catch (e0) {\n              void 0;\n            }\n            if (xid) overlay.__kgMdById[xid] = ex;\n            if (xanchor) overlay.__kgMdById[xanchor] = ex;\n          }\n        }\n      } catch (e0) {\n        void 0;\n      }\n\n      for (var i = 0; i < markdownBlocks.length; i += 1) {",
   )
 
+  out = replaceAllExact(
+    out,
+    "var b = markdownBlocks[i];\n        if (!b) continue;\n        var id = String(b.id || '');\n        if (!id) continue;",
+    "var b = markdownBlocks[i];\n        if (!b) continue;\n        var id = String(b.id || '');\n        if (!id) continue;\n        var anchorId0 = __kgResolveNodeId(String((b && (b.anchorNodeId || b.anchorId)) || '').trim());\n        if (overlay.__kgMdById[id] || (anchorId0 && overlay.__kgMdById[anchorId0])) continue;",
+  )
+
+  out = replaceAllExact(
+    out,
+    "el.setAttribute('data-md-id', id);",
+    "el.setAttribute('data-md-id', id);\n        if (anchorId0) {\n          try { el.setAttribute('data-kg-anchor-node-id', anchorId0); } catch (e0a) {}\n        }",
+  )
+
+  out = replaceAllExact(
+    out,
+    "overlay.__kgMdById[id] = el;",
+    "overlay.__kgMdById[id] = el;\n        if (anchorId0) overlay.__kgMdById[anchorId0] = el;",
+  )
+
   out = replaceOnceExact(
     out,
     'ensureMediaDom();\n      if (!mediaNodes || mediaNodes.length === 0) return;',
-    'ensureMediaDom();\n      ensureMarkdownDom();\n      if ((!mediaNodes || mediaNodes.length === 0) && (!markdownBlocks || markdownBlocks.length === 0)) return;',
+    "ensureMediaDom();\n      ensureMarkdownDom();\n      try {\n        if ((!mediaNodes || mediaNodes.length === 0) && overlay && overlay.__kgMediaById) {\n          mediaNodes = mediaNodes || [];\n          for (var mid in overlay.__kgMediaById) {\n            if (!Object.prototype.hasOwnProperty.call(overlay.__kgMediaById, mid)) continue;\n            var mid0 = __kgResolveNodeId(String(mid || '').trim());\n            if (!mid0) continue;\n            var seen0 = false;\n            for (var mi0 = 0; mi0 < mediaNodes.length; mi0 += 1) {\n              var mn0 = mediaNodes[mi0];\n              if (mn0 && String(mn0.id || '').trim() === mid0) { seen0 = true; break; }\n            }\n            if (!seen0) mediaNodes.push({ id: mid0, title: mid0, url: '', openUrl: '', interactive: true, kind: 'iframe' });\n          }\n        }\n      } catch (eHyd0) { void 0; }\n      if ((!mediaNodes || mediaNodes.length === 0) && (!markdownBlocks || markdownBlocks.length === 0)) return;",
   )
 
   out = replaceOnceExact(
@@ -874,6 +910,22 @@ export function buildHtmlViewerRuntimeScript(args: {
     "var UI_IGNORE_SELECTOR = '[data-kg-canvas-wheel-ignore=\"true\"], [data-kg-canvas-pointer-ignore=\"true\"]';",
     "var UI_IGNORE_SELECTOR = '#kg-hud, #kg-hud *';",
   )
+
+  if (!out.includes('var markdownBlocks =')) {
+    const mediaDecl = out.match(/var\s+mediaNodes\s*=\s*[\s\S]*?;/)
+    if (mediaDecl && mediaDecl.index != null) {
+      const ix = mediaDecl.index + mediaDecl[0].length
+      out = `${out.slice(0, ix)}\n    var markdownBlocks = ${safeMarkdownBlocksJson};${out.slice(ix)}`
+    } else {
+      const anchor = "var nodeMetaById = "
+      const ix = out.indexOf(anchor)
+      if (ix >= 0) {
+        out = `${out.slice(0, ix)}var markdownBlocks = ${safeMarkdownBlocksJson};\n    ${out.slice(ix)}`
+      } else {
+        out = `var markdownBlocks = ${safeMarkdownBlocksJson};\n` + out
+      }
+    }
+  }
 
   out = replaceAllExact(out, '__KG_PROXY_ORIGIN__', JSON.stringify(String(args.proxyOrigin || '')))
   return out

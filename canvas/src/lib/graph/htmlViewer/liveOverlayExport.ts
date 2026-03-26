@@ -92,14 +92,86 @@ const ensureMediaAttrs = (src: Element, dst: Element) => {
   }
 }
 
+const collectOverlayRootsBySelectors = (selectors: readonly string[]): Element[] => {
+  if (typeof document === 'undefined') return []
+  const out: Element[] = []
+  const seen = new Set<Element>()
+  for (let i = 0; i < selectors.length; i += 1) {
+    const selector = String(selectors[i] || '').trim()
+    if (!selector) continue
+    const list = Array.from(document.querySelectorAll(selector))
+    for (let j = 0; j < list.length; j += 1) {
+      const el = list[j] as Element
+      if (!el || seen.has(el)) continue
+      seen.add(el)
+      out.push(el)
+    }
+  }
+  return out
+}
+
+const toOverlayRoots = (el: Element | null, selectors: readonly string[]): Element[] => {
+  if (el) return [el]
+  return collectOverlayRootsBySelectors(selectors)
+}
+
+const overlaySourcePriority = (el: Element): number => {
+  try {
+    const h = el as HTMLElement
+    const style = getComputedStyle(h)
+    if (style.display === 'none') return 0
+    if (style.visibility === 'hidden') return 0
+    const opacity = Number(style.opacity)
+    const rects = h.getClientRects().length
+    if (rects > 0 && Number.isFinite(opacity) && opacity > 0.01) return 3
+    if (rects > 0) return 2
+    return 1
+  } catch {
+    return 1
+  }
+}
+
+const pickCanonicalSourceByKey = (map: Map<string, Element>, key: string, candidate: Element): void => {
+  if (!key) return
+  const prev = map.get(key)
+  if (!prev) {
+    map.set(key, candidate)
+    return
+  }
+  if (overlaySourcePriority(candidate) >= overlaySourcePriority(prev)) {
+    map.set(key, candidate)
+  }
+}
+
 export const captureLiveRichMediaOverlayHtmlForHtmlViewerExport = (args: {
   overlayRootEl: Element | null
 }): string => {
   try {
-    const overlayRootEl = args.overlayRootEl
-    if (!overlayRootEl) return ''
+    const roots = toOverlayRoots(args.overlayRootEl, [
+      'section[aria-label="D3 rich media overlay"]',
+      'section[aria-label="Flow media overlay"]',
+      'section[aria-label="Design media overlay"]',
+      'section[aria-label="3D media overlay"]',
+      '#kg-overlay',
+      '[data-kg-rich-media-overlay="1"]',
+      '[data-kg-rich-media-panel="1"]',
+    ])
+    if (roots.length === 0) return ''
 
-    const panels = Array.from(overlayRootEl.querySelectorAll('[data-kg-rich-media-panel="1"][data-node-id]'))
+    const panelByNodeId = new Map<string, Element>()
+    for (let i = 0; i < roots.length; i += 1) {
+      const root = roots[i]
+      const rootPanels = root.matches?.('[data-kg-rich-media-panel="1"][data-node-id]')
+        ? [root]
+        : Array.from(root.querySelectorAll('[data-kg-rich-media-panel="1"][data-node-id]'))
+      for (let j = 0; j < rootPanels.length; j += 1) {
+        const panel = rootPanels[j] as Element
+        const nodeId = String(panel.getAttribute('data-node-id') || '').trim()
+        if (!nodeId) continue
+        pickCanonicalSourceByKey(panelByNodeId, nodeId, panel)
+      }
+    }
+    const panels = Array.from(panelByNodeId.values())
     if (panels.length === 0) return ''
 
     const wrap = document.createElement('div')
@@ -126,10 +198,29 @@ export const captureLiveMarkdownDesignOverlayHtmlForHtmlViewerExport = (args: {
   overlayRootEl: Element | null
 }): string => {
   try {
-    const overlayRootEl = args.overlayRootEl
-    if (!overlayRootEl) return ''
+    const roots = toOverlayRoots(args.overlayRootEl, [
+      'section[aria-label="Design markdown overlay"]',
+      'section[aria-label="Flow media overlay"]',
+      '#kg-overlay',
+      '[data-kg-markdown-design-overlay="1"]',
+      '[data-kg-markdown-design-block]',
+    ])
+    if (roots.length === 0) return ''
 
-    const blocks = Array.from(overlayRootEl.querySelectorAll('[data-kg-markdown-design-block]'))
+    const blockById = new Map<string, Element>()
+    for (let i = 0; i < roots.length; i += 1) {
+      const root = roots[i]
+      const rootBlocks = root.matches?.('[data-kg-markdown-design-block]')
+        ? [root]
+        : Array.from(root.querySelectorAll('[data-kg-markdown-design-block]'))
+      for (let j = 0; j < rootBlocks.length; j += 1) {
+        const block = rootBlocks[j] as Element
+        const id = String(block.getAttribute('data-kg-markdown-design-block') || '').trim()
+        if (!id) continue
+        pickCanonicalSourceByKey(blockById, id, block)
+      }
+    }
+    const blocks = Array.from(blockById.values())
     if (blocks.length === 0) return ''
 
     const wrap = document.createElement('div')
@@ -158,10 +249,10 @@ export const captureLiveMarkdownDesignOverlayHtmlForHtmlViewerExport = (args: {
 export const captureLiveOverlayHtmlForHtmlViewerExport = (): string => {
   try {
     const mediaHtml = captureLiveRichMediaOverlayHtmlForHtmlViewerExport({
-      overlayRootEl: document.querySelector('section[aria-label="D3 rich media overlay"]'),
+      overlayRootEl: null,
     })
     const mdHtml = captureLiveMarkdownDesignOverlayHtmlForHtmlViewerExport({
-      overlayRootEl: document.querySelector('section[aria-label="Design markdown overlay"]'),
+      overlayRootEl: null,
     })
     return `${mediaHtml}${mdHtml}`
   } catch {

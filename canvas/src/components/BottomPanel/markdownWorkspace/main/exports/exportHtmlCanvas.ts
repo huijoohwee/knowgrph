@@ -27,6 +27,33 @@ import { injectMarkdownDesignBlocksIntoSvgEl } from '@/lib/graph/htmlViewer/mark
 import { captureLiveOverlayHtmlForHtmlViewerExport } from '@/lib/graph/htmlViewer/liveOverlayExport'
 import { readViewportControlsPresetFromLocalStorage } from '@/lib/graph/htmlViewer/exportViewportControls'
 
+const deriveThreeCameraStartup = (
+  pose: { position?: { x?: number; y?: number; z?: number }; target?: { x?: number; y?: number; z?: number } } | null | undefined,
+): { exportCameraZ?: number; exportTiltXRad?: number; exportYaw0Rad?: number } => {
+  if (!pose) return {}
+  const px = Number(pose.position?.x)
+  const py = Number(pose.position?.y)
+  const pz = Number(pose.position?.z)
+  const tx = Number(pose.target?.x)
+  const ty = Number(pose.target?.y)
+  const tz = Number(pose.target?.z)
+  if (!Number.isFinite(px) || !Number.isFinite(py) || !Number.isFinite(pz) || !Number.isFinite(tx) || !Number.isFinite(ty) || !Number.isFinite(tz)) {
+    return {}
+  }
+  const dx = px - tx
+  const dy = py - ty
+  const dz = pz - tz
+  const horiz = Math.hypot(dx, dz)
+  const dist = Math.hypot(dx, dy, dz)
+  const pitch = Math.atan2(dy, Math.max(1e-6, horiz))
+  const yaw = Math.atan2(dx, dz)
+  return {
+    exportCameraZ: Number.isFinite(dist) ? Math.max(80, Math.min(1200, dist)) : undefined,
+    exportTiltXRad: Number.isFinite(pitch) ? Math.max(-Math.PI * 0.45, Math.min(Math.PI * 0.45, pitch)) : undefined,
+    exportYaw0Rad: Number.isFinite(yaw) ? -yaw : undefined,
+  }
+}
+
 export async function exportHtmlCanvasFromWorkspace(args: {
   exportBaseName: string
   pushUiToast: (toast: UiToastInput) => void
@@ -138,6 +165,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
         if (wants3dExport) {
           const positionsById = store.captureThreeLayoutPositions() || undefined
           const exportCameraPose = store.captureThreeCameraPose() || undefined
+          const exportCameraStartup = deriveThreeCameraStartup(exportCameraPose as any)
           const schemaThree = store.schema?.three
           const exportAutoRotate = schemaThree?.cameraAutoRotate === true
           const exportAutoRotateSpeed =
@@ -164,8 +192,9 @@ export async function exportHtmlCanvasFromWorkspace(args: {
             exportAutoRotate,
             exportAutoRotateSpeed,
             exportMotionIntensityMultiplier,
-            exportTiltXRad: 0.45,
-            exportCameraZ: 200,
+            exportTiltXRad: exportCameraStartup.exportTiltXRad ?? 0.45,
+            exportCameraZ: exportCameraStartup.exportCameraZ ?? 200,
+            exportYaw0Rad: exportCameraStartup.exportYaw0Rad,
             threeEdgeRenderer: store.threeEdgeRenderer,
             exportShaderLineWidthPx,
             positionsById,
@@ -323,6 +352,9 @@ export async function exportHtmlCanvasFromWorkspace(args: {
       svgMarkup,
       overlayHtml: captureLiveOverlayHtmlForHtmlViewerExport(),
       graphData: graphDataForViewer,
+      viewportWidthPx: fixedViewport.widthPx,
+      viewportHeightPx: fixedViewport.heightPx,
+      viewportScaleToFit: true,
       viewportControlsPreset: readViewportControlsPresetFromLocalStorage() || 'map',
       includeRichMediaOverlays: true,
       mediaOverlayPoolMax: Math.max(
@@ -379,7 +411,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
     }
 
     const blob = new Blob([htmlViewer], { type: 'text/html;charset=utf-8' })
-    const name = `${exportBaseName}.canvas-${wants3dExport ? '3d' : '2d'}.html`
+    const name = `${exportBaseName}-canvas-${wants3dExport ? '3d' : '2d'}.html`
     const saved = await saveBlobWithPicker(blob, name, { description: 'HTML Files', accept: { 'text/html': ['.html'] } })
     if (saved === '') return
     if (!saved) downloadBlob(blob, name)

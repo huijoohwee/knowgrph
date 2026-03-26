@@ -252,6 +252,7 @@ export function relaxFlowPositionsWithCollision(args: {
     integrate: (node) => {
       integrateNodePositionWithVelocity(node, {
         damping: 0.4,
+        maxStep: { x: 26, y: 26, z: 26 },
         z: { mode: 'predicate', enabled: (n) => (n as { hasExplicitZ?: unknown }).hasExplicitZ === true },
       })
       const base = baseByNode.get(node)

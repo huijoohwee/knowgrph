@@ -5,6 +5,7 @@ import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsType
 import { buildClosedPathD, computeConvexRing, type Point2d } from '@/lib/geometry/convexRing'
 import { buildChevronPathD } from '@/components/GraphCanvas/layers/svgChevron'
 import { getNodeAabbHalfExtentsWithLabel } from '@/components/GraphCanvas/layout/overlap'
+import { computeDynamicGroupResizeHandlePx } from '@/lib/canvas/groupResizeHandleConfig'
 
 export type GroupLayoutCacheEntry = {
   x: number
@@ -46,6 +47,7 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
   chevronGapPx: number
   collapsedSet: Set<string>
   allowResize: boolean
+  resizeHandleBase: { dotRadiusPx: number; hitRadiusPx: number; strokeWidthPx: number }
   getGroupLabelText: (d: T) => { fontSize: number; labelWidthPx: number }
   rectSel: d3.Selection<SVGRectElement, T, SVGGElement, unknown>
   geoSel: d3.Selection<SVGPathElement, T, SVGGElement, unknown>
@@ -218,6 +220,20 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
     const handleEl = resizeHandleElById.get(id) || null
     if (handleEl) {
       handleEl.setAttribute('transform', `translate(${computed.x + computed.w},${computed.y + computed.h})`)
+      const handleScale = computeDynamicGroupResizeHandlePx({
+        dotRadiusPx: args.resizeHandleBase.dotRadiusPx,
+        hitRadiusPx: args.resizeHandleBase.hitRadiusPx,
+        strokeWidthPx: args.resizeHandleBase.strokeWidthPx,
+        groupWidth: computed.w,
+        groupHeight: computed.h,
+      })
+      const dotEl = handleEl.querySelector('circle[data-kg-group-resize-dot="1"]') as SVGCircleElement | null
+      if (dotEl) {
+        dotEl.setAttribute('r', String(handleScale.dotRadiusPx))
+        dotEl.setAttribute('stroke-width', String(handleScale.strokeWidthPx))
+      }
+      const hitEl = handleEl.querySelector('circle[data-kg-group-resize-hit="1"]') as SVGCircleElement | null
+      if (hitEl) hitEl.setAttribute('r', String(handleScale.hitRadiusPx))
       const canResize = args.allowResize && selectedGroupId === id
       if (canResize) {
         handleEl.style.removeProperty('display')

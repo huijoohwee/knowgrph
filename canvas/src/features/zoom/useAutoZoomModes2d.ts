@@ -67,6 +67,10 @@ export function useAutoZoomModes2d(args: {
         const graphDataRevision = override?.graphDataRevision ?? state.graphDataRevision
         const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
         if (nodes.length === 0) return
+        if (state.lifecycleStage !== 'rendering') {
+          lastFitSigRef.current = null
+          return
+        }
         const panelDims = {
           width: Math.max(1, Math.floor(dimsRef.current.viewportW)),
           height: Math.max(1, Math.floor(dimsRef.current.viewportH)),
@@ -94,6 +98,7 @@ export function useAutoZoomModes2d(args: {
         fitToScreenMode: s.fitToScreenMode,
         zoomToSelectionMode: s.zoomToSelectionMode,
         viewPinned: s.viewPinned,
+        lifecycleStage: s.lifecycleStage,
         graphDataRevision: s.graphDataRevision,
         graphNodeCount: Array.isArray(s.graphData?.nodes) ? s.graphData.nodes.length : 0,
         fitPadding: s.schema?.layout?.fitPadding,
@@ -112,6 +117,7 @@ export function useAutoZoomModes2d(args: {
           if (a.fitToScreenMode !== b.fitToScreenMode) return false
           if (a.zoomToSelectionMode !== b.zoomToSelectionMode) return false
           if (a.viewPinned !== b.viewPinned) return false
+          if (a.lifecycleStage !== b.lifecycleStage) return false
           if (a.graphDataRevision !== b.graphDataRevision) return false
           if (a.graphNodeCount !== b.graphNodeCount) return false
           if (a.fitPadding !== b.fitPadding) return false

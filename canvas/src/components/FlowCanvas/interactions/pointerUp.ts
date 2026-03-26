@@ -9,8 +9,10 @@ import type { FlowNativeInteractionsContext } from '@/components/FlowCanvas/inte
 
 export function createFlowNativePointerUpHandler(ctx: FlowNativeInteractionsContext) {
   const runtime = ctx.runtime
+  const canvasEl = ctx.canvasEl
 
   return (e: PointerEvent) => {
+    if (canvasEl.style.cursor !== 'default') canvasEl.style.cursor = 'default'
     if (ctx.args.userSelectLockPointerIdRef.current === e.pointerId) {
       ctx.args.userSelectLockPointerIdRef.current = null
       unlockGlobalUserSelect()
@@ -136,4 +138,3 @@ export function createFlowNativePointerUpHandler(ctx: FlowNativeInteractionsCont
     }
   }
 }
-

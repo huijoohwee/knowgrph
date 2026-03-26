@@ -9,7 +9,9 @@ import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import { PORT_HANDLE_STROKE_CLASS, readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
+import { PORT_HANDLE_LINE_CLASS, PORT_HANDLE_STROKE_CLASS, readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
+import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d'
+import { shouldRenderNodePortHandleAsDot } from '@/components/GraphCanvas/portHandlesConfig'
 
 type FlowEditorToolMode = 'select' | 'addEdge'
 
@@ -93,7 +95,20 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
   if (!enabled) return null
   if (!nodeId) return null
 
-  const { sizePx, hitSizePx, railWidthPx } = readPortHandleUiMetrics(args.schema)
+  const nodeDims = React.useMemo(() => {
+    const n = {
+      id: String(args.node?.id || ''),
+      type: args.node?.type,
+      properties: args.node?.properties,
+    } as unknown as GraphNode
+    return getNodeRectDimensions2d(n, args.schema || ({ behavior: {} } as GraphSchema))
+  }, [args.node?.id, args.node?.properties, args.node?.type, args.schema])
+
+  const { sizePx, hitSizePx, railWidthPx } = readPortHandleUiMetrics(args.schema, {
+    nodeWidth: nodeDims.width,
+    nodeHeight: nodeDims.height,
+  })
+  const renderDot = shouldRenderNodePortHandleAsDot(sizePx)
 
   const isAddEdge = args.toolMode === 'addEdge'
   const isSource = isAddEdge && args.pendingEdgeSourceId === nodeId
@@ -186,8 +201,8 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
           aria-hidden={true}
           className={cn(
             'absolute top-1/2 rounded-full border',
-            UI_THEME_TOKENS.panel.bg,
-            PORT_HANDLE_STROKE_CLASS,
+            renderDot ? PORT_HANDLE_LINE_CLASS : UI_THEME_TOKENS.panel.bg,
+            renderDot ? 'border-transparent' : PORT_HANDLE_STROKE_CLASS,
             ringClass,
             hoverClass,
           )}
@@ -196,7 +211,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
             height: `${sizePx}px`,
             transform: isIn ? 'translate(-50%, -50%)' : 'translate(50%, -50%)',
             ...(isIn ? { left: 0 } : { right: 0 }),
-            ...(stroke ? { borderColor: stroke } : {}),
+            ...(renderDot ? { borderWidth: '0px', backgroundColor: stroke || undefined } : stroke ? { borderColor: stroke } : {}),
           }}
         />
       </button>

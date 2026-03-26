@@ -164,7 +164,9 @@ export const fitAllTransform = (
   const validNodes = nodes.filter(n => !!readNodeXY(n))
 
   if (validNodes.length === 0) {
-    return d3.zoomIdentity
+    const w = Math.max(1, width)
+    const h = Math.max(1, height)
+    return d3.zoomIdentity.translate(w / 2, h / 2).scale(1)
   }
 
   const quantileSorted = (sorted: number[], q: number): number => {

@@ -4,6 +4,18 @@ import { renderMermaidSvgCached } from '@/lib/mermaid/mermaidSvg'
 
 type MermaidTheme = 'light' | 'dark'
 
+const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+
+const hash01 = (id: string): number => {
+  let h = 2166136261
+  const s = String(id || '')
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return (h >>> 0) / 4294967296
+}
+
 type MermaidNodeGeometry = {
   name: string
   cx: number
@@ -167,6 +179,14 @@ const parseMermaidSvgGeometry = (svgMarkup: string): {
       continue
     }
 
+    const circle = g.querySelector('circle')
+    if (circle) {
+      const r = coerceNumber(readAttr(circle, 'r'))
+      if (!r) continue
+      nodes.push({ name, cx: t.x, cy: t.y, shape: 'circle', width: r * 2, height: r * 2, radius: r, order: i, imageUrl })
+      continue
+    }
+
     const ellipse = g.querySelector('ellipse')
     if (ellipse) {
       const rx = coerceNumber(readAttr(ellipse, 'rx'))
@@ -174,6 +194,70 @@ const parseMermaidSvgGeometry = (svgMarkup: string): {
       if (!rx || !ry) continue
       const r = Math.min(rx, ry)
       nodes.push({ name, cx: t.x, cy: t.y, shape: 'circle', width: rx * 2, height: ry * 2, radius: r, order: i, imageUrl })
+      continue
+    }
+
+    const polygon = g.querySelector('polygon')
+    if (polygon) {
+      const pts = String(readAttr(polygon, 'points') || '').trim()
+      if (!pts) continue
+      const nums = pts.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi) || []
+      if (nums.length < 4) continue
+      let minX = Infinity
+      let minY = Infinity
+      let maxX = -Infinity
+      let maxY = -Infinity
+      for (let ni = 0; ni + 1 < nums.length; ni += 2) {
+        const x = Number(nums[ni])
+        const y = Number(nums[ni + 1])
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+        if (x < minX) minX = x
+        if (y < minY) minY = y
+        if (x > maxX) maxX = x
+        if (y > maxY) maxY = y
+      }
+      if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) continue
+      const w = Math.max(0, maxX - minX)
+      const h = Math.max(0, maxY - minY)
+      if (!w || !h) continue
+      nodes.push({ name, cx: t.x, cy: t.y, shape: 'rect', width: w, height: h, radius: null, order: i, imageUrl })
+      continue
+    }
+
+    const foreignObject = g.querySelector('foreignObject')
+    if (foreignObject) {
+      const w = coerceNumber(readAttr(foreignObject, 'width'))
+      const h = coerceNumber(readAttr(foreignObject, 'height'))
+      if (w && h) {
+        nodes.push({ name, cx: t.x, cy: t.y, shape: 'rect', width: w, height: h, radius: null, order: i, imageUrl })
+        continue
+      }
+    }
+
+    const path = g.querySelector('path')
+    if (path) {
+      const d = String(readAttr(path, 'd') || '').trim()
+      if (!d) continue
+      const nums = d.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi) || []
+      if (nums.length < 4) continue
+      let minX = Infinity
+      let minY = Infinity
+      let maxX = -Infinity
+      let maxY = -Infinity
+      for (let ni = 0; ni + 1 < nums.length; ni += 2) {
+        const x = Number(nums[ni])
+        const y = Number(nums[ni + 1])
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+        if (x < minX) minX = x
+        if (y < minY) minY = y
+        if (x > maxX) maxX = x
+        if (y > maxY) maxY = y
+      }
+      if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) continue
+      const w = Math.max(0, maxX - minX)
+      const h = Math.max(0, maxY - minY)
+      if (!w || !h) continue
+      nodes.push({ name, cx: t.x, cy: t.y, shape: 'rect', width: w, height: h, radius: null, order: i, imageUrl })
       continue
     }
   }
@@ -294,6 +378,412 @@ const isFrontmatterMermaidDiagram = (n: GraphNode): boolean => {
   if (!props) return false
   if (props.isMermaidFrontmatter === true) return true
   return String(props.mermaidScope || '') === 'frontmatter'
+}
+
+export function applyMermaidFrontmatterContextLayoutToGraphData(graphData: GraphData): GraphData {
+  const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
+  const edges = Array.isArray(graphData.edges) ? graphData.edges : []
+  if (nodes.length === 0) return graphData
+
+  const nodeById = new Map<string, GraphNode>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]
+    const id = String(n?.id || '').trim()
+    if (id && n && !nodeById.has(id)) nodeById.set(id, n)
+  }
+
+  const outgoing = (label: string) => {
+    const out = new Map<string, string[]>()
+    for (let i = 0; i < edges.length; i += 1) {
+      const e = edges[i]
+      if (!e) continue
+      if (String(e.label || '') !== label) continue
+      const src = String(e.source || '').trim()
+      const tgt = String(e.target || '').trim()
+      if (!src || !tgt) continue
+      const arr = out.get(src)
+      if (arr) arr.push(tgt)
+      else out.set(src, [tgt])
+    }
+    return out
+  }
+
+  const pointsTo = outgoing('pointsTo')
+  const hasBlock = outgoing('hasBlock')
+  const hasItem = outgoing('hasItem')
+  const hasInternalLink = outgoing('hasInternalLink')
+  const linksTo = outgoing('linksTo')
+  const embedsImage = outgoing('embedsImage')
+  const embedsMedia = outgoing('embedsMedia')
+
+  const nextNodes: GraphNode[] = nodes.map(n => ({ ...n, properties: { ...(n.properties || {}) } }))
+  const nextById = new Map<string, GraphNode>()
+  for (let i = 0; i < nextNodes.length; i += 1) {
+    const n = nextNodes[i]
+    const id = String(n?.id || '').trim()
+    if (id && n) nextById.set(id, n)
+  }
+
+  const setPos = (id: string, x: number, y: number) => {
+    const n = nextById.get(id)
+    if (!n) return
+    if (isFiniteNumber(n.x) && isFiniteNumber(n.y)) return
+    n.x = x
+    n.y = y
+    n.fx = x
+    n.fy = y
+    n.vx = 0
+    n.vy = 0
+  }
+
+  const setZ = (id: string, z: number) => {
+    const n = nextById.get(id)
+    if (!n) return
+    const props = (n.properties || {}) as Record<string, unknown>
+    if (props['visual:zIndexMode'] !== 'absolute') props['visual:zIndexMode'] = 'absolute'
+    props['visual:zIndex'] = Math.floor(z)
+    n.properties = props as never
+  }
+
+  const sizeOf = (id: string): { w: number; h: number } => {
+    const n = nextById.get(id)
+    if (!n) return { w: 180, h: 60 }
+    const props = (n.properties || {}) as Record<string, unknown>
+    const vw = props['visual:width']
+    const vh = props['visual:height']
+    const w = typeof vw === 'number' && Number.isFinite(vw) && vw > 0 ? vw : undefined
+    const h = typeof vh === 'number' && Number.isFinite(vh) && vh > 0 ? vh : undefined
+    if (w && h) return { w, h }
+    const type = String(n.type || '')
+    if (type === 'Table') return { w: 520, h: 320 }
+    if (type === 'CodeBlock') return { w: 520, h: 260 }
+    if (type === 'WebpageElement') return { w: 560, h: 360 }
+    if (type === 'Image') return { w: 420, h: 260 }
+    if (type === 'Section') return { w: 360, h: 56 }
+    if (type === 'Anchor') return { w: 280, h: 42 }
+    if (type === 'InternalLink') return { w: 300, h: 52 }
+    if (type === 'Link') return { w: 300, h: 52 }
+    if (type === 'List') return { w: 340, h: 64 }
+    if (type === 'ListItem') return { w: 360, h: 64 }
+    return { w: 420, h: 92 }
+  }
+
+  const basePosById = new Map<string, { x: number; y: number }>()
+  for (let i = 0; i < nextNodes.length; i += 1) {
+    const n = nextNodes[i]
+    const id = String(n?.id || '').trim()
+    if (!id) continue
+    if (isFiniteNumber(n.x) && isFiniteNumber(n.y)) basePosById.set(id, { x: n.x, y: n.y })
+  }
+
+  const anchorPosByNodeId = new Map<string, { x: number; y: number }>()
+  for (let i = 0; i < nextNodes.length; i += 1) {
+    const src = nextNodes[i]
+    if (!src) continue
+    if (String(src.type || '') !== 'MermaidNode') continue
+    const sid = String(src.id || '').trim()
+    const sp = basePosById.get(sid)
+    if (!sp) continue
+    const tgts = pointsTo.get(sid) || []
+    for (let j = 0; j < tgts.length; j += 1) {
+      const tid = String(tgts[j] || '').trim()
+      const t = nodeById.get(tid)
+      if (!t || String(t.type || '') !== 'Anchor') continue
+      if (!anchorPosByNodeId.has(tid)) anchorPosByNodeId.set(tid, sp)
+    }
+  }
+
+  const anchorIdByNodeId = new Map<string, string>()
+  for (let i = 0; i < nextNodes.length; i += 1) {
+    const n = nextNodes[i]
+    if (!n || String(n.type || '') !== 'Anchor') continue
+    const id = String(n.id || '').trim()
+    const props = (n.properties || {}) as Record<string, unknown>
+    const anchorId = typeof props.anchorId === 'string' ? String(props.anchorId || '').trim() : ''
+    if (id && anchorId) anchorIdByNodeId.set(id, anchorId)
+  }
+
+  const anchorNodeIdByAnchorId = new Map<string, string>()
+  anchorIdByNodeId.forEach((anchorId, nodeId) => {
+    if (!anchorNodeIdByAnchorId.has(anchorId)) anchorNodeIdByAnchorId.set(anchorId, nodeId)
+  })
+
+  const mermaidBounds = (() => {
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+    let hasAny = false
+
+    for (let i = 0; i < nextNodes.length; i += 1) {
+      const n = nextNodes[i]
+      if (!n) continue
+      const t = String(n.type || '')
+      if (t === 'MermaidNode') {
+        const id = String(n.id || '').trim()
+        if (!id) continue
+        if (!isFiniteNumber(n.x) || !isFiniteNumber(n.y)) continue
+        const s = sizeOf(id)
+        minX = Math.min(minX, n.x - s.w / 2)
+        maxX = Math.max(maxX, n.x + s.w / 2)
+        minY = Math.min(minY, n.y - s.h / 2)
+        maxY = Math.max(maxY, n.y + s.h / 2)
+        hasAny = true
+        continue
+      }
+      if (t === 'MermaidSubgraph') {
+        const props = (n.properties || {}) as Record<string, unknown>
+        const b = props['visual:bounds']
+        if (!b || typeof b !== 'object' || Array.isArray(b)) continue
+        const bx = typeof (b as any).x === 'number' ? (b as any).x : Number.NaN
+        const by = typeof (b as any).y === 'number' ? (b as any).y : Number.NaN
+        const bw = typeof (b as any).width === 'number' ? (b as any).width : Number.NaN
+        const bh = typeof (b as any).height === 'number' ? (b as any).height : Number.NaN
+        if (!Number.isFinite(bx) || !Number.isFinite(by) || !Number.isFinite(bw) || !Number.isFinite(bh)) continue
+        minX = Math.min(minX, bx)
+        minY = Math.min(minY, by)
+        maxX = Math.max(maxX, bx + bw)
+        maxY = Math.max(maxY, by + bh)
+        hasAny = true
+      }
+    }
+    if (!hasAny) return null
+    return { minX, minY, maxX, maxY }
+  })()
+
+  const laneX = mermaidBounds ? mermaidBounds.maxX + 420 : 820
+
+  anchorPosByNodeId.forEach((p, anchorNodeId) => {
+    const dx = (hash01(anchorNodeId) - 0.5) * 12
+    const dy = (hash01(anchorNodeId + ':y') - 0.5) * 10
+    setPos(anchorNodeId, laneX + dx, p.y + dy)
+    const baseZ = (() => {
+      for (const [srcId, targets] of pointsTo.entries()) {
+        if (!targets.includes(anchorNodeId)) continue
+        const src = nextById.get(srcId)
+        if (!src) continue
+        const props = (src.properties || {}) as Record<string, unknown>
+        const z = props['visual:zIndex']
+        if (typeof z === 'number' && Number.isFinite(z)) return z
+      }
+      return 100
+    })()
+    setZ(anchorNodeId, baseZ + 6)
+  })
+
+  const anchorLaneNodeIds = Array.from(anchorPosByNodeId.keys()).sort((a, b) => {
+    const na = nextById.get(a)
+    const nb = nextById.get(b)
+    const ya = na && isFiniteNumber(na.y) ? na.y : 0
+    const yb = nb && isFiniteNumber(nb.y) ? nb.y : 0
+    if (ya !== yb) return ya - yb
+    return a.localeCompare(b)
+  })
+  let lastY: number | null = null
+  for (let i = 0; i < anchorLaneNodeIds.length; i += 1) {
+    const id = anchorLaneNodeIds[i]!
+    const n = nextById.get(id)
+    if (!n || !isFiniteNumber(n.x) || !isFiniteNumber(n.y)) continue
+    const s = sizeOf(id)
+    const minGap = Math.max(54, s.h + 14)
+    if (lastY != null && n.y < lastY + minGap) {
+      const y = lastY + minGap
+      setPos(id, n.x, y)
+    }
+    const nn = nextById.get(id)
+    if (nn && isFiniteNumber(nn.y)) lastY = nn.y
+  }
+
+  for (let i = 0; i < nextNodes.length; i += 1) {
+    const sec = nextNodes[i]
+    if (!sec || String(sec.type || '') !== 'Section') continue
+    const secId = String(sec.id || '').trim()
+    if (!secId) continue
+    const props = (sec.properties || {}) as Record<string, unknown>
+    const anchorId = typeof props.anchor === 'string' ? String(props.anchor || '').trim() : ''
+    if (!anchorId) continue
+    const anchorNodeId = anchorNodeIdByAnchorId.get(anchorId)
+    if (!anchorNodeId) continue
+    const anchorPos = nextById.get(anchorNodeId)
+    if (!anchorPos || !isFiniteNumber(anchorPos.x) || !isFiniteNumber(anchorPos.y)) continue
+    const secSize = sizeOf(secId)
+    const ancSize = sizeOf(anchorNodeId)
+    const dy = -(ancSize.h / 2 + secSize.h / 2 + 22)
+    setPos(secId, anchorPos.x, anchorPos.y + dy)
+    setZ(secId, 800)
+  }
+
+  const blockOrderKey = (id: string): number => {
+    const n = nextById.get(id)
+    if (!n) return Number.POSITIVE_INFINITY
+    const meta = n.metadata as unknown
+    const m = meta && typeof meta === 'object' && !Array.isArray(meta) ? (meta as Record<string, unknown>) : null
+    const lineStart = m && typeof m.lineStart === 'number' && Number.isFinite(m.lineStart) ? Math.floor(m.lineStart) : null
+    if (lineStart != null) return lineStart
+    const props = (n.properties || {}) as Record<string, unknown>
+    const order = typeof props.order === 'number' && Number.isFinite(props.order) ? Math.floor(props.order) : null
+    return order != null ? order : Number.POSITIVE_INFINITY
+  }
+
+  const isPanelRelevantParagraph = (n: GraphNode) => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    if (props.calloutType === true) return true
+    const text = typeof props.text === 'string' ? props.text.trim() : ''
+    if (text.startsWith('>')) return true
+    if (typeof props.media_kind === 'string' && String(props.media_kind || '').trim()) return true
+    if (typeof props.iframe_url === 'string' && String(props.iframe_url || '').trim()) return true
+    if (typeof props.media_url === 'string' && String(props.media_url || '').trim()) return true
+    if (typeof props.image === 'string' && String(props.image || '').trim()) return true
+    if (typeof props.image_url === 'string' && String(props.image_url || '').trim()) return true
+    return false
+  }
+
+  const positionAttachmentNodes = (parentId: string, baseX: number, baseY: number) => {
+    const offs = (childId: string, idx: number, dxBase: number) => {
+      const dx = dxBase + 24 + (hash01(childId) - 0.5) * 16
+      const dy = (idx - 1) * 24 + (hash01(childId + ':y') - 0.5) * 10
+      return { x: baseX + dx, y: baseY + dy }
+    }
+
+    const internals = hasInternalLink.get(parentId) || []
+    for (let i = 0; i < internals.length; i += 1) {
+      const id = String(internals[i] || '').trim()
+      if (!id) continue
+      const p = offs(id, i, 160)
+      setPos(id, p.x, p.y)
+      setZ(id, 1100)
+      const targets = pointsTo.get(id) || []
+      for (let j = 0; j < targets.length; j += 1) {
+        const tid = String(targets[j] || '').trim()
+        if (!tid) continue
+        if (String(nodeById.get(tid)?.type || '') === 'Anchor') {
+          const tp = offs(tid, j, 220)
+          setPos(tid, tp.x, tp.y)
+          setZ(tid, 1000)
+        }
+      }
+    }
+
+    const linkIds = linksTo.get(parentId) || []
+    for (let i = 0; i < linkIds.length; i += 1) {
+      const id = String(linkIds[i] || '').trim()
+      if (!id) continue
+      const p = offs(id, i, 190)
+      setPos(id, p.x, p.y)
+      setZ(id, 1100)
+    }
+
+    const imgIds = embedsImage.get(parentId) || []
+    for (let i = 0; i < imgIds.length; i += 1) {
+      const id = String(imgIds[i] || '').trim()
+      if (!id) continue
+      const p = offs(id, i, 230)
+      setPos(id, p.x, p.y)
+      setZ(id, 1200)
+    }
+
+    const mediaIds = embedsMedia.get(parentId) || []
+    for (let i = 0; i < mediaIds.length; i += 1) {
+      const id = String(mediaIds[i] || '').trim()
+      if (!id) continue
+      const p = offs(id, i, 230)
+      setPos(id, p.x, p.y)
+      setZ(id, 1200)
+    }
+  }
+
+  const positionBlocksForSection = (sectionId: string) => {
+    const sec = nextById.get(sectionId)
+    if (!sec || !isFiniteNumber(sec.x) || !isFiniteNumber(sec.y)) return
+    const blocks = (hasBlock.get(sectionId) || []).map(x => String(x || '').trim()).filter(Boolean)
+    blocks.sort((a, b) => {
+      const ka = blockOrderKey(a)
+      const kb = blockOrderKey(b)
+      if (ka !== kb) return ka - kb
+      return a.localeCompare(b)
+    })
+    const secSize = sizeOf(sectionId)
+    let cursorY = sec.y + secSize.h / 2 + 42
+    const baseX = sec.x + 340
+    let z = 900
+    for (let i = 0; i < blocks.length; i += 1) {
+      const bid = blocks[i]!
+      const b = nextById.get(bid)
+      if (!b) continue
+      const type = String(b.type || '')
+      if (type === 'Paragraph') {
+        const hasContext =
+          (hasInternalLink.get(bid) || []).length > 0 ||
+          (linksTo.get(bid) || []).length > 0 ||
+          (embedsImage.get(bid) || []).length > 0 ||
+          (embedsMedia.get(bid) || []).length > 0
+        if (!hasContext && !isPanelRelevantParagraph(b)) continue
+      }
+      if (type === 'List') {
+        const itemIds = (hasItem.get(bid) || []).map(x => String(x || '').trim()).filter(Boolean)
+        itemIds.sort((a, b) => {
+          const ka = blockOrderKey(a)
+          const kb = blockOrderKey(b)
+          if (ka !== kb) return ka - kb
+          return a.localeCompare(b)
+        })
+        let includedAny = false
+        for (let j = 0; j < itemIds.length; j += 1) {
+          const iid = itemIds[j]!
+          const hasContext =
+            (hasInternalLink.get(iid) || []).length > 0 ||
+            (linksTo.get(iid) || []).length > 0 ||
+            (embedsImage.get(iid) || []).length > 0 ||
+            (embedsMedia.get(iid) || []).length > 0
+          if (!hasContext) continue
+          const s = sizeOf(iid)
+          const by = cursorY + s.h / 2
+          setPos(iid, baseX, by)
+          setZ(iid, z)
+          positionAttachmentNodes(iid, baseX, by)
+          includedAny = true
+          cursorY = by + s.h / 2 + 30
+          z += 1
+        }
+        if (includedAny) {
+          const s = sizeOf(bid)
+          const by = sec.y + 76
+          setPos(bid, sec.x + 220, by)
+          setZ(bid, z)
+          positionAttachmentNodes(bid, sec.x + 220, by)
+          z += 1
+        }
+        continue
+      }
+
+      const s = sizeOf(bid)
+      const by = cursorY + s.h / 2
+      setPos(bid, baseX, by)
+      setZ(bid, z)
+      positionAttachmentNodes(bid, baseX, by)
+      cursorY = by + s.h / 2 + 30
+      z += 1
+    }
+  }
+
+  for (let i = 0; i < nextNodes.length; i += 1) {
+    const n = nextNodes[i]
+    if (!n || String(n.type || '') !== 'Section') continue
+    const sid = String(n.id || '').trim()
+    if (!sid) continue
+    positionBlocksForSection(sid)
+  }
+
+  const maybeMermaid = nextNodes.filter(n => String(n.type || '') === 'MermaidNode')
+  for (let i = 0; i < maybeMermaid.length; i += 1) {
+    const n = maybeMermaid[i]!
+    const id = String(n.id || '').trim()
+    if (!id) continue
+    if (!isFiniteNumber(n.x) || !isFiniteNumber(n.y)) continue
+    positionAttachmentNodes(id, n.x, n.y)
+  }
+
+  return { ...graphData, nodes: nextNodes }
 }
 
 const readFrontmatterMermaidCode = (graphData: GraphData): string => {
@@ -418,14 +908,18 @@ export async function applyMermaidFrontmatterGeometryToGraphData(
     if (idx == null) continue
     const n = updatedNodes[idx]!
     const p = readRecordProps(n) as Record<string, unknown>
+    const inset = 2
+    const x = c.x + inset
+    const y = c.y + inset
+    const w = Math.max(0, c.width - inset * 2)
+    const h = Math.max(0, c.height - inset * 2)
     p['visual:bounds'] = {
-      x: c.x,
-      y: c.y,
-      width: c.width,
-      height: c.height,
+      x,
+      y,
+      width: w,
+      height: h,
       ...(c.labelX != null && c.labelY != null ? { labelX: c.labelX, labelY: c.labelY } : {}),
     }
-    p['visual:zIndex'] = c.order
     updatedNodes[idx] = { ...n, properties: p as never }
   }
 
@@ -487,7 +981,7 @@ export async function applyMermaidFrontmatterGeometryToGraphData(
     }
   }
 
-  return {
+  const graphWithGeom = {
     ...graphData,
     context: 'frontmatter-mermaid',
     nodes: updatedNodes,
@@ -497,4 +991,6 @@ export async function applyMermaidFrontmatterGeometryToGraphData(
       layoutEngine: 'mermaid',
     } as never,
   }
+
+  return applyMermaidFrontmatterContextLayoutToGraphData(graphWithGeom)
 }

@@ -2000,6 +2000,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   )
 
   useCanvasMarkdownSync({
+    active,
     entries,
     activePath,
     setActivePathSafe,

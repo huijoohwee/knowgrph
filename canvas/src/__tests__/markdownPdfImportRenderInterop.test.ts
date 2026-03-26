@@ -12,12 +12,19 @@ export function testMarkdownResolveHrefPreservesInternalAssetRoutes() {
 }
 
 export function testMarkdownResolveHrefCoercesAbsoluteSandboxDocumentPath() {
-  const href = 'images/a.png'
-  const active = '/tmp/sandbox/demo/markdown-slide-demo.md'
-  const resolved = resolveHref(href, active)
-  const expected = '/__codebase_asset?path=sandbox%2Fdemo%2Fimages%2Fa.png'
-  if (resolved !== expected) {
-    throw new Error(`Expected absolute sandbox base to resolve to ${expected}, got ${resolved}`)
+  const prev = process.env.VITE_CODEBASE_ROOT
+  process.env.VITE_CODEBASE_ROOT = '/tmp'
+  try {
+    const href = 'images/a.png'
+    const active = '/tmp/sandbox/demo/markdown-slide-demo.md'
+    const resolved = resolveHref(href, active)
+    const expected = '/__codebase_asset?path=sandbox%2Fdemo%2Fimages%2Fa.png'
+    if (resolved !== expected) {
+      throw new Error(`Expected absolute sandbox base to resolve to ${expected}, got ${resolved}`)
+    }
+  } finally {
+    if (typeof prev === 'string') process.env.VITE_CODEBASE_ROOT = prev
+    else delete process.env.VITE_CODEBASE_ROOT
   }
 }
 

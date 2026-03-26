@@ -404,6 +404,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
           seedCenter,
           groupKeyOf,
           layoutPositions: layoutPositionsSource,
+          groupsForBboxCollide: args.groupsForBboxCollide,
         }),
     })
   }

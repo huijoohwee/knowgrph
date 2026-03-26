@@ -25,6 +25,18 @@ type HtmlViewerMediaNode = {
   kind: 'iframe' | 'image' | 'svg' | 'video'
 }
 
+type HtmlViewerMarkdownSeed = {
+  id: string
+  anchorNodeId?: string
+  title: string
+  summary: string
+  preview: { kind: 'other' }
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
 const isFiniteNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 
 const escapeHtml = (s: string): string => {
@@ -36,6 +48,36 @@ const escapeHtml = (s: string): string => {
     .replace(/'/g, '&#39;')
 }
 
+const readNumAttr = (el: Element, name: string): number | null => {
+  const raw = String(el.getAttribute(name) || '').trim()
+  if (!raw) return null
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : null
+}
+
+const inferMediaKind = (rawUrl: string): HtmlViewerMediaNode['kind'] => {
+  const u = String(rawUrl || '').trim().toLowerCase()
+  if (!u) return 'iframe'
+  if (u.startsWith('data:image/svg+xml') || u.endsWith('.svg')) return 'svg'
+  if (
+    u.startsWith('data:image/') ||
+    u.endsWith('.png') ||
+    u.endsWith('.jpg') ||
+    u.endsWith('.jpeg') ||
+    u.endsWith('.gif') ||
+    u.endsWith('.webp') ||
+    u.includes('wx_fmt=png') ||
+    u.includes('wx_fmt=jpg') ||
+    u.includes('wx_fmt=jpeg') ||
+    u.includes('wx_fmt=gif') ||
+    u.includes('wx_fmt=webp')
+  ) {
+    return 'image'
+  }
+  if (u.endsWith('.mp4') || u.endsWith('.webm') || u.endsWith('.mov') || u.endsWith('.m4v')) return 'video'
+  return 'iframe'
+}
+
 const tryReadCssVar = (name: string, fallback: string): string => {
   try {
     if (typeof document === 'undefined') return fallback
@@ -43,6 +85,311 @@ const tryReadCssVar = (name: string, fallback: string): string => {
     return raw || fallback
   } catch {
     return fallback
+  }
+}
+
+const buildGraphNodeIdentity = (args: { graph: GraphData | null | undefined; svgMarkup: string }): {
+  nodeIdSet: Set<string>
+  edgeLinkedNodeIdSet: Set<string>
+  resolveNodeId: (raw: string) => string
+} => {
+  const graph = args.graph
+  const svgMarkup = String(args.svgMarkup || '')
+  const nodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
+  const nodeIdSet = new Set<string>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const rawId = String(nodes[i]?.id || '').trim()
+    if (!rawId) continue
+    nodeIdSet.add(rawId)
+  }
+
+  if (svgMarkup.trim()) {
+    const re = /\bdata-node-id\s*=\s*(?:"([^"]+)"|'([^']+)')/gi
+    let m: RegExpExecArray | null = null
+    while ((m = re.exec(svgMarkup))) {
+      const rawId = String(m[1] || m[2] || '').trim()
+      if (!rawId) continue
+      nodeIdSet.add(rawId)
+    }
+  }
+
+  const nodeIdBySuffix: Record<string, string> = {}
+  for (const rawId of nodeIdSet) {
+    const suffix = rawId.split('::').pop() || ''
+    if (suffix && !nodeIdBySuffix[suffix]) nodeIdBySuffix[suffix] = rawId
+  }
+
+  const shouldSkipSuffixResolve = (id: string): boolean => {
+    const s = String(id || '').trim()
+    if (!s) return true
+    const lower = s.toLowerCase()
+    if (lower.includes('::blk:')) return true
+    if (lower.includes('::block:')) return true
+    if (lower.startsWith('blk:')) return true
+    return false
+  }
+
+  const resolveNodeId = (raw: string): string => {
+    const id = String(raw || '').trim()
+    if (!id) return ''
+    if (nodeIdSet.has(id)) return id
+    if (shouldSkipSuffixResolve(id)) return id
+    const suffix = id.split('::').pop() || ''
+    if (!suffix) return id
+    return nodeIdBySuffix[suffix] || id
+  }
+  const edges = Array.isArray(graph?.edges) ? (graph!.edges as GraphEdge[]) : []
+  const edgeLinkedNodeIdSet = new Set<string>()
+
+  const readEdgeEndpointId = (raw: unknown): string => {
+    if (typeof raw === 'string') return String(raw || '').trim()
+    if (raw && typeof raw === 'object') {
+      const maybeId = (raw as { id?: unknown }).id
+      if (typeof maybeId === 'string') return String(maybeId || '').trim()
+    }
+    return String(raw || '').trim()
+  }
+
+  for (let i = 0; i < edges.length; i += 1) {
+    const e = edges[i]
+    const rawSource = (e as unknown as { source?: unknown; sourceId?: unknown; source_id?: unknown }).source
+    const rawTarget = (e as unknown as { target?: unknown; targetId?: unknown; target_id?: unknown }).target
+    const rawSourceAlt = (e as unknown as { sourceId?: unknown; source_id?: unknown }).sourceId ?? (e as unknown as { source_id?: unknown }).source_id
+    const rawTargetAlt = (e as unknown as { targetId?: unknown; target_id?: unknown }).targetId ?? (e as unknown as { target_id?: unknown }).target_id
+    const s = resolveNodeId(readEdgeEndpointId(rawSource ?? rawSourceAlt))
+    const t = resolveNodeId(readEdgeEndpointId(rawTarget ?? rawTargetAlt))
+    if (s && nodeIdSet.has(s)) edgeLinkedNodeIdSet.add(s)
+    if (t && nodeIdSet.has(t)) edgeLinkedNodeIdSet.add(t)
+  }
+
+  if (svgMarkup.trim()) {
+    const epRe = /\bdata-(?:source-id|source|target-id|target)\s*=\s*(?:"([^"]+)"|'([^']+)')/gi
+    let mm: RegExpExecArray | null = null
+    while ((mm = epRe.exec(svgMarkup))) {
+      const raw = String(mm[1] || mm[2] || '').trim()
+      if (!raw) continue
+      const id = resolveNodeId(raw)
+      if (id && nodeIdSet.has(id)) edgeLinkedNodeIdSet.add(id)
+    }
+  }
+  return { nodeIdSet, edgeLinkedNodeIdSet, resolveNodeId }
+}
+
+const filterStandaloneOverlayHtml = (args: {
+  overlayHtml: string
+  hasGraphNodeIdentity: boolean
+  resolveOverlayNodeId: (raw: string) => string
+  shouldKeepOverlayLinkedToGraph: (args0: { nodeId?: string; anchorNodeId?: string }) => boolean
+}): string => {
+  const raw = String(args.overlayHtml || '')
+  if (!raw.trim()) return ''
+  if (!args.hasGraphNodeIdentity) return raw
+  const buildMarkdownOverlayKey = (args0: {
+    idRaw?: string
+    idNorm?: string
+    anchorRaw?: string
+    anchorNorm?: string
+  }): string => {
+    const anchor = String(args0.anchorNorm || args0.anchorRaw || '').trim()
+    if (anchor) return `md:${anchor}`
+    const id = String(args0.idNorm || args0.idRaw || '').trim()
+    if (id) return `md:${id}`
+    return ''
+  }
+  const readStyleScore = (styleRaw: string): number => {
+    const style = String(styleRaw || '').toLowerCase()
+    if (!style) return 0
+    if (/(?:^|;)\s*display\s*:\s*none\b/i.test(style)) return -200
+    if (/(?:^|;)\s*visibility\s*:\s*hidden\b/i.test(style)) return -180
+    if (/(?:^|;)\s*opacity\s*:\s*0(?:\D|$)/i.test(style)) return -160
+    const isFixed = /(?:^|;)\s*position\s*:\s*(?:fixed|sticky)\b/i.test(style)
+    const hasExplicitAnchor = /(?:^|;)\s*(?:left|top|right|bottom|inset)\s*:/i.test(style)
+    if (isFixed && hasExplicitAnchor) return -40
+    if (isFixed) return -20
+    return 0
+  }
+  const filterByRegex = (src: string): string => {
+    const text = String(src || '')
+    if (!text.trim()) return ''
+    const upsertAttr = (tag: string, name: string, value: string): string => {
+      if (!value) return tag
+      const cleaned = String(tag || '').replace(new RegExp(`\\s${name}=(?:"[^"]*"|'[^']*')`, 'i'), '')
+      return cleaned.replace(/>$/, ` ${name}="${value}">`)
+    }
+    const readAttr = (tag: string, name: string): string => {
+      const s = String(tag || '')
+      const key1 = `${name}="`
+      const key2 = `${name}='`
+      const i1 = s.indexOf(key1)
+      if (i1 >= 0) {
+        const start = i1 + key1.length
+        const end = s.indexOf('"', start)
+        return end > start ? s.slice(start, end).trim() : ''
+      }
+      const i2 = s.indexOf(key2)
+      if (i2 >= 0) {
+        const start = i2 + key2.length
+        const end = s.indexOf("'", start)
+        return end > start ? s.slice(start, end).trim() : ''
+      }
+      return ''
+    }
+    const out: string[] = []
+    let sawOverlayCandidate = false
+    const mediaBestByKey = new Map<string, { chunk: string; score: number }>()
+    const mdBestByKey = new Map<string, { chunk: string; score: number }>()
+    const mediaRe = /<article\b[^>]*data-kg-rich-media-panel=(?:"1"|'1')[^>]*>[\s\S]*?<\/article>/gi
+    let mm: RegExpExecArray | null = null
+    while ((mm = mediaRe.exec(text))) {
+      sawOverlayCandidate = true
+      const chunk = mm[0] || ''
+      const tag = chunk.match(/<article\b[^>]*>/i)?.[0] || ''
+      const nodeId = args.resolveOverlayNodeId(readAttr(tag, 'data-node-id'))
+      const key = nodeId ? `media:${nodeId}` : ''
+      if (!nodeId || !key) continue
+      if (!args.shouldKeepOverlayLinkedToGraph({ nodeId })) continue
+      const normalized = chunk.replace(tag, upsertAttr(tag, 'data-node-id', nodeId))
+      const score = readStyleScore(readAttr(tag, 'style'))
+      const prev = mediaBestByKey.get(key)
+      if (!prev || score > prev.score) {
+        mediaBestByKey.set(key, { chunk: normalized, score })
+      }
+    }
+    const mdRe = /<article\b[^>]*(?:data-kg-markdown-design-block|data-md-id)[^>]*>[\s\S]*?<\/article>/gi
+    let mdm: RegExpExecArray | null = null
+    while ((mdm = mdRe.exec(text))) {
+      sawOverlayCandidate = true
+      const chunk = mdm[0] || ''
+      const tag = chunk.match(/<article\b[^>]*>/i)?.[0] || ''
+      const idRaw = readAttr(tag, 'data-kg-markdown-design-block') || readAttr(tag, 'data-md-id')
+      const anchorRaw = readAttr(tag, 'data-kg-anchor-node-id') || readAttr(tag, 'data-node-id')
+      const idNorm = args.resolveOverlayNodeId(idRaw)
+      const anchorNorm = args.resolveOverlayNodeId(anchorRaw)
+      const key = buildMarkdownOverlayKey({ idRaw, idNorm, anchorRaw, anchorNorm })
+      if (!key) continue
+      if (!args.shouldKeepOverlayLinkedToGraph({ nodeId: idNorm || idRaw, anchorNodeId: anchorNorm || anchorRaw })) continue
+      let nextTag = tag
+      if (idNorm) {
+        nextTag = upsertAttr(nextTag, 'data-md-id', idNorm)
+      }
+      if (anchorNorm) {
+        nextTag = upsertAttr(nextTag, 'data-kg-anchor-node-id', anchorNorm)
+      }
+      const normalized = chunk.replace(tag, nextTag)
+      const score = readStyleScore(readAttr(tag, 'style'))
+      const prev = mdBestByKey.get(key)
+      if (!prev || score > prev.score) {
+        mdBestByKey.set(key, { chunk: normalized, score })
+      }
+    }
+    for (const item of mediaBestByKey.values()) {
+      if (item.score <= -100) continue
+      out.push(item.chunk)
+    }
+    for (const item of mdBestByKey.values()) {
+      if (item.score <= -100) continue
+      out.push(item.chunk)
+    }
+    if (out.length <= 0) return sawOverlayCandidate ? '' : text
+    return out.join('')
+  }
+  try {
+    if (typeof DOMParser === 'undefined') return filterByRegex(raw)
+    const doc = new DOMParser().parseFromString(
+      `<!doctype html><html><body><div id="kg-overlay-filter-root">${raw}</div></body></html>`,
+      'text/html',
+    )
+    const root = doc.querySelector('#kg-overlay-filter-root')
+    if (!root) return raw
+    const mediaBestByKey = new Map<string, { el: Element; score: number }>()
+    const mediaEls = root.querySelectorAll('[data-kg-rich-media-panel="1"][data-node-id], .kg-media[data-node-id]')
+    for (let i = 0; i < mediaEls.length; i += 1) {
+      const el = mediaEls[i] as Element
+      const rawId = String(el.getAttribute('data-node-id') || '').trim()
+      const nodeId = args.resolveOverlayNodeId(rawId)
+      const key = nodeId ? `media:${nodeId}` : ''
+      const keep = !!nodeId && args.shouldKeepOverlayLinkedToGraph({ nodeId })
+      if (!keep || !key) {
+        el.remove()
+        continue
+      }
+      const score = readStyleScore(String(el.getAttribute('style') || '').trim())
+      const prev = mediaBestByKey.get(key)
+      if (!prev || score > prev.score) {
+        mediaBestByKey.set(key, { el, score })
+      }
+      try {
+        el.setAttribute('data-node-id', nodeId)
+      } catch {
+        void 0
+      }
+    }
+    for (let i = 0; i < mediaEls.length; i += 1) {
+      const el = mediaEls[i] as Element
+      if (!el || !el.isConnected) continue
+      const nodeId = args.resolveOverlayNodeId(String(el.getAttribute('data-node-id') || '').trim())
+      const key = nodeId ? `media:${nodeId}` : ''
+      const keep = key ? mediaBestByKey.get(key) : null
+      const keepEl = keep?.el || null
+      if (!keepEl || keepEl !== el) {
+        el.remove()
+        continue
+      }
+      if ((keep?.score ?? 0) <= -100) el.remove()
+    }
+    const mdBestByKey = new Map<string, { el: Element; score: number }>()
+    const mdEls = root.querySelectorAll('[data-kg-markdown-design-block],[data-md-id],[data-node-id][data-kg-panel-box]')
+    for (let i = 0; i < mdEls.length; i += 1) {
+      const el = mdEls[i] as Element
+      const idRaw = String(el.getAttribute('data-kg-markdown-design-block') || el.getAttribute('data-md-id') || '').trim()
+      const anchorRaw = String(el.getAttribute('data-kg-anchor-node-id') || el.getAttribute('data-node-id') || '').trim()
+      const idNorm = args.resolveOverlayNodeId(idRaw)
+      const anchorNorm = args.resolveOverlayNodeId(anchorRaw)
+      const key = buildMarkdownOverlayKey({ idRaw, idNorm, anchorRaw, anchorNorm })
+      const keep = args.shouldKeepOverlayLinkedToGraph({ nodeId: idNorm || idRaw, anchorNodeId: anchorNorm || anchorRaw })
+      if (!keep || !key) {
+        el.remove()
+        continue
+      }
+      const score = readStyleScore(String(el.getAttribute('style') || '').trim())
+      const prev = mdBestByKey.get(key)
+      if (!prev || score > prev.score) {
+        mdBestByKey.set(key, { el, score })
+      }
+      if (idNorm) {
+        try {
+          el.setAttribute('data-md-id', idNorm)
+        } catch {
+          void 0
+        }
+      }
+      if (anchorNorm) {
+        try {
+          el.setAttribute('data-kg-anchor-node-id', anchorNorm)
+        } catch {
+          void 0
+        }
+      }
+    }
+    for (let i = 0; i < mdEls.length; i += 1) {
+      const el = mdEls[i] as Element
+      if (!el || !el.isConnected) continue
+      const idRaw = String(el.getAttribute('data-kg-markdown-design-block') || el.getAttribute('data-md-id') || '').trim()
+      const anchorRaw = String(el.getAttribute('data-kg-anchor-node-id') || el.getAttribute('data-node-id') || '').trim()
+      const idNorm = args.resolveOverlayNodeId(idRaw)
+      const anchorNorm = args.resolveOverlayNodeId(anchorRaw)
+      const key = buildMarkdownOverlayKey({ idRaw, idNorm, anchorRaw, anchorNorm })
+      const keep = key ? mdBestByKey.get(key) : null
+      const keepEl = keep?.el || null
+      if (!keepEl || keepEl !== el) {
+        el.remove()
+        continue
+      }
+      if ((keep?.score ?? 0) <= -100) el.remove()
+    }
+    return root.innerHTML
+  } catch {
+    return filterByRegex(raw)
   }
 }
 
@@ -114,6 +461,192 @@ export async function buildGraphHtmlViewerMarkup(args: {
       ? { w: Math.max(1, Math.floor(args.viewportWidthPx)), h: Math.max(1, Math.floor(args.viewportHeightPx)) }
       : null
 
+  const overlayHtml = String(args.overlayHtml || '')
+  const graphNodeIdentity = buildGraphNodeIdentity({ graph: args.graphData, svgMarkup: svgMarkupRaw })
+
+  const resolveOverlayNodeId = (() => {
+    return (raw: string): string => {
+      return graphNodeIdentity.resolveNodeId(raw)
+    }
+  })()
+  const shouldKeepOverlayLinkedToGraph = (args0: { nodeId?: string; anchorNodeId?: string }): boolean => {
+    if (graphNodeIdentity.nodeIdSet.size === 0) return true
+    const nodeId = resolveOverlayNodeId(String(args0.nodeId || '').trim())
+    const anchorNodeId = resolveOverlayNodeId(String(args0.anchorNodeId || '').trim())
+    const linkedToGraph =
+      (nodeId && graphNodeIdentity.nodeIdSet.has(nodeId)) ||
+      (anchorNodeId && graphNodeIdentity.nodeIdSet.has(anchorNodeId))
+    if (!linkedToGraph) return false
+    if (graphNodeIdentity.edgeLinkedNodeIdSet.size <= 0) return true
+    return (
+      (nodeId && graphNodeIdentity.edgeLinkedNodeIdSet.has(nodeId)) ||
+      (anchorNodeId && graphNodeIdentity.edgeLinkedNodeIdSet.has(anchorNodeId))
+    )
+  }
+
+  const overlayHtmlFiltered = filterStandaloneOverlayHtml({
+    overlayHtml,
+    hasGraphNodeIdentity: graphNodeIdentity.nodeIdSet.size > 0,
+    resolveOverlayNodeId,
+    shouldKeepOverlayLinkedToGraph,
+  })
+
+  const overlaySeedsRaw = (() => {
+    const mediaNodes: HtmlViewerMediaNode[] = []
+    const markdownBlocks: HtmlViewerMarkdownSeed[] = []
+    if (!overlayHtmlFiltered.trim()) return { mediaNodes, markdownBlocks }
+    const parseByRegex = () => {
+      const readAttr = (tag: string, name: string): string => {
+        const s = String(tag || '')
+        const key1 = `${name}="`
+        const key2 = `${name}='`
+        const i1 = s.indexOf(key1)
+        if (i1 >= 0) {
+          const start = i1 + key1.length
+          const end = s.indexOf('"', start)
+          return end > start ? s.slice(start, end).trim() : ''
+        }
+        const i2 = s.indexOf(key2)
+        if (i2 >= 0) {
+          const start = i2 + key2.length
+          const end = s.indexOf("'", start)
+          return end > start ? s.slice(start, end).trim() : ''
+        }
+        return ''
+      }
+      const mediaTagRe = /<article\b[^>]*data-kg-rich-media-panel=(?:"1"|'1')[^>]*>/gi
+      let mm: RegExpExecArray | null = null
+      while ((mm = mediaTagRe.exec(overlayHtmlFiltered))) {
+        const tag = mm[0] || ''
+        const id = resolveOverlayNodeId(readAttr(tag, 'data-node-id'))
+        if (!id) continue
+        const url = readAttr(tag, 'data-kg-url') || readAttr(tag, 'data-kg-open-url')
+        if (!url) continue
+        const kindRaw = readAttr(tag, 'data-kg-kind').toLowerCase()
+        const kind = kindRaw === 'image' || kindRaw === 'svg' || kindRaw === 'video' || kindRaw === 'iframe'
+          ? (kindRaw as HtmlViewerMediaNode['kind'])
+          : inferMediaKind(url)
+        mediaNodes.push({
+          id,
+          title: id,
+          url,
+          openUrl: readAttr(tag, 'data-kg-open-url') || url,
+          interactive: true,
+          kind,
+        })
+      }
+
+      const mdTagRe = /<article\b[^>]*(?:data-kg-markdown-design-block|data-md-id)[^>]*>/gi
+      let mdm: RegExpExecArray | null = null
+      while ((mdm = mdTagRe.exec(overlayHtmlFiltered))) {
+        const tag = mdm[0] || ''
+        const id = readAttr(tag, 'data-kg-markdown-design-block') || readAttr(tag, 'data-md-id')
+        if (!id) continue
+        const x = Number(readAttr(tag, 'data-kg-world-x'))
+        const y = Number(readAttr(tag, 'data-kg-world-y'))
+        const w = Number(readAttr(tag, 'data-kg-world-w'))
+        const h = Number(readAttr(tag, 'data-kg-world-h'))
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || !Number.isFinite(h) || !(w > 0) || !(h > 0)) continue
+        const anchorNodeId = resolveOverlayNodeId(readAttr(tag, 'data-kg-anchor-node-id') || readAttr(tag, 'data-node-id'))
+        markdownBlocks.push({
+          id,
+          anchorNodeId: anchorNodeId || undefined,
+          title: id,
+          summary: '',
+          preview: { kind: 'other' },
+          x,
+          y,
+          w,
+          h,
+        })
+      }
+    }
+    try {
+      if (typeof DOMParser === 'undefined') {
+        parseByRegex()
+        return { mediaNodes, markdownBlocks }
+      }
+      const doc = new DOMParser().parseFromString(
+        `<!doctype html><html><body><div id="kg-overlay-seed">${overlayHtmlFiltered}</div></body></html>`,
+        'text/html',
+      )
+      const root = doc.querySelector('#kg-overlay-seed')
+      if (!root) {
+        parseByRegex()
+        return { mediaNodes, markdownBlocks }
+      }
+
+      const mediaEls = root.querySelectorAll('[data-kg-rich-media-panel="1"][data-node-id], .kg-media[data-node-id]')
+      for (let i = 0; i < mediaEls.length; i += 1) {
+        const el = mediaEls[i] as Element
+        const idRaw = String(el.getAttribute('data-node-id') || '').trim()
+        const id = resolveOverlayNodeId(idRaw)
+        if (!id) continue
+        const urlAttr = String(el.getAttribute('data-kg-url') || '').trim()
+        const openUrlAttr = String(el.getAttribute('data-kg-open-url') || '').trim()
+        const mediaEl = el.querySelector('iframe[src],img[src],video[src],source[src]') as Element | null
+        const srcUrl = mediaEl ? String(mediaEl.getAttribute('src') || '').trim() : ''
+        const url = urlAttr || srcUrl || openUrlAttr
+        if (!url) continue
+        const kindAttr = String(el.getAttribute('data-kg-kind') || '').trim().toLowerCase()
+        const kind = kindAttr === 'image' || kindAttr === 'svg' || kindAttr === 'video' || kindAttr === 'iframe'
+          ? (kindAttr as HtmlViewerMediaNode['kind'])
+          : inferMediaKind(url)
+        const title =
+          String(el.getAttribute('data-kg-title') || '').trim() ||
+          String((el.querySelector('.kg-mediaTitle') as HTMLElement | null)?.textContent || '').trim() ||
+          id
+        mediaNodes.push({
+          id,
+          title,
+          url,
+          openUrl: openUrlAttr || url,
+          interactive: true,
+          kind,
+        })
+      }
+
+      const mdEls = root.querySelectorAll('[data-kg-markdown-design-block],[data-md-id]')
+      for (let i = 0; i < mdEls.length; i += 1) {
+        const el = mdEls[i] as Element
+        const id = String(el.getAttribute('data-kg-markdown-design-block') || el.getAttribute('data-md-id') || '').trim()
+        if (!id) continue
+        const x = readNumAttr(el, 'data-kg-world-x')
+        const y = readNumAttr(el, 'data-kg-world-y')
+        const w = readNumAttr(el, 'data-kg-world-w')
+        const h = readNumAttr(el, 'data-kg-world-h')
+        if (!isFiniteNum(x) || !isFiniteNum(y) || !isFiniteNum(w) || !isFiniteNum(h) || !(w > 0) || !(h > 0)) continue
+        const anchorRaw = String(el.getAttribute('data-kg-anchor-node-id') || el.getAttribute('data-node-id') || '').trim()
+        const anchorNodeId = resolveOverlayNodeId(anchorRaw)
+        const title =
+          String((el.querySelector('.kg-mdTitle') as HTMLElement | null)?.textContent || '').trim() ||
+          String((el.querySelector('.kg-mediaTitle') as HTMLElement | null)?.textContent || '').trim() ||
+          id
+        markdownBlocks.push({
+          id,
+          anchorNodeId: anchorNodeId || undefined,
+          title,
+          summary: '',
+          preview: { kind: 'other' },
+          x,
+          y,
+          w,
+          h,
+        })
+      }
+      if (mediaNodes.length === 0 && markdownBlocks.length === 0) parseByRegex()
+    } catch {
+      parseByRegex()
+    }
+    return { mediaNodes, markdownBlocks }
+  })()
+  const overlaySeeds = {
+    mediaNodes: overlaySeedsRaw.mediaNodes.filter(n => shouldKeepOverlayLinkedToGraph({ nodeId: n.id })),
+    markdownBlocks: overlaySeedsRaw.markdownBlocks.filter(b =>
+      shouldKeepOverlayLinkedToGraph({ nodeId: b.id, anchorNodeId: b.anchorNodeId }),
+    ),
+  }
+
   const preferredOverlayNodeIds = (() => {
     if (!initialView) return []
     const graph = args.graphData
@@ -142,6 +675,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
 
     const out: string[] = []
     for (const id of Object.keys(nodePosById)) {
+      if (!shouldKeepOverlayLinkedToGraph({ nodeId: id })) continue
       const p = nodePosById[id]
       if (!p) continue
       const sx = p.x * k + tx
@@ -232,7 +766,21 @@ export async function buildGraphHtmlViewerMarkup(args: {
     return out
   }
 
-  const mediaNodes = await inlineRepoFileMedia(mediaNodesBase as unknown as HtmlViewerMediaNode[])
+  const mediaNodesMerged = (() => {
+    const out: HtmlViewerMediaNode[] = []
+    const seen = new Set<string>()
+    const push = (n: HtmlViewerMediaNode) => {
+      const id = resolveOverlayNodeId(String(n.id || '').trim())
+      if (!shouldKeepOverlayLinkedToGraph({ nodeId: id })) return
+      if (!id || seen.has(id)) return
+      seen.add(id)
+      out.push({ ...n, id })
+    }
+    for (let i = 0; i < mediaNodesBase.length; i += 1) push(mediaNodesBase[i] as unknown as HtmlViewerMediaNode)
+    for (let i = 0; i < overlaySeeds.mediaNodes.length; i += 1) push(overlaySeeds.mediaNodes[i]!)
+    return out
+  })()
+  const mediaNodes = await inlineRepoFileMedia(mediaNodesMerged)
 
   const mediaNodesJson = JSON.stringify(mediaNodes)
 
@@ -251,24 +799,8 @@ export async function buildGraphHtmlViewerMarkup(args: {
   })()
 
   const nodeIdNormalizer = (() => {
-    const graph = args.graphData
-    const nodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
-    const nodeIdSet = new Set<string>()
-    const nodeIdBySuffix: Record<string, string> = {}
-    for (let i = 0; i < nodes.length; i += 1) {
-      const rawId = String(nodes[i]?.id || '').trim()
-      if (!rawId) continue
-      nodeIdSet.add(rawId)
-      const suffix = rawId.split('::').pop() || ''
-      if (suffix && !nodeIdBySuffix[suffix]) nodeIdBySuffix[suffix] = rawId
-    }
     return (raw: string): string => {
-      const id = String(raw || '').trim()
-      if (!id) return ''
-      if (nodeIdSet.has(id)) return id
-      const suffix = id.split('::').pop() || ''
-      if (!suffix) return id
-      return nodeIdBySuffix[suffix] || id
+      return graphNodeIdentity.resolveNodeId(raw)
     }
   })()
 
@@ -364,6 +896,20 @@ export async function buildGraphHtmlViewerMarkup(args: {
     }
     const fromSvg = extractNodePosByIdFromSvgMarkup(svgMarkupRaw)
     for (const id of Object.keys(fromSvg)) out[id] = fromSvg[id]!
+    for (let i = 0; i < overlaySeeds.markdownBlocks.length; i += 1) {
+      const b = overlaySeeds.markdownBlocks[i]!
+      const x = Number(b.x)
+      const y = Number(b.y)
+      const w = Number(b.w)
+      const h = Number(b.h)
+      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || !Number.isFinite(h) || !(w > 0) || !(h > 0)) continue
+      const cx = x + w * 0.5
+      const cy = y + h * 0.5
+      const bid = String(b.id || '').trim()
+      if (bid && !out[bid]) out[bid] = { x: cx, y: cy }
+      const anchor = resolveOverlayNodeId(String(b.anchorNodeId || '').trim())
+      if (anchor && !out[anchor]) out[anchor] = { x: cx, y: cy }
+    }
     return out
   })()
   const nodePosByIdJson = JSON.stringify(nodePosByIdObj)
@@ -371,17 +917,60 @@ export async function buildGraphHtmlViewerMarkup(args: {
   const markdownBlocksJson = (() => {
     try {
       const graph = args.graphData
-      if (!graph) return '[]'
+      if (!graph && overlaySeeds.markdownBlocks.length === 0) return '[]'
       const layout = deriveMarkdownDesignLayoutFromGraphBlocks({ graphData: graph, nodePosById: nodePosByIdObj })
       const blocks = layout && Array.isArray(layout.blocks) ? layout.blocks : []
       const nodes = Array.isArray((graph as any)?.nodes) ? ((graph as any).nodes as any[]) : []
       const anchorNodeIdByBlockId = computeMarkdownAnchorNodeIdByBlockId({ layout, nodes })
       const blocksWithAnchor = blocks.map(b => {
         const id = String((b as any)?.id || '').trim()
-        const anchorNodeId = id ? String((anchorNodeIdByBlockId as any)?.[id] || '').trim() : ''
+        const anchorNodeId = id ? resolveOverlayNodeId(String((anchorNodeIdByBlockId as any)?.[id] || '').trim()) : ''
         return anchorNodeId ? ({ ...(b as any), anchorNodeId } as any) : b
       })
-      return JSON.stringify(blocksWithAnchor)
+      const out = [...blocksWithAnchor]
+      const byId = new Map<string, any>()
+      for (let i = 0; i < out.length; i += 1) {
+        const id = String((out[i] as any)?.id || '').trim()
+        if (id) byId.set(id, out[i] as any)
+      }
+      for (let i = 0; i < overlaySeeds.markdownBlocks.length; i += 1) {
+        const seed = overlaySeeds.markdownBlocks[i]!
+        const existing = byId.get(seed.id)
+        if (!existing) {
+          out.push(seed as any)
+          byId.set(seed.id, seed as any)
+          continue
+        }
+        const anchor = resolveOverlayNodeId(String((existing.anchorNodeId || seed.anchorNodeId || '') as string))
+        if (anchor) existing.anchorNodeId = anchor
+        const exW = Number(existing.w)
+        const exH = Number(existing.h)
+        if (!(Number.isFinite(exW) && exW > 0 && Number.isFinite(exH) && exH > 0)) {
+          existing.x = seed.x
+          existing.y = seed.y
+          existing.w = seed.w
+          existing.h = seed.h
+        }
+      }
+      const filtered = out.filter(b =>
+        shouldKeepOverlayLinkedToGraph({
+          nodeId: String((b as any)?.id || ''),
+          anchorNodeId: String((b as any)?.anchorNodeId || ''),
+        }),
+      )
+      const deduped: any[] = []
+      const seen = new Set<string>()
+      for (let i = 0; i < filtered.length; i += 1) {
+        const b = filtered[i] as any
+        const anchor = resolveOverlayNodeId(String((b?.anchorNodeId || b?.anchorId || '') as string))
+        const id = String((b?.id || '') as string).trim()
+        const key = (anchor ? `md:${anchor}` : id ? `md:${id}` : '').trim()
+        if (!key) continue
+        if (seen.has(key)) continue
+        seen.add(key)
+        deduped.push(b)
+      }
+      return JSON.stringify(deduped)
     } catch {
       return '[]'
     }
@@ -462,8 +1051,6 @@ export async function buildGraphHtmlViewerMarkup(args: {
   })
 
   const fontFamily = tryReadCssVar('--kg-font-family', 'ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial')
-
-  const overlayHtml = String(args.overlayHtml || '')
 
   const html = `<!doctype html>
 <html lang="en">
@@ -554,7 +1141,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
       <canvas id="kg-webgl" aria-label="3D canvas" tabindex="-1"></canvas>
       <div id="kg-svgWrap">${svgPlaceholder}</div>
     </div>
-    <div id="kg-overlay">${overlayHtml}</div>
+    <div id="kg-overlay">${overlayHtmlFiltered}</div>
     <div id="kg-hud" data-kg-canvas-wheel-ignore="true" data-kg-canvas-pointer-ignore="true">
       <button class="kg-btn" id="kg-fit" type="button">Fit</button>
       <button class="kg-btn" id="kg-reset" type="button">Reset</button>

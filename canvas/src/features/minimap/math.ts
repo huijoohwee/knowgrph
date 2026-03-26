@@ -19,16 +19,19 @@ export const computeGraphBounds = (nodes: Array<{ x?: number; y?: number }>, pad
   let maxX = -Infinity
   let minY = Infinity
   let maxY = -Infinity
+  let count = 0
   for (let i = 0; i < nodes.length; i++) {
     const n = nodes[i]
-    const x = Number(n.x ?? 0)
-    const y = Number(n.y ?? 0)
+    const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
+    const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+    if (x == null || y == null) continue
+    count += 1
     if (x < minX) minX = x
     if (x > maxX) maxX = x
     if (y < minY) minY = y
     if (y > maxY) maxY = y
   }
-  if (!isFinite(minX) || !isFinite(maxX) || !isFinite(minY) || !isFinite(maxY)) {
+  if (count === 0 || !isFinite(minX) || !isFinite(maxX) || !isFinite(minY) || !isFinite(maxY)) {
     minX = -pad; maxX = pad; minY = -pad; maxY = pad
   }
   const width = Math.max(1, (maxX - minX) || 1)

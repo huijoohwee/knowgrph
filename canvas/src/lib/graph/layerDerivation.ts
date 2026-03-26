@@ -50,57 +50,189 @@ export const filterGraphToFrontmatterMermaid = (data: GraphData): GraphData => {
     return ''
   }
 
-  const pointsToAdj = new Map<string, string[]>()
-  const pointsToIncoming = new Map<string, string[]>()
-  for (const e of allEdges) {
-    if (String(e.label || '') !== 'pointsTo') continue
-    const src = normalizeEndpointId(e.source)
-    const tgt = normalizeEndpointId(e.target)
-    if (!src || !tgt) continue
-    const nextTargets = pointsToAdj.get(src)
-    if (nextTargets) {
-      nextTargets.push(tgt)
-    } else {
-      pointsToAdj.set(src, [tgt])
+  const buildAdj = (label: string) => {
+    const out = new Map<string, string[]>()
+    for (let i = 0; i < allEdges.length; i += 1) {
+      const e = allEdges[i]
+      if (!e) continue
+      if (String(e.label || '') !== label) continue
+      const src = normalizeEndpointId(e.source)
+      const tgt = normalizeEndpointId(e.target)
+      if (!src || !tgt) continue
+      const arr = out.get(src)
+      if (arr) arr.push(tgt)
+      else out.set(src, [tgt])
     }
-    const nextIncoming = pointsToIncoming.get(tgt)
-    if (nextIncoming) {
-      nextIncoming.push(src)
-    } else {
-      pointsToIncoming.set(tgt, [src])
-    }
+    return out
   }
+
+  const pointsToAdj = buildAdj('pointsTo')
+  const hasBlockAdj = buildAdj('hasBlock')
+  const hasItemAdj = buildAdj('hasItem')
+  const hasInternalLinkAdj = buildAdj('hasInternalLink')
+  const linksToAdj = buildAdj('linksTo')
+  const embedsImageAdj = buildAdj('embedsImage')
+  const embedsMediaAdj = buildAdj('embedsMedia')
 
   const included = new Set<string>()
-  const queue: string[] = []
-  for (const id of seedIds) {
-    included.add(id)
-    queue.push(id)
+  const addId = (id: string) => {
+    const nid = String(id || '').trim()
+    if (!nid) return false
+    if (included.has(nid)) return false
+    if (!nodeById.has(nid)) return false
+    included.add(nid)
+    return true
   }
 
+  for (let i = 0; i < seedIds.length; i += 1) addId(seedIds[i] as string)
+
+  const queue: string[] = Array.from(included)
   let qi = 0
   while (qi < queue.length) {
     const cur = queue[qi] as string
     qi += 1
     const next = pointsToAdj.get(cur) || []
-    for (const tgt of next) {
-      if (!included.has(tgt)) {
-        included.add(tgt)
-        queue.push(tgt)
+    for (let i = 0; i < next.length; i += 1) {
+      const tgt = next[i] as string
+      if (addId(tgt)) queue.push(tgt)
+    }
+  }
+
+  const parentQueue = Array.from(included)
+  let parentQi = 0
+  while (parentQi < parentQueue.length) {
+    const id = parentQueue[parentQi] as string
+    parentQi += 1
+    const n = nodeById.get(id)
+    if (!n) continue
+    const props = (n.properties || {}) as Record<string, unknown>
+    const parentId = typeof props['visual:parentId'] === 'string' ? String(props['visual:parentId'] || '').trim() : ''
+    const topParentId = typeof props['visual:topParentId'] === 'string' ? String(props['visual:topParentId'] || '').trim() : ''
+    if (parentId && addId(parentId)) parentQueue.push(parentId)
+    if (topParentId && addId(topParentId)) parentQueue.push(topParentId)
+  }
+
+  const anchorIds = new Set<string>()
+  for (const id of included) {
+    const n = nodeById.get(id)
+    if (!n || n.type !== 'Anchor') continue
+    const props = (n.properties || {}) as Record<string, unknown>
+    const anchorId = typeof props.anchorId === 'string' ? String(props.anchorId || '').trim() : ''
+    if (anchorId) anchorIds.add(anchorId)
+  }
+
+  const sectionIds: string[] = []
+  if (anchorIds.size > 0) {
+    for (let i = 0; i < allNodes.length; i += 1) {
+      const n = allNodes[i]
+      if (!n || n.type !== 'Section') continue
+      const props = (n.properties || {}) as Record<string, unknown>
+      const anchor = typeof props.anchor === 'string' ? String(props.anchor || '').trim() : ''
+      if (!anchor || !anchorIds.has(anchor)) continue
+      const id = String(n.id || '').trim()
+      if (!id) continue
+      if (addId(id)) sectionIds.push(id)
+      else sectionIds.push(id)
+    }
+  }
+
+  const isMermaidSeedType = (type: string) => {
+    if (type === 'MermaidDiagram') return true
+    if (type === 'MermaidNode') return true
+    if (type === 'MermaidSubgraph') return true
+    return false
+  }
+
+  const isPanelRelevantParagraph = (n: { properties?: unknown }) => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    if (props.calloutType === true) return true
+    const text = typeof props.text === 'string' ? props.text.trim() : ''
+    if (text.startsWith('>')) return true
+    if (typeof props.media_kind === 'string' && String(props.media_kind || '').trim()) return true
+    if (typeof props.iframe_url === 'string' && String(props.iframe_url || '').trim()) return true
+    if (typeof props.media_url === 'string' && String(props.media_url || '').trim()) return true
+    if (typeof props.image === 'string' && String(props.image || '').trim()) return true
+    if (typeof props.image_url === 'string' && String(props.image_url || '').trim()) return true
+    return false
+  }
+
+  const includeParagraphContext = (pid: string) => {
+    const targets = hasInternalLinkAdj.get(pid) || []
+    for (let i = 0; i < targets.length; i += 1) {
+      const lid = targets[i] as string
+      if (!addId(lid)) continue
+      const linkTargets = pointsToAdj.get(lid) || []
+      for (let j = 0; j < linkTargets.length; j += 1) {
+        const tid = linkTargets[j] as string
+        if (!addId(tid)) continue
+      }
+    }
+    const links = linksToAdj.get(pid) || []
+    for (let i = 0; i < links.length; i += 1) addId(links[i] as string)
+    const imgs = embedsImageAdj.get(pid) || []
+    for (let i = 0; i < imgs.length; i += 1) addId(imgs[i] as string)
+    const media = embedsMediaAdj.get(pid) || []
+    for (let i = 0; i < media.length; i += 1) addId(media[i] as string)
+  }
+
+  for (let si = 0; si < sectionIds.length; si += 1) {
+    const secId = sectionIds[si] as string
+    const blocks = hasBlockAdj.get(secId) || []
+    for (let i = 0; i < blocks.length; i += 1) {
+      const bid = blocks[i] as string
+      const b = nodeById.get(bid)
+      if (!b) continue
+      const type = String(b.type || '')
+      if (type === 'Table' || type === 'CodeBlock') {
+        addId(bid)
+        continue
+      }
+      if (type === 'Paragraph') {
+        const hasContext =
+          (hasInternalLinkAdj.get(bid) || []).length > 0 ||
+          (linksToAdj.get(bid) || []).length > 0 ||
+          (embedsImageAdj.get(bid) || []).length > 0 ||
+          (embedsMediaAdj.get(bid) || []).length > 0
+        if (!hasContext && !isPanelRelevantParagraph(b)) continue
+        if (addId(bid)) {
+          includeParagraphContext(bid)
+        } else {
+          includeParagraphContext(bid)
+        }
+        continue
+      }
+      if (type === 'List') {
+        const itemIds = hasItemAdj.get(bid) || []
+        let includedAny = false
+        for (let j = 0; j < itemIds.length; j += 1) {
+          const iid = itemIds[j] as string
+          const it = nodeById.get(iid)
+          if (!it) continue
+          const itType = String(it.type || '')
+          if (itType !== 'ListItem') continue
+          const hasContext =
+            (hasInternalLinkAdj.get(iid) || []).length > 0 ||
+            (linksToAdj.get(iid) || []).length > 0 ||
+            (embedsImageAdj.get(iid) || []).length > 0 ||
+            (embedsMediaAdj.get(iid) || []).length > 0
+          if (!hasContext) continue
+          addId(iid)
+          includeParagraphContext(iid)
+          includedAny = true
+        }
+        if (includedAny) addId(bid)
+        continue
       }
     }
   }
 
-  for (const tgt of included) {
-    const incoming = pointsToIncoming.get(tgt) || []
-    for (const src of incoming) {
-      const srcNode = nodeById.get(src)
-      if (!srcNode) continue
-      if (srcNode.type !== 'InternalLink' && srcNode.type !== 'Anchor' && srcNode.type !== 'Paragraph') continue
-      const props = (srcNode.properties || {}) as Record<string, unknown>
-      if (srcNode.type === 'Paragraph' && props.calloutType !== true) continue
-      included.add(src)
-    }
+  const mermaidNodes = Array.from(included)
+  for (let i = 0; i < mermaidNodes.length; i += 1) {
+    const id = mermaidNodes[i] as string
+    const n = nodeById.get(id)
+    if (!n) continue
+    if (!isMermaidSeedType(String(n.type || ''))) continue
+    includeParagraphContext(id)
   }
 
   const nodes = allNodes.filter(n => included.has(String(n.id)))

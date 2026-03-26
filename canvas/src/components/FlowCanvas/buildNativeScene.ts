@@ -16,7 +16,7 @@ import { buildFlowEdgeDisplayLabelFromPorts, readFlowEdgeDisplayLabel } from '@/
 import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
-import { buildBestGroupInfoByNodeId } from '@/lib/canvas/groupZOrder'
+import { buildBestGroupInfoByNodeId, compareGroupsForZOrder } from '@/lib/canvas/groupZOrder'
 import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
 
 export function buildAndSetFlowNativeScene(args: {
@@ -127,7 +127,63 @@ export function buildAndSetFlowNativeScene(args: {
     collapsedGroupIdSet: collapsedSet,
   })
 
-  const bestGroupByNodeId = buildBestGroupInfoByNodeId(sceneGroups)
+  const orderGroupsParentFirst = (input: ReadonlyArray<GraphGroup>): GraphGroup[] => {
+    const base = input.slice().sort(compareGroupsForZOrder)
+    if (base.length < 2) return base
+    const byId = new Map<string, GraphGroup>()
+    for (let i = 0; i < base.length; i += 1) byId.set(base[i]!.id, base[i]!)
+
+    const childIdsByParentId = new Map<string, string[]>()
+    for (let i = 0; i < base.length; i += 1) {
+      const g = base[i]!
+      const pid = typeof g.parentGroupId === 'string' ? g.parentGroupId.trim() : ''
+      if (!pid) continue
+      if (!byId.has(pid)) continue
+      const arr = childIdsByParentId.get(pid) || []
+      arr.push(g.id)
+      childIdsByParentId.set(pid, arr)
+    }
+
+    const indexById = new Map<string, number>()
+    for (let i = 0; i < base.length; i += 1) indexById.set(base[i]!.id, i)
+    childIdsByParentId.forEach(ids => {
+      ids.sort((a, b) => (indexById.get(a) ?? 0) - (indexById.get(b) ?? 0))
+    })
+
+    const out: GraphGroup[] = []
+    const temp = new Set<string>()
+    const perm = new Set<string>()
+    let sawCycle = false
+    const visit = (id: string) => {
+      if (perm.has(id)) return
+      if (temp.has(id)) {
+        sawCycle = true
+        return
+      }
+      temp.add(id)
+      const g = byId.get(id)
+      if (g) out.push(g)
+      const children = childIdsByParentId.get(id) || []
+      for (let i = 0; i < children.length; i += 1) visit(children[i]!)
+      temp.delete(id)
+      perm.add(id)
+    }
+
+    for (let i = 0; i < base.length; i += 1) {
+      const id = base[i]!.id
+      const pid = typeof base[i]!.parentGroupId === 'string' ? base[i]!.parentGroupId.trim() : ''
+      if (pid && byId.has(pid)) continue
+      visit(id)
+    }
+    for (let i = 0; i < base.length; i += 1) visit(base[i]!.id)
+
+    if (sawCycle || out.length !== base.length) return base
+    return out
+  }
+
+  const orderedGroups = orderGroupsParentFirst(sceneGroups)
+
+  const bestGroupByNodeId = buildBestGroupInfoByNodeId(orderedGroups)
   for (let i = 0; i < nodeList.length; i += 1) {
     const n = nodeList[i]
     const id = String(n?.id || '').trim()
@@ -306,6 +362,10 @@ export function buildAndSetFlowNativeScene(args: {
   })
 
   const edges: NonNullable<FlowNativeScene['edges']> = []
+  const nodeHasParentLikeGroup = (nodeId: string): boolean => {
+    const best = bestGroupByNodeId.get(nodeId) || null
+    return !!best && best.depth >= 0
+  }
   for (let i = 0; i < edgeList.length; i += 1) {
     const e = edgeList[i] as { id?: unknown; source?: unknown; target?: unknown; properties?: unknown }
     const edgeId = String(e?.id || '').trim()
@@ -375,6 +435,9 @@ export function buildAndSetFlowNativeScene(args: {
     })()
     const labelX = visual && typeof visual['visual:labelX'] === 'number' && Number.isFinite(visual['visual:labelX'] as number) ? (visual['visual:labelX'] as number) : null
     const labelY = visual && typeof visual['visual:labelY'] === 'number' && Number.isFinite(visual['visual:labelY'] as number) ? (visual['visual:labelY'] as number) : null
+    const sourceHasParent = nodeHasParentLikeGroup(source)
+    const targetHasParent = nodeHasParentLikeGroup(target)
+    const drawAboveNodes = sourceHasParent || targetHasParent
 
     edges.push({
       id: edgeId,
@@ -390,19 +453,21 @@ export function buildAndSetFlowNativeScene(args: {
       ...(svgArrowD ? { svgArrowD } : {}),
       ...((svgPathTx || svgPathTy) && svgPathD ? { svgPathTx, svgPathTy } : {}),
       ...(labelX != null && labelY != null ? { labelX, labelY } : {}),
+      ...(drawAboveNodes ? { drawAboveNodes: true } : {}),
     })
   }
 
-  if (context === 'frontmatter-mermaid') {
-    edges.sort((a, b) => {
-      const az = typeof (a as unknown as { zIndex?: unknown }).zIndex === 'number' ? ((a as unknown as { zIndex: number }).zIndex) : 0
-      const bz = typeof (b as unknown as { zIndex?: unknown }).zIndex === 'number' ? ((b as unknown as { zIndex: number }).zIndex) : 0
-      if (az !== bz) return az - bz
-      return a.id.localeCompare(b.id)
-    })
-  }
+  edges.sort((a, b) => {
+    const ao = (a as unknown as { drawAboveNodes?: unknown }).drawAboveNodes === true ? 1 : 0
+    const bo = (b as unknown as { drawAboveNodes?: unknown }).drawAboveNodes === true ? 1 : 0
+    if (ao !== bo) return ao - bo
+    const az = typeof (a as unknown as { zIndex?: unknown }).zIndex === 'number' ? ((a as unknown as { zIndex: number }).zIndex) : 0
+    const bz = typeof (b as unknown as { zIndex?: unknown }).zIndex === 'number' ? ((b as unknown as { zIndex: number }).zIndex) : 0
+    if (az !== bz) return az - bz
+    return a.id.localeCompare(b.id)
+  })
 
-  const groups = sceneGroups
+  const groups = orderedGroups
   const groupIdsByNodeId = (() => {
     if (!groups || groups.length === 0) return new Map<string, string[]>()
     const m = new Map<string, string[]>()

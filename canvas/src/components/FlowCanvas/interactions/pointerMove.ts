@@ -1,7 +1,7 @@
 import * as d3 from 'd3'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { requestFlowNativeDraw, setFlowNativeTransform } from '@/components/FlowCanvas/nativeRuntime'
+import { computeFlowGroupAabb, hitTestGroup, requestFlowNativeDraw, setFlowNativeTransform } from '@/components/FlowCanvas/nativeRuntime'
 import { unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { readCanvasLocalPoint } from '@/lib/canvas/canvas-event-coords'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
@@ -12,6 +12,8 @@ import { readZoomSpeed, clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpe
 import { clampFlowWheelZoomIncrementMultiplier, clampFlowWheelZoomSpeedMultiplier } from '@/lib/canvas/flow-zoom-tuning'
 import { clampFlowDelta, clampFlowNodeTopLeft } from '@/components/FlowCanvas/groupContainment'
 import { readSnapGridConfigFromSchema, snapDeltaToGridByAnchor, snapScalarToGrid } from '@/lib/canvas/gridSnap'
+import { computeGroupResizeBottomRight } from '@/lib/canvas/groupResizeMath2d'
+import { applyGroupResizeDragSensitivity, computeDynamicGroupResizeHandlePx, pxToWorld } from '@/lib/canvas/groupResizeHandleConfig'
 
 import type { FlowNativeInteractionsContext } from '@/components/FlowCanvas/interactions/context'
 
@@ -20,10 +22,72 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
   const runtime = ctx.runtime
 
   return (e: PointerEvent) => {
+    const setCursor = (value: string) => {
+      if (canvasEl.style.cursor !== value) canvasEl.style.cursor = value
+    }
     const drag = ctx.args.dragRef.current
     const local = readCanvasLocalPoint({ canvasEl, event: e })
     if (local && local.inBounds) ctx.args.lastPointerInCanvasRef.current = { sx: local.sx, sy: local.sy, ts: Date.now() }
-    if (!drag) return
+    if (!drag) {
+      if (!local || !local.inBounds) {
+        setCursor('default')
+        return
+      }
+      const sx = local.sx
+      const sy = local.sy
+      const groupId = hitTestGroup(runtime, { sx, sy })
+      if (!groupId) {
+        setCursor('default')
+        return
+      }
+      const scene = runtime.scene
+      const group = scene?.groups?.find(g => String(g.id || '').trim() === String(groupId || '').trim()) || null
+      if (!scene || !group) {
+        setCursor('default')
+        return
+      }
+      const gCfg = runtime.presentation.groups
+      const aabb = computeFlowGroupAabb({
+        scene,
+        group,
+        paddingPx: Math.max(0, gCfg.paddingPx),
+        labelTopExtraPx: Math.max(0, gCfg.labelTopExtraPx),
+      })
+      if (!aabb) {
+        setCursor('default')
+        return
+      }
+      const t0 = runtime.transform || d3.zoomIdentity
+      const wx = (sx - t0.x) / t0.k
+      const wy = (sy - t0.y) / t0.k
+      const rh = runtime.presentation.groups.resizeHandle
+      if (rh) {
+        const s = computeDynamicGroupResizeHandlePx({
+          dotRadiusPx: rh.dotRadiusPx,
+          hitRadiusPx: rh.hitRadiusPx,
+          strokeWidthPx: rh.strokeWidthPx,
+          groupWidth: Math.max(1, aabb.maxX - aabb.minX),
+          groupHeight: Math.max(1, aabb.maxY - aabb.minY),
+        })
+        const hw = pxToWorld(s.hitRadiusPx, t0.k)
+        const inHandle = wx >= aabb.maxX - hw && wx <= aabb.maxX + hw && wy >= aabb.maxY - hw && wy <= aabb.maxY + hw
+        if (inHandle) {
+          setCursor('nwse-resize')
+          return
+        }
+      }
+      const headerHeightPxRaw = Math.max(
+        16,
+        runtime.presentation.labels.groupFontSizePx + 10,
+        runtime.presentation.groups.labelTopExtraPx + 8,
+      )
+      const headerHeightWorld = pxToWorld(headerHeightPxRaw, t0.k)
+      const maxHeaderWorld = Math.max(1, (aabb.maxY - aabb.minY) * 0.45)
+      const headerH = Math.min(headerHeightWorld, maxHeaderWorld)
+      const inHeader = wx >= aabb.minX && wx <= aabb.maxX && wy >= aabb.minY && wy <= aabb.minY + headerH
+      setCursor(inHeader ? 'grab' : 'default')
+      return
+    }
 
     if (e.pointerType !== 'touch' && e.buttons === 0) {
       if (ctx.args.userSelectLockPointerIdRef.current === e.pointerId) {
@@ -49,6 +113,10 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
     } else {
       if (drag.pointerId !== e.pointerId) return
     }
+
+    if (drag.type === 'group') setCursor('grabbing')
+    else if (drag.type === 'groupResize') setCursor('nwse-resize')
+    else setCursor('default')
 
     if (!local) return
     const sx = local.sx
@@ -76,21 +144,31 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
       const t0 = runtime.transform || d3.zoomIdentity
       const wx = (sx - t0.x) / t0.k
       const wy = (sy - t0.y) / t0.k
-      const dx = wx - drag.startWorldX
-      const dy = wy - drag.startWorldY
       const scene = runtime.scene
       if (!scene || !scene.groups) return
       const group = scene.groups.find(g => String(g.id || '').trim() === String(drag.groupId || '').trim()) || null
       if (!group) return
       const minW = typeof drag.minWidth === 'number' && Number.isFinite(drag.minWidth) ? drag.minWidth : 24
       const minH = typeof drag.minHeight === 'number' && Number.isFinite(drag.minHeight) ? drag.minHeight : 24
-      const rawW = Math.max(minW, drag.startBounds.width + dx)
-      const rawH = Math.max(minH, drag.startBounds.height + dy)
       const snapGrid = readSnapGridConfigFromSchema(useGraphStore.getState().schema)
-      const allowSnap = snapGrid.enabled && e.altKey !== true
-      const nextW = allowSnap ? Math.max(minW, snapScalarToGrid(rawW, snapGrid.size)) : rawW
-      const nextH = allowSnap ? Math.max(minH, snapScalarToGrid(rawH, snapGrid.size)) : rawH
-      ;(group as unknown as { bounds?: unknown }).bounds = { x: drag.startBounds.x, y: drag.startBounds.y, width: nextW, height: nextH }
+      const dragCfg = runtime.presentation.groups.resizeHandle || null
+      const adjustedWorld = applyGroupResizeDragSensitivity({
+        startWorld: { x: drag.startWorldX, y: drag.startWorldY },
+        world: { x: wx, y: wy },
+        zoomK: t0.k,
+        dragSensitivity: dragCfg && Number.isFinite(dragCfg.dragSensitivity) ? dragCfg.dragSensitivity : 0.72,
+        dragDeadzonePx: dragCfg && Number.isFinite(dragCfg.dragDeadzonePx) ? dragCfg.dragDeadzonePx : 3,
+      })
+      const next = computeGroupResizeBottomRight({
+        startBounds: { x: drag.startBounds.x, y: drag.startBounds.y, w: drag.startBounds.width, h: drag.startBounds.height },
+        startWorld: { x: drag.startWorldX, y: drag.startWorldY },
+        world: adjustedWorld,
+        minW,
+        minH,
+        snapGrid,
+        altDown: e.altKey === true,
+      })
+      ;(group as unknown as { bounds?: unknown }).bounds = { x: next.x, y: next.y, width: next.w, height: next.h }
       runtime.dirty = true
       requestFlowNativeDraw(runtime, ctx.args.buildDrawArgs())
       ctx.args.onInteractionFrame?.()
@@ -272,4 +350,3 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
     }
   }
 }
-

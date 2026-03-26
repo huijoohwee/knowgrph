@@ -1,9 +1,9 @@
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
-import { getPortHandlesConfig, type PortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig'
+import { getPortHandlesConfig, computeDynamicNodePortHandlePx, readNodePortHandleVisualMetrics, shouldRenderNodePortHandleAsDot, type PortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig'
 
-export { getPortHandlesConfig, type PortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig'
+export { getPortHandlesConfig, computeDynamicNodePortHandlePx, readNodePortHandleVisualMetrics, shouldRenderNodePortHandleAsDot, type PortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig'
 
 export type PortHandleSide = 'left' | 'right' | 'top' | 'bottom'
 

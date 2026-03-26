@@ -176,9 +176,6 @@ export function computeZoomTransformFromRequest(
   ctx: ZoomComputeContext,
 ): ZoomComputeResult {
   const type = zoomRequest.type
-  const pinned = ctx.pinned
-  if (pinned && type !== 'in' && type !== 'out') return null
-  if (pinned && type === 'selection') return null
 
   const graphData = ctx.graphData
   const w = Math.max(1, Math.floor(ctx.viewportW))
@@ -347,7 +344,6 @@ export function computeZoomTransformFromRequest(
   }
 
   if (type === 'bounds') {
-    if (pinned) return null
     const p = (zoomRequest as Extract<ZoomRequest, { type: 'bounds' }>).payload
     if (!p || !p.bounds) return null
     return {

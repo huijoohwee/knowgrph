@@ -15,10 +15,18 @@ export function applyAabbContainmentPush(args: {
   const pushZRaw = args.pushZ
   const pushZ = typeof pushZRaw === 'number' && Number.isFinite(pushZRaw) ? pushZRaw : 0
 
+  const maxVelDelta = 140
+  const clampAbs = (v: number, maxAbs: number): number => {
+    if (!Number.isFinite(v)) return 0
+    const a = Math.abs(v)
+    if (a <= maxAbs) return v
+    return v < 0 ? -maxAbs : maxAbs
+  }
+
   const count = movableIdxs.length
-  const dx = (Number.isFinite(pushX) ? pushX : 0) * k / count
-  const dy = (Number.isFinite(pushY) ? pushY : 0) * k / count
-  const dz = pushZ * k / count
+  const dx = clampAbs(((Number.isFinite(pushX) ? pushX : 0) * k) / count, maxVelDelta)
+  const dy = clampAbs(((Number.isFinite(pushY) ? pushY : 0) * k) / count, maxVelDelta)
+  const dz = clampAbs((pushZ * k) / count, maxVelDelta)
   if (dx === 0 && dy === 0 && dz === 0) return
 
   for (let i = 0; i < movableIdxs.length; i += 1) {

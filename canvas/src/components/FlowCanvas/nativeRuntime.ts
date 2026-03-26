@@ -11,7 +11,8 @@ import { estimateLabelCharWidthPx, estimateMaxCharsForWidthPx, truncateTextWithE
 import { getKgTokenFallback, getKgThemeFromDom, resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
 import { readCanvasGridStrokeFallbacks } from '@/lib/canvas/canvasGridPaint'
 import { screenToWorld as screenToWorldViewport } from '@/lib/zoom/viewport'
-import { pxToWorld, readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfig'
+import { computeDynamicGroupResizeHandlePx, pxToWorld, readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfig'
+import { computeDynamicNodePortHandlePx, computeZoomScaledPortHandlePx, shouldRenderNodePortHandleAsDot } from '@/components/GraphCanvas/portHandlesConfig'
 import { drawInfiniteGridInWorldContext } from '@/lib/canvas/infiniteGrid'
 
 export type FlowNativeNodeShape = 'circle' | 'rect' | 'diamond' | 'hex'
@@ -52,6 +53,7 @@ export type FlowNativeEdge = {
   svgPathTy?: number
   labelX?: number
   labelY?: number
+  drawAboveNodes?: boolean
 }
 
 export type FlowNativeScene = {
@@ -78,6 +80,14 @@ export type FlowNativeGroupsPresentation = {
   cornerRadiusPx: number
   strokeWidthPx: number
   fillOpacity: number
+  resizeHandle?: {
+    dotRadiusPx: number
+    hitRadiusPx: number
+    strokeWidthPx: number
+    minBoundsSizePx: number
+    dragSensitivity: number
+    dragDeadzonePx: number
+  }
   depthStyle: {
     enabled: boolean
     outerMaxBoostSteps: number
@@ -346,6 +356,34 @@ export const computeFlowGroupAabb = (args: {
 
   if (!explicitAabb) return computed
   if (!computed) return explicitAabb
+
+  let minX0 = Infinity
+  let minY0 = Infinity
+  let maxX0 = -Infinity
+  let maxY0 = -Infinity
+  for (let j = 0; j < memberIds.length; j += 1) {
+    const id = String(memberIds[j] || '').trim()
+    if (!id) continue
+    const n = args.scene.nodeById.get(id)
+    if (!n) continue
+    minX0 = Math.min(minX0, n.x)
+    minY0 = Math.min(minY0, n.y)
+    maxX0 = Math.max(maxX0, n.x + n.width)
+    maxY0 = Math.max(maxY0, n.y + n.height)
+  }
+  const eps = Math.max(2, Math.min(12, Math.floor(padding * 0.25)))
+  const nodesInsideExplicit =
+    Number.isFinite(minX0) &&
+    Number.isFinite(minY0) &&
+    Number.isFinite(maxX0) &&
+    Number.isFinite(maxY0) &&
+    minX0 >= explicitAabb.minX + eps &&
+    minY0 >= explicitAabb.minY + eps &&
+    maxX0 <= explicitAabb.maxX - eps &&
+    maxY0 <= explicitAabb.maxY - eps
+
+  if (nodesInsideExplicit) return explicitAabb
+
   return {
     minX: Math.min(explicitAabb.minX, computed.minX),
     minY: Math.min(explicitAabb.minY, computed.minY),
@@ -587,9 +625,22 @@ const drawPortHandles = (rt: FlowNativeRuntime, n: FlowNativeNode) => {
   ctx.save()
   ctx.globalAlpha = Math.max(0, Math.min(1, ctx.globalAlpha * nodeOpacity))
   const k = rt.transform.k || 1
-  const rScreen = Math.max(4, cfg.sizePx)
-  const offsetScreen = Math.max(0, cfg.offsetPx)
-  const strokeWScreenDefault = Math.max(1, cfg.strokeWidthPx)
+  const nodeScaledBase = computeDynamicNodePortHandlePx({
+    sizePx: cfg.sizePx,
+    strokeWidthPx: cfg.strokeWidthPx,
+    offsetPx: cfg.offsetPx,
+    nodeWidth: n.width,
+    nodeHeight: n.height,
+  })
+  const nodeScaled = computeZoomScaledPortHandlePx({
+    sizePx: nodeScaledBase.sizePx,
+    strokeWidthPx: nodeScaledBase.strokeWidthPx,
+    offsetPx: nodeScaledBase.offsetPx,
+    zoomK: k,
+  })
+  const rScreen = Math.max(0.8, nodeScaled.sizePx)
+  const offsetScreen = Math.max(0, nodeScaled.offsetPx)
+  const strokeWScreenDefault = Math.max(0.5, nodeScaled.strokeWidthPx)
   const r = rScreen / k
   const offset = offsetScreen / k
 
@@ -603,11 +654,16 @@ const drawPortHandles = (rt: FlowNativeRuntime, n: FlowNativeNode) => {
   const outHandles = n.handles?.out || []
 
   const drawCircle = (x: number, y: number, handleId: FlowHandleId) => {
+    const renderDot = shouldRenderNodePortHandleAsDot(rScreen)
+    const fallbackKey = parseFlowHandleKey(handleId)
+    const byId = (handleColorById && handleColorById[handleId]) || ''
+    const byPortKey = (handleColorById && (handleColorById as unknown as Record<string, string | undefined>)[fallbackKey]) || ''
+    const strokeColor = byId || byPortKey || defaultStroke
     ctx.beginPath()
     ctx.arc(x, y, r, 0, Math.PI * 2)
-    ctx.fillStyle = fill
+    ctx.fillStyle = renderDot ? strokeColor : fill
     ctx.fill()
-    const fallbackKey = parseFlowHandleKey(handleId)
+    if (renderDot) return
     const strokeWScreen = (() => {
       const byId = handleStrokeWidthById && handleStrokeWidthById[handleId]
       const byPortKey = handleStrokeWidthById && (handleStrokeWidthById as unknown as Record<string, number | undefined>)[fallbackKey]
@@ -615,9 +671,7 @@ const drawPortHandles = (rt: FlowNativeRuntime, n: FlowNativeNode) => {
       return raw != null ? Math.max(1, Math.min(12, raw)) : strokeWScreenDefault
     })()
     ctx.lineWidth = strokeWScreen / k
-    const byId = (handleColorById && handleColorById[handleId]) || ''
-    const byPortKey = (handleColorById && (handleColorById as unknown as Record<string, string | undefined>)[fallbackKey]) || ''
-    ctx.strokeStyle = byId || byPortKey || defaultStroke
+    ctx.strokeStyle = strokeColor
     ctx.stroke()
   }
 
@@ -1154,9 +1208,18 @@ const drawGroupResizeHandleOverlay = (rt: FlowNativeRuntime, args: { groupAabbBy
   if (!aabb) return
   const ctx = rt.ctx
   const k = typeof rt.transform?.k === 'number' && Number.isFinite(rt.transform.k) && rt.transform.k > 0 ? rt.transform.k : 1
-  const cfg = readGroupResizeHandleConfig(null)
-  const rWorld = pxToWorld(cfg.dotRadiusPx, k)
-  const strokeWorld = pxToWorld(cfg.strokeWidthPx, k)
+  const cfg = rt.presentation.groups.resizeHandle || readGroupResizeHandleConfig(null)
+  const w = Math.max(1, aabb.maxX - aabb.minX)
+  const h = Math.max(1, aabb.maxY - aabb.minY)
+  const effective = computeDynamicGroupResizeHandlePx({
+    dotRadiusPx: cfg.dotRadiusPx,
+    hitRadiusPx: cfg.hitRadiusPx,
+    strokeWidthPx: cfg.strokeWidthPx,
+    groupWidth: w,
+    groupHeight: h,
+  })
+  const rWorld = pxToWorld(effective.dotRadiusPx, k)
+  const strokeWorld = pxToWorld(effective.strokeWidthPx, k)
   const cx = aabb.maxX
   const cy = aabb.maxY
   ctx.save()
@@ -1273,14 +1336,27 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
 
   if (renderGroups) drawGroups(rt, groupAabbById)
 
+  const normalEdges: FlowNativeEdge[] = []
+  const overlayEdges: FlowNativeEdge[] = []
   if (renderEdges) {
+    for (let i = 0; i < scene.edges.length; i += 1) {
+      const e = scene.edges[i]
+      if ((e as unknown as { drawAboveNodes?: unknown }).drawAboveNodes === true) overlayEdges.push(e)
+      else normalEdges.push(e)
+    }
+  }
+
+  const routingObstacles = (() => {
+    if (!renderEdges) return null
     const routingCfg = rt.presentation.edges.routing
     const useOrtho = routingCfg.enabled && routingCfg.mode === 'ortho'
     const useObstacles = useOrtho && routingCfg.obstacleAvoidance
-    const routingObstacles = useObstacles ? buildRoutingObstacles(rt, scene, groupAabbById) : null
+    return useObstacles ? buildRoutingObstacles(rt, scene, groupAabbById) : null
+  })()
 
-    for (let i = 0; i < scene.edges.length; i += 1) {
-      const e = scene.edges[i]
+  if (renderEdges) {
+    for (let i = 0; i < normalEdges.length; i += 1) {
+      const e = normalEdges[i]
       const s = scene.nodeById.get(e.source)
       const t = scene.nodeById.get(e.target)
       if (!s || !t) continue
@@ -1288,7 +1364,6 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
     }
 
     fadeEdgesUnderGeometry(rt, groupAabbById)
-    drawEdgeLabels(rt, { selectedEdgeIds, routingObstacles, groupAabbById })
   }
 
   if (renderNodes) {
@@ -1301,6 +1376,17 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
       drawNode(rt, n, { selected: selectedNodeIds.has(n.id) })
       if (!hiddenPortHandleNodeIds.has(n.id)) drawPortHandles(rt, n)
     }
+  }
+
+  if (renderEdges) {
+    for (let i = 0; i < overlayEdges.length; i += 1) {
+      const e = overlayEdges[i]
+      const s = scene.nodeById.get(e.source)
+      const t = scene.nodeById.get(e.target)
+      if (!s || !t) continue
+      drawEdge(rt, e, { selected: selectedEdgeIds.has(e.id), source: s, target: t, routingObstacles })
+    }
+    drawEdgeLabels(rt, { selectedEdgeIds, routingObstacles, groupAabbById })
   }
 
   if (selectedGroupId) drawGroupResizeHandleOverlay(rt, { groupAabbById, selectedGroupId, enabled: showGroupResizeHandle })

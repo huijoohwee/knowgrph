@@ -70,11 +70,43 @@ function spreadOutIfTooTight(nodes: GraphNode[], positions: PositionMap): Positi
   const height = bbox.maxY - bbox.minY
   if (!(width >= 0) || !(height >= 0)) return positions
   if (bbox.valid < 4) return positions
+
+  const bucketCellPx = 36
+  const bucketCountInfo = (() => {
+    let inBuckets = 0
+    let maxBucket = 0
+    const byBucket = new Map<string, string[]>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const id = String(nodes[i].id)
+      if (!id) continue
+      const p = positions[id]
+      if (!p) continue
+      const x = p.x
+      const y = p.y
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+      const bx = Math.round(x / bucketCellPx)
+      const by = Math.round(y / bucketCellPx)
+      const key = `${bx}|${by}`
+      const arr = byBucket.get(key) || []
+      arr.push(id)
+      byBucket.set(key, arr)
+    }
+    byBucket.forEach(arr => {
+      if (arr.length > 1) inBuckets += arr.length
+      if (arr.length > maxBucket) maxBucket = arr.length
+    })
+    return { byBucket, inBuckets, maxBucket }
+  })()
+
+  const duplicateRatio = bucketCountInfo.inBuckets / Math.max(1, bbox.valid)
+  const hasMeaningfulDuplicates = bucketCountInfo.maxBucket >= 4 || duplicateRatio >= 0.14
+
   const minDim = Math.max(80, Math.floor(Math.sqrt(bbox.valid) * 60))
   const base = Math.max(1, Math.max(width, height))
-  if (base >= minDim) return positions
+  const needsScaleUp = base < minDim
+  if (!needsScaleUp && !hasMeaningfulDuplicates) return positions
 
-  const scale = Math.max(1, Math.min(8, minDim / base))
+  const scale = needsScaleUp ? Math.max(1, Math.min(8, minDim / base)) : 1
   let cx = 0
   let cy = 0
   let count = 0
@@ -99,6 +131,34 @@ function spreadOutIfTooTight(nodes: GraphNode[], positions: PositionMap): Positi
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue
     out[id] = { x: cx + (x - cx) * scale, y: cy + (y - cy) * scale }
   }
+
+  if (hasMeaningfulDuplicates) {
+    const hash01 = (s: string): number => {
+      let h = 2166136261
+      for (let i = 0; i < s.length; i += 1) {
+        h ^= s.charCodeAt(i)
+        h = Math.imul(h, 16777619)
+      }
+      return (h >>> 0) / 4294967296
+    }
+    const golden = 2.399963229728653
+    const jitterBase = Math.max(12, Math.min(64, Math.floor(bucketCellPx * 0.62)))
+
+    bucketCountInfo.byBucket.forEach((ids) => {
+      if (ids.length <= 1) return
+      const sorted = [...ids].sort((a, b) => a.localeCompare(b))
+      for (let i = 0; i < sorted.length; i += 1) {
+        const id = sorted[i]!
+        const p = out[id]
+        if (!p) continue
+        const a = i * golden + hash01(id) * Math.PI * 2
+        const ring = Math.floor(i / 10)
+        const r = jitterBase * (0.55 + ring * 0.38)
+        out[id] = { x: p.x + Math.cos(a) * r, y: p.y + Math.sin(a) * r }
+      }
+    })
+  }
+
   return out
 }
 
@@ -182,6 +242,30 @@ export const determineLayoutPositions = ({
     const spreadX = maxX - minX
     const spreadY = maxY - minY
     if (valid >= 4 && spreadX < 40 && spreadY < 40) return false
+
+    const cell = 36
+    let inBuckets = 0
+    let maxBucket = 0
+    const buckets = new Map<string, number>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const x = typeof n.x === 'number' ? n.x : null
+      const y = typeof n.y === 'number' ? n.y : null
+      if (x == null || y == null) continue
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+      const bx = Math.round(x / cell)
+      const by = Math.round(y / cell)
+      const key = `${bx}|${by}`
+      const next = (buckets.get(key) || 0) + 1
+      buckets.set(key, next)
+      if (next > maxBucket) maxBucket = next
+    }
+    buckets.forEach(v => {
+      if (v > 1) inBuckets += v
+    })
+    const dupRatio = inBuckets / Math.max(1, valid)
+    if (maxBucket >= 4 || dupRatio >= 0.14) return false
+
     return spreadX > 0.001 || spreadY > 0.001
   })()
 
@@ -247,6 +331,31 @@ export const determineLayoutPositions = ({
     const spreadX = maxX - minX
     const spreadY = maxY - minY
     if (valid >= 4 && spreadX < 40 && spreadY < 40) return false
+
+    const cell = 36
+    let inBuckets = 0
+    let maxBucket = 0
+    const buckets = new Map<string, number>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const p = cachedPositions[String(nodes[i].id)]
+      if (!p) continue
+      const x = typeof p.x === 'number' ? p.x : null
+      const y = typeof p.y === 'number' ? p.y : null
+      if (x == null || y == null) continue
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+      const bx = Math.round(x / cell)
+      const by = Math.round(y / cell)
+      const key = `${bx}|${by}`
+      const next = (buckets.get(key) || 0) + 1
+      buckets.set(key, next)
+      if (next > maxBucket) maxBucket = next
+    }
+    buckets.forEach(v => {
+      if (v > 1) inBuckets += v
+    })
+    const dupRatio = inBuckets / Math.max(1, valid)
+    if (maxBucket >= 4 || dupRatio >= 0.14) return false
+
     return spreadX > 0.001 || spreadY > 0.001
   })()
 
@@ -306,6 +415,28 @@ export const determineLayoutPositions = ({
       const spreadX = maxX - minX
       const spreadY = maxY - minY
       if (valid >= 4 && spreadX < 40 && spreadY < 40) return false
+
+      const cell = 36
+      let inBuckets = 0
+      let maxBucket = 0
+      const buckets = new Map<string, number>()
+      for (let i = 0; i < nodes.length; i += 1) {
+        const pos = p[String(nodes[i].id)]
+        if (!pos) continue
+        if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y)) continue
+        const bx = Math.round(pos.x / cell)
+        const by = Math.round(pos.y / cell)
+        const key = `${bx}|${by}`
+        const next = (buckets.get(key) || 0) + 1
+        buckets.set(key, next)
+        if (next > maxBucket) maxBucket = next
+      }
+      buckets.forEach(v => {
+        if (v > 1) inBuckets += v
+      })
+      const dupRatio = inBuckets / Math.max(1, valid)
+      if (maxBucket >= 4 || dupRatio >= 0.14) return false
+
       return spreadX > 0.001 || spreadY > 0.001
     })()
     return quality ? p : spreadOutIfTooTight(nodes, p)

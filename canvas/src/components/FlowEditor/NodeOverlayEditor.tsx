@@ -441,7 +441,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     })
     const port = schemaRef.current?.behavior?.portHandles || null
     const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled) || String(graphMetaKind || '').trim() === 'frontmatter-flow'
-    const portMetrics = readPortHandleUiMetrics(schemaRef.current || null)
+    const portMetrics = readPortHandleUiMetrics(schemaRef.current || null, { zoomK })
     const portExtraPadScreenPx = portEnabled ? Math.max(0, portMetrics.railWidthPx + 8) : 0
     const anchoredLeftPx = screenX + DEFAULT_FLOW_NODE_WIDTH_PX * zoomK + 16 + portExtraPadScreenPx
     const anchoredTopPx = screenY - 12

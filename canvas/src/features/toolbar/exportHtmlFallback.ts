@@ -19,6 +19,7 @@ import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/mark
 import { deriveMarkdownDesignLayout, deriveMarkdownDesignLayoutFromGraphBlocks } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { computeMarkdownAnchorNodeIdByBlockId } from '@/lib/render/markdownPanelOverlayPool'
 import { injectMarkdownDesignBlocksIntoSvgEl } from '@/lib/graph/htmlViewer/markdownDesignSvgOverlay'
+import { normalizeWorkspacePath, workspaceStem } from '@/features/workspace-fs/path'
 
 function normalizeCapturedSvgForHtmlEmbed(raw: string): string {
   const s = String(raw || '').trim()
@@ -78,6 +79,28 @@ function extractCapturedViewportTransform(raw: string): { k: number; x: number; 
 }
 
 const deriveExportBaseName = async (): Promise<string> => {
+  try {
+    const store = useGraphStore.getState()
+    const rawDocName = String((store as unknown as { markdownDocumentName?: unknown }).markdownDocumentName || '').trim()
+    if (rawDocName) {
+      const withoutFragment = rawDocName.split('#')[0] || rawDocName
+      const stem = workspaceStem(normalizeWorkspacePath(withoutFragment))
+      const safeStem = String(stem || '').trim()
+        .replace(/\\/g, '/')
+        .replace(/\s+/g, ' ')
+        .replace(/\.+\//g, '')
+        .replace(/\//g, '-')
+        .replace(/\.{2,}/g, '.')
+        .replace(/[^a-zA-Z0-9._-]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/\.+$/g, '')
+        .replace(/^\.+/g, '')
+        .trim()
+      if (safeStem) return safeStem
+    }
+  } catch {
+    void 0
+  }
   try {
     const { verifyWorkflowPresetStorage } = (await import('@/features/parsers/workflowPresets')) as typeof import(
       '@/features/parsers/workflowPresets'

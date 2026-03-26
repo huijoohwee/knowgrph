@@ -4,7 +4,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults, parseFlowHandleKey, type FlowHandleDir, type FlowHandleId } from '@/components/FlowCanvas/handles'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
-import { getPortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig'
+import { readNodePortHandleVisualMetrics } from '@/components/GraphCanvas/portHandlesConfig'
 
 export type FlowPortHandleDatum2d = {
   nodeId: string
@@ -49,12 +49,16 @@ export function getFlowPortHandlePosition2d(args: {
   const node = args.node
   const schema = args.schema
   const d = args.datum
-  const cfg = getPortHandlesConfig(schema)
   const x0 = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : 0
   const y0 = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : 0
   const { halfW, halfH } = getNodeHalfExtents2d(node, schema)
+  const dynamic = readNodePortHandleVisualMetrics({
+    schema,
+    nodeWidth: halfW * 2,
+    nodeHeight: halfH * 2,
+  })
   const clampedPct = Math.max(0, Math.min(100, Number.isFinite(d.topPct) ? d.topPct : 50))
   const y = y0 - halfH + (clampedPct / 100) * (2 * halfH)
-  const sideX = d.dir === 'in' ? x0 - halfW - cfg.offset : x0 + halfW + cfg.offset
+  const sideX = d.dir === 'in' ? x0 - halfW - dynamic.offsetPx : x0 + halfW + dynamic.offsetPx
   return { x: sideX, y }
 }

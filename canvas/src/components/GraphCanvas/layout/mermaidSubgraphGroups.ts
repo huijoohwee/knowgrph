@@ -131,13 +131,25 @@ export const deriveMermaidSubgraphGroups = (data: GraphData): MermaidSubgraphGro
     }
     const xIndex = readNumberProp(props, 'visual:xIndex')
     const yIndex = readNumberProp(props, 'visual:yIndex')
-    const bounds = readBoundsProp(props, 'visual:boundsOverride') ?? readBoundsProp(props, 'visual:bounds')
+    const boundsOverride = readBoundsProp(props, 'visual:boundsOverride')
+    const boundsRaw = boundsOverride ?? readBoundsProp(props, 'visual:bounds')
+    const depth = computeDepth(id)
+    const bounds = (() => {
+      if (!boundsRaw) return null
+      if (boundsOverride) return boundsRaw
+      const inset = 4 + depth * 3
+      const x = boundsRaw.x + inset
+      const y = boundsRaw.y + inset
+      const width = Math.max(0, boundsRaw.width - inset * 2)
+      const height = Math.max(0, boundsRaw.height - inset * 2)
+      return { ...boundsRaw, x, y, width, height }
+    })()
     const zIndex = readNumberProp(props, 'visual:zIndexOverride') ?? readNumberProp(props, 'visual:zIndex')
     groups.push({
       id,
       label,
       source: 'mermaidSubgraph',
-      depth: computeDepth(id),
+      depth,
       xIndex: xIndex ?? undefined,
       yIndex: yIndex ?? undefined,
       memberNodeIds: collectLeafNodes(id),

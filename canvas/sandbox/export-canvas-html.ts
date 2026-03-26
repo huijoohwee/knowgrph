@@ -262,7 +262,7 @@ async function main() {
     viewportScaleToFit: true,
     enableDecorativeAnimation: true,
     initialFrontmatterEnabled: frontmatterModeEnabled,
-    initialView: mode === '3d' ? undefined : fitInitialView2d || exportView.initialView || undefined,
+    initialView: mode === '3d' ? undefined : exportView.initialView || fitInitialView2d || undefined,
     zoomMinK: readZoomScaleExtent(defaultSchema)[0],
     zoomMaxK: readZoomScaleExtent(defaultSchema)[1],
     wheelBehavior: readWheelBehavior(defaultSchema),

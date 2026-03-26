@@ -21,6 +21,8 @@ const modRawJsonWorkflowShapeIngestion = () => import('@/__tests__/rawJsonWorkfl
 const modMermaidSubgraphGroups = () => import('@/__tests__/mermaidSubgraphGroups.test')
 const modMermaidSeedLayout = () => import('@/__tests__/mermaidSeedLayout.test')
 const modMermaidNodeShapes = () => import('@/__tests__/mermaidNodeShapes.test')
+const modMermaidFrontmatterLinks = () => import('@/__tests__/mermaidFrontmatterLinks.test')
+const modMermaidFrontmatterContextLayout = () => import('@/__tests__/mermaidFrontmatterContextLayout.test')
 const modGraphragTextPipeline = () => import('@/__tests__/graphragTextPipeline.test')
 const modAieBookGraphRagTextPipeline = () => import('@/__tests__/aieBookGraphRagTextPipeline.test')
 const modQuickEditorBundleImport = () => import('@/__tests__/quickEditorBundleImport.test')
@@ -118,6 +120,14 @@ export const runParserTests = async (results: TestResult[]) => {
   await execTest(results, 'parser.mermaid.nodeShapes', async () => {
     const mod = await modMermaidNodeShapes()
     await mod.testMermaidParserCapturesNodeShapes()
+  })
+  await execTest(results, 'parser.mermaid.frontmatterLinks.clickAnchorsAndBlockLinks', async () => {
+    const mod = await modMermaidFrontmatterLinks()
+    await mod.testMermaidFrontmatterClickAnchorsAndBlockLinks()
+  })
+  await execTest(results, 'parser.mermaid.frontmatterLinks.contextLayoutPositions', async () => {
+    const mod = await modMermaidFrontmatterContextLayout()
+    await mod.testMermaidFrontmatterContextLayoutPositionsAnchorsAndBlocks()
   })
   await execTest(results, 'parser.graphragText.pipelineBuildsGraphAcrossDomains', async () => {
     const mod = await modGraphragTextPipeline()

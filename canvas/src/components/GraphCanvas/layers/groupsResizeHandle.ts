@@ -1,11 +1,14 @@
 import * as d3 from 'd3'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { computeGroupResizeBottomRight, computeMinGroupResizeSize } from '@/lib/canvas/groupResizeMath2d'
+import { applyGroupResizeDragSensitivity } from '@/lib/canvas/groupResizeHandleConfig'
 
 export const bindGroupsResizeHandle = <T extends GraphGroup>(args: {
   resizeHandleHitSel: d3.Selection<SVGCircleElement, T, SVGGElement, unknown> | null
   allowResize: boolean
   minBoundsSizePx?: number
+  dragSensitivity?: number
+  dragDeadzonePx?: number
   snapGrid?: { enabled: boolean; size: number } | null
   setSelectionSource: (src: 'menu' | 'canvas' | 'toolbar' | 'editor' | 'unknown') => void
   selectGroup: (id: string | null) => void
@@ -17,6 +20,8 @@ export const bindGroupsResizeHandle = <T extends GraphGroup>(args: {
   const { resizeHandleHitSel } = args
   if (!resizeHandleHitSel || !args.allowResize) return
   const minBoundsSizePx = typeof args.minBoundsSizePx === 'number' && Number.isFinite(args.minBoundsSizePx) ? Math.max(1, args.minBoundsSizePx) : 24
+  const dragSensitivity = typeof args.dragSensitivity === 'number' && Number.isFinite(args.dragSensitivity) ? Math.max(0.35, Math.min(1, args.dragSensitivity)) : 0.72
+  const dragDeadzonePx = typeof args.dragDeadzonePx === 'number' && Number.isFinite(args.dragDeadzonePx) ? Math.max(0, Math.min(24, args.dragDeadzonePx)) : 3
 
   let active: T | null = null
   let start: { x: number; y: number; w: number; h: number; labelX?: number; labelY?: number } | null = null
@@ -85,14 +90,24 @@ export const bindGroupsResizeHandle = <T extends GraphGroup>(args: {
       const dy = w1.y - startWorld.y
       if (!Number.isFinite(dx) || !Number.isFinite(dy) || (!dx && !dy)) return
 
-      const src = (event as any)?.sourceEvent as { altKey?: unknown } | undefined
-      const altDown = !!(src && src.altKey === true)
+      const sourceEvent = (event as any)?.sourceEvent as { altKey?: unknown; target?: unknown } | undefined
+      const altDown = !!(sourceEvent && sourceEvent.altKey === true)
       const minW = minSize ? minSize.w : minBoundsSizePx
       const minH = minSize ? minSize.h : minBoundsSizePx
+      const target = (sourceEvent?.target || null) as SVGElement | null
+      const svgEl = (target?.ownerSVGElement || null) as SVGSVGElement | null
+      const k = svgEl ? d3.zoomTransform(svgEl).k : 1
+      const adjustedWorld = applyGroupResizeDragSensitivity({
+        startWorld,
+        world: w1,
+        zoomK: k,
+        dragSensitivity,
+        dragDeadzonePx,
+      })
       const next = computeGroupResizeBottomRight({
         startBounds: { x: start.x, y: start.y, w: start.w, h: start.h },
         startWorld,
-        world: w1,
+        world: adjustedWorld,
         minW,
         minH,
         snapGrid: args.snapGrid || null,

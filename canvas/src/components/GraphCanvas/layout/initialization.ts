@@ -2,6 +2,7 @@
 import { GraphNode, GraphEdge } from '@/lib/graph/types'
 import { GraphSchema } from '@/lib/graph/schema'
 import { applyForceModeSeeds } from '@/components/GraphCanvas/layout/seeding'
+import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { postFitNodesToViewport } from '@/components/GraphCanvas/layout/postFit'
 import { applyCollectiveGraphLayout } from '@/components/GraphCanvas/layout/collectiveFit'
 import { readFitPadding } from '@/lib/graph/layoutDefaults'
@@ -245,6 +246,7 @@ export const initializeGraphLayout = (args: {
   seedCenter?: { x: number; y: number } | null
   groupKeyOf?: (n: GraphNode) => string | null
   layoutPositions?: Record<string, { x: number; y: number }> | null
+  groupsForBboxCollide?: GraphGroup[]
 }) => {
   const { nodes, edges, width, height, schema, seedCenter, groupKeyOf, layoutPositions } = args
 
@@ -315,6 +317,18 @@ export const initializeGraphLayout = (args: {
 
   const disjointForceMode = schema.layout?.forces?.disjointComponents !== false
   if (disjointForceMode) {
+    const repair = needsRepair()
+    if (repair || missing > 0) {
+      applyForceModeSeeds({
+        nodes,
+        edges,
+        width,
+        height,
+        schema,
+        groupKeyOf,
+        groupsForBboxCollide: Array.isArray(args.groupsForBboxCollide) ? args.groupsForBboxCollide : [],
+      })
+    }
     if (missing > 0) seedMissingNodePositions(nodes, width, height, seedCenter)
     return
   }
@@ -330,7 +344,15 @@ export const initializeGraphLayout = (args: {
     }
   }
 
-  applyForceModeSeeds({ nodes, edges, width, height, schema, groupKeyOf })
+  applyForceModeSeeds({
+    nodes,
+    edges,
+    width,
+    height,
+    schema,
+    groupKeyOf,
+    groupsForBboxCollide: Array.isArray(args.groupsForBboxCollide) ? args.groupsForBboxCollide : [],
+  })
   seedMissingNodePositions(nodes, width, height, seedCenter)
 
   applyCollectiveGraphLayout({ nodes, edges, width, height, schema })

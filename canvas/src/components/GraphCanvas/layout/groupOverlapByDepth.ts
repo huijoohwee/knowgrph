@@ -29,6 +29,9 @@ type GroupState = CollisionGroupItem & {
   memberIdxs: number[]
   empty: boolean
   hasZ: boolean
+  explicitBounds: boolean
+  stickyHalfW: number
+  stickyHalfH: number
 }
 
 type NodeBoxItem = {
@@ -166,6 +169,12 @@ export const createGroupBboxCollideForceByDepth = (args: {
   }
 
   const groups = Array.isArray(args.groups) ? args.groups : []
+  const inputGroupById = new Map<string, GraphGroup>()
+  for (let i = 0; i < groups.length; i += 1) {
+    const id = String(groups[i]?.id || '').trim()
+    if (!id || inputGroupById.has(id)) continue
+    inputGroupById.set(id, groups[i]!)
+  }
   const groupStates: GroupState[] = []
   const nodeIndexById = new Map<string, number>()
   let maxDepth = 0
@@ -202,6 +211,22 @@ export const createGroupBboxCollideForceByDepth = (args: {
       }
       if (memberIdxs.length === 0) continue
 
+      const bounds = (g as unknown as { bounds?: unknown }).bounds
+      const explicitBounds =
+        !!bounds &&
+        typeof bounds === 'object' &&
+        !Array.isArray(bounds) &&
+        typeof (bounds as { x?: unknown }).x === 'number' &&
+        typeof (bounds as { y?: unknown }).y === 'number' &&
+        typeof (bounds as { width?: unknown }).width === 'number' &&
+        typeof (bounds as { height?: unknown }).height === 'number' &&
+        Number.isFinite((bounds as { x: number }).x) &&
+        Number.isFinite((bounds as { y: number }).y) &&
+        Number.isFinite((bounds as { width: number }).width) &&
+        Number.isFinite((bounds as { height: number }).height) &&
+        (bounds as { width: number }).width > 0 &&
+        (bounds as { height: number }).height > 0
+
       const state: GroupState = {
         id,
         depth,
@@ -213,6 +238,9 @@ export const createGroupBboxCollideForceByDepth = (args: {
         halfH: 1,
         empty: false,
         hasZ: false,
+        explicitBounds,
+        stickyHalfW: 1,
+        stickyHalfH: 1,
         gap: 0,
         gapX: 0,
         gapY: 0,
@@ -234,9 +262,10 @@ export const createGroupBboxCollideForceByDepth = (args: {
     const gapPadX = Math.max(0, paddingX + extraGapPx)
     const gapPadY = Math.max(0, paddingY + extraGapPx)
     const gapPadZ = zEnabled ? Math.max(0, paddingZ + extraGapZPx) : 0
-    const gapSideX = gapPadX * 0.5
-    const gapSideY = gapPadY * 0.5
-    const gapSideZ = gapPadZ * 0.5
+    const minBorderSeparationPx = 4
+    const gapSideX = gapPadX * 0.5 + touchEpsilonXPx * 0.5 + minBorderSeparationPx * 0.5
+    const gapSideY = gapPadY * 0.5 + touchEpsilonYPx * 0.5 + minBorderSeparationPx * 0.5
+    const gapSideZ = gapPadZ * 0.5 + touchEpsilonZPx * 0.5
     const gapSide = Math.max(gapSideX, gapSideY)
 
     for (let i = 0; i < groupStates.length; i += 1) {
@@ -244,7 +273,7 @@ export const createGroupBboxCollideForceByDepth = (args: {
       const depthExtra = nestedPaddingStep > 0 ? nestedPaddingStep * Math.max(0, maxDepth - g.depth) : 0
       const strokeWidthPx = readGroupStrokeWidthPx(schema, g.depth, maxDepth)
       const borderGapPx = computeBorderGapPx(strokeWidthPx, borderGapMinPx)
-      
+
       const visualPad = Math.max(0, groupPad + depthExtra + borderGapPx)
       g.gap = gapSide
       g.gapX = gapSideX
@@ -260,6 +289,29 @@ export const createGroupBboxCollideForceByDepth = (args: {
       let sawZ = false
       let saw = false
       g.movableIdxs.length = 0
+
+      if (g.explicitBounds) {
+        const src = inputGroupById.get(String(g.id)) || null
+        const b = src ? ((src as unknown as { bounds?: unknown }).bounds as any) : null
+        const bx = b && typeof b.x === 'number' ? b.x : Number.NaN
+        const by = b && typeof b.y === 'number' ? b.y : Number.NaN
+        const bw = b && typeof b.width === 'number' ? b.width : Number.NaN
+        const bh = b && typeof b.height === 'number' ? b.height : Number.NaN
+        if (Number.isFinite(bx) && Number.isFinite(by) && Number.isFinite(bw) && Number.isFinite(bh) && bw > 0 && bh > 0) {
+          g.empty = false
+          g.cx = bx + bw / 2
+          g.cy = by + bh / 2
+          g.halfW = bw / 2
+          g.halfH = bh / 2
+          g.stickyHalfW = g.halfW
+          g.stickyHalfH = g.halfH
+          g.hasZ = false
+          g.cz = undefined
+          g.halfD = undefined
+          g.gapZ = undefined
+          continue
+        }
+      }
 
       const memberIdxs = g.memberIdxs
       for (let j = 0; j < memberIdxs.length; j += 1) {
@@ -298,8 +350,17 @@ export const createGroupBboxCollideForceByDepth = (args: {
       const h = Math.max(1, maxY - minY)
       g.cx = (minX + maxX) / 2
       g.cy = (minY + maxY) / 2
-      g.halfW = w / 2
-      g.halfH = h / 2
+      const targetHalfW = w / 2
+      const targetHalfH = h / 2
+      const prevHalfW = typeof g.stickyHalfW === 'number' && Number.isFinite(g.stickyHalfW) ? g.stickyHalfW : targetHalfW
+      const prevHalfH = typeof g.stickyHalfH === 'number' && Number.isFinite(g.stickyHalfH) ? g.stickyHalfH : targetHalfH
+      const maxGrowPerUpdate = 80
+      const nextHalfW = targetHalfW <= prevHalfW ? prevHalfW : prevHalfW + Math.min(maxGrowPerUpdate, targetHalfW - prevHalfW)
+      const nextHalfH = targetHalfH <= prevHalfH ? prevHalfH : prevHalfH + Math.min(maxGrowPerUpdate, targetHalfH - prevHalfH)
+      g.halfW = nextHalfW
+      g.halfH = nextHalfH
+      g.stickyHalfW = nextHalfW
+      g.stickyHalfH = nextHalfH
 
       if (zEnabled && sawZ) {
         const cz = (minZ + maxZ) / 2
@@ -342,6 +403,14 @@ export const createGroupBboxCollideForceByDepth = (args: {
   const force = (alpha: number) => {
     const k = alpha * strength * iterations
     if (k <= 0 || nodes.length < 2 || groupStates.length < 1) return
+
+    const maxNestedContainmentPushAxis = 120
+    const clampAbs = (v: number, maxAbs: number): number => {
+      if (!Number.isFinite(v)) return 0
+      const a = Math.abs(v)
+      if (a <= maxAbs) return v
+      return v < 0 ? -maxAbs : maxAbs
+    }
 
     updateGroupAabbs()
 
@@ -455,15 +524,19 @@ export const createGroupBboxCollideForceByDepth = (args: {
         if (ax === 0 && ay === 0 && az === 0) continue
 
         if (ax >= ay && ax >= az) {
-          pushY = 0
-          pushZ = 0
+          pushY *= 0.25
+          pushZ *= 0.25
         } else if (ay >= ax && ay >= az) {
-          pushX = 0
-          pushZ = 0
+          pushX *= 0.25
+          pushZ *= 0.25
         } else {
-          pushX = 0
-          pushY = 0
+          pushX *= 0.25
+          pushY *= 0.25
         }
+
+        pushX = clampAbs(pushX, maxNestedContainmentPushAxis)
+        pushY = clampAbs(pushY, maxNestedContainmentPushAxis)
+        pushZ = clampAbs(pushZ, maxNestedContainmentPushAxis)
 
         applyAabbContainmentPush({
           nodes,

@@ -16,7 +16,7 @@ import { DEFAULT_ZOOM_MAX_SCALE } from '@/lib/graph/layoutDefaults'
 import {
   computeMediaPanelWorldDims,
 } from '@/lib/render/mediaPanelSpec'
-import { getPortHandlesConfig } from '@/components/GraphCanvas/portHandles';
+import { getPortHandlesConfig, readNodePortHandleVisualMetrics, shouldRenderNodePortHandleAsDot } from '@/components/GraphCanvas/portHandles';
 import { getFlowPortHandlePosition2d, listFlowPortHandleDatums2d, type FlowPortHandleDatum2d } from '@/components/GraphCanvas/flowPortHandles2d'
 import { bindGraphCanvasFlowPortHandleInteractions } from '@/components/GraphCanvas/flowPortHandleInteractions'
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d';
@@ -309,7 +309,33 @@ export const createNodesLayer = (args: {
 
   const nodeLayer = g.append('g').attr('data-kg-layer', 'nodes');
 
-  const eligibleNodes = renderNodes;
+  const eligibleNodes = (() => {
+    if (!Array.isArray(renderNodes) || renderNodes.length < 2) return renderNodes
+    let hasAnyZ = false
+    for (let i = 0; i < renderNodes.length; i += 1) {
+      const n = renderNodes[i]
+      const props = (n?.properties || {}) as Record<string, unknown>
+      const z = props['visual:zIndex']
+      if (typeof z === 'number' && Number.isFinite(z)) {
+        hasAnyZ = true
+        break
+      }
+    }
+    if (!hasAnyZ) return renderNodes
+    const readZ = (n: GraphNode): number => {
+      const props = (n?.properties || {}) as Record<string, unknown>
+      const z = props['visual:zIndex']
+      return typeof z === 'number' && Number.isFinite(z) ? z : 0
+    }
+    return renderNodes
+      .slice()
+      .sort((a, b) => {
+        const za = readZ(a)
+        const zb = readZ(b)
+        if (za !== zb) return za - zb
+        return String(a.id || '').localeCompare(String(b.id || ''))
+      })
+  })();
   const circleNodes = eligibleNodes.filter(n => shapeByNodeId.get(String(n.id)) === 'circle');
   const rectNodes = eligibleNodes.filter(n => shapeByNodeId.get(String(n.id)) === 'rect');
   const diamondNodes = eligibleNodes.filter(n => shapeByNodeId.get(String(n.id)) === 'diamond');
@@ -588,7 +614,32 @@ export const createNodesLayer = (args: {
   if (portHandlesSel) {
     const nodeById = new Map<string, GraphNode>()
     for (let i = 0; i < renderNodes.length; i += 1) nodeById.set(String(renderNodes[i].id), renderNodes[i])
+    const dynamicForNode = (n: GraphNode) => {
+      const dims = getNodeRectDimensions2d(n, schema)
+      return readNodePortHandleVisualMetrics({
+        schema,
+        nodeWidth: dims.width,
+        nodeHeight: dims.height,
+      })
+    }
     portHandlesSel
+      .attr('r', d => {
+        const n = nodeById.get(d.nodeId)
+        if (!n) return portHandlesCfg.size
+        return dynamicForNode(n).sizePx
+      })
+      .attr('stroke-width', d => {
+        const n = nodeById.get(d.nodeId)
+        if (!n) return portHandlesCfg.strokeWidth
+        const dynamic = dynamicForNode(n)
+        return shouldRenderNodePortHandleAsDot(dynamic.sizePx) ? 0 : dynamic.strokeWidthPx
+      })
+      .attr('fill', d => {
+        const n = nodeById.get(d.nodeId)
+        if (!n) return portHandlesCfg.fill
+        const dynamic = dynamicForNode(n)
+        return shouldRenderNodePortHandleAsDot(dynamic.sizePx) ? portHandlesCfg.stroke : portHandlesCfg.fill
+      })
       .attr('cx', d => {
         const n = nodeById.get(d.nodeId)
         if (!n) return 0

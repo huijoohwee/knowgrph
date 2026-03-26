@@ -5,6 +5,13 @@ import { computeFlowGroupAabb } from '@/components/FlowCanvas/nativeRuntime'
 
 export type FlowNodeClamp = { minX: number; maxX: number; minY: number; maxY: number }
 export type FlowDeltaClamp = { minDx: number; maxDx: number; minDy: number; maxDy: number }
+const readContainmentInsetPx = (runtime: FlowNativeRuntime): number => {
+  const strokeWidthPx = runtime.presentation?.groups && typeof runtime.presentation.groups.strokeWidthPx === 'number'
+    ? runtime.presentation.groups.strokeWidthPx
+    : 1
+  const candidate = Math.max(0, strokeWidthPx) + 2
+  return Math.max(0, Math.min(16, candidate))
+}
 
 const isContainmentGroup = (g: GraphGroup): boolean => {
   const src = String((g as unknown as { source?: unknown }).source || '').trim()
@@ -39,10 +46,11 @@ const readRectForGroup = (args: { runtime: FlowNativeRuntime; scene: FlowNativeS
   const cfg = args.runtime.presentation.groups
   const aabb = computeFlowGroupAabb({ scene: args.scene, group: args.group, paddingPx: cfg.paddingPx, labelTopExtraPx: cfg.labelTopExtraPx })
   if (!aabb) return null
-  const width = aabb.maxX - aabb.minX
-  const height = aabb.maxY - aabb.minY
+  const inset = readContainmentInsetPx(args.runtime)
+  const width = aabb.maxX - aabb.minX - inset * 2
+  const height = aabb.maxY - aabb.minY - inset * 2
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null
-  return { x: aabb.minX, y: aabb.minY, width, height }
+  return { x: aabb.minX + inset, y: aabb.minY + inset, width, height }
 }
 
 export const computeFlowNodeClamp = (args: { runtime: FlowNativeRuntime; nodeId: string }): FlowNodeClamp | null => {
@@ -94,6 +102,8 @@ export const computeFlowDeltaClampForNodes = (args: {
     const gid = String(groups[i]?.id || '').trim()
     if (gid && !groupById.has(gid)) groupById.set(gid, groups[i]!)
   }
+
+  let sharedBestGroupId: string | null = null
   const rectByNodeId = new Map<string, { x: number; y: number; width: number; height: number }>()
   for (let i = 0; i < args.nodeIds.length; i += 1) {
     const nodeId = String(args.nodeIds[i] || '').trim()
@@ -101,6 +111,10 @@ export const computeFlowDeltaClampForNodes = (args: {
     const groupIds = scene.groupIdsByNodeId?.get(nodeId) || []
     if (!groupIds.length) continue
     const bestGroupId = pickBestContainmentGroupId({ groupIds, groupById })
+    if (bestGroupId) {
+      if (sharedBestGroupId == null) sharedBestGroupId = bestGroupId
+      else if (sharedBestGroupId !== bestGroupId) return null
+    }
     const bestGroup = bestGroupId ? groupById.get(bestGroupId) || null : null
     const rect = bestGroup ? readRectForGroup({ runtime: args.runtime, scene, group: bestGroup }) : null
     if (rect) rectByNodeId.set(nodeId, rect)

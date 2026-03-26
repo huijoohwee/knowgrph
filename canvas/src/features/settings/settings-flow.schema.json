@@ -2152,7 +2152,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L470; canvas/src/hooks/store/canvasSlice.ts:L363"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L470; canvas/src/hooks/store/canvasSlice.ts:L356"
   },
   "viewportControlsPreset": {
     "area": "Canvas Interaction (Viewport Controls)",
@@ -2169,7 +2169,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L484; canvas/src/hooks/store/canvasSlice.ts:L526"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L484; canvas/src/hooks/store/canvasSlice.ts:L519"
   },
   "infiniteCanvasInteractionMode": {
     "area": "—",
@@ -2186,7 +2186,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L498; canvas/src/hooks/store/canvasSlice.ts:L533"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L498; canvas/src/hooks/store/canvasSlice.ts:L526"
   },
   "canvasWorkspaceSyncMode": {
     "area": "—",
@@ -2203,7 +2203,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L512; canvas/src/hooks/store/canvasSlice.ts:L544"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L512; canvas/src/hooks/store/canvasSlice.ts:L537"
   },
   "flowEditorSelectionOnDrag": {
     "area": "Canvas Interaction (Flow Editor)",
@@ -2220,7 +2220,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L526; canvas/src/hooks/store/canvasSlice.ts:L555"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L526; canvas/src/hooks/store/canvasSlice.ts:L548"
   },
   "flowEditorOverlayWheelProxyEnabled": {
     "area": "Canvas Interaction (Flow Editor)",
@@ -2237,7 +2237,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L535; canvas/src/hooks/store/canvasSlice.ts:L562"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L535; canvas/src/hooks/store/canvasSlice.ts:L555"
   },
   "viewPinned": {
     "area": "Canvas Zoom Modes",
@@ -2305,7 +2305,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L571; canvas/src/hooks/store/canvasSlice.ts:L629"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L571; canvas/src/hooks/store/canvasSlice.ts:L622"
   },
   "zoomDurationSelectionMs": {
     "area": "Canvas Zoom Actions",
@@ -2322,7 +2322,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L580; canvas/src/hooks/store/canvasSlice.ts:L635"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L580; canvas/src/hooks/store/canvasSlice.ts:L628"
   },
   "wheelZoomCtrlMetaBoostMultiplier": {
     "area": "Canvas Interaction (Wheel Zoom)",
@@ -2339,7 +2339,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L589; canvas/src/hooks/store/canvasSlice.ts:L641"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L589; canvas/src/hooks/store/canvasSlice.ts:L634"
   },
   "canvasInteractionSpeedMultiplier": {
     "area": "—",
@@ -2356,7 +2356,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L598; canvas/src/hooks/store/canvasSlice.ts:L652"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L598; canvas/src/hooks/store/canvasSlice.ts:L645"
   },
   "canvasPanSpeedMultiplier": {
     "area": "—",
@@ -2373,7 +2373,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L607; canvas/src/hooks/store/canvasSlice.ts:L663"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L607; canvas/src/hooks/store/canvasSlice.ts:L656"
   },
   "flowWheelZoomSpeedMultiplier": {
     "area": "Canvas Interaction (Flow Zoom)",
@@ -2390,7 +2390,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L616; canvas/src/hooks/store/canvasSlice.ts:L569"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L616; canvas/src/hooks/store/canvasSlice.ts:L562"
   },
   "flowWheelZoomIncrementMultiplier": {
     "area": "Canvas Interaction (Flow Zoom)",
@@ -2407,7 +2407,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L625; canvas/src/hooks/store/canvasSlice.ts:L580"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L625; canvas/src/hooks/store/canvasSlice.ts:L573"
   },
   "flowWheelZoomSmoothMinDurationMs": {
     "area": "Canvas Interaction (Flow Zoom)",
@@ -2424,7 +2424,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L634; canvas/src/hooks/store/canvasSlice.ts:L591"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L634; canvas/src/hooks/store/canvasSlice.ts:L584"
   },
   "flowWheelZoomSmoothMaxDurationMs": {
     "area": "Canvas Interaction (Flow Zoom)",
@@ -2441,7 +2441,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L643; canvas/src/hooks/store/canvasSlice.ts:L610"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L643; canvas/src/hooks/store/canvasSlice.ts:L603"
   },
   "orchestratorTraversalDelayMs": {
     "area": "Orchestrator Traversal",
@@ -3825,7 +3825,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-presets.ts:L9; canvas/src/hooks/store/canvasSlice.ts:L363; canvas/src/hooks/store/schemaSlice.ts:L296"
+    "lineRange": "canvas/src/features/settings/registry-presets.ts:L9; canvas/src/hooks/store/canvasSlice.ts:L356; canvas/src/hooks/store/schemaSlice.ts:L296"
   },
   "CLICK_URL": {
     "area": "Config Constants",

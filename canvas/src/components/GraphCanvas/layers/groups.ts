@@ -200,6 +200,7 @@ export const createGroupsLayer = (args: {
 
     return sel
   })()
+  const resizeHandleCfg = readGroupResizeHandleConfig(schema)
 
   const resizeHandleHitSel = resizeHandleGroupSel
     ? (resizeHandleGroupSel.select<SVGCircleElement>('circle[data-kg-group-resize-hit="1"]') as unknown as d3.Selection<
@@ -636,8 +637,6 @@ export const createGroupsLayer = (args: {
       })
     
     labelSel.call(dragBehavior as unknown as d3.DragBehavior<SVGTextElement, GroupDatum, unknown>)
-    hitRectSel.call(dragBehavior as unknown as d3.DragBehavior<SVGRectElement, GroupDatum, unknown>)
-    hitGeoSel.call(dragBehavior as unknown as d3.DragBehavior<SVGPathElement, GroupDatum, unknown>)
   }
 
   const eps = 0.5
@@ -656,6 +655,11 @@ export const createGroupsLayer = (args: {
       chevronGapPx,
       collapsedSet,
       allowResize,
+      resizeHandleBase: {
+        dotRadiusPx: resizeHandleCfg.dotRadiusPx,
+        hitRadiusPx: resizeHandleCfg.hitRadiusPx,
+        strokeWidthPx: resizeHandleCfg.strokeWidthPx,
+      },
       getGroupLabelText,
       rectSel,
       geoSel,
@@ -683,7 +687,9 @@ export const createGroupsLayer = (args: {
   bindGroupsResizeHandle<GroupDatum>({
     resizeHandleHitSel,
     allowResize,
-    minBoundsSizePx: readGroupResizeHandleConfig(schema).minBoundsSizePx,
+    minBoundsSizePx: resizeHandleCfg.minBoundsSizePx,
+    dragSensitivity: resizeHandleCfg.dragSensitivity,
+    dragDeadzonePx: resizeHandleCfg.dragDeadzonePx,
     snapGrid: readSnapGridConfigFromSchema(schema),
     setSelectionSource,
     selectGroup,

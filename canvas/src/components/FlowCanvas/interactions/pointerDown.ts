@@ -20,7 +20,8 @@ import {
   shouldAllowPanDragForPointerEvent,
   shouldStartSelectionDragForPreset,
 } from '@/lib/canvas/viewport-controls'
-import { pxToWorld, readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfig'
+import { computeDynamicGroupResizeHandlePx, pxToWorld, readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfig'
+import { computeMinGroupResizeSize } from '@/lib/canvas/groupResizeMath2d'
 import { computeFlowDeltaClampForNodes, computeFlowNodeClamp } from '@/components/FlowCanvas/groupContainment'
 
 import type { FlowNativeInteractionsContext } from '@/components/FlowCanvas/interactions/context'
@@ -226,21 +227,6 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
       const allowGroupResize = readAllowGroupResize(state.schema)
       const allowDrag = typeof ctx.args.allowNodeDragOverride === 'boolean' ? ctx.args.allowNodeDragOverride : state.schema?.behavior?.allowNodeDrag !== false
 
-      if (!allowDrag) {
-        ctx.args.setSelectionBox(null)
-        if (allowPan === true && selectionDrag !== true) {
-          startDrag({
-            type: 'pan',
-            startSx: sx,
-            startSy: sy,
-            startTx: runtime.transform.x,
-            startTy: runtime.transform.y,
-            pointerId,
-          })
-        }
-        return
-      }
-
       if (
         isFlowEditor &&
         allowPan === true &&
@@ -263,7 +249,14 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
         return
       }
 
-      if (allowGroupResize && selectedGroupId && selectedGroupId === String(groupHit || '').trim()) {
+      if (e.pointerType !== 'touch' && e.button === 0 && spacePanHeld !== true && e.shiftKey !== true && e.metaKey !== true && e.ctrlKey !== true) {
+        state.setSelectionSource('canvas')
+        state.selectEdge(null)
+        state.selectGroup(groupHit)
+      }
+
+      let groupAabbForHeader: { minX: number; minY: number; maxX: number; maxY: number } | null = null
+      if (allowGroupResize) {
         const scene = runtime.scene
         const group = scene?.groups?.find(g => String(g.id || '') === groupHit) || null
         if (scene && group) {
@@ -271,24 +264,46 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
           const paddingPx = Math.max(0, gCfg.paddingPx)
           const labelTopExtraPx = Math.max(0, gCfg.labelTopExtraPx)
           const aabb = computeFlowGroupAabb({ scene, group, paddingPx, labelTopExtraPx })
+          groupAabbForHeader = aabb ? { ...aabb } : null
           if (aabb) {
             const autoAabb = (() => {
               const clone = { ...(group as unknown as Record<string, unknown>), bounds: undefined } as unknown as GraphGroup
               return computeFlowGroupAabb({ scene, group: clone, paddingPx, labelTopExtraPx })
             })()
-            const handleCfg = readGroupResizeHandleConfig(state.schema)
-            const minWidth = autoAabb ? Math.max(handleCfg.minBoundsSizePx, autoAabb.maxX - aabb.minX) : handleCfg.minBoundsSizePx
-            const minHeight = autoAabb ? Math.max(handleCfg.minBoundsSizePx, autoAabb.maxY - aabb.minY) : handleCfg.minBoundsSizePx
+            const handleCfg = runtime.presentation.groups.resizeHandle || readGroupResizeHandleConfig(state.schema)
+            const min = computeMinGroupResizeSize({
+              minBoundsSizePx: handleCfg.minBoundsSizePx,
+              explicitBounds: { x: aabb.minX, y: aabb.minY, w: aabb.maxX - aabb.minX, h: aabb.maxY - aabb.minY },
+              autoBounds: autoAabb ? { x: autoAabb.minX, y: autoAabb.minY, w: autoAabb.maxX - autoAabb.minX, h: autoAabb.maxY - autoAabb.minY } : null,
+            })
+            const minWidth = min.minW
+            const minHeight = min.minH
             const t0 = runtime.transform || d3.zoomIdentity
             const wx = (sx - t0.x) / t0.k
             const wy = (sy - t0.y) / t0.k
-            const handleSizeWorld = pxToWorld(handleCfg.hitRadiusPx, t0.k)
+            const handleSizePx = computeDynamicGroupResizeHandlePx({
+              dotRadiusPx: handleCfg.dotRadiusPx,
+              hitRadiusPx: handleCfg.hitRadiusPx,
+              strokeWidthPx: handleCfg.strokeWidthPx,
+              groupWidth: Math.max(1, aabb.maxX - aabb.minX),
+              groupHeight: Math.max(1, aabb.maxY - aabb.minY),
+            })
+            const handleSizeWorld = pxToWorld(handleSizePx.hitRadiusPx, t0.k)
             const inHandle =
               wx >= aabb.maxX - handleSizeWorld &&
               wx <= aabb.maxX + handleSizeWorld &&
               wy >= aabb.maxY - handleSizeWorld &&
               wy <= aabb.maxY + handleSizeWorld
             if (inHandle) {
+              const explicit = (group as unknown as { bounds?: unknown }).bounds
+              if (!explicit || typeof explicit !== 'object' || Array.isArray(explicit)) {
+                ;(group as unknown as { bounds?: unknown }).bounds = {
+                  x: aabb.minX,
+                  y: aabb.minY,
+                  width: Math.max(1, aabb.maxX - aabb.minX),
+                  height: Math.max(1, aabb.maxY - aabb.minY),
+                }
+              }
               startDrag({
                 type: 'groupResize',
                 groupId: groupHit,
@@ -310,6 +325,21 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
         }
       }
 
+      if (!allowDrag) {
+        ctx.args.setSelectionBox(null)
+        if (allowPan === true && selectionDrag !== true) {
+          startDrag({
+            type: 'pan',
+            startSx: sx,
+            startSy: sy,
+            startTx: runtime.transform.x,
+            startTy: runtime.transform.y,
+            pointerId,
+          })
+        }
+        return
+      }
+
       const scene = runtime.scene
       const group = scene?.groups?.find(g => String(g.id || '') === groupHit) || null
       if (scene && group) {
@@ -325,6 +355,29 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
         const t0 = runtime.transform || d3.zoomIdentity
         const wx = (sx - t0.x) / t0.k
         const wy = (sy - t0.y) / t0.k
+        const groupAabb = (() => {
+          if (groupAabbForHeader) return groupAabbForHeader
+          const gCfg = runtime.presentation.groups
+          const paddingPx = Math.max(0, gCfg.paddingPx)
+          const labelTopExtraPx = Math.max(0, gCfg.labelTopExtraPx)
+          return computeFlowGroupAabb({ scene, group, paddingPx, labelTopExtraPx })
+        })()
+        if (groupAabb) {
+          const headerHeightPxRaw = Math.max(
+            16,
+            runtime.presentation.labels.groupFontSizePx + 10,
+            runtime.presentation.groups.labelTopExtraPx + 8,
+          )
+          const headerHeightWorld = pxToWorld(headerHeightPxRaw, t0.k)
+          const maxHeaderWorld = Math.max(1, (groupAabb.maxY - groupAabb.minY) * 0.45)
+          const headerH = Math.min(headerHeightWorld, maxHeaderWorld)
+          const inHeader =
+            wx >= groupAabb.minX &&
+            wx <= groupAabb.maxX &&
+            wy >= groupAabb.minY &&
+            wy <= groupAabb.minY + headerH
+          if (!inHeader) return
+        }
         startDrag({
           type: 'group',
           groupId: groupHit,

@@ -343,6 +343,13 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
     const modSelectionNoDup = await import('../__tests__/selectionNoDuplicateTocFocusRegression.test')
     await execTest(results, 'ui.selection.noDuplicateTocFocusOnRepeatedSelect', modSelectionNoDup.testSelectingSameNodeDoesNotDispatchDuplicateTocFocus)
 
+    const modWorkspaceAutoOpenGate = await import('../__tests__/canvasSelectionAutoOpenGatedByActiveRegression.test')
+    await execTest(
+      results,
+      'ui.workspace.selection.doesNotAutoOpenWhenInactive',
+      modWorkspaceAutoOpenGate.testCanvasSelectionDoesNotAutoOpenWorkspaceWhenInactive,
+    )
+
     const modDesignUnstick = await import('../__tests__/designCanvasGlobalUnstickRegression.test')
     await execTest(results, 'ui.design.globalUnstickFailsafe', modDesignUnstick.testDesignCanvasInstallsGlobalUnstickFailsafe)
 
@@ -461,6 +468,27 @@ export const runAllTests = async () => {
   await runMarkdownTests(results)
   await runSchemaTests(results)
   await runJsonLdTests(results)
+
+  const modFitAll = await import('../__tests__/fitAllTransformCentersWhenNoCoordsRegression.test')
+  await execTest(
+    results,
+    'ui.fitAllTransform.centersWhenNoCoords',
+    modFitAll.testFitAllTransformCentersWhenNoNodesHaveCoords,
+  )
+
+  const modPinnedZoom = await import('../__tests__/zoomPinnedAllowsManualRequestsRegression.test')
+  await execTest(
+    results,
+    'ui.zoom.pinned.allowsManualRequests',
+    modPinnedZoom.testZoomPinnedDoesNotBlockManualZoomRequests,
+  )
+
+  const modMinimapBounds = await import('../__tests__/minimapBoundsIgnoreMissingCoordsRegression.test')
+  await execTest(
+    results,
+    'ui.minimap.bounds.ignoresMissingCoords',
+    modMinimapBounds.testMinimapBoundsIgnoresMissingNodeCoords,
+  )
 
   for (const tuple of TEST_CASES_PRE_PARSER) {
     await execTuple(results, tuple)

@@ -3,7 +3,23 @@ import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { captureLiveRichMediaOverlayHtmlForHtmlViewerExport } from '@/lib/graph/htmlViewer/liveOverlayExport'
 import { captureLiveMarkdownDesignOverlayHtmlForHtmlViewerExport } from '@/lib/graph/htmlViewer/liveOverlayExport'
+import { captureLiveOverlayHtmlForHtmlViewerExport } from '@/lib/graph/htmlViewer/liveOverlayExport'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+
+const readRuntimeJsonArray = (html: string, varName: string): unknown[] => {
+  const scriptMatch = html.match(/<script>\n([\s\S]*?)\n\s*<\/script>/)
+  const js = scriptMatch && scriptMatch[1] ? scriptMatch[1] : ''
+  if (!js.trim()) return []
+  const escapedVar = varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const m = js.match(new RegExp(`var\\s+${escapedVar}\\s*=\\s*(\\[[\\s\\S]*?\\]);`))
+  const payload = m && m[1] ? m[1] : '[]'
+  try {
+    const parsed = JSON.parse(payload)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
 
 export async function testExportHtmlViewerIsSvgOnlyAndBlocksBrowserZoomAndSelection() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
@@ -249,6 +265,159 @@ export async function testExportHtmlViewerEmbedsProvidedOverlayHtml() {
   }
 }
 
+export async function testExportHtmlViewerKeepsOnlyGraphLinkedOverlaySeedsInRuntimePayload() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g><g data-node-id="md-a"><circle cx="6" cy="0" r="5" fill="blue"/></g></svg>`
+  const overlayHtml = [
+    '<article data-kg-rich-media-panel="1" data-node-id="m1" data-kg-kind="image" data-kg-url="https://example.com/linked.png"></article>',
+    '<article data-kg-rich-media-panel="1" data-node-id="ghost" data-kg-kind="image" data-kg-url="https://example.com/disconnected.png"></article>',
+    '<article data-kg-markdown-design-block="md-1" data-md-id="md-1" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="md-a"></article>',
+    '<article data-kg-markdown-design-block="md-ghost" data-md-id="md-ghost" data-kg-world-x="10" data-kg-world-y="10" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="ghost"></article>',
+  ].join('')
+  const html = await buildGraphHtmlViewerMarkup({
+    title: 'T',
+    svgMarkup: svg,
+    overlayHtml,
+    includeRichMediaOverlays: true,
+    graphData: {
+      type: 'Graph',
+      nodes: [
+        { id: 'm1', label: 'Media 1', type: 'Entity', properties: { media_url: 'https://example.com/linked.png' } },
+        { id: 'md-a', label: 'MD anchor', type: 'Entity', properties: {} },
+      ],
+      edges: [{ id: 'e1', source: 'm1', target: 'md-a', label: 'e1', properties: {} }],
+    },
+  })
+  if (!html) throw new Error('expected html')
+  const mediaNodes = readRuntimeJsonArray(html, 'mediaNodes') as Array<{ id?: string; url?: string }>
+  const markdownBlocks = readRuntimeJsonArray(html, 'markdownBlocks') as Array<{ id?: string; anchorNodeId?: string }>
+  if (!mediaNodes.some(n => String(n.id || '') === 'm1')) {
+    throw new Error('expected runtime media payload to keep edge-linked media overlay')
+  }
+  if (mediaNodes.some(n => String(n.id || '') === 'ghost')) {
+    throw new Error('expected runtime media payload to drop disconnected overlay node ids')
+  }
+  if (markdownBlocks.some(b => String(b.id || '') === 'md-ghost')) {
+    throw new Error('expected runtime markdown payload to drop disconnected markdown overlays')
+  }
+  if (!markdownBlocks.some(b => String(b.anchorNodeId || '') === 'md-a')) {
+    throw new Error('expected runtime markdown payload to keep graph-linked markdown overlays')
+  }
+}
+
+export async function testExportHtmlViewerKeepsOnlyGraphLinkedOverlaySeedsWhenEdgesUseSourceIdTargetId() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g><g data-node-id="md-a"><circle cx="6" cy="0" r="5" fill="blue"/></g></svg>`
+  const overlayHtml = [
+    '<article data-kg-rich-media-panel="1" data-node-id="m1" data-kg-kind="image" data-kg-url="https://example.com/linked.png"></article>',
+    '<article data-kg-rich-media-panel="1" data-node-id="ghost" data-kg-kind="image" data-kg-url="https://example.com/disconnected.png"></article>',
+    '<article data-kg-markdown-design-block="md-1" data-md-id="md-1" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="md-a"></article>',
+    '<article data-kg-markdown-design-block="md-ghost" data-md-id="md-ghost" data-kg-world-x="10" data-kg-world-y="10" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="ghost"></article>',
+  ].join('')
+  const html = await buildGraphHtmlViewerMarkup({
+    title: 'T',
+    svgMarkup: svg,
+    overlayHtml,
+    includeRichMediaOverlays: true,
+    graphData: {
+      type: 'Graph',
+      nodes: [
+        { id: 'm1', label: 'Media 1', type: 'Entity', properties: { media_url: 'https://example.com/linked.png' } },
+        { id: 'md-a', label: 'MD anchor', type: 'Entity', properties: {} },
+      ],
+      edges: [{ id: 'e1', sourceId: 'm1', targetId: 'md-a', label: 'e1', properties: {} }],
+    } as any,
+  })
+  if (!html) throw new Error('expected html')
+  const mediaNodes = readRuntimeJsonArray(html, 'mediaNodes') as Array<{ id?: string }>
+  const markdownBlocks = readRuntimeJsonArray(html, 'markdownBlocks') as Array<{ id?: string }>
+  if (!mediaNodes.some(n => String(n.id || '') === 'm1')) {
+    throw new Error('expected runtime media payload to keep edge-linked media overlay (sourceId/targetId edge)')
+  }
+  if (mediaNodes.some(n => String(n.id || '') === 'ghost')) {
+    throw new Error('expected runtime media payload to drop disconnected overlay node ids (sourceId/targetId edge)')
+  }
+  if (markdownBlocks.some(b => String(b.id || '') === 'md-ghost')) {
+    throw new Error('expected runtime markdown payload to drop disconnected markdown overlays (sourceId/targetId edge)')
+  }
+}
+
+export async function testExportHtmlViewerFiltersEmbeddedOverlayHtmlByGraphConnectivity() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g><g data-node-id="md-a"><circle cx="6" cy="0" r="5" fill="blue"/></g></svg>`
+  const overlayHtml = [
+    '<article data-kg-rich-media-panel="1" data-node-id="m1"><div>Connected media</div></article>',
+    '<article data-kg-rich-media-panel="1" data-node-id="ghost"><div>Disconnected media</div></article>',
+    '<article data-kg-markdown-design-block="md-1" data-md-id="md-1" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="md-a"><div>Connected md</div></article>',
+    '<article data-kg-markdown-design-block="md-ghost" data-md-id="md-ghost" data-kg-world-x="10" data-kg-world-y="10" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="ghost"><div>Disconnected md</div></article>',
+  ].join('')
+  const html = await buildGraphHtmlViewerMarkup({
+    title: 'T',
+    svgMarkup: svg,
+    overlayHtml,
+    graphData: {
+      type: 'Graph',
+      nodes: [{ id: 'm1', label: 'Media' }, { id: 'md-a', label: 'Markdown anchor' }],
+      edges: [{ id: 'e1', source: 'm1', target: 'md-a' }],
+    } as any,
+  })
+  if (!html) throw new Error('expected html')
+  if (!html.includes('Connected media') || !html.includes('Connected md')) {
+    throw new Error('expected connected overlays to remain embedded in exported html')
+  }
+  if (html.includes('Disconnected media') || html.includes('Disconnected md') || html.includes('data-node-id=\"ghost\"')) {
+    throw new Error('expected disconnected overlays to be removed from embedded overlay html')
+  }
+}
+
+export async function testExportHtmlViewerPrefersInteractiveOverlayOverFixedDuplicate() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
+  const overlayHtml = [
+    '<article data-kg-rich-media-panel="1" data-node-id="m1" style="position:fixed;left:0;top:0"><div>Static duplicate</div></article>',
+    '<article data-kg-rich-media-panel="1" data-node-id="m1"><div>Interactive connected</div></article>',
+  ].join('')
+  const html = await buildGraphHtmlViewerMarkup({
+    title: 'T',
+    svgMarkup: svg,
+    overlayHtml,
+    graphData: {
+      type: 'Graph',
+      nodes: [{ id: 'm1', label: 'Media' }],
+      edges: [{ id: 'e1', source: 'm1', target: 'm1' }],
+    } as any,
+  })
+  if (!html) throw new Error('expected html')
+  if (!html.includes('Interactive connected')) {
+    throw new Error('expected non-fixed connected overlay to be kept')
+  }
+  const overlayMatch = html.match(/<div id="kg-overlay">([\s\S]*?)<\/div>\s*<script>/)
+  const overlaySection = overlayMatch && overlayMatch[1] ? overlayMatch[1] : ''
+  if (overlaySection.includes('Static duplicate') || overlaySection.includes('position:fixed;left:0;top:0')) {
+    throw new Error('expected fixed-style duplicate overlay to be removed')
+  }
+}
+
+export async function testExportHtmlViewerDedupesMarkdownByAnchorNode() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="a1"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
+  const overlayHtml = [
+    '<article data-kg-markdown-design-block="md-a" data-md-id="md-a" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="a1"><div>A</div></article>',
+    '<article data-kg-markdown-design-block="md-b" data-md-id="md-b" data-kg-world-x="1" data-kg-world-y="1" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="a1"><div>B</div></article>',
+  ].join('')
+  const html = await buildGraphHtmlViewerMarkup({
+    title: 'T',
+    svgMarkup: svg,
+    overlayHtml,
+    graphData: {
+      type: 'Graph',
+      nodes: [{ id: 'a1', label: 'Anchor' }],
+      edges: [{ id: 'e1', source: 'a1', target: 'a1' }],
+    } as any,
+  })
+  if (!html) throw new Error('expected html')
+  const blocks = readRuntimeJsonArray(html, 'markdownBlocks') as Array<{ anchorNodeId?: string }>
+  const anchorCount = blocks.filter(b => String(b.anchorNodeId || '').trim() === 'a1').length
+  if (anchorCount !== 1) {
+    throw new Error('expected markdown blocks to dedupe by shared anchor node id')
+  }
+}
+
 export async function testExportHtmlViewerRuntimeScriptParsesWithOverlayHtml() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
   const overlayHtml =
@@ -258,14 +427,29 @@ export async function testExportHtmlViewerRuntimeScriptParsesWithOverlayHtml() {
   const match = html.match(/<script>\n([\s\S]*?)\n\s*<\/script>/)
   const js = match && match[1] ? match[1] : ''
   if (!js.trim()) throw new Error('expected runtime script')
+  if (!js.includes('var markdownBlocks =')) {
+    throw new Error('expected runtime script to declare markdownBlocks payload before overlay logic')
+  }
   if (!js.includes('__kgMediaBoxById') || !js.includes('__kgMdBoxById')) {
     throw new Error('expected runtime to track overlay boxes for edge-to-panel anchoring')
   }
   if (!js.includes('state.k * baseSx') || !js.includes('state.k * baseSy')) {
     throw new Error('expected runtime to map world→screen using svgBase scaling for pan/zoom parity')
   }
+  if (!js.includes('if ((!mediaNodes || mediaNodes.length === 0) && overlay && overlay.__kgMediaById)')) {
+    throw new Error('expected runtime to hydrate media nodes from existing overlay dom map when payload list is empty')
+  }
+  if (!js.includes("mediaNodes.push({ id: mid0, title: mid0, url: '', openUrl: '', interactive: true, kind: 'iframe' });")) {
+    throw new Error('expected runtime to synthesize media node entries for overlay pan/zoom sync fallback')
+  }
   if (!js.includes('[data-node-id][data-kg-panel-box]')) {
     throw new Error('expected runtime to index existing markdown-like overlay panels by node id for pan/zoom sync')
+  }
+  if (!js.includes('overlay.__kgMdById[id] || (anchorId0 && overlay.__kgMdById[anchorId0])')) {
+    throw new Error('expected runtime to avoid duplicate markdown panel dom when existing overlay panel is present')
+  }
+  if (!js.includes("if (anchorId0) overlay.__kgMdById[anchorId0] = el;")) {
+    throw new Error('expected runtime to index generated markdown panel dom by anchor node id for edge sync')
   }
   try {
     new Function(js)
@@ -400,6 +584,96 @@ export async function testExportHtmlViewerOverlayExportStripsTransformPositionin
     }
   } finally {
     bootstrap?.restore()
+  }
+}
+
+export async function testExportHtmlViewerOverlayExportCollectsFlowAnd3dRoots() {
+  const bootstrap = typeof document === 'undefined' ? initJsdomHarness() : null
+  try {
+    const flowRoot = document.createElement('section')
+    flowRoot.setAttribute('aria-label', 'Flow media overlay')
+    const flowPanel = document.createElement('article')
+    flowPanel.setAttribute('data-kg-rich-media-panel', '1')
+    flowPanel.setAttribute('data-node-id', 'flow-media-1')
+    flowPanel.textContent = 'Flow'
+    flowRoot.appendChild(flowPanel)
+    document.body.appendChild(flowRoot)
+
+    const threeRoot = document.createElement('section')
+    threeRoot.setAttribute('aria-label', '3D media overlay')
+    const threePanel = document.createElement('article')
+    threePanel.setAttribute('data-kg-rich-media-panel', '1')
+    threePanel.setAttribute('data-node-id', 'three-media-1')
+    threePanel.textContent = 'Three'
+    threeRoot.appendChild(threePanel)
+    document.body.appendChild(threeRoot)
+
+    const mdRoot = document.createElement('section')
+    mdRoot.setAttribute('aria-label', 'Flow media overlay')
+    const mdPanel = document.createElement('article')
+    mdPanel.setAttribute('data-kg-markdown-design-block', 'md-flow-1')
+    mdPanel.setAttribute('data-md-id', 'md-flow-1')
+    mdPanel.textContent = 'Markdown'
+    mdRoot.appendChild(mdPanel)
+    document.body.appendChild(mdRoot)
+
+    const html = captureLiveOverlayHtmlForHtmlViewerExport()
+    if (!html) throw new Error('expected overlay html')
+    if (!html.includes('flow-media-1') || !html.includes('three-media-1')) {
+      throw new Error('expected overlay export to include flow and 3d media roots')
+    }
+    if (!html.includes('md-flow-1')) {
+      throw new Error('expected overlay export to include markdown blocks from flow overlay root')
+    }
+  } finally {
+    bootstrap?.restore()
+  }
+}
+
+export async function testExportHtmlViewerSeedsOverlayPanelsIntoRuntimePayloads() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -20 40 40"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g><g data-node-id="n1"><circle cx="10" cy="10" r="5" fill="blue"/></g><line data-edge-id="e1" data-source-id="m1" data-target-id="n1" x1="0" y1="0" x2="10" y2="10"/></svg>`
+  const overlayHtml =
+    '<article data-kg-rich-media-panel="1" data-node-id="m1" data-kg-kind="iframe" data-kg-url="https://example.com/media" data-kg-open-url="https://example.com/open"><header class="kg-mediaHeader" data-kg-media-panel-header="1"><h3 class="kg-mediaTitle">Overlay Media</h3></header></article>' +
+    '<article data-kg-markdown-design-block="b1" data-md-id="b1" data-kg-anchor-node-id="n1" data-kg-world-x="-4" data-kg-world-y="-6" data-kg-world-w="12" data-kg-world-h="8"><header class="kg-mdHeader"><div class="kg-mdTitle">MD Block</div></header></article>'
+  const html = await buildGraphHtmlViewerMarkup({
+    title: 'T',
+    svgMarkup: svg,
+    graphData: {
+      nodes: [{ id: 'm1', label: 'm1', x: 0, y: 0 }, { id: 'n1', label: 'n1', x: 10, y: 10 }],
+      edges: [{ id: 'e1', source: 'm1', target: 'n1' }],
+    } as any,
+    includeRichMediaOverlays: true,
+    overlayHtml,
+  })
+  if (!html) throw new Error('expected html')
+  if (!html.includes('"id":"m1"') || !html.includes('https://example.com/media')) {
+    throw new Error('expected overlay media panel to seed runtime media payload')
+  }
+  if (!html.includes('data-kg-markdown-design-block="b1"') || !html.includes('data-kg-anchor-node-id="n1"')) {
+    throw new Error('expected overlay markdown panel attributes to be preserved in exported html')
+  }
+  if (!html.includes('data-kg-world-x="-4"') || !html.includes('data-kg-world-w="12"')) {
+    throw new Error('expected overlay markdown world geometry attributes to be preserved')
+  }
+}
+
+export async function testExportHtmlViewerSeedsNodePositionsFromOverlayMarkdownWorldAttrs() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -20 40 40"><g data-node-id="n2"><circle cx="10" cy="10" r="5" fill="blue"/></g><line data-edge-id="e1" data-source-id="n1" data-target-id="n2" x1="0" y1="0" x2="10" y2="10"/></svg>`
+  const overlayHtml =
+    '<article data-kg-markdown-design-block="b1" data-md-id="b1" data-kg-anchor-node-id="n1" data-kg-world-x="-4" data-kg-world-y="-6" data-kg-world-w="12" data-kg-world-h="8"><header class="kg-mdHeader"><div class="kg-mdTitle">MD Block</div></header></article>'
+  const html = await buildGraphHtmlViewerMarkup({
+    title: 'T',
+    svgMarkup: svg,
+    graphData: {
+      nodes: [{ id: 'n1', label: 'n1' }, { id: 'n2', label: 'n2', x: 10, y: 10 }],
+      edges: [{ id: 'e1', source: 'n1', target: 'n2' }],
+    } as any,
+    includeRichMediaOverlays: true,
+    overlayHtml,
+  })
+  if (!html) throw new Error('expected html')
+  if (!html.includes('"n1":{"x":2,"y":-2}')) {
+    throw new Error('expected missing node position to be seeded from overlay markdown world geometry')
   }
 }
 

@@ -50,7 +50,88 @@ const findWorkspacePathForDocumentKey = (entries: WorkspaceEntry[], docKey: stri
   return exact || suffix
 }
 
+const resolveNavigationMetadata = (
+  args: {
+    node: GraphNode | null
+    edge: GraphEdge | null
+    nodes: GraphNode[]
+    edges: GraphEdge[]
+  },
+): Record<string, unknown> | null => {
+  const { node, edge, nodes, edges } = args
+  if (!node && edge) return (edge.metadata as Record<string, unknown>) || null
+  if (!node) return null
+
+  const base = (node.metadata as Record<string, unknown>) || null
+  const type = String(node.type || '')
+  if (type !== 'MermaidNode' && type !== 'InternalLink') return base
+
+  const nodeId = String(node.id || '')
+  if (!nodeId) return base
+
+  const nodeById = new Map<string, GraphNode>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]
+    const id = String(n?.id || '')
+    if (id && !nodeById.has(id)) nodeById.set(id, n)
+  }
+
+  const pointsToTargets: GraphNode[] = []
+  for (let i = 0; i < edges.length; i += 1) {
+    const e = edges[i]
+    if (!e) continue
+    if (String(e.label || '') !== 'pointsTo') continue
+    if (String(e.source || '') !== nodeId) continue
+    const targetId = String(e.target || '')
+    if (!targetId) continue
+    const t = nodeById.get(targetId)
+    if (t) pointsToTargets.push(t)
+  }
+
+  if (pointsToTargets.length === 0) return base
+
+  const pickTargetMeta = (t: GraphNode | null): Record<string, unknown> | null => {
+    if (!t) return null
+    const meta = (t.metadata as Record<string, unknown>) || null
+    return meta
+  }
+
+  for (let i = 0; i < pointsToTargets.length; i += 1) {
+    const t = pointsToTargets[i]
+    if (String(t.type || '') !== 'Anchor') continue
+    const meta = pickTargetMeta(t)
+    if (meta) return meta
+  }
+  for (let i = 0; i < pointsToTargets.length; i += 1) {
+    const t = pointsToTargets[i]
+    if (String(t.type || '') !== 'InternalLink') continue
+    const tid = String(t.id || '')
+    if (!tid) continue
+    for (let j = 0; j < edges.length; j += 1) {
+      const e = edges[j]
+      if (!e) continue
+      if (String(e.label || '') !== 'pointsTo') continue
+      if (String(e.source || '') !== tid) continue
+      const targetId = String(e.target || '')
+      if (!targetId) continue
+      const tt = nodeById.get(targetId)
+      if (!tt || String(tt.type || '') !== 'Anchor') continue
+      const meta = pickTargetMeta(tt)
+      if (meta) return meta
+    }
+  }
+  for (let i = 0; i < pointsToTargets.length; i += 1) {
+    const t = pointsToTargets[i]
+    if (String(t.type || '') !== 'Section') continue
+    const meta = pickTargetMeta(t)
+    if (meta) return meta
+  }
+
+  return base
+}
+
 export function useCanvasMarkdownSync(args: {
+  active: boolean
   entries: WorkspaceEntry[]
   activePath: WorkspacePath | null
   setActivePathSafe: (path: WorkspacePath) => void
@@ -61,6 +142,7 @@ export function useCanvasMarkdownSync(args: {
   setStatusError: StatusHelpers['setStatusError']
 }) {
   const {
+    active,
     entries,
     activePath,
     setActivePathSafe,
@@ -77,7 +159,6 @@ export function useCanvasMarkdownSync(args: {
   const graphNodes = useGraphStore(s => ((s.graphData as GraphData | null)?.nodes as GraphNode[] | undefined) || EMPTY_GRAPH_NODES)
   const graphEdges = useGraphStore(s => ((s.graphData as GraphData | null)?.edges as GraphEdge[] | undefined) || EMPTY_GRAPH_EDGES)
   const docLocationRevision = useGraphStore(s => (s.docLocationRevision || 0) as number)
-  const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
 
   const graphNodesRef = React.useRef<GraphNode[]>(graphNodes)
   React.useEffect(() => {
@@ -91,6 +172,7 @@ export function useCanvasMarkdownSync(args: {
   const lastCanvasSyncSigRef = React.useRef<string>('')
 
   React.useEffect(() => {
+    if (!active) return
     if (selectionSource !== 'canvas') return
 
     const nodeId = selectedNodeId ? String(selectedNodeId) : ''
@@ -104,7 +186,7 @@ export function useCanvasMarkdownSync(args: {
     const edges = Array.isArray(graphEdgesRef.current) ? graphEdgesRef.current : []
     const node = nodeId ? nodes.find(n => String(n.id || '') === nodeId) : null
     const edge = !node && edgeId ? edges.find(e => String(e.id || '') === edgeId) : null
-    const meta = node?.metadata ?? edge?.metadata ?? null
+    const meta = resolveNavigationMetadata({ node, edge, nodes, edges })
     const location = getDocumentLocationFromMetadata(meta)
     if (!location) {
       return
@@ -126,10 +208,10 @@ export function useCanvasMarkdownSync(args: {
       })
       setActivePathSafe(normalizedTarget)
     }
-    setWorkspaceViewMode('editor')
     if (layoutMode !== 'split' && layoutMode !== 'editor') setLayoutMode('split')
     revealLineInEditor(location.lineStart, location.lineEnd)
   }, [
+    active,
     activePath,
     entries,
     layoutMode,
@@ -142,6 +224,5 @@ export function useCanvasMarkdownSync(args: {
     setExpandedPaths,
     setLayoutMode,
     setStatusError,
-    setWorkspaceViewMode,
   ])
 }

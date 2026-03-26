@@ -306,13 +306,15 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
 
 
     // --- Click Event ---
-    const clickMatch = /^click\s+([A-Za-z0-9_.-]+)\s+"#([^"]+)"/.exec(trimmed)
+    const clickMatch =
+      /^click\s+([A-Za-z0-9_.-]+)\s+(?:"(#[^"]+)"|'(#[^']+)')(?:\s+(?:"[^"]*"|'[^']*'))?\s*$/.exec(trimmed)
     if (clickMatch) {
-      const nodeName = clickMatch[1]
-      const anchor = clickMatch[2]
-      const nodeId = mermaidNodeIdsByName.get(nodeName)
+      const nodeName = String(clickMatch[1] || '').trim()
+      const href = String(clickMatch[2] || clickMatch[3] || '').trim()
+      const anchor = href.startsWith('#') ? href.slice(1).trim() : ''
+      const nodeId = nodeName ? mermaidNodeIdsByName.get(nodeName) : undefined
       if (nodeId && anchor) {
-         addRel(nodeId, 'pointsTo', `anchor:${gid}:${anchor}`)
+        addRel(nodeId, 'pointsTo', `anchor:${gid}:${anchor}`)
       }
       continue
     }
