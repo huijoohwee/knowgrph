@@ -225,6 +225,11 @@ export const computeEdgeVisual = (
   },
 ): EdgeVisual => {
   const { schema, selectionSets } = params
+  const isBipartiteGraph = (() => {
+    const meta = params.data?.metadata
+    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
+    return String((meta as Record<string, unknown>).graphKind || '') === 'bipartite'
+  })()
   const { selectedEdgeIdSet } =
     selectionSets ?? deriveSelectionSets(params)
   const palette = getRendererPalette(schema)
@@ -234,7 +239,7 @@ export const computeEdgeVisual = (
   if (selectedEdgeIdSet.size > 0) {
     const isSelected = selectedEdgeIdSet.has(edge.id)
     const stroke = isSelected ? highlightStroke : getEdgeBaseStroke(edge, schema)
-    const opacity = isSelected ? 0.9 : 0.2
+    const opacity = isSelected ? 0.98 : isBipartiteGraph ? 0.72 : 0.45
     const width = isSelected ? getEdgeStrokeWidth(edge, schema) * 1.5 : getEdgeStrokeWidth(edge, schema)
     return { stroke, opacity, width }
   }
@@ -250,13 +255,13 @@ export const computeEdgeVisual = (
   const baseStroke = getEdgeBaseStroke(edge, schema)
   const baseWidth = getEdgeStrokeWidth(edge, schema)
   if (selectedNodeIdSet.size === 0) {
-    const baseOpacity = 0.6
+    const baseOpacity = isBipartiteGraph ? 0.82 : 0.7
     return { stroke: baseStroke, opacity: baseOpacity, width: baseWidth }
   }
   if (isHighlighted) {
-    return { stroke: highlightStroke, opacity: 0.9, width: baseWidth * 1.5 }
+    return { stroke: highlightStroke, opacity: 0.95, width: baseWidth * 1.5 }
   }
-  return { stroke: baseStroke, opacity: 0.2, width: baseWidth }
+  return { stroke: baseStroke, opacity: isBipartiteGraph ? 0.72 : 0.45, width: baseWidth }
 }
 
 export const applySelectionHighlight = (

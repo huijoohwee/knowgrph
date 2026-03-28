@@ -91,7 +91,8 @@ export function useD3GraphScene2d(args: {
   selectedEdgeIdsRef: MutableRefObject<string[] | undefined>
   setHoverInfo: Dispatch<SetStateAction<HoverInfo | null>>
 }): void {
-  const enableEditorGestures = useGraphStore(s => s.workspaceViewMode === 'editor')
+  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const enableEditorGestures = workspaceViewMode === 'editor' && String(args.canvas2dRenderer || '') !== 'd3Bipartite'
   const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
 
   const {
@@ -212,6 +213,34 @@ export function useD3GraphScene2d(args: {
     if (!sceneGraphData || !svgRef.current) return
     const schemaValue = schemaRef.current
     if (!schemaValue) return
+
+    const graphKind = (() => {
+      const meta = (sceneGraphData.metadata || {}) as Record<string, unknown>
+      return typeof meta.graphKind === 'string' ? meta.graphKind : ''
+    })()
+
+    const isBipartite = canvasRenderMode === '2d' && String(canvas2dRenderer || '') === 'd3Bipartite' && graphKind === 'bipartite'
+    const schemaForScene: GraphSchema = isBipartite
+      ? {
+          ...schemaValue,
+          layout: {
+            ...(schemaValue.layout || {}),
+            forces: {
+              ...((schemaValue.layout || {}).forces || {}),
+              centerStrength: 0,
+              disjointComponents: false,
+              postFitForce: false,
+              ...( { bipartiteMode: true } as any ),
+              linkDistanceByLabel: {
+                ...((((schemaValue.layout || {}).forces || {}) as any).linkDistanceByLabel || {}),
+                linksTo: 680,
+              },
+            },
+            mode: 'force',
+          },
+        }
+      : schemaValue
+
     const hoverEnabled = schemaValue.behavior?.hover?.enabled !== false && !coarsePointer
     const expansionCfg = schemaValue.behavior?.expansion || {}
     const expansionEnabled = expansionCfg.enabled !== false
@@ -364,7 +393,7 @@ export function useD3GraphScene2d(args: {
         graphData: sceneGraphData,
         graphDataRevision: graphDataRevisionRef.current ?? graphDataRevision,
       })
-      const layoutVariant = ''
+      const layoutVariant = isBipartite ? 'bipartite:v3' : ''
       const pickedInitialZoomTransform = pickInitialZoomTransform({
         zoomState: z,
         pinned: isPinned,
@@ -394,6 +423,8 @@ export function useD3GraphScene2d(args: {
         nodes: Array.isArray(sceneGraphData.nodes) ? sceneGraphData.nodes : [],
         layoutPositionCacheByMode,
       })
+
+      const effectiveLayoutPositionsForMode = isBipartite ? null : layoutPositionsForMode
 
       const baselineLayoutPositions = (() => {
         if (String(documentSemanticMode || 'document') !== 'keyword') return null
@@ -450,11 +481,12 @@ export function useD3GraphScene2d(args: {
         return lookup(baselineFromCurrentKey)
       })()
 
-      const effectiveSkipInitialLayout =
-        String(documentSemanticMode || 'document') === 'keyword' &&
-        canvasRenderMode === '2d' &&
-        String(canvas2dRenderer || '') === 'd3' &&
-        !!baselineLayoutPositions
+      const effectiveSkipInitialLayout = isBipartite
+        ? false
+        : String(documentSemanticMode || 'document') === 'keyword' &&
+            canvasRenderMode === '2d' &&
+            String(canvas2dRenderer || '') === 'd3' &&
+            !!baselineLayoutPositions
           ? true
           : skipInitialLayout
 
@@ -498,7 +530,7 @@ export function useD3GraphScene2d(args: {
         svgRef,
         graphData: sceneGraphData,
         graphDataRevision: graphDataRevision || 0,
-        schema: schemaValue,
+        schema: schemaForScene,
         documentSemanticMode: documentSemanticMode ?? undefined,
         edgesForSim,
         width: sceneWidth,
@@ -526,12 +558,12 @@ export function useD3GraphScene2d(args: {
         fitToScreenMode,
         viewportControlsPreset,
         initialZoomTransform,
-        layoutPositionsForMode,
+        layoutPositionsForMode: effectiveLayoutPositionsForMode,
         baselineLayoutPositions,
-        prevPositions: Object.keys(prevPositions).length > 0 ? prevPositions : null,
+        prevPositions: isBipartite ? null : Object.keys(prevPositions).length > 0 ? prevPositions : null,
         skipInitialLayout: effectiveSkipInitialLayout,
         freezeSimulation: isEmbeddedPreview || isMermaidLayout,
-        enableContinuousForceLayout: infiniteCanvasInteractionMode === 'interactive',
+        enableContinuousForceLayout: isBipartite || infiniteCanvasInteractionMode === 'interactive',
         groupsForBboxCollide: sceneGroupsDerivation?.allGroups || [],
         layoutGroupKeyByNodeId: sceneGroupsDerivation?.layoutGroupKeyByNodeId || null,
         gRef,

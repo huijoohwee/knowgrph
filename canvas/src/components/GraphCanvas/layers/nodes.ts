@@ -36,6 +36,16 @@ const MEDIA_PANEL_BORDER_COLOR = UI_THEME_COLORS_CSS.border;
 const MEDIA_PANEL_BG_FILL_OPACITY = 0.3;
 const MEDIA_PANEL_HEADER_FILL_OPACITY = 0.42;
 
+const readNumberProp = (props: Record<string, unknown>, key: string): number | null => {
+  const raw = props[key]
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw
+  if (typeof raw === 'string' && raw.trim()) {
+    const n = Number(raw)
+    if (Number.isFinite(n)) return n
+  }
+  return null
+}
+
 export const createNodesLayer = (args: {
   g: GSelection;
   graphData: GraphData;
@@ -436,6 +446,35 @@ export const createNodesLayer = (args: {
       const w = schema.nodeStroke?.[d.type]?.width
       if (typeof w === 'number' && Number.isFinite(w) && w >= 0) return w
       return 1.5
+    })
+    .style('filter', (d: GraphNode) => {
+      if (shouldHideNodeBody(d)) return null
+      const props = (d.properties || {}) as Record<string, unknown>
+      const glow = readNumberProp(props, 'visual:glowIntensity')
+      if (glow == null) return null
+      const t = glow < 0 ? 0 : glow > 1 ? 1 : glow
+      if (t <= 0) return null
+      const blurPx = Math.round(2 + t * 10)
+      const fill = getNodeBaseFill(d, schema)
+      return `drop-shadow(0 0 ${blurPx}px ${fill})`
+    })
+    .classed('kg-node-pulse', (d: GraphNode) => {
+      if (shouldHideNodeBody(d)) return false
+      const props = (d.properties || {}) as Record<string, unknown>
+      const pulse = readNumberProp(props, 'visual:pulseSpeed')
+      if (pulse == null) return false
+      const t = pulse < 0 ? 0 : pulse > 1 ? 1 : pulse
+      return t > 0
+    })
+    .style('--kg-pulse-duration', (d: GraphNode) => {
+      if (shouldHideNodeBody(d)) return null
+      const props = (d.properties || {}) as Record<string, unknown>
+      const pulse = readNumberProp(props, 'visual:pulseSpeed')
+      if (pulse == null) return null
+      const t = pulse < 0 ? 0 : pulse > 1 ? 1 : pulse
+      if (t <= 0) return null
+      const seconds = (4 - 3.3 * t).toFixed(2)
+      return `${seconds}s`
     })
     .attr('stroke-dasharray', () => null)
     .style('user-select', 'none')

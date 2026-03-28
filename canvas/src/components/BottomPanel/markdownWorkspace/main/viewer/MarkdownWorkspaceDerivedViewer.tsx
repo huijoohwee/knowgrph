@@ -41,8 +41,79 @@ import {
 } from './workspaceDataViewConfig'
 import { LRUCache } from '@/lib/cache/LRUCache'
 
-export type MarkdownWorkspaceDerivedViewerKind = 'markdown' | 'html'
+export type MarkdownWorkspaceDerivedViewerKind = 'markdown' | 'html' | 'json'
 export type MarkdownWorkspaceDerivedViewerMode = 'read' | 'kanban' | 'table'
+
+function tryBuildApiGraphMarkdownTablesFromJson(text: string): string | null {
+  const trimmed = String(text || '').trim()
+  if (!trimmed) return null
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null
+
+  const safeNum = (v: unknown): string => {
+    if (typeof v === 'number' && Number.isFinite(v)) return String(Math.round(v * 1000) / 1000)
+    if (typeof v === 'string' && v.trim()) {
+      const n = Number(v)
+      if (Number.isFinite(n)) return String(Math.round(n * 1000) / 1000)
+    }
+    return ''
+  }
+
+  const safeStr = (v: unknown): string => {
+    if (v == null) return ''
+    const s = String(v)
+    return s.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ')
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as any
+    const nodesRaw: any[] = Array.isArray(parsed?.nodes) ? parsed.nodes : []
+    const edgesRaw: any[] = Array.isArray(parsed?.edges) ? parsed.edges : []
+    if (nodesRaw.length === 0 && edgesRaw.length === 0) return null
+
+    const nodesHeader = ['id', 'type', 'label', 'cluster', 'gap_score', 'pmf_score', 'gap_velocity', 'source_count', 'specificity']
+    const nodesSep = Array(nodesHeader.length).fill('---')
+    const nodeLines = nodesRaw.map(n => {
+      const cells = [
+        safeStr(n?.id),
+        safeStr(n?.type),
+        safeStr(n?.label),
+        safeStr(n?.cluster),
+        safeNum(n?.gap_score),
+        safeNum(n?.pmf_score),
+        safeNum(n?.gap_velocity),
+        safeNum(n?.source_count),
+        safeStr(n?.specificity),
+      ]
+      return `| ${cells.join(' | ')} |`
+    })
+
+    const edgesHeader = ['source', 'target', 'strength']
+    const edgesSep = Array(edgesHeader.length).fill('---')
+    const edgeLines = edgesRaw.map(e => {
+      const cells = [safeStr(e?.source), safeStr(e?.target), safeNum(e?.strength)]
+      return `| ${cells.join(' | ')} |`
+    })
+
+    return [
+      '# API Graph (Derived from JSON)',
+      '',
+      '## Nodes',
+      '',
+      `| ${nodesHeader.join(' | ')} |`,
+      `| ${nodesSep.join(' | ')} |`,
+      ...nodeLines,
+      '',
+      '## Edges',
+      '',
+      `| ${edgesHeader.join(' | ')} |`,
+      `| ${edgesSep.join(' | ')} |`,
+      ...edgeLines,
+      '',
+    ].join('\n')
+  } catch {
+    return null
+  }
+}
 
 type DataViewCandidate = {
   id: string
@@ -54,15 +125,40 @@ type DataViewCandidate = {
 
 const DATA_VIEW_CANDIDATES_CACHE = new LRUCache<string, DataViewCandidate[]>(60)
 
-const buildDataViewCandidates = (markdownText: string, candidatesKey: string): DataViewCandidate[] => {
-  const cached = DATA_VIEW_CANDIDATES_CACHE.get(candidatesKey)
+const buildMarkdownDataViewFromTableTokenLoose = (table: TokensTable): MarkdownDataView | null => {
+  const headerCells = Array.isArray(table.header) ? table.header : []
+  const rowsCells = Array.isArray(table.rows) ? table.rows : []
+  const colCount = Math.max(headerCells.length, ...rowsCells.map(r => r.length))
+  if (!Number.isFinite(colCount) || colCount <= 1 || colCount > 32) return null
+
+  const headerNames = Array.from({ length: colCount }).map((_, i) => String(headerCells[i]?.text ?? '').trim())
+  const rows = rowsCells.map((r, rowIndex) => {
+    const cells = Array.from({ length: colCount }).map((_, colIndex) => String(r[colIndex]?.text ?? '').trim())
+    return { id: `row_${rowIndex}`, cells }
+  })
+  if (rows.length < 1) return null
+
+  const columns = headerNames.map((name, colIndex) => {
+    const safe = name || `Column ${colIndex + 1}`
+    return { id: `col_${colIndex}`, name: safe, kind: 'text' as const }
+  })
+
+  const titleColumnId = columns[0]?.id ?? 'col_0'
+  return { columns, rows, titleColumnId, groupByColumnId: null }
+}
+
+const buildDataViewCandidates = (markdownText: string, candidatesKey: string, relaxed: boolean): DataViewCandidate[] => {
+  const cacheKey = `${candidatesKey}|${relaxed ? 'relaxed' : 'strict'}`
+  const cached = DATA_VIEW_CANDIDATES_CACHE.get(cacheKey)
   if (cached) return cached
   const { tokens } = lexMarkdown(markdownText)
   const tables = tokens.filter((t): t is TokenWithLines & TokensTable => t.type === 'table')
   const candidates: DataViewCandidate[] = []
   for (let i = 0; i < tables.length; i += 1) {
     const table = tables[i]
-    const view = buildMarkdownDataViewFromTableToken(table)
+    const view = relaxed
+      ? (buildMarkdownDataViewFromTableToken(table) || buildMarkdownDataViewFromTableTokenLoose(table))
+      : buildMarkdownDataViewFromTableToken(table)
     if (!view) continue
     const startLine = Math.max(1, Math.floor(Number((table as unknown as { startLine?: unknown }).startLine || 0)))
     const endLine = Math.max(startLine, Math.floor(Number((table as unknown as { endLine?: unknown }).endLine || 0)))
@@ -75,7 +171,7 @@ const buildDataViewCandidates = (markdownText: string, candidatesKey: string): D
       view,
     })
   }
-  DATA_VIEW_CANDIDATES_CACHE.set(candidatesKey, candidates)
+  DATA_VIEW_CANDIDATES_CACHE.set(cacheKey, candidates)
   return candidates
 }
 
@@ -106,7 +202,15 @@ export function MarkdownWorkspaceDerivedViewer(props: {
   onViewerRootRef: (el: HTMLDivElement | null) => void
 }) {
   const panelTypography = usePanelTypography()
-  const candidatesKey = React.useMemo(() => buildMarkdownTokensKey(props.markdownText), [props.markdownText])
+
+  const derivedStructuredText = React.useMemo(() => {
+    if (props.viewerKind !== 'json') return null
+    if (props.viewerMode === 'read') return null
+    return tryBuildApiGraphMarkdownTablesFromJson(props.markdownText)
+  }, [props.markdownText, props.viewerKind, props.viewerMode])
+
+  const effectiveMarkdownText = derivedStructuredText || props.markdownText
+  const candidatesKey = React.useMemo(() => buildMarkdownTokensKey(effectiveMarkdownText), [effectiveMarkdownText])
   const [selectedTableId, setSelectedTableId] = React.useState<string>('')
   const [viewConfig, setViewConfig] = React.useState<WorkspaceDataViewConfig | null>(null)
   const [settingsOpen, setSettingsOpen] = React.useState(false)
@@ -116,10 +220,22 @@ export function MarkdownWorkspaceDerivedViewer(props: {
     sortMode: 'none',
   }))
 
-  const candidates = React.useMemo(() => {
+  const strictCandidates = React.useMemo(() => {
     if (props.viewerMode === 'read') return []
-    return buildDataViewCandidates(props.markdownText, candidatesKey)
-  }, [props.markdownText, props.viewerMode, candidatesKey])
+    if (props.viewerKind === 'json') return []
+    return buildDataViewCandidates(effectiveMarkdownText, candidatesKey, false)
+  }, [candidatesKey, effectiveMarkdownText, props.viewerKind, props.viewerMode])
+
+  const relaxedCandidates = React.useMemo(() => {
+    if (props.viewerMode === 'read') return []
+    const shouldRelax = props.viewerKind === 'json'
+      ? !!derivedStructuredText
+      : strictCandidates.length === 0
+    return shouldRelax ? buildDataViewCandidates(effectiveMarkdownText, candidatesKey, true) : []
+  }, [candidatesKey, derivedStructuredText, effectiveMarkdownText, props.viewerKind, props.viewerMode, strictCandidates.length])
+
+  const candidates = strictCandidates.length > 0 ? strictCandidates : relaxedCandidates
+  const usingLooseTables = strictCandidates.length === 0 && relaxedCandidates.length > 0
 
   React.useEffect(() => {
     if (candidates.length < 1) {
@@ -200,7 +316,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
     }
   }, [props.activeDocumentPath, selected, viewConfig])
 
-  const canMutate = !props.disableViewerMutations
+  const canMutate = !props.disableViewerMutations && props.viewerKind !== 'json' && !usingLooseTables
 
   const onResetDataView = React.useCallback(() => {
     setHeaderState({ searchQuery: '', visibleGroups: null, sortMode: 'none' })
@@ -356,6 +472,17 @@ export function MarkdownWorkspaceDerivedViewer(props: {
   )
 
   if (props.viewerMode === 'read') {
+    if (props.viewerKind === 'json') {
+      return (
+        <div
+          ref={props.onViewerRootRef}
+          className={`h-full w-full overflow-auto ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} ${props.uiPanelMonospaceTextClass}`}
+          aria-label="JSON viewer"
+        >
+          <pre className="m-0 p-3 text-[11px] leading-snug whitespace-pre-wrap break-words">{props.markdownText}</pre>
+        </div>
+      )
+    }
     if (props.viewerKind === 'html') {
       return (
         <div ref={props.onViewerRootRef} className="h-full w-full">

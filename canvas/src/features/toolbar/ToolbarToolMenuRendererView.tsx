@@ -10,6 +10,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { GraphEditorToolRail, type GraphEditorToolId } from '@/features/graph-editor/GraphEditorToolRail'
 import { GraphEditorRightPanel } from '@/features/graph-editor/GraphEditorRightPanel'
 import { DesignWireframeSettings } from '@/features/toolbar/ui/DesignWireframeSettings'
+import { BipartiteRendererSettings } from '@/features/toolbar/ui/BipartiteRendererSettings'
 
 export function ToolbarToolMenuRendererView() {
   const {
@@ -66,11 +67,13 @@ export function ToolbarToolMenuRendererView() {
   const showGraphEditorUi =
     workspaceViewMode === 'editor' && canvasRenderMode === '2d' && canvas2dRenderer === 'd3'
   const showDesignWireframeUi = canvasRenderMode === '2d' && canvas2dRenderer === 'design'
+  const showBipartiteUi = canvasRenderMode === '2d' && canvas2dRenderer === 'd3Bipartite'
 
   return (
     <div className="flex flex-col gap-2">
       <RendererPaletteSettings />
       <RendererHoverSettings />
+      {showBipartiteUi ? <BipartiteRendererSettings /> : null}
       <section className="flex flex-col gap-1" aria-label="Rich media rendering">
         <div className={`text-xs font-semibold ${UI_THEME_TOKENS.button.text}`}>
           Rich media

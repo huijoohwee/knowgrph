@@ -7,12 +7,14 @@ import { uiMarkdownSettingsRegistry } from './registry-ui.markdown'
 import { uiImportYoutubeSettingsRegistry } from './registry-ui.import-youtube'
 import { uiImportWebpageSettingsRegistry } from './registry-ui.import-webpage'
 import { uiImportGeoSettingsRegistry } from './registry-ui.import-geo'
+import { uiBipartiteSettingsRegistry } from './registry-ui.bipartite'
 
 export const uiSettingsRegistry: SettingMeta[] = [
   ...uiUiSettingsRegistry,
   ...uiCanvasGridSettingsRegistry,
   ...uiMarkdownSettingsRegistry,
   ...uiImportGeoSettingsRegistry,
+  ...uiBipartiteSettingsRegistry,
   ...uiImportPdfSettingsRegistry,
   ...uiImportYoutubeSettingsRegistry,
   ...uiImportWebpageSettingsRegistry,

@@ -1,8 +1,12 @@
-export const CANVAS_2D_RENDERERS = ['d3', 'flow', 'flowEditor', 'design'] as const
+export const CANVAS_2D_RENDERERS = ['d3', 'd3Bipartite', 'flow', 'flowEditor', 'design'] as const
 
 export type Canvas2dRendererId = (typeof CANVAS_2D_RENDERERS)[number]
 
 export const DEFAULT_CANVAS_2D_RENDERER: Canvas2dRendererId = 'd3'
+
+export const isD3Like2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return id === 'd3' || id === 'd3Bipartite'
+}
 
 export const INFINITE_CANVAS_INTERACTION_MODES = ['static', 'interactive'] as const
 

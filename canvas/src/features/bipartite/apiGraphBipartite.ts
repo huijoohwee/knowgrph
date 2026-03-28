@@ -1,0 +1,762 @@
+import React from 'react'
+import { hashText } from '@/features/parsers/hash'
+import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { writeSubgraphs, type UserSubgraph } from '@/lib/graph/subgraphs'
+import { useShallow } from 'zustand/react/shallow'
+import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
+
+type ApiGraphNode = {
+  id: string
+  type: 'problem' | 'solution' | string
+  label: string
+  cluster?: string
+  gap_score?: number
+  pmf_score?: number
+  gap_velocity?: number
+  source_count?: number
+  specificity?: string
+  color?: string
+  x?: number
+  y?: number
+}
+
+type ApiGraphEdge = {
+  source?: string
+  target?: string
+  problem_id?: string
+  solution_id?: string
+  strength?: number
+}
+
+type ApiGraphPayload = {
+  nodes?: ApiGraphNode[]
+  edges?: ApiGraphEdge[]
+  meta?:
+    | ({
+        total_problems?: number
+        total_solutions?: number
+        last_updated?: string
+        cluster_gap_ratios?: Record<string, number>
+      } & Record<string, unknown>)
+    | undefined
+  clusters?: Array<Record<string, unknown>>
+}
+
+const DEV_FALLBACK_API_GRAPH: ApiGraphPayload = {
+  nodes: [
+    {
+      id: 'node-uuid-abc123',
+      type: 'problem',
+      label: 'AI agent memory persistence across sessions',
+      cluster: 'Validation',
+      gap_score: 3.367,
+      pmf_score: 5.24,
+      gap_velocity: 0.82,
+      source_count: 1,
+      specificity: 'named_tool',
+      color: '#9f7cff',
+      x: 120,
+      y: 340,
+    },
+    {
+      id: 'sol-xyz987',
+      type: 'solution',
+      label: 'LangGraph by LangChain',
+      cluster: 'Build & hire',
+      gap_score: 0,
+      pmf_score: 0,
+      gap_velocity: 0,
+      source_count: 3,
+      specificity: 'named_tool',
+    },
+  ],
+  edges: [
+    {
+      source: 'node-uuid-abc123',
+      target: 'sol-xyz987',
+      strength: 0.4,
+    },
+  ],
+  meta: { total_problems: 87, total_solutions: 34, last_updated: '2026-03-27T12:46:30Z' },
+}
+
+const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
+
+const round2 = (v: number) => Math.round(v * 100) / 100
+
+type BipartiteRenderSettings = {
+  nodeSizeMetric: 'gap_score' | 'pmf_score' | 'gap_velocity' | 'source_count' | 'none'
+  nodeGlowMetric: 'pmf_score' | 'gap_score' | 'none'
+  nodePulseMetric: 'gap_velocity' | 'pmf_score' | 'none'
+  nodeBorderMetric: 'source_count' | 'gap_score' | 'none'
+  edgeOpacityMetric: 'strength' | 'none'
+  showSpecificityBadges: boolean
+  showGapScoreInLabel: boolean
+  showClusterGapRatio: boolean
+}
+
+const asString = (v: unknown): string => (typeof v === 'string' ? v : String(v ?? ''))
+
+const asFiniteNumber = (v: unknown): number | null => {
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'string' && v.trim()) {
+    const n = Number(v)
+    if (Number.isFinite(n)) return n
+  }
+  return null
+}
+
+function readApiGraphPayload(value: unknown): ApiGraphPayload | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const obj = value as Record<string, unknown>
+  const nodesRaw = obj.nodes
+  const edgesRaw = obj.edges
+  const nodes = Array.isArray(nodesRaw) ? (nodesRaw as unknown[]).filter(Boolean) : null
+  const edges = Array.isArray(edgesRaw) ? (edgesRaw as unknown[]).filter(Boolean) : null
+  if (!nodes || !edges) return null
+  const meta = obj.meta && typeof obj.meta === 'object' && !Array.isArray(obj.meta) ? (obj.meta as Record<string, unknown>) : null
+  const clustersRaw = Array.isArray(obj.clusters) ? (obj.clusters as Array<Record<string, unknown>>) : []
+  const clusterById = new Map<
+    string,
+    {
+      name?: string
+      color?: string
+      side?: 'problem' | 'solution'
+      ratio?: number
+    }
+  >()
+  for (let i = 0; i < clustersRaw.length; i += 1) {
+    const c = clustersRaw[i]
+    if (!c || typeof c !== 'object' || Array.isArray(c)) continue
+    const id = asString(c.id).trim()
+    if (!id) continue
+    const name = asString(c.name).trim()
+    const color = asString(c.color).trim()
+    const sideRaw = asString(c.side).trim().toLowerCase()
+    const side = sideRaw === 'problem' || sideRaw === 'solution' ? sideRaw : undefined
+    const ratio = asFiniteNumber(c.gap_ratio)
+    clusterById.set(id, {
+      ...(name ? { name } : {}),
+      ...(color ? { color } : {}),
+      ...(side ? { side } : {}),
+      ...(ratio != null ? { ratio } : {}),
+    })
+  }
+  return {
+    nodes: nodes.map(n => {
+      const o = n && typeof n === 'object' && !Array.isArray(n) ? (n as Record<string, unknown>) : null
+      const id = o ? asString(o.id).trim() : ''
+      const label = o ? asString(o.label).trim() : ''
+      const clusterRaw = o ? asString(o.cluster).trim() : ''
+      const clusterResolved = clusterRaw && clusterById.has(clusterRaw) ? (clusterById.get(clusterRaw)?.name || clusterRaw) : clusterRaw
+      const clusterColor = clusterRaw && clusterById.has(clusterRaw) ? (clusterById.get(clusterRaw)?.color || '') : ''
+      const gapScore = o ? asFiniteNumber(o.gap_score) : null
+      const pmfScore = o ? asFiniteNumber(o.pmf_score) : null
+      const gapVelocity = o ? asFiniteNumber(o.gap_velocity) : null
+      const sourceCount = o ? asFiniteNumber(o.source_count) : null
+      const specificity = o ? asString(o.specificity).trim() : ''
+      const color = o ? asString(o.color).trim() : ''
+      const x = o ? asFiniteNumber(o.x) : null
+      const y = o ? asFiniteNumber(o.y) : null
+      const typeRaw = o ? asString(o.type).trim() : ''
+      const sideFromCluster = clusterRaw && clusterById.has(clusterRaw) ? (clusterById.get(clusterRaw)?.side || '') : ''
+      const type = typeRaw || sideFromCluster || ''
+      return {
+        id,
+        type,
+        label,
+        cluster: clusterResolved || undefined,
+        gap_score: gapScore ?? undefined,
+        pmf_score: pmfScore ?? undefined,
+        gap_velocity: gapVelocity ?? undefined,
+        source_count: sourceCount ?? undefined,
+        specificity: specificity || undefined,
+        color: color || clusterColor || undefined,
+        x: x ?? undefined,
+        y: y ?? undefined,
+      }
+    }),
+    edges: edges.map(e => {
+      const o = e && typeof e === 'object' && !Array.isArray(e) ? (e as Record<string, unknown>) : null
+      const source = o ? asString(o.source).trim() : ''
+      const target = o ? asString(o.target).trim() : ''
+      const problemId = o ? asString(o.problem_id).trim() : ''
+      const solutionId = o ? asString(o.solution_id).trim() : ''
+      const strength = o ? asFiniteNumber(o.strength) : null
+      return {
+        source: source || undefined,
+        target: target || undefined,
+        problem_id: problemId || undefined,
+        solution_id: solutionId || undefined,
+        strength: strength ?? undefined,
+      }
+    }),
+    meta: meta
+      ? {
+          total_problems: asFiniteNumber(meta.total_problems) ?? undefined,
+          total_solutions: asFiniteNumber(meta.total_solutions) ?? undefined,
+          last_updated: typeof meta.last_updated === 'string' ? meta.last_updated : undefined,
+          ...meta,
+        }
+      : undefined,
+    ...(clustersRaw.length > 0 ? { clusters: clustersRaw } : {}),
+  }
+}
+
+function buildApiGraphSignature(payload: ApiGraphPayload): string {
+  const nodes = Array.isArray(payload.nodes) ? payload.nodes : []
+  const edges = Array.isArray(payload.edges) ? payload.edges : []
+  const updated = payload.meta && typeof payload.meta.last_updated === 'string' ? payload.meta.last_updated : ''
+  const ids = nodes
+    .map(n => String(n?.id || '').trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b))
+  const edgeKeys = edges
+    .map(e => {
+      const s = String(e?.source || '').trim()
+      const t = String(e?.target || '').trim()
+      const st = typeof e?.strength === 'number' && Number.isFinite(e.strength) ? String(e.strength) : ''
+      return `${s}|${t}|${st}`
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b))
+  const core = `${updated}|n${ids.length}|e${edgeKeys.length}|${ids.join(',')}|${edgeKeys.join(',')}`
+  return hashText(core)
+}
+
+function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, settings: BipartiteRenderSettings): GraphData {
+  const rawNodes = Array.isArray(payload.nodes) ? payload.nodes : []
+  const rawEdges = Array.isArray(payload.edges) ? payload.edges : []
+  const nodeById = new Map<string, ApiGraphNode>()
+  for (let i = 0; i < rawNodes.length; i += 1) {
+    const n = rawNodes[i]
+    const id = String(n?.id || '').trim()
+    if (!id) continue
+    if (!nodeById.has(id)) nodeById.set(id, n)
+  }
+
+  const problemClusterCounts = new Map<string, number>()
+  const solutionClusterCounts = new Map<string, number>()
+  for (const n of nodeById.values()) {
+    const type = String(n.type || '').toLowerCase()
+    const cluster = String(n.cluster || '').trim()
+    if (!cluster) continue
+    const map = type === 'problem' ? problemClusterCounts : type === 'solution' ? solutionClusterCounts : null
+    if (!map) continue
+    map.set(cluster, (map.get(cluster) || 0) + 1)
+  }
+
+  const meta = payload.meta && typeof payload.meta === 'object' && !Array.isArray(payload.meta)
+    ? (payload.meta as Record<string, unknown>)
+    : null
+
+  const clusterGapRatiosFromMeta = (() => {
+    const raw = meta?.cluster_gap_ratios
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+    const out = new Map<string, number>()
+    Object.entries(raw as Record<string, unknown>).forEach(([k, v]) => {
+      const n =
+        asFiniteNumber(v) ??
+        (v && typeof v === 'object' && !Array.isArray(v)
+          ? asFiniteNumber((v as Record<string, unknown>).ratio)
+          : null)
+      if (n == null) return
+      out.set(String(k), clamp(n, 0, 1))
+    })
+    return out
+  })()
+
+  const sortClusters = (m: Map<string, number>, mode: 'gapThenCount' | 'countThenName') => {
+    const gapOf = (cluster: string): number | null => {
+      if (!clusterGapRatiosFromMeta) return null
+      if (!clusterGapRatiosFromMeta.has(cluster)) return null
+      return clusterGapRatiosFromMeta.get(cluster) ?? null
+    }
+    return Array.from(m.entries())
+      .sort((a, b) => {
+        if (mode === 'gapThenCount') {
+          const ga = gapOf(a[0])
+          const gb = gapOf(b[0])
+          if (ga != null || gb != null) {
+            const aa = ga ?? -1
+            const bb = gb ?? -1
+            if (bb !== aa) return bb - aa
+          }
+        }
+        if (b[1] !== a[1]) return b[1] - a[1]
+        return a[0].localeCompare(b[0])
+      })
+      .map(([k]) => k)
+  }
+
+  const problemClusters = sortClusters(problemClusterCounts, 'gapThenCount')
+  const solutionClusters = sortClusters(solutionClusterCounts, 'countThenName')
+  const yLaneByProblemCluster = new Map<string, number>(problemClusters.map((c, idx) => [c, idx]))
+  const yLaneBySolutionCluster = new Map<string, number>(solutionClusters.map((c, idx) => [c, idx]))
+
+  const nodes: GraphNode[] = []
+
+  const metricUnit = (metric: string): number => {
+    if (metric === 'gap_score') return 5
+    if (metric === 'pmf_score') return 6
+    if (metric === 'gap_velocity') return 1
+    if (metric === 'source_count') return 10
+    return 1
+  }
+
+  const readNodeMetric = (n: ApiGraphNode, metric: string): number => {
+    if (metric === 'gap_score') return typeof n.gap_score === 'number' && Number.isFinite(n.gap_score) ? n.gap_score : 0
+    if (metric === 'pmf_score') return typeof n.pmf_score === 'number' && Number.isFinite(n.pmf_score) ? n.pmf_score : 0
+    if (metric === 'gap_velocity') return typeof n.gap_velocity === 'number' && Number.isFinite(n.gap_velocity) ? n.gap_velocity : 0
+    if (metric === 'source_count') return typeof n.source_count === 'number' && Number.isFinite(n.source_count) ? n.source_count : 0
+    return 0
+  }
+
+  const metricT = (value: number, metric: string): number => {
+    const denom = metricUnit(metric)
+    if (!(denom > 0)) return 0
+    return clamp(value / denom, 0, 1)
+  }
+
+  const iconForSpecificity = (v: string): string => {
+    const s = String(v || '').trim().toLowerCase()
+    if (s === 'named_tool' || s === 'tool') return '🔧'
+    if (s === 'domain') return '🏷'
+    if (s === 'vague') return '💬'
+    return ''
+  }
+
+  nodeById.forEach(n => {
+    const typeRaw = String(n.type || '').trim()
+    const typeLower = typeRaw.toLowerCase()
+    const isProblem = typeLower === 'problem'
+    const isSolution = typeLower === 'solution'
+    const type = isProblem ? 'problem' : isSolution ? 'solution' : (typeRaw || 'node')
+    const label = String(n.label || '').trim() || String(n.id || '').trim()
+    const cluster = String(n.cluster || '').trim()
+    const gapScore = typeof n.gap_score === 'number' && Number.isFinite(n.gap_score) ? n.gap_score : 0
+    const pmfScore = typeof n.pmf_score === 'number' && Number.isFinite(n.pmf_score) ? n.pmf_score : 0
+    const gapVelocity = typeof n.gap_velocity === 'number' && Number.isFinite(n.gap_velocity) ? n.gap_velocity : 0
+    const sourceCount = typeof n.source_count === 'number' && Number.isFinite(n.source_count) ? n.source_count : 0
+    const specificity = typeof n.specificity === 'string' ? n.specificity.trim() : ''
+    const fill = typeof n.color === 'string' && n.color.trim() ? n.color.trim() : ''
+
+    const sizeMetric = settings.nodeSizeMetric
+    const sizeT = sizeMetric !== 'none' ? metricT(readNodeMetric(n, sizeMetric), sizeMetric) : null
+    const radius = sizeT == null ? null : clamp(9 + sizeT * (isProblem ? 16 : 12), 7, 40)
+
+    const baseW = isProblem ? 260 : isSolution ? 220 : 220
+    const baseH = isProblem ? 96 : isSolution ? 84 : 84
+    const width = Math.round(
+      radius != null ? clamp(radius * (isProblem ? 12 : 10), 140, 420) : clamp(baseW * (isProblem ? clamp(1 + gapScore * 0.08, 0.9, 1.45) : 1), 140, 420),
+    )
+    const height = Math.round(radius != null ? clamp(radius * (isProblem ? 4 : 3.5), 56, 220) : clamp(baseH * (isProblem ? 1 : 0.95), 56, 220))
+
+    const glowMetric = settings.nodeGlowMetric
+    const glowT = glowMetric !== 'none' ? metricT(readNodeMetric(n, glowMetric), glowMetric) : 0
+    const pulseMetric = settings.nodePulseMetric
+    const pulseT = pulseMetric !== 'none' ? metricT(readNodeMetric(n, pulseMetric), pulseMetric) : 0
+    const borderMetric = settings.nodeBorderMetric
+    const borderT = borderMetric !== 'none' ? metricT(readNodeMetric(n, borderMetric), borderMetric) : null
+    const strokeWidth = borderT == null ? null : round2(clamp(1.5 + borderT * 4.5, 0.5, 8))
+
+    const labelPrefix = settings.showSpecificityBadges ? iconForSpecificity(specificity) : ''
+    const labelGap = settings.showGapScoreInLabel && isProblem ? ` • ${round2(gapScore).toFixed(2)}` : ''
+    const labelBase = label
+    const nextLabel = `${labelPrefix ? `${labelPrefix} ` : ''}${labelBase}${labelGap}`
+
+    const lane = isProblem
+      ? (cluster ? (yLaneByProblemCluster.get(cluster) ?? problemClusters.length) : 0)
+      : isSolution
+        ? (cluster ? (yLaneBySolutionCluster.get(cluster) ?? solutionClusters.length) : 0)
+        : 0
+
+    const xIndex = isSolution ? 8 : 0
+    const yIndex = lane
+
+    const props: Record<string, JSONValue> = {
+      cluster: cluster || null,
+      gap_score: gapScore,
+      pmf_score: pmfScore,
+      gap_velocity: gapVelocity,
+      source_count: sourceCount,
+      specificity: specificity || null,
+      ...(fill ? { color: fill } : {}),
+      'visual:shape': 'circle',
+      'visual:width': width,
+      'visual:height': height,
+      'visual:xIndex': xIndex,
+      'visual:yIndex': yIndex,
+      ...(radius != null ? { 'visual:radius': round2(radius) } : {}),
+      ...(glowT > 0 ? { 'visual:glowIntensity': round2(glowT) } : {}),
+      ...(pulseT > 0 ? { 'visual:pulseSpeed': round2(pulseT) } : {}),
+      ...(strokeWidth != null ? { 'visual:strokeWidth': strokeWidth } : {}),
+      ...(fill ? { 'visual:fill': fill } : {}),
+      'api:source': '/api/graph',
+    }
+
+    const sideFixedX = isProblem ? -980 : isSolution ? 980 : null
+    const seedX = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : sideFixedX
+    const seedY = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+
+    nodes.push({
+      id: String(n.id || ''),
+      label: nextLabel,
+      type,
+      ...(seedX != null ? { x: seedX } : {}),
+      ...(seedY != null ? { y: seedY } : {}),
+      ...(sideFixedX != null ? { fx: sideFixedX } : {}),
+      properties: props,
+    })
+  })
+
+  const assignClusterPackedY = (side: 'problem' | 'solution') => {
+    const byCluster = new Map<string, GraphNode[]>()
+    for (const n of nodes) {
+      if (String(n.type || '') !== side) continue
+      const props = (n.properties || {}) as Record<string, unknown>
+      const cluster = String(props.cluster || '').trim()
+      if (!cluster) continue
+      const list = byCluster.get(cluster) || []
+      list.push(n)
+      byCluster.set(cluster, list)
+    }
+
+    for (const [cluster, list] of byCluster.entries()) {
+      list.sort((a, b) => {
+        const ap = (a.properties || {}) as Record<string, unknown>
+        const bp = (b.properties || {}) as Record<string, unknown>
+        if (side === 'problem') {
+          const ag = typeof ap.gap_score === 'number' && Number.isFinite(ap.gap_score) ? (ap.gap_score as number) : 0
+          const bg = typeof bp.gap_score === 'number' && Number.isFinite(bp.gap_score) ? (bp.gap_score as number) : 0
+          if (bg !== ag) return bg - ag
+        }
+        const asc = typeof ap.source_count === 'number' && Number.isFinite(ap.source_count) ? (ap.source_count as number) : 0
+        const bsc = typeof bp.source_count === 'number' && Number.isFinite(bp.source_count) ? (bp.source_count as number) : 0
+        if (side === 'solution' && bsc !== asc) return bsc - asc
+        return String(a.label || '').localeCompare(String(b.label || ''))
+      })
+
+      const lane = side === 'problem'
+        ? (yLaneByProblemCluster.get(cluster) ?? 0)
+        : (yLaneBySolutionCluster.get(cluster) ?? 0)
+      const baseY = lane * 1.1
+      const center = (list.length - 1) / 2
+      for (let i = 0; i < list.length; i += 1) {
+        const node = list[i]!
+        const props = (node.properties || {}) as Record<string, JSONValue>
+        const y = baseY + (i - center) * 0.18
+        props['visual:yIndex'] = y
+        node.properties = props
+        if (!(typeof node.x === 'number' && Number.isFinite(node.x))) node.x = side === 'problem' ? -980 : 980
+        if (node.fx == null) node.fx = side === 'problem' ? -980 : 980
+        if (!(typeof node.y === 'number' && Number.isFinite(node.y))) node.y = y * 360
+      }
+    }
+  }
+
+  assignClusterPackedY('problem')
+  assignClusterPackedY('solution')
+
+  const nodeIds = new Set<string>(nodes.map(n => n.id))
+  const edgeCandidates = rawEdges
+    .map(e => {
+      const source = String(e?.source || e?.problem_id || '').trim()
+      const target = String(e?.target || e?.solution_id || '').trim()
+      if (!source || !target) return null
+      if (!nodeIds.has(source) || !nodeIds.has(target)) return null
+      const strength = typeof e?.strength === 'number' && Number.isFinite(e.strength) ? clamp(e.strength, 0, 1) : null
+      const strengthKey = strength != null ? String(strength) : ''
+      const key = `${source}|${target}|${strengthKey}`
+      return { source, target, strength, key }
+    })
+    .filter(Boolean) as Array<{ source: string; target: string; strength: number | null; key: string }>
+  edgeCandidates.sort((a, b) => a.key.localeCompare(b.key))
+  const edgeCounts = new Map<string, number>()
+  const edges: GraphEdge[] = []
+  for (let i = 0; i < edgeCandidates.length; i += 1) {
+    const e = edgeCandidates[i]!
+    const nextCount = (edgeCounts.get(e.key) || 0) + 1
+    edgeCounts.set(e.key, nextCount)
+    const id = `apiEdge:${hashText(`${e.key}|${nextCount}`)}`
+    const visualOpacity = (() => {
+      if (settings.edgeOpacityMetric !== 'strength') return null
+      if (e.strength == null) return null
+      const t = clamp(e.strength, 0, 1)
+      return round2(0.45 + 0.5 * t)
+    })()
+    const visualWidth = (() => {
+      const t = e.strength == null ? 0.5 : clamp(e.strength, 0, 1)
+      return round2(1.6 + 2.8 * t)
+    })()
+    edges.push({
+      id,
+      source: e.source,
+      target: e.target,
+      label: 'linksTo',
+      properties: {
+        ...(e.strength != null ? { strength: e.strength } : {}),
+        ...(visualOpacity != null ? { 'visual:opacity': visualOpacity } : {}),
+        'visual:width': visualWidth,
+        'api:source': '/api/graph',
+      } as Record<string, JSONValue>,
+    })
+  }
+
+  const updated = typeof meta?.last_updated === 'string' ? (meta.last_updated as string) : null
+  const totalProblems = asFiniteNumber(meta?.total_problems) ?? null
+  const totalSolutions = asFiniteNumber(meta?.total_solutions) ?? null
+
+  const problemOutgoingCountByCluster = (() => {
+    const byId = new Map<string, string>()
+    for (const n of nodeById.values()) {
+      const type = String(n.type || '').toLowerCase()
+      if (type !== 'problem') continue
+      const cluster = String(n.cluster || '').trim()
+      if (!cluster) continue
+      const id = String(n.id || '').trim()
+      if (!id) continue
+      byId.set(id, cluster)
+    }
+    const outCount = new Map<string, number>()
+    const outSeen = new Set<string>()
+    for (let i = 0; i < edges.length; i += 1) {
+      const e = edges[i]!
+      const src = String(e.source || '').trim()
+      const cluster = byId.get(src)
+      if (!cluster) continue
+      const key = `${cluster}|${src}`
+      if (outSeen.has(key)) continue
+      outSeen.add(key)
+      outCount.set(cluster, (outCount.get(cluster) || 0) + 1)
+    }
+    return outCount
+  })()
+
+  const problemTotalByCluster = (() => {
+    const out = new Map<string, number>()
+    for (const n of nodeById.values()) {
+      const type = String(n.type || '').toLowerCase()
+      if (type !== 'problem') continue
+      const cluster = String(n.cluster || '').trim()
+      if (!cluster) continue
+      out.set(cluster, (out.get(cluster) || 0) + 1)
+    }
+    return out
+  })()
+
+  const clusterGapRatio = (cluster: string): number | null => {
+    if (clusterGapRatiosFromMeta && clusterGapRatiosFromMeta.has(cluster)) return clusterGapRatiosFromMeta.get(cluster) ?? null
+    const total = problemTotalByCluster.get(cluster) || 0
+    if (!total) return null
+    const withAny = problemOutgoingCountByCluster.get(cluster) || 0
+    const gap = clamp((total - withAny) / total, 0, 1)
+    return gap
+  }
+
+  const subgraphs: UserSubgraph[] = []
+  const pushClusterSubgraph = (args: { side: 'problem' | 'solution'; cluster: string; memberIds: string[] }) => {
+    const c = String(args.cluster || '').trim()
+    if (!c) return
+    const memberNodeIds = args.memberIds.map(x => String(x || '').trim()).filter(Boolean)
+    if (memberNodeIds.length === 0) return
+    const r = args.side === 'problem' ? clusterGapRatio(c) : null
+    const label = settings.showClusterGapRatio && args.side === 'problem' && r != null ? `${c} • ${Math.round(r * 100)}% gap` : c
+    subgraphs.push({ id: `bipartite:${args.side}:${c}`, label, memberNodeIds, parentId: null, kind: 'cluster' })
+  }
+
+  if (problemClusters.length > 0) {
+    for (const c of problemClusters) {
+      const memberIds = nodes
+        .filter(n => String(n.type || '') === 'problem' && String((n.properties || {}).cluster || '') === c)
+        .map(n => String(n.id))
+      pushClusterSubgraph({ side: 'problem', cluster: c, memberIds })
+    }
+  }
+  if (solutionClusters.length > 0) {
+    for (const c of solutionClusters) {
+      const memberIds = nodes
+        .filter(n => String(n.type || '') === 'solution' && String((n.properties || {}).cluster || '') === c)
+        .map(n => String(n.id))
+      pushClusterSubgraph({ side: 'solution', cluster: c, memberIds })
+    }
+  }
+
+  const baseGraph: GraphData = {
+    type: 'apiGraph',
+    context: 'api:/api/graph',
+    metadata: {
+      source: '/api/graph',
+      ...(updated ? { last_updated: updated } : {}),
+      ...(totalProblems != null ? { total_problems: totalProblems } : {}),
+      ...(totalSolutions != null ? { total_solutions: totalSolutions } : {}),
+      graphKind: 'bipartite',
+    } as Record<string, JSONValue>,
+    nodes,
+    edges,
+  }
+
+  return subgraphs.length > 0 ? writeSubgraphs(baseGraph, subgraphs) : baseGraph
+}
+
+async function fetchApiGraphPayload(args: { signal: AbortSignal }): Promise<ApiGraphPayload> {
+  const res = await fetch('/api/graph', { signal: args.signal, cache: 'no-store' })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const json = (await res.json()) as unknown
+  const parsed = readApiGraphPayload(json)
+  if (!parsed) throw new Error('Invalid /api/graph payload')
+  return parsed
+}
+
+async function fetchBipartiteFixturePayload(args: { signal: AbortSignal }): Promise<ApiGraphPayload> {
+  const res = await fetch('/__bipartite_fixture', { signal: args.signal, cache: 'no-store' })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const json = (await res.json()) as unknown
+  const parsed = readApiGraphPayload(json)
+  if (!parsed) throw new Error('Invalid fixture payload')
+  return parsed
+}
+
+export function useApiGraphBipartiteGraphData(enabled: boolean): { graphData: GraphData | null } {
+  const [payload, setPayload] = React.useState<ApiGraphPayload | null>(null)
+  const lastSigRef = React.useRef<string>('')
+  const inFlightRef = React.useRef(false)
+  const mountedRef = React.useRef(true)
+
+  const { dataSource, pollIntervalSec, markdownDocumentName, markdownDocumentText } = useGraphStore(
+    useShallow(s => ({
+      dataSource: s.bipartiteDataSource,
+      pollIntervalSec: s.bipartitePollIntervalSec,
+      markdownDocumentName: s.markdownDocumentName || null,
+      markdownDocumentText: s.markdownDocumentText || null,
+    })),
+  )
+
+  const settings = useGraphStore(
+    useShallow(s => ({
+      nodeSizeMetric: s.bipartiteNodeSizeMetric,
+      nodeGlowMetric: s.bipartiteNodeGlowMetric,
+      nodePulseMetric: s.bipartiteNodePulseMetric,
+      nodeBorderMetric: s.bipartiteNodeBorderMetric,
+      edgeOpacityMetric: s.bipartiteEdgeOpacityMetric,
+      showSpecificityBadges: s.bipartiteShowSpecificityBadges === true,
+      showGapScoreInLabel: s.bipartiteShowGapScoreInLabel === true,
+      showClusterGapRatio: s.bipartiteShowClusterGapRatio === true,
+    })),
+  )
+
+  React.useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  const debouncedWorkspaceText = useDebouncedValue(markdownDocumentText, 220, markdownDocumentName)
+  const workspacePayload = React.useMemo((): ApiGraphPayload | null => {
+    if (!enabled) return null
+    const name = String(markdownDocumentName || '').trim().toLowerCase()
+    const text = String(debouncedWorkspaceText || '')
+    const trimmed = text.trim()
+    if (!trimmed) return null
+    const looksJson = name.endsWith('.json') || trimmed.startsWith('{') || trimmed.startsWith('[')
+    if (!looksJson) return null
+    try {
+      const parsed = JSON.parse(trimmed) as unknown
+      return readApiGraphPayload(parsed)
+    } catch {
+      return null
+    }
+  }, [dataSource, debouncedWorkspaceText, enabled, markdownDocumentName])
+
+  const effectiveWorkspaceSource = React.useMemo(() => {
+    if (!workspacePayload) return false
+    const source = String(dataSource || 'api')
+    if (source === 'workspace') return true
+    const name = String(markdownDocumentName || '').trim().toLowerCase()
+    return source === 'api' && name.endsWith('.json')
+  }, [dataSource, markdownDocumentName, workspacePayload])
+
+  const graphData = React.useMemo(() => {
+    if (!enabled) return null
+    const effectivePayload = effectiveWorkspaceSource ? workspacePayload : payload
+    if (!effectivePayload) return null
+    try {
+      return normalizeApiGraphToBipartiteGraphData(effectivePayload, settings)
+    } catch {
+      return null
+    }
+  }, [effectiveWorkspaceSource, enabled, payload, settings, workspacePayload])
+
+  React.useEffect(() => {
+    if (!enabled) return
+    if (typeof window === 'undefined') return
+    if (effectiveWorkspaceSource) return
+
+    let cancelled = false
+    let intervalId: number | null = null
+    const controllerRef: { current: AbortController | null } = { current: null }
+
+    const runOnce = async () => {
+      if (cancelled || !mountedRef.current) return
+      if (inFlightRef.current) return
+      inFlightRef.current = true
+      controllerRef.current?.abort()
+      controllerRef.current = new AbortController()
+
+      const timeoutId = window.setTimeout(() => {
+        try {
+          controllerRef.current?.abort()
+        } catch {
+          void 0
+        }
+      }, 12_000)
+
+      try {
+        const anyImportMeta = import.meta as unknown as { env?: { DEV?: boolean } }
+        const isDev = anyImportMeta.env?.DEV === true
+        const payload = await (async () => {
+          if (dataSource === 'fixture') {
+            if (isDev) {
+              return await fetchBipartiteFixturePayload({ signal: controllerRef.current.signal }).catch(() => DEV_FALLBACK_API_GRAPH)
+            }
+            return await fetchApiGraphPayload({ signal: controllerRef.current.signal })
+          }
+          return await fetchApiGraphPayload({ signal: controllerRef.current.signal }).catch(async (err) => {
+            if (!isDev) throw err
+            return await fetchBipartiteFixturePayload({ signal: controllerRef.current.signal }).catch(() => DEV_FALLBACK_API_GRAPH)
+          })
+        })()
+        const sig = buildApiGraphSignature(payload)
+        if (sig && sig === lastSigRef.current) return
+        lastSigRef.current = sig
+        if (cancelled || !mountedRef.current) return
+        setPayload(payload)
+      } catch {
+        void 0
+      } finally {
+        window.clearTimeout(timeoutId)
+        inFlightRef.current = false
+      }
+    }
+
+    void runOnce()
+    intervalId = window.setInterval(() => {
+      void runOnce()
+    }, Math.max(3_000, Math.min(3_600_000, Math.floor((pollIntervalSec || 60) * 1000))))
+
+    return () => {
+      cancelled = true
+      inFlightRef.current = false
+      if (intervalId != null) window.clearInterval(intervalId)
+      try {
+        controllerRef.current?.abort()
+      } catch {
+        void 0
+      }
+    }
+  }, [dataSource, effectiveWorkspaceSource, enabled, pollIntervalSec])
+
+  return { graphData }
+}

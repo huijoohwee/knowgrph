@@ -317,7 +317,7 @@ export function testCanvas2dRendererSwitchWarmsInactiveRenderer() {
   const viewportPath = resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
   const text = readFileSync(viewportPath, 'utf8')
   const requiredSnippets = [
-    "mounted2dRenderers.d3 ? <GraphCanvasLazy active={canvas2dRenderer === 'd3'} />",
+    'mounted2dRenderers.d3 ? <GraphCanvasLazy active={d3SurfaceActive} />',
     "mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} />",
     "mounted2dRenderers.flowEditor ? <FlowEditorCanvasLazy active={canvas2dRenderer === 'flowEditor'} />",
     "canvasRenderMode === '2d' && (",

@@ -221,6 +221,13 @@ export const createGroupsLayer = (args: {
     typeof cfg.strokeWidth === 'number' && Number.isFinite(cfg.strokeWidth) ? Math.max(0, cfg.strokeWidth) : 1.5
   const fillOpacity =
     typeof cfg.fillOpacity === 'number' && Number.isFinite(cfg.fillOpacity) ? Math.max(0, Math.min(1, cfg.fillOpacity)) : 0.08
+  const isBipartiteGraph = (() => {
+    const meta = graphData.metadata
+    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
+    return String((meta as Record<string, unknown>).graphKind || '') === 'bipartite'
+  })()
+  const bipartiteFillOpacityFloor = isBipartiteGraph ? 0.16 : 0
+  const bipartiteStrokeFloor = isBipartiteGraph ? 2 : 0
   const labelPresentation = readLabelPresentation2d({ schema, documentSemanticMode: args.documentSemanticMode })
   const baseFontSize = labelPresentation.groupFontSizePx
   const themeEdgeStroke = UI_THEME_COLORS_CSS.edgeStroke
@@ -237,28 +244,28 @@ export const createGroupsLayer = (args: {
     .attr('stroke-width', d => {
       const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
       const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
-      return d.style.strokeWidth ?? derived.strokeWidthPx
+      return Math.max(d.style.strokeWidth ?? derived.strokeWidthPx, bipartiteStrokeFloor)
     })
     .attr('stroke', d => d.style.stroke ?? themeEdgeStroke)
     .attr('fill', d => d.style.fill ?? themeEdgeStroke)
     .attr('fill-opacity', d => {
       const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
       const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
-      return derived.fillOpacity
+      return Math.max(derived.fillOpacity, bipartiteFillOpacityFloor)
     })
 
   geoSel
     .attr('stroke-width', d => {
       const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
       const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
-      return d.style.strokeWidth ?? derived.strokeWidthPx
+      return Math.max(d.style.strokeWidth ?? derived.strokeWidthPx, bipartiteStrokeFloor)
     })
     .attr('stroke', d => d.style.stroke ?? themeEdgeStroke)
     .attr('fill', d => d.style.fill ?? themeEdgeStroke)
     .attr('fill-opacity', d => {
       const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
       const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
-      return derived.fillOpacity
+      return Math.max(derived.fillOpacity, bipartiteFillOpacityFloor)
     })
 
   const getGroupLabelFontSizePx = (d: GroupDatum): number => {

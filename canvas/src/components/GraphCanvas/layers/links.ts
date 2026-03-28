@@ -11,6 +11,17 @@ import { edgeDragBehavior } from '@/components/GraphCanvas/utils';
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
+function readEdgeVisualOpacity(e: GraphEdge): number {
+  const props = (e as unknown as { properties?: unknown }).properties
+  if (!props || typeof props !== 'object' || Array.isArray(props)) return 1
+  const raw = (props as Record<string, unknown>)['visual:opacity']
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+  if (typeof n !== 'number' || !Number.isFinite(n)) return 1
+  if (n < 0) return 0
+  if (n > 1) return 1
+  return n
+}
+
 function readEdgeVisualPathD(e: GraphEdge): string {
   const props = (e as unknown as { properties?: unknown }).properties
   if (!props || typeof props !== 'object' || Array.isArray(props)) return ''
@@ -260,7 +271,7 @@ export const createLinksLayer = (args: {
     .attr('data-source-id', (d: GraphEdge) => coerceEdgeEndpointId((d as any).source))
     .attr('data-target-id', (d: GraphEdge) => coerceEdgeEndpointId((d as any).target))
     .attr('stroke', (d: GraphEdge) => getEdgeBaseStroke(d, schema))
-    .attr('stroke-opacity', 1)
+    .attr('stroke-opacity', (d: GraphEdge) => readEdgeVisualOpacity(d))
     .attr('stroke-width', (d: GraphEdge) => getEdgeStrokeWidth(d, schema))
     .attr('fill', 'none')
     .style('pointer-events', 'none')

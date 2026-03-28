@@ -10,6 +10,8 @@ import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 
+import { isD3Like2dRenderer } from '@/lib/config'
+
 import { InfiniteCanvasWorkspaceOverlay } from '@/features/canvas/InfiniteCanvasWorkspaceOverlay'
 
 type GeospatialOverlayHostProps = {
@@ -159,6 +161,7 @@ export type CanvasViewportProps = {
 
 export function CanvasViewport(props: CanvasViewportProps) {
   const { variant, layout = 'full', geospatialModeEnabled, activeGraphData, canvasRenderMode, canvas2dRenderer, mounted2dRenderers, gympgrphBridge } = props
+  const d3SurfaceActive = isD3Like2dRenderer(canvas2dRenderer)
   const safeGraphData = activeGraphData || ({ nodes: [], edges: [] } as GraphData)
   const activeSurface = geospatialModeEnabled ? 'geo' : canvasRenderMode === '3d' ? '3d' : '2d'
   const isNarrowViewport = useMediaQuery('(max-width: 768px)')
@@ -247,8 +250,8 @@ export function CanvasViewport(props: CanvasViewportProps) {
       <React.Suspense fallback={null}>
         {!geospatialModeEnabled && canvasRenderMode === '2d' && (
           <div className="absolute inset-0 z-[10]">
-            <div className={`absolute inset-0 ${canvas2dRenderer === 'd3' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={canvas2dRenderer !== 'd3'}>
-              {mounted2dRenderers.d3 ? <GraphCanvasLazy active={canvas2dRenderer === 'd3'} /> : null}
+            <div className={`absolute inset-0 ${d3SurfaceActive ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={!d3SurfaceActive}>
+              {mounted2dRenderers.d3 ? <GraphCanvasLazy active={d3SurfaceActive} /> : null}
             </div>
             <div className={`absolute inset-0 ${canvas2dRenderer === 'flow' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={canvas2dRenderer !== 'flow'}>
               {mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} /> : null}

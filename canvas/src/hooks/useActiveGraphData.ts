@@ -17,6 +17,7 @@ import { LRUCache } from '@/lib/cache/LRUCache'
 import { pipelinePerfEnd, pipelinePerfStart } from '@/lib/pipelinePerf'
 import { deriveKeywordGraphInWorker, deriveKeywordGraphPreviewInWorker } from '@/features/semantic-mode/keywordGraphWorker'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
+import { useApiGraphBipartiteGraphData } from '@/features/bipartite/apiGraphBipartite'
 
 const KEYWORD_SOURCE_EDGE_LABELS = new Set<string>([
   'hasSection',
@@ -253,6 +254,113 @@ const buildKeywordSourceTextFromBaselineGraph = (
 
 const keywordSourceTextCache = new LRUCache<string, { text: string; hash: string }>(40)
 const keywordPreviewGraphCache = new LRUCache<string, GraphData>(20)
+
+const asFinite = (v: unknown): number | null => {
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'string' && v.trim()) {
+    const n = Number(v)
+    if (Number.isFinite(n)) return n
+  }
+  return null
+}
+
+const asStr = (v: unknown): string => (typeof v === 'string' ? v : String(v ?? ''))
+
+const parseWorkspaceJsonGraphData = (args: { markdownName: string | null; markdownText: string | null }): GraphData | null => {
+  const rawText = String(args.markdownText || '')
+  const trimmed = rawText.trim()
+  if (!trimmed) return null
+  const name = String(args.markdownName || '').trim().toLowerCase()
+  const looksJson = name.endsWith('.json') || trimmed.startsWith('{') || trimmed.startsWith('[')
+  if (!looksJson) return null
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+    const obj = parsed as Record<string, unknown>
+    const nodesRaw = Array.isArray(obj.nodes) ? obj.nodes : null
+    const edgesRaw = Array.isArray(obj.edges) ? obj.edges : null
+    if (!nodesRaw || !edgesRaw) return null
+
+    const nodes = nodesRaw
+      .map((n): GraphData['nodes'][number] | null => {
+        if (!n || typeof n !== 'object' || Array.isArray(n)) return null
+        const o = n as Record<string, unknown>
+        const id = asStr(o.id).trim()
+        if (!id) return null
+        const type = asStr(o.type).trim() || 'node'
+        const label = asStr(o.label).trim() || id
+        const x = asFinite(o.x)
+        const y = asFinite(o.y)
+        const props: Record<string, unknown> = {}
+        Object.keys(o).forEach(k => {
+          if (k === 'id' || k === 'type' || k === 'label' || k === 'x' || k === 'y') return
+          props[k] = o[k]
+        })
+        return {
+          id,
+          type,
+          label,
+          ...(x != null ? { x } : {}),
+          ...(y != null ? { y } : {}),
+          properties: props as Record<string, any>,
+        }
+      })
+      .filter(Boolean) as GraphData['nodes']
+
+    const nodeIdSet = new Set(nodes.map(n => String(n.id)))
+    const edges = edgesRaw
+      .map((e): GraphData['edges'][number] | null => {
+        if (!e || typeof e !== 'object' || Array.isArray(e)) return null
+        const o = e as Record<string, unknown>
+        const source = asStr(o.source || o.problem_id).trim()
+        const target = asStr(o.target || o.solution_id).trim()
+        if (!source || !target) return null
+        if (!nodeIdSet.has(source) || !nodeIdSet.has(target)) return null
+        const id = asStr(o.id).trim() || `${source}->${target}`
+        const strength = asFinite(o.strength)
+        const props: Record<string, unknown> = {}
+        Object.keys(o).forEach(k => {
+          if (k === 'id' || k === 'source' || k === 'target' || k === 'problem_id' || k === 'solution_id') return
+          props[k] = o[k]
+        })
+        if (strength != null) props.strength = strength
+        return {
+          id,
+          source,
+          target,
+          label: asStr(o.label).trim() || 'linksTo',
+          properties: props as Record<string, any>,
+        }
+      })
+      .filter(Boolean) as GraphData['edges']
+
+    if (nodes.length === 0) return null
+    const typeCounts = nodes.reduce(
+      (acc, n) => {
+        const t = String(n.type || '').toLowerCase()
+        if (t === 'problem') acc.problem += 1
+        if (t === 'solution') acc.solution += 1
+        return acc
+      },
+      { problem: 0, solution: 0 },
+    )
+    const isBipartite = typeCounts.problem > 0 && typeCounts.solution > 0
+
+    return {
+      type: 'apiGraph',
+      context: 'workspace-json',
+      metadata: {
+        source: 'workspace-json',
+        graphKind: isBipartite ? 'bipartite' : 'graph',
+      } as Record<string, any>,
+      nodes,
+      edges,
+    }
+  } catch {
+    return null
+  }
+}
 
 const computeBaselineIdentityKeys = (baseGraphData: GraphData): {
   baselineGraphMetaKey: string
@@ -522,10 +630,12 @@ export const mergeKeywordGraphWithSourceNodes = (args: {
 }
 
 const INACTIVE_GRAPH_SLICE = {
-  baseGraphData: null as GraphData | null,
+  baseGraphDataRaw: null as GraphData | null,
   mode: 'document' as 'document' | 'keyword',
   markdownName: null as string | null,
   markdownText: null as string | null,
+  canvasRenderMode: '2d' as '2d' | '3d',
+  canvas2dRenderer: 'd3' as string,
   keywordSourceMaxLines: 8000,
   keywordSourceMaxChars: 120_000,
   keywordGraphPreviewDebounceMs: 200,
@@ -541,10 +651,12 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     () =>
       enabled
         ? (s: GraphState) => ({
-            baseGraphData: s.graphData as GraphData | null,
+            baseGraphDataRaw: s.graphData as GraphData | null,
             mode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
             markdownName: s.markdownDocumentName || null,
             markdownText: s.markdownDocumentText || null,
+            canvasRenderMode: (s.canvasRenderMode || '2d') as '2d' | '3d',
+            canvas2dRenderer: String(s.canvas2dRenderer || 'd3'),
             keywordSourceMaxLines: s.keywordSourceMaxLines,
             keywordSourceMaxChars: s.keywordSourceMaxChars,
             keywordGraphPreviewDebounceMs: s.keywordGraphPreviewDebounceMs,
@@ -559,10 +671,12 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
   )
 
   const {
-    baseGraphData,
+    baseGraphDataRaw,
     mode,
     markdownName,
     markdownText,
+    canvasRenderMode,
+    canvas2dRenderer,
     keywordSourceMaxLines,
     keywordSourceMaxChars,
     keywordGraphPreviewDebounceMs,
@@ -573,13 +687,32 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     revision,
   } = useGraphStore(useShallow(selector))
 
+  const wantsApiGraphBipartite = enabled && canvasRenderMode === '2d' && canvas2dRenderer === 'd3Bipartite'
+  const workspaceJsonGraphData = React.useMemo(
+    () => (enabled && !wantsApiGraphBipartite ? parseWorkspaceJsonGraphData({ markdownName, markdownText }) : null),
+    [enabled, markdownName, markdownText, wantsApiGraphBipartite],
+  )
+  const hasStructuredWorkspaceGraph = !!workspaceJsonGraphData
+  const baseGraphData = workspaceJsonGraphData || baseGraphDataRaw
+  const { graphData: apiGraphBipartite } = useApiGraphBipartiteGraphData(wantsApiGraphBipartite)
+
   const lastRef = React.useRef<GraphData | null>(null)
+
+  React.useEffect(() => {
+    if (!enabled) return
+    if (!wantsApiGraphBipartite) return
+    if (!apiGraphBipartite) return
+    lastRef.current = apiGraphBipartite
+  }, [apiGraphBipartite, enabled, wantsApiGraphBipartite])
+
   const lastKeywordRef = React.useRef<{ cacheKey: string; docId: string; graph: GraphData } | null>(null)
   const [asyncBump, setAsyncBump] = React.useState(0)
   const pendingKeyRef = React.useRef<string | null>(null)
   const pendingPreviewKeyRef = React.useRef<string | null>(null)
 
   const keywordDeriveInputs = React.useMemo(() => {
+    if (wantsApiGraphBipartite) return null
+    if (hasStructuredWorkspaceGraph) return null
     if (!baseGraphData) return null
     if (mode !== 'keyword') return null
 
@@ -639,6 +772,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     }
   }, [
     baseGraphData,
+    hasStructuredWorkspaceGraph,
     keywordGraphEdgesPerNode,
     keywordGraphMaxEdgesCap,
     keywordGraphMentionEdgesPerSourceNode,
@@ -662,6 +796,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
   const computed = React.useMemo(() => {
     void asyncBump
     if (!baseGraphData) return null
+    if (hasStructuredWorkspaceGraph) return baseGraphData
     if (mode !== 'keyword') return baseGraphData
 
     const inputs = keywordDeriveInputs
@@ -707,7 +842,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
       nodes: placeholderMediaNodes,
       edges: [],
     } as GraphData
-  }, [asyncBump, baseGraphData, keywordDeriveInputs, mode])
+  }, [asyncBump, baseGraphData, hasStructuredWorkspaceGraph, keywordDeriveInputs, mode])
 
   const baseGraphDataRef = React.useRef<GraphData | null>(null)
   React.useEffect(() => {
@@ -899,16 +1034,19 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
 
   React.useEffect(() => {
     if (!enabled) return
-    lastRef.current = computed
+    const next = wantsApiGraphBipartite ? apiGraphBipartite : computed
+    lastRef.current = next
+    if (wantsApiGraphBipartite) return
     if (mode === 'keyword' && keywordDeriveInputs) {
       const cached = keywordGraphCache.get(keywordDeriveInputs.cacheKey)
       if (cached && cached.graph) {
         lastKeywordRef.current = { cacheKey: keywordDeriveInputs.cacheKey, docId: keywordDeriveInputs.docId, graph: cached.graph }
       }
     }
-  }, [computed, enabled, keywordDeriveInputs, mode])
+  }, [apiGraphBipartite, computed, enabled, keywordDeriveInputs, mode, wantsApiGraphBipartite])
 
-  return enabled ? computed : lastRef.current
+  const out = wantsApiGraphBipartite ? apiGraphBipartite : computed
+  return enabled ? out : lastRef.current
 }
 
 export function deriveGraphDataForActiveView(args: {

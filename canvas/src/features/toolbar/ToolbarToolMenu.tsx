@@ -32,6 +32,7 @@ import { requestGeospatialTraversalRun } from '@/features/geospatial/gympgrphBri
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
 
@@ -201,6 +202,17 @@ export function ToolbarToolMenu({
       designRendererWebpageLayoutKey: state.designRendererWebpageLayoutKey,
     })),
   )
+
+  const activeGraphRenderData = useActiveGraphRenderData(true)
+  const devCanvasCounter = React.useMemo(() => {
+    if (!import.meta.env.DEV) return null
+    const data = activeGraphRenderData
+    if (!data) return 'n0 e0 g0'
+    const nodes = Array.isArray(data.nodes) ? data.nodes.length : 0
+    const edges = Array.isArray(data.edges) ? data.edges.length : 0
+    const groups = deriveGraphGroups(data, { forceDocumentStructure: false }).length
+    return `n${nodes} e${edges} g${groups}`
+  }, [activeGraphRenderData])
 
   const {
     fontClass: uiPanelTextFontClass,
@@ -457,6 +469,11 @@ export function ToolbarToolMenu({
                   {pipelineStatus}
                 </span>
               )}
+              {devCanvasCounter && (
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[160px]`}>
+                  {devCanvasCounter}
+                </span>
+              )}
             </nav>
             <HeaderActions
               onPinToggle={handlePinToggle}
@@ -497,6 +514,11 @@ export function ToolbarToolMenu({
               {pipelineStatus && (
                 <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[120px]`}>
                   {pipelineStatus}
+                </span>
+              )}
+              {devCanvasCounter && (
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[160px]`}>
+                  {devCanvasCounter}
                 </span>
               )}
               {exportStatus && (

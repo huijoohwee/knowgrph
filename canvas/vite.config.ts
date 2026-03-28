@@ -221,6 +221,100 @@ const markdownPipelineDevPlugin = {
   },
 }
 
+function resolveHackamapBipartiteFixturePath(): string | null {
+  const fromEnv =
+    String(process.env.KNOWGRPH_BIPARTITE_FIXTURE_PATH || '').trim() ||
+    String(process.env.VITE_KNOWGRPH_BIPARTITE_FIXTURE_PATH || '').trim()
+
+  const candidates = [
+    fromEnv,
+    path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'hackamap', 'hackamap-df-06-d3-snippet.json'),
+  ].filter(Boolean)
+
+  for (const p of candidates) {
+    try {
+      if (p && existsSync(p)) return p
+    } catch {
+      void 0
+    }
+  }
+  return null
+}
+
+const bipartiteFixtureDevPlugin = {
+  name: 'knowgrph-bipartite-fixture-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use('/__bipartite_fixture', async (req, res, next) => {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        next()
+        return
+      }
+      const fixturePath = resolveHackamapBipartiteFixturePath()
+      if (!fixturePath) {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'Fixture file not found' }))
+        return
+      }
+
+      try {
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        if (req.method === 'HEAD') {
+          res.end()
+          return
+        }
+        const stream = createReadStream(fixturePath)
+        stream.on('error', () => {
+          res.statusCode = 500
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ ok: false, error: 'Failed to read fixture file' }))
+        })
+        stream.pipe(res)
+      } catch {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'Failed to serve fixture file' }))
+      }
+    })
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use('/__bipartite_fixture', async (req, res, next) => {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        next()
+        return
+      }
+      const fixturePath = resolveHackamapBipartiteFixturePath()
+      if (!fixturePath) {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'Fixture file not found' }))
+        return
+      }
+
+      try {
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        if (req.method === 'HEAD') {
+          res.end()
+          return
+        }
+        const stream = createReadStream(fixturePath)
+        stream.on('error', () => {
+          res.statusCode = 500
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ ok: false, error: 'Failed to read fixture file' }))
+        })
+        stream.pipe(res)
+      } catch {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ ok: false, error: 'Failed to serve fixture file' }))
+      }
+    })
+  },
+}
+
 function coerceSafeRepoRelPath(raw: unknown): string | null {
   const normalized = String(raw ?? '')
     .trim()
@@ -3605,6 +3699,7 @@ export default defineConfig(({ command }) => ({
             autoThemeTarget: '#root',
           }),
           markdownPipelineDevPlugin,
+          bipartiteFixtureDevPlugin,
           codebaseFileDevPlugin,
           remoteFetchProxyDevPlugin,
           webpageProxyDevPlugin,

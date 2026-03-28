@@ -113,6 +113,79 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
     set({ richMediaPanelMode: next })
   },
 
+  bipartiteDataSource: (() => {
+    const raw = readLsString(LS_KEYS.bipartiteDataSource, 'api')
+    return (raw === 'fixture' ? 'fixture' : raw === 'workspace' ? 'workspace' : 'api') as 'api' | 'fixture' | 'workspace'
+  })(),
+  setBipartiteDataSource: (v: 'api' | 'fixture' | 'workspace') => {
+    const next = v === 'fixture' ? 'fixture' : v === 'workspace' ? 'workspace' : 'api'
+    writeLsString(LS_KEYS.bipartiteDataSource, next)
+    set({ bipartiteDataSource: next })
+  },
+  bipartitePollIntervalSec: clampInt(lsInt(LS_KEYS.bipartitePollIntervalSec, 60), 60, { min: 3, max: 3600 }),
+  setBipartitePollIntervalSec: (v: number) =>
+    set({ bipartitePollIntervalSec: lsSetInt(LS_KEYS.bipartitePollIntervalSec, v, { min: 3, max: 3600 }) }),
+
+  bipartiteNodeSizeMetric: (() => {
+    const raw = readLsString(LS_KEYS.bipartiteNodeSizeMetric, 'gap_score')
+    const next = raw === 'pmf_score' || raw === 'gap_velocity' || raw === 'source_count' || raw === 'none' ? raw : 'gap_score'
+    return next as 'gap_score' | 'pmf_score' | 'gap_velocity' | 'source_count' | 'none'
+  })(),
+  setBipartiteNodeSizeMetric: (v: 'gap_score' | 'pmf_score' | 'gap_velocity' | 'source_count' | 'none') => {
+    const next = v === 'pmf_score' || v === 'gap_velocity' || v === 'source_count' || v === 'none' ? v : 'gap_score'
+    writeLsString(LS_KEYS.bipartiteNodeSizeMetric, next)
+    set({ bipartiteNodeSizeMetric: next })
+  },
+  bipartiteNodeGlowMetric: (() => {
+    const raw = readLsString(LS_KEYS.bipartiteNodeGlowMetric, 'pmf_score')
+    const next = raw === 'gap_score' || raw === 'none' ? raw : 'pmf_score'
+    return next as 'pmf_score' | 'gap_score' | 'none'
+  })(),
+  setBipartiteNodeGlowMetric: (v: 'pmf_score' | 'gap_score' | 'none') => {
+    const next = v === 'gap_score' || v === 'none' ? v : 'pmf_score'
+    writeLsString(LS_KEYS.bipartiteNodeGlowMetric, next)
+    set({ bipartiteNodeGlowMetric: next })
+  },
+  bipartiteNodePulseMetric: (() => {
+    const raw = readLsString(LS_KEYS.bipartiteNodePulseMetric, 'gap_velocity')
+    const next = raw === 'pmf_score' || raw === 'none' ? raw : 'gap_velocity'
+    return next as 'gap_velocity' | 'pmf_score' | 'none'
+  })(),
+  setBipartiteNodePulseMetric: (v: 'gap_velocity' | 'pmf_score' | 'none') => {
+    const next = v === 'pmf_score' || v === 'none' ? v : 'gap_velocity'
+    writeLsString(LS_KEYS.bipartiteNodePulseMetric, next)
+    set({ bipartiteNodePulseMetric: next })
+  },
+  bipartiteNodeBorderMetric: (() => {
+    const raw = readLsString(LS_KEYS.bipartiteNodeBorderMetric, 'source_count')
+    const next = raw === 'gap_score' || raw === 'none' ? raw : 'source_count'
+    return next as 'source_count' | 'gap_score' | 'none'
+  })(),
+  setBipartiteNodeBorderMetric: (v: 'source_count' | 'gap_score' | 'none') => {
+    const next = v === 'gap_score' || v === 'none' ? v : 'source_count'
+    writeLsString(LS_KEYS.bipartiteNodeBorderMetric, next)
+    set({ bipartiteNodeBorderMetric: next })
+  },
+  bipartiteEdgeOpacityMetric: (() => {
+    const raw = readLsString(LS_KEYS.bipartiteEdgeOpacityMetric, 'strength')
+    return (raw === 'none' ? 'none' : 'strength') as 'strength' | 'none'
+  })(),
+  setBipartiteEdgeOpacityMetric: (v: 'strength' | 'none') => {
+    const next = v === 'none' ? 'none' : 'strength'
+    writeLsString(LS_KEYS.bipartiteEdgeOpacityMetric, next)
+    set({ bipartiteEdgeOpacityMetric: next })
+  },
+
+  bipartiteShowSpecificityBadges: lsBool(LS_KEYS.bipartiteShowSpecificityBadges, true),
+  setBipartiteShowSpecificityBadges: (v: boolean) =>
+    set({ bipartiteShowSpecificityBadges: lsSetBool(LS_KEYS.bipartiteShowSpecificityBadges, v) }),
+  bipartiteShowGapScoreInLabel: lsBool(LS_KEYS.bipartiteShowGapScoreInLabel, true),
+  setBipartiteShowGapScoreInLabel: (v: boolean) =>
+    set({ bipartiteShowGapScoreInLabel: lsSetBool(LS_KEYS.bipartiteShowGapScoreInLabel, v) }),
+  bipartiteShowClusterGapRatio: lsBool(LS_KEYS.bipartiteShowClusterGapRatio, true),
+  setBipartiteShowClusterGapRatio: (v: boolean) =>
+    set({ bipartiteShowClusterGapRatio: lsSetBool(LS_KEYS.bipartiteShowClusterGapRatio, v) }),
+
   threeIframeOverlayPoolMax: clampInt(lsInt(LS_KEYS.renderThreeIframeOverlayPoolMax, 24), 24, { min: 1, max: 200 }),
   setThreeIframeOverlayPoolMax: (v: number) => set({ threeIframeOverlayPoolMax: lsSetInt(LS_KEYS.renderThreeIframeOverlayPoolMax, v, { min: 1, max: 200 }) }),
 

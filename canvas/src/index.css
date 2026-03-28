@@ -190,6 +190,24 @@
   .truncate {
     min-width: 0;
   }
+
+  .kg-node-pulse {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: kg-node-pulse var(--kg-pulse-duration, 2s) ease-in-out infinite;
+  }
+}
+
+@keyframes kg-node-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.045);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 body.kg-no-select,

@@ -399,6 +399,29 @@ export interface GraphState {
   setThreeIframeOverlayPoolMax: (v: number) => void;
   richMediaPanelMode: 'snapshot' | 'embed';
   setRichMediaPanelMode: (v: 'snapshot' | 'embed') => void;
+
+  bipartiteDataSource: 'api' | 'fixture' | 'workspace';
+  setBipartiteDataSource: (v: 'api' | 'fixture' | 'workspace') => void;
+  bipartitePollIntervalSec: number;
+  setBipartitePollIntervalSec: (v: number) => void;
+
+  bipartiteNodeSizeMetric: 'gap_score' | 'pmf_score' | 'gap_velocity' | 'source_count' | 'none';
+  setBipartiteNodeSizeMetric: (v: 'gap_score' | 'pmf_score' | 'gap_velocity' | 'source_count' | 'none') => void;
+  bipartiteNodeGlowMetric: 'pmf_score' | 'gap_score' | 'none';
+  setBipartiteNodeGlowMetric: (v: 'pmf_score' | 'gap_score' | 'none') => void;
+  bipartiteNodePulseMetric: 'gap_velocity' | 'pmf_score' | 'none';
+  setBipartiteNodePulseMetric: (v: 'gap_velocity' | 'pmf_score' | 'none') => void;
+  bipartiteNodeBorderMetric: 'source_count' | 'gap_score' | 'none';
+  setBipartiteNodeBorderMetric: (v: 'source_count' | 'gap_score' | 'none') => void;
+  bipartiteEdgeOpacityMetric: 'strength' | 'none';
+  setBipartiteEdgeOpacityMetric: (v: 'strength' | 'none') => void;
+
+  bipartiteShowSpecificityBadges: boolean;
+  setBipartiteShowSpecificityBadges: (v: boolean) => void;
+  bipartiteShowGapScoreInLabel: boolean;
+  setBipartiteShowGapScoreInLabel: (v: boolean) => void;
+  bipartiteShowClusterGapRatio: boolean;
+  setBipartiteShowClusterGapRatio: (v: boolean) => void;
   threeIframeOverlayMaxVisibleDefault: number;
   setThreeIframeOverlayMaxVisibleDefault: (v: number) => void;
   threeIframeOverlayMaxVisibleCompact: number;

@@ -1,6 +1,7 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { isD3Like2dRenderer } from '@/lib/config'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { createTabSync, buildEnvelope } from '@/lib/tabSync'
@@ -493,14 +494,14 @@ export default function CanvasPage() {
   }, [canvasRenderMode, geospatialModeEnabled, requestThreeCamera, requestZoom])
 
   const [mounted2dRenderers, setMounted2dRenderers] = React.useState<{ d3: boolean; flow: boolean; design: boolean; flowEditor: boolean }>(() => ({
-    d3: canvas2dRenderer === 'd3',
+    d3: isD3Like2dRenderer(canvas2dRenderer),
     flow: canvas2dRenderer === 'flow',
     design: canvas2dRenderer === 'design',
     flowEditor: canvas2dRenderer === 'flowEditor',
   }))
 
   React.useEffect(() => {
-    if (canvas2dRenderer === 'd3') {
+    if (isD3Like2dRenderer(canvas2dRenderer)) {
       setMounted2dRenderers(prev => (prev.d3 ? prev : { ...prev, d3: true }))
       return
     }
@@ -522,7 +523,7 @@ export default function CanvasPage() {
     if (geospatialModeEnabled) return
     if (canvasRenderMode !== '2d') return
 
-    const shouldPrefetchD3 = canvas2dRenderer !== 'd3' && !mounted2dRenderers.d3
+    const shouldPrefetchD3 = !isD3Like2dRenderer(canvas2dRenderer) && !mounted2dRenderers.d3
     const shouldPrefetchFlow = canvas2dRenderer !== 'flow' && !mounted2dRenderers.flow
     const shouldPrefetchDesign = canvas2dRenderer !== 'design' && !mounted2dRenderers.design
     const shouldPrefetchFlowEditor = canvas2dRenderer !== 'flowEditor' && !mounted2dRenderers.flowEditor

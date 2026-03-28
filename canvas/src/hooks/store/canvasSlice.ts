@@ -95,7 +95,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   }
 
   const initialCanvas2dRenderer = lsJson(LS_KEYS.canvas2dRenderer, DEFAULT_CANVAS_2D_RENDERER, (v): Canvas2dRendererId =>
-    v === 'flow' || v === 'd3' || v === 'flowEditor' || v === 'design' ? v : DEFAULT_CANVAS_2D_RENDERER,
+    v === 'flow' || v === 'd3' || v === 'd3Bipartite' || v === 'flowEditor' || v === 'design' ? v : DEFAULT_CANVAS_2D_RENDERER,
   )
   const initialViewportControlsPresetStored = lsJson(
     LS_KEYS.viewportControlsPreset,
@@ -477,7 +477,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     }
     set(state => {
       const next: Canvas2dRendererId =
-        id === 'flow' || id === 'flowEditor' || id === 'design' ? id : 'd3'
+        id === 'flow' || id === 'flowEditor' || id === 'design' || id === 'd3Bipartite' ? id : 'd3'
       if (state.canvas2dRenderer === next) return {}
       lsSetJson(LS_KEYS.canvas2dRenderer, next)
 

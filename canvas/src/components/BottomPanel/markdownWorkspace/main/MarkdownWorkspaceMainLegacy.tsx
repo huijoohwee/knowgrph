@@ -170,19 +170,36 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       const v = String(raw || '').trim().toLowerCase()
       if (v === 'html') return 'html'
       if (v === 'markdown') return 'markdown'
+      if (v === 'json') return 'json'
       return null
     })
   })
-  const viewerMode: MarkdownWorkspaceDerivedViewerMode = 'read'
+  const [viewerMode, setViewerMode] = React.useState<MarkdownWorkspaceDerivedViewerMode>(() => {
+    return lsJson(LS_KEYS.markdownDerivedViewerMode, 'read' as MarkdownWorkspaceDerivedViewerMode, (raw) => {
+      const v = String(raw || '').trim().toLowerCase()
+      if (v === 'kanban') return 'kanban'
+      if (v === 'table') return 'table'
+      if (v === 'read') return 'read'
+      return null
+    })
+  })
   React.useEffect(() => {
     lsSetJson(LS_KEYS.markdownDerivedViewerKind, viewerKind)
   }, [viewerKind])
 
-  const needsMarkdownViewerText = !showWebpageHtml && layoutMode !== 'editor'
+  React.useEffect(() => {
+    lsSetJson(LS_KEYS.markdownDerivedViewerMode, viewerMode)
+  }, [viewerMode])
+
+  const needsMarkdownViewerText = !showWebpageHtml
   const viewerTextRaw = needsMarkdownViewerText ? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText) : ''
   const viewerText = React.useMemo(
-    () => (needsMarkdownViewerText ? sanitizeInvalidDataUrls(viewerTextRaw) : ''),
-    [needsMarkdownViewerText, viewerTextRaw],
+    () => {
+      if (!needsMarkdownViewerText) return ''
+      if (viewerKind === 'json') return viewerTextRaw
+      return sanitizeInvalidDataUrls(viewerTextRaw)
+    },
+    [needsMarkdownViewerText, viewerKind, viewerTextRaw],
   )
 
   const webpageLayoutWireframeAscii = React.useMemo(() => {
@@ -548,6 +565,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         viewerKind,
         setViewerKind,
         viewerMode,
+        setViewerMode,
         onSaveAs,
         onExportWorkspaceFile: handleExportWorkspaceFile,
         onExportMarkdown: handleExportMarkdown,

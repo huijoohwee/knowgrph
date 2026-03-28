@@ -47,8 +47,8 @@ export type MarkdownWorkspaceToolbarProps = {
   markdownTextHighlight: boolean
   setMarkdownTextHighlight: (next: boolean) => void
 
-  viewerKind?: 'markdown' | 'html'
-  setViewerKind?: (next: 'markdown' | 'html') => void
+  viewerKind?: 'markdown' | 'html' | 'json'
+  setViewerKind?: (next: 'markdown' | 'html' | 'json') => void
   viewerMode?: 'read' | 'kanban' | 'table'
   setViewerMode?: (next: 'read' | 'kanban' | 'table') => void
   onSaveAs?: () => void
@@ -254,16 +254,31 @@ export function MarkdownWorkspaceToolbar({
         {!webpageControls && viewerKind && setViewerKind ? (
           <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Derived views">
             <li className="list-none">
-              <WorkspaceModeSelect<'markdown' | 'html'>
+              <WorkspaceModeSelect<'markdown' | 'html' | 'json'>
                 ariaLabel="Viewer content"
                 value={viewerKind}
                 options={[
                   { value: 'markdown', label: 'Markdown' },
                   { value: 'html', label: 'HTML' },
+                  { value: 'json', label: 'JSON' },
                 ]}
                 onChange={setViewerKind}
               />
             </li>
+            {viewerMode && setViewerMode ? (
+              <li className="list-none">
+                <WorkspaceModeSelect<'read' | 'table' | 'kanban'>
+                  ariaLabel="Viewer mode"
+                  value={viewerMode}
+                  options={[
+                    { value: 'read', label: 'Read' },
+                    { value: 'table', label: 'Table' },
+                    { value: 'kanban', label: 'Kanban' },
+                  ]}
+                  onChange={setViewerMode}
+                />
+              </li>
+            ) : null}
           </menu>
         ) : null}
         {typeof setContentMode === 'function' ? (

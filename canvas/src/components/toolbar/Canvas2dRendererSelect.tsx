@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { CircleDot, GitMerge, Palette, Pencil } from 'lucide-react'
+import { CircleDot, GitMerge, Palette, Pencil, Columns2 } from 'lucide-react'
 import IconButton from '@/components/IconButton'
 import { DropdownPanel } from '@/lib/ui/overlay'
 import type { Canvas2dRendererId } from '@/lib/config'
@@ -44,6 +44,12 @@ export function Canvas2dRendererSelect({ iconSizeClass, iconStrokeWidth, ensureB
           title: UI_COPY.twoDRendererD3Title,
           Icon: CircleDot,
           label: 'D3',
+        },
+        {
+          id: 'd3Bipartite' as const,
+          title: UI_COPY.twoDRendererD3BipartiteTitle,
+          Icon: Columns2,
+          label: 'Bi',
         },
         {
           id: 'flow' as const,
@@ -120,4 +126,3 @@ export function Canvas2dRendererSelect({ iconSizeClass, iconStrokeWidth, ensureB
     </>
   )
 }
-

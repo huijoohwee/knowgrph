@@ -91,10 +91,6 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
     return ensureFlowHandlesHaveDefaults(base)
   }, [args.forceEnabled, args.node?.properties, args.node?.type, args.registryEntries, args.schema, edges, nodeId])
 
-  const enabled = args.forceEnabled === true || Boolean(args.schema?.behavior?.portHandles?.enabled)
-  if (!enabled) return null
-  if (!nodeId) return null
-
   const nodeDims = React.useMemo(() => {
     const n = {
       id: String(args.node?.id || ''),
@@ -103,6 +99,10 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
     } as unknown as GraphNode
     return getNodeRectDimensions2d(n, args.schema || ({ behavior: {} } as GraphSchema))
   }, [args.node?.id, args.node?.properties, args.node?.type, args.schema])
+
+  const enabled = args.forceEnabled === true || Boolean(args.schema?.behavior?.portHandles?.enabled)
+  if (!enabled) return null
+  if (!nodeId) return null
 
   const { sizePx, hitSizePx, railWidthPx } = readPortHandleUiMetrics(args.schema, {
     nodeWidth: nodeDims.width,

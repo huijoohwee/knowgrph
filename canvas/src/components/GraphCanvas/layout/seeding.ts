@@ -7,6 +7,45 @@ import { applyClusterAwareHeuristicSeedLayout } from '@/components/GraphCanvas/l
 import { applyIndexGridSeedLayout } from '@/components/GraphCanvas/layout/indexGridSeed'
 import { applyGroupGeometrySeedLayout } from '@/components/GraphCanvas/layout/groupGeometrySeed'
 
+const applyBipartiteLaneSeedLayout = (args: { nodes: GraphNode[]; width: number; height: number; schema: GraphSchema }): void => {
+  const forces = (args.schema.layout?.forces || {}) as any
+  if (forces?.bipartiteMode !== true) return
+  const nodes = args.nodes
+  if (!Array.isArray(nodes) || nodes.length === 0) return
+
+  let problems = 0
+  let solutions = 0
+  for (let i = 0; i < nodes.length; i += 1) {
+    const t = String(nodes[i]?.type || '').trim().toLowerCase()
+    if (t === 'problem') problems += 1
+    else if (t === 'solution') solutions += 1
+  }
+  if (problems === 0 || solutions === 0) return
+
+  const w = Math.max(1, args.width)
+  const h = Math.max(1, args.height)
+  const centerX = w / 2
+  const centerY = h / 2
+  const separation = Math.max(520, Math.floor(w * 0.36))
+  const leftX = centerX - separation
+  const rightX = centerX + separation
+
+  let placed = 0
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]!
+    const t = String(n.type || '').trim().toLowerCase()
+    if (t !== 'problem' && t !== 'solution') continue
+    const targetX = t === 'problem' ? leftX : rightX
+    if (!(typeof n.x === 'number' && Number.isFinite(n.x))) n.x = targetX
+    if (!(typeof n.y === 'number' && Number.isFinite(n.y))) n.y = centerY + (placed - (nodes.length - 1) / 2) * 20
+    if (n.fx == null) n.fx = targetX
+    if (n.fy != null) n.fy = null
+    n.vx = 0
+    n.vy = 0
+    placed += 1
+  }
+}
+
 export function applyForceModeSeeds(args: {
   nodes: GraphNode[]
   edges: GraphEdge[]
@@ -16,6 +55,7 @@ export function applyForceModeSeeds(args: {
   groupKeyOf?: (n: GraphNode) => string | null
   groupsForBboxCollide?: GraphGroup[]
 }) {
+  applyBipartiteLaneSeedLayout({ nodes: args.nodes, width: args.width, height: args.height, schema: args.schema })
   applyGroupGeometrySeedLayout({
     nodes: args.nodes,
     groups: Array.isArray(args.groupsForBboxCollide) ? args.groupsForBboxCollide : [],

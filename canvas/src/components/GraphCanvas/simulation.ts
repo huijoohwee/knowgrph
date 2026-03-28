@@ -237,7 +237,7 @@ const computeIndexAnchorPlan2d = (args: {
   }
 
   const ratioXY = countXY / Math.max(1, nodes.length)
-  const enabled = countXY >= Math.max(6, Math.floor(nodes.length * 0.22)) && ratioXY >= 0.22 && minX <= maxX && minY <= maxY
+  const enabled = countXY >= Math.max(2, Math.floor(nodes.length * 0.22)) && ratioXY >= 0.22 && minX <= maxX && minY <= maxY
   if (!enabled) return { enabled: false, strength: 0, dxByNode, dyByNode }
 
   const midX = (minX + maxX) / 2
@@ -267,6 +267,12 @@ const computeIndexAnchorPlan2d = (args: {
 
 const computeCollideIterations = (nodeCount: number): number =>
   nodeCount <= 450 ? 4 : nodeCount <= 1600 ? 3 : 2
+
+const isBipartiteType = (t: unknown): t is 'problem' | 'solution' => {
+  if (typeof t !== 'string') return false
+  const v = t.trim().toLowerCase()
+  return v === 'problem' || v === 'solution'
+}
 
 type SimulationPresentationSignature = {
   disjointEnabled: boolean
@@ -551,6 +557,24 @@ export const buildSimulation = (
 
     const groupKeyOf = options?.groupKeyOf || createGroupKeyOfNode({ nodes, edges: edgesForSim })
 
+    const bipartite = (() => {
+      const forces = (schema.layout?.forces || {}) as any
+      if (forces?.bipartiteMode !== true) return { enabled: false }
+      let problems = 0
+      let solutions = 0
+      let typed = 0
+      for (let i = 0; i < nodes.length; i += 1) {
+        const t = nodes[i]?.type
+        if (!isBipartiteType(t)) continue
+        typed += 1
+        if (t === 'problem') problems += 1
+        else solutions += 1
+      }
+      const ratio = typed / Math.max(1, nodes.length)
+      const enabled = problems > 0 && solutions > 0 && ratio >= 0.85
+      return { enabled }
+    })()
+
     const xTarget = () => centerX
     const yTarget = () => centerY
 
@@ -632,6 +656,24 @@ export const buildSimulation = (
         'yIndex',
         indexPlan.enabled
           ? d3.forceY<GraphNode>(d => centerY + (indexPlan.dyByNode.get(d) || 0)).strength(indexPlan.strength)
+          : null,
+      )
+      .force(
+        'bipartiteX',
+        bipartite.enabled
+          ? (() => {
+              const separation = Math.max(520, Math.floor(frameW * 0.36))
+              const leftX = centerX - separation
+              const rightX = centerX + separation
+              return d3
+                .forceX<GraphNode>(d => {
+                  const t = typeof d.type === 'string' ? d.type.trim().toLowerCase() : ''
+                  if (t === 'problem') return leftX
+                  if (t === 'solution') return rightX
+                  return centerX
+                })
+                .strength(indexPlan.enabled ? 0.12 : 0.28)
+            })()
           : null,
       )
       .force('x', d3.forceX<GraphNode>(xTarget).strength(anchorStrength))
@@ -756,6 +798,24 @@ export const updateForceSimulationPresentation = (args: {
     const chargeDistanceMin = computeChargeDistanceMin2d(idealSpacing)
 
     const anchorStrength = computeAnchorStrength2d({ schema, isKeywordGraph, disjointEnabled, disjointStrength })
+
+  const bipartite = (() => {
+    const forces = (schema.layout?.forces || {}) as any
+    if (forces?.bipartiteMode !== true) return { enabled: false }
+      let problems = 0
+      let solutions = 0
+      let typed = 0
+      for (let i = 0; i < nodes.length; i += 1) {
+        const t = nodes[i]?.type
+        if (!isBipartiteType(t)) continue
+        typed += 1
+        if (t === 'problem') problems += 1
+        else solutions += 1
+      }
+      const ratio = typed / Math.max(1, nodes.length)
+      const enabled = problems > 0 && solutions > 0 && ratio >= 0.85
+      return { enabled }
+    })()
 
     const collisionRadiusByType = schema.layout?.forces?.collisionByType || {}
     const nodeHalfExtentsByNodeId = args.nodeHalfExtentsByNodeId || null
@@ -1026,6 +1086,23 @@ export const updateForceSimulationPresentation = (args: {
     target: d => centerY + (indexPlan.dyByNode.get(d) || 0),
     strength: indexPlan.strength,
     enabled: indexPlan.enabled,
+  })
+
+  updatePositioningForceFn({
+    simulation,
+    name: 'bipartiteX',
+    axis: 'x',
+    target: d => {
+      const separation = Math.max(520, Math.floor(frameW * 0.36))
+      const leftX = centerX - separation
+      const rightX = centerX + separation
+      const t = typeof d.type === 'string' ? d.type.trim().toLowerCase() : ''
+      if (t === 'problem') return leftX
+      if (t === 'solution') return rightX
+      return centerX
+    },
+    strength: indexPlan.enabled ? 0.12 : 0.28,
+    enabled: bipartite.enabled,
   })
 
   if (schema.layout?.forces?.alphaDecay != null) {
