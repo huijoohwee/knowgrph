@@ -223,6 +223,13 @@ export function useD3GraphScene2d(args: {
     const schemaForScene: GraphSchema = isBipartite
       ? {
           ...schemaValue,
+          performance: {
+            ...(schemaValue.performance || {}),
+            lod: {
+              ...((schemaValue.performance || {}).lod || {}),
+              hideLabelsBelowScale: 0,
+            },
+          },
           layout: {
             ...(schemaValue.layout || {}),
             forces: {

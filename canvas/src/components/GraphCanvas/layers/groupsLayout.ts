@@ -151,6 +151,8 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
       valid += 1
     }
     if (valid === 0 || minX === Infinity) {
+      const cached = layoutCache.get(String(d.id || '').trim())
+      if (cached) return cached
       return { x: 0, y: 0, w: 0, h: 0, labelX: 0, labelY: 0, chevronCx: 0, chevronCy: 0, d: null }
     }
 

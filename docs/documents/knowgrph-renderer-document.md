@@ -213,6 +213,19 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - Flow and Flow Editor do not run D3 forces but must reuse the same SSOT inputs as D3: visibility filter, collective fit geometry, and zoom behavior. Initial view honors the same bounds guards and idempotent init policy.
 - When the Document Structure baseline lock is active, Flow and Flow Editor must disable auto zoom modes and maintain parity with the D3 baseline; switching between 2D variants restores each variant’s own zoom state via isolated view keys. See [autoZoom2dPolicy.ts](../../canvas/src/features/zoom/autoZoom2dPolicy.ts) and [FlowCanvas tests](../../canvas/src/__tests__/flowCanvasIntegration.test.ts#L143-L184).
 
+### 2D D3 Bipartite Layout (Super-Groups)
+
+- **Scope**: 2D D3 Bipartite renderer (canvas2dRenderer=`d3Bipartite`) consumes a bipartite graph where `node.type∈{problem,solution}` and cluster ids come from metadata (`cluster`, `clusters[]`, or cluster_gap_ratios keys).
+- **Hierarchy** (SSOT):
+  - Root super-group: `Bipartite` contains all problem+solution nodes.
+  - Side super-groups: `Problems` and `Solutions` each contain their side’s nodes.
+  - Cluster groups: per-cluster groups (e.g., Capital/Growth/Network) sit under the appropriate side super-group and contain member nodes.
+  - The hierarchy is expressed structurally via `kg:subgraphs`/subgraph metadata, not via renderer-specific flags.
+- **Layout invariants**:
+  - Problems and Solutions occupy separated left/right lanes derived from `visual:xIndex` and schema forces; switching 2D renderer variants must not reassign nodes across sides.
+  - Super-group/group envelopes, headers, and cluster outlines are part of fit geometry (collective bounds) and must remain visible during interaction (click/drag/zoom) without requiring renderer switching.
+  - Edge visibility in Bipartite mode uses schema + per-edge visual opacity/width only; selection/highlight may dim but must not fully hide the bipartite “line” structure when nodes are visible.
+
 ### Selection Zoom (Node/Edge vs Graph)
 - Zoom-to-selection operates on a selection subset (selected node ids and/or edge endpoints) and must share duration/timing knobs across 2D renderers.
 - Fit-to-screen operates on the full visible graph (after display filters) and must not be confused with selection zoom; selection zoom must not mutate layout caches.

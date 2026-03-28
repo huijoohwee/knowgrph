@@ -3,6 +3,12 @@
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-03-28
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Docs / Canvas / 2D D3 Bipartite super-groups | Keep Bipartite layout + group hierarchy docs aligned with implementation | Update cross-repo docs+schema for 2D D3 Bipartite: document left/right lane layout, nested super-group→group→member hierarchy built from kg:subgraphs, and visibility invariants for clusters/headers/edges; forbid domain-specific rules, duplicate pipelines, recompute loops, or renderer drift. | `knowgrph/docs/documents/knowgrph-renderer-document.md`, `knowgrph/todo-log.md`, `huijoohwee.github.io/schema/AgenticRAG/{README.md,canvas.jsonld}` | 2D D3 Bipartite renderer docs + AgenticRAG canvas contract | Update Markdown + JSON-LD text | Implemented Bipartite layout + super-group/group hierarchy | Updated docs + schemaVersion bump + cross-repo invariants | Document only code-backed behavior; keep hierarchy neutral and renderer-agnostic; avoid duplicating layout pipelines; run `npm -C knowgrph/canvas run doc:lint` and `python3 huijoohwee.github.io/schema/AgenticRAG/sync_map.py --mode check`. | 2026-03-28 |
+
 ## 2026-03-23
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
@@ -180,3 +186,4 @@
 | Editor Workspace / Monaco / Webpage view switching | Prevent empty editor during async hydration and mode toggles | Ensure Monaco initializes with the latest text value (not a stale first-render snapshot) and ensure `kgWebpageView` switches hydrate from disk before writing; forbid any path where switching `Markdown/HTML/JSON` can result in an empty editor buffer when the on-disk file is non-empty. | `canvas/src/features/monaco/MonacoTextEditor.tsx`, `canvas/src/components/BottomPanel/markdownWorkspace/MarkdownWorkspace.tsx`, `docs/documents/knowgrph-webpage-proxy-and-srcdoc-iframe-document.md` | MonacoTextEditor + MarkdownWorkspace | `MonacoTextEditor`, `switchActiveWebpageWorkspaceView` | Workspace file path + view mode + hydrated file text | Non-empty editor content when file content exists | Monaco must seed model value from a `latestValue` ref at create-time; view switching must read from FS/lastLoaded when editor is not dirty; markdown switches must clear HTML/JSON overrides before async conversions complete. | Import a large webpage (≥50k chars), immediately toggle `kgWebpageView: html → markdown`, and confirm the editor shows content without requiring a reload or extra toggle. | 2026-02-14 |
 
 ## 2026-02-13
+

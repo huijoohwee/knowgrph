@@ -20,6 +20,17 @@ type UseGraphCanvasStylesProps = {
   graphDataRevision?: number;
 };
 
+const readEdgeVisualOpacity = (edge: GraphEdge): number => {
+  const props = (edge as unknown as { properties?: unknown }).properties
+  if (!props || typeof props !== 'object' || Array.isArray(props)) return 1
+  const raw = (props as Record<string, unknown>)['visual:opacity']
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+  if (typeof n !== 'number' || !Number.isFinite(n)) return 1
+  if (n < 0) return 0
+  if (n > 1) return 1
+  return n
+}
+
 export function applyGraphCanvasStyles2d({
   gRef,
   nodesSelRef,
@@ -99,11 +110,22 @@ export function applyGraphCanvasStyles2d({
   }
 
   if (linksSelRef.current) {
+    const baseEdgeOpacity = readEdgeOpacity2d(schema)
     linksSelRef.current.attr('stroke', (d: GraphEdge) => {
       return getEdgeBaseStroke(d, schema) || colors.edgeStroke;
     });
-    linksSelRef.current.attr('stroke-opacity', () => {
-      return readEdgeOpacity2d(schema)
+    linksSelRef.current.attr('stroke-opacity', (d: GraphEdge) => {
+      const combined = baseEdgeOpacity * readEdgeVisualOpacity(d)
+      const props = (d as unknown as { properties?: unknown }).properties
+      const isBipartiteApiEdge = !!(
+        props &&
+        typeof props === 'object' &&
+        !Array.isArray(props) &&
+        (props as Record<string, unknown>)['api:source'] === '/api/graph' &&
+        String((d as { label?: unknown }).label || '') === 'linksTo'
+      )
+      const floor = isBipartiteApiEdge ? 0.58 : 0.18
+      return Math.max(floor, Math.min(1, combined))
     });
     linksSelRef.current.attr('stroke-width', (d: GraphEdge) => {
       return getEdgeStrokeWidth(d as EdgeWithRuntime, schema);

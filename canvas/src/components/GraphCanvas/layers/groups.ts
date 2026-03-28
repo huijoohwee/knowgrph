@@ -226,8 +226,8 @@ export const createGroupsLayer = (args: {
     if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
     return String((meta as Record<string, unknown>).graphKind || '') === 'bipartite'
   })()
-  const bipartiteFillOpacityFloor = isBipartiteGraph ? 0.16 : 0
-  const bipartiteStrokeFloor = isBipartiteGraph ? 2 : 0
+  const bipartiteFillOpacityFloor = isBipartiteGraph ? 0.22 : 0
+  const bipartiteStrokeFloor = isBipartiteGraph ? 2.4 : 0
   const labelPresentation = readLabelPresentation2d({ schema, documentSemanticMode: args.documentSemanticMode })
   const baseFontSize = labelPresentation.groupFontSizePx
   const themeEdgeStroke = UI_THEME_COLORS_CSS.edgeStroke

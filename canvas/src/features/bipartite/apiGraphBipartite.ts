@@ -556,6 +556,23 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
   }
 
   const subgraphs: UserSubgraph[] = []
+  const ROOT_SUPERGROUP_ID = 'bipartite:root'
+  const SIDE_SUPERGROUP_ID = {
+    problem: 'bipartite:side:problem',
+    solution: 'bipartite:side:solution',
+  } as const
+
+  const pushSubgraph = (sg: UserSubgraph) => {
+    if (!sg || !sg.id) return
+    subgraphs.push({
+      id: String(sg.id),
+      label: String(sg.label || sg.id),
+      memberNodeIds: Array.from(new Set((sg.memberNodeIds || []).map(x => String(x || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+      parentId: sg.parentId == null ? null : String(sg.parentId || '').trim() || null,
+      kind: sg.kind === 'cluster' ? 'cluster' : 'subgraph',
+    })
+  }
+
   const pushClusterSubgraph = (args: { side: 'problem' | 'solution'; cluster: string; memberIds: string[] }) => {
     const c = String(args.cluster || '').trim()
     if (!c) return
@@ -563,8 +580,39 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
     if (memberNodeIds.length === 0) return
     const r = args.side === 'problem' ? clusterGapRatio(c) : null
     const label = settings.showClusterGapRatio && args.side === 'problem' && r != null ? `${c} • ${Math.round(r * 100)}% gap` : c
-    subgraphs.push({ id: `bipartite:${args.side}:${c}`, label, memberNodeIds, parentId: null, kind: 'cluster' })
+    pushSubgraph({
+      id: `bipartite:${args.side}:${c}`,
+      label,
+      memberNodeIds,
+      parentId: SIDE_SUPERGROUP_ID[args.side],
+      kind: 'cluster',
+    })
   }
+
+  const problemNodeIds = nodes.filter(n => String(n.type || '') === 'problem').map(n => String(n.id))
+  const solutionNodeIds = nodes.filter(n => String(n.type || '') === 'solution').map(n => String(n.id))
+
+  pushSubgraph({
+    id: ROOT_SUPERGROUP_ID,
+    label: 'Bipartite',
+    memberNodeIds: [...problemNodeIds, ...solutionNodeIds],
+    parentId: null,
+    kind: 'subgraph',
+  })
+  pushSubgraph({
+    id: SIDE_SUPERGROUP_ID.problem,
+    label: 'Problems',
+    memberNodeIds: problemNodeIds,
+    parentId: ROOT_SUPERGROUP_ID,
+    kind: 'subgraph',
+  })
+  pushSubgraph({
+    id: SIDE_SUPERGROUP_ID.solution,
+    label: 'Solutions',
+    memberNodeIds: solutionNodeIds,
+    parentId: ROOT_SUPERGROUP_ID,
+    kind: 'subgraph',
+  })
 
   if (problemClusters.length > 0) {
     for (const c of problemClusters) {

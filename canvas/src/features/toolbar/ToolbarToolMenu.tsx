@@ -204,14 +204,20 @@ export function ToolbarToolMenu({
   )
 
   const activeGraphRenderData = useActiveGraphRenderData(true)
-  const devCanvasCounter = React.useMemo(() => {
+  const devStatusMetrics = React.useMemo(() => {
     if (!import.meta.env.DEV) return null
     const data = activeGraphRenderData
-    if (!data) return 'n0 e0 g0'
+    if (!data) return { counter: 'n0 e0 g0', hierarchyBadge: 'h0' }
     const nodes = Array.isArray(data.nodes) ? data.nodes.length : 0
     const edges = Array.isArray(data.edges) ? data.edges.length : 0
-    const groups = deriveGraphGroups(data, { forceDocumentStructure: false }).length
-    return `n${nodes} e${edges} g${groups}`
+    const groupsDerived = deriveGraphGroups(data, { forceDocumentStructure: false })
+    const groups = groupsDerived.length
+    const maxDepth = groupsDerived.reduce((m, g) => {
+      const d = typeof g.depth === 'number' && Number.isFinite(g.depth) ? Math.max(0, Math.floor(g.depth)) : 0
+      return Math.max(m, d)
+    }, 0)
+    const hierarchyLevels = groups > 0 ? maxDepth + 1 : 0
+    return { counter: `n${nodes} e${edges} g${groups}`, hierarchyBadge: `h${hierarchyLevels}` }
   }, [activeGraphRenderData])
 
   const {
@@ -469,9 +475,14 @@ export function ToolbarToolMenu({
                   {pipelineStatus}
                 </span>
               )}
-              {devCanvasCounter && (
+              {devStatusMetrics && (
                 <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[160px]`}>
-                  {devCanvasCounter}
+                  {devStatusMetrics.counter}
+                </span>
+              )}
+              {devStatusMetrics && (
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[56px]`}>
+                  {devStatusMetrics.hierarchyBadge}
                 </span>
               )}
             </nav>
@@ -516,9 +527,14 @@ export function ToolbarToolMenu({
                   {pipelineStatus}
                 </span>
               )}
-              {devCanvasCounter && (
+              {devStatusMetrics && (
                 <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[160px]`}>
-                  {devCanvasCounter}
+                  {devStatusMetrics.counter}
+                </span>
+              )}
+              {devStatusMetrics && (
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[56px]`}>
+                  {devStatusMetrics.hierarchyBadge}
                 </span>
               )}
               {exportStatus && (
