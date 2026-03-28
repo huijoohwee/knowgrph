@@ -2,6 +2,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { lsJson, lsSetJson } from '@/lib/persistence'
 import { LS_KEYS } from '@/lib/config'
 import { jsonToMarkdown, type JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
+import { buildBipartiteMarkdownFromJsonValue } from '@/features/markdown/bipartiteJsonToMarkdown'
 import type { RecentFileEntry } from '@/hooks/store/types'
 import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 
@@ -91,7 +92,7 @@ export function applyImportedJsonToStore(args: {
           ? value
           : 'auto',
     )
-    markdown = jsonToMarkdown(parsed, { defaultMode: persistedMode }, persistedMode)
+    markdown = buildBipartiteMarkdownFromJsonValue(parsed) || jsonToMarkdown(parsed, { defaultMode: persistedMode }, persistedMode)
     lsSetJson<JsonToMarkdownMode>(LS_KEYS.jsonMarkdownMode, persistedMode)
     jsonSourceText = trimmed
   } catch {

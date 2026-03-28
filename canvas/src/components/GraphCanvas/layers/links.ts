@@ -273,6 +273,13 @@ export const createLinksLayer = (args: {
     .attr('stroke', (d: GraphEdge) => getEdgeBaseStroke(d, schema))
     .attr('stroke-opacity', (d: GraphEdge) => readEdgeVisualOpacity(d))
     .attr('stroke-width', (d: GraphEdge) => getEdgeStrokeWidth(d, schema))
+    .attr('stroke-dasharray', (d: GraphEdge) => {
+      const props = (d.properties || {}) as Record<string, unknown>
+      const raw = props['visual:dash']
+      if (typeof raw === 'string' && raw.trim()) return raw.trim()
+      if (String(d.label || '') === 'spokeTo') return '3,6'
+      return null
+    })
     .attr('fill', 'none')
     .style('pointer-events', 'none')
 

@@ -40,74 +40,46 @@ import {
   writeWorkspaceDataViewState,
 } from './workspaceDataViewConfig'
 import { LRUCache } from '@/lib/cache/LRUCache'
+import { buildBipartiteMarkdownFromJsonText } from '@/features/markdown/bipartiteJsonToMarkdown'
 
 export type MarkdownWorkspaceDerivedViewerKind = 'markdown' | 'html' | 'json'
 export type MarkdownWorkspaceDerivedViewerMode = 'read' | 'kanban' | 'table'
 
 function tryBuildApiGraphMarkdownTablesFromJson(text: string): string | null {
+  const bipartite = buildBipartiteMarkdownFromJsonText(text)
+  if (bipartite) return bipartite
   const trimmed = String(text || '').trim()
   if (!trimmed) return null
   if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null
-
-  const safeNum = (v: unknown): string => {
-    if (typeof v === 'number' && Number.isFinite(v)) return String(Math.round(v * 1000) / 1000)
-    if (typeof v === 'string' && v.trim()) {
-      const n = Number(v)
-      if (Number.isFinite(n)) return String(Math.round(n * 1000) / 1000)
-    }
-    return ''
-  }
-
-  const safeStr = (v: unknown): string => {
-    if (v == null) return ''
-    const s = String(v)
-    return s.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ')
-  }
-
   try {
-    const parsed = JSON.parse(trimmed) as any
-    const nodesRaw: any[] = Array.isArray(parsed?.nodes) ? parsed.nodes : []
-    const edgesRaw: any[] = Array.isArray(parsed?.edges) ? parsed.edges : []
+    const parsed = JSON.parse(trimmed) as unknown
+    const rec = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null
+    if (!rec) return null
+    const nodesRaw = Array.isArray(rec.nodes) ? rec.nodes : []
+    const edgesRaw = Array.isArray(rec.edges) ? rec.edges : []
     if (nodesRaw.length === 0 && edgesRaw.length === 0) return null
-
-    const nodesHeader = ['id', 'type', 'label', 'cluster', 'gap_score', 'pmf_score', 'gap_velocity', 'source_count', 'specificity']
-    const nodesSep = Array(nodesHeader.length).fill('---')
-    const nodeLines = nodesRaw.map(n => {
-      const cells = [
-        safeStr(n?.id),
-        safeStr(n?.type),
-        safeStr(n?.label),
-        safeStr(n?.cluster),
-        safeNum(n?.gap_score),
-        safeNum(n?.pmf_score),
-        safeNum(n?.gap_velocity),
-        safeNum(n?.source_count),
-        safeStr(n?.specificity),
-      ]
-      return `| ${cells.join(' | ')} |`
-    })
-
-    const edgesHeader = ['source', 'target', 'strength']
-    const edgesSep = Array(edgesHeader.length).fill('---')
-    const edgeLines = edgesRaw.map(e => {
-      const cells = [safeStr(e?.source), safeStr(e?.target), safeNum(e?.strength)]
-      return `| ${cells.join(' | ')} |`
-    })
-
+    const nodeRows = nodesRaw
+      .map(n => (n && typeof n === 'object' && !Array.isArray(n) ? (n as Record<string, unknown>) : null))
+      .filter(Boolean)
+      .map(n => [String(n?.id || ''), String(n?.type || ''), String(n?.label || '')].map(v => v.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ')))
+    const edgeRows = edgesRaw
+      .map(e => (e && typeof e === 'object' && !Array.isArray(e) ? (e as Record<string, unknown>) : null))
+      .filter(Boolean)
+      .map(e => [String(e?.source || ''), String(e?.target || ''), String(e?.label || '')].map(v => v.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ')))
     return [
-      '# API Graph (Derived from JSON)',
+      '# Structured Graph Import',
       '',
       '## Nodes',
       '',
-      `| ${nodesHeader.join(' | ')} |`,
-      `| ${nodesSep.join(' | ')} |`,
-      ...nodeLines,
+      '| ID | Type | Label |',
+      '| --- | --- | --- |',
+      ...nodeRows.map(r => `| ${r.join(' | ')} |`),
       '',
       '## Edges',
       '',
-      `| ${edgesHeader.join(' | ')} |`,
-      `| ${edgesSep.join(' | ')} |`,
-      ...edgeLines,
+      '| Source | Target | Label |',
+      '| --- | --- | --- |',
+      ...edgeRows.map(r => `| ${r.join(' | ')} |`),
       '',
     ].join('\n')
   } catch {
@@ -204,8 +176,10 @@ export function MarkdownWorkspaceDerivedViewer(props: {
   const panelTypography = usePanelTypography()
 
   const derivedStructuredText = React.useMemo(() => {
-    if (props.viewerKind !== 'json') return null
-    if (props.viewerMode === 'read') return null
+    const showStructuredInJsonViews = props.viewerKind === 'json'
+    const showStructuredInMarkdownViews =
+      props.viewerKind === 'markdown' && (props.viewerMode === 'read' || props.viewerMode === 'table')
+    if (!showStructuredInJsonViews && !showStructuredInMarkdownViews) return null
     return tryBuildApiGraphMarkdownTablesFromJson(props.markdownText)
   }, [props.markdownText, props.viewerKind, props.viewerMode])
 
@@ -473,6 +447,32 @@ export function MarkdownWorkspaceDerivedViewer(props: {
 
   if (props.viewerMode === 'read') {
     if (props.viewerKind === 'json') {
+      if (derivedStructuredText) {
+        return (
+          <MarkdownPreview
+            ref={props.onViewerRootRef}
+            markdownText={derivedStructuredText}
+            activeDocumentPath={props.activeDocumentPath ?? null}
+            highlightedLineRange={props.highlightedLineRange}
+            markdownWordWrap={props.markdownWordWrap}
+            markdownPresentationMode={false}
+            markdownTextHighlight={props.markdownTextHighlight}
+            selectionKind={null}
+            uiPanelTextFontClass={props.uiPanelTextFontClass}
+            uiPanelMonospaceTextClass={props.uiPanelMonospaceTextClass}
+            webpageLayoutWireframeAscii={props.webpageLayoutWireframeAscii ?? null}
+            geoDatasetIntegration={props.geoDatasetIntegration}
+            previewOverlayScope="container"
+            previewOverlayPortalTarget={null}
+            previewScrollable={true}
+            showSidebar={false}
+            viewMode="viewer"
+            onInsertLineAfter={props.onInsertLineAfter}
+            onReorderLineBlock={props.onReorderLineBlock}
+            onReplaceLineRange={props.onReplaceLineRange}
+          />
+        )
+      }
       return (
         <div
           ref={props.onViewerRootRef}

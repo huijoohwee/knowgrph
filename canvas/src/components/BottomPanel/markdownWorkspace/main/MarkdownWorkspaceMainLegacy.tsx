@@ -32,6 +32,8 @@ import { exportCanvasSvg } from './exports/exportSvg'
 import { exportGraphJson } from './exports/exportJson'
 import { exportViewerPdf } from './exports/exportPdf'
 import { registerMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
+import { buildBipartiteMarkdownFromJsonText } from '@/features/markdown/bipartiteJsonToMarkdown'
+import { jsonToMarkdown } from '@/features/markdown/jsonToMarkdown'
 
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
@@ -191,15 +193,56 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     lsSetJson(LS_KEYS.markdownDerivedViewerMode, viewerMode)
   }, [viewerMode])
 
+  const viewerKindOptions = React.useMemo<Array<MarkdownWorkspaceDerivedViewerKind>>(
+    () => ['markdown', 'json'],
+    [],
+  )
+
+  React.useEffect(() => {
+    if (viewerKindOptions.includes(viewerKind)) return
+    setViewerKind(viewerKindOptions[0] || 'markdown')
+  }, [viewerKind, viewerKindOptions])
+
+  const jsonDerivedMarkdownBase = React.useMemo(() => {
+    if (isMarkdown) return null
+    const text = String(activeText || '').trim()
+    if (!text || (!text.startsWith('{') && !text.startsWith('['))) return null
+    const bipartite = buildBipartiteMarkdownFromJsonText(text)
+    if (bipartite) return bipartite
+    try {
+      const parsed = JSON.parse(text) as unknown
+      return jsonToMarkdown(parsed, { defaultMode: 'table' }, 'table')
+    } catch {
+      return null
+    }
+  }, [activeText, isMarkdown])
+
+  const isJsonMarkdownEditing = !isMarkdown && viewerKind === 'markdown' && !!jsonDerivedMarkdownBase
+  const [jsonDerivedMarkdownDraft, setJsonDerivedMarkdownDraft] = React.useState<string | null>(null)
+  const jsonDerivedMarkdownSeedRef = React.useRef<string>('')
+  React.useEffect(() => {
+    if (!isJsonMarkdownEditing || !jsonDerivedMarkdownBase) {
+      jsonDerivedMarkdownSeedRef.current = ''
+      setJsonDerivedMarkdownDraft(null)
+      return
+    }
+    const seed = `${activeDocumentKey}::${jsonDerivedMarkdownBase}`
+    if (jsonDerivedMarkdownSeedRef.current === seed) return
+    jsonDerivedMarkdownSeedRef.current = seed
+    setJsonDerivedMarkdownDraft(jsonDerivedMarkdownBase)
+  }, [activeDocumentKey, isJsonMarkdownEditing, jsonDerivedMarkdownBase])
+  const markdownEditText = isJsonMarkdownEditing ? (jsonDerivedMarkdownDraft ?? jsonDerivedMarkdownBase ?? '') : null
+
   const needsMarkdownViewerText = !showWebpageHtml
-  const viewerTextRaw = needsMarkdownViewerText ? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText) : ''
+  const sourceViewerTextRaw = typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText
+  const viewerTextRaw = needsMarkdownViewerText ? (markdownEditText ?? sourceViewerTextRaw) : ''
   const viewerText = React.useMemo(
     () => {
       if (!needsMarkdownViewerText) return ''
-      if (viewerKind === 'json') return viewerTextRaw
+      if (viewerKind === 'json') return sourceViewerTextRaw
       return sanitizeInvalidDataUrls(viewerTextRaw)
     },
-    [needsMarkdownViewerText, viewerKind, viewerTextRaw],
+    [needsMarkdownViewerText, sourceViewerTextRaw, viewerKind, viewerTextRaw],
   )
 
   const webpageLayoutWireframeAscii = React.useMemo(() => {
@@ -402,9 +445,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
 
   const handleExportMarkdown = React.useCallback(async () => {
     flushGraphWritebackForExport()
-    const text = String(typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText)
+    const text = String(markdownEditText ?? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText))
     await exportMarkdownFile({ exportBaseName, text })
-  }, [activeText, exportBaseName, flushGraphWritebackForExport, viewerTextOverride])
+  }, [activeText, exportBaseName, flushGraphWritebackForExport, markdownEditText, viewerTextOverride])
 
   const handleExportHtmlViewer = React.useCallback(async () => {
     flushGraphWritebackForExport()
@@ -521,8 +564,18 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const renderEditor = React.useCallback(
     () => (
       <MarkdownEditorPane
-        value={typeof editorTextOverride === 'string' ? editorTextOverride : activeText}
-        onChange={disableEditorMutations ? () => void 0 : setActiveText}
+        value={markdownEditText ?? (typeof editorTextOverride === 'string' ? editorTextOverride : activeText)}
+        onChange={
+          disableEditorMutations
+            ? () => void 0
+            : (next: string) => {
+                if (isJsonMarkdownEditing) {
+                  setJsonDerivedMarkdownDraft(next)
+                  return
+                }
+                setActiveText(next)
+              }
+        }
         wordWrap={markdownWordWrap}
         editorRef={editorRef}
         onCaretLine={onEditorCaretLine}
@@ -541,10 +594,13 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       editorRef,
       editorTextOverride,
       editorUri,
+      isJsonMarkdownEditing,
+      markdownEditText,
       markdownWordWrap,
       onEditorCaretLine,
       panelTypography,
       setActiveText,
+      setJsonDerivedMarkdownDraft,
       themeMode,
     ],
   )
@@ -563,6 +619,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         markdownTextHighlight,
         setMarkdownTextHighlight,
         viewerKind,
+        viewerKindOptions,
         setViewerKind,
         viewerMode,
         setViewerMode,

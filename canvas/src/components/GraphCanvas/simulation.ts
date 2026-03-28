@@ -274,6 +274,17 @@ const isBipartiteType = (t: unknown): t is 'problem' | 'solution' => {
   return v === 'problem' || v === 'solution'
 }
 
+const isHubNode = (n: GraphNode): boolean => String(n.type || '').trim().toLowerCase() === 'hub'
+
+const readBipartiteSide = (n: GraphNode): 'problem' | 'solution' | null => {
+  const props = (n.properties || {}) as Record<string, unknown>
+  const side = String(props['bipartite:side'] || '').trim().toLowerCase()
+  if (side === 'problem' || side === 'solution') return side
+  const type = String(n.type || '').trim().toLowerCase()
+  if (type === 'problem' || type === 'solution') return type
+  return null
+}
+
 type SimulationPresentationSignature = {
   disjointEnabled: boolean
   chargeStrength: number
@@ -372,6 +383,15 @@ export const buildSimulation = (
     typeof schema.layout?.forces?.disjointStrength === 'number' ? schema.layout.forces.disjointStrength : DEFAULT_DISJOINT_STRENGTH;
 
   const linkDist = (e: GraphEdge) => {
+    const perEdgeDistance = (() => {
+      const props = (e as unknown as { properties?: unknown }).properties
+      if (!props || typeof props !== 'object' || Array.isArray(props)) return null
+      const raw = (props as Record<string, unknown>).distance_px
+      const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+      return typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : null
+    })()
+    if (perEdgeDistance != null) return perEdgeDistance
+
     if (disjointEnabled) {
       const label = typeof e.label === 'string' ? e.label : String(e.label || '')
       if (label && hasExplicitLinkDistance(label)) return readForceLinkDistance(schema, e)
@@ -468,7 +488,17 @@ export const buildSimulation = (
   const linkForce = d3
     .forceLink<GraphNode, GraphEdge>(edgesForSim)
     .id(d => String(d.id))
-    .distance(linkDist);
+    .distance(linkDist)
+    .strength((e: GraphEdge) => {
+      const props = ((e as unknown as { properties?: unknown }).properties || {}) as Record<string, unknown>
+      const rawStrength = props.force_strength
+      const n = typeof rawStrength === 'number' ? rawStrength : typeof rawStrength === 'string' ? Number(rawStrength) : null
+      if (typeof n === 'number' && Number.isFinite(n)) return Math.max(0, Math.min(1, n))
+      const label = String(e.label || '').trim()
+      if (label === 'spokeTo') return 0.42
+      if (label === 'linksTo') return 0.012
+      return 0.08
+    });
   
   if (mode === 'radial') {
     const simulation = d3.forceSimulation<GraphNode>(nodes)
@@ -562,17 +592,21 @@ export const buildSimulation = (
       if (forces?.bipartiteMode !== true) return { enabled: false }
       let problems = 0
       let solutions = 0
-      let typed = 0
+      let hubs = 0
       for (let i = 0; i < nodes.length; i += 1) {
         const t = nodes[i]?.type
+        if (String(t || '').trim().toLowerCase() === 'hub') {
+          hubs += 1
+          continue
+        }
         if (!isBipartiteType(t)) continue
-        typed += 1
         if (t === 'problem') problems += 1
         else solutions += 1
       }
-      const ratio = typed / Math.max(1, nodes.length)
-      const enabled = problems > 0 && solutions > 0 && ratio >= 0.85
-      return { enabled }
+      const hasSpokeEdges = edgesForSim.some(e => String(e.label || '') === 'spokeTo')
+      const hasHubNodes = hubs > 0
+      const enabled = problems > 0 && solutions > 0
+      return { enabled, hasHubNodes, hasSpokeEdges }
     })()
 
     const xTarget = () => centerX
@@ -585,9 +619,20 @@ export const buildSimulation = (
     simulation
       .force(
         'charge',
-        disjointEnabled
-          ? d3.forceManyBody().strength(chargeStrength).distanceMin(chargeDistanceMin)
-          : d3.forceManyBody().strength(chargeStrength).distanceMin(chargeDistanceMin).distanceMax(Math.max(frameW, frameH) * 1.2),
+        bipartite.enabled && (bipartite.hasHubNodes || bipartite.hasSpokeEdges)
+          ? (disjointEnabled
+              ? d3
+                  .forceManyBody<GraphNode>()
+                  .strength((d: GraphNode) => (isHubNode(d) ? -8 : -95))
+                  .distanceMin(chargeDistanceMin)
+              : d3
+                  .forceManyBody<GraphNode>()
+                  .strength((d: GraphNode) => (isHubNode(d) ? -8 : -95))
+                  .distanceMin(chargeDistanceMin)
+                  .distanceMax(Math.max(frameW, frameH) * 1.2))
+          : disjointEnabled
+            ? d3.forceManyBody().strength(chargeStrength).distanceMin(chargeDistanceMin)
+            : d3.forceManyBody().strength(chargeStrength).distanceMin(chargeDistanceMin).distanceMax(Math.max(frameW, frameH) * 1.2),
       )
       .force(
         'collide',
@@ -667,9 +712,9 @@ export const buildSimulation = (
               const rightX = centerX + separation
               return d3
                 .forceX<GraphNode>(d => {
-                  const t = typeof d.type === 'string' ? d.type.trim().toLowerCase() : ''
-                  if (t === 'problem') return leftX
-                  if (t === 'solution') return rightX
+                  const side = readBipartiteSide(d)
+                  if (side === 'problem') return leftX
+                  if (side === 'solution') return rightX
                   return centerX
                 })
                 .strength(indexPlan.enabled ? 0.12 : 0.28)
@@ -804,17 +849,21 @@ export const updateForceSimulationPresentation = (args: {
     if (forces?.bipartiteMode !== true) return { enabled: false }
       let problems = 0
       let solutions = 0
-      let typed = 0
+    let hubs = 0
       for (let i = 0; i < nodes.length; i += 1) {
         const t = nodes[i]?.type
-        if (!isBipartiteType(t)) continue
-        typed += 1
+      if (String(t || '').trim().toLowerCase() === 'hub') {
+        hubs += 1
+        continue
+      }
+      if (!isBipartiteType(t)) continue
         if (t === 'problem') problems += 1
         else solutions += 1
       }
-      const ratio = typed / Math.max(1, nodes.length)
-      const enabled = problems > 0 && solutions > 0 && ratio >= 0.85
-      return { enabled }
+    const hasSpokeEdges = edges.some(e => String(e.label || '') === 'spokeTo')
+    const hasHubNodes = hubs > 0
+    const enabled = problems > 0 && solutions > 0
+    return { enabled, hasHubNodes, hasSpokeEdges }
     })()
 
     const collisionRadiusByType = schema.layout?.forces?.collisionByType || {}
@@ -942,13 +991,29 @@ export const updateForceSimulationPresentation = (args: {
       Math.abs(prevSignature.centerY - signature.centerY) > 0.25)
   presentationSignatureCache.set(simulation as unknown as object, signature)
 
-  updateManyBodyForce({
-    simulation,
-    name: 'charge',
-    strength: chargeStrength,
-    distanceMin: chargeDistanceMin,
-    distanceMax: disjointEnabled ? Number.POSITIVE_INFINITY : Math.max(frameW, frameH) * 1.2,
-  })
+  if (bipartite.enabled && (bipartite.hasHubNodes || bipartite.hasSpokeEdges)) {
+    simulation.force(
+      'charge',
+      disjointEnabled
+        ? d3
+            .forceManyBody<GraphNode>()
+            .strength((d: GraphNode) => (isHubNode(d) ? -8 : -95))
+            .distanceMin(chargeDistanceMin)
+        : d3
+            .forceManyBody<GraphNode>()
+            .strength((d: GraphNode) => (isHubNode(d) ? -8 : -95))
+            .distanceMin(chargeDistanceMin)
+            .distanceMax(Math.max(frameW, frameH) * 1.2),
+    )
+  } else {
+    updateManyBodyForce({
+      simulation,
+      name: 'charge',
+      strength: chargeStrength,
+      distanceMin: chargeDistanceMin,
+      distanceMax: disjointEnabled ? Number.POSITIVE_INFINITY : Math.max(frameW, frameH) * 1.2,
+    })
+  }
 
   try {
     const velocityDecay = computeVelocityDecay2d({ nodeCount: nodes.length, idealSpacing, isKeywordGraph, tuning: physicsTuning })
@@ -1096,9 +1161,9 @@ export const updateForceSimulationPresentation = (args: {
       const separation = Math.max(520, Math.floor(frameW * 0.36))
       const leftX = centerX - separation
       const rightX = centerX + separation
-      const t = typeof d.type === 'string' ? d.type.trim().toLowerCase() : ''
-      if (t === 'problem') return leftX
-      if (t === 'solution') return rightX
+      const side = readBipartiteSide(d)
+      if (side === 'problem') return leftX
+      if (side === 'solution') return rightX
       return centerX
     },
     strength: indexPlan.enabled ? 0.12 : 0.28,

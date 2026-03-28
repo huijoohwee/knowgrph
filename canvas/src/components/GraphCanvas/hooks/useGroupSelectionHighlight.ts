@@ -55,10 +55,34 @@ export function useGroupSelectionHighlight(args: {
         const id = String(el.attr('data-kg-group-id') || '')
         const isSelected = !!id && selected.has(id)
         el.attr('data-kg-selected', isSelected ? '1' : '0')
-        el.selectAll<SVGRectElement | SVGPathElement, unknown>('rect[data-kg-shape], path[data-kg-shape]')
-          .attr('stroke-width', isSelected ? selectedStrokeWidth : baseStrokeWidth)
-          .attr('fill-opacity', isSelected ? selectedFillOpacity : baseFillOpacity)
-          .attr('stroke', isSelected ? MVP_COLOR_PALETTE.nodes.idea : null)
+        el.selectAll<SVGRectElement | SVGPathElement, unknown>('rect[data-kg-shape], path[data-kg-shape]').each(function () {
+          const shape = d3.select(this as SVGRectElement | SVGPathElement)
+          const baseStroke = String(shape.attr('data-kg-base-stroke') || shape.attr('stroke') || '').trim()
+          const baseStrokeWidth = String(shape.attr('data-kg-base-stroke-width') || shape.attr('stroke-width') || '').trim()
+          const baseFillOpacity = String(shape.attr('data-kg-base-fill-opacity') || shape.attr('fill-opacity') || '').trim()
+          if (!shape.attr('data-kg-base-stroke') && baseStroke) shape.attr('data-kg-base-stroke', baseStroke)
+          if (!shape.attr('data-kg-base-stroke-width') && baseStrokeWidth) shape.attr('data-kg-base-stroke-width', baseStrokeWidth)
+          if (!shape.attr('data-kg-base-fill-opacity') && baseFillOpacity) shape.attr('data-kg-base-fill-opacity', baseFillOpacity)
+          const restoreStroke = String(shape.attr('data-kg-base-stroke') || '').trim()
+          const restoreStrokeWidth = Number(shape.attr('data-kg-base-stroke-width') || '')
+          const restoreFillOpacity = Number(shape.attr('data-kg-base-fill-opacity') || '')
+          const nextStrokeWidth =
+            isSelected
+              ? selectedStrokeWidth
+              : Number.isFinite(restoreStrokeWidth)
+                ? restoreStrokeWidth
+                : baseStrokeWidth
+          const nextFillOpacity =
+            isSelected
+              ? selectedFillOpacity
+              : Number.isFinite(restoreFillOpacity)
+                ? restoreFillOpacity
+                : baseFillOpacity
+          shape
+            .attr('stroke-width', nextStrokeWidth)
+            .attr('fill-opacity', nextFillOpacity)
+            .attr('stroke', isSelected ? MVP_COLOR_PALETTE.nodes.idea : restoreStroke || null)
+        })
       })
 
       g.selectAll<SVGTextElement, unknown>('[data-kg-layer="group-labels"] text[data-kg-group-id]')

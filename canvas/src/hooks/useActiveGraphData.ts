@@ -17,7 +17,11 @@ import { LRUCache } from '@/lib/cache/LRUCache'
 import { pipelinePerfEnd, pipelinePerfStart } from '@/lib/pipelinePerf'
 import { deriveKeywordGraphInWorker, deriveKeywordGraphPreviewInWorker } from '@/features/semantic-mode/keywordGraphWorker'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
-import { useApiGraphBipartiteGraphData } from '@/features/bipartite/apiGraphBipartite'
+import {
+  normalizeBipartiteApiGraphData,
+  parseBipartiteApiGraphPayload,
+  useApiGraphBipartiteGraphData,
+} from '@/features/bipartite/apiGraphBipartite'
 
 const KEYWORD_SOURCE_EDGE_LABELS = new Set<string>([
   'hasSection',
@@ -277,6 +281,8 @@ const parseWorkspaceJsonGraphData = (args: { markdownName: string | null; markdo
   try {
     const parsed = JSON.parse(trimmed) as unknown
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+    const bipartitePayload = parseBipartiteApiGraphPayload(parsed)
+    if (bipartitePayload) return normalizeBipartiteApiGraphData({ payload: bipartitePayload })
     const obj = parsed as Record<string, unknown>
     const nodesRaw = Array.isArray(obj.nodes) ? obj.nodes : null
     const edgesRaw = Array.isArray(obj.edges) ? obj.edges : null

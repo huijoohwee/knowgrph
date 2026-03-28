@@ -64,6 +64,10 @@ export function useWorkspaceImportActions(args: {
         } catch {
           void 0
         }
+        const createdPath = res.createdPaths.find(p => typeof p === 'string' && p.trim()) || null
+        if (createdPath) {
+          await focusAfterImport(createdPath, { applyToGraph: true, jobId })
+        }
         const imported = res.createdPaths.length
         const skipped = res.skipped.length
         const failed = res.failed.length
@@ -79,7 +83,7 @@ export function useWorkspaceImportActions(args: {
         status.setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [getFs, refresh, importJobRef, status],
+    [focusAfterImport, getFs, refresh, importJobRef, status],
   )
 
   const handleImportLocalFolder = React.useCallback(
@@ -107,6 +111,10 @@ export function useWorkspaceImportActions(args: {
         } catch {
           void 0
         }
+        const createdPath = res.createdPaths.find(p => typeof p === 'string' && p.trim()) || null
+        if (createdPath) {
+          await focusAfterImport(createdPath, { applyToGraph: true, jobId })
+        }
         const imported = res.createdPaths.length
         const skipped = res.skipped.length
         const failed = res.failed.length
@@ -122,7 +130,7 @@ export function useWorkspaceImportActions(args: {
         status.setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [getFs, refresh, importJobRef, status],
+    [focusAfterImport, getFs, refresh, importJobRef, status],
   )
 
   const handleImportUrl = React.useCallback(

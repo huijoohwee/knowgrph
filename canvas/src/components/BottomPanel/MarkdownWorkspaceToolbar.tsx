@@ -48,6 +48,7 @@ export type MarkdownWorkspaceToolbarProps = {
   setMarkdownTextHighlight: (next: boolean) => void
 
   viewerKind?: 'markdown' | 'html' | 'json'
+  viewerKindOptions?: Array<'markdown' | 'html' | 'json'>
   setViewerKind?: (next: 'markdown' | 'html' | 'json') => void
   viewerMode?: 'read' | 'kanban' | 'table'
   setViewerMode?: (next: 'read' | 'kanban' | 'table') => void
@@ -99,6 +100,7 @@ export function MarkdownWorkspaceToolbar({
   markdownTextHighlight,
   setMarkdownTextHighlight,
   viewerKind,
+  viewerKindOptions,
   setViewerKind,
   viewerMode,
   setViewerMode,
@@ -257,11 +259,12 @@ export function MarkdownWorkspaceToolbar({
               <WorkspaceModeSelect<'markdown' | 'html' | 'json'>
                 ariaLabel="Viewer content"
                 value={viewerKind}
-                options={[
-                  { value: 'markdown', label: 'Markdown' },
-                  { value: 'html', label: 'HTML' },
-                  { value: 'json', label: 'JSON' },
-                ]}
+                options={(viewerKindOptions && viewerKindOptions.length > 0
+                  ? viewerKindOptions
+                  : (['markdown', 'html', 'json'] as Array<'markdown' | 'html' | 'json'>)).map(v => ({
+                  value: v as 'markdown' | 'html' | 'json',
+                  label: v === 'markdown' ? 'Markdown' : v === 'html' ? 'HTML' : 'JSON',
+                }))}
                 onChange={setViewerKind}
               />
             </li>

@@ -207,7 +207,7 @@ export function ToolbarToolMenu({
   const devStatusMetrics = React.useMemo(() => {
     if (!import.meta.env.DEV) return null
     const data = activeGraphRenderData
-    if (!data) return { counter: 'n0 e0 g0', hierarchyBadge: 'h0' }
+    if (!data) return { counter: 'n0 e0 g0', hierarchyBadge: 'h0', suffix: 'bp:h0 s0 c0 m0' }
     const nodes = Array.isArray(data.nodes) ? data.nodes.length : 0
     const edges = Array.isArray(data.edges) ? data.edges.length : 0
     const groupsDerived = deriveGraphGroups(data, { forceDocumentStructure: false })
@@ -217,7 +217,15 @@ export function ToolbarToolMenu({
       return Math.max(m, d)
     }, 0)
     const hierarchyLevels = groups > 0 ? maxDepth + 1 : 0
-    return { counter: `n${nodes} e${edges} g${groups}`, hierarchyBadge: `h${hierarchyLevels}` }
+    const hubs = (Array.isArray(data.nodes) ? data.nodes : []).filter(n => String(n.type || '').trim().toLowerCase() === 'hub').length
+    const spokes = (Array.isArray(data.edges) ? data.edges : []).filter(e => String(e.label || '') === 'spokeTo').length
+    const crosses = (Array.isArray(data.edges) ? data.edges : []).filter(e => String(e.label || '') === 'linksTo').length
+    const members = (Array.isArray(data.nodes) ? data.nodes : []).filter(n => {
+      const t = String(n.type || '').trim().toLowerCase()
+      return t === 'problem' || t === 'solution'
+    }).length
+    const suffix = `bp:h${hubs} s${spokes} c${crosses} m${members}`
+    return { counter: `n${nodes} e${edges} g${groups}`, hierarchyBadge: `h${hierarchyLevels}`, suffix }
   }, [activeGraphRenderData])
 
   const {
@@ -485,6 +493,11 @@ export function ToolbarToolMenu({
                   {devStatusMetrics.hierarchyBadge}
                 </span>
               )}
+              {devStatusMetrics && (
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[132px]`}>
+                  {devStatusMetrics.suffix}
+                </span>
+              )}
             </nav>
             <HeaderActions
               onPinToggle={handlePinToggle}
@@ -535,6 +548,11 @@ export function ToolbarToolMenu({
               {devStatusMetrics && (
                 <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[56px]`}>
                   {devStatusMetrics.hierarchyBadge}
+                </span>
+              )}
+              {devStatusMetrics && (
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[132px]`}>
+                  {devStatusMetrics.suffix}
                 </span>
               )}
               {exportStatus && (

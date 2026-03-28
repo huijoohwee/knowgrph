@@ -11,6 +11,7 @@ type ApiGraphNode = {
   type: 'problem' | 'solution' | string
   label: string
   cluster?: string
+  hub?: string
   gap_score?: number
   pmf_score?: number
   gap_velocity?: number
@@ -26,12 +27,21 @@ type ApiGraphEdge = {
   target?: string
   problem_id?: string
   solution_id?: string
+  hub_id?: string
+  member_id?: string
+  type?: string
+  force_strength?: number
+  distance_px?: number
   strength?: number
 }
 
 type ApiGraphPayload = {
   nodes?: ApiGraphNode[]
   edges?: ApiGraphEdge[]
+  member_nodes?: Array<Record<string, unknown>>
+  hub_nodes?: Array<Record<string, unknown>>
+  cross_edges?: Array<Record<string, unknown>>
+  spoke_edges?: Array<Record<string, unknown>>
   meta?:
     | ({
         total_problems?: number
@@ -96,6 +106,17 @@ type BipartiteRenderSettings = {
   showClusterGapRatio: boolean
 }
 
+const DEFAULT_BIPARTITE_RENDER_SETTINGS: BipartiteRenderSettings = {
+  nodeSizeMetric: 'gap_score',
+  nodeGlowMetric: 'pmf_score',
+  nodePulseMetric: 'gap_velocity',
+  nodeBorderMetric: 'source_count',
+  edgeOpacityMetric: 'strength',
+  showSpecificityBadges: true,
+  showGapScoreInLabel: true,
+  showClusterGapRatio: true,
+}
+
 const asString = (v: unknown): string => (typeof v === 'string' ? v : String(v ?? ''))
 
 const asFiniteNumber = (v: unknown): number | null => {
@@ -110,8 +131,12 @@ const asFiniteNumber = (v: unknown): number | null => {
 function readApiGraphPayload(value: unknown): ApiGraphPayload | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const obj = value as Record<string, unknown>
-  const nodesRaw = obj.nodes
-  const edgesRaw = obj.edges
+  const compositeMemberNodes = Array.isArray(obj.member_nodes) ? (obj.member_nodes as unknown[]).filter(Boolean) : []
+  const compositeHubNodes = Array.isArray(obj.hub_nodes) ? (obj.hub_nodes as unknown[]).filter(Boolean) : []
+  const compositeCrossEdges = Array.isArray(obj.cross_edges) ? (obj.cross_edges as unknown[]).filter(Boolean) : []
+  const compositeSpokeEdges = Array.isArray(obj.spoke_edges) ? (obj.spoke_edges as unknown[]).filter(Boolean) : []
+  const nodesRaw = Array.isArray(obj.nodes) ? obj.nodes : (compositeMemberNodes.length > 0 || compositeHubNodes.length > 0 ? [...compositeMemberNodes, ...compositeHubNodes] : null)
+  const edgesRaw = Array.isArray(obj.edges) ? obj.edges : (compositeCrossEdges.length > 0 || compositeSpokeEdges.length > 0 ? [...compositeCrossEdges, ...compositeSpokeEdges] : null)
   const nodes = Array.isArray(nodesRaw) ? (nodesRaw as unknown[]).filter(Boolean) : null
   const edges = Array.isArray(edgesRaw) ? (edgesRaw as unknown[]).filter(Boolean) : null
   if (!nodes || !edges) return null
@@ -159,6 +184,7 @@ function readApiGraphPayload(value: unknown): ApiGraphPayload | null {
       const color = o ? asString(o.color).trim() : ''
       const x = o ? asFiniteNumber(o.x) : null
       const y = o ? asFiniteNumber(o.y) : null
+      const hub = o ? asString((o as Record<string, unknown>).hub ?? (o as Record<string, unknown>).hub_id).trim() : ''
       const typeRaw = o ? asString(o.type).trim() : ''
       const sideFromCluster = clusterRaw && clusterById.has(clusterRaw) ? (clusterById.get(clusterRaw)?.side || '') : ''
       const type = typeRaw || sideFromCluster || ''
@@ -173,6 +199,7 @@ function readApiGraphPayload(value: unknown): ApiGraphPayload | null {
         source_count: sourceCount ?? undefined,
         specificity: specificity || undefined,
         color: color || clusterColor || undefined,
+        hub: hub || undefined,
         x: x ?? undefined,
         y: y ?? undefined,
       }
@@ -183,12 +210,22 @@ function readApiGraphPayload(value: unknown): ApiGraphPayload | null {
       const target = o ? asString(o.target).trim() : ''
       const problemId = o ? asString(o.problem_id).trim() : ''
       const solutionId = o ? asString(o.solution_id).trim() : ''
+      const hubId = o ? asString(o.hub_id).trim() : ''
+      const memberId = o ? asString(o.member_id).trim() : ''
+      const type = o ? asString(o.type).trim() : ''
+      const forceStrength = o ? asFiniteNumber(o.force_strength) : null
+      const distancePx = o ? asFiniteNumber(o.distance_px) : null
       const strength = o ? asFiniteNumber(o.strength) : null
       return {
         source: source || undefined,
         target: target || undefined,
         problem_id: problemId || undefined,
         solution_id: solutionId || undefined,
+        hub_id: hubId || undefined,
+        member_id: memberId || undefined,
+        type: type || undefined,
+        force_strength: forceStrength ?? undefined,
+        distance_px: distancePx ?? undefined,
         strength: strength ?? undefined,
       }
     }),
@@ -201,7 +238,15 @@ function readApiGraphPayload(value: unknown): ApiGraphPayload | null {
         }
       : undefined,
     ...(clustersRaw.length > 0 ? { clusters: clustersRaw } : {}),
+    ...(compositeMemberNodes.length > 0 ? { member_nodes: compositeMemberNodes as Array<Record<string, unknown>> } : {}),
+    ...(compositeHubNodes.length > 0 ? { hub_nodes: compositeHubNodes as Array<Record<string, unknown>> } : {}),
+    ...(compositeCrossEdges.length > 0 ? { cross_edges: compositeCrossEdges as Array<Record<string, unknown>> } : {}),
+    ...(compositeSpokeEdges.length > 0 ? { spoke_edges: compositeSpokeEdges as Array<Record<string, unknown>> } : {}),
   }
+}
+
+export function parseBipartiteApiGraphPayload(value: unknown): ApiGraphPayload | null {
+  return readApiGraphPayload(value)
 }
 
 function buildApiGraphSignature(payload: ApiGraphPayload): string {
@@ -214,8 +259,8 @@ function buildApiGraphSignature(payload: ApiGraphPayload): string {
     .sort((a, b) => a.localeCompare(b))
   const edgeKeys = edges
     .map(e => {
-      const s = String(e?.source || '').trim()
-      const t = String(e?.target || '').trim()
+      const s = String(e?.source || e?.problem_id || e?.hub_id || '').trim()
+      const t = String(e?.target || e?.solution_id || e?.member_id || '').trim()
       const st = typeof e?.strength === 'number' && Number.isFinite(e.strength) ? String(e.strength) : ''
       return `${s}|${t}|${st}`
     })
@@ -238,10 +283,13 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
 
   const problemClusterCounts = new Map<string, number>()
   const solutionClusterCounts = new Map<string, number>()
+  const clusterSideByName = new Map<string, 'problem' | 'solution'>()
   for (const n of nodeById.values()) {
     const type = String(n.type || '').toLowerCase()
     const cluster = String(n.cluster || '').trim()
     if (!cluster) continue
+    if (type === 'problem') clusterSideByName.set(cluster, 'problem')
+    if (type === 'solution') clusterSideByName.set(cluster, 'solution')
     const map = type === 'problem' ? problemClusterCounts : type === 'solution' ? solutionClusterCounts : null
     if (!map) continue
     map.set(cluster, (map.get(cluster) || 0) + 1)
@@ -266,6 +314,19 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
     })
     return out
   })()
+
+  if (clusterGapRatiosFromMeta) {
+    const raw = meta?.cluster_gap_ratios
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      Object.entries(raw as Record<string, unknown>).forEach(([k, v]) => {
+        if (!v || typeof v !== 'object' || Array.isArray(v)) return
+        const side = String((v as Record<string, unknown>).side || '').trim().toLowerCase()
+        if (side === 'problem' || side === 'solution') clusterSideByName.set(String(k), side as 'problem' | 'solution')
+      })
+    }
+  }
+
+  const hasHubNodes = Array.from(nodeById.values()).some(n => String(n.type || '').trim().toLowerCase() === 'hub')
 
   const sortClusters = (m: Map<string, number>, mode: 'gapThenCount' | 'countThenName') => {
     const gapOf = (cluster: string): number | null => {
@@ -332,6 +393,7 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
     const typeLower = typeRaw.toLowerCase()
     const isProblem = typeLower === 'problem'
     const isSolution = typeLower === 'solution'
+    const isHub = typeLower === 'hub'
     const type = isProblem ? 'problem' : isSolution ? 'solution' : (typeRaw || 'node')
     const label = String(n.label || '').trim() || String(n.id || '').trim()
     const cluster = String(n.cluster || '').trim()
@@ -366,14 +428,23 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
     const labelBase = label
     const nextLabel = `${labelPrefix ? `${labelPrefix} ` : ''}${labelBase}${labelGap}`
 
-    const lane = isProblem
+    const side = cluster ? (clusterSideByName.get(cluster) || null) : null
+    const lane = isProblem || (isHub && side === 'problem')
       ? (cluster ? (yLaneByProblemCluster.get(cluster) ?? problemClusters.length) : 0)
-      : isSolution
+      : isSolution || (isHub && side === 'solution')
         ? (cluster ? (yLaneBySolutionCluster.get(cluster) ?? solutionClusters.length) : 0)
         : 0
 
-    const xIndex = isSolution ? 8 : 0
-    const yIndex = lane
+    const hubRef = String(n.hub || '').trim()
+    const jitterSeed = Math.abs(String(n.id || '')
+      .split('')
+      .reduce((acc, ch, idx) => acc + ch.charCodeAt(0) * (idx + 1), 0))
+    const jitterAngle = ((jitterSeed % 360) * Math.PI) / 180
+    const orbitX = Math.cos(jitterAngle) * 0.72
+    const orbitY = Math.sin(jitterAngle) * 0.54
+    const xIndex = isHub ? (side === 'solution' ? 6 : 2) : isSolution ? 8 : 0
+    const xIndexWithOrbit = hasHubNodes && hubRef && !isHub ? xIndex + orbitX : xIndex
+    const yIndex = hasHubNodes && hubRef && !isHub ? lane + orbitY : lane
 
     const props: Record<string, JSONValue> = {
       cluster: cluster || null,
@@ -386,7 +457,7 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
       'visual:shape': 'circle',
       'visual:width': width,
       'visual:height': height,
-      'visual:xIndex': xIndex,
+      'visual:xIndex': xIndexWithOrbit,
       'visual:yIndex': yIndex,
       ...(radius != null ? { 'visual:radius': round2(radius) } : {}),
       ...(glowT > 0 ? { 'visual:glowIntensity': round2(glowT) } : {}),
@@ -394,11 +465,32 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
       ...(strokeWidth != null ? { 'visual:strokeWidth': strokeWidth } : {}),
       ...(fill ? { 'visual:fill': fill } : {}),
       'api:source': '/api/graph',
+      ...(isHub ? { 'bipartite:hub': true } : {}),
+      ...(side ? { 'bipartite:side': side } : {}),
     }
 
-    const sideFixedX = isProblem ? -980 : isSolution ? 980 : null
-    const seedX = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : sideFixedX
-    const seedY = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
+    const sideCenterX = side === 'solution' ? 760 : -760
+    const sideOuterX = side === 'solution' ? 980 : -980
+    const laneY = lane * 360
+    const jitterR = 86 + (jitterSeed % 38)
+    const memberSeedX = sideCenterX + Math.cos(jitterAngle) * jitterR
+    const memberSeedY = laneY + Math.sin(jitterAngle) * jitterR * 0.74
+
+    const sideFixedX = isHub ? sideCenterX : hasHubNodes ? null : isProblem ? -980 : isSolution ? 980 : null
+    const seedX = typeof n.x === 'number' && Number.isFinite(n.x)
+      ? n.x
+      : isHub
+        ? sideCenterX
+        : hasHubNodes && (isProblem || isSolution)
+          ? (hubRef ? memberSeedX : sideOuterX)
+          : sideFixedX
+    const seedY = typeof n.y === 'number' && Number.isFinite(n.y)
+      ? n.y
+      : isHub
+        ? laneY
+        : hasHubNodes && (isProblem || isSolution)
+          ? memberSeedY
+          : null
 
     nodes.push({
       id: String(n.id || ''),
@@ -407,6 +499,7 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
       ...(seedX != null ? { x: seedX } : {}),
       ...(seedY != null ? { y: seedY } : {}),
       ...(sideFixedX != null ? { fx: sideFixedX } : {}),
+      ...(isHub ? { fy: laneY } : {}),
       properties: props,
     })
   })
@@ -456,22 +549,33 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
     }
   }
 
-  assignClusterPackedY('problem')
-  assignClusterPackedY('solution')
+  if (!hasHubNodes) {
+    assignClusterPackedY('problem')
+    assignClusterPackedY('solution')
+  }
 
   const nodeIds = new Set<string>(nodes.map(n => n.id))
   const edgeCandidates = rawEdges
     .map(e => {
       const source = String(e?.source || e?.problem_id || '').trim()
       const target = String(e?.target || e?.solution_id || '').trim()
-      if (!source || !target) return null
-      if (!nodeIds.has(source) || !nodeIds.has(target)) return null
+      const spokeSource = String(e?.hub_id || '').trim()
+      const spokeTarget = String(e?.member_id || '').trim()
+      const from = source || spokeSource
+      const to = target || spokeTarget
+      const isSpoke = !!(spokeSource && spokeTarget)
+      const edgeLabel = isSpoke ? 'spokeTo' : 'linksTo'
+      const edgeType = String(e?.type || '').trim().toLowerCase()
+      const forceStrength = typeof e?.force_strength === 'number' && Number.isFinite(e.force_strength) ? clamp(e.force_strength, 0, 1) : null
+      const distancePx = typeof e?.distance_px === 'number' && Number.isFinite(e.distance_px) ? Math.max(24, e.distance_px) : null
+      if (!from || !to) return null
+      if (!nodeIds.has(from) || !nodeIds.has(to)) return null
       const strength = typeof e?.strength === 'number' && Number.isFinite(e.strength) ? clamp(e.strength, 0, 1) : null
       const strengthKey = strength != null ? String(strength) : ''
-      const key = `${source}|${target}|${strengthKey}`
-      return { source, target, strength, key }
+      const key = `${from}|${to}|${edgeLabel}|${edgeType}|${strengthKey}`
+      return { source: from, target: to, strength, key, label: edgeLabel, edgeType, forceStrength, distancePx, isSpoke }
     })
-    .filter(Boolean) as Array<{ source: string; target: string; strength: number | null; key: string }>
+    .filter(Boolean) as Array<{ source: string; target: string; strength: number | null; key: string; label: string; edgeType: string; forceStrength: number | null; distancePx: number | null; isSpoke: boolean }>
   edgeCandidates.sort((a, b) => a.key.localeCompare(b.key))
   const edgeCounts = new Map<string, number>()
   const edges: GraphEdge[] = []
@@ -482,11 +586,13 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
     const id = `apiEdge:${hashText(`${e.key}|${nextCount}`)}`
     const visualOpacity = (() => {
       if (settings.edgeOpacityMetric !== 'strength') return null
+      if (e.isSpoke) return 0.38
       if (e.strength == null) return null
       const t = clamp(e.strength, 0, 1)
       return round2(0.45 + 0.5 * t)
     })()
     const visualWidth = (() => {
+      if (e.isSpoke) return 1.4
       const t = e.strength == null ? 0.5 : clamp(e.strength, 0, 1)
       return round2(1.6 + 2.8 * t)
     })()
@@ -494,11 +600,15 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
       id,
       source: e.source,
       target: e.target,
-      label: 'linksTo',
+      label: e.label,
       properties: {
         ...(e.strength != null ? { strength: e.strength } : {}),
+        ...(e.forceStrength != null ? { force_strength: e.forceStrength } : {}),
+        ...(e.distancePx != null ? { distance_px: e.distancePx } : {}),
+        ...(e.edgeType ? { edge_type: e.edgeType } : {}),
         ...(visualOpacity != null ? { 'visual:opacity': visualOpacity } : {}),
         'visual:width': visualWidth,
+        ...(e.isSpoke ? { 'visual:dash': '3,6' } : {}),
         'api:source': '/api/graph',
       } as Record<string, JSONValue>,
     })
@@ -589,8 +699,12 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
     })
   }
 
-  const problemNodeIds = nodes.filter(n => String(n.type || '') === 'problem').map(n => String(n.id))
-  const solutionNodeIds = nodes.filter(n => String(n.type || '') === 'solution').map(n => String(n.id))
+  const problemNodeIds = nodes
+    .filter(n => String(n.type || '') === 'problem' || (String((n.properties || {})['bipartite:side'] || '') === 'problem' && String(n.type || '') === 'hub'))
+    .map(n => String(n.id))
+  const solutionNodeIds = nodes
+    .filter(n => String(n.type || '') === 'solution' || (String((n.properties || {})['bipartite:side'] || '') === 'solution' && String(n.type || '') === 'hub'))
+    .map(n => String(n.id))
 
   pushSubgraph({
     id: ROOT_SUPERGROUP_ID,
@@ -617,7 +731,12 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
   if (problemClusters.length > 0) {
     for (const c of problemClusters) {
       const memberIds = nodes
-        .filter(n => String(n.type || '') === 'problem' && String((n.properties || {}).cluster || '') === c)
+        .filter(
+          n =>
+            String((n.properties || {}).cluster || '') === c &&
+            (String(n.type || '') === 'problem' ||
+              (String(n.type || '') === 'hub' && String((n.properties || {})['bipartite:side'] || '') === 'problem')),
+        )
         .map(n => String(n.id))
       pushClusterSubgraph({ side: 'problem', cluster: c, memberIds })
     }
@@ -625,7 +744,12 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
   if (solutionClusters.length > 0) {
     for (const c of solutionClusters) {
       const memberIds = nodes
-        .filter(n => String(n.type || '') === 'solution' && String((n.properties || {}).cluster || '') === c)
+        .filter(
+          n =>
+            String((n.properties || {}).cluster || '') === c &&
+            (String(n.type || '') === 'solution' ||
+              (String(n.type || '') === 'hub' && String((n.properties || {})['bipartite:side'] || '') === 'solution')),
+        )
         .map(n => String(n.id))
       pushClusterSubgraph({ side: 'solution', cluster: c, memberIds })
     }
@@ -646,6 +770,17 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
   }
 
   return subgraphs.length > 0 ? writeSubgraphs(baseGraph, subgraphs) : baseGraph
+}
+
+export function normalizeBipartiteApiGraphData(args: {
+  payload: ApiGraphPayload
+  settings?: Partial<BipartiteRenderSettings>
+}): GraphData {
+  const settings: BipartiteRenderSettings = {
+    ...DEFAULT_BIPARTITE_RENDER_SETTINGS,
+    ...(args.settings || {}),
+  }
+  return normalizeApiGraphToBipartiteGraphData(args.payload, settings)
 }
 
 async function fetchApiGraphPayload(args: { signal: AbortSignal }): Promise<ApiGraphPayload> {
@@ -731,7 +866,7 @@ export function useApiGraphBipartiteGraphData(enabled: boolean): { graphData: Gr
     const effectivePayload = effectiveWorkspaceSource ? workspacePayload : payload
     if (!effectivePayload) return null
     try {
-      return normalizeApiGraphToBipartiteGraphData(effectivePayload, settings)
+      return normalizeBipartiteApiGraphData({ payload: effectivePayload, settings })
     } catch {
       return null
     }

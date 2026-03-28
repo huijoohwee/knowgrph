@@ -219,7 +219,8 @@ export function useD3GraphScene2d(args: {
       return typeof meta.graphKind === 'string' ? meta.graphKind : ''
     })()
 
-    const isBipartite = canvasRenderMode === '2d' && String(canvas2dRenderer || '') === 'd3Bipartite' && graphKind === 'bipartite'
+    const isD3LikeRenderer = canvasRenderMode === '2d' && (String(canvas2dRenderer || '') === 'd3Bipartite' || String(canvas2dRenderer || '') === 'd3')
+    const isBipartite = isD3LikeRenderer && graphKind === 'bipartite'
     const schemaForScene: GraphSchema = isBipartite
       ? {
           ...schemaValue,
@@ -241,6 +242,7 @@ export function useD3GraphScene2d(args: {
               linkDistanceByLabel: {
                 ...((((schemaValue.layout || {}).forces || {}) as any).linkDistanceByLabel || {}),
                 linksTo: 680,
+                spokeTo: 110,
               },
             },
             mode: 'force',
@@ -279,6 +281,7 @@ export function useD3GraphScene2d(args: {
         String(mediaPanelDensity),
         collapsedGroupIdsKey,
         String(enableEditorGestures ? 1 : 0),
+        String(infiniteCanvasInteractionMode),
       ].join('|')
 
       if (sceneCleanupRef.current && sceneBuildKeyRef.current === buildKey) return
@@ -400,7 +403,9 @@ export function useD3GraphScene2d(args: {
         graphData: sceneGraphData,
         graphDataRevision: graphDataRevisionRef.current ?? graphDataRevision,
       })
-      const layoutVariant = isBipartite ? 'bipartite:v3' : ''
+      const layoutVariant = isBipartite
+        ? `bipartite:v4:${layoutSemanticModeKey}:${String(effectiveFrontmatterModeEnabled ? 1 : 0)}:${String(infiniteCanvasInteractionMode)}`
+        : ''
       const pickedInitialZoomTransform = pickInitialZoomTransform({
         zoomState: z,
         pinned: isPinned,
@@ -658,6 +663,7 @@ export function useD3GraphScene2d(args: {
     graphDataRevision,
     graphDataRevisionRef,
     isEmbeddedPreview,
+    infiniteCanvasInteractionMode,
     layoutSemanticModeKey,
     mediaOverlayNodeIdSet,
     mediaPanelDensity,
