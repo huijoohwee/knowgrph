@@ -19,6 +19,46 @@ import { renderLabels2d, type LabelRelaxState2d } from '@/components/GraphCanvas
 import { buildEdgePathD, readEdgePathCurveOptions, readGlobalEdgeType, type GlobalEdgeType } from '@/lib/graph/edgeTypes'
 import { readRadarForceConfig } from '@/lib/graph/radarForces'
 
+type OrbitMode = 'flat' | 'solar' | 'atomic'
+
+type OrbitConfig = {
+  enabled: boolean
+  mode: OrbitMode
+  speedDeg: number
+  orbitSize: number
+  ringGapPx: number
+  depthSpeedScale: number
+}
+
+const ORBIT_PARENT_EDGE_LABELS = new Set([
+  'hasSection',
+  'hasBlock',
+  'hasItem',
+  'hasMermaidNode',
+  'hasMermaidSubgraph',
+  'embedsImage',
+  'embedsMedia',
+  'mentions',
+])
+
+const readRadialOrbitConfig = (schema: GraphSchema): OrbitConfig => {
+  const f = (schema.layout?.forces || {}) as Record<string, unknown>
+  const modeRaw = typeof f.radialOrbitMode === 'string' ? f.radialOrbitMode : 'flat'
+  const mode: OrbitMode = modeRaw === 'solar' || modeRaw === 'atomic' ? modeRaw : 'flat'
+  const num = (v: unknown, fallback: number): number => {
+    const n = typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' ? Number(v) : NaN
+    return Number.isFinite(n) ? n : fallback
+  }
+  return {
+    enabled: f.radialOrbitEnabled !== false,
+    mode,
+    speedDeg: Math.max(0, Math.min(120, num(f.radialOrbitSpeedDeg, 18))),
+    orbitSize: Math.max(1.2, Math.min(8, num(f.radialOrbitSize, 2.95))),
+    ringGapPx: Math.max(12, Math.min(360, num(f.radialOrbitRingGapPx, 58))),
+    depthSpeedScale: Math.max(0, Math.min(1.2, num(f.radialOrbitDepthSpeedScale, 0.12))),
+  }
+}
+
 export const attachSimulationTick = (args: {
   svgEl: SVGSVGElement
   simulation: d3.Simulation<GraphNode, GraphEdge>
@@ -33,10 +73,14 @@ export const attachSimulationTick = (args: {
   edgeLabelSel?: d3.Selection<SVGTextElement, GraphEdge, SVGGElement, unknown> | null
   labelsSelRef: MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>
   nodes: GraphNode[]
+  edges: GraphEdge[]
   nodeById?: Map<string, GraphNode> | null
   groupsForBboxCollide?: GraphGroup[]
   getSchema: () => GraphSchema
   documentSemanticMode?: 'document' | 'keyword'
+  frontmatterModeEnabled?: boolean
+  multiDimTableModeEnabled?: boolean
+  canvas2dRenderer?: string
   width: number
   height: number
   panelOnlyNodeIdSet?: Set<string> | null
@@ -63,6 +107,7 @@ export const attachSimulationTick = (args: {
     edgeLabelSel,
     labelsSelRef,
     nodes,
+    edges,
     getSchema,
     width,
     height,
@@ -98,6 +143,155 @@ export const attachSimulationTick = (args: {
     lastLabelRelaxTick: -1,
   }
   const strictOverlapState: StrictOverlapState2d = { lastStrictOverlapTick: -1, cache: null }
+  const orbitStateById = new Map<string, { parentId: string | null; angle: number; radius: number; depth: number; ring: number }>()
+  let lastOrbitFrameAt = 0
+
+  const applyRadialOrbitAnimation = (schema: GraphSchema): boolean => {
+    const layoutMode = String(schema.layout?.mode || 'radial')
+    if (layoutMode !== 'radial') return false
+    const renderer = String(args.canvas2dRenderer || '').trim()
+    if (renderer !== 'd3') return false
+    const semanticMode = String(args.documentSemanticMode || 'document')
+    const semanticAllowed =
+      args.frontmatterModeEnabled === true ||
+      args.multiDimTableModeEnabled === true ||
+      semanticMode === 'document' ||
+      semanticMode === 'keyword'
+    if (!semanticAllowed) return false
+    const hasBipartiteNodes = (() => {
+      for (let i = 0; i < nodes.length; i += 1) {
+        const props = (nodes[i].properties || {}) as Record<string, unknown>
+        if (typeof props['bipartite:side'] === 'string' || props['bipartite:hub'] === true) return true
+      }
+      return false
+    })()
+    if (hasBipartiteNodes) return false
+    const cfg = readRadialOrbitConfig(schema)
+    if (!cfg.enabled || nodes.length < 2) return false
+    const now = Date.now()
+    const dt = lastOrbitFrameAt > 0 ? Math.max(0.001, Math.min(0.05, (now - lastOrbitFrameAt) / 1000)) : 1 / 60
+    lastOrbitFrameAt = now
+    const nodeMap = nodeById
+    const parentByChild = new Map<string, string>()
+    const roots: GraphNode[] = []
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const props = (n.properties || {}) as Record<string, unknown>
+      const parentRaw = props['visual:parentId']
+      const parentId = typeof parentRaw === 'string' || typeof parentRaw === 'number' ? String(parentRaw).trim() : ''
+      if (parentId && parentId !== String(n.id) && nodeMap.has(parentId)) parentByChild.set(String(n.id), parentId)
+    }
+    for (let i = 0; i < edges.length; i += 1) {
+      const e = edges[i]
+      const label = String(e.label || '').trim()
+      const props = ((e as unknown as { properties?: unknown }).properties || {}) as Record<string, unknown>
+      const sourceId = typeof e.source === 'object' ? String((e.source as { id?: unknown }).id || '') : String(e.source || '')
+      const targetId = typeof e.target === 'object' ? String((e.target as { id?: unknown }).id || '') : String(e.target || '')
+      if (!sourceId || !targetId || sourceId === targetId) continue
+      if (label === 'spokeTo' || props['kg:radarSpoke'] === true || props['bipartite:spoke'] === true) {
+        const sourceNode = nodeMap.get(sourceId)
+        const targetNode = nodeMap.get(targetId)
+        const sourceHub = sourceNode && (((sourceNode.properties || {}) as Record<string, unknown>)['kg:radarHub'] === true || ((sourceNode.properties || {}) as Record<string, unknown>)['bipartite:hub'] === true)
+        const targetHub = targetNode && (((targetNode.properties || {}) as Record<string, unknown>)['kg:radarHub'] === true || ((targetNode.properties || {}) as Record<string, unknown>)['bipartite:hub'] === true)
+        const hubId = sourceHub ? sourceId : targetHub ? targetId : ''
+        const nodeId = hubId === sourceId ? targetId : hubId === targetId ? sourceId : ''
+        if (hubId && nodeId && !parentByChild.has(nodeId)) parentByChild.set(nodeId, hubId)
+        continue
+      }
+      if (ORBIT_PARENT_EDGE_LABELS.has(label) && !parentByChild.has(targetId)) parentByChild.set(targetId, sourceId)
+    }
+    const childrenByParent = new Map<string, GraphNode[]>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const n = nodes[i]
+      const id = String(n.id)
+      const parentId = parentByChild.get(id)
+      if (!parentId || !nodeMap.has(parentId)) {
+        roots.push(n)
+        continue
+      }
+      const arr = childrenByParent.get(parentId) || []
+      arr.push(n)
+      childrenByParent.set(parentId, arr)
+    }
+    const depthById = new Map<string, number>()
+    const depthOf = (id: string): number => {
+      const cached = depthById.get(id)
+      if (typeof cached === 'number') return cached
+      const parent = parentByChild.get(id)
+      if (!parent) {
+        depthById.set(id, 0)
+        return 0
+      }
+      const d = Math.min(12, depthOf(parent) + 1)
+      depthById.set(id, d)
+      return d
+    }
+    for (let i = 0; i < nodes.length; i += 1) depthOf(String(nodes[i].id))
+    const centerX = width * 0.5
+    const centerY = height * 0.5
+    const rootRadius = Math.max(24, Math.min(width, height) * 0.34)
+    const ringFromIndex = (idx: number, total: number): { ring: number; slot: number; ringSize: number } => {
+      if (cfg.mode === 'solar') return { ring: idx, slot: 0, ringSize: 1 }
+      if (cfg.mode === 'atomic') {
+        if (idx < 2) return { ring: 0, slot: idx, ringSize: 2 }
+        const rest = idx - 2
+        return { ring: 1 + Math.floor(rest / 8), slot: rest % 8, ringSize: 8 }
+      }
+      return { ring: 0, slot: idx, ringSize: Math.max(1, total) }
+    }
+    const speedBase = (cfg.speedDeg * Math.PI) / 180
+    for (let i = 0; i < roots.length; i += 1) {
+      const n = roots[i]
+      const id = String(n.id)
+      const fx = (n as unknown as { fx?: unknown }).fx
+      const fy = (n as unknown as { fy?: unknown }).fy
+      if (typeof fx === 'number' && Number.isFinite(fx) && typeof fy === 'number' && Number.isFinite(fy)) continue
+      const state = orbitStateById.get(id)
+      const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : centerX
+      const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : centerY
+      const startAngle = Math.atan2(y - centerY, x - centerX)
+      const angle = (state?.angle ?? startAngle) + dt * speedBase * 0.18
+      orbitStateById.set(id, { parentId: null, angle, radius: rootRadius, depth: 0, ring: 0 })
+      n.x = centerX + Math.cos(angle) * rootRadius
+      n.y = centerY + Math.sin(angle) * rootRadius
+      ;(n as unknown as { vx?: number }).vx = 0
+      ;(n as unknown as { vy?: number }).vy = 0
+    }
+    for (const [parentId, kidsRaw] of childrenByParent) {
+      const parent = nodeMap.get(parentId)
+      if (!parent) continue
+      const px = typeof parent.x === 'number' && Number.isFinite(parent.x) ? parent.x : centerX
+      const py = typeof parent.y === 'number' && Number.isFinite(parent.y) ? parent.y : centerY
+      const kids = [...kidsRaw].sort((a, b) => String(a.id).localeCompare(String(b.id)))
+      for (let k = 0; k < kids.length; k += 1) {
+        const n = kids[k]
+        const id = String(n.id)
+        const fx = (n as unknown as { fx?: unknown }).fx
+        const fy = (n as unknown as { fy?: unknown }).fy
+        if (typeof fx === 'number' && Number.isFinite(fx) && typeof fy === 'number' && Number.isFinite(fy)) continue
+        const depth = depthById.get(id) ?? 1
+        const ring = ringFromIndex(k, kids.length)
+        const shellR = Math.max(10, rootRadius / Math.max(1.2, Math.pow(cfg.orbitSize, Math.max(1, depth))))
+        const targetR = Math.max(10, shellR + ring.ring * cfg.ringGapPx)
+        const state = orbitStateById.get(id)
+        const dx = (typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : px) - px
+        const dy = (typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : py) - py
+        const startAngle = Math.atan2(dy, dx)
+        const rev = 1 + depth * cfg.depthSpeedScale
+        const dir = ring.ring % 2 === 0 ? 1 : -1
+        const slotShift = ring.ringSize > 1 ? (Math.PI * 2 * ring.slot) / ring.ringSize : 0
+        const angle = (state?.angle ?? startAngle + slotShift) + dt * speedBase * rev * dir
+        const radiusPrev = state?.radius ?? Math.max(8, Math.sqrt(dx * dx + dy * dy))
+        const radius = radiusPrev + (targetR - radiusPrev) * Math.min(1, dt * 7)
+        orbitStateById.set(id, { parentId, angle, radius, depth, ring: ring.ring })
+        n.x = px + Math.cos(angle) * radius
+        n.y = py + Math.sin(angle) * radius
+        ;(n as unknown as { vx?: number }).vx = 0
+        ;(n as unknown as { vy?: number }).vy = 0
+      }
+    }
+    return true
+  }
 
   const idealSpacing = computeIdealSpacing2d({ width, height, nodeCount: nodes.length })
   let physicsTuning = readPhysics2dTuning(getSchema())
@@ -160,6 +354,7 @@ export const attachSimulationTick = (args: {
   }
 
   let tick = 0
+  let orbitFrameActive = false
   const renderFrame = () => {
     tick += 1
     const beforeRenderFrame = beforeRenderFrameRef ? beforeRenderFrameRef.current : null
@@ -172,6 +367,7 @@ export const attachSimulationTick = (args: {
       lastSchema = schema
       physicsTuning = readPhysics2dTuning(schema)
     }
+    orbitFrameActive = applyRadialOrbitAnimation(schema)
 
     const portHandlesCfg = getPortHandlesConfig(schema)
     const portHandlesEnabled = portHandlesCfg.enabled
@@ -626,6 +822,7 @@ export const attachSimulationTick = (args: {
     if (afterRenderFrame) {
       afterRenderFrame({ alpha: simulation.alpha(), tick })
     }
+    if (orbitFrameActive) scheduleRender()
   }
 
   const raf =

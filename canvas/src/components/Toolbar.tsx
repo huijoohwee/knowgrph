@@ -88,6 +88,9 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const setInfiniteCanvasInteractionMode = useGraphStore(s => s.setInfiniteCanvasInteractionMode)
   const canvasWorkspaceSyncMode = useGraphStore(s => s.canvasWorkspaceSyncMode)
   const setCanvasWorkspaceSyncMode = useGraphStore(s => s.setCanvasWorkspaceSyncMode)
+  const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled === true)
+  const multiDimTableModeEnabled = useGraphStore(s => s.multiDimTableModeEnabled === true)
+  const documentSemanticMode = useGraphStore(s => s.documentSemanticMode)
 
   const toggleInfiniteCanvasInteractionMode = useCallback(() => {
     if (!ensureBaselineUnlocked()) return
@@ -107,9 +110,40 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchBtnRef = useRef<HTMLButtonElement>(null);
   const searchPanelRef = useRef<HTMLDivElement>(null);
+  const [isAnimationOpen, setIsAnimationOpen] = useState(false)
+  const animationBtnRef = useRef<HTMLButtonElement>(null)
 
   const navClassBase = 'Island App-toolbar App-toolbar--compact w-fit'
   const isD3Like2dLayoutToggle = canvas2dRenderer === 'd3' || canvas2dRenderer === 'd3Bipartite'
+  const animationMode = (() => {
+    const enabled = schema.layout?.forces?.radialOrbitEnabled !== false
+    return enabled ? 'orbit' : 'force'
+  })()
+  const animationApplicableSemantic =
+    frontmatterModeEnabled ||
+    multiDimTableModeEnabled ||
+    documentSemanticMode === 'document' ||
+    documentSemanticMode === 'keyword'
+  const animationApplicableRenderer = canvasRenderMode === '3d' || (canvasRenderMode === '2d' && canvas2dRenderer === 'd3')
+  const animationApplicable = animationApplicableSemantic && animationApplicableRenderer && layoutMode === 'radial'
+  const setAnimationMode = useCallback((mode: 'force' | 'orbit') => {
+    if (!ensureBaselineUnlocked()) return
+    const current = schema
+    const layout = current.layout || {}
+    const forces = layout.forces || {}
+    const enabled = mode === 'orbit'
+    setSchema({
+      ...current,
+      layout: {
+        ...layout,
+        forces: {
+          ...forces,
+          radialOrbitEnabled: enabled,
+        },
+      },
+    })
+    setIsAnimationOpen(false)
+  }, [ensureBaselineUnlocked, schema, setSchema])
 
   return (
     <nav
@@ -453,6 +487,46 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       >
         <ImageIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
+      <IconButton
+        className={`App-toolbar__btn ${
+          animationMode === 'orbit' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
+        }`}
+        ref={animationBtnRef}
+        title={animationMode === 'orbit' ? 'Animation: Orbit-style nested radial' : 'Animation: Force-directed Graph'}
+        tooltipContent="Animation"
+        disabled={!animationApplicable}
+        onClick={() => setIsAnimationOpen(v => !v)}
+        showTooltip
+      >
+        <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
+      {isAnimationOpen && (
+        <DropdownPanel
+          anchorRef={animationBtnRef}
+          open={isAnimationOpen}
+          onClose={() => setIsAnimationOpen(false)}
+          align="bottom-center"
+        >
+          <div className="min-w-[260px] p-2 space-y-1">
+            <button
+              type="button"
+              className={`w-full text-left px-2 py-1.5 rounded text-xs ${animationMode === 'force' ? 'bg-blue-500/20' : 'hover:bg-white/5'}`}
+              onClick={() => setAnimationMode('force')}
+              disabled={!animationApplicable}
+            >
+              Force-directed Graph (default)
+            </button>
+            <button
+              type="button"
+              className={`w-full text-left px-2 py-1.5 rounded text-xs ${animationMode === 'orbit' ? 'bg-blue-500/20' : 'hover:bg-white/5'}`}
+              onClick={() => setAnimationMode('orbit')}
+              disabled={!animationApplicable}
+            >
+              Orbit-style nested radial animation
+            </button>
+          </div>
+        </DropdownPanel>
+      )}
       <IconButton
         className={`App-toolbar__btn ${
           canvasRenderMode === '3d' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName

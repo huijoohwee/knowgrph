@@ -50,11 +50,32 @@ type RadarForceKey =
   | 'radarHubCharge'
   | 'radarSpokeStrengthScale'
   | 'radarFlowStrengthScale'
+  | 'radialOrbitSpeedDeg'
+  | 'radialOrbitSize'
+  | 'radialOrbitRingGapPx'
+  | 'radialOrbitDepthSpeedScale'
+
+type RadarForceAnyKey =
+  | RadarForceKey
+  | 'radialOrbitEnabled'
+  | 'radialOrbitMode'
 
 const readForceNum = (schema: GraphSchema, key: RadarForceKey, fallback: number): number => {
   const raw = (schema.layout?.forces as Record<string, unknown> | undefined)?.[key]
   const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
   return typeof n === 'number' && Number.isFinite(n) ? n : fallback
+}
+
+const readForceBool = (schema: GraphSchema, key: 'radialOrbitEnabled', fallback: boolean): boolean => {
+  const raw = (schema.layout?.forces as Record<string, unknown> | undefined)?.[key]
+  if (typeof raw === 'boolean') return raw
+  return fallback
+}
+
+const readForceMode = (schema: GraphSchema, key: 'radialOrbitMode', fallback: 'flat' | 'solar' | 'atomic'): 'flat' | 'solar' | 'atomic' => {
+  const raw = (schema.layout?.forces as Record<string, unknown> | undefined)?.[key]
+  const v = typeof raw === 'string' ? raw : ''
+  return v === 'solar' || v === 'atomic' ? v : fallback
 }
 
 export function RadarGalaxyRendererSettings() {
@@ -78,12 +99,80 @@ export function RadarGalaxyRendererSettings() {
     })
   }, [setSchema])
 
+  const setForceAny = React.useCallback((key: RadarForceAnyKey, value: number | boolean | string) => {
+    const current = useGraphStore.getState().schema as GraphSchema
+    const layout = current.layout || {}
+    const forces = layout.forces || {}
+    setSchema({
+      ...current,
+      layout: {
+        ...layout,
+        forces: {
+          ...forces,
+          [key]: value,
+        },
+      },
+    })
+  }, [setSchema])
+
   return (
     <CollapsibleSection title="Radar Galaxy" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
       <div className="px-3 py-2 space-y-2">
         <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
           Controls hub-spoke force distances, curved flow arrows, and repulsion for JSON-imported radar maps.
         </div>
+        <div className="flex items-center gap-2">
+          <label className={`w-[50%] ${uiPanelTextFontClass} text-xs ${UI_THEME_TOKENS.text.secondary}`}>Orbit animate</label>
+          <input
+            type="checkbox"
+            checked={readForceBool(schema, 'radialOrbitEnabled', false)}
+            onChange={e => setForceAny('radialOrbitEnabled', e.target.checked)}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className={`w-[50%] ${uiPanelTextFontClass} text-xs ${UI_THEME_TOKENS.text.secondary}`}>Orbit mode</label>
+          <select
+            className={`w-[50%] h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right ${uiPanelTextFontClass}`}
+            value={readForceMode(schema, 'radialOrbitMode', 'flat')}
+            onChange={e => setForceAny('radialOrbitMode', e.target.value === 'solar' || e.target.value === 'atomic' ? e.target.value : 'flat')}
+          >
+            <option value="flat">Flat</option>
+            <option value="solar">Solar</option>
+            <option value="atomic">Atomic</option>
+          </select>
+        </div>
+        <NumberRow
+          label="Orbit speed"
+          value={readForceNum(schema, 'radialOrbitSpeedDeg', 18)}
+          min={0}
+          max={120}
+          step={0.5}
+          onChange={v => setForce('radialOrbitSpeedDeg', v)}
+        />
+        <NumberRow
+          label="Orbit size"
+          value={readForceNum(schema, 'radialOrbitSize', 2.95)}
+          min={1.2}
+          max={8}
+          step={0.01}
+          onChange={v => setForce('radialOrbitSize', v)}
+        />
+        <NumberRow
+          label="Ring gap"
+          value={readForceNum(schema, 'radialOrbitRingGapPx', 58)}
+          min={12}
+          max={360}
+          step={1}
+          onChange={v => setForce('radialOrbitRingGapPx', v)}
+        />
+        <NumberRow
+          label="Depth speed"
+          value={readForceNum(schema, 'radialOrbitDepthSpeedScale', 0.12)}
+          min={0}
+          max={1.2}
+          step={0.01}
+          onChange={v => setForce('radialOrbitDepthSpeedScale', v)}
+        />
         <NumberRow
           label="Spoke distance"
           value={readForceNum(schema, 'radarSpokeDistancePx', 150)}

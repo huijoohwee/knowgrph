@@ -61,6 +61,10 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - 2D D3 runs force/layout; 2D Flow/Design reuse the same visibility, collective fit geometry, and zoom behavior without re-running D3 forces.
   - 3D reuses 2D layout positions (when present) as a baseline and applies its own camera + depth presentation, but must not introduce a separate derivation pipeline or a different node/edge set.
   - Switching 2D↔3D must preserve selection and view keys (per‑renderer zoom keys are isolated; layout caches are renderer‑variant aware but share the same schema/layout fingerprint).
+- **Animation Mode (2D D3 radial + 3D)**:
+  - Toolbar Animation switch (beside Rich Media) is view-only and toggles between Force-directed Graph (default) and Orbit-style nested radial animation. It must not mutate GraphData, schema, or layout caches; it only controls how existing radial layouts are animated.
+  - Orbit-style nested radial animation is bounded: driven by `schema.layout.forces.radialOrbit*` knobs, restricted to 2D D3 radial (non-Bipartite) and document/keyword/frontmatter/multi-dimensional table modes, and implemented as a render-frame animator that never restarts D3 simulation or re-derives topology.
+  - 3D animation (globe particles, hub orbits, arc travellers, camera ellipse path) reuses the same SSOT GraphData and layout fingerprint as 2D; camera/particle/orbit configs live under `schema.three.*` and must not fork a separate derivation or node/edge set.
 - **Rich Media On/Off**:
   - Rich Media detection (image/svg/video/iframe) is shared across Markdown Viewer, 2D/3D Canvas, Design, and Geospatial surfaces via `getNodeMediaSpec` and friends; Script/Imgs/Fid defaults are auto, driven by shared heuristics.
   - Rich Media **Off** hides overlay panels but does not change GraphData; media nodes remain regular nodes in the layout and fit pipelines.

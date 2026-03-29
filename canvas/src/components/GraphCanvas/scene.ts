@@ -52,6 +52,9 @@ type SetupGraphSceneArgs = {
   graphDataRevision: number
   schema: GraphSchema
   documentSemanticMode?: 'document' | 'keyword'
+  frontmatterModeEnabled?: boolean
+  multiDimTableModeEnabled?: boolean
+  canvas2dRenderer?: string
   edgesForSim: GraphEdge[]
   width: number
   height: number
@@ -755,10 +758,14 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     edgeLabelSel,
     labelsSelRef,
     nodes: graphDataForDisplay.nodes,
+    edges: edgesForDisplay,
     nodeById: display?.nodeById || null,
     groupsForBboxCollide: args.groupsForBboxCollide,
     getSchema,
     documentSemanticMode: args.documentSemanticMode,
+    frontmatterModeEnabled: args.frontmatterModeEnabled === true,
+    multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
+    canvas2dRenderer: typeof args.canvas2dRenderer === 'string' ? args.canvas2dRenderer : '',
     width,
     height,
     panelOnlyNodeIdSet: panelOnlyNodeIdSet || null,

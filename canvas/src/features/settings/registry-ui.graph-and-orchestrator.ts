@@ -469,6 +469,138 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     default: () => -16,
   },
   {
+    key: 'schema.layout.forces.radialOrbitEnabled',
+    type: 'boolean',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { radialOrbitEnabled?: unknown }).radialOrbitEnabled
+        : undefined
+      return v === true
+    },
+    write: (v) => {
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, radialOrbitEnabled: Boolean(v) } } })
+    },
+    docKey: 'schema.layout.forces.radialOrbitEnabled',
+    default: () => false,
+  },
+  {
+    key: 'schema.layout.forces.radialOrbitSpeedDeg',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { radialOrbitSpeedDeg?: unknown }).radialOrbitSpeedDeg
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : 18
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0, Math.min(120, next)) : 18
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, radialOrbitSpeedDeg: clamped } } })
+    },
+    docKey: 'schema.layout.forces.radialOrbitSpeedDeg',
+    default: () => 18,
+  },
+  {
+    key: 'schema.layout.forces.radialOrbitSize',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { radialOrbitSize?: unknown }).radialOrbitSize
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : 2.95
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(1.2, Math.min(8, next)) : 2.95
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, radialOrbitSize: clamped } } })
+    },
+    docKey: 'schema.layout.forces.radialOrbitSize',
+    default: () => 2.95,
+  },
+  {
+    key: 'schema.layout.forces.radialOrbitRingGapPx',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { radialOrbitRingGapPx?: unknown }).radialOrbitRingGapPx
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : 58
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(12, Math.min(360, next)) : 58
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, radialOrbitRingGapPx: clamped } } })
+    },
+    docKey: 'schema.layout.forces.radialOrbitRingGapPx',
+    default: () => 58,
+  },
+  {
+    key: 'schema.layout.forces.radialOrbitDepthSpeedScale',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { radialOrbitDepthSpeedScale?: unknown }).radialOrbitDepthSpeedScale
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : 0.12
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0, Math.min(1.2, next)) : 0.12
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, radialOrbitDepthSpeedScale: clamped } } })
+    },
+    docKey: 'schema.layout.forces.radialOrbitDepthSpeedScale',
+    default: () => 0.12,
+  },
+  {
+    key: 'schema.layout.forces.radialOrbitMode',
+    type: 'string',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { radialOrbitMode?: unknown }).radialOrbitMode
+        : undefined
+      const raw = typeof v === 'string' ? v : 'flat'
+      return raw === 'solar' || raw === 'atomic' ? raw : 'flat'
+    },
+    write: (v) => {
+      const raw = String(v || '')
+      const mode = raw === 'solar' || raw === 'atomic' ? raw : 'flat'
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, radialOrbitMode: mode } } })
+    },
+    docKey: 'schema.layout.forces.radialOrbitMode',
+    default: () => 'flat',
+    options: ['flat', 'solar', 'atomic'],
+  },
+  {
     key: 'schema.zoom.maxScale',
     type: 'number',
     source: 'store',

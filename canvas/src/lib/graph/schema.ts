@@ -191,7 +191,7 @@ export const defaultSchema: GraphSchema = {
       postFitForce: false,
       postFitStrength: 0.34,
       postFitAlphaMax: 0.12,
-      radialOrbitEnabled: true,
+      radialOrbitEnabled: false,
       radialOrbitSpeedDeg: 18,
       radialOrbitSize: 2.95,
       radialOrbitRingGapPx: 58,
