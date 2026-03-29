@@ -14,6 +14,7 @@ import { screenToWorld as screenToWorldViewport } from '@/lib/zoom/viewport'
 import { computeDynamicGroupResizeHandlePx, pxToWorld, readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfig'
 import { computeDynamicNodePortHandlePx, computeZoomScaledPortHandlePx, shouldRenderNodePortHandleAsDot } from '@/components/GraphCanvas/portHandlesConfig'
 import { drawInfiniteGridInWorldContext } from '@/lib/canvas/infiniteGrid'
+import { traceEdgePathOnCanvas } from '@/lib/graph/edgeTypes'
 
 export type FlowNativeNodeShape = 'circle' | 'rect' | 'diamond' | 'hex'
 
@@ -108,6 +109,7 @@ export type FlowNativePresentation = {
   portHandles: FlowNativePortHandlesPresentation
   groups: FlowNativeGroupsPresentation
   edges: {
+    edgeType: 'bezier' | 'straight' | 'step' | 'smoothstep'
     routing: {
       enabled: boolean
       mode: 'bezier' | 'ortho'
@@ -289,6 +291,7 @@ export const createFlowNativeRuntime = (args: {
         depthStyle: { enabled: true, outerMaxBoostSteps: 3, outerStrokeWidthStepPx: 0.55, outerFillOpacityStep: 0.035 },
       },
       edges: {
+        edgeType: 'bezier',
         routing: { enabled: true, mode: 'ortho', obstacleAvoidance: true, marginPx: 10, laneStepPx: 56, maxLanes: 10 },
         underlay: { enabled: true, groupFadeAlpha: 0.65 },
       },
@@ -764,17 +767,10 @@ const drawEdge = (
   const syy = rankdir === 'LR' ? s.y + sAxis * s.height : s.y + s.height
   const tyy = rankdir === 'LR' ? t.y + tAxis * t.height : t.y
 
-  const dx = txx - sxx
-  const dy = tyy - syy
-  const c = 0.5
-  const c1x = rankdir === 'LR' ? sxx + dx * c : sxx
-  const c1y = rankdir === 'LR' ? syy : syy + dy * c
-  const c2x = rankdir === 'LR' ? txx - dx * c : txx
-  const c2y = rankdir === 'LR' ? tyy : tyy - dy * c
-
   const edgesCfg = rt.presentation.edges
   const routingCfg = edgesCfg.routing
-  const useOrtho = routingCfg.enabled && routingCfg.mode === 'ortho'
+  const edgeType = edgesCfg.edgeType
+  const useOrtho = edgeType === 'step' && routingCfg.enabled && routingCfg.mode === 'ortho'
   const useObstacles = useOrtho && routingCfg.obstacleAvoidance
   const obstacles = useObstacles && args.routingObstacles ? args.routingObstacles : []
   const points = useOrtho
@@ -795,8 +791,7 @@ const drawEdge = (
     ctx.moveTo(points[0].x, points[0].y)
     for (let i = 1; i < points.length; i += 1) ctx.lineTo(points[i].x, points[i].y)
   } else {
-    ctx.moveTo(sxx, syy)
-    ctx.bezierCurveTo(c1x, c1y, c2x, c2y, txx, tyy)
+    traceEdgePathOnCanvas({ ctx, edgeType, sx: sxx, sy: syy, tx: txx, ty: tyy, rankdir })
   }
   const widthPx = typeof e.widthPx === 'number' && Number.isFinite(e.widthPx) ? Math.max(1, Math.min(12, e.widthPx)) : 1
   ctx.lineWidth = (args.selected ? Math.max(2, widthPx + 1) : widthPx) / Math.max(1e-6, k)

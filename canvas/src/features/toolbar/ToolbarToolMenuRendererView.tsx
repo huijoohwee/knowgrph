@@ -11,6 +11,8 @@ import { GraphEditorToolRail, type GraphEditorToolId } from '@/features/graph-ed
 import { GraphEditorRightPanel } from '@/features/graph-editor/GraphEditorRightPanel'
 import { DesignWireframeSettings } from '@/features/toolbar/ui/DesignWireframeSettings'
 import { BipartiteRendererSettings } from '@/features/toolbar/ui/BipartiteRendererSettings'
+import { RadarGalaxyRendererSettings } from '@/features/toolbar/ui/RadarGalaxyRendererSettings'
+import { EdgeTypesRendererSettings } from '@/features/toolbar/ui/EdgeTypesRendererSettings'
 
 export function ToolbarToolMenuRendererView() {
   const {
@@ -68,11 +70,14 @@ export function ToolbarToolMenuRendererView() {
     workspaceViewMode === 'editor' && canvasRenderMode === '2d' && canvas2dRenderer === 'd3'
   const showDesignWireframeUi = canvasRenderMode === '2d' && canvas2dRenderer === 'design'
   const showBipartiteUi = canvasRenderMode === '2d' && canvas2dRenderer === 'd3Bipartite'
+  const showRadarGalaxyUi = canvasRenderMode === '2d' && (canvas2dRenderer === 'd3' || canvas2dRenderer === 'd3Bipartite')
 
   return (
     <div className="flex flex-col gap-2">
       <RendererPaletteSettings />
       <RendererHoverSettings />
+      <EdgeTypesRendererSettings />
+      {showRadarGalaxyUi ? <RadarGalaxyRendererSettings /> : null}
       {showBipartiteUi ? <BipartiteRendererSettings /> : null}
       <section className="flex flex-col gap-1" aria-label="Rich media rendering">
         <div className={`text-xs font-semibold ${UI_THEME_TOKENS.button.text}`}>

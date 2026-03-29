@@ -3,7 +3,6 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { lsBool } from '@/lib/persistence'
 import { LS_KEYS } from '@/lib/config'
 import { exportGraphAsCentered3dSvgMarkup } from '@/lib/graph/graphCenteredSvg3d'
-import { exportGraphAsCenteredSvgMarkup } from '@/lib/graph/graphCenteredSvg'
 import { renderGraphCanvasSvgForHtmlExport } from '@/lib/graph/htmlCanvasSvgExport'
 import { buildGraphHtmlViewerMarkup } from '@/lib/graph/graphHtmlViewer'
 import { defaultSchema } from '@/lib/graph/schema'
@@ -248,17 +247,6 @@ export async function exportHtmlCanvasFromWorkspace(args: {
             layoutSemanticModeKey,
           })
           if (rendered) return normalizeInteractiveSvgForHtmlViewer(rendered)
-          const centered = exportGraphAsCenteredSvgMarkup({
-            graphData,
-            schema,
-            widthPx: fixedViewport.widthPx,
-            heightPx: fixedViewport.heightPx,
-            paddingPx: 96,
-            includeXmlDeclaration: false,
-            animated: true,
-          })
-          const trimmed = String(centered || '').trim()
-          if (trimmed) return normalizeInteractiveSvgForHtmlViewer(trimmed)
         }
       }
       const svgMarkup = await store.captureCanvasSvgSnapshot()

@@ -67,6 +67,7 @@ import { relaxOverlayPanelsWithCollision } from '@/components/FlowCanvas/relaxOv
 import { buildFlowHandleId, computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT, FLOW_EDITOR_OVERLAY_ROOT_SELECTOR } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { readSubgraphs, subgraphGroupId } from '@/lib/graph/subgraphs'
+import { buildEdgePathD, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 
 type ToolMode = 'select' | 'addEdge'
 
@@ -1470,6 +1471,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const baseLeft = Number.isFinite(rootRect.left) ? rootRect.left : null
       const baseTop = Number.isFinite(rootRect.top) ? rootRect.top : null
       if (baseLeft == null || baseTop == null) return
+      const globalEdgeType = readGlobalEdgeType(schema)
       const keep = new Set<string>()
 
       const overlayElByNodeId = overlayElByNodeIdRef.current
@@ -1544,13 +1546,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             const tx = cursor.x
             const ty = cursor.y
             if (Number.isFinite(sx) && Number.isFinite(sy) && Number.isFinite(tx) && Number.isFinite(ty)) {
-              const dx = tx - sx
-              const c = 0.5
-              const c1x = sx + dx * c
-              const c1y = sy
-              const c2x = tx - dx * c
-              const c2y = ty
-              const d = `M ${sx.toFixed(2)} ${sy.toFixed(2)} C ${c1x.toFixed(2)} ${c1y.toFixed(2)} ${c2x.toFixed(2)} ${c2y.toFixed(2)} ${tx.toFixed(2)} ${ty.toFixed(2)}`
+              const d = buildEdgePathD({ edgeType: globalEdgeType, sx, sy, tx, ty, rankdir: 'LR' })
               const existing = overlayPendingEdgePathRef.current
               const pathEl = existing || document.createElementNS('http://www.w3.org/2000/svg', 'path')
               if (!existing) {
@@ -1603,13 +1599,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const ty = (tAnchor ? tAnchor.y : tTop + (Math.max(0, Math.min(100, tPct)) / 100) * tHeight) - baseTop
         if (!Number.isFinite(sx) || !Number.isFinite(sy) || !Number.isFinite(tx) || !Number.isFinite(ty)) continue
 
-        const dx = tx - sx
-        const c = 0.5
-        const c1x = sx + dx * c
-        const c1y = sy
-        const c2x = tx - dx * c
-        const c2y = ty
-        const d = `M ${sx.toFixed(2)} ${sy.toFixed(2)} C ${c1x.toFixed(2)} ${c1y.toFixed(2)} ${c2x.toFixed(2)} ${c2y.toFixed(2)} ${tx.toFixed(2)} ${ty.toFixed(2)}`
+        const d = buildEdgePathD({ edgeType: globalEdgeType, sx, sy, tx, ty, rankdir: 'LR' })
         keep.add(edgeId)
         const existing = overlayEdgePathByIdRef.current.get(edgeId) || null
         const pathEl = existing || document.createElementNS('http://www.w3.org/2000/svg', 'path')

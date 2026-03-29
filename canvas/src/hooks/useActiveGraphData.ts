@@ -17,6 +17,7 @@ import { LRUCache } from '@/lib/cache/LRUCache'
 import { pipelinePerfEnd, pipelinePerfStart } from '@/lib/pipelinePerf'
 import { deriveKeywordGraphInWorker, deriveKeywordGraphPreviewInWorker } from '@/features/semantic-mode/keywordGraphWorker'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
+import { parseGraph } from '@/lib/graph/io/adapter'
 import {
   normalizeBipartiteApiGraphData,
   parseBipartiteApiGraphPayload,
@@ -270,6 +271,51 @@ const asFinite = (v: unknown): number | null => {
 
 const asStr = (v: unknown): string => (typeof v === 'string' ? v : String(v ?? ''))
 
+const toWorkspaceJsonGraphData = (data: GraphData): GraphData | null => {
+  const nodes = Array.isArray(data?.nodes) ? data.nodes : []
+  const edges = Array.isArray(data?.edges) ? data.edges : []
+  if (nodes.length === 0 && edges.length === 0) return null
+  const typeCounts = nodes.reduce(
+    (acc, n) => {
+      const t = String(n?.type || '').toLowerCase()
+      if (t === 'problem') acc.problem += 1
+      if (t === 'solution') acc.solution += 1
+      return acc
+    },
+    { problem: 0, solution: 0 },
+  )
+  const isBipartite = typeCounts.problem > 0 && typeCounts.solution > 0
+  const meta =
+    data.metadata && typeof data.metadata === 'object' && !Array.isArray(data.metadata)
+      ? (data.metadata as Record<string, unknown>)
+      : {}
+  const graphKind =
+    typeof meta.graphKind === 'string' && meta.graphKind.trim()
+      ? meta.graphKind
+      : isBipartite
+        ? 'bipartite'
+        : 'graph'
+  return {
+    ...data,
+    type: data.type || 'apiGraph',
+    context: data.context || 'workspace-json',
+    metadata: {
+      ...meta,
+      source: 'workspace-json',
+      graphKind,
+    } as Record<string, any>,
+  }
+}
+
+const parseWorkspaceFallbackGraph = (name: string | null, text: string): GraphData | null => {
+  try {
+    const parsed = parseGraph(name || 'workspace.json', text).data
+    return toWorkspaceJsonGraphData(parsed)
+  } catch {
+    return null
+  }
+}
+
 const parseWorkspaceJsonGraphData = (args: { markdownName: string | null; markdownText: string | null }): GraphData | null => {
   const rawText = String(args.markdownText || '')
   const trimmed = rawText.trim()
@@ -280,13 +326,17 @@ const parseWorkspaceJsonGraphData = (args: { markdownName: string | null; markdo
 
   try {
     const parsed = JSON.parse(trimmed) as unknown
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
-    const bipartitePayload = parseBipartiteApiGraphPayload(parsed)
-    if (bipartitePayload) return normalizeBipartiteApiGraphData({ payload: bipartitePayload })
-    const obj = parsed as Record<string, unknown>
-    const nodesRaw = Array.isArray(obj.nodes) ? obj.nodes : null
-    const edgesRaw = Array.isArray(obj.edges) ? obj.edges : null
-    if (!nodesRaw || !edgesRaw) return null
+    if (!parsed || typeof parsed !== 'object') return null
+    if (!Array.isArray(parsed)) {
+      const bipartitePayload = parseBipartiteApiGraphPayload(parsed)
+      if (bipartitePayload) return normalizeBipartiteApiGraphData({ payload: bipartitePayload })
+    }
+    const obj = Array.isArray(parsed) ? null : (parsed as Record<string, unknown>)
+    const nodesRaw = obj && Array.isArray(obj.nodes) ? obj.nodes : null
+    const edgesRaw = obj && Array.isArray(obj.edges) ? obj.edges : null
+    if (!nodesRaw || !edgesRaw) {
+      return parseWorkspaceFallbackGraph(args.markdownName, trimmed)
+    }
 
     const nodes = nodesRaw
       .map((n): GraphData['nodes'][number] | null => {
@@ -341,28 +391,18 @@ const parseWorkspaceJsonGraphData = (args: { markdownName: string | null; markdo
       })
       .filter(Boolean) as GraphData['edges']
 
-    if (nodes.length === 0) return null
-    const typeCounts = nodes.reduce(
-      (acc, n) => {
-        const t = String(n.type || '').toLowerCase()
-        if (t === 'problem') acc.problem += 1
-        if (t === 'solution') acc.solution += 1
-        return acc
-      },
-      { problem: 0, solution: 0 },
-    )
-    const isBipartite = typeCounts.problem > 0 && typeCounts.solution > 0
-
-    return {
+    if (nodes.length === 0) {
+      return parseWorkspaceFallbackGraph(args.markdownName, trimmed)
+    }
+    return toWorkspaceJsonGraphData({
       type: 'apiGraph',
       context: 'workspace-json',
       metadata: {
         source: 'workspace-json',
-        graphKind: isBipartite ? 'bipartite' : 'graph',
       } as Record<string, any>,
       nodes,
       edges,
-    }
+    })
   } catch {
     return null
   }

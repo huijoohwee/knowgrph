@@ -16,6 +16,7 @@ import { looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
 import { DEFAULT_OVERLAY_SIZING_CONFIG } from '@/lib/render/overlaySizing2d'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
+import { withD3BipartiteSceneSchema } from '@/lib/canvas/d3BipartiteSchemaOverrides'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { determineLayoutPositions, buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey } from '@/components/GraphCanvas/layout/positioning'
 
@@ -70,15 +71,22 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
   } = args
 
   const graphDataForDisplay = getGraphDataForDisplay({ graphData, edges: null })
+  const schemaForScene = withD3BipartiteSceneSchema({
+    schema,
+    graphData: graphDataForDisplay,
+    canvasRenderMode: '2d',
+    canvas2dRenderer: String(canvas2dRenderer || ''),
+    forceForAny2dRenderer: true,
+  })
   const collapsedGroupIdsKey = buildCollapsedGroupIdsKey(collapsedGroupIds)
-  const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(schema)
+  const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(schemaForScene)
   const graphMetaKey = buildGraphMetaKeyIgnoringPending(graphDataForDisplay)
   const datasetKey = computeLayoutDatasetKey({
     graphData: graphDataForDisplay,
     graphDataRevision: typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? Math.floor(graphDataRevision) : 0,
   })
   const effectiveGraphDataRevision = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? Math.floor(graphDataRevision) : 0
-  const layoutMode = readLayoutMode(schema)
+  const layoutMode = readLayoutMode(schemaForScene)
   const semanticModeKey = String(layoutSemanticModeKey || documentSemanticMode || 'document')
   const layoutViewKey = buildLayoutViewKey({
     schemaLayoutEngineJson,
@@ -297,19 +305,19 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
   const groupsDerivation = deriveSceneGroups({
     graphData: graphDataForDisplay,
     graphDataRevision: effectiveGraphDataRevision,
-    schema,
+    schema: schemaForScene,
     documentSemanticMode,
     frontmatterModeEnabled,
   })
 
   const initialZoomTransform = (() => {
     try {
-      const mode = readLayoutMode(schema)
-      const baseOpts = readFitAllOptions({ schema, mode, intent: 'fitToScreen' })
+      const mode = readLayoutMode(schemaForScene)
+      const baseOpts = readFitAllOptions({ schema: schemaForScene, mode, intent: 'fitToScreen' })
       const opts = {
         ...baseOpts,
         centerMode: 'centroid',
-        schema,
+        schema: schemaForScene,
         graphData: graphDataForDisplay,
         deriveGroupsOptions: { forceDocumentStructure: documentSemanticMode === 'document' },
       }
@@ -346,7 +354,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     svgRef,
     graphData: graphDataForDisplay,
     graphDataRevision: effectiveGraphDataRevision,
-    schema,
+    schema: schemaForScene,
     documentSemanticMode,
     edgesForSim,
     width: widthPx,
@@ -431,7 +439,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     requestZoomSelection: () => {},
     onZoomTransform: () => {},
     edgeScrollEnabled: () => true,
-    getSchema: () => schema,
+    getSchema: () => schemaForScene,
     getRenderMediaAsNodes: () => renderMediaAsNodes,
     enableEditorGestures: false,
     layoutCacheKey: null,

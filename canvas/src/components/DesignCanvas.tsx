@@ -67,6 +67,7 @@ import RichMediaPanel from '@/components/RichMediaPanel'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import { MarkdownDesignOverlay } from '@/features/markdown-edgeless/MarkdownDesignOverlay'
+import { buildEdgePathD, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 
 type FrameNode = {
   id: string
@@ -2590,12 +2591,13 @@ export default function DesignCanvas({
   }, [denseRender, positions, renderNodes, snapshot.selectedNodeIds, styleById, wireframeSettings.avoidLabelCollisions, wireframeSettings.maxLabelChars, wireframeSettings.showLabelChips, wireframeSettings.showMetaChips])
 
   const wireframeEdges = useMemo(() => {
-    if (!styleById) return [] as Array<{ id: string; x1: number; y1: number; x2: number; y2: number; opacity: number }>
-    if (!wireframeSettings.showEdges) return [] as Array<{ id: string; x1: number; y1: number; x2: number; y2: number; opacity: number }>
+    if (!styleById) return [] as Array<{ id: string; d: string; opacity: number }>
+    if (!wireframeSettings.showEdges) return [] as Array<{ id: string; d: string; opacity: number }>
     const edges = Array.isArray(localGraphData?.edges) ? (localGraphData.edges as unknown as GraphEdge[]) : []
     if (edges.length === 0) return []
-    const out: Array<{ id: string; x1: number; y1: number; x2: number; y2: number; opacity: number }> = []
+    const out: Array<{ id: string; d: string; opacity: number }> = []
     const maxEdges = Math.max(0, Math.min(5000, Math.floor(wireframeSettings.maxEdges)))
+    const edgeType = readGlobalEdgeType(snapshot.schema)
     for (let i = 0; i < edges.length; i += 1) {
       if (maxEdges > 0 && out.length >= maxEdges) break
       const e = edges[i]
@@ -2616,10 +2618,10 @@ export default function DesignCanvas({
       const x2 = pt.x + pt.w / 2
       const y2 = pt.y + pt.h / 2
       const opacity = Math.max(0.06, Math.min(0.42, 0.28 / (1 + depth * 0.55)))
-      out.push({ id, x1, y1, x2, y2, opacity })
+      out.push({ id, d: buildEdgePathD({ edgeType, sx: x1, sy: y1, tx: x2, ty: y2 }), opacity })
     }
     return out
-  }, [domDepthById, localGraphData?.edges, positions, snapshot.selectedNodeId, styleById, wireframeSettings.maxEdges, wireframeSettings.showEdges])
+  }, [domDepthById, localGraphData?.edges, positions, snapshot.schema, snapshot.selectedNodeId, styleById, wireframeSettings.maxEdges, wireframeSettings.showEdges])
 
   const wireframePreviewById = useMemo(() => {
     type Preview =
@@ -3534,15 +3536,13 @@ export default function DesignCanvas({
           {styleById && wireframeEdges.length > 0 ? (
             <g data-kg-layer="wireframe-edges" style={{ pointerEvents: 'none' }}>
               {wireframeEdges.map(e => (
-                <line
+                <path
                   key={e.id}
-                  x1={e.x1}
-                  y1={e.y1}
-                  x2={e.x2}
-                  y2={e.y2}
+                  d={e.d}
                   stroke="var(--kg-border)"
                   strokeWidth={1}
                   opacity={e.opacity}
+                  fill="none"
                 />
               ))}
             </g>

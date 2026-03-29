@@ -92,6 +92,7 @@ export interface GraphSchema {
   layout?: {
     mode?: 'force' | 'radial' | 'mermaid';
     edges?: {
+      type?: 'bezier' | 'straight' | 'step' | 'smoothstep'
       opacity?: number
       opacityUnderGroups?: number
     }
@@ -190,6 +191,16 @@ export interface GraphSchema {
       physics2dLabelNudgeScale?: number;
       physics2dDragChargeScale?: number;
       physics2dDragDistanceMaxPx?: number;
+      radarSpokeDistancePx?: number;
+      radarFlowDistancePx?: number;
+      radarFlowCurveBend?: number;
+      radarFlowOrbitShift?: number;
+      radarFlowArrowLengthPx?: number;
+      radarFlowArrowHalfWidthPx?: number;
+      radarNodeCharge?: number;
+      radarHubCharge?: number;
+      radarSpokeStrengthScale?: number;
+      radarFlowStrengthScale?: number;
     };
     fitPadding?: number;
     fitDetectClusters?: boolean;

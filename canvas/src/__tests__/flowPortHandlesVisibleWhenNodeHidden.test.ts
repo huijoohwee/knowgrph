@@ -58,6 +58,7 @@ export const testFlowPortHandlesRenderWhenSelectedNodeGlyphHidden = () => {
       depthStyle: { enabled: false, outerMaxBoostSteps: 0, outerStrokeWidthStepPx: 0, outerFillOpacityStep: 0 },
     },
     edges: {
+      edgeType: 'bezier',
       routing: { enabled: false, mode: 'ortho', obstacleAvoidance: false, marginPx: 10, laneStepPx: 56, maxLanes: 10 },
       underlay: { enabled: false, groupFadeAlpha: 0.65 },
     },
@@ -123,6 +124,7 @@ export const testFlowPortHandlesCanBeHiddenForSelectedNodesWhenRequested = () =>
       depthStyle: { enabled: false, outerMaxBoostSteps: 0, outerStrokeWidthStepPx: 0, outerFillOpacityStep: 0 },
     },
     edges: {
+      edgeType: 'bezier',
       routing: { enabled: false, mode: 'ortho', obstacleAvoidance: false, marginPx: 10, laneStepPx: 56, maxLanes: 10 },
       underlay: { enabled: false, groupFadeAlpha: 0.65 },
     },

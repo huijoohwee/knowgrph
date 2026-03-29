@@ -16,6 +16,7 @@ import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { computeIdealSpacing2d, computeMaxSpeed2d, readPhysics2dTuning } from '@/lib/graph/physics2dTuning'
 import { applyStrictOverlapRelax2d, type StrictOverlapState2d } from '@/components/GraphCanvas/sceneHandlers.simulationTick2d.strictOverlap'
 import { renderLabels2d, type LabelRelaxState2d } from '@/components/GraphCanvas/sceneHandlers.simulationTick2d.labels'
+import { buildEdgePathD, readGlobalEdgeType, type GlobalEdgeType } from '@/lib/graph/edgeTypes'
 
 export const attachSimulationTick = (args: {
   svgEl: SVGSVGElement
@@ -279,38 +280,189 @@ export const attachSimulationTick = (args: {
         return getEdgeEndpointFromPorts({ from, to, schema })
       }
 
-      const x1 = (d: GraphEdge) => {
-        const edge = d as unknown as EdgeWithRuntime
-        const src = resolveNode(edge.source)
-        const tgt = resolveNode(edge.target)
-        if (!src || !tgt) return 0
-        return endpoint(src, tgt, 3).x
-      }
-      const y1 = (d: GraphEdge) => {
-        const edge = d as unknown as EdgeWithRuntime
-        const src = resolveNode(edge.source)
-        const tgt = resolveNode(edge.target)
-        if (!src || !tgt) return 0
-        return endpoint(src, tgt, 3).y
-      }
-      const x2 = (d: GraphEdge) => {
-        const edge = d as unknown as EdgeWithRuntime
-        const src = resolveNode(edge.source)
-        const tgt = resolveNode(edge.target)
-        if (!src || !tgt) return 0
-        const hasArrow = Boolean(schema.edgeStyles?.[String(d.label || '')]?.arrow)
-        return endpoint(tgt, src, hasArrow ? 8 : 3).x
-      }
-      const y2 = (d: GraphEdge) => {
-        const edge = d as unknown as EdgeWithRuntime
-        const src = resolveNode(edge.source)
-        const tgt = resolveNode(edge.target)
-        if (!src || !tgt) return 0
-        const hasArrow = Boolean(schema.edgeStyles?.[String(d.label || '')]?.arrow)
-        return endpoint(tgt, src, hasArrow ? 8 : 3).y
+      const readEdgePresentation = (
+        d: GraphEdge,
+      ): {
+        curve: boolean
+        bend: number
+        arrow: boolean
+        orbitShift: number
+        arrowLength: number
+        arrowHalfWidth: number
+        orbital: boolean
+        edgeType: GlobalEdgeType
+      } => {
+        const props = d.properties && typeof d.properties === 'object' && !Array.isArray(d.properties)
+          ? (d.properties as Record<string, unknown>)
+          : null
+        const curveMode = String(props?.['visual:curve'] || '').trim().toLowerCase()
+        const curve = curveMode === 'quadratic' || props?.['kg:radarFlow'] === true
+        const interpolator = String(props?.['visual:curveInterpolator'] || '').trim().toLowerCase()
+        const orbital = curve && (interpolator === 'orbital' || props?.['kg:radarFlow'] === true)
+        const bendRaw = props?.['visual:curveBend']
+        const bendN = typeof bendRaw === 'number' ? bendRaw : typeof bendRaw === 'string' ? Number(bendRaw) : NaN
+        const schemaForces = (schema.layout?.forces as {
+          radarFlowCurveBend?: unknown
+          radarFlowOrbitShift?: unknown
+          radarFlowArrowLengthPx?: unknown
+          radarFlowArrowHalfWidthPx?: unknown
+        } | undefined)
+        const schemaBendRaw = schemaForces?.radarFlowCurveBend
+        const schemaBend = typeof schemaBendRaw === 'number'
+          ? schemaBendRaw
+          : typeof schemaBendRaw === 'string'
+            ? Number(schemaBendRaw)
+            : NaN
+        const bend = Number.isFinite(bendN)
+          ? Math.max(-0.8, Math.min(0.8, bendN))
+          : Number.isFinite(schemaBend)
+            ? Math.max(-0.8, Math.min(0.8, schemaBend))
+            : 0.18
+        const orbitRaw = props?.['visual:orbitShift']
+        const orbitN = typeof orbitRaw === 'number' ? orbitRaw : typeof orbitRaw === 'string' ? Number(orbitRaw) : NaN
+        const schemaOrbitRaw = schemaForces?.radarFlowOrbitShift
+        const schemaOrbit = typeof schemaOrbitRaw === 'number'
+          ? schemaOrbitRaw
+          : typeof schemaOrbitRaw === 'string'
+            ? Number(schemaOrbitRaw)
+            : NaN
+        const orbitShift = Number.isFinite(orbitN)
+          ? Math.max(0, Math.min(0.45, orbitN))
+          : Number.isFinite(schemaOrbit)
+            ? Math.max(0, Math.min(0.45, schemaOrbit))
+            : 0.06
+        const arrowLenRaw = props?.['visual:arrowLengthPx']
+        const arrowLenN = typeof arrowLenRaw === 'number' ? arrowLenRaw : typeof arrowLenRaw === 'string' ? Number(arrowLenRaw) : NaN
+        const schemaArrowLenRaw = schemaForces?.radarFlowArrowLengthPx
+        const schemaArrowLen = typeof schemaArrowLenRaw === 'number'
+          ? schemaArrowLenRaw
+          : typeof schemaArrowLenRaw === 'string'
+            ? Number(schemaArrowLenRaw)
+            : NaN
+        const arrowLength = Number.isFinite(arrowLenN)
+          ? Math.max(4, Math.min(30, arrowLenN))
+          : Number.isFinite(schemaArrowLen)
+            ? Math.max(4, Math.min(30, schemaArrowLen))
+            : 12
+        const arrowHalfRaw = props?.['visual:arrowHalfWidthPx']
+        const arrowHalfN = typeof arrowHalfRaw === 'number' ? arrowHalfRaw : typeof arrowHalfRaw === 'string' ? Number(arrowHalfRaw) : NaN
+        const schemaArrowHalfRaw = schemaForces?.radarFlowArrowHalfWidthPx
+        const schemaArrowHalf = typeof schemaArrowHalfRaw === 'number'
+          ? schemaArrowHalfRaw
+          : typeof schemaArrowHalfRaw === 'string'
+            ? Number(schemaArrowHalfRaw)
+            : NaN
+        const arrowHalfWidth = Number.isFinite(arrowHalfN)
+          ? Math.max(2, Math.min(14, arrowHalfN))
+          : Number.isFinite(schemaArrowHalf)
+            ? Math.max(2, Math.min(14, schemaArrowHalf))
+            : 5.2
+        const arrow = Boolean(schema.edgeStyles?.[String(d.label || '')]?.arrow) || (props?.['kg:radarFlow'] === true)
+        const edgeType = readGlobalEdgeType(schema)
+        return { curve, bend, arrow, orbitShift, arrowLength, arrowHalfWidth, orbital, edgeType }
       }
 
-      lineSel.attr('x1', x1).attr('y1', y1).attr('x2', x2).attr('y2', y2)
+      const edgeGeometry = (d: GraphEdge): {
+        p1: { x: number; y: number }
+        p2: { x: number; y: number }
+        cx: number
+        cy: number
+        c1x: number
+        c1y: number
+        c2x: number
+        c2y: number
+        tx: number
+        ty: number
+        curve: boolean
+        arrow: boolean
+        orbital: boolean
+        arrowLength: number
+        arrowHalfWidth: number
+        edgeType: GlobalEdgeType
+      } => {
+        const edge = d as unknown as EdgeWithRuntime
+        const src = resolveNode(edge.source)
+        const tgt = resolveNode(edge.target)
+        const presentation = readEdgePresentation(d)
+        if (!src || !tgt) {
+          return {
+            p1: { x: 0, y: 0 },
+            p2: { x: 0, y: 0 },
+            cx: 0,
+            cy: 0,
+            c1x: 0,
+            c1y: 0,
+            c2x: 0,
+            c2y: 0,
+            tx: 0,
+            ty: 0,
+            curve: presentation.curve,
+            arrow: presentation.arrow,
+            orbital: presentation.orbital,
+            arrowLength: presentation.arrowLength,
+            arrowHalfWidth: presentation.arrowHalfWidth,
+            edgeType: presentation.edgeType,
+          }
+        }
+        const p1 = endpoint(src, tgt, 3)
+        const p2 = endpoint(tgt, src, presentation.arrow ? 9 : 3)
+        const mx = (p1.x + p2.x) / 2
+        const my = (p1.y + p2.y) / 2
+        const dx = p2.x - p1.x
+        const dy = p2.y - p1.y
+        const dist = Math.max(1, Math.hypot(dx, dy))
+        const nx = -dy / dist
+        const ny = dx / dist
+        const curveScale = presentation.curve ? presentation.bend : 0
+        const curveMag = dist * curveScale
+        const edgeId = String((d as { id?: unknown }).id || '')
+        let hash = 0
+        for (let i = 0; i < edgeId.length; i += 1) hash = ((hash << 5) - hash + edgeId.charCodeAt(i)) | 0
+        const phase = (hash & 1) === 0 ? -1 : 1
+        const orbitalMag = presentation.orbital ? dist * presentation.orbitShift * phase : 0
+        const c1x = p1.x + dx * 0.24 + nx * (curveMag * 0.86 + orbitalMag * 0.5)
+        const c1y = p1.y + dy * 0.24 + ny * (curveMag * 0.86 + orbitalMag * 0.5)
+        const c2x = p2.x - dx * 0.24 + nx * (curveMag * 1.14 + orbitalMag)
+        const c2y = p2.y - dy * 0.24 + ny * (curveMag * 1.14 + orbitalMag)
+        const tx = presentation.orbital ? p2.x - c2x : p2.x - (mx + nx * curveMag)
+        const ty = presentation.orbital ? p2.y - c2y : p2.y - (my + ny * curveMag)
+        return {
+          p1,
+          p2,
+          cx: mx + nx * curveMag,
+          cy: my + ny * curveMag,
+          c1x,
+          c1y,
+          c2x,
+          c2y,
+          tx,
+          ty,
+          curve: presentation.curve,
+          arrow: presentation.arrow,
+          orbital: presentation.orbital,
+          arrowLength: presentation.arrowLength,
+          arrowHalfWidth: presentation.arrowHalfWidth,
+          edgeType: presentation.edgeType,
+        }
+      }
+
+      lineSel
+        .attr('x1', d => edgeGeometry(d).p1.x)
+        .attr('y1', d => edgeGeometry(d).p1.y)
+        .attr('x2', d => edgeGeometry(d).p2.x)
+        .attr('y2', d => edgeGeometry(d).p2.y)
+
+      const pathSel = sel.filter(function () {
+        return String((this as unknown as { tagName?: unknown }).tagName || '').toLowerCase() === 'path'
+      }) as unknown as d3.Selection<SVGPathElement, GraphEdge, SVGGElement, unknown>
+      if (!pathSel.empty()) {
+        pathSel.attr('d', d => {
+          const g = edgeGeometry(d)
+          if (!g.curve) return buildEdgePathD({ edgeType: g.edgeType, sx: g.p1.x, sy: g.p1.y, tx: g.p2.x, ty: g.p2.y })
+          if (g.orbital) return `M${g.p1.x},${g.p1.y} C${g.c1x},${g.c1y} ${g.c2x},${g.c2y} ${g.p2.x},${g.p2.y}`
+          return `M${g.p1.x},${g.p1.y} Q${g.cx},${g.cy} ${g.p2.x},${g.p2.y}`
+        })
+      }
     }
 
     applyStrictOverlapRelax2d({
@@ -326,6 +478,114 @@ export const attachSimulationTick = (args: {
 
     updateLinkEndpoints((linkHitSelRef.current as any) ?? null)
     updateLinkEndpoints((linkSelRef.current as any) ?? null)
+    const edgeArrowSel = d3.select(svgEl).selectAll<SVGPathElement, GraphEdge>('path.kg-edge-arrow')
+    if (!edgeArrowSel.empty()) {
+      edgeArrowSel.attr('d', d => {
+        const edge = d as unknown as EdgeWithRuntime
+        const src = resolveNode(edge.source)
+        const tgt = resolveNode(edge.target)
+        if (!src || !tgt) return ''
+        const props = d.properties && typeof d.properties === 'object' && !Array.isArray(d.properties)
+          ? (d.properties as Record<string, unknown>)
+          : null
+        const curveMode = String(props?.['visual:curve'] || '').trim().toLowerCase()
+        const curve = curveMode === 'quadratic' || props?.['kg:radarFlow'] === true
+        const interpolator = String(props?.['visual:curveInterpolator'] || '').trim().toLowerCase()
+        const orbital = curve && (interpolator === 'orbital' || props?.['kg:radarFlow'] === true)
+        const bendRaw = props?.['visual:curveBend']
+        const bendN = typeof bendRaw === 'number' ? bendRaw : typeof bendRaw === 'string' ? Number(bendRaw) : NaN
+        const schemaForces = (schema.layout?.forces as {
+          radarFlowCurveBend?: unknown
+          radarFlowOrbitShift?: unknown
+          radarFlowArrowLengthPx?: unknown
+          radarFlowArrowHalfWidthPx?: unknown
+        } | undefined)
+        const schemaBendRaw = schemaForces?.radarFlowCurveBend
+        const schemaBend = typeof schemaBendRaw === 'number'
+          ? schemaBendRaw
+          : typeof schemaBendRaw === 'string'
+            ? Number(schemaBendRaw)
+            : NaN
+        const bend = Number.isFinite(bendN)
+          ? Math.max(-0.8, Math.min(0.8, bendN))
+          : Number.isFinite(schemaBend)
+            ? Math.max(-0.8, Math.min(0.8, schemaBend))
+            : 0.18
+        const orbitRaw = props?.['visual:orbitShift']
+        const orbitN = typeof orbitRaw === 'number' ? orbitRaw : typeof orbitRaw === 'string' ? Number(orbitRaw) : NaN
+        const schemaOrbitRaw = schemaForces?.radarFlowOrbitShift
+        const schemaOrbit = typeof schemaOrbitRaw === 'number'
+          ? schemaOrbitRaw
+          : typeof schemaOrbitRaw === 'string'
+            ? Number(schemaOrbitRaw)
+            : NaN
+        const orbitShift = Number.isFinite(orbitN)
+          ? Math.max(0, Math.min(0.45, orbitN))
+          : Number.isFinite(schemaOrbit)
+            ? Math.max(0, Math.min(0.45, schemaOrbit))
+            : 0.06
+        const arrowLenRaw = props?.['visual:arrowLengthPx']
+        const arrowLenN = typeof arrowLenRaw === 'number' ? arrowLenRaw : typeof arrowLenRaw === 'string' ? Number(arrowLenRaw) : NaN
+        const schemaArrowLenRaw = schemaForces?.radarFlowArrowLengthPx
+        const schemaArrowLen = typeof schemaArrowLenRaw === 'number'
+          ? schemaArrowLenRaw
+          : typeof schemaArrowLenRaw === 'string'
+            ? Number(schemaArrowLenRaw)
+            : NaN
+        const arrowLength = Number.isFinite(arrowLenN)
+          ? Math.max(4, Math.min(30, arrowLenN))
+          : Number.isFinite(schemaArrowLen)
+            ? Math.max(4, Math.min(30, schemaArrowLen))
+            : 12
+        const arrowHalfRaw = props?.['visual:arrowHalfWidthPx']
+        const arrowHalfN = typeof arrowHalfRaw === 'number' ? arrowHalfRaw : typeof arrowHalfRaw === 'string' ? Number(arrowHalfRaw) : NaN
+        const schemaArrowHalfRaw = schemaForces?.radarFlowArrowHalfWidthPx
+        const schemaArrowHalf = typeof schemaArrowHalfRaw === 'number'
+          ? schemaArrowHalfRaw
+          : typeof schemaArrowHalfRaw === 'string'
+            ? Number(schemaArrowHalfRaw)
+            : NaN
+        const arrowHalf = Number.isFinite(arrowHalfN)
+          ? Math.max(2, Math.min(14, arrowHalfN))
+          : Number.isFinite(schemaArrowHalf)
+            ? Math.max(2, Math.min(14, schemaArrowHalf))
+            : 5.2
+        const p1 = getEdgeEndpointFromPorts({ from: src, to: tgt, schema })
+        const p2 = getEdgeEndpointFromPorts({ from: tgt, to: src, schema })
+        const dx = p2.x - p1.x
+        const dy = p2.y - p1.y
+        const dist = Math.max(1, Math.hypot(dx, dy))
+        const mx = (p1.x + p2.x) / 2
+        const my = (p1.y + p2.y) / 2
+        const nx = -dy / dist
+        const ny = dx / dist
+        const cx = curve ? mx + nx * dist * bend : mx
+        const cy = curve ? my + ny * dist * bend : my
+        const edgeId = String((d as { id?: unknown }).id || '')
+        let hash = 0
+        for (let i = 0; i < edgeId.length; i += 1) hash = ((hash << 5) - hash + edgeId.charCodeAt(i)) | 0
+        const phase = (hash & 1) === 0 ? -1 : 1
+        const orbitalMag = orbital ? dist * orbitShift * phase : 0
+        const c2x = p2.x - dx * 0.24 + nx * (dist * bend * 1.14 + orbitalMag)
+        const c2y = p2.y - dy * 0.24 + ny * (dist * bend * 1.14 + orbitalMag)
+        const tx = curve ? (orbital ? p2.x - c2x : p2.x - cx) : dx
+        const ty = curve ? (orbital ? p2.y - c2y : p2.y - cy) : dy
+        const tn = Math.max(1, Math.hypot(tx, ty))
+        const ux = tx / tn
+        const uy = ty / tn
+        const px = -uy
+        const py = ux
+        const len = arrowLength
+        const half = arrowHalf
+        const bx = p2.x - ux * len
+        const by = p2.y - uy * len
+        const lx = bx + px * half
+        const ly = by + py * half
+        const rx = bx - px * half
+        const ry = by - py * half
+        return `M${p2.x},${p2.y} L${lx},${ly} L${rx},${ry} Z`
+      })
+    }
 
     const nodeSel = nodeSelRef.current
     if (nodeSel) {

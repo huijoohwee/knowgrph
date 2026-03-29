@@ -25,6 +25,7 @@ import { clampNodeCenterToRect } from '@/lib/canvas/groupContainment'
 import { GroupOverlays3d } from '@/features/three/GroupOverlays'
 import { THREE_RENDER_ORDER } from '@/features/three/renderOrder'
 import { readThreeRenderOrderOffset } from '@/features/three/zOrder'
+import { readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min
@@ -196,6 +197,12 @@ export function Scene({
   const arrowLenDefault = typeof threeCfg.linkDirectionalArrowLength === 'number' ? Math.max(2, Math.min(24, threeCfg.linkDirectionalArrowLength)) : 8
   const linkOpacityDefault = typeof threeCfg.linkOpacity === 'number' ? Math.max(0, Math.min(1, threeCfg.linkOpacity)) : 0.6
   const linkCurvatureDefault = typeof threeCfg.linkCurvature === 'number' ? Math.max(0, Math.min(1.5, threeCfg.linkCurvature)) : 0
+  const globalEdgeType = readGlobalEdgeType(schema)
+  const linkCurvatureByEdgeType = (() => {
+    if (globalEdgeType === 'straight' || globalEdgeType === 'step') return 0
+    if (globalEdgeType === 'smoothstep') return Math.max(linkCurvatureDefault, 0.2)
+    return linkCurvatureDefault
+  })()
   const curveRotationDefault = typeof threeCfg.linkCurveRotation === 'number' ? threeCfg.linkCurveRotation : 0
   const arrowRelPosDefault = typeof threeCfg.linkDirectionalArrowRelPos === 'number'
     ? Math.max(0, Math.min(1, threeCfg.linkDirectionalArrowRelPos))
@@ -351,7 +358,7 @@ export function Scene({
           const linkOpacity = typeof props['opacity'] === 'number'
             ? Math.max(0, Math.min(1, props['opacity'] as number))
             : (rgba ? rgba.alpha : (typeof opacityByLabel[e.label] === 'number' ? Math.max(0, Math.min(1, opacityByLabel[e.label] as number)) : linkOpacityDefault))
-          const curvature = typeof props['curvature'] === 'number' ? Math.max(0, Math.min(1.5, props['curvature'] as number)) : linkCurvatureDefault
+          const curvature = typeof props['curvature'] === 'number' ? Math.max(0, Math.min(1.5, props['curvature'] as number)) : linkCurvatureByEdgeType
           const arrowLen = typeof props['arrowLength'] === 'number' ? Math.max(2, Math.min(24, props['arrowLength'] as number)) : arrowLenDefault
           const arrowColor = typeof props['arrowColor'] === 'string' ? String(props['arrowColor']) : color
           const resolution = typeof props['resolution'] === 'number' ? Math.floor(props['resolution'] as number) : 24

@@ -1,0 +1,170 @@
+import React from 'react'
+import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import type { GraphSchema } from '@/lib/graph/schema'
+
+function NumberRow(props: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step?: number
+  onChange: (next: number) => void
+}) {
+  const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
+  const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
+  const uiPanelKeyValueInputClass = useGraphStore(
+    s => s.uiPanelKeyValueInputClass || `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`,
+  )
+  return (
+    <div className="flex items-center gap-2">
+      <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
+        {props.label}
+      </label>
+      <input
+        type="number"
+        min={props.min}
+        max={props.max}
+        step={typeof props.step === 'number' ? props.step : 1}
+        value={props.value}
+        onChange={e => {
+          const raw = Number.parseFloat(e.target.value)
+          if (!Number.isFinite(raw)) return
+          props.onChange(Math.max(props.min, Math.min(props.max, raw)))
+        }}
+        className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[50%] text-right`}
+      />
+    </div>
+  )
+}
+
+type RadarForceKey =
+  | 'radarSpokeDistancePx'
+  | 'radarFlowDistancePx'
+  | 'radarFlowCurveBend'
+  | 'radarFlowOrbitShift'
+  | 'radarFlowArrowLengthPx'
+  | 'radarFlowArrowHalfWidthPx'
+  | 'radarNodeCharge'
+  | 'radarHubCharge'
+  | 'radarSpokeStrengthScale'
+  | 'radarFlowStrengthScale'
+
+const readForceNum = (schema: GraphSchema, key: RadarForceKey, fallback: number): number => {
+  const raw = (schema.layout?.forces as Record<string, unknown> | undefined)?.[key]
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+  return typeof n === 'number' && Number.isFinite(n) ? n : fallback
+}
+
+export function RadarGalaxyRendererSettings() {
+  const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
+  const schema = useGraphStore(s => s.schema)
+  const setSchema = useGraphStore(s => s.setSchema)
+
+  const setForce = React.useCallback((key: RadarForceKey, value: number) => {
+    const current = useGraphStore.getState().schema as GraphSchema
+    const layout = current.layout || {}
+    const forces = layout.forces || {}
+    setSchema({
+      ...current,
+      layout: {
+        ...layout,
+        forces: {
+          ...forces,
+          [key]: value,
+        },
+      },
+    })
+  }, [setSchema])
+
+  return (
+    <CollapsibleSection title="Radar Galaxy" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
+      <div className="px-3 py-2 space-y-2">
+        <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+          Controls hub-spoke force distances, curved flow arrows, and repulsion for JSON-imported radar maps.
+        </div>
+        <NumberRow
+          label="Spoke distance"
+          value={readForceNum(schema, 'radarSpokeDistancePx', 150)}
+          min={40}
+          max={1400}
+          step={1}
+          onChange={v => setForce('radarSpokeDistancePx', v)}
+        />
+        <NumberRow
+          label="Flow distance"
+          value={readForceNum(schema, 'radarFlowDistancePx', 360)}
+          min={60}
+          max={2400}
+          step={1}
+          onChange={v => setForce('radarFlowDistancePx', v)}
+        />
+        <NumberRow
+          label="Curve bend"
+          value={readForceNum(schema, 'radarFlowCurveBend', 0.18)}
+          min={-0.8}
+          max={0.8}
+          step={0.01}
+          onChange={v => setForce('radarFlowCurveBend', v)}
+        />
+        <NumberRow
+          label="Orbit shift"
+          value={readForceNum(schema, 'radarFlowOrbitShift', 0.06)}
+          min={0}
+          max={0.45}
+          step={0.01}
+          onChange={v => setForce('radarFlowOrbitShift', v)}
+        />
+        <NumberRow
+          label="Arrow length"
+          value={readForceNum(schema, 'radarFlowArrowLengthPx', 12)}
+          min={4}
+          max={30}
+          step={0.5}
+          onChange={v => setForce('radarFlowArrowLengthPx', v)}
+        />
+        <NumberRow
+          label="Arrow half-width"
+          value={readForceNum(schema, 'radarFlowArrowHalfWidthPx', 5.2)}
+          min={2}
+          max={14}
+          step={0.2}
+          onChange={v => setForce('radarFlowArrowHalfWidthPx', v)}
+        />
+        <NumberRow
+          label="Spoke strength"
+          value={readForceNum(schema, 'radarSpokeStrengthScale', 1)}
+          min={0.2}
+          max={2.5}
+          step={0.01}
+          onChange={v => setForce('radarSpokeStrengthScale', v)}
+        />
+        <NumberRow
+          label="Flow strength"
+          value={readForceNum(schema, 'radarFlowStrengthScale', 1)}
+          min={0.2}
+          max={2.5}
+          step={0.01}
+          onChange={v => setForce('radarFlowStrengthScale', v)}
+        />
+        <NumberRow
+          label="Node repulsion"
+          value={readForceNum(schema, 'radarNodeCharge', -110)}
+          min={-600}
+          max={-5}
+          step={1}
+          onChange={v => setForce('radarNodeCharge', v)}
+        />
+        <NumberRow
+          label="Hub repulsion"
+          value={readForceNum(schema, 'radarHubCharge', -16)}
+          min={-120}
+          max={8}
+          step={1}
+          onChange={v => setForce('radarHubCharge', v)}
+        />
+      </div>
+    </CollapsibleSection>
+  )
+}

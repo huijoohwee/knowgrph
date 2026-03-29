@@ -381,12 +381,55 @@ export const buildSimulation = (
   const disjointEnabled = schema.layout?.forces?.disjointComponents !== false;
   const disjointStrength =
     typeof schema.layout?.forces?.disjointStrength === 'number' ? schema.layout.forces.disjointStrength : DEFAULT_DISJOINT_STRENGTH;
+  const isRadarGraph = nodes.some(n => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    return props['kg:radarNode'] === true || props['kg:radarHub'] === true
+  })
+  const radarForces = (schema.layout?.forces || {}) as {
+    radarSpokeDistancePx?: unknown
+    radarFlowDistancePx?: unknown
+    radarNodeCharge?: unknown
+    radarHubCharge?: unknown
+    radarSpokeStrengthScale?: unknown
+    radarFlowStrengthScale?: unknown
+  }
+  const radarSpokeDistancePx = (() => {
+    const raw = radarForces.radarSpokeDistancePx
+    const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+    return typeof n === 'number' && Number.isFinite(n) ? Math.max(40, Math.min(1400, n)) : null
+  })()
+  const radarFlowDistancePx = (() => {
+    const raw = radarForces.radarFlowDistancePx
+    const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+    return typeof n === 'number' && Number.isFinite(n) ? Math.max(60, Math.min(2400, n)) : null
+  })()
+  const radarNodeCharge = (() => {
+    const raw = radarForces.radarNodeCharge
+    const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+    return typeof n === 'number' && Number.isFinite(n) ? Math.max(-600, Math.min(-5, n)) : -110
+  })()
+  const radarHubCharge = (() => {
+    const raw = radarForces.radarHubCharge
+    const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+    return typeof n === 'number' && Number.isFinite(n) ? Math.max(-120, Math.min(8, n)) : -16
+  })()
+  const radarSpokeStrengthScale = (() => {
+    const raw = radarForces.radarSpokeStrengthScale
+    const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+    return typeof n === 'number' && Number.isFinite(n) ? Math.max(0.2, Math.min(2.5, n)) : 1
+  })()
+  const radarFlowStrengthScale = (() => {
+    const raw = radarForces.radarFlowStrengthScale
+    const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+    return typeof n === 'number' && Number.isFinite(n) ? Math.max(0.2, Math.min(2.5, n)) : 1
+  })()
 
   const linkDist = (e: GraphEdge) => {
+    const props = ((e as unknown as { properties?: unknown }).properties || {}) as Record<string, unknown>
+    if (isRadarGraph && props['kg:radarSpoke'] === true && radarSpokeDistancePx != null) return radarSpokeDistancePx
+    if (isRadarGraph && props['kg:radarFlow'] === true && radarFlowDistancePx != null) return radarFlowDistancePx
     const perEdgeDistance = (() => {
-      const props = (e as unknown as { properties?: unknown }).properties
-      if (!props || typeof props !== 'object' || Array.isArray(props)) return null
-      const raw = (props as Record<string, unknown>).distance_px
+      const raw = props.distance_px
       const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
       return typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : null
     })()
@@ -493,9 +536,17 @@ export const buildSimulation = (
       const props = ((e as unknown as { properties?: unknown }).properties || {}) as Record<string, unknown>
       const rawStrength = props.force_strength
       const n = typeof rawStrength === 'number' ? rawStrength : typeof rawStrength === 'string' ? Number(rawStrength) : null
-      if (typeof n === 'number' && Number.isFinite(n)) return Math.max(0, Math.min(1, n))
+      if (typeof n === 'number' && Number.isFinite(n)) {
+        const scaled = (() => {
+          if (isRadarGraph && props['kg:radarSpoke'] === true) return n * radarSpokeStrengthScale
+          if (isRadarGraph && props['kg:radarFlow'] === true) return n * radarFlowStrengthScale
+          return n
+        })()
+        return Math.max(0, Math.min(1, scaled))
+      }
       const label = String(e.label || '').trim()
-      if (label === 'spokeTo') return 0.42
+      if (label === 'spokeTo') return Math.max(0, Math.min(1, 0.42 * radarSpokeStrengthScale))
+      if (label === 'pointsTo') return Math.max(0, Math.min(1, 0.1 * radarFlowStrengthScale))
       if (label === 'linksTo') return 0.012
       return 0.08
     });
@@ -630,6 +681,17 @@ export const buildSimulation = (
                   .strength((d: GraphNode) => (isHubNode(d) ? -8 : -95))
                   .distanceMin(chargeDistanceMin)
                   .distanceMax(Math.max(frameW, frameH) * 1.2))
+          : isRadarGraph
+            ? (disjointEnabled
+                ? d3
+                    .forceManyBody<GraphNode>()
+                    .strength((d: GraphNode) => (isHubNode(d) ? radarHubCharge : radarNodeCharge))
+                    .distanceMin(chargeDistanceMin)
+                : d3
+                    .forceManyBody<GraphNode>()
+                    .strength((d: GraphNode) => (isHubNode(d) ? radarHubCharge : radarNodeCharge))
+                    .distanceMin(chargeDistanceMin)
+                    .distanceMax(Math.max(frameW, frameH) * 1.2))
           : disjointEnabled
             ? d3.forceManyBody().strength(chargeStrength).distanceMin(chargeDistanceMin)
             : d3.forceManyBody().strength(chargeStrength).distanceMin(chargeDistanceMin).distanceMax(Math.max(frameW, frameH) * 1.2),
@@ -843,6 +905,24 @@ export const updateForceSimulationPresentation = (args: {
     const chargeDistanceMin = computeChargeDistanceMin2d(idealSpacing)
 
     const anchorStrength = computeAnchorStrength2d({ schema, isKeywordGraph, disjointEnabled, disjointStrength })
+  const isRadarGraph = nodes.some(n => {
+    const props = (n.properties || {}) as Record<string, unknown>
+    return props['kg:radarNode'] === true || props['kg:radarHub'] === true
+  })
+  const radarForces = (schema.layout?.forces || {}) as {
+    radarNodeCharge?: unknown
+    radarHubCharge?: unknown
+  }
+  const radarNodeCharge = (() => {
+    const raw = radarForces.radarNodeCharge
+    const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+    return typeof n === 'number' && Number.isFinite(n) ? Math.max(-600, Math.min(-5, n)) : -110
+  })()
+  const radarHubCharge = (() => {
+    const raw = radarForces.radarHubCharge
+    const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+    return typeof n === 'number' && Number.isFinite(n) ? Math.max(-120, Math.min(8, n)) : -16
+  })()
 
   const bipartite = (() => {
     const forces = (schema.layout?.forces || {}) as any
@@ -1002,6 +1082,20 @@ export const updateForceSimulationPresentation = (args: {
         : d3
             .forceManyBody<GraphNode>()
             .strength((d: GraphNode) => (isHubNode(d) ? -8 : -95))
+            .distanceMin(chargeDistanceMin)
+            .distanceMax(Math.max(frameW, frameH) * 1.2),
+    )
+  } else if (isRadarGraph) {
+    simulation.force(
+      'charge',
+      disjointEnabled
+        ? d3
+            .forceManyBody<GraphNode>()
+            .strength((d: GraphNode) => (isHubNode(d) ? radarHubCharge : radarNodeCharge))
+            .distanceMin(chargeDistanceMin)
+        : d3
+            .forceManyBody<GraphNode>()
+            .strength((d: GraphNode) => (isHubNode(d) ? radarHubCharge : radarNodeCharge))
             .distanceMin(chargeDistanceMin)
             .distanceMax(Math.max(frameW, frameH) * 1.2),
     )

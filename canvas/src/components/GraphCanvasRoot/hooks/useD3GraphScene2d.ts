@@ -5,6 +5,7 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { SceneGroupsDerivation } from '@/lib/scene/sceneDerivation'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
+import { withD3BipartiteSceneSchema } from '@/lib/canvas/d3BipartiteSchemaOverrides'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { setupGraphScene } from '@/components/GraphCanvas/scene'
@@ -218,37 +219,14 @@ export function useD3GraphScene2d(args: {
       const meta = (sceneGraphData.metadata || {}) as Record<string, unknown>
       return typeof meta.graphKind === 'string' ? meta.graphKind : ''
     })()
-
     const isD3LikeRenderer = canvasRenderMode === '2d' && (String(canvas2dRenderer || '') === 'd3Bipartite' || String(canvas2dRenderer || '') === 'd3')
     const isBipartite = isD3LikeRenderer && graphKind === 'bipartite'
-    const schemaForScene: GraphSchema = isBipartite
-      ? {
-          ...schemaValue,
-          performance: {
-            ...(schemaValue.performance || {}),
-            lod: {
-              ...((schemaValue.performance || {}).lod || {}),
-              hideLabelsBelowScale: 0,
-            },
-          },
-          layout: {
-            ...(schemaValue.layout || {}),
-            forces: {
-              ...((schemaValue.layout || {}).forces || {}),
-              centerStrength: 0,
-              disjointComponents: false,
-              postFitForce: false,
-              ...( { bipartiteMode: true } as any ),
-              linkDistanceByLabel: {
-                ...((((schemaValue.layout || {}).forces || {}) as any).linkDistanceByLabel || {}),
-                linksTo: 680,
-                spokeTo: 110,
-              },
-            },
-            mode: 'force',
-          },
-        }
-      : schemaValue
+    const schemaForScene: GraphSchema = withD3BipartiteSceneSchema({
+      schema: schemaValue,
+      graphData: sceneGraphData,
+      canvasRenderMode,
+      canvas2dRenderer: String(canvas2dRenderer || ''),
+    })
 
     const hoverEnabled = schemaValue.behavior?.hover?.enabled !== false && !coarsePointer
     const expansionCfg = schemaValue.behavior?.expansion || {}

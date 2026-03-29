@@ -249,6 +249,226 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     default: () => DEFAULT_ZOOM_MIN_SCALE,
   },
   {
+    key: 'schema.layout.forces.radarSpokeDistancePx',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { radarSpokeDistancePx?: unknown }).radarSpokeDistancePx
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : 150
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(40, Math.min(1400, next)) : 150
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, radarSpokeDistancePx: clamped } } })
+    },
+    docKey: 'schema.layout.forces.radarSpokeDistancePx',
+    default: () => 150,
+  },
+  {
+    key: 'schema.layout.forces.radarFlowDistancePx',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { radarFlowDistancePx?: unknown }).radarFlowDistancePx
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : 360
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(60, Math.min(2400, next)) : 360
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, radarFlowDistancePx: clamped } } })
+    },
+    docKey: 'schema.layout.forces.radarFlowDistancePx',
+    default: () => 360,
+  },
+  {
+    key: 'schema.layout.forces.radarFlowCurveBend',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { radarFlowCurveBend?: unknown }).radarFlowCurveBend
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : 0.18
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(-0.8, Math.min(0.8, next)) : 0.18
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, radarFlowCurveBend: clamped } } })
+    },
+    docKey: 'schema.layout.forces.radarFlowCurveBend',
+    default: () => 0.18,
+  },
+  {
+    key: 'schema.layout.forces.radarFlowOrbitShift',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { radarFlowOrbitShift?: unknown }).radarFlowOrbitShift
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : 0.06
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0, Math.min(0.45, next)) : 0.06
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, radarFlowOrbitShift: clamped } } })
+    },
+    docKey: 'schema.layout.forces.radarFlowOrbitShift',
+    default: () => 0.06,
+  },
+  {
+    key: 'schema.layout.forces.radarFlowArrowLengthPx',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { radarFlowArrowLengthPx?: unknown }).radarFlowArrowLengthPx
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : 12
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(4, Math.min(30, next)) : 12
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, radarFlowArrowLengthPx: clamped } } })
+    },
+    docKey: 'schema.layout.forces.radarFlowArrowLengthPx',
+    default: () => 12,
+  },
+  {
+    key: 'schema.layout.forces.radarFlowArrowHalfWidthPx',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { radarFlowArrowHalfWidthPx?: unknown }).radarFlowArrowHalfWidthPx
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : 5.2
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(2, Math.min(14, next)) : 5.2
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, radarFlowArrowHalfWidthPx: clamped } } })
+    },
+    docKey: 'schema.layout.forces.radarFlowArrowHalfWidthPx',
+    default: () => 5.2,
+  },
+  {
+    key: 'schema.layout.forces.radarSpokeStrengthScale',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { radarSpokeStrengthScale?: unknown }).radarSpokeStrengthScale
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : 1
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0.2, Math.min(2.5, next)) : 1
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, radarSpokeStrengthScale: clamped } } })
+    },
+    docKey: 'schema.layout.forces.radarSpokeStrengthScale',
+    default: () => 1,
+  },
+  {
+    key: 'schema.layout.forces.radarFlowStrengthScale',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { radarFlowStrengthScale?: unknown }).radarFlowStrengthScale
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : 1
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0.2, Math.min(2.5, next)) : 1
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, radarFlowStrengthScale: clamped } } })
+    },
+    docKey: 'schema.layout.forces.radarFlowStrengthScale',
+    default: () => 1,
+  },
+  {
+    key: 'schema.layout.forces.radarNodeCharge',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { radarNodeCharge?: unknown }).radarNodeCharge
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : -110
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(-600, Math.min(-5, next)) : -110
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, radarNodeCharge: clamped } } })
+    },
+    docKey: 'schema.layout.forces.radarNodeCharge',
+    default: () => -110,
+  },
+  {
+    key: 'schema.layout.forces.radarHubCharge',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema as GraphSchema
+      const v = schema.layout?.forces && typeof schema.layout.forces === 'object'
+        ? (schema.layout.forces as { radarHubCharge?: unknown }).radarHubCharge
+        : undefined
+      return typeof v === 'number' && Number.isFinite(v) ? v : -16
+    },
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(-120, Math.min(8, next)) : -16
+      const current = s().schema as GraphSchema
+      const layout = current.layout || {}
+      const forces = layout.forces || {}
+      s().setSchema({ ...current, layout: { ...layout, forces: { ...forces, radarHubCharge: clamped } } })
+    },
+    docKey: 'schema.layout.forces.radarHubCharge',
+    default: () => -16,
+  },
+  {
     key: 'schema.zoom.maxScale',
     type: 'number',
     source: 'store',
@@ -1031,6 +1251,37 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     },
     docKey: 'schema.layout.flow.overlay.collisionGapPx',
     default: () => 12,
+  },
+  {
+    key: 'schema.layout.edges.type',
+    type: 'string',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      const raw = schema.layout?.edges && typeof schema.layout.edges === 'object'
+        ? (schema.layout.edges as { type?: unknown }).type
+        : undefined
+      const v = String(raw || '').trim().toLowerCase()
+      if (v === 'straight' || v === 'step' || v === 'smoothstep' || v === 'bezier') return v
+      return 'bezier'
+    },
+    write: (v) => {
+      const raw = String(v || '').trim().toLowerCase()
+      const next = raw === 'straight' || raw === 'step' || raw === 'smoothstep' || raw === 'bezier' ? raw : 'bezier'
+      const current = s().schema
+      const layout = current.layout || {}
+      const edges = layout.edges || {}
+      s().setSchema({
+        ...current,
+        layout: {
+          ...layout,
+          edges: { ...edges, type: next },
+        },
+      })
+    },
+    docKey: 'schema.layout.edges.type',
+    default: () => 'bezier',
+    options: ['bezier', 'straight', 'step', 'smoothstep'],
   },
   {
     key: 'schema.layout.edges.opacity',

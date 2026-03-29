@@ -158,6 +158,7 @@ export const defaultSchema: GraphSchema = {
   layout: {
     mode: 'force',
     edges: {
+      type: 'bezier',
       opacity: DEFAULT_EDGE_OPACITY_2D,
       opacityUnderGroups: DEFAULT_EDGE_OPACITY_2D_UNDER_GROUPS,
     },

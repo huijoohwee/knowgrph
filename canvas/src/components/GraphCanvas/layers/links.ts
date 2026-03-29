@@ -8,6 +8,7 @@ import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/
 import { attachEdgeInteractionHandlers } from '@/components/GraphCanvas/layers/edgeInteractions'
 import { shouldShowEdgeArrow } from '@/components/GraphCanvas/edgeDisplay'
 import { edgeDragBehavior } from '@/components/GraphCanvas/utils';
+import { buildEdgePathD, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
@@ -76,6 +77,11 @@ function getEndpointPosOrZero(endpoint: unknown): { x: number; y: number } {
   return readEndpointPos(endpoint) || { x: 0, y: 0 }
 }
 
+function shouldUsePathForEdge(e: GraphEdge, schema: GraphSchema): boolean {
+  if (readEdgeVisualPathD(e)) return true
+  return readGlobalEdgeType(schema) !== 'straight'
+}
+
 export const createLinksHitLayer = (args: {
   g: GSelection;
   edgesForDisplay: GraphEdge[];
@@ -130,15 +136,21 @@ export const createLinksHitLayer = (args: {
   })()
 
   const linkRoot = g.append('g').attr('data-kg-layer', 'links-hit');
-  const withPath = eligibleEdges.filter(e => !!readEdgeVisualPathD(e))
-  const withoutPath = eligibleEdges.filter(e => !readEdgeVisualPathD(e))
+  const withPath = eligibleEdges.filter(e => shouldUsePathForEdge(e, schema))
+  const withoutPath = eligibleEdges.filter(e => !shouldUsePathForEdge(e, schema))
 
   const pathSel = linkRoot
     .selectAll<SVGPathElement, GraphEdge>('path')
     .data(withPath)
     .enter()
     .append('path')
-    .attr('d', (d: GraphEdge) => readEdgeVisualPathD(d))
+    .attr('d', (d: GraphEdge) => {
+      const existing = readEdgeVisualPathD(d)
+      if (existing) return existing
+      const s = getEndpointPosOrZero((d as any).source)
+      const t = getEndpointPosOrZero((d as any).target)
+      return buildEdgePathD({ edgeType: readGlobalEdgeType(schema), sx: s.x, sy: s.y, tx: t.x, ty: t.y })
+    })
     .attr('transform', (d: GraphEdge) => {
       const t = readEdgeVisualPathTranslate(d)
       return t ? `translate(${t.x},${t.y})` : null
@@ -166,6 +178,7 @@ export const createLinksHitLayer = (args: {
     .attr('stroke-opacity', 1)
     .attr('stroke-width', (d: GraphEdge) => Math.max(12, getEdgeStrokeWidth(d, schema) * 7))
     .attr('stroke-linecap', 'round')
+    .attr('fill', 'none')
     .style('pointer-events', 'stroke')
 
   attachEdgeInteractionHandlers(link as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>, {
@@ -225,8 +238,8 @@ export const createLinksLayer = (args: {
 
   const linkRoot = g.append('g').attr('data-kg-layer', 'links')
 
-  const withPath = eligibleEdges.filter(e => !!readEdgeVisualPathD(e))
-  const withoutPath = eligibleEdges.filter(e => !readEdgeVisualPathD(e))
+  const withPath = eligibleEdges.filter(e => shouldUsePathForEdge(e, schema))
+  const withoutPath = eligibleEdges.filter(e => !shouldUsePathForEdge(e, schema))
 
   const arrowEdges = withPath.filter(e => !!readEdgeVisualArrowD(e))
   linkRoot
@@ -250,7 +263,13 @@ export const createLinksLayer = (args: {
     .enter()
     .append('path')
     .attr('class', 'kg-edge-path')
-    .attr('d', (d: GraphEdge) => readEdgeVisualPathD(d))
+    .attr('d', (d: GraphEdge) => {
+      const existing = readEdgeVisualPathD(d)
+      if (existing) return existing
+      const s = getEndpointPosOrZero((d as any).source)
+      const t = getEndpointPosOrZero((d as any).target)
+      return buildEdgePathD({ edgeType: readGlobalEdgeType(schema), sx: s.x, sy: s.y, tx: t.x, ty: t.y })
+    })
     .attr('transform', (d: GraphEdge) => {
       const t = readEdgeVisualPathTranslate(d)
       return t ? `translate(${t.x},${t.y})` : null
@@ -284,10 +303,10 @@ export const createLinksLayer = (args: {
     .style('pointer-events', 'none')
 
   ;(link as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>)
-    .filter(function () {
-      return String((this as unknown as { tagName?: unknown }).tagName || '').toLowerCase() === 'line'
+    .attr('marker-end', (d: GraphEdge) => {
+      if (readEdgeVisualArrowD(d)) return null
+      return shouldShowEdgeArrow(d, schema) ? 'url(#arrowhead)' : null
     })
-    .attr('marker-end', (d: GraphEdge) => (shouldShowEdgeArrow(d, schema) ? 'url(#arrowhead)' : null))
 
   return link as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>
 };
