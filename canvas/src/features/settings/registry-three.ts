@@ -517,6 +517,294 @@ export const threeSettingsRegistry: SettingMeta[] = [
     default: () => 0,
   },
   {
+    key: 'three.globe.effectsEnabled',
+    type: 'boolean',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return schema.three?.globeEffectsEnabled !== false
+    },
+    write: (v) => s().setThreeConfig({ globeEffectsEnabled: Boolean(v) }),
+    docKey: 'three.globe.effectsEnabled',
+    default: () => true,
+  },
+  {
+    key: 'three.globe.particleCount',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeParticleCount === 'number' ? schema.three.globeParticleCount : 720
+    },
+    write: (v) => s().setThreeConfig({ globeParticleCount: Number(v) }),
+    docKey: 'three.globe.particleCount',
+    default: () => 720,
+  },
+  {
+    key: 'three.globe.atmosphereOpacity',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeAtmosphereOpacity === 'number' ? schema.three.globeAtmosphereOpacity : 0.22
+    },
+    write: (v) => s().setThreeConfig({ globeAtmosphereOpacity: Number(v) }),
+    docKey: 'three.globe.atmosphereOpacity',
+    default: () => 0.22,
+  },
+  {
+    key: 'three.globe.gridDensity',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeGridDensity === 'number' ? schema.three.globeGridDensity : 12
+    },
+    write: (v) => s().setThreeConfig({ globeGridDensity: Number(v) }),
+    docKey: 'three.globe.gridDensity',
+    default: () => 12,
+  },
+  {
+    key: 'three.globe.orbitRingCount',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeOrbitRingCount === 'number' ? schema.three.globeOrbitRingCount : 4
+    },
+    write: (v) => s().setThreeConfig({ globeOrbitRingCount: Number(v) }),
+    docKey: 'three.globe.orbitRingCount',
+    default: () => 4,
+  },
+  {
+    key: 'three.globe.toolNodeCount',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeToolNodeCount === 'number' ? schema.three.globeToolNodeCount : 24
+    },
+    write: (v) => s().setThreeConfig({ globeToolNodeCount: Number(v) }),
+    docKey: 'three.globe.toolNodeCount',
+    default: () => 24,
+  },
+  {
+    key: 'three.globe.arcCount',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeArcCount === 'number' ? schema.three.globeArcCount : 12
+    },
+    write: (v) => s().setThreeConfig({ globeArcCount: Number(v) }),
+    docKey: 'three.globe.arcCount',
+    default: () => 12,
+  },
+  {
+    key: 'three.globe.arcTravelerCount',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeArcTravelerCount === 'number' ? schema.three.globeArcTravelerCount : 1
+    },
+    write: (v) => s().setThreeConfig({ globeArcTravelerCount: Number(v) }),
+    docKey: 'three.globe.arcTravelerCount',
+    default: () => 1,
+  },
+  {
+    key: 'three.globe.autoRotateSpeed',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeAutoRotateSpeed === 'number' ? schema.three.globeAutoRotateSpeed : 0.08
+    },
+    write: (v) => s().setThreeConfig({ globeAutoRotateSpeed: Number(v) }),
+    docKey: 'three.globe.autoRotateSpeed',
+    default: () => 0.08,
+  },
+  {
+    key: 'three.globe.cameraEllipseEnabled',
+    type: 'boolean',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return schema.three?.globeCameraEllipseEnabled !== false
+    },
+    write: (v) => s().setThreeConfig({ globeCameraEllipseEnabled: Boolean(v) }),
+    docKey: 'three.globe.cameraEllipseEnabled',
+    default: () => true,
+  },
+  {
+    key: 'three.globe.cameraEllipseSpeed',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeCameraEllipseSpeed === 'number' ? schema.three.globeCameraEllipseSpeed : 0.045
+    },
+    write: (v) => s().setThreeConfig({ globeCameraEllipseSpeed: Number(v) }),
+    docKey: 'three.globe.cameraEllipseSpeed',
+    default: () => 0.045,
+  },
+  {
+    key: 'three.globe.cameraEllipseRadiusXFactor',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeCameraEllipseRadiusXFactor === 'number' ? schema.three.globeCameraEllipseRadiusXFactor : 1.24
+    },
+    write: (v) => s().setThreeConfig({ globeCameraEllipseRadiusXFactor: Number(v) }),
+    docKey: 'three.globe.cameraEllipseRadiusXFactor',
+    default: () => 1.24,
+  },
+  {
+    key: 'three.globe.cameraEllipseRadiusZFactor',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeCameraEllipseRadiusZFactor === 'number' ? schema.three.globeCameraEllipseRadiusZFactor : 1.02
+    },
+    write: (v) => s().setThreeConfig({ globeCameraEllipseRadiusZFactor: Number(v) }),
+    docKey: 'three.globe.cameraEllipseRadiusZFactor',
+    default: () => 1.02,
+  },
+  {
+    key: 'three.globe.cameraEllipseHeightFactor',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeCameraEllipseHeightFactor === 'number' ? schema.three.globeCameraEllipseHeightFactor : 0.26
+    },
+    write: (v) => s().setThreeConfig({ globeCameraEllipseHeightFactor: Number(v) }),
+    docKey: 'three.globe.cameraEllipseHeightFactor',
+    default: () => 0.26,
+  },
+  {
+    key: 'three.globe.cameraEllipseFollow',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeCameraEllipseFollow === 'number' ? schema.three.globeCameraEllipseFollow : 0.06
+    },
+    write: (v) => s().setThreeConfig({ globeCameraEllipseFollow: Number(v) }),
+    docKey: 'three.globe.cameraEllipseFollow',
+    default: () => 0.06,
+  },
+  {
+    key: 'three.globe.hubOrbitEnabled',
+    type: 'boolean',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return schema.three?.globeHubOrbitEnabled !== false
+    },
+    write: (v) => s().setThreeConfig({ globeHubOrbitEnabled: Boolean(v) }),
+    docKey: 'three.globe.hubOrbitEnabled',
+    default: () => true,
+  },
+  {
+    key: 'three.globe.hubOrbitStrength',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeHubOrbitStrength === 'number' ? schema.three.globeHubOrbitStrength : 0.22
+    },
+    write: (v) => s().setThreeConfig({ globeHubOrbitStrength: Number(v) }),
+    docKey: 'three.globe.hubOrbitStrength',
+    default: () => 0.22,
+  },
+  {
+    key: 'three.globe.hubOrbitSpeed',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeHubOrbitSpeed === 'number' ? schema.three.globeHubOrbitSpeed : 0.24
+    },
+    write: (v) => s().setThreeConfig({ globeHubOrbitSpeed: Number(v) }),
+    docKey: 'three.globe.hubOrbitSpeed',
+    default: () => 0.24,
+  },
+  {
+    key: 'three.globe.hubOrbitRadiusFactor',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeHubOrbitRadiusFactor === 'number' ? schema.three.globeHubOrbitRadiusFactor : 0.2
+    },
+    write: (v) => s().setThreeConfig({ globeHubOrbitRadiusFactor: Number(v) }),
+    docKey: 'three.globe.hubOrbitRadiusFactor',
+    default: () => 0.2,
+  },
+  {
+    key: 'three.globe.sphereEllipsoidX',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeSphereEllipsoidX === 'number' ? schema.three.globeSphereEllipsoidX : 1.08
+    },
+    write: (v) => s().setThreeConfig({ globeSphereEllipsoidX: Number(v) }),
+    docKey: 'three.globe.sphereEllipsoidX',
+    default: () => 1.08,
+  },
+  {
+    key: 'three.globe.sphereEllipsoidY',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeSphereEllipsoidY === 'number' ? schema.three.globeSphereEllipsoidY : 0.88
+    },
+    write: (v) => s().setThreeConfig({ globeSphereEllipsoidY: Number(v) }),
+    docKey: 'three.globe.sphereEllipsoidY',
+    default: () => 0.88,
+  },
+  {
+    key: 'three.globe.sphereEllipsoidZ',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.globeSphereEllipsoidZ === 'number' ? schema.three.globeSphereEllipsoidZ : 1
+    },
+    write: (v) => s().setThreeConfig({ globeSphereEllipsoidZ: Number(v) }),
+    docKey: 'three.globe.sphereEllipsoidZ',
+    default: () => 1,
+  },
+  {
+    key: 'three.globe.labelDepthFade',
+    type: 'boolean',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return schema.three?.globeLabelDepthFade !== false
+    },
+    write: (v) => s().setThreeConfig({ globeLabelDepthFade: Boolean(v) }),
+    docKey: 'three.globe.labelDepthFade',
+    default: () => true,
+  },
+  {
+    key: 'three.globe.labelBackfaceCulling',
+    type: 'boolean',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return schema.three?.globeLabelBackfaceCulling !== false
+    },
+    write: (v) => s().setThreeConfig({ globeLabelBackfaceCulling: Boolean(v) }),
+    docKey: 'three.globe.labelBackfaceCulling',
+    default: () => true,
+  },
+  {
     key: 'three.media.iframeOverlay.poolMax',
     type: 'number',
     source: 'store',

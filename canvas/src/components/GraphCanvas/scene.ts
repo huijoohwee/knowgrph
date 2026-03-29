@@ -260,7 +260,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     if (initialZoomTransform) return null
     if (fitToScreenMode) return null
 
-    if (readLayoutMode(schema) === 'force' && schema.layout?.forces?.disjointComponents !== false) {
+    if (readLayoutMode(schema) !== 'radial' && schema.layout?.forces?.disjointComponents !== false) {
       return { k: 1, x: width / 2, y: height / 2 }
     }
 
@@ -330,7 +330,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   const seedCenter = (() => {
     if (!initialZoomTransform) {
-      if (readLayoutMode(schema) === 'force' && schema.layout?.forces?.disjointComponents !== false) {
+      if (readLayoutMode(schema) !== 'radial' && schema.layout?.forces?.disjointComponents !== false) {
         return { x: 0, y: 0 }
       }
       return null
@@ -443,7 +443,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   const continuousForceLayout = args.enableContinuousForceLayout === true && args.freezeSimulation !== true
 
-  if (effectiveSkipInitialLayout && readLayoutMode(schema) === 'force' && args.freezeSimulation !== true && !continuousForceLayout) {
+  if (effectiveSkipInitialLayout && readLayoutMode(schema) !== 'radial' && args.freezeSimulation !== true && !continuousForceLayout) {
     try {
       simulation.alphaTarget(0)
       simulation.alpha(0)
@@ -522,7 +522,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       })
     }
 
-    if (readLayoutMode(schema) === 'force' && args.freezeSimulation !== true && !continuousForceLayout) {
+    if (readLayoutMode(schema) !== 'radial' && args.freezeSimulation !== true && !continuousForceLayout) {
       try {
         simulation.alphaTarget(0)
         simulation.alpha(0)
@@ -705,7 +705,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     setSelectionSource,
   })
 
-  const isForceLayout = readLayoutMode(schema) === 'force'
+  const isForceLayout = readLayoutMode(schema) !== 'radial'
 
   const storeLayoutPositions = () => {
     const isMermaidLayout = (() => {

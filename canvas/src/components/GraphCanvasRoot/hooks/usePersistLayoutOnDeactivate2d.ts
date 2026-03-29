@@ -40,7 +40,7 @@ export function usePersistLayoutOnDeactivate2d(args: {
 
     const state = useGraphStore.getState()
     const schemaValue = schemaRef.current
-    const mode = schemaValue ? readLayoutMode(schemaValue) : 'force'
+    const mode = schemaValue ? readLayoutMode(schemaValue) : 'radial'
     const semanticModeBase = String(state.documentSemanticMode || 'document')
     const semanticModeKey = state.multiDimTableModeEnabled === true ? `${semanticModeBase}:mdtbl` : semanticModeBase
     const graphDataForView = sceneGraphDataRef.current ?? ((state.graphData as unknown as GraphData | null) ?? null)

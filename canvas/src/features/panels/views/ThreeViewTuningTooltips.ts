@@ -220,3 +220,107 @@ export const DIMMED_EDGE_OPACITY_TOOLTIP = buildNumericTooltip({
   interval: 0.05,
   impact: 'Lower opacity fades unselected edges; higher values keep surrounding connections clearer.',
 })
+
+export const GLOBE_PARTICLE_COUNT_TOOLTIP = buildNumericTooltip({
+  defaultValue: 720,
+  min: 0,
+  max: 4000,
+  interval: 20,
+  impact: 'Higher values add denser Fibonacci surface particles; lower values reduce visual load.',
+})
+
+export const GLOBE_ATMOSPHERE_OPACITY_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.22,
+  min: 0,
+  max: 0.8,
+  interval: 0.02,
+  impact: 'Higher values increase atmospheric halo strength; lower values keep the globe edge cleaner.',
+})
+
+export const GLOBE_GRID_DENSITY_TOOLTIP = buildNumericTooltip({
+  defaultValue: 12,
+  min: 4,
+  max: 36,
+  interval: 1,
+  impact: 'Higher density adds more latitude/longitude guides; lower density keeps the grid minimal.',
+})
+
+export const GLOBE_ORBIT_RING_COUNT_TOOLTIP = buildNumericTooltip({
+  defaultValue: 4,
+  min: 0,
+  max: 10,
+  interval: 1,
+  impact: 'More rings increase orbital context and tool-node lanes; fewer rings simplify the scene.',
+})
+
+export const GLOBE_ARC_COUNT_TOOLTIP = buildNumericTooltip({
+  defaultValue: 12,
+  min: 0,
+  max: 36,
+  interval: 1,
+  impact: 'Higher values draw more data-flow great-circle arcs; lower values reduce motion complexity.',
+})
+
+export const GLOBE_CAMERA_ELLIPSE_SPEED_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.045,
+  min: 0,
+  max: 0.4,
+  interval: 0.01,
+  impact: 'Higher speed moves camera around the ellipse faster; lower speed keeps cinematic motion gentle.',
+})
+
+export const GLOBE_CAMERA_ELLIPSE_RADIUS_TOOLTIP = buildNumericTooltip({
+  defaultValue: 1,
+  min: 0.4,
+  max: 2.2,
+  interval: 0.02,
+  impact: 'Larger factors widen the camera ellipse around the globe; smaller factors keep the path tighter.',
+})
+
+export const GLOBE_CAMERA_ELLIPSE_HEIGHT_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.26,
+  min: 0,
+  max: 1,
+  interval: 0.02,
+  impact: 'Higher values elevate the camera orbit path; lower values keep travel closer to equatorial view.',
+})
+
+export const GLOBE_CAMERA_ELLIPSE_FOLLOW_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.06,
+  min: 0.02,
+  max: 1,
+  interval: 0.02,
+  impact: 'Lower follow gives slower cinematic easing; higher follow tracks the ellipse path more tightly.',
+})
+
+export const GLOBE_HUB_ORBIT_STRENGTH_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.22,
+  min: 0,
+  max: 1.8,
+  interval: 0.02,
+  impact: 'Higher strength keeps member nodes tighter around super-cluster hub orbit bands.',
+})
+
+export const GLOBE_HUB_ORBIT_SPEED_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.24,
+  min: 0,
+  max: 2.2,
+  interval: 0.02,
+  impact: 'Higher speed increases tangential orbit drift around hub anchors.',
+})
+
+export const GLOBE_HUB_ORBIT_RADIUS_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.2,
+  min: 0.05,
+  max: 0.8,
+  interval: 0.01,
+  impact: 'Larger radius factor spreads member nodes further from hub anchor; smaller keeps compact hubs.',
+})
+
+export const GLOBE_ELLIPSOID_AXIS_TOOLTIP = buildNumericTooltip({
+  defaultValue: 1,
+  min: 0.5,
+  max: 1.8,
+  interval: 0.02,
+  impact: 'Controls sphere-to-ellipsoid axis scaling for 3D node shell distribution.',
+})

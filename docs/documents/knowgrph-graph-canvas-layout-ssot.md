@@ -17,16 +17,21 @@ Graph Canvas layout behavior is defined by a small set of SSOT modules. All mode
 | Group key derivation (Group boxes) | `canvas/src/components/GraphCanvas/layout/layoutGroupKey.ts` | `createLayoutGroupKeyOfNode` derives a single collision grouping from rendered graph groups (Mermaid subgraphs → Markdown headings → keyword layers → communities). |
 | Legacy group key derivation (Hierarchy) | `canvas/src/components/GraphCanvas/layout/grouping.ts` | Fallback keying via `visual:topParentId`/`visual:parentId`, else top Markdown Section (via `hasSection/hasBlock/hasItem/embedsImage`). |
 | Force-mode seeding | `canvas/src/components/GraphCanvas/layout/seeding.ts` | `applyForceModeSeeds` defines the only allowed seed order (Mermaid → Markdown headings → heuristic cluster). |
+| Radar/Galaxy force knobs | `canvas/src/lib/graph/radarForces.ts` | `readRadarForceConfig` is the only reader/clamp for radar distances, orbital curve knobs, arrows, and hub/node charges across 2D and 3D. |
+| Radar/Galaxy radial placement | `canvas/src/lib/graph/radarGalaxyLayout.ts` | `computeRadarGalaxyPositions2d` is the shared orbital placement seed for Radial and Flow fallback; forbid per-renderer radial formulas. |
 | Structured-mode relaxation | `canvas/src/components/GraphCanvas/layout/relax.ts` | `relaxNodesWithCollision` is the only allowed post-layout relaxation pass for structured modes (Radial). |
 | Relax step runner | `canvas/src/lib/graph/collision/relaxRunner.ts` | Shared alpha schedule + integrate/damping loop used by both Graph and Flow collision relaxation passes. |
 | Group bounds rendering | `canvas/src/components/GraphCanvas/layers/groups.ts` | Group boxes use label-aware AABBs so outlines don’t clip labels; forbid ad-hoc sizing. |
 | 2D layer order ranks | `canvas/src/lib/canvas/layerOrder2d.ts` | Canonical 2D layer ranks (nodes/edges/groups/labels/handles) reused by both SVG z-order and native canvas draw order. |
+| Edge convex/concave path tuning | `canvas/src/lib/graph/edgeTypes.ts` | `readEdgePathCurveOptions` + `buildEdgePathD`/`traceEdgePathOnCanvas` are SSOT for convex/concave bezier/smoothstep shaping from `visual:curve*` + radar flow defaults across D3/Flow/Design/Flow Editor. |
 | Render Z-order (SVG) | `canvas/src/components/GraphCanvas/zOrder.ts` | `applyGraphCanvasZOrder` applies the shared 2D ranks to SVG layer DOM order. |
 | Update timing | `canvas/src/components/GraphCanvas/scene.ts` | Group outlines update via `beforeRenderFrameRef` so they track simulation without influencing it. |
 
 ## Configuration Knobs
 
 All overlap/collision behavior must be configured via schema only.
+
+For edge shapes (bezier/straight/step/smoothstep) and cross‑renderer edge path behavior, see the **Edge Types (Global SSOT)** section in `knowgrph-renderer-document.md`; layout docs do not duplicate edge‑type details.
 
 ```yaml
 layout:
@@ -68,6 +73,16 @@ layout:
     postFitForce: boolean
     postFitStrength: number
     postFitAlphaMax: number
+    radarSpokeDistancePx: number
+    radarFlowDistancePx: number
+    radarFlowCurveBend: number
+    radarFlowOrbitShift: number
+    radarFlowArrowLengthPx: number
+    radarFlowArrowHalfWidthPx: number
+    radarNodeCharge: number
+    radarHubCharge: number
+    radarSpokeStrengthScale: number
+    radarFlowStrengthScale: number
   groups:
     enabled: boolean
     padding: number
@@ -96,6 +111,7 @@ Notes:
 - Group collision accounts for group label overhead (top padding) to reduce label-region overlap and to prevent group box overlap.
 - Collision relax determinism: any force initializer RNG must be seeded from stable inputs (e.g., node ids); forbid `Math.random` initializers that change layout per run.
 - Collision relax locality: bounded relax passes must clamp displacement so overlap removal cannot destroy macro layout.
+- Convex/concave polarity for radar orbital edges must be deterministic and non-inverted across renderers: explicit `visual:curveBend` sign wins; radar flow default avoids hash alternation unless explicitly overridden.
 - Flow packing cohesion: collective packing must treat group membership as connectivity so subgraphs/groups/clusters remain cohesive even when edges are sparse.
 - Zoom Reset semantics: toolbar Reset is defined as Fit-to-View framing (centroid + group-aware bounds) and must not trigger any layout mutation.
 - The default baseline experience is anchored by `LS_KEYS.documentStructureBaselineLock` (default on): it disables mode switches (Keyword/Frontmatter/Renderer/3D/Select/Create) so Editor/Canvas/Table/Preview stay content-aligned.

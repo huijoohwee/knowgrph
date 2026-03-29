@@ -371,10 +371,17 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     }
     set(state => {
       const requested = m === '3d' ? '3d' : '2d'
+      const semanticMode = String(state.documentSemanticMode || 'document')
+      const modeAllowed =
+        state.frontmatterModeEnabled === true ||
+        state.multiDimTableModeEnabled === true ||
+        semanticMode === 'document' ||
+        semanticMode === 'keyword'
+      const requestedGuarded = requested === '3d' && !modeAllowed ? '2d' : requested
       const layoutMode = state.schema?.layout?.mode
-      const enforce2d = layoutMode === 'radial'
+      const enforce2d = layoutMode === 'block'
       if (enforce2d) {
-        if (requested === '3d') {
+        if (requestedGuarded === '3d') {
           const nextLastFree = state.canvasRenderMode === '3d' ? '3d' : (state.canvasRenderModeLastFree || '2d')
           if (
             state.canvasRenderMode === '2d' &&
@@ -389,13 +396,13 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
         return { canvasRenderMode: '2d', canvasRenderModeIsAuto: false }
       }
       if (
-        state.canvasRenderMode === requested &&
-        state.canvasRenderModeLastFree === requested &&
+        state.canvasRenderMode === requestedGuarded &&
+        state.canvasRenderModeLastFree === requestedGuarded &&
         state.canvasRenderModeIsAuto === false
       ) {
         return {}
       }
-      return { canvasRenderMode: requested, canvasRenderModeLastFree: requested, canvasRenderModeIsAuto: false }
+      return { canvasRenderMode: requestedGuarded, canvasRenderModeLastFree: requestedGuarded, canvasRenderModeIsAuto: false }
     })
 
     const nextMode = get().canvasRenderMode
@@ -425,7 +432,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
             graphData: (st.graphData as any) || null,
           })
           const datasetKey = computeLayoutDatasetKey({ graphData: graphDataForView, graphDataRevision: st.graphDataRevision || 0 })
-          const mode = st.schema ? readLayoutMode2d(st.schema) : 'force'
+          const mode = st.schema ? readLayoutMode2d(st.schema) : 'radial'
           const graphMetaKey = buildGraphMetaKeyIgnoringPending((st.graphData as any) || null)
           const collapsedGroupIdsKey = buildCollapsedGroupIdsKey(st.collapsedGroupIds)
           const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(st.schema || null)
@@ -478,8 +485,10 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     set(state => {
       const next: Canvas2dRendererId =
         id === 'flow' || id === 'flowEditor' || id === 'design' || id === 'd3Bipartite' ? id : 'd3'
-      if (state.canvas2dRenderer === next) return {}
-      lsSetJson(LS_KEYS.canvas2dRenderer, next)
+      const layoutMode = state.schema?.layout?.mode
+      const radialRenderer = layoutMode === 'radial' && next !== 'd3' && next !== 'd3Bipartite' ? 'd3' : next
+      if (state.canvas2dRenderer === radialRenderer) return {}
+      lsSetJson(LS_KEYS.canvas2dRenderer, radialRenderer)
 
       const common = {
         canvasRenderMode: state.canvasRenderMode,
@@ -493,21 +502,21 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
         collapsedGroupIds: state.collapsedGroupIds,
       }
       const prevZoomKey = buildActive2dZoomViewKey({ ...common, canvas2dRenderer: state.canvas2dRenderer })
-      const nextZoomKey = buildActive2dZoomViewKey({ ...common, canvas2dRenderer: next })
+      const nextZoomKey = buildActive2dZoomViewKey({ ...common, canvas2dRenderer: radialRenderer })
       void prevZoomKey
       void nextZoomKey
       const zoomStateByKey = state.zoomStateByKey
 
       const pointerBy = state.canvasPointerMode2dByRenderer || {}
       const nextPointerBy = { ...pointerBy, [state.canvas2dRenderer]: state.canvasPointerMode2d }
-      const nextPointer = nextPointerBy[next] || 'select'
+      const nextPointer = nextPointerBy[radialRenderer] || 'select'
 
       const quickEditorBy = state.openQuickEditorNodeIdsByRenderer || {}
       const nextQuickEditorBy = { ...quickEditorBy, [state.canvas2dRenderer]: state.openQuickEditorNodeIds || [] }
-      const nextQuickEditors = nextQuickEditorBy[next] || []
+      const nextQuickEditors = nextQuickEditorBy[radialRenderer] || []
 
       return {
-        canvas2dRenderer: next,
+        canvas2dRenderer: radialRenderer,
         zoomStateByKey,
         canvasPointerMode2d: nextPointer,
         canvasPointerMode2dByRenderer: nextPointerBy,

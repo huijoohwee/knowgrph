@@ -67,7 +67,7 @@ import { relaxOverlayPanelsWithCollision } from '@/components/FlowCanvas/relaxOv
 import { buildFlowHandleId, computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT, FLOW_EDITOR_OVERLAY_ROOT_SELECTOR } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { readSubgraphs, subgraphGroupId } from '@/lib/graph/subgraphs'
-import { buildEdgePathD, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { buildEdgePathD, readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 
 type ToolMode = 'select' | 'addEdge'
 
@@ -1599,7 +1599,15 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const ty = (tAnchor ? tAnchor.y : tTop + (Math.max(0, Math.min(100, tPct)) / 100) * tHeight) - baseTop
         if (!Number.isFinite(sx) || !Number.isFinite(sy) || !Number.isFinite(tx) || !Number.isFinite(ty)) continue
 
-        const d = buildEdgePathD({ edgeType: globalEdgeType, sx, sy, tx, ty, rankdir: 'LR' })
+        const d = buildEdgePathD({
+          edgeType: globalEdgeType,
+          sx,
+          sy,
+          tx,
+          ty,
+          rankdir: 'LR',
+          curve: readEdgePathCurveOptions(e as unknown as GraphEdge, schema),
+        })
         keep.add(edgeId)
         const existing = overlayEdgePathByIdRef.current.get(edgeId) || null
         const pathEl = existing || document.createElementNS('http://www.w3.org/2000/svg', 'path')

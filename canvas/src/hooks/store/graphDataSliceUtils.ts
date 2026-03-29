@@ -98,17 +98,22 @@ export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unkn
 
   const schema = get().schema
   const curLayout = schema.layout || {}
-  if ((curLayout.mode || 'force') !== 'force') return
-  if (modeSuggestion === 'force') return
+  const currentMode = (() => {
+    const raw = String(curLayout.mode || '').trim().toLowerCase()
+    if (raw === 'block') return 'block'
+    return 'radial'
+  })()
+  if (currentMode === 'block') return
+  if (modeSuggestion === 'radial') return
 
   const nextLayout: NonNullable<typeof schema.layout> = { ...curLayout, mode: modeSuggestion }
   get().setSchema({ ...schema, layout: nextLayout })
-  if ((nextLayout.mode || schema.layout?.mode) === 'radial') {
+  if ((nextLayout.mode || schema.layout?.mode) === 'block') {
     const setCanvasRenderMode = get().setCanvasRenderMode
     if (typeof setCanvasRenderMode === 'function') setCanvasRenderMode('2d')
 
     const setCanvas2dRenderer = get().setCanvas2dRenderer
-    if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer('d3')
+    if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer('d3Bipartite')
   }
 }
 

@@ -11,7 +11,8 @@ import { pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { computeLayerOffsetIndices, computePositions3d, type Vec3 } from './positions'
 import { projectPositionsToSphereShell } from './sphereConstraint'
-import { resolveMinSpacing, resolveSphereLayerSpacing, resolveSphereRadius } from './threeLayoutConfig'
+import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius } from './threeLayoutConfig'
+import { isRadarFlowEdge, isRadarGraph, isRadarHubNode, isRadarSpokeEdge, readRadarForceConfig } from '@/lib/graph/radarForces'
 
 export { fibSphere } from './positions'
 export type { Vec3 } from './positions'
@@ -28,7 +29,7 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, gra
   const collapsedGroupIds = useGraphStore(s => s.collapsedGroupIds)
 
   return useMemo(() => {
-    const mode = schema ? (schema.layout?.mode as string) || 'force' : 'force'
+    const mode = schema ? (schema.layout?.mode as string) || 'radial' : 'radial'
     const semanticMode = String(documentSemanticMode || 'document')
     const graphDataForView =
       (graphDataForViewOverride as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null) ||
@@ -65,7 +66,8 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, gra
       cache: layoutPositionCacheByMode as any,
       baseKey,
     })
-    return computePositions3d(nodes, schema, { seed2dPositions: seed2d })
+    const edges = ((graphDataForViewOverride || graphData) as GraphData | null)?.edges || []
+    return computePositions3d(nodes, schema, { seed2dPositions: seed2d, edges })
   }, [collapsedGroupIds, documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, graphData, graphDataForViewOverride, graphDataRevision, layoutPositionCacheByMode, mediaPanelDensity, nodes, renderMediaAsNodes, schema])
 }
 
@@ -88,11 +90,15 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
   const gridCellEntriesRef = useRef<Array<{ cx: number; cy: number; cz: number; key: string; bucket: number[] }>>([])
   const gridCellEntryPoolRef = useRef<Array<{ cx: number; cy: number; cz: number; key: string; bucket: number[] }>>([])
   const skipProjectionSetRef = useRef<Set<number>>(new Set())
-  const chargeVal = (schema.layout && schema.layout.forces && typeof schema.layout.forces.charge === 'number') ? schema.layout.forces.charge! : -300
-  // Stronger repulsion for 3D to avoid clustering
+  const radarGraphEnabled = isRadarGraph(nodes)
+  const radarForces = readRadarForceConfig(schema)
+  const chargeVal = radarGraphEnabled
+    ? radarForces.nodeCharge
+    : (schema.layout && schema.layout.forces && typeof schema.layout.forces.charge === 'number')
+      ? schema.layout.forces.charge!
+      : -300
   const effectiveCharge = chargeVal * 2.0
   const sphereRadius = resolveSphereRadius(schema, n)
-  // Increase minimum spacing
   const minSpacingCfg = resolveMinSpacing(schema)
   const repelRadius = Math.max(10, Math.min(sphereRadius, (typeof minSpacingCfg === 'number' ? Math.max(minSpacingCfg, 24) : 48)))
   const repelStrength = Math.max(10, Math.abs(effectiveCharge)) * 1.5
@@ -100,6 +106,17 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
   const damping = 0.85
   const maxSpeed = 6.0
   const layerSpacing = resolveSphereLayerSpacing(schema)
+  const ellipsoidAxes = resolveSphereEllipsoidAxes(schema)
+  const hubOrbitEnabled = schema.three?.globeHubOrbitEnabled !== false
+  const hubOrbitStrength = typeof schema.three?.globeHubOrbitStrength === 'number' && Number.isFinite(schema.three.globeHubOrbitStrength)
+    ? Math.max(0, Math.min(1.8, schema.three.globeHubOrbitStrength))
+    : 0.22
+  const hubOrbitSpeed = typeof schema.three?.globeHubOrbitSpeed === 'number' && Number.isFinite(schema.three.globeHubOrbitSpeed)
+    ? Math.max(0, Math.min(2.2, schema.three.globeHubOrbitSpeed))
+    : 0.24
+  const hubOrbitRadiusFactor = typeof schema.three?.globeHubOrbitRadiusFactor === 'number' && Number.isFinite(schema.three.globeHubOrbitRadiusFactor)
+    ? Math.max(0.05, Math.min(0.8, schema.three.globeHubOrbitRadiusFactor))
+    : 0.2
   const targetRByIndex = useMemo(() => {
     const out = new Float32Array(Math.max(1, n))
     for (let i = 0; i < n; i += 1) {
@@ -110,17 +127,85 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
   }, [layerOffsetIndices, layerSpacing, n, sphereRadius])
   const edgePairs = useMemo(() => {
     const linkDistanceByLabel = (schema.layout && schema.layout.forces && schema.layout.forces.linkDistanceByLabel) || {}
+    const endpointId = (v: unknown): string => {
+      if (typeof v === 'string' || typeof v === 'number') return String(v)
+      if (v && typeof v === 'object') {
+        const id = (v as { id?: unknown }).id
+        if (typeof id === 'string' || typeof id === 'number') return String(id)
+      }
+      return ''
+    }
     const arr: Array<[number, number, number]> = []
     for (let i = 0; i < edges.length; i++) {
       const e = edges[i]
-      const si = idxById.get(String(e.source))
-      const ti = idxById.get(String(e.target))
+      const sourceId = endpointId(e.source)
+      const targetId = endpointId(e.target)
+      const si = idxById.get(sourceId)
+      const ti = idxById.get(targetId)
       if (si == null || ti == null) continue
-      const dist = (linkDistanceByLabel && typeof linkDistanceByLabel[e.label] === 'number') ? linkDistanceByLabel[e.label]! : Math.max(28, Math.min(140, sphereRadius * 0.5))
+      const props = ((e as unknown as { properties?: unknown }).properties || {}) as Record<string, unknown>
+      const distancePxRaw = props.distance_px
+      const distancePx = typeof distancePxRaw === 'number' && Number.isFinite(distancePxRaw) ? distancePxRaw : null
+      const radialDist = (() => {
+        if (!radarGraphEnabled) return null
+        if (isRadarSpokeEdge(e)) return radarForces.spokeDistancePx * 0.45
+        if (isRadarFlowEdge(e)) return radarForces.flowDistancePx * 0.55
+        return null
+      })()
+      const byLabel =
+        linkDistanceByLabel && typeof linkDistanceByLabel[e.label] === 'number' ? linkDistanceByLabel[e.label]! : null
+      const baseDist = radialDist ?? distancePx ?? byLabel ?? Math.max(28, Math.min(140, sphereRadius * 0.5))
+      const dist = Math.max(22, Math.min(Math.max(80, sphereRadius * 1.8), baseDist))
       arr.push([si, ti, dist])
     }
     return arr
-  }, [edges, idxById, schema, sphereRadius])
+  }, [edges, idxById, radarForces.flowDistancePx, radarForces.spokeDistancePx, radarGraphEnabled, schema, sphereRadius])
+  const orbitHubIndexByNode = useMemo(() => {
+    const out = new Int32Array(Math.max(1, n))
+    out.fill(-1)
+    if (!radarGraphEnabled || n <= 1) return out
+    const hubIds: string[] = []
+    const hubSet = new Set<string>()
+    const hubByCluster = new Map<string, string>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i]
+      if (!node || !isRadarHubNode(node)) continue
+      const id = String(node.id || '').trim()
+      if (!id) continue
+      hubIds.push(id)
+      hubSet.add(id)
+      const props = ((node.properties || {}) as Record<string, unknown>)
+      const cluster = String(props['kg:radarCluster'] || id).trim()
+      if (cluster && !hubByCluster.has(cluster)) hubByCluster.set(cluster, id)
+    }
+    if (hubIds.length === 0) return out
+    hubIds.sort((a, b) => a.localeCompare(b))
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i]
+      if (!node) continue
+      const id = String(node.id || '').trim()
+      if (!id || hubSet.has(id)) continue
+      const props = ((node.properties || {}) as Record<string, unknown>)
+      const cluster = String(props['kg:radarCluster'] || '').trim()
+      const ownerId = (cluster && hubByCluster.get(cluster)) || hubIds[i % hubIds.length]
+      const hubIndex = idxById.get(ownerId)
+      if (typeof hubIndex === 'number') out[i] = hubIndex
+    }
+    for (let i = 0; i < edges.length; i += 1) {
+      const edge = edges[i]
+      if (!edge || !isRadarSpokeEdge(edge)) continue
+      const src = String(edge.source || '').trim()
+      const tgt = String(edge.target || '').trim()
+      if (!src || !tgt) continue
+      const hubId = hubSet.has(src) ? src : (hubSet.has(tgt) ? tgt : '')
+      const nodeId = hubId === src ? tgt : (hubId === tgt ? src : '')
+      if (!hubId || !nodeId || hubSet.has(nodeId)) continue
+      const ni = idxById.get(nodeId)
+      const hi = idxById.get(hubId)
+      if (typeof ni === 'number' && typeof hi === 'number') out[ni] = hi
+    }
+    return out
+  }, [edges, idxById, n, nodes, radarGraphEnabled])
   React.useEffect(() => {
     if (posX.current.length !== Math.max(1, n)) {
       posX.current = new Float32Array(Math.max(1, n))
@@ -275,6 +360,52 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
       vx[si] += fx; vy[si] += fy; vz[si] += fz
       vx[ti] -= fx; vy[ti] -= fy; vz[ti] -= fz
     }
+    if (hubOrbitEnabled && radarGraphEnabled) {
+      for (let i = 0; i < n; i += 1) {
+        if (skipProjection && skipProjection.has(i)) continue
+        const hubIdx = orbitHubIndexByNode[i]
+        if (!(hubIdx >= 0) || hubIdx >= n || hubIdx === i) continue
+        if (skipProjection && skipProjection.has(hubIdx)) continue
+        const hx = px[hubIdx]
+        const hy = py[hubIdx]
+        const hz = pz[hubIdx]
+        const hl = Math.sqrt(hx * hx + hy * hy + hz * hz)
+        if (!(hl > 1e-6)) continue
+        const ax = hx / hl
+        const ay = hy / hl
+        const az = hz / hl
+        const relX = px[i] - hx
+        const relY = py[i] - hy
+        const relZ = pz[i] - hz
+        const axial = relX * ax + relY * ay + relZ * az
+        let tx = relX - ax * axial
+        let ty = relY - ay * axial
+        let tz = relZ - az * axial
+        let tl = Math.sqrt(tx * tx + ty * ty + tz * tz)
+        if (!(tl > 1e-4)) {
+          const fallback = (i + hubIdx + 1) * 0.61803398875
+          tx = Math.cos(fallback)
+          ty = Math.sin(fallback)
+          tz = Math.cos(fallback * 0.7)
+          tl = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1
+        }
+        const ntx = tx / Math.max(1e-6, tl)
+        const nty = ty / Math.max(1e-6, tl)
+        const ntz = tz / Math.max(1e-6, tl)
+        const tanX = ay * ntz - az * nty
+        const tanY = az * ntx - ax * ntz
+        const tanZ = ax * nty - ay * ntx
+        const tanL = Math.sqrt(tanX * tanX + tanY * tanY + tanZ * tanZ)
+        if (!(tanL > 1e-6)) continue
+        const targetOrbitR = Math.max(6, targetRByIndex[i] * hubOrbitRadiusFactor)
+        const radialErr = targetOrbitR - tl
+        const pull = hubOrbitStrength * dt * 1.4
+        const spin = hubOrbitSpeed * dt * 10
+        vx[i] += ntx * radialErr * pull + (tanX / tanL) * spin
+        vy[i] += nty * radialErr * pull + (tanY / tanL) * spin
+        vz[i] += ntz * radialErr * pull + (tanZ / tanL) * spin
+      }
+    }
     
     for (let i = 0; i < n; i++) {
       vx[i] *= damping; vy[i] *= damping; vz[i] *= damping
@@ -315,7 +446,19 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
       }
     }
 
-    projectPositionsToSphereShell({ px, py, pz, vx, vy, vz, targetRByIndex, skipIndexSet: skipProjection })
+    projectPositionsToSphereShell({
+      px,
+      py,
+      pz,
+      vx,
+      vy,
+      vz,
+      targetRByIndex,
+      skipIndexSet: skipProjection,
+      axisX: ellipsoidAxes.x,
+      axisY: ellipsoidAxes.y,
+      axisZ: ellipsoidAxes.z,
+    })
     for (let i = 0; i < n; i++) {
       const id = nodes[i].id
       const p = positions[id]

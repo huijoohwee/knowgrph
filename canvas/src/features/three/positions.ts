@@ -1,8 +1,9 @@
-import type { GraphNode } from '@/lib/graph/types'
+import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { resolveGroupCollisions, type CollisionGroupItem } from '@/lib/graph/collision/boxCollision'
+import { isRadarHubNode, isRadarSpokeEdge } from '@/lib/graph/radarForces'
 
-import { resolveMinSpacing, resolveSphereLayerSpacing, resolveSphereRadius, resolveThreeSeed } from './threeLayoutConfig'
+import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveThreeSeed } from './threeLayoutConfig'
 
 export type Vec3 = [number, number, number]
 
@@ -81,16 +82,52 @@ export function asVec3(v: unknown): Vec3 | null {
   return [a, b, c]
 }
 
+const hash01 = (input: string): number => {
+  let h = 2166136261 >>> 0
+  for (let i = 0; i < input.length; i += 1) {
+    h ^= input.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return (h >>> 0) / 4294967295
+}
+
+const projectDirectionToEllipsoidShell = (
+  dx: number,
+  dy: number,
+  dz: number,
+  targetR: number,
+  axisX: number,
+  axisY: number,
+  axisZ: number,
+): Vec3 => {
+  const len = Math.sqrt(dx * dx + dy * dy + dz * dz)
+  if (!(len > 1e-6)) return [targetR * axisX, 0, 0]
+  const nx = dx / len
+  const ny = dy / len
+  const nz = dz / len
+  const denom = Math.sqrt(
+    (nx * nx) / Math.max(1e-6, axisX * axisX) +
+    (ny * ny) / Math.max(1e-6, axisY * axisY) +
+    (nz * nz) / Math.max(1e-6, axisZ * axisZ),
+  )
+  const shellScale = denom > 1e-6 ? targetR / denom : targetR
+  return [nx * shellScale, ny * shellScale, nz * shellScale]
+}
+
 export function computePositions3d(
   nodes: GraphNode[],
   schema: GraphSchema | null,
-  opts?: { seed2dPositions?: Record<string, { x: number; y: number }> | null },
+  opts?: { seed2dPositions?: Record<string, { x: number; y: number }> | null; edges?: GraphEdge[] | null },
 ): Record<string, Vec3> {
   const out: Record<string, Vec3> = {}
   const n = Math.max(1, nodes.length)
   const radius = resolveSphereRadius(schema, n)
   const seedCfg = resolveThreeSeed(schema)
   const minSpacingCfg = resolveMinSpacing(schema)
+  const ellipsoidAxes = resolveSphereEllipsoidAxes(schema)
+  const axisX = ellipsoidAxes.x
+  const axisY = ellipsoidAxes.y
+  const axisZ = ellipsoidAxes.z
   const sphere = fibSphere(n, radius, seedCfg, minSpacingCfg)
   const layerOffsetIndices = computeLayerOffsetIndices(nodes)
   const canRelax = typeof minSpacingCfg === 'number' && Number.isFinite(minSpacingCfg) && minSpacingCfg > 0
@@ -122,14 +159,14 @@ export function computePositions3d(
     const nx = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : null
     const ny = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : null
     const s = sphere[i] || [0, 0, 0]
-    const seedZ = (s[2] / Math.max(1e-6, radius)) * targetR
+    const projectedSeed = projectDirectionToEllipsoidShell(s[0], s[1], s[2], targetR, axisX, axisY, axisZ)
+    const seedZ = projectedSeed[2]
     if (seed) {
-      out[node.id] = [seed.x, seed.y, seedZ]
+      out[node.id] = projectDirectionToEllipsoidShell(seed.x, seed.y, seedZ, targetR, axisX, axisY, axisZ)
     } else if (nx != null && ny != null) {
-      out[node.id] = [nx, ny, seedZ]
+      out[node.id] = projectDirectionToEllipsoidShell(nx, ny, seedZ, targetR, axisX, axisY, axisZ)
     } else {
-      const scale = targetR / Math.max(1e-6, radius)
-      out[node.id] = [s[0] * scale, s[1] * scale, s[2] * scale]
+      out[node.id] = projectedSeed
     }
     if (canRelax) {
       const id = String(node.id || '').trim()
@@ -148,6 +185,108 @@ export function computePositions3d(
         gap: 0,
         movableIdxs: [relaxGroups.length],
       })
+    }
+  }
+
+  const hubOrbitEnabled = schema?.three?.globeHubOrbitEnabled !== false
+  if (hubOrbitEnabled && nodes.length >= 3) {
+    const edges = Array.isArray(opts?.edges) ? opts!.edges! : []
+    const hubOrbitRadiusFactorRaw = schema?.three?.globeHubOrbitRadiusFactor
+    const hubOrbitRadiusFactor = typeof hubOrbitRadiusFactorRaw === 'number' && Number.isFinite(hubOrbitRadiusFactorRaw)
+      ? Math.max(0.05, Math.min(0.8, hubOrbitRadiusFactorRaw))
+      : 0.2
+    const nodeById = new Map<string, GraphNode>()
+    const hubIds: string[] = []
+    const hubSet = new Set<string>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i]
+      const id = String(node.id || '').trim()
+      if (!id) continue
+      nodeById.set(id, node)
+      if (isRadarHubNode(node)) {
+        hubIds.push(id)
+        hubSet.add(id)
+      }
+    }
+    if (hubIds.length > 0) {
+      hubIds.sort((a, b) => a.localeCompare(b))
+      const hubByCluster = new Map<string, string>()
+      const nodeIndexById = new Map<string, number>()
+      for (let i = 0; i < hubIds.length; i += 1) {
+        const hubId = hubIds[i]!
+        const hubNode = nodeById.get(hubId)
+        const props = ((hubNode?.properties || {}) as Record<string, unknown>)
+        const cluster = String(props['kg:radarCluster'] || hubId).trim()
+        if (!cluster) continue
+        if (!hubByCluster.has(cluster)) hubByCluster.set(cluster, hubId)
+      }
+      const membersByHub = new Map<string, string[]>()
+      for (let i = 0; i < nodes.length; i += 1) {
+        const node = nodes[i]
+        const id = String(node.id || '').trim()
+        if (!id || hubSet.has(id)) continue
+        nodeIndexById.set(id, i)
+        const props = ((node.properties || {}) as Record<string, unknown>)
+        const cluster = String(props['kg:radarCluster'] || '').trim()
+        const owner = (cluster && hubByCluster.get(cluster)) || hubIds[i % hubIds.length]
+        const arr = membersByHub.get(owner) || []
+        arr.push(id)
+        membersByHub.set(owner, arr)
+      }
+      for (let i = 0; i < edges.length; i += 1) {
+        const edge = edges[i]
+        if (!edge || !isRadarSpokeEdge(edge)) continue
+        const src = String(edge.source || '').trim()
+        const tgt = String(edge.target || '').trim()
+        if (!src || !tgt) continue
+        const hubId = hubSet.has(src) ? src : (hubSet.has(tgt) ? tgt : '')
+        const nodeId = hubId === src ? tgt : (hubId === tgt ? src : '')
+        if (!hubId || !nodeId || hubSet.has(nodeId)) continue
+        const arr = membersByHub.get(hubId) || []
+        if (!arr.includes(nodeId)) arr.push(nodeId)
+        membersByHub.set(hubId, arr)
+      }
+      for (let hi = 0; hi < hubIds.length; hi += 1) {
+        const hubId = hubIds[hi]!
+        const hubPos = out[hubId]
+        if (!hubPos) continue
+        const members = [...(membersByHub.get(hubId) || [])].sort((a, b) => a.localeCompare(b))
+        if (members.length === 0) continue
+        const hLen = Math.sqrt(hubPos[0] * hubPos[0] + hubPos[1] * hubPos[1] + hubPos[2] * hubPos[2])
+        if (!(hLen > 1e-6)) continue
+        const hn: Vec3 = [hubPos[0] / hLen, hubPos[1] / hLen, hubPos[2] / hLen]
+        const ref: Vec3 = Math.abs(hn[1]) < 0.92 ? [0, 1, 0] : [1, 0, 0]
+        const ux = ref[1] * hn[2] - ref[2] * hn[1]
+        const uy = ref[2] * hn[0] - ref[0] * hn[2]
+        const uz = ref[0] * hn[1] - ref[1] * hn[0]
+        const ul = Math.sqrt(ux * ux + uy * uy + uz * uz) || 1
+        const u: Vec3 = [ux / ul, uy / ul, uz / ul]
+        const vx = hn[1] * u[2] - hn[2] * u[1]
+        const vy = hn[2] * u[0] - hn[0] * u[2]
+        const vz = hn[0] * u[1] - hn[1] * u[0]
+        const v: Vec3 = [vx, vy, vz]
+        const capBase = 9
+        for (let mi = 0; mi < members.length; mi += 1) {
+          const nodeId = members[mi]!
+          const nodeIndex = nodeIndexById.get(nodeId) ?? -1
+          const targetR = nodeIndex >= 0 && Number.isFinite(layerOffsetIndices[nodeIndex])
+            ? radius + layerOffsetIndices[nodeIndex]! * layerSpacing
+            : radius
+          const ring = Math.floor(mi / capBase)
+          const inRing = mi % capBase
+          const ringSize = Math.min(18, Math.max(capBase, members.length - ring * capBase))
+          const baseAngle = hash01(`${hubId}:${nodeId}:orbit`) * Math.PI * 2
+          const angle = baseAngle + ((Math.PI * 2 * inRing) / Math.max(1, ringSize))
+          const orbitR = targetR * hubOrbitRadiusFactor * (1 + ring * 0.52)
+          const tangentX = u[0] * Math.cos(angle) + v[0] * Math.sin(angle)
+          const tangentY = u[1] * Math.cos(angle) + v[1] * Math.sin(angle)
+          const tangentZ = u[2] * Math.cos(angle) + v[2] * Math.sin(angle)
+          const dirX = hn[0] * targetR + tangentX * orbitR
+          const dirY = hn[1] * targetR + tangentY * orbitR
+          const dirZ = hn[2] * targetR + tangentZ * orbitR
+          out[nodeId] = projectDirectionToEllipsoidShell(dirX, dirY, dirZ, targetR, axisX, axisY, axisZ)
+        }
+      }
     }
   }
 

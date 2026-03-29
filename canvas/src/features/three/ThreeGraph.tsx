@@ -440,9 +440,9 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     const camSpace = new Vector3()
     const dir = new Vector3()
     const nearPoint = new Vector3()
-    const candidates: Array<{ id: string; sx: number; sy: number; dist: number; sizeScale: number }> = []
+    const candidates: Array<{ id: string; sx: number; sy: number; dist: number; sizeScale: number; opacity: number }> = []
     const selectedIds = new Set<string>()
-    const candidateById = new Map<string, { id: string; sx: number; sy: number; dist: number; sizeScale: number }>()
+    const candidateById = new Map<string, { id: string; sx: number; sy: number; dist: number; sizeScale: number; opacity: number }>()
     const update = () => {
       const camera = threeCameraRef.current
       const gl = threeGlRef.current
@@ -454,6 +454,8 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
       const maxCount = Number.isFinite(maxCountRaw) ? Math.max(0, Math.floor(maxCountRaw)) : 0
       const maxDistanceRaw = density === 'compact' ? threeIframeOverlayMaxDistanceCompact : threeIframeOverlayMaxDistanceDefault
       const maxDistance = Number.isFinite(maxDistanceRaw) ? Math.max(0, Number(maxDistanceRaw)) : 0
+      const labelDepthFadeEnabled = effectiveSchema.three?.globeLabelDepthFade !== false
+      const labelBackfaceCullingEnabled = effectiveSchema.three?.globeLabelBackfaceCulling !== false
       const prevVisibleIds = iframeOverlayVisibleIdsRef.current
       if (maxCount === 0 || maxDistance <= 0) {
         for (const id of prevVisibleIds) {
@@ -490,6 +492,10 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
         world.set(pos3[0], pos3[1], pos3[2])
         const dist = camera.position.distanceTo(world)
         if (!Number.isFinite(dist) || dist > maxDistance) continue
+        if (labelBackfaceCullingEnabled) {
+          const cameraDot = world.dot(camera.position)
+          if (!Number.isFinite(cameraDot) || cameraDot < 0) continue
+        }
         try {
           camSpace.copy(world).applyMatrix4((camera as unknown as { matrixWorldInverse: unknown }).matrixWorldInverse as never)
         } catch {
@@ -555,7 +561,10 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
             ? threeIframeOverlaySizeScaleFactor
             : 260
         const sizeScale = Math.max(0.001, Math.min(256, sizeFactor / Math.max(0.001, dist)))
-        candidates.push({ id: node.id, sx, sy, dist, sizeScale })
+        const opacity = labelDepthFadeEnabled
+          ? Math.max(0.14, Math.min(1, 1 - Math.pow(dist / Math.max(1, maxDistance), 1.24)))
+          : 1
+        candidates.push({ id: node.id, sx, sy, dist, sizeScale, opacity })
       }
       candidates.sort((a, b) => {
         const d = a.dist - b.dist
@@ -677,6 +686,11 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
           zIndex: 2000 - Math.max(0, Math.min(1500, Math.floor(c.dist))),
           display: 'block',
         })
+        try {
+          el.style.opacity = String(c.opacity)
+        } catch {
+          void 0
+        }
       }
       iframeOverlayVisibleIdsRef.current = nextVisibleIds
     }
@@ -723,6 +737,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     threeIframeOverlaySizeScaleFactor,
     selectedNodeId,
     selectedNodeIds,
+    effectiveSchema,
   ])
 
   const panelOnlyNodeIdSet = useMemo(() => {

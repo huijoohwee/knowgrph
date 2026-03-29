@@ -11,6 +11,12 @@ import type { Vec3 } from './layout'
 import { applyZoomStep, fitCameraToPositions, type CameraRequestType, getCameraConfig } from './camera'
 import { buildAutoFitToScreenSignature, buildAutoZoomSelectionSignature } from '@/lib/zoom/autoModeSignatures'
 
+function clamp(value: number, min: number, max: number): number {
+  if (value < min) return min
+  if (value > max) return max
+  return value
+}
+
 export function Controls({
   schema,
   positions,
@@ -46,8 +52,38 @@ export function Controls({
   const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds)
   const selectedGroupIds = useGraphStore(s => s.selectedGroupIds)
   const zoomToSelectionMode = useGraphStore(s => s.zoomToSelectionMode)
+  const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const expansionCfg = schema.behavior?.expansion || {}
   const zoomOnSelectionEnabled = expansionCfg.enabled !== false && expansionCfg.zoomOnSelection !== false
+  const cameraPathUserInteractingRef = React.useRef(false)
+  const cameraPathInteractionAtRef = React.useRef(0)
+  const cameraPathPhaseRef = React.useRef(0)
+  const cameraPathDistanceScaleRef = React.useRef(1)
+  const cameraPathDesiredRef = React.useRef(new THREE.Vector3())
+  React.useEffect(() => {
+    const handleStart = () => {
+      cameraPathUserInteractingRef.current = true
+      cameraPathInteractionAtRef.current = Date.now()
+    }
+    const handleEnd = () => {
+      cameraPathUserInteractingRef.current = false
+      cameraPathInteractionAtRef.current = Date.now()
+    }
+    try {
+      controls.addEventListener('start', handleStart)
+      controls.addEventListener('end', handleEnd)
+    } catch {
+      void 0
+    }
+    return () => {
+      try {
+        controls.removeEventListener('start', handleStart)
+        controls.removeEventListener('end', handleEnd)
+      } catch {
+        void 0
+      }
+    }
+  }, [controls])
   React.useEffect(() => {
     if (!onControlsChange) return
     const handler = () => {
@@ -70,9 +106,81 @@ export function Controls({
       }
     }
   }, [controls, onControlsChange])
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (paused) return
     controls.update()
+    const threeCfg = schema.three || {}
+    const globeEffectsEnabled = threeCfg.globeEffectsEnabled !== false
+    const layoutMode = schema.layout?.mode
+    const d3Like = canvas2dRenderer === 'd3' || canvas2dRenderer === 'd3Bipartite'
+    const cameraPathEnabled = globeEffectsEnabled && threeCfg.globeCameraEllipseEnabled !== false && layoutMode === 'radial' && d3Like && !viewPinned
+    if (cameraPathEnabled) {
+      const sphereRadius = clamp(
+        typeof threeCfg.sphereRadius === 'number' && Number.isFinite(threeCfg.sphereRadius) ? threeCfg.sphereRadius : 120,
+        50,
+        560,
+      )
+      const speed = clamp(
+        typeof threeCfg.globeCameraEllipseSpeed === 'number' && Number.isFinite(threeCfg.globeCameraEllipseSpeed) ? threeCfg.globeCameraEllipseSpeed : 0.09,
+        0,
+        0.4,
+      )
+      const radiusXFactor = clamp(
+        typeof threeCfg.globeCameraEllipseRadiusXFactor === 'number' && Number.isFinite(threeCfg.globeCameraEllipseRadiusXFactor) ? threeCfg.globeCameraEllipseRadiusXFactor : 1.18,
+        0.4,
+        2.2,
+      )
+      const radiusZFactor = clamp(
+        typeof threeCfg.globeCameraEllipseRadiusZFactor === 'number' && Number.isFinite(threeCfg.globeCameraEllipseRadiusZFactor) ? threeCfg.globeCameraEllipseRadiusZFactor : 0.92,
+        0.4,
+        2.2,
+      )
+      const heightFactor = clamp(
+        typeof threeCfg.globeCameraEllipseHeightFactor === 'number' && Number.isFinite(threeCfg.globeCameraEllipseHeightFactor) ? threeCfg.globeCameraEllipseHeightFactor : 0.32,
+        0,
+        1,
+      )
+      const follow = clamp(
+        typeof threeCfg.globeCameraEllipseFollow === 'number' && Number.isFinite(threeCfg.globeCameraEllipseFollow) ? threeCfg.globeCameraEllipseFollow : 0.12,
+        0.02,
+        1,
+      )
+      const rx = Math.max(12, sphereRadius * radiusXFactor)
+      const rz = Math.max(12, sphereRadius * radiusZFactor)
+      const now = Date.now()
+      const target = controls.target
+      const dx = camera.position.x - target.x
+      const dz = camera.position.z - target.z
+      const phaseFromCamera = Math.atan2(dz / Math.max(1e-6, rz), dx / Math.max(1e-6, rx))
+      const inferredScale = Math.sqrt(
+        ((dx / Math.max(1e-6, rx)) * (dx / Math.max(1e-6, rx))) +
+        ((dz / Math.max(1e-6, rz)) * (dz / Math.max(1e-6, rz))),
+      )
+      if (Number.isFinite(inferredScale) && inferredScale > 0) {
+        const scale = clamp(inferredScale, 0.35, 4)
+        if (cameraPathUserInteractingRef.current || now - cameraPathInteractionAtRef.current < 460) {
+          cameraPathDistanceScaleRef.current = scale
+        } else if (!(cameraPathDistanceScaleRef.current > 0)) {
+          cameraPathDistanceScaleRef.current = scale
+        }
+      }
+      if (cameraPathUserInteractingRef.current || now - cameraPathInteractionAtRef.current < 460) {
+        if (Number.isFinite(phaseFromCamera)) cameraPathPhaseRef.current = phaseFromCamera
+      } else if (speed > 0) {
+        cameraPathPhaseRef.current += delta * speed * Math.PI * 2
+        const phase = cameraPathPhaseRef.current
+        const scale = clamp(cameraPathDistanceScaleRef.current || 1, 0.35, 4)
+        const desiredY = target.y + sphereRadius * heightFactor * scale + Math.sin(phase * 0.6) * (sphereRadius * 0.08) * Math.min(1.6, scale)
+        const desired = cameraPathDesiredRef.current.set(
+          target.x + Math.cos(phase) * rx * scale,
+          desiredY,
+          target.z + Math.sin(phase) * rz * scale,
+        )
+        const alpha = clamp(follow * delta * 60, 0, 1)
+        camera.position.lerp(desired, alpha)
+        camera.lookAt(target)
+      }
+    }
     if (!threeCameraAutoClip) return
     const dist = camera.position.distanceTo(controls.target)
     if (!Number.isFinite(dist) || dist <= 0) return
@@ -161,6 +269,15 @@ export function Controls({
   ])
   React.useEffect(() => {
     const cfg = getCameraConfig(schema)
+    const globeEffectsEnabled = schema.three?.globeEffectsEnabled !== false
+    const globeCameraEllipseEnabled = schema.three?.globeCameraEllipseEnabled !== false
+    const d3Like = canvas2dRenderer === 'd3' || canvas2dRenderer === 'd3Bipartite'
+    const layoutMode = schema.layout?.mode
+    const pathEnabled = globeEffectsEnabled && globeCameraEllipseEnabled && layoutMode === 'radial' && d3Like
+    const globeAutoRotateSpeed =
+      typeof schema.three?.globeAutoRotateSpeed === 'number' && Number.isFinite(schema.three.globeAutoRotateSpeed)
+        ? Math.max(0, Math.min(0.4, schema.three.globeAutoRotateSpeed))
+        : 0.11
     const st = useGraphStore.getState()
     const m = typeof st.canvasInteractionSpeedMultiplier === 'number' && Number.isFinite(st.canvasInteractionSpeedMultiplier) ? st.canvasInteractionSpeedMultiplier : 1
     const safe = Math.max(0.1, Math.min(10, m))
@@ -168,9 +285,9 @@ export function Controls({
     controls.rotateSpeed = cfg.rotateSpeed * safe
     controls.zoomSpeed = cfg.zoomSpeed * safe
     controls.panSpeed = cfg.panSpeed * safe
-    controls.autoRotate = cfg.autoRotate && !viewPinned
-    controls.autoRotateSpeed = cfg.autoRotateSpeed
-  }, [controls, schema, viewPinned])
+    controls.autoRotate = !pathEnabled && (cfg.autoRotate || globeEffectsEnabled) && !viewPinned
+    controls.autoRotateSpeed = globeEffectsEnabled ? globeAutoRotateSpeed : cfg.autoRotateSpeed
+  }, [canvas2dRenderer, controls, schema, viewPinned])
   React.useEffect(() => {
     controls.enabled = !paused
   }, [controls, paused])

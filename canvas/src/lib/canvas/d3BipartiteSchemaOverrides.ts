@@ -1,5 +1,6 @@
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { readLayoutMode2d } from '@/lib/graph/layoutMode'
 
 export function withD3BipartiteSceneSchema(args: {
   schema: GraphSchema
@@ -10,9 +11,11 @@ export function withD3BipartiteSceneSchema(args: {
 }): GraphSchema {
   const { schema, graphData, canvasRenderMode, canvas2dRenderer, forceForAny2dRenderer } = args
   if (canvasRenderMode !== '2d') return schema
+  const layoutMode = readLayoutMode2d(schema)
   const meta = (graphData?.metadata || {}) as Record<string, unknown>
   const graphKind = typeof meta.graphKind === 'string' ? meta.graphKind : ''
-  if (graphKind !== 'bipartite') return schema
+  const enforceBlockLayout = layoutMode === 'block'
+  if (!enforceBlockLayout && graphKind !== 'bipartite') return schema
   const renderer = String(canvas2dRenderer || '')
   const isD3LikeRenderer = renderer === 'd3' || renderer === 'd3Bipartite'
   if (!forceForAny2dRenderer && !isD3LikeRenderer) return schema
@@ -39,7 +42,7 @@ export function withD3BipartiteSceneSchema(args: {
           spokeTo: 110,
         },
       },
-      mode: 'force',
+      mode: enforceBlockLayout ? 'block' : layoutMode,
     },
   }
 }

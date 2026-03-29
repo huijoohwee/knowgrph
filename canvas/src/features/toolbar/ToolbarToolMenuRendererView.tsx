@@ -13,8 +13,20 @@ import { DesignWireframeSettings } from '@/features/toolbar/ui/DesignWireframeSe
 import { BipartiteRendererSettings } from '@/features/toolbar/ui/BipartiteRendererSettings'
 import { RadarGalaxyRendererSettings } from '@/features/toolbar/ui/RadarGalaxyRendererSettings'
 import { EdgeTypesRendererSettings } from '@/features/toolbar/ui/EdgeTypesRendererSettings'
+import type { GraphSchema } from '@/lib/graph/schema'
+import { readGlobalEdgeType, type GlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { LayoutModeRendererSettings } from '@/features/toolbar/ui/LayoutModeRendererSettings'
+import { readLayoutMode2d, type LayoutMode2d } from '@/lib/graph/layoutMode'
 
-export function ToolbarToolMenuRendererView() {
+export function ToolbarToolMenuRendererView(props: {
+  onRegisterActions?: (actions: {
+    apply?: () => void
+    reset?: () => void
+    applyDisabled?: boolean
+    resetDisabled?: boolean
+  }) => void
+}) {
+  const onRegisterActions = props.onRegisterActions
   const {
     sections: renderSections,
     allSectionsCollapsed: allRenderSectionsCollapsed,
@@ -42,13 +54,23 @@ export function ToolbarToolMenuRendererView() {
   const setRenderPresetsCollapsed = renderSectionSetters.presets
   const setRenderCodebaseIndexCollapsed = renderSectionSetters.codebaseIndex
 
-  const { workspaceViewMode, canvasRenderMode, canvas2dRenderer, graphData, setCanvasPointerMode2d } = useGraphStore(
+  const {
+    workspaceViewMode,
+    canvasRenderMode,
+    canvas2dRenderer,
+    graphData,
+    setCanvasPointerMode2d,
+    schema,
+    setSchema,
+  } = useGraphStore(
     useShallow(s => ({
       workspaceViewMode: s.workspaceViewMode,
       canvasRenderMode: s.canvasRenderMode,
       canvas2dRenderer: s.canvas2dRenderer,
       graphData: s.graphData,
       setCanvasPointerMode2d: s.setCanvasPointerMode2d,
+      schema: s.schema,
+      setSchema: s.setSchema,
     })),
   )
 
@@ -60,23 +82,84 @@ export function ToolbarToolMenuRendererView() {
   )
 
   const [toolId, setToolId] = React.useState<GraphEditorToolId>('select')
+  const appliedEdgeType = readGlobalEdgeType(schema)
+  const appliedLayoutMode = readLayoutMode2d(schema)
+  const [edgeTypeDraft, setEdgeTypeDraft] = React.useState<GlobalEdgeType>(appliedEdgeType)
+  const [layoutModeDraft, setLayoutModeDraft] = React.useState<LayoutMode2d>(appliedLayoutMode)
 
   React.useEffect(() => {
     const next = toolId === 'pan' ? 'pan' : 'select'
     setCanvasPointerMode2d(next)
   }, [toolId, setCanvasPointerMode2d])
 
+  React.useEffect(() => {
+    setEdgeTypeDraft(appliedEdgeType)
+  }, [appliedEdgeType])
+  React.useEffect(() => {
+    setLayoutModeDraft(appliedLayoutMode)
+  }, [appliedLayoutMode])
+
+  const applyRendererDraft = React.useCallback(() => {
+    if (edgeTypeDraft === appliedEdgeType && layoutModeDraft === appliedLayoutMode) return
+    const current = useGraphStore.getState().schema as GraphSchema
+    const layout = current.layout || {}
+    const edges = layout.edges || {}
+    const nextLayoutMode = layoutModeDraft
+    setSchema({
+      ...current,
+      layout: {
+        ...layout,
+        mode: nextLayoutMode,
+        edges: {
+          ...edges,
+          type: edgeTypeDraft,
+        },
+      },
+    })
+  }, [appliedEdgeType, appliedLayoutMode, edgeTypeDraft, layoutModeDraft, setSchema])
+
+  const resetRendererDraft = React.useCallback(() => {
+    setEdgeTypeDraft(appliedEdgeType)
+    setLayoutModeDraft(appliedLayoutMode)
+  }, [appliedEdgeType, appliedLayoutMode])
+
+  const rendererDraftUnchanged = edgeTypeDraft === appliedEdgeType && layoutModeDraft === appliedLayoutMode
+
+  React.useEffect(() => {
+    if (!onRegisterActions) return
+    onRegisterActions({
+      apply: applyRendererDraft,
+      reset: resetRendererDraft,
+      applyDisabled: rendererDraftUnchanged,
+      resetDisabled: rendererDraftUnchanged,
+    })
+  }, [applyRendererDraft, onRegisterActions, rendererDraftUnchanged, resetRendererDraft])
+
   const showGraphEditorUi =
     workspaceViewMode === 'editor' && canvasRenderMode === '2d' && canvas2dRenderer === 'd3'
   const showDesignWireframeUi = canvasRenderMode === '2d' && canvas2dRenderer === 'design'
   const showBipartiteUi = canvasRenderMode === '2d' && canvas2dRenderer === 'd3Bipartite'
   const showRadarGalaxyUi = canvasRenderMode === '2d' && (canvas2dRenderer === 'd3' || canvas2dRenderer === 'd3Bipartite')
+  const allowLayoutModeSelection = canvas2dRenderer === 'd3' || canvas2dRenderer === 'd3Bipartite'
+
+  React.useEffect(() => {
+    if (allowLayoutModeSelection) return
+    setLayoutModeDraft(appliedLayoutMode)
+  }, [allowLayoutModeSelection, appliedLayoutMode])
 
   return (
     <div className="flex flex-col gap-2">
       <RendererPaletteSettings />
       <RendererHoverSettings />
-      <EdgeTypesRendererSettings />
+      <LayoutModeRendererSettings
+        selectedLayoutMode={layoutModeDraft}
+        onSelectLayoutMode={setLayoutModeDraft}
+        disabled={!allowLayoutModeSelection}
+      />
+      <EdgeTypesRendererSettings
+        selectedEdgeType={edgeTypeDraft}
+        onSelectEdgeType={setEdgeTypeDraft}
+      />
       {showRadarGalaxyUi ? <RadarGalaxyRendererSettings /> : null}
       {showBipartiteUi ? <BipartiteRendererSettings /> : null}
       <section className="flex flex-col gap-1" aria-label="Rich media rendering">

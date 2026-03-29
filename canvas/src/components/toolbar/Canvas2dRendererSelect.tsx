@@ -26,10 +26,11 @@ type RendererOption = {
 const MENU_WIDTH_CLASS = 'w-64'
 
 export function Canvas2dRendererSelect({ iconSizeClass, iconStrokeWidth, ensureBaselineUnlocked, disabled }: Canvas2dRendererSelectProps) {
-  const { canvas2dRenderer, setCanvas2dRenderer } = useGraphStore(
+  const { canvas2dRenderer, setCanvas2dRenderer, layoutMode } = useGraphStore(
     useShallow(s => ({
       canvas2dRenderer: (s.canvas2dRenderer || 'd3') as Canvas2dRendererId,
       setCanvas2dRenderer: s.setCanvas2dRenderer,
+      layoutMode: s.schema?.layout?.mode,
     })),
   )
 
@@ -100,6 +101,10 @@ export function Canvas2dRendererSelect({ iconSizeClass, iconStrokeWidth, ensureB
           >
             {options.map(option => {
               const isActive = option.id === canvas2dRenderer
+              const disabledForRadial =
+                layoutMode === 'radial' &&
+                option.id !== 'd3' &&
+                option.id !== 'd3Bipartite'
               return (
                 <li key={option.id} className="list-none">
                   <button
@@ -107,8 +112,10 @@ export function Canvas2dRendererSelect({ iconSizeClass, iconStrokeWidth, ensureB
                     className={`w-full flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} hover:bg-gray-100 dark:hover:bg-gray-800 ${
                       isActive ? uiPrimaryChipActiveClassName : ''
                     }`}
+                    disabled={disabledForRadial}
                     onClick={() => {
                       if (!ensureBaselineUnlocked()) return
+                      if (disabledForRadial) return
                       setCanvas2dRenderer(option.id)
                       setOpen(false)
                     }}

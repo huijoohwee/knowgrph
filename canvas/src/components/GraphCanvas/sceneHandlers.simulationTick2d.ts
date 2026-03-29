@@ -16,7 +16,8 @@ import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { computeIdealSpacing2d, computeMaxSpeed2d, readPhysics2dTuning } from '@/lib/graph/physics2dTuning'
 import { applyStrictOverlapRelax2d, type StrictOverlapState2d } from '@/components/GraphCanvas/sceneHandlers.simulationTick2d.strictOverlap'
 import { renderLabels2d, type LabelRelaxState2d } from '@/components/GraphCanvas/sceneHandlers.simulationTick2d.labels'
-import { buildEdgePathD, readGlobalEdgeType, type GlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { buildEdgePathD, readEdgePathCurveOptions, readGlobalEdgeType, type GlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { readRadarForceConfig } from '@/lib/graph/radarForces'
 
 export const attachSimulationTick = (args: {
   svgEl: SVGSVGElement
@@ -279,12 +280,14 @@ export const attachSimulationTick = (args: {
         if (isPanelNode(from)) return pickEndpointRectOrCircle(from, to, padOut)
         return getEdgeEndpointFromPorts({ from, to, schema })
       }
+      const radarForceCfg = readRadarForceConfig(schema)
 
       const readEdgePresentation = (
         d: GraphEdge,
       ): {
         curve: boolean
         bend: number
+        phase: -1 | 1
         arrow: boolean
         orbitShift: number
         arrowLength: number
@@ -295,71 +298,37 @@ export const attachSimulationTick = (args: {
         const props = d.properties && typeof d.properties === 'object' && !Array.isArray(d.properties)
           ? (d.properties as Record<string, unknown>)
           : null
+        const curveOptions = readEdgePathCurveOptions(d, schema)
         const curveMode = String(props?.['visual:curve'] || '').trim().toLowerCase()
         const curve = curveMode === 'quadratic' || props?.['kg:radarFlow'] === true
         const interpolator = String(props?.['visual:curveInterpolator'] || '').trim().toLowerCase()
         const orbital = curve && (interpolator === 'orbital' || props?.['kg:radarFlow'] === true)
-        const bendRaw = props?.['visual:curveBend']
-        const bendN = typeof bendRaw === 'number' ? bendRaw : typeof bendRaw === 'string' ? Number(bendRaw) : NaN
-        const schemaForces = (schema.layout?.forces as {
-          radarFlowCurveBend?: unknown
-          radarFlowOrbitShift?: unknown
-          radarFlowArrowLengthPx?: unknown
-          radarFlowArrowHalfWidthPx?: unknown
-        } | undefined)
-        const schemaBendRaw = schemaForces?.radarFlowCurveBend
-        const schemaBend = typeof schemaBendRaw === 'number'
-          ? schemaBendRaw
-          : typeof schemaBendRaw === 'string'
-            ? Number(schemaBendRaw)
-            : NaN
-        const bend = Number.isFinite(bendN)
-          ? Math.max(-0.8, Math.min(0.8, bendN))
-          : Number.isFinite(schemaBend)
-            ? Math.max(-0.8, Math.min(0.8, schemaBend))
-            : 0.18
-        const orbitRaw = props?.['visual:orbitShift']
-        const orbitN = typeof orbitRaw === 'number' ? orbitRaw : typeof orbitRaw === 'string' ? Number(orbitRaw) : NaN
-        const schemaOrbitRaw = schemaForces?.radarFlowOrbitShift
-        const schemaOrbit = typeof schemaOrbitRaw === 'number'
-          ? schemaOrbitRaw
-          : typeof schemaOrbitRaw === 'string'
-            ? Number(schemaOrbitRaw)
-            : NaN
-        const orbitShift = Number.isFinite(orbitN)
-          ? Math.max(0, Math.min(0.45, orbitN))
-          : Number.isFinite(schemaOrbit)
-            ? Math.max(0, Math.min(0.45, schemaOrbit))
-            : 0.06
+        const bend = curveOptions ? curveOptions.bend : radarForceCfg.flowCurveBend
+        const orbitShift = curveOptions ? curveOptions.orbitShift : radarForceCfg.flowOrbitShift
         const arrowLenRaw = props?.['visual:arrowLengthPx']
         const arrowLenN = typeof arrowLenRaw === 'number' ? arrowLenRaw : typeof arrowLenRaw === 'string' ? Number(arrowLenRaw) : NaN
-        const schemaArrowLenRaw = schemaForces?.radarFlowArrowLengthPx
-        const schemaArrowLen = typeof schemaArrowLenRaw === 'number'
-          ? schemaArrowLenRaw
-          : typeof schemaArrowLenRaw === 'string'
-            ? Number(schemaArrowLenRaw)
-            : NaN
         const arrowLength = Number.isFinite(arrowLenN)
           ? Math.max(4, Math.min(30, arrowLenN))
-          : Number.isFinite(schemaArrowLen)
-            ? Math.max(4, Math.min(30, schemaArrowLen))
-            : 12
+          : radarForceCfg.flowArrowLengthPx
         const arrowHalfRaw = props?.['visual:arrowHalfWidthPx']
         const arrowHalfN = typeof arrowHalfRaw === 'number' ? arrowHalfRaw : typeof arrowHalfRaw === 'string' ? Number(arrowHalfRaw) : NaN
-        const schemaArrowHalfRaw = schemaForces?.radarFlowArrowHalfWidthPx
-        const schemaArrowHalf = typeof schemaArrowHalfRaw === 'number'
-          ? schemaArrowHalfRaw
-          : typeof schemaArrowHalfRaw === 'string'
-            ? Number(schemaArrowHalfRaw)
-            : NaN
         const arrowHalfWidth = Number.isFinite(arrowHalfN)
           ? Math.max(2, Math.min(14, arrowHalfN))
-          : Number.isFinite(schemaArrowHalf)
-            ? Math.max(2, Math.min(14, schemaArrowHalf))
-            : 5.2
+          : radarForceCfg.flowArrowHalfWidthPx
         const arrow = Boolean(schema.edgeStyles?.[String(d.label || '')]?.arrow) || (props?.['kg:radarFlow'] === true)
         const edgeType = readGlobalEdgeType(schema)
-        return { curve, bend, arrow, orbitShift, arrowLength, arrowHalfWidth, orbital, edgeType }
+        const allowCurveByType = edgeType === 'bezier'
+        return {
+          curve: allowCurveByType ? curve : false,
+          bend,
+          phase: curveOptions ? curveOptions.phase : 1,
+          arrow,
+          orbitShift,
+          arrowLength,
+          arrowHalfWidth,
+          orbital: allowCurveByType ? (curveOptions ? curveOptions.orbital : orbital) : false,
+          edgeType,
+        }
       }
 
       const edgeGeometry = (d: GraphEdge): {
@@ -415,11 +384,8 @@ export const attachSimulationTick = (args: {
         const ny = dx / dist
         const curveScale = presentation.curve ? presentation.bend : 0
         const curveMag = dist * curveScale
-        const edgeId = String((d as { id?: unknown }).id || '')
-        let hash = 0
-        for (let i = 0; i < edgeId.length; i += 1) hash = ((hash << 5) - hash + edgeId.charCodeAt(i)) | 0
-        const phase = (hash & 1) === 0 ? -1 : 1
-        const orbitalMag = presentation.orbital ? dist * presentation.orbitShift * phase : 0
+        const orbitalPolarity = Math.abs(curveScale) > 1e-6 ? (curveScale < 0 ? -1 : 1) : presentation.phase
+        const orbitalMag = presentation.orbital ? dist * presentation.orbitShift * orbitalPolarity : 0
         const c1x = p1.x + dx * 0.24 + nx * (curveMag * 0.86 + orbitalMag * 0.5)
         const c1y = p1.y + dy * 0.24 + ny * (curveMag * 0.86 + orbitalMag * 0.5)
         const c2x = p2.x - dx * 0.24 + nx * (curveMag * 1.14 + orbitalMag)
@@ -458,7 +424,16 @@ export const attachSimulationTick = (args: {
       if (!pathSel.empty()) {
         pathSel.attr('d', d => {
           const g = edgeGeometry(d)
-          if (!g.curve) return buildEdgePathD({ edgeType: g.edgeType, sx: g.p1.x, sy: g.p1.y, tx: g.p2.x, ty: g.p2.y })
+          if (!g.curve) {
+            return buildEdgePathD({
+              edgeType: g.edgeType,
+              sx: g.p1.x,
+              sy: g.p1.y,
+              tx: g.p2.x,
+              ty: g.p2.y,
+              curve: readEdgePathCurveOptions(d, schema),
+            })
+          }
           if (g.orbital) return `M${g.p1.x},${g.p1.y} C${g.c1x},${g.c1y} ${g.c2x},${g.c2y} ${g.p2.x},${g.p2.y}`
           return `M${g.p1.x},${g.p1.y} Q${g.cx},${g.cy} ${g.p2.x},${g.p2.y}`
         })
@@ -488,68 +463,14 @@ export const attachSimulationTick = (args: {
         const props = d.properties && typeof d.properties === 'object' && !Array.isArray(d.properties)
           ? (d.properties as Record<string, unknown>)
           : null
+        const radarForceCfg = readRadarForceConfig(schema)
+        const edgeType = readGlobalEdgeType(schema)
+        const allowCurveByType = edgeType === 'bezier'
         const curveMode = String(props?.['visual:curve'] || '').trim().toLowerCase()
-        const curve = curveMode === 'quadratic' || props?.['kg:radarFlow'] === true
-        const interpolator = String(props?.['visual:curveInterpolator'] || '').trim().toLowerCase()
-        const orbital = curve && (interpolator === 'orbital' || props?.['kg:radarFlow'] === true)
-        const bendRaw = props?.['visual:curveBend']
-        const bendN = typeof bendRaw === 'number' ? bendRaw : typeof bendRaw === 'string' ? Number(bendRaw) : NaN
-        const schemaForces = (schema.layout?.forces as {
-          radarFlowCurveBend?: unknown
-          radarFlowOrbitShift?: unknown
-          radarFlowArrowLengthPx?: unknown
-          radarFlowArrowHalfWidthPx?: unknown
-        } | undefined)
-        const schemaBendRaw = schemaForces?.radarFlowCurveBend
-        const schemaBend = typeof schemaBendRaw === 'number'
-          ? schemaBendRaw
-          : typeof schemaBendRaw === 'string'
-            ? Number(schemaBendRaw)
-            : NaN
-        const bend = Number.isFinite(bendN)
-          ? Math.max(-0.8, Math.min(0.8, bendN))
-          : Number.isFinite(schemaBend)
-            ? Math.max(-0.8, Math.min(0.8, schemaBend))
-            : 0.18
-        const orbitRaw = props?.['visual:orbitShift']
-        const orbitN = typeof orbitRaw === 'number' ? orbitRaw : typeof orbitRaw === 'string' ? Number(orbitRaw) : NaN
-        const schemaOrbitRaw = schemaForces?.radarFlowOrbitShift
-        const schemaOrbit = typeof schemaOrbitRaw === 'number'
-          ? schemaOrbitRaw
-          : typeof schemaOrbitRaw === 'string'
-            ? Number(schemaOrbitRaw)
-            : NaN
-        const orbitShift = Number.isFinite(orbitN)
-          ? Math.max(0, Math.min(0.45, orbitN))
-          : Number.isFinite(schemaOrbit)
-            ? Math.max(0, Math.min(0.45, schemaOrbit))
-            : 0.06
-        const arrowLenRaw = props?.['visual:arrowLengthPx']
-        const arrowLenN = typeof arrowLenRaw === 'number' ? arrowLenRaw : typeof arrowLenRaw === 'string' ? Number(arrowLenRaw) : NaN
-        const schemaArrowLenRaw = schemaForces?.radarFlowArrowLengthPx
-        const schemaArrowLen = typeof schemaArrowLenRaw === 'number'
-          ? schemaArrowLenRaw
-          : typeof schemaArrowLenRaw === 'string'
-            ? Number(schemaArrowLenRaw)
-            : NaN
-        const arrowLength = Number.isFinite(arrowLenN)
-          ? Math.max(4, Math.min(30, arrowLenN))
-          : Number.isFinite(schemaArrowLen)
-            ? Math.max(4, Math.min(30, schemaArrowLen))
-            : 12
-        const arrowHalfRaw = props?.['visual:arrowHalfWidthPx']
-        const arrowHalfN = typeof arrowHalfRaw === 'number' ? arrowHalfRaw : typeof arrowHalfRaw === 'string' ? Number(arrowHalfRaw) : NaN
-        const schemaArrowHalfRaw = schemaForces?.radarFlowArrowHalfWidthPx
-        const schemaArrowHalf = typeof schemaArrowHalfRaw === 'number'
-          ? schemaArrowHalfRaw
-          : typeof schemaArrowHalfRaw === 'string'
-            ? Number(schemaArrowHalfRaw)
-            : NaN
-        const arrowHalf = Number.isFinite(arrowHalfN)
-          ? Math.max(2, Math.min(14, arrowHalfN))
-          : Number.isFinite(schemaArrowHalf)
-            ? Math.max(2, Math.min(14, schemaArrowHalf))
-            : 5.2
+        const curveHint = curveMode === 'quadratic' || props?.['kg:radarFlow'] === true
+        const curveOptions = readEdgePathCurveOptions(d, schema)
+        const effectiveCurve = allowCurveByType && (curveHint || !!curveOptions)
+        const effectiveOrbital = allowCurveByType && !!curveOptions?.orbital
         const p1 = getEdgeEndpointFromPorts({ from: src, to: tgt, schema })
         const p2 = getEdgeEndpointFromPorts({ from: tgt, to: src, schema })
         const dx = p2.x - p1.x
@@ -559,30 +480,34 @@ export const attachSimulationTick = (args: {
         const my = (p1.y + p2.y) / 2
         const nx = -dy / dist
         const ny = dx / dist
-        const cx = curve ? mx + nx * dist * bend : mx
-        const cy = curve ? my + ny * dist * bend : my
-        const edgeId = String((d as { id?: unknown }).id || '')
-        let hash = 0
-        for (let i = 0; i < edgeId.length; i += 1) hash = ((hash << 5) - hash + edgeId.charCodeAt(i)) | 0
-        const phase = (hash & 1) === 0 ? -1 : 1
-        const orbitalMag = orbital ? dist * orbitShift * phase : 0
+        const bend = curveOptions ? curveOptions.bend : radarForceCfg.flowCurveBend
+        const cx = effectiveCurve ? mx + nx * dist * bend : mx
+        const cy = effectiveCurve ? my + ny * dist * bend : my
+        const orbitalPolarity = Math.abs(bend) > 1e-6 ? (bend < 0 ? -1 : 1) : (curveOptions?.phase || 1)
+        const orbitalMag = effectiveOrbital ? dist * (curveOptions?.orbitShift || 0) * orbitalPolarity : 0
         const c2x = p2.x - dx * 0.24 + nx * (dist * bend * 1.14 + orbitalMag)
         const c2y = p2.y - dy * 0.24 + ny * (dist * bend * 1.14 + orbitalMag)
-        const tx = curve ? (orbital ? p2.x - c2x : p2.x - cx) : dx
-        const ty = curve ? (orbital ? p2.y - c2y : p2.y - cy) : dy
+        const tx = effectiveCurve ? (effectiveOrbital ? p2.x - c2x : p2.x - cx) : dx
+        const ty = effectiveCurve ? (effectiveOrbital ? p2.y - c2y : p2.y - cy) : dy
         const tn = Math.max(1, Math.hypot(tx, ty))
         const ux = tx / tn
         const uy = ty / tn
         const px = -uy
         const py = ux
-        const len = arrowLength
-        const half = arrowHalf
-        const bx = p2.x - ux * len
-        const by = p2.y - uy * len
-        const lx = bx + px * half
-        const ly = by + py * half
-        const rx = bx - px * half
-        const ry = by - py * half
+        const arrowLenRaw = props?.['visual:arrowLengthPx']
+        const arrowLength = typeof arrowLenRaw === 'number' && Number.isFinite(arrowLenRaw)
+          ? Math.max(4, Math.min(30, arrowLenRaw))
+          : radarForceCfg.flowArrowLengthPx
+        const arrowHalfRaw = props?.['visual:arrowHalfWidthPx']
+        const arrowHalf = typeof arrowHalfRaw === 'number' && Number.isFinite(arrowHalfRaw)
+          ? Math.max(2, Math.min(14, arrowHalfRaw))
+          : radarForceCfg.flowArrowHalfWidthPx
+        const bx = p2.x - ux * arrowLength
+        const by = p2.y - uy * arrowLength
+        const lx = bx + px * arrowHalf
+        const ly = by + py * arrowHalf
+        const rx = bx - px * arrowHalf
+        const ry = by - py * arrowHalf
         return `M${p2.x},${p2.y} L${lx},${ly} L${rx},${ry} Z`
       })
     }

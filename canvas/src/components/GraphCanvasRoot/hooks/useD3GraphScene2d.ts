@@ -162,7 +162,7 @@ export function useD3GraphScene2d(args: {
     setHoverInfo,
   } = args
 
-  const lastLayoutModeRef = useRef<null | 'force' | 'radial'>(null)
+  const lastLayoutModeRef = useRef<null | 'radial' | 'block'>(null)
   const lastFrontmatterModeRef = useRef<boolean | null>(null)
   const lastSemanticModeRef = useRef<string | null>(null)
   const lastLayoutVariantRef = useRef<string | null>(null)

@@ -7,6 +7,7 @@ import ThreeViewBackgroundFogSection from '@/features/panels/views/ThreeViewBack
 import ThreeViewStarfieldSection from '@/features/panels/views/ThreeViewStarfieldSection'
 import ThreeViewCameraSection from '@/features/panels/views/ThreeViewCameraSection'
 import ThreeViewSelectionSection from '@/features/panels/views/ThreeViewSelectionSection'
+import ThreeViewGlobeEffectsSection from '@/features/panels/views/ThreeViewGlobeEffectsSection'
 
 interface ThreeGroupsCollapsed {
   links: boolean
@@ -50,6 +51,11 @@ export default function ThreeViewTuningSection({
         setThreeConfig={setThreeConfig}
         collapsed={linksCollapsed}
         onToggle={next => onToggleThreeGroup && onToggleThreeGroup('links', next)}
+      />
+      <ThreeViewGlobeEffectsSection
+        schema={schema}
+        setThreeConfig={setThreeConfig}
+        collapsed={false}
       />
       <ThreeViewLayoutSection
         schema={schema}

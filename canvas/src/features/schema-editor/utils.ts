@@ -58,7 +58,7 @@ export const buildCleanSchema = (): GraphSchema => ({
   nodeShapes: {},
   edgeRouting: { mode: 'straight', curvatureByLabel: {} },
   layout: {
-    mode: 'force',
+    mode: 'radial',
     forces: {
       linkDistanceByLabel: {},
       charge: DEFAULT_CHARGE,

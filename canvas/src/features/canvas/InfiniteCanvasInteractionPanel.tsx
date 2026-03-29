@@ -80,7 +80,7 @@ export function InfiniteCanvasInteractionPanel() {
     })),
   )
 
-  const layoutMode = schema?.layout?.mode === 'radial' ? 'radial' : 'force'
+  const layoutMode = schema?.layout?.mode === 'block' ? 'block' : 'radial'
   const zoomK = Number.isFinite(zoomState?.k) ? (zoomState?.k as number) : 1
   const zoomPct = Math.round(zoomK * 100) || 100
   const [zoomMinK, zoomMaxK] = readZoomScaleExtent(schema)
@@ -356,12 +356,12 @@ export function InfiniteCanvasInteractionPanel() {
               className={`mt-1 w-full rounded-md border px-2 py-1.5 text-xs ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
               value={layoutMode}
               onChange={e => {
-                const next = e.target.value === 'radial' ? 'radial' : 'force'
+                const next = e.target.value === 'block' ? 'block' : 'radial'
                 setSchema({ ...schema, layout: { ...(schema.layout || {}), mode: next } })
               }}
             >
-              <option value="force">Force</option>
               <option value="radial">Radial</option>
+              <option value="block">Block</option>
             </select>
           </label>
 

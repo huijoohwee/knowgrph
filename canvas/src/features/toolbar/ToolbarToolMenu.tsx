@@ -37,6 +37,12 @@ import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/o
 import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
 
 type FloatingPanelView = 'propsPanel' | 'interaction' | 'designLayers' | 'domTree' | 'domInspect' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
+type FloatingHeaderActions = {
+  apply?: () => void
+  reset?: () => void
+  applyDisabled?: boolean
+  resetDisabled?: boolean
+}
 
 type GeospatialPanelHostProps = {
   active?: boolean
@@ -168,6 +174,12 @@ export function ToolbarToolMenu({
   const { pinned: floatingPanelPinned, togglePinned: toggleFloatingPanelPinned } = usePinnedLs(LS_KEYS.floatingPanelPinned, true)
   const [floatingPanelMinimized, setFloatingPanelMinimized] = React.useState(false)
   const [floatingPanelView, setFloatingPanelView] = React.useState<FloatingPanelView>('propsPanel')
+  const [rendererHeaderActions, setRendererHeaderActions] = React.useState<FloatingHeaderActions>({
+    apply: undefined,
+    reset: undefined,
+    applyDisabled: true,
+    resetDisabled: true,
+  })
   const handledRequestedViewSeqRef = React.useRef<number | undefined>(undefined)
   const setFloatingPanelZIndex = useGraphStore(s => s.setFloatingPanelZIndex)
 
@@ -276,6 +288,9 @@ export function ToolbarToolMenu({
   const floatingPanelRootClassName = 'fixed inset-0 pointer-events-none'
 
   const handlePinToggle = toggleFloatingPanelPinned
+  const registerRendererHeaderActions = React.useCallback((actions: FloatingHeaderActions) => {
+    setRendererHeaderActions(actions)
+  }, [])
 
   const floatingPanelRootStyle = React.useMemo(() => {
     const safeZ = Number.isFinite(floatingPanelZIndex) ? Math.max(1, Math.floor(floatingPanelZIndex)) : Z_INDEX_FLOATING_PANEL_DEFAULT
@@ -456,6 +471,16 @@ export function ToolbarToolMenu({
   }, [requestedFloatingPanelView, requestedFloatingPanelViewSeq])
 
   React.useEffect(() => {
+    if (floatingPanelView === 'renderer') return
+    setRendererHeaderActions({
+      apply: undefined,
+      reset: undefined,
+      applyDisabled: true,
+      resetDisabled: true,
+    })
+  }, [floatingPanelView])
+
+  React.useEffect(() => {
     const handleOpenGraphTraversal = () => {
       setFloatingPanelMinimized(false)
       setFloatingPanelView('graphTraversal')
@@ -502,6 +527,10 @@ export function ToolbarToolMenu({
             <HeaderActions
               onPinToggle={handlePinToggle}
               pinned={floatingPanelPinned}
+              onApply={floatingPanelView === 'renderer' ? rendererHeaderActions.apply : undefined}
+              onReset={floatingPanelView === 'renderer' ? rendererHeaderActions.reset : undefined}
+              applyDisabled={floatingPanelView === 'renderer' ? rendererHeaderActions.applyDisabled : true}
+              resetDisabled={floatingPanelView === 'renderer' ? rendererHeaderActions.resetDisabled : true}
               onRestore={() => {
                 setFloatingPanelMinimized(false)
               }}
@@ -564,6 +593,10 @@ export function ToolbarToolMenu({
             <HeaderActions
               onPinToggle={handlePinToggle}
               pinned={floatingPanelPinned}
+              onApply={floatingPanelView === 'renderer' ? rendererHeaderActions.apply : undefined}
+              onReset={floatingPanelView === 'renderer' ? rendererHeaderActions.reset : undefined}
+              applyDisabled={floatingPanelView === 'renderer' ? rendererHeaderActions.applyDisabled : true}
+              resetDisabled={floatingPanelView === 'renderer' ? rendererHeaderActions.resetDisabled : true}
               onMinimize={() => {
                 setFloatingPanelMinimized(true)
               }}
@@ -597,7 +630,7 @@ export function ToolbarToolMenu({
               </React.Suspense>
             )}
             {floatingPanelView === 'geo' && <GeoView geospatialModeEnabled={geospatialModeEnabled} />}
-            {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView />}
+            {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView onRegisterActions={registerRendererHeaderActions} />}
             {floatingPanelView === 'graphTraversal' && (
               <section className="space-y-2" aria-label="Graph traversal">
                 <header className="flex items-center justify-between gap-2" aria-label="Graph traversal actions">

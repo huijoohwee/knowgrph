@@ -67,7 +67,7 @@ import RichMediaPanel from '@/components/RichMediaPanel'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import { MarkdownDesignOverlay } from '@/features/markdown-edgeless/MarkdownDesignOverlay'
-import { buildEdgePathD, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { buildEdgePathD, readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 
 type FrameNode = {
   id: string
@@ -2618,7 +2618,11 @@ export default function DesignCanvas({
       const x2 = pt.x + pt.w / 2
       const y2 = pt.y + pt.h / 2
       const opacity = Math.max(0.06, Math.min(0.42, 0.28 / (1 + depth * 0.55)))
-      out.push({ id, d: buildEdgePathD({ edgeType, sx: x1, sy: y1, tx: x2, ty: y2 }), opacity })
+      out.push({
+        id,
+        d: buildEdgePathD({ edgeType, sx: x1, sy: y1, tx: x2, ty: y2, curve: readEdgePathCurveOptions(e, snapshot.schema) }),
+        opacity,
+      })
     }
     return out
   }, [domDepthById, localGraphData?.edges, positions, snapshot.schema, snapshot.selectedNodeId, styleById, wireframeSettings.maxEdges, wireframeSettings.showEdges])

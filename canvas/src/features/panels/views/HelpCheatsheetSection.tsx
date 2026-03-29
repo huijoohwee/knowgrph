@@ -55,7 +55,7 @@ export function HelpCheatsheetSection({ collapsed, onToggle }: HelpCheatsheetSec
         gesture: 'Toggle radial cluster layout to arrange nodes in a circular tree',
         zoomDrag: 'Zoom and node drag behave normally; positions remain stable and translate as a group',
         tools:
-          'Radial cluster layout → toggle the toolbar button to switch schema.layout.mode between force and radial so 2D canvas nodes use a hierarchy-derived circular layout (per-mode cached) while preserving node styles, labels, and selection-aware overlays across cluster toggles and other UI re-renders.',
+          'Layout mode → switch schema.layout.mode between radial and block so radial uses hierarchy-derived circular placement while block reuses bipartite-style 2D arrangement; both remain per-mode cached with stable overlays and selection behavior.',
       },
       {
         mode: `${UI_COPY.toolbarPrefix} ${UI_LABELS.graphLayersMode}`,

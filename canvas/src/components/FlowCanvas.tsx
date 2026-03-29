@@ -953,7 +953,8 @@ export default function FlowCanvas({
     __flowCanvasDebug.lastZoomViewKey = zoomViewKey
   }, [zoomViewKey])
 
-  const rankdir = deriveRankdir({ flowRankdir: schema?.layout?.flow?.rankdir })
+  const layoutMode = schema ? readLayoutMode(schema) : 'radial'
+  const rankdir = layoutMode === 'block' ? 'LR' : deriveRankdir({ flowRankdir: schema?.layout?.flow?.rankdir })
   const flowConfig = React.useMemo(() => readFlowConfig({ schema, rankdir }), [rankdir, schema])
   const flowConfigEffective = React.useMemo(() => {
     if (documentSemanticMode !== 'keyword') return flowConfig
@@ -963,8 +964,6 @@ export default function FlowCanvas({
     if (flowConfig.elk.algorithm !== 'layered') return flowConfig
     return { ...flowConfig, elk: { ...flowConfig.elk, algorithm: 'stress' as const } }
   }, [documentSemanticMode, flowConfig, schema?.layout?.flow?.elkLayout])
-  const layoutMode = schema ? readLayoutMode(schema) : 'force'
-
   const flowPresentation = React.useMemo(() => {
     const p = readFlowPresentation({ schema, documentSemanticMode })
     const gd = sceneGraphData as unknown as { context?: unknown; metadata?: unknown } | null

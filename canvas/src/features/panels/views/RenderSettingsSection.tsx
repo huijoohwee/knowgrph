@@ -90,7 +90,7 @@ export default function RenderSettingsSection({
   )
 
   const layoutMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
-    schema.layout?.mode === 'radial' ? schema.layout.mode : 'force'
+    schema.layout?.mode === 'block' ? 'block' : 'radial'
 
   const setLayoutMode = React.useCallback(
     (mode: NonNullable<NonNullable<GraphSchema['layout']>['mode']>) => {
@@ -506,15 +506,13 @@ export default function RenderSettingsSection({
                         if (!ensureBaselineUnlocked()) return
                         const raw = e.target.value
                         const next: typeof layoutMode =
-                          raw === 'radial' ? 'radial' : 'force'
+                          raw === 'block' ? 'block' : 'radial'
                         setLayoutMode(next)
-                        if (next === 'radial') {
-                          setCanvasRenderMode('2d')
-                        }
+                        if (next === 'block') setCanvasRenderMode('2d')
                       }}
                     >
-                      <option value="force">force</option>
                       <option value="radial">radial</option>
+                      <option value="block">block</option>
                     </select>
                   </RightAlignedValueCell>
                 )}

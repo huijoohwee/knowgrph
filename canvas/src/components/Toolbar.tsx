@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Grid3x3, History as HistoryIcon, Box, Map, SunMoon, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Lock, Unlock, Compass, ChevronLeft, ChevronRight, Hand, Link2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Grid3x3, History as HistoryIcon, Box, Map, SunMoon, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Lock, Unlock, Compass, ChevronLeft, ChevronRight, Hand, Link2, Columns2 } from 'lucide-react';
 import MainPanel from '@/features/panels/MainPanel';
 import IconButton from '@/components/IconButton';
 import { DropdownPanel } from '@/lib/ui/overlay';
@@ -32,6 +32,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const {
     actions,
     canvasGridDotRadiusPx,
+    canvas2dRenderer,
     canvasGridEnabled,
     canvasGridMajorEvery,
     canvasGridVariant,
@@ -108,6 +109,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const searchPanelRef = useRef<HTMLDivElement>(null);
 
   const navClassBase = 'Island App-toolbar App-toolbar--compact w-fit'
+  const isD3Like2dLayoutToggle = canvas2dRenderer === 'd3' || canvas2dRenderer === 'd3Bipartite'
 
   return (
     <nav
@@ -311,19 +313,24 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       </IconButton>
       <IconButton
         className={`App-toolbar__btn ${
-          canvasRenderMode === '2d' && layoutMode === 'radial'
+          isD3Like2dLayoutToggle && layoutMode === 'radial'
             ? uiPrimaryIconActiveClassName
             : uiPrimaryIconInactiveClassName
         }`}
-        title={UI_LABELS.radialLayoutMode}
-        tooltipContent={UI_LABELS.radialLayoutMode}
+        title={layoutMode === 'block' ? 'Block layout' : 'Radial layout'}
+        tooltipContent={layoutMode === 'block' ? 'Block layout (bipartite-style)' : 'Radial layout (blue)'}
+        disabled={!isD3Like2dLayoutToggle}
         onClick={() => {
           if (!ensureBaselineUnlocked()) return
           actions.handleToggleRadialLayout()
         }}
         showTooltip
       >
-        <CircleDot className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+        {layoutMode === 'block' ? (
+          <Columns2 className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+        ) : (
+          <CircleDot className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+        )}
       </IconButton>
       <IconButton
         className="App-toolbar__btn"

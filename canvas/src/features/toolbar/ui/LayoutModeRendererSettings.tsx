@@ -3,67 +3,64 @@ import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { readGlobalEdgeType, type GlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { readLayoutMode2d, type LayoutMode2d } from '@/lib/graph/layoutMode'
 
-const EDGE_TYPE_OPTIONS: Array<{ value: GlobalEdgeType; label: string }> = [
-  { value: 'bezier', label: 'Bezier (default)' },
-  { value: 'straight', label: 'Straight' },
-  { value: 'step', label: 'Step' },
-  { value: 'smoothstep', label: 'Smoothstep' },
+const LAYOUT_MODE_OPTIONS: Array<{ value: LayoutMode2d; label: string }> = [
+  { value: 'radial', label: 'Radial (default)' },
+  { value: 'block', label: 'Block' },
 ]
 
-export function EdgeTypesRendererSettings(props: {
-  selectedEdgeType?: GlobalEdgeType
-  onSelectEdgeType?: (next: GlobalEdgeType) => void
+export function LayoutModeRendererSettings(props: {
+  selectedLayoutMode?: LayoutMode2d
+  onSelectLayoutMode?: (next: LayoutMode2d) => void
+  disabled?: boolean
 }) {
-  const onSelectEdgeTypeProp = props.onSelectEdgeType
+  const onSelectLayoutModeProp = props.onSelectLayoutMode
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
   const schema = useGraphStore(s => s.schema)
   const setSchema = useGraphStore(s => s.setSchema)
-  const edgeType = readGlobalEdgeType(schema)
-  const selectedEdgeType = props.selectedEdgeType ?? edgeType
+  const layoutMode = readLayoutMode2d(schema)
+  const selectedLayoutMode = props.selectedLayoutMode ?? layoutMode
+  const disabled = props.disabled === true
 
-  const setEdgeType = React.useCallback((next: GlobalEdgeType) => {
+  const setLayoutMode = React.useCallback((next: LayoutMode2d) => {
     const current = useGraphStore.getState().schema as GraphSchema
     const layout = current.layout || {}
-    const edges = layout.edges || {}
     setSchema({
       ...current,
       layout: {
         ...layout,
-        edges: {
-          ...edges,
-          type: next,
-        },
+        mode: next,
       },
     })
   }, [setSchema])
 
-  const onSelectEdgeType = React.useCallback((next: GlobalEdgeType) => {
-    if (onSelectEdgeTypeProp) {
-      onSelectEdgeTypeProp(next)
+  const onSelectLayoutMode = React.useCallback((next: LayoutMode2d) => {
+    if (onSelectLayoutModeProp) {
+      onSelectLayoutModeProp(next)
       return
     }
-    setEdgeType(next)
-  }, [onSelectEdgeTypeProp, setEdgeType])
+    setLayoutMode(next)
+  }, [onSelectLayoutModeProp, setLayoutMode])
 
   return (
-    <CollapsibleSection title="Edge Types" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
+    <CollapsibleSection title="Layout" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
       <div className="px-3 py-2 space-y-2">
         <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
-          Applies globally to D3, D3 Bipartite, Flow, Design, Flow Editor, and 3D edge rendering.
+          Global layout mode shared across 2D/3D renderers and semantic views.
         </div>
         <div className="flex items-center gap-2">
           <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
-            Type
+            Mode
           </label>
           <select
             className={`w-[50%] h-6 px-2 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded`}
-            value={selectedEdgeType}
-            onChange={e => onSelectEdgeType((String(e.target.value || '').trim().toLowerCase() as GlobalEdgeType))}
+            value={selectedLayoutMode}
+            disabled={disabled}
+            onChange={e => onSelectLayoutMode((String(e.target.value || '').trim().toLowerCase() === 'block' ? 'block' : 'radial'))}
           >
-            {EDGE_TYPE_OPTIONS.map(option => (
+            {LAYOUT_MODE_OPTIONS.map(option => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>

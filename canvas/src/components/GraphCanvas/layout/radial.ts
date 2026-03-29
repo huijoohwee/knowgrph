@@ -7,6 +7,7 @@ import type { GroupKeyOfNode } from './grouping'
 import { readFitPadding } from '@/lib/graph/layoutDefaults'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { postFitNodesToViewport } from '@/components/GraphCanvas/layout/postFit'
+import { computeRadarGalaxyPositions2d } from '@/lib/graph/radarGalaxyLayout'
 
 type RadialClusterNode = {
   id: string
@@ -71,22 +72,41 @@ export const applyRadialClusterLayout = (
   if (!Number.isFinite(halfW) || !Number.isFinite(halfH) || halfW <= 0 || halfH <= 0) return
   const centerX = viewW / 2
   const centerY = viewH / 2
-  const root = d3.hierarchy<RadialClusterNode>(treeRoot)
-  const cluster = d3.cluster<RadialClusterNode>().size([2 * Math.PI, 1])
-  cluster(root)
   const positions = new Map<string, { x: number; y: number }>()
-  root.descendants().forEach(node => {
-    const id = node.data.id
-    if (!idToNode.has(id)) return
-    const angleRaw = node.x
-    const radiusRaw = node.y
-    if (typeof angleRaw !== 'number' || typeof radiusRaw !== 'number') return
-    const angle = angleRaw - Math.PI / 2
-    const rNorm = Math.max(0, Math.min(1, radiusRaw))
-    const x = centerX + rNorm * halfW * Math.cos(angle)
-    const y = centerY + rNorm * halfH * Math.sin(angle)
-    positions.set(id, { x, y })
+  const radarPositions = computeRadarGalaxyPositions2d({
+    nodes,
+    edges: edgesForSim,
+    width: viewW,
+    height: viewH,
+    centerX,
+    centerY,
+    paddingPx: padding,
   })
+  if (radarPositions) {
+    const radarIds = Object.keys(radarPositions)
+    for (let i = 0; i < radarIds.length; i += 1) {
+      const id = radarIds[i]!
+      const p = radarPositions[id]
+      if (!p) continue
+      positions.set(id, p)
+    }
+  } else {
+    const root = d3.hierarchy<RadialClusterNode>(treeRoot)
+    const cluster = d3.cluster<RadialClusterNode>().size([2 * Math.PI, 1])
+    cluster(root)
+    root.descendants().forEach(node => {
+      const id = node.data.id
+      if (!idToNode.has(id)) return
+      const angleRaw = node.x
+      const radiusRaw = node.y
+      if (typeof angleRaw !== 'number' || typeof radiusRaw !== 'number') return
+      const angle = angleRaw - Math.PI / 2
+      const rNorm = Math.max(0, Math.min(1, radiusRaw))
+      const x = centerX + rNorm * halfW * Math.cos(angle)
+      const y = centerY + rNorm * halfH * Math.sin(angle)
+      positions.set(id, { x, y })
+    })
+  }
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]
     const id = String(node.id)

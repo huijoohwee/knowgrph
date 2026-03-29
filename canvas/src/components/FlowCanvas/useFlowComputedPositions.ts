@@ -12,10 +12,11 @@ import { packDisjointPositions2d } from '@/components/GraphCanvas/layout/collect
 import { readCollisionConfig, readGroupLabelTopExtra } from '@/components/GraphCanvas/layout/collisionConfig'
 import { computeBorderGapPx } from '@/lib/graph/collision/borderGap'
 import { readGroupStrokeWidthPx } from '@/lib/graph/collision/strokeWidth'
-import type { GraphData } from '@/lib/graph/types'
+import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
+import { computeRadarGalaxyPositions2d } from '@/lib/graph/radarGalaxyLayout'
 
 export function useFlowComputedPositions(args: {
   active: boolean
@@ -216,6 +217,23 @@ export function useFlowComputedPositions(args: {
           : allowNodes
             ? seededFromNodes
             : await (async () => {
+                if (layoutMode === 'radial') {
+                  const dim = Math.max(
+                    1200,
+                    Math.floor(Math.sqrt(Math.max(1, nodeList.length))) * Math.max(nodeW, nodeH) * 4,
+                  )
+                  const radial = computeRadarGalaxyPositions2d({
+                    nodes: nodeList as unknown as GraphNode[],
+                    edges: edgeList as unknown as GraphEdge[],
+                    width: dim,
+                    height: dim,
+                    paddingPx: Math.max(24, Math.floor(Math.max(nodeW, nodeH) * 0.5)),
+                  })
+                  const radialTopLeft = centerToTopLeft(radial)
+                  if (radialTopLeft && hasCacheCoverage({ nodes: nodeList, positions: radialTopLeft, minCoverage: 0.9 })) {
+                    return radialTopLeft
+                  }
+                }
                 if (nodeList.length > DEFAULT_FLOW_DAGRE_MAX_NODES) {
                   return buildFastGridLayout({
                     nodes: nodeList.map(n => ({ id: String(n.id) })),

@@ -11,6 +11,7 @@ import { useToolbarActions } from '@/features/toolbar/hooks/useToolbarActions'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
 import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import { getIconSizeClass } from '@/lib/ui'
+import { readLayoutMode2d } from '@/lib/graph/layoutMode'
 
 export type CanvasToolbarCallbacks = {
   onZoomIn?: () => void
@@ -43,6 +44,7 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     themeMode,
     setThemeMode,
     workspaceViewMode,
+    canvas2dRenderer,
     renderMediaAsNodes,
     setRenderMediaAsNodes,
     setBehavior,
@@ -65,6 +67,7 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
       themeMode: s.themeMode,
       setThemeMode: s.setThemeMode,
       workspaceViewMode: s.workspaceViewMode,
+      canvas2dRenderer: s.canvas2dRenderer,
       renderMediaAsNodes: s.renderMediaAsNodes,
       setRenderMediaAsNodes: s.setRenderMediaAsNodes,
       setBehavior: s.setBehavior,
@@ -116,7 +119,7 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
   const iconStrokeWidth = uiIconStrokeWidth
   const launchIconClass = uiIconAnimationEnabled ? 'LaunchButton__icon' : ''
 
-  const layoutMode = schema.layout?.mode || 'force'
+  const layoutMode = readLayoutMode2d(schema)
 
   const isWorkspaceOverlayMode = workspaceViewMode === 'editor'
   const snapGridEnabled = !!schema?.behavior?.snapGrid?.enabled
@@ -235,6 +238,7 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
   return {
     actions,
     canvasGridDotRadiusPx,
+    canvas2dRenderer,
     canvasGridEnabled,
     canvasGridMajorEvery,
     canvasGridVariant,

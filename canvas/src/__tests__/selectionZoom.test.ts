@@ -389,7 +389,7 @@ export function testFitAllTransformTargetFillUses80to20Ratio() {
 
 export function testReadFitAllOptionsEnforces80to20FillRatioForAllFitIntents() {
   const schema = defaultSchema
-  const mode = 'force'
+  const mode = 'radial'
   const view = readFitAllOptions({ schema, mode, intent: 'fitToView' })
   const selection = readFitAllOptions({ schema, mode, intent: 'fitSelection' })
   const screen = readFitAllOptions({ schema, mode, intent: 'fitToScreen' })

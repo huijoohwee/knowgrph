@@ -103,16 +103,13 @@ export function useToolbarActions(
     const current = schema
     const layout = current.layout || {}
     const nextMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
-      layout.mode === 'radial' ? 'force' : 'radial'
+      layout.mode === 'block' ? 'radial' : 'block'
     const next = {
       ...current,
       layout: { ...layout, mode: nextMode },
     }
     setSchema(next as GraphSchema)
-    if (nextMode === 'radial') {
-      setCanvasRenderMode('2d')
-    }
-  }, [ensureBaselineUnlocked, schema, setSchema, setCanvasRenderMode])
+  }, [ensureBaselineUnlocked, schema, setSchema])
 
   const handleOpenGraphFields = useCallback(() => {
     openMainPanel('graphFields')

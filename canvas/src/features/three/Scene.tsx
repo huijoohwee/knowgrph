@@ -16,6 +16,7 @@ import { getSelectionVisuals } from './selection'
 import { DirectionalParticles, ArrowHead, EdgeMesh, CurvedEdgeMesh, ShaderLineEdges } from './visuals'
 import { NodeMesh } from './NodeMesh'
 import { Starfield } from './Starfield'
+import { GlobeEffects } from './GlobeEffects'
 import { getCameraConfig } from './camera'
 import { resolveThreeColor } from './resolveColor'
 import type { KgTheme } from '@/lib/ui/tokens-ssot'
@@ -25,7 +26,7 @@ import { clampNodeCenterToRect } from '@/lib/canvas/groupContainment'
 import { GroupOverlays3d } from '@/features/three/GroupOverlays'
 import { THREE_RENDER_ORDER } from '@/features/three/renderOrder'
 import { readThreeRenderOrderOffset } from '@/features/three/zOrder'
-import { readGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min
@@ -302,6 +303,13 @@ export function Scene({
       ) : null}
       <group ref={sceneGroupRef}>
         <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragRef} paused={paused} />
+        <GlobeEffects
+          data={data}
+          schema={schema}
+          positions={positions}
+          edgeColor={neutralEdgeColor}
+          nodeAccentColor={palette.nodes.hypothesis || MVP_COLOR_PALETTE.nodes.hypothesis}
+        />
         <GroupOverlays3d data={data} schema={schema} positions={positions} dragOverridesRef={dragRef} renderOrder={THREE_RENDER_ORDER.groups} />
         {threeEdgeRenderer === 'shaderLine' ? (
           <ShaderLineEdges
@@ -355,17 +363,33 @@ export function Scene({
           const color = baseColor
           const baseWidth = getEdgeStrokeWidth(e, schema)
           let width = clamp(baseWidth, 0.5, 5)
+          const curveOptions = readEdgePathCurveOptions(e, schema)
+          const bendAbs = curveOptions ? Math.max(0, Math.min(0.8, Math.abs(curveOptions.bend))) : 0
           const linkOpacity = typeof props['opacity'] === 'number'
             ? Math.max(0, Math.min(1, props['opacity'] as number))
             : (rgba ? rgba.alpha : (typeof opacityByLabel[e.label] === 'number' ? Math.max(0, Math.min(1, opacityByLabel[e.label] as number)) : linkOpacityDefault))
-          const curvature = typeof props['curvature'] === 'number' ? Math.max(0, Math.min(1.5, props['curvature'] as number)) : linkCurvatureByEdgeType
+          const curvature = (() => {
+            if (globalEdgeType === 'straight' || globalEdgeType === 'step') return 0
+            if (globalEdgeType === 'smoothstep') {
+              const raw = typeof props['curvature'] === 'number' ? Math.max(0, Math.min(1.5, props['curvature'] as number)) : linkCurvatureByEdgeType
+              return Math.max(0.2, Math.max(raw, raw * (0.72 + bendAbs)))
+            }
+            const raw = typeof props['curvature'] === 'number' ? Math.max(0, Math.min(1.5, props['curvature'] as number)) : linkCurvatureByEdgeType
+            return Math.max(0, Math.min(1.5, Math.max(raw, raw * (0.68 + bendAbs))))
+          })()
           const arrowLen = typeof props['arrowLength'] === 'number' ? Math.max(2, Math.min(24, props['arrowLength'] as number)) : arrowLenDefault
           const arrowColor = typeof props['arrowColor'] === 'string' ? String(props['arrowColor']) : color
           const resolution = typeof props['resolution'] === 'number' ? Math.floor(props['resolution'] as number) : 24
           const arrowRelPos = typeof props['arrowRelPos'] === 'number'
             ? Math.max(0, Math.min(1, props['arrowRelPos'] as number))
             : arrowRelPosDefault
-          const curveRotation = typeof props['curveRotation'] === 'number' ? props['curveRotation'] as number : curveRotationDefault
+          const curveRotation = (() => {
+            const raw = typeof props['curveRotation'] === 'number' ? (props['curveRotation'] as number) : curveRotationDefault
+            const bend = curveOptions ? curveOptions.bend : 0
+            const sign = bend < 0 ? -1 : bend > 0 ? 1 : curveOptions ? curveOptions.phase : 1
+            if (sign < 0) return raw + Math.PI
+            return raw
+          })()
           const particles = typeof props['linkDirectionalParticles'] === 'number'
             ? Math.max(0, Math.min(64, Math.floor(props['linkDirectionalParticles'] as number)))
             : particlesDefault

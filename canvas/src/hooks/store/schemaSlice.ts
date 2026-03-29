@@ -132,8 +132,11 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
     if (documentSemanticMode === 'document') writeSchemaToStorage(getLocalStorage(), next)
 
     if (nextMode === 'radial') {
-      const setCanvas2dRenderer = get().setCanvas2dRenderer
-      if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer('d3')
+      const curRenderer = get().canvas2dRenderer
+      if (curRenderer !== 'd3' && curRenderer !== 'd3Bipartite') {
+        const setCanvas2dRenderer = get().setCanvas2dRenderer
+        if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer('d3')
+      }
     }
   }
 

@@ -90,7 +90,7 @@ export interface GraphSchema {
     }>;
   };
   layout?: {
-    mode?: 'force' | 'radial' | 'mermaid';
+    mode?: 'force' | 'radial' | 'block' | 'mermaid';
     edges?: {
       type?: 'bezier' | 'straight' | 'step' | 'smoothstep'
       opacity?: number
@@ -201,6 +201,12 @@ export interface GraphSchema {
       radarHubCharge?: number;
       radarSpokeStrengthScale?: number;
       radarFlowStrengthScale?: number;
+      radialOrbitEnabled?: boolean;
+      radialOrbitSpeedDeg?: number;
+      radialOrbitSize?: number;
+      radialOrbitRingGapPx?: number;
+      radialOrbitDepthSpeedScale?: number;
+      radialOrbitMode?: 'flat' | 'solar' | 'atomic';
     };
     fitPadding?: number;
     fitDetectClusters?: boolean;
@@ -306,6 +312,35 @@ export interface GraphSchema {
     edgeWidthFormula?: 'schema' | 'weight';
     keywordNodeSizeScale?: number;
     keywordEdgeWidthScale?: number;
+    globeEffectsEnabled?: boolean;
+    globeParticleCount?: number;
+    globeParticleSize?: number;
+    globeParticleWaveSpeed?: number;
+    globeParticleWaveAmplitude?: number;
+    globeAtmosphereOpacity?: number;
+    globeGridDensity?: number;
+    globeOrbitRingCount?: number;
+    globeToolNodeCount?: number;
+    globeArcCount?: number;
+    globeArcTravelerCount?: number;
+    globeCorePulseStrength?: number;
+    globeRippleStrength?: number;
+    globeAutoRotateSpeed?: number;
+    globeCameraEllipseEnabled?: boolean;
+    globeCameraEllipseSpeed?: number;
+    globeCameraEllipseRadiusXFactor?: number;
+    globeCameraEllipseRadiusZFactor?: number;
+    globeCameraEllipseHeightFactor?: number;
+    globeCameraEllipseFollow?: number;
+    globeHubOrbitEnabled?: boolean;
+    globeHubOrbitStrength?: number;
+    globeHubOrbitSpeed?: number;
+    globeHubOrbitRadiusFactor?: number;
+    globeSphereEllipsoidX?: number;
+    globeSphereEllipsoidY?: number;
+    globeSphereEllipsoidZ?: number;
+    globeLabelDepthFade?: boolean;
+    globeLabelBackfaceCulling?: boolean;
     selection?: {
       selectedNodeGlowIntensity?: number;
       dimmedNodeOpacity?: number;

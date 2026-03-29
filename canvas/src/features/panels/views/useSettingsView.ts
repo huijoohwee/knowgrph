@@ -30,22 +30,11 @@ export function useSettingsView({
     if (key.startsWith('flowWheelZoom')) return false
     if (key === 'canvasRenderMode') return true
     if (key === 'three.preset.presentation3d') return true
-    if (key.startsWith('three.')) return true
     if (key.startsWith('graph.behavior.')) return true
     const a = String(area || '')
     if (
       a === 'Canvas Rendering'
       || a === 'Canvas Interaction'
-      || a === '3D Selection'
-      || a === '3D Edges & Arrows'
-      || a === '3D Particles'
-      || a === '3D Formulas'
-      || a === '3D Layers'
-      || a === '3D Motion'
-      || a === '3D Minimap'
-      || a === '3D Group Surfaces'
-      || a === '3D Background'
-      || a === '3D Layout & Physics'
       || a === '3D Presets'
     ) {
       return true

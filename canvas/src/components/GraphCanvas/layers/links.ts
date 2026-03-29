@@ -8,7 +8,7 @@ import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/
 import { attachEdgeInteractionHandlers } from '@/components/GraphCanvas/layers/edgeInteractions'
 import { shouldShowEdgeArrow } from '@/components/GraphCanvas/edgeDisplay'
 import { edgeDragBehavior } from '@/components/GraphCanvas/utils';
-import { buildEdgePathD, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { buildEdgePathD, readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
@@ -82,6 +82,22 @@ function shouldUsePathForEdge(e: GraphEdge, schema: GraphSchema): boolean {
   return readGlobalEdgeType(schema) !== 'straight'
 }
 
+function resolveEdgePathD(e: GraphEdge, schema: GraphSchema): string {
+  const globalType = readGlobalEdgeType(schema)
+  const existing = readEdgeVisualPathD(e)
+  if (globalType === 'bezier' && existing) return existing
+  const s = getEndpointPosOrZero((e as any).source)
+  const t = getEndpointPosOrZero((e as any).target)
+  return buildEdgePathD({
+    edgeType: globalType,
+    sx: s.x,
+    sy: s.y,
+    tx: t.x,
+    ty: t.y,
+    curve: readEdgePathCurveOptions(e, schema),
+  })
+}
+
 export const createLinksHitLayer = (args: {
   g: GSelection;
   edgesForDisplay: GraphEdge[];
@@ -144,13 +160,7 @@ export const createLinksHitLayer = (args: {
     .data(withPath)
     .enter()
     .append('path')
-    .attr('d', (d: GraphEdge) => {
-      const existing = readEdgeVisualPathD(d)
-      if (existing) return existing
-      const s = getEndpointPosOrZero((d as any).source)
-      const t = getEndpointPosOrZero((d as any).target)
-      return buildEdgePathD({ edgeType: readGlobalEdgeType(schema), sx: s.x, sy: s.y, tx: t.x, ty: t.y })
-    })
+    .attr('d', (d: GraphEdge) => resolveEdgePathD(d, schema))
     .attr('transform', (d: GraphEdge) => {
       const t = readEdgeVisualPathTranslate(d)
       return t ? `translate(${t.x},${t.y})` : null
@@ -263,13 +273,7 @@ export const createLinksLayer = (args: {
     .enter()
     .append('path')
     .attr('class', 'kg-edge-path')
-    .attr('d', (d: GraphEdge) => {
-      const existing = readEdgeVisualPathD(d)
-      if (existing) return existing
-      const s = getEndpointPosOrZero((d as any).source)
-      const t = getEndpointPosOrZero((d as any).target)
-      return buildEdgePathD({ edgeType: readGlobalEdgeType(schema), sx: s.x, sy: s.y, tx: t.x, ty: t.y })
-    })
+    .attr('d', (d: GraphEdge) => resolveEdgePathD(d, schema))
     .attr('transform', (d: GraphEdge) => {
       const t = readEdgeVisualPathTranslate(d)
       return t ? `translate(${t.x},${t.y})` : null

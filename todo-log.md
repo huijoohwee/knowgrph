@@ -3,6 +3,12 @@
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-03-29
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Docs / Canvas / Edge Types | Keep edge-type docs aligned with global renderer SSOT | Document global Edge Types (bezier, straight, step, smoothstep) as schema.layout.edges.type SSOT and describe how FloatingPanel Edge Types and AgenticRAG edge properties drive cross-renderer visuals without affecting graph semantics. | `knowgrph/docs/documents/knowgrph-renderer-document.md`, `knowgrph/todo-log.md`, `huijoohwee.github.io/schema/AgenticRAG/{README.md,edge-schema.jsonld,canvas.jsonld}` | Cross-repo Edge Types docs + AgenticRAG schema | Update Markdown + JSON-LD text | Implemented global edgeTypes utility + renderer wiring | Updated docs + schema text + sync_map alignment | Document only code-backed global edge-type behavior; keep schema fields structural-only; forbid renderer-specific edge semantics or duplicate per-surface type switches. | Run `npm -C knowgrph/canvas run doc:lint`, then `python3 huijoohwee.github.io/schema/AgenticRAG/sync_map.py --mode check`. | 2026-03-29 |
+
 ## 2026-03-28
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
@@ -186,4 +192,3 @@
 | Editor Workspace / Monaco / Webpage view switching | Prevent empty editor during async hydration and mode toggles | Ensure Monaco initializes with the latest text value (not a stale first-render snapshot) and ensure `kgWebpageView` switches hydrate from disk before writing; forbid any path where switching `Markdown/HTML/JSON` can result in an empty editor buffer when the on-disk file is non-empty. | `canvas/src/features/monaco/MonacoTextEditor.tsx`, `canvas/src/components/BottomPanel/markdownWorkspace/MarkdownWorkspace.tsx`, `docs/documents/knowgrph-webpage-proxy-and-srcdoc-iframe-document.md` | MonacoTextEditor + MarkdownWorkspace | `MonacoTextEditor`, `switchActiveWebpageWorkspaceView` | Workspace file path + view mode + hydrated file text | Non-empty editor content when file content exists | Monaco must seed model value from a `latestValue` ref at create-time; view switching must read from FS/lastLoaded when editor is not dirty; markdown switches must clear HTML/JSON overrides before async conversions complete. | Import a large webpage (≥50k chars), immediately toggle `kgWebpageView: html → markdown`, and confirm the editor shows content without requiring a reload or extra toggle. | 2026-02-14 |
 
 ## 2026-02-13
-

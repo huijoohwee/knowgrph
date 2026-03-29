@@ -56,7 +56,7 @@ const applyCanvasDefaultInitSchema = (schema: GraphSchema): GraphSchema => {
       ? rawNodeShapeMode
       : 'circle'
   const nextBehavior = { ...behavior, nodeShapeMode, portHandles }
-  const nextLayout = { ...(schema.layout || {}), mode: 'force' as const }
+  const nextLayout = { ...(schema.layout || {}), mode: 'radial' as const }
   return { ...schema, behavior: nextBehavior, layout: nextLayout }
 }
 

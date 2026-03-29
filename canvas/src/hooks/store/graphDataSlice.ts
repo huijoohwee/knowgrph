@@ -554,11 +554,11 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       try {
         const mode = get().schema.layout?.mode
         if (mode === 'radial') {
-          const setCanvasRenderMode = get().setCanvasRenderMode
-          if (typeof setCanvasRenderMode === 'function') setCanvasRenderMode('2d')
-
-          const setCanvas2dRenderer = get().setCanvas2dRenderer
-          if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer('d3')
+          const curRenderer = get().canvas2dRenderer
+          if (curRenderer !== 'd3' && curRenderer !== 'd3Bipartite') {
+            const setCanvas2dRenderer = get().setCanvas2dRenderer
+            if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer('d3')
+          }
         }
       } catch {
         void 0
