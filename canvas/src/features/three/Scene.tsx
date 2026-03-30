@@ -243,12 +243,11 @@ export function Scene({
   const handleDragStart = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     if (mode === 'voxel') {
-      const existing = (dragRef.current[id] || positions[id] || [0, 0, 0]) as Vec3
       const hit = intersectRayWithZPlane(e.ray, 0)
       const p = hit || e.point
       const gx = quantizeVoxelCoordToGridLine(p.x, voxelGridStep)
       const gy = quantizeVoxelCoordToGridLine(p.y, voxelGridStep)
-      dragRef.current[id] = [gx, gy, existing[2]]
+      dragRef.current[id] = [gx, gy, 0]
       return
     }
     const p = e.point.clone()
@@ -265,12 +264,11 @@ export function Scene({
   const handleDrag = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     if (mode === 'voxel') {
-      const existing = (dragRef.current[id] || positions[id] || [0, 0, 0]) as Vec3
       const hit = intersectRayWithZPlane(e.ray, 0)
       const p = hit || e.point
       const gx = quantizeVoxelCoordToGridLine(p.x, voxelGridStep)
       const gy = quantizeVoxelCoordToGridLine(p.y, voxelGridStep)
-      dragRef.current[id] = [gx, gy, existing[2]]
+      dragRef.current[id] = [gx, gy, 0]
       return
     }
     const p = e.point.clone()
@@ -287,12 +285,11 @@ export function Scene({
   const handleDragEnd = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     if (mode === 'voxel') {
-      const existing = (dragRef.current[id] || positions[id] || [0, 0, 0]) as Vec3
       const hit = intersectRayWithZPlane(e.ray, 0)
       const p = hit || e.point
       const gx = quantizeVoxelCoordToGridLine(p.x, voxelGridStep)
       const gy = quantizeVoxelCoordToGridLine(p.y, voxelGridStep)
-      dragRef.current[id] = [gx, gy, existing[2]]
+      dragRef.current[id] = [gx, gy, 0]
       requestAnimationFrame(() => {
         delete dragRef.current[id]
       })
@@ -351,13 +348,27 @@ export function Scene({
   const voxelGround = React.useMemo(() => {
     if (mode !== 'voxel') return null
     const gridStep = resolveVoxelGridStep(schema)
+    let maxAbs = 0
+    for (let i = 0; i < data.nodes.length; i += 1) {
+      const id = data.nodes[i].id
+      const p = positions[id]
+      if (!p) continue
+      const ax = Math.abs(p[0])
+      const ay = Math.abs(p[1])
+      if (ax > maxAbs) maxAbs = ax
+      if (ay > maxAbs) maxAbs = ay
+    }
+    const spanFromPositions = maxAbs > 0
+      ? (Math.ceil((maxAbs * 2 + gridStep * 8) / Math.max(1, gridStep)) * gridStep)
+      : 0
     const nodeCount = Array.isArray(data.nodes) ? data.nodes.length : 0
-    const approxSpan = Math.max(200, Math.min(2400, Math.ceil(Math.sqrt(Math.max(1, nodeCount))) * gridStep * 6))
-    let divisions = Math.max(4, Math.min(120, Math.round(approxSpan / Math.max(1, gridStep))))
-    if (divisions % 2 !== 0) divisions = Math.min(120, divisions + 1)
+    const spanFromCount = Math.max(200, Math.ceil(Math.sqrt(Math.max(1, nodeCount))) * gridStep * 6)
+    const targetSpan = Math.max(spanFromCount, spanFromPositions)
+    let divisions = Math.max(4, Math.min(220, Math.round(targetSpan / Math.max(1, gridStep))))
+    if (divisions % 2 !== 0) divisions += 1
     const span = divisions * gridStep
     return { span, divisions, gridStep }
-  }, [data.nodes, mode, schema])
+  }, [data.nodes, mode, positions, schema])
 
   const motionIntensityForMode = mode === 'voxel' ? 0 : motionIntensityEffective
 

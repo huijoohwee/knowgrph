@@ -112,7 +112,7 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, gra
     })()
     const edges = ((graphDataForViewOverride || graphData) as GraphData | null)?.edges || []
     if (mode === 'voxel') {
-      return computePositionsVoxel(nodes, schema, { seed2dPositions: voxelSeed2d })
+      return computePositionsVoxel(nodes, schema, { seed2dPositions: voxelSeed2d, seedAxis: { flipY: true, normalizeToVoxelSpan: false } })
     }
     return computePositions3d(nodes, schema, { seed2dPositions: seed2d, edges })
   }, [canvas2dRenderer, collapsedGroupIds, documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, graphData, graphDataForViewOverride, graphDataRevision, infiniteCanvasInteractionMode, layoutPositionCacheByMode, mediaPanelDensity, mode, multiDimTableModeEnabled, nodes, renderMediaAsNodes, schema])
@@ -155,7 +155,20 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
   const layerSpacing = resolveSphereLayerSpacing(schema)
   const ellipsoidAxes = resolveSphereEllipsoidAxes(schema)
   const voxelGridStep = resolveVoxelGridStep(schema)
-  const voxelHalfExtent = Math.max(90, sphereRadius * 0.82)
+  const voxelHalfExtent = useMemo(() => {
+    let maxAbs = 0
+    for (let i = 0; i < nodes.length; i += 1) {
+      const id = nodes[i].id
+      const p = positions[id]
+      if (!p) continue
+      const ax = Math.abs(p[0])
+      const ay = Math.abs(p[1])
+      if (ax > maxAbs) maxAbs = ax
+      if (ay > maxAbs) maxAbs = ay
+    }
+    const padded = Math.ceil(maxAbs / Math.max(1, voxelGridStep)) * voxelGridStep + voxelGridStep * 4
+    return Math.max(90, sphereRadius * 0.82, padded)
+  }, [nodes, positions, sphereRadius, voxelGridStep])
   const hubOrbitEnabled = schema.three?.globeHubOrbitEnabled !== false
   const hubOrbitStrength = typeof schema.three?.globeHubOrbitStrength === 'number' && Number.isFinite(schema.three.globeHubOrbitStrength)
     ? Math.max(0, Math.min(1.8, schema.three.globeHubOrbitStrength))
@@ -307,7 +320,7 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
         if (mode === 'voxel') {
           px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, quantizeVoxelCoordToGridLine(ov[0], voxelGridStep)))
           py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, quantizeVoxelCoordToGridLine(ov[1], voxelGridStep)))
-          pz[i] = pz[i]
+          pz[i] = 0
         } else {
           const behavior = schema.behavior || { allowEdgeCreation: true, allowNodeDrag: true }
           const gridEnabled = !!behavior.snapGrid?.enabled
@@ -336,10 +349,11 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
     }
     if (mode === 'voxel') {
       for (let i = 0; i < n; i += 1) {
-        if (skipProjection && skipProjection.has(i)) continue
-        px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, quantizeVoxelCoordToGridLine(px[i], voxelGridStep)))
-        py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, quantizeVoxelCoordToGridLine(py[i], voxelGridStep)))
-        pz[i] = Math.max(voxelGridStep, Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, quantizeVoxelCoordToGridLine(pz[i], voxelGridStep))))
+        if (!(skipProjection && skipProjection.has(i))) {
+          px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, quantizeVoxelCoordToGridLine(px[i], voxelGridStep)))
+          py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, quantizeVoxelCoordToGridLine(py[i], voxelGridStep)))
+        }
+        pz[i] = 0
         vx[i] = 0
         vy[i] = 0
         vz[i] = 0

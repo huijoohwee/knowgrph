@@ -85,7 +85,8 @@ export function testVoxelModeSeedsOntoSnappedXyGroundPlaneFromFullStackJson() {
     return { x: (minX + maxX) * 0.5, y: (minY + maxY) * 0.5 }
   })()
 
-  const pos = computePositionsVoxel(nodes, null, { seed2dPositions })
+  const pos = computePositionsVoxel(nodes, null, { seed2dPositions, seedAxis: { flipY: true, normalizeToVoxelSpan: false } })
+  const seenXy = new Set<string>()
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]!
     const id = node.id
@@ -94,10 +95,13 @@ export function testVoxelModeSeedsOntoSnappedXyGroundPlaneFromFullStackJson() {
     const p = pos[id]
     if (!p) throw new Error(`missing voxel position for ${id}`)
     const expectedX = snapToGrid(seed.x - seedShift.x, grid)
-    const expectedY = snapToGrid(seed.y - seedShift.y, grid)
+    const expectedY = snapToGrid(-(seed.y - seedShift.y), grid)
     if (p[0] !== expectedX) throw new Error(`expected snapped X for ${id}: ${p[0]} vs ${expectedX}`)
     if (p[1] !== expectedY) throw new Error(`expected snapped Y for ${id}: ${p[1]} vs ${expectedY}`)
-    if (!(p[2] >= grid)) throw new Error(`expected Z height above ground for ${id}: ${p[2]} >= ${grid}`)
+    if (p[2] !== 0) throw new Error(`expected ground-plane Z for ${id}: ${p[2]} === 0`)
     if (p[2] % grid !== 0) throw new Error(`expected snapped Z height for ${id}: ${p[2]} multiple of ${grid}`)
+    const xyKey = `${p[0]}:${p[1]}`
+    if (seenXy.has(xyKey)) throw new Error(`expected unique XY placement to avoid vertical stacking: ${id} at ${xyKey}`)
+    seenXy.add(xyKey)
   }
 }

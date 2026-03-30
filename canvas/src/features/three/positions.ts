@@ -4,7 +4,6 @@ import { resolveGroupCollisions, type CollisionGroupItem } from '@/lib/graph/col
 import { isRadarHubNode, isRadarSpokeEdge } from '@/lib/graph/radarForces'
 
 import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveThreeSeed, resolveVoxelGridStep, quantizeVoxelCoordToGridLine } from './threeLayoutConfig'
-import { readThreeRenderOrderOffset } from './zOrder'
 
 export type Vec3 = [number, number, number]
 
@@ -340,11 +339,12 @@ export function computePositions3d(
 export function computePositionsVoxel(
   nodes: GraphNode[],
   schema: GraphSchema | null,
-  opts?: { seed2dPositions?: Record<string, { x: number; y: number }> | null },
+  opts?: { seed2dPositions?: Record<string, { x: number; y: number }> | null; seedAxis?: { flipY?: boolean; normalizeToVoxelSpan?: boolean } },
 ): Record<string, Vec3> {
   const out: Record<string, Vec3> = {}
   if (!nodes.length) return out
   const seed2d = opts?.seed2dPositions || null
+  const seedAxis = opts?.seedAxis || null
   const grid = resolveVoxelGridStep(schema)
   const seedShift = (() => {
     if (!seed2d) return { x: 0, y: 0 }
@@ -367,43 +367,49 @@ export function computePositionsVoxel(
     if (count < 2 || minX === Infinity) return { x: 0, y: 0 }
     return { x: (minX + maxX) * 0.5, y: (minY + maxY) * 0.5 }
   })()
-  const readNodeZBias = (node: GraphNode): number => {
-    const props = (node.properties || {}) as Record<string, unknown>
-    const zOffset = readThreeRenderOrderOffset(props)
-    const rawLayer = props['visual:layer']
-    const layer =
-      typeof rawLayer === 'number'
-        ? rawLayer
-        : typeof rawLayer === 'string'
-          ? Number(rawLayer.trim())
-          : 0
-    if (Number.isFinite(layer)) {
-      return zOffset + layer * 0.5
+  const seedScale = (() => {
+    if (!seed2d || seedAxis?.normalizeToVoxelSpan !== true) return 1
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+    let count = 0
+    for (const v of Object.values(seed2d)) {
+      if (!v) continue
+      const x = v.x - seedShift.x
+      const y0 = v.y - seedShift.y
+      const y = seedAxis?.flipY === true ? -y0 : y0
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+      if (x < minX) minX = x
+      if (y < minY) minY = y
+      if (x > maxX) maxX = x
+      if (y > maxY) maxY = y
+      count += 1
     }
-    return zOffset
-  }
-  const heightByType = (node: GraphNode): number => {
-    const t = String(node.type || '').toLowerCase()
-    const tierStep = Math.max(grid, Math.round(grid * 1.15))
-    const bias = Math.round(readNodeZBias(node) * (grid * 0.45))
-    const base = t.includes('hub')
-      ? tierStep * 3
-      : t.includes('concept')
-        ? tierStep * 2
-        : t.includes('problem')
-          ? tierStep
-          : t.includes('solution')
-            ? 0
-            : tierStep
-    const minHeight = grid
-    return Math.max(minHeight, base + bias)
-  }
+    if (count < 2 || minX === Infinity) return 1
+    const halfSpan = Math.max((maxX - minX) * 0.5, (maxY - minY) * 0.5)
+    if (!Number.isFinite(halfSpan) || halfSpan < 1e-6) return 1
+
+    const nodeCount = nodes.length
+    const approxSpan = Math.max(200, Math.min(2400, Math.ceil(Math.sqrt(Math.max(1, nodeCount))) * grid * 6))
+    let divisions = Math.max(4, Math.min(120, Math.round(approxSpan / Math.max(1, grid))))
+    if (divisions % 2 !== 0) divisions = Math.min(120, divisions + 1)
+    const span = divisions * grid
+    const targetHalfSpan = Math.max(grid * 4, span * 0.5)
+    const s = targetHalfSpan / halfSpan
+    if (!Number.isFinite(s) || s <= 0) return 1
+    return Math.max(0.05, Math.min(1, s))
+  })()
+  const heightByType = (_node: GraphNode): number => 0
   const readSeed = (id: string): { x: number; y: number } | null => {
     if (!seed2d) return null
     const s = seed2d[id]
     if (!s) return null
     if (!Number.isFinite(s.x) || !Number.isFinite(s.y)) return null
-    return { x: s.x - seedShift.x, y: s.y - seedShift.y }
+    const x = s.x - seedShift.x
+    const y0 = s.y - seedShift.y
+    const y = seedAxis?.flipY === true ? -y0 : y0
+    return { x: x * seedScale, y: y * seedScale }
   }
   const seededPosByNodeId = new Map<string, { x: number; y: number }>()
   for (let i = 0; i < nodes.length; i += 1) {
@@ -464,38 +470,50 @@ export function computePositionsVoxel(
   }
   const occupancy = new Set<string>()
   const reserve = (planeX: number, planeY: number, height: number): Vec3 => {
-    let qx = quantizeVoxelCoordToGridLine(planeX, grid)
-    let qy = quantizeVoxelCoordToGridLine(planeY, grid)
-    let qz = quantizeVoxelCoordToGridLine(height, grid)
+    const baseX = quantizeVoxelCoordToGridLine(planeX, grid)
+    const baseY = quantizeVoxelCoordToGridLine(planeY, grid)
+    const baseZ = quantizeVoxelCoordToGridLine(height, grid)
 
-    const baseX = qx
-    const baseY = qy
-    const baseZ = qz
+    const tryReserve = (x: number, y: number, z: number): Vec3 | null => {
+      const key = `${x}:${y}:${z}`
+      if (occupancy.has(key)) return null
+      occupancy.add(key)
+      return [x, y, z]
+    }
 
-    for (let lift = 0; lift < 24; lift += 1) {
-      const zz = baseZ + lift * grid
-      const key = `${baseX}:${baseY}:${zz}`
-      if (!occupancy.has(key)) {
-        occupancy.add(key)
-        return [baseX, baseY, zz]
+    const direct = tryReserve(baseX, baseY, baseZ)
+    if (direct) return direct
+
+    const maxRing = Math.max(24, Math.ceil(Math.sqrt(Math.max(1, nodes.length))) * 8)
+    for (let ring = 1; ring <= maxRing; ring += 1) {
+      for (let dx = -ring; dx <= ring; dx += 1) {
+        const x = baseX + dx * grid
+        const yTop = baseY + ring * grid
+        const yBottom = baseY - ring * grid
+        const top = tryReserve(x, yTop, baseZ)
+        if (top) return top
+        const bottom = tryReserve(x, yBottom, baseZ)
+        if (bottom) return bottom
+      }
+      for (let dy = -ring + 1; dy <= ring - 1; dy += 1) {
+        const y = baseY + dy * grid
+        const xRight = baseX + ring * grid
+        const xLeft = baseX - ring * grid
+        const right = tryReserve(xRight, y, baseZ)
+        if (right) return right
+        const left = tryReserve(xLeft, y, baseZ)
+        if (left) return left
       }
     }
 
-    let tries = 0
-    while (tries < 80) {
-      const key = `${qx}:${qy}:${qz}`
-      if (!occupancy.has(key)) {
-        occupancy.add(key)
-        return [qx, qy, qz]
-      }
-      tries += 1
-      const r = Math.ceil(tries / 8)
-      qx += ((tries % 2) * 2 - 1) * r * grid
-      qy += (((tries >> 1) % 2) * 2 - 1) * r * grid
+    let ring = maxRing + 1
+    while (ring < maxRing + 256) {
+      const x = baseX + ring * grid
+      const fallback = tryReserve(x, baseY, baseZ)
+      if (fallback) return fallback
+      ring += 1
     }
-    const fallbackKey = `${qx}:${qy}:${qz}`
-    occupancy.add(fallbackKey)
-    return [qx, qy, qz]
+    return [baseX, baseY, baseZ]
   }
   const spiralCellAt = (index: number): { x: number; z: number } => {
     if (index <= 0) return { x: 0, z: 0 }
@@ -547,7 +565,7 @@ export function computePositionsVoxel(
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]
     if (out[node.id]) continue
-    const s = seed2d ? seed2d[node.id] : null
+    const s = readSeed(node.id)
     if (s && Number.isFinite(s.x) && Number.isFinite(s.y)) {
       out[node.id] = reserve(s.x, s.y, heightByType(node))
       continue
