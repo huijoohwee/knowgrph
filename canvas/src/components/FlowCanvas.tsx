@@ -26,7 +26,7 @@ import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { computeArrangeCenters, type ArrangeAction2d } from '@/lib/canvas/arrange2d'
 import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/canvas/arrangeShortcuts'
 import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
-import { readCanvasGridConfigFromSchema, readCanvasGridWorldStepFromSchema } from '@/lib/canvas/canvasGridConfig'
+import { readCanvasGridRenderConfigFromSchema } from '@/lib/canvas/canvasGridConfig'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } from '@/lib/canvas/camera-options-2d'
 import { readAllowGroupResize } from '@/lib/canvas/groupResizePolicy'
@@ -480,16 +480,7 @@ export default function FlowCanvas({
     drawArgsRef.current.selectedEdgeIds = nextSelectedEdgeIds
     drawArgsRef.current.selectedGroupId = selectedGroupId ? String(selectedGroupId || '').trim() : null
     drawArgsRef.current.showGroupResizeHandle = readAllowGroupResize(schema)
-    const canvasGrid = readCanvasGridConfigFromSchema(schema)
-    drawArgsRef.current.grid = canvasGrid.enabled
-      ? {
-          enabled: true,
-          size: readCanvasGridWorldStepFromSchema(schema),
-          variant: canvasGrid.variant,
-          majorEvery: canvasGrid.majorEvery,
-          dotRadiusPx: canvasGrid.dotRadiusPx,
-        }
-      : null
+    drawArgsRef.current.grid = readCanvasGridRenderConfigFromSchema(schema)
     updateOverlayHiddenDrawArgs()
     drawArgsRef.current.renderEdges = renderEdges
     drawArgsRef.current.renderGroups = renderGroups

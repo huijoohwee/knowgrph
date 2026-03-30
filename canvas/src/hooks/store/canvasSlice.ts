@@ -38,6 +38,7 @@ import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { readLayoutMode2d } from '@/lib/graph/layoutMode'
 import { normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
+import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
 import {
   CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT,
   CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MAX,
@@ -413,6 +414,8 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     if (prevMode === '3d' && nextMode === '2d') {
       const st = get()
       const nodes = Array.isArray(st.graphData?.nodes) ? st.graphData.nodes : []
+      const snapGrid = readSnapGridConfigFromSchema(st.schema)
+      const snapVoxelTo2d = st.canvas3dMode === 'voxel' && snapGrid.enabled
       if (nodes.length > 0) {
         const posPatch: Record<string, { x: number; y: number }> = {}
         for (let i = 0; i < nodes.length; i += 1) {
@@ -424,7 +427,9 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
           const x = typeof p[0] === 'number' ? p[0] : Number.NaN
           const y = typeof p[1] === 'number' ? p[1] : Number.NaN
           if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-          posPatch[id] = { x, y }
+          const nextX = snapVoxelTo2d ? snapScalarToGrid(x, snapGrid.size) : x
+          const nextY = snapVoxelTo2d ? snapScalarToGrid(y, snapGrid.size) : y
+          posPatch[id] = { x: nextX, y: nextY }
         }
 
         if (Object.keys(posPatch).length > 0) {

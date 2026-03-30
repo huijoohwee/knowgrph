@@ -1,5 +1,6 @@
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeConfig } from '@/lib/graph/schema'
+import { clampSnapGridSize } from '@/lib/canvas/gridSnap'
 
 export const DEFAULT_THREE_SPHERE_LAYER_SPACING = 20
 export const DEFAULT_VOXEL_BASE_SPACING = 28
@@ -42,22 +43,17 @@ export const resolveVoxelGridScaleFactor = (schema: GraphSchema | null): number 
 }
 
 export const resolveVoxelGridStep = (schema: GraphSchema | null): number => {
-  const minSpacing = resolveMinSpacing(schema)
   const voxelGridScale = resolveVoxelGridScaleFactor(schema)
-  const base = typeof minSpacing === 'number' ? minSpacing : DEFAULT_VOXEL_BASE_SPACING
-  return Math.max(12, Math.min(48, Math.round(base * 0.65 * voxelGridScale)))
+  const snapSizeRaw = (schema?.behavior as unknown as { snapGrid?: unknown } | null)?.snapGrid as { size?: unknown } | null
+  const snapSize = clampSnapGridSize(snapSizeRaw?.size)
+  const base = Number.isFinite(snapSize) ? snapSize : DEFAULT_VOXEL_BASE_SPACING
+  return clampSnapGridSize(Math.round(base * voxelGridScale))
 }
 
 export const resolveVoxelSeedGridStep = (schema: GraphSchema | null): number => {
   const voxelSeedScale = resolveVoxelSeedScaleFactor(schema)
   const grid = resolveVoxelGridStep(schema)
   return Math.max(16, Math.round(grid * 1.2 * voxelSeedScale))
-}
-
-export const quantizeVoxelCoordToCellCenter = (value: number, gridStep: number): number => {
-  const g = Math.max(1e-6, gridStep)
-  const idx = Math.round((value - g * 0.5) / g)
-  return idx * g + g * 0.5
 }
 
 export const quantizeVoxelCoordToGridLine = (value: number, gridStep: number): number => {

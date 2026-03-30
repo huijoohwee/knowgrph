@@ -29,7 +29,7 @@ import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
-import { readCanvasGridConfigFromSchema, readCanvasGridWorldStepFromSchema } from '@/lib/canvas/canvasGridConfig'
+import { readCanvasGridRenderConfigFromSchema } from '@/lib/canvas/canvasGridConfig'
 import { deriveSceneDisplayGraph, deriveSceneGroups } from '@/lib/scene/sceneDerivation'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
@@ -257,8 +257,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   }, [clonedGraphData, documentSemanticMode, effectiveFrontmatterModeEnabled, graphDataRevision, schema])
 
   const { width, height, left, top, dpr } = useContainerDims(containerRef)
-  const canvasGrid = useMemo(() => readCanvasGridConfigFromSchema(schema), [schema])
-  const canvasGridStep = useMemo(() => readCanvasGridWorldStepFromSchema(schema), [schema])
+  const canvasGrid = useMemo(() => readCanvasGridRenderConfigFromSchema(schema), [schema])
   const getZoomTransform = useCallback(() => {
     const el = svgRef.current
     if (!el) return null
@@ -997,11 +996,11 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     <main ref={containerRef} className={CANVAS_SURFACE_CLASS} role="main" aria-label="Graph Canvas">
       <ArrangeToolbar2d active={active} selectedCount={arrange.selectedIds.length} onArrange={arrange.applyArrange} />
       <InfiniteGridCanvasOverlay
-        enabled={canvasGrid.enabled}
-        gridSize={canvasGridStep}
-        variant={canvasGrid.variant}
-        majorEvery={canvasGrid.majorEvery}
-        dotRadiusPx={canvasGrid.dotRadiusPx}
+        enabled={canvasGrid?.enabled === true}
+        gridSize={canvasGrid?.size || 10}
+        variant={canvasGrid?.variant}
+        majorEvery={canvasGrid?.majorEvery}
+        dotRadiusPx={canvasGrid?.dotRadiusPx}
         width={width}
         height={height}
         dpr={dpr}

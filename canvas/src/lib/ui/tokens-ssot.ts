@@ -16,3 +16,12 @@ export function buildKgTokensCssText(theme: KgTheme, opts?: { selector?: string 
   lines.push('')
   return lines.join('\n')
 }
+
+export const readRootCssStateKey = (): string => {
+  if (typeof document === 'undefined') return ''
+  const root = document.documentElement
+  const theme = root.getAttribute('data-theme') || ''
+  const className = root.className || ''
+  const style = root.getAttribute('style') || ''
+  return `${theme}|${className}|${style}`
+}

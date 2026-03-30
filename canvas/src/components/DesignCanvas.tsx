@@ -11,7 +11,7 @@ import { commitZoomTransformToStore } from '@/lib/canvas/zoom-commit'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
 import { InfiniteGridCanvasOverlay } from '@/components/InfiniteGridCanvasOverlay'
 import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
-import { readCanvasGridConfigFromSchema, readCanvasGridWorldStepFromSchema } from '@/lib/canvas/canvasGridConfig'
+import { readCanvasGridRenderConfigFromSchema } from '@/lib/canvas/canvasGridConfig'
 import { invertZoomPoint } from '@/lib/canvas/viewport-transform'
 import { readElementLocalPoint } from '@/lib/canvas/canvas-event-coords'
 import { useZoomEffects } from '@/components/GraphCanvas/hooks/useZoomEffects'
@@ -2975,8 +2975,7 @@ export default function DesignCanvas({
     }
   }, [active, applyArrange, positions, selectedIds, setDesignFramePosMany, snapshot.schema?.behavior?.snapGrid])
 
-  const canvasGrid = React.useMemo(() => readCanvasGridConfigFromSchema(snapshot.schema), [snapshot.schema])
-  const canvasGridStep = React.useMemo(() => readCanvasGridWorldStepFromSchema(snapshot.schema), [snapshot.schema])
+  const canvasGrid = React.useMemo(() => readCanvasGridRenderConfigFromSchema(snapshot.schema), [snapshot.schema])
   const getZoomTransform = React.useCallback(() => {
     const el = svgRef.current
     if (!el) return null
@@ -3119,11 +3118,11 @@ export default function DesignCanvas({
         </div>
       ) : null}
       <InfiniteGridCanvasOverlay
-        enabled={canvasGrid.enabled}
-        gridSize={canvasGridStep}
-        variant={canvasGrid.variant}
-        majorEvery={canvasGrid.majorEvery}
-        dotRadiusPx={canvasGrid.dotRadiusPx}
+        enabled={canvasGrid?.enabled === true}
+        gridSize={canvasGrid?.size || 10}
+        variant={canvasGrid?.variant}
+        majorEvery={canvasGrid?.majorEvery}
+        dotRadiusPx={canvasGrid?.dotRadiusPx}
         width={dims.width}
         height={dims.height}
         dpr={dims.dpr}

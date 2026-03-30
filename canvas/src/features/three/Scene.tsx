@@ -29,7 +29,7 @@ import { readThreeRenderOrderOffset } from '@/features/three/zOrder'
 import { readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import type { Canvas3dModeId } from '@/lib/config'
 import { resolveVoxelClusterColor, resolveVoxelClusterKey } from './voxelStyle'
-import { quantizeVoxelCoordToCellCenter, resolveVoxelGridStep } from './threeLayoutConfig'
+import { quantizeVoxelCoordToGridLine, resolveVoxelGridStep } from './threeLayoutConfig'
 import { intersectRayWithZPlane } from './raycast'
 
 function clamp(value: number, min: number, max: number): number {
@@ -238,8 +238,8 @@ export function Scene({
   const dragRef = dragOverridesRef || localDragOverridesRef
   const voxelGridStep = resolveVoxelGridStep(schema)
   const snapVoxelDragPoint = React.useCallback((x: number, y: number): Vec3 => {
-    const sx = quantizeVoxelCoordToCellCenter(x, voxelGridStep)
-    const sy = quantizeVoxelCoordToCellCenter(y, voxelGridStep)
+    const sx = quantizeVoxelCoordToGridLine(x, voxelGridStep)
+    const sy = quantizeVoxelCoordToGridLine(y, voxelGridStep)
     return [sx, sy, 0]
   }, [voxelGridStep])
   const handleDragStart = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {

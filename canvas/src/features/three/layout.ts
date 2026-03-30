@@ -8,10 +8,11 @@ import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { computeLayoutDatasetKey, buildLayoutViewKey, buildLayoutPositionCacheKey } from '@/lib/canvas/layoutPositioning'
 import { coverageOfPositions, pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
+import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { computeLayerOffsetIndices, computePositions3d, computePositionsVoxel, type Vec3 } from './positions'
 import { projectPositionsToSphereShell } from './sphereConstraint'
-import { quantizeVoxelCoordToCellCenter, quantizeVoxelCoordToGridLine, resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveVoxelGridStep } from './threeLayoutConfig'
+import { quantizeVoxelCoordToGridLine, resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveVoxelGridStep } from './threeLayoutConfig'
 import { isRadarFlowEdge, isRadarGraph, isRadarHubNode, isRadarSpokeEdge, readRadarForceConfig } from '@/lib/graph/radarForces'
 import type { Canvas3dModeId } from '@/lib/config'
 
@@ -181,8 +182,7 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
     }
     const padded = Math.ceil(maxAbs / Math.max(1, voxelGridStep)) * voxelGridStep + voxelGridStep * 4
     const rawExtent = Math.max(90, sphereRadius * 0.82, padded)
-    const extentByLine = Math.ceil(rawExtent / Math.max(1, voxelGridStep)) * voxelGridStep
-    return Math.max(voxelGridStep * 0.5, extentByLine - voxelGridStep * 0.5)
+    return Math.ceil(rawExtent / Math.max(1, voxelGridStep)) * voxelGridStep
   }, [nodes, positions, sphereRadius, voxelGridStep])
   const hubOrbitEnabled = schema.three?.globeHubOrbitEnabled !== false
   const hubOrbitStrength = typeof schema.three?.globeHubOrbitStrength === 'number' && Number.isFinite(schema.three.globeHubOrbitStrength)
@@ -333,22 +333,22 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
         const ov = overrides[id]
         if (!ov) continue
         if (mode === 'voxel') {
-          const nx = quantizeVoxelCoordToCellCenter(ov[0], voxelGridStep)
-          const ny = quantizeVoxelCoordToCellCenter(ov[1], voxelGridStep)
+          const nx = quantizeVoxelCoordToGridLine(ov[0], voxelGridStep)
+          const ny = quantizeVoxelCoordToGridLine(ov[1], voxelGridStep)
           px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, nx))
           py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, ny))
           pz[i] = 0
         } else {
           const behavior = schema.behavior || { allowEdgeCreation: true, allowNodeDrag: true }
-          const gridEnabled = !!behavior.snapGrid?.enabled
-          const gridSize = Math.max(1, behavior.snapGrid?.size ?? 10)
+          const grid = readSnapGridConfigFromSchema(schema)
+          const gridEnabled = grid.enabled
           const constraint = behavior.dragConstraint || 'free'
           let nx = ov[0]
           let ny = ov[1]
           const nz = ov[2]
           if (gridEnabled) {
-            nx = Math.round(nx / gridSize) * gridSize
-            ny = Math.round(ny / gridSize) * gridSize
+            nx = snapScalarToGrid(nx, grid.size)
+            ny = snapScalarToGrid(ny, grid.size)
           }
           if (constraint === 'axis-x') {
             ny = py[i]
@@ -367,8 +367,8 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
     if (mode === 'voxel') {
       for (let i = 0; i < n; i += 1) {
         if (!(skipProjection && skipProjection.has(i))) {
-          const nx = quantizeVoxelCoordToCellCenter(px[i], voxelGridStep)
-          const ny = quantizeVoxelCoordToCellCenter(py[i], voxelGridStep)
+          const nx = quantizeVoxelCoordToGridLine(px[i], voxelGridStep)
+          const ny = quantizeVoxelCoordToGridLine(py[i], voxelGridStep)
           px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, nx))
           py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, ny))
         }

@@ -10,6 +10,14 @@ export type CanvasGridConfig = {
   dotRadiusPx: number
 }
 
+export type CanvasGridRenderConfig = {
+  enabled: true
+  size: number
+  variant: CanvasGridVariant
+  majorEvery: number
+  dotRadiusPx: number
+}
+
 export const CANVAS_GRID_DOT_RADIUS_PX_DEFAULT = 1
 export const CANVAS_GRID_DOT_RADIUS_PX_MIN = 0.5
 export const CANVAS_GRID_DOT_RADIUS_PX_MAX = 6
@@ -49,3 +57,14 @@ export const readCanvasGridWorldStepFromSchema = (schema: GraphSchema | null | u
   return clampSnapGridSize(snap?.size)
 }
 
+export const readCanvasGridRenderConfigFromSchema = (schema: GraphSchema | null | undefined): CanvasGridRenderConfig | null => {
+  const grid = readCanvasGridConfigFromSchema(schema)
+  if (!grid.enabled) return null
+  return {
+    enabled: true,
+    size: readCanvasGridWorldStepFromSchema(schema),
+    variant: grid.variant,
+    majorEvery: grid.majorEvery,
+    dotRadiusPx: grid.dotRadiusPx,
+  }
+}

@@ -1,18 +1,9 @@
 import React from 'react'
 import { drawInfiniteGrid } from '@/lib/canvas/infiniteGrid'
-import { resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
+import { readRootCssStateKey, resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
 import { readCanvasGridStrokeFallbacks } from '@/lib/canvas/canvasGridPaint'
 
 type ZoomTransform = { k: number; x: number; y: number }
-
-const readRootCssKey = (): string => {
-  if (typeof document === 'undefined') return ''
-  const root = document.documentElement
-  const theme = root.getAttribute('data-theme') || ''
-  const className = root.className || ''
-  const style = root.getAttribute('style') || ''
-  return `${theme}|${className}|${style}`
-}
 
 const safeTransform = (t: unknown): ZoomTransform | null => {
   const any = t as { k?: unknown; x?: unknown; y?: unknown } | null
@@ -74,7 +65,7 @@ export function InfiniteGridCanvasOverlay(props: {
 
     const t = safeTransform(getTransform())
     if (!t) return
-    const cssKey = readRootCssKey()
+    const cssKey = readRootCssStateKey()
     const drawKey = `${viewportW}x${viewportH}@${dpr}|${t.k.toFixed(6)},${t.x.toFixed(2)},${t.y.toFixed(2)}|${gridSize}|${variant}|${majorEvery ?? ''}|${dotRadiusPx ?? ''}|${cssKey}`
     if (drawKey === lastDrawKeyRef.current) return
     lastDrawKeyRef.current = drawKey

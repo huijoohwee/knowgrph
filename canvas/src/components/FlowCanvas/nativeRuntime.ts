@@ -9,7 +9,7 @@ import { routeFlowEdgeOrtho, type Rect } from '@/components/FlowCanvas/edgeRouti
 import { computeGroupDepthStyle } from '@/lib/graph/groupDepthStyle'
 import { aabbOverlaps, type AabbRect } from '@/lib/ui/labels/aabb'
 import { estimateLabelCharWidthPx, estimateMaxCharsForWidthPx, truncateTextWithEllipsis, truncateTextWithWordEllipsis, wrapTextByMaxChars } from '@/lib/ui/text/labelText'
-import { getKgTokenFallback, getKgThemeFromDom, resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
+import { getKgTokenFallback, getKgThemeFromDom, readRootCssStateKey, resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
 import { readCanvasGridStrokeFallbacks } from '@/lib/canvas/canvasGridPaint'
 import { screenToWorld as screenToWorldViewport } from '@/lib/zoom/viewport'
 import { computeDynamicGroupResizeHandlePx, pxToWorld, readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfig'
@@ -187,12 +187,7 @@ export const readFlowFontFamilyFromCss = (): string => {
 }
 
 export const readFlowCssKey = (): string => {
-  if (typeof document === 'undefined') return ''
-  const root = document.documentElement
-  const theme = root.getAttribute('data-theme') || ''
-  const className = root.className || ''
-  const style = root.getAttribute('style') || ''
-  return `${theme}|${className}|${style}`
+  return readRootCssStateKey()
 }
 
 export const readFlowThemeFromCss = (): FlowNativeTheme => {
