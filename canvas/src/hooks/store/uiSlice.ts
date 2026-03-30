@@ -16,7 +16,7 @@ import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import { getInitialLaunchSpotlightEnabled, persistLaunchSpotlightEnabled } from '@/features/spotlight/storage'
 import { createPanelLayoutUiSlice } from '@/hooks/store/panelLayoutUiSlice'
-import { DEFAULT_CANVAS_2D_RENDERER } from '@/lib/config'
+import { DEFAULT_CANVAS_2D_RENDERER, DEFAULT_CANVAS_3D_MODE } from '@/lib/config'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import { clampFillRatio } from 'grph-shared/zoom/presets'
 import { DEFAULT_DRAG_ALPHA_TARGET, DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from '@/lib/graph/layoutDefaults'
@@ -70,6 +70,7 @@ export const createUiSlice = (set: SetGraph) => {
             documentSemanticMode: snap.documentSemanticMode,
             frontmatterModeEnabled: snap.frontmatterModeEnabled,
             canvasRenderMode: snap.canvasRenderMode,
+            canvas3dMode: snap.canvas3dMode,
             canvas2dRenderer: snap.canvas2dRenderer,
             canvasRenderModeLastFree: snap.canvasRenderModeLastFree,
             canvasRenderModeIsAuto: snap.canvasRenderModeIsAuto,
@@ -92,6 +93,7 @@ export const createUiSlice = (set: SetGraph) => {
           documentSemanticMode: state.documentSemanticMode,
           frontmatterModeEnabled: state.frontmatterModeEnabled,
           canvasRenderMode: state.canvasRenderMode,
+          canvas3dMode: state.canvas3dMode,
           canvas2dRenderer: state.canvas2dRenderer,
           canvasRenderModeLastFree: state.canvasRenderModeLastFree,
           canvasRenderModeIsAuto: state.canvasRenderModeIsAuto,
@@ -118,6 +120,7 @@ export const createUiSlice = (set: SetGraph) => {
           documentSemanticMode: 'document',
           frontmatterModeEnabled: false,
           canvasRenderMode: '2d',
+          canvas3dMode: DEFAULT_CANVAS_3D_MODE,
           canvas2dRenderer: DEFAULT_CANVAS_2D_RENDERER,
           canvasRenderModeLastFree: '2d',
           canvasRenderModeIsAuto: false,

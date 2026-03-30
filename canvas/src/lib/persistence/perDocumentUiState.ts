@@ -1,13 +1,14 @@
 import { LS_KEYS } from '@/lib/config'
 import { getLocalStorage, readJsonFromStorage, writeJsonToStorage } from '@/lib/persistence'
 import { hashStringToHex } from '@/lib/hash/stringHash'
-import type { Canvas2dRendererId } from '@/lib/config'
+import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
 import type { DocumentSemanticMode } from '@/hooks/store/types'
 
 export type PerDocumentUiState = {
   documentRef?: string
   updatedAtMs?: number
   canvasRenderMode?: '2d' | '3d'
+  canvas3dMode?: Canvas3dModeId
   canvas2dRenderer?: Canvas2dRendererId
   documentSemanticMode?: DocumentSemanticMode
   frontmatterModeEnabled?: boolean
@@ -43,8 +44,9 @@ function coerceStringArray(v: unknown): string[] {
 function coerceState(raw: unknown): PerDocumentUiState | null {
   if (!isRecord(raw)) return null
   const canvasRenderMode = raw.canvasRenderMode === '3d' ? '3d' : raw.canvasRenderMode === '2d' ? '2d' : undefined
+  const canvas3dMode = raw.canvas3dMode === 'voxel' ? 'voxel' : raw.canvas3dMode === '3d' ? '3d' : undefined
   const canvas2dRenderer =
-    raw.canvas2dRenderer === 'flowEditor' || raw.canvas2dRenderer === 'flow' || raw.canvas2dRenderer === 'design' || raw.canvas2dRenderer === 'd3'
+    raw.canvas2dRenderer === 'flowEditor' || raw.canvas2dRenderer === 'flow' || raw.canvas2dRenderer === 'design' || raw.canvas2dRenderer === 'd3' || raw.canvas2dRenderer === 'd3Bipartite'
       ? (raw.canvas2dRenderer as Canvas2dRendererId)
       : undefined
   const documentSemanticMode = raw.documentSemanticMode === 'keyword' || raw.documentSemanticMode === 'document'
@@ -66,6 +68,7 @@ function coerceState(raw: unknown): PerDocumentUiState | null {
     documentRef,
     updatedAtMs,
     canvasRenderMode,
+    canvas3dMode,
     canvas2dRenderer,
     documentSemanticMode,
     frontmatterModeEnabled,
@@ -153,4 +156,3 @@ export function writePerDocumentUiState(args: {
   }
   writeJsonToStorage(storage, LS_KEYS.perDocumentUiStateMap, { v: 1, order: trimmedOrder, byKey: trimmedByKey })
 }
-

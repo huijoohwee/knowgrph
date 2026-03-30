@@ -2,6 +2,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeConfig } from '@/lib/graph/schema'
 
 export const DEFAULT_THREE_SPHERE_LAYER_SPACING = 20
+export const DEFAULT_VOXEL_BASE_SPACING = 28
 
 export const computeAutoSphereRadius = (nodeCount: number): number => {
   const n = Number.isFinite(nodeCount) ? Math.max(1, Math.floor(nodeCount)) : 1
@@ -24,6 +25,44 @@ export const resolveMinSpacing = (schema: GraphSchema | null): number | undefine
   const cfg = getThreeConfig(schema || undefined)
   const ms = typeof cfg.minSpacing === 'number' ? cfg.minSpacing : undefined
   return typeof ms === 'number' && Number.isFinite(ms) && ms > 0 ? ms : undefined
+}
+
+export const resolveVoxelSeedScaleFactor = (schema: GraphSchema | null): number => {
+  const cfg = getThreeConfig(schema || undefined)
+  const v = typeof cfg.voxelSeedScaleFactor === 'number' ? cfg.voxelSeedScaleFactor : 1
+  if (!Number.isFinite(v)) return 1
+  return clamp(v, 0.3, 3)
+}
+
+export const resolveVoxelGridScaleFactor = (schema: GraphSchema | null): number => {
+  const cfg = getThreeConfig(schema || undefined)
+  const v = typeof cfg.voxelGridScaleFactor === 'number' ? cfg.voxelGridScaleFactor : 1
+  if (!Number.isFinite(v)) return 1
+  return clamp(v, 0.3, 3)
+}
+
+export const resolveVoxelGridStep = (schema: GraphSchema | null): number => {
+  const minSpacing = resolveMinSpacing(schema)
+  const voxelGridScale = resolveVoxelGridScaleFactor(schema)
+  const base = typeof minSpacing === 'number' ? minSpacing : DEFAULT_VOXEL_BASE_SPACING
+  return Math.max(12, Math.min(48, Math.round(base * 0.65 * voxelGridScale)))
+}
+
+export const resolveVoxelSeedGridStep = (schema: GraphSchema | null): number => {
+  const voxelSeedScale = resolveVoxelSeedScaleFactor(schema)
+  const grid = resolveVoxelGridStep(schema)
+  return Math.max(16, Math.round(grid * 1.2 * voxelSeedScale))
+}
+
+export const quantizeVoxelCoordToCellCenter = (value: number, gridStep: number): number => {
+  const g = Math.max(1e-6, gridStep)
+  const idx = Math.floor(value / g)
+  return idx * g + g * 0.5
+}
+
+export const quantizeVoxelCoordToGridLine = (value: number, gridStep: number): number => {
+  const g = Math.max(1e-6, gridStep)
+  return Math.round(value / g) * g
 }
 
 export const resolveSphereLayerSpacing = (_schema: GraphSchema | null): number => {

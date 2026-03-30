@@ -7,37 +7,42 @@ import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { computeLayoutDatasetKey, buildLayoutViewKey, buildLayoutPositionCacheKey } from '@/lib/canvas/layoutPositioning'
-import { pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
+import { coverageOfPositions, pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { computeLayerOffsetIndices, computePositions3d, type Vec3 } from './positions'
+import { computeLayerOffsetIndices, computePositions3d, computePositionsVoxel, type Vec3 } from './positions'
 import { projectPositionsToSphereShell } from './sphereConstraint'
-import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius } from './threeLayoutConfig'
+import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveVoxelGridStep, quantizeVoxelCoordToGridLine } from './threeLayoutConfig'
 import { isRadarFlowEdge, isRadarGraph, isRadarHubNode, isRadarSpokeEdge, readRadarForceConfig } from '@/lib/graph/radarForces'
+import type { Canvas3dModeId } from '@/lib/config'
 
 export { fibSphere } from './positions'
 export type { Vec3 } from './positions'
 
-export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, graphDataForViewOverride?: GraphData | null): Record<string, Vec3> {
+export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, graphDataForViewOverride?: GraphData | null, mode: Canvas3dModeId = '3d'): Record<string, Vec3> {
   const layoutPositionCacheByMode = useGraphStore(s => s.layoutPositionCacheByMode)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
   const graphData = useGraphStore(s => s.graphData)
   const documentSemanticMode = useGraphStore(s => s.documentSemanticMode)
+  const multiDimTableModeEnabled = useGraphStore(s => s.multiDimTableModeEnabled)
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled)
   const documentStructureBaselineLock = useGraphStore(s => s.documentStructureBaselineLock)
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
   const mediaPanelDensity = useGraphStore(s => s.mediaPanelDensity)
   const collapsedGroupIds = useGraphStore(s => s.collapsedGroupIds)
+  const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
+  const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
 
   return useMemo(() => {
     const mode = schema ? (schema.layout?.mode as string) || 'radial' : 'radial'
-    const semanticMode = String(documentSemanticMode || 'document')
+    const semanticModeBase = String(documentSemanticMode || 'document')
+    const semanticMode = multiDimTableModeEnabled === true ? `${semanticModeBase}:mdtbl` : semanticModeBase
     const graphDataForView =
       (graphDataForViewOverride as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null) ||
       (graphData as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null) ||
       null
     const effectiveFrontmatter = computeEffectiveFrontmatterMode({
       frontmatterModeEnabled: frontmatterModeEnabled === true && documentStructureBaselineLock !== true,
-      documentSemanticMode: semanticMode,
+      documentSemanticMode: semanticModeBase as 'document' | 'keyword',
       graphData: (graphDataForViewOverride || graphData) as any,
     })
     const datasetKey = computeLayoutDatasetKey({ graphData: graphDataForView, graphDataRevision })
@@ -61,17 +66,59 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, gra
       renderMode: '2d',
       viewKey,
     })
+    const seed2dRenderer = mode === 'voxel' ? 'd3Bipartite' : canvas2dRenderer
+    const layoutVariantExpected = seed2dRenderer === 'd3Bipartite'
+      ? `bipartite:v4:${semanticMode}:${String(effectiveFrontmatter ? 1 : 0)}:${String(infiniteCanvasInteractionMode)}`
+      : ''
+    const expectedKey = buildLayoutPositionCacheKey({
+      datasetKey,
+      mode,
+      frontmatterMode: effectiveFrontmatter,
+      semanticMode,
+      renderMode: '2d',
+      viewKey,
+      renderVariant: seed2dRenderer,
+      layoutVariant: layoutVariantExpected,
+    })
     const seed2d = pickSeedFromOtherRendererCache({
       nodes,
       cache: layoutPositionCacheByMode as any,
       baseKey,
+      expectedKey,
+      expectedLayoutVariant: layoutVariantExpected,
     })
+    const seed2dFromGraph = (() => {
+      const graphNodes = ((graphDataForViewOverride || graphData) as GraphData | null)?.nodes || []
+      if (!Array.isArray(graphNodes) || graphNodes.length === 0) return null
+      const out: Record<string, { x: number; y: number }> = {}
+      for (let i = 0; i < graphNodes.length; i += 1) {
+        const node = graphNodes[i] as GraphNode
+        const id = String(node?.id || '').trim()
+        if (!id) continue
+        const x = (node as unknown as { x?: unknown }).x
+        const y = (node as unknown as { y?: unknown }).y
+        if (typeof x !== 'number' || typeof y !== 'number') continue
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+        out[id] = { x, y }
+      }
+      return Object.keys(out).length > 0 ? out : null
+    })()
+    const voxelSeed2d = (() => {
+      if (mode !== 'voxel') return seed2d
+      const graphCoverage = coverageOfPositions(nodes, seed2dFromGraph)
+      const cacheCoverage = coverageOfPositions(nodes, seed2d)
+      if (graphCoverage > 0 && graphCoverage >= cacheCoverage) return seed2dFromGraph
+      return seed2d || seed2dFromGraph
+    })()
     const edges = ((graphDataForViewOverride || graphData) as GraphData | null)?.edges || []
+    if (mode === 'voxel') {
+      return computePositionsVoxel(nodes, schema, { seed2dPositions: voxelSeed2d })
+    }
     return computePositions3d(nodes, schema, { seed2dPositions: seed2d, edges })
-  }, [collapsedGroupIds, documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, graphData, graphDataForViewOverride, graphDataRevision, layoutPositionCacheByMode, mediaPanelDensity, nodes, renderMediaAsNodes, schema])
+  }, [canvas2dRenderer, collapsedGroupIds, documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, graphData, graphDataForViewOverride, graphDataRevision, infiniteCanvasInteractionMode, layoutPositionCacheByMode, mediaPanelDensity, mode, multiDimTableModeEnabled, nodes, renderMediaAsNodes, schema])
 }
 
-export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paused }: { positions: Record<string, Vec3>; nodes: GraphNode[]; edges: GraphData['edges']; schema: GraphSchema; dragOverrides?: React.MutableRefObject<Record<string, Vec3>>; paused?: boolean }) {
+export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paused, mode = '3d' }: { positions: Record<string, Vec3>; nodes: GraphNode[]; edges: GraphData['edges']; schema: GraphSchema; dragOverrides?: React.MutableRefObject<Record<string, Vec3>>; paused?: boolean; mode?: Canvas3dModeId }) {
   const n = nodes.length
   const layerOffsetIndices = useMemo(() => computeLayerOffsetIndices(nodes), [nodes])
   const idxById = useMemo(() => {
@@ -107,6 +154,8 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
   const maxSpeed = 6.0
   const layerSpacing = resolveSphereLayerSpacing(schema)
   const ellipsoidAxes = resolveSphereEllipsoidAxes(schema)
+  const voxelGridStep = resolveVoxelGridStep(schema)
+  const voxelHalfExtent = Math.max(90, sphereRadius * 0.82)
   const hubOrbitEnabled = schema.three?.globeHubOrbitEnabled !== false
   const hubOrbitStrength = typeof schema.three?.globeHubOrbitStrength === 'number' && Number.isFinite(schema.three.globeHubOrbitStrength)
     ? Math.max(0, Math.min(1.8, schema.three.globeHubOrbitStrength))
@@ -251,33 +300,59 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
     const skipProjection = overrides ? skipProjectionSetRef.current : null
     skipProjection?.clear()
     if (overrides) {
-      const behavior = schema.behavior || { allowEdgeCreation: true, allowNodeDrag: true }
-      const gridEnabled = !!behavior.snapGrid?.enabled
-      const gridSize = Math.max(1, behavior.snapGrid?.size ?? 10)
-      const constraint = behavior.dragConstraint || 'free'
       for (let i = 0; i < n; i++) {
         const id = nodes[i].id
         const ov = overrides[id]
         if (!ov) continue
-        let nx = ov[0]
-        let ny = ov[1]
-        const nz = ov[2]
-        if (gridEnabled) {
-          nx = Math.round(nx / gridSize) * gridSize
-          ny = Math.round(ny / gridSize) * gridSize
+        if (mode === 'voxel') {
+          px[i] = ov[0]
+          py[i] = ov[1]
+          pz[i] = pz[i]
+        } else {
+          const behavior = schema.behavior || { allowEdgeCreation: true, allowNodeDrag: true }
+          const gridEnabled = !!behavior.snapGrid?.enabled
+          const gridSize = Math.max(1, behavior.snapGrid?.size ?? 10)
+          const constraint = behavior.dragConstraint || 'free'
+          let nx = ov[0]
+          let ny = ov[1]
+          const nz = ov[2]
+          if (gridEnabled) {
+            nx = Math.round(nx / gridSize) * gridSize
+            ny = Math.round(ny / gridSize) * gridSize
+          }
+          if (constraint === 'axis-x') {
+            ny = py[i]
+          } else if (constraint === 'axis-y') {
+            nx = px[i]
+          } else if (constraint === 'none') {
+            nx = px[i]
+            ny = py[i]
+          }
+          px[i] = nx; py[i] = ny; pz[i] = nz
         }
-        if (constraint === 'axis-x') {
-          ny = py[i]
-        } else if (constraint === 'axis-y') {
-          nx = px[i]
-        } else if (constraint === 'none') {
-          nx = px[i]
-          ny = py[i]
-        }
-        px[i] = nx; py[i] = ny; pz[i] = nz
         vx[i] = 0; vy[i] = 0; vz[i] = 0
         skipProjection?.add(i)
       }
+    }
+    if (mode === 'voxel') {
+      for (let i = 0; i < n; i += 1) {
+        if (skipProjection && skipProjection.has(i)) continue
+        px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, quantizeVoxelCoordToGridLine(px[i], voxelGridStep)))
+        py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, quantizeVoxelCoordToGridLine(py[i], voxelGridStep)))
+        pz[i] = Math.max(voxelGridStep, Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, quantizeVoxelCoordToGridLine(pz[i], voxelGridStep))))
+        vx[i] = 0
+        vy[i] = 0
+        vz[i] = 0
+      }
+      for (let i = 0; i < n; i += 1) {
+        const id = nodes[i].id
+        const p = positions[id]
+        if (!p) continue
+        p[0] = px[i]
+        p[1] = py[i]
+        p[2] = pz[i]
+      }
+      return
     }
     const cellSize = repelRadius
     const grid = gridRef.current

@@ -4,6 +4,7 @@ import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/req
 import {
   LS_KEYS,
   DEFAULT_CANVAS_2D_RENDERER,
+  DEFAULT_CANVAS_3D_MODE,
   DEFAULT_VIEWPORT_CONTROLS_PRESET,
   DEFAULT_INFINITE_CANVAS_INTERACTION_MODE,
   DEFAULT_CANVAS_WORKSPACE_SYNC_MODE,
@@ -11,7 +12,7 @@ import {
 } from '@/lib/config'
 import { getLocalStorage, lsBool, lsFloat, lsInt, lsJson, lsSetBool, lsSetFloat, lsSetInt, lsSetJson } from '@/lib/persistence'
 import { coerceViewportControlsPreset } from '@/lib/canvas/viewport-controls'
-import type { Canvas2dRendererId, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
+import type { Canvas2dRendererId, Canvas3dModeId, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
 import {
   FLOW_WHEEL_ZOOM_SMOOTH_MAX_DURATION_DEFAULT_MS,
   FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MAX_MS,
@@ -36,6 +37,7 @@ import { pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { readLayoutMode2d } from '@/lib/graph/layoutMode'
+import { normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import {
   CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT,
   CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MAX,
@@ -97,6 +99,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   const initialCanvas2dRenderer = lsJson(LS_KEYS.canvas2dRenderer, DEFAULT_CANVAS_2D_RENDERER, (v): Canvas2dRendererId =>
     v === 'flow' || v === 'd3' || v === 'd3Bipartite' || v === 'flowEditor' || v === 'design' ? v : DEFAULT_CANVAS_2D_RENDERER,
   )
+  const initialCanvas3dMode = lsJson(LS_KEYS.canvas3dMode, DEFAULT_CANVAS_3D_MODE, v => normalizeCanvas3dMode(v))
   const initialViewportControlsPresetStored = lsJson(
     LS_KEYS.viewportControlsPreset,
     DEFAULT_VIEWPORT_CONTROLS_PRESET,
@@ -336,6 +339,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   requestEdgeCreation: (req: { type: 'create' | 'update-source' | 'update-target'; fromId: string }) => set({ edgeCreationRequest: { ...req, at: Date.now() } }),
   clearEdgeCreationRequest: () => set({ edgeCreationRequest: null }),
   canvasRenderMode: '2d' as '2d' | '3d',
+  canvas3dMode: initialCanvas3dMode,
   canvas2dRenderer: initialCanvas2dRenderer,
   viewportControlsPreset: initialViewportControlsPreset,
   infiniteCanvasInteractionMode: initialInfiniteCanvasInteractionMode,
@@ -379,7 +383,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
         semanticMode === 'keyword'
       const requestedGuarded = requested === '3d' && !modeAllowed ? '2d' : requested
       const layoutMode = state.schema?.layout?.mode
-      const enforce2d = layoutMode === 'block'
+      const enforce2d = layoutMode === 'block' && state.canvas3dMode !== 'voxel'
       if (enforce2d) {
         if (requestedGuarded === '3d') {
           const nextLastFree = state.canvasRenderMode === '3d' ? '3d' : (state.canvasRenderModeLastFree || '2d')
@@ -471,6 +475,32 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       }
     }
   },
+  setCanvas3dMode: (mode: Canvas3dModeId) => {
+    const cur = get()
+    if (cur.documentStructureBaselineLock === true) {
+      cur.upsertUiToast({
+        id: 'baseline-locked',
+        kind: 'warning',
+        message: UI_COPY.baselineLockedToast,
+        ttlMs: 6000,
+      })
+      return
+    }
+    set(state => {
+      const requested = normalizeCanvas3dMode(mode)
+      const next = resolveCanvas3dMode({
+        requested,
+        canvas2dRenderer: state.canvas2dRenderer,
+        documentSemanticMode: state.documentSemanticMode,
+        frontmatterModeEnabled: state.frontmatterModeEnabled === true,
+        multiDimTableModeEnabled: state.multiDimTableModeEnabled === true,
+        schema: state.schema,
+      })
+      if (state.canvas3dMode === next) return {}
+      lsSetJson(LS_KEYS.canvas3dMode, next)
+      return { canvas3dMode: next }
+    })
+  },
   setCanvas2dRenderer: (id: Canvas2dRendererId) => {
     const cur = get()
     if (cur.documentStructureBaselineLock === true) {
@@ -487,8 +517,19 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
         id === 'flow' || id === 'flowEditor' || id === 'design' || id === 'd3Bipartite' ? id : 'd3'
       const layoutMode = state.schema?.layout?.mode
       const radialRenderer = layoutMode === 'radial' && next !== 'd3' && next !== 'd3Bipartite' ? 'd3' : next
+      const nextCanvas3dMode = resolveCanvas3dMode({
+        requested: normalizeCanvas3dMode(state.canvas3dMode),
+        canvas2dRenderer: radialRenderer,
+        documentSemanticMode: state.documentSemanticMode,
+        frontmatterModeEnabled: state.frontmatterModeEnabled === true,
+        multiDimTableModeEnabled: state.multiDimTableModeEnabled === true,
+        schema: state.schema,
+      })
       if (state.canvas2dRenderer === radialRenderer) return {}
       lsSetJson(LS_KEYS.canvas2dRenderer, radialRenderer)
+      if (nextCanvas3dMode !== state.canvas3dMode) {
+        lsSetJson(LS_KEYS.canvas3dMode, nextCanvas3dMode)
+      }
 
       const common = {
         canvasRenderMode: state.canvasRenderMode,
@@ -517,6 +558,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
 
       return {
         canvas2dRenderer: radialRenderer,
+        canvas3dMode: nextCanvas3dMode,
         zoomStateByKey,
         canvasPointerMode2d: nextPointer,
         canvasPointerMode2dByRenderer: nextPointerBy,

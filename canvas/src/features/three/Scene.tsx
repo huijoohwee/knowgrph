@@ -27,6 +27,9 @@ import { GroupOverlays3d } from '@/features/three/GroupOverlays'
 import { THREE_RENDER_ORDER } from '@/features/three/renderOrder'
 import { readThreeRenderOrderOffset } from '@/features/three/zOrder'
 import { readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import type { Canvas3dModeId } from '@/lib/config'
+import { resolveVoxelClusterColor, resolveVoxelClusterKey } from './voxelStyle'
+import { resolveVoxelGridStep } from './threeLayoutConfig'
 
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min
@@ -47,6 +50,7 @@ export function Scene({
   theme,
   dragOverridesRef,
   hiddenNodeIdSet,
+  mode = '3d',
 }: {
   data: GraphData;
   schema: GraphSchema;
@@ -60,6 +64,7 @@ export function Scene({
   theme?: KgTheme;
   dragOverridesRef?: React.MutableRefObject<Record<string, Vec3>>;
   hiddenNodeIdSet?: Set<string>;
+  mode?: Canvas3dModeId;
 }) {
   const { gl } = useThree()
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
@@ -271,12 +276,65 @@ export function Scene({
     delete dragRef.current[id]
   }, [dragRef, explicitGroupRectByNodeId, nodeById, schema])
   const allowNodeDrag = schema.behavior ? schema.behavior.allowNodeDrag !== false : true
+  const voxelClusterLightIntensity = (() => {
+    const raw = schema.three?.voxelClusterLightIntensity
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) return 0.7
+    return Math.max(0, Math.min(2, raw))
+  })()
+  const voxelGroupLights = React.useMemo(() => {
+    if (mode !== 'voxel') return [] as Array<{ id: string; pos: [number, number, number]; color: string }>
+    const byGroupId = new Map<string, { x: number; y: number; z: number; count: number }>()
+    for (let i = 0; i < data.nodes.length; i += 1) {
+      const n = data.nodes[i]
+      const p = positions[n.id]
+      if (!p) continue
+      const g = resolveVoxelClusterKey(n)
+      if (!g) continue
+      const prev = byGroupId.get(g)
+      if (prev) {
+        prev.x += p[0]
+        prev.y += p[1]
+        prev.z += p[2]
+        prev.count += 1
+      } else {
+        byGroupId.set(g, { x: p[0], y: p[1], z: p[2], count: 1 })
+      }
+    }
+    const out: Array<{ id: string; pos: [number, number, number]; color: string }> = []
+    for (const [id, v] of byGroupId.entries()) {
+      const inv = v.count > 0 ? 1 / v.count : 1
+      const sample = data.nodes.find(n => resolveVoxelClusterKey(n) === id)
+      out.push({
+        id,
+        pos: [v.x * inv, v.y * inv, v.z * inv + 10],
+        color: (sample && resolveVoxelClusterColor(sample)) || '#00f5ff',
+      })
+    }
+    return out
+  }, [data.nodes, mode, positions])
+
+  const voxelGround = React.useMemo(() => {
+    if (mode !== 'voxel') return null
+    const gridStep = resolveVoxelGridStep(schema)
+    const nodeCount = Array.isArray(data.nodes) ? data.nodes.length : 0
+    const approxSpan = Math.max(200, Math.min(2400, Math.ceil(Math.sqrt(Math.max(1, nodeCount))) * gridStep * 6))
+    const divisions = Math.max(4, Math.min(120, Math.round(approxSpan / Math.max(1, gridStep))))
+    const span = divisions * gridStep
+    return { span, divisions, gridStep }
+  }, [data.nodes, mode, schema])
+
+  const motionIntensityForMode = mode === 'voxel' ? 0 : motionIntensityEffective
 
   const sceneGroupRef = React.useRef<THREE.Group | null>(null)
   useFrame(({ clock }) => {
     if (paused) return
     const g = sceneGroupRef.current
     if (!g) return
+    if (mode === 'voxel') {
+      g.position.set(0, 0, 0)
+      g.rotation.set(0, 0, 0)
+      return
+    }
     const t = clock.getElapsedTime()
     const i = motionIntensityEffective
     g.position.x = Math.sin(t * 0.12) * (0.08 * i)
@@ -292,7 +350,21 @@ export function Scene({
       <ambientLight intensity={0.9} />
       <hemisphereLight args={['#ffffff', '#cbd5e1', 0.6]} />
       <pointLight position={[120, 120, 120]} intensity={0.9} />
-      {starfieldEnabled && starfieldCount > 0 ? (
+      {mode === 'voxel' && voxelGround ? (
+        <group>
+          <gridHelper args={[voxelGround.span, voxelGround.divisions, '#334155', '#1f2937']} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} />
+          <mesh position={[0, 0, -0.5]}>
+            <planeGeometry args={[voxelGround.span, voxelGround.span]} />
+            <meshStandardMaterial color={'#0b1220'} transparent opacity={0.22} roughness={0.95} metalness={0.05} />
+          </mesh>
+        </group>
+      ) : null}
+      {mode === 'voxel'
+        ? voxelGroupLights.map(light => (
+          <pointLight key={light.id} position={light.pos} color={light.color} intensity={voxelClusterLightIntensity} distance={160} decay={2} />
+        ))
+        : null}
+      {mode !== 'voxel' && starfieldEnabled && starfieldCount > 0 ? (
         <Starfield
           count={starfieldCount}
           radius={starfieldRadius}
@@ -302,14 +374,16 @@ export function Scene({
         />
       ) : null}
       <group ref={sceneGroupRef}>
-        <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragRef} paused={paused} />
-        <GlobeEffects
-          data={data}
-          schema={schema}
-          positions={positions}
-          edgeColor={neutralEdgeColor}
-          nodeAccentColor={palette.nodes.hypothesis || MVP_COLOR_PALETTE.nodes.hypothesis}
-        />
+        <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragRef} paused={paused} mode={mode} />
+        {mode !== 'voxel' ? (
+          <GlobeEffects
+            data={data}
+            schema={schema}
+            positions={positions}
+            edgeColor={neutralEdgeColor}
+            nodeAccentColor={palette.nodes.hypothesis || MVP_COLOR_PALETTE.nodes.hypothesis}
+          />
+        ) : null}
         <GroupOverlays3d data={data} schema={schema} positions={positions} dragOverridesRef={dragRef} renderOrder={THREE_RENDER_ORDER.groups} />
         {threeEdgeRenderer === 'shaderLine' ? (
           <ShaderLineEdges
@@ -325,7 +399,7 @@ export function Scene({
             dimmedEdgeOpacity={selectionVisuals.dimmedEdgeOpacity}
             selectedEdgeWidth={selectionVisuals.selectedEdgeWidth}
             paused={paused}
-            motionIntensity={motionIntensityEffective}
+            motionIntensity={motionIntensityForMode}
             draggedNodeId={draggedNodeId}
             dragOverridesRef={dragRef}
             lineWidthPx={threeShaderLineWidthPx}
@@ -455,12 +529,12 @@ export function Scene({
               }}
             >
               {curvature > 0.001
-                ? <CurvedEdgeMesh a={a} b={b} color={resolvedFinalColor} width={width} opacity={finalOpacity} curvature={curvature} resolution={resolution} rotation={curveRotation} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityEffective} draggedNodeId={draggedNodeId} dragOverridesRef={dragRef} />
-                : <EdgeMesh a={a} b={b} color={resolvedFinalColor} width={width} opacity={finalOpacity} resolution={resolution} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityEffective} draggedNodeId={draggedNodeId} dragOverridesRef={dragRef} />
+                ? <CurvedEdgeMesh a={a} b={b} color={resolvedFinalColor} width={width} opacity={finalOpacity} curvature={curvature} resolution={resolution} rotation={curveRotation} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityForMode} draggedNodeId={draggedNodeId} dragOverridesRef={dragRef} />
+                : <EdgeMesh a={a} b={b} color={resolvedFinalColor} width={width} opacity={finalOpacity} resolution={resolution} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityForMode} draggedNodeId={draggedNodeId} dragOverridesRef={dragRef} />
               }
-              <ArrowHead start={a} end={b} color={resolvedFinalColor} height={arrowLen} relPos={arrowRelPos} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityEffective} draggedNodeId={draggedNodeId} dragOverridesRef={dragRef} />
+              <ArrowHead start={a} end={b} color={resolvedFinalColor} height={arrowLen} relPos={arrowRelPos} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityForMode} draggedNodeId={draggedNodeId} dragOverridesRef={dragRef} />
               {particles > 0 && particleSpeed > 0 ? (
-                <DirectionalParticles start={a} end={b} count={particles} color={resolvedFinalColor} speed={particleSpeed} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityEffective} draggedNodeId={draggedNodeId} dragOverridesRef={dragRef} />
+                <DirectionalParticles start={a} end={b} count={particles} color={resolvedFinalColor} speed={particleSpeed} paused={paused} name={`kg_edge:${e.id}`} sourceId={srcId} targetId={tgtId} sourceRadius={srcRadius} targetRadius={tgtRadius} motionIntensity={motionIntensityForMode} draggedNodeId={draggedNodeId} dragOverridesRef={dragRef} />
               ) : null}
             </group>
           )
@@ -490,9 +564,10 @@ export function Scene({
               onDragEnd={allowNodeDrag ? handleDragEnd : undefined}
               onHoverChange={onHoverNode}
               setNodeDragActive={allowNodeDrag ? onDragNode : undefined}
-              motionIntensity={motionIntensityEffective}
+              motionIntensity={motionIntensityForMode}
               draggedNodeId={draggedNodeId}
               dragOverridesRef={dragRef}
+              mode={mode}
             />
           )
         })}

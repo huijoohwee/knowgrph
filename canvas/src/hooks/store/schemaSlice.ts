@@ -7,6 +7,7 @@ import type { GraphState } from '@/hooks/store/types'
 import type { GraphData, JSONValue } from '@/lib/graph/types'
 import type { StoreApi } from 'zustand';
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
+import { normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -128,7 +129,15 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
       keyword: (prevByMode && prevByMode.keyword) ? prevByMode.keyword : next,
       [documentSemanticMode]: next,
     }
-    set({ schema: next, schemaBySemanticMode: nextByMode, zoomStateByKey })
+    const nextCanvas3dMode = resolveCanvas3dMode({
+      requested: normalizeCanvas3dMode(prevState.canvas3dMode),
+      canvas2dRenderer: prevState.canvas2dRenderer,
+      documentSemanticMode: prevState.documentSemanticMode,
+      frontmatterModeEnabled: prevState.frontmatterModeEnabled === true,
+      multiDimTableModeEnabled: prevState.multiDimTableModeEnabled === true,
+      schema: next,
+    })
+    set({ schema: next, schemaBySemanticMode: nextByMode, zoomStateByKey, canvas3dMode: nextCanvas3dMode })
     if (documentSemanticMode === 'document') writeSchemaToStorage(getLocalStorage(), next)
 
     if (nextMode === 'radial') {

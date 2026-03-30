@@ -114,6 +114,7 @@ export const LS_KEYS = {
   renderThreeIframeOverlayBaseWidthMaxPxCompact: 'kg:render:three:iframeOverlay:baseWidthMaxPxCompact',
   renderRichMediaPanelMode: 'kg:render:richMedia:panelMode',
   canvas2dRenderer: 'kg:render:2dRenderer',
+  canvas3dMode: 'kg:render:3dMode',
 
   bipartiteDataSource: 'kg:render:bipartite:dataSource',
   bipartitePollIntervalSec: 'kg:render:bipartite:pollIntervalSec',
@@ -479,6 +480,7 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   renderThreeIframeOverlayBaseWidthMaxPxCompact: 'render.prefs',
   renderRichMediaPanelMode: 'render.prefs',
   canvas2dRenderer: 'render.prefs',
+  canvas3dMode: 'render.prefs',
   bipartiteDataSource: 'render.prefs',
   bipartitePollIntervalSec: 'render.prefs',
   bipartiteNodeSizeMetric: 'render.prefs',

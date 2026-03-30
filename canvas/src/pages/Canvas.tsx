@@ -381,10 +381,11 @@ export default function CanvasPage() {
     }
   }, [enableTabSync, graphId, tabId, schema])
 
-  const { requestZoom, canvasRenderMode, canvas2dRenderer, requestThreeCamera } = useGraphStore(
+  const { requestZoom, canvasRenderMode, canvas3dMode, canvas2dRenderer, requestThreeCamera } = useGraphStore(
     useShallow(s => ({
       requestZoom: s.requestZoom,
       canvasRenderMode: s.canvasRenderMode,
+      canvas3dMode: s.canvas3dMode,
       canvas2dRenderer: s.canvas2dRenderer,
       requestThreeCamera: s.requestThreeCamera,
     })),
@@ -741,6 +742,7 @@ export default function CanvasPage() {
           graphData?: unknown
           schema?: unknown
           canvasRenderMode?: unknown
+          canvas3dMode?: unknown
           canvas2dRenderer?: unknown
           selectedNodeId?: unknown
           selectedEdgeId?: unknown
@@ -760,6 +762,14 @@ export default function CanvasPage() {
           try {
             const setCanvas2dRenderer = store.setCanvas2dRenderer
             if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer(payload.canvas2dRenderer as never)
+          } catch {
+            void 0
+          }
+        }
+        if (!lockRenderer && payload.canvas3dMode) {
+          try {
+            const setCanvas3dMode = store.setCanvas3dMode
+            if (typeof setCanvas3dMode === 'function') setCanvas3dMode(payload.canvas3dMode as never)
           } catch {
             void 0
           }
@@ -930,6 +940,7 @@ export default function CanvasPage() {
               geospatialModeEnabled={geospatialModeEnabled}
               activeGraphData={activeGraphData}
               canvasRenderMode={canvasRenderMode}
+              canvas3dMode={canvas3dMode}
               canvas2dRenderer={canvas2dRenderer}
               mounted2dRenderers={mounted2dRenderers}
               gympgrphBridge={gympgrphBridge}
@@ -995,6 +1006,7 @@ export default function CanvasPage() {
                       geospatialModeEnabled={geospatialModeEnabled}
                       activeGraphData={activeGraphData}
                       canvasRenderMode={canvasRenderMode}
+                      canvas3dMode={canvas3dMode}
                       canvas2dRenderer={canvas2dRenderer}
                       mounted2dRenderers={mounted2dRenderers}
                       gympgrphBridge={gympgrphBridge}

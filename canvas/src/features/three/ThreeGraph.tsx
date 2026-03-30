@@ -23,6 +23,8 @@ import {
   computeOverlayDraggedWorldPos3d,
   computeThreeCameraPoseAfterOverlayPan,
 } from '@/lib/canvas/overlayInteractions3d'
+import type { Canvas3dModeId } from '@/lib/config'
+import { emitPropsPanelOpen } from '@/features/canvas/utils'
 
 const SceneLazy = React.lazy(() =>
   import('./Scene').then(mod => ({
@@ -48,7 +50,7 @@ function OverlayFrameSync({ enabled, scheduleRef }: { enabled: boolean; schedule
   return null
 }
 
-export default function ThreeGraph({ active = true }: { active?: boolean }) {
+export default function ThreeGraph({ active = true, mode = '3d' }: { active?: boolean; mode?: Canvas3dModeId }) {
   const {
     schema,
     selectNode,
@@ -157,6 +159,7 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
     hasGraph ? (sceneGraph as GraphData).nodes : [],
     hasGraph ? (effectiveSchema as GraphSchema) : null,
     hasGraph ? (sceneGraph as GraphData) : null,
+    mode,
   )
   const positionsRef = React.useRef<Record<string, [number, number, number]>>({})
   positionsRef.current = positions as unknown as Record<string, [number, number, number]>
@@ -222,6 +225,9 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
   const onSelectNode = (id: string) => {
     setSelectionSource('canvas')
     selectNode(id)
+    if (mode === 'voxel') {
+      emitPropsPanelOpen()
+    }
   }
   const clearHoverClearTimer = useCallback(() => {
     const t = hoverClearTimerRef.current
@@ -992,11 +998,13 @@ export default function ThreeGraph({ active = true }: { active?: boolean }) {
             theme={theme}
             dragOverridesRef={dragOverridesRef as unknown as React.MutableRefObject<Record<string, [number, number, number]>>}
             hiddenNodeIdSet={overlayHiddenNodeIdSet}
+            mode={mode}
           />
           <ControlsLazy
             schema={effectiveSchema as GraphSchema}
             positions={positions}
             paused={paused}
+            mode={mode}
             onControlsChange={() => {
               try {
                 iframeOverlayScheduleRef.current?.()

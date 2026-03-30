@@ -101,6 +101,78 @@ export const LAYOUT_SEED_TOOLTIP = buildNumericTooltip({
   impact: 'Changing seed tweaks layout randomness while keeping overall graph structure stable.',
 })
 
+export const VOXEL_SEED_SCALE_TOOLTIP = buildNumericTooltip({
+  defaultValue: 1,
+  min: 0.3,
+  max: 3,
+  interval: 0.05,
+  impact: 'Scales how strongly voxel seed indexing follows 2D renderer buckets; higher values spread seed buckets farther apart.',
+})
+
+export const VOXEL_GRID_SCALE_TOOLTIP = buildNumericTooltip({
+  defaultValue: 1,
+  min: 0.3,
+  max: 3,
+  interval: 0.05,
+  impact: 'Scales voxel grid step size in seeded and runtime snapping; higher values produce coarser block spacing.',
+})
+
+export const VOXEL_GHOST_OPACITY_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.32,
+  min: 0.05,
+  max: 0.9,
+  interval: 0.05,
+  impact: 'Controls rollover ghost cube visibility; higher values increase hover emphasis.',
+})
+
+export const VOXEL_TOP_CAP_EMISSIVE_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.9,
+  min: 0.2,
+  max: 2.2,
+  interval: 0.1,
+  impact: 'Controls top accent cap glow intensity for voxel highlights.',
+})
+
+export const VOXEL_CLUSTER_LIGHT_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.7,
+  min: 0,
+  max: 2,
+  interval: 0.1,
+  impact: 'Controls neon point-light strength per cluster group in voxel mode.',
+})
+
+export const VOXEL_HUB_PULSE_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.07,
+  min: 0,
+  max: 0.5,
+  interval: 0.01,
+  impact: 'Controls breathing pulse amplitude for hub cubes in voxel mode.',
+})
+
+export const VOXEL_CONCEPT_FLOAT_TOOLTIP = buildNumericTooltip({
+  defaultValue: 1,
+  min: 0,
+  max: 4,
+  interval: 0.1,
+  impact: 'Controls rotation-and-bob float strength for concept and grouped voxels.',
+})
+
+export const VOXEL_IDLE_ROTATE_DELAY_TOOLTIP = buildNumericTooltip({
+  defaultValue: 900,
+  min: 0,
+  max: 6000,
+  interval: 100,
+  impact: 'Sets idle delay before orbit auto-rotation resumes after interaction.',
+})
+
+export const VOXEL_IDLE_ROTATE_SPEED_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.12,
+  min: 0,
+  max: 1.5,
+  interval: 0.05,
+  impact: 'Sets voxel idle auto-rotation speed while orbit controls are inactive.',
+})
+
 export const POLYGON_ELEVATION_TOOLTIP = buildNumericTooltip({
   defaultValue: -0.1,
   min: -5,

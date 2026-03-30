@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Grid3x3, History as HistoryIcon, Box, Map, SunMoon, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Lock, Unlock, Compass, ChevronLeft, ChevronRight, Hand, Link2, Columns2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Grid3x3, History as HistoryIcon, Map, SunMoon, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Lock, Unlock, Compass, ChevronLeft, ChevronRight, Hand, Link2, Columns2 } from 'lucide-react';
 import MainPanel from '@/features/panels/MainPanel';
 import IconButton from '@/components/IconButton';
 import { DropdownPanel } from '@/lib/ui/overlay';
@@ -14,7 +14,9 @@ import {
 import { useCanvasToolbarContext } from '@/components/toolbar/useCanvasToolbarContext';
 import { DocumentModeSelect } from '@/components/toolbar/DocumentModeSelect';
 import { Canvas2dRendererSelect } from '@/components/toolbar/Canvas2dRendererSelect';
+import { Canvas3dModeSelect } from '@/components/toolbar/Canvas3dModeSelect';
 import { EditorWorkspaceSelect } from '@/components/toolbar/EditorWorkspaceSelect';
+import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect';
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 import { CANVAS_INTERACTION_MODE_LABELS } from '@/lib/canvas/interaction-ssot'
@@ -27,6 +29,11 @@ interface ToolbarProps {
   onReset?: () => void;
   onZoomSelection?: () => void;
 }
+
+const TOOLBAR_ANIMATION_OPTIONS = [
+  { id: 'force', title: 'Force-directed Graph (default)' },
+  { id: 'orbit', title: 'Orbit-style nested radial animation' },
+] as const
 
 export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection }: ToolbarProps) {
   const {
@@ -91,6 +98,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled === true)
   const multiDimTableModeEnabled = useGraphStore(s => s.multiDimTableModeEnabled === true)
   const documentSemanticMode = useGraphStore(s => s.documentSemanticMode)
+  const canvas3dMode = useGraphStore(s => s.canvas3dMode)
 
   const toggleInfiniteCanvasInteractionMode = useCallback(() => {
     if (!ensureBaselineUnlocked()) return
@@ -110,8 +118,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchBtnRef = useRef<HTMLButtonElement>(null);
   const searchPanelRef = useRef<HTMLDivElement>(null);
-  const [isAnimationOpen, setIsAnimationOpen] = useState(false)
-  const animationBtnRef = useRef<HTMLButtonElement>(null)
 
   const navClassBase = 'Island App-toolbar App-toolbar--compact w-fit'
   const isD3Like2dLayoutToggle = canvas2dRenderer === 'd3' || canvas2dRenderer === 'd3Bipartite'
@@ -124,9 +130,12 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     multiDimTableModeEnabled ||
     documentSemanticMode === 'document' ||
     documentSemanticMode === 'keyword'
-  const animationApplicableRenderer = canvasRenderMode === '3d' || (canvasRenderMode === '2d' && canvas2dRenderer === 'd3')
+  const animationApplicableRenderer =
+    (canvasRenderMode === '3d' && canvas3dMode !== 'voxel') ||
+    (canvasRenderMode === '2d' && canvas2dRenderer === 'd3')
   const animationApplicable = animationApplicableSemantic && animationApplicableRenderer && layoutMode === 'radial'
   const setAnimationMode = useCallback((mode: 'force' | 'orbit') => {
+    if (canvasRenderMode === '3d' && canvas3dMode === 'voxel') return
     if (!ensureBaselineUnlocked()) return
     const current = schema
     const layout = current.layout || {}
@@ -142,8 +151,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         },
       },
     })
-    setIsAnimationOpen(false)
-  }, [ensureBaselineUnlocked, schema, setSchema])
+  }, [canvas3dMode, canvasRenderMode, ensureBaselineUnlocked, schema, setSchema])
 
   return (
     <nav
@@ -237,7 +245,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         iconSizeClass={iconSizeClass}
         iconStrokeWidth={iconStrokeWidth}
         ensureBaselineUnlocked={ensureBaselineUnlocked}
-        disabled={canvasRenderMode !== '2d' || geospatialEnabled}
+        disabled={geospatialEnabled}
       />
       <DocumentModeSelect
         iconSizeClass={iconSizeClass}
@@ -487,60 +495,23 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       >
         <ImageIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
-      <IconButton
-        className={`App-toolbar__btn ${
-          animationMode === 'orbit' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        ref={animationBtnRef}
+      <ToolbarDropdownSelect
+        value={animationMode}
+        options={TOOLBAR_ANIMATION_OPTIONS}
         title={animationMode === 'orbit' ? 'Animation: Orbit-style nested radial' : 'Animation: Force-directed Graph'}
         tooltipContent="Animation"
         disabled={!animationApplicable}
-        onClick={() => setIsAnimationOpen(v => !v)}
-        showTooltip
-      >
-        <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      {isAnimationOpen && (
-        <DropdownPanel
-          anchorRef={animationBtnRef}
-          open={isAnimationOpen}
-          onClose={() => setIsAnimationOpen(false)}
-          align="bottom-center"
-        >
-          <div className="min-w-[260px] p-2 space-y-1">
-            <button
-              type="button"
-              className={`w-full text-left px-2 py-1.5 rounded text-xs ${animationMode === 'force' ? 'bg-blue-500/20' : 'hover:bg-white/5'}`}
-              onClick={() => setAnimationMode('force')}
-              disabled={!animationApplicable}
-            >
-              Force-directed Graph (default)
-            </button>
-            <button
-              type="button"
-              className={`w-full text-left px-2 py-1.5 rounded text-xs ${animationMode === 'orbit' ? 'bg-blue-500/20' : 'hover:bg-white/5'}`}
-              onClick={() => setAnimationMode('orbit')}
-              disabled={!animationApplicable}
-            >
-              Orbit-style nested radial animation
-            </button>
-          </div>
-        </DropdownPanel>
-      )}
-      <IconButton
-        className={`App-toolbar__btn ${
-          canvasRenderMode === '3d' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={canvasRenderMode === '3d' ? UI_COPY.threeDModeOnTitle : UI_COPY.threeDModeOffTitle}
-        onClick={() => {
-          if (!ensureBaselineUnlocked()) return
-          actions.handleToggle3DMode()
-        }}
+        isButtonActive={animationMode === 'orbit'}
+        menuWidthClass="w-64"
+        onSelect={id => setAnimationMode(id)}
+        renderButtonContent={() => <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />}
+      />
+      <Canvas3dModeSelect
+        iconSizeClass={iconSizeClass}
+        iconStrokeWidth={iconStrokeWidth}
+        ensureBaselineUnlocked={ensureBaselineUnlocked}
         disabled={geospatialEnabled}
-        showTooltip
-      >
-        <Box className={`${iconSizeClass} ${launchIconClass}`} strokeWidth={iconStrokeWidth} />
-      </IconButton>
+      />
       <IconButton
         className={`App-toolbar__btn ${
           geospatialEnabled ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName

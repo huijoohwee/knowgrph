@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import type { Canvas2dRendererId } from '@/lib/config'
+import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
 import type { GraphData } from '@/lib/graph/types'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { importWithRetry } from '@/lib/react/importWithRetry'
@@ -9,6 +9,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
+import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 
 import { isD3Like2dRenderer } from '@/lib/config'
 
@@ -139,6 +140,7 @@ export type CanvasViewportProps = {
   geospatialModeEnabled: boolean
   activeGraphData: GraphData | null
   canvasRenderMode: '2d' | '3d'
+  canvas3dMode: Canvas3dModeId
   canvas2dRenderer: Canvas2dRendererId
   mounted2dRenderers: { d3: boolean; flow: boolean; design: boolean; flowEditor: boolean }
   gympgrphBridge: {
@@ -160,9 +162,25 @@ export type CanvasViewportProps = {
 }
 
 export function CanvasViewport(props: CanvasViewportProps) {
-  const { variant, layout = 'full', geospatialModeEnabled, activeGraphData, canvasRenderMode, canvas2dRenderer, mounted2dRenderers, gympgrphBridge } = props
+  const { variant, layout = 'full', geospatialModeEnabled, activeGraphData, canvasRenderMode, canvas3dMode, canvas2dRenderer, mounted2dRenderers, gympgrphBridge } = props
   const d3SurfaceActive = isD3Like2dRenderer(canvas2dRenderer)
   const safeGraphData = activeGraphData || ({ nodes: [], edges: [] } as GraphData)
+  const { frontmatterModeEnabled, multiDimTableModeEnabled, documentSemanticMode, schema } = useGraphStore(
+    useShallow(s => ({
+      frontmatterModeEnabled: s.frontmatterModeEnabled === true,
+      multiDimTableModeEnabled: s.multiDimTableModeEnabled === true,
+      documentSemanticMode: s.documentSemanticMode,
+      schema: s.schema,
+    })),
+  )
+  const effectiveCanvas3dMode = resolveCanvas3dMode({
+    requested: canvas3dMode,
+    canvas2dRenderer,
+    documentSemanticMode,
+    frontmatterModeEnabled,
+    multiDimTableModeEnabled,
+    schema,
+  })
   const activeSurface = geospatialModeEnabled ? 'geo' : canvasRenderMode === '3d' ? '3d' : '2d'
   const isNarrowViewport = useMediaQuery('(max-width: 768px)')
   const [geospatialWarmed, setGeospatialWarmed] = React.useState(geospatialModeEnabled)
@@ -267,7 +285,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
 
         {!geospatialModeEnabled && canvasRenderMode === '3d' && threeWarmed ? (
           <div className={`absolute inset-0 z-[10] ${activeSurface === '3d' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
-            <ThreeGraphLazy active={activeSurface === '3d'} />
+            <ThreeGraphLazy active={activeSurface === '3d'} mode={effectiveCanvas3dMode} />
           </div>
         ) : null}
 

@@ -290,6 +290,15 @@ export interface GraphSchema {
     sphereRadius?: number;
     seed?: number;
     minSpacing?: number;
+    voxelSeedScaleFactor?: number;
+    voxelGridScaleFactor?: number;
+    voxelGhostOpacity?: number;
+    voxelTopCapEmissiveIntensity?: number;
+    voxelHubPulseStrength?: number;
+    voxelConceptFloatStrength?: number;
+    voxelClusterLightIntensity?: number;
+    voxelIdleAutoRotateDelayMs?: number;
+    voxelIdleAutoRotateSpeed?: number;
     nodeMotionIntensity?: number;
     minimapOpacity?: number;
     starfieldEnabled?: boolean;

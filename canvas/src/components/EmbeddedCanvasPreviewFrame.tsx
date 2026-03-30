@@ -8,6 +8,7 @@ export function EmbeddedCanvasPreviewFrame(props: { previewSrc: string; classNam
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
   const schema = useGraphStore(s => s.schema)
   const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
+  const canvas3dMode = useGraphStore(s => s.canvas3dMode)
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
@@ -33,6 +34,7 @@ export function EmbeddedCanvasPreviewFrame(props: { previewSrc: string; classNam
             graphData,
             schema,
             canvasRenderMode,
+            canvas3dMode,
             canvas2dRenderer,
             selectedNodeId,
             selectedEdgeId,
@@ -49,6 +51,7 @@ export function EmbeddedCanvasPreviewFrame(props: { previewSrc: string; classNam
     }
   }, [
     canvas2dRenderer,
+    canvas3dMode,
     canvasRenderMode,
     graphData,
     schema,
@@ -113,6 +116,7 @@ export function EmbeddedCanvasPreviewFrame(props: { previewSrc: string; classNam
     sendPreviewSnapshot()
   }, [
     canvas2dRenderer,
+    canvas3dMode,
     canvasRenderMode,
     schema,
     selectedEdgeId,

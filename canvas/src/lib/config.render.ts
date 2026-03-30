@@ -8,6 +8,12 @@ export const isD3Like2dRenderer = (id: Canvas2dRendererId | null | undefined): b
   return id === 'd3' || id === 'd3Bipartite'
 }
 
+export const CANVAS_3D_MODES = ['3d', 'voxel'] as const
+
+export type Canvas3dModeId = (typeof CANVAS_3D_MODES)[number]
+
+export const DEFAULT_CANVAS_3D_MODE: Canvas3dModeId = '3d'
+
 export const INFINITE_CANVAS_INTERACTION_MODES = ['static', 'interactive'] as const
 
 export type InfiniteCanvasInteractionMode = (typeof INFINITE_CANVAS_INTERACTION_MODES)[number]

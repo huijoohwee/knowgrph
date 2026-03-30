@@ -3,7 +3,8 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { resolveGroupCollisions, type CollisionGroupItem } from '@/lib/graph/collision/boxCollision'
 import { isRadarHubNode, isRadarSpokeEdge } from '@/lib/graph/radarForces'
 
-import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveThreeSeed } from './threeLayoutConfig'
+import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveThreeSeed, resolveVoxelGridStep, quantizeVoxelCoordToGridLine } from './threeLayoutConfig'
+import { readThreeRenderOrderOffset } from './zOrder'
 
 export type Vec3 = [number, number, number]
 
@@ -332,6 +333,205 @@ export function computePositions3d(
     }
 
     applyBackToOut()
+  }
+  return out
+}
+
+export function computePositionsVoxel(
+  nodes: GraphNode[],
+  schema: GraphSchema | null,
+  opts?: { seed2dPositions?: Record<string, { x: number; y: number }> | null },
+): Record<string, Vec3> {
+  const out: Record<string, Vec3> = {}
+  if (!nodes.length) return out
+  const seed2d = opts?.seed2dPositions || null
+  const grid = resolveVoxelGridStep(schema)
+  const readNodeZBias = (node: GraphNode): number => {
+    const props = (node.properties || {}) as Record<string, unknown>
+    const zOffset = readThreeRenderOrderOffset(props)
+    const rawLayer = props['visual:layer']
+    const layer =
+      typeof rawLayer === 'number'
+        ? rawLayer
+        : typeof rawLayer === 'string'
+          ? Number(rawLayer.trim())
+          : 0
+    if (Number.isFinite(layer)) {
+      return zOffset + layer * 0.5
+    }
+    return zOffset
+  }
+  const heightByType = (node: GraphNode): number => {
+    const t = String(node.type || '').toLowerCase()
+    const tierStep = Math.max(grid, Math.round(grid * 1.15))
+    const bias = Math.round(readNodeZBias(node) * (grid * 0.45))
+    const base = t.includes('hub')
+      ? tierStep * 3
+      : t.includes('concept')
+        ? tierStep * 2
+        : t.includes('problem')
+          ? tierStep
+          : t.includes('solution')
+            ? 0
+            : tierStep
+    const minHeight = grid
+    return Math.max(minHeight, base + bias)
+  }
+  const readSeed = (id: string): { x: number; y: number } | null => {
+    if (!seed2d) return null
+    const s = seed2d[id]
+    if (!s) return null
+    if (!Number.isFinite(s.x) || !Number.isFinite(s.y)) return null
+    return { x: s.x, y: s.y }
+  }
+  const seededPosByNodeId = new Map<string, { x: number; y: number }>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const id = String(nodes[i].id || '')
+    const seed = readSeed(id)
+    if (!seed) continue
+    seededPosByNodeId.set(id, seed)
+  }
+
+  const membersByCluster = new Map<string, GraphNode[]>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]
+    const id = String(node.id || '')
+    const props = (node.properties || {}) as Record<string, unknown>
+    const cluster = String(
+      props['kg:radarCluster'] ||
+      props['cluster'] ||
+      props['group'] ||
+      node.type ||
+      'cluster',
+    ).trim() || 'cluster'
+    const list = membersByCluster.get(cluster) || []
+    list.push(node)
+    membersByCluster.set(cluster, list)
+    void id
+  }
+  const clusterIds = Array.from(membersByCluster.keys()).sort((a, b) => a.localeCompare(b))
+  const clusterCenterById = new Map<string, { x: number; y: number; seeded: boolean }>()
+  const clusterRingR = Math.max(grid * 8, grid * 4 + clusterIds.length * grid * 0.9)
+  for (let i = 0; i < clusterIds.length; i += 1) {
+    const cid = clusterIds[i]!
+    const members = membersByCluster.get(cid) || []
+    let sx = 0
+    let sy = 0
+    let count = 0
+    for (let j = 0; j < members.length; j += 1) {
+      const id = String(members[j].id || '')
+      const seed = seededPosByNodeId.get(id)
+      if (!seed) continue
+      sx += seed.x
+      sy += seed.y
+      count += 1
+    }
+    if (count > 0) {
+      clusterCenterById.set(cid, {
+        x: sx / count,
+        y: sy / count,
+        seeded: true,
+      })
+    } else {
+      const angle = (Math.PI * 2 * i) / Math.max(1, clusterIds.length)
+      clusterCenterById.set(cid, {
+        x: Math.round((Math.cos(angle) * clusterRingR) / grid) * grid,
+        y: Math.round((Math.sin(angle) * clusterRingR) / grid) * grid,
+        seeded: false,
+      })
+    }
+  }
+  const occupancy = new Set<string>()
+  const reserve = (planeX: number, planeY: number, height: number): Vec3 => {
+    let qx = quantizeVoxelCoordToGridLine(planeX, grid)
+    let qy = quantizeVoxelCoordToGridLine(planeY, grid)
+    let qz = quantizeVoxelCoordToGridLine(height, grid)
+
+    const baseX = qx
+    const baseY = qy
+    const baseZ = qz
+
+    for (let lift = 0; lift < 24; lift += 1) {
+      const zz = baseZ + lift * grid
+      const key = `${baseX}:${baseY}:${zz}`
+      if (!occupancy.has(key)) {
+        occupancy.add(key)
+        return [baseX, baseY, zz]
+      }
+    }
+
+    let tries = 0
+    while (tries < 80) {
+      const key = `${qx}:${qy}:${qz}`
+      if (!occupancy.has(key)) {
+        occupancy.add(key)
+        return [qx, qy, qz]
+      }
+      tries += 1
+      const r = Math.ceil(tries / 8)
+      qx += ((tries % 2) * 2 - 1) * r * grid
+      qy += (((tries >> 1) % 2) * 2 - 1) * r * grid
+    }
+    const fallbackKey = `${qx}:${qy}:${qz}`
+    occupancy.add(fallbackKey)
+    return [qx, qy, qz]
+  }
+  const spiralCellAt = (index: number): { x: number; z: number } => {
+    if (index <= 0) return { x: 0, z: 0 }
+    let x = 0
+    let z = 0
+    let step = 1
+    let i = 0
+    while (i < index) {
+      for (let n = 0; n < step && i < index; n += 1) { x += 1; i += 1 }
+      for (let n = 0; n < step && i < index; n += 1) { z += 1; i += 1 }
+      step += 1
+      for (let n = 0; n < step && i < index; n += 1) { x -= 1; i += 1 }
+      for (let n = 0; n < step && i < index; n += 1) { z -= 1; i += 1 }
+      step += 1
+    }
+    return { x, z }
+  }
+  for (let c = 0; c < clusterIds.length; c += 1) {
+    const cid = clusterIds[c]!
+    const center = clusterCenterById.get(cid) || { x: 0, y: 0, seeded: false }
+    const members = [...(membersByCluster.get(cid) || [])].sort((a, b) => String(a.id).localeCompare(String(b.id)))
+    const hubs = members.filter(n => String(n.type || '').toLowerCase().includes('hub'))
+    const nonHubs = members.filter(n => !String(n.type || '').toLowerCase().includes('hub'))
+    for (let i = 0; i < hubs.length; i += 1) {
+      const node = hubs[i]
+      const p = reserve(center.x + i * grid * 2, center.y, heightByType(node))
+      out[node.id] = p
+    }
+    for (let i = 0; i < nonHubs.length; i += 1) {
+      const node = nonHubs[i]
+      const id = String(node.id || '')
+      let px = center.x
+      let py = center.y
+      const seed = seededPosByNodeId.get(id)
+      if (seed) {
+        px = seed.x
+        py = seed.y
+      } else {
+        const type = String(node.type || '').toLowerCase()
+        const base = type.includes('problem') ? 6 : type.includes('solution') ? 3 : type.includes('concept') ? 2 : 5
+        const cell = spiralCellAt(i + base)
+        px = center.x + cell.x * grid
+        py = center.y + cell.z * grid
+      }
+      const p = reserve(px, py, heightByType(node))
+      out[node.id] = p
+    }
+  }
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]
+    if (out[node.id]) continue
+    const s = seed2d ? seed2d[node.id] : null
+    if (s && Number.isFinite(s.x) && Number.isFinite(s.y)) {
+      out[node.id] = reserve(s.x, s.y, heightByType(node))
+      continue
+    }
+    out[node.id] = reserve(i * grid, 0, heightByType(node))
   }
   return out
 }

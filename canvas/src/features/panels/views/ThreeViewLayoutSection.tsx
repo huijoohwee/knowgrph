@@ -9,6 +9,15 @@ import {
   SPHERE_RADIUS_TOOLTIP,
   MIN_SPACING_TOOLTIP,
   LAYOUT_SEED_TOOLTIP,
+  VOXEL_SEED_SCALE_TOOLTIP,
+  VOXEL_GRID_SCALE_TOOLTIP,
+  VOXEL_GHOST_OPACITY_TOOLTIP,
+  VOXEL_TOP_CAP_EMISSIVE_TOOLTIP,
+  VOXEL_CLUSTER_LIGHT_TOOLTIP,
+  VOXEL_HUB_PULSE_TOOLTIP,
+  VOXEL_CONCEPT_FLOAT_TOOLTIP,
+  VOXEL_IDLE_ROTATE_DELAY_TOOLTIP,
+  VOXEL_IDLE_ROTATE_SPEED_TOOLTIP,
 } from '@/features/panels/views/ThreeViewTuningTooltips'
 import ThreeSizingAndWidthControls from '@/features/panels/views/shared/ThreeSizingAndWidthControls'
 
@@ -163,6 +172,231 @@ export default function ThreeViewLayoutSection({
                 }}
               />
             </Tooltip>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Seed Scale</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={0.3}
+                max={3}
+                step={0.05}
+                value={Number(schema.three?.voxelSeedScaleFactor ?? 1)}
+                onChange={e => setThreeConfig({ voxelSeedScaleFactor: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_SEED_SCALE_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelSeedScaleFactor ?? 1)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Grid Scale</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={0.3}
+                max={3}
+                step={0.05}
+                value={Number(schema.three?.voxelGridScaleFactor ?? 1)}
+                onChange={e => setThreeConfig({ voxelGridScaleFactor: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_GRID_SCALE_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelGridScaleFactor ?? 1)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Ghost Opacity</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={0.05}
+                max={0.9}
+                step={0.05}
+                value={Number(schema.three?.voxelGhostOpacity ?? 0.32)}
+                onChange={e => setThreeConfig({ voxelGhostOpacity: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_GHOST_OPACITY_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelGhostOpacity ?? 0.32)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Top Cap Glow</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={0.2}
+                max={2.2}
+                step={0.1}
+                value={Number(schema.three?.voxelTopCapEmissiveIntensity ?? 0.9)}
+                onChange={e => setThreeConfig({ voxelTopCapEmissiveIntensity: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_TOP_CAP_EMISSIVE_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelTopCapEmissiveIntensity ?? 0.9)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Cluster Light</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={0}
+                max={2}
+                step={0.1}
+                value={Number(schema.three?.voxelClusterLightIntensity ?? 0.7)}
+                onChange={e => setThreeConfig({ voxelClusterLightIntensity: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_CLUSTER_LIGHT_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelClusterLightIntensity ?? 0.7)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Hub Pulse</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={0}
+                max={0.5}
+                step={0.01}
+                value={Number(schema.three?.voxelHubPulseStrength ?? 0.07)}
+                onChange={e => setThreeConfig({ voxelHubPulseStrength: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_HUB_PULSE_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelHubPulseStrength ?? 0.07)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Concept Float</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={0}
+                max={4}
+                step={0.1}
+                value={Number(schema.three?.voxelConceptFloatStrength ?? 1)}
+                onChange={e => setThreeConfig({ voxelConceptFloatStrength: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_CONCEPT_FLOAT_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelConceptFloatStrength ?? 1)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Idle Rotate Delay</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={0}
+                max={6000}
+                step={100}
+                value={Number(schema.three?.voxelIdleAutoRotateDelayMs ?? 900)}
+                onChange={e => setThreeConfig({ voxelIdleAutoRotateDelayMs: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_IDLE_ROTATE_DELAY_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelIdleAutoRotateDelayMs ?? 900)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Idle Rotate Speed</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={0}
+                max={1.5}
+                step={0.05}
+                value={Number(schema.three?.voxelIdleAutoRotateSpeed ?? 0.12)}
+                onChange={e => setThreeConfig({ voxelIdleAutoRotateSpeed: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_IDLE_ROTATE_SPEED_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelIdleAutoRotateSpeed ?? 0.12)}
+                </span>
+              </Tooltip>
+            </>
           )}
         />
         <ThreeSizingAndWidthControls

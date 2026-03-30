@@ -517,6 +517,114 @@ export const threeSettingsRegistry: SettingMeta[] = [
     default: () => 0,
   },
   {
+    key: 'three.layout.voxelSeedScaleFactor',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelSeedScaleFactor === 'number' ? schema.three.voxelSeedScaleFactor : 1
+    },
+    write: (v) => s().setThreeConfig({ voxelSeedScaleFactor: Number(v) }),
+    docKey: 'three.layout.voxelSeedScaleFactor',
+    default: () => 1,
+  },
+  {
+    key: 'three.layout.voxelGridScaleFactor',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelGridScaleFactor === 'number' ? schema.three.voxelGridScaleFactor : 1
+    },
+    write: (v) => s().setThreeConfig({ voxelGridScaleFactor: Number(v) }),
+    docKey: 'three.layout.voxelGridScaleFactor',
+    default: () => 1,
+  },
+  {
+    key: 'three.layout.voxelGhostOpacity',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelGhostOpacity === 'number' ? schema.three.voxelGhostOpacity : 0.32
+    },
+    write: (v) => s().setThreeConfig({ voxelGhostOpacity: Number(v) }),
+    docKey: 'three.layout.voxelGhostOpacity',
+    default: () => 0.32,
+  },
+  {
+    key: 'three.layout.voxelTopCapEmissiveIntensity',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelTopCapEmissiveIntensity === 'number' ? schema.three.voxelTopCapEmissiveIntensity : 0.9
+    },
+    write: (v) => s().setThreeConfig({ voxelTopCapEmissiveIntensity: Number(v) }),
+    docKey: 'three.layout.voxelTopCapEmissiveIntensity',
+    default: () => 0.9,
+  },
+  {
+    key: 'three.layout.voxelClusterLightIntensity',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelClusterLightIntensity === 'number' ? schema.three.voxelClusterLightIntensity : 0.7
+    },
+    write: (v) => s().setThreeConfig({ voxelClusterLightIntensity: Number(v) }),
+    docKey: 'three.layout.voxelClusterLightIntensity',
+    default: () => 0.7,
+  },
+  {
+    key: 'three.layout.voxelHubPulseStrength',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelHubPulseStrength === 'number' ? schema.three.voxelHubPulseStrength : 0.07
+    },
+    write: (v) => s().setThreeConfig({ voxelHubPulseStrength: Number(v) }),
+    docKey: 'three.layout.voxelHubPulseStrength',
+    default: () => 0.07,
+  },
+  {
+    key: 'three.layout.voxelConceptFloatStrength',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelConceptFloatStrength === 'number' ? schema.three.voxelConceptFloatStrength : 1
+    },
+    write: (v) => s().setThreeConfig({ voxelConceptFloatStrength: Number(v) }),
+    docKey: 'three.layout.voxelConceptFloatStrength',
+    default: () => 1,
+  },
+  {
+    key: 'three.layout.voxelIdleAutoRotateDelayMs',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelIdleAutoRotateDelayMs === 'number' ? schema.three.voxelIdleAutoRotateDelayMs : 900
+    },
+    write: (v) => s().setThreeConfig({ voxelIdleAutoRotateDelayMs: Number(v) }),
+    docKey: 'three.layout.voxelIdleAutoRotateDelayMs',
+    default: () => 900,
+  },
+  {
+    key: 'three.layout.voxelIdleAutoRotateSpeed',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelIdleAutoRotateSpeed === 'number' ? schema.three.voxelIdleAutoRotateSpeed : 0.12
+    },
+    write: (v) => s().setThreeConfig({ voxelIdleAutoRotateSpeed: Number(v) }),
+    docKey: 'three.layout.voxelIdleAutoRotateSpeed',
+    default: () => 0.12,
+  },
+  {
     key: 'three.globe.effectsEnabled',
     type: 'boolean',
     source: 'store',

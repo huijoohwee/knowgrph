@@ -290,6 +290,7 @@ try {
           docRef,
           documentStructureBaselineLock: s.documentStructureBaselineLock,
           canvasRenderMode: s.canvasRenderMode,
+          canvas3dMode: s.canvas3dMode,
           canvas2dRenderer: s.canvas2dRenderer,
           documentSemanticMode: s.documentSemanticMode,
           frontmatterModeEnabled: s.frontmatterModeEnabled,
@@ -313,6 +314,7 @@ try {
             ref: prev.docRef,
             state: {
               canvasRenderMode: prev.canvasRenderMode,
+              canvas3dMode: prev.canvas3dMode,
               canvas2dRenderer: prev.canvas2dRenderer,
               documentSemanticMode: prev.documentSemanticMode,
               frontmatterModeEnabled: prev.frontmatterModeEnabled,
@@ -337,6 +339,7 @@ try {
             ref: next.docRef,
             state: {
               canvasRenderMode: next.canvasRenderMode,
+              canvas3dMode: next.canvas3dMode,
               canvas2dRenderer: next.canvas2dRenderer,
               documentSemanticMode: next.documentSemanticMode,
               frontmatterModeEnabled: next.frontmatterModeEnabled,
@@ -374,6 +377,7 @@ try {
           if (saved.documentSemanticMode) api.setDocumentSemanticMode(saved.documentSemanticMode)
           if (typeof saved.frontmatterModeEnabled === 'boolean') api.setFrontmatterModeEnabled(saved.frontmatterModeEnabled)
           if (saved.canvasRenderMode) api.setCanvasRenderMode(saved.canvasRenderMode)
+          if (saved.canvas3dMode) api.setCanvas3dMode(saved.canvas3dMode)
           if (saved.canvas2dRenderer) api.setCanvas2dRenderer(saved.canvas2dRenderer)
 
           const pinned = saved.viewPinned === true
@@ -415,6 +419,7 @@ try {
           state: {
             documentRef: next.docRef,
             canvasRenderMode: current.canvasRenderMode,
+            canvas3dMode: current.canvas3dMode,
             canvas2dRenderer: current.canvas2dRenderer,
             documentSemanticMode: current.documentSemanticMode,
             frontmatterModeEnabled: current.frontmatterModeEnabled,

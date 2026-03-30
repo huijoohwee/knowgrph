@@ -217,6 +217,13 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       modThreeTableAllowed.testThreeGraphAllowsTableOverlaysEvenInMultiDimMode,
     )
 
+    const modVoxelSeed = await import('../__tests__/voxelSeedGroundPlane.test')
+    await execTest(
+      results,
+      'three.voxel.seed.snappedXyGroundPlane.fullStackJson',
+      modVoxelSeed.testVoxelModeSeedsOntoSnappedXyGroundPlaneFromFullStackJson,
+    )
+
 
     const modD3ScenePreserve = await import('../__tests__/d3SceneRebuildPreservesSimPositionsRegression.test')
     await execTest(

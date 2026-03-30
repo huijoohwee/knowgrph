@@ -17,7 +17,7 @@ import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/req
 import type { LayoutMode2d } from '@/lib/graph/layoutMode'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
-import type { Canvas2dRendererId, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
+import type { Canvas2dRendererId, Canvas3dModeId, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
 import type { DesignLayerNode, DesignLayerState } from '@/features/design/designLayersState'
 import type { DesignFramePos, DesignFrameSize } from '@/hooks/store/designRendererSlice'
 import type { SaveFilePickerHandle } from '@/lib/graph/save'
@@ -81,6 +81,7 @@ export type DocumentStructureBaselineSnapshot = {
   documentSemanticMode: DocumentSemanticMode
   frontmatterModeEnabled: boolean
   canvasRenderMode: '2d' | '3d'
+  canvas3dMode: Canvas3dModeId
   canvas2dRenderer: Canvas2dRendererId
   canvasRenderModeLastFree: '2d' | '3d'
   canvasRenderModeIsAuto: boolean
@@ -887,6 +888,7 @@ export interface GraphState {
   setSchemaLintActivePath: (examplePath: string | null) => void;
   clearSchemaLintSummary: () => void;
   canvasRenderMode: '2d' | '3d';
+  canvas3dMode: Canvas3dModeId;
   canvas2dRenderer: Canvas2dRendererId;
   viewportControlsPreset: ViewportControlsPreset;
   infiniteCanvasInteractionMode: InfiniteCanvasInteractionMode;
@@ -907,6 +909,7 @@ export interface GraphState {
   canvasRenderModeLastFree: '2d' | '3d';
   canvasRenderModeIsAuto: boolean;
   setCanvasRenderMode: (m: '2d' | '3d') => void;
+  setCanvas3dMode: (m: Canvas3dModeId) => void;
   setCanvas2dRenderer: (id: Canvas2dRendererId) => void;
   setViewportControlsPreset: (preset: ViewportControlsPreset) => void;
   setInfiniteCanvasInteractionMode: (mode: InfiniteCanvasInteractionMode) => void;

@@ -1,13 +1,10 @@
 import React from 'react'
 import { Focus, Maximize, Pin, Scan } from 'lucide-react'
-import IconButton from '@/components/IconButton'
-import { DropdownPanel } from '@/lib/ui/overlay'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { uiPrimaryChipActiveClassName, uiPrimaryIconActiveClassName, uiPrimaryIconInactiveClassName } from '@/features/toolbar/ui/toolbarStyles'
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useFitToViewAction } from '@/features/toolbar/hooks/useFitToViewAction'
+import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 
 type ZoomModeSelectProps = {
   iconSizeClass: string
@@ -21,8 +18,6 @@ type ZoomOption = {
   tooltip: string
   Icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>
 }
-
-const MENU_WIDTH_CLASS = 'w-64'
 
 export function ZoomModeSelect({ iconSizeClass, iconStrokeWidth, onZoomSelection }: ZoomModeSelectProps) {
   const {
@@ -44,9 +39,6 @@ export function ZoomModeSelect({ iconSizeClass, iconStrokeWidth, onZoomSelection
   )
 
   const { disabled: fitToViewDisabled, handleFitToView } = useFitToViewAction()
-
-  const [open, setOpen] = React.useState(false)
-  const buttonRef = React.useRef<HTMLButtonElement>(null)
 
   const options = React.useMemo(
     () =>
@@ -119,55 +111,39 @@ export function ZoomModeSelect({ iconSizeClass, iconStrokeWidth, onZoomSelection
     },
     [fitToViewDisabled],
   )
+  const selectedOptionKey: ZoomOption['key'] =
+    viewPinned ? 'pin' : fitToScreenMode ? 'fitToScreen' : zoomToSelectionMode ? 'zoomToSelection' : 'fitToView'
 
   return (
-    <>
-      <IconButton
-        ref={buttonRef}
-        className={`App-toolbar__btn ${open || anyActive ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName}`}
-        title={UI_LABELS.zoomMenu}
-        tooltipContent={UI_COPY.zoomMenuTooltip}
-        onClick={() => setOpen(v => !v)}
-        showTooltip
-      >
+    <ToolbarDropdownSelect
+      value={selectedOptionKey}
+      options={options.map(option => ({
+        id: option.key,
+        title: option.label,
+        tooltip: option.tooltip,
+        Icon: option.Icon,
+        disabled: isOptionDisabled(option.key),
+        disabledReason: isOptionDisabled(option.key) ? 'Unavailable in current view mode' : undefined,
+        enableHint: isOptionDisabled(option.key) ? 'Switch back to graph viewport state, then retry' : undefined,
+      }))}
+      title={UI_LABELS.zoomMenu}
+      tooltipContent={UI_COPY.zoomMenuTooltip}
+      isButtonActive={anyActive}
+      onSelect={id => apply(id)}
+      renderButtonContent={() => (
         <div className="flex items-center gap-1">
           <Focus className={iconSizeClass} strokeWidth={iconStrokeWidth} />
           <span className="text-xs">{UI_LABELS.zoomMenu}</span>
         </div>
-      </IconButton>
-
-      {open && (
-        <DropdownPanel anchorRef={buttonRef} open={open} onClose={() => setOpen(false)} align="bottom-center">
-          <menu
-            className={`p-1 flex flex-col gap-1 ${MENU_WIDTH_CLASS} list-none m-0 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md`}
-            aria-label="Zoom modes"
-          >
-            {options.map(option => {
-              const active = isOptionActive(option.key)
-              const disabled = isOptionDisabled(option.key)
-              return (
-                <li key={option.key} className="list-none">
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    className={`w-full flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed ${
-                      active ? uiPrimaryChipActiveClassName : ''
-                    }`}
-                    onClick={() => {
-                      apply(option.key)
-                      setOpen(false)
-                    }}
-                    title={option.tooltip}
-                  >
-                    <option.Icon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-                    <span className="truncate">{option.label}</span>
-                  </button>
-                </li>
-              )
-            })}
-          </menu>
-        </DropdownPanel>
       )}
-    </>
+      renderOptionContent={option => (
+        <>
+          <option.Icon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+          <span className="truncate">{option.title}</span>
+          {isOptionActive(option.id) ? <span className="ml-auto text-[10px] opacity-80">On</span> : null}
+        </>
+      )}
+      menuWidthClass="w-64"
+    />
   )
 }

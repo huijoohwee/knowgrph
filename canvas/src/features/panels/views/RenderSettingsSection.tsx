@@ -12,6 +12,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import RenderPresetSection from '@/features/panels/views/RenderPresetSection'
 import ThreeViewTuningSection from '@/features/panels/views/ThreeViewTuningSection'
 import MediaNodesSection from '@/features/panels/views/MediaNodesSection'
+import { isVoxelModeApplicable } from '@/lib/canvas/canvas3dMode'
 
 type GraphSelectMode = NonNullable<GraphBehavior['selectMode']>
 type GraphCreateMode = NonNullable<GraphBehavior['createMode']>
@@ -45,7 +46,9 @@ export default function RenderSettingsSection({
   const schema = useGraphStore(s => s.schema) as GraphSchema
   const setSchema = useGraphStore(s => s.setSchema)
   const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
+  const canvas3dMode = useGraphStore(s => s.canvas3dMode)
   const setCanvasRenderMode = useGraphStore(s => s.setCanvasRenderMode)
+  const setCanvas3dMode = useGraphStore(s => s.setCanvas3dMode)
   const viewportControlsPreset = useGraphStore(s => s.viewportControlsPreset)
   const setViewportControlsPreset = useGraphStore(s => s.setViewportControlsPreset)
   const documentStructureBaselineLock = useGraphStore(s => s.documentStructureBaselineLock === true)
@@ -58,6 +61,10 @@ export default function RenderSettingsSection({
   const setEdgeArrow = useGraphStore(s => s.setEdgeArrow)
   const setSelectMode = useGraphStore(s => s.setSelectMode)
   const setCreateMode = useGraphStore(s => s.setCreateMode)
+  const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
+  const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled === true)
+  const multiDimTableModeEnabled = useGraphStore(s => s.multiDimTableModeEnabled === true)
+  const documentSemanticMode = useGraphStore(s => s.documentSemanticMode)
 
   const ensureBaselineUnlocked = React.useCallback((): boolean => {
     if (documentStructureBaselineLock !== true) return true
@@ -91,6 +98,13 @@ export default function RenderSettingsSection({
 
   const layoutMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
     schema.layout?.mode === 'block' ? 'block' : 'radial'
+  const voxelApplicable = isVoxelModeApplicable({
+    canvas2dRenderer,
+    documentSemanticMode,
+    frontmatterModeEnabled,
+    multiDimTableModeEnabled,
+    schema,
+  })
 
   const setLayoutMode = React.useCallback(
     (mode: NonNullable<NonNullable<GraphSchema['layout']>['mode']>) => {
@@ -427,6 +441,25 @@ export default function RenderSettingsSection({
               >
                 <option value="map">map</option>
                 <option value="design">design</option>
+              </select>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
+                3D Mode
+              </div>
+              <select
+                className={uiPanelKeyValueInputClass}
+                value={canvas3dMode}
+                disabled={canvasRenderMode !== '3d'}
+                onChange={e => {
+                  if (!ensureBaselineUnlocked()) return
+                  const next = e.target.value === 'voxel' ? 'voxel' : '3d'
+                  if (next === 'voxel' && !voxelApplicable) return
+                  setCanvas3dMode(next)
+                }}
+              >
+                <option value="3d">3d</option>
+                <option value="voxel" disabled={!voxelApplicable}>voxel</option>
               </select>
             </div>
             <div className="flex items-center justify-between gap-2">

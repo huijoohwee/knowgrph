@@ -10,6 +10,7 @@ import { selectionPerfEnd, selectionPerfStart } from '@/lib/selectionPerf'
 import type { Vec3 } from './layout'
 import { applyZoomStep, fitCameraToPositions, type CameraRequestType, getCameraConfig } from './camera'
 import { buildAutoFitToScreenSignature, buildAutoZoomSelectionSignature } from '@/lib/zoom/autoModeSignatures'
+import type { Canvas3dModeId } from '@/lib/config'
 
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min
@@ -21,11 +22,13 @@ export function Controls({
   schema,
   positions,
   paused,
+  mode = '3d',
   onControlsChange,
 }: {
   schema: GraphSchema
   positions: Record<string, Vec3>
   paused?: boolean
+  mode?: Canvas3dModeId
   onControlsChange?: () => void
 }) {
   const { camera, gl, size } = useThree()
@@ -60,14 +63,17 @@ export function Controls({
   const cameraPathPhaseRef = React.useRef(0)
   const cameraPathDistanceScaleRef = React.useRef(1)
   const cameraPathDesiredRef = React.useRef(new THREE.Vector3())
+  const lastInteractionAtRef = React.useRef<number>(Date.now())
   React.useEffect(() => {
     const handleStart = () => {
       cameraPathUserInteractingRef.current = true
       cameraPathInteractionAtRef.current = Date.now()
+      lastInteractionAtRef.current = Date.now()
     }
     const handleEnd = () => {
       cameraPathUserInteractingRef.current = false
       cameraPathInteractionAtRef.current = Date.now()
+      lastInteractionAtRef.current = Date.now()
     }
     try {
       controls.addEventListener('start', handleStart)
@@ -281,13 +287,36 @@ export function Controls({
     const st = useGraphStore.getState()
     const m = typeof st.canvasInteractionSpeedMultiplier === 'number' && Number.isFinite(st.canvasInteractionSpeedMultiplier) ? st.canvasInteractionSpeedMultiplier : 1
     const safe = Math.max(0.1, Math.min(10, m))
+    const voxelIdleDelayMs = typeof schema.three?.voxelIdleAutoRotateDelayMs === 'number' && Number.isFinite(schema.three.voxelIdleAutoRotateDelayMs)
+      ? Math.max(0, Math.min(6000, schema.three.voxelIdleAutoRotateDelayMs))
+      : 900
+    const voxelIdleRotateSpeed = typeof schema.three?.voxelIdleAutoRotateSpeed === 'number' && Number.isFinite(schema.three.voxelIdleAutoRotateSpeed)
+      ? Math.max(0, Math.min(1.5, schema.three.voxelIdleAutoRotateSpeed))
+      : globeAutoRotateSpeed
+
+    try {
+      if (mode === 'voxel') {
+        camera.up.set(0, 0, 1)
+      } else {
+        camera.up.set(0, 1, 0)
+      }
+    } catch {
+      void 0
+    }
     controls.dampingFactor = cfg.dampingFactor
     controls.rotateSpeed = cfg.rotateSpeed * safe
     controls.zoomSpeed = cfg.zoomSpeed * safe
     controls.panSpeed = cfg.panSpeed * safe
-    controls.autoRotate = !pathEnabled && (cfg.autoRotate || globeEffectsEnabled) && !viewPinned
-    controls.autoRotateSpeed = globeEffectsEnabled ? globeAutoRotateSpeed : cfg.autoRotateSpeed
-  }, [canvas2dRenderer, controls, schema, viewPinned])
+    const idleMs = Date.now() - lastInteractionAtRef.current
+    const voxelIdleAutoRotate = mode === 'voxel' ? idleMs >= voxelIdleDelayMs : true
+    controls.autoRotate = !pathEnabled && (cfg.autoRotate || globeEffectsEnabled) && !viewPinned && voxelIdleAutoRotate
+    controls.autoRotateSpeed = mode === 'voxel' ? voxelIdleRotateSpeed : (globeEffectsEnabled ? globeAutoRotateSpeed : cfg.autoRotateSpeed)
+    try {
+      controls.update()
+    } catch {
+      void 0
+    }
+  }, [camera, canvas2dRenderer, controls, mode, schema, viewPinned])
   React.useEffect(() => {
     controls.enabled = !paused
   }, [controls, paused])

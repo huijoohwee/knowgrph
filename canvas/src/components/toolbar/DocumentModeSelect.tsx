@@ -1,12 +1,9 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { FileText, GitMerge, Table, Tags } from 'lucide-react'
-import IconButton from '@/components/IconButton'
-import { DropdownPanel } from '@/lib/ui/overlay'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { uiPrimaryChipActiveClassName, uiPrimaryIconActiveClassName, uiPrimaryIconInactiveClassName } from '@/features/toolbar/ui/toolbarStyles'
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 
 type DocumentModeSelectProps = {
   iconSizeClass: string
@@ -15,8 +12,6 @@ type DocumentModeSelectProps = {
 }
 
 type DocumentModeValue = 'documentStructure' | 'keyword' | 'frontmatter' | 'multiDimTable'
-
-const MODE_MENU_WIDTH_CLASS = 'w-64'
 
 export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBaselineUnlocked }: DocumentModeSelectProps) {
   const {
@@ -36,9 +31,6 @@ export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
       setMultiDimTableModeEnabled: s.setMultiDimTableModeEnabled,
     })),
   )
-
-  const [open, setOpen] = React.useState(false)
-  const buttonRef = React.useRef<HTMLButtonElement>(null)
 
   const activeMode: DocumentModeValue = multiDimTableModeEnabled
     ? 'multiDimTable'
@@ -119,48 +111,27 @@ export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
   )
 
   return (
-    <>
-      <IconButton
-        ref={buttonRef}
-        className={`App-toolbar__btn ${open ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName}`}
-        title={activeOption.label}
-        tooltipContent={activeOption.tooltip}
-        onClick={() => setOpen(v => !v)}
-        showTooltip
-      >
-        <activeOption.Icon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-
-      {open && (
-        <DropdownPanel anchorRef={buttonRef} open={open} onClose={() => setOpen(false)} align="bottom-center">
-          <menu
-            className={`p-1 flex flex-col gap-1 ${MODE_MENU_WIDTH_CLASS} list-none m-0 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md`}
-            aria-label="Document mode"
-          >
-            {options.map(option => {
-              const isActive = option.value === activeMode
-              return (
-                <li key={option.value} className="list-none">
-                  <button
-                    type="button"
-                    className={`w-full flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} hover:bg-gray-100 dark:hover:bg-gray-800 ${
-                      isActive ? uiPrimaryChipActiveClassName : ''
-                    }`}
-                    onClick={() => {
-                      applyMode(option.value)
-                      setOpen(false)
-                    }}
-                    title={option.tooltip}
-                  >
-                    <option.Icon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-                    <span className="truncate">{option.label}</span>
-                  </button>
-                </li>
-              )
-            })}
-          </menu>
-        </DropdownPanel>
+    <ToolbarDropdownSelect
+      value={activeMode}
+      options={options.map(option => ({
+        id: option.value,
+        title: option.label,
+        tooltip: option.tooltip,
+        Icon: option.Icon,
+      }))}
+      title={activeOption.label}
+      tooltipContent={activeOption.tooltip}
+      onSelect={id => applyMode(id)}
+      renderButtonContent={active => (
+        <active.Icon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       )}
-    </>
+      renderOptionContent={option => (
+        <>
+          <option.Icon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+          <span className="truncate">{option.title}</span>
+        </>
+      )}
+      menuWidthClass="w-64"
+    />
   )
 }
