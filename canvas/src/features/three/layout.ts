@@ -305,8 +305,8 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
         const ov = overrides[id]
         if (!ov) continue
         if (mode === 'voxel') {
-          px[i] = ov[0]
-          py[i] = ov[1]
+          px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, quantizeVoxelCoordToGridLine(ov[0], voxelGridStep)))
+          py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, quantizeVoxelCoordToGridLine(ov[1], voxelGridStep)))
           pz[i] = pz[i]
         } else {
           const behavior = schema.behavior || { allowEdgeCreation: true, allowNodeDrag: true }

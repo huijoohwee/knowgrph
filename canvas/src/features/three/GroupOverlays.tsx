@@ -13,6 +13,7 @@ import { readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfi
 import { commitGroupBoundsOverrideToStore } from '@/lib/canvas/groupBoundsOverridesStore'
 import { buildGroupRectByIdFromSchemaOverrides } from '@/lib/canvas/groupExplicitBounds'
 import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
+import { intersectRayWithZPlane } from './raycast'
 
 type Vec3 = [number, number, number]
 
@@ -68,13 +69,6 @@ const computeAutoBounds = (args: {
   const w = Math.max(1, maxX - minX + padding * 2)
   const h = Math.max(1, maxY - minY + padding * 2)
   return { x, y, w, h }
-}
-
-const intersectRayWithZPlane = (ray: THREE.Ray, z = 0): THREE.Vector3 | null => {
-  const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -z)
-  const out = new THREE.Vector3()
-  const hit = ray.intersectPlane(plane, out)
-  return hit ? out : null
 }
 
 const computeWorldRadiusForPx = (args: { camera: THREE.Camera; viewportW: number; viewportH: number; position: THREE.Vector3; px: number }): number => {

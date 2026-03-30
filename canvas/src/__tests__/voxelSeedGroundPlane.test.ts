@@ -64,6 +64,27 @@ export function testVoxelModeSeedsOntoSnappedXyGroundPlaneFromFullStackJson() {
     seed2dPositions[id] = { x: baseX + offsetX, y: baseY + offsetY }
   }
 
+  const seedShift = (() => {
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+    let count = 0
+    for (const v of Object.values(seed2dPositions)) {
+      if (!v) continue
+      const x = v.x
+      const y = v.y
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+      if (x < minX) minX = x
+      if (y < minY) minY = y
+      if (x > maxX) maxX = x
+      if (y > maxY) maxY = y
+      count += 1
+    }
+    if (count < 2 || minX === Infinity) return { x: 0, y: 0 }
+    return { x: (minX + maxX) * 0.5, y: (minY + maxY) * 0.5 }
+  })()
+
   const pos = computePositionsVoxel(nodes, null, { seed2dPositions })
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]!
@@ -72,8 +93,8 @@ export function testVoxelModeSeedsOntoSnappedXyGroundPlaneFromFullStackJson() {
     if (!seed) throw new Error(`missing seed for ${id}`)
     const p = pos[id]
     if (!p) throw new Error(`missing voxel position for ${id}`)
-    const expectedX = snapToGrid(seed.x, grid)
-    const expectedY = snapToGrid(seed.y, grid)
+    const expectedX = snapToGrid(seed.x - seedShift.x, grid)
+    const expectedY = snapToGrid(seed.y - seedShift.y, grid)
     if (p[0] !== expectedX) throw new Error(`expected snapped X for ${id}: ${p[0]} vs ${expectedX}`)
     if (p[1] !== expectedY) throw new Error(`expected snapped Y for ${id}: ${p[1]} vs ${expectedY}`)
     if (!(p[2] >= grid)) throw new Error(`expected Z height above ground for ${id}: ${p[2]} >= ${grid}`)

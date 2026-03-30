@@ -29,7 +29,8 @@ import { readThreeRenderOrderOffset } from '@/features/three/zOrder'
 import { readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import type { Canvas3dModeId } from '@/lib/config'
 import { resolveVoxelClusterColor, resolveVoxelClusterKey } from './voxelStyle'
-import { resolveVoxelGridStep } from './threeLayoutConfig'
+import { resolveVoxelGridStep, quantizeVoxelCoordToGridLine } from './threeLayoutConfig'
+import { intersectRayWithZPlane } from './raycast'
 
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min
@@ -235,8 +236,21 @@ export function Scene({
   }, [threeCfg.starfieldColor, palette, theme])
   const localDragOverridesRef = React.useRef<Record<string, Vec3>>({})
   const dragRef = dragOverridesRef || localDragOverridesRef
+  const voxelGridStep = React.useMemo(() => {
+    if (mode !== 'voxel') return 0
+    return resolveVoxelGridStep(schema)
+  }, [mode, schema])
   const handleDragStart = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
+    if (mode === 'voxel') {
+      const existing = (dragRef.current[id] || positions[id] || [0, 0, 0]) as Vec3
+      const hit = intersectRayWithZPlane(e.ray, 0)
+      const p = hit || e.point
+      const gx = quantizeVoxelCoordToGridLine(p.x, voxelGridStep)
+      const gy = quantizeVoxelCoordToGridLine(p.y, voxelGridStep)
+      dragRef.current[id] = [gx, gy, existing[2]]
+      return
+    }
     const p = e.point.clone()
     const rect = explicitGroupRectByNodeId.get(String(id)) || null
     const n = nodeById.get(String(id)) || null
@@ -247,9 +261,18 @@ export function Scene({
       p.y = clamped.cy
     }
     dragRef.current[id] = [p.x, p.y, p.z]
-  }, [dragRef, explicitGroupRectByNodeId, nodeById, schema])
+  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema, voxelGridStep])
   const handleDrag = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
+    if (mode === 'voxel') {
+      const existing = (dragRef.current[id] || positions[id] || [0, 0, 0]) as Vec3
+      const hit = intersectRayWithZPlane(e.ray, 0)
+      const p = hit || e.point
+      const gx = quantizeVoxelCoordToGridLine(p.x, voxelGridStep)
+      const gy = quantizeVoxelCoordToGridLine(p.y, voxelGridStep)
+      dragRef.current[id] = [gx, gy, existing[2]]
+      return
+    }
     const p = e.point.clone()
     const rect = explicitGroupRectByNodeId.get(String(id)) || null
     const n = nodeById.get(String(id)) || null
@@ -260,9 +283,21 @@ export function Scene({
       p.y = clamped.cy
     }
     dragRef.current[id] = [p.x, p.y, p.z]
-  }, [dragRef, explicitGroupRectByNodeId, nodeById, schema])
+  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema, voxelGridStep])
   const handleDragEnd = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
+    if (mode === 'voxel') {
+      const existing = (dragRef.current[id] || positions[id] || [0, 0, 0]) as Vec3
+      const hit = intersectRayWithZPlane(e.ray, 0)
+      const p = hit || e.point
+      const gx = quantizeVoxelCoordToGridLine(p.x, voxelGridStep)
+      const gy = quantizeVoxelCoordToGridLine(p.y, voxelGridStep)
+      dragRef.current[id] = [gx, gy, existing[2]]
+      requestAnimationFrame(() => {
+        delete dragRef.current[id]
+      })
+      return
+    }
     const p = e.point.clone()
     const rect = explicitGroupRectByNodeId.get(String(id)) || null
     const n = nodeById.get(String(id)) || null
@@ -274,7 +309,7 @@ export function Scene({
     }
     dragRef.current[id] = [p.x, p.y, p.z]
     delete dragRef.current[id]
-  }, [dragRef, explicitGroupRectByNodeId, nodeById, schema])
+  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema, voxelGridStep])
   const allowNodeDrag = schema.behavior ? schema.behavior.allowNodeDrag !== false : true
   const voxelClusterLightIntensity = (() => {
     const raw = schema.three?.voxelClusterLightIntensity
@@ -318,7 +353,8 @@ export function Scene({
     const gridStep = resolveVoxelGridStep(schema)
     const nodeCount = Array.isArray(data.nodes) ? data.nodes.length : 0
     const approxSpan = Math.max(200, Math.min(2400, Math.ceil(Math.sqrt(Math.max(1, nodeCount))) * gridStep * 6))
-    const divisions = Math.max(4, Math.min(120, Math.round(approxSpan / Math.max(1, gridStep))))
+    let divisions = Math.max(4, Math.min(120, Math.round(approxSpan / Math.max(1, gridStep))))
+    if (divisions % 2 !== 0) divisions = Math.min(120, divisions + 1)
     const span = divisions * gridStep
     return { span, divisions, gridStep }
   }, [data.nodes, mode, schema])

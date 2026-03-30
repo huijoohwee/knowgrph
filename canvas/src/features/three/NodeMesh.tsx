@@ -184,16 +184,13 @@ export function NodeMesh({
     const conceptBob = isVoxel && isConcept ? Math.sin(t * 0.9 + node.id.length * 0.37) * Math.max(1.2, voxelH * 0.06 * conceptFloatStrength) : 0
     sphereRef.current.position.set(p[0], p[1], p[2] + conceptBob)
     if (isVoxel) {
-      sphereRef.current.rotation.y += 0.0035
-      sphereRef.current.rotation.x += 0.0015
+      sphereRef.current.rotation.set(0, 0, 0)
     }
     if (ringRef.current && isSelectedNode && isVoxel) {
-      ringRef.current.rotation.z += 0.025
-      ringRef.current.rotation.y += 0.015
+      ringRef.current.rotation.set(0, 0, 0)
     }
     if (diamondRef.current && isVoxel) {
-      diamondRef.current.rotation.y += 0.018
-      diamondRef.current.rotation.x += 0.01
+      diamondRef.current.rotation.set(0, 0, 0)
     }
   })
   const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {

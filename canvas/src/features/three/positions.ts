@@ -346,6 +346,27 @@ export function computePositionsVoxel(
   if (!nodes.length) return out
   const seed2d = opts?.seed2dPositions || null
   const grid = resolveVoxelGridStep(schema)
+  const seedShift = (() => {
+    if (!seed2d) return { x: 0, y: 0 }
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+    let count = 0
+    for (const v of Object.values(seed2d)) {
+      if (!v) continue
+      const x = v.x
+      const y = v.y
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+      if (x < minX) minX = x
+      if (y < minY) minY = y
+      if (x > maxX) maxX = x
+      if (y > maxY) maxY = y
+      count += 1
+    }
+    if (count < 2 || minX === Infinity) return { x: 0, y: 0 }
+    return { x: (minX + maxX) * 0.5, y: (minY + maxY) * 0.5 }
+  })()
   const readNodeZBias = (node: GraphNode): number => {
     const props = (node.properties || {}) as Record<string, unknown>
     const zOffset = readThreeRenderOrderOffset(props)
@@ -382,7 +403,7 @@ export function computePositionsVoxel(
     const s = seed2d[id]
     if (!s) return null
     if (!Number.isFinite(s.x) || !Number.isFinite(s.y)) return null
-    return { x: s.x, y: s.y }
+    return { x: s.x - seedShift.x, y: s.y - seedShift.y }
   }
   const seededPosByNodeId = new Map<string, { x: number; y: number }>()
   for (let i = 0; i < nodes.length; i += 1) {
