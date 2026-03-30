@@ -1,5 +1,5 @@
 import type { GraphSchema } from '@/lib/graph/schema'
-import { clampSnapGridSize } from '@/lib/canvas/gridSnap'
+import { resolveVoxelGridStepFromSchema } from '@/lib/canvas/voxelGrid'
 
 export type CanvasGridVariant = 'lines' | 'dots'
 
@@ -8,6 +8,12 @@ export type CanvasGridConfig = {
   variant: CanvasGridVariant
   majorEvery: number
   dotRadiusPx: number
+  minorAlpha: number
+  majorAlpha: number
+  minorWidthPx: number
+  majorWidthPx: number
+  minorStroke: string | null
+  majorStroke: string | null
 }
 
 export type CanvasGridRenderConfig = {
@@ -16,11 +22,46 @@ export type CanvasGridRenderConfig = {
   variant: CanvasGridVariant
   majorEvery: number
   dotRadiusPx: number
+  minorAlpha: number
+  majorAlpha: number
+  minorWidthPx: number
+  majorWidthPx: number
+  minorStroke: string | null
+  majorStroke: string | null
+  anchor: 'cellCenter'
+  lockToBaseStep: true
 }
 
 export const CANVAS_GRID_DOT_RADIUS_PX_DEFAULT = 1
 export const CANVAS_GRID_DOT_RADIUS_PX_MIN = 0.5
 export const CANVAS_GRID_DOT_RADIUS_PX_MAX = 6
+
+export const CANVAS_GRID_MINOR_ALPHA_DEFAULT = 0.06
+export const CANVAS_GRID_MAJOR_ALPHA_DEFAULT = 0.12
+export const CANVAS_GRID_ALPHA_MIN = 0
+export const CANVAS_GRID_ALPHA_MAX = 1
+
+export const clampCanvasGridAlpha = (value: unknown, fallback: number): number => {
+  const n = typeof value === 'number' && Number.isFinite(value) ? value : Number.NaN
+  const v = Number.isFinite(n) ? n : fallback
+  return Math.max(CANVAS_GRID_ALPHA_MIN, Math.min(CANVAS_GRID_ALPHA_MAX, v))
+}
+
+export const CANVAS_GRID_MINOR_WIDTH_PX_DEFAULT = 1
+export const CANVAS_GRID_MAJOR_WIDTH_PX_DEFAULT = 1
+export const CANVAS_GRID_WIDTH_PX_MIN = 0.5
+export const CANVAS_GRID_WIDTH_PX_MAX = 4
+
+export const clampCanvasGridWidthPx = (value: unknown, fallback: number): number => {
+  const n = typeof value === 'number' && Number.isFinite(value) ? value : Number.NaN
+  const v = Number.isFinite(n) ? n : fallback
+  return Math.max(CANVAS_GRID_WIDTH_PX_MIN, Math.min(CANVAS_GRID_WIDTH_PX_MAX, v))
+}
+
+export const coerceCanvasGridStroke = (value: unknown): string | null => {
+  const v = typeof value === 'string' ? value.trim() : ''
+  return v ? v : null
+}
 
 export const clampCanvasGridDotRadiusPx = (value: unknown): number => {
   const n = typeof value === 'number' && Number.isFinite(value) ? value : Number.NaN
@@ -42,19 +83,24 @@ export const coerceCanvasGridVariant = (value: unknown): CanvasGridVariant => {
 
 export const readCanvasGridConfigFromSchema = (schema: GraphSchema | null | undefined): CanvasGridConfig => {
   const g = (schema?.behavior as unknown as { canvasGrid?: unknown } | null)?.canvasGrid as
-    | { enabled?: unknown; variant?: unknown; majorEvery?: unknown; dotRadiusPx?: unknown }
+    | { enabled?: unknown; variant?: unknown; majorEvery?: unknown; dotRadiusPx?: unknown; minorAlpha?: unknown; majorAlpha?: unknown; minorWidthPx?: unknown; majorWidthPx?: unknown; minorStroke?: unknown; majorStroke?: unknown }
     | null
 
   const enabled = !!(g && g.enabled)
   const variant = coerceCanvasGridVariant(g?.variant)
   const majorEvery = clampCanvasGridMajorEvery(g?.majorEvery)
   const dotRadiusPx = clampCanvasGridDotRadiusPx(g?.dotRadiusPx)
-  return { enabled, variant, majorEvery, dotRadiusPx }
+  const minorAlpha = clampCanvasGridAlpha(g?.minorAlpha, CANVAS_GRID_MINOR_ALPHA_DEFAULT)
+  const majorAlpha = clampCanvasGridAlpha(g?.majorAlpha, CANVAS_GRID_MAJOR_ALPHA_DEFAULT)
+  const minorWidthPx = clampCanvasGridWidthPx(g?.minorWidthPx, CANVAS_GRID_MINOR_WIDTH_PX_DEFAULT)
+  const majorWidthPx = clampCanvasGridWidthPx(g?.majorWidthPx, CANVAS_GRID_MAJOR_WIDTH_PX_DEFAULT)
+  const minorStroke = coerceCanvasGridStroke(g?.minorStroke)
+  const majorStroke = coerceCanvasGridStroke(g?.majorStroke)
+  return { enabled, variant, majorEvery, dotRadiusPx, minorAlpha, majorAlpha, minorWidthPx, majorWidthPx, minorStroke, majorStroke }
 }
 
 export const readCanvasGridWorldStepFromSchema = (schema: GraphSchema | null | undefined): number => {
-  const snap = (schema?.behavior as unknown as { snapGrid?: unknown } | null)?.snapGrid as { size?: unknown } | null
-  return clampSnapGridSize(snap?.size)
+  return resolveVoxelGridStepFromSchema(schema)
 }
 
 export const readCanvasGridRenderConfigFromSchema = (schema: GraphSchema | null | undefined): CanvasGridRenderConfig | null => {
@@ -66,5 +112,13 @@ export const readCanvasGridRenderConfigFromSchema = (schema: GraphSchema | null 
     variant: grid.variant,
     majorEvery: grid.majorEvery,
     dotRadiusPx: grid.dotRadiusPx,
+    minorAlpha: grid.minorAlpha,
+    majorAlpha: grid.majorAlpha,
+    minorWidthPx: grid.minorWidthPx,
+    majorWidthPx: grid.majorWidthPx,
+    minorStroke: grid.minorStroke,
+    majorStroke: grid.majorStroke,
+    anchor: 'cellCenter',
+    lockToBaseStep: true,
   }
 }

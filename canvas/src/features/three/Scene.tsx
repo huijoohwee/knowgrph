@@ -29,7 +29,7 @@ import { readThreeRenderOrderOffset } from '@/features/three/zOrder'
 import { readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import type { Canvas3dModeId } from '@/lib/config'
 import { resolveVoxelClusterColor, resolveVoxelClusterKey } from './voxelStyle'
-import { quantizeVoxelCoordToGridLine, resolveVoxelGridStep } from './threeLayoutConfig'
+import { quantizeVoxelCoordToCellCenter, resolveVoxelGridStep } from './threeLayoutConfig'
 import { intersectRayWithZPlane } from './raycast'
 
 function clamp(value: number, min: number, max: number): number {
@@ -237,11 +237,14 @@ export function Scene({
   const localDragOverridesRef = React.useRef<Record<string, Vec3>>({})
   const dragRef = dragOverridesRef || localDragOverridesRef
   const voxelGridStep = resolveVoxelGridStep(schema)
+  const voxelSnapEnabled = schema?.behavior?.snapGrid?.enabled === true
+  const voxelGridVisualEnabled = schema?.behavior?.canvasGrid?.enabled === true
   const snapVoxelDragPoint = React.useCallback((x: number, y: number): Vec3 => {
-    const sx = quantizeVoxelCoordToGridLine(x, voxelGridStep)
-    const sy = quantizeVoxelCoordToGridLine(y, voxelGridStep)
+    if (!voxelSnapEnabled) return [x, y, 0]
+    const sx = quantizeVoxelCoordToCellCenter(x, voxelGridStep)
+    const sy = quantizeVoxelCoordToCellCenter(y, voxelGridStep)
     return [sx, sy, 0]
-  }, [voxelGridStep])
+  }, [voxelGridStep, voxelSnapEnabled])
   const handleDragStart = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     if (mode === 'voxel') {
@@ -341,11 +344,16 @@ export function Scene({
     return out
   }, [data.nodes, mode, positions])
 
-  const voxelGround = React.useMemo(() => {
-    if (mode !== 'voxel') return null
-    const gridStep = resolveVoxelGridStep(schema)
+  const [voxelGround, setVoxelGround] = React.useState<{ span: number; divisions: number; gridStep: number } | null>(null)
+  const voxelGroundRef = React.useRef<typeof voxelGround>(null)
+  React.useEffect(() => {
+    voxelGroundRef.current = voxelGround
+  }, [voxelGround])
+  const computeVoxelGround = React.useCallback((gridStep: number) => {
+    const step = Math.max(1, gridStep)
     let maxAbs = 0
-    for (let i = 0; i < data.nodes.length; i += 1) {
+    const nodeCount = Array.isArray(data.nodes) ? data.nodes.length : 0
+    for (let i = 0; i < nodeCount; i += 1) {
       const id = data.nodes[i].id
       const p = positions[id]
       if (!p) continue
@@ -354,19 +362,58 @@ export function Scene({
       if (ax > maxAbs) maxAbs = ax
       if (ay > maxAbs) maxAbs = ay
     }
-    const spanFromPositions = maxAbs > 0
-      ? (Math.ceil((maxAbs * 2 + gridStep * 8) / Math.max(1, gridStep)) * gridStep)
-      : 0
-    const nodeCount = Array.isArray(data.nodes) ? data.nodes.length : 0
-    const spanFromCount = Math.max(200, Math.ceil(Math.sqrt(Math.max(1, nodeCount))) * gridStep * 6)
+    const spanFromPositions = maxAbs > 0 ? (Math.ceil((maxAbs * 2 + step * 10) / step) * step) : 0
+    const spanFromCount = Math.max(200, Math.ceil(Math.sqrt(Math.max(1, nodeCount))) * step * 8)
     const targetSpan = Math.max(spanFromCount, spanFromPositions)
-    let divisions = Math.max(4, Math.min(220, Math.round(targetSpan / Math.max(1, gridStep))))
+    let divisions = Math.max(4, Math.min(320, Math.round(targetSpan / step)))
     if (divisions % 2 !== 0) divisions += 1
-    const span = divisions * gridStep
-    return { span, divisions, gridStep }
-  }, [data.nodes, mode, positions, schema])
+    const span = divisions * step
+    return { span, divisions, gridStep: step }
+  }, [data.nodes, positions])
+  React.useEffect(() => {
+    if (mode !== 'voxel' || !voxelGridVisualEnabled) {
+      setVoxelGround(null)
+      return
+    }
+    const next = computeVoxelGround(resolveVoxelGridStep(schema))
+    setVoxelGround(prev => {
+      if (!prev) return next
+      if (prev.gridStep !== next.gridStep) return next
+      if (prev.span !== next.span) return next
+      return prev
+    })
+  }, [computeVoxelGround, mode, schema, voxelGridVisualEnabled])
+  const voxelGroundFrameCounterRef = React.useRef(0)
+  useFrame(() => {
+    if (mode !== 'voxel' || !voxelGridVisualEnabled) return
+    voxelGroundFrameCounterRef.current += 1
+    if (voxelGroundFrameCounterRef.current % 18 !== 0) return
+    const next = computeVoxelGround(resolveVoxelGridStep(schema))
+    const prev = voxelGroundRef.current
+    if (!prev || next.gridStep !== prev.gridStep || next.span > prev.span) {
+      setVoxelGround(next)
+    }
+  })
 
   const motionIntensityForMode = mode === 'voxel' ? 0 : motionIntensityEffective
+  const voxelGridMajorColor = (typeof (schema?.behavior?.canvasGrid as any)?.majorStroke === 'string' && String((schema?.behavior?.canvasGrid as any).majorStroke).trim() !== '')
+    ? String((schema?.behavior?.canvasGrid as any).majorStroke).trim()
+    : resolveCssVar('--kg-canvas-grid-major', '#334155')
+  const voxelGridMinorColor = (typeof (schema?.behavior?.canvasGrid as any)?.minorStroke === 'string' && String((schema?.behavior?.canvasGrid as any).minorStroke).trim() !== '')
+    ? String((schema?.behavior?.canvasGrid as any).minorStroke).trim()
+    : resolveCssVar('--kg-canvas-grid-minor', '#1f2937')
+  const voxelGridOpacity = (() => {
+    const cur = schema?.behavior?.canvasGrid as any
+    const minorA = typeof cur?.minorAlpha === 'number' && Number.isFinite(cur.minorAlpha) ? Math.max(0, Math.min(1, cur.minorAlpha)) : 0.06
+    const majorA = typeof cur?.majorAlpha === 'number' && Number.isFinite(cur.majorAlpha) ? Math.max(0, Math.min(1, cur.majorAlpha)) : 0.12
+    return Math.max(minorA, majorA)
+  })()
+  const voxelGridLineWidth = (() => {
+    const cur = schema?.behavior?.canvasGrid as any
+    const w = typeof cur?.minorWidthPx === 'number' && Number.isFinite(cur.minorWidthPx) ? cur.minorWidthPx : 1
+    return Math.max(0.5, Math.min(4, w))
+  })()
+  const voxelGroundColor = resolveCssVar('--kg-canvas-bg', '#0b1220')
 
   const sceneGroupRef = React.useRef<THREE.Group | null>(null)
   useFrame(({ clock }) => {
@@ -393,12 +440,19 @@ export function Scene({
       <ambientLight intensity={0.9} />
       <hemisphereLight args={['#ffffff', '#cbd5e1', 0.6]} />
       <pointLight position={[120, 120, 120]} intensity={0.9} />
-      {mode === 'voxel' && voxelGround ? (
+      {mode === 'voxel' && voxelGround && voxelGridVisualEnabled ? (
         <group>
-          <gridHelper args={[voxelGround.span, voxelGround.divisions, '#334155', '#1f2937']} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} />
+          <gridHelper
+            args={[voxelGround.span, voxelGround.divisions, voxelGridMajorColor, voxelGridMinorColor]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            position={[0, 0, 0]}
+            material-transparent={true}
+            material-opacity={voxelGridOpacity}
+            material-linewidth={voxelGridLineWidth}
+          />
           <mesh position={[0, 0, -0.5]}>
             <planeGeometry args={[voxelGround.span, voxelGround.span]} />
-            <meshStandardMaterial color={'#0b1220'} transparent opacity={0.22} roughness={0.95} metalness={0.05} />
+            <meshStandardMaterial color={voxelGroundColor} transparent opacity={0.22} roughness={0.95} metalness={0.05} />
           </mesh>
         </group>
       ) : null}

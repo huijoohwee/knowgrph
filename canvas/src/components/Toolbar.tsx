@@ -39,9 +39,15 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const {
     actions,
     canvasGridDotRadiusPx,
+    canvasGridMajorAlpha,
     canvas2dRenderer,
     canvasGridEnabled,
+    canvasGridMajorStroke,
     canvasGridMajorEvery,
+    canvasGridMajorWidthPx,
+    canvasGridMinorAlpha,
+    canvasGridMinorStroke,
+    canvasGridMinorWidthPx,
     canvasGridVariant,
     canvasRenderMode,
     clampMainPanelPos,
@@ -477,6 +483,12 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
               variant: canvasGridVariant,
               majorEvery: canvasGridMajorEvery,
               dotRadiusPx: canvasGridDotRadiusPx,
+              minorAlpha: canvasGridMinorAlpha,
+              majorAlpha: canvasGridMajorAlpha,
+              minorWidthPx: canvasGridMinorWidthPx,
+              majorWidthPx: canvasGridMajorWidthPx,
+              minorStroke: canvasGridMinorStroke || undefined,
+              majorStroke: canvasGridMajorStroke || undefined,
             },
           })
         }}

@@ -34,6 +34,8 @@ import {
   readPhysics2dTuning,
 } from '@/lib/graph/physics2dTuning'
 import { isRadarFlowEdge, isRadarGraph as detectRadarGraph, isRadarSpokeEdge, readRadarForceConfig } from '@/lib/graph/radarForces'
+import { readBipartiteGridSizePx, readBipartiteLaneSeparationPx } from '@/lib/canvas/bipartiteGrid'
+import { snapScalarToGrid } from '@/lib/canvas/gridSnap'
 
 type EdgeEndpointLike = GraphEdge['source'] | { id?: string | number } | null | undefined;
 
@@ -763,15 +765,17 @@ export const buildSimulation = (
         'bipartiteX',
         bipartite.enabled
           ? (() => {
-              const separation = Math.max(520, Math.floor(frameW * 0.36))
-              const leftX = centerX - separation
-              const rightX = centerX + separation
+              const gridSize = readBipartiteGridSizePx(schema)
+              const separation = readBipartiteLaneSeparationPx({ schema, frameW })
+              const cx = snapScalarToGrid(centerX, gridSize)
+              const leftX = cx - separation
+              const rightX = cx + separation
               return d3
                 .forceX<GraphNode>(d => {
                   const side = readBipartiteSide(d)
                   if (side === 'problem') return leftX
                   if (side === 'solution') return rightX
-                  return centerX
+                  return cx
                 })
                 .strength(indexPlan.enabled ? 0.12 : 0.28)
             })()
@@ -1217,15 +1221,19 @@ export const updateForceSimulationPresentation = (args: {
     simulation,
     name: 'bipartiteX',
     axis: 'x',
-    target: d => {
-      const separation = Math.max(520, Math.floor(frameW * 0.36))
-      const leftX = centerX - separation
-      const rightX = centerX + separation
-      const side = readBipartiteSide(d)
-      if (side === 'problem') return leftX
-      if (side === 'solution') return rightX
-      return centerX
-    },
+    target: (() => {
+      const gridSize = readBipartiteGridSizePx(schema)
+      const separation = readBipartiteLaneSeparationPx({ schema, frameW })
+      const cx = snapScalarToGrid(centerX, gridSize)
+      const leftX = cx - separation
+      const rightX = cx + separation
+      return (d: GraphNode) => {
+        const side = readBipartiteSide(d)
+        if (side === 'problem') return leftX
+        if (side === 'solution') return rightX
+        return cx
+      }
+    })(),
     strength: indexPlan.enabled ? 0.12 : 0.28,
     enabled: bipartite.enabled,
   })

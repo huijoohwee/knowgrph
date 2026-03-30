@@ -6,6 +6,8 @@ import { applyMarkdownHeadingSeedLayout } from '@/components/GraphCanvas/layout/
 import { applyClusterAwareHeuristicSeedLayout } from '@/components/GraphCanvas/layout/heuristic-cluster'
 import { applyIndexGridSeedLayout } from '@/components/GraphCanvas/layout/indexGridSeed'
 import { applyGroupGeometrySeedLayout } from '@/components/GraphCanvas/layout/groupGeometrySeed'
+import { snapScalarToGrid } from '@/lib/canvas/gridSnap'
+import { readBipartiteGridSizePx, readBipartiteLaneSeparationPx, readBipartiteRowStepPx } from '@/lib/canvas/bipartiteGrid'
 
 const applyBipartiteLaneSeedLayout = (args: { nodes: GraphNode[]; width: number; height: number; schema: GraphSchema }): void => {
   const forces = (args.schema.layout?.forces || {}) as any
@@ -24,11 +26,13 @@ const applyBipartiteLaneSeedLayout = (args: { nodes: GraphNode[]; width: number;
 
   const w = Math.max(1, args.width)
   const h = Math.max(1, args.height)
-  const centerX = w / 2
-  const centerY = h / 2
-  const separation = Math.max(520, Math.floor(w * 0.36))
+  const gridSize = readBipartiteGridSizePx(args.schema)
+  const centerX = snapScalarToGrid(w / 2, gridSize)
+  const centerY = snapScalarToGrid(h / 2, gridSize)
+  const separation = readBipartiteLaneSeparationPx({ schema: args.schema, frameW: w })
   const leftX = centerX - separation
   const rightX = centerX + separation
+  const rowStep = readBipartiteRowStepPx(args.schema)
 
   let placed = 0
   for (let i = 0; i < nodes.length; i += 1) {
@@ -37,7 +41,7 @@ const applyBipartiteLaneSeedLayout = (args: { nodes: GraphNode[]; width: number;
     if (t !== 'problem' && t !== 'solution') continue
     const targetX = t === 'problem' ? leftX : rightX
     if (!(typeof n.x === 'number' && Number.isFinite(n.x))) n.x = targetX
-    if (!(typeof n.y === 'number' && Number.isFinite(n.y))) n.y = centerY + (placed - (nodes.length - 1) / 2) * 20
+    if (!(typeof n.y === 'number' && Number.isFinite(n.y))) n.y = centerY + (placed - (nodes.length - 1) / 2) * rowStep
     if (n.fx == null) n.fx = targetX
     if (n.fy != null) n.fy = null
     n.vx = 0

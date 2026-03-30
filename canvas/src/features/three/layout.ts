@@ -12,7 +12,7 @@ import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gri
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { computeLayerOffsetIndices, computePositions3d, computePositionsVoxel, type Vec3 } from './positions'
 import { projectPositionsToSphereShell } from './sphereConstraint'
-import { quantizeVoxelCoordToGridLine, resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveVoxelGridStep } from './threeLayoutConfig'
+import { quantizeVoxelCoordToCellCenter, quantizeVoxelCoordToGridLine, resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveVoxelGridStep } from './threeLayoutConfig'
 import { isRadarFlowEdge, isRadarGraph, isRadarHubNode, isRadarSpokeEdge, readRadarForceConfig } from '@/lib/graph/radarForces'
 import type { Canvas3dModeId } from '@/lib/config'
 
@@ -182,7 +182,8 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
     }
     const padded = Math.ceil(maxAbs / Math.max(1, voxelGridStep)) * voxelGridStep + voxelGridStep * 4
     const rawExtent = Math.max(90, sphereRadius * 0.82, padded)
-    return Math.ceil(rawExtent / Math.max(1, voxelGridStep)) * voxelGridStep
+    const extentByLine = Math.ceil(rawExtent / Math.max(1, voxelGridStep)) * voxelGridStep
+    return Math.max(voxelGridStep * 0.5, extentByLine - voxelGridStep * 0.5)
   }, [nodes, positions, sphereRadius, voxelGridStep])
   const hubOrbitEnabled = schema.three?.globeHubOrbitEnabled !== false
   const hubOrbitStrength = typeof schema.three?.globeHubOrbitStrength === 'number' && Number.isFinite(schema.three.globeHubOrbitStrength)
@@ -327,14 +328,15 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
     const overrides = dragOverrides ? dragOverrides.current : undefined
     const skipProjection = overrides ? skipProjectionSetRef.current : null
     skipProjection?.clear()
+    const voxelSnapEnabled = schema?.behavior?.snapGrid?.enabled === true
     if (overrides) {
       for (let i = 0; i < n; i++) {
         const id = nodes[i].id
         const ov = overrides[id]
         if (!ov) continue
         if (mode === 'voxel') {
-          const nx = quantizeVoxelCoordToGridLine(ov[0], voxelGridStep)
-          const ny = quantizeVoxelCoordToGridLine(ov[1], voxelGridStep)
+          const nx = voxelSnapEnabled ? quantizeVoxelCoordToCellCenter(ov[0], voxelGridStep) : ov[0]
+          const ny = voxelSnapEnabled ? quantizeVoxelCoordToCellCenter(ov[1], voxelGridStep) : ov[1]
           px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, nx))
           py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, ny))
           pz[i] = 0
@@ -367,8 +369,8 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
     if (mode === 'voxel') {
       for (let i = 0; i < n; i += 1) {
         if (!(skipProjection && skipProjection.has(i))) {
-          const nx = quantizeVoxelCoordToGridLine(px[i], voxelGridStep)
-          const ny = quantizeVoxelCoordToGridLine(py[i], voxelGridStep)
+          const nx = voxelSnapEnabled ? quantizeVoxelCoordToCellCenter(px[i], voxelGridStep) : px[i]
+          const ny = voxelSnapEnabled ? quantizeVoxelCoordToCellCenter(py[i], voxelGridStep) : py[i]
           px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, nx))
           py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, ny))
         }

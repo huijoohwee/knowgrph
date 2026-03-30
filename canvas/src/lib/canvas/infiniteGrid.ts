@@ -51,6 +51,8 @@ export const drawInfiniteGridInWorldContext = (ctx: CanvasRenderingContext2D, ar
   dpr: number
   transform: Pick<ViewportTransform, 'k' | 'x' | 'y'>
   paint?: Partial<InfiniteGridPaint>
+  anchor?: 'gridLine' | 'cellCenter'
+  lockToBaseStep?: boolean
 }) => {
   if (!args.enabled) return
   const viewportW = Math.max(1, Math.floor(isFiniteNumber(args.viewportW) ? args.viewportW : 1))
@@ -79,7 +81,7 @@ export const drawInfiniteGridInWorldContext = (ctx: CanvasRenderingContext2D, ar
     return step
   }
 
-  const minorStep = pickMinorWorldStep()
+  const minorStep = args.lockToBaseStep === true ? baseSize : pickMinorWorldStep()
   const majorEvery = Math.max(2, Math.floor(p.majorEvery || 5))
   const majorStep = minorStep * majorEvery
 
@@ -97,6 +99,7 @@ export const drawInfiniteGridInWorldContext = (ctx: CanvasRenderingContext2D, ar
   const shouldDrawMajor = majorStep * k >= Math.max(6, p.minMajorStepPx)
 
   const dotRadiusWorld = Math.max(0.05, Math.max(0.5, p.dotRadiusPx) / (dpr * k))
+  const anchor = args.anchor === 'cellCenter' ? 'cellCenter' : 'gridLine'
 
   const drawLines = (step: number, stroke: string, alpha: number, widthWorld: number) => {
     const startX = Math.floor(minX / step) * step
@@ -129,10 +132,11 @@ export const drawInfiniteGridInWorldContext = (ctx: CanvasRenderingContext2D, ar
   }
 
   const drawDots = (step: number, fill: string, alpha: number, rWorld: number) => {
-    const startX = Math.floor(minX / step) * step
-    const endX = Math.ceil(maxX / step) * step
-    const startY = Math.floor(minY / step) * step
-    const endY = Math.ceil(maxY / step) * step
+    const offset = anchor === 'cellCenter' ? step * 0.5 : 0
+    const startX = Math.floor((minX - offset) / step) * step + offset
+    const endX = Math.ceil((maxX - offset) / step) * step + offset
+    const startY = Math.floor((minY - offset) / step) * step + offset
+    const endY = Math.ceil((maxY - offset) / step) * step + offset
     const maxDots = 18_000
     const countX = Math.max(0, Math.floor((endX - startX) / step) + 1)
     const countY = Math.max(0, Math.floor((endY - startY) / step) + 1)
@@ -170,6 +174,8 @@ export const drawInfiniteGrid = (ctx: CanvasRenderingContext2D, args: {
   dpr: number
   transform: Pick<ViewportTransform, 'k' | 'x' | 'y'>
   paint?: Partial<InfiniteGridPaint>
+  anchor?: 'gridLine' | 'cellCenter'
+  lockToBaseStep?: boolean
 }) => {
   if (!args.enabled) return
   const viewportW = Math.max(1, Math.floor(isFiniteNumber(args.viewportW) ? args.viewportW : 1))
@@ -193,6 +199,8 @@ export const drawInfiniteGrid = (ctx: CanvasRenderingContext2D, args: {
     dpr,
     transform: { k, x, y },
     paint: args.paint,
+    anchor: args.anchor,
+    lockToBaseStep: args.lockToBaseStep,
   })
   ctx.restore()
 }

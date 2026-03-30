@@ -17,9 +17,17 @@ const safeTransform = (t: unknown): ZoomTransform | null => {
 export function InfiniteGridCanvasOverlay(props: {
   enabled: boolean
   gridSize: number
+  anchor?: 'gridLine' | 'cellCenter'
+  lockToBaseStep?: boolean
   variant?: 'lines' | 'dots'
   majorEvery?: number
   dotRadiusPx?: number
+  minorAlpha?: number
+  majorAlpha?: number
+  minorWidthPx?: number
+  majorWidthPx?: number
+  minorStroke?: string | null
+  majorStroke?: string | null
   width: number
   height: number
   dpr: number
@@ -33,9 +41,17 @@ export function InfiniteGridCanvasOverlay(props: {
 
   const enabled = props.enabled
   const gridSize = props.gridSize
+  const anchor = props.anchor || 'cellCenter'
+  const lockToBaseStep = props.lockToBaseStep === true
   const variant = props.variant || 'lines'
   const majorEvery = props.majorEvery
   const dotRadiusPx = props.dotRadiusPx
+  const minorAlpha = props.minorAlpha
+  const majorAlpha = props.majorAlpha
+  const minorWidthPx = props.minorWidthPx
+  const majorWidthPx = props.majorWidthPx
+  const minorStrokeOverride = props.minorStroke
+  const majorStrokeOverride = props.majorStroke
   const getTransform = props.getTransform
 
   const viewportW = Math.max(1, Math.floor(props.width || 1))
@@ -71,12 +87,18 @@ export function InfiniteGridCanvasOverlay(props: {
     lastDrawKeyRef.current = drawKey
 
     const fallbacks = readCanvasGridStrokeFallbacks()
-    const minorStroke = resolveCssVarWithKgFallback('--kg-canvas-grid-minor') || fallbacks.minor
-    const majorStroke = resolveCssVarWithKgFallback('--kg-canvas-grid-major') || fallbacks.major
+    const minorStroke = (minorStrokeOverride && minorStrokeOverride.trim())
+      ? minorStrokeOverride
+      : (resolveCssVarWithKgFallback('--kg-canvas-grid-minor') || fallbacks.minor)
+    const majorStroke = (majorStrokeOverride && majorStrokeOverride.trim())
+      ? majorStrokeOverride
+      : (resolveCssVarWithKgFallback('--kg-canvas-grid-major') || fallbacks.major)
 
     drawInfiniteGrid(ctx, {
       enabled: true,
       gridSize,
+      anchor,
+      lockToBaseStep,
       viewportW,
       viewportH,
       dpr,
@@ -84,12 +106,16 @@ export function InfiniteGridCanvasOverlay(props: {
       paint: {
         minorStroke,
         majorStroke,
+        minorAlpha,
+        majorAlpha,
+        minorWidthPx,
+        majorWidthPx,
         variant,
         majorEvery,
         dotRadiusPx,
       },
     })
-  }, [dpr, dotRadiusPx, enabled, getTransform, gridSize, majorEvery, variant, viewportH, viewportW])
+  }, [anchor, dpr, dotRadiusPx, enabled, getTransform, gridSize, lockToBaseStep, majorAlpha, majorEvery, majorStrokeOverride, majorWidthPx, minorAlpha, minorStrokeOverride, minorWidthPx, variant, viewportH, viewportW])
 
   const scheduleDraw = React.useCallback(() => {
     if (rafRef.current != null) return

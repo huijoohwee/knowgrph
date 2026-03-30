@@ -1,4 +1,5 @@
-import { clampSnapGridSize, snapScalarToGrid } from '@/lib/canvas/gridSnap'
+import { snapScalarToGrid } from '@/lib/canvas/gridSnap'
+import { clampSnapGridSize } from '@/lib/canvas/snapGridSize'
 
 export type GroupResizeBounds = { x: number; y: number; w: number; h: number }
 
@@ -45,4 +46,3 @@ export function computeGroupResizeBottomRight(args: {
 
   return { x: start.x, y: start.y, w, h }
 }
-

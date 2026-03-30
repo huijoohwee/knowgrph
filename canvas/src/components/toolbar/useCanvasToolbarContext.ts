@@ -139,6 +139,29 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
       ? Math.max(0.5, Math.min(6, schema.behavior.canvasGrid.dotRadiusPx))
       : 1
 
+  const canvasGridMinorAlpha =
+    typeof (schema?.behavior?.canvasGrid as any)?.minorAlpha === 'number' && Number.isFinite((schema?.behavior?.canvasGrid as any).minorAlpha)
+      ? Math.max(0, Math.min(1, (schema?.behavior?.canvasGrid as any).minorAlpha))
+      : 0.06
+  const canvasGridMajorAlpha =
+    typeof (schema?.behavior?.canvasGrid as any)?.majorAlpha === 'number' && Number.isFinite((schema?.behavior?.canvasGrid as any).majorAlpha)
+      ? Math.max(0, Math.min(1, (schema?.behavior?.canvasGrid as any).majorAlpha))
+      : 0.12
+  const canvasGridMinorWidthPx =
+    typeof (schema?.behavior?.canvasGrid as any)?.minorWidthPx === 'number' && Number.isFinite((schema?.behavior?.canvasGrid as any).minorWidthPx)
+      ? Math.max(0.5, Math.min(4, (schema?.behavior?.canvasGrid as any).minorWidthPx))
+      : 1
+  const canvasGridMajorWidthPx =
+    typeof (schema?.behavior?.canvasGrid as any)?.majorWidthPx === 'number' && Number.isFinite((schema?.behavior?.canvasGrid as any).majorWidthPx)
+      ? Math.max(0.5, Math.min(4, (schema?.behavior?.canvasGrid as any).majorWidthPx))
+      : 1
+  const canvasGridMinorStroke = typeof (schema?.behavior?.canvasGrid as any)?.minorStroke === 'string'
+    ? String((schema?.behavior?.canvasGrid as any).minorStroke).trim()
+    : ''
+  const canvasGridMajorStroke = typeof (schema?.behavior?.canvasGrid as any)?.majorStroke === 'string'
+    ? String((schema?.behavior?.canvasGrid as any).majorStroke).trim()
+    : ''
+
   const [workspaceToolbarExpanded, setWorkspaceToolbarExpanded] = useState(true)
   React.useEffect(() => {
     if (!isWorkspaceOverlayMode) return
@@ -238,9 +261,15 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
   return {
     actions,
     canvasGridDotRadiusPx,
+    canvasGridMajorAlpha,
     canvas2dRenderer,
     canvasGridEnabled,
+    canvasGridMajorStroke,
     canvasGridMajorEvery,
+    canvasGridMajorWidthPx,
+    canvasGridMinorAlpha,
+    canvasGridMinorStroke,
+    canvasGridMinorWidthPx,
     canvasGridVariant,
     canvasRenderMode,
     clampMainPanelPos,

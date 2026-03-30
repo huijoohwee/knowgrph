@@ -14,6 +14,7 @@ import { computeNodeMotion, type NodeMotionState } from './animation'
 import { resolveThreeColor } from './resolveColor'
 import type { Canvas3dModeId } from '@/lib/config'
 import { resolveVoxelClusterColor, resolveVoxelClusterKey } from './voxelStyle'
+import { resolveVoxelGridStep } from './threeLayoutConfig'
 
 export function NodeMesh({
   node,
@@ -124,9 +125,8 @@ export function NodeMesh({
   const clusterKey = resolveVoxelClusterKey(node)
   const isGrouped = clusterKey.length > 0
   const voxelTier = isHub ? 'hub' : (isGrouped || isProblem || isConcept ? 'block' : 'brick')
-  const voxelScale = voxelTier === 'hub' ? 1.34 : voxelTier === 'block' ? 1.08 : 0.9
-  const voxelBaseSize = Math.max(2, boxW, boxH, depth)
-  const voxelSize = Math.max(2, voxelBaseSize * voxelScale)
+  const voxelGridStep = resolveVoxelGridStep(schema)
+  const voxelSize = Math.max(2, voxelGridStep)
   const voxelW = voxelSize
   const voxelH = voxelSize
   const voxelD = voxelSize

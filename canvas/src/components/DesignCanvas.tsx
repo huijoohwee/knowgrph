@@ -3120,9 +3120,17 @@ export default function DesignCanvas({
       <InfiniteGridCanvasOverlay
         enabled={canvasGrid?.enabled === true}
         gridSize={canvasGrid?.size || 10}
+        anchor={canvasGrid?.anchor}
+        lockToBaseStep={canvasGrid?.lockToBaseStep}
         variant={canvasGrid?.variant}
         majorEvery={canvasGrid?.majorEvery}
         dotRadiusPx={canvasGrid?.dotRadiusPx}
+        minorAlpha={canvasGrid?.minorAlpha}
+        majorAlpha={canvasGrid?.majorAlpha}
+        minorWidthPx={canvasGrid?.minorWidthPx}
+        majorWidthPx={canvasGrid?.majorWidthPx}
+        minorStroke={canvasGrid?.minorStroke}
+        majorStroke={canvasGrid?.majorStroke}
         width={dims.width}
         height={dims.height}
         dpr={dims.dpr}

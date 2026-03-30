@@ -70,7 +70,7 @@ export function readSchemaFromStorage(storage: Storage | null): GraphSchema | nu
 }
 
 export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
-  const setSchemaState = (schema: GraphSchema) => {
+  const setSchemaState = (schema: GraphSchema, opts?: { schemaBySemanticMode?: GraphState['schemaBySemanticMode'] | null }) => {
     const next = { ...schema }
     const prevState = get()
 
@@ -111,8 +111,19 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
     const canvasRenderMode = prevState.canvasRenderMode
     const lastFree = prevState.canvasRenderModeLastFree
     const isAuto = prevState.canvasRenderModeIsAuto
+
+    const nextCanvas3dMode = resolveCanvas3dMode({
+      requested: normalizeCanvas3dMode(prevState.canvas3dMode),
+      canvas2dRenderer: prevState.canvas2dRenderer,
+      documentSemanticMode: prevState.documentSemanticMode,
+      frontmatterModeEnabled: prevState.frontmatterModeEnabled === true,
+      multiDimTableModeEnabled: prevState.multiDimTableModeEnabled === true,
+      schema: next,
+    })
+
     if (nextRequires2d) {
-      if (canvasRenderMode === '3d') {
+      const allow3dInBlock = nextCanvas3dMode === 'voxel'
+      if (canvasRenderMode === '3d' && !allow3dInBlock) {
         set({ canvasRenderMode: '2d', canvasRenderModeLastFree: '3d', canvasRenderModeIsAuto: true })
       }
     } else if (prevRequires2d && !nextRequires2d) {
@@ -124,19 +135,13 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
     }
     const documentSemanticMode = (prevState.documentSemanticMode || 'document') as GraphState['documentSemanticMode']
     const prevByMode = prevState.schemaBySemanticMode
-    const nextByMode = {
-      document: (prevByMode && prevByMode.document) ? prevByMode.document : next,
-      keyword: (prevByMode && prevByMode.keyword) ? prevByMode.keyword : next,
-      [documentSemanticMode]: next,
-    }
-    const nextCanvas3dMode = resolveCanvas3dMode({
-      requested: normalizeCanvas3dMode(prevState.canvas3dMode),
-      canvas2dRenderer: prevState.canvas2dRenderer,
-      documentSemanticMode: prevState.documentSemanticMode,
-      frontmatterModeEnabled: prevState.frontmatterModeEnabled === true,
-      multiDimTableModeEnabled: prevState.multiDimTableModeEnabled === true,
-      schema: next,
-    })
+    const nextByMode = opts?.schemaBySemanticMode
+      ? opts.schemaBySemanticMode
+      : {
+          document: (prevByMode && prevByMode.document) ? prevByMode.document : next,
+          keyword: (prevByMode && prevByMode.keyword) ? prevByMode.keyword : next,
+          [documentSemanticMode]: next,
+        }
     set({ schema: next, schemaBySemanticMode: nextByMode, zoomStateByKey, canvas3dMode: nextCanvas3dMode })
     if (documentSemanticMode === 'document') writeSchemaToStorage(getLocalStorage(), next)
 
@@ -208,7 +213,14 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
   setBehavior: (b: Partial<GraphSchema['behavior']>) => {
     const { schema } = get();
     const next = { ...schema, behavior: { ...schema.behavior, ...b } };
-    setSchemaState(next);
+    const prevByMode = get().schemaBySemanticMode
+    const nextByMode = prevByMode
+      ? {
+          document: { ...(prevByMode.document || next), behavior: { ...((prevByMode.document || next).behavior || {}), ...b } },
+          keyword: { ...(prevByMode.keyword || next), behavior: { ...((prevByMode.keyword || next).behavior || {}), ...b } },
+        }
+      : null
+    setSchemaState(next, nextByMode ? { schemaBySemanticMode: nextByMode as any } : undefined);
   },
   updateNodeSize: (type: string, size: Partial<{ radius: number }>) => {
     const { schema } = get();

@@ -1,6 +1,8 @@
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { readLayoutMode2d } from '@/lib/graph/layoutMode'
+import { snapScalarToGrid } from '@/lib/canvas/gridSnap'
+import { clampSnapGridSize } from '@/lib/canvas/snapGridSize'
 
 export function withD3BipartiteSceneSchema(args: {
   schema: GraphSchema
@@ -19,6 +21,7 @@ export function withD3BipartiteSceneSchema(args: {
   const renderer = String(canvas2dRenderer || '')
   const isD3LikeRenderer = renderer === 'd3' || renderer === 'd3Bipartite'
   if (!forceForAny2dRenderer && !isD3LikeRenderer) return schema
+  const gridSize = clampSnapGridSize((schema?.behavior?.snapGrid as { size?: unknown } | null)?.size)
   return {
     ...schema,
     performance: {
@@ -38,8 +41,8 @@ export function withD3BipartiteSceneSchema(args: {
         ...( { bipartiteMode: true } as any ),
         linkDistanceByLabel: {
           ...((((schema.layout || {}).forces || {}) as any).linkDistanceByLabel || {}),
-          linksTo: 680,
-          spokeTo: 110,
+          linksTo: snapScalarToGrid(680, gridSize),
+          spokeTo: snapScalarToGrid(110, gridSize),
         },
       },
       mode: enforceBlockLayout ? 'block' : layoutMode,

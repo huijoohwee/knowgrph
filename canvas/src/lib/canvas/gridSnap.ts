@@ -1,24 +1,18 @@
 import type { GraphSchema } from '@/lib/graph/schema'
+import { clampSnapGridSize, SNAP_GRID_SIZE_DEFAULT, SNAP_GRID_SIZE_MAX, SNAP_GRID_SIZE_MIN } from '@/lib/canvas/snapGridSize'
+import { quantizeVoxelCoordToCellCenter, resolveVoxelGridStepFromSchema } from '@/lib/canvas/voxelGrid'
 
 export type SnapGridConfig = {
   enabled: boolean
   size: number
 }
 
-export const SNAP_GRID_SIZE_DEFAULT = 10
-export const SNAP_GRID_SIZE_MIN = 2
-export const SNAP_GRID_SIZE_MAX = 500
-
-export const clampSnapGridSize = (value: unknown): number => {
-  const n = typeof value === 'number' && Number.isFinite(value) ? value : Number.NaN
-  const floored = Number.isFinite(n) ? Math.floor(n) : SNAP_GRID_SIZE_DEFAULT
-  return Math.max(SNAP_GRID_SIZE_MIN, Math.min(SNAP_GRID_SIZE_MAX, floored))
-}
+export { SNAP_GRID_SIZE_DEFAULT, SNAP_GRID_SIZE_MIN, SNAP_GRID_SIZE_MAX, clampSnapGridSize }
 
 export const readSnapGridConfigFromSchema = (schema: GraphSchema | null | undefined): SnapGridConfig => {
   const g = schema?.behavior?.snapGrid
   const enabled = !!(g && g.enabled)
-  const size = clampSnapGridSize((g as { size?: unknown } | null)?.size)
+  const size = resolveVoxelGridStepFromSchema(schema)
   return { enabled, size }
 }
 
@@ -26,6 +20,11 @@ export const snapScalarToGrid = (value: number, gridSize: number): number => {
   const v = Number.isFinite(value) ? value : 0
   const s = clampSnapGridSize(gridSize)
   return Math.round(v / s) * s
+}
+
+export const snapScalarToGridCellCenter = (value: number, gridSize: number): number => {
+  const s = clampSnapGridSize(gridSize)
+  return quantizeVoxelCoordToCellCenter(value, s)
 }
 
 export const snapPointToGrid = (p: { x: number; y: number }, gridSize: number): { x: number; y: number } => {
@@ -48,4 +47,3 @@ export const snapDeltaToGridByAnchor = (args: {
   const next = snapPointToGrid({ x: a.x + dx, y: a.y + dy }, s)
   return { dx: next.x - a.x, dy: next.y - a.y }
 }
-

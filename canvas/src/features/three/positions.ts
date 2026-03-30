@@ -3,7 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { resolveGroupCollisions, type CollisionGroupItem } from '@/lib/graph/collision/boxCollision'
 import { isRadarHubNode, isRadarSpokeEdge } from '@/lib/graph/radarForces'
 
-import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveThreeSeed, resolveVoxelGridStep, quantizeVoxelCoordToGridLine } from './threeLayoutConfig'
+import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveThreeSeed, resolveVoxelGridStep, quantizeVoxelCoordToCellCenter, quantizeVoxelCoordToGridLine } from './threeLayoutConfig'
 
 export type Vec3 = [number, number, number]
 
@@ -345,6 +345,7 @@ export function computePositionsVoxel(
   if (!nodes.length) return out
   const seed2d = opts?.seed2dPositions || null
   const seedAxis = opts?.seedAxis || null
+  const snapEnabled = schema?.behavior?.snapGrid?.enabled === true
   const grid = resolveVoxelGridStep(schema)
   const seedShift = (() => {
     if (seedAxis?.centerToBounds === false) return { x: 0, y: 0 }
@@ -471,15 +472,15 @@ export function computePositionsVoxel(
   }
   const occupancy = new Set<string>()
   const placeSeeded = (planeX: number, planeY: number, height: number): Vec3 => {
-    const x = quantizeVoxelCoordToGridLine(planeX, grid)
-    const y = quantizeVoxelCoordToGridLine(planeY, grid)
+    const x = snapEnabled ? quantizeVoxelCoordToCellCenter(planeX, grid) : planeX
+    const y = snapEnabled ? quantizeVoxelCoordToCellCenter(planeY, grid) : planeY
     const z = quantizeVoxelCoordToGridLine(height, grid)
     occupancy.add(`${x}:${y}:${z}`)
     return [x, y, z]
   }
   const reserve = (planeX: number, planeY: number, height: number): Vec3 => {
-    const baseX = quantizeVoxelCoordToGridLine(planeX, grid)
-    const baseY = quantizeVoxelCoordToGridLine(planeY, grid)
+    const baseX = snapEnabled ? quantizeVoxelCoordToCellCenter(planeX, grid) : planeX
+    const baseY = snapEnabled ? quantizeVoxelCoordToCellCenter(planeY, grid) : planeY
     const baseZ = quantizeVoxelCoordToGridLine(height, grid)
 
     const tryReserve = (x: number, y: number, z: number): Vec3 | null => {

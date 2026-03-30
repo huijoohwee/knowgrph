@@ -553,9 +553,11 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       }
       const prevZoomKey = buildActive2dZoomViewKey({ ...common, canvas2dRenderer: state.canvas2dRenderer })
       const nextZoomKey = buildActive2dZoomViewKey({ ...common, canvas2dRenderer: radialRenderer })
-      void prevZoomKey
-      void nextZoomKey
-      const zoomStateByKey = state.zoomStateByKey
+      const zoomStateByKey = state.zoomStateByKey || {}
+      const seededZoom =
+        prevZoomKey && nextZoomKey && zoomStateByKey[prevZoomKey] && !zoomStateByKey[nextZoomKey]
+          ? { ...zoomStateByKey, [nextZoomKey]: { ...(zoomStateByKey[prevZoomKey] as any) } }
+          : zoomStateByKey
 
       const pointerBy = state.canvasPointerMode2dByRenderer || {}
       const nextPointerBy = { ...pointerBy, [state.canvas2dRenderer]: state.canvasPointerMode2d }
@@ -568,7 +570,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       return {
         canvas2dRenderer: radialRenderer,
         canvas3dMode: nextCanvas3dMode,
-        zoomStateByKey,
+        zoomStateByKey: seededZoom,
         canvasPointerMode2d: nextPointer,
         canvasPointerMode2dByRenderer: nextPointerBy,
         openQuickEditorNodeIds: nextQuickEditors,

@@ -1251,8 +1251,12 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
   const grid = args.grid
   if (grid && grid.enabled === true) {
     const fallbacks = readCanvasGridStrokeFallbacks()
-    const minorStroke = resolveCssVarCached(rt, '--kg-canvas-grid-minor', fallbacks.minor)
-    const majorStroke = resolveCssVarCached(rt, '--kg-canvas-grid-major', fallbacks.major)
+    const minorStroke = (typeof (grid as any).minorStroke === 'string' && String((grid as any).minorStroke).trim() !== '')
+      ? String((grid as any).minorStroke).trim()
+      : resolveCssVarCached(rt, '--kg-canvas-grid-minor', fallbacks.minor)
+    const majorStroke = (typeof (grid as any).majorStroke === 'string' && String((grid as any).majorStroke).trim() !== '')
+      ? String((grid as any).majorStroke).trim()
+      : resolveCssVarCached(rt, '--kg-canvas-grid-major', fallbacks.major)
     drawInfiniteGridInWorldContext(rt.ctx, {
       enabled: true,
       gridSize: grid.size,
@@ -1260,7 +1264,19 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
       viewportH: rt.viewportH,
       dpr: rt.dpr,
       transform: { k: rt.transform.k, x: rt.transform.x, y: rt.transform.y },
-      paint: { minorStroke, majorStroke, variant: grid.variant, majorEvery: grid.majorEvery, dotRadiusPx: grid.dotRadiusPx },
+      anchor: (grid as any).anchor,
+      lockToBaseStep: (grid as any).lockToBaseStep,
+      paint: {
+        minorStroke,
+        majorStroke,
+        minorAlpha: (grid as any).minorAlpha,
+        majorAlpha: (grid as any).majorAlpha,
+        minorWidthPx: (grid as any).minorWidthPx,
+        majorWidthPx: (grid as any).majorWidthPx,
+        variant: grid.variant,
+        majorEvery: grid.majorEvery,
+        dotRadiusPx: grid.dotRadiusPx,
+      },
     })
   }
 

@@ -11,6 +11,12 @@ export interface GraphBehavior {
     variant?: 'lines' | 'dots'
     majorEvery?: number
     dotRadiusPx?: number
+    minorAlpha?: number
+    majorAlpha?: number
+    minorWidthPx?: number
+    majorWidthPx?: number
+    minorStroke?: string
+    majorStroke?: string
   }
   preventDuplicatesGlobal?: boolean;
   preventSelfLoopsGlobal?: boolean;
