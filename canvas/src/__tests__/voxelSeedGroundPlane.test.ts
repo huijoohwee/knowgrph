@@ -2,7 +2,7 @@ import fs from 'node:fs'
 
 import type { GraphNode } from '@/lib/graph/types'
 import { computePositionsVoxel } from '@/features/three/positions'
-import { resolveVoxelGridStep, quantizeVoxelCoordToGridLine } from '@/features/three/threeLayoutConfig'
+import { resolveVoxelGridStep } from '@/features/three/threeLayoutConfig'
 
 type FullStackJson = {
   meta?: {
@@ -13,8 +13,6 @@ type FullStackJson = {
   }
   nodes?: Array<{ id?: string; label?: string; type?: string; cluster?: string }>
 }
-
-const snapToGrid = (v: number, grid: number) => quantizeVoxelCoordToGridLine(v, grid)
 
 export function testVoxelModeSeedsOntoSnappedXyGroundPlaneFromFullStackJson() {
   const inputPath = '/Users/huijoohwee/Documents/GitHub/huijoohwee/content/full-stack/full-stack.json'
@@ -64,29 +62,7 @@ export function testVoxelModeSeedsOntoSnappedXyGroundPlaneFromFullStackJson() {
     seed2dPositions[id] = { x: baseX + offsetX, y: baseY + offsetY }
   }
 
-  const seedShift = (() => {
-    let minX = Infinity
-    let minY = Infinity
-    let maxX = -Infinity
-    let maxY = -Infinity
-    let count = 0
-    for (const v of Object.values(seed2dPositions)) {
-      if (!v) continue
-      const x = v.x
-      const y = v.y
-      if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-      if (x < minX) minX = x
-      if (y < minY) minY = y
-      if (x > maxX) maxX = x
-      if (y > maxY) maxY = y
-      count += 1
-    }
-    if (count < 2 || minX === Infinity) return { x: 0, y: 0 }
-    return { x: (minX + maxX) * 0.5, y: (minY + maxY) * 0.5 }
-  })()
-
-  const pos = computePositionsVoxel(nodes, null, { seed2dPositions, seedAxis: { flipY: true, normalizeToVoxelSpan: false } })
-  const seenXy = new Set<string>()
+  const pos = computePositionsVoxel(nodes, null, { seed2dPositions, seedAxis: { flipY: false, normalizeToVoxelSpan: false, centerToBounds: false } })
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]!
     const id = node.id
@@ -94,14 +70,11 @@ export function testVoxelModeSeedsOntoSnappedXyGroundPlaneFromFullStackJson() {
     if (!seed) throw new Error(`missing seed for ${id}`)
     const p = pos[id]
     if (!p) throw new Error(`missing voxel position for ${id}`)
-    const expectedX = snapToGrid(seed.x - seedShift.x, grid)
-    const expectedY = snapToGrid(-(seed.y - seedShift.y), grid)
-    if (p[0] !== expectedX) throw new Error(`expected snapped X for ${id}: ${p[0]} vs ${expectedX}`)
-    if (p[1] !== expectedY) throw new Error(`expected snapped Y for ${id}: ${p[1]} vs ${expectedY}`)
+    const expectedX = seed.x
+    const expectedY = seed.y
+    if (p[0] !== expectedX) throw new Error(`expected parity X for ${id}: ${p[0]} vs ${expectedX}`)
+    if (p[1] !== expectedY) throw new Error(`expected parity Y for ${id}: ${p[1]} vs ${expectedY}`)
     if (p[2] !== 0) throw new Error(`expected ground-plane Z for ${id}: ${p[2]} === 0`)
     if (p[2] % grid !== 0) throw new Error(`expected snapped Z height for ${id}: ${p[2]} multiple of ${grid}`)
-    const xyKey = `${p[0]}:${p[1]}`
-    if (seenXy.has(xyKey)) throw new Error(`expected unique XY placement to avoid vertical stacking: ${id} at ${xyKey}`)
-    seenXy.add(xyKey)
   }
 }

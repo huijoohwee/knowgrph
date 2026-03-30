@@ -339,7 +339,7 @@ export function computePositions3d(
 export function computePositionsVoxel(
   nodes: GraphNode[],
   schema: GraphSchema | null,
-  opts?: { seed2dPositions?: Record<string, { x: number; y: number }> | null; seedAxis?: { flipY?: boolean; normalizeToVoxelSpan?: boolean } },
+  opts?: { seed2dPositions?: Record<string, { x: number; y: number }> | null; seedAxis?: { flipY?: boolean; normalizeToVoxelSpan?: boolean; centerToBounds?: boolean } },
 ): Record<string, Vec3> {
   const out: Record<string, Vec3> = {}
   if (!nodes.length) return out
@@ -347,6 +347,7 @@ export function computePositionsVoxel(
   const seedAxis = opts?.seedAxis || null
   const grid = resolveVoxelGridStep(schema)
   const seedShift = (() => {
+    if (seedAxis?.centerToBounds === false) return { x: 0, y: 0 }
     if (!seed2d) return { x: 0, y: 0 }
     let minX = Infinity
     let minY = Infinity
@@ -469,6 +470,13 @@ export function computePositionsVoxel(
     }
   }
   const occupancy = new Set<string>()
+  const placeSeeded = (planeX: number, planeY: number, height: number): Vec3 => {
+    const x = planeX
+    const y = planeY
+    const z = quantizeVoxelCoordToGridLine(height, grid)
+    occupancy.add(`${x}:${y}:${z}`)
+    return [x, y, z]
+  }
   const reserve = (planeX: number, planeY: number, height: number): Vec3 => {
     const baseX = quantizeVoxelCoordToGridLine(planeX, grid)
     const baseY = quantizeVoxelCoordToGridLine(planeY, grid)
@@ -539,7 +547,10 @@ export function computePositionsVoxel(
     const nonHubs = members.filter(n => !String(n.type || '').toLowerCase().includes('hub'))
     for (let i = 0; i < hubs.length; i += 1) {
       const node = hubs[i]
-      const p = reserve(center.x + i * grid * 2, center.y, heightByType(node))
+      const seed = seededPosByNodeId.get(String(node.id || ''))
+      const p = seed
+        ? placeSeeded(seed.x, seed.y, heightByType(node))
+        : reserve(center.x + i * grid * 2, center.y, heightByType(node))
       out[node.id] = p
     }
     for (let i = 0; i < nonHubs.length; i += 1) {
@@ -549,8 +560,8 @@ export function computePositionsVoxel(
       let py = center.y
       const seed = seededPosByNodeId.get(id)
       if (seed) {
-        px = seed.x
-        py = seed.y
+        out[node.id] = placeSeeded(seed.x, seed.y, heightByType(node))
+        continue
       } else {
         const type = String(node.type || '').toLowerCase()
         const base = type.includes('problem') ? 6 : type.includes('solution') ? 3 : type.includes('concept') ? 2 : 5
@@ -567,7 +578,7 @@ export function computePositionsVoxel(
     if (out[node.id]) continue
     const s = readSeed(node.id)
     if (s && Number.isFinite(s.x) && Number.isFinite(s.y)) {
-      out[node.id] = reserve(s.x, s.y, heightByType(node))
+      out[node.id] = placeSeeded(s.x, s.y, heightByType(node))
       continue
     }
     out[node.id] = reserve(i * grid, 0, heightByType(node))

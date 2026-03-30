@@ -297,17 +297,10 @@ export function Controls({
     try {
       if (mode === 'voxel') {
         camera.up.set(0, 0, 1)
-        const px = camera.position.x
-        const py = camera.position.y
-        const pz = camera.position.z
-        const nearCollinear = Math.abs(px) + Math.abs(py) < 1e-3
-        if (nearCollinear && Number.isFinite(pz) && pz !== 0) {
-          camera.position.set(Math.max(80, Math.abs(pz) * 0.65), -Math.max(80, Math.abs(pz) * 0.65), pz)
-          controls.target.set(0, 0, 0)
-        }
       } else {
         camera.up.set(0, 1, 0)
       }
+      controls.enableRotate = true
     } catch {
       void 0
     }
@@ -317,7 +310,10 @@ export function Controls({
     controls.panSpeed = cfg.panSpeed * safe
     const idleMs = Date.now() - lastInteractionAtRef.current
     const voxelIdleAutoRotate = mode === 'voxel' ? idleMs >= voxelIdleDelayMs : true
-    controls.autoRotate = !pathEnabled && (cfg.autoRotate || globeEffectsEnabled) && !viewPinned && voxelIdleAutoRotate
+    const voxelAutoRotateEnabled = schema.three?.cameraAutoRotate ?? true
+    controls.autoRotate = mode === 'voxel'
+      ? (voxelAutoRotateEnabled && !viewPinned && voxelIdleAutoRotate)
+      : (!pathEnabled && (cfg.autoRotate || globeEffectsEnabled) && !viewPinned && voxelIdleAutoRotate)
     controls.autoRotateSpeed = mode === 'voxel' ? voxelIdleRotateSpeed : (globeEffectsEnabled ? globeAutoRotateSpeed : cfg.autoRotateSpeed)
     try {
       controls.update()

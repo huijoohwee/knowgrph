@@ -11,7 +11,7 @@ import { coverageOfPositions, pickSeedFromOtherRendererCache } from '@/lib/canva
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { computeLayerOffsetIndices, computePositions3d, computePositionsVoxel, type Vec3 } from './positions'
 import { projectPositionsToSphereShell } from './sphereConstraint'
-import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveVoxelGridStep, quantizeVoxelCoordToGridLine } from './threeLayoutConfig'
+import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveVoxelGridStep } from './threeLayoutConfig'
 import { isRadarFlowEdge, isRadarGraph, isRadarHubNode, isRadarSpokeEdge, readRadarForceConfig } from '@/lib/graph/radarForces'
 import type { Canvas3dModeId } from '@/lib/config'
 
@@ -33,7 +33,8 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, gra
   const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
 
   return useMemo(() => {
-    const mode = schema ? (schema.layout?.mode as string) || 'radial' : 'radial'
+    const canvas3dMode = mode
+    const layoutMode = schema ? (schema.layout?.mode as string) || 'radial' : 'radial'
     const semanticModeBase = String(documentSemanticMode || 'document')
     const semanticMode = multiDimTableModeEnabled === true ? `${semanticModeBase}:mdtbl` : semanticModeBase
     const graphDataForView =
@@ -60,19 +61,19 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, gra
     })
     const baseKey = buildLayoutPositionCacheKey({
       datasetKey,
-      mode,
+      mode: layoutMode,
       frontmatterMode: effectiveFrontmatter,
       semanticMode,
       renderMode: '2d',
       viewKey,
     })
-    const seed2dRenderer = mode === 'voxel' ? 'd3Bipartite' : canvas2dRenderer
+    const seed2dRenderer = canvas3dMode === 'voxel' ? 'd3Bipartite' : canvas2dRenderer
     const layoutVariantExpected = seed2dRenderer === 'd3Bipartite'
       ? `bipartite:v4:${semanticMode}:${String(effectiveFrontmatter ? 1 : 0)}:${String(infiniteCanvasInteractionMode)}`
       : ''
     const expectedKey = buildLayoutPositionCacheKey({
       datasetKey,
-      mode,
+      mode: layoutMode,
       frontmatterMode: effectiveFrontmatter,
       semanticMode,
       renderMode: '2d',
@@ -104,15 +105,18 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, gra
       return Object.keys(out).length > 0 ? out : null
     })()
     const voxelSeed2d = (() => {
-      if (mode !== 'voxel') return seed2d
+      if (canvas3dMode !== 'voxel') return seed2d
       const graphCoverage = coverageOfPositions(nodes, seed2dFromGraph)
       const cacheCoverage = coverageOfPositions(nodes, seed2d)
-      if (graphCoverage > 0 && graphCoverage >= cacheCoverage) return seed2dFromGraph
+      if (!seed2dFromGraph && !seed2d) return null
+      if (graphCoverage >= 0.98) return seed2dFromGraph
+      if (cacheCoverage > graphCoverage) return seed2d
+      if (graphCoverage > 0) return seed2dFromGraph
       return seed2d || seed2dFromGraph
     })()
     const edges = ((graphDataForViewOverride || graphData) as GraphData | null)?.edges || []
-    if (mode === 'voxel') {
-      return computePositionsVoxel(nodes, schema, { seed2dPositions: voxelSeed2d, seedAxis: { flipY: true, normalizeToVoxelSpan: false } })
+    if (canvas3dMode === 'voxel') {
+      return computePositionsVoxel(nodes, schema, { seed2dPositions: voxelSeed2d, seedAxis: { flipY: false, normalizeToVoxelSpan: false, centerToBounds: false } })
     }
     return computePositions3d(nodes, schema, { seed2dPositions: seed2d, edges })
   }, [canvas2dRenderer, collapsedGroupIds, documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, graphData, graphDataForViewOverride, graphDataRevision, infiniteCanvasInteractionMode, layoutPositionCacheByMode, mediaPanelDensity, mode, multiDimTableModeEnabled, nodes, renderMediaAsNodes, schema])
@@ -318,8 +322,8 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
         const ov = overrides[id]
         if (!ov) continue
         if (mode === 'voxel') {
-          px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, quantizeVoxelCoordToGridLine(ov[0], voxelGridStep)))
-          py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, quantizeVoxelCoordToGridLine(ov[1], voxelGridStep)))
+          px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, ov[0]))
+          py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, ov[1]))
           pz[i] = 0
         } else {
           const behavior = schema.behavior || { allowEdgeCreation: true, allowNodeDrag: true }
@@ -350,8 +354,8 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
     if (mode === 'voxel') {
       for (let i = 0; i < n; i += 1) {
         if (!(skipProjection && skipProjection.has(i))) {
-          px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, quantizeVoxelCoordToGridLine(px[i], voxelGridStep)))
-          py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, quantizeVoxelCoordToGridLine(py[i], voxelGridStep)))
+          px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, px[i]))
+          py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, py[i]))
         }
         pz[i] = 0
         vx[i] = 0

@@ -29,7 +29,7 @@ import { readThreeRenderOrderOffset } from '@/features/three/zOrder'
 import { readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import type { Canvas3dModeId } from '@/lib/config'
 import { resolveVoxelClusterColor, resolveVoxelClusterKey } from './voxelStyle'
-import { resolveVoxelGridStep, quantizeVoxelCoordToGridLine } from './threeLayoutConfig'
+import { resolveVoxelGridStep } from './threeLayoutConfig'
 import { intersectRayWithZPlane } from './raycast'
 
 function clamp(value: number, min: number, max: number): number {
@@ -236,18 +236,12 @@ export function Scene({
   }, [threeCfg.starfieldColor, palette, theme])
   const localDragOverridesRef = React.useRef<Record<string, Vec3>>({})
   const dragRef = dragOverridesRef || localDragOverridesRef
-  const voxelGridStep = React.useMemo(() => {
-    if (mode !== 'voxel') return 0
-    return resolveVoxelGridStep(schema)
-  }, [mode, schema])
   const handleDragStart = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     if (mode === 'voxel') {
       const hit = intersectRayWithZPlane(e.ray, 0)
       const p = hit || e.point
-      const gx = quantizeVoxelCoordToGridLine(p.x, voxelGridStep)
-      const gy = quantizeVoxelCoordToGridLine(p.y, voxelGridStep)
-      dragRef.current[id] = [gx, gy, 0]
+      dragRef.current[id] = [p.x, p.y, 0]
       return
     }
     const p = e.point.clone()
@@ -260,15 +254,13 @@ export function Scene({
       p.y = clamped.cy
     }
     dragRef.current[id] = [p.x, p.y, p.z]
-  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema, voxelGridStep])
+  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema])
   const handleDrag = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     if (mode === 'voxel') {
       const hit = intersectRayWithZPlane(e.ray, 0)
       const p = hit || e.point
-      const gx = quantizeVoxelCoordToGridLine(p.x, voxelGridStep)
-      const gy = quantizeVoxelCoordToGridLine(p.y, voxelGridStep)
-      dragRef.current[id] = [gx, gy, 0]
+      dragRef.current[id] = [p.x, p.y, 0]
       return
     }
     const p = e.point.clone()
@@ -281,15 +273,13 @@ export function Scene({
       p.y = clamped.cy
     }
     dragRef.current[id] = [p.x, p.y, p.z]
-  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema, voxelGridStep])
+  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema])
   const handleDragEnd = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     if (mode === 'voxel') {
       const hit = intersectRayWithZPlane(e.ray, 0)
       const p = hit || e.point
-      const gx = quantizeVoxelCoordToGridLine(p.x, voxelGridStep)
-      const gy = quantizeVoxelCoordToGridLine(p.y, voxelGridStep)
-      dragRef.current[id] = [gx, gy, 0]
+      dragRef.current[id] = [p.x, p.y, 0]
       requestAnimationFrame(() => {
         delete dragRef.current[id]
       })
@@ -306,7 +296,7 @@ export function Scene({
     }
     dragRef.current[id] = [p.x, p.y, p.z]
     delete dragRef.current[id]
-  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema, voxelGridStep])
+  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema])
   const allowNodeDrag = schema.behavior ? schema.behavior.allowNodeDrag !== false : true
   const voxelClusterLightIntensity = (() => {
     const raw = schema.three?.voxelClusterLightIntensity

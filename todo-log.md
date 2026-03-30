@@ -3,6 +3,12 @@
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-03-30
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Docs / Canvas / 3D Voxel Mode | Keep Voxel Mode docs aligned with D3 Bipartite XY parity | Document Voxel Mode as a 3D D3-Bipartite sub-mode: XY parity on the ground plane, Z columns forbidden, layout-mode keyed cache, and view-only toggles across 2D/3D/Voxel and semantic/layout modes. | `knowgrph/docs/documents/knowgrph-renderer-document.md`, `knowgrph/todo-log.md`, `huijoohwee.github.io/schema/AgenticRAG/{README.md,canvas.jsonld}` | Cross-repo Voxel Mode docs + AgenticRAG canvas contract | Update Markdown + JSON-LD text | Implemented voxel XY parity + ground-plane Z=0 + cache-key fixes | Updated docs + schema text + sync_map alignment | Treat voxel as a view-only 3D sub-mode that reuses D3 Bipartite seeds and SSOT layout caches; forbid voxel-specific derivation pipelines. | Run `npm -C knowgrph/canvas run doc:lint` then `python3 huijoohwee.github.io/schema/AgenticRAG/sync_map.py --mode check`. | 2026-03-30 |
+
 ## 2026-03-29
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |

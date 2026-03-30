@@ -152,11 +152,6 @@ export function NodeMesh({
     if (!Number.isFinite(raw)) return 0.07
     return Math.max(0, Math.min(0.5, raw))
   })()
-  const conceptFloatStrength = (() => {
-    const raw = typeof threeCfg.voxelConceptFloatStrength === 'number' ? threeCfg.voxelConceptFloatStrength : 1
-    if (!Number.isFinite(raw)) return 1
-    return Math.max(0, Math.min(4, raw))
-  })()
   const voxelEmissiveBase = voxelTier === 'hub' ? 0.55 : voxelTier === 'block' ? 0.32 : 0.2
   const meshRotation: [number, number, number] =
     isVoxel
@@ -181,8 +176,9 @@ export function NodeMesh({
     const s = hovered ? 1.06 : 1
     const pulse = isVoxel && isHub ? 1 + Math.sin(t * 2 + node.id.length * 0.6) * hubPulseStrength : 1
     sphereRef.current.scale.set(s * pulse, s * pulse, s * pulse)
-    const conceptBob = isVoxel && isConcept ? Math.sin(t * 0.9 + node.id.length * 0.37) * Math.max(1.2, voxelH * 0.06 * conceptFloatStrength) : 0
-    sphereRef.current.position.set(p[0], p[1], p[2] + conceptBob)
+    const conceptBob = 0
+    const voxelBaseLift = isVoxel ? voxelH * 0.5 : 0
+    sphereRef.current.position.set(p[0], p[1], p[2] + voxelBaseLift + conceptBob)
     if (isVoxel) {
       sphereRef.current.rotation.set(0, 0, 0)
     }
