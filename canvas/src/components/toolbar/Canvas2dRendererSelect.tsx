@@ -24,9 +24,10 @@ type RendererOption = {
 
 
 export function Canvas2dRendererSelect({ iconSizeClass, iconStrokeWidth, ensureBaselineUnlocked, disabled }: Canvas2dRendererSelectProps) {
-  const { canvas2dRenderer, setCanvas2dRenderer, layoutMode } = useGraphStore(
+  const { canvas2dRenderer, canvas3dMode, setCanvas2dRenderer, layoutMode } = useGraphStore(
     useShallow(s => ({
       canvas2dRenderer: (s.canvas2dRenderer || 'd3') as Canvas2dRendererId,
+      canvas3dMode: s.canvas3dMode,
       setCanvas2dRenderer: s.setCanvas2dRenderer,
       layoutMode: s.schema?.layout?.mode,
     })),
@@ -72,18 +73,28 @@ export function Canvas2dRendererSelect({ iconSizeClass, iconStrokeWidth, ensureB
   const optionsWithDisabled = React.useMemo(
     () =>
       options.map(option => {
+        const disabledForVoxel = canvas3dMode === 'voxel' && option.id !== 'd3' && option.id !== 'd3Bipartite'
         const disabledForRadial =
           layoutMode === 'radial' &&
           option.id !== 'd3' &&
           option.id !== 'd3Bipartite'
+        const disabledOption = disabledForVoxel || disabledForRadial
         return {
           ...option,
-          disabled: disabledForRadial,
-          disabledReason: disabledForRadial ? 'Disabled in Radial Layout' : undefined,
-          enableHint: disabledForRadial ? 'Switch layout mode to Block to enable' : undefined,
+          disabled: disabledOption,
+          disabledReason: disabledForVoxel
+            ? 'Disabled for Voxel Mode'
+            : disabledForRadial
+              ? 'Disabled in Radial Layout'
+              : undefined,
+          enableHint: disabledForVoxel
+            ? 'Switch to D3 or D3 Bipartite'
+            : disabledForRadial
+              ? 'Switch layout mode to Block to enable'
+              : undefined,
         }
       }),
-    [layoutMode, options],
+    [canvas3dMode, layoutMode, options],
   )
 
   return (

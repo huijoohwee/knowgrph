@@ -124,14 +124,12 @@ export function NodeMesh({
   const clusterKey = resolveVoxelClusterKey(node)
   const isGrouped = clusterKey.length > 0
   const voxelTier = isHub ? 'hub' : (isGrouped || isProblem || isConcept ? 'block' : 'brick')
-  const voxelSpec = voxelTier === 'hub'
-    ? { w: 1.38, h: 1.7, d: 1.38 }
-    : voxelTier === 'block'
-      ? { w: 1.08, h: 1.22, d: 1.08 }
-      : { w: 0.9, h: 0.86, d: 0.9 }
-  const voxelW = Math.max(2, boxW * voxelSpec.w)
-  const voxelH = Math.max(2, boxH * voxelSpec.h)
-  const voxelD = Math.max(2, depth * voxelSpec.d)
+  const voxelScale = voxelTier === 'hub' ? 1.34 : voxelTier === 'block' ? 1.08 : 0.9
+  const voxelBaseSize = Math.max(2, boxW, boxH, depth)
+  const voxelSize = Math.max(2, voxelBaseSize * voxelScale)
+  const voxelW = voxelSize
+  const voxelH = voxelSize
+  const voxelD = voxelSize
   const capHeight = Math.max(0.8, voxelH * 0.12)
   const threeCfg = getThreeConfig(schema)
   const clusterColor = resolveVoxelClusterColor(node)

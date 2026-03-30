@@ -29,7 +29,7 @@ import { readThreeRenderOrderOffset } from '@/features/three/zOrder'
 import { readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import type { Canvas3dModeId } from '@/lib/config'
 import { resolveVoxelClusterColor, resolveVoxelClusterKey } from './voxelStyle'
-import { resolveVoxelGridStep } from './threeLayoutConfig'
+import { quantizeVoxelCoordToCellCenter, resolveVoxelGridStep } from './threeLayoutConfig'
 import { intersectRayWithZPlane } from './raycast'
 
 function clamp(value: number, min: number, max: number): number {
@@ -236,12 +236,18 @@ export function Scene({
   }, [threeCfg.starfieldColor, palette, theme])
   const localDragOverridesRef = React.useRef<Record<string, Vec3>>({})
   const dragRef = dragOverridesRef || localDragOverridesRef
+  const voxelGridStep = resolveVoxelGridStep(schema)
+  const snapVoxelDragPoint = React.useCallback((x: number, y: number): Vec3 => {
+    const sx = quantizeVoxelCoordToCellCenter(x, voxelGridStep)
+    const sy = quantizeVoxelCoordToCellCenter(y, voxelGridStep)
+    return [sx, sy, 0]
+  }, [voxelGridStep])
   const handleDragStart = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     if (mode === 'voxel') {
       const hit = intersectRayWithZPlane(e.ray, 0)
       const p = hit || e.point
-      dragRef.current[id] = [p.x, p.y, 0]
+      dragRef.current[id] = snapVoxelDragPoint(p.x, p.y)
       return
     }
     const p = e.point.clone()
@@ -254,13 +260,13 @@ export function Scene({
       p.y = clamped.cy
     }
     dragRef.current[id] = [p.x, p.y, p.z]
-  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema])
+  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema, snapVoxelDragPoint])
   const handleDrag = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     if (mode === 'voxel') {
       const hit = intersectRayWithZPlane(e.ray, 0)
       const p = hit || e.point
-      dragRef.current[id] = [p.x, p.y, 0]
+      dragRef.current[id] = snapVoxelDragPoint(p.x, p.y)
       return
     }
     const p = e.point.clone()
@@ -273,13 +279,13 @@ export function Scene({
       p.y = clamped.cy
     }
     dragRef.current[id] = [p.x, p.y, p.z]
-  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema])
+  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema, snapVoxelDragPoint])
   const handleDragEnd = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     if (mode === 'voxel') {
       const hit = intersectRayWithZPlane(e.ray, 0)
       const p = hit || e.point
-      dragRef.current[id] = [p.x, p.y, 0]
+      dragRef.current[id] = snapVoxelDragPoint(p.x, p.y)
       requestAnimationFrame(() => {
         delete dragRef.current[id]
       })
@@ -296,7 +302,7 @@ export function Scene({
     }
     dragRef.current[id] = [p.x, p.y, p.z]
     delete dragRef.current[id]
-  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema])
+  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema, snapVoxelDragPoint])
   const allowNodeDrag = schema.behavior ? schema.behavior.allowNodeDrag !== false : true
   const voxelClusterLightIntensity = (() => {
     const raw = schema.three?.voxelClusterLightIntensity

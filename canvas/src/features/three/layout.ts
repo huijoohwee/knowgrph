@@ -11,7 +11,7 @@ import { coverageOfPositions, pickSeedFromOtherRendererCache } from '@/lib/canva
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { computeLayerOffsetIndices, computePositions3d, computePositionsVoxel, type Vec3 } from './positions'
 import { projectPositionsToSphereShell } from './sphereConstraint'
-import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveVoxelGridStep } from './threeLayoutConfig'
+import { quantizeVoxelCoordToCellCenter, quantizeVoxelCoordToGridLine, resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveVoxelGridStep } from './threeLayoutConfig'
 import { isRadarFlowEdge, isRadarGraph, isRadarHubNode, isRadarSpokeEdge, readRadarForceConfig } from '@/lib/graph/radarForces'
 import type { Canvas3dModeId } from '@/lib/config'
 
@@ -96,9 +96,18 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, gra
         const node = graphNodes[i] as GraphNode
         const id = String(node?.id || '').trim()
         if (!id) continue
-        const x = (node as unknown as { x?: unknown }).x
-        const y = (node as unknown as { y?: unknown }).y
-        if (typeof x !== 'number' || typeof y !== 'number') continue
+        const x2d = (node as unknown as { x?: unknown }).x
+        const y2d = (node as unknown as { y?: unknown }).y
+        const props = ((node as unknown as { properties?: unknown }).properties || {}) as Record<string, unknown>
+        const pos3d = Array.isArray(props.pos3d) ? props.pos3d : null
+        const x3d = pos3d && typeof pos3d[0] === 'number' ? pos3d[0] : Number.NaN
+        const y3d = pos3d && typeof pos3d[1] === 'number' ? pos3d[1] : Number.NaN
+        const x = canvas3dMode === 'voxel'
+          ? (Number.isFinite(x3d) ? x3d : (typeof x2d === 'number' && Number.isFinite(x2d) ? x2d : Number.NaN))
+          : (typeof x2d === 'number' && Number.isFinite(x2d) ? x2d : (Number.isFinite(x3d) ? x3d : Number.NaN))
+        const y = canvas3dMode === 'voxel'
+          ? (Number.isFinite(y3d) ? y3d : (typeof y2d === 'number' && Number.isFinite(y2d) ? y2d : Number.NaN))
+          : (typeof y2d === 'number' && Number.isFinite(y2d) ? y2d : (Number.isFinite(y3d) ? y3d : Number.NaN))
         if (!Number.isFinite(x) || !Number.isFinite(y)) continue
         out[id] = { x, y }
       }
@@ -171,7 +180,9 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
       if (ay > maxAbs) maxAbs = ay
     }
     const padded = Math.ceil(maxAbs / Math.max(1, voxelGridStep)) * voxelGridStep + voxelGridStep * 4
-    return Math.max(90, sphereRadius * 0.82, padded)
+    const rawExtent = Math.max(90, sphereRadius * 0.82, padded)
+    const extentByLine = Math.ceil(rawExtent / Math.max(1, voxelGridStep)) * voxelGridStep
+    return Math.max(voxelGridStep * 0.5, extentByLine - voxelGridStep * 0.5)
   }, [nodes, positions, sphereRadius, voxelGridStep])
   const hubOrbitEnabled = schema.three?.globeHubOrbitEnabled !== false
   const hubOrbitStrength = typeof schema.three?.globeHubOrbitStrength === 'number' && Number.isFinite(schema.three.globeHubOrbitStrength)
@@ -322,8 +333,10 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
         const ov = overrides[id]
         if (!ov) continue
         if (mode === 'voxel') {
-          px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, ov[0]))
-          py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, ov[1]))
+          const nx = quantizeVoxelCoordToCellCenter(ov[0], voxelGridStep)
+          const ny = quantizeVoxelCoordToCellCenter(ov[1], voxelGridStep)
+          px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, nx))
+          py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, ny))
           pz[i] = 0
         } else {
           const behavior = schema.behavior || { allowEdgeCreation: true, allowNodeDrag: true }
@@ -354,8 +367,10 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
     if (mode === 'voxel') {
       for (let i = 0; i < n; i += 1) {
         if (!(skipProjection && skipProjection.has(i))) {
-          px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, px[i]))
-          py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, py[i]))
+          const nx = quantizeVoxelCoordToCellCenter(px[i], voxelGridStep)
+          const ny = quantizeVoxelCoordToCellCenter(py[i], voxelGridStep)
+          px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, nx))
+          py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, ny))
         }
         pz[i] = 0
         vx[i] = 0

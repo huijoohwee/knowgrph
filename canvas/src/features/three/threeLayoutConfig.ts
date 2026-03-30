@@ -56,7 +56,7 @@ export const resolveVoxelSeedGridStep = (schema: GraphSchema | null): number => 
 
 export const quantizeVoxelCoordToCellCenter = (value: number, gridStep: number): number => {
   const g = Math.max(1e-6, gridStep)
-  const idx = Math.floor(value / g)
+  const idx = Math.round((value - g * 0.5) / g)
   return idx * g + g * 0.5
 }
 

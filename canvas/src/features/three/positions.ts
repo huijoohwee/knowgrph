@@ -3,7 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { resolveGroupCollisions, type CollisionGroupItem } from '@/lib/graph/collision/boxCollision'
 import { isRadarHubNode, isRadarSpokeEdge } from '@/lib/graph/radarForces'
 
-import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveThreeSeed, resolveVoxelGridStep, quantizeVoxelCoordToGridLine } from './threeLayoutConfig'
+import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveThreeSeed, resolveVoxelGridStep, quantizeVoxelCoordToCellCenter, quantizeVoxelCoordToGridLine } from './threeLayoutConfig'
 
 export type Vec3 = [number, number, number]
 
@@ -471,15 +471,15 @@ export function computePositionsVoxel(
   }
   const occupancy = new Set<string>()
   const placeSeeded = (planeX: number, planeY: number, height: number): Vec3 => {
-    const x = planeX
-    const y = planeY
+    const x = quantizeVoxelCoordToCellCenter(planeX, grid)
+    const y = quantizeVoxelCoordToCellCenter(planeY, grid)
     const z = quantizeVoxelCoordToGridLine(height, grid)
     occupancy.add(`${x}:${y}:${z}`)
     return [x, y, z]
   }
   const reserve = (planeX: number, planeY: number, height: number): Vec3 => {
-    const baseX = quantizeVoxelCoordToGridLine(planeX, grid)
-    const baseY = quantizeVoxelCoordToGridLine(planeY, grid)
+    const baseX = quantizeVoxelCoordToCellCenter(planeX, grid)
+    const baseY = quantizeVoxelCoordToCellCenter(planeY, grid)
     const baseZ = quantizeVoxelCoordToGridLine(height, grid)
 
     const tryReserve = (x: number, y: number, z: number): Vec3 | null => {

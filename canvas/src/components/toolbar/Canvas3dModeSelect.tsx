@@ -3,7 +3,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { Box, Columns2, Cuboid } from 'lucide-react'
 import type { Canvas3dModeId } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { isVoxelModeApplicable } from '@/lib/canvas/canvas3dMode'
+import { getVoxelModeInapplicableReason, isVoxelModeApplicable } from '@/lib/canvas/canvas3dMode'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 
 type Canvas3dModeSelectProps = {
@@ -47,21 +47,34 @@ export function Canvas3dModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
     multiDimTableModeEnabled,
     schema,
   })
+  const inapplicableReason = getVoxelModeInapplicableReason({
+    canvas2dRenderer,
+    documentSemanticMode,
+    frontmatterModeEnabled,
+    multiDimTableModeEnabled,
+    schema,
+  })
   const disabledReason = React.useMemo(() => {
-    if (canvas2dRenderer !== 'd3Bipartite') {
+    if (inapplicableReason === 'renderer') {
       return {
         reason: 'Requires 2D Renderer: D3 Bipartite',
         hint: 'Switch 2D Renderer to D3 Bipartite',
       }
     }
-    if (schema?.layout?.mode !== 'block') {
+    if (inapplicableReason === 'semantic') {
+      return {
+        reason: 'Voxel Mode requires Document/Keyword, Frontmatter, or Multi-dimensional Table mode',
+        hint: 'Enable one semantic mode, then retry',
+      }
+    }
+    if (inapplicableReason === 'layout') {
       return {
         reason: 'Voxel Mode is disabled in Radial Layout',
         hint: 'Set layout mode to Block',
       }
     }
     return null
-  }, [canvas2dRenderer, schema?.layout?.mode])
+  }, [inapplicableReason])
   const options = React.useMemo(
     () =>
       [
@@ -108,28 +121,8 @@ export function Canvas3dModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
           if (canvas2dRenderer !== 'd3Bipartite') {
             setCanvas2dRenderer('d3Bipartite')
           }
-          const schedule = typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
-            ? window.requestAnimationFrame.bind(window)
-            : (cb: FrameRequestCallback) => setTimeout(() => cb(Date.now()), 0)
-          let attempts = 0
-          const applyVoxelWhenReady = () => {
-            attempts += 1
-            const s = useGraphStore.getState()
-            const applicable = isVoxelModeApplicable({
-              canvas2dRenderer: s.canvas2dRenderer,
-              documentSemanticMode: s.documentSemanticMode,
-              frontmatterModeEnabled: s.frontmatterModeEnabled === true,
-              multiDimTableModeEnabled: s.multiDimTableModeEnabled === true,
-              schema: s.schema,
-            })
-            if (applicable || attempts >= 12) {
-              s.setCanvas3dMode('voxel')
-              s.setCanvasRenderMode('3d')
-              return
-            }
-            schedule(applyVoxelWhenReady)
-          }
-          schedule(applyVoxelWhenReady)
+          setCanvas3dMode('voxel')
+          setCanvasRenderMode('3d')
           return
         }
         setCanvasRenderMode('3d')

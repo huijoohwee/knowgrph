@@ -513,10 +513,14 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       return
     }
     set(state => {
-      const next: Canvas2dRendererId =
+      const requested: Canvas2dRendererId =
         id === 'flow' || id === 'flowEditor' || id === 'design' || id === 'd3Bipartite' ? id : 'd3'
+      const voxelRenderer =
+        state.canvas3dMode === 'voxel' && requested !== 'd3' && requested !== 'd3Bipartite'
+          ? 'd3Bipartite'
+          : requested
       const layoutMode = state.schema?.layout?.mode
-      const radialRenderer = layoutMode === 'radial' && next !== 'd3' && next !== 'd3Bipartite' ? 'd3' : next
+      const radialRenderer = layoutMode === 'radial' && voxelRenderer !== 'd3' && voxelRenderer !== 'd3Bipartite' ? 'd3' : voxelRenderer
       const nextCanvas3dMode = resolveCanvas3dMode({
         requested: normalizeCanvas3dMode(state.canvas3dMode),
         canvas2dRenderer: radialRenderer,

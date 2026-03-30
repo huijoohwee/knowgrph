@@ -9,19 +9,30 @@ type VoxelModeApplicabilityArgs = {
   schema: GraphSchema | null | undefined
 }
 
+export type VoxelModeInapplicableReason = 'renderer' | 'semantic' | 'layout' | null
+
 export function normalizeCanvas3dMode(raw: unknown): Canvas3dModeId {
   return raw === 'voxel' ? 'voxel' : '3d'
 }
 
-export function isVoxelModeApplicable(args: VoxelModeApplicabilityArgs): boolean {
-  if (args.canvas2dRenderer !== 'd3Bipartite') return false
-  const semanticAllowed =
+export function isVoxelSemanticModeAllowed(args: Pick<VoxelModeApplicabilityArgs, 'documentSemanticMode' | 'frontmatterModeEnabled' | 'multiDimTableModeEnabled'>): boolean {
+  return (
     args.frontmatterModeEnabled === true ||
     args.multiDimTableModeEnabled === true ||
     args.documentSemanticMode === 'document' ||
     args.documentSemanticMode === 'keyword'
-  if (!semanticAllowed) return false
-  return args.schema?.layout?.mode === 'block'
+  )
+}
+
+export function getVoxelModeInapplicableReason(args: VoxelModeApplicabilityArgs): VoxelModeInapplicableReason {
+  if (args.canvas2dRenderer !== 'd3Bipartite') return 'renderer'
+  if (!isVoxelSemanticModeAllowed(args)) return 'semantic'
+  if (args.schema?.layout?.mode !== 'block') return 'layout'
+  return null
+}
+
+export function isVoxelModeApplicable(args: VoxelModeApplicabilityArgs): boolean {
+  return getVoxelModeInapplicableReason(args) === null
 }
 
 export function resolveCanvas3dMode(args: VoxelModeApplicabilityArgs & { requested: Canvas3dModeId }): Canvas3dModeId {
