@@ -24,16 +24,40 @@
 
 ---
 
+## RxDB GraphTableDb (Multi-dimensional Table backbone)
+
+- **Database**: `GraphTableDb` is an RxDB database named `kg:graph-table` with five collections:
+  - `tables` (`GraphTableDoc`) for logical tables such as `nodes` and `edges`.
+  - `columns` (`GraphColumnDoc`) for property columns with stable `columnId`, `kind`, and per-table `order`.
+  - `rows` (`GraphRowDoc`) for table rows keyed by `rowId` and `data: Record<string, JSONValue>`.
+  - `views` (`GraphViewDoc`) for per-table view configs (`sort`, `filters`).
+  - `meta` (`GraphMetaDoc`) for table-level JSON metadata and sync markers.
+- **Storage backend**: `GraphTableDb` uses `getCanvasRxStorage()` as a local-first RxDB storage:
+  - Prefers `rxdb/plugins/storage-localstorage` when `globalThis.localStorage` is available.
+  - Falls back to `rxdb/plugins/storage-memory` when localStorage is unavailable (for example in tests).
+  - Enables the RxDB query-builder plugin for indexed queries and sort/filter operations.
+- **Multi-dimensional Table semantics**:
+  - Dimension 1: logical tables (`GraphTableId∈{nodes,edges}`) for node and edge rows.
+  - Dimension 2: property columns inferred from `GraphData` properties; base columns (`id`, `label`, `type`, `source`, `target`) are seeded via `ensureGraphTableSeed`.
+  - Dimension 3: saved views (`GraphViewDoc`) that hold sort/filter JSON, plus `GraphMetaDoc` for per-workspace sync metadata.
+  - Each `GraphRowDoc.data` cell stores a normalized JSON value (`JSONValue`) derived by `toJsonValueForDb`, so scalar, object, and array properties share a single JSON-based storage contract.
+
+---
+
 ## Data Sync (Import → RxDB → Grid)
 
-- **Source of truth**: Graph import commits `GraphData` into the store; the Graph Data Table mirrors the store via an RxDB materialized view.
+- **Source of truth**: Graph import commits `GraphData` into the store; the Graph Data Table (Multi-dimensional Table workspace view) mirrors the store via the RxDB-backed `GraphTableDb` materialized view.
 - **Sync key**: table sync is keyed by a `(revision, collapsedGroupIdsKey)` pair plus a per-view `viewKey`:
   - In **Static** Canvas Interaction Mode, the revision is `graphContentRevision` (structure-only) so position-only drags do not cause table recomputation.
   - In **Interactive** Canvas Interaction Mode, the revision is `graphDataRevision` so table rows can reflect position-affecting edits when real-time sync is enabled.
 - **Workspace Sync Mode**:
-  - `canvasWorkspaceSyncMode = 'manual'` disables automatic sync and exposes a single **Sync now** button in the Graph Table header that runs a bounded GraphData→GraphTableDb sync for the current view.
+  - `canvasWorkspaceSyncMode = 'manual'` disables automatic sync and exposes a single **Sync now** button in the Graph Table header that runs a bounded `GraphData → GraphTableDb` sync for the current view.
   - `canvasWorkspaceSyncMode = 'realtime'` enables automatic sync on revision changes using the same gated pipeline; sync remains deduped via per-view `lastGraphWriteRevision` and `lastSyncedRevision` to prevent loops.
 - **Baseline anchor**: table sync uses the document-structure baseline graph and applies only group-collapse derivation; it must not depend on keyword/frontmatter mode so mode switches do not rewrite the table.
+- **Change detection**: `syncGraphDataToGraphTableDb`:
+  - Infers new property columns when it observes new properties on nodes/edges and upgrades column `kind` (for example from `text` to `date`) only when all non-empty values are compatible.
+  - Inserts or updates `GraphRowDoc` rows for changed nodes/edges and avoids rewriting unchanged rows, so noop syncs keep `updatedAtMs` stable.
+  - Serializes writes via a `withGraphTableDbWrite` queue to avoid concurrent write conflicts while still allowing concurrent callers.
 
 ## Quick Editor Parity
 

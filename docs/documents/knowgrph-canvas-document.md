@@ -142,16 +142,16 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - Editor mode must not mount any separate Selection/Record Inspector dock (forbid extra inspector `<header>/<section>` surfaces in Editor mode).
 - If a Graph Table section exists, it is treated as an optional tool surface; it must not introduce a second inspector dock outside the table workspace.
 
-### Graph Data Table (Editor Workspace) Contract
+### Multi-dimensional Table / Graph Data Table (Editor Workspace) Contract
 
-- The Graph Data Table inside Editor mode is **not** the extracted `curagrph` Graph Data Table surface; it is a host-owned workspace tool.
+- The Graph Data Table inside Editor mode (the **Multi-dimensional Table** workspace) is **not** the extracted `curagrph` Graph Data Table surface; it is a host-owned workspace tool backed by the RxDB `GraphTableDb` (`kg:graph-table`) over JSON `GraphData`.
 - The table surface must remain self-contained and drift-resistant:
   - Rendering uses a canvas-based fast grid with an overflow scroll viewport (single scroll owner).
   - View shaping is toolbar-driven (Fields/Filter/Group/Sort/Row height) and persisted via namespaced LS keys (`kg:ui:graphTable:*`).
   - Column resizing is pointer-drag based and must not reflow the app (only recompute layout for the grid).
   - Scrolling correctness is mandatory: native vertical/horizontal scroll must work for large datasets and must not induce scroll/resize feedback loops.
   - Visual correctness is mandatory: pinned header band and pinned columns must be fully opaque and must not show scrolled text underneath.
-  - Sync semantics are controlled by Workspace Sync Mode:
+-  - Sync semantics are controlled by Workspace Sync Mode and the `(revision, collapsedGroupIdsKey, viewKey)` sync key:
     - In **Manual** mode, auto sync is disabled; the Graph Table header exposes a single **Sync now** button that runs a bounded GraphData→GraphTableDb sync using the derived view graph (including collapsed groups) and revision gating.
     - In **Real-time** mode, the same sync pipeline is invoked automatically when the relevant graph revision changes; sync gates must ignore no-op writes and must key by viewKey to avoid cross-view churn.
 - Split/Inspector:

@@ -3,7 +3,7 @@
 ## Scope
 
 - This document defines the 2D renderer enhancement goals and constraints for in-repo, native implementation.
-- It applies to 2D render variants (D3 Graph, Flow, Flow Editor) and their shared behaviors across touchpoints.
+- It applies to 2D render variants (D3 Graph, D3 Bipartite, Flow, Design, Flow Editor) and their shared behaviors across touchpoints; 3D and Voxel modes reuse the same SSOT GraphData/layout and canvas.jsonld contracts and are documented in the renderer and AgenticRAG Canvas directives.
 
 ## Hard Constraints
 

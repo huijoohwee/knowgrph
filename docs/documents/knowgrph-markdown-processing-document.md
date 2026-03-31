@@ -123,15 +123,17 @@ To avoid redundant processing and ensure consistency across the application (e.g
 - **Domain Neutrality**: No special-case domain rewrites; all remote backgrounds follow the same proxy path.
 - **Webpage SSOT conversion**: For HTML/CSS/JS → Markdown SSOT rules (URL resolution, lazy media src filling, and duplicate-content forbiddance), use `knowgrph-webpage-proxy-and-srcdoc-iframe-document.md` + `knowgrph-markdown-editor-mode-contract-document.md` as the canonical references.
 
-### Markdown → Graph → Canvas flow
+### Markdown / JSON → Graph → Canvas flow
 
-**Processing Flow**: Markdown input → Markdown parser → GraphData store → layer derivation → Canvas scene
+**Processing Flow**: Markdown or JSON/JSON-LD input → parser stack (HTML/DOM→Markdown when applicable) → GraphData store → layer derivation → Canvas scene and Multi-dimensional Table.
 
-- **Import & Parse**: Markdown is ingested via [markdownImportAction.ts](../../canvas/src/features/toolbar/markdownImportAction.ts), which calls [loadGraphDataFromTextViaParser](../../canvas/src/features/parsers/loader.ts). The markdown parser builds JSON‑LD (`buildMarkdownJsonLd`) and converts it into GraphData ([default.ts](../../canvas/src/features/parsers/default.ts)).
+- **Import & Parse (Markdown)**: Markdown is ingested via [markdownImportAction.ts](../../canvas/src/features/toolbar/markdownImportAction.ts), which calls [loadGraphDataFromTextViaParser](../../canvas/src/features/parsers/loader.ts). The Markdown parser builds JSON‑LD (`buildMarkdownJsonLd`) and converts it into GraphData ([default.ts](../../canvas/src/features/parsers/default.ts)).
+- **Import & Parse (JSON/JSON-LD)**: JSON and JSON‑LD are ingested via [jsonImportAction.ts](../../canvas/src/features/toolbar/jsonImportAction.ts) and the parser stack (`loader.ts` + `adapter.ts` + `parseJsonLd.ts`). When inputs are JSON‑LD, they are interpreted structurally into GraphData; when inputs are arbitrary JSON, `rawToGraphData` normalizes records/graphs into nodes/edges without changing the underlying schema contract.
+- **HTML/DOM→Markdown SSOT**: Webpage/HTML inputs are converted to Markdown using the unified HTML→Markdown converter and, for JS‑rendered pages, an optional sandboxed iframe DOM export bridge. Markdown remains the SSOT text form; HTML/JSON views are view‑only projections controlled by frontmatter (see `knowgrph-webpage-proxy-and-srcdoc-iframe-document.md`).
 - **YouTube Import**: Workspace Actions → Source Files → YouTube fetches transcripts/subtitles (manual or generated) via `/__youtube_transcript` and converts them into Markdown + a JSON source payload. Markdown is loaded into the Markdown Editor/Preview/Slides, while the JSON payload is stored as `jsonSourceDocumentText` for the Bottom Panel JSON Editor.
 - **GraphData Commit**: Parsed GraphData is stored via the graph store (`setGraphData`), which triggers minimap and layout autosuggest side effects without blocking the UI ([graphDataSlice.ts](../../canvas/src/hooks/store/graphDataSlice.ts)).
 - **Layer Derivation**: The renderer derives a view‑specific graph (document/schema/semantic) with [deriveGraphDataForLayers](../../canvas/src/lib/graph/layerDerivation.ts) and optional frontmatter filtering; this stage clones nodes/edges so D3 can mutate render-only objects without polluting the store.
-- **Canvas Rendering**: [GraphCanvas](../../canvas/src/components/GraphCanvas.tsx) builds the scene via [setupGraphScene](../../canvas/src/components/GraphCanvas/scene.ts), producing SVG layers for nodes, edges, labels, and graph layers.
+- **Canvas + Table Rendering**: [GraphCanvas](../../canvas/src/components/GraphCanvas.tsx) builds the scene via [setupGraphScene](../../canvas/src/components/GraphCanvas/scene.ts), producing SVG layers for nodes, edges, labels, and graph layers. In parallel, the host Multi-dimensional Table workspace materializes the same GraphData into RxDB GraphTableDb (nodes/edges tables + property columns) and renders a canvas fast-grid + Record Inspector over that materialization.
 
 ## Component Responsibility Matrix
 

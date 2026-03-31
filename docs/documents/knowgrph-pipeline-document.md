@@ -57,7 +57,7 @@
 
 ## Runtime Canvas Pipeline (Import → Render)
 
-This section is the end-to-end *runtime* pipeline inside the Canvas app: user imports text/data → parsers normalize into `GraphData` → store commits → canvas renders. It is schema-driven and domain-agnostic: node `type` / edge `label` are treated as opaque strings and all domain fields live under `properties`/`metadata` per the AgenticRAG structural contract.
+This section is the end-to-end *runtime* pipeline inside the Canvas app: user imports text/data → parsers normalize into `GraphData` → store commits → Canvas and Multi-dimensional Table render from the same derived `GraphData`. It is schema-driven and domain-agnostic: node `type` / edge `label` are treated as opaque strings and all domain fields live under `properties`/`metadata` per the AgenticRAG structural contract.
 
 When changing shared packages that are wired via `file:` links (for example `curagrph` or `gympgrph`), restart or rebuild the Canvas dev server so the preview reflects the current checkout and not a stale build.
 
@@ -132,7 +132,7 @@ When changing shared packages that are wired via `file:` links (for example `cur
 
 - Render consumes the active `GraphData` view and applies schema-config-driven layout/styling:
   - [GraphCanvas.tsx](../../canvas/src/components/GraphCanvas.tsx)
-- Active `GraphData` for rendering is SSOT-derived to keep Canvas/D3, Flow, Graph Data Table, Graph Fields, and Props/Node Editor consistent:
+- Active `GraphData` for rendering is SSOT-derived to keep Canvas/D3, Flow, Multi-dimensional Table (host Graph Data Table backed by RxDB GraphTableDb), Graph Fields, and Props/Node Editor consistent:
   - Canonical hook: `useActiveGraphRenderData()` (`knowgrph/canvas/src/hooks/useActiveGraphData.ts`)
   - Derivation order: keyword semantic mode base → optional frontmatter Mermaid filter (document mode only) → optional group collapse (`collapsedGroupIds`)
   - Example SSOT consumers (host): `PreviewPanelView`, `DatasetInspectorSection`, `GraphTableWorkspace`

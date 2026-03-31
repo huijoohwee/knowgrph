@@ -71,9 +71,10 @@
 - **Parsers & Loaders**:
   - `canvas/src/parsers/` transforms CSV, JSON, JSON-LD, and markdown into normalized graph representation.
 
-### Graph Data Table (Host)
+### Multi-dimensional Table / Graph Data Table (Host)
 
-- Host-owned Graph Data Table (Editor workspace) is implemented as a canvas fast-grid for large datasets and selection-sync.
+- The Editor/Table workspace hosts a **Multi-dimensional Table**: a local-first Graph Data Table backed by the RxDB `GraphTableDb` (`kg:graph-table`) with logical `nodes`/`edges` tables over JSON `GraphData`, inferred property columns, per-table views, and sync metadata.
+- The UI surface is a canvas fast-grid optimized for large datasets and selection-sync with Canvas and TOC.
 - The surface must be observer-safe and scroll-stable: avoid ResizeObserver→state loops, avoid scroll/resize feedback loops, and ensure pinned header/columns are fully opaque (no bleed-through).
 - Implementation notes and guardrails live in `docs/documents/knowgrph-graph-data-table-fast-grid-document.md`.
 

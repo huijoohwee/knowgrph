@@ -32,9 +32,9 @@
 
 ## Parser Architecture
 
-**Parser Stack**: Registry → Capability Matching → Format Dispatch → Structure Parsing → Graph Construction → Metadata Enrichment
+**Parser Stack**: Registry → Capability Matching → Format Dispatch → Structure Parsing / HTML→Markdown Conversion → JSON-LD/Graph Construction → Metadata Enrichment
 
-**Processing Flow**: Format Detection → Parser Selection → Tokenization → JSON-LD Building → GraphData Conversion → Layer Derivation
+**Processing Flow**: Format Detection → Parser Selection → Tokenization / HTML→Markdown Conversion → JSON-LD Building → GraphData Conversion → Layer Derivation
 
 **Design Principles**: First-match ordering | Format-agnostic structures | Provenance preservation | Shared tokenization
 

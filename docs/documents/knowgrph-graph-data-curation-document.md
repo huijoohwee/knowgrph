@@ -21,7 +21,7 @@ Canonical ownership and contract details live in:
 
 #### Host-only workspace tools (do not drift into curagrph)
 
-- The Editor workspace includes a host-owned **Graph Table** (aka “Graph Data Table” inside Editor mode) that is intentionally lightweight:
+- The Editor workspace includes a host-owned **Multi-dimensional Table** (Graph Table / “Graph Data Table” inside Editor mode) that is intentionally lightweight:
   - Canvas fast-grid renderer for the body grid with a DOM header overlay (synced to the same scroll owner) + a small toolbar (fields/filter/group/sort/row height).
   - Persisted via `kg:ui:graphTable:*` keys.
   - Selection-synced with the Canvas pane (single `CanvasViewport`) and the Markdown Explorer TOC.

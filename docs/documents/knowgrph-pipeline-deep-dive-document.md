@@ -30,9 +30,29 @@
 
 **Layer Stack**: Import → Parse → Normalize → Store → Derive (Layer Mode) → Layout → Render
 
-**Processing Flow**: Source input → `GraphData` → Renderer graph snapshot → Scene state → Visual output
+**Processing Flow**: Source input → `GraphData` (store) → renderer graph snapshot → scene state → visual output (Canvas/exports).
+
+**Multi-dimensional Table Flow**: Canonical `GraphData` (store) → RxDB `GraphTableDb` (`kg:graph-table`) → host Multi-dimensional Table fast-grid + Record Inspector view.
 
 **Design Principles**: Config-driven derivation | single source of truth | bounded caches | stable references
+
+```text
+Source (URL / File / Workspace)
+  │
+  ▼
+Import / Parse / Normalize
+  │
+  ▼
+Canonical GraphData (Zustand store)
+  ├──► Canvas branch
+  │      ├─ Derive (layer mode: document / keyword / semantic / frontmatter)
+  │      ├─ Layout (seed + cache + collision relax)
+  │      └─ Render (2D/3D Canvas, Rich Media overlays, exports)
+  │
+  └──► Multi-dimensional Table branch
+         ├─ RxDB GraphTableDb (kg:graph-table: tables/columns/rows/views/meta)
+         └─ Host Multi-dimensional Table workspace (fast-grid + Record Inspector)
+```
 
 ---
 
@@ -120,6 +140,9 @@
 - Derivations coupled to commit:
   - Derived field discovery: [graphFields.ts](../../canvas/src/features/graph-fields/graphFields.ts)
   - Sync visible columns and custom fields: [graphDataSliceUtils.ts](../../canvas/src/hooks/store/graphDataSliceUtils.ts)
+- Table materialization (Multi-dimensional Table):
+  - RxDB GraphTableDb (`kg:graph-table`) receives `GraphData` via `syncGraphDataToGraphTableDb`, writing normalized rows/columns/views/meta for the host Multi-dimensional Table workspace.
+  - Sync is gated by revision + view key and reuses the same document-structure baseline graph used for render derivation.
 - Responsibility (S-V-O): Store accepts graph data → validates edges → syncs derived fields → notifies subscribers.
 
 ### Stage 5: Derive (Layer Mode)
@@ -173,6 +196,8 @@
   - Node label anchoring and baseline: [labels.ts](../../canvas/src/components/GraphCanvas/layers/labels.ts)
   - Edge label baseline: [edgeLabels.ts](../../canvas/src/components/GraphCanvas/layers/edgeLabels.ts)
   - UI icon baseline alignment (Lucide): [index.css](../../canvas/src/index.css)
+- Table surfaces (Multi-dimensional Table):
+  - Host Graph Data Table workspace renders a canvas fast-grid over the RxDB GraphTableDb materialization and shares the same derived `GraphData` and collapse state used by Canvas.
 - UI surfaces:
   - UI icon+text alignment in controls: [GraphDataTableUiPrimitives.tsx](../../../curagrph/src/features/graph-data-table/ui/GraphDataTableUiPrimitives.tsx)
 
@@ -190,3 +215,11 @@
 | 5 | `canvas/src/hooks/useActiveGraphData.ts`, `canvas/src/features/semantic-mode/keywordGraph.ts`, `canvas/src/lib/graph/layerDerivation.ts` | Deriver | Deriver selects/derives graph → returns render graph | State + schema | Render graph |
 | 6 | `canvas/src/components/GraphCanvas/layout/positioning.ts` | Layout | Layout computes/reuses positions → returns cache decision | Render graph | Positions |
 | 7 | `canvas/src/components/GraphCanvas/scene.ts` | Renderer | Renderer builds scene → updates SVG | Render graph + positions | Visual output |
+
+---
+
+## Cross-Repo Documentation Map (AgenticRAG)
+
+- All Canvas pipeline docs under `knowgrph/docs/documents` are indexed into a JSON-LD documentation graph at `huijoohwee.github.io/schema/AgenticRAG/knowgrph-documents-map.graph.jsonld`.
+- The map is validated via `python3 schema/AgenticRAG/sync_map.py --mode check` in the `huijoohwee.github.io` repo; this ensures cross-repo references stay aligned when pipeline behavior or docs change.
+- AgenticRAG schemas (`canvas.jsonld`, `pipeline.jsonld`, `markdown.jsonld`) describe the same import→parse→store→render pipeline and reference these Knowgrph docs as implementation notes; changes to pipeline stages in code must be reflected in both the docs here and the mapped schema comments.

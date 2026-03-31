@@ -57,7 +57,7 @@
 - Edit interactions: `canvas/src/features/*`
 - Visual highlight: `canvas/src/components/GraphCanvas/highlight.ts`
 
-### Journey D: Editor / Table Workspace (Markdown or Graph Table + Canvas Pane)
+### Journey D: Editor / Multi-dimensional Table Workspace (Markdown or Graph Table + Canvas Pane)
 
 **From/To**: User toggles Editor or Graph Data Table mode → edits Markdown or inspects Graph Data → verifies changes in the shared Canvas pane.
 
@@ -65,7 +65,7 @@
 - Workspace view mode: `LS_KEYS.workspaceViewMode` (`Canvas | Editor | Table`)
 - Editor sections:
   - Markdown Workspace (SSOT text + Explorer)
-  - Graph Table (canvas fast-grid + Record Inspector split inside the tool surface)
+  - Multi-dimensional Table (host-owned Graph Data Table: canvas fast-grid + Record Inspector split, backed by RxDB GraphTableDb over JSON GraphData)
 
 **Stability constraints**
 - The Canvas is mounted once (single `CanvasViewport`) and resized into the right Canvas pane for Editor/Table; do not mount a second preview surface.

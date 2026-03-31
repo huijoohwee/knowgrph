@@ -49,10 +49,10 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - `canvas/src/components/GraphCanvas/layout/*.ts` handles positioning (Force, Radial, Tree, Mermaid).
   - Uses `layoutPositionCacheByMode` to persist stable layouts across re-renders.
 
-### Renderer Mode Matrix (2D/3D × Rich Media × Frontmatter)
+### Renderer Mode Matrix (2D: D3 Graph/D3 Bipartite/Flow/Design/Flow Editor; 3D; Voxel)
 
 - **Shared derivation SSOT**:
-  - All renderers (2D D3/Flow/Design/Flow Editor, 3D, Geospatial) consume the same SSOT-derived `graphDataForDisplay`.
+  - All renderers (2D D3 Graph/D3 Bipartite/Flow/Design/Flow Editor, 3D, Voxel, Geospatial) consume the same SSOT-derived `graphDataForDisplay`.
   - Derivation order: keyword base → optional frontmatter filter (Document mode only) → optional group collapse. Renderer toggles must not re-derive or fork this pipeline.
 - **Frontmatter Mode On/Off**:
   - Frontmatter Mode **On**: when the active Markdown file defines a Flow frontmatter graph (`nodes`/`connections`/`'kg:subgraphs'`), both 2D D3 and Flow treat that graph as the layout SSOT (no hidden per-renderer nodes).

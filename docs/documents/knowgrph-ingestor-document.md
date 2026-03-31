@@ -362,7 +362,7 @@ knowgrph_parser/
 | 2    | Fetch/upload content                   | FetchManager or file picker              | Content bytes/text                  |
 | 3    | Convert format                         | Parser registry or server endpoint       | Markdown or GraphData               |
 | 4    | Parse to graph                         | Parser dispatch                          | GraphData object                    |
-| 5    | Update store and UI                    | loadGraphDataFromTextViaParser           | Canvas, Graph Data Table, Markdown Section |
+| 5    | Update store and UI                    | loadGraphDataFromTextViaParser           | Canvas, Multi-dimensional Table, Markdown Section |
 
 | Context              | Intent                          | Directive                                                                                   | Module/Component  | Class/Object | Function/Method              | Dependency      | Input                        | Output                 | Decision Logic                   |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|-------------------|--------------|------------------------------|-----------------|------------------------------|------------------------|----------------------------------|
@@ -373,19 +373,19 @@ knowgrph_parser/
 
 ## Data Flow
 
-**Pipeline**: Source Selection → Content Retrieval → Format Detection → Conversion → Parsing → Media Extraction → Graph Construction → Store Update → UI Rendering
+**Pipeline**: Source Selection → Content Retrieval → Format Detection → Conversion (JSON↔Markdown) → Parsing → Media Extraction → Graph Construction → Store Update → UI Rendering
 
 | Stage             | Input                          | Output                         | Responsibility                                              | Performance Consideration                    |
 |-------------------|--------------------------------|--------------------------------|-------------------------------------------------------------|----------------------------------------------|
 | Source Selection  | User action, format            | Source (URL or File)           | Toolbar menu determines import mode and format              | Immediate UI response                        |
 | Content Retrieval | URL or File                    | Raw bytes/text                 | FetchManager retrieves content with proxy fallback          | Network latency for remote sources           |
 | Format Detection  | File extension, MIME type      | Format identifier              | Parser registry identifies appropriate parser               | O(1) lookup                                  |
-| Conversion        | Raw content                    | Normalized format              | HTML→MD, PDF→MD conversions                                 | Server-side for PDF, client-side for HTML    |
-| Parsing           | Normalized content             | JSON-LD or GraphData           | Parser builds structured graph representation               | Debounced for large inputs                   |
-| Media Extraction  | Parsed content                 | Media node properties          | Extract URLs, resolve relative paths                        | Regex-based, O(n) in content length          |
+| Conversion        | Raw content                    | Normalized format              | HTML→Markdown, PDF→Markdown, and HTML/DOM→Markdown SSOT conversions; JSON inputs may also pass through unchanged when already graph-shaped | Server-side for PDF, browser-native for HTML/DOM; idle-yield and bounded DOM export |
+| Parsing           | Normalized content (Markdown or JSON/JSON-LD) | JSON-LD or GraphData           | Parsers build structured graph representation (Markdown→JSON-LD→GraphData; JSON/JSON-LD→GraphData) | Debounced for large inputs; optional worker offload |
+| Media Extraction  | Parsed content                 | Media node properties          | Extract URLs, resolve relative paths                        | Regex/DOM-based, O(n) in content length      |
 | Graph Construction| JSON-LD or raw nodes/edges     | GraphData                      | Normalize to canonical GraphData structure                  | Structural sharing for efficiency            |
-| Store Update      | GraphData                      | Updated store state            | Zustand store sets graphData and derived state              | Immutable updates                            |
-| UI Rendering      | Store state                    | Visual display                 | Canvas, tables, panels react to store changes               | Memoized selectors, virtualization           |
+| Store Update      | GraphData                      | Updated store state            | Zustand store sets graphData and derived state (including Multi-dimensional Table materialization via GraphTableDb) | Immutable updates                            |
+| UI Rendering      | Store state                    | Visual display                 | Canvas, Multi-dimensional Table, curagrph tables, panels react to store changes | Memoized selectors, virtualization           |
 
 ---
 
