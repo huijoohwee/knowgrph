@@ -1,0 +1,124 @@
+# Knowledge Graph (Knowgrph) Code Wiki
+
+## 1. 项目整体架构 (Overall Architecture)
+
+本项目实现了一个端到端的数据处理与可视化流水线（Pipeline），主要用于将结构化和半结构化的数据转换为可交互、可分析的知识图谱（Knowledge Graph）。
+
+系统架构遵循 **INGEST → PRODUCE → REUSE**（摄入 → 生成 → 复用）的设计模式：
+- **Ingest (数据摄入与解析)**：通过解析器从不同的数据源（CSV、JSON、JSON-LD、Markdown文档、网页、代码库、YouTube字幕等）中提取实体和关系。
+- **Produce (标准化处理)**：将提取出的数据清洗并转换为规范的 `GraphData` 数据模型（由节点和边构成）。
+- **Reuse (渲染与复用)**：前端通过 2D (SVG/D3) 或 3D (WebGL/Three.js/Cesium) 引擎将 `GraphData` 进行可视化渲染，支持用户交互式编辑、拖拽和格式导出。
+
+代码仓库采用解耦的 Monorepo 风格组织，主要分为前端应用（React）和后端数据解析脚本（Python）以及共享类型库。
+
+---
+
+## 2. 主要模块职责 (Main Module Responsibilities)
+
+| 模块目录 | 核心技术栈 | 职责描述 |
+| :--- | :--- | :--- |
+| `canvas/` | React, Vite, Three.js, D3, Zustand, RxDB | **前端可视化应用**。提供图谱的 2D 和 3D 渲染，包含富文本编辑（Monaco）、Markdown 预览、节点/边的实时交互操作，以及配置面板和侧边栏控制。 |
+| `knowgrph_parser/` | Python, NetworkX, RDFLib, NLTK, DuckDB | **后端数据解析与提取引擎**。处理数据源的加载和转化工作。支持从代码库中建立知识图谱索引、GraphRAG 流水线处理，以及将多模态数据转换为统一的 `GraphData` 格式。 |
+| `grph-shared/` | TypeScript | **共享库**。提供图谱核心类型（如 `GraphNode`, `GraphEdge`, `GraphData`），以及在各前端模块之间共享的纯函数工具（哈希、缓存、数组处理、URL解析等）。 |
+| `gympgrph/` | TypeScript, MapLibre, Cesium | **地理空间与地图集成库**。负责提供 3D 地理信息及相关可视化能力，用于包含地理坐标的数据集（GeoJSON等）。 |
+| `schema-config/` | JSON | **样式与规则配置库**。存储图谱节点和边的预设视觉样式（颜色、粗细）、布局物理力参数以及验证约束规则。 |
+| `docs/` & `data/` | Markdown, JSON | **文档与数据制品**。包含系统设计文档、API目录、测试使用的示例数据集以及解析脚本的输出基线。 |
+
+---
+
+## 3. 关键类与函数说明 (Key Classes & Functions)
+
+### 3.1 核心数据模型 (Core Data Models)
+定义在 `grph-shared/src/graph/types.ts` 中：
+- **`GraphData`**: 图谱标准数据载体，包含 `nodes` (节点列表) 和 `edges` (边列表)，以及图谱级别的 `context` 和 `metadata`。
+- **`GraphNode`**: 图谱节点模型。核心属性包含 `id`, `label`, `type`, `properties` 以及布局位置相关的物理坐标 (`x`, `y`, `vx`, `vy`)。
+- **`GraphEdge`**: 图谱边模型。核心属性包含 `id`, `source`, `target`, `label`, `type`, `properties`。
+
+### 3.2 前端状态管理 (Frontend Zustand Stores)
+前端状态使用 `Zustand` 按业务切片（Slices）进行管理，主要分布在 `canvas/src/hooks/store/`：
+- **`graphDataSlice`**: 维护当前全局的 `GraphData` 数据实例，提供针对节点和边的增删改查（CRUD）方法。
+- **`schemaSlice`**: 控制图谱呈现的 Schema 设置，包含视觉规则（Visual Rules）、行为约束（Behavior Constraints）以及物理布局参数。
+- **`uiSlice` / `canvasSlice` / `panelLayoutUiSlice`**: 维护 UI 层面的状态，如面板的折叠/展开、当前选中的节点/边 (`selection`)，以及画布的缩放和视口参数。
+
+### 3.3 前端核心组件 (Frontend Components)
+位于 `canvas/src/components/` 和 `canvas/src/features/`：
+- **`GraphCanvas` / `FlowCanvas` / `DesignCanvas`**: 负责将 `GraphData` 数据进行 SVG 或 WebGL 的渲染，处理物理力导向图（Force-directed graph）的迭代与用户拖拽交互。
+- **`BottomPanel`**: 底部核心面板，提供数据的表格视图（DataTable）、代码源码视图及渲染/解析的控制接口。
+- **`Toolbar`**: 顶部工具栏，处理数据导入（Import）、导出（Export）以及全局视图模式切换。
+
+### 3.4 后端解析引擎 (Python Parser Backend)
+位于 `knowgrph_parser/`：
+- **`graph_builder.py`**: 提供 `GraphBuilder` 类，负责接收清洗后的数据点，实例化对应的 `GraphNode` 和 `GraphEdge`，并将其封装为规范的图数据输出。
+- **`semantic_processor.py`**: 负责文本的语义分析与 Embedding 处理，为图谱 RAG（检索增强生成）流程提供向量化支持。
+- **`codebase_index_*.py`**: AST 代码库解析脚本系列，支持解析 Python 等项目的代码抽象语法树，将其映射为函数、类与文件级别的依赖网络知识图谱。
+- **`jsonld_universal.py`**: 负责处理 JSON-LD 语义化数据的提取及与其他图格式（如 CSV, 纯 JSON）的相互转换。
+
+---
+
+## 4. 依赖关系 (Dependencies)
+
+### 4.1 前端依赖 (Frontend)
+项目使用 `npm` 进行依赖管理，由 `Vite` 构建。
+- **UI框架**: `React 18`, `react-dom`
+- **可视化**: 
+  - `three` & `@react-three/fiber` (3D 渲染)
+  - `d3` (2D SVG 图谱及力导向布局)
+  - `cesium`, `maplibre-gl` (地理空间可视化)
+  - `mermaid` (Markdown 流程图支持)
+- **状态管理与本地存储**: `zustand`, `rxdb`, `rxjs`
+- **编辑器与解析**: `monaco-editor` (代码编辑), `markdown-it` / `unified` (文档解析)
+
+### 4.2 后端依赖 (Backend)
+通过 `pip` 及 `requirements.txt` 管理。
+- **图处理**: `networkx` (复杂网络与图算法)
+- **数据与语义化**: `rdflib` (解析与操作 RDF/JSON-LD), `duckdb` (内存数据分析)
+- **文本处理**: `nltk` (自然语言处理), `pyyaml` (YAML 配置解析)
+- **媒体抓取**: `yt-dlp` (获取 YouTube 视频字幕与元数据)
+
+---
+
+## 5. 项目运行方式 (How to Run)
+
+### 5.1 环境要求
+- Node.js (推荐 v18+ )
+- Python 3.10+
+- 现代浏览器 (支持 WebGL 和 ES6+)
+
+### 5.2 前端开发服务器 (Canvas App)
+提供交互式可视化界面以及热重载 (HMR) 能力。
+
+```bash
+# 1. 进入前端目录
+cd canvas
+
+# 2. 安装项目及工作区依赖
+npm install
+
+# 3. 启动开发服务器 (默认端口 5173)
+npm run dev
+```
+
+### 5.3 后端解析引擎 (Python Parsers)
+用于数据转换、知识图谱提取和命令行测试。
+
+```bash
+# 1. 回到项目根目录
+cd /workspace
+
+# 2. 创建并激活 Python 虚拟环境
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 3. 安装后端依赖
+pip install -r requirements.txt
+
+# 4. 运行 Smoke 测试以验证解析器功能
+python -m knowgrph_parser smoke --timeout-seconds 20
+```
+
+### 5.4 生产构建与预览
+```bash
+# 在 canvas 目录下执行
+npm run build
+npm run preview
+```
