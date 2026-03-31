@@ -18,6 +18,7 @@ import FieldSettingsPanel from '@/features/panels/views/graph-fields/FieldSettin
 import FieldSamplesPanel from '@/features/panels/views/graph-fields/FieldSamplesPanel'
 import { normalized } from '@/features/panels/utils/json'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import { WorkspaceTableModeControl } from '@/features/workspace-table/ui/WorkspaceTableModeControl'
 
 export type GraphFieldsSelectedView =
   | { kind: 'globalSchema' }
@@ -205,7 +206,10 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
         data-kg-anchor={UI_ANCHORS.graphFields}
       >
         <div className="flex-1 min-h-0 overflow-hidden">
-          <div className="h-full min-h-0 min-w-0 overflow-hidden grid grid-cols-2 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+          <div className="h-full min-h-0 min-w-0 overflow-hidden grid grid-cols-2 grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)] gap-2">
+            <section className="col-span-2 rounded-md border border-white/10 p-2">
+              <WorkspaceTableModeControl />
+            </section>
             <GraphFieldsListPanel
               graphData={graphData}
               graphDataRevision={graphDataRevision}

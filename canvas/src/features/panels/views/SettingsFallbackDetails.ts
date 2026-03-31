@@ -216,6 +216,10 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'Voxel Mode',
     responsibility: 'Flow particle speed along bridge curves',
   },
+  'three.layout.voxelAnimationEnabled': {
+    area: 'Voxel Mode',
+    responsibility: 'Master on/off switch for all voxel animations',
+  },
   themeMode: {
     area: 'UI Appearance',
     responsibility: 'Global color theme (Light, Dark, or System)',
@@ -235,46 +239,46 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   floatingPanelHeightRatio: { area: 'Floating Panel Layout', responsibility: 'Floating panel height ratio (viewport)' },
   floatingPanelZIndex: { area: 'Floating Panel Layout', responsibility: 'Floating panel z-index' },
   enableTabSync: { area: 'Tab Sync', responsibility: 'Enable cross‑tab sync' },
-  enableVirtualTables: { area: 'Graph Data Table Virtualization', responsibility: 'Virtualized tables' },
+  enableVirtualTables: { area: 'Multi-dimensional Table Virtualization', responsibility: 'Virtualized tables' },
   'graphDataTable.overscanMultiplier': {
-    area: 'Graph Data Table Virtualization',
+    area: 'Multi-dimensional Table Virtualization',
     responsibility: 'Overscan multiplier for virtual tables',
     notes:
       'To make the table more stable with fewer re-renders while scrolling, increase this toward 1.0–2.0. To reduce DOM size for very large tables, lower this toward 0.1–0.3 and optionally reduce graphDataTable.virtualOverscanRows for a more aggressive window.',
   },
   'graphDataTable.virtualOverscanRows': {
-    area: 'Graph Data Table Virtualization',
+    area: 'Multi-dimensional Table Virtualization',
     responsibility: 'Virtual overscan rows (window padding)',
     notes:
       'Acts as a hard floor for overscan rows. Lower values reduce DOM size but may cause more frequent row window updates while scrolling, especially when graphDataTable.overscanMultiplier is also low.',
   },
   'graphDataTable.minRows': {
-    area: 'Graph Data Table Virtualization',
+    area: 'Multi-dimensional Table Virtualization',
     responsibility: 'Min rows before virtualizing tables',
   },
   'graphDataTable.debugLogRanges': {
-    area: 'Graph Data Table Virtualization',
+    area: 'Multi-dimensional Table Virtualization',
     responsibility: 'Log virtual window ranges in dev',
   },
   schemaDeriveCacheCapacity: { area: 'Graph Performance (Schema Derive Cache)', responsibility: 'LRU capacity for schema derive lists' },
   'graphDataTable.frozenDragStepNoneLabelPx': {
-    area: 'Graph Data Table',
+    area: 'Multi-dimensional Table',
     responsibility: 'Drag distance (px) from none to label boundary',
   },
   'graphDataTable.frozenDragStepLabelIdPx': {
-    area: 'Graph Data Table',
+    area: 'Multi-dimensional Table',
     responsibility: 'Drag distance (px) from label to id boundary',
   },
   'graphDataTable.numericSampleLimit': {
-    area: 'Graph Data Table',
+    area: 'Multi-dimensional Table',
     responsibility: 'Maximum samples per field when inferring numeric behavior',
   },
   'graphDataTable.numericSampleMinCount': {
-    area: 'Graph Data Table',
+    area: 'Multi-dimensional Table',
     responsibility: 'Minimum numeric samples required for aggregate eligibility',
   },
   'graphDataTable.numericSampleMinRatio': {
-    area: 'Graph Data Table',
+    area: 'Multi-dimensional Table',
     responsibility: 'Minimum numeric ratio required for aggregate eligibility',
   },
   'spotlight.margin': { area: 'Launch Spotlight Layout', responsibility: 'Viewport margin for spotlight card clamp' },
@@ -366,7 +370,7 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'Canvas Interaction',
     responsibility: 'Node selection mode (single, multi, lasso)',
     notes:
-      'Selector → pick single, multi, or lasso selection behavior → shape how canvas clicks, Graph Data Table row selection, and Embed/Overlay / Dataset Inspector visualizations respond to the active selection neighborhood.',
+      'Selector → pick single, multi, or lasso selection behavior → shape how canvas clicks, Multi-dimensional Table row selection, and Embed/Overlay / Dataset Inspector visualizations respond to the active selection neighborhood.',
   },
   'graph.behavior.createMode': {
     area: 'Canvas Interaction',

@@ -3,6 +3,7 @@ import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   CAMERA_DAMPING_TOOLTIP,
   ROTATE_SPEED_TOOLTIP,
@@ -24,6 +25,9 @@ export default function ThreeViewCameraSection({
   collapsed,
   onToggle,
 }: ThreeViewCameraSectionProps) {
+  const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
+  const canvas3dMode = useGraphStore(s => s.canvas3dMode)
+  const voxelModeActive = canvasRenderMode === '3d' && canvas3dMode === 'voxel'
   return (
     <CollapsibleSection
       title="Camera and navigation"
@@ -149,6 +153,7 @@ export default function ThreeViewCameraSection({
               type="checkbox"
               className="h-3 w-3"
               checked={Boolean(schema.three?.cameraAutoRotate ?? false)}
+              disabled={voxelModeActive}
               onChange={e =>
                 setThreeConfig({ cameraAutoRotate: e.target.checked })
               }
@@ -166,6 +171,7 @@ export default function ThreeViewCameraSection({
                 max={3}
                 step={0.1}
                 value={Number(schema.three?.cameraAutoRotateSpeed ?? 0.4)}
+                disabled={voxelModeActive}
                 onChange={e =>
                   setThreeConfig({ cameraAutoRotateSpeed: Number(e.target.value) })
                 }
@@ -186,4 +192,3 @@ export default function ThreeViewCameraSection({
     </CollapsibleSection>
   )
 }
-

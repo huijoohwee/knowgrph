@@ -4,6 +4,7 @@ import { FileText, GitMerge, Table, Tags } from 'lucide-react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
+import { openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
 
 type DocumentModeSelectProps = {
   iconSizeClass: string
@@ -21,6 +22,10 @@ export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
     setDocumentSemanticMode,
     setFrontmatterModeEnabled,
     setMultiDimTableModeEnabled,
+    workspaceViewMode,
+    editorWorkspacePane,
+    setWorkspaceViewMode,
+    setEditorWorkspacePane,
   } = useGraphStore(
     useShallow(s => ({
       documentSemanticMode: s.documentSemanticMode || 'document',
@@ -29,6 +34,10 @@ export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
       setDocumentSemanticMode: s.setDocumentSemanticMode,
       setFrontmatterModeEnabled: s.setFrontmatterModeEnabled,
       setMultiDimTableModeEnabled: s.setMultiDimTableModeEnabled,
+      workspaceViewMode: s.workspaceViewMode,
+      editorWorkspacePane: s.editorWorkspacePane,
+      setWorkspaceViewMode: s.setWorkspaceViewMode,
+      setEditorWorkspacePane: s.setEditorWorkspacePane,
     })),
   )
 
@@ -78,6 +87,11 @@ export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
 
   const activeOption = options.find(o => o.value === activeMode) || options[0]
 
+  React.useEffect(() => {
+    if (!multiDimTableModeEnabled) return
+    openWorkspaceTable({ workspaceViewMode, editorWorkspacePane, setWorkspaceViewMode, setEditorWorkspacePane })
+  }, [editorWorkspacePane, multiDimTableModeEnabled, setEditorWorkspacePane, setWorkspaceViewMode, workspaceViewMode])
+
   const applyMode = React.useCallback(
     (next: DocumentModeValue) => {
       if (!ensureBaselineUnlocked()) return
@@ -99,14 +113,19 @@ export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
         return
       }
       setMultiDimTableModeEnabled(true)
+      openWorkspaceTable({ workspaceViewMode, editorWorkspacePane, setWorkspaceViewMode, setEditorWorkspacePane })
     },
     [
+      editorWorkspacePane,
       ensureBaselineUnlocked,
       frontmatterModeEnabled,
       multiDimTableModeEnabled,
+      setEditorWorkspacePane,
       setDocumentSemanticMode,
       setFrontmatterModeEnabled,
       setMultiDimTableModeEnabled,
+      setWorkspaceViewMode,
+      workspaceViewMode,
     ],
   )
 

@@ -4,13 +4,14 @@ import { FileCode, Table } from 'lucide-react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
+import { isWorkspaceTableOpen, openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
 
 type EditorWorkspaceSelectProps = {
   iconSizeClass: string
   iconStrokeWidth: number
 }
 
-type EditorWorkspaceOptionKey = 'editor' | 'graphDataTable'
+type EditorWorkspaceOptionKey = 'editor' | 'multiDimTable'
 
 type Option = {
   key: EditorWorkspaceOptionKey
@@ -35,7 +36,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth }: Editor
   )
 
   const isEditor = workspaceViewMode === 'editor'
-  const isGraphTable = isEditor && editorWorkspacePane === 'graphTable'
+  const isGraphTable = isWorkspaceTableOpen({ workspaceViewMode, editorWorkspacePane })
 
   const options = React.useMemo(
     () =>
@@ -47,7 +48,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth }: Editor
           Icon: FileCode,
         },
         {
-          key: 'graphDataTable' as const,
+          key: 'multiDimTable' as const,
           label: UI_LABELS.graphDataTable,
           tooltip: UI_COPY.toolbarGraphDataTableToggleTitle,
           Icon: Table,
@@ -56,7 +57,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth }: Editor
     [],
   )
 
-  const activeKey: EditorWorkspaceOptionKey | null = isGraphTable ? 'graphDataTable' : isEditor ? 'editor' : null
+  const activeKey: EditorWorkspaceOptionKey | null = isGraphTable ? 'multiDimTable' : isEditor ? 'editor' : null
   const activeOption = activeKey ? options.find(o => o.key === activeKey) || null : null
 
   const triggerTitle = activeOption?.label || UI_LABELS.editor
@@ -68,14 +69,14 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth }: Editor
 
   const apply = React.useCallback(
     (key: EditorWorkspaceOptionKey) => {
-      if (workspaceViewMode !== 'editor') setWorkspaceViewMode('editor')
-      if (key === 'graphDataTable') {
-        setEditorWorkspacePane('graphTable')
+      if (key === 'multiDimTable') {
+        openWorkspaceTable({ workspaceViewMode, editorWorkspacePane, setWorkspaceViewMode, setEditorWorkspacePane })
         return
       }
+      if (workspaceViewMode !== 'editor') setWorkspaceViewMode('editor')
       setEditorWorkspacePane('markdown')
     },
-    [setEditorWorkspacePane, setWorkspaceViewMode, workspaceViewMode],
+    [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceViewMode, workspaceViewMode],
   )
 
   return (
@@ -92,7 +93,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth }: Editor
       isButtonActive={isEditor}
       onSelect={id => apply(id)}
       renderButtonContent={() =>
-        activeKey === 'graphDataTable' ? (
+        activeKey === 'multiDimTable' ? (
           <Table className={iconSizeClass} strokeWidth={iconStrokeWidth} />
         ) : (
           <FileCode className={iconSizeClass} strokeWidth={iconStrokeWidth} />

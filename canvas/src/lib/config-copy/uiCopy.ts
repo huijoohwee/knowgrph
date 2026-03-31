@@ -155,8 +155,8 @@ export const UI_COPY = {
   chatHistoryCountStatus: (count: number) => `History: ${count} messages`,
   frontmatterModeTooltip: 'Frontmatter Mode: focus canvas and panels on Mermaid frontmatter graph',
   frontmatterModeToggleTooltip: 'Frontmatter Mode: toggle to focus canvas and panels on Mermaid frontmatter graph',
-  multiDimTableModeTooltip: 'Multi-dimensional Table Mode: focus canvas on table-to-graph derived view',
-  multiDimTableModeToggleTooltip: 'Multi-dimensional Table Mode: toggle to focus canvas on table-to-graph derived view',
+  multiDimTableModeTooltip: 'Multi-dimensional Table: focus canvas on table-to-graph derived view',
+  multiDimTableModeToggleTooltip: 'Multi-dimensional Table: toggle focus on table-to-graph derived view',
   mermaidLayoutTooltip: 'Mermaid Layout: toggle to use the dedicated Mermaid flowchart layout.',
   nodeShapeModeTooltip: 'Node Shape: cycle between circle (default), rect, diamond, and hex nodes.',
   groupShapeRectTooltip: 'Cluster Shape: switch to Polygon shape.',
@@ -387,7 +387,7 @@ export const UI_COPY = {
   graphFieldsColorSwatchTooltip: (scope: 'node' | 'edge') =>
     `Color swatch for ${scope === 'node' ? 'node' : 'edge'} fields → updates schema.${
       scope === 'node' ? 'nodeStyles' : 'edgeStyles'
-    } color so Graph Data Table, Renderer, and AgenticRAG JSON-LD exports share the same visual encoding.`,
+    } color so Multi-dimensional Table, Renderer, and AgenticRAG JSON-LD exports share the same visual encoding.`,
   graphFieldsStylesSectionTitle: 'Styles',
   graphFieldsSchemaExtrasSectionTitle: 'Schema extras',
   graphFieldsAdvancedSchemaSectionTitle: 'Advanced schema',
@@ -396,7 +396,7 @@ export const UI_COPY = {
   graphFieldsVisibleTotalStatus: (visible: number, total: number) =>
     `Visible ${visible} · Total ${total}`,
   graphFieldsAgenticFieldSettingsDescription:
-    `Field Settings → map node and edge properties to AgenticRAG JSON-LD roles (see ${AGENTIC_RAG_SCHEMA_URL}/node-schema.jsonld and ${AGENTIC_RAG_SCHEMA_URL}/edge-schema.jsonld) so Graph Data Table, schema docs, and workflows share a single field interpretation.`,
+    `Field Settings → map node and edge properties to AgenticRAG JSON-LD roles (see ${AGENTIC_RAG_SCHEMA_URL}/node-schema.jsonld and ${AGENTIC_RAG_SCHEMA_URL}/edge-schema.jsonld) so Multi-dimensional Table, schema docs, and workflows share a single field interpretation.`,
   graphFieldsAgenticLegendChipLabel: 'AgenticRAG node fields',
   graphFieldsIconLegendHeaderLabel: 'Graph Fields icon legend',
   validationRequiredFieldsTitle: 'Required fields',
@@ -562,9 +562,9 @@ export const UI_COPY = {
   toolbarEditorToggleTitle: 'Toggle Editor workspace',
   toolbarEditorWorkspaceOnTooltip: 'Editor workspace: On',
   toolbarEditorWorkspaceOffTooltip: 'Editor workspace: Off',
-  toolbarGraphDataTableToggleTitle: 'Open Table',
-  toolbarGraphDataTableWorkspaceOnTooltip: 'Table: Open',
-  toolbarGraphDataTableWorkspaceOffTooltip: 'Table: Closed',
+  toolbarGraphDataTableToggleTitle: 'Open Multi-dimensional Table',
+  toolbarGraphDataTableWorkspaceOnTooltip: 'Multi-dimensional Table: Open',
+  toolbarGraphDataTableWorkspaceOffTooltip: 'Multi-dimensional Table: Closed',
   markdownImportUrlPrompt: 'Enter Markdown URL (.md)',
   toolbarJsonImportUrlButtonLabel: 'URL',
   toolbarParserExportJsonButtonLabel: 'JSON',

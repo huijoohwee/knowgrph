@@ -17,6 +17,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { readGlobalEdgeType, type GlobalEdgeType } from '@/lib/graph/edgeTypes'
 import { LayoutModeRendererSettings } from '@/features/toolbar/ui/LayoutModeRendererSettings'
 import { readLayoutMode2d, type LayoutMode2d } from '@/lib/graph/layoutMode'
+import { WorkspaceTableModeControl } from '@/features/workspace-table/ui/WorkspaceTableModeControl'
 
 export function ToolbarToolMenuRendererView(props: {
   onRegisterActions?: (actions: {
@@ -149,6 +150,7 @@ export function ToolbarToolMenuRendererView(props: {
 
   return (
     <div className="flex flex-col gap-2">
+      <WorkspaceTableModeControl />
       <RendererPaletteSettings />
       <RendererHoverSettings />
       <LayoutModeRendererSettings

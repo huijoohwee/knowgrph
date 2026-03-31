@@ -819,6 +819,15 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     default: () => true,
   },
   {
+    key: 'multiDimTableModeEnabled',
+    type: 'boolean',
+    source: 'store',
+    read: () => s().multiDimTableModeEnabled === true,
+    write: (v) => s().setMultiDimTableModeEnabled(Boolean(v)),
+    docKey: 'multiDimTableModeEnabled',
+    default: () => false,
+  },
+  {
     key: 'canvasRenderMode',
     type: 'string',
     source: 'store',

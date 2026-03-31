@@ -834,8 +834,8 @@ export function Scene({
         <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragRef} paused={paused} mode={mode} />
         {mode === 'voxel' ? (
           <>
-            <VoxelDistricts nodes={data.nodes} positions={positions} schema={schema} paused={paused} />
-            <VoxelDistrictAmbientField nodes={data.nodes} positions={positions} schema={schema} paused={paused} />
+            <VoxelDistricts nodes={data.nodes} positions={positions} schema={schema} paused={paused || !voxelAnimationEnabled} />
+            <VoxelDistrictAmbientField nodes={data.nodes} positions={positions} schema={schema} paused={paused || !voxelAnimationEnabled} />
           </>
         ) : null}
         {mode !== 'voxel' ? (
@@ -853,7 +853,7 @@ export function Scene({
             data={data}
             positions={positions}
             schema={schema}
-            paused={paused}
+            paused={paused || !voxelAnimationEnabled}
             hoveredEdgeId={hoverEdgeKey}
             onSelectEdge={(id) => {
               setSelectionSource('canvas')

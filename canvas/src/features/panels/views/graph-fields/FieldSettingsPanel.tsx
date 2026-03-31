@@ -271,6 +271,29 @@ export default function FieldSettingsPanel({
     >
         {selectedGlobalView?.kind === 'globalSchema' ? (
           <div className="p-3 space-y-3">
+            {schema ? (
+              <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
+                <div className={`flex items-center justify-between ${uiPanelKeyValueTextSizeClass}`}>
+                  <span className={UI_THEME_TOKENS.text.primary}>Voxel animation</span>
+                  <input
+                    type="checkbox"
+                    className="h-3 w-3"
+                    checked={schema.three?.voxelAnimationEnabled !== false}
+                    onChange={e => {
+                      const current = schema as GraphSchema
+                      const three = current.three || {}
+                      setSchema({
+                        ...current,
+                        three: {
+                          ...three,
+                          voxelAnimationEnabled: e.target.checked,
+                        },
+                      })
+                    }}
+                  />
+                </div>
+              </div>
+            ) : null}
             <SchemaUiEditor schema={schema} setSchema={setSchema} mode="globalOnly" />
             {uniqueNodeTypes.length > 0 ? (
               <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>

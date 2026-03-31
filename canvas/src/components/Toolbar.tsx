@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Grid3x3, History as HistoryIcon, Map, SunMoon, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Lock, Unlock, Compass, ChevronLeft, ChevronRight, Hand, Link2, Columns2, Cuboid } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Grid3x3, History as HistoryIcon, Map, SunMoon, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Lock, Unlock, Compass, ChevronLeft, ChevronRight, Hand, Link2, Columns2 } from 'lucide-react';
 import MainPanel from '@/features/panels/MainPanel';
 import IconButton from '@/components/IconButton';
 import { DropdownPanel } from '@/lib/ui/overlay';
@@ -527,33 +527,36 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       >
         <ImageIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
-      <ToolbarDropdownSelect
-        value={animationMode}
-        options={TOOLBAR_ANIMATION_OPTIONS}
-        title={animationMode === 'orbit' ? 'Animation: Orbit-style nested radial' : 'Animation: Force-directed Graph'}
-        tooltipContent="Animation"
-        disabled={!animationApplicable}
-        isButtonActive={animationMode === 'orbit'}
-        menuWidthClass="w-64"
-        onSelect={id => setAnimationMode(id)}
-        renderButtonContent={() => <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />}
-      />
+      {voxelAnimationApplicable ? (
+        <ToolbarDropdownSelect
+          value={voxelAnimationMode}
+          options={VOXEL_ANIMATION_OPTIONS}
+          title={voxelAnimationMode === 'on' ? 'Voxel animation: On' : 'Voxel animation: Off'}
+          tooltipContent="Voxel animation"
+          disabled={false}
+          isButtonActive={voxelAnimationMode === 'on'}
+          menuWidthClass="w-64"
+          onSelect={id => setVoxelAnimationMode(id)}
+          renderButtonContent={() => <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />}
+        />
+      ) : (
+        <ToolbarDropdownSelect
+          value={animationMode}
+          options={TOOLBAR_ANIMATION_OPTIONS}
+          title={animationMode === 'orbit' ? 'Animation: Orbit-style nested radial' : 'Animation: Force-directed Graph'}
+          tooltipContent="Animation"
+          disabled={!animationApplicable}
+          isButtonActive={animationMode === 'orbit'}
+          menuWidthClass="w-64"
+          onSelect={id => setAnimationMode(id)}
+          renderButtonContent={() => <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />}
+        />
+      )}
       <Canvas3dModeSelect
         iconSizeClass={iconSizeClass}
         iconStrokeWidth={iconStrokeWidth}
         ensureBaselineUnlocked={ensureBaselineUnlocked}
         disabled={geospatialEnabled}
-      />
-      <ToolbarDropdownSelect
-        value={voxelAnimationMode}
-        options={VOXEL_ANIMATION_OPTIONS}
-        title={voxelAnimationMode === 'on' ? 'Voxel animation: On' : 'Voxel animation: Off'}
-        tooltipContent="Voxel animation"
-        disabled={!voxelAnimationApplicable}
-        isButtonActive={voxelAnimationMode === 'on'}
-        menuWidthClass="w-52"
-        onSelect={id => setVoxelAnimationMode(id)}
-        renderButtonContent={() => <Cuboid className={iconSizeClass} strokeWidth={iconStrokeWidth} />}
       />
       <IconButton
         className={`App-toolbar__btn ${
