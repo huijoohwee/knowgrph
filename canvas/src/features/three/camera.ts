@@ -167,7 +167,13 @@ export function fitCameraToPoints(options: {
   if (requestType === 'reset') {
     const center = new THREE.Vector3(0, 0, 0)
     controls.target.copy(center)
-    camera.position.set(0, 0, 220)
+    const up = camera.up
+    const zUp = Math.abs(up.z) >= Math.abs(up.y) && Math.abs(up.z) >= Math.abs(up.x)
+    if (zUp) {
+      camera.position.set(0, 0, 220)
+    } else {
+      camera.position.set(0, 220, 120)
+    }
     camera.updateProjectionMatrix()
     return
   }

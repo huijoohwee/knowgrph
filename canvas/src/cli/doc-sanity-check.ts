@@ -123,9 +123,6 @@ function checkDocsMaintainability(): string {
 
 function resolveAgenticRagSchemaReadmePath(): string | null {
   const workspaceRoot = path.resolve(process.cwd(), '..', '..')
-  const preferred = path.join(workspaceRoot, 'huijoohwee.github.io', 'schema', 'AgenticRAG', 'README.md')
-  if (fs.existsSync(preferred)) return preferred
-
   const entries = fs.readdirSync(workspaceRoot, { withFileTypes: true })
   for (const entry of entries) {
     if (!entry.isDirectory()) continue

@@ -467,8 +467,8 @@ export interface GraphState {
   setThreeCameraAutoClipFarFactor: (v: number) => void;
   threeIframeOverlaySizeScaleFactor: number;
   setThreeIframeOverlaySizeScaleFactor: (v: number) => void;
-  threeEdgeRenderer: 'mesh' | 'shaderLine';
-  setThreeEdgeRenderer: (v: 'mesh' | 'shaderLine') => void;
+  threeEdgeRenderer: 'mesh' | 'shaderLine' | 'tubeBridge';
+  setThreeEdgeRenderer: (v: 'mesh' | 'shaderLine' | 'tubeBridge') => void;
   threeShaderLineWidthPx: number;
   setThreeShaderLineWidthPx: (v: number) => void;
   uiHeaderRowHeightClass: string;

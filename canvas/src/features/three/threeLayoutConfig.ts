@@ -48,6 +48,14 @@ export const resolveVoxelGridStep = (schema: GraphSchema | null): number => {
   return resolveVoxelGridStepFromSchema(schema)
 }
 
+export const resolveVoxelLayerSpacing = (schema: GraphSchema | null): number => {
+  const cfg = getThreeConfig(schema || undefined)
+  const raw = typeof cfg.voxelLayerSpacing === 'number' ? cfg.voxelLayerSpacing : NaN
+  if (Number.isFinite(raw) && raw > 0) return clamp(raw, 20, 800)
+  const grid = resolveVoxelGridStep(schema)
+  return clamp(Math.max(grid * 3, 60), 20, 800)
+}
+
 export const resolveVoxelSeedGridStep = (schema: GraphSchema | null): number => {
   const voxelSeedScale = resolveVoxelSeedScaleFactor(schema)
   const grid = resolveVoxelGridStep(schema)

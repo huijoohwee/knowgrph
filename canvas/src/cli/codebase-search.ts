@@ -66,7 +66,7 @@ const roots = (() => {
         'gympgrph/src',
         'grph-shared/src',
         'knowgrph/docs/documents',
-        'huijoohwee.github.io/schema/AgenticRAG',
+        'schema/AgenticRAG',
       ]
   const abs = candidates
     .map(rel => path.resolve(repoRoot, rel))

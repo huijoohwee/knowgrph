@@ -1071,7 +1071,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         edges={(sceneGraphData as GraphData | null)?.edges}
         schema={schema as GraphSchema | null}
         onRequestClose={() => setHoverInfo(null)}
-        tooltipInteractive={false}
+        tooltipInteractive
       />
       <MarkdownDesignOverlay
         enabled={markdownOverlayEnabled}

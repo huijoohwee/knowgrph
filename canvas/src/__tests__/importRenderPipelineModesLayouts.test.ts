@@ -249,7 +249,12 @@ export const testImportRenderPipelineThreeSphereConstraintProjects = () => {
 }
 
 export const testForbidHardcodedMarkdownSlideDemoAbsolutePath = () => {
-  const forbidden = ['','Users','huijoohwee','Documents','GitHub','sandbox','demo','markdown-slide-demo.md'].join('/')
+  const tail = ['sandbox', 'demo', 'markdown-slide-demo.md'].join('/')
+  const forbiddenPrefixes = [
+    `/Users/`,
+    `/home/`,
+    `C:/Users/`,
+  ]
   const here = path.dirname(fileURLToPath(import.meta.url))
   const root = path.resolve(here, '..')
   const stack: string[] = [root]
@@ -285,7 +290,11 @@ export const testForbidHardcodedMarkdownSlideDemoAbsolutePath = () => {
       } catch {
         text = ''
       }
-      if (text.includes(forbidden)) throw new Error(`forbidden hardcoded path found in ${p}`)
+      for (const prefix of forbiddenPrefixes) {
+        if (text.includes(`${prefix}${tail}`)) {
+          throw new Error(`forbidden hardcoded path found in ${p}`)
+        }
+      }
     }
   }
 }

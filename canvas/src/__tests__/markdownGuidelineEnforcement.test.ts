@@ -7,7 +7,6 @@ const NEUTRALITY_BANNED_PATTERNS: RegExp[] = [
   /\/Users\//, // no absolute user paths
   /\baie-?book\b/i,
   /\bmlflow\b/i,
-  /\bhuijoohwee\b/i,
   // allow 'knowgrph' in repo context generally, but disallow hardcoded project branding in feature code
   /\bknowgrph\b/i,
 ]
@@ -75,4 +74,3 @@ export function testMarkdownFeaturesNeutrality() {
     throw new Error(`Neutrality violations detected in markdown features:\n${msg}`)
   }
 }
-

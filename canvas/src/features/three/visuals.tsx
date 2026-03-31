@@ -303,6 +303,12 @@ export function ShaderLineEdges({
   selectedNodeIdSet,
   dimmedEdgeOpacity,
   selectedEdgeWidth,
+  hoveredEdgeId,
+  hoverOpacity,
+  opacity,
+  introEnabled,
+  introDelayMs,
+  introDurationMs,
   paused,
   motionIntensity,
   draggedNodeId,
@@ -311,6 +317,7 @@ export function ShaderLineEdges({
   renderOrder,
   onSelectEdge,
   onHoverEdge,
+  onHoverEdgeIdChange,
 }: {
   edges: GraphEdge[]
   positions: Record<string, Vec3>
@@ -323,6 +330,12 @@ export function ShaderLineEdges({
   selectedNodeIdSet: Set<string>
   dimmedEdgeOpacity: number
   selectedEdgeWidth: number
+  hoveredEdgeId?: string | null
+  hoverOpacity?: number
+  opacity?: number
+  introEnabled?: boolean
+  introDelayMs?: number
+  introDurationMs?: number
   paused?: boolean
   motionIntensity?: number
   draggedNodeId?: string | null
@@ -331,6 +344,7 @@ export function ShaderLineEdges({
   renderOrder?: number
   onSelectEdge: (id: string) => void
   onHoverEdge?: (info: { id: string; clientX: number; clientY: number } | null) => void
+  onHoverEdgeIdChange?: (id: string | null) => void
 }) {
   const { size, gl } = useThree()
   const lineRef = React.useRef<LineSegments2 | null>(null)
@@ -340,6 +354,18 @@ export function ShaderLineEdges({
   const edgeIdsRef = React.useRef<string[]>([])
   const motionRef = React.useRef<{ intensity: number; draggedNodeId?: string | null }>({ intensity: 0, draggedNodeId: null })
   motionRef.current = { intensity: motionIntensity || 0, draggedNodeId: draggedNodeId || null }
+  const opacityRef = React.useRef<number>(1)
+  opacityRef.current = typeof opacity === 'number' && Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : 1
+  const introCfgRef = React.useRef<{ enabled: boolean; delaySec: number; durSec: number }>({ enabled: false, delaySec: 0, durSec: 0 })
+  introCfgRef.current = {
+    enabled: introEnabled === true,
+    delaySec: Math.max(0, (typeof introDelayMs === 'number' && Number.isFinite(introDelayMs) ? introDelayMs : 0) / 1000),
+    durSec: Math.max(0.05, (typeof introDurationMs === 'number' && Number.isFinite(introDurationMs) ? introDurationMs : 800) / 1000),
+  }
+  const introStartRef = React.useRef<number | null>(null)
+  React.useEffect(() => {
+    introStartRef.current = null
+  }, [introEnabled, introDelayMs, introDurationMs, edges.length])
 
   React.useEffect(() => {
     const n = edges.length
@@ -412,6 +438,8 @@ export function ShaderLineEdges({
     const n = edges.length
     const bg = new THREE.Color(0, 0, 0)
     const tmp = new THREE.Color()
+    const hoverId = typeof hoveredEdgeId === 'string' ? hoveredEdgeId : null
+    const hoverA = typeof hoverOpacity === 'number' && Number.isFinite(hoverOpacity) ? Math.max(0, Math.min(1, hoverOpacity)) : 0
     for (let i = 0; i < n; i += 1) {
       const e = edges[i]
       const srcId = String(e.source)
@@ -437,6 +465,9 @@ export function ShaderLineEdges({
           finalOpacity = Math.min(1, dimmedEdgeOpacity)
         }
       }
+      if (hoverId && String(e.id) === hoverId && hoverA > 0) {
+        finalOpacity = Math.max(finalOpacity, hoverA)
+      }
       void selectedEdgeWidth
       tmp.set(finalColor)
       tmp.lerp(bg, 1 - Math.max(0, Math.min(1, finalOpacity)))
@@ -455,12 +486,27 @@ export function ShaderLineEdges({
     if (attr && attr.data) {
       attr.data.needsUpdate = true
     }
-  }, [colorByEdge, dimmedEdgeOpacity, edges, neutralEdgeColor, selectedEdgeColor, selectedEdgeIdSet, selectedNodeIdSet, selectionMode, selectedEdgeWidth])
+  }, [colorByEdge, dimmedEdgeOpacity, edges, neutralEdgeColor, selectedEdgeColor, selectedEdgeIdSet, selectedNodeIdSet, selectionMode, selectedEdgeWidth, hoveredEdgeId, hoverOpacity])
 
   useFrame(({ clock }) => {
     if (paused) return
     const geom = geomRef.current
     if (!geom) return
+    const line = lineRef.current
+    if (line) {
+      const mat = line.material as LineMaterial
+      const cfg = introCfgRef.current
+      if (cfg.enabled) {
+        if (introStartRef.current == null) introStartRef.current = clock.getElapsedTime()
+        const dt = Math.max(0, clock.getElapsedTime() - (introStartRef.current || 0))
+        const raw = (dt - cfg.delaySec) / Math.max(0.05, cfg.durSec)
+        const p = Math.max(0, Math.min(1, raw))
+        const e = 1 - Math.pow(1 - p, 3)
+        mat.opacity = opacityRef.current * e
+      } else {
+        mat.opacity = opacityRef.current
+      }
+    }
     const arr = posArrayRef.current
     const n = edges.length
     const t = clock.getElapsedTime()
@@ -514,24 +560,23 @@ export function ShaderLineEdges({
         if (id) onSelectEdge(id)
       }}
       onPointerOver={(evt: unknown) => {
-        if (!onHoverEdge) return
         const e = evt as { instanceId?: number; clientX: number; clientY: number }
         const idx = typeof e.instanceId === 'number' ? e.instanceId : null
         const id = idx != null ? edgeIdsRef.current[idx] : null
         if (!id) return
-        onHoverEdge({ id, clientX: e.clientX, clientY: e.clientY })
+        onHoverEdgeIdChange?.(id)
+        onHoverEdge?.({ id, clientX: e.clientX, clientY: e.clientY })
       }}
       onPointerMove={(evt: unknown) => {
-        if (!onHoverEdge) return
         const e = evt as { instanceId?: number; clientX: number; clientY: number }
         const idx = typeof e.instanceId === 'number' ? e.instanceId : null
         const id = idx != null ? edgeIdsRef.current[idx] : null
         if (!id) return
-        onHoverEdge({ id, clientX: e.clientX, clientY: e.clientY })
+        onHoverEdge?.({ id, clientX: e.clientX, clientY: e.clientY })
       }}
       onPointerOut={() => {
-        if (!onHoverEdge) return
-        onHoverEdge(null)
+        onHoverEdgeIdChange?.(null)
+        onHoverEdge?.(null)
       }}
     />
   )

@@ -265,11 +265,11 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
 
   threeEdgeRenderer: (() => {
     const raw = readLsString(LS_KEYS.threeEdgeRenderer, 'mesh')
-    const next = raw === 'shaderLine' ? raw : 'mesh'
-    return next as 'mesh' | 'shaderLine'
+    const next = raw === 'shaderLine' || raw === 'tubeBridge' ? raw : 'mesh'
+    return next as 'mesh' | 'shaderLine' | 'tubeBridge'
   })(),
-  setThreeEdgeRenderer: (v: 'mesh' | 'shaderLine') => {
-    const next = v === 'shaderLine' ? v : 'mesh'
+  setThreeEdgeRenderer: (v: 'mesh' | 'shaderLine' | 'tubeBridge') => {
+    const next = v === 'shaderLine' || v === 'tubeBridge' ? v : 'mesh'
     writeLsString(LS_KEYS.threeEdgeRenderer, next)
     set({ threeEdgeRenderer: next })
   },

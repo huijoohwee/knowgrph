@@ -4,11 +4,16 @@ import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdow
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
 
-const TEMPLATE_PATH = '/Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/docs/video-script-template.md'
+const readTemplatePath = (): string => {
+  const v = process.env.KG_TEST_VIDEO_SCRIPT_TEMPLATE_PATH
+  return typeof v === 'string' ? v.trim() : ''
+}
 
 export function testVideoScriptTemplateFileFrontmatterFlowGraphFidelity() {
-  if (!fs.existsSync(TEMPLATE_PATH)) return
-  const md = fs.readFileSync(TEMPLATE_PATH, 'utf8')
+  const templatePath = readTemplatePath()
+  if (!templatePath) return
+  if (!fs.existsSync(templatePath)) return
+  const md = fs.readFileSync(templatePath, 'utf8')
   const looksLikeFlowFrontmatter =
     md.trimStart().startsWith('---') && md.includes('\nnodes:\n') && md.includes('\nconnections:\n') && md.includes('\nsocket_types:\n')
   if (!looksLikeFlowFrontmatter) return

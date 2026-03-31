@@ -9,7 +9,7 @@ import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { usePositions } from './layout'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
-import { Vector3, Quaternion, Matrix4, type Camera, type Scene as ThreeScene, type WebGLRenderer } from 'three'
+import { Vector3, Quaternion, Matrix4, ACESFilmicToneMapping, PCFSoftShadowMap, SRGBColorSpace, type Camera, type Scene as ThreeScene, type WebGLRenderer } from 'three'
 import { useThemeDetector } from '@/hooks/useThemeDetector'
 import type { ThreeCameraPose } from '@/hooks/store/types'
 import RichMediaPanel from '@/components/RichMediaPanel'
@@ -165,6 +165,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   positionsRef.current = positions as unknown as Record<string, [number, number, number]>
   const containerRef = React.useRef<HTMLDivElement | null>(null)
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null)
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null)
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null)
   const draggedNodeIdRef = React.useRef<string | null>(null)
   const hoverClearTimerRef = useRef<number | null>(null)
@@ -175,6 +176,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   useEffect(() => {
     if (!hoverEnabled) {
       setHoverInfo(null)
+      setHoveredEdgeId(null)
     }
   }, [hoverEnabled])
   useEffect(() => {
@@ -269,6 +271,10 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     clearHoverClearTimer()
     setHoverInfo({ kind: 'edge', id: info.id, clientX: info.clientX, clientY: info.clientY })
   }, [clearHoverClearTimer])
+
+  const handleHoverEdgeIdChange = useCallback((id: string | null) => {
+    setHoveredEdgeId(id)
+  }, [])
 
   const mediaNodesPool = useMemo(() => {
     const graph = sceneGraph as GraphData | null
@@ -911,6 +917,15 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
         onCreated={({ gl, scene, camera }) => {
           gl.setClearColor('#000000', 0)
           try {
+            gl.toneMapping = ACESFilmicToneMapping
+            gl.toneMappingExposure = 1
+            gl.shadowMap.enabled = true
+            gl.shadowMap.type = PCFSoftShadowMap
+            gl.outputColorSpace = SRGBColorSpace
+          } catch {
+            void 0
+          }
+          try {
             glCanvasRef.current = gl.domElement as HTMLCanvasElement
           } catch {
             glCanvasRef.current = null
@@ -993,6 +1008,8 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
             onSelectNode={onSelectNode}
             onHoverNode={hoverEnabled ? handleHoverNode : undefined}
             onHoverEdge={hoverEnabled ? handleHoverEdge : undefined}
+            onHoverEdgeIdChange={hoverEnabled ? handleHoverEdgeIdChange : undefined}
+            hoveredEdgeId={hoveredEdgeId}
             onDragNode={setDraggedNodeId}
             draggedNodeId={draggedNodeId}
             theme={theme}
@@ -1128,7 +1145,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
         nodes={(sceneGraph as GraphData | null)?.nodes as GraphNode[] | undefined}
         edges={(sceneGraph as GraphData | null)?.edges as GraphEdge[] | undefined}
         schema={effectiveSchema as GraphSchema | null}
-        tooltipInteractive={false}
+        tooltipInteractive
       />
     </div>
   )

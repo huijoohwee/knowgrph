@@ -117,6 +117,110 @@ export const VOXEL_GRID_SCALE_TOOLTIP = buildNumericTooltip({
   impact: 'Scales voxel grid step size in seeded and runtime snapping; higher values produce coarser block spacing.',
 })
 
+export const VOXEL_LAYER_SPACING_TOOLTIP = buildNumericTooltip({
+  defaultValue: 84,
+  min: 20,
+  max: 800,
+  interval: 4,
+  impact: 'Controls vertical spacing between voxel layers; higher values separate plates more clearly.',
+})
+
+export const VOXEL_LAYER_PLATE_OPACITY_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.06,
+  min: 0,
+  max: 0.45,
+  interval: 0.01,
+  impact: 'Controls how visible layer plates are; lower values keep plates subtle behind nodes.',
+})
+
+export const VOXEL_LAYER_PLATE_RISE_DURATION_TOOLTIP = buildNumericTooltip({
+  defaultValue: 900,
+  min: 80,
+  max: 6000,
+  interval: 50,
+  impact: 'Controls how long layer plates take to rise into place when voxel mode loads.',
+})
+
+export const VOXEL_LAYER_PLATE_RISE_STAGGER_TOOLTIP = buildNumericTooltip({
+  defaultValue: 160,
+  min: 0,
+  max: 2000,
+  interval: 20,
+  impact: 'Controls per-layer delay for the rising sequence; higher values create a more staggered cascade.',
+})
+
+export const VOXEL_CLUSTER_PULSE_STRENGTH_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.22,
+  min: 0,
+  max: 1.2,
+  interval: 0.02,
+  impact: 'Controls breathing intensity of pulsing cluster rings in voxel mode.',
+})
+
+export const VOXEL_EDGE_HOVER_OPACITY_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.65,
+  min: 0,
+  max: 1,
+  interval: 0.05,
+  impact: 'Controls edge highlight opacity when hovering links in voxel mode.',
+})
+
+export const VOXEL_GAP_RING_THRESHOLD_TOOLTIP = buildNumericTooltip({
+  defaultValue: 0.85,
+  min: 0,
+  max: 1,
+  interval: 0.01,
+  impact: 'Controls which nodes show the gap ring based on gapScore (values at or above the threshold).',
+})
+
+export const VOXEL_INTRO_DELAY_TOOLTIP = buildNumericTooltip({
+  defaultValue: 320,
+  min: 0,
+  max: 8000,
+  interval: 50,
+  impact: 'Delays voxel camera intro after entering voxel mode; useful for syncing with layer rise timing.',
+})
+
+export const VOXEL_INTRO_DURATION_TOOLTIP = buildNumericTooltip({
+  defaultValue: 1100,
+  min: 80,
+  max: 8000,
+  interval: 50,
+  impact: 'Controls voxel camera intro transition duration toward the default pose.',
+})
+
+export const VOXEL_DEFAULT_YAW_TOOLTIP = buildNumericTooltip({
+  defaultValue: -36,
+  min: -180,
+  max: 180,
+  interval: 1,
+  impact: 'Sets horizontal orbit angle of voxel default pose around the graph center.',
+})
+
+export const VOXEL_DEFAULT_TILT_TOOLTIP = buildNumericTooltip({
+  defaultValue: 32,
+  min: 5,
+  max: 80,
+  interval: 1,
+  impact: 'Sets vertical tilt of voxel default pose; higher values look more top-down.',
+})
+
+export const VOXEL_DEFAULT_DISTANCE_FACTOR_TOOLTIP = buildNumericTooltip({
+  defaultValue: 2.2,
+  min: 0.8,
+  max: 6,
+  interval: 0.05,
+  impact: 'Scales camera distance from voxel graph bounds for the default intro endpoint.',
+})
+
+export const VOXEL_DEFAULT_TARGET_LIFT_TOOLTIP = buildNumericTooltip({
+  defaultValue: 8,
+  min: -200,
+  max: 200,
+  interval: 1,
+  impact: 'Offsets voxel camera target vertically to bias framing above or below layer center.',
+})
+
 export const VOXEL_GHOST_OPACITY_TOOLTIP = buildNumericTooltip({
   defaultValue: 0.32,
   min: 0.05,

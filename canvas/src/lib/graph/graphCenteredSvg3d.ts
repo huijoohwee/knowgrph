@@ -40,7 +40,7 @@ export function exportGraphAsCentered3dSvgMarkup(args: {
   exportIncludeLabels?: boolean
   durationSec?: number
   frames?: number
-  threeEdgeRenderer?: 'mesh' | 'shaderLine'
+  threeEdgeRenderer?: 'mesh' | 'shaderLine' | 'tubeBridge'
   exportShaderLineWidthPx?: number
   exportAutoRotate?: boolean
   exportAutoRotateSpeed?: number

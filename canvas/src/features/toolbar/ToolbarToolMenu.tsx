@@ -217,7 +217,16 @@ export function ToolbarToolMenu({
 
   const activeGraphRenderData = useActiveGraphRenderData(true)
   const devStatusMetrics = React.useMemo(() => {
-    if (!import.meta.env.DEV) return null
+    const isDev = (() => {
+      try {
+        const m = import.meta as unknown as { env?: unknown }
+        const env = m && typeof m.env === 'object' && m.env ? (m.env as Record<string, unknown>) : null
+        return env ? env.DEV === true : false
+      } catch {
+        return false
+      }
+    })()
+    if (!isDev) return null
     const data = activeGraphRenderData
     if (!data) return { counter: 'n0 e0 g0', hierarchyBadge: 'h0', suffix: 'bp:h0 s0 c0 m0' }
     const nodes = Array.isArray(data.nodes) ? data.nodes.length : 0

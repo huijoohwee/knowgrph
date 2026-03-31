@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Grid3x3, History as HistoryIcon, Map, SunMoon, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Lock, Unlock, Compass, ChevronLeft, ChevronRight, Hand, Link2, Columns2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Grid3x3, History as HistoryIcon, Map, SunMoon, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Lock, Unlock, Compass, ChevronLeft, ChevronRight, Hand, Link2, Columns2, Cuboid } from 'lucide-react';
 import MainPanel from '@/features/panels/MainPanel';
 import IconButton from '@/components/IconButton';
 import { DropdownPanel } from '@/lib/ui/overlay';
@@ -33,6 +33,11 @@ interface ToolbarProps {
 const TOOLBAR_ANIMATION_OPTIONS = [
   { id: 'force', title: 'Force-directed Graph (default)' },
   { id: 'orbit', title: 'Orbit-style nested radial animation' },
+] as const
+
+const VOXEL_ANIMATION_OPTIONS = [
+  { id: 'on', title: 'Voxel animation (On)' },
+  { id: 'off', title: 'Voxel animation (Off)' },
 ] as const
 
 export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection }: ToolbarProps) {
@@ -140,6 +145,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     (canvasRenderMode === '3d' && canvas3dMode !== 'voxel') ||
     (canvasRenderMode === '2d' && canvas2dRenderer === 'd3')
   const animationApplicable = animationApplicableSemantic && animationApplicableRenderer && layoutMode === 'radial'
+  const voxelAnimationMode = schema.three?.voxelAnimationEnabled === false ? 'off' : 'on'
+  const voxelAnimationApplicable = canvasRenderMode === '3d' && canvas3dMode === 'voxel'
   const setAnimationMode = useCallback((mode: 'force' | 'orbit') => {
     if (canvasRenderMode === '3d' && canvas3dMode === 'voxel') return
     if (!ensureBaselineUnlocked()) return
@@ -158,6 +165,19 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       },
     })
   }, [canvas3dMode, canvasRenderMode, ensureBaselineUnlocked, schema, setSchema])
+  const setVoxelAnimationMode = useCallback((mode: 'on' | 'off') => {
+    if (!voxelAnimationApplicable) return
+    if (!ensureBaselineUnlocked()) return
+    const current = schema
+    const three = current.three || {}
+    setSchema({
+      ...current,
+      three: {
+        ...three,
+        voxelAnimationEnabled: mode === 'on',
+      },
+    })
+  }, [ensureBaselineUnlocked, schema, setSchema, voxelAnimationApplicable])
 
   return (
     <nav
@@ -523,6 +543,17 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         iconStrokeWidth={iconStrokeWidth}
         ensureBaselineUnlocked={ensureBaselineUnlocked}
         disabled={geospatialEnabled}
+      />
+      <ToolbarDropdownSelect
+        value={voxelAnimationMode}
+        options={VOXEL_ANIMATION_OPTIONS}
+        title={voxelAnimationMode === 'on' ? 'Voxel animation: On' : 'Voxel animation: Off'}
+        tooltipContent="Voxel animation"
+        disabled={!voxelAnimationApplicable}
+        isButtonActive={voxelAnimationMode === 'on'}
+        menuWidthClass="w-52"
+        onSelect={id => setVoxelAnimationMode(id)}
+        renderButtonContent={() => <Cuboid className={iconSizeClass} strokeWidth={iconStrokeWidth} />}
       />
       <IconButton
         className={`App-toolbar__btn ${

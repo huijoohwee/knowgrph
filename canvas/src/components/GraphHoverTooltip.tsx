@@ -2,17 +2,24 @@ import React from 'react'
 import type { GraphNode, GraphEdge, JSONValue } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { summarizePropertySpec, getNodePropSpec, getEdgePropSpec, buildEdgeSchemaBadges } from '@/lib/graph/schema'
-import { readFlowEdgeDisplayLabel } from '@/lib/graph/flowPorts'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { getBadgeChipClass, getIconSizeClass } from '@/lib/ui'
+import IconButton from '@/components/IconButton'
+import { getBadgeChipClass, getIconSizeClass, getPinToggleButtonClassName } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { usePinnedLs } from '@/lib/ui/panelPinned'
+import { LS_KEYS } from '@/lib/config.ls'
+import { UI_COPY, UI_LABELS } from '@/lib/config'
 import type { GraphFieldKind } from '@/features/graph-fields/graphFields'
 import { FieldTypeBadgeIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import type { GraphHoverPreviewConfig } from '@/hooks/store/types'
 import { truncateTextWithEllipsis } from '@/components/GraphCanvas/layout/utils'
+import { getNodeLabelFullText2d } from '@/components/GraphCanvas/labelLayout2d'
+import { getEdgeLabelForDisplay } from '@/components/GraphCanvas/edgeDisplay'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
+import { Pin, PinOff, X as CloseIcon } from 'lucide-react'
+import { VOXEL_SCORE_DIMENSIONS } from '@/features/three/voxelStyle'
 
 export type HoverKind = 'node' | 'edge' | 'group'
 
@@ -51,6 +58,30 @@ const EDGE_PROP_PRIORITY = [
   'confidence',
   'count',
 ]
+
+function clamp01(v: number): number {
+  if (v < 0) return 0
+  if (v > 1) return 1
+  return v
+}
+
+function extractVoxelScores(node: GraphNode): { money: number; man: number; machine: number } | null {
+  const props = (node.properties || {}) as Record<string, unknown>
+  const scores = (props['scores'] && typeof props['scores'] === 'object' && !Array.isArray(props['scores']))
+    ? (props['scores'] as Record<string, unknown>)
+    : null
+  const read = (key: string): number | null => {
+    const fromScores = scores ? scores[key] : undefined
+    const v = fromScores ?? props[key]
+    if (typeof v !== 'number' || !Number.isFinite(v)) return null
+    return clamp01(v)
+  }
+  const money = read('money')
+  const man = read('man')
+  const machine = read('machine')
+  if (money == null || man == null || machine == null) return null
+  return { money, man, machine }
+}
 
 function markdownToPlainText(markdown: string): string {
   const raw = String(markdown || '')
@@ -187,7 +218,8 @@ function buildNodeContent(
   const showProps = contentCfg?.showProps !== false && config.showNodeProperties;
   const showType = contentCfg?.showType !== false && config.showNodeLabel;
   const showId = contentCfg?.showId !== false && config.showNodeId;
-  const primaryNodeText = String(node.label || '').trim() || String(node.id || '').trim() || 'Node'
+  const primaryNodeText = getNodeLabelFullText2d(node)
+  const voxelScores = extractVoxelScores(node)
   const { imageSrc, imageCount } = buildHoverImageInfo(node)
   const descRaw = config.showNodeDescription ? buildHoverDescription(node) : ''
   const descText = expanded ? descRaw : truncateTextWithEllipsis(descRaw, 280)
@@ -207,6 +239,25 @@ function buildNodeContent(
           {node.id}
         </div>
       )}
+      {voxelScores ? (
+        <div className="mt-1 space-y-1">
+          {VOXEL_SCORE_DIMENSIONS.map((d) => {
+            const v = voxelScores[d.key]
+            const pct = Math.round(v * 100)
+            return (
+              <div key={d.key} className="space-y-0.5">
+                <div className={`text-[10px] ${UI_THEME_TOKENS.tooltip.textSecondary} flex justify-between gap-2`}>
+                  <span className="font-semibold">{d.label}</span>
+                  <span>{`${pct}%`}</span>
+                </div>
+                <div className="h-2 w-full rounded bg-black/20 overflow-hidden">
+                  <div className="h-full rounded" style={{ width: `${pct}%`, backgroundColor: d.color }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : null}
       {imageSrc ? (
         <div className="mt-1">
           <div className="flex gap-2 items-start">
@@ -293,16 +344,7 @@ function buildEdgeContent(
   expanded: boolean,
   onToggleExpanded: (() => void) | null,
 ): React.ReactNode {
-  const edgeLabelForDisplay = (() => {
-    const flowLabel = String(readFlowEdgeDisplayLabel(edge) || '').trim()
-    if (flowLabel) return flowLabel
-    const label = String(edge.label || '').trim()
-    const props = (edge.properties || {}) as Record<string, unknown>
-    const keywordKind = typeof props['keyword:kind'] === 'string' ? String(props['keyword:kind']).trim() : ''
-    if (!keywordKind) return label
-    const clean = label.replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
-    return clean || label
-  })()
+  const edgeLabelForDisplay = getEdgeLabelForDisplay(edge)
   const sorted = sortProps(edge.properties || {}, 'edge')
   const schemaBadges = buildEdgeSchemaBadges(
     schema,
@@ -450,7 +492,12 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
     s => s.uiPanelMicroLabelTextSizeClass || s.uiIconBadgeChipTextSizeClass || 'text-[9px]',
   )
   const graphHoverPreviewConfig = useGraphStore(s => s.graphHoverPreviewConfig)
+  const uiOverlayOpacity = useGraphStore(s => s.uiOverlayOpacity)
+  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const iconSizeClass = getIconSizeClass(uiIconScale)
+  const { pinned: tooltipPinned, setPinned } = usePinnedLs(LS_KEYS.hoverTooltipPinned, false)
+  const [pinnedKey, setPinnedKey] = React.useState<string | null>(null)
+  const [pinnedHoverInfo, setPinnedHoverInfo] = React.useState<HoverInfo | null>(null)
   const container = containerRef.current
   const nodeMap = React.useMemo(() => {
     if (!nodes || !Array.isArray(nodes)) return null
@@ -482,8 +529,9 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
     }
     return m
   }, [nodes, edges])
-  const hoverKind = hoverInfo?.kind
-  const hoverId = hoverInfo?.id
+  const effectiveHoverInfo = tooltipPinned ? pinnedHoverInfo : hoverInfo
+  const hoverKind = effectiveHoverInfo?.kind
+  const hoverId = effectiveHoverInfo?.id
   const [expanded, setExpanded] = React.useState(false)
   const expandedKeyRef = React.useRef<string | null>(null)
   React.useEffect(() => {
@@ -549,10 +597,43 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
     graphHoverPreviewConfig,
     expanded,
   ])
-  if (!hoverInfo || !container || !content) return null
+  React.useEffect(() => {
+    if (!tooltipPinned) {
+      setPinnedKey(null)
+      setPinnedHoverInfo(null)
+      return
+    }
+    if (!hoverInfo) return
+    if (pinnedKey) return
+    setPinnedKey(`${hoverInfo.kind}:${hoverInfo.id}`)
+    setPinnedHoverInfo(hoverInfo)
+  }, [hoverInfo, pinnedKey, tooltipPinned])
+
+  const handleTogglePinned = React.useCallback(() => {
+    if (!tooltipPinned) {
+      if (hoverInfo) {
+        setPinnedHoverInfo(hoverInfo)
+        setPinnedKey(`${hoverInfo.kind}:${hoverInfo.id}`)
+      }
+      setPinned(true)
+      return
+    }
+    setPinned(false)
+    setPinnedKey(null)
+    setPinnedHoverInfo(null)
+  }, [hoverInfo, setPinned, tooltipPinned])
+
+  const handleClose = React.useCallback(() => {
+    setPinned(false)
+    setPinnedKey(null)
+    setPinnedHoverInfo(null)
+    if (onRequestClose) onRequestClose()
+  }, [onRequestClose, setPinned])
+
+  if (!effectiveHoverInfo || !container || !content) return null
   const rect = container.getBoundingClientRect()
-  const hoverXRaw = hoverInfo.clientX - rect.left + 8
-  const hoverYRaw = hoverInfo.clientY - rect.top + 8
+  const hoverXRaw = effectiveHoverInfo.clientX - rect.left + 8
+  const hoverYRaw = effectiveHoverInfo.clientY - rect.top + 8
   const hoverX = Math.max(8, Math.min(Math.max(8, rect.width - 8), hoverXRaw))
   const hoverY = Math.max(8, Math.min(Math.max(8, rect.height - 8), hoverYRaw))
   const anyPointerDragActive = (() => {
@@ -564,17 +645,46 @@ export function GraphHoverTooltip({ hoverInfo, containerRef, nodes, edges, schem
       return false
     }
   })()
-  const effectiveInteractive = tooltipInteractive === true && anyPointerDragActive !== true
+  const effectiveInteractive = (tooltipInteractive === true || tooltipPinned) && anyPointerDragActive !== true
 
   return (
     <Tooltip
-      content={<div data-kg-canvas-wheel-ignore="true">{content}</div>}
+      content={(
+        <div data-kg-canvas-wheel-ignore="true" style={{ opacity: uiOverlayOpacity }}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">{content}</div>
+            <div className="flex flex-col gap-1 flex-none">
+              <IconButton
+                className={getPinToggleButtonClassName(tooltipPinned)}
+                title={tooltipPinned ? UI_COPY.floatingPanelUnpin : UI_COPY.floatingPanelPin}
+                onClick={handleTogglePinned}
+                showTooltip
+                aria-pressed={tooltipPinned}
+              >
+                {tooltipPinned ? (
+                  <Pin className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+                ) : (
+                  <PinOff className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+                )}
+              </IconButton>
+              <IconButton
+                className="App-toolbar__btn"
+                title={UI_LABELS.close}
+                onClick={handleClose}
+                showTooltip
+              >
+                <CloseIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+              </IconButton>
+            </div>
+          </div>
+        </div>
+      )}
       open
       className={effectiveInteractive ? 'absolute z-50 pointer-events-auto' : 'absolute z-50 pointer-events-none'}
       anchorStyle={{ left: hoverX, top: hoverY, width: 0, height: 0 }}
       maxWidthPx={260}
       contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text} shadow-md max-w-xs text-xs`}
-      onContentMouseLeave={onRequestClose}
+      onContentMouseLeave={tooltipPinned ? undefined : onRequestClose}
       interactive={effectiveInteractive}
     >
       <span />

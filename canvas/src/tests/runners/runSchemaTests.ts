@@ -3,6 +3,9 @@ import { execTest, TestResult } from './testRunnerUtils'
 const modSchema = () => import('@/__tests__/schema.test')
 const modLayoutPositioning = () => import('@/__tests__/layoutPositioning.test')
 const modLayoutDatasetKeyStable = () => import('@/__tests__/layoutDatasetKeyStable.test')
+const modPmfVoxelImport = () => import('@/__tests__/pmfVoxelImport.test')
+const modPmfVoxelVisibility = () => import('@/__tests__/pmfVoxelVisibility.test')
+const modVoxelCameraPose = () => import('@/__tests__/voxelCameraPose.test')
 
 export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'schema.validateDefaults', async () => {
@@ -76,5 +79,26 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'schema.parseSchemaTextRejectsInvalidJson', async () => {
     const mod = await modSchema()
     await mod.testParseSchemaTextRejectsInvalidJson()
+  })
+
+  await execTest(results, 'io.pmfVoxel.import.siblingRepoOptional', async () => {
+    const mod = await modPmfVoxelImport()
+    await mod.testPmfVoxelImportFromSiblingRepoIfPresent()
+  })
+  await execTest(results, 'io.pmfVoxel.parseRoute', async () => {
+    const mod = await modPmfVoxelVisibility()
+    await mod.testPmfJsonRoutesToPmfVoxelParser()
+  })
+  await execTest(results, 'io.pmfVoxel.multilayerVisibility', async () => {
+    const mod = await modPmfVoxelVisibility()
+    await mod.testPmfVoxelPositionsUseMultipleLayerHeights()
+  })
+  await execTest(results, 'three.voxelCamera.defaultConfig', async () => {
+    const mod = await modVoxelCameraPose()
+    await mod.testVoxelCameraDefaultsAreStable()
+  })
+  await execTest(results, 'three.voxelCamera.buildIntroPose', async () => {
+    const mod = await modVoxelCameraPose()
+    await mod.testVoxelCameraBuildsValidIntroPoses()
   })
 }

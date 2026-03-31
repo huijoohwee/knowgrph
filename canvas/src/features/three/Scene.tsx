@@ -29,13 +29,162 @@ import { readThreeRenderOrderOffset } from '@/features/three/zOrder'
 import { readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import type { Canvas3dModeId } from '@/lib/config'
 import { resolveVoxelClusterColor, resolveVoxelClusterKey } from './voxelStyle'
-import { quantizeVoxelCoordToCellCenter, resolveVoxelGridStep } from './threeLayoutConfig'
+import { quantizeVoxelCoordToCellCenter, quantizeVoxelCoordToGridLine, resolveVoxelGridStep, resolveVoxelLayerSpacing } from './threeLayoutConfig'
 import { intersectRayWithZPlane } from './raycast'
+import { listVoxelLayers, resolveVoxelLayerKey } from './voxelLayers'
+import { VoxelDistricts, VoxelDistrictAmbientField } from './VoxelDistricts'
+import { VoxelBridgeTubes } from './VoxelBridgeTubes'
 
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min
   if (value > max) return max
   return value
+}
+
+const clamp01 = (v: number): number => {
+  if (v < 0) return 0
+  if (v > 1) return 1
+  return v
+}
+
+const easeOutCubic = (t: number): number => {
+  const u = 1 - clamp01(t)
+  return 1 - u * u * u
+}
+
+const VOXEL_CLUSTER_PULSE_RING_COLOR = '#ff3b3b'
+
+function VoxelLayerPlates({
+  plates,
+  span,
+  opacity,
+  gridStep,
+  riseDurationMs,
+  riseStaggerMs,
+  enabledKey,
+}: {
+  plates: Array<{ key: string; z: number; color: string }>
+  span: number
+  opacity: number
+  gridStep: number
+  riseDurationMs: number
+  riseStaggerMs: number
+  enabledKey: string
+}) {
+  const meshByKeyRef = React.useRef<Record<string, THREE.Mesh | null>>({})
+  const startTRef = React.useRef<number | null>(null)
+  React.useEffect(() => {
+    startTRef.current = null
+  }, [enabledKey])
+  useFrame(({ clock }) => {
+    if (plates.length === 0) return
+    const t0 = startTRef.current
+    const now = clock.getElapsedTime()
+    if (t0 == null) {
+      startTRef.current = now
+      return
+    }
+    const dt = Math.max(0, now - t0)
+    const dur = Math.max(0.08, riseDurationMs / 1000)
+    const stag = Math.max(0, riseStaggerMs / 1000)
+    const riseDist = Math.max(24, Math.min(420, gridStep * 7))
+    for (let i = 0; i < plates.length; i += 1) {
+      const plate = plates[i]!
+      const mesh = meshByKeyRef.current[plate.key]
+      if (!mesh) continue
+      const p = clamp01((dt - i * stag) / dur)
+      const e = easeOutCubic(p)
+      mesh.position.z = (plate.z - 0.6) - riseDist * (1 - e)
+    }
+  })
+  if (!plates.length || !(span > 0)) return null
+  return (
+    <group>
+      {plates.map((p) => (
+        <mesh
+          key={p.key}
+          ref={(el) => {
+            meshByKeyRef.current[p.key] = el
+          }}
+          position={[0, 0, p.z - 0.6]}
+          renderOrder={THREE_RENDER_ORDER.groups - 4}
+        >
+          <planeGeometry args={[span, span]} />
+          <meshStandardMaterial
+            color={p.color}
+            transparent
+            opacity={opacity}
+            roughness={0.95}
+            metalness={0.08}
+            emissive={p.color}
+            emissiveIntensity={0.06}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+function VoxelClusterPulseRings({
+  rings,
+  strength,
+  enabledKey,
+}: {
+  rings: Array<{ id: string; pos: [number, number, number]; r: number }>
+  strength: number
+  enabledKey: string
+}) {
+  const meshByIdRef = React.useRef<Record<string, THREE.Mesh | null>>({})
+  const matByIdRef = React.useRef<Record<string, THREE.MeshBasicMaterial | null>>({})
+  const startTRef = React.useRef<number | null>(null)
+  React.useEffect(() => {
+    startTRef.current = null
+  }, [enabledKey])
+  useFrame(({ clock }) => {
+    if (!rings.length) return
+    const now = clock.getElapsedTime()
+    if (startTRef.current == null) startTRef.current = now
+    const t = now
+    const s = Math.max(0, Math.min(1.2, strength))
+    const baseOpacity = 0.22 + s * 0.34
+    for (let i = 0; i < rings.length; i += 1) {
+      const r = rings[i]!
+      const mesh = meshByIdRef.current[r.id]
+      const mat = matByIdRef.current[r.id]
+      if (!mesh || !mat) continue
+      const phase = t * 1.6 + (r.id.length % 7) * 0.6
+      const pulse = 1 + Math.sin(phase) * (0.06 + s * 0.12)
+      mesh.scale.set(pulse, pulse, 1)
+      mat.opacity = clamp01(baseOpacity + Math.sin(phase * 1.1) * (0.06 + s * 0.12))
+    }
+  })
+  if (!rings.length) return null
+  return (
+    <group>
+      {rings.map((r) => (
+        <mesh
+          key={r.id}
+          ref={(el) => {
+            meshByIdRef.current[r.id] = el
+          }}
+          position={r.pos}
+          renderOrder={THREE_RENDER_ORDER.edges - 1}
+        >
+          <ringGeometry args={[Math.max(1, r.r * 0.86), Math.max(1.2, r.r), 72]} />
+          <meshBasicMaterial
+            ref={(m) => {
+              matByIdRef.current[r.id] = m
+            }}
+            color={VOXEL_CLUSTER_PULSE_RING_COLOR}
+            transparent
+            opacity={0.35}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
+    </group>
+  )
 }
 
 export function Scene({
@@ -46,6 +195,8 @@ export function Scene({
   onSelectNode,
   onHoverNode,
   onHoverEdge,
+  onHoverEdgeIdChange,
+  hoveredEdgeId,
   onDragNode,
   draggedNodeId,
   theme,
@@ -60,6 +211,8 @@ export function Scene({
   onSelectNode: (id: string) => void;
   onHoverNode?: (info: { id: string; clientX: number; clientY: number } | null) => void;
   onHoverEdge?: (info: { id: string; clientX: number; clientY: number } | null) => void;
+  onHoverEdgeIdChange?: (id: string | null) => void;
+  hoveredEdgeId?: string | null;
   onDragNode?: (id: string | null) => void;
   draggedNodeId?: string | null;
   theme?: KgTheme;
@@ -184,25 +337,25 @@ export function Scene({
 
   const cameraConfig = getCameraConfig(schema)
   const hiddenNodeIds = hiddenNodeIdSet || null
-  React.useEffect(() => {
-    // Force dependency on theme
+  const backgroundColorEffective = React.useMemo(() => {
     void theme
     const threeCfgLocal: ThreeConfig = getThreeConfig(schema)
     const raw = threeCfgLocal.backgroundColor
-    let color: string
-    if (typeof raw === 'string' && raw.trim() !== '') {
-      color = raw
-    } else {
-      color = resolveCssVar('--kg-canvas-bg', '#ffffff')
-    }
+    if (typeof raw === 'string' && raw.trim() !== '') return raw
+    if (mode === 'voxel') return resolveCssVar('--kg-canvas-bg', '#05050f')
+    return resolveCssVar('--kg-canvas-bg', '#ffffff')
+  }, [mode, schema, theme])
+  React.useEffect(() => {
     try {
-      gl.setClearColor(color)
+      gl.setClearColor(backgroundColorEffective)
     } catch {
       void 0
     }
-  }, [gl, schema, theme])
+  }, [backgroundColorEffective, gl])
   const arrowLenDefault = typeof threeCfg.linkDirectionalArrowLength === 'number' ? Math.max(2, Math.min(24, threeCfg.linkDirectionalArrowLength)) : 8
-  const linkOpacityDefault = typeof threeCfg.linkOpacity === 'number' ? Math.max(0, Math.min(1, threeCfg.linkOpacity)) : 0.6
+  const linkOpacityDefault = typeof threeCfg.linkOpacity === 'number'
+    ? Math.max(0, Math.min(1, threeCfg.linkOpacity))
+    : (mode === 'voxel' ? 0.18 : 0.6)
   const linkCurvatureDefault = typeof threeCfg.linkCurvature === 'number' ? Math.max(0, Math.min(1.5, threeCfg.linkCurvature)) : 0
   const globalEdgeType = readGlobalEdgeType(schema)
   const linkCurvatureByEdgeType = (() => {
@@ -237,20 +390,27 @@ export function Scene({
   const localDragOverridesRef = React.useRef<Record<string, Vec3>>({})
   const dragRef = dragOverridesRef || localDragOverridesRef
   const voxelGridStep = resolveVoxelGridStep(schema)
+  const voxelLayerSpacing = resolveVoxelLayerSpacing(schema)
   const voxelSnapEnabled = schema?.behavior?.snapGrid?.enabled === true
   const voxelGridVisualEnabled = schema?.behavior?.canvasGrid?.enabled === true
-  const snapVoxelDragPoint = React.useCallback((x: number, y: number): Vec3 => {
-    if (!voxelSnapEnabled) return [x, y, 0]
+  const snapVoxelDragPoint = React.useCallback((x: number, y: number, z: number): Vec3 => {
+    if (!voxelSnapEnabled) return [x, y, z]
     const sx = quantizeVoxelCoordToCellCenter(x, voxelGridStep)
     const sy = quantizeVoxelCoordToCellCenter(y, voxelGridStep)
-    return [sx, sy, 0]
+    return [sx, sy, z]
   }, [voxelGridStep, voxelSnapEnabled])
+  const resolveVoxelDragPlaneZ = React.useCallback((id: string): number => {
+    const p = positions[String(id)]
+    const z = p ? Number(p[2]) : 0
+    return Number.isFinite(z) ? z : 0
+  }, [positions])
   const handleDragStart = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     if (mode === 'voxel') {
-      const hit = intersectRayWithZPlane(e.ray, 0)
+      const z = resolveVoxelDragPlaneZ(id)
+      const hit = intersectRayWithZPlane(e.ray, z)
       const p = hit || e.point
-      dragRef.current[id] = snapVoxelDragPoint(p.x, p.y)
+      dragRef.current[id] = snapVoxelDragPoint(p.x, p.y, z)
       return
     }
     const p = e.point.clone()
@@ -263,13 +423,14 @@ export function Scene({
       p.y = clamped.cy
     }
     dragRef.current[id] = [p.x, p.y, p.z]
-  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema, snapVoxelDragPoint])
+  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, resolveVoxelDragPlaneZ, schema, snapVoxelDragPoint])
   const handleDrag = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     if (mode === 'voxel') {
-      const hit = intersectRayWithZPlane(e.ray, 0)
+      const z = resolveVoxelDragPlaneZ(id)
+      const hit = intersectRayWithZPlane(e.ray, z)
       const p = hit || e.point
-      dragRef.current[id] = snapVoxelDragPoint(p.x, p.y)
+      dragRef.current[id] = snapVoxelDragPoint(p.x, p.y, z)
       return
     }
     const p = e.point.clone()
@@ -282,13 +443,14 @@ export function Scene({
       p.y = clamped.cy
     }
     dragRef.current[id] = [p.x, p.y, p.z]
-  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema, snapVoxelDragPoint])
+  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, resolveVoxelDragPlaneZ, schema, snapVoxelDragPoint])
   const handleDragEnd = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     if (mode === 'voxel') {
-      const hit = intersectRayWithZPlane(e.ray, 0)
+      const z = resolveVoxelDragPlaneZ(id)
+      const hit = intersectRayWithZPlane(e.ray, z)
       const p = hit || e.point
-      dragRef.current[id] = snapVoxelDragPoint(p.x, p.y)
+      dragRef.current[id] = snapVoxelDragPoint(p.x, p.y, z)
       requestAnimationFrame(() => {
         delete dragRef.current[id]
       })
@@ -305,13 +467,126 @@ export function Scene({
     }
     dragRef.current[id] = [p.x, p.y, p.z]
     delete dragRef.current[id]
-  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, schema, snapVoxelDragPoint])
+  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, resolveVoxelDragPlaneZ, schema, snapVoxelDragPoint])
   const allowNodeDrag = schema.behavior ? schema.behavior.allowNodeDrag !== false : true
   const voxelClusterLightIntensity = (() => {
     const raw = schema.three?.voxelClusterLightIntensity
     if (typeof raw !== 'number' || !Number.isFinite(raw)) return 0.7
     return Math.max(0, Math.min(2, raw))
   })()
+  const voxelEdgeHoverOpacity = (() => {
+    const raw = schema.three?.voxelEdgeHoverOpacity
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) return 0.65
+    return Math.max(0, Math.min(1, raw))
+  })()
+  const voxelAnimationEnabled = schema.three?.voxelAnimationEnabled !== false
+  const voxelLayerPlatesEnabled = voxelAnimationEnabled
+  const voxelLayerPlateOpacity = (() => {
+    const raw = schema.three?.voxelLayerPlateOpacity
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) return 0.06
+    return Math.max(0, Math.min(0.45, raw))
+  })()
+  const voxelLayerPlateRiseDurationMs = (() => {
+    const raw = schema.three?.voxelLayerPlateRiseDurationMs
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) return 900
+    return Math.max(80, Math.min(6000, Math.floor(raw)))
+  })()
+  const voxelLayerPlateRiseStaggerMs = (() => {
+    const raw = schema.three?.voxelLayerPlateRiseStaggerMs
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) return 160
+    return Math.max(0, Math.min(2000, Math.floor(raw)))
+  })()
+  const voxelClusterPulseEnabled = voxelAnimationEnabled
+  const voxelClusterPulseStrength = (() => {
+    const raw = schema.three?.voxelClusterPulseStrength
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) return 0.22
+    return Math.max(0, Math.min(1.2, raw))
+  })()
+
+  const voxelLayers = React.useMemo(() => {
+    if (mode !== 'voxel') return []
+    return listVoxelLayers(data.nodes)
+  }, [data.nodes, mode])
+
+  const voxelLayerPlates = React.useMemo(() => {
+    if (mode !== 'voxel' || !voxelLayerPlatesEnabled || voxelLayers.length === 0) return [] as Array<{ key: string; z: number; color: string }>
+    const zByKey = new Map<string, number>()
+    for (let i = 0; i < data.nodes.length; i += 1) {
+      const n = data.nodes[i]
+      const p = positions[n.id]
+      if (!p) continue
+      const key = resolveVoxelLayerKey(n)
+      const z = Number(p[2])
+      if (!Number.isFinite(z)) continue
+      const prev = zByKey.get(key)
+      if (prev == null || z < prev) zByKey.set(key, z)
+    }
+    const out: Array<{ key: string; z: number; color: string }> = []
+    for (let i = 0; i < voxelLayers.length; i += 1) {
+      const key = voxelLayers[i]!.key
+      const z = zByKey.get(key)
+      const sample = data.nodes.find(n => resolveVoxelLayerKey(n) === key) || null
+      const sampleProps = ((sample?.properties || {}) as Record<string, unknown>)
+      const layerColorRaw = typeof sampleProps['layer:color'] === 'string' ? String(sampleProps['layer:color']).trim() : ''
+      const color = layerColorRaw || (sample ? (resolveVoxelClusterColor(sample) || '#00f5ff') : '#00f5ff')
+      const fallbackZ = quantizeVoxelCoordToGridLine(i * voxelLayerSpacing, voxelGridStep)
+      out.push({ key, z: typeof z === 'number' && Number.isFinite(z) ? z : fallbackZ, color })
+    }
+    return out
+  }, [data.nodes, mode, positions, voxelGridStep, voxelLayerPlatesEnabled, voxelLayerSpacing, voxelLayers])
+
+  const voxelClusterRings = React.useMemo(() => {
+    if (mode !== 'voxel' || !voxelClusterPulseEnabled) return [] as Array<{ id: string; pos: [number, number, number]; r: number }>
+    const stats = new Map<string, { x: number; y: number; z: number; count: number; maxR2: number }>()
+    for (let i = 0; i < data.nodes.length; i += 1) {
+      const n = data.nodes[i]
+      const p = positions[n.id]
+      if (!p) continue
+      const g = resolveVoxelClusterKey(n)
+      if (!g) continue
+      const x = Number(p[0])
+      const y = Number(p[1])
+      const z = Number(p[2])
+      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue
+      const prev = stats.get(g)
+      if (!prev) {
+        stats.set(g, { x, y, z, count: 1, maxR2: 0 })
+      } else {
+        prev.x += x
+        prev.y += y
+        prev.z += z
+        prev.count += 1
+      }
+    }
+    const centers = new Map<string, { cx: number; cy: number; cz: number }>()
+    for (const [id, v] of stats.entries()) {
+      const inv = v.count > 0 ? 1 / v.count : 1
+      centers.set(id, { cx: v.x * inv, cy: v.y * inv, cz: v.z * inv })
+    }
+    for (let i = 0; i < data.nodes.length; i += 1) {
+      const n = data.nodes[i]
+      const p = positions[n.id]
+      if (!p) continue
+      const g = resolveVoxelClusterKey(n)
+      if (!g) continue
+      const c = centers.get(g)
+      if (!c) continue
+      const dx = Number(p[0]) - c.cx
+      const dy = Number(p[1]) - c.cy
+      const r2 = dx * dx + dy * dy
+      const st = stats.get(g)
+      if (st && Number.isFinite(r2) && r2 > st.maxR2) st.maxR2 = r2
+    }
+    const out: Array<{ id: string; pos: [number, number, number]; r: number }> = []
+    for (const [id, v] of stats.entries()) {
+      const c = centers.get(id)
+      if (!c) continue
+      const base = Math.sqrt(Math.max(0, v.maxR2))
+      const r = Math.max(voxelGridStep * 4, base + voxelGridStep * 3)
+      out.push({ id, pos: [c.cx, c.cy, c.cz + 0.8], r })
+    }
+    return out
+  }, [data.nodes, mode, positions, voxelClusterPulseEnabled, voxelGridStep])
   const voxelGroupLights = React.useMemo(() => {
     if (mode !== 'voxel') return [] as Array<{ id: string; pos: [number, number, number]; color: string }>
     const byGroupId = new Map<string, { x: number; y: number; z: number; count: number }>()
@@ -413,7 +688,34 @@ export function Scene({
     const w = typeof cur?.minorWidthPx === 'number' && Number.isFinite(cur.minorWidthPx) ? cur.minorWidthPx : 1
     return Math.max(0.5, Math.min(4, w))
   })()
-  const voxelGroundColor = resolveCssVar('--kg-canvas-bg', '#0b1220')
+  const voxelGroundColor = backgroundColorEffective
+  const voxelPlateSpan = React.useMemo(() => {
+    if (mode !== 'voxel') return 0
+    const span = voxelGround?.span
+    if (typeof span === 'number' && Number.isFinite(span) && span > 0) return span
+    try {
+      return computeVoxelGround(voxelGridStep).span
+    } catch {
+      return 0
+    }
+  }, [computeVoxelGround, mode, voxelGridStep, voxelGround?.span])
+  const voxelLayerLights = React.useMemo(() => {
+    if (mode !== 'voxel') return [] as Array<{ key: string; pos: [number, number, number]; color: string }>
+    if (!voxelLayerPlatesEnabled || voxelLayerPlates.length === 0) return []
+    const lift = Math.max(24, Math.min(220, voxelLayerSpacing * 0.65))
+    return voxelLayerPlates.map(p => ({ key: p.key, pos: [0, 0, p.z + lift] as [number, number, number], color: p.color }))
+  }, [mode, voxelLayerPlates, voxelLayerPlatesEnabled, voxelLayerSpacing])
+  const hoverEdgeKey = mode === 'voxel' && typeof hoveredEdgeId === 'string' && hoveredEdgeId.trim() ? hoveredEdgeId.trim() : null
+
+  const fogColorEffective = mode === 'voxel'
+    ? (cameraConfig.fogColor || backgroundColorEffective)
+    : cameraConfig.fogColor
+  const fogNearEffective = (mode === 'voxel' && !cameraConfig.fogColor)
+    ? Math.max(20, voxelPlateSpan > 0 ? voxelPlateSpan * 0.35 : cameraConfig.fogNear)
+    : cameraConfig.fogNear
+  const fogFarEffective = (mode === 'voxel' && !cameraConfig.fogColor)
+    ? Math.max(fogNearEffective + 1, voxelPlateSpan > 0 ? voxelPlateSpan * 1.35 : cameraConfig.fogFar)
+    : cameraConfig.fogFar
 
   const sceneGroupRef = React.useRef<THREE.Group | null>(null)
   useFrame(({ clock }) => {
@@ -434,12 +736,39 @@ export function Scene({
   })
   return (
     <>
-      {cameraConfig.fogColor ? (
-        <fog attach="fog" args={[cameraConfig.fogColor, cameraConfig.fogNear, cameraConfig.fogFar]} />
+      {fogColorEffective ? (
+        mode === 'voxel'
+          ? (
+            <fogExp2
+              attach="fog"
+              args={[
+                fogColorEffective,
+                clamp(
+                  (1 / Math.max(200, voxelPlateSpan || 200)) * 0.65,
+                  0.0008,
+                  0.004,
+                ),
+              ]}
+            />
+          )
+          : (
+            <fog attach="fog" args={[fogColorEffective, fogNearEffective, fogFarEffective]} />
+          )
       ) : null}
-      <ambientLight intensity={0.9} />
-      <hemisphereLight args={['#ffffff', '#cbd5e1', 0.6]} />
-      <pointLight position={[120, 120, 120]} intensity={0.9} />
+      {mode === 'voxel' ? (
+        <>
+          <ambientLight intensity={0.55} />
+          <directionalLight castShadow position={[120, 180, 200]} intensity={0.65} color={'#ffffff'} shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
+          <directionalLight castShadow position={[-160, -90, 80]} intensity={0.25} color={'#8090c0'} shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
+          <pointLight position={[0, 0, 160]} intensity={0.25} />
+        </>
+      ) : (
+        <>
+          <ambientLight intensity={0.9} />
+          <hemisphereLight args={['#ffffff', '#cbd5e1', 0.6]} />
+          <pointLight position={[120, 120, 120]} intensity={0.9} />
+        </>
+      )}
       {mode === 'voxel' && voxelGround && voxelGridVisualEnabled ? (
         <group>
           <gridHelper
@@ -450,15 +779,46 @@ export function Scene({
             material-opacity={voxelGridOpacity}
             material-linewidth={voxelGridLineWidth}
           />
+          <gridHelper
+            args={[voxelGround.span, Math.min(640, voxelGround.divisions * 2), voxelGridMinorColor, voxelGridMinorColor]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            position={[0, 0, 0.03]}
+            material-transparent={true}
+            material-opacity={Math.max(0, Math.min(1, voxelGridOpacity * 0.55))}
+            material-linewidth={Math.max(0.5, Math.min(3, voxelGridLineWidth * 0.8))}
+          />
           <mesh position={[0, 0, -0.5]}>
             <planeGeometry args={[voxelGround.span, voxelGround.span]} />
-            <meshStandardMaterial color={voxelGroundColor} transparent opacity={0.22} roughness={0.95} metalness={0.05} />
+            <meshStandardMaterial color={voxelGroundColor} transparent opacity={0.12} roughness={0.95} metalness={0.05} />
           </mesh>
         </group>
+      ) : null}
+      {mode === 'voxel' && voxelLayerPlatesEnabled && voxelLayerPlates.length > 0 && voxelPlateSpan > 0 ? (
+        <VoxelLayerPlates
+          plates={voxelLayerPlates}
+          span={voxelPlateSpan}
+          opacity={voxelLayerPlateOpacity}
+          gridStep={voxelGridStep}
+          riseDurationMs={voxelLayerPlateRiseDurationMs}
+          riseStaggerMs={voxelLayerPlateRiseStaggerMs}
+          enabledKey={`${voxelLayerPlates.map(p => p.key).join('|')}|${voxelPlateSpan}|${voxelLayerPlateRiseDurationMs}|${voxelLayerPlateRiseStaggerMs}`}
+        />
+      ) : null}
+      {mode === 'voxel' && voxelClusterPulseEnabled && voxelClusterRings.length > 0 ? (
+        <VoxelClusterPulseRings
+          rings={voxelClusterRings}
+          strength={voxelClusterPulseStrength}
+          enabledKey={`${voxelClusterRings.length}|${voxelClusterPulseStrength}`}
+        />
       ) : null}
       {mode === 'voxel'
         ? voxelGroupLights.map(light => (
           <pointLight key={light.id} position={light.pos} color={light.color} intensity={voxelClusterLightIntensity} distance={160} decay={2} />
+        ))
+        : null}
+      {mode === 'voxel'
+        ? voxelLayerLights.map(light => (
+          <pointLight key={`layer:${light.key}`} position={light.pos} color={light.color} intensity={Math.max(0, Math.min(1.8, voxelClusterLightIntensity * 0.65))} distance={240} decay={2} />
         ))
         : null}
       {mode !== 'voxel' && starfieldEnabled && starfieldCount > 0 ? (
@@ -472,6 +832,12 @@ export function Scene({
       ) : null}
       <group ref={sceneGroupRef}>
         <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragRef} paused={paused} mode={mode} />
+        {mode === 'voxel' ? (
+          <>
+            <VoxelDistricts nodes={data.nodes} positions={positions} schema={schema} paused={paused} />
+            <VoxelDistrictAmbientField nodes={data.nodes} positions={positions} schema={schema} paused={paused} />
+          </>
+        ) : null}
         {mode !== 'voxel' ? (
           <GlobeEffects
             data={data}
@@ -482,7 +848,21 @@ export function Scene({
           />
         ) : null}
         <GroupOverlays3d data={data} schema={schema} positions={positions} dragOverridesRef={dragRef} renderOrder={THREE_RENDER_ORDER.groups} />
-        {threeEdgeRenderer === 'shaderLine' ? (
+        {mode === 'voxel' && threeEdgeRenderer === 'tubeBridge' ? (
+          <VoxelBridgeTubes
+            data={data}
+            positions={positions}
+            schema={schema}
+            paused={paused}
+            hoveredEdgeId={hoverEdgeKey}
+            onSelectEdge={(id) => {
+              setSelectionSource('canvas')
+              selectEdge(id)
+            }}
+            onHoverEdge={onHoverEdge}
+            onHoverEdgeIdChange={onHoverEdgeIdChange}
+          />
+        ) : (threeEdgeRenderer === 'shaderLine' || (threeEdgeRenderer === 'tubeBridge' && mode !== 'voxel')) ? (
           <ShaderLineEdges
             edges={data.edges}
             positions={positions}
@@ -495,6 +875,12 @@ export function Scene({
             selectedNodeIdSet={selectionSets.selectedNodeIdSet}
             dimmedEdgeOpacity={selectionVisuals.dimmedEdgeOpacity}
             selectedEdgeWidth={selectionVisuals.selectedEdgeWidth}
+            hoveredEdgeId={hoverEdgeKey}
+            hoverOpacity={mode === 'voxel' ? voxelEdgeHoverOpacity : undefined}
+            opacity={linkOpacityDefault}
+            introEnabled={mode === 'voxel' && voxelAnimationEnabled}
+            introDelayMs={schema.three?.voxelIntroDelayMs ?? 320}
+            introDurationMs={schema.three?.voxelIntroDurationMs ?? 1100}
             paused={paused}
             motionIntensity={motionIntensityForMode}
             draggedNodeId={draggedNodeId}
@@ -506,6 +892,7 @@ export function Scene({
               selectEdge(id)
             }}
             onHoverEdge={onHoverEdge}
+            onHoverEdgeIdChange={onHoverEdgeIdChange}
           />
         ) : (
           data.edges.map((e) => {
@@ -598,6 +985,9 @@ export function Scene({
               width = Math.max(1, Math.min(baseWidth, selectedEdgeWidth * 0.5))
             }
           }
+          if (hoverEdgeKey && hoverEdgeKey === String(e.id) && voxelEdgeHoverOpacity > 0) {
+            finalOpacity = Math.max(finalOpacity, voxelEdgeHoverOpacity)
+          }
           const resolvedFinalColor = resolveThreeColor(finalColor, neutralEdgeColor)
           return (
             <group
@@ -610,6 +1000,7 @@ export function Scene({
                 selectEdge(e.id)
               }}
               onPointerOver={(evt: ThreeEvent<PointerEvent>) => {
+                onHoverEdgeIdChange?.(e.id)
                 if (onHoverEdge) {
                   onHoverEdge({ id: e.id, clientX: evt.clientX, clientY: evt.clientY })
                 }
@@ -620,6 +1011,7 @@ export function Scene({
                 }
               }}
               onPointerOut={() => {
+                onHoverEdgeIdChange?.(null)
                 if (onHoverEdge) {
                   onHoverEdge(null)
                 }

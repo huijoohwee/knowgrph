@@ -16,7 +16,7 @@ export const testValidateSchemaFillsDefaults = () => {
   const s = validateSchema({})
   if (!s.labelStyles || s.labelStyles.fontSize !== defaultSchema.labelStyles!.fontSize) throw new Error('fontSize default missing')
   if (!s.layout || !s.layout.forces || typeof s.layout.forces.charge !== 'number') throw new Error('layout defaults missing')
-  if (!s.layout || s.layout.mode !== 'force') throw new Error('layout mode default missing')
+  if (!s.layout || s.layout.mode !== defaultSchema.layout!.mode) throw new Error('layout mode default missing')
 }
 
 export const testValidateSchemaBehaviorDefaults = () => {

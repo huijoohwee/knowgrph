@@ -49,12 +49,93 @@ export const threeSettingsRegistry: SettingMeta[] = [
     read: () => s().threeEdgeRenderer,
     write: (v) => {
       const raw = String(v || '')
-      const next = raw === 'shaderLine' ? raw : 'mesh'
-      s().setThreeEdgeRenderer(next as 'mesh' | 'shaderLine')
+      const next = raw === 'shaderLine' || raw === 'tubeBridge' ? raw : 'mesh'
+      s().setThreeEdgeRenderer(next as 'mesh' | 'shaderLine' | 'tubeBridge')
     },
     docKey: 'three.graph.edgeRenderer',
     default: () => 'mesh',
-    options: ['mesh', 'shaderLine'],
+    options: ['mesh', 'shaderLine', 'tubeBridge'],
+  },
+  {
+    key: 'three.voxel.districts.enabled',
+    type: 'boolean',
+    source: 'store',
+    read: () => (s().schema?.three?.voxelDistrictsEnabled ?? true) === true,
+    write: (v) => s().setThreeConfig({ voxelDistrictsEnabled: Boolean(v) }),
+    docKey: 'three.voxel.districts.enabled',
+    default: () => true,
+  },
+  {
+    key: 'three.voxel.districts.paddingCells',
+    type: 'number',
+    source: 'store',
+    read: () => (typeof s().schema?.three?.voxelDistrictPaddingCells === 'number' ? s().schema!.three!.voxelDistrictPaddingCells! : 2),
+    write: (v) => s().setThreeConfig({ voxelDistrictPaddingCells: Number(v) }),
+    docKey: 'three.voxel.districts.paddingCells',
+    default: () => 2,
+  },
+  {
+    key: 'three.voxel.districts.opacity',
+    type: 'number',
+    source: 'store',
+    read: () => (typeof s().schema?.three?.voxelDistrictOpacity === 'number' ? s().schema!.three!.voxelDistrictOpacity! : 0.14),
+    write: (v) => s().setThreeConfig({ voxelDistrictOpacity: Number(v) }),
+    docKey: 'three.voxel.districts.opacity',
+    default: () => 0.14,
+  },
+  {
+    key: 'three.voxel.bridges.tubeRadius',
+    type: 'number',
+    source: 'store',
+    read: () => (typeof s().schema?.three?.voxelBridgeTubeRadius === 'number' ? s().schema!.three!.voxelBridgeTubeRadius! : 2.2),
+    write: (v) => s().setThreeConfig({ voxelBridgeTubeRadius: Number(v) }),
+    docKey: 'three.voxel.bridges.tubeRadius',
+    default: () => 2.2,
+  },
+  {
+    key: 'three.voxel.bridges.opacity',
+    type: 'number',
+    source: 'store',
+    read: () => (typeof s().schema?.three?.voxelBridgeTubeOpacity === 'number' ? s().schema!.three!.voxelBridgeTubeOpacity! : 0.55),
+    write: (v) => s().setThreeConfig({ voxelBridgeTubeOpacity: Number(v) }),
+    docKey: 'three.voxel.bridges.opacity',
+    default: () => 0.55,
+  },
+  {
+    key: 'three.voxel.bridges.pulseStrength',
+    type: 'number',
+    source: 'store',
+    read: () => (typeof s().schema?.three?.voxelBridgeTubePulseStrength === 'number' ? s().schema!.three!.voxelBridgeTubePulseStrength! : 0.45),
+    write: (v) => s().setThreeConfig({ voxelBridgeTubePulseStrength: Number(v) }),
+    docKey: 'three.voxel.bridges.pulseStrength',
+    default: () => 0.45,
+  },
+  {
+    key: 'three.voxel.bridges.particles.enabled',
+    type: 'boolean',
+    source: 'store',
+    read: () => (s().schema?.three?.voxelBridgeParticlesEnabled ?? true) === true,
+    write: (v) => s().setThreeConfig({ voxelBridgeParticlesEnabled: Boolean(v) }),
+    docKey: 'three.voxel.bridges.particles.enabled',
+    default: () => true,
+  },
+  {
+    key: 'three.voxel.bridges.particles.density',
+    type: 'number',
+    source: 'store',
+    read: () => (typeof s().schema?.three?.voxelBridgeParticleDensity === 'number' ? s().schema!.three!.voxelBridgeParticleDensity! : 0.7),
+    write: (v) => s().setThreeConfig({ voxelBridgeParticleDensity: Number(v) }),
+    docKey: 'three.voxel.bridges.particles.density',
+    default: () => 0.7,
+  },
+  {
+    key: 'three.voxel.bridges.particles.speed',
+    type: 'number',
+    source: 'store',
+    read: () => (typeof s().schema?.three?.voxelBridgeParticleSpeed === 'number' ? s().schema!.three!.voxelBridgeParticleSpeed! : 0.75),
+    write: (v) => s().setThreeConfig({ voxelBridgeParticleSpeed: Number(v) }),
+    docKey: 'three.voxel.bridges.particles.speed',
+    default: () => 0.75,
   },
   {
     key: 'three.graph.shaderLineWidthPx',
@@ -517,6 +598,18 @@ export const threeSettingsRegistry: SettingMeta[] = [
     default: () => 0,
   },
   {
+    key: 'three.layout.voxelAnimationEnabled',
+    type: 'boolean',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return schema.three?.voxelAnimationEnabled !== false
+    },
+    write: (v) => s().setThreeConfig({ voxelAnimationEnabled: Boolean(v) }),
+    docKey: 'three.layout.voxelAnimationEnabled',
+    default: () => true,
+  },
+  {
     key: 'three.layout.voxelSeedScaleFactor',
     type: 'number',
     source: 'store',
@@ -539,6 +632,150 @@ export const threeSettingsRegistry: SettingMeta[] = [
     write: (v) => s().setThreeConfig({ voxelGridScaleFactor: Number(v) }),
     docKey: 'three.layout.voxelGridScaleFactor',
     default: () => 1,
+  },
+  {
+    key: 'three.layout.voxelLayerSpacing',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelLayerSpacing === 'number' ? schema.three.voxelLayerSpacing : 84
+    },
+    write: (v) => s().setThreeConfig({ voxelLayerSpacing: Number(v) }),
+    docKey: 'three.layout.voxelLayerSpacing',
+    default: () => 84,
+  },
+  {
+    key: 'three.layout.voxelLayerPlateOpacity',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelLayerPlateOpacity === 'number' ? schema.three.voxelLayerPlateOpacity : 0.06
+    },
+    write: (v) => s().setThreeConfig({ voxelLayerPlateOpacity: Number(v) }),
+    docKey: 'three.layout.voxelLayerPlateOpacity',
+    default: () => 0.06,
+  },
+  {
+    key: 'three.layout.voxelLayerPlateRiseDurationMs',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelLayerPlateRiseDurationMs === 'number' ? schema.three.voxelLayerPlateRiseDurationMs : 900
+    },
+    write: (v) => s().setThreeConfig({ voxelLayerPlateRiseDurationMs: Number(v) }),
+    docKey: 'three.layout.voxelLayerPlateRiseDurationMs',
+    default: () => 900,
+  },
+  {
+    key: 'three.layout.voxelLayerPlateRiseStaggerMs',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelLayerPlateRiseStaggerMs === 'number' ? schema.three.voxelLayerPlateRiseStaggerMs : 160
+    },
+    write: (v) => s().setThreeConfig({ voxelLayerPlateRiseStaggerMs: Number(v) }),
+    docKey: 'three.layout.voxelLayerPlateRiseStaggerMs',
+    default: () => 160,
+  },
+  {
+    key: 'three.layout.voxelClusterPulseStrength',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelClusterPulseStrength === 'number' ? schema.three.voxelClusterPulseStrength : 0.22
+    },
+    write: (v) => s().setThreeConfig({ voxelClusterPulseStrength: Number(v) }),
+    docKey: 'three.layout.voxelClusterPulseStrength',
+    default: () => 0.22,
+  },
+  {
+    key: 'three.layout.voxelEdgeHoverOpacity',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelEdgeHoverOpacity === 'number' ? schema.three.voxelEdgeHoverOpacity : 0.65
+    },
+    write: (v) => s().setThreeConfig({ voxelEdgeHoverOpacity: Number(v) }),
+    docKey: 'three.layout.voxelEdgeHoverOpacity',
+    default: () => 0.65,
+  },
+  {
+    key: 'three.layout.voxelIntroDelayMs',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelIntroDelayMs === 'number' ? schema.three.voxelIntroDelayMs : 320
+    },
+    write: (v) => s().setThreeConfig({ voxelIntroDelayMs: Number(v) }),
+    docKey: 'three.layout.voxelIntroDelayMs',
+    default: () => 320,
+  },
+  {
+    key: 'three.layout.voxelIntroDurationMs',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelIntroDurationMs === 'number' ? schema.three.voxelIntroDurationMs : 1100
+    },
+    write: (v) => s().setThreeConfig({ voxelIntroDurationMs: Number(v) }),
+    docKey: 'three.layout.voxelIntroDurationMs',
+    default: () => 1100,
+  },
+  {
+    key: 'three.layout.voxelDefaultYawDeg',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelDefaultYawDeg === 'number' ? schema.three.voxelDefaultYawDeg : -36
+    },
+    write: (v) => s().setThreeConfig({ voxelDefaultYawDeg: Number(v) }),
+    docKey: 'three.layout.voxelDefaultYawDeg',
+    default: () => -36,
+  },
+  {
+    key: 'three.layout.voxelDefaultTiltDeg',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelDefaultTiltDeg === 'number' ? schema.three.voxelDefaultTiltDeg : 32
+    },
+    write: (v) => s().setThreeConfig({ voxelDefaultTiltDeg: Number(v) }),
+    docKey: 'three.layout.voxelDefaultTiltDeg',
+    default: () => 32,
+  },
+  {
+    key: 'three.layout.voxelDefaultDistanceFactor',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelDefaultDistanceFactor === 'number' ? schema.three.voxelDefaultDistanceFactor : 2.2
+    },
+    write: (v) => s().setThreeConfig({ voxelDefaultDistanceFactor: Number(v) }),
+    docKey: 'three.layout.voxelDefaultDistanceFactor',
+    default: () => 2.2,
+  },
+  {
+    key: 'three.layout.voxelDefaultTargetLift',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelDefaultTargetLift === 'number' ? schema.three.voxelDefaultTargetLift : 8
+    },
+    write: (v) => s().setThreeConfig({ voxelDefaultTargetLift: Number(v) }),
+    docKey: 'three.layout.voxelDefaultTargetLift',
+    default: () => 8,
   },
   {
     key: 'three.layout.voxelGhostOpacity',
@@ -623,6 +860,78 @@ export const threeSettingsRegistry: SettingMeta[] = [
     write: (v) => s().setThreeConfig({ voxelIdleAutoRotateSpeed: Number(v) }),
     docKey: 'three.layout.voxelIdleAutoRotateSpeed',
     default: () => 0.12,
+  },
+  {
+    key: 'three.layout.voxelLabelsEnabled',
+    type: 'boolean',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return schema.three?.voxelLabelsEnabled !== false
+    },
+    write: (v) => s().setThreeConfig({ voxelLabelsEnabled: Boolean(v) }),
+    docKey: 'three.layout.voxelLabelsEnabled',
+    default: () => true,
+  },
+  {
+    key: 'three.layout.voxelLabelOpacity',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelLabelOpacity === 'number' ? schema.three.voxelLabelOpacity : 0.9
+    },
+    write: (v) => s().setThreeConfig({ voxelLabelOpacity: Number(v) }),
+    docKey: 'three.layout.voxelLabelOpacity',
+    default: () => 0.9,
+  },
+  {
+    key: 'three.layout.voxelLabelFontSizePx',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelLabelFontSizePx === 'number' ? schema.three.voxelLabelFontSizePx : 12
+    },
+    write: (v) => s().setThreeConfig({ voxelLabelFontSizePx: Number(v) }),
+    docKey: 'three.layout.voxelLabelFontSizePx',
+    default: () => 12,
+  },
+  {
+    key: 'three.layout.voxelLabelMaxChars',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelLabelMaxChars === 'number' ? schema.three.voxelLabelMaxChars : 42
+    },
+    write: (v) => s().setThreeConfig({ voxelLabelMaxChars: Number(v) }),
+    docKey: 'three.layout.voxelLabelMaxChars',
+    default: () => 42,
+  },
+  {
+    key: 'three.layout.voxelLabelShowOnHoverOnly',
+    type: 'boolean',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return schema.three?.voxelLabelShowOnHoverOnly === true
+    },
+    write: (v) => s().setThreeConfig({ voxelLabelShowOnHoverOnly: Boolean(v) }),
+    docKey: 'three.layout.voxelLabelShowOnHoverOnly',
+    default: () => false,
+  },
+  {
+    key: 'three.layout.voxelLabelLift',
+    type: 'number',
+    source: 'store',
+    read: () => {
+      const schema = s().schema
+      return typeof schema.three?.voxelLabelLift === 'number' ? schema.three.voxelLabelLift : 4
+    },
+    write: (v) => s().setThreeConfig({ voxelLabelLift: Number(v) }),
+    docKey: 'three.layout.voxelLabelLift',
+    default: () => 4,
   },
   {
     key: 'three.globe.effectsEnabled',

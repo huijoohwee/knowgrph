@@ -7,6 +7,7 @@ import { isGraphRagBundle, parseGraphRagBundle } from '@/lib/graph/graphrag'
 import { tryParseQuickEditorImportGraphData } from '@/lib/graph/io/quickEditorImport'
 import { tryBuildGeodataGraphDataFromJsonText } from '@/lib/graph/io/geodataJson'
 import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
+import { pmfVoxelToGraphData } from '@/lib/graph/io/pmfVoxel'
 import { coerceGeoJsonToFeatureCollection } from 'gympgrph'
 
 export type ParseDiagnostics = {
@@ -28,6 +29,29 @@ export const parseGraph = (name: string, text: string): { data: GraphData; diag:
 
   try {
     const json = JSON.parse(text)
+    const isPmfVoxelPayload = (() => {
+      if (!json || typeof json !== 'object' || Array.isArray(json)) return false
+      const obj = json as Record<string, unknown>
+      const layers = obj.layers
+      if (!Array.isArray(layers) || layers.length === 0) return false
+      let hasLayerNodes = false
+      for (let i = 0; i < layers.length; i += 1) {
+        const layer = layers[i]
+        if (!layer || typeof layer !== 'object' || Array.isArray(layer)) continue
+        const nodes = (layer as Record<string, unknown>).nodes
+        if (Array.isArray(nodes) && nodes.length > 0) {
+          hasLayerNodes = true
+          break
+        }
+      }
+      if (!hasLayerNodes) return false
+      const meta = obj.meta
+      return !!(meta && typeof meta === 'object' && !Array.isArray(meta))
+    })()
+    if (isPmfVoxelPayload) {
+      const data = pmfVoxelToGraphData(json)
+      return { data, diag: { format: 'json', warnings: [] } }
+    }
 
     const quickEditor = tryParseQuickEditorImportGraphData(json)
     if (quickEditor) {

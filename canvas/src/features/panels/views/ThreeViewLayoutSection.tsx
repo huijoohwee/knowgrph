@@ -11,6 +11,19 @@ import {
   LAYOUT_SEED_TOOLTIP,
   VOXEL_SEED_SCALE_TOOLTIP,
   VOXEL_GRID_SCALE_TOOLTIP,
+  VOXEL_LAYER_SPACING_TOOLTIP,
+  VOXEL_LAYER_PLATE_OPACITY_TOOLTIP,
+  VOXEL_LAYER_PLATE_RISE_DURATION_TOOLTIP,
+  VOXEL_LAYER_PLATE_RISE_STAGGER_TOOLTIP,
+  VOXEL_CLUSTER_PULSE_STRENGTH_TOOLTIP,
+  VOXEL_EDGE_HOVER_OPACITY_TOOLTIP,
+  VOXEL_GAP_RING_THRESHOLD_TOOLTIP,
+  VOXEL_INTRO_DELAY_TOOLTIP,
+  VOXEL_INTRO_DURATION_TOOLTIP,
+  VOXEL_DEFAULT_YAW_TOOLTIP,
+  VOXEL_DEFAULT_TILT_TOOLTIP,
+  VOXEL_DEFAULT_DISTANCE_FACTOR_TOOLTIP,
+  VOXEL_DEFAULT_TARGET_LIFT_TOOLTIP,
   VOXEL_GHOST_OPACITY_TOOLTIP,
   VOXEL_TOP_CAP_EMISSIVE_TOOLTIP,
   VOXEL_CLUSTER_LIGHT_TOOLTIP,
@@ -176,6 +189,20 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Animation</span>}
+          valueNode={(
+            <label className="flex items-center gap-2 text-gray-600">
+              <input
+                type="checkbox"
+                checked={schema.three?.voxelAnimationEnabled !== false}
+                onChange={e => setThreeConfig({ voxelAnimationEnabled: e.target.checked })}
+              />
+              <span className="text-xs">enabled</span>
+            </label>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
           keyNode={<span className="text-gray-700">Voxel Seed Scale</span>}
           valueNode={(
             <>
@@ -219,6 +246,317 @@ export default function ThreeViewLayoutSection({
               >
                 <span className="text-gray-600">
                   {String(schema.three?.voxelGridScaleFactor ?? 1)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Layer Spacing</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={20}
+                max={400}
+                step={4}
+                value={Number(schema.three?.voxelLayerSpacing ?? 84)}
+                onChange={e => setThreeConfig({ voxelLayerSpacing: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_LAYER_SPACING_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelLayerSpacing ?? 84)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Plate Opacity</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={0}
+                max={0.45}
+                step={0.01}
+                value={Number(schema.three?.voxelLayerPlateOpacity ?? 0.06)}
+                onChange={e => setThreeConfig({ voxelLayerPlateOpacity: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_LAYER_PLATE_OPACITY_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelLayerPlateOpacity ?? 0.06)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Plate Rise (ms)</span>}
+          valueNode={(
+            <Tooltip
+              content={VOXEL_LAYER_PLATE_RISE_DURATION_TOOLTIP}
+              maxWidthPx={260}
+              contentClassName="bg-gray-800/90"
+            >
+              <input
+                type="number"
+                className={uiPanelKeyValueInputClass}
+                value={Number(schema.three?.voxelLayerPlateRiseDurationMs ?? 900)}
+                onChange={e => setThreeConfig({ voxelLayerPlateRiseDurationMs: Number(e.target.value) })}
+              />
+            </Tooltip>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Plate Stagger (ms)</span>}
+          valueNode={(
+            <Tooltip
+              content={VOXEL_LAYER_PLATE_RISE_STAGGER_TOOLTIP}
+              maxWidthPx={260}
+              contentClassName="bg-gray-800/90"
+            >
+              <input
+                type="number"
+                className={uiPanelKeyValueInputClass}
+                value={Number(schema.three?.voxelLayerPlateRiseStaggerMs ?? 160)}
+                onChange={e => setThreeConfig({ voxelLayerPlateRiseStaggerMs: Number(e.target.value) })}
+              />
+            </Tooltip>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Pulse Strength</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={0}
+                max={1.2}
+                step={0.02}
+                value={Number(schema.three?.voxelClusterPulseStrength ?? 0.22)}
+                onChange={e => setThreeConfig({ voxelClusterPulseStrength: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_CLUSTER_PULSE_STRENGTH_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelClusterPulseStrength ?? 0.22)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Edge Hover</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={Number(schema.three?.voxelEdgeHoverOpacity ?? 0.65)}
+                onChange={e => setThreeConfig({ voxelEdgeHoverOpacity: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_EDGE_HOVER_OPACITY_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelEdgeHoverOpacity ?? 0.65)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Gap Ring Threshold</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={Number(schema.three?.voxelGapRingThreshold ?? 0.85)}
+                onChange={e => setThreeConfig({ voxelGapRingThreshold: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_GAP_RING_THRESHOLD_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelGapRingThreshold ?? 0.85)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Intro Delay (ms)</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={0}
+                max={6000}
+                step={50}
+                value={Number(schema.three?.voxelIntroDelayMs ?? 320)}
+                onChange={e => setThreeConfig({ voxelIntroDelayMs: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_INTRO_DELAY_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelIntroDelayMs ?? 320)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Intro Duration (ms)</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={80}
+                max={6000}
+                step={50}
+                value={Number(schema.three?.voxelIntroDurationMs ?? 1100)}
+                onChange={e => setThreeConfig({ voxelIntroDurationMs: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_INTRO_DURATION_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelIntroDurationMs ?? 1100)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Camera Yaw</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={-180}
+                max={180}
+                step={1}
+                value={Number(schema.three?.voxelDefaultYawDeg ?? -36)}
+                onChange={e => setThreeConfig({ voxelDefaultYawDeg: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_DEFAULT_YAW_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelDefaultYawDeg ?? -36)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Camera Tilt</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={5}
+                max={80}
+                step={1}
+                value={Number(schema.three?.voxelDefaultTiltDeg ?? 32)}
+                onChange={e => setThreeConfig({ voxelDefaultTiltDeg: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_DEFAULT_TILT_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelDefaultTiltDeg ?? 32)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Camera Distance</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={0.8}
+                max={6}
+                step={0.05}
+                value={Number(schema.three?.voxelDefaultDistanceFactor ?? 2.2)}
+                onChange={e => setThreeConfig({ voxelDefaultDistanceFactor: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_DEFAULT_DISTANCE_FACTOR_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelDefaultDistanceFactor ?? 2.2)}
+                </span>
+              </Tooltip>
+            </>
+          )}
+        />
+        <KeyTypeValueRow
+          layout="keyValue"
+          keyNode={<span className="text-gray-700">Voxel Target Lift</span>}
+          valueNode={(
+            <>
+              <input
+                type="range"
+                min={-80}
+                max={80}
+                step={1}
+                value={Number(schema.three?.voxelDefaultTargetLift ?? 8)}
+                onChange={e => setThreeConfig({ voxelDefaultTargetLift: Number(e.target.value) })}
+              />
+              <Tooltip
+                content={VOXEL_DEFAULT_TARGET_LIFT_TOOLTIP}
+                maxWidthPx={260}
+                contentClassName="bg-gray-800/90"
+              >
+                <span className="text-gray-600">
+                  {String(schema.three?.voxelDefaultTargetLift ?? 8)}
                 </span>
               </Tooltip>
             </>

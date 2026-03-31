@@ -339,7 +339,9 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
           const ny = voxelSnapEnabled ? quantizeVoxelCoordToCellCenter(ov[1], voxelGridStep) : ov[1]
           px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, nx))
           py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, ny))
-          pz[i] = 0
+          const base = positions[id]
+          const bz = base ? Number(base[2]) : pz[i]
+          pz[i] = Number.isFinite(bz) ? bz : 0
         } else {
           const behavior = schema.behavior || { allowEdgeCreation: true, allowNodeDrag: true }
           const grid = readSnapGridConfigFromSchema(schema)
@@ -374,7 +376,7 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
           px[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, nx))
           py[i] = Math.max(-voxelHalfExtent, Math.min(voxelHalfExtent, ny))
         }
-        pz[i] = 0
+        if (!Number.isFinite(pz[i])) pz[i] = 0
         vx[i] = 0
         vy[i] = 0
         vz[i] = 0

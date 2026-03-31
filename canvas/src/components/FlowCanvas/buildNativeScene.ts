@@ -8,6 +8,7 @@ import { parseFlowHandleKey } from '@/components/FlowCanvas/handles'
 import { coerceFlowNativeNodeShape } from '@/components/FlowCanvas/shape'
 import { setFlowNativeScene, setFlowNativeRankdir, type FlowNativeRuntime, type FlowNativeScene } from '@/components/FlowCanvas/nativeRuntime'
 import { getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
+import { getNodeLabelFullText2d } from '@/components/GraphCanvas/labelLayout2d'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
@@ -189,8 +190,7 @@ export function buildAndSetFlowNativeScene(args: {
     const id = String(n?.id || '').trim()
     if (!id) continue
     const props = ((n as unknown as { properties?: unknown })?.properties || {}) as Record<string, unknown>
-    const visualLabel = typeof props['visual:label'] === 'string' ? String(props['visual:label'] || '').trim() : ''
-    const label = visualLabel || String((n as { label?: unknown })?.label || id)
+    const label = getNodeLabelFullText2d(n as GraphNode)
     const rawShape = args.schema ? getNodeRenderShape2d(n as GraphNode, args.schema) : 'rect'
     const shape = coerceFlowNativeNodeShape({ shape: rawShape, forbidCircle: args.forbidCircleNodes })
     const baseHandles = handlesByNode[id] || { in: [], out: [] }

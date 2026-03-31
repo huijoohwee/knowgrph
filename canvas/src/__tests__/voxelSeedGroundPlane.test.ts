@@ -1,5 +1,3 @@
-import fs from 'node:fs'
-
 import type { GraphNode } from '@/lib/graph/types'
 import { computePositionsVoxel } from '@/features/three/positions'
 import { resolveVoxelGridStep } from '@/features/three/threeLayoutConfig'
@@ -15,14 +13,38 @@ type FullStackJson = {
 }
 
 export function testVoxelModeSeedsOntoSnappedXyGroundPlaneFromFullStackJson() {
-  const inputPath = '/Users/huijoohwee/Documents/GitHub/huijoohwee/content/full-stack/full-stack.json'
-  const raw = fs.readFileSync(inputPath, 'utf8')
-  const parsed = JSON.parse(raw) as FullStackJson
+  const parsed: FullStackJson = {
+    meta: {
+      layout: {
+        clusterAngles: {
+          A: 0,
+          B: 55,
+          C: 120,
+          D: 210,
+        },
+        orbitRadii: {
+          problem: 200,
+          solution: 380,
+          concept: 280,
+        },
+      },
+    },
+    nodes: Array.from({ length: 48 }).map((_, i) => {
+      const cluster = i % 4 === 0 ? 'A' : i % 4 === 1 ? 'B' : i % 4 === 2 ? 'C' : 'D'
+      const type = i % 3 === 0 ? 'problem' : i % 3 === 1 ? 'solution' : 'concept'
+      return {
+        id: `p-fe-${i + 1}`,
+        label: `n${i + 1}`,
+        type,
+        cluster,
+      }
+    }),
+  }
 
   const clusterAngles = parsed.meta?.layout?.clusterAngles || {}
   const orbitRadii = parsed.meta?.layout?.orbitRadii || {}
   const srcNodes = Array.isArray(parsed.nodes) ? parsed.nodes : []
-  if (srcNodes.length === 0) throw new Error('expected nodes from full-stack.json')
+  if (srcNodes.length === 0) throw new Error('expected nodes from fixture')
 
   const grid = resolveVoxelGridStep(null)
 

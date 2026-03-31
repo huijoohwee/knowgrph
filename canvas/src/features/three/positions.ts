@@ -3,7 +3,8 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { resolveGroupCollisions, type CollisionGroupItem } from '@/lib/graph/collision/boxCollision'
 import { isRadarHubNode, isRadarSpokeEdge } from '@/lib/graph/radarForces'
 
-import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveThreeSeed, resolveVoxelGridStep, quantizeVoxelCoordToCellCenter, quantizeVoxelCoordToGridLine } from './threeLayoutConfig'
+import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveThreeSeed, resolveVoxelGridStep, resolveVoxelLayerSpacing, quantizeVoxelCoordToCellCenter, quantizeVoxelCoordToGridLine } from './threeLayoutConfig'
+import { listVoxelLayers, resolveVoxelLayerKey } from './voxelLayers'
 
 export type Vec3 = [number, number, number]
 
@@ -347,6 +348,42 @@ export function computePositionsVoxel(
   const seedAxis = opts?.seedAxis || null
   const snapEnabled = schema?.behavior?.snapGrid?.enabled === true
   const grid = resolveVoxelGridStep(schema)
+  const layerSpacing = resolveVoxelLayerSpacing(schema)
+  const layerOrder = listVoxelLayers(nodes)
+  const explicitLayerYByKey = new Map<string, number>()
+  let explicitMinY: number | null = null
+  let explicitMaxY: number | null = null
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]
+    const props = (n.properties || {}) as Record<string, unknown>
+    const yRaw = props['layer:threeY'] ?? props['layerThreeY'] ?? props['threeY']
+    const y = typeof yRaw === 'number' && Number.isFinite(yRaw) ? yRaw : null
+    if (y == null) continue
+    if (Math.abs(y) > 64) continue
+    const key = resolveVoxelLayerKey(n)
+    const prev = explicitLayerYByKey.get(key)
+    if (prev == null || y < prev) explicitLayerYByKey.set(key, y)
+    if (explicitMinY == null || y < explicitMinY) explicitMinY = y
+    if (explicitMaxY == null || y > explicitMaxY) explicitMaxY = y
+  }
+  if (
+    explicitMinY != null &&
+    explicitMaxY != null &&
+    (Math.max(Math.abs(explicitMinY), Math.abs(explicitMaxY)) > 16 || (explicitMaxY - explicitMinY) > 16)
+  ) {
+    explicitLayerYByKey.clear()
+    explicitMinY = null
+  }
+  const layerZByKey = new Map<string, number>()
+  for (let i = 0; i < layerOrder.length; i += 1) {
+    const key = layerOrder[i]!.key
+    const y = explicitLayerYByKey.get(key)
+    if (explicitMinY != null && typeof y === 'number' && Number.isFinite(y)) {
+      layerZByKey.set(key, quantizeVoxelCoordToGridLine((y - explicitMinY) * grid, grid))
+    } else {
+      layerZByKey.set(key, quantizeVoxelCoordToGridLine(i * layerSpacing, grid))
+    }
+  }
   const seedShift = (() => {
     if (seedAxis?.centerToBounds === false) return { x: 0, y: 0 }
     if (!seed2d) return { x: 0, y: 0 }
@@ -402,7 +439,11 @@ export function computePositionsVoxel(
     if (!Number.isFinite(s) || s <= 0) return 1
     return Math.max(0.05, Math.min(1, s))
   })()
-  const heightByType = (_node: GraphNode): number => 0
+  const heightByType = (node: GraphNode): number => {
+    const key = resolveVoxelLayerKey(node)
+    const z = layerZByKey.get(key)
+    return typeof z === 'number' && Number.isFinite(z) ? z : 0
+  }
   const readSeed = (id: string): { x: number; y: number } | null => {
     if (!seed2d) return null
     const s = seed2d[id]
@@ -414,8 +455,25 @@ export function computePositionsVoxel(
     return { x: x * seedScale, y: y * seedScale }
   }
   const seededPosByNodeId = new Map<string, { x: number; y: number }>()
+  const readExplicitGridSeed = (node: GraphNode): { x: number; y: number } | null => {
+    const props = (node.properties || {}) as Record<string, unknown>
+    const gxRaw = props['gridX'] ?? props['grid_x'] ?? props['x']
+    const gzRaw = props['gridZ'] ?? props['grid_z'] ?? props['z']
+    const gx = typeof gxRaw === 'number' && Number.isFinite(gxRaw) ? gxRaw : null
+    const gz = typeof gzRaw === 'number' && Number.isFinite(gzRaw) ? gzRaw : null
+    if (gx == null && gz == null) return null
+    const x = (gx || 0) * grid
+    const y = (gz || 0) * grid
+    return { x, y }
+  }
   for (let i = 0; i < nodes.length; i += 1) {
-    const id = String(nodes[i].id || '')
+    const node = nodes[i]
+    const id = String(node.id || '')
+    const explicit = readExplicitGridSeed(node)
+    if (explicit) {
+      seededPosByNodeId.set(id, explicit)
+      continue
+    }
     const seed = readSeed(id)
     if (!seed) continue
     seededPosByNodeId.set(id, seed)

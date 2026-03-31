@@ -13,8 +13,12 @@ import type { Vec3 } from './layout'
 import { computeNodeMotion, type NodeMotionState } from './animation'
 import { resolveThreeColor } from './resolveColor'
 import type { Canvas3dModeId } from '@/lib/config'
-import { resolveVoxelClusterColor, resolveVoxelClusterKey } from './voxelStyle'
+import { extractVoxelScores, resolveVoxelClusterColor, resolveVoxelClusterKey, resolveVoxelLayerMaxVoxelHeight, VOXEL_SCORE_DIMENSIONS } from './voxelStyle'
 import { resolveVoxelGridStep } from './threeLayoutConfig'
+import { getNodeLabelFullText2d } from '@/components/GraphCanvas/labelLayout2d'
+import { resolveCssVar } from '@/lib/ui/theme-tokens'
+import { getVoxelLabelTexture } from './voxelLabelTexture'
+import { truncateTextWithEllipsis } from '@/components/GraphCanvas/layout/utils'
 
 export function NodeMesh({
   node,
@@ -54,9 +58,10 @@ export function NodeMesh({
   mode?: Canvas3dModeId;
 }) {
   const [hovered, setHovered] = useState(false)
-  const sphereRef = useRef<THREE.Mesh>(null!)
-  const ringRef = useRef<THREE.Mesh>(null)
-  const diamondRef = useRef<THREE.Mesh>(null)
+  const groupRef = useRef<THREE.Group>(null!)
+  const hitRef = useRef<THREE.Mesh>(null!)
+  const gapRingRef = useRef<THREE.Mesh>(null)
+  const gapRingMatRef = useRef<THREE.MeshBasicMaterial>(null)
   const draggingRef = useRef(false)
   const mediaNodeOpacity = useGraphStore(s => s.mediaNodeOpacity)
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
@@ -135,6 +140,36 @@ export function NodeMesh({
   const clusterColor = resolveVoxelClusterColor(node)
   const voxelColor = isVoxel && clusterColor ? clusterColor : displayColor
   const resolvedColor = resolveThreeColor(voxelColor, MVP_COLOR_PALETTE.nodes.execution)
+  const voxelScores = React.useMemo(() => (isVoxel ? extractVoxelScores(node) : null), [isVoxel, node])
+  const voxelScoresMaxHeightFactor = React.useMemo(() => {
+    if (!isVoxel || !voxelScores) return null
+    return resolveVoxelLayerMaxVoxelHeight(node)
+  }, [isVoxel, node, voxelScores])
+  const voxelScoresMaxH = voxelScores ? (voxelSize * (voxelScoresMaxHeightFactor ?? 1.4)) : 0
+  const voxelScoresMinH = voxelScores ? Math.max(0.6, voxelSize * 0.12) : 0
+  const voxelScoresBox = React.useMemo(() => {
+    if (!isVoxel || !voxelScores) return null
+    const maxScore = Math.max(voxelScores.money, voxelScores.man, voxelScores.machine)
+    const height = Math.max(voxelScoresMinH, voxelScoresMaxH * maxScore)
+    const barW = Math.max(1, voxelSize * 0.46)
+    const barD = Math.max(1, voxelSize * 0.46)
+    const barOffset = Math.max(barW * 1.35, voxelSize * 0.64)
+    const hitW = barOffset * 2 + barW
+    const hitD = Math.max(barD, voxelSize * 0.8)
+    return { maxH: height, barW, barD, barOffset, hitW, hitD }
+  }, [isVoxel, voxelScores, voxelScoresMaxH, voxelScoresMinH, voxelSize])
+  const gapScore = (() => {
+    const propsAny = (node.properties || {}) as Record<string, unknown>
+    const v = propsAny.gapScore
+    if (typeof v !== 'number' || !Number.isFinite(v)) return null
+    return Math.max(0, Math.min(1, v))
+  })()
+  const gapRingThreshold = (() => {
+    const raw = schema?.three?.voxelGapRingThreshold
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) return 0.85
+    return Math.max(0, Math.min(1, raw))
+  })()
+  const showGapRing = isVoxel && gapScore != null && gapScore >= gapRingThreshold
   const ghostOpacity = (() => {
     const raw = typeof threeCfg.voxelGhostOpacity === 'number' ? threeCfg.voxelGhostOpacity : 0.32
     if (!Number.isFinite(raw)) return 0.32
@@ -150,6 +185,7 @@ export function NodeMesh({
     if (!Number.isFinite(raw)) return 0.07
     return Math.max(0, Math.min(0.5, raw))
   })()
+  const voxelAnimationEnabled = schema?.three?.voxelAnimationEnabled !== false
   const voxelEmissiveBase = voxelTier === 'hub' ? 0.55 : voxelTier === 'block' ? 0.32 : 0.2
   const meshRotation: [number, number, number] =
     isVoxel
@@ -161,7 +197,7 @@ export function NodeMesh({
         : [0, 0, 0]
   useFrame(({ clock }) => {
     if (paused) return
-    if (!sphereRef.current) return
+    if (!groupRef.current) return
     const t = clock.getElapsedTime()
     const dragging = draggingRef.current
     const ms: NodeMotionState = { intensity: motionIntensity || 0, draggedNodeId }
@@ -172,21 +208,96 @@ export function NodeMesh({
     const p = computeNodeMotion(node.id, basePos, radius, ms, t)
     
     const s = hovered ? 1.06 : 1
-    const pulse = isVoxel && isHub ? 1 + Math.sin(t * 2 + node.id.length * 0.6) * hubPulseStrength : 1
-    sphereRef.current.scale.set(s * pulse, s * pulse, s * pulse)
+    const pulse = isVoxel && isHub && voxelAnimationEnabled ? 1 + Math.sin(t * 2 + node.id.length * 0.6) * hubPulseStrength : 1
+    groupRef.current.scale.set(s * pulse, s * pulse, s * pulse)
     const conceptBob = 0
-    const voxelBaseLift = isVoxel ? voxelH * 0.5 : 0
-    sphereRef.current.position.set(p[0], p[1], p[2] + voxelBaseLift + conceptBob)
-    if (isVoxel) {
-      sphereRef.current.rotation.set(0, 0, 0)
+    groupRef.current.position.set(p[0], p[1], p[2] + conceptBob)
+    if (labelSpriteRef.current && isVoxel) {
+      const liftH = voxelScoresBox ? voxelScoresBox.maxH : voxelH
+      labelSpriteRef.current.position.set(0, 0, liftH + voxelLabelLift)
+      if (labelMaterial) {
+        const aspect = labelMaterial.heightPx > 0 ? (labelMaterial.widthPx / labelMaterial.heightPx) : 1
+        const targetH = Math.max(2, voxelGridStep * 0.34)
+        const targetW = Math.max(targetH, targetH * aspect)
+        const key = `${targetW.toFixed(2)}x${targetH.toFixed(2)}`
+        if (labelScaleKeyRef.current !== key) {
+          labelScaleKeyRef.current = key
+          labelSpriteRef.current.scale.set(targetW, targetH, 1)
+        }
+      }
     }
-    if (ringRef.current && isSelectedNode && isVoxel) {
-      ringRef.current.rotation.set(0, 0, 0)
-    }
-    if (diamondRef.current && isVoxel) {
-      diamondRef.current.rotation.set(0, 0, 0)
+    if (gapRingRef.current && gapRingMatRef.current && isVoxel && showGapRing && voxelAnimationEnabled) {
+      const phase = t * 2.4 + (node.id.length % 7) * 0.6
+      const pulse = 1 + Math.sin(phase) * 0.08
+      gapRingRef.current.scale.set(pulse, pulse, 1)
+      gapRingMatRef.current.opacity = Math.max(0, Math.min(1, 0.28 + 0.38 * Math.sin(phase * 1.1)))
+    } else if (gapRingRef.current && gapRingMatRef.current && isVoxel && showGapRing) {
+      gapRingRef.current.scale.set(1, 1, 1)
+      gapRingMatRef.current.opacity = 0.52
     }
   })
+
+  const voxelLabelsEnabled = (() => {
+    const raw = (schema?.three as any)?.voxelLabelsEnabled
+    return raw !== false
+  })()
+  const voxelLabelOpacity = (() => {
+    const raw = typeof (schema?.three as any)?.voxelLabelOpacity === 'number' ? (schema?.three as any).voxelLabelOpacity : 0.9
+    return Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : 0.9
+  })()
+  const voxelLabelFontSizePx = (() => {
+    const raw = typeof (schema?.three as any)?.voxelLabelFontSizePx === 'number' ? (schema?.three as any).voxelLabelFontSizePx : 12
+    return Number.isFinite(raw) ? Math.max(8, Math.min(36, Math.floor(raw))) : 12
+  })()
+  const voxelLabelMaxChars = (() => {
+    const raw = typeof (schema?.three as any)?.voxelLabelMaxChars === 'number' ? (schema?.three as any).voxelLabelMaxChars : 42
+    return Number.isFinite(raw) ? Math.max(8, Math.min(120, Math.floor(raw))) : 42
+  })()
+  const voxelLabelShowOnHoverOnly = (() => {
+    const raw = (schema?.three as any)?.voxelLabelShowOnHoverOnly
+    return raw === true
+  })()
+  const voxelLabelLift = (() => {
+    const raw = typeof (schema?.three as any)?.voxelLabelLift === 'number' ? (schema?.three as any).voxelLabelLift : 4
+    return Number.isFinite(raw) ? Math.max(0, Math.min(voxelH * 2, raw)) : 4
+  })()
+  const labelText = React.useMemo(() => {
+    if (!isVoxel) return ''
+    const raw = getNodeLabelFullText2d(node)
+    const clean = typeof raw === 'string' ? raw.trim() : ''
+    if (!clean) return ''
+    return truncateTextWithEllipsis(clean, voxelLabelMaxChars)
+  }, [isVoxel, node, voxelLabelMaxChars])
+  const shouldShowVoxelLabel = isVoxel && voxelLabelsEnabled && !!labelText && (!voxelLabelShowOnHoverOnly || hovered)
+  const labelSpriteRef = React.useRef<THREE.Sprite | null>(null)
+  const labelScaleKeyRef = React.useRef<string>('')
+  const labelMaterial = React.useMemo(() => {
+    if (!shouldShowVoxelLabel) return null
+    if (typeof document === 'undefined') return null
+    const textColor = resolveCssVar('--kg-canvas-label-fill', '#111827')
+    const bgColor = resolveCssVar('--kg-tooltip-bg', '#111827')
+    const { texture, widthPx, heightPx } = getVoxelLabelTexture({
+      text: labelText,
+      fontSizePx: voxelLabelFontSizePx,
+      textColor,
+      bgColor,
+      bgOpacity: 0.42,
+    })
+    const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false })
+    mat.depthTest = false
+    mat.opacity = voxelLabelOpacity
+    return { mat, widthPx, heightPx }
+  }, [labelText, shouldShowVoxelLabel, voxelLabelFontSizePx, voxelLabelOpacity])
+  React.useEffect(() => {
+    labelScaleKeyRef.current = ''
+  }, [labelMaterial, voxelGridStep])
+  React.useEffect(() => {
+    return () => {
+      if (labelMaterial?.mat) {
+        labelMaterial.mat.dispose()
+      }
+    }
+  }, [labelMaterial])
   const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
     const isModifier = e.metaKey || e.ctrlKey
     if (!isModifier) return
@@ -214,13 +325,17 @@ export function NodeMesh({
       setNodeDragActive?.(node.id, false)
     }
   }
+  const voxelHitH = voxelScoresBox ? voxelScoresBox.maxH : voxelH
+  const voxelHitW = voxelScoresBox ? voxelScoresBox.hitW : voxelW
+  const voxelHitD = voxelScoresBox ? voxelScoresBox.hitD : voxelD
   return (
-    <group name={`kg_node:${node.id}`} renderOrder={renderOrder}>
+    <group ref={groupRef} name={`kg_node:${node.id}`} renderOrder={renderOrder}>
       <mesh
-        ref={sphereRef}
-        name={`kg_node:${node.id}`}
+        ref={hitRef}
+        name={`kg_node_hit:${node.id}`}
         renderOrder={renderOrder}
-        rotation={meshRotation}
+        position={isVoxel ? [0, 0, voxelHitH * 0.5] : [0, 0, 0]}
+        rotation={isVoxel ? [0, 0, 0] : meshRotation}
         onClick={() => onClick(node.id)}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
           setHovered(true)
@@ -239,7 +354,7 @@ export function NodeMesh({
         onPointerUp={handlePointerUp}
       >
         {isVoxel ? (
-          <boxGeometry args={[voxelW, voxelD, voxelH]} />
+          <boxGeometry args={[voxelHitW, voxelHitD, voxelHitH]} />
         ) : renderShape === 'circle' ? (
           <sphereGeometry args={[radius, 32, 32]} />
         ) : renderShape === 'hex' ? (
@@ -247,47 +362,109 @@ export function NodeMesh({
         ) : (
           <boxGeometry args={[boxW, boxH, depth]} />
         )}
-        <meshStandardMaterial
-          color={resolvedColor}
-          transparent
-          opacity={isMediaNode ? 0 : displayOpacity}
-          depthWrite={!isMediaNode}
-          emissive={resolvedEmissive}
-          emissiveIntensity={isVoxel ? Math.max(emissiveIntensity, voxelEmissiveBase) : emissiveIntensity}
-          roughness={isVoxel ? 0.22 : 0.6}
-          metalness={isVoxel ? 0.7 : 0.1}
-        />
         {isVoxel ? (
-          <>
-            <mesh position={[0, 0, voxelH * 0.5 + capHeight * 0.5]}>
-              <boxGeometry args={[voxelW * 0.98, voxelD * 0.98, capHeight]} />
-              <meshStandardMaterial color={resolvedColor} emissive={resolvedColor} emissiveIntensity={topCapEmissiveIntensity} transparent opacity={0.88} roughness={0.08} metalness={0.95} />
-            </mesh>
-            <mesh ref={diamondRef}>
-              <octahedronGeometry args={[Math.max(1.2, Math.min(voxelW, voxelH) * 0.2), 0]} />
-              <meshStandardMaterial color={resolvedColor} emissive={resolvedColor} emissiveIntensity={0.6} transparent opacity={0.92} roughness={0.1} metalness={0.95} />
-            </mesh>
-            {hovered ? (
-              <mesh>
-                <boxGeometry args={[voxelW * 1.15, voxelD * 1.15, voxelH * 1.15]} />
-                <meshStandardMaterial color={resolvedColor} emissive={resolvedColor} emissiveIntensity={0.38} transparent opacity={ghostOpacity} depthWrite={false} roughness={0.3} metalness={0.3} />
-              </mesh>
-            ) : null}
-            {hovered ? (
-              <mesh>
-                <boxGeometry args={[voxelW * 1.16, voxelD * 1.16, voxelH * 1.16]} />
-                <meshBasicMaterial color={resolvedColor} wireframe transparent opacity={Math.min(0.95, ghostOpacity + 0.22)} />
-              </mesh>
-            ) : null}
-            {isSelectedNode ? (
-              <mesh ref={ringRef}>
-                <boxGeometry args={[voxelW * 1.22, voxelD * 1.22, voxelH * 1.22]} />
-                <meshBasicMaterial color={resolvedColor} wireframe transparent opacity={0.75} />
-              </mesh>
-            ) : null}
-          </>
-        ) : null}
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        ) : (
+          <meshStandardMaterial
+            color={resolvedColor}
+            transparent
+            opacity={isMediaNode ? 0 : displayOpacity}
+            depthWrite={!isMediaNode}
+            emissive={resolvedEmissive}
+            emissiveIntensity={emissiveIntensity}
+            roughness={0.6}
+            metalness={0.1}
+          />
+        )}
       </mesh>
+      {isVoxel && voxelScoresBox && voxelScores ? (
+        <group name={`kg_node_voxel_scores:${node.id}`} renderOrder={renderOrder}>
+          {VOXEL_SCORE_DIMENSIONS.map((dim, i) => {
+            const score = voxelScores[dim.key]
+            const h = Math.max(voxelScoresMinH, voxelScoresMaxH * score)
+            const x = (i - 1) * voxelScoresBox.barOffset
+            const y = 0
+            const z = h * 0.5
+            const emissive = hovered ? dim.color : '#000000'
+            const emissiveIntensity = hovered ? 0.55 : 0
+            return (
+              <mesh key={dim.key} position={[x, y, z]}>
+                <boxGeometry args={[voxelScoresBox.barW, voxelScoresBox.barD, h]} />
+                <meshStandardMaterial
+                  color={dim.color}
+                  emissive={emissive}
+                  emissiveIntensity={emissiveIntensity}
+                  transparent
+                  opacity={Math.max(0.1, Math.min(1, displayOpacity))}
+                  roughness={0.38}
+                  metalness={0.12}
+                  depthWrite={true}
+                />
+              </mesh>
+            )
+          })}
+        </group>
+      ) : null}
+      {isVoxel && (!voxelScoresBox || !voxelScores) ? (
+        <group name={`kg_node_voxel_cube:${node.id}`} renderOrder={renderOrder}>
+          <mesh position={[0, 0, voxelH * 0.5]}>
+            <boxGeometry args={[voxelW, voxelD, voxelH]} />
+            <meshStandardMaterial
+              color={resolvedColor}
+              transparent
+              opacity={isMediaNode ? 0 : displayOpacity}
+              depthWrite={!isMediaNode}
+              emissive={resolvedEmissive}
+              emissiveIntensity={Math.max(emissiveIntensity, voxelEmissiveBase)}
+              roughness={0.22}
+              metalness={0.7}
+            />
+          </mesh>
+          <mesh position={[0, 0, voxelH + capHeight * 0.5]}>
+            <boxGeometry args={[voxelW * 0.98, voxelD * 0.98, capHeight]} />
+            <meshStandardMaterial color={resolvedColor} emissive={resolvedColor} emissiveIntensity={topCapEmissiveIntensity} transparent opacity={0.88} roughness={0.08} metalness={0.95} />
+          </mesh>
+          <mesh position={[0, 0, voxelH * 0.5]}>
+            <octahedronGeometry args={[Math.max(1.2, Math.min(voxelW, voxelH) * 0.2), 0]} />
+            <meshStandardMaterial color={resolvedColor} emissive={resolvedColor} emissiveIntensity={0.6} transparent opacity={0.92} roughness={0.1} metalness={0.95} />
+          </mesh>
+        </group>
+      ) : null}
+      {isVoxel && showGapRing ? (
+        <mesh ref={gapRingRef} position={[0, 0, 0.05]} renderOrder={renderOrder}>
+          <ringGeometry args={[Math.max(1, (voxelScoresBox ? voxelScoresBox.hitW * 0.46 : voxelW * 0.72)), Math.max(1.2, (voxelScoresBox ? voxelScoresBox.hitW * 0.52 : voxelW * 0.8)), 72]} />
+          <meshBasicMaterial ref={gapRingMatRef} color={'#E24B4A'} transparent opacity={0.55} depthWrite={false} />
+        </mesh>
+      ) : null}
+      {isVoxel && hovered ? (
+        <group name={`kg_node_voxel_hover:${node.id}`} renderOrder={renderOrder}>
+          <mesh position={[0, 0, voxelHitH * 0.5]}>
+            <boxGeometry args={[voxelHitW * 1.15, voxelHitD * 1.15, voxelHitH * 1.15]} />
+            <meshStandardMaterial color={resolvedColor} emissive={resolvedColor} emissiveIntensity={0.38} transparent opacity={ghostOpacity} depthWrite={false} roughness={0.3} metalness={0.3} />
+          </mesh>
+          <mesh position={[0, 0, voxelHitH * 0.5]}>
+            <boxGeometry args={[voxelHitW * 1.16, voxelHitD * 1.16, voxelHitH * 1.16]} />
+            <meshBasicMaterial color={resolvedColor} wireframe transparent opacity={Math.min(0.95, ghostOpacity + 0.22)} />
+          </mesh>
+        </group>
+      ) : null}
+      {isVoxel && isSelectedNode ? (
+        <mesh position={[0, 0, voxelHitH * 0.5]} renderOrder={renderOrder}>
+          <boxGeometry args={[voxelHitW * 1.22, voxelHitD * 1.22, voxelHitH * 1.22]} />
+          <meshBasicMaterial color={resolvedColor} wireframe transparent opacity={0.75} />
+        </mesh>
+      ) : null}
+      {shouldShowVoxelLabel && labelMaterial ? (
+        <sprite
+          ref={labelSpriteRef as any}
+          renderOrder={typeof renderOrder === 'number' && Number.isFinite(renderOrder) ? renderOrder + 1 : undefined}
+          onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+            e.stopPropagation()
+          }}
+        >
+          <primitive attach="material" object={labelMaterial.mat} />
+        </sprite>
+      ) : null}
     </group>
   )
 }

@@ -180,6 +180,42 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'Import: PDF',
     responsibility: 'OCR mode (fallback vs always)',
   },
+  'three.voxel.districts.enabled': {
+    area: 'Voxel Mode',
+    responsibility: 'Enable cluster district slabs in voxel mode',
+  },
+  'three.voxel.districts.paddingCells': {
+    area: 'Voxel Mode',
+    responsibility: 'District padding in grid cells (world quantized)',
+  },
+  'three.voxel.districts.opacity': {
+    area: 'Voxel Mode',
+    responsibility: 'District slab opacity',
+  },
+  'three.voxel.bridges.tubeRadius': {
+    area: 'Voxel Mode',
+    responsibility: 'Bridge tube radius (TubeGeometry)',
+  },
+  'three.voxel.bridges.opacity': {
+    area: 'Voxel Mode',
+    responsibility: 'Bridge tube opacity baseline',
+  },
+  'three.voxel.bridges.pulseStrength': {
+    area: 'Voxel Mode',
+    responsibility: 'Bridge tube pulse strength (opacity + emissive)',
+  },
+  'three.voxel.bridges.particles.enabled': {
+    area: 'Voxel Mode',
+    responsibility: 'Enable tube flow particles (instanced)',
+  },
+  'three.voxel.bridges.particles.density': {
+    area: 'Voxel Mode',
+    responsibility: 'Scale particles per bridge (bounded)',
+  },
+  'three.voxel.bridges.particles.speed': {
+    area: 'Voxel Mode',
+    responsibility: 'Flow particle speed along bridge curves',
+  },
   themeMode: {
     area: 'UI Appearance',
     responsibility: 'Global color theme (Light, Dark, or System)',
