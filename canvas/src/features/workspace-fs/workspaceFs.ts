@@ -190,10 +190,10 @@ export async function getWorkspaceFs(): Promise<WorkspaceFs> {
   }
 
   try {
-    const { createDexieWorkspaceFs } = await import('./workspaceFsDexie.ts')
-    const dexie = createDexieWorkspaceFs()
-    await dexie.ensureSeed()
-    fsSingleton = withResilientFallback(dexie)
+    const { createWorkspaceRxdbFs } = await import('./workspaceFsRxdb.ts')
+    const persistentFs = createWorkspaceRxdbFs()
+    await persistentFs.ensureSeed()
+    fsSingleton = withResilientFallback(persistentFs)
     return fsSingleton
   } catch (e: unknown) {
     fsSingleton = withResilientFallback(memory)

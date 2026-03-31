@@ -5,6 +5,7 @@ import { jsonToMarkdown, type JsonToMarkdownMode } from '@/features/markdown/jso
 import { buildBipartiteMarkdownFromJsonValue } from '@/features/markdown/bipartiteJsonToMarkdown'
 import type { RecentFileEntry } from '@/hooks/store/types'
 import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
+import { applyJsonImportWorkspaceTarget } from '@/features/workspace-table/jsonImportWorkspaceTarget'
 
 export function applyImportedMarkdownToStore(args: {
   name: string
@@ -58,6 +59,7 @@ export function applyImportedJsonToStore(args: {
   fallbackFenceLang?: 'json' | 'jsonld'
   sourceUrl: string | null
   recent?: Omit<RecentFileEntry, 'id' | 'timestamp'>
+  preferFlowEditor?: boolean
 }): void {
   const name = String(args.name || '').trim()
   const rawText = String(args.text || '')
@@ -65,8 +67,10 @@ export function applyImportedJsonToStore(args: {
   if (!name) return
 
   const state = useGraphStore.getState()
+  const applyWorkspaceTarget = () => applyJsonImportWorkspaceTarget({ preferFlowEditor: args.preferFlowEditor === true })
   if (!trimmed) {
-    void state.setActiveMarkdownDocument({
+    void state
+      .setActiveMarkdownDocument({
       name,
       text: rawText,
       normalizeMermaidMmd: false,
@@ -74,6 +78,7 @@ export function applyImportedJsonToStore(args: {
       jsonSourceText: null,
       recent: args.recent,
     })
+      .finally(applyWorkspaceTarget)
     return
   }
 
@@ -101,13 +106,16 @@ export function applyImportedJsonToStore(args: {
     jsonSourceText = null
   }
 
-  void state.setActiveMarkdownDocument({
+  void state
+    .setActiveMarkdownDocument({
     name,
     text: markdown,
     normalizeMermaidMmd: false,
     sourceUrl: args.sourceUrl,
     jsonSourceText,
-    workspaceViewMode: 'editor',
     recent: args.recent,
+    applyToGraph: true,
+    forceApplyToGraph: true,
   })
+    .finally(applyWorkspaceTarget)
 }

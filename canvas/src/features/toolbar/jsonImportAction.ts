@@ -6,7 +6,6 @@ import { coerceHttpUrl, normalizeGitHubBlobLikeUrl } from '@/lib/url'
 import { applyLoaderResultToParserUi } from '@/features/toolbar/importUi'
 import { applyImportedCsvToStore, applyImportedJsonToStore } from '@/features/toolbar/importSideEffects'
 import { runImportFlow } from '@/features/toolbar/importFlow'
-import { useGraphStore } from '@/hooks/useGraphStore'
 
 export type JsonImportFormat = 'jsonld' | 'json'
 export type JsonImportType = 'url' | 'local'
@@ -62,15 +61,8 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
           text: String(res.input.text || ''),
           fallbackFenceLang: format === 'jsonld' ? 'jsonld' : 'json',
           sourceUrl: type === 'url' ? picked.sourceUrl ?? null : null,
+          preferFlowEditor: hasQuickEditorRegistry,
         })
-        const store = useGraphStore.getState()
-        if (hasQuickEditorRegistry) {
-          store.setCanvasRenderMode('2d')
-          store.setCanvas2dRenderer('flowEditor')
-          store.setWorkspaceViewMode('canvas')
-          return
-        }
-        store.setWorkspaceViewMode('canvas')
       },
     })
   } catch {

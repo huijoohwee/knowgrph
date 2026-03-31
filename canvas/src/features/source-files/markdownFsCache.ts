@@ -1,4 +1,5 @@
-import Dexie, { type Table } from 'dexie'
+import { createRxDatabase, type RxCollection, type RxDatabase, type RxJsonSchema } from 'rxdb/plugins/core'
+import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
 
 export type MarkdownFsAccessMode = 'fs-access' | 'opfs' | 'file-input' | null
 
@@ -18,50 +19,62 @@ export type MarkdownFsEntryRow = {
 }
 
 const MARKDOWN_FS_DB_NAME = 'kg:markdown-fs'
-const MARKDOWN_FS_DB_VERSION = 1
 
-class MarkdownFsDb extends Dexie {
-  folders!: Table<MarkdownFsFolderRow, string>
-  entries!: Table<MarkdownFsEntryRow, string>
-
-  constructor() {
-    super(MARKDOWN_FS_DB_NAME)
-    this.version(MARKDOWN_FS_DB_VERSION).stores({
-      folders: '&id, updatedAtMs',
-      entries: '&id, folderId, path, updatedAtMs',
-    })
-  }
+type MarkdownFsCollections = {
+  folders: RxCollection<MarkdownFsFolderRow>
+  entries: RxCollection<MarkdownFsEntryRow>
 }
 
-type MemoryStore = {
-  folders: Map<string, MarkdownFsFolderRow>
-  entries: Map<string, MarkdownFsEntryRow>
+const folderSchema: RxJsonSchema<MarkdownFsFolderRow> = {
+  title: 'markdown_fs_folder',
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 256 },
+    name: { type: ['string', 'null'] },
+    accessMode: { type: ['string', 'null'] },
+    updatedAtMs: { type: 'number' },
+  },
+  required: ['id', 'name', 'accessMode', 'updatedAtMs'],
+  indexes: ['updatedAtMs'],
 }
 
-let dbSingleton: MarkdownFsDb | null = null
-const MEMORY_STORE_KEY = '__KG_MARKDOWN_FS_CACHE__'
-
-const canUseIndexedDb = (): boolean => {
-  return typeof indexedDB !== 'undefined'
+const entrySchema: RxJsonSchema<MarkdownFsEntryRow> = {
+  title: 'markdown_fs_entry',
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 1024 },
+    folderId: { type: 'string', maxLength: 256 },
+    path: { type: 'string', maxLength: 2048 },
+    text: { type: 'string' },
+    updatedAtMs: { type: 'number' },
+  },
+  required: ['id', 'folderId', 'path', 'text', 'updatedAtMs'],
+  indexes: ['folderId', ['folderId', 'path'], 'updatedAtMs'],
 }
 
-const getDb = (): MarkdownFsDb | null => {
-  if (!canUseIndexedDb()) return null
+let dbSingleton: Promise<{ db: RxDatabase<MarkdownFsCollections>; collections: MarkdownFsCollections }> | null = null
+
+const getDb = async () => {
   if (dbSingleton) return dbSingleton
-  dbSingleton = new MarkdownFsDb()
+  dbSingleton = (async () => {
+    const db = await createRxDatabase<MarkdownFsCollections>({
+      name: MARKDOWN_FS_DB_NAME,
+      storage: getCanvasRxStorage(),
+      multiInstance: true,
+      eventReduce: true,
+      closeDuplicates: true,
+    })
+    const collections = await db.addCollections({
+      folders: { schema: folderSchema },
+      entries: { schema: entrySchema },
+    })
+    return { db, collections }
+  })()
   return dbSingleton
-}
-
-const getMemory = (): MemoryStore => {
-  const g = globalThis as unknown as Record<string, unknown>
-  const existing = g[MEMORY_STORE_KEY] as MemoryStore | undefined
-  if (existing && existing.folders instanceof Map && existing.entries instanceof Map) return existing
-  const created: MemoryStore = {
-    folders: new Map(),
-    entries: new Map(),
-  }
-  g[MEMORY_STORE_KEY] = created
-  return created
 }
 
 const buildFolderId = (): string => {
@@ -71,9 +84,7 @@ const buildFolderId = (): string => {
   return `mdfs_${Date.now()}_${Math.random().toString(16).slice(2)}`
 }
 
-const entryId = (folderId: string, path: string): string => {
-  return `${folderId}:${String(path || '').trim().toLowerCase()}`
-}
+const entryId = (folderId: string, path: string): string => `${folderId}:${String(path || '').trim().toLowerCase()}`
 
 export async function cacheMarkdownFolderFromFileInput(args: {
   folderName: string | null
@@ -95,38 +106,19 @@ export async function cacheMarkdownFolderFromFileInput(args: {
     updatedAtMs: now,
   }))
 
-  const db = getDb()
-  if (!db) {
-    const mem = getMemory()
-    mem.folders.set(folderId, folderRow)
-    for (const r of rows) mem.entries.set(r.id, r)
-    return { folderId }
-  }
-
-  await db.transaction('rw', db.folders, db.entries, async () => {
-    await db.folders.put(folderRow)
-    if (rows.length > 0) await db.entries.bulkPut(rows)
-  })
+  const { collections } = await getDb()
+  await collections.folders.incrementalUpsert(folderRow)
+  for (const row of rows) await collections.entries.incrementalUpsert(row)
   return { folderId }
 }
 
 export async function listCachedMarkdownPaths(folderId: string): Promise<string[]> {
   const id = String(folderId || '').trim()
   if (!id) return []
-  const db = getDb()
-  if (!db) {
-    const mem = getMemory()
-    const out: string[] = []
-    for (const row of mem.entries.values()) {
-      if (row.folderId === id) out.push(row.path)
-    }
-    out.sort((a, b) => a.localeCompare(b))
-    return out
-  }
-
-  const rows = await db.entries.where('folderId').equals(id).toArray()
+  const { collections } = await getDb()
+  const rows = await collections.entries.find({ selector: { folderId: id } }).exec()
   return rows
-    .map(r => String(r.path || '').trim())
+    .map(r => String(r.get('path') || '').trim())
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b))
 }
@@ -135,14 +127,9 @@ export async function readCachedMarkdownText(folderId: string, path: string): Pr
   const id = String(folderId || '').trim()
   const p = String(path || '').trim().replace(/\\/g, '/').replace(/^\/+/, '')
   if (!id || !p) return null
-  const db = getDb()
-  const key = entryId(id, p)
-  if (!db) {
-    const mem = getMemory()
-    return mem.entries.get(key)?.text ?? null
-  }
-  const row = await db.entries.get(key)
-  return row?.text ?? null
+  const { collections } = await getDb()
+  const row = await collections.entries.findOne(entryId(id, p)).exec()
+  return row?.get('text') ?? null
 }
 
 export async function writeCachedMarkdownText(folderId: string, path: string, text: string): Promise<void> {
@@ -151,62 +138,23 @@ export async function writeCachedMarkdownText(folderId: string, path: string, te
   if (!id || !p) return
   const now = Date.now()
   const nextText = String(text ?? '')
-  const db = getDb()
   const key = entryId(id, p)
-
-  if (!db) {
-    const mem = getMemory()
-    const prevFolder = mem.folders.get(id)
-    if (prevFolder) mem.folders.set(id, { ...prevFolder, updatedAtMs: now })
-    const prevEntry = mem.entries.get(key)
-    mem.entries.set(key, {
-      ...(prevEntry || { id: key, folderId: id, path: p, text: nextText, updatedAtMs: now }),
-      id: key,
-      folderId: id,
-      path: p,
-      text: nextText,
-      updatedAtMs: now,
-    })
-    return
-  }
-
-  await db.transaction('rw', db.folders, db.entries, async () => {
-    const existingFolder = await db.folders.get(id)
-    if (existingFolder) {
-      await db.folders.put({ ...existingFolder, updatedAtMs: now })
-    }
-
-    const existingEntry = await db.entries.get(key)
-    if (existingEntry) {
-      await db.entries.put({ ...existingEntry, text: nextText, updatedAtMs: now })
-      return
-    }
-    await db.entries.put({ id: key, folderId: id, path: p, text: nextText, updatedAtMs: now })
-  })
+  const { collections } = await getDb()
+  const folder = await collections.folders.findOne(id).exec()
+  if (folder) await folder.incrementalPatch({ updatedAtMs: now })
+  await collections.entries.incrementalUpsert({ id: key, folderId: id, path: p, text: nextText, updatedAtMs: now })
 }
 
 export async function getCachedMarkdownFolderMetadata(folderId: string): Promise<MarkdownFsFolderRow | null> {
   const id = String(folderId || '').trim()
   if (!id) return null
-  const db = getDb()
-  if (!db) {
-    const mem = getMemory()
-    return mem.folders.get(id) ?? null
-  }
-  return (await db.folders.get(id)) ?? null
+  const { collections } = await getDb()
+  const row = await collections.folders.findOne(id).exec()
+  return row ? row.toJSON() : null
 }
 
 export async function getMostRecentCachedMarkdownFolderId(): Promise<string | null> {
-  const db = getDb()
-  if (!db) {
-    const mem = getMemory()
-    let best: MarkdownFsFolderRow | null = null
-    for (const row of mem.folders.values()) {
-      if (!best || row.updatedAtMs > best.updatedAtMs) best = row
-    }
-    return best?.id ?? null
-  }
-
-  const row = await db.folders.orderBy('updatedAtMs').reverse().first()
-  return row?.id ?? null
+  const { collections } = await getDb()
+  const row = await collections.folders.find().sort({ updatedAtMs: 'desc' }).limit(1).exec()
+  return row[0]?.get('id') ?? null
 }

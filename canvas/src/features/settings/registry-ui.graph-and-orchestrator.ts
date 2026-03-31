@@ -18,6 +18,11 @@ import { DEFAULT_FIT_TO_SCREEN_FILL_RATIO, DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_
 import { DEFAULT_PHYSICS2D_TUNING } from '@/lib/graph/physics2dTuning'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { SettingMeta } from './types'
+import {
+  JSON_IMPORT_WORKSPACE_TARGET_OPTIONS,
+  readJsonImportWorkspaceTarget,
+  writeJsonImportWorkspaceTarget,
+} from '@/features/workspace-table/jsonImportWorkspaceTarget'
 
 const s = () => useGraphStore.getState()
 
@@ -826,6 +831,16 @@ export const uiGraphAndOrchestratorSettingsRegistry: SettingMeta[] = [
     write: (v) => s().setMultiDimTableModeEnabled(Boolean(v)),
     docKey: 'multiDimTableModeEnabled',
     default: () => false,
+  },
+  {
+    key: 'import.json.workspaceTarget',
+    type: 'string',
+    source: 'localStorage',
+    read: () => readJsonImportWorkspaceTarget(),
+    write: v => writeJsonImportWorkspaceTarget(String(v || '') as 'editor' | 'multiDimTable' | 'canvas'),
+    docKey: 'import.json.workspaceTarget',
+    default: () => 'multiDimTable',
+    options: JSON_IMPORT_WORKSPACE_TARGET_OPTIONS,
   },
   {
     key: 'canvasRenderMode',

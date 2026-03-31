@@ -5,6 +5,7 @@ import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 import { isWorkspaceTableOpen, openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
+import { WORKSPACE_TABLE_TOOLBAR_UI } from '@/features/workspace-table/workspaceTableToolbarUi'
 
 type EditorWorkspaceSelectProps = {
   iconSizeClass: string
@@ -49,8 +50,8 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth }: Editor
         },
         {
           key: 'multiDimTable' as const,
-          label: UI_LABELS.graphDataTable,
-          tooltip: UI_COPY.toolbarGraphDataTableToggleTitle,
+          label: WORKSPACE_TABLE_TOOLBAR_UI.label,
+          tooltip: WORKSPACE_TABLE_TOOLBAR_UI.optionTooltip,
           Icon: Table,
         },
       ] satisfies Option[],
@@ -62,7 +63,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth }: Editor
 
   const triggerTitle = activeOption?.label || UI_LABELS.editor
   const triggerTooltip = (() => {
-    if (isGraphTable) return UI_COPY.toolbarGraphDataTableWorkspaceOnTooltip
+    if (isGraphTable) return WORKSPACE_TABLE_TOOLBAR_UI.openedTooltip
     if (isEditor) return UI_COPY.toolbarEditorWorkspaceOnTooltip
     return UI_COPY.toolbarEditorWorkspaceOffTooltip
   })()

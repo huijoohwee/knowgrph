@@ -240,6 +240,11 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   floatingPanelZIndex: { area: 'Floating Panel Layout', responsibility: 'Floating panel z-index' },
   enableTabSync: { area: 'Tab Sync', responsibility: 'Enable cross‑tab sync' },
   enableVirtualTables: { area: 'Multi-dimensional Table Virtualization', responsibility: 'Virtualized tables' },
+  'import.json.workspaceTarget': {
+    area: 'JSON Import',
+    responsibility: 'Default destination after JSON parse/import',
+    notes: 'Choose Editor Workspace, Multi-dimensional Table, or Infinite Canvas as the default JSON import landing surface.',
+  },
   'graphDataTable.overscanMultiplier': {
     area: 'Multi-dimensional Table Virtualization',
     responsibility: 'Overscan multiplier for virtual tables',

@@ -1,3 +1,5 @@
+import { warmGraphTableDb } from '@/features/graph-table-db/graphTableDb'
+
 type WorkspaceViewMode = 'canvas' | 'editor'
 type EditorWorkspacePane = 'markdown' | 'graphTable'
 
@@ -16,4 +18,6 @@ export function openWorkspaceTable(args: {
 }) {
   if (args.workspaceViewMode !== 'editor') args.setWorkspaceViewMode('editor')
   if (args.editorWorkspacePane !== 'graphTable') args.setEditorWorkspacePane('graphTable')
+  if (typeof window === 'undefined') return
+  void warmGraphTableDb()
 }

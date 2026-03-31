@@ -1,9 +1,8 @@
 import { addRxPlugin, createRxDatabase, type RxCollection, type RxDatabase, type RxJsonSchema } from 'rxdb/plugins/core'
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder'
-import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie'
-import { getRxStorageMemory } from 'rxdb/plugins/storage-memory'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { hashString32 } from 'grph-shared/hash/stringHash'
+import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
 
 export type GraphTableId = 'nodes' | 'edges'
 
@@ -184,43 +183,15 @@ const graphMetaSchema: RxJsonSchema<GraphMetaDoc> = {
 }
 
 let graphTableDbSingleton: Promise<GraphTableDb> | null = null
+let graphTableWarmupInFlight: Promise<void> | null = null
 
 export const getGraphTableDb = async (): Promise<GraphTableDb> => {
   if (graphTableDbSingleton) return graphTableDbSingleton
   graphTableDbSingleton = (async () => {
     ensureRxdbPlugins()
-    const name = GRAPH_TABLE_DB_NAME
-    const canUseDexie = (() => {
-      const anyGlobal = globalThis as unknown as { indexedDB?: unknown }
-      const idb = anyGlobal.indexedDB as { open?: unknown } | undefined
-      return !!(idb && typeof idb.open === 'function')
-    })()
-
-    if (canUseDexie) {
-      try {
-        const db = await createRxDatabase<GraphTableCollections>({
-          name,
-          storage: getRxStorageDexie(),
-          multiInstance: true,
-          eventReduce: true,
-          closeDuplicates: true,
-        })
-        const collections = await db.addCollections({
-          tables: { schema: graphTableSchema },
-          columns: { schema: graphColumnSchema },
-          rows: { schema: graphRowSchema },
-          views: { schema: graphViewSchema },
-          meta: { schema: graphMetaSchema },
-        })
-        return { db, collections }
-      } catch {
-        void 0
-      }
-    }
-
     const db = await createRxDatabase<GraphTableCollections>({
-      name: `${name}:memory`,
-      storage: getRxStorageMemory(),
+      name: GRAPH_TABLE_DB_NAME,
+      storage: getCanvasRxStorage(),
       multiInstance: true,
       eventReduce: true,
       closeDuplicates: true,
@@ -235,6 +206,17 @@ export const getGraphTableDb = async (): Promise<GraphTableDb> => {
     return { db, collections }
   })()
   return graphTableDbSingleton
+}
+
+export const warmGraphTableDb = async (): Promise<void> => {
+  if (graphTableWarmupInFlight) return graphTableWarmupInFlight
+  graphTableWarmupInFlight = (async () => {
+    await getGraphTableDb()
+    await ensureGraphTableSeed()
+  })().finally(() => {
+    graphTableWarmupInFlight = null
+  })
+  return graphTableWarmupInFlight
 }
 
 const pkOfColumn = (tableId: GraphTableId, columnId: string): string => `${tableId}:${columnId}`

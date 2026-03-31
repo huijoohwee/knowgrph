@@ -1,5 +1,6 @@
-import Dexie, { type Table } from 'dexie'
+import { createRxDatabase, type RxCollection, type RxDatabase, type RxJsonSchema } from 'rxdb/plugins/core'
 import type { SourceFile } from '@/hooks/store/types'
+import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
 
 export const SOURCE_FILES_DB_NAME = 'kg:source-files'
 export const SOURCE_FILES_DB_VERSION = 2
@@ -9,6 +10,73 @@ export type SourceFilesWorkspaceState = {
   accessMode: 'fs-access' | 'opfs' | 'file-input' | null
   folderCacheId: string | null
   selectedFolderPath: string | null
+}
+
+type SourceFileRowV1 = {
+  id: string
+  orderIndex: number
+  payload: SourceFile
+  updatedAtMs: number
+}
+
+type WorkspaceRowV1 = {
+  id: 'workspace'
+  payload: SourceFilesWorkspaceState
+  updatedAtMs: number
+}
+
+type SourceFilesCollections = {
+  sourceFiles: RxCollection<SourceFileRowV1>
+  workspace: RxCollection<WorkspaceRowV1>
+}
+
+const sourceFileSchema: RxJsonSchema<SourceFileRowV1> = {
+  title: 'source_files_row',
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 256 },
+    orderIndex: { type: 'integer', minimum: 0, maximum: 2_147_483_647, multipleOf: 1 },
+    payload: { type: 'object', additionalProperties: true },
+    updatedAtMs: { type: 'number' },
+  },
+  required: ['id', 'orderIndex', 'payload', 'updatedAtMs'],
+  indexes: ['orderIndex', 'updatedAtMs'],
+}
+
+const workspaceSchema: RxJsonSchema<WorkspaceRowV1> = {
+  title: 'source_files_workspace',
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 64 },
+    payload: { type: 'object', additionalProperties: true },
+    updatedAtMs: { type: 'number' },
+  },
+  required: ['id', 'payload', 'updatedAtMs'],
+}
+
+let dbSingleton: Promise<{ db: RxDatabase<SourceFilesCollections>; collections: SourceFilesCollections }> | null = null
+
+const getDb = async () => {
+  if (dbSingleton) return dbSingleton
+  dbSingleton = (async () => {
+    const db = await createRxDatabase<SourceFilesCollections>({
+      name: SOURCE_FILES_DB_NAME,
+      storage: getCanvasRxStorage(),
+      multiInstance: true,
+      eventReduce: true,
+      closeDuplicates: true,
+    })
+    const collections = await db.addCollections({
+      sourceFiles: { schema: sourceFileSchema },
+      workspace: { schema: workspaceSchema },
+    })
+    return { db, collections }
+  })()
+  return dbSingleton
 }
 
 const normalizeText = (v: unknown): string => String(v || '')
@@ -72,50 +140,13 @@ const normalizeWorkspaceState = (v: unknown): SourceFilesWorkspaceState => {
   }
 }
 
-type SourceFileRowV1 = {
-  id: string
-  orderIndex: number
-  payload: SourceFile
-  updatedAtMs: number
-}
-
-type WorkspaceRowV1 = {
-  id: 'workspace'
-  payload: SourceFilesWorkspaceState
-  updatedAtMs: number
-}
-
-class SourceFilesDb extends Dexie {
-  sourceFiles!: Table<SourceFileRowV1, string>
-  workspace!: Table<WorkspaceRowV1, string>
-
-  constructor() {
-    super(SOURCE_FILES_DB_NAME)
-    this.version(1).stores({
-      sourceFiles: '&id, orderIndex, updatedAtMs',
-    })
-    this.version(SOURCE_FILES_DB_VERSION).stores({
-      sourceFiles: '&id, orderIndex, updatedAtMs',
-      workspace: '&id, updatedAtMs',
-    })
-  }
-}
-
-let dbSingleton: SourceFilesDb | null = null
-
-const getDb = (): SourceFilesDb => {
-  if (dbSingleton) return dbSingleton
-  dbSingleton = new SourceFilesDb()
-  return dbSingleton
-}
-
 export const loadPersistedSourceFiles = async (): Promise<SourceFile[]> => {
-  const db = getDb()
-  const rows = await db.sourceFiles.orderBy('orderIndex').toArray()
+  const { collections } = await getDb()
+  const rows = await collections.sourceFiles.find().sort({ orderIndex: 'asc' }).exec()
   return rows
     .map(r => {
       try {
-        const next = normalizeSourceFileForPersistence(r.payload as SourceFile)
+        const next = normalizeSourceFileForPersistence(r.get('payload') as SourceFile)
         if (!next.id) return null
         return next
       } catch {
@@ -137,26 +168,28 @@ export const persistSourceFiles = async (files: SourceFile[]): Promise<void> => 
     })
     .filter(Boolean) as SourceFileRowV1[]
 
-  const db = getDb()
-  await db.transaction('rw', db.sourceFiles, async () => {
-    const kept = new Set(rows.map(r => r.id))
-    const existing = await db.sourceFiles.toCollection().primaryKeys()
-    const toDelete = existing.filter(id => !kept.has(String(id)))
-    if (toDelete.length > 0) await db.sourceFiles.bulkDelete(toDelete)
-    if (rows.length > 0) await db.sourceFiles.bulkPut(rows)
-  })
+  const { collections } = await getDb()
+  const existing = await collections.sourceFiles.find().exec()
+  const keep = new Set(rows.map(r => r.id))
+  for (const doc of existing) {
+    if (keep.has(doc.get('id'))) continue
+    await doc.remove()
+  }
+  for (const row of rows) {
+    await collections.sourceFiles.incrementalUpsert(row)
+  }
 }
 
 export const loadPersistedSourceFilesWorkspace = async (): Promise<SourceFilesWorkspaceState> => {
-  const db = getDb()
-  const row = await db.workspace.get('workspace')
+  const { collections } = await getDb()
+  const row = await collections.workspace.findOne('workspace').exec()
   if (!row) return { folderName: null, accessMode: null, folderCacheId: null, selectedFolderPath: null }
-  return normalizeWorkspaceState(row.payload)
+  return normalizeWorkspaceState(row.get('payload'))
 }
 
 export const persistSourceFilesWorkspace = async (state: SourceFilesWorkspaceState): Promise<void> => {
-  const db = getDb()
+  const { collections } = await getDb()
   const now = Date.now()
   const payload = normalizeWorkspaceState(state)
-  await db.workspace.put({ id: 'workspace', payload, updatedAtMs: now })
+  await collections.workspace.incrementalUpsert({ id: 'workspace', payload, updatedAtMs: now })
 }

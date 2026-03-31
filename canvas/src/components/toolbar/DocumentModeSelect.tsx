@@ -4,7 +4,8 @@ import { FileText, GitMerge, Table, Tags } from 'lucide-react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
-import { openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceTableOpen, openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
+import { WORKSPACE_TABLE_TOOLBAR_UI } from '@/features/workspace-table/workspaceTableToolbarUi'
 
 type DocumentModeSelectProps = {
   iconSizeClass: string
@@ -72,8 +73,8 @@ export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
         },
         {
           value: 'multiDimTable' as const,
-          label: UI_LABELS.multiDimTableMode,
-          tooltip: UI_COPY.multiDimTableModeTooltip,
+          label: WORKSPACE_TABLE_TOOLBAR_UI.label,
+          tooltip: WORKSPACE_TABLE_TOOLBAR_UI.optionTooltip,
           Icon: Table,
         },
       ] satisfies Array<{
@@ -86,6 +87,13 @@ export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
   )
 
   const activeOption = options.find(o => o.value === activeMode) || options[0]
+  const tableWorkspaceOpen = isWorkspaceTableOpen({ workspaceViewMode, editorWorkspacePane })
+  const triggerTooltip =
+    activeMode === 'multiDimTable'
+      ? tableWorkspaceOpen
+        ? WORKSPACE_TABLE_TOOLBAR_UI.openedTooltip
+        : WORKSPACE_TABLE_TOOLBAR_UI.closedTooltip
+      : activeOption.tooltip
 
   React.useEffect(() => {
     if (!multiDimTableModeEnabled) return
@@ -139,7 +147,7 @@ export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
         Icon: option.Icon,
       }))}
       title={activeOption.label}
-      tooltipContent={activeOption.tooltip}
+      tooltipContent={triggerTooltip}
       onSelect={id => applyMode(id)}
       renderButtonContent={active => (
         <active.Icon className={iconSizeClass} strokeWidth={iconStrokeWidth} />

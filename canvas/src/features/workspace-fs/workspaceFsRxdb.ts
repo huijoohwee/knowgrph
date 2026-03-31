@@ -1,41 +1,62 @@
-import Dexie, { type Table } from 'dexie'
+import { createRxDatabase, type RxCollection, type RxDatabase, type RxJsonSchema } from 'rxdb/plugins/core'
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from './path'
 import { LEGACY_WORKSPACE_README_PATH, LEGACY_WORKSPACE_README_TEXT, getWorkspaceSeedFiles } from './workspaceFs'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsRemove, lsSetBool } from '@/lib/persistence'
+import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
 
 const DB_NAME = 'kg:workspace-fs'
-const DB_VERSION = 1
 
 type WorkspaceEntryRow = WorkspaceEntry
-
-class WorkspaceDb extends Dexie {
-  entries!: Table<WorkspaceEntryRow, string>
-
-  constructor() {
-    super(DB_NAME)
-    this.version(DB_VERSION).stores({
-      entries: '&path, parentPath, kind, updatedAtMs',
-    })
-  }
+type WorkspaceCollections = {
+  entries: RxCollection<WorkspaceEntryRow>
 }
 
-let dbSingleton: WorkspaceDb | null = null
+const workspaceEntrySchema: RxJsonSchema<WorkspaceEntryRow> = {
+  title: 'workspace_entry',
+  version: 0,
+  primaryKey: 'path',
+  type: 'object',
+  properties: {
+    path: { type: 'string', maxLength: 2048 },
+    parentPath: { type: ['string', 'null'], maxLength: 2048 },
+    kind: { type: 'string', maxLength: 16 },
+    name: { type: 'string' },
+    text: { type: ['string', 'null'] },
+    updatedAtMs: { type: 'number' },
+  },
+  required: ['path', 'parentPath', 'kind', 'name', 'updatedAtMs'],
+  indexes: ['parentPath', 'kind', 'updatedAtMs'],
+}
 
-const getDb = () => {
+let dbSingleton: Promise<{ db: RxDatabase<WorkspaceCollections>; collections: WorkspaceCollections }> | null = null
+
+const getDb = async () => {
   if (dbSingleton) return dbSingleton
-  dbSingleton = new WorkspaceDb()
+  dbSingleton = (async () => {
+    const db = await createRxDatabase<WorkspaceCollections>({
+      name: DB_NAME,
+      storage: getCanvasRxStorage(),
+      multiInstance: true,
+      eventReduce: true,
+      closeDuplicates: true,
+    })
+    const collections = await db.addCollections({
+      entries: { schema: workspaceEntrySchema },
+    })
+    return { db, collections }
+  })()
   return dbSingleton
 }
 
-export function createDexieWorkspaceFs(): WorkspaceFs {
+export function createWorkspaceRxdbFs(): WorkspaceFs {
   const ensureRoot = async () => {
-    const db = getDb()
-    const existing = await db.entries.get(WORKSPACE_ROOT_PATH)
+    const { collections } = await getDb()
+    const existing = await collections.entries.findOne(WORKSPACE_ROOT_PATH).exec()
     if (existing) return
-    await db.entries.put({
+    await collections.entries.insert({
       path: WORKSPACE_ROOT_PATH,
       parentPath: null,
       kind: 'folder',
@@ -45,16 +66,14 @@ export function createDexieWorkspaceFs(): WorkspaceFs {
   }
 
   const ensureSeed = async () => {
-    const db = getDb()
+    const { collections } = await getDb()
     await ensureRoot()
-
     const legacyPath = normalizeWorkspacePath(LEGACY_WORKSPACE_README_PATH)
-    const legacy = await db.entries.get(legacyPath)
-    if (legacy && legacy.kind === 'file' && String(legacy.text ?? '') === LEGACY_WORKSPACE_README_TEXT) {
-      await db.entries.delete(legacyPath)
+    const legacy = await collections.entries.findOne(legacyPath).exec()
+    if (legacy && legacy.get('kind') === 'file' && String(legacy.get('text') ?? '') === LEGACY_WORKSPACE_README_TEXT) {
+      await legacy.remove()
     }
-
-    const fileCount = await db.entries.where('kind').equals('file').count()
+    const fileCount = await collections.entries.find({ selector: { kind: 'file' } }).exec().then(rows => rows.length)
     const seeded = lsBool(LS_KEYS.markdownWorkspaceSeeded, false)
     const userClearedAll = lsBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, false)
     if (fileCount > 0) {
@@ -65,45 +84,42 @@ export function createDexieWorkspaceFs(): WorkspaceFs {
     if (userClearedAll) return
     const now = Date.now()
     const seeds = await getWorkspaceSeedFiles()
-    await db.transaction('rw', db.entries, async () => {
-      for (const seed of seeds) {
-        const path = normalizeWorkspacePath(seed.path)
-        await db.entries.put({
-          path,
-          parentPath: WORKSPACE_ROOT_PATH,
-          kind: 'file',
-          name: path.split('/').pop() || '',
-          text: seed.text,
-          updatedAtMs: now,
-        })
-      }
-    })
+    for (const seed of seeds) {
+      const path = normalizeWorkspacePath(seed.path)
+      await collections.entries.incrementalUpsert({
+        path,
+        parentPath: WORKSPACE_ROOT_PATH,
+        kind: 'file',
+        name: path.split('/').pop() || '',
+        text: seed.text,
+        updatedAtMs: now,
+      })
+    }
     lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
     if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
   }
 
   const listEntries = async () => {
-    const db = getDb()
     await ensureRoot()
-    const rows = await db.entries.toArray()
-    return rows.sort((a, b) => a.path.localeCompare(b.path))
+    const { collections } = await getDb()
+    const rows = await collections.entries.find().exec()
+    return rows.map(r => r.toJSON()).sort((a, b) => a.path.localeCompare(b.path))
   }
 
   const readFileText = async (path: WorkspacePath) => {
-    const db = getDb()
+    const { collections } = await getDb()
     const p = normalizeWorkspacePath(path)
-    const row = await db.entries.get(p)
-    if (!row || row.kind !== 'file') return null
-    return String(row.text ?? '')
+    const row = await collections.entries.findOne(p).exec()
+    if (!row || row.get('kind') !== 'file') return null
+    return String(row.get('text') ?? '')
   }
 
   const writeFileText = async (path: WorkspacePath, text: string) => {
-    const db = getDb()
+    const { collections } = await getDb()
     const p = normalizeWorkspacePath(path)
-    const row = await db.entries.get(p)
-    if (!row || row.kind !== 'file') return
-    await db.entries.put({
-      ...row,
+    const row = await collections.entries.findOne(p).exec()
+    if (!row || row.get('kind') !== 'file') return
+    await row.incrementalPatch({
       text: String(text ?? ''),
       updatedAtMs: Date.now(),
     })
@@ -111,19 +127,19 @@ export function createDexieWorkspaceFs(): WorkspaceFs {
   }
 
   const createFolder = async (args: { parentPath: WorkspacePath; name: string }) => {
-    const db = getDb()
     await ensureRoot()
+    const { collections } = await getDb()
     const parent = normalizeWorkspacePath(args.parentPath)
     const desired = String(args.name ?? '').trim() || 'folder'
     let name = desired
     let path = joinWorkspacePath(parent, name)
     for (let i = 2; i <= 999; i += 1) {
-      const exists = await db.entries.get(path)
+      const exists = await collections.entries.findOne(path).exec()
       if (!exists) break
       name = `${desired}-${i}`
       path = joinWorkspacePath(parent, name)
     }
-    await db.entries.put({
+    await collections.entries.insert({
       path,
       parentPath: parent,
       kind: 'folder',
@@ -135,14 +151,14 @@ export function createDexieWorkspaceFs(): WorkspaceFs {
   }
 
   const createFile = async (args: { parentPath: WorkspacePath; name: string; text: string }) => {
-    const db = getDb()
     await ensureRoot()
+    const { collections } = await getDb()
     const parent = normalizeWorkspacePath(args.parentPath)
     const desired = String(args.name ?? '').trim() || 'file.md'
     let name = desired
     let path = joinWorkspacePath(parent, name)
     for (let i = 2; i <= 999; i += 1) {
-      const exists = await db.entries.get(path)
+      const exists = await collections.entries.findOne(path).exec()
       if (!exists) break
       const extIndex = desired.lastIndexOf('.')
       const stem = extIndex > 0 ? desired.slice(0, extIndex) : desired
@@ -150,7 +166,7 @@ export function createDexieWorkspaceFs(): WorkspaceFs {
       name = `${stem}-${i}${ext}`
       path = joinWorkspacePath(parent, name)
     }
-    await db.entries.put({
+    await collections.entries.insert({
       path,
       parentPath: parent,
       kind: 'file',
@@ -158,36 +174,32 @@ export function createDexieWorkspaceFs(): WorkspaceFs {
       text: String(args.text ?? ''),
       updatedAtMs: Date.now(),
     })
-    if (lsBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, false)) {
-      lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
-    }
+    if (lsBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, false)) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
     notifyWorkspaceFsChanged({ op: 'createFile', path })
     return path
   }
 
   const deleteEntry = async (path: WorkspacePath) => {
-    const db = getDb()
     await ensureRoot()
+    const { collections } = await getDb()
     const p = normalizeWorkspacePath(path)
     if (p === WORKSPACE_ROOT_PATH) return
-    const row = await db.entries.get(p)
+    const row = await collections.entries.findOne(p).exec()
     if (!row) return
-    if (row.kind === 'file') {
-      await db.entries.delete(p)
-      const remaining = await db.entries.where('kind').equals('file').count()
+    if (row.get('kind') === 'file') {
+      await row.remove()
+      const remaining = await collections.entries.find({ selector: { kind: 'file' } }).exec().then(rows => rows.length)
       if (remaining === 0) lsSetBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, true)
       notifyWorkspaceFsChanged({ op: 'deleteEntry', path: p })
       return
     }
     const prefix = p.endsWith('/') ? p : `${p}/`
-    await db.transaction('rw', db.entries, async () => {
-      const all = await db.entries.toArray()
-      const toDelete = all
-        .map(r => r.path)
-        .filter(key => key === p || key.startsWith(prefix))
-      if (toDelete.length > 0) await db.entries.bulkDelete(toDelete)
-    })
-    const remaining = await db.entries.where('kind').equals('file').count()
+    const all = await collections.entries.find().exec()
+    for (const doc of all) {
+      const key = doc.get('path')
+      if (key === p || key.startsWith(prefix)) await doc.remove()
+    }
+    const remaining = await collections.entries.find({ selector: { kind: 'file' } }).exec().then(rows => rows.length)
     if (remaining === 0) lsSetBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, true)
     notifyWorkspaceFsChanged({ op: 'deleteEntry', path: p })
   }

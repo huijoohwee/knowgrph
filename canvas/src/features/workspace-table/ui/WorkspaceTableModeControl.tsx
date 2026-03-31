@@ -4,6 +4,13 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { isWorkspaceTableOpen, openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
+import {
+  JSON_IMPORT_WORKSPACE_TARGET_LABELS,
+  JSON_IMPORT_WORKSPACE_TARGET_OPTIONS,
+  readJsonImportWorkspaceTarget,
+  type JsonImportWorkspaceTarget,
+  writeJsonImportWorkspaceTarget,
+} from '@/features/workspace-table/jsonImportWorkspaceTarget'
 
 type WorkspaceTableModeControlProps = {
   className?: string
@@ -29,6 +36,7 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
   )
 
   const tableWorkspaceOpen = isWorkspaceTableOpen({ workspaceViewMode, editorWorkspacePane })
+  const [jsonImportTarget, setJsonImportTarget] = React.useState<JsonImportWorkspaceTarget>(() => readJsonImportWorkspaceTarget())
 
   const handleToggleMode = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,6 +51,11 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
   const handleOpenTable = React.useCallback(() => {
     openWorkspaceTable({ workspaceViewMode, editorWorkspacePane, setWorkspaceViewMode, setEditorWorkspacePane })
   }, [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceViewMode, workspaceViewMode])
+
+  const handleJsonImportTargetChanged = React.useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
+    const next = writeJsonImportWorkspaceTarget(event.currentTarget.value as JsonImportWorkspaceTarget)
+    setJsonImportTarget(next)
+  }, [])
 
   return (
     <section className={className || 'flex flex-col gap-2'} aria-label={UI_COPY.markdownDataViewTitleDefault}>
@@ -63,6 +76,21 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
       >
         {tableWorkspaceOpen ? UI_COPY.toolbarGraphDataTableWorkspaceOnTooltip : UI_COPY.toolbarGraphDataTableToggleTitle}
       </button>
+      <label className="flex items-center justify-between gap-2 text-xs">
+        <span className="min-w-0 truncate">JSON import target</span>
+        <select
+          className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+          value={jsonImportTarget}
+          onChange={handleJsonImportTargetChanged}
+          aria-label="JSON import target"
+        >
+          {JSON_IMPORT_WORKSPACE_TARGET_OPTIONS.map(option => (
+            <option key={option} value={option}>
+              {JSON_IMPORT_WORKSPACE_TARGET_LABELS[option]}
+            </option>
+          ))}
+        </select>
+      </label>
     </section>
   )
 }
