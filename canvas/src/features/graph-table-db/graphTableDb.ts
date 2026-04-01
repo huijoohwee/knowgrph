@@ -1,5 +1,6 @@
 import { addRxPlugin, createRxDatabase, type RxCollection, type RxDatabase, type RxJsonSchema } from 'rxdb/plugins/core'
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder'
+import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { hashString32 } from 'grph-shared/hash/stringHash'
 import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
@@ -95,6 +96,7 @@ let rxdbPluginsInitialized = false
 const ensureRxdbPlugins = () => {
   if (rxdbPluginsInitialized) return
   addRxPlugin(RxDBQueryBuilderPlugin)
+  addRxPlugin(RxDBMigrationSchemaPlugin)
   rxdbPluginsInitialized = true
 }
 

@@ -114,7 +114,7 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   },
 
   bipartiteDataSource: (() => {
-    const raw = readLsString(LS_KEYS.bipartiteDataSource, 'api')
+    const raw = readLsString(LS_KEYS.bipartiteDataSource, 'workspace')
     return (raw === 'fixture' ? 'fixture' : raw === 'workspace' ? 'workspace' : 'api') as 'api' | 'fixture' | 'workspace'
   })(),
   setBipartiteDataSource: (v: 'api' | 'fixture' | 'workspace') => {

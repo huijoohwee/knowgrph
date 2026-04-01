@@ -1,9 +1,17 @@
-import { createRxDatabase, type RxCollection, type RxDatabase, type RxJsonSchema } from 'rxdb/plugins/core'
+import { addRxPlugin, createRxDatabase, type RxCollection, type RxDatabase, type RxJsonSchema } from 'rxdb/plugins/core'
+import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema'
 import type { SourceFile } from '@/hooks/store/types'
 import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
 
 export const SOURCE_FILES_DB_NAME = 'kg:source-files'
 export const SOURCE_FILES_DB_VERSION = 2
+
+let rxdbPluginsInitialized = false
+const ensureRxdbPlugins = () => {
+  if (rxdbPluginsInitialized) return
+  addRxPlugin(RxDBMigrationSchemaPlugin)
+  rxdbPluginsInitialized = true
+}
 
 export type SourceFilesWorkspaceState = {
   folderName: string | null
@@ -32,7 +40,7 @@ type SourceFilesCollections = {
 
 const sourceFileSchema: RxJsonSchema<SourceFileRowV1> = {
   title: 'source_files_row',
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -47,7 +55,7 @@ const sourceFileSchema: RxJsonSchema<SourceFileRowV1> = {
 
 const workspaceSchema: RxJsonSchema<WorkspaceRowV1> = {
   title: 'source_files_workspace',
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -60,21 +68,72 @@ const workspaceSchema: RxJsonSchema<WorkspaceRowV1> = {
 
 let dbSingleton: Promise<{ db: RxDatabase<SourceFilesCollections>; collections: SourceFilesCollections }> | null = null
 
+const clearRxdbLocalstorageForDatabaseName = (databaseName: string) => {
+  if (typeof window === 'undefined') return
+  const ls = window.localStorage
+  const marker = `-${databaseName}--`
+  try {
+    for (let i = ls.length - 1; i >= 0; i -= 1) {
+      const key = ls.key(i)
+      if (!key) continue
+      if (!key.startsWith('RxDB-ls-')) continue
+      if (!key.includes(marker)) continue
+      ls.removeItem(key)
+    }
+  } catch {
+    void 0
+  }
+}
+
 const getDb = async () => {
   if (dbSingleton) return dbSingleton
   dbSingleton = (async () => {
-    const db = await createRxDatabase<SourceFilesCollections>({
-      name: SOURCE_FILES_DB_NAME,
-      storage: getCanvasRxStorage(),
-      multiInstance: true,
-      eventReduce: true,
-      closeDuplicates: true,
-    })
-    const collections = await db.addCollections({
-      sourceFiles: { schema: sourceFileSchema },
-      workspace: { schema: workspaceSchema },
-    })
-    return { db, collections }
+    ensureRxdbPlugins()
+    let didReset = false
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const db = await createRxDatabase<SourceFilesCollections>({
+          name: SOURCE_FILES_DB_NAME,
+          storage: getCanvasRxStorage(),
+          multiInstance: true,
+          eventReduce: true,
+          closeDuplicates: true,
+        })
+        const collections = await db.addCollections({
+          sourceFiles: {
+            schema: sourceFileSchema,
+            migrationStrategies: {
+              1: (doc: unknown) => {
+                const d = (doc && typeof doc === 'object' ? (doc as Record<string, unknown>) : {})
+                const id = String(d.id || '').slice(0, 256)
+                const orderIndex = Number.isFinite(d.orderIndex) ? Math.max(0, Math.floor(d.orderIndex as number)) : 0
+                const payload = (d.payload && typeof d.payload === 'object' ? d.payload : {}) as SourceFile
+                const updatedAtMs = Number.isFinite(d.updatedAtMs) ? Math.max(0, Math.floor(d.updatedAtMs as number)) : 0
+                return { id, orderIndex, payload, updatedAtMs } satisfies SourceFileRowV1
+              },
+            },
+          },
+          workspace: {
+            schema: workspaceSchema,
+            migrationStrategies: {
+              1: (doc: unknown) => {
+                const d = (doc && typeof doc === 'object' ? (doc as Record<string, unknown>) : {})
+                const id: 'workspace' = 'workspace'
+                const payload = (d.payload && typeof d.payload === 'object' ? d.payload : {}) as SourceFilesWorkspaceState
+                const updatedAtMs = Number.isFinite(d.updatedAtMs) ? Math.max(0, Math.floor(d.updatedAtMs as number)) : 0
+                return { id, payload, updatedAtMs } satisfies WorkspaceRowV1
+              },
+            },
+          },
+        })
+        return { db, collections }
+      } catch (err) {
+        if (didReset) throw err
+        didReset = true
+        clearRxdbLocalstorageForDatabaseName(SOURCE_FILES_DB_NAME)
+      }
+    }
+    throw new Error('Failed to initialize source-files database')
   })()
   return dbSingleton
 }

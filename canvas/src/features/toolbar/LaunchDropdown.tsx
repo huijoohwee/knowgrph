@@ -1,5 +1,5 @@
 import React from 'react'
-import { BarChart3, FolderOpen, FolderPlus, Globe, Link, Save, Sparkles, Upload, Download, Workflow } from 'lucide-react'
+import { BarChart3, CloudDownload, FolderOpen, FolderPlus, Globe, Link, Save, Sparkles, Upload, Download, Workflow } from 'lucide-react'
 import { DropdownPanel } from '@/lib/ui/overlay'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { SOURCE_FILES_COPY, SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
@@ -39,6 +39,9 @@ export function LaunchDropdown({
   const exportCloseTimeoutRef = React.useRef<number | null>(null)
 
   const pushUiToast = useGraphStore(s => s.pushUiToast)
+  const setCanvasRenderMode = useGraphStore(s => s.setCanvasRenderMode)
+  const setCanvas2dRenderer = useGraphStore(s => s.setCanvas2dRenderer)
+  const setBipartiteDataSource = useGraphStore(s => s.setBipartiteDataSource)
 
   const bridge = getMarkdownWorkspaceActionBridge()
 
@@ -393,6 +396,29 @@ export function LaunchDropdown({
             >
               <Upload className={menuIconClass} strokeWidth={1.6} />
               <span className="truncate">Import local files</span>
+            </button>
+          </li>
+
+          <li className="list-none">
+            <button
+              type="button"
+              className={menuItemClass}
+              onClick={() => {
+                onClose()
+                setUrlInputOpen(false)
+                setCanvasRenderMode('2d')
+                setCanvas2dRenderer('d3Bipartite')
+                setBipartiteDataSource('api')
+                pushUiToast({
+                  id: 'launch:fetch-api-data-source',
+                  kind: 'neutral',
+                  message: 'Fetching API data source…',
+                  ttlMs: 2500,
+                })
+              }}
+            >
+              <CloudDownload className={menuIconClass} strokeWidth={1.6} />
+              <span className="truncate">Fetch API Data Source</span>
             </button>
           </li>
 
