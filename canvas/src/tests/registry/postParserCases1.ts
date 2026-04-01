@@ -153,6 +153,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["geospatial.interaction.holdSpaceKeyHardening","@/__tests__/geospatialHostIntegration.test","testHoldSpaceKeyHandlingPreventsScrollAndIgnoresInputs"],
   ["geospatial.host.enableForcesAlways","@/__tests__/geospatialHostIntegration.test","testHostEnableForcesAlwaysInteractionMode"],
   ["geospatial.host.supportsCesiumRenderer","@/__tests__/geospatialHostIntegration.test","testGeospatialOverlayHostSupportsCesiumRenderer"],
+  ["geospatial.host.projectsSnapshotGraphDataToMapLayer","@/__tests__/geospatialHostIntegration.test","testGeospatialOverlayHostProjectsSnapshotGraphDataToMapLayer"],
   ["geospatial.host.tailwindScansGympgrph","@/__tests__/geospatialHostIntegration.test","testHostTailwindScansGympgrphClasses"],
   ["geospatial.host.remoteFetchProxy.noAbortOrTruncate","@/__tests__/geospatialHostIntegration.test","testRemoteFetchProxyDoesNotAbortOnCloseOrTruncate"],
   ["geospatial.gympgrphCesium.autoFitToGeoBounds","@/__tests__/geospatialHostIntegration.test","testGympgrphCesiumOverlayAutoFitsToGeoBounds"],

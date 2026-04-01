@@ -7,6 +7,7 @@ import { getRendererPalette } from '@/lib/graph/schema'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import {
+  getGraphDataTablePropertyValue,
   type GraphDataTableColumnKey,
   type GraphDataTableAggregateVizMode,
   type GraphDataTableListItem,
@@ -75,6 +76,78 @@ function getDefaultColumnWidthPx(columnKey: GraphDataTableColumnKey): number {
   if (columnKey === 'label') return 240
   if (columnKey === 'properties' || columnKey === 'metadata') return 360
   return 160
+}
+
+const isRecordValue = (value: unknown): value is Record<string, JSONValue> => {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+const writeNestedProperty = (base: Record<string, JSONValue>, key: string, value: JSONValue): Record<string, JSONValue> => {
+  const clean = String(key || '').trim()
+  if (!clean) return base
+  if (Object.prototype.hasOwnProperty.call(base, clean) || !clean.includes('.')) {
+    base[clean] = value
+    return base
+  }
+  const segments = clean.split('.').map(s => s.trim()).filter(Boolean)
+  if (segments.length <= 1) {
+    base[clean] = value
+    return base
+  }
+  let current: Record<string, JSONValue> = base
+  for (let i = 0; i < segments.length - 1; i += 1) {
+    const seg = segments[i]
+    const next = current[seg]
+    if (isRecordValue(next)) {
+      const cloned = { ...next }
+      current[seg] = cloned as unknown as JSONValue
+      current = cloned
+      continue
+    }
+    const created: Record<string, JSONValue> = {}
+    current[seg] = created as unknown as JSONValue
+    current = created
+  }
+  current[segments[segments.length - 1] as string] = value
+  return base
+}
+
+const deleteNestedProperty = (base: Record<string, JSONValue>, key: string): Record<string, JSONValue> => {
+  const clean = String(key || '').trim()
+  if (!clean) return base
+  if (Object.prototype.hasOwnProperty.call(base, clean) || !clean.includes('.')) {
+    delete base[clean]
+    return base
+  }
+  const segments = clean.split('.').map(s => s.trim()).filter(Boolean)
+  if (segments.length <= 1) {
+    delete base[clean]
+    return base
+  }
+  const parents: Array<Record<string, JSONValue>> = [base]
+  const keys: string[] = []
+  let current: Record<string, JSONValue> | null = base
+  for (let i = 0; i < segments.length - 1; i += 1) {
+    if (!current) return base
+    const seg = segments[i]
+    const next = current[seg]
+    if (!isRecordValue(next)) return base
+    const cloned = { ...next }
+    current[seg] = cloned as unknown as JSONValue
+    parents.push(cloned)
+    keys.push(seg)
+    current = cloned
+  }
+  if (!current) return base
+  delete current[segments[segments.length - 1] as string]
+  for (let i = parents.length - 1; i > 0; i -= 1) {
+    const obj = parents[i]
+    if (Object.keys(obj).length > 0) break
+    const parent = parents[i - 1]
+    const keyToDelete = keys[i - 1]
+    delete parent[keyToDelete]
+  }
+  return base
 }
 
 interface GraphDataTableProps {
@@ -293,7 +366,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
         const rows = item.kind === 'row' ? [item.row] : item.kind === 'group' ? item.rows : []
         for (const row of rows) {
           if (row.kind !== args.scope) continue
-          const raw = row.properties?.[args.propertyKey as keyof typeof row.properties]
+          const raw = getGraphDataTablePropertyValue(row.properties, args.propertyKey)
           if (args.kind === 'multi-select') {
             if (!Array.isArray(raw)) continue
             for (const v of raw) {
@@ -581,16 +654,16 @@ export const GraphDataTable = React.memo(function GraphDataTable({
       if (args.kind === 'multi-select') {
         const nextArr = splitMultiValues(args.next)
         if (nextArr.length === 0) {
-          delete nextProps[args.propertyKey]
+          deleteNestedProperty(nextProps, args.propertyKey)
         } else {
-          nextProps[args.propertyKey] = nextArr as unknown as JSONValue
+          writeNestedProperty(nextProps, args.propertyKey, nextArr as unknown as JSONValue)
         }
       } else {
         const v = String(args.next || '').trim()
         if (!v) {
-          delete nextProps[args.propertyKey]
+          deleteNestedProperty(nextProps, args.propertyKey)
         } else {
-          nextProps[args.propertyKey] = v
+          writeNestedProperty(nextProps, args.propertyKey, v)
         }
       }
 

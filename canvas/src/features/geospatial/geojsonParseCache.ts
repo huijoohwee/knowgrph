@@ -1,0 +1,27 @@
+import type { FeatureCollection } from 'geojson'
+import { LRUCache } from '@/lib/cache/LRUCache'
+import { hashText } from '@/features/parsers/hash'
+import { coerceGeoJsonToFeatureCollection, parseGeoJsonFromText } from 'gympgrph'
+
+type CacheValue =
+  | { ok: true; featureCollection: FeatureCollection }
+  | { ok: false }
+
+const parseCache = new LRUCache<string, CacheValue>(500, 20 * 60 * 1000)
+
+export function parseGeoJsonFeatureCollectionFromText(text: string): FeatureCollection | null {
+  const trimmed = String(text || '').trim()
+  if (!trimmed) return null
+  const key = hashText(trimmed)
+  const cached = parseCache.get(key)
+  if (cached) return cached.ok ? cached.featureCollection : null
+  try {
+    const parsed = parseGeoJsonFromText(trimmed)
+    const normalized = coerceGeoJsonToFeatureCollection(parsed)
+    parseCache.set(key, { ok: true, featureCollection: normalized })
+    return normalized
+  } catch {
+    parseCache.set(key, { ok: false })
+    return null
+  }
+}

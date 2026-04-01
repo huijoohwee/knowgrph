@@ -22,7 +22,8 @@ export const parseGraph = (name: string, text: string): { data: GraphData; diag:
     return { data, diag: { format: 'csv', warnings: [] } }
   }
 
-  const fastGeo = text.length > 1_000_000 ? tryBuildGeodataGraphDataFromJsonText({ name, text }) : null
+  const attemptedFastGeo = text.length > 1_000_000
+  const fastGeo = attemptedFastGeo ? tryBuildGeodataGraphDataFromJsonText({ name, text }) : null
   if (fastGeo) {
     return { data: fastGeo.graphData, diag: { format: 'json', warnings: fastGeo.warnings } }
   }
@@ -79,6 +80,14 @@ export const parseGraph = (name: string, text: string): { data: GraphData; diag:
     if (json && typeof json === 'object' && !Array.isArray(json)) {
       const t = (json as { type?: unknown }).type
       if (t === 'FeatureCollection' || t === 'Feature') {
+        const directGeoGraph = buildGraphDataFromFeatureCollection({
+          featureCollection: json,
+          sourcePath: name,
+          sourceHash: '',
+        })
+        if (directGeoGraph && directGeoGraph.nodes.length > 0) {
+          return { data: directGeoGraph, diag: { format: 'json', warnings: [] } }
+        }
         try {
           const normalized = coerceGeoJsonToFeatureCollection(json as never)
           const geoGraph = buildGraphDataFromFeatureCollection({
@@ -95,9 +104,11 @@ export const parseGraph = (name: string, text: string): { data: GraphData; diag:
       }
     }
 
-    const geo = tryBuildGeodataGraphDataFromJsonText({ name, text, maxRecords: 15000 })
-    if (geo) {
-      return { data: geo.graphData, diag: { format: 'json', warnings: geo.warnings } }
+    if (!attemptedFastGeo) {
+      const geo = tryBuildGeodataGraphDataFromJsonText({ name, text, maxRecords: 15000 })
+      if (geo) {
+        return { data: geo.graphData, diag: { format: 'json', warnings: geo.warnings } }
+      }
     }
 
     const raw = rawToGraphData(json)

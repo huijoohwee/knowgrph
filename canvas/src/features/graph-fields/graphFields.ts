@@ -143,6 +143,9 @@ function toGraphFieldKindBase(value: JSONValue): GraphFieldKindBase {
   return 'object'
 }
 
+const DERIVED_FIELD_NESTED_MAX_DEPTH = 4
+const DERIVED_FIELD_NESTED_SCAN_LIMIT = 20_000
+
 export function computeDerivedFields(graphData: GraphData): ReadonlyArray<GraphField> {
   type Accumulator = {
     scope: GraphFieldScope
@@ -153,6 +156,7 @@ export function computeDerivedFields(graphData: GraphData): ReadonlyArray<GraphF
   }
 
   const byId = new Map<GraphFieldId, Accumulator>()
+  const scanState = { count: 0 }
 
   const upsert = (scope: GraphFieldScope, key: string, value: unknown) => {
     const cleanedKey = String(key || '').trim()
@@ -179,10 +183,39 @@ export function computeDerivedFields(graphData: GraphData): ReadonlyArray<GraphF
     current.samples += 1
   }
 
+  const walkNested = (
+    scope: GraphFieldScope,
+    prefix: string,
+    value: JSONValue,
+    depth: number,
+    seen: Set<object>,
+  ) => {
+    if (scanState.count >= DERIVED_FIELD_NESTED_SCAN_LIMIT) return
+    if (depth >= DERIVED_FIELD_NESTED_MAX_DEPTH) return
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return
+    if (seen.has(value as object)) return
+    seen.add(value as object)
+    const rec = value as Record<string, unknown>
+    for (const [childKey, childRaw] of Object.entries(rec)) {
+      if (scanState.count >= DERIVED_FIELD_NESTED_SCAN_LIMIT) break
+      const cleaned = String(childKey || '').trim()
+      if (!cleaned) continue
+      const nestedKey = `${prefix}.${cleaned}`
+      upsert(scope, nestedKey, childRaw)
+      scanState.count += 1
+      if (!isJsonValue(childRaw)) continue
+      walkNested(scope, nestedKey, childRaw, depth + 1, seen)
+    }
+    seen.delete(value as object)
+  }
+
   for (const node of graphData.nodes || []) {
     const props = node?.properties || {}
     for (const [key, value] of Object.entries(props)) {
       upsert('node', key, value)
+      if (isJsonValue(value)) {
+        walkNested('node', key, value, 0, new Set<object>())
+      }
     }
   }
 
@@ -190,6 +223,9 @@ export function computeDerivedFields(graphData: GraphData): ReadonlyArray<GraphF
     const props = edge?.properties || {}
     for (const [key, value] of Object.entries(props)) {
       upsert('edge', key, value)
+      if (isJsonValue(value)) {
+        walkNested('edge', key, value, 0, new Set<object>())
+      }
     }
   }
 

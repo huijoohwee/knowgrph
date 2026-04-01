@@ -3,6 +3,7 @@ import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { JSONValue } from '@/lib/graph/types'
 import { isJsonValue } from '@/lib/graph/jsonValue'
 import {
+  getGraphDataTablePropertyValue,
   getRowFieldText,
   stringifyPreview,
   isGraphDataTablePropertyColumnKey,
@@ -422,8 +423,7 @@ export const BodyCell = React.memo(function BodyCell({
     const isSingleSelect = settings?.fieldType === 'Single-select'
 
     if (parsed && row.kind === parsed.scope && (isMultiSelect || isSingleSelect)) {
-      const raw =
-        row.properties?.[parsed.propertyKey as keyof typeof row.properties]
+      const raw = getGraphDataTablePropertyValue(row.properties, parsed.propertyKey)
       const values = isMultiSelect && Array.isArray(raw)
         ? raw.filter((v): v is string => typeof v === 'string')
         : []

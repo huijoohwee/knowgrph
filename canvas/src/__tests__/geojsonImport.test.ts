@@ -30,3 +30,39 @@ export const testGeoJsonImport = () => {
     throw new Error(`Geo coordinates mismatch: ${JSON.stringify(geo)}`)
   }
 }
+
+export const testGeoJsonImportWithForeignMembers = () => {
+  const geoJsonText = JSON.stringify({
+    type: 'FeatureCollection',
+    metadata: { name: 'singapoly-like' },
+    knowledgeGraph: { edges: [{ source: 1, target: 2, type: 'district' }] },
+    features: [
+      {
+        type: 'Feature',
+        id: 1,
+        properties: { name: 'Point A' },
+        geometry: { type: 'Point', coordinates: [103.81, 1.31] },
+      },
+      {
+        type: 'Feature',
+        id: 2,
+        properties: { name: 'Point B' },
+        geometry: { type: 'Point', coordinates: [103.91, 1.35] },
+      },
+    ],
+  })
+
+  const { data } = parseGraph('singapoly-like.json', geoJsonText)
+  if (data.context !== 'geojson') {
+    throw new Error(`Expected context=geojson for foreign-member FeatureCollection, got ${data.context}`)
+  }
+  if (!Array.isArray(data.nodes) || data.nodes.length !== 2) {
+    throw new Error(`Expected 2 geojson nodes, got ${data.nodes?.length}`)
+  }
+  const hasGeo = data.nodes.every(node => {
+    const props = (node.properties || {}) as Record<string, unknown>
+    const geo = props.geo as Record<string, unknown> | undefined
+    return !!geo && Number.isFinite(geo.lat as number) && Number.isFinite(geo.lng as number)
+  })
+  if (!hasGeo) throw new Error('Expected all nodes to include properties.geo.{lat,lng}')
+}

@@ -4,8 +4,9 @@ import { LRUCache } from '@/lib/cache/LRUCache'
 import { hashText } from '@/features/parsers/hash'
 import type { GraphData } from '@/lib/graph/types'
 import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
-import { addGeospatialDatasetUrl, coerceGeoJsonToFeatureCollection, isGeospatialModeEnabled, parseGeoJsonFromText } from 'gympgrph'
+import { addGeospatialDatasetUrl, isGeospatialModeEnabled } from 'gympgrph'
 import { uploadGeoJsonTextToLocalStore } from '@/features/geospatial/localGeoUpload'
+import { parseGeoJsonFeatureCollectionFromText } from '@/features/geospatial/geojsonParseCache'
 
 type MarkdownGeoDatasetRegistrationRequest = {
   sourceDocumentPath: string
@@ -26,10 +27,8 @@ type MarkdownGeoDatasetIntegration = {
   requestOpenGeoPanel?: () => void
 }
 
-type GeoDetectResult = { ok: boolean }
 type GeoUploadCacheValue = { ok: true; url: string; name: string } | { ok: false; error: string }
 
-const detectCache = new LRUCache<string, GeoDetectResult>(500, 10 * 60 * 1000)
 const uploadCache = new LRUCache<string, GeoUploadCacheValue>(120, 30 * 60 * 1000)
 const addUrlOnceCache = new LRUCache<string, { ok: true }>(800, 45 * 60 * 1000)
 
@@ -72,20 +71,7 @@ const canParseGeoJson = (req: MarkdownGeoDatasetRegistrationRequest): boolean =>
   const raw = String(req.codeBlock.text || '')
   const trimmed = raw.trim()
   if (!trimmed) return false
-
-  const cacheKey = `${req.codeBlock.lang}:${hashText(trimmed)}`
-  const cached = detectCache.get(cacheKey)
-  if (cached) return cached.ok
-
-  try {
-    const fc = parseGeoJsonFromText(trimmed)
-    const ok = !!fc
-    detectCache.set(cacheKey, { ok })
-    return ok
-  } catch {
-    detectCache.set(cacheKey, { ok: false })
-    return false
-  }
+  return !!parseGeoJsonFeatureCollectionFromText(trimmed)
 }
 
 const addDatasetUrlOnce = (args: { url: string; label: string }) => {
@@ -153,11 +139,10 @@ export function createMarkdownGeoDatasetIntegration(args: {
       const raw = String(req.codeBlock.text || '')
       const trimmed = raw.trim()
       if (!trimmed) return { ok: false, error: 'Missing GeoJSON text' }
-      if (!canParseGeoJson(req)) return { ok: false, error: 'GeoJSON parse failed' }
+      const normalized = parseGeoJsonFeatureCollectionFromText(trimmed)
+      if (!normalized) return { ok: false, error: 'GeoJSON parse failed' }
 
       try {
-        const parsed = parseGeoJsonFromText(trimmed)
-        const normalized = coerceGeoJsonToFeatureCollection(parsed)
         const graph = buildGraphDataFromFeatureCollection({
           featureCollection: normalized,
           sourcePath: buildGraphSourcePath(req),

@@ -120,6 +120,37 @@ export function parseGraphDataTablePropertyColumnKey(
   return null
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+export function getGraphDataTablePropertyValue(
+  properties: GraphNode['properties'] | GraphEdge['properties'] | null | undefined,
+  propertyKey: string,
+): unknown {
+  if (!properties) return undefined
+  const key = String(propertyKey || '').trim()
+  if (!key) return undefined
+  if (Object.prototype.hasOwnProperty.call(properties, key)) {
+    return properties[key as keyof typeof properties]
+  }
+  if (!key.includes('.')) return properties[key as keyof typeof properties]
+  const segments = key.split('.').map(s => s.trim()).filter(Boolean)
+  if (segments.length === 0) return undefined
+  let current: unknown = properties
+  for (const segment of segments) {
+    if (Array.isArray(current)) {
+      const idx = Number(segment)
+      if (!Number.isInteger(idx) || idx < 0 || idx >= current.length) return undefined
+      current = current[idx]
+      continue
+    }
+    if (!isRecord(current)) return undefined
+    current = current[segment]
+  }
+  return current
+}
+
 export const buildDefaultVisibleColumns = (): GraphDataTableColumnVisibilityByKey =>
   GRAPH_DATA_TABLE_COLUMN_DEFS.reduce(
     (acc, d) => {
@@ -195,7 +226,7 @@ export function getRowFieldText(row: UnifiedRow, key: GraphDataTableColumnKey): 
     const parsed = parseGraphDataTablePropertyColumnKey(key)
     if (!parsed) return ''
     if (row.kind !== parsed.scope) return ''
-    const raw = row.properties?.[parsed.propertyKey as keyof typeof row.properties]
+    const raw = getGraphDataTablePropertyValue(row.properties, parsed.propertyKey)
     if (raw === null || raw === undefined) return ''
     if (Array.isArray(raw)) {
       const items = raw
@@ -277,7 +308,7 @@ function doesRowMatchCondition(row: UnifiedRow, condition: GraphDataTableFilterC
   if (isGraphDataTablePropertyColumnKey(condition.key)) {
     const parsed = parseGraphDataTablePropertyColumnKey(condition.key)
     if (parsed && row.kind === parsed.scope) {
-      rawValue = row.properties?.[parsed.propertyKey as keyof typeof row.properties]
+      rawValue = getGraphDataTablePropertyValue(row.properties, parsed.propertyKey)
     }
   }
 
@@ -454,7 +485,7 @@ export function buildGraphDataTableListItems(
     if (isGraphDataTablePropertyColumnKey(groupKey)) {
       const parsed = parseGraphDataTablePropertyColumnKey(groupKey)
       if (parsed && r.kind === parsed.scope) {
-        const raw = r.properties?.[parsed.propertyKey as keyof typeof r.properties]
+        const raw = getGraphDataTablePropertyValue(r.properties, parsed.propertyKey)
         if (Array.isArray(raw)) {
           const items = raw
             .map(value => {

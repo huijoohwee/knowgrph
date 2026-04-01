@@ -5,13 +5,14 @@ import {
   computeBoundsFromCollections,
   ensureDatasetLayer,
   isPointOnlyFeatureCollection,
-  parseGeoJsonFromText,
   setGeoJsonSourceData,
   useMapLibreBasemap,
 } from 'gympgrph'
 import type { FeatureCollection } from 'geojson'
 import { geoGraticule10, geoMercator, geoPath } from 'd3'
 import { shouldSuppressBasemapErrorMessage } from './basemapErrorSuppression'
+import { hashText } from '@/features/parsers/hash'
+import { parseGeoJsonFeatureCollectionFromText } from '@/features/geospatial/geojsonParseCache'
 
 const sanitizeId = (raw: string): string => {
   const s = String(raw || '').trim()
@@ -229,18 +230,17 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
   const [basemapWarning, setBasemapWarning] = React.useState<string | null>(null)
 
   const targetStyleUrl = 'kg:style:raster-osm'
+  const normalizedGeoJsonText = React.useMemo(() => String(geojsonText || '').trim(), [geojsonText])
+  const parsedGeoJsonHash = React.useMemo(() => (normalizedGeoJsonText ? hashText(normalizedGeoJsonText) : ''), [normalizedGeoJsonText])
 
   const parsed = React.useMemo(() => {
-    const trimmed = String(geojsonText || '').trim()
-    if (!trimmed) return { fc: null as FeatureCollection | null, bounds: null as ReturnType<typeof computeBoundsFromCollections> }
-    try {
-      const fc = parseGeoJsonFromText(trimmed)
-      const bounds = fc ? computeBoundsFromCollections([fc]) : null
-      return { fc, bounds }
-    } catch {
-      return { fc: null, bounds: null }
+    if (!normalizedGeoJsonText) {
+      return { fc: null as FeatureCollection | null, bounds: null as ReturnType<typeof computeBoundsFromCollections> }
     }
-  }, [geojsonText])
+    const fc = parseGeoJsonFeatureCollectionFromText(normalizedGeoJsonText)
+    const bounds = fc ? computeBoundsFromCollections([fc]) : null
+    return { fc, bounds }
+  }, [normalizedGeoJsonText])
 
   const isJsdom = React.useMemo(() => {
     const ua = typeof window !== 'undefined' ? String(window.navigator?.userAgent || '') : ''
@@ -409,6 +409,7 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     ensureFallbackBasemapLayers(map, true)
   }, [basemap.map, basemap.styleRevision, basemapHasBaseSource])
 
+  const lastAppliedDataKeyRef = React.useRef<string>('')
   React.useEffect(() => {
     const map = basemap.map
     if (!map) return
@@ -418,6 +419,8 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
       return
     }
     const safeDatasetId = sanitizeId(datasetId)
+    const dataKey = `${basemap.styleRevision}:${safeDatasetId}:${parsedGeoJsonHash}`
+    if (lastAppliedDataKeyRef.current === dataKey) return
     const srcId = `kg-md-geojson:${safeDatasetId}`
     try {
       const fc = coerceFeatureCollectionIds(parsed.fc, safeDatasetId)
@@ -425,6 +428,7 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
       const cluster = pointOnly && Array.isArray(fc.features) && fc.features.length >= 200
       ensureDatasetLayer(map, srcId, colorForDataset(safeDatasetId), cluster ? { cluster: true } : undefined)
       setGeoJsonSourceData(map, srcId, fc)
+      lastAppliedDataKeyRef.current = dataKey
       setError(null)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -439,7 +443,7 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
         void 0
       }
     }
-  }, [basemap.map, basemap.styleRevision, basemapHasBaseSource, datasetId, parsed.bounds, parsed.fc])
+  }, [basemap.map, basemap.styleRevision, basemapHasBaseSource, datasetId, parsed.bounds, parsed.fc, parsedGeoJsonHash])
 
   React.useEffect(() => {
     const map = basemap.map
@@ -468,7 +472,7 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
 
   const rootHeight = useContainerHeight ? '100%' : heightPx
   const rootMinHeight = useContainerHeight ? heightPx : undefined
-  const hasInputText = React.useMemo(() => Boolean(String(geojsonText || '').trim()), [geojsonText])
+  const hasInputText = React.useMemo(() => Boolean(normalizedGeoJsonText), [normalizedGeoJsonText])
 
   return (
     <div ref={el => {

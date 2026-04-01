@@ -65,6 +65,23 @@ export const testGeospatialOverlayHostSupportsCesiumRenderer = () => {
   if (!text.includes('geospatialViewMode')) throw new Error('Expected host to read geospatialViewMode')
 }
 
+export const testGeospatialOverlayHostProjectsSnapshotGraphDataToMapLayer = () => {
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const text = readUtf8(hostPath)
+  if (!text.includes('getSnapshotGraphData')) {
+    throw new Error('Expected host to read snapshot.graphData')
+  }
+  if (!text.includes('buildFeatureCollectionFromGraphData')) {
+    throw new Error('Expected host to project graph nodes into FeatureCollection')
+  }
+  if (!text.includes("['geo']") || !text.includes("['lat']") || !text.includes("['lng']")) {
+    throw new Error('Expected host graph projection to read node.properties.geo.lat/lng')
+  }
+  if (!text.includes('ensureDatasetLayer') || !text.includes('setGeoJsonSourceData')) {
+    throw new Error('Expected host to publish projected graph features into MapLibre source/layer')
+  }
+}
+
 export const testGeospatialPanelHostIsNotEmpty = () => {
   const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialPanelHost.tsx')
   const text = readUtf8(hostPath)
