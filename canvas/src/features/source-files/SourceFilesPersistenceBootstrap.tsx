@@ -8,6 +8,7 @@ import {
   type SourceFilesWorkspaceState,
 } from '@/features/source-files/sourceFilesDb'
 import { applyComposedGraphFromSourceFiles, scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
+import { hashStringToHex } from '@/lib/hash/stringHash'
 
 const arraysEqualByIdAndHash = (a: unknown, b: unknown): boolean => {
   const aa = Array.isArray(a) ? a : []
@@ -19,7 +20,9 @@ const arraysEqualByIdAndHash = (a: unknown, b: unknown): boolean => {
     if (String(x?.id || '') !== String(y?.id || '')) return false
     if (String(x?.parsedTextHash || '') !== String(y?.parsedTextHash || '')) return false
     if (String(x?.enabled || '') !== String(y?.enabled || '')) return false
-    if (String(x?.text || '').length !== String(y?.text || '').length) return false
+    const xTextHash = hashStringToHex(String(x?.text || ''))
+    const yTextHash = hashStringToHex(String(y?.text || ''))
+    if (xTextHash !== yTextHash) return false
   }
   return true
 }

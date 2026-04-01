@@ -40,27 +40,14 @@ import {
   writeWorkspaceDataViewState,
 } from './workspaceDataViewConfig'
 import { LRUCache } from '@/lib/cache/LRUCache'
-import { buildBipartiteMarkdownFromJsonText } from '@/features/markdown/bipartiteJsonToMarkdown'
-import { jsonToMarkdownPreferTable, type JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
-import { buildJsonMarkdownConfigFromPreferences, readJsonMarkdownMode } from '@/features/markdown/jsonMarkdownPreferences'
+import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
+import { tryBuildJsonMarkdownTablesFromText } from '@/features/markdown/jsonToMarkdownDocument'
 
 export type MarkdownWorkspaceDerivedViewerKind = 'markdown' | 'html' | 'json'
 export type MarkdownWorkspaceDerivedViewerMode = 'read' | 'table' | 'multiDimTable' | 'kanban'
 
 function tryBuildApiGraphMarkdownTablesFromJson(text: string, preferredMode?: JsonToMarkdownMode): string | null {
-  const bipartite = buildBipartiteMarkdownFromJsonText(text)
-  if (bipartite) return bipartite
-  const trimmed = String(text || '').trim()
-  if (!trimmed) return null
-  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null
-  try {
-    const parsed = JSON.parse(trimmed) as unknown
-    const mode = preferredMode || readJsonMarkdownMode()
-    const config = buildJsonMarkdownConfigFromPreferences()
-    return jsonToMarkdownPreferTable(parsed, { ...config, defaultMode: mode }, mode)
-  } catch {
-    return null
-  }
+  return tryBuildJsonMarkdownTablesFromText(text, preferredMode)
 }
 
 type DataViewCandidate = {

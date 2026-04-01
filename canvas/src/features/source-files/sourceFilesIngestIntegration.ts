@@ -94,6 +94,7 @@ function syncDocumentViewFromSourceFile(
         text,
         fallbackFenceLang: lower.endsWith('.jsonld') ? 'jsonld' : 'json',
         sourceUrl: sourceUrl || null,
+        applyToGraph: opts?.applyToGraph ?? true,
       })
       return
     }

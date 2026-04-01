@@ -82,6 +82,31 @@ export const testGeospatialOverlayHostProjectsSnapshotGraphDataToMapLayer = () =
   }
 }
 
+export const testGeospatialOverlayHostClearsStaleDataAndSeparatesClusterSources = () => {
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const text = readUtf8(hostPath)
+  if (!text.includes('clearGeoJsonSourceData')) {
+    throw new Error('Expected host to clear stale GeoJSON source data during rapid graph switches')
+  }
+  if (!text.includes('graphSourceIdClustered') || !text.includes('graphSourceIdUnclustered')) {
+    throw new Error('Expected host to separate clustered and unclustered source IDs to avoid stale layer/source mode mismatch')
+  }
+  if (!text.includes('featureCount <= 0') || !text.includes('graphDataAppliedRef.current =')) {
+    throw new Error('Expected host to reset source state when active graph has no geospatial features')
+  }
+}
+
+export const testSourceFilesPersistenceUsesContentHashNotLengthOnly = () => {
+  const persistencePath = path.resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
+  const text = readUtf8(persistencePath)
+  if (!text.includes('hashStringToHex')) {
+    throw new Error('Expected source-files persistence comparator to use text hashing')
+  }
+  if (text.includes("String(x?.text || '').length !== String(y?.text || '').length")) {
+    throw new Error('Source-files persistence must not compare by text length only')
+  }
+}
+
 export const testGeospatialPanelHostIsNotEmpty = () => {
   const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialPanelHost.tsx')
   const text = readUtf8(hostPath)

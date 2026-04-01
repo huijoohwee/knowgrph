@@ -22,7 +22,7 @@ import { applyMarkdownFormatAction, type MarkdownFormatAction } from 'grph-share
 import type { HighlightedLineRange, MarkdownPresentationApi, MarkdownWorkspaceStatus } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceTypes'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { createMarkdownGeoDatasetIntegration } from '@/features/geospatial/markdownGeoDatasetIntegration'
-import { extractFencedCodeBlocks } from '@/lib/markdown/extractFencedCodeBlocks'
+import { extractEmbeddedGeoJsonFeatureCollections } from '@/lib/markdown/embeddedGeoJson'
 import { emitSidePanelOpen } from '@/features/canvas/utils'
 import { setGeospatialModeEnabled } from 'gympgrph'
 import { MarkdownWorkspaceExplorer } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceExplorer'
@@ -1673,6 +1673,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
               return
             }
             const jobId = ++indexJobRef.current
+            const isStaleJob = () => cancelled || activePathRef.current !== scheduledFor || indexJobRef.current !== jobId
             if (bytesTotalHint && bytesTotalHint > 0) {
               setStatusProgress(indexLabel, 1, 1, bytesTotalHint, bytesTotalHint)
             } else {
@@ -1700,6 +1701,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
               return id
             })()
 
+            if (isStaleJob()) return
             try {
               store.updateSourceFile(fileId, {
                 name: sourceFileName,
@@ -1753,6 +1755,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
                   { timeoutMs: 650 },
                 )
               : null
+            if (isStaleJob()) return
 
             const shouldUseDirectGraphData = (() => {
               if (store.canvasRenderMode === '2d' && store.canvas2dRenderer === 'flowEditor') {
@@ -1763,8 +1766,10 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
             })()
 
             const applyComposedFromSourceFiles = async () => {
+              if (isStaleJob()) return
               try {
                 const mod = (await import('@/features/source-files/applyComposedGraphFromSourceFiles')) as typeof import('@/features/source-files/applyComposedGraphFromSourceFiles')
+                if (isStaleJob()) return
                 mod.scheduleApplyComposedGraphFromSourceFiles()
               } catch {
                 void 0
@@ -1772,7 +1777,9 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
             }
 
             if (geoGraph) {
+              if (isStaleJob()) return
               await maybeAutoEnableGeospatialModeForGraphData({ graphData: geoGraph, openSidePanel: true })
+              if (isStaleJob()) return
               try {
                 store.updateSourceFile(fileId, {
                   status: 'parsed',
@@ -1794,14 +1801,13 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
               } else {
                 await applyComposedFromSourceFiles()
               }
-              if (cancelled) return
-              if (activePathRef.current !== scheduledFor) return
-              if (indexJobRef.current !== jobId) return
+              if (isStaleJob()) return
               lastIndexedRef.current = { path, textHash: hash }
               return
             }
 
             if (cachedGraph && cachedHash === hash) {
+              if (isStaleJob()) return
               try {
                 store.updateSourceFile(fileId, {
                   status: 'parsed',
@@ -1821,6 +1827,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
                 await applyComposedFromSourceFiles()
               }
             } else {
+              if (isStaleJob()) return
               const { loadGraphDataFromTextViaParser } = (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
               let lastStage = ''
               setStatusProgress('Parsing')
@@ -1837,6 +1844,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
                   }),
                 { timeoutMs: 650 },
               )
+              if (isStaleJob()) return
               const gd = res?.graphData || null
               if (gd) {
                 try {
@@ -1861,16 +1869,15 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
                   await applyComposedFromSourceFiles()
                 }
               } else {
-              try {
-                store.updateSourceFile(fileId, { status: 'error', error: 'Parser returned empty graph' })
-              } catch {
-                void 0
-              }
+                if (isStaleJob()) return
+                try {
+                  store.updateSourceFile(fileId, { status: 'error', error: 'Parser returned empty graph' })
+                } catch {
+                  void 0
+                }
               }
             }
-            if (cancelled) return
-            if (activePathRef.current !== scheduledFor) return
-            if (indexJobRef.current !== jobId) return
+            if (isStaleJob()) return
             lastIndexedRef.current = { path, textHash: hash }
           }
         }
@@ -2293,29 +2300,23 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       const geoReqs = (() => {
         const text = String(applyText || '')
         if (!text.includes('```')) return []
-        const blocks = extractFencedCodeBlocks(text).filter(b => b.lang === 'geojson' || b.lang === 'json')
+        const blocks = extractEmbeddedGeoJsonFeatureCollections(text)
         const out: Array<{
           sourceDocumentPath: string
           codeBlock: { lang: 'geojson' | 'json'; text: string; startLine: number; endLine: number }
         }> = []
         const seen = new Set<string>()
         for (const b of blocks.slice(0, 40)) {
-          const lang = b.lang === 'geojson' ? 'geojson' : 'json'
-          const rawBlock = String(b.content || '')
+          const rawBlock = String(b.geojsonText || '')
           const trimmed = rawBlock.trim()
           if (!trimmed) continue
-          if (lang === 'json') {
-            const head = trimmed.slice(0, 4096).toLowerCase()
-            if (!head.includes('"type"')) continue
-            if (!head.includes('featurecollection')) continue
-          }
-          const sig = `${lang}:${b.startLine}:${b.endLine}:${trimmed.length}:${trimmed.slice(0, 64)}`
+          const sig = `geojson:${b.startLine}:${b.endLine}:${trimmed.length}:${trimmed.slice(0, 64)}`
           if (seen.has(sig)) continue
           seen.add(sig)
           const req = {
             sourceDocumentPath: name,
             codeBlock: {
-              lang,
+              lang: 'geojson',
               text: rawBlock,
               startLine: b.startLine,
               endLine: b.endLine,
@@ -2327,8 +2328,6 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
             } catch {
               continue
             }
-          } else if (lang !== 'geojson') {
-            continue
           }
           out.push(req)
         }

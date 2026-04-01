@@ -44,6 +44,8 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["json.graphFields.derivesNestedGeoMetadata","@/__tests__/jsonGeoGraphFieldsNested.test","testGraphFieldsDerivedIncludesNestedGeoMetadataKeys"],
   ["json.graphDataTable.nestedPropertyColumns","@/__tests__/jsonGeoGraphFieldsNested.test","testGraphDataTableNestedPropertyColumnsReadNestedValues"],
   ["json.ingestion.singapoly.geoFields","@/__tests__/jsonGeoGraphFieldsNested.test","testSingapolyJsonGeoParsingAndGraphFields"],
+  ["json.markdown.ssot.utilityConsistentOutput","@/__tests__/jsonPipelineSsotRegression.test","testJsonMarkdownSsotUtilityConsistentOutput"],
+  ["json.import.localPicker.supportsGeojson","@/__tests__/jsonPipelineSsotRegression.test","testJsonImportActionSupportsGeojsonLocalExtension"],
   ["ui.graphCanvas.userInteractedFlag.helpers","@/__tests__/graphCanvasUserInteractionFlag.test","testGraphCanvasUserInteractionFlagHelpers"],
   ["ui.graphCanvas.simPresentation.noChurn","@/__tests__/forceSimulationPresentationChurn.test","testUpdateForceSimulationPresentationDoesNotReheatOrReplaceForces"],
   ["ui.graphCanvas.indexAnchor.separatesIndexedNodes","@/__tests__/indexAnchorForce2d.test","testIndexAnchorForceSeparatesIndexedNodes"],

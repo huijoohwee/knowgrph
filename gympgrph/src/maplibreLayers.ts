@@ -1,5 +1,7 @@
 import type { FeatureCollection } from 'geojson'
 
+const EMPTY_FEATURE_COLLECTION: FeatureCollection = { type: 'FeatureCollection', features: [] }
+
 export function setGeoJsonSourceData(map: any, sourceId: string, fc: FeatureCollection): void {
   if (!map || !sourceId) return
   const src = map.getSource?.(sourceId)
@@ -11,6 +13,11 @@ export function setGeoJsonSourceData(map: any, sourceId: string, fc: FeatureColl
     map.addSource(sourceId, { type: 'geojson', data: fc })
     return
   }
+}
+
+export function clearGeoJsonSourceData(map: any, sourceId: string): void {
+  if (!map || !sourceId) return
+  setGeoJsonSourceData(map, sourceId, EMPTY_FEATURE_COLLECTION)
 }
 
 export function ensureDatasetLayer(

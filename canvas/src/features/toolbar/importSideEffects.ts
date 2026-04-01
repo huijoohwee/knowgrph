@@ -1,14 +1,8 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { jsonToMarkdownPreferTable } from '@/features/markdown/jsonToMarkdown'
-import { buildBipartiteMarkdownFromJsonValue } from '@/features/markdown/bipartiteJsonToMarkdown'
 import type { RecentFileEntry } from '@/hooks/store/types'
 import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 import { applyJsonImportWorkspaceTarget } from '@/features/workspace-table/jsonImportWorkspaceTarget'
-import {
-  buildJsonMarkdownConfigFromPreferences,
-  readJsonMarkdownMode,
-  writeJsonMarkdownMode,
-} from '@/features/markdown/jsonMarkdownPreferences'
+import { tryBuildJsonMarkdownDocumentFromText } from '@/features/markdown/jsonToMarkdownDocument'
 
 export function applyImportedMarkdownToStore(args: {
   name: string
@@ -63,6 +57,7 @@ export function applyImportedJsonToStore(args: {
   sourceUrl: string | null
   recent?: Omit<RecentFileEntry, 'id' | 'timestamp'>
   preferFlowEditor?: boolean
+  applyToGraph?: boolean
 }): void {
   const name = String(args.name || '').trim()
   const rawText = String(args.text || '')
@@ -71,6 +66,7 @@ export function applyImportedJsonToStore(args: {
 
   const state = useGraphStore.getState()
   const applyWorkspaceTarget = () => applyJsonImportWorkspaceTarget({ preferFlowEditor: args.preferFlowEditor === true })
+  const applyToGraph = args.applyToGraph !== false
   if (!trimmed) {
     void state
       .setActiveMarkdownDocument({
@@ -80,6 +76,8 @@ export function applyImportedJsonToStore(args: {
       sourceUrl: args.sourceUrl,
       jsonSourceText: null,
       recent: args.recent,
+      applyToGraph,
+      forceApplyToGraph: applyToGraph,
     })
       .finally(applyWorkspaceTarget)
     return
@@ -87,14 +85,11 @@ export function applyImportedJsonToStore(args: {
 
   let markdown = rawText
   let jsonSourceText: string | null = null
-  try {
-    const parsed = JSON.parse(trimmed) as unknown
-    const persistedMode = readJsonMarkdownMode()
-    const renderConfig = buildJsonMarkdownConfigFromPreferences()
-    markdown = buildBipartiteMarkdownFromJsonValue(parsed) || jsonToMarkdownPreferTable(parsed, renderConfig, persistedMode)
-    writeJsonMarkdownMode(persistedMode)
-    jsonSourceText = trimmed
-  } catch {
+  const converted = tryBuildJsonMarkdownDocumentFromText(trimmed)
+  if (converted) {
+    markdown = converted.markdown
+    jsonSourceText = converted.jsonSourceText
+  } else {
     const fenceLang = args.fallbackFenceLang || 'json'
     markdown = ['```' + fenceLang, trimmed, '```', ''].join('\n')
     jsonSourceText = null
@@ -108,8 +103,8 @@ export function applyImportedJsonToStore(args: {
     sourceUrl: args.sourceUrl,
     jsonSourceText,
     recent: args.recent,
-    applyToGraph: true,
-    forceApplyToGraph: true,
+    applyToGraph,
+    forceApplyToGraph: applyToGraph,
   })
     .finally(applyWorkspaceTarget)
 }

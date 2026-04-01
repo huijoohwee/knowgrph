@@ -32,7 +32,7 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
         return { name, text, sourceUrl: url }
       }
       if (type === 'local') {
-        const p = await pickTextFileWithExtensions(['.json', '.jsonld'])
+        const p = await pickTextFileWithExtensions(['.json', '.jsonld', '.geojson'])
         if (!p) return null
         return { ...p, sourceUrl: undefined }
       }
@@ -62,6 +62,7 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
           fallbackFenceLang: format === 'jsonld' ? 'jsonld' : 'json',
           sourceUrl: type === 'url' ? picked.sourceUrl ?? null : null,
           preferFlowEditor: hasQuickEditorRegistry,
+          applyToGraph: false,
         })
       },
     })

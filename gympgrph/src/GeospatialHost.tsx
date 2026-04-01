@@ -4,7 +4,7 @@ import { useMapLibreBasemap } from './features/geospatial/useMapLibreBasemap'
 import { LS_KEYS } from './lib/config'
 import { GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/constants'
 import { computeBoundsFromCollections } from './geo'
-import { ensureDatasetLayer, setGeoJsonSourceData } from './maplibreLayers'
+import { clearGeoJsonSourceData, ensureDatasetLayer, setGeoJsonSourceData } from './maplibreLayers'
 import { colorForDataset } from './colors'
 import { isPointOnlyFeatureCollection } from './selection'
 import type { FeatureCollection } from 'geojson'
@@ -175,7 +175,9 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     vectorFallbackMs: 2_000,
   })
 
-  const graphSourceId = 'kg-host-graph:nodes'
+  const graphSourceIdBase = 'kg-host-graph:nodes'
+  const graphSourceIdClustered = `${graphSourceIdBase}:clustered`
+  const graphSourceIdUnclustered = `${graphSourceIdBase}:plain`
   const graphDataAppliedRef = React.useRef<string>('')
   React.useEffect(() => {
     const map = basemap.map
@@ -183,12 +185,20 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     if (!show2d) return
     if (basemap.styleRevision <= 0) return
     const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
-    if (featureCount <= 0) return
-    const applyKey = `${basemap.styleRevision}:${graphDataKey}`
-    if (graphDataAppliedRef.current === applyKey) return
+    if (featureCount <= 0) {
+      clearGeoJsonSourceData(map, graphSourceIdClustered)
+      clearGeoJsonSourceData(map, graphSourceIdUnclustered)
+      graphDataAppliedRef.current = ''
+      return
+    }
     const cluster = isPointOnlyFeatureCollection(graphFeatureCollection, 500) && featureCount >= 200
-    ensureDatasetLayer(map, graphSourceId, colorForDataset(graphSourceId), cluster ? { cluster: true } : undefined)
-    setGeoJsonSourceData(map, graphSourceId, graphFeatureCollection)
+    const activeSourceId = cluster ? graphSourceIdClustered : graphSourceIdUnclustered
+    const inactiveSourceId = cluster ? graphSourceIdUnclustered : graphSourceIdClustered
+    const applyKey = `${basemap.styleRevision}:${activeSourceId}:${graphDataKey}`
+    if (graphDataAppliedRef.current === applyKey) return
+    clearGeoJsonSourceData(map, inactiveSourceId)
+    ensureDatasetLayer(map, activeSourceId, colorForDataset(activeSourceId), cluster ? { cluster: true } : undefined)
+    setGeoJsonSourceData(map, activeSourceId, graphFeatureCollection)
     graphDataAppliedRef.current = applyKey
   }, [basemap.map, basemap.styleRevision, graphDataKey, graphFeatureCollection, show2d])
 
