@@ -65,16 +65,16 @@ export function scrollToLineInViewer(
     }
 
     if (el) {
-      const fn = (el as unknown as { scrollIntoView?: unknown }).scrollIntoView
-      if (typeof fn === 'function') {
-        fn.call(el, { behavior: 'smooth', block: 'start' })
-      } else {
-        const proto = (typeof HTMLElement !== 'undefined'
-          ? (HTMLElement.prototype as unknown as { scrollIntoView?: unknown }).scrollIntoView
-          : null)
-        if (typeof proto === 'function') {
-          proto.call(el, { behavior: 'smooth', block: 'start' })
-        }
+      const target = computeViewerScrollTopForElement({
+        viewerTopPx: viewer.getBoundingClientRect().top,
+        viewerScrollTopPx: viewer.scrollTop,
+        elementTopPx: (el as HTMLElement).getBoundingClientRect().top,
+        scrollPaddingTopPx: readViewerScrollPaddingTopPx(viewer),
+      })
+      try {
+        viewer.scrollTo({ top: target, behavior: 'smooth' })
+      } catch {
+        viewer.scrollTop = target
       }
     }
   }
@@ -86,4 +86,34 @@ export function scrollToLineInViewer(
   } else {
     apply()
   }
+}
+
+function readViewerScrollPaddingTopPx(viewer: HTMLElement): number {
+  const parsePx = (raw: string): number => {
+    const v = Number.parseFloat(String(raw || '').trim())
+    if (!Number.isFinite(v)) return 0
+    return Math.max(0, v)
+  }
+  const inline = parsePx(viewer.style.scrollPaddingTop || '')
+  if (inline > 0) return inline
+  try {
+    const css = typeof window !== 'undefined' ? window.getComputedStyle(viewer) : null
+    const computed = parsePx(css?.scrollPaddingTop || '')
+    if (computed > 0) return computed
+  } catch {
+    void 0
+  }
+  return 0
+}
+
+export function computeViewerScrollTopForElement(args: {
+  viewerTopPx: number
+  viewerScrollTopPx: number
+  elementTopPx: number
+  scrollPaddingTopPx: number
+}): number {
+  const relativeTop = args.elementTopPx - args.viewerTopPx
+  const rawTarget = args.viewerScrollTopPx + relativeTop - Math.max(0, args.scrollPaddingTopPx)
+  if (!Number.isFinite(rawTarget)) return 0
+  return Math.max(0, Math.round(rawTarget))
 }

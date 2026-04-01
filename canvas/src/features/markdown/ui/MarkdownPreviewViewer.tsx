@@ -5,6 +5,7 @@ import type { TokenWithLines } from './markdownPreviewLex'
 import { MarkdownPanelLayout } from './MarkdownPanelLayout'
 import {
   buildTocTree,
+  computeStickyHeadingScrollPaddingTopPx,
   getDefaultStickyHeadingTopPx,
   getMarkdownViewerWidthWrapperClassName,
 } from './markdownSectionUtils'
@@ -431,6 +432,14 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
 
   const effectiveStickyHeadingTopPx = providedStickyHeadingTopPx
 
+  const stickyHeadingScrollPaddingTopPx = React.useMemo(() => {
+    return computeStickyHeadingScrollPaddingTopPx({
+      tokens,
+      baseTopPx: effectiveStickyHeadingTopPx,
+      markdownPresentationMode: false,
+    })
+  }, [effectiveStickyHeadingTopPx, tokens])
+
   const body = React.useMemo(
     () => (
       <MarkdownTokenRenderer
@@ -621,8 +630,16 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         style={
           (
             scrollClass === 'overflow-auto'
-              ? ({ scrollbarGutter: 'stable', overflowY: 'auto', overflowX: 'hidden' } as React.CSSProperties)
-              : ({ scrollbarGutter: 'stable' } as React.CSSProperties)
+              ? ({
+                  scrollbarGutter: 'stable',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                  ...(stickyHeadingScrollPaddingTopPx > 0 ? { scrollPaddingTop: `${stickyHeadingScrollPaddingTopPx}px` } : null),
+                } as React.CSSProperties)
+              : ({
+                  scrollbarGutter: 'stable',
+                  ...(stickyHeadingScrollPaddingTopPx > 0 ? { scrollPaddingTop: `${stickyHeadingScrollPaddingTopPx}px` } : null),
+                } as React.CSSProperties)
           )
         }
         className={[

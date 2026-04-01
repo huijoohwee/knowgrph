@@ -84,7 +84,10 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
     zIndex,
     height: `${heightPx}px`,
   } as React.CSSProperties
-  const mergedStyle = { ...(highlightStyle || {}) } as React.CSSProperties
+  const mergedStyle = {
+    ...(highlightStyle || {}),
+    scrollMarginTop: `${Math.max(0, topPx + heightPx + 8)}px`,
+  } as React.CSSProperties
   const cls = ['font-semibold', size, color, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
   const content = renderInlineTokens(h.tokens, {
     activeDocumentPath: opts.activeDocumentPath,

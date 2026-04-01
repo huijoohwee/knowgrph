@@ -41,6 +41,8 @@ const modFlowNodeQuickEditorFrontmatterPortHandlePadRegression = () => import('@
 const modFlowEditorFrontmatterFlowDefaultQuickEditorsInitRegression = () => import('@/__tests__/flowEditorFrontmatterFlowDefaultQuickEditorsInitRegression.test')
 const modFlowQuickEditorPortHandleDomAnchors = () => import('@/__tests__/flowQuickEditorPortHandleDomAnchors.test')
 const modGraphDataTableCellSelectOverlay = () => import('@/__tests__/graphDataTableCellSelectOverlay.test')
+const modMarkdownStickyHeadingScrollPadding = () => import('@/__tests__/markdownStickyHeadingScrollPadding.test')
+const modMarkdownScrollUtils = () => import('@/__tests__/markdownScrollUtils.test')
 
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'workspaceFs.seedAndCrud', async () => {
@@ -166,6 +168,16 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'ui.graphDataTable.cellSelectOverlay.multiSelectEdits', async () => {
     const mod = await modGraphDataTableCellSelectOverlay()
     await mod.testGraphDataTableCellSelectOverlayEditsMultiSelectProperties()
+  })
+  await execTest(results, 'markdown.viewer.scrollPaddingTop.avoidsStickyOverlap', async () => {
+    const mod = await modMarkdownStickyHeadingScrollPadding()
+    mod.testMarkdownStickyHeadingScrollPaddingComputesCascadeHeight()
+    mod.testMarkdownStickyHeadingScrollPaddingIsZeroWithoutHeadings()
+  })
+  await execTest(results, 'markdown.viewer.scrollToLine.respectsScrollPaddingTop', async () => {
+    const mod = await modMarkdownScrollUtils()
+    mod.testMarkdownScrollUtilsRespectsScrollPaddingTop()
+    mod.testMarkdownScrollUtilsClampsTargetTopToZero()
   })
   await execTest(results, 'markdownWorkspace.viewer.remotionRichMedia', async () => {
     const mod = await modMarkdownWorkspaceRemotionViewerRenders()

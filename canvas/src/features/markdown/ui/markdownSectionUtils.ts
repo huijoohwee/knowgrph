@@ -52,6 +52,29 @@ export function getStickyHeadingCascadeOffsets(args: {
   }
 }
 
+export function computeStickyHeadingScrollPaddingTopPx(args: {
+  tokens: TokenWithLines[]
+  baseTopPx: number
+  markdownPresentationMode: boolean
+}): number {
+  let minDepth = 7
+  let maxDepth = 0
+  for (const t of args.tokens) {
+    if (t.type !== 'heading') continue
+    const depth = Math.min(6, Math.max(1, t.depth || 1))
+    minDepth = Math.min(minDepth, depth)
+    maxDepth = Math.max(maxDepth, depth)
+  }
+  if (maxDepth <= 0 || minDepth === 7) return 0
+  const { topPx, heightPx } = getStickyHeadingCascadeOffsets({
+    depth: maxDepth,
+    cascadeBaseDepth: minDepth,
+    baseTopPx: args.baseTopPx,
+    markdownPresentationMode: args.markdownPresentationMode,
+  })
+  return Math.max(0, topPx + heightPx + 8)
+}
+
 export function buildTocTree(tokens: TokenWithLines[]): TocItem[] {
   const headings: MarkdownHeadingInfo[] = []
   tokens.forEach((t, i) => {
