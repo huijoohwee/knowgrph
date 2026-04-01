@@ -13,10 +13,16 @@ import {
   writeJsonMarkdownTableMaxRows,
 } from '@/features/markdown/jsonMarkdownPreferences'
 import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
+import {
+  readWorkspaceEditorMode,
+  type WorkspaceEditorMode,
+  writeWorkspaceEditorMode,
+} from '@/features/workspace-table/workspaceEditorMode'
 
 const WORKSPACE_TABLE_PREFS_EVENT = 'kg:workspace-table-prefs:changed'
 
 export type WorkspaceTablePreferencesSnapshot = {
+  workspaceEditorMode: WorkspaceEditorMode
   jsonImportTarget: JsonImportWorkspaceTarget
   jsonMarkdownMode: JsonToMarkdownMode
   jsonTableMaxRows: number
@@ -24,6 +30,7 @@ export type WorkspaceTablePreferencesSnapshot = {
 }
 
 const readSnapshot = (): WorkspaceTablePreferencesSnapshot => ({
+  workspaceEditorMode: readWorkspaceEditorMode(),
   jsonImportTarget: readJsonImportWorkspaceTarget(),
   jsonMarkdownMode: readJsonMarkdownMode(),
   jsonTableMaxRows: readJsonMarkdownTableMaxRows(),
@@ -36,6 +43,9 @@ const emitWorkspaceTablePreferencesChanged = () => {
 }
 
 const isWorkspacePreferenceStorageKey = (storageKey: string | null): boolean =>
+  storageKey === LS_KEYS.workspaceEditorMode ||
+  storageKey === LS_KEYS.markdownDerivedViewerMode ||
+  storageKey === LS_KEYS.graphTableViewMode ||
   storageKey === LS_KEYS.jsonImportWorkspaceTarget ||
   storageKey === LS_KEYS.jsonMarkdownMode ||
   storageKey === LS_KEYS.jsonMarkdownTableMaxRows ||
@@ -58,6 +68,11 @@ export const workspaceTablePreferencesStore = {
   },
   getSnapshot: readSnapshot,
   getServerSnapshot: readSnapshot,
+  setWorkspaceEditorMode(next: WorkspaceEditorMode): WorkspaceEditorMode {
+    const written = writeWorkspaceEditorMode(next)
+    emitWorkspaceTablePreferencesChanged()
+    return written
+  },
   setJsonImportTarget(next: JsonImportWorkspaceTarget): JsonImportWorkspaceTarget {
     const written = writeJsonImportWorkspaceTarget(next)
     emitWorkspaceTablePreferencesChanged()

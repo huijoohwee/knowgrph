@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { Subscription } from 'rxjs'
 import type { RxChangeEvent } from 'rxdb'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -50,6 +50,7 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { parseGraphTableViewMode, type GraphTableViewMode } from '@/features/graph-table/ui/graphTableViewMode'
 import { applyColumnOrder, getRowTocId, mapRowDocToGridRow, reorderIds } from '@/features/graph-table/ui/graphTableWorkspaceUtils'
+import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
 
 const INACTIVE_GRAPH_SLICE = {
   baseGraphData: null,
@@ -99,8 +100,14 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   } =
     useGraphStore(useShallow(selector))
   const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
+  const multiDimTableModeEnabled = useGraphStore(s => s.multiDimTableModeEnabled === true)
+  const setMultiDimTableModeEnabled = useGraphStore(s => s.setMultiDimTableModeEnabled)
   const [activeTableId, setActiveTableId] = useState<GraphTableId>('nodes')
-  const [viewMode, setViewMode] = useState<GraphTableViewMode>(() => lsJson(LS_KEYS.graphTableViewMode, 'table' as const, parseGraphTableViewMode))
+  const [viewMode, setViewMode] = useState<GraphTableViewMode>(() => {
+    const mode = workspaceTablePreferencesStore.getSnapshot().workspaceEditorMode
+    if (mode === 'kanban') return 'kanban'
+    return lsJson(LS_KEYS.graphTableViewMode, 'table' as const, parseGraphTableViewMode)
+  })
   const [columns, setColumns] = useState<GraphColumnDoc[]>([])
   const [rows, setRows] = useState<GraphTableGridRow[]>([])
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([])
@@ -187,6 +194,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
     let rowSub: Subscription | null = null
     let colMap = new Map<string, GraphColumnDoc>()
     let cancelled = false
+    let rowsRafId: number | null = null
 
     const cacheForTable = (() => {
       const existing = rowCacheRef.current.get(activeTableId)
@@ -195,6 +203,28 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       rowCacheRef.current.set(activeTableId, next)
       return next
     })()
+
+    const flushRows = () => {
+      rowsRafId = null
+      const cache = cacheForTable
+      const ordered = Array.from(cache.rowById.values())
+        .filter(r => typeof r.id === 'string' && r.id)
+        .slice()
+        .sort((a, b) => (a.__order ?? 0) - (b.__order ?? 0))
+      setRows(ordered)
+    }
+
+    const scheduleRowsFlush = () => {
+      if (rowsRafId !== null) return
+      if (typeof window === 'undefined') {
+        flushRows()
+        return
+      }
+      rowsRafId = window.requestAnimationFrame(() => {
+        if (cancelled) return
+        flushRows()
+      })
+    }
 
     void (async () => {
       const { collections } = await getGraphTableDb()
@@ -256,16 +286,16 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
             cache.rowById.set(doc.rowId, nextRow)
           }
         }
-        const ordered = Array.from(cache.rowById.values())
-          .filter(r => typeof r.id === 'string' && r.id)
-          .slice()
-          .sort((a, b) => (a.__order ?? 0) - (b.__order ?? 0))
-        setRows(ordered)
+        scheduleRowsFlush()
       })
     })()
 
     return () => {
       cancelled = true
+      if (rowsRafId !== null && typeof window !== 'undefined') {
+        try { window.cancelAnimationFrame(rowsRafId) } catch { void 0 }
+        rowsRafId = null
+      }
       try { sub?.unsubscribe() } catch { void 0 }
       try { rowSub?.unsubscribe() } catch { void 0 }
     }
@@ -299,41 +329,84 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
     lsSetBool(LS_KEYS.graphTableInspectorOpen, inspectorOpen)
   }, [inspectorOpen])
 
-  useEffect(() => {
-    lsSetJson(LS_KEYS.graphTableViewMode, viewMode)
-  }, [viewMode])
+  const workspaceEditorMode = useSyncExternalStore(
+    workspaceTablePreferencesStore.subscribe,
+    () => workspaceTablePreferencesStore.getSnapshot().workspaceEditorMode,
+    () => workspaceTablePreferencesStore.getServerSnapshot().workspaceEditorMode,
+  )
 
   useEffect(() => {
-    lsSetJson(LS_KEYS.graphTableColumnVisibilityById, columnVisibilityById)
-  }, [columnVisibilityById])
+    const next = workspaceEditorMode === 'kanban' ? 'kanban' : 'table'
+    setViewMode(prev => (prev === next ? prev : next))
+    const shouldEnableMultiDim = workspaceEditorMode === 'multiDimTable'
+    if (multiDimTableModeEnabled !== shouldEnableMultiDim) {
+      setMultiDimTableModeEnabled(shouldEnableMultiDim)
+    }
+  }, [multiDimTableModeEnabled, setMultiDimTableModeEnabled, workspaceEditorMode])
+
+  const persistGraphTableViewStateTimerRef = useRef<number | null>(null)
+  const persistGraphTableViewStatePendingRef = useRef<{
+    columnVisibilityById: GraphTableColumnVisibilityById
+    filterMatch: GraphTableFilterMatch
+    filterClauses: GraphTableFilterClause[]
+    groupBy: string
+    sortRules: GraphTableSortRule[]
+    rowHeightPreset: GraphTableRowHeightPreset
+    columnWidthsPxById: GraphTableColumnWidthsPxById
+    columnOrderByTableId: GraphTableColumnOrderByTableId
+  } | null>(null)
 
   useEffect(() => {
-    lsSetJson(LS_KEYS.graphTableFilterMatch, filterMatch)
-  }, [filterMatch])
+    if (typeof window === 'undefined') return
+    persistGraphTableViewStatePendingRef.current = {
+      columnVisibilityById,
+      filterMatch,
+      filterClauses,
+      groupBy,
+      sortRules,
+      rowHeightPreset,
+      columnWidthsPxById,
+      columnOrderByTableId,
+    }
+    if (persistGraphTableViewStateTimerRef.current !== null) return
+    persistGraphTableViewStateTimerRef.current = window.setTimeout(() => {
+      persistGraphTableViewStateTimerRef.current = null
+      const pending = persistGraphTableViewStatePendingRef.current
+      if (!pending) return
+      lsSetJson(LS_KEYS.graphTableColumnVisibilityById, pending.columnVisibilityById)
+      lsSetJson(LS_KEYS.graphTableFilterMatch, pending.filterMatch)
+      lsSetJson(LS_KEYS.graphTableFilters, pending.filterClauses)
+      lsSetJson(LS_KEYS.graphTableGroupBy, pending.groupBy)
+      lsSetJson(LS_KEYS.graphTableSortRules, pending.sortRules)
+      lsSetJson(LS_KEYS.graphTableRowHeightPreset, pending.rowHeightPreset)
+      lsSetJson(LS_KEYS.graphTableColumnWidthsPx, pending.columnWidthsPxById)
+      lsSetJson(LS_KEYS.graphTableColumnOrderByTableId, pending.columnOrderByTableId)
+    }, 200)
+  }, [columnOrderByTableId, columnVisibilityById, columnWidthsPxById, filterClauses, filterMatch, groupBy, rowHeightPreset, sortRules])
 
   useEffect(() => {
-    lsSetJson(LS_KEYS.graphTableFilters, filterClauses)
-  }, [filterClauses])
+    if (typeof window === 'undefined') return
+    return () => {
+      if (persistGraphTableViewStateTimerRef.current !== null) {
+        window.clearTimeout(persistGraphTableViewStateTimerRef.current)
+        persistGraphTableViewStateTimerRef.current = null
+      }
+    }
+  }, [])
 
-  useEffect(() => {
-    lsSetJson(LS_KEYS.graphTableGroupBy, groupBy)
-  }, [groupBy])
-
-  useEffect(() => {
-    lsSetJson(LS_KEYS.graphTableSortRules, sortRules)
-  }, [sortRules])
-
-  useEffect(() => {
-    lsSetJson(LS_KEYS.graphTableRowHeightPreset, rowHeightPreset)
-  }, [rowHeightPreset])
-
-  useEffect(() => {
-    lsSetJson(LS_KEYS.graphTableColumnWidthsPx, columnWidthsPxById)
-  }, [columnWidthsPxById])
-
-  useEffect(() => {
-    lsSetJson(LS_KEYS.graphTableColumnOrderByTableId, columnOrderByTableId)
-  }, [columnOrderByTableId])
+  const handleViewModeChanged = useCallback(
+    (next: GraphTableViewMode) => {
+      setViewMode(next)
+      if (next === 'kanban') {
+        workspaceTablePreferencesStore.setWorkspaceEditorMode('kanban')
+        if (multiDimTableModeEnabled) setMultiDimTableModeEnabled(false)
+        return
+      }
+      workspaceTablePreferencesStore.setWorkspaceEditorMode('table')
+      if (multiDimTableModeEnabled) setMultiDimTableModeEnabled(false)
+    },
+    [multiDimTableModeEnabled, setMultiDimTableModeEnabled],
+  )
 
   useEffect(() => {
     const el = inspectorDragHandleRef.current
@@ -566,7 +639,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       activeTableId={activeTableId}
       setActiveTableId={setActiveTableId}
       viewMode={viewMode}
-      setViewMode={setViewMode}
+      setViewMode={handleViewModeChanged}
       rowCountLabel={rowCountLabel}
       orderedColumns={orderedColumns.map(c => ({ columnId: c.columnId, name: c.name }))}
       inspectorOpen={inspectorOpen}

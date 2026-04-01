@@ -28,6 +28,7 @@ import { buildBipartiteMarkdownFromJsonText } from '@/features/markdown/bipartit
 import { jsonToMarkdownPreferTable } from '@/features/markdown/jsonToMarkdown'
 import { buildJsonMarkdownConfigFromPreferences } from '@/features/markdown/jsonMarkdownPreferences'
 import { useWorkspaceExportBridge } from './useWorkspaceExportBridge'
+import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
 
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
@@ -185,8 +186,27 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   }, [viewerKind])
 
   React.useEffect(() => {
-    lsSetJson(LS_KEYS.markdownDerivedViewerMode, viewerMode)
+    if (viewerMode === 'read') lsSetJson(LS_KEYS.markdownDerivedViewerMode, viewerMode)
   }, [viewerMode])
+
+  const workspaceEditorMode = React.useSyncExternalStore(
+    workspaceTablePreferencesStore.subscribe,
+    () => workspaceTablePreferencesStore.getSnapshot().workspaceEditorMode,
+    () => workspaceTablePreferencesStore.getServerSnapshot().workspaceEditorMode,
+  )
+
+  React.useEffect(() => {
+    setViewerMode(prev => {
+      if (prev === 'read') return prev
+      return prev === workspaceEditorMode ? prev : workspaceEditorMode
+    })
+  }, [workspaceEditorMode])
+
+  React.useEffect(() => {
+    if (viewerMode === 'read') return
+    if (viewerMode === workspaceEditorMode) return
+    workspaceTablePreferencesStore.setWorkspaceEditorMode(viewerMode)
+  }, [viewerMode, workspaceEditorMode])
 
   const viewerKindOptions = React.useMemo<Array<MarkdownWorkspaceDerivedViewerKind>>(
     () => ['markdown', 'json'],
@@ -416,6 +436,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       onReplaceLineRange={handleReplaceLineRange}
       onRevealLineInEditor={line => revealLineInEditor(line)}
       onViewerRootRef={handleViewerRootRef}
+      onChangeViewerMode={setViewerMode}
     />
   )
 

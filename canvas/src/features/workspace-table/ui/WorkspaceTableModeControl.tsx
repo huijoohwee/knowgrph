@@ -17,6 +17,10 @@ import {
 } from '@/features/markdown/jsonMarkdownPreferences'
 import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
+import {
+  WORKSPACE_EDITOR_MODE_OPTIONS,
+  type WorkspaceEditorMode,
+} from '@/features/workspace-table/workspaceEditorMode'
 
 type WorkspaceTableModeControlProps = {
   className?: string
@@ -47,19 +51,30 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
     workspaceTablePreferencesStore.getSnapshot,
     workspaceTablePreferencesStore.getServerSnapshot,
   )
+  const workspaceEditorMode = prefs.workspaceEditorMode as WorkspaceEditorMode
   const jsonImportTarget = prefs.jsonImportTarget as JsonImportWorkspaceTarget
   const jsonMarkdownMode = prefs.jsonMarkdownMode as JsonToMarkdownMode
   const jsonTableMaxRows = prefs.jsonTableMaxRows
   const jsonTableMaxColumns = prefs.jsonTableMaxColumns
 
-  const handleToggleMode = React.useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const next = event.currentTarget.checked
-      setMultiDimTableModeEnabled(next)
-      if (!next) return
+  const handleWorkspaceEditorModeChanged = React.useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      const next = event.currentTarget.value as WorkspaceEditorMode
+      workspaceTablePreferencesStore.setWorkspaceEditorMode(next)
+      const nextMultiDimEnabled = next === 'multiDimTable'
+      if (multiDimTableModeEnabled !== nextMultiDimEnabled) {
+        setMultiDimTableModeEnabled(nextMultiDimEnabled)
+      }
       openWorkspaceTable({ workspaceViewMode, editorWorkspacePane, setWorkspaceViewMode, setEditorWorkspacePane })
     },
-    [editorWorkspacePane, setEditorWorkspacePane, setMultiDimTableModeEnabled, setWorkspaceViewMode, workspaceViewMode],
+    [
+      editorWorkspacePane,
+      multiDimTableModeEnabled,
+      setEditorWorkspacePane,
+      setMultiDimTableModeEnabled,
+      setWorkspaceViewMode,
+      workspaceViewMode,
+    ],
   )
 
   const handleOpenTable = React.useCallback(() => {
@@ -85,13 +100,23 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
   return (
     <section className={className || 'flex flex-col gap-2'} aria-label={UI_COPY.markdownDataViewTitleDefault}>
       <label className="flex items-center justify-between gap-2 text-xs">
-        <span className="min-w-0 truncate">{UI_COPY.markdownDataViewTitleDefault}</span>
-        <input
-          type="checkbox"
-          checked={multiDimTableModeEnabled}
-          onChange={handleToggleMode}
-          aria-label={UI_COPY.multiDimTableModeToggleTooltip}
-        />
+        <span className="min-w-0 truncate">Workspace editor view</span>
+        <select
+          className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+          value={workspaceEditorMode}
+          onChange={handleWorkspaceEditorModeChanged}
+          aria-label="Workspace editor view"
+        >
+          {WORKSPACE_EDITOR_MODE_OPTIONS.map(option => (
+            <option key={option} value={option}>
+              {option === 'table'
+                ? UI_COPY.markdownDataViewTableViewLabel
+                : option === 'kanban'
+                  ? UI_COPY.markdownDataViewKanbanViewLabel
+                  : UI_COPY.markdownDataViewTitleDefault}
+            </option>
+          ))}
+        </select>
       </label>
       <button
         type="button"
