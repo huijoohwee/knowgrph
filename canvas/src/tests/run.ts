@@ -429,6 +429,18 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       modZoomCommitRev.testZoomCommitDoesNotWriteWhenOnlyGraphDataRevisionChanges,
     )
 
+    const modCoalescedScheduler = await import('../__tests__/coalescedScheduler.test')
+    await execTest(
+      results,
+      'util.coalescedScheduler.coalescesLatestCallback',
+      modCoalescedScheduler.testCoalescedSchedulerCoalescesLatestCallback,
+    )
+    await execTest(
+      results,
+      'util.coalescedScheduler.cancelPreventsCallback',
+      modCoalescedScheduler.testCoalescedSchedulerCancelPreventsCallback,
+    )
+
     const modGraphTableSync = await import('../__tests__/graphTableDbSyncDedupeRegression.test')
     await execTest(
       results,

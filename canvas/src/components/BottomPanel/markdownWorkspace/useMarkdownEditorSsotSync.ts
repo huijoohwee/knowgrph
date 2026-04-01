@@ -1,6 +1,7 @@
 import React from 'react'
 import type { GraphState } from '@/hooks/store/types'
 import { normalizeWebpageFrontmatterView } from '@/lib/markdown/frontmatter'
+import { scheduleCoalescedTask, cancelCoalescedTask } from '@/lib/async/coalescedScheduler'
 
 export function useMarkdownEditorSsotSync(args: {
   activeDocumentKey: string
@@ -10,13 +11,13 @@ export function useMarkdownEditorSsotSync(args: {
 }): void {
   const lastPushedRef = React.useRef<{ key: string; text: string } | null>(null)
   const lastSeenRef = React.useRef<{ key: string; textRaw: string } | null>(null)
-  const debounceRef = React.useRef<number | null>(null)
   const idleRef = React.useRef<number | null>(null)
+  const scheduleKeyRef = React.useRef<string | null>(null)
 
   React.useEffect(() => {
-    if (debounceRef.current != null) {
-      window.clearTimeout(debounceRef.current)
-      debounceRef.current = null
+    if (scheduleKeyRef.current) {
+      cancelCoalescedTask(scheduleKeyRef.current)
+      scheduleKeyRef.current = null
     }
     if (idleRef.current != null) {
       try {
@@ -30,6 +31,8 @@ export function useMarkdownEditorSsotSync(args: {
     const key = String(args.activeDocumentKey || '').trim()
     const textRaw = String(args.activeText || '')
     if (!key) return
+    const scheduleKey = `markdown-editor:ssot:${key}`
+    scheduleKeyRef.current = scheduleKey
 
     const lastSeen = lastSeenRef.current
     if (lastSeen && lastSeen.key === key && lastSeen.textRaw === textRaw) return
@@ -65,16 +68,15 @@ export function useMarkdownEditorSsotSync(args: {
         commit()
       }, { timeout: 1200 })
     } else {
-      debounceRef.current = window.setTimeout(() => {
-        debounceRef.current = null
+      scheduleCoalescedTask(scheduleKey, () => {
         commit()
       }, 800)
     }
 
     return () => {
-      if (debounceRef.current != null) {
-        window.clearTimeout(debounceRef.current)
-        debounceRef.current = null
+      if (scheduleKeyRef.current) {
+        cancelCoalescedTask(scheduleKeyRef.current)
+        scheduleKeyRef.current = null
       }
       if (idleRef.current != null) {
         try {

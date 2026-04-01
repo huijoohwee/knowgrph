@@ -118,7 +118,7 @@ const getDb = async () => {
             migrationStrategies: {
               1: (doc: unknown) => {
                 const d = (doc && typeof doc === 'object' ? (doc as Record<string, unknown>) : {})
-                const id: 'workspace' = 'workspace'
+                const id = 'workspace' as const
                 const payload = (d.payload && typeof d.payload === 'object' ? d.payload : {}) as SourceFilesWorkspaceState
                 const updatedAtMs = Number.isFinite(d.updatedAtMs) ? Math.max(0, Math.floor(d.updatedAtMs as number)) : 0
                 return { id, payload, updatedAtMs } satisfies WorkspaceRowV1

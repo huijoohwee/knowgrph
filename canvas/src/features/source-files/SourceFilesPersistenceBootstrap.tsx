@@ -9,6 +9,7 @@ import {
 } from '@/features/source-files/sourceFilesDb'
 import { applyComposedGraphFromSourceFiles, scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { scheduleCoalescedTask, cancelCoalescedTask } from '@/lib/async/coalescedScheduler'
 
 const arraysEqualByIdAndHash = (a: unknown, b: unknown): boolean => {
   const aa = Array.isArray(a) ? a : []
@@ -90,7 +91,7 @@ export function SourceFilesPersistenceBootstrap() {
   }, [])
 
   React.useEffect(() => {
-    let timer: number | null = null
+    const key = 'source-files:persist'
     const unsubscribe = useGraphStore.subscribe(
       s => s.sourceFiles,
       next => {
@@ -103,15 +104,7 @@ export function SourceFilesPersistenceBootstrap() {
           void 0
         }
 
-        if (timer != null) {
-          try {
-            window.clearTimeout(timer)
-          } catch {
-            void 0
-          }
-        }
-        timer = window.setTimeout(() => {
-          timer = null
+        scheduleCoalescedTask(key, () => {
           const snapshot = useGraphStore.getState().sourceFiles
           lastPersistedRef.current = snapshot
           void persistSourceFiles(snapshot)
@@ -120,13 +113,7 @@ export function SourceFilesPersistenceBootstrap() {
       { equalityFn: arraysEqualByIdAndHash },
     )
     return () => {
-      if (timer != null) {
-        try {
-          window.clearTimeout(timer)
-        } catch {
-          void 0
-        }
-      }
+      cancelCoalescedTask(key)
       unsubscribe()
     }
   }, [])
@@ -142,7 +129,7 @@ export function SourceFilesPersistenceBootstrap() {
   }, [])
 
   React.useEffect(() => {
-    let timer: number | null = null
+    const key = 'source-files:workspace'
     const unsubscribe = useGraphStore.subscribe(
       s => [s.localMarkdownFolderName, s.localMarkdownFolderAccessMode, s.localMarkdownFolderCacheId, s.localMarkdownSelectedFolderPath],
       () => {
@@ -158,15 +145,7 @@ export function SourceFilesPersistenceBootstrap() {
         ) {
           return
         }
-        if (timer != null) {
-          try {
-            window.clearTimeout(timer)
-          } catch {
-            void 0
-          }
-        }
-        timer = window.setTimeout(() => {
-          timer = null
+        scheduleCoalescedTask(key, () => {
           const nextSnapshot = getWorkspaceSnapshot()
           lastWorkspacePersistedRef.current = nextSnapshot
           void persistSourceFilesWorkspace(nextSnapshot)
@@ -186,13 +165,7 @@ export function SourceFilesPersistenceBootstrap() {
       },
     )
     return () => {
-      if (timer != null) {
-        try {
-          window.clearTimeout(timer)
-        } catch {
-          void 0
-        }
-      }
+      cancelCoalescedTask(key)
       unsubscribe()
     }
   }, [getWorkspaceSnapshot])

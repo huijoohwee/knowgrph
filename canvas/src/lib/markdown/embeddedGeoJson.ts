@@ -1,5 +1,5 @@
 import { extractFencedCodeBlocks } from './extractFencedCodeBlocks'
-import { parseGeoJsonFromText } from 'gympgrph'
+import { parseGeoJsonFeatureCollectionFromText } from '@/features/geospatial/geojsonParseCache'
 
 export type EmbeddedGeoJsonBlock = {
   geojsonText: string
@@ -23,13 +23,9 @@ export function extractEmbeddedGeoJsonFeatureCollections(markdownText: string): 
       if (!lc.includes('featurecollection') && !lc.includes('"feature"')) continue
     }
 
-    try {
-      const fc = parseGeoJsonFromText(trimmed)
-      if (!fc) continue
-      out.push({ geojsonText: JSON.stringify(fc), startLine: b.startLine, endLine: b.endLine })
-    } catch {
-      continue
-    }
+    const fc = parseGeoJsonFeatureCollectionFromText(trimmed)
+    if (!fc) continue
+    out.push({ geojsonText: JSON.stringify(fc), startLine: b.startLine, endLine: b.endLine })
   }
 
   return out

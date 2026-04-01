@@ -317,6 +317,16 @@ Key behaviors:
 
 ---
 
+## State-Sync, Indexing, and Scheduler SSOT (Knowgrph)
+
+- State-sync and indexing across Knowgrph, Gympgrph, and Curagrph must use revision+viewKey gating and shared coalesced scheduler keys; ad-hoc timers for production state-sync/indexing paths are forbidden.
+- Workspace FS changes emit `kg:workspace-fs:changed` (see `workspaceFsEvents.ts`); Markdown Workspace listens once and uses a shared `markdown-workspace:refresh` scheduler key to coalesce refreshes, respecting dirty-editor guards and applying `mergeWorkspaceEntriesIntoSourceFiles` idempotently.
+- SourceFiles persistence uses `source-files:persist` (graph sourceFiles snapshot) and `source-files:workspace` (folder/access/cache/selection state) scheduler keys; both write via LS+RxDB only after revision changes and equality checks, never on every keystroke or pointermove.
+- Per-document UI state persistence (document key/ref, canvas render mode, semantic/frontmatter modes, zoom/pin, selection) uses the `per-document-ui` scheduler key; no module may introduce separate per-doc timers for these fields or bypass the scheduler when writing per-document LS state.
+- GraphTable/Multi-dimensional Table view state persistence (column visibility/order, filters, sort, row height, widths) uses a single `graph-table:view-state` scheduler key and LS keys (`kg:ui:graphTable:*`); RxDB GraphTableDb sync remains revision+viewKey gated and independent of view-state persistence.
+- Markdown editor SSOT sync uses document-scoped scheduler keys `markdown-editor:ssot:<documentKey>` to coalesce normalized markdown→GraphData SSOT pushes per document; Import URL and workspace view toggles must reuse these SSOT paths instead of introducing parallel debounce layers.
+- New state-sync/indexing surfaces (for example, additional codebase index explorers or RxDB-backed views) must either reuse one of the existing scheduler keys for the same concern or introduce a new, clearly named key documented here and in AgenticRAG `settings.jsonld`/`pipeline.jsonld`; parallel ungated timers or loops are not allowed.
+
 ### Module: `knowgrph_parser.markdown_cmd`
 
 **From Markdown files to Knowledge Graph JSONâ€'LD + configs**: Module → scans directory for markdown files → parses each into a graph → unifies entities across documents → generates schema and orchestrator configs.

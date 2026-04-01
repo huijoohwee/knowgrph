@@ -51,6 +51,7 @@ import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { parseGraphTableViewMode, type GraphTableViewMode } from '@/features/graph-table/ui/graphTableViewMode'
 import { applyColumnOrder, getRowTocId, mapRowDocToGridRow, reorderIds } from '@/features/graph-table/ui/graphTableWorkspaceUtils'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
+import { scheduleCoalescedTask, cancelCoalescedTask } from '@/lib/async/coalescedScheduler'
 
 const INACTIVE_GRAPH_SLICE = {
   baseGraphData: null,
@@ -344,7 +345,6 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
     }
   }, [multiDimTableModeEnabled, setMultiDimTableModeEnabled, workspaceEditorMode])
 
-  const persistGraphTableViewStateTimerRef = useRef<number | null>(null)
   const persistGraphTableViewStatePendingRef = useRef<{
     columnVisibilityById: GraphTableColumnVisibilityById
     filterMatch: GraphTableFilterMatch
@@ -368,9 +368,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       columnWidthsPxById,
       columnOrderByTableId,
     }
-    if (persistGraphTableViewStateTimerRef.current !== null) return
-    persistGraphTableViewStateTimerRef.current = window.setTimeout(() => {
-      persistGraphTableViewStateTimerRef.current = null
+    scheduleCoalescedTask('graph-table:view-state', () => {
       const pending = persistGraphTableViewStatePendingRef.current
       if (!pending) return
       lsSetJson(LS_KEYS.graphTableColumnVisibilityById, pending.columnVisibilityById)
@@ -387,10 +385,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   useEffect(() => {
     if (typeof window === 'undefined') return
     return () => {
-      if (persistGraphTableViewStateTimerRef.current !== null) {
-        window.clearTimeout(persistGraphTableViewStateTimerRef.current)
-        persistGraphTableViewStateTimerRef.current = null
-      }
+      cancelCoalescedTask('graph-table:view-state')
     }
   }, [])
 

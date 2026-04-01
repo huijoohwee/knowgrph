@@ -45,6 +45,7 @@ import { buildDocLocationIndex } from '@/features/markdown-explorer/docLocationI
 import { ORCHESTRATOR_WORKFLOW_WORKSPACE_PATH } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { PARSER_SCRIPT_WORKSPACE_PATH } from '@/features/panels/utils/parserWorkspaceFiles'
 import { SCHEMA_CONFIG_WORKSPACE_PATH } from '@/features/panels/utils/schemaWorkspaceFiles'
+import { scheduleCoalescedTask, cancelCoalescedTask } from '@/lib/async/coalescedScheduler'
 import { createProgressTicker } from '@/lib/progress/progressTicker'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { parseSchemaText } from '@/features/schema/io'
@@ -74,8 +75,8 @@ import { hashStringToHex } from '@/lib/hash/stringHash'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
 import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
-import { coerceGeoJsonToFeatureCollection, parseGeoJsonFromText } from 'gympgrph'
 import { tryBuildGeodataGraphDataFromJsonText } from '@/lib/graph/io/geodataJson'
+import { parseGeoJsonFeatureCollectionFromText } from '@/features/geospatial/geojsonParseCache'
 import { maybeAutoEnableGeospatialModeForGraphData } from '@/features/geospatial/autoEnable'
 import {
   FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
@@ -1033,36 +1034,20 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   }, [])
 
 
-  const pendingExternalRefreshRef = React.useRef<number | null>(null)
   React.useEffect(() => {
+    const key = 'markdown-workspace:refresh'
     const unsubscribe = subscribeWorkspaceFsChanged(detail => {
       const active = activePathRef.current
       const last = lastLoadedRef.current
       const isDirty = !!(active && last?.path === active && last.text !== activeTextRef.current)
       const changedPath = typeof detail?.path === 'string' && detail.path ? detail.path : null
       if (isDirty && (!changedPath || changedPath === active)) return
-
-      if (pendingExternalRefreshRef.current != null) {
-        try {
-          window.clearTimeout(pendingExternalRefreshRef.current)
-        } catch {
-          void 0
-        }
-      }
-      pendingExternalRefreshRef.current = window.setTimeout(() => {
-        pendingExternalRefreshRef.current = null
+      scheduleCoalescedTask(key, () => {
         void refresh()
       }, 180)
     })
     return () => {
-      if (pendingExternalRefreshRef.current != null) {
-        try {
-          window.clearTimeout(pendingExternalRefreshRef.current)
-        } catch {
-          void 0
-        }
-        pendingExternalRefreshRef.current = null
-      }
+      cancelCoalescedTask(key)
       unsubscribe()
     }
   }, [refresh])
@@ -1737,16 +1722,13 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
                       lowerPath.endsWith('.geojson') ||
                       (lowerPath.endsWith('.json') && /"type"\s*:\s*"FeatureCollection"/i.test(nextText.slice(0, 4096)))
                     if (mightBeGeoJson && nextText.length < 2_000_000) {
-                      try {
-                        const fc = parseGeoJsonFromText(nextText)
-                        const normalized = coerceGeoJsonToFeatureCollection(fc)
+                      const normalized = parseGeoJsonFeatureCollectionFromText(nextText)
+                      if (normalized) {
                         return buildGraphDataFromFeatureCollection({
                           featureCollection: normalized,
                           sourcePath: path,
                           sourceHash: hash,
                         })
-                      } catch {
-                        void 0
                       }
                     }
                     const geodata = tryBuildGeodataGraphDataFromJsonText({ name: path, text: nextText, maxRecords: 5000 })
