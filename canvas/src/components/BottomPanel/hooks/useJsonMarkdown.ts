@@ -1,9 +1,12 @@
 import React from 'react'
-import { lsJson, lsSetJson } from '@/lib/persistence'
-import { LS_KEYS } from '@/lib/config'
 import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
-import { jsonToMarkdown } from '@/features/markdown/jsonToMarkdown'
+import { jsonToMarkdown, jsonToMarkdownPreferTable } from '@/features/markdown/jsonToMarkdown'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
+import {
+  buildJsonMarkdownConfigFromPreferences,
+  readJsonMarkdownMode,
+  writeJsonMarkdownMode,
+} from '@/features/markdown/jsonMarkdownPreferences'
 
 export type JsonMarkdownMode = JsonToMarkdownMode
 
@@ -24,19 +27,7 @@ export function useJsonMarkdown(props: UseJsonMarkdownProps) {
     setMarkdownText,
   } = props
 
-  const [jsonMarkdownMode, setJsonMarkdownMode] = React.useState<JsonMarkdownMode>(() =>
-    lsJson<JsonMarkdownMode>(
-      LS_KEYS.jsonMarkdownMode,
-      'auto',
-      value =>
-        value === 'table' ||
-        value === 'key-value' ||
-        value === 'hierarchical' ||
-        value === 'auto'
-          ? value
-          : 'auto',
-    ),
-  )
+  const [jsonMarkdownMode, setJsonMarkdownMode] = React.useState<JsonMarkdownMode>(() => readJsonMarkdownMode())
 
   const deferredMarkdownText = useDebouncedValue(markdownDocumentText, 200)
   const deferredJsonSourceText = useDebouncedValue(jsonSourceDocumentText, 200)
@@ -46,11 +37,12 @@ export function useJsonMarkdown(props: UseJsonMarkdownProps) {
       const jsonTrimmed = (deferredJsonSourceText || '').trim()
       if (!jsonTrimmed) return 'auto'
       const parsed = JSON.parse(jsonTrimmed)
-      const renderedTable = jsonToMarkdown(parsed, { defaultMode: 'table' }, 'table')
-      const renderedKeyValue = jsonToMarkdown(parsed, { defaultMode: 'key-value' }, 'key-value')
+      const prefsConfig = buildJsonMarkdownConfigFromPreferences()
+      const renderedTable = jsonToMarkdown(parsed, { ...prefsConfig, defaultMode: 'table' }, 'table')
+      const renderedKeyValue = jsonToMarkdown(parsed, { ...prefsConfig, defaultMode: 'key-value' }, 'key-value')
       const renderedHierarchical = jsonToMarkdown(
         parsed,
-        { defaultMode: 'hierarchical' },
+        { ...prefsConfig, defaultMode: 'hierarchical' },
         'hierarchical',
       )
       const original = deferredMarkdownText || ''
@@ -97,7 +89,8 @@ export function useJsonMarkdown(props: UseJsonMarkdownProps) {
     if (!parsedJsonSource) return
     try {
       const mode = jsonMarkdownMode
-      const markdown = jsonToMarkdown(parsedJsonSource, { defaultMode: mode }, mode)
+      const renderConfig = buildJsonMarkdownConfigFromPreferences()
+      const markdown = jsonToMarkdownPreferTable(parsedJsonSource, { ...renderConfig, defaultMode: mode }, mode)
       setMarkdownDocument(markdownDocumentName, markdown)
       setMarkdownText(markdown)
     } catch {
@@ -106,7 +99,7 @@ export function useJsonMarkdown(props: UseJsonMarkdownProps) {
   }, [jsonMarkdownMode, parsedJsonSource, markdownDocumentName, setMarkdownDocument, setMarkdownText])
 
   React.useEffect(() => {
-    lsSetJson<JsonMarkdownMode>(LS_KEYS.jsonMarkdownMode, jsonMarkdownMode)
+    writeJsonMarkdownMode(jsonMarkdownMode)
   }, [jsonMarkdownMode])
 
   return {

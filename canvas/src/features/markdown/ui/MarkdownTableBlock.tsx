@@ -46,7 +46,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
 
   const tbl = t as unknown as TokensTable
   const endLine = t.endLine || t.startLine
-  const isDataView = !opts.markdownPresentationMode && isMarkdownDataViewCandidate(tbl)
+  const isDataView = !opts.markdownPresentationMode && !opts.markdownForcePlainTables && isMarkdownDataViewCandidate(tbl)
   const blockControlsAllowed =
     !opts.markdownPresentationMode &&
     !!opts.viewerBlockEditingEnabled &&

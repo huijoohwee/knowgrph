@@ -50,8 +50,8 @@ export type MarkdownWorkspaceToolbarProps = {
   viewerKind?: 'markdown' | 'html' | 'json'
   viewerKindOptions?: Array<'markdown' | 'html' | 'json'>
   setViewerKind?: (next: 'markdown' | 'html' | 'json') => void
-  viewerMode?: 'read' | 'kanban' | 'table'
-  setViewerMode?: (next: 'read' | 'kanban' | 'table') => void
+  viewerMode?: 'read' | 'table' | 'multiDimTable' | 'kanban'
+  setViewerMode?: (next: 'read' | 'table' | 'multiDimTable' | 'kanban') => void
   onSaveAs?: () => void
   onExportWorkspaceFile?: () => void
   onExportMarkdown?: () => void
@@ -270,12 +270,13 @@ export function MarkdownWorkspaceToolbar({
             </li>
             {viewerMode && setViewerMode ? (
               <li className="list-none">
-                <WorkspaceModeSelect<'read' | 'table' | 'kanban'>
+                <WorkspaceModeSelect<'read' | 'table' | 'multiDimTable' | 'kanban'>
                   ariaLabel="Viewer mode"
                   value={viewerMode}
                   options={[
                     { value: 'read', label: 'Read' },
                     { value: 'table', label: 'Table' },
+                    { value: 'multiDimTable', label: 'Multi-dimensional Table' },
                     { value: 'kanban', label: 'Kanban' },
                   ]}
                   onChange={setViewerMode}

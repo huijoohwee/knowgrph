@@ -12,22 +12,10 @@ const notifyWorkspaceFsDegraded = async (err: unknown) => {
     mod.useGraphStore.getState().pushUiToast({
       id: 'workspace-fs-persistence-disabled',
       kind: 'warning',
-      message: `Workspace persistence is unavailable (IndexedDB blocked). Changes may not survive reload.${msg ? ` ${msg}` : ''}`,
+      message: `Workspace persistence is unavailable. Changes may not survive reload.${msg ? ` ${msg}` : ''}`,
     })
   } catch {
     void 0
-  }
-}
-
-const canUseIndexedDb = () => {
-  try {
-    return (
-      typeof window !== 'undefined' &&
-      typeof indexedDB !== 'undefined' &&
-      typeof (globalThis as unknown as { IDBKeyRange?: unknown }).IDBKeyRange !== 'undefined'
-    )
-  } catch {
-    return false
   }
 }
 
@@ -184,11 +172,6 @@ export async function getWorkspaceFs(): Promise<WorkspaceFs> {
   const { createMemoryWorkspaceFs } = await import('./workspaceFsMemory.ts')
   const memory = createMemoryWorkspaceFs({ initialEntries: snapshotShadowEntries() })
 
-  if (!canUseIndexedDb()) {
-    fsSingleton = memory
-    return fsSingleton
-  }
-
   try {
     const { createWorkspaceRxdbFs } = await import('./workspaceFsRxdb.ts')
     const persistentFs = createWorkspaceRxdbFs()
@@ -213,6 +196,11 @@ export async function getWorkspaceFs(): Promise<WorkspaceFs> {
 export async function ensureSeedWorkspaceFs(): Promise<void> {
   const fs = await getWorkspaceFs()
   await fs.ensureSeed()
+}
+
+export function resetWorkspaceFsForTests(): void {
+  fsSingleton = null
+  warnedDegraded = false
 }
 
 export const LEGACY_WORKSPACE_README_PATH = '/README.md' as WorkspacePath

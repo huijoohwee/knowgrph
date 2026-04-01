@@ -22,10 +22,13 @@ type ResolvedConfig = {
   sortKeys: boolean
 }
 
+export const JSON_TO_MARKDOWN_DEFAULT_TABLE_MAX_ROWS = 200
+export const JSON_TO_MARKDOWN_DEFAULT_TABLE_MAX_COLUMNS = 40
+
 const defaultConfig: ResolvedConfig = {
   defaultMode: 'auto',
-  tableMaxRows: 200,
-  tableMaxColumns: 40,
+  tableMaxRows: JSON_TO_MARKDOWN_DEFAULT_TABLE_MAX_ROWS,
+  tableMaxColumns: JSON_TO_MARKDOWN_DEFAULT_TABLE_MAX_COLUMNS,
   indent: '  ',
   bullet: '-',
   sortKeys: true,
@@ -40,21 +43,10 @@ function isScalar(value: JsonLike): boolean {
   )
 }
 
-function looksLikeUniformObjectArray(items: JsonLike[]): boolean {
+function looksLikeObjectArray(items: JsonLike[]): boolean {
   if (!items.length) return false
-  const first = items[0]
-  if (!first || typeof first !== 'object' || Array.isArray(first)) return false
-  const baseKeys = Object.keys(first as Record<string, JsonLike>)
-  if (!baseKeys.length) return false
-  const baseSet = new Set(baseKeys)
-  for (let i = 1; i < items.length; i += 1) {
-    const item = items[i]
+  for (const item of items) {
     if (!item || typeof item !== 'object' || Array.isArray(item)) return false
-    const keys = Object.keys(item as Record<string, JsonLike>)
-    if (keys.length !== baseSet.size) return false
-    for (const k of keys) {
-      if (!baseSet.has(k)) return false
-    }
   }
   return true
 }
@@ -121,25 +113,41 @@ function detectMode(value: JsonLike, config: ResolvedConfig): Exclude<JsonToMark
   }
   if (Array.isArray(value)) {
     if (!value.length) return 'hierarchical'
-    if (looksLikeUniformObjectArray(value)) {
-      const first = value[0] as Record<string, JsonLike>
-      if (!rowHasNestedValues(first)) return 'table'
-    }
+    if (looksLikeObjectArray(value)) return 'table'
     return 'hierarchical'
   }
   if (value && typeof value === 'object') {
+    const obj = value as Record<string, JsonLike>
+    const values = Object.values(obj)
+    for (const entry of values) {
+      if (!Array.isArray(entry)) continue
+      if (looksLikeObjectArray(entry)) return 'table'
+    }
     if (hasNestedStructures(value)) return 'hierarchical'
     return 'key-value'
   }
   return 'key-value'
 }
 
+function collectTableHeaderKeys(rows: Record<string, JsonLike>[], maxColumns: number): string[] {
+  const seen = new Set<string>()
+  const keys: string[] = []
+  const limit = maxColumns > 0 ? maxColumns : Number.POSITIVE_INFINITY
+  for (const row of rows) {
+    const rowKeys = Object.keys(row)
+    for (const key of rowKeys) {
+      if (seen.has(key)) continue
+      seen.add(key)
+      keys.push(key)
+      if (keys.length >= limit) return keys
+    }
+  }
+  return keys
+}
+
 function renderTable(rows: Record<string, JsonLike>[], config: ResolvedConfig): string[] {
   if (!rows.length) return [JSON_TO_MARKDOWN_COPY.emptyArrayLabel]
-  let headerKeys = Object.keys(rows[0])
-  if (config.tableMaxColumns > 0 && headerKeys.length > config.tableMaxColumns) {
-    headerKeys = headerKeys.slice(0, config.tableMaxColumns)
-  }
+  const headerKeys = collectTableHeaderKeys(rows, config.tableMaxColumns)
   const headerCells = headerKeys.map(k => escapeTableCell(String(k) || 'key'))
   const lines: string[] = []
   lines.push(`| ${headerCells.join(' | ')} |`)
@@ -167,6 +175,30 @@ function renderTable(rows: Record<string, JsonLike>[], config: ResolvedConfig): 
     lines.push(JSON_TO_MARKDOWN_COPY.moreRowsLabel(remaining))
   }
   return lines
+}
+
+function renderTopLevelObjectTables(value: Record<string, JsonLike>, config: ResolvedConfig): string[] | null {
+  let keys = Object.keys(value)
+  if (config.sortKeys) {
+    try {
+      keys = keys.slice().sort()
+    } catch {
+      keys = keys.slice()
+    }
+  }
+  const lines: string[] = []
+  for (const key of keys) {
+    const current = value[key]
+    if (!Array.isArray(current)) continue
+    if (!looksLikeObjectArray(current)) continue
+    const rows = current as Record<string, JsonLike>[]
+    if (rows.length < 1) continue
+    if (lines.length > 0) lines.push('')
+    lines.push(`## ${key}`)
+    lines.push('')
+    lines.push(...renderTable(rows, config))
+  }
+  return lines.length > 0 ? lines : null
 }
 
 function renderKeyValue(
@@ -272,13 +304,14 @@ export function jsonToMarkdown(
       ? mode
       : detectMode(value, resolved)
   if (effectiveMode === 'table') {
-    if (Array.isArray(value) && looksLikeUniformObjectArray(value)) {
-      const first = value[0] as Record<string, JsonLike>
-      if (!rowHasNestedValues(first)) {
-        const rows = value as Record<string, JsonLike>[]
-        const lines = renderTable(rows, resolved)
-        return lines.join('\n')
-      }
+    if (Array.isArray(value) && looksLikeObjectArray(value)) {
+      const rows = value as Record<string, JsonLike>[]
+      const lines = renderTable(rows, resolved)
+      return lines.join('\n')
+    }
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const objectTables = renderTopLevelObjectTables(value as Record<string, JsonLike>, resolved)
+      if (objectTables) return objectTables.join('\n')
     }
     const lines = renderHierarchical(value, resolved, 0)
     return lines.join('\n')
@@ -294,4 +327,29 @@ export function jsonToMarkdown(
   }
   const lines = renderHierarchical(value, resolved, 0)
   return lines.join('\n')
+}
+
+function hasMarkdownTable(text: string): boolean {
+  const lines = String(text || '').split('\n')
+  for (let i = 1; i < lines.length; i += 1) {
+    const prev = String(lines[i - 1] || '').trim()
+    const curr = String(lines[i] || '').trim()
+    if (!prev.startsWith('|') || !prev.endsWith('|')) continue
+    if (!curr.startsWith('|') || !curr.endsWith('|')) continue
+    const segments = curr.slice(1, -1).split('|').map(part => part.trim())
+    if (segments.length < 1) continue
+    if (segments.every(part => /^:?-{3,}:?$/.test(part))) return true
+  }
+  return false
+}
+
+export function jsonToMarkdownPreferTable(
+  value: JsonLike,
+  config?: JsonToMarkdownConfig,
+  fallbackMode?: JsonToMarkdownMode,
+): string {
+  const preferredConfig = { ...(config || {}), defaultMode: 'table' as JsonToMarkdownMode }
+  const tableFirst = jsonToMarkdown(value, preferredConfig, 'table')
+  if (hasMarkdownTable(tableFirst)) return tableFirst
+  return jsonToMarkdown(value, config, fallbackMode)
 }

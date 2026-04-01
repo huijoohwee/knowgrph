@@ -14,6 +14,7 @@ import {
   buildSettingsValueTooltip,
 } from '@/lib/config'
 import { useSettingsView } from './useSettingsView'
+import { WorkspaceTableModeControl } from '@/features/workspace-table/ui/WorkspaceTableModeControl'
 
 export default function SettingsView({
   searchQuery,
@@ -82,6 +83,9 @@ export default function SettingsView({
             className="h-9 py-0"
           />
         </header>
+        <section className="p-2 border-b border-white/10">
+          <WorkspaceTableModeControl />
+        </section>
         {groupByArea.map(([area, entries]) => {
           const collapsed = collapsedByArea[area] ?? true
           const responsibilities = entries.map(e => e.details.responsibility).filter(Boolean)

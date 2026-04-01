@@ -39,7 +39,7 @@ const sourceFileSchema: RxJsonSchema<SourceFileRowV1> = {
     id: { type: 'string', maxLength: 256 },
     orderIndex: { type: 'integer', minimum: 0, maximum: 2_147_483_647, multipleOf: 1 },
     payload: { type: 'object', additionalProperties: true },
-    updatedAtMs: { type: 'number' },
+    updatedAtMs: { type: 'integer', minimum: 0, maximum: 9_007_199_254_740_991, multipleOf: 1 },
   },
   required: ['id', 'orderIndex', 'payload', 'updatedAtMs'],
   indexes: ['orderIndex', 'updatedAtMs'],
@@ -53,7 +53,7 @@ const workspaceSchema: RxJsonSchema<WorkspaceRowV1> = {
   properties: {
     id: { type: 'string', maxLength: 64 },
     payload: { type: 'object', additionalProperties: true },
-    updatedAtMs: { type: 'number' },
+    updatedAtMs: { type: 'integer', minimum: 0, maximum: 9_007_199_254_740_991, multipleOf: 1 },
   },
   required: ['id', 'payload', 'updatedAtMs'],
 }

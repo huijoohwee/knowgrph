@@ -46,7 +46,7 @@ export function MarkdownExplorerSection(props: {
           aria-expanded={!collapsed}
         >
           {collapsed ? <ChevronRight className="w-3 h-3 shrink-0" /> : <ChevronDown className="w-3 h-3 shrink-0" />}
-          <span className={UI_TEXT_TRUNCATE}>{title}</span>
+          <span className={`${UI_TEXT_TRUNCATE} ${panelTypography.panelTextClass}`}>{title}</span>
         </button>
 
         <nav className="flex items-center gap-1 shrink-0" aria-label={`${title} actions`}>

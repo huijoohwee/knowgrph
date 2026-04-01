@@ -1,11 +1,14 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { lsJson, lsSetJson } from '@/lib/persistence'
-import { LS_KEYS } from '@/lib/config'
-import { jsonToMarkdown, type JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
+import { jsonToMarkdownPreferTable } from '@/features/markdown/jsonToMarkdown'
 import { buildBipartiteMarkdownFromJsonValue } from '@/features/markdown/bipartiteJsonToMarkdown'
 import type { RecentFileEntry } from '@/hooks/store/types'
 import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 import { applyJsonImportWorkspaceTarget } from '@/features/workspace-table/jsonImportWorkspaceTarget'
+import {
+  buildJsonMarkdownConfigFromPreferences,
+  readJsonMarkdownMode,
+  writeJsonMarkdownMode,
+} from '@/features/markdown/jsonMarkdownPreferences'
 
 export function applyImportedMarkdownToStore(args: {
   name: string
@@ -86,19 +89,10 @@ export function applyImportedJsonToStore(args: {
   let jsonSourceText: string | null = null
   try {
     const parsed = JSON.parse(trimmed) as unknown
-    const persistedMode = lsJson<JsonToMarkdownMode>(
-      LS_KEYS.jsonMarkdownMode,
-      'auto',
-      value =>
-        value === 'table' ||
-        value === 'key-value' ||
-        value === 'hierarchical' ||
-        value === 'auto'
-          ? value
-          : 'auto',
-    )
-    markdown = buildBipartiteMarkdownFromJsonValue(parsed) || jsonToMarkdown(parsed, { defaultMode: persistedMode }, persistedMode)
-    lsSetJson<JsonToMarkdownMode>(LS_KEYS.jsonMarkdownMode, persistedMode)
+    const persistedMode = readJsonMarkdownMode()
+    const renderConfig = buildJsonMarkdownConfigFromPreferences()
+    markdown = buildBipartiteMarkdownFromJsonValue(parsed) || jsonToMarkdownPreferTable(parsed, renderConfig, persistedMode)
+    writeJsonMarkdownMode(persistedMode)
     jsonSourceText = trimmed
   } catch {
     const fenceLang = args.fallbackFenceLang || 'json'

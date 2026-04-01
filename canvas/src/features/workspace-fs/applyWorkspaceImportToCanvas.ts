@@ -25,6 +25,30 @@ type ApplyWorkspaceImportToCanvasResult = {
   parsedCount: number
 }
 
+function applyInteractiveImportDefaults(): void {
+  const store = useGraphStore.getState()
+  try {
+    store.setCanvasRenderMode('2d')
+    store.setCanvas2dRenderer('d3')
+  } catch {
+    void 0
+  }
+  try {
+    if (store.frontmatterModeEnabled !== true) store.setFrontmatterModeEnabled(true)
+  } catch {
+    void 0
+  }
+  try {
+    const schema = store.schema
+    const layout = schema?.layout
+    if (layout?.mode !== 'block') {
+      store.setSchema({ ...schema, layout: { ...(layout || {}), mode: 'block' } })
+    }
+  } catch {
+    void 0
+  }
+}
+
 export async function applyWorkspaceImportToCanvas(args: {
   fs: WorkspaceFs
   createdPaths: WorkspacePath[]
@@ -91,7 +115,6 @@ export async function applyWorkspaceImportToCanvas(args: {
   let remainingFiles = WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILES
   let remainingChars = WORKSPACE_IMPORT_AUTO_PARSE_MAX_TOTAL_CHARS
   let parsedCount = 0
-  let preferred2dRenderer: 'd3' | 'd3Bipartite' | null = null
 
   for (const path of createdPaths) {
     if (remainingFiles <= 0 || remainingChars <= 0) break
@@ -134,17 +157,6 @@ export async function applyWorkspaceImportToCanvas(args: {
       (((graphData.nodes && graphData.nodes.length) || 0) > 0 || ((graphData.edges && graphData.edges.length) || 0) > 0)
     )
     if (hasGraphContent) {
-      const pathLower = String(path || '').toLowerCase()
-      const isJsonLikePath = pathLower.endsWith('.json') || pathLower.endsWith('.jsonld') || pathLower.endsWith('.geojson')
-      if (isJsonLikePath) {
-        const meta =
-          graphData && graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
-            ? (graphData.metadata as Record<string, unknown>)
-            : null
-        const graphKind = typeof meta?.graphKind === 'string' ? meta.graphKind.trim().toLowerCase() : ''
-        if (graphKind === 'bipartite') preferred2dRenderer = 'd3Bipartite'
-        else if (!preferred2dRenderer) preferred2dRenderer = 'd3'
-      }
       ensureNext()[idx] = {
         ...base,
         text: inlineText,
@@ -184,14 +196,7 @@ export async function applyWorkspaceImportToCanvas(args: {
   if (next) {
     store.setSourceFiles(next)
     scheduleApplyComposedGraphFromSourceFiles()
-    if (preferred2dRenderer) {
-      try {
-        store.setCanvasRenderMode('2d')
-        store.setCanvas2dRenderer(preferred2dRenderer)
-      } catch {
-        void 0
-      }
-    }
+    applyInteractiveImportDefaults()
     return { sourceFilesUpdated: true, enabledCount, parsedCount }
   }
   if (merged !== existing) {

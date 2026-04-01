@@ -24,16 +24,10 @@ import { MarkdownWorkspacePresentationSurface } from './presentation/MarkdownWor
 import { MarkdownWorkspaceSlidesGallerySurface } from './presentation/MarkdownWorkspaceSlidesGallerySurface'
 import { useWorkspaceScrollSync } from './scroll/useWorkspaceScrollSync'
 import { MarkdownWorkspaceDerivedViewer, type MarkdownWorkspaceDerivedViewerKind, type MarkdownWorkspaceDerivedViewerMode } from './viewer/MarkdownWorkspaceDerivedViewer'
-import { exportWorkspaceFileJsonLd } from './exports/exportWorkspaceFile'
-import { exportMarkdownFile } from './exports/exportMarkdown'
-import { exportHtmlViewerSnapshot } from './exports/exportHtmlViewer'
-import { exportHtmlCanvasFromWorkspace } from './exports/exportHtmlCanvas'
-import { exportCanvasSvg } from './exports/exportSvg'
-import { exportGraphJson } from './exports/exportJson'
-import { exportViewerPdf } from './exports/exportPdf'
-import { registerMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
 import { buildBipartiteMarkdownFromJsonText } from '@/features/markdown/bipartiteJsonToMarkdown'
-import { jsonToMarkdown } from '@/features/markdown/jsonToMarkdown'
+import { jsonToMarkdownPreferTable } from '@/features/markdown/jsonToMarkdown'
+import { buildJsonMarkdownConfigFromPreferences } from '@/features/markdown/jsonMarkdownPreferences'
+import { useWorkspaceExportBridge } from './useWorkspaceExportBridge'
 
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
@@ -179,6 +173,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const [viewerMode, setViewerMode] = React.useState<MarkdownWorkspaceDerivedViewerMode>(() => {
     return lsJson(LS_KEYS.markdownDerivedViewerMode, 'read' as MarkdownWorkspaceDerivedViewerMode, (raw) => {
       const v = String(raw || '').trim().toLowerCase()
+      if (v === 'multidimtable') return 'multiDimTable'
       if (v === 'kanban') return 'kanban'
       if (v === 'table') return 'table'
       if (v === 'read') return 'read'
@@ -211,7 +206,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     if (bipartite) return bipartite
     try {
       const parsed = JSON.parse(text) as unknown
-      return jsonToMarkdown(parsed, { defaultMode: 'table' }, 'table')
+      const renderConfig = buildJsonMarkdownConfigFromPreferences()
+      return jsonToMarkdownPreferTable(parsed, { ...renderConfig, defaultMode: 'table' }, 'table')
     } catch {
       return null
     }
@@ -376,7 +372,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         viewerRef.current = el
       }}
     />
-  ) : viewerMode === 'read' && viewerKind === 'markdown' ? (
+  ) : (viewerMode === 'read' || viewerMode === 'table') && viewerKind === 'markdown' ? (
     <MarkdownPreview
       ref={handleViewerRootRef}
       markdownText={viewerText}
@@ -398,6 +394,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       onInsertLineAfter={handleInsertLineAfter}
       onReorderLineBlock={handleReorderLineBlock}
       onReplaceLineRange={handleReplaceLineRange}
+      markdownForcePlainTables={viewerMode === 'table'}
     />
   ) : (
     <MarkdownWorkspaceDerivedViewer
@@ -422,98 +419,26 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     />
   )
 
-
-  const exportBaseName = React.useMemo(() => {
-    const raw = String(activeDocumentKey || '').trim() || 'document'
-    const base = raw.split('/').filter(Boolean).pop() || raw
-    return base.replace(/\.[a-z0-9]+$/i, '') || 'document'
-  }, [activeDocumentKey])
-
-  const flushGraphWritebackForExport = React.useCallback(() => {
-    try {
-      useGraphStore.getState().flushComposedPositionWritesNow()
-    } catch {
-      void 0
-    }
-  }, [])
-
-  const handleExportWorkspaceFile = React.useCallback(async () => {
-    flushGraphWritebackForExport()
-    const text = String(typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText)
-    await exportWorkspaceFileJsonLd({ activeDocumentKey, exportBaseName, text })
-  }, [activeDocumentKey, activeText, exportBaseName, flushGraphWritebackForExport, viewerTextOverride])
-
-  const handleExportMarkdown = React.useCallback(async () => {
-    flushGraphWritebackForExport()
-    const text = String(markdownEditText ?? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText))
-    await exportMarkdownFile({ exportBaseName, text })
-  }, [activeText, exportBaseName, flushGraphWritebackForExport, markdownEditText, viewerTextOverride])
-
-  const handleExportHtmlViewer = React.useCallback(async () => {
-    flushGraphWritebackForExport()
-    await exportHtmlViewerSnapshot({
-      exportBaseName,
-      showWebpageHtml,
-      iframeSrcDoc,
-      viewerEl,
-      viewerRefCurrent: viewerRef.current,
-      pushUiToast,
-    })
-  }, [exportBaseName, flushGraphWritebackForExport, iframeSrcDoc, pushUiToast, showWebpageHtml, viewerEl])
-
-  const handleExportHtmlCanvas = React.useCallback(async () => {
-    flushGraphWritebackForExport()
-    await exportHtmlCanvasFromWorkspace({ exportBaseName, pushUiToast })
-  }, [exportBaseName, flushGraphWritebackForExport, pushUiToast])
-
-  const handleExportSvg = React.useCallback(async () => {
-    flushGraphWritebackForExport()
-    await exportCanvasSvg({
-      exportBaseName,
-      pushUiToast,
-      getStore: () => useGraphStore.getState(),
-    })
-  }, [exportBaseName, flushGraphWritebackForExport, pushUiToast])
-
-  const handleExportJson = React.useCallback(async () => {
-    flushGraphWritebackForExport()
-    const gd = useGraphStore.getState().graphData
-    await exportGraphJson({ graphData: gd, exportBaseName, pushUiToast })
-  }, [exportBaseName, flushGraphWritebackForExport, pushUiToast])
-
-  const handleExportPdf = React.useCallback(async () => {
-    flushGraphWritebackForExport()
-    await exportViewerPdf({ exportBaseName, viewerEl, viewerRefCurrent: viewerRef.current, pushUiToast })
-  }, [exportBaseName, flushGraphWritebackForExport, pushUiToast, viewerEl])
-
-  const exportBridge = React.useMemo(
-    () => ({
-      export: {
-        duplicateInWorkspace: onSaveAs,
-        workspaceFileJsonLd: () => void handleExportWorkspaceFile(),
-        markdown: () => void handleExportMarkdown(),
-        htmlViewer: () => void handleExportHtmlViewer(),
-        htmlCanvas: () => void handleExportHtmlCanvas(),
-        json: () => void handleExportJson(),
-        svg: () => void handleExportSvg(),
-        pdf: () => void handleExportPdf(),
-      },
-    }),
-    [
-      handleExportHtmlCanvas,
-      handleExportHtmlViewer,
-      handleExportJson,
-      handleExportMarkdown,
-      handleExportPdf,
-      handleExportSvg,
-      handleExportWorkspaceFile,
-      onSaveAs,
-    ],
-  )
-
-  React.useEffect(() => {
-    return registerMarkdownWorkspaceActionBridge('markdown-workspace-export', exportBridge)
-  }, [exportBridge])
+  const {
+    handleExportWorkspaceFile,
+    handleExportMarkdown,
+    handleExportHtmlViewer,
+    handleExportHtmlCanvas,
+    handleExportSvg,
+    handleExportJson,
+    handleExportPdf,
+  } = useWorkspaceExportBridge({
+    activeDocumentKey,
+    activeText,
+    markdownEditText,
+    viewerTextOverride,
+    showWebpageHtml,
+    iframeSrcDoc,
+    viewerEl,
+    pushUiToast,
+    onSaveAs,
+    getViewerRefCurrent: () => viewerRef.current,
+  })
 
   const presentation = (
     <MarkdownWorkspacePresentationSurface

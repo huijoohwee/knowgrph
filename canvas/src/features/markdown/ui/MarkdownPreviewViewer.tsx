@@ -78,6 +78,7 @@ export type MarkdownPreviewViewerProps = {
   sourceFilesPanelIntegration?: MarkdownSourceFilesPanelIntegration
   webpageLayoutWireframeAscii?: string | null
   sourceMarkdownText?: string
+  markdownForcePlainTables?: boolean
 }
 
 export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
@@ -134,6 +135,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     sourceFilesPanelIntegration,
     webpageLayoutWireframeAscii,
     sourceMarkdownText,
+    markdownForcePlainTables,
   } = props
 
   const embeddedMarkdownBase64 = React.useMemo(() => {
@@ -462,6 +464,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         onReplaceLineRange={onReplaceLineRange}
         flashLine={flashLine}
         webpageLayoutWireframeAscii={webpageLayoutWireframeAscii}
+        markdownForcePlainTables={markdownForcePlainTables}
       />
     ),
     [
@@ -487,6 +490,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       explorerControls.collapsedHeadingIds,
       explorerControls.onToggleCollapse,
       onReplaceLineRange,
+      markdownForcePlainTables,
       flashLine,
       webpageLayoutWireframeAscii,
     ],

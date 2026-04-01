@@ -30,6 +30,8 @@ export function useSettingsView({
     if (key.startsWith('flowWheelZoom')) return false
     if (key === 'canvas3dMode') return false
     if (key === 'canvasRenderMode') return true
+    if (key === 'multiDimTableModeEnabled') return true
+    if (key === 'import.json.workspaceTarget') return true
     if (key === 'three.graph.edgeRenderer') return true
     if (key === 'three.preset.presentation3d') return true
     if (key.startsWith('graph.behavior.')) return true

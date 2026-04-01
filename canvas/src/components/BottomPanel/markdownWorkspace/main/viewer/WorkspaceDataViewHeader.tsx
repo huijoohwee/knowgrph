@@ -1,7 +1,6 @@
 import React from 'react'
 import { ArrowUpDown, Eye, Filter, Layers, LayoutGrid, MoreHorizontal, Plus, Search, SlidersHorizontal, Table as TableIcon } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import type { MarkdownWorkspaceDerivedViewerMode } from './MarkdownWorkspaceDerivedViewer'
 import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownDataViewModel'
@@ -46,7 +45,6 @@ export function WorkspaceDataViewHeader(props: {
   onAddColumn?: (args: { name: string; columnType: MarkdownDataViewColumnType }) => void
   onReset: () => void
 }) {
-  const typography = usePanelTypography()
   const setState = props.onChangeState
 
   const [searchExpandedRaw, setSearchExpandedRaw] = React.useState(false)
@@ -62,11 +60,18 @@ export function WorkspaceDataViewHeader(props: {
   const squareIconButtonClassName = ['inline-flex', UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
   const squareIconSummaryClassName = ['list-none cursor-pointer', UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
 
-  const viewTitle = props.viewerMode === 'read' ? `Read ${props.title}` : MARKDOWN_DATA_VIEW_COPY.titleDefault
   const viewModeLabel =
-    props.viewerMode === 'read' ? 'Read' : props.viewerMode === 'kanban' ? MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel : MARKDOWN_DATA_VIEW_COPY.tableViewLabel
+    props.viewerMode === 'read'
+      ? 'Read'
+      : props.viewerMode === 'kanban'
+        ? MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel
+        : MARKDOWN_DATA_VIEW_COPY.tableViewLabel
   const viewModeIcon =
-    props.viewerMode === 'table' ? <TableIcon className={icon14Class} aria-hidden="true" /> : props.viewerMode === 'kanban' ? <LayoutGrid className={icon14Class} aria-hidden="true" /> : <Eye className={icon14Class} aria-hidden="true" />
+    props.viewerMode === 'kanban'
+      ? <LayoutGrid className={icon14Class} aria-hidden="true" />
+      : props.viewerMode === 'read'
+        ? <Eye className={icon14Class} aria-hidden="true" />
+        : <TableIcon className={icon14Class} aria-hidden="true" />
   const hasActiveFilters = !!(props.state.searchQuery.trim() || props.state.visibleGroups || props.state.sortMode !== 'none')
 
   const groupByOptions = React.useMemo(() => {
@@ -99,13 +104,7 @@ export function WorkspaceDataViewHeader(props: {
   return (
     <WorkspaceHeader ariaLabel="Data view header" border="border">
       <section className="flex items-center gap-2 px-3 pt-2 min-w-0" aria-label="Data view controls">
-        <h2
-          className={['text-base font-semibold leading-6 truncate overflow-hidden whitespace-nowrap', UI_THEME_TOKENS.text.primary].join(' ')}
-          title={viewTitle}
-        >
-          {viewTitle}
-        </h2>
-        <div className={[UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border].join(' ')} aria-label={viewModeLabel}>
+        <div className={[UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border].join(' ')} role="img" aria-label={viewModeLabel}>
           {viewModeIcon}
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -344,8 +343,7 @@ export function WorkspaceDataViewHeader(props: {
 
         {props.tableSelector ? (
           <div className="ml-2">
-            <div className={['inline-flex items-center gap-2', typography.microLabelClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
-              <span>Source</span>
+            <div className="inline-flex items-center gap-2">
               {props.tableSelector}
             </div>
           </div>
@@ -356,7 +354,7 @@ export function WorkspaceDataViewHeader(props: {
         <WorkspaceDataViewSettingsDialog
           open={props.settingsOpen}
           canMutate={props.canMutate}
-          viewerLayout={props.viewerMode === 'table' ? 'table' : 'kanban'}
+          viewerLayout={props.viewerMode === 'kanban' ? 'kanban' : 'table'}
           columns={props.columns}
           groupByColumnId={props.groupByColumnId}
           viewConfig={props.viewConfig}

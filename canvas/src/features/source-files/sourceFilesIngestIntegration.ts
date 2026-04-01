@@ -123,11 +123,48 @@ function syncDocumentViewFromSourceFile(
   })
 }
 
+const buildSourceFileParsedReset = () => ({
+  parsedParserId: undefined,
+  parsedTextHash: undefined,
+  parsedGraphRevision: undefined,
+  parsedGraphData: undefined,
+})
+
+async function applyImportedTextToSourceFile(args: {
+  id: string
+  name: string
+  text: string
+  source: { kind: 'url' | 'local'; url?: string; path?: string }
+}): Promise<void> {
+  const store = useGraphStore.getState()
+  store.updateSourceFile(args.id, {
+    name: args.name,
+    text: args.text,
+    status: 'idle',
+    error: undefined,
+    ...buildSourceFileParsedReset(),
+    source: args.source,
+    enabled: true,
+  })
+  syncDocumentViewFromSourceFile({ name: args.name, text: args.text, source: args.source }, { applyToGraph: false })
+  await parseAndApplySourceFile(args.id)
+}
+
 async function parseAndApplySourceFile(fileId: string): Promise<void> {
   const before = useGraphStore.getState().sourceFiles.find(f => f.id === fileId)
   if (!before) return
   const text = String(before.text || '')
   if (!text.trim()) return
+  const textHash = hashStringToHex(text)
+  if (before.parsedGraphData && before.parsedTextHash === textHash) {
+    useGraphStore.getState().updateSourceFile(fileId, {
+      status: 'parsed',
+      error: undefined,
+      parsedGraphRevision: typeof before.parsedGraphRevision === 'number' ? before.parsedGraphRevision : 0,
+    })
+    scheduleApplyComposedGraphFromSourceFiles()
+    return
+  }
 
   const store = useGraphStore.getState()
   store.updateSourceFile(fileId, { status: 'loading', error: undefined })
@@ -139,7 +176,7 @@ async function parseAndApplySourceFile(fileId: string): Promise<void> {
       status: 'parsed',
       error: undefined,
       parsedParserId: res?.parserId,
-      parsedTextHash: hashStringToHex(text),
+      parsedTextHash: textHash,
       parsedGraphRevision: 0,
       parsedGraphData: res?.graphData,
     })
@@ -266,38 +303,22 @@ async function importLocalIntoActive(args: { fileId: string | null }): Promise<v
       store.updateSourceFile(id, { status: 'error', error: converted.error })
       return
     }
-    store.updateSourceFile(id, {
+    await applyImportedTextToSourceFile({
+      id,
       name: converted.name,
       text: converted.markdown,
-      status: 'idle',
-      error: undefined,
-      parsedParserId: undefined,
-      parsedTextHash: undefined,
-      parsedGraphRevision: undefined,
-      parsedGraphData: undefined,
       source: { kind: 'local', path: picked.name },
-      enabled: true,
     })
-    syncDocumentViewFromSourceFile({ name: converted.name, text: converted.markdown, source: { kind: 'local' } }, { applyToGraph: false })
-    await parseAndApplySourceFile(id)
     return
   }
 
   const text = await picked.text()
-  store.updateSourceFile(id, {
+  await applyImportedTextToSourceFile({
+    id,
     name: picked.name,
     text,
-    status: 'idle',
-    error: undefined,
-    parsedParserId: undefined,
-    parsedTextHash: undefined,
-    parsedGraphRevision: undefined,
-    parsedGraphData: undefined,
     source: { kind: 'local', path: picked.name },
-    enabled: true,
   })
-  syncDocumentViewFromSourceFile({ name: picked.name, text, source: { kind: 'local' } }, { applyToGraph: false })
-  await parseAndApplySourceFile(id)
 }
 
 async function importUrlIntoActive(args: { fileId: string | null; url: string; format?: 'markdown' | 'json' }): Promise<void> {
@@ -345,39 +366,22 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
       if (effectiveFormat === 'json' && yt.transcriptJsonText) {
         // Keep .md extension so it opens in Markdown Workspace
         const content = `${frontmatter}\`\`\`json\n${yt.transcriptJsonText}\n\`\`\`\n`
-        store.updateSourceFile(id, {
+        await applyImportedTextToSourceFile({
+          id,
           name: yt.name,
           text: content,
-          status: 'idle',
-          error: undefined,
-          parsedParserId: undefined,
-          parsedTextHash: undefined,
-          parsedGraphRevision: undefined,
-          parsedGraphData: undefined,
           source: { kind: 'url', url: normalizedUrl },
-          enabled: true,
         })
-        syncDocumentViewFromSourceFile({ name: yt.name, text: content, source: { kind: 'url', url: normalizedUrl } }, { applyToGraph: false })
-        await parseAndApplySourceFile(id)
         return
       }
 
       const content = `${frontmatter}${yt.markdown}`
-      store.updateSourceFile(id, {
+      await applyImportedTextToSourceFile({
+        id,
         name: yt.name,
         text: content,
-        status: 'idle',
-        error: undefined,
-        parsedParserId: undefined,
-        parsedTextHash: undefined,
-        parsedGraphRevision: undefined,
-        parsedGraphData: undefined,
         source: { kind: 'url', url: normalizedUrl },
-        enabled: true,
       })
-
-      syncDocumentViewFromSourceFile({ name: yt.name, text: content, source: { kind: 'url', url: normalizedUrl } }, { applyToGraph: false })
-      await parseAndApplySourceFile(id)
       return
     }
 
@@ -391,23 +395,12 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
         store.updateSourceFile(id, { status: 'error', error: converted.error })
         return
       }
-      store.updateSourceFile(id, {
+      await applyImportedTextToSourceFile({
+        id,
         name: converted.name,
         text: converted.markdown,
-        status: 'idle',
-        error: undefined,
-        parsedParserId: undefined,
-        parsedTextHash: undefined,
-        parsedGraphRevision: undefined,
-        parsedGraphData: undefined,
         source: { kind: 'url', url: normalizedUrl },
-        enabled: true,
       })
-      syncDocumentViewFromSourceFile(
-        { name: converted.name, text: converted.markdown, source: { kind: 'url', url: normalizedUrl } },
-        { applyToGraph: false },
-      )
-      await parseAndApplySourceFile(id)
       return
     }
 
@@ -424,20 +417,12 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
       if (webpage && webpage.ok) {
         const frontmatter = `---\nkgWebpageUrl: "${normalizedUrl}"\nkgWebpageView: "${view}"\n---\n\n`
         const content = sanitizeImportedMarkdownText(`${frontmatter}${webpage.markdown}`, { sourceUrl: normalizedUrl }).text
-        store.updateSourceFile(id, {
+        await applyImportedTextToSourceFile({
+          id,
           name: webpage.name,
           text: content,
-          status: 'idle',
-          error: undefined,
-          parsedParserId: undefined,
-          parsedTextHash: undefined,
-          parsedGraphRevision: undefined,
-          parsedGraphData: undefined,
           source: { kind: 'url', url: normalizedUrl },
-          enabled: true,
         })
-        syncDocumentViewFromSourceFile({ name: webpage.name, text: content, source: { kind: 'url', url: normalizedUrl } }, { applyToGraph: false })
-        await parseAndApplySourceFile(id)
         return
       }
     }
@@ -453,20 +438,12 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
     }
 
     const nextName = deriveFilenameFromUrl(normalizedUrl, 'source.txt')
-    store.updateSourceFile(id, {
+    await applyImportedTextToSourceFile({
+      id,
       name: nextName,
       text: res.text,
-      status: 'idle',
-      error: undefined,
-      parsedParserId: undefined,
-      parsedTextHash: undefined,
-      parsedGraphRevision: undefined,
-      parsedGraphData: undefined,
       source: { kind: 'url', url: normalizedUrl },
-      enabled: true,
     })
-    syncDocumentViewFromSourceFile({ name: nextName, text: res.text, source: { kind: 'url', url: normalizedUrl } }, { applyToGraph: false })
-    await parseAndApplySourceFile(id)
   } catch {
     store.updateSourceFile(id, { status: 'error', error: 'Request failed' })
   }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronDown, ChevronRight, FileText, Folder, GripVertical, MoreHorizontal, Plus, RefreshCcw, Search, Link2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, FileText, Folder, GripVertical, Plus, RefreshCcw, Search, Link2 } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { MarkdownExplorerSection } from '../MarkdownExplorerSection'
@@ -12,6 +12,7 @@ import { computeMarkdownTocReorder } from 'grph-shared/markdown/toc'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { CollapsibleToolbar } from '@/components/ui/CollapsibleToolbar'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { SelectionActionsMenu } from './SelectionActionsMenu'
 
 export type MarkdownWorkspaceExplorerProps = {
   uiPanelTextFontClass: string
@@ -218,7 +219,8 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
 
   const clearLabel = activeEntryKind === 'folder' ? 'Clear files' : 'Clear'
 
-  const tocItems = React.useMemo(() => buildTocTree(tocTokens), [tocTokens])
+  const sourceFileCount = React.useMemo(() => entries.reduce((count, e) => (e.kind === 'file' ? count + 1 : count), 0), [entries])
+  const tocItems = React.useMemo(() => (tocCollapsed || tocTokens.length === 0 ? [] : buildTocTree(tocTokens)), [tocCollapsed, tocTokens])
 
   const tocParentById = React.useMemo(() => {
     const out = new Map<string, string | null>()
@@ -263,6 +265,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
   }, [])
 
   React.useEffect(() => {
+    if (tocCollapsed || tocItems.length === 0) return
     const handler = (ev: Event) => {
       const e = ev as CustomEvent<{ id?: unknown }>
       const id = typeof e.detail?.id === 'string' ? e.detail.id : ''
@@ -289,7 +292,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
     }
     window.addEventListener('kg:tocFocus', handler as EventListener)
     return () => window.removeEventListener('kg:tocFocus', handler as EventListener)
-  }, [tocParentById])
+  }, [tocCollapsed, tocItems.length, tocParentById])
 
   const handleTocReorderByIds = React.useCallback(
     (sourceId: string, targetId: string, position: 'before' | 'after') => {
@@ -374,37 +377,6 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
     ],
   )
 
-  const hasSelectionActions = canClearActiveSelection || canRefreshActiveFromSource || canDeleteActive
-  const [selectionMenuOpen, setSelectionMenuOpen] = React.useState(false)
-  const selectionMenuRootRef = React.useRef<HTMLElement | null>(null)
-
-  React.useEffect(() => {
-    if (hasSelectionActions) return
-    setSelectionMenuOpen(false)
-  }, [hasSelectionActions])
-
-  React.useEffect(() => {
-    if (!selectionMenuOpen) return
-    const onKeyDown = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') setSelectionMenuOpen(false)
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [selectionMenuOpen])
-
-  React.useEffect(() => {
-    if (!selectionMenuOpen) return
-    const onDown = (ev: PointerEvent) => {
-      const root = selectionMenuRootRef.current
-      const target = ev.target as Node | null
-      if (!root || !target) return
-      if (root.contains(target)) return
-      setSelectionMenuOpen(false)
-    }
-    document.addEventListener('pointerdown', onDown, true)
-    return () => document.removeEventListener('pointerdown', onDown, true)
-  }, [selectionMenuOpen])
-
   return (
     <aside
       className={`h-full min-h-0 flex flex-col ${UI_THEME_TOKENS.panel.bg}`}
@@ -420,77 +392,17 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
         </section>
         <CollapsibleToolbar ariaLabel="Explorer actions" className="kg-toolbar flex items-center justify-end">
           <ul className="flex items-center gap-1 list-none m-0 p-0" aria-label="Explorer actions list">
-            {hasSelectionActions ? (
-              <li className="list-none relative" ref={el => (selectionMenuRootRef.current = el)}>
-                <button
-                  type="button"
-                  className={`kg-toolbar-btn shrink-0 inline-flex items-center justify-center rounded cursor-pointer ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                  aria-label={activeEntryName ? `Actions for ${activeEntryName}` : 'Selection actions'}
-                  aria-haspopup="menu"
-                  aria-expanded={selectionMenuOpen}
-                  title="Selection actions"
-                  onClick={() => setSelectionMenuOpen(v => !v)}
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
-                {selectionMenuOpen ? (
-                  <section
-                    className={`absolute right-0 mt-1 min-w-40 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.primary} p-1 z-50`}
-                    role="menu"
-                    aria-label="Selection actions menu"
-                  >
-                    <ul className="list-none m-0 p-0">
-                      {canRefreshActiveFromSource ? (
-                        <li className="list-none">
-                          <button
-                            type="button"
-                            className={`w-full text-left rounded px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                            aria-label={activeEntryName ? `Refresh ${activeEntryName}` : 'Refresh from URL'}
-                            role="menuitem"
-                            onClick={() => {
-                              setSelectionMenuOpen(false)
-                              onRefreshActiveFromSource()
-                            }}
-                          >
-                            Refresh from URL
-                          </button>
-                        </li>
-                      ) : null}
-                      {canClearActiveSelection ? (
-                        <li className="list-none">
-                          <button
-                            type="button"
-                            className={`w-full text-left rounded px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                            role="menuitem"
-                            onClick={() => {
-                              setSelectionMenuOpen(false)
-                              onClearActiveSelection()
-                            }}
-                          >
-                            {clearLabel}
-                          </button>
-                        </li>
-                      ) : null}
-                      {canDeleteActive ? (
-                        <li className="list-none">
-                          <button
-                            type="button"
-                            className={`w-full text-left rounded px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                            role="menuitem"
-                            onClick={() => {
-                              setSelectionMenuOpen(false)
-                              onDeleteActive()
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </li>
-                      ) : null}
-                    </ul>
-                  </section>
-                ) : null}
-              </li>
-            ) : null}
+            <SelectionActionsMenu
+              textSizeClass={panelTypography.textSizeClass}
+              activeEntryName={activeEntryName}
+              clearLabel={clearLabel}
+              canClearActiveSelection={canClearActiveSelection}
+              onClearActiveSelection={onClearActiveSelection}
+              canRefreshActiveFromSource={canRefreshActiveFromSource}
+              onRefreshActiveFromSource={onRefreshActiveFromSource}
+              canDeleteActive={canDeleteActive}
+              onDeleteActive={onDeleteActive}
+            />
             <li className="list-none">
               <button
                 type="button"
@@ -547,7 +459,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
           title="Source Files"
           collapsed={sourceFilesCollapsed}
           setCollapsed={setSourceFilesCollapsed}
-          right={<span className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`}>{entries.filter(e => e.kind === 'file').length}</span>}
+          right={<span className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`}>{sourceFileCount}</span>}
         >
           {loading ? (
             <p className={`px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>Loading…</p>
@@ -569,7 +481,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
 
         <MarkdownExplorerSection title="TOC" collapsed={tocCollapsed} setCollapsed={setTocCollapsed}>
           {tocItems.length === 0 ? (
-            <p className={`px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>No headings.</p>
+            <p className={`px-2 py-1 ${panelTypography.panelTextClass} ${UI_THEME_TOKENS.text.secondary}`}>No headings.</p>
           ) : (
             <nav
               ref={el => {
@@ -585,7 +497,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
 
         <MarkdownExplorerSection title="Backlinks" collapsed={backlinksCollapsed} setCollapsed={setBacklinksCollapsed}>
           {activePath && backlinks.length === 0 ? (
-            <p className={`px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>No backlinks.</p>
+            <p className={`px-2 py-1 ${panelTypography.panelTextClass} ${UI_THEME_TOKENS.text.secondary}`}>No backlinks.</p>
           ) : (
             <ul className="space-y-1 list-none m-0 p-0" aria-label="Backlinks list">
               {backlinks.slice(0, 50).map((b, idx) => (

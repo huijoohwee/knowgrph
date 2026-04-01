@@ -56,6 +56,7 @@ export type MarkdownTokenRendererProps = {
   geoDatasetIntegration?: MarkdownGeoDatasetIntegration
   blockNestingLevel?: number
   webpageLayoutWireframeAscii?: string | null
+  markdownForcePlainTables?: boolean
 }
 
 const CODEBLOCK_BOX_DRAWING_RE = /[┌┐└┘┬┴┼│─╔╗╚╝╦╩╬║═]/
@@ -112,6 +113,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     geoDatasetIntegration,
     blockNestingLevel,
     webpageLayoutWireframeAscii,
+    markdownForcePlainTables,
   } = props
 
   const nestingLevel = typeof blockNestingLevel === 'number' && Number.isFinite(blockNestingLevel) ? blockNestingLevel : 0
@@ -154,6 +156,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       geoDatasetIntegration,
       markdownBlockControlsEnabled: blockControlsEnabled,
       markdownBlockGutterEnabled: blockControlsEnabled,
+      markdownForcePlainTables: !!markdownForcePlainTables,
     }),
     [
       activeDocumentPath,
@@ -163,6 +166,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       geoDatasetIntegration,
       highlightedLineRange,
       markdownPresentationMode,
+      markdownForcePlainTables,
       markdownWordWrap,
       mermaidFrontmatterConfig,
       onInsertLineAfter,

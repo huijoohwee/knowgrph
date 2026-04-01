@@ -21,11 +21,11 @@ const workspaceEntrySchema: RxJsonSchema<WorkspaceEntryRow> = {
   type: 'object',
   properties: {
     path: { type: 'string', maxLength: 2048 },
-    parentPath: { type: ['string', 'null'], maxLength: 2048 },
+    parentPath: { type: 'string', maxLength: 2048 },
     kind: { type: 'string', maxLength: 16 },
     name: { type: 'string' },
     text: { type: ['string', 'null'] },
-    updatedAtMs: { type: 'number' },
+    updatedAtMs: { type: 'integer', minimum: 0, maximum: 9_007_199_254_740_991, multipleOf: 1 },
   },
   required: ['path', 'parentPath', 'kind', 'name', 'updatedAtMs'],
   indexes: ['parentPath', 'kind', 'updatedAtMs'],
@@ -58,7 +58,7 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
     if (existing) return
     await collections.entries.insert({
       path: WORKSPACE_ROOT_PATH,
-      parentPath: null,
+      parentPath: '',
       kind: 'folder',
       name: '',
       updatedAtMs: Date.now(),
@@ -103,7 +103,15 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
     await ensureRoot()
     const { collections } = await getDb()
     const rows = await collections.entries.find().exec()
-    return rows.map(r => r.toJSON()).sort((a, b) => a.path.localeCompare(b.path))
+    return rows
+      .map(r => {
+        const row = r.toJSON()
+        return {
+          ...row,
+          parentPath: row.parentPath ? row.parentPath : null,
+        }
+      })
+      .sort((a, b) => a.path.localeCompare(b.path))
   }
 
   const readFileText = async (path: WorkspacePath) => {

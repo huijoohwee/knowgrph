@@ -7,10 +7,16 @@ import { isWorkspaceTableOpen, openWorkspaceTable } from '@/features/workspace-t
 import {
   JSON_IMPORT_WORKSPACE_TARGET_LABELS,
   JSON_IMPORT_WORKSPACE_TARGET_OPTIONS,
-  readJsonImportWorkspaceTarget,
   type JsonImportWorkspaceTarget,
-  writeJsonImportWorkspaceTarget,
 } from '@/features/workspace-table/jsonImportWorkspaceTarget'
+import {
+  JSON_MARKDOWN_MODE_LABELS,
+  JSON_MARKDOWN_MODE_SELECT_OPTIONS,
+  JSON_MARKDOWN_TABLE_LIMIT_MAX,
+  JSON_MARKDOWN_TABLE_LIMIT_MIN,
+} from '@/features/markdown/jsonMarkdownPreferences'
+import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
+import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
 
 type WorkspaceTableModeControlProps = {
   className?: string
@@ -36,7 +42,15 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
   )
 
   const tableWorkspaceOpen = isWorkspaceTableOpen({ workspaceViewMode, editorWorkspacePane })
-  const [jsonImportTarget, setJsonImportTarget] = React.useState<JsonImportWorkspaceTarget>(() => readJsonImportWorkspaceTarget())
+  const prefs = React.useSyncExternalStore(
+    workspaceTablePreferencesStore.subscribe,
+    workspaceTablePreferencesStore.getSnapshot,
+    workspaceTablePreferencesStore.getServerSnapshot,
+  )
+  const jsonImportTarget = prefs.jsonImportTarget as JsonImportWorkspaceTarget
+  const jsonMarkdownMode = prefs.jsonMarkdownMode as JsonToMarkdownMode
+  const jsonTableMaxRows = prefs.jsonTableMaxRows
+  const jsonTableMaxColumns = prefs.jsonTableMaxColumns
 
   const handleToggleMode = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,8 +67,19 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
   }, [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceViewMode, workspaceViewMode])
 
   const handleJsonImportTargetChanged = React.useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
-    const next = writeJsonImportWorkspaceTarget(event.currentTarget.value as JsonImportWorkspaceTarget)
-    setJsonImportTarget(next)
+    workspaceTablePreferencesStore.setJsonImportTarget(event.currentTarget.value as JsonImportWorkspaceTarget)
+  }, [])
+
+  const handleJsonMarkdownModeChanged = React.useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
+    workspaceTablePreferencesStore.setJsonMarkdownMode(event.currentTarget.value as JsonToMarkdownMode)
+  }, [])
+
+  const handleJsonTableMaxRowsChanged = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    workspaceTablePreferencesStore.setJsonTableMaxRows(event.currentTarget.value)
+  }, [])
+
+  const handleJsonTableMaxColumnsChanged = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    workspaceTablePreferencesStore.setJsonTableMaxColumns(event.currentTarget.value)
   }, [])
 
   return (
@@ -90,6 +115,45 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
             </option>
           ))}
         </select>
+      </label>
+      <label className="flex items-center justify-between gap-2 text-xs">
+        <span className="min-w-0 truncate">JSON markdown mode</span>
+        <select
+          className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+          value={jsonMarkdownMode}
+          onChange={handleJsonMarkdownModeChanged}
+          aria-label="JSON markdown mode"
+        >
+          {JSON_MARKDOWN_MODE_SELECT_OPTIONS.map(option => (
+            <option key={option} value={option}>
+              {JSON_MARKDOWN_MODE_LABELS[option]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex items-center justify-between gap-2 text-xs">
+        <span className="min-w-0 truncate">JSON table max rows</span>
+        <input
+          type="number"
+          className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+          value={jsonTableMaxRows}
+          min={JSON_MARKDOWN_TABLE_LIMIT_MIN}
+          max={JSON_MARKDOWN_TABLE_LIMIT_MAX}
+          onChange={handleJsonTableMaxRowsChanged}
+          aria-label="JSON table max rows"
+        />
+      </label>
+      <label className="flex items-center justify-between gap-2 text-xs">
+        <span className="min-w-0 truncate">JSON table max columns</span>
+        <input
+          type="number"
+          className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+          value={jsonTableMaxColumns}
+          min={JSON_MARKDOWN_TABLE_LIMIT_MIN}
+          max={JSON_MARKDOWN_TABLE_LIMIT_MAX}
+          onChange={handleJsonTableMaxColumnsChanged}
+          aria-label="JSON table max columns"
+        />
       </label>
     </section>
   )

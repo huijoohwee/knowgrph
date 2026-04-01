@@ -15,6 +15,7 @@ import { yamlQuote } from './yaml'
 import { buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from './webpageEntryText'
 import { tryFetchApiNativeMarkdown } from './apiNative'
 import type { WorkspaceUrlContent } from './types'
+import { clearInflightWorkspaceUrlContent, getCachedWorkspaceUrlContent, getInflightWorkspaceUrlContent, setCachedWorkspaceUrlContent, setInflightWorkspaceUrlContent } from './urlContentCache'
 
 type WebpageViewMode = 'markdown' | 'json' | 'html'
 type FetchMode = 'import' | 'refresh'
@@ -24,37 +25,7 @@ type FetchWorkspaceUrlContentOpts = {
   onProgress?: (percentage: number) => void
   viewHint?: WebpageViewMode
 }
-
-type CacheItem = { atMs: number; value: WorkspaceUrlContent }
-
-const CACHE_TTL_MS_IMPORT = 45_000
-const CACHE_TTL_MS_REFRESH = 4 * 60_000
-const CACHE_MAX = 36
-
 const WORKSPACE_WEBPAGE_MARKDOWN_MAX_CHARS = 220_000
-
-const CACHE = new Map<string, CacheItem>()
-const INFLIGHT = new Map<string, Promise<WorkspaceUrlContent>>()
-
-function cacheGet(key: string): WorkspaceUrlContent | null {
-  const item = CACHE.get(key)
-  if (!item) return null
-  const ttl = key.startsWith('refresh:') ? CACHE_TTL_MS_REFRESH : CACHE_TTL_MS_IMPORT
-  if (Date.now() - item.atMs > ttl) {
-    CACHE.delete(key)
-    return null
-  }
-  CACHE.delete(key)
-  CACHE.set(key, item)
-  return item.value
-}
-
-function cacheSet(key: string, value: WorkspaceUrlContent): void {
-  CACHE.set(key, { atMs: Date.now(), value })
-  if (CACHE.size <= CACHE_MAX) return
-  const firstKey = CACHE.keys().next().value as string | undefined
-  if (firstKey) CACHE.delete(firstKey)
-}
 
 function isWeChatArticleUrl(url: string): boolean {
   try {
@@ -66,7 +37,6 @@ function isWeChatArticleUrl(url: string): boolean {
   }
   return false
 }
-
 function shouldTreatAsSubstackUrl(url: string): boolean {
   try {
     const u = new URL(url)
@@ -76,7 +46,6 @@ function shouldTreatAsSubstackUrl(url: string): boolean {
     return false
   }
 }
-
 function shouldSkipHydrationForMarkdownStub(url: string): boolean {
   try {
     const u = new URL(url)
@@ -93,7 +62,6 @@ function shouldSkipHydrationForMarkdownStub(url: string): boolean {
   }
   return false
 }
-
 function looksLikeJsShellText(text: string): boolean {
   const t = String(text || '')
   if (!t.trim()) return false
@@ -123,6 +91,16 @@ function shouldSkipUnifiedMarkdownConversion(html: string): boolean {
   const scriptCount = (h.match(/<script\b/gi) || []).length
   if (scriptCount > 18) return true
   return false
+}
+
+function deriveFallbackExtFromNormalizedLower(normalizedLower: string): '.md' | '.json' | '.csv' | '.svg' | '.yaml' | '.html' | '.txt' {
+  if (normalizedLower.endsWith('.md') || normalizedLower.endsWith('.markdown') || normalizedLower.endsWith('.mdx')) return '.md'
+  if (normalizedLower.endsWith('.json') || normalizedLower.endsWith('.jsonld') || normalizedLower.endsWith('.geojson')) return '.json'
+  if (normalizedLower.endsWith('.csv')) return '.csv'
+  if (normalizedLower.endsWith('.svg')) return '.svg'
+  if (normalizedLower.endsWith('.yaml') || normalizedLower.endsWith('.yml')) return '.yaml'
+  if (normalizedLower.endsWith('.html') || normalizedLower.endsWith('.htm')) return '.html'
+  return '.txt'
 }
 
 function autoTuneFromHtml(args: {
@@ -572,15 +550,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
     const text = await res.text()
     opts?.onProgress?.(100)
 
-    const fallbackExt = (() => {
-      if (normalizedLower.endsWith('.md') || normalizedLower.endsWith('.markdown') || normalizedLower.endsWith('.mdx')) return '.md'
-      if (normalizedLower.endsWith('.json') || normalizedLower.endsWith('.jsonld') || normalizedLower.endsWith('.geojson')) return '.json'
-      if (normalizedLower.endsWith('.csv')) return '.csv'
-      if (normalizedLower.endsWith('.svg')) return '.svg'
-      if (normalizedLower.endsWith('.yaml') || normalizedLower.endsWith('.yml')) return '.yaml'
-      if (normalizedLower.endsWith('.html') || normalizedLower.endsWith('.htm')) return '.html'
-      return '.txt'
-    })()
+    const fallbackExt = deriveFallbackExtFromNormalizedLower(normalizedLower)
 
     const base = localRepoPath.split('/').pop() || `import${fallbackExt}`
     const name = base.includes('.') ? base : `${base}${fallbackExt}`
@@ -593,15 +563,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
   if (!res.ok) throw new Error(describeFetchRemoteTextFailure(res as import('grph-shared/net/fetchRemoteText').FetchRemoteTextFailure))
   const text = res.text
 
-  const fallbackExt = (() => {
-    if (normalizedLower.endsWith('.md') || normalizedLower.endsWith('.markdown') || normalizedLower.endsWith('.mdx')) return '.md'
-    if (normalizedLower.endsWith('.json') || normalizedLower.endsWith('.jsonld') || normalizedLower.endsWith('.geojson')) return '.json'
-    if (normalizedLower.endsWith('.csv')) return '.csv'
-    if (normalizedLower.endsWith('.svg')) return '.svg'
-    if (normalizedLower.endsWith('.yaml') || normalizedLower.endsWith('.yml')) return '.yaml'
-    if (normalizedLower.endsWith('.html') || normalizedLower.endsWith('.htm')) return '.html'
-    return '.txt'
-  })()
+  const fallbackExt = deriveFallbackExtFromNormalizedLower(normalizedLower)
 
   const fallback = `import${fallbackExt}`
   const derived = deriveFilenameFromUrl(normalizedUrl, fallback)
@@ -617,21 +579,21 @@ export async function fetchWorkspaceUrlContent(rawUrl: string, opts?: FetchWorks
   const viewHint = opts?.viewHint === 'markdown' ? 'markdown' : opts?.viewHint === 'json' ? 'json' : opts?.viewHint === 'html' ? 'html' : ''
   const key = `${mode}:${viewHint}:${normalizedUrl}`
 
-  const cached = cacheGet(key)
+  const cached = getCachedWorkspaceUrlContent(key)
   if (cached) return cached
 
-  const inflight = INFLIGHT.get(key)
+  const inflight = getInflightWorkspaceUrlContent(key)
   if (inflight) return await inflight
 
   const p = (async () => {
     const res = await fetchWorkspaceUrlContentImpl(cleaned, opts)
-    cacheSet(key, res)
+    setCachedWorkspaceUrlContent(key, res)
     return res
   })()
-  INFLIGHT.set(key, p)
+  setInflightWorkspaceUrlContent(key, p)
   try {
     return await p
   } finally {
-    INFLIGHT.delete(key)
+    clearInflightWorkspaceUrlContent(key)
   }
 }

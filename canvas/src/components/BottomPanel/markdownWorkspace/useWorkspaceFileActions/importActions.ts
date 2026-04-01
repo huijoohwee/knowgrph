@@ -282,7 +282,16 @@ export function useWorkspaceImportActions(args: {
             const fs = await getFs()
             await fs.writeFileText(createdPath, nextText)
             const inlineText = nextText.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? nextText : undefined
-            setEntries(prev => prev.map(e => (e.path === createdPath ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
+            setEntries(prev => {
+              let changed = false
+              const next = prev.map(e => {
+                if (e.path !== createdPath) return e
+                if (e.text === inlineText) return e
+                changed = true
+                return { ...e, text: inlineText, updatedAtMs: Date.now() }
+              })
+              return changed ? next : prev
+            })
 
             if (openedPath === createdPath) {
               lastLoadedRef.current = { path: createdPath, text: nextText }
