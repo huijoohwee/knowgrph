@@ -17,6 +17,9 @@ import { MarkdownDataViewAddColumnMenu } from './MarkdownDataViewAddColumnMenu'
 import { ColumnHeaderPropertyTypeMenu } from '@/components/ui/ColumnHeaderPropertyTypeMenu'
 import { Plus, Type } from 'lucide-react'
 import { ColumnHeaderMenu } from '@/components/ui/ColumnHeaderMenu'
+import { AnchoredPopover } from '@/components/ui/AnchoredPopover'
+import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
+import { splitMultiValues } from '@/features/markdown/ui/markdownDataViewValueUtils'
 
 type MarkdownDataViewTableViewProps = {
   view: MarkdownDataView
@@ -47,32 +50,16 @@ const safeLinkHref = (raw: string): string | null => {
   return null
 }
 
-const splitMultiValues = (raw: string): string[] => {
-  const s = String(raw ?? '')
-    .split(',')
-    .map(x => String(x ?? '').replace(/\s+/g, ' ').trim())
-    .filter(Boolean)
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const v of s) {
-    const key = v.toLowerCase()
-    if (seen.has(key)) continue
-    seen.add(key)
-    out.push(v)
-  }
-  return out
-}
-
 export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTableView(props: MarkdownDataViewTableViewProps) {
   const { view, visibleColumnIds, columnTypesById, canMutate, onUpdateCell, onActivateRow } = props
   const canConfigure = props.canConfigure ?? canMutate
-  const [editing, setEditing] = React.useState<{ rowId: string; colId: string } | null>(null)
+  const [editing, setEditing] = React.useState<{ rowId: string; colId: string; anchorEl: HTMLElement } | null>(null)
   const [draft, setDraft] = React.useState('')
 
   const startEdit = React.useCallback(
-    (rowId: string, colId: string, current: string) => {
+    (rowId: string, colId: string, current: string, anchorEl: HTMLElement) => {
       if (!canMutate) return
-      setEditing({ rowId, colId })
+      setEditing({ rowId, colId, anchorEl })
       setDraft(String(current ?? ''))
     },
     [canMutate],
@@ -96,63 +83,78 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
       .filter(x => allowed.has(x.col.id))
   }, [view.columns, visibleColumnIds])
 
-  const selectOptionsByColumnIndex = React.useMemo(() => {
-    const out = new Map<number, string[]>()
-    for (let i = 0; i < view.columns.length; i += 1) {
-      const c = view.columns[i]
-      const uiType = (columnTypesById && columnTypesById[c.id]) || defaultColumnTypeForInferredKind(c.kind)
-      const baseKind = columnTypeToBaseKind(uiType)
-      if (baseKind !== 'select' || uiType === 'checkbox') continue
-      const base = c.kind === 'select' && Array.isArray(c.options)
-        ? c.options.map(x => String(x || '').trim()).filter(Boolean)
-        : []
-      if (base.length) {
-        out.set(i, base)
-        continue
-      }
-      const set = new Set<string>()
-      for (const r of view.rows) {
-        const v = String(r.cells[i] ?? '').trim()
-        if (!v) continue
-        set.add(v)
-        if (set.size >= 64) break
-      }
-      out.set(i, Array.from(set))
-    }
-    return out
-  }, [columnTypesById, view.columns, view.rows])
+  const workspaceCellSelectPanelPlacement = React.useSyncExternalStore(
+    workspaceTablePreferencesStore.subscribe,
+    () => workspaceTablePreferencesStore.getSnapshot().workspaceCellSelectPanelPlacement,
+    () => workspaceTablePreferencesStore.getServerSnapshot().workspaceCellSelectPanelPlacement,
+  )
 
-  const multiOptionsByColumnIndex = React.useMemo(() => {
-    const out = new Map<number, string[]>()
+  const columnIndexById = React.useMemo(() => {
+    const map = new Map<string, number>()
     for (let i = 0; i < view.columns.length; i += 1) {
-      const c = view.columns[i]
-      const uiType = (columnTypesById && columnTypesById[c.id]) || defaultColumnTypeForInferredKind(c.kind)
-      const baseKind = columnTypeToBaseKind(uiType)
-      if (baseKind !== 'multi-select') continue
-      const base = c.kind === 'multi-select' && Array.isArray(c.options)
-        ? c.options.map(x => String(x || '').trim()).filter(Boolean)
-        : []
-      if (base.length) {
-        out.set(i, splitMultiValues(base.join(',')))
-        continue
-      }
-      const set = new Set<string>()
-      const list: string[] = []
-      for (const r of view.rows) {
-        const vals = splitMultiValues(String(r.cells[i] ?? ''))
-        for (const v of vals) {
-          const key = v.toLowerCase()
-          if (set.has(key)) continue
-          set.add(key)
-          list.push(v)
-          if (list.length >= 96) break
-        }
+      map.set(view.columns[i].id, i)
+    }
+    return map
+  }, [view.columns])
+
+  const editingMeta = React.useMemo(() => {
+    if (!editing) return null
+    const colIndex = columnIndexById.get(editing.colId)
+    if (colIndex == null) return null
+    const column = view.columns[colIndex]
+    if (!column) return null
+    const uiType = (columnTypesById && columnTypesById[column.id]) || defaultColumnTypeForInferredKind(column.kind)
+    const baseKind = columnTypeToBaseKind(uiType)
+    return {
+      rowId: editing.rowId,
+      colId: editing.colId,
+      colIndex,
+      column,
+      uiType,
+      baseKind,
+      anchorEl: editing.anchorEl,
+    }
+  }, [columnIndexById, columnTypesById, editing, view.columns])
+
+  const editingSelectOptions = React.useMemo(() => {
+    if (!editingMeta) return []
+    if (editingMeta.baseKind !== 'select' || editingMeta.uiType === 'checkbox') return []
+    if (editingMeta.column.kind === 'select' && Array.isArray(editingMeta.column.options)) {
+      const base = editingMeta.column.options.map(x => String(x || '').trim()).filter(Boolean)
+      if (base.length) return base
+    }
+    const set = new Set<string>()
+    for (const r of view.rows) {
+      const v = String(r.cells[editingMeta.colIndex] ?? '').trim()
+      if (!v) continue
+      set.add(v)
+      if (set.size >= 64) break
+    }
+    return Array.from(set)
+  }, [editingMeta, view.rows])
+
+  const editingMultiSelectOptions = React.useMemo(() => {
+    if (!editingMeta) return []
+    if (editingMeta.baseKind !== 'multi-select') return []
+    if (editingMeta.column.kind === 'multi-select' && Array.isArray(editingMeta.column.options)) {
+      const base = editingMeta.column.options.map(x => String(x || '').trim()).filter(Boolean)
+      if (base.length) return splitMultiValues(base.join(','))
+    }
+    const set = new Set<string>()
+    const list: string[] = []
+    for (const r of view.rows) {
+      const vals = splitMultiValues(String(r.cells[editingMeta.colIndex] ?? ''))
+      for (const v of vals) {
+        const key = v.toLowerCase()
+        if (set.has(key)) continue
+        set.add(key)
+        list.push(v)
         if (list.length >= 96) break
       }
-      out.set(i, list)
+      if (list.length >= 96) break
     }
-    return out
-  }, [columnTypesById, view.columns, view.rows])
+    return list
+  }, [editingMeta, view.rows])
 
 
   return (
@@ -275,8 +277,6 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                   const isSelect = baseKind === 'select' && uiType !== 'checkbox'
                   const isCheckbox = uiType === 'checkbox'
                   const isMulti = baseKind === 'multi-select'
-                  const derivedOptions = isSelect ? (selectOptionsByColumnIndex.get(colIndex) || []) : []
-                  const derivedMultiOptions = isMulti ? (multiOptionsByColumnIndex.get(colIndex) || []) : []
                   return (
                     <td key={c.id} className={cellBase}>
                       {isCheckbox ? (
@@ -293,33 +293,22 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                           <span className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>{isTruthy(value) ? 'Checked' : 'Unchecked'}</span>
                         </label>
                       ) : isSelect ? (
-                        <MarkdownDataViewSingleSelect
-                          autoFocus
-                          canCreate
-                          value={draft}
-                          options={derivedOptions}
-                          onChange={(next) => {
-                            setDraft(next)
-                            onUpdateCell({ rowId: r.id, columnId: c.id, nextValue: next })
-                          }}
-                          onRequestClose={() => {
-                            setEditing(null)
-                          }}
-                        />
+                        draft ? <DataViewTagChip value={draft} /> : <span className={UI_THEME_TOKENS.text.tertiary}>—</span>
                       ) : isMulti ? (
-                        <MarkdownDataViewMultiTagSelect
-                          autoFocus
-                          canCreate={true}
-                          value={draft}
-                          options={derivedMultiOptions}
-                          onChange={(next) => {
-                            setDraft(next)
-                            onUpdateCell({ rowId: r.id, columnId: c.id, nextValue: next })
-                          }}
-                          onRequestClose={() => {
-                            setEditing(null)
-                          }}
-                        />
+                        (() => {
+                          const chips = draft
+                            .split(',')
+                            .map(x => x.trim())
+                            .filter(Boolean)
+                          if (!chips.length) return <span className={UI_THEME_TOKENS.text.tertiary}>—</span>
+                          return (
+                            <div className="flex flex-wrap gap-1">
+                              {chips.map(v => (
+                                <DataViewTagChip key={v} value={v} />
+                              ))}
+                            </div>
+                          )
+                        })()
                       ) : (
                         <input
                           autoFocus
@@ -355,7 +344,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                   <td
                     key={c.id}
                     className={cellBase}
-                    onDoubleClick={() => startEdit(r.id, c.id, value)}
+                    onDoubleClick={(e) => startEdit(r.id, c.id, value, e.currentTarget)}
                     role={canMutate ? 'button' : undefined}
                   >
                     {uiType === 'checkbox' ? (
@@ -417,6 +406,43 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
           ) : null}
         </tbody>
       </table>
+
+      <AnchoredPopover
+        open={Boolean(editingMeta && (editingMeta.baseKind === 'select' || editingMeta.baseKind === 'multi-select') && editingMeta.uiType !== 'checkbox')}
+        anchorEl={editingMeta?.anchorEl || null}
+        ariaLabel="Cell select panel"
+        placement={workspaceCellSelectPanelPlacement === 'bottom' ? 'bottom-start' : 'top-start'}
+        minWidthPx={320}
+        maxWidthPx={420}
+        maxHeightPx={420}
+        onClose={() => setEditing(null)}
+      >
+        {editingMeta && editingMeta.baseKind === 'select' && editingMeta.uiType !== 'checkbox' ? (
+          <MarkdownDataViewSingleSelect
+            autoFocus
+            canCreate
+            value={draft}
+            options={editingSelectOptions}
+            onChange={(next) => {
+              setDraft(next)
+              onUpdateCell({ rowId: editingMeta.rowId, columnId: editingMeta.colId, nextValue: next })
+            }}
+            onRequestClose={() => setEditing(null)}
+          />
+        ) : editingMeta && editingMeta.baseKind === 'multi-select' ? (
+          <MarkdownDataViewMultiTagSelect
+            autoFocus
+            canCreate={true}
+            value={draft}
+            options={editingMultiSelectOptions}
+            onChange={(next) => {
+              setDraft(next)
+              onUpdateCell({ rowId: editingMeta.rowId, columnId: editingMeta.colId, nextValue: next })
+            }}
+            onRequestClose={() => setEditing(null)}
+          />
+        ) : null}
+      </AnchoredPopover>
     </section>
   )
 })

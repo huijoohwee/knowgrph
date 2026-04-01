@@ -6,6 +6,7 @@ const modMarkdownWorkspaceSourceUrlSync = () => import('@/__tests__/markdownWork
 const modMarkdownWorkspaceRefreshFromUrl = () => import('@/__tests__/markdownWorkspaceRefreshFromUrl.test')
 const modMarkdownFileTreeFolderClick = () => import('@/__tests__/markdownFileTreeFolderClick.test')
 const modMarkdownWorkspaceViewerSsot = () => import('@/__tests__/markdownWorkspaceViewerSsot.test')
+const modWorkspaceCellSelectPanelPlacement = () => import('@/__tests__/workspaceCellSelectPanelPlacement.test')
 const modMarkdownWorkspaceRemotionViewerRenders = () => import('@/__tests__/markdownWorkspaceRemotionViewerRenders.test')
 const modMarkdownGeoIntegrationTripDemo = () => import('@/__tests__/markdownGeoIntegrationTripDemo.test')
 const modMarkdownPoiImagesRegistry = () => import('@/__tests__/markdownPoiImagesRegistry.test')
@@ -39,6 +40,7 @@ const modFlowNodeQuickEditorPinnedContainmentClampRegression = () => import('@/_
 const modFlowNodeQuickEditorFrontmatterPortHandlePadRegression = () => import('@/__tests__/flowNodeQuickEditorFrontmatterPortHandlePadRegression.test')
 const modFlowEditorFrontmatterFlowDefaultQuickEditorsInitRegression = () => import('@/__tests__/flowEditorFrontmatterFlowDefaultQuickEditorsInitRegression.test')
 const modFlowQuickEditorPortHandleDomAnchors = () => import('@/__tests__/flowQuickEditorPortHandleDomAnchors.test')
+const modGraphDataTableCellSelectOverlay = () => import('@/__tests__/graphDataTableCellSelectOverlay.test')
 
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'workspaceFs.seedAndCrud', async () => {
@@ -156,6 +158,14 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdownWorkspace.viewer.ssot', async () => {
     const mod = await modMarkdownWorkspaceViewerSsot()
     await mod.testMarkdownWorkspaceViewerUsesMarkdownPreviewSsot()
+  })
+  await execTest(results, 'workspace.editor.cellSelectPanelPlacement.ssot', async () => {
+    const mod = await modWorkspaceCellSelectPanelPlacement()
+    mod.testWorkspaceCellSelectPanelPlacementDefaultsAndPersists()
+  })
+  await execTest(results, 'ui.graphDataTable.cellSelectOverlay.multiSelectEdits', async () => {
+    const mod = await modGraphDataTableCellSelectOverlay()
+    await mod.testGraphDataTableCellSelectOverlayEditsMultiSelectProperties()
   })
   await execTest(results, 'markdownWorkspace.viewer.remotionRichMedia', async () => {
     const mod = await modMarkdownWorkspaceRemotionViewerRenders()

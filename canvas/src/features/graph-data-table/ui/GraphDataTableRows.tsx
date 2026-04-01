@@ -72,6 +72,15 @@ export type GraphDataTableRowsProps = {
   onRowDoubleClick: (row: UnifiedRow) => void
   onRowContextMenu?: (event: React.MouseEvent, row: UnifiedRow) => void
   flashSelectionId?: string | null
+  onRequestOpenCellSelectEditor?: (args: {
+    anchorEl: HTMLElement
+    rowId: string
+    scope: 'node' | 'edge'
+    propertyKey: string
+    kind: 'single-select' | 'multi-select'
+    options: string[]
+    initialValue: string
+  }) => void
 }
 
 export function GraphDataTableRows({
@@ -119,6 +128,7 @@ export function GraphDataTableRows({
   onRowDoubleClick,
   onRowContextMenu,
   flashSelectionId,
+  onRequestOpenCellSelectEditor,
 }: GraphDataTableRowsProps) {
   const mediaNodeOpacity = useGraphStore(s => s.mediaNodeOpacity)
   const selectionFlashOpacity = useGraphStore(s => s.selectionFlashOpacity || 0.18)
@@ -378,6 +388,7 @@ export function GraphDataTableRows({
                 updateNode={updateNode}
                 updateEdge={updateEdge}
                 fieldSettingsByColumnKey={propertyFieldSettingsByColumnKey}
+                onRequestOpenCellSelectEditor={onRequestOpenCellSelectEditor}
                 freezeFirstDataColumn={freezeFirstDataColumn}
                 showFrozenResizeHandle={columnKey === frozenBoundaryColumnKey}
                 onFrozenAreaPointerDown={onFrozenAreaPointerDown}

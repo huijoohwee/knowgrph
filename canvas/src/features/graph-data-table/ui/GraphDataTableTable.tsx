@@ -1,7 +1,7 @@
 import React from 'react'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import type { GraphEdge, GraphNode, GraphData } from '@/lib/graph/types'
+import type { GraphEdge, GraphNode, GraphData, JSONValue } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getRendererPalette } from '@/lib/graph/schema'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
@@ -25,6 +25,11 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_LABELS } from '@/lib/config'
 import { HeaderCell } from './GraphDataTableHeader'
 import { GraphDataTableRows } from './GraphDataTableRows'
+import { AnchoredPopover } from '@/components/ui/AnchoredPopover'
+import { MarkdownDataViewSingleSelect } from '@/features/markdown/ui/MarkdownDataViewSingleSelect'
+import { MarkdownDataViewMultiTagSelect } from '@/features/markdown/ui/MarkdownDataViewMultiTagSelect'
+import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
+import { splitMultiValues } from '@/features/markdown/ui/markdownDataViewValueUtils'
 
 function reorderColumnKeys(
   baseOrder: GraphDataTableColumnKey[],
@@ -243,6 +248,22 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   const [dropHint, setDropHint] = React.useState<{ key: GraphDataTableColumnKey; side: 'left' | 'right' } | null>(null)
   const [selectedColumnKey, setSelectedColumnKey] = React.useState<GraphDataTableColumnKey | null>(null)
 
+  const workspaceCellSelectPanelPlacement = React.useSyncExternalStore(
+    workspaceTablePreferencesStore.subscribe,
+    () => workspaceTablePreferencesStore.getSnapshot().workspaceCellSelectPanelPlacement,
+    () => workspaceTablePreferencesStore.getServerSnapshot().workspaceCellSelectPanelPlacement,
+  )
+
+  const [cellSelectEditor, setCellSelectEditor] = React.useState<null | {
+    anchorEl: HTMLElement
+    rowId: string
+    scope: 'node' | 'edge'
+    propertyKey: string
+    kind: 'single-select' | 'multi-select'
+    options: string[]
+    draft: string
+  }>(null)
+
   const reorderFromKeyRef = React.useRef<GraphDataTableColumnKey | null>(null)
   const dropHintRef = React.useRef<{ key: GraphDataTableColumnKey; side: 'left' | 'right' } | null>(null)
 
@@ -253,6 +274,65 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   React.useEffect(() => {
     dropHintRef.current = dropHint
   }, [dropHint])
+
+  const deriveCellSelectOptions = React.useCallback(
+    (args: { scope: 'node' | 'edge'; propertyKey: string; kind: 'single-select' | 'multi-select' }): string[] => {
+      const cap = args.kind === 'multi-select' ? 96 : 64
+      const set = new Set<string>()
+      const out: string[] = []
+      const accept = (v: unknown) => {
+        if (typeof v !== 'string') return
+        const s = v.trim()
+        if (!s) return
+        const key = s.toLowerCase()
+        if (set.has(key)) return
+        set.add(key)
+        out.push(s)
+      }
+      for (const item of listItems) {
+        const rows = item.kind === 'row' ? [item.row] : item.kind === 'group' ? item.rows : []
+        for (const row of rows) {
+          if (row.kind !== args.scope) continue
+          const raw = row.properties?.[args.propertyKey as keyof typeof row.properties]
+          if (args.kind === 'multi-select') {
+            if (!Array.isArray(raw)) continue
+            for (const v of raw) {
+              accept(v)
+              if (out.length >= cap) return out
+            }
+          } else {
+            accept(raw)
+            if (out.length >= cap) return out
+          }
+        }
+      }
+      return out
+    },
+    [listItems],
+  )
+
+  const handleRequestOpenCellSelectEditor = React.useCallback(
+    (args: {
+      anchorEl: HTMLElement
+      rowId: string
+      scope: 'node' | 'edge'
+      propertyKey: string
+      kind: 'single-select' | 'multi-select'
+      options: string[]
+      initialValue: string
+    }) => {
+      setCellSelectEditor({
+        anchorEl: args.anchorEl,
+        rowId: args.rowId,
+        scope: args.scope,
+        propertyKey: args.propertyKey,
+        kind: args.kind,
+        options: args.options,
+        draft: String(args.initialValue ?? ''),
+      })
+    },
+    [],
+  )
 
   const effectiveColumnCount = React.useMemo(
     () => orderedVisibleColumnKeys.length + 1,
@@ -471,6 +551,53 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   const selectionSets = React.useMemo(
     () => createSelectionSets(selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds),
     [selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds],
+  )
+
+  React.useEffect(() => {
+    if (!cellSelectEditor) return
+    const active =
+      cellSelectEditor.scope === 'node'
+        ? selectionSets.selectedNodeIdSet.has(cellSelectEditor.rowId)
+        : selectionSets.selectedEdgeIdSet.has(cellSelectEditor.rowId)
+    if (active) return
+    setCellSelectEditor(null)
+  }, [cellSelectEditor, selectionSets])
+
+  const effectiveCellSelectOptions = React.useMemo(() => {
+    if (!cellSelectEditor) return []
+    if (cellSelectEditor.options.length > 0) return cellSelectEditor.options
+    return deriveCellSelectOptions({
+      scope: cellSelectEditor.scope,
+      propertyKey: cellSelectEditor.propertyKey,
+      kind: cellSelectEditor.kind,
+    })
+  }, [cellSelectEditor, deriveCellSelectOptions])
+
+  const applyCellSelectValue = React.useCallback(
+    (args: { rowId: string; scope: 'node' | 'edge'; propertyKey: string; kind: 'single-select' | 'multi-select'; next: string }) => {
+      const base = args.scope === 'node' ? nodeById.get(args.rowId) : edgeById.get(args.rowId)
+      const baseProps = (base?.properties ?? null) as unknown as Record<string, JSONValue> | null
+      const nextProps: Record<string, JSONValue> = { ...(baseProps || {}) }
+      if (args.kind === 'multi-select') {
+        const nextArr = splitMultiValues(args.next)
+        if (nextArr.length === 0) {
+          delete nextProps[args.propertyKey]
+        } else {
+          nextProps[args.propertyKey] = nextArr as unknown as JSONValue
+        }
+      } else {
+        const v = String(args.next || '').trim()
+        if (!v) {
+          delete nextProps[args.propertyKey]
+        } else {
+          nextProps[args.propertyKey] = v
+        }
+      }
+
+      if (args.scope === 'node') updateNode(args.rowId, { properties: nextProps })
+      else updateEdge(args.rowId, { properties: nextProps })
+    },
+    [edgeById, nodeById, updateEdge, updateNode],
   )
 
   const neighborIds = React.useMemo(
@@ -862,10 +989,60 @@ export const GraphDataTable = React.memo(function GraphDataTable({
             onRowClick={onRowClick}
             onRowDoubleClick={onRowDoubleClick}
             onRowContextMenu={onRowContextMenu}
+            onRequestOpenCellSelectEditor={handleRequestOpenCellSelectEditor}
           />
         </tbody>
       </table>
       </section>
+
+      <AnchoredPopover
+        open={Boolean(cellSelectEditor)}
+        anchorEl={cellSelectEditor?.anchorEl || null}
+        ariaLabel="Cell select panel"
+        placement={workspaceCellSelectPanelPlacement === 'bottom' ? 'bottom-start' : 'top-start'}
+        minWidthPx={320}
+        maxWidthPx={420}
+        maxHeightPx={420}
+        onClose={() => setCellSelectEditor(null)}
+      >
+        {!cellSelectEditor ? null : cellSelectEditor.kind === 'single-select' ? (
+          <MarkdownDataViewSingleSelect
+            autoFocus
+            canCreate
+            value={cellSelectEditor.draft}
+            options={effectiveCellSelectOptions}
+            onChange={(next) => {
+              setCellSelectEditor(prev => (prev ? { ...prev, draft: next } : prev))
+              applyCellSelectValue({
+                rowId: cellSelectEditor.rowId,
+                scope: cellSelectEditor.scope,
+                propertyKey: cellSelectEditor.propertyKey,
+                kind: 'single-select',
+                next,
+              })
+            }}
+            onRequestClose={() => setCellSelectEditor(null)}
+          />
+        ) : cellSelectEditor.kind === 'multi-select' ? (
+          <MarkdownDataViewMultiTagSelect
+            autoFocus
+            canCreate={true}
+            value={cellSelectEditor.draft}
+            options={effectiveCellSelectOptions}
+            onChange={(next) => {
+              setCellSelectEditor(prev => (prev ? { ...prev, draft: next } : prev))
+              applyCellSelectValue({
+                rowId: cellSelectEditor.rowId,
+                scope: cellSelectEditor.scope,
+                propertyKey: cellSelectEditor.propertyKey,
+                kind: 'multi-select',
+                next,
+              })
+            }}
+            onRequestClose={() => setCellSelectEditor(null)}
+          />
+        ) : null}
+      </AnchoredPopover>
     </section>
   )
 })

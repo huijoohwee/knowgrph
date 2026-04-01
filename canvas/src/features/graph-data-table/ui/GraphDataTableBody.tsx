@@ -16,6 +16,7 @@ import { FrozenAreaResizeHandle, FROZEN_DATA_COLUMN_LEFT } from './GraphDataTabl
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MarkdownStructuredTextEditor } from '@/features/markdown/ui/MarkdownStructuredTextEditor'
 import type { PanelTypography } from '@/lib/ui/panelTypography'
+import { DataViewTagChip } from '@/features/markdown/ui/MarkdownDataViewChips'
 
 interface BodyCellProps {
   columnKey: GraphDataTableColumnKey
@@ -40,6 +41,15 @@ interface BodyCellProps {
   showFrozenResizeHandle: boolean
   onFrozenAreaPointerDown?: (event: React.PointerEvent) => void
   fieldSettingsByColumnKey: Map<GraphDataTableColumnKey, GraphFieldSettingsResolved>
+  onRequestOpenCellSelectEditor?: (args: {
+    anchorEl: HTMLElement
+    rowId: string
+    scope: 'node' | 'edge'
+    propertyKey: string
+    kind: 'single-select' | 'multi-select'
+    options: string[]
+    initialValue: string
+  }) => void
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -110,6 +120,7 @@ export const BodyCell = React.memo(function BodyCell({
   showFrozenResizeHandle,
   onFrozenAreaPointerDown,
   fieldSettingsByColumnKey,
+  onRequestOpenCellSelectEditor,
 }: BodyCellProps) {
   const widthStyle: React.CSSProperties | undefined =
     width != null ? { width, minWidth: width } : undefined
@@ -408,20 +419,39 @@ export const BodyCell = React.memo(function BodyCell({
     const parsed = parseGraphDataTablePropertyColumnKey(columnKey)
     const settings = fieldSettingsByColumnKey.get(columnKey)
     const isMultiSelect = settings?.fieldType === 'Multi-select'
+    const isSingleSelect = settings?.fieldType === 'Single-select'
 
-    if (parsed && row.kind === parsed.scope && isMultiSelect) {
+    if (parsed && row.kind === parsed.scope && (isMultiSelect || isSingleSelect)) {
       const raw =
         row.properties?.[parsed.propertyKey as keyof typeof row.properties]
-      const values = Array.isArray(raw)
+      const values = isMultiSelect && Array.isArray(raw)
         ? raw.filter((v): v is string => typeof v === 'string')
         : []
+      const singleValue = isSingleSelect && typeof raw === 'string' ? raw : ''
 
-      const options = settings.selectOptions ?? []
+      const options = (settings?.selectOptions ?? []).slice()
       const optionSet = options.length > 0 ? new Set(options) : null
+
       const filteredValues =
-        optionSet != null
-          ? values.filter(v => optionSet.has(v))
-          : values
+        optionSet != null ? values.filter(v => optionSet.has(v)) : values
+      const filteredSingleValue =
+        optionSet != null && singleValue ? (optionSet.has(singleValue) ? singleValue : '') : singleValue
+
+      const openEditor = (anchorEl: HTMLElement) => {
+        if (!isActive) return
+        if (!onRequestOpenCellSelectEditor) return
+        const kind: 'single-select' | 'multi-select' = isMultiSelect ? 'multi-select' : 'single-select'
+        const initialValue = isMultiSelect ? filteredValues.join(', ') : filteredSingleValue
+        onRequestOpenCellSelectEditor({
+          anchorEl,
+          rowId: row.id,
+          scope: parsed.scope,
+          propertyKey: parsed.propertyKey,
+          kind,
+          options,
+          initialValue,
+        })
+      }
 
       return (
         <td
@@ -434,20 +464,31 @@ export const BodyCell = React.memo(function BodyCell({
               onToggleExpandCell(columnKey, row.id)
             }
           }}
+          onDoubleClick={event => {
+            if (!isActive) return
+            try {
+              event.preventDefault()
+              event.stopPropagation()
+            } catch {
+              void 0
+            }
+            openEditor(event.currentTarget)
+          }}
         >
-          {filteredValues.length === 0 ? (
-            ''
+          {isMultiSelect ? (
+            filteredValues.length === 0 ? (
+              ''
+            ) : (
+              <div className="flex flex-nowrap gap-1 overflow-hidden whitespace-nowrap">
+                {filteredValues.map((value, i) => (
+                  <DataViewTagChip key={`${value}-${i}`} value={value} />
+                ))}
+              </div>
+            )
+          ) : filteredSingleValue ? (
+            <DataViewTagChip value={filteredSingleValue} />
           ) : (
-            <div className="flex flex-nowrap gap-1 overflow-hidden whitespace-nowrap">
-              {filteredValues.map((value, i) => (
-                <span
-                  key={`${value}-${i}`}
-                  className={`inline-flex items-center rounded-full ${UI_THEME_TOKENS.badge.chip} px-2 py-0.5 leading-tight ${UI_THEME_TOKENS.text.primary} max-w-full truncate overflow-hidden whitespace-nowrap`}
-                >
-                  {value}
-                </span>
-              ))}
-            </div>
+            ''
           )}
         </td>
       )

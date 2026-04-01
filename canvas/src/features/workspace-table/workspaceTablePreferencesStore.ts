@@ -18,11 +18,17 @@ import {
   type WorkspaceEditorMode,
   writeWorkspaceEditorMode,
 } from '@/features/workspace-table/workspaceEditorMode'
+import {
+  readWorkspaceCellSelectPanelPlacement,
+  type WorkspaceCellSelectPanelPlacement,
+  writeWorkspaceCellSelectPanelPlacement,
+} from '@/features/workspace-table/cellSelectPanelPlacement'
 
 const WORKSPACE_TABLE_PREFS_EVENT = 'kg:workspace-table-prefs:changed'
 
 export type WorkspaceTablePreferencesSnapshot = {
   workspaceEditorMode: WorkspaceEditorMode
+  workspaceCellSelectPanelPlacement: WorkspaceCellSelectPanelPlacement
   jsonImportTarget: JsonImportWorkspaceTarget
   jsonMarkdownMode: JsonToMarkdownMode
   jsonTableMaxRows: number
@@ -31,6 +37,7 @@ export type WorkspaceTablePreferencesSnapshot = {
 
 const readSnapshot = (): WorkspaceTablePreferencesSnapshot => ({
   workspaceEditorMode: readWorkspaceEditorMode(),
+  workspaceCellSelectPanelPlacement: readWorkspaceCellSelectPanelPlacement(),
   jsonImportTarget: readJsonImportWorkspaceTarget(),
   jsonMarkdownMode: readJsonMarkdownMode(),
   jsonTableMaxRows: readJsonMarkdownTableMaxRows(),
@@ -46,6 +53,7 @@ const isWorkspacePreferenceStorageKey = (storageKey: string | null): boolean =>
   storageKey === LS_KEYS.workspaceEditorMode ||
   storageKey === LS_KEYS.markdownDerivedViewerMode ||
   storageKey === LS_KEYS.graphTableViewMode ||
+  storageKey === LS_KEYS.workspaceCellSelectPanelPlacement ||
   storageKey === LS_KEYS.jsonImportWorkspaceTarget ||
   storageKey === LS_KEYS.jsonMarkdownMode ||
   storageKey === LS_KEYS.jsonMarkdownTableMaxRows ||
@@ -90,6 +98,11 @@ export const workspaceTablePreferencesStore = {
   },
   setJsonTableMaxColumns(next: unknown): number {
     const written = writeJsonMarkdownTableMaxColumns(next)
+    emitWorkspaceTablePreferencesChanged()
+    return written
+  },
+  setWorkspaceCellSelectPanelPlacement(next: WorkspaceCellSelectPanelPlacement): WorkspaceCellSelectPanelPlacement {
+    const written = writeWorkspaceCellSelectPanelPlacement(next)
     emitWorkspaceTablePreferencesChanged()
     return written
   },

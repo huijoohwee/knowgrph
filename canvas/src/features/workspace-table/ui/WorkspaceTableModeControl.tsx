@@ -21,6 +21,11 @@ import {
   WORKSPACE_EDITOR_MODE_OPTIONS,
   type WorkspaceEditorMode,
 } from '@/features/workspace-table/workspaceEditorMode'
+import {
+  WORKSPACE_CELL_SELECT_PANEL_PLACEMENT_LABELS,
+  WORKSPACE_CELL_SELECT_PANEL_PLACEMENT_OPTIONS,
+  type WorkspaceCellSelectPanelPlacement,
+} from '@/features/workspace-table/cellSelectPanelPlacement'
 
 type WorkspaceTableModeControlProps = {
   className?: string
@@ -56,6 +61,7 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
   const jsonMarkdownMode = prefs.jsonMarkdownMode as JsonToMarkdownMode
   const jsonTableMaxRows = prefs.jsonTableMaxRows
   const jsonTableMaxColumns = prefs.jsonTableMaxColumns
+  const workspaceCellSelectPanelPlacement = prefs.workspaceCellSelectPanelPlacement as WorkspaceCellSelectPanelPlacement
 
   const handleWorkspaceEditorModeChanged = React.useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -97,6 +103,10 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
     workspaceTablePreferencesStore.setJsonTableMaxColumns(event.currentTarget.value)
   }, [])
 
+  const handleWorkspaceCellSelectPanelPlacementChanged = React.useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
+    workspaceTablePreferencesStore.setWorkspaceCellSelectPanelPlacement(event.currentTarget.value as WorkspaceCellSelectPanelPlacement)
+  }, [])
+
   return (
     <section className={className || 'flex flex-col gap-2'} aria-label={UI_COPY.markdownDataViewTitleDefault}>
       <label className="flex items-center justify-between gap-2 text-xs">
@@ -126,6 +136,21 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
       >
         {tableWorkspaceOpen ? UI_COPY.toolbarGraphDataTableWorkspaceOnTooltip : UI_COPY.toolbarGraphDataTableToggleTitle}
       </button>
+      <label className="flex items-center justify-between gap-2 text-xs">
+        <span className="min-w-0 truncate">Select panel position</span>
+        <select
+          className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+          value={workspaceCellSelectPanelPlacement}
+          onChange={handleWorkspaceCellSelectPanelPlacementChanged}
+          aria-label="Select panel position"
+        >
+          {WORKSPACE_CELL_SELECT_PANEL_PLACEMENT_OPTIONS.map(option => (
+            <option key={option} value={option}>
+              {WORKSPACE_CELL_SELECT_PANEL_PLACEMENT_LABELS[option]}
+            </option>
+          ))}
+        </select>
+      </label>
       <label className="flex items-center justify-between gap-2 text-xs">
         <span className="min-w-0 truncate">JSON import target</span>
         <select
