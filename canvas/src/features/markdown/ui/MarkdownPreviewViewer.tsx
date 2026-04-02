@@ -80,6 +80,7 @@ export type MarkdownPreviewViewerProps = {
   webpageLayoutWireframeAscii?: string | null
   sourceMarkdownText?: string
   markdownForcePlainTables?: boolean
+  forbidCopy?: boolean
 }
 
 export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
@@ -137,7 +138,20 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     webpageLayoutWireframeAscii,
     sourceMarkdownText,
     markdownForcePlainTables,
+    forbidCopy = false,
   } = props
+  const blockCopy = React.useCallback((event: React.ClipboardEvent<HTMLElement>) => {
+    if (!forbidCopy) return
+    event.preventDefault()
+  }, [forbidCopy])
+  const blockCopyKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLElement>) => {
+    if (!forbidCopy) return
+    const key = String(event.key || '').toLowerCase()
+    const mod = event.metaKey || event.ctrlKey
+    if (!mod) return
+    if (key !== 'c' && key !== 'x') return
+    event.preventDefault()
+  }, [forbidCopy])
 
   const embeddedMarkdownBase64 = React.useMemo(() => {
     const src = typeof sourceMarkdownText === 'string' ? sourceMarkdownText : ''
@@ -474,6 +488,8 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         flashLine={flashLine}
         webpageLayoutWireframeAscii={webpageLayoutWireframeAscii}
         markdownForcePlainTables={markdownForcePlainTables}
+        markdownSourceLines={typeof sourceMarkdownText === 'string' ? sourceMarkdownText.split(/\r?\n/) : []}
+        forbidCopy={forbidCopy}
       />
     ),
     [
@@ -498,10 +514,17 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       uiPanelTextFontClass,
       explorerControls.collapsedHeadingIds,
       explorerControls.onToggleCollapse,
+      handleMoveHeadingSection,
+      handleReorderHeadingSection,
+      onInsertLineAfter,
+      onReorderLineBlock,
       onReplaceLineRange,
+      onTocReorder,
       markdownForcePlainTables,
       flashLine,
+      sourceMarkdownText,
       webpageLayoutWireframeAscii,
+      forbidCopy,
     ],
   )
 
@@ -532,6 +555,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       collapsedIds: explorerControls.collapsedHeadingIds,
       onToggleCollapse: explorerControls.onToggleCollapse,
       geoDatasetIntegration,
+      forbidCopy,
     }
 
     const mkCodeToken = (args: { lang: string; text: string; startLine: number }): TokenWithLines => {
@@ -581,6 +605,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     annotateDisplayMode,
     codeAnnotations,
     contentClassName,
+    forbidCopy,
     explorerControls.collapsedHeadingIds,
     effectiveStickyHeadingTopPx,
     frontmatterMermaidCode,
@@ -627,6 +652,9 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         onClick={handleClickWithWikiLinks}
         onDoubleClick={onDoubleClick}
         onMouseUp={onMouseUp}
+        onCopy={blockCopy}
+        onCut={blockCopy}
+        onKeyDown={blockCopyKeyDown}
         style={
           (
             scrollClass === 'overflow-auto'

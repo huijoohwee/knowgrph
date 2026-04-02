@@ -64,3 +64,22 @@ export async function testWorkspaceSyncSchedulerRunsLatestPerTaskUnderSharedKey(
     throw new Error('expected persistence task to execute once under shared scheduler key')
   }
 }
+
+export async function testWorkspaceSyncSchedulerSuppressesRepeatedSignature() {
+  const calls: string[] = []
+  scheduleWorkspaceSyncTask('runtime:refresh', () => {
+    calls.push('runtime:once')
+  }, 10, { signature: 'same' })
+  scheduleWorkspaceSyncTask('runtime:refresh', () => {
+    calls.push('runtime:twice')
+  }, 10, { signature: 'same' })
+
+  await new Promise(resolve => setTimeout(resolve, 40))
+
+  if (calls.length !== 1) {
+    throw new Error(`expected only one call for same signature, got ${calls.length}`)
+  }
+  if (calls[0] !== 'runtime:once') {
+    throw new Error(`expected first callback to be retained for same signature, got ${calls[0]}`)
+  }
+}

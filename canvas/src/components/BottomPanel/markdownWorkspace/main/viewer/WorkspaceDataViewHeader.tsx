@@ -10,6 +10,12 @@ import type { WorkspaceDataViewConfig } from './workspaceDataViewConfig'
 import { WorkspaceDataViewFilterMenu } from './WorkspaceDataViewFilterMenu'
 import { WorkspaceDataViewSettingsDialog } from './WorkspaceDataViewSettingsDialog'
 import { WorkspaceHeader } from '@/components/ui/WorkspaceHeader'
+import {
+  FLOATING_MENU_BUTTON_CLASSNAME,
+  FLOATING_MENU_DIVIDER_CLASSNAME,
+  FLOATING_MENU_LEFT_W220_CLASSNAME,
+  FLOATING_MENU_RIGHT_W220_CLASSNAME,
+} from './floatingMenuStyles'
 
 type SortMode = 'none' | 'title_asc' | 'title_desc'
 
@@ -181,11 +187,7 @@ export function WorkspaceDataViewHeader(props: {
               <ArrowUpDown className={icon14Class} aria-hidden="true" />
             </summary>
             <menu
-              className={[
-                'absolute right-0 mt-2 w-[220px] rounded border shadow-sm p-2 z-10',
-                UI_THEME_TOKENS.panel.bg,
-                UI_THEME_TOKENS.panel.border,
-              ].join(' ')}
+              className={FLOATING_MENU_RIGHT_W220_CLASSNAME}
               aria-label={MARKDOWN_DATA_VIEW_COPY.sortMenuAriaLabel}
             >
               {SORT_OPTIONS.map(o => (
@@ -222,11 +224,7 @@ export function WorkspaceDataViewHeader(props: {
               <MoreHorizontal className={icon14Class} aria-hidden="true" />
             </summary>
             <menu
-              className={[
-                'absolute right-0 mt-2 w-[220px] rounded border shadow-sm p-2 z-10',
-                UI_THEME_TOKENS.panel.bg,
-                UI_THEME_TOKENS.panel.border,
-              ].join(' ')}
+              className={FLOATING_MENU_RIGHT_W220_CLASSNAME}
               aria-label={MARKDOWN_DATA_VIEW_COPY.moreMenuAriaLabel}
             >
               <li className="list-none">
@@ -256,11 +254,11 @@ export function WorkspaceDataViewHeader(props: {
                   })}
                 </div>
               </li>
-              <li className={['list-none my-2 h-px', UI_THEME_TOKENS.panel.divider].join(' ')} />
+              <li className={FLOATING_MENU_DIVIDER_CLASSNAME} />
               <li className="list-none">
                 <button
                   type="button"
-                  className={['w-full text-left px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                  className={FLOATING_MENU_BUTTON_CLASSNAME}
                   onClick={() => props.onReset()}
                 >
                   Reset view state
@@ -303,11 +301,7 @@ export function WorkspaceDataViewHeader(props: {
               <Layers className={icon14Class} aria-hidden="true" />
             </summary>
             <menu
-              className={[
-                'absolute left-0 mt-2 w-[220px] rounded border shadow-sm p-2 z-10',
-                UI_THEME_TOKENS.panel.bg,
-                UI_THEME_TOKENS.panel.border,
-              ].join(' ')}
+              className={FLOATING_MENU_LEFT_W220_CLASSNAME}
               aria-label="Group by column"
             >
               <li className="list-none">
@@ -322,7 +316,7 @@ export function WorkspaceDataViewHeader(props: {
                   None (Table)
                 </button>
               </li>
-              <li className={['list-none my-2 h-px', UI_THEME_TOKENS.panel.divider].join(' ')} />
+              <li className={FLOATING_MENU_DIVIDER_CLASSNAME} />
               {groupByOptions.map(o => (
                 <li key={o.id} className="list-none">
                   <button

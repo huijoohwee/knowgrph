@@ -28,6 +28,21 @@ const arraysEqualByIdAndHash = (a: unknown, b: unknown): boolean => {
   return true
 }
 
+const sourceFilesSignature = (value: unknown): string => {
+  const items = Array.isArray(value) ? value : []
+  if (items.length < 1) return '[]'
+  return items
+    .map(entry => {
+      const item = entry as { id?: unknown; parsedTextHash?: unknown; text?: unknown; enabled?: unknown }
+      const id = String(item?.id || '')
+      const parsedTextHash = String(item?.parsedTextHash || '')
+      const enabled = String(item?.enabled || '')
+      const textHash = hashStringToHex(String(item?.text || ''))
+      return `${id}:${parsedTextHash}:${enabled}:${textHash}`
+    })
+    .join('|')
+}
+
 export function SourceFilesPersistenceBootstrap() {
   const hydratedRef = React.useRef(false)
   const lastPersistedRef = React.useRef<unknown>(null)
@@ -104,12 +119,13 @@ export function SourceFilesPersistenceBootstrap() {
           void 0
         }
 
+        const signature = sourceFilesSignature(next)
         scheduleWorkspaceSyncTask(taskKey, () => {
           const snapshot = useGraphStore.getState().sourceFiles
           if (arraysEqualByIdAndHash(snapshot, lastPersistedRef.current)) return
           lastPersistedRef.current = snapshot
           void persistSourceFiles(snapshot)
-        }, 600)
+        }, 600, { signature })
       },
       { equalityFn: arraysEqualByIdAndHash },
     )
@@ -146,6 +162,14 @@ export function SourceFilesPersistenceBootstrap() {
         ) {
           return
         }
+        const signature = hashStringToHex(
+          [
+            String(snapshot.folderName || ''),
+            String(snapshot.accessMode || ''),
+            String(snapshot.folderCacheId || ''),
+            String(snapshot.selectedFolderPath || ''),
+          ].join('|'),
+        )
         scheduleWorkspaceSyncTask(taskKey, () => {
           const nextSnapshot = getWorkspaceSnapshot()
           const prevSnapshot = lastWorkspacePersistedRef.current as SourceFilesWorkspaceState | null
@@ -160,7 +184,7 @@ export function SourceFilesPersistenceBootstrap() {
           }
           lastWorkspacePersistedRef.current = nextSnapshot
           void persistSourceFilesWorkspace(nextSnapshot)
-        }, 600)
+        }, 600, { signature })
       },
       {
         equalityFn: (a, b) => {

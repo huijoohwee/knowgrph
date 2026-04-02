@@ -151,8 +151,6 @@ export const isMarkdownDataViewCandidate = (table: TokensTable): boolean => {
 }
 
 export const buildMarkdownDataViewFromTableToken = (table: TokensTable): MarkdownDataView | null => {
-  if (!isMarkdownDataViewCandidate(table)) return null
-
   const headerCells = Array.isArray(table.header) ? table.header : []
   const rowsCells = Array.isArray(table.rows) ? table.rows : []
   const colCount = Math.max(headerCells.length, ...rowsCells.map(r => r.length))

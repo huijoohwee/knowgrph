@@ -1,0 +1,11 @@
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
+export const FLOATING_MENU_CLASSNAME = ['absolute mt-2 rounded border shadow-sm p-2 z-10', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')
+export const FLOATING_MENU_RIGHT_CLASSNAME = [FLOATING_MENU_CLASSNAME, 'right-0'].join(' ')
+export const FLOATING_MENU_RIGHT_W220_CLASSNAME = [FLOATING_MENU_CLASSNAME, 'right-0 w-[220px]'].join(' ')
+export const FLOATING_MENU_LEFT_W220_CLASSNAME = [FLOATING_MENU_CLASSNAME, 'left-0 w-[220px]'].join(' ')
+export const FLOATING_MENU_BUTTON_CLASSNAME = ['w-full text-left px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')
+export const FLOATING_MENU_DIVIDER_CLASSNAME = ['list-none my-2 h-px', UI_THEME_TOKENS.panel.divider].join(' ')
+export const FLOATING_MENU_TRIGGER_CLASSNAME = ['h-6 rounded border px-2 list-none cursor-pointer inline-flex items-center text-[10px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
+export const FLOATING_OVERLAY_TOOLBAR_CLASSNAME = [FLOATING_MENU_RIGHT_CLASSNAME, 'top-0 z-20 m-0 p-1 flex flex-wrap items-center gap-1 text-[10px]'].join(' ')
+export const FLOATING_BUBBLE_TOOLBAR_CLASSNAME = ['absolute rounded border shadow-sm z-20 m-0 p-1 flex flex-wrap items-center gap-1 text-[10px]', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')

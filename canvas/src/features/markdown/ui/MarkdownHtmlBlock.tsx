@@ -21,6 +21,7 @@ import { MarkdownBlockContainer } from './MarkdownBlockContainer'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
   MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
@@ -478,6 +479,10 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
         highlightStyle={highlightStyle}
         startLine={t.startLine}
         endLine={t.endLine}
+        inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
+        sourceLines={opts.markdownSourceLines}
+        onReplaceLineRange={opts.onReplaceLineRange}
+        editorClassName={['w-full whitespace-pre-wrap break-words outline-none bg-transparent', opts.uiPanelMonospaceTextClass, UI_THEME_TOKENS.text.primary].join(' ')}
         onDragOver={dnd.handleDragOver}
         onDragLeave={dnd.handleDragLeave}
         onDrop={dnd.handleDrop}
@@ -520,6 +525,10 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
       highlightStyle={highlightStyle}
       startLine={t.startLine}
       endLine={t.endLine}
+      inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
+      sourceLines={opts.markdownSourceLines}
+      onReplaceLineRange={opts.onReplaceLineRange}
+      editorClassName={['w-full whitespace-pre-wrap break-words outline-none bg-transparent', opts.uiPanelMonospaceTextClass, UI_THEME_TOKENS.text.primary].join(' ')}
       onDragOver={dnd.handleDragOver}
       onDragLeave={dnd.handleDragLeave}
       onDrop={dnd.handleDrop}

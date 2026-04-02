@@ -84,6 +84,10 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
         highlightStyle={highlightStyle}
         startLine={t.startLine}
         endLine={t.endLine}
+        inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
+        sourceLines={opts.markdownSourceLines}
+        onReplaceLineRange={opts.onReplaceLineRange}
+        editorClassName={['w-full whitespace-pre-wrap break-words outline-none bg-transparent', opts.uiPanelMonospaceTextClass, UI_THEME_TOKENS.text.primary].join(' ')}
       >
         <MarkdownTokenRenderer
           tokens={addLineRangesToTokens(bq.tokens as unknown as Token[], 0)}
@@ -127,6 +131,10 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
       highlightStyle={highlightStyle}
       startLine={t.startLine}
       endLine={t.endLine}
+      inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
+      sourceLines={opts.markdownSourceLines}
+      onReplaceLineRange={opts.onReplaceLineRange}
+      editorClassName={['w-full whitespace-pre-wrap break-words outline-none bg-transparent', opts.uiPanelMonospaceTextClass, UI_THEME_TOKENS.text.primary].join(' ')}
       onDragOver={gutterEnabled ? dnd.handleDragOver : undefined}
       onDragLeave={gutterEnabled ? dnd.handleDragLeave : undefined}
       onDrop={gutterEnabled ? dnd.handleDrop : undefined}

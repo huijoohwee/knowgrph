@@ -368,6 +368,20 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       columnWidthsPxById,
       columnOrderByTableId,
     }
+    const signature = String(
+      hashString32(
+        JSON.stringify({
+          columnVisibilityById,
+          filterMatch,
+          filterClauses,
+          groupBy,
+          sortRules,
+          rowHeightPreset,
+          columnWidthsPxById,
+          columnOrderByTableId,
+        }),
+      ),
+    )
     scheduleWorkspaceSyncTask('graph-table:view-state', () => {
       const pending = persistGraphTableViewStatePendingRef.current
       if (!pending) return
@@ -379,7 +393,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       lsSetJson(LS_KEYS.graphTableRowHeightPreset, pending.rowHeightPreset)
       lsSetJson(LS_KEYS.graphTableColumnWidthsPx, pending.columnWidthsPxById)
       lsSetJson(LS_KEYS.graphTableColumnOrderByTableId, pending.columnOrderByTableId)
-    }, 200)
+    }, 200, { signature })
   }, [columnOrderByTableId, columnVisibilityById, columnWidthsPxById, filterClauses, filterMatch, groupBy, rowHeightPreset, sortRules])
 
   useEffect(() => {

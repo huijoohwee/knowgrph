@@ -25,7 +25,7 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { WorkspaceModeSelect } from './markdownWorkspace/WorkspaceModeSelect'
 import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/frontmatter'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { UI_LABELS } from '@/lib/config'
+import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import {
   MarkdownWorkspaceDisplayMenu,
@@ -379,7 +379,7 @@ export function MarkdownWorkspaceToolbar({
               type="button"
               className={TOOLBAR_BUTTON_CLASSNAME}
               aria-pressed={layoutMode === 'viewer'}
-              title="Viewer"
+              title={`Viewer\n${UI_COPY.markdownInlineEditHint}`}
               onClick={() => setLayoutMode('viewer')}
             >
               <Eye className="w-4 h-4" strokeWidth={1.6} />

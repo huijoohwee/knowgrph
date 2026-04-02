@@ -42,6 +42,8 @@ import {
 import { LRUCache } from '@/lib/cache/LRUCache'
 import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
 import { tryBuildJsonMarkdownTablesFromText } from '@/features/markdown/jsonToMarkdownDocument'
+import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import { hashStringToHex } from '@/lib/hash/stringHash'
 
 export type MarkdownWorkspaceDerivedViewerKind = 'markdown' | 'html' | 'json'
 export type MarkdownWorkspaceDerivedViewerMode = 'read' | 'table' | 'multiDimTable' | 'kanban'
@@ -252,31 +254,27 @@ export function MarkdownWorkspaceDerivedViewer(props: {
     setViewConfig(cfg)
   }, [props.activeDocumentPath, props.viewerMode, selected])
 
-  const persistConfigTimerRef = React.useRef<number | null>(null)
   React.useEffect(() => {
     if (!selected) return
     if (!viewConfig) return
-    if (typeof window === 'undefined') return
-
-    if (persistConfigTimerRef.current != null) {
-      window.clearTimeout(persistConfigTimerRef.current)
-      persistConfigTimerRef.current = null
-    }
 
     const docPath = props.activeDocumentPath ?? null
     const tableId = selected.id
     const value = viewConfig
-
-    persistConfigTimerRef.current = window.setTimeout(() => {
-      persistConfigTimerRef.current = null
+    const taskKey = `markdown-workspace:dataview:${tableId}`
+    const signature = hashStringToHex(
+      JSON.stringify({
+        docPath,
+        tableId,
+        value,
+      }),
+    )
+    scheduleWorkspaceSyncTask(taskKey, () => {
       writeWorkspaceDataViewConfig({ activeDocumentPath: docPath, tableId, value })
-    }, 200)
+    }, 200, { signature })
 
     return () => {
-      if (persistConfigTimerRef.current != null) {
-        window.clearTimeout(persistConfigTimerRef.current)
-        persistConfigTimerRef.current = null
-      }
+      cancelWorkspaceSyncTask(taskKey)
     }
   }, [props.activeDocumentPath, selected, viewConfig])
 
@@ -457,6 +455,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
             previewScrollable={true}
             showSidebar={false}
             viewMode="viewer"
+            forbidCopy={true}
             onInsertLineAfter={props.onInsertLineAfter}
             onReorderLineBlock={props.onReorderLineBlock}
             onReplaceLineRange={props.onReplaceLineRange}
@@ -502,6 +501,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
         previewScrollable={true}
         showSidebar={false}
         viewMode="viewer"
+        forbidCopy={true}
         onInsertLineAfter={props.onInsertLineAfter}
         onReorderLineBlock={props.onReorderLineBlock}
         onReplaceLineRange={props.onReplaceLineRange}

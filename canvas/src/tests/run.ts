@@ -440,6 +440,11 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       'util.coalescedScheduler.cancelPreventsCallback',
       modCoalescedScheduler.testCoalescedSchedulerCancelPreventsCallback,
     )
+    await execTest(
+      results,
+      'util.workspaceSyncScheduler.suppressesRepeatedSignature',
+      modCoalescedScheduler.testWorkspaceSyncSchedulerSuppressesRepeatedSignature,
+    )
 
     const modGraphTableSync = await import('../__tests__/graphTableDbSyncDedupeRegression.test')
     await execTest(

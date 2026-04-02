@@ -1046,9 +1046,10 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       const op = typeof detail?.op === 'string' ? detail.op : ''
       if (isDirty && (!changedPath || changedPath === active)) return
       if (op === 'writeFileText' && active && changedPath && changedPath !== active) return
+      const signature = `${String(active || '')}|${String(changedPath || '')}|${op}|${isDirty ? '1' : '0'}`
       scheduleWorkspaceSyncTask(taskKey, () => {
         void refresh()
-      }, 180)
+      }, 180, { signature })
     })
     return () => {
       cancelWorkspaceSyncTask(taskKey)
@@ -1095,7 +1096,22 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       lsSetJson<FolderModeContract>(LS_KEYS.markdownExplorerFolderModeContract, pending.folderModeContract)
       lsSetJson<MarkdownWorkspaceLayoutMode>(LS_KEYS.markdownLayoutMode, pending.layoutMode)
       lsSetJson(LS_KEYS.markdownExplorerSourceFilesExpandedPaths, pending.expandedPaths)
-    }, 120)
+    }, 120, {
+      signature: hashStringToHex(
+        JSON.stringify({
+          sidebarWidthPx,
+          explorerOpen,
+          sourceFilesCollapsed,
+          tocCollapsed,
+          backlinksCollapsed,
+          markdownWordWrap,
+          markdownTextHighlight,
+          folderModeContract,
+          layoutMode,
+          expandedPaths,
+        }),
+      ),
+    })
     return () => {
       cancelWorkspaceSyncTask('markdown-workspace:prefs')
     }

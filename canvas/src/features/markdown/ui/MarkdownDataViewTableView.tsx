@@ -344,7 +344,13 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                   <td
                     key={c.id}
                     className={cellBase}
-                    onDoubleClick={(e) => startEdit(r.id, c.id, value, e.currentTarget)}
+                    onClick={(e) => {
+                      const el = e.target as HTMLElement | null
+                      if (el?.closest('a,button,input,select,textarea')) return
+                      e.preventDefault()
+                      e.stopPropagation()
+                      startEdit(r.id, c.id, value, e.currentTarget)
+                    }}
                     role={canMutate ? 'button' : undefined}
                   >
                     {uiType === 'checkbox' ? (

@@ -93,6 +93,7 @@ type MarkdownPreviewProps = {
   geoDatasetIntegration?: MarkdownGeoDatasetIntegration
   webpageLayoutWireframeAscii?: string | null
   markdownForcePlainTables?: boolean
+  forbidCopy?: boolean
 }
 
 const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(function MarkdownPreview(
@@ -149,6 +150,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     geoDatasetIntegration,
     webpageLayoutWireframeAscii,
     markdownForcePlainTables,
+    forbidCopy,
   },
   ref,
 ) {
@@ -534,6 +536,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
       onSourceFileSelect={onSourceFileSelect}
       sourceFilesPanelIntegration={sourceFilesPanelIntegration}
       markdownForcePlainTables={markdownForcePlainTables}
+      forbidCopy={forbidCopy}
     />
   )
 })

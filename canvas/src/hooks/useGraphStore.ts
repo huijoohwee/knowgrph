@@ -24,6 +24,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { DEFAULT_BBOX_COLLIDE_PADDING, DEFAULT_FIT_PADDING, DEFAULT_GROUP_BBOX_COLLIDE_PADDING } from '@/lib/graph/layoutDefaults'
 import { buildDocumentKey, buildDocumentRef, readPerDocumentUiState, writePerDocumentUiState } from '@/lib/persistence/perDocumentUiState'
 import { scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import { hashStringToHex } from '@/lib/hash/stringHash'
 
 const positionsMatch = (
   a: Record<string, NodePosition2d> | null | undefined,
@@ -267,6 +268,7 @@ try {
     let pending: { key: string; ref: string; state: Parameters<typeof writePerDocumentUiState>[0]['state'] } | null = null
 
     const schedulePersist = () => {
+      const signature = pending ? hashStringToHex(JSON.stringify(pending)) : 'none'
       scheduleWorkspaceSyncTask('per-document-ui', () => {
         const next = pending
         pending = null
@@ -276,7 +278,7 @@ try {
           documentRef: next.ref,
           state: next.state,
         })
-      }, 250)
+      }, 250, { signature })
     }
 
     useGraphStore.subscribe(

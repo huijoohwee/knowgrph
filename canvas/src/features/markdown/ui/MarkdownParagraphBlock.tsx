@@ -27,6 +27,7 @@ import {
   MarkdownBlockGutterControls,
   useMarkdownLineBlockDnD,
 } from './MarkdownBlockGutter'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type MarkdownParagraphBlockProps = {
   token: TokenWithLines
@@ -488,6 +489,10 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
       highlightStyle={highlightStyle}
       startLine={t.startLine}
       endLine={t.endLine}
+      inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
+      sourceLines={opts.markdownSourceLines}
+      onReplaceLineRange={opts.onReplaceLineRange}
+      editorClassName={['w-full whitespace-pre-wrap break-words outline-none bg-transparent', opts.uiPanelMonospaceTextClass, UI_THEME_TOKENS.text.primary].join(' ')}
       onDragOver={dnd.handleDragOver}
       onDragLeave={dnd.handleDragLeave}
       onDrop={dnd.handleDrop}

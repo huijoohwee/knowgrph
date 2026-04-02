@@ -259,6 +259,7 @@ export const UI_COPY = {
   markdownGeoJsonLoadGraphTitle: 'Load GeoJSON as graph',
   markdownBlockReorderLineLabel: 'Reorder line',
   markdownBlockInsertLineLabel: 'Add line',
+  markdownInlineEditHint: 'Single-click to edit · Esc cancel · Cmd/Ctrl+Enter commit',
   markdownDataViewTitleDefault: 'Multi-dimensional Table',
   markdownDataViewKanbanViewLabel: 'Kanban View',
   markdownDataViewTableViewLabel: 'Table View',

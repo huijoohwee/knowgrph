@@ -188,6 +188,13 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   React.useEffect(() => {
     if (viewerMode === 'read') lsSetJson(LS_KEYS.markdownDerivedViewerMode, viewerMode)
   }, [viewerMode])
+  React.useEffect(() => {
+    if (layoutMode !== 'viewer') return
+    if (viewerKind !== 'markdown') return
+    if (viewerMode !== 'read') return
+    if (contentMode !== 'nodeQuickEditor') return
+    setContentMode?.('document')
+  }, [contentMode, layoutMode, setContentMode, viewerKind, viewerMode])
 
   const workspaceEditorMode = React.useSyncExternalStore(
     workspaceTablePreferencesStore.subscribe,
@@ -381,6 +388,52 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     },
     [activeText, disableViewerMutations, revealLineInEditor, setActiveText],
   )
+  const onInsertLineAfter = disableViewerMutations ? undefined : handleInsertLineAfter
+  const onReorderLineBlock = disableViewerMutations ? undefined : handleReorderLineBlock
+  const onReplaceLineRange = disableViewerMutations ? undefined : handleReplaceLineRange
+  const renderEditorPane = React.useCallback(
+    () => (
+      <MarkdownEditorPane
+        value={markdownEditText ?? (typeof editorTextOverride === 'string' ? editorTextOverride : activeText)}
+        onChange={
+          disableEditorMutations
+            ? () => void 0
+            : (next: string) => {
+                if (isJsonMarkdownEditing) {
+                  setJsonDerivedMarkdownDraft(next)
+                  return
+                }
+                setActiveText(next)
+              }
+        }
+        wordWrap={markdownWordWrap}
+        editorRef={editorRef}
+        onCaretLine={onEditorCaretLine}
+        panelTypography={panelTypography}
+        readOnly={disableEditorMutations}
+        themeMode={themeMode}
+        language={editorLanguage}
+        uri={editorUri}
+        onEditorHandle={setEditorHandle}
+      />
+    ),
+    [
+      activeText,
+      disableEditorMutations,
+      editorLanguage,
+      editorRef,
+      editorTextOverride,
+      editorUri,
+      isJsonMarkdownEditing,
+      markdownEditText,
+      markdownWordWrap,
+      onEditorCaretLine,
+      panelTypography,
+      setActiveText,
+      setJsonDerivedMarkdownDraft,
+      themeMode,
+    ],
+  )
 
   const viewer = showWebpageHtml ? (
     <WebpageViewerPane
@@ -411,9 +464,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       previewScrollable={true}
       showSidebar={false}
       viewMode="viewer"
-      onInsertLineAfter={handleInsertLineAfter}
-      onReorderLineBlock={handleReorderLineBlock}
-      onReplaceLineRange={handleReplaceLineRange}
+      forbidCopy={viewerMode === 'read'}
+      onInsertLineAfter={onInsertLineAfter}
+      onReorderLineBlock={onReorderLineBlock}
+      onReplaceLineRange={onReplaceLineRange}
       markdownForcePlainTables={viewerMode === 'table'}
     />
   ) : (
@@ -507,49 +561,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     />
   )
 
-  const renderEditor = React.useCallback(
-    () => (
-      <MarkdownEditorPane
-        value={markdownEditText ?? (typeof editorTextOverride === 'string' ? editorTextOverride : activeText)}
-        onChange={
-          disableEditorMutations
-            ? () => void 0
-            : (next: string) => {
-                if (isJsonMarkdownEditing) {
-                  setJsonDerivedMarkdownDraft(next)
-                  return
-                }
-                setActiveText(next)
-              }
-        }
-        wordWrap={markdownWordWrap}
-        editorRef={editorRef}
-        onCaretLine={onEditorCaretLine}
-        panelTypography={panelTypography}
-        readOnly={disableEditorMutations}
-        themeMode={themeMode}
-        language={editorLanguage}
-        uri={editorUri}
-        onEditorHandle={setEditorHandle}
-      />
-    ),
-    [
-      activeText,
-      disableEditorMutations,
-      editorLanguage,
-      editorRef,
-      editorTextOverride,
-      editorUri,
-      isJsonMarkdownEditing,
-      markdownEditText,
-      markdownWordWrap,
-      onEditorCaretLine,
-      panelTypography,
-      setActiveText,
-      setJsonDerivedMarkdownDraft,
-      themeMode,
-    ],
-  )
+  const renderEditor = renderEditorPane
 
   return (
     <MarkdownWorkspaceLayout

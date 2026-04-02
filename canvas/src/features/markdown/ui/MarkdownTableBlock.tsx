@@ -46,11 +46,15 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
 
   const tbl = t as unknown as TokensTable
   const endLine = t.endLine || t.startLine
-  const isDataView = !opts.markdownPresentationMode && !opts.markdownForcePlainTables && isMarkdownDataViewCandidate(tbl)
   const blockControlsAllowed =
     !opts.markdownPresentationMode &&
     !!opts.viewerBlockEditingEnabled &&
     opts.markdownBlockControlsEnabled !== false
+  const useEditableDataView = blockControlsAllowed && !!opts.onReplaceLineRange
+  const isDataView =
+    !opts.markdownPresentationMode &&
+    !opts.markdownForcePlainTables &&
+    (useEditableDataView || isMarkdownDataViewCandidate(tbl))
   const canInsertLine = blockControlsAllowed && !!opts.onInsertLineAfter && Number.isFinite(endLine)
   const canReorder = blockControlsAllowed && !!opts.onReorderLineBlock && Number.isFinite(t.startLine)
   const gutterEnabled = (canInsertLine || canReorder) && opts.markdownBlockGutterEnabled !== false

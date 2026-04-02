@@ -76,4 +76,6 @@ export type RenderOpts = InlineRenderOpts & {
   markdownBlockGutterEnabled?: boolean
   markdownForcePlainTables?: boolean
   webpageLayoutWireframeAscii?: string | null
+  markdownSourceLines?: string[]
+  forbidCopy?: boolean
 }
