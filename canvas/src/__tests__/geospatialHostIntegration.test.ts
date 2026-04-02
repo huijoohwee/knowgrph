@@ -58,10 +58,12 @@ export const testGympgrphDefaultViewModeIs2d = () => {
   }
 }
 
-export const testGeospatialOverlayHostSupportsCesiumRenderer = () => {
+export const testGeospatialOverlayHostSupportsMapLibreGlobeRenderer = () => {
   const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
   const text = readUtf8(hostPath)
-  if (!text.includes('CesiumOverlayLazy')) throw new Error('Expected CesiumOverlay host lazy import')
+  if (!text.includes('useMapLibreBasemap')) throw new Error('Expected GeospatialOverlayHost to use MapLibre basemap hook')
+  if (!text.includes('basemap3d')) throw new Error('Expected GeospatialOverlayHost to create dedicated 3D basemap instance')
+  if (!text.includes("projectionMode: 'globe'")) throw new Error('Expected GeospatialOverlayHost 3D view to use MapLibre globe projection')
   if (!text.includes('geospatialViewMode')) throw new Error('Expected host to read geospatialViewMode')
 }
 
@@ -91,7 +93,7 @@ export const testGeospatialOverlayHostClearsStaleDataAndSeparatesClusterSources 
   if (!text.includes('graphSourceIdClustered') || !text.includes('graphSourceIdUnclustered')) {
     throw new Error('Expected host to separate clustered and unclustered source IDs to avoid stale layer/source mode mismatch')
   }
-  if (!text.includes('featureCount <= 0') || !text.includes('graphDataAppliedRef.current =')) {
+  if (!text.includes('featureCount <= 0') || !text.includes("graphDataAppliedRef.current[viewMode] = ''")) {
     throw new Error('Expected host to reset source state when active graph has no geospatial features')
   }
 }
@@ -199,13 +201,12 @@ export const testRemoteFetchProxyDoesNotAbortOnCloseOrTruncate = () => {
   }
 }
 
-export const testGympgrphCesiumOverlayAutoFitsToGeoBounds = () => {
-  const overlayPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'CesiumOverlay.tsx')
-  const text = readUtf8(overlayPath)
-  if (!text.includes('autoFitEnabled')) throw new Error('Expected CesiumOverlay to reference autoFitEnabled')
-  if (!text.includes('computeBoundsFromCollections')) throw new Error('Expected CesiumOverlay to compute bounds for auto-fit')
-  if (!text.includes('viewer.camera.flyTo')) throw new Error('Expected CesiumOverlay to fly camera to computed bounds')
-  if (!text.includes('Rectangle.fromDegrees')) throw new Error('Expected CesiumOverlay to convert bounds using Rectangle.fromDegrees')
+export const testGympgrphMapLibreBasemapSupportsGlobeProjection = () => {
+  const hookPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
+  const text = readUtf8(hookPath)
+  if (!text.includes("projectionMode: 'mercator' | 'globe'")) throw new Error('Expected basemap hook to support mercator and globe projection modes')
+  if (!text.includes("map.setProjection?.({ type: 'globe' })")) throw new Error('Expected basemap hook to set globe projection in 3D mode')
+  if (!text.includes("canvasRenderMode === '3d'")) throw new Error('Expected basemap hook to apply 3D camera defaults')
 }
 
 export const testGympgrphMapLibreLoggerSuppressesAbortNoise = () => {

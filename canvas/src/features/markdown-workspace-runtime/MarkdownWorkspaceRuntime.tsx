@@ -45,7 +45,7 @@ import { buildDocLocationIndex } from '@/features/markdown-explorer/docLocationI
 import { ORCHESTRATOR_WORKFLOW_WORKSPACE_PATH } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { PARSER_SCRIPT_WORKSPACE_PATH } from '@/features/panels/utils/parserWorkspaceFiles'
 import { SCHEMA_CONFIG_WORKSPACE_PATH } from '@/features/panels/utils/schemaWorkspaceFiles'
-import { scheduleCoalescedTask, cancelCoalescedTask } from '@/lib/async/coalescedScheduler'
+import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import { createProgressTicker } from '@/lib/progress/progressTicker'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { parseSchemaText } from '@/features/schema/io'
@@ -1035,19 +1035,21 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
 
 
   React.useEffect(() => {
-    const key = 'markdown-workspace:refresh'
+    const taskKey = 'markdown-workspace:refresh'
     const unsubscribe = subscribeWorkspaceFsChanged(detail => {
       const active = activePathRef.current
       const last = lastLoadedRef.current
       const isDirty = !!(active && last?.path === active && last.text !== activeTextRef.current)
       const changedPath = typeof detail?.path === 'string' && detail.path ? detail.path : null
+      const op = typeof detail?.op === 'string' ? detail.op : ''
       if (isDirty && (!changedPath || changedPath === active)) return
-      scheduleCoalescedTask(key, () => {
+      if (op === 'writeFileText' && active && changedPath && changedPath !== active) return
+      scheduleWorkspaceSyncTask(taskKey, () => {
         void refresh()
       }, 180)
     })
     return () => {
-      cancelCoalescedTask(key)
+      cancelWorkspaceSyncTask(taskKey)
       unsubscribe()
     }
   }, [refresh])

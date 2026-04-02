@@ -142,7 +142,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
               disabled={disabled}
               onClick={() => setGeospatialViewMode('3d')}
             >
-              3D (Cesium){geospatialViewMode === '3d' ? ' (active)' : ''}
+              3D (MapLibre Globe){geospatialViewMode === '3d' ? ' (active)' : ''}
             </button>
           </div>
         </div>

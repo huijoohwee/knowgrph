@@ -41,7 +41,6 @@
     "@react-three/fiber": "^8.17.8",
     "@types/d3": "^7.4.3",
     "clsx": "^2.1.1",
-    "cesium": "^1.133.1",
     "grph-shared": "file:../grph-shared",
     "d3": "^7.9.0",
     "dagre": "^0.8.5",

@@ -18,6 +18,11 @@ type BasemapResult = {
 }
 
 const EMPTY_PROBE: BasemapProbe = { tileSourceId: '', tilesLoaded: false, canvasW: 0, canvasH: 0, zoom: 0, lng: 0, lat: 0 }
+const SINGAPORE_CENTER_LNG = 103.8198
+const SINGAPORE_CENTER_LAT = 1.3521
+const INITIAL_3D_ZOOM = 2.8
+const INITIAL_3D_PITCH = 0
+const INITIAL_3D_BEARING = 0
 
 const isAbortLike = (err: unknown): boolean => {
   const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : String(err || '')
@@ -35,7 +40,7 @@ export function useMapLibreBasemap(args: {
   viewportSizingMode: 'none' | 'fit'
   vectorFallbackMs: number
 }): BasemapResult {
-  const { enabled, containerRef, targetStyleUrl } = args
+  const { enabled, containerRef, targetStyleUrl, canvasRenderMode, projectionMode, viewportSizingMode, vectorFallbackMs } = args
   const [state, setState] = React.useState<BasemapResult>({
     map: null,
     probe: EMPTY_PROBE,
@@ -145,6 +150,11 @@ export function useMapLibreBasemap(args: {
           interactive: true,
           attributionControl: false,
           preserveDrawingBuffer: false,
+          center: canvasRenderMode === '3d' ? [SINGAPORE_CENTER_LNG, SINGAPORE_CENTER_LAT] : undefined,
+          pitch: canvasRenderMode === '3d' ? INITIAL_3D_PITCH : 0,
+          bearing: canvasRenderMode === '3d' ? INITIAL_3D_BEARING : 0,
+          maxPitch: canvasRenderMode === '3d' ? 85 : 60,
+          zoom: canvasRenderMode === '3d' ? INITIAL_3D_ZOOM : 1.1,
         })
 
         if (debug && typeof window !== 'undefined') {
@@ -165,15 +175,81 @@ export function useMapLibreBasemap(args: {
           setState((prev: BasemapResult) => ({ ...prev, mapError: trimmed }))
         })
 
-        map.on?.('styledata', () => {
+        map.on?.('style.load', () => {
           if (cancelled) return
+          try {
+            if (projectionMode === 'globe') {
+              map.setProjection?.({ type: 'globe' })
+            } else {
+              map.setProjection?.({ type: 'mercator' })
+            }
+          } catch {
+            void 0
+          }
+          if (viewportSizingMode === 'fit') {
+            map.resize?.()
+          }
           setState((prev: BasemapResult) => ({ ...prev, styleRevision: prev.styleRevision + 1 }))
         })
+
+        const updateProbe = () => {
+          if (cancelled || !map) return
+          setProbe(computeProbe(map))
+        }
+
+        let initial3dCameraAligned = false
+        const align3dViewportCenter = () => {
+          if (cancelled || !map) return
+          if (canvasRenderMode !== '3d') return
+          if (initial3dCameraAligned) return
+          initial3dCameraAligned = true
+          try {
+            map.jumpTo?.({
+              center: [SINGAPORE_CENTER_LNG, SINGAPORE_CENTER_LAT],
+              zoom: INITIAL_3D_ZOOM,
+              pitch: INITIAL_3D_PITCH,
+              bearing: INITIAL_3D_BEARING,
+              padding: { top: 0, right: 0, bottom: 0, left: 0 },
+            })
+          } catch {
+            void 0
+          }
+          const w = typeof window !== 'undefined' ? window : null
+          if (!w || typeof w.requestAnimationFrame !== 'function') return
+          w.requestAnimationFrame(() => {
+            if (cancelled || !map) return
+            try {
+              map.jumpTo?.({
+                center: [SINGAPORE_CENTER_LNG, SINGAPORE_CENTER_LAT],
+                zoom: INITIAL_3D_ZOOM,
+                pitch: INITIAL_3D_PITCH,
+                bearing: INITIAL_3D_BEARING,
+                padding: { top: 0, right: 0, bottom: 0, left: 0 },
+              })
+            } catch {
+              void 0
+            }
+          })
+        }
 
         map.once?.('load', () => {
           if (cancelled) return
           map.resize?.()
-          setProbe(computeProbe(map))
+          align3dViewportCenter()
+          if (canvasRenderMode === '3d') {
+            try {
+              map.jumpTo?.({
+                center: [SINGAPORE_CENTER_LNG, SINGAPORE_CENTER_LAT],
+                zoom: INITIAL_3D_ZOOM,
+                pitch: INITIAL_3D_PITCH,
+                bearing: INITIAL_3D_BEARING,
+                padding: { top: 0, right: 0, bottom: 0, left: 0 },
+              })
+            } catch {
+              void 0
+            }
+          }
+          updateProbe()
           if (debug) {
             try {
               console.info('[kg-geo] maplibre load')
@@ -182,12 +258,16 @@ export function useMapLibreBasemap(args: {
             }
           }
         })
+        map.on?.('moveend', updateProbe)
+        map.on?.('idle', updateProbe)
+        map.on?.('resize', updateProbe)
 
         if (typeof ResizeObserver !== 'undefined') {
           resizeObserver = new ResizeObserver(() => {
             if (cancelled || !map) return
             map.resize?.()
-            setProbe(computeProbe(map))
+            align3dViewportCenter()
+            updateProbe()
           })
           resizeObserver.observe(el)
         }
@@ -216,7 +296,7 @@ export function useMapLibreBasemap(args: {
               }
             }
           }
-        }, 1_000)
+        }, debug ? 1_000 : Math.max(1_500, Math.floor(vectorFallbackMs)))
 
         setState((prev: BasemapResult) => ({ ...prev, map, mapError: null }))
       } catch (err) {
@@ -249,7 +329,7 @@ export function useMapLibreBasemap(args: {
       }
       map = null
     }
-  }, [enabled, containerRef, targetStyleUrl])
+  }, [enabled, containerRef, targetStyleUrl, canvasRenderMode, projectionMode, viewportSizingMode, vectorFallbackMs, computeProbe, debug, setProbe])
 
   return state
 }

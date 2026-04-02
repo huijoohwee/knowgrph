@@ -37,6 +37,21 @@ __pycache__/
 .vscode/
 
 .deprecated/
+test-report/
+test-results/
+coverage/
+
+# OS / Editor artifacts
+Thumbs.db
+*.swp
+
+# Secrets
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# Local / generated outputs
 canvas/src/__tests__/demo/airports_full_all_feet.geojson
 canvas/src/__tests__/demo/cities.geojson
 

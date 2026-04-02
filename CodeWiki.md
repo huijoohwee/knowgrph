@@ -7,7 +7,7 @@
 系统架构遵循 **INGEST → PRODUCE → REUSE**（摄入 → 生成 → 复用）的设计模式：
 - **Ingest (数据摄入与解析)**：通过解析器从不同的数据源（CSV、JSON、JSON-LD、Markdown文档、网页、代码库、YouTube字幕等）中提取实体和关系。
 - **Produce (标准化处理)**：将提取出的数据清洗并转换为规范的 `GraphData` 数据模型（由节点和边构成）。
-- **Reuse (渲染与复用)**：前端通过 2D (SVG/D3) 或 3D (WebGL/Three.js/Cesium) 引擎将 `GraphData` 进行可视化渲染，支持用户交互式编辑、拖拽和格式导出。
+- **Reuse (渲染与复用)**：前端通过 2D (SVG/D3) 或 3D (WebGL/Three.js/MapLibre Globe) 引擎将 `GraphData` 进行可视化渲染，支持用户交互式编辑、拖拽和格式导出。
 
 代码仓库采用解耦的 Monorepo 风格组织，主要分为前端应用（React）和后端数据解析脚本（Python）以及共享类型库。
 
@@ -20,7 +20,7 @@
 | `canvas/` | React, Vite, Three.js, D3, Zustand, RxDB | **前端可视化应用**。提供图谱的 2D 和 3D 渲染，包含富文本编辑（Monaco）、Markdown 预览、节点/边的实时交互操作，以及配置面板和侧边栏控制。 |
 | `knowgrph_parser/` | Python, NetworkX, RDFLib, NLTK, DuckDB | **后端数据解析与提取引擎**。处理数据源的加载和转化工作。支持从代码库中建立知识图谱索引、GraphRAG 流水线处理，以及将多模态数据转换为统一的 `GraphData` 格式。 |
 | `grph-shared/` | TypeScript | **共享库**。提供图谱核心类型（如 `GraphNode`, `GraphEdge`, `GraphData`），以及在各前端模块之间共享的纯函数工具（哈希、缓存、数组处理、URL解析等）。 |
-| `gympgrph/` | TypeScript, MapLibre, Cesium | **地理空间与地图集成库**。负责提供 3D 地理信息及相关可视化能力，用于包含地理坐标的数据集（GeoJSON等）。 |
+| `gympgrph/` | TypeScript, MapLibre | **地理空间与地图集成库**。负责提供 2D/3D 地理信息及相关可视化能力，用于包含地理坐标的数据集（GeoJSON等）。 |
 | `schema-config/` | JSON | **样式与规则配置库**。存储图谱节点和边的预设视觉样式（颜色、粗细）、布局物理力参数以及验证约束规则。 |
 | `docs/` & `data/` | Markdown, JSON | **文档与数据制品**。包含系统设计文档、API目录、测试使用的示例数据集以及解析脚本的输出基线。 |
 
@@ -63,7 +63,7 @@
 - **可视化**: 
   - `three` & `@react-three/fiber` (3D 渲染)
   - `d3` (2D SVG 图谱及力导向布局)
-  - `cesium`, `maplibre-gl` (地理空间可视化)
+  - `maplibre-gl` (地理空间可视化)
   - `mermaid` (Markdown 流程图支持)
 - **状态管理与本地存储**: `zustand`, `rxdb`, `rxjs`
 - **编辑器与解析**: `monaco-editor` (代码编辑), `markdown-it` / `unified` (文档解析)

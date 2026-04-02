@@ -6,10 +6,11 @@
 
 ---
 
-## Status (2026-01-24)
+## Status (2026-04-02)
 
 - Knowgrph keeps Geospatial Mode logic out of its codebase and loads it on-demand from the sibling repo `gympgrph` (implementation lives in `gympgrph/src/`).
 - Knowgrph exposes a toolbar entrypoint (**Geospatial Mode**, right of **3D Mode**) that opens the Floating Panel **Geo** view and toggles the gympgrph overlay.
+- **3D render mode uses MapLibre Globe exclusively** (Cesium has been removed). The 3D overlay renders via the same MapLibre instance, switching from Mercator to globe projection. Initial 3D camera is deterministic: Singapore center (`lng 103.8198, lat 1.3521`), zoom `2.8`, pitch `0`, bearing `0`, applied as a single `jumpTo` call with zero padding, followed by one RAF stabilization pass. Passive auto-fit is disabled in 3D mode so the startup camera is never immediately overwritten. Explicit fit requests (user-initiated or data-driven) remain fully functional.
 
 ## Current Status (Runtime Overlay)
 

@@ -23,7 +23,7 @@ import type { GraphState, NodePosition2d } from '@/hooks/store/types';
 import type { GraphSchema } from '@/lib/graph/schema'
 import { DEFAULT_BBOX_COLLIDE_PADDING, DEFAULT_FIT_PADDING, DEFAULT_GROUP_BBOX_COLLIDE_PADDING } from '@/lib/graph/layoutDefaults'
 import { buildDocumentKey, buildDocumentRef, readPerDocumentUiState, writePerDocumentUiState } from '@/lib/persistence/perDocumentUiState'
-import { scheduleCoalescedTask } from '@/lib/async/coalescedScheduler'
+import { scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 
 const positionsMatch = (
   a: Record<string, NodePosition2d> | null | undefined,
@@ -267,7 +267,7 @@ try {
     let pending: { key: string; ref: string; state: Parameters<typeof writePerDocumentUiState>[0]['state'] } | null = null
 
     const schedulePersist = () => {
-      scheduleCoalescedTask('per-document-ui', () => {
+      scheduleWorkspaceSyncTask('per-document-ui', () => {
         const next = pending
         pending = null
         if (!next) return

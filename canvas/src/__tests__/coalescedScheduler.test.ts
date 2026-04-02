@@ -1,4 +1,5 @@
 import { scheduleCoalescedTask, cancelCoalescedTask } from '@/lib/async/coalescedScheduler'
+import { scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 
 export async function testCoalescedSchedulerCoalescesLatestCallback() {
   const key = 'test:coalescedScheduler:coalesce'
@@ -39,3 +40,27 @@ export async function testCoalescedSchedulerCancelPreventsCallback() {
   }
 }
 
+export async function testWorkspaceSyncSchedulerRunsLatestPerTaskUnderSharedKey() {
+  const calls: string[] = []
+  scheduleWorkspaceSyncTask('runtime:refresh', () => {
+    calls.push('runtime:first')
+  }, 10)
+  scheduleWorkspaceSyncTask('runtime:refresh', () => {
+    calls.push('runtime:latest')
+  }, 10)
+  scheduleWorkspaceSyncTask('persistence:source-files', () => {
+    calls.push('persistence:latest')
+  }, 10)
+
+  await new Promise(resolve => setTimeout(resolve, 40))
+
+  if (calls.length !== 2) {
+    throw new Error(`expected 2 calls, got ${calls.length}`)
+  }
+  if (!calls.includes('runtime:latest')) {
+    throw new Error('expected runtime task to keep only latest callback')
+  }
+  if (!calls.includes('persistence:latest')) {
+    throw new Error('expected persistence task to execute once under shared scheduler key')
+  }
+}

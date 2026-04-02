@@ -21,46 +21,11 @@ const resolvedReactJsxDevRuntime = nodeRequire.resolve('react/jsx-dev-runtime')
 const resolvedReactDom = nodeRequire.resolve('react-dom')
 const resolvedReactDomClient = nodeRequire.resolve('react-dom/client')
 
-const cesiumPublicDir = path.resolve(__dirname, 'public', 'cesium')
-
 const MARKDOWN_PIPELINE_INPUT_REL_PATH =
   String(process.env.VITE_MARKDOWN_PIPELINE_INPUT_REL_PATH || '').trim() || 'docs/knowgrph-pipeline-document.md'
 const CODEBASE_INDEX_PIPELINE_OUTPUT_DIR =
   String(process.env.VITE_MARKDOWN_PIPELINE_OUTPUT_DIR || '').trim() || 'data/knowgrph-workflow-preview'
 const CODEBASE_INDEX_PIPELINE_COMMAND = `python -m knowgrph_parser markdown --input ${MARKDOWN_PIPELINE_INPUT_REL_PATH} --output-dir ${CODEBASE_INDEX_PIPELINE_OUTPUT_DIR}`
-
-async function ensureCesiumPublicAssets(): Promise<void> {
-  try {
-    const widgetsCss = path.join(cesiumPublicDir, 'Widgets', 'widgets.css')
-    if (existsSync(widgetsCss)) return
-
-    const pkgJson = nodeRequire.resolve('cesium/package.json')
-    const pkgDir = path.dirname(pkgJson)
-    const buildDir = path.join(pkgDir, 'Build', 'Cesium')
-
-    await fs.mkdir(cesiumPublicDir, { recursive: true })
-
-    const folders = ['Assets', 'Widgets', 'ThirdParty', 'Workers']
-    for (const folder of folders) {
-      const src = path.join(buildDir, folder)
-      const dst = path.join(cesiumPublicDir, folder)
-      if (!existsSync(src)) continue
-      await fs.cp(src, dst, { recursive: true })
-    }
-  } catch {
-    void 0
-  }
-}
-
-const cesiumAssetsPlugin = {
-  name: 'knowgrph-cesium-assets',
-  async configResolved() {
-    await ensureCesiumPublicAssets()
-  },
-  async buildStart() {
-    await ensureCesiumPublicAssets()
-  },
-}
 
 const stripEntitiesBadSourcemapsPlugin = {
   name: 'knowgrph-strip-entities-bad-sourcemaps',
@@ -3592,14 +3557,11 @@ const youtubeConvertDevPlugin = {
 }
 
 export default defineConfig(({ command }) => ({
-  define: {
-    CESIUM_BASE_URL: JSON.stringify('/cesium/'),
-  },
   esbuild: {
     sourcemap: false,
   },
   optimizeDeps: {
-    include: ['highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'dagre', 'elkjs', 'cesium'],
+    include: ['highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'dagre', 'elkjs'],
     exclude: ['gympgrph', 'grph-shared', 'entities'],
     esbuildOptions: {
       sourcemap: false,
@@ -3633,7 +3595,7 @@ export default defineConfig(({ command }) => ({
   },
   resolve: {
     preserveSymlinks: true,
-    dedupe: ['react', 'react-dom', 'highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'cesium'],
+    dedupe: ['react', 'react-dom', 'highlight.js', 'dayjs', 'mermaid', 'maplibre-gl'],
     alias: [
       { find: 'react/jsx-runtime', replacement: resolvedReactJsxRuntime },
       { find: 'react/jsx-dev-runtime', replacement: resolvedReactJsxDevRuntime },
@@ -3685,7 +3647,6 @@ export default defineConfig(({ command }) => ({
   plugins: [
     stripEntitiesBadSourcemapsPlugin,
     react(),
-    cesiumAssetsPlugin,
     ...(command === 'build'
       ? []
       : [

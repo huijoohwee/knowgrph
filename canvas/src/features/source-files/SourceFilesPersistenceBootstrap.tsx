@@ -9,7 +9,7 @@ import {
 } from '@/features/source-files/sourceFilesDb'
 import { applyComposedGraphFromSourceFiles, scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { hashStringToHex } from '@/lib/hash/stringHash'
-import { scheduleCoalescedTask, cancelCoalescedTask } from '@/lib/async/coalescedScheduler'
+import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 
 const arraysEqualByIdAndHash = (a: unknown, b: unknown): boolean => {
   const aa = Array.isArray(a) ? a : []
@@ -91,7 +91,7 @@ export function SourceFilesPersistenceBootstrap() {
   }, [])
 
   React.useEffect(() => {
-    const key = 'source-files:persist'
+    const taskKey = 'source-files:persist'
     const unsubscribe = useGraphStore.subscribe(
       s => s.sourceFiles,
       next => {
@@ -104,8 +104,9 @@ export function SourceFilesPersistenceBootstrap() {
           void 0
         }
 
-        scheduleCoalescedTask(key, () => {
+        scheduleWorkspaceSyncTask(taskKey, () => {
           const snapshot = useGraphStore.getState().sourceFiles
+          if (arraysEqualByIdAndHash(snapshot, lastPersistedRef.current)) return
           lastPersistedRef.current = snapshot
           void persistSourceFiles(snapshot)
         }, 600)
@@ -113,7 +114,7 @@ export function SourceFilesPersistenceBootstrap() {
       { equalityFn: arraysEqualByIdAndHash },
     )
     return () => {
-      cancelCoalescedTask(key)
+      cancelWorkspaceSyncTask(taskKey)
       unsubscribe()
     }
   }, [])
@@ -129,7 +130,7 @@ export function SourceFilesPersistenceBootstrap() {
   }, [])
 
   React.useEffect(() => {
-    const key = 'source-files:workspace'
+    const taskKey = 'source-files:workspace'
     const unsubscribe = useGraphStore.subscribe(
       s => [s.localMarkdownFolderName, s.localMarkdownFolderAccessMode, s.localMarkdownFolderCacheId, s.localMarkdownSelectedFolderPath],
       () => {
@@ -145,8 +146,18 @@ export function SourceFilesPersistenceBootstrap() {
         ) {
           return
         }
-        scheduleCoalescedTask(key, () => {
+        scheduleWorkspaceSyncTask(taskKey, () => {
           const nextSnapshot = getWorkspaceSnapshot()
+          const prevSnapshot = lastWorkspacePersistedRef.current as SourceFilesWorkspaceState | null
+          if (
+            prevSnapshot &&
+            prevSnapshot.folderName === nextSnapshot.folderName &&
+            prevSnapshot.accessMode === nextSnapshot.accessMode &&
+            prevSnapshot.folderCacheId === nextSnapshot.folderCacheId &&
+            prevSnapshot.selectedFolderPath === nextSnapshot.selectedFolderPath
+          ) {
+            return
+          }
           lastWorkspacePersistedRef.current = nextSnapshot
           void persistSourceFilesWorkspace(nextSnapshot)
         }, 600)
@@ -165,7 +176,7 @@ export function SourceFilesPersistenceBootstrap() {
       },
     )
     return () => {
-      cancelCoalescedTask(key)
+      cancelWorkspaceSyncTask(taskKey)
       unsubscribe()
     }
   }, [getWorkspaceSnapshot])
