@@ -1026,8 +1026,9 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   }, [contentMode, quickEditorEditorText, setStatusWithAutoClear])
 
   React.useEffect(() => {
+    if (!active) return
     void refresh()
-  }, [refresh])
+  }, [active, refresh])
 
   const setSelectionPathSafe = React.useCallback((path: WorkspacePath) => {
     setSelectionPath(normalizeWorkspacePath(path))
@@ -1035,6 +1036,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
 
 
   React.useEffect(() => {
+    if (!active) return
     const taskKey = 'markdown-workspace:refresh'
     const unsubscribe = subscribeWorkspaceFsChanged(detail => {
       const active = activePathRef.current
@@ -1052,47 +1054,63 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       cancelWorkspaceSyncTask(taskKey)
       unsubscribe()
     }
-  }, [refresh])
+  }, [active, refresh])
+
+  const persistWorkspacePrefsPendingRef = React.useRef<{
+    sidebarWidthPx: number
+    explorerOpen: boolean
+    sourceFilesCollapsed: boolean
+    tocCollapsed: boolean
+    backlinksCollapsed: boolean
+    markdownWordWrap: boolean
+    markdownTextHighlight: boolean
+    folderModeContract: FolderModeContract
+    layoutMode: MarkdownWorkspaceLayoutMode
+    expandedPaths: string[]
+  } | null>(null)
 
   React.useEffect(() => {
-    lsSetInt(LS_KEYS.markdownSidebarWidthPx, sidebarWidthPx, { min: SIDEBAR_MIN_PX, max: SIDEBAR_MAX_PX })
-  }, [sidebarWidthPx])
-
-  React.useEffect(() => {
-    lsSetBool(LS_KEYS.markdownSidebarOpen, explorerOpen)
-  }, [explorerOpen])
-
-  React.useEffect(() => {
-    lsSetBool(LS_KEYS.markdownExplorerSourceFilesCollapsed, sourceFilesCollapsed)
-  }, [sourceFilesCollapsed])
-
-  React.useEffect(() => {
-    lsSetBool(LS_KEYS.markdownExplorerOutlineCollapsed, tocCollapsed)
-  }, [tocCollapsed])
-
-  React.useEffect(() => {
-    lsSetBool(LS_KEYS.markdownExplorerBacklinksCollapsed, backlinksCollapsed)
-  }, [backlinksCollapsed])
-
-  React.useEffect(() => {
-    lsSetBool(LS_KEYS.markdownWordWrap, markdownWordWrap)
-  }, [markdownWordWrap])
-
-  React.useEffect(() => {
-    lsSetBool(LS_KEYS.markdownTextHighlight, markdownTextHighlight)
-  }, [markdownTextHighlight])
-
-  React.useEffect(() => {
-    lsSetJson<FolderModeContract>(LS_KEYS.markdownExplorerFolderModeContract, folderModeContract)
-  }, [folderModeContract])
-
-  React.useEffect(() => {
-    lsSetJson<MarkdownWorkspaceLayoutMode>(LS_KEYS.markdownLayoutMode, layoutMode)
-  }, [layoutMode])
-
-  React.useEffect(() => {
-    lsSetJson(LS_KEYS.markdownExplorerSourceFilesExpandedPaths, [...expandedPaths])
-  }, [expandedPaths])
+    persistWorkspacePrefsPendingRef.current = {
+      sidebarWidthPx,
+      explorerOpen,
+      sourceFilesCollapsed,
+      tocCollapsed,
+      backlinksCollapsed,
+      markdownWordWrap,
+      markdownTextHighlight,
+      folderModeContract,
+      layoutMode,
+      expandedPaths: [...expandedPaths],
+    }
+    scheduleWorkspaceSyncTask('markdown-workspace:prefs', () => {
+      const pending = persistWorkspacePrefsPendingRef.current
+      if (!pending) return
+      lsSetInt(LS_KEYS.markdownSidebarWidthPx, pending.sidebarWidthPx, { min: SIDEBAR_MIN_PX, max: SIDEBAR_MAX_PX })
+      lsSetBool(LS_KEYS.markdownSidebarOpen, pending.explorerOpen)
+      lsSetBool(LS_KEYS.markdownExplorerSourceFilesCollapsed, pending.sourceFilesCollapsed)
+      lsSetBool(LS_KEYS.markdownExplorerOutlineCollapsed, pending.tocCollapsed)
+      lsSetBool(LS_KEYS.markdownExplorerBacklinksCollapsed, pending.backlinksCollapsed)
+      lsSetBool(LS_KEYS.markdownWordWrap, pending.markdownWordWrap)
+      lsSetBool(LS_KEYS.markdownTextHighlight, pending.markdownTextHighlight)
+      lsSetJson<FolderModeContract>(LS_KEYS.markdownExplorerFolderModeContract, pending.folderModeContract)
+      lsSetJson<MarkdownWorkspaceLayoutMode>(LS_KEYS.markdownLayoutMode, pending.layoutMode)
+      lsSetJson(LS_KEYS.markdownExplorerSourceFilesExpandedPaths, pending.expandedPaths)
+    }, 120)
+    return () => {
+      cancelWorkspaceSyncTask('markdown-workspace:prefs')
+    }
+  }, [
+    backlinksCollapsed,
+    expandedPaths,
+    explorerOpen,
+    folderModeContract,
+    layoutMode,
+    markdownTextHighlight,
+    markdownWordWrap,
+    sidebarWidthPx,
+    sourceFilesCollapsed,
+    tocCollapsed,
+  ])
 
   React.useEffect(() => {
     if (!highlightedLineRange) return

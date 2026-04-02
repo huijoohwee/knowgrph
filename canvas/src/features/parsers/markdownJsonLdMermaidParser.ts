@@ -83,6 +83,13 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     return mergedStyles
   }
 
+  const mapShapeToPrimitive = (shape: string | null | undefined): 'node' | 'edge' | 'cluster' => {
+    const v = String(shape || '').trim().toLowerCase()
+    if (v === 'circle') return 'cluster'
+    if (v === 'hex') return 'edge'
+    return 'node'
+  }
+
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i]?.trim() ?? ''
     if (!trimmed) continue
@@ -168,6 +175,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       nodeName: safeName,
       label: label ?? safeName, // Use name as label if no label provided
       'visual:layer': Math.max(1, subgraphStack.length + 1),
+      'frontmatter:primitive': mapShapeToPrimitive(shape),
       mermaidScope: scope,
       ...(isFrontmatter ? { isMermaidFrontmatter: true } : {}),
       ...(diagramId ? { mermaidDiagramId: diagramId } : {}),
@@ -237,6 +245,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       properties: {
         subgraphName: safeName,
         nodeName: safeName,
+        'frontmatter:primitive': 'cluster',
         'visual:layer': Math.max(1, subgraphStack.length + 1),
         mermaidScope: scope,
         ...(isFrontmatter ? { isMermaidFrontmatter: true } : {}),

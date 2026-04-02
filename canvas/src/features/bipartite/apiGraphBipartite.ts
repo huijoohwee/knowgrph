@@ -783,17 +783,26 @@ export function normalizeBipartiteApiGraphData(args: {
   return normalizeApiGraphToBipartiteGraphData(args.payload, settings)
 }
 
-async function fetchApiGraphPayload(args: { signal: AbortSignal }): Promise<ApiGraphPayload> {
-  const res = await fetch('/api/graph', { signal: args.signal, cache: 'no-store' })
+async function fetchApiGraphPayload(): Promise<ApiGraphPayload> {
+  const res = await fetch('/api/graph', { cache: 'no-store' })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const contentType = String(res.headers.get('content-type') || '').toLowerCase()
+  if (!contentType.includes('application/json')) {
+    const preview = await res
+      .text()
+      .then(text => text.slice(0, 64).toLowerCase())
+      .catch(() => '')
+    const isHtml = preview.startsWith('<!doctype') || preview.startsWith('<html')
+    throw new Error(isHtml ? 'Invalid /api/graph payload: received HTML' : 'Invalid /api/graph payload: expected JSON')
+  }
   const json = (await res.json()) as unknown
   const parsed = readApiGraphPayload(json)
   if (!parsed) throw new Error('Invalid /api/graph payload')
   return parsed
 }
 
-async function fetchBipartiteFixturePayload(args: { signal: AbortSignal }): Promise<ApiGraphPayload> {
-  const res = await fetch('/__bipartite_fixture', { signal: args.signal, cache: 'no-store' })
+async function fetchBipartiteFixturePayload(): Promise<ApiGraphPayload> {
+  const res = await fetch('/__bipartite_fixture', { cache: 'no-store' })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const json = (await res.json()) as unknown
   const parsed = readApiGraphPayload(json)
@@ -801,11 +810,33 @@ async function fetchBipartiteFixturePayload(args: { signal: AbortSignal }): Prom
   return parsed
 }
 
+const isApiGraphUnavailableError = (err: unknown): boolean => {
+  const message = err instanceof Error ? err.message : String(err || '')
+  return (
+    message.includes('HTTP 404') ||
+    message.includes('Invalid /api/graph payload: received HTML') ||
+    message.includes('Invalid /api/graph payload: expected JSON')
+  )
+}
+
+const withTimeout = async <T>(factory: () => Promise<T>, timeoutMs: number): Promise<T> => {
+  let timeoutId: number | null = null
+  try {
+    const timeoutPromise = new Promise<T>((_, reject) => {
+      timeoutId = window.setTimeout(() => reject(new Error('API graph request timeout')), timeoutMs)
+    })
+    return await Promise.race([factory(), timeoutPromise])
+  } finally {
+    if (timeoutId != null) window.clearTimeout(timeoutId)
+  }
+}
+
 export function useApiGraphBipartiteGraphData(enabled: boolean): { graphData: GraphData | null } {
   const [payload, setPayload] = React.useState<ApiGraphPayload | null>(null)
   const lastSigRef = React.useRef<string>('')
   const inFlightRef = React.useRef(false)
   const mountedRef = React.useRef(true)
+  const apiGraphUnavailableRef = React.useRef(false)
 
   const { dataSource, pollIntervalSec, markdownDocumentName, markdownDocumentText } = useGraphStore(
     useShallow(s => ({
@@ -851,7 +882,7 @@ export function useApiGraphBipartiteGraphData(enabled: boolean): { graphData: Gr
     } catch {
       return null
     }
-  }, [dataSource, debouncedWorkspaceText, enabled, markdownDocumentName])
+  }, [debouncedWorkspaceText, enabled, markdownDocumentName])
 
   const effectiveWorkspaceSource = React.useMemo(() => {
     if (!workspacePayload) return false
@@ -879,47 +910,42 @@ export function useApiGraphBipartiteGraphData(enabled: boolean): { graphData: Gr
 
     let cancelled = false
     let intervalId: number | null = null
-    const controllerRef: { current: AbortController | null } = { current: null }
 
     const runOnce = async () => {
       if (cancelled || !mountedRef.current) return
       if (inFlightRef.current) return
       inFlightRef.current = true
-      controllerRef.current?.abort()
-      controllerRef.current = new AbortController()
-
-      const timeoutId = window.setTimeout(() => {
-        try {
-          controllerRef.current?.abort()
-        } catch {
-          void 0
-        }
-      }, 12_000)
 
       try {
-        const anyImportMeta = import.meta as unknown as { env?: { DEV?: boolean } }
-        const isDev = anyImportMeta.env?.DEV === true
+        const loadFixturePayload = async (): Promise<ApiGraphPayload> =>
+          withTimeout(() => fetchBipartiteFixturePayload(), 12_000).catch(() => DEV_FALLBACK_API_GRAPH)
+        const loadApiPayload = async (): Promise<ApiGraphPayload> => withTimeout(() => fetchApiGraphPayload(), 12_000)
         const payload = await (async () => {
           if (dataSource === 'fixture') {
-            if (isDev) {
-              return await fetchBipartiteFixturePayload({ signal: controllerRef.current.signal }).catch(() => DEV_FALLBACK_API_GRAPH)
-            }
-            return await fetchApiGraphPayload({ signal: controllerRef.current.signal })
+            return await loadFixturePayload()
           }
-          return await fetchApiGraphPayload({ signal: controllerRef.current.signal }).catch(async (err) => {
-            if (!isDev) throw err
-            return await fetchBipartiteFixturePayload({ signal: controllerRef.current.signal }).catch(() => DEV_FALLBACK_API_GRAPH)
-          })
+          if (apiGraphUnavailableRef.current) return await loadFixturePayload()
+          return await loadApiPayload()
+            .then(next => {
+              apiGraphUnavailableRef.current = false
+              return next
+            })
+            .catch(async err => {
+              if (!isApiGraphUnavailableError(err)) throw err
+              apiGraphUnavailableRef.current = true
+              return await loadFixturePayload()
+            })
         })()
         const sig = buildApiGraphSignature(payload)
         if (sig && sig === lastSigRef.current) return
         lastSigRef.current = sig
         if (cancelled || !mountedRef.current) return
         setPayload(payload)
-      } catch {
-        void 0
+      } catch (err) {
+        if (cancelled || !mountedRef.current) return
+        if (isApiGraphUnavailableError(err)) return
+        console.error(err)
       } finally {
-        window.clearTimeout(timeoutId)
         inFlightRef.current = false
       }
     }
@@ -933,11 +959,6 @@ export function useApiGraphBipartiteGraphData(enabled: boolean): { graphData: Gr
       cancelled = true
       inFlightRef.current = false
       if (intervalId != null) window.clearInterval(intervalId)
-      try {
-        controllerRef.current?.abort()
-      } catch {
-        void 0
-      }
     }
   }, [dataSource, effectiveWorkspaceSource, enabled, pollIntervalSec])
 

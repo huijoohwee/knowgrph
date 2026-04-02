@@ -64,3 +64,27 @@ export const testGraphDataForDisplayKeepsKeywordSourceWhenAllEdgesWouldDisappear
   const edgeIds = new Set((display.edges || []).map(e => String((e as { id?: unknown }).id)))
   if (!edgeIds.has('e1')) throw new Error('expected mention edge to be preserved')
 }
+
+export const testGraphDataForDisplayFrontmatterSuppressesParagraphAndList = () => {
+  const graphData: GraphData = {
+    type: 'Graph',
+    context: 'markdown',
+    metadata: { kind: 'frontmatter-flow' },
+    nodes: [
+      { id: 'm1', type: 'MermaidNode', label: 'M1', properties: { mermaidScope: 'frontmatter' }, metadata: {} },
+      { id: 'p1', type: 'Paragraph', label: 'Paragraph 1', properties: {}, metadata: {} },
+      { id: 'l1', type: 'List', label: 'List 1', properties: {}, metadata: {} },
+    ],
+    edges: [
+      { id: 'e1', source: 'm1', target: 'p1', label: 'hasBlock', properties: {}, metadata: {} },
+      { id: 'e2', source: 'p1', target: 'l1', label: 'next', properties: {}, metadata: {} },
+    ],
+  }
+
+  const display = getGraphDataForDisplay({ graphData })
+  const nodeIds = new Set((display.nodes || []).map(n => String((n as { id?: unknown }).id)))
+  if (!nodeIds.has('m1')) throw new Error('expected frontmatter mermaid node to remain')
+  if (nodeIds.has('p1')) throw new Error('expected Paragraph node to be suppressed in frontmatter display')
+  if (nodeIds.has('l1')) throw new Error('expected List node to be suppressed in frontmatter display')
+  if ((display.edges || []).length !== 0) throw new Error('expected edges connected only to suppressed nodes to be removed')
+}

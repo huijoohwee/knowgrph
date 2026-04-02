@@ -456,3 +456,112 @@ export function testMarkdownFrontmatterFlowGraphParsesMultiFrontmatterBlocks() {
   if (res.graphData.nodes.length !== 2) throw new Error(`expected 2 nodes, got ${res.graphData.nodes.length}`)
   if (res.graphData.edges.length !== 1) throw new Error(`expected 1 edge, got ${res.graphData.edges.length}`)
 }
+
+export function testMarkdownFrontmatterFlowGraphParsesSigilNeuralTemplateAndBodyAnnotations() {
+  const md = [
+    '---',
+    'doc:',
+    '  id: "doc:test"',
+    'nodes:',
+    '  - @node:pain:a: { label: "Pain A", status: placeholder }',
+    '  - @node:feature:1: { label: "Feature 1", status: active }',
+    'clusters:',
+    '  - @cluster:pitch:',
+    '      label: "Pitch Cluster"',
+    '      color: "#2D6A4F"',
+    '      members:',
+    '        - "@node:pain:a"',
+    '        - "@node:feature:1"',
+    'edges:',
+    '  - id: @edge:pain→feature',
+    '    source: "@node:pain:*"',
+    '    target: "@node:feature:*"',
+    '    rel: motivates',
+    '---',
+    '',
+    '## Pitch<!-- @cluster:pitch -->',
+    'Pain marker<!-- @node:pain:a -->',
+    'Feature marker<!-- @node:feature:1 -->',
+    '',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('sigil-template.md', md)
+  if (!res) throw new Error('expected a frontmatter flow graph parse result')
+  if (res.graphData.nodes.length < 3) throw new Error(`expected at least 3 nodes, got ${res.graphData.nodes.length}`)
+  if (res.graphData.edges.length < 1) throw new Error(`expected at least 1 edge, got ${res.graphData.edges.length}`)
+
+  const pain = res.graphData.nodes.find(n => n.id === '@node:pain:a') || null
+  if (!pain) throw new Error('expected @node:pain:a')
+  const pitch = res.graphData.nodes.find(n => n.id === '@cluster:pitch') || null
+  if (!pitch) throw new Error('expected @cluster:pitch')
+  const painPrimitive = (pain.properties || {})['frontmatter:primitive']
+  const clusterPrimitive = (pitch.properties || {})['frontmatter:primitive']
+  if (painPrimitive !== 'node') throw new Error('expected @node primitive=node')
+  if (clusterPrimitive !== 'cluster') throw new Error('expected @cluster primitive=cluster')
+
+  const edge = res.graphData.edges.find(e => String(e.id || '').startsWith('@edge:pain→feature')) || null
+  if (!edge) throw new Error('expected @edge:pain→feature edge')
+  if ((edge.properties || {})['frontmatter:primitive'] !== 'edge') throw new Error('expected edge primitive=edge')
+  if (String(edge.label || '') !== 'motivates') throw new Error('expected edge label motivates')
+
+  const meta = (res.graphData.metadata || {}) as Record<string, unknown>
+  const wiring = meta.frontmatterAnnotationWiring as unknown
+  if (!wiring || typeof wiring !== 'object') throw new Error('expected frontmatterAnnotationWiring metadata')
+  const nodeIds = (wiring as { nodeIds?: unknown }).nodeIds
+  if (!Array.isArray(nodeIds) || !nodeIds.includes('@node:pain:a')) throw new Error('expected node annotation ids to include @node:pain:a')
+  const clusterIds = (wiring as { clusterIds?: unknown }).clusterIds
+  if (!Array.isArray(clusterIds) || !clusterIds.includes('@cluster:pitch')) throw new Error('expected cluster annotation ids to include @cluster:pitch')
+
+  const subgraphs = meta[KG_SUBGRAPHS_KEY]
+  if (!Array.isArray(subgraphs)) throw new Error('expected subgraphs metadata')
+  const pitchSubgraph = subgraphs.find(s => (s as { id?: unknown }).id === '@cluster:pitch') || null
+  if (!pitchSubgraph) throw new Error('expected @cluster:pitch subgraph')
+}
+
+export function testMarkdownFrontmatterFlowGraphPrefersMermaidWiringOverSyntheticSigilExpansion() {
+  const md = [
+    '---',
+    'nodes:',
+    '  - @node:pain:a: { label: "Pain A", status: placeholder }',
+    '  - @node:feature:1: { label: "Feature 1", status: active }',
+    'edges:',
+    '  - id: @edge:pain→feature',
+    '    source: "@node:pain:*"',
+    '    target: "@node:feature:*"',
+    '    rel: motivates',
+    'graph: |',
+    '  graph TD',
+    '    n_pain["@node:pain:a · Pain A"]',
+    '    n_feat["@node:feature:1 · Feature 1"]',
+    '    e_motivates{{"@edge:pain→feature · motivates"}}',
+    '    n_pain -->|identity-anchor| e_motivates --> n_feat',
+    '---',
+    '',
+    'Body',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('sigil-mermaid-wiring.md', md)
+  if (!res) throw new Error('expected a frontmatter flow graph parse result')
+  const edges = res.graphData.edges || []
+  if (edges.length !== 2) throw new Error(`expected exactly 2 mermaid wiring edges, got ${edges.length}`)
+
+  const hasSyntheticMotivates = edges.some(e => String(e.label || '') === 'motivates')
+  if (hasSyntheticMotivates) throw new Error('expected no synthetic direct motivates edges when mermaid wiring exists')
+
+  const edgeNode = res.graphData.nodes.find(n => n.id === '@edge:pain→feature') || null
+  if (!edgeNode) throw new Error('expected @edge node to be materialized from mermaid wiring')
+  const primitive = (edgeNode.properties || {})['frontmatter:primitive']
+  if (primitive !== 'edge') throw new Error('expected @edge node primitive=edge')
+
+  const edgeSourceKinds = new Set(
+    edges.map(e => String(((e.properties || {}) as Record<string, unknown>)['frontmatter:edgeSource'] || '')),
+  )
+  if (edgeSourceKinds.size !== 1 || !edgeSourceKinds.has('mermaid-wiring')) {
+    throw new Error('expected all edges to come from mermaid wiring source')
+  }
+
+  const identityAnchorEdge = edges.find(e => String(e.label || '') === 'identity-anchor') || null
+  if (!identityAnchorEdge) throw new Error('expected inline mermaid edge label to be preserved')
+  const displayLabel = String(((identityAnchorEdge.properties || {}) as Record<string, unknown>)['frontmatter:displayLabel'] || '')
+  if (displayLabel !== 'identity-anchor') throw new Error('expected frontmatter:displayLabel to preserve inline label')
+}

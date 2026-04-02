@@ -4,6 +4,7 @@ import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { hashString32 } from 'grph-shared/hash/stringHash'
 import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
+import { clearRxdbLocalstorageForDatabaseName } from '@/lib/storage/rxdbRecovery'
 
 export type GraphTableId = 'nodes' | 'edges'
 
@@ -191,23 +192,39 @@ export const getGraphTableDb = async (): Promise<GraphTableDb> => {
   if (graphTableDbSingleton) return graphTableDbSingleton
   graphTableDbSingleton = (async () => {
     ensureRxdbPlugins()
-    const db = await createRxDatabase<GraphTableCollections>({
-      name: GRAPH_TABLE_DB_NAME,
-      storage: getCanvasRxStorage(),
-      multiInstance: true,
-      eventReduce: true,
-      closeDuplicates: true,
-    })
-    const collections = await db.addCollections({
-      tables: { schema: graphTableSchema },
-      columns: { schema: graphColumnSchema },
-      rows: { schema: graphRowSchema },
-      views: { schema: graphViewSchema },
-      meta: { schema: graphMetaSchema },
-    })
-    return { db, collections }
+    let didReset = false
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const db = await createRxDatabase<GraphTableCollections>({
+          name: GRAPH_TABLE_DB_NAME,
+          storage: getCanvasRxStorage(),
+          multiInstance: true,
+          eventReduce: true,
+          closeDuplicates: true,
+        })
+        const collections = await db.addCollections({
+          tables: { schema: graphTableSchema },
+          columns: { schema: graphColumnSchema },
+          rows: { schema: graphRowSchema },
+          views: { schema: graphViewSchema },
+          meta: { schema: graphMetaSchema },
+        })
+        return { db, collections }
+      } catch (err) {
+        if (didReset) {
+          graphTableDbSingleton = null
+          throw err
+        }
+        didReset = true
+        clearRxdbLocalstorageForDatabaseName(GRAPH_TABLE_DB_NAME)
+      }
+    }
+    throw new Error('Failed to initialize graph-table database')
   })()
-  return graphTableDbSingleton
+  return graphTableDbSingleton.catch(err => {
+    graphTableDbSingleton = null
+    throw err
+  })
 }
 
 export const warmGraphTableDb = async (): Promise<void> => {

@@ -36,4 +36,15 @@ export function testMermaidParserCapturesNodeShapes() {
   if (shapeOf('B') !== 'hex') throw new Error('expected hexagon node to map to visual:shape=hex')
   if (shapeOf('C') !== 'circle') throw new Error('expected circle node to map to visual:shape=circle')
   if (shapeOf('D') !== 'rect') throw new Error('expected box node to map to visual:shape=rect')
+
+  const primitiveOf = (nodeName: string) => {
+    const n = byName.get(nodeName)
+    if (!n) return ''
+    const props = (n.properties || {}) as Record<string, unknown>
+    return typeof props['frontmatter:primitive'] === 'string' ? props['frontmatter:primitive'] : ''
+  }
+  if (primitiveOf('A') !== 'node') throw new Error('expected rhombus primitive=node')
+  if (primitiveOf('B') !== 'edge') throw new Error('expected hexagon primitive=edge')
+  if (primitiveOf('C') !== 'cluster') throw new Error('expected circle primitive=cluster')
+  if (primitiveOf('D') !== 'node') throw new Error('expected box primitive=node')
 }

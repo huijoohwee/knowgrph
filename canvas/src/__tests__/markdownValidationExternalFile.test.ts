@@ -26,37 +26,66 @@ export async function testMarkdownValidationExternalFileParsesAndLinksGraphEleme
   if (meta.kind !== 'frontmatter-flow') throw new Error('expected graph metadata kind frontmatter-flow')
 
   const registry = meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
-  if (!Array.isArray(registry) || registry.length === 0) throw new Error('expected node quick editor registry metadata')
-
-  const hasAnyPorts = registry.some(e => {
-    const ports = e && typeof e === 'object' && !Array.isArray(e) ? (e as { ports?: unknown }).ports : null
-    return Array.isArray(ports) && ports.length > 0
-  })
-  if (!hasAnyPorts) throw new Error('expected at least one quick editor registry entry with ports')
+  const hasRegistry = Array.isArray(registry) && registry.length > 0
+  if (hasRegistry) {
+    const hasAnyPorts = registry.some(e => {
+      const ports = e && typeof e === 'object' && !Array.isArray(e) ? (e as { ports?: unknown }).ports : null
+      return Array.isArray(ports) && ports.length > 0
+    })
+    if (!hasAnyPorts) throw new Error('expected at least one quick editor registry entry with ports')
+  }
 
   const subgraphs = meta[KG_SUBGRAPHS_KEY]
   if (!Array.isArray(subgraphs) || subgraphs.length === 0) throw new Error('expected kg:subgraphs metadata')
 
-  const frontmatterNodes = nodes.filter(n => typeof n.id === 'string' && /^NODE_/.test(n.id))
-  if (frontmatterNodes.length === 0) throw new Error('expected at least one NODE_* node from frontmatter overlay')
+  const annotationWiring = meta.frontmatterAnnotationWiring as unknown
+  if (annotationWiring && typeof annotationWiring === 'object') {
+    const refs = (annotationWiring as { refs?: unknown }).refs
+    if (!Array.isArray(refs)) throw new Error('expected frontmatterAnnotationWiring.refs when annotation wiring metadata exists')
+  }
 
-  const frontmatterNodeIdSet = new Set(frontmatterNodes.map(n => String(n.id)))
-  const wikilinksToFlow = nodes.filter(n => {
-    if (n.type !== 'InternalLink') return false
-    const props = (n.properties || {}) as Record<string, unknown>
-    return props.kind === 'wikilink' && typeof props.nodeId === 'string' && frontmatterNodeIdSet.has(String(props.nodeId))
-  })
-  if (wikilinksToFlow.length === 0) throw new Error('expected wikilink InternalLinks targeting NODE_* frontmatter nodes')
-
-  const templateVars = nodes.filter(n => {
-    if (n.type !== 'InternalLink') return false
-    const props = (n.properties || {}) as Record<string, unknown>
-    return props.kind === 'templateVar'
-  })
-  if (templateVars.length === 0) throw new Error('expected templateVar InternalLinks in markdown content')
-
-  const hasPointsTo = edges.some(e => e.label === 'pointsTo' && frontmatterNodeIdSet.has(String(e.target)))
-  if (!hasPointsTo) throw new Error('expected pointsTo edges into NODE_* frontmatter nodes')
+  const sigilNodes = nodes.filter(n => typeof n.id === 'string' && String(n.id).startsWith('@node:'))
+  if (sigilNodes.length > 0) {
+    const annotationWiring = meta.frontmatterAnnotationWiring as unknown
+    if (!annotationWiring || typeof annotationWiring !== 'object') throw new Error('expected frontmatterAnnotationWiring for sigil template')
+    const refs = (annotationWiring as { refs?: unknown }).refs
+    if (!Array.isArray(refs) || refs.length === 0) throw new Error('expected annotation wiring refs for sigil template')
+    const hasClusterRef = nodes.some(n => typeof n.id === 'string' && String(n.id).startsWith('@cluster:'))
+    if (!hasClusterRef) throw new Error('expected @cluster:* node in sigil template parse')
+    if (edges.length === 0) throw new Error('expected at least one expanded edge from sigil template')
+    const hasSyntheticSigilExpandedEdge = edges.some(e => String(e.id || '').startsWith('@edge:'))
+    if (hasSyntheticSigilExpandedEdge) throw new Error('expected no synthetic @edge:* expanded edges when mermaid wiring exists')
+    const hasMermaidWiringSource = edges.some(e => {
+      const props = (e.properties || {}) as Record<string, unknown>
+      return String(props['frontmatter:edgeSource'] || '') === 'mermaid-wiring'
+    })
+    if (!hasMermaidWiringSource) throw new Error('expected mermaid-wiring edge source metadata in sigil template parse')
+    const hasInlineLabel = edges.some(e => {
+      const label = String(e.label || '').trim()
+      if (!label) return false
+      if (label === 'next') return false
+      return true
+    })
+    if (!hasInlineLabel) throw new Error('expected preserved inline mermaid edge labels on wiring edges')
+  } else {
+    const frontmatterNodes = nodes.filter(n => typeof n.id === 'string' && /^NODE_/.test(n.id))
+    if (frontmatterNodes.length === 0) throw new Error('expected at least one NODE_* node from frontmatter overlay')
+    const frontmatterNodeIdSet = new Set(frontmatterNodes.map(n => String(n.id)))
+    const wikilinksToFlow = nodes.filter(n => {
+      if (n.type !== 'InternalLink') return false
+      const props = (n.properties || {}) as Record<string, unknown>
+      return props.kind === 'wikilink' && typeof props.nodeId === 'string' && frontmatterNodeIdSet.has(String(props.nodeId))
+    })
+    if (wikilinksToFlow.length === 0) throw new Error('expected wikilink InternalLinks targeting NODE_* frontmatter nodes')
+    const templateVars = nodes.filter(n => {
+      if (n.type !== 'InternalLink') return false
+      const props = (n.properties || {}) as Record<string, unknown>
+      return props.kind === 'templateVar'
+    })
+    if (templateVars.length === 0) throw new Error('expected templateVar InternalLinks in markdown content')
+    const hasPointsTo = edges.some(e => e.label === 'pointsTo' && frontmatterNodeIdSet.has(String(e.target)))
+    if (!hasPointsTo) throw new Error('expected pointsTo edges into NODE_* frontmatter nodes')
+  }
 
   const typedEdge = edges.find(e => String(e.id || '') === 'e54') || null
   if (typedEdge) {

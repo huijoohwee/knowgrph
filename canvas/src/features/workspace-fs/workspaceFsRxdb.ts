@@ -6,6 +6,7 @@ import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsRemove, lsSetBool } from '@/lib/persistence'
 import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
+import { clearRxdbLocalstorageForDatabaseName } from '@/lib/storage/rxdbRecovery'
 
 const DB_NAME = 'kg:workspace-fs'
 
@@ -36,19 +37,35 @@ let dbSingleton: Promise<{ db: RxDatabase<WorkspaceCollections>; collections: Wo
 const getDb = async () => {
   if (dbSingleton) return dbSingleton
   dbSingleton = (async () => {
-    const db = await createRxDatabase<WorkspaceCollections>({
-      name: DB_NAME,
-      storage: getCanvasRxStorage(),
-      multiInstance: true,
-      eventReduce: true,
-      closeDuplicates: true,
-    })
-    const collections = await db.addCollections({
-      entries: { schema: workspaceEntrySchema },
-    })
-    return { db, collections }
+    let didReset = false
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const db = await createRxDatabase<WorkspaceCollections>({
+          name: DB_NAME,
+          storage: getCanvasRxStorage(),
+          multiInstance: true,
+          eventReduce: true,
+          closeDuplicates: true,
+        })
+        const collections = await db.addCollections({
+          entries: { schema: workspaceEntrySchema },
+        })
+        return { db, collections }
+      } catch (err) {
+        if (didReset) {
+          dbSingleton = null
+          throw err
+        }
+        didReset = true
+        clearRxdbLocalstorageForDatabaseName(DB_NAME)
+      }
+    }
+    throw new Error('Failed to initialize workspace-fs database')
   })()
-  return dbSingleton
+  return dbSingleton.catch(err => {
+    dbSingleton = null
+    throw err
+  })
 }
 
 export function createWorkspaceRxdbFs(): WorkspaceFs {

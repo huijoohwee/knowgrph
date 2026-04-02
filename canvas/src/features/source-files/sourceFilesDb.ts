@@ -2,6 +2,7 @@ import { addRxPlugin, createRxDatabase, type RxCollection, type RxDatabase, type
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema'
 import type { SourceFile } from '@/hooks/store/types'
 import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
+import { clearRxdbLocalstorageForDatabaseName } from '@/lib/storage/rxdbRecovery'
 
 export const SOURCE_FILES_DB_NAME = 'kg:source-files'
 export const SOURCE_FILES_DB_VERSION = 2
@@ -68,23 +69,6 @@ const workspaceSchema: RxJsonSchema<WorkspaceRowV1> = {
 
 let dbSingleton: Promise<{ db: RxDatabase<SourceFilesCollections>; collections: SourceFilesCollections }> | null = null
 
-const clearRxdbLocalstorageForDatabaseName = (databaseName: string) => {
-  if (typeof window === 'undefined') return
-  const ls = window.localStorage
-  const marker = `-${databaseName}--`
-  try {
-    for (let i = ls.length - 1; i >= 0; i -= 1) {
-      const key = ls.key(i)
-      if (!key) continue
-      if (!key.startsWith('RxDB-ls-')) continue
-      if (!key.includes(marker)) continue
-      ls.removeItem(key)
-    }
-  } catch {
-    void 0
-  }
-}
-
 const getDb = async () => {
   if (dbSingleton) return dbSingleton
   dbSingleton = (async () => {
@@ -128,14 +112,20 @@ const getDb = async () => {
         })
         return { db, collections }
       } catch (err) {
-        if (didReset) throw err
+        if (didReset) {
+          dbSingleton = null
+          throw err
+        }
         didReset = true
         clearRxdbLocalstorageForDatabaseName(SOURCE_FILES_DB_NAME)
       }
     }
     throw new Error('Failed to initialize source-files database')
   })()
-  return dbSingleton
+  return dbSingleton.catch(err => {
+    dbSingleton = null
+    throw err
+  })
 }
 
 const normalizeText = (v: unknown): string => String(v || '')

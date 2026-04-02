@@ -1,5 +1,6 @@
 import { createRxDatabase, type RxCollection, type RxDatabase, type RxJsonSchema } from 'rxdb/plugins/core'
 import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
+import { clearRxdbLocalstorageForDatabaseName } from '@/lib/storage/rxdbRecovery'
 
 export type MarkdownFsAccessMode = 'fs-access' | 'opfs' | 'file-input' | null
 
@@ -61,20 +62,36 @@ let dbSingleton: Promise<{ db: RxDatabase<MarkdownFsCollections>; collections: M
 const getDb = async () => {
   if (dbSingleton) return dbSingleton
   dbSingleton = (async () => {
-    const db = await createRxDatabase<MarkdownFsCollections>({
-      name: MARKDOWN_FS_DB_NAME,
-      storage: getCanvasRxStorage(),
-      multiInstance: true,
-      eventReduce: true,
-      closeDuplicates: true,
-    })
-    const collections = await db.addCollections({
-      folders: { schema: folderSchema },
-      entries: { schema: entrySchema },
-    })
-    return { db, collections }
+    let didReset = false
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const db = await createRxDatabase<MarkdownFsCollections>({
+          name: MARKDOWN_FS_DB_NAME,
+          storage: getCanvasRxStorage(),
+          multiInstance: true,
+          eventReduce: true,
+          closeDuplicates: true,
+        })
+        const collections = await db.addCollections({
+          folders: { schema: folderSchema },
+          entries: { schema: entrySchema },
+        })
+        return { db, collections }
+      } catch (err) {
+        if (didReset) {
+          dbSingleton = null
+          throw err
+        }
+        didReset = true
+        clearRxdbLocalstorageForDatabaseName(MARKDOWN_FS_DB_NAME)
+      }
+    }
+    throw new Error('Failed to initialize markdown-fs database')
   })()
-  return dbSingleton
+  return dbSingleton.catch(err => {
+    dbSingleton = null
+    throw err
+  })
 }
 
 const buildFolderId = (): string => {

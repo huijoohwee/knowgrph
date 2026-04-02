@@ -356,8 +356,9 @@ export const createUiSlice = (set: SetGraph) => {
     setEditMode: (mode: boolean) => set({ isEditMode: mode }),
 
     setWorkspaceViewMode: (mode: 'canvas' | 'editor') =>
-      set(() => {
+      set(state => {
         const nextMode = mode === 'editor' ? 'editor' : 'canvas'
+        if (state.workspaceViewMode === nextMode) return {}
         return { workspaceViewMode: lsSetJson(LS_KEYS.workspaceViewMode, nextMode) }
       }),
 

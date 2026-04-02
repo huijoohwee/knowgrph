@@ -35,7 +35,7 @@ export type WorkspaceTablePreferencesSnapshot = {
   jsonTableMaxColumns: number
 }
 
-const readSnapshot = (): WorkspaceTablePreferencesSnapshot => ({
+const buildSnapshot = (): WorkspaceTablePreferencesSnapshot => ({
   workspaceEditorMode: readWorkspaceEditorMode(),
   workspaceCellSelectPanelPlacement: readWorkspaceCellSelectPanelPlacement(),
   jsonImportTarget: readJsonImportWorkspaceTarget(),
@@ -43,6 +43,26 @@ const readSnapshot = (): WorkspaceTablePreferencesSnapshot => ({
   jsonTableMaxRows: readJsonMarkdownTableMaxRows(),
   jsonTableMaxColumns: readJsonMarkdownTableMaxColumns(),
 })
+
+const isSameSnapshot = (
+  left: WorkspaceTablePreferencesSnapshot,
+  right: WorkspaceTablePreferencesSnapshot,
+): boolean =>
+  left.workspaceEditorMode === right.workspaceEditorMode &&
+  left.workspaceCellSelectPanelPlacement === right.workspaceCellSelectPanelPlacement &&
+  left.jsonImportTarget === right.jsonImportTarget &&
+  left.jsonMarkdownMode === right.jsonMarkdownMode &&
+  left.jsonTableMaxRows === right.jsonTableMaxRows &&
+  left.jsonTableMaxColumns === right.jsonTableMaxColumns
+
+let cachedSnapshot: WorkspaceTablePreferencesSnapshot | null = null
+
+const readSnapshot = (): WorkspaceTablePreferencesSnapshot => {
+  const next = buildSnapshot()
+  if (cachedSnapshot && isSameSnapshot(cachedSnapshot, next)) return cachedSnapshot
+  cachedSnapshot = next
+  return next
+}
 
 const emitWorkspaceTablePreferencesChanged = () => {
   if (typeof window === 'undefined') return
@@ -77,33 +97,45 @@ export const workspaceTablePreferencesStore = {
   getSnapshot: readSnapshot,
   getServerSnapshot: readSnapshot,
   setWorkspaceEditorMode(next: WorkspaceEditorMode): WorkspaceEditorMode {
+    const before = readSnapshot()
     const written = writeWorkspaceEditorMode(next)
-    emitWorkspaceTablePreferencesChanged()
+    const after = readSnapshot()
+    if (!isSameSnapshot(before, after)) emitWorkspaceTablePreferencesChanged()
     return written
   },
   setJsonImportTarget(next: JsonImportWorkspaceTarget): JsonImportWorkspaceTarget {
+    const before = readSnapshot()
     const written = writeJsonImportWorkspaceTarget(next)
-    emitWorkspaceTablePreferencesChanged()
+    const after = readSnapshot()
+    if (!isSameSnapshot(before, after)) emitWorkspaceTablePreferencesChanged()
     return written
   },
   setJsonMarkdownMode(next: JsonToMarkdownMode): JsonToMarkdownMode {
+    const before = readSnapshot()
     const written = writeJsonMarkdownMode(next)
-    emitWorkspaceTablePreferencesChanged()
+    const after = readSnapshot()
+    if (!isSameSnapshot(before, after)) emitWorkspaceTablePreferencesChanged()
     return written
   },
   setJsonTableMaxRows(next: unknown): number {
+    const before = readSnapshot()
     const written = writeJsonMarkdownTableMaxRows(next)
-    emitWorkspaceTablePreferencesChanged()
+    const after = readSnapshot()
+    if (!isSameSnapshot(before, after)) emitWorkspaceTablePreferencesChanged()
     return written
   },
   setJsonTableMaxColumns(next: unknown): number {
+    const before = readSnapshot()
     const written = writeJsonMarkdownTableMaxColumns(next)
-    emitWorkspaceTablePreferencesChanged()
+    const after = readSnapshot()
+    if (!isSameSnapshot(before, after)) emitWorkspaceTablePreferencesChanged()
     return written
   },
   setWorkspaceCellSelectPanelPlacement(next: WorkspaceCellSelectPanelPlacement): WorkspaceCellSelectPanelPlacement {
+    const before = readSnapshot()
     const written = writeWorkspaceCellSelectPanelPlacement(next)
-    emitWorkspaceTablePreferencesChanged()
+    const after = readSnapshot()
+    if (!isSameSnapshot(before, after)) emitWorkspaceTablePreferencesChanged()
     return written
   },
 }

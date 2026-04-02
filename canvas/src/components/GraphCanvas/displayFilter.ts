@@ -12,6 +12,24 @@ const coerceEndpointId = (v: unknown): string => {
   return ''
 }
 
+const isFrontmatterDisplayGraph = (graphData: GraphData): boolean => {
+  if (String(graphData.context || '') === 'frontmatter-flow') return true
+  const meta = (graphData.metadata || {}) as Record<string, unknown>
+  if (String(meta.kind || '') === 'frontmatter-flow') return true
+  const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
+  for (let i = 0; i < nodes.length; i += 1) {
+    const props = (nodes[i]?.properties || {}) as Record<string, unknown>
+    if (props.isMermaidFrontmatter === true) return true
+    if (String(props.mermaidScope || '') === 'frontmatter') return true
+  }
+  return false
+}
+
+const isParagraphOrListNode = (n: GraphNode): boolean => {
+  const t = String(n.type || '')
+  return t === 'Paragraph' || t === 'List'
+}
+
 export const isDisplayNode = (n: GraphNode): boolean => {
   if (getNodeMediaSpec(n)) return true
   if (String(n.type || '') === 'MermaidSubgraph') return false
@@ -46,6 +64,7 @@ export const getDisplayEdges = (args: { edges: GraphEdge[]; displayNodeIdSet: Se
 
 export const getGraphDataForDisplay = (args: { graphData: GraphData; edges?: GraphEdge[] | null }): GraphData => {
   const graphData = args.graphData
+  const frontmatterMode = isFrontmatterDisplayGraph(graphData)
 
   const allNodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
   const edgesSource = Array.isArray(args.edges)
@@ -54,12 +73,15 @@ export const getGraphDataForDisplay = (args: { graphData: GraphData; edges?: Gra
       ? (graphData.edges as GraphEdge[])
       : []
 
-  const preferredNodes = allNodes.filter(isDisplayNode)
+  const preferredNodes = allNodes.filter(n => {
+    if (frontmatterMode && isParagraphOrListNode(n)) return false
+    return isDisplayNode(n)
+  })
   const baseNodes = preferredNodes.length > 0 ? preferredNodes : allNodes
   const baseNodeIdSet = new Set<string>(baseNodes.map(n => String(n.id)))
   const edgesForBase = getDisplayEdges({ edges: edgesSource, displayNodeIdSet: baseNodeIdSet })
 
-  if (preferredNodes.length > 0 && edgesSource.length > 0 && edgesForBase.length === 0) {
+  if (!frontmatterMode && preferredNodes.length > 0 && edgesSource.length > 0 && edgesForBase.length === 0) {
     const required = new Set<string>(baseNodeIdSet)
     for (let i = 0; i < edgesSource.length; i += 1) {
       const e = edgesSource[i]
