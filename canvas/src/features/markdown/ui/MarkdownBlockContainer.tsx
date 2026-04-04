@@ -73,6 +73,7 @@ type MarkdownBlockContainerProps = {
   editPreserveWhitespace?: boolean
   editPreserveBlockHeight?: boolean
   editInlineFlow?: boolean
+  editCaptureLayoutSpacing?: boolean
 }
 
 export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBlockContainerProps & React.HTMLAttributes<HTMLElement>>(({
@@ -110,6 +111,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   editPreserveWhitespace = false,
   editPreserveBlockHeight = true,
   editInlineFlow = false,
+  editCaptureLayoutSpacing = false,
   ...rest
 }, ref) => {
   const cls = [className, highlightClass].filter(Boolean).join(' ')
@@ -140,7 +142,15 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     return sourceLines.slice(startIndex, endIndex).join('\n')
   }, [editable, editEndLine, editStartLine, sourceLines])
   const draftRef = React.useRef('')
+  const editDirtyRef = React.useRef(false)
   const editorRef = React.useRef<HTMLElement | null>(null)
+  const editTypographySnapshotRef = React.useRef<React.CSSProperties | null>(null)
+  const editSpacingSnapshotRef = React.useRef<React.CSSProperties | null>(null)
+  const parityProbeSnapshotRef = React.useRef<{
+    source: HTMLElement
+    sourceMetrics: Record<string, string>
+  } | null>(null)
+  const initialEditorHtmlRef = React.useRef('')
   const initialPresentTextRef = React.useRef('')
   const editSessionIdRef = React.useRef(0)
   const editLinePrefixesRef = React.useRef<string[] | null>(null)
@@ -345,7 +355,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
           if (!isListEl(node)) continue
           if (node.parentNode !== listEl.parentNode) continue
           for (const n of toRemove) {
-            n.remove()
+            if (n.parentNode) n.parentNode.removeChild(n)
             localChanged = true
           }
         }
@@ -950,11 +960,38 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     const replacementLines = String(draft || '').split(/\r?\n/)
     const prefixes = editLinePrefixesRef.current
     if (!editStripLinePrefix || !prefixes) return replacementLines
+    const quotePrefixPattern = /^\s*(?:>\s*)+$/
+    const allQuotePrefixed = (() => {
+      if (prefixes.length === 0) return false
+      let hasQuotePrefix = false
+      for (let i = 0; i < prefixes.length; i += 1) {
+        const prefix = String(prefixes[i] || '')
+        if (quotePrefixPattern.test(prefix)) {
+          hasQuotePrefix = true
+          continue
+        }
+        const line = String(replacementLines[i] || '')
+        if (!prefix && !line.trim()) continue
+        return false
+      }
+      return hasQuotePrefix
+    })()
+    const baselinePresentLines = String(initialPresentTextRef.current || '').split(/\r?\n/)
+    const normalizedReplacementLines = (
+      allQuotePrefixed && replacementLines.length < prefixes.length
+        ? [
+            ...replacementLines,
+            ...Array.from({ length: prefixes.length - replacementLines.length }, (_, i) => (
+              baselinePresentLines[replacementLines.length + i] ?? ''
+            )),
+          ]
+        : replacementLines
+    )
     const defaultPrefix = editDefaultLinePrefix ?? prefixes.find(p => p) ?? ''
-    return replacementLines.map((line, i) => {
+    return normalizedReplacementLines.map((line, i) => {
       const prefix = prefixes[i] ?? defaultPrefix
       if (!line.trim()) {
-        if (/^\s*>\s*$/.test(prefix) || /^\s*>\s*$/.test(defaultPrefix)) {
+        if (/^\s*(?:>\s*)+$/.test(prefix) || /^\s*(?:>\s*)+$/.test(defaultPrefix)) {
           const p = prefix || defaultPrefix
           return p.trimEnd() || '>'
         }
@@ -962,9 +999,9 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       }
       if (!prefix) return line
       if (line.startsWith(prefix)) return line
-      const taskPrefixMatch = prefix.match(/^(\s*[-*+]\s+\[( |x|X)\]\s+)$/)
+      const taskPrefixMatch = prefix.match(/^(\s*[-*+]\s+\[(?: |x|X)?\]\s+)$/)
       if (taskPrefixMatch) {
-        const isBulletWithoutTask = /^\s*[-*+]\s+(?!\[(?: |x|X)\]\s+)/.test(line)
+        const isBulletWithoutTask = /^\s*[-*+]\s+(?!\[(?: |x|X)?\]\s+)/.test(line)
         if (isBulletWithoutTask) {
           return line.replace(/^\s*([-*+])\s+/, `${taskPrefixMatch[1] || '- [ ] '}`)
         }
@@ -991,10 +1028,24 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   const commit = React.useCallback(() => {
     if (!editable || !onReplaceLineRange) return
     if (editorPresentation === 'html') {
-      const sessionId = editSessionIdRef.current
       const root = editorRef.current
+      const hasDomMutation = !!root && root.innerHTML !== initialEditorHtmlRef.current
+      if (!editDirtyRef.current) {
+        if (hasDomMutation) {
+          editDirtyRef.current = true
+        } else {
+          setEditing(false)
+          setSessionEditLineRange(null)
+          return
+        }
+      }
+      if (!root) {
+        setEditing(false)
+        setSessionEditLineRange(null)
+        return
+      }
+      const sessionId = editSessionIdRef.current
       setEditing(false)
-      if (!root) return
       const html = root.innerHTML
       void (async () => {
         const wrapperTag = 'div'
@@ -1008,6 +1059,14 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         const markdown = String(result.markdown || '').replace(/\s+$/g, '')
         if (markdown === initialPresentTextRef.current) return
         const replacementLines = buildReplacementLinesFromDraft(markdown)
+        const currentLines = sourceLines.slice(Math.max(0, editStartLine - 1), Math.max(0, editEndLine))
+        if (
+          currentLines.length === replacementLines.length
+          && currentLines.every((line, idx) => String(line || '') === String(replacementLines[idx] || ''))
+        ) {
+          setSessionEditLineRange(null)
+          return
+        }
         onReplaceLineRange({ startLine: editStartLine, endLine: editEndLine, replacementLines })
         setSessionEditLineRange(null)
       })()
@@ -1016,13 +1075,23 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     const draft = getDraft()
     if (draft === initialText) {
       setEditing(false)
+      setSessionEditLineRange(null)
       return
     }
     const replacementLines = buildReplacementLinesFromDraft(draft)
+    const currentLines = sourceLines.slice(Math.max(0, editStartLine - 1), Math.max(0, editEndLine))
+    if (
+      currentLines.length === replacementLines.length
+      && currentLines.every((line, idx) => String(line || '') === String(replacementLines[idx] || ''))
+    ) {
+      setEditing(false)
+      setSessionEditLineRange(null)
+      return
+    }
     onReplaceLineRange({ startLine: editStartLine, endLine: editEndLine, replacementLines })
     setEditing(false)
     setSessionEditLineRange(null)
-  }, [editable, editEndLine, editListMode, editStartLine, editorPresentation, getDraft, initialText, onReplaceLineRange, buildReplacementLinesFromDraft])
+  }, [editable, editEndLine, editListMode, editStartLine, editorPresentation, getDraft, initialText, onReplaceLineRange, sourceLines, buildReplacementLinesFromDraft])
   const cancel = React.useCallback(() => {
     setEditing(false)
     setSessionEditLineRange(null)
@@ -1032,6 +1101,59 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     if (!editable) return
     const target = event.target as HTMLElement | null
     if (target?.closest('button,a,input,select,textarea,[contenteditable="true"]')) return
+    try {
+      const baseNode = target && event.currentTarget.contains(target) ? target : event.currentTarget
+      const typographySource =
+        baseNode.closest('p,li,blockquote,section,aside,div,span') as HTMLElement | null
+      const computed = window.getComputedStyle(typographySource || event.currentTarget)
+      editTypographySnapshotRef.current = {
+        fontFamily: computed.fontFamily || undefined,
+        fontSize: computed.fontSize || undefined,
+        fontWeight: computed.fontWeight || undefined,
+        fontStyle: computed.fontStyle || undefined,
+        lineHeight: computed.lineHeight || undefined,
+        letterSpacing: computed.letterSpacing || undefined,
+        color: computed.color || undefined,
+      }
+      editSpacingSnapshotRef.current = editCaptureLayoutSpacing
+        ? {
+            textAlign: (computed.textAlign || undefined) as React.CSSProperties['textAlign'],
+            wordSpacing: computed.wordSpacing || undefined,
+            textIndent: computed.textIndent || undefined,
+          }
+        : null
+      const probeKeys: Array<keyof CSSStyleDeclaration> = [
+        'fontFamily',
+        'fontSize',
+        'fontWeight',
+        'fontStyle',
+        'lineHeight',
+        'letterSpacing',
+        'color',
+        'textAlign',
+        'wordSpacing',
+        'textIndent',
+        'paddingTop',
+        'paddingRight',
+        'paddingBottom',
+        'paddingLeft',
+        'marginTop',
+        'marginRight',
+        'marginBottom',
+        'marginLeft',
+      ]
+      const sourceMetrics = Object.fromEntries(
+        probeKeys.map(key => [String(key), String(computed[key] || '')]),
+      )
+      parityProbeSnapshotRef.current = {
+        source: typographySource || event.currentTarget,
+        sourceMetrics,
+      }
+    } catch {
+      editTypographySnapshotRef.current = null
+      editSpacingSnapshotRef.current = null
+      parityProbeSnapshotRef.current = null
+    }
     const resolvedRange = resolveEditLineRangeOnOpen?.(target ?? null) ?? null
     setSessionEditLineRange(resolvedRange)
     lastPointerRef.current = { x: event.clientX, y: event.clientY }
@@ -1048,7 +1170,72 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     event.preventDefault()
     event.stopPropagation()
     setEditing(prev => (prev ? prev : true))
-  }, [editable, resolveEditLineRangeOnOpen, resolveEditMinHeightOnOpen])
+  }, [editable, editCaptureLayoutSpacing, resolveEditLineRangeOnOpen, resolveEditMinHeightOnOpen])
+  const emitParityProbe = React.useCallback(() => {
+    const probe = parityProbeSnapshotRef.current
+    const editor = editorRef.current
+    if (!probe || !editor) return
+    const probeEnabled = (() => {
+      try {
+        const w = window as unknown as { __KG_EDIT_PARITY_PROBE__?: boolean }
+        if (w.__KG_EDIT_PARITY_PROBE__ === true) return true
+        const query = new URLSearchParams(window.location.search || '')
+        return query.get('kgEditParityProbe') === '1'
+      } catch {
+        return false
+      }
+    })()
+    if (!probeEnabled) return
+    try {
+      const read = probe.sourceMetrics
+      const edit = window.getComputedStyle(editor)
+      const keys: Array<keyof CSSStyleDeclaration> = [
+        'fontFamily',
+        'fontSize',
+        'fontWeight',
+        'fontStyle',
+        'lineHeight',
+        'letterSpacing',
+        'color',
+        'textAlign',
+        'wordSpacing',
+        'textIndent',
+        'paddingTop',
+        'paddingRight',
+        'paddingBottom',
+        'paddingLeft',
+        'marginTop',
+        'marginRight',
+        'marginBottom',
+        'marginLeft',
+      ]
+      const mismatches = keys
+        .map(key => ({ key, read: String(read[String(key)] || ''), edit: String(edit[key] || '') }))
+        .filter(row => row.read !== row.edit)
+      const payload = {
+        startLine: editStartLine,
+        endLine: editEndLine,
+        mismatches,
+      }
+      const w = window as unknown as {
+        __KG_EDIT_PARITY_LAST_MISMATCH__?: unknown
+        __KG_EDIT_PARITY_LAST_PAYLOAD__?: unknown
+        __KG_EDIT_PARITY_MISMATCH_COUNT__?: number
+      }
+      w.__KG_EDIT_PARITY_LAST_PAYLOAD__ = payload
+      if (mismatches.length > 0) {
+        w.__KG_EDIT_PARITY_LAST_MISMATCH__ = payload
+        w.__KG_EDIT_PARITY_MISMATCH_COUNT__ = Number(w.__KG_EDIT_PARITY_MISMATCH_COUNT__ || 0) + 1
+      }
+      window.dispatchEvent(new CustomEvent('kg-edit-parity-probe', { detail: payload }))
+      if (mismatches.length > 0) {
+        console.warn('kg-edit-parity-probe', payload)
+      }
+      console.warn(`kg-edit-parity-probe-json ${JSON.stringify(payload)}`)
+    } catch {
+      void 0
+    }
+  }, [editEndLine, editStartLine])
 
   const placeCaretFromClientPoint = React.useCallback(() => {
     const point = lastPointerRef.current
@@ -1200,28 +1387,55 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         : presentTextRaw
       initialPresentTextRef.current = presentText
       draftRef.current = presentText
+      editDirtyRef.current = false
       const el = editorRef.current
       if (el) {
         if (editorPresentation === 'html') {
           const md = getMarkdownItFastHtml()
           if (htmlRenderMode === 'block') {
-            const rendered = md.render(presentText)
-            if (rendered.replace(/\s+/g, '').length === 0 && String(presentText || '').trim()) {
-              el.textContent = presentText
+            const quotePrefixPattern = /^\s*(?:>\s*)+$/
+            const quoteLineStructured = (() => {
+              if (stripped.length === 0) return false
+              let hasQuotePrefix = false
+              for (const s of stripped) {
+                const prefix = String(s.prefix || '')
+                const content = String(s.content || '')
+                if (quotePrefixPattern.test(prefix)) {
+                  hasQuotePrefix = true
+                  continue
+                }
+                if (!prefix && !content.trim()) continue
+                return false
+              }
+              return hasQuotePrefix
+            })()
+            if (quoteLineStructured) {
+              const lines = String(presentText || '').split(/\r?\n/)
+              el.innerHTML = lines
+                .map(line => `<p>${line ? md.renderInline(line) : '<br/>'}</p>`)
+                .join('')
             } else {
-              el.innerHTML = normalizeRenderedBlockHtmlForEditor(rendered)
-              trimEmptyEditableEdges()
-              scheduleEdgeTrimBurst()
+              const rendered = md.render(presentText)
+              if (rendered.replace(/\s+/g, '').length === 0 && String(presentText || '').trim()) {
+                el.textContent = presentText
+              } else {
+                el.innerHTML = normalizeRenderedBlockHtmlForEditor(rendered)
+                trimEmptyEditableEdges()
+                scheduleEdgeTrimBurst()
+              }
             }
+            initialEditorHtmlRef.current = el.innerHTML
           } else {
             const lines = String(presentText || '').split(/\r?\n/)
             el.innerHTML = lines
               .map(line => (line ? md.renderInline(line) : ''))
               .map((html, i) => (i === 0 ? html : `<br/>${html}`))
               .join('')
+            initialEditorHtmlRef.current = el.innerHTML
           }
         } else {
           el.textContent = presentText
+          initialEditorHtmlRef.current = el.innerHTML
         }
         queueMicrotask(() => {
           el.focus()
@@ -1251,6 +1465,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       : initialText
     initialPresentTextRef.current = normalizedInitialText
     draftRef.current = normalizedInitialText
+    editDirtyRef.current = false
     const el = editorRef.current
     if (el) {
       if (editorPresentation === 'html') {
@@ -1264,15 +1479,18 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
             trimEmptyEditableEdges()
             scheduleEdgeTrimBurst()
           }
+          initialEditorHtmlRef.current = el.innerHTML
         } else {
           const lines = String(normalizedInitialText || '').split(/\r?\n/)
           el.innerHTML = lines
             .map(line => (line ? md.renderInline(line) : ''))
             .map((html, i) => (i === 0 ? html : `<br/>${html}`))
             .join('')
+          initialEditorHtmlRef.current = el.innerHTML
         }
       } else {
         el.textContent = normalizedInitialText
+        initialEditorHtmlRef.current = el.innerHTML
       }
       queueMicrotask(() => {
         el.focus()
@@ -1327,7 +1545,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   const toolbarMenuSummaryClassName = FLOATING_BUBBLE_BUTTON_CLASSNAME
   const htmlBlockEditing = editorPresentation === 'html' && htmlRenderMode === 'block'
   const EditorTag = (
-    htmlBlockEditing
+    htmlBlockEditing || !editInlineFlow
       ? 'div'
       : 'span'
   ) as 'div' | 'span'
@@ -1687,8 +1905,9 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
               .join(' ')}
             style={{
               ...(editTypographyMode === 'inherit'
-                ? { font: 'inherit', fontSize: 'inherit', lineHeight: 'inherit', color: 'inherit' }
+                ? { font: 'inherit', fontSize: 'inherit', lineHeight: 'inherit', color: 'inherit', ...editTypographySnapshotRef.current }
                 : {}),
+              ...(editCaptureLayoutSpacing ? editSpacingSnapshotRef.current : null),
               ...(editListMode
                 ? { marginTop: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0 }
                 : {}),
@@ -1696,13 +1915,22 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
             onInput={(e) => {
               const el = editorRef.current
               if (!el) return
-              const text = editPreserveWhitespace ? readEditorPlainText() : el.innerText.replace(/\r/g, '')
+              const rawText = typeof (el as HTMLElement).innerText === 'string'
+                ? (el as HTMLElement).innerText
+                : String(el.textContent || '')
+              const textRaw = editPreserveWhitespace ? readEditorPlainText() : rawText.replace(/\r/g, '')
+              const text = editTrimEdgeNewlines
+                ? textRaw.replace(/^\n+/, '').replace(/\n+$/, '')
+                : textRaw
               draftRef.current = text
+              editDirtyRef.current = true
               if (editTrimEmptyBlockEdges) scheduleEdgeTrimBurst()
+              emitParityProbe()
               if (editDisableRichUi) return
               const sel = typeof window !== 'undefined' ? window.getSelection() : null
               if (!sel || sel.rangeCount <= 0) return
               const range = sel.getRangeAt(0)
+              if (typeof (range as Range).getBoundingClientRect !== 'function') return
               const rect = range.getBoundingClientRect()
               const host = el.closest('[data-start-line]') as HTMLElement | null
               const hostRect = host?.getBoundingClientRect() || el.getBoundingClientRect()
@@ -1734,6 +1962,9 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
                 return
               }
               commit()
+            }}
+            onFocus={() => {
+              emitParityProbe()
             }}
             onKeyDown={event => {
               if (event.key === 'Escape') {

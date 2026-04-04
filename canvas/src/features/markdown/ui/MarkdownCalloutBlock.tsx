@@ -131,7 +131,7 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
     />
   )
   const stripQuotePrefix = React.useCallback((line: string) => {
-    const m = line.match(/^(\s*>\s*)?([\s\S]*)$/)
+    const m = line.match(/^(\s*(?:>\s*)+)?([\s\S]*)$/)
     const prefix = m?.[1] || ''
     const content = m?.[2] ?? line
     return { prefix, content }
@@ -159,6 +159,40 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
     Number.isFinite(calloutBodyStartLine) &&
     Number.isFinite(calloutBodyEndLine) &&
     calloutBodyStartLine <= calloutBodyEndLine
+  const resolveCalloutBodyEditLineRange = React.useCallback((eventTarget: HTMLElement | null) => {
+    const lines = opts.markdownSourceLines
+    if (!Array.isArray(lines) || lines.length === 0) return null
+    const fallbackStart = Math.max(1, calloutBodyStartLine)
+    const clickedStart = (() => {
+      try {
+        const el = eventTarget?.closest('[data-start-line]') as HTMLElement | null
+        if (!el) return fallbackStart
+        const value = Number(el.getAttribute('data-start-line'))
+        if (!Number.isFinite(value)) return fallbackStart
+        return Math.max(1, Math.floor(value))
+      } catch {
+        return fallbackStart
+      }
+    })()
+    const startFrom = Math.max(fallbackStart, Math.min(lines.length, clickedStart))
+    const idx = startFrom - 1
+    if (idx < 0 || idx >= lines.length) return null
+    if (!/^\s*>/.test(String(lines[idx] || ''))) return { startLine: fallbackStart, endLine: Math.max(fallbackStart, fallbackStart) }
+
+    let start = startFrom
+    for (let i = idx - 1; i >= fallbackStart - 1; i -= 1) {
+      const line = String(lines[i] || '')
+      if (!/^\s*>/.test(line)) break
+      start = i + 1
+    }
+    let end = startFrom
+    for (let i = idx; i < lines.length; i += 1) {
+      const line = String(lines[i] || '')
+      if (!/^\s*>/.test(line)) break
+      end = i + 1
+    }
+    return { startLine: Math.max(fallbackStart, start), endLine: Math.max(start, end) }
+  }, [calloutBodyStartLine, opts.markdownSourceLines])
   const calloutBodyNode = calloutBodyEditable ? (
     <section className="mt-2 relative pl-4">
       <span aria-hidden className={`pointer-events-none absolute left-0 top-0 bottom-0 w-1 z-30 ${accentClass}`} />
@@ -168,6 +202,7 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
         highlightClass=""
         startLine={calloutBodyStartLine}
         endLine={calloutBodyEndLine}
+        resolveEditLineRangeOnOpen={resolveCalloutBodyEditLineRange}
         inlineEditable={true}
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
@@ -177,20 +212,23 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
           'w-full min-h-[1lh] whitespace-pre-wrap break-words outline-none bg-transparent',
           baseTextClass,
           commonBlockClass,
-          opts.uiPanelTextFontClass,
-          UI_THEME_TOKENS.text.primary,
           'text-left',
           '[&>*:first-child]:mt-0',
           '[&>*:last-child]:mb-0',
+          '[&_p]:font-inherit',
+          '[&_p]:text-inherit',
           '[&_p]:m-0',
           '[&_p]:leading-normal',
+          '[&_p]:whitespace-pre-wrap',
           '[&_ul]:m-0',
           '[&_ol]:m-0',
         ].filter(Boolean).join(' ')}
         editPresentation="html"
-        editHtmlRender="inline"
+        editHtmlRender="block"
+        editHtmlDisableDefaultBlockFlow
         editStripLinePrefix={stripQuotePrefix}
         editDefaultLinePrefix="> "
+        editPreserveWhitespace
         editLeftRailClassName={accentClass}
       >
         {inner}

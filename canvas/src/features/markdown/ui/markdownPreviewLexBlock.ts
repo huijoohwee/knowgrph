@@ -359,11 +359,11 @@ export const buildBlockTokens = (mdTokens: MdToken[], lineOffset: number, srcLin
             if (p.tokens && p.tokens.length > 0) {
                 const firstText = p.tokens.find(tt => (tt as { type?: string }).type === 'text') as TokensText | undefined
                 if (firstText && typeof firstText.text === 'string') {
-                    const m = firstText.text.match(/^\s*\[([ xX])]\s+(.*)$/)
+                    const m = firstText.text.match(/^\s*\[([ xX]?)\](?:\s+([\s\S]*))?$/)
                     if (m) {
                         task = true
                         checked = m[1].toLowerCase() === 'x'
-                        firstText.text = m[2]
+                        firstText.text = m[2] || ''
                         firstText.raw = firstText.text
                         // Update paragraph text as well to reflect stripped check
                         p.text = p.tokens.map(tt => (tt as { text?: string }).text || '').join('')

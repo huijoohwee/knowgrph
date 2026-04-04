@@ -44,6 +44,15 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockText.includes('MARKDOWN_INLINE_CODE_EDIT_DESCENDANT_CLASSES')) {
     throw new Error('expected inline code edit-surface spacing contract to be centralized in shared parity SSOT')
   }
+  if (!blockText.includes('editTypographySnapshotRef') || !blockText.includes('window.getComputedStyle')) {
+    throw new Error('expected markdown block editor to snapshot read-surface computed typography for strict view/edit font parity')
+  }
+  if (!blockText.includes('editSpacingSnapshotRef') || !blockText.includes('editCaptureLayoutSpacing') || !blockText.includes('__KG_EDIT_PARITY_PROBE__')) {
+    throw new Error('expected markdown block editor to provide gated spacing parity capture and runtime parity probe switch')
+  }
+  if (!blockText.includes('__KG_EDIT_PARITY_LAST_PAYLOAD__') || !blockText.includes('kg-edit-parity-probe-json')) {
+    throw new Error('expected runtime parity probe to expose visible payload via window global and json console line')
+  }
   if (blockText.includes('[&_code]:py-0.5')) {
     throw new Error('expected html edit surfaces to avoid inline-code vertical padding that mutates spacing')
   }
@@ -224,8 +233,64 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockquoteText.includes('editLeftRailClassName="bg-blue-400 dark:bg-blue-600"')) {
     throw new Error('expected blockquote inline editor to preserve left rail surface parity in gutter mode')
   }
-  if (!blockquoteText.includes('pl-4 py-2 rounded-r text-left italic')) {
-    throw new Error('expected blockquote inline editor to preserve quote padding and typography parity')
+  const gutterBlockquoteEditRootOk =
+    blockquoteText.includes('pl-4 py-2 rounded-r text-left italic')
+    || blockquoteText.includes('pl-4 py-2 border-l-4')
+  if (!gutterBlockquoteEditRootOk) {
+    throw new Error('expected blockquote inline editor to preserve quote padding/border and typography parity')
+  }
+  if (!blockquoteText.includes('pl-4 py-2 border-l-4')) {
+    throw new Error('expected gutter-mode blockquote inline editor to apply quote border/padding on edit root to prevent spacing drift')
+  }
+  if (!blockquoteText.includes('editorQuoteClassNameNoInset') || !blockquoteText.includes('editorClassName={editorQuoteClassNameNoInset}')) {
+    throw new Error('expected non-gutter blockquote inline editor to avoid duplicate inset padding/margin layering')
+  }
+  if (!blockquoteText.includes('editCaptureLayoutSpacing')) {
+    throw new Error('expected blockquote inline editor to explicitly enable layout spacing capture parity')
+  }
+  if (!blockquoteText.includes('editTrimEdgeNewlines')) {
+    throw new Error('expected blockquote inline editor to trim edge newlines to avoid extra-row mutations')
+  }
+  if (!blockquoteText.includes('editPreserveBlockHeight={false}')) {
+    throw new Error('expected blockquote inline editor to avoid min-height preservation that can double-apply inset spacing and cause jump drift')
+  }
+  if (!blockquoteText.includes('resolveEditLineRangeOnOpen={resolveQuoteEditLineRange}') || !blockquoteText.includes('const resolveQuoteEditLineRange = React.useCallback')) {
+    throw new Error('expected blockquote inline editor to clamp edit ranges to contiguous quote lines and avoid extra-row mutation')
+  }
+  if (!blockquoteText.includes('[&_p]:whitespace-pre-wrap')) {
+    throw new Error('expected blockquote inline editor to preserve per-line paragraph wrapping parity for callout edit surface')
+  }
+  if (!blockquoteText.includes('[&_p]:font-inherit') || !blockquoteText.includes('[&_p]:text-inherit')) {
+    throw new Error('expected blockquote inline editor paragraphs to inherit read-surface typography without font mutation')
+  }
+  if (!blockquoteText.includes('opts.uiPanelTextFontClass')) {
+    throw new Error('expected blockquote inline editor to keep shared ui panel font class for typography parity')
+  }
+  if (!blockquoteText.includes('editPreserveWhitespace')) {
+    throw new Error('expected blockquote inline editor to preserve raw line breaks during inline edit')
+  }
+  const calloutPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownCalloutBlock.tsx')
+  const calloutText = readUtf8(calloutPath)
+  if (!calloutText.includes("line.match(/^(\\s*(?:>\\s*)+)?([\\s\\S]*)$/)")) {
+    throw new Error('expected callout body prefix stripping to preserve multi-level quote marker prefixes')
+  }
+  if (!calloutText.includes("editHtmlRender=\"block\"")) {
+    throw new Error('expected callout body inline editor to use block html render for per-line paragraph parity')
+  }
+  if (!calloutText.includes('editHtmlDisableDefaultBlockFlow')) {
+    throw new Error('expected callout body inline editor to disable default block flow spacing mutations')
+  }
+  if (!calloutText.includes('editPreserveWhitespace')) {
+    throw new Error('expected callout body inline editor to preserve raw line breaks during edit')
+  }
+  if (!calloutText.includes('[&_p]:whitespace-pre-wrap')) {
+    throw new Error('expected callout body inline editor paragraphs to preserve line wrapping parity')
+  }
+  if (!calloutText.includes('[&_p]:font-inherit') || !calloutText.includes('[&_p]:text-inherit')) {
+    throw new Error('expected callout body inline editor paragraphs to inherit read-surface typography without font mutation')
+  }
+  if (!calloutText.includes('resolveEditLineRangeOnOpen={resolveCalloutBodyEditLineRange}') || !calloutText.includes('const resolveCalloutBodyEditLineRange = React.useCallback')) {
+    throw new Error('expected callout body inline editor to clamp edit ranges to contiguous quote lines and avoid extra-row mutation')
   }
 
   const dataViewPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewBlock.tsx')

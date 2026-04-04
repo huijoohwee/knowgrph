@@ -201,6 +201,54 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modMarkdownViewerInlineEditMixedSequence()
     await mod.testMarkdownViewerInlineEditMixedBlockSequencePreservesInlineCodeAndListMarkers()
   })
+  await execTest(results, 'markdown.viewer.inlineEdit.taskList.compactBracketSyntax', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditTaskListCompactBracketSyntaxParsesAndCommits()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.blockquote.blankLines.keepQuotePrefix', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditBlockquoteBlankLinesPreserveQuotePrefixes()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.callout.tripleBlank.editOneKeepsOthers', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditCalloutThreeBlankLinesKeepsUneditedQuoteRows()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.callout.tripleContent.editOneKeepsOthers', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditCalloutThreeContentLinesEditOneKeepsOtherContentLines()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.callout.clickBlur.noEditNoMutation', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditCalloutClickBlurWithoutEditDoesNotMutate()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.callout.admonitionBody.openParityNoMutation', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditAdmonitionCalloutBodyOpenKeepsPerLineParity()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.blockquote.trailingBlankLine.openParityNoMutation', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditBlockquoteTrailingBlankLineDoesNotCollapseRows()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.blockquote.typography.keepsUiFontClass', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditBlockquoteTypographyKeepsUiFontClass()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.blockquote.runtimeParityProbe.mismatchDiagnostics', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditRuntimeParityProbeReportsMismatch()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.blockquote.rangeClamp.contiguousQuoteLines', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditBlockquoteRangeClampsToContiguousQuoteLines()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.blockquote.trailingNewline.noExtraRow', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditBlockquoteTrailingNewlineDoesNotCreateExtraRow()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.callout.rangeClamp.contiguousQuoteLines', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditAdmonitionCalloutRangeClampsToContiguousQuoteLines()
+  })
   await execTest(results, 'markdown.viewer.inlineEdit.list.ordered.noEdgeRows', async () => {
     const mod = await modMarkdownViewerListInlineEditNoEdgeRows()
     await mod.testMarkdownViewerInlineEditOrderedListHasNoEdgeRows()

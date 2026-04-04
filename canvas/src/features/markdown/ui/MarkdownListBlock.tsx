@@ -100,7 +100,7 @@ function MarkdownListRow(props: {
     const source = opts.markdownSourceLines
     if (!Array.isArray(source) || source.length === 0) return '  '
     const first = String(source[resolvedRowRange.startLine - 1] || '')
-    const marker = first.match(/^(\s*(?:[-+*]\s+|\d+[.)]\s+))/)
+    const marker = first.match(/^(\s*(?:[-+*]\s+(?:\[(?: |x|X)?\]\s+)?|\d+[.)]\s+))/)
     if (marker) return ' '.repeat((marker[1] || '').length)
     const continuation = first.match(/^(\s+)/)
     if (continuation) return continuation[1] || '  '
@@ -359,7 +359,7 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
     .join(' ')
   const rowEditorClassName = [MARKDOWN_LIST_ROW_EDITOR_CLASS, baseTextClass, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
   const stripListLinePrefix = React.useCallback((line: string) => {
-    const markerMatch = line.match(/^(\s*(?:[-+*]\s+|\d+[.)]\s+))([\s\S]*)$/)
+    const markerMatch = line.match(/^(\s*(?:[-+*]\s+(?:\[(?: |x|X)?\]\s+)?|\d+[.)]\s+))([\s\S]*)$/)
     if (markerMatch) return { prefix: markerMatch[1] || '', content: markerMatch[2] || '' }
     const continuationMatch = line.match(/^(\s+)([\s\S]*)$/)
     if (continuationMatch) return { prefix: continuationMatch[1] || '', content: continuationMatch[2] || '' }
