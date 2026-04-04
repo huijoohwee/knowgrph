@@ -46,6 +46,7 @@ const modMarkdownScrollUtils = () => import('@/__tests__/markdownScrollUtils.tes
 const modMarkdownViewerInlineEditHeadingWysiwyg = () => import('@/__tests__/markdownViewerInlineEditHeadingWysiwyg.test')
 const modMarkdownViewerMdDemoSweepLex = () => import('@/__tests__/markdownViewerMdDemoSweepLex.test')
 const modMarkdownViewerInlineEditConfig = () => import('@/__tests__/markdownViewerInlineEditConfig.test')
+const modMarkdownViewerInlineEditMixedSequence = () => import('@/__tests__/markdownViewerInlineEditMixedSequence.test')
 const modMarkdownViewerListInlineEditNoEdgeRows = () => import('@/__tests__/markdownViewerListInlineEditNoEdgeRows.test')
 
 export const runMarkdownTests = async (results: TestResult[]) => {
@@ -194,6 +195,10 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.viewer.inlineEdit.config.imagesTasksHrTable', async () => {
     const mod = await modMarkdownViewerInlineEditConfig()
     mod.testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.mixedBlockSequence.inlineCodeAndLists', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditMixedBlockSequencePreservesInlineCodeAndListMarkers()
   })
   await execTest(results, 'markdown.viewer.inlineEdit.list.ordered.noEdgeRows', async () => {
     const mod = await modMarkdownViewerListInlineEditNoEdgeRows()

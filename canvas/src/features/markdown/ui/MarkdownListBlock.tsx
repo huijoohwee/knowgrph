@@ -77,17 +77,16 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
   const listClass = list.ordered ? 'list-decimal' : 'list-disc'
   const listSurfaceClass = `${listClass} pl-5 space-y-1.5 marker:${UI_THEME_TOKENS.text.tertiary}`
   const listEditFlowClass = list.ordered
-    ? '[&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:space-y-1.5 [&_ol]:marker:text-gray-500 [&_li]:list-item'
-    : '[&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5 [&_ul]:marker:text-gray-500 [&_li]:list-item'
-  const listClassName = [
-    'mt-3 mb-3',
+    ? `[&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:space-y-1.5 [&_ol]:marker:${UI_THEME_TOKENS.text.tertiary} [&_li]:list-item`
+    : `[&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5 [&_ul]:marker:${UI_THEME_TOKENS.text.tertiary} [&_li]:list-item`
+  const listReadInnerClassName = [
     listSurfaceClass,
     baseTextClass,
     opts.uiPanelTextFontClass,
+    'm-0',
   ]
     .filter(Boolean)
     .join(' ')
-  const listReadInnerClassName = listClassName.replace(/^mt-3 mb-3\s+/, '')
   const editorListClassName = [
     'block w-full m-0 whitespace-pre-wrap break-words outline-none bg-transparent',
     listEditFlowClass,

@@ -1222,7 +1222,6 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
           '[&_h6]:font-inherit',
           '[&_ul]:m-0',
           '[&_ol]:m-0',
-          '[&_li]:m-0',
           '[&_blockquote]:m-0',
           '[&_pre]:m-0',
           '[&_hr]:m-0',

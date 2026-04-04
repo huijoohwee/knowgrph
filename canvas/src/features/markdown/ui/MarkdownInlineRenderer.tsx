@@ -121,11 +121,11 @@ const splitPlainUrls = (text: string): Array<{ kind: 'text' | 'url'; value: stri
 }
 
 export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRenderOpts): React.ReactNode => {
-  const { activeDocumentPath, uiPanelMonospaceTextClass, uiPanelTextFontClass, markdownPresentationMode } = opts
+  const { activeDocumentPath, uiPanelTextFontClass, uiPanelMonospaceTextClass, markdownPresentationMode } = opts
   const fragmentOpts = opts.fragmentOptions || null
   let fragmentIndex = 0
   const inlineCodeClassName = [
-    uiPanelMonospaceTextClass,
+    'font-mono',
     'ring-1 ring-inset ring-[color:var(--kg-code-border)]',
     'bg-[color:var(--kg-code-bg)] text-[color:var(--kg-code-text)]',
     'align-baseline leading-[var(--kg-inline-code-line-height,inherit)]',

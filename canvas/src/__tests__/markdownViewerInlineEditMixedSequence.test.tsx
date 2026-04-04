@@ -30,7 +30,7 @@ const setRect = (el: HTMLElement, width: number = 480, height: number = 28) => {
   } as unknown as DOMRect)
 }
 
-const openEditorAtLine = async (dom: Window, line: number) => {
+const openEditorAtLine = async (dom: any, line: number) => {
   const host = await waitForElement(
     () => dom.document.querySelector(`[data-start-line="${line}"]`) as HTMLElement | null,
   )
@@ -85,7 +85,6 @@ export async function testMarkdownViewerInlineEditMixedBlockSequencePreservesInl
         previewOverlayScope="container"
         markdownSourceLines={sourceLines}
         viewerBlockEditingEnabled
-        markdownBlockGutterEnabled={false}
         onReplaceLineRange={() => {}}
         forbidCopy
       />,
@@ -98,6 +97,9 @@ export async function testMarkdownViewerInlineEditMixedBlockSequencePreservesInl
     }
     if (!paragraph.editor.className.includes('[&_code]:py-0')) {
       throw new Error('expected paragraph inline editor to avoid inline-code vertical padding spacing mutation')
+    }
+    if (!paragraph.editor.className.includes('[&_code]:px-1.5')) {
+      throw new Error('expected paragraph inline editor to preserve inline-code horizontal padding spacing contract')
     }
 
     paragraph.editor.dispatchEvent(new dom.window.FocusEvent('blur', { bubbles: true }))
@@ -115,8 +117,17 @@ export async function testMarkdownViewerInlineEditMixedBlockSequencePreservesInl
     if (!ordered.editor.className.includes('[&_ol]:list-decimal')) {
       throw new Error('expected ordered list inline editor to preserve numbering markers')
     }
+    if (!ordered.editor.className.includes('[&_ol]:pl-5')) {
+      throw new Error('expected ordered list inline editor to preserve list left padding spacing contract')
+    }
+    if (!ordered.editor.className.includes('[&_ol]:space-y-1.5')) {
+      throw new Error('expected ordered list inline editor to preserve list item vertical spacing contract')
+    }
     if (!ordered.editor.className.includes('[&_code]:text-[length:var(--kg-inline-code-font-size,inherit)]')) {
       throw new Error('expected ordered list inline editor to preserve inline-code font-size via css var contract')
+    }
+    if (!ordered.editor.className.includes('[&_code]:px-1.5')) {
+      throw new Error('expected ordered list inline editor to preserve inline-code horizontal padding spacing contract')
     }
 
     ordered.editor.dispatchEvent(new dom.window.FocusEvent('blur', { bubbles: true }))
@@ -126,8 +137,17 @@ export async function testMarkdownViewerInlineEditMixedBlockSequencePreservesInl
     if (!unordered.editor.className.includes('[&_ul]:list-disc')) {
       throw new Error('expected unordered list inline editor to preserve bullet markers')
     }
+    if (!unordered.editor.className.includes('[&_ul]:pl-5')) {
+      throw new Error('expected unordered list inline editor to preserve list left padding spacing contract')
+    }
+    if (!unordered.editor.className.includes('[&_ul]:space-y-1.5')) {
+      throw new Error('expected unordered list inline editor to preserve list item vertical spacing contract')
+    }
     if (!unordered.editor.className.includes('[&_code]:text-[length:var(--kg-inline-code-font-size,inherit)]')) {
       throw new Error('expected unordered list inline editor to preserve inline-code font-size via css var contract')
+    }
+    if (!unordered.editor.className.includes('[&_code]:px-1.5')) {
+      throw new Error('expected unordered list inline editor to preserve inline-code horizontal padding spacing contract')
     }
 
     root.unmount()
