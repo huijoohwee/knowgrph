@@ -31,9 +31,14 @@ const setRect = (el: HTMLElement, width: number = 480, height: number = 28) => {
 }
 
 const openEditorAtLine = async (dom: any, line: number) => {
-  const host = await waitForElement(
-    () => dom.document.querySelector(`[data-start-line="${line}"]`) as HTMLElement | null,
-  )
+  const host = await waitForElement(() => {
+    const rowHost = dom.document.querySelector(`[data-kg-list-item-start-line="${line}"]`) as HTMLElement | null
+    if (rowHost) {
+      const rowEditableHost = rowHost.querySelector(`[data-start-line="${line}"]`) as HTMLElement | null
+      return rowEditableHost || rowHost
+    }
+    return dom.document.querySelector(`[data-start-line="${line}"]`) as HTMLElement | null
+  })
   if (!host) throw new Error(`expected host for start line ${line}`)
   setRect(host)
   host.dispatchEvent(new dom.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 8, clientY: 8 }))
@@ -114,40 +119,28 @@ export async function testMarkdownViewerInlineEditMixedBlockSequencePreservesInl
     await tick()
 
     const ordered = await openEditorAtLine(dom.window, 7)
-    if (!ordered.editor.className.includes('[&_ol]:list-decimal')) {
-      throw new Error('expected ordered list inline editor to preserve numbering markers')
+    if (!ordered.editor.className.includes('whitespace-pre-wrap')) {
+      throw new Error('expected ordered list row editor to use normal-text style pre-wrap editing surface')
     }
-    if (!ordered.editor.className.includes('[&_ol]:pl-5')) {
-      throw new Error('expected ordered list inline editor to preserve list left padding spacing contract')
+    if (!ordered.editor.className.includes('break-words')) {
+      throw new Error('expected ordered list row editor to preserve normal-text break-words behavior')
     }
-    if (!ordered.editor.className.includes('[&_ol]:space-y-1.5')) {
-      throw new Error('expected ordered list inline editor to preserve list item vertical spacing contract')
-    }
-    if (!ordered.editor.className.includes('[&_code]:text-[length:var(--kg-inline-code-font-size,inherit)]')) {
-      throw new Error('expected ordered list inline editor to preserve inline-code font-size via css var contract')
-    }
-    if (!ordered.editor.className.includes('[&_code]:px-1.5')) {
-      throw new Error('expected ordered list inline editor to preserve inline-code horizontal padding spacing contract')
+    if (ordered.editor.className.includes('[&_ol]:list-decimal')) {
+      throw new Error('expected ordered list row editor to avoid block-level list-surface classes')
     }
 
     ordered.editor.dispatchEvent(new dom.window.FocusEvent('blur', { bubbles: true }))
     await tick()
 
     const unordered = await openEditorAtLine(dom.window, 10)
-    if (!unordered.editor.className.includes('[&_ul]:list-disc')) {
-      throw new Error('expected unordered list inline editor to preserve bullet markers')
+    if (!unordered.editor.className.includes('whitespace-pre-wrap')) {
+      throw new Error('expected unordered list row editor to use normal-text style pre-wrap editing surface')
     }
-    if (!unordered.editor.className.includes('[&_ul]:pl-5')) {
-      throw new Error('expected unordered list inline editor to preserve list left padding spacing contract')
+    if (!unordered.editor.className.includes('break-words')) {
+      throw new Error('expected unordered list row editor to preserve normal-text break-words behavior')
     }
-    if (!unordered.editor.className.includes('[&_ul]:space-y-1.5')) {
-      throw new Error('expected unordered list inline editor to preserve list item vertical spacing contract')
-    }
-    if (!unordered.editor.className.includes('[&_code]:text-[length:var(--kg-inline-code-font-size,inherit)]')) {
-      throw new Error('expected unordered list inline editor to preserve inline-code font-size via css var contract')
-    }
-    if (!unordered.editor.className.includes('[&_code]:px-1.5')) {
-      throw new Error('expected unordered list inline editor to preserve inline-code horizontal padding spacing contract')
+    if (unordered.editor.className.includes('[&_ul]:list-disc')) {
+      throw new Error('expected unordered list row editor to avoid block-level list-surface classes')
     }
 
     root.unmount()

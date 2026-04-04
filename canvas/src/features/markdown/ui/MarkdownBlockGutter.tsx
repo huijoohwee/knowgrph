@@ -4,6 +4,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export const MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS = 'pl-[44px]'
 export const MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS = 'pr-2'
+export const MARKDOWN_BLOCK_GUTTER_CONTROLS_LIST_ROW_ALIGNMENT_CLASS = ''
 
 const LINE_BLOCK_TRANSFER_TYPE = 'application/x-kg-md-lineblock'
 
@@ -108,6 +109,8 @@ export function MarkdownBlockGutterControls(props: {
   iconStrokeWidth: number
   labelReorder: string
   labelInsert: string
+  containerClassName?: string
+  revealClassName?: string
 }) {
   const {
     canInsertLine,
@@ -119,13 +122,22 @@ export function MarkdownBlockGutterControls(props: {
     iconStrokeWidth,
     labelReorder,
     labelInsert,
+    containerClassName,
+    revealClassName,
   } = props
 
   if (!canInsertLine && !canReorder) return null
+  const revealCls = revealClassName || 'group-hover:opacity-100'
 
   return (
     <span
-      className={`absolute left-2 inset-y-0 opacity-0 group-hover:opacity-100 transition-opacity ${UI_THEME_TOKENS.text.tertiary} flex items-center gap-0.5`}
+      className={[
+        'absolute left-2 inset-y-0 opacity-0 transition-opacity',
+        revealCls,
+        UI_THEME_TOKENS.text.tertiary,
+        'flex items-center gap-0.5',
+        containerClassName || '',
+      ].filter(Boolean).join(' ')}
     >
       {canInsertLine && (
         <button
@@ -192,4 +204,3 @@ export function MarkdownBlockDropMarkers(props: {
     </span>
   )
 }
-

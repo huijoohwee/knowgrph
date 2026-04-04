@@ -88,6 +88,7 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
   }, [])
   const editorQuoteClassName = [
     'w-full whitespace-pre-wrap break-words outline-none bg-transparent',
+    'pl-4 py-2 rounded-r text-left italic',
     baseTextClass,
     commonBlockClass,
     opts.uiPanelTextFontClass,
@@ -177,6 +178,7 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
       editPresentation="html"
       editHtmlRender="block"
       editHtmlDisableDefaultBlockFlow
+      editLeftRailClassName="bg-blue-400 dark:bg-blue-600"
       editStripLinePrefix={stripQuotePrefix}
       onDragOver={gutterEnabled ? dnd.handleDragOver : undefined}
       onDragLeave={gutterEnabled ? dnd.handleDragLeave : undefined}

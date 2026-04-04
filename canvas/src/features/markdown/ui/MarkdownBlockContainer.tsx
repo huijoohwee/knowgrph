@@ -71,6 +71,7 @@ type MarkdownBlockContainerProps = {
   editTypographyMode?: 'inherit' | 'none'
   editPreserveWhitespace?: boolean
   editPreserveBlockHeight?: boolean
+  editInlineFlow?: boolean
 }
 
 export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBlockContainerProps & React.HTMLAttributes<HTMLElement>>(({
@@ -107,6 +108,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   editTypographyMode = 'inherit',
   editPreserveWhitespace = false,
   editPreserveBlockHeight = true,
+  editInlineFlow = false,
   ...rest
 }, ref) => {
   const cls = [className, highlightClass].filter(Boolean).join(' ')
@@ -160,22 +162,28 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     const isWhitespaceText = (n: Node | null): boolean => {
       if (!n || n.nodeType !== Node.TEXT_NODE) return false
       const v = String((n as Text).nodeValue || '')
-      return v.replace(/\u200B/g, '').trim().length === 0
+      return v.replace(/[\u200B\u00A0\uFEFF]/g, '').trim().length === 0
     }
     const isBrElement = (n: Node | null): boolean => {
       if (!n || n.nodeType !== Node.ELEMENT_NODE) return false
       const tag = String((n as HTMLElement).tagName || '').toLowerCase()
       return tag === 'br'
     }
-    const isEmptyBlockElement = (el: Element): boolean => {
+    const isEffectivelyEmptyBlockishElement = (el: Element, depth: number = 0): boolean => {
+      if (depth > 5) return false
       const tag = String((el as HTMLElement).tagName || '').toLowerCase()
-      if (tag !== 'div' && tag !== 'p' && tag !== 'section') return false
-      const text = String((el as HTMLElement).textContent || '').replace(/\u200B/g, '').trim()
+      if (tag !== 'div' && tag !== 'p' && tag !== 'section' && tag !== 'span') return false
+      const text = String((el as HTMLElement).textContent || '').replace(/[\u200B\u00A0\uFEFF]/g, '').trim()
       if (text) return false
       const childEls = Array.from(el.children)
       if (childEls.length === 0) return true
-      return childEls.every(c => String((c as HTMLElement).tagName || '').toLowerCase() === 'br')
+      return childEls.every(c => {
+        const childTag = String((c as HTMLElement).tagName || '').toLowerCase()
+        if (childTag === 'br') return true
+        return isEffectivelyEmptyBlockishElement(c, depth + 1)
+      })
     }
+    const isEmptyBlockElement = (el: Element): boolean => isEffectivelyEmptyBlockishElement(el, 0)
 
     let changed = false
     const pruneLeading = () => {
@@ -204,6 +212,10 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
 
     const rootTag = String((root as HTMLElement).tagName || '').toLowerCase()
     const rootIsList = rootTag === 'ul' || rootTag === 'ol'
+    const hasAnyList = !rootIsList && Array.from(root.children).some(e => {
+      const tag = String(e.tagName || '').toLowerCase()
+      return tag === 'ul' || tag === 'ol'
+    })
     const onlyList = (() => {
       const elems = Array.from(root.children)
       const meaningful = elems.filter(e => {
@@ -214,7 +226,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       const tag = String(meaningful[0]?.tagName || '').toLowerCase()
       return tag === 'ul' || tag === 'ol'
     })()
-    if (onlyList || rootIsList) {
+    if (onlyList || rootIsList || hasAnyList) {
       pruneLeading()
       pruneTrailing()
 
@@ -226,6 +238,122 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
               return tag === 'ul' || tag === 'ol'
             })
       ) as HTMLElement | undefined
+      const listNodes = rootIsList
+        ? [root as HTMLElement]
+        : (Array.from(root.querySelectorAll('ol, ul')) as HTMLElement[])
+      for (const anyList of listNodes) {
+        anyList.style.marginTop = '0px'
+        anyList.style.marginBottom = '0px'
+        anyList.style.paddingTop = '0px'
+        anyList.style.paddingBottom = '0px'
+        const prev = anyList.previousElementSibling as HTMLElement | null
+        if (prev) {
+          const prevTag = String(prev.tagName || '').toLowerCase()
+          if (prevTag === 'ol' || prevTag === 'ul') anyList.style.marginTop = '0px'
+        }
+      }
+      const unwrapSingleListWrappers = () => {
+        let localChanged = false
+        const children = Array.from(root.children) as HTMLElement[]
+        for (const child of children) {
+          const tag = String(child.tagName || '').toLowerCase()
+          if (tag !== 'div' && tag !== 'p' && tag !== 'section' && tag !== 'span') continue
+          const childNodes = Array.from(child.childNodes)
+          const elementChildren = childNodes.filter(n => n.nodeType === Node.ELEMENT_NODE) as HTMLElement[]
+          const listChildren = elementChildren.filter(el => {
+            const t = String(el.tagName || '').toLowerCase()
+            return t === 'ol' || t === 'ul'
+          })
+          if (listChildren.length !== 1) continue
+          const hasMeaningfulNonList = childNodes.some(n => {
+            if (n.nodeType === Node.TEXT_NODE) {
+              const text = String((n as Text).nodeValue || '').replace(/[\u200B\u00A0\uFEFF]/g, '').trim()
+              return text.length > 0
+            }
+            if (n.nodeType !== Node.ELEMENT_NODE) return false
+            const t = String((n as HTMLElement).tagName || '').toLowerCase()
+            if (t === 'ol' || t === 'ul' || t === 'br') return false
+            return !isEmptyBlockElement(n as Element)
+          })
+          if (hasMeaningfulNonList) continue
+          const listChild = listChildren[0]
+          child.parentNode?.insertBefore(listChild, child)
+          child.remove()
+          localChanged = true
+        }
+        if (localChanged) changed = true
+      }
+      if (!rootIsList) unwrapSingleListWrappers()
+      const normalizeListAncestorSpacing = () => {
+        let localChanged = false
+        const lists = Array.from(root.querySelectorAll('ol, ul')) as HTMLElement[]
+        for (const listNode of lists) {
+          let parent = listNode.parentElement
+          while (parent && parent !== root) {
+            const tag = String(parent.tagName || '').toLowerCase()
+            if (tag === 'div' || tag === 'p' || tag === 'section' || tag === 'span') {
+              if (parent.style.marginTop !== '0px') {
+                parent.style.marginTop = '0px'
+                localChanged = true
+              }
+              if (parent.style.marginBottom !== '0px') {
+                parent.style.marginBottom = '0px'
+                localChanged = true
+              }
+              if (parent.style.paddingTop !== '0px') {
+                parent.style.paddingTop = '0px'
+                localChanged = true
+              }
+              if (parent.style.paddingBottom !== '0px') {
+                parent.style.paddingBottom = '0px'
+                localChanged = true
+              }
+            }
+            parent = parent.parentElement
+          }
+        }
+        if (localChanged) changed = true
+      }
+      if (!rootIsList) normalizeListAncestorSpacing()
+
+      const stripEmptyNodesBetweenSiblingLists = () => {
+        const isListEl = (n: Node | null): n is HTMLElement => {
+          if (!n || n.nodeType !== Node.ELEMENT_NODE) return false
+          const tag = String((n as HTMLElement).tagName || '').toLowerCase()
+          return tag === 'ol' || tag === 'ul'
+        }
+        const isEmptyBetween = (n: Node | null): boolean => {
+          if (!n) return false
+          if (n.nodeType === Node.COMMENT_NODE) return true
+          if (isWhitespaceText(n)) return true
+          if (isBrElement(n)) return true
+          if (n.nodeType === Node.ELEMENT_NODE) return isEmptyBlockElement(n as Element)
+          return false
+        }
+
+        let localChanged = false
+        const lists = Array.from(root.querySelectorAll('ol, ul')) as HTMLElement[]
+        for (const listEl of lists) {
+          let node: Node | null = listEl.nextSibling
+          const toRemove: Node[] = []
+          while (node && isEmptyBetween(node)) {
+            toRemove.push(node)
+            node = node.nextSibling
+          }
+          if (!node) continue
+          if (!isListEl(node)) continue
+          if (node.parentNode !== listEl.parentNode) continue
+          for (const n of toRemove) {
+            n.remove()
+            localChanged = true
+          }
+        }
+        if (localChanged) changed = true
+      }
+
+      if (!rootIsList) {
+        stripEmptyNodesBetweenSiblingLists()
+      }
       if (editEnforceSingleListRoot && listEl) {
         if (rootIsList) {
           const childList = Array.from(root.children).find(e => {
@@ -241,6 +369,11 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         const shouldRewriteRoot = (() => {
           if (rootIsList) return false
           const elems = Array.from(root.children)
+          const listRootCount = elems.filter(e => {
+            const tag = String((e as HTMLElement).tagName || '').toLowerCase()
+            return tag === 'ul' || tag === 'ol'
+          }).length
+          if (listRootCount > 1) return false
           if (elems.length !== 1) return true
           if (elems[0] !== listEl) return true
           const leading = root.firstChild
@@ -260,7 +393,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       const isEmptyLi = (li: Element): boolean => {
         const tag = String((li as HTMLElement).tagName || '').toLowerCase()
         if (tag !== 'li') return false
-        const text = String((li as HTMLElement).textContent || '').replace(/\u200B/g, '').trim()
+        const text = String((li as HTMLElement).textContent || '').replace(/[\u200B\u00A0\uFEFF]/g, '').trim()
         if (text) return false
         const childEls = Array.from(li.children)
         if (childEls.length === 0) return true
@@ -268,7 +401,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
           const t = String((el as HTMLElement).tagName || '').toLowerCase()
           if (t === 'br') return true
           if (t === 'p' || t === 'div') {
-            const innerText = String((el as HTMLElement).textContent || '').replace(/\u200B/g, '').trim()
+            const innerText = String((el as HTMLElement).textContent || '').replace(/[\u200B\u00A0\uFEFF]/g, '').trim()
             if (innerText) return false
             const innerChildren = Array.from(el.children)
             return innerChildren.length === 0 || innerChildren.every(c => String((c as HTMLElement).tagName || '').toLowerCase() === 'br')
@@ -284,7 +417,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         listEl.style.paddingBottom = '0px'
         for (const node of Array.from(listEl.childNodes)) {
           if (node.nodeType === Node.TEXT_NODE) {
-            const v = String((node as Text).nodeValue || '').replace(/\u200B/g, '').trim()
+            const v = String((node as Text).nodeValue || '').replace(/[\u200B\u00A0\uFEFF]/g, '').trim()
             if (!v) {
               node.remove()
               changed = true
@@ -361,9 +494,8 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   const edgeTrimRafRef = React.useRef(0)
   const scheduleEdgeTrimBurst = React.useCallback(() => {
     if (!editTrimEmptyBlockEdges) return
-    if (editListMode) return
     if (edgeTrimRafRef.current) return
-    let framesLeft = 6
+    let framesLeft = editListMode ? 3 : 6
     let stableFrames = 0
     const tick = () => {
       edgeTrimRafRef.current = 0
@@ -373,7 +505,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       else stableFrames += 1
       framesLeft -= 1
       if (framesLeft <= 0) return
-      if (stableFrames >= 2) return
+      if (stableFrames >= (editListMode ? 1 : 2)) return
       edgeTrimRafRef.current = window.requestAnimationFrame(tick)
     }
     edgeTrimRafRef.current = window.requestAnimationFrame(tick)
@@ -1306,11 +1438,11 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     >
       {editing && editable ? (
         <span
-          className="relative w-full block min-w-0 flex-1"
+          className={editInlineFlow ? 'relative inline min-w-0 align-baseline' : 'relative w-full block min-w-0 flex-1'}
           style={editPreserveBlockHeight && editMinHeightPxRef.current > 0 ? { minHeight: `${editMinHeightPxRef.current}px` } : undefined}
         >
           {editStaticChildren ? (
-            <span className="pointer-events-none select-none block">{editStaticChildren}</span>
+            <span className={`pointer-events-none select-none ${editInlineFlow ? 'inline align-baseline' : 'block'}`}>{editStaticChildren}</span>
           ) : null}
           {editLeftRailClassName ? <span aria-hidden className={`pointer-events-none absolute left-0 top-0 bottom-0 w-1 z-20 ${editLeftRailClassName}`} /> : null}
           <span ref={bubbleAnchorRef} className="absolute w-px h-px" style={{ left: `${bubble.leftPx}px`, top: `${bubble.topPx}px` }} />
@@ -1577,6 +1709,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
               if (!el) return
               const text = editPreserveWhitespace ? readEditorPlainText() : el.innerText.replace(/\r/g, '')
               draftRef.current = text
+              if (editTrimEmptyBlockEdges) scheduleEdgeTrimBurst()
               if (editDisableRichUi) return
               const sel = typeof window !== 'undefined' ? window.getSelection() : null
               if (!sel || sel.rangeCount <= 0) return

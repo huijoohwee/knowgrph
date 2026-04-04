@@ -5,16 +5,24 @@ import { addLineRangesToTokens } from '@/features/markdown/ui/markdownPreviewLex
 import MarkdownTokenRenderer from './MarkdownTokenRenderer'
 import type { RenderOpts } from './MarkdownRendererTypes'
 import { MarkdownBlockContainer } from './MarkdownBlockContainer'
+import { renderInlineTokens } from './MarkdownInlineRenderer'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY } from '@/lib/config'
 import {
-  MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
-  MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
+  MARKDOWN_BLOCK_GUTTER_CONTROLS_LIST_ROW_ALIGNMENT_CLASS,
   MarkdownBlockDropMarkers,
   MarkdownBlockGutterControls,
   useMarkdownLineBlockDnD,
 } from './MarkdownBlockGutter'
+import {
+  getMarkdownListSurfaceClass,
+  MARKDOWN_LIST_ROW_EDITOR_CLASS,
+  MARKDOWN_LIST_ROW_GUTTER_GROUP_CLASS,
+  MARKDOWN_LIST_ROW_GUTTER_PADDING_CLASS,
+  MARKDOWN_LIST_ROW_VIEW_INLINE_CLASS,
+  MARKDOWN_LIST_TASK_CHECKBOX_CLASS,
+} from './markdownListLayout'
 
 type MarkdownListBlockProps = {
   token: TokenWithLines
@@ -29,7 +37,167 @@ type MarkdownListBlockProps = {
   fragmentTags?: string[]
 }
 
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+function MarkdownListRow(props: {
+  item: TokensList['items'][number]
+  itemIndex: number
+  rowRange: { startLine: number; endLine: number } | undefined
+  tokenStartLine: number
+  wrapClass: string
+  opts: RenderOpts
+  rowEditingEnabled: boolean
+  rowEditorClassName: string
+  stripListLinePrefix: (line: string) => { prefix: string; content: string }
+  fragmentsEnabled?: boolean
+  fragmentStep?: number
+  fragmentClassNames?: string[]
+  fragmentTags?: string[]
+  iconSizeClass: string
+  iconStrokeWidth: number
+  rowControlsEnabled: boolean
+}) {
+  const {
+    item,
+    itemIndex,
+    rowRange,
+    tokenStartLine,
+    wrapClass,
+    opts,
+    rowEditingEnabled,
+    rowEditorClassName,
+    stripListLinePrefix,
+    fragmentsEnabled,
+    fragmentStep,
+    fragmentClassNames,
+    fragmentTags,
+    iconSizeClass,
+    iconStrokeWidth,
+    rowControlsEnabled,
+  } = props
+  const resolvedRowRange = rowRange || {
+    startLine: tokenStartLine + itemIndex,
+    endLine: tokenStartLine + itemIndex,
+  }
+  const task = item.task ? (
+    <input
+      type="checkbox"
+      checked={!!item.checked}
+      readOnly
+      className={MARKDOWN_LIST_TASK_CHECKBOX_CLASS}
+    />
+  ) : null
+  const rowCanInsert = rowControlsEnabled && !!opts.onInsertLineAfter
+  const rowCanReorder = rowControlsEnabled && !!opts.onReorderLineBlock
+  const rowStartLine = resolvedRowRange.startLine
+  const rowEndLine = resolvedRowRange.endLine
+  const rowDnd = useMarkdownLineBlockDnD({
+    enabled: rowCanReorder,
+    targetStartLine: rowStartLine,
+    targetEndLine: rowEndLine,
+    onReorder: (source, target, position) => opts.onReorderLineBlock?.(source, target, position),
+  })
+  const rowDefaultLinePrefix = React.useMemo(() => {
+    const source = opts.markdownSourceLines
+    if (!Array.isArray(source) || source.length === 0) return '  '
+    const first = String(source[resolvedRowRange.startLine - 1] || '')
+    const marker = first.match(/^(\s*(?:[-+*]\s+|\d+[.)]\s+))/)
+    if (marker) return ' '.repeat((marker[1] || '').length)
+    const continuation = first.match(/^(\s+)/)
+    if (continuation) return continuation[1] || '  '
+    return '  '
+  }, [opts.markdownSourceLines, resolvedRowRange.startLine])
+  const rowClassName = [
+    opts.uiPanelTextFontClass,
+    wrapClass,
+    rowControlsEnabled ? MARKDOWN_LIST_ROW_GUTTER_GROUP_CLASS : '',
+    rowControlsEnabled ? MARKDOWN_LIST_ROW_GUTTER_PADDING_CLASS : '',
+    rowDnd.isDragging ? 'opacity-60' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+  const onlyParagraph = (() => {
+    if (!Array.isArray(item.tokens) || item.tokens.length !== 1) return null
+    const first = item.tokens[0] as unknown as { type?: string; tokens?: Token[] }
+    if (first?.type !== 'paragraph' || !Array.isArray(first.tokens)) return null
+    return first.tokens as Token[]
+  })()
+  return (
+    <li
+      data-kg-list-item-index={itemIndex}
+      data-kg-list-item-start-line={resolvedRowRange.startLine}
+      data-kg-list-item-end-line={resolvedRowRange.endLine}
+      className={rowClassName}
+      onDragOver={rowCanReorder ? rowDnd.handleDragOver : undefined}
+      onDragLeave={rowCanReorder ? rowDnd.handleDragLeave : undefined}
+      onDrop={rowCanReorder ? rowDnd.handleDrop : undefined}
+    >
+      {rowControlsEnabled ? <MarkdownBlockDropMarkers dragState={rowDnd.dragState} /> : null}
+      {rowControlsEnabled ? (
+        <MarkdownBlockGutterControls
+          canInsertLine={rowCanInsert}
+          onInsertLine={() => opts.onInsertLineAfter?.(rowEndLine)}
+          canReorder={rowCanReorder}
+          onDragStart={rowDnd.handleDragStart}
+          onDragEnd={rowDnd.handleDragEnd}
+          iconSizeClass={iconSizeClass}
+          iconStrokeWidth={iconStrokeWidth}
+          labelReorder={UI_COPY.markdownBlockReorderLineLabel}
+          labelInsert={UI_COPY.markdownBlockInsertLineLabel}
+          containerClassName={MARKDOWN_BLOCK_GUTTER_CONTROLS_LIST_ROW_ALIGNMENT_CLASS}
+          revealClassName="group-hover/list-row:opacity-100"
+        />
+      ) : null}
+      {task}
+      <MarkdownBlockContainer
+        as="span"
+        className={MARKDOWN_LIST_ROW_VIEW_INLINE_CLASS}
+        highlightClass=""
+        startLine={rowStartLine}
+        endLine={rowEndLine}
+        editLineRange={resolvedRowRange}
+        inlineEditable={rowEditingEnabled}
+        sourceLines={opts.markdownSourceLines}
+        onReplaceLineRange={opts.onReplaceLineRange}
+        onInlineEditStateChange={opts.onInlineEditStateChange}
+        forbidCopy={!!opts.forbidCopy}
+        editorClassName={rowEditorClassName}
+        editInlineFlow
+        editStripLinePrefix={stripListLinePrefix}
+        editDefaultLinePrefix={rowDefaultLinePrefix}
+        editTrimEdgeNewlines
+      >
+        {onlyParagraph ? (
+          <span>
+            {renderInlineTokens(onlyParagraph, {
+              activeDocumentPath: opts.activeDocumentPath,
+              uiPanelTextFontClass: opts.uiPanelTextFontClass,
+              uiPanelMonospaceTextClass: opts.uiPanelMonospaceTextClass,
+              markdownPresentationMode: opts.markdownPresentationMode,
+            })}
+          </span>
+        ) : (
+          <MarkdownTokenRenderer
+            tokens={addLineRangesToTokens(item.tokens as unknown as Token[], 0)}
+            blockNestingLevel={1}
+            activeDocumentPath={opts.activeDocumentPath}
+            highlightedLineRange={null}
+            markdownWordWrap={opts.markdownWordWrap}
+            markdownPresentationMode={opts.markdownPresentationMode}
+            uiPanelTextFontClass={opts.uiPanelTextFontClass}
+            uiPanelMonospaceTextClass={opts.uiPanelMonospaceTextClass}
+            mermaidFrontmatterConfig={opts.mermaidFrontmatterConfig}
+            rootThemeMode={opts.rootThemeMode}
+            previewOverlayScope={opts.previewOverlayScope}
+            previewOverlayPortalTarget={opts.previewOverlayPortalTarget}
+            fragmentsEnabled={fragmentsEnabled}
+            fragmentStep={fragmentStep}
+            fragmentClassNames={fragmentClassNames}
+            fragmentTags={fragmentTags}
+          />
+        )}
+      </MarkdownBlockContainer>
+    </li>
+  )
+}
 
 export const MarkdownListBlock = React.memo(function MarkdownListBlock({
   token: t,
@@ -56,13 +224,6 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
   const canInsertLine = blockControlsAllowed && !!opts.onInsertLineAfter && Number.isFinite(endLine)
   const canReorder = blockControlsAllowed && !!opts.onReorderLineBlock && Number.isFinite(t.startLine)
   const gutterEnabled = (canInsertLine || canReorder) && opts.markdownBlockGutterEnabled !== false
-
-  const dnd = useMarkdownLineBlockDnD({
-    enabled: canReorder,
-    targetStartLine: t.startLine,
-    targetEndLine: endLine,
-    onReorder: (source, target, position) => opts.onReorderLineBlock?.(source, target, position),
-  })
   const editLineRange = React.useMemo(() => {
     const src = opts.markdownSourceLines
     if (!Array.isArray(src) || src.length === 0) return null
@@ -73,12 +234,117 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
     if (start > end) return null
     return { startLine: start, endLine: end }
   }, [opts.markdownSourceLines, t.endLine, t.startLine])
+  const resolveEditLineRangeOnOpen = React.useCallback(() => {
+    const src = opts.markdownSourceLines
+    if (!Array.isArray(src) || src.length === 0 || !editLineRange) return editLineRange
+    const isListMarkerLine = (line: string): boolean => {
+      const raw = String(line || '')
+      if (!raw.trim()) return false
+      return /^\s*(?:[-+*]\s+|\d+[.)]\s+)/.test(raw)
+    }
+    const isContinuationLine = (line: string): boolean => {
+      const raw = String(line || '')
+      if (!raw.trim()) return false
+      if (/^\s*(?:[-+*]\s+|\d+[.)]\s+)/.test(raw)) return false
+      if (/^\s+/.test(raw)) return true
+      return false
+    }
+    const isListOrContinuationLine = (line: string): boolean => isListMarkerLine(line) || isContinuationLine(line)
+    const isBlank = (line: string): boolean => String(line || '').trim().length === 0
+    let start = editLineRange.startLine
+    let end = editLineRange.endLine
+    while (start > 1) {
+      const prev = String(src[start - 2] || '')
+      if (isListOrContinuationLine(prev)) {
+        start -= 1
+        continue
+      }
+      if (isBlank(prev) && start > 2) {
+        const beforePrev = String(src[start - 3] || '')
+        if (isListOrContinuationLine(beforePrev) && isListOrContinuationLine(String(src[start - 1] || ''))) {
+          start -= 1
+          continue
+        }
+      }
+      break
+    }
+    while (end < src.length) {
+      const next = String(src[end] || '')
+      if (isListOrContinuationLine(next)) {
+        end += 1
+        continue
+      }
+      if (isBlank(next) && end + 1 < src.length) {
+        const afterNext = String(src[end + 1] || '')
+        if (isListOrContinuationLine(afterNext) && isListOrContinuationLine(String(src[end - 1] || ''))) {
+          end += 1
+          continue
+        }
+      }
+      break
+    }
+    return { startLine: start, endLine: end }
+  }, [editLineRange, opts.markdownSourceLines])
+  const listItemRowRanges = React.useMemo(() => {
+    const src = opts.markdownSourceLines
+    const baseRange = editLineRange
+    if (!Array.isArray(src) || src.length === 0 || !baseRange) return []
+    const ranges: Array<{ startLine: number; endLine: number }> = []
+    const isListMarkerLine = (line: string): boolean => /^\s*(?:[-+*]\s+|\d+[.)]\s+)/.test(String(line || ''))
+    const isBlankLine = (line: string): boolean => String(line || '').trim().length === 0
+    const isContinuationLine = (line: string): boolean => {
+      const raw = String(line || '')
+      if (!raw.trim()) return false
+      if (isListMarkerLine(raw)) return false
+      return /^\s+/.test(raw)
+    }
+    let cursor = Math.max(1, baseRange.startLine)
+    const endBound = Math.max(cursor, baseRange.endLine)
+    while (cursor <= endBound) {
+      const line = String(src[cursor - 1] || '')
+      if (!isListMarkerLine(line)) {
+        cursor += 1
+        continue
+      }
+      const rowStart = cursor
+      let rowEnd = cursor
+      let probe = cursor + 1
+      while (probe <= endBound) {
+        const next = String(src[probe - 1] || '')
+        if (isListMarkerLine(next)) break
+        if (isContinuationLine(next)) {
+          rowEnd = probe
+          probe += 1
+          continue
+        }
+        if (isBlankLine(next)) {
+          const after = String(src[probe] || '')
+          if (isContinuationLine(after)) {
+            rowEnd = probe + 1
+            probe += 2
+            continue
+          }
+        }
+        break
+      }
+      ranges.push({ startLine: rowStart, endLine: rowEnd })
+      cursor = Math.max(rowEnd + 1, probe)
+    }
+    if (ranges.length === 0 && list.items.length > 0) {
+      let line = Math.max(1, baseRange.startLine)
+      const fallback: Array<{ startLine: number; endLine: number }> = []
+      for (let i = 0; i < list.items.length; i += 1) {
+        while (line <= endBound && !isListMarkerLine(String(src[line - 1] || ''))) line += 1
+        if (line > endBound) break
+        fallback.push({ startLine: line, endLine: line })
+        line += 1
+      }
+      if (fallback.length > 0) return fallback
+    }
+    return ranges
+  }, [editLineRange, list.items.length, opts.markdownSourceLines])
   const ListTag = (list.ordered ? 'ol' : 'ul') as 'ol' | 'ul'
-  const listClass = list.ordered ? 'list-decimal' : 'list-disc'
-  const listSurfaceClass = `${listClass} pl-5 space-y-1.5 marker:${UI_THEME_TOKENS.text.tertiary}`
-  const listEditFlowClass = list.ordered
-    ? `[&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:space-y-1.5 [&_ol]:marker:${UI_THEME_TOKENS.text.tertiary} [&_li]:list-item`
-    : `[&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5 [&_ul]:marker:${UI_THEME_TOKENS.text.tertiary} [&_li]:list-item`
+  const listSurfaceClass = getMarkdownListSurfaceClass(!!list.ordered)
   const listReadInnerClassName = [
     listSurfaceClass,
     baseTextClass,
@@ -87,47 +353,39 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
   ]
     .filter(Boolean)
     .join(' ')
-  const editorListClassName = [
-    'block w-full m-0 whitespace-pre-wrap break-words outline-none bg-transparent',
-    listEditFlowClass,
-    baseTextClass,
-    opts.uiPanelTextFontClass,
-  ]
-    .filter(Boolean)
-    .join(' ')
+  const rowEditorClassName = [MARKDOWN_LIST_ROW_EDITOR_CLASS, baseTextClass, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
+  const stripListLinePrefix = React.useCallback((line: string) => {
+    const markerMatch = line.match(/^(\s*(?:[-+*]\s+|\d+[.)]\s+))([\s\S]*)$/)
+    if (markerMatch) return { prefix: markerMatch[1] || '', content: markerMatch[2] || '' }
+    const continuationMatch = line.match(/^(\s+)([\s\S]*)$/)
+    if (continuationMatch) return { prefix: continuationMatch[1] || '', content: continuationMatch[2] || '' }
+    return { prefix: '', content: line }
+  }, [])
+  const rowEditingEnabled = blockControlsAllowed && !!opts.onReplaceLineRange
   const listNode = React.useMemo(() => (
     <ListTag className={listReadInnerClassName}>
       {list.items.map((item, j) => {
-        const task = item.task ? (
-          <input
-            type="checkbox"
-            checked={!!item.checked}
-            readOnly
-            className="mr-2 translate-y-[1px]"
-          />
-        ) : null
+        const rowRange = listItemRowRanges[j]
         return (
-          <li key={j} data-kg-list-item-index={j} className={[opts.uiPanelTextFontClass, wrapClass].filter(Boolean).join(' ')}>
-            {task}
-            <MarkdownTokenRenderer
-              tokens={addLineRangesToTokens(item.tokens as unknown as Token[], 0)}
-              blockNestingLevel={1}
-              activeDocumentPath={opts.activeDocumentPath}
-              highlightedLineRange={null}
-              markdownWordWrap={opts.markdownWordWrap}
-              markdownPresentationMode={opts.markdownPresentationMode}
-              uiPanelTextFontClass={opts.uiPanelTextFontClass}
-              uiPanelMonospaceTextClass={opts.uiPanelMonospaceTextClass}
-              mermaidFrontmatterConfig={opts.mermaidFrontmatterConfig}
-              rootThemeMode={opts.rootThemeMode}
-              previewOverlayScope={opts.previewOverlayScope}
-              previewOverlayPortalTarget={opts.previewOverlayPortalTarget}
-              fragmentsEnabled={fragmentsEnabled}
-              fragmentStep={fragmentStep}
-              fragmentClassNames={fragmentClassNames}
-              fragmentTags={fragmentTags}
-            />
-          </li>
+          <MarkdownListRow
+            key={j}
+            item={item}
+            itemIndex={j}
+            rowRange={rowRange}
+            tokenStartLine={t.startLine}
+            wrapClass={wrapClass}
+            opts={opts}
+            rowEditingEnabled={rowEditingEnabled}
+            rowEditorClassName={rowEditorClassName}
+            stripListLinePrefix={stripListLinePrefix}
+            fragmentsEnabled={fragmentsEnabled}
+            fragmentStep={fragmentStep}
+            fragmentClassNames={fragmentClassNames}
+            fragmentTags={fragmentTags}
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={uiIconStrokeWidth}
+            rowControlsEnabled={gutterEnabled}
+          />
         )
       })}
     </ListTag>
@@ -138,6 +396,7 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
     fragmentTags,
     fragmentsEnabled,
     list.items,
+    listItemRowRanges,
     listReadInnerClassName,
     opts.activeDocumentPath,
     opts.markdownPresentationMode,
@@ -148,6 +407,13 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
     opts.rootThemeMode,
     opts.uiPanelMonospaceTextClass,
     opts.uiPanelTextFontClass,
+    gutterEnabled,
+    iconSizeClass,
+    rowEditingEnabled,
+    rowEditorClassName,
+    stripListLinePrefix,
+    t.startLine,
+    uiIconStrokeWidth,
     wrapClass,
   ])
 
@@ -160,19 +426,11 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
         highlightStyle={highlightStyle}
         startLine={t.startLine}
         endLine={t.endLine}
-        editLineRange={editLineRange || undefined}
-        inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
+        inlineEditable={false}
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
         onInlineEditStateChange={opts.onInlineEditStateChange}
         forbidCopy={!!opts.forbidCopy}
-        editorClassName={editorListClassName}
-        editPresentation="html"
-        editHtmlRender="block"
-        editHtmlDisableDefaultBlockFlow
-        editTrimEmptyBlockEdges
-        editEnforceSingleListRoot
-        editListMode={list.ordered ? 'ordered' : 'unordered'}
       >
         {listNode}
       </MarkdownBlockContainer>
@@ -181,11 +439,8 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
 
   const wrapperClassName = [
     'mt-3 mb-3 relative group',
-    MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
-    MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
     baseTextClass,
     opts.uiPanelTextFontClass,
-    dnd.isDragging ? 'opacity-60' : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -198,35 +453,12 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
       highlightStyle={highlightStyle}
       startLine={t.startLine}
       endLine={t.endLine}
-      editLineRange={editLineRange || undefined}
-      inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
+      inlineEditable={false}
       sourceLines={opts.markdownSourceLines}
       onReplaceLineRange={opts.onReplaceLineRange}
       onInlineEditStateChange={opts.onInlineEditStateChange}
       forbidCopy={!!opts.forbidCopy}
-      editorClassName={editorListClassName}
-      editPresentation="html"
-      editHtmlRender="block"
-      editHtmlDisableDefaultBlockFlow
-      editTrimEmptyBlockEdges
-      editEnforceSingleListRoot
-      editListMode={list.ordered ? 'ordered' : 'unordered'}
-      onDragOver={dnd.handleDragOver}
-      onDragLeave={dnd.handleDragLeave}
-      onDrop={dnd.handleDrop}
     >
-      <MarkdownBlockDropMarkers dragState={dnd.dragState} />
-      <MarkdownBlockGutterControls
-        canInsertLine={canInsertLine}
-        onInsertLine={() => opts.onInsertLineAfter?.(endLine)}
-        canReorder={canReorder}
-        onDragStart={dnd.handleDragStart}
-        onDragEnd={dnd.handleDragEnd}
-        iconSizeClass={iconSizeClass}
-        iconStrokeWidth={uiIconStrokeWidth}
-        labelReorder={UI_COPY.markdownBlockReorderLineLabel}
-        labelInsert={UI_COPY.markdownBlockInsertLineLabel}
-      />
       {listNode}
     </MarkdownBlockContainer>
   )

@@ -48,6 +48,7 @@ const modMarkdownViewerMdDemoSweepLex = () => import('@/__tests__/markdownViewer
 const modMarkdownViewerInlineEditConfig = () => import('@/__tests__/markdownViewerInlineEditConfig.test')
 const modMarkdownViewerInlineEditMixedSequence = () => import('@/__tests__/markdownViewerInlineEditMixedSequence.test')
 const modMarkdownViewerListInlineEditNoEdgeRows = () => import('@/__tests__/markdownViewerListInlineEditNoEdgeRows.test')
+const modMarkdownViewerInlineEditTableReadOnlySurface = () => import('@/__tests__/markdownViewerInlineEditTableReadOnlySurface.test')
 
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'workspaceFs.seedAndCrud', async () => {
@@ -215,6 +216,10 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.viewer.inlineEdit.list.fence.editAsIs', async () => {
     const mod = await modMarkdownViewerListInlineEditNoEdgeRows()
     await mod.testMarkdownViewerInlineEditListWithFenceUsesEditAsIs()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.table.noGenericTextSurface', async () => {
+    const mod = await modMarkdownViewerInlineEditTableReadOnlySurface()
+    await mod.testMarkdownViewerInlineEditTableDoesNotOpenGenericContentEditableSurface()
   })
   await execTest(results, 'markdownWorkspace.viewer.remotionRichMedia', async () => {
     const mod = await modMarkdownWorkspaceRemotionViewerRenders()

@@ -115,19 +115,21 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
   const handleUpdateCell = React.useCallback(
     (args: { rowId: string; columnId: string; nextValue: string }) => {
       if (!view) return
+      if (!canMutate) return
       const next = updateMarkdownDataViewCell({ view, ...args })
       commitView(next)
     },
-    [commitView, view],
+    [canMutate, commitView, view],
   )
 
   const handleNewRecord = React.useCallback(
     (seed?: Partial<Record<string, string>>) => {
       if (!view) return
+      if (!canMutate) return
       const next = appendMarkdownDataViewRow({ view, seed })
       commitView(next)
     },
-    [commitView, view],
+    [canMutate, commitView, view],
   )
 
   const handleAddColumn = React.useCallback(

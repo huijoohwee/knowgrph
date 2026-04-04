@@ -67,9 +67,13 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
 
   const commit = React.useCallback(() => {
     if (!editing) return
+    if (!canMutate) {
+      setEditing(null)
+      return
+    }
     onUpdateCell({ rowId: editing.rowId, columnId: editing.colId, nextValue: draft })
     setEditing(null)
-  }, [draft, editing, onUpdateCell])
+  }, [canMutate, draft, editing, onUpdateCell])
 
   const cancel = React.useCallback(() => {
     setEditing(null)
@@ -441,6 +445,10 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
             value={draft}
             options={editingSelectOptions}
             onChange={(next) => {
+              if (!canMutate) {
+                setEditing(null)
+                return
+              }
               setDraft(next)
               onUpdateCell({ rowId: editingMeta.rowId, columnId: editingMeta.colId, nextValue: next })
             }}
@@ -453,6 +461,10 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
             value={draft}
             options={editingMultiSelectOptions}
             onChange={(next) => {
+              if (!canMutate) {
+                setEditing(null)
+                return
+              }
               setDraft(next)
               onUpdateCell({ rowId: editingMeta.rowId, columnId: editingMeta.colId, nextValue: next })
             }}

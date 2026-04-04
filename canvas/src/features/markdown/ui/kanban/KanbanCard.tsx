@@ -185,7 +185,9 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                 aria-label={MARKDOWN_DATA_VIEW_COPY.cardMenuLabel}
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
+                disabled={!props.canMutate}
                 onClick={() => {
+                  if (!props.canMutate) return
                   setMenuOpen(prev => !prev)
                   setMoveMenuOpen(false)
                 }}
@@ -193,7 +195,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                 <MoreHorizontal className="w-4 h-4" aria-hidden="true" />
               </button>
 
-              {menuOpen ? (
+              {menuOpen && props.canMutate ? (
                 <menu
                   className={['absolute right-0 mt-2 w-[220px] rounded border shadow-sm p-2 z-10', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}
                   role="menu"
@@ -251,6 +253,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                               className={['w-full text-left px-2 py-1.5 rounded text-sm', UI_THEME_TOKENS.button.hoverBg].join(' ')}
                               role="menuitem"
                               onClick={() => {
+                                if (!props.canMutate) return
                                 props.onUpdateCell({ rowId: props.row.id, columnId: props.groupByColumnId, nextValue: t })
                                 setMenuOpen(false)
                                 setMoveMenuOpen(false)

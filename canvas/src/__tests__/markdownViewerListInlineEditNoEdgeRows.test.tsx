@@ -106,10 +106,27 @@ const runListInteractionCase = async (args: {
     )
 
     await tick()
-    const host = await waitForElement(() => dom.window.document.querySelector('[data-start-line]') as HTMLElement | null)
+    const host = await waitForElement(() => {
+      const rowHost = dom.window.document.querySelector('[data-kg-list-item-start-line]') as HTMLElement | null
+      if (rowHost) {
+        const startLine = Number(rowHost.getAttribute('data-kg-list-item-start-line') || '')
+        if (Number.isFinite(startLine) && startLine > 0) {
+          const rowEditableHost = rowHost.querySelector(`[data-start-line="${startLine}"]`) as HTMLElement | null
+          return rowEditableHost || rowHost
+        }
+        return rowHost
+      }
+      return dom.window.document.querySelector('[data-start-line]') as HTMLElement | null
+    })
     if (!host) throw new Error(`expected list host with data-start-line; dom=${container.innerHTML}`)
     const clickTarget = Number.isFinite(args.clickListItemIndex as number)
-      ? (host.querySelector(`[data-kg-list-item-index="${args.clickListItemIndex}"]`) as HTMLElement | null) || host
+      ? (() => {
+          const row = dom.window.document.querySelector(`[data-kg-list-item-index="${args.clickListItemIndex}"]`) as HTMLElement | null
+          if (!row) return host
+          const startLine = Number(row.getAttribute('data-kg-list-item-start-line') || '')
+          if (!Number.isFinite(startLine) || startLine <= 0) return row
+          return (row.querySelector(`[data-start-line="${startLine}"]`) as HTMLElement | null) || row
+        })()
       : host
     clickTarget.getBoundingClientRect = () => ({
       x: 0,
