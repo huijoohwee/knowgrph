@@ -8,6 +8,7 @@ export function useMarkdownEditorSsotSync(args: {
   activeDocumentSourceUrl: string | null
   activeText: string
   setActiveMarkdownDocument: GraphState['setActiveMarkdownDocument']
+  paused?: boolean
 }): void {
   const lastPushedRef = React.useRef<{ key: string; text: string } | null>(null)
   const lastSeenRef = React.useRef<{ key: string; textRaw: string } | null>(null)
@@ -31,6 +32,7 @@ export function useMarkdownEditorSsotSync(args: {
     const key = String(args.activeDocumentKey || '').trim()
     const textRaw = String(args.activeText || '')
     if (!key) return
+    if (args.paused) return
     const scheduleKey = `markdown-editor:ssot:${key}`
     scheduleKeyRef.current = scheduleKey
 
@@ -87,5 +89,5 @@ export function useMarkdownEditorSsotSync(args: {
         idleRef.current = null
       }
     }
-  }, [args.activeDocumentKey, args.activeDocumentSourceUrl, args.activeText, args.setActiveMarkdownDocument])
+  }, [args.activeDocumentKey, args.activeDocumentSourceUrl, args.activeText, args.paused, args.setActiveMarkdownDocument])
 }

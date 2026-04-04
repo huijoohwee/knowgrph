@@ -89,6 +89,10 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
     scrollMarginTop: `${Math.max(0, topPx + heightPx + 8)}px`,
   } as React.CSSProperties
   const cls = ['font-semibold', size, color, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
+  const headingEditorClassName = [
+    cls,
+    'block flex-1 min-w-0 max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] outline-none bg-transparent',
+  ].filter(Boolean).join(' ')
   const content = renderInlineTokens(h.tokens, {
     activeDocumentPath: opts.activeDocumentPath,
     uiPanelTextFontClass: opts.uiPanelTextFontClass,
@@ -179,6 +183,11 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
     },
     [canReorder, dragState, id, opts],
   )
+  const stripHeadingPrefix = React.useCallback((line: string) => {
+    const m = line.match(/^(\s*#{1,6}\s+)([\s\S]*)$/)
+    if (!m) return { prefix: '', content: line }
+    return { prefix: m[1] || '', content: m[2] || '' }
+  }, [])
 
   return (
     <header
@@ -200,7 +209,12 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
         inlineEditable={!opts.markdownPresentationMode && !!opts.viewerBlockEditingEnabled && !!opts.onReplaceLineRange}
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
-        editorClassName={['w-full whitespace-pre-wrap break-words outline-none bg-transparent', opts.uiPanelMonospaceTextClass, UI_THEME_TOKENS.text.primary].join(' ')}
+        onInlineEditStateChange={opts.onInlineEditStateChange}
+        forbidCopy={!!opts.forbidCopy}
+        editorClassName={headingEditorClassName}
+        editPresentation="html"
+        editHtmlRender="inline"
+        editStripLinePrefix={stripHeadingPrefix}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}

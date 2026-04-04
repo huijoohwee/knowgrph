@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
-import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { useCanvasMarkdownSync } from '@/components/BottomPanel/markdownWorkspace/useCanvasMarkdownSync'
 
 const tick = async () => {
@@ -45,7 +44,6 @@ export async function testCanvasSelectionDoesNotAutoOpenWorkspaceWhenInactive() 
     function Harness(props: { active: boolean }) {
       const [activePath, setActivePath] = React.useState<WorkspacePath | null>(null)
       const [, setExpandedPaths] = React.useState<Set<string>>(() => new Set())
-      const [layoutMode, setLayoutMode] = React.useState<MarkdownWorkspaceLayoutMode>('viewer')
 
       useCanvasMarkdownSync({
         active: props.active,
@@ -56,8 +54,6 @@ export async function testCanvasSelectionDoesNotAutoOpenWorkspaceWhenInactive() 
           setActivePath(path)
         },
         setExpandedPaths,
-        layoutMode,
-        setLayoutMode,
         revealLineInEditor: () => {
           calls.reveal += 1
         },
@@ -101,4 +97,3 @@ export async function testCanvasSelectionDoesNotAutoOpenWorkspaceWhenInactive() 
     bootstrap.restore()
   }
 }
-

@@ -59,6 +59,7 @@ export type MarkdownTokenRendererProps = {
   markdownForcePlainTables?: boolean
   markdownSourceLines?: string[]
   forbidCopy?: boolean
+  onInlineEditStateChange?: (active: boolean) => void
 }
 
 const CODEBLOCK_BOX_DRAWING_RE = /[┌┐└┘┬┴┼│─╔╗╚╝╦╩╬║═]/
@@ -118,6 +119,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
     markdownForcePlainTables,
     markdownSourceLines,
     forbidCopy,
+    onInlineEditStateChange,
   } = props
 
   const nestingLevel = typeof blockNestingLevel === 'number' && Number.isFinite(blockNestingLevel) ? blockNestingLevel : 0
@@ -163,6 +165,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       markdownForcePlainTables: !!markdownForcePlainTables,
       markdownSourceLines,
       forbidCopy: !!forbidCopy,
+      onInlineEditStateChange,
     }),
     [
       activeDocumentPath,
@@ -176,6 +179,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
       markdownSourceLines,
       markdownWordWrap,
       forbidCopy,
+      onInlineEditStateChange,
       mermaidFrontmatterConfig,
       onInsertLineAfter,
       onMoveHeadingSection,
@@ -378,7 +382,27 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
             continue
           }
         case 'hr':
-          out.push(<hr key={key} className={`my-8 border-t-2 ${UI_THEME_TOKENS.panel.divider}`} />)
+          out.push(
+            <MarkdownBlockContainer
+              key={key}
+              as="section"
+              className="my-8"
+              highlightClass=""
+              startLine={t.startLine}
+              endLine={t.endLine}
+              inlineEditable={!opts.markdownPresentationMode && !!opts.viewerBlockEditingEnabled && !!opts.onReplaceLineRange}
+              sourceLines={opts.markdownSourceLines}
+              onReplaceLineRange={opts.onReplaceLineRange}
+              onInlineEditStateChange={opts.onInlineEditStateChange}
+              forbidCopy={!!opts.forbidCopy}
+              editorClassName="w-full outline-none bg-transparent"
+              editPresentation="html"
+              editHtmlRender="block"
+              editHtmlDisableDefaultBlockFlow
+            >
+              <hr className={`border-t-2 ${UI_THEME_TOKENS.panel.divider}`} />
+            </MarkdownBlockContainer>
+          )
           continue
         case 'blockquote':
           out.push(

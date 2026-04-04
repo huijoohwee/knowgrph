@@ -85,6 +85,7 @@ export type MarkdownWorkspaceMainProps = {
   editorLanguage: string
   editorRef: React.MutableRefObject<MonacoTextEditorHandle | null>
   onEditorCaretLine?: (line: number) => void
+  onViewerInlineEditStateChange?: (active: boolean) => void
 }
 
 function sanitizeInvalidDataUrls(raw: string): string {
@@ -149,8 +150,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     editorLanguage,
     editorRef,
     onEditorCaretLine,
+    onViewerInlineEditStateChange,
   } = props
   const viewerRef = React.useRef<HTMLElement | null>(null)
+  const viewerInlineEditActiveRef = React.useRef(false)
 
   const frontmatterBlock = React.useMemo(() => extractYamlFrontmatterBlock(activeText), [activeText])
   const webpageMeta = React.useMemo((): WebpageFrontmatterMeta | null => {
@@ -205,6 +208,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   React.useEffect(() => {
     setViewerMode(prev => {
       if (prev === 'read') return prev
+      if (prev === 'multiDimTable' && workspaceEditorMode === 'table') return prev
+      if (prev === 'kanban' && workspaceEditorMode === 'table') return prev
       return prev === workspaceEditorMode ? prev : workspaceEditorMode
     })
   }, [workspaceEditorMode])
@@ -328,13 +333,14 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       const idx = Math.min(lines.length, line)
       const next = [...lines.slice(0, idx), '', ...lines.slice(idx)].join('\n')
       setActiveText(next)
+      if (layoutMode === 'viewer') return
       try {
         revealLineInEditor(line + 1)
       } catch {
         void 0
       }
     },
-    [activeText, disableViewerMutations, revealLineInEditor, setActiveText],
+    [activeText, disableViewerMutations, layoutMode, revealLineInEditor, setActiveText],
   )
 
   const handleReorderLineBlock = React.useCallback(
@@ -380,17 +386,23 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       })
       if (next === activeText) return
       setActiveText(next)
+      if (layoutMode === 'viewer') return
+      if (viewerInlineEditActiveRef.current) return
       try {
         revealLineInEditor(startLine)
       } catch {
         void 0
       }
     },
-    [activeText, disableViewerMutations, revealLineInEditor, setActiveText],
+    [activeText, disableViewerMutations, layoutMode, revealLineInEditor, setActiveText],
   )
   const onInsertLineAfter = disableViewerMutations ? undefined : handleInsertLineAfter
   const onReorderLineBlock = disableViewerMutations ? undefined : handleReorderLineBlock
   const onReplaceLineRange = disableViewerMutations ? undefined : handleReplaceLineRange
+  const handleInlineEditStateChange = React.useCallback((active: boolean) => {
+    viewerInlineEditActiveRef.current = active
+    onViewerInlineEditStateChange?.(active)
+  }, [onViewerInlineEditStateChange])
   const renderEditorPane = React.useCallback(
     () => (
       <MarkdownEditorPane
@@ -468,6 +480,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       onInsertLineAfter={onInsertLineAfter}
       onReorderLineBlock={onReorderLineBlock}
       onReplaceLineRange={onReplaceLineRange}
+      onInlineEditStateChange={handleInlineEditStateChange}
       markdownForcePlainTables={viewerMode === 'table'}
     />
   ) : (

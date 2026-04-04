@@ -43,6 +43,8 @@
   --kg-code-bg: #f8fafc;
   --kg-code-border: #e2e8f0;
   --kg-code-text: #0f172a;
+  --kg-inline-code-font-size: inherit;
+  --kg-inline-code-line-height: inherit;
   --kg-control-height: 28px;
   --kg-status-pill-height: 24px;
   --kg-table-row-height: 44px;
@@ -95,6 +97,8 @@
   --kg-code-bg: rgba(2, 6, 23, 0.6);
   --kg-code-border: #1e293b;
   --kg-code-text: #e2e8f0;
+  --kg-inline-code-font-size: inherit;
+  --kg-inline-code-line-height: inherit;
   --kg-canvas-node-stroke: #0b1220;
   --kg-canvas-edge-stroke: #4b5563;
   --kg-canvas-accent: #60a5fa;

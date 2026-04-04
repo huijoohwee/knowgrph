@@ -71,6 +71,7 @@ export type RenderOpts = InlineRenderOpts & {
   ) => void
   onInsertLineAfter?: (afterLine: number) => void
   onReplaceLineRange?: (args: { startLine: number; endLine: number; replacementLines: string[] }) => void
+  onInlineEditStateChange?: (active: boolean) => void
   geoDatasetIntegration?: MarkdownGeoDatasetIntegration
   markdownBlockControlsEnabled?: boolean
   markdownBlockGutterEnabled?: boolean

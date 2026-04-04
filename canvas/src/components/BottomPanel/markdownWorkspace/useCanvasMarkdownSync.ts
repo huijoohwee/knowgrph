@@ -3,7 +3,6 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { ancestorPathsForWorkspacePath, normalizeWorkspacePath, workspaceDocumentKey } from '@/features/workspace-fs/path'
 import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
-import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { StatusHelpers } from './useWorkspaceFileActions/types'
 
@@ -136,8 +135,6 @@ export function useCanvasMarkdownSync(args: {
   activePath: WorkspacePath | null
   setActivePathSafe: (path: WorkspacePath) => void
   setExpandedPaths: React.Dispatch<React.SetStateAction<Set<string>>>
-  layoutMode: MarkdownWorkspaceLayoutMode
-  setLayoutMode: (mode: MarkdownWorkspaceLayoutMode) => void
   revealLineInEditor: (line: number, endLine?: number) => void
   setStatusError: StatusHelpers['setStatusError']
 }) {
@@ -147,8 +144,6 @@ export function useCanvasMarkdownSync(args: {
     activePath,
     setActivePathSafe,
     setExpandedPaths,
-    layoutMode,
-    setLayoutMode,
     revealLineInEditor,
     setStatusError,
   } = args
@@ -208,13 +203,11 @@ export function useCanvasMarkdownSync(args: {
       })
       setActivePathSafe(normalizedTarget)
     }
-    if (layoutMode !== 'split' && layoutMode !== 'editor') setLayoutMode('split')
     revealLineInEditor(location.lineStart, location.lineEnd)
   }, [
     active,
     activePath,
     entries,
-    layoutMode,
     revealLineInEditor,
     selectedEdgeId,
     selectedNodeId,
@@ -222,7 +215,6 @@ export function useCanvasMarkdownSync(args: {
     docLocationRevision,
     setActivePathSafe,
     setExpandedPaths,
-    setLayoutMode,
     setStatusError,
   ])
 }

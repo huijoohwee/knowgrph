@@ -59,3 +59,11 @@ No other surface should duplicate these controls.
   - **Grid**: `grid-cols-*` and `col-span-*`/`row-span-*` class-derived layout must render as CSS grid, and item spans must apply even when the item itself is not `display:grid`.
   - **Media**: allowlisted `<video>/<audio>` should preserve safe attributes (`autoplay`, `muted`, `loop`, `playsinline`, `poster`) and prefer `<source>` candidates when direct `src` is absent.
 - Markdown preview renders allowlisted HTML blocks safely (no `dangerouslySetInnerHTML`). Unsupported blocks must never be silently dropped.
+
+## Inline Editing Palette + Commands (Viewer/Editor parity)
+
+- Editor and Viewer reuse the same markdown-formatting pipeline (`applyMarkdownFormatAction` and wrap helpers) for formatting buttons, bubble toolbars, and slash-command menus so that all actions are pure text transforms against the Markdown SSOT.
+- In Markdown Viewer Read mode, click-and-edit in-place uses a contentEditable surface and a selection-aware bubble toolbar to expose inline formatting, heading/list/quote transforms, color/highlight palette, checklist/divider insertion, and structural actions (duplicate/delete) without introducing a separate WYSIWYG document model.
+- Slash commands (`/` near the caret) may open a lightweight slash menu that reuses the same SSOT floating menu classes and triggers the same heading/list/quote/code transforms as the Editor toolbar. Detection must be line-local and must not perform full-document rescans on every keystroke.
+- Inline link editing (Cmd/Ctrl+K) opens a small SSOT-styled popover near the selection; applying a link wraps the current selection as `[label](href)` and is strictly selection-scoped. Cancel or empty href must leave the document unchanged. Implementations must not introduce a separate link state store or background URL validators that recompute on every keystroke.
+- All palette, slash, and link actions are view-only: they operate solely on Markdown text and must not mutate GraphData, layout, or zoom state; they must also respect the Viewer `forbidCopy` policy (no alternate code paths that write to the clipboard).

@@ -63,66 +63,119 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
     targetEndLine: endLine,
     onReorder: (source, target, position) => opts.onReorderLineBlock?.(source, target, position),
   })
+  const editLineRange = React.useMemo(() => {
+    const src = opts.markdownSourceLines
+    if (!Array.isArray(src) || src.length === 0) return null
+    let start = Math.max(1, Math.floor(t.startLine || 1))
+    let end = Math.max(start, Math.floor(t.endLine || t.startLine || 1))
+    while (start <= end && !String(src[start - 1] || '').trim()) start += 1
+    while (end >= start && !String(src[end - 1] || '').trim()) end -= 1
+    if (start > end) return null
+    return { startLine: start, endLine: end }
+  }, [opts.markdownSourceLines, t.endLine, t.startLine])
   const ListTag = (list.ordered ? 'ol' : 'ul') as 'ol' | 'ul'
   const listClass = list.ordered ? 'list-decimal' : 'list-disc'
-
+  const listSurfaceClass = `${listClass} pl-5 space-y-1.5 marker:${UI_THEME_TOKENS.text.tertiary}`
+  const listEditFlowClass = list.ordered
+    ? '[&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:space-y-1.5 [&_ol]:marker:text-gray-500 [&_li]:list-item'
+    : '[&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5 [&_ul]:marker:text-gray-500 [&_li]:list-item'
   const listClassName = [
     'mt-3 mb-3',
-    listClass,
-    `pl-5 space-y-1.5 marker:${UI_THEME_TOKENS.text.tertiary}`,
+    listSurfaceClass,
     baseTextClass,
     opts.uiPanelTextFontClass,
   ]
     .filter(Boolean)
     .join(' ')
+  const listReadInnerClassName = listClassName.replace(/^mt-3 mb-3\s+/, '')
+  const editorListClassName = [
+    'block w-full m-0 whitespace-pre-wrap break-words outline-none bg-transparent',
+    listEditFlowClass,
+    baseTextClass,
+    opts.uiPanelTextFontClass,
+  ]
+    .filter(Boolean)
+    .join(' ')
+  const listNode = React.useMemo(() => (
+    <ListTag className={listReadInnerClassName}>
+      {list.items.map((item, j) => {
+        const task = item.task ? (
+          <input
+            type="checkbox"
+            checked={!!item.checked}
+            readOnly
+            className="mr-2 translate-y-[1px]"
+          />
+        ) : null
+        return (
+          <li key={j} data-kg-list-item-index={j} className={[opts.uiPanelTextFontClass, wrapClass].filter(Boolean).join(' ')}>
+            {task}
+            <MarkdownTokenRenderer
+              tokens={addLineRangesToTokens(item.tokens as unknown as Token[], 0)}
+              blockNestingLevel={1}
+              activeDocumentPath={opts.activeDocumentPath}
+              highlightedLineRange={null}
+              markdownWordWrap={opts.markdownWordWrap}
+              markdownPresentationMode={opts.markdownPresentationMode}
+              uiPanelTextFontClass={opts.uiPanelTextFontClass}
+              uiPanelMonospaceTextClass={opts.uiPanelMonospaceTextClass}
+              mermaidFrontmatterConfig={opts.mermaidFrontmatterConfig}
+              rootThemeMode={opts.rootThemeMode}
+              previewOverlayScope={opts.previewOverlayScope}
+              previewOverlayPortalTarget={opts.previewOverlayPortalTarget}
+              fragmentsEnabled={fragmentsEnabled}
+              fragmentStep={fragmentStep}
+              fragmentClassNames={fragmentClassNames}
+              fragmentTags={fragmentTags}
+            />
+          </li>
+        )
+      })}
+    </ListTag>
+  ), [
+    ListTag,
+    fragmentClassNames,
+    fragmentStep,
+    fragmentTags,
+    fragmentsEnabled,
+    list.items,
+    listReadInnerClassName,
+    opts.activeDocumentPath,
+    opts.markdownPresentationMode,
+    opts.markdownWordWrap,
+    opts.mermaidFrontmatterConfig,
+    opts.previewOverlayPortalTarget,
+    opts.previewOverlayScope,
+    opts.rootThemeMode,
+    opts.uiPanelMonospaceTextClass,
+    opts.uiPanelTextFontClass,
+    wrapClass,
+  ])
 
   if (!gutterEnabled) {
     return (
       <MarkdownBlockContainer
-        as={ListTag}
-        className={listClassName}
+        as="section"
+        className={['mt-3 mb-3', baseTextClass, opts.uiPanelTextFontClass].filter(Boolean).join(' ')}
         highlightClass={highlightClass}
         highlightStyle={highlightStyle}
         startLine={t.startLine}
         endLine={t.endLine}
+        editLineRange={editLineRange || undefined}
         inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
-        editorClassName={['w-full whitespace-pre-wrap break-words outline-none bg-transparent', opts.uiPanelMonospaceTextClass, UI_THEME_TOKENS.text.primary].join(' ')}
+        onInlineEditStateChange={opts.onInlineEditStateChange}
+        forbidCopy={!!opts.forbidCopy}
+        editorClassName={editorListClassName}
+        editPresentation="html"
+        editHtmlRender="block"
+        editHtmlDisableDefaultBlockFlow
+        editTrimEmptyBlockEdges
+        editEnforceSingleListRoot
+        editListMode={list.ordered ? 'ordered' : 'unordered'}
       >
-        {list.items.map((item, j) => {
-          const task = item.task ? (
-            <input
-              type="checkbox"
-              checked={!!item.checked}
-              readOnly
-              className="mr-2 translate-y-[1px]"
-            />
-          ) : null
-          return (
-            <li key={j} className={[opts.uiPanelTextFontClass, wrapClass].filter(Boolean).join(' ')}>
-              {task}
-              <MarkdownTokenRenderer
-                tokens={addLineRangesToTokens(item.tokens as unknown as Token[], 0)}
-                blockNestingLevel={1}
-                activeDocumentPath={opts.activeDocumentPath}
-                highlightedLineRange={null}
-                markdownWordWrap={opts.markdownWordWrap}
-                markdownPresentationMode={opts.markdownPresentationMode}
-                uiPanelTextFontClass={opts.uiPanelTextFontClass}
-                uiPanelMonospaceTextClass={opts.uiPanelMonospaceTextClass}
-                mermaidFrontmatterConfig={opts.mermaidFrontmatterConfig}
-                rootThemeMode={opts.rootThemeMode}
-                previewOverlayScope={opts.previewOverlayScope}
-                previewOverlayPortalTarget={opts.previewOverlayPortalTarget}
-                fragmentsEnabled={fragmentsEnabled}
-                fragmentStep={fragmentStep}
-                fragmentClassNames={fragmentClassNames}
-                fragmentTags={fragmentTags}
-              />
-            </li>
-          )
-        })}
+        {listNode}
       </MarkdownBlockContainer>
     )
   }
@@ -131,6 +184,8 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
     'mt-3 mb-3 relative group',
     MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
     MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
+    baseTextClass,
+    opts.uiPanelTextFontClass,
     dnd.isDragging ? 'opacity-60' : '',
   ]
     .filter(Boolean)
@@ -144,10 +199,19 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
       highlightStyle={highlightStyle}
       startLine={t.startLine}
       endLine={t.endLine}
+      editLineRange={editLineRange || undefined}
       inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
       sourceLines={opts.markdownSourceLines}
       onReplaceLineRange={opts.onReplaceLineRange}
-      editorClassName={['w-full whitespace-pre-wrap break-words outline-none bg-transparent', opts.uiPanelMonospaceTextClass, UI_THEME_TOKENS.text.primary].join(' ')}
+      onInlineEditStateChange={opts.onInlineEditStateChange}
+      forbidCopy={!!opts.forbidCopy}
+      editorClassName={editorListClassName}
+      editPresentation="html"
+      editHtmlRender="block"
+      editHtmlDisableDefaultBlockFlow
+      editTrimEmptyBlockEdges
+      editEnforceSingleListRoot
+      editListMode={list.ordered ? 'ordered' : 'unordered'}
       onDragOver={dnd.handleDragOver}
       onDragLeave={dnd.handleDragLeave}
       onDrop={dnd.handleDrop}
@@ -164,41 +228,7 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
         labelReorder={UI_COPY.markdownBlockReorderLineLabel}
         labelInsert={UI_COPY.markdownBlockInsertLineLabel}
       />
-      <ListTag className={listClassName.replace(/^mt-3 mb-3\s+/, '')}>
-        {list.items.map((item, j) => {
-          const task = item.task ? (
-            <input
-              type="checkbox"
-              checked={!!item.checked}
-              readOnly
-              className="mr-2 translate-y-[1px]"
-            />
-          ) : null
-          return (
-            <li key={j} className={[opts.uiPanelTextFontClass, wrapClass].filter(Boolean).join(' ')}>
-              {task}
-              <MarkdownTokenRenderer
-                tokens={addLineRangesToTokens(item.tokens as unknown as Token[], 0)}
-                blockNestingLevel={1}
-                activeDocumentPath={opts.activeDocumentPath}
-                highlightedLineRange={null}
-                markdownWordWrap={opts.markdownWordWrap}
-                markdownPresentationMode={opts.markdownPresentationMode}
-                uiPanelTextFontClass={opts.uiPanelTextFontClass}
-                uiPanelMonospaceTextClass={opts.uiPanelMonospaceTextClass}
-                mermaidFrontmatterConfig={opts.mermaidFrontmatterConfig}
-                rootThemeMode={opts.rootThemeMode}
-                previewOverlayScope={opts.previewOverlayScope}
-                previewOverlayPortalTarget={opts.previewOverlayPortalTarget}
-                fragmentsEnabled={fragmentsEnabled}
-                fragmentStep={fragmentStep}
-                fragmentClassNames={fragmentClassNames}
-                fragmentTags={fragmentTags}
-              />
-            </li>
-          )
-        })}
-      </ListTag>
+      {listNode}
     </MarkdownBlockContainer>
   )
 })

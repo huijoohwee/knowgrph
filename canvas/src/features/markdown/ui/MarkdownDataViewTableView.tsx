@@ -310,21 +310,32 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                           )
                         })()
                       ) : (
-                        <input
+                        <div
                           autoFocus
-                          type={uiType === 'number' || uiType === 'progress' ? 'number' : uiType === 'date' ? 'date' : 'text'}
-                          min={uiType === 'progress' ? 0 : undefined}
-                          max={uiType === 'progress' ? 100 : undefined}
-                          className={['w-full text-xs px-2 py-1 rounded border', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.text.primary].join(' ')}
-                          value={draft}
-                          placeholder={''}
-                          onChange={e => setDraft(e.target.value)}
+                          contentEditable
+                          suppressContentEditableWarning
+                          role="textbox"
+                          aria-label={`Edit ${c.name}`}
+                          className={['w-full min-h-[1lh] whitespace-pre-wrap break-words outline-none', UI_THEME_TOKENS.text.primary].join(' ')}
+                          onClick={e => e.stopPropagation()}
+                          onInput={e => {
+                            const next = (e.currentTarget.textContent || '').replace(/\r/g, '')
+                            setDraft(next)
+                          }}
                           onBlur={commit}
                           onKeyDown={e => {
-                            if (e.key === 'Enter') commit()
-                            if (e.key === 'Escape') cancel()
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault()
+                              commit()
+                            }
+                            if (e.key === 'Escape') {
+                              e.preventDefault()
+                              cancel()
+                            }
                           }}
-                        />
+                        >
+                          {draft}
+                        </div>
                       )}
                     </td>
                   )

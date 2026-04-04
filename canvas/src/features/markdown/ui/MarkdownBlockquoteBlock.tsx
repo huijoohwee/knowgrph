@@ -69,12 +69,46 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
     'mt-4 mb-4',
     `pl-4 py-2 border-l-4 border-blue-400 dark:border-blue-600 ${UI_THEME_TOKENS.table.rowRelated} rounded-r ${UI_THEME_TOKENS.text.secondary} italic`,
     'text-left',
+    '[&_p]:m-0',
+    '[&_p]:leading-normal',
+    '[&_ul]:m-0',
+    '[&_ol]:m-0',
     baseTextClass,
     commonBlockClass,
   ]
     .filter(Boolean)
     .join(' ')
-
+  const quoteInnerClassName = quoteClassName
+    .replace(/^mt-4 mb-4\s+/, '')
+  const stripQuotePrefix = React.useCallback((line: string) => {
+    const m = line.match(/^(\s*>\s*)?([\s\S]*)$/)
+    const prefix = m?.[1] || ''
+    const content = m?.[2] ?? line
+    return { prefix, content }
+  }, [])
+  const editorQuoteClassName = [
+    'w-full whitespace-pre-wrap break-words outline-none bg-transparent',
+    baseTextClass,
+    commonBlockClass,
+    opts.uiPanelTextFontClass,
+    UI_THEME_TOKENS.text.secondary,
+    '[&_p]:m-0',
+    '[&_p]:leading-normal',
+    '[&_ul]:m-0',
+    '[&_ol]:m-0',
+    '[&_blockquote]:m-0',
+    '[&_blockquote]:pl-4',
+    '[&_blockquote]:py-2',
+    '[&_blockquote]:border-l-4',
+    '[&_blockquote]:border-blue-400',
+    'dark:[&_blockquote]:border-blue-600',
+    '[&_blockquote]:rounded-r',
+    '[&_blockquote]:text-left',
+    '[&_blockquote]:italic',
+    UI_THEME_TOKENS.table.rowRelated,
+  ]
+    .filter(Boolean)
+    .join(' ')
   if (!gutterLayoutEnabled) {
     return (
       <MarkdownBlockContainer
@@ -87,7 +121,13 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
         inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
-        editorClassName={['w-full whitespace-pre-wrap break-words outline-none bg-transparent', opts.uiPanelMonospaceTextClass, UI_THEME_TOKENS.text.primary].join(' ')}
+        onInlineEditStateChange={opts.onInlineEditStateChange}
+        forbidCopy={!!opts.forbidCopy}
+        editorClassName={editorQuoteClassName}
+        editPresentation="html"
+        editHtmlRender="block"
+        editHtmlDisableDefaultBlockFlow
+        editStripLinePrefix={stripQuotePrefix}
       >
         <MarkdownTokenRenderer
           tokens={addLineRangesToTokens(bq.tokens as unknown as Token[], 0)}
@@ -120,9 +160,6 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
     .filter(Boolean)
     .join(' ')
 
-  const quoteInnerClassName = quoteClassName
-    .replace(/^mt-4 mb-4\s+/, '')
-
   return (
     <MarkdownBlockContainer
       as="section"
@@ -134,7 +171,13 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
       inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
       sourceLines={opts.markdownSourceLines}
       onReplaceLineRange={opts.onReplaceLineRange}
-      editorClassName={['w-full whitespace-pre-wrap break-words outline-none bg-transparent', opts.uiPanelMonospaceTextClass, UI_THEME_TOKENS.text.primary].join(' ')}
+      onInlineEditStateChange={opts.onInlineEditStateChange}
+      forbidCopy={!!opts.forbidCopy}
+      editorClassName={editorQuoteClassName}
+      editPresentation="html"
+      editHtmlRender="block"
+      editHtmlDisableDefaultBlockFlow
+      editStripLinePrefix={stripQuotePrefix}
       onDragOver={gutterEnabled ? dnd.handleDragOver : undefined}
       onDragLeave={gutterEnabled ? dnd.handleDragLeave : undefined}
       onDrop={gutterEnabled ? dnd.handleDrop : undefined}

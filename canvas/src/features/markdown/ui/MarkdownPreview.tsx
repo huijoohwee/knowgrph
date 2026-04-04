@@ -94,6 +94,7 @@ type MarkdownPreviewProps = {
   webpageLayoutWireframeAscii?: string | null
   markdownForcePlainTables?: boolean
   forbidCopy?: boolean
+  onInlineEditStateChange?: (active: boolean) => void
 }
 
 const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(function MarkdownPreview(
@@ -151,6 +152,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     webpageLayoutWireframeAscii,
     markdownForcePlainTables,
     forbidCopy,
+    onInlineEditStateChange,
   },
   ref,
 ) {
@@ -537,6 +539,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
       sourceFilesPanelIntegration={sourceFilesPanelIntegration}
       markdownForcePlainTables={markdownForcePlainTables}
       forbidCopy={forbidCopy}
+      onInlineEditStateChange={onInlineEditStateChange}
     />
   )
 })

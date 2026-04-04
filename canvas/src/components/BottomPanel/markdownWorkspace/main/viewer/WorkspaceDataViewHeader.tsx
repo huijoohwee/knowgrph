@@ -71,7 +71,9 @@ export function WorkspaceDataViewHeader(props: {
       ? 'Read'
       : props.viewerMode === 'kanban'
         ? MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel
-        : MARKDOWN_DATA_VIEW_COPY.tableViewLabel
+        : props.viewerMode === 'multiDimTable'
+          ? MARKDOWN_DATA_VIEW_COPY.titleDefault
+          : MARKDOWN_DATA_VIEW_COPY.tableViewLabel
   const viewModeIcon =
     props.viewerMode === 'kanban'
       ? <LayoutGrid className={icon14Class} aria-hidden="true" />

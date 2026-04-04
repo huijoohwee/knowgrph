@@ -204,6 +204,40 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
   })
 
   const figureClassName = `rounded-lg border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden shadow-sm highlight highlight-source-${lang} transition-shadow duration-200`
+  const editorCodeClassName = [
+    'block w-full m-0 whitespace-pre outline-none bg-transparent overflow-auto',
+    wrapClass,
+    monospaceCodeClass,
+    UI_THEME_TOKENS.code.bg,
+    UI_THEME_TOKENS.code.text,
+    'p-4',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const editLineRange = React.useMemo(() => {
+    const src = opts.markdownSourceLines
+    if (!Array.isArray(src) || src.length === 0) return null
+    const start = Math.max(1, Math.floor(t.startLine || 1))
+    const end = Math.max(start, Math.floor(t.endLine || start))
+    const openLine = src[start - 1] || ''
+    const mOpen = openLine.match(/^(\s*)(```+|~~~+)(.*)$/)
+    if (!mOpen) return null
+    const fence = mOpen[2] || '```'
+    let closeIdx = -1
+    for (let i = Math.min(src.length - 1, end - 1); i > start - 1; i -= 1) {
+      const line = src[i] || ''
+      if (String(line || '').trimStart().startsWith(fence)) {
+        closeIdx = i
+        break
+      }
+    }
+    if (closeIdx < 0) return null
+    const innerStart = start + 1
+    const innerEnd = closeIdx
+    if (innerStart > innerEnd) return null
+    return { startLine: innerStart, endLine: innerEnd }
+  }, [opts.markdownSourceLines, t.endLine, t.startLine])
 
   const asciiNode = (
     <section className={`relative overflow-auto ${UI_THEME_TOKENS.code.bg} ${UI_THEME_TOKENS.code.text}`}>
@@ -213,28 +247,32 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
     </section>
   )
 
+  const headerNode = (
+    <header
+      className={`flex items-center justify-between px-3 py-1.5 border-b ${UI_THEME_TOKENS.panel.border} bg-gray-50/50 dark:bg-gray-800/50`}
+    >
+      <span className="flex-1 font-mono text-xs text-gray-600 dark:text-gray-400 font-semibold uppercase">
+        {lang || 'text'}
+      </span>
+
+      <menu className="flex items-center gap-2" aria-label={UI_COPY.markdownCodeBlockActionsLabel}>
+        <AnnotateDisplayModeToggle
+          baseMode={baseMode}
+          mode={localMode}
+          setMode={next => {
+            setLocalOverride(true)
+            setLocalMode(next)
+          }}
+          clearOverride={clearOverride}
+        />
+        <ClipboardCopyButton text={codeText} disabled={!!opts.forbidCopy} />
+      </menu>
+    </header>
+  )
+
   const contentNode = (
     <>
-      <header
-        className={`flex items-center justify-between px-3 py-1.5 border-b ${UI_THEME_TOKENS.panel.border} bg-gray-50/50 dark:bg-gray-800/50`}
-      >
-        <span className="flex-1 font-mono text-xs text-gray-600 dark:text-gray-400 font-semibold uppercase">
-          {lang || 'text'}
-        </span>
-
-        <menu className="flex items-center gap-2" aria-label={UI_COPY.markdownCodeBlockActionsLabel}>
-          <AnnotateDisplayModeToggle
-            baseMode={baseMode}
-            mode={localMode}
-            setMode={next => {
-              setLocalOverride(true)
-              setLocalMode(next)
-            }}
-            clearOverride={clearOverride}
-          />
-          <ClipboardCopyButton text={codeText} disabled={!!opts.forbidCopy} />
-        </menu>
-      </header>
+      {headerNode}
 
       {isAsciiDiagram ? (
         asciiNode
@@ -405,6 +443,8 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
     </>
   )
 
+  const editStaticHeaderNode = React.useMemo(() => headerNode, [headerNode])
+
   if (!gutterLayoutEnabled) {
     return (
       <MarkdownBlockContainer
@@ -415,10 +455,17 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
         highlightStyle={highlightStyle}
         startLine={t.startLine}
         endLine={t.endLine}
+        editLineRange={editLineRange || undefined}
         inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
-        editorClassName={['w-full whitespace-pre-wrap break-words outline-none bg-transparent', opts.uiPanelMonospaceTextClass, UI_THEME_TOKENS.text.primary].join(' ')}
+        onInlineEditStateChange={opts.onInlineEditStateChange}
+        forbidCopy={!!opts.forbidCopy}
+        editDisableRichUi
+        editTypographyMode="none"
+        editPreserveWhitespace
+        editStaticChildren={editStaticHeaderNode}
+        editorClassName={editorCodeClassName}
       >
         {contentNode}
       </MarkdownBlockContainer>
@@ -435,18 +482,8 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
     .join(' ')
 
   return (
-    <MarkdownBlockContainer
-      as="section"
-      ref={containerRef}
+    <section
       className={wrapperClassName}
-      highlightClass={highlightClass}
-      highlightStyle={highlightStyle}
-      startLine={t.startLine}
-      endLine={t.endLine}
-      inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
-      sourceLines={opts.markdownSourceLines}
-      onReplaceLineRange={opts.onReplaceLineRange}
-      editorClassName={['w-full whitespace-pre-wrap break-words outline-none bg-transparent', opts.uiPanelMonospaceTextClass, UI_THEME_TOKENS.text.primary].join(' ')}
       onDragOver={gutterEnabled ? dnd.handleDragOver : undefined}
       onDragLeave={gutterEnabled ? dnd.handleDragLeave : undefined}
       onDrop={gutterEnabled ? dnd.handleDrop : undefined}
@@ -467,7 +504,28 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
           />
         </>
       ) : null}
-      <figure className={figureClassName}>{contentNode}</figure>
-    </MarkdownBlockContainer>
+      <MarkdownBlockContainer
+        as="figure"
+        ref={containerRef}
+        className={figureClassName}
+        highlightClass={highlightClass}
+        highlightStyle={highlightStyle}
+        startLine={t.startLine}
+        endLine={t.endLine}
+        editLineRange={editLineRange || undefined}
+        inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
+        sourceLines={opts.markdownSourceLines}
+        onReplaceLineRange={opts.onReplaceLineRange}
+        onInlineEditStateChange={opts.onInlineEditStateChange}
+        forbidCopy={!!opts.forbidCopy}
+        editDisableRichUi
+        editTypographyMode="none"
+        editPreserveWhitespace
+        editStaticChildren={editStaticHeaderNode}
+        editorClassName={editorCodeClassName}
+      >
+        {contentNode}
+      </MarkdownBlockContainer>
+    </section>
   )
 })

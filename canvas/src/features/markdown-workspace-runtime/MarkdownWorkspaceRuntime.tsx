@@ -184,6 +184,10 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const [layoutMode, setLayoutMode] = React.useState<MarkdownWorkspaceLayoutMode>(() =>
     lsJson<MarkdownWorkspaceLayoutMode>(LS_KEYS.markdownLayoutMode, 'viewer', parseMarkdownWorkspaceLayoutMode),
   )
+  const layoutModeRef = React.useRef<MarkdownWorkspaceLayoutMode>(layoutMode)
+  React.useEffect(() => {
+    layoutModeRef.current = layoutMode
+  }, [layoutMode])
   const status = useWorkspaceStatusHelpers()
   const [expandedPaths, setExpandedPaths] = React.useState<Set<string>>(() => {
     const arr = lsJson(LS_KEYS.markdownExplorerSourceFilesExpandedPaths, [] as string[], parseStringArray)
@@ -246,6 +250,9 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const [activeText, setActiveText] = React.useState('')
   const activeTextRef = React.useRef('')
   activeTextRef.current = activeText
+  const [viewerInlineEditActive, setViewerInlineEditActive] = React.useState(false)
+  const viewerInlineEditActiveRef = React.useRef(false)
+  viewerInlineEditActiveRef.current = viewerInlineEditActive
 
   const setStatusInfo = status.setStatusInfo
   const setStatusError = status.setStatusError
@@ -1039,6 +1046,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     if (!active) return
     const taskKey = 'markdown-workspace:refresh'
     const unsubscribe = subscribeWorkspaceFsChanged(detail => {
+      if (viewerInlineEditActiveRef.current) return
       const active = activePathRef.current
       const last = lastLoadedRef.current
       const isDirty = !!(active && last?.path === active && last.text !== activeTextRef.current)
@@ -1248,6 +1256,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     activeDocumentSourceUrl,
     activeText,
     setActiveMarkdownDocument,
+    paused: viewerInlineEditActive,
   })
 
   React.useEffect(() => {
@@ -1552,6 +1561,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
 
   React.useEffect(() => {
     if (!active) return
+    if (viewerInlineEditActive) return
     const path = activePath
     if (!path) return
     if (activeEntryKind === 'folder') return
@@ -1926,6 +1936,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     setStatusWithAutoClear,
     patchWorkspaceEntryInlineText,
     sourcesByPath,
+    viewerInlineEditActive,
   ])
 
   React.useEffect(() => {
@@ -1941,6 +1952,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
 
   React.useEffect(() => {
     if (!active) return
+    if (viewerInlineEditActive) return
     const path = activePath
     if (!path) return
     if (activeEntryKind === 'folder') return
@@ -2055,6 +2067,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     setStatusWithAutoClear,
     setStatusError,
     patchWorkspaceEntryInlineText,
+    viewerInlineEditActive,
   ])
 
   React.useEffect(() => {
@@ -2090,12 +2103,27 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       const start = Math.floor(line)
       const end = Number.isFinite(endLine) && (endLine as number) > 0 ? Math.max(start, Math.floor(endLine as number)) : start
       setHighlightedLineRange({ start, end })
-      if (layoutMode !== 'split' && layoutMode !== 'editor') {
+      const currentLayoutMode = layoutModeRef.current
+      if (currentLayoutMode !== 'split' && currentLayoutMode !== 'editor') {
         setLayoutMode('split')
       }
       requestRevealLine(start)
     },
-    [layoutMode, requestRevealLine, setLayoutMode],
+    [requestRevealLine, setLayoutMode],
+  )
+  const revealLineFromCanvas = React.useCallback(
+    (line: number, endLine?: number) => {
+      if (!Number.isFinite(line) || line <= 0) return
+      const start = Math.floor(line)
+      const end = Number.isFinite(endLine) && (endLine as number) > 0 ? Math.max(start, Math.floor(endLine as number)) : start
+      const currentLayoutMode = layoutModeRef.current
+      if (currentLayoutMode === 'editor' || currentLayoutMode === 'viewer') {
+        setHighlightedLineRange({ start, end })
+        return
+      }
+      revealLineInEditor(start, end)
+    },
+    [revealLineInEditor],
   )
 
   useCanvasMarkdownSync({
@@ -2104,9 +2132,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     activePath,
     setActivePathSafe,
     setExpandedPaths,
-    layoutMode,
-    setLayoutMode,
-    revealLineInEditor,
+    revealLineInEditor: revealLineFromCanvas,
     setStatusError,
   })
 
@@ -2171,6 +2197,8 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const lastCaretLineRef = React.useRef<number | null>(null)
   const onEditorCaretLine = React.useCallback(
     (line: number) => {
+      const currentLayoutMode = layoutModeRef.current
+      if (currentLayoutMode !== 'editor' && currentLayoutMode !== 'split') return
       if (!Number.isFinite(line) || line <= 0) return
       const v = Math.floor(line)
       if (lastCaretLineRef.current === v) return
@@ -2482,6 +2510,9 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const effectiveIsMarkdown = contentMode !== 'nodeQuickEditor' && isMarkdown && !(webpageWorkspaceMeta && webpageWorkspaceMeta.view !== 'markdown')
 
   const saveEnabled = effectiveIsEditing && activeEntryKind === 'file' && !!String(activeDocumentKey || '').trim()
+  const handleViewerInlineEditStateChange = React.useCallback((active: boolean) => {
+    setViewerInlineEditActive(prev => (prev === active ? prev : active))
+  }, [])
 
   const actionBridge = React.useMemo(
     () => ({
@@ -2604,6 +2635,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         editorLanguage={editorLanguage}
         editorRef={editorRef}
         onEditorCaretLine={onEditorCaretLine}
+        onViewerInlineEditStateChange={handleViewerInlineEditStateChange}
       />
     </section>
   )

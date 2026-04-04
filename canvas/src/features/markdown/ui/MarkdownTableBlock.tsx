@@ -66,6 +66,28 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
     onReorder: (source, target, position) => opts.onReorderLineBlock?.(source, target, position),
   })
   const figureClassName = `overflow-auto max-h-[80vh] rounded-lg border ${UI_THEME_TOKENS.table.cellBorder} shadow-sm`
+  const tableEditorClassName = [
+    'w-full outline-none bg-transparent',
+    isDataView ? '' : figureClassName,
+    '[&_table]:min-w-full',
+    '[&_table]:border-collapse',
+    '[&_table]:table-auto',
+    opts.markdownPresentationMode ? '[&_table]:text-lg' : '[&_table]:text-sm',
+    `[&_th]:${UI_THEME_TOKENS.table.headerBg}`,
+    `[&_th]:${UI_THEME_TOKENS.table.text}`,
+    `[&_th]:px-4`,
+    `[&_th]:py-2`,
+    `[&_th]:text-left`,
+    `[&_th]:font-semibold`,
+    `[&_th]:border-b`,
+    `[&_th]:${UI_THEME_TOKENS.table.cellBorder}`,
+    `[&_td]:px-4`,
+    `[&_td]:py-2`,
+    `[&_td]:border-b`,
+    `[&_td]:${UI_THEME_TOKENS.table.cellBorder}`,
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   if (!gutterEnabled) {
     const ContainerTag = (isDataView ? 'section' : 'figure') as 'section' | 'figure'
@@ -77,6 +99,15 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
         highlightStyle={highlightStyle}
         startLine={t.startLine}
         endLine={t.endLine}
+        inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
+        sourceLines={opts.markdownSourceLines}
+        onReplaceLineRange={opts.onReplaceLineRange}
+        onInlineEditStateChange={opts.onInlineEditStateChange}
+        forbidCopy={!!opts.forbidCopy}
+        editorClassName={tableEditorClassName}
+        editPresentation="html"
+        editHtmlRender="block"
+        editHtmlDisableDefaultBlockFlow
       >
         {isDataView ? (
           <MarkdownDataViewBlock
@@ -164,6 +195,15 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
       highlightStyle={highlightStyle}
       startLine={t.startLine}
       endLine={t.endLine}
+      inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
+      sourceLines={opts.markdownSourceLines}
+      onReplaceLineRange={opts.onReplaceLineRange}
+      onInlineEditStateChange={opts.onInlineEditStateChange}
+      forbidCopy={!!opts.forbidCopy}
+      editorClassName={tableEditorClassName}
+      editPresentation="html"
+      editHtmlRender="block"
+      editHtmlDisableDefaultBlockFlow
       onDragOver={dnd.handleDragOver}
       onDragLeave={dnd.handleDragLeave}
       onDrop={dnd.handleDrop}

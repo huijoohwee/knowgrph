@@ -126,6 +126,52 @@ type GlobalWithWindowStub = typeof globalThis & { window?: WindowStub }
 
 const g = globalThis as GlobalWithWindowStub
 
+type LocalStorageLike = {
+  getItem: (key: string) => string | null
+  setItem: (key: string, value: string) => void
+  removeItem: (key: string) => void
+  clear: () => void
+  key: (index: number) => string | null
+  length: number
+}
+
+const ensureLocalStorageStub = () => {
+  const existingWindow = g.window as unknown as { localStorage?: unknown } | undefined
+  const existingGlobal = g as unknown as { localStorage?: unknown }
+  if (existingWindow?.localStorage && existingGlobal.localStorage) return
+
+  const store = new Map<string, string>()
+  const stub: LocalStorageLike = {
+    get length() {
+      return store.size
+    },
+    key: (index: number) => {
+      const keys = Array.from(store.keys())
+      return typeof keys[index] === 'string' ? keys[index] : null
+    },
+    getItem: (key: string) => {
+      const v = store.get(String(key))
+      return typeof v === 'string' ? v : null
+    },
+    setItem: (key: string, value: string) => {
+      store.set(String(key), String(value))
+    },
+    removeItem: (key: string) => {
+      store.delete(String(key))
+    },
+    clear: () => {
+      store.clear()
+    },
+  }
+
+  if (existingWindow && !existingWindow.localStorage) {
+    existingWindow.localStorage = stub
+  }
+  if (!existingGlobal.localStorage) {
+    existingGlobal.localStorage = stub
+  }
+}
+
 const appRequire = createRequire(import.meta.url)
 const resolvedReact = appRequire.resolve('react', { paths: [process.cwd()] })
 const resolvedReactJsxRuntime = appRequire.resolve('react/jsx-runtime', { paths: [process.cwd()] })
@@ -184,6 +230,8 @@ if (!g.window) {
     g.window.HTMLIFrameElement = class {} as typeof HTMLIFrameElement
   }
 }
+
+ensureLocalStorageStub()
 
 const ensureUrlObjectUrls = () => {
   const w = g.window as unknown as { URL?: typeof URL }

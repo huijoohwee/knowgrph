@@ -81,6 +81,7 @@ export type MarkdownPreviewViewerProps = {
   sourceMarkdownText?: string
   markdownForcePlainTables?: boolean
   forbidCopy?: boolean
+  onInlineEditStateChange?: (active: boolean) => void
 }
 
 export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
@@ -139,6 +140,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     sourceMarkdownText,
     markdownForcePlainTables,
     forbidCopy = false,
+    onInlineEditStateChange,
   } = props
   const blockCopy = React.useCallback((event: React.ClipboardEvent<HTMLElement>) => {
     if (!forbidCopy) return
@@ -161,6 +163,10 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     } catch {
       return ''
     }
+  }, [sourceMarkdownText])
+  const markdownSourceLines = React.useMemo(() => {
+    if (typeof sourceMarkdownText !== 'string' || !sourceMarkdownText) return []
+    return sourceMarkdownText.split(/\r?\n/)
   }, [sourceMarkdownText])
 
   const isRenderMode = annotateDisplayMode === 'render'
@@ -276,7 +282,7 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     const onHashChange = () => tryScrollToHash()
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
-  }, [tokens])
+  }, [activeDocumentPath])
 
   React.useEffect(() => {
     const root = scrollRootRef.current
@@ -488,8 +494,9 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
         flashLine={flashLine}
         webpageLayoutWireframeAscii={webpageLayoutWireframeAscii}
         markdownForcePlainTables={markdownForcePlainTables}
-        markdownSourceLines={typeof sourceMarkdownText === 'string' ? sourceMarkdownText.split(/\r?\n/) : []}
+        markdownSourceLines={markdownSourceLines}
         forbidCopy={forbidCopy}
+        onInlineEditStateChange={onInlineEditStateChange}
       />
     ),
     [
@@ -523,8 +530,10 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       markdownForcePlainTables,
       flashLine,
       sourceMarkdownText,
+      markdownSourceLines,
       webpageLayoutWireframeAscii,
       forbidCopy,
+      onInlineEditStateChange,
     ],
   )
 

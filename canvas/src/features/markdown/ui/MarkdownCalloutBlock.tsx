@@ -39,6 +39,15 @@ const getCalloutBorderClass = (calloutType: string): string => {
   if (t === 'note' || t === 'info') return 'border-blue-400 dark:border-blue-600'
   return 'border-slate-300 dark:border-slate-600'
 }
+const getCalloutAccentClass = (calloutType: string): string => {
+  const t = String(calloutType || '').trim().toLowerCase()
+  if (t === 'tip' || t === 'hint') return 'bg-emerald-400 dark:bg-emerald-600'
+  if (t === 'warning' || t === 'caution') return 'bg-amber-400 dark:bg-amber-600'
+  if (t === 'danger' || t === 'error' || t === 'fail') return 'bg-red-400 dark:bg-red-600'
+  if (t === 'example') return 'bg-indigo-400 dark:bg-indigo-600'
+  if (t === 'note' || t === 'info') return 'bg-blue-400 dark:bg-blue-600'
+  return 'bg-slate-300 dark:bg-slate-600'
+}
 
 export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
   token: t,
@@ -74,8 +83,16 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
   })
 
   const borderClass = getCalloutBorderClass(callout.calloutType)
+  const accentClass = getCalloutAccentClass(callout.calloutType)
   const contentTokens = addLineRangesToTokens((callout.tokens || []) as unknown as Token[], 0)
   const innerClassName = [
+    `py-2 border-l-4 ${borderClass} ${UI_THEME_TOKENS.table.rowRelated} rounded-r`,
+    'text-left',
+    baseTextClass,
+    commonBlockClass,
+    'pl-4',
+  ].filter(Boolean).join(' ')
+  const gutterInnerClassName = [
     `py-2 border-l-4 ${borderClass} ${UI_THEME_TOKENS.table.rowRelated} rounded-r`,
     'text-left',
     baseTextClass,
@@ -113,28 +130,103 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
       fragmentTags={fragmentTags}
     />
   )
+  const stripQuotePrefix = React.useCallback((line: string) => {
+    const m = line.match(/^(\s*>\s*)?([\s\S]*)$/)
+    const prefix = m?.[1] || ''
+    const content = m?.[2] ?? line
+    return { prefix, content }
+  }, [])
+  const calloutBodyStartLine = Math.floor(t.startLine) + 1
+  const calloutBodyEndLine = Math.floor(endLine)
+  const calloutBodyContentClassName = [
+    'w-full',
+    '[&_p]:m-0',
+    '[&_p]:leading-normal',
+    '[&_ul]:m-0',
+    '[&_ol]:m-0',
+    '[&_blockquote]:m-0',
+    '[&_blockquote]:pl-0',
+    '[&_blockquote]:py-0',
+    '[&_blockquote]:border-l-0',
+    '[&_blockquote]:rounded-none',
+    '[&_blockquote]:bg-transparent',
+    '[&_blockquote]:not-italic',
+  ].join(' ')
+  const calloutBodyEditable =
+    blockControlsAllowed &&
+    !!opts.onReplaceLineRange &&
+    Array.isArray(opts.markdownSourceLines) &&
+    Number.isFinite(calloutBodyStartLine) &&
+    Number.isFinite(calloutBodyEndLine) &&
+    calloutBodyStartLine <= calloutBodyEndLine
+  const calloutBodyNode = calloutBodyEditable ? (
+    <section className="mt-2 relative pl-4">
+      <span aria-hidden className={`pointer-events-none absolute left-0 top-0 bottom-0 w-1 z-30 ${accentClass}`} />
+      <MarkdownBlockContainer
+        as="section"
+        className={calloutBodyContentClassName}
+        highlightClass=""
+        startLine={calloutBodyStartLine}
+        endLine={calloutBodyEndLine}
+        inlineEditable={true}
+        sourceLines={opts.markdownSourceLines}
+        onReplaceLineRange={opts.onReplaceLineRange}
+        onInlineEditStateChange={opts.onInlineEditStateChange}
+        forbidCopy={!!opts.forbidCopy}
+        editorClassName={[
+          'w-full min-h-[1lh] whitespace-pre-wrap break-words outline-none bg-transparent',
+          baseTextClass,
+          commonBlockClass,
+          opts.uiPanelTextFontClass,
+          UI_THEME_TOKENS.text.primary,
+          'text-left',
+          '[&>*:first-child]:mt-0',
+          '[&>*:last-child]:mb-0',
+          '[&_p]:m-0',
+          '[&_p]:leading-normal',
+          '[&_ul]:m-0',
+          '[&_ol]:m-0',
+        ].filter(Boolean).join(' ')}
+        editPresentation="html"
+        editHtmlRender="inline"
+        editStripLinePrefix={stripQuotePrefix}
+        editDefaultLinePrefix="> "
+        editLeftRailClassName={accentClass}
+      >
+        {inner}
+      </MarkdownBlockContainer>
+    </section>
+  ) : (
+    <section className="mt-2 relative pl-4">
+      <span aria-hidden className={`pointer-events-none absolute left-0 top-0 bottom-0 w-1 z-30 ${accentClass}`} />
+      <section className={calloutBodyContentClassName}>{inner}</section>
+    </section>
+  )
 
   if (gutterLayoutEnabled) {
     const outerClassName = [
       'mt-4 mb-4 relative group',
       MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
       MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
+      `border-l-4 ${borderClass} rounded-r`,
       dnd.isDragging ? 'opacity-60' : '',
     ]
       .filter(Boolean)
       .join(' ')
 
     const calloutNode = callout.foldable ? (
-      <details className={innerClassName} open={!callout.collapsed || undefined}>
+      <details className={`${gutterInnerClassName} relative`} open={!callout.collapsed || undefined}>
+        <span aria-hidden className={`pointer-events-none absolute left-[44px] top-0 bottom-0 w-1 z-20 ${accentClass}`} />
         <summary className={[UI_THEME_TOKENS.text.primary, 'font-semibold cursor-pointer select-none'].join(' ')}>
           {callout.title}
         </summary>
-        <section className="mt-2">{inner}</section>
+        {calloutBodyNode}
       </details>
     ) : (
-      <aside className={innerClassName} aria-label={callout.title}>
+      <aside className={`${gutterInnerClassName} relative`} aria-label={callout.title}>
+        <span aria-hidden className={`pointer-events-none absolute left-[44px] top-0 bottom-0 w-1 z-20 ${accentClass}`} />
         <header className={[UI_THEME_TOKENS.text.primary, 'font-semibold'].join(' ')}>{callout.title}</header>
-        <section className="mt-2">{inner}</section>
+        {calloutBodyNode}
       </aside>
     )
 
@@ -146,10 +238,11 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
         highlightStyle={highlightStyle}
         startLine={t.startLine}
         endLine={t.endLine}
-        inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
+        inlineEditable={false}
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
-        editorClassName={['w-full whitespace-pre-wrap break-words outline-none bg-transparent', opts.uiPanelMonospaceTextClass, UI_THEME_TOKENS.text.primary].join(' ')}
+        onInlineEditStateChange={opts.onInlineEditStateChange}
+        editorClassName="w-full whitespace-pre-wrap break-words outline-none bg-transparent"
         onDragOver={gutterEnabled ? dnd.handleDragOver : undefined}
         onDragLeave={gutterEnabled ? dnd.handleDragLeave : undefined}
         onDrop={gutterEnabled ? dnd.handleDrop : undefined}
@@ -179,21 +272,23 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
     return (
       <MarkdownBlockContainer
         as="details"
-        className={wrapperClassName}
+        className={`${wrapperClassName} relative`}
         highlightClass={highlightClass}
         highlightStyle={highlightStyle}
         startLine={t.startLine}
         endLine={t.endLine}
-        inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
+        inlineEditable={false}
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
-        editorClassName={['w-full whitespace-pre-wrap break-words outline-none bg-transparent', opts.uiPanelMonospaceTextClass, UI_THEME_TOKENS.text.primary].join(' ')}
+        onInlineEditStateChange={opts.onInlineEditStateChange}
+        editorClassName="w-full whitespace-pre-wrap break-words outline-none bg-transparent"
         defaultOpen={!callout.collapsed}
       >
+        <span aria-hidden className={`pointer-events-none absolute left-0 top-0 bottom-0 w-1 ${accentClass}`} />
         <summary className={[UI_THEME_TOKENS.text.primary, 'font-semibold cursor-pointer select-none'].join(' ')}>
           {callout.title}
         </summary>
-        <section className="mt-2">{inner}</section>
+        {calloutBodyNode}
       </MarkdownBlockContainer>
     )
   }
@@ -201,19 +296,21 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
   return (
     <MarkdownBlockContainer
       as="aside"
-      className={wrapperClassName}
+      className={`${wrapperClassName} relative`}
       highlightClass={highlightClass}
       highlightStyle={highlightStyle}
       startLine={t.startLine}
       endLine={t.endLine}
-      inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
+      inlineEditable={false}
       sourceLines={opts.markdownSourceLines}
       onReplaceLineRange={opts.onReplaceLineRange}
-      editorClassName={['w-full whitespace-pre-wrap break-words outline-none bg-transparent', opts.uiPanelMonospaceTextClass, UI_THEME_TOKENS.text.primary].join(' ')}
+      onInlineEditStateChange={opts.onInlineEditStateChange}
+      editorClassName="w-full whitespace-pre-wrap break-words outline-none bg-transparent"
       aria-label={callout.title}
     >
+      <span aria-hidden className={`pointer-events-none absolute left-0 top-0 bottom-0 w-1 ${accentClass}`} />
       <header className={[UI_THEME_TOKENS.text.primary, 'font-semibold'].join(' ')}>{callout.title}</header>
-      <section className="mt-2">{inner}</section>
+      {calloutBodyNode}
     </MarkdownBlockContainer>
   )
 })

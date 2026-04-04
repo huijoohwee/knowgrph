@@ -43,6 +43,10 @@ const modFlowQuickEditorPortHandleDomAnchors = () => import('@/__tests__/flowQui
 const modGraphDataTableCellSelectOverlay = () => import('@/__tests__/graphDataTableCellSelectOverlay.test')
 const modMarkdownStickyHeadingScrollPadding = () => import('@/__tests__/markdownStickyHeadingScrollPadding.test')
 const modMarkdownScrollUtils = () => import('@/__tests__/markdownScrollUtils.test')
+const modMarkdownViewerInlineEditHeadingWysiwyg = () => import('@/__tests__/markdownViewerInlineEditHeadingWysiwyg.test')
+const modMarkdownViewerMdDemoSweepLex = () => import('@/__tests__/markdownViewerMdDemoSweepLex.test')
+const modMarkdownViewerInlineEditConfig = () => import('@/__tests__/markdownViewerInlineEditConfig.test')
+const modMarkdownViewerListInlineEditNoEdgeRows = () => import('@/__tests__/markdownViewerListInlineEditNoEdgeRows.test')
 
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'workspaceFs.seedAndCrud', async () => {
@@ -178,6 +182,34 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modMarkdownScrollUtils()
     mod.testMarkdownScrollUtilsRespectsScrollPaddingTop()
     mod.testMarkdownScrollUtilsClampsTargetTopToZero()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.heading.wysiwygPreservesHeight', async () => {
+    const mod = await modMarkdownViewerInlineEditHeadingWysiwyg()
+    await mod.testMarkdownViewerInlineEditHeadingUsesHtmlEditingAndPreservesHeight()
+  })
+  await execTest(results, 'markdown.viewer.sweep.mdDemo.lexesAndLineRanges', async () => {
+    const mod = await modMarkdownViewerMdDemoSweepLex()
+    mod.testMarkdownViewerMdDemoSweepLexesAndHasLineRanges()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.config.imagesTasksHrTable', async () => {
+    const mod = await modMarkdownViewerInlineEditConfig()
+    mod.testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.list.ordered.noEdgeRows', async () => {
+    const mod = await modMarkdownViewerListInlineEditNoEdgeRows()
+    await mod.testMarkdownViewerInlineEditOrderedListHasNoEdgeRows()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.list.unordered.noEdgeRows', async () => {
+    const mod = await modMarkdownViewerListInlineEditNoEdgeRows()
+    await mod.testMarkdownViewerInlineEditUnorderedListHasNoEdgeRows()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.list.mdDemo01.noEdgeRows', async () => {
+    const mod = await modMarkdownViewerListInlineEditNoEdgeRows()
+    await mod.testMarkdownViewerInlineEditMdDemo01ListHasNoEdgeRows()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.list.fence.editAsIs', async () => {
+    const mod = await modMarkdownViewerListInlineEditNoEdgeRows()
+    await mod.testMarkdownViewerInlineEditListWithFenceUsesEditAsIs()
   })
   await execTest(results, 'markdownWorkspace.viewer.remotionRichMedia', async () => {
     const mod = await modMarkdownWorkspaceRemotionViewerRenders()

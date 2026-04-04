@@ -124,6 +124,16 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
   const { activeDocumentPath, uiPanelMonospaceTextClass, uiPanelTextFontClass, markdownPresentationMode } = opts
   const fragmentOpts = opts.fragmentOptions || null
   let fragmentIndex = 0
+  const inlineCodeClassName = [
+    uiPanelMonospaceTextClass,
+    'ring-1 ring-inset ring-[color:var(--kg-code-border)]',
+    'bg-[color:var(--kg-code-bg)] text-[color:var(--kg-code-text)]',
+    'align-baseline leading-[var(--kg-inline-code-line-height,inherit)]',
+    'px-1.5 py-0 rounded',
+    'text-[length:var(--kg-inline-code-font-size,inherit)]',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   const renderTokens = (subTokens: Token[] | undefined, insideLink: boolean): React.ReactNode => {
     const list = Array.isArray(subTokens) ? subTokens : []
@@ -315,7 +325,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
     }
     if (tt.type === 'code') {
       return (
-        <code key={key} className={[uiPanelMonospaceTextClass, UI_THEME_TOKENS.code.bg, UI_THEME_TOKENS.code.text, 'border', UI_THEME_TOKENS.code.border, 'px-1.5 py-0.5 rounded text-sm'].filter(Boolean).join(' ')}>
+        <code key={key} className={inlineCodeClassName}>
           {(t as unknown as TokensCode).text}
         </code>
       )
@@ -547,7 +557,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
           if (tag === 'code') {
             const text = el.textContent || ''
             return (
-              <code key={key} className={uiPanelMonospaceTextClass}>
+              <code key={key} className={inlineCodeClassName}>
                 {text}
               </code>
             )

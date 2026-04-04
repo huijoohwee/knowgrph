@@ -52,6 +52,14 @@ export const MarkdownFootnoteBlock = React.memo(function MarkdownFootnoteBlock({
     onReorder: (source, target, position) => opts.onReorderLineBlock?.(source, target, position),
   })
 
+  const stripFootnotePrefix = React.useCallback((line: string) => {
+    const m = line.match(/^(\s*\[\^[^\]]+\]:\s*)([\s\S]*)$/)
+    if (m) return { prefix: m[1] || '', content: m[2] || '' }
+    const ind = line.match(/^(\s{2,}|\t+)([\s\S]*)$/)
+    if (ind) return { prefix: ind[1] || '', content: ind[2] || '' }
+    return { prefix: '', content: line }
+  }, [])
+
   return (
     <MarkdownBlockContainer
       as="aside"
@@ -64,6 +72,17 @@ export const MarkdownFootnoteBlock = React.memo(function MarkdownFootnoteBlock({
       highlightStyle={highlightStyle}
       startLine={startLine}
       endLine={endLine}
+      inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}
+      sourceLines={opts.markdownSourceLines}
+      onReplaceLineRange={opts.onReplaceLineRange}
+      onInlineEditStateChange={opts.onInlineEditStateChange}
+      forbidCopy={!!opts.forbidCopy}
+      editorClassName="w-full whitespace-pre-wrap break-words outline-none bg-transparent"
+      editPresentation="html"
+      editHtmlRender="block"
+      editHtmlDisableDefaultBlockFlow
+      editStripLinePrefix={stripFootnotePrefix}
+      editDefaultLinePrefix="    "
       onDragOver={dnd.handleDragOver}
       onDragLeave={dnd.handleDragLeave}
       onDrop={dnd.handleDrop}

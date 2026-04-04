@@ -135,6 +135,31 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 - In Viewer and Split modes, the rendered Markdown article content width must remain a stable 80% of the Viewer `section` width.
 - Toggling Explorer open/closed and toggling the Editor workspace Canvas pane open/closed must not change the 80% rule.
 
+## In-Place Block Editing + Bubble Toolbar (Read mode)
+- Viewer Read mode may enable in-place block editing for supported block types (headings, paragraphs, lists, blockquotes, callouts, HTML/code blocks) via a single `MarkdownBlockContainer` implementation. The underlying document remains pure Markdown text; there is no separate WYSIWYG document model.
+- Clicking a block enters a contentEditable surface in-place (no textarea popup). The surface must:
+  - Reuse the block’s typography (transparent background, no extra borders/shadows).
+  - Track selection offsets in Markdown text (line/character) so all edits are applied via shared `applyMarkdownFormatAction`/wrap helpers as text transforms.
+  - Commit via blur or Cmd/Ctrl+Enter, writing through `onReplaceLineRange` with bounded line range updates and skipping no-op commits to avoid churn.
+- Selecting text inside an editable block surfaces a floating “bubble toolbar” positioned near the selection using shared SSOT styles from `floatingMenuStyles` (`FLOATING_BUBBLE_TOOLBAR_CLASSNAME`, `FLOATING_BUBBLE_BUTTON_CLASSNAME`, `FLOATING_MENU_*` variants). The bubble palette may include:
+  - Inline formatting: bold/italic/underline/strike/inline code/link, superscript/subscript/math markers.
+  - Block transforms: H1/H2/H3 toggles, bullet/numbered lists, quotes, checklist toggles, horizontal divider insertion.
+  - Color and highlight palette: stable, bounded sets of text colors and background colors implemented as Markdown/HTML wraps, scoped strictly to the current selection.
+  - Structural actions: duplicate/delete block, HTML comment wraps, and other view-only affordances.
+- FORBID copy in Read mode:
+  - Viewer root must block copy/cut and Cmd/Ctrl+C/X shortcuts when `forbidCopy` is true; inline block toolbars must render Copy actions disabled and must never bypass this guard via direct clipboard APIs.
+  - Code-block copy buttons must respect the same `forbidCopy` pipeline and be disabled when copy is forbidden.
+- Inline link editing:
+  - Cmd/Ctrl+K opens a small inline link popover near the current selection using SSOT popover classes; the popover edits a single URL string and applies it as a `[label](href)` Markdown transform over the current selection.
+  - Empty or cancelled input must leave the document unchanged; link application must be idempotent and strictly selection-scoped.
+- Slash commands:
+  - Typing `/` near the caret at the start of a line (or after whitespace) may open a lightweight slash-command menu aligned with the caret. The menu reuses the same floating menu SSOT styles and triggers the same heading/list/quote/code transforms as the bubble toolbar.
+  - Slash detection must be local to the active line and must not scan the full document repeatedly; hide the menu when the trailing slash context is removed or when focus leaves the editor.
+- In-place editing + bubble/command menus must be:
+  - Selection-scoped and view-only: all actions are pure Markdown text transforms; no hidden graph or layout derivations are allowed.
+  - Bounded and debounced: avoid recomputation loops by memoizing selection offsets, gating selection-change listeners with `requestAnimationFrame`, and skipping redundant bubble repositioning when geometry is unchanged.
+  - SSOT-driven: all floating toolbars, popovers, and palettes must reuse shared floating menu classes and theme tokens (no mode-specific clones or legacy variants).
+
 ## Scroll Sync Contract
 - In split view, Editor↔Viewer scroll sync must be bidirectional, stable, and view-only (no text mutations).
 - Editor uses the in-repo Monaco editor wrapper; scroll sync must operate via the editor handle API (not direct textarea DOM access).

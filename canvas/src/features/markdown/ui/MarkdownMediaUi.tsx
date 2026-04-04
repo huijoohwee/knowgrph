@@ -35,6 +35,21 @@ type MediaWrapperProps = {
   className?: string
 }
 
+const isNoisePronePreviewHost = (rawUrl: string): boolean => {
+  try {
+    const host = String(new URL(rawUrl).hostname || '').toLowerCase()
+    if (!host) return false
+    if (host === 'example.com' || host.endsWith('.example.com')) return true
+    if (host === 'example.org' || host.endsWith('.example.org')) return true
+    if (host === 'example.net' || host.endsWith('.example.net')) return true
+    if (host === 'localhost' || host === '127.0.0.1') return true
+    if (host.endsWith('.test') || host.endsWith('.invalid')) return true
+    return false
+  } catch {
+    return false
+  }
+}
+
 export const MediaWrapper = ({
   type,
   srcRaw,
@@ -413,6 +428,7 @@ export const MediaWebpageSnapshot = React.memo(function MediaWebpageSnapshot({
   const metaImageSrc = React.useMemo(() => {
     const raw = String(metaImageUrl || '').trim()
     if (!raw) return ''
+    if (isNoisePronePreviewHost(raw)) return ''
     return applyImageLikeProxySrc(raw)
   }, [metaImageUrl])
 
@@ -430,6 +446,11 @@ export const MediaWebpageSnapshot = React.memo(function MediaWebpageSnapshot({
     setBlocked(false)
     if (preferEmbedEffective) return
     if (!normalizedUrl) {
+      setSnap(null)
+      setBlocked(false)
+      return
+    }
+    if (isNoisePronePreviewHost(normalizedUrl)) {
       setSnap(null)
       setBlocked(false)
       return
@@ -475,9 +496,13 @@ export const MediaWebpageSnapshot = React.memo(function MediaWebpageSnapshot({
         if (!raw) {
           return
         }
+        const rawTrimmed = String(raw).trim()
+        if (!rawTrimmed.startsWith('{')) {
+          return
+        }
         const parsed = (() => {
           try {
-            return JSON.parse(raw) as unknown
+            return JSON.parse(rawTrimmed) as unknown
           } catch {
             return null
           }

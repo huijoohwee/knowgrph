@@ -110,7 +110,14 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
       top: pos.top,
       left: pos.left,
       zIndex: Z_INDEX_ANCHOR_OVERLAY,
-      transform: align.endsWith('center') ? 'translateX(-50%)' : undefined,
+      transform: (() => {
+        const tx = align.endsWith('center') ? '-50%' : '0%'
+        const ty = align.startsWith('top') ? '-100%' : '0%'
+        if (tx === '0%' && ty === '0%') return undefined
+        if (tx !== '0%' && ty !== '0%') return `translate(${tx}, ${ty})`
+        if (tx !== '0%') return `translateX(${tx})`
+        return `translateY(${ty})`
+      })(),
     }),
     [pos, align],
   )
