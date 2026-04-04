@@ -30,6 +30,7 @@ type MarkdownBlockquoteBlockProps = {
 }
 
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { resolveContiguousQuoteLineRangeOnOpen } from './markdownEditParitySsot'
 
 export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlock({
   token: t,
@@ -87,38 +88,11 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
     return { prefix, content }
   }, [])
   const resolveQuoteEditLineRange = React.useCallback((eventTarget: HTMLElement | null) => {
-    const lines = opts.markdownSourceLines
-    if (!Array.isArray(lines) || lines.length === 0) return null
-    const fallbackStart = Math.max(1, Math.floor(t.startLine))
-    const clickedStart = (() => {
-      try {
-        const el = eventTarget?.closest('[data-start-line]') as HTMLElement | null
-        if (!el) return fallbackStart
-        const value = Number(el.getAttribute('data-start-line'))
-        if (!Number.isFinite(value)) return fallbackStart
-        return Math.max(1, Math.floor(value))
-      } catch {
-        return fallbackStart
-      }
-    })()
-    const startFrom = Math.max(1, Math.min(lines.length, clickedStart))
-    const idx = startFrom - 1
-    if (idx < 0 || idx >= lines.length) return null
-    if (!/^\s*>/.test(String(lines[idx] || ''))) return { startLine: fallbackStart, endLine: Math.max(fallbackStart, fallbackStart) }
-
-    let start = startFrom
-    for (let i = idx - 1; i >= 0; i -= 1) {
-      const line = String(lines[i] || '')
-      if (!/^\s*>/.test(line)) break
-      start = i + 1
-    }
-    let end = startFrom
-    for (let i = idx; i < lines.length; i += 1) {
-      const line = String(lines[i] || '')
-      if (!/^\s*>/.test(line)) break
-      end = i + 1
-    }
-    return { startLine: Math.max(1, start), endLine: Math.max(start, end) }
+    return resolveContiguousQuoteLineRangeOnOpen({
+      eventTarget,
+      sourceLines: opts.markdownSourceLines,
+      fallbackStartLine: Math.max(1, Math.floor(t.startLine)),
+    })
   }, [opts.markdownSourceLines, t.startLine])
   const editorQuoteClassName = [
     'w-full whitespace-pre-wrap break-words outline-none bg-transparent',

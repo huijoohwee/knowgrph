@@ -165,6 +165,11 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 - Inline-code view and edit surfaces must reuse the same centralized parity classes: read-mode inline code uses `MARKDOWN_INLINE_CODE_VIEW_CLASS`; contentEditable html surfaces apply `MARKDOWN_INLINE_CODE_EDIT_DESCENDANT_CLASSES` via `MarkdownBlockContainer` html normalization so entering edit never changes inline-code typography, line-height, padding, or ring/border layout.
 - Ordered/unordered list view and edit surfaces must reuse the same shared layout SSOT: `markdownListLayout` defines list marker/indent/spacing view classes, row-level editor/view inline classes, and row gutter padding/alignment; `MarkdownListBlock` must not introduce per-surface list typography or spacing forks beyond code-backed parity tightening.
 
+### Shared View↔Edit parity helpers (SSOT)
+
+- View↔Edit parity for blockquotes and callouts must use a shared helper layer instead of per-surface regex/range implementations. The helper layer centralizes quote-line detection, contiguous quote-line range resolution for edit-open, and no-op replacement-line detection for commit/blur guards.
+- `markdownEditParitySsot` + `MarkdownBlockContainer` + `MarkdownBlockquoteBlock` + `MarkdownCalloutBlock` own this helper layer in Canvas. No other module may reimplement quote/callout regexes, line-range mapping, or no-op guards; tightening must always flow through these helpers to avoid churn, conflicts, or loops.
+
 ## Scroll Sync Contract
 - In split view, Editor↔Viewer scroll sync must be bidirectional, stable, and view-only (no text mutations).
 - Editor uses the in-repo Monaco editor wrapper; scroll sync must operate via the editor handle API (not direct textarea DOM access).

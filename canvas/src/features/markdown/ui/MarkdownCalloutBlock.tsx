@@ -9,6 +9,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { resolveContiguousQuoteLineRangeOnOpen } from './markdownEditParitySsot'
 import {
   MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
   MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
@@ -160,38 +161,12 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
     Number.isFinite(calloutBodyEndLine) &&
     calloutBodyStartLine <= calloutBodyEndLine
   const resolveCalloutBodyEditLineRange = React.useCallback((eventTarget: HTMLElement | null) => {
-    const lines = opts.markdownSourceLines
-    if (!Array.isArray(lines) || lines.length === 0) return null
-    const fallbackStart = Math.max(1, calloutBodyStartLine)
-    const clickedStart = (() => {
-      try {
-        const el = eventTarget?.closest('[data-start-line]') as HTMLElement | null
-        if (!el) return fallbackStart
-        const value = Number(el.getAttribute('data-start-line'))
-        if (!Number.isFinite(value)) return fallbackStart
-        return Math.max(1, Math.floor(value))
-      } catch {
-        return fallbackStart
-      }
-    })()
-    const startFrom = Math.max(fallbackStart, Math.min(lines.length, clickedStart))
-    const idx = startFrom - 1
-    if (idx < 0 || idx >= lines.length) return null
-    if (!/^\s*>/.test(String(lines[idx] || ''))) return { startLine: fallbackStart, endLine: Math.max(fallbackStart, fallbackStart) }
-
-    let start = startFrom
-    for (let i = idx - 1; i >= fallbackStart - 1; i -= 1) {
-      const line = String(lines[i] || '')
-      if (!/^\s*>/.test(line)) break
-      start = i + 1
-    }
-    let end = startFrom
-    for (let i = idx; i < lines.length; i += 1) {
-      const line = String(lines[i] || '')
-      if (!/^\s*>/.test(line)) break
-      end = i + 1
-    }
-    return { startLine: Math.max(fallbackStart, start), endLine: Math.max(start, end) }
+    return resolveContiguousQuoteLineRangeOnOpen({
+      eventTarget,
+      sourceLines: opts.markdownSourceLines,
+      fallbackStartLine: Math.max(1, calloutBodyStartLine),
+      minStartLine: Math.max(1, calloutBodyStartLine),
+    })
   }, [calloutBodyStartLine, opts.markdownSourceLines])
   const calloutBodyNode = calloutBodyEditable ? (
     <section className="mt-2 relative pl-4">

@@ -35,6 +35,7 @@ import {
   FLOATING_MENU_LEFT_W220_CLASSNAME,
 } from '@/components/BottomPanel/markdownWorkspace/main/viewer/floatingMenuStyles'
 import { MARKDOWN_INLINE_CODE_EDIT_DESCENDANT_CLASSES } from './markdownInlineCodeParity'
+import { areReplacementLinesNoop } from './markdownEditParitySsot'
 
 type MarkdownBlockContainerProps = {
   as: React.ElementType
@@ -1059,11 +1060,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         const markdown = String(result.markdown || '').replace(/\s+$/g, '')
         if (markdown === initialPresentTextRef.current) return
         const replacementLines = buildReplacementLinesFromDraft(markdown)
-        const currentLines = sourceLines.slice(Math.max(0, editStartLine - 1), Math.max(0, editEndLine))
-        if (
-          currentLines.length === replacementLines.length
-          && currentLines.every((line, idx) => String(line || '') === String(replacementLines[idx] || ''))
-        ) {
+        if (areReplacementLinesNoop({ sourceLines, startLine: editStartLine, endLine: editEndLine, replacementLines })) {
           setSessionEditLineRange(null)
           return
         }
@@ -1079,11 +1076,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       return
     }
     const replacementLines = buildReplacementLinesFromDraft(draft)
-    const currentLines = sourceLines.slice(Math.max(0, editStartLine - 1), Math.max(0, editEndLine))
-    if (
-      currentLines.length === replacementLines.length
-      && currentLines.every((line, idx) => String(line || '') === String(replacementLines[idx] || ''))
-    ) {
+    if (areReplacementLinesNoop({ sourceLines, startLine: editStartLine, endLine: editEndLine, replacementLines })) {
       setEditing(false)
       setSessionEditLineRange(null)
       return
@@ -1544,8 +1537,9 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   const toolbarMenuDividerClassName = FLOATING_MENU_DIVIDER_CLASSNAME
   const toolbarMenuSummaryClassName = FLOATING_BUBBLE_BUTTON_CLASSNAME
   const htmlBlockEditing = editorPresentation === 'html' && htmlRenderMode === 'block'
+  const hostIsParagraph = Tag === 'p'
   const EditorTag = (
-    htmlBlockEditing || !editInlineFlow
+    (htmlBlockEditing || !editInlineFlow) && !hostIsParagraph
       ? 'div'
       : 'span'
   ) as 'div' | 'span'
