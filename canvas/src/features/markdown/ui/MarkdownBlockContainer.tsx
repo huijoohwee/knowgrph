@@ -34,6 +34,7 @@ import {
   FLOATING_POPOVER_INPUT_CLASSNAME,
   FLOATING_MENU_LEFT_W220_CLASSNAME,
 } from '@/components/BottomPanel/markdownWorkspace/main/viewer/floatingMenuStyles'
+import { MARKDOWN_INLINE_CODE_EDIT_DESCENDANT_CLASSES } from './markdownInlineCodeParity'
 
 type MarkdownBlockContainerProps = {
   as: React.ElementType
@@ -1370,19 +1371,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
           '[&_a]:break-words',
           '[&_a]:text-blue-600',
           '[&_a]:hover:underline',
-          '[&_code]:font-mono',
-          '[&_code]:border-0',
-          '[&_code]:ring-1',
-          '[&_code]:ring-inset',
-          '[&_code]:ring-[color:var(--kg-code-border)]',
-          '[&_code]:bg-[color:var(--kg-code-bg)]',
-          '[&_code]:text-[color:var(--kg-code-text)]',
-          '[&_code]:align-baseline',
-          '[&_code]:leading-[var(--kg-inline-code-line-height,inherit)]',
-          '[&_code]:px-1.5',
-          '[&_code]:py-0',
-          '[&_code]:rounded',
-          '[&_code]:text-[length:var(--kg-inline-code-font-size,inherit)]',
+          ...MARKDOWN_INLINE_CODE_EDIT_DESCENDANT_CLASSES,
           '[&_mark]:px-0.5',
           '[&_mark]:rounded-sm',
           '[&_mark]:text-yellow-700',

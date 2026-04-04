@@ -31,6 +31,7 @@ import type { InlineRenderOpts } from './MarkdownRendererTypes'
 import { resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
 import { MediaIframe, MediaVideo, MediaWebpageSnapshot } from './MarkdownMediaUi'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { MARKDOWN_INLINE_CODE_VIEW_CLASS } from './markdownInlineCodeParity'
 
 const SAFE_HTML_ID_RE = /^[A-Za-z0-9^][A-Za-z0-9^:._-]{0,255}$/
 const SVG_DATA_URI_BASE64_PREFIX = 'data:image/svg+xml;base64,'
@@ -124,16 +125,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
   const { activeDocumentPath, uiPanelTextFontClass, uiPanelMonospaceTextClass, markdownPresentationMode } = opts
   const fragmentOpts = opts.fragmentOptions || null
   let fragmentIndex = 0
-  const inlineCodeClassName = [
-    'font-mono',
-    'ring-1 ring-inset ring-[color:var(--kg-code-border)]',
-    'bg-[color:var(--kg-code-bg)] text-[color:var(--kg-code-text)]',
-    'align-baseline leading-[var(--kg-inline-code-line-height,inherit)]',
-    'px-1.5 py-0 rounded',
-    'text-[length:var(--kg-inline-code-font-size,inherit)]',
-  ]
-    .filter(Boolean)
-    .join(' ')
+  const inlineCodeClassName = MARKDOWN_INLINE_CODE_VIEW_CLASS
 
   const renderTokens = (subTokens: Token[] | undefined, insideLink: boolean): React.ReactNode => {
     const list = Array.isArray(subTokens) ? subTokens : []

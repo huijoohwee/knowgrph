@@ -45,7 +45,12 @@ const assertNoEdgeRows = (editor: HTMLElement) => {
       throw new Error(`expected single list root or li children; html=${editor.innerHTML}`)
     }
     if (firstTag !== 'ol' && firstTag !== 'ul') {
-      throw new Error(`expected list root ol/ul/li; got=${firstTag} html=${editor.innerHTML}`)
+      const textRaw = String(editor.textContent || '').replace(/\u200B/g, '')
+      const textTrimmed = textRaw.trim()
+      if (!textTrimmed) throw new Error(`expected markdown list editor text; html=${editor.innerHTML}`)
+      if (textRaw.startsWith('\n')) throw new Error(`expected no leading blank row; text=${JSON.stringify(textRaw)}`)
+      if (textRaw.endsWith('\n')) throw new Error(`expected no trailing blank row; text=${JSON.stringify(textRaw)}`)
+      return
     }
     items = Array.from(elements[0].querySelectorAll(':scope > li')) as HTMLElement[]
   }

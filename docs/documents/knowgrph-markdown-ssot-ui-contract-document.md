@@ -160,6 +160,11 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
   - Bounded and debounced: avoid recomputation loops by memoizing selection offsets, gating selection-change listeners with `requestAnimationFrame`, and skipping redundant bubble repositioning when geometry is unchanged.
   - SSOT-driven: all floating toolbars, popovers, and palettes must reuse shared floating menu classes and theme tokens (no mode-specific clones or legacy variants).
 
+### View↔Edit WYSIWYG-ish parity SSOT (inline code + lists)
+
+- Inline-code view and edit surfaces must reuse the same centralized parity classes: read-mode inline code uses `MARKDOWN_INLINE_CODE_VIEW_CLASS`; contentEditable html surfaces apply `MARKDOWN_INLINE_CODE_EDIT_DESCENDANT_CLASSES` via `MarkdownBlockContainer` html normalization so entering edit never changes inline-code typography, line-height, padding, or ring/border layout.
+- Ordered/unordered list view and edit surfaces must reuse the same shared layout SSOT: `markdownListLayout` defines list marker/indent/spacing view classes, row-level editor/view inline classes, and row gutter padding/alignment; `MarkdownListBlock` must not introduce per-surface list typography or spacing forks beyond code-backed parity tightening.
+
 ## Scroll Sync Contract
 - In split view, Editor↔Viewer scroll sync must be bidirectional, stable, and view-only (no text mutations).
 - Editor uses the in-repo Monaco editor wrapper; scroll sync must operate via the editor handle API (not direct textarea DOM access).

@@ -89,6 +89,7 @@ function MarkdownListRow(props: {
   const rowCanReorder = rowControlsEnabled && !!opts.onReorderLineBlock
   const rowStartLine = resolvedRowRange.startLine
   const rowEndLine = resolvedRowRange.endLine
+  const editRange = rowRange || undefined
   const rowDnd = useMarkdownLineBlockDnD({
     enabled: rowCanReorder,
     targetStartLine: rowStartLine,
@@ -120,6 +121,7 @@ function MarkdownListRow(props: {
     if (first?.type !== 'paragraph' || !Array.isArray(first.tokens)) return null
     return first.tokens as Token[]
   })()
+  const useHtmlInlineRow = !!onlyParagraph && rowStartLine === rowEndLine
   return (
     <li
       data-kg-list-item-index={itemIndex}
@@ -153,19 +155,21 @@ function MarkdownListRow(props: {
         highlightClass=""
         startLine={rowStartLine}
         endLine={rowEndLine}
-        editLineRange={resolvedRowRange}
-        inlineEditable={rowEditingEnabled}
+        editLineRange={editRange}
+        inlineEditable={rowEditingEnabled && !!editRange}
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
         onInlineEditStateChange={opts.onInlineEditStateChange}
         forbidCopy={!!opts.forbidCopy}
         editorClassName={rowEditorClassName}
+        editPresentation={useHtmlInlineRow ? 'html' : 'markdown'}
+        editHtmlRender={useHtmlInlineRow ? 'inline' : undefined}
         editInlineFlow
         editStripLinePrefix={stripListLinePrefix}
         editDefaultLinePrefix={rowDefaultLinePrefix}
         editTrimEdgeNewlines
       >
-        {onlyParagraph ? (
+        {useHtmlInlineRow ? (
           <span>
             {renderInlineTokens(onlyParagraph, {
               activeDocumentPath: opts.activeDocumentPath,
