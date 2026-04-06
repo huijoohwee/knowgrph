@@ -23,7 +23,10 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockText.includes('unwrapSingleListWrappers')) {
     throw new Error('expected html list edit normalization to unwrap list wrappers before sibling-gap cleanup')
   }
-  if (!blockText.includes("className={editInlineFlow ? 'relative inline min-w-0 align-baseline'")) {
+  if (
+    !blockText.includes('className={effectiveInlineFlow') ||
+    !blockText.includes("hostInlineFlow ? 'relative inline-block w-full min-w-0 align-baseline' : 'relative inline min-w-0 align-baseline'")
+  ) {
     throw new Error('expected block container to support inline edit-flow host wrapping for list marker baseline parity')
   }
   if (!blockText.includes('normalizeListAncestorSpacing')) {
@@ -46,6 +49,9 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   if (!blockText.includes('editTypographySnapshotRef') || !blockText.includes('window.getComputedStyle')) {
     throw new Error('expected markdown block editor to snapshot read-surface computed typography for strict view/edit font parity')
+  }
+  if (!blockText.includes('MARKDOWN_EDIT_TYPOGRAPHY_SOURCE_SELECTOR') || !blockText.includes('h1,h2,h3,h4,h5,h6')) {
+    throw new Error('expected typography source selector to include heading tags for strict heading view/edit parity')
   }
   if (!blockText.includes('editSpacingSnapshotRef') || !blockText.includes('editCaptureLayoutSpacing') || !blockText.includes('__KG_EDIT_PARITY_PROBE__')) {
     throw new Error('expected markdown block editor to provide gated spacing parity capture and runtime parity probe switch')
@@ -297,6 +303,26 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   const dataViewText = readUtf8(dataViewPath)
   if (!dataViewText.includes('if (!canMutate) return')) {
     throw new Error('expected markdown data-view handlers to guard read-only mutation paths')
+  }
+  const dataViewSettingsPropsPath = path.resolve(
+    root,
+    'src',
+    'components',
+    'BottomPanel',
+    'markdownWorkspace',
+    'main',
+    'viewer',
+    'WorkspaceDataViewSettingsPropertiesSection.tsx',
+  )
+  const dataViewSettingsPropsText = readUtf8(dataViewSettingsPropsPath)
+  if (!dataViewSettingsPropsText.includes('UI_TEXT_TRUNCATE')) {
+    throw new Error('expected data-view property name view surfaces to reuse shared truncation SSOT class')
+  }
+  if (
+    !dataViewSettingsPropsText.includes('overflow-x-auto whitespace-nowrap [text-overflow:clip]') ||
+    !dataViewSettingsPropsText.includes('COLUMN_NAME_EDIT_INPUT_CLASS')
+  ) {
+    throw new Error('expected data-view property name edit surface to reveal full text on focus while keeping truncated rest-state contract')
   }
 
   const kanbanPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'kanban', 'KanbanCard.tsx')

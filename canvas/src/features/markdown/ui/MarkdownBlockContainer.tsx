@@ -37,6 +37,9 @@ import {
 import { MARKDOWN_INLINE_CODE_EDIT_DESCENDANT_CLASSES } from './markdownInlineCodeParity'
 import { areReplacementLinesNoop } from './markdownEditParitySsot'
 
+const MARKDOWN_EDIT_TYPOGRAPHY_SOURCE_SELECTOR =
+  'h1,h2,h3,h4,h5,h6,p,li,blockquote,section,aside,div,span'
+
 type MarkdownBlockContainerProps = {
   as: React.ElementType
   className?: string
@@ -1097,7 +1100,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     try {
       const baseNode = target && event.currentTarget.contains(target) ? target : event.currentTarget
       const typographySource =
-        baseNode.closest('p,li,blockquote,section,aside,div,span') as HTMLElement | null
+        baseNode.closest(MARKDOWN_EDIT_TYPOGRAPHY_SOURCE_SELECTOR) as HTMLElement | null
       const computed = window.getComputedStyle(typographySource || event.currentTarget)
       editTypographySnapshotRef.current = {
         fontFamily: computed.fontFamily || undefined,

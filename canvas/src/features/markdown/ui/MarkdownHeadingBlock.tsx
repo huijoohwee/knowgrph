@@ -91,7 +91,9 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
   const cls = ['font-semibold', size, color, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
   const headingEditorClassName = [
     cls,
-    'block flex-1 min-w-0 max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] outline-none bg-transparent',
+    'block flex-1 min-w-0 max-w-full outline-none bg-transparent',
+    UI_TEXT_TRUNCATE,
+    'focus:overflow-x-auto focus:[text-overflow:clip]',
   ].filter(Boolean).join(' ')
   const content = renderInlineTokens(h.tokens, {
     activeDocumentPath: opts.activeDocumentPath,

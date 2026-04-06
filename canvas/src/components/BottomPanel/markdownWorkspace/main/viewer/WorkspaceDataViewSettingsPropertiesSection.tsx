@@ -11,6 +11,7 @@ import { GripDotsIcon, VisibilityIcon } from '@/features/graph-fields/ui/graphFi
 import { UI_COLOR_PRIMARY_BLUE_INDICATOR } from '@/features/toolbar/ui/toolbarStyles'
 import { reorderList } from '@/lib/reorder'
 import { DetailsMenu } from '@/components/ui/DetailsMenu'
+import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 
 export function WorkspaceDataViewSettingsPropertiesSection(props: {
   canMutate: boolean
@@ -21,6 +22,14 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
   onDeleteColumn?: (columnId: string) => void
   onRenameColumn?: (columnId: string, nextName: string) => void
 }) {
+  const COLUMN_NAME_EDIT_INPUT_CLASS = [
+    'h-7 px-2 rounded border text-sm min-w-0 flex-1',
+    'overflow-x-auto whitespace-nowrap [text-overflow:clip]',
+    UI_FOCUS_RING,
+    UI_THEME_TOKENS.input.bg,
+    UI_THEME_TOKENS.input.border,
+    UI_THEME_TOKENS.input.text,
+  ].join(' ')
   const [draggingColumnId, setDraggingColumnId] = React.useState<string | null>(null)
   const [dragOverColumnId, setDragOverColumnId] = React.useState<string | null>(null)
   const [editingColumnId, setEditingColumnId] = React.useState<string | null>(null)
@@ -209,13 +218,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                 {editingColumnId === c.id ? (
                   <input
                     autoFocus
-                    className={[
-                      'h-7 px-2 rounded border text-sm min-w-0 flex-1',
-                      UI_FOCUS_RING,
-                      UI_THEME_TOKENS.input.bg,
-                      UI_THEME_TOKENS.input.border,
-                      UI_THEME_TOKENS.input.text,
-                    ].join(' ')}
+                    className={COLUMN_NAME_EDIT_INPUT_CLASS}
                     value={editingName}
                     onChange={e => setEditingName(e.target.value)}
                     onBlur={() => commitRename(c.id)}
@@ -232,7 +235,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                   />
                 ) : (
                   <span
-                    className={['text-sm truncate', UI_THEME_TOKENS.text.primary].join(' ')}
+                    className={['text-sm', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}
                     onDoubleClick={() => startRename(c.id, c.name)}
                   >
                     {c.name}
@@ -295,13 +298,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                       {editingColumnId === c.id ? (
                         <input
                           autoFocus
-                          className={[
-                            'h-7 px-2 rounded border text-sm min-w-0 flex-1',
-                            UI_FOCUS_RING,
-                            UI_THEME_TOKENS.input.bg,
-                            UI_THEME_TOKENS.input.border,
-                            UI_THEME_TOKENS.input.text,
-                          ].join(' ')}
+                          className={COLUMN_NAME_EDIT_INPUT_CLASS}
                           value={editingName}
                           onChange={e => setEditingName(e.target.value)}
                           onBlur={() => commitRename(c.id)}
@@ -318,7 +315,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                         />
                       ) : (
                         <span
-                          className={['text-sm truncate', UI_THEME_TOKENS.text.secondary].join(' ')}
+                          className={['text-sm', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}
                           onDoubleClick={() => startRename(c.id, c.name)}
                         >
                           {c.name}

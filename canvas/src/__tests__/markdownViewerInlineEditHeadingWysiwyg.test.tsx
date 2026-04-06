@@ -6,12 +6,26 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 const tick = async () => {
   await new Promise<void>(resolve => setTimeout(resolve, 0))
 }
+const waitForQuery = async (query: () => Element | null, attempts = 5): Promise<Element | null> => {
+  for (let i = 0; i < attempts; i += 1) {
+    const found = query()
+    if (found) return found
+    await tick()
+  }
+  return null
+}
 
 export async function testMarkdownViewerInlineEditHeadingUsesHtmlEditingAndPreservesHeight() {
   const headingPath = path.resolve(process.cwd(), 'src', 'features', 'markdown', 'ui', 'MarkdownHeadingBlock.tsx')
   const headingText = fs.readFileSync(headingPath, { encoding: 'utf8' })
   if (!headingText.includes('editPresentation="html"')) {
     throw new Error('expected MarkdownHeadingBlock to use html edit presentation')
+  }
+  if (!headingText.includes('UI_TEXT_TRUNCATE')) {
+    throw new Error('expected MarkdownHeadingBlock heading editor class to preserve truncation SSOT')
+  }
+  if (!headingText.includes('focus:overflow-x-auto') || !headingText.includes('focus:[text-overflow:clip]')) {
+    throw new Error('expected heading edit surface to allow focused horizontal reveal for editing truncated text')
   }
 
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
@@ -24,8 +38,8 @@ export async function testMarkdownViewerInlineEditHeadingUsesHtmlEditingAndPrese
 
     const root = createRoot(container)
     root.render(<div data-test-probe="1">probe</div>)
-    await tick()
-    if (!dom.window.document.querySelector('[data-test-probe="1"]')) {
+    const probe = await waitForQuery(() => dom.window.document.querySelector('[data-test-probe="1"]'))
+    if (!probe) {
       throw new Error('expected react root to render a probe element')
     }
 
