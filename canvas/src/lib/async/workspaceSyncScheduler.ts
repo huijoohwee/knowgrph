@@ -1,6 +1,7 @@
 import { cancelCoalescedTask, scheduleCoalescedTask } from '@/lib/async/coalescedScheduler'
 
 const WORKSPACE_SYNC_SCHEDULER_KEY = 'workspace:sync:runtime-persistence'
+const WORKSPACE_SYNC_SIGNATURE_LIMIT = 400
 type WorkspaceSyncTaskEntry = {
   fn: () => void
   signature: string | null
@@ -12,6 +13,19 @@ export type WorkspaceSyncTaskOptions = {
 
 const pendingWorkspaceSyncTasks = new Map<string, WorkspaceSyncTaskEntry>()
 const lastExecutedWorkspaceSyncTaskSignature = new Map<string, string>()
+
+const setLastExecutedSignature = (key: string, signature: string): void => {
+  if (!key || !signature) return
+  if (lastExecutedWorkspaceSyncTaskSignature.has(key)) {
+    lastExecutedWorkspaceSyncTaskSignature.delete(key)
+  }
+  lastExecutedWorkspaceSyncTaskSignature.set(key, signature)
+  if (lastExecutedWorkspaceSyncTaskSignature.size <= WORKSPACE_SYNC_SIGNATURE_LIMIT) return
+  const oldestKey = lastExecutedWorkspaceSyncTaskSignature.keys().next().value
+  if (typeof oldestKey === 'string' && oldestKey) {
+    lastExecutedWorkspaceSyncTaskSignature.delete(oldestKey)
+  }
+}
 
 export const scheduleWorkspaceSyncTask = (
   taskKey: string,
@@ -34,7 +48,7 @@ export const scheduleWorkspaceSyncTask = (
       try {
         task.fn()
         if (task.signature) {
-          lastExecutedWorkspaceSyncTaskSignature.set(taskName, task.signature)
+          setLastExecutedSignature(taskName, task.signature)
         }
       } catch {
         void 0
@@ -46,6 +60,7 @@ export const scheduleWorkspaceSyncTask = (
 export const cancelWorkspaceSyncTask = (taskKey: string): void => {
   const key = String(taskKey || '').trim() || 'default'
   pendingWorkspaceSyncTasks.delete(key)
+  lastExecutedWorkspaceSyncTaskSignature.delete(key)
   if (pendingWorkspaceSyncTasks.size > 0) return
   cancelCoalescedTask(WORKSPACE_SYNC_SCHEDULER_KEY)
 }

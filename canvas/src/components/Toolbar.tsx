@@ -1,12 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Grid3x3, History as HistoryIcon, Map, SunMoon, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Lock, Unlock, Compass, ChevronLeft, ChevronRight, Hand, Link2, Columns2 } from 'lucide-react';
-import MainPanel from '@/features/panels/MainPanel';
 import IconButton from '@/components/IconButton';
 import { DropdownPanel } from '@/lib/ui/overlay';
-import SearchPanel from '@/components/SearchPanel';
 import { UI_LABELS, UI_COPY } from '@/lib/config';
 import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons';
-import { ToolbarMenuLauncher } from '@/features/toolbar/ToolbarMenuLauncher';
 import {
   uiPrimaryIconActiveClassName,
   uiPrimaryIconInactiveClassName,
@@ -29,6 +26,12 @@ interface ToolbarProps {
   onReset?: () => void;
   onZoomSelection?: () => void;
 }
+
+const MainPanelLazy = React.lazy(() => import('@/features/panels/MainPanel'));
+const SearchPanelLazy = React.lazy(() => import('@/components/SearchPanel'));
+const ToolbarMenuLauncherLazy = React.lazy(() =>
+  import('@/features/toolbar/ToolbarMenuLauncher').then(mod => ({ default: mod.ToolbarMenuLauncher })),
+);
 
 const TOOLBAR_ANIMATION_OPTIONS = [
   { id: 'force', title: 'Force-directed Graph (default)' },
@@ -194,12 +197,14 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     >
       {toolbarCollapsed ? (
         <>
-          <ToolbarMenuLauncher
-            onOpenMainPanel={openMainPanel}
-            onCloseMainPanel={() => setIsMainPanelOpen(false)}
-            onLaunchSpotlight={actions.handleLaunch}
-            onLaunchStatus={actions.handleLaunchStats}
-          />
+          <React.Suspense fallback={null}>
+            <ToolbarMenuLauncherLazy
+              onOpenMainPanel={openMainPanel}
+              onCloseMainPanel={() => setIsMainPanelOpen(false)}
+              onLaunchSpotlight={actions.handleLaunch}
+              onLaunchStatus={actions.handleLaunchStats}
+            />
+          </React.Suspense>
 
           <EditorWorkspaceSelect iconSizeClass={iconSizeClass} iconStrokeWidth={iconStrokeWidth} />
 
@@ -224,12 +229,14 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           </IconButton>
         </>
       ) : (
-        <ToolbarMenuLauncher
-          onOpenMainPanel={openMainPanel}
-          onCloseMainPanel={() => setIsMainPanelOpen(false)}
-          onLaunchSpotlight={actions.handleLaunch}
-          onLaunchStatus={actions.handleLaunchStats}
-        />
+        <React.Suspense fallback={null}>
+          <ToolbarMenuLauncherLazy
+            onOpenMainPanel={openMainPanel}
+            onCloseMainPanel={() => setIsMainPanelOpen(false)}
+            onLaunchSpotlight={actions.handleLaunch}
+            onLaunchStatus={actions.handleLaunchStats}
+          />
+        </React.Suspense>
       )}
 
       {toolbarCollapsed ? null : (
@@ -441,16 +448,18 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
               transform: 'translate(-50%, -50%)',
             }}
           >
-            <MainPanel
-              onClose={() => setIsMainPanelOpen(false)}
-                onHeaderDragStart={!mainPanelPinned ? handleMainPanelHeaderDragStart : undefined}
-              requestedTab={mainPanelRequestedTab}
-              collapsed={mainPanelCollapsed}
-              pinned={mainPanelPinned}
-              onMinimize={() => setMainPanelCollapsed(true)}
-              onRestore={handleMainPanelRestore}
-              onPinToggle={() => setMainPanelPinned(v => !v)}
-            />
+            <React.Suspense fallback={null}>
+              <MainPanelLazy
+                onClose={() => setIsMainPanelOpen(false)}
+                  onHeaderDragStart={!mainPanelPinned ? handleMainPanelHeaderDragStart : undefined}
+                requestedTab={mainPanelRequestedTab}
+                collapsed={mainPanelCollapsed}
+                pinned={mainPanelPinned}
+                onMinimize={() => setMainPanelCollapsed(true)}
+                onRestore={handleMainPanelRestore}
+                onPinToggle={() => setMainPanelPinned(v => !v)}
+              />
+            </React.Suspense>
           </div>
         </div>
       )}
@@ -609,7 +618,9 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           onClose={() => setIsSearchOpen(false)}
           align="bottom-center"
         >
-          <SearchPanel ref={searchPanelRef} onClose={() => setIsSearchOpen(false)} />
+          <React.Suspense fallback={null}>
+            <SearchPanelLazy ref={searchPanelRef} onClose={() => setIsSearchOpen(false)} />
+          </React.Suspense>
         </DropdownPanel>
       )}
 

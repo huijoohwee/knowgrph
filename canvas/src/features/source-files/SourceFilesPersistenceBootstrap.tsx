@@ -11,6 +11,18 @@ import { applyComposedGraphFromSourceFiles, scheduleApplyComposedGraphFromSource
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 
+const sourceFileTextHashCache = new WeakMap<object, string>()
+
+const getSourceFileTextHash = (entry: unknown): string => {
+  if (!entry || typeof entry !== 'object') return hashStringToHex('')
+  const cached = sourceFileTextHashCache.get(entry as object)
+  if (cached) return cached
+  const item = entry as { text?: unknown }
+  const next = hashStringToHex(String(item?.text || ''))
+  sourceFileTextHashCache.set(entry as object, next)
+  return next
+}
+
 const arraysEqualByIdAndHash = (a: unknown, b: unknown): boolean => {
   const aa = Array.isArray(a) ? a : []
   const bb = Array.isArray(b) ? b : []
@@ -21,8 +33,8 @@ const arraysEqualByIdAndHash = (a: unknown, b: unknown): boolean => {
     if (String(x?.id || '') !== String(y?.id || '')) return false
     if (String(x?.parsedTextHash || '') !== String(y?.parsedTextHash || '')) return false
     if (String(x?.enabled || '') !== String(y?.enabled || '')) return false
-    const xTextHash = hashStringToHex(String(x?.text || ''))
-    const yTextHash = hashStringToHex(String(y?.text || ''))
+    const xTextHash = getSourceFileTextHash(x)
+    const yTextHash = getSourceFileTextHash(y)
     if (xTextHash !== yTextHash) return false
   }
   return true
@@ -37,7 +49,7 @@ const sourceFilesSignature = (value: unknown): string => {
       const id = String(item?.id || '')
       const parsedTextHash = String(item?.parsedTextHash || '')
       const enabled = String(item?.enabled || '')
-      const textHash = hashStringToHex(String(item?.text || ''))
+      const textHash = getSourceFileTextHash(item)
       return `${id}:${parsedTextHash}:${enabled}:${textHash}`
     })
     .join('|')

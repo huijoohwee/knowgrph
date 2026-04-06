@@ -189,7 +189,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
     lsSetInt(LS_KEYS.workspacePreviewWidthPx, canvasPreviewWidthPx, { min: 320, max: 960 })
   }, [canvasPreviewWidthPx])
   const rowCacheRef = useRef<
-    Map<GraphTableId, { hashById: Map<string, number>; rowById: Map<string, GraphTableGridRow> }>
+    Map<GraphTableId, { hashById: Map<string, number>; stampById: Map<string, string>; rowById: Map<string, GraphTableGridRow> }>
   >(new Map())
 
   const didAutoSeedForKeyRef = useRef<Set<string>>(new Set())
@@ -222,7 +222,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
     const cacheForTable = (() => {
       const existing = rowCacheRef.current.get(activeTableId)
       if (existing) return existing
-      const next = { hashById: new Map<string, number>(), rowById: new Map<string, GraphTableGridRow>() }
+      const next = { hashById: new Map<string, number>(), stampById: new Map<string, string>(), rowById: new Map<string, GraphTableGridRow>() }
       rowCacheRef.current.set(activeTableId, next)
       return next
     })()
@@ -264,14 +264,22 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       for (const r of initialRows) {
         const json = r.toJSON() as GraphRowDoc
         nextIds.add(json.rowId)
+        const stamp = `${Number(json.updatedAtMs) || 0}:${Number(json.order) || 0}`
+        const prevStamp = cache.stampById.get(json.rowId)
+        const prevRow = cache.rowById.get(json.rowId)
+        if (prevRow && prevStamp === stamp) {
+          nextRows.push(prevRow)
+          continue
+        }
         const hash = hashString32(JSON.stringify(json.data || {}))
         const prevHash = cache.hashById.get(json.rowId)
-        const prevRow = cache.rowById.get(json.rowId)
         if (prevRow && prevHash === hash) {
+          cache.stampById.set(json.rowId, stamp)
           nextRows.push(prevRow)
         } else {
           const nextRow = mapRowDocToGridRow(json)
           cache.hashById.set(json.rowId, hash)
+          cache.stampById.set(json.rowId, stamp)
           cache.rowById.set(json.rowId, nextRow)
           nextRows.push(nextRow)
         }
@@ -280,6 +288,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
         if (!nextIds.has(id)) {
           cache.rowById.delete(id)
           cache.hashById.delete(id)
+          cache.stampById.delete(id)
         }
       }
       setRows(nextRows)
@@ -310,15 +319,25 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
         const cache = cacheForTable
         if (ev.operation === 'DELETE') {
           cache.hashById.delete(doc.rowId)
+          cache.stampById.delete(doc.rowId)
           cache.rowById.delete(doc.rowId)
         } else {
+          const stamp = `${Number(doc.updatedAtMs) || 0}:${Number(doc.order) || 0}`
+          const prevStamp = cache.stampById.get(doc.rowId)
+          const prevRow = cache.rowById.get(doc.rowId)
+          if (prevRow && prevStamp === stamp) {
+            scheduleRowsFlush()
+            return
+          }
           const hash = hashString32(JSON.stringify(doc.data || {}))
           const prevHash = cache.hashById.get(doc.rowId)
-          const prevRow = cache.rowById.get(doc.rowId)
           if (!prevRow || prevHash !== hash) {
             const nextRow = mapRowDocToGridRow(doc)
             cache.hashById.set(doc.rowId, hash)
+            cache.stampById.set(doc.rowId, stamp)
             cache.rowById.set(doc.rowId, nextRow)
+          } else {
+            cache.stampById.set(doc.rowId, stamp)
           }
         }
         scheduleRowsFlush()

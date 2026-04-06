@@ -1,13 +1,6 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { UiToastInput } from '@/hooks/store/types'
-import { exportWorkspaceFileJsonLd } from './exports/exportWorkspaceFile'
-import { exportMarkdownFile } from './exports/exportMarkdown'
-import { exportHtmlViewerSnapshot } from './exports/exportHtmlViewer'
-import { exportHtmlCanvasFromWorkspace } from './exports/exportHtmlCanvas'
-import { exportCanvasSvg } from './exports/exportSvg'
-import { exportGraphJson } from './exports/exportJson'
-import { exportViewerPdf } from './exports/exportPdf'
 import { registerMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
 
 type UseWorkspaceExportBridgeArgs = {
@@ -54,17 +47,23 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
   const handleExportWorkspaceFile = React.useCallback(async () => {
     flushGraphWritebackForExport()
     const text = String(typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText)
+    const mod = await import('./exports/exportWorkspaceFile')
+    const { exportWorkspaceFileJsonLd } = mod
     await exportWorkspaceFileJsonLd({ activeDocumentKey, exportBaseName, text })
   }, [activeDocumentKey, activeText, exportBaseName, flushGraphWritebackForExport, viewerTextOverride])
 
   const handleExportMarkdown = React.useCallback(async () => {
     flushGraphWritebackForExport()
     const text = String(markdownEditText ?? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText))
+    const mod = await import('./exports/exportMarkdown')
+    const { exportMarkdownFile } = mod
     await exportMarkdownFile({ exportBaseName, text })
   }, [activeText, exportBaseName, flushGraphWritebackForExport, markdownEditText, viewerTextOverride])
 
   const handleExportHtmlViewer = React.useCallback(async () => {
     flushGraphWritebackForExport()
+    const mod = await import('./exports/exportHtmlViewer')
+    const { exportHtmlViewerSnapshot } = mod
     await exportHtmlViewerSnapshot({
       exportBaseName,
       showWebpageHtml,
@@ -77,11 +76,15 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
 
   const handleExportHtmlCanvas = React.useCallback(async () => {
     flushGraphWritebackForExport()
+    const mod = await import('./exports/exportHtmlCanvas')
+    const { exportHtmlCanvasFromWorkspace } = mod
     await exportHtmlCanvasFromWorkspace({ exportBaseName, pushUiToast })
   }, [exportBaseName, flushGraphWritebackForExport, pushUiToast])
 
   const handleExportSvg = React.useCallback(async () => {
     flushGraphWritebackForExport()
+    const mod = await import('./exports/exportSvg')
+    const { exportCanvasSvg } = mod
     await exportCanvasSvg({
       exportBaseName,
       pushUiToast,
@@ -92,11 +95,15 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
   const handleExportJson = React.useCallback(async () => {
     flushGraphWritebackForExport()
     const gd = useGraphStore.getState().graphData
+    const mod = await import('./exports/exportJson')
+    const { exportGraphJson } = mod
     await exportGraphJson({ graphData: gd, exportBaseName, pushUiToast })
   }, [exportBaseName, flushGraphWritebackForExport, pushUiToast])
 
   const handleExportPdf = React.useCallback(async () => {
     flushGraphWritebackForExport()
+    const mod = await import('./exports/exportPdf')
+    const { exportViewerPdf } = mod
     await exportViewerPdf({ exportBaseName, viewerEl, viewerRefCurrent: getViewerRefCurrent(), pushUiToast })
   }, [exportBaseName, flushGraphWritebackForExport, getViewerRefCurrent, pushUiToast, viewerEl])
 

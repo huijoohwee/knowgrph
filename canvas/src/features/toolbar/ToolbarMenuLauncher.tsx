@@ -3,8 +3,6 @@ import { Rocket } from 'lucide-react'
 import IconButton from '@/components/IconButton'
 import { useToolMenuShortcuts } from '@/features/toolbar/useToolMenuShortcuts'
 import { useToolMenuState } from '@/features/toolbar/useToolMenuState'
-import { ToolbarToolMenu } from '@/features/toolbar/ToolbarToolMenu'
-import { LaunchDropdown } from '@/features/toolbar/LaunchDropdown'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   DESIGN_LAYERS_PANEL_OPEN_EVENT,
@@ -22,6 +20,13 @@ import { lsBool } from '@/lib/persistence'
 import type { ToolMenuAction, ToolMenuArea } from '@/features/toolbar/toolMenu'
 import { createNewMarkdownSourceFileAndOpenViewer } from '@/features/source-files/createNewMarkdownSourceFile'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
+
+const ToolbarToolMenuLazy = React.lazy(() =>
+  import('@/features/toolbar/ToolbarToolMenu').then(mod => ({ default: mod.ToolbarToolMenu })),
+)
+const LaunchDropdownLazy = React.lazy(() =>
+  import('@/features/toolbar/LaunchDropdown').then(mod => ({ default: mod.LaunchDropdown })),
+)
 
 type ToolbarMenuLauncherProps = {
   onOpenMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'settings') => void
@@ -211,29 +216,33 @@ export function ToolbarMenuLauncher({
         <Rocket className={iconSizeClass} />
       </IconButton>
 
-      <LaunchDropdown
-        anchorRef={toolMenuButtonRef}
-        open={launchOpen}
-        onClose={() => setLaunchOpen(false)}
-        onOpenWorkflowPanel={() => {
-          setLaunchOpen(false)
-          _onOpenMainPanel('workflow')
-        }}
-        onLaunchSpotlight={onLaunchSpotlight}
-        onLaunchStatus={onLaunchStatus}
-        onCloseMainPanel={onCloseMainPanel}
-      />
-      {isToolMenuOpen && (
-        <ToolbarToolMenu
-          toolMenuCardRef={toolMenuCardRef}
-          toolMenuCardStyle={toolMenuCardStyle}
-          onHeaderPointerDown={handleToolMenuCardPointerDown}
-          requestedFloatingPanelView={floatingPanelRequestedView?.view}
-          requestedFloatingPanelViewSeq={floatingPanelRequestedView?.seq}
-          pipelineStatus={null}
-          exportStatus={null}
-          onClose={closeToolMenu}
+      <React.Suspense fallback={null}>
+        <LaunchDropdownLazy
+          anchorRef={toolMenuButtonRef}
+          open={launchOpen}
+          onClose={() => setLaunchOpen(false)}
+          onOpenWorkflowPanel={() => {
+            setLaunchOpen(false)
+            _onOpenMainPanel('workflow')
+          }}
+          onLaunchSpotlight={onLaunchSpotlight}
+          onLaunchStatus={onLaunchStatus}
+          onCloseMainPanel={onCloseMainPanel}
         />
+      </React.Suspense>
+      {isToolMenuOpen && (
+        <React.Suspense fallback={null}>
+          <ToolbarToolMenuLazy
+            toolMenuCardRef={toolMenuCardRef}
+            toolMenuCardStyle={toolMenuCardStyle}
+            onHeaderPointerDown={handleToolMenuCardPointerDown}
+            requestedFloatingPanelView={floatingPanelRequestedView?.view}
+            requestedFloatingPanelViewSeq={floatingPanelRequestedView?.seq}
+            pipelineStatus={null}
+            exportStatus={null}
+            onClose={closeToolMenu}
+          />
+        </React.Suspense>
       )}
     </>
   )

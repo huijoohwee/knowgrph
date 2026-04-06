@@ -11,12 +11,10 @@ import { LS_KEYS, STORAGE_CHANNELS } from '@/lib/config'
 import { lsBool, lsInt, lsSetInt } from '@/lib/persistence'
 import { hashText } from '@/features/parsers/hash'
 import { hashGraphDataForPreviewSync } from '@/hooks/store/graphDataSliceUtils'
-import { autoApplyFrontmatterMermaidMarkdownToGraphIfEmpty } from '@/features/parsers/loader'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
 import ToastHost from '@/components/ui/ToastHost'
 import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceFilesPersistenceBootstrap'
-import { EmbeddedEditorShell } from '@/components/EmbeddedEditorShell'
 import { SsotEventBridge } from '@/features/ssot/SsotEventBridge'
 import { CanvasViewport } from '@/components/CanvasViewport'
 import { normalizeSingleRootRoute } from '@/lib/routing/normalizeSingleRoot'
@@ -26,6 +24,9 @@ import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 
 const ToolbarLazy = React.lazy(() => import('@/components/Toolbar'))
+const EmbeddedEditorShellLazy = React.lazy(() =>
+  import('@/components/EmbeddedEditorShell').then(mod => ({ default: mod.EmbeddedEditorShell })),
+)
 const schemaPreviewHashCache = new WeakMap<object, string>()
 
 const hashSchemaForPreviewSync = (schema: unknown): string => {
@@ -205,6 +206,7 @@ export default function CanvasPage() {
   const syncRef = React.useRef<ReturnType<typeof createTabSync> | null>(null)
   const applyingRemoteRef = React.useRef(false)
   const lastSelectionRef = React.useRef<{ n: string | null; e: string | null } | null>(null)
+  const lastSelectionRemoteTimestampRef = React.useRef<number>(0)
   const lastSchemaHashRef = React.useRef<string | null>(null)
   const lastSchemaRemoteTimestampRef = React.useRef<number>(0)
 
@@ -337,6 +339,9 @@ export default function CanvasPage() {
       applyingRemoteRef.current = true
       try {
         if (msg.kind === 'SelectionChanged') {
+          const ts = typeof msg.timestamp === 'number' ? msg.timestamp : 0
+          if (ts <= lastSelectionRemoteTimestampRef.current) return
+          lastSelectionRemoteTimestampRef.current = ts
           const payload = msg.payload as unknown as { selectedNodeId: string | null; selectedEdgeId: string | null }
           const { selectedNodeId: nid, selectedEdgeId: eid } = payload
           selectNode(nid ?? null)
@@ -371,25 +376,46 @@ export default function CanvasPage() {
   React.useEffect(() => {
     if (!enableTabSync || !syncRef.current) return
     if (applyingRemoteRef.current) return
-    const payload = { selectedNodeId, selectedEdgeId }
+    const taskKey = `tab-sync:selection:${String(graphId || '')}:${String(tabId || '')}`
+    const selectedNodeIdKey = selectedNodeId || ''
+    const selectedEdgeIdKey = selectedEdgeId || ''
+    const signature = `${selectedNodeIdKey}:${selectedEdgeIdKey}`
     const last = lastSelectionRef.current
     if (!last || last.n !== selectedNodeId || last.e !== selectedEdgeId) {
       lastSelectionRef.current = { n: selectedNodeId || null, e: selectedEdgeId || null }
-      syncRef.current.publish(buildEnvelope('SelectionChanged', graphId, tabId, payload))
+      scheduleWorkspaceSyncTask(taskKey, () => {
+        if (applyingRemoteRef.current || !syncRef.current) return
+        const s = useGraphStore.getState()
+        syncRef.current.publish(buildEnvelope('SelectionChanged', graphId, tabId, {
+          selectedNodeId: s.selectedNodeId || null,
+          selectedEdgeId: s.selectedEdgeId || null,
+        }))
+      }, 32, { signature })
+    }
+    return () => {
+      cancelWorkspaceSyncTask(taskKey)
     }
   }, [enableTabSync, graphId, tabId, selectedNodeId, selectedEdgeId])
 
   React.useEffect(() => {
     if (!enableTabSync || !syncRef.current) return
     if (applyingRemoteRef.current) return
+    const taskKey = `tab-sync:schema:${String(graphId || '')}:${String(tabId || '')}`
     const hash = hashSchemaForPreviewSync(schema)
     const last = lastSchemaHashRef.current
     if (last === hash) return
     lastSchemaHashRef.current = hash
-    try {
-      syncRef.current.publish(buildEnvelope('SchemaChanged', graphId, tabId, { schema }))
-    } catch {
-      void 0
+    scheduleWorkspaceSyncTask(taskKey, () => {
+      if (applyingRemoteRef.current || !syncRef.current) return
+      const s = useGraphStore.getState()
+      try {
+        syncRef.current.publish(buildEnvelope('SchemaChanged', graphId, tabId, { schema: s.schema }))
+      } catch {
+        void 0
+      }
+    }, 64, { signature: hash || null })
+    return () => {
+      cancelWorkspaceSyncTask(taskKey)
     }
   }, [enableTabSync, graphId, tabId, schema])
 
@@ -500,6 +526,19 @@ export default function CanvasPage() {
     design: canvas2dRenderer === 'design',
     flowEditor: canvas2dRenderer === 'flowEditor',
   }))
+  const allowBackgroundRendererPrefetch = React.useMemo(() => {
+    if (typeof window === 'undefined') return true
+    const nav = window.navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean; effectiveType?: string } }
+    const lowMemory = typeof nav.deviceMemory === 'number' && nav.deviceMemory > 0 && nav.deviceMemory <= 4
+    const lowCpu = typeof nav.hardwareConcurrency === 'number' && nav.hardwareConcurrency > 0 && nav.hardwareConcurrency <= 4
+    const saveData = nav.connection?.saveData === true
+    const constrainedNetwork = String(nav.connection?.effectiveType || '').toLowerCase()
+    if (constrainedNetwork === '2g' || constrainedNetwork === 'slow-2g') return false
+    if (saveData) return false
+    if (lowMemory) return false
+    if (lowCpu) return false
+    return true
+  }, [])
 
   React.useEffect(() => {
     if (isD3Like2dRenderer(canvas2dRenderer)) {
@@ -523,6 +562,7 @@ export default function CanvasPage() {
     if (typeof window === 'undefined') return
     if (geospatialModeEnabled) return
     if (canvasRenderMode !== '2d') return
+    if (!allowBackgroundRendererPrefetch) return
 
     const shouldPrefetchD3 = !isD3Like2dRenderer(canvas2dRenderer) && !mounted2dRenderers.d3
     const shouldPrefetchFlow = canvas2dRenderer !== 'flow' && !mounted2dRenderers.flow
@@ -593,7 +633,7 @@ export default function CanvasPage() {
       cancelled = true
       window.clearTimeout(timeoutId)
     }
-  }, [canvas2dRenderer, canvasRenderMode, geospatialModeEnabled, mounted2dRenderers.d3, mounted2dRenderers.flow, mounted2dRenderers.design, mounted2dRenderers.flowEditor])
+  }, [allowBackgroundRendererPrefetch, canvas2dRenderer, canvasRenderMode, geospatialModeEnabled, mounted2dRenderers.d3, mounted2dRenderers.flow, mounted2dRenderers.design, mounted2dRenderers.flowEditor])
 
   React.useEffect(() => {
     return onGeospatialModeChanged(detail => {
@@ -645,7 +685,11 @@ export default function CanvasPage() {
     const h = hashText(text)
     if (lastAutoAppliedMarkdownHashRef.current === h) return
     lastAutoAppliedMarkdownHashRef.current = h
-    void autoApplyFrontmatterMermaidMarkdownToGraphIfEmpty({ name: markdownDocumentName, text })
+    void import('@/features/parsers/loader')
+      .then(mod => mod.autoApplyFrontmatterMermaidMarkdownToGraphIfEmpty({ name: markdownDocumentName, text }))
+      .catch(() => {
+        void 0
+      })
   }, [canvas2dRenderer, canvasRenderMode, documentSemanticMode, frontmatterModeEnabled, graphData, markdownDocumentName, markdownDocumentText])
 
   const makeZoomHandler = (type: 'in' | 'out' | 'fit' | 'reset' | 'selection') => () => {
@@ -984,7 +1028,11 @@ export default function CanvasPage() {
                     className={`relative z-[300] flex-1 min-w-0 min-h-0 overflow-hidden ${workspaceViewMode === 'editor' ? 'flex flex-col' : 'hidden'}`}
                     aria-label="Workspace left pane"
                   >
-                    {editorShellWarmed ? <EmbeddedEditorShell active={workspaceViewMode === 'editor'} /> : null}
+                    {editorShellWarmed ? (
+                      <React.Suspense fallback={null}>
+                        <EmbeddedEditorShellLazy active={workspaceViewMode === 'editor'} />
+                      </React.Suspense>
+                    ) : null}
                   </section>
 
                   {workspaceViewMode === 'editor' ? (

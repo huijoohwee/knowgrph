@@ -12,7 +12,7 @@ interface SearchPanelProps {
 }
 
 const SearchPanel = forwardRef<HTMLDivElement, SearchPanelProps>(({ onClose }, ref) => {
-  const { graphData, selectNode, selectEdge, graphId, historyIndex, uiIconScale, uiIconStrokeWidth } = useGraphStore()
+  const { graphData, graphDataRevision, selectNode, selectEdge, graphId, historyIndex, uiIconScale, uiIconStrokeWidth } = useGraphStore()
   const [searchQuery, setSearchQuery] = React.useState('')
   const [searchResults, setSearchResults] = React.useState<SearchResult[]>([])
   const [activeIdx, setActiveIdx] = React.useState<number>(0)
@@ -22,12 +22,12 @@ const SearchPanel = forwardRef<HTMLDivElement, SearchPanelProps>(({ onClose }, r
   )
 
   React.useEffect(() => {
-    const versionKey = `${graphId || ''}|${historyIndex ?? ''}`
+    const versionKey = `${graphId || ''}|${historyIndex ?? ''}|${graphDataRevision ?? ''}`
     return scheduleDebouncedSearch(graphData, searchQuery, 50, 150, versionKey, (res) => {
       setSearchResults(res)
       setActiveIdx(0)
     })
-  }, [graphData, searchQuery, graphId, historyIndex])
+  }, [graphData, graphDataRevision, searchQuery, graphId, historyIndex])
 
   return (
     <div

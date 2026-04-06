@@ -1,7 +1,9 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { MarkdownWorkspace } from './BottomPanel/markdownWorkspace/MarkdownWorkspace'
 
+const MarkdownWorkspaceLazy = React.lazy(() =>
+  import('./BottomPanel/markdownWorkspace/MarkdownWorkspace').then(mod => ({ default: mod.MarkdownWorkspace })),
+)
 const GraphTableWorkspaceLazy = React.lazy(() => import('@/features/graph-table/ui/GraphTableWorkspace'))
 
 export function EmbeddedEditorShell(props: { active: boolean }) {
@@ -34,7 +36,9 @@ export function EmbeddedEditorShell(props: { active: boolean }) {
   return (
     <div className={`relative w-full h-full ${props.active ? 'pointer-events-auto' : 'pointer-events-none'}`} aria-hidden={!props.active}>
       <div className={`absolute inset-0 ${showMarkdown ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <MarkdownWorkspace active={props.active && showMarkdown} />
+        <React.Suspense fallback={null}>
+          <MarkdownWorkspaceLazy active={props.active && showMarkdown} />
+        </React.Suspense>
       </div>
 
       {graphTableWarmed ? (

@@ -25,9 +25,6 @@ import {
 } from '@/features/markdown/ui/markdownPreviewLinks'
 import { buildTwitterEmbedUrl, buildVimeoEmbedUrl, buildYouTubeEmbedUrl } from 'grph-shared/rich-media/providers'
 import { extractScriptEmbedAnchorHref, pickFirstSrcsetUrl } from 'grph-shared/markdown/mediaHtml'
-import {
-  MermaidDiagram,
-} from '@/features/panels/views/preview-panel/ui/MermaidDiagram'
 import { splitMermaidIntoDiagrams } from 'grph-shared/markdown/mermaidBlocks'
 import { normalizeWebpageLikeUrl } from 'grph-shared/url'
 import {
@@ -41,6 +38,10 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY } from '@/lib/config'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import RichMediaPanel from '@/components/RichMediaPanel'
+
+const MermaidDiagramLazy = React.lazy(() =>
+  import('@/features/panels/views/preview-panel/ui/MermaidDiagram').then(mod => ({ default: mod.MermaidDiagram })),
+)
 
 export default function PreviewPanelView() {
   const markdownText = useGraphStore(s => s.markdownDocumentText || '')
@@ -703,17 +704,18 @@ export default function PreviewPanelView() {
                   <div className="aspect-video w-full max-w-4xl">
                     <div className="w-full h-full overflow-auto">
                       {splitMermaidIntoDiagrams(mermaidFocusCode).map((code, i) => (
-                        <MermaidDiagram
-                          key={i}
-                          code={code}
-                          highlightClass=""
-                          frontmatterConfig={
-                            (mermaidFocusConfig as MermaidInitConfig | null) || mermaidFrontmatterConfig
-                          }
-                          rootThemeMode={rootThemeMode}
-                          overlayScope="container"
-                          overlayPortalTarget={overlayPortalTarget}
-                        />
+                        <React.Suspense key={i} fallback={null}>
+                          <MermaidDiagramLazy
+                            code={code}
+                            highlightClass=""
+                            frontmatterConfig={
+                              (mermaidFocusConfig as MermaidInitConfig | null) || mermaidFrontmatterConfig
+                            }
+                            rootThemeMode={rootThemeMode}
+                            overlayScope="container"
+                            overlayPortalTarget={overlayPortalTarget}
+                          />
+                        </React.Suspense>
                       ))}
                     </div>
                   </div>
