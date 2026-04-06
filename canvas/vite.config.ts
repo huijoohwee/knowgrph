@@ -22,7 +22,6 @@ const resolvedReactDom = nodeRequire.resolve('react-dom')
 const resolvedReactDomClient = nodeRequire.resolve('react-dom/client')
 const resolvedThreeSrc = nodeRequire.resolve('three/src/Three.js')
 const resolvedMaplibreSrc = nodeRequire.resolve('maplibre-gl/src/index.ts')
-const mermaidVendorDistDir = path.dirname(nodeRequire.resolve('mermaid/dist/mermaid.core.mjs'))
 
 const MARKDOWN_PIPELINE_INPUT_REL_PATH =
   String(process.env.VITE_MARKDOWN_PIPELINE_INPUT_REL_PATH || '').trim() || 'docs/knowgrph-pipeline-document.md'
@@ -39,50 +38,6 @@ const stripEntitiesBadSourcemapsPlugin = {
     if (!id.endsWith('.js')) return null
     const next = code.replace(/^\/\/# sourceMappingURL=.*\n?/gm, '')
     return next === code ? null : next
-  },
-}
-
-const mermaidVendorRuntimePlugin = {
-  name: 'knowgrph-mermaid-vendor-runtime',
-  configureServer(server: import('vite').ViteDevServer) {
-    server.middlewares.use('/vendor/mermaid', (req, res, next) => {
-      try {
-        const raw = String(req.url || '/')
-        const pathname = decodeURIComponent(raw.split('?')[0] || '/')
-        const safe = pathname.replace(/^\/+/, '')
-        if (!safe) {
-          next()
-          return
-        }
-        const filePath = path.resolve(mermaidVendorDistDir, safe)
-        if (!filePath.startsWith(mermaidVendorDistDir)) {
-          res.statusCode = 403
-          res.end('forbidden')
-          return
-        }
-        if (!existsSync(filePath)) {
-          next()
-          return
-        }
-        res.setHeader('Content-Type', safe.endsWith('.mjs') || safe.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'application/octet-stream')
-        createReadStream(filePath).pipe(res)
-      } catch {
-        next()
-      }
-    })
-  },
-  async closeBundle() {
-    const targetDir = path.resolve(__dirname, 'dist/vendor/mermaid')
-    try {
-      await fs.rm(targetDir, { recursive: true, force: true })
-    } catch {
-      void 0
-    }
-    try {
-      await fs.cp(mermaidVendorDistDir, targetDir, { recursive: true, force: true })
-    } catch {
-      void 0
-    }
   },
 }
 
@@ -3804,7 +3759,6 @@ export default defineConfig(({ command }) => ({
   },
   plugins: [
     stripEntitiesBadSourcemapsPlugin,
-    mermaidVendorRuntimePlugin,
     react(),
     ...(command === 'build'
       ? []
