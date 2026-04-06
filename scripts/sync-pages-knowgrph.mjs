@@ -11,7 +11,12 @@ const targetDir = path.resolve(knowgrphRoot, '..', 'huijoohwee', 'content', 'kno
 const publicRouteDir = path.resolve(knowgrphRoot, '..', 'huijoohwee', 'knowgrph')
 const blockedRelativeRoots = new Set([
   'cesium',
+  'demo',
+  'examples',
   'vendor/mermaid',
+])
+const blockedRelativeFiles = new Set([
+  'unicorn-investors-test.json',
 ])
 
 const existsDir = async (dir) => {
@@ -34,6 +39,7 @@ await fs.cp(distDir, targetDir, {
   filter: (src) => {
     const rel = path.relative(distDir, src).split(path.sep).filter(Boolean).join('/')
     if (!rel) return true
+    if (blockedRelativeFiles.has(rel)) return false
     for (const blocked of blockedRelativeRoots) {
       if (rel === blocked || rel.startsWith(`${blocked}/`)) return false
     }
