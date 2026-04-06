@@ -155,10 +155,14 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 - Slash commands:
   - Typing `/` near the caret at the start of a line (or after whitespace) may open a lightweight slash-command menu aligned with the caret. The menu reuses the same floating menu SSOT styles and triggers the same heading/list/quote/code transforms as the bubble toolbar.
   - Slash detection must be local to the active line and must not scan the full document repeatedly; hide the menu when the trailing slash context is removed or when focus leaves the editor.
-- In-place editing + bubble/command menus must be:
+-- In-place editing + bubble/command menus must be:
   - Selection-scoped and view-only: all actions are pure Markdown text transforms; no hidden graph or layout derivations are allowed.
   - Bounded and debounced: avoid recomputation loops by memoizing selection offsets, gating selection-change listeners with `requestAnimationFrame`, and skipping redundant bubble repositioning when geometry is unchanged.
   - SSOT-driven: all floating toolbars, popovers, and palettes must reuse shared floating menu classes and theme tokens (no mode-specific clones or legacy variants).
+
+### Title and title-like inline editing
+- Heading blocks render title text truncated with ellipsis in View and Edit rest state, reuse the same typography in html contentEditable, and reveal full text on focus via horizontal scroll; entering edit must not introduce alternate WYSIWYG title stacks or layout/spacing drift.
+- Title-like name surfaces (for example, workspace data view property names) reuse the same ellipsis-at-rest contract, using a truncated label in view mode and a horizontally-scrollable single-line edit input during rename; both surfaces share typography tokens and forbid duplicate header rows or spacing/overflow divergence.
 
 ### View↔Edit WYSIWYG-ish parity SSOT (inline code + lists)
 

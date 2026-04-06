@@ -110,6 +110,7 @@
 | UI Controls | Keep icon+text rows visually stable | - [ ] Use `inline-flex items-center` for icon+text; forbid baseline drift from mixed inline layout |
 | Icons (Lucide) | Align icon glyphs with text | - [ ] Apply shared icon baseline alignment; forbid per-component ad-hoc offsets |
 | SVG Labels | Keep label center alignment consistent | - [ ] Anchor and baseline-align SVG text; forbid default-anchor mismatches that overlap nodes |
+| Titles & ellipsis | Keep long titles readable and stable | - [ ] Render long titles truncated with ellipsis at rest; on inline edit, reuse typography and reveal full text via horizontal scroll; forbid alternate WYSIWYG title stacks or layout/spacing drift when entering edit |
 
 **Reference implementations**
 - Global Lucide icon alignment: [index.css](../../canvas/src/index.css)

@@ -7,6 +7,7 @@ import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewD
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { hashString32 } from 'grph-shared/hash/stringHash'
+import { hashArrayOfObjectsSignature, hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsInt, lsJson, lsSetBool, lsSetInt, lsSetJson } from '@/lib/persistence'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
@@ -397,20 +398,17 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       columnWidthsPxById,
       columnOrderByTableId,
     }
-    const signature = String(
-      hashString32(
-        JSON.stringify({
-          columnVisibilityById,
-          filterMatch,
-          filterClauses,
-          groupBy,
-          sortRules,
-          rowHeightPreset,
-          columnWidthsPxById,
-          columnOrderByTableId,
-        }),
-      ),
-    )
+    const signature = hashSignatureParts([
+      'v1',
+      hashRecordSignature(columnVisibilityById),
+      String(filterMatch || ''),
+      hashArrayOfObjectsSignature(filterClauses),
+      String(groupBy || ''),
+      hashArrayOfObjectsSignature(sortRules),
+      String(rowHeightPreset || ''),
+      hashRecordSignature(columnWidthsPxById),
+      hashRecordSignature(columnOrderByTableId),
+    ])
     scheduleWorkspaceSyncTask('graph-table:view-state', () => {
       const pending = persistGraphTableViewStatePendingRef.current
       if (!pending) return

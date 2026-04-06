@@ -72,6 +72,7 @@ import {
   peekPendingWorkspaceLocalImport,
 } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { hashRecordSignature, hashSignatureParts, hashStringArraySignature } from '@/lib/hash/signature'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
 import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
@@ -1105,20 +1106,19 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       lsSetJson<MarkdownWorkspaceLayoutMode>(LS_KEYS.markdownLayoutMode, pending.layoutMode)
       lsSetJson(LS_KEYS.markdownExplorerSourceFilesExpandedPaths, pending.expandedPaths)
     }, 120, {
-      signature: hashStringToHex(
-        JSON.stringify({
-          sidebarWidthPx,
-          explorerOpen,
-          sourceFilesCollapsed,
-          tocCollapsed,
-          backlinksCollapsed,
-          markdownWordWrap,
-          markdownTextHighlight,
-          folderModeContract,
-          layoutMode,
-          expandedPaths,
-        }),
-      ),
+      signature: hashSignatureParts([
+        'v1',
+        sidebarWidthPx,
+        explorerOpen,
+        sourceFilesCollapsed,
+        tocCollapsed,
+        backlinksCollapsed,
+        markdownWordWrap,
+        markdownTextHighlight,
+        hashRecordSignature(folderModeContract),
+        String(layoutMode || ''),
+        hashStringArraySignature(expandedPaths, { maxSamples: 40, includeTail: true }),
+      ]),
     })
     return () => {
       cancelWorkspaceSyncTask('markdown-workspace:prefs')

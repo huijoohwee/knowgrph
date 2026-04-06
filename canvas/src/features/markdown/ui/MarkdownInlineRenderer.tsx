@@ -32,6 +32,7 @@ import { resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
 import { MediaIframe, MediaVideo, MediaWebpageSnapshot } from './MarkdownMediaUi'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MARKDOWN_INLINE_CODE_VIEW_CLASS } from './markdownInlineCodeParity'
+import { parseMarkdownSigil } from './markdownSigil'
 
 const SAFE_HTML_ID_RE = /^[A-Za-z0-9^][A-Za-z0-9^:._-]{0,255}$/
 const SVG_DATA_URI_BASE64_PREFIX = 'data:image/svg+xml;base64,'
@@ -316,6 +317,20 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
       )
     }
     if (tt.type === 'code') {
+      const sigil = parseMarkdownSigil((t as unknown as TokensCode).text)
+      if (sigil) {
+        return (
+          <span
+            key={key}
+            style={{
+              ...(sigil.color ? { color: sigil.color } : {}),
+              ...(sigil.background ? { backgroundColor: sigil.background } : {}),
+            }}
+          >
+            {sigil.text}
+          </span>
+        )
+      }
       return (
         <code key={key} className={inlineCodeClassName}>
           {(t as unknown as TokensCode).text}

@@ -321,12 +321,17 @@ export function GraphDataTableRows({
       : UI_THEME_TOKENS.table.rowBg
   const outlineClassName =
     useFlash && outlineThicknessClass
-      ? `${outlineThicknessClass} ring-[color:${selectionFlashColor}]`
+      ? `${outlineThicknessClass} ring-[color:var(--kg-selection-flash-color)]`
       : ''
   const flashStyle = useFlash
     ? {
         backgroundColor: `rgba(253,126,20,${flashAlpha})`,
       }
+    : undefined
+  const outlineStyle = useFlash
+    ? ({
+        ['--kg-selection-flash-color' as any]: selectionFlashColor,
+      } as React.CSSProperties)
     : undefined
   const borderClass = isActive ? '' : `border-b ${UI_THEME_TOKENS.table.cellBorder}`
   return (
@@ -336,6 +341,7 @@ export function GraphDataTableRows({
       style={{
         ...(mediaNodeOpacity < 1 ? { opacity: mediaNodeOpacity } : undefined),
         ...(flashStyle || {}),
+        ...(outlineStyle || {}),
       }}
       onClick={() => onRowClick(row)}
       onDoubleClick={() => onRowDoubleClick(row)}

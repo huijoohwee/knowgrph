@@ -36,6 +36,13 @@ import {
 } from '@/components/BottomPanel/markdownWorkspace/main/viewer/floatingMenuStyles'
 import { MARKDOWN_INLINE_CODE_EDIT_DESCENDANT_CLASSES } from './markdownInlineCodeParity'
 import { areReplacementLinesNoop } from './markdownEditParitySsot'
+import { buildMarkdownSigil, parseMarkdownSigil, rewriteSigilSpansToInlineCodeHtml, unwrapDefaultHighlight } from './markdownSigil'
+import {
+  captureSelectionForFloatingToolbar,
+  preventDefaultMouseDown,
+  preventDefaultPointerDown,
+  toggleParentDetailsOpenFromSummaryClick,
+} from './markdownFloatingSelectionToolbar'
 
 const MARKDOWN_EDIT_TYPOGRAPHY_SOURCE_SELECTOR =
   'h1,h2,h3,h4,h5,h6,p,li,blockquote,section,aside,div,span'
@@ -131,6 +138,8 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   }, [editing, onInlineEditStateChange])
   React.useEffect(() => {
     if (editing) return
+    lastNonCollapsedSelectionOffsetsRef.current = null
+    lastNonCollapsedDomRangeRef.current = null
     if (!sessionEditLineRange) return
     setSessionEditLineRange(null)
   }, [editing, sessionEditLineRange])
@@ -161,6 +170,8 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   const toolbarRef = React.useRef<HTMLElement | null>(null)
   const toolbarInteractingRef = React.useRef(false)
   const linkRangeRef = React.useRef<Range | null>(null)
+  const lastNonCollapsedSelectionOffsetsRef = React.useRef<{ startOffset: number; endOffset: number } | null>(null)
+  const lastNonCollapsedDomRangeRef = React.useRef<Range | null>(null)
   const editorPresentation = editPresentation === 'html' ? 'html' : 'markdown'
   const htmlRenderMode = editHtmlRender === 'block' ? 'block' : 'inline'
   const normalizeRenderedBlockHtmlForEditor = React.useCallback((renderedHtml: string): string => {
@@ -561,7 +572,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     for (const n of nodes) walk(n)
     if (out.endsWith('\n')) out = out.slice(0, -1)
     return out.replace(/\r/g, '')
-  }, [])
+  }, [buildMarkdownSigil, parseMarkdownSigil])
 
   const editMinHeightPxRef = React.useRef<number>(0)
 
@@ -683,6 +694,15 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     }
   }, [editorPresentation, htmlRenderMode, normalizeRenderedBlockHtmlForEditor, setSelectionByOffsets])
 
+  const readSelectionOffsetsForFormatting = React.useCallback((): { startOffset: number; endOffset: number } | null => {
+    const selection = getSelectionOffsets()
+    if (selection && selection.startOffset !== selection.endOffset) {
+      lastNonCollapsedSelectionOffsetsRef.current = selection
+      return selection
+    }
+    return lastNonCollapsedSelectionOffsetsRef.current
+  }, [getSelectionOffsets])
+
   const getDraft = React.useCallback(() => draftRef.current, [])
 
   const execInline = React.useCallback((cmd: 'bold' | 'italic' | 'underline' | 'strikeThrough' | 'removeFormat') => {
@@ -715,6 +735,101 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       void 0
     }
   }, [])
+
+  const applySigilToHtmlSelection = React.useCallback((args: { color?: string; background?: string }) => {
+    const root = editorRef.current
+    if (!root) return
+    const sel = typeof window !== 'undefined' ? window.getSelection() : null
+    if (!sel) return
+
+    const pickRange = (): Range | null => {
+      if (sel.rangeCount > 0) {
+        const r = sel.getRangeAt(0)
+        const c = r.commonAncestorContainer
+        const n = c.nodeType === Node.ELEMENT_NODE ? (c as Element) : c.parentElement
+        if (n && root.contains(n) && !r.collapsed) return r
+      }
+      const last = lastNonCollapsedDomRangeRef.current
+      if (!last || last.collapsed) return null
+      const c = last.commonAncestorContainer
+      const n = c.nodeType === Node.ELEMENT_NODE ? (c as Element) : c.parentElement
+      if (!n || !root.contains(n)) return null
+      try {
+        sel.removeAllRanges()
+        sel.addRange(last)
+      } catch {
+        return null
+      }
+      return last
+    }
+
+    const range = pickRange()
+    if (!range) return
+    const container = range.commonAncestorContainer
+    const node = container.nodeType === Node.ELEMENT_NODE ? (container as Element) : container.parentElement
+    if (!node || !root.contains(node)) return
+
+    const applySpanStyle = (el: HTMLElement) => {
+      const c = el.getAttribute('data-kg-sigil-color')
+      const bg = el.getAttribute('data-kg-sigil-bg')
+      if (c) el.style.color = c
+      if (bg) el.style.backgroundColor = bg
+    }
+
+    const existingSpan = (node.closest('[data-kg-sigil="1"]') as HTMLElement | null)
+    const withinSingleSigilSpan = !!existingSpan && existingSpan.contains(range.startContainer) && existingSpan.contains(range.endContainer)
+    if (withinSingleSigilSpan) {
+      const nextColor = args.color || existingSpan.getAttribute('data-kg-sigil-color')
+      const nextBg = args.background || existingSpan.getAttribute('data-kg-sigil-bg')
+      if (nextColor) existingSpan.setAttribute('data-kg-sigil-color', nextColor)
+      else existingSpan.removeAttribute('data-kg-sigil-color')
+      if (nextBg) existingSpan.setAttribute('data-kg-sigil-bg', nextBg)
+      else existingSpan.removeAttribute('data-kg-sigil-bg')
+      applySpanStyle(existingSpan)
+      queueMicrotask(() => editorRef.current?.focus())
+      return
+    }
+
+    const codeNode = (node.closest('code') as HTMLElement | null)
+    const withinSingleCode = !!codeNode && codeNode.contains(range.startContainer) && codeNode.contains(range.endContainer)
+    if (withinSingleCode) {
+      const parsed = parseMarkdownSigil(String(codeNode?.textContent || ''))
+      if (!parsed) return
+      const nextColor = args.color ?? parsed.color
+      const nextBg = args.background ?? parsed.background
+      const span = document.createElement('span')
+      span.setAttribute('data-kg-sigil', '1')
+      if (nextColor) span.setAttribute('data-kg-sigil-color', nextColor)
+      if (nextBg) span.setAttribute('data-kg-sigil-bg', nextBg)
+      span.textContent = parsed.text
+      applySpanStyle(span)
+      codeNode.replaceWith(span)
+      queueMicrotask(() => editorRef.current?.focus())
+      return
+    }
+
+    const text = range.toString()
+    if (!text) return
+    const nextColor = args.color ?? null
+    const nextBg = args.background ?? null
+    const frag = range.extractContents()
+    const span = document.createElement('span')
+    span.setAttribute('data-kg-sigil', '1')
+    if (nextColor) span.setAttribute('data-kg-sigil-color', nextColor)
+    if (nextBg) span.setAttribute('data-kg-sigil-bg', nextBg)
+    span.appendChild(frag)
+    applySpanStyle(span)
+    range.insertNode(span)
+    try {
+      range.setStart(span, 0)
+      range.setEnd(span, span.childNodes.length)
+      sel.removeAllRanges()
+      sel.addRange(range)
+    } catch {
+      void 0
+    }
+    queueMicrotask(() => editorRef.current?.focus())
+  }, [parseMarkdownSigil])
 
   const applyDraftAction = React.useCallback((action: MarkdownFormatAction) => {
     if (editorPresentation === 'html') {
@@ -764,31 +879,151 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     setDraftToDom(nextText, { startOffset: nextStart, endOffset: nextEnd })
     queueMicrotask(() => editorRef.current?.focus())
   }, [getDraft, getSelectionOffsets, setDraftToDom])
+
+  const buildReplacementLinesFromDraft = React.useCallback((draft: string): string[] => {
+    const replacementLines = String(draft || '').split(/\r?\n/)
+    const prefixes = editLinePrefixesRef.current
+    if (!editStripLinePrefix || !prefixes) return replacementLines
+    const quotePrefixPattern = /^\s*(?:>\s*)+$/
+    const allQuotePrefixed = (() => {
+      if (prefixes.length === 0) return false
+      let hasQuotePrefix = false
+      for (let i = 0; i < prefixes.length; i += 1) {
+        const prefix = String(prefixes[i] || '')
+        if (quotePrefixPattern.test(prefix)) {
+          hasQuotePrefix = true
+          continue
+        }
+        const line = String(replacementLines[i] || '')
+        if (!prefix && !line.trim()) continue
+        return false
+      }
+      return hasQuotePrefix
+    })()
+    const baselinePresentLines = String(initialPresentTextRef.current || '').split(/\r?\n/)
+    const normalizedReplacementLines = (
+      allQuotePrefixed && replacementLines.length < prefixes.length
+        ? [
+            ...replacementLines,
+            ...Array.from({ length: prefixes.length - replacementLines.length }, (_, i) => (
+              baselinePresentLines[replacementLines.length + i] ?? ''
+            )),
+          ]
+        : replacementLines
+    )
+    const defaultPrefix = editDefaultLinePrefix ?? prefixes.find(p => p) ?? ''
+    return normalizedReplacementLines.map((line, i) => {
+      const prefix = prefixes[i] ?? defaultPrefix
+      if (!line.trim()) {
+        if (/^\s*(?:>\s*)+$/.test(prefix) || /^\s*(?:>\s*)+$/.test(defaultPrefix)) {
+          const p = prefix || defaultPrefix
+          return p.trimEnd() || '>'
+        }
+        return ''
+      }
+      if (!prefix) return line
+      if (line.startsWith(prefix)) return line
+      const taskPrefixMatch = prefix.match(/^(\s*[-*+]\s+\[(?: |x|X)?\]\s+)$/)
+      if (taskPrefixMatch) {
+        const isBulletWithoutTask = /^\s*[-*+]\s+(?!\[(?: |x|X)?\]\s+)/.test(line)
+        if (isBulletWithoutTask) {
+          return line.replace(/^\s*([-*+])\s+/, `${taskPrefixMatch[1] || '- [ ] '}`)
+        }
+      }
+      if (/^\s*#{1,6}\s+/.test(line)) return line
+      if (/^\s*>\s?/.test(line)) return line
+      if (/^\s*(?:[-*+]|\d+\.)\s+/.test(line)) return line
+      return `${prefix}${line}`
+    })
+  }, [editDefaultLinePrefix, editStripLinePrefix])
+
   const applyTurnInto = React.useCallback((next: string) => {
+    const applyTransformAndCommit = (action: MarkdownFormatAction | 'codeBlock' | 'heading1' | 'heading3') => {
+      if (!editable || !onReplaceLineRange) return
+      const root = editorRef.current
+      const currentText = root ? readEditorPlainText() : getDraft()
+      const nextText = (() => {
+        if (action === 'codeBlock') {
+          const lines = String(currentText || '').split(/\r?\n/)
+          return ['```', ...lines, '```'].join('\n')
+        }
+        if (action === 'heading1' || action === 'heading3') {
+          const level = action === 'heading1' ? 1 : 3
+          const hashes = '#'.repeat(level) + ' '
+          const lines = String(currentText || '').split(/\r?\n/)
+          const allHave = lines.every(l => !l.trim() || l.startsWith(hashes))
+          return lines
+            .map(l => {
+              if (!l.trim()) return l
+              if (allHave) return l.startsWith(hashes) ? l.slice(hashes.length) : l
+              if (/^#{1,6}\s+/.test(l)) return l.replace(/^#{1,6}\s+/, hashes)
+              return `${hashes}${l}`
+            })
+            .join('\n')
+        }
+        const res = applyMarkdownFormatAction({
+          text: String(currentText || ''),
+          selection: { startOffset: 0, endOffset: String(currentText || '').length },
+          action,
+        })
+        return res.nextText
+      })()
+
+      const replacementLines = buildReplacementLinesFromDraft(nextText)
+      if (areReplacementLinesNoop({ sourceLines, startLine: editStartLine, endLine: editEndLine, replacementLines })) {
+        setEditing(false)
+        setSessionEditLineRange(null)
+        return
+      }
+      onReplaceLineRange({ startLine: editStartLine, endLine: editEndLine, replacementLines })
+      setEditing(false)
+      setSessionEditLineRange(null)
+    }
+
     if (next === 'none') return
     if (next === 'heading2') {
+      if (editorPresentation === 'html') {
+        applyTransformAndCommit('heading2')
+        return
+      }
       applyDraftAction('heading2')
       return
     }
     if (next === 'bulletList') {
+      if (editorPresentation === 'html') {
+        applyTransformAndCommit('bulletList')
+        return
+      }
       applyDraftAction('bulletList')
       return
     }
     if (next === 'numberedList') {
+      if (editorPresentation === 'html') {
+        applyTransformAndCommit('numberedList')
+        return
+      }
       applyDraftAction('numberedList')
       return
     }
     if (next === 'blockquote') {
+      if (editorPresentation === 'html') {
+        applyTransformAndCommit('blockquote')
+        return
+      }
       applyDraftAction('blockquote')
       return
     }
     if (next === 'code') {
+      if (editorPresentation === 'html') {
+        applyTransformAndCommit('codeBlock')
+        return
+      }
       const lines = String(getDraft() || '').split(/\r?\n/)
       const nextText = ['```', ...lines, '```'].join('\n')
       setDraftToDom(nextText)
       queueMicrotask(() => editorRef.current?.focus())
     }
-  }, [applyDraftAction, getDraft, setDraftToDom])
+  }, [buildReplacementLinesFromDraft, editable, editEndLine, editStartLine, editorPresentation, getDraft, onReplaceLineRange, readEditorPlainText, setDraftToDom, sourceLines])
   const applyAlign = React.useCallback((next: string) => {
     if (next === 'none') return
     if (next === 'left') {
@@ -802,6 +1037,32 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     queueMicrotask(() => editorRef.current?.focus())
   }, [getDraft, setDraftToDom])
   const applyToggleHeading = React.useCallback((level: 1 | 2 | 3) => {
+    if (editorPresentation === 'html') {
+      if (!editable || !onReplaceLineRange) return
+      const root = editorRef.current
+      const currentText = root ? readEditorPlainText() : getDraft()
+      const hashes = '#'.repeat(level) + ' '
+      const lines = String(currentText || '').split(/\r?\n/)
+      const allHave = lines.every(l => !l.trim() || l.startsWith(hashes))
+      const nextText = lines
+        .map(l => {
+          if (!l.trim()) return l
+          if (allHave) return l.startsWith(hashes) ? l.slice(hashes.length) : l
+          if (/^#{1,6}\s+/.test(l)) return l.replace(/^#{1,6}\s+/, hashes)
+          return `${hashes}${l}`
+        })
+        .join('\n')
+      const replacementLines = buildReplacementLinesFromDraft(nextText)
+      if (areReplacementLinesNoop({ sourceLines, startLine: editStartLine, endLine: editEndLine, replacementLines })) {
+        setEditing(false)
+        setSessionEditLineRange(null)
+        return
+      }
+      onReplaceLineRange({ startLine: editStartLine, endLine: editEndLine, replacementLines })
+      setEditing(false)
+      setSessionEditLineRange(null)
+      return
+    }
     const selection = getSelectionOffsets()
     const startOffset = selection?.startOffset ?? 0
     const endOffset = selection?.endOffset ?? 0
@@ -830,13 +1091,13 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     const delta = nextBlock.length - block.length
     setDraftToDom(nextText, { startOffset: startOffset, endOffset: endOffset + delta })
     queueMicrotask(() => editorRef.current?.focus())
-  }, [getDraft, getSelectionOffsets, setDraftToDom])
+  }, [buildReplacementLinesFromDraft, editable, editEndLine, editStartLine, editorPresentation, getDraft, getSelectionOffsets, onReplaceLineRange, readEditorPlainText, setDraftToDom, sourceLines])
   const applyColor = React.useCallback((color: string) => {
     if (editorPresentation === 'html') {
-      insertHtmlAroundSelection({ leftHtml: `<span style="color:${color}">`, rightHtml: '</span>' })
+      applySigilToHtmlSelection({ color })
       return
     }
-    const sel = getSelectionOffsets()
+    const sel = readSelectionOffsetsForFormatting()
     const startOffset = sel?.startOffset ?? 0
     const endOffset = sel?.endOffset ?? 0
     if (startOffset === endOffset) return
@@ -846,20 +1107,26 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     const start = Math.min(a, b)
     const end = Math.max(a, b)
     const selected = text.slice(start, end)
-    const left = `<span style="color:${color}">`
-    const right = `</span>`
-    const nextText = `${text.slice(0, start)}${left}${selected}${right}${text.slice(end)}`
-    const nextStart = start + left.length
-    const nextEnd = nextStart + selected.length
+    const unwrapped = unwrapDefaultHighlight(selected)
+    const parsed = parseMarkdownSigil(unwrapped.text)
+    const nextSelected = buildMarkdownSigil({
+      text: parsed ? parsed.text : unwrapped.text,
+      color,
+      background: parsed?.background ?? null,
+    })
+    const wrappedSelected = unwrapped.wrapped ? `==${nextSelected}==` : nextSelected
+    const nextText = `${text.slice(0, start)}${wrappedSelected}${text.slice(end)}`
+    const nextStart = start + (unwrapped.wrapped ? 2 : 0)
+    const nextEnd = nextStart + nextSelected.length
     setDraftToDom(nextText, { startOffset: nextStart, endOffset: nextEnd })
     queueMicrotask(() => editorRef.current?.focus())
-  }, [editorPresentation, getDraft, getSelectionOffsets, insertHtmlAroundSelection, setDraftToDom])
+  }, [applySigilToHtmlSelection, editorPresentation, getDraft, readSelectionOffsetsForFormatting, setDraftToDom])
   const applyHighlightColor = React.useCallback((color: string) => {
     if (editorPresentation === 'html') {
-      insertHtmlAroundSelection({ leftHtml: `<mark style="background-color:${color}">`, rightHtml: '</mark>' })
+      applySigilToHtmlSelection({ background: color })
       return
     }
-    const sel = getSelectionOffsets()
+    const sel = readSelectionOffsetsForFormatting()
     const startOffset = sel?.startOffset ?? 0
     const endOffset = sel?.endOffset ?? 0
     if (startOffset === endOffset) return
@@ -869,14 +1136,20 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     const start = Math.min(a, b)
     const end = Math.max(a, b)
     const selected = text.slice(start, end)
-    const left = `<mark style="background-color:${color}">`
-    const right = `</mark>`
-    const nextText = `${text.slice(0, start)}${left}${selected}${right}${text.slice(end)}`
-    const nextStart = start + left.length
-    const nextEnd = nextStart + selected.length
+    const unwrapped = unwrapDefaultHighlight(selected)
+    const parsed = parseMarkdownSigil(unwrapped.text)
+    const nextSelected = buildMarkdownSigil({
+      text: parsed ? parsed.text : unwrapped.text,
+      color: parsed?.color ?? null,
+      background: color,
+    })
+    const wrappedSelected = unwrapped.wrapped ? `==${nextSelected}==` : nextSelected
+    const nextText = `${text.slice(0, start)}${wrappedSelected}${text.slice(end)}`
+    const nextStart = start + (unwrapped.wrapped ? 2 : 0)
+    const nextEnd = nextStart + nextSelected.length
     setDraftToDom(nextText, { startOffset: nextStart, endOffset: nextEnd })
     queueMicrotask(() => editorRef.current?.focus())
-  }, [editorPresentation, getDraft, getSelectionOffsets, insertHtmlAroundSelection, setDraftToDom])
+  }, [applySigilToHtmlSelection, editorPresentation, getDraft, readSelectionOffsetsForFormatting, setDraftToDom])
   const applyChecklist = React.useCallback(() => {
     if (editorPresentation === 'html') return
     const selection = getSelectionOffsets()
@@ -950,6 +1223,8 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     selected = selected.replace(/^\*([\s\S]*?)\*$/g, '$1')
     selected = selected.replace(/^~~([\s\S]*?)~~$/g, '$1')
     selected = selected.replace(/^`([\s\S]*?)`$/g, '$1')
+    selected = selected.replace(/^`(#[0-9a-fA-F]{6})?(\|?bg#[0-9a-fA-F]{6})?:(.+)`$/g, '$3')
+    selected = selected.replace(/^==`(#[0-9a-fA-F]{6})?(\|?bg#[0-9a-fA-F]{6})?:(.+)`==$/g, '$3')
     selected = selected.replace(/^==([\s\S]*?)==$/g, '$1')
     selected = selected.replace(/^<u>([\s\S]*?)<\/u>$/gi, '$1')
     selected = selected.replace(/^<mark>([\s\S]*?)<\/mark>$/gi, '$1')
@@ -960,62 +1235,6 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     setDraftToDom(nextText, { startOffset: start, endOffset: nextEnd })
     queueMicrotask(() => editorRef.current?.focus())
   }, [editorPresentation, execInline, getDraft, getSelectionOffsets, setDraftToDom])
-  const buildReplacementLinesFromDraft = React.useCallback((draft: string): string[] => {
-    const replacementLines = String(draft || '').split(/\r?\n/)
-    const prefixes = editLinePrefixesRef.current
-    if (!editStripLinePrefix || !prefixes) return replacementLines
-    const quotePrefixPattern = /^\s*(?:>\s*)+$/
-    const allQuotePrefixed = (() => {
-      if (prefixes.length === 0) return false
-      let hasQuotePrefix = false
-      for (let i = 0; i < prefixes.length; i += 1) {
-        const prefix = String(prefixes[i] || '')
-        if (quotePrefixPattern.test(prefix)) {
-          hasQuotePrefix = true
-          continue
-        }
-        const line = String(replacementLines[i] || '')
-        if (!prefix && !line.trim()) continue
-        return false
-      }
-      return hasQuotePrefix
-    })()
-    const baselinePresentLines = String(initialPresentTextRef.current || '').split(/\r?\n/)
-    const normalizedReplacementLines = (
-      allQuotePrefixed && replacementLines.length < prefixes.length
-        ? [
-            ...replacementLines,
-            ...Array.from({ length: prefixes.length - replacementLines.length }, (_, i) => (
-              baselinePresentLines[replacementLines.length + i] ?? ''
-            )),
-          ]
-        : replacementLines
-    )
-    const defaultPrefix = editDefaultLinePrefix ?? prefixes.find(p => p) ?? ''
-    return normalizedReplacementLines.map((line, i) => {
-      const prefix = prefixes[i] ?? defaultPrefix
-      if (!line.trim()) {
-        if (/^\s*(?:>\s*)+$/.test(prefix) || /^\s*(?:>\s*)+$/.test(defaultPrefix)) {
-          const p = prefix || defaultPrefix
-          return p.trimEnd() || '>'
-        }
-        return ''
-      }
-      if (!prefix) return line
-      if (line.startsWith(prefix)) return line
-      const taskPrefixMatch = prefix.match(/^(\s*[-*+]\s+\[(?: |x|X)?\]\s+)$/)
-      if (taskPrefixMatch) {
-        const isBulletWithoutTask = /^\s*[-*+]\s+(?!\[(?: |x|X)?\]\s+)/.test(line)
-        if (isBulletWithoutTask) {
-          return line.replace(/^\s*([-*+])\s+/, `${taskPrefixMatch[1] || '- [ ] '}`)
-        }
-      }
-      if (/^\s*#{1,6}\s+/.test(line)) return line
-      if (/^\s*>\s?/.test(line)) return line
-      if (/^\s*(?:[-*+]|\d+\.)\s+/.test(line)) return line
-      return `${prefix}${line}`
-    })
-  }, [editDefaultLinePrefix, editStripLinePrefix])
   const handleDuplicate = React.useCallback(() => {
     if (!editable || !onReplaceLineRange) return
     const replacementLines = buildReplacementLinesFromDraft(getDraft() || '')
@@ -1050,7 +1269,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       }
       const sessionId = editSessionIdRef.current
       setEditing(false)
-      const html = root.innerHTML
+      const html = rewriteSigilSpansToInlineCodeHtml(root.innerHTML)
       void (async () => {
         const wrapperTag = 'div'
         const result = await convertHtmlToMarkdownUnified({
@@ -1333,6 +1552,15 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     const maxX = Math.max(0, hostRect.width - 16)
     const leftPx = Math.max(16, Math.min(maxX, rawLeftPx))
     const topPx = rect.top - hostRect.top
+    const selection = getSelectionOffsets()
+    if (selection && selection.startOffset !== selection.endOffset) {
+      lastNonCollapsedSelectionOffsetsRef.current = selection
+    }
+    try {
+      lastNonCollapsedDomRangeRef.current = range.cloneRange()
+    } catch {
+      void 0
+    }
     setBubble(prev => {
       const next = { show: true, leftPx, topPx }
       if (prev.show && Math.abs(prev.leftPx - next.leftPx) < 1 && Math.abs(prev.topPx - next.topPx) < 1) return prev
@@ -1340,7 +1568,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     })
     setSlashMenu(prev => (prev.show ? { ...prev, show: false } : prev))
     setLinkPopover(prev => (prev.show ? { ...prev, show: false, href: '' } : prev))
-  }, [editing, editDisableRichUi])
+  }, [editing, editDisableRichUi, getSelectionOffsets])
 
   React.useEffect(() => {
     if (!editing) return
@@ -1660,58 +1888,63 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
                 aria-label="Inline selection toolbar"
                 onMouseDownCapture={() => {
                   toolbarInteractingRef.current = true
+                  captureSelectionForFloatingToolbar({
+                    getSelectionOffsets,
+                    lastNonCollapsedSelectionOffsetsRef,
+                    lastNonCollapsedDomRangeRef,
+                  })
                 }}
               >
             <details className="relative">
-              <summary className={toolbarMenuSummaryClassName}>
+              <summary className={toolbarMenuSummaryClassName} onPointerDown={preventDefaultPointerDown} onClick={toggleParentDetailsOpenFromSummaryClick}>
                 <Heading2 className="w-3 h-3" strokeWidth={1.6} />
               </summary>
               <menu className={toolbarMenuClassName} aria-label="Turn into menu">
                 <li className="list-none">
-                  <button type="button" className={toolbarMenuButtonClassName} onClick={() => applyTurnInto('heading2')}>
+                  <button type="button" className={toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => applyTurnInto('heading2')}>
                     <Heading2 className="w-3 h-3 mr-1" strokeWidth={1.6} />
                     H2
                   </button>
                 </li>
                 <li className="list-none">
-                  <button type="button" className={toolbarMenuButtonClassName} onClick={() => applyTurnInto('bulletList')}>
+                  <button type="button" className={toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => applyTurnInto('bulletList')}>
                     <List className="w-3 h-3 mr-1" strokeWidth={1.6} />
                     Bulleted list
                   </button>
                 </li>
                 <li className="list-none">
-                  <button type="button" className={toolbarMenuButtonClassName} onClick={() => applyTurnInto('numberedList')}>
+                  <button type="button" className={toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => applyTurnInto('numberedList')}>
                     <ListOrdered className="w-3 h-3 mr-1" strokeWidth={1.6} />
                     Numbered list
                   </button>
                 </li>
                 <li className="list-none">
-                  <button type="button" className={toolbarMenuButtonClassName} onClick={() => applyTurnInto('blockquote')}>
+                  <button type="button" className={toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => applyTurnInto('blockquote')}>
                     <Quote className="w-3 h-3 mr-1" strokeWidth={1.6} />
                     Quote
                   </button>
                 </li>
                 <li className="list-none">
-                  <button type="button" className={toolbarMenuButtonClassName} onClick={() => applyTurnInto('code')}>
+                  <button type="button" className={toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => applyTurnInto('code')}>
                     <Code className="w-3 h-3 mr-1" strokeWidth={1.6} />
                     Code block
                   </button>
                 </li>
                 <li className={toolbarMenuDividerClassName} />
                 <li className="list-none">
-                  <button type="button" className={toolbarMenuButtonClassName} onClick={() => applyToggleHeading(1)}>
+                  <button type="button" className={toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => applyToggleHeading(1)}>
                     <Heading2 className="w-3 h-3 mr-1" strokeWidth={1.6} />
                     H1
                   </button>
                 </li>
                 <li className="list-none">
-                  <button type="button" className={toolbarMenuButtonClassName} onClick={() => applyToggleHeading(2)}>
+                  <button type="button" className={toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => applyToggleHeading(2)}>
                     <Heading2 className="w-3 h-3 mr-1" strokeWidth={1.6} />
                     H2
                   </button>
                 </li>
                 <li className="list-none">
-                  <button type="button" className={toolbarMenuButtonClassName} onClick={() => applyToggleHeading(3)}>
+                  <button type="button" className={toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => applyToggleHeading(3)}>
                     <Heading2 className="w-3 h-3 mr-1" strokeWidth={1.6} />
                     H3
                   </button>
@@ -1719,7 +1952,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
               </menu>
             </details>
             <details className="relative">
-              <summary className={toolbarMenuSummaryClassName}>
+              <summary className={toolbarMenuSummaryClassName} onPointerDown={preventDefaultPointerDown} onClick={toggleParentDetailsOpenFromSummaryClick}>
                 <AlignLeft className="w-3 h-3" strokeWidth={1.8} />
               </summary>
               <menu className={toolbarMenuClassName} aria-label="Align menu">
@@ -1822,27 +2055,26 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
               <span className="text-[10px] leading-none">∑</span>
             </button>
             <details className="relative">
-              <summary className={toolbarMenuSummaryClassName} title="Highlight">
+              <summary className={toolbarMenuSummaryClassName} title="Highlight" onPointerDown={preventDefaultPointerDown} onClick={toggleParentDetailsOpenFromSummaryClick}>
                 <Highlighter className="w-3 h-3" strokeWidth={1.8} />
               </summary>
               <menu className={toolbarMenuClassName} aria-label="Highlight menu">
-                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} onClick={() => applyWrap('==', '==')}>Color</button></li>
-                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} onClick={() => applyWrap('<mark>', '</mark>')}>Background</button></li>
-                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} style={{ backgroundColor: '#fef08a' }} onClick={() => applyHighlightColor('#fef08a')}>Yellow</button></li>
-                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} style={{ backgroundColor: '#bbf7d0' }} onClick={() => applyHighlightColor('#bbf7d0')}>Green</button></li>
-                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} style={{ backgroundColor: '#bfdbfe' }} onClick={() => applyHighlightColor('#bfdbfe')}>Blue</button></li>
-                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} style={{ backgroundColor: '#fbcfe8' }} onClick={() => applyHighlightColor('#fbcfe8')}>Pink</button></li>
+                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => applyWrap('==', '==')}>Default (==)</button></li>
+                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} style={{ backgroundColor: '#FEF08A' }} onMouseDown={preventDefaultMouseDown} onClick={() => applyHighlightColor('#FEF08A')}>Yellow</button></li>
+                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} style={{ backgroundColor: '#BBF7D0' }} onMouseDown={preventDefaultMouseDown} onClick={() => applyHighlightColor('#BBF7D0')}>Green</button></li>
+                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} style={{ backgroundColor: '#BFDBFE' }} onMouseDown={preventDefaultMouseDown} onClick={() => applyHighlightColor('#BFDBFE')}>Blue</button></li>
+                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} style={{ backgroundColor: '#FBCFE8' }} onMouseDown={preventDefaultMouseDown} onClick={() => applyHighlightColor('#FBCFE8')}>Pink</button></li>
               </menu>
             </details>
             <details className="relative">
-              <summary className={toolbarMenuSummaryClassName} title="Text color">
+              <summary className={toolbarMenuSummaryClassName} title="Text color" onPointerDown={preventDefaultPointerDown} onClick={toggleParentDetailsOpenFromSummaryClick}>
                 <Palette className="w-3 h-3" strokeWidth={1.8} />
               </summary>
               <menu className={toolbarMenuClassName} aria-label="Text color menu">
-                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} style={{ color: '#ef4444' }} onClick={() => applyColor('#ef4444')}>Red</button></li>
-                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} style={{ color: '#10b981' }} onClick={() => applyColor('#10b981')}>Green</button></li>
-                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} style={{ color: '#3b82f6' }} onClick={() => applyColor('#3b82f6')}>Blue</button></li>
-                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} style={{ color: '#6b7280' }} onClick={() => applyColor('#6b7280')}>Gray</button></li>
+                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} style={{ color: '#EF4444' }} onMouseDown={preventDefaultMouseDown} onClick={() => applyColor('#EF4444')}>Red</button></li>
+                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} style={{ color: '#10B981' }} onMouseDown={preventDefaultMouseDown} onClick={() => applyColor('#10B981')}>Green</button></li>
+                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} style={{ color: '#3B82F6' }} onMouseDown={preventDefaultMouseDown} onClick={() => applyColor('#3B82F6')}>Blue</button></li>
+                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} style={{ color: '#6B7280' }} onMouseDown={preventDefaultMouseDown} onClick={() => applyColor('#6B7280')}>Gray</button></li>
               </menu>
             </details>
             <button
@@ -1864,18 +2096,18 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
               <MessageSquare className="w-3 h-3" strokeWidth={1.8} />
             </button>
             <details className="relative">
-              <summary className={toolbarMenuSummaryClassName} title="More">
+              <summary className={toolbarMenuSummaryClassName} title="More" onPointerDown={preventDefaultPointerDown} onClick={toggleParentDetailsOpenFromSummaryClick}>
                 <MoreHorizontal className="w-3 h-3" strokeWidth={1.8} />
               </summary>
               <menu className={toolbarMenuClassName} aria-label="More actions">
                 <li className="list-none"><button type="button" className={FLOATING_MENU_BUTTON_DISABLED_CLASSNAME} disabled>Copy</button></li>
                 <li className="list-none"><button type="button" className={FLOATING_MENU_BUTTON_DISABLED_CLASSNAME} disabled>Copy link to block</button></li>
                 <li className={toolbarMenuDividerClassName} />
-                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} onMouseDown={event => event.preventDefault()} onClick={applyChecklist}>Checklist</button></li>
-                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} onMouseDown={event => event.preventDefault()} onClick={applyDivider}>Divider</button></li>
+                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={applyChecklist}>Checklist</button></li>
+                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={applyDivider}>Divider</button></li>
                 <li className={toolbarMenuDividerClassName} />
-                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} onMouseDown={event => event.preventDefault()} onClick={handleDuplicate}>Duplicate</button></li>
-                <li className="list-none"><button type="button" className={FLOATING_MENU_BUTTON_DANGER_CLASSNAME} onMouseDown={event => event.preventDefault()} onClick={handleDelete}>Delete</button></li>
+                <li className="list-none"><button type="button" className={toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={handleDuplicate}>Duplicate</button></li>
+                <li className="list-none"><button type="button" className={FLOATING_MENU_BUTTON_DANGER_CLASSNAME} onMouseDown={preventDefaultMouseDown} onClick={handleDelete}>Delete</button></li>
               </menu>
             </details>
               </menu>

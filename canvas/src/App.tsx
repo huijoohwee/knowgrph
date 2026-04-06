@@ -15,6 +15,11 @@ import { ensureKgTokensInstalled } from '@/lib/ui/tokens-ssot'
 const Canvas = lazy(() => import('@/pages/Canvas'))
 
 export default function App() {
+  const basename = (() => {
+    const raw = String(import.meta.env.BASE_URL || '/')
+    if (!raw || raw === '/') return undefined
+    return raw.endsWith('/') ? raw.slice(0, -1) : raw
+  })()
   useEffect(() => {
     installGlobalUserSelectFailsafe()
   }, [])
@@ -56,7 +61,7 @@ export default function App() {
     return () => window.removeEventListener('storage', handler)
   }, [])
   return (
-    <Router>
+    <Router basename={basename}>
       <ErrorBoundary>
         <Suspense fallback={<div className={`h-screen flex items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`}>Loading…</div>}>
           <Routes>

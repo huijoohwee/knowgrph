@@ -10,7 +10,7 @@
     "predev": "npm run fix:entities-sourcemaps && npm run build:grph-shared && npm run build:settings",
     "dev": "vite --configLoader runner",
     "dev:5173": "vite --configLoader runner --port 5173 --strictPort",
-    "prebuild": "npm run build:grph-shared && npm run build:settings && npm --prefix .. run docs:update && tsx src/cli/lint-doc.ts",
+    "prebuild": "npm run build:grph-shared && npm run build:settings && if [ \"${KG_SKIP_DOCS_UPDATE:-}\" = \"1\" ]; then echo \"[knowgrph] skipping docs:update\"; else npm --prefix .. run docs:update && tsx src/cli/lint-doc.ts; fi",
     "doc:lint": "tsx src/cli/lint-doc.ts",
     "doc:sanity": "tsx src/cli/doc-sanity-check.ts",
     "build": "tsc -b && vite build --configLoader runner",

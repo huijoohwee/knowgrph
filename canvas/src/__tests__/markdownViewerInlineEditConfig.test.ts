@@ -59,6 +59,39 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockText.includes('__KG_EDIT_PARITY_LAST_PAYLOAD__') || !blockText.includes('kg-edit-parity-probe-json')) {
     throw new Error('expected runtime parity probe to expose visible payload via window global and json console line')
   }
+  if (!blockText.includes('buildMarkdownSigil') || !blockText.includes('parseMarkdownSigil')) {
+    throw new Error('expected inline highlight/text color actions to reuse markdown sigil SSOT helpers')
+  }
+  if (!blockText.includes('readSelectionOffsetsForFormatting')) {
+    throw new Error('expected inline highlight/text color actions to use selection fallback when toolbar interaction collapses native selection')
+  }
+  if (!blockText.includes('lastNonCollapsedSelectionOffsetsRef')) {
+    throw new Error('expected markdown block editor to retain last non-collapsed selection while using floating color/highlight menus')
+  }
+  if (!blockText.includes('lastNonCollapsedDomRangeRef')) {
+    throw new Error('expected html editing path to retain a non-collapsed DOM Range for toolbar actions')
+  }
+  if (!blockText.includes('sel.removeAllRanges()') || !blockText.includes('sel.addRange(last)')) {
+    throw new Error('expected html highlight/text color actions to rehydrate selection from cached DOM Range when native selection collapses')
+  }
+  if (!blockText.includes('data-kg-sigil') || !blockText.includes('rewriteSigilSpansToInlineCodeHtml')) {
+    throw new Error('expected html inline editor to render sigil highlights as spans and rewrite them to inline code on commit')
+  }
+  if (!blockText.includes('captureSelectionForFloatingToolbar')) {
+    throw new Error('expected floating selection toolbar to reuse shared interaction capture SSOT helper')
+  }
+  if (!blockText.includes('title="Highlight"') || !blockText.includes('onPointerDown={preventDefaultPointerDown}')) {
+    throw new Error('expected highlight menu summary to preserve editor focus/selection on pointer down')
+  }
+  if (!blockText.includes('title="Text color"') || !blockText.includes('onPointerDown={preventDefaultPointerDown}')) {
+    throw new Error('expected text color menu summary to preserve editor focus/selection on pointer down')
+  }
+  if (blockText.includes('<span style="color:')) {
+    throw new Error('expected text color action to avoid html span style insertion and emit markdown sigil instead')
+  }
+  if (blockText.includes('<mark style="background-color:')) {
+    throw new Error('expected highlight action to avoid html mark style insertion and emit markdown sigil instead')
+  }
   if (blockText.includes('[&_code]:py-0.5')) {
     throw new Error('expected html edit surfaces to avoid inline-code vertical padding that mutates spacing')
   }
@@ -79,6 +112,12 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   if (inlineText.includes('py-0.5') || inlineText.includes('text-sm')) {
     throw new Error('expected read inline code to avoid hardcoded spacing/size that would break parity')
+  }
+  if (!inlineText.includes('parseMarkdownSigil')) {
+    throw new Error('expected inline code renderer to parse markdown sigil annotations before code rendering')
+  }
+  if (!inlineText.includes('backgroundColor: sigil.background')) {
+    throw new Error('expected sigil rendering to map bg# annotations into read-surface background color')
   }
   const codeParityPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'markdownInlineCodeParity.ts')
   const codeParityText = readUtf8(codeParityPath)

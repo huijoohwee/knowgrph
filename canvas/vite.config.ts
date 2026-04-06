@@ -3557,6 +3557,13 @@ const youtubeConvertDevPlugin = {
 }
 
 export default defineConfig(({ command }) => ({
+  base: command === 'build'
+    ? (() => {
+        const raw = String(process.env.VITE_BASE_PATH || '/knowgrph/').trim() || '/knowgrph/'
+        const withLeading = raw.startsWith('/') ? raw : `/${raw}`
+        return withLeading.endsWith('/') ? withLeading : `${withLeading}/`
+      })()
+    : '/',
   esbuild: {
     sourcemap: false,
   },
@@ -3580,18 +3587,27 @@ export default defineConfig(({ command }) => ({
     },
   },
   build: {
-    sourcemap: 'hidden',
+    sourcemap: process.env.KG_LOW_MEM_BUILD === '1' ? false : 'hidden',
+    minify: process.env.KG_LOW_MEM_BUILD === '1' ? false : 'esbuild',
+    reportCompressedSize: process.env.KG_LOW_MEM_BUILD === '1' ? false : true,
     chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ['react', 'react-dom', 'react-router-dom'],
-          d3: ['d3'],
-          three: ['three', '@react-three/fiber'],
-          ui: ['lucide-react', 'zustand'],
-        },
+        ...(process.env.KG_LOW_MEM_BUILD === '1'
+          ? { inlineDynamicImports: true as const }
+          : {
+              manualChunks: {
+                react: ['react', 'react-dom', 'react-router-dom'],
+                d3: ['d3'],
+                three: ['three', '@react-three/fiber'],
+                ui: ['lucide-react', 'zustand'],
+              },
+            }),
       },
     },
+  },
+  worker: {
+    format: 'es',
   },
   resolve: {
     preserveSymlinks: true,

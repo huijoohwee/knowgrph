@@ -25,6 +25,7 @@ import { DEFAULT_BBOX_COLLIDE_PADDING, DEFAULT_FIT_PADDING, DEFAULT_GROUP_BBOX_C
 import { buildDocumentKey, buildDocumentRef, readPerDocumentUiState, writePerDocumentUiState } from '@/lib/persistence/perDocumentUiState'
 import { scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { hashSignatureParts, hashStringArraySignature } from '@/lib/hash/signature'
 
 const positionsMatch = (
   a: Record<string, NodePosition2d> | null | undefined,
@@ -267,8 +268,32 @@ try {
     let restoring = false
     let pending: { key: string; ref: string; state: Parameters<typeof writePerDocumentUiState>[0]['state'] } | null = null
 
+    const pendingSignature = (value: typeof pending): string => {
+      if (!value) return 'none'
+      const s = value.state || {}
+      return hashSignatureParts([
+        'v2',
+        value.key,
+        value.ref,
+        (s as any).canvasRenderMode,
+        (s as any).canvas3dMode,
+        (s as any).canvas2dRenderer,
+        (s as any).documentSemanticMode,
+        (s as any).frontmatterModeEnabled,
+        (s as any).viewPinned,
+        (s as any).fitToScreenMode,
+        (s as any).zoomToSelectionMode,
+        (s as any).selectedNodeId,
+        (s as any).selectedEdgeId,
+        (s as any).selectedGroupId,
+        hashStringArraySignature((s as any).selectedNodeIds, { maxSamples: 40, includeTail: true }),
+        hashStringArraySignature((s as any).selectedEdgeIds, { maxSamples: 40, includeTail: true }),
+        hashStringArraySignature((s as any).selectedGroupIds, { maxSamples: 40, includeTail: true }),
+      ])
+    }
+
     const schedulePersist = () => {
-      const signature = pending ? hashStringToHex(JSON.stringify(pending)) : 'none'
+      const signature = pendingSignature(pending)
       scheduleWorkspaceSyncTask('per-document-ui', () => {
         const next = pending
         pending = null
