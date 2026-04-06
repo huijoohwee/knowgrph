@@ -31,6 +31,7 @@ const modMarkdownAsciiBlocksNormalize = () => import('@/__tests__/markdownAsciiB
 const modMarkdownFlowInternalRefs = () => import('@/__tests__/markdownFlowInternalRefs.test')
 const modMarkdownValidationExternalFile = () => import('@/__tests__/markdownValidationExternalFile.test')
 const modMarkdownTemplateVarsInBlockquoteAndTable = () => import('@/__tests__/markdownTemplateVarsInBlockquoteAndTable.test')
+const modMarkdownVariableReferences = () => import('@/__tests__/markdownVariableReferences.test')
 const modMarkdownDataViewRoundTrip = () => import('@/__tests__/markdownDataViewRoundTrip.test')
 const modMarkdownDataViewSourceMap = () => import('@/__tests__/markdownDataViewSourceMap.test')
 const modMarkdownDataViewInlineEditParity = () => import('@/__tests__/markdownDataViewInlineEditParity.test')
@@ -46,6 +47,8 @@ const modMarkdownStickyHeadingScrollPadding = () => import('@/__tests__/markdown
 const modMarkdownScrollUtils = () => import('@/__tests__/markdownScrollUtils.test')
 const modMarkdownViewerInlineEditHeadingWysiwyg = () => import('@/__tests__/markdownViewerInlineEditHeadingWysiwyg.test')
 const modMarkdownViewerInlineEditParagraphWysiwyg = () => import('@/__tests__/markdownViewerInlineEditParagraphWysiwyg.test')
+const modMarkdownViewerInlineEditSurfaceParitySnapshot = () => import('@/__tests__/markdownViewerInlineEditSurfaceParitySnapshot.test')
+const modMarkdownViewerInlineEditVariableToolbar = () => import('@/__tests__/markdownViewerInlineEditVariableToolbar.test')
 const modMarkdownViewerMdDemoSweepLex = () => import('@/__tests__/markdownViewerMdDemoSweepLex.test')
 const modMarkdownViewerInlineEditConfig = () => import('@/__tests__/markdownViewerInlineEditConfig.test')
 const modMarkdownViewerInlineEditMixedSequence = () => import('@/__tests__/markdownViewerInlineEditMixedSequence.test')
@@ -143,6 +146,16 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modMarkdownTemplateVarsInBlockquoteAndTable()
     await mod.testMarkdownTemplateVarsExtractFromBlockquotesAndTables()
   })
+  await execTest(results, 'markdown.templateVars.declareAndFallbackResolution', async () => {
+    const mod = await modMarkdownTemplateVarsInBlockquoteAndTable()
+    await mod.testMarkdownTemplateVarDeclarationAndFallbackResolution()
+  })
+  await execTest(results, 'markdown.templateVars.utils.parseAndCollect', async () => {
+    const mod = await modMarkdownVariableReferences()
+    await mod.testMarkdownVariableReferencesParsesDeclarationRefAndFallback()
+    await mod.testMarkdownVariableReferencesCollectSuggestionsFromFrontmatterAndDraft()
+    await mod.testMarkdownVariableReferencesBuildTokenByMode()
+  })
   await execTest(results, 'markdown.dataView.infersGroupAndTitleColumns', async () => {
     const mod = await modMarkdownDataViewRoundTrip()
     await mod.testMarkdownDataViewInfersGroupAndTitleColumns()
@@ -208,6 +221,14 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.viewer.inlineEdit.paragraph.wysiwyg.noBlockInsideP', async () => {
     const mod = await modMarkdownViewerInlineEditParagraphWysiwyg()
     await mod.testMarkdownViewerInlineEditParagraphDoesNotInsertBlockElementsIntoP()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.surfaceParitySnapshot', async () => {
+    const mod = await modMarkdownViewerInlineEditSurfaceParitySnapshot()
+    await mod.testMarkdownViewerInlineEditSurfaceParitySnapshotAppliesReadSurfaceStyles()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.variableToolbar.atInvokeAndApply', async () => {
+    const mod = await modMarkdownViewerInlineEditVariableToolbar()
+    await mod.testMarkdownViewerInlineEditVariableToolbarInvokesWithAtAndAppliesReference()
   })
   await execTest(results, 'markdown.viewer.sweep.mdDemo.lexesAndLineRanges', async () => {
     const mod = await modMarkdownViewerMdDemoSweepLex()

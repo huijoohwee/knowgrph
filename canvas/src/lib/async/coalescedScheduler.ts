@@ -1,6 +1,7 @@
 type CoalescedEntry = {
   timerId: number | null
   fn: (() => void) | null
+  microtaskPending?: boolean
 }
 
 const entries = new Map<string, CoalescedEntry>()
@@ -49,6 +50,7 @@ export const scheduleCoalescedTask = (rawKey: string, fn: () => void, delayMs: n
     return
   }
 
+  // If a previous setTimeout is pending, cancel it regardless of the next scheduling strategy.
   if (entry.timerId != null) {
     try {
       window.clearTimeout(entry.timerId)
@@ -59,6 +61,31 @@ export const scheduleCoalescedTask = (rawKey: string, fn: () => void, delayMs: n
   }
 
   const ms = Number.isFinite(delayMs) && delayMs >= 0 ? Math.floor(delayMs) : 0
+
+  // For "immediate" work, prefer microtasks to avoid timer churn under rapid bursts.
+  if (ms === 0) {
+    if (entry.microtaskPending) return
+    entry.microtaskPending = true
+    const enqueue =
+      typeof queueMicrotask === 'function'
+        ? queueMicrotask
+        : (cb: () => void) => Promise.resolve().then(cb)
+    enqueue(() => {
+      entry.microtaskPending = false
+      const statInner = getStatsEntry(key)
+      const fnRef = entry.fn
+      if (!fnRef) return
+      try {
+        fnRef()
+        statInner.executed += 1
+      } catch {
+        void 0
+      }
+    })
+    return
+  }
+
+  entry.microtaskPending = false
   entry.timerId = window.setTimeout(() => {
     entry.timerId = null
     const statInner = getStatsEntry(key)
@@ -89,6 +116,7 @@ export const cancelCoalescedTask = (rawKey: string): void => {
   }
   entry.timerId = null
   entry.fn = null
+  entry.microtaskPending = false
 }
 
 export const getCoalescedSchedulerStats = (): Record<string, CoalescedStats> => {

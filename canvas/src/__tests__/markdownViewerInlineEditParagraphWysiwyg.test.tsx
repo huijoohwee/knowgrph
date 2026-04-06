@@ -35,9 +35,11 @@ export async function testMarkdownViewerInlineEditParagraphDoesNotInsertBlockEle
     )
 
     await tick()
+    await tick()
 
-    const host = dom.window.document.querySelector('p') as HTMLElement | null
+    const host = dom.window.document.querySelector('[data-start-line="1"]') as HTMLElement | null
     if (!host) throw new Error('expected host p')
+    if (String(host.tagName || '').toUpperCase() !== 'P') throw new Error('expected host p')
     host.getBoundingClientRect = () => {
       return {
         x: 0,
@@ -76,4 +78,3 @@ export async function testMarkdownViewerInlineEditParagraphDoesNotInsertBlockEle
     restore()
   }
 }
-

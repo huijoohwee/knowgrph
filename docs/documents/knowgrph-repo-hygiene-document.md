@@ -97,3 +97,4 @@ git push --force-with-lease --tags
 - Never commit: `node_modules/**` or ad-hoc backup bundles under `backups/**`.
 - Prefer storing large fixtures under `/GitHub/sandbox/test-data/` as local-only files (ignored); keep only small sample fixtures in git.
 - Keep Pages deploy content constrained: `content/knowgrph` must only include built `assets`, entry `index.html`, favicon, settings, and small examples; scripts exclude cesium, vendor/mermaid bundles, demo, examples, and large test JSON from sync/publish.
+- Keep Canvas and Toolbar entry chunks lean: prefer lazy-loaded bundles for heavy tool surfaces (MainPanel, Toolbar menus, MarkdownWorkspace, workspace export bridge, Graph Data Table) and dynamic imports for rare exports; forbid deep source-level manualChunks and uncontrolled entry growth that make low-end devices or mobile browsers unresponsive.

@@ -174,6 +174,112 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     addFirstByType('svo', 'SourceSVO')
     return out
   })()
+  const templateVarInlineDeclarations = new Map<string, string>()
+  const templateVarKeyRe = /^[A-Za-z0-9_.-]{1,64}$/
+  const readFrontmatterPath = (path: string): unknown => {
+    const parts = String(path || '')
+      .trim()
+      .split('.')
+      .map(s => s.trim())
+      .filter(Boolean)
+    if (parts.length <= 0) return undefined
+    let cur: unknown = meta
+    for (let i = 0; i < parts.length; i += 1) {
+      const part = parts[i]
+      if (!part) return undefined
+      if (Array.isArray(cur)) {
+        const idx = Number(part)
+        if (!Number.isFinite(idx) || idx < 0 || Math.floor(idx) !== idx) return undefined
+        cur = cur[idx]
+        continue
+      }
+      if (!cur || typeof cur !== 'object') return undefined
+      cur = (cur as Record<string, unknown>)[part]
+    }
+    return cur
+  }
+  const stringifyTemplateVarValue = (value: unknown): string => {
+    if (typeof value === 'string') return value
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+    if (Array.isArray(value)) {
+      const primitiveOnly = value.every(v => typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean')
+      if (primitiveOnly) return value.map(v => String(v)).join(', ')
+      try {
+        return JSON.stringify(value)
+      } catch {
+        return ''
+      }
+    }
+    if (value && typeof value === 'object') {
+      try {
+        return JSON.stringify(value)
+      } catch {
+        return ''
+      }
+    }
+    return ''
+  }
+  const parseTemplateVarExpr = (rawExpr: string): {
+    key: string
+    declaredValue: string | null
+    fallback: string | null
+  } | null => {
+    const expr = String(rawExpr || '').trim()
+    if (!expr) return null
+    const declMatch = /^([A-Za-z0-9_.-]{1,64})\s*:\s*([^}]+)$/.exec(expr)
+    if (declMatch) {
+      const key = String(declMatch[1] || '').trim()
+      const declaredValue = String(declMatch[2] || '').trim()
+      if (!templateVarKeyRe.test(key) || !declaredValue) return null
+      return { key, declaredValue, fallback: null }
+    }
+    const fallbackMatch = /^([A-Za-z0-9_.-]{1,64})\s*\|\s*([^}]+)$/.exec(expr)
+    if (fallbackMatch) {
+      const key = String(fallbackMatch[1] || '').trim()
+      const fallback = String(fallbackMatch[2] || '').trim()
+      if (!templateVarKeyRe.test(key) || !fallback) return null
+      return { key, declaredValue: null, fallback }
+    }
+    if (!templateVarKeyRe.test(expr)) return null
+    return { key: expr, declaredValue: null, fallback: null }
+  }
+  const resolveTemplateVarValue = (rawKey: string): {
+    found: boolean
+    value: string
+    source: 'frontmatter' | 'inline' | 'unresolved'
+    resolvedKey: string
+  } => {
+    const key = String(rawKey || '').trim()
+    if (!key) return { found: false, value: '', source: 'unresolved', resolvedKey: '' }
+    const fmValue = readFrontmatterPath(key)
+    if (typeof fmValue !== 'undefined') {
+      return {
+        found: true,
+        value: stringifyTemplateVarValue(fmValue),
+        source: 'frontmatter',
+        resolvedKey: key,
+      }
+    }
+    const inlineValue = templateVarInlineDeclarations.get(key.toLowerCase())
+    if (typeof inlineValue === 'string') {
+      return {
+        found: true,
+        value: inlineValue,
+        source: 'inline',
+        resolvedKey: key,
+      }
+    }
+    return { found: false, value: '', source: 'unresolved', resolvedKey: key }
+  }
+  const resolveTemplateVarSources = (rawVarName: string) => {
+    const source = frontmatterTemplateVarSourceByName.get(rawVarName.toLowerCase())
+    const dotted = rawVarName.includes('.') ? rawVarName : ''
+    const ns = dotted ? rawVarName.slice(0, rawVarName.indexOf('.')).trim().toLowerCase() : ''
+    const nsRest = dotted ? rawVarName.slice(rawVarName.indexOf('.') + 1).trim() : ''
+    const nsSource = !source && ns ? frontmatterNamespaceSource.get(ns) || null : null
+    const metaSource = !source && ns === 'meta' ? `frontmatter-meta:${gid}` : ''
+    return { source, nsSource, nsRest, metaSource }
+  }
 
   const mediaPoiImageUrlByName = (() => {
     const out = new Map<string, string>()
@@ -380,23 +486,51 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
     const endLine = Math.max(startLine, Math.floor(args.endLine))
     const scopeKey = String(args.scopeKey || '').trim() || parentId
 
-    const templateVarRe = /\{\{\s*([A-Za-z0-9_.-]{1,64})\s*\}\}/g
+    const templateVarRe = /\{\{([^{}]+)\}\}/g
     templateVarRe.lastIndex = 0
     let idx = 0
     for (;;) {
       const m = templateVarRe.exec(text)
       if (!m) break
       idx += 1
-      const rawVar = String(m[1] || '').trim()
+      const parsedExpr = parseTemplateVarExpr(String(m[1] || ''))
+      if (!parsedExpr) continue
+      const rawVar = parsedExpr.key
       const key = rawVar.toLowerCase()
       if (!key) continue
+      let declarationApplied = false
+      if (typeof parsedExpr.declaredValue === 'string' && parsedExpr.declaredValue && !templateVarInlineDeclarations.has(key)) {
+        templateVarInlineDeclarations.set(key, parsedExpr.declaredValue)
+        declarationApplied = true
+      }
+      const primaryResolved = resolveTemplateVarValue(rawVar)
+      let resolvedValue = primaryResolved.value
+      let resolvedValueSource: 'frontmatter' | 'inline' | 'fallback' | 'unresolved' =
+        primaryResolved.found ? primaryResolved.source : 'unresolved'
+      let resolvedVarKey = primaryResolved.resolvedKey || rawVar
+      let fallbackKey = ''
+      const fallbackRaw = typeof parsedExpr.fallback === 'string' ? parsedExpr.fallback.trim() : ''
+      if (!primaryResolved.found && fallbackRaw) {
+        if (templateVarKeyRe.test(fallbackRaw)) {
+          fallbackKey = fallbackRaw
+          const fallbackResolved = resolveTemplateVarValue(fallbackRaw)
+          if (fallbackResolved.found) {
+            resolvedValue = fallbackResolved.value
+            resolvedValueSource = 'fallback'
+            resolvedVarKey = fallbackResolved.resolvedKey || fallbackRaw
+          } else {
+            resolvedValue = fallbackRaw
+            resolvedValueSource = 'fallback'
+            resolvedVarKey = fallbackRaw
+          }
+        } else {
+          resolvedValue = fallbackRaw
+          resolvedValueSource = 'fallback'
+          resolvedVarKey = rawVar
+        }
+      }
       const internalId = `template-var:${gid}:${slugify(rawVar)}:${startLine}:${slugify(scopeKey)}:${idx}`
-      const source = frontmatterTemplateVarSourceByName.get(key)
-      const dotted = rawVar.includes('.') ? rawVar : ''
-      const ns = dotted ? rawVar.slice(0, rawVar.indexOf('.')).trim().toLowerCase() : ''
-      const nsRest = dotted ? rawVar.slice(rawVar.indexOf('.') + 1).trim() : ''
-      const nsSource = !source && ns ? frontmatterNamespaceSource.get(ns) || null : null
-      const metaSource = !source && ns === 'meta' ? `frontmatter-meta:${gid}` : ''
+      const { source, nsSource, nsRest, metaSource } = resolveTemplateVarSources(resolvedVarKey || rawVar)
 
       if (metaSource) {
         const metaRec = meta as unknown
@@ -426,6 +560,12 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
         {
           kind: 'templateVar',
           varName: rawVar,
+          templateOp: declarationApplied ? 'def' : 'ref',
+          ...(declarationApplied && parsedExpr.declaredValue ? { declaredValue: parsedExpr.declaredValue } : {}),
+          ...(fallbackRaw ? { fallback: fallbackRaw } : {}),
+          ...(fallbackKey ? { fallbackKey } : {}),
+          value: resolvedValueSource === 'unresolved' ? null : resolvedValue,
+          valueSource: resolvedValueSource,
           originKey: scopeKey,
           ...(source ? { nodeId: source.nodeId, portKey: source.portKey } : {}),
           ...(nsSource ? { nodeId: nsSource.nodeId, path: nsRest || undefined } : {}),

@@ -43,6 +43,11 @@ import {
   preventDefaultPointerDown,
   toggleParentDetailsOpenFromSummaryClick,
 } from './markdownFloatingSelectionToolbar'
+import {
+  buildMarkdownVariableToken,
+  collectMarkdownVariableSuggestions,
+  findMarkdownVariableTokenAtOffset,
+} from './markdownVariableReferences'
 
 const MARKDOWN_EDIT_TYPOGRAPHY_SOURCE_SELECTOR =
   'h1,h2,h3,h4,h5,h6,p,li,blockquote,section,aside,div,span'
@@ -1320,7 +1325,8 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       const baseNode = target && event.currentTarget.contains(target) ? target : event.currentTarget
       const typographySource =
         baseNode.closest(MARKDOWN_EDIT_TYPOGRAPHY_SOURCE_SELECTOR) as HTMLElement | null
-      const computed = window.getComputedStyle(typographySource || event.currentTarget)
+      const sourceSurface = typographySource || event.currentTarget
+      const computed = window.getComputedStyle(sourceSurface)
       editTypographySnapshotRef.current = {
         fontFamily: computed.fontFamily || undefined,
         fontSize: computed.fontSize || undefined,
@@ -1335,7 +1341,31 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
             textAlign: (computed.textAlign || undefined) as React.CSSProperties['textAlign'],
             wordSpacing: computed.wordSpacing || undefined,
             textIndent: computed.textIndent || undefined,
-          }
+            paddingTop: computed.paddingTop || undefined,
+            paddingRight: computed.paddingRight || undefined,
+            paddingBottom: computed.paddingBottom || undefined,
+            paddingLeft: computed.paddingLeft || undefined,
+            marginTop: computed.marginTop || undefined,
+            marginRight: computed.marginRight || undefined,
+            marginBottom: computed.marginBottom || undefined,
+            marginLeft: computed.marginLeft || undefined,
+            borderTopWidth: computed.borderTopWidth || undefined,
+            borderRightWidth: computed.borderRightWidth || undefined,
+            borderBottomWidth: computed.borderBottomWidth || undefined,
+            borderLeftWidth: computed.borderLeftWidth || undefined,
+            borderTopStyle: (computed.borderTopStyle || undefined) as React.CSSProperties['borderTopStyle'],
+            borderRightStyle: (computed.borderRightStyle || undefined) as React.CSSProperties['borderRightStyle'],
+            borderBottomStyle: (computed.borderBottomStyle || undefined) as React.CSSProperties['borderBottomStyle'],
+            borderLeftStyle: (computed.borderLeftStyle || undefined) as React.CSSProperties['borderLeftStyle'],
+            borderTopColor: computed.borderTopColor || undefined,
+            borderRightColor: computed.borderRightColor || undefined,
+            borderBottomColor: computed.borderBottomColor || undefined,
+            borderLeftColor: computed.borderLeftColor || undefined,
+            borderRadius: computed.borderRadius || undefined,
+            boxSizing: computed.boxSizing || undefined,
+            backgroundColor: computed.backgroundColor || undefined,
+            caretColor: computed.caretColor || undefined,
+          } as React.CSSProperties
         : null
       const probeKeys: Array<keyof CSSStyleDeclaration> = [
         'fontFamily',
@@ -1356,12 +1386,28 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         'marginRight',
         'marginBottom',
         'marginLeft',
+        'borderTopWidth',
+        'borderRightWidth',
+        'borderBottomWidth',
+        'borderLeftWidth',
+        'borderTopStyle',
+        'borderRightStyle',
+        'borderBottomStyle',
+        'borderLeftStyle',
+        'borderTopColor',
+        'borderRightColor',
+        'borderBottomColor',
+        'borderLeftColor',
+        'borderRadius',
+        'boxSizing',
+        'backgroundColor',
+        'caretColor',
       ]
       const sourceMetrics = Object.fromEntries(
         probeKeys.map(key => [String(key), String(computed[key] || '')]),
       )
       parityProbeSnapshotRef.current = {
-        source: typographySource || event.currentTarget,
+        source: sourceSurface,
         sourceMetrics,
       }
     } catch {
@@ -1423,6 +1469,22 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         'marginRight',
         'marginBottom',
         'marginLeft',
+        'borderTopWidth',
+        'borderRightWidth',
+        'borderBottomWidth',
+        'borderLeftWidth',
+        'borderTopStyle',
+        'borderRightStyle',
+        'borderBottomStyle',
+        'borderLeftStyle',
+        'borderTopColor',
+        'borderRightColor',
+        'borderBottomColor',
+        'borderLeftColor',
+        'borderRadius',
+        'boxSizing',
+        'backgroundColor',
+        'caretColor',
       ]
       const mismatches = keys
         .map(key => ({ key, read: String(read[String(key)] || ''), edit: String(edit[key] || '') }))
@@ -1505,9 +1567,29 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
 
   const [bubble, setBubble] = React.useState<{ show: boolean; leftPx: number; topPx: number }>({ show: false, leftPx: 0, topPx: 0 })
   const [slashMenu, setSlashMenu] = React.useState<{ show: boolean; leftPx: number; topPx: number }>({ show: false, leftPx: 0, topPx: 0 })
+  const [variableMenu, setVariableMenu] = React.useState<{
+    show: boolean
+    leftPx: number
+    topPx: number
+    query: string
+    keyInput: string
+    valueInput: string
+    fallbackInput: string
+    mode: 'ref' | 'create' | 'update' | 'fallback'
+  }>({
+    show: false,
+    leftPx: 0,
+    topPx: 0,
+    query: '',
+    keyInput: '',
+    valueInput: '',
+    fallbackInput: '',
+    mode: 'ref',
+  })
   const [linkPopover, setLinkPopover] = React.useState<{ show: boolean; leftPx: number; topPx: number; href: string }>({ show: false, leftPx: 0, topPx: 0, href: '' })
   const bubbleAnchorRef = React.useRef<HTMLSpanElement | null>(null)
   const slashAnchorRef = React.useRef<HTMLSpanElement | null>(null)
+  const variableAnchorRef = React.useRef<HTMLSpanElement | null>(null)
   const linkAnchorRef = React.useRef<HTMLSpanElement | null>(null)
   const bubbleRafRef = React.useRef(0)
   const setSlashMenuStable = React.useCallback((next: { show: boolean; leftPx: number; topPx: number }) => {
@@ -1520,6 +1602,88 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
       return next
     })
   }, [])
+  const setVariableMenuStable = React.useCallback((next: {
+    show: boolean
+    leftPx: number
+    topPx: number
+    query?: string
+    keyInput?: string
+  }) => {
+    setVariableMenu(prev => {
+      const query = typeof next.query === 'string' ? next.query : prev.query
+      const keyInput = typeof next.keyInput === 'string' ? next.keyInput : prev.keyInput
+      if (
+        prev.show === next.show &&
+        Math.abs(prev.leftPx - next.leftPx) < 1 &&
+        Math.abs(prev.topPx - next.topPx) < 1 &&
+        prev.query === query &&
+        prev.keyInput === keyInput
+      ) return prev
+      return { ...prev, show: next.show, leftPx: next.leftPx, topPx: next.topPx, query, keyInput }
+    })
+  }, [])
+  const applyVariableToken = React.useCallback((mode: 'ref' | 'create' | 'update' | 'fallback' | 'delete') => {
+    const text = getDraft()
+    const selection = getSelectionOffsets()
+    const startOffset = selection?.startOffset ?? 0
+    const endOffset = selection?.endOffset ?? 0
+    const a = Math.max(0, Math.min(text.length, startOffset))
+    const b = Math.max(0, Math.min(text.length, endOffset))
+    const start = Math.min(a, b)
+    const end = Math.max(a, b)
+    const atCaretToken = findMarkdownVariableTokenAtOffset({ text, offset: end })
+    if (mode === 'delete') {
+      if (!atCaretToken) return
+      const nextText = `${text.slice(0, atCaretToken.start)}${text.slice(atCaretToken.end)}`
+      setDraftToDom(nextText, { startOffset: atCaretToken.start, endOffset: atCaretToken.start })
+      setVariableMenu(prev => ({ ...prev, show: false }))
+      setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 })
+      queueMicrotask(() => editorRef.current?.focus())
+      return
+    }
+    const keyFromState = String(variableMenu.keyInput || variableMenu.query || '').trim()
+    const keyFromToken = atCaretToken?.key || ''
+    const key = keyFromState || keyFromToken
+    const nextToken = buildMarkdownVariableToken({
+      mode: mode === 'update' ? 'create' : mode,
+      key,
+      value: variableMenu.valueInput,
+      fallback: variableMenu.fallbackInput,
+    })
+    if (!nextToken) return
+    const lineStartIdx = text.lastIndexOf('\n', Math.max(0, end) - 1) + 1
+    const preceding = text.slice(lineStartIdx, Math.max(lineStartIdx, Math.min(text.length, end)))
+    const atQueryMatch = /@([A-Za-z0-9_.-]{0,64})$/.exec(preceding)
+    const atQueryStart = atQueryMatch ? end - atQueryMatch[0].length : -1
+    const rangeStart = start !== end
+      ? start
+      : atCaretToken
+      ? atCaretToken.start
+      : atQueryMatch
+      ? atQueryStart
+      : end
+    const rangeEnd = start !== end
+      ? end
+      : atCaretToken
+      ? atCaretToken.end
+      : end
+    const nextText = `${text.slice(0, Math.max(0, rangeStart))}${nextToken}${text.slice(Math.max(0, rangeEnd))}`
+    const cursor = Math.max(0, rangeStart) + nextToken.length
+    setDraftToDom(nextText, { startOffset: cursor, endOffset: cursor })
+    setVariableMenu(prev => ({ ...prev, show: false, query: '', keyInput: key, mode: 'ref' }))
+    setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 })
+    queueMicrotask(() => editorRef.current?.focus())
+  }, [getDraft, getSelectionOffsets, setDraftToDom, setSlashMenuStable, variableMenu.fallbackInput, variableMenu.keyInput, variableMenu.query, variableMenu.valueInput])
+  const variableSuggestions = React.useMemo(() => {
+    if (!variableMenu.show) return [] as string[]
+    const query = String(variableMenu.keyInput || variableMenu.query || '').trim().toLowerCase()
+    const all = collectMarkdownVariableSuggestions({
+      sourceLines,
+      draftText: getDraft(),
+    })
+    if (!query) return all.slice(0, 8)
+    return all.filter(k => k.toLowerCase().includes(query)).slice(0, 8)
+  }, [getDraft, sourceLines, variableMenu.keyInput, variableMenu.query, variableMenu.show])
   const updateBubble = React.useCallback(() => {
     if (!editing) return
     if (editDisableRichUi) return
@@ -1878,6 +2042,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
           {editLeftRailClassName ? <span aria-hidden className={`pointer-events-none absolute left-0 top-0 bottom-0 w-1 z-20 ${editLeftRailClassName}`} /> : null}
           <span ref={bubbleAnchorRef} className="absolute w-px h-px" style={{ left: `${bubble.leftPx}px`, top: `${bubble.topPx}px` }} />
           <span ref={slashAnchorRef} className="absolute w-px h-px" style={{ left: `${slashMenu.leftPx}px`, top: `${slashMenu.topPx}px` }} />
+          <span ref={variableAnchorRef} className="absolute w-px h-px" style={{ left: `${variableMenu.leftPx}px`, top: `${variableMenu.topPx}px` }} />
           <span ref={linkAnchorRef} className="absolute w-px h-px" style={{ left: `${linkPopover.leftPx}px`, top: `${linkPopover.topPx}px` }} />
 
           {!editDisableRichUi && bubble.show ? (
@@ -2135,7 +2300,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
               ...(editTypographyMode === 'inherit'
                 ? { font: 'inherit', fontSize: 'inherit', lineHeight: 'inherit', color: 'inherit', ...editTypographySnapshotRef.current }
                 : {}),
-              ...(editCaptureLayoutSpacing ? editSpacingSnapshotRef.current : null),
+              ...(editSpacingSnapshotRef.current || null),
               ...(editListMode
                 ? { marginTop: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0 }
                 : {}),
@@ -2168,11 +2333,26 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
               const caretOffset = offsets?.startOffset ?? 0
               const lineStartIdx = text.lastIndexOf('\n', Math.max(0, caretOffset) - 1) + 1
               const preceding = text.slice(lineStartIdx, Math.max(lineStartIdx, Math.min(text.length, caretOffset)))
-              if (/\/$/.test(preceding)) {
+              const atMatch = /@([A-Za-z0-9_.-]{0,64})$/.exec(preceding)
+              if (atMatch) {
+                const query = String(atMatch[1] || '')
+                setVariableMenuStable({
+                  show: true,
+                  leftPx,
+                  topPx,
+                  query,
+                  keyInput: query || variableMenu.keyInput,
+                })
+                setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 })
+                setBubble(prev => (prev.show ? { ...prev, show: false } : prev))
+              } else if (/\/$/.test(preceding)) {
                 setSlashMenuStable({ show: true, leftPx, topPx })
+                setVariableMenuStable({ show: false, leftPx: 0, topPx: 0, query: '', keyInput: '' })
                 setBubble(prev => (prev.show ? { ...prev, show: false } : prev))
               } else if (slashMenu.show) {
                 setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 })
+              } else if (variableMenu.show) {
+                setVariableMenuStable({ show: false, leftPx: 0, topPx: 0, query: '', keyInput: '' })
               }
             }}
             onCopy={(event) => {
@@ -2189,6 +2369,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
                 queueMicrotask(() => editorRef.current?.focus())
                 return
               }
+              setVariableMenuStable({ show: false, leftPx: 0, topPx: 0, query: '', keyInput: '' })
               commit()
             }}
             onFocus={() => {
@@ -2197,6 +2378,10 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
             onKeyDown={event => {
               if (event.key === 'Escape') {
                 event.preventDefault()
+                if (variableMenu.show) {
+                  setVariableMenuStable({ show: false, leftPx: 0, topPx: 0, query: '', keyInput: '' })
+                  return
+                }
                 cancel()
                 return
               }
@@ -2216,6 +2401,11 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
               }
               if (event.key === 'Enter' && slashMenu.show) {
                 event.preventDefault()
+                return
+              }
+              if (event.key === 'Enter' && variableMenu.show) {
+                event.preventDefault()
+                applyVariableToken(variableMenu.mode === 'update' ? 'update' : variableMenu.mode)
                 return
               }
               if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
@@ -2258,6 +2448,88 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
                 <li className="list-none"><button type="button" className={FLOATING_MENU_BUTTON_CLASSNAME} onClick={() => { applyToggleHeading(2); setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>H2</button></li>
                 <li className="list-none"><button type="button" className={FLOATING_MENU_BUTTON_CLASSNAME} onClick={() => { applyToggleHeading(3); setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>H3</button></li>
               </menu>
+            </AnchorOverlay>
+          ) : null}
+          {!editDisableRichUi && variableMenu.show ? (
+            <AnchorOverlay anchorRef={variableAnchorRef} open={variableMenu.show} align="bottom-left" className={FLOATING_MENU_LEFT_W220_CLASSNAME}>
+              <section
+                aria-label="Variable toolbar"
+                onMouseDownCapture={() => {
+                  toolbarInteractingRef.current = true
+                  captureSelectionForFloatingToolbar({
+                    getSelectionOffsets,
+                    lastNonCollapsedSelectionOffsetsRef,
+                    lastNonCollapsedDomRangeRef,
+                  })
+                }}
+              >
+                <menu className="list-none m-0 p-0 flex flex-wrap gap-1 mb-2">
+                  <li className="list-none"><button type="button" className={FLOATING_MENU_BUTTON_CLASSNAME} onMouseDown={preventDefaultMouseDown} onClick={() => setVariableMenu(prev => ({ ...prev, mode: 'ref' }))}>Ref</button></li>
+                  <li className="list-none"><button type="button" className={FLOATING_MENU_BUTTON_CLASSNAME} onMouseDown={preventDefaultMouseDown} onClick={() => setVariableMenu(prev => ({ ...prev, mode: 'create' }))}>Create</button></li>
+                  <li className="list-none"><button type="button" className={FLOATING_MENU_BUTTON_CLASSNAME} onMouseDown={preventDefaultMouseDown} onClick={() => setVariableMenu(prev => ({ ...prev, mode: 'update' }))}>Update</button></li>
+                  <li className="list-none"><button type="button" className={FLOATING_MENU_BUTTON_CLASSNAME} onMouseDown={preventDefaultMouseDown} onClick={() => setVariableMenu(prev => ({ ...prev, mode: 'fallback' }))}>Fallback</button></li>
+                </menu>
+                <input
+                  className={FLOATING_POPOVER_INPUT_CLASSNAME}
+                  placeholder="variable key"
+                  value={variableMenu.keyInput}
+                  onChange={(event) => setVariableMenu(prev => ({ ...prev, keyInput: event.target.value }))}
+                />
+                {(variableMenu.mode === 'create' || variableMenu.mode === 'update') ? (
+                  <input
+                    className={`${FLOATING_POPOVER_INPUT_CLASSNAME} mt-2`}
+                    placeholder="value"
+                    value={variableMenu.valueInput}
+                    onChange={(event) => setVariableMenu(prev => ({ ...prev, valueInput: event.target.value }))}
+                  />
+                ) : null}
+                {variableMenu.mode === 'fallback' ? (
+                  <input
+                    className={`${FLOATING_POPOVER_INPUT_CLASSNAME} mt-2`}
+                    placeholder="fallback key or value"
+                    value={variableMenu.fallbackInput}
+                    onChange={(event) => setVariableMenu(prev => ({ ...prev, fallbackInput: event.target.value }))}
+                  />
+                ) : null}
+                {variableSuggestions.length > 0 ? (
+                  <menu className="list-none m-0 p-0 mt-2 max-h-24 overflow-auto">
+                    {variableSuggestions.map(suggestion => (
+                      <li key={suggestion} className="list-none">
+                        <button
+                          type="button"
+                          className={FLOATING_MENU_BUTTON_CLASSNAME}
+                          onMouseDown={preventDefaultMouseDown}
+                          onClick={() => setVariableMenu(prev => ({ ...prev, keyInput: suggestion }))}
+                        >
+                          {suggestion}
+                        </button>
+                      </li>
+                    ))}
+                  </menu>
+                ) : null}
+                <menu className="list-none m-0 p-0 mt-2 flex gap-2">
+                  <li className="list-none">
+                    <button
+                      type="button"
+                      className={FLOATING_MENU_BUTTON_CLASSNAME}
+                      onMouseDown={preventDefaultMouseDown}
+                      onClick={() => applyVariableToken(variableMenu.mode)}
+                    >
+                      Apply
+                    </button>
+                  </li>
+                  <li className="list-none">
+                    <button
+                      type="button"
+                      className={FLOATING_MENU_BUTTON_DANGER_CLASSNAME}
+                      onMouseDown={preventDefaultMouseDown}
+                      onClick={() => applyVariableToken('delete')}
+                    >
+                      Delete
+                    </button>
+                  </li>
+                </menu>
+              </section>
             </AnchorOverlay>
           ) : null}
           {!editDisableRichUi && linkPopover.show ? (

@@ -84,6 +84,7 @@ It is strictly code-backed: it documents the current behavior and forbids duplic
   - **Static** mode keeps D3 forces bounded and frozen post-stabilization and forwards overlay wheel to Canvas so pointer streams remain owned by the canvas; Graph Data Table and GraphTableDb ignore pure position-only updates and only sync on content changes or explicit Sync commands.
   - **Interactive** mode enables continuous D3 forces and overlay interactivity (no wheel forwarding when safe) but still uses revision+viewKey-gated sync to GraphTableDb and must not introduce polling loops or cross-view write amplification.
   - **Manual** workspace sync disables auto sync and surfaces a single Sync action that runs a bounded GraphData→GraphTableDb sync; **Real-time** works via the same code path but is triggered by revision changes, not by timers.
+- Low-end devices: gate background renderer warm-mount/prefetch by `navigator.deviceMemory`, `navigator.hardwareConcurrency`, and `navigator.connection` (`saveData`, `effectiveType`); skip prefetch of non-active heavy 2D/3D renderers when memory/CPU are low or `saveData`/`2g` is detected so Canvas entry and Toolbar stay responsive.
 
 ## Implementation Pointers
 

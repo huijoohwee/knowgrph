@@ -135,6 +135,9 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 
 ## Performance & Stability Strategies
 
+### Chunk-size & Mobile Responsiveness
+- Heavy tool surfaces (Toolbar, MainPanel, MarkdownWorkspace, workspace export bridge, Graph Data Table, Mermaid preview) load as lazy bundles so behavior stays identical while Canvas entry stays lean; background renderer warm-mount/prefetch is gated by device memory/CPU/save-data so low-end/mobile devices avoid hidden heavy work.
+
 ### 1. Stable Graph References
 - **Issue**: Frequent re-renders or schema updates (e.g., toggling hover settings) could trigger expensive graph re-derivation.
 - **Solution**: `GraphCanvas` implements rigorous memoization:

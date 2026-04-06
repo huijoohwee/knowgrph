@@ -56,6 +56,9 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockText.includes('editSpacingSnapshotRef') || !blockText.includes('editCaptureLayoutSpacing') || !blockText.includes('__KG_EDIT_PARITY_PROBE__')) {
     throw new Error('expected markdown block editor to provide gated spacing parity capture and runtime parity probe switch')
   }
+  if (!blockText.includes('editCaptureLayoutSpacing = false')) {
+    throw new Error('expected generic inline edit surfaces to default layout-spacing capture off to avoid rightward indent drift')
+  }
   if (!blockText.includes('__KG_EDIT_PARITY_LAST_PAYLOAD__') || !blockText.includes('kg-edit-parity-probe-json')) {
     throw new Error('expected runtime parity probe to expose visible payload via window global and json console line')
   }

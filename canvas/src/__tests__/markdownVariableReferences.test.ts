@@ -1,0 +1,60 @@
+import {
+  buildMarkdownVariableToken,
+  collectMarkdownVariableSuggestions,
+  findMarkdownVariableTokenAtOffset,
+  parseMarkdownVariableTokens,
+} from '@/features/markdown/ui/markdownVariableReferences'
+
+export async function testMarkdownVariableReferencesParsesDeclarationRefAndFallback() {
+  const text = '{{place:airport}} and {{place}} then {{city|venue}}'
+  const tokens = parseMarkdownVariableTokens(text)
+  if (tokens.length !== 3) throw new Error('expected 3 variable tokens')
+  if (tokens[0]?.key !== 'place' || tokens[0]?.declaredValue !== 'airport') {
+    throw new Error('expected declaration token to parse key and value')
+  }
+  if (tokens[1]?.key !== 'place' || tokens[1]?.declaredValue !== null) {
+    throw new Error('expected reference token to parse key only')
+  }
+  if (tokens[2]?.key !== 'city' || tokens[2]?.fallback !== 'venue') {
+    throw new Error('expected fallback token to parse key and fallback')
+  }
+
+  const tokenAtPlaceRef = findMarkdownVariableTokenAtOffset({ text, offset: text.indexOf('{{place}}') + 3 })
+  if (!tokenAtPlaceRef || tokenAtPlaceRef.raw !== '{{place}}') {
+    throw new Error('expected find token at caret offset to return matching variable token')
+  }
+
+  await Promise.resolve()
+}
+
+export async function testMarkdownVariableReferencesCollectSuggestionsFromFrontmatterAndDraft() {
+  const sourceLines = [
+    '---',
+    'venue: Singapore',
+    'authors:',
+    '  - A. Author 1',
+    '---',
+    '',
+    '{{place:airport}}',
+    'Visit {{venue}}',
+  ]
+  const suggestions = collectMarkdownVariableSuggestions({
+    sourceLines,
+    draftText: 'Draft has {{city|venue}} and {{place}}',
+  })
+  if (!suggestions.includes('venue')) throw new Error('expected suggestions to include frontmatter key')
+  if (!suggestions.includes('authors.0')) throw new Error('expected suggestions to include dotted frontmatter array path key')
+  if (!suggestions.includes('place')) throw new Error('expected suggestions to include inline declaration key')
+  if (!suggestions.includes('city')) throw new Error('expected suggestions to include fallback reference key')
+  await Promise.resolve()
+}
+
+export async function testMarkdownVariableReferencesBuildTokenByMode() {
+  const ref = buildMarkdownVariableToken({ mode: 'ref', key: 'venue' })
+  if (ref !== '{{venue}}') throw new Error('expected ref token')
+  const created = buildMarkdownVariableToken({ mode: 'create', key: 'place', value: 'airport' })
+  if (created !== '{{place:airport}}') throw new Error('expected create token')
+  const fallback = buildMarkdownVariableToken({ mode: 'fallback', key: 'city', fallback: 'venue' })
+  if (fallback !== '{{city|venue}}') throw new Error('expected fallback token')
+  await Promise.resolve()
+}
