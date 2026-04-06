@@ -2,6 +2,7 @@ import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import IconButton from '@/components/IconButton'
 import { CollapsibleToolbar } from '@/components/ui/CollapsibleToolbar'
+import { DetailsMenu } from '@/components/ui/DetailsMenu'
 import {
   ArrowUpDown,
   Columns2,
@@ -128,105 +129,121 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         </IconButton>
       ) : null}
 
-      <details className="relative">
-        <summary className={iconSummaryClass} title="Fields" aria-label="Fields">
-          <Columns2 className="w-4 h-4" aria-hidden="true" />
-        </summary>
-        <form className="absolute mt-1 z-10 rounded border bg-[color:var(--kg-panel-bg)] p-2 min-w-44">
-          <fieldset className="space-y-1">
-            <legend className={`${UI_THEME_TOKENS.text.tertiary}`}>Visible columns</legend>
-            {props.columns.map(c => (
-              <label key={c.columnId} className="flex items-center gap-2">
-                <input type="checkbox" checked={props.columnVisibilityById[c.columnId] !== false} onChange={() => toggleColumn(c.columnId)} />
-                <span>{c.name}</span>
-              </label>
-            ))}
-          </fieldset>
-        </form>
-      </details>
-
-      <details className="relative">
-        <summary className={iconSummaryClass} title="Filter" aria-label="Filter">
-          <Filter className="w-4 h-4" aria-hidden="true" />
-        </summary>
-        <form className="absolute mt-1 z-10 rounded border bg-[color:var(--kg-panel-bg)] p-2 min-w-72">
-          <fieldset className="space-y-2">
-            <label className="flex items-center gap-2">
-              <span>Match</span>
-              <select
-                value={props.filterMatch}
-                onChange={e => props.setFilterMatch(e.target.value === 'any' ? 'any' : 'all')}
-                className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
-              >
-                <option value="all">All</option>
-                <option value="any">Any</option>
-              </select>
-            </label>
-            {props.filterClauses.map(clause => (
-              <section key={clause.id} className="flex items-center gap-2">
-                <label>
-                  Field
-                  <select
-                    value={clause.columnId}
-                    onChange={e => updateFilterClause(clause.id, { columnId: e.target.value })}
-                    className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ml-2`}
-                  >
-                    {props.columns.map(c => (
-                      <option key={c.columnId} value={c.columnId}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Op
-                  <select
-                    value={clause.operator}
-                    onChange={e => updateFilterClause(clause.id, { operator: e.target.value as GraphTableFilterOperator })}
-                    className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ml-2`}
-                  >
-                    <option value="contains">contains</option>
-                    <option value="equals">equals</option>
-                    <option value="startsWith">startsWith</option>
-                    <option value="endsWith">endsWith</option>
-                  </select>
-                </label>
-                <label>
-                  Value
+      <DetailsMenu
+        ariaLabel="Fields"
+        detailsClassName="relative"
+        summaryClassName={iconSummaryClass}
+        portal
+        portalPlacement="bottom-end"
+        summary={<Columns2 className="w-4 h-4" aria-hidden="true" />}
+        menu={({ close }) => (
+          <form className={['rounded border p-2 min-w-44 shadow-md', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}>
+            <fieldset className="space-y-1">
+              <legend className={`${UI_THEME_TOKENS.text.tertiary}`}>Visible columns</legend>
+              {props.columns.map(c => (
+                <label key={c.columnId} className="flex items-center gap-2">
                   <input
-                    value={clause.value}
-                    onChange={e => updateFilterClause(clause.id, { value: e.target.value })}
-                    className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ml-2`}
+                    type="checkbox"
+                    checked={props.columnVisibilityById[c.columnId] !== false}
+                    onChange={() => {
+                      toggleColumn(c.columnId)
+                    }}
                   />
+                  <span>{c.name}</span>
                 </label>
+              ))}
+            </fieldset>
+          </form>
+        )}
+      />
+
+      <DetailsMenu
+        ariaLabel="Filter"
+        detailsClassName="relative"
+        summaryClassName={iconSummaryClass}
+        portal
+        portalPlacement="bottom-end"
+        summary={<Filter className="w-4 h-4" aria-hidden="true" />}
+        menu={
+          <form className={['rounded border p-2 min-w-72 shadow-md', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}>
+            <fieldset className="space-y-2">
+              <label className="flex items-center gap-2">
+                <span>Match</span>
+                <select
+                  value={props.filterMatch}
+                  onChange={e => props.setFilterMatch(e.target.value === 'any' ? 'any' : 'all')}
+                  className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}
+                >
+                  <option value="all">All</option>
+                  <option value="any">Any</option>
+                </select>
+              </label>
+              {props.filterClauses.map(clause => (
+                <section key={clause.id} className="flex items-center gap-2">
+                  <label>
+                    Field
+                    <select
+                      value={clause.columnId}
+                      onChange={e => updateFilterClause(clause.id, { columnId: e.target.value })}
+                      className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ml-2`}
+                    >
+                      {props.columns.map(c => (
+                        <option key={c.columnId} value={c.columnId}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Op
+                    <select
+                      value={clause.operator}
+                      onChange={e => updateFilterClause(clause.id, { operator: e.target.value as GraphTableFilterOperator })}
+                      className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ml-2`}
+                    >
+                      <option value="contains">contains</option>
+                      <option value="equals">equals</option>
+                      <option value="startsWith">startsWith</option>
+                      <option value="endsWith">endsWith</option>
+                    </select>
+                  </label>
+                  <label>
+                    Value
+                    <input
+                      value={clause.value}
+                      onChange={e => updateFilterClause(clause.id, { value: e.target.value })}
+                      className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ml-2`}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                    onClick={() => removeFilterClause(clause.id)}
+                  >
+                    Remove
+                  </button>
+                </section>
+              ))}
+              <section className="flex items-center gap-2">
                 <button
                   type="button"
                   className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                  onClick={() => removeFilterClause(clause.id)}
+                  onClick={addFilterClause}
                 >
-                  Remove
+                  Add filter
+                </button>
+                <button
+                  type="button"
+                  className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                  onClick={() => props.setFilterClauses([])}
+                >
+                  Clear all
                 </button>
               </section>
-            ))}
-            <section className="flex items-center gap-2">
-              <button
-                type="button"
-                className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                onClick={addFilterClause}
-              >
-                Add filter
-              </button>
-              <button
-                type="button"
-                className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                onClick={() => props.setFilterClauses([])}
-              >
-                Clear all
-              </button>
-            </section>
-          </fieldset>
-        </form>
-      </details>
+            </fieldset>
+          </form>
+        }
+      />
 
       <label className="flex items-center gap-2">
         <span>Group</span>
@@ -244,67 +261,72 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         </select>
       </label>
 
-      <details className="relative">
-        <summary className={iconSummaryClass} title="Sort" aria-label="Sort">
-          <ArrowUpDown className="w-4 h-4" aria-hidden="true" />
-        </summary>
-        <form className="absolute mt-1 z-10 rounded border bg-[color:var(--kg-panel-bg)] p-2 min-w-64">
-          <fieldset className="space-y-2">
-            {props.sortRules.map(rule => (
-              <section key={rule.id} className="flex items-center gap-2">
-                <label>
-                  Field
-                  <select
-                    value={rule.columnId}
-                    onChange={e => updateSortRule(rule.id, { columnId: e.target.value })}
-                    className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ml-2`}
+      <DetailsMenu
+        ariaLabel="Sort"
+        detailsClassName="relative"
+        summaryClassName={iconSummaryClass}
+        portal
+        portalPlacement="bottom-end"
+        summary={<ArrowUpDown className="w-4 h-4" aria-hidden="true" />}
+        menu={
+          <form className={['rounded border p-2 min-w-64 shadow-md', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border].join(' ')}>
+            <fieldset className="space-y-2">
+              {props.sortRules.map(rule => (
+                <section key={rule.id} className="flex items-center gap-2">
+                  <label>
+                    Field
+                    <select
+                      value={rule.columnId}
+                      onChange={e => updateSortRule(rule.id, { columnId: e.target.value })}
+                      className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ml-2`}
+                    >
+                      {props.columns.map(c => (
+                        <option key={c.columnId} value={c.columnId}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Direction
+                    <select
+                      value={rule.direction}
+                      onChange={e => updateSortRule(rule.id, { direction: e.target.value as GraphTableSortDirection })}
+                      className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ml-2`}
+                    >
+                      <option value="asc">asc</option>
+                      <option value="desc">desc</option>
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                    onClick={() => removeSortRule(rule.id)}
                   >
-                    {props.columns.map(c => (
-                      <option key={c.columnId} value={c.columnId}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Dir
-                  <select
-                    value={rule.direction}
-                    onChange={e => updateSortRule(rule.id, { direction: (e.target.value === 'desc' ? 'desc' : 'asc') as GraphTableSortDirection })}
-                    className={`${inputHeightClass} px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ml-2`}
-                  >
-                    <option value="asc">ASC</option>
-                    <option value="desc">DESC</option>
-                  </select>
-                </label>
+                    Remove
+                  </button>
+                </section>
+              ))}
+              <section className="flex items-center gap-2">
                 <button
                   type="button"
                   className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                  onClick={() => removeSortRule(rule.id)}
+                  onClick={addSortRule}
                 >
-                  Remove
+                  Add sort
+                </button>
+                <button
+                  type="button"
+                  className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                  onClick={() => props.setSortRules([])}
+                >
+                  Clear all
                 </button>
               </section>
-            ))}
-            <section className="flex items-center gap-2">
-              <button
-                type="button"
-                className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                onClick={addSortRule}
-              >
-                Add sort
-              </button>
-              <button
-                type="button"
-                className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                onClick={() => props.setSortRules([])}
-              >
-                Clear sort
-              </button>
-            </section>
-          </fieldset>
-        </form>
-      </details>
+            </fieldset>
+          </form>
+        }
+      />
 
       <label className="flex items-center gap-2">
         <span>Row height</span>

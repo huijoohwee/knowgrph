@@ -199,7 +199,7 @@ export default function CanvasPage() {
   })
   const workspacePreviewWidthPxRef = React.useRef(workspacePreviewWidthPx)
   workspacePreviewWidthPxRef.current = workspacePreviewWidthPx
-  const resizeHandleRef = React.useRef<HTMLHRElement | null>(null)
+  const [resizeHandleEl, setResizeHandleEl] = React.useState<HTMLHRElement | null>(null)
   const rafSetPreviewWidthRef = React.useRef(createRafValueScheduler<number>(v => setWorkspacePreviewWidthPx(v)))
 
   React.useEffect(() => {
@@ -222,7 +222,7 @@ export default function CanvasPage() {
   }, [workspacePreviewWidthPx])
 
   React.useEffect(() => {
-    const el = resizeHandleRef.current
+    const el = resizeHandleEl
     if (!el) return
     const onDown = (ev: PointerEvent) => {
       if (ev.button !== undefined && ev.button !== 0) return
@@ -256,7 +256,7 @@ export default function CanvasPage() {
     }
     el.addEventListener('pointerdown', onDown)
     return () => el.removeEventListener('pointerdown', onDown)
-  }, [])
+  }, [resizeHandleEl])
   
 
   React.useEffect(() => {
@@ -390,18 +390,6 @@ export default function CanvasPage() {
       requestThreeCamera: s.requestThreeCamera,
     })),
   )
-
-  React.useEffect(() => {
-    const isSplit = workspaceViewMode === 'editor'
-    if (!isSplit) return
-    if (workspaceCanvasPaneOpen) return
-    if (canvasRenderMode !== '3d' && !renderMediaAsNodes) return
-    try {
-      setWorkspaceCanvasPaneOpen(true)
-    } catch {
-      void 0
-    }
-  }, [canvasRenderMode, renderMediaAsNodes, setWorkspaceCanvasPaneOpen, workspaceCanvasPaneOpen, workspaceViewMode])
 
   const activeGraphData = useActiveGraphRenderData(true)
   const gympgrphBridge = useGraphStore(
@@ -974,9 +962,7 @@ export default function CanvasPage() {
 
                   {workspaceViewMode === 'editor' ? (
                     <VerticalResizeSeparatorHr
-                      ref={el => {
-                        resizeHandleRef.current = el
-                      }}
+                      ref={setResizeHandleEl}
                       ariaLabel="Resize canvas"
                       className={workspaceCanvasPaneOpen ? '' : 'hidden'}
                     />

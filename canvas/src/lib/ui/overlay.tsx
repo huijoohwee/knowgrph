@@ -38,12 +38,16 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
     if (!open) return
     if (!onClose) return
 
+    const openedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       onClose()
     }
 
     const handlePointerDown = (e: MouseEvent | PointerEvent) => {
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
+      if (now - openedAt < 120) return
       const anchorEl = anchorRef.current
       const containerEl = containerRef.current
       const t = e.target as Node | null
@@ -126,8 +130,10 @@ export function AnchorOverlay({ anchorRef, open, onClose, align = 'bottom-right'
   const portalRoot = portalRootRef.current
   if (!portalRoot) return null
   return createPortal(
-    <div ref={containerRef} style={style} className={className}>
-      {children}
+    <div style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_ANCHOR_OVERLAY, pointerEvents: 'none', isolation: 'isolate' }}>
+      <div ref={containerRef} style={{ ...style, pointerEvents: 'auto' }} className={className}>
+        {children}
+      </div>
     </div>,
     portalRoot,
   )

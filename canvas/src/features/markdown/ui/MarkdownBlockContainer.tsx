@@ -1537,12 +1537,9 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   const toolbarMenuDividerClassName = FLOATING_MENU_DIVIDER_CLASSNAME
   const toolbarMenuSummaryClassName = FLOATING_BUBBLE_BUTTON_CLASSNAME
   const htmlBlockEditing = editorPresentation === 'html' && htmlRenderMode === 'block'
-  const hostIsParagraph = Tag === 'p'
-  const EditorTag = (
-    (htmlBlockEditing || !editInlineFlow) && !hostIsParagraph
-      ? 'div'
-      : 'span'
-  ) as 'div' | 'span'
+  const hostInlineFlow = Tag === 'p' || Tag === 'li' || Tag === 'th' || Tag === 'td'
+  const effectiveInlineFlow = editInlineFlow || hostInlineFlow
+  const EditorTag = ((htmlBlockEditing || !effectiveInlineFlow) && !hostInlineFlow ? 'div' : 'span') as 'div' | 'span'
   const htmlEditNormalizeClassName =
     editorPresentation === 'html'
       ? [
@@ -1639,11 +1636,13 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     >
       {editing && editable ? (
         <span
-          className={editInlineFlow ? 'relative inline min-w-0 align-baseline' : 'relative w-full block min-w-0 flex-1'}
+          className={effectiveInlineFlow
+            ? (hostInlineFlow ? 'relative inline-block w-full min-w-0 align-baseline' : 'relative inline min-w-0 align-baseline')
+            : 'relative w-full block min-w-0 flex-1'}
           style={editPreserveBlockHeight && editMinHeightPxRef.current > 0 ? { minHeight: `${editMinHeightPxRef.current}px` } : undefined}
         >
           {editStaticChildren ? (
-            <span className={`pointer-events-none select-none ${editInlineFlow ? 'inline align-baseline' : 'block'}`}>{editStaticChildren}</span>
+            <span className={`pointer-events-none select-none ${effectiveInlineFlow ? 'inline align-baseline' : 'block'}`}>{editStaticChildren}</span>
           ) : null}
           {editLeftRailClassName ? <span aria-hidden className={`pointer-events-none absolute left-0 top-0 bottom-0 w-1 z-20 ${editLeftRailClassName}`} /> : null}
           <span ref={bubbleAnchorRef} className="absolute w-px h-px" style={{ left: `${bubble.leftPx}px`, top: `${bubble.topPx}px` }} />

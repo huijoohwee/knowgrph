@@ -194,6 +194,22 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     >
       {toolbarCollapsed ? (
         <>
+          <ToolbarMenuLauncher
+            onOpenMainPanel={openMainPanel}
+            onCloseMainPanel={() => setIsMainPanelOpen(false)}
+            onLaunchSpotlight={actions.handleLaunch}
+            onLaunchStatus={actions.handleLaunchStats}
+          />
+
+          <EditorWorkspaceSelect iconSizeClass={iconSizeClass} iconStrokeWidth={iconStrokeWidth} />
+
+          <Canvas2dRendererSelect
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={iconStrokeWidth}
+            ensureBaselineUnlocked={ensureBaselineUnlocked}
+            disabled={geospatialEnabled}
+          />
+
           <IconButton
             className="App-toolbar__btn"
             title="Expand toolbar"
@@ -206,14 +222,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           >
             <ChevronLeft className={iconSizeClass} strokeWidth={iconStrokeWidth} />
           </IconButton>
-          <div className="hidden">
-            <ToolbarMenuLauncher
-              onOpenMainPanel={openMainPanel}
-              onCloseMainPanel={() => setIsMainPanelOpen(false)}
-              onLaunchSpotlight={actions.handleLaunch}
-              onLaunchStatus={actions.handleLaunchStats}
-            />
-          </div>
         </>
       ) : (
         <ToolbarMenuLauncher

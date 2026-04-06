@@ -33,16 +33,12 @@ type WorkspaceTableModeControlProps = {
 
 export function WorkspaceTableModeControl({ className }: WorkspaceTableModeControlProps) {
   const {
-    multiDimTableModeEnabled,
-    setMultiDimTableModeEnabled,
     workspaceViewMode,
     editorWorkspacePane,
     setWorkspaceViewMode,
     setEditorWorkspacePane,
   } = useGraphStore(
     useShallow(s => ({
-      multiDimTableModeEnabled: s.multiDimTableModeEnabled === true,
-      setMultiDimTableModeEnabled: s.setMultiDimTableModeEnabled,
       workspaceViewMode: s.workspaceViewMode,
       editorWorkspacePane: s.editorWorkspacePane,
       setWorkspaceViewMode: s.setWorkspaceViewMode,
@@ -67,20 +63,9 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
     (event: React.ChangeEvent<HTMLSelectElement>) => {
       const next = event.currentTarget.value as WorkspaceEditorMode
       workspaceTablePreferencesStore.setWorkspaceEditorMode(next)
-      const nextMultiDimEnabled = next === 'multiDimTable'
-      if (multiDimTableModeEnabled !== nextMultiDimEnabled) {
-        setMultiDimTableModeEnabled(nextMultiDimEnabled)
-      }
       openWorkspaceTable({ workspaceViewMode, editorWorkspacePane, setWorkspaceViewMode, setEditorWorkspacePane })
     },
-    [
-      editorWorkspacePane,
-      multiDimTableModeEnabled,
-      setEditorWorkspacePane,
-      setMultiDimTableModeEnabled,
-      setWorkspaceViewMode,
-      workspaceViewMode,
-    ],
+    [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceViewMode, workspaceViewMode],
   )
 
   const handleOpenTable = React.useCallback(() => {

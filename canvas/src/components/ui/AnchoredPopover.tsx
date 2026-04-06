@@ -89,6 +89,8 @@ export const AnchoredPopover = React.memo(function AnchoredPopover(props: Anchor
     }
     updatePosition()
 
+    const openedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
+
     let rafId: number | null = null
     const schedule = () => {
       if (rafId != null) return
@@ -109,6 +111,8 @@ export const AnchoredPopover = React.memo(function AnchoredPopover(props: Anchor
     }
 
     const onPointerDown = (e: PointerEvent) => {
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
+      if (now - openedAt < 120) return
       const target = e.target as Node | null
       if (!target) return
       const anchor = props.anchorEl

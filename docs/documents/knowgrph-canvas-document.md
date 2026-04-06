@@ -144,7 +144,8 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 
 ### Multi-dimensional Table / Graph Data Table (Editor Workspace) Contract
 
-- The Graph Data Table inside Editor mode (the **Multi-dimensional Table** workspace) is **not** the extracted `curagrph` Graph Data Table surface; it is a host-owned workspace tool backed by the RxDB `GraphTableDb` (`kg:graph-table`) over JSON `GraphData`.
+- Document Mode “Multi-dimensional Table Mode” controls only canvas `multiDimTableModeEnabled` for graph layout; it must not open or configure the Graph Data Table workspace, and must stay renderer/layout scoped rather than acting as a second entry-point into Workspace Editor table views.
+- The Graph Data Table inside Editor mode (the **Workspace: Multi-dimensional Table** workspace) is **not** the extracted `curagrph` Graph Data Table surface; it is a host-owned workspace tool backed by the RxDB `GraphTableDb` (`kg:graph-table`) over JSON `GraphData`.
 - The table surface must remain self-contained and drift-resistant:
   - Rendering uses a canvas-based fast grid with an overflow scroll viewport (single scroll owner).
   - View shaping is toolbar-driven (Fields/Filter/Group/Sort/Row height) and persisted via namespaced LS keys (`kg:ui:graphTable:*`).

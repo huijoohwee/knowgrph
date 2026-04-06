@@ -56,6 +56,9 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
   const [editing, setEditing] = React.useState<{ rowId: string; colId: string; anchorEl: HTMLElement } | null>(null)
   const [draft, setDraft] = React.useState('')
 
+  const draftRef = React.useRef('')
+  draftRef.current = draft
+
   const startEdit = React.useCallback(
     (rowId: string, colId: string, current: string, anchorEl: HTMLElement) => {
       if (!canMutate) return
@@ -65,19 +68,29 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
     [canMutate],
   )
 
-  const commit = React.useCallback(() => {
+  const commit = React.useCallback((nextOverride?: string) => {
     if (!editing) return
     if (!canMutate) {
       setEditing(null)
       return
     }
-    onUpdateCell({ rowId: editing.rowId, columnId: editing.colId, nextValue: draft })
+    const nextValue = typeof nextOverride === 'string' ? nextOverride : draftRef.current
+    onUpdateCell({ rowId: editing.rowId, columnId: editing.colId, nextValue })
     setEditing(null)
-  }, [canMutate, draft, editing, onUpdateCell])
+  }, [canMutate, editing, onUpdateCell])
 
   const cancel = React.useCallback(() => {
     setEditing(null)
   }, [])
+
+  const handleInlineTextCommit = React.useCallback(
+    (rowId: string, colId: string, nextValue: string) => {
+      if (!canMutate) return
+      if (!editing || editing.rowId !== rowId || editing.colId !== colId) return
+      commit(nextValue)
+    },
+    [canMutate, commit, editing],
+  )
 
   const visibleColumnMeta = React.useMemo(() => {
     if (!visibleColumnIds) return view.columns.map((c, idx) => ({ col: c, index: idx }))
@@ -142,7 +155,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
     if (editingMeta.baseKind !== 'multi-select') return []
     if (editingMeta.column.kind === 'multi-select' && Array.isArray(editingMeta.column.options)) {
       const base = editingMeta.column.options.map(x => String(x || '').trim()).filter(Boolean)
-      if (base.length) return splitMultiValues(base.join(','))
+      if (base.length) return base
     }
     const set = new Set<string>()
     const list: string[] = []
@@ -300,10 +313,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                         draft ? <DataViewTagChip value={draft} /> : <span className={UI_THEME_TOKENS.text.tertiary}>—</span>
                       ) : isMulti ? (
                         (() => {
-                          const chips = draft
-                            .split(',')
-                            .map(x => x.trim())
-                            .filter(Boolean)
+                          const chips = splitMultiValues(draft)
                           if (!chips.length) return <span className={UI_THEME_TOKENS.text.tertiary}>—</span>
                           return (
                             <div className="flex flex-wrap gap-1">
@@ -314,43 +324,20 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
                           )
                         })()
                       ) : (
-                        <div
-                          autoFocus
-                          contentEditable
-                          suppressContentEditableWarning
-                          role="textbox"
-                          aria-label={`Edit ${c.name}`}
-                          className={['w-full min-h-[1lh] whitespace-pre-wrap break-words outline-none', UI_THEME_TOKENS.text.primary].join(' ')}
-                          onClick={e => e.stopPropagation()}
-                          onInput={e => {
-                            const next = (e.currentTarget.textContent || '').replace(/\r/g, '')
-                            setDraft(next)
-                          }}
-                          onBlur={commit}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault()
-                              commit()
-                            }
-                            if (e.key === 'Escape') {
-                              e.preventDefault()
-                              cancel()
-                            }
-                          }}
-                        >
-                          {draft}
-                        </div>
+                        <InlineTextCellEditor
+                          key={`${r.id}:${c.id}`}
+                          ariaLabel={`Edit ${c.name}`}
+                          initialValue={value}
+                          textClassName={UI_THEME_TOKENS.text.primary}
+                          onCommit={(next) => handleInlineTextCommit(r.id, c.id, next)}
+                          onCancel={cancel}
+                        />
                       )}
                     </td>
                   )
                 }
 
-                const chips = baseKind === 'multi-select'
-                  ? value
-                      .split(',')
-                      .map(x => x.trim())
-                      .filter(Boolean)
-                  : []
+                const chips = baseKind === 'multi-select' ? splitMultiValues(value) : []
 
                 const href = uiType === 'link' ? safeLinkHref(value) : null
                 const progressValue = uiType === 'progress' ? Number(value) : NaN
@@ -473,5 +460,55 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
         ) : null}
       </AnchoredPopover>
     </section>
+  )
+})
+
+const InlineTextCellEditor = React.memo(function InlineTextCellEditor(props: {
+  ariaLabel: string
+  initialValue: string
+  textClassName: string
+  onCommit: (nextValue: string) => void
+  onCancel: () => void
+}) {
+  const { ariaLabel, initialValue, textClassName, onCommit, onCancel } = props
+  const editorRef = React.useRef<HTMLSpanElement | null>(null)
+
+  React.useEffect(() => {
+    const el = editorRef.current
+    if (!el) return
+    const next = String(initialValue ?? '')
+    if (el.textContent !== next) el.textContent = next
+  }, [initialValue])
+
+  const commit = React.useCallback(() => {
+    const next = String(editorRef.current?.textContent || '').replace(/\r/g, '')
+    onCommit(next)
+  }, [onCommit])
+
+  return (
+    <span
+      ref={editorRef}
+      autoFocus
+      contentEditable
+      suppressContentEditableWarning
+      role="textbox"
+      aria-label={ariaLabel}
+      className={['inline-block w-full min-h-[1lh] whitespace-pre-wrap break-words outline-none', textClassName].join(' ')}
+      onClick={e => e.stopPropagation()}
+      onInput={() => {}}
+      onBlur={commit}
+      onKeyDown={e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          commit()
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          onCancel()
+        }
+      }}
+    >
+      {String(initialValue ?? '')}
+    </span>
   )
 })

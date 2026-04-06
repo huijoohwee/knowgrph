@@ -5,7 +5,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { GraphTableWorkspaceHeader } from '@/features/graph-table/ui/GraphTableWorkspaceHeader'
 import { GraphTableKanbanView } from '@/features/graph-table/ui/GraphTableKanbanView'
-import { GraphTableFastGrid } from '@/features/graph-table/ui/GraphTableFastGrid'
+import { GraphTableDomTableView } from '@/features/graph-table/ui/GraphTableDomTableView'
 import { GraphTableInspector, type GraphTableInspectorRow } from '@/features/graph-table/ui/GraphTableInspector'
 import type { GraphTableGridRow } from '@/features/graph-table/ui/graphTableTypes'
 import type {
@@ -64,7 +64,7 @@ export function GraphTableWorkspaceLeft(props: {
   setInspectorRowId: (next: string | null) => void
   showInspector: boolean
   inspectorWidthPx: number
-  inspectorDragHandleRef: React.MutableRefObject<HTMLHRElement | null>
+  setInspectorDragHandleEl: (el: HTMLHRElement | null) => void
   selectedRow: GraphTableInspectorRow | null
 
   onColumnWidthChanged: (columnId: string, widthPx: number) => void
@@ -145,14 +145,12 @@ export function GraphTableWorkspaceLeft(props: {
               onRowClicked={props.onRowClicked}
             />
           ) : (
-            <GraphTableFastGrid
+            <GraphTableDomTableView
               tableId={props.activeTableId}
               panelTypography={props.panelTypography}
               columns={props.columns}
               rows={props.rows}
               selectedRowIds={props.selectedRowIds}
-              focusRowId={props.inspectorRowId}
-              autoScrollToFocusRow={props.selectionSource !== 'toolbar'}
               columnVisibilityById={props.columnVisibilityById}
               filterMatch={props.filterMatch}
               filterClauses={props.filterClauses}
@@ -161,13 +159,6 @@ export function GraphTableWorkspaceLeft(props: {
               rowHeightPreset={props.rowHeightPreset}
               columnWidthsPxById={props.columnWidthsPxById}
               columnOrderIds={props.columnOrderIds}
-              onColumnWidthChanged={props.onColumnWidthChanged}
-              onRequestReorderColumn={props.onRequestReorderColumn}
-              onCellValueChanged={props.onCellValueChanged}
-              onColumnKindChanged={props.onColumnKindChanged}
-              onHideColumnInView={props.onHideColumnInView}
-              onUpsertColumnFilter={props.onUpsertColumnFilter}
-              onSetSingleColumnSort={props.onSetSingleColumnSort}
               onRowClicked={props.onRowClicked}
               onSelectionChanged={handleSelectionChanged}
             />
@@ -177,7 +168,7 @@ export function GraphTableWorkspaceLeft(props: {
             <>
               <VerticalResizeSeparatorHr
                 ref={el => {
-                  props.inspectorDragHandleRef.current = el
+                  props.setInspectorDragHandleEl(el)
                 }}
                 ariaLabel="Resize inspector"
               />

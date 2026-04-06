@@ -4,8 +4,6 @@ import { FileText, GitMerge, Table, Tags } from 'lucide-react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
-import { isWorkspaceTableOpen, openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
-import { WORKSPACE_TABLE_TOOLBAR_UI } from '@/features/workspace-table/workspaceTableToolbarUi'
 
 type DocumentModeSelectProps = {
   iconSizeClass: string
@@ -23,10 +21,6 @@ export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
     setDocumentSemanticMode,
     setFrontmatterModeEnabled,
     setMultiDimTableModeEnabled,
-    workspaceViewMode,
-    editorWorkspacePane,
-    setWorkspaceViewMode,
-    setEditorWorkspacePane,
   } = useGraphStore(
     useShallow(s => ({
       documentSemanticMode: s.documentSemanticMode || 'document',
@@ -35,10 +29,6 @@ export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
       setDocumentSemanticMode: s.setDocumentSemanticMode,
       setFrontmatterModeEnabled: s.setFrontmatterModeEnabled,
       setMultiDimTableModeEnabled: s.setMultiDimTableModeEnabled,
-      workspaceViewMode: s.workspaceViewMode,
-      editorWorkspacePane: s.editorWorkspacePane,
-      setWorkspaceViewMode: s.setWorkspaceViewMode,
-      setEditorWorkspacePane: s.setEditorWorkspacePane,
     })),
   )
 
@@ -73,8 +63,8 @@ export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
         },
         {
           value: 'multiDimTable' as const,
-          label: WORKSPACE_TABLE_TOOLBAR_UI.label,
-          tooltip: WORKSPACE_TABLE_TOOLBAR_UI.optionTooltip,
+          label: UI_LABELS.multiDimTableMode,
+          tooltip: UI_COPY.multiDimTableModeTooltip,
           Icon: Table,
         },
       ] satisfies Array<{
@@ -87,18 +77,7 @@ export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
   )
 
   const activeOption = options.find(o => o.value === activeMode) || options[0]
-  const tableWorkspaceOpen = isWorkspaceTableOpen({ workspaceViewMode, editorWorkspacePane })
-  const triggerTooltip =
-    activeMode === 'multiDimTable'
-      ? tableWorkspaceOpen
-        ? WORKSPACE_TABLE_TOOLBAR_UI.openedTooltip
-        : WORKSPACE_TABLE_TOOLBAR_UI.closedTooltip
-      : activeOption.tooltip
-
-  React.useEffect(() => {
-    if (!multiDimTableModeEnabled) return
-    openWorkspaceTable({ workspaceViewMode, editorWorkspacePane, setWorkspaceViewMode, setEditorWorkspacePane })
-  }, [editorWorkspacePane, multiDimTableModeEnabled, setEditorWorkspacePane, setWorkspaceViewMode, workspaceViewMode])
+  const triggerTooltip = activeOption.tooltip
 
   const applyMode = React.useCallback(
     (next: DocumentModeValue) => {
@@ -121,19 +100,14 @@ export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
         return
       }
       setMultiDimTableModeEnabled(true)
-      openWorkspaceTable({ workspaceViewMode, editorWorkspacePane, setWorkspaceViewMode, setEditorWorkspacePane })
     },
     [
-      editorWorkspacePane,
       ensureBaselineUnlocked,
       frontmatterModeEnabled,
       multiDimTableModeEnabled,
-      setEditorWorkspacePane,
       setDocumentSemanticMode,
       setFrontmatterModeEnabled,
       setMultiDimTableModeEnabled,
-      setWorkspaceViewMode,
-      workspaceViewMode,
     ],
   )
 

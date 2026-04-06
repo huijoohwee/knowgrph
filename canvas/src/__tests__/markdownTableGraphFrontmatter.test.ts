@@ -9,10 +9,10 @@ export function testMarkdownTableGraphFrontmatterDerivationFromAirvioStyleTable(
     '',
     '| Task | Status | Date | Category |',
     '| --- | --- | --- | --- |',
-    '| Try the Infinite Canvas | Done | 2023-08-01 | A,1 |',
-    '| Observe what airvio can do | Doing | 2023-08-02 | B,2 |',
-    '| Visit airvio | Done | 2023-08-03 | 1,Y |',
-    '| Invite and collaborate | Todo | 2023-08-08 | 2,Z |',
+    '| Try the Infinite Canvas | Done | 2023-08-01 | `["A","1"]` |',
+    '| Observe what airvio can do | Doing | 2023-08-02 | `["B","2"]` |',
+    '| Visit airvio | Done | 2023-08-03 | `["1","Y"]` |',
+    '| Invite and collaborate | Todo | 2023-08-08 | `["2","Z"]` |',
     '',
   ].join('\n')
 
@@ -76,7 +76,7 @@ export function testMarkdownTableGraphFrontmatterDerivationWithoutWorkspaceConfi
     '',
     '| Task | Status | Category |',
     '| --- | --- | --- |',
-    '| Keep D3 table visible | Doing | A,1 |',
+    '| Keep D3 table visible | Doing | `["A","1"]` |',
     '',
   ].join('\n')
 
@@ -95,7 +95,7 @@ export function testMarkdownTableGraphFrontmatterDerivationForceEnabledIgnoresSt
     '',
     '| Task | Status | Category |',
     '| --- | --- | --- |',
-    '| Keep visible when disabled | Doing | A,1 |',
+    '| Keep visible when disabled | Doing | `["A","1"]` |',
     '',
   ].join('\n')
 

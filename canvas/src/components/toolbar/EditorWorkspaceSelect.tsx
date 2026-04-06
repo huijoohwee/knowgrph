@@ -6,6 +6,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 import { isWorkspaceTableOpen, openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
 import { WORKSPACE_TABLE_TOOLBAR_UI } from '@/features/workspace-table/workspaceTableToolbarUi'
+import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
 
 type EditorWorkspaceSelectProps = {
   iconSizeClass: string
@@ -71,9 +72,19 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth }: Editor
   const apply = React.useCallback(
     (key: EditorWorkspaceOptionKey) => {
       if (key === 'multiDimTable') {
+        const snap = workspaceTablePreferencesStore.getSnapshot()
+        if (snap.workspaceEditorMode !== 'multiDimTable') {
+          workspaceTablePreferencesStore.setWorkspaceEditorMode('multiDimTable')
+        }
         openWorkspaceTable({ workspaceViewMode, editorWorkspacePane, setWorkspaceViewMode, setEditorWorkspacePane })
         return
       }
+
+      const snap = workspaceTablePreferencesStore.getSnapshot()
+      if (snap.workspaceEditorMode === 'multiDimTable') {
+        workspaceTablePreferencesStore.setWorkspaceEditorMode('table')
+      }
+
       if (workspaceViewMode !== 'editor') setWorkspaceViewMode('editor')
       setEditorWorkspacePane('markdown')
     },

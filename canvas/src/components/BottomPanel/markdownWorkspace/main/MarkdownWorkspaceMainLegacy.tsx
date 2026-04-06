@@ -189,7 +189,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   }, [viewerKind])
 
   React.useEffect(() => {
-    if (viewerMode === 'read') lsSetJson(LS_KEYS.markdownDerivedViewerMode, viewerMode)
+    lsSetJson(LS_KEYS.markdownDerivedViewerMode, viewerMode)
   }, [viewerMode])
   React.useEffect(() => {
     if (layoutMode !== 'viewer') return
@@ -208,17 +208,20 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   React.useEffect(() => {
     setViewerMode(prev => {
       if (prev === 'read') return prev
-      if (prev === 'multiDimTable' && workspaceEditorMode === 'table') return prev
-      if (prev === 'kanban' && workspaceEditorMode === 'table') return prev
       return prev === workspaceEditorMode ? prev : workspaceEditorMode
     })
   }, [workspaceEditorMode])
 
-  React.useEffect(() => {
-    if (viewerMode === 'read') return
-    if (viewerMode === workspaceEditorMode) return
-    workspaceTablePreferencesStore.setWorkspaceEditorMode(viewerMode)
-  }, [viewerMode, workspaceEditorMode])
+  const handleSetViewerMode = React.useCallback(
+    (next: MarkdownWorkspaceDerivedViewerMode) => {
+      setViewerMode(prev => (prev === next ? prev : next))
+      if (next === 'read') return
+      if (next !== workspaceEditorMode) {
+        workspaceTablePreferencesStore.setWorkspaceEditorMode(next)
+      }
+    },
+    [workspaceEditorMode],
+  )
 
   const viewerKindOptions = React.useMemo<Array<MarkdownWorkspaceDerivedViewerKind>>(
     () => ['markdown', 'json'],
@@ -593,7 +596,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         viewerKindOptions,
         setViewerKind,
         viewerMode,
-        setViewerMode,
+        setViewerMode: handleSetViewerMode,
         onSaveAs,
         onExportWorkspaceFile: handleExportWorkspaceFile,
         onExportMarkdown: handleExportMarkdown,

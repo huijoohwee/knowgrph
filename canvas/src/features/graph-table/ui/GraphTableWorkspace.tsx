@@ -101,8 +101,6 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   } =
     useGraphStore(useShallow(selector))
   const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
-  const multiDimTableModeEnabled = useGraphStore(s => s.multiDimTableModeEnabled === true)
-  const setMultiDimTableModeEnabled = useGraphStore(s => s.setMultiDimTableModeEnabled)
   const [activeTableId, setActiveTableId] = useState<GraphTableId>('nodes')
   const [viewMode, setViewMode] = useState<GraphTableViewMode>(() => {
     const mode = workspaceTablePreferencesStore.getSnapshot().workspaceEditorMode
@@ -144,7 +142,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   )
   const inspectorWidthPxRef = useRef(inspectorWidthPx)
   inspectorWidthPxRef.current = inspectorWidthPx
-  const inspectorDragHandleRef = useRef<HTMLHRElement | null>(null)
+  const [inspectorDragHandleEl, setInspectorDragHandleEl] = useState<HTMLHRElement | null>(null)
   const collapsedGroupIdsKey = useMemo(() => {
     return buildCollapsedGroupIdsKey(collapsedGroupIds)
   }, [collapsedGroupIds])
@@ -156,6 +154,10 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   }, [baseGraphData, collapsedGroupIdsKey])
 
   const handleCloseWorkspace = useCallback(() => {
+    const snap = workspaceTablePreferencesStore.getSnapshot()
+    if (snap.workspaceEditorMode === 'multiDimTable') {
+      workspaceTablePreferencesStore.setWorkspaceEditorMode('table')
+    }
     setEditorWorkspacePane('markdown')
   }, [setEditorWorkspacePane])
 
@@ -188,6 +190,25 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   const rowCacheRef = useRef<
     Map<GraphTableId, { hashById: Map<string, number>; rowById: Map<string, GraphTableGridRow> }>
   >(new Map())
+
+  const didAutoSeedForKeyRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (!active) return
+    if (canvasWorkspaceSyncMode !== 'manual') return
+    if (!syncGraphData) return
+    if (columns.length > 0 || rows.length > 0) return
+    const seedKey = `${activeTableId}|${graphSyncRevision}|${collapsedGroupIdsKey}`
+    if (didAutoSeedForKeyRef.current.has(seedKey)) return
+    didAutoSeedForKeyRef.current.add(seedKey)
+    void (async () => {
+      try {
+        await syncGraphDataToGraphTableDb(syncGraphData)
+      } catch {
+        void 0
+      }
+    })()
+  }, [active, activeTableId, canvasWorkspaceSyncMode, collapsedGroupIdsKey, columns.length, graphSyncRevision, rows.length, syncGraphData])
 
   useEffect(() => {
     if (!active) return
@@ -261,6 +282,18 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
         }
       }
       setRows(nextRows)
+
+      if (canvasWorkspaceSyncMode === 'manual' && initialCols.length === 0 && initialRows.length === 0 && syncGraphData) {
+        const seedKey = `${activeTableId}|${graphSyncRevision}|${collapsedGroupIdsKey}`
+        if (!didAutoSeedForKeyRef.current.has(seedKey)) {
+          didAutoSeedForKeyRef.current.add(seedKey)
+          try {
+            await syncGraphDataToGraphTableDb(syncGraphData)
+          } catch {
+            void 0
+          }
+        }
+      }
 
       sub = collections.columns.$.subscribe((ev: RxChangeEvent<GraphColumnDoc>) => {
         const doc = ev.documentData
@@ -339,11 +372,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   useEffect(() => {
     const next = workspaceEditorMode === 'kanban' ? 'kanban' : 'table'
     setViewMode(prev => (prev === next ? prev : next))
-    const shouldEnableMultiDim = workspaceEditorMode === 'multiDimTable'
-    if (multiDimTableModeEnabled !== shouldEnableMultiDim) {
-      setMultiDimTableModeEnabled(shouldEnableMultiDim)
-    }
-  }, [multiDimTableModeEnabled, setMultiDimTableModeEnabled, workspaceEditorMode])
+  }, [workspaceEditorMode])
 
   const persistGraphTableViewStatePendingRef = useRef<{
     columnVisibilityById: GraphTableColumnVisibilityById
@@ -408,17 +437,15 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       setViewMode(next)
       if (next === 'kanban') {
         workspaceTablePreferencesStore.setWorkspaceEditorMode('kanban')
-        if (multiDimTableModeEnabled) setMultiDimTableModeEnabled(false)
         return
       }
       workspaceTablePreferencesStore.setWorkspaceEditorMode('table')
-      if (multiDimTableModeEnabled) setMultiDimTableModeEnabled(false)
     },
-    [multiDimTableModeEnabled, setMultiDimTableModeEnabled],
+    [],
   )
 
   useEffect(() => {
-    const el = inspectorDragHandleRef.current
+    const el = inspectorDragHandleEl
     if (!el) return
     const onDown = (ev: PointerEvent) => {
       if (ev.button !== undefined && ev.button !== 0) return
@@ -450,7 +477,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
     }
     el.addEventListener('pointerdown', onDown)
     return () => el.removeEventListener('pointerdown', onDown)
-  }, [])
+  }, [inspectorDragHandleEl])
 
   const selectedRow = useMemo<GraphTableInspectorRow | null>(() => {
     if (!inspectorRowId) return null
@@ -686,7 +713,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       setInspectorRowId={setInspectorRowId}
       showInspector={showInspector}
       inspectorWidthPx={inspectorWidthPx}
-      inspectorDragHandleRef={inspectorDragHandleRef}
+      setInspectorDragHandleEl={setInspectorDragHandleEl}
       selectedRow={selectedRow}
       onColumnWidthChanged={handleColumnWidthChanged}
       onRequestReorderColumn={handleRequestReorderColumn}

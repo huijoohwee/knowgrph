@@ -66,6 +66,8 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
     if (!isOpen) return
     updatePortalPosition()
 
+    const openedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
+
     let rafId: number | null = null
     const schedule = () => {
       if (rafId != null) return
@@ -80,6 +82,8 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
       close()
     }
     const onPointerDown = (e: PointerEvent) => {
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
+      if (now - openedAt < 120) return
       const target = e.target as Node | null
       const details = detailsRef.current
       const portalRoot = portalRootRef.current
@@ -111,6 +115,7 @@ export const DetailsMenu = React.memo(function DetailsMenu(props: DetailsMenuPro
         setIsOpen(next)
         if (next && props.portal) {
           try {
+            updatePortalPosition()
             requestAnimationFrame(() => updatePortalPosition())
           } catch {
             void 0

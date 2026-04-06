@@ -156,6 +156,7 @@ export const UI_LABELS = {
   mermaidFocus: 'Mermaid Focus',
   status: 'Status',
   editor: 'Editor',
+  workspaceGraphDataTable: 'Workspace: Multi-dimensional Table',
   graphDataTable: 'Multi-dimensional Table',
   nodeShapeMode: 'Node Shape',
   groupShapeRect: 'Cluster Shape: Rect',

@@ -7,6 +7,7 @@ import {
   readWorkspaceDataViewStateWithMeta,
   type WorkspaceDataViewGraphColumnRole,
 } from '@/components/BottomPanel/markdownWorkspace/main/viewer/workspaceDataViewConfig'
+import { normalizeTableCellText, toTableCellStringArray } from '@/lib/markdown/tableCellConventions'
 
 type TableNodeLike = {
   id?: unknown
@@ -50,15 +51,6 @@ const hashTableContentToHex = (header: string[], rows: string[][]): string => {
 }
 
 const normalizeText = (v: unknown): string => String(v ?? '').replace(/\s+/g, ' ').trim()
-
-const splitMulti = (raw: string): string[] => {
-  const s = normalizeText(raw)
-  if (!s) return []
-  return s
-    .split(',')
-    .map(x => normalizeText(x))
-    .filter(Boolean)
-}
 
 const readStringArrayProp = (props: unknown, key: string): string[] => {
   if (!props || typeof props !== 'object' || Array.isArray(props)) return []
@@ -247,7 +239,7 @@ export function deriveMarkdownTableGraphForFrontmatterMode(args: DeriveArgs): Gr
 
     for (let rIdx = 0; rIdx < rows.length; rIdx += 1) {
       const row = rows[rIdx]!
-      const label = normalizeText(row[nodeColIndex] ?? '')
+      const label = normalizeTableCellText(row[nodeColIndex] ?? '')
       if (!label) continue
       const labelKey = label.toLowerCase()
       if (nodeIdByLabelKey.has(labelKey)) continue
@@ -257,14 +249,14 @@ export function deriveMarkdownTableGraphForFrontmatterMode(args: DeriveArgs): Gr
       for (let cIdx = 0; cIdx < header.length; cIdx += 1) {
         const colName = normalizeText(header[cIdx] ?? '') || `Column ${cIdx + 1}`
         const key = `md:table:${normalizePropertyKey(colName)}`
-        const raw = normalizeText(row[cIdx] ?? '')
+        const raw = normalizeTableCellText(row[cIdx] ?? '')
         if (!raw) continue
         const role = cfg.rolesByColumnId[`col_${cIdx}`] || 'none'
-        props[key] = role === 'group' ? (splitMulti(raw) as unknown as JSONValue) : raw
+        props[key] = role === 'group' ? (toTableCellStringArray(raw) as unknown as JSONValue) : raw
       }
 
       if (colorColIndex >= 0) {
-        const status = normalizeText(row[colorColIndex] ?? '')
+        const status = normalizeTableCellText(row[colorColIndex] ?? '')
         const fill = statusToFill(status)
         if (fill) props['visual:fill'] = fill
         if (status) props['md:table:status'] = status
@@ -299,7 +291,7 @@ export function deriveMarkdownTableGraphForFrontmatterMode(args: DeriveArgs): Gr
     const seenEdgeId = new Set<string>()
     for (let rIdx = 0; rIdx < rows.length; rIdx += 1) {
       const row = rows[rIdx]!
-      const srcLabel = normalizeText(row[nodeColIndex] ?? '')
+      const srcLabel = normalizeTableCellText(row[nodeColIndex] ?? '')
       if (!srcLabel) continue
       const srcId = nodeIdByLabelKey.get(srcLabel.toLowerCase())
       if (!srcId) continue
@@ -307,9 +299,9 @@ export function deriveMarkdownTableGraphForFrontmatterMode(args: DeriveArgs): Gr
       for (const [colId, role] of edgeCols) {
         const idx = colIndexById.get(colId) ?? -1
         if (idx < 0) continue
-        const cell = normalizeText(row[idx] ?? '')
+        const cell = normalizeTableCellText(row[idx] ?? '')
         if (!cell) continue
-        const targets = splitMulti(cell)
+        const targets = toTableCellStringArray(cell)
         for (const t of targets) {
           const tgtId = ensurePlaceholderNode(t)
           let source = srcId
@@ -342,7 +334,9 @@ export function deriveMarkdownTableGraphForFrontmatterMode(args: DeriveArgs): Gr
         const colName = normalizeText(header[idx] ?? '') || `col_${idx}`
         const key = `md:table:${normalizePropertyKey(colName)}`
         const raw = nodeProps[key]
-        const vals = Array.isArray(raw) ? raw.map(x => normalizeText(x)).filter(Boolean) : splitMulti(String(raw ?? ''))
+        const vals = Array.isArray(raw)
+          ? raw.map(x => normalizeTableCellText(x)).filter(Boolean)
+          : toTableCellStringArray(String(raw ?? ''))
         for (const v of vals) {
           const groupId = makeStableId('sg', `${tableKey}|${colName}|${v.toLowerCase()}`)
           const label = colName.trim().toLowerCase() === 'category' ? v : `${colName}: ${v}`

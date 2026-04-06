@@ -220,7 +220,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   }, [])
 
   const editorRef = React.useRef<MonacoTextEditorHandle | null>(null)
-  const resizeHandleRef = React.useRef<HTMLHRElement | null>(null)
+  const [resizeHandleEl, setResizeHandleEl] = React.useState<HTMLHRElement | null>(null)
   const workspaceRootRef = React.useRef<HTMLElement | null>(null)
   const presentationApiRef = React.useRef<MarkdownPresentationApi | null>(null)
 
@@ -1148,7 +1148,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   }, [sidebarWidthPx])
 
   React.useEffect(() => {
-    const el = resizeHandleRef.current
+    const el = resizeHandleEl
     if (!el) return
     const onDown = (ev: PointerEvent) => {
       if (ev.button !== undefined && ev.button !== 0) return
@@ -1174,7 +1174,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     }
     el.addEventListener('pointerdown', onDown)
     return () => el.removeEventListener('pointerdown', onDown)
-  }, [])
+  }, [resizeHandleEl])
 
   const filteredEntries = React.useMemo(() => {
     const q = String(search || '').trim().toLowerCase()
@@ -2582,7 +2582,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
             renderSourceFileRight={renderSourceFileRight}
           />
 
-          <VerticalResizeSeparatorHr ref={resizeHandleRef} ariaLabel="Resize explorer" />
+          <VerticalResizeSeparatorHr ref={setResizeHandleEl} ariaLabel="Resize explorer" />
         </>
       ) : null}
 

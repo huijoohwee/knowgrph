@@ -24,7 +24,7 @@ import {
   writeWorkspaceCellSelectPanelPlacement,
 } from '@/features/workspace-table/cellSelectPanelPlacement'
 
-const WORKSPACE_TABLE_PREFS_EVENT = 'kg:workspace-table-prefs:changed'
+import { WORKSPACE_TABLE_PREFS_EVENT } from '@/features/workspace-table/workspaceTablePreferencesEvents'
 
 export type WorkspaceTablePreferencesSnapshot = {
   workspaceEditorMode: WorkspaceEditorMode

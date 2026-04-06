@@ -1,16 +1,16 @@
+import { toTableCellStringArray } from '@/lib/markdown/tableCellConventions'
+
 export const splitMultiValues = (raw: string): string[] => {
-  const s = String(raw ?? '')
-    .split(',')
-    .map(x => String(x ?? '').replace(/\s+/g, ' ').trim())
-    .filter(Boolean)
+  const vals = toTableCellStringArray(raw)
   const seen = new Set<string>()
   const out: string[] = []
-  for (const v of s) {
-    const key = v.toLowerCase()
+  for (const v of vals) {
+    const s = String(v ?? '').replace(/\s+/g, ' ').trim()
+    if (!s) continue
+    const key = s.toLowerCase()
     if (seen.has(key)) continue
     seen.add(key)
-    out.push(v)
+    out.push(s)
   }
   return out
 }
-

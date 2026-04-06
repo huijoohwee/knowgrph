@@ -33,6 +33,7 @@ const modMarkdownValidationExternalFile = () => import('@/__tests__/markdownVali
 const modMarkdownTemplateVarsInBlockquoteAndTable = () => import('@/__tests__/markdownTemplateVarsInBlockquoteAndTable.test')
 const modMarkdownDataViewRoundTrip = () => import('@/__tests__/markdownDataViewRoundTrip.test')
 const modMarkdownDataViewSourceMap = () => import('@/__tests__/markdownDataViewSourceMap.test')
+const modMarkdownDataViewInlineEditParity = () => import('@/__tests__/markdownDataViewInlineEditParity.test')
 const modMarkdownEdgelessLayout = () => import('@/__tests__/markdownEdgelessLayout.test')
 const modFlowGroupAabbIncludesMembersWhenBoundsExplicit = () => import('@/__tests__/flowGroupAabbIncludesMembersWhenBoundsExplicit.test')
 const modFlowCanvasFrontmatterFlowPortHandlesEnabledRegression = () => import('@/__tests__/flowCanvasFrontmatterFlowPortHandlesEnabledRegression.test')
@@ -44,11 +45,22 @@ const modGraphDataTableCellSelectOverlay = () => import('@/__tests__/graphDataTa
 const modMarkdownStickyHeadingScrollPadding = () => import('@/__tests__/markdownStickyHeadingScrollPadding.test')
 const modMarkdownScrollUtils = () => import('@/__tests__/markdownScrollUtils.test')
 const modMarkdownViewerInlineEditHeadingWysiwyg = () => import('@/__tests__/markdownViewerInlineEditHeadingWysiwyg.test')
+const modMarkdownViewerInlineEditParagraphWysiwyg = () => import('@/__tests__/markdownViewerInlineEditParagraphWysiwyg.test')
 const modMarkdownViewerMdDemoSweepLex = () => import('@/__tests__/markdownViewerMdDemoSweepLex.test')
 const modMarkdownViewerInlineEditConfig = () => import('@/__tests__/markdownViewerInlineEditConfig.test')
 const modMarkdownViewerInlineEditMixedSequence = () => import('@/__tests__/markdownViewerInlineEditMixedSequence.test')
 const modMarkdownViewerListInlineEditNoEdgeRows = () => import('@/__tests__/markdownViewerListInlineEditNoEdgeRows.test')
 const modMarkdownViewerInlineEditTableReadOnlySurface = () => import('@/__tests__/markdownViewerInlineEditTableReadOnlySurface.test')
+const modMultiDimTableGuidelines = () => import('@/__tests__/multiDimTableGuidelines.test')
+const modToolbarWorkspaceSelectCollapsed = () => import('@/__tests__/toolbarWorkspaceSelectCollapsed.test')
+const modGraphTableToolbarMenuPortal = () => import('@/__tests__/graphTableToolbarMenuPortal.test')
+const modOverlayZIndexOrdering = () => import('@/__tests__/overlayZIndexOrdering.test')
+const modGraphTableCloseExitsMultiDimMode = () => import('@/__tests__/graphTableCloseExitsMultiDimMode.test')
+const modEditorWorkspaceSelectExitsMultiDimMode = () => import('@/__tests__/editorWorkspaceSelectExitsMultiDimMode.test')
+const modEditorWorkspaceSelectEntersMultiDimMode = () => import('@/__tests__/editorWorkspaceSelectEntersMultiDimMode.test')
+const modGraphTableAutoSeedOnOpen = () => import('@/__tests__/graphTableAutoSeedOnOpen.test')
+const modWorkspaceResizerHandlersAttachAfterMount = () => import('@/__tests__/workspaceResizerHandlersAttachAfterMount.test')
+const modDocumentModeSelectMultiDimIsCanvasMode = () => import('@/__tests__/documentModeSelectMultiDimIsCanvasMode.test')
 
 export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'workspaceFs.seedAndCrud', async () => {
@@ -139,6 +151,10 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modMarkdownDataViewRoundTrip()
     await mod.testMarkdownDataViewEditsRoundTripToMarkdownTable()
   })
+  await execTest(results, 'markdown.dataView.inlineEdit.textCell.parityAndCommit', async () => {
+    const mod = await modMarkdownDataViewInlineEditParity()
+    await mod.testMarkdownDataViewInlineEditTextCellPreservesTdSurfaceAndCommits()
+  })
   await execTest(results, 'markdown.dataViewSourceMap.rowIndexParsing', async () => {
     const mod = await modMarkdownDataViewSourceMap()
     await mod.testMarkdownDataViewRowIndexParsing()
@@ -189,9 +205,57 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modMarkdownViewerInlineEditHeadingWysiwyg()
     await mod.testMarkdownViewerInlineEditHeadingUsesHtmlEditingAndPreservesHeight()
   })
+  await execTest(results, 'markdown.viewer.inlineEdit.paragraph.wysiwyg.noBlockInsideP', async () => {
+    const mod = await modMarkdownViewerInlineEditParagraphWysiwyg()
+    await mod.testMarkdownViewerInlineEditParagraphDoesNotInsertBlockElementsIntoP()
+  })
   await execTest(results, 'markdown.viewer.sweep.mdDemo.lexesAndLineRanges', async () => {
     const mod = await modMarkdownViewerMdDemoSweepLex()
     mod.testMarkdownViewerMdDemoSweepLexesAndHasLineRanges()
+  })
+  await execTest(results, 'markdown.multiDimTable.guidelines.backtickJsonArrays', async () => {
+    const mod = await modMultiDimTableGuidelines()
+    mod.testMultiDimTableGuidelinesBacktickJsonArraysAreRespected()
+  })
+  await execTest(results, 'markdown.multiDimTable.guidelines.externalFile.sampleTable', async () => {
+    const mod = await modMultiDimTableGuidelines()
+    mod.testMultiDimTableGuidelinesExternalFileParsesSampleTableWhenPresent()
+  })
+  await execTest(results, 'toolbar.workspaceSelect.visibleWhenCollapsed', async () => {
+    const mod = await modToolbarWorkspaceSelectCollapsed()
+    mod.testToolbarCollapsedStillRendersWorkspaceSelect()
+  })
+  await execTest(results, 'graphTable.toolbar.menus.portalToAvoidClipping', async () => {
+    const mod = await modGraphTableToolbarMenuPortal()
+    mod.testGraphTableToolbarUsesPortalMenusToAvoidClipping()
+  })
+  await execTest(results, 'ui.overlay.zIndex.ordering', async () => {
+    const mod = await modOverlayZIndexOrdering()
+    mod.testAnchorOverlayZIndexIsAboveFloatingPanels()
+  })
+  await execTest(results, 'graphTable.close.exitsMultiDimMode', async () => {
+    const mod = await modGraphTableCloseExitsMultiDimMode()
+    mod.testClosingGraphTableResetsWorkspaceEditorModeWithoutTouchingCanvasModes()
+  })
+  await execTest(results, 'toolbar.workspaceSelect.exitsMultiDimMode', async () => {
+    const mod = await modEditorWorkspaceSelectExitsMultiDimMode()
+    mod.testEditorWorkspaceSelectExitsMultiDimModeWhenSelectingEditor()
+  })
+  await execTest(results, 'toolbar.workspaceSelect.entersMultiDimMode', async () => {
+    const mod = await modEditorWorkspaceSelectEntersMultiDimMode()
+    mod.testEditorWorkspaceSelectEntersMultiDimModeWhenSelectingMultiDimTable()
+  })
+  await execTest(results, 'toolbar.documentMode.multiDim.isCanvasMode', async () => {
+    const mod = await modDocumentModeSelectMultiDimIsCanvasMode()
+    mod.testDocumentModeSelectMultiDimIsCanvasModeOnly()
+  })
+  await execTest(results, 'graphTable.autoSeed.manualMode.emptyDb', async () => {
+    const mod = await modGraphTableAutoSeedOnOpen()
+    mod.testGraphTableAutoSeedsWhenManualAndDbEmpty()
+  })
+  await execTest(results, 'workspace.resizers.attachHandlers.afterMount', async () => {
+    const mod = await modWorkspaceResizerHandlersAttachAfterMount()
+    mod.testWorkspaceResizerHandlersAttachAfterMount()
   })
   await execTest(results, 'markdown.viewer.inlineEdit.config.imagesTasksHrTable', async () => {
     const mod = await modMarkdownViewerInlineEditConfig()

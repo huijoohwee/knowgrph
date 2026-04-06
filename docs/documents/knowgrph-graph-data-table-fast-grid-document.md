@@ -36,7 +36,7 @@
   - Prefers `rxdb/plugins/storage-localstorage` when `globalThis.localStorage` is available.
   - Falls back to `rxdb/plugins/storage-memory` when localStorage is unavailable (for example in tests).
   - Enables the RxDB query-builder plugin for indexed queries and sort/filter operations.
-- **Multi-dimensional Table semantics**:
+- **Multi-dimensional Table semantics (Workspace)**:
   - Dimension 1: logical tables (`GraphTableId∈{nodes,edges}`) for node and edge rows.
   - Dimension 2: property columns inferred from `GraphData` properties; base columns (`id`, `label`, `type`, `source`, `target`) are seeded via `ensureGraphTableSeed`.
   - Dimension 3: saved views (`GraphViewDoc`) that hold sort/filter JSON, plus `GraphMetaDoc` for per-workspace sync metadata.
@@ -47,6 +47,7 @@
 ## Data Sync (Import → RxDB → Grid)
 
 - **Source of truth**: Graph import commits `GraphData` into the store; the Graph Data Table (Multi-dimensional Table workspace view) mirrors the store via the RxDB-backed `GraphTableDb` materialized view.
+  - Document Mode “Multi-dimensional Table Mode” is a Canvas layout mode and must not be treated as an entry point into the Graph Data Table workspace; only Workspace toolbar “Workspace: Multi-dimensional Table” may open or configure this table view.
 - **Sync key**: table sync is keyed by a `(revision, collapsedGroupIdsKey)` pair plus a per-view `viewKey`:
   - In **Static** Canvas Interaction Mode, the revision is `graphContentRevision` (structure-only) so position-only drags do not cause table recomputation.
   - In **Interactive** Canvas Interaction Mode, the revision is `graphDataRevision` so table rows can reflect position-affecting edits when real-time sync is enabled.

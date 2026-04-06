@@ -3,20 +3,12 @@ import { X, MoreHorizontal, Check } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import { resolveDataViewChipClass } from './MarkdownDataViewChips'
+import { toTableCellStringArray } from '@/lib/markdown/tableCellConventions'
 
 const normalizeTagText = (raw: string): string => {
   return String(raw ?? '')
     .replace(/\s+/g, ' ')
     .trim()
-}
-
-const splitTags = (raw: string): string[] => {
-  const s = normalizeTagText(raw)
-  if (!s) return []
-  return s
-    .split(',')
-    .map(normalizeTagText)
-    .filter(Boolean)
 }
 
 const uniqueTags = (vals: string[]): string[] => {
@@ -45,7 +37,7 @@ export type MarkdownDataViewMultiTagSelectProps = {
 export const MarkdownDataViewMultiTagSelect = React.memo(function MarkdownDataViewMultiTagSelect(
   props: MarkdownDataViewMultiTagSelectProps,
 ) {
-  const selected = React.useMemo(() => uniqueTags(splitTags(props.value)), [props.value])
+  const selected = React.useMemo(() => uniqueTags(toTableCellStringArray(props.value)), [props.value])
   const selectedSet = React.useMemo(() => new Set(selected.map(s => s.toLowerCase())), [selected])
   const [query, setQuery] = React.useState('')
 
@@ -72,7 +64,15 @@ export const MarkdownDataViewMultiTagSelect = React.memo(function MarkdownDataVi
   const apply = React.useCallback(
     (nextTags: string[]) => {
       const next = uniqueTags(nextTags)
-      props.onChange(next.join(', '))
+      if (next.length <= 0) {
+        props.onChange('')
+        return
+      }
+      if (next.length === 1) {
+        props.onChange(next[0] || '')
+        return
+      }
+      props.onChange(`\`${JSON.stringify(next)}\``)
     },
     [props],
   )

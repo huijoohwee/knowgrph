@@ -14,8 +14,8 @@ import type {
 } from '@/features/graph-table/ui/graphTableViewState'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { CanvasCellEditor, type CanvasCellEditorState } from '@/features/graph-table/ui/fast-grid/CanvasCellEditor'
-import { clamp } from '@/features/graph-table/ui/fast-grid/fastGridMath'
-import { drawGrid, getCellText, hitTest, readGridTheme, type GridTheme } from '@/features/graph-table/ui/fast-grid/canvasGridRender'
+import { clamp, getVisibleColumnsRange, getVisibleRange } from '@/features/graph-table/ui/fast-grid/fastGridMath'
+import { drawGrid, getCellText, getCellTextByKind, hitTest, readGridTheme, type GridTheme } from '@/features/graph-table/ui/fast-grid/canvasGridRender'
 import { useGraphTableGridModel } from '@/features/graph-table/ui/fast-grid/useGraphTableGridModel'
 import { DateCellEditor, type DateCellEditorState } from '@/features/graph-table/ui/fast-grid/DateCellEditor'
 import { GraphTableFastGridHeader } from '@/features/graph-table/ui/GraphTableFastGridHeader'
@@ -52,6 +52,7 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
   const scrollRef = useRef({ left: 0, top: 0 })
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const viewportRef = useRef<HTMLElement | null>(null)
+  const [viewportClientHeight, setViewportClientHeight] = useState(0)
   const headerScrollableContentRef = useRef<HTMLDivElement | null>(null)
   const headerRafRef = useRef<number | null>(null)
   const selectAllRef = useRef<HTMLInputElement | null>(null)
@@ -75,6 +76,16 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
       setOverlayTick(v => v + 1)
     })
   }, [editor])
+
+  const [gridOverlayTick, setGridOverlayTick] = useState(0)
+  const gridOverlayRafRef = useRef<number | null>(null)
+  const bumpGridOverlayTick = React.useCallback(() => {
+    if (gridOverlayRafRef.current != null) return
+    gridOverlayRafRef.current = window.requestAnimationFrame(() => {
+      gridOverlayRafRef.current = null
+      setGridOverlayTick(v => v + 1)
+    })
+  }, [])
 
   const rowHeight = props.rowHeightPreset === 'compact' ? 22 : 28
   const headerHeight = rowHeight
@@ -122,6 +133,7 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
       const viewportW = Math.max(1, viewportEl.clientWidth)
       const viewportH = Math.max(1, viewportEl.clientHeight)
       setViewportClientWidth(prev => (prev === viewportW ? prev : viewportW))
+      setViewportClientHeight(prev => (prev === viewportH ? prev : viewportH))
       const targetW = Math.max(viewportW, Math.floor(m.layout.totalWidth))
       const targetH = Math.max(viewportH, Math.floor(m.layout.totalHeight))
       const nextW = `${targetW}px`
@@ -162,6 +174,102 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
       })
     })
   }, [])
+
+  const domOverlayCells = useMemo(() => {
+    void gridOverlayTick
+    const w = viewportClientWidth
+    const h = viewportClientHeight
+    if (w <= 0 || h <= 0) return [] as Array<
+      | { kind: 'cell'; key: string; left: number; top: number; width: number; height: number; text: string; tone?: 'primary' | 'secondary' }
+      | { kind: 'group'; key: string; left: number; top: number; width: number; height: number; text: string }
+    >
+
+    const m = model
+    const scrollLeft = scrollRef.current.left
+    const scrollTop = scrollRef.current.top
+
+    const colRange = getVisibleColumnsRange({
+      offsets: m.layout.scrollableOffsets,
+      startPx: scrollLeft,
+      viewportPx: Math.max(0, w - m.layout.pinnedWidth),
+      overscan: 1,
+    })
+    const rowRange = getVisibleRange({
+      startPx: scrollTop,
+      viewportPx: Math.max(0, h - headerHeight),
+      itemSizePx: rowHeight,
+      itemCount: m.displayRows.length,
+      overscan: 3,
+    })
+
+    const out: Array<
+      | { kind: 'cell'; key: string; left: number; top: number; width: number; height: number; text: string; tone?: 'primary' | 'secondary' }
+      | { kind: 'group'; key: string; left: number; top: number; width: number; height: number; text: string }
+    > = []
+
+    for (let r = rowRange.start; r < rowRange.end; r += 1) {
+      const item = m.displayRows[r]
+      if (!item) continue
+      const y = headerHeight + r * rowHeight - scrollTop
+      if (y + rowHeight < headerHeight || y > h) continue
+      if (item.kind === 'group') {
+        const left = m.layout.pinnedWidth - scrollLeft
+        out.push({
+          kind: 'group',
+          key: `g:${r}:${item.label}`,
+          left,
+          top: y,
+          width: Math.max(80, m.layout.totalWidth - m.layout.pinnedWidth),
+          height: rowHeight,
+          text: `${item.label} (${item.count})`,
+        })
+        continue
+      }
+
+      let pinnedX = 0
+      for (const col of m.layout.pinned) {
+        const x = pinnedX
+        const cellW = col.width
+        if (col.kind === 'order') {
+          const text = String((item.row as any).__order ?? '')
+          if (text) {
+            out.push({
+              kind: 'cell',
+              key: `p:${r}:${col.id}`,
+              left: x,
+              top: y,
+              width: cellW,
+              height: rowHeight,
+              text,
+              tone: 'secondary',
+            })
+          }
+        }
+        pinnedX += cellW
+      }
+
+      for (let c = colRange.start; c < colRange.end; c += 1) {
+        const col = m.layout.scrollable[c]
+        if (!col) continue
+        const colX = m.layout.scrollableOffsets[c] || 0
+        const x = m.layout.pinnedWidth + colX - scrollLeft
+        const raw = (item.row as unknown as Record<string, unknown>)[col.id]
+        const text = getCellTextByKind(raw, col.dataKind)
+        if (!text) continue
+        out.push({
+          kind: 'cell',
+          key: `c:${r}:${col.id}`,
+          left: x,
+          top: y,
+          width: col.width,
+          height: rowHeight,
+          text,
+          tone: 'primary',
+        })
+      }
+    }
+    return out
+  }, [gridOverlayTick, headerHeight, model, overlayTick, rowHeight, viewportClientHeight, viewportClientWidth])
 
   const computedEditorRect = useMemo(() => {
     void overlayTick
@@ -205,6 +313,7 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
       syncScrollSpacer()
       scheduleDraw()
       bumpOverlayTick()
+      bumpGridOverlayTick()
     })
     ro.observe(viewportEl)
     themeRef.current = readGridTheme(viewportEl)
@@ -220,10 +329,11 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
       if (viewportEl) themeRef.current = readGridTheme(viewportEl)
       scheduleDraw()
       bumpOverlayTick()
+      bumpGridOverlayTick()
     })
     mo.observe(root, { attributes: true, attributeFilter: ['data-theme', 'class', 'style'] })
     return () => mo.disconnect()
-  }, [bumpOverlayTick, scheduleDraw])
+  }, [bumpGridOverlayTick, bumpOverlayTick, scheduleDraw])
 
   useEffect(() => {
     scheduleDraw()
@@ -278,7 +388,6 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
         ref={canvasRef}
         className="absolute inset-0 z-0 pointer-events-none"
         aria-label="Grid canvas"
-        style={{ clipPath: `inset(${headerHeight}px 0px 0px 0px)` }}
       />
       <GraphTableFastGridHeader
         headerHeight={headerHeight}
@@ -307,7 +416,7 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
         ref={el => {
           viewportRef.current = el
         }}
-        className={`absolute inset-0 z-10 overflow-auto bg-transparent overscroll-contain ${props.panelTypography?.panelTextClass || ''} ${UI_THEME_TOKENS.text.primary}`}
+        className={`absolute inset-0 z-0 overflow-auto bg-transparent overscroll-contain ${props.panelTypography?.panelTextClass || ''} ${UI_THEME_TOKENS.text.primary}`}
         aria-label="Grid viewport"
         style={{ scrollbarGutter: 'stable' }}
         onWheelCapture={e => e.stopPropagation()}
@@ -317,6 +426,7 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
           syncHeaderScroll(el.scrollLeft)
           scheduleDraw()
           bumpOverlayTick()
+          bumpGridOverlayTick()
         }}
         onPointerMove={e => {
           const el = e.currentTarget
@@ -415,6 +525,39 @@ export function GraphTableFastGrid(props: GraphTableFastGridProps) {
           }}
           style={{ width: 1, height: 1 }}
         />
+      </section>
+
+      <section className={`absolute inset-0 z-20 pointer-events-none ${UI_THEME_TOKENS.text.primary}`} aria-hidden="true">
+        {model.layout.scrollable.length <= 0 && props.columns.length > 0 ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="rounded border px-3 py-2 bg-[var(--kg-panel-bg)] text-[color:var(--kg-text-secondary)] text-xs shadow-sm">
+              All columns hidden
+            </div>
+          </div>
+        ) : null}
+        {domOverlayCells.map(it => {
+          if (it.kind === 'group') {
+            return (
+              <div
+                key={it.key}
+                style={{ left: it.left, top: it.top, width: it.width, height: it.height, position: 'absolute' }}
+                className={`${UI_THEME_TOKENS.text.secondary} font-semibold px-2 flex items-center`}
+              >
+                <span className="truncate">{it.text}</span>
+              </div>
+            )
+          }
+          const toneClass = it.tone === 'secondary' ? UI_THEME_TOKENS.text.secondary : UI_THEME_TOKENS.text.primary
+          return (
+            <div
+              key={it.key}
+              style={{ left: it.left, top: it.top, width: it.width, height: it.height, position: 'absolute' }}
+              className={`px-2 flex items-center ${toneClass}`}
+            >
+              <span className="truncate">{it.text}</span>
+            </div>
+          )
+        })}
       </section>
       {editor ? (
         editor.kind === 'date' ? (

@@ -1,4 +1,5 @@
 import type { TokensTable } from './MarkdownTokens'
+import { normalizeTableCellText, parseBacktickJsonStringArray, toTableCellStringArray } from '@/lib/markdown/tableCellConventions'
 
 export type MarkdownDataViewColumnKind = 'text' | 'select' | 'multi-select'
 
@@ -21,20 +22,7 @@ export type MarkdownDataView = {
   groupByColumnId: string | null
 }
 
-const normalizeCellText = (v: unknown): string => {
-  return String(v ?? '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-const splitMultiValues = (raw: string): string[] => {
-  const s = normalizeCellText(raw)
-  if (!s) return []
-  return s
-    .split(',')
-    .map(x => normalizeCellText(x))
-    .filter(Boolean)
-}
+const normalizeCellText = (v: unknown): string => normalizeTableCellText(v)
 
 const uniqueStrings = (vals: string[]): string[] => {
   const seen = new Set<string>()
@@ -90,15 +78,18 @@ const inferColumnKind = (args: {
     if (statusLike || isEnum) return { kind: 'select', options }
   }
   if (lowerHeader === 'priority') {
-    const all = values.flatMap(splitMultiValues)
+    const all = values.flatMap(v => toTableCellStringArray(v))
     const options = uniqueStrings(all)
     if (options.length > 0 && options.length <= 24) return { kind: 'multi-select', options }
     return { kind: 'multi-select' }
   }
 
-  const hasCommaMulti = values.some(v => splitMultiValues(v).length >= 2)
-  if (hasCommaMulti) {
-    const all = values.flatMap(splitMultiValues)
+  const hasJsonArrayMulti = values.some(v => {
+    const parsed = parseBacktickJsonStringArray(v)
+    return Array.isArray(parsed) && parsed.length >= 2
+  })
+  if (hasJsonArrayMulti) {
+    const all = values.flatMap(v => toTableCellStringArray(v))
     const options = uniqueStrings(all)
     return options.length > 0 && options.length <= 32
       ? { kind: 'multi-select', options }
@@ -201,7 +192,7 @@ export const updateMarkdownDataViewCell = (args: {
     if (c.kind !== 'select' && c.kind !== 'multi-select') return c
     const allValues = rows.map(r => r.cells[i] ?? '')
     const options = c.kind === 'multi-select'
-      ? uniqueStrings(allValues.flatMap(splitMultiValues))
+      ? uniqueStrings(allValues.flatMap(v => toTableCellStringArray(v)))
       : uniqueStrings(allValues)
     return { ...c, options: options.length ? options : c.options }
   })

@@ -1,6 +1,7 @@
 import React from 'react'
 import type { MarkdownDataView, MarkdownDataViewRow } from '../markdownDataViewModel'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { splitMultiValues } from '@/features/markdown/ui/markdownDataViewValueUtils'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import { ArrowDown, ArrowRight, ArrowUp, ChevronDown, CircleChevronDown, Expand, Link2, List, MoreHorizontal, Trash2 } from 'lucide-react'
 import { DataViewStatusChip, DataViewTagChip } from '../MarkdownDataViewChips'
@@ -109,11 +110,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
       const raw = String(props.row.cells[colIndex] ?? '')
       if (!raw) continue
       if (col.kind === 'multi-select') {
-        raw
-          .split(',')
-          .map(x => x.trim())
-          .filter(Boolean)
-          .forEach(v => out.push(v))
+        splitMultiValues(raw).forEach(v => out.push(v))
         continue
       }
       if (col.kind === 'select') out.push(raw.trim())
