@@ -3624,12 +3624,7 @@ export default defineConfig(({ command }) => ({
                 }
                 if (moduleId.includes('/node_modules/monaco-editor/esm/vs/language/')) return 'monaco-language'
                 if (moduleId.includes('/node_modules/monaco-editor/')) return 'monaco-core'
-                const mermaidChunkPath = splitAt('/node_modules/mermaid/dist/chunks/')
-                if (mermaidChunkPath.length > 0) {
-                  const key = mermaidChunkPath[0].replace(/[^a-zA-Z0-9_-]/g, '')
-                  return key ? `mermaid-${key}` : 'mermaid-chunks'
-                }
-                if (moduleId.includes('/node_modules/mermaid/')) return 'mermaid-core'
+                if (moduleId.includes('/node_modules/mermaid/')) return 'mermaid'
                 if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/')) return 'mermaid-elk'
                 const maplibreSrcPath = splitAt('/node_modules/maplibre-gl/src/')
                 if (maplibreSrcPath.length > 0) {
