@@ -3598,104 +3598,11 @@ export default defineConfig(({ command }) => ({
         ...(process.env.KG_LOW_MEM_BUILD === '1'
           ? { inlineDynamicImports: true as const }
           : {
-              manualChunks: (id: string) => {
-                const moduleId = String(id || '').replace(/\\/g, '/')
-                const splitAt = (marker: string): string[] => {
-                  const idx = moduleId.indexOf(marker)
-                  if (idx < 0) return []
-                  return moduleId.slice(idx + marker.length).split('/').filter(Boolean)
-                }
-                if (moduleId.includes('/node_modules/react/')) return 'react'
-                if (moduleId.includes('/node_modules/react-dom/')) return 'react'
-                if (moduleId.includes('/node_modules/react-router-dom/')) return 'react'
-                if (moduleId.includes('/node_modules/d3/')) return 'd3'
-                if (moduleId.includes('/node_modules/lucide-react/')) return 'ui'
-                if (moduleId.includes('/node_modules/zustand/')) return 'ui'
-                const maplibreSrcPath = splitAt('/node_modules/maplibre-gl/src/')
-                if (maplibreSrcPath.length > 0) {
-                  const key = maplibreSrcPath[0].replace(/[^a-zA-Z0-9_-]/g, '')
-                  if (key) return `maplibre-${key}`
-                  return 'maplibre-core'
-                }
-                if (moduleId.includes('/node_modules/three/examples/jsm/controls/')) return 'three-controls'
-                if (moduleId.includes('/node_modules/three/examples/jsm/')) return 'three-examples'
-                const threeSrcPath = splitAt('/node_modules/three/src/')
-                if (threeSrcPath.length > 0) {
-                  const key = threeSrcPath[0].replace(/[^a-zA-Z0-9_-]/g, '')
-                  if (key) return `three-${key}`
-                  return 'three-core'
-                }
-                if (moduleId.includes('/node_modules/@react-three/fiber/')) return 'three-fiber'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/platform/keybinding/')) return 'monaco-keybinding'
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/contrib/')) return 'monaco-contrib'
-                const monacoEditorPath = splitAt('/node_modules/monaco-editor/esm/vs/editor/')
-                if (monacoEditorPath.length > 0) {
-                  const key = monacoEditorPath.slice(0, 2).join('-').replace(/[^a-zA-Z0-9_-]/g, '')
-                  if (key) return `monaco-editor-${key}`
-                  return 'monaco-editor'
-                }
-                const monacoBasePath = splitAt('/node_modules/monaco-editor/esm/vs/base/')
-                if (monacoBasePath.length > 0) {
-                  const key = monacoBasePath.slice(0, 2).join('-').replace(/[^a-zA-Z0-9_-]/g, '')
-                  if (key) return `monaco-base-${key}`
-                  return 'monaco-base'
-                }
-                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/language/')) return 'monaco-language'
-                const monacoCorePath = splitAt('/node_modules/monaco-editor/esm/vs/')
-                if (monacoCorePath.length > 0) {
-                  const key = monacoCorePath[0].replace(/[^a-zA-Z0-9_-]/g, '')
-                  if (key) return `monaco-core-${key}`
-                  return 'monaco-core'
-                }
-                const markdownFeaturePath = splitAt('/src/features/markdown/')
-                if (markdownFeaturePath.length > 0) {
-                  const keyParts =
-                    markdownFeaturePath[0] === 'ui' && markdownFeaturePath[1] === 'codeblock'
-                      ? markdownFeaturePath.slice(0, 3)
-                      : markdownFeaturePath.slice(0, markdownFeaturePath[0] === 'ui' ? 2 : 1)
-                  const key = keyParts.join('-').replace(/[^a-zA-Z0-9_-]/g, '')
-                  if (key) return `feature-markdown-${key}`
-                  return 'feature-markdown'
-                }
-                const panelsFeaturePath = splitAt('/src/features/panels/')
-                if (panelsFeaturePath.length > 0) {
-                  const key = panelsFeaturePath[0].replace(/[^a-zA-Z0-9_-]/g, '')
-                  if (key) return `feature-panels-${key}`
-                  return 'feature-panels'
-                }
-                const threeFeaturePath = splitAt('/src/features/three/')
-                if (threeFeaturePath.length > 0) {
-                  const key = threeFeaturePath[0].replace(/[^a-zA-Z0-9_-]/g, '')
-                  if (key) return `feature-three-${key}`
-                  return 'feature-three'
-                }
-                const graphLibPath = splitAt('/src/lib/graph/')
-                if (graphLibPath.length > 0) {
-                  const key = graphLibPath[0].replace(/[^a-zA-Z0-9_-]/g, '')
-                  if (key) return `lib-graph-${key}`
-                  return 'lib-graph'
-                }
-                const featurePath = splitAt('/src/features/')
-                if (featurePath.length > 0) {
-                  const featureKey = featurePath[0].replace(/[^a-zA-Z0-9_-]/g, '')
-                  if (featureKey) return `feature-${featureKey}`
-                }
-                const componentPath = splitAt('/src/components/')
-                if (componentPath.length > 0) {
-                  const componentKey = componentPath[0].replace(/[^a-zA-Z0-9_-]/g, '')
-                  if (componentKey) return `component-${componentKey}`
-                }
-                const hookPath = splitAt('/src/hooks/')
-                if (hookPath.length > 0) {
-                  const hookKey = hookPath[0].replace(/[^a-zA-Z0-9_-]/g, '')
-                  if (hookKey) return `hook-${hookKey}`
-                }
-                const libPath = splitAt('/src/lib/')
-                if (libPath.length > 0) {
-                  const libKey = libPath[0].replace(/[^a-zA-Z0-9_-]/g, '')
-                  if (libKey) return `lib-${libKey}`
-                }
-                return undefined
+              manualChunks: {
+                react: ['react', 'react-dom', 'react-router-dom'],
+                d3: ['d3'],
+                three: ['three', '@react-three/fiber'],
+                ui: ['lucide-react', 'zustand'],
               },
             }),
       },
