@@ -3598,11 +3598,56 @@ export default defineConfig(({ command }) => ({
         ...(process.env.KG_LOW_MEM_BUILD === '1'
           ? { inlineDynamicImports: true as const }
           : {
-              manualChunks: {
-                react: ['react', 'react-dom', 'react-router-dom'],
-                d3: ['d3'],
-                three: ['three', '@react-three/fiber'],
-                ui: ['lucide-react', 'zustand'],
+              manualChunks: (id: string) => {
+                const moduleId = String(id || '').replace(/\\/g, '/')
+                const splitAt = (marker: string): string[] => {
+                  const idx = moduleId.indexOf(marker)
+                  if (idx < 0) return []
+                  return moduleId.slice(idx + marker.length).split('/').filter(Boolean)
+                }
+                if (moduleId.includes('/node_modules/react/')) return 'react'
+                if (moduleId.includes('/node_modules/react-dom/')) return 'react'
+                if (moduleId.includes('/node_modules/react-router-dom/')) return 'react'
+                if (moduleId.includes('/node_modules/d3/')) return 'd3'
+                if (moduleId.includes('/node_modules/lucide-react/')) return 'ui'
+                if (moduleId.includes('/node_modules/zustand/')) return 'ui'
+                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/platform/keybinding/')) return 'monaco-keybinding'
+                const monacoEditorPath = splitAt('/node_modules/monaco-editor/esm/vs/editor/')
+                if (monacoEditorPath.length > 0) {
+                  const key = monacoEditorPath.slice(0, 2).join('-').replace(/[^a-zA-Z0-9_-]/g, '')
+                  return key ? `monaco-editor-${key}` : 'monaco-editor'
+                }
+                const monacoBasePath = splitAt('/node_modules/monaco-editor/esm/vs/base/')
+                if (monacoBasePath.length > 0) {
+                  const key = monacoBasePath.slice(0, 2).join('-').replace(/[^a-zA-Z0-9_-]/g, '')
+                  return key ? `monaco-base-${key}` : 'monaco-base'
+                }
+                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/language/')) return 'monaco-language'
+                if (moduleId.includes('/node_modules/monaco-editor/')) return 'monaco-core'
+                const mermaidChunkPath = splitAt('/node_modules/mermaid/dist/chunks/')
+                if (mermaidChunkPath.length > 0) {
+                  const key = mermaidChunkPath[0].replace(/[^a-zA-Z0-9_-]/g, '')
+                  return key ? `mermaid-${key}` : 'mermaid-chunks'
+                }
+                if (moduleId.includes('/node_modules/mermaid/')) return 'mermaid-core'
+                if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/')) return 'mermaid-elk'
+                const maplibreSrcPath = splitAt('/node_modules/maplibre-gl/src/')
+                if (maplibreSrcPath.length > 0) {
+                  const key = maplibreSrcPath[0].replace(/[^a-zA-Z0-9_-]/g, '')
+                  return key ? `maplibre-${key}` : 'maplibre-core'
+                }
+                if (moduleId.includes('/node_modules/maplibre-gl/')) return 'maplibre-core'
+                if (moduleId.includes('/node_modules/elkjs/')) return 'elk'
+                if (moduleId.includes('/node_modules/three/examples/jsm/controls/')) return 'three-controls'
+                if (moduleId.includes('/node_modules/three/examples/jsm/')) return 'three-examples'
+                const threeSrcPath = splitAt('/node_modules/three/src/')
+                if (threeSrcPath.length > 0) {
+                  const key = threeSrcPath[0].replace(/[^a-zA-Z0-9_-]/g, '')
+                  return key ? `three-${key}` : 'three-core'
+                }
+                if (moduleId.includes('/node_modules/three/')) return 'three-core'
+                if (moduleId.includes('/node_modules/@react-three/fiber/')) return 'three'
+                return undefined
               },
             }),
       },
