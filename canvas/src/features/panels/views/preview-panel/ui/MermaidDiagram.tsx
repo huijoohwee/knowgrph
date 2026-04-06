@@ -32,10 +32,16 @@ const getTestMermaidApi = (): MermaidApi | null => {
 }
 
 
-let mermaidModulePromise: Promise<typeof import('mermaid')> | null = null
+let mermaidModulePromise: Promise<unknown> | null = null
 let lastMermaidInitKey = ''
 let elkLayoutRegistered = false
 let elkLayoutsPromise: Promise<unknown> | null = null
+
+const getMermaidVendorBase = (): string => {
+  const envBase = String((import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL || '/')
+  const normalizedBase = envBase.endsWith('/') ? envBase : `${envBase}/`
+  return `${normalizedBase}vendor/mermaid/`
+}
 
 const ensureElkLayoutRegistered = async (mermaid: MermaidApi): Promise<void> => {
   if (elkLayoutRegistered) return
@@ -44,7 +50,10 @@ const ensureElkLayoutRegistered = async (mermaid: MermaidApi): Promise<void> => 
     return
   }
   try {
-    if (!elkLayoutsPromise) elkLayoutsPromise = import('@mermaid-js/layout-elk').then(m => (m as any).default ?? m)
+    if (!elkLayoutsPromise) {
+      const url = `${getMermaidVendorBase()}mermaid-layout-elk.core.mjs`
+      elkLayoutsPromise = import(/* @vite-ignore */ url).then(m => (m as any).default ?? m)
+    }
     const loaders = await elkLayoutsPromise
     mermaid.registerLayoutLoaders(loaders)
   } catch {
@@ -57,7 +66,10 @@ const ensureElkLayoutRegistered = async (mermaid: MermaidApi): Promise<void> => 
 const loadMermaidModule = async (): Promise<MermaidApi> => {
   const stub = getTestMermaidApi()
   if (stub) return stub
-  if (!mermaidModulePromise) mermaidModulePromise = import('mermaid')
+  if (!mermaidModulePromise) {
+    const url = `${getMermaidVendorBase()}mermaid.core.mjs`
+    mermaidModulePromise = import(/* @vite-ignore */ url)
+  }
   const mod = await mermaidModulePromise
   const candidate: unknown = (mod as unknown as { default?: unknown }).default ?? mod
   if (!isMermaidApi(candidate)) {

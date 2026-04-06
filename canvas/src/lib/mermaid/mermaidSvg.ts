@@ -9,6 +9,17 @@ type MermaidRenderResult = {
 
 const cache = new LRUCache<string, Promise<MermaidRenderResult>>(64)
 
+let mermaidVendorModulePromise: Promise<unknown> | null = null
+
+const loadMermaidVendorModule = async (): Promise<unknown> => {
+  if (!mermaidVendorModulePromise) {
+    const envBase = String((import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL || '/')
+    const normalizedBase = envBase.endsWith('/') ? envBase : `${envBase}/`
+    mermaidVendorModulePromise = import(/* @vite-ignore */ `${normalizedBase}vendor/mermaid/mermaid.core.mjs`)
+  }
+  return mermaidVendorModulePromise
+}
+
 const normalizeSvg = (raw: string): string => {
   const s = String(raw || '')
   if (!s.trim()) return ''
@@ -24,7 +35,7 @@ const initMermaidOnce = (() => {
   return async (theme: MermaidTheme) => {
     if (typeof window === 'undefined' || typeof document === 'undefined') return
     if (initialized && lastTheme === theme) return
-    const mod = await import('mermaid')
+    const mod = await loadMermaidVendorModule()
     const mermaid = (mod as unknown as { default?: unknown; initialize?: unknown; render?: unknown }).default || (mod as unknown)
     const initialize = (mermaid as unknown as { initialize?: (cfg: unknown) => void }).initialize
     if (typeof initialize === 'function') {
@@ -55,7 +66,7 @@ export async function renderMermaidSvgCached(args: {
       return { svg: '' }
     }
     await initMermaidOnce(theme)
-    const mod = await import('mermaid')
+    const mod = await loadMermaidVendorModule()
     const mermaid = (mod as unknown as { default?: unknown; render?: unknown }).default || (mod as unknown)
     const render = (mermaid as unknown as {
       render?: (id: string, code: string) => Promise<{ svg: string } | string>
@@ -77,4 +88,3 @@ export async function renderMermaidSvgCached(args: {
     return { svg: '' }
   }
 }
-

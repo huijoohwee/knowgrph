@@ -159,6 +159,7 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
   - Selection-scoped and view-only: all actions are pure Markdown text transforms; no hidden graph or layout derivations are allowed.
   - Bounded and debounced: avoid recomputation loops by memoizing selection offsets, gating selection-change listeners with `requestAnimationFrame`, and skipping redundant bubble repositioning when geometry is unchanged.
   - SSOT-driven: all floating toolbars, popovers, and palettes must reuse shared floating menu classes and theme tokens (no mode-specific clones or legacy variants).
+  - Floating selection toolbar interaction and palette buttons must call shared helpers (markdownFloatingSelectionToolbar) for pointer-down, summary toggles, and selection capture; forbid per-surface handlers or alternate floating menu stacks.
 
 ### Title and title-like inline editing
 - Heading blocks render title text truncated with ellipsis in View and Edit rest state, reuse the same typography in html contentEditable, and reveal full text on focus via horizontal scroll; entering edit must not introduce alternate WYSIWYG title stacks or layout/spacing drift.

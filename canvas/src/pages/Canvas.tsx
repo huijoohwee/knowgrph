@@ -23,8 +23,25 @@ import { normalizeSingleRootRoute } from '@/lib/routing/normalizeSingleRoot'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
+import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 
 const ToolbarLazy = React.lazy(() => import('@/components/Toolbar'))
+const schemaPreviewHashCache = new WeakMap<object, string>()
+
+const hashSchemaForPreviewSync = (schema: unknown): string => {
+  if (!schema || typeof schema !== 'object') return ''
+  const key = schema as object
+  const cached = schemaPreviewHashCache.get(key)
+  if (cached) return cached
+  let hashed = ''
+  try {
+    hashed = hashText(JSON.stringify(schema))
+  } catch {
+    hashed = ''
+  }
+  if (hashed) schemaPreviewHashCache.set(key, hashed)
+  return hashed
+}
 
 export default function CanvasPage() {
   const location = useLocation()
@@ -365,12 +382,7 @@ export default function CanvasPage() {
   React.useEffect(() => {
     if (!enableTabSync || !syncRef.current) return
     if (applyingRemoteRef.current) return
-    let hash = ''
-    try {
-      hash = JSON.stringify(schema)
-    } catch {
-      hash = ''
-    }
+    const hash = hashSchemaForPreviewSync(schema)
     const last = lastSchemaHashRef.current
     if (last === hash) return
     lastSchemaHashRef.current = hash
@@ -764,11 +776,11 @@ export default function CanvasPage() {
         }
         if (payload.schema) {
           try {
-            const nextSchemaHash = hashText(JSON.stringify(payload.schema))
+            const nextSchemaHash = hashSchemaForPreviewSync(payload.schema)
             const alreadyApplied = nextSchemaHash === lastInboundPreviewSchemaHashRef.current
             if (!alreadyApplied) {
               lastInboundPreviewSchemaHashRef.current = nextSchemaHash
-              const currentSchemaHash = hashText(JSON.stringify(store.schema))
+              const currentSchemaHash = hashSchemaForPreviewSync(store.schema)
               if (nextSchemaHash !== currentSchemaHash) {
                 const setSchema = store.setSchema
                 if (typeof setSchema === 'function') setSchema(payload.schema as never)
@@ -837,6 +849,7 @@ export default function CanvasPage() {
     if (!parentWin || parentWin === window) return
 
     const lastSentRef = { hash: '' }
+    const taskKey = 'preview:writeback:graph'
     const unsubscribe = useGraphStore.subscribe(
       s => ({ graphData: s.graphData, graphDataRevision: s.graphDataRevision }),
       next => {
@@ -845,22 +858,31 @@ export default function CanvasPage() {
           const nextHash = hashGraphDataForPreviewSync(next.graphData)
           if (nextHash === lastInboundPreviewGraphHashRef.current) return
           if (nextHash === lastSentRef.hash) return
-          lastSentRef.hash = nextHash
-          parentWin.postMessage(
-            {
-              kind: 'kg-preview-graph',
-              payload: {
-                graphData: next.graphData,
+          scheduleWorkspaceSyncTask(taskKey, () => {
+            const snapshot = useGraphStore.getState().graphData
+            if (!snapshot) return
+            const snapshotHash = hashGraphDataForPreviewSync(snapshot)
+            if (!snapshotHash) return
+            if (snapshotHash === lastInboundPreviewGraphHashRef.current) return
+            if (snapshotHash === lastSentRef.hash) return
+            lastSentRef.hash = snapshotHash
+            parentWin.postMessage(
+              {
+                kind: 'kg-preview-graph',
+                payload: {
+                  graphData: snapshot,
+                },
               },
-            },
-            window.location.origin,
-          )
+              window.location.origin,
+            )
+          }, 90, { signature: nextHash || null })
         } catch {
           void 0
         }
       },
     )
     return () => {
+      cancelWorkspaceSyncTask(taskKey)
       try {
         unsubscribe()
       } catch {
@@ -874,6 +896,7 @@ export default function CanvasPage() {
     const parentWin = window.parent
     if (!parentWin || parentWin === window) return
     const lastRef = { key: '' }
+    const taskKey = 'preview:writeback:selection'
     const unsubscribe = useGraphStore.subscribe(
       s => ({
         selectedNodeId: s.selectedNodeId,
@@ -886,25 +909,29 @@ export default function CanvasPage() {
         if (next.selectionSource === 'editor' && nextIdsKey === lastInboundPreviewSelectionKeyRef.current) return
         const key = `${next.selectionSource || ''}:${next.selectedNodeId || ''}:${next.selectedEdgeId || ''}:${next.selectedGroupId || ''}`
         if (key === lastRef.key) return
-        lastRef.key = key
-        try {
+        scheduleWorkspaceSyncTask(taskKey, () => {
+          const snapshot = useGraphStore.getState()
+          const snapshotIdsKey = `${snapshot.selectedNodeId || ''}:${snapshot.selectedEdgeId || ''}:${snapshot.selectedGroupId || ''}`
+          if (snapshot.selectionSource === 'editor' && snapshotIdsKey === lastInboundPreviewSelectionKeyRef.current) return
+          const snapshotKey = `${snapshot.selectionSource || ''}:${snapshot.selectedNodeId || ''}:${snapshot.selectedEdgeId || ''}:${snapshot.selectedGroupId || ''}`
+          if (snapshotKey === lastRef.key) return
+          lastRef.key = snapshotKey
           parentWin.postMessage(
             {
               kind: 'kg-preview-selection',
               payload: {
-                selectedNodeId: next.selectedNodeId,
-                selectedEdgeId: next.selectedEdgeId,
-                selectedGroupId: next.selectedGroupId,
+                selectedNodeId: snapshot.selectedNodeId,
+                selectedEdgeId: snapshot.selectedEdgeId,
+                selectedGroupId: snapshot.selectedGroupId,
               },
             },
             window.location.origin,
           )
-        } catch {
-          void 0
-        }
+        }, 70, { signature: key })
       },
     )
     return () => {
+      cancelWorkspaceSyncTask(taskKey)
       try {
         unsubscribe()
       } catch {

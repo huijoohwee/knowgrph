@@ -35,7 +35,7 @@ let elkInstancePromise: Promise<ElkInstance> | null = null
 async function getElkInstance(args?: { requireWorker?: boolean }): Promise<ElkInstance> {
   if (elkInstancePromise) return elkInstancePromise
   elkInstancePromise = (async () => {
-    const mod = (await import('elkjs/lib/elk.bundled.js')) as unknown as { default?: unknown }
+    const mod = (await import('elkjs/lib/elk-api.js')) as unknown as { default?: unknown }
     const ElkCtor = (mod?.default ?? mod) as ElkConstructor
     let workerUrl: string | null = null
     try {

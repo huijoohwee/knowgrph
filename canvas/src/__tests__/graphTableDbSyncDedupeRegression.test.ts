@@ -10,6 +10,9 @@ export function testGraphTableDbSyncDoesNotUseModuleGlobalKeyGuards() {
   if (!text.includes('syncGateByViewKey') || !text.includes('new Map')) {
     throw new Error('expected useGraphTableDbSync to use a viewKey-scoped sync gate')
   }
+  if (!text.includes('scheduleWorkspaceSyncTask') || !text.includes('graph-table:runtime-persistence-sync:')) {
+    throw new Error('expected useGraphTableDbSync to use shared workspace sync scheduler key dedupe')
+  }
 }
 
 export function testGraphTableSelectionInspectorGatesDbSyncWhenGraphTablePaneIsActive() {
@@ -30,4 +33,3 @@ export function testOverlayInteractions2dCleanupCancelsActiveDrags() {
     throw new Error('expected useOverlayInteractions2d cleanup to cancel active interactions')
   }
 }
-

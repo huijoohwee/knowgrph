@@ -1,16 +1,51 @@
 import React from 'react'
-import * as hljsModule from 'highlight.js'
+import hljsCore from 'highlight.js/lib/core'
+import javascriptLang from 'highlight.js/lib/languages/javascript'
+import typescriptLang from 'highlight.js/lib/languages/typescript'
+import jsonLang from 'highlight.js/lib/languages/json'
+import pythonLang from 'highlight.js/lib/languages/python'
+import bashLang from 'highlight.js/lib/languages/bash'
+import markdownLang from 'highlight.js/lib/languages/markdown'
+import yamlLang from 'highlight.js/lib/languages/yaml'
+import xmlLang from 'highlight.js/lib/languages/xml'
+import cssLang from 'highlight.js/lib/languages/css'
+import sqlLang from 'highlight.js/lib/languages/sql'
 
 type HljsApi = import('highlight.js').HLJSApi
 
 const resolveHljsApi = (): HljsApi | null => {
-  const m = hljsModule as unknown as Record<string, unknown>
-  const candidate = (m as { default?: unknown }).default ?? (m as { HighlightJS?: unknown }).HighlightJS ?? m
-  const api = candidate as Partial<HljsApi>
+  const api = hljsCore as Partial<HljsApi>
   if (typeof api.highlight !== 'function') return null
   if (typeof api.highlightAuto !== 'function') return null
   if (typeof api.getLanguage !== 'function') return null
-  return candidate as HljsApi
+  return hljsCore as HljsApi
+}
+
+let hljsLanguagesRegistered = false
+const ensureHljsLanguages = (): void => {
+  if (hljsLanguagesRegistered) return
+  try {
+    hljsCore.registerLanguage('javascript', javascriptLang)
+    hljsCore.registerLanguage('js', javascriptLang)
+    hljsCore.registerLanguage('typescript', typescriptLang)
+    hljsCore.registerLanguage('ts', typescriptLang)
+    hljsCore.registerLanguage('json', jsonLang)
+    hljsCore.registerLanguage('python', pythonLang)
+    hljsCore.registerLanguage('py', pythonLang)
+    hljsCore.registerLanguage('bash', bashLang)
+    hljsCore.registerLanguage('shell', bashLang)
+    hljsCore.registerLanguage('markdown', markdownLang)
+    hljsCore.registerLanguage('md', markdownLang)
+    hljsCore.registerLanguage('yaml', yamlLang)
+    hljsCore.registerLanguage('yml', yamlLang)
+    hljsCore.registerLanguage('xml', xmlLang)
+    hljsCore.registerLanguage('html', xmlLang)
+    hljsCore.registerLanguage('css', cssLang)
+    hljsCore.registerLanguage('sql', sqlLang)
+  } catch {
+    void 0
+  }
+  hljsLanguagesRegistered = true
 }
 
 const escapeHtml = (text: string): string =>
@@ -31,6 +66,7 @@ export const HighlightedCode = React.memo(function HighlightedCode({
   highlightLines: Set<number> | null
 }) {
   const highlighted = React.useMemo(() => {
+    ensureHljsLanguages()
     const hljs = resolveHljsApi()
     if (!hljs) return escapeHtml(code)
 
@@ -69,4 +105,3 @@ export const HighlightedCode = React.memo(function HighlightedCode({
     </section>
   )
 })
-

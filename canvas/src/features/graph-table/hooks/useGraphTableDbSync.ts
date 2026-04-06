@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react'
 import { syncGraphDataToGraphTableDb } from '@/features/graph-table-db/graphTableDb'
 import type { GraphData } from '@/lib/graph/types'
+import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 
 type UseGraphTableDbSyncResult = {
   noteGraphWrite: (nextGraphRevision: number) => void
@@ -9,7 +10,6 @@ type UseGraphTableDbSyncResult = {
 type SyncGate = {
   lastSyncedRevision: number
   lastGraphWriteRevision: number | null
-  scheduledTimer: ReturnType<typeof setTimeout> | null
   inFlight: Promise<void> | null
   pendingAfterFlight: boolean
   latestRevision: number
@@ -24,7 +24,6 @@ const getSyncGate = (viewKey: string): SyncGate => {
   const next: SyncGate = {
     lastSyncedRevision: -1,
     lastGraphWriteRevision: null,
-    scheduledTimer: null,
     inFlight: null,
     pendingAfterFlight: false,
     latestRevision: -1,
@@ -34,25 +33,21 @@ const getSyncGate = (viewKey: string): SyncGate => {
   return next
 }
 
-const scheduleGraphTableSync = (gate: SyncGate) => {
-  if (gate.scheduledTimer) {
-    try {
-      clearTimeout(gate.scheduledTimer)
-    } catch {
-      void 0
-    }
-    gate.scheduledTimer = null
-  }
+const toSyncTaskKey = (viewKey: string): string => {
+  const key = String(viewKey || '').trim() || 'default'
+  return `graph-table:runtime-persistence-sync:${key}`
+}
 
-  gate.scheduledTimer = setTimeout(() => {
-    gate.scheduledTimer = null
+const scheduleGraphTableSync = (viewKey: string, gate: SyncGate) => {
+  const taskKey = toSyncTaskKey(viewKey)
+  const revisionSignature = String(gate.latestRevision)
+  scheduleWorkspaceSyncTask(taskKey, () => {
     const revision = gate.latestRevision
     if (gate.lastGraphWriteRevision === revision) {
       gate.lastGraphWriteRevision = null
       return
     }
     if (gate.lastSyncedRevision === revision) return
-
     if (gate.inFlight) {
       gate.pendingAfterFlight = true
       return
@@ -68,9 +63,9 @@ const scheduleGraphTableSync = (gate: SyncGate) => {
         gate.inFlight = null
         if (!gate.pendingAfterFlight) return
         if (gate.latestRevision === gate.lastSyncedRevision) return
-        scheduleGraphTableSync(gate)
+        scheduleGraphTableSync(viewKey, gate)
       })
-  }, 140)
+  }, 140, { signature: revisionSignature })
 }
 
 export const useGraphTableDbSync = (
@@ -89,7 +84,10 @@ export const useGraphTableDbSync = (
       return
     }
     if (gate.lastSyncedRevision === graphSyncRevision) return
-    scheduleGraphTableSync(gate)
+    scheduleGraphTableSync(viewKey, gate)
+    return () => {
+      cancelWorkspaceSyncTask(toSyncTaskKey(viewKey))
+    }
   }, [enabled, graphSyncRevision, renderGraphData, viewKey])
 
   const noteGraphWrite = useCallback((nextGraphRevision: number) => {
