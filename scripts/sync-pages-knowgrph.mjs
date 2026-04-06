@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename)
 const knowgrphRoot = path.resolve(__dirname, '..')
 const distDir = path.resolve(knowgrphRoot, 'canvas', 'dist')
 const targetDir = path.resolve(knowgrphRoot, '..', 'huijoohwee', 'content', 'knowgrph')
+const publicRouteDir = path.resolve(knowgrphRoot, '..', 'huijoohwee', 'knowgrph')
 const blockedRelativeRoots = new Set([
   'cesium',
   'vendor/mermaid',
@@ -39,5 +40,8 @@ await fs.cp(distDir, targetDir, {
     return true
   },
 })
+await fs.rm(publicRouteDir, { recursive: true, force: true })
+await fs.mkdir(publicRouteDir, { recursive: true })
+await fs.copyFile(path.resolve(targetDir, 'index.html'), path.resolve(publicRouteDir, 'index.html'))
 
 console.log(`[knowgrph] synced ${distDir} -> ${targetDir}`)
