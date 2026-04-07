@@ -49,6 +49,8 @@ const modMarkdownViewerInlineEditHeadingWysiwyg = () => import('@/__tests__/mark
 const modMarkdownViewerInlineEditParagraphWysiwyg = () => import('@/__tests__/markdownViewerInlineEditParagraphWysiwyg.test')
 const modMarkdownViewerInlineEditSurfaceParitySnapshot = () => import('@/__tests__/markdownViewerInlineEditSurfaceParitySnapshot.test')
 const modMarkdownViewerInlineEditVariableToolbar = () => import('@/__tests__/markdownViewerInlineEditVariableToolbar.test')
+const modMarkdownViewerVariableClickSsotNavigation = () => import('@/__tests__/markdownViewerVariableClickSsotNavigation.test')
+const modMarkdownFrontmatterReadPropertiesView = () => import('@/__tests__/markdownFrontmatterReadPropertiesView.test')
 const modMarkdownViewerMdDemoSweepLex = () => import('@/__tests__/markdownViewerMdDemoSweepLex.test')
 const modMarkdownViewerInlineEditConfig = () => import('@/__tests__/markdownViewerInlineEditConfig.test')
 const modMarkdownViewerInlineEditMixedSequence = () => import('@/__tests__/markdownViewerInlineEditMixedSequence.test')
@@ -229,6 +231,18 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.viewer.inlineEdit.variableToolbar.atInvokeAndApply', async () => {
     const mod = await modMarkdownViewerInlineEditVariableToolbar()
     await mod.testMarkdownViewerInlineEditVariableToolbarInvokesWithAtAndAppliesReference()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.variableToolbar.deleteUpdatesFrontmatter', async () => {
+    const mod = await modMarkdownViewerInlineEditVariableToolbar()
+    await mod.testMarkdownViewerInlineEditVariableToolbarDeleteUpdatesFrontmatter()
+  })
+  await execTest(results, 'markdown.viewer.variableClick.ssotNavigation', async () => {
+    const mod = await modMarkdownViewerVariableClickSsotNavigation()
+    await mod.testMarkdownViewerVariableClickNavigatesToSsotLine()
+  })
+  await execTest(results, 'markdown.frontmatter.read.propertiesClickableChips', async () => {
+    const mod = await modMarkdownFrontmatterReadPropertiesView()
+    await mod.testMarkdownFrontmatterReadRendersClickablePropertyChips()
   })
   await execTest(results, 'markdown.viewer.sweep.mdDemo.lexesAndLineRanges', async () => {
     const mod = await modMarkdownViewerMdDemoSweepLex()

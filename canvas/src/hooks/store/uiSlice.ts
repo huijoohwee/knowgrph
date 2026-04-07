@@ -17,6 +17,7 @@ import type { StoreApi } from 'zustand'
 import { getInitialLaunchSpotlightEnabled, persistLaunchSpotlightEnabled } from '@/features/spotlight/storage'
 import { createPanelLayoutUiSlice } from '@/hooks/store/panelLayoutUiSlice'
 import { DEFAULT_CANVAS_2D_RENDERER, DEFAULT_CANVAS_3D_MODE } from '@/lib/config'
+import { CHAT_DEFAULT_ENDPOINT_URL, CHAT_DEFAULT_MODEL, normalizeChatModelId } from '@/lib/chatEndpoint'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import { clampFillRatio } from 'grph-shared/zoom/presets'
 import { DEFAULT_DRAG_ALPHA_TARGET, DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from '@/lib/graph/layoutDefaults'
@@ -285,13 +286,13 @@ export const createUiSlice = (set: SetGraph) => {
     uiToolbarOpacity: lsNum(LS_KEYS.toolbarOpacity, 0.95),
     chatEndpointUrl: lsJson<string | null>(
       LS_KEYS.chatEndpointUrl,
-      'http://localhost:1234/v1/chat/completions',
+      CHAT_DEFAULT_ENDPOINT_URL,
       value => (typeof value === 'string' ? value : null),
     ),
     chatModel: lsJson<string | null>(
       LS_KEYS.chatModel,
-      'lmstudio-community/DeepSeek-R1-0528-Qwen3-8B-MLX-8bit',
-      value => (typeof value === 'string' ? value : 'lmstudio-community/DeepSeek-R1-0528-Qwen3-8B-MLX-8bit'),
+      CHAT_DEFAULT_MODEL,
+      value => normalizeChatModelId(value),
     ),
     chatTemperature: lsNum(LS_KEYS.chatTemperature, 0.3),
     chatSystemPrompt: lsJson<string | null>(
@@ -554,7 +555,7 @@ export const createUiSlice = (set: SetGraph) => {
       set({
         chatModel: lsSetJson(
           LS_KEYS.chatModel,
-          model && typeof model === 'string' ? model : 'lmstudio-community/DeepSeek-R1-0528-Qwen3-8B-MLX-8bit',
+          normalizeChatModelId(model),
         ),
       }),
     setChatTemperature: (v: number) =>

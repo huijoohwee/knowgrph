@@ -5,7 +5,7 @@ version: "1.0.0"
 llm_server:
   provider: "lm_studio"
   endpoint: "http://localhost:1234/v1/chat/completions"
-  models: ["lmstudio-community/DeepSeek-R1-0528-Qwen3-8B-MLX-8bit"]
+  models: ["lmstudio-community/Qwen3.5-9B-Q4_K_M.gguf"]
   parameters:
     temperature: 0.7
     max_tokens: 2048

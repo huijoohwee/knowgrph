@@ -445,6 +445,21 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       'util.workspaceSyncScheduler.suppressesRepeatedSignature',
       modCoalescedScheduler.testWorkspaceSyncSchedulerSuppressesRepeatedSignature,
     )
+    await execTest(
+      results,
+      'util.workspaceSyncScheduler.runsLatestPerTaskUnderSharedKey',
+      modCoalescedScheduler.testWorkspaceSyncSchedulerRunsLatestPerTaskUnderSharedKey,
+    )
+    await execTest(
+      results,
+      'util.workspaceSyncScheduler.flushNotDelayedByLaterTask',
+      modCoalescedScheduler.testWorkspaceSyncSchedulerDoesNotDelayExistingFlushForLaterTask,
+    )
+    await execTest(
+      results,
+      'util.workspaceSyncScheduler.cancelDoesNotResetSignatureDedupe',
+      modCoalescedScheduler.testWorkspaceSyncSchedulerCancelDoesNotResetSignatureDedupe,
+    )
 
     const modGraphTableSync = await import('../__tests__/graphTableDbSyncDedupeRegression.test')
     await execTest(
@@ -457,10 +472,11 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       'ui.graphTable.dbSync.selectionInspectorGatesSync',
       modGraphTableSync.testGraphTableSelectionInspectorGatesDbSyncWhenGraphTablePaneIsActive,
     )
+    const modOverlayInteractions = await import('../__tests__/overlayInteractions2dCleanupRegression.test')
     await execTest(
       results,
       'ui.overlayInteractions2d.cleanupCancelsActiveDrags',
-      modGraphTableSync.testOverlayInteractions2dCleanupCancelsActiveDrags,
+      modOverlayInteractions.testOverlayInteractions2dCleanupCancelsActiveDrags,
     )
 
     const modOverlayPanelBox = await import('../__tests__/overlayPanelsUseTransformBoxRegression.test')

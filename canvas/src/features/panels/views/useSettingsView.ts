@@ -8,6 +8,7 @@ import { getLocalStorage } from '@/lib/persistence'
 import { FALLBACK_DETAILS } from './SettingsFallbackDetails'
 import { renderSettingInput } from '@/features/settings/ui'
 import { UI_ANCHORS } from '@/lib/config'
+import { resolveChatEndpointForHealth } from '@/lib/chatEndpoint'
 
 export function useSettingsView({
   searchQuery,
@@ -111,14 +112,15 @@ export function useSettingsView({
 
   const checkChatHealth = React.useCallback(async () => {
     const url = values.chatEndpointUrl
-    if (!url || typeof url !== 'string') {
+    const healthUrl = resolveChatEndpointForHealth(url)
+    if (!healthUrl) {
       setChatHealthStatus('Endpoint URL is not configured.')
       return
     }
     setIsCheckingHealth(true)
     setChatHealthStatus('Checking...')
     try {
-      const res = await fetch(url.replace(/\/chat\/completions$/, '/health'), {
+      const res = await fetch(healthUrl, {
         method: 'GET',
       })
       if (res.ok) {

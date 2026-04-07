@@ -28,6 +28,7 @@ const MARKDOWN_PIPELINE_INPUT_REL_PATH =
 const CODEBASE_INDEX_PIPELINE_OUTPUT_DIR =
   String(process.env.VITE_MARKDOWN_PIPELINE_OUTPUT_DIR || '').trim() || 'data/knowgrph-workflow-preview'
 const CODEBASE_INDEX_PIPELINE_COMMAND = `python -m knowgrph_parser markdown --input ${MARKDOWN_PIPELINE_INPUT_REL_PATH} --output-dir ${CODEBASE_INDEX_PIPELINE_OUTPUT_DIR}`
+const CHAT_PROXY_PREFIX = '/__chat_proxy'
 
 const stripEntitiesBadSourcemapsPlugin = {
   name: 'knowgrph-strip-entities-bad-sourcemaps',
@@ -509,6 +510,28 @@ const remoteFetchProxyDevPlugin = {
   },
 }
 
+const chatProxyDevPlugin = {
+  name: 'knowgrph-chat-proxy-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use((req, res, next) => {
+      if (!req.url?.startsWith(CHAT_PROXY_PREFIX)) {
+        next()
+        return
+      }
+      createChatProxyHandler()(req, res, next)
+    })
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use((req, res, next) => {
+      if (!req.url?.startsWith(CHAT_PROXY_PREFIX)) {
+        next()
+        return
+      }
+      createChatProxyHandler()(req, res, next)
+    })
+  },
+}
+
 const webpageProxyDevPlugin = {
   name: 'knowgrph-webpage-proxy-dev',
   configureServer(server: import('vite').ViteDevServer) {
@@ -703,6 +726,140 @@ function createLocalGeoDatasetHandler(): import('vite').Connect.NextHandleFuncti
       res.setHeader('Content-Type', 'application/json')
       res.setHeader('Cache-Control', 'no-store')
       res.end(JSON.stringify({ ok: false, error: msg || 'Geo upload failed' }))
+    }
+  }
+}
+
+function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    const method = String(req.method || 'GET').toUpperCase()
+    if (method === 'OPTIONS') {
+      res.statusCode = 204
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, POST, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', '*')
+      res.setHeader('Access-Control-Max-Age', '86400')
+      res.end()
+      return
+    }
+    if (!['GET', 'HEAD', 'POST'].includes(method)) {
+      next()
+      return
+    }
+    const parsedReq = (() => {
+      try {
+        return new URL(String(req.url || ''), `http://${req.headers.host || 'localhost'}`)
+      } catch {
+        return null
+      }
+    })()
+    if (!parsedReq) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Invalid proxy request URL' }))
+      return
+    }
+    if (!parsedReq.pathname.startsWith(CHAT_PROXY_PREFIX)) {
+      next()
+      return
+    }
+    const upstreamBaseRaw = String(process.env.KNOWGRPH_CHAT_PROXY_UPSTREAM || '').trim() || 'http://127.0.0.1:1234'
+    const upstreamBase = (() => {
+      try {
+        return new URL(upstreamBaseRaw)
+      } catch {
+        return null
+      }
+    })()
+    if (!upstreamBase) {
+      res.statusCode = 500
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Invalid chat proxy upstream configuration' }))
+      return
+    }
+    const suffix = parsedReq.pathname.slice(CHAT_PROXY_PREFIX.length) || '/v1/chat/completions'
+    const upstreamPath = suffix.startsWith('/') ? suffix : `/${suffix}`
+    const upstreamUrl = new URL(`${upstreamPath}${parsedReq.search || ''}`, upstreamBase)
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    let controller: AbortController | null = null
+    try {
+      const body = await new Promise<Buffer>((resolve, reject) => {
+        if (method === 'GET' || method === 'HEAD') {
+          resolve(Buffer.alloc(0))
+          return
+        }
+        const chunks: Buffer[] = []
+        let total = 0
+        const maxBytes = 8 * 1024 * 1024
+        req.on('data', (chunk: Buffer) => {
+          total += chunk.length
+          if (total > maxBytes) {
+            reject(new Error('Payload too large'))
+            return
+          }
+          chunks.push(chunk)
+        })
+        req.on('end', () => resolve(Buffer.concat(chunks)))
+        req.on('error', err => reject(err))
+      })
+      const ctrl = new AbortController()
+      controller = ctrl
+      timeoutId = setTimeout(() => ctrl.abort(), 90_000)
+      const headers = new Headers()
+      const contentType = String(req.headers['content-type'] || '').trim()
+      const accept = String(req.headers.accept || '').trim()
+      if (contentType) headers.set('Content-Type', contentType)
+      if (accept) headers.set('Accept', accept)
+      const upstreamRes = await fetch(upstreamUrl.toString(), {
+        method,
+        headers,
+        body: method === 'GET' || method === 'HEAD' ? undefined : body,
+        signal: ctrl.signal,
+      })
+      res.statusCode = upstreamRes.status
+      upstreamRes.headers.forEach((value, key) => {
+        const lower = key.toLowerCase()
+        if (lower === 'content-length') return
+        if (lower === 'connection') return
+        if (lower === 'transfer-encoding') return
+        res.setHeader(key, value)
+      })
+      res.setHeader('Cache-Control', 'no-store')
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      if (method === 'HEAD') {
+        res.end()
+        return
+      }
+      const reader = upstreamRes.body?.getReader()
+      if (!reader) {
+        const fallback = Buffer.from(await upstreamRes.arrayBuffer())
+        res.end(fallback)
+        return
+      }
+      while (true) {
+        const chunk = await reader.read()
+        if (chunk.done) break
+        if (!chunk.value || chunk.value.byteLength === 0) continue
+        res.write(Buffer.from(chunk.value))
+      }
+      res.end()
+    } catch (error) {
+      const message =
+        error && typeof error === 'object' && 'message' in error
+          ? String((error as { message?: unknown }).message || '')
+          : ''
+      if (controller?.signal.aborted || /aborted|timeout/i.test(message)) {
+        res.statusCode = 504
+      } else if (/too large/i.test(message)) {
+        res.statusCode = 413
+      } else {
+        res.statusCode = 502
+      }
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-store')
+      res.end(JSON.stringify({ ok: false, error: message || 'Failed to reach local chat upstream' }))
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId)
     }
   }
 }
@@ -3694,6 +3851,7 @@ export default defineConfig(({ command }) => ({
           bipartiteFixtureDevPlugin,
           codebaseFileDevPlugin,
           remoteFetchProxyDevPlugin,
+          chatProxyDevPlugin,
           webpageProxyDevPlugin,
           localGeoDatasetDevPlugin,
           pdfConvertDevPlugin,

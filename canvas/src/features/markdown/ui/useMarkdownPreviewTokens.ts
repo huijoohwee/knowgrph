@@ -24,29 +24,40 @@ export function useMarkdownPreviewLexedMarkdown(
     return buildMarkdownTokensKey(text)
   }, [canCacheInStore, text])
 
+  const providedTokensFrontmatter = React.useMemo(() => {
+    if (!providedTokens || providedTokens.length === 0) return null
+    const lines = splitMarkdownLines(text)
+    const { meta, startIndex } = parseMarkdownFrontmatter(lines)
+    return { meta, startLineOffset: startIndex }
+  }, [providedTokens, text])
+
   const lexedLarge = React.useMemo((): {
     tokens: TokenWithLines[]
     meta: MarkdownFrontmatter
     startLineOffset: number
   } => {
-    if (providedTokens && providedTokens.length > 0) {
-      const lines = splitMarkdownLines(text)
-      const { meta, startIndex } = parseMarkdownFrontmatter(lines)
-      return { tokens: providedTokens, meta, startLineOffset: startIndex }
+    if (providedTokens && providedTokens.length > 0 && providedTokensFrontmatter) {
+      return {
+        tokens: providedTokens,
+        meta: providedTokensFrontmatter.meta,
+        startLineOffset: providedTokensFrontmatter.startLineOffset,
+      }
     }
     const { tokens, meta, startLineOffset } = lexMarkdown(text)
     return { tokens, meta, startLineOffset }
-  }, [text, providedTokens])
+  }, [providedTokens, providedTokensFrontmatter, text])
 
   const lexedSmall = React.useMemo((): {
     tokens: TokenWithLines[]
     meta: MarkdownFrontmatter
     startLineOffset: number
   } => {
-    if (providedTokens && providedTokens.length > 0) {
-      const lines = splitMarkdownLines(text)
-      const { meta, startIndex } = parseMarkdownFrontmatter(lines)
-      return { tokens: providedTokens, meta, startLineOffset: startIndex }
+    if (providedTokens && providedTokens.length > 0 && providedTokensFrontmatter) {
+      return {
+        tokens: providedTokens,
+        meta: providedTokensFrontmatter.meta,
+        startLineOffset: providedTokensFrontmatter.startLineOffset,
+      }
     }
 
     if (
@@ -66,8 +77,8 @@ export function useMarkdownPreviewLexedMarkdown(
     const { tokens, meta, startLineOffset } = lexMarkdown(text)
     return { tokens, meta, startLineOffset }
   }, [
-    text,
     providedTokens,
+    providedTokensFrontmatter,
     storedTokens,
     storedTokensKey,
     storedTokensMeta,
@@ -75,6 +86,7 @@ export function useMarkdownPreviewLexedMarkdown(
     currentTokensKey,
     storedTokensPath,
     activeDocumentPath,
+    text,
   ])
 
   const lexed = canCacheInStore ? lexedSmall : lexedLarge

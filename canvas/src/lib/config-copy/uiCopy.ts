@@ -146,11 +146,12 @@ export const UI_COPY = {
   chatRequestFailedGenericError: 'Chat request failed.',
   chatResponseMissingContentError: 'Chat response did not include content.',
   chatEndpointOkStatus: 'Chat endpoint responded successfully.',
-  chatEndpointUnreachableStatus: 'Chat endpoint appears unreachable. Ensure the local DeepSeek server is running.',
+  chatEndpointUnreachableStatus:
+    'Chat endpoint appears unreachable. Ensure the local LM Studio (Qwen) or other chat server is running.',
   chatUnableToReachEndpointError: (endpoint: string) =>
-    `Unable to reach chat endpoint at ${endpoint}. Ensure the DeepSeek server is running and accessible from the browser.`,
+    `Unable to reach chat endpoint at ${endpoint}. Ensure the LM Studio (Qwen) or local chat server is running and accessible from the browser.`,
   chatUnableToReachEndpointGenericError:
-    'Unable to reach chat endpoint. Configure a reachable URL in Settings and ensure the server is running.',
+    'Unable to reach chat endpoint. Configure a reachable URL in Settings and ensure the local chat server is running.',
   chatInputPlaceholder: 'Ask a question about the current graph or selection.',
   chatHistoryCountStatus: (count: number) => `History: ${count} messages`,
   frontmatterModeTooltip: 'Frontmatter Mode: focus canvas and panels on Mermaid frontmatter graph',

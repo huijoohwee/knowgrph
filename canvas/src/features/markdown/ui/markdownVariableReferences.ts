@@ -1,4 +1,5 @@
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
+import { getObjectPath } from '@/lib/data/objectPath'
 
 export type MarkdownVariableToken = {
   start: number
@@ -7,6 +8,16 @@ export type MarkdownVariableToken = {
   key: string
   declaredValue: string | null
   fallback: string | null
+}
+export type MarkdownVariableBrowseRow = {
+  key: string
+  value: string | null
+  source: 'frontmatter' | 'inline' | 'unresolved'
+}
+export type MarkdownVariableSsotEntry = {
+  key: string
+  line: number
+  source: 'frontmatter' | 'inline'
 }
 
 const VAR_KEY_RE = /^[A-Za-z0-9_.-]{1,64}$/
@@ -91,6 +102,55 @@ const flattenFrontmatterKeys = (obj: unknown, maxDepth: number = 4, prefix: stri
   return out
 }
 
+const stringifyVariableValue = (value: unknown): string | null => {
+  if (typeof value === 'undefined') return null
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) {
+    const primitiveOnly = value.every(v => typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean')
+    if (primitiveOnly) return value.map(v => String(v)).join(', ')
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return null
+    }
+  }
+  if (value && typeof value === 'object') {
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+const collectInlineDeclarationMap = (text: string): Map<string, string> => {
+  const out = new Map<string, string>()
+  const tokens = parseMarkdownVariableTokens(text)
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i]
+    if (!token || !token.declaredValue) continue
+    const key = token.key.toLowerCase()
+    if (!key || out.has(key)) continue
+    out.set(key, token.declaredValue)
+  }
+  return out
+}
+
+const resolveVariableValue = (args: { frontmatter: Record<string, unknown>; inlineDeclMap: Map<string, string>; key: string }): MarkdownVariableBrowseRow => {
+  const key = String(args.key || '').trim()
+  if (!key) return { key: '', value: null, source: 'unresolved' }
+  const fmValue = getObjectPath(args.frontmatter, key)
+  const fmString = stringifyVariableValue(fmValue)
+  if (fmString != null) return { key, value: fmString, source: 'frontmatter' }
+  const inlineValue = args.inlineDeclMap.get(key.toLowerCase())
+  if (typeof inlineValue === 'string' && inlineValue.trim()) {
+    return { key, value: inlineValue, source: 'inline' }
+  }
+  return { key, value: null, source: 'unresolved' }
+}
+
 export const collectMarkdownVariableSuggestions = (args: { sourceLines?: string[]; draftText: string }): string[] => {
   const out = new Set<string>()
   const addKey = (raw: string) => {
@@ -112,6 +172,19 @@ export const collectMarkdownVariableSuggestions = (args: { sourceLines?: string[
   return Array.from(out).sort((a, b) => a.localeCompare(b))
 }
 
+export const collectMarkdownVariableBrowseRows = (args: { sourceLines?: string[]; draftText: string }): MarkdownVariableBrowseRow[] => {
+  const source = Array.isArray(args.sourceLines) ? args.sourceLines.join('\n') : ''
+  const { meta } = parseMarkdownFrontmatter(splitMarkdownLines(source))
+  const frontmatter = (meta && typeof meta === 'object' && !Array.isArray(meta)) ? meta as Record<string, unknown> : {}
+  const inlineDeclMap = collectInlineDeclarationMap(source || String(args.draftText || ''))
+  const keys = collectMarkdownVariableSuggestions(args)
+  const rows = keys
+    .map(key => resolveVariableValue({ frontmatter, inlineDeclMap, key }))
+    .filter(row => !!row.key)
+  rows.sort((a, b) => a.key.localeCompare(b.key))
+  return rows
+}
+
 export const buildMarkdownVariableToken = (args: {
   mode: 'ref' | 'create' | 'update' | 'fallback'
   key: string
@@ -131,4 +204,53 @@ export const buildMarkdownVariableToken = (args: {
     return `{{${key}|${fallback}}}`
   }
   return `{{${key}}}`
+}
+
+export const buildMarkdownVariableSsotAnchorId = (key: string): string => {
+  const normalized = String(key || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_.-]+/g, '-')
+    .replace(/^-+/, '')
+    .replace(/-+$/, '')
+  return `kg-var-ssot-${normalized || 'unknown'}`
+}
+
+export const collectMarkdownVariableSsotEntries = (sourceText: string): MarkdownVariableSsotEntry[] => {
+  const text = String(sourceText || '')
+  const lines = splitMarkdownLines(text)
+  const byKey = new Map<string, MarkdownVariableSsotEntry>()
+  const upsert = (entry: MarkdownVariableSsotEntry) => {
+    const lower = entry.key.toLowerCase()
+    if (!lower || byKey.has(lower)) return
+    byKey.set(lower, entry)
+  }
+  if ((lines[0] || '').trim() === '---') {
+    let fmEnd = -1
+    for (let i = 1; i < lines.length; i += 1) {
+      if ((lines[i] || '').trim() === '---') {
+        fmEnd = i
+        break
+      }
+    }
+    if (fmEnd > 0) {
+      for (let i = 1; i < fmEnd; i += 1) {
+        const raw = String(lines[i] || '')
+        const trimStart = raw.trimStart()
+        if (!trimStart || trimStart.startsWith('#') || trimStart.startsWith('-')) continue
+        const m = /^([A-Za-z0-9_.-]{1,64})\s*:/.exec(trimStart)
+        if (!m) continue
+        upsert({ key: String(m[1] || ''), line: i + 1, source: 'frontmatter' })
+      }
+    }
+  }
+  const tokens = parseMarkdownVariableTokens(text)
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i]
+    if (!token || !token.declaredValue) continue
+    const before = text.slice(0, Math.max(0, token.start))
+    const line = before.split('\n').length
+    upsert({ key: token.key, line, source: 'inline' })
+  }
+  return Array.from(byKey.values()).sort((a, b) => a.key.localeCompare(b.key))
 }

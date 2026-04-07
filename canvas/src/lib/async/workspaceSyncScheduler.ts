@@ -13,6 +13,8 @@ export type WorkspaceSyncTaskOptions = {
 
 const pendingWorkspaceSyncTasks = new Map<string, WorkspaceSyncTaskEntry>()
 const lastExecutedWorkspaceSyncTaskSignature = new Map<string, string>()
+let workspaceSyncFlushScheduled = false
+let workspaceSyncFlushDelayMs = 0
 
 const setLastExecutedSignature = (key: string, signature: string): void => {
   if (!key || !signature) return
@@ -40,7 +42,9 @@ export const scheduleWorkspaceSyncTask = (
   if (signature && pending?.signature === signature) return
   if (signature && lastExecutedWorkspaceSyncTaskSignature.get(key) === signature) return
   pendingWorkspaceSyncTasks.set(key, { fn, signature })
-  scheduleCoalescedTask(WORKSPACE_SYNC_SCHEDULER_KEY, () => {
+  const flush = () => {
+    workspaceSyncFlushScheduled = false
+    workspaceSyncFlushDelayMs = 0
     const run = [...pendingWorkspaceSyncTasks.entries()]
     pendingWorkspaceSyncTasks.clear()
     for (let i = 0; i < run.length; i += 1) {
@@ -54,13 +58,24 @@ export const scheduleWorkspaceSyncTask = (
         void 0
       }
     }
-  }, delayMs)
+  }
+  const normalizedDelay = Number.isFinite(delayMs) && delayMs >= 0 ? Math.floor(delayMs) : 0
+  if (!workspaceSyncFlushScheduled) {
+    workspaceSyncFlushScheduled = true
+    workspaceSyncFlushDelayMs = normalizedDelay
+    scheduleCoalescedTask(WORKSPACE_SYNC_SCHEDULER_KEY, flush, normalizedDelay)
+    return
+  }
+  if (normalizedDelay >= workspaceSyncFlushDelayMs) return
+  workspaceSyncFlushDelayMs = normalizedDelay
+  scheduleCoalescedTask(WORKSPACE_SYNC_SCHEDULER_KEY, flush, normalizedDelay)
 }
 
 export const cancelWorkspaceSyncTask = (taskKey: string): void => {
   const key = String(taskKey || '').trim() || 'default'
   pendingWorkspaceSyncTasks.delete(key)
-  lastExecutedWorkspaceSyncTaskSignature.delete(key)
   if (pendingWorkspaceSyncTasks.size > 0) return
+  workspaceSyncFlushScheduled = false
+  workspaceSyncFlushDelayMs = 0
   cancelCoalescedTask(WORKSPACE_SYNC_SCHEDULER_KEY)
 }

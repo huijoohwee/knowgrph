@@ -15,6 +15,7 @@ import {
 } from '@/lib/config'
 import { useSettingsView } from './useSettingsView'
 import { WorkspaceTableModeControl } from '@/features/workspace-table/ui/WorkspaceTableModeControl'
+import { CHAT_DEFAULT_ENDPOINT_URL, CHAT_DEFAULT_MODEL } from '@/lib/chatEndpoint'
 
 export default function SettingsView({
   searchQuery,
@@ -71,9 +72,31 @@ export default function SettingsView({
     [dirtyRef, setValues],
   )
 
+  const applyChatPreset = React.useCallback(
+    (preset: 'primary' | 'secondary') => {
+      const primaryEndpoint = CHAT_DEFAULT_ENDPOINT_URL
+      const primaryModel = CHAT_DEFAULT_MODEL
+      const secondaryEndpoint = primaryEndpoint
+      const secondaryModel = primaryModel
+      const patch: Record<string, string> =
+        preset === 'primary'
+          ? {
+              chatEndpointUrl: primaryEndpoint,
+              chatModel: primaryModel,
+            }
+          : {
+              chatEndpointUrl: secondaryEndpoint,
+              chatModel: secondaryModel,
+            }
+      Object.keys(patch).forEach(key => dirtyRef.current.add(key))
+      setValues(prev => ({ ...prev, ...patch }))
+    },
+    [dirtyRef, setValues],
+  )
+
   return (
-    <article className="h-full min-h-0 flex flex-col space-y-0">
-      <section className="flex-1 min-h-0 overflow-auto space-y-0">
+    <article className="min-h-full flex flex-col space-y-0">
+      <section className="space-y-0">
         <header className={`sticky top-0 z-10 border-b ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}>
           <KeyTypeValueRow
             keyNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Key</span>}
@@ -134,6 +157,29 @@ export default function SettingsView({
                       }}
                     >
                       Compact
+                    </button>
+                  </li>
+                )}
+                {area === 'Chat' && (
+                  <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+                    <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>LM Studio profiles</span>
+                    <button
+                      type="button"
+                      className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+                      onClick={() => {
+                        applyChatPreset('primary')
+                      }}
+                    >
+                      Primary
+                    </button>
+                    <button
+                      type="button"
+                      className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
+                      onClick={() => {
+                        applyChatPreset('secondary')
+                      }}
+                    >
+                      Secondary
                     </button>
                   </li>
                 )}

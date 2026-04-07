@@ -8,7 +8,11 @@ const isEditableTarget = (t: unknown): boolean => {
   const withTag = el as unknown as { tagName?: string }
   const tag = typeof withTag.tagName === 'string' ? withTag.tagName : ''
   const upper = tag.toUpperCase()
-  return upper === 'INPUT' || upper === 'TEXTAREA' || upper === 'SELECT'
+  if (upper === 'INPUT' || upper === 'TEXTAREA' || upper === 'SELECT') return true
+  const withRole = el as unknown as { getAttribute?: (name: string) => string | null }
+  const role = typeof withRole.getAttribute === 'function' ? withRole.getAttribute('role') : null
+  if (role === 'textbox' || role === 'combobox') return true
+  return false
 }
 
 const shouldClearSpaceHeldFromFocusTarget = (t: unknown): boolean => {

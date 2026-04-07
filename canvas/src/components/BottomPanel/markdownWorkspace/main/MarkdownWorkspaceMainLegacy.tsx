@@ -483,6 +483,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       onInsertLineAfter={onInsertLineAfter}
       onReorderLineBlock={onReorderLineBlock}
       onReplaceLineRange={onReplaceLineRange}
+      onShowInEditor={line => revealLineInEditor(line)}
       onInlineEditStateChange={handleInlineEditStateChange}
       markdownForcePlainTables={viewerMode === 'table'}
     />

@@ -70,7 +70,7 @@ export default function MainPanelFrame({
         />
         {!collapsed && (
           <section className="flex-1 min-h-0 flex flex-col overflow-hidden" aria-label="Panel content">
-            <main className="flex-1 min-h-0 overflow-auto">
+            <main className="flex-1 min-h-0 overflow-hidden">
               {children}
             </main>
             {footer ? (

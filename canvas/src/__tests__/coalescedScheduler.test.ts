@@ -1,5 +1,5 @@
 import { scheduleCoalescedTask, cancelCoalescedTask } from '@/lib/async/coalescedScheduler'
-import { scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 
 export async function testCoalescedSchedulerCoalescesLatestCallback() {
   const key = 'test:coalescedScheduler:coalesce'
@@ -81,5 +81,51 @@ export async function testWorkspaceSyncSchedulerSuppressesRepeatedSignature() {
   }
   if (calls[0] !== 'runtime:once') {
     throw new Error(`expected first callback to be retained for same signature, got ${calls[0]}`)
+  }
+}
+
+export async function testWorkspaceSyncSchedulerDoesNotDelayExistingFlushForLaterTask() {
+  const calls: string[] = []
+  scheduleWorkspaceSyncTask('runtime:refresh', () => {
+    calls.push('runtime')
+  }, 25)
+
+  await new Promise(resolve => setTimeout(resolve, 5))
+
+  scheduleWorkspaceSyncTask('persistence:prefs', () => {
+    calls.push('persistence')
+  }, 80)
+
+  await new Promise(resolve => setTimeout(resolve, 45))
+
+  if (!calls.includes('runtime')) {
+    throw new Error('expected runtime task to run on the original flush window')
+  }
+  if (!calls.includes('persistence')) {
+    throw new Error('expected later task to join existing flush instead of delaying it')
+  }
+}
+
+export async function testWorkspaceSyncSchedulerCancelDoesNotResetSignatureDedupe() {
+  const calls: string[] = []
+  scheduleWorkspaceSyncTask('runtime:refresh', () => {
+    calls.push('runtime:once')
+  }, 10, { signature: 'stable-signature' })
+
+  await new Promise(resolve => setTimeout(resolve, 40))
+
+  cancelWorkspaceSyncTask('runtime:refresh')
+
+  scheduleWorkspaceSyncTask('runtime:refresh', () => {
+    calls.push('runtime:duplicate')
+  }, 10, { signature: 'stable-signature' })
+
+  await new Promise(resolve => setTimeout(resolve, 40))
+
+  if (calls.length !== 1) {
+    throw new Error(`expected duplicate signature to stay suppressed after cancel, got ${calls.length}`)
+  }
+  if (calls[0] !== 'runtime:once') {
+    throw new Error(`expected first call to remain the only execution, got ${calls[0]}`)
   }
 }

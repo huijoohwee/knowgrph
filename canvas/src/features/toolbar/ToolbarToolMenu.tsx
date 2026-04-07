@@ -553,7 +553,7 @@ export function ToolbarToolMenu({
 
   const floatingPanelBodyClassName = cn(
     'mt-1',
-    (floatingPanelView === 'chat' || floatingPanelView === 'geo')
+    (floatingPanelView === 'chat' || floatingPanelView === 'geo' || floatingPanelView === 'interaction')
       ? 'flex-1 min-h-0 overflow-hidden'
       : FLOATING_PANEL_SCROLL_CLASSNAME,
     uiPanelTextFontClass,

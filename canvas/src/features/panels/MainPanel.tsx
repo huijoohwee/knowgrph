@@ -300,10 +300,10 @@ export default function MainPanel({
       )}
     >
       <section className="h-full min-h-0 px-3 py-2 overflow-hidden" aria-label="Main panel content">
-        <section role="tabpanel" id="main-panel-help-panel" aria-labelledby="main-panel-help-tab" hidden={tab !== 'help'}>
+        <section className="h-full min-h-0" role="tabpanel" id="main-panel-help-panel" aria-labelledby="main-panel-help-tab" hidden={tab !== 'help'}>
           {tab === 'help' && <HelpView searchQuery={search} />}
         </section>
-        <section role="tabpanel" id="main-panel-workflow-panel" aria-labelledby="main-panel-workflow-tab" hidden={tab !== 'workflow'}>
+        <section className="h-full min-h-0" role="tabpanel" id="main-panel-workflow-panel" aria-labelledby="main-panel-workflow-tab" hidden={tab !== 'workflow'}>
           {tab === 'workflow' && (
             <MainPanelBody header={<MainPanelWorkflowHeader workflowActions={workflowActions} />}>
               <section
@@ -316,6 +316,7 @@ export default function MainPanel({
           )}
         </section>
         <section
+          className="h-full min-h-0"
           role="tabpanel"
           id="main-panel-flowEditorManager-panel"
           aria-labelledby="main-panel-flowEditorManager-tab"
@@ -325,20 +326,20 @@ export default function MainPanel({
             <FlowEditorManagerView searchQuery={search} onRegisterActions={setFlowEditorManagerActionsStable} />
           )}
         </section>
-        <section role="tabpanel" id="main-panel-graphFields-panel" aria-labelledby="main-panel-graphFields-tab" hidden={tab !== 'graphFields'}>
+        <section className="h-full min-h-0" role="tabpanel" id="main-panel-graphFields-panel" aria-labelledby="main-panel-graphFields-tab" hidden={tab !== 'graphFields'}>
           {tab === 'graphFields' && <GraphFieldsView onStatusChange={setGraphFieldsStatusStable} searchQuery={search} />}
         </section>
-        <section role="tabpanel" id="main-panel-dashboard-panel" aria-labelledby="main-panel-dashboard-tab" hidden={tab !== 'dashboard'}>
+        <section className="h-full min-h-0" role="tabpanel" id="main-panel-dashboard-panel" aria-labelledby="main-panel-dashboard-tab" hidden={tab !== 'dashboard'}>
           {tab === 'dashboard' && <DashboardView />}
         </section>
-        <section role="tabpanel" id="main-panel-preview-panel" aria-labelledby="main-panel-preview-tab" hidden={tab !== 'preview'}>
+        <section className="h-full min-h-0" role="tabpanel" id="main-panel-preview-panel" aria-labelledby="main-panel-preview-tab" hidden={tab !== 'preview'}>
           {tab === 'preview' && <PreviewPanelView />}
         </section>
-        <section role="tabpanel" id="main-panel-settings-panel" aria-labelledby="main-panel-settings-tab" hidden={tab !== 'settings'}>
+        <section className="h-full min-h-0" role="tabpanel" id="main-panel-settings-panel" aria-labelledby="main-panel-settings-tab" hidden={tab !== 'settings'}>
           {tab === 'settings' && (
             <MainPanelBody header={<MainPanelSettingsHeader settingsActions={settingsActions} />}>
               <section
-                className={`min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}
+                className={`h-full min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}
                 data-kg-anchor={UI_ANCHORS.settingsPanel}
               >
                 <SettingsView searchQuery={search} onRegisterActions={setSettingsActions} />
@@ -346,7 +347,7 @@ export default function MainPanel({
             </MainPanelBody>
           )}
         </section>
-        <section role="tabpanel" id="main-panel-history-panel" aria-labelledby="main-panel-history-tab" hidden={tab !== 'history'}>
+        <section className="h-full min-h-0" role="tabpanel" id="main-panel-history-panel" aria-labelledby="main-panel-history-tab" hidden={tab !== 'history'}>
           {tab === 'history' && <HistoryView searchQuery={search} />}
         </section>
       </section>

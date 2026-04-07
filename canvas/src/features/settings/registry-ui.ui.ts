@@ -4,6 +4,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { ThemeMode } from '@/lib/ui/theme'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsSetBool } from '@/lib/persistence'
+import { CHAT_DEFAULT_ENDPOINT_URL, CHAT_DEFAULT_MODEL } from '@/lib/chatEndpoint'
 
 const s = () => useGraphStore.getState()
 
@@ -350,16 +351,16 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     read: () => s().chatEndpointUrl,
     write: (v) => s().setChatEndpointUrl(String(v || '').trim() || null),
     docKey: 'chatEndpointUrl',
-    default: () => 'http://localhost:1234/v1/chat/completions',
+    default: () => CHAT_DEFAULT_ENDPOINT_URL,
   },
   {
     key: 'chatModel',
     type: 'string',
     source: 'localStorage',
     read: () => s().chatModel,
-    write: (v) => s().setChatModel(String(v || '').trim() || 'lmstudio-community/DeepSeek-R1-0528-Qwen3-8B-MLX-8bit'),
+    write: (v) => s().setChatModel(String(v || '').trim() || CHAT_DEFAULT_MODEL),
     docKey: 'chatModel',
-    default: () => 'lmstudio-community/DeepSeek-R1-0528-Qwen3-8B-MLX-8bit',
+    default: () => CHAT_DEFAULT_MODEL,
   },
   {
     key: 'chatTemperature',

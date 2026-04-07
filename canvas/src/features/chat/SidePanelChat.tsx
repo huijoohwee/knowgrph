@@ -4,9 +4,11 @@ import { getChatHistoryStorageKey, UI_COPY } from '@/lib/config'
 import { CHAT_INPUT_APPEND_EVENT } from '@/features/canvas/utils'
 import type { GraphData } from '@/lib/graph/types'
 import { getLocalStorage, readJsonFromStorage, writeJsonToStorage } from '@/lib/persistence'
+import { FLOATING_PANEL_SCROLL_CLASSNAME } from '@/components/ui/FloatingPanel'
 import type { ChatMessage } from './SidePanelChatSections'
 import { SidePanelChatFooter, SidePanelChatMessagesSection } from './SidePanelChatSections'
 import { buildBoundedGraphSystemPrompt, buildMarkdownNodeSnippetPrompt } from './chatPromptHelpers'
+import { normalizeChatModelId, resolveChatEndpointForModels, resolveChatEndpointForRequest } from '@/lib/chatEndpoint'
 
 const clampTemperature = (raw: unknown): number => {
   const t = Number(raw)
@@ -74,6 +76,64 @@ const extractAssistantDelta = (payload: unknown): string => {
   return delta || direct || ''
 }
 
+const parseErrorBody = async (res: Response): Promise<string> => {
+  const contentType = String(res.headers.get('content-type') || '').toLowerCase()
+  try {
+    if (contentType.includes('application/json')) {
+      const data = (await res.json()) as {
+        error?: { message?: unknown } | string
+        message?: unknown
+      }
+      if (data && typeof data.error === 'object' && data.error && typeof data.error.message === 'string') {
+        return data.error.message.trim()
+      }
+      if (typeof data?.error === 'string') return data.error.trim()
+      if (typeof data?.message === 'string') return data.message.trim()
+      return ''
+    }
+    const text = await res.text()
+    return String(text || '').trim()
+  } catch {
+    return ''
+  }
+}
+
+const shouldRetryWithModelFallback = (status: number, detail: string): boolean => {
+  if (status !== 400 && status !== 404) return false
+  const lowered = String(detail || '').toLowerCase()
+  if (!lowered) return false
+  if (!lowered.includes('model')) return false
+  if (lowered.includes('not found')) return true
+  if (lowered.includes('does not exist')) return true
+  if (lowered.includes('unknown')) return true
+  if (lowered.includes('invalid')) return true
+  if (lowered.includes('load')) return true
+  return false
+}
+
+const loadAvailableModelIds = async (endpoint: string): Promise<string[]> => {
+  const res = await fetch(endpoint, { method: 'GET' })
+  if (!res.ok) return []
+  const data = (await res.json()) as { data?: unknown }
+  const list = Array.isArray(data?.data) ? data.data : []
+  const ids = list
+    .map(entry => {
+      if (!entry || typeof entry !== 'object') return ''
+      const id = (entry as { id?: unknown }).id
+      return typeof id === 'string' ? id.trim() : ''
+    })
+    .filter(Boolean)
+  if (!ids.length) return []
+  const seen = new Set<string>()
+  const out: string[] = []
+  ids.forEach(id => {
+    if (seen.has(id)) return
+    seen.add(id)
+    out.push(id)
+  })
+  return out
+}
+
 export default function SidePanelChat() {
   const graphData = useGraphStore(s => s.graphData)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
@@ -85,6 +145,7 @@ export default function SidePanelChat() {
   const chatModel = useGraphStore(s => s.chatModel)
   const chatTemperature = useGraphStore(s => s.chatTemperature)
   const chatSystemPrompt = useGraphStore(s => s.chatSystemPrompt)
+  const setChatModel = useGraphStore(s => s.setChatModel)
 
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
   const [input, setInput] = React.useState('')
@@ -200,6 +261,13 @@ export default function SidePanelChat() {
       setConnectivityDetail(null)
       return
     }
+    const requestUrl = resolveChatEndpointForRequest(chatEndpointUrl)
+    if (!requestUrl) {
+      setErrorText(UI_COPY.chatMissingEndpointAndModelError)
+      setConnectivity('unknown')
+      setConnectivityDetail(null)
+      return
+    }
 
     setErrorText(null)
     setConnectivityDetail(null)
@@ -237,26 +305,47 @@ export default function SidePanelChat() {
       const controller = new AbortController()
       abortRef.current = controller
 
-      const res = await fetch(String(chatEndpointUrl), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: chatModel,
-          messages: payloadMessages,
-          temperature: clampTemperature(chatTemperature),
-          stream: true,
-        }),
-        signal: controller.signal,
-      })
+      const sendChat = async (model: string) => {
+        return await fetch(requestUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model,
+            messages: payloadMessages,
+            temperature: clampTemperature(chatTemperature),
+            stream: true,
+          }),
+          signal: controller.signal,
+        })
+      }
 
+      let effectiveModel = normalizeChatModelId(chatModel)
+      let res = await sendChat(effectiveModel)
       if (!res.ok) {
-        setConnectivity('ok')
-        setConnectivityDetail(null)
-        setErrorText(UI_COPY.chatRequestFailedStatus(res.status))
-        setMessages(prev => prev.filter(m => m.id !== assistantMessageId))
-        setIsLoading(false)
-        abortRef.current = null
-        return
+        const initialDetail = await parseErrorBody(res)
+        const allowFallback = shouldRetryWithModelFallback(res.status, initialDetail)
+        if (allowFallback) {
+          const modelsEndpoint = resolveChatEndpointForModels(chatEndpointUrl)
+          const ids = modelsEndpoint ? await loadAvailableModelIds(modelsEndpoint) : []
+          const fallback = ids.find(id => id !== effectiveModel) || ids[0] || ''
+          if (fallback && fallback !== effectiveModel) {
+            effectiveModel = fallback
+            setChatModel(fallback)
+            res = await sendChat(fallback)
+          }
+        }
+        if (!res.ok) {
+          const detail = initialDetail || (await parseErrorBody(res))
+          const statusText = UI_COPY.chatRequestFailedStatus(res.status)
+          const suffix = detail ? ` ${detail}` : ''
+          setConnectivity('ok')
+          setConnectivityDetail(null)
+          setErrorText(`${statusText}${suffix}`.trim())
+          setMessages(prev => prev.filter(m => m.id !== assistantMessageId))
+          setIsLoading(false)
+          abortRef.current = null
+          return
+        }
       }
 
       const contentType = String(res.headers.get('content-type') || '').toLowerCase()
@@ -346,7 +435,7 @@ export default function SidePanelChat() {
 
   return (
     <div className="h-full flex flex-col">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3">
+      <div ref={scrollRef} className={`${FLOATING_PANEL_SCROLL_CLASSNAME} p-3 space-y-3`}>
         <SidePanelChatMessagesSection
           messages={messages}
           isLoading={isLoading}

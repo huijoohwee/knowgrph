@@ -459,6 +459,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
             onInsertLineAfter={props.onInsertLineAfter}
             onReorderLineBlock={props.onReorderLineBlock}
             onReplaceLineRange={props.onReplaceLineRange}
+            onShowInEditor={props.onRevealLineInEditor}
           />
         )
       }
@@ -505,6 +506,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
         onInsertLineAfter={props.onInsertLineAfter}
         onReorderLineBlock={props.onReorderLineBlock}
         onReplaceLineRange={props.onReplaceLineRange}
+        onShowInEditor={props.onRevealLineInEditor}
       />
     )
   }

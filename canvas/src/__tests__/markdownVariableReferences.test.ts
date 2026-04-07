@@ -1,5 +1,8 @@
 import {
+  buildMarkdownVariableSsotAnchorId,
   buildMarkdownVariableToken,
+  collectMarkdownVariableSsotEntries,
+  collectMarkdownVariableBrowseRows,
   collectMarkdownVariableSuggestions,
   findMarkdownVariableTokenAtOffset,
   parseMarkdownVariableTokens,
@@ -46,6 +49,18 @@ export async function testMarkdownVariableReferencesCollectSuggestionsFromFrontm
   if (!suggestions.includes('authors.0')) throw new Error('expected suggestions to include dotted frontmatter array path key')
   if (!suggestions.includes('place')) throw new Error('expected suggestions to include inline declaration key')
   if (!suggestions.includes('city')) throw new Error('expected suggestions to include fallback reference key')
+  const browseRows = collectMarkdownVariableBrowseRows({
+    sourceLines,
+    draftText: 'Draft has {{city|venue}} and {{place}}',
+  })
+  const venueRow = browseRows.find(r => r.key === 'venue')
+  if (!venueRow || venueRow.value !== 'Singapore' || venueRow.source !== 'frontmatter') {
+    throw new Error('expected browse rows to resolve frontmatter key values')
+  }
+  const placeRow = browseRows.find(r => r.key === 'place')
+  if (!placeRow || placeRow.value !== 'airport' || placeRow.source !== 'inline') {
+    throw new Error('expected browse rows to resolve inline declaration values')
+  }
   await Promise.resolve()
 }
 
@@ -56,5 +71,23 @@ export async function testMarkdownVariableReferencesBuildTokenByMode() {
   if (created !== '{{place:airport}}') throw new Error('expected create token')
   const fallback = buildMarkdownVariableToken({ mode: 'fallback', key: 'city', fallback: 'venue' })
   if (fallback !== '{{city|venue}}') throw new Error('expected fallback token')
+  const anchorId = buildMarkdownVariableSsotAnchorId('Venue')
+  if (anchorId !== 'kg-var-ssot-venue') throw new Error('expected deterministic variable ssot anchor id')
+  const ssotEntries = collectMarkdownVariableSsotEntries([
+    '---',
+    'venue: "Singapore"',
+    '---',
+    '',
+    '{{place:airport}}',
+    'hello {{venue}}',
+  ].join('\n'))
+  const venueEntry = ssotEntries.find(r => r.key === 'venue')
+  if (!venueEntry || venueEntry.source !== 'frontmatter' || venueEntry.line !== 2) {
+    throw new Error('expected venue ssot to resolve to frontmatter line')
+  }
+  const placeEntry = ssotEntries.find(r => r.key === 'place')
+  if (!placeEntry || placeEntry.source !== 'inline' || placeEntry.line !== 5) {
+    throw new Error('expected place ssot to resolve to inline declaration line')
+  }
   await Promise.resolve()
 }
