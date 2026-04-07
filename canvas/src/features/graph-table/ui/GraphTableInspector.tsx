@@ -21,6 +21,7 @@ import {
 import { normalizeGraphData } from '@/lib/graph/normalize'
 import { buildNodeQuickEditorBundleV1, nodeQuickEditorBundleToJsonText } from '@/lib/graph/io/nodeQuickEditorBundle'
 import { useShallow } from 'zustand/react/shallow'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 export type GraphTableInspectorRow = {
   tableId: 'nodes' | 'edges'
@@ -420,7 +421,7 @@ export function GraphTableInspector({
                     </section>
                   </header>
                   <section className="p-2" aria-label="Code">
-                    <textarea
+                    <PlainTextInputEditor
                       className={cn(
                         'w-full h-[220px] rounded border px-2 py-1',
                         monospaceTextClass,
@@ -429,6 +430,7 @@ export function GraphTableInspector({
                         UI_THEME_TOKENS.input.border,
                         UI_THEME_TOKENS.input.text,
                       )}
+                      multiline
                       value={quickEditorCodeText}
                       readOnly
                       spellCheck={false}
@@ -446,7 +448,7 @@ export function GraphTableInspector({
                 <Fragment key={col.pk}>
                   <dt className={cn(textSizeClass, UI_THEME_TOKENS.text.tertiary, 'truncate')}>{col.name}</dt>
                   <dd>
-                    <input
+                    <PlainTextInputEditor
                       className={cn(
                         'w-full',
                         keyValueInputClass,
@@ -457,7 +459,7 @@ export function GraphTableInspector({
                       )}
                       value={raw}
                       disabled={disabled}
-                      onChange={e => onChangeCell(col.columnId, e.target.value)}
+                      onChange={next => onChangeCell(col.columnId, next)}
                     />
                   </dd>
                 </Fragment>

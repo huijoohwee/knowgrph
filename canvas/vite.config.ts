@@ -29,6 +29,57 @@ const CODEBASE_INDEX_PIPELINE_OUTPUT_DIR =
   String(process.env.VITE_MARKDOWN_PIPELINE_OUTPUT_DIR || '').trim() || 'data/knowgrph-workflow-preview'
 const CODEBASE_INDEX_PIPELINE_COMMAND = `python -m knowgrph_parser markdown --input ${MARKDOWN_PIPELINE_INPUT_REL_PATH} --output-dir ${CODEBASE_INDEX_PIPELINE_OUTPUT_DIR}`
 const CHAT_PROXY_PREFIX = '/__chat_proxy'
+const CHAT_LOG_APPEND_PATH = '/__chat_log_append'
+const CHAT_PROXY_OPENAI_HOST = 'api.openai.com'
+const CHAT_PROXY_LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0'])
+const CHAT_LOG_MAX_BODY_BYTES = 1024 * 1024
+const CHAT_LOG_MAX_FIELD_LENGTH = 20_000
+const chatLogsDir = path.resolve(repoRoot, 'logs')
+
+const normalizeHost = (value: unknown): string => String(value || '').trim().toLowerCase()
+
+const readSingleHeader = (value: unknown): string => {
+  if (typeof value === 'string') return value.trim()
+  if (Array.isArray(value)) return String(value[0] || '').trim()
+  return ''
+}
+
+const isLocalChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_LOCAL_HOSTS.has(normalizeHost(value))
+
+const parseAllowedChatProxyHosts = (): Set<string> => {
+  const envValue = String(process.env.KNOWGRPH_CHAT_PROXY_ALLOWED_HOSTS || '').trim()
+  if (!envValue) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST])
+  const out = new Set<string>()
+  envValue
+    .split(',')
+    .map(part => normalizeHost(part))
+    .filter(Boolean)
+    .forEach(host => out.add(host))
+  if (!out.size) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST])
+  return out
+}
+
+const toLogSafeText = (value: unknown): string => {
+  return String(value || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .trim()
+    .slice(0, CHAT_LOG_MAX_FIELD_LENGTH)
+}
+
+const toLogSafeInline = (value: unknown): string => {
+  return toLogSafeText(value).replace(/\n/g, ' ').replace(/\|/g, '\\|')
+}
+
+const toChatLogFileName = (timestampMs: number): string => {
+  const date = new Date(Number.isFinite(timestampMs) ? timestampMs : Date.now())
+  const yyyy = String(date.getFullYear())
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  const hh = String(date.getHours()).padStart(2, '0')
+  const min = String(date.getMinutes()).padStart(2, '0')
+  return `logs_${yyyy}${mm}${dd}${hh}${min}.md`
+}
 
 const stripEntitiesBadSourcemapsPlugin = {
   name: 'knowgrph-strip-entities-bad-sourcemaps',
@@ -532,6 +583,28 @@ const chatProxyDevPlugin = {
   },
 }
 
+const chatLogDevPlugin = {
+  name: 'knowgrph-chat-log-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use((req, res, next) => {
+      if (!req.url?.startsWith(CHAT_LOG_APPEND_PATH)) {
+        next()
+        return
+      }
+      createChatLogAppendHandler()(req, res, next)
+    })
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use((req, res, next) => {
+      if (!req.url?.startsWith(CHAT_LOG_APPEND_PATH)) {
+        next()
+        return
+      }
+      createChatLogAppendHandler()(req, res, next)
+    })
+  },
+}
+
 const webpageProxyDevPlugin = {
   name: 'knowgrph-webpage-proxy-dev',
   configureServer(server: import('vite').ViteDevServer) {
@@ -730,6 +803,119 @@ function createLocalGeoDatasetHandler(): import('vite').Connect.NextHandleFuncti
   }
 }
 
+function createChatLogAppendHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    const parsed = (() => {
+      try {
+        return new URL(String(req.url || ''), `http://${req.headers.host || 'localhost'}`)
+      } catch {
+        return null
+      }
+    })()
+    if (!parsed || parsed.pathname !== CHAT_LOG_APPEND_PATH) {
+      next()
+      return
+    }
+    const method = String(req.method || 'GET').toUpperCase()
+    if (method !== 'POST') {
+      res.statusCode = 405
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Method not allowed' }))
+      return
+    }
+    try {
+      const body = await new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = []
+        let total = 0
+        req.on('data', (chunk: Buffer) => {
+          total += chunk.length
+          if (total > CHAT_LOG_MAX_BODY_BYTES) {
+            reject(new Error('Payload too large'))
+            return
+          }
+          chunks.push(chunk)
+        })
+        req.on('end', () => resolve(Buffer.concat(chunks)))
+        req.on('error', err => reject(err))
+      })
+      const payload = JSON.parse(body.toString('utf8')) as {
+        request?: unknown
+        response?: unknown
+        status?: unknown
+        model?: unknown
+        timestampMs?: unknown
+      }
+      const requestText = toLogSafeText(payload?.request)
+      const responseText = toLogSafeText(payload?.response)
+      const statusRaw = String(payload?.status || '').trim().toLowerCase()
+      const status = statusRaw === 'error' || statusRaw === 'aborted' ? statusRaw : 'ok'
+      const model = toLogSafeText(payload?.model)
+      const tsMsRaw = typeof payload?.timestampMs === 'number' ? payload.timestampMs : Date.now()
+      const tsMs = Number.isFinite(tsMsRaw) ? Math.floor(tsMsRaw) : Date.now()
+      if (!requestText && !responseText) {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify({ ok: false, error: 'Missing chat log content' }))
+        return
+      }
+      const fileName = toChatLogFileName(tsMs)
+      const filePath = path.resolve(chatLogsDir, fileName)
+      if (!filePath.startsWith(chatLogsDir)) {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify({ ok: false, error: 'Invalid log path' }))
+        return
+      }
+      await fs.mkdir(chatLogsDir, { recursive: true })
+      const exists = existsSync(filePath)
+      if (!exists) {
+        const header = [
+          '| User Request/AI Response | Snippet | Timestamp | Status |',
+          '|---|---|---|---|',
+        ].join('\n')
+        await fs.writeFile(filePath, `${header}\n`, 'utf8')
+      }
+      const timestampText = new Date(tsMs).toISOString().slice(0, 19).replace('T', ' ')
+      const snippet = toLogSafeInline(responseText || requestText).slice(0, 280)
+      const pairInline = `User: ${toLogSafeInline(requestText).slice(0, 400)} ↔ AI: ${toLogSafeInline(responseText).slice(0, 400)}`
+      const detail = [
+        `<details><summary>Details</summary>`,
+        '',
+        `**Model:** ${toLogSafeInline(model || '—')}`,
+        '',
+        '**User Request**',
+        '',
+        '```text',
+        requestText || '—',
+        '```',
+        '',
+        '**AI Response**',
+        '',
+        '```text',
+        responseText || '—',
+        '```',
+        '',
+        '</details>',
+      ].join('\n')
+      const row = `| ${pairInline} | ${snippet}<br/>${detail} | ${timestampText} | ${toLogSafeInline(status)} |`
+      await fs.appendFile(filePath, `${row}\n`, 'utf8')
+      res.statusCode = 200
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-store')
+      res.end(JSON.stringify({ ok: true, file: `/logs/${fileName}` }))
+    } catch (error) {
+      const message =
+        error && typeof error === 'object' && 'message' in error
+          ? String((error as { message?: unknown }).message || '')
+          : ''
+      res.statusCode = /too large/i.test(message) ? 413 : 500
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-store')
+      res.end(JSON.stringify({ ok: false, error: message || 'Failed to append chat log' }))
+    }
+  }
+}
+
 function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
   return async (req, res, next) => {
     const method = String(req.method || 'GET').toUpperCase()
@@ -763,7 +949,14 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       next()
       return
     }
-    const upstreamBaseRaw = String(process.env.KNOWGRPH_CHAT_PROXY_UPSTREAM || '').trim() || 'http://127.0.0.1:1234'
+    const providerHeader = normalizeHost(readSingleHeader(req.headers['x-kg-chat-provider']))
+    const requestedUpstreamRaw = readSingleHeader(req.headers['x-kg-chat-upstream'])
+    const upstreamBaseRaw = (() => {
+      if (providerHeader === 'openai') return 'https://api.openai.com'
+      if (requestedUpstreamRaw) return requestedUpstreamRaw
+      return String(process.env.KNOWGRPH_CHAT_PROXY_UPSTREAM || '').trim() || 'http://127.0.0.1:1234'
+    })()
+    const allowedHosts = parseAllowedChatProxyHosts()
     const upstreamBase = (() => {
       try {
         return new URL(upstreamBaseRaw)
@@ -775,6 +968,29 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       res.statusCode = 500
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.end(JSON.stringify({ ok: false, error: 'Invalid chat proxy upstream configuration' }))
+      return
+    }
+    const upstreamHostname = normalizeHost(upstreamBase.hostname)
+    if (!allowedHosts.has(upstreamHostname)) {
+      res.statusCode = 403
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Chat proxy upstream host is not allowed' }))
+      return
+    }
+    if (!isLocalChatUpstreamHost(upstreamHostname) && upstreamBase.protocol !== 'https:') {
+      res.statusCode = 403
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Chat proxy requires HTTPS for non-local upstream hosts' }))
+      return
+    }
+    const requiresOpenAiKey = providerHeader === 'openai' || upstreamHostname === CHAT_PROXY_OPENAI_HOST
+    const envOpenAiApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY || '').trim()
+    const headerOpenAiApiKey = readSingleHeader(req.headers['x-kg-chat-api-key'])
+    const openAiApiKey = (headerOpenAiApiKey || envOpenAiApiKey).slice(0, 512)
+    if (requiresOpenAiKey && !openAiApiKey) {
+      res.statusCode = 500
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Missing OpenAI API key for chat proxy upstream' }))
       return
     }
     const suffix = parsedReq.pathname.slice(CHAT_PROXY_PREFIX.length) || '/v1/chat/completions'
@@ -808,8 +1024,15 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       const headers = new Headers()
       const contentType = String(req.headers['content-type'] || '').trim()
       const accept = String(req.headers.accept || '').trim()
+      if (method === 'POST' && !contentType.toLowerCase().includes('application/json')) {
+        res.statusCode = 415
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify({ ok: false, error: 'Chat proxy expects application/json payloads' }))
+        return
+      }
       if (contentType) headers.set('Content-Type', contentType)
       if (accept) headers.set('Accept', accept)
+      if (requiresOpenAiKey) headers.set('Authorization', `Bearer ${openAiApiKey}`)
       const upstreamRes = await fetch(upstreamUrl.toString(), {
         method,
         headers,
@@ -822,10 +1045,15 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
         if (lower === 'content-length') return
         if (lower === 'connection') return
         if (lower === 'transfer-encoding') return
+        if (lower === 'www-authenticate') return
         res.setHeader(key, value)
       })
       res.setHeader('Cache-Control', 'no-store')
-      res.setHeader('Access-Control-Allow-Origin', '*')
+      const requestOrigin = String(req.headers.origin || '').trim()
+      if (requestOrigin) {
+        res.setHeader('Access-Control-Allow-Origin', requestOrigin)
+        res.setHeader('Vary', 'Origin')
+      }
       if (method === 'HEAD') {
         res.end()
         return
@@ -3852,6 +4080,7 @@ export default defineConfig(({ command }) => ({
           codebaseFileDevPlugin,
           remoteFetchProxyDevPlugin,
           chatProxyDevPlugin,
+          chatLogDevPlugin,
           webpageProxyDevPlugin,
           localGeoDatasetDevPlugin,
           pdfConvertDevPlugin,

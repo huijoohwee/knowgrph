@@ -197,9 +197,10 @@ export const UI_COPY = {
   geospatialModeOffTitle: 'Document Mode (Geospatial Mode Off)',
   themeTooltipPrefix: 'Theme: ',
   chatEmptyStateHelp:
-    'Chat is context-aware of the active graph selection. Configure endpoint and model in Settings, then ask a question about the current node or dataset.',
-  chatNoSelectionContextStatus: 'No node selected; chat uses only conversation history.',
-  chatUsingSelectedNodeContextStatus: (label: string, type: string) => `Using selected node ${label} (${type}) as context.`,
+    'Chat has workspace-wide context from Explorer, Source Files, and Workspace Editor. Configure endpoint and model in Settings, then ask about any file, node, or dataset.',
+  chatNoSelectionContextStatus: 'Using workspace-wide context from Explorer, Source Files, and Workspace Editor.',
+  chatUsingSelectedNodeContextStatus: (label: string, type: string) =>
+    `Using workspace-wide context plus selected node ${label} (${type}).`,
   chatStopButtonLabel: 'Stop',
   chatSendButtonLabel: 'Send',
   chatSendingButtonLabel: 'Sending…',

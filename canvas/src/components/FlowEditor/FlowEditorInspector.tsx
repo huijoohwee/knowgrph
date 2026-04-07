@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { readFlowEdgeDisplayLabel } from '@/lib/graph/flowPorts'
 import type { UserSubgraph } from '@/lib/graph/subgraphs'
 import { subgraphGroupId } from '@/lib/graph/subgraphs'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 export type InspectorTab = 'node' | 'edge' | 'workflow' | 'groups'
 
@@ -166,7 +167,7 @@ export default function FlowEditorInspector({
           <label className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-editor-type">
             Type
           </label>
-          <input
+          <PlainTextInputEditor
             id="flow-editor-type"
             className={cn(
               'mt-1 w-full rounded-md',
@@ -177,7 +178,7 @@ export default function FlowEditorInspector({
               UI_THEME_TOKENS.input.text,
             )}
             value={String(selectedNode?.type || 'Node')}
-            onChange={e => onSetNodeType(e.target.value)}
+            onChange={onSetNodeType}
             disabled={!active || !selectedNode}
           />
           <label
@@ -186,7 +187,7 @@ export default function FlowEditorInspector({
           >
             Properties (JSON)
           </label>
-          <textarea
+          <PlainTextInputEditor
             id="flow-editor-node-props"
             className={cn(
               'mt-1 w-full h-28 px-2 py-1 rounded-md border',
@@ -196,7 +197,8 @@ export default function FlowEditorInspector({
               UI_THEME_TOKENS.input.text,
             )}
             value={nodePropsJson}
-            onChange={e => setNodePropsJson(e.target.value)}
+            onChange={setNodePropsJson}
+            multiline
             disabled={!active || !selectedNode}
           />
           <button
@@ -213,7 +215,7 @@ export default function FlowEditorInspector({
           >
             Metadata (JSON)
           </label>
-          <textarea
+          <PlainTextInputEditor
             id="flow-editor-node-meta"
             className={cn(
               'mt-1 w-full h-24 px-2 py-1 rounded-md border',
@@ -223,7 +225,8 @@ export default function FlowEditorInspector({
               UI_THEME_TOKENS.input.text,
             )}
             value={nodeMetaJson}
-            onChange={e => setNodeMetaJson(e.target.value)}
+            onChange={setNodeMetaJson}
+            multiline
             disabled={!active || !selectedNode}
           />
           <button
@@ -261,7 +264,7 @@ export default function FlowEditorInspector({
           >
             Label
           </label>
-          <input
+          <PlainTextInputEditor
             id="flow-editor-edge-label"
             className={cn(
               'mt-1 w-full rounded-md',
@@ -272,7 +275,7 @@ export default function FlowEditorInspector({
               UI_THEME_TOKENS.input.text,
             )}
             value={String(selectedEdge?.label || '')}
-            onChange={e => onSetEdgeLabel(e.target.value)}
+            onChange={onSetEdgeLabel}
             disabled={!active || !selectedEdge}
           />
           <label
@@ -281,7 +284,7 @@ export default function FlowEditorInspector({
           >
             Properties (JSON)
           </label>
-          <textarea
+          <PlainTextInputEditor
             id="flow-editor-edge-props"
             className={cn(
               'mt-1 w-full h-24 px-2 py-1 rounded-md border',
@@ -291,7 +294,8 @@ export default function FlowEditorInspector({
               UI_THEME_TOKENS.input.text,
             )}
             value={edgePropsJson}
-            onChange={e => setEdgePropsJson(e.target.value)}
+            onChange={setEdgePropsJson}
+            multiline
             disabled={!active || !selectedEdge}
           />
           <button
@@ -308,7 +312,7 @@ export default function FlowEditorInspector({
           >
             Metadata (JSON)
           </label>
-          <textarea
+          <PlainTextInputEditor
             id="flow-editor-edge-meta"
             className={cn(
               'mt-1 w-full h-20 px-2 py-1 rounded-md border',
@@ -318,7 +322,8 @@ export default function FlowEditorInspector({
               UI_THEME_TOKENS.input.text,
             )}
             value={edgeMetaJson}
-            onChange={e => setEdgeMetaJson(e.target.value)}
+            onChange={setEdgeMetaJson}
+            multiline
             disabled={!active || !selectedEdge}
           />
           <button
@@ -392,7 +397,7 @@ export default function FlowEditorInspector({
           >
             Metadata (JSON)
           </label>
-          <textarea
+          <PlainTextInputEditor
             id="flow-editor-workflow-meta"
             className={cn(
               'mt-1 w-full h-24 px-2 py-1 rounded-md border',
@@ -402,7 +407,8 @@ export default function FlowEditorInspector({
               UI_THEME_TOKENS.input.text,
             )}
             value={workflowMetaJson}
-            onChange={e => setWorkflowMetaJson(e.target.value)}
+            onChange={setWorkflowMetaJson}
+            multiline
             disabled={!active}
           />
           <button
@@ -419,7 +425,7 @@ export default function FlowEditorInspector({
           >
             Context (JSON)
           </label>
-          <textarea
+          <PlainTextInputEditor
             id="flow-editor-workflow-context"
             className={cn(
               'mt-1 w-full h-24 px-2 py-1 rounded-md border',
@@ -429,7 +435,8 @@ export default function FlowEditorInspector({
               UI_THEME_TOKENS.input.text,
             )}
             value={workflowContextJson}
-            onChange={e => setWorkflowContextJson(e.target.value)}
+            onChange={setWorkflowContextJson}
+            multiline
             disabled={!active}
           />
           <button
@@ -451,7 +458,7 @@ export default function FlowEditorInspector({
           <label className={cn('mt-3 block', keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-editor-new-subgraph-label">
             New group label
           </label>
-          <input
+          <PlainTextInputEditor
             id="flow-editor-new-subgraph-label"
             className={cn(
               'mt-1 w-full rounded-md',
@@ -462,7 +469,7 @@ export default function FlowEditorInspector({
               UI_THEME_TOKENS.input.text,
             )}
             value={newSubgraphLabel}
-            onChange={e => setNewSubgraphLabel(e.target.value)}
+            onChange={setNewSubgraphLabel}
             disabled={!active}
             placeholder="Subgraph label"
           />
@@ -513,7 +520,7 @@ export default function FlowEditorInspector({
                         <header className="flex items-start justify-between gap-2">
                           <section className="min-w-0 flex-1">
                             <p className={cn(microLabelClass, UI_THEME_TOKENS.text.tertiary)}>{sg.id}</p>
-                            <input
+                            <PlainTextInputEditor
                               className={cn(
                                 'mt-1 w-full rounded-md',
                                 keyValueInputClass,

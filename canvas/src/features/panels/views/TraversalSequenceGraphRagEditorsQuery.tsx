@@ -10,6 +10,7 @@ import type {
   OrchestratorTraversalEditState,
   OrchestratorTraversalPathEditState,
 } from '@/features/panels/views/OrchestratorTraversalSectionModel'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 interface TraversalQueryExampleEditorProps {
   lastTraversal: GraphRagTraversalSummary
@@ -53,11 +54,10 @@ export function TraversalQueryExampleEditor({
         <span className="font-semibold">{UI_COPY.orchestratorTraversalQueryLabel}</span>
         {editingQuery ? (
           <>
-            <input
-              type="text"
+            <PlainTextInputEditor
               value={editingQueryText}
-              onChange={e => setEditingQueryText(e.target.value)}
-              className="flex-1 px-1 py-[1px] border border-gray-300 rounded"
+              onChange={setEditingQueryText}
+              className="flex-1"
               placeholder={UI_COPY.orchestratorTraversalQueryEnterPlaceholder}
             />
             <button
@@ -126,11 +126,10 @@ export function TraversalQueryExampleEditor({
           </>
         ) : (
           <>
-            <input
-              type="text"
+            <PlainTextInputEditor
               value={editingQueryText}
-              onChange={e => setEditingQueryText(e.target.value)}
-              className="flex-1 px-1 py-[1px] border border-gray-300 rounded"
+              onChange={setEditingQueryText}
+              className="flex-1"
               placeholder={UI_COPY.orchestratorTraversalQueryAddPlaceholder}
             />
             <button
@@ -159,11 +158,10 @@ export function TraversalQueryExampleEditor({
         <span className="font-semibold">{UI_COPY.orchestratorTraversalExampleLabel}</span>
         {editingExample ? (
           <>
-            <input
-              type="text"
+            <PlainTextInputEditor
               value={editingExampleText}
-              onChange={e => setEditingExampleText(e.target.value)}
-              className="flex-1 px-1 py-[1px] border border-gray-300 rounded"
+              onChange={setEditingExampleText}
+              className="flex-1"
               placeholder={UI_COPY.orchestratorTraversalExampleEnterPlaceholder}
             />
             <button
@@ -232,11 +230,10 @@ export function TraversalQueryExampleEditor({
           </>
         ) : (
           <>
-            <input
-              type="text"
+            <PlainTextInputEditor
               value={editingExampleText}
-              onChange={e => setEditingExampleText(e.target.value)}
-              className="flex-1 px-1 py-[1px] border border-gray-300 rounded"
+              onChange={setEditingExampleText}
+              className="flex-1"
               placeholder={UI_COPY.orchestratorTraversalExampleAddPlaceholder}
             />
             <button
@@ -298,12 +295,11 @@ export function AddHopInputs({
       ].join(' ')}
     >
       <div className="flex items-center gap-1">
-        <input
-          type="text"
+        <PlainTextInputEditor
           value={newHopText}
-          onChange={e => setNewHopText(e.target.value)}
+          onChange={setNewHopText}
           placeholder={UI_COPY.orchestratorTraversalAddExampleHopPlaceholder}
-          className="flex-1 px-1 py-[1px] border border-gray-300 rounded"
+          className="flex-1"
         />
         <button
           type="button"
@@ -326,12 +322,11 @@ export function AddHopInputs({
         </button>
       </div>
       <div className="flex items-center gap-1">
-        <input
-          type="text"
+        <PlainTextInputEditor
           value={newMultiHopText}
-          onChange={e => setNewMultiHopText(e.target.value)}
+          onChange={setNewMultiHopText}
           placeholder={UI_COPY.orchestratorTraversalAddMultiHopPlaceholder}
-          className="flex-1 px-1 py-[1px] border border-gray-300 rounded"
+          className="flex-1"
         />
         <button
           type="button"

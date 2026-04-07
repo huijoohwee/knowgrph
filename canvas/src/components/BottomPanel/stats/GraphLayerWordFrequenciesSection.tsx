@@ -6,6 +6,7 @@ import { SlidersHorizontal } from 'lucide-react'
 import { emitRendererPanelOpen } from '@/features/canvas/utils'
 import { UI_COPY } from '@/lib/config'
 import type { SelectionSnapshot, StatsUiClasses, TokenCount, TokensByGraphLayerRow } from '@/components/BottomPanel/stats/types'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 export default function GraphLayerWordFrequenciesSection({
   ui,
@@ -119,8 +120,7 @@ export default function GraphLayerWordFrequenciesSection({
                 </IconButton>
               </div>
               <div className="flex items-center gap-2">
-                <input
-                  type="text"
+                <PlainTextInputEditor
                   className={[
                     uiPanelMicroLabelTextSizeClass,
                     uiPanelTextFontClass,
@@ -128,7 +128,7 @@ export default function GraphLayerWordFrequenciesSection({
                   ].join(' ')}
                   placeholder={UI_COPY.statsFilterTokensPlaceholder}
                   value={graphLayerTokenFilter}
-                  onChange={e => setGraphLayerTokenFilter(e.target.value)}
+                  onChange={setGraphLayerTokenFilter}
                 />
                 <select
                   className={[

@@ -209,6 +209,7 @@ export const useGraphStore = create<GraphState>()(
       documentSemanticMode: 'document',
       frontmatterModeEnabled: true,
       uiLogEntries: [],
+      chatExchangeLogs: [],
     });
   },
   ...createUiSettingsSlice(set, get),

@@ -8,6 +8,7 @@ import {
   STARFIELD_RADIUS_TOOLTIP,
   STARFIELD_BRIGHTNESS_TOOLTIP,
 } from '@/features/panels/views/ThreeViewTuningTooltips'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 interface ThreeViewStarfieldSectionProps {
   schema: GraphSchema
@@ -148,11 +149,10 @@ export default function ThreeViewStarfieldSection({
                 }
                 onChange={e => setThreeConfig({ starfieldColor: e.target.value })}
               />
-              <input
-                type="text"
+              <PlainTextInputEditor
                 className={uiPanelKeyValueInputClass}
                 value={String(schema.three?.starfieldColor ?? '')}
-                onChange={e => setThreeConfig({ starfieldColor: e.target.value })}
+                onChange={next => setThreeConfig({ starfieldColor: next })}
                 placeholder="#facc15"
               />
             </div>
@@ -162,4 +162,3 @@ export default function ThreeViewStarfieldSection({
     </CollapsibleSection>
   )
 }
-

@@ -10,6 +10,7 @@ import {
   RENDERER_PALETTE_ENTRY_VALUE_TOOLTIP,
 } from '@/lib/config';
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor';
 
 export function RendererPaletteSettings() {
   const uiPanelKeyValueInputClass = useGraphStore(
@@ -73,11 +74,10 @@ export function RendererPaletteSettings() {
                     )}
                     onChange={(e) => handleUpdatePaletteColor('node', type, e.target.value)}
                   />
-                  <input
-                    type="text"
+                  <PlainTextInputEditor
                     className={`${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.text.primary}`}
                     value={String(palette.nodes[type] || '')}
-                    onChange={(e) => handleUpdatePaletteColor('node', type, e.target.value)}
+                    onChange={(next) => handleUpdatePaletteColor('node', type, next)}
                     placeholder={MVP_COLOR_PALETTE.nodes[type as keyof typeof MVP_COLOR_PALETTE.nodes]}
                   />
                 </div>
@@ -123,11 +123,10 @@ export function RendererPaletteSettings() {
                     )}
                     onChange={(e) => handleUpdatePaletteColor('edge', type, e.target.value)}
                   />
-                  <input
-                    type="text"
+                  <PlainTextInputEditor
                     className={`${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.text.primary}`}
                     value={String(palette.edges[type] || '')}
-                    onChange={(e) => handleUpdatePaletteColor('edge', type, e.target.value)}
+                    onChange={(next) => handleUpdatePaletteColor('edge', type, next)}
                     placeholder={MVP_COLOR_PALETTE.edges[type as keyof typeof MVP_COLOR_PALETTE.edges]}
                   />
                 </div>

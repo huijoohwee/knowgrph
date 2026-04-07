@@ -112,6 +112,14 @@
 
 ---
 
+## Chat Settings: Endpoint, Model, Context
+
+- `chatEndpointUrl` and `chatApiKey` configure an OpenAI-compatible chat endpoint; local LM Studio calls must route through the same-origin proxy path instead of direct localhost URLs.
+- `chatModel` must be a valid `/v1/models` id; chat runtime extracts real upstream error text and may auto-switch to a discovered working model when the configured id is invalid.
+- `chatContextScope` selects selection-only, workspace-wide (default), or hybrid context; hybrid adds workspace-wide file context to selection-derived graph and markdown snippets while keeping behavior bounded and schema-neutral.
+
+---
+
 ## Settings UI Tooltip Semantics
 
 **Scope**: MainPanel → Settings → key/value rows (hover tooltips)
@@ -293,9 +301,7 @@ canvasInteractionSpeedMultiplier:
 - Store + persistence: `canvas/src/hooks/store/canvasSlice.ts` (`setCanvasInteractionSpeedMultiplier`)
 - D3 interaction application: `canvas/src/components/GraphCanvas/zoom.ts` (wheel/pinch zoom, wheel/pointer/touch pan)
 - Flow/FlowEditor interaction application: `canvas/src/components/FlowCanvas/bindNativeInteractions.ts` (wheel/pinch zoom, wheel/pointer pan)
-
 ---
-
 ### `canvasPanSpeedMultiplier`
 
 **Area**: Canvas Interaction (Pan/Drag)

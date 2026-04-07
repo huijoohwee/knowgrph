@@ -15,7 +15,13 @@ import {
 } from '@/lib/config'
 import { useSettingsView } from './useSettingsView'
 import { WorkspaceTableModeControl } from '@/features/workspace-table/ui/WorkspaceTableModeControl'
-import { CHAT_DEFAULT_ENDPOINT_URL, CHAT_DEFAULT_MODEL } from '@/lib/chatEndpoint'
+import {
+  CHAT_DEFAULT_ENDPOINT_URL,
+  CHAT_DEFAULT_MODEL,
+  CHAT_LOCAL_DEFAULT_MODEL,
+  CHAT_PROVIDER_LM_STUDIO,
+  CHAT_PROVIDER_OPENAI,
+} from '@/lib/chatEndpoint'
 
 export default function SettingsView({
   searchQuery,
@@ -73,20 +79,18 @@ export default function SettingsView({
   )
 
   const applyChatPreset = React.useCallback(
-    (preset: 'primary' | 'secondary') => {
-      const primaryEndpoint = CHAT_DEFAULT_ENDPOINT_URL
-      const primaryModel = CHAT_DEFAULT_MODEL
-      const secondaryEndpoint = primaryEndpoint
-      const secondaryModel = primaryModel
+    (preset: 'openai' | 'local') => {
       const patch: Record<string, string> =
-        preset === 'primary'
+        preset === 'openai'
           ? {
-              chatEndpointUrl: primaryEndpoint,
-              chatModel: primaryModel,
+              chatProvider: CHAT_PROVIDER_OPENAI,
+              chatEndpointUrl: CHAT_DEFAULT_ENDPOINT_URL,
+              chatModel: CHAT_DEFAULT_MODEL,
             }
           : {
-              chatEndpointUrl: secondaryEndpoint,
-              chatModel: secondaryModel,
+              chatProvider: CHAT_PROVIDER_LM_STUDIO,
+              chatEndpointUrl: CHAT_DEFAULT_ENDPOINT_URL,
+              chatModel: CHAT_LOCAL_DEFAULT_MODEL,
             }
       Object.keys(patch).forEach(key => dirtyRef.current.add(key))
       setValues(prev => ({ ...prev, ...patch }))
@@ -162,24 +166,24 @@ export default function SettingsView({
                 )}
                 {area === 'Chat' && (
                   <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-                    <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>LM Studio profiles</span>
+                    <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Provider profiles</span>
                     <button
                       type="button"
                       className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
                       onClick={() => {
-                        applyChatPreset('primary')
+                        applyChatPreset('openai')
                       }}
                     >
-                      Primary
+                      OpenAI
                     </button>
                     <button
                       type="button"
                       className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
                       onClick={() => {
-                        applyChatPreset('secondary')
+                        applyChatPreset('local')
                       }}
                     >
-                      Secondary
+                      Local
                     </button>
                   </li>
                 )}

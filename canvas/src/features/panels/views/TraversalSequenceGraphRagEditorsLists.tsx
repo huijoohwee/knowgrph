@@ -8,6 +8,7 @@ import type {
   OrchestratorTraversalSectionViewModel,
   OrchestratorTraversalPathEditState,
 } from '@/features/panels/views/OrchestratorTraversalSectionModel'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 interface TraverseNodesListEditorProps {
   lastTraversal: GraphRagTraversalSummary
@@ -66,10 +67,9 @@ export function TraverseNodesListEditor({
             <li key={`${id}-${index}`} className="flex items-center gap-2">
               {isEditing ? (
                 <>
-                  <input
-                    type="text"
+                  <PlainTextInputEditor
                     value={editingTraverseText}
-                    onChange={e => setEditingTraverseText(e.target.value)}
+                    onChange={setEditingTraverseText}
                     className="flex-1 px-1 py-[1px] border border-gray-300 rounded"
                   />
                   <button
@@ -238,10 +238,9 @@ export function HopsListEditor({
             <li key={`${hop}-${index}`} className="flex items-center gap-2">
               {isEditing ? (
                 <>
-                  <input
-                    type="text"
+                  <PlainTextInputEditor
                     value={editingHopText}
-                    onChange={e => setEditingHopText(e.target.value)}
+                    onChange={setEditingHopText}
                     className="flex-1 px-1 py-[1px] border border-gray-300 rounded"
                   />
                   <button
@@ -407,10 +406,9 @@ export function MultiHopListEditor({
             <li key={`${hop}-${index}`} className="flex items-center gap-2">
               {isEditing ? (
                 <>
-                  <input
-                    type="text"
+                  <PlainTextInputEditor
                     value={editingMultiHopText}
-                    onChange={e => setEditingMultiHopText(e.target.value)}
+                    onChange={setEditingMultiHopText}
                     className="flex-1 px-1 py-[1px] border border-gray-300 rounded"
                   />
                   <button

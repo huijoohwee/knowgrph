@@ -136,6 +136,25 @@ export type UiLogEntryInput = {
   source?: string | null
 }
 
+export type ChatExchangeLogEntry = {
+  id: string
+  request: string
+  response: string
+  snippet: string
+  tsMs: number
+  status: 'ok' | 'error' | 'aborted'
+  model: string | null
+}
+
+export type ChatExchangeLogEntryInput = {
+  request: string
+  response: string
+  snippet?: string
+  tsMs?: number
+  status?: 'ok' | 'error' | 'aborted'
+  model?: string | null
+}
+
 export type GraphHoverPreviewConfig = {
   showNodeId: boolean;
   showNodeName: boolean;
@@ -507,11 +526,18 @@ export interface GraphState {
   uiLogEntries: UiLogEntry[];
   pushUiLog: (entry: UiLogEntryInput) => void;
   clearUiLog: () => void;
+  chatExchangeLogs: ChatExchangeLogEntry[];
+  pushChatExchangeLog: (entry: ChatExchangeLogEntryInput) => void;
+  clearChatExchangeLogs: () => void;
   mediaNodeOpacity: number;
+  chatProvider: string;
+  chatApiKey: string;
   chatEndpointUrl: string | null;
   chatModel: string | null;
   chatTemperature: number;
   chatSystemPrompt: string | null;
+  setChatContextScope: (scope: 'selection' | 'workspace' | 'hybrid') => void;
+  chatContextScope: 'selection' | 'workspace' | 'hybrid';
 
   youtubeTranscriptOutputDir: string | null;
   setYoutubeTranscriptOutputDir: (v: string | null) => void;
@@ -648,6 +674,8 @@ export interface GraphState {
   setUiPanelOpacity: (v: number) => void;
   setUiToolbarOpacity: (v: number) => void;
   setMediaNodeOpacity: (v: number) => void;
+  setChatProvider: (provider: string) => void;
+  setChatApiKey: (apiKey: string | null) => void;
   setChatEndpointUrl: (url: string | null) => void;
   setChatModel: (model: string | null) => void;
   setChatTemperature: (v: number) => void;

@@ -3,6 +3,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 export interface KeyTypeValueRowProps {
   keyNode: React.ReactNode
@@ -248,10 +249,47 @@ export function RightAlignedTooltipInput({
         contentClassName={contentClassName}
         className="w-full h-full"
       >
-        <input
-          {...inputProps}
-          className={mergedClassName}
-        />
+        {String(inputProps.type || 'text').toLowerCase() === 'text' ? (
+          <PlainTextInputEditor
+            inputType="text"
+            value={typeof inputProps.value === 'string' ? inputProps.value : String(inputProps.value ?? '')}
+            defaultValue={
+              typeof inputProps.defaultValue === 'string'
+                ? inputProps.defaultValue
+                : typeof inputProps.defaultValue === 'number'
+                  ? String(inputProps.defaultValue)
+                  : undefined
+            }
+            id={inputProps.id}
+            placeholder={inputProps.placeholder}
+            disabled={inputProps.disabled}
+            readOnly={inputProps.readOnly}
+            list={inputProps.list}
+            min={inputProps.min}
+            max={inputProps.max}
+            step={inputProps.step}
+            autoComplete={inputProps.autoComplete}
+            spellCheck={
+              typeof inputProps.spellCheck === 'boolean'
+                ? inputProps.spellCheck
+                : undefined
+            }
+            onBlur={inputProps.onBlur}
+            onKeyDown={inputProps.onKeyDown}
+            onChange={next => {
+              inputProps.onChange?.({
+                target: { value: next },
+                currentTarget: { value: next },
+              } as unknown as React.ChangeEvent<HTMLInputElement>)
+            }}
+            className={mergedClassName}
+          />
+        ) : (
+          <input
+            {...inputProps}
+            className={mergedClassName}
+          />
+        )}
       </Tooltip>
     </RightAlignedValueCell>
   )

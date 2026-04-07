@@ -1,6 +1,7 @@
 import React from 'react'
 import type * as Monaco from 'monaco-editor/esm/vs/editor/editor.api'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 const FLASH_STYLE_ID = 'monaco-flash-style'
 const FLASH_CSS = `
@@ -993,14 +994,14 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
           className={['h-full w-full', UI_THEME_TOKENS.input.bg].join(' ')}
         />
       ) : (
-        <textarea
+        <PlainTextInputEditor
           ref={setTextareaRef}
+          multiline
           value={value}
           readOnly={!!readOnly}
           spellCheck={false}
-          wrap={wordWrap ? 'soft' : 'off'}
-          aria-label={ariaLabel}
-          onChange={e => onChange(e.target.value)}
+          ariaLabel={ariaLabel}
+          onChange={onChange}
           onSelect={e => {
             const el = e.currentTarget
             const startOffset = typeof el.selectionStart === 'number' ? el.selectionStart : 0

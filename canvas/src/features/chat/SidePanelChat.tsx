@@ -5,10 +5,19 @@ import { CHAT_INPUT_APPEND_EVENT } from '@/features/canvas/utils'
 import type { GraphData } from '@/lib/graph/types'
 import { getLocalStorage, readJsonFromStorage, writeJsonToStorage } from '@/lib/persistence'
 import { FLOATING_PANEL_SCROLL_CLASSNAME } from '@/components/ui/FloatingPanel'
+import { hashArrayOfObjectsSignature, hashSignatureParts } from '@/lib/hash/signature'
+import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import type { ChatMessage } from './SidePanelChatSections'
 import { SidePanelChatFooter, SidePanelChatMessagesSection } from './SidePanelChatSections'
-import { buildBoundedGraphSystemPrompt, buildMarkdownNodeSnippetPrompt } from './chatPromptHelpers'
-import { normalizeChatModelId, resolveChatEndpointForModels, resolveChatEndpointForRequest } from '@/lib/chatEndpoint'
+import { buildBoundedGraphSystemPrompt, buildMarkdownNodeSnippetPrompt, buildWorkspaceWideContextPrompt } from './chatPromptHelpers'
+import {
+  CHAT_DEFAULT_ENDPOINT_URL,
+  getDefaultChatModelForProvider,
+  getChatModelOptions,
+  normalizeChatModelIdForProvider,
+  resolveChatEndpointForModels,
+  resolveChatEndpointForRequest,
+} from '@/lib/chatEndpoint'
 
 const clampTemperature = (raw: unknown): number => {
   const t = Number(raw)
@@ -134,6 +143,46 @@ const loadAvailableModelIds = async (endpoint: string): Promise<string[]> => {
   return out
 }
 
+const CHAT_HISTORY_COALESCE_DELAY_MS = 220
+const CHAT_HISTORY_CACHE_LIMIT = 80
+const chatHistoryCache = new Map<string, ChatMessage[]>()
+
+const putChatHistoryCache = (key: string, value: ChatMessage[]): void => {
+  if (!key) return
+  if (chatHistoryCache.has(key)) {
+    chatHistoryCache.delete(key)
+  }
+  chatHistoryCache.set(key, value)
+  if (chatHistoryCache.size <= CHAT_HISTORY_CACHE_LIMIT) return
+  const oldestKey = chatHistoryCache.keys().next().value
+  if (typeof oldestKey === 'string' && oldestKey) {
+    chatHistoryCache.delete(oldestKey)
+  }
+}
+
+const toHistoryTaskKey = (historyKey: string): string => {
+  const safe = String(historyKey || '').trim() || 'default'
+  return `chat:history:persist:${safe}`
+}
+
+const persistChatExchangeLog = async (payload: {
+  request: string
+  response: string
+  status: 'ok' | 'error' | 'aborted'
+  model: string
+  timestampMs: number
+}): Promise<void> => {
+  try {
+    await fetch('/__chat_log_append', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  } catch {
+    void 0
+  }
+}
+
 export default function SidePanelChat() {
   const graphData = useGraphStore(s => s.graphData)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
@@ -141,11 +190,18 @@ export default function SidePanelChat() {
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-sm')
   const uiPanelMicroLabelTextSizeClass = useGraphStore(s => s.uiPanelMicroLabelTextSizeClass || 'text-xs')
+  const chatProvider = useGraphStore(s => s.chatProvider)
+  const chatApiKey = useGraphStore(s => s.chatApiKey)
   const chatEndpointUrl = useGraphStore(s => s.chatEndpointUrl)
   const chatModel = useGraphStore(s => s.chatModel)
   const chatTemperature = useGraphStore(s => s.chatTemperature)
   const chatSystemPrompt = useGraphStore(s => s.chatSystemPrompt)
+  const chatContextScope = useGraphStore(s => s.chatContextScope || 'workspace')
   const setChatModel = useGraphStore(s => s.setChatModel)
+  const pushChatExchangeLog = useGraphStore(s => s.pushChatExchangeLog)
+  const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || null)
+  const sourceFiles = useGraphStore(s => s.sourceFiles)
+  const docLocationRevision = useGraphStore(s => s.docLocationRevision)
 
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
   const [input, setInput] = React.useState('')
@@ -159,6 +215,34 @@ export default function SidePanelChat() {
   const lastLoadedHistoryKeyRef = React.useRef<string | null>(null)
 
   const historyKey = React.useMemo(() => buildHistoryKey(graphData), [graphData])
+  const sourceFilesSignature = React.useMemo(() => {
+    const compact = Array.isArray(sourceFiles)
+      ? sourceFiles
+        .slice(0, 64)
+        .map(file => ({
+          id: String(file?.id || ''),
+          name: String(file?.name || ''),
+          enabled: file?.enabled !== false,
+          status: String(file?.status || ''),
+          textLength: typeof file?.text === 'string' ? file.text.length : 0,
+          parsedTextHash: String(file?.parsedTextHash || ''),
+        }))
+      : []
+    return hashArrayOfObjectsSignature(compact, { maxItems: 64, maxKeysPerItem: 6 })
+  }, [sourceFiles])
+  const workspaceContextCacheKey = React.useMemo(() => {
+    const markdownHead = typeof markdownText === 'string' ? markdownText.slice(0, 180) : ''
+    const markdownTail = typeof markdownText === 'string' ? markdownText.slice(-180) : ''
+    return hashSignatureParts([
+      'chat:workspace-context',
+      markdownDocumentName || '',
+      docLocationRevision,
+      typeof markdownText === 'string' ? markdownText.length : 0,
+      markdownHead,
+      markdownTail,
+      sourceFilesSignature,
+    ])
+  }, [docLocationRevision, markdownDocumentName, markdownText, sourceFilesSignature])
 
   const currentNode = React.useMemo(() => {
     if (!graphData || !selectedNodeId) return null
@@ -168,6 +252,11 @@ export default function SidePanelChat() {
   React.useEffect(() => {
     if (lastLoadedHistoryKeyRef.current === historyKey) return
     lastLoadedHistoryKeyRef.current = historyKey
+    const cached = chatHistoryCache.get(historyKey)
+    if (cached) {
+      setMessages(cached)
+      return
+    }
     const storage = getLocalStorage()
     if (!storage) {
       setMessages([])
@@ -189,14 +278,33 @@ export default function SidePanelChat() {
       return next
     }
     const next = readJsonFromStorage(storage, historyKey, [] as ChatMessage[], parseHistory)
-    setMessages(next.slice(-80))
+    const trimmed = next.slice(-80)
+    putChatHistoryCache(historyKey, trimmed)
+    setMessages(trimmed)
   }, [historyKey])
 
   React.useEffect(() => {
-    const storage = getLocalStorage()
-    if (!storage) return
-    writeJsonToStorage(storage, historyKey, messages.slice(-80))
+    const history = messages.slice(-80)
+    putChatHistoryCache(historyKey, history)
+    const taskKey = toHistoryTaskKey(historyKey)
+    const signature = hashSignatureParts([
+      historyKey,
+      history.length,
+      hashArrayOfObjectsSignature(history, { maxItems: 24, maxKeysPerItem: 4 }),
+    ])
+    scheduleWorkspaceSyncTask(taskKey, () => {
+      const storage = getLocalStorage()
+      if (!storage) return
+      writeJsonToStorage(storage, historyKey, history)
+    }, CHAT_HISTORY_COALESCE_DELAY_MS, { signature })
   }, [historyKey, messages])
+
+  React.useEffect(() => {
+    return () => {
+      const taskKey = toHistoryTaskKey(historyKey)
+      cancelWorkspaceSyncTask(taskKey)
+    }
+  }, [historyKey])
 
   React.useEffect(() => {
     const el = scrollRef.current
@@ -255,13 +363,13 @@ export default function SidePanelChat() {
     ev.preventDefault()
     const trimmed = input.trim()
     if (!trimmed || isLoading) return
-    if (!chatEndpointUrl || !chatModel) {
+    if (!chatModel) {
       setErrorText(UI_COPY.chatMissingEndpointAndModelError)
       setConnectivity('unknown')
       setConnectivityDetail(null)
       return
     }
-    const requestUrl = resolveChatEndpointForRequest(chatEndpointUrl)
+    const requestUrl = resolveChatEndpointForRequest(chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL)
     if (!requestUrl) {
       setErrorText(UI_COPY.chatMissingEndpointAndModelError)
       setConnectivity('unknown')
@@ -278,6 +386,12 @@ export default function SidePanelChat() {
       { id: userMessageId, role: 'user', content: trimmed },
       { id: assistantMessageId, role: 'assistant', content: '' },
     ]
+    const seededHistory = nextMessages.slice(-80)
+    putChatHistoryCache(historyKey, seededHistory)
+    const seededStorage = getLocalStorage()
+    if (seededStorage) {
+      writeJsonToStorage(seededStorage, historyKey, seededHistory)
+    }
     setMessages(nextMessages)
     setInput('')
     setIsLoading(true)
@@ -285,17 +399,38 @@ export default function SidePanelChat() {
     try {
       const payloadMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = []
 
-      payloadMessages.push({ role: 'system', content: buildBoundedGraphSystemPrompt(graphData, currentNode) })
+      const includeSelectionContext = chatContextScope === 'selection' || chatContextScope === 'hybrid'
+      const includeWorkspaceContext = chatContextScope === 'workspace' || chatContextScope === 'hybrid'
+
+      if (includeSelectionContext) {
+        payloadMessages.push({ role: 'system', content: buildBoundedGraphSystemPrompt(graphData, currentNode) })
+      }
       if (chatSystemPrompt && typeof chatSystemPrompt === 'string' && chatSystemPrompt.trim()) {
         payloadMessages.push({ role: 'system', content: chatSystemPrompt })
       }
 
-      const markdownSnippet = buildMarkdownNodeSnippetPrompt(markdownText, currentNode, parseLine)
-      if (markdownSnippet) {
-        payloadMessages.push({
-          role: 'system',
-          content: markdownSnippet,
+      if (includeSelectionContext) {
+        const markdownSnippet = buildMarkdownNodeSnippetPrompt(markdownText, currentNode, parseLine)
+        if (markdownSnippet) {
+          payloadMessages.push({
+            role: 'system',
+            content: markdownSnippet,
+          })
+        }
+      }
+      if (includeWorkspaceContext) {
+        const workspaceContextPrompt = await buildWorkspaceWideContextPrompt({
+          markdownDocumentName,
+          markdownText,
+          sourceFiles,
+          cacheKey: workspaceContextCacheKey,
         })
+        if (workspaceContextPrompt) {
+          payloadMessages.push({
+            role: 'system',
+            content: workspaceContextPrompt,
+          })
+        }
       }
 
       nextMessages
@@ -306,9 +441,15 @@ export default function SidePanelChat() {
       abortRef.current = controller
 
       const sendChat = async (model: string) => {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        const sanitizedApiKey = String(chatApiKey || '').trim()
+        headers['X-KG-Chat-Provider'] = String(chatProvider || '').trim()
+        if (sanitizedApiKey) {
+          headers['X-KG-Chat-Api-Key'] = sanitizedApiKey
+        }
         return await fetch(requestUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
             model,
             messages: payloadMessages,
@@ -319,15 +460,30 @@ export default function SidePanelChat() {
         })
       }
 
-      let effectiveModel = normalizeChatModelId(chatModel)
-      let res = await sendChat(effectiveModel)
+      const providerModelOptions = getChatModelOptions(chatProvider)
+      const normalizedProviderModel = normalizeChatModelIdForProvider(chatModel, chatProvider)
+      let effectiveModel =
+        providerModelOptions.includes(normalizedProviderModel)
+          ? normalizedProviderModel
+          : getDefaultChatModelForProvider(chatProvider)
+      let res: Response
+      try {
+        res = await sendChat(effectiveModel)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error || '')
+        if (!/aborted/i.test(message) || controller.signal.aborted) {
+          throw error
+        }
+        res = await sendChat(effectiveModel)
+      }
       if (!res.ok) {
         const initialDetail = await parseErrorBody(res)
         const allowFallback = shouldRetryWithModelFallback(res.status, initialDetail)
         if (allowFallback) {
-          const modelsEndpoint = resolveChatEndpointForModels(chatEndpointUrl)
+          const modelsEndpoint = resolveChatEndpointForModels(chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL)
           const ids = modelsEndpoint ? await loadAvailableModelIds(modelsEndpoint) : []
-          const fallback = ids.find(id => id !== effectiveModel) || ids[0] || ''
+          const preferredFallback = providerModelOptions.find(id => ids.includes(id) && id !== effectiveModel) || ''
+          const fallback = preferredFallback || ids.find(id => id !== effectiveModel) || ids[0] || ''
           if (fallback && fallback !== effectiveModel) {
             effectiveModel = fallback
             setChatModel(fallback)
@@ -381,6 +537,21 @@ export default function SidePanelChat() {
         if (!assistantText) {
           setErrorText(UI_COPY.chatResponseMissingContentError)
           setMessages(prev => prev.filter(m => m.id !== assistantMessageId))
+          const nowMs = Date.now()
+          pushChatExchangeLog({
+            request: trimmed,
+            response: UI_COPY.chatResponseMissingContentError,
+            status: 'error',
+            model: effectiveModel,
+            tsMs: nowMs,
+          })
+          void persistChatExchangeLog({
+            request: trimmed,
+            response: UI_COPY.chatResponseMissingContentError,
+            status: 'error',
+            model: effectiveModel,
+            timestampMs: nowMs,
+          })
           setIsLoading(false)
           abortRef.current = null
           return
@@ -391,11 +562,41 @@ export default function SidePanelChat() {
         if (!assistantText) {
           setErrorText(UI_COPY.chatResponseMissingContentError)
           setMessages(prev => prev.filter(m => m.id !== assistantMessageId))
+          const nowMs = Date.now()
+          pushChatExchangeLog({
+            request: trimmed,
+            response: UI_COPY.chatResponseMissingContentError,
+            status: 'error',
+            model: effectiveModel,
+            tsMs: nowMs,
+          })
+          void persistChatExchangeLog({
+            request: trimmed,
+            response: UI_COPY.chatResponseMissingContentError,
+            status: 'error',
+            model: effectiveModel,
+            timestampMs: nowMs,
+          })
           setIsLoading(false)
           abortRef.current = null
           return
         }
         setMessages(prev => prev.map(m => (m.id === assistantMessageId ? { ...m, content: assistantText } : m)))
+        const nowMs = Date.now()
+        pushChatExchangeLog({
+          request: trimmed,
+          response: assistantText,
+          status: 'ok',
+          model: effectiveModel,
+          tsMs: nowMs,
+        })
+        void persistChatExchangeLog({
+          request: trimmed,
+          response: assistantText,
+          status: 'ok',
+          model: effectiveModel,
+          timestampMs: nowMs,
+        })
       }
 
       setConnectivity('ok')
@@ -405,6 +606,21 @@ export default function SidePanelChat() {
     } catch (err: unknown) {
       const raw = err instanceof Error ? err.message : String(err || '')
       if (raw && raw.toLowerCase().includes('aborted')) {
+        const nowMs = Date.now()
+        pushChatExchangeLog({
+          request: trimmed,
+          response: raw || 'Request aborted',
+          status: 'aborted',
+          model: chatModel || null,
+          tsMs: nowMs,
+        })
+        void persistChatExchangeLog({
+          request: trimmed,
+          response: raw || 'Request aborted',
+          status: 'aborted',
+          model: chatModel || '',
+          timestampMs: nowMs,
+        })
         setConnectivity('unknown')
         setConnectivityDetail(null)
         setIsLoading(false)
@@ -427,6 +643,21 @@ export default function SidePanelChat() {
       setErrorText(friendly)
       setConnectivity('error')
       setConnectivityDetail(friendly)
+      const nowMs = Date.now()
+      pushChatExchangeLog({
+        request: trimmed,
+        response: friendly,
+        status: 'error',
+        model: chatModel || null,
+        tsMs: nowMs,
+      })
+      void persistChatExchangeLog({
+        request: trimmed,
+        response: friendly,
+        status: 'error',
+        model: chatModel || '',
+        timestampMs: nowMs,
+      })
       setMessages(prev => prev.filter(m => m.id !== assistantMessageId))
       setIsLoading(false)
       abortRef.current = null
@@ -457,7 +688,7 @@ export default function SidePanelChat() {
         currentNode={currentNode}
         uiPanelTextFontClass={uiPanelTextFontClass}
         uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
-        isSubmitDisabled={!input.trim() || isLoading || !chatEndpointUrl || !chatModel}
+        isSubmitDisabled={!input.trim() || isLoading || !chatModel}
         onSubmit={handleSubmit}
         onStop={handleStop}
       />

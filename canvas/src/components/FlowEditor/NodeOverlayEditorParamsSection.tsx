@@ -4,6 +4,7 @@ import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 function safeStableJson(v: unknown): string {
   if (v == null) return ''
@@ -87,7 +88,7 @@ export const NodeOverlayEditorParamsSection = React.memo(function NodeOverlayEdi
             typeNode: <NodeOverlayEditorTypePill text="json" />,
             valueNode: (
               <section className="w-full">
-                <textarea
+                <PlainTextInputEditor
                   id={ids.paramsJsonInput}
                   className={cn(
                     keyValueInputClass,
@@ -98,8 +99,9 @@ export const NodeOverlayEditorParamsSection = React.memo(function NodeOverlayEdi
                     UI_THEME_TOKENS.input.border,
                     UI_THEME_TOKENS.input.text,
                   )}
+                  multiline
                   value={draft}
-                  onChange={e => setDraft(e.target.value)}
+                  onChange={setDraft}
                   placeholder={UI_COPY.flowNodeQuickEditorParamsPlaceholder}
                   disabled={!active}
                   spellCheck={false}

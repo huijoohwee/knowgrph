@@ -4,6 +4,7 @@ import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { FOG_NEAR_TOOLTIP, FOG_FAR_TOOLTIP } from '@/features/panels/views/ThreeViewTuningTooltips'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 interface ThreeViewBackgroundFogSectionProps {
   schema: GraphSchema
@@ -49,11 +50,10 @@ export default function ThreeViewBackgroundFogSection({
                 }
                 onChange={e => setThreeConfig({ backgroundColor: e.target.value })}
               />
-              <input
-                type="text"
+              <PlainTextInputEditor
                 className={uiPanelKeyValueInputClass}
                 value={String(schema.three?.backgroundColor ?? '')}
-                onChange={e => setThreeConfig({ backgroundColor: e.target.value })}
+                onChange={next => setThreeConfig({ backgroundColor: next })}
                 placeholder="#020617"
               />
             </div>
@@ -79,11 +79,10 @@ export default function ThreeViewBackgroundFogSection({
                 }
                 onChange={e => setThreeConfig({ fogColor: e.target.value })}
               />
-              <input
-                type="text"
+              <PlainTextInputEditor
                 className={uiPanelKeyValueInputClass}
                 value={String(schema.three?.fogColor ?? '')}
-                onChange={e => setThreeConfig({ fogColor: e.target.value })}
+                onChange={next => setThreeConfig({ fogColor: next })}
                 placeholder="#1e1b4b"
               />
             </div>
@@ -143,4 +142,3 @@ export default function ThreeViewBackgroundFogSection({
     </CollapsibleSection>
   )
 }
-

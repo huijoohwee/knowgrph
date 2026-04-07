@@ -136,4 +136,5 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["parser.mmd.wrapsPlainMermaid","@/__tests__/mmdNormalization.test","testNormalizeMermaidMmdToMarkdownWrapsPlainMermaid"],
   ["parser.mmd.keepsFencedMarkdown","@/__tests__/mmdNormalization.test","testNormalizeMermaidMmdToMarkdownKeepsFencedMarkdown"],
   ["markdown.slide.theme.neversinkAliasesToAcademic","@/__tests__/markdownThemeAlias.test","testMarkdownSlideThemeNeversinkAliasesToAcademic"],
+  ["ui.chatInput.rapidOpenCloseSwitchStress","@/__tests__/chatInputStress.test","testChatInputRapidOpenCloseSwitchCycles"],
 ]

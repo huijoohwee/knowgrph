@@ -4,7 +4,13 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { ThemeMode } from '@/lib/ui/theme'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsSetBool } from '@/lib/persistence'
-import { CHAT_DEFAULT_ENDPOINT_URL, CHAT_DEFAULT_MODEL } from '@/lib/chatEndpoint'
+import {
+  CHAT_DEFAULT_ENDPOINT_URL,
+  CHAT_DEFAULT_MODEL,
+  CHAT_PROVIDER_OPTIONS,
+  CHAT_OPENAI_MODEL_OPTIONS,
+  CHAT_LOCAL_MODEL_OPTIONS,
+} from '@/lib/chatEndpoint'
 
 const s = () => useGraphStore.getState()
 
@@ -345,6 +351,16 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     default: () => 96,
   },
   {
+    key: 'chatProvider',
+    type: 'string',
+    source: 'localStorage',
+    read: () => s().chatProvider,
+    write: (v) => s().setChatProvider(String(v || '').trim()),
+    docKey: 'chatProvider',
+    default: () => CHAT_PROVIDER_OPTIONS[0],
+    options: [...CHAT_PROVIDER_OPTIONS],
+  },
+  {
     key: 'chatEndpointUrl',
     type: 'string',
     source: 'localStorage',
@@ -354,6 +370,15 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     default: () => CHAT_DEFAULT_ENDPOINT_URL,
   },
   {
+    key: 'chatApiKey',
+    type: 'string',
+    source: 'store',
+    read: () => s().chatApiKey,
+    write: (v) => s().setChatApiKey(String(v || '').trim() || null),
+    docKey: 'chatApiKey',
+    default: () => '',
+  },
+  {
     key: 'chatModel',
     type: 'string',
     source: 'localStorage',
@@ -361,6 +386,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     write: (v) => s().setChatModel(String(v || '').trim() || CHAT_DEFAULT_MODEL),
     docKey: 'chatModel',
     default: () => CHAT_DEFAULT_MODEL,
+    options: [...CHAT_OPENAI_MODEL_OPTIONS, ...CHAT_LOCAL_MODEL_OPTIONS],
   },
   {
     key: 'chatTemperature',
@@ -380,4 +406,21 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     docKey: 'chatSystemPrompt',
     default: () => null,
   },
-]
+  {
+    key: 'chatContextScope',
+    type: 'string',
+    source: 'localStorage',
+    read: () => s().chatContextScope,
+    write: (v) =>
+      s().setChatContextScope(
+        String(v || '').trim() === 'selection'
+          ? 'selection'
+          : String(v || '').trim() === 'hybrid'
+            ? 'hybrid'
+            : 'workspace',
+      ),
+    docKey: 'chatContextScope',
+    default: () => 'workspace',
+    options: ['selection', 'workspace', 'hybrid'],
+  },
+];

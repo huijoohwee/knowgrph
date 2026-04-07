@@ -7,6 +7,7 @@ import { emitRendererPanelOpen } from '@/features/canvas/utils'
 import { UI_COPY } from '@/lib/config'
 import type { SelectionSnapshot, StatsCommunity, StatsUiClasses, TokenCount } from '@/components/BottomPanel/stats/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 export default function CommunitiesStatsSection({
   ui,
@@ -121,8 +122,7 @@ export default function CommunitiesStatsSection({
               </IconButton>
             </div>
             <div className="flex items-center gap-2">
-              <input
-                type="text"
+              <PlainTextInputEditor
                 className={[
                   uiPanelMicroLabelTextSizeClass,
                   uiPanelTextFontClass,
@@ -130,7 +130,7 @@ export default function CommunitiesStatsSection({
                 ].join(' ')}
                 placeholder={UI_COPY.statsFilterTokensPlaceholder}
                 value={communityTokenFilter}
-                onChange={e => setCommunityTokenFilter(e.target.value)}
+                onChange={setCommunityTokenFilter}
               />
               <select
                 className={[

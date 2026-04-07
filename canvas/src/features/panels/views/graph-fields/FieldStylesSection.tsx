@@ -2,6 +2,7 @@ import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 type FieldStylesSectionProps = {
   schema: GraphSchema
@@ -78,12 +79,11 @@ export default function FieldStylesSection({
                   value={isHexColor(nodeFillNormalized) ? nodeFillNormalized : '#000000'}
                   onChange={e => updateNodeStyle(ownerKey, { color: e.target.value })}
                 />
-                <input
-                  type="text"
+                <PlainTextInputEditor
                   className={`min-w-0 flex-1 h-6 px-2 text-xs border border-gray-300 rounded ${uiPanelMonospaceTextClass} disabled:opacity-50`}
                   disabled={!hasOwner}
                   value={nodeFillRaw}
-                  onChange={e => updateNodeStyle(ownerKey, { color: e.target.value })}
+                  onChange={next => updateNodeStyle(ownerKey, { color: next })}
                   placeholder="#28A745"
                 />
               </RightAlignedValueCell>
@@ -121,12 +121,11 @@ export default function FieldStylesSection({
                   value={isHexColor(nodeStrokeNormalized) ? nodeStrokeNormalized : '#000000'}
                   onChange={e => updateNodeStroke(ownerKey, { color: e.target.value })}
                 />
-                <input
-                  type="text"
+                <PlainTextInputEditor
                   className={`min-w-0 flex-1 h-6 px-2 text-xs border border-gray-300 rounded ${uiPanelMonospaceTextClass} disabled:opacity-50`}
                   disabled={!hasOwner}
                   value={nodeStrokeRaw}
-                  onChange={e => updateNodeStroke(ownerKey, { color: e.target.value })}
+                  onChange={next => updateNodeStroke(ownerKey, { color: next })}
                   placeholder="#ffffff"
                 />
               </RightAlignedValueCell>
@@ -173,12 +172,11 @@ export default function FieldStylesSection({
                   value={isHexColor(edgeColorNormalized) ? edgeColorNormalized : '#000000'}
                   onChange={e => updateEdgeStyle(ownerKey, { color: e.target.value })}
                 />
-                <input
-                  type="text"
+                <PlainTextInputEditor
                   className={`min-w-0 flex-1 h-6 px-2 text-xs border border-gray-300 rounded ${uiPanelMonospaceTextClass} disabled:opacity-50`}
                   disabled={!hasOwner}
                   value={edgeColorRaw}
-                  onChange={e => updateEdgeStyle(ownerKey, { color: e.target.value })}
+                  onChange={next => updateEdgeStyle(ownerKey, { color: next })}
                   placeholder="#999999"
                 />
               </RightAlignedValueCell>
@@ -254,11 +252,10 @@ export default function FieldStylesSection({
                 value={isHexColor(labelColorNormalized) ? labelColorNormalized : '#000000'}
                 onChange={e => setLabelStyles({ color: e.target.value })}
               />
-              <input
-                type="text"
+                <PlainTextInputEditor
                 className={`min-w-0 flex-1 h-6 px-2 text-xs border border-gray-300 rounded ${uiPanelMonospaceTextClass}`}
                 value={labelColorRaw}
-                onChange={e => setLabelStyles({ color: e.target.value })}
+                  onChange={next => setLabelStyles({ color: next })}
                 placeholder="#111111"
               />
             </RightAlignedValueCell>

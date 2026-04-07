@@ -8,6 +8,7 @@ import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataf
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 function formatConnectedValue(value: unknown): string {
   if (value == null) return ''
@@ -257,7 +258,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         typeNode,
         valueNode: (
           <section className="w-full">
-            <textarea
+            <PlainTextInputEditor
               id={id}
               className={cn(
                 'w-full h-24 px-2 py-1 rounded-md border',
@@ -266,9 +267,10 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
                 UI_THEME_TOKENS.input.border,
                 UI_THEME_TOKENS.input.text,
               )}
+              multiline
               value={v}
               placeholder={!v && connectedValueText ? connectedValueText : undefined}
-              onChange={e => setValue(e.target.value || undefined)}
+              onChange={next => setValue(next || undefined)}
               disabled={!active}
             />
             {connectedMeta}
@@ -286,7 +288,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       typeNode,
       valueNode: (
         <section className="w-full">
-          <input
+          <PlainTextInputEditor
             id={id}
             className={cn(
               keyValueInputClass,
@@ -298,8 +300,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
             )}
             value={v}
             placeholder={!v && connectedValueText ? connectedValueText : undefined}
-            onChange={e => {
-              const raw = e.target.value
+            onChange={raw => {
               setValue(raw.trim() ? raw : undefined)
             }}
             disabled={!active}

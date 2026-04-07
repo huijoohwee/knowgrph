@@ -6,6 +6,7 @@ import {
   KeyTypeValueRow,
   RightAlignedValueCell,
 } from '@/features/panels/ui/KeyTypeValueRow'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 type FieldLocalSchemaRow = { id: string; key: string; value: string }
 
@@ -162,11 +163,9 @@ export default function FieldLocalSchemaRowsEditor({
                   {localSchemaFacet === 'localRules' ? (
                     <span className="text-gray-700">Rule {index + 1}</span>
                   ) : (
-                    <input
-                      type="text"
+                    <PlainTextInputEditor
                       value={row.key}
-                      onChange={e => {
-                        const raw = e.target.value
+                      onChange={raw => {
                         const next = localSchemaRows.slice()
                         if (
                           localSchemaFacet === 'properties' &&
@@ -257,12 +256,11 @@ export default function FieldLocalSchemaRowsEditor({
               }
               valueNode={
                 <RightAlignedValueCell className="gap-1">
-                  <input
-                    type="text"
+                  <PlainTextInputEditor
                     value={row.value}
-                    onChange={e => {
+                    onChange={nextValue => {
                       const next = localSchemaRows.slice()
-                      next[index] = { ...row, value: e.target.value }
+                      next[index] = { ...row, value: nextValue }
                       setLocalSchemaRows(next)
                     }}
                     className={`h-7 w-full rounded border border-gray-300 bg-white px-2 text-xs text-gray-800 ${uiPanelMonospaceTextClass}`}
@@ -353,4 +351,3 @@ export default function FieldLocalSchemaRowsEditor({
     </section>
   )
 }
-

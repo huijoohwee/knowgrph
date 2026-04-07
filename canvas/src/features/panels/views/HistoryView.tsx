@@ -12,7 +12,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { RecentFileEntry } from '@/hooks/store/types'
 import { downloadBlob } from '@/lib/graph/save'
 
-type HistorySubTab = 'history' | 'log'
+type HistorySubTab = 'chat' | 'history' | 'log'
 
 function getFileIcon(type: RecentFileEntry['type']) {
   switch (type) {
@@ -41,10 +41,13 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
     restoreHistory,
     uiLogEntries,
     clearUiLog,
+    chatExchangeLogs,
+    clearChatExchangeLogs,
     uiIconScale,
     uiIconStrokeWidth,
   } = useGraphStore()
-  const [tab, setTab] = React.useState<HistorySubTab>('history')
+  const [tab, setTab] = React.useState<HistorySubTab>('chat')
+  const [expandedChatLogIds, setExpandedChatLogIds] = React.useState<Record<string, boolean>>({})
   const normalizedQuery = normalizeText(searchQuery).trim()
   const filteredHistory = React.useMemo(
     () =>
@@ -71,6 +74,13 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
     if (!normalizedQuery) return rows
     return rows.filter(r => normalizeText([r.kind, r.message, String(r.tsMs), r.source || ''].join(' ')).includes(normalizedQuery))
   }, [normalizedQuery, uiLogEntries])
+  const filteredChatLogs = React.useMemo(() => {
+    const rows = Array.isArray(chatExchangeLogs) ? chatExchangeLogs : []
+    if (!normalizedQuery) return rows
+    return rows.filter(r =>
+      normalizeText([r.request, r.response, r.snippet, String(r.tsMs), r.status, r.model || ''].join(' ')).includes(normalizedQuery),
+    )
+  }, [chatExchangeLogs, normalizedQuery])
 
   const buildLogMarkdown = React.useCallback((rows: typeof filteredLog) => {
     const esc = (raw: unknown) =>
@@ -127,6 +137,11 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
             <IconButton className="App-toolbar__btn" title="Snapshot" onClick={applySnapshot} showTooltip>
               <SaveIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
             </IconButton>
+            {tab === 'chat' && (
+              <IconButton className="App-toolbar__btn" title={UI_LABELS.clear} onClick={() => clearChatExchangeLogs()} showTooltip>
+                <ResetIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+              </IconButton>
+            )}
             {tab === 'log' && (
               <>
                 <IconButton className="App-toolbar__btn" title="Export Markdown" onClick={exportLogMarkdown} showTooltip>
@@ -139,6 +154,15 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
             )}
           </div>
           <nav className="flex items-center gap-1" aria-label="History tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'chat'}
+              className={`App-toolbar__btn ${tab === 'chat' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
+              onClick={() => setTab('chat')}
+            >
+              Chat
+            </button>
             <button
               type="button"
               role="tab"
@@ -260,6 +284,74 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
                         <td className={`px-3 py-2 align-top text-xs ${UI_THEME_TOKENS.text.secondary} whitespace-nowrap`}>{row.kind}</td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+        {tab === 'chat' && (
+          <div>
+            <h3 className={`text-xs font-semibold ${UI_THEME_TOKENS.text.secondary} mb-2 uppercase tracking-wider`}>
+              Chat
+            </h3>
+            {filteredChatLogs.length === 0 ? (
+              <div className={`px-3 py-2 text-sm ${UI_THEME_TOKENS.text.tertiary}`}>No chat entries.</div>
+            ) : (
+              <div className={`rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`}>
+                <table className="w-full text-sm" aria-label="Chat Exchange Table">
+                  <thead className={`${UI_THEME_TOKENS.panel.bg} border-b ${UI_THEME_TOKENS.panel.border}`}>
+                    <tr>
+                      <th className={`text-left px-3 py-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>User Request / AI Response</th>
+                      <th className={`text-left px-3 py-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Snippet</th>
+                      <th className={`text-left px-3 py-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Timestamp</th>
+                      <th className={`text-left px-3 py-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredChatLogs.map(row => {
+                      const isExpanded = expandedChatLogIds[row.id] === true
+                      return (
+                        <React.Fragment key={row.id}>
+                          <tr className={`hover:${UI_THEME_TOKENS.table.rowHover}`}>
+                            <td className={`px-3 py-2 align-top ${UI_THEME_TOKENS.text.primary} break-words`}>
+                              <div className="font-medium">User: {row.request || '—'}</div>
+                              <div className={`mt-1 ${UI_THEME_TOKENS.text.secondary}`}>AI: {row.response || '—'}</div>
+                            </td>
+                            <td className="px-3 py-2 align-top">
+                              <button
+                                type="button"
+                                className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                                onClick={() => {
+                                  setExpandedChatLogIds(prev => ({ ...prev, [row.id]: !isExpanded }))
+                                }}
+                              >
+                                {isExpanded ? 'Collapse' : 'Expand'}
+                              </button>
+                              <div className={`mt-1 text-xs ${UI_THEME_TOKENS.text.tertiary}`}>{row.snippet || '—'}</div>
+                            </td>
+                            <td className={`px-3 py-2 align-top text-xs ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap`}>{formatTimestamp(row.tsMs)}</td>
+                            <td className={`px-3 py-2 align-top text-xs ${UI_THEME_TOKENS.text.secondary} whitespace-nowrap`}>{row.status}</td>
+                          </tr>
+                          {isExpanded && (
+                            <tr className={`${UI_THEME_TOKENS.panel.bg}`}>
+                              <td colSpan={4} className={`px-3 py-2 text-xs ${UI_THEME_TOKENS.text.primary} border-t ${UI_THEME_TOKENS.panel.border}`}>
+                                <div className="space-y-2">
+                                  <div>
+                                    <div className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>User Request</div>
+                                    <pre className="whitespace-pre-wrap break-words">{row.request || '—'}</pre>
+                                  </div>
+                                  <div>
+                                    <div className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>AI Response</div>
+                                    <pre className="whitespace-pre-wrap break-words">{row.response || '—'}</pre>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

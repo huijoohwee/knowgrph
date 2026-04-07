@@ -3,6 +3,7 @@ import { Settings as SettingsIcon, Tag as TagIcon } from 'lucide-react'
 import { ScopeIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import { getIconSizeClass, getPillClass } from '@/lib/ui/icons'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 export const renderSettingInput = (
   key: string,
@@ -66,12 +67,10 @@ export const renderSettingInput = (
     const previewLabel = key === 'uiIconColorClass' ? 'Aa' : 'Hover'
     return (
       <div className="flex w-full min-w-0 items-center gap-2">
-        <input type="text" value={previewLabel} readOnly className={previewClass} />
-        <input
-          type="text"
+        <PlainTextInputEditor value={previewLabel} readOnly className={previewClass} />
+        <PlainTextInputEditor
           value={str}
-          onChange={e => {
-            const next = e.target.value
+          onChange={next => {
             dirtyRef.current.add(key)
             setValues(prev => ({ ...prev, [key]: next }))
           }}
@@ -96,11 +95,9 @@ export const renderSettingInput = (
         <div className={previewClass}>
           <SettingsIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
         </div>
-        <input
-          type="text"
+        <PlainTextInputEditor
           value={str}
-          onChange={e => {
-            const next = e.target.value
+          onChange={next => {
             dirtyRef.current.add(key)
             setValues(prev => ({ ...prev, [key]: next }))
           }}
@@ -126,11 +123,9 @@ export const renderSettingInput = (
           <TagIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
           <span>Scope</span>
         </div>
-        <input
-          type="text"
+        <PlainTextInputEditor
           value={str}
-          onChange={e => {
-            const next = e.target.value
+          onChange={next => {
             dirtyRef.current.add(key)
             setValues(prev => ({ ...prev, [key]: next }))
           }}
@@ -208,11 +203,9 @@ export const renderSettingInput = (
             </span>
           </div>
         )}
-        <input
-          type="text"
+        <PlainTextInputEditor
           value={str}
-          onChange={e => {
-            const next = e.target.value
+          onChange={next => {
             dirtyRef.current.add(key)
             setValues(prev => ({ ...prev, [key]: next }))
           }}
@@ -238,11 +231,9 @@ export const renderSettingInput = (
           <TagIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden="true" />
           <span>Badge</span>
         </div>
-        <input
-          type="text"
+        <PlainTextInputEditor
           value={str}
-          onChange={e => {
-            const next = e.target.value
+          onChange={next => {
             dirtyRef.current.add(key)
             setValues(prev => ({ ...prev, [key]: next }))
           }}
@@ -269,11 +260,9 @@ export const renderSettingInput = (
           <TagIcon className="w-3 h-3" aria-hidden="true" />
           <span>Badge</span>
         </div>
-        <input
-          type="text"
+        <PlainTextInputEditor
           value={str}
-          onChange={e => {
-            const next = e.target.value
+          onChange={next => {
             dirtyRef.current.add(key)
             setValues(prev => ({ ...prev, [key]: next }))
           }}
@@ -303,11 +292,9 @@ export const renderSettingInput = (
           }}
           className="w-8 h-6 p-0 border border-gray-300 rounded cursor-pointer bg-transparent"
         />
-        <input
-          type="text"
+        <PlainTextInputEditor
           value={str}
-          onChange={e => {
-            const next = e.target.value
+          onChange={next => {
             dirtyRef.current.add(key)
             setValues(prev => ({ ...prev, [key]: next }))
           }}
@@ -315,6 +302,23 @@ export const renderSettingInput = (
           placeholder={fallback}
         />
       </div>
+    )
+  }
+  if (key === 'chatApiKey') {
+    const str = String(v || '')
+    return (
+      <input
+        type="password"
+        value={str}
+        autoComplete="off"
+        spellCheck={false}
+        onChange={e => {
+          const next = e.target.value
+          dirtyRef.current.add(key)
+          setValues(prev => ({ ...prev, [key]: next }))
+        }}
+        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`}
+      />
     )
   }
   if (options && options.length > 0) {
@@ -346,11 +350,11 @@ export const renderSettingInput = (
       : `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`
   const finalInputClass = baseInputClass
   return (
-    <input
-      type={type === 'number' ? 'number' : 'text'}
-      value={type === 'number' ? (isNaN(Number(v)) ? '' : Number(v)) : String(v ?? '')}
-      onChange={e => {
-        const val = type === 'number' ? Number(e.target.value || '0') : e.target.value
+    <PlainTextInputEditor
+      inputType={type === 'number' ? 'number' : 'text'}
+      value={type === 'number' ? (isNaN(Number(v)) ? '' : String(Number(v))) : String(v ?? '')}
+      onChange={next => {
+        const val = type === 'number' ? Number(next || '0') : next
         dirtyRef.current.add(key)
         setValues(prev => ({ ...prev, [key]: val }))
       }}

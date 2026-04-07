@@ -17,7 +17,14 @@ import type { StoreApi } from 'zustand'
 import { getInitialLaunchSpotlightEnabled, persistLaunchSpotlightEnabled } from '@/features/spotlight/storage'
 import { createPanelLayoutUiSlice } from '@/hooks/store/panelLayoutUiSlice'
 import { DEFAULT_CANVAS_2D_RENDERER, DEFAULT_CANVAS_3D_MODE } from '@/lib/config'
-import { CHAT_DEFAULT_ENDPOINT_URL, CHAT_DEFAULT_MODEL, normalizeChatModelId } from '@/lib/chatEndpoint'
+import {
+  CHAT_DEFAULT_ENDPOINT_URL,
+  CHAT_DEFAULT_MODEL,
+  CHAT_DEFAULT_PROVIDER,
+  normalizeChatModelIdForProvider,
+  normalizeChatProviderId,
+  resolveChatEndpointForRequest,
+} from '@/lib/chatEndpoint'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import { clampFillRatio } from 'grph-shared/zoom/presets'
 import { DEFAULT_DRAG_ALPHA_TARGET, DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from '@/lib/graph/layoutDefaults'
@@ -284,21 +291,40 @@ export const createUiSlice = (set: SetGraph) => {
     uiOverlayOpacity: lsNum(LS_KEYS.overlayOpacity, 0.95),
     uiPanelOpacity: lsNum(LS_KEYS.panelOpacity, 0.95),
     uiToolbarOpacity: lsNum(LS_KEYS.toolbarOpacity, 0.95),
+    chatProvider: lsJson<string>(
+      LS_KEYS.chatProvider,
+      CHAT_DEFAULT_PROVIDER,
+      value => normalizeChatProviderId(value),
+    ),
+    chatApiKey: '',
     chatEndpointUrl: lsJson<string | null>(
       LS_KEYS.chatEndpointUrl,
       CHAT_DEFAULT_ENDPOINT_URL,
-      value => (typeof value === 'string' ? value : null),
+      value => {
+        if (typeof value !== 'string') return CHAT_DEFAULT_ENDPOINT_URL
+        return resolveChatEndpointForRequest(value) || CHAT_DEFAULT_ENDPOINT_URL
+      },
     ),
     chatModel: lsJson<string | null>(
       LS_KEYS.chatModel,
       CHAT_DEFAULT_MODEL,
-      value => normalizeChatModelId(value),
+      value => normalizeChatModelIdForProvider(value, CHAT_DEFAULT_PROVIDER),
     ),
     chatTemperature: lsNum(LS_KEYS.chatTemperature, 0.3),
     chatSystemPrompt: lsJson<string | null>(
       LS_KEYS.chatSystemPrompt,
       null,
       value => (typeof value === 'string' ? value : null),
+    ),
+    chatContextScope: lsJson<'selection' | 'workspace' | 'hybrid'>(
+      LS_KEYS.chatContextScope,
+      'workspace',
+      value => {
+        const raw = typeof value === 'string' ? value.trim().toLowerCase() : ''
+        if (raw === 'selection') return 'selection'
+        if (raw === 'hybrid') return 'hybrid'
+        return 'workspace'
+      },
     ),
 
     autoEnableGeospatialOnGeoImport: lsBool(LS_KEYS.geospatialAutoEnableOnGeoImport, true),
@@ -544,19 +570,39 @@ export const createUiSlice = (set: SetGraph) => {
     setUiOverlayOpacity: (v: number) => set({ uiOverlayOpacity: lsSetNum(LS_KEYS.overlayOpacity, v) }),
     setUiPanelOpacity: (v: number) => set({ uiPanelOpacity: lsSetNum(LS_KEYS.panelOpacity, v) }),
     setUiToolbarOpacity: (v: number) => set({ uiToolbarOpacity: lsSetNum(LS_KEYS.toolbarOpacity, v) }),
+    setChatProvider: (provider: string) =>
+      set(state => {
+        const normalizedProvider = normalizeChatProviderId(provider)
+        if (state.chatProvider === normalizedProvider) return {}
+        const nextModel = normalizeChatModelIdForProvider(state.chatModel, normalizedProvider)
+        return {
+          chatProvider: lsSetJson(LS_KEYS.chatProvider, normalizedProvider),
+          chatModel: lsSetJson(LS_KEYS.chatModel, nextModel),
+        }
+      }),
+    setChatApiKey: (apiKey: string | null) =>
+      set({
+        chatApiKey: String(apiKey || '')
+          .replace(/[\r\n]/g, '')
+          .trim()
+          .slice(0, 512),
+      }),
     setChatEndpointUrl: (url: string | null) =>
       set({
         chatEndpointUrl: lsSetJson(
           LS_KEYS.chatEndpointUrl,
-          url && typeof url === 'string' ? url : null,
+          resolveChatEndpointForRequest(url) || CHAT_DEFAULT_ENDPOINT_URL,
         ),
       }),
     setChatModel: (model: string | null) =>
-      set({
-        chatModel: lsSetJson(
-          LS_KEYS.chatModel,
-          normalizeChatModelId(model),
-        ),
+      set(state => {
+        const nextProvider = normalizeChatProviderId(state.chatProvider)
+        return {
+          chatModel: lsSetJson(
+            LS_KEYS.chatModel,
+            normalizeChatModelIdForProvider(model, nextProvider),
+          ),
+        }
       }),
     setChatTemperature: (v: number) =>
       set({
@@ -570,6 +616,13 @@ export const createUiSlice = (set: SetGraph) => {
         chatSystemPrompt: lsSetJson(
           LS_KEYS.chatSystemPrompt,
           v && typeof v === 'string' ? v : null,
+        ),
+      }),
+    setChatContextScope: (scope: 'selection' | 'workspace' | 'hybrid') =>
+      set({
+        chatContextScope: lsSetJson(
+          LS_KEYS.chatContextScope,
+          scope === 'selection' || scope === 'hybrid' ? scope : 'workspace',
         ),
       }),
 

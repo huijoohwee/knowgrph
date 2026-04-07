@@ -25,6 +25,7 @@ import { NodeOverlayEditorSchemaTable } from '@/components/FlowEditor/NodeOverla
 import { NodeOverlayEditorRegistrySection } from '@/components/FlowEditor/NodeOverlayEditorRegistrySection'
 import { NodeOverlayEditorParamsSection } from '@/components/FlowEditor/NodeOverlayEditorParamsSection'
 import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { NodeOverlayEditorBeatByBeatSection } from '@/components/FlowEditor/NodeOverlayEditorBeatByBeatSection'
 import type { GraphEdge } from '@/lib/graph/types'
@@ -274,18 +275,16 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                 keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.prompt}>{UI_LABELS.flowNodeQuickEditorPrompt}</label>,
                 typeNode: <NodeOverlayEditorTypePill text="text" />,
                 valueNode: (
-                  <textarea
+                  <PlainTextInputEditor
                     id={ids.prompt}
+                    value={prompt}
+                    onChange={nextPrompt => onPatchProperties({ prompt: nextPrompt })}
+                    disabled={!active}
+                    multiline
                     className={cn(
                       'w-full h-32 px-2 py-1 rounded-md border',
                       monospaceTextClass,
-                      UI_THEME_TOKENS.input.bg,
-                      UI_THEME_TOKENS.input.border,
-                      UI_THEME_TOKENS.input.text,
                     )}
-                    value={prompt}
-                    onChange={e => onPatchProperties({ prompt: e.target.value })}
-                    disabled={!active}
                   />
                 ),
               },

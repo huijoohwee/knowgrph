@@ -7,6 +7,7 @@ import { UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { getIconSizeClass } from '@/lib/ui'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 import {
   buildDefaultFlowNodeSpec,
@@ -190,11 +191,12 @@ export default function FlowEditorSpecificationTab({
           <label className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`} htmlFor="flow-node-spec-editor">
             Node spec JSON
           </label>
-          <textarea
+          <PlainTextInputEditor
             id="flow-node-spec-editor"
             className={`mt-2 w-full min-h-[320px] rounded-md border px-2 py-1 ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} ${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
             value={nodeText}
-            onChange={e => setNodeText(e.target.value)}
+            onChange={setNodeText}
+            multiline
           />
         </section>
 
@@ -206,11 +208,12 @@ export default function FlowEditorSpecificationTab({
           <label className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`} htmlFor="flow-workflow-spec-editor">
             Workflow spec JSON
           </label>
-          <textarea
+          <PlainTextInputEditor
             id="flow-workflow-spec-editor"
             className={`mt-2 w-full min-h-[320px] rounded-md border px-2 py-1 ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} ${uiPanelKeyValueInputClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
             value={workflowText}
-            onChange={e => setWorkflowText(e.target.value)}
+            onChange={setWorkflowText}
+            multiline
           />
         </section>
       </section>

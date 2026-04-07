@@ -3,6 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { JSONValue } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 type GraphLayerStyleMeta = {
   fill?: string
@@ -133,8 +134,7 @@ export function FieldGraphLayersSection({
               <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
                 Fill color
               </div>
-              <input
-                type="text"
+              <PlainTextInputEditor
                 defaultValue={fillValue}
                 onBlur={e => updateStyle({ fill: e.target.value || undefined })}
                 className={uiPanelKeyValueInputClass}
@@ -145,8 +145,7 @@ export function FieldGraphLayersSection({
               <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
                 Stroke color
               </div>
-              <input
-                type="text"
+              <PlainTextInputEditor
                 defaultValue={strokeValue}
                 onBlur={e => updateStyle({ stroke: e.target.value || undefined })}
                 className={uiPanelKeyValueInputClass}
@@ -197,8 +196,7 @@ export function FieldGraphLayersSection({
               <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
                 Dash pattern
               </div>
-              <input
-                type="text"
+              <PlainTextInputEditor
                 defaultValue={dashValue}
                 onBlur={e => updateStyle({ dash: e.target.value || undefined })}
                 className={uiPanelKeyValueInputClass}
@@ -315,8 +313,7 @@ export function GraphLayerMetadataPresetsSection({
           <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
             Default fill color
           </div>
-          <input
-            type="text"
+          <PlainTextInputEditor
             defaultValue={fillValue}
             onBlur={e => updateDefaultStyle({ fill: e.target.value || undefined })}
             className={uiPanelKeyValueInputClass}
@@ -326,8 +323,7 @@ export function GraphLayerMetadataPresetsSection({
           <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
             Default stroke color
           </div>
-          <input
-            type="text"
+          <PlainTextInputEditor
             defaultValue={strokeValue}
             onBlur={e => updateDefaultStyle({ stroke: e.target.value || undefined })}
             className={uiPanelKeyValueInputClass}
@@ -375,8 +371,7 @@ export function GraphLayerMetadataPresetsSection({
           <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
             Default dash pattern
           </div>
-          <input
-            type="text"
+          <PlainTextInputEditor
             defaultValue={dashValue}
             onBlur={e => updateDefaultStyle({ dash: e.target.value || undefined })}
             className={uiPanelKeyValueInputClass}
@@ -392,8 +387,7 @@ export function GraphLayerMetadataPresetsSection({
             <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
               Grouping logic
             </div>
-            <input
-              type="text"
+            <PlainTextInputEditor
               defaultValue={groupingLogicValue}
               onBlur={e => {
                 const raw = e.target.value.trim()
@@ -425,8 +419,7 @@ export function GraphLayerMetadataPresetsSection({
             <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
               Label
             </div>
-            <input
-              type="text"
+            <PlainTextInputEditor
               defaultValue={labelValue}
               onBlur={e => {
                 const raw = e.target.value
@@ -439,8 +432,7 @@ export function GraphLayerMetadataPresetsSection({
             <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
               Tooltip
             </div>
-            <input
-              type="text"
+            <PlainTextInputEditor
               defaultValue={tooltipValue}
               onBlur={e => {
                 const raw = e.target.value
@@ -454,8 +446,7 @@ export function GraphLayerMetadataPresetsSection({
           <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
             Schema styling entrypoint
           </div>
-          <input
-            type="text"
+          <PlainTextInputEditor
             defaultValue={schemaEntrypointValue}
             onBlur={e => {
               const raw = e.target.value

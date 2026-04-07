@@ -59,6 +59,10 @@ When `kgWebsiteImportId/kgWebsiteNodeId` are present, the HTML Viewer prefers st
 - Serves repo-relative files under the monorepo root with traversal/absolute-path guards.
 - Use `/__codebase_file` for text (HTML/Markdown/JSON). Use `/__codebase_asset` for binary assets so iframe rendering preserves MIME types.
 
+### `POST /__chat_proxy/*` (Canvas Chat)
+
+- Routes local LM Studio chat calls through a same-origin proxy path instead of direct localhost URLs, normalizes legacy endpoint/model ids, extracts real upstream error text, and may auto-switch to a discovered working model when the configured id is invalid.
+
 ### `GET /__repo_file/*` (legacy)
 
 - Legacy path-based serving used by older docs and some baseHref flows. Prefer `/__codebase_file` + `/__codebase_asset` for new behavior.
