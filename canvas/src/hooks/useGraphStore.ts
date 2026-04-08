@@ -304,7 +304,7 @@ try {
           documentRef: next.ref,
           state: next.state,
         })
-      }, 250, { signature })
+      }, 250, { signature, scopeKey: 'per-document-ui:runtime-persistence' })
     }
 
     useGraphStore.subscribe(

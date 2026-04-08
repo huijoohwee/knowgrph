@@ -461,6 +461,18 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       modCoalescedScheduler.testWorkspaceSyncSchedulerCancelDoesNotResetSignatureDedupe,
     )
 
+    const modChatEndpointGateway = await import('../__tests__/chatEndpointGateway.test')
+    await execTest(
+      results,
+      'chat.endpoint.defaultProvider.deerflow',
+      modChatEndpointGateway.testChatEndpointDefaultsToDeerflowProvider,
+    )
+    await execTest(
+      results,
+      'chat.endpoint.proxyAndModelNormalization',
+      modChatEndpointGateway.testChatEndpointKeepsProxyPathAndProviderModelSane,
+    )
+
     const modGraphTableSync = await import('../__tests__/graphTableDbSyncDedupeRegression.test')
     await execTest(
       results,
@@ -471,6 +483,18 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       results,
       'ui.graphTable.dbSync.selectionInspectorGatesSync',
       modGraphTableSync.testGraphTableSelectionInspectorGatesDbSyncWhenGraphTablePaneIsActive,
+    )
+    const modSourceFilesIngestStaleGuard = await import('../__tests__/sourceFilesIngestStaleGuard.test')
+    await execTest(
+      results,
+      'ui.sourceFiles.ingest.staleParseGuard',
+      modSourceFilesIngestStaleGuard.testSourceFilesIngestUsesParseJobGuardForStaleAsyncResults,
+    )
+    const modLazyLoadingGates = await import('../__tests__/lazyLoadingGatesRegression.test')
+    await execTest(
+      results,
+      'ui.lazyLoading.gates.heavyFeatureSurfaces',
+      modLazyLoadingGates.testHeavyFeatureSurfacesUseTargetedLazyLoadingGates,
     )
     const modOverlayInteractions = await import('../__tests__/overlayInteractions2dCleanupRegression.test')
     await execTest(

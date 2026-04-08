@@ -794,7 +794,7 @@ export default function CanvasPage() {
         }
         const store = useGraphStore.getState()
         const lockRenderer = store.canvasRenderMode === '2d' && store.canvas2dRenderer === 'flowEditor'
-        if (!lockRenderer && payload.canvasRenderMode) {
+        if (!lockRenderer && payload.canvasRenderMode && payload.canvasRenderMode !== store.canvasRenderMode) {
           try {
             const setCanvasRenderMode = store.setCanvasRenderMode
             if (typeof setCanvasRenderMode === 'function') setCanvasRenderMode(payload.canvasRenderMode as never)
@@ -802,7 +802,7 @@ export default function CanvasPage() {
             void 0
           }
         }
-        if (!lockRenderer && payload.canvas2dRenderer) {
+        if (!lockRenderer && payload.canvas2dRenderer && payload.canvas2dRenderer !== store.canvas2dRenderer) {
           try {
             const setCanvas2dRenderer = store.setCanvas2dRenderer
             if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer(payload.canvas2dRenderer as never)
@@ -810,7 +810,7 @@ export default function CanvasPage() {
             void 0
           }
         }
-        if (!lockRenderer && payload.canvas3dMode) {
+        if (!lockRenderer && payload.canvas3dMode && payload.canvas3dMode !== store.canvas3dMode) {
           try {
             const setCanvas3dMode = store.setCanvas3dMode
             if (typeof setCanvas3dMode === 'function') setCanvas3dMode(payload.canvas3dMode as never)

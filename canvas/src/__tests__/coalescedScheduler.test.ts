@@ -79,8 +79,8 @@ export async function testWorkspaceSyncSchedulerSuppressesRepeatedSignature() {
   if (calls.length !== 1) {
     throw new Error(`expected only one call for same signature, got ${calls.length}`)
   }
-  if (calls[0] !== 'runtime:once') {
-    throw new Error(`expected first callback to be retained for same signature, got ${calls[0]}`)
+  if (calls[0] !== 'runtime:twice') {
+    throw new Error(`expected latest callback to be retained for same signature, got ${calls[0]}`)
   }
 }
 
@@ -127,5 +127,28 @@ export async function testWorkspaceSyncSchedulerCancelDoesNotResetSignatureDedup
   }
   if (calls[0] !== 'runtime:once') {
     throw new Error(`expected first call to remain the only execution, got ${calls[0]}`)
+  }
+}
+
+export async function testWorkspaceSyncSchedulerScopeKeySuppressesRepeatedSignatureAcrossTaskKeys() {
+  const calls: string[] = []
+  const scopeKey = 'source-files:runtime-persistence'
+  scheduleWorkspaceSyncTask('source-files:runtime', () => {
+    calls.push('runtime:once')
+  }, 10, { signature: 'same-signature', scopeKey })
+
+  await new Promise(resolve => setTimeout(resolve, 40))
+
+  scheduleWorkspaceSyncTask('source-files:persistence', () => {
+    calls.push('persistence:duplicate')
+  }, 10, { signature: 'same-signature', scopeKey })
+
+  await new Promise(resolve => setTimeout(resolve, 40))
+
+  if (calls.length !== 1) {
+    throw new Error(`expected duplicate scoped signature to be suppressed across task keys, got ${calls.length}`)
+  }
+  if (calls[0] !== 'runtime:once') {
+    throw new Error(`expected first scoped callback to remain the only execution, got ${calls[0]}`)
   }
 }

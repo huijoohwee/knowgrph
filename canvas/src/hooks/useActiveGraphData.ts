@@ -12,7 +12,6 @@ import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { deriveMarkdownTableGraphForFrontmatterMode } from '@/features/markdown/tableGraph/deriveMarkdownTableGraph'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
-import { applyMermaidFrontmatterGeometryToGraphData } from '@/lib/mermaid/mermaidFrontmatterGeometry'
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { pipelinePerfEnd, pipelinePerfStart } from '@/lib/pipelinePerf'
 import { deriveKeywordGraphInWorker, deriveKeywordGraphPreviewInWorker } from '@/features/semantic-mode/keywordGraphWorker'
@@ -23,6 +22,15 @@ import {
   parseBipartiteApiGraphPayload,
   useApiGraphBipartiteGraphData,
 } from '@/features/bipartite/apiGraphBipartite'
+
+let mermaidFrontmatterGeometryModulePromise: Promise<typeof import('@/lib/mermaid/mermaidFrontmatterGeometry')> | null = null
+
+const loadMermaidFrontmatterGeometryModule = async () => {
+  if (!mermaidFrontmatterGeometryModulePromise) {
+    mermaidFrontmatterGeometryModulePromise = import('@/lib/mermaid/mermaidFrontmatterGeometry')
+  }
+  return mermaidFrontmatterGeometryModulePromise
+}
 
 const KEYWORD_SOURCE_EDGE_LABELS = new Set<string>([
   'hasSection',
@@ -1176,6 +1184,8 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     let cancelled = false
     ;(async () => {
       try {
+        const { applyMermaidFrontmatterGeometryToGraphData } = await loadMermaidFrontmatterGeometryModule()
+        if (cancelled) return
         const updated = await applyMermaidFrontmatterGeometryToGraphData(base)
         if (cancelled) return
         if (!updated || updated === base) return

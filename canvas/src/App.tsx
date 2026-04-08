@@ -11,6 +11,7 @@ import { installGlobalUserSelectFailsafe } from '@/lib/canvas/interaction-user-s
 import { installGlobalInteractionRecovery } from '@/lib/canvas/interaction-recovery'
 import { ensureSpacePanKeyListenerInstalled } from '@/lib/canvas/space-pan'
 import { ensureKgTokensInstalled } from '@/lib/ui/tokens-ssot'
+import { installIntegrationUtilityCommand } from '@/features/integrations/command'
 
 const Canvas = lazy(() => import('@/pages/Canvas'))
 
@@ -29,6 +30,9 @@ export default function App() {
   }, [])
   useEffect(() => {
     ensureKgTokensInstalled()
+  }, [])
+  useEffect(() => {
+    return installIntegrationUtilityCommand()
   }, [])
   useEffect(() => {
     const storage = getLocalStorage()

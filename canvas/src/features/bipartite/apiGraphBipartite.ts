@@ -253,20 +253,61 @@ function buildApiGraphSignature(payload: ApiGraphPayload): string {
   const nodes = Array.isArray(payload.nodes) ? payload.nodes : []
   const edges = Array.isArray(payload.edges) ? payload.edges : []
   const updated = payload.meta && typeof payload.meta.last_updated === 'string' ? payload.meta.last_updated : ''
-  const ids = nodes
-    .map(n => String(n?.id || '').trim())
+  const meta = payload.meta && typeof payload.meta === 'object' && !Array.isArray(payload.meta)
+    ? (payload.meta as Record<string, unknown>)
+    : null
+  const takeSample = (values: string[], maxItems: number): string[] => {
+    if (values.length <= maxItems) return values
+    const headCount = Math.max(1, Math.floor(maxItems / 2))
+    const tailCount = Math.max(1, maxItems - headCount)
+    return [...values.slice(0, headCount), ...values.slice(values.length - tailCount)]
+  }
+  const nodeKeys = nodes
+    .map(n => {
+      const id = String(n?.id || '').trim()
+      if (!id) return ''
+      const strength = typeof n?.gap_score === 'number' && Number.isFinite(n.gap_score) ? n.gap_score.toFixed(4) : ''
+      const pmf = typeof n?.pmf_score === 'number' && Number.isFinite(n.pmf_score) ? n.pmf_score.toFixed(4) : ''
+      const velocity = typeof n?.gap_velocity === 'number' && Number.isFinite(n.gap_velocity) ? n.gap_velocity.toFixed(4) : ''
+      const count = typeof n?.source_count === 'number' && Number.isFinite(n.source_count) ? String(Math.round(n.source_count)) : ''
+      const label = String(n?.label || '').trim()
+      const cluster = String(n?.cluster || '').trim()
+      const type = String(n?.type || '').trim().toLowerCase()
+      const specificity = String(n?.specificity || '').trim().toLowerCase()
+      const color = String(n?.color || '').trim().toLowerCase()
+      return `${id}|${type}|${cluster}|${label}|${specificity}|${color}|${strength}|${pmf}|${velocity}|${count}`
+    })
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b))
   const edgeKeys = edges
     .map(e => {
       const s = String(e?.source || e?.problem_id || e?.hub_id || '').trim()
       const t = String(e?.target || e?.solution_id || e?.member_id || '').trim()
-      const st = typeof e?.strength === 'number' && Number.isFinite(e.strength) ? String(e.strength) : ''
-      return `${s}|${t}|${st}`
+      if (!s || !t) return ''
+      const type = String(e?.type || '').trim().toLowerCase()
+      const st = typeof e?.strength === 'number' && Number.isFinite(e.strength) ? e.strength.toFixed(4) : ''
+      const force = typeof e?.force_strength === 'number' && Number.isFinite(e.force_strength) ? e.force_strength.toFixed(4) : ''
+      const dist = typeof e?.distance_px === 'number' && Number.isFinite(e.distance_px) ? e.distance_px.toFixed(2) : ''
+      return `${s}|${t}|${type}|${st}|${force}|${dist}`
     })
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b))
-  const core = `${updated}|n${ids.length}|e${edgeKeys.length}|${ids.join(',')}|${edgeKeys.join(',')}`
+  const sampledNodes = takeSample(nodeKeys, 1200)
+  const sampledEdges = takeSample(edgeKeys, 1600)
+  const clusterGapRatios = meta?.cluster_gap_ratios && typeof meta.cluster_gap_ratios === 'object' && !Array.isArray(meta.cluster_gap_ratios)
+    ? Object.entries(meta.cluster_gap_ratios as Record<string, unknown>)
+        .map(([key, value]) => `${String(key)}:${String(value)}`)
+        .sort((a, b) => a.localeCompare(b))
+        .join(',')
+    : ''
+  const core = [
+    updated,
+    `n${nodeKeys.length}`,
+    `e${edgeKeys.length}`,
+    sampledNodes.join(','),
+    sampledEdges.join(','),
+    clusterGapRatios,
+  ].join('|')
   return hashText(core)
 }
 

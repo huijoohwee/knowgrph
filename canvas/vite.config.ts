@@ -30,6 +30,7 @@ const CODEBASE_INDEX_PIPELINE_OUTPUT_DIR =
 const CODEBASE_INDEX_PIPELINE_COMMAND = `python -m knowgrph_parser markdown --input ${MARKDOWN_PIPELINE_INPUT_REL_PATH} --output-dir ${CODEBASE_INDEX_PIPELINE_OUTPUT_DIR}`
 const CHAT_PROXY_PREFIX = '/__chat_proxy'
 const CHAT_LOG_APPEND_PATH = '/__chat_log_append'
+const DEERFLOW_APPLY_KEY_PATH = '/__deerflow_apply_key'
 const CHAT_PROXY_OPENAI_HOST = 'api.openai.com'
 const CHAT_PROXY_LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0'])
 const CHAT_LOG_MAX_BODY_BYTES = 1024 * 1024
@@ -270,9 +271,9 @@ const bipartiteFixtureDevPlugin = {
       }
       const fixturePath = resolveHackamapBipartiteFixturePath()
       if (!fixturePath) {
-        res.statusCode = 404
+        res.statusCode = 200
         res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ ok: false, error: 'Fixture file not found' }))
+        res.end(JSON.stringify({ problems: [], solutions: [], metadata: { source: '__bipartite_fixture:fallback' } }))
         return
       }
 
@@ -305,9 +306,9 @@ const bipartiteFixtureDevPlugin = {
       }
       const fixturePath = resolveHackamapBipartiteFixturePath()
       if (!fixturePath) {
-        res.statusCode = 404
+        res.statusCode = 200
         res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ ok: false, error: 'Fixture file not found' }))
+        res.end(JSON.stringify({ problems: [], solutions: [], metadata: { source: '__bipartite_fixture:fallback' } }))
         return
       }
 
@@ -601,6 +602,28 @@ const chatLogDevPlugin = {
         return
       }
       createChatLogAppendHandler()(req, res, next)
+    })
+  },
+}
+
+const deerFlowApplyKeyDevPlugin = {
+  name: 'knowgrph-deerflow-apply-key-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use((req, res, next) => {
+      if (!req.url?.startsWith(DEERFLOW_APPLY_KEY_PATH)) {
+        next()
+        return
+      }
+      createDeerFlowApplyKeyHandler()(req, res, next)
+    })
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use((req, res, next) => {
+      if (!req.url?.startsWith(DEERFLOW_APPLY_KEY_PATH)) {
+        next()
+        return
+      }
+      createDeerFlowApplyKeyHandler()(req, res, next)
     })
   },
 }
@@ -916,7 +939,637 @@ function createChatLogAppendHandler(): import('vite').Connect.NextHandleFunction
   }
 }
 
+const resolveDeerFlowApiKeyEnvKey = (modelRaw: string): string | null => {
+  const model = String(modelRaw || '').trim().toLowerCase()
+  if (!model) return null
+  if (
+    model.startsWith('gpt')
+    || model.startsWith('o1')
+    || model.startsWith('o3')
+    || model.startsWith('o4')
+    || model.startsWith('o5')
+    || model.includes('openai')
+  ) return 'OPENAI_API_KEY'
+  if (model.includes('deepseek')) return 'DEEPSEEK_API_KEY'
+  if (model.includes('gemini')) return 'GEMINI_API_KEY'
+  if (model.includes('claude') || model.includes('anthropic')) return 'ANTHROPIC_API_KEY'
+  if (model.includes('moonshot') || model.includes('kimi')) return 'MOONSHOT_API_KEY'
+  if (model.includes('minimax')) return 'MINIMAX_API_KEY'
+  if (model.includes('novita')) return 'NOVITA_API_KEY'
+  if (model.includes('vllm')) return 'VLLM_API_KEY'
+  return null
+}
+
+const runLocalProcess = async (cwd: string, command: string, args: string[]): Promise<void> =>
+  await new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd,
+      env: process.env,
+      stdio: 'pipe',
+    })
+    let stderr = ''
+    child.stderr.on('data', chunk => {
+      stderr += String(chunk || '')
+    })
+    child.on('error', err => reject(err))
+    child.on('close', code => {
+      if (code === 0) {
+        resolve()
+        return
+      }
+      reject(new Error(stderr.trim() || `${command} ${args.join(' ')} failed with code ${code ?? 'unknown'}`))
+    })
+  })
+
+function createDeerFlowApplyKeyHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    const parsed = (() => {
+      try {
+        return new URL(String(req.url || ''), `http://${req.headers.host || 'localhost'}`)
+      } catch {
+        return null
+      }
+    })()
+    if (!parsed || parsed.pathname !== DEERFLOW_APPLY_KEY_PATH) {
+      next()
+      return
+    }
+    const method = String(req.method || 'GET').toUpperCase()
+    if (method !== 'POST') {
+      res.statusCode = 405
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Method not allowed' }))
+      return
+    }
+    try {
+      const body = await new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = []
+        let total = 0
+        req.on('data', (chunk: Buffer) => {
+          total += chunk.length
+          if (total > 64 * 1024) {
+            reject(new Error('Payload too large'))
+            return
+          }
+          chunks.push(chunk)
+        })
+        req.on('end', () => resolve(Buffer.concat(chunks)))
+        req.on('error', err => reject(err))
+      })
+      const payload = JSON.parse(body.toString('utf8')) as {
+        chatProvider?: unknown
+        chatModel?: unknown
+        apiKey?: unknown
+      }
+      const provider = String(payload.chatProvider || '').trim().toLowerCase()
+      const model = String(payload.chatModel || '').trim()
+      const apiKey = String(payload.apiKey || '').replace(/[\r\n]/g, '').trim()
+      if (provider !== 'deerflow') {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify({ ok: false, error: 'chatProvider must be deerflow' }))
+        return
+      }
+      if (!apiKey) {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify({ ok: false, error: 'chatApiKey is required' }))
+        return
+      }
+      const envKey = resolveDeerFlowApiKeyEnvKey(model)
+      if (!envKey) {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify({ ok: false, error: `Unsupported model family for auto key routing: ${model || 'unknown'}` }))
+        return
+      }
+      const deerFlowRoot = path.resolve(repoRoot, '..', 'deer-flow')
+      const envPath = path.resolve(deerFlowRoot, '.env')
+      if (!existsSync(deerFlowRoot)) {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify({ ok: false, error: 'deer-flow repository not found' }))
+        return
+      }
+      let envText = ''
+      try {
+        envText = await fs.readFile(envPath, 'utf8')
+      } catch {
+        envText = ''
+      }
+      const lines = envText ? envText.split(/\r?\n/) : []
+      const kv = `${envKey}=${apiKey}`
+      const index = lines.findIndex(line => line.startsWith(`${envKey}=`))
+      if (index >= 0) lines[index] = kv
+      else lines.push(kv)
+      await fs.writeFile(envPath, `${lines.filter(Boolean).join('\n')}\n`, 'utf8')
+      await runLocalProcess(deerFlowRoot, 'make', ['docker-stop'])
+      await runLocalProcess(deerFlowRoot, 'make', ['docker-start'])
+      res.statusCode = 200
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-store')
+      res.end(JSON.stringify({ ok: true, envKey, model }))
+    } catch (error) {
+      const message =
+        error && typeof error === 'object' && 'message' in error
+          ? String((error as { message?: unknown }).message || '')
+          : ''
+      res.statusCode = /payload too large/i.test(message) ? 413 : 500
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-store')
+      res.end(JSON.stringify({ ok: false, error: message || 'Failed to apply DeerFlow API key' }))
+    }
+  }
+}
+
 function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
+  const writeJson = (res: import('node:http').ServerResponse, status: number, payload: unknown) => {
+    res.statusCode = status
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.setHeader('Cache-Control', 'no-store')
+    res.end(JSON.stringify(payload))
+  }
+  const parseSseFrames = (buffer: string): { frames: Array<{ event: string; data: string }>; rest: string } => {
+    const lines = buffer.split(/\r?\n/)
+    const frames: Array<{ event: string; data: string }> = []
+    let eventName = 'message'
+    let dataLines: string[] = []
+    let idx = 0
+    while (idx < lines.length) {
+      const line = lines[idx]
+      idx += 1
+      if (line === '') {
+        if (dataLines.length) {
+          frames.push({ event: eventName, data: dataLines.join('\n') })
+        }
+        eventName = 'message'
+        dataLines = []
+        continue
+      }
+      if (line.startsWith('event:')) {
+        eventName = line.slice('event:'.length).trim() || 'message'
+        continue
+      }
+      if (line.startsWith('data:')) {
+        dataLines.push(line.slice('data:'.length).trim())
+      }
+    }
+    const terminated = /\r?\n\r?\n$/.test(buffer)
+    if (terminated) return { frames, rest: '' }
+    const restLines = lines.slice(Math.max(lines.length - 1, 0))
+    return { frames: frames.slice(0, Math.max(frames.length - (dataLines.length ? 1 : 0), 0)), rest: restLines.join('\n') }
+  }
+  const runDeerFlowGatewayDockerBridge = async (payload: unknown): Promise<{ status: number; body: string; contentType: string }> => {
+    const script = [
+      'import json, sys, urllib.request, urllib.error',
+      "base_gateway='http://127.0.0.1:8001'",
+      "base_langgraph='http://langgraph:2024'",
+      'raw=sys.stdin.read() or "{}"',
+      'req=json.loads(raw)',
+      'def call(method, url, obj=None, headers=None):',
+      '    data=None if obj is None else json.dumps(obj).encode("utf-8")',
+      '    h={} if headers is None else dict(headers)',
+      '    if obj is not None and "Content-Type" not in h:',
+      '        h["Content-Type"]="application/json"',
+      '    request=urllib.request.Request(url, data=data, headers=h, method=method)',
+      '    try:',
+      '        with urllib.request.urlopen(request, timeout=90) as resp:',
+      '            print(json.dumps({"status": int(resp.getcode()), "body": resp.read().decode("utf-8", "ignore"), "content_type": str(resp.headers.get("Content-Type", "application/json"))}))',
+      '            sys.exit(0)',
+      '    except urllib.error.HTTPError as err:',
+      '        print(json.dumps({"status": int(err.code), "body": err.read().decode("utf-8", "ignore"), "content_type": str(err.headers.get("Content-Type", "application/json"))}))',
+      '        sys.exit(0)',
+      '    except urllib.error.URLError as err:',
+      '        reason = str(getattr(err, "reason", err))',
+      '        payload = {"ok": False, "error": "DeerFlow bridge network error: " + reason}',
+      '        print(json.dumps({"status": 502, "body": json.dumps(payload), "content_type": "application/json"}))',
+      '        sys.exit(0)',
+      'op=str(req.get("op","")).strip().lower()',
+      'if op=="models":',
+      '    call("GET", base_gateway + "/api/models", None, {})',
+      'if op!="chat":',
+      '    print(json.dumps({"status": 400, "body": "{\\"ok\\":false,\\"error\\":\\"invalid bridge operation\\"}", "content_type": "application/json"}))',
+      '    sys.exit(0)',
+      'chat_payload=req.get("payload") if isinstance(req.get("payload"), dict) else {}',
+      'status, body, content_type = 500, "", "application/json"',
+      'def invoke(method, url, obj=None, headers=None):',
+      '    data=None if obj is None else json.dumps(obj).encode("utf-8")',
+      '    h={} if headers is None else dict(headers)',
+      '    if obj is not None and "Content-Type" not in h:',
+      '        h["Content-Type"]="application/json"',
+      '    request=urllib.request.Request(url, data=data, headers=h, method=method)',
+      '    try:',
+      '        with urllib.request.urlopen(request, timeout=90) as resp:',
+      '            return int(resp.getcode()), resp.read().decode("utf-8", "ignore"), str(resp.headers.get("Content-Type", "application/json"))',
+      '    except urllib.error.HTTPError as err:',
+      '        return int(err.code), err.read().decode("utf-8", "ignore"), str(err.headers.get("Content-Type", "application/json"))',
+      '    except urllib.error.URLError as err:',
+      '        reason = str(getattr(err, "reason", err))',
+      '        payload = {"ok": False, "error": "DeerFlow bridge network error: " + reason}',
+      '        return 502, json.dumps(payload), "application/json"',
+      'status, body, content_type = invoke("POST", base_langgraph + "/threads", {"metadata": {"source": "knowgrph-chat-proxy-docker-bridge"}}, {})',
+      'if status >= 400:',
+      '    print(json.dumps({"status": status, "body": body, "content_type": content_type}))',
+      '    sys.exit(0)',
+      'thread_id = str((json.loads(body or "{}")).get("thread_id", "")).strip()',
+      'if not thread_id:',
+      '    print(json.dumps({"status": 502, "body": "{\\"ok\\":false,\\"error\\":\\"invalid DeerFlow thread response\\"}", "content_type": "application/json"}))',
+      '    sys.exit(0)',
+      'status, body, content_type = invoke("POST", base_langgraph + f"/threads/{thread_id}/runs/stream", chat_payload, {"Accept": "text/event-stream"})',
+      'print(json.dumps({"status": status, "body": body, "content_type": content_type}))',
+    ].join('\n')
+    return await new Promise((resolve, reject) => {
+      const child = spawn('docker', ['exec', '-i', 'deer-flow-gateway', 'python', '-c', script], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+      })
+      let stdout = ''
+      let stderr = ''
+      child.stdout.on('data', chunk => {
+        stdout += String(chunk || '')
+      })
+      child.stderr.on('data', chunk => {
+        stderr += String(chunk || '')
+      })
+      child.on('error', err => reject(err))
+      child.on('close', code => {
+        if (code !== 0) {
+          reject(new Error(stderr.trim() || `Docker bridge exited with code ${code}`))
+          return
+        }
+        try {
+          const parsed = JSON.parse(stdout.trim()) as { status?: unknown; body?: unknown; content_type?: unknown }
+          resolve({
+            status: Number.isFinite(Number(parsed.status)) ? Number(parsed.status) : 502,
+            body: typeof parsed.body === 'string' ? parsed.body : '',
+            contentType: typeof parsed.content_type === 'string' ? parsed.content_type : 'application/json',
+          })
+        } catch {
+          reject(new Error(stderr.trim() || 'Invalid Docker bridge response'))
+        }
+      })
+      child.stdin.write(JSON.stringify(payload || {}))
+      child.stdin.end()
+    })
+  }
+  const isContainerMissingError = (message: string): boolean => /no such container/i.test(String(message || ''))
+  const toActionableChatProxyError = (message: string): string => {
+    const normalized = String(message || '').trim()
+    const lowered = normalized.toLowerCase()
+    if (!normalized) {
+      return 'Chat proxy could not reach DeerFlow. DeerFlow is not running. Run `npm run hybrid:start` and retry.'
+    }
+    if (isContainerMissingError(lowered)) {
+      return 'DeerFlow is not running. Run `npm run hybrid:start` and retry.'
+    }
+    if (
+      lowered === 'fetch failed'
+      || lowered.includes('failed to fetch')
+      || lowered.includes('connection refused')
+      || lowered.includes('name or service not known')
+      || lowered.includes('network error')
+    ) {
+      return 'DeerFlow is not running or unreachable. Run `npm run hybrid:start` and retry.'
+    }
+    return normalized
+  }
+  const extractBridgeErrorMessage = (rawBody: string): string => {
+    const text = String(rawBody || '').trim()
+    if (!text) return 'DeerFlow Docker bridge request failed'
+    try {
+      const parsed = JSON.parse(text) as { error?: unknown; message?: unknown }
+      const directError = parsed?.error
+      if (typeof directError === 'string' && directError.trim()) {
+        const maybeNested = directError.trim()
+        try {
+          const nested = JSON.parse(maybeNested) as { error?: unknown; message?: unknown }
+          if (typeof nested?.error === 'string' && nested.error.trim()) return toActionableChatProxyError(nested.error.trim())
+          if (typeof nested?.message === 'string' && nested.message.trim()) return toActionableChatProxyError(nested.message.trim())
+        } catch {
+          void 0
+        }
+        return toActionableChatProxyError(maybeNested)
+      }
+      if (typeof parsed?.message === 'string' && parsed.message.trim()) return toActionableChatProxyError(parsed.message.trim())
+    } catch {
+      void 0
+    }
+    return toActionableChatProxyError(text)
+  }
+  const relayDeerFlowSseAsOpenAi = (sseText: string, res: import('node:http').ServerResponse) => {
+    const classifyActionableIssue = (text: string): string => {
+      const lowered = String(text || '').toLowerCase()
+      if (!lowered) return ''
+      if (lowered.includes('no chat model could be resolved') || lowered.includes('provide a valid') && lowered.includes('model')) {
+        return 'DeerFlow has no usable model configured. Configure a valid model in deer-flow/config.yaml and restart with `npm run hybrid:start`.'
+      }
+      if (
+        lowered.includes('authentication or access is invalid')
+        || lowered.includes('invalid api key')
+        || lowered.includes('unauthorized')
+        || lowered.includes('provider rejected')
+      ) {
+        return 'DeerFlow provider credentials are invalid. Update provider API key(s) in DeerFlow env, then run `npm run hybrid:start`.'
+      }
+      if (lowered.includes('no assistant content was returned') || lowered.includes('returned no assistant text')) {
+        return 'DeerFlow returned no assistant text. Verify model/provider configuration and retry.'
+      }
+      return ''
+    }
+    const extractAssistantTexts = (value: unknown, assistantHint = false, depth = 0): string[] => {
+      if (depth > 8 || value == null) return []
+      if (typeof value === 'string') {
+        const normalized = value.trim()
+        return assistantHint && normalized ? [normalized] : []
+      }
+      if (Array.isArray(value)) {
+        if (
+          value.length === 2
+          && typeof value[0] === 'string'
+          && ['messages', 'messages-tuple', 'values', 'custom'].includes(String(value[0]).toLowerCase())
+        ) {
+          return extractAssistantTexts(value[1], assistantHint, depth + 1)
+        }
+        return value.flatMap(item => extractAssistantTexts(item, assistantHint, depth + 1))
+      }
+      if (typeof value !== 'object') return []
+      const obj = value as Record<string, unknown>
+      const role = String(obj.role || obj.type || '').trim().toLowerCase()
+      const nextHint = assistantHint || role === 'assistant' || role === 'ai'
+      const out: string[] = []
+      if (typeof obj.content === 'string' && nextHint && obj.content.trim()) out.push(obj.content.trim())
+      if (typeof obj.text === 'string' && nextHint && obj.text.trim()) out.push(obj.text.trim())
+      if (Array.isArray(obj.content)) {
+        obj.content.forEach(item => {
+          if (typeof item === 'string' && nextHint && item.trim()) out.push(item.trim())
+          else if (item && typeof item === 'object') {
+            const entry = item as Record<string, unknown>
+            if (typeof entry.text === 'string' && nextHint && entry.text.trim()) out.push(entry.text.trim())
+            out.push(...extractAssistantTexts(entry, nextHint, depth + 1))
+          }
+        })
+      }
+      const nestedKeys = ['message', 'messages', 'delta', 'chunk', 'data', 'payload', 'value', 'values', 'output', 'result']
+      nestedKeys.forEach(key => {
+        if (!(key in obj)) return
+        out.push(...extractAssistantTexts(obj[key], nextHint, depth + 1))
+      })
+      return out
+    }
+    const parsed = parseSseFrames(`${String(sseText || '').replace(/\s+$/, '')}\n\n`)
+    let emitted = false
+    let fallbackText = ''
+    let lastAssistantSnapshot = ''
+    let firstRawDataLine = ''
+    let actionableIssue = ''
+    parsed.frames.forEach(frame => {
+      if (!frame.data) return
+      if (!firstRawDataLine) firstRawDataLine = frame.data.trim()
+      if (frame.event === 'end') {
+        res.write('data: [DONE]\n\n')
+        return
+      }
+      try {
+        const data = JSON.parse(frame.data) as { content?: unknown; role?: unknown }
+        const candidates = extractAssistantTexts(data, false, 0)
+        candidates.forEach(text => {
+          const normalized = String(text || '')
+          if (!normalized) return
+          const issue = classifyActionableIssue(normalized)
+          if (issue) {
+            if (!actionableIssue) actionableIssue = issue
+            return
+          }
+          let delta = normalized
+          if (lastAssistantSnapshot && normalized.startsWith(lastAssistantSnapshot)) {
+            delta = normalized.slice(lastAssistantSnapshot.length)
+            lastAssistantSnapshot = normalized
+          } else if (lastAssistantSnapshot.endsWith(normalized)) {
+            delta = ''
+          } else {
+            lastAssistantSnapshot += normalized
+          }
+          if (!delta) return
+          emitted = true
+          res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: delta } }] })}\n\n`)
+        })
+        if (!fallbackText && data && typeof data === 'object') {
+          const message = (data as { message?: unknown; error?: unknown }).message
+          const error = (data as { message?: unknown; error?: unknown }).error
+          if (typeof message === 'string' && message.trim()) fallbackText = message.trim()
+          if (!fallbackText && typeof error === 'string' && error.trim()) fallbackText = error.trim()
+        }
+      } catch {
+        void 0
+      }
+    })
+    if (!emitted) {
+      const extra = firstRawDataLine ? ` Raw: ${firstRawDataLine.slice(0, 220)}` : ''
+      const message = actionableIssue || fallbackText || `DeerFlow returned no assistant text. Check model/provider credentials and run state.${extra}`
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: message } }] })}\n\n`)
+    }
+    res.write('data: [DONE]\n\n')
+    res.end()
+  }
+  const listDeerFlowModelIds = async ({
+    upstreamBase,
+    controller,
+    dockerBridgeEnabled,
+  }: {
+    upstreamBase: URL
+    controller: AbortController
+    dockerBridgeEnabled: boolean
+  }): Promise<string[]> => {
+    try {
+      const deerflowModelsUrl = new URL('/api/models', upstreamBase)
+      const res = await fetch(deerflowModelsUrl.toString(), {
+        method: 'GET',
+        signal: controller.signal,
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { models?: Array<{ name?: unknown }> }
+        const fromApi = (Array.isArray(data.models) ? data.models : [])
+          .map(item => (typeof item?.name === 'string' ? item.name.trim() : ''))
+          .filter(Boolean)
+        if (fromApi.length) return fromApi
+      }
+    } catch {
+      void 0
+    }
+    if (!dockerBridgeEnabled) return []
+    try {
+      const bridge = await runDeerFlowGatewayDockerBridge({ op: 'models' })
+      if (bridge.status >= 400) return []
+      const data = JSON.parse(bridge.body || '{}') as { models?: Array<{ name?: unknown }> }
+      return (Array.isArray(data.models) ? data.models : [])
+        .map(item => (typeof item?.name === 'string' ? item.name.trim() : ''))
+        .filter(Boolean)
+    } catch {
+      return []
+    }
+  }
+  const handleDeerFlowChatCompletions = async ({
+    body,
+    upstreamBase,
+    controller,
+    res,
+  }: {
+    body: Buffer
+    upstreamBase: URL
+    controller: AbortController
+    res: import('node:http').ServerResponse
+  }): Promise<void> => {
+    const payload = (() => {
+      try {
+        const parsed = JSON.parse(body.toString('utf8')) as {
+          model?: unknown
+          messages?: Array<{ role?: unknown; content?: unknown }>
+        }
+        return parsed
+      } catch {
+        return null
+      }
+    })()
+    if (!payload || !Array.isArray(payload.messages)) {
+      writeJson(res, 400, { ok: false, error: 'Invalid DeerFlow chat payload' })
+      return
+    }
+    const dockerBridgeEnabled = String(process.env.KNOWGRPH_CHAT_PROXY_DEERFLOW_DOCKER_BRIDGE || '1').trim() !== '0'
+    const threadCreateUrl = new URL('/api/langgraph/threads', upstreamBase)
+    const normalizedMessages = payload.messages
+      .map(msg => {
+        const role = typeof msg?.role === 'string' ? msg.role.trim() : ''
+        const content = typeof msg?.content === 'string' ? msg.content : ''
+        if (!role || !content) return null
+        return { role, content }
+      })
+      .filter(Boolean) as Array<{ role: string; content: string }>
+    const requestedModel = typeof payload.model === 'string' ? payload.model.trim() : ''
+    const availableModelIds = await listDeerFlowModelIds({
+      upstreamBase,
+      controller,
+      dockerBridgeEnabled,
+    })
+    const effectiveModel = requestedModel && availableModelIds.includes(requestedModel)
+      ? requestedModel
+      : (availableModelIds[0] || requestedModel)
+    if (!effectiveModel) {
+      writeJson(
+        res,
+        502,
+        { ok: false, error: "No chat model could be resolved. Please configure at least one model in config.yaml or provide a valid 'model_name'/'model' in the request." },
+      )
+      return
+    }
+    const streamBody = {
+      assistant_id: 'lead_agent',
+      input: { messages: normalizedMessages },
+      config: {
+        configurable: {
+          model_name: effectiveModel,
+          model: effectiveModel,
+          thinking_enabled: false,
+          is_plan_mode: false,
+        },
+      },
+      stream_mode: ['messages', 'values', 'custom'],
+    }
+    if (dockerBridgeEnabled) {
+      try {
+        const bridge = await runDeerFlowGatewayDockerBridge({ op: 'chat', payload: streamBody })
+        if (bridge.status >= 400) {
+          writeJson(res, bridge.status, { ok: false, error: extractBridgeErrorMessage(bridge.body) })
+          return
+        }
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-store')
+        res.setHeader('Connection', 'keep-alive')
+        relayDeerFlowSseAsOpenAi(bridge.body, res)
+        return
+      } catch (error) {
+        const message =
+          error && typeof error === 'object' && 'message' in error
+            ? String((error as { message?: unknown }).message || '')
+            : ''
+        if (!isContainerMissingError(message)) {
+          writeJson(res, 502, { ok: false, error: toActionableChatProxyError(message || 'DeerFlow Docker bridge chat failed') })
+          return
+        }
+      }
+    }
+    const threadCreateRes = await fetch(threadCreateUrl.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ metadata: { source: 'knowgrph-chat-proxy' } }),
+      signal: controller.signal,
+    })
+    if (!threadCreateRes.ok) {
+      const detail = await threadCreateRes.text()
+      writeJson(res, threadCreateRes.status, { ok: false, error: detail || 'Failed to create DeerFlow thread' })
+      return
+    }
+    const threadData = (await threadCreateRes.json()) as { thread_id?: unknown }
+    const threadId = typeof threadData.thread_id === 'string' ? threadData.thread_id.trim() : ''
+    if (!threadId) {
+      writeJson(res, 502, { ok: false, error: 'Invalid DeerFlow thread response' })
+      return
+    }
+    const streamUrl = new URL(`/api/langgraph/threads/${encodeURIComponent(threadId)}/runs/stream`, upstreamBase)
+    const deerflowRes = await fetch(streamUrl.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+      },
+      body: JSON.stringify(streamBody),
+      signal: controller.signal,
+    })
+    if (!deerflowRes.ok) {
+      const detail = await deerflowRes.text()
+      writeJson(res, deerflowRes.status, { ok: false, error: detail || 'DeerFlow run failed' })
+      return
+    }
+    res.statusCode = 200
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+    res.setHeader('Cache-Control', 'no-store')
+    res.setHeader('Connection', 'keep-alive')
+    const reader = deerflowRes.body?.getReader()
+    if (!reader) {
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: '' } }] })}\n\n`)
+      res.write('data: [DONE]\n\n')
+      res.end()
+      return
+    }
+    let buffer = ''
+    while (true) {
+      const chunk = await reader.read()
+      if (chunk.done) break
+      if (!chunk.value || chunk.value.byteLength === 0) continue
+      buffer += Buffer.from(chunk.value).toString('utf8')
+      const parsed = parseSseFrames(buffer)
+      buffer = parsed.rest
+      parsed.frames.forEach(frame => {
+        if (!frame.data) return
+        if (frame.event === 'end') {
+          res.write('data: [DONE]\n\n')
+          return
+        }
+        let text = ''
+        try {
+          const data = JSON.parse(frame.data) as { content?: unknown; role?: unknown }
+          if (typeof data.content === 'string' && String(data.role || '').toLowerCase() === 'assistant') {
+            text = data.content
+          }
+        } catch {
+          text = ''
+        }
+        if (!text) return
+        res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`)
+      })
+    }
+    res.write('data: [DONE]\n\n')
+    res.end()
+  }
   return async (req, res, next) => {
     const method = String(req.method || 'GET').toUpperCase()
     if (method === 'OPTIONS') {
@@ -950,8 +1603,20 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       return
     }
     const providerHeader = normalizeHost(readSingleHeader(req.headers['x-kg-chat-provider']))
+    const gatewayMode = String(process.env.KNOWGRPH_CHAT_GATEWAY_MODE || '').trim().toLowerCase()
+    const deerflowOnly = gatewayMode === 'deerflow-only'
+    if (deerflowOnly && providerHeader && providerHeader !== 'deerflow') {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Chat proxy is running in deerflow-only gateway mode' }))
+      return
+    }
     const requestedUpstreamRaw = readSingleHeader(req.headers['x-kg-chat-upstream'])
     const upstreamBaseRaw = (() => {
+      const deerflowBase = String(process.env.KNOWGRPH_CHAT_PROXY_DEERFLOW_UPSTREAM || '').trim()
+      if (deerflowOnly || providerHeader === 'deerflow') {
+        return deerflowBase || String(process.env.KNOWGRPH_CHAT_PROXY_UPSTREAM || '').trim() || 'http://127.0.0.1:1234'
+      }
       if (providerHeader === 'openai') return 'https://api.openai.com'
       if (requestedUpstreamRaw) return requestedUpstreamRaw
       return String(process.env.KNOWGRPH_CHAT_PROXY_UPSTREAM || '').trim() || 'http://127.0.0.1:1234'
@@ -983,7 +1648,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       res.end(JSON.stringify({ ok: false, error: 'Chat proxy requires HTTPS for non-local upstream hosts' }))
       return
     }
-    const requiresOpenAiKey = providerHeader === 'openai' || upstreamHostname === CHAT_PROXY_OPENAI_HOST
+    const requiresOpenAiKey = !deerflowOnly && (providerHeader === 'openai' || upstreamHostname === CHAT_PROXY_OPENAI_HOST)
     const envOpenAiApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY || '').trim()
     const headerOpenAiApiKey = readSingleHeader(req.headers['x-kg-chat-api-key'])
     const openAiApiKey = (headerOpenAiApiKey || envOpenAiApiKey).slice(0, 512)
@@ -1021,6 +1686,72 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       const ctrl = new AbortController()
       controller = ctrl
       timeoutId = setTimeout(() => ctrl.abort(), 90_000)
+      if (providerHeader === 'deerflow' && method === 'GET' && upstreamPath === '/v1/models') {
+        const dockerBridgeEnabled = String(process.env.KNOWGRPH_CHAT_PROXY_DEERFLOW_DOCKER_BRIDGE || '1').trim() !== '0'
+        let deerflowModelsRes: Response | null = null
+        try {
+          const deerflowModelsUrl = new URL('/api/models', upstreamBase)
+          deerflowModelsRes = await fetch(deerflowModelsUrl.toString(), {
+            method: 'GET',
+            signal: ctrl.signal,
+          })
+        } catch {
+          deerflowModelsRes = null
+        }
+        if ((!deerflowModelsRes || !deerflowModelsRes.ok) && dockerBridgeEnabled) {
+          try {
+            const bridge = await runDeerFlowGatewayDockerBridge({ op: 'models' })
+            if (bridge.status >= 400) {
+              writeJson(res, bridge.status, { ok: false, error: extractBridgeErrorMessage(bridge.body) })
+              return
+            }
+            const data = JSON.parse(bridge.body || '{}') as { models?: Array<{ name?: unknown }> }
+            const list = Array.isArray(data.models) ? data.models : []
+            const mapped = list
+              .map(item => {
+                const id = typeof item?.name === 'string' ? item.name.trim() : ''
+                if (!id) return null
+                return { id, object: 'model' }
+              })
+              .filter(Boolean)
+            writeJson(res, 200, { data: mapped })
+            return
+          } catch (error) {
+            const message =
+              error && typeof error === 'object' && 'message' in error
+                ? String((error as { message?: unknown }).message || '')
+                : ''
+            if (!isContainerMissingError(message)) {
+              writeJson(res, 502, { ok: false, error: toActionableChatProxyError(message || 'DeerFlow Docker bridge models failed') })
+              return
+            }
+          }
+        }
+        if (!deerflowModelsRes) {
+          writeJson(res, 502, { ok: false, error: 'Failed to load DeerFlow models' })
+          return
+        }
+        const data = (await deerflowModelsRes.json()) as { models?: Array<{ name?: unknown }> }
+        const list = Array.isArray(data.models) ? data.models : []
+        const mapped = list
+          .map(item => {
+            const id = typeof item?.name === 'string' ? item.name.trim() : ''
+            if (!id) return null
+            return { id, object: 'model' }
+          })
+          .filter(Boolean)
+        writeJson(res, deerflowModelsRes.status, { data: mapped })
+        return
+      }
+      if (providerHeader === 'deerflow' && method === 'POST' && upstreamPath === '/v1/chat/completions') {
+        await handleDeerFlowChatCompletions({
+          body,
+          upstreamBase,
+          controller: ctrl,
+          res,
+        })
+        return
+      }
       const headers = new Headers()
       const contentType = String(req.headers['content-type'] || '').trim()
       const accept = String(req.headers.accept || '').trim()
@@ -1085,7 +1816,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       }
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.setHeader('Cache-Control', 'no-store')
-      res.end(JSON.stringify({ ok: false, error: message || 'Failed to reach local chat upstream' }))
+      res.end(JSON.stringify({ ok: false, error: toActionableChatProxyError(message || 'Failed to reach local chat upstream') }))
     } finally {
       if (timeoutId) clearTimeout(timeoutId)
     }
@@ -3977,6 +4708,10 @@ export default defineConfig(({ command }) => ({
     sourcemap: process.env.KG_BUILD_SOURCEMAP === '1' ? 'hidden' : false,
     minify: process.env.KG_LOW_MEM_BUILD === '1' ? false : 'esbuild',
     reportCompressedSize: process.env.KG_LOW_MEM_BUILD === '1' ? false : true,
+    modulePreload: {
+      resolveDependencies: (_filename: string, deps: string[]) =>
+        deps.filter(dep => !/(^|\/)assets\/mermaid-/.test(String(dep || ''))),
+    },
     chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
@@ -4081,6 +4816,7 @@ export default defineConfig(({ command }) => ({
           remoteFetchProxyDevPlugin,
           chatProxyDevPlugin,
           chatLogDevPlugin,
+          deerFlowApplyKeyDevPlugin,
           webpageProxyDevPlugin,
           localGeoDatasetDevPlugin,
           pdfConvertDevPlugin,

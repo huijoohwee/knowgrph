@@ -2,6 +2,7 @@ import React from 'react'
 import type * as Monaco from 'monaco-editor/esm/vs/editor/editor.api'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { ensureMonacoStyles } from '@/lib/ui/lazyStyles'
 
 const FLASH_STYLE_ID = 'monaco-flash-style'
 const FLASH_CSS = `
@@ -499,6 +500,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
     let cleanup: (() => void) | null = null
 
     const start = async () => {
+      await ensureMonacoStyles()
       const monaco = await import('monaco-editor/esm/vs/editor/editor.api')
       await import('monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution')
       const { ensureMonacoEnvironment } = await import('./monacoEnvironment')

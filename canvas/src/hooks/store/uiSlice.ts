@@ -25,6 +25,11 @@ import {
   normalizeChatProviderId,
   resolveChatEndpointForRequest,
 } from '@/lib/chatEndpoint'
+import {
+  DEFAULT_INTEGRATION_CONFIGS,
+  parseIntegrationConfigsJson,
+  stringifyIntegrationConfigs,
+} from '@/features/integrations/config'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import { clampFillRatio } from 'grph-shared/zoom/presets'
 import { DEFAULT_DRAG_ALPHA_TARGET, DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from '@/lib/graph/layoutDefaults'
@@ -326,6 +331,11 @@ export const createUiSlice = (set: SetGraph) => {
         return 'workspace'
       },
     ),
+    integrationConfigsJson: lsJson<string>(
+      LS_KEYS.integrationConfigsJson,
+      stringifyIntegrationConfigs(DEFAULT_INTEGRATION_CONFIGS),
+      value => stringifyIntegrationConfigs(parseIntegrationConfigsJson(typeof value === 'string' ? value : null)),
+    ),
 
     autoEnableGeospatialOnGeoImport: lsBool(LS_KEYS.geospatialAutoEnableOnGeoImport, true),
 
@@ -623,6 +633,13 @@ export const createUiSlice = (set: SetGraph) => {
         chatContextScope: lsSetJson(
           LS_KEYS.chatContextScope,
           scope === 'selection' || scope === 'hybrid' ? scope : 'workspace',
+        ),
+      }),
+    setIntegrationConfigsJson: (v: string | null) =>
+      set({
+        integrationConfigsJson: lsSetJson(
+          LS_KEYS.integrationConfigsJson,
+          stringifyIntegrationConfigs(parseIntegrationConfigsJson(v)),
         ),
       }),
 

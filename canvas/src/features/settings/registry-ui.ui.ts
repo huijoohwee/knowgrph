@@ -11,6 +11,7 @@ import {
   CHAT_OPENAI_MODEL_OPTIONS,
   CHAT_LOCAL_MODEL_OPTIONS,
 } from '@/lib/chatEndpoint'
+import { DEFAULT_INTEGRATION_CONFIGS, stringifyIntegrationConfigs } from '@/features/integrations/config'
 
 const s = () => useGraphStore.getState()
 
@@ -422,5 +423,14 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     docKey: 'chatContextScope',
     default: () => 'workspace',
     options: ['selection', 'workspace', 'hybrid'],
+  },
+  {
+    key: 'integrationConfigsJson',
+    type: 'string',
+    source: 'localStorage',
+    read: () => s().integrationConfigsJson,
+    write: (v) => s().setIntegrationConfigsJson(String(v || '').trim() || null),
+    docKey: 'integrationConfigsJson',
+    default: () => stringifyIntegrationConfigs(DEFAULT_INTEGRATION_CONFIGS),
   },
 ];

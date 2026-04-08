@@ -8,6 +8,7 @@ import { ErrorFeedback } from '@/components/ui/ErrorFeedback'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY } from '@/lib/config'
 import { HighlightedCode } from './HighlightedCode'
+import { ensureMapLibreStyles } from '@/lib/ui/lazyStyles'
 
 const AUTO_REGISTER_TTL_MS = 20 * 60 * 1000
 const AUTO_REGISTER_MAX_KEYS = 800
@@ -88,6 +89,12 @@ export function GeoJsonGeoPanelRenderer(props: {
   const canAttemptRegister = shouldTreatAsGeoJson && !!trimmed && typeof register === 'function'
   const canAttemptLoadGraph = shouldTreatAsGeoJson && !!trimmed && typeof loadGraphData === 'function'
   const canOpenPanel = typeof requestOpen === 'function'
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!shouldTreatAsGeoJson) return
+    void ensureMapLibreStyles()
+  }, [shouldTreatAsGeoJson])
 
   const geospatialModeOn = React.useMemo(() => {
     if (typeof integration?.isGeospatialModeEnabled !== 'function') return false

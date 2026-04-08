@@ -5,6 +5,7 @@ import HelpView from '@/features/panels/views/HelpView'
 import GraphFieldsView from '@/features/panels/views/GraphFieldsView'
 import DashboardView from '@/features/panels/views/DashboardView'
 import PreviewPanelView from './views/PreviewPanelView'
+import IntegrationsHubView from './views/IntegrationsHubView'
 import WorkflowSection from '@/features/panels/views/WorkflowSection'
 import SettingsView from '@/features/panels/views/SettingsView'
 import HistoryView from '@/features/panels/views/HistoryView'
@@ -21,6 +22,7 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { useShallow } from 'zustand/react/shallow'
 
 type MainPanelTab =
+  | 'integrations'
   | 'workflow'
   | 'flowEditorManager'
   | 'help'
@@ -32,6 +34,7 @@ type MainPanelTab =
 
 function isMainPanelTab(key: string): key is MainPanelTab {
   return (
+    key === 'integrations' ||
     key === 'workflow' ||
     key === 'flowEditorManager' ||
     key === 'help' ||
@@ -180,6 +183,7 @@ export default function MainPanel({
       searchQuery={search}
       onSearchChange={setSearch}
       tabs={[
+        { key: 'integrations', label: UI_LABELS.integrations },
         { key: 'workflow', label: UI_LABELS.workflowManager },
         { key: 'flowEditorManager', label: UI_LABELS.flowEditorManager },
         { key: 'graphFields', label: UI_LABELS.graphFields },
@@ -191,6 +195,7 @@ export default function MainPanel({
       ]}
       tabVariant="icon"
       tabIconByKey={{
+        integrations: Workflow,
         workflow: Workflow,
         flowEditorManager: Table,
         graphFields: ({ className, strokeWidth }) => {
@@ -268,6 +273,8 @@ export default function MainPanel({
           <p>
             {tab === 'graphFields'
               ? graphFieldsStatus
+              : tab === 'integrations'
+              ? UI_LABELS.integrations
               : tab === 'dashboard'
               ? UI_LABELS.dashboard
               : tab === 'workflow'
@@ -302,6 +309,9 @@ export default function MainPanel({
       <section className="h-full min-h-0 px-3 py-2 overflow-hidden" aria-label="Main panel content">
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-help-panel" aria-labelledby="main-panel-help-tab" hidden={tab !== 'help'}>
           {tab === 'help' && <HelpView searchQuery={search} />}
+        </section>
+        <section className="h-full min-h-0" role="tabpanel" id="main-panel-integrations-panel" aria-labelledby="main-panel-integrations-tab" hidden={tab !== 'integrations'}>
+          {tab === 'integrations' && <IntegrationsHubView />}
         </section>
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-workflow-panel" aria-labelledby="main-panel-workflow-tab" hidden={tab !== 'workflow'}>
           {tab === 'workflow' && (

@@ -46,6 +46,7 @@ export const UI_LABELS = {
   previewPanel: 'Preview Panel',
   search: 'Graph Search',
   chat: 'Chat',
+  integrations: 'Integrations',
   inspector: 'Inspector',
   schema: 'Schema',
   settings: 'Settings',

@@ -57,6 +57,8 @@ import { MarqueeBoxOverlay } from '@/components/GraphCanvasRoot/components/Marqu
 
 const MARKDOWN_PANEL_ALLOWED_KINDS = ['table', 'code', 'blockquote', 'callout', 'html'] as const
 
+const EMPTY_STRING_ARRAY: string[] = []
+
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -103,6 +105,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
 
   const {
     graphDataRevision,
+    graphContentRevision,
     setCanvasDims,
     setCanvasPos,
     schema,
@@ -135,40 +138,80 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     markdownDocumentName,
     markdownDocumentText,
   } = useGraphStore(
-    useShallow(s => ({
-      graphDataRevision: s.graphDataRevision,
-      setCanvasDims: s.setCanvasDims,
-      setCanvasPos: s.setCanvasPos,
-      schema: s.schema,
-      renderMediaAsNodes: s.renderMediaAsNodes,
-      mediaPanelDensity: s.mediaPanelDensity,
-      threeIframeOverlayPoolMax: s.threeIframeOverlayPoolMax,
-      threeIframeOverlayBaseWidthRatioDefault: s.threeIframeOverlayBaseWidthRatioDefault,
-      threeIframeOverlayBaseWidthRatioCompact: s.threeIframeOverlayBaseWidthRatioCompact,
-      threeIframeOverlayBaseWidthMinPxDefault: s.threeIframeOverlayBaseWidthMinPxDefault,
-      threeIframeOverlayBaseWidthMinPxCompact: s.threeIframeOverlayBaseWidthMinPxCompact,
-      threeIframeOverlayBaseWidthMaxPxDefault: s.threeIframeOverlayBaseWidthMaxPxDefault,
-      threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
-      setLayoutPositionsForMode: s.setLayoutPositionsForMode,
-      frontmatterModeEnabled: s.frontmatterModeEnabled || false,
-      multiDimTableModeEnabled: (s as unknown as { multiDimTableModeEnabled?: unknown }).multiDimTableModeEnabled === true,
-      documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
-      canvasRenderMode: s.canvasRenderMode,
-      canvas2dRenderer: s.canvas2dRenderer,
-      viewportControlsPreset: s.viewportControlsPreset,
-      collapsedGroupIds: s.collapsedGroupIds || [],
-      viewPinned: s.viewPinned === true,
-      zoomState: s.zoomState || null,
-      fitToScreenMode: s.fitToScreenMode === true,
-      zoomToSelectionMode: s.zoomToSelectionMode === true,
-      graphCanvasArrangeRequest: s.graphCanvasArrangeRequest,
-      clearGraphCanvasArrangeRequest: s.clearGraphCanvasArrangeRequest,
-      selectedNodeId: s.selectedNodeId,
-      selectedNodeIds: s.selectedNodeIds,
-      selectNode: s.selectNode,
-      markdownDocumentName: s.markdownDocumentName,
-      markdownDocumentText: s.markdownDocumentText,
-    })),
+    useShallow(s => {
+      if (!active) {
+        return {
+          graphDataRevision: s.graphDataRevision,
+          graphContentRevision: s.graphContentRevision,
+          setCanvasDims: s.setCanvasDims,
+          setCanvasPos: s.setCanvasPos,
+          schema: s.schema,
+          renderMediaAsNodes: false,
+          mediaPanelDensity: 'default' as const,
+          threeIframeOverlayPoolMax: s.threeIframeOverlayPoolMax,
+          threeIframeOverlayBaseWidthRatioDefault: s.threeIframeOverlayBaseWidthRatioDefault,
+          threeIframeOverlayBaseWidthRatioCompact: s.threeIframeOverlayBaseWidthRatioCompact,
+          threeIframeOverlayBaseWidthMinPxDefault: s.threeIframeOverlayBaseWidthMinPxDefault,
+          threeIframeOverlayBaseWidthMinPxCompact: s.threeIframeOverlayBaseWidthMinPxCompact,
+          threeIframeOverlayBaseWidthMaxPxDefault: s.threeIframeOverlayBaseWidthMaxPxDefault,
+          threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
+          setLayoutPositionsForMode: s.setLayoutPositionsForMode,
+          frontmatterModeEnabled: false,
+          multiDimTableModeEnabled: false,
+          documentSemanticMode: 'document' as const,
+          canvasRenderMode: '2d' as const,
+          canvas2dRenderer: 'd3' as const,
+          viewportControlsPreset: s.viewportControlsPreset,
+          collapsedGroupIds: EMPTY_STRING_ARRAY,
+          viewPinned: false,
+          zoomState: null,
+          fitToScreenMode: false,
+          zoomToSelectionMode: false,
+          graphCanvasArrangeRequest: null,
+          clearGraphCanvasArrangeRequest: s.clearGraphCanvasArrangeRequest,
+          selectedNodeId: null,
+          selectedNodeIds: EMPTY_STRING_ARRAY,
+          selectNode: s.selectNode,
+          markdownDocumentName: null,
+          markdownDocumentText: '',
+        }
+      }
+      return {
+        graphDataRevision: s.graphDataRevision,
+        graphContentRevision: s.graphContentRevision,
+        setCanvasDims: s.setCanvasDims,
+        setCanvasPos: s.setCanvasPos,
+        schema: s.schema,
+        renderMediaAsNodes: s.renderMediaAsNodes,
+        mediaPanelDensity: s.mediaPanelDensity,
+        threeIframeOverlayPoolMax: s.threeIframeOverlayPoolMax,
+        threeIframeOverlayBaseWidthRatioDefault: s.threeIframeOverlayBaseWidthRatioDefault,
+        threeIframeOverlayBaseWidthRatioCompact: s.threeIframeOverlayBaseWidthRatioCompact,
+        threeIframeOverlayBaseWidthMinPxDefault: s.threeIframeOverlayBaseWidthMinPxDefault,
+        threeIframeOverlayBaseWidthMinPxCompact: s.threeIframeOverlayBaseWidthMinPxCompact,
+        threeIframeOverlayBaseWidthMaxPxDefault: s.threeIframeOverlayBaseWidthMaxPxDefault,
+        threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
+        setLayoutPositionsForMode: s.setLayoutPositionsForMode,
+        frontmatterModeEnabled: s.frontmatterModeEnabled || false,
+        multiDimTableModeEnabled: (s as unknown as { multiDimTableModeEnabled?: unknown }).multiDimTableModeEnabled === true,
+        documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
+        canvasRenderMode: s.canvasRenderMode,
+        canvas2dRenderer: s.canvas2dRenderer,
+        viewportControlsPreset: s.viewportControlsPreset,
+        collapsedGroupIds: s.collapsedGroupIds || [],
+        viewPinned: s.viewPinned === true,
+        zoomState: s.zoomState || null,
+        fitToScreenMode: s.fitToScreenMode === true,
+        zoomToSelectionMode: s.zoomToSelectionMode === true,
+        graphCanvasArrangeRequest: s.graphCanvasArrangeRequest,
+        clearGraphCanvasArrangeRequest: s.clearGraphCanvasArrangeRequest,
+        selectedNodeId: s.selectedNodeId,
+        selectedNodeIds: s.selectedNodeIds,
+        selectNode: s.selectNode,
+        markdownDocumentName: s.markdownDocumentName,
+        markdownDocumentText: s.markdownDocumentText,
+      }
+    }),
   )
 
   const layoutSemanticModeKey = useMemo(() => {
@@ -249,12 +292,12 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const sceneGroupsDerivation = useMemo(() => {
     return deriveSceneGroups({
       graphData: clonedGraphData,
-      graphDataRevision: graphDataRevision || 0,
+      graphDataRevision: graphContentRevision || 0,
       schema,
       documentSemanticMode: String(documentSemanticMode || ''),
       frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
     })
-  }, [clonedGraphData, documentSemanticMode, effectiveFrontmatterModeEnabled, graphDataRevision, schema])
+  }, [clonedGraphData, documentSemanticMode, effectiveFrontmatterModeEnabled, graphContentRevision, schema])
 
   const { width, height, left, top, dpr } = useContainerDims(containerRef)
   const canvasGrid = useMemo(() => readCanvasGridRenderConfigFromSchema(schema), [schema])
@@ -850,6 +893,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     groupsPresentationAppliedKeyRef,
     activeLayoutCacheKeyRef,
     graphDataRevision: graphDataRevision || 0,
+    graphContentRevision: graphContentRevision || 0,
     graphDataRevisionRef,
     sceneWidth,
     sceneHeight,
@@ -908,6 +952,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     sceneGraphData,
     schemaRef: schemaRef as unknown as React.MutableRefObject<GraphSchema>,
     documentSemanticMode,
+    canvas2dRenderer,
     coarsePointer: coarsePointer === true,
     sceneWidth,
     sceneHeight,

@@ -8,7 +8,6 @@ import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { usePositions } from './layout'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
-import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { Vector3, Quaternion, Matrix4, ACESFilmicToneMapping, PCFSoftShadowMap, SRGBColorSpace, type Camera, type Scene as ThreeScene, type WebGLRenderer } from 'three'
 import { useThemeDetector } from '@/hooks/useThemeDetector'
 import type { ThreeCameraPose } from '@/hooks/store/types'
@@ -972,6 +971,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
               try {
                 const scene = threeSceneRef.current
                 if (!scene) return null
+                const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js')
                 const exporter = new GLTFExporter()
                 const arrayBuffer = await new Promise<ArrayBuffer | null>(resolve => {
                   exporter.parse(

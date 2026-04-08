@@ -21,6 +21,7 @@ export function useD3PresentationUpdates2d(args: {
   sceneGraphData: GraphData | null
   schemaRef: MutableRefObject<GraphSchema>
   documentSemanticMode: 'document' | 'keyword'
+  canvas2dRenderer: string | null
   coarsePointer: boolean
   sceneWidth: number
   sceneHeight: number
@@ -46,7 +47,7 @@ export function useD3PresentationUpdates2d(args: {
   selectedEdgeIdRef: MutableRefObject<string | null>
   setHoverInfo: Dispatch<SetStateAction<HoverInfo | null>>
 }): void {
-  const enableEditorGestures = useGraphStore(s => s.workspaceViewMode === 'editor')
+  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
 
   const {
     activeRef,
@@ -58,6 +59,7 @@ export function useD3PresentationUpdates2d(args: {
     sceneGraphData,
     schemaRef,
     documentSemanticMode,
+    canvas2dRenderer,
     coarsePointer,
     sceneWidth,
     sceneHeight,
@@ -83,6 +85,7 @@ export function useD3PresentationUpdates2d(args: {
     selectedEdgeIdRef,
     setHoverInfo,
   } = args
+  const enableEditorGestures = workspaceViewMode === 'editor' && String(canvas2dRenderer || '') !== 'd3Bipartite'
 
   const mediaOverlayNodeIdsKey = (() => {
     try {
@@ -202,6 +205,7 @@ export function useD3PresentationUpdates2d(args: {
   }, [
     activeRef,
     coarsePointer,
+    canvas2dRenderer,
     documentSemanticMode,
     edgesForSim,
     enableEditorGestures,
@@ -232,6 +236,7 @@ export function useD3PresentationUpdates2d(args: {
     svgRef,
     tempLinkSelRef,
     zoomRef,
+    workspaceViewMode,
   ])
 
   useEffect(() => {

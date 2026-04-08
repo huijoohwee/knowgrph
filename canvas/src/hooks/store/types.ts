@@ -538,6 +538,7 @@ export interface GraphState {
   chatSystemPrompt: string | null;
   setChatContextScope: (scope: 'selection' | 'workspace' | 'hybrid') => void;
   chatContextScope: 'selection' | 'workspace' | 'hybrid';
+  integrationConfigsJson: string;
 
   youtubeTranscriptOutputDir: string | null;
   setYoutubeTranscriptOutputDir: (v: string | null) => void;
@@ -680,6 +681,7 @@ export interface GraphState {
   setChatModel: (model: string | null) => void;
   setChatTemperature: (v: number) => void;
   setChatSystemPrompt: (v: string | null) => void;
+  setIntegrationConfigsJson: (v: string | null) => void;
 
   setPdfImportIncludeImages: (v: boolean) => void;
   setPdfImportMaxPages: (v: number) => void;

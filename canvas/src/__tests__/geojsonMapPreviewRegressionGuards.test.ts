@@ -150,9 +150,14 @@ export function testMapLibreBasemapBootTimeoutDoesNotRequireStrictStyleLoadedOnl
 }
 
 export function testHostImportsMapLibreCssForMarkdownGeoJsonPreviews() {
-  const p = resolve(process.cwd(), 'src', 'main.tsx')
-  const text = readFileSync(p, 'utf8')
-  if (!text.includes("import 'maplibre-gl/dist/maplibre-gl.css'")) {
-    throw new Error('Expected host app to import maplibre-gl CSS so Markdown GeoJSON previews can render')
+  const loaderPath = resolve(process.cwd(), 'src', 'lib', 'ui', 'lazyStyles.ts')
+  const loaderText = readFileSync(loaderPath, 'utf8')
+  if (!loaderText.includes("import('maplibre-gl/dist/maplibre-gl.css')")) {
+    throw new Error('Expected lazy style loader to include maplibre-gl CSS import')
+  }
+  const rendererPath = resolve(process.cwd(), 'src', 'features', 'markdown', 'ui', 'codeblock', 'GeoJsonGeoPanelRenderer.tsx')
+  const rendererText = readFileSync(rendererPath, 'utf8')
+  if (!rendererText.includes('ensureMapLibreStyles')) {
+    throw new Error('Expected GeoJsonGeoPanelRenderer to ensure MapLibre styles before map preview rendering')
   }
 }

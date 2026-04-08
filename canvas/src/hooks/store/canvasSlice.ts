@@ -10,7 +10,18 @@ import {
   DEFAULT_CANVAS_WORKSPACE_SYNC_MODE,
   UI_COPY,
 } from '@/lib/config'
-import { getLocalStorage, lsBool, lsFloat, lsInt, lsJson, lsSetBool, lsSetFloat, lsSetInt, lsSetJson } from '@/lib/persistence'
+import {
+  getLocalStorage,
+  lsBool,
+  lsFloat,
+  lsInt,
+  lsJson,
+  lsSetBool,
+  lsSetFloat,
+  lsSetInt,
+  lsSetJson,
+  lsSetJsonCoalesced,
+} from '@/lib/persistence'
 import { coerceViewportControlsPreset } from '@/lib/canvas/viewport-controls'
 import type { Canvas2dRendererId, Canvas3dModeId, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
 import {
@@ -502,7 +513,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
         schema: state.schema,
       })
       if (state.canvas3dMode === next) return {}
-      lsSetJson(LS_KEYS.canvas3dMode, next)
+      lsSetJsonCoalesced(LS_KEYS.canvas3dMode, next, { signature: String(next) })
       return { canvas3dMode: next }
     })
   },
@@ -535,9 +546,9 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
         schema: state.schema,
       })
       if (state.canvas2dRenderer === radialRenderer) return {}
-      lsSetJson(LS_KEYS.canvas2dRenderer, radialRenderer)
+      lsSetJsonCoalesced(LS_KEYS.canvas2dRenderer, radialRenderer, { signature: String(radialRenderer) })
       if (nextCanvas3dMode !== state.canvas3dMode) {
-        lsSetJson(LS_KEYS.canvas3dMode, nextCanvas3dMode)
+        lsSetJsonCoalesced(LS_KEYS.canvas3dMode, nextCanvas3dMode, { signature: String(nextCanvas3dMode) })
       }
 
       const common = {
@@ -582,7 +593,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     const next = coerceViewportControlsPreset(preset)
     const cur = get().viewportControlsPreset
     if (cur === next) return
-    lsSetJson(LS_KEYS.viewportControlsPreset, next)
+    lsSetJsonCoalesced(LS_KEYS.viewportControlsPreset, next, { signature: String(next) })
     set({ viewportControlsPreset: next })
   },
   setInfiniteCanvasInteractionMode: (mode: InfiniteCanvasInteractionMode) => {
@@ -590,7 +601,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     const cur = get().infiniteCanvasInteractionMode
     if (cur === next) return
     try {
-      lsSetJson(LS_KEYS.infiniteCanvasInteractionMode, next)
+      lsSetJsonCoalesced(LS_KEYS.infiniteCanvasInteractionMode, next, { signature: String(next) })
     } catch {
       void 0
     }
@@ -601,7 +612,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     const cur = get().canvasWorkspaceSyncMode
     if (cur === next) return
     try {
-      lsSetJson(LS_KEYS.canvasWorkspaceSyncMode, next)
+      lsSetJsonCoalesced(LS_KEYS.canvasWorkspaceSyncMode, next, { signature: String(next) })
     } catch {
       void 0
     }

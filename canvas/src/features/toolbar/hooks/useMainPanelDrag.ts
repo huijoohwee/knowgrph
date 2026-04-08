@@ -7,6 +7,7 @@ import { startPointerDrag } from 'grph-shared/dom/pointerDrag';
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler';
 
 export type MainPanelTabKey =
+  | 'integrations'
   | 'workflow'
   | 'flowEditorManager'
   | 'help'

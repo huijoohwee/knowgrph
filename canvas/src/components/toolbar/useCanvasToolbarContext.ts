@@ -226,6 +226,7 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
       const e = ev as CustomEvent<{ tab?: MainPanelTabKey } | undefined>
       const detailTab = e.detail && e.detail.tab
       const tab: MainPanelTabKey =
+        detailTab === 'integrations' ||
         detailTab === 'graphFields' ||
         detailTab === 'workflow' ||
         detailTab === 'help' ||

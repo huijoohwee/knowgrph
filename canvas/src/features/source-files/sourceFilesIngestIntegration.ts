@@ -131,6 +131,8 @@ const buildSourceFileParsedReset = () => ({
   parsedGraphData: undefined,
 })
 
+const parseJobBySourceFileId = new Map<string, number>()
+
 async function applyImportedTextToSourceFile(args: {
   id: string
   name: string
@@ -169,8 +171,14 @@ async function parseAndApplySourceFile(fileId: string): Promise<void> {
 
   const store = useGraphStore.getState()
   store.updateSourceFile(fileId, { status: 'loading', error: undefined })
+  const parseJobToken = (parseJobBySourceFileId.get(fileId) || 0) + 1
+  parseJobBySourceFileId.set(fileId, parseJobToken)
 
   const res = await runImportFlow({ nameForParse: before.name, textForParse: text, applyToStore: false })
+  if (parseJobBySourceFileId.get(fileId) !== parseJobToken) return
+  const latest = useGraphStore.getState().sourceFiles.find(f => f.id === fileId)
+  if (!latest) return
+  if (hashStringToHex(String(latest.text || '')) !== textHash) return
   const parsedOk = !!(res && res.graphData && res.parserId && res.counts && (res.counts.n > 0 || res.counts.e > 0))
   if (parsedOk) {
     store.updateSourceFile(fileId, {

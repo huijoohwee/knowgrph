@@ -44,8 +44,14 @@ export function useAutoZoomModes2d(args: {
   }, [args.getGraph])
 
   React.useEffect(() => {
+    if (pausedRef.current) {
+      scheduleFitRef.current = null
+      lastFitSigRef.current = null
+      return
+    }
     let rafId: number | null = null
     const schedule = () => {
+      if (pausedRef.current) return
       if (rafId != null) return
       rafId = requestAnimationFrame(() => {
         rafId = null
@@ -137,11 +143,16 @@ export function useAutoZoomModes2d(args: {
       scheduleFitRef.current = null
       if (rafId != null) cancelAnimationFrame(rafId)
     }
-  }, [])
+  }, [args.paused])
 
   React.useEffect(() => {
+    if (pausedRef.current) {
+      lastAutoZoomSelRef.current = null
+      return
+    }
     let rafId: number | null = null
     const schedule = () => {
+      if (pausedRef.current) return
       if (rafId != null) return
       rafId = requestAnimationFrame(() => {
         rafId = null
@@ -213,5 +224,5 @@ export function useAutoZoomModes2d(args: {
       unsub()
       if (rafId != null) cancelAnimationFrame(rafId)
     }
-  }, [])
+  }, [args.paused])
 }

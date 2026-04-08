@@ -56,6 +56,7 @@ export function useD3GraphScene2d(args: {
   groupsPresentationAppliedKeyRef: MutableRefObject<string | null>
   activeLayoutCacheKeyRef: MutableRefObject<string | null>
   graphDataRevision: number
+  graphContentRevision: number
   graphDataRevisionRef: MutableRefObject<number>
   sceneWidth: number
   sceneHeight: number
@@ -125,6 +126,7 @@ export function useD3GraphScene2d(args: {
     groupsPresentationAppliedKeyRef,
     activeLayoutCacheKeyRef,
     graphDataRevision,
+    graphContentRevision,
     graphDataRevisionRef,
     sceneWidth,
     sceneHeight,
@@ -248,15 +250,15 @@ export function useD3GraphScene2d(args: {
       }
 
       const buildKey = [
-        String(graphDataRevisionRef.current ?? graphDataRevision),
+        String(graphContentRevision || 0),
         `${sceneWidth}x${sceneHeight}`,
         schemaLayoutEngineJson,
         String(effectiveFrontmatterModeEnabled ? 1 : 0),
         String(documentSemanticMode),
         buildGraphMetaKeyIgnoringPending(sceneGraphData),
         `${String(sceneGraphData?.nodes?.length ?? 0)}:${String(sceneGraphData?.edges?.length ?? 0)}`,
-        String(renderMediaAsNodes ? 1 : 0),
-        String(mediaPanelDensity),
+        String(isBipartite ? 0 : (renderMediaAsNodes ? 1 : 0)),
+        String(isBipartite ? '' : mediaPanelDensity),
         collapsedGroupIdsKey,
         String(enableEditorGestures ? 1 : 0),
         String(infiniteCanvasInteractionMode),
@@ -379,7 +381,7 @@ export function useD3GraphScene2d(args: {
       const prevLayoutViewKey = lastLayoutViewKeyRef.current
       const datasetKey = computeLayoutDatasetKey({
         graphData: sceneGraphData,
-        graphDataRevision: graphDataRevisionRef.current ?? graphDataRevision,
+        graphDataRevision: graphContentRevision || 0,
       })
       const layoutVariant = isBipartite
         ? `bipartite:v4:${layoutSemanticModeKey}:${String(effectiveFrontmatterModeEnabled ? 1 : 0)}:${String(infiniteCanvasInteractionMode)}`
@@ -642,6 +644,7 @@ export function useD3GraphScene2d(args: {
     effectiveFrontmatterModeEnabled,
     fitToScreenMode,
     graphDataRevision,
+    graphContentRevision,
     graphDataRevisionRef,
     isEmbeddedPreview,
     infiniteCanvasInteractionMode,

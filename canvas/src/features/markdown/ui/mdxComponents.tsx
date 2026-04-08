@@ -1,7 +1,10 @@
 import React from 'react'
-import { MermaidDiagram } from '@/features/panels/views/preview-panel/ui/MermaidDiagram'
 import { type MermaidInitConfig, useRootThemeMode } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
+const MermaidDiagramLazy = React.lazy(() =>
+  import('@/features/panels/views/preview-panel/ui/MermaidDiagram').then(mod => ({ default: mod.MermaidDiagram })),
+)
 
 export function Alert({
   title,
@@ -136,11 +139,13 @@ export function Mermaid({
 }) {
   const rootThemeMode = useRootThemeMode()
   return (
-    <MermaidDiagram
-      code={code}
-      highlightClass=""
-      frontmatterConfig={config || null}
-      rootThemeMode={rootThemeMode}
-    />
+    <React.Suspense fallback={null}>
+      <MermaidDiagramLazy
+        code={code}
+        highlightClass=""
+        frontmatterConfig={config || null}
+        rootThemeMode={rootThemeMode}
+      />
+    </React.Suspense>
   )
 }
