@@ -233,6 +233,33 @@ if (!g.window) {
 
 ensureLocalStorageStub()
 
+const ensureAttachEventPolyfill = () => {
+  try {
+    const anyHTMLElement = globalThis as unknown as { HTMLElement?: { prototype?: { attachEvent?: unknown; detachEvent?: unknown } } }
+    const proto = anyHTMLElement.HTMLElement?.prototype
+    if (proto && typeof proto.attachEvent !== 'function') {
+      Object.defineProperty(proto, 'attachEvent', {
+        configurable: true,
+        enumerable: false,
+        writable: true,
+        value: () => void 0,
+      })
+    }
+    if (proto && typeof proto.detachEvent !== 'function') {
+      Object.defineProperty(proto, 'detachEvent', {
+        configurable: true,
+        enumerable: false,
+        writable: true,
+        value: () => void 0,
+      })
+    }
+  } catch {
+    void 0
+  }
+}
+
+ensureAttachEventPolyfill()
+
 const ensureUrlObjectUrls = () => {
   const w = g.window as unknown as { URL?: typeof URL }
   const urlCtor = (globalThis as unknown as { URL?: typeof URL }).URL

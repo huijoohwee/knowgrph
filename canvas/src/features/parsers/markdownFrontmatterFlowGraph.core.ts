@@ -1,0 +1,263 @@
+import type { GraphData } from '@/lib/graph/types'
+import { splitMarkdownLines, parseMarkdownFrontmatter } from '@/lib/markdown'
+import { hashText } from '@/features/parsers/hash'
+import { FRONTMATTER_FLOW_WARNINGS_KEY, normalizeMetaWithFlowBlock, tryParseFlowBlockFromFrontmatterLines } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
+import {
+  buildConnectionWarnings,
+  ensureAugmentedPortsFromDeclaredConnections,
+  extractConnectionsAndSocketTypesFromMarkdownTables,
+  normalizeEdgesFromNodeInputs,
+  parseConnections,
+} from '@/features/parsers/markdownFrontmatterFlowGraph.connections'
+import {
+  extractEdgesFromFrontmatterMermaidWiring,
+  extractFrontmatterBodyAnnotations,
+  normalizeEdgesFromSigilSpecs,
+  tryParseMergedFrontmatterMetaWithNodes,
+  tryParseSigilFrontmatter,
+} from '@/features/parsers/markdownFrontmatterFlowGraph.sigil'
+import {
+  collectNodePositionWarnings,
+  normalizeClusters,
+  normalizeNodes,
+  normalizeSubgraphsFromFrontmatter,
+} from '@/features/parsers/markdownFrontmatterFlowGraph.nodes'
+import {
+  appendAnnotationNodes,
+  buildFrontmatterFlowMetadata,
+  mergeEdges,
+  mergeSubgraphs,
+  readSocketTypes,
+} from '@/features/parsers/markdownFrontmatterFlowGraph.compose'
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function asString(v: unknown): string {
+  return typeof v === 'string' ? v.trim() : ''
+}
+
+function cleanIdPart(v: unknown): string {
+  return String(typeof v === 'string' ? v : '').trim().replace(/[^a-zA-Z0-9_-]/g, '_')
+}
+
+function readFlowWarnings(metaRecord: Record<string, unknown>): string[] {
+  const raw = metaRecord[FRONTMATTER_FLOW_WARNINGS_KEY]
+  if (!Array.isArray(raw)) return []
+  const out: string[] = []
+  for (let i = 0; i < raw.length; i += 1) {
+    const warning = asString(raw[i])
+    if (!warning) continue
+    out.push(warning)
+  }
+  return out
+}
+
+function countIndent(rawLine: string): number {
+  let i = 0
+  while (i < rawLine.length && rawLine[i] === ' ') i += 1
+  return i
+}
+
+function coerceFrontmatterScalar(raw: string): unknown {
+  const value = String(raw || '').trim()
+  if (!value) return ''
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    return value.slice(1, -1)
+  }
+  const lower = value.toLowerCase()
+  if (lower === 'true') return true
+  if (lower === 'false') return false
+  if (lower === 'null') return null
+  if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value)
+  return value
+}
+
+function readFrontmatterScalarFallback(args: {
+  lines: string[]
+  frontmatterStartLine: number
+  frontmatterEndLineExclusive: number
+}): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  const lines = Array.isArray(args.lines) ? args.lines : []
+  const start = Math.max(0, Math.floor(args.frontmatterStartLine))
+  const endExclusive = Math.min(lines.length, Math.max(start, Math.floor(args.frontmatterEndLineExclusive)))
+  for (let i = start; i < endExclusive; i += 1) {
+    const rawLine = String(lines[i] || '')
+    const trimmed = rawLine.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    if (countIndent(rawLine) !== 0) continue
+    const m = /^([A-Za-z0-9_.-]+)\s*:\s*(.*)$/.exec(trimmed)
+    if (!m) continue
+    const key = asString(m[1])
+    if (!key || Object.prototype.hasOwnProperty.call(out, key)) continue
+    const rawValue = String(m[2] || '')
+    const value = rawValue.trim()
+    if (!value || value === '|' || value === '>') continue
+    out[key] = coerceFrontmatterScalar(value)
+  }
+  return out
+}
+
+export function tryParseMarkdownFrontmatterFlowGraph(
+  name: string,
+  text: string,
+): { graphData: GraphData; warnings: string[] } | null {
+  const raw = String(text || '').replace(/^\uFEFF/, '')
+  if (!raw.trimStart().startsWith('---')) return null
+
+  const lines = splitMarkdownLines(raw)
+  let lead = 0
+  while (lead < lines.length && !String(lines[lead] || '').trim()) lead += 1
+  if (String(lines[lead] || '').trim() !== '---') return null
+
+  const initialSegment = lead > 0 ? lines.slice(lead) : lines
+  const initial = parseMarkdownFrontmatter(initialSegment)
+  const initialMeta = initial.meta
+  if (!initialMeta || typeof initialMeta !== 'object' || Array.isArray(initialMeta)) return null
+  let meta: Record<string, unknown> = initialMeta as Record<string, unknown>
+  let startIndex = initial.startIndex + lead
+  const hasFlowBlock = isRecord((meta as Record<string, unknown>).flow)
+  const initialNormalized = normalizeNodes(hasFlowBlock ? normalizeMetaWithFlowBlock(meta) : meta)
+  if (!initialNormalized) {
+    if (!hasFlowBlock) {
+      const merged = tryParseMergedFrontmatterMetaWithNodes(lines)
+      if (merged) {
+        meta = merged.meta
+        startIndex = merged.startIndex
+      }
+    }
+  }
+  if (!normalizeNodes(hasFlowBlock ? normalizeMetaWithFlowBlock(meta) : meta) && !hasFlowBlock) {
+    const fallback = tryParseSigilFrontmatter(lines, lead)
+    if (fallback) {
+      meta = fallback.meta
+      startIndex = fallback.startIndex
+    }
+  }
+
+  const flowFallback = tryParseFlowBlockFromFrontmatterLines({
+    lines,
+    frontmatterStartLine: lead + 1,
+    frontmatterEndLineExclusive: Math.max(lead + 1, startIndex - 1),
+  })
+  const metaWithFlowFallback =
+    !isRecord((meta as Record<string, unknown>).flow) && flowFallback
+      ? { ...meta, flow: flowFallback }
+      : meta
+  const scalarFallback = readFrontmatterScalarFallback({
+    lines,
+    frontmatterStartLine: lead + 1,
+    frontmatterEndLineExclusive: Math.max(lead + 1, startIndex - 1),
+  })
+  const metaWithScalarFallback = { ...scalarFallback, ...metaWithFlowFallback }
+
+  const metaRecord = normalizeMetaWithFlowBlock(metaWithScalarFallback as Record<string, unknown>)
+  const extracted = extractConnectionsAndSocketTypesFromMarkdownTables({
+    lines,
+    startIndex,
+    existingConnections: metaRecord.connections,
+    existingSocketTypes: metaRecord.socket_types,
+  })
+  if ((!Array.isArray(metaRecord.connections) || metaRecord.connections.length === 0) && extracted.connections.length > 0) {
+    metaRecord.connections = extracted.connections
+  }
+  if ((!isRecord(metaRecord.socket_types) || Object.keys(metaRecord.socket_types).length === 0) && extracted.socketTypes) {
+    metaRecord.socket_types = extracted.socketTypes
+  }
+
+  const normalized = normalizeNodes(metaRecord)
+  if (!normalized) return null
+
+  const annotations = extractFrontmatterBodyAnnotations(lines, startIndex)
+  const mermaidWiring = extractEdgesFromFrontmatterMermaidWiring({
+    lines,
+    frontmatterStartLine: lead,
+    frontmatterEndLineExclusive: startIndex - 1,
+  })
+  const knownNodeIds = appendAnnotationNodes({
+    nodes: normalized.nodes,
+    annotations,
+    mermaidEdgeNodeIds: mermaidWiring.edgeNodeIds,
+  })
+
+  const clusters = normalizeClusters(metaRecord, normalized.nodes)
+  for (let i = 0; i < clusters.clusterNodes.length; i += 1) {
+    const n = clusters.clusterNodes[i]
+    const id = asString(n.id)
+    if (!id || knownNodeIds.has(id)) continue
+    knownNodeIds.add(id)
+    normalized.nodes.push(n)
+  }
+
+  const connParsed = parseConnections(metaRecord)
+  ensureAugmentedPortsFromDeclaredConnections({ nodes: normalized.nodes, registry: normalized.registry, declared: connParsed.declared })
+  const edgesFromConnections = connParsed.edges
+  const sigilEdges = normalizeEdgesFromSigilSpecs({
+    meta: metaRecord,
+    nodeIds: Array.from(knownNodeIds),
+  })
+  const rawNodes = Array.isArray(metaRecord.nodes) ? (metaRecord.nodes as unknown[]) : []
+  const nodeInputEdges = normalizeEdgesFromNodeInputs(rawNodes as Record<string, unknown>[])
+  const baseEdges = edgesFromConnections.length > 0 ? edgesFromConnections : nodeInputEdges
+  const edges = mergeEdges({
+    mermaidEdges: mermaidWiring.edges,
+    baseEdges,
+    sigilEdges,
+  })
+  const subgraphsBase = normalizeSubgraphsFromFrontmatter({ meta, rawNodes }) || []
+  const mergedSubgraphs = mergeSubgraphs({
+    baseSubgraphs: subgraphsBase,
+    clusterSubgraphs: clusters.subgraphs,
+  })
+  const subgraphs = (() => {
+    if (mergedSubgraphs.length > 0) return mergedSubgraphs
+    const memberNodeIds = normalized.nodes
+      .map(n => asString(n?.id))
+      .filter(Boolean)
+    if (memberNodeIds.length < 2) return mergedSubgraphs
+    return [{
+      id: 'frontmatter:all',
+      label: 'Frontmatter Graph',
+      memberNodeIds,
+      kind: 'subgraph' as const,
+    }]
+  })()
+
+  const frontmatterMeta = isRecord(metaRecord.meta) ? (metaRecord.meta as Record<string, unknown>) : null
+  const stableId = asString(frontmatterMeta?.id) || cleanIdPart(name) || 'frontmatter'
+  const sourceLayerHash = hashText(`frontmatter-flow|${stableId}`)
+
+  const socketTypes = readSocketTypes(metaRecord)
+  const warnings = [
+    ...readFlowWarnings(metaRecord),
+    ...buildConnectionWarnings({
+      meta: metaRecord,
+      socketTypes,
+      declared: connParsed.declared,
+    }),
+    ...collectNodePositionWarnings(rawNodes),
+  ]
+  const flowSettings = isRecord(metaRecord.frontmatterFlowSettings) ? (metaRecord.frontmatterFlowSettings as Record<string, unknown>) : null
+  const metadata = buildFrontmatterFlowMetadata({
+    sourceLayerHash,
+    frontmatterMeta,
+    socketTypes,
+    flowSettings,
+    annotations,
+    registry: normalized.registry,
+    subgraphs,
+  })
+
+  const graphData: GraphData = {
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: normalized.nodes,
+    edges,
+    metadata,
+  }
+
+  warnings.sort((a, b) => a.localeCompare(b))
+  return { graphData, warnings }
+}

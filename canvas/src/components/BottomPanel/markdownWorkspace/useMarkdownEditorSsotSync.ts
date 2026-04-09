@@ -1,7 +1,11 @@
 import React from 'react'
 import type { GraphState } from '@/hooks/store/types'
 import { normalizeWebpageFrontmatterView } from '@/lib/markdown/frontmatter'
-import { scheduleCoalescedTask, cancelCoalescedTask } from '@/lib/async/coalescedScheduler'
+import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import {
+  WORKSPACE_SYNC_SCOPE_MARKDOWN_EDITOR_SSOT_RUNTIME_PERSISTENCE,
+  WORKSPACE_SYNC_TASK_MARKDOWN_EDITOR_SSOT,
+} from '@/lib/async/workspaceSyncKeys'
 
 export function useMarkdownEditorSsotSync(args: {
   activeDocumentKey: string
@@ -13,12 +17,12 @@ export function useMarkdownEditorSsotSync(args: {
   const lastPushedRef = React.useRef<{ key: string; text: string } | null>(null)
   const lastSeenRef = React.useRef<{ key: string; textRaw: string } | null>(null)
   const idleRef = React.useRef<number | null>(null)
-  const scheduleKeyRef = React.useRef<string | null>(null)
+  const scheduleTaskKeyRef = React.useRef<string | null>(null)
 
   React.useEffect(() => {
-    if (scheduleKeyRef.current) {
-      cancelCoalescedTask(scheduleKeyRef.current)
-      scheduleKeyRef.current = null
+    if (scheduleTaskKeyRef.current) {
+      cancelWorkspaceSyncTask(scheduleTaskKeyRef.current)
+      scheduleTaskKeyRef.current = null
     }
     if (idleRef.current != null) {
       try {
@@ -33,8 +37,8 @@ export function useMarkdownEditorSsotSync(args: {
     const textRaw = String(args.activeText || '')
     if (!key) return
     if (args.paused) return
-    const scheduleKey = `markdown-editor:ssot:${key}`
-    scheduleKeyRef.current = scheduleKey
+    const scheduleTaskKey = `${WORKSPACE_SYNC_TASK_MARKDOWN_EDITOR_SSOT}:${key}`
+    scheduleTaskKeyRef.current = scheduleTaskKey
 
     const lastSeen = lastSeenRef.current
     if (lastSeen && lastSeen.key === key && lastSeen.textRaw === textRaw) return
@@ -70,15 +74,17 @@ export function useMarkdownEditorSsotSync(args: {
         commit()
       }, { timeout: 1200 })
     } else {
-      scheduleCoalescedTask(scheduleKey, () => {
+      scheduleWorkspaceSyncTask(scheduleTaskKey, () => {
         commit()
-      }, 800)
+      }, 800, {
+        scopeKey: WORKSPACE_SYNC_SCOPE_MARKDOWN_EDITOR_SSOT_RUNTIME_PERSISTENCE,
+      })
     }
 
     return () => {
-      if (scheduleKeyRef.current) {
-        cancelCoalescedTask(scheduleKeyRef.current)
-        scheduleKeyRef.current = null
+      if (scheduleTaskKeyRef.current) {
+        cancelWorkspaceSyncTask(scheduleTaskKeyRef.current)
+        scheduleTaskKeyRef.current = null
       }
       if (idleRef.current != null) {
         try {

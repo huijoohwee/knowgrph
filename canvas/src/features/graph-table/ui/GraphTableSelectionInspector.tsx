@@ -214,14 +214,14 @@ export default function GraphTableSelectionInspector() {
       const pk = `${tableId}:${rowId}`
       const doc = await collections.rows.findOne(pk).exec()
       if (doc) await doc.remove()
-      const prev = useGraphStore.getState().graphDataRevision
+      const prev = graphSyncRevision
       noteGraphWrite(prev + 1)
       if (tableId === 'nodes') useGraphStore.getState().removeNode(rowId)
       else useGraphStore.getState().removeEdge(rowId)
       if (tableId === 'nodes') useGraphStore.getState().selectNode(null)
       else useGraphStore.getState().selectEdge(null)
     })()
-  }, [noteGraphWrite, selection])
+  }, [graphSyncRevision, noteGraphWrite, selection])
 
   const handleChangeCell = useCallback(
     (columnId: string, next: unknown) => {
@@ -229,12 +229,12 @@ export default function GraphTableSelectionInspector() {
       const { tableId, rowId } = selection
       void (async () => {
         await updateGraphTableCell(tableId, rowId, columnId, next)
-        const prev = useGraphStore.getState().graphDataRevision
+        const prev = graphSyncRevision
         noteGraphWrite(prev + 1)
         applyCellUpdateToGraphStore(tableId, rowId, columnId, next)
       })()
     },
-    [noteGraphWrite, selection],
+    [graphSyncRevision, noteGraphWrite, selection],
   )
 
   return (

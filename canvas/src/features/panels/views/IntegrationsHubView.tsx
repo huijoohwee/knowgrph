@@ -24,22 +24,22 @@ export default function IntegrationsHubView() {
 
   const actions = React.useMemo<HubAction[]>(
     () => [
-      ...(integrationConfigs.aiChatDeerflow.enabled
+      ...(integrationConfigs.aiChat.enabled
         ? [{
             key: 'chat',
             label: UI_LABELS.chat,
-            description: 'AI Chat (DeerFlow)',
+            description: 'AI Chat',
             onClick: () => emitSidePanelOpen({ tab: 'chat', open: true }),
           }]
         : []),
-      ...(integrationConfigs.mirofishSimulations.enabled
+      ...(integrationConfigs.simulationCommands.enabled
         ? [{
-            key: 'mirofish',
-            label: 'MiroFish Simulations',
-            description: `Open via ${integrationConfigs.mirofishSimulations.commandPrefix} (${integrationConfigs.mirofishSimulations.defaultPlatform})`,
+            key: 'simulationCommands',
+            label: 'Simulation Commands',
+            description: `Open via ${integrationConfigs.simulationCommands.commandPrefix} (${integrationConfigs.simulationCommands.defaultPlatform})`,
             onClick: () => {
               emitSidePanelOpen({ tab: 'chat', open: true })
-              const command = `${integrationConfigs.mirofishSimulations.commandPrefix} ${integrationConfigs.mirofishSimulations.defaultSimulationId} ${integrationConfigs.mirofishSimulations.defaultPlatform}`
+              const command = `${integrationConfigs.simulationCommands.commandPrefix} ${integrationConfigs.simulationCommands.defaultSimulationId} ${integrationConfigs.simulationCommands.defaultPlatform}`
               emitChatInputAppend({ text: command, mode: 'replace' })
             },
           }]
@@ -69,7 +69,7 @@ export default function IntegrationsHubView() {
   return (
     <section className="h-full min-h-0 overflow-auto pr-1" aria-label={UI_LABELS.integrations}>
       <section className={`space-y-2 pb-3 ${panelTypography.panelTextClass} ${UI_THEME_TOKENS.text.secondary}`}>
-        <p className={UI_THEME_TOKENS.text.primary}>Centralized integration hub for AI and external tooling surfaces.</p>
+        <p className={UI_THEME_TOKENS.text.primary}>Centralized integration hub for native AI and simulation tooling surfaces.</p>
         <p>Open each surface from one place to prevent duplicated panel entry points.</p>
       </section>
       <section className="grid grid-cols-1 gap-2">

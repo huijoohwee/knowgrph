@@ -79,7 +79,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L58; canvas/src/hooks/store/uiSettingsSlice.ts:L747"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L58; canvas/src/hooks/store/uiSettingsSlice.ts:L749"
   },
   "selectionFlashOpacity": {
     "area": "Selection Flash",
@@ -96,7 +96,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L67; canvas/src/hooks/store/uiSettingsSlice.ts:L752"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L67; canvas/src/hooks/store/uiSettingsSlice.ts:L754"
   },
   "uiIconScale": {
     "area": "UI Density: Icons",
@@ -487,7 +487,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L286; canvas/src/hooks/store/uiSettingsSlice.ts:L280"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L286; canvas/src/hooks/store/uiSettingsSlice.ts:L281"
   },
   "floatingPanelWidthRatio": {
     "area": "Floating Panel Layout",
@@ -575,7 +575,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L337; canvas/src/hooks/store/uiSettingsSlice.ts:L759"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L337; canvas/src/hooks/store/uiSettingsSlice.ts:L761"
   },
   "spotlight.nearTopThreshold": {
     "area": "Launch Spotlight Layout",
@@ -592,7 +592,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L346; canvas/src/hooks/store/uiSettingsSlice.ts:L763"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L346; canvas/src/hooks/store/uiSettingsSlice.ts:L765"
   },
   "chatProvider": {
     "area": "Chat",
@@ -745,7 +745,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L30; canvas/src/hooks/store/schemaSlice.ts:L213"
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L30; canvas/src/hooks/store/schemaSlice.ts:L217"
   },
   "canvasSnapGridSize": {
     "area": "Canvas Grid",
@@ -762,7 +762,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L41; canvas/src/hooks/store/schemaSlice.ts:L213"
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L41; canvas/src/hooks/store/schemaSlice.ts:L217"
   },
   "canvasGridVisible": {
     "area": "Canvas Grid",
@@ -779,7 +779,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L53; canvas/src/hooks/store/schemaSlice.ts:L213"
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L53; canvas/src/hooks/store/schemaSlice.ts:L217"
   },
   "canvasGridMinorAlpha": {
     "area": "—",
@@ -796,7 +796,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L74; canvas/src/hooks/store/schemaSlice.ts:L213"
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L74; canvas/src/hooks/store/schemaSlice.ts:L217"
   },
   "canvasGridMajorAlpha": {
     "area": "—",
@@ -813,7 +813,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L99; canvas/src/hooks/store/schemaSlice.ts:L213"
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L99; canvas/src/hooks/store/schemaSlice.ts:L217"
   },
   "canvasGridMinorWidthPx": {
     "area": "—",
@@ -830,7 +830,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L124; canvas/src/hooks/store/schemaSlice.ts:L213"
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L124; canvas/src/hooks/store/schemaSlice.ts:L217"
   },
   "canvasGridMajorWidthPx": {
     "area": "—",
@@ -847,7 +847,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L149; canvas/src/hooks/store/schemaSlice.ts:L213"
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L149; canvas/src/hooks/store/schemaSlice.ts:L217"
   },
   "canvasGridMinorStroke": {
     "area": "—",
@@ -864,7 +864,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L174; canvas/src/hooks/store/schemaSlice.ts:L213"
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L174; canvas/src/hooks/store/schemaSlice.ts:L217"
   },
   "canvasGridMajorStroke": {
     "area": "—",
@@ -881,7 +881,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L199; canvas/src/hooks/store/schemaSlice.ts:L213"
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L199; canvas/src/hooks/store/schemaSlice.ts:L217"
   },
   "canvasGridVariant": {
     "area": "Canvas Grid",
@@ -898,7 +898,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L224; canvas/src/hooks/store/schemaSlice.ts:L213"
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L224; canvas/src/hooks/store/schemaSlice.ts:L217"
   },
   "canvasGridMajorEvery": {
     "area": "Canvas Grid",
@@ -915,7 +915,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L244; canvas/src/hooks/store/schemaSlice.ts:L213"
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L244; canvas/src/hooks/store/schemaSlice.ts:L217"
   },
   "canvasGridDotRadiusPx": {
     "area": "Canvas Grid",
@@ -932,7 +932,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L263; canvas/src/hooks/store/schemaSlice.ts:L213"
+    "lineRange": "canvas/src/features/settings/registry-ui.canvas-grid.ts:L263; canvas/src/hooks/store/schemaSlice.ts:L217"
   },
   "markdownWordWrap": {
     "area": "—",
@@ -994,7 +994,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L120"
+    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L121"
   },
   "bipartite.pollIntervalSec": {
     "area": "—",
@@ -1011,7 +1011,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L22; canvas/src/hooks/store/uiSettingsSlice.ts:L126"
+    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L22; canvas/src/hooks/store/uiSettingsSlice.ts:L127"
   },
   "bipartite.metric.nodeSize": {
     "area": "—",
@@ -1028,7 +1028,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L31; canvas/src/hooks/store/uiSettingsSlice.ts:L134"
+    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L31; canvas/src/hooks/store/uiSettingsSlice.ts:L135"
   },
   "bipartite.metric.nodeGlow": {
     "area": "—",
@@ -1045,7 +1045,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L46; canvas/src/hooks/store/uiSettingsSlice.ts:L144"
+    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L46; canvas/src/hooks/store/uiSettingsSlice.ts:L145"
   },
   "bipartite.metric.nodePulse": {
     "area": "—",
@@ -1062,7 +1062,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L60; canvas/src/hooks/store/uiSettingsSlice.ts:L154"
+    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L60; canvas/src/hooks/store/uiSettingsSlice.ts:L155"
   },
   "bipartite.metric.nodeBorder": {
     "area": "—",
@@ -1079,7 +1079,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L74; canvas/src/hooks/store/uiSettingsSlice.ts:L164"
+    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L74; canvas/src/hooks/store/uiSettingsSlice.ts:L165"
   },
   "bipartite.metric.edgeOpacity": {
     "area": "—",
@@ -1096,7 +1096,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L88; canvas/src/hooks/store/uiSettingsSlice.ts:L173"
+    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L88; canvas/src/hooks/store/uiSettingsSlice.ts:L174"
   },
   "bipartite.show.specificityBadges": {
     "area": "—",
@@ -1113,7 +1113,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L102; canvas/src/hooks/store/uiSettingsSlice.ts:L180"
+    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L102; canvas/src/hooks/store/uiSettingsSlice.ts:L181"
   },
   "bipartite.show.gapScoreInLabel": {
     "area": "—",
@@ -1130,7 +1130,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L111; canvas/src/hooks/store/uiSettingsSlice.ts:L183"
+    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L111; canvas/src/hooks/store/uiSettingsSlice.ts:L184"
   },
   "bipartite.show.clusterGapRatio": {
     "area": "—",
@@ -1147,7 +1147,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L120; canvas/src/hooks/store/uiSettingsSlice.ts:L186"
+    "lineRange": "canvas/src/features/settings/registry-ui.bipartite.ts:L120; canvas/src/hooks/store/uiSettingsSlice.ts:L187"
   },
   "pdfImportIncludeImages": {
     "area": "Import: PDF",
@@ -1165,7 +1165,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L818; canvas/src/hooks/store/uiSlice.ts:L649"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L820; canvas/src/hooks/store/uiSlice.ts:L649"
   },
   "pdfImportMaxPages": {
     "area": "—",
@@ -1709,7 +1709,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L777"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L779"
   },
   "youtubeTranscriptOutputFormat": {
     "area": "—",
@@ -1726,7 +1726,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L780"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L782"
   },
   "webpageImportIncludeImages": {
     "area": "—",
@@ -1743,7 +1743,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L783"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L785"
   },
   "webpageImportView": {
     "area": "—",
@@ -1760,7 +1760,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L786"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L788"
   },
   "webpageViewerScriptPolicy": {
     "area": "—",
@@ -1777,7 +1777,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L30; canvas/src/hooks/store/uiSettingsSlice.ts:L789"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L30; canvas/src/hooks/store/uiSettingsSlice.ts:L791"
   },
   "webpageArtifactFidelityMaxLevel": {
     "area": "—",
@@ -1794,7 +1794,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L40; canvas/src/hooks/store/uiSettingsSlice.ts:L792"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L40; canvas/src/hooks/store/uiSettingsSlice.ts:L794"
   },
   "websiteImportDiscoverSitemap": {
     "area": "—",
@@ -1811,7 +1811,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L49; canvas/src/hooks/store/uiSettingsSlice.ts:L798"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L49; canvas/src/hooks/store/uiSettingsSlice.ts:L800"
   },
   "websiteImportGenerateWebpageArtifactDocs": {
     "area": "—",
@@ -1828,7 +1828,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L58; canvas/src/hooks/store/uiSettingsSlice.ts:L801"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L58; canvas/src/hooks/store/uiSettingsSlice.ts:L803"
   },
   "websiteImportMaxPages": {
     "area": "—",
@@ -1845,7 +1845,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L67; canvas/src/hooks/store/uiSettingsSlice.ts:L804"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L67; canvas/src/hooks/store/uiSettingsSlice.ts:L806"
   },
   "websiteImportConcurrency": {
     "area": "—",
@@ -1862,7 +1862,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L76; canvas/src/hooks/store/uiSettingsSlice.ts:L810"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L76; canvas/src/hooks/store/uiSettingsSlice.ts:L812"
   },
   "websiteImportOutputDirRel": {
     "area": "—",
@@ -1879,14 +1879,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L85; canvas/src/hooks/store/uiSettingsSlice.ts:L816"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L85; canvas/src/hooks/store/uiSettingsSlice.ts:L818"
   },
   "viewport.fitFillRatio": {
     "area": "—",
     "responsibility": "fit fill ratio",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/uiSlice.ts"
     ],
     "classes": [],
@@ -1896,14 +1895,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L31; canvas/src/hooks/store/uiSlice.ts:L159"
+    "lineRange": "canvas/src/hooks/store/uiSlice.ts:L159"
   },
   "schema.layout.forces.physics2dChargeScale": {
     "area": "Graph Physics 2D",
     "responsibility": "Scale auto-tuned D3 many-body repulsion (when schema.layout.forces.charge is unset)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -1916,14 +1914,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L40; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.physics2dCollideStrengthScale": {
     "area": "Graph Physics 2D",
     "responsibility": "Scale auto-tuned node-node collision strength",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -1936,14 +1933,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L62; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.physics2dBboxStrengthScale": {
     "area": "Graph Physics 2D",
     "responsibility": "Scale bbox/group-bbox collision strength (nodes, groups, rich-media boxes)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -1956,14 +1952,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L84; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.physics2dVelocityDecayBias": {
     "area": "Graph Physics 2D",
     "responsibility": "Bias velocityDecay (damping) to reduce sudden motion",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -1976,14 +1971,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L106; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.physics2dMaxSpeedScale": {
     "area": "Graph Physics 2D",
     "responsibility": "Scale per-tick max speed clamp (limits drastic jumps)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -1996,14 +1990,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L128; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.physics2dStrictOverlapScale": {
     "area": "Graph Physics 2D",
     "responsibility": "Scale strict overlap correction (post-layout relax for nodes/groups)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2016,14 +2009,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L150; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.physics2dLabelNudgeScale": {
     "area": "Graph Physics 2D",
     "responsibility": "Scale group label-label nudge relaxation",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2036,14 +2028,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L172; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.physics2dDragChargeScale": {
     "area": "Graph Physics 2D",
     "responsibility": "Scale drag-time charge softening while dragging",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2056,14 +2047,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L194; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.physics2dDragDistanceMaxPx": {
     "area": "Graph Physics 2D",
     "responsibility": "Cap drag-time charge distanceMax (localizes repulsion during dragging)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2076,14 +2066,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L216; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.zoom.minScale": {
     "area": "—",
     "responsibility": "min scale",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2096,14 +2085,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L238; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.radarSpokeDistancePx": {
     "area": "—",
     "responsibility": "radar spoke distance px",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2116,14 +2104,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L257; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.radarFlowDistancePx": {
     "area": "—",
     "responsibility": "radar flow distance px",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2136,14 +2123,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L279; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.radarFlowCurveBend": {
     "area": "—",
     "responsibility": "radar flow curve bend",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2156,14 +2142,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L301; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.radarFlowOrbitShift": {
     "area": "—",
     "responsibility": "radar flow orbit shift",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2176,14 +2161,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L323; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.radarFlowArrowLengthPx": {
     "area": "—",
     "responsibility": "radar flow arrow length px",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2196,14 +2180,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L345; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.radarFlowArrowHalfWidthPx": {
     "area": "—",
     "responsibility": "radar flow arrow half width px",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2216,14 +2199,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L367; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.radarSpokeStrengthScale": {
     "area": "—",
     "responsibility": "radar spoke strength scale",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2236,14 +2218,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L389; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.radarFlowStrengthScale": {
     "area": "—",
     "responsibility": "radar flow strength scale",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2256,14 +2237,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L411; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.radarNodeCharge": {
     "area": "—",
     "responsibility": "radar node charge",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2276,14 +2256,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L433; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.radarHubCharge": {
     "area": "—",
     "responsibility": "radar hub charge",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2296,14 +2275,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L455; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.radialOrbitEnabled": {
     "area": "—",
     "responsibility": "radial orbit enabled",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2316,14 +2294,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L477; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.radialOrbitSpeedDeg": {
     "area": "—",
     "responsibility": "radial orbit speed deg",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2336,14 +2313,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L497; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.radialOrbitSize": {
     "area": "—",
     "responsibility": "radial orbit size",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2356,14 +2332,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L519; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.radialOrbitRingGapPx": {
     "area": "—",
     "responsibility": "radial orbit ring gap px",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2376,14 +2351,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L541; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.radialOrbitDepthSpeedScale": {
     "area": "—",
     "responsibility": "radial orbit depth speed scale",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2396,14 +2370,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L563; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.forces.radialOrbitMode": {
     "area": "—",
     "responsibility": "radial orbit mode",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2416,14 +2389,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L585; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.zoom.maxScale": {
     "area": "—",
     "responsibility": "max scale",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -2436,14 +2408,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L609; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "zoom.labelScaleMode2d": {
     "area": "—",
     "responsibility": "label scale mode2d",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2453,14 +2424,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L628; canvas/src/hooks/store/uiSettingsSlice.ts:L227"
+    "lineRange": "canvas/src/hooks/store/uiSettingsSlice.ts:L228"
   },
   "zoom.labelScaleExponent2d": {
     "area": "—",
     "responsibility": "label scale exponent2d",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2470,14 +2440,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L642; canvas/src/hooks/store/uiSettingsSlice.ts:L233"
+    "lineRange": "canvas/src/hooks/store/uiSettingsSlice.ts:L234"
   },
   "zoom.labelScaleClampMin2d": {
     "area": "—",
     "responsibility": "label scale clamp min2d",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2487,14 +2456,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L651; canvas/src/hooks/store/uiSettingsSlice.ts:L235"
+    "lineRange": "canvas/src/hooks/store/uiSettingsSlice.ts:L236"
   },
   "zoom.labelScaleClampMax2d": {
     "area": "—",
     "responsibility": "label scale clamp max2d",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2504,14 +2472,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L660; canvas/src/hooks/store/uiSettingsSlice.ts:L237"
+    "lineRange": "canvas/src/hooks/store/uiSettingsSlice.ts:L238"
   },
   "zoom.strokeScaleMode2d": {
     "area": "—",
     "responsibility": "stroke scale mode2d",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2521,14 +2488,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L669; canvas/src/hooks/store/uiSettingsSlice.ts:L244"
+    "lineRange": "canvas/src/hooks/store/uiSettingsSlice.ts:L245"
   },
   "zoom.strokeScaleExponent2d": {
     "area": "—",
     "responsibility": "stroke scale exponent2d",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2538,14 +2505,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L683; canvas/src/hooks/store/uiSettingsSlice.ts:L250"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L31; canvas/src/hooks/store/uiSettingsSlice.ts:L251"
   },
   "zoom.strokeScaleClampMin2d": {
     "area": "—",
     "responsibility": "stroke scale clamp min2d",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2555,14 +2522,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L692; canvas/src/hooks/store/uiSettingsSlice.ts:L252"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L40; canvas/src/hooks/store/uiSettingsSlice.ts:L253"
   },
   "zoom.strokeScaleClampMax2d": {
     "area": "—",
     "responsibility": "stroke scale clamp max2d",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2572,14 +2539,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L701; canvas/src/hooks/store/uiSettingsSlice.ts:L254"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L49; canvas/src/hooks/store/uiSettingsSlice.ts:L255"
   },
   "historyDebounceMs": {
     "area": "Editor Behavior & Timing",
     "responsibility": "Debounce history",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/historySlice.ts"
     ],
     "classes": [],
@@ -2589,14 +2556,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L710; canvas/src/hooks/store/historySlice.ts:L172"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L58; canvas/src/hooks/store/historySlice.ts:L172"
   },
   "keyword.source.maxLines": {
     "area": "—",
     "responsibility": "max lines",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2606,14 +2573,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L719; canvas/src/hooks/store/uiSettingsSlice.ts:L656"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L67; canvas/src/hooks/store/uiSettingsSlice.ts:L658"
   },
   "keyword.source.maxChars": {
     "area": "—",
     "responsibility": "max chars",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2623,14 +2590,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L728; canvas/src/hooks/store/uiSettingsSlice.ts:L662"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L76; canvas/src/hooks/store/uiSettingsSlice.ts:L664"
   },
   "keyword.graph.previewDebounceMs": {
     "area": "—",
     "responsibility": "preview debounce (ms)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2640,14 +2607,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L737; canvas/src/hooks/store/uiSettingsSlice.ts:L668"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L85; canvas/src/hooks/store/uiSettingsSlice.ts:L670"
   },
   "keyword.graph.fullDebounceMs": {
     "area": "—",
     "responsibility": "full debounce (ms)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2657,14 +2624,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L746; canvas/src/hooks/store/uiSettingsSlice.ts:L674"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L94; canvas/src/hooks/store/uiSettingsSlice.ts:L676"
   },
   "keyword.graph.edgesPerNode": {
     "area": "—",
     "responsibility": "edges per node",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2674,14 +2641,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L755; canvas/src/hooks/store/uiSettingsSlice.ts:L680"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L103; canvas/src/hooks/store/uiSettingsSlice.ts:L682"
   },
   "keyword.graph.maxEdges": {
     "area": "—",
     "responsibility": "max edges",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2691,14 +2658,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L764; canvas/src/hooks/store/uiSettingsSlice.ts:L686"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L112; canvas/src/hooks/store/uiSettingsSlice.ts:L688"
   },
   "keyword.graph.mentionEdgesPerSourceNode": {
     "area": "—",
     "responsibility": "mention edges per source node",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2708,14 +2675,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L773; canvas/src/hooks/store/uiSettingsSlice.ts:L692"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L121; canvas/src/hooks/store/uiSettingsSlice.ts:L694"
   },
   "codeHighlightDurationMs": {
     "area": "Editor Behavior & Timing",
     "responsibility": "Code highlight duration",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/uiSlice.ts"
     ],
     "classes": [],
@@ -2725,14 +2692,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L782; canvas/src/hooks/store/uiSlice.ts:L415"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L130; canvas/src/hooks/store/uiSlice.ts:L415"
   },
   "codeSelectThrottleMs": {
     "area": "Editor Behavior & Timing",
     "responsibility": "Code→Canvas selection throttle",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/uiSlice.ts"
     ],
     "classes": [],
@@ -2742,14 +2709,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L791; canvas/src/hooks/store/uiSlice.ts:L416"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L139; canvas/src/hooks/store/uiSlice.ts:L416"
   },
   "codeHighlightUntilClick": {
     "area": "Editor Behavior & Timing",
     "responsibility": "Highlight until click",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/uiSlice.ts"
     ],
     "classes": [],
@@ -2759,14 +2726,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L800; canvas/src/hooks/store/uiSlice.ts:L417"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L148; canvas/src/hooks/store/uiSlice.ts:L417"
   },
   "enableTabSync": {
     "area": "Tab Sync",
     "responsibility": "Enable cross‑tab sync",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2776,14 +2743,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L809; canvas/src/hooks/store/uiSettingsSlice.ts:L768"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L157; canvas/src/hooks/store/uiSettingsSlice.ts:L770"
   },
   "enableVirtualTables": {
     "area": "Graph Data Table Virtualization",
     "responsibility": "Virtualized tables",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2793,14 +2760,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L818; canvas/src/hooks/store/uiSettingsSlice.ts:L769"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L166; canvas/src/hooks/store/uiSettingsSlice.ts:L771"
   },
   "multiDimTableModeEnabled": {
     "area": "—",
     "responsibility": "multi dim table mode enabled",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -2810,28 +2777,28 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L827; canvas/src/hooks/store/uiSettingsSlice.ts:L444"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L175; canvas/src/hooks/store/uiSettingsSlice.ts:L444"
   },
   "import.json.workspaceTarget": {
     "area": "JSON Import",
     "responsibility": "Default destination after JSON parse/import",
     "notes": "Choose Editor Workspace, Multi-dimensional Table, or Infinite Canvas as the default JSON import landing surface.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts"
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts"
     ],
     "classes": [],
     "functions": [],
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L836"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L184"
   },
   "canvasRenderMode": {
     "area": "Canvas Rendering",
     "responsibility": "Render mode (2d or 3d)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts"
     ],
@@ -2842,14 +2809,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L846; canvas/src/hooks/store/canvasSlice.ts:L372"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L194; canvas/src/hooks/store/canvasSlice.ts:L374"
   },
   "canvas3dMode": {
     "area": "Canvas Rendering",
     "responsibility": "3D renderer mode (default or voxel)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -2859,14 +2826,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L860; canvas/src/hooks/store/canvasSlice.ts:L494"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L208; canvas/src/hooks/store/canvasSlice.ts:L496"
   },
   "viewportControlsPreset": {
     "area": "Canvas Interaction (Viewport Controls)",
     "responsibility": "Pointer/wheel gesture preset (map vs design)",
     "notes": "Used by Flow and FlowEditor renderers to decide pan drag and wheel zoom behavior.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -2876,14 +2843,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L874; canvas/src/hooks/store/canvasSlice.ts:L592"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L222; canvas/src/hooks/store/canvasSlice.ts:L611"
   },
   "infiniteCanvasInteractionMode": {
     "area": "—",
     "responsibility": "infinite canvas interaction mode",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -2893,14 +2860,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L888; canvas/src/hooks/store/canvasSlice.ts:L599"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L236; canvas/src/hooks/store/canvasSlice.ts:L618"
   },
   "canvasWorkspaceSyncMode": {
     "area": "—",
     "responsibility": "canvas workspace sync mode",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -2910,14 +2877,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L902; canvas/src/hooks/store/canvasSlice.ts:L610"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L250; canvas/src/hooks/store/canvasSlice.ts:L629"
   },
   "flowEditorSelectionOnDrag": {
     "area": "Canvas Interaction (Flow Editor)",
     "responsibility": "Enable selection box on drag in Flow Editor renderer",
     "notes": "When enabled with viewportControlsPreset=design, left-drag creates a selection box. When disabled, selection box uses Shift-drag like other modes.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -2927,14 +2894,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L916; canvas/src/hooks/store/canvasSlice.ts:L621"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L264; canvas/src/hooks/store/canvasSlice.ts:L640"
   },
   "flowEditorOverlayWheelProxyEnabled": {
     "area": "Canvas Interaction (Flow Editor)",
     "responsibility": "Enable wheel zoom/pan proxy when pointer is over Flow Editor fly-out overlays",
     "notes": "When enabled, wheel gestures over Node Quick Editor overlays are forwarded to the Flow canvas unless the overlay can scroll in that direction.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -2944,14 +2911,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L925; canvas/src/hooks/store/canvasSlice.ts:L628"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L273; canvas/src/hooks/store/canvasSlice.ts:L647"
   },
   "viewPinned": {
     "area": "Canvas Zoom Modes",
     "responsibility": "Pin view (disables Fit/Selection auto-zoom + zoom-to-bounds requests)",
     "notes": "When enabled, Fit to Screen and Zoom to Selection modes are disabled.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -2961,14 +2928,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L934; canvas/src/hooks/store/canvasSlice.ts:L208"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L282; canvas/src/hooks/store/canvasSlice.ts:L210"
   },
   "fitToScreenMode": {
     "area": "Canvas Zoom Modes",
     "responsibility": "Auto-fit graph to viewport (Fit to Screen mode)",
     "notes": "When enabled, Pin View and Zoom to Selection modes are disabled.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -2978,14 +2945,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L943; canvas/src/hooks/store/canvasSlice.ts:L232"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L291; canvas/src/hooks/store/canvasSlice.ts:L234"
   },
   "zoomToSelectionMode": {
     "area": "Canvas Zoom Modes",
     "responsibility": "Auto-zoom to current selection (Zoom to Selection mode)",
     "notes": "When enabled, Pin View and Fit to Screen modes are disabled.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -2995,14 +2962,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L952; canvas/src/hooks/store/canvasSlice.ts:L254"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L300; canvas/src/hooks/store/canvasSlice.ts:L256"
   },
   "zoomDurationFitMs": {
     "area": "Canvas Zoom Actions",
     "responsibility": "Animation duration (ms) for Fit-to-View / Fit-to-Screen actions",
     "notes": "clamps to [0,2000]. Used by both D3 and Flow 2D renderers.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -3012,14 +2979,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L961; canvas/src/hooks/store/canvasSlice.ts:L695"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L309; canvas/src/hooks/store/canvasSlice.ts:L714"
   },
   "zoomDurationSelectionMs": {
     "area": "Canvas Zoom Actions",
     "responsibility": "Animation duration (ms) for Zoom-to-Selection action",
     "notes": "clamps to [0,2000]. Used by both D3 and Flow 2D renderers.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -3029,14 +2996,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L970; canvas/src/hooks/store/canvasSlice.ts:L701"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L318; canvas/src/hooks/store/canvasSlice.ts:L720"
   },
   "wheelZoomCtrlMetaBoostMultiplier": {
     "area": "Canvas Interaction (Wheel Zoom)",
     "responsibility": "Ctrl/Meta wheel zoom boost multiplier (trackpad pinch)",
     "notes": "clamps to [1,40]. Used by D3, Flow, and FlowEditor 2D renderers.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -3046,14 +3013,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L979; canvas/src/hooks/store/canvasSlice.ts:L707"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L327; canvas/src/hooks/store/canvasSlice.ts:L726"
   },
   "canvasInteractionSpeedMultiplier": {
     "area": "—",
     "responsibility": "canvas interaction speed multiplier",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -3063,14 +3030,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L988; canvas/src/hooks/store/canvasSlice.ts:L718"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L336; canvas/src/hooks/store/canvasSlice.ts:L737"
   },
   "canvasPanSpeedMultiplier": {
     "area": "—",
     "responsibility": "canvas pan speed multiplier",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
+      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -3080,14 +3047,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L997; canvas/src/hooks/store/canvasSlice.ts:L729"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L345; canvas/src/hooks/store/canvasSlice.ts:L748"
   },
   "flowWheelZoomSpeedMultiplier": {
     "area": "Canvas Interaction (Flow Zoom)",
     "responsibility": "Wheel zoom speed multiplier for Flow renderer",
     "notes": "clamps to [0.25,2.5]. Used by D3, Flow, and FlowEditor 2D renderers.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -3097,14 +3063,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1006; canvas/src/hooks/store/canvasSlice.ts:L635"
+    "lineRange": "canvas/src/hooks/store/canvasSlice.ts:L654"
   },
   "flowWheelZoomIncrementMultiplier": {
     "area": "Canvas Interaction (Flow Zoom)",
     "responsibility": "Wheel zoom increment multiplier for Flow renderer",
     "notes": "clamps to [0.25,5.0]. Values > 1 make each wheel gesture zoom more per delta; values < 1 make it more precise.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -3114,14 +3079,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1015; canvas/src/hooks/store/canvasSlice.ts:L646"
+    "lineRange": "canvas/src/hooks/store/canvasSlice.ts:L665"
   },
   "flowWheelZoomSmoothMinDurationMs": {
     "area": "Canvas Interaction (Flow Zoom)",
     "responsibility": "Min duration (ms) for Flow wheel zoom smoothing animation",
     "notes": "clamps to [10,400] and is coerced to ≤ flowWheelZoomSmoothMaxDurationMs.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -3131,14 +3095,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1024; canvas/src/hooks/store/canvasSlice.ts:L657"
+    "lineRange": "canvas/src/hooks/store/canvasSlice.ts:L676"
   },
   "flowWheelZoomSmoothMaxDurationMs": {
     "area": "Canvas Interaction (Flow Zoom)",
     "responsibility": "Max duration (ms) for Flow wheel zoom smoothing animation",
     "notes": "clamps to [10,400] and is coerced to ≥ flowWheelZoomSmoothMinDurationMs.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/canvasSlice.ts"
     ],
     "classes": [],
@@ -3148,7 +3111,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1033; canvas/src/hooks/store/canvasSlice.ts:L676"
+    "lineRange": "canvas/src/hooks/store/canvasSlice.ts:L695"
   },
   "orchestratorTraversalDelayMs": {
     "area": "Orchestrator Traversal",
@@ -3169,7 +3132,6 @@
     "responsibility": "Node selection mode (single, multi, lasso)",
     "notes": "Selector → pick single, multi, or lasso selection behavior → shape how canvas clicks, Graph Data Table row selection, and Embed/Overlay / Dataset Inspector visualizations respond to the active selection neighborhood.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -3179,14 +3141,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1056; canvas/src/hooks/store/schemaSlice.ts:L342"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L346"
   },
   "graph.behavior.createMode": {
     "area": "Canvas Interaction",
     "responsibility": "Edge creation mode (shift-drag, click, panel-only)",
     "notes": "Edge creator → choose shift-drag, click-source-target, or panel-only edge creation → align edge gestures with selection-aware overlays so you can inspect distributions, hierarchies, clusters, and paths without losing predictable zoom and node-drag behavior.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -3196,14 +3157,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1076; canvas/src/hooks/store/schemaSlice.ts:L356"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L360"
   },
   "schemaDeriveCacheCapacity": {
     "area": "Graph Performance (Schema Derive Cache)",
     "responsibility": "LRU capacity for schema derive lists",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
@@ -3214,14 +3174,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1098; canvas/src/hooks/store/panelLayoutUiSlice.ts:L101; canvas/src/hooks/store/uiSettingsSlice.ts:L698"
+    "lineRange": "canvas/src/hooks/store/panelLayoutUiSlice.ts:L101; canvas/src/hooks/store/uiSettingsSlice.ts:L700"
   },
   "schema.behavior.hover.content.type": {
     "area": "Graph Hover Preview",
     "responsibility": "type",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -3234,14 +3193,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1107; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.behavior.hover.content.id": {
     "area": "Graph Hover Preview",
     "responsibility": "id",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -3254,14 +3212,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1134; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.behavior.hover.content.properties": {
     "area": "Graph Hover Preview",
     "responsibility": "properties",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -3274,14 +3231,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1161; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.groups.nestedPaddingStep": {
     "area": "Canvas Layout (2D)",
     "responsibility": "Extra padding to visually separate nested groups",
     "notes": "Higher values increase outer-group breathing room to prevent nested group borders from visually snapping together.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -3294,14 +3250,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1188; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.flow.pack.paddingPxDocument": {
     "area": "—",
     "responsibility": "padding px document",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -3314,14 +3269,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1216; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.flow.pack.paddingPxKeyword": {
     "area": "—",
     "responsibility": "padding px keyword",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -3334,14 +3288,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1246; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.flow.collisionCaps.nodePaddingXMax": {
     "area": "—",
     "responsibility": "node padding xmax",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -3354,14 +3307,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1276; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.flow.collisionCaps.nodePaddingYMax": {
     "area": "—",
     "responsibility": "node padding ymax",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -3374,14 +3326,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1306; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.flow.collisionCaps.groupExtraGapPxMax": {
     "area": "—",
     "responsibility": "group extra gap px max",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -3394,14 +3345,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1336; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.flow.collisionCaps.maxShiftPx": {
     "area": "—",
     "responsibility": "max shift px",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -3414,14 +3364,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1366; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.flow.overlay.collisionGapPx": {
     "area": "—",
     "responsibility": "collision gap px",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -3434,14 +3383,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1396; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.edges.type": {
     "area": "—",
     "responsibility": "type",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -3454,14 +3402,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1426; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.edges.opacity": {
     "area": "Canvas Layering (2D)",
     "responsibility": "Base edge opacity in D3 renderer",
     "notes": "clamps to [0,1]. For readability, keep this lower than node/group prominence.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -3474,14 +3421,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1457; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "schema.layout.edges.opacityUnderGroups": {
     "area": "Canvas Layering (2D)",
     "responsibility": "Edge opacity when groups are enabled",
     "notes": "clamps to [0,1]. Used to keep edges visually beneath group underlays.",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/graphDataSliceUtils.ts",
       "canvas/src/hooks/store/panelLayoutUiSlice.ts",
       "canvas/src/hooks/store/schemaSlice.ts",
@@ -3494,14 +3440,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1485; canvas/src/hooks/store/schemaSlice.ts:L201"
+    "lineRange": "canvas/src/hooks/store/schemaSlice.ts:L205"
   },
   "graphHoverPreview.showNodeId": {
     "area": "Graph Hover Preview",
     "responsibility": "Show node id",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -3511,14 +3456,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1513; canvas/src/hooks/store/uiSettingsSlice.ts:L361"
+    "lineRange": "canvas/src/hooks/store/uiSettingsSlice.ts:L361"
   },
   "graphHoverPreview.showNodeName": {
     "area": "Graph Hover Preview",
     "responsibility": "Show node name",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -3528,14 +3472,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1522; canvas/src/hooks/store/uiSettingsSlice.ts:L361"
+    "lineRange": "canvas/src/hooks/store/uiSettingsSlice.ts:L361"
   },
   "graphHoverPreview.showNodeLabel": {
     "area": "Graph Hover Preview",
     "responsibility": "Show node label",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -3545,14 +3488,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1531; canvas/src/hooks/store/uiSettingsSlice.ts:L361"
+    "lineRange": "canvas/src/hooks/store/uiSettingsSlice.ts:L361"
   },
   "graphHoverPreview.showNodeDescription": {
     "area": "Graph Hover Preview",
     "responsibility": "Show node description",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -3562,14 +3504,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1540; canvas/src/hooks/store/uiSettingsSlice.ts:L361"
+    "lineRange": "canvas/src/hooks/store/uiSettingsSlice.ts:L361"
   },
   "graphHoverPreview.showNodeProperties": {
     "area": "Graph Hover Preview",
     "responsibility": "Show node properties",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -3579,14 +3520,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1549; canvas/src/hooks/store/uiSettingsSlice.ts:L361"
+    "lineRange": "canvas/src/hooks/store/uiSettingsSlice.ts:L361"
   },
   "graphHoverPreview.showEdgeId": {
     "area": "Graph Hover Preview",
     "responsibility": "Show edge id",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -3596,14 +3536,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1558; canvas/src/hooks/store/uiSettingsSlice.ts:L361"
+    "lineRange": "canvas/src/hooks/store/uiSettingsSlice.ts:L361"
   },
   "graphHoverPreview.showEdgeLabel": {
     "area": "Graph Hover Preview",
     "responsibility": "Show edge label",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -3613,14 +3552,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1567; canvas/src/hooks/store/uiSettingsSlice.ts:L361"
+    "lineRange": "canvas/src/hooks/store/uiSettingsSlice.ts:L361"
   },
   "graphHoverPreview.showEdgeWeight": {
     "area": "Graph Hover Preview",
     "responsibility": "Show edge weight",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -3630,14 +3568,13 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1576; canvas/src/hooks/store/uiSettingsSlice.ts:L361"
+    "lineRange": "canvas/src/hooks/store/uiSettingsSlice.ts:L361"
   },
   "graphHoverPreview.showEdgeProperties": {
     "area": "Graph Hover Preview",
     "responsibility": "Show edge properties",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -3647,14 +3584,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.ts:L1585; canvas/src/hooks/store/uiSettingsSlice.ts:L361"
+    "lineRange": "canvas/src/hooks/store/uiSettingsSlice.ts:L361"
   },
   "three.camera.autoClip": {
     "area": "—",
     "responsibility": "auto clip",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -3664,14 +3601,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L10; canvas/src/hooks/store/uiSettingsSlice.ts:L257"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L10; canvas/src/hooks/store/uiSettingsSlice.ts:L258"
   },
   "three.camera.autoClipNearFactor": {
     "area": "—",
     "responsibility": "auto clip near factor",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -3681,14 +3618,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L19; canvas/src/hooks/store/uiSettingsSlice.ts:L259"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L19; canvas/src/hooks/store/uiSettingsSlice.ts:L260"
   },
   "three.camera.autoClipFarFactor": {
     "area": "—",
     "responsibility": "auto clip far factor",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -3698,14 +3635,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L28; canvas/src/hooks/store/uiSettingsSlice.ts:L261"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L28; canvas/src/hooks/store/uiSettingsSlice.ts:L262"
   },
   "three.iframeOverlay.sizeScaleFactor": {
     "area": "—",
     "responsibility": "size scale factor",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -3715,14 +3652,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L37; canvas/src/hooks/store/uiSettingsSlice.ts:L264"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L37; canvas/src/hooks/store/uiSettingsSlice.ts:L265"
   },
   "three.graph.edgeRenderer": {
     "area": "—",
     "responsibility": "edge renderer",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -3732,14 +3669,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L46; canvas/src/hooks/store/uiSettingsSlice.ts:L271"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L46; canvas/src/hooks/store/uiSettingsSlice.ts:L272"
   },
   "three.voxel.districts.enabled": {
     "area": "Voxel Mode",
     "responsibility": "Enable cluster district slabs in voxel mode",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -3749,14 +3686,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L60; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L60; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.voxel.districts.paddingCells": {
     "area": "Voxel Mode",
     "responsibility": "District padding in grid cells (world quantized)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -3766,14 +3703,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L69; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L69; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.voxel.districts.opacity": {
     "area": "Voxel Mode",
     "responsibility": "District slab opacity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -3783,14 +3720,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L78; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L78; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.voxel.bridges.tubeRadius": {
     "area": "Voxel Mode",
     "responsibility": "Bridge tube radius (TubeGeometry)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -3800,14 +3737,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L87; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L87; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.voxel.bridges.opacity": {
     "area": "Voxel Mode",
     "responsibility": "Bridge tube opacity baseline",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -3817,14 +3754,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L96; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L96; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.voxel.bridges.pulseStrength": {
     "area": "Voxel Mode",
     "responsibility": "Bridge tube pulse strength (opacity + emissive)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -3834,14 +3771,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L105; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L105; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.voxel.bridges.particles.enabled": {
     "area": "Voxel Mode",
     "responsibility": "Enable tube flow particles (instanced)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -3851,14 +3788,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L114; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L114; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.voxel.bridges.particles.density": {
     "area": "Voxel Mode",
     "responsibility": "Scale particles per bridge (bounded)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -3868,14 +3805,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L123; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L123; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.voxel.bridges.particles.speed": {
     "area": "Voxel Mode",
     "responsibility": "Flow particle speed along bridge curves",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -3885,14 +3822,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L132; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L132; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.shaderLineWidthPx": {
     "area": "—",
     "responsibility": "shader line width px",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -3902,14 +3839,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L141; canvas/src/hooks/store/uiSettingsSlice.ts:L277"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L141; canvas/src/hooks/store/uiSettingsSlice.ts:L278"
   },
   "three.selection.selectedNodeGlowIntensity": {
     "area": "3D Selection",
     "responsibility": "Selected node emissive glow intensity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -3919,14 +3856,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L150; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L150; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.selection.dimmedNodeOpacity": {
     "area": "3D Selection",
     "responsibility": "Dimmed unselected node opacity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -3936,14 +3873,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L163; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L163; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.selection.dimmedEdgeOpacity": {
     "area": "3D Selection",
     "responsibility": "Dimmed non‑selected edge opacity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -3953,14 +3890,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L176; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L176; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.selection.selectedEdgeWidth": {
     "area": "3D Selection",
     "responsibility": "Selected edge stroke width in 3D",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -3970,14 +3907,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L189; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L189; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.camera.backgroundColor": {
     "area": "Canvas Rendering",
     "responsibility": "3D canvas background color",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -3987,14 +3924,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L202; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L202; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.camera.fogColor": {
     "area": "—",
     "responsibility": "fog color",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4004,14 +3941,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L214; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L214; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.camera.fogNear": {
     "area": "—",
     "responsibility": "fog near",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4021,14 +3958,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L226; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L226; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.camera.fogFar": {
     "area": "—",
     "responsibility": "fog far",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4038,14 +3975,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L238; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L238; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.camera.dampingFactor": {
     "area": "—",
     "responsibility": "damping factor",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4055,14 +3992,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L250; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L250; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.camera.rotateSpeed": {
     "area": "—",
     "responsibility": "rotate speed",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4072,14 +4009,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L262; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L262; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.camera.zoomSpeed": {
     "area": "—",
     "responsibility": "zoom speed",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4089,14 +4026,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L274; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L274; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.camera.panSpeed": {
     "area": "—",
     "responsibility": "pan speed",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4106,14 +4043,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L286; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L286; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.camera.autoRotate": {
     "area": "—",
     "responsibility": "auto rotate",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4123,14 +4060,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L298; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L298; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.camera.autoRotateSpeed": {
     "area": "—",
     "responsibility": "auto rotate speed",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4140,14 +4077,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L310; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L310; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.linkDirectionalArrowLength": {
     "area": "3D Edges & Arrows",
     "responsibility": "Default 3D edge arrow length",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4157,14 +4094,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L322; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L322; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.linkOpacity": {
     "area": "3D Edges & Arrows",
     "responsibility": "Default 3D edge opacity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4174,14 +4111,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L334; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L334; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.linkCurvature": {
     "area": "3D Edges & Arrows",
     "responsibility": "Default 3D edge curvature",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4191,14 +4128,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L346; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L346; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.linkCurveRotation": {
     "area": "3D Edges & Arrows",
     "responsibility": "Default 3D curve rotation",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4208,14 +4145,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L358; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L358; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.linkDirectionalParticles": {
     "area": "3D Particles",
     "responsibility": "Default edge particle count",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4225,14 +4162,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L370; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L370; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.linkDirectionalParticleSpeed": {
     "area": "3D Particles",
     "responsibility": "Default edge particle speed",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4242,14 +4179,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L382; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L382; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.nodeSizingFormula": {
     "area": "3D Formulas",
     "responsibility": "Node sizing formula (schema or importance)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4259,14 +4196,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L396; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L396; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.edgeWidthFormula": {
     "area": "3D Formulas",
     "responsibility": "Edge width formula (schema or weight)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4276,14 +4213,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L412; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L412; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.layerOpacityByLayer.1": {
     "area": "3D Layers",
     "responsibility": "Layer 1 base opacity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part1.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4293,14 +4230,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L428; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part1.ts:L428; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.layerOpacityByLayer.2": {
     "area": "3D Layers",
     "responsibility": "Layer 2 base opacity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4310,14 +4247,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L445; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L10; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.layerOpacityByLayer.3": {
     "area": "3D Layers",
     "responsibility": "Layer 3 base opacity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4327,14 +4264,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L462; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L27; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.nodeMotionIntensity": {
     "area": "3D Motion",
     "responsibility": "Idle node motion intensity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4344,14 +4281,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L479; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L44; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.minimapOpacity": {
     "area": "3D Minimap",
     "responsibility": "3D minimap background opacity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4361,14 +4298,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L491; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L56; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.starfieldEnabled": {
     "area": "3D Background",
     "responsibility": "Enable 3D starfield particle background",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4378,14 +4315,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L503; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L68; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.starfieldCount": {
     "area": "3D Background",
     "responsibility": "Starfield particle count (0 disables)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4395,14 +4332,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L515; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L80; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.starfieldRadius": {
     "area": "3D Background",
     "responsibility": "Starfield radius around camera",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4412,14 +4349,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L527; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L92; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.starfieldOpacity": {
     "area": "3D Background",
     "responsibility": "Starfield particle brightness/opacity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4429,14 +4366,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L541; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L106; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.graph.starfieldColor": {
     "area": "3D Background",
     "responsibility": "Starfield particle tint color",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4446,14 +4383,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L553; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L118; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.sphereRadius": {
     "area": "3D Layout & Physics",
     "responsibility": "Base sphere radius for node layout",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4463,14 +4400,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L565; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L130; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.seed": {
     "area": "3D Layout & Physics",
     "responsibility": "Random seed for 3D layout",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4480,14 +4417,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L577; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L142; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.minSpacing": {
     "area": "3D Layout & Physics",
     "responsibility": "Minimum spacing between nodes",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4497,14 +4434,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L589; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L154; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelAnimationEnabled": {
     "area": "Voxel Mode",
     "responsibility": "Master on/off switch for all voxel animations",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4514,14 +4451,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L601; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L166; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelSeedScaleFactor": {
     "area": "—",
     "responsibility": "voxel seed scale factor",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4531,14 +4468,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L613; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L178; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelGridScaleFactor": {
     "area": "—",
     "responsibility": "voxel grid scale factor",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4548,14 +4485,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L625; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L190; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelLayerSpacing": {
     "area": "—",
     "responsibility": "voxel layer spacing",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4565,14 +4502,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L637; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L202; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelLayerPlateOpacity": {
     "area": "—",
     "responsibility": "voxel layer plate opacity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4582,14 +4519,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L649; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L214; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelLayerPlateRiseDurationMs": {
     "area": "—",
     "responsibility": "voxel layer plate rise duration (ms)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4599,14 +4536,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L661; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L226; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelLayerPlateRiseStaggerMs": {
     "area": "—",
     "responsibility": "voxel layer plate rise stagger (ms)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4616,14 +4553,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L673; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L238; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelClusterPulseStrength": {
     "area": "—",
     "responsibility": "voxel cluster pulse strength",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4633,14 +4570,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L685; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L250; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelEdgeHoverOpacity": {
     "area": "—",
     "responsibility": "voxel edge hover opacity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4650,14 +4587,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L697; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L262; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelIntroDelayMs": {
     "area": "—",
     "responsibility": "voxel intro delay (ms)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4667,14 +4604,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L709; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L274; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelIntroDurationMs": {
     "area": "—",
     "responsibility": "voxel intro duration (ms)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4684,14 +4621,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L721; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L286; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelDefaultYawDeg": {
     "area": "—",
     "responsibility": "voxel default yaw deg",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4701,14 +4638,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L733; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L298; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelDefaultTiltDeg": {
     "area": "—",
     "responsibility": "voxel default tilt deg",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4718,14 +4655,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L745; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L310; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelDefaultDistanceFactor": {
     "area": "—",
     "responsibility": "voxel default distance factor",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4735,14 +4672,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L757; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L322; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelDefaultTargetLift": {
     "area": "—",
     "responsibility": "voxel default target lift",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4752,14 +4689,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L769; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L334; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelGhostOpacity": {
     "area": "—",
     "responsibility": "voxel ghost opacity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4769,14 +4706,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L781; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L346; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelTopCapEmissiveIntensity": {
     "area": "—",
     "responsibility": "voxel top cap emissive intensity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4786,14 +4723,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L793; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L358; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelClusterLightIntensity": {
     "area": "—",
     "responsibility": "voxel cluster light intensity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4803,14 +4740,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L805; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L370; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelHubPulseStrength": {
     "area": "—",
     "responsibility": "voxel hub pulse strength",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4820,14 +4757,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L817; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L382; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelConceptFloatStrength": {
     "area": "—",
     "responsibility": "voxel concept float strength",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4837,14 +4774,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L829; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L394; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelIdleAutoRotateDelayMs": {
     "area": "—",
     "responsibility": "voxel idle auto rotate delay (ms)",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4854,14 +4791,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L841; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L406; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelIdleAutoRotateSpeed": {
     "area": "—",
     "responsibility": "voxel idle auto rotate speed",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4871,14 +4808,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L853; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L418; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelLabelsEnabled": {
     "area": "—",
     "responsibility": "voxel labels enabled",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4888,14 +4825,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L865; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L430; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelLabelOpacity": {
     "area": "—",
     "responsibility": "voxel label opacity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4905,14 +4842,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L877; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L442; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelLabelFontSizePx": {
     "area": "—",
     "responsibility": "voxel label font size px",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4922,14 +4859,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L889; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L454; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelLabelMaxChars": {
     "area": "—",
     "responsibility": "voxel label max chars",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part2.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4939,14 +4876,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L901; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part2.ts:L466; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelLabelShowOnHoverOnly": {
     "area": "—",
     "responsibility": "voxel label show on hover only",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4956,14 +4893,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L913; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L10; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.layout.voxelLabelLift": {
     "area": "—",
     "responsibility": "voxel label lift",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4973,14 +4910,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L925; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L22; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.effectsEnabled": {
     "area": "—",
     "responsibility": "effects enabled",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -4990,14 +4927,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L937; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L34; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.particleCount": {
     "area": "—",
     "responsibility": "particle count",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5007,14 +4944,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L949; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L46; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.atmosphereOpacity": {
     "area": "—",
     "responsibility": "atmosphere opacity",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5024,14 +4961,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L961; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L58; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.gridDensity": {
     "area": "—",
     "responsibility": "grid density",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5041,14 +4978,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L973; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L70; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.orbitRingCount": {
     "area": "—",
     "responsibility": "orbit ring count",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5058,14 +4995,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L985; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L82; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.toolNodeCount": {
     "area": "—",
     "responsibility": "tool node count",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5075,14 +5012,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L997; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L94; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.arcCount": {
     "area": "—",
     "responsibility": "arc count",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5092,14 +5029,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1009; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L106; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.arcTravelerCount": {
     "area": "—",
     "responsibility": "arc traveler count",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5109,14 +5046,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1021; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L118; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.autoRotateSpeed": {
     "area": "—",
     "responsibility": "auto rotate speed",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5126,14 +5063,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1033; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L130; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.cameraEllipseEnabled": {
     "area": "—",
     "responsibility": "camera ellipse enabled",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5143,14 +5080,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1045; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L142; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.cameraEllipseSpeed": {
     "area": "—",
     "responsibility": "camera ellipse speed",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5160,14 +5097,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1057; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L154; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.cameraEllipseRadiusXFactor": {
     "area": "—",
     "responsibility": "camera ellipse radius xfactor",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5177,14 +5114,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1069; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L166; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.cameraEllipseRadiusZFactor": {
     "area": "—",
     "responsibility": "camera ellipse radius zfactor",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5194,14 +5131,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1081; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L178; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.cameraEllipseHeightFactor": {
     "area": "—",
     "responsibility": "camera ellipse height factor",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5211,14 +5148,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1093; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L190; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.cameraEllipseFollow": {
     "area": "—",
     "responsibility": "camera ellipse follow",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5228,14 +5165,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1105; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L202; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.hubOrbitEnabled": {
     "area": "—",
     "responsibility": "hub orbit enabled",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5245,14 +5182,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1117; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L214; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.hubOrbitStrength": {
     "area": "—",
     "responsibility": "hub orbit strength",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5262,14 +5199,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1129; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L226; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.hubOrbitSpeed": {
     "area": "—",
     "responsibility": "hub orbit speed",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5279,14 +5216,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1141; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L238; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.hubOrbitRadiusFactor": {
     "area": "—",
     "responsibility": "hub orbit radius factor",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5296,14 +5233,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1153; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L250; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.sphereEllipsoidX": {
     "area": "—",
     "responsibility": "sphere ellipsoid x",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5313,14 +5250,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1165; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L262; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.sphereEllipsoidY": {
     "area": "—",
     "responsibility": "sphere ellipsoid y",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5330,14 +5267,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1177; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L274; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.sphereEllipsoidZ": {
     "area": "—",
     "responsibility": "sphere ellipsoid z",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5347,14 +5284,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1189; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L286; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.labelDepthFade": {
     "area": "—",
     "responsibility": "label depth fade",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5364,14 +5301,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1201; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L298; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.globe.labelBackfaceCulling": {
     "area": "—",
     "responsibility": "label backface culling",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/schemaSlice.ts"
     ],
     "classes": [],
@@ -5381,14 +5318,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1213; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L310; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "three.media.iframeOverlay.poolMax": {
     "area": "—",
     "responsibility": "pool max",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -5398,14 +5335,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1225; canvas/src/hooks/store/uiSettingsSlice.ts:L190"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L322; canvas/src/hooks/store/uiSettingsSlice.ts:L191"
   },
   "three.media.iframeOverlay.maxVisibleDefault": {
     "area": "—",
     "responsibility": "max visible default",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -5415,14 +5352,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1234; canvas/src/hooks/store/uiSettingsSlice.ts:L193"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L331; canvas/src/hooks/store/uiSettingsSlice.ts:L194"
   },
   "three.media.iframeOverlay.maxVisibleCompact": {
     "area": "—",
     "responsibility": "max visible compact",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -5432,14 +5369,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1243; canvas/src/hooks/store/uiSettingsSlice.ts:L196"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L340; canvas/src/hooks/store/uiSettingsSlice.ts:L197"
   },
   "three.media.iframeOverlay.maxDistanceDefault": {
     "area": "—",
     "responsibility": "max distance default",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -5449,14 +5386,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1252; canvas/src/hooks/store/uiSettingsSlice.ts:L199"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L349; canvas/src/hooks/store/uiSettingsSlice.ts:L200"
   },
   "three.media.iframeOverlay.maxDistanceCompact": {
     "area": "—",
     "responsibility": "max distance compact",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -5466,14 +5403,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1261; canvas/src/hooks/store/uiSettingsSlice.ts:L202"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L358; canvas/src/hooks/store/uiSettingsSlice.ts:L203"
   },
   "three.media.iframeOverlay.baseWidthRatioDefault": {
     "area": "—",
     "responsibility": "base width ratio default",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -5483,14 +5420,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1270; canvas/src/hooks/store/uiSettingsSlice.ts:L205"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L367; canvas/src/hooks/store/uiSettingsSlice.ts:L206"
   },
   "three.media.iframeOverlay.baseWidthRatioCompact": {
     "area": "—",
     "responsibility": "base width ratio compact",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -5500,14 +5437,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1279; canvas/src/hooks/store/uiSettingsSlice.ts:L208"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L376; canvas/src/hooks/store/uiSettingsSlice.ts:L209"
   },
   "three.media.iframeOverlay.baseWidthMinPxDefault": {
     "area": "—",
     "responsibility": "base width min px default",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -5517,14 +5454,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1288; canvas/src/hooks/store/uiSettingsSlice.ts:L211"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L385; canvas/src/hooks/store/uiSettingsSlice.ts:L212"
   },
   "three.media.iframeOverlay.baseWidthMinPxCompact": {
     "area": "—",
     "responsibility": "base width min px compact",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -5534,14 +5471,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1297; canvas/src/hooks/store/uiSettingsSlice.ts:L214"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L394; canvas/src/hooks/store/uiSettingsSlice.ts:L215"
   },
   "three.media.iframeOverlay.baseWidthMaxPxDefault": {
     "area": "—",
     "responsibility": "base width max px default",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -5551,14 +5488,14 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1306; canvas/src/hooks/store/uiSettingsSlice.ts:L217"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L403; canvas/src/hooks/store/uiSettingsSlice.ts:L218"
   },
   "three.media.iframeOverlay.baseWidthMaxPxCompact": {
     "area": "—",
     "responsibility": "base width max px compact",
     "notes": "",
     "modules": [
-      "canvas/src/features/settings/registry-three.ts",
+      "canvas/src/features/settings/registry-three.part3.ts",
       "canvas/src/hooks/store/uiSettingsSlice.ts"
     ],
     "classes": [],
@@ -5568,7 +5505,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.ts:L1315; canvas/src/hooks/store/uiSettingsSlice.ts:L220"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L412; canvas/src/hooks/store/uiSettingsSlice.ts:L221"
   },
   "three.preset.presentation3d": {
     "area": "3D Presets",
@@ -5588,7 +5525,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-presets.ts:L9; canvas/src/hooks/store/canvasSlice.ts:L372; canvas/src/hooks/store/schemaSlice.ts:L320"
+    "lineRange": "canvas/src/features/settings/registry-presets.ts:L9; canvas/src/hooks/store/canvasSlice.ts:L374; canvas/src/hooks/store/schemaSlice.ts:L324"
   },
   "CLICK_URL": {
     "area": "Config Constants",

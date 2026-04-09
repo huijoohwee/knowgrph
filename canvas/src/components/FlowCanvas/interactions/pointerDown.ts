@@ -10,7 +10,6 @@ import {
 } from '@/components/FlowCanvas/nativeRuntime'
 import { cancelFlowZoomRequestAnim } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { readAllowGroupResize } from '@/lib/canvas/groupResizePolicy'
-import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { lockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
@@ -258,7 +257,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
       let groupAabbForHeader: { minX: number; minY: number; maxX: number; maxY: number } | null = null
       if (allowGroupResize) {
         const scene = runtime.scene
-        const group = scene?.groups?.find(g => String(g.id || '') === groupHit) || null
+        const group = scene?.groups?.find(g => String(g.id || '').trim() === String(groupHit || '').trim()) || null
         if (scene && group) {
           const gCfg = runtime.presentation.groups
           const paddingPx = Math.max(0, gCfg.paddingPx)
@@ -266,15 +265,11 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
           const aabb = computeFlowGroupAabb({ scene, group, paddingPx, labelTopExtraPx })
           groupAabbForHeader = aabb ? { ...aabb } : null
           if (aabb) {
-            const autoAabb = (() => {
-              const clone = { ...(group as unknown as Record<string, unknown>), bounds: undefined } as unknown as GraphGroup
-              return computeFlowGroupAabb({ scene, group: clone, paddingPx, labelTopExtraPx })
-            })()
             const handleCfg = runtime.presentation.groups.resizeHandle || readGroupResizeHandleConfig(state.schema)
             const min = computeMinGroupResizeSize({
               minBoundsSizePx: handleCfg.minBoundsSizePx,
               explicitBounds: { x: aabb.minX, y: aabb.minY, w: aabb.maxX - aabb.minX, h: aabb.maxY - aabb.minY },
-              autoBounds: autoAabb ? { x: autoAabb.minX, y: autoAabb.minY, w: autoAabb.maxX - autoAabb.minX, h: autoAabb.maxY - autoAabb.minY } : null,
+              autoBounds: null,
             })
             const minWidth = min.minW
             const minHeight = min.minH
@@ -341,7 +336,7 @@ export function createFlowNativePointerDownHandler(ctx: FlowNativeInteractionsCo
       }
 
       const scene = runtime.scene
-      const group = scene?.groups?.find(g => String(g.id || '') === groupHit) || null
+      const group = scene?.groups?.find(g => String(g.id || '').trim() === String(groupHit || '').trim()) || null
       if (scene && group) {
         const membersRaw = Array.isArray(group.memberNodeIds) ? group.memberNodeIds : []
         const memberNodeIds = membersRaw.map(v => String(v || '').trim()).filter(Boolean)

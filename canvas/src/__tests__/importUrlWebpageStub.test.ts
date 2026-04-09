@@ -1,8 +1,10 @@
 import { fetchWorkspaceUrlContent } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
 import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
 import { buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
+import { resetWorkspaceUrlContentCacheForTests } from '@/components/BottomPanel/markdownWorkspace/workspaceImport/urlContentCache'
 
 export const testImportUrlWebpageCreatesHtmlFrontmatterStub = async () => {
+  resetWorkspaceUrlContentCacheForTests()
   const res = await fetchWorkspaceUrlContent('https://grapesjs.com/pricing')
   if (!res || typeof res.text !== 'string') throw new Error('missing content')
   const text = res.text
@@ -16,6 +18,7 @@ export const testImportUrlWebpageCreatesHtmlFrontmatterStub = async () => {
 }
 
 export const testImportUrlWebpageRefreshUsesSourceFaithfulForMultipleUrls = async () => {
+  resetWorkspaceUrlContentCacheForTests()
   const urls = [
     'https://grapesjs.com/pricing',
     'https://example.com/',
@@ -67,6 +70,7 @@ export const testImportUrlWebpageRefreshUsesSourceFaithfulForMultipleUrls = asyn
 }
 
 export const testImportUrlWebpagePostprocessCoalescesNavAndAvoidsSyntheticArtifacts = async () => {
+  resetWorkspaceUrlContentCacheForTests()
   const upstream = [
     '# Pencil',
     '',
@@ -111,6 +115,7 @@ export const testImportUrlWebpagePostprocessCoalescesNavAndAvoidsSyntheticArtifa
 }
 
 export const testImportUrlSubstackDefaultsToMarkdownViewAndHasBody = async () => {
+  resetWorkspaceUrlContentCacheForTests()
   const url = 'https://www.citriniresearch.com/p/2028gic'
   const htmlBody = [
     '<!doctype html>',

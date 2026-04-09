@@ -274,7 +274,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   const [pinnedTopPx, setPinnedTopPx] = React.useState<number>(() => resolveFloatingPos(quickEditorPos, defaultFloatingPos).top)
   const [pinnedLeftPx, setPinnedLeftPx] = React.useState<number>(() => resolveFloatingPos(quickEditorPos, defaultFloatingPos).left)
 
-  React.useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const pos = resolveFloatingPos(quickEditorPos, defaultFloatingPos)
     setPinnedTopPx(prev => (prev === pos.top ? prev : pos.top))
     setPinnedLeftPx(prev => (prev === pos.left ? prev : pos.left))
@@ -373,19 +373,19 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   const scheduleClampCommit = React.useCallback((next: { top: number; left: number }) => {
     if (pendingClampCommitRef.current != null) {
       try {
-        clearTimeout(pendingClampCommitRef.current)
+        cancelAnimationFrame(pendingClampCommitRef.current)
       } catch {
         void 0
       }
     }
-    pendingClampCommitRef.current = setTimeout(() => {
+    pendingClampCommitRef.current = requestAnimationFrame(() => {
       pendingClampCommitRef.current = null
       if (!floatingRef.current) return
       if (pinnedTopPx === next.top && pinnedLeftPx === next.left) return
       setPinnedTopPx(prev => (prev === next.top ? prev : next.top))
       setPinnedLeftPx(prev => (prev === next.left ? prev : next.left))
       persistFloatingPos(next)
-    }, 140) as unknown as number
+    })
   }, [persistFloatingPos, pinnedLeftPx, pinnedTopPx])
 
   const applyOverlayPosition = React.useCallback(() => {

@@ -7,7 +7,8 @@ const isEditableTarget = (target: EventTarget | null): boolean => {
   if (tag === 'input' || tag === 'textarea' || tag === 'select') return true
   const attr = el.getAttribute?.('contenteditable')
   if (attr && String(attr).toLowerCase() !== 'false') return true
-  return Boolean(el.closest?.('input,textarea,select,[contenteditable="true"],[contenteditable=""]'))
+  if (typeof el.closest !== 'function') return false
+  return Boolean(el.closest('input,textarea,select,[contenteditable="true"],[contenteditable=""]'))
 }
 
 export function useHeldKey(args: { enabled: boolean; key: string }) {

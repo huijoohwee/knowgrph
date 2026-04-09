@@ -1,49 +1,23 @@
 import React from 'react'
-
 import { useShallow } from 'zustand/react/shallow'
-
 import { useGraphStore } from '@/hooks/useGraphStore'
-import {
-  FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY,
-  FLOW_VIDEO_GENERATION_NODE_LABEL,
-  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-  UI_COPY,
-  UI_LABELS,
-} from '@/lib/config'
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY, FLOW_VIDEO_GENERATION_NODE_LABEL, FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { normalized as normalizeText } from '@/features/panels/utils/json'
-import { cn } from '@/lib/utils'
 import { pickFilesWithExtensions } from '@/lib/graph/filePicker'
 import { downloadBlob } from '@/lib/graph/save'
 import { buildNodeQuickEditorBundleV1, nodeQuickEditorBundleToJsonBlob } from '@/lib/graph/io/nodeQuickEditorBundle'
 import { normalizeNodeQuickEditorRegistryEntries, validateNodeQuickEditorRegistryEntry } from '@/hooks/store/flowEditorManagerSlice'
 import { tryParseQuickEditorImportGraphData } from '@/lib/graph/io/quickEditorImport'
 import { createUniqueId } from '@/lib/ids'
-import {
-  buildGenerateVideoRegistryDraft,
-  buildNodeQuickEditorDraftFromSmartFields,
-} from '@/features/flow-editor-manager/registryTemplates'
-import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
-import {
-  FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
-  FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
-} from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
-
+import { buildGenerateVideoRegistryDraft, buildNodeQuickEditorDraftFromSmartFields } from '@/features/flow-editor-manager/registryTemplates'
+import { FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY, FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY, resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
-import NodeQuickEditorRegistryTable from '@/features/flow-editor-manager/NodeQuickEditorRegistryTable'
-import { FlowEditorMappingSettingsPanel } from '@/features/flow-editor-manager/FlowEditorMappingSettingsPanel'
 import { applyMappingRowsToRegistryEntry, buildMappingRowsFromRegistryEntry, validateMappingRows, type FlowEditorMappingRow } from '@/features/flow-editor-manager/mappingRows'
 import { patchById } from 'grph-shared/array/patchArrayItem'
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
-}
-
-export default function FlowEditorMappingTab({
-  searchQuery,
-  onRegisterActions,
-}: {
+import { FlowEditorMappingTabLayout } from '@/features/flow-editor-manager/FlowEditorMappingTabLayout'
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
+export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }: {
   searchQuery: string
   onRegisterActions?: (actions: {
     apply?: () => void
@@ -586,104 +560,38 @@ export default function FlowEditorMappingTab({
   }, [editorMode, isDirty, onRegisterActions])
 
   return (
-    <section className="h-full min-h-0 flex flex-col" aria-label="Flow Editor Mapping">
-      <header className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.border}`}>
-        <nav className="flex flex-wrap items-center justify-between gap-2" aria-label="Mapping actions">
-          <label className={`inline-flex items-center gap-2 ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`}>
-            <input type="checkbox" checked={enabledOnly} onChange={e => setEnabledOnly(e.target.checked)} />
-            Enabled only
-          </label>
-          <menu className="m-0 p-0 list-none flex flex-wrap items-center gap-1" aria-label="Mapping toolbar">
-            <li>
-              <button type="button" className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`} onClick={importRegistryFromJson} title={UI_COPY.flowEditorManagerImportRegistryTooltip}>
-                {UI_LABELS.import}
-              </button>
-            </li>
-            <li>
-              <button type="button" className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`} onClick={exportRegistryAsJson} title={selected ? UI_COPY.flowEditorManagerExportRegistryTooltip : UI_COPY.flowEditorManagerExportRegistrySelectToExportTooltip}>
-                {UI_LABELS.export}
-              </button>
-            </li>
-            <li>
-              <button type="button" className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`} onClick={openCreateFromNodeQuickEditor} title={UI_COPY.flowEditorManagerAddFromQuickEditorTooltip}>
-                {UI_LABELS.addFromQuickEditor}
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                onClick={registerSelectedNodeTypeFromSelection}
-                title={UI_COPY.flowEditorManagerRegisterSelectedNodeTypeTooltip}
-              >
-                {UI_LABELS.registerNodeType}
-              </button>
-            </li>
-            <li>
-              <button type="button" className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`} onClick={registerGenerateVideoFromSelection} title={UI_COPY.flowEditorManagerRegisterGenerateVideoTooltip}>
-                {UI_LABELS.registerGenerateVideo}
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                onClick={applySelectedMappingToSelectedNode}
-                title={UI_COPY.flowEditorManagerApplySelectedMappingToNodeTooltip}
-              >
-                {UI_LABELS.applyToNode}
-              </button>
-            </li>
-            <li>
-              <button type="button" className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`} onClick={() => openCreate(null)}>
-                {UI_LABELS.add} mapping
-              </button>
-            </li>
-          </menu>
-        </nav>
-      </header>
-
-      <section className="flex-1 min-h-0 overflow-hidden" aria-label="Mapping content">
-        <section className="h-full min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_520px]" aria-label="Mapping layout">
-          <section className="min-h-0 overflow-hidden" aria-label="Mapping list">
-            <NodeQuickEditorRegistryTable
-              entries={filtered}
-              selectedId={selectedId}
-              onSelect={handleSelect}
-              onToggleEnabled={toggleNodeQuickEditorRegistryEntryEnabled}
-              emptyLabel={emptyLabel}
-            />
-          </section>
-          <section
-            className={cn(`min-h-0 border-l ${UI_THEME_TOKENS.panel.border} overflow-hidden p-3`, 'hidden lg:block')}
-            aria-label="Edit mapping panel"
-          >
-            <FlowEditorMappingSettingsPanel
-              mode={editorMode}
-              draft={{
-                id: editorDraft.id,
-                isEnabled: editorDraft.isEnabled,
-                nodeTypeId: editorDraft.nodeTypeId,
-                quickEditorTypeId: editorDraft.quickEditorTypeId,
-                formId: editorDraft.formId,
-              }}
-              rows={editorRows}
-              error={editorError}
-              uiIconScale={uiIconScale}
-              uiIconStrokeWidth={uiIconStrokeWidth}
-              onClose={closeEditor}
-              onChangeDraft={patch => setEditorDraft(prev => ({ ...prev, ...patch }))}
-              onAddRow={addEditorRow}
-              onReset={resetEditor}
-              onSave={saveEditor}
-              onDelete={deleteEditor}
-              onChangeRow={updateEditorRow}
-              onDeleteRow={deleteEditorRow}
-              onReorderRow={reorderEditorRow}
-            />
-          </section>
-        </section>
-      </section>
-    </section>
+    <FlowEditorMappingTabLayout
+      panelTypographyMicroLabelClass={panelTypography.microLabelClass}
+      enabledOnly={enabledOnly}
+      setEnabledOnly={setEnabledOnly}
+      importRegistryFromJson={importRegistryFromJson}
+      exportRegistryAsJson={exportRegistryAsJson}
+      selectedExists={!!selected}
+      openCreateFromNodeQuickEditor={openCreateFromNodeQuickEditor}
+      registerSelectedNodeTypeFromSelection={registerSelectedNodeTypeFromSelection}
+      registerGenerateVideoFromSelection={registerGenerateVideoFromSelection}
+      applySelectedMappingToSelectedNode={applySelectedMappingToSelectedNode}
+      openCreate={() => openCreate(null)}
+      filtered={filtered}
+      selectedId={selectedId}
+      handleSelect={handleSelect}
+      toggleNodeQuickEditorRegistryEntryEnabled={toggleNodeQuickEditorRegistryEntryEnabled}
+      emptyLabel={emptyLabel}
+      editorMode={editorMode}
+      editorDraft={editorDraft}
+      editorRows={editorRows}
+      editorError={editorError}
+      uiIconScale={uiIconScale}
+      uiIconStrokeWidth={uiIconStrokeWidth}
+      closeEditor={closeEditor}
+      setEditorDraft={setEditorDraft}
+      addEditorRow={addEditorRow}
+      resetEditor={resetEditor}
+      saveEditor={saveEditor}
+      deleteEditor={deleteEditor}
+      updateEditorRow={updateEditorRow}
+      deleteEditorRow={deleteEditorRow}
+      reorderEditorRow={reorderEditorRow}
+    />
   )
 }

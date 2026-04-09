@@ -398,3 +398,94 @@ export const testComputingDataFlowsDemoBundleParsesAndComputes = () => {
   if (!css) throw new Error('expected derived mapping at properties.color')
   if (css.value !== 'rgb(255, 0, 128)') throw new Error(`expected properties.color to be rgb(255, 0, 128), got ${String(css.value)}`)
 }
+
+export const testFlowDataflowConnectedValuesFlowComputeFunction = () => {
+  const graphData = {
+    type: 'GraphData',
+    nodes: [
+      {
+        id: 'src',
+        type: 'input',
+        label: 'Source',
+        properties: {
+          data: { urls: ['https://demo.local/a', 'https://demo.local/b'] },
+          [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default',
+          [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'src',
+        },
+      },
+      {
+        id: 'transform',
+        type: 'default',
+        label: 'Transform',
+        properties: {
+          'flow:compute': '(inputs) => ({ demos: (Array.isArray(inputs.urls) ? inputs.urls : [inputs.urls]).filter(Boolean).map((url) => ({ url, extracted: true })) })',
+          [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default',
+          [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'transform',
+        },
+      },
+      {
+        id: 'sink',
+        type: 'output',
+        label: 'Sink',
+        properties: {
+          [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default',
+          [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'sink',
+        },
+      },
+    ],
+    edges: [
+      { id: 'e1', source: 'src', target: 'transform', properties: { 'flow:sourcePortKey': 'urls', 'flow:targetPortKey': 'urls' } },
+      { id: 'e2', source: 'transform', target: 'sink', properties: { 'flow:sourcePortKey': 'demos', 'flow:targetPortKey': 'demos' } },
+    ],
+  }
+  const registry = [
+    {
+      id: 'q-src',
+      isEnabled: true,
+      nodeTypeId: 'input',
+      quickEditorTypeId: 'default',
+      formId: 'src',
+      fields: [],
+      ports: [{ portKey: 'urls', direction: 'output' as const, schemaPath: 'properties.data.urls' }],
+      schemaMappings: [],
+      updatedAt: '2026-04-08T00:00:00.000Z',
+    },
+    {
+      id: 'q-transform',
+      isEnabled: true,
+      nodeTypeId: 'default',
+      quickEditorTypeId: 'default',
+      formId: 'transform',
+      fields: [],
+      ports: [
+        { portKey: 'urls', direction: 'input' as const, schemaPath: 'properties.data.urls' },
+        { portKey: 'demos', direction: 'output' as const, schemaPath: 'properties.data.demos' },
+      ],
+      schemaMappings: [],
+      updatedAt: '2026-04-08T00:00:00.000Z',
+    },
+    {
+      id: 'q-sink',
+      isEnabled: true,
+      nodeTypeId: 'output',
+      quickEditorTypeId: 'default',
+      formId: 'sink',
+      fields: [],
+      ports: [{ portKey: 'demos', direction: 'input' as const, schemaPath: 'properties.data.demos' }],
+      schemaMappings: [],
+      updatedAt: '2026-04-08T00:00:00.000Z',
+    },
+  ]
+
+  const byNodeId = computeFlowConnectedValuesBySchemaPath({
+    graphData: graphData as never,
+    registry,
+    targetNodeIds: new Set(['sink']),
+  })
+  const sink = byNodeId.get('sink')
+  if (!sink) throw new Error('expected connected values for sink')
+  const demos = sink['properties.data.demos']
+  if (!demos) throw new Error('expected properties.data.demos value for sink')
+  if (!Array.isArray(demos.value)) throw new Error('expected sink demos to be an array')
+  if ((demos.value as Array<unknown>).length !== 2) throw new Error('expected sink demos length 2')
+}

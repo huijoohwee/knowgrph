@@ -43,3 +43,19 @@ export function testFrontmatterModeEffectiveWhenSeedsExist() {
   const nodeIds = new Set((filtered.nodes || []).map(n => String(n.id)))
   if (!nodeIds.has('m1') || !nodeIds.has('n1')) throw new Error('expected seed and reachable node to be included')
 }
+
+export function testFrontmatterModeEffectiveForFrontmatterFlowGraphWithoutMermaidSeeds() {
+  const graphData: GraphData = {
+    type: 'graph',
+    context: 'frontmatter-flow',
+    metadata: { kind: 'frontmatter-flow' },
+    nodes: [{ id: 'n-flow', type: 'default', label: 'flow node', properties: {} }],
+    edges: [],
+  }
+  const effective = computeEffectiveFrontmatterMode({
+    frontmatterModeEnabled: true,
+    documentSemanticMode: 'document',
+    graphData,
+  })
+  if (effective !== true) throw new Error('expected frontmatter mode to be effective for frontmatter-flow graph context')
+}

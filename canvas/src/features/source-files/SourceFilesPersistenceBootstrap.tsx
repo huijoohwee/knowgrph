@@ -10,6 +10,11 @@ import {
 import { applyComposedGraphFromSourceFiles, scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import {
+  WORKSPACE_SYNC_SCOPE_SOURCE_FILES_RUNTIME_PERSISTENCE,
+  WORKSPACE_SYNC_TASK_SOURCE_FILES_PERSIST,
+  WORKSPACE_SYNC_TASK_SOURCE_FILES_WORKSPACE,
+} from '@/lib/async/workspaceSyncKeys'
 
 const sourceFileTextHashCache = new WeakMap<object, string>()
 
@@ -56,6 +61,7 @@ const sourceFilesSignature = (value: unknown): string => {
 }
 
 export function SourceFilesPersistenceBootstrap() {
+  const runtimePersistenceScopeKey = WORKSPACE_SYNC_SCOPE_SOURCE_FILES_RUNTIME_PERSISTENCE
   const hydratedRef = React.useRef(false)
   const lastPersistedRef = React.useRef<unknown>(null)
   const workspaceHydratedRef = React.useRef(false)
@@ -118,7 +124,7 @@ export function SourceFilesPersistenceBootstrap() {
   }, [])
 
   React.useEffect(() => {
-    const taskKey = 'source-files:persist'
+    const taskKey = WORKSPACE_SYNC_TASK_SOURCE_FILES_PERSIST
     const unsubscribe = useGraphStore.subscribe(
       s => s.sourceFiles,
       next => {
@@ -137,7 +143,7 @@ export function SourceFilesPersistenceBootstrap() {
           if (arraysEqualByIdAndHash(snapshot, lastPersistedRef.current)) return
           lastPersistedRef.current = snapshot
           void persistSourceFiles(snapshot)
-        }, 600, { signature })
+        }, 600, { signature, scopeKey: runtimePersistenceScopeKey })
       },
       { equalityFn: arraysEqualByIdAndHash },
     )
@@ -158,7 +164,7 @@ export function SourceFilesPersistenceBootstrap() {
   }, [])
 
   React.useEffect(() => {
-    const taskKey = 'source-files:workspace'
+    const taskKey = WORKSPACE_SYNC_TASK_SOURCE_FILES_WORKSPACE
     const unsubscribe = useGraphStore.subscribe(
       s => [s.localMarkdownFolderName, s.localMarkdownFolderAccessMode, s.localMarkdownFolderCacheId, s.localMarkdownSelectedFolderPath],
       () => {
@@ -196,7 +202,7 @@ export function SourceFilesPersistenceBootstrap() {
           }
           lastWorkspacePersistedRef.current = nextSnapshot
           void persistSourceFilesWorkspace(nextSnapshot)
-        }, 600, { signature })
+        }, 600, { signature, scopeKey: runtimePersistenceScopeKey })
       },
       {
         equalityFn: (a, b) => {

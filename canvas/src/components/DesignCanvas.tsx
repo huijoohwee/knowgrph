@@ -3,6 +3,7 @@ import * as d3 from 'd3'
 import { useShallow } from 'zustand/react/shallow'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import type { DesignFramePos, DesignFrameSize } from '@/hooks/store/designRendererSlice'
 import { useContainerDims } from '@/hooks/useContainerDims'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
@@ -58,9 +59,13 @@ import { applyMediaProxySrc, resolveUrlAgainstBase } from '@/lib/url'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { readAllowGroupResize } from '@/lib/canvas/groupResizePolicy'
 import { readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfig'
+import type { DesignLayerState } from '@/features/design/designLayersState'
 
 const EMPTY_STRING_ARRAY: string[] = []
 const EMPTY_UNKNOWN_RECORD: Record<string, unknown> = {}
+const EMPTY_DESIGN_LAYER_STATE: DesignLayerState = { order: [], hiddenById: {} }
+const EMPTY_DESIGN_FRAME_POS_BY_ID: Record<string, DesignFramePos> = {}
+const EMPTY_DESIGN_FRAME_SIZE_BY_ID: Record<string, DesignFrameSize> = {}
 import { buildDeepestGroupRectByNodeId, buildGroupRectByIdFromSchemaOverrides } from '@/lib/canvas/groupExplicitBounds'
 import { clampDelta, computeDeltaClampForTopLeftNodes, type DeltaClamp, type RectBounds } from '@/lib/canvas/groupContainment'
 import { commitGroupBoundsOverrideToStore } from '@/lib/canvas/groupBoundsOverridesStore'
@@ -269,10 +274,10 @@ export default function DesignCanvas({
           selectedGroupId: null,
           viewportControlsPreset: s.viewportControlsPreset,
           canvasPointerMode2d: (s as unknown as { canvasPointerMode2d?: unknown }).canvasPointerMode2d,
-          designLayerState: (s as unknown as { designLayerState?: unknown }).designLayerState,
+          designLayerState: EMPTY_DESIGN_LAYER_STATE,
           designWireframeCacheEpoch: 0,
-          designFramePosById: EMPTY_UNKNOWN_RECORD,
-          designFrameSizeById: EMPTY_UNKNOWN_RECORD,
+          designFramePosById: EMPTY_DESIGN_FRAME_POS_BY_ID,
+          designFrameSizeById: EMPTY_DESIGN_FRAME_SIZE_BY_ID,
           setDesignFramePosMany: s.setDesignFramePosMany,
           setDesignFrameSizeMany: s.setDesignFrameSizeMany,
           setDesignRendererNodes: s.setDesignRendererNodes,

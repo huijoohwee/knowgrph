@@ -156,7 +156,7 @@ export const defaultSchema: GraphSchema = {
   nodeShapes: { Image: 'rect' },
   edgeRouting: { mode: 'straight', curvatureByLabel: {} },
   layout: {
-    mode: 'radial',
+    mode: 'block',
     edges: {
       type: 'bezier',
       opacity: DEFAULT_EDGE_OPACITY_2D,

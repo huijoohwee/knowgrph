@@ -8,6 +8,7 @@ import type { GraphData, JSONValue } from '@/lib/graph/types'
 import type { StoreApi } from 'zustand';
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
+import { coerceCanvas2dRendererForSchema } from '@/lib/canvas/renderModeConstraints'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -145,12 +146,15 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
     set({ schema: next, schemaBySemanticMode: nextByMode, zoomStateByKey, canvas3dMode: nextCanvas3dMode })
     if (documentSemanticMode === 'document') writeSchemaToStorage(getLocalStorage(), next)
 
-    if (nextMode === 'radial') {
-      const curRenderer = get().canvas2dRenderer
-      if (curRenderer !== 'd3' && curRenderer !== 'd3Bipartite') {
-        const setCanvas2dRenderer = get().setCanvas2dRenderer
-        if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer('d3')
-      }
+    const stateAfterSchemaSet = get()
+    const nextRenderer = coerceCanvas2dRendererForSchema({
+      requested: stateAfterSchemaSet.canvas2dRenderer,
+      canvas3dMode: stateAfterSchemaSet.canvas3dMode,
+      schema: next,
+    })
+    if (nextRenderer !== stateAfterSchemaSet.canvas2dRenderer) {
+      const setCanvas2dRenderer = stateAfterSchemaSet.setCanvas2dRenderer
+      if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer(nextRenderer)
     }
   }
 

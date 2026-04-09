@@ -52,6 +52,7 @@ export function normalizeDesignLayerState(args: {
   const prevHidden = prev.hiddenById && typeof prev.hiddenById === 'object' ? prev.hiddenById : {}
   for (const id of outOrder) {
     if (prevHidden[id] === true) nextHiddenById[id] = true
+    else if (prevHidden[id] === false) nextHiddenById[id] = false
   }
 
   return { order: outOrder, hiddenById: nextHiddenById }
@@ -63,7 +64,7 @@ export function toggleDesignLayerHidden(hiddenById: Record<string, boolean>, id:
   const cur = hiddenById && typeof hiddenById === 'object' ? hiddenById : {}
   const next = { ...cur }
   if (cur[key] === true) {
-    delete next[key]
+    next[key] = false
   } else {
     next[key] = true
   }

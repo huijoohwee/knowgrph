@@ -43,6 +43,7 @@ import { LRUCache } from '@/lib/cache/LRUCache'
 import type { JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
 import { tryBuildJsonMarkdownTablesFromText } from '@/features/markdown/jsonToMarkdownDocument'
 import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import { WORKSPACE_SYNC_SCOPE_MARKDOWN_WORKSPACE_DATAVIEW_RUNTIME_PERSISTENCE } from '@/lib/async/workspaceSyncKeys'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 
 export type MarkdownWorkspaceDerivedViewerKind = 'markdown' | 'html' | 'json'
@@ -271,7 +272,10 @@ export function MarkdownWorkspaceDerivedViewer(props: {
     )
     scheduleWorkspaceSyncTask(taskKey, () => {
       writeWorkspaceDataViewConfig({ activeDocumentPath: docPath, tableId, value })
-    }, 200, { signature })
+    }, 200, {
+      signature,
+      scopeKey: WORKSPACE_SYNC_SCOPE_MARKDOWN_WORKSPACE_DATAVIEW_RUNTIME_PERSISTENCE,
+    })
 
     return () => {
       cancelWorkspaceSyncTask(taskKey)

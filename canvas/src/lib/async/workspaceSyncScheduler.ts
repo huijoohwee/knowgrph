@@ -15,8 +15,11 @@ export type WorkspaceSyncTaskOptions = {
 
 const pendingWorkspaceSyncTasks = new Map<string, WorkspaceSyncTaskEntry>()
 const lastExecutedWorkspaceSyncTaskSignature = new Map<string, string>()
+const pendingWorkspaceSyncSignatureOwner = new Map<string, string>()
 let workspaceSyncFlushScheduled = false
 let workspaceSyncFlushDelayMs = 0
+
+const signatureOwnerKey = (scopeKey: string, signature: string): string => `${scopeKey}::${signature}`
 
 const setLastExecutedSignature = (key: string, signature: string): void => {
   if (!key || !signature) return
@@ -45,13 +48,23 @@ const flushWorkspaceSyncTasks = (): void => {
 
   const run = [...pendingWorkspaceSyncTasks.entries()]
   pendingWorkspaceSyncTasks.clear()
+  pendingWorkspaceSyncSignatureOwner.clear()
+  const executedSignatures = new Set<string>()
 
   for (let i = 0; i < run.length; i += 1) {
     const [taskName, task] = run[i]
+    const signature = task.signature
+    const scopeKey = task.scopeKey || taskName
+    if (signature) {
+      const token = signatureOwnerKey(scopeKey, signature)
+      if (executedSignatures.has(token)) continue
+      if (lastExecutedWorkspaceSyncTaskSignature.get(scopeKey) === signature) continue
+      executedSignatures.add(token)
+    }
     try {
       task.fn()
-      if (task.signature) {
-        setLastExecutedSignature(task.scopeKey || taskName, task.signature)
+      if (signature) {
+        setLastExecutedSignature(scopeKey, signature)
       }
     } catch {
       void 0
@@ -75,8 +88,23 @@ export const scheduleWorkspaceSyncTask = (
   const signatureRaw = typeof options?.signature === 'string' ? options.signature : null
   const signature = signatureRaw && signatureRaw.length > 0 ? signatureRaw : null
   if (signature && lastExecutedWorkspaceSyncTaskSignature.get(scopeKey) === signature) return
+  if (signature) {
+    const token = signatureOwnerKey(scopeKey, signature)
+    const ownerTaskKey = pendingWorkspaceSyncSignatureOwner.get(token)
+    if (ownerTaskKey && ownerTaskKey !== key) {
+      pendingWorkspaceSyncTasks.delete(ownerTaskKey)
+    }
+    pendingWorkspaceSyncSignatureOwner.set(token, key)
+  }
 
   const entry = getOrCreatePendingTaskEntry(key)
+  if (entry.signature) {
+    const prevToken = signatureOwnerKey(entry.scopeKey || key, entry.signature)
+    const ownerTaskKey = pendingWorkspaceSyncSignatureOwner.get(prevToken)
+    if (ownerTaskKey === key) {
+      pendingWorkspaceSyncSignatureOwner.delete(prevToken)
+    }
+  }
   entry.fn = fn
   entry.signature = signature
   entry.scopeKey = scopeKey
@@ -94,8 +122,17 @@ export const scheduleWorkspaceSyncTask = (
 
 export const cancelWorkspaceSyncTask = (taskKey: string): void => {
   const key = String(taskKey || '').trim() || 'default'
+  const pending = pendingWorkspaceSyncTasks.get(key)
+  if (pending?.signature) {
+    const token = signatureOwnerKey(pending.scopeKey || key, pending.signature)
+    const ownerTaskKey = pendingWorkspaceSyncSignatureOwner.get(token)
+    if (ownerTaskKey === key) {
+      pendingWorkspaceSyncSignatureOwner.delete(token)
+    }
+  }
   pendingWorkspaceSyncTasks.delete(key)
   if (pendingWorkspaceSyncTasks.size > 0) return
+  pendingWorkspaceSyncSignatureOwner.clear()
   workspaceSyncFlushScheduled = false
   workspaceSyncFlushDelayMs = 0
   cancelCoalescedTask(WORKSPACE_SYNC_SCHEDULER_KEY)

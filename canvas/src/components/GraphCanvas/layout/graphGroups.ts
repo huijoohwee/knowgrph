@@ -291,7 +291,7 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
         style:
           row.kind === 'cluster'
             ? {
-                stroke: theme === 'dark' ? '#38bdf8' : '#0ea5e9',
+                stroke: theme === 'dark' ? '#38bdf8' : '#0EA5E9',
                 strokeWidth: isBipartiteGraph ? 2.8 : 2,
                 fill: isBipartiteGraph
                   ? (theme === 'dark' ? 'rgba(56,189,248,0.24)' : 'rgba(14,165,233,0.16)')

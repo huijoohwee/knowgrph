@@ -120,9 +120,9 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modMarkdownValidationExternalFile()
     await mod.testMarkdownValidationExternalFileParsesAndLinksGraphElements()
   })
-  await execTest(results, 'flow.groupAabb.explicitBoundsStillContainMembers', async () => {
+  await execTest(results, 'flow.groupAabb.explicitBoundsRemainStable', async () => {
     const mod = await modFlowGroupAabbIncludesMembersWhenBoundsExplicit()
-    await mod.testFlowGroupAabbIncludesMembersWhenBoundsExplicit()
+    await mod.testFlowGroupAabbPrefersExplicitBoundsWhenBoundsExist()
   })
   await execTest(results, 'flow.frontmatterFlow.portHandles.enabled', async () => {
     const mod = await modFlowCanvasFrontmatterFlowPortHandlesEnabledRegression()

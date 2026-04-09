@@ -152,3 +152,23 @@ export async function testWorkspaceSyncSchedulerScopeKeySuppressesRepeatedSignat
     throw new Error(`expected first scoped callback to remain the only execution, got ${calls[0]}`)
   }
 }
+
+export async function testWorkspaceSyncSchedulerScopeKeyKeepsLatestAcrossTaskKeysWithinSameFlush() {
+  const calls: string[] = []
+  const scopeKey = 'source-files:runtime-persistence:same-flush'
+  scheduleWorkspaceSyncTask('source-files:runtime', () => {
+    calls.push('runtime:first')
+  }, 20, { signature: 'same-signature-same-flush', scopeKey })
+  scheduleWorkspaceSyncTask('source-files:persistence', () => {
+    calls.push('persistence:latest')
+  }, 20, { signature: 'same-signature-same-flush', scopeKey })
+
+  await new Promise(resolve => setTimeout(resolve, 60))
+
+  if (calls.length !== 1) {
+    throw new Error(`expected one scoped callback in same flush window, got ${calls.length}`)
+  }
+  if (calls[0] !== 'persistence:latest') {
+    throw new Error(`expected latest scoped callback to win, got ${calls[0]}`)
+  }
+}

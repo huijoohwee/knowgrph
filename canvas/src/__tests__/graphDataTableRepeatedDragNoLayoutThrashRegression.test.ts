@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testGraphDataTableHeaderReorderDoesNotMeasureAllHeaderCellsOnEveryPointerMove() {
-  const p = resolve(process.cwd(), 'src', 'features', 'graph-data-table', 'ui', 'GraphDataTableTable.tsx')
+  const p = resolve(process.cwd(), 'src', 'lib', 'graph-data-table', 'ui', 'GraphDataTableTable.impl.tsx')
   const text = readFileSync(p, 'utf8')
   const onMoveIdx = text.indexOf('onMove: mv =>')
   if (onMoveIdx < 0) throw new Error('expected GraphDataTableTable to define reorder onMove handler')
@@ -21,7 +21,7 @@ export function testGraphDataTableFrozenAreaDragIsRafThrottled() {
 }
 
 export function testMarkdownDesignOverlayBlockDragIsRafThrottled() {
-  const p = resolve(process.cwd(), 'src', 'features', 'markdown-edgeless', 'MarkdownDesignOverlay.tsx')
+  const p = resolve(process.cwd(), 'src', 'lib', 'markdown-edgeless', 'MarkdownDesignOverlay.impl.tsx')
   const text = readFileSync(p, 'utf8')
   if (!text.includes('createRafValueScheduler') || !text.includes('patchById')) {
     throw new Error('expected markdown design block dragging to use shared raf scheduler + patchById')

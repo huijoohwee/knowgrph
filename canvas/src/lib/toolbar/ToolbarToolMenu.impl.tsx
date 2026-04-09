@@ -1,0 +1,687 @@
+import React from 'react'
+import { useShallow } from 'zustand/react/shallow'
+import { FileCode, GitBranch, Hand, Layers, ListTree, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
+import { useOrchestratorPanelState } from '@/features/panels/hooks/useOrchestratorPanelState'
+import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
+import IconButton from '@/components/IconButton'
+import { FLOATING_PANEL_SCROLL_CLASSNAME } from '@/components/ui/FloatingPanel'
+import { ToolbarToolMenuRendererView } from '@/features/toolbar/ToolbarToolMenuRendererView'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { getIconSizeClass } from '@/lib/ui'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { usePinnedLs } from '@/lib/ui/panelPinned'
+import { uiPrimaryPillActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { cn } from '@/lib/utils'
+import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
+import {
+  FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID,
+  LS_KEYS,
+  UI_LABELS,
+  UI_SELECTORS,
+} from '@/lib/config'
+import { lsBool } from '@/lib/persistence'
+import HeaderActions from '@/features/panels/ui/HeaderActions'
+import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
+import DesignLayersPanel from '@/features/design/DesignLayersPanel'
+import DesignDomTreePanel from '@/features/design/DesignDomTreePanel'
+import DesignDomInspectPanel from '@/features/design/DesignDomInspectPanel'
+import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
+import { requestGeospatialTraversalRun } from '@/features/geospatial/gympgrphBridge'
+import { onGeospatialModeChanged } from '@/features/geospatial/events'
+import ErrorBoundary from '@/components/ErrorBoundary'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
+import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/orchestratorWorkspaceFiles'
+import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
+
+type FloatingPanelView = 'propsPanel' | 'interaction' | 'designLayers' | 'domTree' | 'domInspect' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
+type FloatingHeaderActions = {
+  apply?: () => void
+  reset?: () => void
+  applyDisabled?: boolean
+  resetDisabled?: boolean
+}
+
+type GeospatialPanelHostProps = {
+  active?: boolean
+  showDatasetsManager?: boolean
+  panelTypography?: unknown
+  snapshot?: unknown
+  handlers?: unknown
+}
+
+const MissingGeospatialPanelHost = React.memo(function MissingGeospatialPanelHost(_props: GeospatialPanelHostProps) {
+  return (
+    <div className="h-full w-full flex items-center justify-center text-xs text-gray-700 dark:text-gray-200">
+      Geospatial panel unavailable
+    </div>
+  )
+})
+
+const GeospatialPanelHostLazy = React.lazy(async (): Promise<{ default: React.ComponentType<GeospatialPanelHostProps> }> => {
+  const m = (await import('gympgrph')) as unknown as Record<string, unknown>
+  const c = m.GeospatialPanelHost as unknown
+  if (!c) return { default: MissingGeospatialPanelHost }
+  return { default: c as React.ComponentType<GeospatialPanelHostProps> }
+})
+
+const GraphTableSelectionInspectorLazy = React.lazy(
+  () => import('@/features/graph-table/ui/GraphTableSelectionInspector'),
+)
+
+const SidePanelChatLazy = React.lazy(() => import('@/features/chat/SidePanelChat'))
+
+const InspectorView = React.memo(function InspectorView(props: { geospatialModeEnabled: boolean }) {
+  const { geospatialModeEnabled } = props
+  const { workspaceViewMode, canvasRenderMode, canvas2dRenderer } = useGraphStore(
+    useShallow(s => ({
+      workspaceViewMode: s.workspaceViewMode,
+      canvasRenderMode: s.canvasRenderMode,
+      canvas2dRenderer: s.canvas2dRenderer,
+    })),
+  )
+
+  if (!geospatialModeEnabled && workspaceViewMode === 'canvas' && canvasRenderMode === '2d' && canvas2dRenderer === 'flowEditor') {
+    return <div id={FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID} className="h-full" aria-label="Flow Editor Inspector Slot" />
+  }
+
+  return (
+    <React.Suspense fallback={null}>
+      <GraphTableSelectionInspectorLazy />
+    </React.Suspense>
+  )
+})
+
+const GeoView = React.memo(function GeoView(props: { geospatialModeEnabled: boolean }) {
+  const { geospatialModeEnabled } = props
+  const activeGraphData = useActiveGraphRenderData()
+  const panelTypography = usePanelTypography()
+  const gympgrphBridge = useGraphStore(
+    useShallow(s => ({
+      zoomState: s.zoomState,
+      canvasRenderMode: s.canvasRenderMode,
+      selectedNodeId: s.selectedNodeId,
+      selectedNodeIds: s.selectedNodeIds,
+      selectedEdgeId: s.selectedEdgeId,
+      selectNode: s.selectNode,
+      selectEdge: s.selectEdge,
+      setSelectionSource: s.setSelectionSource,
+      requestZoom: s.requestZoom,
+      requestThreeCamera: s.requestThreeCamera,
+      pushUiToast: s.pushUiToast,
+      upsertUiToast: s.upsertUiToast,
+      dismissUiToast: s.dismissUiToast,
+    })),
+  )
+
+  return (
+    <section className="h-full flex flex-col" aria-label="Geospatial panel">
+      {geospatialModeEnabled ? (
+        <ErrorBoundary>
+          <React.Suspense
+            fallback={
+              <div className="p-3 text-xs text-gray-600 dark:text-gray-300">
+                Loading geospatial panel...
+              </div>
+            }
+          >
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+              <GeospatialPanelHostLazy
+                active
+                showDatasetsManager={false}
+                panelTypography={panelTypography}
+                snapshot={{
+                  graphData: activeGraphData,
+                  zoomState: gympgrphBridge.zoomState,
+                  canvasRenderMode: gympgrphBridge.canvasRenderMode,
+                  selectedNodeId: gympgrphBridge.selectedNodeId,
+                  selectedNodeIds: gympgrphBridge.selectedNodeIds,
+                  selectedEdgeId: gympgrphBridge.selectedEdgeId,
+                }}
+                handlers={{
+                  selectNode: gympgrphBridge.selectNode,
+                  selectEdge: gympgrphBridge.selectEdge,
+                  setSelectionSource: gympgrphBridge.setSelectionSource,
+                  requestZoom: gympgrphBridge.requestZoom,
+                  requestThreeCamera: gympgrphBridge.requestThreeCamera,
+                  pushUiToast: gympgrphBridge.pushUiToast,
+                  upsertUiToast: gympgrphBridge.upsertUiToast,
+                  dismissUiToast: gympgrphBridge.dismissUiToast,
+                }}
+              />
+            </div>
+          </React.Suspense>
+        </ErrorBoundary>
+      ) : (
+        <p className={cn('p-3 text-sm', UI_THEME_TOKENS.text.secondary)}>Enable Geospatial Mode to view this panel.</p>
+      )}
+    </section>
+  )
+})
+
+export function ToolbarToolMenu({
+  pipelineStatus,
+  exportStatus,
+  toolMenuCardRef,
+  toolMenuCardStyle,
+  onHeaderPointerDown,
+  requestedFloatingPanelView,
+  requestedFloatingPanelViewSeq,
+  onClose,
+}: ToolbarToolMenuProps) {
+  const { pinned: floatingPanelPinned, togglePinned: toggleFloatingPanelPinned } = usePinnedLs(LS_KEYS.floatingPanelPinned, true)
+  const [floatingPanelMinimized, setFloatingPanelMinimized] = React.useState(false)
+  const [floatingPanelView, setFloatingPanelView] = React.useState<FloatingPanelView>('propsPanel')
+  const [rendererHeaderActions, setRendererHeaderActions] = React.useState<FloatingHeaderActions>({
+    apply: undefined,
+    reset: undefined,
+    applyDisabled: true,
+    resetDisabled: true,
+  })
+  const handledRequestedViewSeqRef = React.useRef<number | undefined>(undefined)
+  const setFloatingPanelZIndex = useGraphStore(s => s.setFloatingPanelZIndex)
+
+  const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => {
+    try {
+      return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+    } catch {
+      return false
+    }
+  })
+
+  const {
+    floatingPanelWidthRatio,
+    floatingPanelHeightRatio,
+    floatingPanelZIndex,
+    uiIconScale,
+    uiIconStrokeWidth,
+    workspaceViewMode,
+    canvasRenderMode,
+    canvas2dRenderer,
+    designRendererWebpageLayoutKey,
+  } = useGraphStore(
+    useShallow(state => ({
+      floatingPanelWidthRatio: state.floatingPanelWidthRatio,
+      floatingPanelHeightRatio: state.floatingPanelHeightRatio,
+      floatingPanelZIndex: state.floatingPanelZIndex,
+      uiIconScale: state.uiIconScale,
+      uiIconStrokeWidth: state.uiIconStrokeWidth,
+      workspaceViewMode: state.workspaceViewMode,
+      canvasRenderMode: state.canvasRenderMode,
+      canvas2dRenderer: state.canvas2dRenderer,
+      designRendererWebpageLayoutKey: state.designRendererWebpageLayoutKey,
+    })),
+  )
+
+  const activeGraphRenderData = useActiveGraphRenderData(true)
+  const devStatusMetrics = React.useMemo(() => {
+    const isDev = (() => {
+      try {
+        const m = import.meta as unknown as { env?: unknown }
+        const env = m && typeof m.env === 'object' && m.env ? (m.env as Record<string, unknown>) : null
+        return env ? env.DEV === true : false
+      } catch {
+        return false
+      }
+    })()
+    if (!isDev) return null
+    const data = activeGraphRenderData
+    if (!data) return { counter: 'n0 e0 g0', hierarchyBadge: 'h0', suffix: 'bp:h0 s0 c0 m0' }
+    const nodes = Array.isArray(data.nodes) ? data.nodes.length : 0
+    const edges = Array.isArray(data.edges) ? data.edges.length : 0
+    const groupsDerived = deriveGraphGroups(data, { forceDocumentStructure: false })
+    const groups = groupsDerived.length
+    const maxDepth = groupsDerived.reduce((m, g) => {
+      const d = typeof g.depth === 'number' && Number.isFinite(g.depth) ? Math.max(0, Math.floor(g.depth)) : 0
+      return Math.max(m, d)
+    }, 0)
+    const hierarchyLevels = groups > 0 ? maxDepth + 1 : 0
+    const hubs = (Array.isArray(data.nodes) ? data.nodes : []).filter(n => String(n.type || '').trim().toLowerCase() === 'hub').length
+    const spokes = (Array.isArray(data.edges) ? data.edges : []).filter(e => String(e.label || '') === 'spokeTo').length
+    const crosses = (Array.isArray(data.edges) ? data.edges : []).filter(e => String(e.label || '') === 'linksTo').length
+    const members = (Array.isArray(data.nodes) ? data.nodes : []).filter(n => {
+      const t = String(n.type || '').trim().toLowerCase()
+      return t === 'problem' || t === 'solution'
+    }).length
+    const suffix = `bp:h${hubs} s${spokes} c${crosses} m${members}`
+    return { counter: `n${nodes} e${edges} g${groups}`, hierarchyBadge: `h${hierarchyLevels}`, suffix }
+  }, [activeGraphRenderData])
+
+  const {
+    fontClass: uiPanelTextFontClass,
+    textSizeClass: uiPanelKeyValueTextSizeClass,
+    microLabelTextSizeClass: uiPanelMicroLabelTextSizeClass,
+  } = usePanelTypography()
+
+  const { sections: orchestratorSections } = useOrchestratorPanelState()
+  const orchestratorSectionCollapsedById = orchestratorSections.byId
+  const orchestratorSectionSetters = orchestratorSections.setters
+
+  const orchestratorGraphRagCollapsed = orchestratorSectionCollapsedById.graphRag
+  const orchestratorPresetsCollapsed = orchestratorSectionCollapsedById.presets
+  const orchestratorEditorCollapsed = orchestratorSectionCollapsedById.editor
+  const orchestratorContextCollapsed = orchestratorSectionCollapsedById.context
+  const orchestratorWorkflowIndexingCollapsed = orchestratorSectionCollapsedById.workflowIndexing
+  const orchestratorWorkflowTracingCollapsed = orchestratorSectionCollapsedById.workflowTracing
+
+  const setOrchestratorGraphRagCollapsed = orchestratorSectionSetters.graphRag
+  const setOrchestratorPresetsCollapsed = orchestratorSectionSetters.presets
+  const setOrchestratorEditorCollapsed = orchestratorSectionSetters.editor
+  const setOrchestratorContextCollapsed = orchestratorSectionSetters.context
+  const setOrchestratorWorkflowIndexingCollapsed = orchestratorSectionSetters.workflowIndexing
+  const setOrchestratorWorkflowTracingCollapsed = orchestratorSectionSetters.workflowTracing
+
+  const handleSelectView = React.useCallback((view: FloatingPanelView) => {
+    setFloatingPanelView(view)
+  }, [])
+
+  const handleFloatingPanelPointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLElement>) => {
+      if (floatingPanelPinned) return
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (
+        target.closest(
+          UI_SELECTORS.draggablePanelIgnorePointerDown,
+        )
+      ) {
+        return
+      }
+      onHeaderPointerDown(event)
+    },
+    [floatingPanelPinned, onHeaderPointerDown],
+  )
+
+  const floatingPanelRootClassName = 'fixed inset-0 pointer-events-none'
+
+  const handlePinToggle = toggleFloatingPanelPinned
+  const registerRendererHeaderActions = React.useCallback((actions: FloatingHeaderActions) => {
+    setRendererHeaderActions(actions)
+  }, [])
+
+  const floatingPanelRootStyle = React.useMemo(() => {
+    const safeZ = Number.isFinite(floatingPanelZIndex) ? Math.max(1, Math.floor(floatingPanelZIndex)) : Z_INDEX_FLOATING_PANEL_DEFAULT
+    return { zIndex: floatingPanelPinned ? Math.max(safeZ, 1000) : 90 }
+  }, [floatingPanelPinned, floatingPanelZIndex])
+
+  const floatingPanelSizeStyle = React.useMemo(() => {
+    const widthRatio = Number.isFinite(floatingPanelWidthRatio) ? floatingPanelWidthRatio : 0.25
+    const heightRatio = Number.isFinite(floatingPanelHeightRatio) ? floatingPanelHeightRatio : 0.5
+    const safeWidth = Math.max(0.15, Math.min(0.6, widthRatio))
+    const safeHeight = Math.max(0.3, Math.min(0.9, heightRatio))
+    return {
+      width: `${Math.round(safeWidth * 100)}vw`,
+      height: `${Math.round(safeHeight * 100)}vh`,
+    }
+  }, [floatingPanelWidthRatio, floatingPanelHeightRatio])
+
+  void toolMenuCardRef
+
+  const iconSizeClass = getIconSizeClass(uiIconScale)
+  const domPanelsAvailable =
+    !geospatialModeEnabled && workspaceViewMode === 'canvas' && canvasRenderMode === '2d' && canvas2dRenderer === 'design'
+  const domLayoutReady = domPanelsAvailable && !!designRendererWebpageLayoutKey
+
+  const viewButtons = (
+    <>
+      <IconButton
+        title={UI_LABELS.propsPanel}
+        onClick={() => handleSelectView('propsPanel')}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'propsPanel' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+        }`}
+        showTooltip
+      >
+        <SlidersHorizontal className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+      </IconButton>
+
+      <IconButton
+        title={UI_LABELS.layerMode}
+        onClick={() => handleSelectView('designLayers')}
+        disabled={!domPanelsAvailable}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'designLayers' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+        }`}
+        showTooltip
+      >
+        <Layers className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+      </IconButton>
+
+      {!geospatialModeEnabled && (
+        <IconButton
+          title={domLayoutReady ? 'DOM Tree' : domPanelsAvailable ? 'DOM Tree (loading)' : 'DOM Tree'}
+          onClick={() => handleSelectView('domTree')}
+          disabled={!domPanelsAvailable}
+          className={`App-toolbar__btn ${
+            floatingPanelView === 'domTree' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+          }`}
+          showTooltip
+        >
+          <ListTree className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+        </IconButton>
+      )}
+
+      {!geospatialModeEnabled && (
+        <IconButton
+          title={domLayoutReady ? 'Inspect (DOM)' : domPanelsAvailable ? 'Inspect (DOM) (loading)' : 'Inspect (DOM)'}
+          onClick={() => handleSelectView('domInspect')}
+          disabled={!domPanelsAvailable}
+          className={`App-toolbar__btn ${
+            floatingPanelView === 'domInspect' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+          }`}
+          showTooltip
+        >
+          <FileCode className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+        </IconButton>
+      )}
+
+      <IconButton
+        title="Interaction"
+        onClick={() => handleSelectView('interaction')}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'interaction' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+        }`}
+        showTooltip
+      >
+        <Hand className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+      </IconButton>
+
+      {!geospatialModeEnabled && (
+        <IconButton
+          title={UI_LABELS.inspector}
+          onClick={() => handleSelectView('inspector')}
+          className={`App-toolbar__btn ${
+            floatingPanelView === 'inspector' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+          }`}
+          showTooltip
+        >
+          <FileCode className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+        </IconButton>
+      )}
+
+      <IconButton
+        title={UI_LABELS.chat}
+        onClick={() => handleSelectView('chat')}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'chat' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+        }`}
+        showTooltip
+      >
+        <MessageCircle className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+      </IconButton>
+
+      <IconButton
+        title={UI_LABELS.geo}
+        onClick={() => handleSelectView('geo')}
+        disabled={!geospatialModeEnabled}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'geo' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+        }`}
+        showTooltip
+      >
+        <Map className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+      </IconButton>
+
+      <IconButton
+        title={UI_LABELS.renderer}
+        onClick={() => handleSelectView('renderer')}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'renderer' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+        }`}
+        showTooltip
+      >
+        <MonitorPlay className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+      </IconButton>
+      <IconButton
+        title={UI_LABELS.graphTraversal}
+        onClick={() => handleSelectView('graphTraversal')}
+        className={`App-toolbar__btn ${
+          floatingPanelView === 'graphTraversal' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+        }`}
+        showTooltip
+        data-kg-spotlight-view="graphTraversal"
+      >
+        <GitBranch className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+      </IconButton>
+    </>
+  )
+
+  React.useEffect(() => {
+    return onGeospatialModeChanged(detail => {
+      const enabled = typeof detail.enabled === 'boolean' ? detail.enabled : null
+      if (enabled == null) return
+      setGeospatialModeEnabled(enabled)
+    })
+  }, [])
+
+  React.useEffect(() => {
+    if (geospatialModeEnabled) {
+      if (floatingPanelView === 'inspector') setFloatingPanelView('geo')
+      return
+    }
+    if (floatingPanelView === 'geo') setFloatingPanelView('inspector')
+  }, [floatingPanelView, geospatialModeEnabled])
+
+  React.useEffect(() => {
+    if (!floatingPanelPinned) return
+    if (!Number.isFinite(floatingPanelZIndex)) return
+    if (floatingPanelZIndex >= 1000) return
+    setFloatingPanelZIndex(1000)
+  }, [floatingPanelPinned, floatingPanelZIndex, setFloatingPanelZIndex])
+
+  React.useEffect(() => {
+    if (!requestedFloatingPanelView || !requestedFloatingPanelViewSeq) return
+    if (handledRequestedViewSeqRef.current === requestedFloatingPanelViewSeq) return
+    handledRequestedViewSeqRef.current = requestedFloatingPanelViewSeq
+    setFloatingPanelMinimized(false)
+    setFloatingPanelView(requestedFloatingPanelView)
+  }, [requestedFloatingPanelView, requestedFloatingPanelViewSeq])
+
+  React.useEffect(() => {
+    if (floatingPanelView === 'renderer') return
+    setRendererHeaderActions({
+      apply: undefined,
+      reset: undefined,
+      applyDisabled: true,
+      resetDisabled: true,
+    })
+  }, [floatingPanelView])
+
+  React.useEffect(() => {
+    const handleOpenGraphTraversal = () => {
+      setFloatingPanelMinimized(false)
+      setFloatingPanelView('graphTraversal')
+    }
+    window.addEventListener(GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT, handleOpenGraphTraversal)
+    return () => {
+      window.removeEventListener(GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT, handleOpenGraphTraversal)
+    }
+  }, [])
+
+  if (floatingPanelMinimized) {
+    return (
+      <section className={floatingPanelRootClassName} style={floatingPanelRootStyle}>
+        <aside
+          ref={toolMenuCardRef}
+          className={`pointer-events-auto ModalContainer App-toolbar App-toolbar--compact select-none min-w-[260px] max-w-xs w-80 p-0 ${!floatingPanelPinned ? 'cursor-move' : ''}`}
+          style={toolMenuCardStyle}
+          onPointerDown={handleFloatingPanelPointerDown}
+        >
+          <header className="flex items-center justify-between gap-2 w-full">
+            <nav className={`flex items-center gap-1 min-w-0 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
+              {viewButtons}
+              {pipelineStatus && (
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[120px]`}>
+                  {pipelineStatus}
+                </span>
+              )}
+              {devStatusMetrics && (
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[160px]`}>
+                  {devStatusMetrics.counter}
+                </span>
+              )}
+              {devStatusMetrics && (
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[56px]`}>
+                  {devStatusMetrics.hierarchyBadge}
+                </span>
+              )}
+              {devStatusMetrics && (
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[132px]`}>
+                  {devStatusMetrics.suffix}
+                </span>
+              )}
+            </nav>
+            <HeaderActions
+              onPinToggle={handlePinToggle}
+              pinned={floatingPanelPinned}
+              onApply={floatingPanelView === 'renderer' ? rendererHeaderActions.apply : undefined}
+              onReset={floatingPanelView === 'renderer' ? rendererHeaderActions.reset : undefined}
+              applyDisabled={floatingPanelView === 'renderer' ? rendererHeaderActions.applyDisabled : true}
+              resetDisabled={floatingPanelView === 'renderer' ? rendererHeaderActions.resetDisabled : true}
+              onRestore={() => {
+                setFloatingPanelMinimized(false)
+              }}
+              onClose={onClose}
+            />
+          </header>
+        </aside>
+      </section>
+    )
+  }
+
+  const floatingPanelBodyClassName = cn(
+    'mt-1',
+    (floatingPanelView === 'chat' || floatingPanelView === 'geo' || floatingPanelView === 'interaction')
+      ? 'flex-1 min-h-0 overflow-hidden'
+      : FLOATING_PANEL_SCROLL_CLASSNAME,
+    uiPanelTextFontClass,
+    uiPanelKeyValueTextSizeClass,
+    UI_THEME_TOKENS.text.primary,
+  )
+
+  return (
+    <section className={floatingPanelRootClassName} style={floatingPanelRootStyle}>
+      <aside
+        ref={toolMenuCardRef}
+        className={`pointer-events-auto ModalContainer flex flex-col overflow-hidden p-0 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+        style={{ ...toolMenuCardStyle, ...floatingPanelSizeStyle }}
+        onPointerDown={handleFloatingPanelPointerDown}
+      >
+        <section className="px-2 py-1 flex flex-col gap-1 min-w-[260px] min-h-[36px] h-full" aria-label="Floating panel">
+          <header className={`flex items-center justify-between gap-2 w-full select-none ${!floatingPanelPinned ? 'cursor-move' : ''}`}>
+            <nav className={`flex items-center gap-1 min-w-0 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
+              {viewButtons}
+              {pipelineStatus && (
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[120px]`}>
+                  {pipelineStatus}
+                </span>
+              )}
+              {devStatusMetrics && (
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[160px]`}>
+                  {devStatusMetrics.counter}
+                </span>
+              )}
+              {devStatusMetrics && (
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[56px]`}>
+                  {devStatusMetrics.hierarchyBadge}
+                </span>
+              )}
+              {devStatusMetrics && (
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[132px]`}>
+                  {devStatusMetrics.suffix}
+                </span>
+              )}
+              {exportStatus && (
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[160px]`}>
+                  {exportStatus}
+                </span>
+              )}
+            </nav>
+            <HeaderActions
+              onPinToggle={handlePinToggle}
+              pinned={floatingPanelPinned}
+              onApply={floatingPanelView === 'renderer' ? rendererHeaderActions.apply : undefined}
+              onReset={floatingPanelView === 'renderer' ? rendererHeaderActions.reset : undefined}
+              applyDisabled={floatingPanelView === 'renderer' ? rendererHeaderActions.applyDisabled : true}
+              resetDisabled={floatingPanelView === 'renderer' ? rendererHeaderActions.resetDisabled : true}
+              onMinimize={() => {
+                setFloatingPanelMinimized(true)
+              }}
+              onClose={onClose}
+            />
+          </header>
+          <section className={floatingPanelBodyClassName} aria-label={UI_LABELS.floatingPanel}>
+            {floatingPanelView === 'propsPanel' && <FloatingPropsPanel />}
+            {floatingPanelView === 'interaction' && (
+              <section className="h-full flex flex-col" aria-label="Interaction panel">
+                <header className={`flex items-center justify-between gap-2 w-full select-none ${UI_THEME_TOKENS.panel.divider}`}>
+                  <div className={cn('text-xs font-semibold px-1 py-1', UI_THEME_TOKENS.text.primary)}>Interaction</div>
+                </header>
+                <section
+                  className={cn('mt-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden', uiPanelTextFontClass, uiPanelKeyValueTextSizeClass)}
+                  aria-label="Interaction panel content"
+                >
+                  <div className="px-1 pb-2">
+                    <InfiniteCanvasInteractionPanel />
+                  </div>
+                </section>
+              </section>
+            )}
+            {floatingPanelView === 'designLayers' && <DesignLayersPanel active={domPanelsAvailable} />}
+            {floatingPanelView === 'domTree' && <DesignDomTreePanel active={domPanelsAvailable} />}
+            {floatingPanelView === 'domInspect' && <DesignDomInspectPanel active={domPanelsAvailable} />}
+            {floatingPanelView === 'inspector' && <InspectorView geospatialModeEnabled={geospatialModeEnabled} />}
+            {floatingPanelView === 'chat' && (
+              <React.Suspense fallback={null}>
+                <SidePanelChatLazy />
+              </React.Suspense>
+            )}
+            {floatingPanelView === 'geo' && <GeoView geospatialModeEnabled={geospatialModeEnabled} />}
+            {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView onRegisterActions={registerRendererHeaderActions} />}
+            {floatingPanelView === 'graphTraversal' && (
+              <section className="space-y-2" aria-label="Graph traversal">
+                <header className="flex items-center justify-between gap-2" aria-label="Graph traversal actions">
+                  <nav className="flex items-center gap-2" aria-label="Traversal tools">
+                    <button
+                      type="button"
+                      className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+                      onClick={() => openOrchestratorWorkflowWorkspaceFile()}
+                    >
+                      Open `orchestrator/graphrag-workflow.jsonld`
+                    </button>
+                    <button
+                      type="button"
+                      className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+                      onClick={() => {
+                        void requestGeospatialTraversalRun().catch(() => void 0)
+                      }}
+                    >
+                      Run airplane on selected edge
+                    </button>
+                  </nav>
+                  <p className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>Geospatial</p>
+                </header>
+                <OrchestratorSettingsSection
+                  graphRagCollapsed={orchestratorGraphRagCollapsed}
+                  presetsCollapsed={orchestratorPresetsCollapsed}
+                  editorCollapsed={orchestratorEditorCollapsed}
+                  contextCollapsed={orchestratorContextCollapsed}
+                  setGraphRagCollapsed={setOrchestratorGraphRagCollapsed}
+                  setPresetsCollapsed={setOrchestratorPresetsCollapsed}
+                  setEditorCollapsed={setOrchestratorEditorCollapsed}
+                  setContextCollapsed={setOrchestratorContextCollapsed}
+                  indexingCollapsed={orchestratorWorkflowIndexingCollapsed}
+                  setIndexingCollapsed={setOrchestratorWorkflowIndexingCollapsed}
+                  tracingCollapsed={orchestratorWorkflowTracingCollapsed}
+                  setTracingCollapsed={setOrchestratorWorkflowTracingCollapsed}
+                />
+              </section>
+            )}
+          </section>
+        </section>
+      </aside>
+    </section>
+  )
+}

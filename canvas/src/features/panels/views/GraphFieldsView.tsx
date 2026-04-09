@@ -1,4 +1,5 @@
 import React from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
@@ -19,6 +20,14 @@ import FieldSamplesPanel from '@/features/panels/views/graph-fields/FieldSamples
 import { normalized } from '@/features/panels/utils/json'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { WorkspaceTableModeControl } from '@/features/workspace-table/ui/WorkspaceTableModeControl'
+import {
+  FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
+  FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
+} from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+import { buildNodeQuickEditorDraftFromSmartFields } from '@/features/flow-editor-manager/registryTemplates'
+import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { cn } from '@/lib/utils'
 
 export type GraphFieldsSelectedView =
   | { kind: 'globalSchema' }
@@ -37,10 +46,24 @@ type GraphFieldsViewProps = {
 }
 
 export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFieldsViewProps) {
+  const { microLabelClass } = usePanelTypography()
   const graphData = useActiveGraphRenderData()
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
   const upsertUiToast = useGraphStore(s => s.upsertUiToast)
   const dismissUiToast = useGraphStore(s => s.dismissUiToast)
+  const {
+    selectedNodeId,
+    nodeQuickEditorRegistry,
+    upsertNodeQuickEditorRegistryEntry,
+    updateNode,
+  } = useGraphStore(
+    useShallow(s => ({
+      selectedNodeId: s.selectedNodeId,
+      nodeQuickEditorRegistry: s.nodeQuickEditorRegistry,
+      upsertNodeQuickEditorRegistryEntry: s.upsertNodeQuickEditorRegistryEntry,
+      updateNode: s.updateNode,
+    })),
+  )
   const settingsById = useGraphStore(s => s.graphFieldSettingsById)
   const setGraphFieldSettingsById = useGraphStore(s => s.setGraphFieldSettingsById)
   const graphDataTableVisibleColumns = useGraphStore(s => s.graphDataTableVisibleColumns)
@@ -139,6 +162,31 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
     return fields.find(f => f.id === selectedFieldId) || null
   }, [fields, selectedFieldId])
 
+  const selectedNode = React.useMemo(() => {
+    const nodeId = String(selectedNodeId || '').trim()
+    if (!nodeId || !graphData) return null
+    return (graphData.nodes || []).find(n => n && n.id === nodeId) || null
+  }, [graphData, selectedNodeId])
+
+  const smartMediaPresetState = React.useMemo(() => {
+    const nodeTypeId = String(selectedNode?.type || '').trim()
+    if (!nodeTypeId) {
+      return {
+        nodeTypeId: '',
+        entryId: '',
+        isReady: false,
+      }
+    }
+    const found = (nodeQuickEditorRegistry || []).find(e =>
+      e.nodeTypeId === nodeTypeId && e.quickEditorTypeId === 'default' && e.formId === 'nodeQuickEditor',
+    ) || null
+    return {
+      nodeTypeId,
+      entryId: String(found?.id || ''),
+      isReady: !!found,
+    }
+  }, [nodeQuickEditorRegistry, selectedNode])
+
   const selectedSettings = React.useMemo(() => {
     if (!selectedField) return null
     return normalizeSettingsForField(selectedField, settingsById[selectedField.id])
@@ -174,6 +222,38 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
     [onStatusChange, selectedField, selectedSettings, setGraphFieldSettingsById, settingsById],
   )
 
+  const setupSmartMediaQuickEditorPreset = React.useCallback(() => {
+    const node = selectedNode
+    const nodeId = String(node?.id || '').trim()
+    const nodeTypeId = String(node?.type || '').trim()
+    if (!node || !nodeId || !nodeTypeId) {
+      upsertUiToast({ id: 'graph-fields-smart-media-no-selected-node', kind: 'warning', message: 'Select a node first.', ttlMs: 2500 })
+      return
+    }
+    const draft = buildNodeQuickEditorDraftFromSmartFields({ nodeTypeId })
+    const result = upsertNodeQuickEditorRegistryEntry({
+      id: smartMediaPresetState.entryId || undefined,
+      isEnabled: true,
+      nodeTypeId: draft.nodeTypeId,
+      quickEditorTypeId: draft.quickEditorTypeId,
+      formId: draft.formId,
+      fields: draft.fields,
+      ports: draft.ports,
+      schemaMappings: Array.isArray(draft.schemaMappings) ? draft.schemaMappings : [],
+    })
+    if (result.ok !== true) {
+      upsertUiToast({ id: 'graph-fields-smart-media-setup-failed', kind: 'warning', message: result.message || 'Failed to setup smart-media preset.', ttlMs: 3500 })
+      return
+    }
+    const nextProps: Record<string, unknown> = {
+      ...(node.properties || {}),
+      [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: draft.quickEditorTypeId,
+      [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: draft.formId,
+    }
+    updateNode(nodeId, { properties: nextProps } as never)
+    upsertUiToast({ id: 'graph-fields-smart-media-setup-ok', kind: 'neutral', message: 'Smart-media quick-editor preset is set up for the selected node.', ttlMs: 2500 })
+  }, [selectedNode, smartMediaPresetState.entryId, updateNode, upsertNodeQuickEditorRegistryEntry, upsertUiToast])
+
   const lastRawNodesEdgesToastRevisionRef = React.useRef<number | null>(null)
 
   React.useEffect(() => {
@@ -206,9 +286,27 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
         data-kg-anchor={UI_ANCHORS.graphFields}
       >
         <div className="flex-1 min-h-0 overflow-hidden">
-          <div className="h-full min-h-0 min-w-0 overflow-hidden grid grid-cols-2 grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)] gap-2">
+          <div className="h-full min-h-0 min-w-0 overflow-hidden grid grid-cols-2 grid-rows-[auto_auto_minmax(0,1fr)_minmax(0,1fr)] gap-2">
             <section className="col-span-2 rounded-md border border-white/10 p-2">
               <WorkspaceTableModeControl />
+            </section>
+            <section className="col-span-2 rounded-md border border-white/10 p-2 min-h-0 max-h-28 overflow-auto" aria-label="Quick Editor Gallery">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className={cn('font-medium truncate', UI_THEME_TOKENS.text.primary)}>Quick Editor Gallery</p>
+                  <p className={cn('truncate', microLabelClass, UI_THEME_TOKENS.text.tertiary)}>
+                    Smart-media preset (Model, Prompt, Aspect ratio, Duration, Resolution, Generate audio, Fast, Reference image)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className={cn('rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.button.text)}
+                  onClick={setupSmartMediaQuickEditorPreset}
+                  disabled={!selectedNode}
+                >
+                  {smartMediaPresetState.isReady ? 'Setup Selected Node' : 'Setup Preset'}
+                </button>
+              </div>
             </section>
             <GraphFieldsListPanel
               graphData={graphData}

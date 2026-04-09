@@ -1,5 +1,6 @@
 import type { GraphData } from '@/lib/graph/types'
 import {
+  __resetGraphTableDbForTests,
   allocateNewRowId,
   createRowFromGraphEntity,
   ensureGraphTableSeed,
@@ -9,7 +10,12 @@ import {
 } from '@/features/graph-table-db/graphTableDb'
 import { collapsedGroupNodeIdFor, deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 
+const resetGraphTableDb = async () => {
+  await __resetGraphTableDbForTests()
+}
+
 export async function testGraphTableDbSeedsBaseTablesAndColumns() {
+  await resetGraphTableDb()
   await ensureGraphTableSeed()
   const { collections } = await getGraphTableDb()
 
@@ -33,6 +39,7 @@ export async function testGraphTableDbSeedsBaseTablesAndColumns() {
 }
 
 export async function testGraphTableDbSyncsGraphAndInfersPropertyColumns() {
+  await resetGraphTableDb()
   const graph: GraphData = {
     type: 'Graph',
     nodes: [{ id: 'n1', type: 'Person', label: 'Alice', properties: { age: 3 } }],
@@ -57,6 +64,7 @@ export async function testGraphTableDbSyncsGraphAndInfersPropertyColumns() {
 }
 
 export async function testGraphTableDbInfersAndUpgradesDateColumns() {
+  await resetGraphTableDb()
   const graph1: GraphData = {
     type: 'Graph',
     nodes: [{ id: 'n1', type: 'Person', label: 'Alice', properties: { created: 'hello' } }],
@@ -80,6 +88,7 @@ export async function testGraphTableDbInfersAndUpgradesDateColumns() {
 }
 
 export async function testGraphTableDbConcurrentSyncDoesNotConflict() {
+  await resetGraphTableDb()
   const graph: GraphData = {
     type: 'Graph',
     nodes: [{ id: 'n1', type: 'Entity', label: 'Node', properties: { isMermaidFrontmatter: true } }],
@@ -92,6 +101,7 @@ export async function testGraphTableDbConcurrentSyncDoesNotConflict() {
 }
 
 export async function testGraphTableDbNoopSyncDoesNotRewriteRows() {
+  await resetGraphTableDb()
   const graph: GraphData = {
     type: 'Graph',
     nodes: [{ id: 'n1', type: 'Person', label: 'Alice', properties: { age: 3 } }],
@@ -113,6 +123,7 @@ export async function testGraphTableDbNoopSyncDoesNotRewriteRows() {
 }
 
 export async function testGraphTableDbUpdatesCellValues() {
+  await resetGraphTableDb()
   const graph: GraphData = {
     type: 'Graph',
     nodes: [{ id: 'n1', type: 'Person', label: 'Alice', properties: { age: 3 } }],
@@ -131,6 +142,7 @@ export async function testGraphTableDbUpdatesCellValues() {
 }
 
 export async function testGraphTableDbAllocatesAndCreatesRows() {
+  await resetGraphTableDb()
   await ensureGraphTableSeed()
   const nodeId = await allocateNewRowId('nodes')
   await createRowFromGraphEntity('nodes', nodeId, { id: nodeId, label: nodeId, type: 'Entity', properties: {} })
@@ -140,6 +152,7 @@ export async function testGraphTableDbAllocatesAndCreatesRows() {
 }
 
 export async function testGraphTableDbSyncsCollapsedGraphViewRows() {
+  await resetGraphTableDb()
   const graph: GraphData = {
     type: 'Graph',
     nodes: [

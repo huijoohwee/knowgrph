@@ -40,3 +40,8 @@ export function setInflightWorkspaceUrlContent(key: string, promise: Promise<Wor
 export function clearInflightWorkspaceUrlContent(key: string): void {
   INFLIGHT.delete(key)
 }
+
+export function resetWorkspaceUrlContentCacheForTests(): void {
+  CACHE.clear()
+  INFLIGHT.clear()
+}

@@ -171,8 +171,8 @@ export const deriveGraphDataWithGroupCollapse = (args: {
   const edges = Array.isArray(args.graphData.edges) ? (args.graphData.edges as GraphEdge[]) : []
   for (let i = 0; i < edges.length; i += 1) {
     const e = edges[i]!
-    const rawS = String((typeof e.source === 'object' ? (e.source as { id?: unknown }).id : e.source) || '').trim()
-    const rawT = String((typeof e.target === 'object' ? (e.target as { id?: unknown }).id : e.target) || '').trim()
+    const rawS = String((e.source && typeof e.source === 'object' ? (e.source as { id?: unknown }).id : e.source) || '').trim()
+    const rawT = String((e.target && typeof e.target === 'object' ? (e.target as { id?: unknown }).id : e.target) || '').trim()
     if (!rawS || !rawT) continue
 
     const sGroupId = assignmentByNodeId.get(rawS)?.groupId || null

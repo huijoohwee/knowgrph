@@ -78,8 +78,7 @@ function deriveSelectionSets(params: SelectionHighlightParams): {
     for (let i = 0; i < data.edges.length; i += 1) {
       const e = data.edges[i]
       if (!selectedEdgeIdSet.has(String(e.id))) continue
-      const src = String(e.source)
-      const tgt = String(e.target)
+      const { src, tgt } = getEdgeEndpoints(e as EdgeWithRuntime)
       if (src) selectedEdgeEndpointNodeIdSet.add(src)
       if (tgt) selectedEdgeEndpointNodeIdSet.add(tgt)
     }
@@ -239,7 +238,7 @@ export const computeEdgeVisual = (
   if (selectedEdgeIdSet.size > 0) {
     const isSelected = selectedEdgeIdSet.has(edge.id)
     const stroke = isSelected ? highlightStroke : getEdgeBaseStroke(edge, schema)
-    const opacity = isSelected ? 0.98 : isBipartiteGraph ? 0.72 : 0.45
+    const opacity = isSelected ? 0.9 : isBipartiteGraph ? 0.72 : 0.2
     const width = isSelected ? getEdgeStrokeWidth(edge, schema) * 1.5 : getEdgeStrokeWidth(edge, schema)
     return { stroke, opacity, width }
   }

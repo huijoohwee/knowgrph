@@ -1,4 +1,5 @@
 import React from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphDataTableScope as HostGraphDataTableScope } from '@/hooks/store/types'
 import { LS_KEYS } from '@/lib/config'
@@ -44,58 +45,115 @@ export function useBottomPanelCuratorState(
   nodes: GraphNode[],
   edges: GraphEdge[],
 ) {
-  const schema = useGraphStore(s => s.schema)
-  const graphDataRevision = useGraphStore(s => s.graphDataRevision)
-  const selectedNodeId = useGraphStore(s => s.selectedNodeId)
-  const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
-  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds)
-  const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds)
-  const selectMode = useGraphStore(s => s.schema.behavior?.selectMode ?? 'single')
-  const selectNode = useGraphStore(s => s.selectNode)
-  const selectEdge = useGraphStore(s => s.selectEdge)
-  const setSelectionSource = useGraphStore(s => s.setSelectionSource)
-  const removeNode = useGraphStore(s => s.removeNode)
-  const updateNode = useGraphStore(s => s.updateNode)
-  const addEdge = useGraphStore(s => s.addEdge)
-  const removeEdge = useGraphStore(s => s.removeEdge)
-  const updateEdge = useGraphStore(s => s.updateEdge)
-  const graphFieldSettingsById = useGraphStore(s => s.graphFieldSettingsById)
-  const graphDataTableVisibleColumns = useGraphStore(s => s.graphDataTableVisibleColumns)
-  const graphDataTableColumnOrder = useGraphStore(s => s.graphDataTableColumnOrder)
-  const setGraphDataTableVisibleColumns = useGraphStore(s => s.setGraphDataTableVisibleColumns)
-  const setGraphDataTableColumnOrder = useGraphStore(s => s.setGraphDataTableColumnOrder)
-  const graphDataTableAggregateKeys = useGraphStore(s => s.graphDataTableAggregateKeys)
-  const setGraphDataTableAggregateKeys = useGraphStore(s => s.setGraphDataTableAggregateKeys)
-  const graphDataTableFilterMatch = useGraphStore(s => s.graphDataTableFilterMatch)
-  const graphDataTableFilterClauses = useGraphStore(s => s.graphDataTableFilterClauses)
-  const graphDataTableSortRules = useGraphStore(s => s.graphDataTableSortRules)
-  const graphDataTableGroupKey = useGraphStore(s => s.graphDataTableGroupKey)
-  const isGraphDataTableAutoSortEnabled = useGraphStore(s => s.graphDataTableAutoSortEnabled)
-  const setGraphDataTableFilterMatch = useGraphStore(s => s.setGraphDataTableFilterMatch)
-  const setGraphDataTableFilterClauses = useGraphStore(s => s.setGraphDataTableFilterClauses)
-  const setGraphDataTableSortRules = useGraphStore(s => s.setGraphDataTableSortRules)
-  const setGraphDataTableGroupKey = useGraphStore(s => s.setGraphDataTableGroupKey)
-  const setIsGraphDataTableAutoSortEnabled = useGraphStore(s => s.setGraphDataTableAutoSortEnabled)
-  const includeMixedNumericFields = useGraphStore(s => s.graphDataTableAggregateIncludeMixedNumericFields)
-  const includeIdAsNumeric = useGraphStore(s => s.graphDataTableAggregateIncludeIdAsNumeric)
-  const includeSourceAsNumeric = useGraphStore(s => s.graphDataTableAggregateIncludeSourceAsNumeric)
-  const includeTargetAsNumeric = useGraphStore(s => s.graphDataTableAggregateIncludeTargetAsNumeric)
-  const setIncludeMixedNumericFields = useGraphStore(s => s.setGraphDataTableAggregateIncludeMixedNumericFields)
-  const setIncludeIdAsNumeric = useGraphStore(s => s.setGraphDataTableAggregateIncludeIdAsNumeric)
-  const setIncludeSourceAsNumeric = useGraphStore(s => s.setGraphDataTableAggregateIncludeSourceAsNumeric)
-  const setIncludeTargetAsNumeric = useGraphStore(s => s.setGraphDataTableAggregateIncludeTargetAsNumeric)
-  const setSelectedGraphFieldId = useGraphStore(s => s.setSelectedGraphFieldId)
-  const numericSampleLimit = useGraphStore(s => s.graphDataTableNumericSampleLimit)
-  const numericSampleMinCount = useGraphStore(s => s.graphDataTableNumericSampleMinCount)
-  const numericSampleMinRatio = useGraphStore(s => s.graphDataTableNumericSampleMinRatio)
-  const rowDensity = useGraphStore(s => s.graphDataTableRowDensity)
-  const setRowDensity = useGraphStore(s => s.setGraphDataTableRowDensity)
-  const isAutoScrollDisabled = useGraphStore(s => s.graphDataTableDisableAutoScroll)
-  const setIsAutoScrollDisabled = useGraphStore(s => s.setGraphDataTableDisableAutoScroll)
-  const freezeFirstDataColumnByScope = useGraphStore(s => s.graphDataTableFreezeFirstDataColumnByScope)
-  const lastTraversalSummary = useGraphStore(s => s.lastTraversalSummary)
-  const setFreezeFirstDataColumnScoped = useGraphStore(s => s.setGraphDataTableFreezeFirstDataColumn)
-  const graphData = useGraphStore(s => s.graphData)
+  const {
+    addEdge,
+    graphData,
+    graphDataRevision,
+    graphDataTableAggregateKeys,
+    graphDataTableColumnOrder,
+    graphDataTableFilterClauses,
+    graphDataTableFilterMatch,
+    graphDataTableGroupKey,
+    graphDataTableSortRules,
+    graphDataTableVisibleColumns,
+    graphFieldSettingsById,
+    includeIdAsNumeric,
+    includeMixedNumericFields,
+    includeSourceAsNumeric,
+    includeTargetAsNumeric,
+    isAutoScrollDisabled,
+    isGraphDataTableAutoSortEnabled,
+    lastTraversalSummary,
+    numericSampleLimit,
+    numericSampleMinCount,
+    numericSampleMinRatio,
+    removeEdge,
+    removeNode,
+    rowDensity,
+    schema,
+    selectedEdgeId,
+    selectedEdgeIds,
+    selectedNodeId,
+    selectedNodeIds,
+    selectEdge,
+    selectMode,
+    selectNode,
+    setFreezeFirstDataColumnScoped,
+    setGraphDataTableAggregateKeys,
+    setGraphDataTableColumnOrder,
+    setGraphDataTableFilterClauses,
+    setGraphDataTableFilterMatch,
+    setGraphDataTableGroupKey,
+    setGraphDataTableSortRules,
+    setGraphDataTableVisibleColumns,
+    setIncludeIdAsNumeric,
+    setIncludeMixedNumericFields,
+    setIncludeSourceAsNumeric,
+    setIncludeTargetAsNumeric,
+    setIsAutoScrollDisabled,
+    setIsGraphDataTableAutoSortEnabled,
+    setRowDensity,
+    setSelectedGraphFieldId,
+    setSelectionSource,
+    updateEdge,
+    updateNode,
+    freezeFirstDataColumnByScope,
+  } = useGraphStore(
+    useShallow(s => ({
+      addEdge: s.addEdge,
+      graphData: s.graphData,
+      graphDataRevision: s.graphDataRevision,
+      graphDataTableAggregateKeys: s.graphDataTableAggregateKeys,
+      graphDataTableColumnOrder: s.graphDataTableColumnOrder,
+      graphDataTableFilterClauses: s.graphDataTableFilterClauses,
+      graphDataTableFilterMatch: s.graphDataTableFilterMatch,
+      graphDataTableGroupKey: s.graphDataTableGroupKey,
+      graphDataTableSortRules: s.graphDataTableSortRules,
+      graphDataTableVisibleColumns: s.graphDataTableVisibleColumns,
+      graphFieldSettingsById: s.graphFieldSettingsById,
+      includeIdAsNumeric: s.graphDataTableAggregateIncludeIdAsNumeric,
+      includeMixedNumericFields: s.graphDataTableAggregateIncludeMixedNumericFields,
+      includeSourceAsNumeric: s.graphDataTableAggregateIncludeSourceAsNumeric,
+      includeTargetAsNumeric: s.graphDataTableAggregateIncludeTargetAsNumeric,
+      isAutoScrollDisabled: s.graphDataTableDisableAutoScroll,
+      isGraphDataTableAutoSortEnabled: s.graphDataTableAutoSortEnabled,
+      lastTraversalSummary: s.lastTraversalSummary,
+      numericSampleLimit: s.graphDataTableNumericSampleLimit,
+      numericSampleMinCount: s.graphDataTableNumericSampleMinCount,
+      numericSampleMinRatio: s.graphDataTableNumericSampleMinRatio,
+      removeEdge: s.removeEdge,
+      removeNode: s.removeNode,
+      rowDensity: s.graphDataTableRowDensity,
+      schema: s.schema,
+      selectedEdgeId: s.selectedEdgeId,
+      selectedEdgeIds: s.selectedEdgeIds,
+      selectedNodeId: s.selectedNodeId,
+      selectedNodeIds: s.selectedNodeIds,
+      selectEdge: s.selectEdge,
+      selectMode: s.schema.behavior?.selectMode ?? 'single',
+      selectNode: s.selectNode,
+      setFreezeFirstDataColumnScoped: s.setGraphDataTableFreezeFirstDataColumn,
+      setGraphDataTableAggregateKeys: s.setGraphDataTableAggregateKeys,
+      setGraphDataTableColumnOrder: s.setGraphDataTableColumnOrder,
+      setGraphDataTableFilterClauses: s.setGraphDataTableFilterClauses,
+      setGraphDataTableFilterMatch: s.setGraphDataTableFilterMatch,
+      setGraphDataTableGroupKey: s.setGraphDataTableGroupKey,
+      setGraphDataTableSortRules: s.setGraphDataTableSortRules,
+      setGraphDataTableVisibleColumns: s.setGraphDataTableVisibleColumns,
+      setIncludeIdAsNumeric: s.setGraphDataTableAggregateIncludeIdAsNumeric,
+      setIncludeMixedNumericFields: s.setGraphDataTableAggregateIncludeMixedNumericFields,
+      setIncludeSourceAsNumeric: s.setGraphDataTableAggregateIncludeSourceAsNumeric,
+      setIncludeTargetAsNumeric: s.setGraphDataTableAggregateIncludeTargetAsNumeric,
+      setIsAutoScrollDisabled: s.setGraphDataTableDisableAutoScroll,
+      setIsGraphDataTableAutoSortEnabled: s.setGraphDataTableAutoSortEnabled,
+      setRowDensity: s.setGraphDataTableRowDensity,
+      setSelectedGraphFieldId: s.setSelectedGraphFieldId,
+      setSelectionSource: s.setSelectionSource,
+      updateEdge: s.updateEdge,
+      updateNode: s.updateNode,
+      freezeFirstDataColumnByScope: s.graphDataTableFreezeFirstDataColumnByScope,
+    })),
+  )
   const setBottomPanelCurationView = React.useCallback((view: 'grid' | 'markdown') => {
     const st = useGraphStore.getState() as unknown as {
       setBottomPanelCurationView?: (next: 'grid' | 'markdown') => void

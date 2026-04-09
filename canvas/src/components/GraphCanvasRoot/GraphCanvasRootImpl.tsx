@@ -823,6 +823,18 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
 
 
   const markdownOverlayScheduleRef = React.useRef<(() => void) | null>(null)
+  const requestOverlaySchedule = React.useCallback(() => {
+    try {
+      richMedia.requestMediaOverlaySchedule()
+    } catch {
+      void 0
+    }
+    try {
+      markdownOverlayScheduleRef.current?.()
+    } catch {
+      void 0
+    }
+  }, [richMedia])
 
   React.useEffect(() => {
     const hasHiddenSelected =
@@ -850,18 +862,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     simulationRef,
     sceneGraphDataRef,
     schemaRef: schemaRef as unknown as React.MutableRefObject<GraphSchema>,
-    requestOverlaySchedule: () => {
-      try {
-        richMedia.requestMediaOverlaySchedule()
-      } catch {
-        void 0
-      }
-      try {
-        markdownOverlayScheduleRef.current?.()
-      } catch {
-        void 0
-      }
-    },
+    requestOverlaySchedule,
   })
 
   useD3GraphScene2d({
@@ -922,18 +923,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     overlayBaseWidthMinPxCompact: threeIframeOverlayBaseWidthMinPxCompact,
     overlayBaseWidthMaxPxDefault: threeIframeOverlayBaseWidthMaxPxDefault,
     overlayBaseWidthMaxPxCompact: threeIframeOverlayBaseWidthMaxPxCompact,
-    requestOverlaySchedule: () => {
-      try {
-        richMedia.requestMediaOverlaySchedule()
-      } catch {
-        void 0
-      }
-      try {
-        markdownOverlayScheduleRef.current?.()
-      } catch {
-        void 0
-      }
-    },
+    requestOverlaySchedule,
     setLayoutPositionsForMode,
     selectedEdgeIdRef,
     selectedNodeIdRef,

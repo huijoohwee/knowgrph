@@ -8,6 +8,7 @@ import {
   WORKSPACE_IMPORT_AUTO_PARSE_MAX_TOTAL_CHARS,
 } from '@/lib/config'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { DEFAULT_CANVAS_2D_RENDERER } from '@/lib/config.render'
 import type { WorkspaceFs, WorkspacePath } from './types'
 import { normalizeWorkspacePath, workspaceDocumentKey } from './path'
 import { loadWorkspaceSourceIndex } from './sourceIndex'
@@ -29,7 +30,7 @@ function applyInteractiveImportDefaults(): void {
   const store = useGraphStore.getState()
   try {
     store.setCanvasRenderMode('2d')
-    store.setCanvas2dRenderer('d3')
+    store.setCanvas2dRenderer(DEFAULT_CANVAS_2D_RENDERER)
   } catch {
     void 0
   }

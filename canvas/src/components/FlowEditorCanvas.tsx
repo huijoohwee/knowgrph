@@ -49,7 +49,7 @@ import {
   readSchemaFieldSpecs,
 } from '@/lib/graph/flowPorts'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
-import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
+import { filterGraphToFrontmatterFlow } from '@/lib/graph/layerDerivation'
 import { canAddEdge } from '@/features/schema/validation'
 import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
@@ -273,7 +273,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       documentSemanticMode,
       graphData: base,
     })
-    const frontmatterFiltered = effectiveFrontmatter ? filterGraphToFrontmatterMermaid(base) : base
+    const frontmatterFiltered = effectiveFrontmatter ? filterGraphToFrontmatterFlow(base) : base
     const collapsedKey = buildCollapsedGroupIdsKey(collapsedGroupIds)
     if (!collapsedKey) return frontmatterFiltered
     return deriveGraphDataWithGroupCollapse({
@@ -574,7 +574,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       graphData: draftGraphData,
     })
 
-    const base = effectiveFrontmatter ? filterGraphToFrontmatterMermaid(draftGraphData) : draftGraphData
+    const base = effectiveFrontmatter ? filterGraphToFrontmatterFlow(draftGraphData) : draftGraphData
     if (!collapsedGroupIdsKey) return base
 
     return deriveGraphDataWithGroupCollapse({
@@ -590,6 +590,24 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     keywordModeActive,
     storeRenderGraphData,
   ])
+  const frontmatterFlowRenderSettings = React.useMemo((): { rankdir: 'LR' | 'TB'; edgeType: 'bezier' | 'straight' | 'step' | 'smoothstep' } | null => {
+    const meta = (renderGraphDataOverride?.metadata || null) as Record<string, unknown> | null
+    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return null
+    if (String(meta.kind || '').trim() !== 'frontmatter-flow') return null
+    const settings = (meta.frontmatterFlowSettings || null) as Record<string, unknown> | null
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return null
+    const directionRaw = String(settings.direction || '').trim().toUpperCase()
+    const rankdir: 'LR' | 'TB' =
+      directionRaw === 'TB' || directionRaw === 'BT'
+        ? 'TB'
+        : 'LR'
+    const edgeRaw = String(settings.edgeType || '').trim().toLowerCase()
+    const edgeType: 'bezier' | 'straight' | 'step' | 'smoothstep' =
+      edgeRaw === 'straight' || edgeRaw === 'step' || edgeRaw === 'smoothstep' || edgeRaw === 'bezier'
+        ? edgeRaw
+        : 'bezier'
+    return { rankdir, edgeType }
+  }, [renderGraphDataOverride?.metadata])
 
   const overlayOnlyModeEnabled = React.useMemo(() => {
     return canEdit
@@ -1057,7 +1075,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           getZoomStateForKey({ zoomViewKey: zoomViewKeyRef.current, zoomStateByKey: st.zoomStateByKey }) ||
           null
         const k = typeof t?.k === 'number' && Number.isFinite(t.k) ? t.k : 1
-        const knobs = readFlowLayoutKnobs({ schema: schemaCur, rankdir: 'TB' })
+        const knobs = readFlowLayoutKnobs({ schema: schemaCur, rankdir: frontmatterFlowRenderSettings?.rankdir || 'TB' })
         const handleExtra = schemaCur.behavior?.portHandles?.enabled === true ? Math.max(0, knobs.handle.sizePx) : 0
         const nodeW = Math.max(1, Math.floor(knobs.node.widthPx + handleExtra * 2))
         const nodeH = Math.max(1, Math.floor(knobs.node.heightPx + handleExtra * 2))
@@ -1239,6 +1257,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const overlayElByNodeIdRef = React.useRef<Map<string, HTMLElement>>(new Map())
   const overlayEdgeSocketTypesRef = React.useRef<unknown>(null)
   const overlayEdgeSocketStyleByTypeRef = React.useRef<Map<string, { color: string; edgeWidthPx: number | null }>>(new Map())
+  const overlayEdgeLayoutSigRef = React.useRef<string>('')
+  const overlayEdgeAnchorCacheRef = React.useRef<Map<string, { x: number; y: number }>>(new Map())
   const overlayEdgeTopPctCacheRef = React.useRef<{
     key: string
     registry: ReadonlyArray<NodeQuickEditorRegistryEntry> | null
@@ -1280,6 +1300,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           }
         }
         overlayEdgePathByIdRef.current.clear()
+        overlayEdgeLayoutSigRef.current = ''
+        overlayEdgeAnchorCacheRef.current.clear()
         if (overlayPendingEdgePathRef.current) {
           try {
             overlayPendingEdgePathRef.current.remove()
@@ -1338,6 +1360,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           }
         }
         overlayEdgePathByIdRef.current.clear()
+        overlayEdgeLayoutSigRef.current = ''
+        overlayEdgeAnchorCacheRef.current.clear()
         return
       }
 
@@ -1407,6 +1431,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           }
         }
         overlayEdgePathByIdRef.current.clear()
+        overlayEdgeLayoutSigRef.current = ''
+        overlayEdgeAnchorCacheRef.current.clear()
         return
       }
 
@@ -1435,6 +1461,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           }
         }
         overlayEdgePathByIdRef.current.clear()
+        overlayEdgeLayoutSigRef.current = ''
+        overlayEdgeAnchorCacheRef.current.clear()
         return
       }
 
@@ -1471,7 +1499,35 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const baseLeft = Number.isFinite(rootRect.left) ? rootRect.left : null
       const baseTop = Number.isFinite(rootRect.top) ? rootRect.top : null
       if (baseLeft == null || baseTop == null) return
+      const round2 = (value: number): number => Math.round(value * 100) / 100
       const globalEdgeType = readGlobalEdgeType(schema)
+      const layoutSig = (() => {
+        const nodeIdsSorted = Array.from(overlayRectsByNodeId.keys()).sort((a, b) => a.localeCompare(b))
+        const nodeParts: string[] = []
+        for (let i = 0; i < nodeIdsSorted.length; i += 1) {
+          const nodeId = nodeIdsSorted[i]
+          const rect = overlayRectsByNodeId.get(nodeId)
+          if (!rect) continue
+          const overlayEl = overlayElByNodeIdRef.current.get(nodeId) || null
+          const scrollTop = overlayEl && Number.isFinite(overlayEl.scrollTop) ? round2(overlayEl.scrollTop) : 0
+          const scrollLeft = overlayEl && Number.isFinite(overlayEl.scrollLeft) ? round2(overlayEl.scrollLeft) : 0
+          nodeParts.push(
+            `${nodeId}:${round2(rect.left)}:${round2(rect.top)}:${round2(rect.width)}:${round2(rect.height)}:${scrollLeft}:${scrollTop}`,
+          )
+        }
+        const edgeParts = edges
+          .map(e => `${e.id}:${e.source}->${e.target}:${e.sourcePortKey}|${e.targetPortKey}:${e.stroke}:${e.strokeWidth}`)
+          .sort((a, b) => a.localeCompare(b))
+        const pending = pendingEdgePreviewRef.current
+        const cursor = pendingEdgeCursorRef.current
+        const pendingSig =
+          pending.toolMode === 'addEdge' && pending.sourceId && cursor
+            ? `${pending.toolMode}:${pending.sourceId}:${String(pending.sourcePortKey || '')}:${round2(cursor.x)}:${round2(cursor.y)}`
+            : ''
+        return `${round2(rootRect.left)}:${round2(rootRect.top)}:${round2(rootRect.width)}:${round2(rootRect.height)}|${nodeParts.join(',')}|${edgeParts.join(',')}|${pendingSig}`
+      })()
+      if (overlayEdgeLayoutSigRef.current === layoutSig) return
+      overlayEdgeLayoutSigRef.current = layoutSig
       const keep = new Set<string>()
 
       const overlayElByNodeId = overlayElByNodeIdRef.current
@@ -1490,19 +1546,30 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       }): { x: number; y: number } | null => {
         const el = overlayElByNodeId.get(args.nodeId)
         const portKey = String(args.portKey || '').trim()
+        const anchorCacheKey = `${args.nodeId}|${args.dir}|${portKey}`
         if (el && portKey) {
           const baseSel = `[data-kg-port-handle="1"][data-kg-port-dir="${args.dir}"][data-kg-port-key="${esc(portKey)}"]`
           const btn =
-            (el.querySelector(`button${baseSel}[data-kg-port-handle-kind="dot"]`) as HTMLElement | null)
-            || (el.querySelector(`button${baseSel}[data-kg-port-handle-kind="rail"]`) as HTMLElement | null)
+            (el.querySelector(`button${baseSel}[data-kg-port-handle-kind="rail"]`) as HTMLElement | null)
+            || (el.querySelector(`button${baseSel}[data-kg-port-handle-kind="dot"]`) as HTMLElement | null)
             || (el.querySelector(`button${baseSel}`) as HTMLElement | null)
           if (btn) {
-            const r = btn.getBoundingClientRect()
-            const x = args.dir === 'out' ? r.right : r.left
+            const dotEl = btn.querySelector('span') as HTMLElement | null
+            const r = dotEl ? dotEl.getBoundingClientRect() : btn.getBoundingClientRect()
+            const x = Number.isFinite(r.left) && Number.isFinite(r.width)
+              ? r.left + r.width / 2
+              : args.dir === 'out'
+                ? r.right
+                : r.left
             const y = r.top + r.height / 2
-            if (Number.isFinite(x) && Number.isFinite(y)) return { x, y }
+            if (Number.isFinite(x) && Number.isFinite(y)) {
+              overlayEdgeAnchorCacheRef.current.set(anchorCacheKey, { x, y })
+              return { x, y }
+            }
           }
         }
+        const cached = overlayEdgeAnchorCacheRef.current.get(anchorCacheKey)
+        if (cached && Number.isFinite(cached.x) && Number.isFinite(cached.y)) return cached
         const rect = args.fallbackRect
         const top = Number.isFinite(rect.top) ? rect.top : null
         const left = Number.isFinite(rect.left) ? rect.left : null
@@ -1546,7 +1613,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             const tx = cursor.x
             const ty = cursor.y
             if (Number.isFinite(sx) && Number.isFinite(sy) && Number.isFinite(tx) && Number.isFinite(ty)) {
-              const d = buildEdgePathD({ edgeType: globalEdgeType, sx, sy, tx, ty, rankdir: 'LR' })
+              const d = buildEdgePathD({ edgeType: globalEdgeType, sx, sy, tx, ty, rankdir: frontmatterFlowRenderSettings?.rankdir || 'LR' })
               const existing = overlayPendingEdgePathRef.current
               const pathEl = existing || document.createElementNS('http://www.w3.org/2000/svg', 'path')
               if (!existing) {
@@ -1605,7 +1672,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           sy,
           tx,
           ty,
-          rankdir: 'LR',
+          rankdir: frontmatterFlowRenderSettings?.rankdir || 'LR',
           curve: readEdgePathCurveOptions(e as unknown as GraphEdge, schema),
         })
         keep.add(edgeId)
@@ -1633,6 +1700,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         }
         overlayEdgePathByIdRef.current.delete(id)
       }
+      if (keep.size === 0) overlayEdgeLayoutSigRef.current = ''
     })
   }, [active, overlayOnlyModeEnabled])
 
@@ -1665,12 +1733,25 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (!active) return
     if (!overlayOnlyModeEnabled) return
     scheduleOverlayEdgeUpdate()
-    const onInteractionFrame = () => scheduleOverlayEdgeUpdate()
+    const onInteractionFrame = () => {
+      overlayEdgeLayoutSigRef.current = ''
+      overlayEdgeAnchorCacheRef.current.clear()
+      scheduleOverlayEdgeUpdate()
+    }
     window.addEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onInteractionFrame as EventListener)
 
-    const onAny = () => scheduleOverlayEdgeUpdate()
+    const onAny = () => {
+      overlayEdgeLayoutSigRef.current = ''
+      overlayEdgeAnchorCacheRef.current.clear()
+      scheduleOverlayEdgeUpdate()
+    }
+    const root = rootRef.current
     window.addEventListener('resize', onAny)
     window.addEventListener('scroll', onAny, true)
+    document.addEventListener('scroll', onAny, true)
+    document.addEventListener('wheel', onAny, { capture: true, passive: true })
+    root?.addEventListener('scroll', onAny, true)
+    root?.addEventListener('wheel', onAny, { capture: true, passive: true })
 
     return () => {
       try {
@@ -1680,6 +1761,10 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       }
       window.removeEventListener('resize', onAny)
       window.removeEventListener('scroll', onAny, true)
+      document.removeEventListener('scroll', onAny, true)
+      document.removeEventListener('wheel', onAny, true)
+      root?.removeEventListener('scroll', onAny, true)
+      root?.removeEventListener('wheel', onAny, true)
       for (const el of overlayEdgePathByIdRef.current.values()) {
         try {
           el.remove()
@@ -1688,6 +1773,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         }
       }
       overlayEdgePathByIdRef.current.clear()
+      overlayEdgeLayoutSigRef.current = ''
+      overlayEdgeAnchorCacheRef.current.clear()
       if (overlayPendingEdgePathRef.current) {
         try {
           overlayPendingEdgePathRef.current.remove()
@@ -2895,8 +2982,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       if (a.x !== b.x) return a.x - b.x
       return a.id.localeCompare(b.id)
     }
-    const MAX_AUTO = 48
-    if (kind === 'frontmatter-flow' && nodes.length > 0 && nodes.length <= MAX_AUTO) {
+    if (kind === 'frontmatter-flow' && nodes.length > 0) {
       const next: string[] = []
       const seen = new Set<string>()
       for (let i = 0; i < nodes.length; i += 1) {
@@ -2907,73 +2993,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         seen.add(id)
         next.push(id)
       }
-      return next.sort(compareByVisualIndex)
-    }
-
-    if (kind === 'frontmatter-flow' && nodes.length > 0 && nodes.length > MAX_AUTO) {
-      const MAX_VIEW = 28
-      const pad = 160
-      const st = useGraphStore.getState()
-      const t =
-        getLiveZoomTransform() ||
-        getEffectiveZoomStateForKey({
-          zoomViewKey: zoomViewKeyRef.current,
-          zoomStateByKey: st.zoomStateByKey,
-          zoomState: st.zoomState,
-        })
-
-      const candidates: Array<{ id: string; sx: number; sy: number }> = []
-      const positioned: Array<{ id: string; x: number; y: number }> = []
-      for (let i = 0; i < nodes.length; i += 1) {
-        const n = nodes[i]
-        const id = String(n?.id || '').trim()
-        if (!id) continue
-        if (String(n?.type || '') === 'Section') continue
-        const x = (n as unknown as { x?: unknown }).x
-        const y = (n as unknown as { y?: unknown }).y
-        if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) continue
-        positioned.push({ id, x, y })
-        const p = worldToScreen({ transform: t as unknown as { k: number; x: number; y: number }, x, y })
-        if (p.sx < -pad || p.sy < -pad || p.sx > viewportW + pad || p.sy > viewportH + pad) continue
-        candidates.push({ id, sx: p.sx, sy: p.sy })
-      }
-      candidates.sort((a, b) => (a.sy - b.sy) || (a.sx - b.sx) || a.id.localeCompare(b.id))
-
-      const next: string[] = []
-      const seen = new Set<string>()
-      if (candidates.length > 0) {
-        for (let i = 0; i < candidates.length && next.length < MAX_VIEW; i += 1) {
-          const id = candidates[i].id
-          if (seen.has(id)) continue
-          seen.add(id)
-          next.push(id)
-        }
-      } else if (positioned.length > 0) {
-        const center = viewportCenterToWorld({ transform: t as unknown as { k: number; x: number; y: number }, viewportW, viewportH })
-        const scored = positioned
-          .map(p => {
-            const dx = p.x - center.x
-            const dy = p.y - center.y
-            return { id: p.id, dist2: dx * dx + dy * dy, x: p.x, y: p.y }
-          })
-          .sort((a, b) => (a.dist2 - b.dist2) || (a.y - b.y) || (a.x - b.x) || a.id.localeCompare(b.id))
-        for (let i = 0; i < scored.length && next.length < MAX_VIEW; i += 1) {
-          const id = scored[i].id
-          if (seen.has(id)) continue
-          seen.add(id)
-          next.push(id)
-        }
-      }
-
-      const open = Array.isArray(openQuickEditorNodeIds) ? openQuickEditorNodeIds : []
-      for (let i = 0; i < open.length; i += 1) {
-        const s = String(open[i] || '').trim()
-        if (!s || seen.has(s)) continue
-        seen.add(s)
-        next.push(s)
-      }
-      const sel = String(overlayDraftNode?.id || '').trim()
-      if (sel && !seen.has(sel)) next.push(sel)
       return next.sort(compareByVisualIndex)
     }
 
@@ -2988,7 +3007,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const sel = String(overlayDraftNode?.id || '').trim()
     if (sel && !seen.has(sel)) next.push(sel)
     return next
-  }, [getLiveZoomTransform, openQuickEditorNodeIds, overlayDraftNode?.id, renderGraphDataOverride?.metadata, renderGraphDataOverride?.nodes, viewportH, viewportW])
+  }, [openQuickEditorNodeIds, overlayDraftNode?.id, renderGraphDataOverride?.metadata, renderGraphDataOverride?.nodes])
 
   const seededFrontmatterAutoQuickEditorsKeyRef = React.useRef<string>('')
   React.useEffect(() => {
@@ -3132,7 +3151,13 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   ])
 
   const hasOverlayEditors = overlayEditorElements.length > 0
-  const overlayOnlyActive = overlayOnlyModeEnabled && hasOverlayEditors
+  const frontmatterOverlayHideSafety = React.useMemo(() => {
+    const kind = String(((renderGraphDataOverride?.metadata || {}) as Record<string, unknown>).kind || '').trim()
+    return { kind, visibleNodeIds: [] as string[], hasFullOverlayCoverageForVisibleNodes: true }
+  }, [renderGraphDataOverride?.metadata])
+  const overlayOnlySafeForCurrentView =
+    frontmatterOverlayHideSafety.kind !== 'frontmatter-flow' || frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes
+  const overlayOnlyActive = overlayOnlyModeEnabled && hasOverlayEditors && overlayOnlySafeForCurrentView
   const overlayOnlyHidePortHandleNodeIds = React.useMemo(() => {
     if (!overlayOnlyActive) return undefined
     const nodes = Array.isArray(renderGraphDataOverride?.nodes) ? renderGraphDataOverride?.nodes : []

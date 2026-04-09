@@ -42,3 +42,24 @@ export function testRendererUiStateIsolationKeepsOpenQuickEditorsPerRenderer() {
     throw new Error(`expected d3 renderer to restore open quick editors, got ${JSON.stringify(ids)}`)
   }
 }
+
+export function testRendererUiStateIsolationSeedsFlowEditorQuickEditorFromSourceRenderer() {
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+  useGraphStore.getState().setGraphData({
+    type: 'Graph',
+    context: 'test-flow-editor-seed',
+    nodes: [
+      { id: 'a', type: 'Node', label: 'a', properties: {}, x: 0, y: 0, vx: 0, vy: 0 },
+      { id: 'b', type: 'Node', label: 'b', properties: {}, x: 1, y: 0, vx: 0, vy: 0 },
+    ],
+    edges: [],
+  } as never)
+  useGraphStore.getState().setCanvas2dRenderer('d3')
+  useGraphStore.getState().setOpenQuickEditorNodeIds(['a'])
+  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  const afterFlowEditor = useGraphStore.getState()
+  const seeded = afterFlowEditor.openQuickEditorNodeIds || []
+  if (seeded.length !== 1 || seeded[0] !== 'a') {
+    throw new Error(`expected flowEditor to seed quick editors from source renderer, got ${JSON.stringify(seeded)}`)
+  }
+}

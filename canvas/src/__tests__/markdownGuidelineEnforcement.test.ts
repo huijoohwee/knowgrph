@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 
-const FEATURE_DIR = resolve(process.cwd(), 'canvas/src/features/markdown')
+const FEATURE_DIR = resolve(process.cwd(), 'src/features/markdown')
 const SIZE_LIMIT = 600
 const NEUTRALITY_BANNED_PATTERNS: RegExp[] = [
   /\/Users\//, // no absolute user paths

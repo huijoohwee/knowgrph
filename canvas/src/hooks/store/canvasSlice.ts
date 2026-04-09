@@ -24,6 +24,7 @@ import {
 } from '@/lib/persistence'
 import { coerceViewportControlsPreset } from '@/lib/canvas/viewport-controls'
 import type { Canvas2dRendererId, Canvas3dModeId, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
+import { isFlowCanvas2dRenderer } from '@/lib/config.render'
 import {
   FLOW_WHEEL_ZOOM_SMOOTH_MAX_DURATION_DEFAULT_MS,
   FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MAX_MS,
@@ -49,6 +50,7 @@ import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { readLayoutMode2d } from '@/lib/graph/layoutMode'
 import { normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
+import { coerceCanvas2dRendererForSchema } from '@/lib/canvas/renderModeConstraints'
 import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
 import {
   CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT,
@@ -531,12 +533,11 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     set(state => {
       const requested: Canvas2dRendererId =
         id === 'flow' || id === 'flowEditor' || id === 'design' || id === 'd3Bipartite' ? id : 'd3'
-      const voxelRenderer =
-        state.canvas3dMode === 'voxel' && requested !== 'd3' && requested !== 'd3Bipartite'
-          ? 'd3Bipartite'
-          : requested
-      const layoutMode = state.schema?.layout?.mode
-      const radialRenderer = layoutMode === 'radial' && voxelRenderer !== 'd3' && voxelRenderer !== 'd3Bipartite' ? 'd3' : voxelRenderer
+      const radialRenderer = coerceCanvas2dRendererForSchema({
+        requested,
+        canvas3dMode: state.canvas3dMode,
+        schema: state.schema,
+      })
       const nextCanvas3dMode = resolveCanvas3dMode({
         requested: normalizeCanvas3dMode(state.canvas3dMode),
         canvas2dRenderer: radialRenderer,
@@ -576,11 +577,29 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
 
       const quickEditorBy = state.openQuickEditorNodeIdsByRenderer || {}
       const nextQuickEditorBy = { ...quickEditorBy, [state.canvas2dRenderer]: state.openQuickEditorNodeIds || [] }
-      const nextQuickEditors = nextQuickEditorBy[radialRenderer] || []
+      const nodes = Array.isArray(state.graphData?.nodes) ? state.graphData.nodes : []
+      const nodeIdSet = new Set(
+        nodes
+          .map((n: any) => String(n?.id || '').trim())
+          .filter((id: string) => id.length > 0),
+      )
+      const sourceQuickEditors = Array.isArray(state.openQuickEditorNodeIds) ? state.openQuickEditorNodeIds : []
+      const targetQuickEditors = Array.isArray(nextQuickEditorBy[radialRenderer]) ? nextQuickEditorBy[radialRenderer] : []
+      const sourceValid = sourceQuickEditors.map(id => String(id || '').trim()).filter(id => nodeIdSet.has(id))
+      const targetValid = targetQuickEditors.map(id => String(id || '').trim()).filter(id => nodeIdSet.has(id))
+      const shouldSeedFlowEditorFromSource = radialRenderer === 'flowEditor' && targetValid.length < 1 && sourceValid.length > 0
+      const nextQuickEditors = shouldSeedFlowEditorFromSource ? sourceValid : targetValid
+      const enforceFrontmatterOnly = state.canvasRenderMode === '2d' && isFlowCanvas2dRenderer(radialRenderer)
+      const nextDocumentSemanticMode = enforceFrontmatterOnly ? 'document' : state.documentSemanticMode
+      const nextFrontmatterModeEnabled = enforceFrontmatterOnly ? true : state.frontmatterModeEnabled
+      const nextMultiDimTableModeEnabled = enforceFrontmatterOnly ? false : state.multiDimTableModeEnabled
 
       return {
         canvas2dRenderer: radialRenderer,
         canvas3dMode: nextCanvas3dMode,
+        documentSemanticMode: nextDocumentSemanticMode,
+        frontmatterModeEnabled: nextFrontmatterModeEnabled,
+        multiDimTableModeEnabled: nextMultiDimTableModeEnabled,
         zoomStateByKey: seededZoom,
         canvasPointerMode2d: nextPointer,
         canvasPointerMode2dByRenderer: nextPointerBy,

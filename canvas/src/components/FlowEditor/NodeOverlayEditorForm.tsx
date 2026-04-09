@@ -29,6 +29,7 @@ import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { NodeOverlayEditorBeatByBeatSection } from '@/components/FlowEditor/NodeOverlayEditorBeatByBeatSection'
 import type { GraphEdge } from '@/lib/graph/types'
+import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 
 function pickString(v: unknown): string {
   return typeof v === 'string' ? v : ''
@@ -44,6 +45,33 @@ function pickNumber(v: unknown): number | null {
 
 function cleanDomIdPart(v: unknown): string {
   return String(typeof v === 'string' ? v : '').trim().replace(/[^a-zA-Z0-9_-]/g, '_')
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function isSmartMediaRegistryEntry(entry: NodeQuickEditorRegistryEntry | null | undefined): boolean {
+  if (!entry) return false
+  if (String(entry.formId || '').trim() === 'videoGeneration') return true
+  const fields = Array.isArray(entry.fields) ? entry.fields : []
+  if (fields.length === 0) return false
+  const smartFieldKeySet = new Set([
+    'model',
+    'prompt',
+    'aspect_ratio',
+    'duration',
+    'resolution',
+    'generate_audio',
+    'fast',
+    'reference_image',
+  ])
+  for (let i = 0; i < fields.length; i += 1) {
+    const field = fields[i] as Record<string, unknown>
+    const key = String(field?.fieldKey || '').trim()
+    if (smartFieldKeySet.has(key)) return true
+  }
+  return false
 }
 
 export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
@@ -117,6 +145,27 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
 
   const schemaFields = React.useMemo(() => readSchemaFieldSpecs(node), [node])
   const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled) || String(graphMetaKind || '').trim() === 'frontmatter-flow'
+  const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow'
+  const flowPortTypes = React.useMemo(() => {
+    const raw = properties['flow:portTypes']
+    if (!isRecord(raw)) return { target: [] as string[], source: [] as string[] }
+    const inPortsRaw = isRecord(raw.in) ? raw.in : {}
+    const outPortsRaw = isRecord(raw.out) ? raw.out : {}
+    const target = Object.keys(inPortsRaw).map(k => String(k || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b))
+    const source = Object.keys(outPortsRaw).map(k => String(k || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b))
+    return { target, source }
+  }, [properties])
+  const flowCompute = pickString(properties['flow:compute'])
+  const flowDataJson = React.useMemo(() => {
+    const raw = properties.data
+    if (typeof raw === 'string') return raw
+    if (typeof raw === 'undefined') return '{}'
+    try {
+      return JSON.stringify(raw, null, 2)
+    } catch {
+      return '{}'
+    }
+  }, [properties.data])
   const { sizePx: dotSizePx, hitSizePx: dotHitPx } = React.useMemo(() => {
     const m = readPortHandleUiMetrics(schema)
     return { sizePx: Math.max(10, m.sizePx), hitSizePx: Math.max(18, m.hitSizePx + 2) }
@@ -147,6 +196,12 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   )
   const registrySelectionId = registryEntry?.id || ''
   const hasRegistryOptions = registryOptions.length > 0
+  const hasSmartMediaSelection = React.useMemo(() => {
+    if (isSmartMediaRegistryEntry(registryEntry)) return true
+    const formId = String(properties[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim()
+    return formId === 'videoGeneration' || formId === 'nodeQuickEditor'
+  }, [properties, registryEntry])
+  const showSmartMediaFields = !hideFields && (!isFrontmatterFlow || hasSmartMediaSelection)
 
   const registryOptionIdsSig = React.useMemo(() => {
     return (registryOptions || []).map(e => String(e.id || '')).join('|')
@@ -189,12 +244,39 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     },
     [onPatchProperties, onRegistrySelectionChange, registryOptions, registrySelectionId],
   )
+  const interactionFrameRafRef = React.useRef<number | null>(null)
+  const emitInteractionFrame = React.useCallback(() => {
+    if (typeof window === 'undefined') return
+    if (interactionFrameRafRef.current != null) return
+    interactionFrameRafRef.current = requestAnimationFrame(() => {
+      interactionFrameRafRef.current = null
+      try {
+        window.dispatchEvent(new Event(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
+      } catch {
+        void 0
+      }
+    })
+  }, [])
+
+  React.useEffect(() => {
+    return () => {
+      if (interactionFrameRafRef.current == null) return
+      try {
+        cancelAnimationFrame(interactionFrameRafRef.current)
+      } catch {
+        void 0
+      }
+      interactionFrameRafRef.current = null
+    }
+  }, [])
 
   return (
     <form
       className={cn('px-3 py-0 flex-1 min-h-0 overflow-y-auto overflow-x-hidden', panelTextClass)}
       aria-label={UI_LABELS.flowNodeQuickEditorForm}
       onSubmit={e => e.preventDefault()}
+      onScrollCapture={() => emitInteractionFrame()}
+      onWheelCapture={() => emitInteractionFrame()}
     >
       <section className="min-w-0" aria-label={UI_LABELS.flowNodeQuickEditorNodeLegend}>
         <NodeOverlayEditorKvTable
@@ -231,7 +313,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         />
       </section>
 
-      {!hideFields && (
+      {showSmartMediaFields && (
         <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowNodeQuickEditorSmartFieldsLegend}>
           <NodeOverlayEditorKvTable
             ariaLabel={UI_LABELS.flowNodeQuickEditorSmartFieldsLegend}
@@ -438,6 +520,112 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     onChange={e => onPatchProperties({ reference_image: e.target.value || undefined })}
                     placeholder={UI_COPY.flowNodeQuickEditorReferenceImagePlaceholder}
                     disabled={!active}
+                  />
+                ),
+              },
+            ]}
+          />
+        </section>
+      )}
+
+      {!hideFields && isFrontmatterFlow && (
+        <section className="min-w-0 mt-4" aria-label="Flow Contract">
+          <NodeOverlayEditorKvTable
+            ariaLabel="Flow Contract"
+            microLabelClass={microLabelClass}
+            dotSizePx={dotSizePx}
+            dotHitPx={dotHitPx}
+            forcePortDots
+            rows={[
+              {
+                rowKey: 'flow-handles-target',
+                labelId: `${idBase}-kv-flow-target`,
+                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-target`}>handles.target</label>,
+                typeNode: <NodeOverlayEditorTypePill text="string[]" />,
+                valueNode: (
+                  <input
+                    id={`${idBase}-flow-target`}
+                    className={cn(
+                      keyValueInputClass,
+                      textSizeClass,
+                      'text-left',
+                      UI_THEME_TOKENS.input.bg,
+                      UI_THEME_TOKENS.input.border,
+                      UI_THEME_TOKENS.input.text,
+                    )}
+                    value={flowPortTypes.target.join(', ')}
+                    disabled
+                  />
+                ),
+              },
+              {
+                rowKey: 'flow-handles-source',
+                labelId: `${idBase}-kv-flow-source`,
+                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-source`}>handles.source</label>,
+                typeNode: <NodeOverlayEditorTypePill text="string[]" />,
+                valueNode: (
+                  <input
+                    id={`${idBase}-flow-source`}
+                    className={cn(
+                      keyValueInputClass,
+                      textSizeClass,
+                      'text-left',
+                      UI_THEME_TOKENS.input.bg,
+                      UI_THEME_TOKENS.input.border,
+                      UI_THEME_TOKENS.input.text,
+                    )}
+                    value={flowPortTypes.source.join(', ')}
+                    disabled
+                  />
+                ),
+              },
+              {
+                rowKey: 'flow-compute',
+                labelId: `${idBase}-kv-flow-compute`,
+                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-compute`}>compute</label>,
+                typeNode: <NodeOverlayEditorTypePill text="code" />,
+                valueNode: (
+                  <PlainTextInputEditor
+                    id={`${idBase}-flow-compute`}
+                    value={flowCompute}
+                    onChange={next => onPatchProperties({ 'flow:compute': next || undefined })}
+                    disabled={!active}
+                    multiline
+                    className={cn(
+                      'w-full h-24 px-2 py-1 rounded-md border',
+                      monospaceTextClass,
+                    )}
+                  />
+                ),
+              },
+              {
+                rowKey: 'flow-data',
+                labelId: `${idBase}-kv-flow-data`,
+                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-data`}>data</label>,
+                typeNode: <NodeOverlayEditorTypePill text="json" />,
+                valueNode: (
+                  <PlainTextInputEditor
+                    id={`${idBase}-flow-data`}
+                    value={flowDataJson}
+                    onChange={next => {
+                      const raw = String(next || '').trim()
+                      if (!raw) {
+                        onPatchProperties({ data: {} })
+                        return
+                      }
+                      try {
+                        const parsed = JSON.parse(raw)
+                        onPatchProperties({ data: parsed })
+                      } catch {
+                        void 0
+                      }
+                    }}
+                    disabled={!active}
+                    multiline
+                    className={cn(
+                      'w-full h-32 px-2 py-1 rounded-md border',
+                      monospaceTextClass,
+                    )}
                   />
                 ),
               },

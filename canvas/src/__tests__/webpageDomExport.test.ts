@@ -1,6 +1,8 @@
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { exportWebpageDomViaHiddenIframe } from '@/lib/websites/webpageDomExport'
 
+const WEBPAGE_TEST_URL = 'https://docs.byteplus.com/'
+
 const waitMs = async (ms: number) => {
   await new Promise<void>(resolve => setTimeout(resolve, ms))
 }
@@ -26,7 +28,7 @@ export async function testWebpageDomExportWaitsForNetworkIdleAndReturnsSnapshot(
   const { restore } = initJsdomHarness()
   try {
     const p = exportWebpageDomViaHiddenIframe({
-      url: 'https://example.com/',
+      url: WEBPAGE_TEST_URL,
       mode: 'html',
       timeoutMs: 4000,
       waitForNetworkIdle: true,
@@ -80,7 +82,7 @@ export async function testWebpageDomExportDedupesInflightRequests() {
   const { restore } = initJsdomHarness()
   try {
     const p1 = exportWebpageDomViaHiddenIframe({
-      url: 'https://example.com/',
+      url: WEBPAGE_TEST_URL,
       mode: 'html',
       timeoutMs: 4000,
       waitForNetworkIdle: true,
@@ -88,7 +90,7 @@ export async function testWebpageDomExportDedupesInflightRequests() {
       minWaitAfterLoadMs: 0,
     })
     const p2 = exportWebpageDomViaHiddenIframe({
-      url: 'https://example.com/',
+      url: WEBPAGE_TEST_URL,
       mode: 'html',
       timeoutMs: 4000,
       waitForNetworkIdle: true,
@@ -141,7 +143,7 @@ export async function testWebpageDomExportAbortsAndRemovesIframe() {
   try {
     const ctrl = new AbortController()
     const p = exportWebpageDomViaHiddenIframe({
-      url: 'https://example.com/',
+      url: WEBPAGE_TEST_URL,
       mode: 'html',
       timeoutMs: 4000,
       waitForNetworkIdle: true,

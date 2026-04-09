@@ -24,6 +24,10 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { DEFAULT_BBOX_COLLIDE_PADDING, DEFAULT_FIT_PADDING, DEFAULT_GROUP_BBOX_COLLIDE_PADDING } from '@/lib/graph/layoutDefaults'
 import { buildDocumentKey, buildDocumentRef, readPerDocumentUiState, writePerDocumentUiState } from '@/lib/persistence/perDocumentUiState'
 import { scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import {
+  WORKSPACE_SYNC_SCOPE_PER_DOCUMENT_UI_RUNTIME_PERSISTENCE,
+  WORKSPACE_SYNC_TASK_PER_DOCUMENT_UI,
+} from '@/lib/async/workspaceSyncKeys'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { hashSignatureParts, hashStringArraySignature } from '@/lib/hash/signature'
 
@@ -59,7 +63,14 @@ const applyCanvasDefaultInitSchema = (schema: GraphSchema): GraphSchema => {
       ? rawNodeShapeMode
       : 'circle'
   const nextBehavior = { ...behavior, nodeShapeMode, portHandles }
-  const nextLayout = { ...(schema.layout || {}), mode: 'radial' as const }
+  const rawLayoutMode = schema.layout?.mode
+  const nextLayoutMode =
+    rawLayoutMode === 'radial' || rawLayoutMode === 'block'
+      ? rawLayoutMode
+      : defaultSchema.layout?.mode === 'radial'
+        ? 'radial'
+        : 'block'
+  const nextLayout = { ...(schema.layout || {}), mode: nextLayoutMode }
   return { ...schema, behavior: nextBehavior, layout: nextLayout }
 }
 
@@ -295,7 +306,7 @@ try {
 
     const schedulePersist = () => {
       const signature = pendingSignature(pending)
-      scheduleWorkspaceSyncTask('per-document-ui', () => {
+      scheduleWorkspaceSyncTask(WORKSPACE_SYNC_TASK_PER_DOCUMENT_UI, () => {
         const next = pending
         pending = null
         if (!next) return
@@ -304,7 +315,7 @@ try {
           documentRef: next.ref,
           state: next.state,
         })
-      }, 250, { signature, scopeKey: 'per-document-ui:runtime-persistence' })
+      }, 250, { signature, scopeKey: WORKSPACE_SYNC_SCOPE_PER_DOCUMENT_UI_RUNTIME_PERSISTENCE })
     }
 
     useGraphStore.subscribe(

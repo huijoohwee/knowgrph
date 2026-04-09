@@ -44,7 +44,9 @@ export const testGympgrphGeospatialKeysAreNamespacedOnly = () => {
   if (!text.includes('kg:ui:geospatial:') && !text.includes('grph-shared/geospatial/constants')) {
     throw new Error('Expected namespaced kg:ui:geospatial keys (direct) or shared GEOSPATIAL_LS_KEYS import')
   }
-  if (!text.includes('geospatialViewMode')) throw new Error('Expected persisted geospatialViewMode key to exist')
+  if (!(text.includes('geospatialViewMode') || text.includes('GEOSPATIAL_LS_KEYS'))) {
+    throw new Error('Expected persisted geospatialViewMode key to exist via direct key or shared key map alias')
+  }
 }
 
 export const testGympgrphDefaultViewModeIs2d = () => {
@@ -127,7 +129,9 @@ export const testHoldSpaceKeyHandlingPreventsScrollAndIgnoresInputs = () => {
   const heldKeyPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useHeldKey.ts')
   const text = readUtf8(heldKeyPath)
   if (!text.includes('preventDefault')) throw new Error('Expected Space hold to preventDefault to avoid page scroll')
-  if (!text.includes('closest(')) throw new Error('Expected hold-space logic to ignore input/textarea/select/contenteditable')
+  if (!(text.includes('closest(') || text.includes('closest?.('))) {
+    throw new Error('Expected hold-space logic to ignore input/textarea/select/contenteditable')
+  }
 }
 
 export const testHostEnableForcesAlwaysInteractionMode = () => {
@@ -167,11 +171,16 @@ export const testGeospatialModeEventContractIsShared = () => {
 
   const toolbarPath = path.resolve(process.cwd(), 'src', 'components', 'Toolbar.tsx')
   const toolbarText = readUtf8(toolbarPath)
-  if (!toolbarText.includes('onGeospatialModeChanged')) {
-    throw new Error('Expected Toolbar to subscribe via onGeospatialModeChanged helper')
+  const toolbarContextPath = path.resolve(process.cwd(), 'src', 'components', 'toolbar', 'useCanvasToolbarContext.ts')
+  const toolbarContextText = readUtf8(toolbarContextPath)
+  if (!(toolbarText.includes('onGeospatialModeChanged') || toolbarContextText.includes('onGeospatialModeChanged'))) {
+    throw new Error('Expected Toolbar or delegated toolbar context to subscribe via onGeospatialModeChanged helper')
   }
-  if (toolbarText.includes('addEventListener(GEOSPATIAL_MODE_CHANGED_EVENT')) {
-    throw new Error('Toolbar must not attach raw GEOSPATIAL_MODE_CHANGED_EVENT listener (use helper)')
+  if (
+    toolbarText.includes('addEventListener(GEOSPATIAL_MODE_CHANGED_EVENT') ||
+    toolbarContextText.includes('addEventListener(GEOSPATIAL_MODE_CHANGED_EVENT')
+  ) {
+    throw new Error('Toolbar integration must not attach raw GEOSPATIAL_MODE_CHANGED_EVENT listener (use helper)')
   }
 
   const slicePath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')

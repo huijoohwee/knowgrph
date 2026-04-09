@@ -232,7 +232,11 @@ export async function importWorkspaceLocalFolder(args: {
       return typeof anyFile.webkitRelativePath === 'string' ? anyFile.webkitRelativePath : ''
     })()
     const rel = parseWebkitRelativePath(relRaw, nameRaw)
-    const relPath = String(rel.rawRelativePath || '').replace(/\\/g, '/').replace(/^\/+/, '')
+    const relPath = [String(rel.folderName || '').trim(), String(rel.rawRelativePath || '').trim()]
+      .filter(Boolean)
+      .join('/')
+      .replace(/\\/g, '/')
+      .replace(/^\/+/, '')
     const parts = relPath.split('/').filter(Boolean)
     const relName = String(parts[parts.length - 1] || nameRaw).trim() || nameRaw
     const relDir = parts.length > 1 ? parts.slice(0, -1).join('/') : ''

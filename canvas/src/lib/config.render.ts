@@ -2,10 +2,14 @@ export const CANVAS_2D_RENDERERS = ['d3', 'd3Bipartite', 'flow', 'flowEditor', '
 
 export type Canvas2dRendererId = (typeof CANVAS_2D_RENDERERS)[number]
 
-export const DEFAULT_CANVAS_2D_RENDERER: Canvas2dRendererId = 'd3'
+export const DEFAULT_CANVAS_2D_RENDERER: Canvas2dRendererId = 'flowEditor'
 
 export const isD3Like2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
   return id === 'd3' || id === 'd3Bipartite'
+}
+
+export const isFlowCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return id === 'flow' || id === 'flowEditor'
 }
 
 export const CANVAS_3D_MODES = ['3d', 'voxel'] as const

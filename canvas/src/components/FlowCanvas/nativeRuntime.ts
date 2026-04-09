@@ -353,42 +353,8 @@ export const computeFlowGroupAabb = (args: {
       ? null
       : ({ minX, minY: minY - topExtra, maxX, maxY } as { minX: number; minY: number; maxX: number; maxY: number })
 
-  if (!explicitAabb) return computed
-  if (!computed) return explicitAabb
-
-  let minX0 = Infinity
-  let minY0 = Infinity
-  let maxX0 = -Infinity
-  let maxY0 = -Infinity
-  for (let j = 0; j < memberIds.length; j += 1) {
-    const id = String(memberIds[j] || '').trim()
-    if (!id) continue
-    const n = args.scene.nodeById.get(id)
-    if (!n) continue
-    minX0 = Math.min(minX0, n.x)
-    minY0 = Math.min(minY0, n.y)
-    maxX0 = Math.max(maxX0, n.x + n.width)
-    maxY0 = Math.max(maxY0, n.y + n.height)
-  }
-  const eps = Math.max(2, Math.min(12, Math.floor(padding * 0.25)))
-  const nodesInsideExplicit =
-    Number.isFinite(minX0) &&
-    Number.isFinite(minY0) &&
-    Number.isFinite(maxX0) &&
-    Number.isFinite(maxY0) &&
-    minX0 >= explicitAabb.minX + eps &&
-    minY0 >= explicitAabb.minY + eps &&
-    maxX0 <= explicitAabb.maxX - eps &&
-    maxY0 <= explicitAabb.maxY - eps
-
-  if (nodesInsideExplicit) return explicitAabb
-
-  return {
-    minX: Math.min(explicitAabb.minX, computed.minX),
-    minY: Math.min(explicitAabb.minY, computed.minY),
-    maxX: Math.max(explicitAabb.maxX, computed.maxX),
-    maxY: Math.max(explicitAabb.maxY, computed.maxY),
-  }
+  if (explicitAabb) return explicitAabb
+  return computed
 }
 
 export type FlowGroupAabb = NonNullable<ReturnType<typeof computeFlowGroupAabb>>

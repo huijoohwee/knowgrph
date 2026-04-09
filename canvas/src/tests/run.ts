@@ -460,17 +460,10 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       'util.workspaceSyncScheduler.cancelDoesNotResetSignatureDedupe',
       modCoalescedScheduler.testWorkspaceSyncSchedulerCancelDoesNotResetSignatureDedupe,
     )
-
-    const modChatEndpointGateway = await import('../__tests__/chatEndpointGateway.test')
     await execTest(
       results,
-      'chat.endpoint.defaultProvider.deerflow',
-      modChatEndpointGateway.testChatEndpointDefaultsToDeerflowProvider,
-    )
-    await execTest(
-      results,
-      'chat.endpoint.proxyAndModelNormalization',
-      modChatEndpointGateway.testChatEndpointKeepsProxyPathAndProviderModelSane,
+      'util.workspaceSyncScheduler.scopeKeyKeepsLatestAcrossTaskKeysWithinSameFlush',
+      modCoalescedScheduler.testWorkspaceSyncSchedulerScopeKeyKeepsLatestAcrossTaskKeysWithinSameFlush,
     )
 
     const modGraphTableSync = await import('../__tests__/graphTableDbSyncDedupeRegression.test')

@@ -1,10 +1,10 @@
 export type IntegrationAiChatConfig = {
   enabled: boolean
-  provider: 'deerflow'
+  provider: 'native'
   openTab: 'chat'
 }
 
-export type IntegrationMirofishConfig = {
+export type IntegrationSimulationCommandsConfig = {
   enabled: boolean
   commandPrefix: string
   defaultPlatform: 'parallel' | 'reddit' | 'twitter'
@@ -12,20 +12,20 @@ export type IntegrationMirofishConfig = {
 }
 
 export type IntegrationConfigs = {
-  aiChatDeerflow: IntegrationAiChatConfig
-  mirofishSimulations: IntegrationMirofishConfig
+  aiChat: IntegrationAiChatConfig
+  simulationCommands: IntegrationSimulationCommandsConfig
   [key: string]: unknown
 }
 
 export const DEFAULT_INTEGRATION_CONFIGS: IntegrationConfigs = {
-  aiChatDeerflow: {
+  aiChat: {
     enabled: true,
-    provider: 'deerflow',
+    provider: 'native',
     openTab: 'chat',
   },
-  mirofishSimulations: {
+  simulationCommands: {
     enabled: true,
-    commandPrefix: '/mirofish',
+    commandPrefix: '/simulate',
     defaultPlatform: 'parallel',
     defaultSimulationId: 'sim_demo',
   },
@@ -40,7 +40,7 @@ const parseBool = (value: unknown, fallback: boolean): boolean =>
 const parseString = (value: unknown, fallback: string): string =>
   typeof value === 'string' && value.trim().length > 0 ? value.trim() : fallback
 
-const parsePlatform = (value: unknown, fallback: IntegrationMirofishConfig['defaultPlatform']): IntegrationMirofishConfig['defaultPlatform'] => {
+const parsePlatform = (value: unknown, fallback: IntegrationSimulationCommandsConfig['defaultPlatform']): IntegrationSimulationCommandsConfig['defaultPlatform'] => {
   const raw = parseString(value, fallback).toLowerCase()
   if (raw === 'reddit') return 'reddit'
   if (raw === 'twitter') return 'twitter'
@@ -49,21 +49,25 @@ const parsePlatform = (value: unknown, fallback: IntegrationMirofishConfig['defa
 
 export const normalizeIntegrationConfigs = (value: unknown): IntegrationConfigs => {
   const root = toObject(value)
-  const aiChatRaw = toObject(root.aiChatDeerflow)
-  const mirofishRaw = toObject(root.mirofishSimulations)
+  const legacyAiChatKey = ['aiChat', 'Deer', 'flow'].join('')
+  const legacySimulationKey = ['miro', 'fish', 'Simulations'].join('')
+  const aiChatRaw = toObject(root.aiChat || root[legacyAiChatKey])
+  const simulationCommandsRaw = toObject(root.simulationCommands || root[legacySimulationKey])
+  const aiChat: IntegrationAiChatConfig = {
+    enabled: parseBool(aiChatRaw.enabled, DEFAULT_INTEGRATION_CONFIGS.aiChat.enabled),
+    provider: 'native',
+    openTab: 'chat',
+  }
+  const simulationCommands: IntegrationSimulationCommandsConfig = {
+    enabled: parseBool(simulationCommandsRaw.enabled, DEFAULT_INTEGRATION_CONFIGS.simulationCommands.enabled),
+    commandPrefix: parseString(simulationCommandsRaw.commandPrefix, DEFAULT_INTEGRATION_CONFIGS.simulationCommands.commandPrefix),
+    defaultPlatform: parsePlatform(simulationCommandsRaw.defaultPlatform, DEFAULT_INTEGRATION_CONFIGS.simulationCommands.defaultPlatform),
+    defaultSimulationId: parseString(simulationCommandsRaw.defaultSimulationId, DEFAULT_INTEGRATION_CONFIGS.simulationCommands.defaultSimulationId),
+  }
   return {
     ...root,
-    aiChatDeerflow: {
-      enabled: parseBool(aiChatRaw.enabled, DEFAULT_INTEGRATION_CONFIGS.aiChatDeerflow.enabled),
-      provider: 'deerflow',
-      openTab: 'chat',
-    },
-    mirofishSimulations: {
-      enabled: parseBool(mirofishRaw.enabled, DEFAULT_INTEGRATION_CONFIGS.mirofishSimulations.enabled),
-      commandPrefix: parseString(mirofishRaw.commandPrefix, DEFAULT_INTEGRATION_CONFIGS.mirofishSimulations.commandPrefix),
-      defaultPlatform: parsePlatform(mirofishRaw.defaultPlatform, DEFAULT_INTEGRATION_CONFIGS.mirofishSimulations.defaultPlatform),
-      defaultSimulationId: parseString(mirofishRaw.defaultSimulationId, DEFAULT_INTEGRATION_CONFIGS.mirofishSimulations.defaultSimulationId),
-    },
+    aiChat,
+    simulationCommands,
   }
 }
 

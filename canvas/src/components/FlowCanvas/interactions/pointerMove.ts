@@ -168,6 +168,16 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
         snapGrid,
         altDown: e.altKey === true,
       })
+      const previous = (group as unknown as { bounds?: { x?: number; y?: number; width?: number; height?: number } }).bounds
+      if (
+        previous &&
+        previous.x === next.x &&
+        previous.y === next.y &&
+        previous.width === next.w &&
+        previous.height === next.h
+      ) {
+        return
+      }
       ;(group as unknown as { bounds?: unknown }).bounds = { x: next.x, y: next.y, width: next.w, height: next.h }
       runtime.dirty = true
       requestFlowNativeDraw(runtime, ctx.args.buildDrawArgs())

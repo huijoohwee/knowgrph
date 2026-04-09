@@ -30,7 +30,7 @@ export const testFlowGroupAabbExplicitDoesNotExpandWhenMembersInside = () => {
   }
 }
 
-export const testFlowGroupAabbExplicitExpandsWhenMemberOutside = () => {
+export const testFlowGroupAabbExplicitDoesNotExpandWhenMemberOutside = () => {
   const nodeById = new Map<string, any>()
   nodeById.set('n1', { id: 'n1', x: 20, y: 20, width: 100, height: 40 })
   nodeById.set('n2', { id: 'n2', x: 380, y: 20, width: 100, height: 40 })
@@ -53,6 +53,7 @@ export const testFlowGroupAabbExplicitExpandsWhenMemberOutside = () => {
   }
   const aabb = computeFlowGroupAabb({ scene, group: g, paddingPx: 24, labelTopExtraPx: 18 })
   if (!aabb) throw new Error('expected aabb')
-  if (!(aabb.maxX > 400)) throw new Error('expected aabb to expand when member node exceeds explicit bounds')
+  if (aabb.minX !== 0 || aabb.minY !== 0 || aabb.maxX !== 400 || aabb.maxY !== 120) {
+    throw new Error('expected explicit bounds to remain stable when member node exceeds explicit bounds')
+  }
 }
-

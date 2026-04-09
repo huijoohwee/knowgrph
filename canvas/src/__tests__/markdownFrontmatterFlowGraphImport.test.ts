@@ -1,3 +1,6 @@
+import fs from 'node:fs'
+import path from 'node:path'
+
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
@@ -564,4 +567,286 @@ export function testMarkdownFrontmatterFlowGraphPrefersMermaidWiringOverSyntheti
   if (!identityAnchorEdge) throw new Error('expected inline mermaid edge label to be preserved')
   const displayLabel = String(((identityAnchorEdge.properties || {}) as Record<string, unknown>)['frontmatter:displayLabel'] || '')
   if (displayLabel !== 'identity-anchor') throw new Error('expected frontmatter:displayLabel to preserve inline label')
+}
+
+export function testMarkdownFrontmatterFlowGraphParsesWorkflowFlowBlockWithHandlesDataAndCompute() {
+  const md = [
+    '---',
+    'subject: hackathon winners',
+    'flow:',
+    '  direction: LR',
+    '  edgeType: smoothstep',
+    '  snapToGrid: true',
+    '  gridSize: 20',
+    '  computed: true',
+    '  nodes:',
+    '    - id: n-scrape',
+    '      type: input',
+    '      label: scrape event URLs',
+    '      position: { x: 0, y: 0 }',
+    '      handles:',
+    '        source: [urls]',
+    '      data:',
+    '        urls: ["https://example.com/a"]',
+    '        confidence: high',
+    '    - id: n-extract',
+    '      type: default',
+    '      label: "{{subject}}"',
+    '      position: { x: 220, y: 0 }',
+    '      handles:',
+    '        target: [urls]',
+    '        source: [demos]',
+    '      compute: |',
+    '        (inputs) => ({',
+    '          demos: (Array.isArray(inputs.urls) ? inputs.urls : [inputs.urls]).filter(Boolean).map((u) => ({ url: u, extracted: true }))',
+    '        })',
+    '      data: {}',
+    '    - id: n-gallery',
+    '      type: output',
+    '      label: project gallery',
+    '      position: { x: 440, y: 0 }',
+    '      handles:',
+    '        target: [demos]',
+    '      data:',
+    '        winner_badge: true',
+    '        repo_link: TBD',
+    '  edges:',
+    '    - id: e-scrape-extract',
+    '      source: n-scrape',
+    '      sourceHandle: urls',
+    '      target: n-extract',
+    '      targetHandle: urls',
+    '      label: scrape → extract',
+    '      animated: true',
+    '---',
+    '',
+    '# Demo',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('flow-guideline.md', md)
+  if (!res) throw new Error('expected a frontmatter flow graph parse result')
+  const g = res.graphData
+  if (g.nodes.length !== 3) throw new Error(`expected 3 nodes, got ${g.nodes.length}`)
+  if (g.edges.length !== 1) throw new Error(`expected 1 edge, got ${g.edges.length}`)
+
+  const extract = g.nodes.find(n => n.id === 'n-extract') || null
+  if (!extract) throw new Error('expected n-extract')
+  if (String(extract.label || '') !== 'hackathon winners') throw new Error('expected template label resolution for n-extract')
+  const extractProps = (extract.properties || {}) as Record<string, unknown>
+  if (typeof extractProps['flow:compute'] !== 'string') throw new Error('expected flow:compute on n-extract')
+  const extractData = extractProps.data as Record<string, unknown> | undefined
+  if (!extractData || typeof extractData !== 'object') throw new Error('expected data object on n-extract')
+
+  const gallery = g.nodes.find(n => n.id === 'n-gallery') || null
+  if (!gallery) throw new Error('expected n-gallery')
+  const galleryProps = (gallery.properties || {}) as Record<string, unknown>
+  if (galleryProps['frontmatter:waiting'] !== true) throw new Error('expected frontmatter:waiting for TBD payload')
+  const galleryData = galleryProps.data as Record<string, unknown> | undefined
+  if (!galleryData || galleryData.repo_link !== null) throw new Error('expected TBD to normalize to null in node data')
+
+  const edge = g.edges[0]
+  const edgeProps = (edge.properties || {}) as Record<string, unknown>
+  if (edgeProps[FLOW_EDGE_SOURCE_PORT_KEY] !== 'urls') throw new Error('expected source handle urls')
+  if (edgeProps[FLOW_EDGE_TARGET_PORT_KEY] !== 'urls') throw new Error('expected target handle urls')
+  if (String(edge.label || '') !== 'scrape → extract') throw new Error('expected edge label from flow block')
+  if (edgeProps['flow:animated'] !== true) throw new Error('expected flow:animated=true from flow block')
+
+  const meta = (g.metadata || {}) as Record<string, unknown>
+  const settings = meta.frontmatterFlowSettings as Record<string, unknown> | undefined
+  if (!settings) throw new Error('expected frontmatterFlowSettings in metadata')
+  if (settings.direction !== 'LR') throw new Error('expected flow direction LR')
+  if (settings.edgeType !== 'smoothstep') throw new Error('expected flow edgeType smoothstep')
+}
+
+export function testMarkdownFrontmatterFlowGraphEnforcesNodeTypeHandleAndComputeContract() {
+  const md = [
+    '---',
+    'flow:',
+    '  computed: true',
+    '  nodes:',
+    '    - id: n-input',
+    '      type: input',
+    '      handles:',
+    '        target: [bad_sink]',
+    '        source: [out_a]',
+    '      compute: |',
+    '        (inputs) => ({ out_a: inputs.bad_sink })',
+    '      data: []',
+    '    - id: n-output',
+    '      type: output',
+    '      handles:',
+    '        target: [in_a]',
+    '        source: [bad_source]',
+    '      compute: |',
+    '        (inputs) => ({ bad_source: inputs.in_a })',
+    '      data: "scalar-jsonb"',
+    '  edges:',
+    '    - id: e1',
+    '      source: n-input',
+    '      sourceHandle: out_a',
+    '      target: n-output',
+    '      targetHandle: in_a',
+    '---',
+    '',
+    '# Demo',
+  ].join('\n')
+  const res = tryParseMarkdownFrontmatterFlowGraph('flow-contract.md', md)
+  if (!res) throw new Error('expected parse result')
+  const inputNode = res.graphData.nodes.find(n => n.id === 'n-input') || null
+  const outputNode = res.graphData.nodes.find(n => n.id === 'n-output') || null
+  if (!inputNode || !outputNode) throw new Error('expected input and output nodes')
+  const inputProps = (inputNode.properties || {}) as Record<string, unknown>
+  const outputProps = (outputNode.properties || {}) as Record<string, unknown>
+  if (typeof inputProps['flow:compute'] === 'string' && inputProps['flow:compute']) throw new Error('expected input compute to be dropped')
+  if (typeof outputProps['flow:compute'] === 'string' && outputProps['flow:compute']) throw new Error('expected output compute to be dropped')
+  const inputPortTypes = (inputProps['flow:portTypes'] || {}) as { in?: Record<string, unknown>; out?: Record<string, unknown> }
+  const outputPortTypes = (outputProps['flow:portTypes'] || {}) as { in?: Record<string, unknown>; out?: Record<string, unknown> }
+  if (inputPortTypes.in && Object.keys(inputPortTypes.in).length > 0) throw new Error('expected input node to have no target handles')
+  if (outputPortTypes.out && Object.keys(outputPortTypes.out).length > 0) throw new Error('expected output node to have no source handles')
+  if ((inputProps.data as unknown[] | null)?.length !== 0) throw new Error('expected input node data to preserve jsonb array')
+  if (String(outputProps.data || '') !== 'scalar-jsonb') throw new Error('expected output node data to preserve jsonb scalar')
+  const warningBlob = res.warnings.join(' | ')
+  if (!warningBlob.includes('input node n-input cannot declare target handles')) throw new Error('expected input sink contract warning')
+  if (!warningBlob.includes('output node n-output cannot declare source handles')) throw new Error('expected output source contract warning')
+}
+
+function readPitchdeckTemplatePath(): string {
+  const envPath = typeof process.env.KG_TEST_PITCHDECK_TEMPLATE_PATH === 'string'
+    ? process.env.KG_TEST_PITCHDECK_TEMPLATE_PATH.trim()
+    : ''
+  if (envPath) return envPath
+  const cwd = process.cwd()
+  const fallback = path.resolve(cwd, '..', '..', 'huijoohwee.github.io', 'docs', 'pitchdeck-prd-tad-template-lite.md')
+  return fallback
+}
+
+export function testMarkdownFrontmatterFlowGraphFidelityPitchdeckTemplateLite() {
+  const templatePath = readPitchdeckTemplatePath()
+  if (!templatePath || !fs.existsSync(templatePath)) return
+  const md = fs.readFileSync(templatePath, 'utf8')
+  const res = tryParseMarkdownFrontmatterFlowGraph(path.basename(templatePath), md)
+  if (!res) throw new Error('expected pitchdeck frontmatter flow parse result')
+  const g = res.graphData
+  if (g.context !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+  const flowNodes = g.nodes.filter(n => {
+    const type = String(n?.type || '').trim()
+    return type === 'input' || type === 'default' || type === 'output' || type === 'custom'
+  })
+  const flowEdges = g.edges.filter(e => {
+    const props = (e.properties || {}) as Record<string, unknown>
+    const sourcePort = String(props[FLOW_EDGE_SOURCE_PORT_KEY] || '')
+    const targetPort = String(props[FLOW_EDGE_TARGET_PORT_KEY] || '')
+    return !!sourcePort && !!targetPort
+  })
+  if (flowNodes.length < 12) throw new Error(`expected at least 12 typed flow nodes, got ${flowNodes.length}`)
+  if (flowEdges.length !== 13) throw new Error(`expected 13 handle-linked flow edges, got ${flowEdges.length}`)
+  const byType = new Map<string, number>()
+  for (let i = 0; i < flowNodes.length; i += 1) {
+    const type = String(flowNodes[i]?.type || '').trim()
+    byType.set(type, (byType.get(type) || 0) + 1)
+  }
+  if ((byType.get('input') || 0) !== 3) throw new Error(`expected 3 input nodes, got ${String(byType.get('input') || 0)}`)
+  if ((byType.get('default') || 0) < 5) throw new Error(`expected at least 5 default nodes, got ${String(byType.get('default') || 0)}`)
+  if ((byType.get('output') || 0) !== 2) throw new Error(`expected 2 output nodes, got ${String(byType.get('output') || 0)}`)
+  if ((byType.get('custom') || 0) !== 2) throw new Error(`expected 2 custom nodes, got ${String(byType.get('custom') || 0)}`)
+
+  const nodeById = new Map(g.nodes.map(n => [String(n.id || ''), n] as const))
+  const fnConfig = nodeById.get('fn-config') || null
+  if (!fnConfig) throw new Error('expected fn-config input node')
+  const fnConfigData = (((fnConfig.properties || {}) as Record<string, unknown>).data || {}) as Record<string, unknown>
+  if (String(fnConfigData.ai_proxy || '') !== '[AI proxy]') throw new Error('expected frontmatter variable resolution in fn-config.data.ai_proxy')
+
+  const fnPersona = nodeById.get('fn-persona') || null
+  if (!fnPersona) throw new Error('expected fn-persona input node')
+  const fnPersonaData = (((fnPersona.properties || {}) as Record<string, unknown>).data || {}) as Record<string, unknown>
+  if (String(fnPersonaData.pain_a || '') !== '[Pain point A]') throw new Error('expected {{pain-a}} resolution for fn-persona.data.pain_a')
+
+  const fnScore = nodeById.get('fn-score') || null
+  if (!fnScore) throw new Error('expected fn-score default node')
+  const fnScoreCompute = String((((fnScore.properties || {}) as Record<string, unknown>)['flow:compute']) || '')
+  if (fnScoreCompute) throw new Error('expected unsafe eval compute to be rejected for fn-score')
+
+  const fnApi = nodeById.get('fn-api') || null
+  if (!fnApi) throw new Error('expected fn-api default node')
+  const fnApiCompute = String((((fnApi.properties || {}) as Record<string, unknown>)['flow:compute']) || '')
+  if (!fnApiCompute.includes('json_payload')) throw new Error('expected fn-api compute to be preserved')
+
+  const handleNames = new Set<string>()
+  for (let i = 0; i < flowEdges.length; i += 1) {
+    const props = (flowEdges[i].properties || {}) as Record<string, unknown>
+    handleNames.add(String(props[FLOW_EDGE_SOURCE_PORT_KEY] || ''))
+    handleNames.add(String(props[FLOW_EDGE_TARGET_PORT_KEY] || ''))
+  }
+  const requiredHandles = ['pain_signal', 'raw_items', 'vars', 'clean_items', 'typed_nodes', 'scored_nodes', 'alert_signal', 'json_payload']
+  for (let i = 0; i < requiredHandles.length; i += 1) {
+    if (!handleNames.has(requiredHandles[i])) throw new Error(`expected flow handle ${requiredHandles[i]} in parsed edges`)
+  }
+}
+
+function readMarkdownSyntaxComputingFlowSamplePath(): string {
+  const envPath = typeof process.env.KG_TEST_MARKDOWN_SYNTAX_COMPUTING_FLOW_SAMPLE_PATH === 'string'
+    ? process.env.KG_TEST_MARKDOWN_SYNTAX_COMPUTING_FLOW_SAMPLE_PATH.trim()
+    : ''
+  if (envPath) return envPath
+  const cwd = process.cwd()
+  return path.resolve(cwd, '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-sample.md')
+}
+
+export function testMarkdownFrontmatterFlowGraphFidelityMarkdownSyntaxComputingFlowSample() {
+  const samplePath = readMarkdownSyntaxComputingFlowSamplePath()
+  if (!samplePath || !fs.existsSync(samplePath)) return
+  const md = fs.readFileSync(samplePath, 'utf8')
+  const res = tryParseMarkdownFrontmatterFlowGraph(path.basename(samplePath), md)
+  if (!res) throw new Error('expected computing-flow sample frontmatter parse result')
+  const g = res.graphData
+  if (g.context !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+
+  const typedNodes = g.nodes.filter(n => {
+    const type = String(n?.type || '').trim()
+    return type === 'input' || type === 'default' || type === 'output' || type === 'custom'
+  })
+  if (typedNodes.length !== 9) throw new Error(`expected 9 typed flow nodes, got ${typedNodes.length}`)
+  const byType = new Map<string, number>()
+  for (let i = 0; i < typedNodes.length; i += 1) {
+    const type = String(typedNodes[i]?.type || '').trim()
+    byType.set(type, (byType.get(type) || 0) + 1)
+  }
+  if ((byType.get('input') || 0) !== 2) throw new Error('expected 2 input nodes')
+  if ((byType.get('default') || 0) !== 4) throw new Error('expected 4 default nodes')
+  if ((byType.get('output') || 0) !== 2) throw new Error('expected 2 output nodes')
+  if ((byType.get('custom') || 0) !== 1) throw new Error('expected 1 custom node')
+
+  const flowEdges = g.edges.filter(e => {
+    const props = (e.properties || {}) as Record<string, unknown>
+    const sourcePort = String(props[FLOW_EDGE_SOURCE_PORT_KEY] || '')
+    const targetPort = String(props[FLOW_EDGE_TARGET_PORT_KEY] || '')
+    return !!sourcePort && !!targetPort
+  })
+  if (flowEdges.length !== 11) throw new Error(`expected 11 handle-linked edges, got ${flowEdges.length}`)
+
+  const nodeById = new Map(g.nodes.map(n => [String(n.id || ''), n] as const))
+  const configNode = nodeById.get('n-config') || null
+  if (!configNode) throw new Error('expected n-config input node')
+  const configData = (((configNode.properties || {}) as Record<string, unknown>).data || {}) as Record<string, unknown>
+  if (String(configData.demo_url || '') !== 'https://treehacks-2026.devpost.com/project-gallery') {
+    throw new Error('expected frontmatter variable resolution for n-config.data.demo_url')
+  }
+  if (String(configData.score_formula || '') !== 'demos.length * 0.4 + (winner ? 0.6 : 0)') {
+    throw new Error('expected frontmatter variable resolution for n-config.data.score_formula')
+  }
+
+  const scoreNode = nodeById.get('n-score') || null
+  if (!scoreNode) throw new Error('expected n-score default node')
+  const scoreCompute = String((((scoreNode.properties || {}) as Record<string, unknown>)['flow:compute']) || '')
+  if (!scoreCompute.includes('scored_demos')) throw new Error('expected n-score compute to be preserved')
+
+  const waitingNode = nodeById.get('n-gallery') || null
+  if (!waitingNode) throw new Error('expected n-gallery output node')
+  const waitingProps = (waitingNode.properties || {}) as Record<string, unknown>
+  if (waitingProps['frontmatter:waiting'] !== true) throw new Error('expected frontmatter:waiting for TBD repo_url')
+  const waitingData = (waitingProps.data || {}) as Record<string, unknown>
+  if (waitingData.repo_url !== null) throw new Error('expected repo_url TBD to normalize as null')
+
+  const flowWarnings = res.warnings.filter(w => w.includes('Flow node contract violation') || w.includes('Flow node compute rejected as unsafe'))
+  if (flowWarnings.length > 0) throw new Error(`expected no flow contract warnings for sample, got: ${flowWarnings.join(' | ')}`)
 }

@@ -7,6 +7,7 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import { applyFlowDataflowReducer, applyFlowDataflowTransform } from '@/lib/flowEditor/flowDataflowTransforms'
+import { readFlowComputeSource, runFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
 
 export type FlowConnectedValueSource = {
   edgeId: string
@@ -131,6 +132,7 @@ function buildConnectedValuesForNode(args: {
   node: GraphNode
   inbound: Map<string, Array<{ edgeId: string; sourceId: string; sourcePortKey: string; value: unknown }>>
   inputPortPaths: Map<string, string>
+  outputPortPaths: Map<string, string>
   schemaMappings: ReadonlyArray<{ fromPath: string; toPath: string; transformId?: string; reduceId?: string }>
 }): FlowConnectedValuesBySchemaPath {
   const byPath: FlowConnectedValuesBySchemaPath = {}
@@ -170,6 +172,24 @@ function buildConnectedValuesForNode(args: {
       if (!toPath) continue
       if (typeof v === 'undefined') continue
       byPath[toPath] = { value: v, sources: allSources }
+    }
+  }
+
+  const computeSource = readFlowComputeSource(args.node)
+  if (computeSource) {
+    const computed = runFlowComputeSource(computeSource, inByPortKey)
+    if (computed) {
+      const allSources = Array.from(args.inbound.values())
+        .flat()
+        .map(it => ({ edgeId: it.edgeId, nodeId: it.sourceId, portKey: it.sourcePortKey }))
+      for (const [portKeyRaw, value] of Object.entries(computed)) {
+        const portKey = cleanString(portKeyRaw)
+        if (!portKey) continue
+        const toPath = args.outputPortPaths.get(portKey) || normalizeSchemaPath(`properties.data.${portKey}`, portKey)
+        if (!toPath) continue
+        if (typeof value === 'undefined') continue
+        byPath[toPath] = { value, sources: allSources }
+      }
     }
   }
 
@@ -238,12 +258,26 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
   const computedByNodeId = new Map<string, FlowConnectedValuesBySchemaPath>()
   const maxIterations = Math.max(2, Math.min(12, includedNodes.length + 1))
   const connections = collectConnections(edges).filter(c => includedNodeIds.has(c.sourceId) && includedNodeIds.has(c.targetId))
+  const objectValueKeyCache = new WeakMap<object, string>()
 
   const valueKey = (v: unknown): string => {
     if (typeof v === 'string') return `s:${v}`
     if (typeof v === 'number') return Number.isFinite(v) ? `n:${v}` : 'n:NaN'
     if (typeof v === 'boolean') return v ? 'b:1' : 'b:0'
     if (v == null) return 'null'
+    if (typeof v === 'object') {
+      const key = objectValueKeyCache.get(v as object)
+      if (key) return key
+      try {
+        const next = `j:${JSON.stringify(v)}`
+        objectValueKeyCache.set(v as object, next)
+        return next
+      } catch {
+        const next = `u:${String(v)}`
+        objectValueKeyCache.set(v as object, next)
+        return next
+      }
+    }
     try {
       return `j:${JSON.stringify(v)}`
     } catch {
@@ -258,7 +292,12 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
       const cv = m[k]
       if (!cv) continue
       const sources = Array.isArray(cv.sources) ? cv.sources : []
-      const sourcesKey = sources.map(s => `${s.edgeId}|${s.nodeId}|${s.portKey}`).join(',')
+      const sourceParts: string[] = []
+      for (let i = 0; i < sources.length; i += 1) {
+        const source = sources[i]
+        sourceParts.push(`${source.edgeId}|${source.nodeId}|${source.portKey}`)
+      }
+      const sourcesKey = sourceParts.join(',')
       parts.push(`${k}=${valueKey(cv.value)}@${sourcesKey}`)
     }
     return parts.join('\n')
@@ -302,6 +341,7 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
         node: n,
         inbound,
         inputPortPaths: portPaths?.input || new Map(),
+        outputPortPaths: portPaths?.output || new Map(),
         schemaMappings: portPaths?.schemaMappings || [],
       })
       nextComputedByNodeId.set(id, connected)

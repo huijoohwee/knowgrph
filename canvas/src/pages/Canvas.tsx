@@ -22,6 +22,10 @@ import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparat
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import {
+  WORKSPACE_SYNC_SCOPE_CANVAS_PREVIEW_WRITEBACK_RUNTIME_PERSISTENCE,
+  WORKSPACE_SYNC_SCOPE_CANVAS_TAB_SYNC_RUNTIME_PERSISTENCE,
+} from '@/lib/async/workspaceSyncKeys'
 
 const ToolbarLazy = React.lazy(() => import('@/components/Toolbar'))
 const EmbeddedEditorShellLazy = React.lazy(() =>
@@ -376,6 +380,8 @@ export default function CanvasPage() {
   React.useEffect(() => {
     if (!enableTabSync || !syncRef.current) return
     if (applyingRemoteRef.current) return
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+    if (typeof document !== 'undefined' && typeof document.hasFocus === 'function' && !document.hasFocus()) return
     const taskKey = `tab-sync:selection:${String(graphId || '')}:${String(tabId || '')}`
     const selectedNodeIdKey = selectedNodeId || ''
     const selectedEdgeIdKey = selectedEdgeId || ''
@@ -385,12 +391,14 @@ export default function CanvasPage() {
       lastSelectionRef.current = { n: selectedNodeId || null, e: selectedEdgeId || null }
       scheduleWorkspaceSyncTask(taskKey, () => {
         if (applyingRemoteRef.current || !syncRef.current) return
+        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+        if (typeof document !== 'undefined' && typeof document.hasFocus === 'function' && !document.hasFocus()) return
         const s = useGraphStore.getState()
         syncRef.current.publish(buildEnvelope('SelectionChanged', graphId, tabId, {
           selectedNodeId: s.selectedNodeId || null,
           selectedEdgeId: s.selectedEdgeId || null,
         }))
-      }, 32, { signature })
+      }, 32, { signature, scopeKey: WORKSPACE_SYNC_SCOPE_CANVAS_TAB_SYNC_RUNTIME_PERSISTENCE })
     }
     return () => {
       cancelWorkspaceSyncTask(taskKey)
@@ -400,6 +408,8 @@ export default function CanvasPage() {
   React.useEffect(() => {
     if (!enableTabSync || !syncRef.current) return
     if (applyingRemoteRef.current) return
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+    if (typeof document !== 'undefined' && typeof document.hasFocus === 'function' && !document.hasFocus()) return
     const taskKey = `tab-sync:schema:${String(graphId || '')}:${String(tabId || '')}`
     const hash = hashSchemaForPreviewSync(schema)
     const last = lastSchemaHashRef.current
@@ -407,13 +417,15 @@ export default function CanvasPage() {
     lastSchemaHashRef.current = hash
     scheduleWorkspaceSyncTask(taskKey, () => {
       if (applyingRemoteRef.current || !syncRef.current) return
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+      if (typeof document !== 'undefined' && typeof document.hasFocus === 'function' && !document.hasFocus()) return
       const s = useGraphStore.getState()
       try {
         syncRef.current.publish(buildEnvelope('SchemaChanged', graphId, tabId, { schema: s.schema }))
       } catch {
         void 0
       }
-    }, 64, { signature: hash || null })
+    }, 64, { signature: hash || null, scopeKey: WORKSPACE_SYNC_SCOPE_CANVAS_TAB_SYNC_RUNTIME_PERSISTENCE })
     return () => {
       cancelWorkspaceSyncTask(taskKey)
     }
@@ -919,7 +931,7 @@ export default function CanvasPage() {
               },
               window.location.origin,
             )
-          }, 90, { signature: nextHash || null })
+          }, 90, { signature: nextHash || null, scopeKey: WORKSPACE_SYNC_SCOPE_CANVAS_PREVIEW_WRITEBACK_RUNTIME_PERSISTENCE })
         } catch {
           void 0
         }
@@ -971,7 +983,7 @@ export default function CanvasPage() {
             },
             window.location.origin,
           )
-        }, 70, { signature: key })
+        }, 70, { signature: key, scopeKey: WORKSPACE_SYNC_SCOPE_CANVAS_PREVIEW_WRITEBACK_RUNTIME_PERSISTENCE })
       },
     )
     return () => {

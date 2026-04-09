@@ -6,14 +6,29 @@ import type { MarkdownPresentationApi } from '@/components/BottomPanel/markdownW
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
 import { fetchWorkspaceUrlContent } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { resetWorkspaceUrlContentCacheForTests } from '@/components/BottomPanel/markdownWorkspace/workspaceImport/urlContentCache'
 
 const BYTEPLUS_TEST_URL =
   'https://api.byteplus.com/api-sdk/view?serviceCode=ecs&version=2020-04-01&language=Python'
+const WEBPAGE_TEST_URL = 'https://docs.byteplus.com/'
+
+const waitUntil = async (predicate: () => boolean, timeoutMs = 1600) => {
+  const started = Date.now()
+  while (Date.now() - started < timeoutMs) {
+    if (predicate()) return
+    await new Promise<void>(resolve => setTimeout(resolve, 25))
+  }
+}
 
 export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
+  resetWorkspaceUrlContentCacheForTests()
   const { dom, restore } = initJsdomHarness()
   const prevFetch = (globalThis as unknown as { fetch?: unknown }).fetch
+  const state = useGraphStore.getState()
+  const prevMode = state.richMediaPanelMode
   try {
+    state.setRichMediaPanelMode('embed')
     const doc = dom.window.document
     const container = doc.createElement('div')
     doc.body.appendChild(container)
@@ -26,7 +41,7 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
       return {
         ok: true,
         status: 200,
-        text: async () => '<!doctype html><html><head><base href="https://localhost/"></head><body><h1>OK</h1></body></html>',
+        text: async () => `<!doctype html><html><head><base href="${WEBPAGE_TEST_URL}"></head><body><h1>OK</h1></body></html>`,
       }
     }) as unknown
 
@@ -48,7 +63,7 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
     ] as const
 
     for (const { view, expectsIframe } of cases) {
-      const text = ['---', 'kgWebpageUrl: "https://localhost/"', `kgWebpageView: "${view}"`, '---', '', '# Title', ''].join('\n')
+      const text = ['---', `kgWebpageUrl: "${WEBPAGE_TEST_URL}"`, `kgWebpageView: "${view}"`, '---', '', '# Title', ''].join('\n')
       root.render(
         React.createElement(MarkdownWorkspaceMain, {
           themeMode: 'light',
@@ -81,7 +96,11 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
         }),
       )
 
-      for (let i = 0; i < 18; i += 1) await tick()
+      await waitUntil(() => {
+        const iframe = doc.querySelector('section[aria-label="Webpage Viewer"] iframe')
+        return expectsIframe ? Boolean(iframe) : true
+      }, 2400)
+      for (let i = 0; i < 6; i += 1) await tick()
 
       const iframe = doc.querySelector('section[aria-label="Webpage Viewer"] iframe')
       if (expectsIframe) {
@@ -111,15 +130,20 @@ export async function testMarkdownWorkspaceWebpageHtmlViewRendersIframe() {
 
     root.unmount()
   } finally {
+    state.setRichMediaPanelMode(prevMode)
     ;(globalThis as unknown as { fetch?: unknown }).fetch = prevFetch
     restore()
   }
 }
 
 export async function testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtifactForHtml() {
+  resetWorkspaceUrlContentCacheForTests()
   const { dom, restore } = initJsdomHarness()
   const prevFetch = (globalThis as unknown as { fetch?: unknown }).fetch
+  const state = useGraphStore.getState()
+  const prevMode = state.richMediaPanelMode
   try {
+    state.setRichMediaPanelMode('embed')
     const doc = dom.window.document
     const container = doc.createElement('div')
     doc.body.appendChild(container)
@@ -174,7 +198,7 @@ export async function testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtif
       seen.length = 0
       const text = [
         '---',
-        'kgWebpageUrl: "https://localhost/"',
+        `kgWebpageUrl: "${WEBPAGE_TEST_URL}"`,
         `kgWebpageView: "${view}"`,
         'kgWebsiteImportId: "import"',
         `kgWebsiteNodeId: "${nodeId}"`,
@@ -215,7 +239,8 @@ export async function testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtif
         }),
       )
 
-      for (let i = 0; i < 5; i += 1) await tick()
+      await waitUntil(() => Boolean(doc.querySelector('iframe')), 2400)
+      for (let i = 0; i < 6; i += 1) await tick()
 
       const iframe = doc.querySelector('iframe')
       if (!iframe) throw new Error(`expected iframe for view=${view}`)
@@ -229,6 +254,7 @@ export async function testMarkdownWorkspaceWebpageHtmlViewUsesWebsiteImportArtif
 
     root.unmount()
   } finally {
+    state.setRichMediaPanelMode(prevMode)
     ;(globalThis as unknown as { fetch?: unknown }).fetch = prevFetch
     restore()
   }
@@ -245,7 +271,7 @@ export async function testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot() {
     const editorRef = { current: null as MonacoTextEditorHandle | null }
     const presentationApiRef = { current: null as MarkdownPresentationApi | null }
 
-    const text = ['---', 'kgWebpageUrl: "https://localhost/"', 'kgWebpageView: "html"', '---', '', '# Title', ''].join('\n')
+    const text = ['---', `kgWebpageUrl: "${WEBPAGE_TEST_URL}"`, 'kgWebpageView: "html"', '---', '', '# Title', ''].join('\n')
 
     root.render(
       React.createElement(MarkdownWorkspaceMain, {
@@ -304,6 +330,7 @@ export async function testMarkdownWorkspaceHtmlEditorSharesMarkdownSsot() {
 }
 
 export async function testMarkdownWorkspaceImportUrlHtmlPageSsotAndViewModes() {
+  resetWorkspaceUrlContentCacheForTests()
   const imported = await fetchWorkspaceUrlContent(BYTEPLUS_TEST_URL, { mode: 'import' })
   if (imported.normalizedUrl !== BYTEPLUS_TEST_URL) {
     throw new Error('expected normalizedUrl to equal input URL for Import URL pipeline')
@@ -329,7 +356,7 @@ export async function testMarkdownWorkspaceImportUrlHtmlPageSsotAndViewModes() {
   }
   const prevFetch = (globalThis as unknown as { fetch?: unknown }).fetch
   const htmlBody =
-    '<!doctype html><html><head><base href="https://localhost/"></head><body><h1>BytePlus ECS Python SDK</h1><p>Section 1</p><p>Section 2</p></body></html>'
+    `<!doctype html><html><head><base href="${WEBPAGE_TEST_URL}"></head><body><h1>BytePlus ECS Python SDK</h1><p>Section 1</p><p>Section 2</p></body></html>`
   try {
     ;(globalThis as unknown as { fetch?: unknown }).fetch = (async (input: unknown, init?: unknown) => {
       const initObj = init && typeof init === 'object' ? (init as { method?: unknown }) : null
@@ -404,12 +431,12 @@ export async function testMarkdownWorkspaceEditorTextOverrideWorks() {
       },
       {
         view: 'markdown',
-        overrideText: ['---', 'kgWebpageUrl: "https://localhost/"', 'kgWebpageView: "markdown"', '---', '', '# Webpage Markdown Artifact: localhost', '', '```text kg-webpage-layout', '[MOCKUP]', '```', ''].join('\n'),
+        overrideText: ['---', `kgWebpageUrl: "${WEBPAGE_TEST_URL}"`, 'kgWebpageView: "markdown"', '---', '', '# Webpage Markdown Artifact: docs.byteplus.com', '', '```text kg-webpage-layout', '[MOCKUP]', '```', ''].join('\n'),
       },
     ] as const
 
     for (const { view, overrideText } of cases) {
-      const markdown = ['---', 'kgWebpageUrl: "https://localhost/"', `kgWebpageView: "${view}"`, '---', '', '# Title', ''].join('\n')
+      const markdown = ['---', `kgWebpageUrl: "${WEBPAGE_TEST_URL}"`, `kgWebpageView: "${view}"`, '---', '', '# Title', ''].join('\n')
       root.render(
         React.createElement(MarkdownWorkspaceMain, {
           themeMode: 'light',

@@ -181,6 +181,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       },
     })
   }, [ensureBaselineUnlocked, schema, setSchema, voxelAnimationApplicable])
+  const clampedMainPanelPos = isMainPanelOpen ? clampMainPanelPos(mainPanelDragPos) : mainPanelDragPos
 
   return (
     <nav
@@ -443,8 +444,8 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
             ].join(' ')}
             style={{
               position: 'absolute',
-              top: clampMainPanelPos(mainPanelDragPos).top,
-              left: clampMainPanelPos(mainPanelDragPos).left,
+              top: clampedMainPanelPos.top,
+              left: clampedMainPanelPos.left,
               transform: 'translate(-50%, -50%)',
             }}
           >

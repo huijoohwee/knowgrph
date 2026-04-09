@@ -52,22 +52,6 @@ export function useMainPanelDrag() {
     return initial;
   });
 
-  const openMainPanel = useCallback(
-    (tab: MainPanelTabKey) => {
-      setIsMainPanelOpen(true);
-      setMainPanelRequestedTab(tab);
-      if (typeof window !== 'undefined') {
-        const pos = {
-          top: Math.round(window.innerHeight / 2),
-          left: Math.round(window.innerWidth / 2),
-        };
-        mainPanelDragPosRef.current = pos;
-        setMainPanelDragPos(pos);
-      }
-    },
-    [],
-  );
-
   useEffect(() => {
     lsSetBool(LS_KEYS.mainPanelCollapsed, mainPanelCollapsed);
   }, [mainPanelCollapsed]);
@@ -92,6 +76,24 @@ export function useMainPanelDrag() {
       inset: { top: toolbarBottomPx + toolbarOffsetPx },
     });
   }, [mainPanelCollapsed]);
+
+  const openMainPanel = useCallback(
+    (tab: MainPanelTabKey) => {
+      setIsMainPanelOpen(true);
+      setMainPanelRequestedTab(tab);
+      const fallbackPos = (() => {
+        if (typeof window === 'undefined') return { top: 240, left: 240 };
+        return {
+          top: Math.round(window.innerHeight / 2),
+          left: Math.round(window.innerWidth / 2),
+        };
+      })();
+      const nextPos = clampMainPanelPos(mainPanelDragPosRef.current || mainPanelDragPos || fallbackPos);
+      mainPanelDragPosRef.current = nextPos;
+      setMainPanelDragPos(nextPos);
+    },
+    [clampMainPanelPos, mainPanelDragPos],
+  );
 
   const setMainPanelDragPosSynced = useCallback((pos: { top: number; left: number }) => {
     mainPanelDragPosRef.current = pos;

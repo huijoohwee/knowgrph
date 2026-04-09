@@ -22,6 +22,7 @@ export type AnchoredPopoverProps = {
 export const AnchoredPopover = React.memo(function AnchoredPopover(props: AnchoredPopoverProps) {
   const rootRef = React.useRef<HTMLDivElement | null>(null)
   const [style, setStyle] = React.useState<React.CSSProperties | null>(null)
+  const [portalHost, setPortalHost] = React.useState<HTMLDivElement | null>(null)
 
   const updatePosition = React.useCallback(() => {
     const anchor = props.anchorEl
@@ -79,6 +80,29 @@ export const AnchoredPopover = React.memo(function AnchoredPopover(props: Anchor
       return next
     })
   }, [props.anchorEl, props.gapPx, props.maxHeightPx, props.maxWidthPx, props.minWidthPx, props.placement])
+
+  React.useEffect(() => {
+    if (!props.open) {
+      setPortalHost(null)
+      return
+    }
+    if (typeof document === 'undefined') return
+    const host = document.createElement('div')
+    try {
+      document.body.appendChild(host)
+    } catch {
+      return
+    }
+    setPortalHost(host)
+    return () => {
+      setPortalHost(null)
+      try {
+        if (host.parentNode) host.parentNode.removeChild(host)
+      } catch {
+        void 0
+      }
+    }
+  }, [props.open])
 
   React.useEffect(() => {
     if (!props.open) return
@@ -142,7 +166,7 @@ export const AnchoredPopover = React.memo(function AnchoredPopover(props: Anchor
     }
   }, [props.anchorEl, props.onClose, props.open, updatePosition])
 
-  if (!props.open || !style) return null
+  if (!props.open || !style || !portalHost) return null
 
   const zIndex = typeof props.zIndex === 'number' ? props.zIndex : Z_INDEX_MENU
 
@@ -159,6 +183,6 @@ export const AnchoredPopover = React.memo(function AnchoredPopover(props: Anchor
         {props.children}
       </div>
     </div>,
-    document.body,
+    portalHost,
   )
 })

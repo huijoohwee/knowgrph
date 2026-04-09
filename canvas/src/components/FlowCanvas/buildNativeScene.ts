@@ -37,6 +37,12 @@ export function buildAndSetFlowNativeScene(args: {
   const pos = args.positions || null
   const context = String((g as unknown as { context?: unknown })?.context || '')
   const useVisualNodeSize = context === 'webpageLayout' || context === 'frontmatter-flow' || context === 'frontmatter-mermaid'
+  const graphMetaKind = (() => {
+    const meta = (g?.metadata && typeof g.metadata === 'object' && !Array.isArray(g.metadata))
+      ? (g.metadata as Record<string, unknown>)
+      : null
+    return String(meta?.kind || '').trim()
+  })()
 
   const socketStyleByType = (() => {
     const meta = (g?.metadata && typeof g.metadata === 'object' && !Array.isArray(g.metadata))
@@ -194,7 +200,14 @@ export function buildAndSetFlowNativeScene(args: {
     const rawShape = args.schema ? getNodeRenderShape2d(n as GraphNode, args.schema) : 'rect'
     const shape = coerceFlowNativeNodeShape({ shape: rawShape, forbidCircle: args.forbidCircleNodes })
     const baseHandles = handlesByNode[id] || { in: [], out: [] }
-    const handles = shouldInjectDefaultFlowHandles(args.schema) ? ensureFlowHandlesHaveDefaults(baseHandles) : baseHandles
+    const nodeTypeLower = String(n?.type || '').trim().toLowerCase()
+    const shouldForceFrontmatterFlowTypedHandles =
+      graphMetaKind === 'frontmatter-flow' &&
+      (nodeTypeLower === 'input' || nodeTypeLower === 'default' || nodeTypeLower === 'output' || nodeTypeLower === 'custom')
+    const handles =
+      shouldForceFrontmatterFlowTypedHandles || shouldInjectDefaultFlowHandles(args.schema)
+        ? ensureFlowHandlesHaveDefaults(baseHandles)
+        : baseHandles
     const p = pos ? pos[id] : null
     const x = p && Number.isFinite(p.x) ? p.x : 0
     const y = p && Number.isFinite(p.y) ? p.y : 0
