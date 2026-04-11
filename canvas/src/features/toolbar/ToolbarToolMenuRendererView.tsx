@@ -14,10 +14,15 @@ import { BipartiteRendererSettings } from '@/features/toolbar/ui/BipartiteRender
 import { RadarGalaxyRendererSettings } from '@/features/toolbar/ui/RadarGalaxyRendererSettings'
 import { EdgeTypesRendererSettings } from '@/features/toolbar/ui/EdgeTypesRendererSettings'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { readGlobalEdgeType, type GlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { readGlobalEdgeType, type GlobalEdgeType, withGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import { LayoutModeRendererSettings } from '@/features/toolbar/ui/LayoutModeRendererSettings'
 import { readLayoutMode2d, type LayoutMode2d } from '@/lib/graph/layoutMode'
 import { WorkspaceTableModeControl } from '@/features/workspace-table/ui/WorkspaceTableModeControl'
+import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import {
+  WORKSPACE_SYNC_SCOPE_RENDERER_EDGE_TYPE_RUNTIME_PERSISTENCE,
+  WORKSPACE_SYNC_TASK_RENDERER_EDGE_TYPE_VIEW_STATE,
+} from '@/lib/async/workspaceSyncKeys'
 
 export function ToolbarToolMenuRendererView(props: {
   onRegisterActions?: (actions: {
@@ -148,6 +153,31 @@ export function ToolbarToolMenuRendererView(props: {
     setLayoutModeDraft(appliedLayoutMode)
   }, [allowLayoutModeSelection, appliedLayoutMode])
 
+  React.useEffect(
+    () => () => {
+      cancelWorkspaceSyncTask(WORKSPACE_SYNC_TASK_RENDERER_EDGE_TYPE_VIEW_STATE)
+    },
+    [],
+  )
+
+  const handleSelectEdgeType = React.useCallback((next: GlobalEdgeType) => {
+    setEdgeTypeDraft(next)
+    scheduleWorkspaceSyncTask(
+      WORKSPACE_SYNC_TASK_RENDERER_EDGE_TYPE_VIEW_STATE,
+      () => {
+        const state = useGraphStore.getState()
+        const current = state.schema as GraphSchema
+        const nextSchema = withGlobalEdgeType(current, next)
+        if (nextSchema === current) return
+        state.setSchema(nextSchema)
+      },
+      0,
+      {
+        scopeKey: WORKSPACE_SYNC_SCOPE_RENDERER_EDGE_TYPE_RUNTIME_PERSISTENCE,
+      },
+    )
+  }, [])
+
   return (
     <div className="flex flex-col gap-2">
       <WorkspaceTableModeControl />
@@ -160,7 +190,7 @@ export function ToolbarToolMenuRendererView(props: {
       />
       <EdgeTypesRendererSettings
         selectedEdgeType={edgeTypeDraft}
-        onSelectEdgeType={setEdgeTypeDraft}
+        onSelectEdgeType={handleSelectEdgeType}
       />
       {showRadarGalaxyUi ? <RadarGalaxyRendererSettings /> : null}
       {showBipartiteUi ? <BipartiteRendererSettings /> : null}

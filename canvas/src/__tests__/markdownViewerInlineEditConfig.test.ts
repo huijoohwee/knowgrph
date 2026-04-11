@@ -6,8 +6,46 @@ const readUtf8 = (absPath: string): string => fs.readFileSync(absPath, { encodin
 export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () => {
   const root = process.cwd()
 
-  const blockPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownBlockContainer.tsx')
-  const blockText = readUtf8(blockPath)
+  const blockPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'MarkdownBlockContainerCore.impl.tsx')
+  const blockCorePath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'MarkdownBlockContainerCore.impl.core.tsx')
+  const blockViewPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'MarkdownBlockContainerCore.impl.view.tsx')
+  const blockRuntimePath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'MarkdownBlockContainerCore.impl.runtime.tsx')
+  const blockEnginePath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'MarkdownBlockContainerCore.impl.engine.tsx')
+  const blockEngineRuntimePath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'MarkdownBlockContainerCore.impl.engine.runtime.tsx')
+  const blockEditSurfacePath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.editSurfaceView.tsx')
+  const blockEdgeTrimPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.edgeTrim.ts')
+  const blockEditOpenCaretProbePath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.editOpenCaretProbe.ts')
+  const blockDraftCommitPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.draftCommit.ts')
+  const blockEditInitializationPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.editInitialization.ts')
+  const blockEditorEventsPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.editorEvents.ts')
+  const blockSelectionToolbarSyncPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.selectionToolbarSync.ts')
+  const blockMarkdownFormattingPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.markdownFormatting.ts')
+  const blockHtmlFormattingPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.htmlFormatting.ts')
+  const blockBubbleToolbarOverlayPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.bubbleToolbarOverlay.tsx')
+  const blockCommitPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.commit.ts')
+  const blockSelectionPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.selection.ts')
+  const blockToolbarPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.toolbar.ts')
+  const blockText = [
+    readUtf8(blockPath),
+    fs.existsSync(blockCorePath) ? readUtf8(blockCorePath) : '',
+    fs.existsSync(blockViewPath) ? readUtf8(blockViewPath) : '',
+    fs.existsSync(blockRuntimePath) ? readUtf8(blockRuntimePath) : '',
+    fs.existsSync(blockEnginePath) ? readUtf8(blockEnginePath) : '',
+    fs.existsSync(blockEngineRuntimePath) ? readUtf8(blockEngineRuntimePath) : '',
+    fs.existsSync(blockEditSurfacePath) ? readUtf8(blockEditSurfacePath) : '',
+    fs.existsSync(blockEdgeTrimPath) ? readUtf8(blockEdgeTrimPath) : '',
+    fs.existsSync(blockEditOpenCaretProbePath) ? readUtf8(blockEditOpenCaretProbePath) : '',
+    fs.existsSync(blockDraftCommitPath) ? readUtf8(blockDraftCommitPath) : '',
+    fs.existsSync(blockEditInitializationPath) ? readUtf8(blockEditInitializationPath) : '',
+    fs.existsSync(blockEditorEventsPath) ? readUtf8(blockEditorEventsPath) : '',
+    fs.existsSync(blockSelectionToolbarSyncPath) ? readUtf8(blockSelectionToolbarSyncPath) : '',
+    fs.existsSync(blockMarkdownFormattingPath) ? readUtf8(blockMarkdownFormattingPath) : '',
+    fs.existsSync(blockHtmlFormattingPath) ? readUtf8(blockHtmlFormattingPath) : '',
+    fs.existsSync(blockBubbleToolbarOverlayPath) ? readUtf8(blockBubbleToolbarOverlayPath) : '',
+    fs.existsSync(blockCommitPath) ? readUtf8(blockCommitPath) : '',
+    fs.existsSync(blockSelectionPath) ? readUtf8(blockSelectionPath) : '',
+    fs.existsSync(blockToolbarPath) ? readUtf8(blockToolbarPath) : '',
+  ].join('\n')
   if (!blockText.includes('includeImages: true')) {
     throw new Error('expected html→md conversion to include images (includeImages: true)')
   }
@@ -53,11 +91,32 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockText.includes('MARKDOWN_EDIT_TYPOGRAPHY_SOURCE_SELECTOR') || !blockText.includes('h1,h2,h3,h4,h5,h6')) {
     throw new Error('expected typography source selector to include heading tags for strict heading view/edit parity')
   }
+  if (!blockText.includes("lastPointerSelectionModeRef") || !blockText.includes("event.detail >= 2 ? 'word' : 'caret'")) {
+    throw new Error('expected click-open selection mode to support double-click word-selection while entering inline edit')
+  }
+  if (!blockText.includes('MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS')) {
+    throw new Error('expected markdown block editor to centralize caret/selection/focus interaction parity for all edit surfaces')
+  }
+  if (!blockText.includes('[&_div]:font-inherit') || !blockText.includes('[&_div]:whitespace-pre-wrap')) {
+    throw new Error('expected html edit normalization to preserve div-based line wrappers with read-surface typography and line-break parity')
+  }
   if (!blockText.includes('editSpacingSnapshotRef') || !blockText.includes('editCaptureLayoutSpacing') || !blockText.includes('__KG_EDIT_PARITY_PROBE__')) {
     throw new Error('expected markdown block editor to provide gated spacing parity capture and runtime parity probe switch')
   }
   if (!blockText.includes('editCaptureLayoutSpacing = false')) {
     throw new Error('expected generic inline edit surfaces to default layout-spacing capture off to avoid rightward indent drift')
+  }
+  if (!blockText.includes('if (spacingSnapshot && editStripLinePrefix && args.editStripLinePrefixSpacingSanitize)')) {
+    throw new Error('expected quote/callout edit surfaces to sanitize horizontal spacing replay only when explicitly enabled for prefix-stripped edit surfaces')
+  }
+  if (!blockText.includes('preserveQuoteOnlyBlankLineStructure')) {
+    throw new Error('expected quote/callout edit surfaces to preserve blank `>` line-by-line structure when trim-edge-newlines is enabled')
+  }
+  if (!blockText.includes("'<div><br/></div>'")) {
+    throw new Error('expected blank quote-only edit surfaces to use explicit per-line block wrappers for first/last vertical spacing parity')
+  }
+  if (!blockText.includes('spacingSnapshot.borderLeftWidth = undefined') || !blockText.includes('spacingSnapshot.borderLeftStyle = undefined')) {
+    throw new Error('expected quote/callout edit surfaces to keep quote rail visible by avoiding inline border overrides in edit spacing snapshot')
   }
   if (!blockText.includes('__KG_EDIT_PARITY_LAST_PAYLOAD__') || !blockText.includes('kg-edit-parity-probe-json')) {
     throw new Error('expected runtime parity probe to expose visible payload via window global and json console line')
@@ -79,6 +138,9 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   if (!blockText.includes('data-kg-sigil') || !blockText.includes('rewriteSigilSpansToInlineCodeHtml')) {
     throw new Error('expected html inline editor to render sigil highlights as spans and rewrite them to inline code on commit')
+  }
+  if (!blockText.includes('rewriteInlineCodeSigilsToStyledSpansHtml')) {
+    throw new Error('expected html inline editor to convert sigil inline-code tokens into styled normal text on edit-open')
   }
   if (!blockText.includes('captureSelectionForFloatingToolbar')) {
     throw new Error('expected floating selection toolbar to reuse shared interaction capture SSOT helper')
@@ -107,8 +169,13 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!rendererText.includes("case 'hr':") || !rendererText.includes('editPresentation="html"')) {
     throw new Error('expected hr blocks to be editable via MarkdownBlockContainer html presentation')
   }
+  const htmlBlockPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownHtmlBlock.tsx')
+  const htmlBlockText = readUtf8(htmlBlockPath)
+  if (!htmlBlockText.includes('editPresentation="html"') || !htmlBlockText.includes('editHtmlRender="block"') || !htmlBlockText.includes('editHtmlDisableDefaultBlockFlow')) {
+    throw new Error('expected html blocks to use html-block in-place editing parity instead of markdown text-mode surface mutation')
+  }
 
-  const inlinePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownInlineRenderer.tsx')
+  const inlinePath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'MarkdownInlineRenderer.impl.tsx')
   const inlineText = readUtf8(inlinePath)
   if (!inlineText.includes('MARKDOWN_INLINE_CODE_VIEW_CLASS')) {
     throw new Error('expected read inline code to reuse centralized view/edit parity SSOT class')
@@ -278,8 +345,10 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
 
   const blockquotePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownBlockquoteBlock.tsx')
   const blockquoteText = readUtf8(blockquotePath)
-  if (!blockquoteText.includes('editLeftRailClassName="bg-blue-400 dark:bg-blue-600"')) {
-    throw new Error('expected blockquote inline editor to preserve left rail surface parity in gutter mode')
+  const headingPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownHeadingBlock.tsx')
+  const headingText = readUtf8(headingPath)
+  if (blockquoteText.includes('editLeftRailClassName=')) {
+    throw new Error('expected blockquote inline editor to avoid duplicate absolute left rail overlay that breaks view/edit parity')
   }
   const gutterBlockquoteEditRootOk =
     blockquoteText.includes('pl-4 py-2 rounded-r text-left italic')
@@ -287,14 +356,26 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!gutterBlockquoteEditRootOk) {
     throw new Error('expected blockquote inline editor to preserve quote padding/border and typography parity')
   }
-  if (!blockquoteText.includes('pl-4 py-2 border-l-4')) {
-    throw new Error('expected gutter-mode blockquote inline editor to apply quote border/padding on edit root to prevent spacing drift')
+  if (!blockquoteText.includes('pl-4 py-2 border-l-4 border-solid')) {
+    throw new Error('expected gutter-mode blockquote inline editor to apply explicit solid quote border/padding on edit root for visible rail parity')
   }
   if (!blockquoteText.includes('editorQuoteClassNameNoInset') || !blockquoteText.includes('editorClassName={editorQuoteClassNameNoInset}')) {
     throw new Error('expected non-gutter blockquote inline editor to avoid duplicate inset padding/margin layering')
   }
   if (!blockquoteText.includes('editCaptureLayoutSpacing')) {
     throw new Error('expected blockquote inline editor to explicitly enable layout spacing capture parity')
+  }
+  if (!blockquoteText.includes('editPresentation="html"') || !blockquoteText.includes('editHtmlRender="block"')) {
+    throw new Error('expected blockquote inline editor to use html-block editing for quote line spacing parity without exposing sigil code tokens')
+  }
+  if (!blockquoteText.includes('editHtmlDisableDefaultBlockFlow')) {
+    throw new Error('expected blockquote inline editor to disable default html block flow spacing and preserve quote line-by-line vertical parity')
+  }
+  if (!blockquoteText.includes('editSigilRenderMode="plain"')) {
+    throw new Error('expected blockquote inline editor to render highlight/text-color sigils as plain text during edit (no styled span and no code token)')
+  }
+  if (!headingText.includes('editStripLinePrefixSpacingSanitize={false}')) {
+    throw new Error('expected heading inline editor to preserve read-surface left indentation by disabling prefix-spacing sanitize during `#` strip editing')
   }
   if (!blockquoteText.includes('editTrimEdgeNewlines')) {
     throw new Error('expected blockquote inline editor to trim edge newlines to avoid extra-row mutations')
@@ -307,6 +388,18 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   if (!blockquoteText.includes('[&_p]:whitespace-pre-wrap')) {
     throw new Error('expected blockquote inline editor to preserve per-line paragraph wrapping parity for callout edit surface')
+  }
+  if (!blockquoteText.includes('[&_div]:whitespace-pre-wrap')) {
+    throw new Error('expected blockquote inline editor to preserve explicit blank quote rows without collapsing line-by-line spacing')
+  }
+  if (!blockquoteText.includes('[&_div]:font-inherit') || !blockquoteText.includes('[&_div]:text-inherit')) {
+    throw new Error('expected blockquote inline editor div rows to inherit read-surface typography without mutation')
+  }
+  if (!blockquoteText.includes('min-h-[1lh]')) {
+    throw new Error('expected blockquote inline editor root to keep at least one line-height to preserve first-line/last-line vertical parity')
+  }
+  if (!blockquoteText.includes('italic leading-normal')) {
+    throw new Error('expected blockquote inline editor root to enforce leading-normal for blank-line vertical spacing parity')
   }
   if (!blockquoteText.includes('[&_p]:font-inherit') || !blockquoteText.includes('[&_p]:text-inherit')) {
     throw new Error('expected blockquote inline editor paragraphs to inherit read-surface typography without font mutation')

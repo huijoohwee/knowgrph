@@ -466,6 +466,13 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       modCoalescedScheduler.testWorkspaceSyncSchedulerScopeKeyKeepsLatestAcrossTaskKeysWithinSameFlush,
     )
 
+    const modWorkspaceSourceIndex = await import('../__tests__/workspaceSourceIndexCoalescedWrites.test')
+    await execTest(
+      results,
+      'ui.workspace.sourceIndex.coalescesWrites',
+      modWorkspaceSourceIndex.testWorkspaceSourceIndexCoalescesWrites,
+    )
+
     const modGraphTableSync = await import('../__tests__/graphTableDbSyncDedupeRegression.test')
     await execTest(
       results,

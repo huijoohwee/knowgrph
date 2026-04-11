@@ -138,23 +138,93 @@ function getPathValue(
   return cur
 }
 
+const FLOW_TEMPLATE_KEY_RE = /^[A-Za-z0-9_.-]{1,128}$/
+
+type FlowTemplateExpr = {
+  key: string
+  declared: string | null
+  fallback: string | null
+}
+
+function parseFlowTemplateExpr(rawExpr: string): FlowTemplateExpr | null {
+  const expr = String(rawExpr || '').trim()
+  if (!expr) return null
+  let key = expr
+  let declared: string | null = null
+  let fallback: string | null = null
+  const pipeIdx = expr.indexOf('|')
+  const colonIdx = expr.indexOf(':')
+  if (colonIdx >= 0 && (pipeIdx < 0 || colonIdx < pipeIdx)) {
+    key = expr.slice(0, colonIdx).trim()
+    if (pipeIdx > colonIdx) {
+      declared = expr.slice(colonIdx + 1, pipeIdx).trim()
+      fallback = expr.slice(pipeIdx + 1).trim()
+    } else {
+      declared = expr.slice(colonIdx + 1).trim()
+    }
+  } else if (pipeIdx >= 0) {
+    key = expr.slice(0, pipeIdx).trim()
+    fallback = expr.slice(pipeIdx + 1).trim()
+  }
+  if (!FLOW_TEMPLATE_KEY_RE.test(key)) return null
+  return {
+    key,
+    declared,
+    fallback: fallback && fallback.length > 0 ? fallback : null,
+  }
+}
+
+function resolveFlowTemplateExprValue(args: {
+  expr: FlowTemplateExpr
+  vars: Record<string, unknown>
+  pathCache: Map<string, unknown>
+  declarationCache: Map<string, unknown>
+}): unknown {
+  const { expr, vars, pathCache, declarationCache } = args
+  const fromFrontmatter = getPathValue(vars, expr.key, pathCache)
+  if (typeof fromFrontmatter !== 'undefined') return fromFrontmatter
+  if (declarationCache.has(expr.key)) return declarationCache.get(expr.key)
+  if (expr.declared != null) {
+    declarationCache.set(expr.key, expr.declared)
+    return expr.declared
+  }
+  if (expr.fallback) {
+    if (FLOW_TEMPLATE_KEY_RE.test(expr.fallback)) {
+      const fallbackFromFrontmatter = getPathValue(vars, expr.fallback, pathCache)
+      if (typeof fallbackFromFrontmatter !== 'undefined') return fallbackFromFrontmatter
+      if (declarationCache.has(expr.fallback)) return declarationCache.get(expr.fallback)
+      return expr.fallback
+    }
+    return expr.fallback
+  }
+  return undefined
+}
+
 function resolveTemplateString(
   raw: string,
   vars: Record<string, unknown>,
   pathCache: Map<string, unknown>,
-  textCache: Map<string, string>,
+  declarationCache: Map<string, unknown>,
+  resolvedCache: Map<string, string>,
 ): string {
   const source = String(raw || '')
   if (!source) return ''
-  const cached = textCache.get(source)
+  const cached = resolvedCache.get(source)
   if (typeof cached === 'string') return cached
-  const resolved = source.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (_, key: string) => {
-    const found = getPathValue(vars, key, pathCache)
-    if (found == null) return ''
+  const resolved = source.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (token: string, exprRaw: string) => {
+    const parsed = parseFlowTemplateExpr(exprRaw)
+    if (!parsed) return token
+    const found = resolveFlowTemplateExprValue({ expr: parsed, vars, pathCache, declarationCache })
+    if (typeof found === 'undefined') return `{{${String(exprRaw || '').trim()}}}`
+    if (found === null) return ''
     if (typeof found === 'string' || typeof found === 'number' || typeof found === 'boolean') return String(found)
-    return ''
+    try {
+      return JSON.stringify(found)
+    } catch {
+      return ''
+    }
   })
-  textCache.set(source, resolved)
+  resolvedCache.set(source, resolved)
   return resolved
 }
 
@@ -162,13 +232,24 @@ function resolveTemplateValue(
   value: unknown,
   vars: Record<string, unknown>,
   pathCache: Map<string, unknown>,
-  textCache: Map<string, string>,
+  declarationCache: Map<string, unknown>,
+  resolvedStringCache: Map<string, string>,
 ): unknown {
-  if (typeof value === 'string') return resolveTemplateString(value, vars, pathCache, textCache)
-  if (Array.isArray(value)) return value.map(v => resolveTemplateValue(v, vars, pathCache, textCache))
+  if (typeof value === 'string') {
+    const exactMatch = /^\s*\{\{\s*([^}]+?)\s*\}\}\s*$/.exec(value)
+    if (exactMatch) {
+      const parsed = parseFlowTemplateExpr(exactMatch[1] || '')
+      if (parsed) {
+        const found = resolveFlowTemplateExprValue({ expr: parsed, vars, pathCache, declarationCache })
+        if (typeof found !== 'undefined') return found === null ? '' : found
+      }
+    }
+    return resolveTemplateString(value, vars, pathCache, declarationCache, resolvedStringCache)
+  }
+  if (Array.isArray(value)) return value.map(v => resolveTemplateValue(v, vars, pathCache, declarationCache, resolvedStringCache))
   if (!isRecord(value)) return value
   const out: Record<string, unknown> = {}
-  for (const [k, v] of Object.entries(value)) out[k] = resolveTemplateValue(v, vars, pathCache, textCache)
+  for (const [k, v] of Object.entries(value)) out[k] = resolveTemplateValue(v, vars, pathCache, declarationCache, resolvedStringCache)
   return out
 }
 
@@ -282,7 +363,8 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
   if (!flow) return meta
   const vars = meta
   const pathCache = new Map<string, unknown>()
-  const textCache = new Map<string, string>()
+  const declarationCache = new Map<string, unknown>()
+  const resolvedStringCache = new Map<string, string>()
   const flowWarnings: string[] = []
   const rawNodes = Array.isArray(flow.nodes) ? flow.nodes : []
   const normalizedNodes: Array<Record<string, unknown>> = []
@@ -303,10 +385,10 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     const handles = isRecord(rawNode.handles) ? (rawNode.handles as Record<string, unknown>) : null
     const inputs = coerceFlowNodePorts(handles?.target)
     const outputs = coerceFlowNodePorts(handles?.source)
-    const dataResolved = resolveTemplateValue(rawNode.data, vars, pathCache, textCache)
+    const dataResolved = resolveTemplateValue(rawNode.data, vars, pathCache, declarationCache, resolvedStringCache)
     const dataNormalized = normalizeFlowDataValue(dataResolved)
     const computeRaw = asString(rawNode.compute)
-    const compute = computeRaw ? resolveTemplateString(computeRaw, vars, pathCache, textCache) : ''
+    const compute = computeRaw ? resolveTemplateString(computeRaw, vars, pathCache, declarationCache, resolvedStringCache) : ''
     const sanitized = sanitizeFlowNodeContract({
       id,
       type,
@@ -318,7 +400,7 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     const next: Record<string, unknown> = {
       id,
       type,
-      label: labelRaw ? resolveTemplateString(labelRaw, vars, pathCache, textCache) : id,
+      label: labelRaw ? resolveTemplateString(labelRaw, vars, pathCache, declarationCache, resolvedStringCache) : id,
       ...(x != null || y != null ? { pos: { ...(x != null ? { x } : {}), ...(y != null ? { y } : {}) } } : {}),
       inputs: sanitized.inputs,
       outputs: sanitized.outputs,
@@ -346,7 +428,7 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     const targetHandle = asString(row.targetHandle)
     if (!source || !target || !sourceHandle || !targetHandle) continue
     const labelRaw = asString(row.label)
-    const label = labelRaw ? resolveTemplateString(labelRaw, vars, pathCache, textCache) : ''
+    const label = labelRaw ? resolveTemplateString(labelRaw, vars, pathCache, declarationCache, resolvedStringCache) : ''
     const conn: Record<string, unknown> = {
       id: asString(row.id) || `flow-e${String(i + 1).padStart(2, '0')}`,
       from_node: source,

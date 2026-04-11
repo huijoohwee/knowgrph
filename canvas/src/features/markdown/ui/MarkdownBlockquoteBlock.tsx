@@ -68,7 +68,7 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
 
   const quoteClassName = [
     'mt-4 mb-4',
-    `pl-4 py-2 border-l-4 border-blue-400 dark:border-blue-600 ${UI_THEME_TOKENS.table.rowRelated} rounded-r ${UI_THEME_TOKENS.text.secondary} italic`,
+    `pl-4 py-2 border-l-4 border-solid border-blue-400 dark:border-blue-600 ${UI_THEME_TOKENS.table.rowRelated} rounded-r ${UI_THEME_TOKENS.text.secondary} italic`,
     'text-left',
     '[&_p]:m-0',
     '[&_p]:leading-normal',
@@ -95,12 +95,17 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
     })
   }, [opts.markdownSourceLines, t.startLine])
   const editorQuoteClassName = [
-    'w-full whitespace-pre-wrap break-words outline-none bg-transparent',
-    'pl-4 py-2 border-l-4 border-blue-400 dark:border-blue-600 rounded-r text-left italic',
+    'w-full min-h-[1lh] whitespace-pre-wrap break-words outline-none bg-transparent',
+    'pl-4 py-2 border-l-4 border-solid border-blue-400 dark:border-blue-600 rounded-r text-left italic leading-normal',
     baseTextClass,
     commonBlockClass,
     opts.uiPanelTextFontClass,
     UI_THEME_TOKENS.text.secondary,
+    '[&_div]:font-inherit',
+    '[&_div]:text-inherit',
+    '[&_div]:m-0',
+    '[&_div]:leading-normal',
+    '[&_div]:whitespace-pre-wrap',
     '[&_p]:font-inherit',
     '[&_p]:text-inherit',
     '[&_p]:m-0',
@@ -113,12 +118,17 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
     .filter(Boolean)
     .join(' ')
   const editorQuoteClassNameNoInset = [
-    'w-full whitespace-pre-wrap break-words outline-none bg-transparent',
-    'text-left italic',
+    'w-full min-h-[1lh] whitespace-pre-wrap break-words outline-none bg-transparent',
+    'text-left italic leading-normal',
     baseTextClass,
     commonBlockClass,
     opts.uiPanelTextFontClass,
     UI_THEME_TOKENS.text.secondary,
+    '[&_div]:font-inherit',
+    '[&_div]:text-inherit',
+    '[&_div]:m-0',
+    '[&_div]:leading-normal',
+    '[&_div]:whitespace-pre-wrap',
     '[&_p]:font-inherit',
     '[&_p]:text-inherit',
     '[&_p]:m-0',
@@ -151,7 +161,10 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
         forbidCopy={!!opts.forbidCopy}
         editorClassName={editorQuoteClassNameNoInset}
         resolveEditLineRangeOnOpen={resolveQuoteEditLineRange}
-        editPresentation="markdown"
+        editPresentation="html"
+        editHtmlRender="block"
+        editHtmlDisableDefaultBlockFlow
+        editSigilRenderMode="plain"
         editStripLinePrefix={stripQuotePrefix}
         editPreserveWhitespace
         editTrimEdgeNewlines
@@ -204,8 +217,10 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
       forbidCopy={!!opts.forbidCopy}
       editorClassName={editorQuoteClassName}
       resolveEditLineRangeOnOpen={resolveQuoteEditLineRange}
-      editPresentation="markdown"
-      editLeftRailClassName="bg-blue-400 dark:bg-blue-600"
+      editPresentation="html"
+      editHtmlRender="block"
+      editHtmlDisableDefaultBlockFlow
+      editSigilRenderMode="plain"
       editStripLinePrefix={stripQuotePrefix}
       editPreserveWhitespace
       editTrimEdgeNewlines

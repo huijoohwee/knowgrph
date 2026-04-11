@@ -73,21 +73,60 @@ function readEndpointPos(endpoint: unknown): { x: number; y: number } | null {
   return { x: nx, y: ny }
 }
 
-function getEndpointPosOrZero(endpoint: unknown): { x: number; y: number } {
-  return readEndpointPos(endpoint) || { x: 0, y: 0 }
+function resolveNodeId(endpoint: unknown): string {
+  if (typeof endpoint === 'string' || typeof endpoint === 'number') return String(endpoint)
+  if (endpoint && typeof endpoint === 'object' && !Array.isArray(endpoint)) {
+    const id = (endpoint as { id?: unknown }).id
+    if (typeof id === 'string' || typeof id === 'number') return String(id)
+  }
+  return ''
 }
 
-function shouldUsePathForEdge(e: GraphEdge, schema: GraphSchema): boolean {
+function buildNodeLookup(nodeById?: Map<string, GraphNode> | null): Map<string, GraphNode> | null {
+  if (!nodeById || nodeById.size === 0) return null
+  const lookup = new Map<string, GraphNode>()
+  for (const [id, node] of nodeById.entries()) {
+    const key = String(id || '').trim()
+    if (!key) continue
+    lookup.set(key, node)
+    const idx = key.lastIndexOf('::')
+    if (idx > 0 && idx < key.length - 2) {
+      const short = key.slice(idx + 2)
+      if (short && !lookup.has(short)) lookup.set(short, node)
+    }
+  }
+  return lookup
+}
+
+function getEndpointPosOrZero(endpoint: unknown, nodeLookup?: Map<string, GraphNode> | null): { x: number; y: number } {
+  const direct = readEndpointPos(endpoint)
+  if (direct) return direct
+  if (nodeLookup && nodeLookup.size > 0) {
+    const id = resolveNodeId(endpoint)
+    if (id) {
+      const node = nodeLookup.get(id) || (() => {
+        const idx = id.lastIndexOf('::')
+        if (idx > 0 && idx < id.length - 2) return nodeLookup.get(id.slice(idx + 2)) || null
+        return null
+      })()
+      const fromNode = readEndpointPos(node)
+      if (fromNode) return fromNode
+    }
+  }
+  return { x: 0, y: 0 }
+}
+
+function shouldUsePathForEdge(e: GraphEdge, _schema: GraphSchema): boolean {
   if (readEdgeVisualPathD(e)) return true
-  return readGlobalEdgeType(schema) !== 'straight'
+  return true
 }
 
-function resolveEdgePathD(e: GraphEdge, schema: GraphSchema): string {
+function resolveEdgePathD(e: GraphEdge, schema: GraphSchema, nodeLookup?: Map<string, GraphNode> | null): string {
   const globalType = readGlobalEdgeType(schema)
   const existing = readEdgeVisualPathD(e)
   if (globalType === 'bezier' && existing) return existing
-  const s = getEndpointPosOrZero((e as any).source)
-  const t = getEndpointPosOrZero((e as any).target)
+  const s = getEndpointPosOrZero((e as any).source, nodeLookup)
+  const t = getEndpointPosOrZero((e as any).target, nodeLookup)
   return buildEdgePathD({
     edgeType: globalType,
     sx: s.x,
@@ -102,6 +141,7 @@ export const createLinksHitLayer = (args: {
   g: GSelection;
   edgesForDisplay: GraphEdge[];
   schema: GraphSchema;
+  nodeById?: Map<string, GraphNode> | null;
   simulation: d3.Simulation<GraphNode, GraphEdge>;
   hoverEnabled: boolean;
   setHoverInfo: (updater: (prev: HoverInfo | null) => HoverInfo | null) => void;
@@ -113,6 +153,7 @@ export const createLinksHitLayer = (args: {
     g,
     edgesForDisplay,
     schema,
+    nodeById,
     simulation,
     hoverEnabled,
     setHoverInfo,
@@ -120,6 +161,7 @@ export const createLinksHitLayer = (args: {
     selectNode,
     selectEdge,
   } = args;
+  const nodeLookup = buildNodeLookup(nodeById)
 
   const eligibleEdges = (() => {
     if (!Array.isArray(edgesForDisplay) || edgesForDisplay.length < 2) return edgesForDisplay
@@ -160,7 +202,7 @@ export const createLinksHitLayer = (args: {
     .data(withPath)
     .enter()
     .append('path')
-    .attr('d', (d: GraphEdge) => resolveEdgePathD(d, schema))
+    .attr('d', (d: GraphEdge) => resolveEdgePathD(d, schema, nodeLookup))
     .attr('transform', (d: GraphEdge) => {
       const t = readEdgeVisualPathTranslate(d)
       return t ? `translate(${t.x},${t.y})` : null
@@ -173,10 +215,10 @@ export const createLinksHitLayer = (args: {
     .append('line')
 
   lineSel
-    .attr('x1', (d: GraphEdge) => getEndpointPosOrZero((d as any).source).x)
-    .attr('y1', (d: GraphEdge) => getEndpointPosOrZero((d as any).source).y)
-    .attr('x2', (d: GraphEdge) => getEndpointPosOrZero((d as any).target).x)
-    .attr('y2', (d: GraphEdge) => getEndpointPosOrZero((d as any).target).y)
+    .attr('x1', (d: GraphEdge) => getEndpointPosOrZero((d as any).source, nodeLookup).x)
+    .attr('y1', (d: GraphEdge) => getEndpointPosOrZero((d as any).source, nodeLookup).y)
+    .attr('x2', (d: GraphEdge) => getEndpointPosOrZero((d as any).target, nodeLookup).x)
+    .attr('y2', (d: GraphEdge) => getEndpointPosOrZero((d as any).target, nodeLookup).y)
 
   const link = linkRoot.selectAll<SVGElement, GraphEdge>('path, line');
 
@@ -213,8 +255,10 @@ export const createLinksLayer = (args: {
   g: GSelection
   edgesForDisplay: GraphEdge[]
   schema: GraphSchema
+  nodeById?: Map<string, GraphNode> | null
 }): d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> => {
-  const { g, edgesForDisplay, schema } = args
+  const { g, edgesForDisplay, schema, nodeById } = args
+  const nodeLookup = buildNodeLookup(nodeById)
 
   const eligibleEdges = (() => {
     if (!Array.isArray(edgesForDisplay) || edgesForDisplay.length < 2) return edgesForDisplay
@@ -273,7 +317,7 @@ export const createLinksLayer = (args: {
     .enter()
     .append('path')
     .attr('class', 'kg-edge-path')
-    .attr('d', (d: GraphEdge) => resolveEdgePathD(d, schema))
+    .attr('d', (d: GraphEdge) => resolveEdgePathD(d, schema, nodeLookup))
     .attr('transform', (d: GraphEdge) => {
       const t = readEdgeVisualPathTranslate(d)
       return t ? `translate(${t.x},${t.y})` : null
@@ -282,10 +326,10 @@ export const createLinksLayer = (args: {
   const lineSel = linkRoot.selectAll<SVGLineElement, GraphEdge>('line').data(withoutPath).enter().append('line')
 
   lineSel
-    .attr('x1', (d: GraphEdge) => getEndpointPosOrZero((d as any).source).x)
-    .attr('y1', (d: GraphEdge) => getEndpointPosOrZero((d as any).source).y)
-    .attr('x2', (d: GraphEdge) => getEndpointPosOrZero((d as any).target).x)
-    .attr('y2', (d: GraphEdge) => getEndpointPosOrZero((d as any).target).y)
+    .attr('x1', (d: GraphEdge) => getEndpointPosOrZero((d as any).source, nodeLookup).x)
+    .attr('y1', (d: GraphEdge) => getEndpointPosOrZero((d as any).source, nodeLookup).y)
+    .attr('x2', (d: GraphEdge) => getEndpointPosOrZero((d as any).target, nodeLookup).x)
+    .attr('y2', (d: GraphEdge) => getEndpointPosOrZero((d as any).target, nodeLookup).y)
 
   const link = linkRoot.selectAll<SVGElement, GraphEdge>('path.kg-edge-path, line')
 

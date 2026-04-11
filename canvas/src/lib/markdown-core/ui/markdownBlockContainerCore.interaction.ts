@@ -1,0 +1,144 @@
+export const resolveActiveSelectionRange = (args: {
+  root: HTMLElement
+  selection: Selection | null
+  cachedRange: Range | null
+}): Range | null => {
+  const { root, selection, cachedRange } = args
+  if (selection && selection.rangeCount > 0) {
+    const live = selection.getRangeAt(0)
+    const container = live.commonAncestorContainer
+    const node = container.nodeType === Node.ELEMENT_NODE ? (container as Element) : container.parentElement
+    if (!live.collapsed && node && root.contains(node)) return live
+  }
+  if (!cachedRange || cachedRange.collapsed) return null
+  const cachedContainer = cachedRange.commonAncestorContainer
+  const cachedNode = cachedContainer.nodeType === Node.ELEMENT_NODE ? (cachedContainer as Element) : cachedContainer.parentElement
+  if (!cachedNode || !root.contains(cachedNode)) return null
+  return cachedRange
+}
+
+export const getRangeRectSafe = (range: Range): DOMRect | null => {
+  const anyRange = range as unknown as { getBoundingClientRect?: () => DOMRect }
+  if (typeof anyRange.getBoundingClientRect !== 'function') return null
+  try {
+    return anyRange.getBoundingClientRect()
+  } catch {
+    return null
+  }
+}
+
+export const computeBubblePosition = (args: {
+  rangeRect: DOMRect | null
+  root: HTMLElement
+}): { leftPx: number; topPx: number } => {
+  const host = args.root.closest('[data-start-line]') as HTMLElement | null
+  const hostRect = host?.getBoundingClientRect() || args.root.getBoundingClientRect()
+  const fallbackLeft = Math.max(16, Math.min(Math.max(0, hostRect.width - 16), 24))
+  const fallbackTop = 8
+  const rawLeftPx = args.rangeRect ? (args.rangeRect.left + args.rangeRect.width / 2 - hostRect.left) : fallbackLeft
+  const maxX = Math.max(0, hostRect.width - 16)
+  return {
+    leftPx: Math.max(16, Math.min(maxX, rawLeftPx)),
+    topPx: args.rangeRect ? (args.rangeRect.top - hostRect.top) : fallbackTop,
+  }
+}
+
+export const scheduleSelectionSyncBurst = (fn: () => void, frames: number = 2): void => {
+  const count = Math.max(1, Math.floor(frames))
+  const run = (remaining: number) => {
+    fn()
+    if (remaining <= 1) return
+    window.requestAnimationFrame(() => run(remaining - 1))
+  }
+  run(count)
+}
+
+export const getMarkdownProbeEvents = (): unknown[] => {
+  const g = globalThis as unknown as Record<string, unknown>
+  const state = g.__KG_MD_PROBE as { events?: unknown[] } | undefined
+  return Array.isArray(state?.events) ? state!.events! : []
+}
+
+const WORD_CHAR_RE = /[\p{L}\p{N}\p{M}_-]/u
+
+export const findFirstSelectableSegment = (text: string): { start: number; end: number } | null => {
+  const value = String(text || '')
+  if (!value) return null
+  const wordMatch = value.match(/[\p{L}\p{N}\p{M}_-]+/u)
+  if (wordMatch && typeof wordMatch.index === 'number') {
+    return {
+      start: wordMatch.index,
+      end: wordMatch.index + wordMatch[0].length,
+    }
+  }
+  const nonWhitespaceMatch = value.match(/\S+/u)
+  if (nonWhitespaceMatch && typeof nonWhitespaceMatch.index === 'number') {
+    return {
+      start: nonWhitespaceMatch.index,
+      end: nonWhitespaceMatch.index + nonWhitespaceMatch[0].length,
+    }
+  }
+  return null
+}
+
+export const expandSelectionSegmentAt = (text: string, cursorOffset: number): { start: number; end: number } | null => {
+  const value = String(text || '')
+  if (!value) return null
+  const maxCursor = Math.max(0, Math.min(value.length - 1, Math.floor(cursorOffset)))
+  if (value.length <= 0) return null
+  const isWordChar = (ch: string): boolean => WORD_CHAR_RE.test(ch)
+  const isSegmentChar = (ch: string): boolean => isWordChar(ch) || !/\s/u.test(ch)
+  let cursor = maxCursor
+  if (!isSegmentChar(value[cursor] || '') && cursor > 0 && isSegmentChar(value[cursor - 1] || '')) {
+    cursor -= 1
+  }
+  if (!isSegmentChar(value[cursor] || '')) return null
+  const resolveGroupType = (): 'word' | 'symbol' => {
+    if (isWordChar(value[cursor] || '')) return 'word'
+    return 'symbol'
+  }
+  const groupType = resolveGroupType()
+  const matchesGroup = (ch: string): boolean => {
+    if (!ch) return false
+    if (/\s/u.test(ch)) return false
+    if (groupType === 'word') return isWordChar(ch)
+    return !isWordChar(ch)
+  }
+  let start = cursor
+  let end = cursor + 1
+  while (start > 0 && matchesGroup(value[start - 1] || '')) start -= 1
+  while (end < value.length && matchesGroup(value[end] || '')) end += 1
+  if (start >= end) return null
+  return { start, end }
+}
+
+export const ensureWordSelectionInRoot = (root: HTMLElement): boolean => {
+  const sel = typeof window !== 'undefined' ? window.getSelection() : null
+  if (!sel) return false
+  if (sel.rangeCount > 0) {
+    const r = sel.getRangeAt(0)
+    const c = r.commonAncestorContainer
+    const n = c.nodeType === Node.ELEMENT_NODE ? (c as Element) : c.parentElement
+    if (n && root.contains(n) && !r.collapsed && String(sel.toString() || '').trim()) return true
+  }
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  let node = walker.nextNode() as Text | null
+  while (node) {
+    const txt = String(node.nodeValue || '')
+    const segment = findFirstSelectableSegment(txt)
+    if (segment) {
+      const range = document.createRange()
+      range.setStart(node, segment.start)
+      range.setEnd(node, segment.end)
+      try {
+        sel.removeAllRanges()
+        sel.addRange(range)
+        return true
+      } catch {
+        return false
+      }
+    }
+    node = walker.nextNode() as Text | null
+  }
+  return false
+}

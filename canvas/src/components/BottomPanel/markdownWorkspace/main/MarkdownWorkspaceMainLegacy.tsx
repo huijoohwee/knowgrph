@@ -15,6 +15,11 @@ import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { LS_KEYS } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
+import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import {
+  WORKSPACE_SYNC_SCOPE_MARKDOWN_WORKSPACE_RUNTIME_PERSISTENCE_SHARED,
+  WORKSPACE_SYNC_TASK_MARKDOWN_WORKSPACE_VIEWER_PREFS,
+} from '@/lib/async/workspaceSyncKeys'
 import { WebpageViewerPane } from './webpage/WebpageViewerPane'
 import { deriveWebpageFrontmatterMetaFromBlock, deriveWebsiteImportFrontmatterMetaFromBlock, shouldRenderWebpageIframe } from './webpage/webpageMeta'
 import { useWebpageIframeView } from './webpage/useWebpageIframeView'
@@ -185,12 +190,23 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     })
   })
   React.useEffect(() => {
-    lsSetJson(LS_KEYS.markdownDerivedViewerKind, viewerKind)
-  }, [viewerKind])
-
-  React.useEffect(() => {
-    lsSetJson(LS_KEYS.markdownDerivedViewerMode, viewerMode)
-  }, [viewerMode])
+    const signature = `viewer-kind:${viewerKind}|viewer-mode:${viewerMode}`
+    scheduleWorkspaceSyncTask(
+      WORKSPACE_SYNC_TASK_MARKDOWN_WORKSPACE_VIEWER_PREFS,
+      () => {
+        lsSetJson(LS_KEYS.markdownDerivedViewerKind, viewerKind)
+        lsSetJson(LS_KEYS.markdownDerivedViewerMode, viewerMode)
+      },
+      0,
+      {
+        signature,
+        scopeKey: WORKSPACE_SYNC_SCOPE_MARKDOWN_WORKSPACE_RUNTIME_PERSISTENCE_SHARED,
+      },
+    )
+    return () => {
+      cancelWorkspaceSyncTask(WORKSPACE_SYNC_TASK_MARKDOWN_WORKSPACE_VIEWER_PREFS)
+    }
+  }, [viewerKind, viewerMode])
   React.useEffect(() => {
     if (layoutMode !== 'viewer') return
     if (viewerKind !== 'markdown') return
@@ -403,6 +419,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const onReorderLineBlock = disableViewerMutations ? undefined : handleReorderLineBlock
   const onReplaceLineRange = disableViewerMutations ? undefined : handleReplaceLineRange
   const handleInlineEditStateChange = React.useCallback((active: boolean) => {
+    if (viewerInlineEditActiveRef.current === active) return
     viewerInlineEditActiveRef.current = active
     onViewerInlineEditStateChange?.(active)
   }, [onViewerInlineEditStateChange])
@@ -480,8 +497,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       showSidebar={false}
       viewMode="viewer"
       forbidCopy={viewerMode === 'read'}
-      onInsertLineAfter={onInsertLineAfter}
-      onReorderLineBlock={onReorderLineBlock}
+      onInsertLineAfter={viewerMode === 'read' ? undefined : onInsertLineAfter}
+      onReorderLineBlock={viewerMode === 'read' ? undefined : onReorderLineBlock}
       onReplaceLineRange={onReplaceLineRange}
       onShowInEditor={line => revealLineInEditor(line)}
       onInlineEditStateChange={handleInlineEditStateChange}

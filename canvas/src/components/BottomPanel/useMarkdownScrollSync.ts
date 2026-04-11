@@ -127,6 +127,21 @@ const getCancelRaf = () => {
   return (id: number) => clearTimeout(id)
 }
 
+const hasActiveSelectionWithin = (root: HTMLElement | null): boolean => {
+  if (!root || typeof window === 'undefined' || typeof window.getSelection !== 'function') return false
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount <= 0 || selection.isCollapsed) return false
+  try {
+    const range = selection.getRangeAt(0)
+    const common = range.commonAncestorContainer
+    const element = common.nodeType === Node.ELEMENT_NODE ? (common as Element) : common.parentElement
+    if (!element) return false
+    return root.contains(element)
+  } catch {
+    return false
+  }
+}
+
 export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
   const {
     editorTextAreaRef,
@@ -182,6 +197,7 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
         if (!viewer) return
         if (!syncScrollRef.current) return
         if (syncingFromViewerRef.current) return
+        if (hasActiveSelectionWithin(viewer)) return
         
         if (dragStateRef.current?.active) return
         if (editorClearSyncRafRef.current) cancelRafFn(editorClearSyncRafRef.current)
@@ -299,10 +315,14 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
             const clamped = Math.min(1, Math.max(0, ratio))
             const nextViewerTop = viewerScrollable > 0 ? clamped * viewerScrollable : 0
             lastEditorSetViewerScrollTopRef.current = nextViewerTop
-            viewer.scrollTop = nextViewerTop
+            if (Math.abs(viewer.scrollTop - nextViewerTop) > 1) {
+              viewer.scrollTop = nextViewerTop
+            }
         } else {
             lastEditorSetViewerScrollTopRef.current = viewerTargetTop
-            viewer.scrollTop = viewerTargetTop
+            if (Math.abs(viewer.scrollTop - viewerTargetTop) > 1) {
+              viewer.scrollTop = viewerTargetTop
+            }
         }
 
         editorClearSyncRafRef.current = rafFn(() => {
@@ -374,6 +394,7 @@ export function useMarkdownScrollSync(config: MarkdownScrollSyncConfig) {
         }
         if (!viewer || !handle) return
         if (!syncScrollRef.current) return
+        if (hasActiveSelectionWithin(viewer)) return
     
         const totalLines = editorLineCountRef.current || 1
     

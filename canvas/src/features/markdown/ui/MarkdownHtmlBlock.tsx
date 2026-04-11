@@ -485,6 +485,9 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
         onInlineEditStateChange={opts.onInlineEditStateChange}
         forbidCopy={!!opts.forbidCopy}
         editorClassName="w-full whitespace-pre-wrap break-words outline-none bg-transparent"
+        editPresentation="html"
+        editHtmlRender="block"
+        editHtmlDisableDefaultBlockFlow
         onDragOver={dnd.handleDragOver}
         onDragLeave={dnd.handleDragLeave}
         onDrop={dnd.handleDrop}
@@ -533,6 +536,9 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
       onInlineEditStateChange={opts.onInlineEditStateChange}
       forbidCopy={!!opts.forbidCopy}
       editorClassName="w-full whitespace-pre-wrap break-words outline-none bg-transparent"
+      editPresentation="html"
+      editHtmlRender="block"
+      editHtmlDisableDefaultBlockFlow
       onDragOver={dnd.handleDragOver}
       onDragLeave={dnd.handleDragLeave}
       onDrop={dnd.handleDrop}

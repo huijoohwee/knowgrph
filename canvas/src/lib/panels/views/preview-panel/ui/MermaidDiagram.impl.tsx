@@ -6,7 +6,6 @@ import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOver
 import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { ErrorFeedback } from '@/components/ui/ErrorFeedback'
 
 type MermaidRenderResult = {
   svg: string
@@ -36,6 +35,8 @@ let mermaidModulePromise: Promise<unknown> | null = null
 let lastMermaidInitKey = ''
 let elkLayoutRegistered = false
 let elkLayoutsPromise: Promise<unknown> | null = null
+const MERMAID_TOAST_DEDUPE_MS = 1500
+const mermaidErrorToastSeenAt = new Map<string, number>()
 
 const ensureElkLayoutRegistered = async (mermaid: MermaidApi): Promise<void> => {
   if (elkLayoutRegistered) return
@@ -143,6 +144,51 @@ const buildMermaidConfig = (opts: {
   }
 }
 
+const normalizeMermaidClickSyntax = (code: string): string => {
+  const lines = String(code || '').split('\n')
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = String(lines[i] || '')
+    const match = /^(\s*click\s+([A-Za-z0-9_.:-]+))\s+(".*)$/.exec(line)
+    if (!match) continue
+    if (/\s+(href|call)\s+/i.test(line)) continue
+    lines[i] = `${match[1]} href ${match[3]}`
+  }
+  return lines.join('\n')
+}
+
+const extractMermaidErrorFromSvg = (svg: string): string | null => {
+  const raw = String(svg || '')
+  if (!raw.trim()) return null
+  const hasErrorRole = /aria-roledescription\s*=\s*"error"/i.test(raw)
+  const hasErrorTextClass = /class\s*=\s*"[^"]*\berror-text\b[^"]*"/i.test(raw)
+  if (!hasErrorRole && !hasErrorTextClass) return null
+  const textMatches = Array.from(raw.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/gi))
+  for (let i = 0; i < textMatches.length; i += 1) {
+    const message = String(textMatches[i]?.[1] || '').replace(/\s+/g, ' ').trim()
+    if (!message) continue
+    if (/^mermaid version\s+/i.test(message)) continue
+    return message
+  }
+  return 'Mermaid syntax error'
+}
+
+const cleanupMermaidRenderArtifacts = (renderId: string): void => {
+  const id = String(renderId || '').trim()
+  if (!id || typeof document === 'undefined') return
+  try {
+    const wrapper = document.getElementById(`d${id}`)
+    if (wrapper && wrapper.parentElement === document.body) wrapper.remove()
+  } catch {
+    void 0
+  }
+  try {
+    const orphan = document.getElementById(id)
+    if (orphan && orphan.parentElement === document.body) orphan.remove()
+  } catch {
+    void 0
+  }
+}
+
 export function MermaidDiagram({
   code,
   highlightClass,
@@ -179,8 +225,10 @@ export function MermaidDiagram({
   const [codeblockFrameWidthPx, setCodeblockFrameWidthPx] = React.useState<number>(0)
   const [isFullscreenOpen, setIsFullscreenOpen] = React.useState(false)
   const setMermaidFocus = useGraphStore(s => s.setMarkdownPreviewMermaidFocus)
+  const upsertUiToast = useGraphStore(s => s.upsertUiToast)
   const dragRef = React.useRef<{ x: number; y: number } | null>(null)
   const didDragRef = React.useRef(false)
+  const lastErrorToastKeyRef = React.useRef<string>('')
 
   const config = React.useMemo(
     () => buildMermaidConfig({ rootThemeMode, frontmatterConfig }),
@@ -337,6 +385,31 @@ export function MermaidDiagram({
   )
 
   React.useEffect(() => {
+    if (!error) return
+    const message = String(error || '').trim()
+    if (!message) return
+    const key = message
+    if (lastErrorToastKeyRef.current === key) return
+    const now = Date.now()
+    const seenAt = mermaidErrorToastSeenAt.get(key)
+    if (typeof seenAt === 'number' && now - seenAt < MERMAID_TOAST_DEDUPE_MS) return
+    mermaidErrorToastSeenAt.set(key, now)
+    if (mermaidErrorToastSeenAt.size > 200) {
+      const floor = now - MERMAID_TOAST_DEDUPE_MS * 2
+      for (const [k, ts] of mermaidErrorToastSeenAt) {
+        if (ts < floor) mermaidErrorToastSeenAt.delete(k)
+      }
+    }
+    lastErrorToastKeyRef.current = key
+    upsertUiToast({
+      id: `mermaid-render-error-${id}`,
+      kind: 'warning',
+      message: `Mermaid render failed: ${message}`,
+      ttlMs: 6000,
+    })
+  }, [error, id, upsertUiToast])
+
+  React.useEffect(() => {
     let cancelled = false
     const host = containerRef.current
     if (!host) return
@@ -390,6 +463,7 @@ export function MermaidDiagram({
     }
     host.addEventListener('click', captureClick, true)
     void (async () => {
+      const renderId = `m_${id}`
       try {
         const trimmedCode = String(code || '').trim()
         if (!trimmedCode) {
@@ -402,11 +476,21 @@ export function MermaidDiagram({
         }
         const mermaid = await initMermaid(config)
         if (cancelled) return
-        const out = await mermaid.render(`m_${id}`, trimmedCode)
+        const normalizedCode = normalizeMermaidClickSyntax(trimmedCode)
+        cleanupMermaidRenderArtifacts(renderId)
+        const out = await mermaid.render(renderId, normalizedCode)
+        cleanupMermaidRenderArtifacts(renderId)
         if (cancelled) return
         const nextSvg = sanitizeMermaidSvg(out.svg)
+        const renderError = extractMermaidErrorFromSvg(nextSvg)
+        if (renderError) {
+          cleanupMermaidRenderArtifacts(renderId)
+          setError(renderError)
+          return
+        }
         host.innerHTML = nextSvg
         setSvg(nextSvg)
+        lastErrorToastKeyRef.current = ''
         try {
           const svgEl = host.querySelector('svg') as SVGSVGElement | null
           if (svgEl) {
@@ -471,6 +555,7 @@ export function MermaidDiagram({
           }
         }
       } catch (e) {
+        cleanupMermaidRenderArtifacts(renderId)
         if (cancelled) return
         const msg = e instanceof Error ? e.message : String(e)
         setError(msg || 'Mermaid render failed')
@@ -513,9 +598,7 @@ export function MermaidDiagram({
     }
   }, [svgTightSize])
 
-  if (error) {
-    return <ErrorFeedback error={error} code={code} className={highlightClass} />
-  }
+  if (error) return null
 
   const handleClick = (event: React.MouseEvent) => {
     try {

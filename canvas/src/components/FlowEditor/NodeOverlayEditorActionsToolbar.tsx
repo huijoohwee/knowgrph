@@ -13,6 +13,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
   active: boolean
   enableHandlesDisabled: boolean
   convertToLoopDisabled: boolean
+  duplicateDisabled: boolean
   onDuplicate: () => void
   onClearOutput: () => void
   onHelp: () => void
@@ -27,6 +28,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
     active,
     enableHandlesDisabled,
     convertToLoopDisabled,
+    duplicateDisabled,
     onDuplicate,
     onClearOutput,
     onHelp,
@@ -88,7 +90,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
         showTooltip
         onClick={onDuplicate}
         className="App-toolbar__btn"
-        disabled={!active}
+        disabled={!active || duplicateDisabled}
       >
         <Copy className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
       </IconButton>

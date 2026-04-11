@@ -16,6 +16,54 @@ import { ChevronDown, ChevronUp, Pin, PinOff, CheckCircle, Minimize2, Maximize2 
 import { resolveBeatRefForNode, resolveBeatClipOverlayIdsForNode } from '@/components/FlowEditor/beatByBeat'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { NodeOverlayEditorPortHandles } from '@/components/FlowEditor/NodeOverlayEditorPortHandles'
+import { parseMarkdownSigil } from '@/features/markdown/ui/markdownSigil'
+
+const normalizeQuickEditorLabelText = (raw: unknown): string => {
+  const source = String(raw || '').trim()
+  if (!source) return ''
+  const sigil = parseMarkdownSigil(source)
+  if (sigil && String(sigil.text || '').trim()) return String(sigil.text || '').trim()
+  const unwrapped = source.startsWith('`') && source.endsWith('`') ? source.slice(1, -1).trim() : source
+  return unwrapped
+}
+
+const readNodeData = (node: GraphNode): Record<string, unknown> => {
+  const properties = (node.properties || null) as Record<string, unknown> | null
+  const raw = properties && typeof properties.data === 'object' && properties.data !== null && !Array.isArray(properties.data)
+    ? (properties.data as Record<string, unknown>)
+    : null
+  return raw || {}
+}
+
+export const resolveQuickEditorNodeTitle = (args: { node: GraphNode; graphMetaKind?: string | null }): string => {
+  const node = args.node
+  const fallback = normalizeQuickEditorLabelText(node.label) || String(node.id || '').trim() || 'Node'
+  if (String(args.graphMetaKind || '').trim() !== 'frontmatter-flow') return fallback
+  const data = readNodeData(node)
+  const type = String(node.type || '').trim().toLowerCase()
+  if (type === 'input') {
+    const dataLabel = String(data.label || '').trim().toUpperCase()
+    if (dataLabel === 'R') return 'Red'
+    if (dataLabel === 'G') return 'Green'
+    if (dataLabel === 'B') return 'Blue'
+    if (dataLabel) return dataLabel
+    return fallback
+  }
+  if (type === 'default') {
+    if (/colorpreview/i.test(fallback)) return 'RGB'
+    if (/lightness/i.test(fallback)) return 'LightDark'
+    return fallback
+  }
+  if (type === 'output') {
+    const reads = String(data.reads || '').trim().toLowerCase()
+    if (reads.includes('.light')) return 'Light'
+    if (reads.includes('.dark')) return 'Dark'
+    if (/\blight\b/i.test(fallback)) return 'Light'
+    if (/\bdark\b/i.test(fallback)) return 'Dark'
+    return fallback
+  }
+  return fallback
+}
 
 export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel(args: {
   active: boolean
@@ -199,7 +247,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
                 minimized ? microLabelClass : '',
               )}
             >
-              {beatByBeatTitle || String(node.label || node.id)}
+              {beatByBeatTitle || resolveQuickEditorNodeTitle({ node, graphMetaKind })}
             </h3>
           </section>
 

@@ -14,6 +14,13 @@ export function useMarkdownEditorSsotSync(args: {
   setActiveMarkdownDocument: GraphState['setActiveMarkdownDocument']
   paused?: boolean
 }): void {
+  const {
+    activeDocumentKey,
+    activeDocumentSourceUrl,
+    activeText,
+    setActiveMarkdownDocument,
+    paused,
+  } = args
   const lastPushedRef = React.useRef<{ key: string; text: string } | null>(null)
   const lastSeenRef = React.useRef<{ key: string; textRaw: string } | null>(null)
   const idleRef = React.useRef<number | null>(null)
@@ -33,33 +40,39 @@ export function useMarkdownEditorSsotSync(args: {
       idleRef.current = null
     }
 
-    const key = String(args.activeDocumentKey || '').trim()
-    const textRaw = String(args.activeText || '')
+    const key = String(activeDocumentKey || '').trim()
+    const textRaw = String(activeText || '')
     if (!key) return
-    if (args.paused) return
+    if (paused) return
     const scheduleTaskKey = `${WORKSPACE_SYNC_TASK_MARKDOWN_EDITOR_SSOT}:${key}`
     scheduleTaskKeyRef.current = scheduleTaskKey
+    const signature = [
+      key,
+      textRaw.length,
+      textRaw.slice(0, 128),
+      textRaw.slice(-64),
+    ].join('|')
 
     const lastSeen = lastSeenRef.current
     if (lastSeen && lastSeen.key === key && lastSeen.textRaw === textRaw) return
     lastSeenRef.current = { key, textRaw }
 
     const commit = () => {
-      const currentKey = String(args.activeDocumentKey || '').trim()
+      const currentKey = String(activeDocumentKey || '').trim()
       if (currentKey !== key) return
-      const rawNow = String(args.activeText || '')
+      const rawNow = String(activeText || '')
       if (!rawNow.trim()) return
 
       const normalized = normalizeWebpageFrontmatterView(rawNow, 'markdown')
       const prev = lastPushedRef.current
       if (prev && prev.key === key && prev.text === normalized) return
       try {
-        void args.setActiveMarkdownDocument({
+        void setActiveMarkdownDocument({
           name: key,
           text: normalized,
           normalizeMermaidMmd: false,
           autoEnableFrontmatter: false,
-          sourceUrl: args.activeDocumentSourceUrl,
+          sourceUrl: activeDocumentSourceUrl,
         })
         lastPushedRef.current = { key, text: normalized }
       } catch {
@@ -71,13 +84,19 @@ export function useMarkdownEditorSsotSync(args: {
     if (typeof ric === 'function') {
       idleRef.current = ric(() => {
         idleRef.current = null
-        commit()
+        scheduleWorkspaceSyncTask(scheduleTaskKey, () => {
+          commit()
+        }, 0, {
+          scopeKey: WORKSPACE_SYNC_SCOPE_MARKDOWN_EDITOR_SSOT_RUNTIME_PERSISTENCE,
+          signature,
+        })
       }, { timeout: 1200 })
     } else {
       scheduleWorkspaceSyncTask(scheduleTaskKey, () => {
         commit()
       }, 800, {
         scopeKey: WORKSPACE_SYNC_SCOPE_MARKDOWN_EDITOR_SSOT_RUNTIME_PERSISTENCE,
+        signature,
       })
     }
 
@@ -95,5 +114,5 @@ export function useMarkdownEditorSsotSync(args: {
         idleRef.current = null
       }
     }
-  }, [args.activeDocumentKey, args.activeDocumentSourceUrl, args.activeText, args.paused, args.setActiveMarkdownDocument])
+  }, [activeDocumentKey, activeDocumentSourceUrl, activeText, paused, setActiveMarkdownDocument])
 }

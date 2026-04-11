@@ -6,7 +6,6 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
-import { NODE_QUICK_EDITOR_BASE_SIZE } from '@/components/FlowEditor/nodeQuickEditorZoom'
 
 function readTranslateX(transform: string): number | null {
   const m = String(transform || '').match(/matrix\([^,]+,[^,]+,[^,]+,[^,]+,\s*([-\d.]+),\s*([-\d.]+)\s*\)/)
@@ -15,7 +14,7 @@ function readTranslateX(transform: string): number | null {
   return Number.isFinite(tx) ? tx : null
 }
 
-export async function testFlowNodeQuickEditorUnpinnedSnapsToCanvasRightOnViewportChange() {
+export async function testFlowNodeQuickEditorUnpinnedReusesCanvasZoomMovement() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
@@ -32,10 +31,9 @@ export async function testFlowNodeQuickEditorUnpinnedSnapsToCanvasRightOnViewpor
     api.resetAll()
     api.setZoomState({ k: 1, x: 0, y: 0 })
     api.setFlowNodeQuickEditorPinnedByNodeId({ n1: false })
+    api.setFlowNodeQuickEditorPosByNodeId({ n1: { top: 96, left: 999 } })
 
     const startViewportW = 600
-    const startLeft = startViewportW - NODE_QUICK_EDITOR_BASE_SIZE.width - 16
-    api.setFlowNodeQuickEditorPosByNodeId({ n1: { top: 96, left: startLeft } })
 
     const doc = dom.window.document
     const container = doc.createElement('div')
@@ -82,10 +80,11 @@ export async function testFlowNodeQuickEditorUnpinnedSnapsToCanvasRightOnViewpor
     if (!panel) throw new Error('expected quick editor overlay aside')
     const tx0 = readTranslateX(panel.style.transform)
     if (tx0 == null) throw new Error(`expected matrix() transform, got ${String(panel.style.transform || '')}`)
-    if (Math.abs(tx0 - startLeft) > 2) throw new Error(`expected initial tx ~${startLeft} got ${tx0}`)
+    if (Math.abs(tx0 - 999) < 120) throw new Error(`expected unpinned overlay to ignore floating-position cache, got tx ${tx0}`)
 
-    const nextViewportW = 800
-    const expectedLeft = nextViewportW - NODE_QUICK_EDITOR_BASE_SIZE.width - 16
+    api.setZoomState({ k: 2, x: 0, y: 0 })
+
+    const nextViewportW = 600
     root.render(
       React.createElement(NodeOverlayEditor, {
         active: true,
@@ -115,12 +114,8 @@ export async function testFlowNodeQuickEditorUnpinnedSnapsToCanvasRightOnViewpor
 
     const tx1 = readTranslateX(panel.style.transform)
     if (tx1 == null) throw new Error('expected next matrix() transform')
-    if (Math.abs(tx1 - expectedLeft) > 2) throw new Error(`expected snap-right tx ~${expectedLeft} got ${tx1}`)
-
-    await new Promise<void>(resolve => setTimeout(() => resolve(), 180))
-    const persisted = useGraphStore.getState().flowNodeQuickEditorPosByNodeId?.n1?.left
-    if (typeof persisted !== 'number' || Math.abs(persisted - expectedLeft) > 2) {
-      throw new Error(`expected persisted left ~${expectedLeft} got ${String(persisted)}`)
+    if (!(tx1 > tx0 + 150)) {
+      throw new Error(`expected unpinned overlay to follow zoom movement (tx0=${tx0}, tx1=${tx1})`)
     }
   } finally {
     try {

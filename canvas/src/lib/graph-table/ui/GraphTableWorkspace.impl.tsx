@@ -6,10 +6,9 @@ import { useShallow } from 'zustand/react/shallow'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { hashString32 } from 'grph-shared/hash/stringHash'
-import { hashArrayOfObjectsSignature, hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
+import { hashRecordSignature32 } from '@/lib/hash/signature'
 import { LS_KEYS } from '@/lib/config'
-import { lsBool, lsInt, lsJson, lsSetBool, lsSetInt, lsSetJson } from '@/lib/persistence'
+import { lsBool, lsInt, lsJson, lsSetBool, lsSetInt, lsSetIntCoalesced, lsSetJson } from '@/lib/persistence'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import {
   allocateNewRowId,
@@ -52,8 +51,11 @@ import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { parseGraphTableViewMode, type GraphTableViewMode } from '@/features/graph-table/ui/graphTableViewMode'
 import { applyColumnOrder, getRowTocId, mapRowDocToGridRow, reorderIds } from '@/features/graph-table/ui/graphTableWorkspaceUtils'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
-import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
-import { WORKSPACE_SYNC_SCOPE_GRAPH_TABLE_VIEW_STATE_RUNTIME_PERSISTENCE } from '@/lib/async/workspaceSyncKeys'
+import {
+  cancelGraphTableWorkspaceViewStateSync,
+  scheduleGraphTableWorkspaceViewStateSync,
+  toGraphTableWorkspaceViewStateSignature,
+} from './graphTableWorkspace.stateSync'
 
 const INACTIVE_GRAPH_SLICE = {
   baseGraphData: null,
@@ -119,7 +121,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   const [canvasPreviewWidthPx, setCanvasPreviewWidthPx] = useState(() => {
     const raw = lsInt(LS_KEYS.workspacePreviewWidthPx, 520)
     const next = Math.max(320, Math.min(960, raw))
-    if (next !== raw) lsSetInt(LS_KEYS.workspacePreviewWidthPx, next, { min: 320, max: 960 })
+    if (next !== raw) lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, next, { min: 320, max: 960, delayMs: 0 })
     return next
   })
   const [columnVisibilityById, setColumnVisibilityById] = useState<GraphTableColumnVisibilityById>(() =>
@@ -187,7 +189,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   }, [canvasPreviewCollapsed])
 
   useEffect(() => {
-    lsSetInt(LS_KEYS.workspacePreviewWidthPx, canvasPreviewWidthPx, { min: 320, max: 960 })
+    lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, canvasPreviewWidthPx, { min: 320, max: 960 })
   }, [canvasPreviewWidthPx])
   const rowCacheRef = useRef<
     Map<GraphTableId, { hashById: Map<string, number>; stampById: Map<string, string>; rowById: Map<string, GraphTableGridRow> }>
@@ -272,7 +274,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
           nextRows.push(prevRow)
           continue
         }
-        const hash = hashString32(JSON.stringify(json.data || {}))
+        const hash = hashRecordSignature32(json.data || {}, { maxEntries: 120, maxDepth: 1 })
         const prevHash = cache.hashById.get(json.rowId)
         if (prevRow && prevHash === hash) {
           cache.stampById.set(json.rowId, stamp)
@@ -330,7 +332,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
             scheduleRowsFlush()
             return
           }
-          const hash = hashString32(JSON.stringify(doc.data || {}))
+          const hash = hashRecordSignature32(doc.data || {}, { maxEntries: 120, maxDepth: 1 })
           const prevHash = cache.hashById.get(doc.rowId)
           if (!prevRow || prevHash !== hash) {
             const nextRow = mapRowDocToGridRow(doc)
@@ -418,18 +420,17 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       columnWidthsPxById,
       columnOrderByTableId,
     }
-    const signature = hashSignatureParts([
-      'v1',
-      hashRecordSignature(columnVisibilityById),
-      String(filterMatch || ''),
-      hashArrayOfObjectsSignature(filterClauses),
-      String(groupBy || ''),
-      hashArrayOfObjectsSignature(sortRules),
-      String(rowHeightPreset || ''),
-      hashRecordSignature(columnWidthsPxById),
-      hashRecordSignature(columnOrderByTableId),
-    ])
-    scheduleWorkspaceSyncTask('graph-table:view-state', () => {
+    const signature = toGraphTableWorkspaceViewStateSignature({
+      columnVisibilityById,
+      filterMatch,
+      filterClauses,
+      groupBy,
+      sortRules,
+      rowHeightPreset,
+      columnWidthsPxById,
+      columnOrderByTableId,
+    })
+    scheduleGraphTableWorkspaceViewStateSync(() => {
       const pending = persistGraphTableViewStatePendingRef.current
       if (!pending) return
       lsSetJson(LS_KEYS.graphTableColumnVisibilityById, pending.columnVisibilityById)
@@ -440,16 +441,13 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       lsSetJson(LS_KEYS.graphTableRowHeightPreset, pending.rowHeightPreset)
       lsSetJson(LS_KEYS.graphTableColumnWidthsPx, pending.columnWidthsPxById)
       lsSetJson(LS_KEYS.graphTableColumnOrderByTableId, pending.columnOrderByTableId)
-    }, 200, {
-      signature,
-      scopeKey: WORKSPACE_SYNC_SCOPE_GRAPH_TABLE_VIEW_STATE_RUNTIME_PERSISTENCE,
-    })
+    }, signature)
   }, [columnOrderByTableId, columnVisibilityById, columnWidthsPxById, filterClauses, filterMatch, groupBy, rowHeightPreset, sortRules])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
     return () => {
-      cancelWorkspaceSyncTask('graph-table:view-state')
+      cancelGraphTableWorkspaceViewStateSync()
     }
   }, [])
 

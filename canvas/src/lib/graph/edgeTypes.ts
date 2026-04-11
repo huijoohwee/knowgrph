@@ -15,6 +15,23 @@ export const normalizeGlobalEdgeType = (raw: unknown): GlobalEdgeType => {
 export const readGlobalEdgeType = (schema: GraphSchema | null | undefined): GlobalEdgeType =>
   normalizeGlobalEdgeType(schema?.layout?.edges && typeof schema.layout.edges === 'object' ? (schema.layout.edges as { type?: unknown }).type : '')
 
+export const withGlobalEdgeType = (schema: GraphSchema, nextEdgeTypeRaw: unknown): GraphSchema => {
+  const nextEdgeType = normalizeGlobalEdgeType(nextEdgeTypeRaw)
+  if (readGlobalEdgeType(schema) === nextEdgeType) return schema
+  const layout = schema.layout || {}
+  const edges = layout.edges || {}
+  return {
+    ...schema,
+    layout: {
+      ...layout,
+      edges: {
+        ...edges,
+        type: nextEdgeType,
+      },
+    },
+  }
+}
+
 export type EdgePathCurveOptions = {
   bend: number
   orbitShift: number

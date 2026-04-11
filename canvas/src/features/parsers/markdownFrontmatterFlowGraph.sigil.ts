@@ -82,13 +82,73 @@ function parseInlineScalar(raw: string): unknown {
   return s
 }
 
+function splitInlineObjectPairs(text: string): string[] {
+  const source = String(text || '')
+  if (!source) return []
+  const out: string[] = []
+  let token = ''
+  let quote: '"' | "'" | null = null
+  let escapeNext = false
+  let depthBrace = 0
+  let depthBracket = 0
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i]
+    if (escapeNext) {
+      token += ch
+      escapeNext = false
+      continue
+    }
+    if (quote) {
+      token += ch
+      if (ch === '\\') {
+        escapeNext = true
+        continue
+      }
+      if (ch === quote) quote = null
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      token += ch
+      continue
+    }
+    if (ch === '{') {
+      depthBrace += 1
+      token += ch
+      continue
+    }
+    if (ch === '}') {
+      depthBrace = Math.max(0, depthBrace - 1)
+      token += ch
+      continue
+    }
+    if (ch === '[') {
+      depthBracket += 1
+      token += ch
+      continue
+    }
+    if (ch === ']') {
+      depthBracket = Math.max(0, depthBracket - 1)
+      token += ch
+      continue
+    }
+    if (ch === ',' && depthBrace === 0 && depthBracket === 0) {
+      const pair = token.trim()
+      if (pair) out.push(pair)
+      token = ''
+      continue
+    }
+    token += ch
+  }
+  const tail = token.trim()
+  if (tail) out.push(tail)
+  return out
+}
+
 function parseInlineObject(raw: string): Record<string, unknown> {
   const text = String(raw || '').trim()
   if (!text) return {}
-  const pairs = text
-    .split(',')
-    .map(part => part.trim())
-    .filter(Boolean)
+  const pairs = splitInlineObjectPairs(text)
   const out: Record<string, unknown> = {}
   for (let i = 0; i < pairs.length; i += 1) {
     const part = pairs[i]
@@ -100,6 +160,29 @@ function parseInlineObject(raw: string): Record<string, unknown> {
     out[key] = parseInlineScalar(val)
   }
   return out
+}
+
+function parseSigilEdgeLine(raw: string): {
+  id: string
+  source: string
+  target: string
+  fromPort: string
+  toPort: string
+} | null {
+  const m = /^\s*-\s*@edge:([A-Za-z0-9_.-]+):([A-Za-z0-9_.-]+)\s*(?:→|->|-->|=>|⟶)\s*([A-Za-z0-9_.-]+):([A-Za-z0-9_.-]+)\s*$/.exec(raw)
+  if (!m) return null
+  const sourceNode = asString(m[1])
+  const fromPort = asString(m[2])
+  const targetNode = asString(m[3])
+  const toPort = asString(m[4])
+  if (!sourceNode || !fromPort || !targetNode || !toPort) return null
+  return {
+    id: `@edge:${sourceNode}:${fromPort}->${targetNode}:${toPort}`,
+    source: `@node:${sourceNode}`,
+    target: `@node:${targetNode}`,
+    fromPort,
+    toPort,
+  }
 }
 
 export function normalizeSigilId(raw: unknown, fallbackKind?: 'node' | 'edge' | 'cluster'): string {
@@ -331,6 +414,7 @@ export function tryParseSigilFrontmatter(lines: string[], startDashLine: number)
   if (end < 0) return null
   const nodes: unknown[] = []
   const edges: Array<Record<string, unknown>> = []
+  const connections: Array<Record<string, unknown>> = []
   const clusters: Array<Record<string, unknown>> = []
   let section: '' | 'nodes' | 'edges' | 'clusters' = ''
   let currentEdge: Record<string, unknown> | null = null
@@ -372,6 +456,24 @@ export function tryParseSigilFrontmatter(lines: string[], startDashLine: number)
       continue
     }
     if (section === 'edges') {
+      const edgeLine = parseSigilEdgeLine(raw)
+      if (edgeLine) {
+        edges.push({
+          id: edgeLine.id,
+          source: edgeLine.source,
+          target: edgeLine.target,
+          rel: `${edgeLine.fromPort} → ${edgeLine.toPort}`,
+        })
+        connections.push({
+          id: edgeLine.id,
+          from_node: edgeLine.source.slice('@node:'.length),
+          from_port: edgeLine.fromPort,
+          to_node: edgeLine.target.slice('@node:'.length),
+          to_port: edgeLine.toPort,
+          label: `${edgeLine.fromPort} → ${edgeLine.toPort}`,
+        })
+        continue
+      }
       const start = /^\s*-\s*id\s*:\s*(.+)$/.exec(raw)
       if (start) {
         if (currentEdge) edges.push(currentEdge)
@@ -443,6 +545,7 @@ export function tryParseSigilFrontmatter(lines: string[], startDashLine: number)
   const meta: Record<string, unknown> = {}
   if (nodes.length > 0) meta.nodes = nodes
   if (edges.length > 0) meta.edges = edges
+  if (connections.length > 0) meta.connections = connections
   if (clusters.length > 0) meta.clusters = clusters
   return { meta, startIndex: end + 1 }
 }

@@ -11,7 +11,7 @@ import { exportAsGeoJsonBlob } from '@/lib/graph/io/geojson'
 import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 import { runImportFlow } from '@/features/toolbar/importFlow'
 import { applyImportedCsvToStore, applyImportedJsonToStore } from '@/features/toolbar/importSideEffects'
-import { hashStringToHex } from '@/lib/hash/stringHash'
+import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { findNextSourceFileIndex } from '@/features/source-files/sourceFileNaming'
 import { writeLocalMarkdownFileText } from '@/features/source-files/localMarkdownFolder'
@@ -158,7 +158,7 @@ async function parseAndApplySourceFile(fileId: string): Promise<void> {
   if (!before) return
   const text = String(before.text || '')
   if (!text.trim()) return
-  const textHash = hashStringToHex(text)
+  const textHash = hashStringToHexCached(`source-file:${fileId}`, text)
   if (before.parsedGraphData && before.parsedTextHash === textHash) {
     useGraphStore.getState().updateSourceFile(fileId, {
       status: 'parsed',
@@ -178,7 +178,7 @@ async function parseAndApplySourceFile(fileId: string): Promise<void> {
   if (parseJobBySourceFileId.get(fileId) !== parseJobToken) return
   const latest = useGraphStore.getState().sourceFiles.find(f => f.id === fileId)
   if (!latest) return
-  if (hashStringToHex(String(latest.text || '')) !== textHash) return
+  if (hashStringToHexCached(`source-file:${fileId}`, String(latest.text || '')) !== textHash) return
   const parsedOk = !!(res && res.graphData && res.parserId && res.counts && (res.counts.n > 0 || res.counts.e > 0))
   if (parsedOk) {
     store.updateSourceFile(fileId, {

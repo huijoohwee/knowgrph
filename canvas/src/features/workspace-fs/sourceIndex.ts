@@ -1,5 +1,5 @@
 import { LS_KEYS } from '@/lib/config'
-import { lsJson, lsSetJson } from '@/lib/persistence'
+import { lsJson, lsSetJsonCoalesced } from '@/lib/persistence'
 import type { WorkspacePath } from './types'
 import { normalizeWorkspacePath } from './path'
 
@@ -8,6 +8,25 @@ export type WorkspaceEntrySource =
   | { kind: 'url'; url: string }
 
 export type WorkspaceSourceIndex = Record<string, WorkspaceEntrySource>
+
+let cachedSourceIndex: WorkspaceSourceIndex | null = null
+let cachedSourceIndexRev = 0
+
+const noteNextSourceIndex = (next: WorkspaceSourceIndex): WorkspaceSourceIndex => {
+  cachedSourceIndex = next
+  cachedSourceIndexRev += 1
+  lsSetJsonCoalesced(LS_KEYS.markdownWorkspaceSourcesByPath, next, { signature: `rev:${cachedSourceIndexRev}` })
+  return next
+}
+
+const areEntrySourcesEqual = (a: WorkspaceEntrySource | null, b: WorkspaceEntrySource | null): boolean => {
+  if (a === b) return true
+  if (!a || !b) return false
+  if (a.kind !== b.kind) return false
+  if (a.kind === 'url') return String(a.url || '') === String((b as { url?: unknown }).url || '')
+  if (a.kind === 'local') return String(a.originalName || '') === String((b as { originalName?: unknown }).originalName || '')
+  return false
+}
 
 const parseSourceIndex = (raw: unknown): WorkspaceSourceIndex => {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
@@ -37,36 +56,44 @@ const parseSourceIndex = (raw: unknown): WorkspaceSourceIndex => {
 }
 
 export function loadWorkspaceSourceIndex(): WorkspaceSourceIndex {
-  return lsJson<WorkspaceSourceIndex>(LS_KEYS.markdownWorkspaceSourcesByPath, {}, parseSourceIndex)
+  if (cachedSourceIndex) return cachedSourceIndex
+  const loaded = lsJson<WorkspaceSourceIndex>(LS_KEYS.markdownWorkspaceSourcesByPath, {}, parseSourceIndex)
+  cachedSourceIndex = loaded
+  return loaded
 }
 
 export function setWorkspaceEntrySource(path: WorkspacePath, source: WorkspaceEntrySource | null): WorkspaceSourceIndex {
   const key = normalizeWorkspacePath(path)
   if (!key) return loadWorkspaceSourceIndex()
   const existing = loadWorkspaceSourceIndex()
-  const next: WorkspaceSourceIndex = { ...existing }
   if (!source) {
-    if (key in next) delete next[key]
-    lsSetJson(LS_KEYS.markdownWorkspaceSourcesByPath, next)
-    return next
+    if (!(key in existing)) return existing
+    const next: WorkspaceSourceIndex = { ...existing }
+    delete next[key]
+    return noteNextSourceIndex(next)
   }
-  next[key] = source
-  lsSetJson(LS_KEYS.markdownWorkspaceSourcesByPath, next)
-  return next
+  const prev = existing[key] || null
+  if (areEntrySourcesEqual(prev, source)) return existing
+  const next: WorkspaceSourceIndex = { ...existing, [key]: source }
+  return noteNextSourceIndex(next)
 }
 
 export function bulkSetWorkspaceEntrySources(items: Array<{ path: WorkspacePath; source: WorkspaceEntrySource }>): WorkspaceSourceIndex {
   const existing = loadWorkspaceSourceIndex()
   const next: WorkspaceSourceIndex = { ...existing }
+  let changed = false
   for (const item of items) {
     const key = normalizeWorkspacePath(item?.path)
     if (!key) continue
     const source = item?.source
     if (!source) continue
+    const prev = existing[key] || null
+    if (areEntrySourcesEqual(prev, source)) continue
     next[key] = source
+    changed = true
   }
-  lsSetJson(LS_KEYS.markdownWorkspaceSourcesByPath, next)
-  return next
+  if (!changed) return existing
+  return noteNextSourceIndex(next)
 }
 
 export function removeWorkspaceEntrySourcesForPrefix(path: WorkspacePath): WorkspaceSourceIndex {
@@ -82,6 +109,6 @@ export function removeWorkspaceEntrySourcesForPrefix(path: WorkspacePath): Works
       changed = true
     }
   }
-  if (changed) lsSetJson(LS_KEYS.markdownWorkspaceSourcesByPath, next)
-  return next
+  if (!changed) return existing
+  return noteNextSourceIndex(next)
 }

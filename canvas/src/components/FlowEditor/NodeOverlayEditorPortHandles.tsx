@@ -6,6 +6,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import { computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults, parseFlowHandleKey } from '@/components/FlowCanvas/handles'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
+import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
@@ -41,8 +42,8 @@ function coerceEdgeEndpoints(raw: ReadonlyArray<GraphEdge>): Array<{ id: string;
   for (let i = 0; i < raw.length; i += 1) {
     const e = raw[i] as unknown as { id?: unknown; source?: unknown; target?: unknown; properties?: unknown }
     const id = String(e?.id || '').trim()
-    const source = String(e?.source || '').trim()
-    const target = String(e?.target || '').trim()
+    const source = readEdgeEndpointId(e?.source)
+    const target = readEdgeEndpointId(e?.target)
     if (!id || !source || !target) continue
     out.push({ id, source, target, properties: e.properties })
   }

@@ -17,7 +17,8 @@ export function computeNodeQuickEditorScale(
   opts?: { mode?: NodeQuickEditorScaleMode },
 ): number {
   void extent
-  void opts
+  const mode = opts?.mode === 'floating' ? 'floating' : 'pinnedInCanvas'
+  if (mode === 'floating') return 1
 
   const k = Number.isFinite(zoomK) ? zoomK : 1
   const PINNED_MIN_SCALE = 0.05

@@ -3,6 +3,7 @@ import {
   FLOW_EDGE_SOURCE_PORT_KEY,
   FLOW_EDGE_TARGET_PORT_KEY,
 } from '@/lib/graph/flowPorts'
+import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
@@ -104,8 +105,8 @@ function collectConnections(edges: ReadonlyArray<GraphEdge>): EdgeConnection[] {
   const out: EdgeConnection[] = []
   for (const e of edges) {
     const edgeId = cleanString((e as unknown as { id?: unknown })?.id)
-    const sourceId = cleanString((e as unknown as { source?: unknown })?.source)
-    const targetId = cleanString((e as unknown as { target?: unknown })?.target)
+    const sourceId = readEdgeEndpointId((e as unknown as { source?: unknown })?.source)
+    const targetId = readEdgeEndpointId((e as unknown as { target?: unknown })?.target)
     if (!edgeId || !sourceId || !targetId) continue
     const sourcePortKey = readFlowEdgePortKey(e, FLOW_EDGE_SOURCE_PORT_KEY)
     const targetPortKey = readFlowEdgePortKey(e, FLOW_EDGE_TARGET_PORT_KEY)

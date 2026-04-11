@@ -166,18 +166,156 @@ export function testQuickEditorInitUsesLayoutHydrationAndRafClampCommit() {
   }
 }
 
+export function testFlowEditorQuickEditorGridFollowsToolbarAndAvoidsRightDocking() {
+  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const flowText = readFileSync(flowEditorCanvasPath, 'utf8')
+  const nodeOverlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const nodeText = readFileSync(nodeOverlayEditorPath, 'utf8')
+
+  if (!flowText.includes('function readQuickEditorGridLayoutSettings(schema: unknown)')) {
+    throw new Error('expected FlowEditor quick-editor layout to derive settings from toolbar grid behavior')
+  }
+  if (!flowText.includes('const quickEditorGrid = readQuickEditorGridLayoutSettings(schemaCur)')) {
+    throw new Error('expected FlowEditor overlay collision/layout pass to read quick-editor grid settings')
+  }
+  if (!flowText.includes("const panelScale = computeNodeQuickEditorScale(zoomK, null, { mode: 'floating' })")) {
+    throw new Error('expected quick-editor collision layout scale to keep floating-mode sizing path')
+  }
+  if (!flowText.includes('isFrontmatterFlow || quickEditorGrid.gridEnabled')) {
+    throw new Error('expected quick-editor dock layout to use centered grid strategy when toolbar grid is enabled')
+  }
+  if (!flowText.includes('snapToGridPx(') || !flowText.includes('snapScreen(')) {
+    throw new Error('expected quick-editor overlay positions to snap to toolbar grid increments')
+  }
+  if (!flowText.includes('const quickEditorGrid = readQuickEditorGridLayoutSettings(schema)')) {
+    throw new Error('expected quick-editor seeded world positions to use toolbar grid settings')
+  }
+
+  if (nodeText.includes('floatingDockRef')) {
+    throw new Error('expected quick-editor overlay to avoid right-edge floating dock ref behavior')
+  }
+  if (nodeText.includes("mode: 'right'")) {
+    throw new Error('expected quick-editor overlay to avoid right-edge auto-docking mode')
+  }
+}
+
+export function testFlowEditorQuickEditorPinDescriptionsAreActionClear() {
+  const panelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
+  const panelText = readFileSync(panelPath, 'utf8')
+  const copyPath = resolve(process.cwd(), 'src', 'lib', 'config-copy', 'uiCopy.ts')
+  const copyText = readFileSync(copyPath, 'utf8')
+  const labelsPath = resolve(process.cwd(), 'src', 'lib', 'config-copy', 'uiMeta.ts')
+  const labelsText = readFileSync(labelsPath, 'utf8')
+
+  if (!panelText.includes('title={pinned ? UI_LABELS.unpinPanel : UI_LABELS.pinPanel}')) {
+    throw new Error('expected quick-editor pin button title to reflect explicit action for current state')
+  }
+  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const overlayText = readFileSync(overlayPath, 'utf8')
+  if (!overlayText.includes('if (pinnedInCanvas) return')) {
+    throw new Error('expected quick-editor header drag to be disabled only when pinned and enabled when unpinned')
+  }
+  if (!labelsText.includes("pinPanel: 'Pin to canvas (no drag)'")) {
+    throw new Error('expected quick-editor pin label to clearly describe drag-disabled pinned behavior')
+  }
+  if (!labelsText.includes("unpinPanel: 'Unpin (drag enabled)'")) {
+    throw new Error('expected quick-editor unpin label to clearly describe drag-enabled behavior')
+  }
+  if (!copyText.includes("flowNodeQuickEditorPin: 'Pin to canvas (follows canvas zoom/pan; drag disabled).'")) {
+    throw new Error('expected quick-editor pin tooltip copy to state zoom-follow with drag disabled')
+  }
+  if (!copyText.includes("flowNodeQuickEditorUnpin: 'Unpin (follows canvas zoom/pan; drag enabled).'")) {
+    throw new Error('expected quick-editor unpin tooltip copy to state zoom-follow with drag enabled')
+  }
+}
+
 export function testFlowEditorOverlayEdgesPreferRailPortAnchorsOverScrollingDotAnchors() {
   const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
   const text = readFileSync(flowEditorCanvasPath, 'utf8')
-  const railIdx = text.indexOf('data-kg-port-handle-kind="rail"')
-  const dotIdx = text.indexOf('data-kg-port-handle-kind="dot"')
-  if (railIdx < 0 || dotIdx < 0) {
-    throw new Error('expected overlay edge anchor selector to include both rail and dot handle kinds')
+  if (!text.includes('const dotBtn = el.querySelector(`button${baseSel}[data-kg-port-handle-kind="dot"]`)')) {
+    throw new Error('expected overlay edge anchor selector to read dot handle candidate explicitly')
   }
-  if (railIdx > dotIdx) {
-    throw new Error('expected overlay edge anchor selector to prefer stable rail handles before scrolling dot handles')
+  if (!text.includes('const railBtn = el.querySelector(`button${baseSel}[data-kg-port-handle-kind="rail"]`)')) {
+    throw new Error('expected overlay edge anchor selector to read rail handle candidate explicitly')
+  }
+  if (!text.includes('const dotVisible = !!(')) {
+    throw new Error('expected overlay edge anchor selector to gate dot usage by visible panel bounds')
+  }
+  if (!text.includes('const nextAnchor = (dotVisible ? dotAnchor : null) || railAnchor || dotAnchor || fallbackAnchor')) {
+    throw new Error('expected overlay edge anchor selector to fallback to rail anchor when dot is out of panel view')
+  }
+  if (!text.includes('const clampedY =')) {
+    throw new Error('expected overlay edge anchor position to clamp Y within quick-editor bounds')
   }
   if (!text.includes("const dotEl = btn.querySelector('span') as HTMLElement | null")) {
     throw new Error('expected overlay edge anchor to compute center from inner dot element when present')
+  }
+}
+
+export function testFlowEditorPortHandleEdgeConnectivityUsesEndpointIdResolver() {
+  const portHandlesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPortHandles.tsx')
+  const portHandlesText = readFileSync(portHandlesPath, 'utf8')
+  const handlesPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'handles.ts')
+  const handlesText = readFileSync(handlesPath, 'utf8')
+  const flowDataflowPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'flowDataflow.ts')
+  const flowDataflowText = readFileSync(flowDataflowPath, 'utf8')
+  const endpointHelperPath = resolve(process.cwd(), 'src', 'lib', 'graph', 'edgeEndpoints.ts')
+  const endpointHelperText = readFileSync(endpointHelperPath, 'utf8')
+
+  if (!endpointHelperText.includes('export function readEdgeEndpointId')) {
+    throw new Error('expected shared edge endpoint id resolver helper for object/string edge endpoint compatibility')
+  }
+  if (!portHandlesText.includes('readEdgeEndpointId(e?.source)') || !portHandlesText.includes('readEdgeEndpointId(e?.target)')) {
+    throw new Error('expected quick-editor port handle edge coercion to resolve object-form edge endpoints via shared helper')
+  }
+  if (!handlesText.includes('readEdgeEndpointId((e as { source?: unknown })?.source)')) {
+    throw new Error('expected flow handle computation to resolve source endpoint ids via shared helper')
+  }
+  if (!handlesText.includes('readEdgeEndpointId((e as { target?: unknown })?.target)')) {
+    throw new Error('expected flow handle computation to resolve target endpoint ids via shared helper')
+  }
+  if (!flowDataflowText.includes('readEdgeEndpointId((e as unknown as { source?: unknown })?.source)')) {
+    throw new Error('expected flow dataflow connected-value pipeline to resolve source endpoint ids via shared helper')
+  }
+  if (!flowDataflowText.includes('readEdgeEndpointId((e as unknown as { target?: unknown })?.target)')) {
+    throw new Error('expected flow dataflow connected-value pipeline to resolve target endpoint ids via shared helper')
+  }
+}
+
+export function testFlowEditorQuickEditorOverlaysForcePinnedToCanvasForZoomFollow() {
+  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+  if (!text.includes('const forcePinnedToCanvas = true')) {
+    throw new Error('expected FlowEditor overlay quick editors to force pinned-to-canvas so they follow infinite-canvas zoom')
+  }
+  if (!text.includes('if (forcePinnedToCanvas) return false')) {
+    throw new Error('expected quick-editor collision initialization layout to keep forced-pinned overlays movable to prevent overlap chaos')
+  }
+  if (!text.includes("return typeof v === 'boolean' ? v : false")) {
+    throw new Error('expected quick-editor collision initialization layout to default undefined pinned state to movable')
+  }
+}
+
+export function testFlowEditorPinnedQuickEditorForbidsAccidentalDuplicateCopy() {
+  const toolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorActionsToolbar.tsx')
+  const toolbarText = readFileSync(toolbarPath, 'utf8')
+  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const overlayText = readFileSync(overlayPath, 'utf8')
+  const canvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const canvasText = readFileSync(canvasPath, 'utf8')
+  if (!toolbarText.includes('duplicateDisabled: boolean')) {
+    throw new Error('expected quick-editor actions toolbar to accept duplicateDisabled guard for accidental copy prevention')
+  }
+  if (!toolbarText.includes('disabled={!active || duplicateDisabled}')) {
+    throw new Error('expected duplicate action to be disabled when accidental-copy guard is active')
+  }
+  if (!overlayText.includes('duplicateDisabled={pinnedInCanvas || forcePinnedToCanvas === true}')) {
+    throw new Error('expected pinned or forced-canvas quick editor mode to activate duplicateDisabled guard')
+  }
+  if (!canvasText.includes('const pinned = forcePinnedToCanvas === true || pinnedMap[id] === true')) {
+    throw new Error('expected quick-editor duplicate callback to guard pinned/forced-canvas state before copying')
+  }
+  if (!canvasText.includes('Pinned quick editor blocks duplicate copy.')) {
+    throw new Error('expected quick-editor duplicate guard to notify user when copy is blocked in pinned mode')
   }
 }

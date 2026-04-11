@@ -1,5 +1,5 @@
 import { LS_KEYS } from '@/lib/config'
-import { getLocalStorage, readJsonFromStorage, writeJsonToStorage } from '@/lib/persistence'
+import { getLocalStorage } from '@/lib/persistence'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
 import type { DocumentSemanticMode } from '@/hooks/store/types'
@@ -31,6 +31,15 @@ type PersistedMapV1 = {
 
 const EMPTY: PersistedMapV1 = { v: 1, order: [], byKey: {} }
 const MAX_DOCS = 24
+
+type PersistedMapCache = {
+  raw: string | null
+  parsed: PersistedMapV1
+}
+
+// Small, single-key cache: this payload is bounded (MAX_DOCS) and read frequently
+// under rapid document switching. Caching avoids repeated JSON.parse + coercion.
+let perDocumentUiStateCache: PersistedMapCache = { raw: null, parsed: EMPTY }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -102,6 +111,46 @@ function coerceMap(raw: unknown): PersistedMapV1 | null {
   return { v: 1, order: normalizedOrder, byKey }
 }
 
+function readPerDocumentUiStateMapCached(storage: Storage | null): PersistedMapV1 {
+  if (!storage) return EMPTY
+  let raw: string | null = null
+  try {
+    raw = storage.getItem(LS_KEYS.perDocumentUiStateMap)
+  } catch {
+    return EMPTY
+  }
+
+  if (!raw) {
+    // Keep cache in sync with reality (key cleared).
+    perDocumentUiStateCache = { raw: null, parsed: EMPTY }
+    return EMPTY
+  }
+
+  if (raw === perDocumentUiStateCache.raw) return perDocumentUiStateCache.parsed
+
+  try {
+    const coerced = coerceMap(JSON.parse(raw) as unknown) ?? EMPTY
+    perDocumentUiStateCache = { raw, parsed: coerced }
+    return coerced
+  } catch {
+    // Cache the raw string so we don't repeatedly re-parse the same bad value.
+    perDocumentUiStateCache = { raw, parsed: EMPTY }
+    return EMPTY
+  }
+}
+
+function writePerDocumentUiStateMapCached(storage: Storage | null, map: PersistedMapV1): void {
+  if (!storage) return
+  try {
+    const raw = JSON.stringify(map)
+    if (raw === perDocumentUiStateCache.raw) return
+    storage.setItem(LS_KEYS.perDocumentUiStateMap, raw)
+    perDocumentUiStateCache = { raw, parsed: map }
+  } catch {
+    void 0
+  }
+}
+
 export function buildDocumentRef(args: { name: string | null; sourceUrl: string | null }): string {
   const url = typeof args.sourceUrl === 'string' ? args.sourceUrl.trim() : ''
   if (url) return url
@@ -121,7 +170,7 @@ export function readPerDocumentUiState(args: {
   documentKey: string
 }): PerDocumentUiState | null {
   const storage = args.storage === undefined ? getLocalStorage() : args.storage
-  const map = readJsonFromStorage(storage, LS_KEYS.perDocumentUiStateMap, EMPTY, raw => coerceMap(raw))
+  const map = readPerDocumentUiStateMapCached(storage)
   const key = String(args.documentKey || '').trim()
   if (!key) return null
   return map.byKey[key] ?? null
@@ -137,7 +186,7 @@ export function writePerDocumentUiState(args: {
   const documentKey = String(args.documentKey || '').trim()
   if (!documentKey) return
   const now = Date.now()
-  const map = readJsonFromStorage(storage, LS_KEYS.perDocumentUiStateMap, EMPTY, raw => coerceMap(raw))
+  const map = readPerDocumentUiStateMapCached(storage)
 
   const nextEntry: PerDocumentUiState = {
     ...args.state,
@@ -154,5 +203,5 @@ export function writePerDocumentUiState(args: {
     const v = nextByKey[k]
     if (v) trimmedByKey[k] = v
   }
-  writeJsonToStorage(storage, LS_KEYS.perDocumentUiStateMap, { v: 1, order: trimmedOrder, byKey: trimmedByKey })
+  writePerDocumentUiStateMapCached(storage, { v: 1, order: trimmedOrder, byKey: trimmedByKey })
 }

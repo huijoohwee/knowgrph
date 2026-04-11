@@ -45,11 +45,18 @@ import { buildDocLocationIndex } from '@/features/markdown-explorer/docLocationI
 import { ORCHESTRATOR_WORKFLOW_WORKSPACE_PATH } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { PARSER_SCRIPT_WORKSPACE_PATH } from '@/features/panels/utils/parserWorkspaceFiles'
 import { SCHEMA_CONFIG_WORKSPACE_PATH } from '@/features/panels/utils/schemaWorkspaceFiles'
-import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
-  WORKSPACE_SYNC_SCOPE_MARKDOWN_WORKSPACE_PREFS_RUNTIME_PERSISTENCE,
-  WORKSPACE_SYNC_TASK_MARKDOWN_WORKSPACE_PREFS,
-} from '@/lib/async/workspaceSyncKeys'
+  cancelMarkdownWorkspaceAutosaveSync,
+  cancelMarkdownWorkspaceIndexStart,
+  cancelMarkdownWorkspaceInlineEditStateSync,
+  cancelMarkdownWorkspacePrefsSync,
+  cancelMarkdownWorkspaceRefreshSync,
+  scheduleMarkdownWorkspaceAutosaveSync,
+  scheduleMarkdownWorkspaceIndexStart,
+  scheduleMarkdownWorkspaceInlineEditStateSync,
+  scheduleMarkdownWorkspacePrefsSync,
+  scheduleMarkdownWorkspaceRefreshSync,
+} from './markdownWorkspaceRuntime.stateSync'
 import { createProgressTicker } from '@/lib/progress/progressTicker'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { parseSchemaText } from '@/features/schema/io'
@@ -76,7 +83,6 @@ import {
   peekPendingWorkspaceLocalImport,
 } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
 import { hashStringToHex } from '@/lib/hash/stringHash'
-import { hashRecordSignature, hashSignatureParts, hashStringArraySignature } from '@/lib/hash/signature'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
 import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
@@ -274,7 +280,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const autosavePendingRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
   const autosaveStatusTimerRef = React.useRef<number | null>(null)
   const lastLoadedRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
-  const lastIndexedRef = React.useRef<{ path: WorkspacePath; textHash: string } | null>(null)
+  const lastIndexedByPathRef = React.useRef<Map<WorkspacePath, string>>(new Map())
   const indexJobRef = React.useRef(0)
   const collapsedSnapshotRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
   const prevCollapsedRef = React.useRef<boolean>(effectiveBottomPanelCollapsed)
@@ -1057,23 +1063,26 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
 
   React.useEffect(() => {
     if (!active) return
-    const taskKey = 'markdown-workspace:refresh'
     const unsubscribe = subscribeWorkspaceFsChanged(detail => {
       if (viewerInlineEditActiveRef.current) return
-      const active = activePathRef.current
+      const activePath = activePathRef.current
       const last = lastLoadedRef.current
-      const isDirty = !!(active && last?.path === active && last.text !== activeTextRef.current)
+      const isDirty = !!(activePath && last?.path === activePath && last.text !== activeTextRef.current)
       const changedPath = typeof detail?.path === 'string' && detail.path ? detail.path : null
-      const op = typeof detail?.op === 'string' ? detail.op : ''
-      if (isDirty && (!changedPath || changedPath === active)) return
-      if (op === 'writeFileText' && active && changedPath && changedPath !== active) return
-      const signature = `${String(active || '')}|${String(changedPath || '')}|${op}|${isDirty ? '1' : '0'}`
-      scheduleWorkspaceSyncTask(taskKey, () => {
+      const operation = typeof detail?.op === 'string' ? detail.op : ''
+      if (isDirty && (!changedPath || changedPath === activePath)) return
+      if (operation === 'writeFileText' && activePath && changedPath && changedPath !== activePath) return
+      scheduleMarkdownWorkspaceRefreshSync(() => {
         void refresh()
-      }, 180, { signature })
+      }, {
+        activePath,
+        changedPath,
+        operation,
+        isDirty,
+      })
     })
     return () => {
-      cancelWorkspaceSyncTask(taskKey)
+      cancelMarkdownWorkspaceRefreshSync()
       unsubscribe()
     }
   }, [active, refresh])
@@ -1104,7 +1113,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       layoutMode,
       expandedPaths: [...expandedPaths],
     }
-    scheduleWorkspaceSyncTask(WORKSPACE_SYNC_TASK_MARKDOWN_WORKSPACE_PREFS, () => {
+    scheduleMarkdownWorkspacePrefsSync(() => {
       const pending = persistWorkspacePrefsPendingRef.current
       if (!pending) return
       lsSetInt(LS_KEYS.markdownSidebarWidthPx, pending.sidebarWidthPx, { min: SIDEBAR_MIN_PX, max: SIDEBAR_MAX_PX })
@@ -1117,24 +1126,20 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       lsSetJson<FolderModeContract>(LS_KEYS.markdownExplorerFolderModeContract, pending.folderModeContract)
       lsSetJson<MarkdownWorkspaceLayoutMode>(LS_KEYS.markdownLayoutMode, pending.layoutMode)
       lsSetJson(LS_KEYS.markdownExplorerSourceFilesExpandedPaths, pending.expandedPaths)
-    }, 120, {
-      signature: hashSignatureParts([
-        'v1',
-        sidebarWidthPx,
-        explorerOpen,
-        sourceFilesCollapsed,
-        tocCollapsed,
-        backlinksCollapsed,
-        markdownWordWrap,
-        markdownTextHighlight,
-        hashRecordSignature(folderModeContract),
-        String(layoutMode || ''),
-        hashStringArraySignature(expandedPaths, { maxSamples: 40, includeTail: true }),
-      ]),
-      scopeKey: WORKSPACE_SYNC_SCOPE_MARKDOWN_WORKSPACE_PREFS_RUNTIME_PERSISTENCE,
+    }, {
+      sidebarWidthPx,
+      explorerOpen,
+      sourceFilesCollapsed,
+      tocCollapsed,
+      backlinksCollapsed,
+      markdownWordWrap,
+      markdownTextHighlight,
+      folderModeContract: folderModeContract as unknown as Record<string, unknown>,
+      layoutMode: String(layoutMode || ''),
+      expandedPaths,
     })
     return () => {
-      cancelWorkspaceSyncTask(WORKSPACE_SYNC_TASK_MARKDOWN_WORKSPACE_PREFS)
+      cancelMarkdownWorkspacePrefsSync()
     }
   }, [
     backlinksCollapsed,
@@ -1607,7 +1612,10 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       !(pendingLocalImport && (cachedText === '' || isPendingStub))
 
     let cancelled = false
-    void (async () => {
+    scheduleMarkdownWorkspaceIndexStart(() => {
+        if (cancelled) return
+        if (activePathRef.current !== scheduledFor) return
+        void (async () => {
       let loadingLabelTimer: number | null = null
       try {
         const label = indexLabel
@@ -1697,10 +1705,23 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
           })
         }
 
+        const wasIndexedForPath = (candidatePath: WorkspacePath, textHash: string): boolean => {
+          const existing = lastIndexedByPathRef.current.get(candidatePath)
+          return typeof existing === 'string' && existing === textHash
+        }
+        const rememberIndexedForPath = (candidatePath: WorkspacePath, textHash: string): void => {
+          const map = lastIndexedByPathRef.current
+          if (map.has(candidatePath)) map.delete(candidatePath)
+          map.set(candidatePath, textHash)
+          while (map.size > 24) {
+            const oldest = map.keys().next().value as WorkspacePath | undefined
+            if (!oldest) break
+            map.delete(oldest)
+          }
+        }
         if (activeDocumentKey && nextText.trim()) {
           const hash = hashStringToHex(nextText)
-          const last = lastIndexedRef.current
-          if (!(last && last.path === path && last.textHash === hash)) {
+          if (!wasIndexedForPath(path, hash)) {
             const ext = workspaceExtLower(path)
             const isCanvasHtmlExport = (() => {
               if (ext !== '.html' && ext !== '.htm') return false
@@ -1712,7 +1733,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
               return true
             })()
             if (isCanvasHtmlExport) {
-              lastIndexedRef.current = { path, textHash: hash }
+              rememberIndexedForPath(path, hash)
               setStatusWithAutoClear('Indexed')
               return
             }
@@ -1843,7 +1864,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
                 await applyComposedFromSourceFiles()
               }
               if (isStaleJob()) return
-              lastIndexedRef.current = { path, textHash: hash }
+              rememberIndexedForPath(path, hash)
               return
             }
 
@@ -1919,7 +1940,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
               }
             }
             if (isStaleJob()) return
-            lastIndexedRef.current = { path, textHash: hash }
+            rememberIndexedForPath(path, hash)
           }
         }
 
@@ -1931,9 +1952,15 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       } finally {
         if (loadingLabelTimer != null) window.clearTimeout(loadingLabelTimer)
       }
-    })()
+        })()
+      }, {
+        path: scheduledFor,
+        sourceUrl,
+        sourceFileName,
+      })
     return () => {
       cancelled = true
+      cancelMarkdownWorkspaceIndexStart()
     }
   }, [
     active,
@@ -1950,6 +1977,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     patchWorkspaceEntryInlineText,
     sourcesByPath,
     viewerInlineEditActive,
+    lastSetActivePath,
   ])
 
   React.useEffect(() => {
@@ -1972,99 +2000,104 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     const last = lastLoadedRef.current
     if (!userEditedActiveTextRef.current) return
     if (!shouldAutosaveWorkspaceFile({ path, lastLoaded: last, activeText, debouncedText })) return
-    if (autosaveInFlightRef.current) {
-      autosavePendingRef.current = { path, text: debouncedText }
-      return
-    }
-    autosaveInFlightRef.current = true
-    void (async () => {
-      let nextTextToSave = debouncedText
-      try {
-        while (true) {
-          let savingShown = false
-          autosaveStatusTimerRef.current = window.setTimeout(() => {
-            setStatusProgress('Saving', undefined, undefined, undefined, undefined, { ttlMs: 8000 })
-            savingShown = true
-          }, 220)
-          try {
-            const fs = await getFs()
-            await fs.writeFileText(path, nextTextToSave)
-            lastLoadedRef.current = { path, text: nextTextToSave }
-            patchWorkspaceEntryInlineText(path, nextTextToSave)
-            if (activeDocumentKey) {
-              void setActiveMarkdownDocument({
-                name: activeDocumentKey,
-                text: normalizeWebpageFrontmatterView(nextTextToSave, 'markdown'),
-                normalizeMermaidMmd: false,
-                autoEnableFrontmatter: false,
-                sourceUrl: activeDocumentSourceUrl,
-              })
-            }
+    scheduleMarkdownWorkspaceAutosaveSync(() => {
+      if (autosaveInFlightRef.current) {
+        autosavePendingRef.current = { path, text: debouncedText }
+        return
+      }
+      autosaveInFlightRef.current = true
+      void (async () => {
+        let nextTextToSave = debouncedText
+        try {
+          while (true) {
+            let savingShown = false
+            autosaveStatusTimerRef.current = window.setTimeout(() => {
+              setStatusProgress('Saving', undefined, undefined, undefined, undefined, { ttlMs: 8000 })
+              savingShown = true
+            }, 220)
             try {
-              const store = useGraphStore.getState()
-              const wsPath = `workspace:${path}`
-              const current = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
-              const existing = current.find(f => String(f?.source?.path || '') === wsPath) || null
-              if (existing) {
-                const inlineText = nextTextToSave.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? nextTextToSave : undefined
-                store.updateSourceFile(existing.id, {
-                  text: inlineText ?? '',
-                  status: 'idle',
-                  error: undefined,
+              const fs = await getFs()
+              await fs.writeFileText(path, nextTextToSave)
+              lastLoadedRef.current = { path, text: nextTextToSave }
+              patchWorkspaceEntryInlineText(path, nextTextToSave)
+              if (activeDocumentKey) {
+                void setActiveMarkdownDocument({
+                  name: activeDocumentKey,
+                  text: normalizeWebpageFrontmatterView(nextTextToSave, 'markdown'),
+                  normalizeMermaidMmd: false,
+                  autoEnableFrontmatter: false,
+                  sourceUrl: activeDocumentSourceUrl,
                 })
               }
-            } catch {
-              void 0
-            }
-            if (path === ORCHESTRATOR_WORKFLOW_WORKSPACE_PATH) {
               try {
-                setGraphRagWorkflowJsonText(nextTextToSave)
-              } catch {
-                void 0
-              }
-            }
-            if (path === PARSER_SCRIPT_WORKSPACE_PATH) {
-              try {
-                useParserUIState.getState().setScriptText(nextTextToSave)
-              } catch {
-                void 0
-              }
-            }
-            if (path === SCHEMA_CONFIG_WORKSPACE_PATH) {
-              try {
-                const next = parseSchemaText(nextTextToSave)
                 const store = useGraphStore.getState()
-                store.setSchema(next)
-                store.setSchemaOpStatus(true, 'Applied schema from workspace file')
-              } catch (err: unknown) {
-                const msg = err instanceof Error ? err.message : String(err ?? '')
+                const wsPath = `workspace:${path}`
+                const current = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
+                const existing = current.find(f => String(f?.source?.path || '') === wsPath) || null
+                if (existing) {
+                  const inlineText = nextTextToSave.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? nextTextToSave : undefined
+                  store.updateSourceFile(existing.id, {
+                    text: inlineText ?? '',
+                    status: 'idle',
+                    error: undefined,
+                  })
+                }
+              } catch {
+                void 0
+              }
+              if (path === ORCHESTRATOR_WORKFLOW_WORKSPACE_PATH) {
                 try {
-                  useGraphStore.getState().setSchemaOpStatus(false, `Schema parse failed: ${msg}`)
+                  setGraphRagWorkflowJsonText(nextTextToSave)
                 } catch {
                   void 0
                 }
               }
+              if (path === PARSER_SCRIPT_WORKSPACE_PATH) {
+                try {
+                  useParserUIState.getState().setScriptText(nextTextToSave)
+                } catch {
+                  void 0
+                }
+              }
+              if (path === SCHEMA_CONFIG_WORKSPACE_PATH) {
+                try {
+                  const next = parseSchemaText(nextTextToSave)
+                  const store = useGraphStore.getState()
+                  store.setSchema(next)
+                  store.setSchemaOpStatus(true, 'Applied schema from workspace file')
+                } catch (err: unknown) {
+                  const msg = err instanceof Error ? err.message : String(err ?? '')
+                  try {
+                    useGraphStore.getState().setSchemaOpStatus(false, `Schema parse failed: ${msg}`)
+                  } catch {
+                    void 0
+                  }
+                }
+              }
+              if (savingShown) setStatusWithAutoClear('Saved')
+            } finally {
+              const timer = autosaveStatusTimerRef.current
+              if (timer != null) window.clearTimeout(timer)
+              autosaveStatusTimerRef.current = null
             }
-            if (savingShown) setStatusWithAutoClear('Saved')
-          } finally {
-            const timer = autosaveStatusTimerRef.current
-            if (timer != null) window.clearTimeout(timer)
-            autosaveStatusTimerRef.current = null
+            const pending = autosavePendingRef.current
+            if (!pending || pending.path !== path || pending.text === nextTextToSave) {
+              if (pending && pending.path !== path) autosavePendingRef.current = pending
+              break
+            }
+            autosavePendingRef.current = null
+            nextTextToSave = pending.text
           }
-          const pending = autosavePendingRef.current
-          if (!pending || pending.path !== path || pending.text === nextTextToSave) {
-            if (pending && pending.path !== path) autosavePendingRef.current = pending
-            break
-          }
-          autosavePendingRef.current = null
-          nextTextToSave = pending.text
+        } catch (e) {
+          setStatusError(`Save failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+        } finally {
+          autosaveInFlightRef.current = false
         }
-      } catch (e) {
-        setStatusError(`Save failed: ${String((e as { message?: unknown })?.message ?? e)}`)
-      } finally {
-        autosaveInFlightRef.current = false
-      }
-    })()
+      })()
+    }, { path, text: debouncedText })
+    return () => {
+      cancelMarkdownWorkspaceAutosaveSync(path)
+    }
   }, [
     active,
     activeDocumentKey,
@@ -2523,8 +2556,18 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const effectiveIsMarkdown = contentMode !== 'nodeQuickEditor' && isMarkdown && !(webpageWorkspaceMeta && webpageWorkspaceMeta.view !== 'markdown')
 
   const saveEnabled = effectiveIsEditing && activeEntryKind === 'file' && !!String(activeDocumentKey || '').trim()
+  const lastViewerInlineEditSignalRef = React.useRef<boolean | null>(null)
   const handleViewerInlineEditStateChange = React.useCallback((active: boolean) => {
-    setViewerInlineEditActive(prev => (prev === active ? prev : active))
+    if (lastViewerInlineEditSignalRef.current === active) return
+    lastViewerInlineEditSignalRef.current = active
+    scheduleMarkdownWorkspaceInlineEditStateSync(active, () => {
+      setViewerInlineEditActive(prev => (prev === active ? prev : active))
+    })
+  }, [])
+  React.useEffect(() => {
+    return () => {
+      cancelMarkdownWorkspaceInlineEditStateSync()
+    }
   }, [])
 
   const actionBridge = React.useMemo(

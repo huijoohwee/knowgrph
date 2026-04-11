@@ -25,6 +25,7 @@ import {
 } from '@/features/workspace-table/cellSelectPanelPlacement'
 
 import { WORKSPACE_TABLE_PREFS_EVENT } from '@/features/workspace-table/workspaceTablePreferencesEvents'
+import { cancelCoalescedTask, scheduleCoalescedTask } from '@/lib/async/coalescedScheduler'
 
 export type WorkspaceTablePreferencesSnapshot = {
   workspaceEditorMode: WorkspaceEditorMode
@@ -56,6 +57,7 @@ const isSameSnapshot = (
   left.jsonTableMaxColumns === right.jsonTableMaxColumns
 
 let cachedSnapshot: WorkspaceTablePreferencesSnapshot | null = null
+let workspaceTablePreferencesSubscriptionSeq = 0
 
 const readSnapshot = (): WorkspaceTablePreferencesSnapshot => {
   const next = buildSnapshot()
@@ -82,16 +84,21 @@ const isWorkspacePreferenceStorageKey = (storageKey: string | null): boolean =>
 export const workspaceTablePreferencesStore = {
   subscribe(onStoreChange: () => void): () => void {
     if (typeof window === 'undefined') return () => void 0
-    const handleChanged = () => onStoreChange()
+    const scheduleKey = `workspace-table-preferences:subscribe:${workspaceTablePreferencesSubscriptionSeq += 1}`
+    const scheduleOnStoreChange = () => {
+      scheduleCoalescedTask(scheduleKey, onStoreChange, 0)
+    }
+    const handleChanged = () => scheduleOnStoreChange()
     const handleStorage = (event: StorageEvent) => {
       if (!isWorkspacePreferenceStorageKey(event.key)) return
-      onStoreChange()
+      scheduleOnStoreChange()
     }
     window.addEventListener(WORKSPACE_TABLE_PREFS_EVENT, handleChanged)
     window.addEventListener('storage', handleStorage)
     return () => {
       window.removeEventListener(WORKSPACE_TABLE_PREFS_EVENT, handleChanged)
       window.removeEventListener('storage', handleStorage)
+      cancelCoalescedTask(scheduleKey)
     }
   },
   getSnapshot: readSnapshot,

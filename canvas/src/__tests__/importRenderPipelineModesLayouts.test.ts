@@ -10,12 +10,14 @@ import { deriveSceneDisplayGraph, deriveSceneGroups } from '@/lib/scene/sceneDer
 import { buildDagreLayout, buildFastGridLayout } from '@/components/FlowCanvas/layout'
 import { computeLayoutDatasetKey, determineLayoutPositions } from '@/components/GraphCanvas/layout/positioning'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { deriveGraphDataForActiveView } from '@/hooks/useActiveGraphData'
 import { readMarkdownSlideDemo, resolveMarkdownSlideDemoDocumentPath } from '@/tests/lib/markdownSlideDemo'
 import { fibSphere } from '@/features/three/layout'
 import { computePositions3d } from '@/features/three/positions'
 import { projectPositionsToSphereShell } from '@/features/three/sphereConstraint'
 import { computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults } from '@/components/FlowCanvas/handles'
 import { togglePortHandlesEnabledInSchema, shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
+import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 import type { GraphNode } from '@/lib/graph/types'
 
 const readSlideDemoOrFallback = (): { nameForParse: string; text: string; documentPath: string } => {
@@ -26,6 +28,22 @@ const readSlideDemoOrFallback = (): { nameForParse: string; text: string; docume
   }
   const fallback = ['---', 'mermaid: |', '  graph LR', '    A --> B', '---', '', '# Title', '', '- A', '- B', ''].join('\n')
   return { nameForParse: docPath, text: fallback, documentPath: docPath }
+}
+
+const readComputingFlowRfSamplePath = (): string => {
+  const envPath = typeof process.env.KG_TEST_MARKDOWN_SYNTAX_COMPUTING_FLOW_RF_SAMPLE_PATH === 'string'
+    ? process.env.KG_TEST_MARKDOWN_SYNTAX_COMPUTING_FLOW_RF_SAMPLE_PATH.trim()
+    : ''
+  if (envPath) return envPath
+  return path.resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-rf-sample.md')
+}
+
+const readComputingFlowSamplePath = (): string => {
+  const envPath = typeof process.env.KG_TEST_MARKDOWN_SYNTAX_COMPUTING_FLOW_SAMPLE_PATH === 'string'
+    ? process.env.KG_TEST_MARKDOWN_SYNTAX_COMPUTING_FLOW_SAMPLE_PATH.trim()
+    : ''
+  if (envPath) return envPath
+  return path.resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-sample.md')
 }
 
 const toSimpleFlowGraph = (graphData: { nodes?: unknown; edges?: unknown }) => {
@@ -157,6 +175,139 @@ export const testImportRenderPipelineAcrossModesAndLayouts = async () => {
   if (!portToggled.changed) throw new Error('expected port handles schema toggle to report changed')
   const inject = shouldInjectDefaultFlowHandles(portToggled.schema)
   if (typeof inject !== 'boolean') throw new Error('expected port handles inject predicate')
+}
+
+export const testImportRenderPipelineFrontmatterFlowRfSampleInfiniteCanvas = async () => {
+  useGraphStore.getState().resetAll()
+  const samplePath = readComputingFlowRfSamplePath()
+  if (!fs.existsSync(samplePath)) return
+  const text = fs.readFileSync(samplePath, 'utf8')
+  const parsed = await loadGraphDataFromTextViaParser(samplePath, text, { applyToStore: true, syncMarkdownDocument: false })
+  if (!parsed?.graphData) throw new Error('expected graphData from rf sample import')
+  if (String(parsed.graphData.context || '').trim() !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context from rf sample import')
+
+  const activeGraph = deriveGraphDataForActiveView({
+    graphData: parsed.graphData,
+    frontmatterModeEnabled: true,
+    multiDimTableModeEnabled: false,
+    documentSemanticMode: 'document',
+    documentStructureBaselineLock: false,
+    collapsedGroupIds: [],
+  })
+  if ((activeGraph.nodes || []).length < 7) throw new Error('expected active frontmatter-flow nodes for Infinite Canvas')
+  if ((activeGraph.edges || []).length < 6) throw new Error('expected active frontmatter-flow edges for Infinite Canvas')
+
+  const display = deriveSceneDisplayGraph({ graphData: activeGraph })
+  if (!display) throw new Error('expected display graph derivation for Infinite Canvas')
+  if (display.displayNodes.length < 7) throw new Error('expected display nodes for Infinite Canvas')
+  if (display.displayEdges.length < 6) throw new Error('expected display edges for Infinite Canvas')
+
+  const schema = useGraphStore.getState().schema
+  const groups = deriveSceneGroups({
+    graphData: activeGraph,
+    graphDataRevision: 1,
+    schema,
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: true,
+  })
+  if (!groups?.key.trim()) throw new Error('expected groups derivation key for Infinite Canvas')
+
+  const datasetKey = computeLayoutDatasetKey({ graphData: activeGraph, graphDataRevision: 1 })
+  const layout = determineLayoutPositions({
+    datasetKey,
+    mode: 'force',
+    frontmatterMode: true,
+    semanticMode: 'document',
+    renderMode: '2d',
+    renderVariant: 'd3',
+    prevViewKey: null,
+    prevDatasetKey: null,
+    prevMode: null,
+    prevFrontmatterMode: null,
+    prevSemanticMode: null,
+    prevRenderMode: null,
+    prevRenderVariant: null,
+    prevLayoutVariant: null,
+    nodes: display.displayNodes,
+    layoutPositionCacheByMode: useGraphStore.getState().layoutPositionCacheByMode,
+  })
+  if (!layout.cacheKey.trim()) throw new Error('expected layout cache key for Infinite Canvas')
+}
+
+export const testImportRenderPipelineFrontmatterFlowSampleInfiniteCanvas = async () => {
+  useGraphStore.getState().resetAll()
+  const samplePath = readComputingFlowSamplePath()
+  if (!fs.existsSync(samplePath)) return
+  const text = fs.readFileSync(samplePath, 'utf8')
+  const parsed = await loadGraphDataFromTextViaParser(samplePath, text, { applyToStore: true, syncMarkdownDocument: false })
+  if (!parsed?.graphData) throw new Error('expected graphData from computing-flow sample import')
+  if (String(parsed.graphData.context || '').trim() !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context from computing-flow sample import')
+
+  const activeGraph = deriveGraphDataForActiveView({
+    graphData: parsed.graphData,
+    frontmatterModeEnabled: true,
+    multiDimTableModeEnabled: false,
+    documentSemanticMode: 'document',
+    documentStructureBaselineLock: false,
+    collapsedGroupIds: [],
+  })
+  const expectedNodeIds = ['n-winners', 'n-config', 'n-scrape', 'n-filter', 'n-score', 'n-route', 'n-gallery', 'n-flagged', 'n-gauge']
+  const activeNodeIds = new Set((activeGraph.nodes || []).map(n => String(n.id || '').trim()).filter(Boolean))
+  for (let i = 0; i < expectedNodeIds.length; i += 1) {
+    if (!activeNodeIds.has(expectedNodeIds[i])) {
+      throw new Error(`expected active graph to include flow node ${expectedNodeIds[i]}`)
+    }
+  }
+  const activeFlowEdges = (activeGraph.edges || []).filter(e => {
+    const props = (e.properties || {}) as Record<string, unknown>
+    return !!String(props[FLOW_EDGE_SOURCE_PORT_KEY] || '') && !!String(props[FLOW_EDGE_TARGET_PORT_KEY] || '')
+  })
+  if (activeFlowEdges.length !== 11) throw new Error(`expected 11 active handle-linked flow edges for Infinite Canvas, got ${activeFlowEdges.length}`)
+
+  const display = deriveSceneDisplayGraph({ graphData: activeGraph })
+  if (!display) throw new Error('expected display graph derivation for Infinite Canvas computing-flow sample')
+  const displayNodeIds = new Set(display.displayNodes.map(n => String(n.id || '').trim()).filter(Boolean))
+  for (let i = 0; i < expectedNodeIds.length; i += 1) {
+    if (!displayNodeIds.has(expectedNodeIds[i])) {
+      throw new Error(`expected display graph to include flow node ${expectedNodeIds[i]}`)
+    }
+  }
+  const displayFlowEdges = display.displayEdges.filter(e => {
+    const props = (e.properties || {}) as Record<string, unknown>
+    return !!String(props[FLOW_EDGE_SOURCE_PORT_KEY] || '') && !!String(props[FLOW_EDGE_TARGET_PORT_KEY] || '')
+  })
+  if (displayFlowEdges.length !== 11) throw new Error(`expected 11 display handle-linked flow edges for Infinite Canvas, got ${displayFlowEdges.length}`)
+
+  const schema = useGraphStore.getState().schema
+  const groups = deriveSceneGroups({
+    graphData: activeGraph,
+    graphDataRevision: 1,
+    schema,
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: true,
+  })
+  if (!groups?.key.trim()) throw new Error('expected groups derivation key for Infinite Canvas computing-flow sample')
+
+  const datasetKey = computeLayoutDatasetKey({ graphData: activeGraph, graphDataRevision: 1 })
+  const layout = determineLayoutPositions({
+    datasetKey,
+    mode: 'force',
+    frontmatterMode: true,
+    semanticMode: 'document',
+    renderMode: '2d',
+    renderVariant: 'd3',
+    prevViewKey: null,
+    prevDatasetKey: null,
+    prevMode: null,
+    prevFrontmatterMode: null,
+    prevSemanticMode: null,
+    prevRenderMode: null,
+    prevRenderVariant: null,
+    prevLayoutVariant: null,
+    nodes: display.displayNodes,
+    layoutPositionCacheByMode: useGraphStore.getState().layoutPositionCacheByMode,
+  })
+  if (!layout.cacheKey.trim()) throw new Error('expected layout cache key for Infinite Canvas computing-flow sample')
 }
 
 export const testImportRenderPipelineRadialLayoutForces2d = () => {

@@ -6,5 +6,10 @@ export function buildSchemaLayoutEngineJson2d(schema: GraphSchema | null): strin
   const forces = schema?.layout?.forces || null
   const fitPadding = schema?.layout?.fitPadding ?? null
   const flow = schema?.layout?.flow || null
-  return JSON.stringify({ mode, forces, fitPadding, flow })
+  const edges = schema?.layout?.edges
+    ? {
+        type: schema.layout.edges.type ?? null,
+      }
+    : null
+  return JSON.stringify({ mode, forces, fitPadding, flow, edges })
 }

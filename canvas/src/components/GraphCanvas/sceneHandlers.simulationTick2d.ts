@@ -132,6 +132,20 @@ export const attachSimulationTick = (args: {
     }
   }
   const groupsForBboxCollide = Array.isArray(args.groupsForBboxCollide) ? args.groupsForBboxCollide : []
+  const nodeLookup = (() => {
+    const lookup = new Map<string, GraphNode>()
+    for (const [id, node] of nodeById.entries()) {
+      const key = String(id || '').trim()
+      if (!key) continue
+      lookup.set(key, node)
+      const idx = key.lastIndexOf('::')
+      if (idx > 0 && idx < key.length - 2) {
+        const short = key.slice(idx + 2)
+        if (short && !lookup.has(short)) lookup.set(short, node)
+      }
+    }
+    return lookup
+  })()
 
   let lastOverlayHalfExtentsKey = ''
   let lastOverlayHalfExtents: { halfW: number; halfH: number } | null = null
@@ -328,9 +342,21 @@ export const attachSimulationTick = (args: {
       const maybeNode = endpoint as Partial<GraphNode>
       if (typeof maybeNode.x === 'number' && typeof maybeNode.y === 'number') return maybeNode as GraphNode
       const maybeId = (endpoint as { id?: unknown }).id
-      if (typeof maybeId === 'string' || typeof maybeId === 'number') return nodeById.get(String(maybeId)) ?? null
+      if (typeof maybeId === 'string' || typeof maybeId === 'number') {
+        const id = String(maybeId)
+        const exact = nodeLookup.get(id)
+        if (exact) return exact
+        const idx = id.lastIndexOf('::')
+        if (idx > 0 && idx < id.length - 2) return nodeLookup.get(id.slice(idx + 2)) ?? null
+      }
     }
-    if (typeof endpoint === 'string' || typeof endpoint === 'number') return nodeById.get(String(endpoint)) ?? null
+    if (typeof endpoint === 'string' || typeof endpoint === 'number') {
+      const id = String(endpoint)
+      const exact = nodeLookup.get(id)
+      if (exact) return exact
+      const idx = id.lastIndexOf('::')
+      if (idx > 0 && idx < id.length - 2) return nodeLookup.get(id.slice(idx + 2)) ?? null
+    }
     return null
   }
 

@@ -11,6 +11,23 @@ const cache = new LRUCache<string, Promise<MermaidRenderResult>>(64)
 
 let mermaidModulePromise: Promise<unknown> | null = null
 
+const cleanupMermaidRenderArtifacts = (renderId: string): void => {
+  const id = String(renderId || '').trim()
+  if (!id || typeof document === 'undefined') return
+  try {
+    const wrapper = document.getElementById(`d${id}`)
+    if (wrapper && wrapper.parentElement === document.body) wrapper.remove()
+  } catch {
+    void 0
+  }
+  try {
+    const orphan = document.getElementById(id)
+    if (orphan && orphan.parentElement === document.body) orphan.remove()
+  } catch {
+    void 0
+  }
+}
+
 const loadMermaidModule = async (): Promise<unknown> => {
   if (!mermaidModulePromise) mermaidModulePromise = import('mermaid')
   return mermaidModulePromise
@@ -71,7 +88,9 @@ export async function renderMermaidSvgCached(args: {
     if (typeof render !== 'function') return { svg: '' }
 
     const id = `kg-mermaid-${hashText(`${theme}|${code}`).slice(0, 16)}`
+    cleanupMermaidRenderArtifacts(id)
     const out = await render(id, code)
+    cleanupMermaidRenderArtifacts(id)
     const svg = typeof out === 'string' ? out : String((out as { svg?: unknown }).svg || '')
     return { svg: normalizeSvg(svg) }
   })()

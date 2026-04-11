@@ -2,6 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
+import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeScene'
+import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
@@ -569,6 +571,28 @@ export function testMarkdownFrontmatterFlowGraphPrefersMermaidWiringOverSyntheti
   if (displayLabel !== 'identity-anchor') throw new Error('expected frontmatter:displayLabel to preserve inline label')
 }
 
+export function testMarkdownFrontmatterFlowGraphParsesSigilEdgeLinesWithHandleRouting() {
+  const md = [
+    '---',
+    'nodes:',
+    '  - @node:n-a: { label: "A", type: input }',
+    '  - @node:n-b: { label: "B", type: output }',
+    'edges:',
+    '  - @edge:n-a:signal → n-b:signal',
+    '---',
+    '',
+    '# Flow',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('sigil-edge-lines.md', md)
+  if (!res) throw new Error('expected a frontmatter flow graph parse result')
+  const edge = res.graphData.edges.find(e => String(e.id || '').includes('@edge:n-a:signal->n-b:signal')) || null
+  if (!edge) throw new Error('expected edge from sigil line declaration')
+  const props = (edge.properties || {}) as Record<string, unknown>
+  if (String(props[FLOW_EDGE_SOURCE_PORT_KEY] || '') !== 'signal') throw new Error('expected source port from sigil edge line')
+  if (String(props[FLOW_EDGE_TARGET_PORT_KEY] || '') !== 'signal') throw new Error('expected target port from sigil edge line')
+}
+
 export function testMarkdownFrontmatterFlowGraphParsesWorkflowFlowBlockWithHandlesDataAndCompute() {
   const md = [
     '---',
@@ -792,6 +816,15 @@ function readMarkdownSyntaxComputingFlowSamplePath(): string {
   return path.resolve(cwd, '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-sample.md')
 }
 
+function readMarkdownSyntaxComputingFlowRfSamplePath(): string {
+  const envPath = typeof process.env.KG_TEST_MARKDOWN_SYNTAX_COMPUTING_FLOW_RF_SAMPLE_PATH === 'string'
+    ? process.env.KG_TEST_MARKDOWN_SYNTAX_COMPUTING_FLOW_RF_SAMPLE_PATH.trim()
+    : ''
+  if (envPath) return envPath
+  const cwd = process.cwd()
+  return path.resolve(cwd, '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-rf-sample.md')
+}
+
 export function testMarkdownFrontmatterFlowGraphFidelityMarkdownSyntaxComputingFlowSample() {
   const samplePath = readMarkdownSyntaxComputingFlowSamplePath()
   if (!samplePath || !fs.existsSync(samplePath)) return
@@ -831,8 +864,17 @@ export function testMarkdownFrontmatterFlowGraphFidelityMarkdownSyntaxComputingF
   if (String(configData.demo_url || '') !== 'https://treehacks-2026.devpost.com/project-gallery') {
     throw new Error('expected frontmatter variable resolution for n-config.data.demo_url')
   }
+  if (configData.threshold !== 0.75) {
+    throw new Error('expected numeric frontmatter variable resolution for n-config.data.threshold')
+  }
   if (String(configData.score_formula || '') !== 'demos.length * 0.4 + (winner ? 0.6 : 0)') {
     throw new Error('expected frontmatter variable resolution for n-config.data.score_formula')
+  }
+
+  const unresolvedLabelEdge = flowEdges.find(e => String(e.id || '') === 'fe-06') || null
+  if (!unresolvedLabelEdge) throw new Error('expected fe-06 edge')
+  if (String(unresolvedLabelEdge.label || '') !== 'confidence ≥ {{n-config.data.min_confidence}}') {
+    throw new Error('expected unresolved flow template refs to remain literal in edge labels')
   }
 
   const scoreNode = nodeById.get('n-score') || null
@@ -849,4 +891,91 @@ export function testMarkdownFrontmatterFlowGraphFidelityMarkdownSyntaxComputingF
 
   const flowWarnings = res.warnings.filter(w => w.includes('Flow node contract violation') || w.includes('Flow node compute rejected as unsafe'))
   if (flowWarnings.length > 0) throw new Error(`expected no flow contract warnings for sample, got: ${flowWarnings.join(' | ')}`)
+}
+
+export function testMarkdownFrontmatterFlowGraphFidelityMarkdownSyntaxComputingFlowRfSample() {
+  const samplePath = readMarkdownSyntaxComputingFlowRfSamplePath()
+  if (!samplePath || !fs.existsSync(samplePath)) return
+  const md = fs.readFileSync(samplePath, 'utf8')
+  const res = tryParseMarkdownFrontmatterFlowGraph(path.basename(samplePath), md)
+  if (!res) throw new Error('expected computing-flow-rf sample frontmatter parse result')
+  const g = res.graphData
+  if (g.context !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+
+  const typedNodes = g.nodes.filter(n => {
+    const type = String(n?.type || '').trim()
+    return type === 'input' || type === 'default' || type === 'output'
+  })
+  if (typedNodes.length !== 7) throw new Error(`expected 7 typed flow nodes, got ${typedNodes.length}`)
+  const byType = new Map<string, number>()
+  for (let i = 0; i < typedNodes.length; i += 1) {
+    const type = String(typedNodes[i]?.type || '').trim()
+    byType.set(type, (byType.get(type) || 0) + 1)
+  }
+  if ((byType.get('input') || 0) !== 3) throw new Error('expected 3 input nodes')
+  if ((byType.get('default') || 0) !== 2) throw new Error('expected 2 default nodes')
+  if ((byType.get('output') || 0) !== 2) throw new Error('expected 2 output nodes')
+
+  const flowEdges = g.edges.filter(e => {
+    const props = (e.properties || {}) as Record<string, unknown>
+    const sourcePort = String(props[FLOW_EDGE_SOURCE_PORT_KEY] || '')
+    const targetPort = String(props[FLOW_EDGE_TARGET_PORT_KEY] || '')
+    return !!sourcePort && !!targetPort
+  })
+  if (flowEdges.length !== 6) throw new Error(`expected 6 handle-linked edges, got ${flowEdges.length}`)
+
+  const nodeById = new Map(g.nodes.map(n => [String(n.id || ''), n] as const))
+  const inputNode = nodeById.get('1') || null
+  if (!inputNode) throw new Error('expected node 1')
+  const inputData = (((inputNode.properties || {}) as Record<string, unknown>).data || {}) as Record<string, unknown>
+  if (!String(inputData.note || '').includes('@flag:local state for UI; data object for downstream')) {
+    throw new Error('expected NumberInput advisory flag in node 1 data.note')
+  }
+
+  const colorNode = nodeById.get('4') || null
+  if (!colorNode) throw new Error('expected node 4')
+  const colorData = (((colorNode.properties || {}) as Record<string, unknown>).data || {}) as Record<string, unknown>
+  if (!String(colorData.note || '').includes('@flag:CustomHandle isolates per-handle connection state')) {
+    throw new Error('expected ColorPreview advisory flag in node 4 data.note')
+  }
+
+  const edge = flowEdges.find(e => String(e.id || '') === 'e7-8') || null
+  if (!edge) throw new Error('expected e7-8 edge')
+  const edgeProps = (edge.properties || {}) as Record<string, unknown>
+  if (String(edgeProps[FLOW_EDGE_SOURCE_PORT_KEY] || '') !== 'color') throw new Error('expected e7-8 source port color')
+  if (String(edgeProps[FLOW_EDGE_TARGET_PORT_KEY] || '') !== 'color') throw new Error('expected e7-8 target port color')
+
+  const positions: Record<string, { x: number; y: number }> = {}
+  for (let i = 0; i < g.nodes.length; i += 1) {
+    const n = g.nodes[i]
+    const id = String(n.id || '').trim()
+    if (!id) continue
+    const x = (n as unknown as { x?: unknown }).x
+    const y = (n as unknown as { y?: unknown }).y
+    if (typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y)) {
+      positions[id] = { x, y }
+    }
+  }
+  const runtime = { rankdir: 'LR', scene: null, dirty: false } as unknown as {
+    rankdir: 'TB' | 'LR'
+    scene: unknown
+    dirty: boolean
+  }
+  buildAndSetFlowNativeScene({
+    runtime: runtime as never,
+    graphData: g,
+    positions,
+    schema: null,
+    forbidCircleNodes: false,
+    flowConfig: readFlowConfig({ schema: null, rankdir: 'LR' }),
+    sceneGroups: [],
+    rankdir: 'LR',
+    nodeQuickEditorRegistry: [],
+  })
+  const scene = runtime.scene as unknown as { nodes?: Array<{ id?: unknown }>; edges?: Array<{ id?: unknown }> } | null
+  if (!scene || !Array.isArray(scene.nodes) || scene.nodes.length < 7) throw new Error('expected Flow native scene nodes for RF sample')
+  if (!Array.isArray(scene.edges) || scene.edges.length < 6) throw new Error('expected Flow native scene edges for RF sample')
+
+  const flowWarnings = res.warnings.filter(w => w.includes('Flow node contract violation') || w.includes('Flow node compute rejected as unsafe'))
+  if (flowWarnings.length > 0) throw new Error(`expected no flow contract warnings for RF sample, got: ${flowWarnings.join(' | ')}`)
 }

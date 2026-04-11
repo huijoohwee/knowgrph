@@ -77,3 +77,63 @@ export const rewriteSigilSpansToInlineCodeHtml = (html: string): string => {
 
   return root.innerHTML
 }
+
+export const rewriteInlineCodeSigilsToStyledSpansHtml = (html: string): string => {
+  const raw = String(html || '')
+  if (!raw.trim()) return raw
+  if (typeof DOMParser === 'undefined') return raw
+  let doc: Document
+  try {
+    doc = new DOMParser().parseFromString(`<div>${raw}</div>`, 'text/html')
+  } catch {
+    return raw
+  }
+  const root = doc.body.firstElementChild as HTMLElement | null
+  if (!root) return raw
+  const codeNodes = Array.from(root.querySelectorAll('code')) as HTMLElement[]
+  if (codeNodes.length === 0) return raw
+
+  for (const code of codeNodes) {
+    const parsed = parseMarkdownSigil(String(code.textContent || ''))
+    if (!parsed) continue
+    const span = doc.createElement('span')
+    span.setAttribute('data-kg-sigil', '1')
+    if (parsed.color) {
+      span.setAttribute('data-kg-sigil-color', parsed.color)
+      span.style.color = parsed.color
+    }
+    if (parsed.background) {
+      span.setAttribute('data-kg-sigil-bg', parsed.background)
+      span.style.backgroundColor = parsed.background
+    }
+    span.textContent = parsed.text
+    code.replaceWith(span)
+  }
+
+  return root.innerHTML
+}
+
+export const rewriteInlineCodeSigilsToPlainTextHtml = (html: string): string => {
+  const raw = String(html || '')
+  if (!raw.trim()) return raw
+  if (typeof DOMParser === 'undefined') return raw
+  let doc: Document
+  try {
+    doc = new DOMParser().parseFromString(`<div>${raw}</div>`, 'text/html')
+  } catch {
+    return raw
+  }
+  const root = doc.body.firstElementChild as HTMLElement | null
+  if (!root) return raw
+  const codeNodes = Array.from(root.querySelectorAll('code')) as HTMLElement[]
+  if (codeNodes.length === 0) return raw
+
+  for (const code of codeNodes) {
+    const parsed = parseMarkdownSigil(String(code.textContent || ''))
+    if (!parsed) continue
+    const text = doc.createTextNode(parsed.text)
+    code.replaceWith(text)
+  }
+
+  return root.innerHTML
+}

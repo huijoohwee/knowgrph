@@ -8,7 +8,7 @@ import { createTabSync, buildEnvelope } from '@/lib/tabSync'
 import type { GraphSchema } from '@/lib/graph/schema'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 import { LS_KEYS, STORAGE_CHANNELS } from '@/lib/config'
-import { lsBool, lsInt, lsSetInt } from '@/lib/persistence'
+import { lsBool, lsInt, lsSetIntCoalesced } from '@/lib/persistence'
 import { hashText } from '@/features/parsers/hash'
 import { hashGraphDataForPreviewSync } from '@/hooks/store/graphDataSliceUtils'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
@@ -217,7 +217,7 @@ export default function CanvasPage() {
   const [workspacePreviewWidthPx, setWorkspacePreviewWidthPx] = React.useState(() => {
     const raw = lsInt(LS_KEYS.workspacePreviewWidthPx, 520)
     const next = Math.max(320, Math.min(960, raw))
-    if (next !== raw) lsSetInt(LS_KEYS.workspacePreviewWidthPx, next, { min: 320, max: 960 })
+    if (next !== raw) lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, next, { min: 320, max: 960, delayMs: 0 })
     return next
   })
   const workspacePreviewWidthPxRef = React.useRef(workspacePreviewWidthPx)
@@ -236,12 +236,12 @@ export default function CanvasPage() {
     if (!Number.isFinite(workspacePreviewWidthPx) || workspacePreviewWidthPx < 320 || workspacePreviewWidthPx > 960) {
       const next = Math.max(320, Math.min(960, Number.isFinite(workspacePreviewWidthPx) ? workspacePreviewWidthPx : 520))
       setWorkspacePreviewWidthPx(next)
-      lsSetInt(LS_KEYS.workspacePreviewWidthPx, next, { min: 320, max: 960 })
+      lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, next, { min: 320, max: 960, delayMs: 0 })
     }
   }, [workspacePreviewWidthPx])
 
   React.useEffect(() => {
-    lsSetInt(LS_KEYS.workspacePreviewWidthPx, workspacePreviewWidthPx, { min: 320, max: 960 })
+    lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, workspacePreviewWidthPx, { min: 320, max: 960 })
   }, [workspacePreviewWidthPx])
 
   React.useEffect(() => {
@@ -268,12 +268,12 @@ export default function CanvasPage() {
         onEnd: () => {
           rafSetPreviewWidthRef.current.flush()
           setWorkspacePreviewWidthPx(pending)
-          lsSetInt(LS_KEYS.workspacePreviewWidthPx, pending, { min: 320, max: 960 })
+          lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, pending, { min: 320, max: 960, delayMs: 0 })
         },
         onCancel: () => {
           rafSetPreviewWidthRef.current.flush()
           setWorkspacePreviewWidthPx(pending)
-          lsSetInt(LS_KEYS.workspacePreviewWidthPx, pending, { min: 320, max: 960 })
+          lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, pending, { min: 320, max: 960, delayMs: 0 })
         },
       })
     }
@@ -397,7 +397,7 @@ export default function CanvasPage() {
         syncRef.current.publish(buildEnvelope('SelectionChanged', graphId, tabId, {
           selectedNodeId: s.selectedNodeId || null,
           selectedEdgeId: s.selectedEdgeId || null,
-        }))
+        }, { sig: signature }))
       }, 32, { signature, scopeKey: WORKSPACE_SYNC_SCOPE_CANVAS_TAB_SYNC_RUNTIME_PERSISTENCE })
     }
     return () => {
@@ -421,7 +421,7 @@ export default function CanvasPage() {
       if (typeof document !== 'undefined' && typeof document.hasFocus === 'function' && !document.hasFocus()) return
       const s = useGraphStore.getState()
       try {
-        syncRef.current.publish(buildEnvelope('SchemaChanged', graphId, tabId, { schema: s.schema }))
+        syncRef.current.publish(buildEnvelope('SchemaChanged', graphId, tabId, { schema: s.schema }, { sig: hash || null }))
       } catch {
         void 0
       }

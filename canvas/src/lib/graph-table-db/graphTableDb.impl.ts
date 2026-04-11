@@ -3,7 +3,7 @@ import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder'
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema'
 import { getRxStorageMemory } from 'rxdb/plugins/storage-memory'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
-import { hashString32 } from 'grph-shared/hash/stringHash'
+import { hashRecordSignature32 } from '@/lib/hash/signature'
 import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
 import { clearRxdbLocalstorageForDatabaseName } from '@/lib/storage/rxdbRecovery'
 
@@ -713,7 +713,7 @@ export const createRowFromGraphEntity = async (tableId: GraphTableId, rowId: str
 
 export const __debugGraphTableRowHash = (data: Record<string, JSONValue>): number => {
   try {
-    return hashString32(JSON.stringify(data || {}))
+    return hashRecordSignature32(data || {}, { maxEntries: 120, maxDepth: 1 })
   } catch {
     return 0
   }

@@ -13,7 +13,7 @@ import {
 import { GraphTableInspector, type GraphTableInspectorRow } from '@/features/graph-table/ui/GraphTableInspector'
 import { applyCellUpdateToGraphStore } from '@/features/graph-table/lib/applyCellUpdateToGraphStore'
 import { useGraphTableDbSync } from '@/features/graph-table/hooks/useGraphTableDbSync'
-import { hashString32 } from 'grph-shared/hash/stringHash'
+import { hashRecordSignature32 } from '@/lib/hash/signature'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 
 const toInspectorRow = (tableId: GraphTableId, doc: GraphRowDoc): GraphTableInspectorRow => ({
@@ -121,7 +121,7 @@ export default function GraphTableSelectionInspector() {
     }
     const fallback = buildFallbackInspectorRow(selection)
     if (fallback) {
-      const fallbackHash = hashString32(JSON.stringify(fallback.data || {}))
+      const fallbackHash = hashRecordSignature32(fallback.data || {}, { maxEntries: 120, maxDepth: 1 })
       rowHashRef.current = fallbackHash
       setRow(fallback)
     }
@@ -148,7 +148,7 @@ export default function GraphTableSelectionInspector() {
           setRow(null)
           return
         }
-        const nextHash = hashString32(JSON.stringify(nextFallback.data || {}))
+        const nextHash = hashRecordSignature32(nextFallback.data || {}, { maxEntries: 120, maxDepth: 1 })
         setRow(prevRow => {
           if (nextHash === rowHashRef.current && prevRow) return prevRow
           rowHashRef.current = nextHash
@@ -156,7 +156,7 @@ export default function GraphTableSelectionInspector() {
         })
       } else {
         const json = doc.toJSON() as GraphRowDoc
-        rowHashRef.current = hashString32(JSON.stringify(json.data || {}))
+        rowHashRef.current = hashRecordSignature32(json.data || {}, { maxEntries: 120, maxDepth: 1 })
         setRow(toInspectorRow(tableId, json))
       }
 
@@ -176,7 +176,7 @@ export default function GraphTableSelectionInspector() {
           setRow(null)
           return
         }
-        const nextHash = hashString32(JSON.stringify(docData.data || {}))
+        const nextHash = hashRecordSignature32(docData.data || {}, { maxEntries: 120, maxDepth: 1 })
         setRow(prevRow => {
           if (nextHash === rowHashRef.current && prevRow) return prevRow
           rowHashRef.current = nextHash

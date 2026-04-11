@@ -40,7 +40,9 @@ export function useCodeSelectionSync({
     return () => { unsub() }
   }, [enableTabSync, graphId, tabId, isGraphJsonView, codeRef])
   const publishCaret = (pos: number, end: number) => {
-    if (enableTabSync && syncRef.current) syncRef.current.publish(buildEnvelope('CodeCaretChanged', graphId, tabId, { pos, end }))
+    if (!enableTabSync || !syncRef.current) return
+    const sig = `${pos}:${end}`
+    syncRef.current.publish(buildEnvelope('CodeCaretChanged', graphId, tabId, { pos, end }, { sig }))
   }
   return { publishCaret }
 }

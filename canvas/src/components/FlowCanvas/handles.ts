@@ -4,6 +4,7 @@ import {
   buildSchemaFieldPortKey,
   readSchemaFieldSpecs,
 } from '@/lib/graph/flowPorts'
+import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 
@@ -103,8 +104,8 @@ export function computeFlowHandlesByNode(args: {
   for (let i = 0; i < edges.length; i += 1) {
     const e = edges[i]
     const edgeId = String(e?.id ?? '').trim()
-    const source = String(e?.source ?? '').trim()
-    const target = String(e?.target ?? '').trim()
+    const source = readEdgeEndpointId((e as { source?: unknown })?.source)
+    const target = readEdgeEndpointId((e as { target?: unknown })?.target)
     if (!edgeId || !source || !target) continue
 
     const props = (e as unknown as { properties?: unknown }).properties

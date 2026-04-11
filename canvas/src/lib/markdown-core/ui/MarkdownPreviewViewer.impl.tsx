@@ -29,6 +29,7 @@ import {
   buildMarkdownVariableSsotAnchorId,
   collectMarkdownVariableSsotEntries,
 } from '@/features/markdown/ui/markdownVariableReferences'
+import { resetGlobalUserSelectLock } from '@/lib/canvas/interaction-user-select'
 
 export type MarkdownPreviewViewerProps = {
   rootRef: (el: HTMLDivElement | null) => void
@@ -164,6 +165,14 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     if (key !== 'c' && key !== 'x') return
     event.preventDefault()
   }, [forbidCopy])
+
+  const resetUserSelectLockIfNeeded = React.useCallback(() => {
+    try {
+      resetGlobalUserSelectLock()
+    } catch {
+      void 0
+    }
+  }, [])
 
   const embeddedMarkdownBase64 = React.useMemo(() => {
     const src = typeof sourceMarkdownText === 'string' ? sourceMarkdownText : ''
@@ -767,6 +776,10 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     >
       <section
         ref={handleScrollRootRef}
+        onPointerDownCapture={resetUserSelectLockIfNeeded}
+        onMouseDownCapture={resetUserSelectLockIfNeeded}
+        onMouseUpCapture={resetUserSelectLockIfNeeded}
+        onDoubleClickCapture={resetUserSelectLockIfNeeded}
         onScroll={onScroll}
         onContextMenu={onContextMenu}
         onClick={handleClickWithWikiLinks}

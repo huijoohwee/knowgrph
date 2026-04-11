@@ -7,7 +7,7 @@ import {
   WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILE_CHARS,
   WORKSPACE_IMPORT_AUTO_PARSE_MAX_TOTAL_CHARS,
 } from '@/lib/config'
-import { hashStringToHex } from '@/lib/hash/stringHash'
+import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 import { DEFAULT_CANVAS_2D_RENDERER } from '@/lib/config.render'
 import type { WorkspaceFs, WorkspacePath } from './types'
 import { normalizeWorkspacePath, workspaceDocumentKey } from './path'
@@ -135,7 +135,7 @@ export async function applyWorkspaceImportToCanvas(args: {
     if (text.length > WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILE_CHARS) continue
     if (text.length > remainingChars) continue
 
-    const textHash = hashStringToHex(text)
+    const textHash = hashStringToHexCached(`workspace-import:${path}`, text)
     if (current.parsedGraphData && String(current.parsedTextHash || '') === textHash) continue
 
     remainingFiles -= 1

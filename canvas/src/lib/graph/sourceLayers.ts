@@ -1,5 +1,5 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
-import { hashStringToHex } from '@/lib/hash/stringHash'
+import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 
 export type SourceLayerInput = {
   id: string
@@ -34,7 +34,7 @@ function computeTextHash(layer: SourceLayerInput): string {
   const existing = typeof layer.parsedTextHash === 'string' ? layer.parsedTextHash.trim() : ''
   if (existing) return existing
   const text = typeof layer.text === 'string' ? layer.text : ''
-  return hashStringToHex(text)
+  return hashStringToHexCached(`source-layer:${String(layer.id || '').trim() || 'unknown'}`, text)
 }
 
 export function buildSourceLayerKeys(layers: SourceLayerInput[]): { contentKey: string; orderKey: string } {

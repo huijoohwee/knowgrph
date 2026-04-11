@@ -590,6 +590,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     g,
     edgesForDisplay,
     schema,
+    nodeById: display?.nodeById || null,
     simulation,
     hoverEnabled,
     setHoverInfo,
@@ -678,6 +679,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     g,
     edgesForDisplay,
     schema,
+    nodeById: display?.nodeById || null,
   })
   linksSelRef.current = linkSel
 

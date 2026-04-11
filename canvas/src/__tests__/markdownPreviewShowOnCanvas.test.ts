@@ -16,6 +16,14 @@ const findButtonByExactText = (rootEl: HTMLElement, label: string): HTMLButtonEl
   }
   return null
 }
+const findButtonByAriaLabel = (rootEl: HTMLElement, label: string): HTMLButtonElement | null => {
+  const buttons = Array.from(rootEl.querySelectorAll('button'))
+  for (const btn of buttons) {
+    const aria = (btn.getAttribute('aria-label') || '').trim()
+    if (aria === label) return btn as HTMLButtonElement
+  }
+  return null
+}
 
 export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
   const storage = new MemoryStorage()
@@ -148,8 +156,16 @@ export async function testMarkdownPreviewShowOnCanvasSelectsExpectedNode() {
     })
     targetBlock.dispatchEvent(contextMenuEvent)
     await tick('contextmenu')
-
-    const menuButton = findButtonByExactText(rootEl, 'Show on Canvas')
+    let menuButton = findButtonByExactText(rootEl, 'Show on Canvas')
+    if (!menuButton) {
+      const actionsButton = findButtonByAriaLabel(rootEl, 'Selection actions')
+      if (!actionsButton) {
+        throw new Error('Selection actions button not found')
+      }
+      actionsButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await tick('actions-open')
+      menuButton = findButtonByExactText(rootEl, 'Show on Canvas')
+    }
     if (!menuButton) {
       throw new Error('Show on Canvas menu button not found')
     }
@@ -266,8 +282,16 @@ export async function testMarkdownPreviewContextMenuRendersInsideRoot() {
     })
     targetBlock.dispatchEvent(contextMenuEvent)
     await tick('contextmenu')
-
-    const menuButton = findButtonByExactText(rootEl, 'Show on Canvas')
+    let menuButton = findButtonByExactText(rootEl, 'Show on Canvas')
+    if (!menuButton) {
+      const actionsButton = findButtonByAriaLabel(rootEl, 'Selection actions')
+      if (!actionsButton) {
+        throw new Error('Selection actions button not found inside markdown preview root')
+      }
+      actionsButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await tick('actions-open')
+      menuButton = findButtonByExactText(rootEl, 'Show on Canvas')
+    }
     if (!menuButton) {
       throw new Error('context menu button not found inside markdown preview root')
     }

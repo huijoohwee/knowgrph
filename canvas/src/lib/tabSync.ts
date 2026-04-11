@@ -1,5 +1,7 @@
 import type { StorageChannelKey } from '@/lib/config';
 import { getLocalStorage } from '@/lib/persistence';
+import { scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import { WORKSPACE_SYNC_SCOPE_CANVAS_TAB_SYNC_RUNTIME_PERSISTENCE } from '@/lib/async/workspaceSyncKeys'
 
 export type SyncVersion = '1';
 
@@ -16,6 +18,11 @@ export interface SyncEnvelope<T> {
   graphId: string;
   sourceTabId: string;
   timestamp: number;
+  /**
+   * Optional stable signature (caller-provided). Used to dedupe/coalesce bursts
+   * without forcing JSON.stringify(payload) for every publish.
+   */
+  sig?: string;
   payload: T;
 }
 
@@ -52,6 +59,8 @@ const channelSingletons = new Map<
 >();
 const channelSubscribers = new Map<StorageChannelKey, Set<Subscriber>>();
 
+const TAB_SYNC_PUBLISH_DELAY_MS = 16
+
 export const createTabSync = (channelName: StorageChannelKey): TabSync => {
   const bcSupported = typeof window !== 'undefined' && 'BroadcastChannel' in window;
   const subscribers = new Set<Subscriber>();
@@ -86,16 +95,32 @@ export const createTabSync = (channelName: StorageChannelKey): TabSync => {
   }
 
   const publish = (msg: SyncEnvelope<unknown>) => {
-    if (singleton.bc) {
-      singleton.bc.postMessage(msg);
-      return;
-    }
-    try {
-      const storage = getLocalStorage();
-      if (!storage) return;
-      storage.setItem(channelName, JSON.stringify(msg));
-      storage.removeItem(channelName);
-    } catch (err) { void err }
+    const kind = msg?.kind
+    const graphId = msg?.graphId
+    const sourceTabId = msg?.sourceTabId
+    const signature = typeof msg?.sig === 'string' && msg.sig.trim() ? msg.sig.trim() : null
+    const taskKey = `tab-sync:publish:${String(channelName)}:${String(kind)}:${String(graphId)}:${String(sourceTabId)}`
+    const scopeKey = `${WORKSPACE_SYNC_SCOPE_CANVAS_TAB_SYNC_RUNTIME_PERSISTENCE}:${String(channelName)}:${String(kind)}:${String(graphId)}`
+    scheduleWorkspaceSyncTask(
+      taskKey,
+      () => {
+        const sendMsg: SyncEnvelope<unknown> = { ...msg, timestamp: Date.now() }
+        if (singleton.bc) {
+          singleton.bc.postMessage(sendMsg)
+          return
+        }
+        try {
+          const storage = getLocalStorage()
+          if (!storage) return
+          storage.setItem(channelName, JSON.stringify(sendMsg))
+          storage.removeItem(channelName)
+        } catch (err) {
+          void err
+        }
+      },
+      TAB_SYNC_PUBLISH_DELAY_MS,
+      { signature, scopeKey },
+    )
   };
 
   const subscribe = (fn: Subscriber) => {
@@ -131,5 +156,14 @@ export const buildEnvelope = <T>(
   kind: SyncKind,
   graphId: string,
   sourceTabId: string,
-  payload: T
-): SyncEnvelope<T> => ({ version: '1', kind, graphId, sourceTabId, timestamp: Date.now(), payload });
+  payload: T,
+  meta?: { sig?: string | null },
+): SyncEnvelope<T> => ({
+  version: '1',
+  kind,
+  graphId,
+  sourceTabId,
+  timestamp: Date.now(),
+  sig: typeof meta?.sig === 'string' && meta.sig.trim() ? meta.sig.trim() : undefined,
+  payload,
+});

@@ -217,6 +217,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
         editPresentation="html"
         editHtmlRender="inline"
         editStripLinePrefix={stripHeadingPrefix}
+        editStripLinePrefixSpacingSanitize={false}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}

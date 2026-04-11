@@ -1,8 +1,11 @@
 import React from 'react'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
-const tick = async () => {
-  await new Promise<void>(resolve => setTimeout(resolve, 0))
+const tick = async (times = 1) => {
+  const n = Number.isFinite(times) ? Math.max(1, Math.floor(times)) : 1
+  for (let i = 0; i < n; i += 1) {
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+  }
 }
 
 const setCaretToEnd = (dom: Window, el: HTMLElement) => {
@@ -62,10 +65,10 @@ export async function testMarkdownViewerInlineEditVariableToolbarInvokesWithAtAn
         toJSON: () => ({}),
       }) as unknown as DOMRect
     host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }))
-    await tick()
+    await tick(3)
     await tick()
 
-    const editor = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
+    const editor = host.querySelector('[contenteditable="true"]') as HTMLElement | null
     if (!editor) throw new Error('expected contenteditable editor to mount after click')
     ;(dom.window.Range.prototype as unknown as { getBoundingClientRect?: () => DOMRect }).getBoundingClientRect = () =>
       ({
@@ -91,28 +94,33 @@ export async function testMarkdownViewerInlineEditVariableToolbarInvokesWithAtAn
     if (!variableKeyInput) throw new Error('expected variable toolbar to open from @ trigger')
     if (variableKeyInput.value !== 've') throw new Error('expected @query to seed variable key input')
 
-    const suggestionButton = Array.from(dom.window.document.querySelectorAll('button')).find(
+    const panel = (variableKeyInput.closest('section') || variableKeyInput.parentElement) as HTMLElement | null
+    if (!panel) throw new Error('expected variable toolbar panel')
+
+    const suggestionButton = Array.from(panel.querySelectorAll('button')).find(
       el => String((el as HTMLButtonElement).textContent || '').trim().startsWith('venue'),
     ) as HTMLButtonElement | undefined
     if (!suggestionButton) throw new Error('expected variable suggestion list to include venue')
-    const toolbarButtons = Array.from(dom.window.document.querySelectorAll('button')).map(
+    const toolbarButtons = Array.from(panel.querySelectorAll('button')).map(
       el => String((el as HTMLButtonElement).textContent || '').trim(),
     )
     if (!toolbarButtons.includes('Delete') || !toolbarButtons.includes('New Variable') || !toolbarButtons.includes('Edit Key')) {
       throw new Error('expected variable toolbar to expose CRUD controls')
     }
-    suggestionButton.click()
+    suggestionButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
     await tick()
 
-    const applyButton = Array.from(dom.window.document.querySelectorAll('button')).find(
+    const applyButton = Array.from(panel.querySelectorAll('button')).find(
       el => String((el as HTMLButtonElement).textContent || '').trim() === 'Apply',
     ) as HTMLButtonElement | undefined
     if (!applyButton) throw new Error('expected variable toolbar apply button')
-    applyButton.click()
+    applyButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
     await tick()
     await tick()
 
-    const text = String(editor.textContent || '')
+    const editorNow = host.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editorNow) throw new Error('expected contenteditable editor after apply')
+    const text = String(editorNow.textContent || '')
     if (!text.includes('{{venue}}')) throw new Error(`expected apply to insert {{venue}} token; text=${JSON.stringify(text)}`)
     if (text.includes('@ve')) throw new Error(`expected apply to replace @ query trigger; text=${JSON.stringify(text)}`)
 
@@ -160,10 +168,10 @@ export async function testMarkdownViewerInlineEditVariableToolbarDeleteUpdatesFr
         x: 0, y: 0, top: 0, left: 0, right: 320, bottom: 42, width: 320, height: 42, toJSON: () => ({})
       }) as unknown as DOMRect
     host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }))
-    await tick()
+    await tick(3)
     await tick()
 
-    const editor = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
+    const editor = host.querySelector('[contenteditable="true"]') as HTMLElement | null
     if (!editor) throw new Error('expected contenteditable editor')
     ;(dom.window.Range.prototype as unknown as { getBoundingClientRect?: () => DOMRect }).getBoundingClientRect = () =>
       ({ x: 0, y: 0, top: 0, left: 0, right: 80, bottom: 22, width: 80, height: 22, toJSON: () => ({}) }) as unknown as DOMRect
@@ -184,7 +192,7 @@ export async function testMarkdownViewerInlineEditVariableToolbarDeleteUpdatesFr
       el => String((el as HTMLButtonElement).textContent || '').trim() === 'Delete',
     ) as HTMLButtonElement | undefined
     if (!deleteButton) throw new Error('expected delete button')
-    deleteButton.click()
+    deleteButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
     await tick()
     await tick()
 

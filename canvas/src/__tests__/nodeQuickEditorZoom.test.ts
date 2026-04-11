@@ -33,6 +33,9 @@ export async function testNodeQuickEditorScaledSizeShrinksOnZoomOutAndCapsOnZoom
     throw new Error(`expected pinnedInCanvas scale to keep shrinking below minK; got ${sZoomOutHuge}`)
   }
 
-  const sFloating = computeNodeQuickEditorScale(0.2, extent)
-  if (!approxEq(sFloating, 0.2)) throw new Error(`expected floating scale to match pinned scale, got ${sFloating}`)
+  const sFloatingZoomOut = computeNodeQuickEditorScale(0.2, extent, { mode: 'floating' })
+  const sFloatingZoomIn = computeNodeQuickEditorScale(5, extent, { mode: 'floating' })
+  if (!approxEq(sFloatingZoomOut, 1) || !approxEq(sFloatingZoomIn, 1)) {
+    throw new Error(`expected floating scale to stay zoom-invariant at 1, got ${sFloatingZoomOut} and ${sFloatingZoomIn}`)
+  }
 }

@@ -3,7 +3,12 @@ import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { readGlobalEdgeType, type GlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { readGlobalEdgeType, type GlobalEdgeType, withGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import {
+  WORKSPACE_SYNC_SCOPE_RENDERER_EDGE_TYPE_RUNTIME_PERSISTENCE,
+  WORKSPACE_SYNC_TASK_RENDERER_EDGE_TYPE_VIEW_STATE,
+} from '@/lib/async/workspaceSyncKeys'
 
 const EDGE_TYPE_OPTIONS: Array<{ value: GlobalEdgeType; label: string }> = [
   { value: 'bezier', label: 'Bezier (default)' },
@@ -37,19 +42,19 @@ export function EdgeTypesRendererSettings(props: {
   const selectedEdgeType = props.selectedEdgeType ?? edgeType
 
   const setEdgeType = React.useCallback((next: GlobalEdgeType) => {
-    const current = useGraphStore.getState().schema as GraphSchema
-    const layout = current.layout || {}
-    const edges = layout.edges || {}
-    setSchema({
-      ...current,
-      layout: {
-        ...layout,
-        edges: {
-          ...edges,
-          type: next,
-        },
+    scheduleWorkspaceSyncTask(
+      WORKSPACE_SYNC_TASK_RENDERER_EDGE_TYPE_VIEW_STATE,
+      () => {
+        const current = useGraphStore.getState().schema as GraphSchema
+        const nextSchema = withGlobalEdgeType(current, next)
+        if (nextSchema === current) return
+        setSchema(nextSchema)
       },
-    })
+      0,
+      {
+        scopeKey: WORKSPACE_SYNC_SCOPE_RENDERER_EDGE_TYPE_RUNTIME_PERSISTENCE,
+      },
+    )
   }, [setSchema])
 
   const onSelectEdgeType = React.useCallback((next: GlobalEdgeType) => {

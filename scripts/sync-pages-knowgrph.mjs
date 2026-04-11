@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createHash } from 'node:crypto'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -28,26 +29,121 @@ const existsDir = async (dir) => {
   }
 }
 
+const toPosixRel = (rootDir, absolutePath) => path.relative(rootDir, absolutePath).split(path.sep).filter(Boolean).join('/')
+
+const isAllowedRelativePath = (rel) => {
+  if (!rel) return true
+  if (blockedRelativeFiles.has(rel)) return false
+  for (const blocked of blockedRelativeRoots) {
+    if (rel === blocked || rel.startsWith(`${blocked}/`)) return false
+  }
+  return true
+}
+
+const listFiles = async (rootDir) => {
+  const out = []
+  const walk = async (dir) => {
+    const entries = await fs.readdir(dir, { withFileTypes: true })
+    for (const entry of entries) {
+      const abs = path.resolve(dir, entry.name)
+      const rel = toPosixRel(rootDir, abs)
+      if (!isAllowedRelativePath(rel)) continue
+      if (entry.isDirectory()) {
+        await walk(abs)
+        continue
+      }
+      if (entry.isFile()) out.push(rel)
+    }
+  }
+  await walk(rootDir)
+  out.sort((a, b) => a.localeCompare(b))
+  return out
+}
+
+const listAllFiles = async (rootDir) => {
+  const out = []
+  const walk = async (dir) => {
+    const entries = await fs.readdir(dir, { withFileTypes: true })
+    for (const entry of entries) {
+      const abs = path.resolve(dir, entry.name)
+      const rel = toPosixRel(rootDir, abs)
+      if (entry.isDirectory()) {
+        await walk(abs)
+        continue
+      }
+      if (entry.isFile()) out.push(rel)
+    }
+  }
+  await walk(rootDir)
+  return out
+}
+
+const fileHash = async (filePath) => {
+  const buf = await fs.readFile(filePath)
+  return createHash('sha256').update(buf).digest('hex')
+}
+
+const copyIfChanged = async (src, dest) => {
+  let same = false
+  try {
+    const [srcHash, dstHash] = await Promise.all([fileHash(src), fileHash(dest)])
+    same = srcHash === dstHash
+  } catch {
+    same = false
+  }
+  if (same) return false
+  await fs.mkdir(path.dirname(dest), { recursive: true })
+  await fs.copyFile(src, dest)
+  return true
+}
+
+const removeEmptyDirs = async (rootDir) => {
+  const walk = async (dir) => {
+    let entries = []
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      await walk(path.resolve(dir, entry.name))
+    }
+    if (dir === rootDir) return
+    const after = await fs.readdir(dir).catch(() => [])
+    if (after.length === 0) {
+      await fs.rm(dir, { recursive: true, force: true })
+    }
+  }
+  await walk(rootDir)
+}
+
 if (!(await existsDir(distDir))) {
   throw new Error(`Missing build output directory: ${distDir}`)
 }
 
-await fs.rm(targetDir, { recursive: true, force: true })
 await fs.mkdir(targetDir, { recursive: true })
-await fs.cp(distDir, targetDir, {
-  recursive: true,
-  filter: (src) => {
-    const rel = path.relative(distDir, src).split(path.sep).filter(Boolean).join('/')
-    if (!rel) return true
-    if (blockedRelativeFiles.has(rel)) return false
-    for (const blocked of blockedRelativeRoots) {
-      if (rel === blocked || rel.startsWith(`${blocked}/`)) return false
-    }
-    return true
-  },
-})
-await fs.rm(publicRouteDir, { recursive: true, force: true })
-await fs.mkdir(publicRouteDir, { recursive: true })
-await fs.copyFile(path.resolve(targetDir, 'index.html'), path.resolve(publicRouteDir, 'index.html'))
+const sourceFiles = await listFiles(distDir)
+const sourceSet = new Set(sourceFiles)
+let copiedCount = 0
+for (const rel of sourceFiles) {
+  const src = path.resolve(distDir, rel)
+  const dst = path.resolve(targetDir, rel)
+  const copied = await copyIfChanged(src, dst)
+  if (copied) copiedCount += 1
+}
 
-console.log(`[knowgrph] synced ${distDir} -> ${targetDir}`)
+if (await existsDir(targetDir)) {
+  const targetFiles = await listAllFiles(targetDir)
+  for (const rel of targetFiles) {
+    if (sourceSet.has(rel)) continue
+    await fs.rm(path.resolve(targetDir, rel), { force: true })
+  }
+  await removeEmptyDirs(targetDir)
+}
+
+await fs.mkdir(publicRouteDir, { recursive: true })
+const publicIndex = path.resolve(publicRouteDir, 'index.html')
+const copiedPublicIndex = await copyIfChanged(path.resolve(targetDir, 'index.html'), publicIndex)
+
+console.log(`[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, publicIndexUpdated=${copiedPublicIndex ? 'yes' : 'no'})`)

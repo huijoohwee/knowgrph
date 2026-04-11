@@ -107,11 +107,71 @@ export async function testMarkdownViewerInlineEditToolbarTextColorAppliesInHtmlM
     redBtn.click()
     await tick(3)
 
-    const sigilSpan = dom.window.document.querySelector('[data-kg-sigil="1"]') as HTMLElement | null
-    if (!sigilSpan) throw new Error('expected sigil span to be inserted')
-    if (sigilSpan.textContent !== 'Hello') throw new Error('expected sigil span to wrap selected text')
-    const color = (sigilSpan.style.color || '').toUpperCase()
-    if (!color) throw new Error('expected sigil span to have color style')
+    const editorAfterClick = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editorAfterClick) throw new Error('expected toolbar color action not to bounce out of inline edit')
+    const toolbarAfterClick = dom.window.document.querySelector('menu[aria-label="Inline selection toolbar"]') as HTMLElement | null
+    if (!toolbarAfterClick) throw new Error('expected inline selection toolbar to remain available after text color action')
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerInlineEditShowsSigilColorAsStyledTextNotCode() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+    const reactDomClient = await import('react-dom/client')
+    const root = reactDomClient.createRoot(container)
+    const mod = await import('@/features/markdown/ui/MarkdownBlockContainer')
+    const MarkdownBlockContainer = mod.MarkdownBlockContainer
+
+    root.render(
+      <MarkdownBlockContainer
+        as="p"
+        className="mt-2 mb-2 text-sm"
+        highlightClass=""
+        startLine={1}
+        endLine={1}
+        inlineEditable
+        sourceLines={['`#EF4444|bg#FEF08A:Hello` world']}
+        onReplaceLineRange={() => {}}
+        editPresentation="html"
+        editHtmlRender="inline"
+      >
+        <span>Hello world</span>
+      </MarkdownBlockContainer>,
+    )
+
+    await tick(2)
+
+    const host = dom.window.document.querySelector('p') as HTMLElement | null
+    if (!host) throw new Error('expected host p')
+    host.getBoundingClientRect = () => {
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 320,
+        bottom: 42,
+        width: 320,
+        height: 42,
+        toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+    host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }))
+    await tick(3)
+
+    const editor = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error('expected contenteditable editor')
+    const sigilSpan = editor.querySelector('[data-kg-sigil="1"]') as HTMLElement | null
+    if (!sigilSpan) throw new Error('expected sigil text to render as styled normal text in editor')
+    if ((sigilSpan.textContent || '').trim() !== 'Hello') throw new Error('expected styled sigil text content')
+    const codeLike = Array.from(editor.querySelectorAll('code')).find(n => (n.textContent || '').includes('#EF4444'))
+    if (codeLike) throw new Error('expected editor not to show sigil as inline code token')
 
     root.unmount()
   } finally {

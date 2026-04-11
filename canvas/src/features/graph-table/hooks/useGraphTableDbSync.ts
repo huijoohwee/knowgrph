@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react'
 import { syncGraphDataToGraphTableDb } from '@/features/graph-table-db/graphTableDb'
 import type { GraphData } from '@/lib/graph/types'
 import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import { WORKSPACE_SYNC_SCOPE_GRAPH_TABLE_RUNTIME_PERSISTENCE } from '@/lib/async/workspaceSyncKeys'
 
 type UseGraphTableDbSyncResult = {
   noteGraphWrite: (nextGraphRevision: number) => void
@@ -40,6 +41,11 @@ const toSyncTaskKey = (viewKey: string): string => {
   return `graph-table:runtime-persistence-sync:${key}`
 }
 
+const toSyncScopeKey = (viewKey: string): string => {
+  const key = String(viewKey || '').trim() || 'default'
+  return `${WORKSPACE_SYNC_SCOPE_GRAPH_TABLE_RUNTIME_PERSISTENCE}:${key}`
+}
+
 const scheduleGraphTableSync = (viewKey: string, gate: SyncGate) => {
   const taskKey = toSyncTaskKey(viewKey)
   const revisionSignature = String(gate.latestRevision)
@@ -72,7 +78,10 @@ const scheduleGraphTableSync = (viewKey: string, gate: SyncGate) => {
         if (gate.latestRevision === gate.lastSyncedRevision) return
         scheduleGraphTableSync(viewKey, gate)
       })
-  }, 140, { signature: revisionSignature })
+  }, 140, {
+    signature: revisionSignature,
+    scopeKey: toSyncScopeKey(viewKey),
+  })
 }
 
 export const useGraphTableDbSync = (

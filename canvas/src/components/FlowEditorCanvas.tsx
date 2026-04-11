@@ -68,6 +68,7 @@ import { buildFlowHandleId, computeFlowHandlesByNode } from '@/components/FlowCa
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT, FLOW_EDITOR_OVERLAY_ROOT_SELECTOR } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { readSubgraphs, subgraphGroupId } from '@/lib/graph/subgraphs'
 import { buildEdgePathD, readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
 
 type ToolMode = 'select' | 'addEdge'
 
@@ -84,6 +85,60 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 function pickString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : ''
+}
+
+function snapToGridPx(value: number, stepPx: number): number {
+  if (!Number.isFinite(value)) return 0
+  const step = Number.isFinite(stepPx) ? Math.max(1, Math.floor(stepPx)) : 1
+  if (step <= 1) return value
+  return Math.round(value / step) * step
+}
+
+function readQuickEditorGridLayoutSettings(schema: unknown): { gridEnabled: boolean; stepPx: number; gapPx: number } {
+  const behavior =
+    schema && typeof schema === 'object' && !Array.isArray(schema)
+      ? ((schema as { behavior?: unknown }).behavior as Record<string, unknown> | undefined)
+      : undefined
+  const snapGrid =
+    behavior && typeof behavior.snapGrid === 'object' && behavior.snapGrid !== null
+      ? (behavior.snapGrid as Record<string, unknown>)
+      : null
+  const canvasGrid =
+    behavior && typeof behavior.canvasGrid === 'object' && behavior.canvasGrid !== null
+      ? (behavior.canvasGrid as Record<string, unknown>)
+      : null
+  const snapEnabled = snapGrid?.enabled === true
+  const canvasEnabled = canvasGrid?.enabled === true
+  const gridEnabled = snapEnabled || canvasEnabled
+  const snapSizeRaw = typeof snapGrid?.size === 'number' && Number.isFinite(snapGrid.size) ? snapGrid.size : 20
+  const snapSize = Math.max(6, Math.min(160, Math.floor(snapSizeRaw)))
+  const majorEveryRaw = typeof canvasGrid?.majorEvery === 'number' && Number.isFinite(canvasGrid.majorEvery) ? canvasGrid.majorEvery : 5
+  const majorEvery = Math.max(2, Math.min(20, Math.floor(majorEveryRaw)))
+  const stepPx = gridEnabled ? (snapEnabled ? snapSize : Math.max(8, Math.min(200, snapSize * majorEvery))) : 1
+  const gapPx = gridEnabled ? Math.max(12, Math.min(80, Math.round(stepPx * 0.8))) : 12
+  return { gridEnabled, stepPx, gapPx }
+}
+
+function deriveFlowEditorViewGraph(args: {
+  graphData: GraphData | null
+  frontmatterModeEnabled: boolean
+  documentSemanticMode: string
+  documentStructureBaselineLock: boolean
+  collapsedGroupIds: string[]
+}): GraphData | null {
+  const base = args.graphData
+  if (!base) return null
+  const effectiveFrontmatter = computeEffectiveFrontmatterMode({
+    frontmatterModeEnabled: args.frontmatterModeEnabled === true && args.documentStructureBaselineLock !== true,
+    documentSemanticMode: args.documentSemanticMode,
+    graphData: base,
+  })
+  const filtered = effectiveFrontmatter ? filterGraphToFrontmatterFlow(base) : base
+  if (!Array.isArray(args.collapsedGroupIds) || args.collapsedGroupIds.length === 0) return filtered
+  return deriveGraphDataWithGroupCollapse({
+    graphData: filtered,
+    collapsedGroupIds: args.collapsedGroupIds,
+  })
 }
 
 const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuickEditorOverlay(args: {
@@ -238,6 +293,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const selectedNodeId = useGraphStore(s => (typeof s.selectedNodeId === 'string' ? s.selectedNodeId : null))
   const selectedNodeIds = useGraphStore(s => (Array.isArray(s.selectedNodeIds) ? s.selectedNodeIds : []))
   const selectedEdgeId = useGraphStore(s => (typeof s.selectedEdgeId === 'string' ? s.selectedEdgeId : null))
+  const flowNodeQuickEditorPinnedByNodeId = useGraphStore(s => s.flowNodeQuickEditorPinnedByNodeId || {})
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const selectNode = useGraphStore(s => s.selectNode)
   const selectEdge = useGraphStore(s => s.selectEdge)
@@ -264,25 +320,23 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   }, [storeRenderGraphData])
   const keywordModeActive = documentSemanticMode === 'keyword' || storeRenderGraphKind === 'keyword'
   const canEdit = active && !keywordModeActive
+  const collapsedGroupIdsKey = React.useMemo(() => buildCollapsedGroupIdsKey(collapsedGroupIds), [collapsedGroupIds])
+  const collapsedGroupIdsForView = React.useMemo(
+    () => (collapsedGroupIdsKey ? collapsedGroupIdsKey.split('|').filter(Boolean) : []),
+    [collapsedGroupIdsKey],
+  )
   const zoomGraphData = React.useMemo((): GraphData | null => {
     if (keywordModeActive) return (storeRenderGraphData || null) as GraphData | null
-    const base = (baseGraphData || null) as GraphData | null
-    if (!base) return null
-    const effectiveFrontmatter = computeEffectiveFrontmatterMode({
-      frontmatterModeEnabled: frontmatterModeEnabled === true && documentStructureBaselineLock !== true,
+    return deriveFlowEditorViewGraph({
+      graphData: (baseGraphData || null) as GraphData | null,
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
       documentSemanticMode,
-      graphData: base,
-    })
-    const frontmatterFiltered = effectiveFrontmatter ? filterGraphToFrontmatterFlow(base) : base
-    const collapsedKey = buildCollapsedGroupIdsKey(collapsedGroupIds)
-    if (!collapsedKey) return frontmatterFiltered
-    return deriveGraphDataWithGroupCollapse({
-      graphData: frontmatterFiltered,
-      collapsedGroupIds: collapsedKey.split('|').filter(Boolean),
+      documentStructureBaselineLock,
+      collapsedGroupIds: collapsedGroupIdsForView,
     })
   }, [
     baseGraphData,
-    collapsedGroupIds,
+    collapsedGroupIdsForView,
     documentSemanticMode,
     documentStructureBaselineLock,
     frontmatterModeEnabled,
@@ -315,8 +369,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     schema,
     zoomGraphData,
   ])
-
-  const collapsedGroupIdsKey = React.useMemo(() => buildCollapsedGroupIdsKey(collapsedGroupIds), [collapsedGroupIds])
 
   const zoomViewKeyRef = React.useRef<string | null>(zoomViewKey)
   React.useEffect(() => {
@@ -462,11 +514,14 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const zoomK = typeof z.k === 'number' && Number.isFinite(z.k) ? z.k : 1
     const panelScale = computeNodeQuickEditorScale(zoomK, null, { mode: 'pinnedInCanvas' })
     const panelScreen = computeNodeQuickEditorScaledSize(panelScale)
+    const quickEditorGrid = readQuickEditorGridLayoutSettings(schema)
 
-    const GAP_SCREEN_PX = 24
+    const GAP_SCREEN_PX = Math.max(24, quickEditorGrid.gapPx)
     const gapWorld = GAP_SCREEN_PX / Math.max(0.001, zoomK)
     const cellW = (panelScreen.width + GAP_SCREEN_PX) / Math.max(0.001, zoomK)
     const cellH = (panelScreen.height + GAP_SCREEN_PX) / Math.max(0.001, zoomK)
+    const worldStep = quickEditorGrid.gridEnabled ? Math.max(1, quickEditorGrid.stepPx) : 1
+    const snapWorld = (v: number) => (worldStep > 1 ? snapToGridPx(v, worldStep) : v)
 
     const cols = Math.max(1, Math.ceil(Math.sqrt(pending.length)))
     const rows = Math.max(1, Math.ceil(pending.length / cols))
@@ -474,18 +529,23 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const gridH = rows * cellH - gapWorld
 
     const center = viewportCenterToWorld({ transform: z, viewportW, viewportH })
-    const startX = center.x - gridW / 2
-    const startY = center.y - gridH / 2
+    const startX = snapWorld(center.x - gridW / 2)
+    const startY = snapWorld(center.y - gridH / 2)
 
     const nextWorld = { ...worldById }
+    let changed = false
     for (let i = 0; i < pending.length; i += 1) {
       const id = pending[i]!
       const col = i % cols
       const row = Math.floor(i / cols)
-      nextWorld[id] = { x: startX + col * cellW, y: startY + row * cellH }
+      const next = { x: snapWorld(startX + col * cellW), y: snapWorld(startY + row * cellH) }
+      const prev = worldById[id]
+      if (!prev || Math.abs(prev.x - next.x) > 0.0001 || Math.abs(prev.y - next.y) > 0.0001) changed = true
+      nextWorld[id] = next
     }
+    if (!changed) return
     st.setFlowNodeQuickEditorWorldPosByNodeId(nextWorld)
-  }, [active, baseGraphDataRevision, getLiveZoomTransform, openQuickEditorNodeIds, viewportH, viewportW])
+  }, [active, baseGraphDataRevision, getLiveZoomTransform, openQuickEditorNodeIds, schema, viewportH, viewportW])
 
   const emitFlowEditorInteractionFrame = React.useCallback(() => {
     if (typeof window === 'undefined') return
@@ -566,23 +626,15 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   const renderGraphDataOverride = React.useMemo((): GraphData | null => {
     if (keywordModeActive) return (storeRenderGraphData || null) as GraphData | null
-    if (!draftGraphData) return null
-
-    const effectiveFrontmatter = computeEffectiveFrontmatterMode({
-      frontmatterModeEnabled: frontmatterModeEnabled === true && documentStructureBaselineLock !== true,
-      documentSemanticMode,
+    return deriveFlowEditorViewGraph({
       graphData: draftGraphData,
-    })
-
-    const base = effectiveFrontmatter ? filterGraphToFrontmatterFlow(draftGraphData) : draftGraphData
-    if (!collapsedGroupIdsKey) return base
-
-    return deriveGraphDataWithGroupCollapse({
-      graphData: base,
-      collapsedGroupIds: collapsedGroupIdsKey.split('|').filter(Boolean),
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
+      documentSemanticMode,
+      documentStructureBaselineLock,
+      collapsedGroupIds: collapsedGroupIdsForView,
     })
   }, [
-    collapsedGroupIdsKey,
+    collapsedGroupIdsForView,
     documentSemanticMode,
     documentStructureBaselineLock,
     draftGraphData,
@@ -620,8 +672,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const overlayCollisionIterCountRef = React.useRef<number>(0)
   const overlayCollisionWarmupStartedAtMsRef = React.useRef<number | null>(null)
   const overlayCollisionWarmupAttemptsRef = React.useRef<number>(0)
-  const overlayCollisionZoomDebounceRef = React.useRef<number | null>(null)
-  const overlayCollisionLastZoomKRef = React.useRef<number | null>(null)
 
   const scheduleOverlayCollisionResolve = React.useCallback(() => {
     if (!active) return
@@ -729,17 +779,17 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       }
 
       const schemaCur = schema
-      const panelScale = computeNodeQuickEditorScale(zoomK, null, { mode: 'pinnedInCanvas' })
+      const panelScale = computeNodeQuickEditorScale(zoomK, null, { mode: 'floating' })
       const floatingScaled = computeNodeQuickEditorScaledSize(panelScale)
 
       const pinnedById = st.flowNodeQuickEditorPinnedByNodeId || {}
       const posById = st.flowNodeQuickEditorPosByNodeId || {}
 
-      const forcePinnedToCanvas = false
+      const forcePinnedToCanvas = true
       const isPinnedInCanvas = (id: string): boolean => {
-        if (forcePinnedToCanvas) return true
+        if (forcePinnedToCanvas) return false
         const v = pinnedById[id]
-        return typeof v === 'boolean' ? v : true
+        return typeof v === 'boolean' ? v : false
       }
 
       const rectByNodeId = (() => {
@@ -803,8 +853,13 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const overlay = flow && typeof flow === 'object' ? (flow as { overlay?: { collisionGapPx?: unknown } }).overlay : null
         const raw = overlay ? overlay.collisionGapPx : null
         const base = typeof raw === 'number' && Number.isFinite(raw) ? raw : 12
-        return Math.max(0, Math.min(40, Math.floor(base)))
+        const quickEditorGrid = readQuickEditorGridLayoutSettings(schemaCur)
+        const merged = quickEditorGrid.gridEnabled ? Math.max(base, quickEditorGrid.gapPx) : base
+        return Math.max(0, Math.min(80, Math.floor(merged)))
       })()
+      const quickEditorGrid = readQuickEditorGridLayoutSettings(schemaCur)
+      const snapStepPx = quickEditorGrid.gridEnabled ? Math.max(1, quickEditorGrid.stepPx) : 1
+      const snapScreen = (v: number): number => (snapStepPx > 1 ? snapToGridPx(v, snapStepPx) : v)
 
       const unpinnedCount = overlayNodeIds.reduce((acc, id) => {
         if (!id) return acc
@@ -813,8 +868,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       }, 0)
 
       const cellSize = {
-        width: typicalSize.width + gapPx,
-        height: Math.round(typicalSize.height * 0.76) + gapPx,
+        width: Math.max(1, snapScreen(typicalSize.width + gapPx)),
+        height: Math.max(1, snapScreen(Math.round(typicalSize.height * 0.76) + gapPx)),
       }
 
       const marginLeft = isFrontmatterFlow ? Math.max(20, Math.floor(overlayViewport.width * 0.1)) : 20
@@ -832,7 +887,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       let dockLeft = Math.max(marginLeft, overlayViewport.width - marginRight - dockWidth)
       let dockTop = marginTop
 
-      if (isFrontmatterFlow) {
+      if (isFrontmatterFlow || quickEditorGrid.gridEnabled) {
         const aspect = usableW / Math.max(1, usableH)
         let cols = Math.max(1, Math.min(colsMaxFit, Math.ceil(Math.sqrt(Math.max(1, unpinnedCount) * aspect))))
         let rows = Math.max(1, Math.ceil(Math.max(1, unpinnedCount) / cols))
@@ -885,8 +940,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             : top >= marginTop - 12 && top <= overlayViewport.height - marginBottom - 12
           return okX && okY ? (stored as { top: number; left: number }) : fallback
         })()
+        const snappedBase = snapStepPx > 1 ? { left: snapScreen(base.left), top: snapScreen(base.top) } : base
         const clamped = clampOverlayTopLeftFullyInViewport({
-          pos: base,
+          pos: snappedBase,
           size: rect ? { width: rect.width, height: rect.height } : floatingScaled,
           viewport: { width: overlayViewport.width, height: overlayViewport.height },
           snapPx: 1,
@@ -1053,12 +1109,21 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const out: Array<{ id: string; left: number; top: number; width: number; height: number; movable: boolean }> = []
         for (let i = 0; i < world.length; i += 1) {
           const it = world[i]
-          const clamped = clampOverlayTopLeftFullyInViewport({
+          const clamped0 = clampOverlayTopLeftFullyInViewport({
             pos: { top: it.top, left: it.left },
             size: { width: it.width, height: it.height },
             viewport: { width: overlayViewport.width, height: overlayViewport.height },
             snapPx: 1,
           })
+          const snapped = snapStepPx > 1 ? { left: snapScreen(clamped0.left), top: snapScreen(clamped0.top) } : clamped0
+          const clamped = snapStepPx > 1
+            ? clampOverlayTopLeftFullyInViewport({
+                pos: snapped,
+                size: { width: it.width, height: it.height },
+                viewport: { width: overlayViewport.width, height: overlayViewport.height },
+                snapPx: 1,
+              })
+            : clamped0
           out.push({ ...it, left: clamped.left, top: clamped.top })
         }
         return out
@@ -1196,46 +1261,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (!active) return
     scheduleOverlayCollisionResolve()
   }, [active, openQuickEditorNodeIds, overlayOnlyModeEnabled, scheduleOverlayCollisionResolve, viewportH, viewportW])
-
-  React.useEffect(() => {
-    if (!active) return
-    if (typeof window === 'undefined') return
-    const onInteractionFrame = () => {
-      const live = getLiveZoomTransform()
-      const k = typeof live?.k === 'number' && Number.isFinite(live.k) ? live.k : null
-      if (k == null) return
-      const prev = overlayCollisionLastZoomKRef.current
-      overlayCollisionLastZoomKRef.current = k
-      if (prev != null && Math.abs(prev - k) < 1e-6) return
-      if (overlayCollisionZoomDebounceRef.current != null) {
-        try {
-          window.clearTimeout(overlayCollisionZoomDebounceRef.current)
-        } catch {
-          void 0
-        }
-      }
-      overlayCollisionZoomDebounceRef.current = window.setTimeout(() => {
-        overlayCollisionZoomDebounceRef.current = null
-        scheduleOverlayCollisionResolve()
-      }, 120)
-    }
-    window.addEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onInteractionFrame as EventListener)
-    return () => {
-      try {
-        window.removeEventListener(FLOW_EDITOR_INTERACTION_FRAME_EVENT, onInteractionFrame as EventListener)
-      } catch {
-        void 0
-      }
-      if (typeof window !== 'undefined' && overlayCollisionZoomDebounceRef.current != null) {
-        try {
-          window.clearTimeout(overlayCollisionZoomDebounceRef.current)
-        } catch {
-          void 0
-        }
-        overlayCollisionZoomDebounceRef.current = null
-      }
-    }
-  }, [active, getLiveZoomTransform, scheduleOverlayCollisionResolve])
 
   React.useEffect(() => {
     return () => {
@@ -1549,11 +1574,11 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const anchorCacheKey = `${args.nodeId}|${args.dir}|${portKey}`
         if (el && portKey) {
           const baseSel = `[data-kg-port-handle="1"][data-kg-port-dir="${args.dir}"][data-kg-port-key="${esc(portKey)}"]`
-          const btn =
-            (el.querySelector(`button${baseSel}[data-kg-port-handle-kind="rail"]`) as HTMLElement | null)
-            || (el.querySelector(`button${baseSel}[data-kg-port-handle-kind="dot"]`) as HTMLElement | null)
-            || (el.querySelector(`button${baseSel}`) as HTMLElement | null)
-          if (btn) {
+          const dotBtn = el.querySelector(`button${baseSel}[data-kg-port-handle-kind="dot"]`) as HTMLElement | null
+          const railBtn = el.querySelector(`button${baseSel}[data-kg-port-handle-kind="rail"]`) as HTMLElement | null
+          const fallbackBtn = el.querySelector(`button${baseSel}`) as HTMLElement | null
+          const resolveFromButton = (btn: HTMLElement | null): { x: number; y: number } | null => {
+            if (!btn) return null
             const dotEl = btn.querySelector('span') as HTMLElement | null
             const r = dotEl ? dotEl.getBoundingClientRect() : btn.getBoundingClientRect()
             const x = Number.isFinite(r.left) && Number.isFinite(r.width)
@@ -1562,9 +1587,29 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
                 ? r.right
                 : r.left
             const y = r.top + r.height / 2
-            if (Number.isFinite(x) && Number.isFinite(y)) {
-              overlayEdgeAnchorCacheRef.current.set(anchorCacheKey, { x, y })
-              return { x, y }
+            if (!Number.isFinite(x) || !Number.isFinite(y)) return null
+            return { x, y }
+          }
+          const panelRect = el.getBoundingClientRect()
+          const dotAnchor = resolveFromButton(dotBtn)
+          const dotVisible = !!(
+            dotAnchor
+            && Number.isFinite(panelRect.top)
+            && Number.isFinite(panelRect.bottom)
+            && dotAnchor.y >= panelRect.top
+            && dotAnchor.y <= panelRect.bottom
+          )
+          const railAnchor = resolveFromButton(railBtn)
+          const fallbackAnchor = resolveFromButton(fallbackBtn)
+          const nextAnchor = (dotVisible ? dotAnchor : null) || railAnchor || dotAnchor || fallbackAnchor
+          if (nextAnchor) {
+            const clampedY = Number.isFinite(args.fallbackRect.top) && Number.isFinite(args.fallbackRect.height) && args.fallbackRect.height > 0
+              ? Math.max(args.fallbackRect.top, Math.min(args.fallbackRect.top + args.fallbackRect.height, nextAnchor.y))
+              : nextAnchor.y
+            const resolved = { x: nextAnchor.x, y: clampedY }
+            if (Number.isFinite(resolved.x) && Number.isFinite(resolved.y)) {
+              overlayEdgeAnchorCacheRef.current.set(anchorCacheKey, resolved)
+              return resolved
             }
           }
         }
@@ -2283,8 +2328,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const nextEdges = (draftGraphData.edges || []).filter(e => {
       const id = String(e.id || '')
       if (edgeIdSet.has(id)) return false
-      const src = String(e.source || '')
-      const tgt = String(e.target || '')
+      const src = readEdgeEndpointId(e.source)
+      const tgt = readEdgeEndpointId(e.target)
       if (!src || !tgt) return false
       if (nodeIdSet.has(src) || nodeIdSet.has(tgt)) return false
       return true
@@ -2308,8 +2353,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const nodeIdSet = new Set([id])
       const nextNodes = (draftGraphData.nodes || []).filter(n => !nodeIdSet.has(String(n.id || '')))
       const nextEdges = (draftGraphData.edges || []).filter(e => {
-        const src = String(e.source || '')
-        const tgt = String(e.target || '')
+        const src = readEdgeEndpointId(e.source)
+        const tgt = readEdgeEndpointId(e.target)
         if (!src || !tgt) return false
         if (nodeIdSet.has(src) || nodeIdSet.has(tgt)) return false
         return true
@@ -3059,7 +3104,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       if (!nodeById.has(id)) nodeById.set(id, n)
     }
     const graphMetaKind = String(((renderGraphDataOverride?.metadata || {}) as Record<string, unknown>).kind || '').trim() || null
-    const forcePinnedToCanvas = false
+    const forcePinnedToCanvas = true
     const resolveNode = (id: string) => {
       const found = nodeById.get(id) || null
       if (found) return found
@@ -3101,7 +3146,20 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             onPatchProperties={(patch) => patchNodePropertiesById(id, patch)}
             onSetProperties={(props) => setNodePropertiesById(id, props)}
             onValidate={() => validateNodeById(id)}
-            onDuplicate={() => duplicateNodeById(id)}
+            onDuplicate={() => {
+              const pinnedMap = flowNodeQuickEditorPinnedByNodeId || {}
+              const pinned = forcePinnedToCanvas === true || pinnedMap[id] === true
+              if (pinned) {
+                upsertUiToast({
+                  id: `flow-editor-node-duplicate-disabled-${id}`,
+                  kind: 'warning',
+                  message: 'Pinned quick editor blocks duplicate copy.',
+                  ttlMs: 2200,
+                })
+                return
+              }
+              duplicateNodeById(id)
+            }}
             onRemove={() => removeNodeById(id)}
             onClearOutput={() => clearNodeOutputById(id)}
             onHelp={showNodeEditorHelp}
@@ -3134,6 +3192,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     patchNodePropertiesById,
     pendingEdgeSourceId,
     pendingOverlayNode,
+    flowNodeQuickEditorPinnedByNodeId,
     removeNodeById,
     renameSchemaFieldIdByNodeId,
     scheduleOverlayCollisionResolve,
@@ -3141,6 +3200,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     setNodePropertiesById,
     setNodeTypeById,
     showNodeEditorHelp,
+    upsertUiToast,
     toolMode,
     validateNodeById,
     viewportH,

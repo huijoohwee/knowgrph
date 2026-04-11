@@ -4,6 +4,12 @@ import { LS_KEYS } from '@/lib/config'
 import { lsInt, lsJson, lsSetInt, lsSetJson } from '@/lib/persistence'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import {
+  WORKSPACE_SYNC_SCOPE_FLOW_QUICK_EDITOR_RUNTIME_PERSISTENCE,
+  WORKSPACE_SYNC_TASK_FLOW_QUICK_EDITOR_VIEW_STATE,
+} from '@/lib/async/workspaceSyncKeys'
+import { hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -23,6 +29,139 @@ const normalizeOpenQuickEditorNodeIds = (ids: string[], graphData: GraphState['g
   if (!graphData) return normalized
   const nodeIds = new Set<string>((graphData.nodes || []).map(n => String(n.id || '')).filter(Boolean))
   return normalized.filter(id => nodeIds.has(id))
+}
+
+const FLOW_QUICK_EDITOR_PERSIST_DELAY_MS = 90
+
+type QuickEditorPinnedByGraphMap = Record<string, Record<string, boolean>>
+type QuickEditorPosByGraphMap = Record<string, Record<string, { top: number; left: number }>>
+type QuickEditorWorldByGraphMap = Record<string, Record<string, { x: number; y: number }>>
+
+const normalizePinnedByNodeId = (source: Record<string, boolean> | null | undefined): Record<string, boolean> => {
+  if (!source || typeof source !== 'object') return {}
+  const out: Record<string, boolean> = {}
+  for (const [k, v] of Object.entries(source)) {
+    const key = String(k || '').trim()
+    if (!key) continue
+    out[key] = !!v
+  }
+  return out
+}
+
+const normalizePosByNodeId = (
+  source: Record<string, { top: number; left: number }> | null | undefined,
+): Record<string, { top: number; left: number }> => {
+  if (!source || typeof source !== 'object') return {}
+  const out: Record<string, { top: number; left: number }> = {}
+  for (const [k, v] of Object.entries(source)) {
+    const key = String(k || '').trim()
+    const top = typeof v?.top === 'number' && Number.isFinite(v.top) ? v.top : null
+    const left = typeof v?.left === 'number' && Number.isFinite(v.left) ? v.left : null
+    if (!key || top == null || left == null) continue
+    out[key] = { top, left }
+  }
+  return out
+}
+
+const normalizeWorldByNodeId = (
+  source: Record<string, { x: number; y: number }> | null | undefined,
+): Record<string, { x: number; y: number }> => {
+  if (!source || typeof source !== 'object') return {}
+  const out: Record<string, { x: number; y: number }> = {}
+  for (const [k, v] of Object.entries(source)) {
+    const key = String(k || '').trim()
+    const x = typeof v?.x === 'number' && Number.isFinite(v.x) ? v.x : null
+    const y = typeof v?.y === 'number' && Number.isFinite(v.y) ? v.y : null
+    if (!key || x == null || y == null) continue
+    out[key] = { x, y }
+  }
+  return out
+}
+
+const isSamePinnedByNodeId = (a: Record<string, boolean>, b: Record<string, boolean>): boolean => {
+  const aKeys = Object.keys(a)
+  const bKeys = Object.keys(b)
+  if (aKeys.length !== bKeys.length) return false
+  for (let i = 0; i < aKeys.length; i += 1) {
+    const key = aKeys[i]
+    if (!Object.prototype.hasOwnProperty.call(b, key)) return false
+    if (!!a[key] !== !!b[key]) return false
+  }
+  return true
+}
+
+const isSamePosByNodeId = (
+  a: Record<string, { top: number; left: number }>,
+  b: Record<string, { top: number; left: number }>,
+): boolean => {
+  const aKeys = Object.keys(a)
+  const bKeys = Object.keys(b)
+  if (aKeys.length !== bKeys.length) return false
+  for (let i = 0; i < aKeys.length; i += 1) {
+    const key = aKeys[i]
+    if (!Object.prototype.hasOwnProperty.call(b, key)) return false
+    const av = a[key]
+    const bv = b[key]
+    if (!av || !bv) return false
+    if (av.top !== bv.top || av.left !== bv.left) return false
+  }
+  return true
+}
+
+const isSameWorldByNodeId = (
+  a: Record<string, { x: number; y: number }>,
+  b: Record<string, { x: number; y: number }>,
+): boolean => {
+  const aKeys = Object.keys(a)
+  const bKeys = Object.keys(b)
+  if (aKeys.length !== bKeys.length) return false
+  for (let i = 0; i < aKeys.length; i += 1) {
+    const key = aKeys[i]
+    if (!Object.prototype.hasOwnProperty.call(b, key)) return false
+    const av = a[key]
+    const bv = b[key]
+    if (!av || !bv) return false
+    if (av.x !== bv.x || av.y !== bv.y) return false
+  }
+  return true
+}
+
+let pendingFlowQuickEditorPersistence: {
+  pinnedByGraph?: QuickEditorPinnedByGraphMap
+  posByGraph?: QuickEditorPosByGraphMap
+  worldByGraph?: QuickEditorWorldByGraphMap
+} = {}
+
+const scheduleFlowQuickEditorPersistence = (patch: {
+  pinnedByGraph?: QuickEditorPinnedByGraphMap
+  posByGraph?: QuickEditorPosByGraphMap
+  worldByGraph?: QuickEditorWorldByGraphMap
+}): void => {
+  if (patch.pinnedByGraph) pendingFlowQuickEditorPersistence.pinnedByGraph = patch.pinnedByGraph
+  if (patch.posByGraph) pendingFlowQuickEditorPersistence.posByGraph = patch.posByGraph
+  if (patch.worldByGraph) pendingFlowQuickEditorPersistence.worldByGraph = patch.worldByGraph
+
+  const signature = hashSignatureParts([
+    pendingFlowQuickEditorPersistence.pinnedByGraph ? hashRecordSignature(pendingFlowQuickEditorPersistence.pinnedByGraph, { maxEntries: 36 }) : '',
+    pendingFlowQuickEditorPersistence.posByGraph ? hashRecordSignature(pendingFlowQuickEditorPersistence.posByGraph, { maxEntries: 36 }) : '',
+    pendingFlowQuickEditorPersistence.worldByGraph ? hashRecordSignature(pendingFlowQuickEditorPersistence.worldByGraph, { maxEntries: 36 }) : '',
+  ])
+
+  scheduleWorkspaceSyncTask(
+    WORKSPACE_SYNC_TASK_FLOW_QUICK_EDITOR_VIEW_STATE,
+    () => {
+      const pending = pendingFlowQuickEditorPersistence
+      pendingFlowQuickEditorPersistence = {}
+      if (pending.pinnedByGraph) lsSetJson(LS_KEYS.flowNodeQuickEditorPinnedByGraphMetaKey, pending.pinnedByGraph)
+      if (pending.posByGraph) lsSetJson(LS_KEYS.flowNodeQuickEditorPosByGraphMetaKey, pending.posByGraph)
+      if (pending.worldByGraph) lsSetJson(LS_KEYS.flowNodeQuickEditorWorldPosByGraphMetaKey, pending.worldByGraph)
+    },
+    FLOW_QUICK_EDITOR_PERSIST_DELAY_MS,
+    {
+      signature,
+      scopeKey: WORKSPACE_SYNC_SCOPE_FLOW_QUICK_EDITOR_RUNTIME_PERSISTENCE,
+    },
+  )
 }
 
 export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
@@ -200,17 +339,24 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
   ),
   setFlowNodeQuickEditorPinnedByNodeId: (pinnedById: Record<string, boolean>) => {
     const state = get()
+    const nextPinnedById = normalizePinnedByNodeId(pinnedById)
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
     const by = state.flowNodeQuickEditorPinnedByNodeIdByGraphMetaKey || {}
-    const nextBy = graphKey ? { ...by, [graphKey]: pinnedById || {} } : by
+    const prevPinnedById = state.flowNodeQuickEditorPinnedByNodeId || {}
+    const prevGraphPinnedById = graphKey ? (by[graphKey] || {}) : prevPinnedById
+    const sameGlobal = isSamePinnedByNodeId(prevPinnedById, nextPinnedById)
+    const sameForGraph = isSamePinnedByNodeId(prevGraphPinnedById, nextPinnedById)
+    if (sameGlobal && sameForGraph) return
+    const nextBy = graphKey ? { ...by, [graphKey]: nextPinnedById } : by
     if (graphKey) {
       set({
-        flowNodeQuickEditorPinnedByNodeId: pinnedById || {},
-        flowNodeQuickEditorPinnedByNodeIdByGraphMetaKey: lsSetJson(LS_KEYS.flowNodeQuickEditorPinnedByGraphMetaKey, nextBy),
+        flowNodeQuickEditorPinnedByNodeId: nextPinnedById,
+        flowNodeQuickEditorPinnedByNodeIdByGraphMetaKey: nextBy,
       })
+      scheduleFlowQuickEditorPersistence({ pinnedByGraph: nextBy })
       return
     }
-    set({ flowNodeQuickEditorPinnedByNodeId: pinnedById || {} })
+    set({ flowNodeQuickEditorPinnedByNodeId: nextPinnedById })
   },
   flowNodeQuickEditorPosByNodeIdByGraphMetaKey: lsJson<Record<string, Record<string, { top: number; left: number }>>>(
     LS_KEYS.flowNodeQuickEditorPosByGraphMetaKey,
@@ -244,17 +390,24 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
   ),
   setFlowNodeQuickEditorPosByNodeId: (pos: Record<string, { top: number; left: number }>) => {
     const state = get()
+    const nextPosByNodeId = normalizePosByNodeId(pos)
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
     const by = state.flowNodeQuickEditorPosByNodeIdByGraphMetaKey || {}
-    const nextBy = graphKey ? { ...by, [graphKey]: pos || {} } : by
+    const prevPosByNodeId = state.flowNodeQuickEditorPosByNodeId || {}
+    const prevGraphPosByNodeId = graphKey ? (by[graphKey] || {}) : prevPosByNodeId
+    const sameGlobal = isSamePosByNodeId(prevPosByNodeId, nextPosByNodeId)
+    const sameForGraph = isSamePosByNodeId(prevGraphPosByNodeId, nextPosByNodeId)
+    if (sameGlobal && sameForGraph) return
+    const nextBy = graphKey ? { ...by, [graphKey]: nextPosByNodeId } : by
     if (graphKey) {
       set({
-        flowNodeQuickEditorPosByNodeId: pos || {},
-        flowNodeQuickEditorPosByNodeIdByGraphMetaKey: lsSetJson(LS_KEYS.flowNodeQuickEditorPosByGraphMetaKey, nextBy),
+        flowNodeQuickEditorPosByNodeId: nextPosByNodeId,
+        flowNodeQuickEditorPosByNodeIdByGraphMetaKey: nextBy,
       })
+      scheduleFlowQuickEditorPersistence({ posByGraph: nextBy })
       return
     }
-    set({ flowNodeQuickEditorPosByNodeId: pos || {} })
+    set({ flowNodeQuickEditorPosByNodeId: nextPosByNodeId })
   },
   flowNodeQuickEditorWorldPosByNodeIdByGraphMetaKey: lsJson<Record<string, Record<string, { x: number; y: number }>>>(
     LS_KEYS.flowNodeQuickEditorWorldPosByGraphMetaKey,
@@ -301,17 +454,24 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
   ),
   setFlowNodeQuickEditorWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => {
     const state = get()
+    const nextWorldByNodeId = normalizeWorldByNodeId(pos)
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
     const by = state.flowNodeQuickEditorWorldPosByNodeIdByGraphMetaKey || {}
-    const nextBy = graphKey ? { ...by, [graphKey]: pos || {} } : by
+    const prevWorldByNodeId = state.flowNodeQuickEditorWorldPosByNodeId || {}
+    const prevGraphWorldByNodeId = graphKey ? (by[graphKey] || {}) : prevWorldByNodeId
+    const sameGlobal = isSameWorldByNodeId(prevWorldByNodeId, nextWorldByNodeId)
+    const sameForGraph = isSameWorldByNodeId(prevGraphWorldByNodeId, nextWorldByNodeId)
+    if (sameGlobal && sameForGraph) return
+    const nextBy = graphKey ? { ...by, [graphKey]: nextWorldByNodeId } : by
     if (graphKey) {
       set({
-        flowNodeQuickEditorWorldPosByNodeId: pos || {},
-        flowNodeQuickEditorWorldPosByNodeIdByGraphMetaKey: lsSetJson(LS_KEYS.flowNodeQuickEditorWorldPosByGraphMetaKey, nextBy),
+        flowNodeQuickEditorWorldPosByNodeId: nextWorldByNodeId,
+        flowNodeQuickEditorWorldPosByNodeIdByGraphMetaKey: nextBy,
       })
+      scheduleFlowQuickEditorPersistence({ worldByGraph: nextBy })
       return
     }
-    set({ flowNodeQuickEditorWorldPosByNodeId: pos || {} })
+    set({ flowNodeQuickEditorWorldPosByNodeId: nextWorldByNodeId })
   },
   flowNodeQuickEditorDraggingNodeId: null as string | null,
   setFlowNodeQuickEditorDraggingNodeId: (rawId: string | null) => {

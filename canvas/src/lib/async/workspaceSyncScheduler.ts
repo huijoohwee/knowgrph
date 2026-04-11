@@ -2,6 +2,7 @@ import { cancelCoalescedTask, scheduleCoalescedTask } from '@/lib/async/coalesce
 
 const WORKSPACE_SYNC_SCHEDULER_KEY = 'workspace:sync:runtime-persistence'
 const WORKSPACE_SYNC_SIGNATURE_LIMIT = 400
+const WORKSPACE_SYNC_SIGNATURE_MAX_CHARS = 180
 type WorkspaceSyncTaskEntry = {
   fn: () => void
   signature: string | null
@@ -20,6 +21,18 @@ let workspaceSyncFlushScheduled = false
 let workspaceSyncFlushDelayMs = 0
 
 const signatureOwnerKey = (scopeKey: string, signature: string): string => `${scopeKey}::${signature}`
+const normalizeSignature = (raw: string | null): string | null => {
+  if (!raw) return null
+  const signature = raw.trim()
+  if (!signature) return null
+  if (signature.length <= WORKSPACE_SYNC_SIGNATURE_MAX_CHARS) return signature
+  let hash = 2166136261
+  for (let i = 0; i < signature.length; i += 1) {
+    hash ^= signature.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return `h:${(hash >>> 0).toString(16)}:${signature.length}`
+}
 
 const setLastExecutedSignature = (key: string, signature: string): void => {
   if (!key || !signature) return
@@ -86,23 +99,25 @@ export const scheduleWorkspaceSyncTask = (
   const key = String(taskKey || '').trim() || 'default'
   const scopeKey = String(options?.scopeKey || '').trim() || key
   const signatureRaw = typeof options?.signature === 'string' ? options.signature : null
-  const signature = signatureRaw && signatureRaw.length > 0 ? signatureRaw : null
+  const signature = normalizeSignature(signatureRaw)
   if (signature && lastExecutedWorkspaceSyncTaskSignature.get(scopeKey) === signature) return
-  if (signature) {
-    const token = signatureOwnerKey(scopeKey, signature)
-    const ownerTaskKey = pendingWorkspaceSyncSignatureOwner.get(token)
-    if (ownerTaskKey && ownerTaskKey !== key) {
-      pendingWorkspaceSyncTasks.delete(ownerTaskKey)
-    }
-    pendingWorkspaceSyncSignatureOwner.set(token, key)
-  }
-
   const entry = getOrCreatePendingTaskEntry(key)
-  if (entry.signature) {
-    const prevToken = signatureOwnerKey(entry.scopeKey || key, entry.signature)
-    const ownerTaskKey = pendingWorkspaceSyncSignatureOwner.get(prevToken)
-    if (ownerTaskKey === key) {
-      pendingWorkspaceSyncSignatureOwner.delete(prevToken)
+  const hasSamePendingSignature = entry.signature === signature && entry.scopeKey === scopeKey
+  if (!hasSamePendingSignature) {
+    if (signature) {
+      const token = signatureOwnerKey(scopeKey, signature)
+      const ownerTaskKey = pendingWorkspaceSyncSignatureOwner.get(token)
+      if (ownerTaskKey && ownerTaskKey !== key) {
+        pendingWorkspaceSyncTasks.delete(ownerTaskKey)
+      }
+      pendingWorkspaceSyncSignatureOwner.set(token, key)
+    }
+    if (entry.signature) {
+      const prevToken = signatureOwnerKey(entry.scopeKey || key, entry.signature)
+      const ownerTaskKey = pendingWorkspaceSyncSignatureOwner.get(prevToken)
+      if (ownerTaskKey === key) {
+        pendingWorkspaceSyncSignatureOwner.delete(prevToken)
+      }
     }
   }
   entry.fn = fn
