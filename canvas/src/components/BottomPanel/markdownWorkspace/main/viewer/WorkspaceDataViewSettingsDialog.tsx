@@ -11,6 +11,7 @@ import { LayoutChoice } from './WorkspaceDataViewSettingsPrimitives'
 import { buildSuggestedRoles } from './workspaceDataViewGraphRoles'
 import { WORKSPACE_EDITOR_MODE_OPTIONS, type WorkspaceEditorMode } from '@/features/workspace-table/workspaceEditorMode'
 import { getWorkspaceEditorModeLabel } from '@/features/workspace-table/workspaceEditorModePresentation'
+import { WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/workspace-table/ui/workspaceSettingsSelectClass'
 
 type WorkspaceDataViewLayoutMode = WorkspaceEditorMode
 
@@ -224,7 +225,7 @@ export function WorkspaceDataViewSettingsDialog(props: {
             <section aria-label="Group" className="space-y-2">
               <div className={['text-sm font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>Group by</div>
               <select
-                className={['w-full h-8 px-2 rounded border', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text].join(' ')}
+                className={[WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left'].join(' ')}
                 value={props.viewConfig.groupByColumnId || ''}
                 onChange={e => {
                   const nextGroupByColumnId = e.target.value || null

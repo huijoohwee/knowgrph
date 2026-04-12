@@ -4,6 +4,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownDataViewModel'
 import { UI_FOCUS_RING } from '@/lib/ui/focusRing'
 import type { WorkspaceDataViewConfig, WorkspaceDataViewSortDirection, WorkspaceDataViewSortRule } from './workspaceDataViewConfig'
+import { WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/workspace-table/ui/workspaceSettingsSelectClass'
 
 function makeId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
@@ -41,7 +42,7 @@ export function WorkspaceDataViewSettingsSortSection(props: {
           <label className="flex-1">
             <span className={['block text-xs mb-1', UI_THEME_TOKENS.text.secondary].join(' ')}>Field</span>
             <select
-              className={['w-full h-8 px-2 rounded border', UI_FOCUS_RING, UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text].join(' ')}
+              className={[UI_FOCUS_RING, WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left'].join(' ')}
               value={current?.columnId || ''}
               onChange={e => setSort({ columnId: e.target.value })}
             >
@@ -55,7 +56,7 @@ export function WorkspaceDataViewSettingsSortSection(props: {
           <label>
             <span className={['block text-xs mb-1', UI_THEME_TOKENS.text.secondary].join(' ')}>Dir</span>
             <select
-              className={['h-8 px-2 rounded border', UI_FOCUS_RING, UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text].join(' ')}
+              className={[UI_FOCUS_RING, WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME].join(' ')}
               value={current?.direction || 'asc'}
               onChange={e => setSort({ direction: e.target.value === 'desc' ? 'desc' : 'asc' })}
             >
