@@ -31,6 +31,7 @@ type MarkdownBlockquoteBlockProps = {
 
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { resolveContiguousQuoteLineRangeOnOpen } from './markdownEditParitySsot'
+import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
 
 export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlock({
   token: t,
@@ -95,12 +96,11 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
     })
   }, [opts.markdownSourceLines, t.startLine])
   const editorQuoteClassName = [
-    'w-full min-h-[1lh] whitespace-pre-wrap break-words outline-none bg-transparent',
-    'pl-4 py-2 border-l-4 border-solid border-blue-400 dark:border-blue-600 rounded-r text-left italic leading-normal',
+    MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
+    'min-h-[1lh] leading-normal',
     baseTextClass,
     commonBlockClass,
     opts.uiPanelTextFontClass,
-    UI_THEME_TOKENS.text.secondary,
     '[&_div]:font-inherit',
     '[&_div]:text-inherit',
     '[&_div]:m-0',
@@ -113,17 +113,15 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
     '[&_p]:whitespace-pre-wrap',
     '[&_ul]:m-0',
     '[&_ol]:m-0',
-    UI_THEME_TOKENS.table.rowRelated,
   ]
     .filter(Boolean)
     .join(' ')
   const editorQuoteClassNameNoInset = [
-    'w-full min-h-[1lh] whitespace-pre-wrap break-words outline-none bg-transparent',
-    'text-left italic leading-normal',
+    MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
+    'min-h-[1lh] leading-normal',
     baseTextClass,
     commonBlockClass,
     opts.uiPanelTextFontClass,
-    UI_THEME_TOKENS.text.secondary,
     '[&_div]:font-inherit',
     '[&_div]:text-inherit',
     '[&_div]:m-0',

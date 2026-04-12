@@ -15,6 +15,7 @@ import { MarkdownFootnoteBlock } from './MarkdownFootnoteBlock'
 import type { MarkdownGeoDatasetIntegration, RenderOpts } from './MarkdownRendererTypes'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { applyMediaProxySrc, isSafeHref, resolveHref } from '@/features/markdown/ui/markdownPreviewLinks'
+import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
 
 export type MarkdownTokenRendererProps = {
   tokens: TokenWithLines[]
@@ -395,7 +396,7 @@ const MarkdownTokenRenderer = React.memo(function MarkdownTokenRenderer(props: M
               onReplaceLineRange={opts.onReplaceLineRange}
               onInlineEditStateChange={opts.onInlineEditStateChange}
               forbidCopy={!!opts.forbidCopy}
-              editorClassName="w-full outline-none bg-transparent"
+              editorClassName={MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS}
               editPresentation="html"
               editHtmlRender="block"
               editHtmlDisableDefaultBlockFlow

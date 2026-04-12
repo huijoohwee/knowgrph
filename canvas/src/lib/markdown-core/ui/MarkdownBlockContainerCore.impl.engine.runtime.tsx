@@ -61,6 +61,7 @@ type MarkdownBlockContainerProps = {
   onInlineEditStateChange?: (active: boolean) => void
   editDisableRichUi?: boolean
   editStaticChildren?: React.ReactNode
+  editStaticChildrenMode?: 'flow' | 'overlay' | 'passthrough'
   editTypographyMode?: 'inherit' | 'none'
   editPreserveWhitespace?: boolean
   editPreserveBlockHeight?: boolean
@@ -100,6 +101,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   onInlineEditStateChange,
   editDisableRichUi = false,
   editStaticChildren,
+  editStaticChildrenMode = 'flow',
   editTypographyMode = 'inherit',
   editPreserveWhitespace = false,
   editPreserveBlockHeight = true,
@@ -552,6 +554,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
         editPreserveBlockHeight={editPreserveBlockHeight}
         editMinHeightPx={editMinHeightPxRef.current}
         editStaticChildren={editStaticChildren}
+        editStaticChildrenMode={editStaticChildrenMode}
         editLeftRailClassName={editLeftRailClassName}
         bubble={bubble}
         slashMenu={slashMenu}

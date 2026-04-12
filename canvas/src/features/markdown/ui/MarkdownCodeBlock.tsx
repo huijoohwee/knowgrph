@@ -27,6 +27,7 @@ import { HighlightedCode } from './codeblock/HighlightedCode'
 import { HtmlCodeBlockRenderer } from './codeblock/HtmlCodeBlockRenderer'
 import { encodeUtf8ToBase64 } from '@/features/markdown/markdownRoundTrip'
 import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
+import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
 
 const MermaidDiagramLazy = React.lazy(() =>
   import('@/features/panels/views/preview-panel/ui/MermaidDiagram').then(mod => ({ default: mod.MermaidDiagram })),
@@ -208,7 +209,8 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
 
   const figureClassName = `rounded-lg border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden shadow-sm highlight highlight-source-${lang} transition-shadow duration-200`
   const editorCodeClassName = [
-    'block w-full m-0 whitespace-pre outline-none bg-transparent overflow-auto',
+    MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
+    'block m-0 whitespace-pre overflow-auto',
     wrapClass,
     monospaceCodeClass,
     UI_THEME_TOKENS.code.bg,

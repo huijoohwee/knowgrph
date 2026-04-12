@@ -38,11 +38,11 @@ export async function testMarkdownViewerInlineEditHeadingUsesHtmlEditingAndPrese
   if (!headingText.includes('editPresentation="html"')) {
     throw new Error('expected MarkdownHeadingBlock to use html edit presentation')
   }
-  if (!headingText.includes('UI_TEXT_TRUNCATE')) {
-    throw new Error('expected MarkdownHeadingBlock heading editor class to preserve truncation SSOT')
+  if (!headingText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS')) {
+    throw new Error('expected heading edit surface to reuse centralized normal-text edit surface base layout contract')
   }
-  if (!headingText.includes('focus:overflow-x-auto') || !headingText.includes('focus:[text-overflow:clip]')) {
-    throw new Error('expected heading edit surface to allow focused horizontal reveal for editing truncated text')
+  if (headingText.includes('editCaptureLayoutSpacing')) {
+    throw new Error('expected heading edit surface to avoid extra spacing snapshot replay and stay on normal-text SSOT baseline')
   }
 
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')

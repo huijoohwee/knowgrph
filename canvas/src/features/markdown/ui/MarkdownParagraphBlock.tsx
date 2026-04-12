@@ -28,6 +28,7 @@ import {
   useMarkdownLineBlockDnD,
 } from './MarkdownBlockGutter'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
 
 type MarkdownParagraphBlockProps = {
   token: TokenWithLines
@@ -494,7 +495,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
       onReplaceLineRange={opts.onReplaceLineRange}
       onInlineEditStateChange={opts.onInlineEditStateChange}
       forbidCopy={!!opts.forbidCopy}
-      editorClassName="w-full whitespace-pre-wrap break-words outline-none bg-transparent"
+      editorClassName={MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS}
       editPresentation="html"
       editHtmlRender="inline"
       onDragOver={dnd.handleDragOver}

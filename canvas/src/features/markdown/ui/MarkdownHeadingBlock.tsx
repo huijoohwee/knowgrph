@@ -13,6 +13,7 @@ import { UI_COPY } from '@/lib/config'
 import { getStickyHeadingCascadeOffsets } from './markdownSectionUtils'
 import { getMarkdownHeadingTextSizeClass } from '@/features/markdown/ui/markdownTypography'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS } from './markdownEditSurfaceLayout'
 import {
   MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
   MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
@@ -88,12 +89,15 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
     ...(highlightStyle || {}),
     scrollMarginTop: `${Math.max(0, topPx + heightPx + 8)}px`,
   } as React.CSSProperties
+  const headingTypographyClass = ['font-semibold', baseSize, color, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
   const cls = ['font-semibold', size, color, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
   const headingEditorClassName = [
-    cls,
-    'block flex-1 min-w-0 max-w-full outline-none bg-transparent',
-    UI_TEXT_TRUNCATE,
-    'focus:overflow-x-auto focus:[text-overflow:clip]',
+    MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS,
+    'block',
+    headingTypographyClass,
+    'pr-6',
+    'overflow-hidden text-ellipsis whitespace-nowrap',
+    'focus:overflow-x-auto focus:overflow-y-hidden focus:[text-overflow:clip]',
   ].filter(Boolean).join(' ')
   const content = renderInlineTokens(h.tokens, {
     activeDocumentPath: opts.activeDocumentPath,
@@ -120,19 +124,22 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
 
   const isCollapsed = opts.collapsedIds && id ? opts.collapsedIds.has(id) : false
   const canCollapse = !!opts.onToggleCollapse && !!id
-  const canReorder =
+  const blockControlsAllowed =
     !opts.markdownPresentationMode &&
     !!opts.viewerBlockEditingEnabled &&
-    !!opts.onReorderHeadingSection &&
-    opts.markdownBlockControlsEnabled !== false &&
-    !!id
-  const canInsertLine =
-    !opts.markdownPresentationMode &&
-    !!opts.viewerBlockEditingEnabled &&
-    !!opts.onInsertLineAfter &&
-    opts.markdownBlockControlsEnabled !== false &&
-    !!id
-  const gutterEnabled = (canInsertLine || canReorder) && opts.markdownBlockGutterEnabled !== false
+    opts.markdownBlockControlsEnabled !== false
+  const canReorder = blockControlsAllowed && !!opts.onReorderHeadingSection && !!id
+  const canInsertLine = blockControlsAllowed && !!opts.onInsertLineAfter && !!id
+  const gutterAvailable =
+    blockControlsAllowed
+    && opts.markdownBlockGutterEnabled !== false
+    && (
+      !!opts.onInsertLineAfter
+      || !!opts.onReorderLineBlock
+      || !!opts.onReorderHeadingSection
+    )
+  const gutterReserved = gutterAvailable
+  const gutterControlsEnabled = gutterAvailable && (canInsertLine || canReorder)
 
   const [dragState, setDragState] = React.useState<'none' | 'top' | 'bottom'>('none')
   const [isDragging, setIsDragging] = React.useState(false)
@@ -190,19 +197,83 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
     if (!m) return { prefix: '', content: line }
     return { prefix: m[1] || '', content: m[2] || '' }
   }, [])
+  const editStaticChildren = (gutterControlsEnabled || id || canCollapse)
+    ? (
+        <>
+          {gutterControlsEnabled ? (
+            <MarkdownBlockGutterControls
+              canInsertLine={canInsertLine}
+              onInsertLine={() => opts.onInsertLineAfter?.(endLine)}
+              canReorder={canReorder}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              iconSizeClass={iconSizeClass}
+              iconStrokeWidth={uiIconStrokeWidth}
+              labelReorder="Reorder section"
+              labelInsert={UI_COPY.markdownBlockInsertLineLabel}
+            />
+          ) : null}
+          <span className="absolute right-0 inset-y-0 flex items-center gap-1 shrink-0">
+            {id ? (
+              <a
+                href={`#${id}`}
+                className={[
+                  'opacity-0 group-hover:opacity-100 transition-opacity no-underline',
+                  UI_THEME_TOKENS.text.tertiary,
+                  'hover:text-gray-900 dark:hover:text-gray-100',
+                ].join(' ')}
+                aria-label="Permalink"
+                onClick={(e: React.MouseEvent) => {
+                  e.stopPropagation()
+                }}
+              >
+                <Link2 className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+              </a>
+            ) : null}
+            {canCollapse ? (
+              <button
+                type="button"
+                className={[
+                  'opacity-0 group-hover:opacity-100 transition-opacity',
+                  'p-0.5 rounded',
+                  UI_THEME_TOKENS.button.text,
+                  UI_THEME_TOKENS.button.hoverBg,
+                  'flex items-center justify-center shrink-0',
+                ].join(' ')}
+                title={isCollapsed ? 'Expand section' : 'Collapse section'}
+                aria-label={isCollapsed ? 'Expand section' : 'Collapse section'}
+                onClick={(e: React.MouseEvent) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  opts.onToggleCollapse?.(id)
+                }}
+              >
+                <ChevronDown
+                  className={`${iconSizeClass} ${UI_THEME_TOKENS.text.secondary} transition-transform ${isCollapsed ? '' : 'rotate-180'}`}
+                  strokeWidth={uiIconStrokeWidth}
+                  aria-hidden="true"
+                />
+              </button>
+            ) : null}
+          </span>
+        </>
+      )
+    : undefined
 
   return (
-    <header
+    <div
       className={[
         'sticky',
         stickyTopClass,
-        `${UI_THEME_TOKENS.panel.bg} backdrop-blur-md py-0.5 mb-0 border-b-0`,
+        UI_THEME_TOKENS.panel.bg,
+        'backdrop-blur-md',
+        'mb-0 border-b-0',
       ].join(' ')}
       style={stickyStyle}
     >
       <MarkdownBlockContainer
         as={Tag}
-        className={`${cls} flex items-center gap-1.5 group min-w-0 relative ${gutterEnabled ? `${MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS} ${MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS}` : ''} ${isDragging ? `${UI_THEME_TOKENS.button.activeBg} opacity-60` : ''}`}
+        className={`${UI_THEME_TOKENS.panel.bg} backdrop-blur-md h-full py-0.5 ${cls} m-0 p-0 text-left [text-indent:0] group min-w-0 relative ${gutterReserved ? `${MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS} ${MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS}` : ''} ${isDragging ? `${UI_THEME_TOKENS.button.activeBg} opacity-60` : ''}`}
         highlightClass={highlightClass}
         highlightStyle={mergedStyle}
         startLine={startLine}
@@ -217,12 +288,14 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
         editPresentation="html"
         editHtmlRender="inline"
         editStripLinePrefix={stripHeadingPrefix}
-        editStripLinePrefixSpacingSanitize={false}
+        editPreserveBlockHeight={false}
+        editStaticChildren={editStaticChildren}
+        editStaticChildrenMode="passthrough"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {gutterEnabled && (
+        {gutterControlsEnabled ? (
           <>
             <MarkdownBlockDropMarkers dragState={dragState} withArrow />
             <MarkdownBlockGutterControls
@@ -237,10 +310,10 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
               labelInsert={UI_COPY.markdownBlockInsertLineLabel}
             />
           </>
-        )}
-        <bdi className={['flex-1', UI_TEXT_TRUNCATE].join(' ')}>{content}</bdi>
-        <span className="ml-auto flex items-center gap-1 shrink-0">
-          {id && (
+        ) : null}
+        <bdi className={['block min-w-0 pr-6', UI_TEXT_TRUNCATE].join(' ')}>{content}</bdi>
+        <span className="absolute right-0 inset-y-0 flex items-center gap-1 shrink-0">
+          {id ? (
             <a
               href={`#${id}`}
               className={[
@@ -255,8 +328,8 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
             >
               <Link2 className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
             </a>
-          )}
-          {canCollapse && (
+          ) : null}
+          {canCollapse ? (
             <button
               type="button"
               className={[
@@ -280,9 +353,9 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
                 aria-hidden="true"
               />
             </button>
-          )}
+          ) : null}
         </span>
       </MarkdownBlockContainer>
-    </header>
+    </div>
   )
 })

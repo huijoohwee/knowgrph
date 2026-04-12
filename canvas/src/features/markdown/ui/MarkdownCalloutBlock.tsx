@@ -10,6 +10,7 @@ import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { resolveContiguousQuoteLineRangeOnOpen } from './markdownEditParitySsot'
+import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
 import {
   MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
   MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
@@ -184,10 +185,10 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
         onInlineEditStateChange={opts.onInlineEditStateChange}
         forbidCopy={!!opts.forbidCopy}
         editorClassName={[
-          'w-full min-h-[1lh] whitespace-pre-wrap break-words outline-none bg-transparent',
+          MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
+          'min-h-[1lh]',
           baseTextClass,
           commonBlockClass,
-          'text-left',
           '[&>*:first-child]:mt-0',
           '[&>*:last-child]:mb-0',
           '[&_p]:font-inherit',
@@ -204,7 +205,6 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
         editStripLinePrefix={stripQuotePrefix}
         editDefaultLinePrefix="> "
         editPreserveWhitespace
-        editLeftRailClassName={accentClass}
       >
         {inner}
       </MarkdownBlockContainer>

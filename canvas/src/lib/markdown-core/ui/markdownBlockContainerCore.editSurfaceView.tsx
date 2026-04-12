@@ -26,6 +26,7 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
   editPreserveBlockHeight: boolean
   editMinHeightPx: number
   editStaticChildren?: React.ReactNode
+  editStaticChildrenMode?: 'flow' | 'overlay' | 'passthrough'
   editLeftRailClassName?: string
   bubble: { show: boolean; leftPx: number; topPx: number }
   slashMenu: { show: boolean; leftPx: number; topPx: number }
@@ -94,6 +95,15 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
 }) => {
   if (!(props.editing && props.editable)) return <>{props.children}</>
   const hostInlineFlow = props.hostTag === 'p' || props.hostTag === 'li' || props.hostTag === 'th' || props.hostTag === 'td'
+  const hostParagraphFlow = props.hostTag === 'p'
+  const hostHeadingFlow =
+    props.hostTag === 'h1'
+    || props.hostTag === 'h2'
+    || props.hostTag === 'h3'
+    || props.hostTag === 'h4'
+    || props.hostTag === 'h5'
+    || props.hostTag === 'h6'
+  const hostNormalTextFlow = hostParagraphFlow || hostHeadingFlow
   const effectiveInlineFlow = props.editInlineFlow || hostInlineFlow
   const htmlBlockEditing = props.editPresentation === 'html' && props.editHtmlRender === 'block'
   const htmlInlineEditing = props.editPresentation === 'html' && props.editHtmlRender === 'inline'
@@ -129,7 +139,7 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
           '[&_h6]:font-inherit',
           '[&_div]:text-inherit',
           '[&_div]:font-inherit',
-          '[&_div]:leading-normal',
+          '[&_div]:leading-[inherit]',
           '[&_div]:whitespace-pre-wrap',
           '[&_li]:text-inherit',
           '[&_li]:font-inherit',
@@ -188,17 +198,24 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
           '[&_blockquote]:italic',
         ].join(' ')
       : ''
-
-  return (
-    <span
-      className={effectiveInlineFlow
-        ? (hostInlineFlow ? 'relative inline-block w-full min-w-0 align-baseline' : 'relative inline min-w-0 align-baseline')
-        : 'relative w-full block min-w-0 flex-1'}
-      style={props.editPreserveBlockHeight && props.editMinHeightPx > 0 ? { minHeight: `${props.editMinHeightPx}px` } : undefined}
-    >
-      {props.editStaticChildren ? (
-        <span className={`pointer-events-none select-none ${effectiveInlineFlow ? 'inline align-baseline' : 'block'}`}>{props.editStaticChildren}</span>
-      ) : null}
+  const editPreserveMinHeightStyle =
+    props.editPreserveBlockHeight && props.editMinHeightPx > 0 ? { minHeight: `${props.editMinHeightPx}px` } : undefined
+  const skipEditWrapper = props.editStaticChildrenMode === 'passthrough' && hostHeadingFlow
+  const surfaceChildren = (
+    <>
+      {props.editStaticChildren
+        ? (props.editStaticChildrenMode === 'passthrough'
+          ? props.editStaticChildren
+          : (
+              <span
+                className={props.editStaticChildrenMode === 'overlay'
+                  ? 'absolute inset-0 z-20 select-none pointer-events-none'
+                  : `pointer-events-none select-none ${effectiveInlineFlow ? 'inline align-baseline' : 'block'}`}
+              >
+                {props.editStaticChildren}
+              </span>
+            ))
+        : null}
       {props.editLeftRailClassName ? <span aria-hidden className={`pointer-events-none absolute left-0 top-0 bottom-0 w-1 z-20 ${props.editLeftRailClassName}`} /> : null}
       <span ref={props.bubbleAnchorRef} className="absolute w-px h-px" style={{ left: `${props.bubble.leftPx}px`, top: `${props.bubble.topPx}px` }} />
       <span ref={props.slashAnchorRef} className="absolute w-px h-px" style={{ left: `${props.slashMenu.leftPx}px`, top: `${props.slashMenu.topPx}px` }} />
@@ -261,6 +278,7 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
           ...(props.editListMode
             ? { marginTop: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0 }
             : {}),
+          ...(skipEditWrapper ? editPreserveMinHeightStyle : {}),
         }}
         onInput={props.onInput}
         onCopy={props.onCopy}
@@ -301,6 +319,24 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
         onLinkInputKeyDown={props.onLinkInputKeyDown}
         onLinkCancel={props.onLinkCancel}
       />
+    </>
+  )
+
+  if (skipEditWrapper) return surfaceChildren
+  return (
+    <span
+      className={effectiveInlineFlow
+        ? (hostInlineFlow
+          ? (hostParagraphFlow
+            ? (hostHeadingFlow ? 'block w-full min-w-0' : 'relative block w-full min-w-0')
+            : (hostHeadingFlow ? 'inline-block w-full min-w-0 align-baseline' : 'relative inline-block w-full min-w-0 align-baseline'))
+          : (hostHeadingFlow ? 'inline min-w-0 align-baseline' : 'relative inline min-w-0 align-baseline'))
+        : (hostNormalTextFlow
+          ? (hostHeadingFlow ? 'block w-full min-w-0' : 'relative block w-full min-w-0')
+          : 'relative w-full block min-w-0 flex-1')}
+      style={editPreserveMinHeightStyle}
+    >
+      {surfaceChildren}
     </span>
   )
 }

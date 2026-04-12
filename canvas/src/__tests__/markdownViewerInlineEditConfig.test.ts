@@ -63,9 +63,17 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   if (
     !blockText.includes('className={effectiveInlineFlow') ||
-    !blockText.includes("hostInlineFlow ? 'relative inline-block w-full min-w-0 align-baseline' : 'relative inline min-w-0 align-baseline'")
+    !blockText.includes('hostParagraphFlow') ||
+    !blockText.includes("'relative block w-full min-w-0'") ||
+    !blockText.includes("'relative inline-block w-full min-w-0 align-baseline'")
   ) {
-    throw new Error('expected block container to support inline edit-flow host wrapping for list marker baseline parity')
+    throw new Error('expected block container to keep paragraph edit wrapper block-level while preserving inline-flow host wrapping for list marker baseline parity')
+  }
+  if (!blockText.includes('const hostNormalTextFlow = hostParagraphFlow || hostHeadingFlow')) {
+    throw new Error('expected block container to treat heading hosts as normal-text flow for read/edit left-baseline parity')
+  }
+  if (!blockText.includes("hostHeadingFlow ? 'block w-full min-w-0'")) {
+    throw new Error('expected heading edit wrapper to avoid relative wrapper so chrome aligns with visual-mode padding/gutter')
   }
   if (!blockText.includes('normalizeListAncestorSpacing')) {
     throw new Error('expected html list edit normalization to reset wrapper ancestor spacing around list roots')
@@ -169,10 +177,16 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!rendererText.includes("case 'hr':") || !rendererText.includes('editPresentation="html"')) {
     throw new Error('expected hr blocks to be editable via MarkdownBlockContainer html presentation')
   }
+  if (!rendererText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS') || !rendererText.includes('editorClassName={MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS}')) {
+    throw new Error('expected hr edit surface to reuse centralized normal-text edit surface layout contract')
+  }
   const htmlBlockPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownHtmlBlock.tsx')
   const htmlBlockText = readUtf8(htmlBlockPath)
   if (!htmlBlockText.includes('editPresentation="html"') || !htmlBlockText.includes('editHtmlRender="block"') || !htmlBlockText.includes('editHtmlDisableDefaultBlockFlow')) {
     throw new Error('expected html blocks to use html-block in-place editing parity instead of markdown text-mode surface mutation')
+  }
+  if (!htmlBlockText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
+    throw new Error('expected html edit surface to reuse centralized normal-text edit surface layout contract')
   }
 
   const inlinePath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'MarkdownInlineRenderer.impl.tsx')
@@ -230,8 +244,11 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (codeText.includes('min-h-[96px]')) {
     throw new Error('expected code block inline editor to avoid hardcoded min height that changes layout')
   }
-  if (!codeText.includes('w-full m-0 whitespace-pre outline-none bg-transparent overflow-auto')) {
-    throw new Error('expected code block inline editor root to reset margins and preserve edit-as-is spacing')
+  if (!codeText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
+    throw new Error('expected code block inline editor root to reuse centralized normal-text edit surface contract')
+  }
+  if (!codeText.includes('whitespace-pre overflow-auto')) {
+    throw new Error('expected code block inline editor root to preserve edit-as-is preformatted overflow behavior')
   }
 
   const listPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownListBlock.tsx')
@@ -327,7 +344,7 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   const listLayoutPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'markdownListLayout.ts')
   const listLayoutText = readUtf8(listLayoutPath)
-  if (!listLayoutText.includes("MARKDOWN_LIST_ROW_EDITOR_CLASS = 'inline whitespace-pre-wrap break-words align-baseline outline-none bg-transparent'")) {
+  if (!listLayoutText.includes('MARKDOWN_LIST_ROW_EDITOR_CLASS = MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
     throw new Error('expected list row editor baseline class contract to be centralized in markdownListLayout SSOT')
   }
   if (!listLayoutText.includes("MARKDOWN_LIST_ROW_GUTTER_GROUP_CLASS = 'relative group/list-row'")) {
@@ -345,25 +362,46 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
 
   const blockquotePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownBlockquoteBlock.tsx')
   const blockquoteText = readUtf8(blockquotePath)
+  const calloutPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownCalloutBlock.tsx')
+  const calloutText = readUtf8(calloutPath)
+  const footnotePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownFootnoteBlock.tsx')
+  const footnoteText = readUtf8(footnotePath)
+  const editSurfaceLayoutPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'markdownEditSurfaceLayout.ts')
+  const editSurfaceLayoutText = readUtf8(editSurfaceLayoutPath)
   const headingPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownHeadingBlock.tsx')
   const headingText = readUtf8(headingPath)
+  if (!editSurfaceLayoutText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS')) {
+    throw new Error('expected normal-text edit surface layout contract to be centralized in markdownEditSurfaceLayout SSOT')
+  }
+  if (
+    !editSurfaceLayoutText.includes('m-0 p-0') ||
+    !editSurfaceLayoutText.includes('text-left [text-indent:0]') ||
+    !editSurfaceLayoutText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_WRAP_CLASS')
+  ) {
+    throw new Error('expected normal-text edit surface layout contract to enforce zero inset, left alignment, and wrapping parity')
+  }
   if (blockquoteText.includes('editLeftRailClassName=')) {
     throw new Error('expected blockquote inline editor to avoid duplicate absolute left rail overlay that breaks view/edit parity')
   }
-  const gutterBlockquoteEditRootOk =
-    blockquoteText.includes('pl-4 py-2 rounded-r text-left italic')
-    || blockquoteText.includes('pl-4 py-2 border-l-4')
-  if (!gutterBlockquoteEditRootOk) {
-    throw new Error('expected blockquote inline editor to preserve quote padding/border and typography parity')
-  }
-  if (!blockquoteText.includes('pl-4 py-2 border-l-4 border-solid')) {
-    throw new Error('expected gutter-mode blockquote inline editor to apply explicit solid quote border/padding on edit root for visible rail parity')
+  if (!blockquoteText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
+    throw new Error('expected blockquote inline editor root to reuse centralized normal-text edit layout contract')
   }
   if (!blockquoteText.includes('editorQuoteClassNameNoInset') || !blockquoteText.includes('editorClassName={editorQuoteClassNameNoInset}')) {
     throw new Error('expected non-gutter blockquote inline editor to avoid duplicate inset padding/margin layering')
   }
   if (!blockquoteText.includes('editCaptureLayoutSpacing')) {
     throw new Error('expected blockquote inline editor to explicitly enable layout spacing capture parity')
+  }
+  const paragraphPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownParagraphBlock.tsx')
+  const paragraphText = readUtf8(paragraphPath)
+  if (!paragraphText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
+    throw new Error('expected paragraph inline editor to reuse centralized normal-text edit surface contract')
+  }
+  if (!calloutText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
+    throw new Error('expected callout inline editor body to reuse centralized normal-text edit surface contract')
+  }
+  if (!footnoteText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
+    throw new Error('expected footnote inline editor to reuse centralized normal-text edit surface contract')
   }
   if (!blockquoteText.includes('editPresentation="html"') || !blockquoteText.includes('editHtmlRender="block"')) {
     throw new Error('expected blockquote inline editor to use html-block editing for quote line spacing parity without exposing sigil code tokens')
@@ -374,8 +412,8 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockquoteText.includes('editSigilRenderMode="plain"')) {
     throw new Error('expected blockquote inline editor to render highlight/text-color sigils as plain text during edit (no styled span and no code token)')
   }
-  if (!headingText.includes('editStripLinePrefixSpacingSanitize={false}')) {
-    throw new Error('expected heading inline editor to preserve read-surface left indentation by disabling prefix-spacing sanitize during `#` strip editing')
+  if (headingText.includes('editStripLinePrefixSpacingSanitize={false}')) {
+    throw new Error('expected heading inline editor not to disable prefix-spacing sanitize, to avoid duplicated left indentation when `#` prefix is stripped')
   }
   if (!blockquoteText.includes('editTrimEdgeNewlines')) {
     throw new Error('expected blockquote inline editor to trim edge newlines to avoid extra-row mutations')
@@ -398,7 +436,7 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockquoteText.includes('min-h-[1lh]')) {
     throw new Error('expected blockquote inline editor root to keep at least one line-height to preserve first-line/last-line vertical parity')
   }
-  if (!blockquoteText.includes('italic leading-normal')) {
+  if (!blockquoteText.includes('leading-normal')) {
     throw new Error('expected blockquote inline editor root to enforce leading-normal for blank-line vertical spacing parity')
   }
   if (!blockquoteText.includes('[&_p]:font-inherit') || !blockquoteText.includes('[&_p]:text-inherit')) {
@@ -410,8 +448,6 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockquoteText.includes('editPreserveWhitespace')) {
     throw new Error('expected blockquote inline editor to preserve raw line breaks during inline edit')
   }
-  const calloutPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownCalloutBlock.tsx')
-  const calloutText = readUtf8(calloutPath)
   if (!calloutText.includes("line.match(/^(\\s*(?:>\\s*)+)?([\\s\\S]*)$/)")) {
     throw new Error('expected callout body prefix stripping to preserve multi-level quote marker prefixes')
   }

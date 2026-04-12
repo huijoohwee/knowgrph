@@ -29,6 +29,7 @@ import {
   MarkdownBlockGutterControls,
   useMarkdownLineBlockDnD,
 } from './MarkdownBlockGutter'
+import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
 
 type MarkdownHtmlBlockProps = {
   token: TokenWithLines
@@ -484,7 +485,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
         onReplaceLineRange={opts.onReplaceLineRange}
         onInlineEditStateChange={opts.onInlineEditStateChange}
         forbidCopy={!!opts.forbidCopy}
-        editorClassName="w-full whitespace-pre-wrap break-words outline-none bg-transparent"
+        editorClassName={MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS}
         editPresentation="html"
         editHtmlRender="block"
         editHtmlDisableDefaultBlockFlow
@@ -535,7 +536,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
       onReplaceLineRange={opts.onReplaceLineRange}
       onInlineEditStateChange={opts.onInlineEditStateChange}
       forbidCopy={!!opts.forbidCopy}
-      editorClassName="w-full whitespace-pre-wrap break-words outline-none bg-transparent"
+      editorClassName={MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS}
       editPresentation="html"
       editHtmlRender="block"
       editHtmlDisableDefaultBlockFlow
