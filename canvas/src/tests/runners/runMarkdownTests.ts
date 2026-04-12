@@ -349,6 +349,26 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modMarkdownViewerInlineEditMixedSequence()
     await mod.testMarkdownViewerInlineEditBlockquoteTrailingNewlineDoesNotCreateExtraRow()
   })
+  await execTest(results, 'markdown.viewer.inlineEdit.blockquote.multiLine.openNoTrailingRow', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditBlockquoteMultiLineOpenDoesNotAddTrailingRow()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.blockquote.multiLine.sourceTrailingNewline.openNoTrailingRow', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditBlockquoteMultiLineWithSourceTrailingNewlineOpenDoesNotAddTrailingRow()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.blockquote.trimTrailingEmptyInlineWrapperRow', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditBlockquoteTrimsTrailingEmptyInlineWrapperRow()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.blockquote.gutterDisabled.openBlur.noMutation', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditBlockquoteGutterDisabledOpenBlurDoesNotMutate()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.blockquote.gutterDisabled.trailingNewline.noMutation', async () => {
+    const mod = await modMarkdownViewerInlineEditMixedSequence()
+    await mod.testMarkdownViewerInlineEditBlockquoteGutterDisabledTrailingNewlineDoesNotMutate()
+  })
   await execTest(results, 'markdown.viewer.inlineEdit.callout.rangeClamp.contiguousQuoteLines', async () => {
     const mod = await modMarkdownViewerInlineEditMixedSequence()
     await mod.testMarkdownViewerInlineEditAdmonitionCalloutRangeClampsToContiguousQuoteLines()

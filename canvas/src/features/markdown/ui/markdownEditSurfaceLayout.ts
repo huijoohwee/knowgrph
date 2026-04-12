@@ -1,7 +1,6 @@
-export const MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS =
-  'w-full min-w-0 max-w-full m-0 p-0 text-left [text-indent:0] outline-none bg-transparent'
-
 export const MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS = 'm-0 p-0 text-left [text-indent:0]'
+export const MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS =
+  `${MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS} w-full min-w-0 max-w-full outline-none bg-transparent`
 export const MARKDOWN_BLOCK_STACK_SPACING_CLASS = 'mt-3 mb-3'
 export const MARKDOWN_BLOCKQUOTE_READ_SPACING_CLASS = MARKDOWN_BLOCK_STACK_SPACING_CLASS
 export const MARKDOWN_BLOCKQUOTE_READ_TEXT_PADDING_CLASS = 'pl-3'

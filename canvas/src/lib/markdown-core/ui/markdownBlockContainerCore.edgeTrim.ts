@@ -32,7 +32,26 @@ export const useMarkdownBlockContainerEdgeTrim = (args: {
     const isEffectivelyEmptyBlockishElement = (el: Element, depth: number = 0): boolean => {
       if (depth > 5) return false
       const tag = String((el as HTMLElement).tagName || '').toLowerCase()
-      if (tag !== 'div' && tag !== 'p' && tag !== 'section' && tag !== 'span') return false
+      const isAllowedEmptyWrapper = (
+        tag === 'div'
+        || tag === 'p'
+        || tag === 'section'
+        || tag === 'span'
+        || tag === 'em'
+        || tag === 'strong'
+        || tag === 'b'
+        || tag === 'i'
+        || tag === 'u'
+        || tag === 's'
+        || tag === 'del'
+        || tag === 'ins'
+        || tag === 'mark'
+        || tag === 'code'
+        || tag === 'a'
+        || tag === 'sub'
+        || tag === 'sup'
+      )
+      if (!isAllowedEmptyWrapper) return false
       const text = String((el as HTMLElement).textContent || '').replace(/[\u200B\u00A0\uFEFF]/g, '').trim()
       if (text) return false
       const childEls = Array.from(el.children)

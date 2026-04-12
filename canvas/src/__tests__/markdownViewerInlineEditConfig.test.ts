@@ -416,6 +416,12 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!editSurfaceLayoutText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS')) {
     throw new Error('expected normal-text edit surface layout contract to be centralized in markdownEditSurfaceLayout SSOT')
   }
+  if (!editSurfaceLayoutText.includes('MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS')) {
+    throw new Error('expected normal-text read-surface baseline contract to remain centralized in markdownEditSurfaceLayout SSOT')
+  }
+  if (!editSurfaceLayoutText.includes('${MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS}')) {
+    throw new Error('expected normal-text edit surface baseline to reuse read-surface SSOT class composition and avoid dual-mode drift')
+  }
   if (!editSurfaceLayoutText.includes('MARKDOWN_BLOCK_STACK_SPACING_CLASS')) {
     throw new Error('expected markdown block stack spacing rhythm contract to be centralized in markdownEditSurfaceLayout SSOT')
   }
@@ -471,9 +477,15 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockquoteText.includes('editorQuoteClassNameNoInset') || !blockquoteText.includes('editorClassName={editorQuoteClassNameNoInset}')) {
     throw new Error('expected blockquote inline editor to avoid duplicate inset padding/margin layering')
   }
-  const noInsetEditorClassMatches = blockquoteText.match(/editorClassName=\{editorQuoteClassNameNoInset\}/g) || []
+  const noInsetEditorClassMatches = blockquoteText.match(/editorQuoteClassNameNoInset/g) || []
   if (noInsetEditorClassMatches.length < 2) {
-    throw new Error('expected both gutter and non-gutter blockquote inline editor paths to reuse no-inset quote editor class')
+    throw new Error('expected blockquote inline editor to define and reuse no-inset quote editor class SSOT across paths')
+  }
+  if (!blockquoteText.includes('editorQuoteClassNameNoInsetWithPadding')) {
+    throw new Error('expected gutter blockquote inline editor to define a padded no-inset editor class to preserve content-start parity')
+  }
+  if (!blockquoteText.includes('MARKDOWN_BLOCKQUOTE_READ_TEXT_PADDING_CLASS')) {
+    throw new Error('expected gutter blockquote inline editor to reuse centralized quote text-padding SSOT contract for edit parity')
   }
   if (!blockquoteText.includes('editCaptureLayoutSpacing')) {
     throw new Error('expected blockquote inline editor to explicitly enable layout spacing capture parity')
@@ -521,6 +533,11 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   if (!blockquoteText.includes('resolveEditLineRangeOnOpen={resolveQuoteEditLineRange}') || !blockquoteText.includes('const resolveQuoteEditLineRange = React.useCallback')) {
     throw new Error('expected blockquote inline editor to clamp edit ranges to contiguous quote lines and avoid extra-row mutation')
+  }
+  const editParitySsotPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'markdownEditParitySsot.ts')
+  const editParitySsotText = readUtf8(editParitySsotPath)
+  if (!editParitySsotText.includes('normalizeQuotePrefixSpacingForNoop')) {
+    throw new Error('expected quote replacement no-op detection to normalize quote-prefix spacing and avoid synthetic mutation churn')
   }
   if (!editSurfaceLayoutText.includes('[&_p]:whitespace-pre-wrap')) {
     throw new Error('expected quote-like inline editor to preserve per-line paragraph wrapping parity')

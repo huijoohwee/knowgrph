@@ -111,17 +111,18 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
       fallbackStartLine: Math.max(1, Math.floor(t.startLine)),
     })
   }, [opts.markdownSourceLines, t.startLine])
-  const editorQuoteClassName = getMarkdownQuoteLikeEditorClass({
-    baseTextClass,
-    commonBlockClass,
-    uiPanelTextFontClass: opts.uiPanelTextFontClass,
-  })
   const editorQuoteClassNameNoInset = getMarkdownQuoteLikeEditorClass({
     baseTextClass,
     commonBlockClass,
     uiPanelTextFontClass: opts.uiPanelTextFontClass,
     stripNestedBlockquoteInset: true,
   })
+  const editorQuoteClassNameNoInsetWithPadding = [
+    editorQuoteClassNameNoInset,
+    MARKDOWN_BLOCKQUOTE_READ_TEXT_PADDING_CLASS,
+  ]
+    .filter(Boolean)
+    .join(' ')
   if (!gutterLayoutEnabled) {
     return (
       <MarkdownBlockContainer
@@ -195,7 +196,7 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
       onReplaceLineRange={opts.onReplaceLineRange}
       onInlineEditStateChange={opts.onInlineEditStateChange}
       forbidCopy={!!opts.forbidCopy}
-      editorClassName={editorQuoteClassNameNoInset}
+      editorClassName={editorQuoteClassNameNoInsetWithPadding}
       resolveEditLineRangeOnOpen={resolveQuoteEditLineRange}
       editPresentation="html"
       editHtmlRender="block"

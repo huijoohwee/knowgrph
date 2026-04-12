@@ -172,7 +172,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   const editorPresentation = editPresentation === 'html' ? 'html' : 'markdown'
   const htmlRenderMode = editHtmlRender === 'block' ? 'block' : 'inline'
   const normalizeRenderedBlockHtmlForEditor = React.useCallback((renderedHtml: string): string => {
-    if (!editListMode) return renderedHtml
+    if (!editListMode) return String(renderedHtml || '').trimEnd()
     return String(renderedHtml || '')
       .replace(/>\s+</g, '><')
       .trim()

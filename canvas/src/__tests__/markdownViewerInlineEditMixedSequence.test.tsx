@@ -2,9 +2,15 @@ import React from 'react'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import MarkdownTokenRenderer from '@/features/markdown/ui/MarkdownTokenRenderer'
+import { MarkdownBlockquoteBlock } from '@/features/markdown/ui/MarkdownBlockquoteBlock'
+import type { RenderOpts } from '@/features/markdown/ui/MarkdownRendererTypes'
 
 const tick = async () => {
   await new Promise<void>(resolve => setTimeout(resolve, 0))
+}
+
+const waitTicks = async (count: number) => {
+  for (let i = 0; i < count; i += 1) await tick()
 }
 
 const waitForElement = async <T extends HTMLElement>(query: () => T | null, attempts: number = 20) => {
@@ -643,6 +649,9 @@ export async function testMarkdownViewerInlineEditBlockquoteTypographyKeepsUiFon
     if (!quoteBlock.editor.className.includes('font-sans')) {
       throw new Error(`expected blockquote inline editor to keep uiPanelTextFontClass for typography parity; class=${quoteBlock.editor.className}`)
     }
+    if (!quoteBlock.editor.className.includes('pl-3')) {
+      throw new Error(`expected blockquote inline editor to keep quote text padding for no-shift parity; class=${quoteBlock.editor.className}`)
+    }
 
     root.unmount()
   } finally {
@@ -811,11 +820,286 @@ export async function testMarkdownViewerInlineEditBlockquoteTrailingNewlineDoesN
     quoteBlock.editor.dispatchEvent(new dom.window.FocusEvent('focusout', { bubbles: true }))
     await tick()
     await tick()
-    if (replaceCalls.length > 0) {
-      const commit = replaceCalls[replaceCalls.length - 1]
-      if (commit.replacementLines.length !== 3) {
-        throw new Error(`expected trailing newline not to create extra quote row; got=${JSON.stringify(commit.replacementLines)}`)
-      }
+    if (replaceCalls.length !== 0) {
+      throw new Error(`expected trailing newline not to create extra quote row or mutation commit; calls=${JSON.stringify(replaceCalls)}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerInlineEditBlockquoteMultiLineOpenDoesNotAddTrailingRow() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const reactDomClient = await import('react-dom/client')
+    const createRoot = reactDomClient.createRoot
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const markdown = ['> "alpha"', '> "beta"', '> "gamma"'].join('\n')
+    const sourceLines = markdown.split('\n')
+    const { tokens } = lexMarkdown(markdown)
+
+    const root = createRoot(container)
+    root.render(
+      <MarkdownTokenRenderer
+        tokens={tokens}
+        activeDocumentPath="/sandbox/demo/blockquote-multiline-open-no-extra-row.md"
+        highlightedLineRange={null}
+        markdownWordWrap
+        markdownPresentationMode={false}
+        uiPanelTextFontClass="font-sans"
+        uiPanelMonospaceTextClass="font-mono text-xs"
+        mermaidFrontmatterConfig={null}
+        rootThemeMode="light"
+        previewOverlayScope="container"
+        markdownSourceLines={sourceLines}
+        viewerBlockEditingEnabled
+        onReplaceLineRange={() => {}}
+        forbidCopy
+      />,
+    )
+    await tick()
+
+    const quoteBlock = await openEditorAtLine(dom.window, 1)
+    const paragraphRows = quoteBlock.editor.querySelectorAll('p')
+    if (paragraphRows.length !== 3) {
+      throw new Error(`expected multiline blockquote edit open parity to keep 3 rows without trailing extra row; count=${paragraphRows.length} html=${quoteBlock.editor.innerHTML}`)
+    }
+    const paragraphText = Array.from(paragraphRows).map(p => String(p.textContent || '').replace(/\r/g, ''))
+    if (paragraphText.join('\n') !== '"alpha"\n"beta"\n"gamma"') {
+      throw new Error(`expected multiline blockquote edit open text parity to preserve line mapping; lines=${JSON.stringify(paragraphText)}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerInlineEditBlockquoteMultiLineWithSourceTrailingNewlineOpenDoesNotAddTrailingRow() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const reactDomClient = await import('react-dom/client')
+    const createRoot = reactDomClient.createRoot
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const markdown = ['> "alpha"', '> "beta"', '> "gamma"'].join('\n') + '\n'
+    const sourceLines = markdown.split('\n')
+    const { tokens } = lexMarkdown(markdown)
+
+    const root = createRoot(container)
+    root.render(
+      <MarkdownTokenRenderer
+        tokens={tokens}
+        activeDocumentPath="/sandbox/demo/blockquote-multiline-source-trailing-newline-open-no-extra-row.md"
+        highlightedLineRange={null}
+        markdownWordWrap
+        markdownPresentationMode={false}
+        uiPanelTextFontClass="font-sans"
+        uiPanelMonospaceTextClass="font-mono text-xs"
+        mermaidFrontmatterConfig={null}
+        rootThemeMode="light"
+        previewOverlayScope="container"
+        markdownSourceLines={sourceLines}
+        viewerBlockEditingEnabled
+        onReplaceLineRange={() => {}}
+        forbidCopy
+      />,
+    )
+    await tick()
+
+    const quoteBlock = await openEditorAtLine(dom.window, 1)
+    const paragraphRows = quoteBlock.editor.querySelectorAll('p')
+    if (paragraphRows.length !== 3) {
+      throw new Error(`expected multiline blockquote with source trailing newline to keep 3 rows without extra trailing row; count=${paragraphRows.length} html=${quoteBlock.editor.innerHTML}`)
+    }
+    const paragraphText = Array.from(paragraphRows).map(p => String(p.textContent || '').replace(/\r/g, ''))
+    if (paragraphText.join('\n') !== '"alpha"\n"beta"\n"gamma"') {
+      throw new Error(`expected multiline blockquote with source trailing newline to preserve line mapping; lines=${JSON.stringify(paragraphText)}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerInlineEditBlockquoteTrimsTrailingEmptyInlineWrapperRow() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const reactDomClient = await import('react-dom/client')
+    const createRoot = reactDomClient.createRoot
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const markdown = ['> a', '> b', '> c'].join('\n')
+    const sourceLines = markdown.split('\n')
+    const { tokens } = lexMarkdown(markdown)
+
+    const root = createRoot(container)
+    root.render(
+      <MarkdownTokenRenderer
+        tokens={tokens}
+        activeDocumentPath="/sandbox/demo/blockquote-trim-trailing-empty-inline-wrapper-row.md"
+        highlightedLineRange={null}
+        markdownWordWrap
+        markdownPresentationMode={false}
+        uiPanelTextFontClass="font-sans"
+        uiPanelMonospaceTextClass="font-mono text-xs"
+        mermaidFrontmatterConfig={null}
+        rootThemeMode="light"
+        previewOverlayScope="container"
+        markdownSourceLines={sourceLines}
+        viewerBlockEditingEnabled
+        onReplaceLineRange={() => {}}
+        forbidCopy
+      />,
+    )
+    await tick()
+
+    const quoteBlock = await openEditorAtLine(dom.window, 1)
+    quoteBlock.editor.innerHTML = `${quoteBlock.editor.innerHTML}<p><em><br/></em></p>`
+    quoteBlock.editor.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+    await waitTicks(6)
+
+    const last = quoteBlock.editor.lastElementChild as HTMLElement | null
+    const lastText = String(last?.textContent || '').replace(/\r/g, '').trim()
+    if (!last) throw new Error('expected editor to have content')
+    if (!lastText) {
+      throw new Error(`expected trailing empty inline-wrapper row to be trimmed; lastTag=${String(last.tagName || '')} html=${quoteBlock.editor.innerHTML}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerInlineEditBlockquoteGutterDisabledOpenBlurDoesNotMutate() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const reactDomClient = await import('react-dom/client')
+    const createRoot = reactDomClient.createRoot
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const markdown = ['> a', '> b', '> c'].join('\n')
+    const sourceLines = markdown.split('\n')
+    const { tokens } = lexMarkdown(markdown)
+    const blockquoteToken = (tokens as any[]).find(t => t && t.type === 'blockquote')
+    if (!blockquoteToken) throw new Error('expected blockquote token')
+    const replaceCalls: Array<{ startLine: number; endLine: number; replacementLines: string[] }> = []
+
+    const opts: RenderOpts = {
+      activeDocumentPath: '/sandbox/demo/blockquote-gutter-disabled-open-blur-noedit.md',
+      highlightedLineRange: null,
+      markdownWordWrap: true,
+      markdownPresentationMode: false,
+      uiPanelTextFontClass: 'font-sans',
+      uiPanelMonospaceTextClass: 'font-mono text-xs',
+      mermaidFrontmatterConfig: null,
+      rootThemeMode: 'light',
+      previewOverlayScope: 'container',
+      markdownSourceLines: sourceLines,
+      viewerBlockEditingEnabled: true,
+      markdownBlockControlsEnabled: true,
+      markdownBlockGutterEnabled: false,
+      onReplaceLineRange: (args) => {
+        replaceCalls.push(args)
+      },
+      forbidCopy: true,
+    }
+
+    const root = createRoot(container)
+    root.render(
+      <MarkdownBlockquoteBlock
+        token={blockquoteToken}
+        highlightClass=""
+        opts={opts}
+        baseTextClass="text-sm leading-normal"
+        commonBlockClass=""
+      />,
+    )
+    await tick()
+
+    const quoteBlock = await openEditorAtLine(dom.window, 1)
+    if (!quoteBlock.editor.className.includes('[&_blockquote]:pl-0') || !quoteBlock.editor.className.includes('[&_blockquote]:border-l-0')) {
+      throw new Error(`expected gutter-disabled blockquote editor to avoid nested blockquote inset drift; class=${quoteBlock.editor.className}`)
+    }
+    quoteBlock.editor.dispatchEvent(new dom.window.FocusEvent('blur', { bubbles: true }))
+    quoteBlock.editor.dispatchEvent(new dom.window.FocusEvent('focusout', { bubbles: true }))
+    await tick()
+    await tick()
+    if (replaceCalls.length !== 0) {
+      throw new Error(`expected gutter-disabled blockquote open+blur without edits to avoid mutation; calls=${JSON.stringify(replaceCalls)}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerInlineEditBlockquoteGutterDisabledTrailingNewlineDoesNotMutate() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const reactDomClient = await import('react-dom/client')
+    const createRoot = reactDomClient.createRoot
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const markdown = ['> a', '> b', '> c'].join('\n')
+    const sourceLines = markdown.split('\n')
+    const { tokens } = lexMarkdown(markdown)
+    const blockquoteToken = (tokens as any[]).find(t => t && t.type === 'blockquote')
+    if (!blockquoteToken) throw new Error('expected blockquote token')
+    const replaceCalls: Array<{ startLine: number; endLine: number; replacementLines: string[] }> = []
+
+    const opts: RenderOpts = {
+      activeDocumentPath: '/sandbox/demo/blockquote-gutter-disabled-trailing-newline-no-mutation.md',
+      highlightedLineRange: null,
+      markdownWordWrap: true,
+      markdownPresentationMode: false,
+      uiPanelTextFontClass: 'font-sans',
+      uiPanelMonospaceTextClass: 'font-mono text-xs',
+      mermaidFrontmatterConfig: null,
+      rootThemeMode: 'light',
+      previewOverlayScope: 'container',
+      markdownSourceLines: sourceLines,
+      viewerBlockEditingEnabled: true,
+      markdownBlockControlsEnabled: true,
+      markdownBlockGutterEnabled: false,
+      onReplaceLineRange: (args) => {
+        replaceCalls.push(args)
+      },
+      forbidCopy: true,
+    }
+
+    const root = createRoot(container)
+    root.render(
+      <MarkdownBlockquoteBlock
+        token={blockquoteToken}
+        highlightClass=""
+        opts={opts}
+        baseTextClass="text-sm leading-normal"
+        commonBlockClass=""
+      />,
+    )
+    await tick()
+
+    const quoteBlock = await openEditorAtLine(dom.window, 1)
+    quoteBlock.editor.textContent = 'a\nb\nc\n'
+    quoteBlock.editor.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+    quoteBlock.editor.dispatchEvent(new dom.window.FocusEvent('blur', { bubbles: true }))
+    quoteBlock.editor.dispatchEvent(new dom.window.FocusEvent('focusout', { bubbles: true }))
+    await tick()
+    await tick()
+    if (replaceCalls.length !== 0) {
+      throw new Error(`expected gutter-disabled blockquote trailing newline not to commit mutation; calls=${JSON.stringify(replaceCalls)}`)
     }
 
     root.unmount()

@@ -52,14 +52,25 @@ export const areReplacementLinesNoop = (args: {
   endLine: number
   replacementLines: string[]
 }): boolean => {
+  const normalizeQuotePrefixSpacingForNoop = (line: string): string => {
+    const normalizedLine = String(line || '')
+    const quotePrefixMatch = normalizedLine.match(/^(\s*(?:>\s*)+)/)
+    if (!quotePrefixMatch) return normalizedLine
+    const prefix = String(quotePrefixMatch[1] || '')
+    const remainder = normalizedLine.slice(prefix.length)
+    if (!remainder) return prefix.trimEnd()
+    if (/^\s/.test(remainder)) return normalizedLine
+    return `${prefix.trimEnd()} ${remainder}`
+  }
   const currentLines = args.sourceLines.slice(
     Math.max(0, args.startLine - 1),
     Math.max(0, args.endLine),
   )
   if (currentLines.length !== args.replacementLines.length) return false
   for (let i = 0; i < currentLines.length; i += 1) {
-    if (String(currentLines[i] || '') !== String(args.replacementLines[i] || '')) return false
+    const currentLine = normalizeQuotePrefixSpacingForNoop(currentLines[i] || '')
+    const replacementLine = normalizeQuotePrefixSpacingForNoop(args.replacementLines[i] || '')
+    if (currentLine !== replacementLine) return false
   }
   return true
 }
-

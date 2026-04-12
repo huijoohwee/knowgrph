@@ -308,6 +308,13 @@ export async function testMarkdownViewerInlineEditMultiLineBlockquoteDoesNotAppe
     if (!lastRowText) {
       throw new Error(`expected multiline blockquote editor not to append trailing empty row; html=${JSON.stringify(String(editor.innerHTML || ''))}`)
     }
+    const edgeWhitespaceNodes = Array.from(editor.childNodes).filter(node => {
+      if (node.nodeType !== dom.window.Node.TEXT_NODE) return false
+      return !String(node.textContent || '').trim()
+    })
+    if (edgeWhitespaceNodes.length > 0) {
+      throw new Error(`expected multiline blockquote editor not to keep whitespace-only edge nodes that render blank rows; html=${JSON.stringify(String(editor.innerHTML || ''))}`)
+    }
 
     root.unmount()
   } finally {
