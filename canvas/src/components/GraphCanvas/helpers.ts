@@ -101,13 +101,21 @@ export function getRenderNodeRadius2d(node: GraphNode, schema: GraphSchema): num
 }
 
 export function getEdgeStrokeWidth(edge: GraphEdge, schema: GraphSchema): number {
-  const styles = schema.edgeStyles[edge.label] || {}
+  const safeEdge = (edge && typeof edge === 'object' ? edge : null) as
+    | { label?: unknown; properties?: unknown }
+    | null
+  const label = typeof safeEdge?.label === 'string' ? safeEdge.label : ''
+  const styles = schema.edgeStyles?.[label] || {}
   const baseFromSchema =
     typeof styles.width === 'number' && Number.isFinite(styles.width) && styles.width > 0
       ? styles.width
       : 2
-  const props = edge.properties || {}
-  const isKeyword = isKeywordItem(props as Record<string, unknown>)
+  const rawProps = safeEdge?.properties
+  const props =
+    rawProps && typeof rawProps === 'object' && !Array.isArray(rawProps)
+      ? (rawProps as Record<string, unknown>)
+      : {}
+  const isKeyword = isKeywordItem(props)
   const scale = isKeyword ? getKeywordEdgeWidthScale(schema) : 1
   const threeCfg = getThreeConfig(schema)
   const formula = threeCfg.edgeWidthFormula || 'schema'

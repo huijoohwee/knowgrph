@@ -21,7 +21,10 @@ type UseGraphCanvasStylesProps = {
 };
 
 const readEdgeVisualOpacity = (edge: GraphEdge): number => {
-  const props = (edge as unknown as { properties?: unknown }).properties
+  const safeEdge = (edge && typeof edge === 'object' ? edge : null) as
+    | { properties?: unknown }
+    | null
+  const props = safeEdge?.properties
   if (!props || typeof props !== 'object' || Array.isArray(props)) return 1
   const raw = (props as Record<string, unknown>)['visual:opacity']
   const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
@@ -116,13 +119,16 @@ export function applyGraphCanvasStyles2d({
     });
     linksSelRef.current.attr('stroke-opacity', (d: GraphEdge) => {
       const combined = baseEdgeOpacity * readEdgeVisualOpacity(d)
-      const props = (d as unknown as { properties?: unknown }).properties
+      const safeEdge = (d && typeof d === 'object' ? d : null) as
+        | { properties?: unknown; label?: unknown }
+        | null
+      const props = safeEdge?.properties
       const isBipartiteApiEdge = !!(
         props &&
         typeof props === 'object' &&
         !Array.isArray(props) &&
         (props as Record<string, unknown>)['api:source'] === '/api/graph' &&
-        String((d as { label?: unknown }).label || '') === 'linksTo'
+        String(safeEdge?.label || '') === 'linksTo'
       )
       const floor = isBipartiteApiEdge ? 0.58 : 0.18
       return Math.max(floor, Math.min(1, combined))
@@ -132,7 +138,12 @@ export function applyGraphCanvasStyles2d({
     });
     linksSelRef.current.attr(
       'marker-end',
-      (d: GraphEdge) => (schema.edgeStyles[d.label]?.arrow ? 'url(#arrowhead)' : null),
+      (d: GraphEdge) => {
+        const label = d && typeof d === 'object' && typeof (d as { label?: unknown }).label === 'string'
+          ? (d as { label: string }).label
+          : ''
+        return schema.edgeStyles[label]?.arrow ? 'url(#arrowhead)' : null
+      },
     );
   }
 
