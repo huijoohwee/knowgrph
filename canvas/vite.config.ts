@@ -260,6 +260,123 @@ function resolveHackamapBipartiteFixturePath(): string | null {
   return null
 }
 
+function resolveHackamapGraphPath(): string | null {
+  const fromEnv =
+    String(process.env.KNOWGRPH_HACKAMAP_GRAPH_PATH || '').trim() ||
+    String(process.env.VITE_KNOWGRPH_HACKAMAP_GRAPH_PATH || '').trim()
+  const candidates = [
+    fromEnv,
+    path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'knowgrph', 'imports', 'hackamap', 'hackamap-graph.json'),
+    path.resolve(repoRoot, '..', 'project', 'prjt4000-hackamap', 'site', 'hackamap-graph.json'),
+  ].filter(Boolean)
+  for (const p of candidates) {
+    try {
+      if (p && existsSync(p)) return p
+    } catch {
+      void 0
+    }
+  }
+  return null
+}
+
+async function readHackamapGraphAsBipartiteApiPayload(): Promise<unknown> {
+  const p = resolveHackamapGraphPath()
+  if (!p) return { nodes: [], edges: [], meta: { source: 'hackamap-graph:fallback' } }
+  const raw = await fs.readFile(p, 'utf8')
+  const parsed = JSON.parse(raw)
+  const nodesRaw = Array.isArray((parsed as any)?.nodes) ? ((parsed as any).nodes as any[]) : []
+  const linksRaw = Array.isArray((parsed as any)?.links) ? ((parsed as any).links as any[]) : []
+  const nodes: any[] = []
+  const keep = new Set<string>()
+  for (const n of nodesRaw) {
+    const id = String(n?.id || '').trim()
+    const type = String(n?.type || '').trim()
+    const label = String(n?.label || '').trim()
+    if (!id || !type || !label) continue
+    if (type === 'Event') {
+      nodes.push({ id, type: 'problem', label, cluster: 'Event' })
+      keep.add(id)
+    } else if (type === 'Demo') {
+      nodes.push({ id, type: 'solution', label, cluster: 'Demo' })
+      keep.add(id)
+    }
+  }
+  const edges: any[] = []
+  for (const e of linksRaw) {
+    const source = String(e?.source || '').trim()
+    const target = String(e?.target || '').trim()
+    const t = String(e?.type || '').trim()
+    if (!source || !target) continue
+    if (t !== 'has_demo') continue
+    if (!keep.has(source) || !keep.has(target)) continue
+    edges.push({ source, target, type: 'has_demo', strength: 0.35 })
+  }
+  const meta = (parsed as any)?.meta && typeof (parsed as any).meta === 'object' ? (parsed as any).meta : {}
+  return {
+    nodes,
+    edges,
+    meta: {
+      ...(meta?.content_signature ? { content_signature: String(meta.content_signature) } : {}),
+      source: 'hackamap-graph.json',
+      total_problems: nodes.filter(n => n.type === 'problem').length,
+      total_solutions: nodes.filter(n => n.type === 'solution').length,
+      last_updated: new Date().toISOString(),
+    },
+  }
+}
+
+const apiGraphDevPlugin = {
+  name: 'knowgrph-api-graph-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use('/api/graph', async (req, res, next) => {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        next()
+        return
+      }
+      try {
+        const payload = await readHackamapGraphAsBipartiteApiPayload()
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Cache-Control', 'no-store')
+        if (req.method === 'HEAD') {
+          res.end()
+          return
+        }
+        res.end(JSON.stringify(payload))
+      } catch {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Cache-Control', 'no-store')
+        res.end(JSON.stringify({ ok: false, error: 'Failed to serve /api/graph' }))
+      }
+    })
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use('/api/graph', async (req, res, next) => {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        next()
+        return
+      }
+      try {
+        const payload = await readHackamapGraphAsBipartiteApiPayload()
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Cache-Control', 'no-store')
+        if (req.method === 'HEAD') {
+          res.end()
+          return
+        }
+        res.end(JSON.stringify(payload))
+      } catch {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Cache-Control', 'no-store')
+        res.end(JSON.stringify({ ok: false, error: 'Failed to serve /api/graph' }))
+      }
+    })
+  },
+}
+
 const bipartiteFixtureDevPlugin = {
   name: 'knowgrph-bipartite-fixture-dev',
   configureServer(server: import('vite').ViteDevServer) {
@@ -4346,6 +4463,7 @@ export default defineConfig(({ command }) => ({
             autoThemeTarget: '#root',
           }),
           markdownPipelineDevPlugin,
+          apiGraphDevPlugin,
           bipartiteFixtureDevPlugin,
           codebaseFileDevPlugin,
           remoteFetchProxyDevPlugin,

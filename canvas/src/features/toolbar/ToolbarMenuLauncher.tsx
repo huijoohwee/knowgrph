@@ -20,6 +20,7 @@ import { lsBool } from '@/lib/persistence'
 import type { ToolMenuAction, ToolMenuArea } from '@/features/toolbar/toolMenu'
 import { createNewMarkdownSourceFileAndOpenViewer } from '@/features/source-files/createNewMarkdownSourceFile'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
+import type { MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag'
 
 const ToolbarToolMenuLazy = React.lazy(() =>
   import('@/features/toolbar/ToolbarToolMenu').then(mod => ({ default: mod.ToolbarToolMenu })),
@@ -29,7 +30,7 @@ const LaunchDropdownLazy = React.lazy(() =>
 )
 
 type ToolbarMenuLauncherProps = {
-  onOpenMainPanel: (tab: 'workflow' | 'help' | 'graphFields' | 'settings') => void
+  onOpenMainPanel: (tab: MainPanelTabKey) => void
   onLaunchSpotlight?: () => void
   onLaunchStatus?: () => void
   onCloseMainPanel?: () => void

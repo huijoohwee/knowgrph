@@ -27,7 +27,7 @@ import {
   WORKSPACE_CELL_SELECT_PANEL_PLACEMENT_OPTIONS,
   type WorkspaceCellSelectPanelPlacement,
 } from '@/features/workspace-table/cellSelectPanelPlacement'
-import { WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/workspace-table/ui/workspaceSettingsSelectClass'
+import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
 
 type WorkspaceTableModeControlProps = {
   className?: string
@@ -99,7 +99,7 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
       <label className="flex items-center justify-between gap-2 text-xs">
         <span className="min-w-0 truncate">Workspace editor view</span>
         <select
-          className={WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
+          className={MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
           value={workspaceEditorMode}
           onChange={handleWorkspaceEditorModeChanged}
           aria-label="Workspace editor view"
@@ -122,7 +122,7 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
       <label className="flex items-center justify-between gap-2 text-xs">
         <span className="min-w-0 truncate">Select panel position</span>
         <select
-          className={WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
+          className={MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
           value={workspaceCellSelectPanelPlacement}
           onChange={handleWorkspaceCellSelectPanelPlacementChanged}
           aria-label="Select panel position"
@@ -137,7 +137,7 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
       <label className="flex items-center justify-between gap-2 text-xs">
         <span className="min-w-0 truncate">JSON import target</span>
         <select
-          className={WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
+          className={MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
           value={jsonImportTarget}
           onChange={handleJsonImportTargetChanged}
           aria-label="JSON import target"
@@ -152,7 +152,7 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
       <label className="flex items-center justify-between gap-2 text-xs">
         <span className="min-w-0 truncate">JSON markdown mode</span>
         <select
-          className={WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
+          className={MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
           value={jsonMarkdownMode}
           onChange={handleJsonMarkdownModeChanged}
           aria-label="JSON markdown mode"

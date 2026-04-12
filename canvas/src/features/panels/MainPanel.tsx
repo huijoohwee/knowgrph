@@ -52,6 +52,7 @@ export default function MainPanel({
   onClose,
   onHeaderDragStart,
   requestedTab,
+  requestedSearchQuery,
   collapsed,
   pinned,
   onMinimize,
@@ -61,6 +62,7 @@ export default function MainPanel({
   onClose?: () => void
   onHeaderDragStart?: (ev: React.PointerEvent<HTMLElement>) => void
   requestedTab?: MainPanelTab
+  requestedSearchQuery?: string
   collapsed?: boolean
   pinned?: boolean
   onMinimize?: () => void
@@ -147,14 +149,16 @@ export default function MainPanel({
 
   React.useEffect(() => {
     if (!requestedTab) return
+    const nextSearch = typeof requestedSearchQuery === 'string' ? requestedSearchQuery : ''
     if (requestedTab === 'help') {
-      setSearch('')
-      setSearchOpen(false)
+      setSearch(nextSearch)
+      setSearchOpen(nextSearch.length > 0)
     } else {
-      setSearchOpen(false)
+      setSearch(nextSearch)
+      setSearchOpen(nextSearch.length > 0)
     }
     setTab(requestedTab)
-  }, [requestedTab])
+  }, [requestedSearchQuery, requestedTab])
 
   return (
     <MainPanelFrame

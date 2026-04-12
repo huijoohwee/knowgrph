@@ -14,7 +14,7 @@ import { DetailsMenu } from '@/components/ui/DetailsMenu'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { WORKSPACE_DATA_VIEW_GRAPH_ROLE_OPTIONS, inferRoleForColumn } from './workspaceDataViewGraphRoles'
 import type { WorkspaceDataViewGraphColumnRole } from './workspaceDataViewConfig'
-import { WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/workspace-table/ui/workspaceSettingsSelectClass'
+import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
 
 export function WorkspaceDataViewSettingsPropertiesSection(props: {
   canMutate: boolean
@@ -321,7 +321,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                       <span className="sr-only">Table-to-graph map</span>
                       <div className="relative">
                         <select
-                          className={[UI_FOCUS_RING, WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left', MAP_SELECT_CHEVRON_ALIGN_CLASS].join(' ')}
+                          className={[UI_FOCUS_RING, MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left', MAP_SELECT_CHEVRON_ALIGN_CLASS].join(' ')}
                           value={graphRole}
                           onChange={e => {
                             setColumnGraphRole(c.id, e.target.value as WorkspaceDataViewGraphColumnRole)
@@ -447,7 +447,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                             <span className="sr-only">Table-to-graph map</span>
                             <div className="relative">
                               <select
-                                className={[UI_FOCUS_RING, WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left', MAP_SELECT_CHEVRON_ALIGN_CLASS].join(' ')}
+                                className={[UI_FOCUS_RING, MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left', MAP_SELECT_CHEVRON_ALIGN_CLASS].join(' ')}
                                 value={graphRole}
                                 onChange={e => {
                                   setColumnGraphRole(c.id, e.target.value as WorkspaceDataViewGraphColumnRole)

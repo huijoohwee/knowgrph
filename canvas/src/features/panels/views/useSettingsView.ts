@@ -35,7 +35,7 @@ export function useSettingsView({
     if (key === 'import.json.workspaceTarget') return true
     if (key === 'three.graph.edgeRenderer') return true
     if (key === 'three.preset.presentation3d') return true
-    if (key === 'integrationConfigsJson') return true
+    if (key === 'integrationConfigsJson') return false
     if (key.startsWith('graph.behavior.')) return true
     const a = String(area || '')
     if (

@@ -18,6 +18,7 @@ import { UI_RING_PRIMARY_BLUE_INDICATOR } from '@/features/toolbar/ui/toolbarSty
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
 
 export type GraphFieldsListRowProps = {
   columnKey: GraphDataTableColumnKey
@@ -288,7 +289,7 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
                     <select
                       value={settings.fieldType}
                       onChange={e => updateGraphFieldSettings(field.id, { fieldType: e.target.value as GraphFieldType })}
-                      className={`h-7 w-44 shrink-0 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 text-xs ${UI_THEME_TOKENS.text.primary}`}
+                      className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'h-7 w-44 shrink-0 text-left'].join(' ')}
                       onClick={e => e.stopPropagation()}
                     >
                       {GRAPH_FIELD_TYPES.map(t => (

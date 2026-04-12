@@ -6,6 +6,7 @@ import { getNextThemeMode, type ThemeMode } from '@/lib/ui/theme'
 import { type GraphSchema } from '@/lib/graph/schema'
 import { toggleGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import { togglePortHandlesEnabledInSchema } from '@/lib/graph/portHandlesBehavior'
+import type { MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag'
 
 export function useToolbarActions(
   schema: GraphSchema,
@@ -14,7 +15,7 @@ export function useToolbarActions(
   themeMode: ThemeMode,
   setThemeMode: (mode: ThemeMode) => void,
   launchSpotlight: (mode?: 'tour' | 'stats') => void,
-  openMainPanel: (tab: 'workflow' | 'flowEditorManager' | 'help' | 'graphFields' | 'preview' | 'settings' | 'history') => void,
+  openMainPanel: (tab: MainPanelTabKey) => void,
   onReset?: () => void,
   onZoomSelection?: () => void,
   setZoomToSelectionMode?: (v: boolean) => void,

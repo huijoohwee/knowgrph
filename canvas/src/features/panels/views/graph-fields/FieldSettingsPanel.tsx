@@ -39,6 +39,7 @@ import { FieldGraphLayersSection, GraphLayerMetadataPresetsSection } from '@/fea
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 import { MainPanelSettingsPanelShell } from '@/features/panels/ui/MainPanelSettingsPanelShell'
+import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
 
 type FieldSettingsPanelProps = {
   graphData: GraphData | null
@@ -355,7 +356,7 @@ export default function FieldSettingsPanel({
                         id="graph-fields-type"
                         value={selectedSettings.fieldType}
                         onChange={e => updateSelectedSettings({ fieldType: e.target.value as GraphFieldType })}
-                        className="h-9 w-full rounded border border-gray-300 bg-white px-2 text-xs text-gray-800"
+                        className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'h-9 w-full text-left'].join(' ')}
                       >
                         {GRAPH_FIELD_TYPES.map(t => (
                           <option key={t} value={t}>

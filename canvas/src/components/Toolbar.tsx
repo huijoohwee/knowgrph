@@ -76,6 +76,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     mainPanelCollapsed,
     mainPanelDragPos,
     mainPanelPinned,
+    mainPanelRequestedSearchQuery,
     mainPanelRequestedTab,
     nodeShapeMode,
     openMainPanel,
@@ -454,6 +455,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
                 onClose={() => setIsMainPanelOpen(false)}
                   onHeaderDragStart={!mainPanelPinned ? handleMainPanelHeaderDragStart : undefined}
                 requestedTab={mainPanelRequestedTab}
+                requestedSearchQuery={mainPanelRequestedSearchQuery}
                 collapsed={mainPanelCollapsed}
                 pinned={mainPanelPinned}
                 onMinimize={() => setMainPanelCollapsed(true)}

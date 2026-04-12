@@ -17,9 +17,14 @@ export type MainPanelTabKey =
   | 'settings'
   | 'history';
 
+export type MainPanelOpenOptions = {
+  searchQuery?: string;
+};
+
 export function useMainPanelDrag() {
   const [isMainPanelOpen, setIsMainPanelOpen] = useState(false);
   const [mainPanelRequestedTab, setMainPanelRequestedTab] = useState<MainPanelTabKey>('help');
+  const [mainPanelRequestedSearchQuery, setMainPanelRequestedSearchQuery] = useState('');
   const mainPanelCardRef = useRef<HTMLDivElement>(null);
   const mainPanelDragStateRef = useRef<{
     startX: number;
@@ -78,9 +83,11 @@ export function useMainPanelDrag() {
   }, [mainPanelCollapsed]);
 
   const openMainPanel = useCallback(
-    (tab: MainPanelTabKey) => {
+    (tab: MainPanelTabKey, options?: MainPanelOpenOptions) => {
       setIsMainPanelOpen(true);
       setMainPanelRequestedTab(tab);
+      const requestedSearch = typeof options?.searchQuery === 'string' ? options.searchQuery : '';
+      setMainPanelRequestedSearchQuery(prev => (prev === requestedSearch ? prev : requestedSearch));
       const fallbackPos = (() => {
         if (typeof window === 'undefined') return { top: 240, left: 240 };
         return {
@@ -177,6 +184,7 @@ export function useMainPanelDrag() {
     isMainPanelOpen,
     setIsMainPanelOpen,
     mainPanelRequestedTab,
+    mainPanelRequestedSearchQuery,
     setMainPanelRequestedTab,
     mainPanelCardRef,
     mainPanelPinned,

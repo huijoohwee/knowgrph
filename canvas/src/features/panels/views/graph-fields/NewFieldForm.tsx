@@ -2,6 +2,7 @@ import React from 'react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { FieldKeyIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import { GRAPH_FIELD_TYPES, type GraphFieldType } from '@/features/graph-fields/graphFields'
+import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
 
 export type NewFieldFormProps = {
   newFieldKey: string
@@ -68,7 +69,7 @@ export function NewFieldForm({
                 onChange={e =>
                   setNewFieldScope(e.target.value === 'edge' ? 'edge' : 'node')
                 }
-                className="h-8 w-full rounded border border-gray-300 bg-white px-2 text-xs"
+                className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'h-8 w-full text-left'].join(' ')}
               >
                 <option value="node">Node</option>
                 <option value="edge">Edge</option>
@@ -81,7 +82,7 @@ export function NewFieldForm({
               <select
                 value={newFieldType}
                 onChange={e => setNewFieldType(e.target.value as GraphFieldType)}
-                className="h-8 w-full rounded border border-gray-300 bg-white px-2 text-xs"
+                className={[MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'h-8 w-full text-left'].join(' ')}
               >
                 {GRAPH_FIELD_TYPES.map(t => (
                   <option key={t} value={t}>
