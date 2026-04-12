@@ -246,6 +246,9 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!derivedViewerText.includes('onReorderLineBlock={canMutate ? props.onReorderLineBlock : undefined}')) {
     throw new Error('expected derived markdown read viewer to expose reorder-line controls when mutations are allowed')
   }
+  if (!derivedViewerText.includes('forbidCopy={false}')) {
+    throw new Error('expected derived markdown read viewer code-fence copy action to stay enabled in read mode')
+  }
   const legacyMainPath = path.resolve(root, 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'MarkdownWorkspaceMainLegacy.tsx')
   const legacyMainText = readUtf8(legacyMainPath)
   if (!legacyMainText.includes('onInsertLineAfter={disableViewerMutations ? undefined : onInsertLineAfter}')) {
@@ -253,6 +256,9 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   if (!legacyMainText.includes('onReorderLineBlock={disableViewerMutations ? undefined : onReorderLineBlock}')) {
     throw new Error('expected legacy markdown read viewer to keep reorder-line controls enabled unless mutations are disabled')
+  }
+  if (!legacyMainText.includes('forbidCopy={false}')) {
+    throw new Error('expected legacy markdown read viewer code-fence copy action to stay enabled in read mode')
   }
 
   const codePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownCodeBlock.tsx')
@@ -292,6 +298,38 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   if (!codeText.includes('MARKDOWN_CODE_FENCE_CONTENT_SURFACE_BASE_CLASS')) {
     throw new Error('expected code block render surfaces to reuse centralized code-fence content wrapper SSOT class')
+  }
+  if (!codeText.includes('MARKDOWN_CODE_FENCE_ASCII_TEXT_COMPACT_CLASS')) {
+    throw new Error('expected ascii code-fence read/edit typography parity to reuse centralized compact typography SSOT class')
+  }
+  if (!codeText.includes('MARKDOWN_CODE_FENCE_LINE_SPACING_CLASS')) {
+    throw new Error('expected code-fence line-by-line read/edit typography spacing parity to reuse centralized line-spacing SSOT class')
+  }
+  if (!codeText.includes('WrapText') || !codeText.includes('bottomPanelMarkdownWordWrapToggleTitle')) {
+    throw new Error('expected code-fence header to reuse existing word-wrap toggle copy and icon contract')
+  }
+  if (!codeText.includes('effectiveWrapClass') || !codeText.includes('setLocalWordWrapEnabled')) {
+    throw new Error('expected code-fence word-wrap toggle to drive shared read/edit wrap class through local state without mutating layout contracts')
+  }
+  if (!codeText.includes('CODE_FENCE_LANGUAGE_OPTIONS') || !codeText.includes('Code fence language')) {
+    throw new Error('expected code-fence header language control to expose selectable language options for read-viewer fence mutation')
+  }
+  if (!codeText.includes('handleLanguageSelectChange') || !codeText.includes('replacementOpenLine')) {
+    throw new Error('expected code-fence language selector to rewrite the opening fence line while preserving trailing info metadata')
+  }
+  if (!codeText.includes('onMouseDown={event => event.stopPropagation()}') || !codeText.includes('onDoubleClick={event => event.stopPropagation()}')) {
+    throw new Error('expected code-fence language selector interactions to avoid triggering inline contenteditable open')
+  }
+  if (codeText.includes('p-3 bg-transparent whitespace-pre')) {
+    throw new Error('expected ascii code-fence read surface to avoid local p-3 spacing literal and reuse centralized code-fence spacing SSOT')
+  }
+  const highlightedCodePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'codeblock', 'HighlightedCode.tsx')
+  const highlightedCodeText = readUtf8(highlightedCodePath)
+  if (!highlightedCodeText.includes('MARKDOWN_CODE_FENCE_LINE_SPACING_CLASS') || !highlightedCodeText.includes('MARKDOWN_CODE_FENCE_LINE_ROW_HEIGHT_CLASS')) {
+    throw new Error('expected highlighted code render rows and line-height to reuse centralized code-fence line-spacing SSOT constants')
+  }
+  if (highlightedCodeText.includes('leading-[1.5em]') || highlightedCodeText.includes('h-[1.5em]')) {
+    throw new Error('expected highlighted code to avoid local hardcoded line-spacing literals and rely on centralized SSOT constants')
   }
 
   const listPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownListBlock.tsx')

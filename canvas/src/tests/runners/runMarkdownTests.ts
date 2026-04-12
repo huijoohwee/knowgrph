@@ -48,6 +48,7 @@ const modMarkdownScrollUtils = () => import('@/__tests__/markdownScrollUtils.tes
 const modMarkdownViewerInlineEditHeadingWysiwyg = () => import('@/__tests__/markdownViewerInlineEditHeadingWysiwyg.test')
 const modMarkdownViewerInlineEditParagraphWysiwyg = () => import('@/__tests__/markdownViewerInlineEditParagraphWysiwyg.test')
 const modMarkdownViewerInlineEditSurfaceParitySnapshot = () => import('@/__tests__/markdownViewerInlineEditSurfaceParitySnapshot.test')
+const modMarkdownViewerInlineEditCodeBlockParityInteraction = () => import('@/__tests__/markdownViewerInlineEditCodeBlockParityInteraction.test')
 const modMarkdownViewerInlineEditVariableToolbar = () => import('@/__tests__/markdownViewerInlineEditVariableToolbar.test')
 const modMarkdownViewerInlineEditFirstInputNotClobbered = () => import('@/__tests__/markdownViewerInlineEditFirstInputNotClobbered.test')
 const modMarkdownViewerVariableClickSsotNavigation = () => import('@/__tests__/markdownViewerVariableClickSsotNavigation.test')
@@ -55,6 +56,7 @@ const modMarkdownFrontmatterReadPropertiesView = () => import('@/__tests__/markd
 const modMarkdownViewerMdDemoSweepLex = () => import('@/__tests__/markdownViewerMdDemoSweepLex.test')
 const modMarkdownViewerInlineEditConfig = () => import('@/__tests__/markdownViewerInlineEditConfig.test')
 const modMarkdownViewerInlineEditMixedSequence = () => import('@/__tests__/markdownViewerInlineEditMixedSequence.test')
+const modMarkdownViewerInlineEditCodeFenceLanguageSelector = () => import('@/__tests__/markdownViewerInlineEditCodeFenceLanguageSelector.test')
 const modMarkdownViewerListInlineEditNoEdgeRows = () => import('@/__tests__/markdownViewerListInlineEditNoEdgeRows.test')
 const modMarkdownViewerInlineEditTableReadOnlySurface = () => import('@/__tests__/markdownViewerInlineEditTableReadOnlySurface.test')
 const modMultiDimTableGuidelines = () => import('@/__tests__/multiDimTableGuidelines.test')
@@ -228,6 +230,38 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'markdown.viewer.inlineEdit.surfaceParitySnapshot', async () => {
     const mod = await modMarkdownViewerInlineEditSurfaceParitySnapshot()
     await mod.testMarkdownViewerInlineEditSurfaceParitySnapshotAppliesReadSurfaceStyles()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.codeBlock.surfaceParity', async () => {
+    const mod = await modMarkdownViewerInlineEditCodeBlockParityInteraction()
+    await mod.testMarkdownViewerInlineEditCodeBlockKeepsSurfaceLayoutParity()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.codeBlock.asciiTypographyParity', async () => {
+    const mod = await modMarkdownViewerInlineEditCodeBlockParityInteraction()
+    await mod.testMarkdownViewerInlineEditAsciiCodeBlockKeepsCompactTypographyParity()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.codeBlock.gutterSpacingParity', async () => {
+    const mod = await modMarkdownViewerInlineEditCodeBlockParityInteraction()
+    await mod.testMarkdownViewerInlineEditCodeBlockGutterLayoutKeepsSpacingParity()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.codeBlock.toggleWordWrap.readEditParity', async () => {
+    const mod = await modMarkdownViewerInlineEditCodeBlockParityInteraction()
+    await mod.testMarkdownViewerCodeFenceToggleWordWrapUpdatesReadAndEditSurface()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.codeBlock.toggleWordWrap.offDisablesEditWrap', async () => {
+    const mod = await modMarkdownViewerInlineEditCodeBlockParityInteraction()
+    await mod.testMarkdownViewerCodeFenceToggleWordWrapOffDisablesWrapInEditSurface()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.codeFence.languageSelector.updatesFenceInfo', async () => {
+    const mod = await modMarkdownViewerInlineEditCodeFenceLanguageSelector()
+    await mod.testMarkdownViewerCodeFenceLanguageSelectorUpdatesFenceInfoAndKeepsMetadata()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.codeFence.languageSelector.autoModeNoEditorToggle', async () => {
+    const mod = await modMarkdownViewerInlineEditCodeFenceLanguageSelector()
+    await mod.testMarkdownViewerCodeFenceLanguageSelectorAllowsAutoModeWithoutOpeningInlineEditor()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.codeFence.copyButton.explicitForbidOnly', async () => {
+    const mod = await modMarkdownViewerInlineEditCodeFenceLanguageSelector()
+    await mod.testMarkdownViewerCodeFenceCopyButtonRespectsExplicitForbidOnly()
   })
   await execTest(results, 'markdown.viewer.inlineEdit.variableToolbar.atInvokeAndApply', async () => {
     const mod = await modMarkdownViewerInlineEditVariableToolbar()

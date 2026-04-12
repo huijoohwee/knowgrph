@@ -1,4 +1,5 @@
 import React from 'react'
+import { WrapText } from 'lucide-react'
 import type { TokensCode } from './MarkdownTokens'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import type { RenderOpts } from './MarkdownRendererTypes'
@@ -28,11 +29,13 @@ import { HtmlCodeBlockRenderer } from './codeblock/HtmlCodeBlockRenderer'
 import { encodeUtf8ToBase64 } from '@/features/markdown/markdownRoundTrip'
 import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import {
+  MARKDOWN_CODE_FENCE_ASCII_TEXT_COMPACT_CLASS,
   MARKDOWN_CODE_BLOCK_READ_SPACING_CLASS,
   MARKDOWN_CODE_FENCE_CONTENT_SURFACE_BASE_CLASS,
   MARKDOWN_CODE_FENCE_EDITOR_LAYOUT_CLASS,
+  MARKDOWN_CODE_FENCE_LINE_SPACING_CLASS,
   MARKDOWN_CODE_FENCE_PRE_SURFACE_BASE_CLASS,
-  MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
+  MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS,
 } from './markdownEditSurfaceLayout'
 
 const MermaidDiagramLazy = React.lazy(() =>
@@ -51,6 +54,23 @@ type MarkdownCodeBlockProps = {
   fragmentTags?: string[]
   annotateDisplayMode?: AnnotateDisplayMode
 }
+
+const CODE_FENCE_LANGUAGE_AUTO_VALUE = '__auto__'
+const CODE_FENCE_LANGUAGE_OPTIONS = [
+  { value: CODE_FENCE_LANGUAGE_AUTO_VALUE, label: 'auto' },
+  { value: 'plaintext', label: 'plaintext' },
+  { value: 'javascript', label: 'javascript' },
+  { value: 'typescript', label: 'typescript' },
+  { value: 'json', label: 'json' },
+  { value: 'yaml', label: 'yaml' },
+  { value: 'markdown', label: 'markdown' },
+  { value: 'bash', label: 'bash' },
+  { value: 'python', label: 'python' },
+  { value: 'sql', label: 'sql' },
+  { value: 'html', label: 'html' },
+  { value: 'css', label: 'css' },
+  { value: 'xml', label: 'xml' },
+]
 
 const buildGeoReq = (args: {
   activeDocumentPath: string
@@ -164,6 +184,9 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
   const baseMode: AnnotateDisplayMode = isGeoJsonRenderable || isMermaidLang ? 'render' : defaultMode
   const [localMode, setLocalMode] = React.useState<AnnotateDisplayMode>(() => baseMode)
   const [localOverride, setLocalOverride] = React.useState(false)
+  const baseWordWrapEnabled = /\bwhitespace-pre-wrap\b/.test(String(wrapClass || ''))
+  const [localWordWrapEnabled, setLocalWordWrapEnabled] = React.useState<boolean>(() => baseWordWrapEnabled)
+  const [wordWrapOverride, setWordWrapOverride] = React.useState(false)
 
   React.useEffect(() => {
     if (!localOverride) return
@@ -175,15 +198,27 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
     if (localOverride) return
     setLocalMode(baseMode)
   }, [baseMode, localOverride])
+  React.useEffect(() => {
+    if (wordWrapOverride) return
+    setLocalWordWrapEnabled(baseWordWrapEnabled)
+  }, [baseWordWrapEnabled, wordWrapOverride])
 
   const clearOverride = React.useCallback(() => {
     setLocalOverride(false)
     setLocalMode(baseMode)
   }, [baseMode])
+  const effectiveWordWrap = wordWrapOverride ? localWordWrapEnabled : baseWordWrapEnabled
+  React.useEffect(() => {
+    if (!wordWrapOverride) return
+    if (localWordWrapEnabled !== baseWordWrapEnabled) return
+    setWordWrapOverride(false)
+  }, [baseWordWrapEnabled, localWordWrapEnabled, wordWrapOverride])
 
   const effectiveViewMode = localMode
   const isRender = effectiveViewMode === 'render'
   const isBeside = effectiveViewMode === 'beside'
+  const canToggleWordWrap = !isAsciiDiagram && !isRender
+  const effectiveWrapClass = canToggleWordWrap && effectiveWordWrap ? 'whitespace-pre-wrap break-words' : ''
   const monospaceCodeClass = React.useMemo(() => {
     const base = String(opts.uiPanelMonospaceTextClass || '').trim() || 'font-mono text-xs'
     return opts.markdownPresentationMode ? `${base} text-xl` : base
@@ -215,9 +250,11 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
 
   const figureClassName = `rounded-lg border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden shadow-sm highlight highlight-source-${lang} transition-shadow duration-200`
   const editorCodeClassName = [
-    MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
+    MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS,
     MARKDOWN_CODE_FENCE_EDITOR_LAYOUT_CLASS,
-    wrapClass,
+    MARKDOWN_CODE_FENCE_LINE_SPACING_CLASS,
+    isAsciiDiagram ? MARKDOWN_CODE_FENCE_ASCII_TEXT_COMPACT_CLASS : '',
+    effectiveWrapClass,
     monospaceCodeClass,
     UI_THEME_TOKENS.code.bg,
     UI_THEME_TOKENS.code.text,
@@ -248,12 +285,56 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
     if (innerStart > innerEnd) return null
     return { startLine: innerStart, endLine: innerEnd }
   }, [opts.markdownSourceLines, t.endLine, t.startLine])
+  const normalizedLang = String(lang || '').trim().toLowerCase()
+  const languageSelectOptions = React.useMemo(() => {
+    if (!normalizedLang || normalizedLang === CODE_FENCE_LANGUAGE_AUTO_VALUE) return CODE_FENCE_LANGUAGE_OPTIONS
+    if (CODE_FENCE_LANGUAGE_OPTIONS.some(option => option.value === normalizedLang)) return CODE_FENCE_LANGUAGE_OPTIONS
+    return [{ value: normalizedLang, label: normalizedLang }, ...CODE_FENCE_LANGUAGE_OPTIONS]
+  }, [normalizedLang])
+  const languageSelectValue = normalizedLang || CODE_FENCE_LANGUAGE_AUTO_VALUE
+  const canChangeFenceLanguage =
+    blockControlsAllowed &&
+    !!opts.onReplaceLineRange &&
+    Array.isArray(opts.markdownSourceLines) &&
+    Number.isFinite(t.startLine)
+  const handleLanguageSelectChange = React.useCallback((nextValue: string) => {
+    if (!opts.onReplaceLineRange) return
+    const sourceLines = opts.markdownSourceLines
+    if (!Array.isArray(sourceLines) || sourceLines.length === 0) return
+    const openLineIndex = Math.max(0, Math.floor(t.startLine) - 1)
+    const openLine = String(sourceLines[openLineIndex] || '')
+    const fenceMatch = openLine.match(/^(\s*)(`{3,}|~{3,})([\s\S]*)$/)
+    if (!fenceMatch) return
+    const indent = String(fenceMatch[1] || '')
+    const fence = String(fenceMatch[2] || '```')
+    const originalInfoChunk = String(fenceMatch[3] || '')
+    const prefersInfoSeparator = /^\s+/.test(originalInfoChunk)
+    const infoRaw = String(c.info || '').trim()
+    const existingLangToken = String(meta.lang || '').trim()
+    const trailingInfo = (() => {
+      if (!infoRaw) return ''
+      if (!existingLangToken) return infoRaw
+      if (infoRaw.toLowerCase().startsWith(existingLangToken.toLowerCase())) {
+        return infoRaw.slice(existingLangToken.length).trimStart()
+      }
+      return infoRaw
+    })()
+    const nextLanguageToken =
+      nextValue && nextValue !== CODE_FENCE_LANGUAGE_AUTO_VALUE ? String(nextValue).trim().toLowerCase() : ''
+    const nextInfo = [nextLanguageToken, trailingInfo].filter(Boolean).join(' ').trim()
+    const replacementOpenLine = `${indent}${fence}${nextInfo ? `${prefersInfoSeparator ? ' ' : ''}${nextInfo}` : ''}`
+    opts.onReplaceLineRange({
+      startLine: t.startLine,
+      endLine: t.startLine,
+      replacementLines: [replacementOpenLine],
+    })
+  }, [c.info, meta.lang, opts.markdownSourceLines, opts.onReplaceLineRange, t.startLine])
   const codeFenceContentClassName = `${MARKDOWN_CODE_FENCE_CONTENT_SURFACE_BASE_CLASS} ${UI_THEME_TOKENS.code.bg} ${UI_THEME_TOKENS.code.text}`
-  const codeFencePreClassName = `${MARKDOWN_CODE_FENCE_PRE_SURFACE_BASE_CLASS} ${wrapClass} ${monospaceCodeClass}`
+  const codeFencePreClassName = `${MARKDOWN_CODE_FENCE_PRE_SURFACE_BASE_CLASS} ${MARKDOWN_CODE_FENCE_LINE_SPACING_CLASS} ${effectiveWrapClass} ${monospaceCodeClass}`
 
   const asciiNode = (
-    <section className={`relative overflow-auto ${UI_THEME_TOKENS.code.bg} ${UI_THEME_TOKENS.code.text}`}>
-      <pre className={`m-0 p-3 bg-transparent whitespace-pre ${monospaceCodeClass} text-[10px] leading-4`}>
+    <section className={codeFenceContentClassName}>
+      <pre className={`${codeFencePreClassName} ${MARKDOWN_CODE_FENCE_ASCII_TEXT_COMPACT_CLASS}`}>
         {codeText}
       </pre>
     </section>
@@ -263,11 +344,49 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
     <header
       className={`flex items-center justify-between px-3 py-1.5 border-b ${UI_THEME_TOKENS.panel.border} bg-gray-50/50 dark:bg-gray-800/50`}
     >
-      <span className="flex-1 font-mono text-xs text-gray-600 dark:text-gray-400 font-semibold uppercase">
-        {lang || 'text'}
-      </span>
+      {canChangeFenceLanguage ? (
+        <select
+          value={languageSelectValue}
+          aria-label="Code fence language"
+          className={`flex-1 min-w-0 h-6 px-1 rounded border-0 outline-none font-mono text-xs font-semibold ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`}
+          onMouseDown={event => event.stopPropagation()}
+          onClick={event => event.stopPropagation()}
+          onDoubleClick={event => event.stopPropagation()}
+          onChange={event => {
+            event.stopPropagation()
+            handleLanguageSelectChange(event.target.value)
+          }}
+        >
+          {languageSelectOptions.map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <span className="flex-1 font-mono text-xs text-gray-600 dark:text-gray-400 font-semibold uppercase">
+          {lang || 'text'}
+        </span>
+      )}
 
       <menu className="flex items-center gap-2" aria-label={UI_COPY.markdownCodeBlockActionsLabel}>
+        <button
+          type="button"
+          aria-label={UI_COPY.bottomPanelMarkdownWordWrapToggleTitle}
+          title={effectiveWordWrap ? UI_COPY.bottomPanelMarkdownWordWrapOnTooltip : UI_COPY.bottomPanelMarkdownWordWrapOffTooltip}
+          className={`p-1.5 rounded-md transition-colors ${canToggleWordWrap
+            ? `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
+            : `opacity-50 cursor-not-allowed ${UI_THEME_TOKENS.text.secondary}`}`}
+          disabled={!canToggleWordWrap}
+          onClick={() => {
+            if (!canToggleWordWrap) return
+            const next = !effectiveWordWrap
+            setWordWrapOverride(next !== baseWordWrapEnabled)
+            setLocalWordWrapEnabled(next)
+          }}
+        >
+          <WrapText className="w-3.5 h-3.5" strokeWidth={1.5} />
+        </button>
         <AnnotateDisplayModeToggle
           baseMode={baseMode}
           mode={localMode}
@@ -440,7 +559,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
               key={row.id}
               row={row}
               lang={lang}
-              wrapClass={wrapClass}
+              wrapClass={effectiveWrapClass}
               isBeside={isBeside}
               textSizeClass={monospaceCodeClass}
             />

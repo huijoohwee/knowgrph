@@ -243,8 +243,8 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
                         role="menu"
                         aria-label="Move targets"
                       >
-                        {props.moveTargets.map(t => (
-                          <li key={t} className="list-none">
+                        {props.moveTargets.map((t, index) => (
+                          <li key={`${props.row.id}:move:${t}:${index}`} className="list-none">
                             <button
                               type="button"
                               className={['w-full text-left px-2 py-1.5 rounded text-sm', UI_THEME_TOKENS.button.hoverBg].join(' ')}
@@ -300,8 +300,8 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
           <section className="flex items-center gap-2 mb-2" aria-label="Tags">
             <List className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />
             <ul className="flex flex-wrap gap-1 list-none p-0 m-0" aria-label="Tag list">
-              {tags.map(t => (
-                <li key={t} className="list-none">
+              {tags.map((t, index) => (
+                <li key={`${props.row.id}:tag:${t}:${index}`} className="list-none">
                   <DataViewTagChip value={t} />
                 </li>
               ))}

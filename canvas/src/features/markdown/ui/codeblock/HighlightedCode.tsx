@@ -10,6 +10,10 @@ import yamlLang from 'highlight.js/lib/languages/yaml'
 import xmlLang from 'highlight.js/lib/languages/xml'
 import cssLang from 'highlight.js/lib/languages/css'
 import sqlLang from 'highlight.js/lib/languages/sql'
+import {
+  MARKDOWN_CODE_FENCE_LINE_ROW_HEIGHT_CLASS,
+  MARKDOWN_CODE_FENCE_LINE_SPACING_CLASS,
+} from '@/features/markdown/ui/markdownEditSurfaceLayout'
 
 type HljsApi = import('highlight.js').HLJSApi
 
@@ -89,7 +93,7 @@ export const HighlightedCode = React.memo(function HighlightedCode({
             <span
               key={i}
               className={
-                'block w-full h-[1.5em] ' +
+                `block w-full ${MARKDOWN_CODE_FENCE_LINE_ROW_HEIGHT_CLASS} ` +
                 (highlightLines.has(i + 1)
                   ? 'bg-yellow-100/30 dark:bg-yellow-500/10 border-l-2 border-yellow-500'
                   : '')
@@ -99,7 +103,7 @@ export const HighlightedCode = React.memo(function HighlightedCode({
         </span>
       ) : null}
       <code
-        className={`hljs language-${lang} !bg-transparent !p-0 block leading-[1.5em] relative z-10`}
+        className={`hljs language-${lang} !bg-transparent !p-0 block ${MARKDOWN_CODE_FENCE_LINE_SPACING_CLASS} relative z-10`}
         dangerouslySetInnerHTML={{ __html: highlighted }}
       />
     </section>
