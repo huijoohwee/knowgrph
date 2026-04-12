@@ -2,10 +2,24 @@ export const MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS =
   'w-full min-w-0 max-w-full m-0 p-0 text-left [text-indent:0] outline-none bg-transparent'
 
 export const MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS = 'm-0 p-0 text-left [text-indent:0]'
-export const MARKDOWN_BLOCKQUOTE_READ_SPACING_CLASS = 'mt-4 mb-4'
-export const MARKDOWN_BLOCKQUOTE_READ_FRAME_CLASS = 'py-2 pl-4 border-l-4 border-solid rounded-r'
+export const MARKDOWN_BLOCK_STACK_SPACING_CLASS = 'mt-3 mb-3'
+export const MARKDOWN_BLOCKQUOTE_READ_SPACING_CLASS = MARKDOWN_BLOCK_STACK_SPACING_CLASS
+export const MARKDOWN_BLOCKQUOTE_READ_TEXT_PADDING_CLASS = 'pl-3'
+export const MARKDOWN_BLOCKQUOTE_READ_FRAME_CLASS = `py-2 ${MARKDOWN_BLOCKQUOTE_READ_TEXT_PADDING_CLASS} border-l-4 border-solid rounded-r`
 export const MARKDOWN_BLOCKQUOTE_READ_CONTENT_RESET_CLASS = '[&_p]:m-0 [&_p]:leading-normal [&_ul]:m-0 [&_ol]:m-0'
 export const MARKDOWN_CODE_BLOCK_READ_SPACING_CLASS = 'my-4'
+export const MARKDOWN_QUOTE_LIKE_CONTENT_RESET_CLASS = [
+  MARKDOWN_BLOCKQUOTE_READ_CONTENT_RESET_CLASS,
+  '[&_blockquote]:m-0',
+  '[&_blockquote]:pl-0',
+  '[&_blockquote]:py-0',
+  '[&_blockquote]:border-l-0',
+  '[&_blockquote]:rounded-none',
+  '[&_blockquote]:bg-transparent',
+].join(' ')
+export const MARKDOWN_CODE_FENCE_CONTENT_SURFACE_BASE_CLASS = 'relative overflow-auto p-4'
+export const MARKDOWN_CODE_FENCE_PRE_SURFACE_BASE_CLASS = 'm-0 p-0 bg-transparent'
+export const MARKDOWN_CODE_FENCE_EDITOR_LAYOUT_CLASS = 'block m-0 whitespace-pre overflow-auto p-4'
 
 export const MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_WRAP_CLASS = 'whitespace-pre-wrap break-words'
 
@@ -107,9 +121,9 @@ export const MARKDOWN_HTML_EDIT_BLOCK_FLOW_CLASS = [
   '[&_ol]:list-decimal',
   '[&_li]:mt-0',
   '[&_li]:mb-0',
-  '[&_blockquote]:mt-4',
-  '[&_blockquote]:mb-4',
-  '[&_blockquote]:pl-4',
+  '[&_blockquote]:mt-3',
+  '[&_blockquote]:mb-3',
+  `[&_blockquote]:${MARKDOWN_BLOCKQUOTE_READ_TEXT_PADDING_CLASS}`,
   '[&_blockquote]:py-2',
   '[&_blockquote]:border-l-4',
   '[&_blockquote]:border-blue-400',

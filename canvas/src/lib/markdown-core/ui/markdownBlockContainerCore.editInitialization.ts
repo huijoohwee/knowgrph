@@ -115,6 +115,8 @@ export const useMarkdownBlockContainerEditInitialization = (args: {
                     return rewriteInlineSigilsForEditHtml(lines.map(line => `<p>${line ? md.renderInline(line) : '<br/>'}</p>`).join('\n'))
                   },
                 )
+                args.trimEmptyEditableEdges()
+                args.scheduleEdgeTrimBurst()
               }
             } else {
               const rendered = getMarkdownItFastHtml().render(presentText)

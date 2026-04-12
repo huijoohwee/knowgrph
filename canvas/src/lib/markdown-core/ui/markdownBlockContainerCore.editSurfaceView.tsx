@@ -14,6 +14,8 @@ import { MARKDOWN_INLINE_CODE_EDIT_DESCENDANT_CLASSES } from '@/features/markdow
 import {
   MARKDOWN_HTML_EDIT_BLOCK_FLOW_CLASS,
   MARKDOWN_HTML_EDIT_NORMALIZE_CLASS,
+  MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
+  MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_MIN_LINE_CLASS,
 } from '@/features/markdown/ui/markdownEditSurfaceLayout'
 import { MarkdownBlockContainerBubbleToolbarOverlay } from './markdownBlockContainerCore.bubbleToolbarOverlay'
 import { MarkdownBlockContainerInlineMenusOverlay } from './markdownBlockContainerCore.inlineMenusOverlay'
@@ -193,7 +195,7 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
         aria-multiline="true"
         aria-label="Edit markdown block"
         className={[
-          props.editorClassName || 'w-full min-h-[24px] whitespace-pre-wrap break-words outline-none bg-transparent',
+          props.editorClassName || `${MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS} ${MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_MIN_LINE_CLASS}`,
           MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS,
           htmlBlockEditing ? 'block' : '',
           htmlEditNormalizeClassName,

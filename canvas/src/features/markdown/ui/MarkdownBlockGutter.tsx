@@ -4,6 +4,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export const MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS = 'pl-[44px]'
 export const MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS = 'pr-2'
+export const MARKDOWN_BLOCK_GUTTER_CONTENT_START_LEFT_CLASS = 'left-[44px]'
 export const MARKDOWN_BLOCK_GUTTER_CONTROLS_LIST_ROW_ALIGNMENT_CLASS = ''
 
 const LINE_BLOCK_TRANSFER_TYPE = 'application/x-kg-md-lineblock'

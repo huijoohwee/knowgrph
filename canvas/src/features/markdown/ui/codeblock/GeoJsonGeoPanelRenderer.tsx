@@ -6,6 +6,10 @@ import IconButton from '@/components/IconButton'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
 import { ErrorFeedback } from '@/components/ui/ErrorFeedback'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  MARKDOWN_CODE_FENCE_CONTENT_SURFACE_BASE_CLASS,
+  MARKDOWN_CODE_FENCE_PRE_SURFACE_BASE_CLASS,
+} from '@/features/markdown/ui/markdownEditSurfaceLayout'
 import { UI_COPY } from '@/lib/config'
 import { HighlightedCode } from './HighlightedCode'
 import { ensureMapLibreStyles } from '@/lib/ui/lazyStyles'
@@ -201,11 +205,13 @@ export function GeoJsonGeoPanelRenderer(props: {
       return { mapNode: null as React.ReactNode | null, mapError: err }
     }
   }, [renderGeo, req, shouldTreatAsGeoJson, trimmed])
+  const codeFenceContentClassName = `${MARKDOWN_CODE_FENCE_CONTENT_SURFACE_BASE_CLASS} ${UI_THEME_TOKENS.code.bg} ${UI_THEME_TOKENS.code.text}`
+  const codeFencePreClassName = `${MARKDOWN_CODE_FENCE_PRE_SURFACE_BASE_CLASS} whitespace-pre ${monospaceCodeClass}`
 
   if (typeof window === 'undefined') {
     return (
-      <section className="relative overflow-auto p-4 bg-white dark:bg-[#0d1117]">
-        <pre className={`m-0 p-0 bg-transparent whitespace-pre ${monospaceCodeClass}`}>
+      <section className={codeFenceContentClassName}>
+        <pre className={codeFencePreClassName}>
           <HighlightedCode code={text} lang={lang} highlightLines={null} />
         </pre>
       </section>
@@ -222,8 +228,8 @@ export function GeoJsonGeoPanelRenderer(props: {
 
   if (!shouldTreatAsGeoJson) {
     return (
-      <section className="relative overflow-auto p-4 bg-white dark:bg-[#0d1117]">
-        <pre className={`m-0 p-0 bg-transparent whitespace-pre ${monospaceCodeClass}`}>
+      <section className={codeFenceContentClassName}>
+        <pre className={codeFencePreClassName}>
           <HighlightedCode code={text} lang={lang} highlightLines={null} />
         </pre>
       </section>
@@ -233,8 +239,8 @@ export function GeoJsonGeoPanelRenderer(props: {
   
 
   const fallbackNode = (
-    <section className="relative overflow-auto p-4 bg-white dark:bg-[#0d1117]">
-      <pre className={`m-0 p-0 bg-transparent whitespace-pre ${monospaceCodeClass}`}>
+    <section className={codeFenceContentClassName}>
+      <pre className={codeFencePreClassName}>
         <HighlightedCode code={text} lang={lang} highlightLines={null} />
       </pre>
     </section>

@@ -23,6 +23,7 @@ import {
   MARKDOWN_LIST_ROW_VIEW_INLINE_CLASS,
   MARKDOWN_LIST_TASK_CHECKBOX_CLASS,
 } from './markdownListLayout'
+import { MARKDOWN_BLOCK_STACK_SPACING_CLASS, MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS } from './markdownEditSurfaceLayout'
 
 type MarkdownListBlockProps = {
   token: TokenWithLines
@@ -351,9 +352,9 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
   const listSurfaceClass = getMarkdownListSurfaceClass(!!list.ordered)
   const listReadInnerClassName = [
     listSurfaceClass,
+    MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS,
     baseTextClass,
     opts.uiPanelTextFontClass,
-    'm-0',
   ]
     .filter(Boolean)
     .join(' ')
@@ -420,7 +421,7 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
     uiIconStrokeWidth,
     wrapClass,
   ])
-  const listBlockClassName = ['mt-3 mb-3', baseTextClass, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
+  const listBlockClassName = [MARKDOWN_BLOCK_STACK_SPACING_CLASS, baseTextClass, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
   const listWrapperClassName = [listBlockClassName, 'relative group'].filter(Boolean).join(' ')
 
   if (!gutterEnabled) {

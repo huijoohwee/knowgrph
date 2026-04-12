@@ -29,6 +29,9 @@ import { encodeUtf8ToBase64 } from '@/features/markdown/markdownRoundTrip'
 import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import {
   MARKDOWN_CODE_BLOCK_READ_SPACING_CLASS,
+  MARKDOWN_CODE_FENCE_CONTENT_SURFACE_BASE_CLASS,
+  MARKDOWN_CODE_FENCE_EDITOR_LAYOUT_CLASS,
+  MARKDOWN_CODE_FENCE_PRE_SURFACE_BASE_CLASS,
   MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
 } from './markdownEditSurfaceLayout'
 
@@ -213,12 +216,11 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
   const figureClassName = `rounded-lg border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden shadow-sm highlight highlight-source-${lang} transition-shadow duration-200`
   const editorCodeClassName = [
     MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
-    'block m-0 whitespace-pre overflow-auto',
+    MARKDOWN_CODE_FENCE_EDITOR_LAYOUT_CLASS,
     wrapClass,
     monospaceCodeClass,
     UI_THEME_TOKENS.code.bg,
     UI_THEME_TOKENS.code.text,
-    'p-4',
   ]
     .filter(Boolean)
     .join(' ')
@@ -246,6 +248,8 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
     if (innerStart > innerEnd) return null
     return { startLine: innerStart, endLine: innerEnd }
   }, [opts.markdownSourceLines, t.endLine, t.startLine])
+  const codeFenceContentClassName = `${MARKDOWN_CODE_FENCE_CONTENT_SURFACE_BASE_CLASS} ${UI_THEME_TOKENS.code.bg} ${UI_THEME_TOKENS.code.text}`
+  const codeFencePreClassName = `${MARKDOWN_CODE_FENCE_PRE_SURFACE_BASE_CLASS} ${wrapClass} ${monospaceCodeClass}`
 
   const asciiNode = (
     <section className={`relative overflow-auto ${UI_THEME_TOKENS.code.bg} ${UI_THEME_TOKENS.code.text}`}>
@@ -412,7 +416,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
                 return String(m?.[1] || '').trim()
               })()
               return (
-                <section className={`relative overflow-auto p-4 ${UI_THEME_TOKENS.code.bg} ${UI_THEME_TOKENS.code.text}`}>
+                <section className={codeFenceContentClassName}>
                   <img
                     src={src}
                     alt={alt}
@@ -422,8 +426,8 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
               )
             })()
           ) : (
-            <section className="relative overflow-auto p-4">
-              <pre className={`m-0 p-0 bg-transparent ${wrapClass} ${monospaceCodeClass}`}>
+            <section className={codeFenceContentClassName}>
+              <pre className={codeFencePreClassName}>
                 <HighlightedCode code={codeText} lang={lang} highlightLines={highlightLines} />
               </pre>
             </section>
@@ -443,8 +447,8 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
           ))}
         </section>
       ) : (
-        <section className={`relative overflow-auto p-4 ${UI_THEME_TOKENS.code.bg} ${UI_THEME_TOKENS.code.text}`}>
-          <pre className={`m-0 p-0 bg-transparent ${wrapClass} ${monospaceCodeClass}`}>
+        <section className={codeFenceContentClassName}>
+          <pre className={codeFencePreClassName}>
             <HighlightedCode code={codeText} lang={lang} highlightLines={highlightLines} />
           </pre>
         </section>

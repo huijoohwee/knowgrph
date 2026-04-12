@@ -272,20 +272,26 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!codeText.includes('editPreserveWhitespace')) {
     throw new Error('expected code blocks to preserve indentation whitespace during inline edit')
   }
-  if (!codeText.includes("'p-4'")) {
-    throw new Error('expected code block inline editor to reuse p-4 spacing for edit-as-is surface parity')
+  if (!codeText.includes('MARKDOWN_CODE_FENCE_EDITOR_LAYOUT_CLASS') && !codeText.includes("'p-4'")) {
+    throw new Error('expected code block inline editor to reuse centralized p-4 spacing contract for edit-as-is surface parity')
   }
   if (codeText.includes('min-h-[96px]')) {
     throw new Error('expected code block inline editor to avoid hardcoded min height that changes layout')
   }
-  if (!codeText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
-    throw new Error('expected code block inline editor root to reuse centralized normal-text edit surface contract')
+  if (
+    !codeText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')
+    && !codeText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS')
+  ) {
+    throw new Error('expected code block inline editor root to reuse centralized normal-text edit surface baseline contract')
   }
   if (!codeText.includes('MARKDOWN_CODE_BLOCK_READ_SPACING_CLASS')) {
     throw new Error('expected code block read/gutter wrappers to reuse centralized read-surface spacing SSOT contract')
   }
-  if (!codeText.includes('whitespace-pre overflow-auto')) {
+  if (!codeText.includes('MARKDOWN_CODE_FENCE_EDITOR_LAYOUT_CLASS') && !codeText.includes('whitespace-pre overflow-auto')) {
     throw new Error('expected code block inline editor root to preserve edit-as-is preformatted overflow behavior')
+  }
+  if (!codeText.includes('MARKDOWN_CODE_FENCE_CONTENT_SURFACE_BASE_CLASS')) {
+    throw new Error('expected code block render surfaces to reuse centralized code-fence content wrapper SSOT class')
   }
 
   const listPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownListBlock.tsx')
@@ -373,8 +379,8 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!listText.includes('getMarkdownListSurfaceClass(!!list.ordered)')) {
     throw new Error('expected list read/view surface to use centralized marker/indent SSOT class builder')
   }
-  if (!listText.includes("'m-0'")) {
-    throw new Error('expected list renderer to keep list baseline margins reset')
+  if (!listText.includes('MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS')) {
+    throw new Error('expected list read/view surface to reuse centralized normal-text read baseline alignment and margin reset contract')
   }
   if (!listText.includes('className={MARKDOWN_LIST_TASK_CHECKBOX_CLASS}')) {
     throw new Error('expected checklist inline editor to use centralized checkbox spacing/alignment SSOT class')
@@ -410,6 +416,12 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!editSurfaceLayoutText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS')) {
     throw new Error('expected normal-text edit surface layout contract to be centralized in markdownEditSurfaceLayout SSOT')
   }
+  if (!editSurfaceLayoutText.includes('MARKDOWN_BLOCK_STACK_SPACING_CLASS')) {
+    throw new Error('expected markdown block stack spacing rhythm contract to be centralized in markdownEditSurfaceLayout SSOT')
+  }
+  if (!listText.includes('MARKDOWN_BLOCK_STACK_SPACING_CLASS')) {
+    throw new Error('expected markdown list block wrapper spacing to reuse centralized markdown block stack spacing contract')
+  }
   if (
     !editSurfaceLayoutText.includes('m-0 p-0') ||
     !editSurfaceLayoutText.includes('text-left [text-indent:0]') ||
@@ -432,8 +444,36 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockquoteText.includes('MARKDOWN_BLOCKQUOTE_READ_FRAME_CLASS') || !blockquoteText.includes('MARKDOWN_BLOCKQUOTE_READ_SPACING_CLASS')) {
     throw new Error('expected blockquote read wrapper/frame spacing contracts to reuse centralized normal-text SSOT constants')
   }
+  if (!blockquoteText.includes('MARKDOWN_BLOCKQUOTE_READ_TEXT_PADDING_CLASS')) {
+    throw new Error('expected blockquote text indentation to reuse centralized quote text-padding SSOT contract for list-aligned content')
+  }
+  if (!editSurfaceLayoutText.includes("MARKDOWN_BLOCKQUOTE_READ_TEXT_PADDING_CLASS = 'pl-3'")) {
+    throw new Error('expected blockquote text indentation rhythm to be tuned via centralized SSOT contract to align with list step cadence')
+  }
+  if (!editSurfaceLayoutText.includes('[&_blockquote]:${MARKDOWN_BLOCKQUOTE_READ_TEXT_PADDING_CLASS}')) {
+    throw new Error('expected html-block blockquote indentation to reuse centralized quote text-padding SSOT contract')
+  }
+  if (blockquoteText.includes('py-2 pl-4 rounded-r')) {
+    throw new Error('expected blockquote gutter shell to avoid hardcoded pl-4 indentation literal and reuse centralized quote text-padding contract')
+  }
+  if (blockquoteText.includes('`py-2 ${MARKDOWN_BLOCKQUOTE_READ_TEXT_PADDING_CLASS} rounded-r`')) {
+    throw new Error('expected blockquote gutter shell to avoid stacking quote text padding with gutter left padding on the same wrapper')
+  }
+  if (!blockquoteText.includes("<blockquote className={[MARKDOWN_BLOCKQUOTE_READ_TEXT_PADDING_CLASS, MARKDOWN_BLOCKQUOTE_READ_CONTENT_RESET_CLASS].filter(Boolean).join(' ')}>")) {
+    throw new Error('expected gutter blockquote inner node to own centralized quote text-padding plus content reset for list-aligned content-start')
+  }
+  if (!blockquoteText.includes('MARKDOWN_BLOCK_GUTTER_CONTENT_START_LEFT_CLASS') || !blockquoteText.includes('before:border-l-4')) {
+    throw new Error('expected gutter blockquote border rail to anchor at gutter-content start so border stays right of plus/reorder controls')
+  }
+  if (!blockquoteText.includes('editTrimEmptyBlockEdges')) {
+    throw new Error('expected blockquote inline editor to trim empty editable edges to avoid multi-line trailing extra-row drift')
+  }
   if (!blockquoteText.includes('editorQuoteClassNameNoInset') || !blockquoteText.includes('editorClassName={editorQuoteClassNameNoInset}')) {
-    throw new Error('expected non-gutter blockquote inline editor to avoid duplicate inset padding/margin layering')
+    throw new Error('expected blockquote inline editor to avoid duplicate inset padding/margin layering')
+  }
+  const noInsetEditorClassMatches = blockquoteText.match(/editorClassName=\{editorQuoteClassNameNoInset\}/g) || []
+  if (noInsetEditorClassMatches.length < 2) {
+    throw new Error('expected both gutter and non-gutter blockquote inline editor paths to reuse no-inset quote editor class')
   }
   if (!blockquoteText.includes('editCaptureLayoutSpacing')) {
     throw new Error('expected blockquote inline editor to explicitly enable layout spacing capture parity')
@@ -520,6 +560,12 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   if (!calloutText.includes('getMarkdownQuoteLikeEditorClass')) {
     throw new Error('expected callout body inline editor to reuse centralized quote-like edit-surface class builder')
+  }
+  if (!calloutText.includes('MARKDOWN_QUOTE_LIKE_CONTENT_RESET_CLASS')) {
+    throw new Error('expected callout body content reset to reuse centralized quote-like reset SSOT contract')
+  }
+  if (!calloutText.includes('MARKDOWN_BLOCKQUOTE_READ_FRAME_CLASS') || !calloutText.includes('MARKDOWN_BLOCKQUOTE_READ_SPACING_CLASS')) {
+    throw new Error('expected callout wrapper frame/spacing to reuse centralized blockquote read-surface SSOT contracts')
   }
   if (!calloutText.includes('resolveEditLineRangeOnOpen={resolveCalloutBodyEditLineRange}') || !calloutText.includes('const resolveCalloutBodyEditLineRange = React.useCallback')) {
     throw new Error('expected callout body inline editor to clamp edit ranges to contiguous quote lines and avoid extra-row mutation')

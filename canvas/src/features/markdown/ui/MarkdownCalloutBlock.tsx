@@ -12,7 +12,11 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { resolveContiguousQuoteLineRangeOnOpen } from './markdownEditParitySsot'
 import {
   getMarkdownQuoteLikeEditorClass,
+  MARKDOWN_BLOCKQUOTE_READ_FRAME_CLASS,
+  MARKDOWN_BLOCKQUOTE_READ_SPACING_CLASS,
   MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
+  MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS,
+  MARKDOWN_QUOTE_LIKE_CONTENT_RESET_CLASS,
 } from './markdownEditSurfaceLayout'
 import {
   MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
@@ -91,8 +95,10 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
   const accentClass = getCalloutAccentClass(callout.calloutType)
   const contentTokens = addLineRangesToTokens((callout.tokens || []) as unknown as Token[], 0)
   const calloutFrameClassName = [
-    `py-2 border-l-4 ${borderClass} ${UI_THEME_TOKENS.table.rowRelated} rounded-r`,
-    'text-left',
+    MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS,
+    MARKDOWN_BLOCKQUOTE_READ_FRAME_CLASS,
+    borderClass,
+    UI_THEME_TOKENS.table.rowRelated,
     baseTextClass,
     commonBlockClass,
   ]
@@ -104,7 +110,7 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
   ].filter(Boolean).join(' ')
 
   const wrapperClassName = [
-    'mt-4 mb-4',
+    MARKDOWN_BLOCKQUOTE_READ_SPACING_CLASS,
     calloutFrameClassName,
     gutterLayoutEnabled ? MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS : 'pl-4',
     gutterLayoutEnabled ? MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS : '',
@@ -141,16 +147,7 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
   const calloutBodyEndLine = Math.floor(endLine)
   const calloutBodyContentClassName = [
     'w-full',
-    '[&_p]:m-0',
-    '[&_p]:leading-normal',
-    '[&_ul]:m-0',
-    '[&_ol]:m-0',
-    '[&_blockquote]:m-0',
-    '[&_blockquote]:pl-0',
-    '[&_blockquote]:py-0',
-    '[&_blockquote]:border-l-0',
-    '[&_blockquote]:rounded-none',
-    '[&_blockquote]:bg-transparent',
+    MARKDOWN_QUOTE_LIKE_CONTENT_RESET_CLASS,
     '[&_blockquote]:not-italic',
   ].join(' ')
   const calloutBodyEditable =
@@ -210,7 +207,8 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
 
   if (gutterLayoutEnabled) {
     const outerClassName = [
-      'mt-4 mb-4 relative group',
+      MARKDOWN_BLOCKQUOTE_READ_SPACING_CLASS,
+      'relative group',
       MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
       MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
       `border-l-4 ${borderClass} rounded-r`,

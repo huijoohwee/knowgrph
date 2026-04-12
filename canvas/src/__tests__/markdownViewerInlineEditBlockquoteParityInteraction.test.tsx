@@ -63,10 +63,30 @@ export async function testMarkdownViewerInlineEditBlockquoteDoesNotDriftRightwar
 
     const editor = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
     if (!editor) throw new Error('expected blockquote editor')
-    if (editor.style.paddingLeft || editor.style.marginLeft || editor.style.textIndent) {
+    if (
+      editor.style.paddingTop ||
+      editor.style.paddingLeft ||
+      editor.style.paddingBottom ||
+      editor.style.marginTop ||
+      editor.style.marginLeft ||
+      editor.style.marginBottom ||
+      editor.style.textIndent
+    ) {
       throw new Error('expected blockquote edit surface to avoid horizontal spacing replay that causes rightward drift')
     }
-    if (editor.style.borderLeftWidth || editor.style.borderLeftStyle || editor.style.borderLeftColor) {
+    if (
+      editor.style.borderTopWidth ||
+      editor.style.borderLeftWidth ||
+      editor.style.borderBottomWidth ||
+      editor.style.borderTopStyle ||
+      editor.style.borderLeftStyle ||
+      editor.style.borderBottomStyle ||
+      editor.style.borderTopColor ||
+      editor.style.borderLeftColor ||
+      editor.style.borderBottomColor ||
+      editor.style.borderRadius ||
+      editor.style.backgroundColor
+    ) {
       throw new Error('expected blockquote edit surface not to inline-override left border so quote rail remains visible')
     }
 
@@ -209,6 +229,84 @@ export async function testMarkdownViewerInlineEditBlockquoteDoesNotShowSigilAsCo
     if (codeLike) throw new Error('expected blockquote edit surface not to show sigil inline code token')
     if (!String(editor.textContent || '').includes('Hello')) {
       throw new Error('expected blockquote edit surface to show plain text content without sigil code or style wrappers')
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerInlineEditMultiLineBlockquoteDoesNotAppendTrailingEmptyRow() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+    const reactDomClient = await import('react-dom/client')
+    const root = reactDomClient.createRoot(container)
+    const mod = await import('@/features/markdown/ui/MarkdownBlockContainer')
+    const MarkdownBlockContainer = mod.MarkdownBlockContainer
+
+    root.render(
+      <MarkdownBlockContainer
+        as="blockquote"
+        className="mt-2 mb-2 pl-[44px] pr-2"
+        highlightClass=""
+        startLine={1}
+        endLine={3}
+        inlineEditable
+        sourceLines={['> a', '> b', '> c']}
+        onReplaceLineRange={() => {}}
+        editPresentation="html"
+        editHtmlRender="block"
+        editHtmlDisableDefaultBlockFlow
+        editSigilRenderMode="plain"
+        editStripLinePrefix={(line: string) => {
+          const m = line.match(/^(\s*(?:>\s*)+)?([\s\S]*)$/)
+          const prefix = m?.[1] || ''
+          const content = m?.[2] ?? line
+          return { prefix, content }
+        }}
+        editPreserveWhitespace
+        editTrimEdgeNewlines
+        editTrimEmptyBlockEdges
+      >
+        <span>a</span>
+      </MarkdownBlockContainer>,
+    )
+
+    await tick(2)
+    const host = dom.window.document.querySelector('blockquote') as HTMLElement | null
+    if (!host) throw new Error('expected host blockquote')
+    host.getBoundingClientRect = () => {
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 320,
+        bottom: 42,
+        width: 320,
+        height: 42,
+        toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+    host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }))
+    await tick(3)
+
+    const editor = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error('expected blockquote editor')
+    const rows = Array.from(editor.children).filter(node => {
+      const tag = String((node as HTMLElement).tagName || '').toLowerCase()
+      return tag === 'p' || tag === 'div'
+    }) as HTMLElement[]
+    if (rows.length !== 3) {
+      throw new Error(`expected multiline blockquote editor to keep exactly three content rows; html=${JSON.stringify(String(editor.innerHTML || ''))}`)
+    }
+    const lastRow = rows[rows.length - 1]
+    const lastRowText = String(lastRow.textContent || '').replace(/[\u200B\u00A0\uFEFF]/g, '').trim()
+    if (!lastRowText) {
+      throw new Error(`expected multiline blockquote editor not to append trailing empty row; html=${JSON.stringify(String(editor.innerHTML || ''))}`)
     }
 
     root.unmount()

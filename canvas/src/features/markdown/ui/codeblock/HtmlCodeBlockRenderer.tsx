@@ -3,6 +3,7 @@ import type { RenderOpts } from '@/features/markdown/ui/MarkdownRendererTypes'
 import { renderSafeHtmlBlock } from '@/features/markdown/ui/markdownPreviewLinks'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { MARKDOWN_CODE_FENCE_CONTENT_SURFACE_BASE_CLASS } from '@/features/markdown/ui/markdownEditSurfaceLayout'
 
 export function HtmlCodeBlockRenderer({
   html,
@@ -85,7 +86,7 @@ export function HtmlCodeBlockRenderer({
   return (
     <section
       ref={containerRef}
-      className={`relative overflow-auto p-4 cursor-grab ${UI_THEME_TOKENS.code.bg} ${UI_THEME_TOKENS.code.text}`}
+      className={`${MARKDOWN_CODE_FENCE_CONTENT_SURFACE_BASE_CLASS} cursor-grab ${UI_THEME_TOKENS.code.bg} ${UI_THEME_TOKENS.code.text}`}
       onPointerDown={handlePointerDown}
     >
       {safe}

@@ -9,6 +9,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY } from '@/lib/config'
 import {
+  MARKDOWN_BLOCK_GUTTER_CONTENT_START_LEFT_CLASS,
   MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
   MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
   MarkdownBlockDropMarkers,
@@ -36,6 +37,7 @@ import {
   MARKDOWN_BLOCKQUOTE_READ_CONTENT_RESET_CLASS,
   MARKDOWN_BLOCKQUOTE_READ_FRAME_CLASS,
   MARKDOWN_BLOCKQUOTE_READ_SPACING_CLASS,
+  MARKDOWN_BLOCKQUOTE_READ_TEXT_PADDING_CLASS,
   MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS,
 } from './markdownEditSurfaceLayout'
 
@@ -85,6 +87,17 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
   const quoteClassName = [MARKDOWN_BLOCKQUOTE_READ_SPACING_CLASS, quoteFrameClassName, MARKDOWN_BLOCKQUOTE_READ_CONTENT_RESET_CLASS]
     .filter(Boolean)
     .join(' ')
+  const quoteGutterShellClassName = [
+    MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS,
+    'py-2 rounded-r',
+    `${UI_THEME_TOKENS.table.rowRelated} ${UI_THEME_TOKENS.text.secondary} italic`,
+    'before:content-[\'\'] before:absolute before:inset-y-0 before:border-l-4 before:border-blue-400 dark:before:border-blue-600 before:pointer-events-none',
+    `before:${MARKDOWN_BLOCK_GUTTER_CONTENT_START_LEFT_CLASS}`,
+    baseTextClass,
+    commonBlockClass,
+  ]
+    .filter(Boolean)
+    .join(' ')
   const stripQuotePrefix = React.useCallback((line: string) => {
     const m = line.match(/^(\s*(?:>\s*)+)?([\s\S]*)$/)
     const prefix = m?.[1] || ''
@@ -132,6 +145,7 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
         editStripLinePrefix={stripQuotePrefix}
         editPreserveWhitespace
         editTrimEdgeNewlines
+        editTrimEmptyBlockEdges
         editCaptureLayoutSpacing
         editPreserveBlockHeight={false}
       >
@@ -162,6 +176,7 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
     'relative group',
     MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
     MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
+    quoteGutterShellClassName,
     dnd.isDragging ? 'opacity-60' : '',
   ]
     .filter(Boolean)
@@ -180,7 +195,7 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
       onReplaceLineRange={opts.onReplaceLineRange}
       onInlineEditStateChange={opts.onInlineEditStateChange}
       forbidCopy={!!opts.forbidCopy}
-      editorClassName={editorQuoteClassName}
+      editorClassName={editorQuoteClassNameNoInset}
       resolveEditLineRangeOnOpen={resolveQuoteEditLineRange}
       editPresentation="html"
       editHtmlRender="block"
@@ -189,6 +204,7 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
       editStripLinePrefix={stripQuotePrefix}
       editPreserveWhitespace
       editTrimEdgeNewlines
+      editTrimEmptyBlockEdges
       editCaptureLayoutSpacing
       editPreserveBlockHeight={false}
       onDragOver={gutterEnabled ? dnd.handleDragOver : undefined}
@@ -211,7 +227,7 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
           />
         </>
       ) : null}
-      <blockquote className={[quoteFrameClassName, MARKDOWN_BLOCKQUOTE_READ_CONTENT_RESET_CLASS].filter(Boolean).join(' ')}>
+      <blockquote className={[MARKDOWN_BLOCKQUOTE_READ_TEXT_PADDING_CLASS, MARKDOWN_BLOCKQUOTE_READ_CONTENT_RESET_CLASS].filter(Boolean).join(' ')}>
         <MarkdownTokenRenderer
           tokens={addLineRangesToTokens(bq.tokens as unknown as Token[], 0)}
           blockNestingLevel={1}
