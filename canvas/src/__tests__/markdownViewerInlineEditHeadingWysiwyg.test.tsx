@@ -38,8 +38,8 @@ export async function testMarkdownViewerInlineEditHeadingUsesHtmlEditingAndPrese
   if (!headingText.includes('editPresentation="html"')) {
     throw new Error('expected MarkdownHeadingBlock to use html edit presentation')
   }
-  if (!headingText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS')) {
-    throw new Error('expected heading edit surface to reuse centralized normal-text edit surface base layout contract')
+  if (!headingText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
+    throw new Error('expected heading edit surface to reuse centralized normal-text edit surface layout contract')
   }
   if (headingText.includes('editCaptureLayoutSpacing')) {
     throw new Error('expected heading edit surface to avoid extra spacing snapshot replay and stay on normal-text SSOT baseline')

@@ -27,7 +27,10 @@ import { HighlightedCode } from './codeblock/HighlightedCode'
 import { HtmlCodeBlockRenderer } from './codeblock/HtmlCodeBlockRenderer'
 import { encodeUtf8ToBase64 } from '@/features/markdown/markdownRoundTrip'
 import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
-import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
+import {
+  MARKDOWN_CODE_BLOCK_READ_SPACING_CLASS,
+  MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
+} from './markdownEditSurfaceLayout'
 
 const MermaidDiagramLazy = React.lazy(() =>
   import('@/features/panels/views/preview-panel/ui/MermaidDiagram').then(mod => ({ default: mod.MermaidDiagram })),
@@ -451,12 +454,23 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
 
   const editStaticHeaderNode = React.useMemo(() => headerNode, [headerNode])
 
+  const codeOuterClassName = [MARKDOWN_CODE_BLOCK_READ_SPACING_CLASS, figureClassName].filter(Boolean).join(' ')
+  const codeGutterWrapperClassName = [
+    MARKDOWN_CODE_BLOCK_READ_SPACING_CLASS,
+    'relative group',
+    MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
+    MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
+    dnd.isDragging ? 'opacity-60' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   if (!gutterLayoutEnabled) {
     return (
       <MarkdownBlockContainer
         as="figure"
         ref={containerRef}
-        className={`my-4 ${figureClassName}`}
+        className={codeOuterClassName}
         highlightClass={highlightClass}
         highlightStyle={highlightStyle}
         startLine={t.startLine}
@@ -478,18 +492,9 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
     )
   }
 
-  const wrapperClassName = [
-    'my-4 relative group',
-    MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
-    MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
-    dnd.isDragging ? 'opacity-60' : '',
-  ]
-    .filter(Boolean)
-    .join(' ')
-
   return (
     <section
-      className={wrapperClassName}
+      className={codeGutterWrapperClassName}
       onDragOver={gutterEnabled ? dnd.handleDragOver : undefined}
       onDragLeave={gutterEnabled ? dnd.handleDragLeave : undefined}
       onDrop={gutterEnabled ? dnd.handleDrop : undefined}

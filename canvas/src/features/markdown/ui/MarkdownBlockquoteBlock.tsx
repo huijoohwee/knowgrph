@@ -31,7 +31,13 @@ type MarkdownBlockquoteBlockProps = {
 
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { resolveContiguousQuoteLineRangeOnOpen } from './markdownEditParitySsot'
-import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
+import {
+  getMarkdownQuoteLikeEditorClass,
+  MARKDOWN_BLOCKQUOTE_READ_CONTENT_RESET_CLASS,
+  MARKDOWN_BLOCKQUOTE_READ_FRAME_CLASS,
+  MARKDOWN_BLOCKQUOTE_READ_SPACING_CLASS,
+  MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS,
+} from './markdownEditSurfaceLayout'
 
 export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlock({
   token: t,
@@ -67,21 +73,18 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
     onReorder: (source, target, position) => opts.onReorderLineBlock?.(source, target, position),
   })
 
-  const quoteClassName = [
-    'mt-4 mb-4',
-    `pl-4 py-2 border-l-4 border-solid border-blue-400 dark:border-blue-600 ${UI_THEME_TOKENS.table.rowRelated} rounded-r ${UI_THEME_TOKENS.text.secondary} italic`,
-    'text-left',
-    '[&_p]:m-0',
-    '[&_p]:leading-normal',
-    '[&_ul]:m-0',
-    '[&_ol]:m-0',
+  const quoteFrameClassName = [
+    MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS,
+    MARKDOWN_BLOCKQUOTE_READ_FRAME_CLASS,
+    `border-blue-400 dark:border-blue-600 ${UI_THEME_TOKENS.table.rowRelated} ${UI_THEME_TOKENS.text.secondary} italic`,
     baseTextClass,
     commonBlockClass,
   ]
     .filter(Boolean)
     .join(' ')
-  const quoteInnerClassName = quoteClassName
-    .replace(/^mt-4 mb-4\s+/, '')
+  const quoteClassName = [MARKDOWN_BLOCKQUOTE_READ_SPACING_CLASS, quoteFrameClassName, MARKDOWN_BLOCKQUOTE_READ_CONTENT_RESET_CLASS]
+    .filter(Boolean)
+    .join(' ')
   const stripQuotePrefix = React.useCallback((line: string) => {
     const m = line.match(/^(\s*(?:>\s*)+)?([\s\S]*)$/)
     const prefix = m?.[1] || ''
@@ -95,54 +98,17 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
       fallbackStartLine: Math.max(1, Math.floor(t.startLine)),
     })
   }, [opts.markdownSourceLines, t.startLine])
-  const editorQuoteClassName = [
-    MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
-    'min-h-[1lh] leading-normal',
+  const editorQuoteClassName = getMarkdownQuoteLikeEditorClass({
     baseTextClass,
     commonBlockClass,
-    opts.uiPanelTextFontClass,
-    '[&_div]:font-inherit',
-    '[&_div]:text-inherit',
-    '[&_div]:m-0',
-    '[&_div]:leading-normal',
-    '[&_div]:whitespace-pre-wrap',
-    '[&_p]:font-inherit',
-    '[&_p]:text-inherit',
-    '[&_p]:m-0',
-    '[&_p]:leading-normal',
-    '[&_p]:whitespace-pre-wrap',
-    '[&_ul]:m-0',
-    '[&_ol]:m-0',
-  ]
-    .filter(Boolean)
-    .join(' ')
-  const editorQuoteClassNameNoInset = [
-    MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
-    'min-h-[1lh] leading-normal',
+    uiPanelTextFontClass: opts.uiPanelTextFontClass,
+  })
+  const editorQuoteClassNameNoInset = getMarkdownQuoteLikeEditorClass({
     baseTextClass,
     commonBlockClass,
-    opts.uiPanelTextFontClass,
-    '[&_div]:font-inherit',
-    '[&_div]:text-inherit',
-    '[&_div]:m-0',
-    '[&_div]:leading-normal',
-    '[&_div]:whitespace-pre-wrap',
-    '[&_p]:font-inherit',
-    '[&_p]:text-inherit',
-    '[&_p]:m-0',
-    '[&_p]:leading-normal',
-    '[&_p]:whitespace-pre-wrap',
-    '[&_ul]:m-0',
-    '[&_ol]:m-0',
-    '[&_blockquote]:m-0',
-    '[&_blockquote]:pl-0',
-    '[&_blockquote]:py-0',
-    '[&_blockquote]:border-l-0',
-    '[&_blockquote]:rounded-none',
-    '[&_blockquote]:bg-transparent',
-  ]
-    .filter(Boolean)
-    .join(' ')
+    uiPanelTextFontClass: opts.uiPanelTextFontClass,
+    stripNestedBlockquoteInset: true,
+  })
   if (!gutterLayoutEnabled) {
     return (
       <MarkdownBlockContainer
@@ -192,7 +158,8 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
   }
 
   const wrapperClassName = [
-    'mt-4 mb-4 relative group',
+    MARKDOWN_BLOCKQUOTE_READ_SPACING_CLASS,
+    'relative group',
     MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
     MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
     dnd.isDragging ? 'opacity-60' : '',
@@ -244,7 +211,7 @@ export const MarkdownBlockquoteBlock = React.memo(function MarkdownBlockquoteBlo
           />
         </>
       ) : null}
-      <blockquote className={quoteInnerClassName}>
+      <blockquote className={[quoteFrameClassName, MARKDOWN_BLOCKQUOTE_READ_CONTENT_RESET_CLASS].filter(Boolean).join(' ')}>
         <MarkdownTokenRenderer
           tokens={addLineRangesToTokens(bq.tokens as unknown as Token[], 0)}
           blockNestingLevel={1}

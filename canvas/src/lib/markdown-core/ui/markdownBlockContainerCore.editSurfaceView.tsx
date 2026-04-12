@@ -11,6 +11,10 @@ import {
   FLOATING_MENU_LEFT_W220_CLASSNAME,
 } from '@/components/BottomPanel/markdownWorkspace/main/viewer/floatingMenuStyles'
 import { MARKDOWN_INLINE_CODE_EDIT_DESCENDANT_CLASSES } from '@/features/markdown/ui/markdownInlineCodeParity'
+import {
+  MARKDOWN_HTML_EDIT_BLOCK_FLOW_CLASS,
+  MARKDOWN_HTML_EDIT_NORMALIZE_CLASS,
+} from '@/features/markdown/ui/markdownEditSurfaceLayout'
 import { MarkdownBlockContainerBubbleToolbarOverlay } from './markdownBlockContainerCore.bubbleToolbarOverlay'
 import { MarkdownBlockContainerInlineMenusOverlay } from './markdownBlockContainerCore.inlineMenusOverlay'
 
@@ -117,86 +121,13 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
   const htmlEditNormalizeClassName =
     props.editPresentation === 'html'
       ? [
-          '[&_p]:m-0',
-          '[&_div]:m-0',
-          '[&_h1]:m-0',
-          '[&_h2]:m-0',
-          '[&_h3]:m-0',
-          '[&_h4]:m-0',
-          '[&_h5]:m-0',
-          '[&_h6]:m-0',
-          '[&_h1]:text-inherit',
-          '[&_h2]:text-inherit',
-          '[&_h3]:text-inherit',
-          '[&_h4]:text-inherit',
-          '[&_h5]:text-inherit',
-          '[&_h6]:text-inherit',
-          '[&_h1]:font-inherit',
-          '[&_h2]:font-inherit',
-          '[&_h3]:font-inherit',
-          '[&_h4]:font-inherit',
-          '[&_h5]:font-inherit',
-          '[&_h6]:font-inherit',
-          '[&_div]:text-inherit',
-          '[&_div]:font-inherit',
-          '[&_div]:leading-[inherit]',
-          '[&_div]:whitespace-pre-wrap',
-          '[&_li]:text-inherit',
-          '[&_li]:font-inherit',
-          '[&_ul]:m-0',
-          '[&_ol]:m-0',
-          '[&_blockquote]:m-0',
-          '[&_pre]:m-0',
-          '[&_hr]:m-0',
-          '[&>*:first-child]:mt-0',
-          '[&>*:last-child]:mb-0',
-          '[&_p:first-child]:mt-0',
-          '[&_p:last-child]:mb-0',
-          '[&_ul:first-child]:mt-0',
-          '[&_ul:last-child]:mb-0',
-          '[&_ol:first-child]:mt-0',
-          '[&_ol:last-child]:mb-0',
-          '[&_blockquote:first-child]:mt-0',
-          '[&_blockquote:last-child]:mb-0',
-          '[&_a]:break-words',
-          '[&_a]:text-blue-600',
-          '[&_a]:hover:underline',
+          MARKDOWN_HTML_EDIT_NORMALIZE_CLASS,
           ...MARKDOWN_INLINE_CODE_EDIT_DESCENDANT_CLASSES,
-          '[&_mark]:px-0.5',
-          '[&_mark]:rounded-sm',
-          '[&_mark]:text-yellow-700',
-          '[&_mark]:bg-yellow-50',
-          '[&_mark]:border',
-          '[&_mark]:border-yellow-200',
-          'dark:[&_mark]:text-yellow-400',
-          'dark:[&_mark]:bg-yellow-900/30',
-          'dark:[&_mark]:border-yellow-800',
         ].join(' ')
       : ''
   const htmlEditBlockFlowClassName =
     props.editPresentation === 'html' && props.editHtmlRender === 'block' && !props.editHtmlDisableDefaultBlockFlow
-      ? [
-          '[&_p]:mt-2',
-          '[&_p]:mb-2',
-          '[&_ul]:mt-3',
-          '[&_ul]:mb-3',
-          '[&_ul]:pl-5',
-          '[&_ul]:list-disc',
-          '[&_ol]:mt-3',
-          '[&_ol]:mb-3',
-          '[&_ol]:pl-5',
-          '[&_ol]:list-decimal',
-          '[&_li]:mt-0',
-          '[&_li]:mb-0',
-          '[&_blockquote]:mt-4',
-          '[&_blockquote]:mb-4',
-          '[&_blockquote]:pl-4',
-          '[&_blockquote]:py-2',
-          '[&_blockquote]:border-l-4',
-          '[&_blockquote]:border-blue-400',
-          'dark:[&_blockquote]:border-blue-600',
-          '[&_blockquote]:italic',
-        ].join(' ')
+      ? MARKDOWN_HTML_EDIT_BLOCK_FLOW_CLASS
       : ''
   const editPreserveMinHeightStyle =
     props.editPreserveBlockHeight && props.editMinHeightPx > 0 ? { minHeight: `${props.editMinHeightPx}px` } : undefined

@@ -16,6 +16,7 @@ import {
   MarkdownBlockGutterControls,
   useMarkdownLineBlockDnD,
 } from './MarkdownBlockGutter'
+import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
 
 type MarkdownTableBlockProps = {
   token: TokenWithLines
@@ -67,7 +68,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
   })
   const figureClassName = `overflow-auto max-h-[80vh] rounded-lg border ${UI_THEME_TOKENS.table.cellBorder} shadow-sm`
   const tableEditorClassName = [
-    'w-full outline-none bg-transparent',
+    MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
     isDataView ? '' : figureClassName,
     '[&_table]:min-w-full',
     '[&_table]:border-collapse',

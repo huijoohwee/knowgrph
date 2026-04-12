@@ -13,7 +13,10 @@ import { UI_COPY } from '@/lib/config'
 import { getStickyHeadingCascadeOffsets } from './markdownSectionUtils'
 import { getMarkdownHeadingTextSizeClass } from '@/features/markdown/ui/markdownTypography'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
-import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS } from './markdownEditSurfaceLayout'
+import {
+  MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
+  MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS,
+} from './markdownEditSurfaceLayout'
 import {
   MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
   MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
@@ -92,13 +95,28 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
   const headingTypographyClass = ['font-semibold', baseSize, color, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
   const cls = ['font-semibold', size, color, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
   const headingEditorClassName = [
-    MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS,
+    MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
     'block',
     headingTypographyClass,
     'pr-6',
     'overflow-hidden text-ellipsis whitespace-nowrap',
     'focus:overflow-x-auto focus:overflow-y-hidden focus:[text-overflow:clip]',
   ].filter(Boolean).join(' ')
+  const headingRightRailClassName = 'absolute right-0 inset-y-0 flex items-center gap-1 shrink-0'
+  const headingControlVisibilityClassName = 'opacity-0 group-hover:opacity-100 transition-opacity'
+  const headingLinkClassName = [
+    headingControlVisibilityClassName,
+    'no-underline',
+    UI_THEME_TOKENS.text.tertiary,
+    'hover:text-gray-900 dark:hover:text-gray-100',
+  ].join(' ')
+  const headingButtonClassName = [
+    headingControlVisibilityClassName,
+    'p-0.5 rounded',
+    UI_THEME_TOKENS.button.text,
+    UI_THEME_TOKENS.button.hoverBg,
+    'flex items-center justify-center shrink-0',
+  ].join(' ')
   const content = renderInlineTokens(h.tokens, {
     activeDocumentPath: opts.activeDocumentPath,
     uiPanelTextFontClass: opts.uiPanelTextFontClass,
@@ -213,15 +231,11 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
               labelInsert={UI_COPY.markdownBlockInsertLineLabel}
             />
           ) : null}
-          <span className="absolute right-0 inset-y-0 flex items-center gap-1 shrink-0">
+          <span className={headingRightRailClassName}>
             {id ? (
               <a
                 href={`#${id}`}
-                className={[
-                  'opacity-0 group-hover:opacity-100 transition-opacity no-underline',
-                  UI_THEME_TOKENS.text.tertiary,
-                  'hover:text-gray-900 dark:hover:text-gray-100',
-                ].join(' ')}
+                className={headingLinkClassName}
                 aria-label="Permalink"
                 onClick={(e: React.MouseEvent) => {
                   e.stopPropagation()
@@ -233,13 +247,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
             {canCollapse ? (
               <button
                 type="button"
-                className={[
-                  'opacity-0 group-hover:opacity-100 transition-opacity',
-                  'p-0.5 rounded',
-                  UI_THEME_TOKENS.button.text,
-                  UI_THEME_TOKENS.button.hoverBg,
-                  'flex items-center justify-center shrink-0',
-                ].join(' ')}
+                className={headingButtonClassName}
                 title={isCollapsed ? 'Expand section' : 'Collapse section'}
                 aria-label={isCollapsed ? 'Expand section' : 'Collapse section'}
                 onClick={(e: React.MouseEvent) => {
@@ -273,7 +281,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
     >
       <MarkdownBlockContainer
         as={Tag}
-        className={`${UI_THEME_TOKENS.panel.bg} backdrop-blur-md h-full py-0.5 ${cls} m-0 p-0 text-left [text-indent:0] group min-w-0 relative ${gutterReserved ? `${MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS} ${MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS}` : ''} ${isDragging ? `${UI_THEME_TOKENS.button.activeBg} opacity-60` : ''}`}
+        className={`${UI_THEME_TOKENS.panel.bg} backdrop-blur-md h-full py-0.5 ${cls} ${MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS} group min-w-0 relative ${gutterReserved ? `${MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS} ${MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS}` : ''} ${isDragging ? `${UI_THEME_TOKENS.button.activeBg} opacity-60` : ''}`}
         highlightClass={highlightClass}
         highlightStyle={mergedStyle}
         startLine={startLine}
@@ -312,15 +320,11 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
           </>
         ) : null}
         <bdi className={['block min-w-0 pr-6', UI_TEXT_TRUNCATE].join(' ')}>{content}</bdi>
-        <span className="absolute right-0 inset-y-0 flex items-center gap-1 shrink-0">
+        <span className={headingRightRailClassName}>
           {id ? (
             <a
               href={`#${id}`}
-              className={[
-                'opacity-0 group-hover:opacity-100 transition-opacity no-underline',
-                UI_THEME_TOKENS.text.tertiary,
-                'hover:text-gray-900 dark:hover:text-gray-100',
-              ].join(' ')}
+              className={headingLinkClassName}
               aria-label="Permalink"
               onClick={(e: React.MouseEvent) => {
                 e.stopPropagation()
@@ -332,13 +336,7 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
           {canCollapse ? (
             <button
               type="button"
-              className={[
-                'opacity-0 group-hover:opacity-100 transition-opacity',
-                'p-0.5 rounded',
-                UI_THEME_TOKENS.button.text,
-                UI_THEME_TOKENS.button.hoverBg,
-                'flex items-center justify-center shrink-0',
-              ].join(' ')}
+              className={headingButtonClassName}
               title={isCollapsed ? 'Expand section' : 'Collapse section'}
               aria-label={isCollapsed ? 'Expand section' : 'Collapse section'}
               onClick={(e: React.MouseEvent) => {

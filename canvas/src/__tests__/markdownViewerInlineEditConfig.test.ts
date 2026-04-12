@@ -105,7 +105,10 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockText.includes('MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS')) {
     throw new Error('expected markdown block editor to centralize caret/selection/focus interaction parity for all edit surfaces')
   }
-  if (!blockText.includes('[&_div]:font-inherit') || !blockText.includes('[&_div]:whitespace-pre-wrap')) {
+  if (
+    (!blockText.includes('[&_div]:font-inherit') || !blockText.includes('[&_div]:whitespace-pre-wrap'))
+    && !blockText.includes('MARKDOWN_HTML_EDIT_NORMALIZE_CLASS')
+  ) {
     throw new Error('expected html edit normalization to preserve div-based line wrappers with read-surface typography and line-break parity')
   }
   if (!blockText.includes('editSpacingSnapshotRef') || !blockText.includes('editCaptureLayoutSpacing') || !blockText.includes('__KG_EDIT_PARITY_PROBE__')) {
@@ -188,6 +191,9 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!htmlBlockText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
     throw new Error('expected html edit surface to reuse centralized normal-text edit surface layout contract')
   }
+  if (!htmlBlockText.includes('const htmlWrapperClassName = [')) {
+    throw new Error('expected html block wrapper class composition to be centralized and reused across safe/raw render branches')
+  }
 
   const inlinePath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'MarkdownInlineRenderer.impl.tsx')
   const inlineText = readUtf8(inlinePath)
@@ -220,6 +226,34 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (tableText.includes('inlineEditable={blockControlsAllowed && !!opts.onReplaceLineRange}')) {
     throw new Error('expected table/data-view blocks to avoid toggling into generic contentEditable surface')
   }
+  if (!tableText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
+    throw new Error('expected table/data-view editor class root to reuse centralized normal-text edit surface layout contract')
+  }
+  const derivedViewerPath = path.resolve(
+    root,
+    'src',
+    'components',
+    'BottomPanel',
+    'markdownWorkspace',
+    'main',
+    'viewer',
+    'MarkdownWorkspaceDerivedViewer.tsx',
+  )
+  const derivedViewerText = readUtf8(derivedViewerPath)
+  if (!derivedViewerText.includes('onInsertLineAfter={canMutate ? props.onInsertLineAfter : undefined}')) {
+    throw new Error('expected derived markdown read viewer to expose insert-line controls when mutations are allowed')
+  }
+  if (!derivedViewerText.includes('onReorderLineBlock={canMutate ? props.onReorderLineBlock : undefined}')) {
+    throw new Error('expected derived markdown read viewer to expose reorder-line controls when mutations are allowed')
+  }
+  const legacyMainPath = path.resolve(root, 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'MarkdownWorkspaceMainLegacy.tsx')
+  const legacyMainText = readUtf8(legacyMainPath)
+  if (!legacyMainText.includes('onInsertLineAfter={disableViewerMutations ? undefined : onInsertLineAfter}')) {
+    throw new Error('expected legacy markdown read viewer to keep insert-line controls enabled unless mutations are disabled')
+  }
+  if (!legacyMainText.includes('onReorderLineBlock={disableViewerMutations ? undefined : onReorderLineBlock}')) {
+    throw new Error('expected legacy markdown read viewer to keep reorder-line controls enabled unless mutations are disabled')
+  }
 
   const codePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownCodeBlock.tsx')
   const codeText = readUtf8(codePath)
@@ -246,6 +280,9 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   if (!codeText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
     throw new Error('expected code block inline editor root to reuse centralized normal-text edit surface contract')
+  }
+  if (!codeText.includes('MARKDOWN_CODE_BLOCK_READ_SPACING_CLASS')) {
+    throw new Error('expected code block read/gutter wrappers to reuse centralized read-surface spacing SSOT contract')
   }
   if (!codeText.includes('whitespace-pre overflow-auto')) {
     throw new Error('expected code block inline editor root to preserve edit-as-is preformatted overflow behavior')
@@ -380,11 +417,20 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   ) {
     throw new Error('expected normal-text edit surface layout contract to enforce zero inset, left alignment, and wrapping parity')
   }
+  if (!editSurfaceLayoutText.includes('getMarkdownQuoteLikeEditorClass')) {
+    throw new Error('expected quote/callout html-block edit-surface class contract to be centralized in markdownEditSurfaceLayout SSOT')
+  }
+  if (!editSurfaceLayoutText.includes('MARKDOWN_HTML_EDIT_NORMALIZE_CLASS') || !editSurfaceLayoutText.includes('MARKDOWN_HTML_EDIT_BLOCK_FLOW_CLASS')) {
+    throw new Error('expected html edit normalization and block-flow contracts to be centralized in markdownEditSurfaceLayout SSOT')
+  }
   if (blockquoteText.includes('editLeftRailClassName=')) {
     throw new Error('expected blockquote inline editor to avoid duplicate absolute left rail overlay that breaks view/edit parity')
   }
-  if (!blockquoteText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
-    throw new Error('expected blockquote inline editor root to reuse centralized normal-text edit layout contract')
+  if (!blockquoteText.includes('getMarkdownQuoteLikeEditorClass')) {
+    throw new Error('expected blockquote inline editor root to reuse centralized quote-like edit-surface class builder')
+  }
+  if (!blockquoteText.includes('MARKDOWN_BLOCKQUOTE_READ_FRAME_CLASS') || !blockquoteText.includes('MARKDOWN_BLOCKQUOTE_READ_SPACING_CLASS')) {
+    throw new Error('expected blockquote read wrapper/frame spacing contracts to reuse centralized normal-text SSOT constants')
   }
   if (!blockquoteText.includes('editorQuoteClassNameNoInset') || !blockquoteText.includes('editorClassName={editorQuoteClassNameNoInset}')) {
     throw new Error('expected non-gutter blockquote inline editor to avoid duplicate inset padding/margin layering')
@@ -397,8 +443,14 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!paragraphText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
     throw new Error('expected paragraph inline editor to reuse centralized normal-text edit surface contract')
   }
-  if (!calloutText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
-    throw new Error('expected callout inline editor body to reuse centralized normal-text edit surface contract')
+  if (!calloutText.includes('getMarkdownQuoteLikeEditorClass')) {
+    throw new Error('expected callout inline editor body to reuse centralized quote-like edit-surface class builder')
+  }
+  if (calloutText.includes('editorClassName="w-full whitespace-pre-wrap break-words outline-none bg-transparent"')) {
+    throw new Error('expected callout container editor class to reuse centralized normal-text edit surface contract (no duplicated literal class path)')
+  }
+  if (!calloutText.includes('calloutContainerEditorClassName = MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
+    throw new Error('expected callout non-editable containers to use centralized normal-text edit-surface baseline class alias')
   }
   if (!footnoteText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
     throw new Error('expected footnote inline editor to reuse centralized normal-text edit surface contract')
@@ -415,6 +467,12 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (headingText.includes('editStripLinePrefixSpacingSanitize={false}')) {
     throw new Error('expected heading inline editor not to disable prefix-spacing sanitize, to avoid duplicated left indentation when `#` prefix is stripped')
   }
+  if (!headingText.includes('MARKDOWN_NORMAL_TEXT_READ_SURFACE_BASE_CLASS')) {
+    throw new Error('expected heading read wrapper to reuse centralized normal-text read-surface baseline contract')
+  }
+  if (!headingText.includes('headingRightRailClassName') || !headingText.includes('headingControlVisibilityClassName')) {
+    throw new Error('expected heading right-rail controls to reuse centralized local class contracts and avoid duplicated drift paths')
+  }
   if (!blockquoteText.includes('editTrimEdgeNewlines')) {
     throw new Error('expected blockquote inline editor to trim edge newlines to avoid extra-row mutations')
   }
@@ -424,23 +482,23 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockquoteText.includes('resolveEditLineRangeOnOpen={resolveQuoteEditLineRange}') || !blockquoteText.includes('const resolveQuoteEditLineRange = React.useCallback')) {
     throw new Error('expected blockquote inline editor to clamp edit ranges to contiguous quote lines and avoid extra-row mutation')
   }
-  if (!blockquoteText.includes('[&_p]:whitespace-pre-wrap')) {
-    throw new Error('expected blockquote inline editor to preserve per-line paragraph wrapping parity for callout edit surface')
+  if (!editSurfaceLayoutText.includes('[&_p]:whitespace-pre-wrap')) {
+    throw new Error('expected quote-like inline editor to preserve per-line paragraph wrapping parity')
   }
-  if (!blockquoteText.includes('[&_div]:whitespace-pre-wrap')) {
-    throw new Error('expected blockquote inline editor to preserve explicit blank quote rows without collapsing line-by-line spacing')
+  if (!editSurfaceLayoutText.includes('[&_div]:whitespace-pre-wrap')) {
+    throw new Error('expected quote-like inline editor to preserve explicit blank rows without collapsing line-by-line spacing')
   }
-  if (!blockquoteText.includes('[&_div]:font-inherit') || !blockquoteText.includes('[&_div]:text-inherit')) {
-    throw new Error('expected blockquote inline editor div rows to inherit read-surface typography without mutation')
+  if (!editSurfaceLayoutText.includes('[&_div]:font-inherit') || !editSurfaceLayoutText.includes('[&_div]:text-inherit')) {
+    throw new Error('expected quote-like inline editor div rows to inherit read-surface typography without mutation')
   }
-  if (!blockquoteText.includes('min-h-[1lh]')) {
-    throw new Error('expected blockquote inline editor root to keep at least one line-height to preserve first-line/last-line vertical parity')
+  if (!editSurfaceLayoutText.includes('min-h-[1lh]')) {
+    throw new Error('expected quote-like inline editor root to keep at least one line-height to preserve first-line/last-line vertical parity')
   }
-  if (!blockquoteText.includes('leading-normal')) {
-    throw new Error('expected blockquote inline editor root to enforce leading-normal for blank-line vertical spacing parity')
+  if (!editSurfaceLayoutText.includes('leading-normal')) {
+    throw new Error('expected quote-like inline editor root to enforce leading-normal for blank-line vertical spacing parity')
   }
-  if (!blockquoteText.includes('[&_p]:font-inherit') || !blockquoteText.includes('[&_p]:text-inherit')) {
-    throw new Error('expected blockquote inline editor paragraphs to inherit read-surface typography without font mutation')
+  if (!editSurfaceLayoutText.includes('[&_p]:font-inherit') || !editSurfaceLayoutText.includes('[&_p]:text-inherit')) {
+    throw new Error('expected quote-like inline editor paragraphs to inherit read-surface typography without font mutation')
   }
   if (!blockquoteText.includes('opts.uiPanelTextFontClass')) {
     throw new Error('expected blockquote inline editor to keep shared ui panel font class for typography parity')
@@ -460,11 +518,8 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!calloutText.includes('editPreserveWhitespace')) {
     throw new Error('expected callout body inline editor to preserve raw line breaks during edit')
   }
-  if (!calloutText.includes('[&_p]:whitespace-pre-wrap')) {
-    throw new Error('expected callout body inline editor paragraphs to preserve line wrapping parity')
-  }
-  if (!calloutText.includes('[&_p]:font-inherit') || !calloutText.includes('[&_p]:text-inherit')) {
-    throw new Error('expected callout body inline editor paragraphs to inherit read-surface typography without font mutation')
+  if (!calloutText.includes('getMarkdownQuoteLikeEditorClass')) {
+    throw new Error('expected callout body inline editor to reuse centralized quote-like edit-surface class builder')
   }
   if (!calloutText.includes('resolveEditLineRangeOnOpen={resolveCalloutBodyEditLineRange}') || !calloutText.includes('const resolveCalloutBodyEditLineRange = React.useCallback')) {
     throw new Error('expected callout body inline editor to clamp edit ranges to contiguous quote lines and avoid extra-row mutation')

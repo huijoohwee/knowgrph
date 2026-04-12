@@ -497,8 +497,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       showSidebar={false}
       viewMode="viewer"
       forbidCopy={viewerMode === 'read'}
-      onInsertLineAfter={viewerMode === 'read' ? undefined : onInsertLineAfter}
-      onReorderLineBlock={viewerMode === 'read' ? undefined : onReorderLineBlock}
+      onInsertLineAfter={disableViewerMutations ? undefined : onInsertLineAfter}
+      onReorderLineBlock={disableViewerMutations ? undefined : onReorderLineBlock}
       onReplaceLineRange={onReplaceLineRange}
       onShowInEditor={line => revealLineInEditor(line)}
       onInlineEditStateChange={handleInlineEditStateChange}

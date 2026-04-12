@@ -420,12 +420,14 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
     uiIconStrokeWidth,
     wrapClass,
   ])
+  const listBlockClassName = ['mt-3 mb-3', baseTextClass, opts.uiPanelTextFontClass].filter(Boolean).join(' ')
+  const listWrapperClassName = [listBlockClassName, 'relative group'].filter(Boolean).join(' ')
 
   if (!gutterEnabled) {
     return (
       <MarkdownBlockContainer
         as="section"
-        className={['mt-3 mb-3', baseTextClass, opts.uiPanelTextFontClass].filter(Boolean).join(' ')}
+        className={listBlockClassName}
         highlightClass={highlightClass}
         highlightStyle={highlightStyle}
         startLine={t.startLine}
@@ -441,18 +443,10 @@ export const MarkdownListBlock = React.memo(function MarkdownListBlock({
     )
   }
 
-  const wrapperClassName = [
-    'mt-3 mb-3 relative group',
-    baseTextClass,
-    opts.uiPanelTextFontClass,
-  ]
-    .filter(Boolean)
-    .join(' ')
-
   return (
     <MarkdownBlockContainer
       as="section"
-      className={wrapperClassName}
+      className={listWrapperClassName}
       highlightClass={highlightClass}
       highlightStyle={highlightStyle}
       startLine={t.startLine}

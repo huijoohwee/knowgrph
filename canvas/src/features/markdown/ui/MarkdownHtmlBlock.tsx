@@ -102,6 +102,14 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
     opts.uiPanelMonospaceTextClass,
     opts.uiPanelTextFontClass,
   ])
+  const htmlWrapperClassName = [
+    'mt-3 mb-3 relative group',
+    gutterEnabled ? MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS : '',
+    gutterEnabled ? MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS : '',
+    dnd.isDragging ? 'opacity-60' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   if (/^<\s*!--[\s\S]*?--\s*>$/i.test(html)) {
     return <React.Fragment>{''}</React.Fragment>
@@ -466,16 +474,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
     return (
       <MarkdownBlockContainer
         as="section"
-        className={
-          [
-            'mt-3 mb-3 relative group',
-            gutterEnabled ? MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS : '',
-            gutterEnabled ? MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS : '',
-            dnd.isDragging ? 'opacity-60' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')
-        }
+        className={htmlWrapperClassName}
         highlightClass={highlightClass}
         highlightStyle={highlightStyle}
         startLine={t.startLine}
@@ -517,16 +516,7 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
   return (
     <MarkdownBlockContainer
       as="section"
-      className={
-        [
-          'mt-3 mb-3 relative group',
-          gutterEnabled ? MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS : '',
-          gutterEnabled ? MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS : '',
-          dnd.isDragging ? 'opacity-60' : '',
-        ]
-          .filter(Boolean)
-          .join(' ')
-      }
+      className={htmlWrapperClassName}
       highlightClass={highlightClass}
       highlightStyle={highlightStyle}
       startLine={t.startLine}
@@ -555,8 +545,8 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
             onDragEnd={dnd.handleDragEnd}
             iconSizeClass={iconSizeClass}
             iconStrokeWidth={uiIconStrokeWidth}
-          labelReorder={UI_COPY.markdownBlockReorderLineLabel}
-          labelInsert={UI_COPY.markdownBlockInsertLineLabel}
+            labelReorder={UI_COPY.markdownBlockReorderLineLabel}
+            labelInsert={UI_COPY.markdownBlockInsertLineLabel}
           />
         </>
       )}

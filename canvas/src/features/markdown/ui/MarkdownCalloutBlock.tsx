@@ -10,7 +10,10 @@ import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { resolveContiguousQuoteLineRangeOnOpen } from './markdownEditParitySsot'
-import { MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS } from './markdownEditSurfaceLayout'
+import {
+  getMarkdownQuoteLikeEditorClass,
+  MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
+} from './markdownEditSurfaceLayout'
 import {
   MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
   MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS,
@@ -87,30 +90,26 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
   const borderClass = getCalloutBorderClass(callout.calloutType)
   const accentClass = getCalloutAccentClass(callout.calloutType)
   const contentTokens = addLineRangesToTokens((callout.tokens || []) as unknown as Token[], 0)
+  const calloutFrameClassName = [
+    `py-2 border-l-4 ${borderClass} ${UI_THEME_TOKENS.table.rowRelated} rounded-r`,
+    'text-left',
+    baseTextClass,
+    commonBlockClass,
+  ]
+    .filter(Boolean)
+    .join(' ')
   const innerClassName = [
-    `py-2 border-l-4 ${borderClass} ${UI_THEME_TOKENS.table.rowRelated} rounded-r`,
-    'text-left',
-    baseTextClass,
-    commonBlockClass,
-    'pl-4',
-  ].filter(Boolean).join(' ')
-  const gutterInnerClassName = [
-    `py-2 border-l-4 ${borderClass} ${UI_THEME_TOKENS.table.rowRelated} rounded-r`,
-    'text-left',
-    baseTextClass,
-    commonBlockClass,
+    calloutFrameClassName,
     'pl-4',
   ].filter(Boolean).join(' ')
 
   const wrapperClassName = [
     'mt-4 mb-4',
-    `py-2 border-l-4 ${borderClass} ${UI_THEME_TOKENS.table.rowRelated} rounded-r`,
-    'text-left',
-    baseTextClass,
-    commonBlockClass,
+    calloutFrameClassName,
     gutterLayoutEnabled ? MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS : 'pl-4',
     gutterLayoutEnabled ? MARKDOWN_BLOCK_GUTTER_PADDING_RIGHT_CLASS : '',
   ].filter(Boolean).join(' ')
+  const calloutContainerEditorClassName = MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS
 
   const inner = (
     <MarkdownTokenRenderer
@@ -185,19 +184,12 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
         onInlineEditStateChange={opts.onInlineEditStateChange}
         forbidCopy={!!opts.forbidCopy}
         editorClassName={[
-          MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
-          'min-h-[1lh]',
-          baseTextClass,
-          commonBlockClass,
+          getMarkdownQuoteLikeEditorClass({
+            baseTextClass,
+            commonBlockClass,
+          }),
           '[&>*:first-child]:mt-0',
           '[&>*:last-child]:mb-0',
-          '[&_p]:font-inherit',
-          '[&_p]:text-inherit',
-          '[&_p]:m-0',
-          '[&_p]:leading-normal',
-          '[&_p]:whitespace-pre-wrap',
-          '[&_ul]:m-0',
-          '[&_ol]:m-0',
         ].filter(Boolean).join(' ')}
         editPresentation="html"
         editHtmlRender="block"
@@ -228,7 +220,7 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
       .join(' ')
 
     const calloutNode = callout.foldable ? (
-      <details className={`${gutterInnerClassName} relative`} open={!callout.collapsed || undefined}>
+      <details className={`${innerClassName} relative`} open={!callout.collapsed || undefined}>
         <span aria-hidden className={`pointer-events-none absolute left-[44px] top-0 bottom-0 w-1 z-20 ${accentClass}`} />
         <summary className={[UI_THEME_TOKENS.text.primary, 'font-semibold cursor-pointer select-none'].join(' ')}>
           {callout.title}
@@ -236,7 +228,7 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
         {calloutBodyNode}
       </details>
     ) : (
-      <aside className={`${gutterInnerClassName} relative`} aria-label={callout.title}>
+      <aside className={`${innerClassName} relative`} aria-label={callout.title}>
         <span aria-hidden className={`pointer-events-none absolute left-[44px] top-0 bottom-0 w-1 z-20 ${accentClass}`} />
         <header className={[UI_THEME_TOKENS.text.primary, 'font-semibold'].join(' ')}>{callout.title}</header>
         {calloutBodyNode}
@@ -255,7 +247,7 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
         onInlineEditStateChange={opts.onInlineEditStateChange}
-        editorClassName="w-full whitespace-pre-wrap break-words outline-none bg-transparent"
+        editorClassName={calloutContainerEditorClassName}
         onDragOver={gutterEnabled ? dnd.handleDragOver : undefined}
         onDragLeave={gutterEnabled ? dnd.handleDragLeave : undefined}
         onDrop={gutterEnabled ? dnd.handleDrop : undefined}
@@ -294,7 +286,7 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
         sourceLines={opts.markdownSourceLines}
         onReplaceLineRange={opts.onReplaceLineRange}
         onInlineEditStateChange={opts.onInlineEditStateChange}
-        editorClassName="w-full whitespace-pre-wrap break-words outline-none bg-transparent"
+        editorClassName={calloutContainerEditorClassName}
         defaultOpen={!callout.collapsed}
       >
         <span aria-hidden className={`pointer-events-none absolute left-0 top-0 bottom-0 w-1 ${accentClass}`} />
@@ -318,7 +310,7 @@ export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({
       sourceLines={opts.markdownSourceLines}
       onReplaceLineRange={opts.onReplaceLineRange}
       onInlineEditStateChange={opts.onInlineEditStateChange}
-      editorClassName="w-full whitespace-pre-wrap break-words outline-none bg-transparent"
+      editorClassName={calloutContainerEditorClassName}
       aria-label={callout.title}
     >
       <span aria-hidden className={`pointer-events-none absolute left-0 top-0 bottom-0 w-1 ${accentClass}`} />
