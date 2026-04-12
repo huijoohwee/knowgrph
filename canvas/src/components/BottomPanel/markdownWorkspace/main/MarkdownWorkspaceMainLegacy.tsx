@@ -524,7 +524,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       onReplaceLineRange={handleReplaceLineRange}
       onRevealLineInEditor={line => revealLineInEditor(line)}
       onViewerRootRef={handleViewerRootRef}
-      onChangeViewerMode={setViewerMode}
+      onChangeViewerMode={handleSetViewerMode}
     />
   )
 

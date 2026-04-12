@@ -4,39 +4,53 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownDataViewModel'
 import type { WorkspaceDataViewConfig, WorkspaceDataViewLayout } from './workspaceDataViewConfig'
-import { WorkspaceDataViewSettingsGraphSection } from './WorkspaceDataViewSettingsGraphSection'
 import { WorkspaceDataViewSettingsPropertiesSection } from './WorkspaceDataViewSettingsPropertiesSection'
 import { WorkspaceDataViewSettingsFilterSection } from './WorkspaceDataViewSettingsFilterSection'
 import { WorkspaceDataViewSettingsSortSection } from './WorkspaceDataViewSettingsSortSection'
 import { LayoutChoice } from './WorkspaceDataViewSettingsPrimitives'
+import { buildSuggestedRoles } from './workspaceDataViewGraphRoles'
+import { WORKSPACE_EDITOR_MODE_OPTIONS, type WorkspaceEditorMode } from '@/features/workspace-table/workspaceEditorMode'
+import { getWorkspaceEditorModeLabel } from '@/features/workspace-table/workspaceEditorModePresentation'
+
+type WorkspaceDataViewLayoutMode = WorkspaceEditorMode
 
 export function WorkspaceDataViewSettingsDialog(props: {
   open: boolean
+  activePanel?: 'layout' | 'properties' | 'filter' | 'sort' | 'group' | 'duplicate' | 'delete'
   canMutate: boolean
   viewerLayout: WorkspaceDataViewLayout
+  viewerMode?: WorkspaceDataViewLayoutMode
+  allowMultiDimLayout?: boolean
   columns: readonly MarkdownDataViewColumn[]
   groupByColumnId: string | null
   viewConfig: WorkspaceDataViewConfig
   setViewConfig: (next: WorkspaceDataViewConfig) => void
   onChangeLayout: (layout: WorkspaceDataViewLayout) => void
+  onChangeLayoutMode?: (mode: WorkspaceDataViewLayoutMode) => void
   onDuplicateColumn?: (columnId: string) => void
   onDeleteColumn?: (columnId: string) => void
   onRenameColumn?: (columnId: string, nextName: string) => void
   onClose: () => void
 }) {
+  const allowMultiDimLayout = props.allowMultiDimLayout ?? false
   const dialogRef = React.useRef<HTMLDialogElement | null>(null)
   const [activePanel, setActivePanel] = React.useState<'layout' | 'properties' | 'filter' | 'sort' | 'group' | 'duplicate' | 'delete'>('properties')
+  const layoutModeOptions = React.useMemo(
+    () => WORKSPACE_EDITOR_MODE_OPTIONS.filter(mode => allowMultiDimLayout || mode !== 'multiDimTable'),
+    [allowMultiDimLayout],
+  )
 
   React.useEffect(() => {
     const el = dialogRef.current
     if (!el) return
     if (props.open) {
       if (!el.open) el.showModal()
+      if (props.activePanel) setActivePanel(props.activePanel)
     } else {
       if (el.open) el.close()
       setActivePanel('properties')
     }
-  }, [props.open])
+  }, [props.activePanel, props.open])
 
   const shownCount = React.useMemo(() => {
     return props.viewConfig.visibleColumnIds ? props.viewConfig.visibleColumnIds.length : props.columns.length
@@ -45,6 +59,15 @@ export function WorkspaceDataViewSettingsDialog(props: {
   const groupableColumns = React.useMemo(() => {
     return props.columns.filter(c => c.kind === 'select' || c.kind === 'multi-select')
   }, [props.columns])
+  const setGraphEnabled = (next: boolean) => {
+    if ((props.viewConfig.graphEnabled === true) === next) return
+    const nextView: WorkspaceDataViewConfig = { ...props.viewConfig, graphEnabled: next }
+    const hasAnyRole = props.viewConfig.graphRolesByColumnId && Object.keys(props.viewConfig.graphRolesByColumnId).length > 0
+    if (next && !hasAnyRole) {
+      nextView.graphRolesByColumnId = buildSuggestedRoles(props.columns)
+    }
+    props.setViewConfig(nextView)
+  }
 
   return (
     <dialog
@@ -124,7 +147,11 @@ export function WorkspaceDataViewSettingsDialog(props: {
                 <input
                   className={['w-full text-sm px-3 py-2 rounded border', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text].join(' ')}
                   value={props.viewConfig.name}
-                  onChange={e => props.setViewConfig({ ...props.viewConfig, name: e.target.value })}
+                  onChange={e => {
+                    const nextName = e.target.value
+                    if (nextName === props.viewConfig.name) return
+                    props.setViewConfig({ ...props.viewConfig, name: nextName })
+                  }}
                   placeholder="View name"
                 />
               </label>
@@ -135,27 +162,41 @@ export function WorkspaceDataViewSettingsDialog(props: {
                   <span>Layout</span>
                 </div>
                 <div className="mt-2 flex gap-2">
-                  <LayoutChoice
-                    active={props.viewerLayout === 'table'}
-                    label={MARKDOWN_DATA_VIEW_COPY.tableViewLabel}
-                    icon={<TableIcon className="w-6 h-6" aria-hidden="true" />}
-                    onClick={() => props.onChangeLayout('table')}
-                  />
-                  <LayoutChoice
-                    active={props.viewerLayout === 'kanban'}
-                    label={MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel}
-                    icon={<LayoutGrid className="w-6 h-6" aria-hidden="true" />}
-                    onClick={() => props.onChangeLayout('kanban')}
-                  />
+                  {layoutModeOptions.map(mode => (
+                    <LayoutChoice
+                      key={mode}
+                      active={(props.viewerMode || 'table') === mode}
+                      label={getWorkspaceEditorModeLabel(mode)}
+                      icon={mode === 'kanban' ? <LayoutGrid className="w-6 h-6" aria-hidden="true" /> : <TableIcon className="w-6 h-6" aria-hidden="true" />}
+                      onClick={() => {
+                        if ((props.viewerMode || 'table') === mode) return
+                        if (props.onChangeLayoutMode) {
+                          props.onChangeLayoutMode(mode)
+                          return
+                        }
+                        props.onChangeLayout(mode === 'kanban' ? 'kanban' : 'table')
+                      }}
+                    />
+                  ))}
                 </div>
               </div>
 
-              <WorkspaceDataViewSettingsGraphSection
-                canMutate={props.canMutate}
-                columns={props.columns}
-                view={props.viewConfig}
-                onChangeView={props.setViewConfig}
-              />
+              <fieldset className={['rounded border p-3', UI_THEME_TOKENS.panel.border].join(' ')}>
+                <legend className={['px-1 text-sm font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>Multi-dimensional Table</legend>
+                <div className={['text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>
+                  Configure property mapping in Properties.
+                </div>
+                <label className="mt-3 flex items-center gap-2" aria-label="Enable Multi-dimensional Table graph">
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={props.viewConfig.graphEnabled === true}
+                    onChange={e => setGraphEnabled(e.target.checked)}
+                    disabled={!props.canMutate}
+                  />
+                  <span className={['text-sm', UI_THEME_TOKENS.text.primary].join(' ')}>Enable table-to-graph rendering</span>
+                </label>
+              </fieldset>
             </section>
           ) : null}
 
@@ -185,7 +226,11 @@ export function WorkspaceDataViewSettingsDialog(props: {
               <select
                 className={['w-full h-8 px-2 rounded border', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text].join(' ')}
                 value={props.viewConfig.groupByColumnId || ''}
-                onChange={e => props.setViewConfig({ ...props.viewConfig, groupByColumnId: e.target.value || null })}
+                onChange={e => {
+                  const nextGroupByColumnId = e.target.value || null
+                  if ((props.viewConfig.groupByColumnId || null) === nextGroupByColumnId) return
+                  props.setViewConfig({ ...props.viewConfig, groupByColumnId: nextGroupByColumnId })
+                }}
               >
                 <option value="">None</option>
                 {groupableColumns.map(c => (

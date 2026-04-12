@@ -238,10 +238,14 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
     return computeWorkspaceDataViewGroupOptions({ view, groupByColumnId: effectiveGroupByColumnId })
   }, [effectiveGroupByColumnId, view])
 
-  const viewerMode: 'kanban' | 'table' = React.useMemo(() => {
-    if (!viewConfig) return 'table'
-    return viewConfig.layout === 'table' || !effectiveGroupByColumnId ? 'table' : 'kanban'
-  }, [effectiveGroupByColumnId, viewConfig?.layout])
+  const hasViewConfig = !!viewConfig
+  const viewLayout = viewConfig?.layout
+  const graphEnabled = !!viewConfig?.graphEnabled
+  const viewerMode: 'kanban' | 'table' | 'multiDimTable' = React.useMemo(() => {
+    if (!hasViewConfig) return 'table'
+    if (!(viewLayout === 'table' || !effectiveGroupByColumnId)) return 'kanban'
+    return graphEnabled ? 'multiDimTable' : 'table'
+  }, [effectiveGroupByColumnId, graphEnabled, hasViewConfig, viewLayout])
 
   if (!view) return null
   if (!viewConfig) return null
@@ -250,7 +254,7 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
   const wrapperClass = ['rounded-lg border overflow-hidden', UI_THEME_TOKENS.panel.border, highlightClass].filter(Boolean).join(' ')
 
   return (
-    <section className={wrapperClass} style={highlightStyle}>
+    <article className={wrapperClass} style={highlightStyle} aria-label="Markdown data view">
       <WorkspaceDataViewHeader
         title={UI_COPY.markdownDataViewTitleDefault}
         viewerMode={viewerMode}
@@ -263,11 +267,13 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
         onChangeViewerMode={(mode) => {
           setViewConfig(prev => {
             if (!prev) return prev
-            const nextLayout = mode === 'table' ? 'table' : 'kanban'
-            if (prev.layout === nextLayout) return prev
-            return { ...prev, layout: nextLayout }
+            const nextGraphEnabled = mode === 'multiDimTable'
+            const nextLayout = mode === 'kanban' ? 'kanban' : 'table'
+            if (prev.layout === nextLayout && !!prev.graphEnabled === nextGraphEnabled) return prev
+            return { ...prev, layout: nextLayout, graphEnabled: nextGraphEnabled }
           })
         }}
+        supportsMultiDimLayout={true}
         onNewRecord={canMutate ? () => handleNewRecord() : undefined}
         onAddColumn={canMutate ? handleAddColumn : undefined}
         viewConfig={viewConfig}
@@ -304,6 +310,6 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
           />
         )}
       </div>
-    </section>
+    </article>
   )
 })

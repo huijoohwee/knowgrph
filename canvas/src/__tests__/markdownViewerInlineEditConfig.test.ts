@@ -102,6 +102,9 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockText.includes("lastPointerSelectionModeRef") || !blockText.includes("event.detail >= 2 ? 'word' : 'caret'")) {
     throw new Error('expected click-open selection mode to support double-click word-selection while entering inline edit')
   }
+  if (!blockText.includes('buildApproximateRangeInRoot') || !blockText.includes('buildLocalFallbackRange() || buildApproximateRangeInRoot()')) {
+    throw new Error('expected click-open caret placement to use in-root approximate fallback when point-range APIs fail or resolve outside editor')
+  }
   if (!blockText.includes('MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS')) {
     throw new Error('expected markdown block editor to centralize caret/selection/focus interaction parity for all edit surfaces')
   }
@@ -310,6 +313,9 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   if (!codeText.includes('effectiveWrapClass') || !codeText.includes('setLocalWordWrapEnabled')) {
     throw new Error('expected code-fence word-wrap toggle to drive shared read/edit wrap class through local state without mutating layout contracts')
+  }
+  if (!codeText.includes('editPreserveBlockHeight={false}')) {
+    throw new Error('expected code-fence inline edit to disable host min-height preservation and avoid synthetic bottom-gap drift near block border')
   }
   if (!codeText.includes('CODE_FENCE_LANGUAGE_OPTIONS') || !codeText.includes('Code fence language')) {
     throw new Error('expected code-fence header language control to expose selectable language options for read-viewer fence mutation')
@@ -562,6 +568,12 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   if (!headingText.includes('headingRightRailClassName') || !headingText.includes('headingControlVisibilityClassName')) {
     throw new Error('expected heading right-rail controls to reuse centralized local class contracts and avoid duplicated drift paths')
+  }
+  if (!headingText.includes('overflow-hidden text-ellipsis whitespace-nowrap')) {
+    throw new Error('expected heading inline editor to preserve read-view ellipsis and no-overflow class contract during edit')
+  }
+  if (headingText.includes('focus:overflow-x-auto') || headingText.includes('focus:[text-overflow:clip]')) {
+    throw new Error('expected heading inline editor to avoid focus-overflow reveal overrides that break read/edit ellipsis parity')
   }
   if (!blockquoteText.includes('editTrimEdgeNewlines')) {
     throw new Error('expected blockquote inline editor to trim edge newlines to avoid extra-row mutations')

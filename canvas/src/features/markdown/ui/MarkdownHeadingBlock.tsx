@@ -100,7 +100,6 @@ export const MarkdownHeadingBlock = React.memo(function MarkdownHeadingBlock({
     headingTypographyClass,
     'pr-6',
     'overflow-hidden text-ellipsis whitespace-nowrap',
-    'focus:overflow-x-auto focus:overflow-y-hidden focus:[text-overflow:clip]',
   ].filter(Boolean).join(' ')
   const headingRightRailClassName = 'absolute right-0 inset-y-0 flex items-center gap-1 shrink-0'
   const headingControlVisibilityClassName = 'opacity-0 group-hover:opacity-100 transition-opacity'

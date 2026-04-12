@@ -119,9 +119,10 @@ export function applyWorkspaceDataViewQuery(args: {
   const filterGroups = args.state.visibleGroups
   const sortMode = args.state.sortMode
   const dataFilters: WorkspaceDataViewFilterGroup[] = args.viewConfig?.filterGroups || []
+  const configSortRule: WorkspaceDataViewSortRule | null = args.viewConfig?.sortRules?.[0] || null
 
   const needsFilter = Boolean(q || filterGroups || dataFilters.some(g => g.rules.length))
-  const needsSort = sortMode !== 'none'
+  const needsSort = !!configSortRule || sortMode !== 'none'
   if (!needsFilter && !needsSort) return baseView
 
   const titleIndex = baseView.columns.findIndex(c => c.id === baseView.titleColumnId)
@@ -175,11 +176,15 @@ export function applyWorkspaceDataViewQuery(args: {
     })
   }
 
-  if (needsSort && titleIndex >= 0) {
-    const dir = sortMode === 'title_desc' ? -1 : 1
+  if (needsSort) {
+    const sortColumnIndex = configSortRule ? (columnIndexById.get(configSortRule.columnId) ?? -1) : titleIndex
+    if (sortColumnIndex < 0) {
+      return rows === baseView.rows ? baseView : { ...baseView, rows }
+    }
+    const dir = configSortRule ? (configSortRule.direction === 'desc' ? -1 : 1) : (sortMode === 'title_desc' ? -1 : 1)
     rows = [...rows].sort((a, b) => {
-      const ta = String(a.cells[titleIndex] ?? '')
-      const tb = String(b.cells[titleIndex] ?? '')
+      const ta = String(a.cells[sortColumnIndex] ?? '')
+      const tb = String(b.cells[sortColumnIndex] ?? '')
       return dir * ta.localeCompare(tb)
     })
   }

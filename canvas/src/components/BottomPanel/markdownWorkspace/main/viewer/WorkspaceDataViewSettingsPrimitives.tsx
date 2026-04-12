@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronRight } from 'lucide-react'
+import { Check, ChevronRight } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 
@@ -30,7 +30,7 @@ export function LayoutChoice(props: { active: boolean; label: string; icon: Reac
     <button
       type="button"
       className={cn(
-        'flex-1 rounded border px-3 py-2 flex flex-col items-center justify-center gap-1',
+        'relative flex-1 rounded border px-3 py-2 flex flex-col items-center justify-center gap-1',
         props.active
           ? cn(UI_THEME_TOKENS.button.activeBorder, UI_THEME_TOKENS.button.activeBg)
           : cn(UI_THEME_TOKENS.panel.border),
@@ -38,9 +38,13 @@ export function LayoutChoice(props: { active: boolean; label: string; icon: Reac
       )}
       onClick={props.onClick}
     >
+      {props.active ? (
+        <span className="absolute right-2 top-2">
+          <Check className={cn('w-3 h-3', UI_THEME_TOKENS.button.activeText)} aria-hidden="true" />
+        </span>
+      ) : null}
       <span className={props.active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.text.secondary}>{props.icon}</span>
       <span className={cn('text-sm font-medium', props.active ? UI_THEME_TOKENS.button.activeText : UI_THEME_TOKENS.text.secondary)}>{props.label}</span>
     </button>
   )
 }
-

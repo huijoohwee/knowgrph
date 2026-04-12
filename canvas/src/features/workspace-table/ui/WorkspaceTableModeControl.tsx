@@ -21,11 +21,13 @@ import {
   WORKSPACE_EDITOR_MODE_OPTIONS,
   type WorkspaceEditorMode,
 } from '@/features/workspace-table/workspaceEditorMode'
+import { getWorkspaceEditorModeLabel } from '@/features/workspace-table/workspaceEditorModePresentation'
 import {
   WORKSPACE_CELL_SELECT_PANEL_PLACEMENT_LABELS,
   WORKSPACE_CELL_SELECT_PANEL_PLACEMENT_OPTIONS,
   type WorkspaceCellSelectPanelPlacement,
 } from '@/features/workspace-table/cellSelectPanelPlacement'
+import { WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/workspace-table/ui/workspaceSettingsSelectClass'
 
 type WorkspaceTableModeControlProps = {
   className?: string
@@ -97,18 +99,14 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
       <label className="flex items-center justify-between gap-2 text-xs">
         <span className="min-w-0 truncate">Workspace editor view</span>
         <select
-          className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+          className={WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
           value={workspaceEditorMode}
           onChange={handleWorkspaceEditorModeChanged}
           aria-label="Workspace editor view"
         >
           {WORKSPACE_EDITOR_MODE_OPTIONS.map(option => (
             <option key={option} value={option}>
-              {option === 'table'
-                ? UI_COPY.markdownDataViewTableViewLabel
-                : option === 'kanban'
-                  ? UI_COPY.markdownDataViewKanbanViewLabel
-                  : UI_COPY.markdownDataViewTitleDefault}
+              {getWorkspaceEditorModeLabel(option)}
             </option>
           ))}
         </select>
@@ -124,7 +122,7 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
       <label className="flex items-center justify-between gap-2 text-xs">
         <span className="min-w-0 truncate">Select panel position</span>
         <select
-          className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+          className={WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
           value={workspaceCellSelectPanelPlacement}
           onChange={handleWorkspaceCellSelectPanelPlacementChanged}
           aria-label="Select panel position"
@@ -139,7 +137,7 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
       <label className="flex items-center justify-between gap-2 text-xs">
         <span className="min-w-0 truncate">JSON import target</span>
         <select
-          className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+          className={WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
           value={jsonImportTarget}
           onChange={handleJsonImportTargetChanged}
           aria-label="JSON import target"
@@ -154,7 +152,7 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
       <label className="flex items-center justify-between gap-2 text-xs">
         <span className="min-w-0 truncate">JSON markdown mode</span>
         <select
-          className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+          className={WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME}
           value={jsonMarkdownMode}
           onChange={handleJsonMarkdownModeChanged}
           aria-label="JSON markdown mode"

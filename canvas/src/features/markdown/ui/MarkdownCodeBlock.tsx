@@ -187,6 +187,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
   const baseWordWrapEnabled = /\bwhitespace-pre-wrap\b/.test(String(wrapClass || ''))
   const [localWordWrapEnabled, setLocalWordWrapEnabled] = React.useState<boolean>(() => baseWordWrapEnabled)
   const [wordWrapOverride, setWordWrapOverride] = React.useState(false)
+  const pointerWrapTogglePendingRef = React.useRef(false)
 
   React.useEffect(() => {
     if (!localOverride) return
@@ -219,6 +220,12 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
   const isBeside = effectiveViewMode === 'beside'
   const canToggleWordWrap = !isAsciiDiagram && !isRender
   const effectiveWrapClass = canToggleWordWrap && effectiveWordWrap ? 'whitespace-pre-wrap break-words' : ''
+  const toggleWordWrap = React.useCallback(() => {
+    if (!canToggleWordWrap) return
+    const next = !effectiveWordWrap
+    setWordWrapOverride(next !== baseWordWrapEnabled)
+    setLocalWordWrapEnabled(next)
+  }, [baseWordWrapEnabled, canToggleWordWrap, effectiveWordWrap])
   const monospaceCodeClass = React.useMemo(() => {
     const base = String(opts.uiPanelMonospaceTextClass || '').trim() || 'font-mono text-xs'
     return opts.markdownPresentationMode ? `${base} text-xl` : base
@@ -378,11 +385,31 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
             ? `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
             : `opacity-50 cursor-not-allowed ${UI_THEME_TOKENS.text.secondary}`}`}
           disabled={!canToggleWordWrap}
-          onClick={() => {
-            if (!canToggleWordWrap) return
-            const next = !effectiveWordWrap
-            setWordWrapOverride(next !== baseWordWrapEnabled)
-            setLocalWordWrapEnabled(next)
+          onMouseDown={event => {
+            event.stopPropagation()
+            event.preventDefault()
+            pointerWrapTogglePendingRef.current = true
+            toggleWordWrap()
+          }}
+          onDoubleClick={event => event.stopPropagation()}
+          onClick={event => {
+            event.stopPropagation()
+            event.preventDefault()
+            if (event.detail !== 0) {
+              pointerWrapTogglePendingRef.current = false
+              return
+            }
+            if (pointerWrapTogglePendingRef.current) {
+              pointerWrapTogglePendingRef.current = false
+              return
+            }
+            toggleWordWrap()
+          }}
+          onKeyDown={event => {
+            if (event.key !== 'Enter' && event.key !== ' ') return
+            event.stopPropagation()
+            event.preventDefault()
+            toggleWordWrap()
           }}
         >
           <WrapText className="w-3.5 h-3.5" strokeWidth={1.5} />
@@ -607,6 +634,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
         editDisableRichUi
         editTypographyMode="none"
         editPreserveWhitespace
+        editPreserveBlockHeight={false}
         editStaticChildren={editStaticHeaderNode}
         editorClassName={editorCodeClassName}
       >
@@ -655,6 +683,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
         editDisableRichUi
         editTypographyMode="none"
         editPreserveWhitespace
+        editPreserveBlockHeight={false}
         editStaticChildren={editStaticHeaderNode}
         editorClassName={editorCodeClassName}
       >

@@ -103,20 +103,20 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
             <AlignLeft className="w-3 h-3" strokeWidth={1.8} />
           </summary>
           <menu className={props.toolbarMenuClassName} aria-label="Align menu">
-            <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={() => props.applyAlign('left')}>Left</button></li>
-            <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={() => props.applyAlign('center')}>Center</button></li>
-            <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onClick={() => props.applyAlign('right')}>Right</button></li>
+            <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyAlign('left')}>Left</button></li>
+            <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyAlign('center')}>Center</button></li>
+            <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyAlign('right')}>Right</button></li>
           </menu>
         </details>
-        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={event => event.preventDefault()} onClick={() => props.applyDraftAction('bold')} title="Bold"><Bold className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={event => event.preventDefault()} onClick={() => props.applyDraftAction('inlineCode')} title="Code"><Code className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={event => event.preventDefault()} onClick={() => props.applyDraftAction('italic')} title="Italic"><Italic className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={event => event.preventDefault()} onClick={() => props.applyDraftAction('link')} title="Link"><LinkIcon className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={event => event.preventDefault()} onClick={() => props.applyDraftAction('strike')} title="Strikethrough"><Strikethrough className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={event => event.preventDefault()} onClick={() => props.applyWrap('<u>', '</u>')} title="Underline"><Underline className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={event => event.preventDefault()} onClick={() => props.applyWrap('^', '^')} title="Superscript"><Superscript className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={event => event.preventDefault()} onClick={() => props.applyWrap('~', '~')} title="Subscript"><Subscript className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={event => event.preventDefault()} onClick={() => props.applyWrap('$', '$')} title="Math"><span className="text-[10px] leading-none">∑</span></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyDraftAction('bold')} title="Bold"><Bold className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyDraftAction('inlineCode')} title="Code"><Code className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyDraftAction('italic')} title="Italic"><Italic className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyDraftAction('link')} title="Link"><LinkIcon className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyDraftAction('strike')} title="Strikethrough"><Strikethrough className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyWrap('<u>', '</u>')} title="Underline"><Underline className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyWrap('^', '^')} title="Superscript"><Superscript className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyWrap('~', '~')} title="Subscript"><Subscript className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyWrap('$', '$')} title="Math"><span className="text-[10px] leading-none">∑</span></button>
         <details className="relative">
           <summary className={props.toolbarMenuSummaryClassName} title="Highlight" onPointerDown={preventDefaultPointerDown} onClick={toggleParentDetailsOpenFromSummaryClick}><Highlighter className="w-3 h-3" strokeWidth={1.8} /></summary>
           <menu className={props.toolbarMenuClassName} aria-label="Highlight menu">
@@ -136,8 +136,8 @@ export const MarkdownBlockContainerBubbleToolbarOverlay = (props: {
             <li className="list-none"><button type="button" className={props.toolbarMenuButtonClassName} style={{ color: '#6B7280' }} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyColor('#6B7280')}>Gray</button></li>
           </menu>
         </details>
-        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={event => event.preventDefault()} onClick={props.applyClearFormatting} title="Clear formatting"><Eraser className="w-3 h-3" strokeWidth={1.8} /></button>
-        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={event => event.preventDefault()} onClick={() => props.applyWrap('<!-- ', ' -->')} title="Comment"><MessageSquare className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={props.applyClearFormatting} title="Clear formatting"><Eraser className="w-3 h-3" strokeWidth={1.8} /></button>
+        <button type="button" className={props.floatingBubbleButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => props.applyWrap('<!-- ', ' -->')} title="Comment"><MessageSquare className="w-3 h-3" strokeWidth={1.8} /></button>
         <details className="relative">
           <summary className={props.toolbarMenuSummaryClassName} title="More" onPointerDown={preventDefaultPointerDown} onClick={toggleParentDetailsOpenFromSummaryClick}><MoreHorizontal className="w-3 h-3" strokeWidth={1.8} /></summary>
           <menu className={props.toolbarMenuClassName} aria-label="More actions">

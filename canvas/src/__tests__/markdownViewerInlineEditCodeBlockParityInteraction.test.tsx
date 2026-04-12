@@ -255,6 +255,8 @@ export async function testMarkdownViewerCodeFenceToggleWordWrapUpdatesReadAndEdi
     const toggle = dom.window.document.querySelector('button[aria-label="Toggle word wrap"]') as HTMLButtonElement | null
     if (!toggle) throw new Error('expected code-fence word-wrap toggle button')
     if (toggle.disabled) throw new Error('expected code-fence word-wrap toggle to be enabled for standard code fences')
+    toggle.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    toggle.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
     toggle.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
     await tick(2)
 
@@ -323,6 +325,8 @@ export async function testMarkdownViewerCodeFenceToggleWordWrapOffDisablesWrapIn
     }
     const toggle = dom.window.document.querySelector('button[aria-label="Toggle word wrap"]') as HTMLButtonElement | null
     if (!toggle) throw new Error('expected code-fence word-wrap toggle button')
+    toggle.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    toggle.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
     toggle.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
     await tick(2)
 
@@ -355,6 +359,219 @@ export async function testMarkdownViewerCodeFenceToggleWordWrapOffDisablesWrapIn
     const editorClass = String(editor.className || '')
     if (editorClass.includes('whitespace-pre-wrap')) {
       throw new Error(`expected code-fence edit surface wrap class to be disabled when toggle is off; class=${JSON.stringify(editorClass)}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerCodeFenceEditOpenDoesNotInjectSyntheticBottomGap() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+    const reactDomClient = await import('react-dom/client')
+    const root = reactDomClient.createRoot(container)
+    const mod = await import('@/features/markdown/ui/MarkdownCodeBlock')
+    const MarkdownCodeBlock = mod.MarkdownCodeBlock
+
+    root.render(
+      <MarkdownCodeBlock
+        token={{ type: 'code', text: 'const a = 1;', info: 'ts', startLine: 1, endLine: 3 } as never}
+        highlightClass=""
+        opts={baseOpts(['```ts', 'const a = 1;', '```']) as never}
+        wrapClass=""
+      />,
+    )
+    await tick(2)
+
+    const host = dom.window.document.querySelector('figure') as HTMLElement | null
+    if (!host) throw new Error('expected code-fence host figure')
+    host.getBoundingClientRect = () => {
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 640,
+        bottom: 120,
+        width: 640,
+        height: 120,
+        toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+    host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }))
+    await tick(3)
+
+    const editor = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error('expected code-fence editor')
+    const text = String(editor.textContent || '')
+    if (/\n$/.test(text)) {
+      throw new Error(`expected code-fence edit-open not to append synthetic trailing newline row; text=${JSON.stringify(text)}`)
+    }
+    const surface = editor.parentElement as HTMLElement | null
+    if (!surface) throw new Error('expected code-fence edit surface container')
+    if (String(surface.style.minHeight || '').trim()) {
+      throw new Error(`expected code-fence edit surface not to preserve host min-height and synthesize bottom spacing gap; minHeight=${JSON.stringify(surface.style.minHeight)}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerCodeFenceSingleClickOpensCaretNearClickPosition() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+    const reactDomClient = await import('react-dom/client')
+    const root = reactDomClient.createRoot(container)
+    const mod = await import('@/features/markdown/ui/MarkdownCodeBlock')
+    const MarkdownCodeBlock = mod.MarkdownCodeBlock
+    const longLine = 'const extremelyLongIdentifierNameForCaretPlacementRegression = 1234567890;'
+
+    root.render(
+      <MarkdownCodeBlock
+        token={{ type: 'code', text: longLine, info: 'ts', startLine: 1, endLine: 3 } as never}
+        highlightClass=""
+        opts={baseOpts(['```ts', longLine, '```']) as never}
+        wrapClass=""
+      />,
+    )
+    await tick(2)
+
+    const host = dom.window.document.querySelector('figure') as HTMLElement | null
+    if (!host) throw new Error('expected code-fence host figure')
+    host.getBoundingClientRect = () => {
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 720,
+        bottom: 140,
+        width: 720,
+        height: 140,
+        toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+    host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 420, clientY: 92 }))
+    await tick(3)
+
+    const editor = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error('expected code-fence editor after single click')
+    const selection = dom.window.getSelection()
+    if (!selection || selection.rangeCount <= 0) {
+      throw new Error('expected active selection/caret range after code-fence click-to-edit')
+    }
+    const range = selection.getRangeAt(0)
+    const containerNode = range.startContainer.nodeType === dom.window.Node.ELEMENT_NODE
+      ? range.startContainer as Element
+      : range.startContainer.parentElement
+    if (!containerNode || !editor.contains(containerNode as Node)) {
+      throw new Error('expected code-fence single-click edit-open caret to remain inside code editor')
+    }
+    if (range.startOffset <= 0) {
+      throw new Error(`expected code-fence single-click edit-open caret offset to reflect click position, not snap to first character; offset=${range.startOffset}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerCodeFenceSingleClickRespectsVerticalLinePosition() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+    const reactDomClient = await import('react-dom/client')
+    const root = reactDomClient.createRoot(container)
+    const mod = await import('@/features/markdown/ui/MarkdownCodeBlock')
+    const MarkdownCodeBlock = mod.MarkdownCodeBlock
+    const lines = ['alpha = 1', 'beta = 2', 'gamma = 3']
+
+    root.render(
+      <MarkdownCodeBlock
+        token={{ type: 'code', text: lines.join('\n'), info: 'python', startLine: 1, endLine: 5 } as never}
+        highlightClass=""
+        opts={baseOpts(['```python', ...lines, '```']) as never}
+        wrapClass=""
+      />,
+    )
+    await tick(2)
+
+    const host = dom.window.document.querySelector('figure') as HTMLElement | null
+    if (!host) throw new Error('expected code-fence host figure')
+    host.getBoundingClientRect = () => {
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 720,
+        bottom: 180,
+        width: 720,
+        height: 180,
+        toJSON: () => ({}),
+      } as unknown as DOMRect
+    }
+    host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 120, clientY: 132 }))
+    await tick(3)
+
+    const editor = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error('expected code-fence editor after single click')
+    const selection = dom.window.getSelection()
+    if (!selection || selection.rangeCount <= 0) throw new Error('expected active selection range for multiline code-fence')
+    const range = selection.getRangeAt(0)
+    const fullText = String(editor.textContent || '')
+    const head = fullText.slice(0, range.startOffset)
+    const lineIndex = head.split('\n').length - 1
+    if (lineIndex < 1) {
+      throw new Error(`expected click near lower portion of code fence to place caret on later line, not first line; lineIndex=${lineIndex}, offset=${range.startOffset}`)
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerCodeFenceToggleWordWrapDoesNotOpenInlineEditor() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+    const reactDomClient = await import('react-dom/client')
+    const root = reactDomClient.createRoot(container)
+    const mod = await import('@/features/markdown/ui/MarkdownCodeBlock')
+    const MarkdownCodeBlock = mod.MarkdownCodeBlock
+
+    root.render(
+      <MarkdownCodeBlock
+        token={{ type: 'code', text: 'const v = 1;', info: 'ts', startLine: 1, endLine: 3 } as never}
+        highlightClass=""
+        opts={baseOpts(['```ts', 'const v = 1;', '```']) as never}
+        wrapClass=""
+      />,
+    )
+    await tick(2)
+
+    const toggle = dom.window.document.querySelector('button[aria-label="Toggle word wrap"]') as HTMLButtonElement | null
+    if (!toggle) throw new Error('expected code-fence word-wrap toggle button')
+    toggle.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    toggle.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+    toggle.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+    await tick(2)
+
+    const editor = dom.window.document.querySelector('[contenteditable="true"]')
+    if (editor) {
+      throw new Error('expected code-fence word-wrap toggle interaction not to open inline editor')
     }
 
     root.unmount()

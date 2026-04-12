@@ -251,6 +251,22 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modMarkdownViewerInlineEditCodeBlockParityInteraction()
     await mod.testMarkdownViewerCodeFenceToggleWordWrapOffDisablesWrapInEditSurface()
   })
+  await execTest(results, 'markdown.viewer.inlineEdit.codeBlock.noSyntheticBottomGap', async () => {
+    const mod = await modMarkdownViewerInlineEditCodeBlockParityInteraction()
+    await mod.testMarkdownViewerCodeFenceEditOpenDoesNotInjectSyntheticBottomGap()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.codeBlock.singleClick.caretAtClickPosition', async () => {
+    const mod = await modMarkdownViewerInlineEditCodeBlockParityInteraction()
+    await mod.testMarkdownViewerCodeFenceSingleClickOpensCaretNearClickPosition()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.codeBlock.singleClick.caretRespectsVerticalLinePosition', async () => {
+    const mod = await modMarkdownViewerInlineEditCodeBlockParityInteraction()
+    await mod.testMarkdownViewerCodeFenceSingleClickRespectsVerticalLinePosition()
+  })
+  await execTest(results, 'markdown.viewer.inlineEdit.codeBlock.toggleWordWrap.noEditOpen', async () => {
+    const mod = await modMarkdownViewerInlineEditCodeBlockParityInteraction()
+    await mod.testMarkdownViewerCodeFenceToggleWordWrapDoesNotOpenInlineEditor()
+  })
   await execTest(results, 'markdown.viewer.inlineEdit.codeFence.languageSelector.updatesFenceInfo', async () => {
     const mod = await modMarkdownViewerInlineEditCodeFenceLanguageSelector()
     await mod.testMarkdownViewerCodeFenceLanguageSelectorUpdatesFenceInfoAndKeepsMetadata()

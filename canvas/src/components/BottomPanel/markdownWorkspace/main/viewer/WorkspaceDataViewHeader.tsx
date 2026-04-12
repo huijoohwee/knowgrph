@@ -1,5 +1,5 @@
 import React from 'react'
-import { ArrowUpDown, Eye, Filter, Layers, LayoutGrid, MoreHorizontal, Plus, Search, SlidersHorizontal, Table as TableIcon } from 'lucide-react'
+import { ArrowUpDown, Check, Filter, Layers, LayoutGrid, MoreHorizontal, Plus, Search, SlidersHorizontal } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import type { MarkdownWorkspaceDerivedViewerMode } from './MarkdownWorkspaceDerivedViewer'
@@ -7,7 +7,6 @@ import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownData
 import type { MarkdownDataViewColumnType } from '@/features/markdown/ui/markdownDataViewColumnType'
 import { MarkdownDataViewAddColumnMenu } from '@/features/markdown/ui/MarkdownDataViewAddColumnMenu'
 import type { WorkspaceDataViewConfig } from './workspaceDataViewConfig'
-import { WorkspaceDataViewFilterMenu } from './WorkspaceDataViewFilterMenu'
 import { WorkspaceDataViewSettingsDialog } from './WorkspaceDataViewSettingsDialog'
 import { WorkspaceHeader } from '@/components/ui/WorkspaceHeader'
 import {
@@ -16,14 +15,10 @@ import {
   FLOATING_MENU_LEFT_W220_CLASSNAME,
   FLOATING_MENU_RIGHT_W220_CLASSNAME,
 } from './floatingMenuStyles'
+import { getWorkspaceEditorModeLabel } from '@/features/workspace-table/workspaceEditorModePresentation'
 
 type SortMode = 'none' | 'title_asc' | 'title_desc'
-
-const SORT_OPTIONS: readonly { key: SortMode; label: string }[] = [
-  { key: 'none', label: 'None' },
-  { key: 'title_asc', label: 'Title (A → Z)' },
-  { key: 'title_desc', label: 'Title (Z → A)' },
-] as const
+type LayoutMode = 'table' | 'multiDimTable' | 'kanban'
 
 export type WorkspaceDataViewHeaderState = {
   searchQuery: string
@@ -40,58 +35,39 @@ export function WorkspaceDataViewHeader(props: {
   viewConfig: WorkspaceDataViewConfig | null
   setViewConfig: (next: WorkspaceDataViewConfig) => void
   openSettings: () => void
+  openSettingsPanel?: (panel: 'layout' | 'properties' | 'filter' | 'sort' | 'group') => void
   settingsOpen: boolean
+  settingsPanel?: 'layout' | 'properties' | 'filter' | 'sort' | 'group' | 'duplicate' | 'delete'
   closeSettings: () => void
   tableSelector?: React.ReactNode
   groupOptions: readonly string[]
   state: WorkspaceDataViewHeaderState
   onChangeState: (next: WorkspaceDataViewHeaderState) => void
   onChangeViewerMode?: (mode: MarkdownWorkspaceDerivedViewerMode) => void
+  supportsMultiDimLayout?: boolean
   onNewRecord?: () => void
   onAddColumn?: (args: { name: string; columnType: MarkdownDataViewColumnType }) => void
   onReset: () => void
 }) {
+  const supportsMultiDimLayout = props.supportsMultiDimLayout ?? false
   const setState = props.onChangeState
+  const viewConfig = props.viewConfig
+  const setViewConfig = props.setViewConfig
+  const onChangeViewerMode = props.onChangeViewerMode
 
   const [searchExpandedRaw, setSearchExpandedRaw] = React.useState(false)
   const searchExpanded = searchExpandedRaw || props.state.searchQuery.trim().length > 0
   const searchInputRef = React.useRef<HTMLInputElement | null>(null)
 
-  const groupByDetailsRef = React.useRef<HTMLDetailsElement | null>(null)
-
-  const filterDetailsRef = React.useRef<HTMLDetailsElement | null>(null)
+  const layoutDetailsRef = React.useRef<HTMLDetailsElement | null>(null)
 
   const icon12Class = ['w-3 h-3', UI_THEME_TOKENS.icon.color].join(' ')
   const icon14Class = ['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')
   const squareIconButtonClassName = ['inline-flex', UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
   const squareIconSummaryClassName = ['list-none cursor-pointer', UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
 
-  const viewModeLabel =
-    props.viewerMode === 'read'
-      ? 'Read'
-      : props.viewerMode === 'kanban'
-        ? MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel
-        : props.viewerMode === 'multiDimTable'
-          ? MARKDOWN_DATA_VIEW_COPY.titleDefault
-          : MARKDOWN_DATA_VIEW_COPY.tableViewLabel
-  const viewModeIcon =
-    props.viewerMode === 'kanban'
-      ? <LayoutGrid className={icon14Class} aria-hidden="true" />
-      : props.viewerMode === 'read'
-        ? <Eye className={icon14Class} aria-hidden="true" />
-        : <TableIcon className={icon14Class} aria-hidden="true" />
-  const hasActiveFilters = !!(props.state.searchQuery.trim() || props.state.visibleGroups || props.state.sortMode !== 'none')
-
-  const groupByOptions = React.useMemo(() => {
-    const cols = props.columns.filter(c => c.kind === 'select' || c.kind === 'multi-select')
-    const byId = new Set(cols.map(c => c.id))
-    const current = props.groupByColumnId
-    if (current && !byId.has(current)) {
-      const currentCol = props.columns.find(c => c.id === current)
-      if (currentCol) cols.unshift(currentCol)
-    }
-    return cols.map(c => ({ id: c.id, name: c.name }))
-  }, [props.columns, props.groupByColumnId])
+  const viewModeLabel = props.viewerMode === 'read' ? 'Read' : getWorkspaceEditorModeLabel(props.viewerMode)
+  const hasActiveFilters = !!(props.state.searchQuery.trim() || props.state.visibleGroups)
 
   const groupByLabel = React.useMemo(() => {
     const id = props.groupByColumnId
@@ -99,23 +75,103 @@ export function WorkspaceDataViewHeader(props: {
     return props.columns.find(c => c.id === id)?.name || 'Group'
   }, [props.columns, props.groupByColumnId])
 
-  const setGroupByColumnId = React.useCallback(
-    (next: string | null) => {
-      if (!props.viewConfig) return
-      props.setViewConfig({ ...props.viewConfig, groupByColumnId: next })
-      const el = groupByDetailsRef.current
-      if (el) el.open = false
-    },
-    [props.setViewConfig, props.viewConfig],
-  )
+  const openSettingsPanel = (panel: 'layout' | 'properties' | 'filter' | 'sort' | 'group') => {
+    if (props.openSettingsPanel) {
+      props.openSettingsPanel(panel)
+      return
+    }
+    props.openSettings()
+  }
+  const applyLayoutMode = React.useCallback((mode: LayoutMode) => {
+    if (props.viewerMode === mode) return
+    const nextLayout = mode === 'kanban' ? 'kanban' : 'table'
+    if (viewConfig && viewConfig.layout !== nextLayout) {
+      setViewConfig({ ...viewConfig, layout: nextLayout })
+    }
+    onChangeViewerMode?.(mode)
+  }, [onChangeViewerMode, props.viewerMode, setViewConfig, viewConfig])
 
   return (
-    <WorkspaceHeader ariaLabel="Data view header" border="border">
+    <WorkspaceHeader ariaLabel="Data view header" border="border" className="relative z-20">
       <section className="flex items-center gap-2 px-3 pt-2 min-w-0" aria-label="Data view controls">
-        <div className={[UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border].join(' ')} role="img" aria-label={viewModeLabel}>
-          {viewModeIcon}
-        </div>
-        <div className="ml-auto flex items-center gap-2">
+        <details className="relative z-30" ref={layoutDetailsRef}>
+          <summary
+            className={squareIconSummaryClassName}
+            aria-label={`Layout: ${viewModeLabel}`}
+          >
+            <LayoutGrid className={icon14Class} aria-hidden="true" />
+          </summary>
+          <menu className={FLOATING_MENU_LEFT_W220_CLASSNAME} aria-label="Layout mode options">
+            <li className="list-none">
+              <button
+                type="button"
+                className={[
+                  FLOATING_MENU_BUTTON_CLASSNAME,
+                  props.viewerMode === 'table' ? 'bg-blue-600 text-white' : '',
+                ].join(' ')}
+                onClick={() => {
+                  applyLayoutMode('table')
+                  const el = layoutDetailsRef.current
+                  if (el) el.open = false
+                }}
+              >
+                <span className="inline-flex items-center justify-between w-full gap-2">
+                  <span>{MARKDOWN_DATA_VIEW_COPY.tableViewLabel}</span>
+                  {props.viewerMode === 'table' ? <Check className="w-3 h-3" aria-hidden="true" /> : <span className="w-3 h-3" aria-hidden="true" />}
+                </span>
+              </button>
+            </li>
+            {supportsMultiDimLayout ? (
+              <li className="list-none">
+                <button
+                  type="button"
+                  className={[
+                    FLOATING_MENU_BUTTON_CLASSNAME,
+                    props.viewerMode === 'multiDimTable' ? 'bg-blue-600 text-white' : '',
+                  ].join(' ')}
+                  onClick={() => {
+                    applyLayoutMode('multiDimTable')
+                    const el = layoutDetailsRef.current
+                    if (el) el.open = false
+                  }}
+                >
+                  <span className="inline-flex items-center justify-between w-full gap-2">
+                    <span>{MARKDOWN_DATA_VIEW_COPY.titleDefault}</span>
+                    {props.viewerMode === 'multiDimTable' ? <Check className="w-3 h-3" aria-hidden="true" /> : <span className="w-3 h-3" aria-hidden="true" />}
+                  </span>
+                </button>
+              </li>
+            ) : null}
+            <li className="list-none">
+              <button
+                type="button"
+                className={[
+                  FLOATING_MENU_BUTTON_CLASSNAME,
+                  props.viewerMode === 'kanban' ? 'bg-blue-600 text-white' : '',
+                ].join(' ')}
+                onClick={() => {
+                  applyLayoutMode('kanban')
+                  const el = layoutDetailsRef.current
+                  if (el) el.open = false
+                }}
+              >
+                <span className="inline-flex items-center justify-between w-full gap-2">
+                  <span>{MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel}</span>
+                  {props.viewerMode === 'kanban' ? <Check className="w-3 h-3" aria-hidden="true" /> : <span className="w-3 h-3" aria-hidden="true" />}
+                </span>
+              </button>
+            </li>
+          </menu>
+        </details>
+        <button
+          type="button"
+          className={squareIconButtonClassName}
+          aria-label={`Group by: ${groupByLabel}`}
+          onClick={() => openSettingsPanel('group')}
+        >
+          <Layers className={icon14Class} aria-hidden="true" />
+        </button>
+        <section className="ml-auto flex items-center gap-2" aria-label="Data view actions">
           {!searchExpanded ? (
             <button
               type="button"
@@ -152,62 +208,23 @@ export function WorkspaceDataViewHeader(props: {
             </form>
           )}
 
-          <details className="relative" ref={filterDetailsRef}>
-            <summary
-              className={squareIconSummaryClassName}
-              aria-label={MARKDOWN_DATA_VIEW_COPY.filterLabel}
-            >
-              <Filter className={icon14Class} aria-hidden="true" />
-            </summary>
-            <menu
-              className={[
-                'absolute right-0 mt-2 rounded border shadow-sm p-2 z-10',
-                UI_THEME_TOKENS.panel.bg,
-                UI_THEME_TOKENS.panel.border,
-              ].join(' ')}
-              aria-label={MARKDOWN_DATA_VIEW_COPY.filterMenuAriaLabel}
-            >
-              <li className="list-none">
-                <WorkspaceDataViewFilterMenu
-                  columns={props.columns}
-                  viewConfig={props.viewConfig}
-                  setViewConfig={props.setViewConfig}
-                  onCloseMenu={() => {
-                    const el = filterDetailsRef.current
-                    if (el) el.open = false
-                  }}
-                />
-              </li>
-            </menu>
-          </details>
+          <button
+            type="button"
+            className={squareIconButtonClassName}
+            aria-label={MARKDOWN_DATA_VIEW_COPY.filterLabel}
+            onClick={() => openSettingsPanel('filter')}
+          >
+            <Filter className={icon14Class} aria-hidden="true" />
+          </button>
 
-          <details className="relative">
-            <summary
-              className={squareIconSummaryClassName}
-              aria-label={MARKDOWN_DATA_VIEW_COPY.sortLabel}
-            >
-              <ArrowUpDown className={icon14Class} aria-hidden="true" />
-            </summary>
-            <menu
-              className={FLOATING_MENU_RIGHT_W220_CLASSNAME}
-              aria-label={MARKDOWN_DATA_VIEW_COPY.sortMenuAriaLabel}
-            >
-              {SORT_OPTIONS.map(o => (
-                <li key={o.key} className="list-none">
-                  <button
-                    type="button"
-                    className={[
-                      'w-full text-left px-2 py-1.5 rounded text-xs',
-                      props.state.sortMode === o.key ? 'bg-blue-600 text-white' : UI_THEME_TOKENS.button.hoverBg,
-                    ].join(' ')}
-                    onClick={() => setState({ ...props.state, sortMode: o.key })}
-                  >
-                    {o.label}
-                  </button>
-                </li>
-              ))}
-            </menu>
-          </details>
+          <button
+            type="button"
+            className={squareIconButtonClassName}
+            aria-label={MARKDOWN_DATA_VIEW_COPY.sortLabel}
+            onClick={() => openSettingsPanel('sort')}
+          >
+            <ArrowUpDown className={icon14Class} aria-hidden="true" />
+          </button>
 
           <MarkdownDataViewAddColumnMenu
             ariaLabel="Add column"
@@ -218,7 +235,7 @@ export function WorkspaceDataViewHeader(props: {
             menuPositionClassName="absolute right-0 mt-2 w-[280px]"
           />
 
-          <details className="relative">
+          <details className="relative z-30">
             <summary
               className={squareIconSummaryClassName}
               aria-label="More"
@@ -289,75 +306,36 @@ export function WorkspaceDataViewHeader(props: {
               <span className={['text-xs font-medium', UI_THEME_TOKENS.text.primary].join(' ')}>{MARKDOWN_DATA_VIEW_COPY.newRecordLabel}</span>
             </button>
           ) : null}
-        </div>
+        </section>
       </section>
 
-      <section className="flex items-center gap-2 px-3 pb-2" aria-label="Data view header">
-
-        {props.viewerMode === 'kanban' ? (
-          <details className="relative ml-2" ref={groupByDetailsRef}>
-            <summary
-              className={squareIconSummaryClassName}
-              aria-label={`Group by: ${groupByLabel}`}
-            >
-              <Layers className={icon14Class} aria-hidden="true" />
-            </summary>
-            <menu
-              className={FLOATING_MENU_LEFT_W220_CLASSNAME}
-              aria-label="Group by column"
-            >
-              <li className="list-none">
-                <button
-                  type="button"
-                  className={['w-full text-left px-2 py-1.5 rounded text-xs', UI_THEME_TOKENS.button.hoverBg].join(' ')}
-                  onClick={() => {
-                    setGroupByColumnId(null)
-                    props.onChangeViewerMode?.('table')
-                  }}
-                >
-                  None (Table)
-                </button>
-              </li>
-              <li className={FLOATING_MENU_DIVIDER_CLASSNAME} />
-              {groupByOptions.map(o => (
-                <li key={o.id} className="list-none">
-                  <button
-                    type="button"
-                    className={[
-                      'w-full text-left px-2 py-1.5 rounded text-xs',
-                      props.groupByColumnId === o.id ? 'bg-blue-600 text-white' : UI_THEME_TOKENS.button.hoverBg,
-                    ].join(' ')}
-                    onClick={() => setGroupByColumnId(o.id)}
-                  >
-                    {o.name}
-                  </button>
-                </li>
-              ))}
-            </menu>
-          </details>
-        ) : null}
-
+      <section className="flex items-center gap-2 px-3 pb-2" aria-label="Data view header options">
         {props.tableSelector ? (
-          <div className="ml-2">
-            <div className="inline-flex items-center gap-2">
+          <aside className="ml-2" aria-label="Data view table selector">
+            <div className="inline-flex items-center gap-2" role="group" aria-label="Table selector">
               {props.tableSelector}
             </div>
-          </div>
+          </aside>
         ) : null}
       </section>
 
       {props.viewConfig ? (
         <WorkspaceDataViewSettingsDialog
           open={props.settingsOpen}
+          activePanel={props.settingsPanel}
           canMutate={props.canMutate}
           viewerLayout={props.viewerMode === 'kanban' ? 'kanban' : 'table'}
+          viewerMode={props.viewerMode === 'kanban' ? 'kanban' : props.viewerMode === 'multiDimTable' ? 'multiDimTable' : 'table'}
+          allowMultiDimLayout={supportsMultiDimLayout}
           columns={props.columns}
           groupByColumnId={props.groupByColumnId}
-          viewConfig={props.viewConfig}
-          setViewConfig={props.setViewConfig}
+          viewConfig={viewConfig}
+          setViewConfig={setViewConfig}
+          onChangeLayoutMode={(mode) => {
+            applyLayoutMode(mode)
+          }}
           onChangeLayout={(layout) => {
-            props.setViewConfig({ ...props.viewConfig!, layout })
-            props.onChangeViewerMode?.(layout)
+            applyLayoutMode(layout)
           }}
           onClose={props.closeSettings}
         />

@@ -41,6 +41,12 @@ export async function testMarkdownViewerInlineEditHeadingUsesHtmlEditingAndPrese
   if (!headingText.includes('MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS')) {
     throw new Error('expected heading edit surface to reuse centralized normal-text edit surface layout contract')
   }
+  if (!headingText.includes('overflow-hidden text-ellipsis whitespace-nowrap')) {
+    throw new Error('expected heading edit surface to preserve ellipsis contract and forbid overflow reveal on edit')
+  }
+  if (headingText.includes('focus:overflow-x-auto') || headingText.includes('focus:[text-overflow:clip]')) {
+    throw new Error('expected heading edit surface to avoid focus-time overflow override and maintain read/edit ellipsis parity')
+  }
   if (headingText.includes('editCaptureLayoutSpacing')) {
     throw new Error('expected heading edit surface to avoid extra spacing snapshot replay and stay on normal-text SSOT baseline')
   }
@@ -114,6 +120,9 @@ export async function testMarkdownViewerInlineEditHeadingUsesHtmlEditingAndPrese
     if (!editor) throw new Error('expected contenteditable editor to mount after click')
     if (!editor.className.includes('[&_p]:m-0')) {
       throw new Error('expected html normalize class names on html editing surface')
+    }
+    if (editor.className.includes('overflow-x-auto') || editor.className.includes('[text-overflow:clip]')) {
+      throw new Error(`expected heading edit surface not to include overflow reveal classes on edit; class=${JSON.stringify(String(editor.className || ''))}`)
     }
 
     const wrapper = editor.parentElement as HTMLElement | null

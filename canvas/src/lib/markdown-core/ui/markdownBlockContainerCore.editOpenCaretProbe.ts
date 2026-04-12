@@ -55,6 +55,8 @@ export const useMarkdownBlockContainerEditOpenCaretProbe = (args: {
         ? {
             textAlign: (computed.textAlign || undefined) as React.CSSProperties['textAlign'],
             wordSpacing: computed.wordSpacing || undefined,
+            whiteSpace: computed.whiteSpace || undefined,
+            tabSize: computed.tabSize || undefined,
             textIndent: computed.textIndent || undefined,
             paddingTop: computed.paddingTop || undefined,
             paddingRight: computed.paddingRight || undefined,
@@ -119,6 +121,8 @@ export const useMarkdownBlockContainerEditOpenCaretProbe = (args: {
         'color',
         'textAlign',
         'wordSpacing',
+        'whiteSpace',
+        'tabSize',
         'textIndent',
         'paddingTop',
         'paddingRight',
@@ -209,6 +213,8 @@ export const useMarkdownBlockContainerEditOpenCaretProbe = (args: {
         'color',
         'textAlign',
         'wordSpacing',
+        'whiteSpace',
+        'tabSize',
         'textIndent',
         'paddingTop',
         'paddingRight',
@@ -305,6 +311,68 @@ export const useMarkdownBlockContainerEditOpenCaretProbe = (args: {
         typeof docAny.caretRangeFromPoint === 'function'
       )
     })()
+    const buildApproximateRangeInRoot = (): Range | null => {
+      const text = String(root.textContent || '')
+      if (!text) return null
+      const rootRect = root.getBoundingClientRect()
+      const style = window.getComputedStyle(root)
+      const parsePx = (value: string): number => {
+        const n = Number.parseFloat(String(value || '').replace('px', ''))
+        return Number.isFinite(n) ? n : 0
+      }
+      const lineHeightRaw = Number.parseFloat(String(style.lineHeight || '').replace('px', ''))
+      const fontSize = Number.parseFloat(String(style.fontSize || '').replace('px', ''))
+      const lineHeight = Number.isFinite(lineHeightRaw) && lineHeightRaw > 0
+        ? lineHeightRaw
+        : (Number.isFinite(fontSize) && fontSize > 0 ? fontSize * 1.5 : 16)
+      const paddingLeft = parsePx(style.paddingLeft)
+      const paddingTop = parsePx(style.paddingTop)
+      const horizontal = Math.max(0, point.x - rootRect.left - paddingLeft)
+      const vertical = Math.max(0, point.y - rootRect.top - paddingTop)
+      const lines = text.split('\n')
+      const maxLineIndex = Math.max(0, lines.length - 1)
+      const lineIndex = Math.max(0, Math.min(maxLineIndex, Math.floor(vertical / Math.max(1, lineHeight))))
+      const probe = document.createElement('span')
+      probe.style.position = 'absolute'
+      probe.style.visibility = 'hidden'
+      probe.style.pointerEvents = 'none'
+      probe.style.whiteSpace = 'pre'
+      probe.style.fontFamily = style.fontFamily
+      probe.style.fontSize = style.fontSize
+      probe.style.fontWeight = style.fontWeight
+      probe.style.letterSpacing = style.letterSpacing
+      probe.textContent = 'M'
+      document.body.appendChild(probe)
+      const charWidth = Math.max(1, probe.getBoundingClientRect().width || parsePx(style.fontSize) * 0.6 || 8)
+      probe.remove()
+      const line = String(lines[lineIndex] || '')
+      const column = Math.max(0, Math.min(line.length, Math.round(horizontal / charWidth)))
+      const offsetBase = lines.slice(0, lineIndex).reduce((sum, row) => sum + row.length + 1, 0)
+      const globalOffset = Math.max(0, Math.min(text.length, offsetBase + column))
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+      let remaining = globalOffset
+      let current = walker.nextNode() as Text | null
+      while (current) {
+        const len = String(current.nodeValue || '').length
+        if (remaining <= len) {
+          const rr = document.createRange()
+          rr.setStart(current, Math.max(0, Math.min(len, remaining)))
+          rr.collapse(true)
+          return rr
+        }
+        remaining -= len
+        current = walker.nextNode() as Text | null
+      }
+      const fallbackNode = root.lastChild
+      if (fallbackNode && fallbackNode.nodeType === Node.TEXT_NODE) {
+        const rr = document.createRange()
+        const lastText = fallbackNode as Text
+        rr.setStart(lastText, String(lastText.nodeValue || '').length)
+        rr.collapse(true)
+        return rr
+      }
+      return null
+    }
     const buildLocalFallbackRange = (): Range | null => {
       const pointerTarget = args.lastPointerTargetRef.current
       const resolveLocalTextNode = (): Text | null => {
@@ -350,11 +418,35 @@ export const useMarkdownBlockContainerEditOpenCaretProbe = (args: {
           ensureWordSelectionInRoot(root)
         }
       }
+      const approx = buildApproximateRangeInRoot()
+      if (approx) {
+        const selApprox = typeof window !== 'undefined' ? window.getSelection() : null
+        if (selApprox) {
+          try {
+            selApprox.removeAllRanges()
+            selApprox.addRange(approx)
+          } catch {
+            void 0
+          }
+        }
+      }
       return
     }
     const container = range.startContainer
     const node = container.nodeType === Node.ELEMENT_NODE ? (container as Element) : container.parentElement
-    if (!node || !root.contains(node)) return
+    if (!node || !root.contains(node)) {
+      const fallback = buildLocalFallbackRange() || buildApproximateRangeInRoot()
+      if (!fallback) return
+      const selFallback = typeof window !== 'undefined' ? window.getSelection() : null
+      if (!selFallback) return
+      try {
+        selFallback.removeAllRanges()
+        selFallback.addRange(fallback)
+      } catch {
+        void 0
+      }
+      return
+    }
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
     if (!sel) return
     const hasStableSelectionInRoot = (() => {

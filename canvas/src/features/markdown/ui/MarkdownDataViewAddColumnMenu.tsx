@@ -39,14 +39,14 @@ export function MarkdownDataViewAddColumnMenu(props: {
   const TypeIcon = iconByColumnType[type]
 
   return (
-    <details className="relative" ref={detailsRef}>
+    <details className="relative z-30" ref={detailsRef}>
       <summary className={[props.summaryClassName, 'list-none'].join(' ')} aria-label={props.ariaLabel}>
         {props.summaryContent || <Plus className={['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')} aria-hidden="true" />}
       </summary>
       <menu
         className={[
           props.menuPositionClassName,
-          'rounded border shadow-sm p-2 z-20',
+          'rounded border shadow-sm p-2 z-40',
           UI_THEME_TOKENS.panel.bg,
           UI_THEME_TOKENS.panel.border,
         ].join(' ')}

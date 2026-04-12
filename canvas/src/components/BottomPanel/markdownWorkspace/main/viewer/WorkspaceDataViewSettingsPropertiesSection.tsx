@@ -1,5 +1,5 @@
 import React from 'react'
-import { Copy, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, Copy, Link2, Trash2 } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_FOCUS_RING } from '@/lib/ui/focusRing'
 import { defaultColumnTypeForInferredKind, type MarkdownDataViewColumnType } from '@/features/markdown/ui/markdownDataViewColumnType'
@@ -12,6 +12,9 @@ import { UI_COLOR_PRIMARY_BLUE_INDICATOR } from '@/features/toolbar/ui/toolbarSt
 import { reorderList } from '@/lib/reorder'
 import { DetailsMenu } from '@/components/ui/DetailsMenu'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { WORKSPACE_DATA_VIEW_GRAPH_ROLE_OPTIONS, inferRoleForColumn } from './workspaceDataViewGraphRoles'
+import type { WorkspaceDataViewGraphColumnRole } from './workspaceDataViewConfig'
+import { WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/workspace-table/ui/workspaceSettingsSelectClass'
 
 export function WorkspaceDataViewSettingsPropertiesSection(props: {
   canMutate: boolean
@@ -22,6 +25,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
   onDeleteColumn?: (columnId: string) => void
   onRenameColumn?: (columnId: string, nextName: string) => void
 }) {
+  const MAP_SELECT_CHEVRON_ALIGN_CLASS = 'mr-0'
   const COLUMN_NAME_EDIT_INPUT_CLASS = [
     'h-7 px-2 rounded border text-sm min-w-0 flex-1',
     'overflow-x-auto whitespace-nowrap [text-overflow:clip]',
@@ -34,6 +38,7 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
   const [dragOverColumnId, setDragOverColumnId] = React.useState<string | null>(null)
   const [editingColumnId, setEditingColumnId] = React.useState<string | null>(null)
   const [editingName, setEditingName] = React.useState('')
+  const [expandedColumnId, setExpandedColumnId] = React.useState<string | null>(null)
 
   const allIds = React.useMemo(() => props.columns.map(c => c.id), [props.columns])
 
@@ -106,6 +111,17 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
     },
     [props],
   )
+  const setColumnGraphRole = React.useCallback(
+    (columnId: string, role: WorkspaceDataViewGraphColumnRole) => {
+      const nextMap = { ...(props.view.graphRolesByColumnId ?? {}) }
+      nextMap[columnId] = role
+      props.onChangeView({
+        ...props.view,
+        graphRolesByColumnId: nextMap,
+      })
+    },
+    [props],
+  )
 
   const icon14 = ['w-4 h-4', UI_THEME_TOKENS.icon.color].join(' ')
 
@@ -139,14 +155,16 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
           if (!c) return null
           const visible = true
           const type = (props.view.columnTypesById && props.view.columnTypesById[c.id]) || defaultColumnTypeForInferredKind(c.kind)
+          const graphRole = (props.view.graphRolesByColumnId && props.view.graphRolesByColumnId[c.id]) || inferRoleForColumn(c.name)
           const Icon = iconByColumnType[type]
           const isDragOver = dragOverColumnId === c.id && draggingColumnId && draggingColumnId !== c.id
+          const isExpanded = expandedColumnId === c.id
 
           return (
             <div
               key={c.id}
               className={[
-                'relative flex items-center gap-2 px-2 py-1 rounded border',
+                'relative px-2 py-1 rounded border',
                 UI_THEME_TOKENS.panel.border,
                 UI_THEME_TOKENS.button.hoverBg,
               ]
@@ -190,90 +208,137 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                 <div className="absolute left-2 right-2 bottom-0 h-[2px]" style={{ backgroundColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }} />
               ) : null}
 
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <GripDotsIcon className={['w-4 h-4', UI_THEME_TOKENS.text.tertiary].join(' ')} />
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <GripDotsIcon className={['w-4 h-4', UI_THEME_TOKENS.text.tertiary].join(' ')} />
 
-                <DetailsMenu
-                  ariaLabel={`Property type: ${c.name}`}
-                  detailsClassName="relative"
-                  summaryClassName={[
-                    'list-none cursor-pointer inline-flex items-center justify-center w-7 h-7 rounded',
-                    UI_THEME_TOKENS.button.hoverBg,
-                  ].join(' ')}
-                  menuClassName="absolute left-full top-0 ml-2"
-                  summary={<Icon className={icon14} aria-hidden="true" />}
-                  menu={({ close }) => (
-                    <MarkdownDataViewColumnTypeMenu
-                      ariaLabel={`Property type: ${c.name}`}
-                      value={type}
-                      className="w-[240px]"
-                      onSelect={(next) => {
-                        setColumnType({ column: c, nextType: next })
-                        close()
+                  <DetailsMenu
+                    ariaLabel={`Property type: ${c.name}`}
+                    detailsClassName="relative"
+                    summaryClassName={[
+                      'list-none cursor-pointer inline-flex items-center justify-center w-7 h-7 rounded',
+                      UI_THEME_TOKENS.button.hoverBg,
+                    ].join(' ')}
+                    menuClassName="absolute left-full top-0 ml-2"
+                    summary={<Icon className={icon14} aria-hidden="true" />}
+                    menu={({ close }) => (
+                      <MarkdownDataViewColumnTypeMenu
+                        ariaLabel={`Property type: ${c.name}`}
+                        value={type}
+                        className="w-[240px]"
+                        onSelect={(next) => {
+                          setColumnType({ column: c, nextType: next })
+                          close()
+                        }}
+                      />
+                    )}
+                  />
+
+                  {editingColumnId === c.id ? (
+                    <input
+                      autoFocus
+                      className={COLUMN_NAME_EDIT_INPUT_CLASS}
+                      value={editingName}
+                      onChange={e => setEditingName(e.target.value)}
+                      onBlur={() => commitRename(c.id)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          commitRename(c.id)
+                        }
+                        if (e.key === 'Escape') {
+                          e.preventDefault()
+                          setEditingColumnId(null)
+                        }
                       }}
                     />
+                  ) : (
+                    <button
+                      type="button"
+                      className={['text-sm min-w-0 text-left', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}
+                      onClick={() => setExpandedColumnId(prev => (prev === c.id ? null : c.id))}
+                      onDoubleClick={() => startRename(c.id, c.name)}
+                      aria-expanded={isExpanded}
+                      aria-controls={`property-map-panel-${c.id}`}
+                    >
+                      {c.name}
+                    </button>
                   )}
-                />
+                </div>
 
-                {editingColumnId === c.id ? (
-                  <input
-                    autoFocus
-                    className={COLUMN_NAME_EDIT_INPUT_CLASS}
-                    value={editingName}
-                    onChange={e => setEditingName(e.target.value)}
-                    onBlur={() => commitRename(c.id)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        commitRename(c.id)
-                      }
-                      if (e.key === 'Escape') {
-                        e.preventDefault()
-                        setEditingColumnId(null)
-                      }
-                    }}
-                  />
-                ) : (
-                  <span
-                    className={['text-sm', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.primary].join(' ')}
-                    onDoubleClick={() => startRename(c.id, c.name)}
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                    onClick={() => setColumnVisible(c.id, false)}
+                    aria-pressed={visible}
+                    aria-label="Hide"
                   >
-                    {c.name}
-                  </span>
-                )}
+                    <VisibilityIcon hidden={!visible} iconClassName="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                    onClick={() => props.onDuplicateColumn?.(c.id)}
+                    disabled={!props.canMutate || !props.onDuplicateColumn}
+                    aria-label="Duplicate"
+                  >
+                    <Copy className={icon14} aria-hidden="true" />
+                  </button>
+
+                  <button
+                    type="button"
+                    className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                    onClick={() => props.onDeleteColumn?.(c.id)}
+                    disabled={!props.canMutate || !props.onDeleteColumn || props.columns.length <= 1}
+                    aria-label="Delete"
+                  >
+                    <Trash2 className={icon14} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                    onClick={() => setExpandedColumnId(prev => (prev === c.id ? null : c.id))}
+                    aria-label={isExpanded ? 'Collapse property details' : 'Expand property details'}
+                    aria-expanded={isExpanded}
+                  >
+                    {isExpanded ? <ChevronDown className={icon14} aria-hidden="true" /> : <ChevronRight className={icon14} aria-hidden="true" />}
+                  </button>
+                </div>
               </div>
-
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
-                  onClick={() => setColumnVisible(c.id, false)}
-                  aria-pressed={visible}
-                  aria-label="Hide"
-                >
-                  <VisibilityIcon hidden={!visible} iconClassName="w-4 h-4" />
-                </button>
-
-                <button
-                  type="button"
-                  className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
-                  onClick={() => props.onDuplicateColumn?.(c.id)}
-                  disabled={!props.canMutate || !props.onDuplicateColumn}
-                  aria-label="Duplicate"
-                >
-                  <Copy className={icon14} aria-hidden="true" />
-                </button>
-
-                <button
-                  type="button"
-                  className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
-                  onClick={() => props.onDeleteColumn?.(c.id)}
-                  disabled={!props.canMutate || !props.onDeleteColumn || props.columns.length <= 1}
-                  aria-label="Delete"
-                >
-                  <Trash2 className={icon14} aria-hidden="true" />
-                </button>
-              </div>
+              {isExpanded ? (
+                <section id={`property-map-panel-${c.id}`} className="mt-2">
+                  <div className="flex items-start gap-2">
+                    <span className="w-4 h-4 shrink-0" aria-hidden="true" />
+                    <span
+                      className={['inline-flex items-center justify-center w-7 h-7 rounded shrink-0', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                      aria-label="Table-to-graph map"
+                    >
+                      <Link2 className={icon14} aria-hidden="true" />
+                    </span>
+                    <label className="block flex-1 min-w-0">
+                      <span className="sr-only">Table-to-graph map</span>
+                      <div className="relative">
+                        <select
+                          className={[UI_FOCUS_RING, WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left', MAP_SELECT_CHEVRON_ALIGN_CLASS].join(' ')}
+                          value={graphRole}
+                          onChange={e => {
+                            setColumnGraphRole(c.id, e.target.value as WorkspaceDataViewGraphColumnRole)
+                          }}
+                          disabled={!props.canMutate || props.view.graphEnabled !== true}
+                        >
+                          {WORKSPACE_DATA_VIEW_GRAPH_ROLE_OPTIONS.map(option => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </label>
+                  </div>
+                </section>
+              ) : null}
             </div>
           )
         })}
@@ -287,70 +352,119 @@ export function WorkspaceDataViewSettingsPropertiesSection(props: {
                 if (!c) return null
                 const visible = false
                 const type = (props.view.columnTypesById && props.view.columnTypesById[c.id]) || defaultColumnTypeForInferredKind(c.kind)
+                const graphRole = (props.view.graphRolesByColumnId && props.view.graphRolesByColumnId[c.id]) || inferRoleForColumn(c.name)
                 const Icon = iconByColumnType[type]
+                const isExpanded = expandedColumnId === c.id
                 return (
-                  <div key={c.id} className={['flex items-center gap-2 px-2 py-1 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}>
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <GripDotsIcon className={['w-4 h-4 opacity-30', UI_THEME_TOKENS.text.tertiary].join(' ')} />
-                      <span className={['inline-flex items-center justify-center w-7 h-7 rounded opacity-70'].join(' ')}>
-                        <Icon className={icon14} aria-hidden="true" />
-                      </span>
-                      {editingColumnId === c.id ? (
-                        <input
-                          autoFocus
-                          className={COLUMN_NAME_EDIT_INPUT_CLASS}
-                          value={editingName}
-                          onChange={e => setEditingName(e.target.value)}
-                          onBlur={() => commitRename(c.id)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              commitRename(c.id)
-                            }
-                            if (e.key === 'Escape') {
-                              e.preventDefault()
-                              setEditingColumnId(null)
-                            }
-                          }}
-                        />
-                      ) : (
-                        <span
-                          className={['text-sm', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}
-                          onDoubleClick={() => startRename(c.id, c.name)}
-                        >
-                          {c.name}
+                  <div key={c.id} className={['px-2 py-1 rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <GripDotsIcon className={['w-4 h-4 opacity-30', UI_THEME_TOKENS.text.tertiary].join(' ')} />
+                        <span className={['inline-flex items-center justify-center w-7 h-7 rounded opacity-70'].join(' ')}>
+                          <Icon className={icon14} aria-hidden="true" />
                         </span>
-                      )}
+                        {editingColumnId === c.id ? (
+                          <input
+                            autoFocus
+                            className={COLUMN_NAME_EDIT_INPUT_CLASS}
+                            value={editingName}
+                            onChange={e => setEditingName(e.target.value)}
+                            onBlur={() => commitRename(c.id)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                commitRename(c.id)
+                              }
+                              if (e.key === 'Escape') {
+                                e.preventDefault()
+                                setEditingColumnId(null)
+                              }
+                            }}
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            className={['text-sm min-w-0 text-left', UI_TEXT_TRUNCATE, UI_THEME_TOKENS.text.secondary].join(' ')}
+                            onClick={() => setExpandedColumnId(prev => (prev === c.id ? null : c.id))}
+                            onDoubleClick={() => startRename(c.id, c.name)}
+                            aria-expanded={isExpanded}
+                            aria-controls={`property-map-panel-${c.id}`}
+                          >
+                            {c.name}
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                          onClick={() => setColumnVisible(c.id, true)}
+                          aria-pressed={visible}
+                          aria-label="Show"
+                        >
+                          <VisibilityIcon hidden={!visible} iconClassName="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                          onClick={() => props.onDuplicateColumn?.(c.id)}
+                          disabled={!props.canMutate || !props.onDuplicateColumn}
+                          aria-label="Duplicate"
+                        >
+                          <Copy className={icon14} aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                          onClick={() => props.onDeleteColumn?.(c.id)}
+                          disabled={!props.canMutate || !props.onDeleteColumn || props.columns.length <= 1}
+                          aria-label="Delete"
+                        >
+                          <Trash2 className={icon14} aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                          onClick={() => setExpandedColumnId(prev => (prev === c.id ? null : c.id))}
+                          aria-label={isExpanded ? 'Collapse property details' : 'Expand property details'}
+                          aria-expanded={isExpanded}
+                        >
+                          {isExpanded ? <ChevronDown className={icon14} aria-hidden="true" /> : <ChevronRight className={icon14} aria-hidden="true" />}
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
-                        onClick={() => setColumnVisible(c.id, true)}
-                        aria-pressed={visible}
-                        aria-label="Show"
-                      >
-                        <VisibilityIcon hidden={!visible} iconClassName="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
-                        onClick={() => props.onDuplicateColumn?.(c.id)}
-                        disabled={!props.canMutate || !props.onDuplicateColumn}
-                        aria-label="Duplicate"
-                      >
-                        <Copy className={icon14} aria-hidden="true" />
-                      </button>
-                      <button
-                        type="button"
-                        className={['inline-flex items-center justify-center w-8 h-8 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
-                        onClick={() => props.onDeleteColumn?.(c.id)}
-                        disabled={!props.canMutate || !props.onDeleteColumn || props.columns.length <= 1}
-                        aria-label="Delete"
-                      >
-                        <Trash2 className={icon14} aria-hidden="true" />
-                      </button>
-                    </div>
+                    {isExpanded ? (
+                      <section id={`property-map-panel-${c.id}`} className="mt-2">
+                        <div className="flex items-start gap-2">
+                          <span className="w-4 h-4 shrink-0" aria-hidden="true" />
+                          <span
+                            className={['inline-flex items-center justify-center w-7 h-7 rounded shrink-0', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+                            aria-label="Table-to-graph map"
+                          >
+                            <Link2 className={icon14} aria-hidden="true" />
+                          </span>
+                          <label className="block flex-1 min-w-0">
+                            <span className="sr-only">Table-to-graph map</span>
+                            <div className="relative">
+                              <select
+                                className={[UI_FOCUS_RING, WORKSPACE_SETTINGS_DROPDOWN_SELECT_CLASSNAME, 'w-full text-left', MAP_SELECT_CHEVRON_ALIGN_CLASS].join(' ')}
+                                value={graphRole}
+                                onChange={e => {
+                                  setColumnGraphRole(c.id, e.target.value as WorkspaceDataViewGraphColumnRole)
+                                }}
+                                disabled={!props.canMutate || props.view.graphEnabled !== true}
+                              >
+                                {WORKSPACE_DATA_VIEW_GRAPH_ROLE_OPTIONS.map(option => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </label>
+                        </div>
+                      </section>
+                    ) : null}
                   </div>
                 )
               })}

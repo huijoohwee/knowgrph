@@ -55,13 +55,13 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
       {!props.editDisableRichUi && props.slashMenu.show ? (
         <AnchorOverlay anchorRef={props.slashAnchorRef} open={props.slashMenu.show} align="bottom-left" className={props.floatingMenuLeftW220ClassName}>
           <menu className="list-none m-0 p-0" aria-label="Slash commands" onMouseDownCapture={props.onToolbarInteract}>
-            <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onClick={() => { props.applyDraftAction('heading2'); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>Heading</button></li>
-            <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onClick={() => { props.applyDraftAction('bulletList'); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>Bulleted list</button></li>
-            <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onClick={() => { props.applyDraftAction('numberedList'); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>Numbered list</button></li>
-            <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onClick={() => { props.applyDraftAction('blockquote'); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>Quote</button></li>
-            <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onClick={() => { props.applyToggleHeading(1); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>H1</button></li>
-            <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onClick={() => { props.applyToggleHeading(2); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>H2</button></li>
-            <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onClick={() => { props.applyToggleHeading(3); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>H3</button></li>
+            <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => { props.applyDraftAction('heading2'); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>Heading</button></li>
+            <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => { props.applyDraftAction('bulletList'); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>Bulleted list</button></li>
+            <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => { props.applyDraftAction('numberedList'); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>Numbered list</button></li>
+            <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => { props.applyDraftAction('blockquote'); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>Quote</button></li>
+            <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => { props.applyToggleHeading(1); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>H1</button></li>
+            <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => { props.applyToggleHeading(2); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>H2</button></li>
+            <li className="list-none"><button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => { props.applyToggleHeading(3); props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0 }) }}>H3</button></li>
           </menu>
         </AnchorOverlay>
       ) : null}
@@ -97,20 +97,6 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
                 <button type="button" className={props.floatingMenuButtonClassName} onMouseDown={preventDefaultMouseDown} onClick={() => {
                   const forcedKey = props.variableMenu.mode === 'ref' ? (props.variableSuggestions[0]?.key || props.variableMenu.keyInput || props.variableMenu.query) : undefined
                   props.applyVariableToken(props.variableMenu.mode, forcedKey)
-                  if (props.variableMenu.mode !== 'ref') return
-                  const key = String(forcedKey || props.variableMenu.keyInput || props.variableMenu.query || '').trim()
-                  if (!key) return
-                  queueMicrotask(() => {
-                    const editor = (document.querySelector('[aria-label="Edit markdown block"]')
-                      || document.querySelector('[contenteditable="true"]')) as HTMLElement | null
-                    if (!editor) return
-                    const text = String(editor.textContent || '')
-                    const token = `{{${key}}}`
-                    if (text.includes(token)) return
-                    const next = text.replace(/@([A-Za-z0-9_.-]{0,64})$/, token)
-                    if (next === text) return
-                    editor.textContent = next
-                  })
                 }}>
                   Apply
                 </button>

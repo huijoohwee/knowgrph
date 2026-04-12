@@ -181,6 +181,7 @@ export function MarkdownWorkspaceDerivedViewer(props: {
   const [selectedTableId, setSelectedTableId] = React.useState<string>('')
   const [viewConfig, setViewConfig] = React.useState<WorkspaceDataViewConfig | null>(null)
   const [settingsOpen, setSettingsOpen] = React.useState(false)
+  const [settingsPanel, setSettingsPanel] = React.useState<'layout' | 'properties' | 'filter' | 'sort' | 'group' | 'duplicate' | 'delete'>('properties')
   const [headerState, setHeaderState] = React.useState<WorkspaceDataViewHeaderState>(() => ({
     searchQuery: '',
     visibleGroups: null,
@@ -527,13 +528,25 @@ export function MarkdownWorkspaceDerivedViewer(props: {
         state={headerState}
         onChangeState={setHeaderState}
         onChangeViewerMode={(mode) => props.onChangeViewerMode?.(mode)}
+        supportsMultiDimLayout={true}
         onNewRecord={canMutate ? () => onNewRecord() : undefined}
         onAddColumn={canMutate ? onAddColumn : undefined}
         viewConfig={viewConfig}
         setViewConfig={(next) => setViewConfig(next)}
-        openSettings={() => setSettingsOpen(true)}
+        openSettings={() => {
+          setSettingsPanel('properties')
+          setSettingsOpen(true)
+        }}
+        openSettingsPanel={(panel) => {
+          setSettingsPanel(panel)
+          setSettingsOpen(true)
+        }}
         settingsOpen={settingsOpen}
-        closeSettings={() => setSettingsOpen(false)}
+        settingsPanel={settingsPanel}
+        closeSettings={() => {
+          setSettingsOpen(false)
+          setSettingsPanel('properties')
+        }}
         tableSelector={
           candidates.length > 1 ? (
             <WorkspaceModeSelect
