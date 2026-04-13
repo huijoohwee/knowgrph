@@ -4475,7 +4475,25 @@ export default defineConfig(({ command }) => ({
       },
       workbox: {
         navigateFallback: 'index.html',
-        globPatterns: ['**/*.{js,css,html,svg,json,woff2}'],
+        globPatterns: ['index.html', 'manifest.webmanifest', 'favicon.svg', 'assets/index-*.js', 'assets/index-*.css'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.destination === 'script' || request.destination === 'style',
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'kg-assets',
+              expiration: { maxEntries: 160, maxAgeSeconds: 60 * 60 * 24 * 14 },
+            },
+          },
+          {
+            urlPattern: ({ request }) => request.destination === 'image' || request.destination === 'font',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'kg-static',
+              expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+        ],
       },
     }),
     ...(command === 'build'
