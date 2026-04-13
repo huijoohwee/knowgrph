@@ -48,6 +48,7 @@ import {
   readSchemaFieldSpecs,
 } from '@/lib/graph/flowPorts'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
 import { filterGraphToFrontmatterFlow } from '@/lib/graph/layerDerivation'
 import { canAddEdge } from '@/features/schema/validation'
 import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
@@ -639,24 +640,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     keywordModeActive,
     storeRenderGraphData,
   ])
-  const frontmatterFlowRenderSettings = React.useMemo((): { rankdir: 'LR' | 'TB'; edgeType: 'bezier' | 'straight' | 'step' | 'smoothstep' } | null => {
-    const meta = (renderGraphDataOverride?.metadata || null) as Record<string, unknown> | null
-    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return null
-    if (String(meta.kind || '').trim() !== 'frontmatter-flow') return null
-    const settings = (meta.frontmatterFlowSettings || null) as Record<string, unknown> | null
-    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return null
-    const directionRaw = String(settings.direction || '').trim().toUpperCase()
-    const rankdir: 'LR' | 'TB' =
-      directionRaw === 'TB' || directionRaw === 'BT'
-        ? 'TB'
-        : 'LR'
-    const edgeRaw = String(settings.edgeType || '').trim().toLowerCase()
-    const edgeType: 'bezier' | 'straight' | 'step' | 'smoothstep' =
-      edgeRaw === 'straight' || edgeRaw === 'step' || edgeRaw === 'smoothstep' || edgeRaw === 'bezier'
-        ? edgeRaw
-        : 'bezier'
-    return { rankdir, edgeType }
-  }, [renderGraphDataOverride?.metadata])
+  const frontmatterFlowRenderSettings = React.useMemo(() => {
+    return readFrontmatterFlowRenderSettings(renderGraphDataOverride)
+  }, [renderGraphDataOverride])
 
   const overlayOnlyModeEnabled = React.useMemo(() => {
     return canEdit

@@ -225,6 +225,8 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["policy.geospatial.inlineMarkdownGeoJson.reusesSharedBasemapHook.geojsonMapPreview","@/__tests__/geojsonMapPreviewRegressionGuards.test","testInlineMarkdownGeoJsonMapReusesSharedBasemapHook"],
   ["policy.geospatial.useMapLibreBasemap.bootTimeoutReadyCriteria.geojsonMapPreview","@/__tests__/geojsonMapPreviewRegressionGuards.test","testMapLibreBasemapBootTimeoutDoesNotRequireStrictStyleLoadedOnly"],
   ["geospatial.markdown.embeddedGeoJsonExtraction","@/__tests__/markdownEmbeddedGeoJson.test","testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollections"],
+  ["geospatial.markdown.embeddedGeoJsonExtraction.computingFlowSample","@/__tests__/markdownEmbeddedGeoJson.test","testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollectionInComputingFlowSample"],
+  ["geospatial.markdown.loadGraph.autoEnablesMode","@/__tests__/markdownGeoIntegrationTripDemo.test","testMarkdownGeoJsonLoadGraphAutoEnablesGeospatialMode"],
   ["markdown.workspace.noHardcodedLightTheme","@/__tests__/markdownWorkspaceTheme.test","testMarkdownWorkspaceAvoidsHardcodedLightThemeClasses"],
   ["markdown.workspace.toolbar.autoRoutesImageMode","@/__tests__/markdownWorkspaceTheme.test","testMarkdownWorkspaceToolbarAutoRoutesImageModeWithoutManualSelector"],
   ["markdown.preview.forcesPrimaryTextColor","@/__tests__/markdownWorkspaceTheme.test","testMarkdownPreviewViewerForcesPrimaryTextColor"],

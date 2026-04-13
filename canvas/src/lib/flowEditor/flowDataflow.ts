@@ -8,6 +8,7 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import { applyFlowDataflowReducer, applyFlowDataflowTransform } from '@/lib/flowEditor/flowDataflowTransforms'
+import { isFrontmatterFlowComputedEnabled } from '@/lib/graph/frontmatterFlowSettings'
 import { readFlowComputeSource, runFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
 
 export type FlowConnectedValueSource = {
@@ -135,6 +136,7 @@ function buildConnectedValuesForNode(args: {
   inputPortPaths: Map<string, string>
   outputPortPaths: Map<string, string>
   schemaMappings: ReadonlyArray<{ fromPath: string; toPath: string; transformId?: string; reduceId?: string }>
+  computeEnabled: boolean
 }): FlowConnectedValuesBySchemaPath {
   const byPath: FlowConnectedValuesBySchemaPath = {}
   const inByPortKey: Record<string, unknown> = {}
@@ -176,7 +178,7 @@ function buildConnectedValuesForNode(args: {
     }
   }
 
-  const computeSource = readFlowComputeSource(args.node)
+  const computeSource = args.computeEnabled ? readFlowComputeSource(args.node) : ''
   if (computeSource) {
     const computed = runFlowComputeSource(computeSource, inByPortKey)
     if (computed) {
@@ -204,6 +206,7 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
 }): Map<string, FlowConnectedValuesBySchemaPath> {
   const graph = args.graphData
   if (!graph) return new Map()
+  const computeEnabled = isFrontmatterFlowComputedEnabled(graph)
   const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
   const edges = Array.isArray(graph.edges) ? graph.edges : []
 
@@ -344,6 +347,7 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
         inputPortPaths: portPaths?.input || new Map(),
         outputPortPaths: portPaths?.output || new Map(),
         schemaMappings: portPaths?.schemaMappings || [],
+        computeEnabled,
       })
       nextComputedByNodeId.set(id, connected)
       nextKeysByNodeId.set(id, connectedKey(connected))

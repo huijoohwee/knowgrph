@@ -21,6 +21,23 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (monacoTextEditorText.includes('stickyScroll: {')) {
     throw new Error('expected MonacoTextEditor to avoid enabling sticky scroll by default on the slim Monaco path')
   }
+  if (!monacoTextEditorText.includes("await loadMonacoLanguageContribution(language)")) {
+    throw new Error('expected MonacoTextEditor to lazy-load Monaco language contributions per active language')
+  }
+  if (!monacoTextEditorText.includes("await import('monaco-editor/esm/vs/language/json/monaco.contribution')")) {
+    throw new Error('expected MonacoTextEditor to lazy-load JSON language support only when needed')
+  }
+  if (!monacoTextEditorText.includes("await import('monaco-editor/esm/vs/basic-languages/sql/sql.contribution')")) {
+    throw new Error('expected MonacoTextEditor to lazy-load SQL language support only when needed')
+  }
+
+  const monacoEnvironmentText = readFileSync(resolve(root, 'src', 'features', 'monaco', 'monacoEnvironment.ts'), 'utf8')
+  if (monacoEnvironmentText.includes("html.worker?worker")) {
+    throw new Error('expected Monaco environment to avoid bundling the unused HTML worker')
+  }
+  if (monacoEnvironmentText.includes("label === 'html'")) {
+    throw new Error('expected Monaco environment to avoid routing unused HTML-family labels to a dedicated worker')
+  }
 
   const markdownCodeBlockText = readFileSync(resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownCodeBlock.tsx'), 'utf8')
   if (!markdownCodeBlockText.includes('MermaidDiagramLazy') || !markdownCodeBlockText.includes('React.Suspense')) {
@@ -109,6 +126,21 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   }
   if (!viteConfigText.includes("if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/browser/')) return 'monaco-editor-browser'")) {
     throw new Error('expected vite config to split monaco browser editor internals into a separate coarse chunk')
+  }
+  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/browser/widget/')) return 'monaco-editor-widget'")) {
+    throw new Error('expected vite config to split monaco editor widget internals into a separate coarse chunk')
+  }
+  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/browser/viewParts/')) return 'monaco-editor-viewparts'")) {
+    throw new Error('expected vite config to split monaco editor view parts into a separate coarse chunk')
+  }
+  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/browser/view/')) return 'monaco-editor-view'")) {
+    throw new Error('expected vite config to split monaco editor view internals into a separate coarse chunk')
+  }
+  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/browser/controller/')) return 'monaco-editor-controller'")) {
+    throw new Error('expected vite config to split monaco editor controller internals into a separate coarse chunk')
+  }
+  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/browser/services/')) return 'monaco-editor-browser-services'")) {
+    throw new Error('expected vite config to split monaco editor browser services into a separate coarse chunk')
   }
   if (!viteConfigText.includes("if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/common/model/')) return 'monaco-editor-model'")) {
     throw new Error('expected vite config to split monaco editor model internals into a separate coarse chunk')

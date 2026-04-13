@@ -173,7 +173,9 @@ export const resolveHref = (href: string, activeDocumentPath: string): string =>
   if (/^https?:\/\//i.test(raw) || raw.startsWith('//')) return raw
 
   const activeRaw = String(activeDocumentPath || '').trim().replace(/\\/g, '/')
-  const codebaseRoot = String(import.meta.env.VITE_CODEBASE_ROOT || '').trim().replace(/\\/g, '/')
+  const anyImportMeta = import.meta as unknown as { env?: { VITE_CODEBASE_ROOT?: string } }
+  const processEnv = typeof process !== 'undefined' ? process.env : undefined
+  const codebaseRoot = String(anyImportMeta?.env?.VITE_CODEBASE_ROOT || processEnv?.VITE_CODEBASE_ROOT || '').trim().replace(/\\/g, '/')
   const activeRel = (() => {
     if (!activeRaw) return ''
     if (activeRaw.startsWith('/') && codebaseRoot && (activeRaw === codebaseRoot || activeRaw.startsWith(`${codebaseRoot}/`))) {

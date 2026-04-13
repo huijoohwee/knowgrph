@@ -84,6 +84,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - **Global edge type**:
   - `schema.layout.edges.type∈{bezier,straight,step,smoothstep}` is the renderer‑neutral SSOT for visual edge shapes.
   - Default is `bezier`; Straight/Step/Smoothstep override per‑edge path geometry without changing graph semantics or edge labels.
+- Directive: For `frontmatter-flow`, renderer-specific defaults must yield to `metadata.frontmatterFlowSettings.edgeType` and `direction` so Flow and Flow Editor stay visually aligned without separate parsing logic.
 - **Renderer coverage**:
   - 2D D3/D3 Bipartite, Flow, Design, Flow Editor, and 3D all respect the global edge type via a shared `edgeTypes` utility (`buildEdgePathD/traceEdgePathOnCanvas`) instead of duplicating path logic.
   - D3 uses the global type to decide whether to generate SVG path curves or straight/step/smoothstep polylines; Flow/Flow Editor use the same utility for Canvas2D overlays; Design wireframes reuse the same path generator for DOM snapshot edges; 3D maps edge type to curvature defaults (Straight/Step→0, Smoothstep→minimum curvature).

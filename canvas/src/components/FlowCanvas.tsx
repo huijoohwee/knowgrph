@@ -21,6 +21,7 @@ import { deriveSceneGroups } from '@/lib/scene/sceneDerivation'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { computeArrangeCenters, type ArrangeAction2d } from '@/lib/canvas/arrange2d'
@@ -1214,8 +1215,15 @@ export default function FlowCanvas({
     __flowCanvasDebug.lastZoomViewKey = zoomViewKey
   }, [zoomViewKey])
 
+  const frontmatterFlowRenderSettings = React.useMemo(() => {
+    return readFrontmatterFlowRenderSettings(sceneGraphData)
+  }, [sceneGraphData])
+
   const layoutMode = schema ? readLayoutMode(schema) : 'radial'
-  const rankdir = layoutMode === 'block' ? 'LR' : deriveRankdir({ flowRankdir: schema?.layout?.flow?.rankdir })
+  const rankdir =
+    layoutMode === 'block'
+      ? 'LR'
+      : frontmatterFlowRenderSettings?.rankdir || deriveRankdir({ flowRankdir: schema?.layout?.flow?.rankdir })
   const flowConfig = React.useMemo(() => readFlowConfig({ schema, rankdir }), [rankdir, schema])
   const flowConfigEffective = React.useMemo(() => {
     if (documentSemanticMode !== 'keyword') return flowConfig
@@ -1254,6 +1262,10 @@ export default function FlowCanvas({
     if (!isFrontmatterFlow) return base
     return {
       ...base,
+      edges: {
+        ...base.edges,
+        edgeType: frontmatterFlowRenderSettings?.edgeType || base.edges.edgeType,
+      },
       portHandles: {
         ...base.portHandles,
         enabled: true,
@@ -1262,7 +1274,7 @@ export default function FlowCanvas({
         strokeWidthPx: Math.max(1.5, base.portHandles.strokeWidthPx),
       },
     }
-  }, [documentSemanticMode, schema, sceneGraphData])
+  }, [documentSemanticMode, frontmatterFlowRenderSettings?.edgeType, schema, sceneGraphData])
 
   const layoutVariant = React.useMemo(() => {
     return [

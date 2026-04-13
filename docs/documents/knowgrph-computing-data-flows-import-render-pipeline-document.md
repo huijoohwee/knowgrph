@@ -4,6 +4,8 @@
 **Intent**: Document the end-to-end import path and the Flow Editor rendering contract without file/content hardcoding.
 **Directive**: Reuse SSOT parsing + Flow rendering + panel semantics; keep Flow Editor behavior consistent with D3/Flow surfaces and AgenticRAG schema directives.
 
+- Directive: Frontmatter `flow:` imports must centralize `direction`, `edgeType`, and `computed` settings in GraphData metadata so parse, Flow render, and Flow Editor runtime consume one SSOT contract without duplicated branching.
+
 ---
 
 ## Demo Entry Point (User Journey)
@@ -42,6 +44,7 @@ Key implementation:
   - [importFlow.ts](../../canvas/src/features/toolbar/importFlow.ts)
   - [loader.ts](../../canvas/src/features/parsers/loader.ts)
   - [adapter.ts](../../canvas/src/lib/graph/io/adapter.ts)
+- Markdown fenced GeoJSON that becomes GraphData should reuse the same geospatial auto-enable contract as file-based geo imports so ingest→parse→render behavior stays identical.
 - Registry auto-apply from GraphData metadata during store commit:
   - [graphDataSlice.ts](../../canvas/src/hooks/store/graphDataSlice.ts)
   - [graphDataSliceUtils.ts](../../canvas/src/hooks/store/graphDataSliceUtils.ts)

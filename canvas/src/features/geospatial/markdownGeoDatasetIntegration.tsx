@@ -1,5 +1,6 @@
 import React from 'react'
 import { InlineMarkdownGeoJsonLayerMap } from '@/features/geospatial/InlineMarkdownGeoJsonLayerMap'
+import { maybeAutoEnableGeospatialModeForGraphData } from '@/features/geospatial/autoEnable'
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { hashText } from '@/features/parsers/hash'
 import type { GraphData } from '@/lib/graph/types'
@@ -150,6 +151,7 @@ export function createMarkdownGeoDatasetIntegration(args: {
         })
         if (!graph) return { ok: false, error: 'GeoJSON produced no graph nodes' }
         args.loadGraphData?.(graph)
+        await maybeAutoEnableGeospatialModeForGraphData({ graphData: graph })
         return { ok: true }
       } catch (err) {
         if (err && typeof err === 'object' && 'message' in err) {

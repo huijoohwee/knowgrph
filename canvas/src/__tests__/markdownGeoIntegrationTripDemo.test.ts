@@ -1,5 +1,7 @@
 import { loadDatasetFeatureCollection, LS_KEYS, parseGeoJsonFromText } from 'gympgrph'
 import { createMarkdownGeoDatasetIntegration } from '@/features/geospatial/markdownGeoDatasetIntegration'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { readGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import path from 'node:path'
@@ -152,6 +154,63 @@ export async function testMarkdownTripDemoJsonFenceLoadsGraphData() {
   })
   if (!hasGeo) {
     throw new Error('Expected at least one node to have properties.geo.{lat,lng}')
+  }
+}
+
+export async function testMarkdownGeoJsonLoadGraphAutoEnablesGeospatialMode() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const sampleGeoJson = JSON.stringify({
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: { id: 'sg', label: 'Singapore' },
+        geometry: { type: 'Point', coordinates: [103.8198, 1.3521] },
+      },
+      {
+        type: 'Feature',
+        properties: { id: 'jkt', label: 'Jakarta' },
+        geometry: { type: 'Point', coordinates: [106.8456, -6.2088] },
+      },
+    ],
+  })
+
+  let loadedGraph: GraphData | null = null
+  useGraphStore.getState().resetAll()
+  useGraphStore.getState().setAutoEnableGeospatialOnGeoImport(true)
+  storage.setItem(LS_KEYS.geospatialOverlayEnabled, 'false')
+
+  try {
+    const integration = createMarkdownGeoDatasetIntegration({
+      loadGraphData: graphData => {
+        loadedGraph = graphData
+      },
+    })
+    const req = {
+      sourceDocumentPath: 'sandbox/test-data/markdown-syntax-computing-flow-sample.md',
+      codeBlock: {
+        lang: 'geojson' as const,
+        text: sampleGeoJson,
+        startLine: 1,
+        endLine: 16,
+      },
+    }
+
+    const res = await integration.loadGeoJsonAsGraphData?.(req)
+    if (!res || res.ok !== true) {
+      throw new Error(`Expected loadGeoJsonAsGraphData to succeed, got ${JSON.stringify(res)}`)
+    }
+    if (!loadedGraph || loadedGraph.context !== 'geojson') {
+      throw new Error('Expected GeoJSON load to provide a geojson graph')
+    }
+    const enabled = await readGeospatialModeEnabled()
+    if (!enabled) {
+      throw new Error('Expected GeoJSON graph load from markdown to auto-enable geospatial mode')
+    }
+  } finally {
+    useGraphStore.getState().resetAll()
+    restoreWindow()
   }
 }
 
