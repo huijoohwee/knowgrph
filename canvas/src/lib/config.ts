@@ -38,6 +38,8 @@ export const WORKSPACE_IMPORT_AUTO_PARSE_MAX_TOTAL_CHARS = 500_000
 
 export const WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILE_CHARS = 250_000
 
+export const WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES = 750_000
+
 export * from './config.ls';
 export * from './config.copy';
 export * from './config.render';

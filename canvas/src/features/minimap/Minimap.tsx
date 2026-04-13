@@ -1,14 +1,24 @@
 import React from 'react'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag';
-import { Map as MapIcon } from 'lucide-react'
+import { Map as MapIcon, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import IconButton from '@/components/IconButton'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 import { LS_KEYS } from '@/lib/config'
+import { UI_LABELS } from '@/lib/config'
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import { defaultSchema, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
+import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
+import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { readLayoutMode2d } from '@/lib/graph/layoutMode'
+import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
+import { computeLayoutDatasetKey, buildLayoutPositionCacheKey, buildLayoutViewKey } from '@/lib/canvas/layoutPositioning'
+import { pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
+import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import {
   computeViewRect,
   computeGraphBounds,
@@ -40,26 +50,33 @@ const requestZoomTransform = (t: ZoomTransform) => {
 
 function Minimap() {
   const [minimapCollapsed, setMinimapCollapsed] = usePersistedBoolean(LS_KEYS.minimapCollapsed, false)
-  const graphData = useGraphStore(s => s.graphData)
+  const rawGraphData = useGraphStore(s => s.graphData)
+  const activeGraphData = useActiveGraphRenderData(true)
+  const graphData = activeGraphData || rawGraphData
   const graphId = useGraphStore(s => s.graphId)
   const canvasDims = useGraphStore(s => s.canvasDims)
   const miniW = MINIMAP_WIDTH
   const miniH = MINIMAP_HEIGHT
   const zoomStateByKey = useGraphStore(s => s.zoomStateByKey)
-  const { canvasRenderMode, canvas2dRenderer, documentSemanticMode, frontmatterModeEnabled, documentStructureBaselineLock, renderMediaAsNodes, mediaPanelDensity, collapsedGroupIds, designRendererWebpageLayoutKey } = useGraphStore(
+  const { canvasRenderMode, canvas2dRenderer, documentSemanticMode, multiDimTableModeEnabled, frontmatterModeEnabled, documentStructureBaselineLock, renderMediaAsNodes, mediaPanelDensity, collapsedGroupIds, designRendererWebpageLayoutKey, infiniteCanvasInteractionMode } = useGraphStore(
     useShallow(s => ({
       canvasRenderMode: s.canvasRenderMode,
       canvas2dRenderer: s.canvas2dRenderer,
       documentSemanticMode: s.documentSemanticMode,
+      multiDimTableModeEnabled: s.multiDimTableModeEnabled,
       frontmatterModeEnabled: s.frontmatterModeEnabled,
       documentStructureBaselineLock: s.documentStructureBaselineLock,
       renderMediaAsNodes: s.renderMediaAsNodes,
       mediaPanelDensity: s.mediaPanelDensity,
       collapsedGroupIds: s.collapsedGroupIds,
       designRendererWebpageLayoutKey: s.designRendererWebpageLayoutKey,
+      infiniteCanvasInteractionMode: s.infiniteCanvasInteractionMode,
     })),
   )
   const preview = useGraphStore(s => s.minimapPreview)
+  const requestZoom = useGraphStore(s => s.requestZoom)
+  const graphDataRevision = useGraphStore(s => s.graphDataRevision)
+  const layoutPositionCacheByMode = useGraphStore(s => s.layoutPositionCacheByMode)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const uiPanelOpacity = useGraphStore(s => s.uiPanelOpacity)
@@ -73,6 +90,15 @@ function Minimap() {
   )
 
   const schema = useGraphStore(s => s.schema)
+  const sceneDisplayGraphDerivation = React.useMemo(() => {
+    if (!graphData) return null
+    return deriveSceneDisplayGraph({ graphData })
+  }, [graphData])
+  const sceneGraphData = React.useMemo(() => {
+    if (!graphData) return null
+    return sceneDisplayGraphDerivation?.displayGraphData || graphData
+  }, [graphData, sceneDisplayGraphDerivation])
+  const usesDerivedSceneGraph = sceneGraphData !== graphData
 
   const zoomViewKey = React.useMemo(() => {
     return buildActive2dZoomViewKey({
@@ -119,13 +145,87 @@ function Minimap() {
     ? palette.nodes.idea
     : MVP_COLOR_PALETTE.nodes.idea
   const minimapOpacity = uiPanelOpacity ?? 0.7
-  const nodes = React.useMemo(
-    () => (Array.isArray(graphData?.nodes) ? (graphData!.nodes as GraphNode[]) : []),
-    [graphData],
-  );
+  const nodes = React.useMemo(() => {
+    const baseNodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
+    if (baseNodes.length === 0) return baseNodes
+    if (infiniteCanvasInteractionMode === 'interactive') return baseNodes
+    const schemaEffective = schema || defaultSchema
+    const semanticModeKey = multiDimTableModeEnabled ? `${String(documentSemanticMode || 'document')}:mdtbl` : String(documentSemanticMode || 'document')
+    const effectiveFrontmatter = computeEffectiveFrontmatterMode({
+      frontmatterModeEnabled: frontmatterModeEnabled === true && documentStructureBaselineLock !== true,
+      documentSemanticMode: String(documentSemanticMode || 'document'),
+      graphData,
+    })
+    const datasetKey = computeLayoutDatasetKey({ graphData: sceneGraphData as never, graphDataRevision: graphDataRevision || 0 })
+    const layoutMode = readLayoutMode2d(schemaEffective)
+    const graphMetaKey = buildGraphMetaKeyIgnoringPending(sceneGraphData as never)
+    const collapsedGroupIdsKey = buildCollapsedGroupIdsKey(collapsedGroupIds)
+    const viewKey = buildLayoutViewKey({
+      schemaLayoutEngineJson: buildSchemaLayoutEngineJson2d(schema || null),
+      frontmatterModeEnabled: effectiveFrontmatter,
+      documentSemanticMode: semanticModeKey,
+      graphMetaKey,
+      renderMediaAsNodes: renderMediaAsNodes === true,
+      mediaPanelDensity: String(mediaPanelDensity),
+      collapsedGroupIdsKey,
+    })
+    const baseKey = buildLayoutPositionCacheKey({
+      datasetKey,
+      mode: layoutMode,
+      frontmatterMode: effectiveFrontmatter,
+      semanticMode: semanticModeKey,
+      renderMode: '2d',
+      renderVariant: String(canvas2dRenderer || ''),
+      viewKey,
+    })
+    const positionSeed = pickSeedFromOtherRendererCache({
+      nodes: baseNodes,
+      cache: (layoutPositionCacheByMode as unknown as Record<string, Record<string, { x: number; y: number }>>) || null,
+      baseKey,
+    })
+    if (!positionSeed) return baseNodes
+    let changed = false
+    const next = new Array<GraphNode>(baseNodes.length)
+    for (let i = 0; i < baseNodes.length; i += 1) {
+      const n = baseNodes[i]!
+      const id = String(n?.id || '').trim()
+      const p = id ? positionSeed[id] : null
+      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+        next[i] = n
+        continue
+      }
+      if (typeof n.x === 'number' && Number.isFinite(n.x) && typeof n.y === 'number' && Number.isFinite(n.y)) {
+        next[i] = n
+        continue
+      }
+      if (n.x === p.x && n.y === p.y) {
+        next[i] = n
+        continue
+      }
+      changed = true
+      next[i] = { ...n, x: p.x, y: p.y }
+    }
+    return changed ? next : baseNodes
+  }, [
+    canvas2dRenderer,
+    collapsedGroupIds,
+    defaultSchema,
+    documentSemanticMode,
+    documentStructureBaselineLock,
+    frontmatterModeEnabled,
+    graphData,
+    graphDataRevision,
+    infiniteCanvasInteractionMode,
+    layoutPositionCacheByMode,
+    mediaPanelDensity,
+    multiDimTableModeEnabled,
+    renderMediaAsNodes,
+    sceneGraphData,
+    schema,
+  ]);
   const edges = React.useMemo(
-    () => (Array.isArray(graphData?.edges) ? (graphData!.edges as GraphEdge[]) : []),
-    [graphData],
+    () => (Array.isArray(sceneGraphData?.edges) ? (sceneGraphData!.edges as GraphEdge[]) : []),
+    [sceneGraphData],
   );
 
   const flowEditorOverlaySubset = React.useMemo(() => {
@@ -267,6 +367,10 @@ function Minimap() {
 
   const canUsePreview = React.useMemo(() => {
     if (flowEditorOverlaySubset) return false
+    if (usesDerivedSceneGraph) return false
+    if (graphData !== rawGraphData) return false
+    if (infiniteCanvasInteractionMode === 'interactive') return false
+    if (canvas2dRenderer !== 'd3') return false
     const b = preview?.bounds;
     if (!b) return false;
     return (
@@ -275,7 +379,7 @@ function Minimap() {
       && Math.abs(b.maxX - bounds.maxX) < 1e-6
       && Math.abs(b.maxY - bounds.maxY) < 1e-6
     );
-  }, [bounds.maxX, bounds.maxY, bounds.minX, bounds.minY, preview?.bounds]);
+  }, [bounds.maxX, bounds.maxY, bounds.minX, bounds.minY, canvas2dRenderer, flowEditorOverlaySubset, graphData, infiniteCanvasInteractionMode, preview?.bounds, rawGraphData, usesDerivedSceneGraph]);
 
   const EDGE_LIMIT = 20000;
   const edgesPathD = React.useMemo(() => {
@@ -494,6 +598,9 @@ function Minimap() {
     return Math.abs(lx - cx) <= centerThreshold && Math.abs(ly - cy) <= centerThreshold;
   }, [viewRect, centerThreshold]);
   const onRectMouseLeave = () => setHoverCenter(false);
+  const handleReset = React.useCallback(() => requestZoom('reset'), [requestZoom])
+  const handleZoomIn = React.useCallback(() => requestZoom('in'), [requestZoom])
+  const handleZoomOut = React.useCallback(() => requestZoom('out'), [requestZoom])
 
   if (minimapCollapsed) {
     return (
@@ -557,14 +664,40 @@ function Minimap() {
           )}
         </svg>
       </div>
-      <IconButton
-        title="Hide Minimap"
-        onClick={() => setMinimapCollapsed(true)}
-        className="absolute top-1 right-1 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-        showTooltip={false}
-      >
-        <MapIcon size={14} aria-hidden="true" />
-      </IconButton>
+      <div className="absolute top-1 right-1 flex flex-col items-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <IconButton
+          title="Hide Minimap"
+          onClick={() => setMinimapCollapsed(true)}
+          className="p-1"
+          showTooltip={false}
+        >
+          <MapIcon size={14} aria-hidden="true" />
+        </IconButton>
+        <IconButton
+          title={UI_LABELS.reset}
+          onClick={handleReset}
+          className="p-1"
+          showTooltip={false}
+        >
+          <RotateCcw size={14} aria-hidden="true" />
+        </IconButton>
+        <IconButton
+          title={UI_LABELS.zoomIn}
+          onClick={handleZoomIn}
+          className="p-1"
+          showTooltip={false}
+        >
+          <ZoomIn size={14} aria-hidden="true" />
+        </IconButton>
+        <IconButton
+          title={UI_LABELS.zoomOut}
+          onClick={handleZoomOut}
+          className="p-1"
+          showTooltip={false}
+        >
+          <ZoomOut size={14} aria-hidden="true" />
+        </IconButton>
+      </div>
     </aside>
   );
 }

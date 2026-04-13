@@ -83,6 +83,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["ui.media.mediaInteractiveDefaults","@/__tests__/mediaInteractiveDefaults.test","testMediaInteractiveDefaults"],
   ["workspace.import.localFiles","@/__tests__/workspaceImportLocal.test","testWorkspaceImportLocalFilesCreatesExpectedEntries"],
   ["workspace.import.localFiles.svgFidelity","@/__tests__/workspaceImportLocal.test","testWorkspaceImportLocalFilesSvgPreservesBytes"],
+  ["workspace.import.localFiles.largeFileLazyHydrate","@/__tests__/workspaceImportLocal.test","testWorkspaceImportLargeLocalFileDefersHydrationUntilOpen"],
   ["workspace.import.workspaceFileJsonLd","@/__tests__/workspaceImportLocal.test","testWorkspaceImportWorkspaceFileJsonLdConvertsToMarkdown"],
   ["workspace.import.workspaceFileJsonLdPreservesMdx","@/__tests__/workspaceImportLocal.test","testWorkspaceImportWorkspaceFileJsonLdPreservesMdxExtension"],
   ["workspace.import.rejectsLegacyKgw","@/__tests__/workspaceImportLocal.test","testWorkspaceImportDoesNotAcceptLegacyKgw"],

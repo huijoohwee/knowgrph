@@ -8,6 +8,7 @@ import {
   peekPendingWorkspaceLocalImport,
 } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES } from '@/lib/config'
 
 const createFile = (name: string, text: string) => {
   const blob = new Blob([text], { type: 'text/plain' })
@@ -51,6 +52,37 @@ export async function testWorkspaceImportLocalFilesSvgPreservesBytes() {
 
     const text = await fs.readFileText(svgPath)
     if (text !== svg) throw new Error(`expected icon.svg contents to match exactly, got: ${JSON.stringify(text)}`)
+  } finally {
+    restore()
+  }
+}
+
+export async function testWorkspaceImportLargeLocalFileDefersHydrationUntilOpen() {
+  const { restore } = initJsdomHarness()
+  try {
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+
+    const largeText = 'x'.repeat(Math.max(WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES + 32, 1024))
+    const files = [createFile('large.json', largeText)]
+    const res = await importWorkspaceLocalFiles({ fs, files, parentPath: '/' })
+    if (res.createdPaths.length !== 1) throw new Error('expected 1 created path')
+
+    const entries = await fs.listEntries()
+    const largePath = entries.find(e => e.kind === 'file' && e.name === 'large.json')?.path || ''
+    if (!largePath) throw new Error('expected large.json to be created')
+
+    const before = await fs.readFileText(largePath)
+    if (!before || !isPendingLocalImportStubText(before)) {
+      throw new Error('expected large local import to write pending-import stub instead of eager file contents')
+    }
+    const pending = peekPendingWorkspaceLocalImport(largePath)
+    if (!pending) throw new Error('expected pending local import handle for large.json')
+
+    const hydrated = await hydrateWorkspaceFileFromPendingLocalImport({ fs, path: largePath })
+    if (!hydrated || hydrated.text !== largeText) {
+      throw new Error('expected hydration to restore original large file text')
+    }
   } finally {
     restore()
   }

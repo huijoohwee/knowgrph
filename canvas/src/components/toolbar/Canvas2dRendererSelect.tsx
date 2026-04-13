@@ -157,12 +157,7 @@ export function Canvas2dRendererSelect({
           setMultiDimTableModeEnabled: state.setMultiDimTableModeEnabled,
         })
       }
-      renderButtonContent={() => (
-        <div className="flex items-center gap-1">
-          <Eye className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-          <span className="text-xs">View</span>
-        </div>
-      )}
+      renderButtonContent={() => <Eye className={iconSizeClass} strokeWidth={iconStrokeWidth} />}
       renderOptionContent={option => (
         <>
           <option.Icon className={iconSizeClass} strokeWidth={iconStrokeWidth} />

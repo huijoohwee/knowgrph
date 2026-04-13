@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, History as HistoryIcon, SunMoon, SlidersHorizontal, Plus, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { HelpCircle, Settings, Search as SearchIcon, History as HistoryIcon, SunMoon, Plus, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import IconButton from '@/components/IconButton';
 import { DropdownPanel } from '@/lib/ui/overlay';
 import { UI_LABELS, UI_COPY } from '@/lib/config';
-import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons';
 import {
   uiPrimaryIconActiveClassName,
   uiPrimaryIconInactiveClassName,
@@ -175,15 +174,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       <div className="App-toolbar__divider" />
       <IconButton
         className="App-toolbar__btn"
-        title={UI_LABELS.graphFields}
-        tooltipContent={UI_LABELS.graphFields}
-        onClick={actions.handleOpenGraphFields}
-        showTooltip
-      >
-        <GraphFieldsIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      <IconButton
-        className="App-toolbar__btn"
         title={UI_LABELS.settings}
         tooltipContent={UI_LABELS.settings}
         onClick={actions.handleOpenSettings}
@@ -266,34 +256,12 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       <div className="App-toolbar__divider" />
       <IconButton
         className="App-toolbar__btn"
-        title={UI_LABELS.propsPanel}
-        onClick={actions.handleOpenPropsPanel}
-        showTooltip
-      >
-        <SlidersHorizontal className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      <IconButton
-        className="App-toolbar__btn"
         title={UI_LABELS.createNode}
         tooltipContent={UI_LABELS.createNode}
         onClick={actions.handleOpenPropsPanel}
         showTooltip
       >
         <Plus className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      <IconButton
-        className="App-toolbar__btn"
-        title={UI_LABELS.reset}
-        onClick={actions.handleReset}
-        showTooltip
-      >
-        <RotateCcw className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      <IconButton className="App-toolbar__btn" title={UI_LABELS.zoomIn} onClick={onZoomIn} showTooltip>
-        <ZoomIn className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      <IconButton className="App-toolbar__btn" title={UI_LABELS.zoomOut} onClick={onZoomOut} showTooltip>
-        <ZoomOut className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <ZoomModeSelect iconSizeClass={iconSizeClass} iconStrokeWidth={iconStrokeWidth} onZoomSelection={onZoomSelection} />
       <hr className="App-toolbar__divider" aria-hidden="true" />

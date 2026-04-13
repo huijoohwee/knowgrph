@@ -48,13 +48,15 @@ function stripEmbeddedBase64ImageSrc(raw: string): { text: string; changed: bool
   return { text: out, changed }
 }
 
-export function buildPendingLocalImportStub(args: { kind: PendingLocalImportItem['kind']; originalName: string }): string {
+export function buildPendingLocalImportStub(args: { kind: PendingLocalImportItem['kind']; originalName: string; source?: 'file' | 'folder' }): string {
   const name = String(args.originalName || '').trim() || 'file'
   const kindLabel = args.kind === 'pdf' ? 'PDF' : 'file'
+  const sourceLabel = args.source === 'folder' ? 'folder import' : 'local import'
+  const reloadHint = args.source === 'folder' ? 'Re-import the folder if you reload before opening this' : 'Re-import the file if you reload before opening this'
   return [
     `<!--${PENDING_LOCAL_IMPORT_MARKER}-->`,
-    `> Pending local folder import (${kindLabel}).`,
-    `> Re-import the folder if you reload before opening this ${kindLabel}.`,
+    `> Pending ${sourceLabel} (${kindLabel}).`,
+    `> ${reloadHint} ${kindLabel}.`,
     `> Original: ${name}`,
     '',
   ].join('\n')
@@ -112,4 +114,3 @@ export async function hydrateWorkspaceFileFromPendingLocalImport(args: {
     return null
   }
 }
-

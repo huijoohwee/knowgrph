@@ -130,12 +130,7 @@ export function ZoomModeSelect({ iconSizeClass, iconStrokeWidth, onZoomSelection
       tooltipContent={UI_COPY.zoomMenuTooltip}
       isButtonActive={anyActive}
       onSelect={id => apply(id)}
-      renderButtonContent={() => (
-        <div className="flex items-center gap-1">
-          <Focus className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-          <span className="text-xs">{UI_LABELS.zoomMenu}</span>
-        </div>
-      )}
+      renderButtonContent={() => <Focus className={iconSizeClass} strokeWidth={iconStrokeWidth} />}
       renderOptionContent={option => (
         <>
           <option.Icon className={iconSizeClass} strokeWidth={iconStrokeWidth} />

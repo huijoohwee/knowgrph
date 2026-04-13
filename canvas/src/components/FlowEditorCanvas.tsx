@@ -1,5 +1,4 @@
 import React from 'react'
-import { Link2, Plus, Trash2 } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useShallow } from 'zustand/react/shallow'
 
@@ -375,8 +374,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     zoomViewKeyRef.current = zoomViewKey
   }, [zoomViewKey])
 
-  const selectedNodeIdsRef = useGraphStoreKeyRef('selectedNodeIds')
-  const selectedEdgeIdsRef = useGraphStoreKeyRef('selectedEdgeIds')
   const nodeQuickEditorRegistry = useGraphStore(s => s.effectiveNodeQuickEditorRegistry ?? EMPTY_NODE_QUICK_EDITOR_REGISTRY)
   const nodeQuickEditorRegistryRef = React.useRef(nodeQuickEditorRegistry)
   const lastQuickEditorDropRef = React.useRef<{ key: string; ts: number } | null>(null)
@@ -2124,16 +2121,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     [baseGraphData, draftGraphData, setGraphDataPreservingLayout],
   )
 
-  const addNode = React.useCallback(() => {
-    const st = useGraphStore.getState()
-    const pos = viewportCenterToWorld({
-      transform: getZoomStateForKey({ zoomViewKey: zoomViewKeyRef.current, zoomStateByKey: st.zoomStateByKey }),
-      viewportW,
-      viewportH,
-    })
-    appendDraftNode({ type: 'Node', label: null, x: pos.x, y: pos.y, properties: {} })
-  }, [appendDraftNode, viewportH, viewportW])
-
   const addNodeFromRegistryAtWorld = React.useCallback(
     (args: { entry: NodeQuickEditorRegistryEntry; x: number; y: number }) => {
       const entry = args.entry
@@ -2313,37 +2300,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       document.removeEventListener('drop', onDropCapture, true)
     }
   }, [active, addNodeFromRegistryAtWorld, getLiveZoomTransform, setCanvasWindowOffsetFromRect, shouldDedupeQuickEditorDrop, upsertUiToast])
-
-  const deleteSelection = React.useCallback(() => {
-    if (!draftGraphData) return
-    const selectedNodeIds = Array.isArray(selectedNodeIdsRef.current) ? selectedNodeIdsRef.current.map(String) : []
-    const selectedEdgeIds = Array.isArray(selectedEdgeIdsRef.current) ? selectedEdgeIdsRef.current.map(String) : []
-    const nodeIdSet = new Set(selectedNodeIds)
-    const edgeIdSet = new Set(selectedEdgeIds)
-    if (selectedNodeId) nodeIdSet.add(selectedNodeId)
-    if (selectedEdgeId) edgeIdSet.add(selectedEdgeId)
-    if (nodeIdSet.size === 0 && edgeIdSet.size === 0) return
-
-    const nextNodes = (draftGraphData.nodes || []).filter(n => !nodeIdSet.has(String(n.id || '')))
-    const nextEdges = (draftGraphData.edges || []).filter(e => {
-      const id = String(e.id || '')
-      if (edgeIdSet.has(id)) return false
-      const src = readEdgeEndpointId(e.source)
-      const tgt = readEdgeEndpointId(e.target)
-      if (!src || !tgt) return false
-      if (nodeIdSet.has(src) || nodeIdSet.has(tgt)) return false
-      return true
-    })
-    const next: GraphData = normalizeGraphData({
-      ...draftGraphData,
-      nodes: nextNodes,
-      edges: nextEdges,
-    })
-    setGraphDataPreservingLayout(next)
-    setSelectionSource('canvas')
-    selectNode(null)
-    selectEdge(null)
-  }, [draftGraphData, selectEdge, selectNode, selectedEdgeId, selectedEdgeIdsRef, selectedNodeId, selectedNodeIdsRef, setGraphDataPreservingLayout, setSelectionSource])
 
   const removeNodeById = React.useCallback(
     (nodeId: string) => {
@@ -3315,64 +3271,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             <p className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>No graph loaded.</p>
           </section>
         </aside>
-      )}
-
-      {!hasOverlayEditors && (
-      <nav className="absolute top-3 left-3 z-[220]" aria-label="Flow Editor Tools">
-        <section className={`flex items-center gap-2 rounded-xl border px-2 py-2 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.input.border}`}>
-          <button
-            type="button"
-            className={`App-toolbar__btn ${toolMode === 'select' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
-            onClick={() => {
-              setToolMode('select')
-              setPendingEdgeSourceId(null)
-            }}
-            aria-label="Tool: Select"
-            disabled={!canEdit}
-          >
-            Select
-          </button>
-          <button
-            type="button"
-            className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-            onClick={addNode}
-            aria-label="Add node"
-            disabled={!canEdit}
-          >
-            <Plus className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            className={`App-toolbar__btn ${toolMode === 'addEdge' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}`}
-            onClick={() => {
-              if (toolMode === 'addEdge') {
-                setToolMode('select')
-                setPendingEdgeSourceId(null)
-                return
-              }
-              setToolMode('addEdge')
-              setPendingEdgeSourceId(null)
-            }}
-            aria-label="Add edge"
-            disabled={!canEdit}
-          >
-            <Link2 className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-            onClick={deleteSelection}
-            aria-label="Delete selection"
-            disabled={!canEdit}
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-
-          <span className={`px-2 text-xs ${UI_THEME_TOKENS.text.secondary}`} aria-label="Sync status">
-            Live
-          </span>
-        </section>
-      </nav>
       )}
 
       {!hasOverlayEditors && toolMode === 'addEdge' && canEdit && (

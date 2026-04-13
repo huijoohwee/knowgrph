@@ -2,6 +2,7 @@ import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { parseWebkitRelativePath } from '@/features/source-files/webkitRelativePath'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
+import { WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES } from '@/lib/config'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { readPdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
 import { fetchPdfWorkspaceDoc, importPdfToWorkspace } from '@/lib/pdf/pdfWorkspaceClient'
@@ -99,6 +100,18 @@ function isSupportedWorkspaceImportFile(file: File): boolean {
   return WORKSPACE_IMPORT_EXTS.has(ext)
 }
 
+function isWorkspaceJsonLdName(nameRaw: string): boolean {
+  const lower = String(nameRaw || '').trim().toLowerCase()
+  return lower.endsWith('.jsonld') || lower.endsWith('.json-ld')
+}
+
+function shouldDeferLargeLocalFileImport(file: File, nameRaw: string): boolean {
+  if (isPdfFile(file)) return false
+  if (isWorkspaceJsonLdName(nameRaw)) return false
+  const size = Math.max(0, Number(file?.size || 0))
+  return size >= WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES
+}
+
 async function ensureFolderRel(fs: WorkspaceFs, parentPath: WorkspacePath, relDir: string): Promise<WorkspacePath> {
   const raw = String(relDir || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
   if (!raw) return parentPath
@@ -169,12 +182,22 @@ export async function importWorkspaceLocalFiles(args: {
       continue
     }
     try {
-      const createdPath = isPdfFile(file)
-        ? await importPdfFile({ fs: args.fs, file, parentPath })
-        : await importTextFileOrWorkspaceJsonLd({
-            file,
-            onText: async ({ name, text }) => await args.fs.createFile({ parentPath, name, text }),
-          })
+      const createdPath = shouldDeferLargeLocalFileImport(file, nameRaw)
+        ? await (async () => {
+            const created = await args.fs.createFile({
+              parentPath,
+              name: nameRaw,
+              text: buildPendingLocalImportStub({ kind: 'text', originalName: nameRaw, source: 'file' }),
+            })
+            setPendingLocalImport(created, { kind: 'text', file, originalName: nameRaw })
+            return created
+          })()
+        : isPdfFile(file)
+          ? await importPdfFile({ fs: args.fs, file, parentPath })
+          : await importTextFileOrWorkspaceJsonLd({
+              file,
+              onText: async ({ name, text }) => await args.fs.createFile({ parentPath, name, text }),
+            })
       const normalized = normalizeWorkspacePath(createdPath)
       createdPaths.push(normalized)
       sources.push({ path: normalized, source: { kind: 'local', originalName: file.name } })
@@ -246,12 +269,20 @@ export async function importWorkspaceLocalFolder(args: {
       const createdPath = isPdfFile(file)
         ? await (async () => {
             const baseName = deriveMarkdownNameFromPdfFilename(relName)
-            const created = await args.fs.createFile({ parentPath, name: baseName, text: buildPendingLocalImportStub({ kind: 'pdf', originalName: relName }) })
+            const created = await args.fs.createFile({
+              parentPath,
+              name: baseName,
+              text: buildPendingLocalImportStub({ kind: 'pdf', originalName: relName, source: 'folder' }),
+            })
             setPendingLocalImport(created, { kind: 'pdf', file, originalName: relName })
             return created
           })()
         : await (async () => {
-            const created = await args.fs.createFile({ parentPath, name: relName, text: buildPendingLocalImportStub({ kind: 'text', originalName: relName }) })
+            const created = await args.fs.createFile({
+              parentPath,
+              name: relName,
+              text: buildPendingLocalImportStub({ kind: 'text', originalName: relName, source: 'folder' }),
+            })
             setPendingLocalImport(created, { kind: 'text', file, originalName: relName })
             return created
           })()

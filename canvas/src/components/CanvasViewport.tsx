@@ -322,7 +322,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
             {!geospatialModeEnabled && activeSurface === '2d' && !isNarrowViewport && (canvas2dRenderer === 'd3' || canvas2dRenderer === 'flow' || canvas2dRenderer === 'flowEditor' || canvas2dRenderer === 'design') ? (
               <aside
                 className={`${layout === 'pane' ? 'absolute' : 'fixed'} left-3 z-[201] pointer-events-auto`}
-                style={layout === 'pane' ? undefined : { bottom: 'calc(40px + 12px)' }}
+                style={layout === 'pane' ? { bottom: 'calc(var(--kg-safe-bottom) + 0.75rem)' } : { bottom: 'calc(40px + 12px)' }}
                 aria-label="Minimap Overlay"
               >
                 <MinimapLazy />

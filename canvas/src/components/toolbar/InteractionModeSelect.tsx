@@ -137,12 +137,7 @@ export function InteractionModeSelect({ iconSizeClass, iconStrokeWidth, ensureBa
         infiniteCanvasInteractionMode === 'interactive'
       }
       onSelect={id => apply(id)}
-      renderButtonContent={() => (
-        <div className="flex items-center gap-1">
-          <Compass className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-          <span className="text-xs">{UI_LABELS.interactionMode}</span>
-        </div>
-      )}
+      renderButtonContent={() => <Compass className={iconSizeClass} strokeWidth={iconStrokeWidth} />}
       renderOptionContent={option => (
         <>
           <option.Icon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
