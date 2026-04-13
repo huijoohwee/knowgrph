@@ -159,6 +159,18 @@ export const attachSimulationTick = (args: {
   const strictOverlapState: StrictOverlapState2d = { lastStrictOverlapTick: -1, cache: null }
   const orbitStateById = new Map<string, { parentId: string | null; angle: number; radius: number; depth: number; ring: number }>()
   let lastOrbitFrameAt = 0
+  const svgAttrCache = new WeakMap<Element, Record<string, string>>()
+
+  const setSvgAttrIfChanged = (el: Element, name: string, value: string): void => {
+    let attrState = svgAttrCache.get(el)
+    if (!attrState) {
+      attrState = {}
+      svgAttrCache.set(el, attrState)
+    }
+    if (attrState[name] === value) return
+    el.setAttribute(name, value)
+    attrState[name] = value
+  }
 
   const applyRadialOrbitAnimation = (schema: GraphSchema): boolean => {
     const layoutMode = String(schema.layout?.mode || 'radial')
@@ -415,216 +427,198 @@ export const attachSimulationTick = (args: {
       if (v <= 0) return 0
       return Math.min(1200, v)
     })()
+    const zoomK = (() => {
+      const t = d3.zoomTransform(svgEl)
+      const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+      return k
+    })()
+    const overlayHalfExtentsWorld = (() => {
+      const hasSets =
+        (panelOnlyNodeIdSet && panelOnlyNodeIdSet.size > 0) || (mediaOverlayNodeIdSet && mediaOverlayNodeIdSet.size > 0)
+      if (!hasSets) return null
+      const density: 'default' | 'compact' = mediaPanelDensity === 'compact' ? 'compact' : 'default'
+      const ratio = density === 'compact' ? overlayBaseWidthRatioCompact : overlayBaseWidthRatioDefault
+      const minPx = density === 'compact' ? overlayBaseWidthMinPxCompact : overlayBaseWidthMinPxDefault
+      const maxPx = density === 'compact' ? overlayBaseWidthMaxPxCompact : overlayBaseWidthMaxPxDefault
+      const cfg = normalizeOverlaySizingConfig({
+        widthRatio: Number(ratio),
+        widthMinPx: Number(minPx),
+        widthMaxPx: Number(maxPx),
+      })
+      const key = `${density}|${width}|${zoomK}|${cfg.widthRatio}|${cfg.widthMinPx}|${cfg.widthMaxPx}`
+      if (key === lastOverlayHalfExtentsKey) return lastOverlayHalfExtents
+      const out = computeOverlayHalfExtentsWorld({ density, viewportW: width, zoomK, config: cfg })
+      lastOverlayHalfExtentsKey = key
+      lastOverlayHalfExtents = out
+      return out
+    })()
+    const nodeMetricsFrameCache = new Map<GraphNode, { width: number; height: number; r: number }>()
+    const getNodeMetricsForFrame = (d: GraphNode): { width: number; height: number; r: number } => {
+      const cached = nodeMetricsFrameCache.get(d)
+      if (cached) return cached
+      const next = getNodeMetrics(d, schema)
+      nodeMetricsFrameCache.set(d, next)
+      return next
+    }
 
-    const updateLinkEndpoints = (sel: d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null) => {
-      if (!sel) return
-      const lineSel = sel.filter(function () {
-        return String((this as unknown as { tagName?: unknown }).tagName || '').toLowerCase() === 'line'
-      }) as unknown as d3.Selection<SVGLineElement, GraphEdge, SVGGElement, unknown>
+    const isPanelNode = (n: GraphNode): boolean => {
+      const id = String(n.id)
+      if (panelOnlyNodeIdSet && panelOnlyNodeIdSet.has(id)) return true
+      if (mediaOverlayNodeIdSet && mediaOverlayNodeIdSet.has(id)) return true
+      return false
+    }
 
-      const zoomK = (() => {
-        const t = d3.zoomTransform(svgEl)
-        const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
-        return k
-      })()
+    const pickEndpointRectOrCircle = (from: GraphNode, to: GraphNode, padOut: number): { x: number; y: number } => {
+      const fx = typeof from.x === 'number' && Number.isFinite(from.x) ? from.x : 0
+      const fy = typeof from.y === 'number' && Number.isFinite(from.y) ? from.y : 0
+      const tx = typeof to.x === 'number' && Number.isFinite(to.x) ? to.x : fx
+      const ty = typeof to.y === 'number' && Number.isFinite(to.y) ? to.y : fy
+      const dx = tx - fx
+      const dy = ty - fy
+      if (dx === 0 && dy === 0) return { x: fx, y: fy }
+      const norm = Math.sqrt(dx * dx + dy * dy) || 1
+      const ux = dx / norm
+      const uy = dy / norm
 
-      const overlayHalfExtentsWorld = (() => {
-        const hasSets =
-          (panelOnlyNodeIdSet && panelOnlyNodeIdSet.size > 0) || (mediaOverlayNodeIdSet && mediaOverlayNodeIdSet.size > 0)
-        if (!hasSets) return null
-        const density: 'default' | 'compact' = mediaPanelDensity === 'compact' ? 'compact' : 'default'
-        const ratio = density === 'compact' ? overlayBaseWidthRatioCompact : overlayBaseWidthRatioDefault
-        const minPx = density === 'compact' ? overlayBaseWidthMinPxCompact : overlayBaseWidthMinPxDefault
-        const maxPx = density === 'compact' ? overlayBaseWidthMaxPxCompact : overlayBaseWidthMaxPxDefault
-        const cfg = normalizeOverlaySizingConfig({
-          widthRatio: Number(ratio),
-          widthMinPx: Number(minPx),
-          widthMaxPx: Number(maxPx),
-        })
-        const key = `${density}|${width}|${zoomK}|${cfg.widthRatio}|${cfg.widthMinPx}|${cfg.widthMaxPx}`
-        if (key === lastOverlayHalfExtentsKey) return lastOverlayHalfExtents
-        const out = computeOverlayHalfExtentsWorld({ density, viewportW: width, zoomK, config: cfg })
-        lastOverlayHalfExtentsKey = key
-        lastOverlayHalfExtents = out
-        return out
-      })()
-
-      const isPanelNode = (n: GraphNode): boolean => {
-        const id = String(n.id)
-        if (panelOnlyNodeIdSet && panelOnlyNodeIdSet.has(id)) return true
-        if (mediaOverlayNodeIdSet && mediaOverlayNodeIdSet.has(id)) return true
-        return false
-      }
-
-      const pickEndpointRectOrCircle = (from: GraphNode, to: GraphNode, padOut: number): { x: number; y: number } => {
-        const fx = typeof from.x === 'number' && Number.isFinite(from.x) ? from.x : 0
-        const fy = typeof from.y === 'number' && Number.isFinite(from.y) ? from.y : 0
-        const tx = typeof to.x === 'number' && Number.isFinite(to.x) ? to.x : fx
-        const ty = typeof to.y === 'number' && Number.isFinite(to.y) ? to.y : fy
-        const dx = tx - fx
-        const dy = ty - fy
-        if (dx === 0 && dy === 0) return { x: fx, y: fy }
-        const norm = Math.sqrt(dx * dx + dy * dy) || 1
-        const ux = dx / norm
-        const uy = dy / norm
-
-        if (isPanelNode(from) && overlayHalfExtentsWorld) {
-          const halfW = overlayHalfExtentsWorld.halfW
-          const halfH = overlayHalfExtentsWorld.halfH
-          const absUx = Math.abs(ux)
-          const absUy = Math.abs(uy)
-          const txRect = absUx > 1e-6 ? halfW / absUx : Number.POSITIVE_INFINITY
-          const tyRect = absUy > 1e-6 ? halfH / absUy : Number.POSITIVE_INFINITY
-          const padOutWorld = Number.isFinite(padOut) ? padOut / zoomK : 0
-          const dist = Math.max(0, Math.min(txRect, tyRect) + padOutWorld)
-          return { x: fx + ux * dist, y: fy + uy * dist }
-        }
-
-        const shape = getNodeRenderShape2d(from, schema)
-        if (shape === 'circle') {
-          const r = getNodeMetrics(from, schema).r
-          const dist = Math.max(0, r + padOut)
-          return { x: fx + ux * dist, y: fy + uy * dist }
-        }
-        const { width, height } = getNodeMetrics(from, schema)
-        const halfW = Math.max(1, width / 2)
-        const halfH = Math.max(1, height / 2)
+      if (isPanelNode(from) && overlayHalfExtentsWorld) {
+        const halfW = overlayHalfExtentsWorld.halfW
+        const halfH = overlayHalfExtentsWorld.halfH
         const absUx = Math.abs(ux)
         const absUy = Math.abs(uy)
         const txRect = absUx > 1e-6 ? halfW / absUx : Number.POSITIVE_INFINITY
         const tyRect = absUy > 1e-6 ? halfH / absUy : Number.POSITIVE_INFINITY
-        const dist = Math.max(0, Math.min(txRect, tyRect) + padOut)
+        const padOutWorld = Number.isFinite(padOut) ? padOut / zoomK : 0
+        const dist = Math.max(0, Math.min(txRect, tyRect) + padOutWorld)
         return { x: fx + ux * dist, y: fy + uy * dist }
       }
 
-      const endpoint = (from: GraphNode, to: GraphNode, padOut: number): { x: number; y: number } => {
-        if (!portHandlesEnabled) return pickEndpointRectOrCircle(from, to, padOut)
-        if (isPanelNode(from)) return pickEndpointRectOrCircle(from, to, padOut)
-        return getEdgeEndpointFromPorts({ from, to, schema })
+      const shape = getNodeRenderShape2d(from, schema)
+      if (shape === 'circle') {
+        const r = getNodeMetricsForFrame(from).r
+        const dist = Math.max(0, r + padOut)
+        return { x: fx + ux * dist, y: fy + uy * dist }
       }
-      const radarForceCfg = readRadarForceConfig(schema)
+      const { width, height } = getNodeMetricsForFrame(from)
+      const halfW = Math.max(1, width / 2)
+      const halfH = Math.max(1, height / 2)
+      const absUx = Math.abs(ux)
+      const absUy = Math.abs(uy)
+      const txRect = absUx > 1e-6 ? halfW / absUx : Number.POSITIVE_INFINITY
+      const tyRect = absUy > 1e-6 ? halfH / absUy : Number.POSITIVE_INFINITY
+      const dist = Math.max(0, Math.min(txRect, tyRect) + padOut)
+      return { x: fx + ux * dist, y: fy + uy * dist }
+    }
 
-      const readEdgePresentation = (
-        d: GraphEdge,
-      ): {
-        curve: boolean
-        bend: number
-        phase: -1 | 1
-        arrow: boolean
-        orbitShift: number
-        arrowLength: number
-        arrowHalfWidth: number
-        orbital: boolean
-        edgeType: GlobalEdgeType
-      } => {
-        const props = d.properties && typeof d.properties === 'object' && !Array.isArray(d.properties)
-          ? (d.properties as Record<string, unknown>)
-          : null
-        const curveOptions = readEdgePathCurveOptions(d, schema)
-        const curveMode = String(props?.['visual:curve'] || '').trim().toLowerCase()
-        const curve = curveMode === 'quadratic' || props?.['kg:radarFlow'] === true
-        const interpolator = String(props?.['visual:curveInterpolator'] || '').trim().toLowerCase()
-        const orbital = curve && (interpolator === 'orbital' || props?.['kg:radarFlow'] === true)
-        const bend = curveOptions ? curveOptions.bend : radarForceCfg.flowCurveBend
-        const orbitShift = curveOptions ? curveOptions.orbitShift : radarForceCfg.flowOrbitShift
-        const arrowLenRaw = props?.['visual:arrowLengthPx']
-        const arrowLenN = typeof arrowLenRaw === 'number' ? arrowLenRaw : typeof arrowLenRaw === 'string' ? Number(arrowLenRaw) : NaN
-        const arrowLength = Number.isFinite(arrowLenN)
-          ? Math.max(4, Math.min(30, arrowLenN))
-          : radarForceCfg.flowArrowLengthPx
-        const arrowHalfRaw = props?.['visual:arrowHalfWidthPx']
-        const arrowHalfN = typeof arrowHalfRaw === 'number' ? arrowHalfRaw : typeof arrowHalfRaw === 'string' ? Number(arrowHalfRaw) : NaN
-        const arrowHalfWidth = Number.isFinite(arrowHalfN)
-          ? Math.max(2, Math.min(14, arrowHalfN))
-          : radarForceCfg.flowArrowHalfWidthPx
-        const arrow = Boolean(schema.edgeStyles?.[String(d.label || '')]?.arrow) || (props?.['kg:radarFlow'] === true)
-        const edgeType = readGlobalEdgeType(schema)
-        const allowCurveByType = edgeType === 'bezier'
-        return {
-          curve: allowCurveByType ? curve : false,
-          bend,
-          phase: curveOptions ? curveOptions.phase : 1,
-          arrow,
-          orbitShift,
-          arrowLength,
-          arrowHalfWidth,
-          orbital: allowCurveByType ? (curveOptions ? curveOptions.orbital : orbital) : false,
-          edgeType,
-        }
+    const endpoint = (from: GraphNode, to: GraphNode, padOut: number): { x: number; y: number } => {
+      if (!portHandlesEnabled) return pickEndpointRectOrCircle(from, to, padOut)
+      if (isPanelNode(from)) return pickEndpointRectOrCircle(from, to, padOut)
+      return getEdgeEndpointFromPorts({ from, to, schema })
+    }
+    const radarForceCfg = readRadarForceConfig(schema)
+    const globalEdgeType = readGlobalEdgeType(schema)
+    const edgeGeometryCache = new Map<GraphEdge, {
+      p1: { x: number; y: number }
+      p2: { x: number; y: number }
+      cx: number
+      cy: number
+      c1x: number
+      c1y: number
+      c2x: number
+      c2y: number
+      tx: number
+      ty: number
+      curve: boolean
+      arrow: boolean
+      orbital: boolean
+      arrowLength: number
+      arrowHalfWidth: number
+      edgeType: GlobalEdgeType
+    }>()
+
+    const readEdgePresentation = (
+      d: GraphEdge,
+    ): {
+      curve: boolean
+      bend: number
+      phase: -1 | 1
+      arrow: boolean
+      orbitShift: number
+      arrowLength: number
+      arrowHalfWidth: number
+      orbital: boolean
+      edgeType: GlobalEdgeType
+    } => {
+      const props = d.properties && typeof d.properties === 'object' && !Array.isArray(d.properties)
+        ? (d.properties as Record<string, unknown>)
+        : null
+      const curveOptions = readEdgePathCurveOptions(d, schema)
+      const curveMode = String(props?.['visual:curve'] || '').trim().toLowerCase()
+      const curve = curveMode === 'quadratic' || props?.['kg:radarFlow'] === true
+      const interpolator = String(props?.['visual:curveInterpolator'] || '').trim().toLowerCase()
+      const orbital = curve && (interpolator === 'orbital' || props?.['kg:radarFlow'] === true)
+      const bend = curveOptions ? curveOptions.bend : radarForceCfg.flowCurveBend
+      const orbitShift = curveOptions ? curveOptions.orbitShift : radarForceCfg.flowOrbitShift
+      const arrowLenRaw = props?.['visual:arrowLengthPx']
+      const arrowLenN = typeof arrowLenRaw === 'number' ? arrowLenRaw : typeof arrowLenRaw === 'string' ? Number(arrowLenRaw) : NaN
+      const arrowLength = Number.isFinite(arrowLenN)
+        ? Math.max(4, Math.min(30, arrowLenN))
+        : radarForceCfg.flowArrowLengthPx
+      const arrowHalfRaw = props?.['visual:arrowHalfWidthPx']
+      const arrowHalfN = typeof arrowHalfRaw === 'number' ? arrowHalfRaw : typeof arrowHalfRaw === 'string' ? Number(arrowHalfRaw) : NaN
+      const arrowHalfWidth = Number.isFinite(arrowHalfN)
+        ? Math.max(2, Math.min(14, arrowHalfN))
+        : radarForceCfg.flowArrowHalfWidthPx
+      const arrow = Boolean(schema.edgeStyles?.[String(d.label || '')]?.arrow) || (props?.['kg:radarFlow'] === true)
+      const allowCurveByType = globalEdgeType === 'bezier'
+      return {
+        curve: allowCurveByType ? curve : false,
+        bend,
+        phase: curveOptions ? curveOptions.phase : 1,
+        arrow,
+        orbitShift,
+        arrowLength,
+        arrowHalfWidth,
+        orbital: allowCurveByType ? (curveOptions ? curveOptions.orbital : orbital) : false,
+        edgeType: globalEdgeType,
       }
+    }
 
-      const edgeGeometry = (d: GraphEdge): {
-        p1: { x: number; y: number }
-        p2: { x: number; y: number }
-        cx: number
-        cy: number
-        c1x: number
-        c1y: number
-        c2x: number
-        c2y: number
-        tx: number
-        ty: number
-        curve: boolean
-        arrow: boolean
-        orbital: boolean
-        arrowLength: number
-        arrowHalfWidth: number
-        edgeType: GlobalEdgeType
-      } => {
-        const edge = d as unknown as EdgeWithRuntime
-        const src = resolveNode(edge.source)
-        const tgt = resolveNode(edge.target)
-        const presentation = readEdgePresentation(d)
-        if (!src || !tgt) {
-          return {
-            p1: { x: 0, y: 0 },
-            p2: { x: 0, y: 0 },
-            cx: 0,
-            cy: 0,
-            c1x: 0,
-            c1y: 0,
-            c2x: 0,
-            c2y: 0,
-            tx: 0,
-            ty: 0,
-            curve: presentation.curve,
-            arrow: presentation.arrow,
-            orbital: presentation.orbital,
-            arrowLength: presentation.arrowLength,
-            arrowHalfWidth: presentation.arrowHalfWidth,
-            edgeType: presentation.edgeType,
-          }
-        }
-        const p1 = endpoint(src, tgt, 3)
-        const p2 = endpoint(tgt, src, presentation.arrow ? 9 : 3)
-        const mx = (p1.x + p2.x) / 2
-        const my = (p1.y + p2.y) / 2
-        const dx = p2.x - p1.x
-        const dy = p2.y - p1.y
-        const dist = Math.max(1, Math.hypot(dx, dy))
-        const nx = -dy / dist
-        const ny = dx / dist
-        const curveScale = presentation.curve ? presentation.bend : 0
-        const curveMag = dist * curveScale
-        const orbitalPolarity = Math.abs(curveScale) > 1e-6 ? (curveScale < 0 ? -1 : 1) : presentation.phase
-        const orbitalMag = presentation.orbital ? dist * presentation.orbitShift * orbitalPolarity : 0
-        const c1x = p1.x + dx * 0.24 + nx * (curveMag * 0.86 + orbitalMag * 0.5)
-        const c1y = p1.y + dy * 0.24 + ny * (curveMag * 0.86 + orbitalMag * 0.5)
-        const c2x = p2.x - dx * 0.24 + nx * (curveMag * 1.14 + orbitalMag)
-        const c2y = p2.y - dy * 0.24 + ny * (curveMag * 1.14 + orbitalMag)
-        const tx = presentation.orbital ? p2.x - c2x : p2.x - (mx + nx * curveMag)
-        const ty = presentation.orbital ? p2.y - c2y : p2.y - (my + ny * curveMag)
-        return {
-          p1,
-          p2,
-          cx: mx + nx * curveMag,
-          cy: my + ny * curveMag,
-          c1x,
-          c1y,
-          c2x,
-          c2y,
-          tx,
-          ty,
+    const getEdgeGeometry = (d: GraphEdge): {
+      p1: { x: number; y: number }
+      p2: { x: number; y: number }
+      cx: number
+      cy: number
+      c1x: number
+      c1y: number
+      c2x: number
+      c2y: number
+      tx: number
+      ty: number
+      curve: boolean
+      arrow: boolean
+      orbital: boolean
+      arrowLength: number
+      arrowHalfWidth: number
+      edgeType: GlobalEdgeType
+    } => {
+      const cached = edgeGeometryCache.get(d)
+      if (cached) return cached
+      const edge = d as unknown as EdgeWithRuntime
+      const src = resolveNode(edge.source)
+      const tgt = resolveNode(edge.target)
+      const presentation = readEdgePresentation(d)
+      if (!src || !tgt) {
+        const fallback = {
+          p1: { x: 0, y: 0 },
+          p2: { x: 0, y: 0 },
+          cx: 0,
+          cy: 0,
+          c1x: 0,
+          c1y: 0,
+          c2x: 0,
+          c2y: 0,
+          tx: 0,
+          ty: 0,
           curve: presentation.curve,
           arrow: presentation.arrow,
           orbital: presentation.orbital,
@@ -632,34 +626,103 @@ export const attachSimulationTick = (args: {
           arrowHalfWidth: presentation.arrowHalfWidth,
           edgeType: presentation.edgeType,
         }
+        edgeGeometryCache.set(d, fallback)
+        return fallback
       }
+      const p1 = endpoint(src, tgt, 3)
+      const p2 = endpoint(tgt, src, presentation.arrow ? 9 : 3)
+      const mx = (p1.x + p2.x) / 2
+      const my = (p1.y + p2.y) / 2
+      const dx = p2.x - p1.x
+      const dy = p2.y - p1.y
+      const dist = Math.max(1, Math.hypot(dx, dy))
+      const nx = -dy / dist
+      const ny = dx / dist
+      const curveScale = presentation.curve ? presentation.bend : 0
+      const curveMag = dist * curveScale
+      const orbitalPolarity = Math.abs(curveScale) > 1e-6 ? (curveScale < 0 ? -1 : 1) : presentation.phase
+      const orbitalMag = presentation.orbital ? dist * presentation.orbitShift * orbitalPolarity : 0
+      const c1x = p1.x + dx * 0.24 + nx * (curveMag * 0.86 + orbitalMag * 0.5)
+      const c1y = p1.y + dy * 0.24 + ny * (curveMag * 0.86 + orbitalMag * 0.5)
+      const c2x = p2.x - dx * 0.24 + nx * (curveMag * 1.14 + orbitalMag)
+      const c2y = p2.y - dy * 0.24 + ny * (curveMag * 1.14 + orbitalMag)
+      const tx = presentation.orbital ? p2.x - c2x : p2.x - (mx + nx * curveMag)
+      const ty = presentation.orbital ? p2.y - c2y : p2.y - (my + ny * curveMag)
+      const geometry = {
+        p1,
+        p2,
+        cx: mx + nx * curveMag,
+        cy: my + ny * curveMag,
+        c1x,
+        c1y,
+        c2x,
+        c2y,
+        tx,
+        ty,
+        curve: presentation.curve,
+        arrow: presentation.arrow,
+        orbital: presentation.orbital,
+        arrowLength: presentation.arrowLength,
+        arrowHalfWidth: presentation.arrowHalfWidth,
+        edgeType: presentation.edgeType,
+      }
+      edgeGeometryCache.set(d, geometry)
+      return geometry
+    }
 
-      lineSel
-        .attr('x1', d => edgeGeometry(d).p1.x)
-        .attr('y1', d => edgeGeometry(d).p1.y)
-        .attr('x2', d => edgeGeometry(d).p2.x)
-        .attr('y2', d => edgeGeometry(d).p2.y)
+    const buildEdgeArrowPath = (d: GraphEdge): string => {
+      const g = getEdgeGeometry(d)
+      if (!g.arrow) return ''
+      const tn = Math.max(1, Math.hypot(g.tx, g.ty))
+      const ux = g.tx / tn
+      const uy = g.ty / tn
+      const px = -uy
+      const py = ux
+      const bx = g.p2.x - ux * g.arrowLength
+      const by = g.p2.y - uy * g.arrowLength
+      const lx = bx + px * g.arrowHalfWidth
+      const ly = by + py * g.arrowHalfWidth
+      const rx = bx - px * g.arrowHalfWidth
+      const ry = by - py * g.arrowHalfWidth
+      return `M${g.p2.x},${g.p2.y} L${lx},${ly} L${rx},${ry} Z`
+    }
 
-      const pathSel = sel.filter(function () {
-        return String((this as unknown as { tagName?: unknown }).tagName || '').toLowerCase() === 'path'
-      }) as unknown as d3.Selection<SVGPathElement, GraphEdge, SVGGElement, unknown>
-      if (!pathSel.empty()) {
-        pathSel.attr('d', d => {
-          const g = edgeGeometry(d)
-          if (!g.curve) {
-            return buildEdgePathD({
-              edgeType: g.edgeType,
-              sx: g.p1.x,
-              sy: g.p1.y,
-              tx: g.p2.x,
-              ty: g.p2.y,
-              curve: readEdgePathCurveOptions(d, schema),
-            })
-          }
-          if (g.orbital) return `M${g.p1.x},${g.p1.y} C${g.c1x},${g.c1y} ${g.c2x},${g.c2y} ${g.p2.x},${g.p2.y}`
-          return `M${g.p1.x},${g.p1.y} Q${g.cx},${g.cy} ${g.p2.x},${g.p2.y}`
+    const buildEdgeStrokePath = (d: GraphEdge): string => {
+      const g = getEdgeGeometry(d)
+      if (!g.curve) {
+        return buildEdgePathD({
+          edgeType: g.edgeType,
+          sx: g.p1.x,
+          sy: g.p1.y,
+          tx: g.p2.x,
+          ty: g.p2.y,
+          curve: readEdgePathCurveOptions(d, schema),
         })
       }
+      if (g.orbital) return `M${g.p1.x},${g.p1.y} C${g.c1x},${g.c1y} ${g.c2x},${g.c2y} ${g.p2.x},${g.p2.y}`
+      return `M${g.p1.x},${g.p1.y} Q${g.cx},${g.cy} ${g.p2.x},${g.p2.y}`
+    }
+
+    const updateLinkEndpoints = (sel: d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null) => {
+      if (!sel) return
+      sel.each(function (d) {
+        const el = this as SVGElement
+        const tag = String(el.tagName || '').toLowerCase()
+        const g = getEdgeGeometry(d)
+        if (tag === 'line') {
+          setSvgAttrIfChanged(el, 'x1', String(g.p1.x))
+          setSvgAttrIfChanged(el, 'y1', String(g.p1.y))
+          setSvgAttrIfChanged(el, 'x2', String(g.p2.x))
+          setSvgAttrIfChanged(el, 'y2', String(g.p2.y))
+          return
+        }
+        if (tag !== 'path') return
+        if ((el as SVGPathElement).classList.contains('kg-edge-arrow')) {
+          setSvgAttrIfChanged(el, 'd', buildEdgeArrowPath(d))
+          return
+        }
+        setSvgAttrIfChanged(el, 'd', buildEdgeStrokePath(d))
+      })
     }
 
     applyStrictOverlapRelax2d({
@@ -677,147 +740,90 @@ export const attachSimulationTick = (args: {
     updateLinkEndpoints((linkSelRef.current as any) ?? null)
     const edgeArrowSel = d3.select(svgEl).selectAll<SVGPathElement, GraphEdge>('path.kg-edge-arrow')
     if (!edgeArrowSel.empty()) {
-      edgeArrowSel.attr('d', d => {
-        const edge = d as unknown as EdgeWithRuntime
-        const src = resolveNode(edge.source)
-        const tgt = resolveNode(edge.target)
-        if (!src || !tgt) return ''
-        const props = d.properties && typeof d.properties === 'object' && !Array.isArray(d.properties)
-          ? (d.properties as Record<string, unknown>)
-          : null
-        const radarForceCfg = readRadarForceConfig(schema)
-        const edgeType = readGlobalEdgeType(schema)
-        const allowCurveByType = edgeType === 'bezier'
-        const curveMode = String(props?.['visual:curve'] || '').trim().toLowerCase()
-        const curveHint = curveMode === 'quadratic' || props?.['kg:radarFlow'] === true
-        const curveOptions = readEdgePathCurveOptions(d, schema)
-        const effectiveCurve = allowCurveByType && (curveHint || !!curveOptions)
-        const effectiveOrbital = allowCurveByType && !!curveOptions?.orbital
-        const p1 = getEdgeEndpointFromPorts({ from: src, to: tgt, schema })
-        const p2 = getEdgeEndpointFromPorts({ from: tgt, to: src, schema })
-        const dx = p2.x - p1.x
-        const dy = p2.y - p1.y
-        const dist = Math.max(1, Math.hypot(dx, dy))
-        const mx = (p1.x + p2.x) / 2
-        const my = (p1.y + p2.y) / 2
-        const nx = -dy / dist
-        const ny = dx / dist
-        const bend = curveOptions ? curveOptions.bend : radarForceCfg.flowCurveBend
-        const cx = effectiveCurve ? mx + nx * dist * bend : mx
-        const cy = effectiveCurve ? my + ny * dist * bend : my
-        const orbitalPolarity = Math.abs(bend) > 1e-6 ? (bend < 0 ? -1 : 1) : (curveOptions?.phase || 1)
-        const orbitalMag = effectiveOrbital ? dist * (curveOptions?.orbitShift || 0) * orbitalPolarity : 0
-        const c2x = p2.x - dx * 0.24 + nx * (dist * bend * 1.14 + orbitalMag)
-        const c2y = p2.y - dy * 0.24 + ny * (dist * bend * 1.14 + orbitalMag)
-        const tx = effectiveCurve ? (effectiveOrbital ? p2.x - c2x : p2.x - cx) : dx
-        const ty = effectiveCurve ? (effectiveOrbital ? p2.y - c2y : p2.y - cy) : dy
-        const tn = Math.max(1, Math.hypot(tx, ty))
-        const ux = tx / tn
-        const uy = ty / tn
-        const px = -uy
-        const py = ux
-        const arrowLenRaw = props?.['visual:arrowLengthPx']
-        const arrowLength = typeof arrowLenRaw === 'number' && Number.isFinite(arrowLenRaw)
-          ? Math.max(4, Math.min(30, arrowLenRaw))
-          : radarForceCfg.flowArrowLengthPx
-        const arrowHalfRaw = props?.['visual:arrowHalfWidthPx']
-        const arrowHalf = typeof arrowHalfRaw === 'number' && Number.isFinite(arrowHalfRaw)
-          ? Math.max(2, Math.min(14, arrowHalfRaw))
-          : radarForceCfg.flowArrowHalfWidthPx
-        const bx = p2.x - ux * arrowLength
-        const by = p2.y - uy * arrowLength
-        const lx = bx + px * arrowHalf
-        const ly = by + py * arrowHalf
-        const rx = bx - px * arrowHalf
-        const ry = by - py * arrowHalf
-        return `M${p2.x},${p2.y} L${lx},${ly} L${rx},${ry} Z`
+      edgeArrowSel.each(function (d) {
+        setSvgAttrIfChanged(this as SVGPathElement, 'd', buildEdgeArrowPath(d))
       })
     }
 
     const nodeSel = nodeSelRef.current
     if (nodeSel) {
-      nodeSel
-        .attr('cx', (d: GraphNode) => d.x!)
-        .attr('cy', (d: GraphNode) => d.y!)
-        .attr('x', (d: GraphNode) => {
-          const { width } = getNodeMetrics(d, schema)
-          return (d.x ?? 0) - width / 2
-        })
-        .attr('y', (d: GraphNode) => {
-          const { height } = getNodeMetrics(d, schema)
-          return (d.y ?? 0) - height / 2
-        })
-        .attr('width', (d: GraphNode) => getNodeMetrics(d, schema).width)
-        .attr('height', (d: GraphNode) => getNodeMetrics(d, schema).height)
-        .attr('r', (d: GraphNode) => getNodeMetrics(d, schema).r)
-        .attr('rx', (d: GraphNode) => getNodeMetrics(d, schema).r * 0.22)
-        .attr('ry', (d: GraphNode) => getNodeMetrics(d, schema).r * 0.22)
-
-      const pathSel = nodeSel.filter(function () {
-        const el = this as unknown as Element
+      nodeSel.each(function (d: GraphNode) {
+        const el = this as SVGElement
         const tag = String(el.tagName || '').toLowerCase()
-        return tag === 'path'
-      }) as unknown as d3.Selection<SVGPathElement, GraphNode, SVGGElement, unknown>
-      if (!pathSel.empty()) {
-        pathSel
-          .attr('transform', (d: GraphNode) => {
-            const x = typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : 0
-            const y = typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : 0
-            return `translate(${x},${y})`
-          })
-          .attr('d', function (d: GraphNode) {
-            const rawShape = String(this.getAttribute('data-kg-node-shape') || '').trim().toLowerCase()
-            const shape = rawShape === 'diamond' || rawShape === 'hex' ? rawShape : null
-            if (!shape) return ''
-            const { width, height } = getNodeMetrics(d, schema)
-            return buildNodeShapePathD({ shape, width, height })
-          })
-      }
+        const x = typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : 0
+        const y = typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : 0
+        const { width, height, r } = getNodeMetricsForFrame(d)
+        if (tag === 'circle') {
+          setSvgAttrIfChanged(el, 'cx', String(x))
+          setSvgAttrIfChanged(el, 'cy', String(y))
+          setSvgAttrIfChanged(el, 'r', String(r))
+          return
+        }
+        if (tag === 'path') {
+          const rawShape = String(el.getAttribute('data-kg-node-shape') || '').trim().toLowerCase()
+          const shape = rawShape === 'diamond' || rawShape === 'hex' ? rawShape : null
+          setSvgAttrIfChanged(el, 'transform', `translate(${x},${y})`)
+          setSvgAttrIfChanged(el, 'd', shape ? buildNodeShapePathD({ shape, width, height }) : '')
+          return
+        }
+        setSvgAttrIfChanged(el, 'x', String(x - width / 2))
+        setSvgAttrIfChanged(el, 'y', String(y - height / 2))
+        setSvgAttrIfChanged(el, 'width', String(width))
+        setSvgAttrIfChanged(el, 'height', String(height))
+        setSvgAttrIfChanged(el, 'rx', String(r * 0.22))
+        setSvgAttrIfChanged(el, 'ry', String(r * 0.22))
+      })
     }
 
     const groupChevronSel = groupChevronSelRef.current
     if (groupChevronSel) {
-      groupChevronSel.attr('d', (d: GraphNode) => {
+      groupChevronSel.each(function (d: GraphNode) {
+        const el = this as SVGPathElement
         const x = typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : 0
         const y = typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : 0
         const props = (d.properties || {}) as Record<string, unknown>
         const groupId = typeof props['kg:groupId'] === 'string' ? String(props['kg:groupId'] || '').trim() : ''
-        if (!groupId) return ''
-        const { width, height, r } = getNodeMetrics(d, schema)
+        if (!groupId) {
+          setSvgAttrIfChanged(el, 'd', '')
+          return
+        }
+        const { width, height, r } = getNodeMetricsForFrame(d)
         const pad = Math.max(6, Math.min(12, r * 0.35))
         const cx = x + width / 2 - pad
         const cy = y - height / 2 + pad
         const size = Math.max(8, Math.min(14, r * 0.9))
-        return buildChevronPathD({ cx, cy, size, direction: 'right' })
+        setSvgAttrIfChanged(el, 'd', buildChevronPathD({ cx, cy, size, direction: 'right' }))
       })
     }
 
     const mediaSel = mediaSelRef.current
     if (mediaSel) {
-      mediaSel.attr('transform', (d: GraphNode) => {
+      mediaSel.each(function (d: GraphNode) {
+        const el = this as SVGGraphicsElement
         const x = typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : 0
         const y = typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : 0
-        return `translate(${x},${y})`
+        setSvgAttrIfChanged(el, 'transform', `translate(${x},${y})`)
       })
     }
 
     const portHandlesSel = portHandlesSelRef.current
     if (portHandlesSel && portHandlesEnabled) {
-      portHandlesSel
-        .attr('cx', d => {
-          const n = nodeById.get(d.nodeId)
-          if (!n) return 0
-          const anyD = d as any
-          if (anyD && typeof anyD.dir === 'string') return getFlowPortHandlePosition2d({ datum: anyD, node: n, schema }).x
-          return getPortHandlePosition({ datum: d as any, node: n, schema, cfg: portHandlesCfg }).x
-        })
-        .attr('cy', d => {
-          const n = nodeById.get(d.nodeId)
-          if (!n) return 0
-          const anyD = d as any
-          if (anyD && typeof anyD.dir === 'string') return getFlowPortHandlePosition2d({ datum: anyD, node: n, schema }).y
-          return getPortHandlePosition({ datum: d as any, node: n, schema, cfg: portHandlesCfg }).y
-        })
+      portHandlesSel.each(function (d) {
+        const el = this as SVGCircleElement
+        const n = nodeById.get(d.nodeId)
+        if (!n) {
+          setSvgAttrIfChanged(el, 'cx', '0')
+          setSvgAttrIfChanged(el, 'cy', '0')
+          return
+        }
+        const anyD = d as any
+        const pos =
+          anyD && typeof anyD.dir === 'string'
+            ? getFlowPortHandlePosition2d({ datum: anyD, node: n, schema })
+            : getPortHandlePosition({ datum: d as any, node: n, schema, cfg: portHandlesCfg })
+        setSvgAttrIfChanged(el, 'cx', String(pos.x))
+        setSvgAttrIfChanged(el, 'cy', String(pos.y))
+      })
     }
 
     const labelsSel = labelsSelRef.current
@@ -841,7 +847,7 @@ export const attachSimulationTick = (args: {
       baseDyFallback,
       maxNodesForRelax,
       maxNodeLabels,
-      getNodeMetrics: n => getNodeMetrics(n, schema),
+      getNodeMetrics: getNodeMetricsForFrame,
       state: labelRelaxState,
     })
 

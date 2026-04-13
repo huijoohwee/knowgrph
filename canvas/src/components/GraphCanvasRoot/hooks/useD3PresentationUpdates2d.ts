@@ -10,6 +10,7 @@ import { updateGraphSceneGroupsPresentation, updateGraphSceneNodesPresentation }
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
 import { computeOverlayHalfExtentsByNodeId2d } from '@/lib/render/overlayHalfExtentsByNodeId2d'
+import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
 
 export function useD3PresentationUpdates2d(args: {
   activeRef: MutableRefObject<boolean>
@@ -125,80 +126,100 @@ export function useD3PresentationUpdates2d(args: {
       return groupKeyByNodeId[id] || null
     }
     if (!frozen) {
-      updateForceSimulationPresentation({
-        simulation: simulationRef.current,
-        nodes: Array.isArray(sceneGraphDataRef.current.nodes) ? (sceneGraphDataRef.current.nodes as GraphNode[]) : [],
-        edges: edgesForSim,
-        width: sceneWidth,
-        height: sceneHeight,
-        schema: schemaValue,
-        groupKeyOf,
-        groupsForBboxCollide: sceneGroupsDerivation?.allGroups || [],
-        nodeHalfExtentsByNodeId: computeOverlayHalfExtentsByNodeId2d({
+      pipelinePerfMeasureSync({
+        name: 'render',
+        stage: 'presentation:forces',
+        detail: {
+          nodes: Array.isArray(sceneGraphDataRef.current.nodes) ? sceneGraphDataRef.current.nodes.length : 0,
+          edges: edgesForSim.length,
+          width: sceneWidth,
+          height: sceneHeight,
+        },
+        run: () => updateForceSimulationPresentation({
+          simulation: simulationRef.current,
           nodes: Array.isArray(sceneGraphDataRef.current.nodes) ? (sceneGraphDataRef.current.nodes as GraphNode[]) : [],
-          panelOnlyNodeIdSet,
-          mediaOverlayNodeIdSet,
-          viewportW: Math.max(1, Math.floor(sceneWidth)),
-          zoomK: (() => {
-            try {
-              const el = svgRef.current
-              if (!el) return 1
-              const k = d3.zoomTransform(el).k
-              return typeof k === 'number' && Number.isFinite(k) && k > 0 ? k : 1
-            } catch {
-              return 1
-            }
-          })(),
-          mediaPanelDensity,
-          overlaySizing: {
-            overlayBaseWidthRatioDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthRatioDefault,
-            overlayBaseWidthRatioCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthRatioCompact,
-            overlayBaseWidthMinPxDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMinPxDefault,
-            overlayBaseWidthMinPxCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMinPxCompact,
-            overlayBaseWidthMaxPxDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMaxPxDefault,
-            overlayBaseWidthMaxPxCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMaxPxCompact,
-          },
+          edges: edgesForSim,
+          width: sceneWidth,
+          height: sceneHeight,
+          schema: schemaValue,
+          groupKeyOf,
+          groupsForBboxCollide: sceneGroupsDerivation?.allGroups || [],
+          nodeHalfExtentsByNodeId: computeOverlayHalfExtentsByNodeId2d({
+            nodes: Array.isArray(sceneGraphDataRef.current.nodes) ? (sceneGraphDataRef.current.nodes as GraphNode[]) : [],
+            panelOnlyNodeIdSet,
+            mediaOverlayNodeIdSet,
+            viewportW: Math.max(1, Math.floor(sceneWidth)),
+            zoomK: (() => {
+              try {
+                const el = svgRef.current
+                if (!el) return 1
+                const k = d3.zoomTransform(el).k
+                return typeof k === 'number' && Number.isFinite(k) && k > 0 ? k : 1
+              } catch {
+                return 1
+              }
+            })(),
+            mediaPanelDensity,
+            overlaySizing: {
+              overlayBaseWidthRatioDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthRatioDefault,
+              overlayBaseWidthRatioCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthRatioCompact,
+              overlayBaseWidthMinPxDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMinPxDefault,
+              overlayBaseWidthMinPxCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMinPxCompact,
+              overlayBaseWidthMaxPxDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMaxPxDefault,
+              overlayBaseWidthMaxPxCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMaxPxCompact,
+            },
+          }),
         }),
       })
     }
-    updateGraphSceneNodesPresentation({
-      svgEl: svgRef.current,
-      zoomRef,
-      edgeScrollEnabled: () => useGraphStore.getState().viewPinned !== true,
-      gRef,
-      schema: schemaValue,
-      documentSemanticMode: documentSemanticMode ?? undefined,
-      hoverEnabled,
-      zoomOnDoubleClick,
-      renderMediaAsNodes,
-      mediaOverlayNodeIdSet,
-      panelOnlyNodeIdSet,
-      mediaPanelDensity,
-      tempLinkSelRef,
-      linkDragRef,
-      simulationRef,
-      sceneGraphDataRef,
-      nodesSelRef,
-      groupChevronSelRef,
-      mediaSelRef,
-      portHandlesSelRef,
-      labelsSelRef,
-      setHoverInfo: updater => setHoverInfo(prev => updater(prev)),
-      selectNode: id => useGraphStore.getState().selectNode(id),
-      selectEdge: id => useGraphStore.getState().selectEdge(id),
-      setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
-      addEdge: e => useGraphStore.getState().addEdge(e),
-      updateEdge: (id, u) => useGraphStore.getState().updateEdge(id, u),
-      getSelectedEdgeId: () => selectedEdgeIdRef.current,
-      enableEditorGestures,
-      onCommitNodePosition:
-        enableEditorGestures
-          ? ({ id, x, y }) => {
-              useGraphStore.getState().updateNode(id, { x, y })
-            }
-          : undefined,
-      requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
-      toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
+    pipelinePerfMeasureSync({
+      name: 'render',
+      stage: 'presentation:nodes',
+      detail: {
+        nodes: Array.isArray(sceneGraphDataRef.current.nodes) ? sceneGraphDataRef.current.nodes.length : 0,
+        edges: edgesForSim.length,
+        overlays: mediaOverlayNodeIdSet.size,
+        panelOnlyNodes: panelOnlyNodeIdSet.size,
+      },
+      run: () => updateGraphSceneNodesPresentation({
+        svgEl: svgRef.current,
+        zoomRef,
+        edgeScrollEnabled: () => useGraphStore.getState().viewPinned !== true,
+        gRef,
+        schema: schemaValue,
+        documentSemanticMode: documentSemanticMode ?? undefined,
+        hoverEnabled,
+        zoomOnDoubleClick,
+        renderMediaAsNodes,
+        mediaOverlayNodeIdSet,
+        panelOnlyNodeIdSet,
+        mediaPanelDensity,
+        tempLinkSelRef,
+        linkDragRef,
+        simulationRef,
+        sceneGraphDataRef,
+        nodesSelRef,
+        groupChevronSelRef,
+        mediaSelRef,
+        portHandlesSelRef,
+        labelsSelRef,
+        setHoverInfo: updater => setHoverInfo(prev => updater(prev)),
+        selectNode: id => useGraphStore.getState().selectNode(id),
+        selectEdge: id => useGraphStore.getState().selectEdge(id),
+        setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
+        addEdge: e => useGraphStore.getState().addEdge(e),
+        updateEdge: (id, u) => useGraphStore.getState().updateEdge(id, u),
+        getSelectedEdgeId: () => selectedEdgeIdRef.current,
+        enableEditorGestures,
+        onCommitNodePosition:
+          enableEditorGestures
+            ? ({ id, x, y }) => {
+                useGraphStore.getState().updateNode(id, { x, y })
+              }
+            : undefined,
+        requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
+        toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
+      }),
     })
     nodesPresentationAppliedKeyRef.current =
       `${schemaNodesPresentationJson}|${sceneWidth}|${sceneHeight}|${panelOnlyNodeIdsKey}|${mediaOverlayNodeIdsKey}|${enableEditorGestures ? 1 : 0}`
@@ -246,20 +267,28 @@ export function useD3PresentationUpdates2d(args: {
     const schemaValue = schemaRef.current
     if (!sceneGraphData) return
     const hoverEnabled = schemaValue.behavior?.hover?.enabled !== false && !coarsePointer
-    updateGraphSceneGroupsPresentation({
-      gRef,
-      schema: schemaValue,
-      graphData: sceneGraphData,
-      documentSemanticMode: documentSemanticMode ?? undefined,
-      beforeRenderFrameRef,
-      simulationRef,
-      hoverEnabled,
-      setHoverInfo: updater => setHoverInfo(prev => updater(prev)),
-      setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
-      selectNode: id => useGraphStore.getState().selectNode(id),
-      selectGroup: id => useGraphStore.getState().selectGroup(id),
-      selectGroupExpanded: x => useGraphStore.getState().selectGroupExpanded({ id: x.id, nodeIds: x.nodeIds, edgeIds: x.edgeIds }),
-      toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
+    pipelinePerfMeasureSync({
+      name: 'render',
+      stage: 'presentation:groups',
+      detail: {
+        nodes: Array.isArray(sceneGraphData.nodes) ? sceneGraphData.nodes.length : 0,
+        groups: Array.isArray(sceneGroupsDerivation?.allGroups) ? sceneGroupsDerivation.allGroups.length : 0,
+      },
+      run: () => updateGraphSceneGroupsPresentation({
+        gRef,
+        schema: schemaValue,
+        graphData: sceneGraphData,
+        documentSemanticMode: documentSemanticMode ?? undefined,
+        beforeRenderFrameRef,
+        simulationRef,
+        hoverEnabled,
+        setHoverInfo: updater => setHoverInfo(prev => updater(prev)),
+        setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
+        selectNode: id => useGraphStore.getState().selectNode(id),
+        selectGroup: id => useGraphStore.getState().selectGroup(id),
+        selectGroupExpanded: x => useGraphStore.getState().selectGroupExpanded({ id: x.id, nodeIds: x.nodeIds, edgeIds: x.edgeIds }),
+        toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
+      }),
     })
     groupsPresentationAppliedKeyRef.current = schemaGroupsPresentationJson
   }, [

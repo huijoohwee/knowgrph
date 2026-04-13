@@ -1,5 +1,5 @@
-import { LS_KEYS } from '@/lib/config'
-import { createCanvasSlice } from '@/hooks/store/canvasSlice'
+import { LS_KEYS } from '@/lib/config.ls.keys'
+import { applyCanvasSliceStorageMigrations, createCanvasSlice } from '@/hooks/store/canvasSlice'
 import type { GraphState } from '@/hooks/store/types'
 import {
   FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_DEFAULT,
@@ -51,12 +51,11 @@ const ensureLocalStorage = (): Storage => {
   return w.localStorage
 }
 
-const bootCanvasSlice = () => {
+const bootCanvasSlice = () =>
   createCanvasSlice(
     () => {},
     () => ({} as unknown as GraphState),
   )
-}
 
 export function testFlowZoomDefaultsMigrationUpgradesPriorDefaults() {
   const storage = ensureLocalStorage()
@@ -64,7 +63,19 @@ export function testFlowZoomDefaultsMigrationUpgradesPriorDefaults() {
   storage.setItem(LS_KEYS.flowWheelZoomSpeedMultiplier, '0.25')
   storage.setItem(LS_KEYS.wheelZoomCtrlMetaBoostMultiplier, '12')
 
-  bootCanvasSlice()
+  const slice = bootCanvasSlice()
+
+  if (!(Math.abs(slice.flowWheelZoomSpeedMultiplier - FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_DEFAULT) < 1e-6)) {
+    throw new Error('expected in-memory flow wheel zoom speed default to migrate from 0.25')
+  }
+  if (!(Math.abs(slice.wheelZoomCtrlMetaBoostMultiplier - CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT) < 1e-6)) {
+    throw new Error('expected in-memory ctrl/meta wheel zoom boost default to migrate from 12')
+  }
+  if (storage.getItem(LS_KEYS.flowWheelZoomDefaultsVersion) != null) {
+    throw new Error('expected slice construction to avoid writing migration version at import time')
+  }
+
+  applyCanvasSliceStorageMigrations()
 
   const migratedSpeed = parseFloat(storage.getItem(LS_KEYS.flowWheelZoomSpeedMultiplier) || '')
   const migratedBoost = parseFloat(storage.getItem(LS_KEYS.wheelZoomCtrlMetaBoostMultiplier) || '')
@@ -87,7 +98,16 @@ export function testFlowZoomDefaultsMigrationDoesNotOverrideCustomValues() {
   storage.setItem(LS_KEYS.flowWheelZoomSpeedMultiplier, '0.9')
   storage.setItem(LS_KEYS.wheelZoomCtrlMetaBoostMultiplier, '22')
 
-  bootCanvasSlice()
+  const slice = bootCanvasSlice()
+
+  if (!(Math.abs(slice.flowWheelZoomSpeedMultiplier - 0.9) < 1e-6)) {
+    throw new Error('expected in-memory migration to not override custom flow wheel zoom speed')
+  }
+  if (!(Math.abs(slice.wheelZoomCtrlMetaBoostMultiplier - 22) < 1e-6)) {
+    throw new Error('expected in-memory migration to not override custom ctrl/meta wheel zoom boost')
+  }
+
+  applyCanvasSliceStorageMigrations()
 
   const speed = parseFloat(storage.getItem(LS_KEYS.flowWheelZoomSpeedMultiplier) || '')
   const boost = parseFloat(storage.getItem(LS_KEYS.wheelZoomCtrlMetaBoostMultiplier) || '')
@@ -113,7 +133,16 @@ export function testFlowZoomDefaultsMigrationNoopsWhenVersionAlreadySet() {
   })
   lsSetInt(LS_KEYS.flowWheelZoomDefaultsVersion, 3)
 
-  bootCanvasSlice()
+  const slice = bootCanvasSlice()
+
+  if (!(Math.abs(slice.flowWheelZoomSpeedMultiplier - 0.25) < 1e-6)) {
+    throw new Error('expected version guard to preserve in-memory flow wheel zoom speed')
+  }
+  if (!(Math.abs(slice.wheelZoomCtrlMetaBoostMultiplier - 12) < 1e-6)) {
+    throw new Error('expected version guard to preserve in-memory ctrl/meta wheel zoom boost')
+  }
+
+  applyCanvasSliceStorageMigrations()
 
   const speed = parseFloat(storage.getItem(LS_KEYS.flowWheelZoomSpeedMultiplier) || '')
   const boost = parseFloat(storage.getItem(LS_KEYS.wheelZoomCtrlMetaBoostMultiplier) || '')
@@ -133,7 +162,16 @@ export function testFlowZoomDefaultsMigrationWorksWithoutExistingKeys() {
   if (!existing) {
     throw new Error('expected localStorage to be available in migration test')
   }
-  bootCanvasSlice()
+  const slice = bootCanvasSlice()
+
+  if (!(Math.abs(slice.flowWheelZoomSpeedMultiplier - FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_DEFAULT) < 1e-6)) {
+    throw new Error('expected missing-key boot to use default flow wheel zoom speed in memory')
+  }
+  if (!(Math.abs(slice.wheelZoomCtrlMetaBoostMultiplier - CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT) < 1e-6)) {
+    throw new Error('expected missing-key boot to use default ctrl/meta boost in memory')
+  }
+
+  applyCanvasSliceStorageMigrations()
 
   const version = parseInt(storage.getItem(LS_KEYS.flowWheelZoomDefaultsVersion) || '', 10)
   if (version !== 3) {

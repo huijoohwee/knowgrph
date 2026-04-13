@@ -1,7 +1,7 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { createTabSync, buildEnvelope } from '@/lib/tabSync'
-import { STORAGE_CHANNELS } from '@/lib/config.ls'
+import { STORAGE_CHANNELS } from '@/lib/config.ls.keys'
 import { cancelIdle, scheduleIdle } from '@/features/panels/utils/idle'
 import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {

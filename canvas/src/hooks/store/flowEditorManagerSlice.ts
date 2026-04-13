@@ -1,11 +1,11 @@
 import type { StoreApi } from 'zustand'
 
-import { LS_KEYS } from '@/lib/config'
+import { LS_KEYS } from '@/lib/config.ls.keys'
 import { lsSetJson, getLocalStorage } from '@/lib/persistence'
 import { createUniqueId } from '@/lib/ids'
 import type { GraphState } from '@/hooks/store/types'
 import { buildGenerateVideoRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
-import { FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config'
+import { FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import type {
   NodeQuickEditorRegistryEntry,
   NodeQuickEditorRegistryField,
@@ -207,11 +207,26 @@ export function ensureDefaultGenerateVideoRegistryEntry(
   return { entries: next, changed: true }
 }
 
-export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
-  const storage = getLocalStorage()
+export const planFlowEditorManagerDefaultRegistrySeed = (storage: Storage | null = getLocalStorage()) => {
   const rawInitial = readNodeQuickEditorRegistryFromStorage(storage)
   const seeded = ensureDefaultGenerateVideoRegistryEntry(rawInitial)
-  const initial = seeded.entries
+  return {
+    storage,
+    entries: seeded.entries,
+    changed: seeded.changed,
+  }
+}
+
+export const applyFlowEditorManagerDefaultRegistrySeed = (storage: Storage | null = getLocalStorage()): boolean => {
+  const plan = planFlowEditorManagerDefaultRegistrySeed(storage)
+  if (!plan.changed) return false
+  writeNodeQuickEditorRegistryToStorage(plan.storage, plan.entries)
+  return true
+}
+
+export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
+  const initialPlan = planFlowEditorManagerDefaultRegistrySeed(getLocalStorage())
+  const initial = initialPlan.entries
 
   const persist = (next: NodeQuickEditorRegistryEntry[]) => {
     try {
@@ -220,9 +235,6 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
       void 0
     }
   }
-
-  if (seeded.changed) persist(initial)
-
   const pickEffective = (global: NodeQuickEditorRegistryEntry[], doc: NodeQuickEditorRegistryEntry[]) => {
     const g = Array.isArray(global) ? global : []
     const d = Array.isArray(doc) ? doc : []

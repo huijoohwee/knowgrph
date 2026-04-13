@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { ToolbarToolMenu } from '@/features/toolbar/ToolbarToolMenu'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_LABELS } from '@/lib/config'
-import { LS_KEYS } from '@/lib/config.ls'
+import { LS_KEYS } from '@/lib/config.ls.keys'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 const tick = async () => {

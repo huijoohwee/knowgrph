@@ -54,6 +54,7 @@ import { useArrangeRequestEffect2d } from '@/components/GraphCanvasRoot/hooks/us
 import { ArrangeToolbar2d } from '@/components/GraphCanvasRoot/components/ArrangeToolbar2d'
 import { useMarqueeSelection2d } from '@/components/GraphCanvasRoot/hooks/useMarqueeSelection2d'
 import { MarqueeBoxOverlay } from '@/components/GraphCanvasRoot/components/MarqueeBoxOverlay'
+import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
 
 const MARKDOWN_PANEL_ALLOWED_KINDS = ['table', 'code', 'blockquote', 'callout', 'html'] as const
 
@@ -279,23 +280,50 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
 
   const clonedGraphData = useMemo(() => {
     if (!renderGraphData) return null
-    return cloneGraphDataForRender(renderGraphData) as GraphData
+    return pipelinePerfMeasureSync({
+      name: 'render',
+      stage: 'graphRoot:clone',
+      detail: {
+        nodes: Array.isArray(renderGraphData.nodes) ? renderGraphData.nodes.length : 0,
+        edges: Array.isArray(renderGraphData.edges) ? renderGraphData.edges.length : 0,
+      },
+      run: () => cloneGraphDataForRender(renderGraphData) as GraphData,
+    })
   }, [renderGraphData])
   const sceneDisplayGraphDerivation = useMemo(() => {
     if (!clonedGraphData) return null
-    return deriveSceneDisplayGraph({ graphData: clonedGraphData })
+    return pipelinePerfMeasureSync({
+      name: 'render',
+      stage: 'graphRoot:displayGraph',
+      detail: {
+        nodes: Array.isArray(clonedGraphData.nodes) ? clonedGraphData.nodes.length : 0,
+        edges: Array.isArray(clonedGraphData.edges) ? clonedGraphData.edges.length : 0,
+      },
+      run: () => deriveSceneDisplayGraph({ graphData: clonedGraphData }),
+    })
   }, [clonedGraphData])
   const sceneGraphData = useMemo(() => {
     if (!clonedGraphData) return null
     return sceneDisplayGraphDerivation?.displayGraphData || clonedGraphData
   }, [clonedGraphData, sceneDisplayGraphDerivation])
   const sceneGroupsDerivation = useMemo(() => {
-    return deriveSceneGroups({
-      graphData: clonedGraphData,
-      graphDataRevision: graphContentRevision || 0,
-      schema,
-      documentSemanticMode: String(documentSemanticMode || ''),
-      frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
+    return pipelinePerfMeasureSync({
+      name: 'render',
+      stage: 'graphRoot:groups',
+      detail: {
+        nodes: Array.isArray(clonedGraphData?.nodes) ? clonedGraphData.nodes.length : 0,
+        edges: Array.isArray(clonedGraphData?.edges) ? clonedGraphData.edges.length : 0,
+        graphContentRevision: graphContentRevision || 0,
+        documentSemanticMode: String(documentSemanticMode || ''),
+        frontmatterModeEnabled: effectiveFrontmatterModeEnabled === true,
+      },
+      run: () => deriveSceneGroups({
+        graphData: clonedGraphData,
+        graphDataRevision: graphContentRevision || 0,
+        schema,
+        documentSemanticMode: String(documentSemanticMode || ''),
+        frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
+      }),
     })
   }, [clonedGraphData, documentSemanticMode, effectiveFrontmatterModeEnabled, graphContentRevision, schema])
 
@@ -381,7 +409,15 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   }, [active])
 
   const edgesForSim = useMemo(() => {
-    return normalizeEdgesForSim((sceneGraphData?.nodes ?? []) as GraphNode[], (sceneGraphData?.edges ?? []) as GraphEdge[])
+    return pipelinePerfMeasureSync({
+      name: 'render',
+      stage: 'graphRoot:edgesForSim',
+      detail: {
+        nodes: Array.isArray(sceneGraphData?.nodes) ? sceneGraphData.nodes.length : 0,
+        edges: Array.isArray(sceneGraphData?.edges) ? sceneGraphData.edges.length : 0,
+      },
+      run: () => normalizeEdgesForSim((sceneGraphData?.nodes ?? []) as GraphNode[], (sceneGraphData?.edges ?? []) as GraphEdge[]),
+    })
   }, [sceneGraphData])
   const flowState = useMemo(() => computeFlowState(sceneGraphData as GraphData | null), [sceneGraphData])
 
@@ -391,8 +427,18 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     if (!markdownText.trim()) return null
     const activeDocumentPath = String(markdownDocumentName || '').trim() || 'markdown'
     const markdownTokensKey = buildMarkdownTokensKey(markdownText)
-    const lexed = lexMarkdown(markdownText)
-    return deriveMarkdownDesignLayout({ activeDocumentPath, markdownTokensKey, tokens: lexed.tokens as never })
+    return pipelinePerfMeasureSync({
+      name: 'render',
+      stage: 'graphRoot:markdownLayout',
+      detail: {
+        textLength: markdownText.length,
+        activeDocumentPath,
+      },
+      run: () => {
+        const lexed = lexMarkdown(markdownText)
+        return deriveMarkdownDesignLayout({ activeDocumentPath, markdownTokensKey, tokens: lexed.tokens as never })
+      },
+    })
   }, [markdownDocumentName, deferredMarkdownDocumentText])
 
   const nodeByIdForPanelsRef = useRef<{ rev: number; sim: d3.Simulation<GraphNode, GraphEdge> | null; map: Map<string, GraphNode> }>({
@@ -441,188 +487,197 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const graphBlockPanel = useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
     if (nodes.length === 0) return null
+    return pipelinePerfMeasureSync({
+      name: 'render',
+      stage: 'graphRoot:graphBlockPanel',
+      detail: {
+        nodes: nodes.length,
+        renderer: String(canvas2dRenderer || ''),
+      },
+      run: () => {
+        const blocks: MarkdownDesignBlock[] = []
+        const iframeNodeIds: string[] = []
 
-    const blocks: MarkdownDesignBlock[] = []
-    const iframeNodeIds: string[] = []
-
-    const sim = simulationRef.current
-    const simNodes = sim ? (sim.nodes() as unknown as GraphNode[]) : []
-    const simById = new Map<string, GraphNode>()
-    for (let i = 0; i < simNodes.length; i += 1) {
-      const n = simNodes[i]!
-      const id = String(n?.id || '').trim()
-      if (!id) continue
-      simById.set(id, n)
-    }
-    const lastPos = graphBlockPanelLastPosRef.current
-    const keepPosIds = new Set<string>()
-
-    const getNum = (v: unknown): number | null => {
-      if (typeof v === 'number' && Number.isFinite(v)) return v
-      if (typeof v === 'string') {
-        const n = Number(v)
-        if (Number.isFinite(n)) return n
-      }
-      return null
-    }
-
-    const escapeAttr = (s: string): string => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
-
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]!
-      const id = String(n?.id || '').trim()
-      if (!id) continue
-      const xGraph = getNum((n as unknown as { x?: unknown }).x)
-      const yGraph = getNum((n as unknown as { y?: unknown }).y)
-      const simNode = simById.get(id) || null
-      const xSim = simNode ? getNum((simNode as unknown as { x?: unknown }).x) : null
-      const ySim = simNode ? getNum((simNode as unknown as { y?: unknown }).y) : null
-      const prev = lastPos.get(id) || null
-      const x = xGraph ?? xSim ?? prev?.x ?? -99999
-      const y = yGraph ?? ySim ?? prev?.y ?? -99999
-      if (Number.isFinite(x) && Number.isFinite(y)) {
-        keepPosIds.add(id)
-        lastPos.set(id, { x, y })
-      }
-
-      const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
-      const lineStart = getNum(meta ? meta.lineStart : null)
-      const lineEnd = getNum(meta ? meta.lineEnd : null)
-      const startLine = Math.max(1, Math.floor(lineStart ?? 1))
-      const endLine = Math.max(startLine, Math.floor(lineEnd ?? startLine))
-
-      const propsObj = n.properties && typeof n.properties === 'object' && !Array.isArray(n.properties) ? (n.properties as Record<string, unknown>) : null
-      const w = Math.max(1, Math.floor(getNum(propsObj ? propsObj['visual:width'] : null) ?? MARKDOWN_DESIGN_LAYOUT.block.widthPx))
-      const h = Math.max(1, Math.floor(getNum(propsObj ? propsObj['visual:height'] : null) ?? MARKDOWN_DESIGN_LAYOUT.block.minHeightPx))
-
-      const nodeType = String(n.type || '').trim()
-      const typeLower = nodeType.toLowerCase()
-
-      if (typeLower === 'table') {
-        const headerRaw = propsObj ? propsObj['table:header'] : null
-        const rowsRaw = propsObj ? propsObj['table:rows'] : null
-        const header = Array.isArray(headerRaw) ? headerRaw.map(v => String(v ?? '')) : []
-        const rows = Array.isArray(rowsRaw)
-          ? rowsRaw.map(r => (Array.isArray(r) ? r.map(v => String(v ?? '')) : [])).filter(r => r.length > 0)
-          : []
-        blocks.push({
-          id,
-          type: 'table',
-          title: String(n.label || '').trim() || 'Table',
-          summary: '',
-          startLine,
-          endLine,
-          x: x - w / 2,
-          y: y - h / 2,
-          w,
-          h,
-          preview: { kind: 'table', table: { columns: header, rows, rowCount: rows.length } },
-        })
-        continue
-      }
-
-      if (typeLower === 'codeblock') {
-        const lang = propsObj && typeof propsObj.language === 'string' ? String(propsObj.language || '') : ''
-        const code = propsObj && typeof propsObj.code === 'string' ? String(propsObj.code || '') : ''
-        const lines = code ? code.split(/\r?\n/).slice(0, 6) : []
-        blocks.push({
-          id,
-          type: 'code',
-          title: String(n.label || '').trim() || (lang ? `Code (${lang})` : 'Code'),
-          summary: '',
-          startLine,
-          endLine,
-          x: x - w / 2,
-          y: y - h / 2,
-          w,
-          h,
-          preview: { kind: 'code', code: { lang, lines } },
-        })
-        continue
-      }
-
-      if (typeLower === 'paragraph') {
-        const text = propsObj && typeof propsObj['text'] === 'string' ? String(propsObj['text'] || '') : ''
-        const trimmed = text.trim()
-        const isCallout = propsObj && propsObj.calloutType === true
-        if (isCallout) {
-          const calloutType = String(propsObj?.calloutKind || 'note')
-          const title = String(propsObj?.calloutTitle || '').trim()
-          const collapsed = String(propsObj?.calloutFoldable || '') === '-'
-          blocks.push({
-            id,
-            type: 'blockquote',
-            title: String(n.label || '').trim() || 'Callout',
-            summary: '',
-            startLine,
-            endLine,
-            x: x - w / 2,
-            y: y - h / 2,
-            w,
-            h,
-            preview: { kind: 'callout', callout: { calloutType, title, collapsed } },
-          })
-          continue
+        const sim = simulationRef.current
+        const simNodes = sim ? (sim.nodes() as unknown as GraphNode[]) : []
+        const simById = new Map<string, GraphNode>()
+        for (let i = 0; i < simNodes.length; i += 1) {
+          const n = simNodes[i]!
+          const id = String(n?.id || '').trim()
+          if (!id) continue
+          simById.set(id, n)
         }
-        if (trimmed.startsWith('>')) {
-          const lines = trimmed.split(/\r?\n/).map(l => l.replace(/^\s*>\s?/, '')).filter(Boolean).slice(0, 6)
-          blocks.push({
-            id,
-            type: 'blockquote',
-            title: String(n.label || '').trim() || 'Blockquote',
-            summary: '',
-            startLine,
-            endLine,
-            x: x - w / 2,
-            y: y - h / 2,
-            w,
-            h,
-            preview: { kind: 'blockquote', blockquote: { lines } },
-          })
-          continue
+        const lastPos = graphBlockPanelLastPosRef.current
+        const keepPosIds = new Set<string>()
+
+        const getNum = (v: unknown): number | null => {
+          if (typeof v === 'number' && Number.isFinite(v)) return v
+          if (typeof v === 'string') {
+            const n = Number(v)
+            if (Number.isFinite(n)) return n
+          }
+          return null
         }
-      }
 
-      const spec = getNodeMediaSpec(n)
-      if (spec?.kind === 'iframe') {
-        const url = String(spec.url || '').trim()
-        if (!url) continue
-        iframeNodeIds.push(id)
-        const title = String(n.label || 'Iframe').trim() || 'Iframe'
-        const raw = `<iframe src="${escapeAttr(url)}" title="${escapeAttr(title)}"></iframe>`
-        blocks.push({
-          id,
-          type: 'html',
-          title,
-          summary: '',
-          startLine,
-          endLine,
-          x: x - w / 2,
-          y: y - h / 2,
-          w,
-          h,
-          preview: { kind: 'html', html: { raw } },
-        })
-        continue
-      }
-    }
+        const escapeAttr = (s: string): string => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 
-    for (const id of Array.from(lastPos.keys())) {
-      if (!keepPosIds.has(id)) lastPos.delete(id)
-    }
+        for (let i = 0; i < nodes.length; i += 1) {
+          const n = nodes[i]!
+          const id = String(n?.id || '').trim()
+          if (!id) continue
+          const xGraph = getNum((n as unknown as { x?: unknown }).x)
+          const yGraph = getNum((n as unknown as { y?: unknown }).y)
+          const simNode = simById.get(id) || null
+          const xSim = simNode ? getNum((simNode as unknown as { x?: unknown }).x) : null
+          const ySim = simNode ? getNum((simNode as unknown as { y?: unknown }).y) : null
+          const prev = lastPos.get(id) || null
+          const x = xGraph ?? xSim ?? prev?.x ?? -99999
+          const y = yGraph ?? ySim ?? prev?.y ?? -99999
+          if (Number.isFinite(x) && Number.isFinite(y)) {
+            keepPosIds.add(id)
+            lastPos.set(id, { x, y })
+          }
 
-    if (blocks.length === 0) return null
+          const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
+          const lineStart = getNum(meta ? meta.lineStart : null)
+          const lineEnd = getNum(meta ? meta.lineEnd : null)
+          const startLine = Math.max(1, Math.floor(lineStart ?? 1))
+          const endLine = Math.max(startLine, Math.floor(lineEnd ?? startLine))
 
-    const sortedIframes = Array.from(new Set(iframeNodeIds)).sort((a, b) => a.localeCompare(b))
-    const key = `graphBlocks|rev:${graphDataRevision || 0}|nodes:${nodes.length}`
-    return {
-      layout: { key, blocks } as MarkdownDesignLayout,
-      panelOnlyNodeIdsKey: blocks.map(b => b.id).sort((a, b) => a.localeCompare(b)).join('|'),
-      panelOnlyNodeIdSet: new Set(blocks.map(b => b.id)),
-      iframeNodeIdsKey: sortedIframes.join('|'),
-      iframeNodeIdSet: new Set(sortedIframes),
-    }
-  }, [graphDataRevision, sceneGraphData])
+          const propsObj = n.properties && typeof n.properties === 'object' && !Array.isArray(n.properties) ? (n.properties as Record<string, unknown>) : null
+          const w = Math.max(1, Math.floor(getNum(propsObj ? propsObj['visual:width'] : null) ?? MARKDOWN_DESIGN_LAYOUT.block.widthPx))
+          const h = Math.max(1, Math.floor(getNum(propsObj ? propsObj['visual:height'] : null) ?? MARKDOWN_DESIGN_LAYOUT.block.minHeightPx))
+
+          const nodeType = String(n.type || '').trim()
+          const typeLower = nodeType.toLowerCase()
+
+          if (typeLower === 'table') {
+            const headerRaw = propsObj ? propsObj['table:header'] : null
+            const rowsRaw = propsObj ? propsObj['table:rows'] : null
+            const header = Array.isArray(headerRaw) ? headerRaw.map(v => String(v ?? '')) : []
+            const rows = Array.isArray(rowsRaw)
+              ? rowsRaw.map(r => (Array.isArray(r) ? r.map(v => String(v ?? '')) : [])).filter(r => r.length > 0)
+              : []
+            blocks.push({
+              id,
+              type: 'table',
+              title: String(n.label || '').trim() || 'Table',
+              summary: '',
+              startLine,
+              endLine,
+              x: x - w / 2,
+              y: y - h / 2,
+              w,
+              h,
+              preview: { kind: 'table', table: { columns: header, rows, rowCount: rows.length } },
+            })
+            continue
+          }
+
+          if (typeLower === 'codeblock') {
+            const lang = propsObj && typeof propsObj.language === 'string' ? String(propsObj.language || '') : ''
+            const code = propsObj && typeof propsObj.code === 'string' ? String(propsObj.code || '') : ''
+            const lines = code ? code.split(/\r?\n/).slice(0, 6) : []
+            blocks.push({
+              id,
+              type: 'code',
+              title: String(n.label || '').trim() || (lang ? `Code (${lang})` : 'Code'),
+              summary: '',
+              startLine,
+              endLine,
+              x: x - w / 2,
+              y: y - h / 2,
+              w,
+              h,
+              preview: { kind: 'code', code: { lang, lines } },
+            })
+            continue
+          }
+
+          if (typeLower === 'paragraph') {
+            const text = propsObj && typeof propsObj['text'] === 'string' ? String(propsObj['text'] || '') : ''
+            const trimmed = text.trim()
+            const isCallout = propsObj && propsObj.calloutType === true
+            if (isCallout) {
+              const calloutType = String(propsObj?.calloutKind || 'note')
+              const title = String(propsObj?.calloutTitle || '').trim()
+              const collapsed = String(propsObj?.calloutFoldable || '') === '-'
+              blocks.push({
+                id,
+                type: 'blockquote',
+                title: String(n.label || '').trim() || 'Callout',
+                summary: '',
+                startLine,
+                endLine,
+                x: x - w / 2,
+                y: y - h / 2,
+                w,
+                h,
+                preview: { kind: 'callout', callout: { calloutType, title, collapsed } },
+              })
+              continue
+            }
+            if (trimmed.startsWith('>')) {
+              const lines = trimmed.split(/\r?\n/).map(l => l.replace(/^\s*>\s?/, '')).filter(Boolean).slice(0, 6)
+              blocks.push({
+                id,
+                type: 'blockquote',
+                title: String(n.label || '').trim() || 'Blockquote',
+                summary: '',
+                startLine,
+                endLine,
+                x: x - w / 2,
+                y: y - h / 2,
+                w,
+                h,
+                preview: { kind: 'blockquote', blockquote: { lines } },
+              })
+              continue
+            }
+          }
+
+          const spec = getNodeMediaSpec(n)
+          if (spec?.kind === 'iframe') {
+            const url = String(spec.url || '').trim()
+            if (!url) continue
+            iframeNodeIds.push(id)
+            const title = String(n.label || 'Iframe').trim() || 'Iframe'
+            const raw = `<iframe src="${escapeAttr(url)}" title="${escapeAttr(title)}"></iframe>`
+            blocks.push({
+              id,
+              type: 'html',
+              title,
+              summary: '',
+              startLine,
+              endLine,
+              x: x - w / 2,
+              y: y - h / 2,
+              w,
+              h,
+              preview: { kind: 'html', html: { raw } },
+            })
+            continue
+          }
+        }
+
+        for (const id of Array.from(lastPos.keys())) {
+          if (!keepPosIds.has(id)) lastPos.delete(id)
+        }
+
+        if (blocks.length === 0) return null
+
+        const sortedIframes = Array.from(new Set(iframeNodeIds)).sort((a, b) => a.localeCompare(b))
+        const key = `graphBlocks|rev:${graphDataRevision || 0}|nodes:${nodes.length}`
+        return {
+          layout: { key, blocks } as MarkdownDesignLayout,
+          panelOnlyNodeIdsKey: blocks.map(b => b.id).sort((a, b) => a.localeCompare(b)).join('|'),
+          panelOnlyNodeIdSet: new Set(blocks.map(b => b.id)),
+          iframeNodeIdsKey: sortedIframes.join('|'),
+          iframeNodeIdSet: new Set(sortedIframes),
+        }
+      },
+    })
+  }, [canvas2dRenderer, graphDataRevision, sceneGraphData])
 
   const markdownPanelLineRanges = useMemo(() => {
     const layout = markdownDesignLayout

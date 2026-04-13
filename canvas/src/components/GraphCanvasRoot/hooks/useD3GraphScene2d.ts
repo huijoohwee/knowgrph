@@ -16,6 +16,7 @@ import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
 import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { commitZoomTransformToStore } from '@/lib/canvas/zoom-commit'
 import { isD3Like2dRenderer } from '@/lib/config.render'
+import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
 import {
   buildLayoutPositionCacheKey,
   buildLayoutViewKey,
@@ -517,102 +518,113 @@ export function useD3GraphScene2d(args: {
       lastLayoutViewKeyRef.current = layoutViewKey
       activeLayoutCacheKeyRef.current = cacheKey
 
-      sceneCleanupRef.current = setupGraphScene({
-        active: () => activeRef.current,
-        svgEl: svgRef.current,
-        svgRef,
-        graphData: sceneGraphData,
-        graphDataRevision: graphDataRevision || 0,
-        schema: schemaForScene,
-        documentSemanticMode: documentSemanticMode ?? undefined,
-        frontmatterModeEnabled: effectiveFrontmatterModeEnabled,
-        multiDimTableModeEnabled: layoutSemanticModeKey.endsWith(':mdtbl'),
-        canvas2dRenderer: String(canvas2dRenderer || ''),
-        edgesForSim,
-        width: sceneWidth,
-        height: sceneHeight,
-        hoverEnabled,
-        zoomOnDoubleClick,
-        renderMediaAsNodes,
-        mediaOverlayNodeIdSet,
-        panelOnlyNodeIdSet,
-        mediaPanelDensity,
-        overlayBaseWidthRatioDefault,
-        overlayBaseWidthRatioCompact,
-        overlayBaseWidthMinPxDefault,
-        overlayBaseWidthMinPxCompact,
-        overlayBaseWidthMaxPxDefault,
-        overlayBaseWidthMaxPxCompact,
-        enableTightInitialLayout: (() => {
-          if (isEmbeddedPreview) return false
-          const nodesCount = Array.isArray(sceneGraphData?.nodes) ? sceneGraphData.nodes.length : 0
-          const edgesCount = Array.isArray(sceneGraphData?.edges) ? sceneGraphData.edges.length : 0
-          if (nodesCount > 2600) return false
-          if (edgesCount > 8200) return false
-          return true
-        })(),
-        fitToScreenMode,
-        viewportControlsPreset,
-        initialZoomTransform,
-        layoutPositionsForMode: effectiveLayoutPositionsForMode,
-        baselineLayoutPositions,
-        prevPositions: isBipartite ? null : Object.keys(prevPositions).length > 0 ? prevPositions : null,
-        skipInitialLayout: effectiveSkipInitialLayout,
-        freezeSimulation: isEmbeddedPreview || isMermaidLayout,
-        enableContinuousForceLayout: isBipartite || infiniteCanvasInteractionMode === 'interactive',
-        groupsForBboxCollide: sceneGroupsDerivation?.allGroups || [],
-        layoutGroupKeyByNodeId: sceneGroupsDerivation?.layoutGroupKeyByNodeId || null,
-        gRef,
-        nodesSelRef,
-        groupChevronSelRef,
-        mediaSelRef,
-        portHandlesSelRef,
-        linksHitSelRef,
-        linksSelRef,
-        labelsSelRef,
-        zoomRef,
-        tempLinkSelRef,
-        linkDragRef,
-        simulationRef,
-        sceneGraphDataRef,
-        beforeRenderFrameRef,
-        selectedEdgeIdRef,
-        selectedNodeIdRef,
-        selectedNodeIdsRef,
-        selectedEdgeIdsRef,
-        selectNode: id => useGraphStore.getState().selectNode(id),
-        selectEdge: id => useGraphStore.getState().selectEdge(id),
-        selectGroup: id => useGraphStore.getState().selectGroup(id),
-        selectGroupExpanded: x => useGraphStore.getState().selectGroupExpanded({ id: x.id, nodeIds: x.nodeIds, edgeIds: x.edgeIds }),
-        toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
-        setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
-        addNode: n => useGraphStore.getState().addNode(n),
-        updateNode: (id, u) => useGraphStore.getState().updateNode(id, u),
-        addEdge: e => useGraphStore.getState().addEdge(e),
-        updateEdge: (id, u) => useGraphStore.getState().updateEdge(id, u),
-        enableEditorGestures,
-        setHoverInfo: updater => setHoverInfo(prev => updater(prev)),
-        setLifecycleStageRendering: () => useGraphStore.getState().setLifecycleStage('rendering'),
-        requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
-        edgeScrollEnabled: () => useGraphStore.getState().viewPinned !== true,
-        onZoomTransform: t => {
-          try {
-            requestOverlaySchedule()
-          } catch {
-            void 0
-          }
-          zoomCommitParamsRef.current = {
-            zoomViewKey,
-            viewportW: sceneWidth,
-            viewportH: sceneHeight,
-            graphDataRevision: graphDataRevisionRef.current,
-          }
-          zoomCommitSchedulerRef.current.schedule(t)
+      sceneCleanupRef.current = pipelinePerfMeasureSync({
+        name: 'render',
+        stage: 'scene:setup',
+        detail: {
+          nodes: Array.isArray(sceneGraphData?.nodes) ? sceneGraphData.nodes.length : 0,
+          edges: Array.isArray(sceneGraphData?.edges) ? sceneGraphData.edges.length : 0,
+          width: sceneWidth,
+          height: sceneHeight,
+          renderer: String(canvas2dRenderer || ''),
         },
-        getSchema: () => schemaRef.current,
-        getRenderMediaAsNodes: () => useGraphStore.getState().renderMediaAsNodes === true,
-        layoutCacheKey: cacheKey,
-        setLayoutPositionsForMode,
+        run: () => setupGraphScene({
+          active: () => activeRef.current,
+          svgEl: svgRef.current,
+          svgRef,
+          graphData: sceneGraphData,
+          graphDataRevision: graphDataRevision || 0,
+          schema: schemaForScene,
+          documentSemanticMode: documentSemanticMode ?? undefined,
+          frontmatterModeEnabled: effectiveFrontmatterModeEnabled,
+          multiDimTableModeEnabled: layoutSemanticModeKey.endsWith(':mdtbl'),
+          canvas2dRenderer: String(canvas2dRenderer || ''),
+          edgesForSim,
+          width: sceneWidth,
+          height: sceneHeight,
+          hoverEnabled,
+          zoomOnDoubleClick,
+          renderMediaAsNodes,
+          mediaOverlayNodeIdSet,
+          panelOnlyNodeIdSet,
+          mediaPanelDensity,
+          overlayBaseWidthRatioDefault,
+          overlayBaseWidthRatioCompact,
+          overlayBaseWidthMinPxDefault,
+          overlayBaseWidthMinPxCompact,
+          overlayBaseWidthMaxPxDefault,
+          overlayBaseWidthMaxPxCompact,
+          enableTightInitialLayout: (() => {
+            if (isEmbeddedPreview) return false
+            const nodesCount = Array.isArray(sceneGraphData?.nodes) ? sceneGraphData.nodes.length : 0
+            const edgesCount = Array.isArray(sceneGraphData?.edges) ? sceneGraphData.edges.length : 0
+            if (nodesCount > 2600) return false
+            if (edgesCount > 8200) return false
+            return true
+          })(),
+          fitToScreenMode,
+          viewportControlsPreset,
+          initialZoomTransform,
+          layoutPositionsForMode: effectiveLayoutPositionsForMode,
+          baselineLayoutPositions,
+          prevPositions: isBipartite ? null : Object.keys(prevPositions).length > 0 ? prevPositions : null,
+          skipInitialLayout: effectiveSkipInitialLayout,
+          freezeSimulation: isEmbeddedPreview || isMermaidLayout,
+          enableContinuousForceLayout: isBipartite || infiniteCanvasInteractionMode === 'interactive',
+          groupsForBboxCollide: sceneGroupsDerivation?.allGroups || [],
+          layoutGroupKeyByNodeId: sceneGroupsDerivation?.layoutGroupKeyByNodeId || null,
+          gRef,
+          nodesSelRef,
+          groupChevronSelRef,
+          mediaSelRef,
+          portHandlesSelRef,
+          linksHitSelRef,
+          linksSelRef,
+          labelsSelRef,
+          zoomRef,
+          tempLinkSelRef,
+          linkDragRef,
+          simulationRef,
+          sceneGraphDataRef,
+          beforeRenderFrameRef,
+          selectedEdgeIdRef,
+          selectedNodeIdRef,
+          selectedNodeIdsRef,
+          selectedEdgeIdsRef,
+          selectNode: id => useGraphStore.getState().selectNode(id),
+          selectEdge: id => useGraphStore.getState().selectEdge(id),
+          selectGroup: id => useGraphStore.getState().selectGroup(id),
+          selectGroupExpanded: x => useGraphStore.getState().selectGroupExpanded({ id: x.id, nodeIds: x.nodeIds, edgeIds: x.edgeIds }),
+          toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
+          setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
+          addNode: n => useGraphStore.getState().addNode(n),
+          updateNode: (id, u) => useGraphStore.getState().updateNode(id, u),
+          addEdge: e => useGraphStore.getState().addEdge(e),
+          updateEdge: (id, u) => useGraphStore.getState().updateEdge(id, u),
+          enableEditorGestures,
+          setHoverInfo: updater => setHoverInfo(prev => updater(prev)),
+          setLifecycleStageRendering: () => useGraphStore.getState().setLifecycleStage('rendering'),
+          requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
+          edgeScrollEnabled: () => useGraphStore.getState().viewPinned !== true,
+          onZoomTransform: t => {
+            try {
+              requestOverlaySchedule()
+            } catch {
+              void 0
+            }
+            zoomCommitParamsRef.current = {
+              zoomViewKey,
+              viewportW: sceneWidth,
+              viewportH: sceneHeight,
+              graphDataRevision: graphDataRevisionRef.current,
+            }
+            zoomCommitSchedulerRef.current.schedule(t)
+          },
+          getSchema: () => schemaRef.current,
+          getRenderMediaAsNodes: () => useGraphStore.getState().renderMediaAsNodes === true,
+          layoutCacheKey: cacheKey,
+          setLayoutPositionsForMode,
+        }),
       })
 
       const baseBefore = beforeRenderFrameRef.current

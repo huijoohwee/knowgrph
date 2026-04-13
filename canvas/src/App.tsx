@@ -1,12 +1,23 @@
-import { useEffect, lazy, Suspense } from 'react'
+import { useEffect, useLayoutEffect, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { cancelIdle, scheduleIdle } from '@/features/panels/utils/idle'
 import { CanvasRouteRuntime } from '@/features/canvas/CanvasRouteRuntime'
+import { PerformanceAutomationReadout } from '@/features/canvas/PerformanceAutomationReadout'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { resolveRouterBasename } from '@/lib/routing/basePath'
+import { getLocalStorage } from '@/lib/persistence'
+import { applyThemeMode, getInitialThemeMode } from '@/lib/ui/theme'
 
 const Canvas = lazy(() => import('@/pages/Canvas'))
+
+function AppThemeRuntime() {
+  useLayoutEffect(() => {
+    applyThemeMode(getInitialThemeMode(getLocalStorage()))
+  }, [])
+
+  return null
+}
 
 export default function App() {
   const basename = resolveRouterBasename(import.meta.env.BASE_URL)
@@ -104,7 +115,9 @@ export default function App() {
   }, [])
   return (
     <Router basename={basename}>
+      <AppThemeRuntime />
       <CanvasRouteRuntime />
+      <PerformanceAutomationReadout />
       <ErrorBoundary>
         <Suspense fallback={<div className={`h-[100dvh] flex items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`}>Loading…</div>}>
           <Routes>

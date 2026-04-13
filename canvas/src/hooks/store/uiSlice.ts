@@ -11,7 +11,7 @@ import {
   lsNum,
   lsSetNum,
 } from '@/lib/persistence'
-import { LS_KEYS } from '@/lib/config.ls'
+import { LS_KEYS } from '@/lib/config.ls.keys'
 import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import { getInitialLaunchSpotlightEnabled, persistLaunchSpotlightEnabled } from '@/features/spotlight/storage'

@@ -12,7 +12,7 @@ import {
   type InfiniteCanvasInteractionMode,
 } from '@/lib/config.render'
 import { DEFAULT_VIEWPORT_CONTROLS_PRESET } from '@/lib/config.viewport-controls'
-import { LS_KEYS } from '@/lib/config.ls'
+import { LS_KEYS } from '@/lib/config.ls.keys'
 import { UI_COPY } from '@/lib/config-copy/uiCopy'
 import {
   getLocalStorage,
@@ -74,44 +74,88 @@ import {
 
 type SetGraph = StoreApi<GraphState>['setState']
 
+type CanvasSliceStorageMigrationPlan = {
+  shouldPersist: boolean
+  flowWheelZoomSpeedMultiplier: number | null
+  wheelZoomCtrlMetaBoostMultiplier: number | null
+}
+
+const parseStoredInt = (storage: Storage | null, key: string, fallback: number): number => {
+  if (!storage) return fallback
+  try {
+    const raw = storage.getItem(key)
+    if (raw == null) return fallback
+    const value = parseInt(String(raw).trim(), 10)
+    return Number.isFinite(value) ? value : fallback
+  } catch {
+    return fallback
+  }
+}
+
+const parseStoredFloat = (storage: Storage | null, key: string): number | null => {
+  if (!storage) return null
+  try {
+    const raw = storage.getItem(key)
+    if (raw == null) return null
+    const value = parseFloat(String(raw).trim())
+    return Number.isFinite(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
+export const planCanvasSliceStorageMigrations = (storage: Storage | null = getLocalStorage()): CanvasSliceStorageMigrationPlan => {
+  const flowZoomDefaultsVersion = parseStoredInt(storage, LS_KEYS.flowWheelZoomDefaultsVersion, 0)
+  if (flowZoomDefaultsVersion >= 3) {
+    return {
+      shouldPersist: false,
+      flowWheelZoomSpeedMultiplier: null,
+      wheelZoomCtrlMetaBoostMultiplier: null,
+    }
+  }
+
+  const parsedFlowSpeed = parseStoredFloat(storage, LS_KEYS.flowWheelZoomSpeedMultiplier)
+  const migrateFlowSpeed = parsedFlowSpeed == null
+    || Math.abs(parsedFlowSpeed - 0.25) < 1e-6
+    || Math.abs(parsedFlowSpeed - 0.333) < 1e-6
+    || Math.abs(parsedFlowSpeed - 0.6) < 1e-6
+
+  const parsedCtrlMetaBoost = parseStoredFloat(storage, LS_KEYS.wheelZoomCtrlMetaBoostMultiplier)
+  const migrateCtrlMetaBoost = parsedCtrlMetaBoost == null
+    || Math.abs(parsedCtrlMetaBoost - 12) < 1e-6
+    || Math.abs(parsedCtrlMetaBoost - 16) < 1e-6
+    || Math.abs(parsedCtrlMetaBoost - 80) < 1e-6
+
+  return {
+    shouldPersist: true,
+    flowWheelZoomSpeedMultiplier: migrateFlowSpeed ? FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_DEFAULT : null,
+    wheelZoomCtrlMetaBoostMultiplier: migrateCtrlMetaBoost ? CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT : null,
+  }
+}
+
+export const applyCanvasSliceStorageMigrations = (storage: Storage | null = getLocalStorage()): boolean => {
+  const plan = planCanvasSliceStorageMigrations(storage)
+  if (!plan.shouldPersist || !storage) return false
+
+  if (plan.flowWheelZoomSpeedMultiplier != null) {
+    lsSetFloat(LS_KEYS.flowWheelZoomSpeedMultiplier, plan.flowWheelZoomSpeedMultiplier, {
+      min: FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_MIN,
+      max: FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_MAX,
+    })
+  }
+  if (plan.wheelZoomCtrlMetaBoostMultiplier != null) {
+    lsSetFloat(LS_KEYS.wheelZoomCtrlMetaBoostMultiplier, plan.wheelZoomCtrlMetaBoostMultiplier, {
+      min: CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MIN,
+      max: CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MAX,
+    })
+  }
+  lsSetInt(LS_KEYS.flowWheelZoomDefaultsVersion, 3)
+  return true
+}
+
 export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   const storage = getLocalStorage()
-  const flowZoomDefaultsVersion = lsInt(LS_KEYS.flowWheelZoomDefaultsVersion, 0)
-  if (flowZoomDefaultsVersion < 3) {
-    const rawFlowSpeed = storage?.getItem(LS_KEYS.flowWheelZoomSpeedMultiplier)
-    const parsedFlowSpeed = rawFlowSpeed != null ? parseFloat(rawFlowSpeed) : null
-    if (
-      rawFlowSpeed == null
-      || (
-        parsedFlowSpeed != null
-        && Number.isFinite(parsedFlowSpeed)
-        && (Math.abs(parsedFlowSpeed - 0.25) < 1e-6 || Math.abs(parsedFlowSpeed - 0.333) < 1e-6 || Math.abs(parsedFlowSpeed - 0.6) < 1e-6)
-      )
-    ) {
-      lsSetFloat(LS_KEYS.flowWheelZoomSpeedMultiplier, FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_DEFAULT, {
-        min: FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_MIN,
-        max: FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_MAX,
-      })
-    }
-
-    const rawCtrlMetaBoost = storage?.getItem(LS_KEYS.wheelZoomCtrlMetaBoostMultiplier)
-    const parsedCtrlMetaBoost = rawCtrlMetaBoost != null ? parseFloat(rawCtrlMetaBoost) : null
-    if (
-      rawCtrlMetaBoost == null
-      || (
-        parsedCtrlMetaBoost != null
-        && Number.isFinite(parsedCtrlMetaBoost)
-        && (Math.abs(parsedCtrlMetaBoost - 12) < 1e-6 || Math.abs(parsedCtrlMetaBoost - 16) < 1e-6 || Math.abs(parsedCtrlMetaBoost - 80) < 1e-6)
-      )
-    ) {
-      lsSetFloat(LS_KEYS.wheelZoomCtrlMetaBoostMultiplier, CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT, {
-        min: CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MIN,
-        max: CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MAX,
-      })
-    }
-
-    lsSetInt(LS_KEYS.flowWheelZoomDefaultsVersion, 3)
-  }
+  const migrationPlan = planCanvasSliceStorageMigrations(storage)
 
   const initialCanvas2dRenderer = lsJson(
     LS_KEYS.canvas2dRenderer,
@@ -157,7 +201,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   })()
 
   const initialFlowWheelZoomSpeedMultiplier = clampFlowWheelZoomSpeedMultiplier(
-    lsFloat(LS_KEYS.flowWheelZoomSpeedMultiplier, FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_DEFAULT, {
+    migrationPlan.flowWheelZoomSpeedMultiplier ?? lsFloat(LS_KEYS.flowWheelZoomSpeedMultiplier, FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_DEFAULT, {
       min: FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_MIN,
       max: FLOW_WHEEL_ZOOM_SPEED_MULTIPLIER_MAX,
     }),
@@ -178,7 +222,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
   const initialZoomDurationFitMs = Math.max(0, Math.min(2000, lsInt(LS_KEYS.zoomDurationFitMs, 300)))
   const initialZoomDurationSelectionMs = Math.max(0, Math.min(2000, lsInt(LS_KEYS.zoomDurationSelectionMs, 300)))
   const initialWheelZoomCtrlMetaBoostMultiplier = clampCanvasWheelZoomCtrlMetaBoostMultiplier(
-    lsFloat(LS_KEYS.wheelZoomCtrlMetaBoostMultiplier, CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT, {
+    migrationPlan.wheelZoomCtrlMetaBoostMultiplier ?? lsFloat(LS_KEYS.wheelZoomCtrlMetaBoostMultiplier, CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT, {
       min: CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MIN,
       max: CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_MAX,
     }),

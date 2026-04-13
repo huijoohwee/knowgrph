@@ -16,6 +16,35 @@ export type LabelRelaxState2d = {
 }
 
 const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v))
+const labelAttrCache = new WeakMap<Element, Record<string, string>>()
+const labelStyleCache = new WeakMap<Element, Record<string, string>>()
+
+const setAttrIfChanged = (el: Element, name: string, value: string): void => {
+  let attrs = labelAttrCache.get(el)
+  if (!attrs) {
+    attrs = {}
+    labelAttrCache.set(el, attrs)
+  }
+  if (attrs[name] === value) return
+  el.setAttribute(name, value)
+  attrs[name] = value
+}
+
+const setDisplayIfChanged = (el: SVGElement, value: string): void => {
+  let styles = labelStyleCache.get(el)
+  if (!styles) {
+    styles = {}
+    labelStyleCache.set(el, styles)
+  }
+  if (styles.display === value) return
+  el.style.display = value
+  styles.display = value
+}
+
+const setTextIfChanged = (el: SVGTextElement, value: string): void => {
+  if ((el.textContent || '') === value) return
+  el.textContent = value
+}
 
 export function renderLabels2d(args: {
   svgEl: SVGSVGElement
@@ -108,8 +137,8 @@ export function renderLabels2d(args: {
     const halfW = w / 2
     const halfH = h / 2
     const n0 = state.groupLabelNudgeById.get(groupId) || { dx: 0, dy: 0 }
-    el.setAttribute('dx', String(n0.dx))
-    el.setAttribute('dy', String(n0.dy))
+    setAttrIfChanged(el, 'dx', String(n0.dx))
+    setAttrIfChanged(el, 'dy', String(n0.dy))
     const groupRect = svgEl.querySelector(
       `g[data-kg-group-id="${CSS.escape(groupId)}"] rect[data-kg-shape="group-rect"]`,
     ) as SVGRectElement | null
@@ -130,8 +159,8 @@ export function renderLabels2d(args: {
     const dx = clamp(n0.dx, dxMin, dxMax)
     const dy = clamp(n0.dy, dyMin, dyMax)
     state.groupLabelNudgeById.set(groupId, { dx, dy })
-    el.setAttribute('dx', String(dx))
-    el.setAttribute('dy', String(dy))
+    setAttrIfChanged(el, 'dx', String(dx))
+    setAttrIfChanged(el, 'dy', String(dy))
     const baseCx = x0 + halfW
     const baseCy = y0 + halfH
     const cx = baseCx + dx
@@ -200,8 +229,8 @@ export function renderLabels2d(args: {
         n.x = n.baseX + dx
         n.y = n.baseY + dy
         state.groupLabelNudgeById.set(n.id, { dx, dy })
-        n.el.setAttribute('dx', String(dx))
-        n.el.setAttribute('dy', String(dy))
+        setAttrIfChanged(n.el, 'dx', String(dx))
+        setAttrIfChanged(n.el, 'dy', String(dy))
       },
     })
   }
@@ -211,10 +240,13 @@ export function renderLabels2d(args: {
     groupLabelBlockers.push({ x: p.x, y: p.y, halfW: p.halfW, halfH: p.halfH })
   }
 
-  labelsSel.attr('x', (d: GraphNode) => (typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : 0)).attr(
-    'y',
-    (d: GraphNode) => (typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : 0),
-  )
+  labelsSel.each(function (d: GraphNode) {
+    const el = this as SVGTextElement
+    const x = typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : 0
+    const y = typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : 0
+    setAttrIfChanged(el, 'x', String(x))
+    setAttrIfChanged(el, 'y', String(y))
+  })
   const padPx = 8
   const bodyBlockers: Array<AabbRect & { id: string }> = []
   const farPad = 240
@@ -248,20 +280,20 @@ export function renderLabels2d(args: {
     const x = typeof d.x === 'number' && Number.isFinite(d.x) ? d.x : null
     const y = typeof d.y === 'number' && Number.isFinite(d.y) ? d.y : null
     if (x == null || y == null) {
-      el.style.display = 'none'
+      setDisplayIfChanged(el, 'none')
       return
     }
     const nodeId = String((d as unknown as { id?: unknown }).id ?? '')
-    el.style.display = ''
+    setDisplayIfChanged(el, '')
 
     const currentMode = (el.getAttribute('data-label-mode') as 'compact' | 'wrap' | null) ?? 'compact'
     if (currentMode !== 'compact') {
       const nextText = String(el.getAttribute('data-label-compact') || '')
       while (el.firstChild) el.removeChild(el.firstChild)
-      el.textContent = nextText
-      el.setAttribute('data-label-mode', 'compact')
-      el.setAttribute('data-label-linecount', '1')
-      el.setAttribute('data-label-maxlen', String(nextText.length))
+      setTextIfChanged(el, nextText)
+      setAttrIfChanged(el, 'data-label-mode', 'compact')
+      setAttrIfChanged(el, 'data-label-linecount', '1')
+      setAttrIfChanged(el, 'data-label-maxlen', String(nextText.length))
     }
 
     const charCount = (() => {
@@ -297,10 +329,10 @@ export function renderLabels2d(args: {
     })()
     const isNearViewport = sx > -farPad && sx < width + farPad && sy > -farPad && sy < height + farPad
     if (!isNearViewport) {
-      el.setAttribute('data-collide-hidden', '0')
-      el.setAttribute('text-anchor', String(el.getAttribute('data-base-anchor') || 'middle'))
-      el.setAttribute('dx', String(baseDx))
-      el.setAttribute('dy', String(baseDy))
+      setAttrIfChanged(el, 'data-collide-hidden', '0')
+      setAttrIfChanged(el, 'text-anchor', String(el.getAttribute('data-base-anchor') || 'middle'))
+      setAttrIfChanged(el, 'dx', String(baseDx))
+      setAttrIfChanged(el, 'dy', String(baseDy))
       return
     }
     const candidates: Array<{ anchor: 'start' | 'end' | 'middle'; dx: number }> = []
@@ -377,8 +409,8 @@ export function renderLabels2d(args: {
     ]
 
     if (maxPlacedNodeLabels > 0 && nodeLabelRects.length >= maxPlacedNodeLabels) {
-      el.style.display = 'none'
-      el.setAttribute('data-collide-hidden', '1')
+      setDisplayIfChanged(el, 'none')
+      setAttrIfChanged(el, 'data-collide-hidden', '1')
       return
     }
 
@@ -411,15 +443,15 @@ export function renderLabels2d(args: {
     }
 
     if (!placedRect) {
-      el.style.display = 'none'
-      el.setAttribute('data-collide-hidden', '1')
+      setDisplayIfChanged(el, 'none')
+      setAttrIfChanged(el, 'data-collide-hidden', '1')
       return
     }
-    el.style.display = ''
-    el.setAttribute('data-collide-hidden', '0')
-    el.setAttribute('text-anchor', placedAnchor)
-    el.setAttribute('dx', String(placedDx))
-    el.setAttribute('dy', String(placedDy))
+    setDisplayIfChanged(el, '')
+    setAttrIfChanged(el, 'data-collide-hidden', '0')
+    setAttrIfChanged(el, 'text-anchor', placedAnchor)
+    setAttrIfChanged(el, 'dx', String(placedDx))
+    setAttrIfChanged(el, 'dy', String(placedDy))
     nodeLabelRects.push(placedRect)
   })
 
@@ -432,9 +464,17 @@ export function renderLabels2d(args: {
     const hideBelow = schema.performance?.lod?.hideLabelsBelowScale ?? 0
     const hideEdgeLabels = hideBelow > 0 && d3.zoomTransform(svgEl).k < hideBelow
     if (hideEdgeLabels) {
-      edgeLabelSel.attr('data-zoom-lod-hidden', '1').style('display', 'none')
+      edgeLabelSel.each(function () {
+        const el = this as SVGTextElement
+        setAttrIfChanged(el, 'data-zoom-lod-hidden', '1')
+        setDisplayIfChanged(el, 'none')
+      })
     } else {
-      edgeLabelSel.attr('data-zoom-lod-hidden', '0').style('display', null)
+      edgeLabelSel.each(function () {
+        const el = this as SVGTextElement
+        setAttrIfChanged(el, 'data-zoom-lod-hidden', '0')
+        setDisplayIfChanged(el, '')
+      })
       const placedEdgeLabelRects: AabbRect[] = []
       const blockerRects = [...groupLabelBlockers, ...nodeLabelRects, ...bodyBlockers]
       edgeLabelSel.each(function (d: GraphEdge) {
@@ -452,18 +492,18 @@ export function renderLabels2d(args: {
           const farPad = 240
           const isNearViewport = sx2 > -farPad && sx2 < width + farPad && sy2 > -farPad && sy2 < height + farPad
           if (!isNearViewport) {
-            el.style.display = 'none'
+            setDisplayIfChanged(el, 'none')
             return
           }
-          el.style.display = ''
-          el.setAttribute('x', String(lx))
-          el.setAttribute('y', String(ly))
+          setDisplayIfChanged(el, '')
+          setAttrIfChanged(el, 'x', String(lx))
+          setAttrIfChanged(el, 'y', String(ly))
           return
         }
         const srcNode = resolveNode(edge.source)
         const tgtNode = resolveNode(edge.target)
         if (!srcNode || !tgtNode) {
-          el.style.display = 'none'
+          setDisplayIfChanged(el, 'none')
           return
         }
         const sx = typeof srcNode.x === 'number' && Number.isFinite(srcNode.x) ? srcNode.x : 0
@@ -488,7 +528,7 @@ export function renderLabels2d(args: {
         })
 
         if (!placement) {
-          el.style.display = 'none'
+          setDisplayIfChanged(el, 'none')
           return
         }
         placedEdgeLabelRects.push(placement)
@@ -498,14 +538,13 @@ export function renderLabels2d(args: {
         const farPad = 240
         const isNearViewport = sx2 > -farPad && sx2 < width + farPad && sy2 > -farPad && sy2 < height + farPad
         if (!isNearViewport) {
-          el.style.display = 'none'
+          setDisplayIfChanged(el, 'none')
           return
         }
-        el.style.display = ''
-        el.setAttribute('x', String(placement.x))
-        el.setAttribute('y', String(placement.y))
+        setDisplayIfChanged(el, '')
+        setAttrIfChanged(el, 'x', String(placement.x))
+        setAttrIfChanged(el, 'y', String(placement.y))
       })
     }
   }
 }
-

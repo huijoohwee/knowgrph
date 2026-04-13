@@ -1,8 +1,8 @@
 import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
-import { LS_KEYS } from '@/lib/config'
-import { lsInt, lsJson, lsSetInt, lsSetJson } from '@/lib/persistence'
-import type { Canvas2dRendererId } from '@/lib/config'
+import { LS_KEYS } from '@/lib/config.ls.keys'
+import { getLocalStorage, lsJson, lsSetInt, lsSetJson } from '@/lib/persistence'
+import type { Canvas2dRendererId } from '@/lib/config.render'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
@@ -36,6 +36,12 @@ const FLOW_QUICK_EDITOR_PERSIST_DELAY_MS = 90
 type QuickEditorPinnedByGraphMap = Record<string, Record<string, boolean>>
 type QuickEditorPosByGraphMap = Record<string, Record<string, { top: number; left: number }>>
 type QuickEditorWorldByGraphMap = Record<string, Record<string, { x: number; y: number }>>
+
+type GraphViewPinnedSemanticsMigrationPlan = {
+  effectivePinnedByNodeId: Record<string, boolean>
+  persistedPinnedByNodeId: Record<string, boolean> | null
+  shouldPersistVersion: boolean
+}
 
 const normalizePinnedByNodeId = (source: Record<string, boolean> | null | undefined): Record<string, boolean> => {
   if (!source || typeof source !== 'object') return {}
@@ -76,6 +82,132 @@ const normalizeWorldByNodeId = (
     out[key] = { x, y }
   }
   return out
+}
+
+const readStorageInt = (storage: Storage | null, key: string, fallback: number): number => {
+  if (!storage) return fallback
+  try {
+    const raw = storage.getItem(key)
+    if (raw == null) return fallback
+    const value = parseInt(String(raw).trim(), 10)
+    return Number.isFinite(value) ? value : fallback
+  } catch {
+    return fallback
+  }
+}
+
+const readStorageJson = <T>(
+  storage: Storage | null,
+  key: string,
+  fallback: T,
+  parse: (raw: unknown) => T,
+): T => {
+  if (!storage) return fallback
+  try {
+    const raw = storage.getItem(key)
+    if (!raw) return fallback
+    return parse(JSON.parse(raw) as unknown)
+  } catch {
+    return fallback
+  }
+}
+
+const readPinnedByNodeIdFromStorage = (storage: Storage | null): Record<string, boolean> =>
+  readStorageJson(storage, LS_KEYS.flowNodeQuickEditorPinnedByNodeId, {}, raw => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+    const out: Record<string, boolean> = {}
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      const id = String(k || '').trim()
+      if (!id) continue
+      out[id] = !!v
+    }
+    return out
+  })
+
+const readPosByNodeIdFromStorage = (storage: Storage | null): Record<string, { top: number; left: number }> =>
+  readStorageJson(storage, LS_KEYS.flowNodeQuickEditorPosByNodeId, {}, raw =>
+    normalizePosByNodeId(raw as Record<string, { top: number; left: number }> | null | undefined),
+  )
+
+const readWorldByNodeIdFromStorage = (storage: Storage | null): Record<string, { x: number; y: number }> =>
+  readStorageJson(storage, LS_KEYS.flowNodeQuickEditorWorldPosByNodeId, {}, raw =>
+    normalizeWorldByNodeId(raw as Record<string, { x: number; y: number }> | null | undefined),
+  )
+
+export const planGraphViewPinnedSemanticsMigration = (
+  storage: Storage | null = getLocalStorage(),
+): GraphViewPinnedSemanticsMigrationPlan => {
+  const parsed = readPinnedByNodeIdFromStorage(storage)
+  const version = readStorageInt(storage, LS_KEYS.flowNodeQuickEditorPinnedSemanticsVersion, 0)
+  if (version >= 2) {
+    return {
+      effectivePinnedByNodeId: parsed,
+      persistedPinnedByNodeId: null,
+      shouldPersistVersion: false,
+    }
+  }
+
+  const ids = Object.keys(parsed)
+  if (ids.length === 0) {
+    return {
+      effectivePinnedByNodeId: parsed,
+      persistedPinnedByNodeId: null,
+      shouldPersistVersion: true,
+    }
+  }
+
+  const posById = readPosByNodeIdFromStorage(storage)
+  const worldById = readWorldByNodeIdFromStorage(storage)
+
+  let evidence = 0
+  let total = 0
+  for (let i = 0; i < ids.length; i += 1) {
+    const id = ids[i]!
+    const pinned = parsed[id]
+    const fp = posById[id]
+    const wp = worldById[id]
+    const hasFloating =
+      fp != null && typeof fp === 'object' && Number.isFinite((fp as { top?: unknown }).top) && Number.isFinite((fp as { left?: unknown }).left)
+    const hasWorld =
+      wp != null && typeof wp === 'object' && Number.isFinite((wp as { x?: unknown }).x) && Number.isFinite((wp as { y?: unknown }).y)
+    if (!hasFloating && !hasWorld) continue
+    total += 1
+
+    const suggestsInverted =
+      (pinned === true && hasFloating && !hasWorld) ||
+      (pinned === false && hasWorld && !hasFloating)
+    if (suggestsInverted) evidence += 1
+  }
+
+  const shouldInvert = total > 0 && evidence / total >= 0.75
+  if (!shouldInvert) {
+    return {
+      effectivePinnedByNodeId: parsed,
+      persistedPinnedByNodeId: null,
+      shouldPersistVersion: true,
+    }
+  }
+
+  const flipped: Record<string, boolean> = {}
+  for (let i = 0; i < ids.length; i += 1) {
+    const id = ids[i]!
+    flipped[id] = !parsed[id]
+  }
+  return {
+    effectivePinnedByNodeId: flipped,
+    persistedPinnedByNodeId: flipped,
+    shouldPersistVersion: true,
+  }
+}
+
+export const applyGraphViewPinnedSemanticsMigration = (storage: Storage | null = getLocalStorage()): boolean => {
+  const plan = planGraphViewPinnedSemanticsMigration(storage)
+  if (!plan.shouldPersistVersion || !storage) return false
+  if (plan.persistedPinnedByNodeId) {
+    lsSetJson(LS_KEYS.flowNodeQuickEditorPinnedByNodeId, plan.persistedPinnedByNodeId)
+  }
+  lsSetInt(LS_KEYS.flowNodeQuickEditorPinnedSemanticsVersion, 2)
+  return true
 }
 
 const isSamePinnedByNodeId = (a: Record<string, boolean>, b: Record<string, boolean>): boolean => {
@@ -164,7 +296,9 @@ const scheduleFlowQuickEditorPersistence = (patch: {
   )
 }
 
-export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
+export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
+  const pinnedSemanticsMigrationPlan = planGraphViewPinnedSemanticsMigration(getLocalStorage())
+  return {
   collapsedGroupIds: [] as string[],
   collapsedGroupIdsByGraphMetaKey: {} as Record<string, string[]>,
   setCollapsedGroupIds: (ids: string[]) => {
@@ -231,90 +365,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
     const nextBy = renderer ? { ...by, [renderer]: next } : by
     set({ openQuickEditorNodeIds: next, openQuickEditorNodeIdsByRenderer: nextBy })
   },
-  flowNodeQuickEditorPinnedByNodeId: (() => {
-    const parsed = lsJson<Record<string, boolean>>(
-      LS_KEYS.flowNodeQuickEditorPinnedByNodeId,
-      {},
-      raw => {
-        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
-        const out: Record<string, boolean> = {}
-        for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-          const id = String(k || '').trim()
-          if (!id) continue
-          out[id] = !!v
-        }
-        return out
-      },
-    )
-
-    const version = lsInt(LS_KEYS.flowNodeQuickEditorPinnedSemanticsVersion, 0)
-    if (version >= 2) return parsed
-
-    const posById = lsJson<Record<string, { top: number; left: number }>>(
-      LS_KEYS.flowNodeQuickEditorPosByNodeId,
-      {},
-      v => (v && typeof v === 'object' ? (v as Record<string, { top: number; left: number }>) : {}),
-    )
-    const worldById = lsJson<Record<string, { x: number; y: number }>>(
-      LS_KEYS.flowNodeQuickEditorWorldPosByNodeId,
-      {},
-      raw => {
-        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
-        const out: Record<string, { x: number; y: number }> = {}
-        for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-          const id = String(k || '').trim()
-          if (!id) continue
-          const o = v as { x?: unknown; y?: unknown } | null
-          const x = typeof o?.x === 'number' && Number.isFinite(o.x) ? (o.x as number) : null
-          const y = typeof o?.y === 'number' && Number.isFinite(o.y) ? (o.y as number) : null
-          if (x == null || y == null) continue
-          out[id] = { x, y }
-        }
-        return out
-      },
-    )
-
-    const ids = Object.keys(parsed)
-    if (ids.length === 0) {
-      lsSetInt(LS_KEYS.flowNodeQuickEditorPinnedSemanticsVersion, 2)
-      return parsed
-    }
-
-    let evidence = 0
-    let total = 0
-    for (let i = 0; i < ids.length; i += 1) {
-      const id = ids[i]!
-      const pinned = parsed[id]
-      const fp = posById[id]
-      const wp = worldById[id]
-      const hasFloating =
-        fp != null && typeof fp === 'object' && Number.isFinite((fp as { top?: unknown }).top) && Number.isFinite((fp as { left?: unknown }).left)
-      const hasWorld =
-        wp != null && typeof wp === 'object' && Number.isFinite((wp as { x?: unknown }).x) && Number.isFinite((wp as { y?: unknown }).y)
-      if (!hasFloating && !hasWorld) continue
-      total += 1
-
-      const suggestsInverted =
-        (pinned === true && hasFloating && !hasWorld) ||
-        (pinned === false && hasWorld && !hasFloating)
-      if (suggestsInverted) evidence += 1
-    }
-
-    const shouldInvert = total > 0 && evidence / total >= 0.75
-    if (!shouldInvert) {
-      lsSetInt(LS_KEYS.flowNodeQuickEditorPinnedSemanticsVersion, 2)
-      return parsed
-    }
-
-    const flipped: Record<string, boolean> = {}
-    for (let i = 0; i < ids.length; i += 1) {
-      const id = ids[i]!
-      flipped[id] = !parsed[id]
-    }
-    lsSetJson(LS_KEYS.flowNodeQuickEditorPinnedByNodeId, flipped)
-    lsSetInt(LS_KEYS.flowNodeQuickEditorPinnedSemanticsVersion, 2)
-    return flipped
-  })(),
+  flowNodeQuickEditorPinnedByNodeId: pinnedSemanticsMigrationPlan.effectivePinnedByNodeId,
   flowNodeQuickEditorPinnedByNodeIdByGraphMetaKey: lsJson<Record<string, Record<string, boolean>>>(
     LS_KEYS.flowNodeQuickEditorPinnedByGraphMetaKey,
     {},
@@ -480,4 +531,5 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => ({
     if (prev === id) return
     set({ flowNodeQuickEditorDraggingNodeId: id })
   },
-})
+  }
+}

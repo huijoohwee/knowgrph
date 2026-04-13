@@ -10,7 +10,7 @@ import type {
   GraphDataTableSortRule,
 } from '@/features/graph-data-table/graphDataTable';
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal';
-import { LS_KEYS, SESSION_KEYS } from '@/lib/config.ls';
+import { LS_KEYS, SESSION_KEYS } from '@/lib/config.ls.keys';
 import { UI_COPY } from '@/lib/config-copy/uiCopy';
 import { lsBool, lsFloat, lsInt, lsSetBool, lsSetFloat, lsSetInt } from '@/lib/persistence'
 import { ssSetString, ssString, getLocalStorage } from '@/lib/persistence';
@@ -49,9 +49,31 @@ const nodeIdExistsInGraph = (graph: unknown, nodeId: string): boolean => {
 type SetGraph = StoreApi<GraphState>['setState'];
 type GetGraph = StoreApi<GraphState>['getState'];
 
+const createSessionTabId = (): string =>
+  `tab-${Math.random().toString(36).slice(2, 8)}-${Date.now().toString(36)}`
+
+export const readInitialSessionTabId = (): string => {
+  try {
+    return ssString(SESSION_KEYS.tabId, '') || 'tab-ssr'
+  } catch {
+    return 'tab-ssr'
+  }
+}
+
+export const ensureSessionTabId = (): string => {
+  try {
+    const existing = ssString(SESSION_KEYS.tabId, '')
+    if (existing) return existing
+    const id = createSessionTabId()
+    ssSetString(SESSION_KEYS.tabId, id)
+    return id
+  } catch {
+    return 'tab-ssr'
+  }
+}
+
 export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   const themeMode = getInitialThemeMode(getLocalStorage())
-  applyThemeMode(themeMode)
   const resolvedThemeMode: ResolvedThemeMode = resolveThemeMode(themeMode)
   const keywordDefaults = {
     sourceMaxLines: lsInt(LS_KEYS.keywordSourceMaxLines, 8000),
@@ -369,17 +391,7 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
       graphHoverPreviewConfig: { ...state.graphHoverPreviewConfig, ...config },
     })),
   graphId: 'default',
-  tabId: (() => {
-    try {
-      const existing = ssString(SESSION_KEYS.tabId, '');
-      if (existing) return existing;
-      const id = `tab-${Math.random().toString(36).slice(2, 8)}-${Date.now().toString(36)}`;
-      ssSetString(SESSION_KEYS.tabId, id);
-      return id;
-    } catch {
-      return 'tab-ssr';
-    }
-  })(),
+  tabId: readInitialSessionTabId(),
   enableTabSync: true,
   enableVirtualTables: true,
   aiKgTraversalRan: false,

@@ -1,4 +1,4 @@
-import { LS_KEYS } from '@/lib/config.ls'
+import { LS_KEYS } from '@/lib/config.ls.keys'
 
 export type ViewportControlsPreset = 'map' | 'design'
 
@@ -11,4 +11,3 @@ export const readViewportControlsPresetFromLocalStorage = (): ViewportControlsPr
     return null
   }
 }
-

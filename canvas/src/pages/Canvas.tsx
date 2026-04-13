@@ -12,6 +12,7 @@ import { useCanvasWorkspacePaneRuntime } from '@/features/canvas/useCanvasWorksp
 import { useCanvasGeospatialRuntime } from '@/features/canvas/useCanvasGeospatialRuntime'
 import { CanvasQueryBootstrapRuntime, shouldOpenEditorWorkspaceFromSearch } from '@/features/canvas/CanvasQueryBootstrapRuntime'
 import { CanvasRootRuntime } from '@/features/canvas/CanvasRootRuntime'
+import { GraphStoreRuntime } from '@/features/canvas/GraphStoreRuntime'
 import { useCanvasEmbeddedPreviewRuntime } from '@/features/canvas/useCanvasEmbeddedPreviewRuntime'
 import { QUERY_PARAM_OPEN_EDITOR_WORKSPACE } from '@/lib/routing/queryParams'
 
@@ -125,6 +126,7 @@ export default function CanvasPage() {
         uiPanelOpacity={uiPanelOpacity}
         uiToolbarOpacity={uiToolbarOpacity}
       />
+      <GraphStoreRuntime />
       <CanvasQueryBootstrapRuntime search={location.search} />
       <CanvasFrontmatterRuntime />
       <CanvasHotkeysRuntime
