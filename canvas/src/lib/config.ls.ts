@@ -86,6 +86,7 @@ export type LsKeyOwner =
   | 'schema.ui'
   | 'ui.chat'
   | 'ui.workspace'
+  | 'ui.monaco'
   | 'import.pdf';
 
 
@@ -126,6 +127,20 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   markdownDerivedViewerMode: 'ui.bottomPanel',
   bipartiteApiRunId: 'render.prefs',
   workspaceEditorMode: 'ui.workspace',
+  monacoLanguageJsonEnabled: 'ui.monaco',
+  monacoLanguageJsonLoadMode: 'ui.monaco',
+  monacoLanguageSqlEnabled: 'ui.monaco',
+  monacoLanguageSqlLoadMode: 'ui.monaco',
+  monacoLanguageYamlEnabled: 'ui.monaco',
+  monacoLanguageYamlLoadMode: 'ui.monaco',
+  monacoWorkerJsonEnabled: 'ui.monaco',
+  monacoWorkerJsonLoadMode: 'ui.monaco',
+  monacoHoverEnabled: 'ui.monaco',
+  monacoQuickSuggestionsEnabled: 'ui.monaco',
+  monacoParameterHintsEnabled: 'ui.monaco',
+  monacoLineNumbersEnabled: 'ui.monaco',
+  monacoFoldingEnabled: 'ui.monaco',
+  monacoMinimapEnabled: 'ui.monaco',
   markdownDataViewConfigPrefix: 'ui.bottomPanel',
   markdownTextHighlight: 'ui.bottomPanel',
   markdownSelectionFlashMode: 'ui.bottomPanel',

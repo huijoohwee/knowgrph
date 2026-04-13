@@ -10,6 +10,8 @@ type Canvas3dModeSelectProps = {
   iconSizeClass: string
   iconStrokeWidth: number
   ensureBaselineUnlocked: () => boolean
+  geospatialEnabled: boolean
+  onOpenGeospatialMode: () => void
   disabled?: boolean
 }
 
@@ -23,7 +25,14 @@ type ThreeModeOption = {
   enableHint?: string
 }
 
-export function Canvas3dModeSelect({ iconSizeClass, iconStrokeWidth, ensureBaselineUnlocked, disabled }: Canvas3dModeSelectProps) {
+export function Canvas3dModeSelect({
+  iconSizeClass,
+  iconStrokeWidth,
+  ensureBaselineUnlocked,
+  geospatialEnabled,
+  onOpenGeospatialMode,
+  disabled,
+}: Canvas3dModeSelectProps) {
   const { canvasRenderMode, canvas3dMode, setCanvasRenderMode, setCanvas3dMode, setCanvas2dRenderer, setSchema, canvas2dRenderer, documentSemanticMode, frontmatterModeEnabled, multiDimTableModeEnabled, schema } =
     useGraphStore(
       useShallow(s => ({
@@ -45,6 +54,7 @@ export function Canvas3dModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
     documentSemanticMode,
     frontmatterModeEnabled,
     multiDimTableModeEnabled,
+    geospatialEnabled,
     schema,
   })
   const inapplicableReason = getVoxelModeInapplicableReason({
@@ -52,9 +62,16 @@ export function Canvas3dModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
     documentSemanticMode,
     frontmatterModeEnabled,
     multiDimTableModeEnabled,
+    geospatialEnabled,
     schema,
   })
   const disabledReason = React.useMemo(() => {
+    if (inapplicableReason === 'geospatial') {
+      return {
+        reason: 'Disabled in Geospatial Mode',
+        hint: 'Switch to Document Mode to enable',
+      }
+    }
     if (inapplicableReason === 'renderer') {
       return {
         reason: 'Requires 2D Renderer: D3 Bipartite',
@@ -126,6 +143,10 @@ export function Canvas3dModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
           return
         }
         if (id === 'voxel') {
+          if (geospatialEnabled) {
+            onOpenGeospatialMode()
+            return
+          }
           if (schema && schema.layout?.mode !== 'block') {
             setSchema({
               ...schema,

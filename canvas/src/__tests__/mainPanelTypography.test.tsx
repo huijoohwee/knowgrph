@@ -7,6 +7,15 @@ import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 
+const waitForFrames = async (raf: ((cb: (ts: number) => void) => number) | undefined, count = 3) => {
+  for (let i = 0; i < count; i += 1) {
+    await new Promise<void>(resolve => {
+      if (typeof raf === 'function') raf(() => resolve())
+      else setTimeout(() => resolve(), 0)
+    })
+  }
+}
+
 export async function testMainPanelTypographyUsesUiSettings() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
@@ -44,14 +53,7 @@ export async function testMainPanelTypographyUsesUiSettings() {
     root = createRoot(container as unknown as HTMLElement)
     root.render(React.createElement(MainPanel, { requestedTab: 'help' } as never))
 
-    const tick = () =>
-      new Promise<void>(resolve => {
-        const raf = anyWindow.requestAnimationFrame
-        if (typeof raf === 'function') raf(() => resolve())
-        else setTimeout(() => resolve(), 0)
-      })
-
-    await tick()
+    await waitForFrames(anyWindow.requestAnimationFrame, 4)
 
     const traversal = container.querySelector('[aria-label="Graph Traversal"]')
     if (!traversal) throw new Error('expected main panel to render traversal summary chip')
@@ -106,14 +108,7 @@ export async function testMainPanelRequestedSettingsSearchUsesTabMetadata() {
       } as never),
     )
 
-    const tick = () =>
-      new Promise<void>(resolve => {
-        const raf = anyWindow.requestAnimationFrame
-        if (typeof raf === 'function') raf(() => resolve())
-        else setTimeout(() => resolve(), 0)
-      })
-
-    await tick()
+    await waitForFrames(anyWindow.requestAnimationFrame, 4)
 
     const searchInput = container.querySelector('input')
     if (!(searchInput instanceof dom.window.HTMLInputElement)) {

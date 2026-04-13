@@ -23,6 +23,7 @@ import type { DesignFramePos, DesignFrameSize } from '@/hooks/store/designRender
 import type { SaveFilePickerHandle } from '@/lib/graph/save'
 
 export type DesignSystemPageId = 'hub' | 'tokens' | 'utilities'
+export type MonacoCapabilityLoadMode = 'lazy' | 'eager'
 
 export type DesignSystemSlice = {
   designSystemRequestedPage: DesignSystemPageId | null
@@ -415,6 +416,34 @@ export interface GraphState {
   setRenderMediaAsNodes: (v: boolean) => void;
   setMediaPanelDensity: (v: 'default' | 'compact') => void;
   mediaPanelDensity: 'default' | 'compact';
+  monacoLanguageJsonEnabled: boolean;
+  setMonacoLanguageJsonEnabled: (v: boolean) => void;
+  monacoLanguageJsonLoadMode: MonacoCapabilityLoadMode;
+  setMonacoLanguageJsonLoadMode: (v: MonacoCapabilityLoadMode) => void;
+  monacoLanguageSqlEnabled: boolean;
+  setMonacoLanguageSqlEnabled: (v: boolean) => void;
+  monacoLanguageSqlLoadMode: MonacoCapabilityLoadMode;
+  setMonacoLanguageSqlLoadMode: (v: MonacoCapabilityLoadMode) => void;
+  monacoLanguageYamlEnabled: boolean;
+  setMonacoLanguageYamlEnabled: (v: boolean) => void;
+  monacoLanguageYamlLoadMode: MonacoCapabilityLoadMode;
+  setMonacoLanguageYamlLoadMode: (v: MonacoCapabilityLoadMode) => void;
+  monacoWorkerJsonEnabled: boolean;
+  setMonacoWorkerJsonEnabled: (v: boolean) => void;
+  monacoWorkerJsonLoadMode: MonacoCapabilityLoadMode;
+  setMonacoWorkerJsonLoadMode: (v: MonacoCapabilityLoadMode) => void;
+  monacoHoverEnabled: boolean;
+  setMonacoHoverEnabled: (v: boolean) => void;
+  monacoQuickSuggestionsEnabled: boolean;
+  setMonacoQuickSuggestionsEnabled: (v: boolean) => void;
+  monacoParameterHintsEnabled: boolean;
+  setMonacoParameterHintsEnabled: (v: boolean) => void;
+  monacoLineNumbersEnabled: boolean;
+  setMonacoLineNumbersEnabled: (v: boolean) => void;
+  monacoFoldingEnabled: boolean;
+  setMonacoFoldingEnabled: (v: boolean) => void;
+  monacoMinimapEnabled: boolean;
+  setMonacoMinimapEnabled: (v: boolean) => void;
   threeIframeOverlayPoolMax: number;
   setThreeIframeOverlayPoolMax: (v: number) => void;
   richMediaPanelMode: 'snapshot' | 'embed';

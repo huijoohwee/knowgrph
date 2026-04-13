@@ -115,6 +115,10 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
     }
     return next
   }
+  const readMonacoLoadMode = (key: string, fallback: 'lazy' | 'eager' = 'lazy') => {
+    const raw = readLsString(key, fallback)
+    return raw === 'eager' ? 'eager' : 'lazy'
+  }
   return ({
   renderMediaAsNodes: true,
   setRenderMediaAsNodes: (v: boolean) => set({ renderMediaAsNodes: v }),
@@ -126,6 +130,46 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   },
   mediaPanelDensity: 'default' as const,
   setMediaPanelDensity: (v: 'default' | 'compact') => set({ mediaPanelDensity: v }),
+  monacoLanguageJsonEnabled: lsBool(LS_KEYS.monacoLanguageJsonEnabled, true),
+  setMonacoLanguageJsonEnabled: (v: boolean) => set({ monacoLanguageJsonEnabled: lsSetBool(LS_KEYS.monacoLanguageJsonEnabled, !!v) }),
+  monacoLanguageJsonLoadMode: readMonacoLoadMode(LS_KEYS.monacoLanguageJsonLoadMode, 'lazy'),
+  setMonacoLanguageJsonLoadMode: (v: 'lazy' | 'eager') => {
+    const next = writeLsString(LS_KEYS.monacoLanguageJsonLoadMode, v === 'eager' ? 'eager' : 'lazy') as 'lazy' | 'eager'
+    set({ monacoLanguageJsonLoadMode: next })
+  },
+  monacoLanguageSqlEnabled: lsBool(LS_KEYS.monacoLanguageSqlEnabled, true),
+  setMonacoLanguageSqlEnabled: (v: boolean) => set({ monacoLanguageSqlEnabled: lsSetBool(LS_KEYS.monacoLanguageSqlEnabled, !!v) }),
+  monacoLanguageSqlLoadMode: readMonacoLoadMode(LS_KEYS.monacoLanguageSqlLoadMode, 'lazy'),
+  setMonacoLanguageSqlLoadMode: (v: 'lazy' | 'eager') => {
+    const next = writeLsString(LS_KEYS.monacoLanguageSqlLoadMode, v === 'eager' ? 'eager' : 'lazy') as 'lazy' | 'eager'
+    set({ monacoLanguageSqlLoadMode: next })
+  },
+  monacoLanguageYamlEnabled: lsBool(LS_KEYS.monacoLanguageYamlEnabled, true),
+  setMonacoLanguageYamlEnabled: (v: boolean) => set({ monacoLanguageYamlEnabled: lsSetBool(LS_KEYS.monacoLanguageYamlEnabled, !!v) }),
+  monacoLanguageYamlLoadMode: readMonacoLoadMode(LS_KEYS.monacoLanguageYamlLoadMode, 'lazy'),
+  setMonacoLanguageYamlLoadMode: (v: 'lazy' | 'eager') => {
+    const next = writeLsString(LS_KEYS.monacoLanguageYamlLoadMode, v === 'eager' ? 'eager' : 'lazy') as 'lazy' | 'eager'
+    set({ monacoLanguageYamlLoadMode: next })
+  },
+  monacoWorkerJsonEnabled: lsBool(LS_KEYS.monacoWorkerJsonEnabled, true),
+  setMonacoWorkerJsonEnabled: (v: boolean) => set({ monacoWorkerJsonEnabled: lsSetBool(LS_KEYS.monacoWorkerJsonEnabled, !!v) }),
+  monacoWorkerJsonLoadMode: readMonacoLoadMode(LS_KEYS.monacoWorkerJsonLoadMode, 'lazy'),
+  setMonacoWorkerJsonLoadMode: (v: 'lazy' | 'eager') => {
+    const next = writeLsString(LS_KEYS.monacoWorkerJsonLoadMode, v === 'eager' ? 'eager' : 'lazy') as 'lazy' | 'eager'
+    set({ monacoWorkerJsonLoadMode: next })
+  },
+  monacoHoverEnabled: lsBool(LS_KEYS.monacoHoverEnabled, false),
+  setMonacoHoverEnabled: (v: boolean) => set({ monacoHoverEnabled: lsSetBool(LS_KEYS.monacoHoverEnabled, !!v) }),
+  monacoQuickSuggestionsEnabled: lsBool(LS_KEYS.monacoQuickSuggestionsEnabled, false),
+  setMonacoQuickSuggestionsEnabled: (v: boolean) => set({ monacoQuickSuggestionsEnabled: lsSetBool(LS_KEYS.monacoQuickSuggestionsEnabled, !!v) }),
+  monacoParameterHintsEnabled: lsBool(LS_KEYS.monacoParameterHintsEnabled, false),
+  setMonacoParameterHintsEnabled: (v: boolean) => set({ monacoParameterHintsEnabled: lsSetBool(LS_KEYS.monacoParameterHintsEnabled, !!v) }),
+  monacoLineNumbersEnabled: lsBool(LS_KEYS.monacoLineNumbersEnabled, true),
+  setMonacoLineNumbersEnabled: (v: boolean) => set({ monacoLineNumbersEnabled: lsSetBool(LS_KEYS.monacoLineNumbersEnabled, !!v) }),
+  monacoFoldingEnabled: lsBool(LS_KEYS.monacoFoldingEnabled, false),
+  setMonacoFoldingEnabled: (v: boolean) => set({ monacoFoldingEnabled: lsSetBool(LS_KEYS.monacoFoldingEnabled, !!v) }),
+  monacoMinimapEnabled: lsBool(LS_KEYS.monacoMinimapEnabled, false),
+  setMonacoMinimapEnabled: (v: boolean) => set({ monacoMinimapEnabled: lsSetBool(LS_KEYS.monacoMinimapEnabled, !!v) }),
 
   richMediaPanelMode: (() => {
     const raw = readLsString(LS_KEYS.renderRichMediaPanelMode, 'snapshot')

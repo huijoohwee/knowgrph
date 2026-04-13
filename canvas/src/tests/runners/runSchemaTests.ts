@@ -3,6 +3,7 @@ import { execTest, TestResult } from './testRunnerUtils'
 const modSchema = () => import('@/__tests__/schema.test')
 const modLayoutPositioning = () => import('@/__tests__/layoutPositioning.test')
 const modLayoutDatasetKeyStable = () => import('@/__tests__/layoutDatasetKeyStable.test')
+const modCanvas3dMode = () => import('@/__tests__/canvas3dMode.test')
 const modPmfVoxelImport = () => import('@/__tests__/pmfVoxelImport.test')
 const modPmfVoxelVisibility = () => import('@/__tests__/pmfVoxelVisibility.test')
 const modVoxelCameraPose = () => import('@/__tests__/voxelCameraPose.test')
@@ -51,6 +52,14 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'layout.datasetKey.stableAcrossRevision', async () => {
     const mod = await modLayoutDatasetKeyStable()
     await mod.testLayoutDatasetKeyStableAcrossRevision()
+  })
+  await execTest(results, 'canvas.3dMode.geospatialGuard', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testVoxelModeRejectsGeospatialMode()
+  })
+  await execTest(results, 'canvas.viewSelection.voxelGeospatialGuard', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testCanvasViewSelectionBlocksVoxelDuringGeospatialMode()
   })
   await execTest(results, 'schema.tabEnterText', async () => {
     const mod = await modSchema()

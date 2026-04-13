@@ -110,6 +110,10 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     return
   }
   if (id === 'surface:voxel') {
+    if (geospatialEnabled) {
+      onOpenGeospatialMode()
+      return
+    }
     if (schema.layout?.mode !== 'block') {
       setSchema({
         ...schema,

@@ -6,10 +6,11 @@ type VoxelModeApplicabilityArgs = {
   documentSemanticMode: 'document' | 'keyword'
   frontmatterModeEnabled: boolean
   multiDimTableModeEnabled: boolean
+  geospatialEnabled?: boolean
   schema: GraphSchema | null | undefined
 }
 
-export type VoxelModeInapplicableReason = 'renderer' | 'semantic' | 'layout' | null
+export type VoxelModeInapplicableReason = 'renderer' | 'semantic' | 'layout' | 'geospatial' | null
 
 export function normalizeCanvas3dMode(raw: unknown): Canvas3dModeId {
   return raw === 'voxel' ? 'voxel' : '3d'
@@ -25,6 +26,7 @@ export function isVoxelSemanticModeAllowed(args: Pick<VoxelModeApplicabilityArgs
 }
 
 export function getVoxelModeInapplicableReason(args: VoxelModeApplicabilityArgs): VoxelModeInapplicableReason {
+  if (args.geospatialEnabled === true) return 'geospatial'
   if (args.canvas2dRenderer !== 'd3Bipartite') return 'renderer'
   if (!isVoxelSemanticModeAllowed(args)) return 'semantic'
   if (args.schema?.layout?.mode !== 'block') return 'layout'

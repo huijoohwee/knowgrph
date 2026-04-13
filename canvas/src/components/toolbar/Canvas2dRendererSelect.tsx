@@ -55,6 +55,7 @@ export function Canvas2dRendererSelect({
     documentSemanticMode: state.documentSemanticMode,
     frontmatterModeEnabled: state.frontmatterModeEnabled,
     multiDimTableModeEnabled: state.multiDimTableModeEnabled,
+    geospatialEnabled,
     schema: state.schema,
   })
   const inapplicableReason = getVoxelModeInapplicableReason({
@@ -62,9 +63,16 @@ export function Canvas2dRendererSelect({
     documentSemanticMode: state.documentSemanticMode,
     frontmatterModeEnabled: state.frontmatterModeEnabled,
     multiDimTableModeEnabled: state.multiDimTableModeEnabled,
+    geospatialEnabled,
     schema: state.schema,
   })
   const voxelDisabledReason = React.useMemo(() => {
+    if (inapplicableReason === 'geospatial') {
+      return {
+        reason: 'Disabled in Geospatial Mode',
+        hint: 'Switch to Document Mode to enable',
+      }
+    }
     if (inapplicableReason === 'renderer') {
       return {
         reason: 'Requires Canvas View Mode: D3 Bipartite renderer',

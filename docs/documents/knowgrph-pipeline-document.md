@@ -46,6 +46,7 @@
 - Scope: `/GitHub/{knowgrph,gympgrph,curagrph}` → import → render.
 - Support all `/GitHub/sandbox/` test data; no hardcoding.
 - Centralize configs (labels, boxes, collisions, timing, knobs); reuse shared utilities.
+- Embedded Markdown GeoJSON must extract requests through one shared helper, then reuse the same graph-load and geospatial auto-enable contract as file imports.
 - Resolve cross‑repo conflicts; remove legacy/conflicting/stale code.
 - Test only bounded diffs; forbid indefinite runs.
 
