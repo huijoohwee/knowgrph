@@ -72,6 +72,20 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const isNarrowViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
   const effectiveMainPanelPinned = isNarrowViewport ? true : mainPanelPinned
   const effectiveMainPanelCollapsed = isNarrowViewport ? false : mainPanelCollapsed
+  const navStyle: React.CSSProperties | undefined =
+    toolbarCollapsed && collapsedFixedPos && !isWorkspaceOverlayMode
+      ? { position: 'fixed', top: collapsedFixedPos.top, left: collapsedFixedPos.left }
+      : isNarrowViewport
+        ? {
+            maxWidth: 'calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem)',
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            overscrollBehaviorX: 'contain',
+            overscrollBehaviorY: 'none',
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-x manipulation',
+          }
+        : undefined
 
   useEffect(() => {
     if (!isMainPanelOpen) return
@@ -87,15 +101,11 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   return (
     <nav
       ref={toolbarNavRef}
-      className={`${navClassBase} ${toolbarCollapsed ? 'App-toolbar--collapsed' : ''}`}
+      className={`${navClassBase} ${toolbarCollapsed ? 'App-toolbar--collapsed' : ''} ${isNarrowViewport ? 'App-toolbar--touch-scroll' : ''}`}
       role="navigation"
       aria-label="Main Toolbar"
       data-kg-canvas-wheel-ignore="true"
-      style={
-        toolbarCollapsed && collapsedFixedPos && !isWorkspaceOverlayMode
-          ? { position: 'fixed', top: collapsedFixedPos.top, left: collapsedFixedPos.left }
-          : undefined
-      }
+      style={navStyle}
     >
       {toolbarCollapsed ? (
         <>

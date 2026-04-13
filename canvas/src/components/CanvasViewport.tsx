@@ -347,7 +347,12 @@ export function CanvasViewport(props: CanvasViewportProps) {
   useForbidBrowserZoomWheel(rootRef, true, { stopPropagation: false })
 
   return (
-    <section ref={rootRef} className="relative w-full h-full overflow-hidden" aria-label={variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}>
+    <section
+      ref={rootRef}
+      className="relative w-full h-full overflow-hidden"
+      style={{ touchAction: 'manipulation', overscrollBehavior: 'none', WebkitTapHighlightColor: 'transparent' }}
+      aria-label={variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}
+    >
       <React.Suspense fallback={null}>
         {!geospatialModeEnabled && canvasRenderMode === '2d' && (
           <div className="absolute inset-0 z-[10]">

@@ -12,6 +12,9 @@ import { markGraphCanvasUserInteracted } from '@/components/GraphCanvas/userInte
 import { cancelPendingRefreeze, scheduleSimulationRefreezeAfterDrag } from '@/components/GraphCanvas/dragRefreeze'
 import { beginDragForceTuning } from '@/components/GraphCanvas/dragForceTuning'
 
+const TOUCH_NODE_DRAG_SLOP_PX = 8
+const PEN_NODE_DRAG_SLOP_PX = 4
+
 export const nodeDragBehavior = (
   simulation: d3.Simulation<GraphNode, GraphEdge>,
   schema: GraphSchema,
@@ -37,6 +40,16 @@ export const nodeDragBehavior = (
     let activeNode: GraphNode | null = null
     let watchdogTimer = 0
     let lastDragAtMs = 0
+    let dragThresholdPx = 0
+    let dragActivated = false
+    let dragStartClientX = Number.NaN
+    let dragStartClientY = Number.NaN
+
+    const readNodeDragSlopPx = (pointerType: unknown): number => {
+      if (pointerType === 'touch') return TOUCH_NODE_DRAG_SLOP_PX
+      if (pointerType === 'pen') return PEN_NODE_DRAG_SLOP_PX
+      return 0
+    }
 
     const clearWatchdog = () => {
       if (!watchdogTimer) return
@@ -61,21 +74,23 @@ export const nodeDragBehavior = (
       if (activeNode) {
         const mode = readLayoutMode(schema)
         const structured = mode === 'radial'
-        if (!structured) {
+        if (dragActivated && !structured) {
           simulation.alphaTarget(0)
           activeNode.fx = null
           activeNode.fy = null
         }
-        activeNode.vx = 0
-        activeNode.vy = 0
-        
-        try {
-          opts?.onNodeDragEnd?.(activeNode)
-        } catch {
-          void 0
+        if (dragActivated) {
+          activeNode.vx = 0
+          activeNode.vy = 0
+
+          try {
+            opts?.onNodeDragEnd?.(activeNode)
+          } catch {
+            void 0
+          }
         }
-        
-        if (structured) simulation.stop()
+
+        if (dragActivated && structured) simulation.stop()
         activeNode = null
       }
 
@@ -85,10 +100,48 @@ export const nodeDragBehavior = (
       }
       shouldRefreeze = false
       refreezeSvg = null
+      dragThresholdPx = 0
+      dragActivated = false
+      dragStartClientX = Number.NaN
+      dragStartClientY = Number.NaN
     }
 
     const onGlobalRelease = () => {
       if (activeNode) resetDragState()
+    }
+
+    const activateDrag = (event: d3.D3DragEvent<SVGElement, GraphNode, GraphNode>, d: GraphNode, el: SVGElement) => {
+      if (dragActivated) return
+      dragActivated = true
+
+      const mode = readLayoutMode(schema)
+      const structured = mode === 'radial'
+      const svgEl = el.ownerSVGElement
+      cancelPendingRefreeze(svgEl as unknown as SVGSVGElement | null)
+      markGraphCanvasUserInteracted(svgEl)
+      const frozenAtStart = isFrozenFromEl(el)
+      shouldRefreeze = !structured && frozenAtStart
+      refreezeSvg = shouldRefreeze ? (svgEl as unknown as SVGSVGElement | null) : null
+      if (shouldRefreeze) {
+        try {
+          svgEl?.setAttribute('data-kg-layout-frozen', '0')
+        } catch {
+          void 0
+        }
+        try {
+          simulation.on('end.kgFreeze', null)
+        } catch {
+          void 0
+        }
+      }
+
+      if (!structured && !event.active) {
+        endForceTune = beginDragForceTuning(simulation)
+        const alpha = Math.min(readDragAlphaTarget(), DEFAULT_DRAG_ALPHA_TARGET_HARD_CAP)
+        simulation.alphaTarget(alpha).restart();
+      }
+      d.fx = d.x;
+      d.fy = d.y;
     }
 
     return d3.drag<SVGElement, GraphNode>()
@@ -102,6 +155,10 @@ export const nodeDragBehavior = (
 
       try {
         const src = event && typeof event === 'object' && 'sourceEvent' in event ? (event as { sourceEvent?: unknown }).sourceEvent : null
+        const srcRecord = src && typeof src === 'object' ? (src as Record<string, unknown>) : null
+        dragThresholdPx = readNodeDragSlopPx(srcRecord?.pointerType)
+        dragStartClientX = typeof srcRecord?.clientX === 'number' ? srcRecord.clientX : Number.NaN
+        dragStartClientY = typeof srcRecord?.clientY === 'number' ? srcRecord.clientY : Number.NaN
         const pe = src instanceof PointerEvent ? src : null
         if (pe && typeof pe.pointerId === 'number') {
           const svgEl = (this as unknown as SVGElement).ownerSVGElement
@@ -129,40 +186,25 @@ export const nodeDragBehavior = (
         window.addEventListener('pointerdown', onGlobalRelease, { capture: true, once: true })
       }
 
-      const mode = readLayoutMode(schema)
-      const structured = mode === 'radial'
-
-      const svgEl = (this as unknown as SVGElement).ownerSVGElement
-      cancelPendingRefreeze(svgEl as unknown as SVGSVGElement | null)
-      markGraphCanvasUserInteracted(svgEl)
-      const frozenAtStart = isFrozenFromEl(this as unknown as SVGElement)
-      shouldRefreeze = !structured && frozenAtStart
-      refreezeSvg = shouldRefreeze ? (svgEl as unknown as SVGSVGElement | null) : null
-      if (shouldRefreeze) {
-        try {
-          svgEl?.setAttribute('data-kg-layout-frozen', '0')
-        } catch {
-          void 0
-        }
-        try {
-          simulation.on('end.kgFreeze', null)
-        } catch {
-          void 0
-        }
-      }
-
-      if (!structured && !event.active) {
-        endForceTune = beginDragForceTuning(simulation)
-        const alpha = Math.min(readDragAlphaTarget(), DEFAULT_DRAG_ALPHA_TARGET_HARD_CAP)
-        simulation.alphaTarget(alpha).restart();
-      }
-      d.fx = d.x;
-      d.fy = d.y;
+      if (!(dragThresholdPx > 0)) activateDrag(event, d, this as unknown as SVGElement)
     })
-    .on('drag', (event, d) => {
+    .on('drag', function (event, d) {
       if (useGraphStore.getState().canvasPointerMode2d === 'pan') return
       if (isSpacePanHeld()) return
       lastDragAtMs = Date.now()
+      if (!dragActivated && dragThresholdPx > 0) {
+        const src = event && typeof event === 'object' && 'sourceEvent' in event ? (event as { sourceEvent?: unknown }).sourceEvent : null
+        const srcRecord = src && typeof src === 'object' ? (src as Record<string, unknown>) : null
+        const clientX = typeof srcRecord?.clientX === 'number' ? srcRecord.clientX : Number.NaN
+        const clientY = typeof srcRecord?.clientY === 'number' ? srcRecord.clientY : Number.NaN
+        if (Number.isFinite(clientX) && Number.isFinite(clientY) && Number.isFinite(dragStartClientX) && Number.isFinite(dragStartClientY)) {
+          const distancePx = Math.hypot(clientX - dragStartClientX, clientY - dragStartClientY)
+          if (!(distancePx >= dragThresholdPx)) return
+        }
+        activateDrag(event, d, this as unknown as SVGElement)
+      } else if (!dragActivated) {
+        activateDrag(event, d, this as unknown as SVGElement)
+      }
       const mode = readLayoutMode(schema)
       const structured = mode === 'radial'
       const grid = readSnapGridConfigFromSchema(schema)

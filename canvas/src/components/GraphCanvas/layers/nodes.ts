@@ -515,6 +515,7 @@ export const createNodesLayer = (args: {
   }
 
   const onClick = (event: MouseEvent, d: GraphNode) => {
+    if ((event as unknown as { defaultPrevented?: unknown }).defaultPrevented) return
     const btn = (event as unknown as { button?: unknown }).button
     if (typeof btn === 'number' && btn !== 0) return
     event.stopPropagation();

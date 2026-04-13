@@ -128,9 +128,9 @@ const pickKeywordTextFromNode = (n: { id?: unknown; label?: unknown; type?: unkn
   return out
 }
 
-const WORKSPACE_GRAPH_CONTEXT = 'workspace-json'
-const WORKSPACE_GRAPH_SOURCE = 'workspace-json'
-const WORKSPACE_GRAPH_PARSE_NAME = 'workspace.data.json'
+const WORKSPACE_GRAPH_CONTEXT = 'workspace:graph'
+const WORKSPACE_GRAPH_SOURCE = 'workspace:graph'
+const WORKSPACE_GRAPH_PARSE_HINT = 'workspace:inline-data'
 const WORKSPACE_GRAPH_SOURCE_KIND = 'workspace'
 
 const buildKeywordSourceTextFromBaselineGraph = (
@@ -334,7 +334,7 @@ const toWorkspaceJsonGraphData = (data: GraphData): GraphData | null => {
 
 const parseWorkspaceFallbackGraph = (name: string | null, text: string): GraphData | null => {
   try {
-    const parsed = parseGraph(name || WORKSPACE_GRAPH_PARSE_NAME, text).data
+    const parsed = parseGraph(name || WORKSPACE_GRAPH_PARSE_HINT, text).data
     return toWorkspaceJsonGraphData(parsed)
   } catch {
     return null

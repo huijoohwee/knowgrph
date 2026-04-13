@@ -47,6 +47,8 @@ type PanDrag = {
   startSx: number
   startSy: number
   startTransform: d3.ZoomTransform
+  thresholdPx: number
+  hasCrossedThreshold: boolean
 }
 
 type PinchDrag = {
@@ -70,6 +72,10 @@ type LocalPointReader = (e: { clientX?: unknown; clientY?: unknown; offsetX?: un
       inBounds: boolean
     }
 type PointerCaptureApi = { setPointerCapture: (pointerId: number) => void; releasePointerCapture: (pointerId: number) => void; hasPointerCapture: (pointerId: number) => boolean }
+
+const TOUCH_PAN_SLOP_PX = 8
+const PEN_PAN_SLOP_PX = 4
+
 export function createInfiniteCanvasViewportController(args: {
   active: () => boolean
   adapter: InfiniteCanvasTransformAdapter
@@ -347,12 +353,26 @@ export function createInfiniteCanvasViewportController(args: {
     return args.readLocalPoint(e)
   }
 
+  const readPanSlopPx = (e: PointerEvent): number => {
+    if (e.pointerType === 'touch') return TOUCH_PAN_SLOP_PX
+    if (e.pointerType === 'pen') return PEN_PAN_SLOP_PX
+    return 0
+  }
+
   const startPanDrag = (e: PointerEvent) => {
     const local = readPointerLocal(e)
     if (!local) return false
     cancelWheelZoomAnimation()
     args.disableAutoZoomModes()
-    drag = { type: 'pan', pointerId: e.pointerId, startSx: local.sx, startSy: local.sy, startTransform: args.adapter.getTransform() || d3.zoomIdentity }
+    drag = {
+      type: 'pan',
+      pointerId: e.pointerId,
+      startSx: local.sx,
+      startSy: local.sy,
+      startTransform: args.adapter.getTransform() || d3.zoomIdentity,
+      thresholdPx: readPanSlopPx(e),
+      hasCrossedThreshold: false,
+    }
     userSelectLockedPointerId = e.pointerId
     try {
       args.lockUserSelect()
@@ -464,8 +484,24 @@ export function createInfiniteCanvasViewportController(args: {
       args.disableAutoZoomModes()
       const interactionSpeed =
         clampCanvasPanSpeedMultiplier(args.getCanvasPanSpeedMultiplier()) * clampCanvasInteractionSpeedMultiplier(args.getCanvasInteractionSpeedMultiplier())
-      const dx = (local.sx - drag.startSx) * interactionSpeed
-      const dy = (local.sy - drag.startSy) * interactionSpeed
+      const rawDx = local.sx - drag.startSx
+      const rawDy = local.sy - drag.startSy
+      if (!drag.hasCrossedThreshold && drag.thresholdPx > 0) {
+        const distancePx = Math.hypot(rawDx, rawDy)
+        if (!(distancePx >= drag.thresholdPx)) {
+          if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+            try {
+              e.preventDefault()
+            } catch {
+              void 0
+            }
+          }
+          return true
+        }
+        drag.hasCrossedThreshold = true
+      }
+      const dx = rawDx * interactionSpeed
+      const dy = rawDy * interactionSpeed
       applyTransform(d3.zoomIdentity.translate(drag.startTransform.x + dx, drag.startTransform.y + dy).scale(drag.startTransform.k), { commit: true })
       try {
         e.preventDefault()
@@ -526,7 +562,15 @@ export function createInfiniteCanvasViewportController(args: {
         } else if (ids.length === 1) {
           const remainingId = ids[0]!
           const pt = touchPointsById.get(remainingId)!
-          drag = { type: 'pan', pointerId: remainingId, startSx: pt.sx, startSy: pt.sy, startTransform: args.adapter.getTransform() || d3.zoomIdentity }
+          drag = {
+            type: 'pan',
+            pointerId: remainingId,
+            startSx: pt.sx,
+            startSy: pt.sy,
+            startTransform: args.adapter.getTransform() || d3.zoomIdentity,
+            thresholdPx: TOUCH_PAN_SLOP_PX,
+            hasCrossedThreshold: false,
+          }
           nextLockPointerId = remainingId
         } else {
           drag = null

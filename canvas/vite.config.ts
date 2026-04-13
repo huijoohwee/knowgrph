@@ -4780,6 +4780,20 @@ export default defineConfig(({ command }) => ({
         theme_color: '#0b1220',
         categories: ['productivity', 'utilities', 'developer'],
         prefer_related_applications: false,
+        shortcuts: [
+          {
+            name: 'Open Canvas',
+            short_name: 'Canvas',
+            description: 'Open the knowledge graph canvas.',
+            url: '.',
+          },
+          {
+            name: 'Open Editor',
+            short_name: 'Editor',
+            description: 'Open the editor workspace directly.',
+            url: './?openEditorWorkspace=1',
+          },
+        ],
         icons: [
           {
             src: 'favicon.svg',
@@ -4791,10 +4805,14 @@ export default defineConfig(({ command }) => ({
       },
       workbox: {
         navigateFallback: 'index.html',
-        globPatterns: ['index.html', 'manifest.webmanifest', 'favicon.svg', 'assets/index-*.js', 'assets/index-*.css'],
+        globPatterns: ['index.html', 'manifest.webmanifest', 'favicon.svg', 'assets/*.{js,css,woff,woff2,ttf}'],
+        globIgnores: ['assets/monaco-*.js', 'assets/mermaid-*.js'],
         runtimeCaching: [
           {
-            urlPattern: ({ request }) => request.destination === 'script' || request.destination === 'style',
+            urlPattern: ({ request }) =>
+              request.destination === 'script'
+              || request.destination === 'style'
+              || request.destination === 'worker',
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'kg-assets',
@@ -4807,6 +4825,22 @@ export default defineConfig(({ command }) => ({
             options: {
               cacheName: 'kg-static',
               expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
+            urlPattern: ({ request, url }) =>
+              request.method === 'GET'
+              && url.origin === self.location.origin
+              && !url.pathname.startsWith('/__')
+              && (
+                url.pathname.endsWith('.json')
+                || url.pathname.endsWith('.jsonld')
+                || url.pathname.endsWith('.webmanifest')
+              ),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'kg-data',
+              expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 7 },
             },
           },
         ],
