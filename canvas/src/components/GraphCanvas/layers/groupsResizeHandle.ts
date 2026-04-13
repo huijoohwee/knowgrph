@@ -14,8 +14,9 @@ export const bindGroupsResizeHandle = <T extends GraphGroup>(args: {
   selectGroup: (id: string | null) => void
   readExplicitBounds: (d: T) => GraphGroup['bounds'] | null
   computeBoundsAndLabel: (d: T) => { x: number; y: number; w: number; h: number }
-  applyComputedToGroup: (d: T, computed: any, selectedGroupId: string) => void
+  applyComputedToGroup: (d: T, computed: any, selectedGroupId: string, activeResizeGroupId: string) => void
   commitBounds: (id: string, bounds: { x: number; y: number; width: number; height: number; labelX?: number; labelY?: number }) => void
+  onResizeActiveGroupIdChange?: (id: string | null) => void
 }) => {
   const { resizeHandleHitSel } = args
   if (!resizeHandleHitSel || !args.allowResize) return
@@ -67,6 +68,11 @@ export const bindGroupsResizeHandle = <T extends GraphGroup>(args: {
       active = d
       start = { x: explicit.x, y: explicit.y, w: explicit.width, h: explicit.height, labelX: explicit.labelX, labelY: explicit.labelY }
       ;(d as unknown as { bounds?: unknown }).bounds = { ...(explicit as any) } as any
+      try {
+        args.onResizeActiveGroupIdChange?.(String(d.id || '').trim() || null)
+      } catch {
+        void 0
+      }
 
       const auto = (() => {
         if (!explicit0) return fallback
@@ -116,7 +122,8 @@ export const bindGroupsResizeHandle = <T extends GraphGroup>(args: {
       ;(explicit as any).width = next.w
       ;(explicit as any).height = next.h
       const computed = args.computeBoundsAndLabel(active)
-      args.applyComputedToGroup(active, computed, String(active.id || '').trim())
+      const activeId = String(active.id || '').trim()
+      args.applyComputedToGroup(active, computed, activeId, activeId)
     })
     .on('end', () => {
       if (!active) return
@@ -131,6 +138,11 @@ export const bindGroupsResizeHandle = <T extends GraphGroup>(args: {
           args.commitBounds(id, { x: bx, y: by, width: bw, height: bh, labelX: (explicit as any).labelX, labelY: (explicit as any).labelY })
         }
       }
+      try {
+        args.onResizeActiveGroupIdChange?.(null)
+      } catch {
+        void 0
+      }
       active = null
       start = null
       startWorld = null
@@ -144,6 +156,7 @@ export const bindGroupsResizeHandle = <T extends GraphGroup>(args: {
     })
     .on('touchstart', (event: TouchEvent) => {
       event.stopPropagation()
+      event.preventDefault()
     })
     .call(dragResize as unknown as d3.DragBehavior<SVGCircleElement, T, unknown>)
 }

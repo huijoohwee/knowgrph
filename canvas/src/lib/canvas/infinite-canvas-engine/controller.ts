@@ -22,6 +22,7 @@ import {
 } from '@/lib/canvas/camera-options-2d'
 import { clampFlowWheelZoomIncrementMultiplier, clampFlowWheelZoomSpeedMultiplier } from '@/lib/canvas/flow-zoom-tuning'
 import { clampScale, computeAnchoredZoomTransform, computePinchZoomTransform } from '@/lib/canvas/viewport-transform'
+import { readCanvasDragIntentThresholdPx } from '@/lib/canvas/dragIntent'
 import { mergeScaleExtentWithCurrent } from '@/lib/zoom/scaleExtent'
 
 export type InfiniteCanvasTransformAdapter = {
@@ -72,9 +73,6 @@ type LocalPointReader = (e: { clientX?: unknown; clientY?: unknown; offsetX?: un
       inBounds: boolean
     }
 type PointerCaptureApi = { setPointerCapture: (pointerId: number) => void; releasePointerCapture: (pointerId: number) => void; hasPointerCapture: (pointerId: number) => boolean }
-
-const TOUCH_PAN_SLOP_PX = 8
-const PEN_PAN_SLOP_PX = 4
 
 export function createInfiniteCanvasViewportController(args: {
   active: () => boolean
@@ -354,9 +352,7 @@ export function createInfiniteCanvasViewportController(args: {
   }
 
   const readPanSlopPx = (e: PointerEvent): number => {
-    if (e.pointerType === 'touch') return TOUCH_PAN_SLOP_PX
-    if (e.pointerType === 'pen') return PEN_PAN_SLOP_PX
-    return 0
+    return readCanvasDragIntentThresholdPx(e.pointerType)
   }
 
   const startPanDrag = (e: PointerEvent) => {
@@ -568,7 +564,7 @@ export function createInfiniteCanvasViewportController(args: {
             startSx: pt.sx,
             startSy: pt.sy,
             startTransform: args.adapter.getTransform() || d3.zoomIdentity,
-            thresholdPx: TOUCH_PAN_SLOP_PX,
+            thresholdPx: readCanvasDragIntentThresholdPx('touch'),
             hasCrossedThreshold: false,
           }
           nextLockPointerId = remainingId

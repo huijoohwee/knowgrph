@@ -11,9 +11,7 @@ import { DEFAULT_DRAG_ALPHA_TARGET_HARD_CAP } from '@/lib/graph/layoutDefaults'
 import { markGraphCanvasUserInteracted } from '@/components/GraphCanvas/userInteractionFlag'
 import { cancelPendingRefreeze, scheduleSimulationRefreezeAfterDrag } from '@/components/GraphCanvas/dragRefreeze'
 import { beginDragForceTuning } from '@/components/GraphCanvas/dragForceTuning'
-
-const TOUCH_NODE_DRAG_SLOP_PX = 8
-const PEN_NODE_DRAG_SLOP_PX = 4
+import { readCanvasDragIntentThresholdPx } from '@/lib/canvas/dragIntent'
 
 export const nodeDragBehavior = (
   simulation: d3.Simulation<GraphNode, GraphEdge>,
@@ -46,9 +44,7 @@ export const nodeDragBehavior = (
     let dragStartClientY = Number.NaN
 
     const readNodeDragSlopPx = (pointerType: unknown): number => {
-      if (pointerType === 'touch') return TOUCH_NODE_DRAG_SLOP_PX
-      if (pointerType === 'pen') return PEN_NODE_DRAG_SLOP_PX
-      return 0
+      return readCanvasDragIntentThresholdPx(pointerType)
     }
 
     const clearWatchdog = () => {

@@ -132,6 +132,7 @@ const buildSourceFileParsedReset = () => ({
 })
 
 const parseJobBySourceFileId = new Map<string, number>()
+const pendingParseTextHashBySourceFileId = new Map<string, string>()
 
 async function applyImportedTextToSourceFile(args: {
   id: string
@@ -159,6 +160,9 @@ async function parseAndApplySourceFile(fileId: string): Promise<void> {
   const text = String(before.text || '')
   if (!text.trim()) return
   const textHash = hashStringToHexCached(`source-file:${fileId}`, text)
+  if (before.status === 'loading' && pendingParseTextHashBySourceFileId.get(fileId) === textHash) {
+    return
+  }
   if (before.parsedGraphData && before.parsedTextHash === textHash) {
     useGraphStore.getState().updateSourceFile(fileId, {
       status: 'parsed',
@@ -173,31 +177,41 @@ async function parseAndApplySourceFile(fileId: string): Promise<void> {
   store.updateSourceFile(fileId, { status: 'loading', error: undefined })
   const parseJobToken = (parseJobBySourceFileId.get(fileId) || 0) + 1
   parseJobBySourceFileId.set(fileId, parseJobToken)
+  pendingParseTextHashBySourceFileId.set(fileId, textHash)
 
-  const res = await runImportFlow({ nameForParse: before.name, textForParse: text, applyToStore: false })
-  if (parseJobBySourceFileId.get(fileId) !== parseJobToken) return
-  const latest = useGraphStore.getState().sourceFiles.find(f => f.id === fileId)
-  if (!latest) return
-  if (hashStringToHexCached(`source-file:${fileId}`, String(latest.text || '')) !== textHash) return
-  const parsedOk = !!(res && res.graphData && res.parserId && res.counts && (res.counts.n > 0 || res.counts.e > 0))
-  if (parsedOk) {
-    store.updateSourceFile(fileId, {
-      status: 'parsed',
-      error: undefined,
-      parsedParserId: res?.parserId,
-      parsedTextHash: textHash,
-      parsedGraphRevision: 0,
-      parsedGraphData: res?.graphData,
-    })
-    scheduleApplyComposedGraphFromSourceFiles()
-    return
+  const clearPendingParseForJob = () => {
+    if (parseJobBySourceFileId.get(fileId) !== parseJobToken) return
+    pendingParseTextHashBySourceFileId.delete(fileId)
   }
 
-  const msg =
-    res && Array.isArray(res.warnings) && typeof res.warnings[0] === 'string' && res.warnings[0].trim()
-      ? res.warnings[0].trim()
-      : 'Parse failed'
-  store.updateSourceFile(fileId, { status: 'error', error: msg, parsedGraphRevision: undefined, parsedGraphData: undefined })
+  try {
+    const res = await runImportFlow({ nameForParse: before.name, textForParse: text, applyToStore: false })
+    if (parseJobBySourceFileId.get(fileId) !== parseJobToken) return
+    const latest = useGraphStore.getState().sourceFiles.find(f => f.id === fileId)
+    if (!latest) return
+    if (hashStringToHexCached(`source-file:${fileId}`, String(latest.text || '')) !== textHash) return
+    const parsedOk = !!(res && res.graphData && res.parserId && res.counts && (res.counts.n > 0 || res.counts.e > 0))
+    if (parsedOk) {
+      store.updateSourceFile(fileId, {
+        status: 'parsed',
+        error: undefined,
+        parsedParserId: res?.parserId,
+        parsedTextHash: textHash,
+        parsedGraphRevision: 0,
+        parsedGraphData: res?.graphData,
+      })
+      scheduleApplyComposedGraphFromSourceFiles()
+      return
+    }
+
+    const msg =
+      res && Array.isArray(res.warnings) && typeof res.warnings[0] === 'string' && res.warnings[0].trim()
+        ? res.warnings[0].trim()
+        : 'Parse failed'
+    store.updateSourceFile(fileId, { status: 'error', error: msg, parsedGraphRevision: undefined, parsedGraphData: undefined })
+  } finally {
+    clearPendingParseForJob()
+  }
 }
 
 function exportActiveSourceFile(args: { fileId: string | null }) {

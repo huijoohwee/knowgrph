@@ -20,6 +20,13 @@ export type GroupLayoutCacheEntry = {
 }
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+const readFiniteAttrNumber = (el: Element | null, attrName: string): number | null => {
+  if (!el) return null
+  const raw = el.getAttribute(attrName)
+  if (raw == null) return null
+  const value = Number(raw)
+  return Number.isFinite(value) ? value : null
+}
 
 const readExplicitBounds = (g: GraphGroup): GraphGroup['bounds'] | null => {
   const explicit = (g as unknown as { bounds?: unknown }).bounds
@@ -45,6 +52,7 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
   labelPadding: number
   chevronSizePx: number
   chevronGapPx: number
+  chevronHitRadiusPx: number
   collapsedSet: Set<string>
   allowResize: boolean
   resizeHandleBase: { dotRadiusPx: number; hitRadiusPx: number; strokeWidthPx: number }
@@ -53,6 +61,7 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
   geoSel: d3.Selection<SVGPathElement, T, SVGGElement, unknown>
   labelSel: d3.Selection<SVGTextElement, T, SVGGElement, unknown>
   chevronSel: d3.Selection<SVGPathElement, T, SVGGElement, unknown>
+  chevronHitSel: d3.Selection<SVGCircleElement, T, SVGGElement, unknown>
   resizeHandleGroupSel: d3.Selection<SVGGElement, T, SVGGElement, unknown> | null
   hitRectSel?: d3.Selection<SVGRectElement, T, SVGGElement, unknown> | null
   hitGeoSel?: d3.Selection<SVGPathElement, T, SVGGElement, unknown> | null
@@ -74,6 +83,10 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
   const chevronElById = new Map<string, SVGPathElement>()
   args.chevronSel.each(function (d) {
     chevronElById.set(String(d.id), this as unknown as SVGPathElement)
+  })
+  const chevronHitElById = new Map<string, SVGCircleElement>()
+  args.chevronHitSel.each(function (d) {
+    chevronHitElById.set(String(d.id), this as unknown as SVGCircleElement)
   })
   const resizeHandleElById = new Map<string, SVGGElement>()
   if (args.resizeHandleGroupSel) {
@@ -177,10 +190,11 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
     return { x, y, w, h, labelX, labelY, chevronCx, chevronCy, d: null }
   }
 
-  const applyComputedToGroup = (d: T, computed: GroupLayoutCacheEntry, selectedGroupId: string) => {
+  const applyComputedToGroup = (d: T, computed: GroupLayoutCacheEntry, selectedGroupId: string, activeResizeGroupId = '') => {
     const id = String(d.id || '').trim()
     if (!id) return
     layoutCache.set(id, computed)
+    const isActiveResize = activeResizeGroupId === id
 
     if (args.shape === 'rect') {
       const rect = rectElById.get(id) || null
@@ -189,6 +203,22 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
         rect.setAttribute('y', String(computed.y))
         rect.setAttribute('width', String(computed.w))
         rect.setAttribute('height', String(computed.h))
+        rect.setAttribute('data-kg-group-resize-active', isActiveResize ? '1' : '0')
+        const baseStrokeWidth = readFiniteAttrNumber(rect, 'data-kg-base-stroke-width')
+        if (baseStrokeWidth != null) {
+          rect.setAttribute('stroke-width', String(isActiveResize ? Math.max(baseStrokeWidth, baseStrokeWidth * 1.45) : baseStrokeWidth))
+        }
+        const baseFillOpacity = readFiniteAttrNumber(rect, 'data-kg-base-fill-opacity')
+        if (baseFillOpacity != null) {
+          rect.setAttribute('fill-opacity', String(isActiveResize ? Math.min(0.42, Math.max(baseFillOpacity + 0.08, baseFillOpacity * 1.35)) : baseFillOpacity))
+        }
+        if (isActiveResize) {
+          try {
+            rect.parentNode?.appendChild(rect)
+          } catch {
+            void 0
+          }
+        }
       }
       const hitRect = hitRectElById.get(id) || null
       if (hitRect) {
@@ -196,18 +226,42 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
         hitRect.setAttribute('y', String(computed.y))
         hitRect.setAttribute('width', String(computed.w))
         hitRect.setAttribute('height', String(computed.h))
+        hitRect.style.cursor = isActiveResize ? 'grabbing' : 'grab'
       }
     } else {
       const path = geoElById.get(id) || null
-      if (path) path.setAttribute('d', computed.d || '')
+      if (path) {
+        path.setAttribute('d', computed.d || '')
+        path.setAttribute('data-kg-group-resize-active', isActiveResize ? '1' : '0')
+        const baseStrokeWidth = readFiniteAttrNumber(path, 'data-kg-base-stroke-width')
+        if (baseStrokeWidth != null) {
+          path.setAttribute('stroke-width', String(isActiveResize ? Math.max(baseStrokeWidth, baseStrokeWidth * 1.45) : baseStrokeWidth))
+        }
+        const baseFillOpacity = readFiniteAttrNumber(path, 'data-kg-base-fill-opacity')
+        if (baseFillOpacity != null) {
+          path.setAttribute('fill-opacity', String(isActiveResize ? Math.min(0.42, Math.max(baseFillOpacity + 0.08, baseFillOpacity * 1.35)) : baseFillOpacity))
+        }
+        if (isActiveResize) {
+          try {
+            path.parentNode?.appendChild(path)
+          } catch {
+            void 0
+          }
+        }
+      }
       const hitPath = hitGeoElById.get(id) || null
-      if (hitPath) hitPath.setAttribute('d', computed.d || '')
+      if (hitPath) {
+        hitPath.setAttribute('d', computed.d || '')
+        hitPath.style.cursor = isActiveResize ? 'grabbing' : 'grab'
+      }
     }
 
     const labelEl = labelElById.get(id) || null
     if (labelEl) {
       labelEl.setAttribute('x', String(computed.labelX))
       labelEl.setAttribute('y', String(computed.labelY))
+      labelEl.setAttribute('font-weight', isActiveResize ? '700' : '500')
+      labelEl.setAttribute('opacity', isActiveResize ? '1' : '0.94')
     }
 
     const chevronEl = chevronElById.get(id) || null
@@ -217,11 +271,19 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
         'd',
         buildChevronPathD({ cx: computed.chevronCx, cy: computed.chevronCy, size: args.chevronSizePx, direction: dir }),
       )
+      chevronEl.setAttribute('stroke-width', String(isActiveResize ? 2.3 : 1.75))
+      chevronEl.style.opacity = isActiveResize ? '1' : '0.92'
+    }
+    const chevronHitEl = chevronHitElById.get(id) || null
+    if (chevronHitEl) {
+      chevronHitEl.setAttribute('cx', String(computed.chevronCx))
+      chevronHitEl.setAttribute('cy', String(computed.chevronCy))
+      chevronHitEl.setAttribute('r', String(args.chevronHitRadiusPx))
     }
 
     const handleEl = resizeHandleElById.get(id) || null
     if (handleEl) {
-      handleEl.setAttribute('transform', `translate(${computed.x + computed.w},${computed.y + computed.h})`)
+      const isSelected = selectedGroupId === id
       const handleScale = computeDynamicGroupResizeHandlePx({
         dotRadiusPx: args.resizeHandleBase.dotRadiusPx,
         hitRadiusPx: args.resizeHandleBase.hitRadiusPx,
@@ -229,17 +291,28 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
         groupWidth: computed.w,
         groupHeight: computed.h,
       })
+      const insetPx = Math.min(handleScale.hitRadiusPx * 0.45, Math.max(4, Math.min(computed.w, computed.h) * 0.18))
+      handleEl.setAttribute('transform', `translate(${computed.x + computed.w - insetPx},${computed.y + computed.h - insetPx})`)
+      handleEl.setAttribute('data-kg-group-resize-selected', isSelected ? '1' : '0')
+      handleEl.setAttribute('data-kg-group-resize-active', isActiveResize ? '1' : '0')
+      handleEl.style.cursor = isActiveResize ? 'grabbing' : 'nwse-resize'
       const dotEl = handleEl.querySelector('circle[data-kg-group-resize-dot="1"]') as SVGCircleElement | null
       if (dotEl) {
         dotEl.setAttribute('r', String(handleScale.dotRadiusPx))
-        dotEl.setAttribute('stroke-width', String(handleScale.strokeWidthPx))
+        dotEl.setAttribute('stroke-width', String(isActiveResize ? Math.max(handleScale.strokeWidthPx, handleScale.strokeWidthPx * 1.35) : handleScale.strokeWidthPx))
+        dotEl.setAttribute('fill-opacity', isActiveResize ? '0.96' : isSelected ? '0.84' : '0.72')
       }
       const hitEl = handleEl.querySelector('circle[data-kg-group-resize-hit="1"]') as SVGCircleElement | null
       if (hitEl) hitEl.setAttribute('r', String(handleScale.hitRadiusPx))
-      const canResize = args.allowResize && selectedGroupId === id
+      const canResize = args.allowResize && (isActiveResize || (!activeResizeGroupId && isSelected))
       if (canResize) {
         handleEl.style.removeProperty('display')
         try {
+          if (rectElById.get(id)?.parentNode) rectElById.get(id)?.parentNode?.appendChild(rectElById.get(id)!)
+          if (geoElById.get(id)?.parentNode) geoElById.get(id)?.parentNode?.appendChild(geoElById.get(id)!)
+          if (labelEl?.parentNode) labelEl.parentNode.appendChild(labelEl)
+          if (chevronEl?.parentNode) chevronEl.parentNode.appendChild(chevronEl)
+          if (chevronHitEl?.parentNode) chevronHitEl.parentNode.appendChild(chevronHitEl)
           handleEl.parentNode?.appendChild(handleEl)
         } catch {
           void 0

@@ -48,3 +48,34 @@ export function testPwaShellPrecachesHashedAssetsAndCachesLocalJson() {
     throw new Error('Expected PWA manifest shortcuts to include direct editor workspace launch')
   }
 }
+
+export function testPwaRuntimeTracksStandaloneInstallAndUpdateState() {
+  const runtimePath = path.resolve(process.cwd(), 'src/lib/pwa/runtime.ts')
+  const runtimeText = readUtf8(runtimePath)
+  const mainPath = path.resolve(process.cwd(), 'src/main.tsx')
+  const mainText = readUtf8(mainPath)
+  if (!runtimeText.includes("const DISPLAY_MODE_STANDALONE_MEDIA = '(display-mode: standalone)'")) {
+    throw new Error('Expected PWA runtime to centralize standalone display-mode detection')
+  }
+  if (!runtimeText.includes("window.addEventListener('appinstalled', handleAppInstalled)")) {
+    throw new Error('Expected PWA runtime to react to appinstalled for installed mobile shells')
+  }
+  if (!runtimeText.includes('root.dataset.kgDisplayMode = standalone ? \'standalone\' : \'browser\'')) {
+    throw new Error('Expected PWA runtime to publish display mode on the document root')
+  }
+  if (!runtimeText.includes('root.dataset.kgInstalled = standalone || installedHint ? \'1\' : \'0\'')) {
+    throw new Error('Expected PWA runtime to publish installed-shell state on the document root')
+  }
+  if (!runtimeText.includes('onOfflineReady()')) {
+    throw new Error('Expected PWA runtime to surface offline-ready state')
+  }
+  if (!runtimeText.includes('onNeedRefresh()')) {
+    throw new Error('Expected PWA runtime to surface update-ready state')
+  }
+  if (!mainText.includes("import { installPwaRuntime } from '@/lib/pwa/runtime'")) {
+    throw new Error('Expected main.tsx to source PWA boot from the shared runtime helper')
+  }
+  if (!mainText.includes('installPwaRuntime()')) {
+    throw new Error('Expected main.tsx to install the shared PWA runtime')
+  }
+}

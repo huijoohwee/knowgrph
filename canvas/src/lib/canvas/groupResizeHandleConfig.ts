@@ -11,7 +11,7 @@ export type GroupResizeHandleConfig = {
 
 export const readGroupResizeHandleConfig = (schema: GraphSchema | null | undefined): GroupResizeHandleConfig => {
   const s = schema || null
-  const base: GroupResizeHandleConfig = { dotRadiusPx: 6, hitRadiusPx: 14, strokeWidthPx: 1.25, minBoundsSizePx: 24, dragSensitivity: 0.72, dragDeadzonePx: 3 }
+  const base: GroupResizeHandleConfig = { dotRadiusPx: 6, hitRadiusPx: 16, strokeWidthPx: 1.25, minBoundsSizePx: 24, dragSensitivity: 0.72, dragDeadzonePx: 3 }
   if (!s) return base
   const cfg = s.layout?.groups as unknown as {
     resizeHandle?: Partial<GroupResizeHandleConfig> | null
@@ -48,7 +48,7 @@ export const computeDynamicGroupResizeHandlePx = (args: {
   groupHeight: number
 }): { dotRadiusPx: number; hitRadiusPx: number; strokeWidthPx: number } => {
   const baseDot = Number.isFinite(args.dotRadiusPx) ? Math.max(1, args.dotRadiusPx) : 6
-  const baseHit = Number.isFinite(args.hitRadiusPx) ? Math.max(baseDot + 1, args.hitRadiusPx) : Math.max(baseDot + 1, 14)
+  const baseHit = Number.isFinite(args.hitRadiusPx) ? Math.max(baseDot + 1, args.hitRadiusPx) : Math.max(baseDot + 1, 16)
   const baseStroke = Number.isFinite(args.strokeWidthPx) ? Math.max(0.5, args.strokeWidthPx) : 1.25
   const w = Number.isFinite(args.groupWidth) ? Math.max(1, args.groupWidth) : 1
   const h = Number.isFinite(args.groupHeight) ? Math.max(1, args.groupHeight) : 1
@@ -56,7 +56,7 @@ export const computeDynamicGroupResizeHandlePx = (args: {
   const scale = Math.max(0.25, Math.min(1, minSide / 360))
   const dotRadiusPx = Math.max(0.8, Math.min(14, baseDot * scale))
   const strokeWidthPx = Math.max(0.5, Math.min(4, baseStroke * Math.max(0.6, scale)))
-  const hitRadiusPx = Math.max(dotRadiusPx + 1, Math.min(20, baseHit * Math.max(0.6, scale)))
+  const hitRadiusPx = Math.max(Math.max(dotRadiusPx + 1, 12), Math.min(22, baseHit * Math.max(0.7, scale)))
   return { dotRadiusPx, hitRadiusPx, strokeWidthPx }
 }
 

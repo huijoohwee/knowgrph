@@ -28,6 +28,7 @@ import { createGroupsLayoutEngine } from '@/components/GraphCanvas/layers/groups
 import { bindGroupsResizeHandle } from '@/components/GraphCanvas/layers/groupsResizeHandle'
 import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
 import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
+import { readCanvasDragIntentThresholdPx } from '@/lib/canvas/dragIntent'
 type GroupDatum = GraphGroup
 export type GroupsLayer = {
   update: () => void
@@ -246,9 +247,19 @@ export const createGroupsLayer = (args: {
       const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
       return Math.max(d.style.strokeWidth ?? derived.strokeWidthPx, bipartiteStrokeFloor)
     })
+    .attr('data-kg-base-stroke-width', d => {
+      const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
+      const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
+      return Math.max(d.style.strokeWidth ?? derived.strokeWidthPx, bipartiteStrokeFloor)
+    })
     .attr('stroke', d => d.style.stroke ?? themeEdgeStroke)
     .attr('fill', d => d.style.fill ?? themeEdgeStroke)
     .attr('fill-opacity', d => {
+      const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
+      const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
+      return Math.max(derived.fillOpacity, bipartiteFillOpacityFloor)
+    })
+    .attr('data-kg-base-fill-opacity', d => {
       const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
       const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
       return Math.max(derived.fillOpacity, bipartiteFillOpacityFloor)
@@ -260,9 +271,19 @@ export const createGroupsLayer = (args: {
       const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
       return Math.max(d.style.strokeWidth ?? derived.strokeWidthPx, bipartiteStrokeFloor)
     })
+    .attr('data-kg-base-stroke-width', d => {
+      const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
+      const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
+      return Math.max(d.style.strokeWidth ?? derived.strokeWidthPx, bipartiteStrokeFloor)
+    })
     .attr('stroke', d => d.style.stroke ?? themeEdgeStroke)
     .attr('fill', d => d.style.fill ?? themeEdgeStroke)
     .attr('fill-opacity', d => {
+      const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
+      const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
+      return Math.max(derived.fillOpacity, bipartiteFillOpacityFloor)
+    })
+    .attr('data-kg-base-fill-opacity', d => {
       const depth = typeof d.depth === 'number' && Number.isFinite(d.depth) ? Math.max(0, Math.floor(d.depth)) : 0
       const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
       return Math.max(derived.fillOpacity, bipartiteFillOpacityFloor)
@@ -317,6 +338,7 @@ export const createGroupsLayer = (args: {
     })
 
   const chevronSizePx = 12
+  const chevronHitRadiusPx = 14
   const chevronGapPx = 6
   const chevronSel = labelsLayer
     .selectAll<SVGPathElement, GroupDatum>('path[data-kg-group-chevron]')
@@ -331,12 +353,51 @@ export const createGroupsLayer = (args: {
     .attr('stroke-linejoin', 'round')
     .style('pointer-events', 'all')
     .style('cursor', 'pointer')
+  const chevronHitSel = labelsLayer
+    .selectAll<SVGCircleElement, GroupDatum>('circle[data-kg-group-chevron-hit]')
+    .data(visibleGroups, d => d.id)
+    .join('circle')
+    .attr('data-kg-group-chevron-hit', '1')
+    .attr('data-kg-group-id', d => d.id)
+    .attr('fill', 'transparent')
+    .attr('stroke', 'none')
+    .style('pointer-events', 'all')
+    .style('cursor', 'pointer')
 
   const clickTimerById = new Map<string, number>()
   const clearClickTimer = (id: string) => {
     const t = clickTimerById.get(id)
     if (t != null) clearTimeout(t)
     clickTimerById.delete(id)
+  }
+  const toggleOrExpandGroup = (event: MouseEvent, d: GroupDatum) => {
+    event.stopPropagation()
+    clearClickTimer(d.id)
+    setSelectionSource('canvas')
+    const isAlt = (event as unknown as { altKey?: unknown }).altKey === true
+    if (isAlt) {
+      const members = d.memberNodeIds.map(x => String(x)).filter(Boolean)
+      const memberSet = memberIdSetOf(d)
+      const edgeIds = edgeIdsWithinMembers(memberSet)
+      selectGroupExpanded({ id: d.id, nodeIds: members, edgeIds })
+      return
+    }
+    toggleGroupCollapsed(d.id)
+    selectNode(collapsedGroupNodeIdFor(d.id))
+  }
+  const queueGroupSelectOrToggle = (event: MouseEvent, d: GroupDatum) => {
+    if ((event as unknown as { defaultPrevented?: unknown }).defaultPrevented) return
+    event.stopPropagation()
+    clearClickTimer(d.id)
+    if (((event as unknown as { detail?: unknown }).detail || 0) >= 2) {
+      toggleOrExpandGroup(event, d)
+      return
+    }
+    const handle = window.setTimeout(() => {
+      setSelectionSource('canvas')
+      selectGroup(d.id)
+    }, 200)
+    clickTimerById.set(d.id, handle)
   }
   const updateGroupHover = (event: MouseEvent, d: GroupDatum) => {
     if (!hoverEnabled || typeof setHoverInfo !== 'function') return
@@ -366,64 +427,19 @@ export const createGroupsLayer = (args: {
   }
 
   labelSel
-    .on('click', (event: MouseEvent, d: GroupDatum) => {
-      event.stopPropagation()
-      clearClickTimer(d.id)
-      const handle = window.setTimeout(() => {
-        setSelectionSource('canvas')
-        selectGroup(d.id)
-      }, 200)
-      clickTimerById.set(d.id, handle)
-    })
+    .on('click', queueGroupSelectOrToggle)
     .on('mouseover', updateGroupHover)
     .on('mousemove', updateGroupHover)
     .on('mouseout', clearGroupHover)
-    .on('dblclick', (event: MouseEvent, d: GroupDatum) => {
-      event.stopPropagation()
-      clearClickTimer(d.id)
-      setSelectionSource('canvas')
-      const isAlt = (event as unknown as { altKey?: unknown }).altKey === true
-      if (isAlt) {
-        const members = d.memberNodeIds.map(x => String(x)).filter(Boolean)
-        const memberSet = memberIdSetOf(d)
-        const edgeIds = edgeIdsWithinMembers(memberSet)
-        selectGroupExpanded({ id: d.id, nodeIds: members, edgeIds })
-        return
-      }
-      toggleGroupCollapsed(d.id)
-      selectNode(collapsedGroupNodeIdFor(d.id))
-    })
+    .on('dblclick', toggleOrExpandGroup)
 
   const bindHitInteractions = <E extends SVGElement>(sel: d3.Selection<E, GroupDatum, SVGGElement, unknown>) => {
     sel
       .on('mouseover', updateGroupHover)
       .on('mousemove', updateGroupHover)
       .on('mouseout', clearGroupHover)
-      .on('click', (event: MouseEvent, d: GroupDatum) => {
-        if ((event as unknown as { defaultPrevented?: unknown }).defaultPrevented) return
-        event.stopPropagation()
-        clearClickTimer(d.id)
-        const handle = window.setTimeout(() => {
-          setSelectionSource('canvas')
-          selectGroup(d.id)
-        }, 200)
-        clickTimerById.set(d.id, handle)
-      })
-      .on('dblclick', (event: MouseEvent, d: GroupDatum) => {
-        event.stopPropagation()
-        clearClickTimer(d.id)
-        setSelectionSource('canvas')
-        const isAlt = (event as unknown as { altKey?: unknown }).altKey === true
-        if (isAlt) {
-          const members = d.memberNodeIds.map(x => String(x)).filter(Boolean)
-          const memberSet = memberIdSetOf(d)
-          const edgeIds = edgeIdsWithinMembers(memberSet)
-          selectGroupExpanded({ id: d.id, nodeIds: members, edgeIds })
-          return
-        }
-        toggleGroupCollapsed(d.id)
-        selectNode(collapsedGroupNodeIdFor(d.id))
-      })
+      .on('click', queueGroupSelectOrToggle)
+      .on('dblclick', toggleOrExpandGroup)
   }
 
   bindHitInteractions(hitRectSel as unknown as d3.Selection<SVGRectElement, GroupDatum, SVGGElement, unknown>)
@@ -433,39 +449,11 @@ export const createGroupsLayer = (args: {
     .on('mouseover', updateGroupHover)
     .on('mousemove', updateGroupHover)
     .on('mouseout', clearGroupHover)
-    .on('click', (event: MouseEvent, d: GroupDatum) => {
-      if ((event as unknown as { defaultPrevented?: unknown }).defaultPrevented) return
-      event.stopPropagation()
-      clearClickTimer(d.id)
-      const handle = window.setTimeout(() => {
-        setSelectionSource('canvas')
-        selectGroup(d.id)
-      }, 200)
-      clickTimerById.set(d.id, handle)
-    })
-    .on('dblclick', (event: MouseEvent, d: GroupDatum) => {
-      event.stopPropagation()
-      clearClickTimer(d.id)
-      setSelectionSource('canvas')
-      const isAlt = (event as unknown as { altKey?: unknown }).altKey === true
-      if (isAlt) {
-        const members = d.memberNodeIds.map(x => String(x)).filter(Boolean)
-        const memberSet = memberIdSetOf(d)
-        const edgeIds = edgeIdsWithinMembers(memberSet)
-        selectGroupExpanded({ id: d.id, nodeIds: members, edgeIds })
-        return
-      }
-      toggleGroupCollapsed(d.id)
-      selectNode(collapsedGroupNodeIdFor(d.id))
-    })
+    .on('click', queueGroupSelectOrToggle)
+    .on('dblclick', toggleOrExpandGroup)
 
-  chevronSel.on('click', (event: MouseEvent, d: GroupDatum) => {
-    event.stopPropagation()
-    clearClickTimer(d.id)
-    setSelectionSource('canvas')
-    toggleGroupCollapsed(d.id)
-    selectNode(collapsedGroupNodeIdFor(d.id))
-  })
+  chevronSel.on('click', toggleOrExpandGroup)
+  chevronHitSel.on('click', toggleOrExpandGroup)
 
   const allowDrag = (() => {
     const behavior = schema.behavior as unknown as { allowGroupDrag?: unknown }
@@ -478,9 +466,62 @@ export const createGroupsLayer = (args: {
     let dragNodes: GraphNode[] = []
     let frozen = false
     let dragBoundsOnly = false
+    let dragActivated = false
+    let dragThresholdPx = 0
+    let dragStartClientX = Number.NaN
+    let dragStartClientY = Number.NaN
     let dragBoundsRef: { x: number; y: number; width: number; height: number; labelX?: number; labelY?: number } | null = null
     let dragZoomK = 1
     let endForceTune: null | (() => void) = null
+    const activateGroupDrag = (event: d3.D3DragEvent<SVGElement, GroupDatum, GroupDatum>, d: GroupDatum) => {
+      if (dragActivated) return
+      dragActivated = true
+
+      const svgEl = (event?.sourceEvent?.target as SVGElement | null)?.ownerSVGElement
+      markGraphCanvasUserInteracted(svgEl)
+      frozen = svgEl?.getAttribute('data-kg-layout-frozen') === '1'
+      try {
+        const k = d3.zoomTransform(svgEl as unknown as SVGSVGElement).k
+        dragZoomK = typeof k === 'number' && Number.isFinite(k) && k > 0 ? k : 1
+      } catch {
+        dragZoomK = 1
+      }
+
+      dragBoundsOnly = false
+      dragBoundsRef = null
+
+      const explicit = readExplicitBounds(d)
+      if (explicit) {
+        dragBoundsOnly = true
+        dragBoundsRef = { ...explicit }
+        ;(d as unknown as { bounds?: unknown }).bounds = dragBoundsRef as any
+        return
+      }
+
+      dragNodes = []
+      for (let i = 0; i < d.memberNodeIds.length; i += 1) {
+        const n = nodeById.get(String(d.memberNodeIds[i]))
+        if (n) dragNodes.push(n)
+      }
+      const structured = readLayoutMode(schema) === 'radial'
+      if (simulation && !structured && !frozen && !event.active) {
+        const alphaTarget = (() => {
+          try {
+            const v = useGraphStore.getState().graphDragAlphaTarget2d
+            return typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(0.6, v)) : DEFAULT_DRAG_ALPHA_TARGET
+          } catch {
+            return DEFAULT_DRAG_ALPHA_TARGET
+          }
+        })()
+        endForceTune = beginDragForceTuning(simulation)
+        simulation.alphaTarget(Math.min(alphaTarget, DEFAULT_DRAG_ALPHA_TARGET_HARD_CAP)).restart()
+      }
+      for (let i = 0; i < dragNodes.length; i += 1) {
+        const n = dragNodes[i]!
+        n.fx = n.x ?? 0
+        n.fy = n.y ?? 0
+      }
+    }
     const dragBehavior = d3
       .drag<SVGElement, GroupDatum>()
       .on('start', (event, d) => {
@@ -488,19 +529,16 @@ export const createGroupsLayer = (args: {
         if (srcEv && typeof srcEv.stopPropagation === 'function') srcEv.stopPropagation()
         setSelectionSource('canvas')
         selectGroup(d.id)
-
-        const svgEl = (event?.sourceEvent?.target as SVGElement | null)?.ownerSVGElement
-        markGraphCanvasUserInteracted(svgEl)
-        frozen = svgEl?.getAttribute('data-kg-layout-frozen') === '1'
-        try {
-          const k = d3.zoomTransform(svgEl as unknown as SVGSVGElement).k
-          dragZoomK = typeof k === 'number' && Number.isFinite(k) && k > 0 ? k : 1
-        } catch {
-          dragZoomK = 1
-        }
-
+        const srcRecord = srcEv && typeof srcEv === 'object' ? (srcEv as Record<string, unknown>) : null
+        dragActivated = false
+        dragThresholdPx = readCanvasDragIntentThresholdPx(srcRecord?.pointerType)
+        dragStartClientX = typeof srcRecord?.clientX === 'number' ? srcRecord.clientX : Number.NaN
+        dragStartClientY = typeof srcRecord?.clientY === 'number' ? srcRecord.clientY : Number.NaN
         dragBoundsOnly = false
         dragBoundsRef = null
+        dragNodes = []
+        frozen = false
+        dragZoomK = 1
 
         const se = event?.sourceEvent as unknown as { altKey?: unknown; shiftKey?: unknown } | undefined
         const altDown = !!(se && (se as any).altKey)
@@ -534,40 +572,22 @@ export const createGroupsLayer = (args: {
           }
           return
         }
-
-        const explicit = readExplicitBounds(d)
-        if (explicit) {
-          dragBoundsOnly = true
-          dragBoundsRef = { ...explicit }
-          ;(d as unknown as { bounds?: unknown }).bounds = dragBoundsRef as any
-          return
-        }
-
-        dragNodes = []
-        for (let i = 0; i < d.memberNodeIds.length; i += 1) {
-          const n = nodeById.get(String(d.memberNodeIds[i]))
-          if (n) dragNodes.push(n)
-        }
-        const structured = readLayoutMode(schema) === 'radial'
-        if (simulation && !structured && !frozen && !event.active) {
-          const alphaTarget = (() => {
-            try {
-              const v = useGraphStore.getState().graphDragAlphaTarget2d
-              return typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(0.6, v)) : DEFAULT_DRAG_ALPHA_TARGET
-            } catch {
-              return DEFAULT_DRAG_ALPHA_TARGET
-            }
-          })()
-          endForceTune = beginDragForceTuning(simulation)
-          simulation.alphaTarget(Math.min(alphaTarget, DEFAULT_DRAG_ALPHA_TARGET_HARD_CAP)).restart()
-        }
-        for (let i = 0; i < dragNodes.length; i += 1) {
-          const n = dragNodes[i]!
-          n.fx = n.x ?? 0
-          n.fy = n.y ?? 0
-        }
+        if (!(dragThresholdPx > 0)) activateGroupDrag(event, d)
       })
-      .on('drag', (event) => {
+      .on('drag', (event, d) => {
+        if (!dragActivated && dragThresholdPx > 0) {
+          const srcEv = (event as unknown as { sourceEvent?: unknown }).sourceEvent
+          const srcRecord = srcEv && typeof srcEv === 'object' ? (srcEv as Record<string, unknown>) : null
+          const clientX = typeof srcRecord?.clientX === 'number' ? srcRecord.clientX : Number.NaN
+          const clientY = typeof srcRecord?.clientY === 'number' ? srcRecord.clientY : Number.NaN
+          if (Number.isFinite(clientX) && Number.isFinite(clientY) && Number.isFinite(dragStartClientX) && Number.isFinite(dragStartClientY)) {
+            const distancePx = Math.hypot(clientX - dragStartClientX, clientY - dragStartClientY)
+            if (!(distancePx >= dragThresholdPx)) return
+          }
+          activateGroupDrag(event, d)
+        } else if (!dragActivated) {
+          activateGroupDrag(event, d)
+        }
         const dx0 = typeof event.dx === 'number' && Number.isFinite(event.dx) ? event.dx : 0
         const dy0 = typeof event.dy === 'number' && Number.isFinite(event.dy) ? event.dy : 0
         const k = typeof dragZoomK === 'number' && Number.isFinite(dragZoomK) && dragZoomK > 0 ? dragZoomK : 1
@@ -606,7 +626,7 @@ export const createGroupsLayer = (args: {
         }
       })
       .on('end', (event) => {
-        if (dragBoundsOnly && dragBoundsRef) {
+        if (dragActivated && dragBoundsOnly && dragBoundsRef) {
           const d = event.subject as unknown as GroupDatum
           const id = String(d.id || '').trim()
           if (id) commitGroupBounds(id, dragBoundsRef)
@@ -614,10 +634,14 @@ export const createGroupsLayer = (args: {
           dragBoundsRef = null
           dragNodes = []
           frozen = false
+          dragActivated = false
+          dragThresholdPx = 0
+          dragStartClientX = Number.NaN
+          dragStartClientY = Number.NaN
           return
         }
         const structured = readLayoutMode(schema) === 'radial'
-        if (simulation && !structured && !frozen && !event.active) {
+        if (dragActivated && simulation && !structured && !frozen && !event.active) {
           simulation.alphaTarget(0)
         }
         if (endForceTune) {
@@ -629,18 +653,26 @@ export const createGroupsLayer = (args: {
             endForceTune = null
           }
         }
-        for (let i = 0; i < dragNodes.length; i += 1) {
-          const n = dragNodes[i]!
-          if (!structured && !frozen) {
-            n.fx = null
-            n.fy = null
+        if (dragActivated) {
+          for (let i = 0; i < dragNodes.length; i += 1) {
+            const n = dragNodes[i]!
+            if (!structured && !frozen) {
+              n.fx = null
+              n.fy = null
+            }
+            n.vx = 0
+            n.vy = 0
           }
-          n.vx = 0
-          n.vy = 0
+          if (structured && simulation) simulation.stop()
         }
-        if (structured && simulation) simulation.stop()
         dragNodes = []
         frozen = false
+        dragBoundsOnly = false
+        dragBoundsRef = null
+        dragActivated = false
+        dragThresholdPx = 0
+        dragStartClientX = Number.NaN
+        dragStartClientY = Number.NaN
       })
     
     labelSel.call(dragBehavior as unknown as d3.DragBehavior<SVGTextElement, GroupDatum, unknown>)
@@ -660,6 +692,7 @@ export const createGroupsLayer = (args: {
       labelPadding,
       chevronSizePx,
       chevronGapPx,
+      chevronHitRadiusPx,
       collapsedSet,
       allowResize,
       resizeHandleBase: {
@@ -672,6 +705,7 @@ export const createGroupsLayer = (args: {
       geoSel,
       labelSel,
       chevronSel,
+      chevronHitSel,
       resizeHandleGroupSel,
       hitRectSel,
       hitGeoSel,
@@ -684,6 +718,7 @@ export const createGroupsLayer = (args: {
     groupDatumById.set(id, d)
   })
   let lastSelectedGroupId = ''
+  let activeResizeGroupId = ''
 
   function commitGroupBounds(groupId: string, bounds: { x: number; y: number; width: number; height: number; labelX?: number; labelY?: number }) {
     const id = String(groupId || '').trim()
@@ -704,6 +739,21 @@ export const createGroupsLayer = (args: {
     computeBoundsAndLabel,
     applyComputedToGroup,
     commitBounds: commitGroupBounds,
+    onResizeActiveGroupIdChange: (nextId) => {
+      const normalizedNextId = String(nextId || '').trim()
+      const prevId = activeResizeGroupId
+      activeResizeGroupId = normalizedNextId
+      const selectedGroupId = String(useGraphStore.getState().selectedGroupId || '').trim()
+      const ids = [prevId, normalizedNextId]
+      for (let i = 0; i < ids.length; i += 1) {
+        const id = String(ids[i] || '').trim()
+        if (!id) continue
+        const d = groupDatumById.get(id) || null
+        if (!d) continue
+        const computed = layoutCache.get(id) || computeBoundsAndLabel(d)
+        applyComputedToGroup(d, computed, selectedGroupId, activeResizeGroupId)
+      }
+    },
   })
 
   const update = () => {
@@ -718,7 +768,7 @@ export const createGroupsLayer = (args: {
         if (!d) continue
         const cached = layoutCache.get(id) || null
         const computed = cached || computeBoundsAndLabel(d)
-        applyComputedToGroup(d, computed, selectedGroupId)
+        applyComputedToGroup(d, computed, selectedGroupId, activeResizeGroupId)
       }
     }
     lastSelectedGroupId = selectedGroupId
@@ -741,7 +791,7 @@ export const createGroupsLayer = (args: {
       ) {
         return
       }
-      applyComputedToGroup(d, computed, selectedGroupId)
+      applyComputedToGroup(d, computed, selectedGroupId, activeResizeGroupId)
     })
   }
 

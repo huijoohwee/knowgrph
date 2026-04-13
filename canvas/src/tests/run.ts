@@ -490,6 +490,11 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       'ui.sourceFiles.ingest.staleParseGuard',
       modSourceFilesIngestStaleGuard.testSourceFilesIngestUsesParseJobGuardForStaleAsyncResults,
     )
+    await execTest(
+      results,
+      'ui.sourceFiles.ingest.dedupesPendingSameText',
+      modSourceFilesIngestStaleGuard.testSourceFilesIngestDedupesPendingParsesForSameTextHash,
+    )
     const modLazyLoadingGates = await import('../__tests__/lazyLoadingGatesRegression.test')
     await execTest(
       results,
