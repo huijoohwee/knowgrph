@@ -14,6 +14,7 @@ import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { useShallow } from 'zustand/react/shallow'
+import { useActiveGraphData } from '@/hooks/useActiveGraphData'
 
 type MainPanelTab =
   | 'integrations'
@@ -40,7 +41,48 @@ function isMainPanelTab(key: string): key is MainPanelTab {
   )
 }
 
-import { useActiveGraphData } from '@/hooks/useActiveGraphData'
+const SEARCHABLE_MAIN_PANEL_TABS = new Set<MainPanelTab>([
+  'help',
+  'graphFields',
+  'settings',
+  'workflow',
+  'history',
+  'flowEditorManager',
+])
+
+const MAIN_PANEL_TABS: Array<{ key: MainPanelTab; label: string }> = [
+  { key: 'integrations', label: UI_LABELS.integrations },
+  { key: 'workflow', label: UI_LABELS.workflowManager },
+  { key: 'flowEditorManager', label: UI_LABELS.flowEditorManager },
+  { key: 'graphFields', label: UI_LABELS.graphFields },
+  { key: 'dashboard', label: UI_LABELS.dashboard },
+  { key: 'preview', label: UI_LABELS.previewPanel },
+  { key: 'settings', label: UI_LABELS.settings },
+  { key: 'history', label: UI_LABELS.history },
+  { key: 'help', label: UI_LABELS.help },
+]
+
+const MAIN_PANEL_SEARCH_PLACEHOLDER_BY_TAB: Partial<Record<MainPanelTab, string>> = {
+  help: UI_COPY.searchShortcutsPlaceholder,
+  graphFields: UI_COPY.searchFieldsPlaceholder,
+  settings: UI_COPY.searchSettingsPlaceholder,
+  history: UI_LABELS.search,
+  workflow: UI_LABELS.search,
+  flowEditorManager: UI_COPY.searchFlowEditorManagerRegistryPlaceholder,
+}
+
+const MAIN_PANEL_FOOTER_LABEL_BY_TAB: Record<Exclude<MainPanelTab, 'graphFields'>, string> = {
+  integrations: UI_LABELS.integrations,
+  workflow: UI_LABELS.ragGraphRAGWorkflow,
+  flowEditorManager: UI_LABELS.flowEditorManager,
+  help: UI_LABELS.help,
+  dashboard: UI_LABELS.dashboard,
+  preview: UI_LABELS.previewPanel,
+  settings: UI_LABELS.settings,
+  history: UI_LABELS.history,
+}
+
+const mainPanelTabSupportsSearch = (tab: MainPanelTab): boolean => SEARCHABLE_MAIN_PANEL_TABS.has(tab)
 
 const IntegrationsHubViewLazy = React.lazy(() => import('./views/IntegrationsHubView'))
 const FlowEditorManagerViewLazy = React.lazy(() => import('@/features/panels/views/FlowEditorManagerView'))
@@ -119,6 +161,9 @@ export default function MainPanel({
     useShallow(s => ({ lastTraversalSummary: s.lastTraversalSummary })),
   )
   const graphData = useActiveGraphData()
+  const searchVisible = searchOpen && mainPanelTabSupportsSearch(tab)
+  const searchPlaceholder = MAIN_PANEL_SEARCH_PLACEHOLDER_BY_TAB[tab] || UI_LABELS.search
+  const footerLabel = tab === 'graphFields' ? graphFieldsStatus : MAIN_PANEL_FOOTER_LABEL_BY_TAB[tab]
 
   const traversalChip = React.useMemo(() => {
     const summary = lastTraversalSummary
@@ -166,38 +211,11 @@ export default function MainPanel({
       ariaLabel="Main panel"
       onDragStart={onHeaderDragStart}
       collapsed={collapsed}
-      searchVisible={
-        searchOpen &&
-        (tab === 'help' || tab === 'graphFields' || tab === 'settings' || tab === 'workflow' || tab === 'history' || tab === 'flowEditorManager')
-      }
-      searchPlaceholder={
-        tab === 'help'
-          ? UI_COPY.searchShortcutsPlaceholder
-          : tab === 'graphFields'
-          ? UI_COPY.searchFieldsPlaceholder
-          : tab === 'settings'
-          ? UI_COPY.searchSettingsPlaceholder
-          : tab === 'history'
-          ? UI_LABELS.search
-          : tab === 'workflow'
-          ? UI_LABELS.search
-          : tab === 'flowEditorManager'
-          ? UI_COPY.searchFlowEditorManagerRegistryPlaceholder
-          : UI_LABELS.search
-      }
+      searchVisible={searchVisible}
+      searchPlaceholder={searchPlaceholder}
       searchQuery={search}
       onSearchChange={setSearch}
-      tabs={[
-        { key: 'integrations', label: UI_LABELS.integrations },
-        { key: 'workflow', label: UI_LABELS.workflowManager },
-        { key: 'flowEditorManager', label: UI_LABELS.flowEditorManager },
-        { key: 'graphFields', label: UI_LABELS.graphFields },
-        { key: 'dashboard', label: UI_LABELS.dashboard },
-        { key: 'preview', label: UI_LABELS.previewPanel },
-        { key: 'settings', label: UI_LABELS.settings },
-        { key: 'history', label: UI_LABELS.history },
-        { key: 'help', label: UI_LABELS.help },
-      ]}
+      tabs={MAIN_PANEL_TABS}
       tabVariant="icon"
       tabIconByKey={{
         integrations: Workflow,
@@ -238,7 +256,7 @@ export default function MainPanel({
           onPinToggle={onPinToggle}
           pinned={pinned}
           onSearchToggle={
-            tab === 'help' || tab === 'graphFields' || tab === 'settings' || tab === 'workflow' || tab === 'history' || tab === 'flowEditorManager'
+            mainPanelTabSupportsSearch(tab)
               ? () => setSearchOpen(v => !v)
               : undefined
           }
@@ -275,25 +293,7 @@ export default function MainPanel({
       }
       footer={(
         <footer className={`w-full flex items-center justify-between ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}>
-          <p>
-            {tab === 'graphFields'
-              ? graphFieldsStatus
-              : tab === 'integrations'
-              ? UI_LABELS.integrations
-              : tab === 'dashboard'
-              ? UI_LABELS.dashboard
-              : tab === 'workflow'
-              ? UI_LABELS.ragGraphRAGWorkflow
-              : tab === 'flowEditorManager'
-              ? UI_LABELS.flowEditorManager
-              : tab === 'preview'
-              ? UI_LABELS.previewPanel
-              : tab === 'settings'
-              ? UI_LABELS.settings
-              : tab === 'history'
-              ? UI_LABELS.history
-              : UI_LABELS.help}
-          </p>
+          <p>{footerLabel}</p>
           {traversalChip && (
             <section className={`inline-flex items-center px-2 py-[1px] rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`} aria-label={UI_LABELS.graphTraversal}>
               <span className="font-semibold mr-1">{UI_LABELS.graphTraversal}</span>

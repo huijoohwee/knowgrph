@@ -20,18 +20,41 @@ const hashIndex = (value: string, length: number): number => {
   return (h >>> 0) % length
 }
 
+const readTrimmedStringProp = (props: Record<string, unknown>, keys: string[]): string => {
+  for (let i = 0; i < keys.length; i += 1) {
+    const raw = props[keys[i]!]
+    if (typeof raw !== 'string') continue
+    const value = raw.trim()
+    if (value) return value
+  }
+  return ''
+}
+
 export const resolveVoxelClusterKey = (node: GraphNode): string => {
   const props = (node.properties || {}) as Record<string, unknown>
+  const explicitKey = readTrimmedStringProp(props, [
+    'kg:radarCluster',
+    'cluster',
+    'group',
+    'visual:layer',
+    'layer:label',
+    'layer',
+  ])
   return String(
-    props['kg:radarCluster']
-    || props['cluster']
-    || props['group']
+    explicitKey
     || node.type
     || '',
   ).trim().toLowerCase()
 }
 
 export const resolveVoxelClusterColor = (node: GraphNode): string | null => {
+  const props = (node.properties || {}) as Record<string, unknown>
+  const explicitColor = readTrimmedStringProp(props, [
+    'layer:color',
+    'visual:color',
+    'color',
+  ])
+  if (explicitColor) return explicitColor
   const key = resolveVoxelClusterKey(node)
   if (!key) return null
   return VOXEL_NEON_CLUSTER_COLORS[hashIndex(key, VOXEL_NEON_CLUSTER_COLORS.length)]

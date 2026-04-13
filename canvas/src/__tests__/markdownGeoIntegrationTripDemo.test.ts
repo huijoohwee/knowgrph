@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import { loadDatasetFeatureCollection, LS_KEYS, parseGeoJsonFromText } from 'gympgrph'
 import { createMarkdownGeoDatasetIntegration } from '@/features/geospatial/markdownGeoDatasetIntegration'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -5,6 +6,7 @@ import { readGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import path from 'node:path'
+import { extractEmbeddedGeoJsonGraphDataRequests } from '@/lib/markdown/embeddedGeoJson'
 import {
   readTripDemo,
   readTripDemoMmd,
@@ -37,6 +39,9 @@ const extractFirstGeoJsonFromJsonFences = (markdown: string): string | null => {
   }
   return null
 }
+
+const resolveComputingFlowSamplePath = (): string =>
+  path.resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-sample.md')
 
 export async function testMarkdownTripDemoJsonFenceRegistersAsGeoDataset() {
   const raw = readTripDemo()
@@ -207,6 +212,54 @@ export async function testMarkdownGeoJsonLoadGraphAutoEnablesGeospatialMode() {
     const enabled = await readGeospatialModeEnabled()
     if (!enabled) {
       throw new Error('Expected GeoJSON graph load from markdown to auto-enable geospatial mode')
+    }
+  } finally {
+    useGraphStore.getState().resetAll()
+    restoreWindow()
+  }
+}
+
+export async function testMarkdownEmbeddedGeoJsonSampleLoadGraphAutoEnablesGeospatialMode() {
+  const samplePath = resolveComputingFlowSamplePath()
+  if (!fs.existsSync(samplePath)) return
+
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  let loadedGraph: GraphData | null = null
+  useGraphStore.getState().resetAll()
+  useGraphStore.getState().setAutoEnableGeospatialOnGeoImport(true)
+  storage.setItem(LS_KEYS.geospatialOverlayEnabled, 'false')
+
+  try {
+    const markdownText = fs.readFileSync(samplePath, 'utf8')
+    const requests = extractEmbeddedGeoJsonGraphDataRequests({
+      markdownText,
+      sourceDocumentPath: samplePath,
+      limit: 4,
+    })
+    if (requests.length !== 1) {
+      throw new Error(`Expected computing-flow sample to yield exactly 1 embedded GeoJSON request, got ${requests.length}`)
+    }
+
+    const integration = createMarkdownGeoDatasetIntegration({
+      loadGraphData: graphData => {
+        loadedGraph = graphData
+      },
+    })
+    const req = requests[0]
+    const res = await integration.loadGeoJsonAsGraphData?.(req)
+    if (!res || res.ok !== true) {
+      throw new Error(`Expected sample embedded GeoJSON load to succeed, got ${JSON.stringify(res)}`)
+    }
+    if (!loadedGraph || loadedGraph.context !== 'geojson') {
+      throw new Error('Expected sample embedded GeoJSON load to provide a geojson graph')
+    }
+    if (!Array.isArray(loadedGraph.nodes) || loadedGraph.nodes.length < 2) {
+      throw new Error('Expected sample embedded GeoJSON load to produce at least two graph nodes')
+    }
+    const enabled = await readGeospatialModeEnabled()
+    if (!enabled) {
+      throw new Error('Expected sample embedded GeoJSON graph load to auto-enable geospatial mode')
     }
   } finally {
     useGraphStore.getState().resetAll()

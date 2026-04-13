@@ -19,7 +19,7 @@ import { getEdgeLabelForDisplay } from '@/components/GraphCanvas/edgeDisplay'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { Pin, PinOff, X as CloseIcon } from 'lucide-react'
-import { VOXEL_SCORE_DIMENSIONS } from '@/features/three/voxelStyle'
+import { extractVoxelScores, VOXEL_SCORE_DIMENSIONS } from '@/features/three/voxelStyle'
 
 export type HoverKind = 'node' | 'edge' | 'group'
 
@@ -58,30 +58,6 @@ const EDGE_PROP_PRIORITY = [
   'confidence',
   'count',
 ]
-
-function clamp01(v: number): number {
-  if (v < 0) return 0
-  if (v > 1) return 1
-  return v
-}
-
-function extractVoxelScores(node: GraphNode): { money: number; man: number; machine: number } | null {
-  const props = (node.properties || {}) as Record<string, unknown>
-  const scores = (props['scores'] && typeof props['scores'] === 'object' && !Array.isArray(props['scores']))
-    ? (props['scores'] as Record<string, unknown>)
-    : null
-  const read = (key: string): number | null => {
-    const fromScores = scores ? scores[key] : undefined
-    const v = fromScores ?? props[key]
-    if (typeof v !== 'number' || !Number.isFinite(v)) return null
-    return clamp01(v)
-  }
-  const money = read('money')
-  const man = read('man')
-  const machine = read('machine')
-  if (money == null || man == null || machine == null) return null
-  return { money, man, machine }
-}
 
 function markdownToPlainText(markdown: string): string {
   const raw = String(markdown || '')

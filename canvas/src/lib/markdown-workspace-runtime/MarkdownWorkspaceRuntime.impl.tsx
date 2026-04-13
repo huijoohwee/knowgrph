@@ -22,7 +22,7 @@ import { applyMarkdownFormatAction, type MarkdownFormatAction } from 'grph-share
 import type { HighlightedLineRange, MarkdownPresentationApi, MarkdownWorkspaceStatus } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceTypes'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { createMarkdownGeoDatasetIntegration } from '@/features/geospatial/markdownGeoDatasetIntegration'
-import { extractEmbeddedGeoJsonFeatureCollections } from '@/lib/markdown/embeddedGeoJson'
+import { extractEmbeddedGeoJsonGraphDataRequests } from '@/lib/markdown/embeddedGeoJson'
 import { emitSidePanelOpen } from '@/features/canvas/utils'
 import { setGeospatialModeEnabled } from 'gympgrph'
 import { MarkdownWorkspaceExplorer } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceExplorer'
@@ -2392,38 +2392,19 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       const geoReqs = (() => {
         const text = String(applyText || '')
         if (!text.includes('```')) return []
-        const blocks = extractEmbeddedGeoJsonFeatureCollections(text)
-        const out: Array<{
-          sourceDocumentPath: string
-          codeBlock: { lang: 'geojson' | 'json'; text: string; startLine: number; endLine: number }
-        }> = []
-        const seen = new Set<string>()
-        for (const b of blocks.slice(0, 40)) {
-          const rawBlock = String(b.geojsonText || '')
-          const trimmed = rawBlock.trim()
-          if (!trimmed) continue
-          const sig = `geojson:${b.startLine}:${b.endLine}:${trimmed.length}:${trimmed.slice(0, 64)}`
-          if (seen.has(sig)) continue
-          seen.add(sig)
-          const req = {
-            sourceDocumentPath: name,
-            codeBlock: {
-              lang: 'geojson',
-              text: rawBlock,
-              startLine: b.startLine,
-              endLine: b.endLine,
-            },
-          } as const
-          if (typeof geoDatasetIntegration.isGeoJsonCodeBlock === 'function') {
-            try {
-              if (!geoDatasetIntegration.isGeoJsonCodeBlock(req as never)) continue
-            } catch {
-              continue
-            }
+        const extracted = extractEmbeddedGeoJsonGraphDataRequests({
+          markdownText: text,
+          sourceDocumentPath: name,
+          limit: 40,
+        })
+        if (typeof geoDatasetIntegration.isGeoJsonCodeBlock !== 'function') return extracted
+        return extracted.filter(req => {
+          try {
+            return !!geoDatasetIntegration.isGeoJsonCodeBlock?.(req as never)
+          } catch {
+            return false
           }
-          out.push(req)
-        }
-        return out
+        })
       })()
 
       if (geoReqs.length > 0 && typeof geoDatasetIntegration.registerGeoJsonFeatureCollection === 'function') {

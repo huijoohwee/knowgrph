@@ -25,7 +25,7 @@
 - Dataset layers can be added as http(s) URLs (GeoJSON or record-style JSON) and rendered as points/lines/polygons.
 - Same-origin datasets can also be referenced as absolute paths (starting with `/`) so hosts can serve local GeoJSON/JSON without CORS.
  - Host-side JSON imports that contain geo fields (e.g. `lat/lon` or `geo.{lat,lng}`) can be ingested as **sampled geodata** without parsing the entire JSON payload (prevents UI freezes on very large object-map datasets).
-- Loading a fenced Markdown `geojson` block as GraphData should reuse the same auto-enable Geospatial Mode path as `.geojson` imports; forbid Markdown-only mode toggles or duplicate enable state.
+- Loading a fenced Markdown `geojson` block as GraphData should reuse the same auto-enable Geospatial Mode path as `.geojson` imports; the computing-flow sample fixture carries one embedded FeatureCollection for ingest→parse→render validation. Forbid Markdown-only mode toggles or duplicate enable state.
 - Clicking a rendered **POI** selects it:
   - Graph-node POIs select the corresponding graph node in the main canvas (selectionSource aligns with canvas clicks).
   - Dataset POIs show a lightweight selection marker + popup with dataset/feature details.

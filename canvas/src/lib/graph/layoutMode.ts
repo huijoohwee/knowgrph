@@ -9,5 +9,5 @@ export function readLayoutMode2d(schema: GraphSchema): LayoutMode2d {
 }
 
 export function layoutModeRequires2d(mode: LayoutMode2d): boolean {
-  return mode === 'block'
+  return mode === 'radial'
 }

@@ -123,8 +123,7 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
     })
 
     if (nextRequires2d) {
-      const allow3dInBlock = nextCanvas3dMode === 'voxel'
-      if (canvasRenderMode === '3d' && !allow3dInBlock) {
+      if (canvasRenderMode === '3d') {
         set({ canvasRenderMode: '2d', canvasRenderModeLastFree: '3d', canvasRenderModeIsAuto: true })
       }
     } else if (prevRequires2d && !nextRequires2d) {

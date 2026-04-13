@@ -218,8 +218,13 @@ export const buildCanvasViewOptions = (
           title: '3D Mode',
           label: '3D',
           Icon: Box,
-          disabled: state.geospatialEnabled,
-          disabledReason: state.geospatialEnabled ? 'Disabled in Geospatial Mode' : undefined,
+          disabled: state.geospatialEnabled || state.layoutMode === 'radial',
+          disabledReason: state.geospatialEnabled
+            ? 'Disabled in Geospatial Mode'
+            : state.layoutMode === 'radial'
+              ? '3D Mode is disabled in Radial Layout'
+              : undefined,
+          enableHint: state.layoutMode === 'radial' ? 'Switch layout mode to Block' : undefined,
         },
         {
           id: 'surface:voxel',

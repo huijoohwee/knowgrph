@@ -88,6 +88,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["markdown.fastMode.parsesHtmlTables","@/__tests__/markdownPdfImportRenderInterop.test","testMarkdownLargeDocFastModeParsesHtmlTables"],
   ["importRenderPipeline.modesAndLayouts.slideDemo","@/__tests__/importRenderPipelineModesLayouts.test","testImportRenderPipelineAcrossModesAndLayouts"],
   ["importRenderPipeline.frontmatterFlow.sample.infiniteCanvas","@/__tests__/importRenderPipelineModesLayouts.test","testImportRenderPipelineFrontmatterFlowSampleInfiniteCanvas"],
+  ["importRenderPipeline.frontmatterFlow.sample.block3d","@/__tests__/importRenderPipelineModesLayouts.test","testImportRenderPipelineFrontmatterFlowSampleThreeModeBlockLayout"],
   ["importRenderPipeline.frontmatterFlow.rfSample.infiniteCanvas","@/__tests__/importRenderPipelineModesLayouts.test","testImportRenderPipelineFrontmatterFlowRfSampleInfiniteCanvas"],
   ["importRenderPipeline.frontmatterMermaid.groups","@/__tests__/mermaidFrontmatterRender.test","testMermaidFrontmatterModeKeepsMermaidNodesAndGroups"],
   ["markdown.preview.mermaid.error.usesToastNoInline","@/__tests__/mermaidErrorToastRegression.test","testMermaidRenderErrorUsesToastAndDoesNotRenderInlineBelowCanvas"],

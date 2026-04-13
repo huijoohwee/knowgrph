@@ -1,4 +1,5 @@
 import { pmfVoxelToGraphData } from '@/lib/graph/io/pmfVoxel'
+import { resolveVoxelClusterColor, resolveVoxelClusterKey } from '@/features/three/voxelStyle'
 
 export const testPmfVoxelImportFromSiblingRepoIfPresent = () => {
   const fixture = {
@@ -69,4 +70,32 @@ export const testPmfVoxelImportFromSiblingRepoIfPresent = () => {
   if (!first) throw new Error('pmf nodes should include scores')
   const layer = String((first.properties as any)['visual:layer'] || '')
   if (!layer) throw new Error('pmf nodes should include visual:layer')
+}
+
+export const testPmfVoxelResolversPreferImportedLayerMetadata = () => {
+  const fixture = {
+    meta: { title: 'PMF Voxel Fixture', version: '1.0.0' },
+    layers: [
+      {
+        id: 'market',
+        label: 'MARKET',
+        color: '#D85A30',
+        nodes: [
+          { id: 'm1', label: 'Capital', scores: { money: 0.3, man: 1.0, machine: 0.4 } },
+        ],
+      },
+    ],
+    edges: [],
+  }
+  const graph = pmfVoxelToGraphData(fixture)
+  const node = graph.nodes.find(item => item.id === 'm1')
+  if (!node) throw new Error('Expected PMF voxel graph to include node m1')
+  const key = resolveVoxelClusterKey(node)
+  if (key !== 'market') {
+    throw new Error(`Expected voxel cluster key to prefer imported layer metadata, got ${key}`)
+  }
+  const color = resolveVoxelClusterColor(node)
+  if (color !== '#D85A30') {
+    throw new Error(`Expected voxel cluster color to prefer imported layer color, got ${String(color)}`)
+  }
 }

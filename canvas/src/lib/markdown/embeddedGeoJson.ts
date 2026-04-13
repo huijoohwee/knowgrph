@@ -7,6 +7,16 @@ export type EmbeddedGeoJsonBlock = {
   endLine: number
 }
 
+export type EmbeddedGeoJsonGraphDataRequest = {
+  sourceDocumentPath: string
+  codeBlock: {
+    lang: 'geojson'
+    text: string
+    startLine: number
+    endLine: number
+  }
+}
+
 export function extractEmbeddedGeoJsonFeatureCollections(markdownText: string): EmbeddedGeoJsonBlock[] {
   const blocks = extractFencedCodeBlocks(markdownText)
   const out: EmbeddedGeoJsonBlock[] = []
@@ -28,6 +38,42 @@ export function extractEmbeddedGeoJsonFeatureCollections(markdownText: string): 
     out.push({ geojsonText: JSON.stringify(fc), startLine: b.startLine, endLine: b.endLine })
   }
 
+  return out
+}
+
+export function extractEmbeddedGeoJsonGraphDataRequests(args: {
+  markdownText: string
+  sourceDocumentPath: string
+  limit?: number
+}): EmbeddedGeoJsonGraphDataRequest[] {
+  const sourceDocumentPath = String(args.sourceDocumentPath || '').trim()
+  if (!sourceDocumentPath) return []
+
+  const blocks = extractEmbeddedGeoJsonFeatureCollections(args.markdownText)
+  if (blocks.length === 0) return []
+
+  const limit = Number.isFinite(args.limit) ? Math.max(0, Math.floor(args.limit as number)) : 40
+  if (limit === 0) return []
+
+  const seen = new Set<string>()
+  const out: EmbeddedGeoJsonGraphDataRequest[] = []
+  for (const block of blocks) {
+    if (out.length >= limit) break
+    const text = String(block.geojsonText || '').trim()
+    if (!text) continue
+    const signature = `geojson:${block.startLine}:${block.endLine}:${text.length}:${text.slice(0, 64)}`
+    if (seen.has(signature)) continue
+    seen.add(signature)
+    out.push({
+      sourceDocumentPath,
+      codeBlock: {
+        lang: 'geojson',
+        text,
+        startLine: block.startLine,
+        endLine: block.endLine,
+      },
+    })
+  }
   return out
 }
 

@@ -85,6 +85,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modPmfVoxelImport()
     await mod.testPmfVoxelImportFromSiblingRepoIfPresent()
   })
+  await execTest(results, 'io.pmfVoxel.resolvers.preferImportedLayerMetadata', async () => {
+    const mod = await modPmfVoxelImport()
+    await mod.testPmfVoxelResolversPreferImportedLayerMetadata()
+  })
   await execTest(results, 'io.pmfVoxel.parseRoute', async () => {
     const mod = await modPmfVoxelVisibility()
     await mod.testPmfJsonRoutesToPmfVoxelParser()

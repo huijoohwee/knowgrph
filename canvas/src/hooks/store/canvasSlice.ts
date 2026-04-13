@@ -446,7 +446,8 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
         semanticMode === 'keyword'
       const requestedGuarded = requested === '3d' && !modeAllowed ? '2d' : requested
       const layoutMode = state.schema?.layout?.mode
-      const enforce2d = layoutMode === 'block' && state.canvas3dMode !== 'voxel'
+      // Standard 3D stays available for block/frontmatter-flow layouts; only radial stays 2D-only.
+      const enforce2d = layoutMode === 'radial'
       if (enforce2d) {
         if (requestedGuarded === '3d') {
           const nextLastFree = state.canvasRenderMode === '3d' ? '3d' : (state.canvasRenderModeLastFree || '2d')

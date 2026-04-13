@@ -75,11 +75,28 @@ export function Canvas3dModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
     }
     return null
   }, [inapplicableReason])
+  const threeDisabledReason = React.useMemo(() => {
+    if (schema?.layout?.mode === 'radial') {
+      return {
+        reason: '3D Mode is disabled in Radial Layout',
+        hint: 'Set layout mode to Block',
+      }
+    }
+    return null
+  }, [schema])
   const options = React.useMemo(
     () =>
       [
         { id: '2d', title: '2D Mode', label: '2D', Icon: Columns2 },
-        { id: '3d', title: '3D Mode', label: '3D', Icon: Box },
+        {
+          id: '3d',
+          title: '3D Mode',
+          label: '3D',
+          Icon: Box,
+          disabled: !!threeDisabledReason,
+          disabledReason: threeDisabledReason?.reason,
+          enableHint: threeDisabledReason?.hint,
+        },
         {
           id: 'voxel',
           title: 'Voxel Mode',
@@ -90,7 +107,7 @@ export function Canvas3dModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
           enableHint: !schema ? 'Wait for graph initialization, then retry' : !voxelApplicable ? disabledReason?.hint : undefined,
         },
       ] satisfies ThreeModeOption[],
-    [disabledReason?.hint, disabledReason?.reason, schema, voxelApplicable],
+    [disabledReason?.hint, disabledReason?.reason, schema, threeDisabledReason, voxelApplicable],
   )
   const selectedModeId = (canvasRenderMode === '3d' ? canvas3dMode : '2d') as ThreeModeOption['id']
 

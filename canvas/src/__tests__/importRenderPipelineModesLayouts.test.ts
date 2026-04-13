@@ -310,6 +310,66 @@ export const testImportRenderPipelineFrontmatterFlowSampleInfiniteCanvas = async
   if (!layout.cacheKey.trim()) throw new Error('expected layout cache key for Infinite Canvas computing-flow sample')
 }
 
+export const testImportRenderPipelineFrontmatterFlowSampleThreeModeBlockLayout = async () => {
+  useGraphStore.getState().resetAll()
+  const samplePath = readComputingFlowSamplePath()
+  if (!fs.existsSync(samplePath)) return
+  const text = fs.readFileSync(samplePath, 'utf8')
+  const parsed = await loadGraphDataFromTextViaParser(samplePath, text, { applyToStore: true, syncMarkdownDocument: false })
+  if (!parsed?.graphData) throw new Error('expected graphData from computing-flow sample import')
+  if (String(parsed.graphData.context || '').trim() !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context from computing-flow sample import')
+
+  const expectedNodeIds = ['n-winners', 'n-config', 'n-scrape', 'n-filter', 'n-score', 'n-route', 'n-gallery', 'n-flagged', 'n-gauge']
+  const activeGraph = deriveGraphDataForActiveView({
+    graphData: parsed.graphData,
+    frontmatterModeEnabled: true,
+    multiDimTableModeEnabled: false,
+    documentSemanticMode: 'document',
+    documentStructureBaselineLock: false,
+    collapsedGroupIds: [],
+  })
+  const activeNodeIds = new Set((activeGraph.nodes || []).map(n => String(n.id || '').trim()).filter(Boolean))
+  for (let i = 0; i < expectedNodeIds.length; i += 1) {
+    if (!activeNodeIds.has(expectedNodeIds[i])) throw new Error(`expected active graph to include flow node ${expectedNodeIds[i]}`)
+  }
+
+  const schema = useGraphStore.getState().schema || ({} as any)
+  useGraphStore.getState().setSchema({
+    ...schema,
+    layout: { ...(schema.layout || {}), mode: 'block' as const },
+    three: {
+      ...(schema.three || {}),
+      sphereRadius: 140,
+      seed: 42,
+      minSpacing: 10,
+    },
+  } as any)
+  useGraphStore.getState().setCanvas3dMode('3d')
+  useGraphStore.getState().setCanvasRenderMode('3d')
+  if (useGraphStore.getState().canvasRenderMode !== '3d') {
+    throw new Error(`expected block layout to allow canvasRenderMode=3d, got ${String(useGraphStore.getState().canvasRenderMode)}`)
+  }
+
+  const pos = computePositions3d((activeGraph.nodes || []) as unknown as GraphNode[], useGraphStore.getState().schema as any, {
+    edges: (activeGraph.edges || []) as any,
+  })
+  let minZ = Infinity
+  let maxZ = -Infinity
+  let count = 0
+  for (let i = 0; i < expectedNodeIds.length; i += 1) {
+    const id = expectedNodeIds[i]!
+    const p = pos[id]
+    if (!p) throw new Error(`expected 3d position for node ${id}`)
+    const z = p[2]
+    if (!(typeof z === 'number' && Number.isFinite(z))) throw new Error(`expected finite z for node ${id}`)
+    minZ = Math.min(minZ, z)
+    maxZ = Math.max(maxZ, z)
+    count += 1
+  }
+  if (count < 2) throw new Error('expected multiple 3d seed positions')
+  if (!(maxZ - minZ > 1e-3)) throw new Error(`expected non-planar 3d positions for computing-flow sample, got z span=${maxZ - minZ}`)
+}
+
 export const testImportRenderPipelineRadialLayoutForces2d = () => {
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setCanvasRenderMode('3d')
