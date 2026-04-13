@@ -19,6 +19,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { CANVAS_INTERACTION_MODE_LABELS } from '@/lib/canvas/interaction-ssot'
 
 import { ZoomModeSelect } from '@/components/toolbar/ZoomModeSelect';
+import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 
 interface ToolbarProps {
   onZoomIn?: () => void;
@@ -183,6 +184,20 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     })
   }, [ensureBaselineUnlocked, schema, setSchema, voxelAnimationApplicable])
   const clampedMainPanelPos = isMainPanelOpen ? clampMainPanelPos(mainPanelDragPos) : mainPanelDragPos
+  const isNarrowViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
+  const effectiveMainPanelPinned = isNarrowViewport ? true : mainPanelPinned
+  const effectiveMainPanelCollapsed = isNarrowViewport ? false : mainPanelCollapsed
+
+  useEffect(() => {
+    if (!isMainPanelOpen) return
+    if (!isNarrowViewport) return
+    const body = document.body
+    const prevOverflow = body.style.overflow
+    body.style.overflow = 'hidden'
+    return () => {
+      body.style.overflow = prevOverflow
+    }
+  }, [isMainPanelOpen, isNarrowViewport])
 
   return (
     <nav
@@ -436,34 +451,66 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         <Settings className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       {isMainPanelOpen && (
-        <div className={mainPanelPinned ? 'fixed inset-0 z-[2000] pointer-events-none' : 'fixed inset-0 z-[80] pointer-events-none'}>
-          <div
-            ref={mainPanelCardRef}
-            className={[
-              'pointer-events-auto',
-              mainPanelCollapsed ? 'w-[80vw] max-w-[1200px] h-fit' : 'w-[80vw] h-[80vh] max-w-[1200px] max-h-[800px]',
-            ].join(' ')}
-            style={{
-              position: 'absolute',
-              top: clampedMainPanelPos.top,
-              left: clampedMainPanelPos.left,
-              transform: 'translate(-50%, -50%)',
-            }}
-          >
-            <React.Suspense fallback={null}>
-              <MainPanelLazy
-                onClose={() => setIsMainPanelOpen(false)}
-                  onHeaderDragStart={!mainPanelPinned ? handleMainPanelHeaderDragStart : undefined}
-                requestedTab={mainPanelRequestedTab}
-                requestedSearchQuery={mainPanelRequestedSearchQuery}
-                collapsed={mainPanelCollapsed}
-                pinned={mainPanelPinned}
-                onMinimize={() => setMainPanelCollapsed(true)}
-                onRestore={handleMainPanelRestore}
-                onPinToggle={() => setMainPanelPinned(v => !v)}
+        <div
+          className={`${effectiveMainPanelPinned ? 'fixed inset-0 z-[2000]' : 'fixed inset-0 z-[80]'} ${isNarrowViewport ? 'pointer-events-auto' : 'pointer-events-none'}`}
+        >
+          {isNarrowViewport ? (
+            <>
+              <div
+                className="absolute inset-0 bg-black/30"
+                onPointerDown={(e) => {
+                  e.stopPropagation()
+                  setIsMainPanelOpen(false)
+                }}
+                aria-hidden="true"
               />
-            </React.Suspense>
-          </div>
+              <div
+                ref={mainPanelCardRef}
+                className="absolute left-2 right-2 top-[calc(var(--kg-safe-top)+0.5rem)] bottom-[calc(var(--kg-safe-bottom)+0.5rem)] pointer-events-auto"
+              >
+                <React.Suspense fallback={null}>
+                  <MainPanelLazy
+                    onClose={() => setIsMainPanelOpen(false)}
+                    requestedTab={mainPanelRequestedTab}
+                    requestedSearchQuery={mainPanelRequestedSearchQuery}
+                    collapsed={false}
+                    pinned={true}
+                    onMinimize={undefined}
+                    onRestore={undefined}
+                    onPinToggle={undefined}
+                  />
+                </React.Suspense>
+              </div>
+            </>
+          ) : (
+            <div
+              ref={mainPanelCardRef}
+              className={[
+                'pointer-events-auto',
+                effectiveMainPanelCollapsed ? 'w-[80vw] max-w-[1200px] h-fit' : 'w-[80vw] h-[80vh] max-w-[1200px] max-h-[800px]',
+              ].join(' ')}
+              style={{
+                position: 'absolute',
+                top: clampedMainPanelPos.top,
+                left: clampedMainPanelPos.left,
+                transform: 'translate(-50%, -50%)',
+              }}
+            >
+              <React.Suspense fallback={null}>
+                <MainPanelLazy
+                  onClose={() => setIsMainPanelOpen(false)}
+                  onHeaderDragStart={!effectiveMainPanelPinned ? handleMainPanelHeaderDragStart : undefined}
+                  requestedTab={mainPanelRequestedTab}
+                  requestedSearchQuery={mainPanelRequestedSearchQuery}
+                  collapsed={effectiveMainPanelCollapsed}
+                  pinned={effectiveMainPanelPinned}
+                  onMinimize={!effectiveMainPanelCollapsed ? () => setMainPanelCollapsed(true) : undefined}
+                  onRestore={handleMainPanelRestore}
+                  onPinToggle={() => setMainPanelPinned(v => !v)}
+                />
+              </React.Suspense>
+            </div>
+          )}
         </div>
       )}
 

@@ -12,15 +12,12 @@ import { installGlobalInteractionRecovery } from '@/lib/canvas/interaction-recov
 import { ensureSpacePanKeyListenerInstalled } from '@/lib/canvas/space-pan'
 import { ensureKgTokensInstalled } from '@/lib/ui/tokens-ssot'
 import { installIntegrationUtilityCommand } from '@/features/integrations/command'
+import { resolveRouterBasename } from '@/lib/routing/basePath'
 
 const Canvas = lazy(() => import('@/pages/Canvas'))
 
 export default function App() {
-  const basename = (() => {
-    const raw = String(import.meta.env.BASE_URL || '/')
-    if (!raw || raw === '/') return undefined
-    return raw.endsWith('/') ? raw.slice(0, -1) : raw
-  })()
+  const basename = resolveRouterBasename(import.meta.env.BASE_URL)
   useEffect(() => {
     installGlobalUserSelectFailsafe()
   }, [])
@@ -67,7 +64,7 @@ export default function App() {
   return (
     <Router basename={basename}>
       <ErrorBoundary>
-        <Suspense fallback={<div className={`h-screen flex items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`}>Loading…</div>}>
+        <Suspense fallback={<div className={`h-[100dvh] flex items-center justify-center ${UI_THEME_TOKENS.text.tertiary}`}>Loading…</div>}>
           <Routes>
             <Route path="/*" element={<Canvas />} />
           </Routes>

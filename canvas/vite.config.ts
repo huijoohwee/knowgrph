@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { traeBadgePlugin } from 'vite-plugin-trae-solo-badge'
+import { VitePWA } from 'vite-plugin-pwa'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
@@ -4450,6 +4451,33 @@ export default defineConfig(({ command }) => ({
   plugins: [
     stripEntitiesBadSourcemapsPlugin,
     react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      injectRegister: null,
+      devOptions: { enabled: false },
+      manifest: {
+        name: 'knowgrph',
+        short_name: 'knowgrph',
+        description: 'Local-first knowledge graph canvas.',
+        start_url: '.',
+        scope: '.',
+        display: 'standalone',
+        background_color: '#0b1220',
+        theme_color: '#0b1220',
+        icons: [
+          {
+            src: 'favicon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any maskable',
+          },
+        ],
+      },
+      workbox: {
+        navigateFallback: 'index.html',
+        globPatterns: ['**/*.{js,css,html,svg,json,woff2}'],
+      },
+    }),
     ...(command === 'build'
       ? []
       : [

@@ -69,6 +69,19 @@
   --kg-kanban-card-shadow-hover: 0 10px 24px rgba(0,0,0,0.10);
   --kg-panel-action-bg: rgba(0,0,0,0.04);
   --kg-panel-action-bg-hover: rgba(0,0,0,0.07);
+
+  --kg-safe-top: env(safe-area-inset-top, 0px);
+  --kg-safe-right: env(safe-area-inset-right, 0px);
+  --kg-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --kg-safe-left: env(safe-area-inset-left, 0px);
+
+  --kg-touch-target: 44px;
+}
+
+@media (pointer: coarse), (max-width: 768px) {
+  :root {
+    --kg-control-height: var(--kg-touch-target);
+  }
 }
 
 :root[data-theme='light'] {
@@ -331,7 +344,7 @@ html, body, #root {
     border: 1px solid var(--island-border-color);
     border-radius: var(--island-radius);
     box-shadow: var(--island-shadow);
-    min-height: 36px;
+    min-height: var(--kg-control-height, 36px);
   }
   .App-toolbar--collapsed {
     height: 36px;
@@ -352,13 +365,14 @@ html, body, #root {
     --toolbar-padding: 0.75rem 1rem;
   }
   .App-toolbar__btn {
-    height: 28px;
-    min-width: 28px;
+    height: var(--kg-control-height, 28px);
+    min-width: var(--kg-control-height, 28px);
     padding: 8px;
     border-radius: 8px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    touch-action: manipulation;
   }
   .LaunchButton__icon {
     animation: launch-rocket 3s ease-in-out infinite;

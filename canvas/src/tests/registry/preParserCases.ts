@@ -17,4 +17,5 @@ export const TEST_CASES_PRE_PARSER: TestCaseTuple[] = [
     '../__tests__/codebaseRelPathFromAbsolute.test',
     'testCodebaseRelPathCoercionFromAbsoluteUnderRoot',
   ],
+  ['routing.basePath.resolveRouterBasename', '../__tests__/routingBasePath.test', 'testResolveRouterBasenameFromBaseUrl'],
 ]

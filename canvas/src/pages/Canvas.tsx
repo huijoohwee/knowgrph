@@ -1001,7 +1001,7 @@ export default function CanvasPage() {
       <SourceFilesPersistenceBootstrap />
       <SsotEventBridge />
       <section
-        className="relative flex h-screen w-full max-w-full flex-col overflow-hidden bg-[var(--kg-canvas-bg)] transition-colors duration-300"
+        className="relative flex h-[100dvh] min-h-[100dvh] w-full max-w-full flex-col overflow-hidden bg-[var(--kg-canvas-bg)] transition-colors duration-300"
         aria-label="Knowgrph Canvas"
       >
         {isEmbeddedPreview ? (
@@ -1021,7 +1021,7 @@ export default function CanvasPage() {
           <>
             {workspaceViewMode === 'editor' ? (
               <header className="absolute top-0 inset-x-0 z-[400] pointer-events-none" aria-label="Workspace Toolbar Header">
-                <nav className="absolute top-2 right-2 z-[200] flex items-center justify-end bg-transparent" aria-label="Canvas Toolbar" role="navigation">
+                <nav className="absolute top-[calc(var(--kg-safe-top)+0.5rem)] right-[calc(var(--kg-safe-right)+0.5rem)] z-[200] flex items-center justify-end bg-transparent" aria-label="Canvas Toolbar" role="navigation">
                   <div className="pointer-events-auto">
                     <React.Suspense fallback={null}>
                       <ToolbarLazy onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleReset} onZoomSelection={handleZoomSelection} />
@@ -1062,7 +1062,7 @@ export default function CanvasPage() {
                   >
                     {workspaceViewMode !== 'editor' ? (
                       <nav
-                        className="absolute top-0 inset-x-0 z-[200] flex items-center justify-center pt-2 pb-2 bg-transparent pointer-events-none"
+                        className="absolute top-0 inset-x-0 z-[200] flex items-center justify-center pt-[calc(var(--kg-safe-top)+0.5rem)] pb-2 bg-transparent pointer-events-none"
                         aria-label="Canvas Toolbar"
                         role="navigation"
                       >
