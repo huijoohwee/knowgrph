@@ -2,8 +2,11 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { registerSW } from 'virtual:pwa-register'
 
 const DISPLAY_MODE_STANDALONE_MEDIA = '(display-mode: standalone)'
+const DISPLAY_MODE_FULLSCREEN_MEDIA = '(display-mode: fullscreen)'
+const DISPLAY_MODE_MINIMAL_UI_MEDIA = '(display-mode: minimal-ui)'
 
 type NavigatorWithStandalone = Navigator & { standalone?: boolean }
+type PwaDisplayMode = 'browser' | 'standalone' | 'fullscreen' | 'minimal-ui'
 
 const pushPwaToast = (args: {
   id: string
@@ -26,41 +29,53 @@ const pushPwaToast = (args: {
   }
 }
 
-const readStandaloneDisplayMode = (): boolean => {
-  if (typeof window === 'undefined') return false
+const readPwaDisplayMode = (): PwaDisplayMode => {
+  if (typeof window === 'undefined') return 'browser'
   try {
-    if (typeof window.matchMedia === 'function' && window.matchMedia(DISPLAY_MODE_STANDALONE_MEDIA).matches) {
-      return true
+    if (typeof window.matchMedia === 'function') {
+      if (window.matchMedia(DISPLAY_MODE_FULLSCREEN_MEDIA).matches) return 'fullscreen'
+      if (window.matchMedia(DISPLAY_MODE_STANDALONE_MEDIA).matches) return 'standalone'
+      if (window.matchMedia(DISPLAY_MODE_MINIMAL_UI_MEDIA).matches) return 'minimal-ui'
     }
   } catch {
     void 0
   }
   try {
-    return (window.navigator as NavigatorWithStandalone).standalone === true
+    if ((window.navigator as NavigatorWithStandalone).standalone === true) return 'standalone'
   } catch {
-    return false
+    void 0
   }
+  return 'browser'
 }
 
-const applyPwaDisplayModeState = (installedHint: boolean): void => {
+const applyPwaDisplayModeState = (installedHint: boolean, swState?: { offlineReady?: boolean; updateReady?: boolean }): void => {
   if (typeof document === 'undefined') return
   const root = document.documentElement
   if (!root) return
-  const standalone = readStandaloneDisplayMode()
-  root.dataset.kgDisplayMode = standalone ? 'standalone' : 'browser'
-  root.dataset.kgInstalled = standalone || installedHint ? '1' : '0'
+  const displayMode = readPwaDisplayMode()
+  root.dataset.kgDisplayMode = displayMode
+  root.dataset.kgInstalled = displayMode === 'browser' && !installedHint ? '0' : '1'
+  root.dataset.kgOfflineReady = swState?.offlineReady ? '1' : '0'
+  root.dataset.kgUpdateReady = swState?.updateReady ? '1' : '0'
 }
 
 export function installPwaRuntime(): void {
   if (typeof window === 'undefined') return
-  let installedHint = readStandaloneDisplayMode()
-  applyPwaDisplayModeState(installedHint)
+  const swState = { offlineReady: false, updateReady: false }
+  let installedHint = readPwaDisplayMode() !== 'browser'
+  applyPwaDisplayModeState(installedHint, swState)
 
-  const standaloneMediaQuery =
-    typeof window.matchMedia === 'function' ? window.matchMedia(DISPLAY_MODE_STANDALONE_MEDIA) : null
-  const refreshDisplayModeState = () => applyPwaDisplayModeState(installedHint)
+  const displayModeMediaQueries =
+    typeof window.matchMedia === 'function'
+      ? [
+          window.matchMedia(DISPLAY_MODE_STANDALONE_MEDIA),
+          window.matchMedia(DISPLAY_MODE_FULLSCREEN_MEDIA),
+          window.matchMedia(DISPLAY_MODE_MINIMAL_UI_MEDIA),
+        ]
+      : []
+  const refreshDisplayModeState = () => applyPwaDisplayModeState(installedHint, swState)
   const handleStandaloneDisplayModeChange = () => {
-    installedHint = installedHint || readStandaloneDisplayMode()
+    installedHint = installedHint || readPwaDisplayMode() !== 'browser'
     refreshDisplayModeState()
   }
   const handleAppInstalled = () => {
@@ -75,11 +90,12 @@ export function installPwaRuntime(): void {
     })
   }
 
-  if (standaloneMediaQuery) {
-    if (typeof standaloneMediaQuery.addEventListener === 'function') {
-      standaloneMediaQuery.addEventListener('change', handleStandaloneDisplayModeChange)
-    } else if (typeof standaloneMediaQuery.addListener === 'function') {
-      standaloneMediaQuery.addListener(handleStandaloneDisplayModeChange)
+  for (let i = 0; i < displayModeMediaQueries.length; i += 1) {
+    const mediaQuery = displayModeMediaQueries[i]
+    if (typeof mediaQuery?.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleStandaloneDisplayModeChange)
+    } else if (typeof mediaQuery?.addListener === 'function') {
+      mediaQuery.addListener(handleStandaloneDisplayModeChange)
     }
   }
   window.addEventListener('appinstalled', handleAppInstalled)
@@ -87,6 +103,7 @@ export function installPwaRuntime(): void {
   registerSW({
     immediate: true,
     onOfflineReady() {
+      swState.offlineReady = true
       refreshDisplayModeState()
       pushPwaToast({
         id: 'pwa:offline-ready',
@@ -97,6 +114,7 @@ export function installPwaRuntime(): void {
       })
     },
     onNeedRefresh() {
+      swState.updateReady = true
       refreshDisplayModeState()
       pushPwaToast({
         id: 'pwa:update-ready',
@@ -107,6 +125,8 @@ export function installPwaRuntime(): void {
       })
     },
     onRegisterError() {
+      swState.offlineReady = false
+      swState.updateReady = false
       refreshDisplayModeState()
       pushPwaToast({
         id: 'pwa:register-error',

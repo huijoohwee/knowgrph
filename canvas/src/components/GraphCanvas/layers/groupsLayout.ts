@@ -46,6 +46,7 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
   schema: GraphSchema
   nodeById: Map<string, GraphNode>
   nodeHalfExtentsById: Map<string, { halfW: number; halfH: number }>
+  parentGroupIdById: Map<string, string | null>
   padding: number
   nestedPaddingStep: number
   maxDepth: number
@@ -67,6 +68,28 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
   hitGeoSel?: d3.Selection<SVGPathElement, T, SVGGElement, unknown> | null
 }) => {
   const layoutCache = new Map<string, GroupLayoutCacheEntry>()
+  const classifyResizeRelation = (groupId: string, activeResizeGroupId: string): 'active' | 'ancestor' | 'descendant' | 'neutral' => {
+    const activeId = String(activeResizeGroupId || '').trim()
+    const id = String(groupId || '').trim()
+    if (!activeId || !id) return 'neutral'
+    if (activeId === id) return 'active'
+
+    // Walk up from the active group to find ancestors.
+    let cursor = args.parentGroupIdById.get(activeId) || null
+    while (cursor) {
+      if (cursor === id) return 'ancestor'
+      cursor = args.parentGroupIdById.get(cursor) || null
+    }
+
+    // Walk up from the current group to see if it descends from the active group.
+    cursor = args.parentGroupIdById.get(id) || null
+    while (cursor) {
+      if (cursor === activeId) return 'descendant'
+      cursor = args.parentGroupIdById.get(cursor) || null
+    }
+
+    return 'neutral'
+  }
 
   const rectElById = new Map<string, SVGRectElement>()
   args.rectSel.each(function (d) {
@@ -195,6 +218,9 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
     if (!id) return
     layoutCache.set(id, computed)
     const isActiveResize = activeResizeGroupId === id
+    const resizeRelation = classifyResizeRelation(id, activeResizeGroupId)
+    const isAncestorResizeRelation = resizeRelation === 'ancestor'
+    const isDescendantResizeRelation = resizeRelation === 'descendant'
 
     if (args.shape === 'rect') {
       const rect = rectElById.get(id) || null
@@ -204,13 +230,30 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
         rect.setAttribute('width', String(computed.w))
         rect.setAttribute('height', String(computed.h))
         rect.setAttribute('data-kg-group-resize-active', isActiveResize ? '1' : '0')
+        rect.setAttribute('data-kg-group-resize-relation', resizeRelation)
         const baseStrokeWidth = readFiniteAttrNumber(rect, 'data-kg-base-stroke-width')
         if (baseStrokeWidth != null) {
-          rect.setAttribute('stroke-width', String(isActiveResize ? Math.max(baseStrokeWidth, baseStrokeWidth * 1.45) : baseStrokeWidth))
+          const strokeWidth =
+            isActiveResize
+              ? Math.max(baseStrokeWidth, baseStrokeWidth * 1.45)
+              : isAncestorResizeRelation
+                ? Math.max(baseStrokeWidth, baseStrokeWidth * 1.16)
+                : isDescendantResizeRelation
+                  ? Math.max(baseStrokeWidth, baseStrokeWidth * 1.04)
+                  : baseStrokeWidth
+          rect.setAttribute('stroke-width', String(strokeWidth))
         }
         const baseFillOpacity = readFiniteAttrNumber(rect, 'data-kg-base-fill-opacity')
         if (baseFillOpacity != null) {
-          rect.setAttribute('fill-opacity', String(isActiveResize ? Math.min(0.42, Math.max(baseFillOpacity + 0.08, baseFillOpacity * 1.35)) : baseFillOpacity))
+          const fillOpacity =
+            isActiveResize
+              ? Math.min(0.42, Math.max(baseFillOpacity + 0.08, baseFillOpacity * 1.35))
+              : isAncestorResizeRelation
+                ? Math.min(0.34, Math.max(baseFillOpacity + 0.04, baseFillOpacity * 1.16))
+                : isDescendantResizeRelation
+                  ? Math.max(0.04, baseFillOpacity * 0.88)
+                  : baseFillOpacity
+          rect.setAttribute('fill-opacity', String(fillOpacity))
         }
         if (isActiveResize) {
           try {
@@ -233,13 +276,30 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
       if (path) {
         path.setAttribute('d', computed.d || '')
         path.setAttribute('data-kg-group-resize-active', isActiveResize ? '1' : '0')
+        path.setAttribute('data-kg-group-resize-relation', resizeRelation)
         const baseStrokeWidth = readFiniteAttrNumber(path, 'data-kg-base-stroke-width')
         if (baseStrokeWidth != null) {
-          path.setAttribute('stroke-width', String(isActiveResize ? Math.max(baseStrokeWidth, baseStrokeWidth * 1.45) : baseStrokeWidth))
+          const strokeWidth =
+            isActiveResize
+              ? Math.max(baseStrokeWidth, baseStrokeWidth * 1.45)
+              : isAncestorResizeRelation
+                ? Math.max(baseStrokeWidth, baseStrokeWidth * 1.16)
+                : isDescendantResizeRelation
+                  ? Math.max(baseStrokeWidth, baseStrokeWidth * 1.04)
+                  : baseStrokeWidth
+          path.setAttribute('stroke-width', String(strokeWidth))
         }
         const baseFillOpacity = readFiniteAttrNumber(path, 'data-kg-base-fill-opacity')
         if (baseFillOpacity != null) {
-          path.setAttribute('fill-opacity', String(isActiveResize ? Math.min(0.42, Math.max(baseFillOpacity + 0.08, baseFillOpacity * 1.35)) : baseFillOpacity))
+          const fillOpacity =
+            isActiveResize
+              ? Math.min(0.42, Math.max(baseFillOpacity + 0.08, baseFillOpacity * 1.35))
+              : isAncestorResizeRelation
+                ? Math.min(0.34, Math.max(baseFillOpacity + 0.04, baseFillOpacity * 1.16))
+                : isDescendantResizeRelation
+                  ? Math.max(0.04, baseFillOpacity * 0.88)
+                  : baseFillOpacity
+          path.setAttribute('fill-opacity', String(fillOpacity))
         }
         if (isActiveResize) {
           try {
@@ -260,8 +320,9 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
     if (labelEl) {
       labelEl.setAttribute('x', String(computed.labelX))
       labelEl.setAttribute('y', String(computed.labelY))
-      labelEl.setAttribute('font-weight', isActiveResize ? '700' : '500')
-      labelEl.setAttribute('opacity', isActiveResize ? '1' : '0.94')
+      labelEl.setAttribute('font-weight', isActiveResize ? '700' : isAncestorResizeRelation ? '600' : '500')
+      labelEl.setAttribute('opacity', isActiveResize ? '1' : isAncestorResizeRelation ? '0.94' : isDescendantResizeRelation ? '0.78' : '0.94')
+      labelEl.setAttribute('data-kg-group-resize-relation', resizeRelation)
     }
 
     const chevronEl = chevronElById.get(id) || null
@@ -271,8 +332,9 @@ export const createGroupsLayoutEngine = <T extends GraphGroup>(args: {
         'd',
         buildChevronPathD({ cx: computed.chevronCx, cy: computed.chevronCy, size: args.chevronSizePx, direction: dir }),
       )
-      chevronEl.setAttribute('stroke-width', String(isActiveResize ? 2.3 : 1.75))
-      chevronEl.style.opacity = isActiveResize ? '1' : '0.92'
+      chevronEl.setAttribute('stroke-width', String(isActiveResize ? 2.3 : isAncestorResizeRelation ? 2.05 : 1.75))
+      chevronEl.style.opacity = isActiveResize ? '1' : isAncestorResizeRelation ? '0.96' : isDescendantResizeRelation ? '0.78' : '0.92'
+      chevronEl.setAttribute('data-kg-group-resize-relation', resizeRelation)
     }
     const chevronHitEl = chevronHitElById.get(id) || null
     if (chevronHitEl) {

@@ -28,6 +28,7 @@ import { HighlightedCode } from './codeblock/HighlightedCode'
 import { HtmlCodeBlockRenderer } from './codeblock/HtmlCodeBlockRenderer'
 import { encodeUtf8ToBase64 } from '@/features/markdown/markdownRoundTrip'
 import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
+import { MermaidVisibilityGate } from './MermaidVisibilityGate'
 import {
   MARKDOWN_CODE_FENCE_ASCII_TEXT_COMPACT_CLASS,
   MARKDOWN_CODE_BLOCK_READ_SPACING_CLASS,
@@ -448,25 +449,27 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
                 const useEnhancedMermaid = !!(fm && Object.keys(fm).length)
                 return diagrams.map((diagramCode, index) => (
                   <React.Suspense key={index} fallback={null}>
-                    {useEnhancedMermaid ? (
-                      <MermaidDiagramLazy
-                        code={diagramCode}
-                        highlightClass={highlightClass}
-                        frontmatterConfig={fm}
-                        rootThemeMode={opts.rootThemeMode}
-                        overlayScope={opts.previewOverlayScope}
-                        overlayPortalTarget={opts.previewOverlayPortalTarget}
-                        variant="codeblock"
-                        enablePanZoom
-                        wheelZoomRequiresModifier={false}
-                        wheelZoomBehavior="active"
-                      />
-                    ) : (
-                      <PlainMermaidDiagramLazy
-                        code={diagramCode}
-                        rootThemeMode={opts.rootThemeMode}
-                      />
-                    )}
+                    <MermaidVisibilityGate>
+                      {useEnhancedMermaid ? (
+                        <MermaidDiagramLazy
+                          code={diagramCode}
+                          highlightClass={highlightClass}
+                          frontmatterConfig={fm}
+                          rootThemeMode={opts.rootThemeMode}
+                          overlayScope={opts.previewOverlayScope}
+                          overlayPortalTarget={opts.previewOverlayPortalTarget}
+                          variant="codeblock"
+                          enablePanZoom
+                          wheelZoomRequiresModifier={false}
+                          wheelZoomBehavior="active"
+                        />
+                      ) : (
+                        <PlainMermaidDiagramLazy
+                          code={diagramCode}
+                          rootThemeMode={opts.rootThemeMode}
+                        />
+                      )}
+                    </MermaidVisibilityGate>
                   </React.Suspense>
                 ))
               })()}

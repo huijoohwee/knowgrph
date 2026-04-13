@@ -873,8 +873,8 @@ export function testMarkdownFrontmatterFlowGraphFidelityMarkdownSyntaxComputingF
 
   const unresolvedLabelEdge = flowEdges.find(e => String(e.id || '') === 'fe-06') || null
   if (!unresolvedLabelEdge) throw new Error('expected fe-06 edge')
-  if (String(unresolvedLabelEdge.label || '') !== 'confidence ≥ {{n-config.data.min_confidence}}') {
-    throw new Error('expected unresolved flow template refs to remain literal in edge labels')
+  if (String(unresolvedLabelEdge.label || '') !== 'confidence ≥ high') {
+    throw new Error('expected edge labels to resolve dotted flow-node data references')
   }
 
   const scoreNode = nodeById.get('n-score') || null

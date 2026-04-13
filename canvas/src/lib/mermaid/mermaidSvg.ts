@@ -49,7 +49,7 @@ const renderMermaidSvgCachedWithProfile = async (args: {
         },
       })
     } else {
-      await ensureMermaidInitialized(baseConfig)
+      await ensureMermaidInitialized(baseConfig, code)
     }
     const mermaid = await loadMermaidRuntimeApi()
 

@@ -1,6 +1,6 @@
 import React from 'react'
 import { useFrame } from '@react-three/fiber'
-import * as THREE from 'three'
+import { AdditiveBlending, BoxGeometry, Color, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, SphereGeometry, Vector3, type Material } from 'three'
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { Vec3 } from './layout'
@@ -52,9 +52,9 @@ export function VoxelDistricts({ nodes, positions, schema, paused }: { nodes: Gr
   const height = clamp(heightRaw, voxelGridStep * 0.1, voxelGridStep * 12)
   const emissiveBase = 0.08
   const emissiveRef = React.useRef<number>(emissiveBase)
-  const meshRef = React.useRef<THREE.InstancedMesh | null>(null)
-  const materialRef = React.useRef<THREE.MeshStandardMaterial | null>(null)
-  const geom = React.useMemo(() => new THREE.BoxGeometry(1, 1, 1), [])
+  const meshRef = React.useRef<InstancedMesh | null>(null)
+  const materialRef = React.useRef<MeshStandardMaterial | null>(null)
+  const geom = React.useMemo(() => new BoxGeometry(1, 1, 1), [])
   React.useEffect(() => {
     return () => {
       try {
@@ -64,11 +64,11 @@ export function VoxelDistricts({ nodes, positions, schema, paused }: { nodes: Gr
       }
     }
   }, [geom])
-  const colorTmp = React.useMemo(() => new THREE.Color(), [])
-  const matrixTmp = React.useMemo(() => new THREE.Matrix4(), [])
-  const scaleTmp = React.useMemo(() => new THREE.Vector3(), [])
-  const posTmp = React.useMemo(() => new THREE.Vector3(), [])
-  const quatTmp = React.useMemo(() => new THREE.Quaternion(), [])
+  const colorTmp = React.useMemo(() => new Color(), [])
+  const matrixTmp = React.useMemo(() => new Matrix4(), [])
+  const scaleTmp = React.useMemo(() => new Vector3(), [])
+  const posTmp = React.useMemo(() => new Vector3(), [])
+  const quatTmp = React.useMemo(() => new Quaternion(), [])
   const districts: District[] = React.useMemo(() => {
     if (!enabled) return []
     const stats = new Map<string, { minX: number; maxX: number; minY: number; maxY: number; minZ: number; sumX: number; sumY: number; sumZ: number; count: number; sample: GraphNode | null }>()
@@ -163,7 +163,7 @@ export function VoxelDistricts({ nodes, positions, schema, paused }: { nodes: Gr
   return (
     <instancedMesh
       ref={meshRef}
-      args={[geom, undefined as unknown as THREE.Material, Math.max(1, districts.length)]}
+      args={[geom, undefined as unknown as Material, Math.max(1, districts.length)]}
       renderOrder={THREE_RENDER_ORDER.groups - 6}
       receiveShadow
       frustumCulled
@@ -262,8 +262,8 @@ export function VoxelDistrictAmbientField({ nodes, positions, schema, paused }: 
   }, [clusters.length, enabled, perDistrict])
 
   const total = clusters.length * effectivePerDistrict
-  const meshRef = React.useRef<THREE.InstancedMesh | null>(null)
-  const geom = React.useMemo(() => new THREE.SphereGeometry(particleSize, 8, 8), [particleSize])
+  const meshRef = React.useRef<InstancedMesh | null>(null)
+  const geom = React.useMemo(() => new SphereGeometry(particleSize, 8, 8), [particleSize])
   React.useEffect(() => {
     return () => {
       try {
@@ -273,12 +273,12 @@ export function VoxelDistrictAmbientField({ nodes, positions, schema, paused }: 
       }
     }
   }, [geom])
-  const matRef = React.useRef<THREE.MeshBasicMaterial | null>(null)
-  const tmpMat = React.useMemo(() => new THREE.Matrix4(), [])
-  const tmpPos = React.useMemo(() => new THREE.Vector3(), [])
-  const tmpScale = React.useMemo(() => new THREE.Vector3(1, 1, 1), [])
-  const tmpQuat = React.useMemo(() => new THREE.Quaternion(), [])
-  const tmpColor = React.useMemo(() => new THREE.Color(), [])
+  const matRef = React.useRef<MeshBasicMaterial | null>(null)
+  const tmpMat = React.useMemo(() => new Matrix4(), [])
+  const tmpPos = React.useMemo(() => new Vector3(), [])
+  const tmpScale = React.useMemo(() => new Vector3(1, 1, 1), [])
+  const tmpQuat = React.useMemo(() => new Quaternion(), [])
+  const tmpColor = React.useMemo(() => new Color(), [])
   const orbitSeedByIndex = React.useMemo(() => {
     const seeds: number[] = []
     for (let i = 0; i < total; i += 1) {
@@ -338,11 +338,11 @@ export function VoxelDistrictAmbientField({ nodes, positions, schema, paused }: 
   return (
     <instancedMesh
       ref={meshRef}
-      args={[geom, undefined as unknown as THREE.Material, Math.max(1, total)]}
+      args={[geom, undefined as unknown as Material, Math.max(1, total)]}
       renderOrder={THREE_RENDER_ORDER.edges - 2}
       frustumCulled
     >
-      <meshBasicMaterial ref={matRef} transparent opacity={0.28} vertexColors depthWrite={false} blending={THREE.AdditiveBlending} />
+      <meshBasicMaterial ref={matRef} transparent opacity={0.28} vertexColors depthWrite={false} blending={AdditiveBlending} />
     </instancedMesh>
   )
 }

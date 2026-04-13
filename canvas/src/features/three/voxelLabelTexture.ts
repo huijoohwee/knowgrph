@@ -1,8 +1,8 @@
-import * as THREE from 'three'
+import { CanvasTexture, ClampToEdgeWrapping, LinearFilter } from 'three'
 
 type TextureKey = string
 
-const textureCache = new Map<TextureKey, THREE.CanvasTexture>()
+const textureCache = new Map<TextureKey, CanvasTexture>()
 
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v))
 
@@ -14,7 +14,7 @@ const makeCanvasTexture = (args: {
   bgOpacity: number
   paddingX: number
   paddingY: number
-}): { texture: THREE.CanvasTexture; widthPx: number; heightPx: number } => {
+}): { texture: CanvasTexture; widthPx: number; heightPx: number } => {
   const fontSizePx = Number.isFinite(args.fontSizePx) ? Math.max(8, Math.min(36, Math.floor(args.fontSizePx))) : 12
   const paddingX = Number.isFinite(args.paddingX) ? Math.max(4, Math.min(40, Math.floor(args.paddingX))) : 10
   const paddingY = Number.isFinite(args.paddingY) ? Math.max(2, Math.min(24, Math.floor(args.paddingY))) : 6
@@ -26,7 +26,7 @@ const makeCanvasTexture = (args: {
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
   if (!ctx) {
-    const fallback = new THREE.CanvasTexture(document.createElement('canvas'))
+    const fallback = new CanvasTexture(document.createElement('canvas'))
     return { texture: fallback, widthPx: 1, heightPx: 1 }
   }
 
@@ -69,12 +69,12 @@ const makeCanvasTexture = (args: {
   ctx.font = `${fontSizePx}px ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
   ctx.fillText(text, w / 2, h / 2)
 
-  const texture = new THREE.CanvasTexture(canvas)
+  const texture = new CanvasTexture(canvas)
   texture.needsUpdate = true
-  texture.minFilter = THREE.LinearFilter
-  texture.magFilter = THREE.LinearFilter
-  texture.wrapS = THREE.ClampToEdgeWrapping
-  texture.wrapT = THREE.ClampToEdgeWrapping
+  texture.minFilter = LinearFilter
+  texture.magFilter = LinearFilter
+  texture.wrapS = ClampToEdgeWrapping
+  texture.wrapT = ClampToEdgeWrapping
   return { texture, widthPx: w, heightPx: h }
 }
 
@@ -84,7 +84,7 @@ export const getVoxelLabelTexture = (args: {
   textColor: string
   bgColor: string
   bgOpacity: number
-}): { texture: THREE.CanvasTexture; widthPx: number; heightPx: number } => {
+}): { texture: CanvasTexture; widthPx: number; heightPx: number } => {
   const key = [
     String(args.text || ''),
     String(args.fontSizePx || ''),
@@ -113,4 +113,3 @@ export const getVoxelLabelTexture = (args: {
   textureCache.set(key, created.texture)
   return created
 }
-

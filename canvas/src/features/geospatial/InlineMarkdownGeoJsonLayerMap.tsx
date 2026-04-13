@@ -7,7 +7,7 @@ import {
   isPointOnlyFeatureCollection,
   setGeoJsonSourceData,
   useMapLibreBasemap,
-} from 'gympgrph'
+} from 'gympgrph/map-preview'
 import type { FeatureCollection } from 'geojson'
 import { geoGraticule10, geoMercator, geoPath } from 'd3'
 import { shouldSuppressBasemapErrorMessage } from './basemapErrorSuppression'

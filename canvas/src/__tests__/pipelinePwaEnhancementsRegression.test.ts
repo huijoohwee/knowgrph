@@ -54,16 +54,25 @@ export function testPwaRuntimeTracksStandaloneInstallAndUpdateState() {
   const runtimeText = readUtf8(runtimePath)
   const mainPath = path.resolve(process.cwd(), 'src/main.tsx')
   const mainText = readUtf8(mainPath)
-  if (!runtimeText.includes("const DISPLAY_MODE_STANDALONE_MEDIA = '(display-mode: standalone)'")) {
-    throw new Error('Expected PWA runtime to centralize standalone display-mode detection')
+  if (!runtimeText.includes("const DISPLAY_MODE_FULLSCREEN_MEDIA = '(display-mode: fullscreen)'")) {
+    throw new Error('Expected PWA runtime to track fullscreen display-mode shells')
+  }
+  if (!runtimeText.includes("const DISPLAY_MODE_MINIMAL_UI_MEDIA = '(display-mode: minimal-ui)'")) {
+    throw new Error('Expected PWA runtime to track minimal-ui display-mode shells')
   }
   if (!runtimeText.includes("window.addEventListener('appinstalled', handleAppInstalled)")) {
     throw new Error('Expected PWA runtime to react to appinstalled for installed mobile shells')
   }
-  if (!runtimeText.includes('root.dataset.kgDisplayMode = standalone ? \'standalone\' : \'browser\'')) {
+  if (!runtimeText.includes('root.dataset.kgDisplayMode = displayMode')) {
     throw new Error('Expected PWA runtime to publish display mode on the document root')
   }
-  if (!runtimeText.includes('root.dataset.kgInstalled = standalone || installedHint ? \'1\' : \'0\'')) {
+  if (!runtimeText.includes("root.dataset.kgOfflineReady = swState?.offlineReady ? '1' : '0'")) {
+    throw new Error('Expected PWA runtime to publish offline-ready state on the document root')
+  }
+  if (!runtimeText.includes("root.dataset.kgUpdateReady = swState?.updateReady ? '1' : '0'")) {
+    throw new Error('Expected PWA runtime to publish update-ready state on the document root')
+  }
+  if (!runtimeText.includes("root.dataset.kgInstalled = displayMode === 'browser' && !installedHint ? '0' : '1'")) {
     throw new Error('Expected PWA runtime to publish installed-shell state on the document root')
   }
   if (!runtimeText.includes('onOfflineReady()')) {

@@ -505,7 +505,6 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
       await import('monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution')
       const { ensureMonacoEnvironment } = await import('./monacoEnvironment')
       const { acquireTextModel } = await import('./monacoModelRegistry')
-      await import('monaco-editor/esm/vs/editor/contrib/stickyScroll/browser/stickyScrollContribution')
       if (cancelled) return
 
       ensureMonacoEnvironment()
@@ -543,10 +542,6 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
             typeof paddingBottomPx === 'number' && Number.isFinite(paddingBottomPx) && paddingBottomPx > 0
               ? Math.floor(paddingBottomPx)
               : 0,
-        },
-        stickyScroll: {
-          enabled: true,
-          maxLineCount: 5,
         },
       })
 

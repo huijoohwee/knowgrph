@@ -385,9 +385,9 @@ export function MermaidDiagram({
           setError('Mermaid diagram code is not a Mermaid definition')
           return
         }
-        const mermaid = await ensureMermaidInitialized(config)
-        if (cancelled) return
         const normalizedCode = normalizeMermaidClickSyntax(trimmedCode)
+        const mermaid = await ensureMermaidInitialized(config, normalizedCode)
+        if (cancelled) return
         cleanupMermaidRenderArtifacts(renderId)
         const out = await mermaid.render(renderId, normalizedCode)
         cleanupMermaidRenderArtifacts(renderId)

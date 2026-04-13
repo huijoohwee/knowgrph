@@ -358,6 +358,27 @@ function coerceFlowNodePorts(raw: unknown): Array<Record<string, unknown>> {
   return out
 }
 
+function buildFlowTemplateVars(
+  vars: Record<string, unknown>,
+  nodes: Array<Record<string, unknown>>,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...vars }
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]
+    if (!isRecord(node)) continue
+    const id = asString(node.id)
+    if (!id) continue
+    merged[id] = {
+      id,
+      type: asString(node.type),
+      label: asString(node.label) || id,
+      data: node.data,
+      properties: isRecord(node.properties) ? node.properties : undefined,
+    }
+  }
+  return merged
+}
+
 export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Record<string, unknown> {
   const flow = isRecord(meta.flow) ? (meta.flow as Record<string, unknown>) : null
   if (!flow) return meta
@@ -416,6 +437,7 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     }
     normalizedNodes.push(next)
   }
+  const flowVars = buildFlowTemplateVars(vars, normalizedNodes)
 
   const rawEdges = Array.isArray(flow.edges) ? flow.edges : []
   const normalizedConnections: Array<Record<string, unknown>> = []
@@ -428,7 +450,7 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     const targetHandle = asString(row.targetHandle)
     if (!source || !target || !sourceHandle || !targetHandle) continue
     const labelRaw = asString(row.label)
-    const label = labelRaw ? resolveTemplateString(labelRaw, vars, pathCache, declarationCache, resolvedStringCache) : ''
+    const label = labelRaw ? resolveTemplateString(labelRaw, flowVars, pathCache, declarationCache, resolvedStringCache) : ''
     const conn: Record<string, unknown> = {
       id: asString(row.id) || `flow-e${String(i + 1).padStart(2, '0')}`,
       from_node: source,
@@ -440,6 +462,18 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
       ...(asString(row.type) ? { type: asString(row.type) } : {}),
     }
     normalizedConnections.push(conn)
+  }
+
+  for (let i = 0; i < normalizedNodes.length; i += 1) {
+    const node = normalizedNodes[i]
+    if (!isRecord(node)) continue
+    const labelRaw = asString(node.label)
+    const computeRaw = asString(node.compute)
+    node.label = labelRaw ? resolveTemplateString(labelRaw, flowVars, pathCache, declarationCache, resolvedStringCache) : asString(node.id)
+    node.data = normalizeFlowNodeDataValue(
+      resolveTemplateValue(node.data, flowVars, pathCache, declarationCache, resolvedStringCache),
+    )
+    if (computeRaw) node.compute = resolveTemplateString(computeRaw, flowVars, pathCache, declarationCache, resolvedStringCache)
   }
 
   const rawDirection = asString(flow.direction).toUpperCase()

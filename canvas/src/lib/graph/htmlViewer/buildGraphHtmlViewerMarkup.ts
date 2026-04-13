@@ -1103,7 +1103,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
     .kg-mediaTitle{margin:0;min-width:0;font-size:var(--kg-media-panel-title-size, 12px);font-weight:600;line-height:1.25;color:var(--kg-text-primary, var(--kg-text));white-space:nowrap;text-overflow:ellipsis;overflow:hidden;pointer-events:none}
     .kg-mediaActions{margin:0;padding:0;list-style:none;display:flex;align-items:center;gap:4px;pointer-events:auto}
     .kg-mediaActionBtn{width:calc(var(--kg-media-panel-header-h, 28px) - 6px);height:calc(var(--kg-media-panel-header-h, 28px) - 6px);min-width:calc(var(--kg-media-panel-header-h, 28px) - 6px);min-height:calc(var(--kg-media-panel-header-h, 28px) - 6px);border-radius:6px;color:var(--kg-text-secondary);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto}
-    button[data-kg-panel-action="1"]{background:var(--kg-panel-action-bg);border:1px solid var(--kg-border);transition:transform 140ms ease, box-shadow 140ms ease, background 140ms ease;touch-action:manipulation}
+    button[data-kg-panel-action="1"]{background:var(--kg-panel-action-bg);border:1px solid var(--kg-border);transition:var(--kg-transition-action, transform var(--kg-motion-fast, 140ms) var(--kg-motion-ease, ease), box-shadow var(--kg-motion-fast, 140ms) var(--kg-motion-ease, ease), background var(--kg-motion-fast, 140ms) var(--kg-motion-ease, ease));touch-action:manipulation}
     button[data-kg-panel-action="1"]:hover{background:var(--kg-panel-action-bg-hover)}
     button[data-kg-panel-action="1"]:active{transform:translateY(1px)}
     .kg-mediaBody{flex:1;padding:var(--kg-media-panel-padding, 6px);box-sizing:border-box;min-height:0;position:relative}

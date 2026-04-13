@@ -1,6 +1,7 @@
 import React from 'react'
 import { type MermaidInitConfig, useRootThemeMode } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { MermaidVisibilityGate } from './MermaidVisibilityGate'
 
 const MermaidDiagramLazy = React.lazy(() =>
   import('@/features/panels/views/preview-panel/ui/MermaidDiagram').then(mod => ({ default: mod.MermaidDiagram })),
@@ -144,19 +145,21 @@ export function Mermaid({
   const useEnhancedMermaid = !!(config && Object.keys(config).length)
   return (
     <React.Suspense fallback={null}>
-      {useEnhancedMermaid ? (
-        <MermaidDiagramLazy
-          code={code}
-          highlightClass=""
-          frontmatterConfig={config || null}
-          rootThemeMode={rootThemeMode}
-        />
-      ) : (
-        <PlainMermaidDiagramLazy
-          code={code}
-          rootThemeMode={rootThemeMode}
-        />
-      )}
+      <MermaidVisibilityGate>
+        {useEnhancedMermaid ? (
+          <MermaidDiagramLazy
+            code={code}
+            highlightClass=""
+            frontmatterConfig={config || null}
+            rootThemeMode={rootThemeMode}
+          />
+        ) : (
+          <PlainMermaidDiagramLazy
+            code={code}
+            rootThemeMode={rootThemeMode}
+          />
+        )}
+      </MermaidVisibilityGate>
     </React.Suspense>
   )
 }

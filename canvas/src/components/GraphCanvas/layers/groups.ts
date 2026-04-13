@@ -30,6 +30,10 @@ import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
 import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
 import { readCanvasDragIntentThresholdPx } from '@/lib/canvas/dragIntent'
 type GroupDatum = GraphGroup
+const readMouseEventDetail = (event: MouseEvent): number => {
+  const detail = (event as unknown as { detail?: unknown }).detail
+  return typeof detail === 'number' && Number.isFinite(detail) ? detail : 0
+}
 export type GroupsLayer = {
   update: () => void
 }
@@ -64,6 +68,7 @@ export const createGroupsLayer = (args: {
   const boundsOverridesById = readSchemaGroupBoundsOverrides(schema)
 
   const shape: 'rect' | 'geo' = cfg.shape === 'geo' ? 'geo' : 'rect'
+  const groupResizeDotTransition = 'var(--kg-transition-group-resize-dot)'
 
   const nodeById = new Map<string, GraphNode>()
   const headingLevelByGroupId = new Map<string, number>()
@@ -107,6 +112,14 @@ export const createGroupsLayer = (args: {
     collapsedGroupIdSet: collapsedSet,
   })
   if (visibleGroups.length === 0) return { update: () => {} }
+  const parentGroupIdById = new Map<string, string | null>()
+  for (let i = 0; i < visibleGroups.length; i += 1) {
+    const group = visibleGroups[i]!
+    const id = String(group.id || '').trim()
+    if (!id) continue
+    const parentId = typeof group.parentGroupId === 'string' ? group.parentGroupId.trim() : ''
+    parentGroupIdById.set(id, parentId || null)
+  }
 
   const shapesLayer = g.append('g').attr('data-kg-layer', 'groups').style('pointer-events', 'none')
   const hitLayer = g.append('g').attr('data-kg-layer', 'groups-hit')
@@ -198,6 +211,7 @@ export const createGroupsLayer = (args: {
       .attr('stroke', UI_THEME_COLORS_CSS.textSecondary)
       .attr('stroke-width', cfg.strokeWidthPx)
       .style('pointer-events', 'none')
+    .style('transition', groupResizeDotTransition)
 
     return sel
   })()
@@ -232,6 +246,9 @@ export const createGroupsLayer = (args: {
   const labelPresentation = readLabelPresentation2d({ schema, documentSemanticMode: args.documentSemanticMode })
   const baseFontSize = labelPresentation.groupFontSizePx
   const themeEdgeStroke = UI_THEME_COLORS_CSS.edgeStroke
+  const groupShapeTransition = 'var(--kg-transition-group-shape)'
+  const groupLabelTransition = 'var(--kg-transition-group-label)'
+  const groupChevronTransition = 'var(--kg-transition-group-chevron)'
 
   let maxDepth = 0
   for (let i = 0; i < groups.length; i += 1) {
@@ -264,6 +281,7 @@ export const createGroupsLayer = (args: {
       const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
       return Math.max(derived.fillOpacity, bipartiteFillOpacityFloor)
     })
+    .style('transition', groupShapeTransition)
 
   geoSel
     .attr('stroke-width', d => {
@@ -288,6 +306,7 @@ export const createGroupsLayer = (args: {
       const derived = computeGroupDepthStyle({ depth, maxDepth, baseStrokeWidthPx: strokeWidth, baseFillOpacity: fillOpacity, config: depthCfg })
       return Math.max(derived.fillOpacity, bipartiteFillOpacityFloor)
     })
+    .style('transition', groupShapeTransition)
 
   const getGroupLabelFontSizePx = (d: GroupDatum): number => {
     const mdLevel = headingLevelByGroupId.get(String(d.id))
@@ -336,6 +355,7 @@ export const createGroupsLayer = (args: {
     .style('font-size', d => {
       return `${getGroupLabelText(d).fontSize}px`
     })
+    .style('transition', groupLabelTransition)
 
   const chevronSizePx = 12
   const chevronHitRadiusPx = 14
@@ -353,6 +373,7 @@ export const createGroupsLayer = (args: {
     .attr('stroke-linejoin', 'round')
     .style('pointer-events', 'all')
     .style('cursor', 'pointer')
+    .style('transition', groupChevronTransition)
   const chevronHitSel = labelsLayer
     .selectAll<SVGCircleElement, GroupDatum>('circle[data-kg-group-chevron-hit]')
     .data(visibleGroups, d => d.id)
@@ -389,7 +410,7 @@ export const createGroupsLayer = (args: {
     if ((event as unknown as { defaultPrevented?: unknown }).defaultPrevented) return
     event.stopPropagation()
     clearClickTimer(d.id)
-    if (((event as unknown as { detail?: unknown }).detail || 0) >= 2) {
+    if (readMouseEventDetail(event) >= 2) {
       toggleOrExpandGroup(event, d)
       return
     }
@@ -686,6 +707,7 @@ export const createGroupsLayer = (args: {
       schema,
       nodeById,
       nodeHalfExtentsById,
+      parentGroupIdById,
       padding,
       nestedPaddingStep,
       maxDepth,

@@ -8,6 +8,10 @@
       "import": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./map-preview": {
+      "import": "./src/mapPreview.ts",
+      "default": "./src/mapPreview.ts"
+    },
     "./testkit": {
       "import": "./src/testkit.ts",
       "default": "./src/testkit.ts"

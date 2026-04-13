@@ -94,6 +94,21 @@ const stripEntitiesBadSourcemapsPlugin = {
   },
 }
 
+const stripMermaidArchitectureDetectorPlugin = {
+  name: 'knowgrph-strip-mermaid-architecture-detector',
+  enforce: 'pre' as const,
+  transform(code: string, id: string) {
+    if (!id) return null
+    if (!id.replace(/\\/g, '/').endsWith('/mermaid/dist/mermaid.core.mjs')) return null
+    let next = code
+    next = next.replace(
+      'registerLazyLoadedDiagrams(detector_default, detector_default3, architectureDetector_default);',
+      'registerLazyLoadedDiagrams(detector_default, detector_default3);',
+    )
+    return next === code ? null : next
+  },
+}
+
 function withRepoPythonPath(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const current = String(env.PYTHONPATH || '').trim()
   const next = current ? `${repoRoot}${path.delimiter}${current}` : repoRoot
@@ -4681,13 +4696,66 @@ export default defineConfig(({ command }) => ({
                 if (moduleId.includes('/node_modules/d3/')) return 'd3'
                 if (moduleId.includes('/node_modules/lucide-react/')) return 'ui'
                 if (moduleId.includes('/node_modules/zustand/')) return 'ui'
+                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/language/')) return 'monaco-language'
+                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/standalone/')) return 'monaco-standalone'
+                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/contrib/')) return 'monaco-contrib'
+                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/browser/')) return 'monaco-editor-browser'
+                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/common/model/')) return 'monaco-editor-model'
+                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/common/languages/')) return 'monaco-editor-languages'
+                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/common/services/')) return 'monaco-editor-services'
+                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/common/')) return 'monaco-editor-common'
+                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/platform/')) return 'monaco-platform'
+                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/base/browser/')) return 'monaco-base-browser'
+                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/base/common/')) return 'monaco-base-common'
+                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/')) return 'monaco-editor-core'
+                if (moduleId.includes('/node_modules/monaco-editor/esm/vs/base/')) return 'monaco-base'
                 if (moduleId.includes('/node_modules/monaco-editor/')) return 'monaco'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/flowDiagram')) return 'mermaid-flow'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/classDiagram')) return 'mermaid-class'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram')) return 'mermaid-state'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/sequenceDiagram')) return 'mermaid-sequence'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/ganttDiagram')) return 'mermaid-gantt'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/gitGraph')) return 'mermaid-gitgraph'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/pieDiagram')) return 'mermaid-pie'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/erDiagram')) return 'mermaid-er'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/architectureDiagram')) return 'mermaid-architecture'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/blockDiagram')) return 'mermaid-block'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/c4Diagram')) return 'mermaid-c4'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/journeyDiagram')) return 'mermaid-journey'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/mindmap')) return 'mermaid-mindmap'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/quadrantDiagram')) return 'mermaid-quadrant'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/requirementDiagram')) return 'mermaid-requirement'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/sankeyDiagram')) return 'mermaid-sankey'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/timeline-definition')) return 'mermaid-timeline'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/xychartDiagram')) return 'mermaid-xychart'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/infoDiagram')) return 'mermaid-info'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/kanban-definition')) return 'mermaid-kanban'
+                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/')) return 'mermaid-core-runtime'
                 if (moduleId.includes('/node_modules/mermaid/')) return 'mermaid'
-                if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/')) return 'mermaid-elk'
-                if (moduleId.includes('/node_modules/maplibre-gl/')) return 'maplibre'
+                if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/dist/chunks/mermaid-layout-elk.esm.min/render-')) return 'mermaid-elk-render'
+                if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/')) return 'mermaid-elk-core'
                 if (moduleId.includes('/node_modules/elkjs/')) return 'elk'
-                if (moduleId.includes('/node_modules/three/')) return 'three'
-                if (moduleId.includes('/node_modules/@react-three/fiber/')) return 'three'
+                if (moduleId.includes('/node_modules/three/examples/')) return 'three-examples'
+                if (moduleId.includes('/node_modules/@react-three/fiber/')) return 'three-fiber'
+                if (moduleId.includes('/node_modules/three/src/renderers/')) return 'three-renderers'
+                if (moduleId.includes('/node_modules/three/src/math/')) return 'three-math'
+                if (moduleId.includes('/node_modules/three/src/materials/')) return 'three-materials'
+                if (moduleId.includes('/node_modules/three/src/geometries/')) return 'three-geometries'
+                if (moduleId.includes('/node_modules/three/src/objects/')) return 'three-objects'
+                if (moduleId.includes('/node_modules/three/src/textures/')) return 'three-textures'
+                if (moduleId.includes('/node_modules/three/src/core/')) return 'three-scene-core'
+                if (moduleId.includes('/node_modules/three/src/lights/')) return 'three-lights'
+                if (moduleId.includes('/node_modules/three/src/extras/')) return 'three-extras'
+                if (moduleId.includes('/node_modules/three/')) return 'three-core'
+                if (moduleId.includes('/node_modules/maplibre-gl/src/ui/')) return 'maplibre-ui'
+                if (moduleId.includes('/node_modules/maplibre-gl/src/style/')) return 'maplibre-style'
+                if (moduleId.includes('/node_modules/maplibre-gl/src/geo/')) return 'maplibre-geo'
+                if (moduleId.includes('/node_modules/maplibre-gl/src/util/')) return 'maplibre-util'
+                if (moduleId.includes('/node_modules/maplibre-gl/src/data/')) return 'maplibre-data'
+                if (moduleId.includes('/node_modules/maplibre-gl/src/render/')) return 'maplibre-render'
+                if (moduleId.includes('/node_modules/maplibre-gl/src/source/')) return 'maplibre-source'
+                if (moduleId.includes('/node_modules/maplibre-gl/src/shaders/')) return 'maplibre-shaders'
+                if (moduleId.includes('/node_modules/maplibre-gl/')) return 'maplibre-core'
                 return undefined
               },
             }),
@@ -4706,8 +4774,8 @@ export default defineConfig(({ command }) => ({
       { find: /^react$/, replacement: resolvedReact },
       { find: 'react-dom/client', replacement: resolvedReactDomClient },
       { find: /^react-dom$/, replacement: resolvedReactDom },
-      { find: /^maplibre-gl$/, replacement: resolvedMaplibreSrc },
       { find: /^three$/, replacement: resolvedThreeSrc },
+      { find: /^maplibre-gl$/, replacement: resolvedMaplibreSrc },
       {
         find: /^grph-shared\/(.*)$/,
         replacement: path.resolve(__dirname, '../grph-shared/dist/$1.js'),
@@ -4752,6 +4820,7 @@ export default defineConfig(({ command }) => ({
   },
   plugins: [
     stripEntitiesBadSourcemapsPlugin,
+    stripMermaidArchitectureDetectorPlugin,
     react(),
     VitePWA({
       registerType: 'autoUpdate',

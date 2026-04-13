@@ -1,4 +1,4 @@
-import * as THREE from 'three'
+import { MathUtils, Vector3, type PerspectiveCamera } from 'three'
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import type { GraphData, GraphNode } from '../../lib/graph/types'
 import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
@@ -57,11 +57,11 @@ export function getCameraConfig(schema: GraphSchema): CameraConfig {
   }
 }
 
-export function applyZoomStep(controls: OrbitControls, camera: THREE.PerspectiveCamera, type: CameraZoomType) {
+export function applyZoomStep(controls: OrbitControls, camera: PerspectiveCamera, type: CameraZoomType) {
   const scaleFactor = DEFAULT_TOOLBAR_ZOOM_CONFIG.scaleFactor
   const safe = typeof scaleFactor === 'number' && Number.isFinite(scaleFactor) && scaleFactor > 1 ? scaleFactor : 1.25
   const factor = type === 'in' ? 1 / safe : safe
-  const offset = new THREE.Vector3()
+  const offset = new Vector3()
   offset.subVectors(camera.position, controls.target)
   offset.multiplyScalar(factor)
   camera.position.copy(controls.target.clone().add(offset))
@@ -101,23 +101,23 @@ function collectFitIds(args: {
 }
 
 function toPointsFromGraph(nodes: GraphNode[], ids: Set<string>) {
-  const points: THREE.Vector3[] = []
+  const points: Vector3[] = []
   ids.forEach(id => {
     const node = nodes.find(x => String(x.id) === id)
     if (!node) return
     const px = typeof node.x === 'number' ? node.x : 0
     const py = typeof node.y === 'number' ? node.y : 0
-    points.push(new THREE.Vector3(px, py, 0))
+    points.push(new Vector3(px, py, 0))
   })
   return points
 }
 
 function toPointsFromPositions(positions: Record<string, Vec3>, ids: Set<string>) {
-  const points: THREE.Vector3[] = []
+  const points: Vector3[] = []
   ids.forEach(id => {
     const p = positions[id]
     if (!p) return
-    points.push(new THREE.Vector3(p[0], p[1], p[2]))
+    points.push(new Vector3(p[0], p[1], p[2]))
   })
   return points
 }
@@ -125,7 +125,7 @@ function toPointsFromPositions(positions: Record<string, Vec3>, ids: Set<string>
 export function fitCameraToGraph(options: {
   graph: GraphData
   controls: OrbitControls
-  camera: THREE.PerspectiveCamera
+  camera: PerspectiveCamera
   requestType: CameraRequestType
   selectedNodeId: string | null
   selectedEdgeId: string | null
@@ -143,7 +143,7 @@ export function fitCameraToPositions(options: {
   graph: GraphData
   positions: Record<string, Vec3>
   controls: OrbitControls
-  camera: THREE.PerspectiveCamera
+  camera: PerspectiveCamera
   requestType: CameraRequestType
   selectedNodeId: string | null
   selectedEdgeId: string | null
@@ -159,13 +159,13 @@ export function fitCameraToPositions(options: {
 
 export function fitCameraToPoints(options: {
   controls: OrbitControls
-  camera: THREE.PerspectiveCamera
+  camera: PerspectiveCamera
   requestType: CameraRequestType
-  points: THREE.Vector3[]
+  points: Vector3[]
 }) {
   const { controls, camera, requestType, points } = options
   if (requestType === 'reset') {
-    const center = new THREE.Vector3(0, 0, 0)
+    const center = new Vector3(0, 0, 0)
     controls.target.copy(center)
     const up = camera.up
     const zUp = Math.abs(up.z) >= Math.abs(up.y) && Math.abs(up.z) >= Math.abs(up.x)
@@ -180,7 +180,7 @@ export function fitCameraToPoints(options: {
   if (!points.length) {
     return
   }
-  const center = new THREE.Vector3()
+  const center = new Vector3()
   points.forEach(p => center.add(p))
   center.multiplyScalar(1 / points.length)
   let maxR = 0
@@ -188,10 +188,10 @@ export function fitCameraToPoints(options: {
     const d = p.distanceTo(center)
     if (d > maxR) maxR = d
   })
-  const fov = THREE.MathUtils.degToRad(camera.fov)
+  const fov = MathUtils.degToRad(camera.fov)
   const fillRatio = DEFAULT_FIT_TO_SCREEN_FILL_RATIO
   const dist = (maxR / (Math.tan(fov / 2) * Math.max(0.2, Math.min(0.95, fillRatio)))) + 40
-  const offset = new THREE.Vector3()
+  const offset = new Vector3()
   offset.subVectors(camera.position, controls.target)
   if (offset.lengthSq() < 1e-6) {
     offset.set(0, 0, dist)

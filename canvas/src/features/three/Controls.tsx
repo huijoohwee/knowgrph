@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import * as THREE from 'three'
+import { PerspectiveCamera, Vector3 } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { ThreeCameraPose, ThreeCameraSnapshotFns } from '@/hooks/store/types'
@@ -40,7 +40,7 @@ export function Controls({
   onControlsChange?: () => void
 }) {
   const { camera, gl, size } = useThree()
-  const perspectiveCamera = camera as THREE.PerspectiveCamera
+  const perspectiveCamera = camera as PerspectiveCamera
   const controls = useMemo(() => {
     const c = new OrbitControls(camera, gl.domElement)
     c.enableDamping = true
@@ -70,7 +70,7 @@ export function Controls({
   const cameraPathInteractionAtRef = React.useRef(0)
   const cameraPathPhaseRef = React.useRef(0)
   const cameraPathDistanceScaleRef = React.useRef(1)
-  const cameraPathDesiredRef = React.useRef(new THREE.Vector3())
+  const cameraPathDesiredRef = React.useRef(new Vector3())
   const lastInteractionAtRef = React.useRef<number>(Date.now())
   const previousModeRef = React.useRef<Canvas3dModeId>(mode)
   const voxelIntroRef = React.useRef<null | {

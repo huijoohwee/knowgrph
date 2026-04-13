@@ -1,6 +1,6 @@
 import React from 'react'
 import { useFrame } from '@react-three/fiber'
-import * as THREE from 'three'
+import { AdditiveBlending, CatmullRomCurve3, Color, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, SphereGeometry, TubeGeometry, Vector3, type Curve, type Material } from 'three'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { Vec3 } from './layout'
@@ -27,20 +27,20 @@ function stableHash01(input: string): number {
 }
 
 function mixColors(a: string, b: string): string {
-  const ca = new THREE.Color(a)
-  const cb = new THREE.Color(b)
+  const ca = new Color(a)
+  const cb = new Color(b)
   ca.lerp(cb, 0.5)
   return '#' + ca.getHexString()
 }
 
-function CurveFlowParticles({ curve, count, speed, color, size, paused }: { curve: THREE.Curve<THREE.Vector3>; count: number; speed: number; color: string; size: number; paused?: boolean }) {
+function CurveFlowParticles({ curve, count, speed, color, size, paused }: { curve: Curve<Vector3>; count: number; speed: number; color: string; size: number; paused?: boolean }) {
   const MAX_CURVE_PARTICLE_INSTANCES = 128
-  const meshRef = React.useRef<THREE.InstancedMesh | null>(null)
+  const meshRef = React.useRef<InstancedMesh | null>(null)
   const offsetsRef = React.useRef<number[]>([])
-  const posRef = React.useRef(new THREE.Vector3())
-  const matRef = React.useRef(new THREE.Matrix4())
+  const posRef = React.useRef(new Vector3())
+  const matRef = React.useRef(new Matrix4())
   const baseSpeed = clamp(speed, 0.01, 6)
-  const geom = React.useMemo(() => new THREE.SphereGeometry(Math.max(0.2, size), 8, 8), [size])
+  const geom = React.useMemo(() => new SphereGeometry(Math.max(0.2, size), 8, 8), [size])
   React.useEffect(() => {
     return () => {
       try {
@@ -83,8 +83,8 @@ function CurveFlowParticles({ curve, count, speed, color, size, paused }: { curv
   })
   if (count <= 0) return null
   return (
-    <instancedMesh ref={meshRef} args={[geom, undefined as unknown as THREE.Material, MAX_CURVE_PARTICLE_INSTANCES]} renderOrder={THREE_RENDER_ORDER.edges - 1}>
-      <meshBasicMaterial color={color} transparent opacity={0.75} depthWrite={false} blending={THREE.AdditiveBlending} />
+    <instancedMesh ref={meshRef} args={[geom, undefined as unknown as Material, MAX_CURVE_PARTICLE_INSTANCES]} renderOrder={THREE_RENDER_ORDER.edges - 1}>
+      <meshBasicMaterial color={color} transparent opacity={0.75} depthWrite={false} blending={AdditiveBlending} />
     </instancedMesh>
   )
 }
@@ -105,20 +105,20 @@ function VoxelBridgeTube({ bridge, radius, baseOpacity, pulseStrength, archHeigh
   onHoverEdge?: (info: { id: string; clientX: number; clientY: number } | null) => void
   onHoverEdgeIdChange?: (id: string | null) => void
 }) {
-  const meshRef = React.useRef<THREE.Mesh | null>(null)
-  const matRef = React.useRef<THREE.MeshStandardMaterial | null>(null)
+  const meshRef = React.useRef<Mesh | null>(null)
+  const matRef = React.useRef<MeshStandardMaterial | null>(null)
   const colorBase = React.useMemo(() => mixColors(bridge.a.color, bridge.b.color), [bridge.a.color, bridge.b.color])
-  const baseColorObj = React.useMemo(() => new THREE.Color(colorBase), [colorBase])
-  const hoverColorObj = React.useMemo(() => new THREE.Color('#ffffff'), [])
+  const baseColorObj = React.useMemo(() => new Color(colorBase), [colorBase])
+  const hoverColorObj = React.useMemo(() => new Color('#ffffff'), [])
   const seed01 = React.useMemo(() => stableHash01(bridge.key), [bridge.key])
   const curve = React.useMemo(() => {
     const a = bridge.a.pos
     const b = bridge.b.pos
     const ax = a[0], ay = a[1], az = a[2]
     const bx = b[0], by = b[1], bz = b[2]
-    const start = new THREE.Vector3(ax, ay, az + 4)
-    const end = new THREE.Vector3(bx, by, bz + 4)
-    const mid = new THREE.Vector3((ax + bx) * 0.5, (ay + by) * 0.5, (az + bz) * 0.5)
+    const start = new Vector3(ax, ay, az + 4)
+    const end = new Vector3(bx, by, bz + 4)
+    const mid = new Vector3((ax + bx) * 0.5, (ay + by) * 0.5, (az + bz) * 0.5)
     const dx = bx - ax
     const dy = by - ay
     const dist = Math.sqrt(dx * dx + dy * dy)
@@ -130,12 +130,12 @@ function VoxelBridgeTube({ bridge, radius, baseOpacity, pulseStrength, archHeigh
     const side = (seed01 - 0.5) * 2
     mid.x += px * dist * 0.12 * side
     mid.y += py * dist * 0.12 * side
-    return new THREE.CatmullRomCurve3([start, mid, end], false, 'catmullrom', 0.5)
+    return new CatmullRomCurve3([start, mid, end], false, 'catmullrom', 0.5)
   }, [archHeightFactor, bridge.a.pos, bridge.b.pos, seed01])
   const geometry = React.useMemo(() => {
     const segments = 60
     const radial = 10
-    return new THREE.TubeGeometry(curve, segments, Math.max(0.2, radius), radial, false)
+    return new TubeGeometry(curve, segments, Math.max(0.2, radius), radial, false)
   }, [curve, radius])
   React.useEffect(() => {
     return () => {

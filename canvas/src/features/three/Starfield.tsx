@@ -1,10 +1,10 @@
 import React, { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import * as THREE from 'three'
+import type { Points } from 'three'
 
 export function Starfield({ count, radius, opacity, color, paused }: { count: number; radius: number; opacity: number; color: string; paused?: boolean }) {
   const { camera } = useThree()
-  const pointsRef = useRef<THREE.Points>(null!)
+  const pointsRef = useRef<Points>(null!)
   const positions = useMemo(() => {
     const n = Math.max(0, Math.floor(count))
     const r = radius > 0 ? radius : 200

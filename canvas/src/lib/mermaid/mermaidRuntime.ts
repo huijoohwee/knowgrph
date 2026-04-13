@@ -29,13 +29,30 @@ let mermaidModulePromise: Promise<MermaidRuntimeApi> | null = null
 let lastStandardInitKey = ''
 let lastElkInitKey = ''
 
-export const resolveMermaidRuntimeBranch = (config: MermaidInitConfig): MermaidRuntimeBranch => {
+const readMermaidDiagramHeader = (code: string): string => {
+  const lines = String(code || '').split(/\r?\n/)
+  for (let i = 0; i < lines.length; i += 1) {
+    const trimmed = String(lines[i] || '').trim()
+    if (!trimmed) continue
+    if (trimmed.startsWith('%%{') && trimmed.endsWith('}%%')) continue
+    if (trimmed.startsWith('%%')) continue
+    return trimmed.toLowerCase()
+  }
+  return ''
+}
+
+export const supportsMermaidElkLayout = (code: string): boolean => {
+  const header = readMermaidDiagramHeader(code)
+  return header.startsWith('graph ') || header.startsWith('flowchart ')
+}
+
+export const resolveMermaidRuntimeBranch = (config: MermaidInitConfig, code = ''): MermaidRuntimeBranch => {
   const layout = String((config as Record<string, unknown>)?.layout || '').trim().toLowerCase()
-  if (layout === 'elk') return 'elk'
+  if (layout === 'elk') return supportsMermaidElkLayout(code) ? 'elk' : 'standard'
   const flowchart = (config as Record<string, unknown>)?.flowchart
   if (!flowchart || typeof flowchart !== 'object' || Array.isArray(flowchart)) return 'standard'
   const defaultRenderer = String((flowchart as Record<string, unknown>)?.defaultRenderer || '').trim().toLowerCase()
-  return defaultRenderer === 'elk' ? 'elk' : 'standard'
+  return defaultRenderer === 'elk' && supportsMermaidElkLayout(code) ? 'elk' : 'standard'
 }
 
 export const cleanupMermaidRenderArtifacts = (renderId: string): void => {
@@ -101,8 +118,8 @@ export const ensureElkMermaidInitialized = async (config: MermaidInitConfig): Pr
   return mermaid
 }
 
-export const ensureMermaidInitialized = async (config: MermaidInitConfig): Promise<MermaidRuntimeApi> => {
-  return resolveMermaidRuntimeBranch(config) === 'elk'
+export const ensureMermaidInitialized = async (config: MermaidInitConfig, code = ''): Promise<MermaidRuntimeApi> => {
+  return resolveMermaidRuntimeBranch(config, code) === 'elk'
     ? ensureElkMermaidInitialized(config)
     : ensureStandardMermaidInitialized(config)
 }
