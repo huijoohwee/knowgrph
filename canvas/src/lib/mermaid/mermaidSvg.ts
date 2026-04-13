@@ -1,37 +1,15 @@
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { hashText } from '@/features/parsers/hash'
+import { cleanupMermaidRenderArtifacts, ensureMermaidInitialized, ensureStandardMermaidInitialized, loadMermaidRuntimeApi } from '@/lib/mermaid/mermaidRuntime'
 
 type MermaidTheme = 'light' | 'dark'
+type MermaidSvgProfile = 'default' | 'plain'
 
 type MermaidRenderResult = {
   svg: string
 }
 
 const cache = new LRUCache<string, Promise<MermaidRenderResult>>(64)
-
-let mermaidModulePromise: Promise<unknown> | null = null
-
-const cleanupMermaidRenderArtifacts = (renderId: string): void => {
-  const id = String(renderId || '').trim()
-  if (!id || typeof document === 'undefined') return
-  try {
-    const wrapper = document.getElementById(`d${id}`)
-    if (wrapper && wrapper.parentElement === document.body) wrapper.remove()
-  } catch {
-    void 0
-  }
-  try {
-    const orphan = document.getElementById(id)
-    if (orphan && orphan.parentElement === document.body) orphan.remove()
-  } catch {
-    void 0
-  }
-}
-
-const loadMermaidModule = async (): Promise<unknown> => {
-  if (!mermaidModulePromise) mermaidModulePromise = import('mermaid')
-  return mermaidModulePromise
-}
 
 const normalizeSvg = (raw: string): string => {
   const s = String(raw || '')
@@ -42,35 +20,16 @@ const normalizeSvg = (raw: string): string => {
     .trim()
 }
 
-const initMermaidOnce = (() => {
-  let initialized = false
-  let lastTheme: MermaidTheme | null = null
-  return async (theme: MermaidTheme) => {
-    if (typeof window === 'undefined' || typeof document === 'undefined') return
-    if (initialized && lastTheme === theme) return
-    const mod = await loadMermaidModule()
-    const mermaid = (mod as unknown as { default?: unknown; initialize?: unknown; render?: unknown }).default || (mod as unknown)
-    const initialize = (mermaid as unknown as { initialize?: (cfg: unknown) => void }).initialize
-    if (typeof initialize === 'function') {
-      initialize({
-        startOnLoad: false,
-        securityLevel: 'strict',
-        theme: theme === 'dark' ? 'dark' : 'default',
-      })
-    }
-    initialized = true
-    lastTheme = theme
-  }
-})()
-
-export async function renderMermaidSvgCached(args: {
+const renderMermaidSvgCachedWithProfile = async (args: {
   code: string
   theme: MermaidTheme
-}): Promise<MermaidRenderResult> {
+  profile: MermaidSvgProfile
+}): Promise<MermaidRenderResult> => {
   const code = String(args.code || '').trim()
   if (!code) return { svg: '' }
   const theme = args.theme === 'dark' ? 'dark' : 'light'
-  const key = `${theme}|${hashText(code)}`
+  const profile = args.profile
+  const key = `${profile}|${theme}|${hashText(code)}`
   const cached = cache.get(key)
   if (cached) return cached
 
@@ -78,18 +37,25 @@ export async function renderMermaidSvgCached(args: {
     if (typeof window === 'undefined' || typeof document === 'undefined') {
       return { svg: '' }
     }
-    await initMermaidOnce(theme)
-    const mod = await loadMermaidModule()
-    const mermaid = (mod as unknown as { default?: unknown; render?: unknown }).default || (mod as unknown)
-    const render = (mermaid as unknown as {
-      render?: (id: string, code: string) => Promise<{ svg: string } | string>
-    }).render
+    const baseConfig = {
+      securityLevel: 'strict',
+      theme: theme === 'dark' ? 'dark' : 'default',
+    } as const
+    if (profile === 'plain') {
+      await ensureStandardMermaidInitialized({
+        ...baseConfig,
+        flowchart: {
+          htmlLabels: false,
+        },
+      })
+    } else {
+      await ensureMermaidInitialized(baseConfig)
+    }
+    const mermaid = await loadMermaidRuntimeApi()
 
-    if (typeof render !== 'function') return { svg: '' }
-
-    const id = `kg-mermaid-${hashText(`${theme}|${code}`).slice(0, 16)}`
+    const id = `kg-mermaid-${hashText(`${profile}|${theme}|${code}`).slice(0, 16)}`
     cleanupMermaidRenderArtifacts(id)
-    const out = await render(id, code)
+    const out = await mermaid.render(id, code)
     cleanupMermaidRenderArtifacts(id)
     const svg = typeof out === 'string' ? out : String((out as { svg?: unknown }).svg || '')
     return { svg: normalizeSvg(svg) }
@@ -102,4 +68,18 @@ export async function renderMermaidSvgCached(args: {
     cache.delete(key)
     return { svg: '' }
   }
+}
+
+export async function renderMermaidSvgCached(args: {
+  code: string
+  theme: MermaidTheme
+}): Promise<MermaidRenderResult> {
+  return renderMermaidSvgCachedWithProfile({ ...args, profile: 'default' })
+}
+
+export async function renderPlainMermaidSvgCached(args: {
+  code: string
+  theme: MermaidTheme
+}): Promise<MermaidRenderResult> {
+  return renderMermaidSvgCachedWithProfile({ ...args, profile: 'plain' })
 }

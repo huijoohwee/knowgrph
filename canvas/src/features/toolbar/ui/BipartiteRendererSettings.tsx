@@ -10,6 +10,7 @@ type ApiRuntimeRun = {
   preset?: string
   params?: Record<string, unknown>
   is_default?: boolean
+  table_counts?: Record<string, number>
 }
 
 type ApiBuilderOption = {
@@ -32,12 +33,28 @@ type ApiRuntimeMeta = {
   }
 }
 
+type BuilderPresetSummary = {
+  id: string
+  title: string
+  runCount: number
+  label: string
+}
+
 const summarizeParams = (params: Record<string, unknown> | undefined): string => {
   if (!params || typeof params !== 'object') return ''
   const entries = Object.entries(params)
     .filter(([key]) => String(key || '').trim())
     .map(([key, value]) => `${key}=${typeof value === 'string' ? value : JSON.stringify(value)}`)
   return entries.join(', ')
+}
+
+const summarizeTableCounts = (tableCounts: Record<string, number> | undefined): string => {
+  if (!tableCounts || typeof tableCounts !== 'object') return ''
+  const preferredKeys = ['events', 'demos', 'sources', 'organizer', 'team', 'techstack']
+  return preferredKeys
+    .filter(key => typeof tableCounts[key] === 'number' && Number.isFinite(tableCounts[key]) && tableCounts[key] > 0)
+    .map(key => `${tableCounts[key]} ${key}`)
+    .join(' | ')
 }
 
 const stableSerialize = (value: unknown): string => {
@@ -260,6 +277,10 @@ export function BipartiteRendererSettings() {
           preset: String(item.preset || '').trim(),
           params: item.params && typeof item.params === 'object' && !Array.isArray(item.params) ? item.params : {},
           is_default: item.is_default === true,
+          table_counts:
+            item.table_counts && typeof item.table_counts === 'object' && !Array.isArray(item.table_counts)
+              ? item.table_counts
+              : {},
           label: item.is_default ? `${label || item.id} (default)` : label || String(item.id || '').trim(),
         }
       })
@@ -269,7 +290,7 @@ export function BipartiteRendererSettings() {
   const apiPresets = React.useMemo(() => {
     const raw = apiRuntimeMeta?.runtime?.presets
     if (!Array.isArray(raw)) return []
-    return raw
+    const mapped = raw
       .filter((item): item is ApiRuntimePreset => !!item && typeof item === 'object' && !Array.isArray(item) && typeof item.id === 'string')
       .map(item => ({
         id: String(item.id || '').trim(),
@@ -282,7 +303,18 @@ export function BipartiteRendererSettings() {
             : {},
       }))
       .filter(item => item.id)
-  }, [apiRuntimeMeta])
+    const runCounts = Object.fromEntries(
+      apiRuns.map(run => String(run.preset || '').trim()).filter(Boolean).reduce((acc, presetId) => {
+        acc.set(presetId, (acc.get(presetId) || 0) + 1)
+        return acc
+      }, new Map<string, number>()),
+    )
+    return mapped.sort((left, right) => {
+      const runDiff = (runCounts[right.id] || 0) - (runCounts[left.id] || 0)
+      if (runDiff !== 0) return runDiff
+      return left.title.localeCompare(right.title)
+    })
+  }, [apiRuns, apiRuntimeMeta])
 
   const presetById = React.useMemo(
     () => Object.fromEntries(apiPresets.map(item => [item.id, item])),
@@ -357,6 +389,41 @@ export function BipartiteRendererSettings() {
     )
   }, [apiRuns, builderPreset, normalizedBuilderParams])
 
+  const presetSummaries = React.useMemo<BuilderPresetSummary[]>(() => {
+    return apiPresets.map(preset => {
+      const runCount = apiRuns.filter(run => String(run.preset || '').trim() === preset.id).length
+      const paramCount = (Array.isArray(preset.param_keys) ? preset.param_keys : []).length
+      const paramLabel = paramCount > 0 ? `${paramCount} param${paramCount === 1 ? '' : 's'}` : 'static'
+      return {
+        id: preset.id,
+        title: preset.title || preset.id,
+        runCount,
+        label: `${runCount} runs | ${paramLabel}`,
+      }
+    })
+  }, [apiPresets, apiRuns])
+
+  const featuredPresetSummaries = React.useMemo(
+    () => presetSummaries.filter(item => item.runCount > 1).slice(0, 3),
+    [presetSummaries],
+  )
+
+  const currentPresetRuns = React.useMemo(() => {
+    if (!builderPreset) return []
+    return apiRuns
+      .filter(run => String(run.preset || '').trim() === builderPreset.id)
+      .sort((left, right) => {
+        if (left.is_default && !right.is_default) return -1
+        if (!left.is_default && right.is_default) return 1
+        return String(left.title || left.id || '').localeCompare(String(right.title || right.id || ''))
+      })
+  }, [apiRuns, builderPreset])
+
+  const activeRunSummary = React.useMemo(
+    () => summarizeTableCounts(activeRun?.table_counts),
+    [activeRun],
+  )
+
   return (
     <CollapsibleSection title="Bipartite" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
       <div className="px-3 py-2 space-y-2">
@@ -381,6 +448,33 @@ export function BipartiteRendererSettings() {
               setBuilderParams(buildPresetInitialParams(nextPreset))
             }}
           />
+        ) : null}
+        {dataSource === 'api' && featuredPresetSummaries.length > 0 ? (
+          <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+            Best exact-match families: {featuredPresetSummaries.map(item => `${item.title} (${item.label})`).join(' | ')}
+          </div>
+        ) : null}
+        {dataSource === 'api' && featuredPresetSummaries.length > 0 ? (
+          <div className="flex flex-wrap gap-1 justify-end">
+            {featuredPresetSummaries.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                className={`App-toolbar__btn min-h-[36px] text-[10px] border ${UI_THEME_TOKENS.input.border} ${
+                  effectiveBuilderPresetId === item.id
+                    ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+                    : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`
+                }`}
+                onClick={() => {
+                  const nextPreset = presetById[item.id] || null
+                  setBuilderPresetId(item.id)
+                  setBuilderParams(buildPresetInitialParams(nextPreset))
+                }}
+              >
+                {item.title}
+              </button>
+            ))}
+          </div>
         ) : null}
         {dataSource === 'api' && builderPreset && builderParamKeys.map(paramKey => {
           const options = Array.isArray(builderPreset.published_param_options?.[paramKey]) ? builderPreset.published_param_options?.[paramKey] || [] : []
@@ -409,6 +503,29 @@ export function BipartiteRendererSettings() {
               : 'Builder match: no exact published run for the current preset and published-safe values.'}
           </div>
         ) : null}
+        {dataSource === 'api' && currentPresetRuns.length > 1 ? (
+          <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+            Quick exact runs for this preset
+          </div>
+        ) : null}
+        {dataSource === 'api' && currentPresetRuns.length > 1 ? (
+          <div className="flex flex-wrap gap-1 justify-end">
+            {currentPresetRuns.slice(0, 6).map(run => (
+              <button
+                key={run.id}
+                type="button"
+                className={`App-toolbar__btn min-h-[36px] text-[10px] border ${UI_THEME_TOKENS.input.border} ${
+                  effectiveApiRunId === run.id
+                    ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+                    : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`
+                }`}
+                onClick={() => setApiRunId(run.id)}
+              >
+                {run.title || run.id}
+              </button>
+            ))}
+          </div>
+        ) : null}
         {dataSource === 'api' && matchingPublishedRun && matchingPublishedRun.id !== effectiveApiRunId ? (
           <div className="flex justify-end">
             <button
@@ -428,6 +545,11 @@ export function BipartiteRendererSettings() {
             optionLabels={Object.fromEntries(apiRuns.map(item => [item.id, item.label]))}
             onChange={setApiRunId}
           />
+        ) : null}
+        {dataSource === 'api' && activeRunSummary ? (
+          <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+            Selected run summary: {activeRunSummary}
+          </div>
         ) : null}
         {dataSource === 'api' && apiRuns.length > 0 ? (
           <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>

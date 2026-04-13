@@ -5,6 +5,9 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 const MermaidDiagramLazy = React.lazy(() =>
   import('@/features/panels/views/preview-panel/ui/MermaidDiagram').then(mod => ({ default: mod.MermaidDiagram })),
 )
+const PlainMermaidDiagramLazy = React.lazy(() =>
+  import('@/features/markdown/ui/PlainMermaidDiagram').then(mod => ({ default: mod.PlainMermaidDiagram })),
+)
 
 export function Alert({
   title,
@@ -138,14 +141,22 @@ export function Mermaid({
   config?: MermaidInitConfig | null
 }) {
   const rootThemeMode = useRootThemeMode()
+  const useEnhancedMermaid = !!(config && Object.keys(config).length)
   return (
     <React.Suspense fallback={null}>
-      <MermaidDiagramLazy
-        code={code}
-        highlightClass=""
-        frontmatterConfig={config || null}
-        rootThemeMode={rootThemeMode}
-      />
+      {useEnhancedMermaid ? (
+        <MermaidDiagramLazy
+          code={code}
+          highlightClass=""
+          frontmatterConfig={config || null}
+          rootThemeMode={rootThemeMode}
+        />
+      ) : (
+        <PlainMermaidDiagramLazy
+          code={code}
+          rootThemeMode={rootThemeMode}
+        />
+      )}
     </React.Suspense>
   )
 }

@@ -41,6 +41,9 @@ import {
 const MermaidDiagramLazy = React.lazy(() =>
   import('@/features/panels/views/preview-panel/ui/MermaidDiagram').then(mod => ({ default: mod.MermaidDiagram })),
 )
+const PlainMermaidDiagramLazy = React.lazy(() =>
+  import('@/features/markdown/ui/PlainMermaidDiagram').then(mod => ({ default: mod.PlainMermaidDiagram })),
+)
 
 type MarkdownCodeBlockProps = {
   token: TokenWithLines
@@ -442,20 +445,28 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
                 const base = mermaidBlock?.diagramCode ?? codeText
                 const diagrams = splitMermaidIntoDiagrams(base)
                 const fm = mergeMermaidInitConfig(opts.mermaidFrontmatterConfig, mermaidBlock?.mergedInitConfig ?? null)
+                const useEnhancedMermaid = !!(fm && Object.keys(fm).length)
                 return diagrams.map((diagramCode, index) => (
                   <React.Suspense key={index} fallback={null}>
-                    <MermaidDiagramLazy
-                      code={diagramCode}
-                      highlightClass={highlightClass}
-                      frontmatterConfig={fm}
-                      rootThemeMode={opts.rootThemeMode}
-                      overlayScope={opts.previewOverlayScope}
-                      overlayPortalTarget={opts.previewOverlayPortalTarget}
-                      variant="codeblock"
-                      enablePanZoom
-                      wheelZoomRequiresModifier={false}
-                      wheelZoomBehavior="active"
-                    />
+                    {useEnhancedMermaid ? (
+                      <MermaidDiagramLazy
+                        code={diagramCode}
+                        highlightClass={highlightClass}
+                        frontmatterConfig={fm}
+                        rootThemeMode={opts.rootThemeMode}
+                        overlayScope={opts.previewOverlayScope}
+                        overlayPortalTarget={opts.previewOverlayPortalTarget}
+                        variant="codeblock"
+                        enablePanZoom
+                        wheelZoomRequiresModifier={false}
+                        wheelZoomBehavior="active"
+                      />
+                    ) : (
+                      <PlainMermaidDiagramLazy
+                        code={diagramCode}
+                        rootThemeMode={opts.rootThemeMode}
+                      />
+                    )}
                   </React.Suspense>
                 ))
               })()}

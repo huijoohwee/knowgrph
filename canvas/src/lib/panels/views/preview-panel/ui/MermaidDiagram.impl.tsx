@@ -6,81 +6,9 @@ import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOver
 import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { useGraphStore } from '@/hooks/useGraphStore'
-
-type MermaidRenderResult = {
-  svg: string
-  bindFunctions?: (element: Element) => void
-}
-
-type MermaidApi = {
-  initialize: (config: Record<string, unknown>) => void
-  render: (id: string, code: string) => Promise<MermaidRenderResult>
-  registerLayoutLoaders?: (loaders: unknown) => void
-}
-
-const isMermaidApi = (val: unknown): val is MermaidApi => {
-  if (!val || typeof val !== 'object') return false
-  const v = val as Record<string, unknown>
-  return typeof v.initialize === 'function' && typeof v.render === 'function'
-}
-
-const getTestMermaidApi = (): MermaidApi | null => {
-  const anyGlobal = globalThis as unknown as { __KG_TEST_MERMAID_API__?: unknown }
-  const candidate = anyGlobal.__KG_TEST_MERMAID_API__
-  return isMermaidApi(candidate) ? candidate : null
-}
-
-
-let mermaidModulePromise: Promise<unknown> | null = null
-let lastMermaidInitKey = ''
-let elkLayoutRegistered = false
-let elkLayoutsPromise: Promise<unknown> | null = null
+import { cleanupMermaidRenderArtifacts, ensureMermaidInitialized } from '@/lib/mermaid/mermaidRuntime'
 const MERMAID_TOAST_DEDUPE_MS = 1500
 const mermaidErrorToastSeenAt = new Map<string, number>()
-
-const ensureElkLayoutRegistered = async (mermaid: MermaidApi): Promise<void> => {
-  if (elkLayoutRegistered) return
-  if (typeof mermaid.registerLayoutLoaders !== 'function') {
-    elkLayoutRegistered = true
-    return
-  }
-  try {
-    if (!elkLayoutsPromise) elkLayoutsPromise = import('@mermaid-js/layout-elk').then(m => (m as any).default ?? m)
-    const loaders = await elkLayoutsPromise
-    mermaid.registerLayoutLoaders(loaders)
-  } catch {
-    void 0
-  } finally {
-    elkLayoutRegistered = true
-  }
-}
-
-const loadMermaidModule = async (): Promise<MermaidApi> => {
-  const stub = getTestMermaidApi()
-  if (stub) return stub
-  if (!mermaidModulePromise) mermaidModulePromise = import('mermaid')
-  const mod = await mermaidModulePromise
-  const candidate: unknown = (mod as unknown as { default?: unknown }).default ?? mod
-  if (!isMermaidApi(candidate)) {
-    throw new Error('Mermaid module did not match expected API')
-  }
-  return candidate
-}
-
-const initMermaid = async (config: MermaidInitConfig): Promise<MermaidApi> => {
-  const mermaid = await loadMermaidModule()
-  await ensureElkLayoutRegistered(mermaid)
-  const key = JSON.stringify(config || {})
-  if (key !== lastMermaidInitKey) {
-    try {
-      mermaid.initialize({ startOnLoad: false, ...config })
-      lastMermaidInitKey = key
-    } catch {
-      lastMermaidInitKey = key
-    }
-  }
-  return mermaid
-}
 
 const sanitizeMermaidSvg = (raw: string): string => {
   const input = String(raw || '').trim()
@@ -170,23 +98,6 @@ const extractMermaidErrorFromSvg = (svg: string): string | null => {
     return message
   }
   return 'Mermaid syntax error'
-}
-
-const cleanupMermaidRenderArtifacts = (renderId: string): void => {
-  const id = String(renderId || '').trim()
-  if (!id || typeof document === 'undefined') return
-  try {
-    const wrapper = document.getElementById(`d${id}`)
-    if (wrapper && wrapper.parentElement === document.body) wrapper.remove()
-  } catch {
-    void 0
-  }
-  try {
-    const orphan = document.getElementById(id)
-    if (orphan && orphan.parentElement === document.body) orphan.remove()
-  } catch {
-    void 0
-  }
 }
 
 export function MermaidDiagram({
@@ -474,14 +385,15 @@ export function MermaidDiagram({
           setError('Mermaid diagram code is not a Mermaid definition')
           return
         }
-        const mermaid = await initMermaid(config)
+        const mermaid = await ensureMermaidInitialized(config)
         if (cancelled) return
         const normalizedCode = normalizeMermaidClickSyntax(trimmedCode)
         cleanupMermaidRenderArtifacts(renderId)
         const out = await mermaid.render(renderId, normalizedCode)
         cleanupMermaidRenderArtifacts(renderId)
         if (cancelled) return
-        const nextSvg = sanitizeMermaidSvg(out.svg)
+        const renderedSvg = typeof out === 'string' ? out : String(out.svg || '')
+        const nextSvg = sanitizeMermaidSvg(renderedSvg)
         const renderError = extractMermaidErrorFromSvg(nextSvg)
         if (renderError) {
           cleanupMermaidRenderArtifacts(renderId)
@@ -547,7 +459,7 @@ export function MermaidDiagram({
         } catch {
           void 0
         }
-        if (typeof out.bindFunctions === 'function') {
+        if (typeof out !== 'string' && typeof out.bindFunctions === 'function') {
           try {
             out.bindFunctions(host)
           } catch {
