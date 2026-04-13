@@ -5,6 +5,7 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_COPY } from '@/lib/config'
 
 export async function testMainPanelTypographyUsesUiSettings() {
   const storage = new MemoryStorage()
@@ -65,6 +66,64 @@ export async function testMainPanelTypographyUsesUiSettings() {
     const edgeClass = String(edgeCount.getAttribute('class') || '')
     if (!edgeClass.includes('text-[13px]')) {
       throw new Error(`expected edge count to use monospace size class, got ${JSON.stringify(edgeClass)}`)
+    }
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMainPanelRequestedSettingsSearchUsesTabMetadata() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    const api = useGraphStore.getState()
+    api.resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    root.render(
+      React.createElement(MainPanel, {
+        requestedTab: 'settings',
+        requestedSearchQuery: 'geo',
+      } as never),
+    )
+
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (typeof raf === 'function') raf(() => resolve())
+        else setTimeout(() => resolve(), 0)
+      })
+
+    await tick()
+
+    const searchInput = container.querySelector('input')
+    if (!(searchInput instanceof dom.window.HTMLInputElement)) {
+      throw new Error('expected settings tab to render the search input')
+    }
+    if (searchInput.placeholder !== UI_COPY.searchSettingsPlaceholder) {
+      throw new Error(`expected settings search placeholder, got ${JSON.stringify(searchInput.placeholder)}`)
+    }
+    if (searchInput.value !== 'geo') {
+      throw new Error(`expected settings search query to be preserved, got ${JSON.stringify(searchInput.value)}`)
     }
   } finally {
     try {

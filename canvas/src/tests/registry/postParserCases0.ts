@@ -249,6 +249,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["ui.help.canvasShortcuts.ssot.uniqueIdsAndLines","@/__tests__/canvasHelpShortcutsSsot.test","testCanvasHelpShortcutsSsotHasUniqueIdsAndLines"],
   ["ui.help.canvasShortcuts.helpSearchIncludesSsotLines","@/__tests__/canvasHelpShortcutsSsot.test","testHelpTabSearchAndCopyIncludesCanvasShortcutLines"],
   ["ui.typography.mainPanel.usesUiSettings","@/__tests__/mainPanelTypography.test","testMainPanelTypographyUsesUiSettings"],
+  ["ui.mainPanel.requestedSettingsSearch.usesTabMetadata","@/__tests__/mainPanelTypography.test","testMainPanelRequestedSettingsSearchUsesTabMetadata"],
   ["ui.typography.graphTable.usesUiSettings","@/__tests__/graphTableTypography.test","testGraphTableTypographyUsesUiSettings"],
   ["pdf.viewer.ssot.usesMarkdownPreview","@/__tests__/pdfDocumentViewerSsot.test","testPdfDocumentViewerUsesMarkdownPreviewSsot"],
 ]
