@@ -9,6 +9,12 @@ const FAILED_TO_LOAD_MARKDOWN = 'Failed to load markdown'
 const EMPTY_RESPONSE = 'Empty response'
 const BASELINE_LOCKED_TOAST = 'Mode switches are locked (baseline). Click the lock icon to unlock.'
 const SELECTION_CLEARED_MODE_TOAST = 'Selection cleared: not available in the target mode.'
+const CANVAS_VIEW_RENDERER_D3_TITLE = '2D Renderer: D3 Graph'
+const CANVAS_VIEW_RENDERER_D3_BIPARTITE_TITLE = '2D Renderer: D3 Bipartite'
+const CANVAS_VIEW_RENDERER_FLOW_TITLE = '2D Renderer: Flow'
+const CANVAS_VIEW_RENDERER_FLOW_EDITOR_TITLE = '2D Renderer: Flow Editor'
+const CANVAS_VIEW_RENDERER_DESIGN_TITLE = '2D Renderer: Design'
+const CANVAS_VIEW_RENDERER_TOGGLE_TOOLTIP = '2D Renderer: switch between D3, D3 Bipartite, Flow, Design, and Flow Editor.'
 
 export const UI_COPY = {
   invalidJsonLabel: 'Invalid JSON',
@@ -180,21 +186,24 @@ export const UI_COPY = {
     'Pin to View: toggle to keep the current camera transform across graph updates and turn off Fit to Screen / Zoom to Selection while pinned.',
   zoomToSelectionTooltip: 'Zoom to Selection mode: toggle to keep the camera centered on the active selection and turn off Fit to Screen while focused.',
   zoomMenuTooltip: 'Zoom: Pin to View, Fit to View, Fit to Screen, and Zoom to Selection controls.',
+  interactionModeTooltip: 'Interaction: Navigate (clear selection), baseline lock, and multi-select controls.',
   canvasGridTooltip: 'Grid: toggle grid visibility + snap-to-grid. Configure variant/size in Settings. Hold Alt while dragging to temporarily disable snapping.',
   renderMediaAsNodesTooltip: 'Rich Media: shows or hides media overlays on media-capable nodes without reloading.',
   launchTooltip: 'Launch',
-  threeDModeOnTitle: '3D Mode (On)',
-  threeDModeOffTitle: '3D Mode (Off)',
-  twoDRendererD3Title: '2D Renderer: D3 Graph',
-  twoDRendererD3BipartiteTitle: '2D Renderer: D3 Bipartite',
-  twoDRendererFlowTitle: '2D Renderer: Flow',
-  twoDRendererFlowEditorTitle: '2D Renderer: Flow Editor',
-  twoDRendererDesignTitle: '2D Renderer: Design',
-  twoDRendererToggleTooltip: '2D Renderer: switch between D3, D3 Bipartite, Flow, Design, and Flow Editor.',
+  threeDModeOnTitle: '3D Mode',
+  threeDModeOffTitle: '3D Mode',
+  canvasViewModeTitle: 'Canvas View Mode',
+  canvasViewModeTooltip: 'Canvas View Mode: renderer, semantic mode, surface, and geospatial controls.',
+  canvasViewRendererD3Title: CANVAS_VIEW_RENDERER_D3_TITLE,
+  canvasViewRendererD3BipartiteTitle: CANVAS_VIEW_RENDERER_D3_BIPARTITE_TITLE,
+  canvasViewRendererFlowTitle: CANVAS_VIEW_RENDERER_FLOW_TITLE,
+  canvasViewRendererFlowEditorTitle: CANVAS_VIEW_RENDERER_FLOW_EDITOR_TITLE,
+  canvasViewRendererDesignTitle: CANVAS_VIEW_RENDERER_DESIGN_TITLE,
+  canvasViewRendererToggleTooltip: CANVAS_VIEW_RENDERER_TOGGLE_TOOLTIP,
   documentModeTitle: 'Document Mode',
   geospatialModeTitle: 'Geospatial Mode',
-  geospatialModeOnTitle: 'Geospatial Mode (On)',
-  geospatialModeOffTitle: 'Document Mode (Geospatial Mode Off)',
+  geospatialModeOnTitle: 'Geospatial Mode',
+  geospatialModeOffTitle: 'Document Mode',
   themeTooltipPrefix: 'Theme: ',
   chatEmptyStateHelp:
     'Chat has workspace-wide context from Explorer, Source Files, and Workspace Editor. Configure endpoint and model in Settings, then ask about any file, node, or dataset.',
@@ -562,13 +571,12 @@ export const UI_COPY = {
   jsonToMarkdownItemLabel: (index: number) => `item ${index}`,
   toolbarMarkdownImportLocalDeviceButtonLabel: 'Local Device',
   toolbarMarkdownImportUrlButtonLabel: 'URL (.md)',
-  toolbarEditorToggleTitle: 'Toggle Editor workspace',
-  toolbarEditorWorkspaceOnTooltip: 'Editor workspace: On',
-  toolbarEditorWorkspaceOffTooltip: 'Editor workspace: Off',
-  toolbarGraphDataTableToggleTitle: 'Open Workspace: Multi-dimensional Table',
-  toolbarWorkspaceGraphDataTableToggleTitle: 'Open Workspace: Multi-dimensional Table',
-  toolbarGraphDataTableWorkspaceOnTooltip: 'Workspace: Multi-dimensional Table: Open',
-  toolbarGraphDataTableWorkspaceOffTooltip: 'Workspace: Multi-dimensional Table: Closed',
+  toolbarEditorToggleTitle: 'Toggle Workspace View',
+  toolbarEditorWorkspaceOnTooltip: 'Workspace View: Editor',
+  toolbarEditorWorkspaceOffTooltip: 'Workspace View',
+  toolbarGraphDataTableToggleTitle: 'Open Workspace View: Multi-dimensional Table',
+  toolbarGraphDataTableWorkspaceOnTooltip: 'Workspace View: Multi-dimensional Table',
+  toolbarGraphDataTableWorkspaceOffTooltip: 'Workspace View',
   markdownImportUrlPrompt: 'Enter Markdown URL (.md)',
   toolbarJsonImportUrlButtonLabel: 'URL',
   toolbarParserExportJsonButtonLabel: 'JSON',

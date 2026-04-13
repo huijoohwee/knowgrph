@@ -98,7 +98,7 @@ export function Canvas3dModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
     <ToolbarDropdownSelect
       value={selectedModeId}
       options={options}
-      title={canvasRenderMode === '3d' ? `${options.find(o => o.id === canvas3dMode)?.title || '3D Mode'} (On)` : '3D Mode (Off)'}
+      title={canvasRenderMode === '3d' ? options.find(o => o.id === canvas3dMode)?.title || '3D Mode' : '3D Mode'}
       tooltipContent="3D Mode: switch between default 3D and Voxel rendering"
       disabled={disabled}
       isButtonActive={canvasRenderMode === '3d'}

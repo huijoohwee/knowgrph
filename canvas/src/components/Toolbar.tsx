@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, Grid3x3, History as HistoryIcon, Map, SunMoon, SlidersHorizontal, ListChecks, CircleDot, Plus, MessageCircle, Image as ImageIcon, GitMerge, Share2, Circle, Square, Hexagon, Diamond, FileText, Lock, Unlock, Compass, ChevronLeft, ChevronRight, Hand, Link2, Columns2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ZoomIn, ZoomOut, HelpCircle, Settings, Search as SearchIcon, RotateCcw, History as HistoryIcon, SunMoon, SlidersHorizontal, Plus, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import IconButton from '@/components/IconButton';
 import { DropdownPanel } from '@/lib/ui/overlay';
 import { UI_LABELS, UI_COPY } from '@/lib/config';
@@ -9,14 +9,9 @@ import {
   uiPrimaryIconInactiveClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
 import { useCanvasToolbarContext } from '@/components/toolbar/useCanvasToolbarContext';
-import { DocumentModeSelect } from '@/components/toolbar/DocumentModeSelect';
 import { Canvas2dRendererSelect } from '@/components/toolbar/Canvas2dRendererSelect';
-import { Canvas3dModeSelect } from '@/components/toolbar/Canvas3dModeSelect';
 import { EditorWorkspaceSelect } from '@/components/toolbar/EditorWorkspaceSelect';
-import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect';
-import { useGraphStore } from '@/hooks/useGraphStore'
-
-import { CANVAS_INTERACTION_MODE_LABELS } from '@/lib/canvas/interaction-ssot'
+import { InteractionModeSelect } from '@/components/toolbar/InteractionModeSelect';
 
 import { ZoomModeSelect } from '@/components/toolbar/ZoomModeSelect';
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
@@ -34,97 +29,35 @@ const ToolbarMenuLauncherLazy = React.lazy(() =>
   import('@/features/toolbar/ToolbarMenuLauncher').then(mod => ({ default: mod.ToolbarMenuLauncher })),
 );
 
-const TOOLBAR_ANIMATION_OPTIONS = [
-  { id: 'force', title: 'Force-directed Graph (default)' },
-  { id: 'orbit', title: 'Orbit-style nested radial animation' },
-] as const
-
-const VOXEL_ANIMATION_OPTIONS = [
-  { id: 'on', title: 'Voxel animation (On)' },
-  { id: 'off', title: 'Voxel animation (Off)' },
-] as const
-
 export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection }: ToolbarProps) {
   const {
     actions,
-    canvasGridDotRadiusPx,
-    canvasGridMajorAlpha,
-    canvas2dRenderer,
-    canvasGridEnabled,
-    canvasGridMajorStroke,
-    canvasGridMajorEvery,
-    canvasGridMajorWidthPx,
-    canvasGridMinorAlpha,
-    canvasGridMinorStroke,
-    canvasGridMinorWidthPx,
-    canvasGridVariant,
-    canvasRenderMode,
     clampMainPanelPos,
     documentStructureBaselineLock,
     ensureBaselineUnlocked,
     geospatialEnabled,
-    groupShapeMode,
     handleMainPanelHeaderDragStart,
     handleMainPanelRestore,
     iconSizeClass,
     iconStrokeWidth,
     isMainPanelOpen,
-    isNavigateModeActive,
     isWorkspaceOverlayMode,
-    launchIconClass,
-    layoutMode,
     mainPanelCardRef,
     mainPanelCollapsed,
     mainPanelDragPos,
     mainPanelPinned,
     mainPanelRequestedSearchQuery,
     mainPanelRequestedTab,
-    nodeShapeMode,
     openMainPanel,
-    portHandlesEnabled,
-    renderMediaAsNodes,
-    schema,
-    selectEdge,
-    selectGroup,
-    selectMode,
-    selectNode,
-    setBehavior,
-    setCanvasRenderMode,
-    setDocumentStructureBaselineLock,
-    setFitToScreenMode,
     setIsMainPanelOpen,
     setMainPanelCollapsed,
     setMainPanelPinned,
-    setSchema,
-    setSelectMode,
-    setSelectionSource,
     setWorkspaceToolbarExpanded,
-    snapGridEnabled,
-    snapGridSize,
     themeMode,
     toggleFitToScreenMode,
     toolbarCollapsed,
     toolbarNavRef,
   } = useCanvasToolbarContext({ onReset, onZoomSelection })
-
-  const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
-  const setInfiniteCanvasInteractionMode = useGraphStore(s => s.setInfiniteCanvasInteractionMode)
-  const canvasWorkspaceSyncMode = useGraphStore(s => s.canvasWorkspaceSyncMode)
-  const setCanvasWorkspaceSyncMode = useGraphStore(s => s.setCanvasWorkspaceSyncMode)
-  const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled === true)
-  const multiDimTableModeEnabled = useGraphStore(s => s.multiDimTableModeEnabled === true)
-  const documentSemanticMode = useGraphStore(s => s.documentSemanticMode)
-  const canvas3dMode = useGraphStore(s => s.canvas3dMode)
-
-  const toggleInfiniteCanvasInteractionMode = useCallback(() => {
-    if (!ensureBaselineUnlocked()) return
-    setInfiniteCanvasInteractionMode(infiniteCanvasInteractionMode === 'interactive' ? 'static' : 'interactive')
-  }, [ensureBaselineUnlocked, infiniteCanvasInteractionMode, setInfiniteCanvasInteractionMode])
-
-  const toggleCanvasWorkspaceSyncMode = useCallback(() => {
-    if (!ensureBaselineUnlocked()) return
-    setCanvasWorkspaceSyncMode(canvasWorkspaceSyncMode === 'realtime' ? 'manual' : 'realtime')
-  }, [canvasWorkspaceSyncMode, ensureBaselineUnlocked, setCanvasWorkspaceSyncMode])
 
   const [collapsedFixedPos, setCollapsedFixedPos] = useState<{ top: number; left: number } | null>(null);
   useEffect(() => {
@@ -136,53 +69,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const searchPanelRef = useRef<HTMLDivElement>(null);
 
   const navClassBase = 'Island App-toolbar App-toolbar--compact w-fit'
-  const isD3Like2dLayoutToggle = canvas2dRenderer === 'd3' || canvas2dRenderer === 'd3Bipartite'
-  const animationMode = (() => {
-    const enabled = schema.layout?.forces?.radialOrbitEnabled !== false
-    return enabled ? 'orbit' : 'force'
-  })()
-  const animationApplicableSemantic =
-    frontmatterModeEnabled ||
-    multiDimTableModeEnabled ||
-    documentSemanticMode === 'document' ||
-    documentSemanticMode === 'keyword'
-  const animationApplicableRenderer =
-    (canvasRenderMode === '3d' && canvas3dMode !== 'voxel') ||
-    (canvasRenderMode === '2d' && canvas2dRenderer === 'd3')
-  const animationApplicable = animationApplicableSemantic && animationApplicableRenderer && layoutMode === 'radial'
-  const voxelAnimationMode = schema.three?.voxelAnimationEnabled === false ? 'off' : 'on'
-  const voxelAnimationApplicable = canvasRenderMode === '3d' && canvas3dMode === 'voxel'
-  const setAnimationMode = useCallback((mode: 'force' | 'orbit') => {
-    if (canvasRenderMode === '3d' && canvas3dMode === 'voxel') return
-    if (!ensureBaselineUnlocked()) return
-    const current = schema
-    const layout = current.layout || {}
-    const forces = layout.forces || {}
-    const enabled = mode === 'orbit'
-    setSchema({
-      ...current,
-      layout: {
-        ...layout,
-        forces: {
-          ...forces,
-          radialOrbitEnabled: enabled,
-        },
-      },
-    })
-  }, [canvas3dMode, canvasRenderMode, ensureBaselineUnlocked, schema, setSchema])
-  const setVoxelAnimationMode = useCallback((mode: 'on' | 'off') => {
-    if (!voxelAnimationApplicable) return
-    if (!ensureBaselineUnlocked()) return
-    const current = schema
-    const three = current.three || {}
-    setSchema({
-      ...current,
-      three: {
-        ...three,
-        voxelAnimationEnabled: mode === 'on',
-      },
-    })
-  }, [ensureBaselineUnlocked, schema, setSchema, voxelAnimationApplicable])
   const clampedMainPanelPos = isMainPanelOpen ? clampMainPanelPos(mainPanelDragPos) : mainPanelDragPos
   const isNarrowViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
   const effectiveMainPanelPinned = isNarrowViewport ? true : mainPanelPinned
@@ -223,13 +109,23 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
             />
           </React.Suspense>
 
-          <EditorWorkspaceSelect iconSizeClass={iconSizeClass} iconStrokeWidth={iconStrokeWidth} />
+          <EditorWorkspaceSelect
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={iconStrokeWidth}
+            ensureBaselineUnlocked={ensureBaselineUnlocked}
+          />
+          <InteractionModeSelect
+            iconSizeClass={iconSizeClass}
+            iconStrokeWidth={iconStrokeWidth}
+            ensureBaselineUnlocked={ensureBaselineUnlocked}
+          />
 
           <Canvas2dRendererSelect
             iconSizeClass={iconSizeClass}
             iconStrokeWidth={iconStrokeWidth}
             ensureBaselineUnlocked={ensureBaselineUnlocked}
-            disabled={geospatialEnabled}
+            geospatialEnabled={geospatialEnabled}
+            onOpenGeospatialMode={actions.handleOpenGeospatialMode}
           />
 
           <IconButton
@@ -258,180 +154,25 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
 
       {toolbarCollapsed ? null : (
         <>
-      <EditorWorkspaceSelect iconSizeClass={iconSizeClass} iconStrokeWidth={iconStrokeWidth} />
-
-      <IconButton
-        className={`App-toolbar__btn ${
-          isNavigateModeActive ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={CANVAS_INTERACTION_MODE_LABELS.navigate}
-        tooltipContent="Navigate (clear selection)"
-        onClick={() => {
-          if (!ensureBaselineUnlocked()) return
-          setSelectionSource('toolbar')
-          setSelectMode('single')
-          selectNode(null)
-          selectEdge(null)
-          selectGroup(null)
-        }}
-        showTooltip
-      >
-        <Compass className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-
-      <IconButton
-        className={`App-toolbar__btn ${
-          documentStructureBaselineLock ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={documentStructureBaselineLock ? 'Baseline lock on' : 'Baseline lock off'}
-        tooltipContent={
-          documentStructureBaselineLock
-            ? 'Mode switches are locked to keep surfaces aligned. Click to unlock.'
-            : 'Mode switches are unlocked. Click to lock to the baseline.'
-        }
-        onClick={() => setDocumentStructureBaselineLock(!documentStructureBaselineLock)}
-        showTooltip
-      >
-        {documentStructureBaselineLock ? (
-          <Lock className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        ) : (
-          <Unlock className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        )}
-      </IconButton>
+      <EditorWorkspaceSelect
+        iconSizeClass={iconSizeClass}
+        iconStrokeWidth={iconStrokeWidth}
+        ensureBaselineUnlocked={ensureBaselineUnlocked}
+      />
+      <InteractionModeSelect
+        iconSizeClass={iconSizeClass}
+        iconStrokeWidth={iconStrokeWidth}
+        ensureBaselineUnlocked={ensureBaselineUnlocked}
+      />
 
       <Canvas2dRendererSelect
         iconSizeClass={iconSizeClass}
         iconStrokeWidth={iconStrokeWidth}
         ensureBaselineUnlocked={ensureBaselineUnlocked}
-        disabled={geospatialEnabled}
+        geospatialEnabled={geospatialEnabled}
+        onOpenGeospatialMode={actions.handleOpenGeospatialMode}
       />
-      <DocumentModeSelect
-        iconSizeClass={iconSizeClass}
-        iconStrokeWidth={iconStrokeWidth}
-        ensureBaselineUnlocked={ensureBaselineUnlocked}
-      />
-      <IconButton
-        className={`App-toolbar__btn ${
-          infiniteCanvasInteractionMode === 'interactive' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={UI_LABELS.canvasInteractionMode}
-        tooltipContent={
-          infiniteCanvasInteractionMode === 'interactive'
-            ? UI_COPY.infiniteCanvasInteractionInteractiveTooltip
-            : UI_COPY.infiniteCanvasInteractionStaticTooltip
-        }
-        onClick={toggleInfiniteCanvasInteractionMode}
-        showTooltip
-      >
-        <Hand className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      <IconButton
-        className={`App-toolbar__btn ${
-          canvasWorkspaceSyncMode === 'realtime' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={UI_LABELS.workspaceSyncMode}
-        tooltipContent={
-          canvasWorkspaceSyncMode === 'realtime'
-            ? UI_COPY.canvasWorkspaceSyncRealtimeTooltip
-            : UI_COPY.canvasWorkspaceSyncManualTooltip
-        }
-        onClick={toggleCanvasWorkspaceSyncMode}
-        showTooltip
-      >
-        <Link2 className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
       <div className="App-toolbar__divider" />
-      <IconButton
-        className={`App-toolbar__btn ${
-          nodeShapeMode !== 'circle' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={UI_LABELS.nodeShapeMode}
-        tooltipContent={UI_COPY.nodeShapeModeTooltip}
-        onClick={() => {
-          if (!ensureBaselineUnlocked()) return
-          actions.handleToggleNodeShapeMode()
-        }}
-        showTooltip
-      >
-        {nodeShapeMode === 'rect' ? (
-          <Square className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        ) : nodeShapeMode === 'diamond' ? (
-          <Diamond className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        ) : nodeShapeMode === 'hex' ? (
-          <Hexagon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        ) : (
-          <Circle className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        )}
-      </IconButton>
-      <IconButton
-        className={`App-toolbar__btn ${
-          groupShapeMode === 'rect' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={groupShapeMode === 'rect' ? UI_LABELS.groupShapeRect : UI_LABELS.groupShapePolygon}
-        tooltipContent={groupShapeMode === 'rect' ? UI_COPY.groupShapeRectTooltip : UI_COPY.groupShapePolygonTooltip}
-        onClick={() => {
-          if (!ensureBaselineUnlocked()) return
-          actions.handleToggleGroupShapeMode()
-        }}
-        showTooltip
-      >
-        {groupShapeMode === 'rect' ? (
-          <Square className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        ) : (
-          <Hexagon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        )}
-      </IconButton>
-      <IconButton
-        className={`App-toolbar__btn ${
-          selectMode === 'multi' || selectMode === 'lasso'
-            ? uiPrimaryIconActiveClassName
-            : uiPrimaryIconInactiveClassName
-        }`}
-        title={UI_LABELS.multiSelectMode}
-        tooltipContent={UI_LABELS.multiSelectMode}
-        onClick={() => {
-          if (!ensureBaselineUnlocked()) return
-          setSelectMode(selectMode === 'multi' || selectMode === 'lasso' ? 'single' : 'multi')
-        }}
-        showTooltip
-      >
-        <ListChecks className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      <IconButton
-        className={`App-toolbar__btn ${
-          portHandlesEnabled ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={UI_LABELS.portHandles}
-        tooltipContent={UI_COPY.portHandlesTooltip}
-        onClick={() => {
-          if (!ensureBaselineUnlocked()) return
-          actions.handleTogglePortHandles()
-        }}
-        showTooltip
-      >
-        <Share2 className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      <IconButton
-        className={`App-toolbar__btn ${
-          isD3Like2dLayoutToggle && layoutMode === 'radial'
-            ? uiPrimaryIconActiveClassName
-            : uiPrimaryIconInactiveClassName
-        }`}
-        title={layoutMode === 'block' ? 'Block layout' : 'Radial layout'}
-        tooltipContent={layoutMode === 'block' ? 'Block layout (bipartite-style)' : 'Radial layout (blue)'}
-        disabled={!isD3Like2dLayoutToggle}
-        onClick={() => {
-          if (!ensureBaselineUnlocked()) return
-          actions.handleToggleRadialLayout()
-        }}
-        showTooltip
-      >
-        {layoutMode === 'block' ? (
-          <Columns2 className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        ) : (
-          <CircleDot className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-        )}
-      </IconButton>
       <IconButton
         className="App-toolbar__btn"
         title={UI_LABELS.graphFields}
@@ -555,93 +296,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
         <ZoomOut className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <ZoomModeSelect iconSizeClass={iconSizeClass} iconStrokeWidth={iconStrokeWidth} onZoomSelection={onZoomSelection} />
-      <IconButton
-        className={`App-toolbar__btn ${
-          (snapGridEnabled || canvasGridEnabled) ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={UI_LABELS.grid}
-        tooltipContent={UI_COPY.canvasGridTooltip}
-        onClick={() => {
-          const nextEnabled = !(snapGridEnabled || canvasGridEnabled)
-          setBehavior({
-            snapGrid: { enabled: nextEnabled, size: snapGridSize },
-            canvasGrid: {
-              enabled: nextEnabled,
-              variant: canvasGridVariant,
-              majorEvery: canvasGridMajorEvery,
-              dotRadiusPx: canvasGridDotRadiusPx,
-              minorAlpha: canvasGridMinorAlpha,
-              majorAlpha: canvasGridMajorAlpha,
-              minorWidthPx: canvasGridMinorWidthPx,
-              majorWidthPx: canvasGridMajorWidthPx,
-              minorStroke: canvasGridMinorStroke || undefined,
-              majorStroke: canvasGridMajorStroke || undefined,
-            },
-          })
-        }}
-        showTooltip
-      >
-        <Grid3x3 className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      <IconButton
-        className={`App-toolbar__btn ${
-          renderMediaAsNodes ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={renderMediaAsNodes ? UI_LABELS.renderMediaAsNodesOn : UI_LABELS.renderMediaAsNodesOff}
-        tooltipContent={UI_COPY.renderMediaAsNodesTooltip}
-        onClick={actions.handleToggleRenderMedia}
-        showTooltip
-      >
-        <ImageIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-      {voxelAnimationApplicable ? (
-        <ToolbarDropdownSelect
-          value={voxelAnimationMode}
-          options={VOXEL_ANIMATION_OPTIONS}
-          title={voxelAnimationMode === 'on' ? 'Voxel animation: On' : 'Voxel animation: Off'}
-          tooltipContent="Voxel animation"
-          disabled={false}
-          isButtonActive={voxelAnimationMode === 'on'}
-          menuWidthClass="w-64"
-          onSelect={id => setVoxelAnimationMode(id)}
-          renderButtonContent={() => <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />}
-        />
-      ) : (
-        <ToolbarDropdownSelect
-          value={animationMode}
-          options={TOOLBAR_ANIMATION_OPTIONS}
-          title={animationMode === 'orbit' ? 'Animation: Orbit-style nested radial' : 'Animation: Force-directed Graph'}
-          tooltipContent="Animation"
-          disabled={!animationApplicable}
-          isButtonActive={animationMode === 'orbit'}
-          menuWidthClass="w-64"
-          onSelect={id => setAnimationMode(id)}
-          renderButtonContent={() => <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} />}
-        />
-      )}
-      <Canvas3dModeSelect
-        iconSizeClass={iconSizeClass}
-        iconStrokeWidth={iconStrokeWidth}
-        ensureBaselineUnlocked={ensureBaselineUnlocked}
-        disabled={geospatialEnabled}
-      />
-      <IconButton
-        className={`App-toolbar__btn ${
-          geospatialEnabled ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName
-        }`}
-        title={geospatialEnabled ? UI_COPY.geospatialModeOnTitle : UI_COPY.geospatialModeOffTitle}
-        onClick={() => {
-          if (!ensureBaselineUnlocked()) return
-          actions.handleOpenGeospatialMode()
-        }}
-        showTooltip
-      >
-        {geospatialEnabled ? (
-          <Map className={`${iconSizeClass} ${launchIconClass}`} strokeWidth={iconStrokeWidth} />
-        ) : (
-          <FileText className={`${iconSizeClass} ${launchIconClass}`} strokeWidth={iconStrokeWidth} />
-        )}
-      </IconButton>
       <hr className="App-toolbar__divider" aria-hidden="true" />
       <IconButton
         className="App-toolbar__btn"

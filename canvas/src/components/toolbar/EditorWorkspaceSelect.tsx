@@ -1,16 +1,18 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { FileCode, Table } from 'lucide-react'
+import { FileCode, Link2, Table } from 'lucide-react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 import { isWorkspaceTableOpen, openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
 import { WORKSPACE_TABLE_TOOLBAR_UI } from '@/features/workspace-table/workspaceTableToolbarUi'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type EditorWorkspaceSelectProps = {
   iconSizeClass: string
   iconStrokeWidth: number
+  ensureBaselineUnlocked?: () => boolean
 }
 
 type EditorWorkspaceOptionKey = 'editor' | 'multiDimTable'
@@ -22,18 +24,22 @@ type Option = {
   Icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>
 }
 
-export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth }: EditorWorkspaceSelectProps) {
+export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBaselineUnlocked }: EditorWorkspaceSelectProps) {
   const {
     workspaceViewMode,
     editorWorkspacePane,
+    canvasWorkspaceSyncMode,
     setEditorWorkspacePane,
     setWorkspaceViewMode,
+    setCanvasWorkspaceSyncMode,
   } = useGraphStore(
     useShallow(s => ({
       workspaceViewMode: s.workspaceViewMode,
       editorWorkspacePane: s.editorWorkspacePane,
+      canvasWorkspaceSyncMode: s.canvasWorkspaceSyncMode,
       setEditorWorkspacePane: s.setEditorWorkspacePane,
       setWorkspaceViewMode: s.setWorkspaceViewMode,
+      setCanvasWorkspaceSyncMode: s.setCanvasWorkspaceSyncMode,
     })),
   )
 
@@ -45,14 +51,14 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth }: Editor
       [
         {
           key: 'editor' as const,
-          label: UI_LABELS.editor,
-          tooltip: UI_COPY.toolbarEditorWorkspaceOffTooltip,
+          label: WORKSPACE_TABLE_TOOLBAR_UI.editorLabel,
+          tooltip: WORKSPACE_TABLE_TOOLBAR_UI.editorOffTooltip,
           Icon: FileCode,
         },
         {
           key: 'multiDimTable' as const,
-          label: WORKSPACE_TABLE_TOOLBAR_UI.label,
-          tooltip: WORKSPACE_TABLE_TOOLBAR_UI.optionTooltip,
+          label: WORKSPACE_TABLE_TOOLBAR_UI.tableLabel,
+          tooltip: WORKSPACE_TABLE_TOOLBAR_UI.tableOptionTooltip,
           Icon: Table,
         },
       ] satisfies Option[],
@@ -62,11 +68,11 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth }: Editor
   const activeKey: EditorWorkspaceOptionKey | null = isGraphTable ? 'multiDimTable' : isEditor ? 'editor' : null
   const activeOption = activeKey ? options.find(o => o.key === activeKey) || null : null
 
-  const triggerTitle = activeOption?.label || UI_LABELS.editor
+  const triggerTitle = UI_LABELS.workspaceView
   const triggerTooltip = (() => {
-    if (isGraphTable) return WORKSPACE_TABLE_TOOLBAR_UI.openedTooltip
-    if (isEditor) return UI_COPY.toolbarEditorWorkspaceOnTooltip
-    return UI_COPY.toolbarEditorWorkspaceOffTooltip
+    if (isGraphTable) return WORKSPACE_TABLE_TOOLBAR_UI.tableOpenedTooltip
+    if (isEditor) return WORKSPACE_TABLE_TOOLBAR_UI.editorOnTooltip
+    return WORKSPACE_TABLE_TOOLBAR_UI.editorOffTooltip
   })()
 
   const apply = React.useCallback(
@@ -90,6 +96,16 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth }: Editor
     },
     [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceViewMode, workspaceViewMode],
   )
+
+  const toggleWorkspaceSyncMode = React.useCallback(() => {
+    if (ensureBaselineUnlocked && !ensureBaselineUnlocked()) return
+    setCanvasWorkspaceSyncMode(canvasWorkspaceSyncMode === 'realtime' ? 'manual' : 'realtime')
+  }, [canvasWorkspaceSyncMode, ensureBaselineUnlocked, setCanvasWorkspaceSyncMode])
+
+  const syncLabel =
+    canvasWorkspaceSyncMode === 'realtime'
+      ? UI_COPY.canvasWorkspaceSyncRealtimeLabel
+      : UI_COPY.canvasWorkspaceSyncManualLabel
 
   return (
     <ToolbarDropdownSelect
@@ -115,6 +131,28 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth }: Editor
         <>
           <option.Icon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
           <span className="truncate">{option.title}</span>
+        </>
+      )}
+      renderMenuAppend={() => (
+        <>
+          <li className="list-none px-1 py-0.5" aria-hidden="true">
+            <hr className={`border-t ${UI_THEME_TOKENS.panel.border}`} />
+          </li>
+          <li className="list-none">
+            <button
+              type="button"
+              className={`w-full flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} hover:bg-gray-100 dark:hover:bg-gray-800`}
+              onClick={toggleWorkspaceSyncMode}
+              title={
+                canvasWorkspaceSyncMode === 'realtime'
+                  ? UI_COPY.canvasWorkspaceSyncRealtimeTooltip
+                  : UI_COPY.canvasWorkspaceSyncManualTooltip
+              }
+            >
+              <Link2 className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+              <span className="truncate">{`${UI_LABELS.workspaceSyncMode}: ${syncLabel}`}</span>
+            </button>
+          </li>
         </>
       )}
       menuWidthClass="w-64"

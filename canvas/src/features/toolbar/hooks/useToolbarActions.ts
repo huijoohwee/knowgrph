@@ -105,6 +105,7 @@ export function useToolbarActions(
     const layout = current.layout || {}
     const nextMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
       layout.mode === 'block' ? 'radial' : 'block'
+    if (layout.mode === nextMode) return
     const next = {
       ...current,
       layout: { ...layout, mode: nextMode },
