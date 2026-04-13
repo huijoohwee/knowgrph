@@ -30,7 +30,7 @@ const MissingGeospatialOverlayHost = React.memo(function MissingGeospatialOverla
 })
 
 const GeospatialOverlayHostLazy = React.lazy(async (): Promise<{ default: React.ComponentType<GeospatialOverlayHostProps> }> => {
-  const m = (await import('gympgrph')) as unknown as Record<string, unknown>
+  const m = await loadGympgrphModule()
   const c = m.GeospatialOverlayHost as unknown
   if (!c) return { default: MissingGeospatialOverlayHost }
   return { default: c as React.ComponentType<GeospatialOverlayHostProps> }
@@ -57,6 +57,21 @@ type GympgrphModule = {
   useGympgrphStore?: { getState?: () => GympgrphStoreState }
   requestGeospatialFitToData?: () => void
   requestGeospatialFitToSelection?: () => void
+  GeospatialOverlayHost?: React.ComponentType<GeospatialOverlayHostProps>
+}
+
+let gympgrphModulePromise: Promise<GympgrphModule> | null = null
+
+const loadGympgrphModule = (): Promise<GympgrphModule> => {
+  if (!gympgrphModulePromise) {
+    gympgrphModulePromise = import('gympgrph')
+      .then(mod => mod as unknown as GympgrphModule)
+      .catch(err => {
+        gympgrphModulePromise = null
+        throw err
+      })
+  }
+  return gympgrphModulePromise
 }
 
 function MarkdownMetricsDevOverlay(props: { layout: 'full' | 'pane' }) {
@@ -217,10 +232,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
 
   React.useEffect(() => {
     if (!geospatialModeEnabled) return
-    void import('gympgrph')
+    void loadGympgrphModule()
       .then(m => {
-        const gm = m as unknown as Partial<GympgrphModule>
-        const st = gm.useGympgrphStore?.getState?.()
+        const st = m.useGympgrphStore?.getState?.()
         const setAutoFit = st && typeof st.setGeospatialAutoFitEnabled === 'function' ? st.setGeospatialAutoFitEnabled : null
         if (!setAutoFit) return
         setAutoFit(fitToScreenMode && !viewPinned)
@@ -234,10 +248,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
     const prev = lastGeoFitToScreenEnabledRef.current
     lastGeoFitToScreenEnabledRef.current = fitToScreenMode && !viewPinned
     if (prev || !(fitToScreenMode && !viewPinned)) return
-    void import('gympgrph')
+    void loadGympgrphModule()
       .then(m => {
-        const gm = m as unknown as Partial<GympgrphModule>
-        gm.requestGeospatialFitToData?.()
+        m.requestGeospatialFitToData?.()
       })
       .catch(() => void 0)
   }, [fitToScreenMode, geospatialModeEnabled, viewPinned])
@@ -255,10 +268,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
     if (!ids.length) return
     if (key === lastGeoSelectionFitKeyRef.current) return
     lastGeoSelectionFitKeyRef.current = key
-    void import('gympgrph')
+    void loadGympgrphModule()
       .then(m => {
-        const gm = m as unknown as Partial<GympgrphModule>
-        gm.requestGeospatialFitToSelection?.()
+        m.requestGeospatialFitToSelection?.()
       })
       .catch(() => void 0)
   }, [geospatialModeEnabled, selectedEdgeId, selectedNodeId, selectedNodeIds, viewPinned, zoomToSelectionMode])

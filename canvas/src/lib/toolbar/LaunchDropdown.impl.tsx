@@ -7,7 +7,6 @@ import { WORKSPACE_IMPORT_IMAGE_URL_TEST, WORKSPACE_IMPORT_URL_TEST } from '@/li
 import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { cn } from '@/lib/utils'
-import { exportHtmlCanvasFallback, exportHtmlViewerFallback } from '@/features/toolbar/exportHtmlFallback'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 
@@ -19,6 +18,22 @@ type LaunchDropdownProps = {
   onLaunchSpotlight?: () => void
   onLaunchStatus?: () => void
   onCloseMainPanel?: () => void
+}
+
+type LaunchDropdownFallbackModule = typeof import('@/features/toolbar/launchDropdownFallbacks')
+
+let launchDropdownFallbackModulePromise: Promise<LaunchDropdownFallbackModule> | null = null
+
+const loadLaunchDropdownFallbackModule = (): Promise<LaunchDropdownFallbackModule> => {
+  if (!launchDropdownFallbackModulePromise) {
+    launchDropdownFallbackModulePromise = import('@/features/toolbar/launchDropdownFallbacks')
+      .then(mod => mod)
+      .catch(err => {
+        launchDropdownFallbackModulePromise = null
+        throw err
+      })
+  }
+  return launchDropdownFallbackModulePromise
 }
 
 export function LaunchDropdown({
@@ -106,135 +121,31 @@ export function LaunchDropdown({
 
   const importLocalFilesFallback = React.useCallback(
     async (files: FileList | null) => {
-      const snapshot = files ? Array.from(files) : []
-      if (snapshot.length === 0) return
-      pushUiToast({ id: 'launch:import:localFiles', kind: 'neutral', message: `Importing ${snapshot.length} file(s)…`, ttlMs: null, dismissible: false })
-      try {
-        const [{ getWorkspaceFs }, { WORKSPACE_ROOT_PATH }, { runWorkspaceFsChangedBatch }, { bulkSetWorkspaceEntrySources }, { importWorkspaceLocalFiles }] =
-          await Promise.all([
-            import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
-            import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
-            import('@/features/workspace-fs/workspaceFsEvents') as Promise<typeof import('@/features/workspace-fs/workspaceFsEvents')>,
-            import('@/features/workspace-fs/sourceIndex') as Promise<typeof import('@/features/workspace-fs/sourceIndex')>,
-            import('@/components/BottomPanel/markdownWorkspace/workspaceImport') as Promise<typeof import('@/components/BottomPanel/markdownWorkspace/workspaceImport')>,
-          ])
-        const fs = await getWorkspaceFs()
-        await fs.ensureSeed()
-        const res = await runWorkspaceFsChangedBatch(() =>
-          importWorkspaceLocalFiles({
-            fs,
-            files: snapshot,
-            parentPath: WORKSPACE_ROOT_PATH,
-          }),
-        )
-        bulkSetWorkspaceEntrySources(res.sources)
-        try {
-          const { applyWorkspaceImportToCanvas } = (await import('@/features/workspace-fs/applyWorkspaceImportToCanvas')) as typeof import(
-            '@/features/workspace-fs/applyWorkspaceImportToCanvas'
-          )
-          await applyWorkspaceImportToCanvas({ fs, createdPaths: res.createdPaths })
-        } catch {
-          void 0
-        }
-        pushUiToast({ id: 'launch:import:localFiles', kind: 'success', message: `Imported ${res.createdPaths.length} file(s)`, ttlMs: 2200, dismissible: false })
-      } catch (e) {
-        pushUiToast({ id: 'launch:import:localFiles', kind: 'error', message: `Import failed: ${String((e as { message?: unknown })?.message ?? e)}`, ttlMs: 6000, dismissible: true })
-      }
+      const mod = await loadLaunchDropdownFallbackModule()
+      await mod.importLocalFilesFallback({ files, pushUiToast })
     },
     [pushUiToast],
   )
 
   const importLocalFolderFallback = React.useCallback(
     async (files: FileList | null) => {
-      const snapshot = files ? Array.from(files) : []
-      if (snapshot.length === 0) return
-      pushUiToast({ id: 'launch:import:folder', kind: 'neutral', message: `Importing folder…`, ttlMs: null, dismissible: false })
-      try {
-        const [{ getWorkspaceFs }, { runWorkspaceFsChangedBatch }, { bulkSetWorkspaceEntrySources }, { importWorkspaceLocalFolder }] = await Promise.all([
-          import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
-          import('@/features/workspace-fs/workspaceFsEvents') as Promise<typeof import('@/features/workspace-fs/workspaceFsEvents')>,
-          import('@/features/workspace-fs/sourceIndex') as Promise<typeof import('@/features/workspace-fs/sourceIndex')>,
-          import('@/components/BottomPanel/markdownWorkspace/workspaceImport') as Promise<typeof import('@/components/BottomPanel/markdownWorkspace/workspaceImport')>,
-        ])
-        const fs = await getWorkspaceFs()
-        await fs.ensureSeed()
-        const res = await runWorkspaceFsChangedBatch(() => importWorkspaceLocalFolder({ fs, files: snapshot }))
-        bulkSetWorkspaceEntrySources(res.sources)
-        try {
-          const { applyWorkspaceImportToCanvas } = (await import('@/features/workspace-fs/applyWorkspaceImportToCanvas')) as typeof import(
-            '@/features/workspace-fs/applyWorkspaceImportToCanvas'
-          )
-          await applyWorkspaceImportToCanvas({ fs, createdPaths: res.createdPaths })
-        } catch {
-          void 0
-        }
-        pushUiToast({ id: 'launch:import:folder', kind: 'success', message: `Imported ${res.createdPaths.length} file(s)`, ttlMs: 2200, dismissible: false })
-      } catch (e) {
-        pushUiToast({ id: 'launch:import:folder', kind: 'error', message: `Import failed: ${String((e as { message?: unknown })?.message ?? e)}`, ttlMs: 6000, dismissible: true })
-      }
+      const mod = await loadLaunchDropdownFallbackModule()
+      await mod.importLocalFolderFallback({ files, pushUiToast })
     },
     [pushUiToast],
   )
 
   const importUrlFallback = React.useCallback(
     async (urlRaw: string) => {
-      const url = String(urlRaw || '').trim()
-      if (!url) return
-      const toastId = 'launch:import:url'
-      pushUiToast({ id: toastId, kind: 'neutral', message: 'Importing URL…', ttlMs: null, dismissible: false })
-      try {
-        const [{ getWorkspaceFs }, { WORKSPACE_ROOT_PATH }, { runWorkspaceFsChangedBatch }, { bulkSetWorkspaceEntrySources }, { importWorkspaceUrl }] = await Promise.all([
-          import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
-          import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
-          import('@/features/workspace-fs/workspaceFsEvents') as Promise<typeof import('@/features/workspace-fs/workspaceFsEvents')>,
-          import('@/features/workspace-fs/sourceIndex') as Promise<typeof import('@/features/workspace-fs/sourceIndex')>,
-          import('@/components/BottomPanel/markdownWorkspace/workspaceImport') as Promise<typeof import('@/components/BottomPanel/markdownWorkspace/workspaceImport')>,
-        ])
-        const fs = await getWorkspaceFs()
-        await fs.ensureSeed()
-        const res = await runWorkspaceFsChangedBatch(() =>
-          importWorkspaceUrl({
-            fs,
-            urlRaw: url,
-            parentPath: WORKSPACE_ROOT_PATH,
-            onProgress: p => {
-              const label = String((p as { label?: unknown }).label || '').trim() || 'Importing URL…'
-              pushUiToast({ id: toastId, kind: 'neutral', message: label, ttlMs: null, dismissible: false })
-            },
-          }),
-        )
-        bulkSetWorkspaceEntrySources(res.sources)
-        try {
-          const { applyWorkspaceImportToCanvas } = (await import('@/features/workspace-fs/applyWorkspaceImportToCanvas')) as typeof import(
-            '@/features/workspace-fs/applyWorkspaceImportToCanvas'
-          )
-          await applyWorkspaceImportToCanvas({ fs, createdPaths: res.createdPaths })
-        } catch {
-          void 0
-        }
-        pushUiToast({ id: toastId, kind: 'success', message: `Imported ${res.createdPaths.length} file(s)`, ttlMs: 2200, dismissible: false })
-      } catch (e) {
-        pushUiToast({ id: toastId, kind: 'error', message: `Import failed: ${String((e as { message?: unknown })?.message ?? e)}`, ttlMs: 6000, dismissible: true })
-      }
+      const mod = await loadLaunchDropdownFallbackModule()
+      await mod.importUrlFallback({ urlRaw, pushUiToast })
     },
     [pushUiToast],
   )
 
   const createNewFolderFallback = React.useCallback(async () => {
-    const toastId = 'launch:workspace:newFolder'
-    pushUiToast({ id: toastId, kind: 'neutral', message: 'Creating folder…', ttlMs: null, dismissible: false })
-    try {
-      const [{ getWorkspaceFs }, { WORKSPACE_ROOT_PATH }] = await Promise.all([
-        import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
-        import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
-      ])
-      const fs = await getWorkspaceFs()
-      await fs.ensureSeed()
-      await fs.createFolder({ parentPath: WORKSPACE_ROOT_PATH, name: 'folder' })
-      pushUiToast({ id: toastId, kind: 'success', message: 'Created folder', ttlMs: 1800, dismissible: false })
-    } catch (e) {
-      pushUiToast({ id: toastId, kind: 'error', message: `Failed: ${String((e as { message?: unknown })?.message ?? e)}`, ttlMs: 6000, dismissible: true })
-    }
+    const mod = await loadLaunchDropdownFallbackModule()
+    await mod.createNewFolderFallback({ pushUiToast })
   }, [pushUiToast])
 
   const menuItemClass = cn(
@@ -254,10 +165,10 @@ export function LaunchDropdown({
   const fallbackExportActions = React.useMemo(
     () => ({
       htmlViewer: () => {
-        void exportHtmlViewerFallback({ pushUiToast })
+        void loadLaunchDropdownFallbackModule().then(mod => mod.exportHtmlViewerFallbackAction({ pushUiToast }))
       },
       htmlCanvas: () => {
-        void exportHtmlCanvasFallback({ pushUiToast })
+        void loadLaunchDropdownFallbackModule().then(mod => mod.exportHtmlCanvasFallbackAction({ pushUiToast }))
       },
     }),
     [pushUiToast],

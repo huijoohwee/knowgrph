@@ -2,14 +2,8 @@ import React from 'react'
 import MainPanelFrame from '@/features/panels/ui/MainPanelFrame'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
 import HelpView from '@/features/panels/views/HelpView'
-import GraphFieldsView from '@/features/panels/views/GraphFieldsView'
 import DashboardView from '@/features/panels/views/DashboardView'
-import PreviewPanelView from './views/PreviewPanelView'
-import IntegrationsHubView from './views/IntegrationsHubView'
 import WorkflowSection from '@/features/panels/views/WorkflowSection'
-import SettingsView from '@/features/panels/views/SettingsView'
-import HistoryView from '@/features/panels/views/HistoryView'
-import FlowEditorManagerView from '@/features/panels/views/FlowEditorManagerView'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import MainPanelSettingsHeader from '@/features/panels/ui/MainPanelSettingsHeader'
 import MainPanelWorkflowHeader from '@/features/panels/ui/MainPanelWorkflowHeader'
@@ -47,6 +41,13 @@ function isMainPanelTab(key: string): key is MainPanelTab {
 }
 
 import { useActiveGraphData } from '@/hooks/useActiveGraphData'
+
+const IntegrationsHubViewLazy = React.lazy(() => import('./views/IntegrationsHubView'))
+const FlowEditorManagerViewLazy = React.lazy(() => import('@/features/panels/views/FlowEditorManagerView'))
+const GraphFieldsViewLazy = React.lazy(() => import('@/features/panels/views/GraphFieldsView'))
+const PreviewPanelViewLazy = React.lazy(() => import('./views/PreviewPanelView'))
+const SettingsViewLazy = React.lazy(() => import('@/features/panels/views/SettingsView'))
+const HistoryViewLazy = React.lazy(() => import('@/features/panels/views/HistoryView'))
 
 export default function MainPanel({
   onClose,
@@ -315,7 +316,11 @@ export default function MainPanel({
           {tab === 'help' && <HelpView searchQuery={search} />}
         </section>
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-integrations-panel" aria-labelledby="main-panel-integrations-tab" hidden={tab !== 'integrations'}>
-          {tab === 'integrations' && <IntegrationsHubView />}
+          {tab === 'integrations' && (
+            <React.Suspense fallback={null}>
+              <IntegrationsHubViewLazy />
+            </React.Suspense>
+          )}
         </section>
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-workflow-panel" aria-labelledby="main-panel-workflow-tab" hidden={tab !== 'workflow'}>
           {tab === 'workflow' && (
@@ -337,17 +342,27 @@ export default function MainPanel({
           hidden={tab !== 'flowEditorManager'}
         >
           {tab === 'flowEditorManager' && (
-            <FlowEditorManagerView searchQuery={search} onRegisterActions={setFlowEditorManagerActionsStable} />
+            <React.Suspense fallback={null}>
+              <FlowEditorManagerViewLazy searchQuery={search} onRegisterActions={setFlowEditorManagerActionsStable} />
+            </React.Suspense>
           )}
         </section>
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-graphFields-panel" aria-labelledby="main-panel-graphFields-tab" hidden={tab !== 'graphFields'}>
-          {tab === 'graphFields' && <GraphFieldsView onStatusChange={setGraphFieldsStatusStable} searchQuery={search} />}
+          {tab === 'graphFields' && (
+            <React.Suspense fallback={null}>
+              <GraphFieldsViewLazy onStatusChange={setGraphFieldsStatusStable} searchQuery={search} />
+            </React.Suspense>
+          )}
         </section>
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-dashboard-panel" aria-labelledby="main-panel-dashboard-tab" hidden={tab !== 'dashboard'}>
           {tab === 'dashboard' && <DashboardView />}
         </section>
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-preview-panel" aria-labelledby="main-panel-preview-tab" hidden={tab !== 'preview'}>
-          {tab === 'preview' && <PreviewPanelView />}
+          {tab === 'preview' && (
+            <React.Suspense fallback={null}>
+              <PreviewPanelViewLazy />
+            </React.Suspense>
+          )}
         </section>
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-settings-panel" aria-labelledby="main-panel-settings-tab" hidden={tab !== 'settings'}>
           {tab === 'settings' && (
@@ -356,13 +371,19 @@ export default function MainPanel({
                 className={`h-full min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}
                 data-kg-anchor={UI_ANCHORS.settingsPanel}
               >
-                <SettingsView searchQuery={search} onRegisterActions={setSettingsActions} />
+                <React.Suspense fallback={null}>
+                  <SettingsViewLazy searchQuery={search} onRegisterActions={setSettingsActions} />
+                </React.Suspense>
               </section>
             </MainPanelBody>
           )}
         </section>
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-history-panel" aria-labelledby="main-panel-history-tab" hidden={tab !== 'history'}>
-          {tab === 'history' && <HistoryView searchQuery={search} />}
+          {tab === 'history' && (
+            <React.Suspense fallback={null}>
+              <HistoryViewLazy searchQuery={search} />
+            </React.Suspense>
+          )}
         </section>
       </section>
     </MainPanelFrame>

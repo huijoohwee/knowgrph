@@ -123,6 +123,11 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
     writeLsString(LS_KEYS.bipartiteDataSource, next)
     set({ bipartiteDataSource: next })
   },
+  bipartiteApiRunId: readLsString(LS_KEYS.bipartiteApiRunId, ''),
+  setBipartiteApiRunId: (v: string) => {
+    const next = writeLsString(LS_KEYS.bipartiteApiRunId, v)
+    set({ bipartiteApiRunId: next })
+  },
   bipartitePollIntervalSec: clampInt(lsInt(LS_KEYS.bipartitePollIntervalSec, 60), 60, { min: 3, max: 3600 }),
   setBipartitePollIntervalSec: (v: number) =>
     set({ bipartitePollIntervalSec: lsSetInt(LS_KEYS.bipartitePollIntervalSec, v, { min: 3, max: 3600 }) }),

@@ -1,7 +1,7 @@
 import React from 'react'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
-import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
+import { buildMarkdownTokensKey } from '@/features/markdown/ui/markdownPreviewLex'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import type { HighlightedLineRange } from '../../markdownWorkspaceTypes'
@@ -25,7 +25,6 @@ import {
   type MarkdownDataViewColumnType,
 } from '@/features/markdown/ui/markdownDataViewColumnType'
 import { WorkspaceModeSelect } from '../../WorkspaceModeSelect'
-import { MarkdownWorkspaceHtmlViewerPane } from './MarkdownWorkspaceHtmlViewerPane'
 import { rowIdToMarkdownLineInTable } from './markdownDataViewSourceMap'
 import { WorkspaceDataViewHeader, type WorkspaceDataViewHeaderState } from './WorkspaceDataViewHeader'
 import {
@@ -45,6 +44,12 @@ import { tryBuildJsonMarkdownTablesFromText } from '@/features/markdown/jsonToMa
 import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import { WORKSPACE_SYNC_SCOPE_MARKDOWN_WORKSPACE_DATAVIEW_RUNTIME_PERSISTENCE } from '@/lib/async/workspaceSyncKeys'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { useMarkdownPreviewLexedMarkdown } from '@/features/markdown/ui/useMarkdownPreviewTokens'
+
+const MarkdownWorkspaceHtmlViewerPaneLazy = React.lazy(
+  async (): Promise<{ default: typeof import('./MarkdownWorkspaceHtmlViewerPane')['MarkdownWorkspaceHtmlViewerPane'] }> =>
+    import('./MarkdownWorkspaceHtmlViewerPane').then(mod => ({ default: mod.MarkdownWorkspaceHtmlViewerPane })),
+)
 
 export type MarkdownWorkspaceDerivedViewerKind = 'markdown' | 'html' | 'json'
 export type MarkdownWorkspaceDerivedViewerMode = 'read' | 'table' | 'multiDimTable' | 'kanban'
@@ -102,12 +107,16 @@ const deriveCandidateBaseLabel = (markdownLines: string[], startLine: number, fa
   return `Table ${fallbackIndex}`
 }
 
-const buildDataViewCandidates = (markdownText: string, candidatesKey: string, relaxed: boolean): DataViewCandidate[] => {
+const buildDataViewCandidates = (
+  markdownText: string,
+  candidatesKey: string,
+  tokens: TokenWithLines[],
+  relaxed: boolean,
+): DataViewCandidate[] => {
   if (markdownText.length > DERIVED_TABLE_SCAN_MAX_CHARS) return []
   const cacheKey = `${candidatesKey}|${relaxed ? 'relaxed' : 'strict'}`
   const cached = DATA_VIEW_CANDIDATES_CACHE.get(cacheKey)
   if (cached) return cached
-  const { tokens } = lexMarkdown(markdownText)
   const markdownLines = markdownText.split('\n')
   const tables = tokens.filter((t): t is TokenWithLines & TokensTable => t.type === 'table')
   const candidates: DataViewCandidate[] = []
@@ -164,6 +173,11 @@ export function MarkdownWorkspaceDerivedViewer(props: {
   onViewerRootRef: (el: HTMLDivElement | null) => void
 }) {
   const panelTypography = usePanelTypography()
+  const jsonLikeMarkdownText = React.useMemo(() => {
+    const trimmed = String(props.markdownText || '').trim()
+    if (!trimmed) return ''
+    return trimmed.startsWith('{') || trimmed.startsWith('[') ? trimmed : ''
+  }, [props.markdownText])
 
   const derivedStructuredText = React.useMemo(() => {
     const showStructuredInJsonViews = props.viewerKind === 'json'
@@ -171,13 +185,25 @@ export function MarkdownWorkspaceDerivedViewer(props: {
       props.viewerKind === 'markdown' &&
       (props.viewerMode === 'read' || props.viewerMode === 'table' || props.viewerMode === 'multiDimTable')
     if (!showStructuredInJsonViews && !showStructuredInMarkdownViews) return null
+    if (!jsonLikeMarkdownText) return null
     const preferredMode: JsonToMarkdownMode | undefined =
       props.viewerKind === 'markdown' && props.viewerMode === 'read' ? 'table' : undefined
-    return tryBuildApiGraphMarkdownTablesFromJson(props.markdownText, preferredMode)
-  }, [props.markdownText, props.viewerKind, props.viewerMode])
+    return tryBuildApiGraphMarkdownTablesFromJson(jsonLikeMarkdownText, preferredMode)
+  }, [jsonLikeMarkdownText, props.viewerKind, props.viewerMode])
 
   const effectiveMarkdownText = derivedStructuredText || props.markdownText
-  const candidatesKey = React.useMemo(() => buildMarkdownTokensKey(effectiveMarkdownText), [effectiveMarkdownText])
+  const shouldBuildDataViewCandidates = props.viewerMode !== 'read' && (props.viewerKind !== 'json' || !!derivedStructuredText)
+  const candidateSourcePath = props.activeDocumentPath ?? `derived-viewer:${props.viewerKind}:${props.viewerMode}`
+  const { tokens: candidateTokens } = useMarkdownPreviewLexedMarkdown(
+    shouldBuildDataViewCandidates ? effectiveMarkdownText : '',
+    undefined,
+    candidateSourcePath,
+    false,
+  )
+  const candidatesKey = React.useMemo(
+    () => (shouldBuildDataViewCandidates ? buildMarkdownTokensKey(effectiveMarkdownText) : ''),
+    [effectiveMarkdownText, shouldBuildDataViewCandidates],
+  )
   const [selectedTableId, setSelectedTableId] = React.useState<string>('')
   const [viewConfig, setViewConfig] = React.useState<WorkspaceDataViewConfig | null>(null)
   const [settingsOpen, setSettingsOpen] = React.useState(false)
@@ -189,18 +215,18 @@ export function MarkdownWorkspaceDerivedViewer(props: {
   }))
 
   const strictCandidates = React.useMemo(() => {
-    if (props.viewerMode === 'read') return []
+    if (!shouldBuildDataViewCandidates) return []
     if (props.viewerKind === 'json') return []
-    return buildDataViewCandidates(effectiveMarkdownText, candidatesKey, false)
-  }, [candidatesKey, effectiveMarkdownText, props.viewerKind, props.viewerMode])
+    return buildDataViewCandidates(effectiveMarkdownText, candidatesKey, candidateTokens, false)
+  }, [candidateTokens, candidatesKey, effectiveMarkdownText, props.viewerKind, shouldBuildDataViewCandidates])
 
   const relaxedCandidates = React.useMemo(() => {
-    if (props.viewerMode === 'read') return []
+    if (!shouldBuildDataViewCandidates) return []
     const shouldRelax = props.viewerKind === 'json'
       ? !!derivedStructuredText
       : strictCandidates.length === 0
-    return shouldRelax ? buildDataViewCandidates(effectiveMarkdownText, candidatesKey, true) : []
-  }, [candidatesKey, derivedStructuredText, effectiveMarkdownText, props.viewerKind, props.viewerMode, strictCandidates.length])
+    return shouldRelax ? buildDataViewCandidates(effectiveMarkdownText, candidatesKey, candidateTokens, true) : []
+  }, [candidateTokens, candidatesKey, derivedStructuredText, effectiveMarkdownText, props.viewerKind, shouldBuildDataViewCandidates, strictCandidates.length])
 
   const candidates = strictCandidates.length > 0 ? strictCandidates : relaxedCandidates
   const usingLooseTables = strictCandidates.length === 0 && relaxedCandidates.length > 0
@@ -481,10 +507,12 @@ export function MarkdownWorkspaceDerivedViewer(props: {
     if (props.viewerKind === 'html') {
       return (
         <div ref={props.onViewerRootRef} className="h-full w-full">
-          <MarkdownWorkspaceHtmlViewerPane
-            markdownText={props.markdownText}
-            title={props.title}
-          />
+          <React.Suspense fallback={null}>
+            <MarkdownWorkspaceHtmlViewerPaneLazy
+              markdownText={props.markdownText}
+              title={props.title}
+            />
+          </React.Suspense>
         </div>
       )
     }

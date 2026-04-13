@@ -25,8 +25,6 @@ import { deriveWebpageFrontmatterMetaFromBlock, deriveWebsiteImportFrontmatterMe
 import { useWebpageIframeView } from './webpage/useWebpageIframeView'
 import { MarkdownEditorPane } from './editor/MarkdownEditorPane'
 import { MarkdownWorkspaceLayout } from './layout/MarkdownWorkspaceLayout'
-import { MarkdownWorkspacePresentationSurface } from './presentation/MarkdownWorkspacePresentationSurface'
-import { MarkdownWorkspaceSlidesGallerySurface } from './presentation/MarkdownWorkspaceSlidesGallerySurface'
 import { useWorkspaceScrollSync } from './scroll/useWorkspaceScrollSync'
 import { MarkdownWorkspaceDerivedViewer, type MarkdownWorkspaceDerivedViewerKind, type MarkdownWorkspaceDerivedViewerMode } from './viewer/MarkdownWorkspaceDerivedViewer'
 import { buildBipartiteMarkdownFromJsonText } from '@/features/markdown/bipartiteJsonToMarkdown'
@@ -34,6 +32,16 @@ import { jsonToMarkdownPreferTable } from '@/features/markdown/jsonToMarkdown'
 import { buildJsonMarkdownConfigFromPreferences } from '@/features/markdown/jsonMarkdownPreferences'
 import { useWorkspaceExportBridge } from './useWorkspaceExportBridge'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
+
+const MarkdownWorkspacePresentationSurfaceLazy = React.lazy(
+  async (): Promise<{ default: typeof import('./presentation/MarkdownWorkspacePresentationSurface')['MarkdownWorkspacePresentationSurface'] }> =>
+    import('./presentation/MarkdownWorkspacePresentationSurface').then(mod => ({ default: mod.MarkdownWorkspacePresentationSurface })),
+)
+
+const MarkdownWorkspaceSlidesGallerySurfaceLazy = React.lazy(
+  async (): Promise<{ default: typeof import('./presentation/MarkdownWorkspaceSlidesGallerySurface')['MarkdownWorkspaceSlidesGallerySurface'] }> =>
+    import('./presentation/MarkdownWorkspaceSlidesGallerySurface').then(mod => ({ default: mod.MarkdownWorkspaceSlidesGallerySurface })),
+)
 
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
@@ -550,49 +558,53 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   })
 
   const presentation = (
-    <MarkdownWorkspacePresentationSurface
-      showWebpageHtml={showWebpageHtml}
-      webpageUrl={webpageMeta?.url || ''}
-      iframeSrc={iframeSrc}
-      iframeSrcDoc={iframeSrcDoc}
-      viewerText={viewerText}
-      activeDocumentKey={activeDocumentKey}
-      highlightedLineRange={highlightedLineRange}
-      markdownWordWrap={markdownWordWrap}
-      markdownTextHighlight={markdownTextHighlight}
-      uiPanelTextFontClass={uiPanelTextFontClass}
-      uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-      webpageLayoutWireframeAscii={webpageLayoutWireframeAscii || ''}
-      geoDatasetIntegration={geoDatasetIntegration}
-      presentationApiRef={presentationApiRef}
-      showInViewer={showInViewer}
-      revealLineInEditor={(line: number) => revealLineInEditor(line)}
-      showInPresentation={showInPresentation}
-      showInSlidesGallery={showInSlidesGallery}
-    />
+    <React.Suspense fallback={null}>
+      <MarkdownWorkspacePresentationSurfaceLazy
+        showWebpageHtml={showWebpageHtml}
+        webpageUrl={webpageMeta?.url || ''}
+        iframeSrc={iframeSrc}
+        iframeSrcDoc={iframeSrcDoc}
+        viewerText={viewerText}
+        activeDocumentKey={activeDocumentKey}
+        highlightedLineRange={highlightedLineRange}
+        markdownWordWrap={markdownWordWrap}
+        markdownTextHighlight={markdownTextHighlight}
+        uiPanelTextFontClass={uiPanelTextFontClass}
+        uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+        webpageLayoutWireframeAscii={webpageLayoutWireframeAscii || ''}
+        geoDatasetIntegration={geoDatasetIntegration}
+        presentationApiRef={presentationApiRef}
+        showInViewer={showInViewer}
+        revealLineInEditor={(line: number) => revealLineInEditor(line)}
+        showInPresentation={showInPresentation}
+        showInSlidesGallery={showInSlidesGallery}
+      />
+    </React.Suspense>
   )
 
   const slidesGallery = (
-    <MarkdownWorkspaceSlidesGallerySurface
-      showWebpageHtml={showWebpageHtml}
-      webpageUrl={webpageMeta?.url || ''}
-      iframeSrc={iframeSrc}
-      iframeSrcDoc={iframeSrcDoc}
-      viewerText={viewerText}
-      activeDocumentKey={activeDocumentKey}
-      highlightedLineRange={highlightedLineRange}
-      markdownWordWrap={markdownWordWrap}
-      markdownTextHighlight={markdownTextHighlight}
-      uiPanelTextFontClass={uiPanelTextFontClass}
-      uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-      webpageLayoutWireframeAscii={webpageLayoutWireframeAscii || ''}
-      geoDatasetIntegration={geoDatasetIntegration}
-      presentationApiRef={presentationApiRef}
-      showInViewer={showInViewer}
-      revealLineInEditor={(line: number) => revealLineInEditor(line)}
-      showInPresentation={showInPresentation}
-      showInSlidesGallery={showInSlidesGallery}
-    />
+    <React.Suspense fallback={null}>
+      <MarkdownWorkspaceSlidesGallerySurfaceLazy
+        showWebpageHtml={showWebpageHtml}
+        webpageUrl={webpageMeta?.url || ''}
+        iframeSrc={iframeSrc}
+        iframeSrcDoc={iframeSrcDoc}
+        viewerText={viewerText}
+        activeDocumentKey={activeDocumentKey}
+        highlightedLineRange={highlightedLineRange}
+        markdownWordWrap={markdownWordWrap}
+        markdownTextHighlight={markdownTextHighlight}
+        uiPanelTextFontClass={uiPanelTextFontClass}
+        uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+        webpageLayoutWireframeAscii={webpageLayoutWireframeAscii || ''}
+        geoDatasetIntegration={geoDatasetIntegration}
+        presentationApiRef={presentationApiRef}
+        showInViewer={showInViewer}
+        revealLineInEditor={(line: number) => revealLineInEditor(line)}
+        showInPresentation={showInPresentation}
+        showInSlidesGallery={showInSlidesGallery}
+      />
+    </React.Suspense>
   )
 
   const renderEditor = renderEditorPane

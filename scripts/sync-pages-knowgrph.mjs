@@ -19,6 +19,9 @@ const blockedRelativeRoots = new Set([
 const blockedRelativeFiles = new Set([
   'unicorn-investors-test.json',
 ])
+const preservedRelativeRoots = new Set([
+  'imports',
+])
 
 const existsDir = async (dir) => {
   try {
@@ -38,6 +41,14 @@ const isAllowedRelativePath = (rel) => {
     if (rel === blocked || rel.startsWith(`${blocked}/`)) return false
   }
   return true
+}
+
+const isPreservedRelativePath = (rel) => {
+  if (!rel) return false
+  for (const preserved of preservedRelativeRoots) {
+    if (rel === preserved || rel.startsWith(`${preserved}/`)) return true
+  }
+  return false
 }
 
 const listFiles = async (rootDir) => {
@@ -136,6 +147,7 @@ for (const rel of sourceFiles) {
 if (await existsDir(targetDir)) {
   const targetFiles = await listAllFiles(targetDir)
   for (const rel of targetFiles) {
+    if (isPreservedRelativePath(rel)) continue
     if (sourceSet.has(rel)) continue
     await fs.rm(path.resolve(targetDir, rel), { force: true })
   }

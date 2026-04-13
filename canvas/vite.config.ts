@@ -280,7 +280,272 @@ function resolveHackamapGraphPath(): string | null {
   return null
 }
 
-async function readHackamapGraphAsBipartiteApiPayload(): Promise<unknown> {
+function resolveHackamapApiGraphPath(): string | null {
+  const fromEnv =
+    String(process.env.KNOWGRPH_HACKAMAP_API_GRAPH_PATH || '').trim() ||
+    String(process.env.VITE_KNOWGRPH_HACKAMAP_API_GRAPH_PATH || '').trim()
+  const candidates = [
+    fromEnv,
+    path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'knowgrph', 'imports', 'hackamap', 'hackamap_api_graph.json'),
+    path.resolve(repoRoot, '..', 'project', 'prjt4000-hackamap', 'site', '_generated', 'api-graph', 'hackamap_api_graph.json'),
+  ].filter(Boolean)
+  for (const p of candidates) {
+    try {
+      if (p && existsSync(p)) return p
+    } catch {
+      void 0
+    }
+  }
+  return null
+}
+
+function resolveHackamapPipelinePath(): string | null {
+  const candidates = [
+    path.resolve(repoRoot, '..', 'project', 'prjt4000-hackamap', 'site', 'hackamap-pipeline.json'),
+    path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'knowgrph', 'imports', 'hackamap', 'hackamap_pipeline.json'),
+  ]
+  for (const p of candidates) {
+    try {
+      if (existsSync(p)) return p
+    } catch {
+      void 0
+    }
+  }
+  return null
+}
+
+function resolveHackamapQueryPresetsPath(): string | null {
+  const candidates = [
+    path.resolve(repoRoot, '..', 'project', 'prjt4000-hackamap', 'site', 'hackamap-query-presets.json'),
+    path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'knowgrph', 'imports', 'hackamap', 'hackamap_query_presets.json'),
+  ]
+  for (const p of candidates) {
+    try {
+      if (existsSync(p)) return p
+    } catch {
+      void 0
+    }
+  }
+  return null
+}
+
+function resolveHackamapQueryRunsManifestPath(): string | null {
+  const candidates = [
+    path.resolve(repoRoot, '..', 'project', 'prjt4000-hackamap', 'site', '_generated', 'query-outputs', 'query-runs.manifest.json'),
+    path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'knowgrph', 'imports', 'hackamap', 'query-outputs', 'query-runs.manifest.json'),
+  ]
+  for (const p of candidates) {
+    try {
+      if (existsSync(p)) return p
+    } catch {
+      void 0
+    }
+  }
+  return null
+}
+
+async function readJsonFileIfExists(p: string | null): Promise<unknown | null> {
+  if (!p) return null
+  try {
+    const raw = await fs.readFile(p, 'utf8')
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+function buildHackamapTablePrefix(presetEntry: any, runEntry: any): string {
+  const basePrefix = String(presetEntry?.output?.per_table_prefix || presetEntry?.id || runEntry?.preset || '').trim()
+  const suffix = String(runEntry?.output_suffix || '').trim()
+  return suffix ? `${basePrefix}-${suffix}` : basePrefix
+}
+
+function collectRowIds(rows: unknown, key: string): string[] {
+  if (!Array.isArray(rows)) return []
+  const out: string[] = []
+  for (const row of rows) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) continue
+    const value = String((row as Record<string, unknown>)[key] || '').trim()
+    if (value) out.push(value)
+  }
+  return out
+}
+
+function sortObjectKeys(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortObjectKeys)
+  if (!value || typeof value !== 'object') return value
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, nested]) => [key, sortObjectKeys(nested)]),
+  )
+}
+
+function stableParamSignature(value: unknown): string {
+  try {
+    return JSON.stringify(sortObjectKeys(value))
+  } catch {
+    return ''
+  }
+}
+
+function toBuilderOption(value: unknown): { value: unknown; label: string } {
+  if (typeof value === 'string') return { value, label: value }
+  return { value, label: JSON.stringify(value) }
+}
+
+function buildHackamapPresetRuntimeEntries(presets: any[], runs: any[]): any[] {
+  return presets
+    .map((entry: any) => {
+      const presetId = String(entry?.id || '').trim()
+      if (!presetId) return null
+      const defaults = entry?.params && typeof entry.params === 'object' && !Array.isArray(entry.params) ? entry.params : {}
+      const relatedRuns = runs.filter((run: any) => String(run?.preset || '').trim() === presetId)
+      const paramKeys = Array.from(
+        new Set<string>([
+          ...Object.keys(defaults),
+          ...relatedRuns.flatMap((run: any) =>
+            run?.params && typeof run.params === 'object' && !Array.isArray(run.params) ? Object.keys(run.params) : [],
+          ),
+        ]),
+      ).sort((left, right) => left.localeCompare(right))
+      const publishedParamOptions = Object.fromEntries(
+        paramKeys.map(key => {
+          const seen = new Set<string>()
+          const options: Array<{ value: unknown; label: string }> = []
+          const values = [
+            defaults[key],
+            ...relatedRuns.map((run: any) =>
+              run?.params && typeof run.params === 'object' && !Array.isArray(run.params) ? run.params[key] : undefined,
+            ),
+          ]
+          for (const candidate of values) {
+            if (typeof candidate === 'undefined') continue
+            const signature = stableParamSignature(candidate)
+            if (!signature || seen.has(signature)) continue
+            seen.add(signature)
+            options.push(toBuilderOption(candidate))
+          }
+          return [key, options]
+        }),
+      )
+      return {
+        id: presetId,
+        title: String(entry?.title || presetId).trim(),
+        params: defaults,
+        param_keys: paramKeys,
+        published_param_options: publishedParamOptions,
+      }
+    })
+    .filter(Boolean)
+}
+
+async function readHackamapRuntimeMeta(): Promise<any> {
+  const pipeline = ((await readJsonFileIfExists(resolveHackamapPipelinePath())) || {}) as any
+  const presetsRaw = await readJsonFileIfExists(resolveHackamapQueryPresetsPath())
+  const runsManifest = ((await readJsonFileIfExists(resolveHackamapQueryRunsManifestPath())) || {}) as any
+  const presets = Array.isArray(presetsRaw) ? presetsRaw.filter(Boolean) : []
+  const runtime = pipeline && typeof pipeline === 'object' ? (pipeline.runtime || {}) : {}
+  const defaultRunId = String(runtime?.query_selection?.default_run_id || '').trim() || 'enhanced'
+  const runsRaw = Array.isArray(runsManifest?.runs) ? runsManifest.runs : []
+  const runs = runsRaw.map((entry: any) => ({
+    id: String(entry?.id || '').trim(),
+    preset: String(entry?.preset || '').trim(),
+    title: String(entry?.title || entry?.id || '').trim(),
+    params: entry?.params && typeof entry.params === 'object' && !Array.isArray(entry.params) ? entry.params : {},
+    output_suffix: String(entry?.output_suffix || '').trim(),
+    is_default: String(entry?.id || '').trim() === defaultRunId,
+  })).filter((entry: any) => entry.id)
+  return {
+    ok: true,
+    runtime: {
+      ...(runtime && typeof runtime === 'object' ? runtime : {}),
+      presets: buildHackamapPresetRuntimeEntries(presets, runs),
+      runs,
+    },
+  }
+}
+
+async function readHackamapQueryRunSelection(runId: string): Promise<{ eventIds: Set<string>; demoIds: Set<string> } | null> {
+  const normalizedRunId = String(runId || '').trim()
+  if (!normalizedRunId) return null
+  const manifestPath = resolveHackamapQueryRunsManifestPath()
+  const queryOutputsDir = manifestPath ? path.dirname(manifestPath) : null
+  const runsManifest = ((await readJsonFileIfExists(manifestPath)) || {}) as any
+  const presetsRaw = await readJsonFileIfExists(resolveHackamapQueryPresetsPath())
+  const runs = Array.isArray(runsManifest?.runs) ? runsManifest.runs : []
+  const presets = Array.isArray(presetsRaw) ? presetsRaw : []
+  const runEntry = runs.find((entry: any) => String(entry?.id || '').trim() === normalizedRunId)
+  if (!runEntry || !queryOutputsDir) return null
+  const presetEntry = presets.find((entry: any) => String(entry?.id || '').trim() === String(runEntry?.preset || '').trim())
+  const tablePrefix = buildHackamapTablePrefix(presetEntry, runEntry)
+  if (!tablePrefix) return null
+  const eventsJson = await readJsonFileIfExists(path.join(queryOutputsDir, `events.${tablePrefix}.query.json`))
+  const demosJson = await readJsonFileIfExists(path.join(queryOutputsDir, `demos.${tablePrefix}.query.json`))
+  const eventIds = new Set<string>(collectRowIds(eventsJson, 'id'))
+  const demoIds = new Set<string>(collectRowIds(demosJson, 'id'))
+  const demoEventIds = collectRowIds(demosJson, 'event_id')
+  for (const id of demoEventIds) eventIds.add(id)
+  return { eventIds, demoIds }
+}
+
+function filterHackamapApiGraphPayloadByRun(payload: any, runId: string, selection: { eventIds: Set<string>; demoIds: Set<string> } | null): any {
+  if (!selection || !isApiGraphPayload(payload)) return payload
+  if (selection.eventIds.size === 0 && selection.demoIds.size === 0) {
+    return {
+      ...payload,
+      meta: {
+        ...((payload as any)?.meta && typeof (payload as any).meta === 'object' ? (payload as any).meta : {}),
+        selected_run_id: runId,
+        selected_run_filter_skipped: 'no-event-demo-rows',
+      },
+    }
+  }
+  const keep = new Set<string>()
+  selection.eventIds.forEach(id => keep.add(`Event:${id}`))
+  selection.demoIds.forEach(id => keep.add(`Demo:${id}`))
+  const nodes = Array.isArray(payload.nodes)
+    ? payload.nodes.filter((node: any) => keep.has(String(node?.id || '').trim()))
+    : []
+  const keepIds = new Set<string>(nodes.map((node: any) => String(node?.id || '').trim()).filter(Boolean))
+  const edges = Array.isArray(payload.edges)
+    ? payload.edges.filter((edge: any) => keepIds.has(String(edge?.source || '').trim()) && keepIds.has(String(edge?.target || '').trim()))
+    : []
+  return {
+    ...payload,
+    nodes,
+    edges,
+    meta: {
+      ...((payload as any)?.meta && typeof (payload as any).meta === 'object' ? (payload as any).meta : {}),
+      selected_run_id: runId,
+      selected_event_count: selection.eventIds.size,
+      selected_demo_count: selection.demoIds.size,
+      total_problems: nodes.filter((node: any) => String(node?.type || '').trim() === 'problem').length,
+      total_solutions: nodes.filter((node: any) => String(node?.type || '').trim() === 'solution').length,
+    },
+  }
+}
+
+function isApiGraphPayload(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const obj = value as Record<string, unknown>
+  return Array.isArray(obj.nodes) && Array.isArray(obj.edges)
+}
+
+async function readHackamapApiGraphPayload(): Promise<unknown | null> {
+  const p = resolveHackamapApiGraphPath()
+  if (!p) return null
+  const raw = await fs.readFile(p, 'utf8')
+  const parsed = JSON.parse(raw)
+  return isApiGraphPayload(parsed) ? parsed : null
+}
+
+async function readHackamapGraphAsBipartiteApiPayload(runId: string = ''): Promise<unknown> {
+  const precomputed = await readHackamapApiGraphPayload()
+  if (precomputed) {
+    const selection = await readHackamapQueryRunSelection(runId)
+    return filterHackamapApiGraphPayloadByRun(precomputed, runId, selection)
+  }
   const p = resolveHackamapGraphPath()
   if (!p) return { nodes: [], edges: [], meta: { source: 'hackamap-graph:fallback' } }
   const raw = await fs.readFile(p, 'utf8')
@@ -313,17 +578,18 @@ async function readHackamapGraphAsBipartiteApiPayload(): Promise<unknown> {
     edges.push({ source, target, type: 'has_demo', strength: 0.35 })
   }
   const meta = (parsed as any)?.meta && typeof (parsed as any).meta === 'object' ? (parsed as any).meta : {}
-  return {
+  const payload = {
     nodes,
     edges,
     meta: {
       ...(meta?.content_signature ? { content_signature: String(meta.content_signature) } : {}),
-      source: 'hackamap-graph.json',
+      source: 'hackamap-graph.json:fallback',
       total_problems: nodes.filter(n => n.type === 'problem').length,
       total_solutions: nodes.filter(n => n.type === 'solution').length,
-      last_updated: new Date().toISOString(),
     },
   }
+  const selection = await readHackamapQueryRunSelection(runId)
+  return filterHackamapApiGraphPayloadByRun(payload, runId, selection)
 }
 
 const apiGraphDevPlugin = {
@@ -335,7 +601,10 @@ const apiGraphDevPlugin = {
         return
       }
       try {
-        const payload = await readHackamapGraphAsBipartiteApiPayload()
+        const url = new URL(req.url || '/api/graph', 'http://localhost')
+        const view = String(url.searchParams.get('view') || '').trim().toLowerCase()
+        const runId = String(url.searchParams.get('run') || '').trim()
+        const payload = view === 'meta' ? await readHackamapRuntimeMeta() : await readHackamapGraphAsBipartiteApiPayload(runId)
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json')
         res.setHeader('Cache-Control', 'no-store')
@@ -359,7 +628,10 @@ const apiGraphDevPlugin = {
         return
       }
       try {
-        const payload = await readHackamapGraphAsBipartiteApiPayload()
+        const url = new URL(req.url || '/api/graph', 'http://localhost')
+        const view = String(url.searchParams.get('view') || '').trim().toLowerCase()
+        const runId = String(url.searchParams.get('run') || '').trim()
+        const payload = view === 'meta' ? await readHackamapRuntimeMeta() : await readHackamapGraphAsBipartiteApiPayload(runId)
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json')
         res.setHeader('Cache-Control', 'no-store')
@@ -4456,14 +4728,28 @@ export default defineConfig(({ command }) => ({
       injectRegister: null,
       devOptions: { enabled: false },
       manifest: {
+        id:
+          command === 'build'
+            ? (() => {
+                const raw = String(process.env.VITE_BASE_PATH || '/knowgrph/').trim() || '/knowgrph/'
+                const withLeading = raw.startsWith('/') ? raw : `/${raw}`
+                return withLeading.endsWith('/') ? withLeading : `${withLeading}/`
+              })()
+            : '/',
         name: 'knowgrph',
         short_name: 'knowgrph',
         description: 'Local-first knowledge graph canvas.',
+        lang: 'en',
+        dir: 'ltr',
         start_url: '.',
         scope: '.',
         display: 'standalone',
+        display_override: ['window-controls-overlay', 'standalone', 'browser'],
+        orientation: 'any',
         background_color: '#0b1220',
         theme_color: '#0b1220',
+        categories: ['productivity', 'utilities', 'developer'],
+        prefer_related_applications: false,
         icons: [
           {
             src: 'favicon.svg',

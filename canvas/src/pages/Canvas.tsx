@@ -538,19 +538,6 @@ export default function CanvasPage() {
     design: canvas2dRenderer === 'design',
     flowEditor: canvas2dRenderer === 'flowEditor',
   }))
-  const allowBackgroundRendererPrefetch = React.useMemo(() => {
-    if (typeof window === 'undefined') return true
-    const nav = window.navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean; effectiveType?: string } }
-    const lowMemory = typeof nav.deviceMemory === 'number' && nav.deviceMemory > 0 && nav.deviceMemory <= 4
-    const lowCpu = typeof nav.hardwareConcurrency === 'number' && nav.hardwareConcurrency > 0 && nav.hardwareConcurrency <= 4
-    const saveData = nav.connection?.saveData === true
-    const constrainedNetwork = String(nav.connection?.effectiveType || '').toLowerCase()
-    if (constrainedNetwork === '2g' || constrainedNetwork === 'slow-2g') return false
-    if (saveData) return false
-    if (lowMemory) return false
-    if (lowCpu) return false
-    return true
-  }, [])
 
   React.useEffect(() => {
     if (isD3Like2dRenderer(canvas2dRenderer)) {
@@ -569,83 +556,6 @@ export default function CanvasPage() {
       setMounted2dRenderers(prev => (prev.flowEditor ? prev : { ...prev, flowEditor: true }))
     }
   }, [canvas2dRenderer])
-
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (geospatialModeEnabled) return
-    if (canvasRenderMode !== '2d') return
-    if (!allowBackgroundRendererPrefetch) return
-
-    const shouldPrefetchD3 = !isD3Like2dRenderer(canvas2dRenderer) && !mounted2dRenderers.d3
-    const shouldPrefetchFlow = canvas2dRenderer !== 'flow' && !mounted2dRenderers.flow
-    const shouldPrefetchDesign = canvas2dRenderer !== 'design' && !mounted2dRenderers.design
-    const shouldPrefetchFlowEditor = canvas2dRenderer !== 'flowEditor' && !mounted2dRenderers.flowEditor
-    if (!shouldPrefetchD3 && !shouldPrefetchFlow && !shouldPrefetchDesign && !shouldPrefetchFlowEditor) return
-
-    let cancelled = false
-    const prefetch = () => {
-      if (cancelled) return
-      if (shouldPrefetchD3) {
-        void import('@/components/GraphCanvas').then(() => {
-          if (cancelled) return
-          setMounted2dRenderers(prev => (prev.d3 ? prev : { ...prev, d3: true }))
-        })
-      }
-      if (shouldPrefetchFlow) {
-        void import('@/components/FlowCanvas')
-          .then(() => {
-            if (cancelled) return
-            setMounted2dRenderers(prev => (prev.flow ? prev : { ...prev, flow: true }))
-          })
-          .catch(() => {
-            void 0
-          })
-      }
-      if (shouldPrefetchDesign) {
-        void import('@/components/DesignCanvas')
-          .then(() => {
-            if (cancelled) return
-            setMounted2dRenderers(prev => (prev.design ? prev : { ...prev, design: true }))
-          })
-          .catch(() => {
-            void 0
-          })
-      }
-      if (shouldPrefetchFlowEditor) {
-        void import('@/components/FlowEditorCanvas')
-          .then(() => {
-            if (cancelled) return
-            setMounted2dRenderers(prev => (prev.flowEditor ? prev : { ...prev, flowEditor: true }))
-          })
-          .catch(() => {
-            void 0
-          })
-      }
-    }
-
-    const anyWindow = window as unknown as {
-      requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number
-      cancelIdleCallback?: (id: number) => void
-    }
-
-    if (typeof anyWindow.requestIdleCallback === 'function') {
-      const id = anyWindow.requestIdleCallback(prefetch, { timeout: 1000 })
-      return () => {
-        cancelled = true
-        try {
-          anyWindow.cancelIdleCallback?.(id)
-        } catch {
-          void 0
-        }
-      }
-    }
-
-    const timeoutId = window.setTimeout(prefetch, 200)
-    return () => {
-      cancelled = true
-      window.clearTimeout(timeoutId)
-    }
-  }, [allowBackgroundRendererPrefetch, canvas2dRenderer, canvasRenderMode, geospatialModeEnabled, mounted2dRenderers.d3, mounted2dRenderers.flow, mounted2dRenderers.design, mounted2dRenderers.flowEditor])
 
   React.useEffect(() => {
     return onGeospatialModeChanged(detail => {

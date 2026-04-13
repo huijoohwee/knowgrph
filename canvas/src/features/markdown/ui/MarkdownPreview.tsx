@@ -21,7 +21,7 @@ import { findSelectionTarget } from '@/features/markdown/ui/markdownPreviewSelec
 import { useMarkdownPreviewLexedMarkdown } from '@/features/markdown/ui/useMarkdownPreviewTokens'
 import { useSelectionFlash } from '@/features/markdown/ui/useSelectionFlash'
 import { useMarkdownPreviewEvents } from '@/features/markdown/ui/useMarkdownPreviewEvents'
-import { buildMarkdownTokensKey, type TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
+import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import type { MarkdownSourceFilesPanelIntegration } from '@/features/markdown/ui/MarkdownSourceFilesPanel'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
@@ -173,8 +173,6 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     providedTokens,
     activeDocumentPath,
   )
-
-  const markdownTokensKey = React.useMemo(() => buildMarkdownTokensKey(markdownText || ''), [markdownText])
 
   const frontmatterRawText = React.useMemo(() => {
     const lines = splitMarkdownLines(markdownText || '')

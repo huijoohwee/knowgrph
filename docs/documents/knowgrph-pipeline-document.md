@@ -49,6 +49,18 @@
 - Resolve cross‑repo conflicts; remove legacy/conflicting/stale code.
 - Test only bounded diffs; forbid indefinite runs.
 
+### HackaMap Public Graph Contract
+
+| Context | Directive | Why |
+|--------|-----------|-----|
+| SSOT | Keep `project/prjt4000-hackamap/site/hackamap-pipeline.json` as the only browser-fetchable HackaMap runtime contract. | Prevent duplicate config paths across scrape, query, publish, dev, and Pages hosts. |
+| Runtime API | Expose `/api/graph?view=meta` from dev and Pages using published pipeline, preset, and run artifacts. | Let Knowgrph read portable runtime knobs and published run options without a second manifest. |
+| Published runs | Allow `/api/graph?run=<published-run-id>` to filter the precomputed bipartite payload by published `events.*.query.json` and `demos.*.query.json` rows only. | Reuse generated query outputs, avoid ad-hoc runtime queries, and keep filtering deterministic. |
+| Published-run builder | Compose preset + parameter choices only from published run metadata and apply exact matches only. | Keep the public UI safe, deterministic, and free of ad-hoc query execution. |
+| Published run expansion | Grow builder choices by adding verified non-empty city variants with stable suffixes in the SSOT runs catalog. | Improve exact-match usefulness without changing the runtime contract. |
+| Published year-series | Add a parameterized published year preset with exact `2024`/`2025`/`2026` runs. | Give the builder a trustworthy second parameter axis with real event and demo subsets. |
+| Mobile/PWA | Keep mobile-first behavior source-driven in `knowgrph/canvas`, including stacked controls and generated install metadata mirrored by Pages sync. | Avoid hand-edited deploy artifacts and preserve one source for responsive PWA UX. |
+
 ### Markdown Workspace Import Stability
 
 - Bulk imports must batch change notifications so the UI refreshes once per import, not per file.

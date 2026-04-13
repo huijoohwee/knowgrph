@@ -4,25 +4,99 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 
+type ApiRuntimeRun = {
+  id: string
+  title?: string
+  preset?: string
+  params?: Record<string, unknown>
+  is_default?: boolean
+}
+
+type ApiBuilderOption = {
+  value: unknown
+  label: string
+}
+
+type ApiRuntimePreset = {
+  id: string
+  title?: string
+  params?: Record<string, unknown>
+  param_keys?: string[]
+  published_param_options?: Record<string, ApiBuilderOption[]>
+}
+
+type ApiRuntimeMeta = {
+  runtime?: {
+    presets?: ApiRuntimePreset[]
+    runs?: ApiRuntimeRun[]
+  }
+}
+
+const summarizeParams = (params: Record<string, unknown> | undefined): string => {
+  if (!params || typeof params !== 'object') return ''
+  const entries = Object.entries(params)
+    .filter(([key]) => String(key || '').trim())
+    .map(([key, value]) => `${key}=${typeof value === 'string' ? value : JSON.stringify(value)}`)
+  return entries.join(', ')
+}
+
+const stableSerialize = (value: unknown): string => {
+  if (Array.isArray(value)) return JSON.stringify(value.map(item => JSON.parse(stableSerialize(item))))
+  if (value && typeof value === 'object') {
+    return JSON.stringify(
+      Object.fromEntries(
+        Object.entries(value as Record<string, unknown>)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([key, nested]) => [key, JSON.parse(stableSerialize(nested))]),
+      ),
+    )
+  }
+  return JSON.stringify(value)
+}
+
+const buildPresetInitialParams = (preset: ApiRuntimePreset | null | undefined): Record<string, unknown> => {
+  if (!preset) return {}
+  const defaults = preset.params && typeof preset.params === 'object' ? preset.params : {}
+  const keys = Array.isArray(preset.param_keys) ? preset.param_keys : Object.keys(defaults)
+  return Object.fromEntries(
+    keys.map(key => {
+      const options = Array.isArray(preset.published_param_options?.[key]) ? preset.published_param_options?.[key] || [] : []
+      const fallbackValue = Object.prototype.hasOwnProperty.call(defaults, key) ? defaults[key] : options[0]?.value
+      return [key, fallbackValue]
+    }),
+  )
+}
+
+const normalizeBuilderParams = (preset: ApiRuntimePreset | null | undefined, params: Record<string, unknown>): Record<string, unknown> => {
+  if (!preset) return {}
+  const defaults = preset.params && typeof preset.params === 'object' ? preset.params : {}
+  const keys = Array.isArray(preset.param_keys) ? preset.param_keys : Object.keys(defaults)
+  return Object.fromEntries(
+    keys
+      .map(key => [key, Object.prototype.hasOwnProperty.call(params, key) ? params[key] : defaults[key]])
+      .filter(([, value]) => typeof value !== 'undefined'),
+  )
+}
+
 function ToggleRow(props: { label: string; value: boolean; onChange: (next: boolean) => void }) {
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
   return (
-    <div className="flex items-center gap-2">
-      <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <label className={`w-full sm:w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
         {props.label}
       </label>
-      <div className="w-[50%] flex items-center gap-1 justify-end">
+      <div className="w-full sm:w-[50%] flex items-center gap-1 justify-end">
         <button
           type="button"
-          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${!props.value ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
+          className={`App-toolbar__btn min-h-[44px] flex-1 text-xs border sm:flex-none ${UI_THEME_TOKENS.input.border} ${!props.value ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
           onClick={() => props.onChange(false)}
         >
           Off
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${props.value ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
+          className={`App-toolbar__btn min-h-[44px] flex-1 text-xs border sm:flex-none ${UI_THEME_TOKENS.input.border} ${props.value ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
           onClick={() => props.onChange(true)}
         >
           On
@@ -46,8 +120,8 @@ function NumberRow(props: {
     s => s.uiPanelKeyValueInputClass || `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`,
   )
   return (
-    <div className="flex items-center gap-2">
-      <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <label className={`w-full sm:w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
         {props.label}
       </label>
       <input
@@ -61,28 +135,34 @@ function NumberRow(props: {
           if (!Number.isFinite(raw)) return
           props.onChange(Math.max(props.min, Math.min(props.max, raw)))
         }}
-        className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[50%] text-right`}
+        className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-full min-h-[44px] sm:w-[50%] text-right`}
       />
     </div>
   )
 }
 
-function SelectRow(props: { label: string; value: string; options: string[]; onChange: (next: string) => void }) {
+function SelectRow(props: {
+  label: string
+  value: string
+  options: string[]
+  optionLabels?: Record<string, string>
+  onChange: (next: string) => void
+}) {
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
   return (
-    <div className="flex items-center gap-2">
-      <label className={`w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <label className={`w-full sm:w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
         {props.label}
       </label>
       <select
-        className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[50%]`}
+        className={`App-toolbar__btn min-h-[44px] text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-full sm:w-[50%]`}
         value={props.value}
         onChange={e => props.onChange(String(e.target.value || ''))}
       >
         {props.options.map(o => (
           <option key={o} value={o}>
-            {o}
+            {props.optionLabels?.[o] || o}
           </option>
         ))}
       </select>
@@ -92,10 +172,15 @@ function SelectRow(props: { label: string; value: string; options: string[]; onC
 
 export function BipartiteRendererSettings() {
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
+  const [apiRuntimeMeta, setApiRuntimeMeta] = React.useState<ApiRuntimeMeta | null>(null)
+  const [builderPresetId, setBuilderPresetId] = React.useState('')
+  const [builderParams, setBuilderParams] = React.useState<Record<string, unknown>>({})
 
   const {
     dataSource,
     setDataSource,
+    apiRunId,
+    setApiRunId,
     pollIntervalSec,
     setPollIntervalSec,
     nodeSizeMetric,
@@ -118,6 +203,8 @@ export function BipartiteRendererSettings() {
     useShallow(s => ({
       dataSource: s.bipartiteDataSource,
       setDataSource: s.setBipartiteDataSource,
+      apiRunId: s.bipartiteApiRunId,
+      setApiRunId: s.setBipartiteApiRunId,
       pollIntervalSec: s.bipartitePollIntervalSec,
       setPollIntervalSec: s.setBipartitePollIntervalSec,
       nodeSizeMetric: s.bipartiteNodeSizeMetric,
@@ -139,6 +226,137 @@ export function BipartiteRendererSettings() {
     })),
   )
 
+  React.useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await fetch('/api/graph?view=meta', { cache: 'no-store' })
+        if (!res.ok) return
+        const parsed = (await res.json()) as unknown
+        if (cancelled || !parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return
+        setApiRuntimeMeta(parsed as ApiRuntimeMeta)
+      } catch {
+        if (!cancelled) setApiRuntimeMeta(null)
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const apiRuns = React.useMemo(() => {
+    const raw = apiRuntimeMeta?.runtime?.runs
+    if (!Array.isArray(raw)) return []
+    return raw
+      .filter((item): item is ApiRuntimeRun => !!item && typeof item === 'object' && !Array.isArray(item) && typeof item.id === 'string')
+      .map(item => {
+        const paramsSummary = summarizeParams(item.params)
+        const baseTitle = String(item.title || item.id || '').trim()
+        const label = [baseTitle, paramsSummary].filter(Boolean).join(' | ')
+        return {
+          id: String(item.id || '').trim(),
+          title: baseTitle,
+          preset: String(item.preset || '').trim(),
+          params: item.params && typeof item.params === 'object' && !Array.isArray(item.params) ? item.params : {},
+          is_default: item.is_default === true,
+          label: item.is_default ? `${label || item.id} (default)` : label || String(item.id || '').trim(),
+        }
+      })
+      .filter(item => item.id)
+  }, [apiRuntimeMeta])
+
+  const apiPresets = React.useMemo(() => {
+    const raw = apiRuntimeMeta?.runtime?.presets
+    if (!Array.isArray(raw)) return []
+    return raw
+      .filter((item): item is ApiRuntimePreset => !!item && typeof item === 'object' && !Array.isArray(item) && typeof item.id === 'string')
+      .map(item => ({
+        id: String(item.id || '').trim(),
+        title: String(item.title || item.id || '').trim(),
+        params: item.params && typeof item.params === 'object' && !Array.isArray(item.params) ? item.params : {},
+        param_keys: Array.isArray(item.param_keys) ? item.param_keys.map(key => String(key || '').trim()).filter(Boolean) : [],
+        published_param_options:
+          item.published_param_options && typeof item.published_param_options === 'object' && !Array.isArray(item.published_param_options)
+            ? item.published_param_options
+            : {},
+      }))
+      .filter(item => item.id)
+  }, [apiRuntimeMeta])
+
+  const presetById = React.useMemo(
+    () => Object.fromEntries(apiPresets.map(item => [item.id, item])),
+    [apiPresets],
+  )
+
+  const defaultApiRunId = React.useMemo(() => apiRuntimeMeta?.runtime?.runs?.find(item => item?.is_default)?.id || '', [apiRuntimeMeta])
+
+  const effectiveApiRunId = React.useMemo(() => {
+    if (!apiRuns.length) return ''
+    if (apiRunId && apiRuns.some(item => item.id === apiRunId)) return apiRunId
+    if (defaultApiRunId && apiRuns.some(item => item.id === defaultApiRunId)) return defaultApiRunId
+    return apiRuns[0]?.id || ''
+  }, [apiRunId, apiRuns, defaultApiRunId])
+
+  React.useEffect(() => {
+    if (!effectiveApiRunId || effectiveApiRunId === apiRunId) return
+    setApiRunId(effectiveApiRunId)
+  }, [apiRunId, effectiveApiRunId, setApiRunId])
+
+  const activeRun = React.useMemo(
+    () => apiRuns.find(item => item.id === effectiveApiRunId) || null,
+    [apiRuns, effectiveApiRunId],
+  )
+
+  React.useEffect(() => {
+    const nextPresetId = String(activeRun?.preset || '').trim()
+    if (!nextPresetId || !presetById[nextPresetId]) return
+    const nextPreset = presetById[nextPresetId]
+    const nextParams = normalizeBuilderParams(nextPreset, activeRun?.params && typeof activeRun.params === 'object' ? activeRun.params : {})
+    const nextSignature = stableSerialize(nextParams)
+    if (builderPresetId !== nextPresetId) setBuilderPresetId(nextPresetId)
+    if (stableSerialize(builderParams) !== nextSignature) setBuilderParams(nextParams)
+  }, [activeRun, builderParams, builderPresetId, presetById])
+
+  React.useEffect(() => {
+    if (builderPresetId || !apiPresets.length) return
+    const nextPresetId = String(activeRun?.preset || '').trim() || apiPresets[0]?.id || ''
+    if (!nextPresetId || !presetById[nextPresetId]) return
+    setBuilderPresetId(nextPresetId)
+    setBuilderParams(buildPresetInitialParams(presetById[nextPresetId]))
+  }, [activeRun, apiPresets, builderPresetId, presetById])
+
+  const effectiveBuilderPresetId = React.useMemo(() => {
+    if (builderPresetId && presetById[builderPresetId]) return builderPresetId
+    return apiPresets[0]?.id || ''
+  }, [apiPresets, builderPresetId, presetById])
+
+  const builderPreset = React.useMemo(
+    () => presetById[effectiveBuilderPresetId] || null,
+    [effectiveBuilderPresetId, presetById],
+  )
+
+  const builderParamKeys = React.useMemo(() => {
+    if (!builderPreset) return []
+    return Array.isArray(builderPreset.param_keys) ? builderPreset.param_keys : Object.keys(builderPreset.params || {})
+  }, [builderPreset])
+
+  const normalizedBuilderParams = React.useMemo(
+    () => normalizeBuilderParams(builderPreset, builderParams),
+    [builderParams, builderPreset],
+  )
+
+  const matchingPublishedRun = React.useMemo(() => {
+    if (!builderPreset) return null
+    const targetSignature = stableSerialize(normalizedBuilderParams)
+    return (
+      apiRuns.find(run => {
+        if (String(run.preset || '').trim() !== builderPreset.id) return false
+        return stableSerialize(run.params && typeof run.params === 'object' ? run.params : {}) === targetSignature
+      }) || null
+    )
+  }, [apiRuns, builderPreset, normalizedBuilderParams])
+
   return (
     <CollapsibleSection title="Bipartite" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
       <div className="px-3 py-2 space-y-2">
@@ -151,6 +369,71 @@ export function BipartiteRendererSettings() {
           options={['api', 'fixture', 'workspace']}
           onChange={v => setDataSource(v === 'fixture' ? 'fixture' : v === 'workspace' ? 'workspace' : 'api')}
         />
+        {dataSource === 'api' && apiPresets.length > 0 ? (
+          <SelectRow
+            label="Build preset"
+            value={effectiveBuilderPresetId}
+            options={apiPresets.map(item => item.id)}
+            optionLabels={Object.fromEntries(apiPresets.map(item => [item.id, item.title || item.id]))}
+            onChange={nextPresetId => {
+              const nextPreset = presetById[nextPresetId] || null
+              setBuilderPresetId(nextPresetId)
+              setBuilderParams(buildPresetInitialParams(nextPreset))
+            }}
+          />
+        ) : null}
+        {dataSource === 'api' && builderPreset && builderParamKeys.map(paramKey => {
+          const options = Array.isArray(builderPreset.published_param_options?.[paramKey]) ? builderPreset.published_param_options?.[paramKey] || [] : []
+          if (options.length === 0) return null
+          const optionLabels = Object.fromEntries(options.map(option => [stableSerialize(option.value), option.label]))
+          const currentSignature = stableSerialize(normalizedBuilderParams[paramKey])
+          return (
+            <SelectRow
+              key={paramKey}
+              label={`Param: ${paramKey}`}
+              value={currentSignature}
+              options={options.map(option => stableSerialize(option.value))}
+              optionLabels={optionLabels}
+              onChange={nextValueSignature => {
+                const nextOption = options.find(option => stableSerialize(option.value) === nextValueSignature)
+                if (!nextOption) return
+                setBuilderParams(prev => ({ ...prev, [paramKey]: nextOption.value }))
+              }}
+            />
+          )
+        })}
+        {dataSource === 'api' && builderPreset ? (
+          <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+            {matchingPublishedRun
+              ? `Builder match: ${matchingPublishedRun.title || matchingPublishedRun.id}`
+              : 'Builder match: no exact published run for the current preset and published-safe values.'}
+          </div>
+        ) : null}
+        {dataSource === 'api' && matchingPublishedRun && matchingPublishedRun.id !== effectiveApiRunId ? (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className={`App-toolbar__btn min-h-[44px] text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`}
+              onClick={() => setApiRunId(matchingPublishedRun.id)}
+            >
+              Use builder match
+            </button>
+          </div>
+        ) : null}
+        {dataSource === 'api' && apiRuns.length > 0 ? (
+          <SelectRow
+            label="Published run"
+            value={effectiveApiRunId}
+            options={apiRuns.map(item => item.id)}
+            optionLabels={Object.fromEntries(apiRuns.map(item => [item.id, item.label]))}
+            onChange={setApiRunId}
+          />
+        ) : null}
+        {dataSource === 'api' && apiRuns.length > 0 ? (
+          <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+            {apiRuns.find(item => item.id === effectiveApiRunId)?.label || ''}
+          </div>
+        ) : null}
         <NumberRow label="Poll interval (s)" value={pollIntervalSec} min={3} max={3600} step={1} onChange={setPollIntervalSec} />
         <div className={`pt-1 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>Metric mapping</div>
         <SelectRow

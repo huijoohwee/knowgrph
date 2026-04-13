@@ -422,6 +422,8 @@ export interface GraphState {
 
   bipartiteDataSource: 'api' | 'fixture' | 'workspace';
   setBipartiteDataSource: (v: 'api' | 'fixture' | 'workspace') => void;
+  bipartiteApiRunId: string;
+  setBipartiteApiRunId: (v: string) => void;
   bipartitePollIntervalSec: number;
   setBipartitePollIntervalSec: (v: number) => void;
 

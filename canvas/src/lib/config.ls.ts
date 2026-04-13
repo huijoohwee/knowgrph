@@ -122,6 +122,7 @@ export const LS_KEYS = {
   canvas3dMode: 'kg:render:3dMode',
 
   bipartiteDataSource: 'kg:render:bipartite:dataSource',
+  bipartiteApiRunId: 'kg:render:bipartite:apiRunId',
   bipartitePollIntervalSec: 'kg:render:bipartite:pollIntervalSec',
   bipartiteNodeSizeMetric: 'kg:render:bipartite:metric:nodeSize',
   bipartiteNodeGlowMetric: 'kg:render:bipartite:metric:nodeGlow',
@@ -413,6 +414,7 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   markdownViewerWidthMode: 'ui.bottomPanel',
   markdownDerivedViewerKind: 'ui.bottomPanel',
   markdownDerivedViewerMode: 'ui.bottomPanel',
+  bipartiteApiRunId: 'render.prefs',
   workspaceEditorMode: 'ui.workspace',
   markdownDataViewConfigPrefix: 'ui.bottomPanel',
   markdownTextHighlight: 'ui.bottomPanel',

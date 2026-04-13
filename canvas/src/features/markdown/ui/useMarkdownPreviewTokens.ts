@@ -3,6 +3,66 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildMarkdownTokensKey, lexMarkdown, type TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { parseMarkdownFrontmatter, splitMarkdownLines, type MarkdownFrontmatter } from '@/lib/markdown'
 
+type LexedMarkdownResult = {
+  tokens: TokenWithLines[]
+  meta: MarkdownFrontmatter
+  startLineOffset: number
+}
+
+type CachedFrontmatterResult = {
+  meta: MarkdownFrontmatter
+  startLineOffset: number
+}
+
+const TOKEN_KEY_CACHE_LIMIT = 6
+const FRONTMATTER_CACHE_LIMIT = 6
+const LEXED_CACHE_LIMIT = 6
+
+const tokenKeyCache = new Map<string, string>()
+const frontmatterCache = new Map<string, CachedFrontmatterResult>()
+const lexedMarkdownCache = new Map<string, LexedMarkdownResult>()
+
+const readCachedValue = <T,>(cache: Map<string, T>, key: string): T | null => {
+  const cached = cache.get(key)
+  if (cached == null) return null
+  cache.delete(key)
+  cache.set(key, cached)
+  return cached
+}
+
+const writeCachedValue = <T,>(cache: Map<string, T>, key: string, value: T, limit: number): T => {
+  if (cache.has(key)) cache.delete(key)
+  cache.set(key, value)
+  if (cache.size > limit) {
+    const oldest = cache.keys().next().value
+    if (typeof oldest === 'string') cache.delete(oldest)
+  }
+  return value
+}
+
+const getMarkdownTokensKeyCached = (text: string): string => {
+  const cached = readCachedValue(tokenKeyCache, text)
+  if (cached != null) return cached
+  return writeCachedValue(tokenKeyCache, text, buildMarkdownTokensKey(text), TOKEN_KEY_CACHE_LIMIT)
+}
+
+const getParsedFrontmatterCached = (text: string): CachedFrontmatterResult => {
+  const cached = readCachedValue(frontmatterCache, text)
+  if (cached) return cached
+  if (!text.startsWith('---')) {
+    return writeCachedValue(frontmatterCache, text, { meta: {}, startLineOffset: 0 }, FRONTMATTER_CACHE_LIMIT)
+  }
+  const lines = splitMarkdownLines(text)
+  const { meta, startIndex } = parseMarkdownFrontmatter(lines)
+  return writeCachedValue(frontmatterCache, text, { meta, startLineOffset: startIndex }, FRONTMATTER_CACHE_LIMIT)
+}
+
+const getLexedMarkdownCached = (text: string): LexedMarkdownResult => {
+  const cached = readCachedValue(lexedMarkdownCache, text)
+  if (cached) return cached
+  return writeCachedValue(lexedMarkdownCache, text, lexMarkdown(text), LEXED_CACHE_LIMIT)
+}
+
 export function useMarkdownPreviewLexedMarkdown(
   markdownText: string,
   providedTokens: TokenWithLines[] | undefined,
@@ -21,21 +81,15 @@ export function useMarkdownPreviewLexedMarkdown(
 
   const currentTokensKey = React.useMemo(() => {
     if (!canCacheInStore) return `nocache:${text.length}`
-    return buildMarkdownTokensKey(text)
+    return getMarkdownTokensKeyCached(text)
   }, [canCacheInStore, text])
 
   const providedTokensFrontmatter = React.useMemo(() => {
     if (!providedTokens || providedTokens.length === 0) return null
-    const lines = splitMarkdownLines(text)
-    const { meta, startIndex } = parseMarkdownFrontmatter(lines)
-    return { meta, startLineOffset: startIndex }
+    return getParsedFrontmatterCached(text)
   }, [providedTokens, text])
 
-  const lexedLarge = React.useMemo((): {
-    tokens: TokenWithLines[]
-    meta: MarkdownFrontmatter
-    startLineOffset: number
-  } => {
+  const lexedLarge = React.useMemo((): LexedMarkdownResult => {
     if (providedTokens && providedTokens.length > 0 && providedTokensFrontmatter) {
       return {
         tokens: providedTokens,
@@ -43,15 +97,10 @@ export function useMarkdownPreviewLexedMarkdown(
         startLineOffset: providedTokensFrontmatter.startLineOffset,
       }
     }
-    const { tokens, meta, startLineOffset } = lexMarkdown(text)
-    return { tokens, meta, startLineOffset }
+    return getLexedMarkdownCached(text)
   }, [providedTokens, providedTokensFrontmatter, text])
 
-  const lexedSmall = React.useMemo((): {
-    tokens: TokenWithLines[]
-    meta: MarkdownFrontmatter
-    startLineOffset: number
-  } => {
+  const lexedSmall = React.useMemo((): LexedMarkdownResult => {
     if (providedTokens && providedTokens.length > 0 && providedTokensFrontmatter) {
       return {
         tokens: providedTokens,
@@ -74,8 +123,7 @@ export function useMarkdownPreviewLexedMarkdown(
       }
     }
 
-    const { tokens, meta, startLineOffset } = lexMarkdown(text)
-    return { tokens, meta, startLineOffset }
+    return getLexedMarkdownCached(text)
   }, [
     providedTokens,
     providedTokensFrontmatter,

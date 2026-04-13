@@ -1,6 +1,7 @@
 import React from 'react'
 import type { GraphData, JSONValue } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
+import type { MonacoTextEditorProps } from '@/features/monaco/MonacoTextEditor'
 import {
   GRAPH_FIELD_TYPES,
   inferFieldTypeFromGraphData,
@@ -37,9 +38,12 @@ import SchemaUiEditor from '@/features/schema/ui/SchemaUiEditor'
 import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphFieldsView'
 import { FieldGraphLayersSection, GraphLayerMetadataPresetsSection } from '@/features/panels/views/graph-fields/FieldGraphLayersSection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 import { MainPanelSettingsPanelShell } from '@/features/panels/ui/MainPanelSettingsPanelShell'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
+
+const MonacoTextEditorLazy = React.lazy(async (): Promise<{ default: React.ComponentType<MonacoTextEditorProps> }> =>
+  import('@/features/monaco/MonacoTextEditor').then(mod => ({ default: mod.MonacoTextEditor })),
+)
 
 type FieldSettingsPanelProps = {
   graphData: GraphData | null
@@ -386,15 +390,17 @@ export default function FieldSettingsPanel({
                   </label>
                   <div className="mt-1">
                     <div className="h-[84px] w-full rounded border border-gray-300 overflow-hidden bg-white">
-                      <MonacoTextEditor
-                        value={selectedSettings.description}
-                        onChange={(val) => updateSelectedSettings({ description: val })}
-                        language="text"
-                        uri="inmemory://graph-fields/description"
-                        themeMode="light"
-                        wordWrap
-                        className="w-full h-full"
-                      />
+                      <React.Suspense fallback={null}>
+                        <MonacoTextEditorLazy
+                          value={selectedSettings.description}
+                          onChange={(val) => updateSelectedSettings({ description: val })}
+                          language="text"
+                          uri="inmemory://graph-fields/description"
+                          themeMode="light"
+                          wordWrap
+                          className="w-full h-full"
+                        />
+                      </React.Suspense>
                     </div>
                   </div>
                 </div>

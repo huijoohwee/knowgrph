@@ -824,8 +824,11 @@ export function normalizeBipartiteApiGraphData(args: {
   return normalizeApiGraphToBipartiteGraphData(args.payload, settings)
 }
 
-async function fetchApiGraphPayload(): Promise<ApiGraphPayload> {
-  const res = await fetch('/api/graph', { cache: 'no-store' })
+async function fetchApiGraphPayload(apiRunId: string): Promise<ApiGraphPayload> {
+  const params = new URLSearchParams()
+  if (String(apiRunId || '').trim()) params.set('run', String(apiRunId || '').trim())
+  const url = params.size > 0 ? `/api/graph?${params.toString()}` : '/api/graph'
+  const res = await fetch(url, { cache: 'no-store' })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const contentType = String(res.headers.get('content-type') || '').toLowerCase()
   if (!contentType.includes('application/json')) {
@@ -879,9 +882,10 @@ export function useApiGraphBipartiteGraphData(enabled: boolean): { graphData: Gr
   const mountedRef = React.useRef(true)
   const apiGraphUnavailableRef = React.useRef(false)
 
-  const { dataSource, pollIntervalSec, markdownDocumentName, markdownDocumentText } = useGraphStore(
+  const { dataSource, apiRunId, pollIntervalSec, markdownDocumentName, markdownDocumentText } = useGraphStore(
     useShallow(s => ({
       dataSource: s.bipartiteDataSource,
+      apiRunId: s.bipartiteApiRunId,
       pollIntervalSec: s.bipartitePollIntervalSec,
       markdownDocumentName: s.markdownDocumentName || null,
       markdownDocumentText: s.markdownDocumentText || null,
@@ -960,7 +964,7 @@ export function useApiGraphBipartiteGraphData(enabled: boolean): { graphData: Gr
       try {
         const loadFixturePayload = async (): Promise<ApiGraphPayload> =>
           withTimeout(() => fetchBipartiteFixturePayload(), 12_000).catch(() => DEV_FALLBACK_API_GRAPH)
-        const loadApiPayload = async (): Promise<ApiGraphPayload> => withTimeout(() => fetchApiGraphPayload(), 12_000)
+        const loadApiPayload = async (): Promise<ApiGraphPayload> => withTimeout(() => fetchApiGraphPayload(apiRunId), 12_000)
         const payload = await (async () => {
           if (dataSource === 'fixture') {
             return await loadFixturePayload()
@@ -1001,7 +1005,7 @@ export function useApiGraphBipartiteGraphData(enabled: boolean): { graphData: Gr
       inFlightRef.current = false
       if (intervalId != null) window.clearInterval(intervalId)
     }
-  }, [dataSource, effectiveWorkspaceSource, enabled, pollIntervalSec])
+  }, [apiRunId, dataSource, effectiveWorkspaceSource, enabled, pollIntervalSec])
 
   return { graphData }
 }
