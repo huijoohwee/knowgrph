@@ -30,6 +30,7 @@ import DesignDomInspectPanel from '@/features/design/DesignDomInspectPanel'
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
 import { requestGeospatialTraversalRun } from '@/features/geospatial/gympgrphBridge'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
+import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
@@ -83,7 +84,7 @@ const InspectorView = React.memo(function InspectorView(props: { geospatialModeE
     })),
   )
 
-  if (!geospatialModeEnabled && workspaceViewMode === 'canvas' && canvasRenderMode === '2d' && canvas2dRenderer === 'flowEditor') {
+  if (!geospatialModeEnabled && workspaceViewMode === 'canvas' && canvasRenderMode === '2d' && isFlowEditorCanvas2dRenderer(canvas2dRenderer)) {
     return <div id={FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID} className="h-full" aria-label="Flow Editor Inspector Slot" />
   }
 

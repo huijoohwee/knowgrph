@@ -83,6 +83,128 @@ type FrameNode = {
   type?: string
 }
 
+type WebpageStatusUiState = {
+  progress: number
+  message: string
+}
+
+type WebpageStatusUiStore = {
+  getState: () => WebpageStatusUiState
+  setState: (patch: Partial<WebpageStatusUiState>) => void
+  subscribe: (listener: () => void) => () => void
+}
+
+type WebpageSourceState = {
+  workspacePath: string
+  frontmatter: WebpageFrontmatterMeta | null
+}
+
+function createWebpageStatusUiStore(): WebpageStatusUiStore {
+  let state: WebpageStatusUiState = { progress: 0, message: '' }
+  const listeners = new Set<() => void>()
+  return {
+    getState: () => state,
+    setState: patch => {
+      const next = { ...state, ...patch }
+      if (next.progress === state.progress && next.message === state.message) return
+      state = next
+      listeners.forEach(listener => listener())
+    },
+    subscribe: listener => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+  }
+}
+
+function useWebpageStatusUi(store: WebpageStatusUiStore): WebpageStatusUiState {
+  return React.useSyncExternalStore(store.subscribe, store.getState, store.getState)
+}
+
+const DesignCanvasWebpageStatusPanel = React.memo(function DesignCanvasWebpageStatusPanel(props: {
+  active: boolean
+  documentUrl: string | null
+  webpageFrontmatter: WebpageFrontmatterMeta | null
+  webpageWorkspacePath: string
+  webpageLayoutStatus: 'idle' | 'loading' | 'ready' | 'error'
+  webpageStatusStore: WebpageStatusUiStore
+  onDecreaseFidelity: () => void
+  onIncreaseFidelity: () => void
+  onRetry: () => void
+}) {
+  const {
+    active,
+    documentUrl,
+    webpageFrontmatter,
+    webpageWorkspacePath,
+    webpageLayoutStatus,
+    webpageStatusStore,
+    onDecreaseFidelity,
+    onIncreaseFidelity,
+    onRetry,
+  } = props
+  const { progress, message } = useWebpageStatusUi(webpageStatusStore)
+
+  if (!active) return null
+
+  return (
+    <div className="pointer-events-none absolute left-3 top-3 z-50 max-w-[min(720px,calc(100%-24px))] rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-3 py-2 text-xs text-[var(--kg-text)] shadow">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold">Webpage Wireframe</div>
+          {documentUrl ? <div className="truncate opacity-80">{documentUrl}</div> : <div className="opacity-80">No webpage URL found for this graph</div>}
+          {documentUrl ? (
+            <div className="mt-1 flex items-center gap-2 opacity-80">
+              <div>Fidelity: {webpageFrontmatter?.fidelityLevel || 3}</div>
+              {webpageWorkspacePath ? (
+                <div className="flex gap-1">
+                  <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-0.5 text-xs" onClick={onDecreaseFidelity}>
+                    -
+                  </button>
+                  <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-0.5 text-xs" onClick={onIncreaseFidelity}>
+                    +
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="mt-2 opacity-70">Import a URL-based document or add kgWebpageUrl frontmatter.</div>
+          )}
+        </div>
+        {webpageLayoutStatus === 'loading' ? (
+          <div className="shrink-0 tabular-nums">{Math.max(0, Math.min(100, Math.floor(progress)))}%</div>
+        ) : null}
+      </div>
+      {webpageLayoutStatus === 'loading' ? (
+        <div className="mt-2">
+          <div className="h-2 w-full overflow-hidden rounded bg-[var(--kg-border)]/40">
+            <div
+              className="h-full bg-[var(--kg-canvas-accent)]"
+              style={{ width: `${Math.max(0, Math.min(100, Math.floor(progress)))}%` }}
+            />
+          </div>
+          {message ? <div className="mt-1 opacity-80">{message}</div> : null}
+        </div>
+      ) : webpageLayoutStatus === 'error' ? (
+        <div className="mt-2">
+          <div className="text-[var(--kg-danger,#c0392b)]">{message || 'Export failed'}</div>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              className="pointer-events-auto rounded border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-2 py-1 text-xs"
+              onClick={onRetry}
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      ) : webpageLayoutStatus === 'ready' ? (
+        message ? <div className="mt-2 opacity-70">{message}</div> : null
+      ) : null}
+    </div>
+  )
+})
+
 function tryExtractWebpageWorkspacePath(graphData: GraphData | null): string | null {
   const meta = graphData?.metadata && typeof graphData.metadata === 'object' ? (graphData.metadata as Record<string, unknown>) : null
   const layers = meta?.sourceLayers
@@ -265,10 +387,6 @@ export default function DesignCanvas({
           threeIframeOverlayBaseWidthMaxPxDefault: s.threeIframeOverlayBaseWidthMaxPxDefault,
           threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
           collapsedGroupIds: EMPTY_STRING_ARRAY,
-          zoomStateByKey: EMPTY_UNKNOWN_RECORD,
-          viewPinned: false,
-          fitToScreenMode: false,
-          zoomToSelectionMode: false,
           selectedNodeId: null,
           selectedNodeIds: EMPTY_STRING_ARRAY,
           selectedGroupId: null,
@@ -306,10 +424,6 @@ export default function DesignCanvas({
         threeIframeOverlayBaseWidthMaxPxDefault: s.threeIframeOverlayBaseWidthMaxPxDefault,
         threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
         collapsedGroupIds: s.collapsedGroupIds,
-        zoomStateByKey: s.zoomStateByKey,
-        viewPinned: s.viewPinned,
-        fitToScreenMode: s.fitToScreenMode,
-        zoomToSelectionMode: s.zoomToSelectionMode,
         selectedNodeId: s.selectedNodeId,
         selectedNodeIds: s.selectedNodeIds,
         selectedGroupId: s.selectedGroupId,
@@ -362,27 +476,27 @@ export default function DesignCanvas({
   }, [snapshot.multiDimTableModeEnabled])
 
   const directDocumentUrl = useMemo(() => tryExtractDesignDocumentUrl(snapshot.graphData as GraphData | null), [snapshot.graphData])
-  const [documentUrl, setDocumentUrl] = React.useState<string | null>(directDocumentUrl)
-  const [webpageWorkspacePath, setWebpageWorkspacePath] = React.useState<string>('')
-  const [webpageFrontmatter, setWebpageFrontmatter] = React.useState<WebpageFrontmatterMeta | null>(null)
+  const [webpageSource, setWebpageSource] = React.useState<WebpageSourceState>({ workspacePath: '', frontmatter: null })
+  const webpageWorkspacePath = webpageSource.workspacePath
+  const webpageFrontmatter = webpageSource.frontmatter
+  const documentUrl = useMemo(() => {
+    const fmUrl = String(webpageFrontmatter?.url || '').trim()
+    if (fmUrl && /^https?:\/\//i.test(fmUrl)) return fmUrl
+    const fallbackUrl = String(directDocumentUrl || '').trim()
+    return fallbackUrl && /^https?:\/\//i.test(fallbackUrl) ? fallbackUrl : null
+  }, [directDocumentUrl, webpageFrontmatter?.url])
   const [webpageLayout, setWebpageLayout] = React.useState<WebpageLayoutSnapshot | null>(null)
   const [webpageLayoutStatus, setWebpageLayoutStatus] = React.useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
-  const [webpageLayoutProgress, setWebpageLayoutProgress] = React.useState<number>(0)
-  const [webpageLayoutMessage, setWebpageLayoutMessage] = React.useState<string>('')
   const [webpageLayoutRetryNonce, setWebpageLayoutRetryNonce] = React.useState<number>(0)
+  const webpageStatusStoreRef = React.useRef<WebpageStatusUiStore | null>(null)
+  if (!webpageStatusStoreRef.current) webpageStatusStoreRef.current = createWebpageStatusUiStore()
+  const setWebpageStatusUi = React.useCallback((patch: Partial<WebpageStatusUiState>) => {
+    webpageStatusStoreRef.current?.setState(patch)
+  }, [])
   const lastWebpageLayoutUrlRef = useRef<string>('')
   const lastWebpageLayoutReqRef = useRef<number>(0)
   const webpageLayoutGraphCacheRef = useRef<Map<string, GraphData>>(new Map())
   const webpageLayoutGraphCacheOrderRef = useRef<string[]>([])
-
-  useEffect(() => {
-    const fmUrl = String(webpageFrontmatter?.url || '').trim()
-    if (fmUrl && /^https?:\/\//i.test(fmUrl)) {
-      setDocumentUrl(fmUrl)
-      return
-    }
-    setDocumentUrl(directDocumentUrl)
-  }, [directDocumentUrl, webpageFrontmatter?.url, webpageWorkspacePath])
 
   useEffect(() => {
     if (!active) return
@@ -421,18 +535,16 @@ export default function DesignCanvas({
         const url = String(fm?.url || '').trim()
         if (!url || !/^https?:\/\//i.test(url)) continue
         if (!cancelled) {
-          setWebpageWorkspacePath(String(candidates[i] || ''))
-          setWebpageFrontmatter(fm)
-          setDocumentUrl(url)
+          setWebpageSource({
+            workspacePath: String(candidates[i] || ''),
+            frontmatter: fm,
+          })
         }
         return
       }
 
       if (!cancelled) {
-        setWebpageWorkspacePath('')
-        setWebpageFrontmatter(null)
-        const fallbackUrl = String(directDocumentUrl || '').trim()
-        setDocumentUrl(fallbackUrl && /^https?:\/\//i.test(fallbackUrl) ? fallbackUrl : null)
+        setWebpageSource({ workspacePath: '', frontmatter: null })
       }
     })()
     return () => {
@@ -447,8 +559,7 @@ export default function DesignCanvas({
       lastWebpageLayoutUrlRef.current = ''
       setWebpageLayout(null)
       setWebpageLayoutStatus('idle')
-      setWebpageLayoutProgress(0)
-      setWebpageLayoutMessage('')
+      setWebpageStatusUi({ progress: 0, message: '' })
       return
     }
     const prevUrl = lastWebpageLayoutUrlRef.current
@@ -489,17 +600,15 @@ export default function DesignCanvas({
       if (cached) {
         setWebpageLayout(cached)
         setWebpageLayoutStatus('ready')
-        setWebpageLayoutProgress(100)
-        setWebpageLayoutMessage('Loaded from cache')
+        setWebpageStatusUi({ progress: 100, message: 'Loaded from cache' })
         return
       }
     }
     if (prevUrl && prevUrl !== url) setWebpageLayout(null)
     setWebpageLayoutStatus('loading')
-    setWebpageLayoutProgress(0)
-    setWebpageLayoutMessage('Loading webpage for wireframe…')
+    setWebpageStatusUi({ progress: 0, message: 'Loading webpage for wireframe…' })
     const ticker = createProgressTicker({
-      onProgress: (p) => setWebpageLayoutProgress(p),
+      onProgress: p => setWebpageStatusUi({ progress: p }),
       intervalMs: 280,
       maxPercentage: 92,
       maxStepPercentage: 12,
@@ -531,7 +640,7 @@ export default function DesignCanvas({
           ticker.stop()
           setWebpageLayout(null)
           setWebpageLayoutStatus('error')
-          setWebpageLayoutMessage(`Export failed (${fail.stage}): ${fail.error}`)
+          setWebpageStatusUi({ message: `Export failed (${fail.stage}): ${fail.error}` })
           try {
             useGraphStore.getState().pushUiToast({
               id: 'design-webpage-layout-failed',
@@ -549,7 +658,7 @@ export default function DesignCanvas({
           ticker.stop()
           setWebpageLayout(null)
           setWebpageLayoutStatus('error')
-          setWebpageLayoutMessage('Export failed: empty result')
+          setWebpageStatusUi({ message: 'Export failed: empty result' })
           return
         }
         const snap = (() => {
@@ -571,7 +680,7 @@ export default function DesignCanvas({
           ticker.stop()
           setWebpageLayout(null)
           setWebpageLayoutStatus('error')
-          setWebpageLayoutMessage('Export failed: invalid snapshot payload')
+          setWebpageStatusUi({ message: 'Export failed: invalid snapshot payload' })
           return
         }
         setCachedWebpageLayoutSnapshot(url, snap, layoutCacheKey)
@@ -579,7 +688,7 @@ export default function DesignCanvas({
         setWebpageLayoutStatus('ready')
         ticker.stop(100)
         const n = Array.isArray(snap.elements) ? snap.elements.length : 0
-        setWebpageLayoutMessage(`Wireframe ready — elements=${n}`)
+        setWebpageStatusUi({ progress: 100, message: `Wireframe ready — elements=${n}` })
       } catch (e) {
         if (cancelled) return
         if (reqId !== lastWebpageLayoutReqRef.current) return
@@ -587,7 +696,7 @@ export default function DesignCanvas({
         const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
         setWebpageLayout(null)
         setWebpageLayoutStatus('error')
-        setWebpageLayoutMessage(`Export failed: ${msg || 'Request failed'}`)
+        setWebpageStatusUi({ message: `Export failed: ${msg || 'Request failed'}` })
         try {
           useGraphStore.getState().pushUiToast({
             id: 'design-webpage-layout-failed',
@@ -744,8 +853,8 @@ export default function DesignCanvas({
     if (webpageLayoutStatus !== 'ready') return
     const elCount = Array.isArray(webpageLayout?.elements) ? webpageLayout!.elements.length : 0
     const nodeCount = Array.isArray(activeWebpageLayoutGraphData?.nodes) ? activeWebpageLayoutGraphData!.nodes.length : 0
-    if (nodeCount > 0) setWebpageLayoutMessage(`Wireframe ready — elements=${elCount}, nodes=${nodeCount}`)
-    else setWebpageLayoutMessage(`Wireframe ready — elements=${elCount}, nodes=0`)
+    if (nodeCount > 0) setWebpageStatusUi({ message: `Wireframe ready — elements=${elCount}, nodes=${nodeCount}` })
+    else setWebpageStatusUi({ message: `Wireframe ready — elements=${elCount}, nodes=0` })
   }, [activeWebpageLayoutGraphData, documentUrl, webpageLayout?.elements, webpageLayoutStatus])
 
   const webpageLayoutKey = useMemo(() => {
@@ -1272,14 +1381,14 @@ export default function DesignCanvas({
           } catch {
             void 0
           }
-          setWebpageLayoutMessage('All wireframe layers were hidden. Reset visibility.')
+          setWebpageStatusUi({ message: 'All wireframe layers were hidden. Reset visibility.' })
           lastAutoFitWireframeKeyRef.current = ''
           return
         }
       }
       setWebpageLayoutStatus('error')
       const elCount = Array.isArray(webpageLayout?.elements) ? webpageLayout!.elements.length : 0
-      setWebpageLayoutMessage(`Wireframe is empty (0 nodes). elements=${elCount}, convertedNodes=${total}. Click Retry.`)
+      setWebpageStatusUi({ message: `Wireframe is empty (0 nodes). elements=${elCount}, convertedNodes=${total}. Click Retry.` })
       return
     }
     const key = `${documentUrl}#${webpageLayout?.meta?.ts || 0}#${nodes0.length}`
@@ -3035,112 +3144,47 @@ export default function DesignCanvas({
   }, [])
   const getZoomEventTarget = React.useCallback(() => svgRef.current, [])
 
+  const adjustWebpageFidelity = React.useCallback((delta: -1 | 1) => {
+    const p = String(webpageWorkspacePath || '').trim()
+    if (!p) return
+    void (async () => {
+      const fs = await getWorkspaceFs()
+      const text = await fs.readFileText(p).catch(() => '')
+      const fm = parseWebpageFrontmatterMeta(text)
+      if (!fm) return
+      const cur = fm.fidelityLevel === 1 || fm.fidelityLevel === 2 || fm.fidelityLevel === 3 || fm.fidelityLevel === 4 ? fm.fidelityLevel : 3
+      const next = (delta < 0 ? (cur > 1 ? cur - 1 : 1) : (cur < 4 ? cur + 1 : 4)) as WebpageFidelityLevel
+      const nextText = upsertWebpageFrontmatterMeta(text, { ...fm, fidelityLevel: next })
+      await fs.writeFileText(p, nextText).catch(() => void 0)
+      setWebpageSource(prev => ({ ...prev, frontmatter: { ...fm, fidelityLevel: next } }))
+      setWebpageLayoutRetryNonce(n => n + 1)
+    })()
+  }, [webpageWorkspacePath])
+
+  const handleRetryWebpageLayout = React.useCallback(() => {
+    setWebpageLayout(null)
+    setWebpageLayoutStatus('loading')
+    setWebpageStatusUi({ progress: 0, message: 'Retrying…' })
+    setWebpageLayoutRetryNonce(n => n + 1)
+  }, [setWebpageStatusUi])
+
   return (
     <section
       ref={containerRef}
       className={`${CANVAS_SURFACE_CLASS} relative h-full w-full overflow-hidden bg-[var(--kg-panel-bg)]`}
       aria-label="Design Canvas"
     >
-      {active ? (
-        <div className="pointer-events-none absolute left-3 top-3 z-50 max-w-[min(720px,calc(100%-24px))] rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-3 py-2 text-xs text-[var(--kg-text)] shadow">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="font-semibold">Webpage Wireframe</div>
-              {documentUrl ? <div className="truncate opacity-80">{documentUrl}</div> : <div className="opacity-80">No webpage URL found for this graph</div>}
-              {documentUrl ? (
-                <div className="mt-1 flex items-center gap-2 opacity-80">
-                  <div>Fidelity: {webpageFrontmatter?.fidelityLevel || 3}</div>
-                  {webpageWorkspacePath ? (
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-0.5 text-xs"
-                      onClick={() => {
-                        const p = String(webpageWorkspacePath || '').trim()
-                        if (!p) return
-                        void (async () => {
-                          const fs = await getWorkspaceFs()
-                          const text = await fs.readFileText(p).catch(() => '')
-                          const fm = parseWebpageFrontmatterMeta(text)
-                          if (!fm) return
-                          const cur = fm.fidelityLevel === 1 || fm.fidelityLevel === 2 || fm.fidelityLevel === 3 || fm.fidelityLevel === 4 ? fm.fidelityLevel : 3
-                          const next = (cur > 1 ? cur - 1 : 1) as WebpageFidelityLevel
-                          const nextText = upsertWebpageFrontmatterMeta(text, { ...fm, fidelityLevel: next })
-                          await fs.writeFileText(p, nextText).catch(() => void 0)
-                          setWebpageFrontmatter({ ...fm, fidelityLevel: next })
-                          setWebpageLayoutRetryNonce(n => n + 1)
-                        })()
-                      }}
-                    >
-                      -
-                    </button>
-                    <button
-                      type="button"
-                      className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-0.5 text-xs"
-                      onClick={() => {
-                        const p = String(webpageWorkspacePath || '').trim()
-                        if (!p) return
-                        void (async () => {
-                          const fs = await getWorkspaceFs()
-                          const text = await fs.readFileText(p).catch(() => '')
-                          const fm = parseWebpageFrontmatterMeta(text)
-                          if (!fm) return
-                          const cur = fm.fidelityLevel === 1 || fm.fidelityLevel === 2 || fm.fidelityLevel === 3 || fm.fidelityLevel === 4 ? fm.fidelityLevel : 3
-                          const next = (cur < 4 ? cur + 1 : 4) as WebpageFidelityLevel
-                          const nextText = upsertWebpageFrontmatterMeta(text, { ...fm, fidelityLevel: next })
-                          await fs.writeFileText(p, nextText).catch(() => void 0)
-                          setWebpageFrontmatter({ ...fm, fidelityLevel: next })
-                          setWebpageLayoutRetryNonce(n => n + 1)
-                        })()
-                      }}
-                    >
-                      +
-                    </button>
-                  </div>
-                ) : null}
-                </div>
-              ) : (
-                <div className="mt-2 opacity-70">Import a URL-based document or add kgWebpageUrl frontmatter.</div>
-              )}
-            </div>
-            {webpageLayoutStatus === 'loading' ? (
-              <div className="shrink-0 tabular-nums">{Math.max(0, Math.min(100, Math.floor(webpageLayoutProgress)))}%</div>
-            ) : null}
-          </div>
-          {webpageLayoutStatus === 'loading' ? (
-            <div className="mt-2">
-              <div className="h-2 w-full overflow-hidden rounded bg-[var(--kg-border)]/40">
-                <div
-                  className="h-full bg-[var(--kg-canvas-accent)]"
-                  style={{ width: `${Math.max(0, Math.min(100, Math.floor(webpageLayoutProgress)))}%` }}
-                />
-              </div>
-              {webpageLayoutMessage ? <div className="mt-1 opacity-80">{webpageLayoutMessage}</div> : null}
-            </div>
-          ) : webpageLayoutStatus === 'error' ? (
-            <div className="mt-2">
-              <div className="text-[var(--kg-danger,#c0392b)]">{webpageLayoutMessage || 'Export failed'}</div>
-              <div className="mt-2 flex gap-2">
-                <button
-                  type="button"
-                  className="pointer-events-auto rounded border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-2 py-1 text-xs"
-                  onClick={() => {
-                    setWebpageLayout(null)
-                    setWebpageLayoutStatus('loading')
-                    setWebpageLayoutProgress(0)
-                    setWebpageLayoutMessage('Retrying…')
-                    setWebpageLayoutRetryNonce(n => n + 1)
-                  }}
-                >
-                  Retry
-                </button>
-              </div>
-            </div>
-          ) : webpageLayoutStatus === 'ready' ? (
-            webpageLayoutMessage ? <div className="mt-2 opacity-70">{webpageLayoutMessage}</div> : null
-          ) : null}
-        </div>
-      ) : null}
+      <DesignCanvasWebpageStatusPanel
+        active={active}
+        documentUrl={documentUrl}
+        webpageFrontmatter={webpageFrontmatter}
+        webpageWorkspacePath={webpageWorkspacePath}
+        webpageLayoutStatus={webpageLayoutStatus}
+        webpageStatusStore={webpageStatusStoreRef.current}
+        onDecreaseFidelity={() => adjustWebpageFidelity(-1)}
+        onIncreaseFidelity={() => adjustWebpageFidelity(1)}
+        onRetry={handleRetryWebpageLayout}
+      />
       {active && selectedIds.length >= 2 ? (
         <div className="pointer-events-none absolute right-3 top-3 z-50 flex flex-wrap gap-1 rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] p-2 text-xs text-[var(--kg-text)] shadow">
           <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-left')}>

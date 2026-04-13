@@ -26,10 +26,17 @@ type ApiRuntimePreset = {
   published_param_options?: Record<string, ApiBuilderOption[]>
 }
 
+type ApiRuntimeMobilePwa = {
+  compact_controls_breakpoint_px?: number
+  prefer_stacked_controls?: boolean
+  safe_area_aware?: boolean
+}
+
 type ApiRuntimeMeta = {
   runtime?: {
     presets?: ApiRuntimePreset[]
     runs?: ApiRuntimeRun[]
+    mobile_pwa?: ApiRuntimeMobilePwa
   }
 }
 
@@ -95,25 +102,58 @@ const normalizeBuilderParams = (preset: ApiRuntimePreset | null | undefined, par
   )
 }
 
-function ToggleRow(props: { label: string; value: boolean; onChange: (next: boolean) => void }) {
+const normalizeCompactControlsBreakpointPx = (value: unknown): number => {
+  const fallback = 768
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
+  return Math.max(360, Math.min(1440, Math.round(value)))
+}
+
+function useCompactControls(enabled: boolean, breakpointPx: number): boolean {
+  const [compact, setCompact] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!enabled || typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      setCompact(false)
+      return
+    }
+    const mediaQuery = window.matchMedia(`(max-width: ${Math.max(1, breakpointPx)}px)`)
+    const apply = (matches: boolean) => setCompact(matches)
+    apply(mediaQuery.matches)
+    const onChange = (event: MediaQueryListEvent) => apply(event.matches)
+    try {
+      mediaQuery.addEventListener('change', onChange)
+      return () => mediaQuery.removeEventListener('change', onChange)
+    } catch {
+      mediaQuery.addListener(onChange)
+      return () => mediaQuery.removeListener(onChange)
+    }
+  }, [breakpointPx, enabled])
+
+  return compact
+}
+
+function ToggleRow(props: { label: string; value: boolean; onChange: (next: boolean) => void; compact?: boolean }) {
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
+  const compact = props.compact === true
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      <label className={`w-full sm:w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
+    <div className={`flex gap-2 ${compact ? 'flex-col' : 'flex-row items-center'}`}>
+      <label
+        className={`${compact ? 'w-full' : 'w-[50%]'} ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
+      >
         {props.label}
       </label>
-      <div className="w-full sm:w-[50%] flex items-center gap-1 justify-end">
+      <div className={`${compact ? 'w-full' : 'w-[50%]'} flex items-center gap-1 ${compact ? '' : 'justify-end'}`}>
         <button
           type="button"
-          className={`App-toolbar__btn min-h-[44px] flex-1 text-xs border sm:flex-none ${UI_THEME_TOKENS.input.border} ${!props.value ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
+          className={`App-toolbar__btn min-h-[44px] flex-1 text-xs border ${UI_THEME_TOKENS.input.border} ${!props.value ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
           onClick={() => props.onChange(false)}
         >
           Off
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn min-h-[44px] flex-1 text-xs border sm:flex-none ${UI_THEME_TOKENS.input.border} ${props.value ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
+          className={`App-toolbar__btn min-h-[44px] flex-1 text-xs border ${UI_THEME_TOKENS.input.border} ${props.value ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`}`}
           onClick={() => props.onChange(true)}
         >
           On
@@ -130,15 +170,19 @@ function NumberRow(props: {
   max: number
   step?: number
   onChange: (next: number) => void
+  compact?: boolean
 }) {
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
   const uiPanelKeyValueInputClass = useGraphStore(
     s => s.uiPanelKeyValueInputClass || `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`,
   )
+  const compact = props.compact === true
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      <label className={`w-full sm:w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
+    <div className={`flex gap-2 ${compact ? 'flex-col' : 'flex-row items-center'}`}>
+      <label
+        className={`${compact ? 'w-full' : 'w-[50%]'} ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
+      >
         {props.label}
       </label>
       <input
@@ -152,7 +196,7 @@ function NumberRow(props: {
           if (!Number.isFinite(raw)) return
           props.onChange(Math.max(props.min, Math.min(props.max, raw)))
         }}
-        className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-full min-h-[44px] sm:w-[50%] text-right`}
+        className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} ${compact ? 'w-full' : 'w-[50%]'} min-h-[44px] text-right`}
       />
     </div>
   )
@@ -164,16 +208,20 @@ function SelectRow(props: {
   options: string[]
   optionLabels?: Record<string, string>
   onChange: (next: string) => void
+  compact?: boolean
 }) {
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
+  const compact = props.compact === true
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      <label className={`w-full sm:w-[50%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}>
+    <div className={`flex gap-2 ${compact ? 'flex-col' : 'flex-row items-center'}`}>
+      <label
+        className={`${compact ? 'w-full' : 'w-[50%]'} ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
+      >
         {props.label}
       </label>
       <select
-        className={`App-toolbar__btn min-h-[44px] text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-full sm:w-[50%]`}
+        className={`App-toolbar__btn min-h-[44px] text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} ${compact ? 'w-full' : 'w-[50%]'}`}
         value={props.value}
         onChange={e => props.onChange(String(e.target.value || ''))}
       >
@@ -192,6 +240,16 @@ export function BipartiteRendererSettings() {
   const [apiRuntimeMeta, setApiRuntimeMeta] = React.useState<ApiRuntimeMeta | null>(null)
   const [builderPresetId, setBuilderPresetId] = React.useState('')
   const [builderParams, setBuilderParams] = React.useState<Record<string, unknown>>({})
+  const mobilePwa = apiRuntimeMeta?.runtime?.mobile_pwa
+  const compactControlsBreakpointPx = React.useMemo(
+    () => normalizeCompactControlsBreakpointPx(mobilePwa?.compact_controls_breakpoint_px),
+    [mobilePwa?.compact_controls_breakpoint_px],
+  )
+  const preferStackedControls = mobilePwa?.prefer_stacked_controls !== false
+  const compactControls = useCompactControls(preferStackedControls, compactControlsBreakpointPx)
+  const safeAreaAware = mobilePwa?.safe_area_aware === true
+  const compactButtonGroupClass = compactControls ? 'flex flex-col gap-1' : 'flex flex-wrap gap-1 justify-end'
+  const compactButtonClass = compactControls ? 'w-full justify-center' : ''
 
   const {
     dataSource,
@@ -426,15 +484,24 @@ export function BipartiteRendererSettings() {
 
   return (
     <CollapsibleSection title="Bipartite" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
-      <div className="px-3 py-2 space-y-2">
+      <div
+        className="px-3 py-2 space-y-2"
+        style={safeAreaAware ? { paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' } : undefined}
+      >
         <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
-          Maps `/api/graph` (or dev fixture) metrics to the existing 2D D3 scene.
+          Maps the selected bipartite source into the existing 2D D3 scene without file-specific assumptions.
         </div>
+        {preferStackedControls ? (
+          <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
+            Mobile runtime stacks controls at {compactControlsBreakpointPx}px and keeps safe-area spacing {safeAreaAware ? 'on' : 'off'}.
+          </div>
+        ) : null}
         <SelectRow
           label="Data source"
           value={dataSource}
           options={['api', 'fixture', 'workspace']}
           onChange={v => setDataSource(v === 'fixture' ? 'fixture' : v === 'workspace' ? 'workspace' : 'api')}
+          compact={compactControls}
         />
         {dataSource === 'api' && apiPresets.length > 0 ? (
           <SelectRow
@@ -447,6 +514,7 @@ export function BipartiteRendererSettings() {
               setBuilderPresetId(nextPresetId)
               setBuilderParams(buildPresetInitialParams(nextPreset))
             }}
+            compact={compactControls}
           />
         ) : null}
         {dataSource === 'api' && featuredPresetSummaries.length > 0 ? (
@@ -455,12 +523,12 @@ export function BipartiteRendererSettings() {
           </div>
         ) : null}
         {dataSource === 'api' && featuredPresetSummaries.length > 0 ? (
-          <div className="flex flex-wrap gap-1 justify-end">
+          <div className={compactButtonGroupClass}>
             {featuredPresetSummaries.map(item => (
               <button
                 key={item.id}
                 type="button"
-                className={`App-toolbar__btn min-h-[36px] text-[10px] border ${UI_THEME_TOKENS.input.border} ${
+                className={`App-toolbar__btn min-h-[36px] text-[10px] border ${compactButtonClass} ${UI_THEME_TOKENS.input.border} ${
                   effectiveBuilderPresetId === item.id
                     ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
                     : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`
@@ -493,6 +561,7 @@ export function BipartiteRendererSettings() {
                 if (!nextOption) return
                 setBuilderParams(prev => ({ ...prev, [paramKey]: nextOption.value }))
               }}
+              compact={compactControls}
             />
           )
         })}
@@ -509,12 +578,12 @@ export function BipartiteRendererSettings() {
           </div>
         ) : null}
         {dataSource === 'api' && currentPresetRuns.length > 1 ? (
-          <div className="flex flex-wrap gap-1 justify-end">
+          <div className={compactButtonGroupClass}>
             {currentPresetRuns.slice(0, 6).map(run => (
               <button
                 key={run.id}
                 type="button"
-                className={`App-toolbar__btn min-h-[36px] text-[10px] border ${UI_THEME_TOKENS.input.border} ${
+                className={`App-toolbar__btn min-h-[36px] text-[10px] border ${compactButtonClass} ${UI_THEME_TOKENS.input.border} ${
                   effectiveApiRunId === run.id
                     ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
                     : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`
@@ -527,10 +596,10 @@ export function BipartiteRendererSettings() {
           </div>
         ) : null}
         {dataSource === 'api' && matchingPublishedRun && matchingPublishedRun.id !== effectiveApiRunId ? (
-          <div className="flex justify-end">
+          <div className={compactControls ? 'flex' : 'flex justify-end'}>
             <button
               type="button"
-              className={`App-toolbar__btn min-h-[44px] text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`}
+              className={`App-toolbar__btn min-h-[44px] text-xs border ${compactControls ? 'w-full justify-center' : ''} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`}
               onClick={() => setApiRunId(matchingPublishedRun.id)}
             >
               Use builder match
@@ -544,6 +613,7 @@ export function BipartiteRendererSettings() {
             options={apiRuns.map(item => item.id)}
             optionLabels={Object.fromEntries(apiRuns.map(item => [item.id, item.label]))}
             onChange={setApiRunId}
+            compact={compactControls}
           />
         ) : null}
         {dataSource === 'api' && activeRunSummary ? (
@@ -556,7 +626,15 @@ export function BipartiteRendererSettings() {
             {apiRuns.find(item => item.id === effectiveApiRunId)?.label || ''}
           </div>
         ) : null}
-        <NumberRow label="Poll interval (s)" value={pollIntervalSec} min={3} max={3600} step={1} onChange={setPollIntervalSec} />
+        <NumberRow
+          label="Poll interval (s)"
+          value={pollIntervalSec}
+          min={3}
+          max={3600}
+          step={1}
+          onChange={setPollIntervalSec}
+          compact={compactControls}
+        />
         <div className={`pt-1 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>Metric mapping</div>
         <SelectRow
           label="Node size"
@@ -567,6 +645,7 @@ export function BipartiteRendererSettings() {
               v === 'pmf_score' || v === 'gap_velocity' || v === 'source_count' || v === 'none' ? v : 'gap_score'
             setNodeSizeMetric(next)
           }}
+          compact={compactControls}
         />
         <SelectRow
           label="Node glow"
@@ -576,6 +655,7 @@ export function BipartiteRendererSettings() {
             const next = v === 'gap_score' || v === 'none' ? v : 'pmf_score'
             setNodeGlowMetric(next)
           }}
+          compact={compactControls}
         />
         <SelectRow
           label="Pulse speed"
@@ -585,6 +665,7 @@ export function BipartiteRendererSettings() {
             const next = v === 'pmf_score' || v === 'none' ? v : 'gap_velocity'
             setNodePulseMetric(next)
           }}
+          compact={compactControls}
         />
         <SelectRow
           label="Border thickness"
@@ -594,17 +675,19 @@ export function BipartiteRendererSettings() {
             const next = v === 'gap_score' || v === 'none' ? v : 'source_count'
             setNodeBorderMetric(next)
           }}
+          compact={compactControls}
         />
         <SelectRow
           label="Edge opacity"
           value={edgeOpacityMetric}
           options={['strength', 'none']}
           onChange={v => setEdgeOpacityMetric(v === 'none' ? 'none' : 'strength')}
+          compact={compactControls}
         />
         <div className={`pt-1 text-[10px] ${UI_THEME_TOKENS.text.secondary}`}>Labels</div>
-        <ToggleRow label="Specificity badges" value={showBadges} onChange={setShowBadges} />
-        <ToggleRow label="Gap score in label" value={showGapScore} onChange={setShowGapScore} />
-        <ToggleRow label="Cluster gap ratio" value={showClusterGap} onChange={setShowClusterGap} />
+        <ToggleRow label="Specificity badges" value={showBadges} onChange={setShowBadges} compact={compactControls} />
+        <ToggleRow label="Gap score in label" value={showGapScore} onChange={setShowGapScore} compact={compactControls} />
+        <ToggleRow label="Cluster gap ratio" value={showClusterGap} onChange={setShowClusterGap} compact={compactControls} />
       </div>
     </CollapsibleSection>
   )

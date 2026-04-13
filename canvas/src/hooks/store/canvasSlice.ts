@@ -2,14 +2,18 @@ import type { GraphState, CanvasSnapshotFns, ThreeCameraPose, ThreeCameraSnapsho
 import type { StoreApi } from 'zustand'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
 import {
-  LS_KEYS,
   DEFAULT_CANVAS_2D_RENDERER,
   DEFAULT_CANVAS_3D_MODE,
-  DEFAULT_VIEWPORT_CONTROLS_PRESET,
   DEFAULT_INFINITE_CANVAS_INTERACTION_MODE,
   DEFAULT_CANVAS_WORKSPACE_SYNC_MODE,
-  UI_COPY,
-} from '@/lib/config'
+  type Canvas2dRendererId,
+  type Canvas3dModeId,
+  type CanvasWorkspaceSyncMode,
+  type InfiniteCanvasInteractionMode,
+} from '@/lib/config.render'
+import { DEFAULT_VIEWPORT_CONTROLS_PRESET } from '@/lib/config.viewport-controls'
+import { LS_KEYS } from '@/lib/config.ls'
+import { UI_COPY } from '@/lib/config-copy/uiCopy'
 import {
   getLocalStorage,
   lsBool,
@@ -23,8 +27,7 @@ import {
   lsSetJsonCoalesced,
 } from '@/lib/persistence'
 import { coerceViewportControlsPreset } from '@/lib/canvas/viewport-controls'
-import type { Canvas2dRendererId, Canvas3dModeId, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
-import { isFlowCanvas2dRenderer } from '@/lib/config.render'
+import { isCanvas2dRendererId, isFlowCanvas2dRenderer } from '@/lib/config.render'
 import {
   FLOW_WHEEL_ZOOM_SMOOTH_MAX_DURATION_DEFAULT_MS,
   FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MAX_MS,
@@ -110,8 +113,10 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     lsSetInt(LS_KEYS.flowWheelZoomDefaultsVersion, 3)
   }
 
-  const initialCanvas2dRenderer = lsJson(LS_KEYS.canvas2dRenderer, DEFAULT_CANVAS_2D_RENDERER, (v): Canvas2dRendererId =>
-    v === 'flow' || v === 'd3' || v === 'd3Bipartite' || v === 'flowEditor' || v === 'design' ? v : DEFAULT_CANVAS_2D_RENDERER,
+  const initialCanvas2dRenderer = lsJson(
+    LS_KEYS.canvas2dRenderer,
+    DEFAULT_CANVAS_2D_RENDERER,
+    (v): Canvas2dRendererId => (isCanvas2dRendererId(v) ? v : DEFAULT_CANVAS_2D_RENDERER),
   )
   const initialCanvas3dMode = lsJson(LS_KEYS.canvas3dMode, DEFAULT_CANVAS_3D_MODE, v => normalizeCanvas3dMode(v))
   const initialViewportControlsPresetStored = lsJson(
@@ -531,8 +536,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       return
     }
     set(state => {
-      const requested: Canvas2dRendererId =
-        id === 'flow' || id === 'flowEditor' || id === 'design' || id === 'd3Bipartite' ? id : 'd3'
+      const requested: Canvas2dRendererId = isCanvas2dRendererId(id) ? id : 'd3'
       const radialRenderer = coerceCanvas2dRendererForSchema({
         requested,
         canvas3dMode: state.canvas3dMode,

@@ -23,6 +23,7 @@ import {
   WORKSPACE_SYNC_SCOPE_RENDERER_EDGE_TYPE_RUNTIME_PERSISTENCE,
   WORKSPACE_SYNC_TASK_RENDERER_EDGE_TYPE_VIEW_STATE,
 } from '@/lib/async/workspaceSyncKeys'
+import { isBipartiteCanvas2dRenderer, isD3Like2dRenderer } from '@/lib/config.render'
 
 export function ToolbarToolMenuRendererView(props: {
   onRegisterActions?: (actions: {
@@ -144,9 +145,9 @@ export function ToolbarToolMenuRendererView(props: {
   const showGraphEditorUi =
     workspaceViewMode === 'editor' && canvasRenderMode === '2d' && canvas2dRenderer === 'd3'
   const showDesignWireframeUi = canvasRenderMode === '2d' && canvas2dRenderer === 'design'
-  const showBipartiteUi = canvasRenderMode === '2d' && canvas2dRenderer === 'd3Bipartite'
-  const showRadarGalaxyUi = canvasRenderMode === '2d' && (canvas2dRenderer === 'd3' || canvas2dRenderer === 'd3Bipartite')
-  const allowLayoutModeSelection = canvas2dRenderer === 'd3' || canvas2dRenderer === 'd3Bipartite'
+  const showBipartiteUi = canvasRenderMode === '2d' && isBipartiteCanvas2dRenderer(canvas2dRenderer)
+  const showRadarGalaxyUi = canvasRenderMode === '2d' && isD3Like2dRenderer(canvas2dRenderer)
+  const allowLayoutModeSelection = isD3Like2dRenderer(canvas2dRenderer)
 
   React.useEffect(() => {
     if (allowLayoutModeSelection) return

@@ -15,6 +15,7 @@ import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
 import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
 import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { commitZoomTransformToStore } from '@/lib/canvas/zoom-commit'
+import { isD3Like2dRenderer } from '@/lib/config.render'
 import {
   buildLayoutPositionCacheKey,
   buildLayoutViewKey,
@@ -221,7 +222,7 @@ export function useD3GraphScene2d(args: {
       const meta = (sceneGraphData.metadata || {}) as Record<string, unknown>
       return typeof meta.graphKind === 'string' ? meta.graphKind : ''
     })()
-    const isD3LikeRenderer = canvasRenderMode === '2d' && (String(canvas2dRenderer || '') === 'd3Bipartite' || String(canvas2dRenderer || '') === 'd3')
+    const isD3LikeRenderer = canvasRenderMode === '2d' && isD3Like2dRenderer((canvas2dRenderer || null) as never)
     const isBipartite = isD3LikeRenderer && graphKind === 'bipartite'
     const schemaForScene: GraphSchema = withD3BipartiteSceneSchema({
       schema: schemaValue,

@@ -73,6 +73,262 @@ const EMPTY_STRING_ARRAY: string[] = []
 const EMPTY_BOOL_RECORD: Record<string, boolean> = {}
 const EMPTY_POS_RECORD: Record<string, { x: number; y: number }> = {}
 
+type FlowCanvasInteractionRuntimeProps = {
+  active: boolean
+  allowMutations: boolean
+  schema: GraphSchema | null
+  runtimeRef: React.MutableRefObject<FlowNativeRuntime | null>
+  positionsDirtySinceCommitRef: React.MutableRefObject<boolean>
+  selectedNodeIdsRef: React.MutableRefObject<string[]>
+  selectedEdgeIdsRef: React.MutableRefObject<string[]>
+  drawArgsRef: React.MutableRefObject<FlowNativeDrawArgs>
+  scheduleFlowDraw: () => void
+  requestCommit: () => void
+  handleInteractionFrame: () => void
+  canvas2dRenderer: string
+  graphDataForZoomRequests: GraphData | null
+  viewportW: number
+  viewportH: number
+  flowEditorReservedW: number
+}
+
+const FlowCanvasInteractionRuntime = React.memo(function FlowCanvasInteractionRuntime(
+  props: FlowCanvasInteractionRuntimeProps,
+) {
+  const {
+    active,
+    allowMutations,
+    schema,
+    runtimeRef,
+    positionsDirtySinceCommitRef,
+    selectedNodeIdsRef,
+    selectedEdgeIdsRef,
+    drawArgsRef,
+    scheduleFlowDraw,
+    requestCommit,
+    handleInteractionFrame,
+    canvas2dRenderer,
+    graphDataForZoomRequests,
+    viewportW,
+    viewportH,
+    flowEditorReservedW,
+  } = props
+
+  const { selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds, selectedGroupId, zoomRequest } = useGraphStore(
+    useShallow(s => {
+      if (!active) {
+        return {
+          selectedNodeId: null,
+          selectedEdgeId: null,
+          selectedNodeIds: EMPTY_STRING_ARRAY,
+          selectedEdgeIds: EMPTY_STRING_ARRAY,
+          selectedGroupId: null,
+          zoomRequest: null,
+        }
+      }
+      return {
+        selectedNodeId: s.selectedNodeId,
+        selectedEdgeId: s.selectedEdgeId,
+        selectedNodeIds: s.selectedNodeIds,
+        selectedEdgeIds: s.selectedEdgeIds,
+        selectedGroupId: s.selectedGroupId,
+        zoomRequest: s.zoomRequest,
+      }
+    }),
+  )
+
+  React.useEffect(() => {
+    const nodeIdSet = new Set<string>((selectedNodeIds || []).map(v => String(v)))
+    if (selectedNodeId) nodeIdSet.add(String(selectedNodeId))
+    const edgeIdSet = new Set<string>((selectedEdgeIds || []).map(v => String(v)))
+    if (selectedEdgeId) edgeIdSet.add(String(selectedEdgeId))
+    const nextSelectedNodeIds = Array.from(nodeIdSet)
+    const nextSelectedEdgeIds = Array.from(edgeIdSet)
+    selectedNodeIdsRef.current = nextSelectedNodeIds
+    selectedEdgeIdsRef.current = nextSelectedEdgeIds
+    drawArgsRef.current.selectedNodeIds = nextSelectedNodeIds
+    drawArgsRef.current.selectedEdgeIds = nextSelectedEdgeIds
+    drawArgsRef.current.selectedGroupId = selectedGroupId ? String(selectedGroupId || '').trim() : null
+    scheduleFlowDraw()
+  }, [
+    drawArgsRef,
+    scheduleFlowDraw,
+    selectedEdgeId,
+    selectedEdgeIds,
+    selectedEdgeIdsRef,
+    selectedGroupId,
+    selectedNodeId,
+    selectedNodeIds,
+    selectedNodeIdsRef,
+  ])
+
+  const selectedIds = React.useMemo(() => {
+    const set = new Set<string>()
+    if (selectedNodeId) {
+      const id = String(selectedNodeId || '').trim()
+      if (id) set.add(id)
+    }
+    const ids = Array.isArray(selectedNodeIds) ? selectedNodeIds : []
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = String(ids[i] || '').trim()
+      if (id) set.add(id)
+    }
+    return Array.from(set)
+  }, [selectedNodeId, selectedNodeIds])
+
+  const applyArrange = React.useMemo(() => {
+    return (action: ArrangeAction2d) => {
+      if (!active) return
+      if (selectedIds.length < 2) return
+      const runtime = runtimeRef.current
+      const scene = runtime?.scene
+      if (!runtime || !scene) return
+      const byId = scene.nodeById
+      const refId = (() => {
+        const a = String(selectedNodeId || '').trim()
+        if (a && selectedIds.includes(a)) return a
+        return selectedIds[0] || ''
+      })()
+      const grid = readSnapGridConfigFromSchema(schema)
+      const gridSize = grid.enabled ? grid.size : 0
+      const snap = (v: number) => (grid.enabled ? snapScalarToGrid(v, grid.size) : v)
+
+      const items = selectedIds
+        .map(id => {
+          const n = byId.get(id)
+          if (!n) return null
+          const cx = n.x + n.width / 2
+          const cy = n.y + n.height / 2
+          return { id, cx, cy, w: n.width, h: n.height }
+        })
+        .filter(Boolean) as { id: string; cx: number; cy: number; w: number; h: number }[]
+      if (items.length < 2) return
+      const next = computeArrangeCenters({ action, items, refId, minSpacing: gridSize || 24 })
+      for (let i = 0; i < items.length; i += 1) {
+        const id = items[i]!.id
+        const n = byId.get(id)
+        const p = next[id]
+        if (!n || !p) continue
+        n.x = snap(p.cx - n.width / 2)
+        n.y = snap(p.cy - n.height / 2)
+      }
+      runtime.dirty = true
+      positionsDirtySinceCommitRef.current = true
+      scheduleFlowDraw()
+      requestCommit()
+    }
+  }, [active, positionsDirtySinceCommitRef, requestCommit, runtimeRef, schema, scheduleFlowDraw, selectedIds, selectedNodeId])
+
+  React.useEffect(() => {
+    if (!active) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isEditableTarget(e.target)) return
+      const arrange = readArrangeShortcut(e)
+      if (arrange) {
+        e.preventDefault()
+        applyArrange(arrange)
+        return
+      }
+      if (selectedIds.length === 0) return
+      const grid = readSnapGridConfigFromSchema(schema)
+      const delta = readNudgeDelta({ e, snapGridEnabled: grid.enabled, snapGridSize: grid.size })
+      if (!delta) return
+      const runtime = runtimeRef.current
+      const scene = runtime?.scene
+      if (!runtime || !scene) return
+      e.preventDefault()
+      for (let i = 0; i < selectedIds.length; i += 1) {
+        const id = selectedIds[i]!
+        const n = scene.nodeById.get(id)
+        if (!n) continue
+        n.x += delta.dx
+        n.y += delta.dy
+      }
+      runtime.dirty = true
+      positionsDirtySinceCommitRef.current = true
+      scheduleFlowDraw()
+      requestCommit()
+    }
+    window.addEventListener('keydown', onKeyDown, { capture: true })
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, { capture: true } as AddEventListenerOptions)
+    }
+  }, [active, applyArrange, positionsDirtySinceCommitRef, requestCommit, runtimeRef, scheduleFlowDraw, schema, selectedIds])
+
+  React.useEffect(() => {
+    if (!active) return
+    const runtime = runtimeRef.current
+    if (!runtime) return
+    if (!zoomRequest) return
+    const isFlowEditor = canvas2dRenderer === 'flowEditor'
+    const widthEffective =
+      isFlowEditor && (zoomRequest.type === 'fit' || zoomRequest.type === 'reset')
+        ? Math.max(1, viewportW - flowEditorReservedW)
+        : viewportW
+    applyZoomRequestNative({
+      zoomRequest,
+      runtime,
+      graphData: graphDataForZoomRequests,
+      width: widthEffective,
+      height: viewportH,
+      selectedNodeId: selectedNodeId ? String(selectedNodeId) : null,
+      selectedEdgeId: selectedEdgeId ? String(selectedEdgeId) : null,
+      selectedNodeIds: (selectedNodeIds || []).map(v => String(v)),
+      selectedEdgeIds: (selectedEdgeIds || []).map(v => String(v)),
+      onFrame: () => {
+        scheduleFlowDraw()
+        requestCommit()
+        handleInteractionFrame()
+      },
+    })
+  }, [
+    active,
+    canvas2dRenderer,
+    flowEditorReservedW,
+    graphDataForZoomRequests,
+    handleInteractionFrame,
+    requestCommit,
+    runtimeRef,
+    scheduleFlowDraw,
+    selectedEdgeId,
+    selectedEdgeIds,
+    selectedNodeId,
+    selectedNodeIds,
+    viewportH,
+    viewportW,
+    zoomRequest,
+  ])
+
+  return active && allowMutations && selectedIds.length >= 2 ? (
+    <div className="pointer-events-none absolute right-3 top-3 z-50 flex flex-wrap gap-1 rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] p-2 text-xs text-[var(--kg-text)] shadow">
+      <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-left')}>
+        Align L
+      </button>
+      <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-center-x')}>
+        Align CX
+      </button>
+      <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-right')}>
+        Align R
+      </button>
+      <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-top')}>
+        Align T
+      </button>
+      <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-center-y')}>
+        Align CY
+      </button>
+      <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-bottom')}>
+        Align B
+      </button>
+      <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('distribute-x')}>
+        Dist X
+      </button>
+      <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('distribute-y')}>
+        Dist Y
+      </button>
+    </div>
+  ) : null
+})
+
 function clampFinite(v: number, lo: number, hi: number): number {
   if (!Number.isFinite(v)) return lo
   return Math.max(lo, Math.min(hi, v))
@@ -376,12 +632,6 @@ export default function FlowCanvas({
     flowEditorSelectionOnDrag,
     setLayoutPositionsForMode,
     graphDataRevision: baseGraphDataRevision,
-    selectedNodeId,
-    selectedEdgeId,
-    selectedNodeIds,
-    selectedEdgeIds,
-    selectedGroupId,
-    zoomRequest,
     viewPinned,
     fitToScreenMode,
     zoomToSelectionMode,
@@ -419,12 +669,6 @@ export default function FlowCanvas({
           flowEditorSelectionOnDrag: false,
           setLayoutPositionsForMode: s.setLayoutPositionsForMode,
           graphDataRevision: s.graphDataRevision || 0,
-          selectedNodeId: null,
-          selectedEdgeId: null,
-          selectedNodeIds: EMPTY_STRING_ARRAY,
-          selectedEdgeIds: EMPTY_STRING_ARRAY,
-          selectedGroupId: null,
-          zoomRequest: null,
           viewPinned: false,
           fitToScreenMode: false,
           zoomToSelectionMode: false,
@@ -461,12 +705,6 @@ export default function FlowCanvas({
         flowEditorSelectionOnDrag: s.flowEditorSelectionOnDrag === true,
         setLayoutPositionsForMode: s.setLayoutPositionsForMode,
         graphDataRevision: s.graphDataRevision || 0,
-        selectedNodeId: s.selectedNodeId,
-        selectedEdgeId: s.selectedEdgeId,
-        selectedNodeIds: s.selectedNodeIds,
-        selectedEdgeIds: s.selectedEdgeIds,
-        selectedGroupId: s.selectedGroupId,
-        zoomRequest: s.zoomRequest,
         viewPinned: s.viewPinned === true,
         fitToScreenMode: s.fitToScreenMode === true,
         zoomToSelectionMode: s.zoomToSelectionMode === true,
@@ -516,17 +754,6 @@ export default function FlowCanvas({
   }, [multiDimTableModeEnabled])
 
   React.useEffect(() => {
-    const nodeIdSet = new Set<string>((selectedNodeIds || []).map(v => String(v)))
-    if (selectedNodeId) nodeIdSet.add(String(selectedNodeId))
-    const edgeIdSet = new Set<string>((selectedEdgeIds || []).map(v => String(v)))
-    if (selectedEdgeId) edgeIdSet.add(String(selectedEdgeId))
-    const nextSelectedNodeIds = Array.from(nodeIdSet)
-    const nextSelectedEdgeIds = Array.from(edgeIdSet)
-    selectedNodeIdsRef.current = nextSelectedNodeIds
-    selectedEdgeIdsRef.current = nextSelectedEdgeIds
-    drawArgsRef.current.selectedNodeIds = nextSelectedNodeIds
-    drawArgsRef.current.selectedEdgeIds = nextSelectedEdgeIds
-    drawArgsRef.current.selectedGroupId = selectedGroupId ? String(selectedGroupId || '').trim() : null
     drawArgsRef.current.showGroupResizeHandle = readAllowGroupResize(schema)
     drawArgsRef.current.grid = readCanvasGridRenderConfigFromSchema(schema)
     updateOverlayHiddenDrawArgs()
@@ -540,11 +767,6 @@ export default function FlowCanvas({
     renderGroups,
     renderNodes,
     renderMediaAsNodes,
-    selectedEdgeId,
-    selectedEdgeIds,
-    selectedGroupId,
-    selectedNodeId,
-    selectedNodeIds,
     schema,
     updateOverlayHiddenDrawArgs,
   ])
@@ -1465,99 +1687,6 @@ export default function FlowCanvas({
   })
   requestCommitRef.current = requestCommit
 
-  const selectedIds = React.useMemo(() => {
-    const set = new Set<string>()
-    if (selectedNodeId) {
-      const id = String(selectedNodeId || '').trim()
-      if (id) set.add(id)
-    }
-    const ids = Array.isArray(selectedNodeIds) ? selectedNodeIds : []
-    for (let i = 0; i < ids.length; i += 1) {
-      const id = String(ids[i] || '').trim()
-      if (id) set.add(id)
-    }
-    return Array.from(set)
-  }, [selectedNodeId, selectedNodeIds])
-
-  const applyArrange = React.useMemo(() => {
-    return (action: ArrangeAction2d) => {
-      if (!active) return
-      if (selectedIds.length < 2) return
-      const runtime = runtimeRef.current
-      const scene = runtime?.scene
-      if (!runtime || !scene) return
-      const byId = scene.nodeById
-      const refId = (() => {
-        const a = String(selectedNodeId || '').trim()
-        if (a && selectedIds.includes(a)) return a
-        return selectedIds[0] || ''
-      })()
-      const grid = readSnapGridConfigFromSchema(schema)
-      const gridSize = grid.enabled ? grid.size : 0
-      const snap = (v: number) => (grid.enabled ? snapScalarToGrid(v, grid.size) : v)
-
-      const items = selectedIds
-        .map(id => {
-          const n = byId.get(id)
-          if (!n) return null
-          const cx = n.x + n.width / 2
-          const cy = n.y + n.height / 2
-          return { id, cx, cy, w: n.width, h: n.height }
-        })
-        .filter(Boolean) as { id: string; cx: number; cy: number; w: number; h: number }[]
-      if (items.length < 2) return
-      const next = computeArrangeCenters({ action, items, refId, minSpacing: gridSize || 24 })
-      for (let i = 0; i < items.length; i += 1) {
-        const id = items[i]!.id
-        const n = byId.get(id)
-        const p = next[id]
-        if (!n || !p) continue
-        n.x = snap(p.cx - n.width / 2)
-        n.y = snap(p.cy - n.height / 2)
-      }
-      runtime.dirty = true
-      positionsDirtySinceCommitRef.current = true
-      scheduleFlowDraw()
-      requestCommit()
-    }
-  }, [active, buildDrawArgs, requestCommit, schema?.behavior?.snapGrid, scheduleFlowDraw, selectedIds, selectedNodeId])
-
-  React.useEffect(() => {
-    if (!active) return
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (isEditableTarget(e.target)) return
-      const arrange = readArrangeShortcut(e)
-      if (arrange) {
-        e.preventDefault()
-        applyArrange(arrange)
-        return
-      }
-      if (selectedIds.length === 0) return
-      const grid = readSnapGridConfigFromSchema(schema)
-      const delta = readNudgeDelta({ e, snapGridEnabled: grid.enabled, snapGridSize: grid.size })
-      if (!delta) return
-      const runtime = runtimeRef.current
-      const scene = runtime?.scene
-      if (!runtime || !scene) return
-      e.preventDefault()
-      for (let i = 0; i < selectedIds.length; i += 1) {
-        const id = selectedIds[i]!
-        const n = scene.nodeById.get(id)
-        if (!n) continue
-        n.x += delta.dx
-        n.y += delta.dy
-      }
-      runtime.dirty = true
-      positionsDirtySinceCommitRef.current = true
-      scheduleFlowDraw()
-      requestCommit()
-    }
-    window.addEventListener('keydown', onKeyDown, { capture: true })
-    return () => {
-      window.removeEventListener('keydown', onKeyDown, { capture: true } as AddEventListenerOptions)
-    }
-  }, [active, applyArrange, buildDrawArgs, requestCommit, scheduleFlowDraw, schema?.behavior?.snapGrid, selectedIds])
-
   React.useEffect(() => {
     if (!active) return
     const runtime = runtimeRef.current
@@ -1826,49 +1955,6 @@ export default function FlowCanvas({
     if (!active) return
     const runtime = runtimeRef.current
     if (!runtime) return
-    if (!zoomRequest) return
-    const isFlowEditor = canvas2dRenderer === 'flowEditor'
-    const widthEffective =
-      isFlowEditor && (zoomRequest.type === 'fit' || zoomRequest.type === 'reset')
-        ? Math.max(1, viewportW - flowEditorReservedW)
-        : viewportW
-    applyZoomRequestNative({
-      zoomRequest,
-      runtime,
-      graphData: graphDataForZoomRequests,
-      width: widthEffective,
-      height: viewportH,
-      selectedNodeId: selectedNodeId ? String(selectedNodeId) : null,
-      selectedEdgeId: selectedEdgeId ? String(selectedEdgeId) : null,
-      selectedNodeIds: (selectedNodeIds || []).map(v => String(v)),
-      selectedEdgeIds: (selectedEdgeIds || []).map(v => String(v)),
-      onFrame: () => {
-        scheduleFlowDraw()
-        requestCommit()
-        handleInteractionFrame()
-      },
-    })
-  }, [
-    active,
-    buildDrawArgs,
-    canvas2dRenderer,
-    graphDataForZoomRequests,
-    handleInteractionFrame,
-    flowEditorReservedW,
-    requestCommit,
-    selectedEdgeId,
-    selectedEdgeIds,
-    selectedNodeId,
-    selectedNodeIds,
-    viewportH,
-    viewportW,
-    zoomRequest,
-  ])
-
-  React.useEffect(() => {
-    if (!active) return
-    const runtime = runtimeRef.current
-    if (!runtime) return
     const g = sceneGraphData
     const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
     const edgeList = Array.isArray(g?.edges) ? g?.edges : []
@@ -1966,34 +2052,24 @@ export default function FlowCanvas({
 
   return (
     <section ref={containerRef} className={CANVAS_SURFACE_CLASS}>
-      {active && allowMutations && selectedIds.length >= 2 ? (
-        <div className="pointer-events-none absolute right-3 top-3 z-50 flex flex-wrap gap-1 rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] p-2 text-xs text-[var(--kg-text)] shadow">
-          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-left')}>
-            Align L
-          </button>
-          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-center-x')}>
-            Align CX
-          </button>
-          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-right')}>
-            Align R
-          </button>
-          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-top')}>
-            Align T
-          </button>
-          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-center-y')}>
-            Align CY
-          </button>
-          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-bottom')}>
-            Align B
-          </button>
-          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('distribute-x')}>
-            Dist X
-          </button>
-          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('distribute-y')}>
-            Dist Y
-          </button>
-        </div>
-      ) : null}
+      <FlowCanvasInteractionRuntime
+        active={active}
+        allowMutations={allowMutations}
+        schema={schema}
+        runtimeRef={runtimeRef}
+        positionsDirtySinceCommitRef={positionsDirtySinceCommitRef}
+        selectedNodeIdsRef={selectedNodeIdsRef}
+        selectedEdgeIdsRef={selectedEdgeIdsRef}
+        drawArgsRef={drawArgsRef}
+        scheduleFlowDraw={scheduleFlowDraw}
+        requestCommit={requestCommit}
+        handleInteractionFrame={handleInteractionFrame}
+        canvas2dRenderer={canvas2dRenderer}
+        graphDataForZoomRequests={graphDataForZoomRequests}
+        viewportW={viewportW}
+        viewportH={viewportH}
+        flowEditorReservedW={flowEditorReservedW}
+      />
       <canvas
         ref={canvasRef}
         aria-label="Flow renderer"

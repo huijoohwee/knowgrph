@@ -11,6 +11,7 @@ import type { Vec3 } from './layout'
 import { applyZoomStep, fitCameraToPositions, type CameraRequestType, getCameraConfig } from './camera'
 import { buildAutoFitToScreenSignature, buildAutoZoomSelectionSignature } from '@/lib/zoom/autoModeSignatures'
 import type { Canvas3dModeId } from '@/lib/config'
+import { isD3Like2dRenderer } from '@/lib/config.render'
 import { buildVoxelCameraIntroPoses, readVoxelCameraConfig } from './voxelCamera'
 
 function clamp(value: number, min: number, max: number): number {
@@ -181,7 +182,7 @@ export function Controls({
     const threeCfg = schema.three || {}
     const globeEffectsEnabled = threeCfg.globeEffectsEnabled !== false
     const layoutMode = schema.layout?.mode
-    const d3Like = canvas2dRenderer === 'd3' || canvas2dRenderer === 'd3Bipartite'
+    const d3Like = isD3Like2dRenderer(canvas2dRenderer)
     const cameraPathEnabled = globeEffectsEnabled && threeCfg.globeCameraEllipseEnabled !== false && layoutMode === 'radial' && d3Like && !viewPinned
     if (cameraPathEnabled) {
       const sphereRadius = clamp(
@@ -340,7 +341,7 @@ export function Controls({
     const cfg = getCameraConfig(schema)
     const globeEffectsEnabled = schema.three?.globeEffectsEnabled !== false
     const globeCameraEllipseEnabled = schema.three?.globeCameraEllipseEnabled !== false
-    const d3Like = canvas2dRenderer === 'd3' || canvas2dRenderer === 'd3Bipartite'
+    const d3Like = isD3Like2dRenderer(canvas2dRenderer)
     const layoutMode = schema.layout?.mode
     const pathEnabled = globeEffectsEnabled && globeCameraEllipseEnabled && layoutMode === 'radial' && d3Like
     const voxelMode = mode === 'voxel'

@@ -3,7 +3,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState'
 import { useMainPanelDrag, type MainPanelOpenOptions, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag'
-import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { MAIN_PANEL_OPEN_EVENT, MAIN_PANEL_OPEN_READY_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { useLaunchSpotlight } from '@/features/panels/hooks/useLaunchSpotlight'
 import { LS_KEYS, UI_COPY } from '@/lib/config'
 import { lsBool } from '@/lib/persistence'
@@ -18,6 +18,10 @@ export type CanvasToolbarCallbacks = {
   onZoomOut?: () => void
   onReset?: () => void
   onZoomSelection?: () => void
+}
+
+type MainPanelOpenReadyWindow = Window & {
+  __KG_MAIN_PANEL_OPEN_READY__?: boolean
 }
 
 export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasToolbarCallbacks) {
@@ -240,8 +244,11 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
       const options: MainPanelOpenOptions = detailSearchQuery ? { searchQuery: detailSearchQuery } : {}
       openMainPanel(tab, options)
     }
+    ;(window as MainPanelOpenReadyWindow).__KG_MAIN_PANEL_OPEN_READY__ = true
     window.addEventListener(MAIN_PANEL_OPEN_EVENT, handler as EventListener)
+    window.dispatchEvent(new Event(MAIN_PANEL_OPEN_READY_EVENT))
     return () => {
+      ;(window as MainPanelOpenReadyWindow).__KG_MAIN_PANEL_OPEN_READY__ = false
       window.removeEventListener(MAIN_PANEL_OPEN_EVENT, handler as EventListener)
     }
   }, [openMainPanel])

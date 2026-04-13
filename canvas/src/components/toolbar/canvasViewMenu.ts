@@ -1,6 +1,7 @@
 import { Box, Circle, CircleDot, Columns2, Cuboid, Diamond, FileText, GitMerge, Grid3x3, Hexagon, Image as ImageIcon, Map, Palette, Pencil, Share2, Square, Table, Tags } from 'lucide-react'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
+import { isD3Like2dRenderer } from '@/lib/config.render'
 import type { CanvasViewModelState, CanvasViewOption, CanvasViewOptionId, CanvasViewRendererOption } from '@/components/toolbar/canvasViewTypes'
 
 const isAnimationApplicable = (state: CanvasViewModelState) => {
@@ -77,8 +78,9 @@ export const buildCanvasViewOptions = (
           : 'Node Shape: Circle'
 
   const optionsWithDisabled = rendererOptions.map(option => {
-    const disabledForVoxel = state.canvas3dMode === 'voxel' && option.id !== 'd3' && option.id !== 'd3Bipartite'
-    const disabledForRadial = state.layoutMode === 'radial' && option.id !== 'd3' && option.id !== 'd3Bipartite'
+    const supportsD3LikeLayout = isD3Like2dRenderer(option.id)
+    const disabledForVoxel = state.canvas3dMode === 'voxel' && !supportsD3LikeLayout
+    const disabledForRadial = state.layoutMode === 'radial' && !supportsD3LikeLayout
     const disabledForGeospatial = state.geospatialEnabled
     const disabledOption = disabledForVoxel || disabledForRadial || disabledForGeospatial
     return {

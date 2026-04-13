@@ -51,6 +51,8 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["layout.positioning.cacheKeyIncludesViewKey","@/__tests__/layoutPositioning.test","testLayoutPositioningCacheKeyIncludesViewKey"],
   ["layout.positioning.isolatesMediaDensity","@/__tests__/layoutPositioning.test","testLayoutPositioningCacheKeyIsolatesMediaDensity"],
   ["layout.positioning.isolatesRenderMediaAsNodes","@/__tests__/layoutPositioning.test","testLayoutPositioningCacheKeyIsolatesRenderMediaAsNodes"],
+  ["pipeline.2dRenderer.sharedSurfaceHelpers","@/__tests__/rendererPipelineNeutrality.test","test2dRendererPipelineUsesSharedSurfaceHelpers"],
+  ["pipeline.workspaceJson.neutralSourceMetadata","@/__tests__/rendererPipelineNeutrality.test","testWorkspaceJsonPipelineStaysNeutralAndFileAgnostic"],
   ["layout.init.respectsStableCachedPositions","@/__tests__/layoutInitRespectsCachedPositions.test","testLayoutInitRespectsStableCachedPositions"],
   ["layout.init.seedsOnlyMissingWhenStable","@/__tests__/layoutInitRespectsCachedPositions.test","testLayoutInitSeedsOnlyMissingPositionsWhenStable"],
   ["zoom.viewKey.isolates2dRenderers","@/__tests__/zoomViewKeySharedAcross2dRenderers.test","testZoomViewKeyIsIsolatedAcross2dRenderers"],

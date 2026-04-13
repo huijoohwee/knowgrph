@@ -10,7 +10,8 @@ import type {
   GraphDataTableSortRule,
 } from '@/features/graph-data-table/graphDataTable';
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal';
-import { LS_KEYS, SESSION_KEYS, UI_COPY } from '@/lib/config';
+import { LS_KEYS, SESSION_KEYS } from '@/lib/config.ls';
+import { UI_COPY } from '@/lib/config-copy/uiCopy';
 import { lsBool, lsFloat, lsInt, lsSetBool, lsSetFloat, lsSetInt } from '@/lib/persistence'
 import { ssSetString, ssString, getLocalStorage } from '@/lib/persistence';
 import { ThemeMode, ResolvedThemeMode, getInitialThemeMode, persistThemeMode, applyThemeMode, resolveThemeMode, getSystemTheme } from '@/lib/ui/theme';

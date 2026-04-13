@@ -33,6 +33,7 @@ import { DEFAULT_FLOW_NODE_WIDTH_PX, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, readZoomSc
 import { computeNodeQuickEditorScale, NODE_QUICK_EDITOR_BASE_SIZE } from '@/components/FlowEditor/nodeQuickEditorZoom'
 import { computeDefaultNodeQuickEditorFloatingPos, computeNodeQuickEditorMaxAnchorShiftPx } from '@/components/FlowEditor/nodeQuickEditorLayout'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
+import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 
 type ZoomT = { k: number; x: number; y: number };
 
@@ -229,7 +230,7 @@ function Minimap() {
   );
 
   const flowEditorOverlaySubset = React.useMemo(() => {
-    const isFlowEditor = String(canvas2dRenderer || '') === 'flowEditor'
+    const isFlowEditor = isFlowEditorCanvas2dRenderer(canvas2dRenderer)
     const ids = Array.isArray(openQuickEditorNodeIds) ? openQuickEditorNodeIds.map(v => String(v || '').trim()).filter(Boolean) : []
     if (!isFlowEditor || ids.length === 0) return null
     const zoom = zoomState || { k: 1, x: 0, y: 0 }

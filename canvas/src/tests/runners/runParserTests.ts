@@ -18,6 +18,7 @@ const modParserCacheCfgKey = () => import('@/__tests__/parserCacheCfgKey.test')
 const modParserWorkflowPersistence = () => import('@/__tests__/parserWorkflowPersistence.test')
 const modRawJsonIngestion = () => import('@/__tests__/rawJsonIngestion.test')
 const modRawJsonWorkflowShapeIngestion = () => import('@/__tests__/rawJsonWorkflowShapeIngestion.test')
+const modBipartitePipelineNeutrality = () => import('@/__tests__/bipartitePipelineNeutrality.test')
 const modMermaidSubgraphGroups = () => import('@/__tests__/mermaidSubgraphGroups.test')
 const modMermaidSeedLayout = () => import('@/__tests__/mermaidSeedLayout.test')
 const modMermaidNodeShapes = () => import('@/__tests__/mermaidNodeShapes.test')
@@ -104,6 +105,14 @@ export const runParserTests = async (results: TestResult[]) => {
   await execTest(results, 'parser.rawJson.workflowShapeIngestion', async () => {
     const mod = await modRawJsonWorkflowShapeIngestion()
     await mod.testRawJsonWorkflowShapeIngestion()
+  })
+  await execTest(results, 'parser.bipartite.neutralSourceMetadata', async () => {
+    const mod = await modBipartitePipelineNeutrality()
+    await mod.testBipartiteNormalizeKeepsNeutralSourceMetadata()
+  })
+  await execTest(results, 'parser.bipartite.sideAliases', async () => {
+    const mod = await modBipartitePipelineNeutrality()
+    await mod.testBipartiteNormalizeAcceptsSideAliases()
   })
   await execTest(results, 'parser.mermaid.subgraphParentId', async () => {
     const mod = await modMermaidSubgraphGroups()

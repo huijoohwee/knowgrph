@@ -5,6 +5,13 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { writeSubgraphs, type UserSubgraph } from '@/lib/graph/subgraphs'
 import { useShallow } from 'zustand/react/shallow'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
+import {
+  BIPARTITE_API_ENDPOINT,
+  BIPARTITE_FIXTURE_ENDPOINT,
+  buildBipartiteSourceMeta,
+  type BipartiteSourceMeta,
+  UNKNOWN_BIPARTITE_SOURCE_META,
+} from '@/lib/bipartite/source'
 
 type ApiGraphNode = {
   id: string
@@ -53,44 +60,6 @@ type ApiGraphPayload = {
   clusters?: Array<Record<string, unknown>>
 }
 
-const DEV_FALLBACK_API_GRAPH: ApiGraphPayload = {
-  nodes: [
-    {
-      id: 'node-uuid-abc123',
-      type: 'problem',
-      label: 'AI agent memory persistence across sessions',
-      cluster: 'Validation',
-      gap_score: 3.367,
-      pmf_score: 5.24,
-      gap_velocity: 0.82,
-      source_count: 1,
-      specificity: 'named_tool',
-      color: '#9f7cff',
-      x: 120,
-      y: 340,
-    },
-    {
-      id: 'sol-xyz987',
-      type: 'solution',
-      label: 'LangGraph by LangChain',
-      cluster: 'Build & hire',
-      gap_score: 0,
-      pmf_score: 0,
-      gap_velocity: 0,
-      source_count: 3,
-      specificity: 'named_tool',
-    },
-  ],
-  edges: [
-    {
-      source: 'node-uuid-abc123',
-      target: 'sol-xyz987',
-      strength: 0.4,
-    },
-  ],
-  meta: { total_problems: 87, total_solutions: 34, last_updated: '2026-03-27T12:46:30Z' },
-}
-
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
 
 const round2 = (v: number) => Math.round(v * 100) / 100
@@ -117,6 +86,15 @@ const DEFAULT_BIPARTITE_RENDER_SETTINGS: BipartiteRenderSettings = {
   showClusterGapRatio: true,
 }
 
+const createEmptyApiGraphPayload = (): ApiGraphPayload => ({
+  nodes: [],
+  edges: [],
+  meta: {
+    total_problems: 0,
+    total_solutions: 0,
+  },
+})
+
 const asString = (v: unknown): string => (typeof v === 'string' ? v : String(v ?? ''))
 
 const asFiniteNumber = (v: unknown): number | null => {
@@ -126,6 +104,41 @@ const asFiniteNumber = (v: unknown): number | null => {
     if (Number.isFinite(n)) return n
   }
   return null
+}
+
+const normalizeBipartiteSide = (value: unknown): 'problem' | 'solution' | null => {
+  const raw = asString(value).trim().toLowerCase()
+  if (!raw) return null
+  if (
+    raw === 'problem' ||
+    raw === 'left' ||
+    raw === 'source' ||
+    raw === 'origin' ||
+    raw === 'from' ||
+    raw === 'a' ||
+    raw === 'input'
+  ) {
+    return 'problem'
+  }
+  if (
+    raw === 'solution' ||
+    raw === 'right' ||
+    raw === 'target' ||
+    raw === 'destination' ||
+    raw === 'to' ||
+    raw === 'b' ||
+    raw === 'output'
+  ) {
+    return 'solution'
+  }
+  return null
+}
+
+const normalizeBipartiteNodeType = (value: unknown): 'problem' | 'solution' | 'hub' | null => {
+  const raw = asString(value).trim().toLowerCase()
+  if (!raw) return null
+  if (raw === 'hub') return 'hub'
+  return normalizeBipartiteSide(raw)
 }
 
 function readApiGraphPayload(value: unknown): ApiGraphPayload | null {
@@ -158,8 +171,7 @@ function readApiGraphPayload(value: unknown): ApiGraphPayload | null {
     if (!id) continue
     const name = asString(c.name).trim()
     const color = asString(c.color).trim()
-    const sideRaw = asString(c.side).trim().toLowerCase()
-    const side = sideRaw === 'problem' || sideRaw === 'solution' ? sideRaw : undefined
+    const side = normalizeBipartiteSide(c.side) || undefined
     const ratio = asFiniteNumber(c.gap_ratio)
     clusterById.set(id, {
       ...(name ? { name } : {}),
@@ -187,7 +199,15 @@ function readApiGraphPayload(value: unknown): ApiGraphPayload | null {
       const hub = o ? asString((o as Record<string, unknown>).hub ?? (o as Record<string, unknown>).hub_id).trim() : ''
       const typeRaw = o ? asString(o.type).trim() : ''
       const sideFromCluster = clusterRaw && clusterById.has(clusterRaw) ? (clusterById.get(clusterRaw)?.side || '') : ''
-      const type = typeRaw || sideFromCluster || ''
+      const sideFromNode =
+        o && typeof o === 'object'
+          ? normalizeBipartiteSide(
+              (o as Record<string, unknown>).side ??
+                (o as Record<string, unknown>).partition ??
+                (o as Record<string, unknown>).lane,
+            ) || ''
+          : ''
+      const type = normalizeBipartiteNodeType(typeRaw || sideFromNode || sideFromCluster) || typeRaw || sideFromNode || sideFromCluster || ''
       return {
         id,
         type,
@@ -311,7 +331,11 @@ function buildApiGraphSignature(payload: ApiGraphPayload): string {
   return hashText(core)
 }
 
-function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, settings: BipartiteRenderSettings): GraphData {
+function normalizeApiGraphToBipartiteGraphData(
+  payload: ApiGraphPayload,
+  settings: BipartiteRenderSettings,
+  sourceMeta: BipartiteSourceMeta,
+): GraphData {
   const rawNodes = Array.isArray(payload.nodes) ? payload.nodes : []
   const rawEdges = Array.isArray(payload.edges) ? payload.edges : []
   const nodeById = new Map<string, ApiGraphNode>()
@@ -326,7 +350,7 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
   const solutionClusterCounts = new Map<string, number>()
   const clusterSideByName = new Map<string, 'problem' | 'solution'>()
   for (const n of nodeById.values()) {
-    const type = String(n.type || '').toLowerCase()
+    const type = normalizeBipartiteNodeType(n.type) || String(n.type || '').toLowerCase()
     const cluster = String(n.cluster || '').trim()
     if (!cluster) continue
     if (type === 'problem') clusterSideByName.set(cluster, 'problem')
@@ -361,13 +385,13 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
     if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
       Object.entries(raw as Record<string, unknown>).forEach(([k, v]) => {
         if (!v || typeof v !== 'object' || Array.isArray(v)) return
-        const side = String((v as Record<string, unknown>).side || '').trim().toLowerCase()
-        if (side === 'problem' || side === 'solution') clusterSideByName.set(String(k), side as 'problem' | 'solution')
+        const side = normalizeBipartiteSide((v as Record<string, unknown>).side)
+        if (side) clusterSideByName.set(String(k), side)
       })
     }
   }
 
-  const hasHubNodes = Array.from(nodeById.values()).some(n => String(n.type || '').trim().toLowerCase() === 'hub')
+  const hasHubNodes = Array.from(nodeById.values()).some(n => normalizeBipartiteNodeType(n.type) === 'hub')
 
   const sortClusters = (m: Map<string, number>, mode: 'gapThenCount' | 'countThenName') => {
     const gapOf = (cluster: string): number | null => {
@@ -431,11 +455,12 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
 
   nodeById.forEach(n => {
     const typeRaw = String(n.type || '').trim()
-    const typeLower = typeRaw.toLowerCase()
+    const typeCanonical = normalizeBipartiteNodeType(typeRaw)
+    const typeLower = (typeCanonical || typeRaw).toLowerCase()
     const isProblem = typeLower === 'problem'
     const isSolution = typeLower === 'solution'
     const isHub = typeLower === 'hub'
-    const type = isProblem ? 'problem' : isSolution ? 'solution' : (typeRaw || 'node')
+    const type = isProblem ? 'problem' : isSolution ? 'solution' : isHub ? 'hub' : (typeRaw || 'node')
     const label = String(n.label || '').trim() || String(n.id || '').trim()
     const cluster = String(n.cluster || '').trim()
     const gapScore = typeof n.gap_score === 'number' && Number.isFinite(n.gap_score) ? n.gap_score : 0
@@ -505,7 +530,8 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
       ...(pulseT > 0 ? { 'visual:pulseSpeed': round2(pulseT) } : {}),
       ...(strokeWidth != null ? { 'visual:strokeWidth': strokeWidth } : {}),
       ...(fill ? { 'visual:fill': fill } : {}),
-      'api:source': '/api/graph',
+      'bipartite:source': sourceMeta.id,
+      'bipartite:sourceKind': sourceMeta.kind,
       ...(isHub ? { 'bipartite:hub': true } : {}),
       ...(side ? { 'bipartite:side': side } : {}),
     }
@@ -649,8 +675,10 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
         ...(e.edgeType ? { edge_type: e.edgeType } : {}),
         ...(visualOpacity != null ? { 'visual:opacity': visualOpacity } : {}),
         'visual:width': visualWidth,
+        'bipartite:edgeRole': e.isSpoke ? 'spoke' : 'cross',
+        'bipartite:source': sourceMeta.id,
+        'bipartite:sourceKind': sourceMeta.kind,
         ...(e.isSpoke ? { 'visual:dash': '3,6' } : {}),
-        'api:source': '/api/graph',
       } as Record<string, JSONValue>,
     })
   }
@@ -662,7 +690,7 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
   const problemOutgoingCountByCluster = (() => {
     const byId = new Map<string, string>()
     for (const n of nodeById.values()) {
-      const type = String(n.type || '').toLowerCase()
+      const type = normalizeBipartiteNodeType(n.type) || String(n.type || '').toLowerCase()
       if (type !== 'problem') continue
       const cluster = String(n.cluster || '').trim()
       if (!cluster) continue
@@ -688,7 +716,7 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
   const problemTotalByCluster = (() => {
     const out = new Map<string, number>()
     for (const n of nodeById.values()) {
-      const type = String(n.type || '').toLowerCase()
+      const type = normalizeBipartiteNodeType(n.type) || String(n.type || '').toLowerCase()
       if (type !== 'problem') continue
       const cluster = String(n.cluster || '').trim()
       if (!cluster) continue
@@ -798,9 +826,10 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
 
   const baseGraph: GraphData = {
     type: 'apiGraph',
-    context: 'api:/api/graph',
+    context: sourceMeta.id,
     metadata: {
-      source: '/api/graph',
+      source: sourceMeta.id,
+      sourceKind: sourceMeta.kind,
       ...(updated ? { last_updated: updated } : {}),
       ...(totalProblems != null ? { total_problems: totalProblems } : {}),
       ...(totalSolutions != null ? { total_solutions: totalSolutions } : {}),
@@ -816,18 +845,19 @@ function normalizeApiGraphToBipartiteGraphData(payload: ApiGraphPayload, setting
 export function normalizeBipartiteApiGraphData(args: {
   payload: ApiGraphPayload
   settings?: Partial<BipartiteRenderSettings>
+  sourceMeta?: BipartiteSourceMeta
 }): GraphData {
   const settings: BipartiteRenderSettings = {
     ...DEFAULT_BIPARTITE_RENDER_SETTINGS,
     ...(args.settings || {}),
   }
-  return normalizeApiGraphToBipartiteGraphData(args.payload, settings)
+  return normalizeApiGraphToBipartiteGraphData(args.payload, settings, args.sourceMeta || UNKNOWN_BIPARTITE_SOURCE_META)
 }
 
 async function fetchApiGraphPayload(apiRunId: string): Promise<ApiGraphPayload> {
   const params = new URLSearchParams()
   if (String(apiRunId || '').trim()) params.set('run', String(apiRunId || '').trim())
-  const url = params.size > 0 ? `/api/graph?${params.toString()}` : '/api/graph'
+  const url = params.size > 0 ? `${BIPARTITE_API_ENDPOINT}?${params.toString()}` : BIPARTITE_API_ENDPOINT
   const res = await fetch(url, { cache: 'no-store' })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const contentType = String(res.headers.get('content-type') || '').toLowerCase()
@@ -837,16 +867,16 @@ async function fetchApiGraphPayload(apiRunId: string): Promise<ApiGraphPayload> 
       .then(text => text.slice(0, 64).toLowerCase())
       .catch(() => '')
     const isHtml = preview.startsWith('<!doctype') || preview.startsWith('<html')
-    throw new Error(isHtml ? 'Invalid /api/graph payload: received HTML' : 'Invalid /api/graph payload: expected JSON')
+    throw new Error(isHtml ? 'Invalid bipartite payload: received HTML' : 'Invalid bipartite payload: expected JSON')
   }
   const json = (await res.json()) as unknown
   const parsed = readApiGraphPayload(json)
-  if (!parsed) throw new Error('Invalid /api/graph payload')
+  if (!parsed) throw new Error('Invalid bipartite payload')
   return parsed
 }
 
 async function fetchBipartiteFixturePayload(): Promise<ApiGraphPayload> {
-  const res = await fetch('/__bipartite_fixture', { cache: 'no-store' })
+  const res = await fetch(BIPARTITE_FIXTURE_ENDPOINT, { cache: 'no-store' })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const json = (await res.json()) as unknown
   const parsed = readApiGraphPayload(json)
@@ -858,8 +888,8 @@ const isApiGraphUnavailableError = (err: unknown): boolean => {
   const message = err instanceof Error ? err.message : String(err || '')
   return (
     message.includes('HTTP 404') ||
-    message.includes('Invalid /api/graph payload: received HTML') ||
-    message.includes('Invalid /api/graph payload: expected JSON')
+    message.includes('Invalid bipartite payload: received HTML') ||
+    message.includes('Invalid bipartite payload: expected JSON')
   )
 }
 
@@ -915,11 +945,10 @@ export function useApiGraphBipartiteGraphData(enabled: boolean): { graphData: Gr
   const debouncedWorkspaceText = useDebouncedValue(markdownDocumentText, 220, markdownDocumentName)
   const workspacePayload = React.useMemo((): ApiGraphPayload | null => {
     if (!enabled) return null
-    const name = String(markdownDocumentName || '').trim().toLowerCase()
     const text = String(debouncedWorkspaceText || '')
     const trimmed = text.trim()
     if (!trimmed) return null
-    const looksJson = name.endsWith('.json') || trimmed.startsWith('{') || trimmed.startsWith('[')
+    const looksJson = trimmed.startsWith('{') || trimmed.startsWith('[')
     if (!looksJson) return null
     try {
       const parsed = JSON.parse(trimmed) as unknown
@@ -927,26 +956,42 @@ export function useApiGraphBipartiteGraphData(enabled: boolean): { graphData: Gr
     } catch {
       return null
     }
-  }, [debouncedWorkspaceText, enabled, markdownDocumentName])
+  }, [debouncedWorkspaceText, enabled])
 
   const effectiveWorkspaceSource = React.useMemo(() => {
     if (!workspacePayload) return false
     const source = String(dataSource || 'api')
     if (source === 'workspace') return true
-    const name = String(markdownDocumentName || '').trim().toLowerCase()
-    return source === 'api' && name.endsWith('.json')
-  }, [dataSource, markdownDocumentName, workspacePayload])
+    return source === 'api'
+  }, [dataSource, workspacePayload])
+
+  const sourceMeta = React.useMemo(() => {
+    if (effectiveWorkspaceSource) {
+      return buildBipartiteSourceMeta({
+        kind: 'workspace',
+        documentName: markdownDocumentName,
+      })
+    }
+    const isFixtureSource = String(dataSource || 'api') === 'fixture' || (!!payload && apiGraphUnavailableRef.current)
+    if (isFixtureSource) {
+      return buildBipartiteSourceMeta({ kind: 'fixture' })
+    }
+    return buildBipartiteSourceMeta({
+      kind: 'api',
+      apiRunId,
+    })
+  }, [apiRunId, dataSource, effectiveWorkspaceSource, markdownDocumentName, payload])
 
   const graphData = React.useMemo(() => {
     if (!enabled) return null
     const effectivePayload = effectiveWorkspaceSource ? workspacePayload : payload
     if (!effectivePayload) return null
     try {
-      return normalizeBipartiteApiGraphData({ payload: effectivePayload, settings })
+      return normalizeBipartiteApiGraphData({ payload: effectivePayload, settings, sourceMeta })
     } catch {
       return null
     }
-  }, [effectiveWorkspaceSource, enabled, payload, settings, workspacePayload])
+  }, [effectiveWorkspaceSource, enabled, payload, settings, sourceMeta, workspacePayload])
 
   React.useEffect(() => {
     if (!enabled) return
@@ -963,7 +1008,7 @@ export function useApiGraphBipartiteGraphData(enabled: boolean): { graphData: Gr
 
       try {
         const loadFixturePayload = async (): Promise<ApiGraphPayload> =>
-          withTimeout(() => fetchBipartiteFixturePayload(), 12_000).catch(() => DEV_FALLBACK_API_GRAPH)
+          withTimeout(() => fetchBipartiteFixturePayload(), 12_000).catch(() => createEmptyApiGraphPayload())
         const loadApiPayload = async (): Promise<ApiGraphPayload> => withTimeout(() => fetchApiGraphPayload(apiRunId), 12_000)
         const payload = await (async () => {
           if (dataSource === 'fixture') {

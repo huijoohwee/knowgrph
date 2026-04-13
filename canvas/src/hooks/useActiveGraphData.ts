@@ -22,6 +22,9 @@ import {
   parseBipartiteApiGraphPayload,
   useApiGraphBipartiteGraphData,
 } from '@/features/bipartite/apiGraphBipartite'
+import { buildBipartiteSourceMeta } from '@/lib/bipartite/source'
+import { isBipartiteCanvas2dRenderer } from '@/lib/config.render'
+import type { Canvas2dRendererId } from '@/lib/config'
 
 let mermaidFrontmatterGeometryModulePromise: Promise<typeof import('@/lib/mermaid/mermaidFrontmatterGeometry')> | null = null
 
@@ -124,6 +127,11 @@ const pickKeywordTextFromNode = (n: { id?: unknown; label?: unknown; type?: unkn
   }
   return out
 }
+
+const WORKSPACE_GRAPH_CONTEXT = 'workspace-json'
+const WORKSPACE_GRAPH_SOURCE = 'workspace-json'
+const WORKSPACE_GRAPH_PARSE_NAME = 'workspace.data.json'
+const WORKSPACE_GRAPH_SOURCE_KIND = 'workspace'
 
 const buildKeywordSourceTextFromBaselineGraph = (
   graph: GraphData,
@@ -297,6 +305,14 @@ const toWorkspaceJsonGraphData = (data: GraphData): GraphData | null => {
     data.metadata && typeof data.metadata === 'object' && !Array.isArray(data.metadata)
       ? (data.metadata as Record<string, unknown>)
       : {}
+  const source =
+    typeof meta.source === 'string' && meta.source.trim()
+      ? meta.source
+      : WORKSPACE_GRAPH_SOURCE
+  const sourceKind =
+    typeof meta.sourceKind === 'string' && meta.sourceKind.trim()
+      ? meta.sourceKind
+      : WORKSPACE_GRAPH_SOURCE_KIND
   const graphKind =
     typeof meta.graphKind === 'string' && meta.graphKind.trim()
       ? meta.graphKind
@@ -306,10 +322,11 @@ const toWorkspaceJsonGraphData = (data: GraphData): GraphData | null => {
   return {
     ...data,
     type: data.type || 'apiGraph',
-    context: data.context || 'workspace-json',
+    context: data.context || source,
     metadata: {
       ...meta,
-      source: 'workspace-json',
+      source,
+      sourceKind,
       graphKind,
     } as Record<string, any>,
   }
@@ -317,7 +334,7 @@ const toWorkspaceJsonGraphData = (data: GraphData): GraphData | null => {
 
 const parseWorkspaceFallbackGraph = (name: string | null, text: string): GraphData | null => {
   try {
-    const parsed = parseGraph(name || 'workspace.json', text).data
+    const parsed = parseGraph(name || WORKSPACE_GRAPH_PARSE_NAME, text).data
     return toWorkspaceJsonGraphData(parsed)
   } catch {
     return null
@@ -328,8 +345,7 @@ const parseWorkspaceJsonGraphData = (args: { markdownName: string | null; markdo
   const rawText = String(args.markdownText || '')
   const trimmed = rawText.trim()
   if (!trimmed) return null
-  const name = String(args.markdownName || '').trim().toLowerCase()
-  const looksJson = name.endsWith('.json') || trimmed.startsWith('{') || trimmed.startsWith('[')
+  const looksJson = trimmed.startsWith('{') || trimmed.startsWith('[')
   if (!looksJson) return null
 
   try {
@@ -337,7 +353,15 @@ const parseWorkspaceJsonGraphData = (args: { markdownName: string | null; markdo
     if (!parsed || typeof parsed !== 'object') return null
     if (!Array.isArray(parsed)) {
       const bipartitePayload = parseBipartiteApiGraphPayload(parsed)
-      if (bipartitePayload) return normalizeBipartiteApiGraphData({ payload: bipartitePayload })
+      if (bipartitePayload) {
+        return normalizeBipartiteApiGraphData({
+          payload: bipartitePayload,
+          sourceMeta: buildBipartiteSourceMeta({
+            kind: 'workspace',
+            documentName: args.markdownName,
+          }),
+        })
+      }
     }
     const obj = Array.isArray(parsed) ? null : (parsed as Record<string, unknown>)
     const nodesRaw = obj && Array.isArray(obj.nodes) ? obj.nodes : null
@@ -404,9 +428,10 @@ const parseWorkspaceJsonGraphData = (args: { markdownName: string | null; markdo
     }
     return toWorkspaceJsonGraphData({
       type: 'apiGraph',
-      context: 'workspace-json',
+      context: WORKSPACE_GRAPH_CONTEXT,
       metadata: {
-        source: 'workspace-json',
+        source: WORKSPACE_GRAPH_SOURCE,
+        sourceKind: WORKSPACE_GRAPH_SOURCE_KIND,
       } as Record<string, any>,
       nodes,
       edges,
@@ -689,7 +714,7 @@ const INACTIVE_GRAPH_SLICE = {
   markdownName: null as string | null,
   markdownText: null as string | null,
   canvasRenderMode: '2d' as '2d' | '3d',
-  canvas2dRenderer: 'd3' as string,
+  canvas2dRenderer: 'd3' as Canvas2dRendererId,
   keywordSourceMaxLines: 8000,
   keywordSourceMaxChars: 120_000,
   keywordGraphPreviewDebounceMs: 200,
@@ -710,7 +735,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
             markdownName: s.markdownDocumentName || null,
             markdownText: s.markdownDocumentText || null,
             canvasRenderMode: (s.canvasRenderMode || '2d') as '2d' | '3d',
-            canvas2dRenderer: String(s.canvas2dRenderer || 'd3'),
+            canvas2dRenderer: (s.canvas2dRenderer || 'd3') as Canvas2dRendererId,
             keywordSourceMaxLines: s.keywordSourceMaxLines,
             keywordSourceMaxChars: s.keywordSourceMaxChars,
             keywordGraphPreviewDebounceMs: s.keywordGraphPreviewDebounceMs,
@@ -741,7 +766,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     revision,
   } = useGraphStore(useShallow(selector))
 
-  const wantsApiGraphBipartite = enabled && canvasRenderMode === '2d' && canvas2dRenderer === 'd3Bipartite'
+  const wantsApiGraphBipartite = enabled && canvasRenderMode === '2d' && isBipartiteCanvas2dRenderer(canvas2dRenderer)
   const workspaceJsonGraphData = React.useMemo(
     () => (enabled && !wantsApiGraphBipartite ? parseWorkspaceJsonGraphData({ markdownName, markdownText }) : null),
     [enabled, markdownName, markdownText, wantsApiGraphBipartite],

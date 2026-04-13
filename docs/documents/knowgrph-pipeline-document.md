@@ -59,7 +59,10 @@
 | Published-run builder | Compose preset + parameter choices only from published run metadata, compact table counts, highlight top exact-match families, and apply exact matches only. | Keep the public UI safe, deterministic, and easy to scan without ad-hoc query execution. |
 | Published run expansion | Grow builder choices by adding verified non-empty city variants with stable suffixes in the SSOT runs catalog. | Improve exact-match usefulness without changing the runtime contract. |
 | Published year-series | Add a parameterized published year preset with exact `2024`/`2025`/`2026` runs. | Give the builder a trustworthy second parameter axis with real event and demo subsets. |
-| Mobile/PWA | Keep mobile-first behavior source-driven in `knowgrph/canvas`, including stacked controls and generated install metadata mirrored by Pages sync. | Avoid hand-edited deploy artifacts and preserve one source for responsive PWA UX. |
+| Mobile/PWA | Keep mobile-first behavior source-driven in `knowgrph/canvas`; consume published `runtime.mobile_pwa` for compact bipartite controls and safe-area spacing, and mirror generated install metadata via Pages sync. | Avoid hand-edited deploy artifacts, duplicate viewport heuristics, and drift between source and public PWA UX. |
+| Bipartite source neutrality | Normalize API, fixture, and workspace bipartite payloads through one source-meta contract and shared edge roles. | Forbid filename-gated workspace JSON detection, sample fallback content, or `/api/graph`-specific styling assumptions in the 2D bipartite path. |
+| 2D renderer family neutrality | Centralize D3-like, surface-mount, and minimap decisions in shared renderer helpers; keep workspace JSON fallback parsing generic and workspace bipartite payloads source-tagged. | Reduce branch duplication across D3/Bipartite/Flow/Design/Flow Editor and avoid file-specific fallback cues in the shared 2D pipeline. |
+| Adjacent 2D helper neutrality | Reuse shared renderer-id and family helpers in persistence, store bootstrap/setters, minimap/editor gating, and D3 scene/schema activation. | Prevent stale inline allowlists and repeated D3/Bipartite or Flow Editor checks in adjacent surfaces after host-level cleanup. |
 
 ### Markdown Workspace Import Stability
 

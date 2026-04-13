@@ -11,12 +11,12 @@ import {
   lsNum,
   lsSetNum,
 } from '@/lib/persistence'
-import { LS_KEYS } from '@/lib/config'
+import { LS_KEYS } from '@/lib/config.ls'
 import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import { getInitialLaunchSpotlightEnabled, persistLaunchSpotlightEnabled } from '@/features/spotlight/storage'
 import { createPanelLayoutUiSlice } from '@/hooks/store/panelLayoutUiSlice'
-import { DEFAULT_CANVAS_2D_RENDERER, DEFAULT_CANVAS_3D_MODE } from '@/lib/config'
+import { DEFAULT_CANVAS_2D_RENDERER, DEFAULT_CANVAS_3D_MODE } from '@/lib/config.render'
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_DEFAULT_MODEL,
