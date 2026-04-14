@@ -75,8 +75,11 @@ export const testGeospatialOverlayHostProvidesSvgFallbackBasemapAndDisablesDefau
   if (!text.includes('function SvgGeospatialFallback')) {
     throw new Error('Expected GeospatialOverlayHost to provide a built-in SVG fallback basemap surface')
   }
-  if (!text.includes('const mapLibreRuntimeEnabled = false')) {
-    throw new Error('Expected GeospatialOverlayHost default runtime path to disable MapLibre basemap mounting')
+  if (!text.includes('const show2dSvgFallback = active && geospatialViewMode === \'2d-svg\'')) {
+    throw new Error('Expected GeospatialOverlayHost to expose a dedicated 2D SVG fallback mode')
+  }
+  if (!text.includes('const mapLibreRuntimeEnabled = show2dMapLibre || show3d')) {
+    throw new Error('Expected GeospatialOverlayHost runtime to enable MapLibre only for explicit 2D/3D MapLibre modes')
   }
   if (!text.includes('<SvgGeospatialFallback')) {
     throw new Error('Expected GeospatialOverlayHost to render the SVG fallback basemap')
@@ -187,6 +190,7 @@ export const testGeospatialPanelHostIsNotEmpty = () => {
   const text = readUtf8(hostPath)
   if (!text.includes('Basemap style URL')) throw new Error('Expected GeospatialPanelHost to render basemap style controls')
   if (!text.includes('Fit to data')) throw new Error('Expected GeospatialPanelHost to render fit controls')
+  if (!text.includes('2D (SVG fallback)')) throw new Error('Expected GeospatialPanelHost to expose explicit 2D SVG fallback selection')
 }
 
 export const testGympgrphDefaultInteractionModeIsAlways = () => {
@@ -292,17 +296,17 @@ export const testGympgrphMapLibreBasemapSupportsGlobeProjection = () => {
 export const testGympgrphMapLibreBasemapBlankDefaultStaysOffForSvgFallback = () => {
   const hookPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
   const text = readUtf8(hookPath)
-  if (!text.includes("if (!trimmed) return null")) {
-    throw new Error('Expected empty basemap style URL to stay off so the SVG fallback remains authoritative')
+  if (!text.includes("if (!trimmed) return MAPLIBRE_DEFAULT_STYLE_URL")) {
+    throw new Error('Expected empty basemap style URL to resolve to the MapLibre default style')
   }
   if (!text.includes("if (trimmed === SAFE_SVG_FALLBACK_STYLE_SENTINEL) return null")) {
-    throw new Error('Expected SVG fallback basemap sentinel to keep MapLibre disabled')
-  }
-  if (!text.includes("tiles.openfreemap.org/styles/liberty")) {
-    throw new Error('Expected hook to classify the previous OpenFreeMap Liberty default path as non-default')
+    throw new Error('Expected SVG fallback sentinel to keep MapLibre disabled in explicit SVG mode')
   }
   const helperPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'basemapStyle.ts')
   const helperText = readUtf8(helperPath)
+  if (!helperText.includes("MAPLIBRE_DEFAULT_STYLE_URL = 'https://demotiles.maplibre.org/style.json'")) {
+    throw new Error('Expected basemap style helper to expose a MapLibre default style URL')
+  }
   if (!helperText.includes("SAFE_SVG_FALLBACK_STYLE_SENTINEL = 'kg:style:svg-fallback'")) {
     throw new Error('Expected basemap style helper to expose an SVG fallback sentinel')
   }
@@ -314,8 +318,11 @@ export const testGympgrphGeospatialStyleStorageNormalizesUnsafeRemoteStyles = ()
   if (!helperText.includes('normalizePersistedGeospatialStyleUrl')) {
     throw new Error('Expected a shared geospatial basemap style normalization helper')
   }
-  if (!helperText.includes("if (lower.startsWith('http://') || lower.startsWith('https://')) return ''")) {
-    throw new Error('Expected persisted remote style URLs to normalize back to the safe default path')
+  if (!helperText.includes("if (!trimmed) return MAPLIBRE_DEFAULT_STYLE_URL")) {
+    throw new Error('Expected blank persisted style URLs to normalize to the MapLibre default path')
+  }
+  if (!helperText.includes("if (lower.startsWith('http://') || lower.startsWith('https://')) return trimmed")) {
+    throw new Error('Expected persisted remote style URLs to stay available for explicit MapLibre mode usage')
   }
 
   const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')

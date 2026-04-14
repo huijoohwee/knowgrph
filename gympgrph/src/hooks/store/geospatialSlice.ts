@@ -96,7 +96,13 @@ export const createDefaultGympgrphGeospatialState = (): Pick<
   | 'geospatialDatasetMaxBytes'
 > => {
   const geospatialModeEnabled = readBool(LS_KEYS.geospatialOverlayEnabled, false)
-  const geospatialViewMode = (readString(LS_KEYS.geospatialViewMode, '2d') as GeospatialViewMode) || '2d'
+  const readPersistedViewMode = (): GeospatialViewMode => {
+    const raw = readString(LS_KEYS.geospatialViewMode, '2d')
+    if (raw === '3d') return '3d'
+    if (raw === '2d-svg') return '2d-svg'
+    return '2d'
+  }
+  const geospatialViewMode = readPersistedViewMode()
   const geospatialInteractionMode = (readString(LS_KEYS.geospatialInteractionMode, 'always') as GeospatialInteractionMode) || 'always'
   const geospatialAutoFitEnabled = readBool(LS_KEYS.geospatialAutoFitEnabled, false)
   const geospatialDatasetTimeoutMs = (() => {
@@ -134,7 +140,7 @@ export const buildGympgrphGeospatialActions = (set: (updater: (prev: GympgrphGeo
   }
 
   const setGeospatialViewMode = (mode: GeospatialViewMode) => {
-    const next = mode === '3d' ? '3d' : '2d'
+    const next = mode === '3d' ? '3d' : mode === '2d-svg' ? '2d-svg' : '2d'
     set(prev => {
       if (prev.geospatialViewMode === next) return prev
       writeString(LS_KEYS.geospatialViewMode, next)

@@ -3,7 +3,7 @@ import { GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/const
 import { requestGeospatialFitToData, requestGeospatialFitToSelection } from './geospatialFit'
 import { LS_KEYS } from './lib/config'
 import { useGympgrphStore } from './store'
-import { normalizePersistedGeospatialStyleUrl } from './features/geospatial/basemapStyle'
+import { MAPLIBRE_DEFAULT_STYLE_URL, normalizePersistedGeospatialStyleUrl } from './features/geospatial/basemapStyle'
 
 type GeospatialPanelHostProps = {
   active?: boolean
@@ -48,8 +48,8 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
   const setGeospatialDatasetTimeoutMs = useGympgrphStore(s => s.setGeospatialDatasetTimeoutMs)
   const setGeospatialDatasetMaxBytes = useGympgrphStore(s => s.setGeospatialDatasetMaxBytes)
 
-  const [styleUrlDraft, setStyleUrlDraft] = React.useState<string>(() => readLsString(LS_KEYS.geospatialStyleUrl, ''))
-  const [committedStyleUrl, setCommittedStyleUrl] = React.useState<string>(() => readLsString(LS_KEYS.geospatialStyleUrl, ''))
+  const [styleUrlDraft, setStyleUrlDraft] = React.useState<string>(() => readLsString(LS_KEYS.geospatialStyleUrl, MAPLIBRE_DEFAULT_STYLE_URL))
+  const [committedStyleUrl, setCommittedStyleUrl] = React.useState<string>(() => readLsString(LS_KEYS.geospatialStyleUrl, MAPLIBRE_DEFAULT_STYLE_URL))
 
   const committedStyleUrlRef = React.useRef(committedStyleUrl)
   React.useEffect(() => {
@@ -59,9 +59,9 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
   React.useEffect(() => {
     if (typeof window === 'undefined') return
     const onChanged = () => {
-      const next = readLsString(LS_KEYS.geospatialStyleUrl, '')
+      const next = readLsString(LS_KEYS.geospatialStyleUrl, MAPLIBRE_DEFAULT_STYLE_URL)
       setCommittedStyleUrl(next)
-      setStyleUrlDraft(prev => (prev === '' || prev === committedStyleUrlRef.current ? next : prev))
+      setStyleUrlDraft(prev => (prev === MAPLIBRE_DEFAULT_STYLE_URL || prev === committedStyleUrlRef.current ? next : prev))
     }
     window.addEventListener(GEOSPATIAL_STYLE_URL_CHANGED_EVENT, onChanged)
     return () => {
@@ -71,9 +71,9 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
 
   const applyStyleUrl = React.useCallback(() => {
     const next = normalizePersistedGeospatialStyleUrl(styleUrlDraft)
-    writeLsString(LS_KEYS.geospatialStyleUrl, next)
-    setCommittedStyleUrl(next)
-    setStyleUrlDraft(next)
+    writeLsString(LS_KEYS.geospatialStyleUrl, next || MAPLIBRE_DEFAULT_STYLE_URL)
+    setCommittedStyleUrl(next || MAPLIBRE_DEFAULT_STYLE_URL)
+    setStyleUrlDraft(next || MAPLIBRE_DEFAULT_STYLE_URL)
     if (typeof window !== 'undefined') {
       try {
         window.dispatchEvent(new Event(GEOSPATIAL_STYLE_URL_CHANGED_EVENT))
@@ -84,9 +84,9 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
   }, [styleUrlDraft])
 
   const resetStyleUrl = React.useCallback(() => {
-    setStyleUrlDraft('')
-    writeLsString(LS_KEYS.geospatialStyleUrl, '')
-    setCommittedStyleUrl('')
+    setStyleUrlDraft(MAPLIBRE_DEFAULT_STYLE_URL)
+    writeLsString(LS_KEYS.geospatialStyleUrl, MAPLIBRE_DEFAULT_STYLE_URL)
+    setCommittedStyleUrl(MAPLIBRE_DEFAULT_STYLE_URL)
     if (typeof window !== 'undefined') {
       try {
         window.dispatchEvent(new Event(GEOSPATIAL_STYLE_URL_CHANGED_EVENT))
@@ -128,7 +128,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
     <div className="h-full w-full p-3 text-sm text-gray-800 dark:text-gray-100">
       <div className="flex items-center justify-between gap-2">
         <div className="font-medium">Geospatial</div>
-        <div className="text-[11px] text-gray-500 dark:text-gray-400">style: {committedStyleUrl ? 'custom' : 'default'}</div>
+        <div className="text-[11px] text-gray-500 dark:text-gray-400">style: {committedStyleUrl === MAPLIBRE_DEFAULT_STYLE_URL ? 'default' : 'custom'}</div>
       </div>
 
       <div className="mt-3 grid gap-2">
@@ -142,6 +142,14 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
               onClick={() => setGeospatialViewMode('2d')}
             >
               2D (MapLibre){geospatialViewMode === '2d' ? ' (active)' : ''}
+            </button>
+            <button
+              type="button"
+              className="px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+              disabled={disabled}
+              onClick={() => setGeospatialViewMode('2d-svg')}
+            >
+              2D (SVG fallback){geospatialViewMode === '2d-svg' ? ' (active)' : ''}
             </button>
             <button
               type="button"
@@ -192,7 +200,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
               className="flex-1 min-w-0 px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
               value={styleUrlDraft}
               onChange={e => setStyleUrlDraft(e.target.value)}
-              placeholder="Leave blank for high-fidelity SVG basemap"
+              placeholder="Leave blank for MapLibre default style"
               spellCheck={false}
               disabled={disabled}
             />

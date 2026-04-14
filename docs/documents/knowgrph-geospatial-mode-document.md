@@ -6,22 +6,24 @@
 
 ---
 
-## Status (2026-04-02)
+## Status (2026-04-14)
 
 - Knowgrph keeps Geospatial Mode logic out of its codebase and loads it on-demand from the sibling repo `gympgrph` (implementation lives in `gympgrph/src/`).
 - Knowgrph exposes a toolbar entrypoint (**Geospatial Mode**, right of **3D Mode**) that opens the Floating Panel **Geo** view and toggles the gympgrph overlay.
-- **3D render mode uses MapLibre Globe exclusively** (Cesium has been removed). The 3D overlay renders via the same MapLibre instance, switching from Mercator to globe projection. Initial 3D camera is deterministic: Singapore center (`lng 103.8198, lat 1.3521`), zoom `2.8`, pitch `0`, bearing `0`, applied as a single `jumpTo` call with zero padding, followed by one RAF stabilization pass. Passive auto-fit is disabled in 3D mode so the startup camera is never immediately overwritten. Explicit fit requests (user-initiated or data-driven) remain fully functional.
+- **3D render mode uses MapLibre exclusively** (Cesium has been removed). The 3D overlay renders via the same MapLibre runtime path with deterministic startup camera defaults (Singapore center, zoom `2.8`, pitch `0`, bearing `0`) and bounded fit behavior.
 
 ## Current Status (Runtime Overlay)
 
-- In the default host path, a high-fidelity local SVG basemap renders on top of the canvas; it stays crisp, bounded, and free of MapLibre runtime crashes.
+- The Geo panel exposes three explicit view selections: **2D (MapLibre)**, **2D (SVG fallback)**, and **3D (MapLibre)**.
+- **2D (MapLibre)** and **3D (MapLibre)** run through the restored MapLibre runtime path and support explicit style URL overrides.
+- **2D (SVG fallback)** remains a dedicated high-fidelity fallback surface with no MapLibre runtime dependency.
 - The overlay supports interaction gating (**Off / Hold Space / Always**). Default interaction mode is **Always** for immediate navigation, and users can switch in the Geo panel.
 - Geospatial Mode is a canvas rendering mode: when **ON**, the canvas suppresses knowledge-graph rendering (nodes/edges/layers/rich media) so the map overlay and geospatial datasets are the primary surface.
 - Floating Panel open/close does not toggle Geospatial Mode.
 - When a non-default MapLibre path is enabled, the extracted module still owns the required MapLibre CSS so host runtimes do not need to import it separately.
-- **Default Style**: A blank/default basemap style keeps the host on the high-fidelity SVG fallback. It does not route to any square raster fallback.
-- **Style URL Note**: Persisted remote style URLs and legacy sentinels normalize back to the SVG-first default path unless an explicit supported MapLibre path is intentionally reintroduced.
-- **Projection Note**: MapLibre projection settings remain a non-default capability; the current host default path stays SVG-first and keeps MapLibre runtime off.
+- **Default Style**: A blank/default basemap style resolves to the MapLibre default style URL (`https://demotiles.maplibre.org/style.json`) for MapLibre modes.
+- **Style URL Note**: Explicit `http(s)` style URLs remain supported for MapLibre modes; the SVG fallback sentinel (`kg:style:svg-fallback`) keeps MapLibre off only for explicit SVG fallback mode.
+- **Legacy/Raster Note**: Legacy square raster fallback paths remain forbidden and are not used by any default or fallback mode.
 - Dataset layers can be added as http(s) URLs (GeoJSON or record-style JSON) and rendered as points/lines/polygons.
 - Same-origin datasets can also be referenced as absolute paths (starting with `/`) so hosts can serve local GeoJSON/JSON without CORS.
  - Host-side JSON imports that contain geo fields (e.g. `lat/lon` or `geo.{lat,lng}`) can be ingested as **sampled geodata** without parsing the entire JSON payload (prevents UI freezes on very large object-map datasets).
@@ -50,7 +52,7 @@
 - Style-relative URLs are resolved against a trailing-slash base (for example `.../styles/liberty/`) so `sprite`, `glyphs`, and `source.url` relative paths resolve correctly.
 - Runtime overlay status is surfaced via a native in-app toast (top-right, below the toolbar) so it stays visible above the Floating Panel and other UI layers.
 - Hover and click popups are rendered by MapLibre (not by the host UI) to keep POI feedback colocated with the map.
-- The SVG fallback is the current host default: ocean/land/frame styling is precomputed, the grid uses memoized `10°` minor and `30°` major graticule layers for finer granularity, and the host must not regress to square raster tiles or other legacy fallback paths.
+- The SVG fallback is an explicit host mode: ocean/land/frame styling is precomputed, the grid uses memoized `5°` minor and `15°` major graticule layers for higher visual fidelity, and the host must not regress to square raster tiles or other legacy fallback paths.
 - If the basemap stays blank after refresh while requests succeed, the most common cause is a **0px-height overlay container** (e.g. `canvas=1728x0`). The overlay is mounted via a portal and forces viewport-sized layout (`100vw/100vh` with px fallbacks) and calls `map.resize()` to avoid this dead state.
 
 ### Troubleshooting: “Loaded” but blank
@@ -65,7 +67,7 @@
 
 1. User loads a dataset into the graph.
 2. In the extracted module UI, user enables the runtime overlay.
-3. A translucent basemap overlay appears on top of the canvas (defaulting to OpenFreeMap) while graph interactions remain primary.
+3. A translucent basemap overlay appears on top of the canvas. In MapLibre modes, the default style is MapLibre Demo Tiles unless the user applies a custom style URL.
 4. User optionally configures interaction/projection/animation settings in the overlay panel UI.
 5. User adds one or more dataset URLs via **Source Files** (Workspace Actions), optionally registering them as Geo layers to render additional map overlay layers.
    - For local Markdown Source Files, embedded fenced `geojson` code blocks (GeoJSON `FeatureCollection`) can also be registered as overlay datasets by extracting and uploading the blocks to the bounded local dataset cache.

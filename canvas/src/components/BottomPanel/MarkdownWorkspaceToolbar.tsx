@@ -116,15 +116,20 @@ export function MarkdownWorkspaceToolbar({
   const panelTypography = usePanelTypography()
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const canNavigateSlides = layoutMode === 'presentation'
+  const effectiveSplitPanes = splitPaneVisibility || { json: true, markdown: true, viewer: true }
   const inlineFloatingFormattingOwnsViewerSurface =
-    layoutMode === 'viewer'
+    (layoutMode === 'viewer'
+      || (layoutMode === 'split' && Boolean(effectiveSplitPanes.viewer)))
     && viewerKind === 'markdown'
     && viewerMode === 'read'
-  const showWorkspaceFormattingMenu = !inlineFloatingFormattingOwnsViewerSurface && isEditing && isMarkdown
+  const showWorkspaceFormattingMenu =
+    layoutMode !== 'split'
+    && !inlineFloatingFormattingOwnsViewerSurface
+    && isEditing
+    && isMarkdown
   const showMarkdownDisplayMenu = viewerKind === 'markdown' && (viewerMode === 'read' || !viewerMode)
   const [splitSelectorOpen, setSplitSelectorOpen] = React.useState(false)
   const splitButtonRef = React.useRef<HTMLButtonElement | null>(null)
-  const effectiveSplitPanes = splitPaneVisibility || { json: true, markdown: true, viewer: true }
   const toggleSplitPane = React.useCallback((key: 'json' | 'markdown' | 'viewer') => {
     if (!setSplitPaneVisibility) return
     const current = effectiveSplitPanes

@@ -72,12 +72,12 @@ const HIGH_FIDELITY_WORLD_SVG_HEIGHT = 265.7
 const SVG_FALLBACK_VIEWBOX_WIDTH = 1000
 const SVG_FALLBACK_VIEWBOX_HEIGHT = 560
 const SVG_FALLBACK_STYLE = {
-  graticuleMinorStep: [10, 10] as const,
-  graticuleMajorStep: [30, 30] as const,
-  oceanGradientStops: ['rgb(236 244 249)', 'rgb(214 229 239)', 'rgb(191 209 223)'] as const,
-  oceanSheenStops: ['rgba(255,255,255,0.44)', 'rgba(255,255,255,0.19)', 'rgba(15,23,42,0.06)'] as const,
-  landWashStops: ['rgba(255,255,255,0.20)', 'rgba(148,163,184,0.07)'] as const,
-  frameStrokeStops: ['rgba(255,255,255,0.94)', 'rgba(71,85,105,0.78)'] as const,
+  graticuleMinorStep: [5, 5] as const,
+  graticuleMajorStep: [15, 15] as const,
+  oceanGradientStops: ['rgb(224 236 245)', 'rgb(196 217 232)', 'rgb(166 191 210)'] as const,
+  oceanSheenStops: ['rgba(255,255,255,0.48)', 'rgba(255,255,255,0.20)', 'rgba(30,41,59,0.10)'] as const,
+  landWashStops: ['rgba(255,255,255,0.20)', 'rgba(34,197,94,0.09)'] as const,
+  frameStrokeStops: ['rgba(255,255,255,0.95)', 'rgba(30,41,59,0.88)'] as const,
   mapFilterMatrix: `
                 0.64 0.00 0.00 0 0.24
                 0.00 0.68 0.00 0 0.25
@@ -85,12 +85,12 @@ const SVG_FALLBACK_STYLE = {
                 0.00 0.00 0.00 1 0
               `,
   mapGamma: ['0.79', '0.81', '0.86'] as const,
-  sphereShadow: 'rgba(15,23,42,0.16)',
+  sphereShadow: 'rgba(15,23,42,0.20)',
   pointShadow: 'rgba(15,23,42,0.35)',
-  minorGridLight: 'rgba(255,255,255,0.10)',
-  minorGridDark: 'rgba(148,163,184,0.06)',
-  majorGridLight: 'rgba(255,255,255,0.18)',
-  majorGridDark: 'rgba(71,85,105,0.11)',
+  minorGridLight: 'rgba(255,255,255,0.09)',
+  minorGridDark: 'rgba(100,116,139,0.07)',
+  majorGridLight: 'rgba(255,255,255,0.17)',
+  majorGridDark: 'rgba(51,65,85,0.15)',
   pointFill: 'rgba(37,99,235,0.92)',
   pointOutline: 'rgba(255,255,255,0.98)',
   pointStroke: 'rgba(29,78,216,0.74)',
@@ -142,8 +142,14 @@ function SvgGeospatialFallback(args: {
   const areaPathBuilder = React.useMemo(() => geoPath(projection), [projection])
   const pointPathBuilder = React.useMemo(() => geoPath(projection).pointRadius(4), [projection])
   const selectedPointPathBuilder = React.useMemo(() => geoPath(projection).pointRadius(6), [projection])
-  const minorGraticule = React.useMemo(() => geoGraticule().step(SVG_FALLBACK_STYLE.graticuleMinorStep), [])
-  const majorGraticule = React.useMemo(() => geoGraticule().step(SVG_FALLBACK_STYLE.graticuleMajorStep), [])
+  const minorGraticule = React.useMemo(
+    () => geoGraticule().step([SVG_FALLBACK_STYLE.graticuleMinorStep[0], SVG_FALLBACK_STYLE.graticuleMinorStep[1]]),
+    [],
+  )
+  const majorGraticule = React.useMemo(
+    () => geoGraticule().step([SVG_FALLBACK_STYLE.graticuleMajorStep[0], SVG_FALLBACK_STYLE.graticuleMajorStep[1]]),
+    [],
+  )
   const worldTopLeft = React.useMemo(() => projection([-180, 90]) || [0, 0], [projection])
   const worldBottomRight = React.useMemo(() => projection([180, -90]) || [width, height], [projection, width, height])
   const svgImageX = Math.min(worldTopLeft[0], worldBottomRight[0])
@@ -217,8 +223,9 @@ function SvgGeospatialFallback(args: {
           />
           <rect x={svgImageX} y={svgImageYAdjusted} width={svgImageWidth} height={svgImageHeight} fill="url(#kg-geo-fallback-land-wash)" />
         </g>
-        <path d={spherePath} fill="url(#kg-geo-fallback-ocean-sheen)" stroke="rgba(255,255,255,0.26)" strokeWidth="3.2" filter="url(#kg-geo-fallback-sphere-shadow)" />
+        <path d={spherePath} fill="url(#kg-geo-fallback-ocean-sheen)" stroke="rgba(255,255,255,0.32)" strokeWidth="3.4" filter="url(#kg-geo-fallback-sphere-shadow)" />
         <path d={spherePath} fill="none" stroke="url(#kg-geo-fallback-frame-stroke)" strokeWidth="1.2" />
+        <path d={spherePath} fill="none" stroke="rgba(15,23,42,0.28)" strokeWidth="1.75" />
         <path d={minorGraticulePath} fill="none" stroke={SVG_FALLBACK_STYLE.minorGridLight} strokeWidth="0.55" />
         <path d={minorGraticulePath} fill="none" stroke={SVG_FALLBACK_STYLE.minorGridDark} strokeWidth="0.95" />
         <path d={majorGraticulePath} fill="none" stroke={SVG_FALLBACK_STYLE.majorGridLight} strokeWidth="0.95" />
@@ -312,7 +319,8 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     }
   }, [])
 
-  const show2d = active && geospatialViewMode !== '3d'
+  const show2dMapLibre = active && geospatialViewMode === '2d'
+  const show2dSvgFallback = active && geospatialViewMode === '2d-svg'
   const show3d = active && geospatialViewMode === '3d'
   const fitPadding = show3d ? 0 : 24
   const selectedNodeIds = React.useMemo(() => getSnapshotSelectedNodeIds(props.snapshot), [props.snapshot])
@@ -334,10 +342,10 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   }, [graphFeatureCollection, selectedNodeIds])
   const selectedBounds = React.useMemo(() => computeBoundsFromCollections([selectedFeatureCollection]), [selectedFeatureCollection])
   const graphDataKey = React.useMemo(() => graphProjection.signature, [graphProjection.signature])
-  const mapLibreRuntimeEnabled = false
+  const mapLibreRuntimeEnabled = show2dMapLibre || show3d
 
   const basemap2d = useMapLibreBasemap({
-    enabled: show2d && mapLibreRuntimeEnabled,
+    enabled: show2dMapLibre && mapLibreRuntimeEnabled,
     rootRef,
     containerRef: map2dContainerRef,
     targetStyleUrl,
@@ -396,9 +404,9 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   )
 
   React.useEffect(() => {
-    if (!show2d) return
+    if (!show2dMapLibre) return
     applyFeatureCollectionToBasemap({ basemapMap: basemap2d.map, styleRevision: basemap2d.styleRevision, viewMode: 'map2d' })
-  }, [applyFeatureCollectionToBasemap, basemap2d.map, basemap2d.styleRevision, show2d])
+  }, [applyFeatureCollectionToBasemap, basemap2d.map, basemap2d.styleRevision, show2dMapLibre])
 
   React.useEffect(() => {
     if (!show3d) return
@@ -491,11 +499,11 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
       <SvgGeospatialFallback
         featureCollection={graphFeatureCollection}
         selectedFeatureCollection={selectedFeatureCollection}
-        className="absolute inset-0 pointer-events-none opacity-100"
+        className={show2dSvgFallback ? 'absolute inset-0 pointer-events-none opacity-100' : 'absolute inset-0 pointer-events-none opacity-0'}
       />
       <div
         ref={map2dContainerRef}
-        className={show2d ? 'absolute inset-0 pointer-events-auto opacity-100' : 'absolute inset-0 pointer-events-none opacity-0'}
+        className={show2dMapLibre ? 'absolute inset-0 pointer-events-auto opacity-100' : 'absolute inset-0 pointer-events-none opacity-0'}
         style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       />
 

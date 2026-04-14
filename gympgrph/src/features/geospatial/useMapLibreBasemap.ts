@@ -1,4 +1,5 @@
 import React from 'react'
+import { MAPLIBRE_DEFAULT_STYLE_URL } from './basemapStyle'
 
 type BasemapProbe = {
   tileSourceId: string
@@ -28,11 +29,9 @@ const SAFE_SVG_FALLBACK_STYLE_SENTINEL = 'kg:style:svg-fallback'
 const resolveBasemapStyle = (rawStyleUrl: string | null | undefined) => {
   const trimmed = String(rawStyleUrl || '').trim()
   const lower = trimmed.toLowerCase()
-  if (!trimmed) return null
+  if (!trimmed) return MAPLIBRE_DEFAULT_STYLE_URL
   if (trimmed === SAFE_SVG_FALLBACK_STYLE_SENTINEL) return null
-  if (lower.startsWith('kg:style:')) return null
-  if (lower.includes('demotiles.maplibre.org')) return null
-  if (lower.includes('tiles.openfreemap.org/styles/liberty')) return null
+  if (lower.startsWith('kg:style:')) return MAPLIBRE_DEFAULT_STYLE_URL
   return trimmed
 }
 
