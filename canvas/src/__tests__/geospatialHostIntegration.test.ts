@@ -65,7 +65,8 @@ export const testGeospatialOverlayHostSupportsMapLibreGlobeRenderer = () => {
   const text = readUtf8(hostPath)
   if (!text.includes('useMapLibreBasemap')) throw new Error('Expected GeospatialOverlayHost to use MapLibre basemap hook')
   if (!text.includes('basemap3d')) throw new Error('Expected GeospatialOverlayHost to create dedicated 3D basemap instance')
-  if (!text.includes("projectionMode: 'mercator'")) throw new Error('Expected GeospatialOverlayHost 3D view to use stable MapLibre mercator projection')
+  if (!text.includes("projectionMode: 'globe'")) throw new Error('Expected GeospatialOverlayHost 3D view to use MapLibre globe projection')
+  if (!text.includes('MAPLIBRE_GLOBE_DEFAULT_STYLE_URL')) throw new Error('Expected GeospatialOverlayHost 3D mode to default to a globe style URL')
   if (!text.includes('geospatialViewMode')) throw new Error('Expected host to read geospatialViewMode')
 }
 
@@ -77,6 +78,9 @@ export const testGeospatialOverlayHostProvidesSvgFallbackBasemapAndDisablesDefau
   }
   if (!text.includes('const show2dSvgFallback = active && geospatialViewMode === \'2d-svg\'')) {
     throw new Error('Expected GeospatialOverlayHost to expose a dedicated 2D SVG fallback mode')
+  }
+  if (!text.includes('const show3dModern = active && geospatialViewMode === \'3d-modern\'')) {
+    throw new Error('Expected GeospatialOverlayHost to expose a dedicated 3D MapLibre Modern mode')
   }
   if (!text.includes('const mapLibreRuntimeEnabled = show2dMapLibre || show3d')) {
     throw new Error('Expected GeospatialOverlayHost runtime to enable MapLibre only for explicit 2D/3D MapLibre modes')
@@ -190,7 +194,10 @@ export const testGeospatialPanelHostIsNotEmpty = () => {
   const text = readUtf8(hostPath)
   if (!text.includes('Basemap style URL')) throw new Error('Expected GeospatialPanelHost to render basemap style controls')
   if (!text.includes('Fit to data')) throw new Error('Expected GeospatialPanelHost to render fit controls')
-  if (!text.includes('2D (SVG fallback)')) throw new Error('Expected GeospatialPanelHost to expose explicit 2D SVG fallback selection')
+  if (!text.includes('2D (MapLibre, Classic)')) throw new Error('Expected GeospatialPanelHost to expose explicit 2D MapLibre Classic selection')
+  if (!text.includes('3D (MapLibre, Classic)')) throw new Error('Expected GeospatialPanelHost to expose explicit 3D MapLibre Classic selection')
+  if (!text.includes('3D (MapLibre, Modern)')) throw new Error('Expected GeospatialPanelHost to expose explicit 3D MapLibre Modern selection')
+  if (!text.includes('2D (SVG, fallback)')) throw new Error('Expected GeospatialPanelHost to expose explicit 2D SVG fallback selection')
 }
 
 export const testGympgrphDefaultInteractionModeIsAlways = () => {
@@ -214,6 +221,14 @@ export const testHostEnableForcesAlwaysInteractionMode = () => {
   const text = readUtf8(hostBridgePath)
   if (!text.includes("s.setGeospatialInteractionMode('always')")) {
     throw new Error('Expected enabling Geospatial Mode to force interactionMode=always for immediate navigation')
+  }
+}
+
+export const testHostEnableDoesNotForce2dViewMode = () => {
+  const hostBridgePath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'hostBridge.ts')
+  const text = readUtf8(hostBridgePath)
+  if (text.includes("s.setGeospatialViewMode('2d')")) {
+    throw new Error('Geospatial host enable must not hard-reset view mode to 2d')
   }
 }
 
@@ -304,8 +319,11 @@ export const testGympgrphMapLibreBasemapBlankDefaultStaysOffForSvgFallback = () 
   }
   const helperPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'basemapStyle.ts')
   const helperText = readUtf8(helperPath)
-  if (!helperText.includes("MAPLIBRE_DEFAULT_STYLE_URL = 'https://demotiles.maplibre.org/style.json'")) {
-    throw new Error('Expected basemap style helper to expose a MapLibre default style URL')
+  if (!helperText.includes("MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL = 'https://demotiles.maplibre.org/style.json'")) {
+    throw new Error('Expected basemap style helper to expose a MapLibre classic default style URL')
+  }
+  if (!helperText.includes("MAPLIBRE_MODERN_DEFAULT_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'")) {
+    throw new Error('Expected basemap style helper to expose a MapLibre modern default style URL')
   }
   if (!helperText.includes("SAFE_SVG_FALLBACK_STYLE_SENTINEL = 'kg:style:svg-fallback'")) {
     throw new Error('Expected basemap style helper to expose an SVG fallback sentinel')
@@ -329,6 +347,9 @@ export const testGympgrphGeospatialStyleStorageNormalizesUnsafeRemoteStyles = ()
   const hostText = readUtf8(hostPath)
   if (!hostText.includes('normalizePersistedGeospatialStyleUrl(raw)')) {
     throw new Error('Expected GeospatialHost to normalize persisted style URLs when reading runtime basemap state')
+  }
+  if (!hostText.includes('MAPLIBRE_MODERN_DEFAULT_STYLE_URL')) {
+    throw new Error('Expected GeospatialHost to distinguish MapLibre modern built-in default styling')
   }
 }
 
@@ -367,6 +388,28 @@ export const testGympgrphMapLibreLoggerSuppressesAbortNoise = () => {
   if (!text.includes('/__fetch_remote')) throw new Error('Expected logger to filter /__fetch_remote abort noise')
   if (!text.toLowerCase().includes('err_aborted') && !text.toLowerCase().includes('aborterror')) {
     throw new Error('Expected logger to match aborted request errors')
+  }
+}
+
+export const testGympgrphMapLibreLayersGuardWritesUntilStyleReady = () => {
+  const layersPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'maplibreLayers.ts')
+  const text = readUtf8(layersPath)
+  if (!text.includes('isStyleReady')) {
+    throw new Error('Expected maplibre layer helpers to define a style-ready guard')
+  }
+  if (!text.includes('if (!isStyleReady(map)) return')) {
+    throw new Error('Expected maplibre layer helpers to skip source/layer writes before style load')
+  }
+}
+
+export const testGympgrphBasemapResetsStyleRevisionBeforeRemount = () => {
+  const hookPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
+  const text = readUtf8(hookPath)
+  if (!text.includes('Reset style revision before mounting/re-mounting')) {
+    throw new Error('Expected basemap hook to reset style revision before remount')
+  }
+  if (!text.includes('styleRevision: 0')) {
+    throw new Error('Expected basemap hook remount reset to clear styleRevision')
   }
 }
 

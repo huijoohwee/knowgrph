@@ -2,12 +2,20 @@ import React from 'react'
 import { useGympgrphStore } from './store'
 import { useMapLibreBasemap } from './features/geospatial/useMapLibreBasemap'
 import { LS_KEYS } from './lib/config'
+import { onGeospatialModeChanged, type GeospatialViewMode } from 'grph-shared/geospatial/events'
 import { GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/constants'
 import { computeBoundsFromCollections } from './geo'
 import { clearGeoJsonSourceData, ensureDatasetLayer, setGeoJsonSourceData } from './maplibreLayers'
 import { colorForDataset } from './colors'
 import { isPointOnlyFeatureCollection } from './selection'
-import { normalizePersistedGeospatialStyleUrl } from './features/geospatial/basemapStyle'
+import {
+  MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL,
+  MAPLIBRE_DEFAULT_STYLE_URL,
+  MAPLIBRE_GLOBE_DEFAULT_STYLE_URL,
+  MAPLIBRE_MODERN_DEFAULT_STYLE_URL,
+  normalizePersistedGeospatialStyleUrl,
+  SAFE_SVG_FALLBACK_STYLE_SENTINEL,
+} from './features/geospatial/basemapStyle'
 import type { FeatureCollection } from 'geojson'
 import { geoEquirectangular, geoGraticule, geoPath } from 'd3'
 
@@ -297,9 +305,22 @@ const readStyleUrl = (): string | null => {
   }
 }
 
+const readPersistedViewMode = (): GeospatialViewMode => {
+  if (typeof window === 'undefined') return '2d'
+  try {
+    const raw = String(window.localStorage.getItem(LS_KEYS.geospatialViewMode) || '').trim()
+    if (raw === '3d-modern') return '3d-modern'
+    if (raw === '3d') return '3d'
+    if (raw === '2d-svg') return '2d-svg'
+    return '2d'
+  } catch {
+    return '2d'
+  }
+}
+
 export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.ReactElement | null {
   const active = props.active !== false
-  const geospatialViewMode = useGympgrphStore(s => s.geospatialViewMode)
+  const storeGeospatialViewMode = useGympgrphStore(s => s.geospatialViewMode)
   const geospatialAutoFitEnabled = useGympgrphStore(s => s.geospatialAutoFitEnabled)
   const geospatialFitRequest = useGympgrphStore(s => s.geospatialFitRequest)
   const clearGeospatialFitRequest = useGympgrphStore(s => s.clearGeospatialFitRequest)
@@ -307,6 +328,11 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   const map2dContainerRef = React.useRef<HTMLDivElement | null>(null)
   const map3dContainerRef = React.useRef<HTMLDivElement | null>(null)
   const [targetStyleUrl, setTargetStyleUrl] = React.useState<string | null>(() => readStyleUrl())
+  const [geospatialViewMode, setGeospatialViewMode] = React.useState<GeospatialViewMode>(() => storeGeospatialViewMode || readPersistedViewMode())
+
+  React.useEffect(() => {
+    setGeospatialViewMode(storeGeospatialViewMode || readPersistedViewMode())
+  }, [storeGeospatialViewMode])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -319,9 +345,48 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     }
   }, [])
 
-  const show2dMapLibre = active && geospatialViewMode === '2d'
+  React.useEffect(() => {
+    return onGeospatialModeChanged(detail => {
+      const next = detail.viewMode || readPersistedViewMode()
+      setGeospatialViewMode(prev => (prev === next ? prev : next))
+    })
+  }, [])
+
+  const show2dMapLibreClassic = active && geospatialViewMode === '2d'
+  const show2dMapLibre = show2dMapLibreClassic
   const show2dSvgFallback = active && geospatialViewMode === '2d-svg'
-  const show3d = active && geospatialViewMode === '3d'
+  const show3dClassic = active && geospatialViewMode === '3d'
+  const show3dModern = active && geospatialViewMode === '3d-modern'
+  const show3d = show3dClassic || show3dModern
+  const effectiveTargetStyleUrl = React.useMemo(() => {
+    const current = String(targetStyleUrl || '').trim()
+    if (show2dSvgFallback) return SAFE_SVG_FALLBACK_STYLE_SENTINEL
+    if (show3dModern) {
+      if (
+        !current ||
+        current === SAFE_SVG_FALLBACK_STYLE_SENTINEL ||
+        current === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
+        current === MAPLIBRE_GLOBE_DEFAULT_STYLE_URL
+      ) {
+        return MAPLIBRE_MODERN_DEFAULT_STYLE_URL
+      }
+      return targetStyleUrl
+    }
+    if (show3d) {
+      if (
+        !current ||
+        current === SAFE_SVG_FALLBACK_STYLE_SENTINEL ||
+        current === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
+        current === MAPLIBRE_MODERN_DEFAULT_STYLE_URL
+      ) {
+        return MAPLIBRE_GLOBE_DEFAULT_STYLE_URL
+      }
+      return targetStyleUrl
+    }
+    // Migrate stale persisted SVG sentinel values for restored MapLibre modes.
+    if (current === SAFE_SVG_FALLBACK_STYLE_SENTINEL) return MAPLIBRE_DEFAULT_STYLE_URL
+    return targetStyleUrl
+  }, [show2dSvgFallback, show3d, show3dModern, targetStyleUrl])
   const fitPadding = show3d ? 0 : 24
   const selectedNodeIds = React.useMemo(() => getSnapshotSelectedNodeIds(props.snapshot), [props.snapshot])
   const graphProjection = React.useMemo(() => {
@@ -348,7 +413,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     enabled: show2dMapLibre && mapLibreRuntimeEnabled,
     rootRef,
     containerRef: map2dContainerRef,
-    targetStyleUrl,
+    targetStyleUrl: effectiveTargetStyleUrl,
     canvasRenderMode: '2d',
     projectionMode: 'mercator',
     viewportSizingMode: 'fit',
@@ -358,9 +423,9 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     enabled: show3d && mapLibreRuntimeEnabled,
     rootRef,
     containerRef: map3dContainerRef,
-    targetStyleUrl,
+    targetStyleUrl: effectiveTargetStyleUrl,
     canvasRenderMode: '3d',
-    projectionMode: 'mercator',
+    projectionMode: 'globe',
     viewportSizingMode: 'fit',
     vectorFallbackMs: 2_000,
   })
@@ -515,6 +580,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
       {debug ? (
         <div className="absolute top-2 right-2 z-20 pointer-events-none rounded-md border border-gray-200/60 bg-white/80 px-2 py-1 text-[11px] text-gray-700 dark:border-gray-800/60 dark:bg-black/60 dark:text-gray-200">
           <div>map: {activeBasemap.map ? 'yes' : 'no'}</div>
+          <div>mode: {geospatialViewMode}</div>
           <div>
             canvas: {activeBasemap.probe.canvasW}×{activeBasemap.probe.canvasH} tilesLoaded: {activeBasemap.probe.tilesLoaded ? 'yes' : 'no'}
           </div>

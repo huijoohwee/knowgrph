@@ -2,15 +2,30 @@ import type { FeatureCollection } from 'geojson'
 
 const EMPTY_FEATURE_COLLECTION: FeatureCollection = { type: 'FeatureCollection', features: [] }
 
+const isStyleReady = (map: any): boolean => {
+  if (!map) return false
+  try {
+    if (typeof map.isStyleLoaded === 'function') return map.isStyleLoaded() === true
+  } catch {
+    return false
+  }
+  return false
+}
+
 export function setGeoJsonSourceData(map: any, sourceId: string, fc: FeatureCollection): void {
   if (!map || !sourceId) return
+  if (!isStyleReady(map)) return
   const src = map.getSource?.(sourceId)
   if (src && typeof src.setData === 'function') {
     src.setData(fc)
     return
   }
   if (!src && typeof map.addSource === 'function') {
-    map.addSource(sourceId, { type: 'geojson', data: fc })
+    try {
+      map.addSource(sourceId, { type: 'geojson', data: fc })
+    } catch {
+      void 0
+    }
     return
   }
 }
@@ -29,15 +44,24 @@ export function ensureDatasetLayer(
   },
 ): void {
   if (!map || !sourceId) return
+  if (!isStyleReady(map)) return
   const cluster = options?.cluster === true
 
   if (!map.getSource?.(sourceId)) {
-    map.addSource?.(sourceId, { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, cluster })
+    try {
+      map.addSource?.(sourceId, { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, cluster })
+    } catch {
+      void 0
+    }
   }
 
   const addLayerOnce = (layer: any) => {
     if (map.getLayer?.(layer.id)) return
-    map.addLayer?.(layer)
+    try {
+      map.addLayer?.(layer)
+    } catch {
+      void 0
+    }
   }
 
   if (cluster) {

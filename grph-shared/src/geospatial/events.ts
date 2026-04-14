@@ -1,6 +1,6 @@
 import { GEOSPATIAL_MODE_CHANGED_EVENT } from './constants.js'
 
-export type GeospatialViewMode = '2d' | '2d-svg' | '3d'
+export type GeospatialViewMode = '2d-svg' | '2d' | '3d' | '3d-modern'
 
 export type GeospatialModeChangedDetail = {
   enabled?: boolean

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { extractEmbeddedGeoJsonFeatureCollections } from '@/lib/markdown/embeddedGeoJson'
+import { extractEmbeddedGeoJsonFeatureCollections, extractEmbeddedGeoJsonGraphDataRequests } from '@/lib/markdown/embeddedGeoJson'
+import { readTripDemoMmd } from '@/tests/lib/tripDemo'
 
 export function testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollections() {
   const p = resolve(process.cwd(), 'src', '__tests__', 'fixtures', 'markdown-embedded-geojson-demo.md')
@@ -26,5 +27,31 @@ export function testMarkdownEmbeddedGeoJsonExtractionFindsFeatureCollectionInCom
   if (parsed.type !== 'FeatureCollection') throw new Error('Expected computing-flow sample GeoJSON block to be a FeatureCollection')
   if (!Array.isArray(parsed.features) || parsed.features.length < 2) {
     throw new Error('Expected computing-flow sample GeoJSON block to include at least two features')
+  }
+}
+
+export function testMarkdownEmbeddedGeoJsonExtractionSupportsTripDemoMmdJsonFence() {
+  const text = readTripDemoMmd()
+  if (!text) return
+
+  const blocks = extractEmbeddedGeoJsonFeatureCollections(text)
+  if (blocks.length < 1) {
+    throw new Error('Expected trip-demo-mmd markdown to include at least one embedded GeoJSON FeatureCollection block')
+  }
+
+  const reqs = extractEmbeddedGeoJsonGraphDataRequests({
+    markdownText: text,
+    sourceDocumentPath: 'sandbox/demo/trip-demo-mmd.md',
+    limit: 10,
+  })
+  if (reqs.length < 1) {
+    throw new Error('Expected trip-demo-mmd markdown to produce at least one embedded GeoJSON graph-data request')
+  }
+  const first = reqs[0]
+  if (first.codeBlock.lang !== 'geojson') {
+    throw new Error(`Expected embedded GeoJSON graph-data request lang=geojson, got ${String(first.codeBlock.lang)}`)
+  }
+  if (!String(first.codeBlock.text || '').includes('"FeatureCollection"')) {
+    throw new Error('Expected embedded GeoJSON graph-data request payload to contain FeatureCollection text')
   }
 }

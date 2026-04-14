@@ -22,7 +22,10 @@ const resolvedReactJsxDevRuntime = nodeRequire.resolve('react/jsx-dev-runtime')
 const resolvedReactDom = nodeRequire.resolve('react-dom')
 const resolvedReactDomClient = nodeRequire.resolve('react-dom/client')
 const resolvedThreeSrc = nodeRequire.resolve('three/src/Three.js')
-const resolvedMaplibreSrc = nodeRequire.resolve('maplibre-gl/src/index.ts')
+const resolvedMaplibreEntry = nodeRequire.resolve('maplibre-gl')
+const resolvedGympgrphSrc = path.resolve(__dirname, '../gympgrph/src/index.ts')
+const resolvedGympgrphMapPreviewSrc = path.resolve(__dirname, '../gympgrph/src/mapPreview.ts')
+const resolvedGympgrphTestkitSrc = path.resolve(__dirname, '../gympgrph/src/testkit.ts')
 
 const MARKDOWN_PIPELINE_INPUT_REL_PATH =
   String(process.env.VITE_MARKDOWN_PIPELINE_INPUT_REL_PATH || '').trim() || 'docs/knowgrph-pipeline-document.md'
@@ -4778,7 +4781,10 @@ export default defineConfig(({ command }) => ({
       { find: 'react-dom/client', replacement: resolvedReactDomClient },
       { find: /^react-dom$/, replacement: resolvedReactDom },
       { find: /^three$/, replacement: resolvedThreeSrc },
-      { find: /^maplibre-gl$/, replacement: resolvedMaplibreSrc },
+      { find: /^maplibre-gl$/, replacement: resolvedMaplibreEntry },
+      { find: /^gympgrph$/, replacement: resolvedGympgrphSrc },
+      { find: /^gympgrph\/map-preview$/, replacement: resolvedGympgrphMapPreviewSrc },
+      { find: /^gympgrph\/testkit$/, replacement: resolvedGympgrphTestkitSrc },
       {
         find: /^grph-shared\/(.*)$/,
         replacement: path.resolve(__dirname, '../grph-shared/dist/$1.js'),

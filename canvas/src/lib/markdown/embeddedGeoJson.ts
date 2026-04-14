@@ -1,5 +1,7 @@
 import { extractFencedCodeBlocks } from './extractFencedCodeBlocks'
 import { parseGeoJsonFeatureCollectionFromText } from '@/features/geospatial/geojsonParseCache'
+import { hashText } from '@/features/parsers/hash'
+import { LRUCache } from '@/lib/cache/LRUCache'
 
 export type EmbeddedGeoJsonBlock = {
   geojsonText: string
@@ -17,8 +19,18 @@ export type EmbeddedGeoJsonGraphDataRequest = {
   }
 }
 
+const embeddedGeoExtractionCache = new LRUCache<string, EmbeddedGeoJsonBlock[]>(120, 20 * 60 * 1000)
+
+const cloneBlocks = (blocks: EmbeddedGeoJsonBlock[]): EmbeddedGeoJsonBlock[] => blocks.map(b => ({ ...b }))
+
 export function extractEmbeddedGeoJsonFeatureCollections(markdownText: string): EmbeddedGeoJsonBlock[] {
-  const blocks = extractFencedCodeBlocks(markdownText)
+  const normalizedMarkdown = String(markdownText || '')
+  if (!normalizedMarkdown.trim()) return []
+  const cacheKey = hashText(normalizedMarkdown)
+  const cached = embeddedGeoExtractionCache.get(cacheKey)
+  if (cached) return cloneBlocks(cached)
+
+  const blocks = extractFencedCodeBlocks(normalizedMarkdown)
   const out: EmbeddedGeoJsonBlock[] = []
 
   for (const b of blocks) {
@@ -38,7 +50,8 @@ export function extractEmbeddedGeoJsonFeatureCollections(markdownText: string): 
     out.push({ geojsonText: JSON.stringify(fc), startLine: b.startLine, endLine: b.endLine })
   }
 
-  return out
+  embeddedGeoExtractionCache.set(cacheKey, out)
+  return cloneBlocks(out)
 }
 
 export function extractEmbeddedGeoJsonGraphDataRequests(args: {
@@ -61,7 +74,7 @@ export function extractEmbeddedGeoJsonGraphDataRequests(args: {
     if (out.length >= limit) break
     const text = String(block.geojsonText || '').trim()
     if (!text) continue
-    const signature = `geojson:${block.startLine}:${block.endLine}:${text.length}:${text.slice(0, 64)}`
+    const signature = `geojson:${block.startLine}:${block.endLine}:${hashText(text)}`
     if (seen.has(signature)) continue
     seen.add(signature)
     out.push({

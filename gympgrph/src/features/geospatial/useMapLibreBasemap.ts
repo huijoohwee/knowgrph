@@ -1,5 +1,6 @@
 import React from 'react'
-import { MAPLIBRE_DEFAULT_STYLE_URL } from './basemapStyle'
+
+const MAPLIBRE_DEFAULT_STYLE_URL = 'https://demotiles.maplibre.org/style.json'
 
 type BasemapProbe = {
   tileSourceId: string
@@ -127,19 +128,35 @@ export function useMapLibreBasemap(args: {
   React.useEffect(() => {
     if (!enabled) {
       setState((prev: BasemapResult) =>
-        prev.map ? { ...prev, map: null, probe: EMPTY_PROBE, mapError: null, styleRevision: 0 } : prev,
+        prev.map || prev.mapError || prev.styleRevision !== 0 || prev.probe !== EMPTY_PROBE
+          ? { ...prev, map: null, probe: EMPTY_PROBE, mapError: null, styleRevision: 0 }
+          : prev,
       )
       return
     }
+    // Reset style revision before mounting/re-mounting so host-side layer writes wait for the next style.load.
+    setState((prev: BasemapResult) =>
+      prev.map || prev.mapError || prev.styleRevision !== 0 || prev.probe !== EMPTY_PROBE
+        ? { ...prev, map: null, probe: EMPTY_PROBE, mapError: null, styleRevision: 0 }
+        : prev,
+    )
 
     let cancelled = false
     let map: any | null = null
     let resizeObserver: ResizeObserver | null = null
     let probeInterval: ReturnType<typeof setInterval> | null = null
-    const el = containerRef.current
-    if (!el) return
+    let mountRetryTimer: ReturnType<typeof setTimeout> | null = null
 
     const mount = async () => {
+      const el = containerRef.current
+      if (!el) {
+        if (cancelled) return
+        // Container refs can be null during lazy/suspense transitions; retry instead of silently bailing.
+        mountRetryTimer = setTimeout(() => {
+          void mount()
+        }, 16)
+        return
+      }
       try {
         const mlRaw = await import('maplibre-gl')
         if (cancelled) return
@@ -355,6 +372,10 @@ export function useMapLibreBasemap(args: {
 
     return () => {
       cancelled = true
+      if (mountRetryTimer) {
+        clearTimeout(mountRetryTimer)
+        mountRetryTimer = null
+      }
       if (probeInterval) {
         clearInterval(probeInterval)
         probeInterval = null
