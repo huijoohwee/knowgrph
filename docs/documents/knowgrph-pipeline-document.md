@@ -56,7 +56,7 @@
 | Context | Directive | Why |
 |--------|-----------|-----|
 | SSOT | Keep `project/prjt4000-hackamap/site/hackamap-pipeline.json` as the only browser-fetchable HackaMap runtime contract. | Prevent duplicate config paths across scrape, query, publish, dev, and Pages hosts. |
-| Runtime API | Expose `/api/graph?view=meta` from dev and Pages using published pipeline, preset, and run artifacts, and keep `/api/graph`, `?run=`, and `?view=meta` on one shared client URL contract. | Let Knowgrph read portable runtime knobs and published run options without a second manifest or drift between runtime-meta and data fetch paths. |
+| Runtime API | Expose `/api/graph?view=meta` from dev and Pages using published pipeline, preset, and run artifacts. | Let Knowgrph read portable runtime knobs and published run options without a second manifest. |
 | Published runs | Allow `/api/graph?run=<published-run-id>` to filter the precomputed bipartite payload by published `events.*.query.json` and `demos.*.query.json` rows only. | Reuse generated query outputs, avoid ad-hoc runtime queries, and keep filtering deterministic. |
 | Published-run builder | Compose preset + parameter choices only from published run metadata, compact table counts, highlight top exact-match families, and apply exact matches only. | Keep the public UI safe, deterministic, and easy to scan without ad-hoc query execution. |
 | Published run expansion | Grow builder choices by adding verified non-empty city variants with stable suffixes in the SSOT runs catalog. | Improve exact-match usefulness without changing the runtime contract. |
