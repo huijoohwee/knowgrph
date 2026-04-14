@@ -131,6 +131,11 @@ export function MarkdownWorkspaceToolbar({
   const panelTypography = usePanelTypography()
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const canNavigateSlides = layoutMode === 'presentation'
+  const inlineFloatingFormattingOwnsViewerSurface =
+    contentMode === 'document'
+    && layoutMode === 'viewer'
+    && viewerKind === 'markdown'
+    && viewerMode === 'read'
 
   const webpageControls = React.useMemo(() => {
     const meta = webpageWorkspaceMeta
@@ -413,12 +418,14 @@ export function MarkdownWorkspaceToolbar({
           toolbarButtonClassName={TOOLBAR_BUTTON_CLASSNAME}
           presentationApiRef={presentationApiRef}
         />
-        <MarkdownWorkspaceFormattingMenu
-          toolbarButtonClassName={TOOLBAR_BUTTON_CLASSNAME}
-          isEditing={isEditing}
-          isMarkdown={isMarkdown}
-          onFormatAction={onFormatAction}
-        />
+        {!inlineFloatingFormattingOwnsViewerSurface ? (
+          <MarkdownWorkspaceFormattingMenu
+            toolbarButtonClassName={TOOLBAR_BUTTON_CLASSNAME}
+            isEditing={isEditing}
+            isMarkdown={isMarkdown}
+            onFormatAction={onFormatAction}
+          />
+        ) : null}
         <MarkdownWorkspaceDisplayMenu
           toolbarButtonClassName={TOOLBAR_BUTTON_CLASSNAME}
           markdownTextHighlight={markdownTextHighlight}

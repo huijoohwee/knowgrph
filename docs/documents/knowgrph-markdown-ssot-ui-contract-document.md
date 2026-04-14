@@ -142,6 +142,8 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
   - Reuse read-surface layout baseline (indent/padding/margin/border/wrapper) and carry caret/whitespace/tab-size parity; entering edit must not mutate surrounding layout.
   - Track selection offsets in Markdown text (line/character) so all edits are applied via shared `applyMarkdownFormatAction`/wrap helpers as text transforms.
   - Commit via blur or Cmd/Ctrl+Enter, writing through `onReplaceLineRange` with bounded line range updates and skipping no-op commits to avoid churn.
+- Workspace Editor `Markdown + Read + Viewer` must not render a duplicate header-level `Formatting` menu for `Heading/Bold/Italic/Strikethrough/...` when click-to-edit is active on the read surface; the inline floating selection toolbar is the only formatting palette SSOT for that surface.
+- In that viewer-read editing path, the workspace header keeps navigation/layout/display actions only; formatting ownership moves to `MarkdownBlockContainer` bubble toolbar so header and block chrome cannot drift or compete.
 - Selecting text inside an editable block surfaces a floating “bubble toolbar” positioned near the selection using shared SSOT styles from `floatingMenuStyles` (`FLOATING_BUBBLE_TOOLBAR_CLASSNAME`, `FLOATING_BUBBLE_BUTTON_CLASSNAME`, `FLOATING_MENU_*` variants). The bubble palette may include:
   - Inline formatting: bold/italic/underline/strike/inline code/link, superscript/subscript/math markers.
   - Block transforms: H1/H2/H3 toggles, bullet/numbered lists, quotes, checklist toggles, horizontal divider insertion.
