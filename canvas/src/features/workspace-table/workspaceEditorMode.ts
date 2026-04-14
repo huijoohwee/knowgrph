@@ -24,7 +24,7 @@ export function readWorkspaceEditorMode(): WorkspaceEditorMode {
     return legacy
   }
   const graphTableView = lsJson(LS_KEYS.graphTableViewMode, 'table' as const, parseGraphTableViewMode)
-  const fallback = graphTableView === 'kanban' ? 'kanban' : 'table'
+  const fallback = graphTableView === 'kanban' ? 'kanban' : graphTableView === 'multiDimTable' ? 'multiDimTable' : 'table'
   if (typeof window !== 'undefined') lsSetJson(LS_KEYS.workspaceEditorMode, fallback)
   return fallback
 }
@@ -33,7 +33,7 @@ export function writeWorkspaceEditorMode(next: WorkspaceEditorMode): WorkspaceEd
   const mode = parseWorkspaceEditorMode(next) || 'table'
   const currentWorkspaceMode = parseWorkspaceEditorMode(lsJson(LS_KEYS.workspaceEditorMode, mode, parseWorkspaceEditorMode)) || 'table'
   const currentDerivedMode = parseWorkspaceEditorMode(lsJson(LS_KEYS.markdownDerivedViewerMode, mode, parseWorkspaceEditorMode)) || 'table'
-  const nextGraphTableMode = mode === 'kanban' ? 'kanban' : 'table'
+  const nextGraphTableMode = mode === 'kanban' ? 'kanban' : mode === 'multiDimTable' ? 'multiDimTable' : 'table'
   const currentGraphTableMode = lsJson(LS_KEYS.graphTableViewMode, 'table' as const, parseGraphTableViewMode)
   if (currentWorkspaceMode !== mode) {
     lsSetJson(LS_KEYS.workspaceEditorMode, mode)

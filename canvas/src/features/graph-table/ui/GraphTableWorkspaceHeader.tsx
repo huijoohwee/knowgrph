@@ -19,6 +19,7 @@ import { UI_COPY } from '@/lib/config'
 
 const GRAPH_TABLE_VIEW_MODE_OPTIONS: Array<{ value: GraphTableViewMode; label: string }> = [
   { value: 'kanban', label: UI_COPY.markdownDataViewKanbanViewLabel },
+  { value: 'multiDimTable', label: UI_COPY.markdownDataViewTitleDefault },
   { value: 'table', label: UI_COPY.markdownDataViewTableViewLabel },
 ]
 
@@ -83,7 +84,7 @@ export function GraphTableWorkspaceHeader(props: {
               ariaLabel="Graph Data Table view"
               value={props.viewMode}
               options={GRAPH_TABLE_VIEW_MODE_OPTIONS}
-              isActive={props.viewMode === 'kanban'}
+              isActive={props.viewMode !== 'table'}
               onChange={props.setViewMode}
             />
           </nav>

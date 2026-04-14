@@ -8,6 +8,7 @@ import { uiImportYoutubeSettingsRegistry } from './registry-ui.import-youtube'
 import { uiImportWebpageSettingsRegistry } from './registry-ui.import-webpage'
 import { uiImportGeoSettingsRegistry } from './registry-ui.import-geo'
 import { uiBipartiteSettingsRegistry } from './registry-ui.bipartite'
+import { uiMonacoSettingsRegistry } from './registry-ui.monaco'
 
 export const uiSettingsRegistry: SettingMeta[] = [
   ...uiUiSettingsRegistry,
@@ -15,6 +16,7 @@ export const uiSettingsRegistry: SettingMeta[] = [
   ...uiMarkdownSettingsRegistry,
   ...uiImportGeoSettingsRegistry,
   ...uiBipartiteSettingsRegistry,
+  ...uiMonacoSettingsRegistry,
   ...uiImportPdfSettingsRegistry,
   ...uiImportYoutubeSettingsRegistry,
   ...uiImportWebpageSettingsRegistry,

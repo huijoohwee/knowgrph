@@ -331,6 +331,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
     documentSemanticMode,
     frontmatterModeEnabled,
     multiDimTableModeEnabled,
+    geospatialEnabled: geospatialModeEnabled,
     schema,
   })
   const activeSurface = geospatialModeEnabled ? 'geo' : canvasRenderMode === '3d' ? '3d' : '2d'

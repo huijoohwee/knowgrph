@@ -434,8 +434,12 @@ export interface GraphState {
   setMonacoWorkerJsonLoadMode: (v: MonacoCapabilityLoadMode) => void;
   monacoHoverEnabled: boolean;
   setMonacoHoverEnabled: (v: boolean) => void;
+  monacoLinksEnabled: boolean;
+  setMonacoLinksEnabled: (v: boolean) => void;
   monacoQuickSuggestionsEnabled: boolean;
   setMonacoQuickSuggestionsEnabled: (v: boolean) => void;
+  monacoSuggestOnTriggerCharactersEnabled: boolean;
+  setMonacoSuggestOnTriggerCharactersEnabled: (v: boolean) => void;
   monacoParameterHintsEnabled: boolean;
   setMonacoParameterHintsEnabled: (v: boolean) => void;
   monacoLineNumbersEnabled: boolean;
@@ -444,6 +448,14 @@ export interface GraphState {
   setMonacoFoldingEnabled: (v: boolean) => void;
   monacoMinimapEnabled: boolean;
   setMonacoMinimapEnabled: (v: boolean) => void;
+  monacoSelectionHighlightEnabled: boolean;
+  setMonacoSelectionHighlightEnabled: (v: boolean) => void;
+  monacoOccurrencesHighlightEnabled: boolean;
+  setMonacoOccurrencesHighlightEnabled: (v: boolean) => void;
+  monacoGuidesEnabled: boolean;
+  setMonacoGuidesEnabled: (v: boolean) => void;
+  monacoBracketPairColorizationEnabled: boolean;
+  setMonacoBracketPairColorizationEnabled: (v: boolean) => void;
   threeIframeOverlayPoolMax: number;
   setThreeIframeOverlayPoolMax: (v: number) => void;
   richMediaPanelMode: 'snapshot' | 'embed';

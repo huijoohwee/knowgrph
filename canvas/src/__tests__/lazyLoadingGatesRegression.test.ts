@@ -21,7 +21,10 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (monacoTextEditorText.includes('stickyScroll: {')) {
     throw new Error('expected MonacoTextEditor to avoid enabling sticky scroll by default on the slim Monaco path')
   }
-  if (!monacoTextEditorText.includes("await loadMonacoLanguageContribution(language)")) {
+  if (!monacoTextEditorText.includes("const resolvedLanguage = resolveConfiguredMonacoLanguage(language, monacoSettings)")) {
+    throw new Error('expected MonacoTextEditor to resolve Monaco language support from MainPanel Monaco capability settings')
+  }
+  if (!monacoTextEditorText.includes("await loadMonacoLanguageContribution(resolvedLanguage)")) {
     throw new Error('expected MonacoTextEditor to lazy-load Monaco language contributions per active language')
   }
   if (!monacoTextEditorText.includes("await import('monaco-editor/esm/vs/language/json/monaco.contribution')")) {
@@ -37,6 +40,53 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   }
   if (monacoEnvironmentText.includes("label === 'html'")) {
     throw new Error('expected Monaco environment to avoid routing unused HTML-family labels to a dedicated worker')
+  }
+  if (!monacoEnvironmentText.includes("import('monaco-editor/esm/vs/language/json/json.worker?worker')")) {
+    throw new Error('expected Monaco environment to lazy-load the JSON worker module')
+  }
+
+  const monacoSettingsRegistryText = readFileSync(resolve(root, 'src', 'features', 'settings', 'registry-ui.monaco.ts'), 'utf8')
+  if (!monacoSettingsRegistryText.includes("key: 'monacoLanguageJsonEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco JSON capability controls')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoWorkerJsonLoadMode'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco JSON worker load-mode control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoLinksEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco links toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoSuggestOnTriggerCharactersEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco suggest-on-trigger toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoSelectionHighlightEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco selection highlight toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoOccurrencesHighlightEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco occurrences highlight toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoGuidesEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco guides toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoBracketPairColorizationEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco bracket pair colorization toggle control')
+  }
+  if (!monacoTextEditorText.includes('links: settings.monacoLinksEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire Monaco links through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('suggestOnTriggerCharacters: settings.monacoSuggestOnTriggerCharactersEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire suggestOnTriggerCharacters through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('selectionHighlight: settings.monacoSelectionHighlightEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire selection highlight through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("occurrencesHighlight: settings.monacoOccurrencesHighlightEnabled ? 'singleFile' : 'off'")) {
+    throw new Error('expected MonacoTextEditor to wire occurrences highlight through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('indentation: settings.monacoGuidesEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire Monaco guides through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('bracketPairColorization: { enabled: settings.monacoBracketPairColorizationEnabled }')) {
+    throw new Error('expected MonacoTextEditor to wire bracket pair colorization through MainPanel capability settings')
   }
 
   const markdownCodeBlockText = readFileSync(resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownCodeBlock.tsx'), 'utf8')
@@ -166,8 +216,8 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!viteConfigText.includes("if (moduleId.includes('/node_modules/monaco-editor/esm/vs/base/common/')) return 'monaco-base-common'")) {
     throw new Error('expected vite config to split monaco common base internals into a separate coarse chunk')
   }
-  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/flowDiagram')) return 'mermaid-flow'")) {
-    throw new Error('expected vite config to split mermaid flowchart runtime into its own coarse chunk')
+  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/mermaid/')) return 'mermaid'")) {
+    throw new Error('expected vite config to keep the Mermaid standard runtime in one coarse lazy chunk')
   }
   if (!viteConfigText.includes("name: 'knowgrph-strip-mermaid-architecture-detector'")) {
     throw new Error('expected vite config to strip the stock mermaid architecture detector from the standard runtime path')
@@ -175,8 +225,8 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!viteConfigText.includes("registerLazyLoadedDiagrams(detector_default, detector_default3);")) {
     throw new Error('expected vite config to patch mermaid core so architecture is not registered by default')
   }
-  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/')) return 'mermaid-core-runtime'")) {
-    throw new Error('expected vite config to isolate shared mermaid runtime chunks from diagram-specific chunks')
+  if (!viteConfigText.includes("(?:assets\\/)?mermaid-[^/]+\\.(?:js|css)$")) {
+    throw new Error('expected vite modulePreload filtering to exclude relative and assets-prefixed mermaid chunk deps')
   }
   if (!viteConfigText.includes("if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/dist/chunks/mermaid-layout-elk.esm.min/render-')) return 'mermaid-elk-render'")) {
     throw new Error('expected vite config to split mermaid elk render internals into a separate coarse chunk')

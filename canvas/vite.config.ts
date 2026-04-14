@@ -4680,7 +4680,7 @@ export default defineConfig(({ command }) => ({
     reportCompressedSize: process.env.KG_LOW_MEM_BUILD === '1' ? false : true,
     modulePreload: {
       resolveDependencies: (_filename: string, deps: string[]) =>
-        deps.filter(dep => !/(^|\/)assets\/mermaid-/.test(String(dep || ''))),
+        deps.filter(dep => !/(^|\/|\.\/)(?:assets\/)?mermaid-[^/]+\.(?:js|css)$/.test(String(dep || ''))),
     },
     chunkSizeWarningLimit: 500,
     rollupOptions: {
@@ -4715,27 +4715,6 @@ export default defineConfig(({ command }) => ({
                 if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/')) return 'monaco-editor-core'
                 if (moduleId.includes('/node_modules/monaco-editor/esm/vs/base/')) return 'monaco-base'
                 if (moduleId.includes('/node_modules/monaco-editor/')) return 'monaco'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/flowDiagram')) return 'mermaid-flow'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/classDiagram')) return 'mermaid-class'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram')) return 'mermaid-state'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/sequenceDiagram')) return 'mermaid-sequence'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/ganttDiagram')) return 'mermaid-gantt'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/gitGraph')) return 'mermaid-gitgraph'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/pieDiagram')) return 'mermaid-pie'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/erDiagram')) return 'mermaid-er'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/architectureDiagram')) return 'mermaid-architecture'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/blockDiagram')) return 'mermaid-block'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/c4Diagram')) return 'mermaid-c4'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/journeyDiagram')) return 'mermaid-journey'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/mindmap')) return 'mermaid-mindmap'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/quadrantDiagram')) return 'mermaid-quadrant'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/requirementDiagram')) return 'mermaid-requirement'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/sankeyDiagram')) return 'mermaid-sankey'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/timeline-definition')) return 'mermaid-timeline'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/xychartDiagram')) return 'mermaid-xychart'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/infoDiagram')) return 'mermaid-info'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/kanban-definition')) return 'mermaid-kanban'
-                if (moduleId.includes('/node_modules/mermaid/dist/chunks/mermaid.core/')) return 'mermaid-core-runtime'
                 if (moduleId.includes('/node_modules/mermaid/')) return 'mermaid'
                 if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/dist/chunks/mermaid-layout-elk.esm.min/render-')) return 'mermaid-elk-render'
                 if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/')) return 'mermaid-elk-core'

@@ -312,6 +312,7 @@ export const testImportRenderPipelineFrontmatterFlowSampleInfiniteCanvas = async
 
 export const testImportRenderPipelineFrontmatterFlowSampleThreeModeBlockLayout = async () => {
   useGraphStore.getState().resetAll()
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
   const samplePath = readComputingFlowSamplePath()
   if (!fs.existsSync(samplePath)) return
   const text = fs.readFileSync(samplePath, 'utf8')

@@ -109,6 +109,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   const [viewMode, setViewMode] = useState<GraphTableViewMode>(() => {
     const mode = workspaceTablePreferencesStore.getSnapshot().workspaceEditorMode
     if (mode === 'kanban') return 'kanban'
+    if (mode === 'multiDimTable') return 'multiDimTable'
     return lsJson(LS_KEYS.graphTableViewMode, 'table' as const, parseGraphTableViewMode)
   })
   const [columns, setColumns] = useState<GraphColumnDoc[]>([])
@@ -393,7 +394,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   )
 
   useEffect(() => {
-    const next = workspaceEditorMode === 'kanban' ? 'kanban' : 'table'
+    const next = workspaceEditorMode === 'kanban' ? 'kanban' : workspaceEditorMode === 'multiDimTable' ? 'multiDimTable' : 'table'
     setViewMode(prev => (prev === next ? prev : next))
   }, [workspaceEditorMode])
 
@@ -456,6 +457,10 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       setViewMode(next)
       if (next === 'kanban') {
         workspaceTablePreferencesStore.setWorkspaceEditorMode('kanban')
+        return
+      }
+      if (next === 'multiDimTable') {
+        workspaceTablePreferencesStore.setWorkspaceEditorMode('multiDimTable')
         return
       }
       workspaceTablePreferencesStore.setWorkspaceEditorMode('table')

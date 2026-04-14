@@ -1,0 +1,27 @@
+graph:
+  id: "md:knowgrph-design-document"
+  codebase_root: .
+  index_jsonld: data/knowgrph-workflow-preview/knowgrph-design-document-graph-data.jsonld
+  index_schema: data/knowgrph-workflow-preview/knowgrph-design-document-schema-config.jsonld
+orchestrator:
+  parser_script: /Applications/Xcode.app/Contents/Developer/usr/bin/python3 -m knowgrph_parser
+agentic_rag:
+  schema: "https://huijoohwee.github.io/schema/AgenticRAG"
+  node_view_type: AgenticRagNodeView
+  primary_fields:
+    - chunk_text
+    - provenance
+  traversal_edges:
+    - hasSection
+    - hasBlock
+    - hasItem
+    - linksTo
+    - next
+  graph_rag_paths:
+    - owner_id: "sec:md:knowgrph-design-document:knowgrph-design-document:1"
+      query: What is the structure and key content of knowgrph-design-document.md?
+      traverse:
+        - "sec:md:knowgrph-design-document:knowgrph-design-document:1"
+      steps:
+        - Knowgrph Design Document
+      context: Summarize the markdown document at docs/documents/knowgrph-design-document.md into a navigable graph structure.

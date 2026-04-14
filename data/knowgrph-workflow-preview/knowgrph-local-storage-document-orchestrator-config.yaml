@@ -1,0 +1,27 @@
+graph:
+  id: "md:knowgrph-local-storage-document"
+  codebase_root: .
+  index_jsonld: data/knowgrph-workflow-preview/knowgrph-local-storage-document-graph-data.jsonld
+  index_schema: data/knowgrph-workflow-preview/knowgrph-local-storage-document-schema-config.jsonld
+orchestrator:
+  parser_script: /Applications/Xcode.app/Contents/Developer/usr/bin/python3 -m knowgrph_parser
+agentic_rag:
+  schema: "https://huijoohwee.github.io/schema/AgenticRAG"
+  node_view_type: AgenticRagNodeView
+  primary_fields:
+    - chunk_text
+    - provenance
+  traversal_edges:
+    - hasSection
+    - hasBlock
+    - hasItem
+    - linksTo
+    - next
+  graph_rag_paths:
+    - owner_id: "sec:md:knowgrph-local-storage-document:knowgrph-local-storage-document:1"
+      query: What is the structure and key content of knowgrph-local-storage-document.md?
+      traverse:
+        - "sec:md:knowgrph-local-storage-document:knowgrph-local-storage-document:1"
+      steps:
+        - Knowgrph Local Storage Document
+      context: Summarize the markdown document at docs/documents/knowgrph-local-storage-document.md into a navigable graph structure.

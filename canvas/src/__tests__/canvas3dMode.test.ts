@@ -1,5 +1,8 @@
 import { getVoxelModeInapplicableReason, isVoxelModeApplicable, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { LS_KEYS } from '@/lib/config.ls.keys'
+import { getLocalStorage } from '@/lib/persistence'
 import type { GraphSchema } from '@/lib/graph/schema'
 
 const BLOCK_SCHEMA = {
@@ -70,5 +73,31 @@ export function testCanvasViewSelectionBlocksVoxelDuringGeospatialMode() {
   }
   if (setCanvas2dRendererCalls !== 0 || setCanvas3dModeCalls !== 0 || setCanvasRenderModeCalls !== 0 || setSchemaCalls !== 0) {
     throw new Error('Expected Voxel selection to avoid renderer or schema mutations while Geospatial Mode is enabled')
+  }
+}
+
+export function testCanvas3dModeSetterRejectsVoxelWhileGeospatialModeIsPersisted() {
+  const storage = getLocalStorage()
+  const prev = storage?.getItem(LS_KEYS.geospatialOverlayEnabled) ?? null
+  try {
+    useGraphStore.getState().resetAll()
+    useGraphStore.getState().setDocumentStructureBaselineLock(false)
+    storage?.setItem(LS_KEYS.geospatialOverlayEnabled, 'true')
+    useGraphStore.getState().setSchema(BLOCK_SCHEMA)
+    useGraphStore.getState().setCanvas2dRenderer('d3Bipartite')
+    useGraphStore.getState().setDocumentSemanticMode('document')
+    useGraphStore.getState().setCanvas3dMode('voxel')
+    const next = useGraphStore.getState().canvas3dMode
+    if (next !== '3d') {
+      throw new Error(`Expected persisted geospatial guard to demote voxel request to 3d, got ${String(next)}`)
+    }
+  } finally {
+    if (!storage) return
+    if (prev == null) {
+      storage.removeItem(LS_KEYS.geospatialOverlayEnabled)
+    } else {
+      storage.setItem(LS_KEYS.geospatialOverlayEnabled, prev)
+    }
+    useGraphStore.getState().resetAll()
   }
 }

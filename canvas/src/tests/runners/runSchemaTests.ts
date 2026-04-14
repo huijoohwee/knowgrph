@@ -61,6 +61,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvas3dMode()
     await mod.testCanvasViewSelectionBlocksVoxelDuringGeospatialMode()
   })
+  await execTest(results, 'canvas.3dMode.persistedGeospatialGuard', async () => {
+    const mod = await modCanvas3dMode()
+    await mod.testCanvas3dModeSetterRejectsVoxelWhileGeospatialModeIsPersisted()
+  })
   await execTest(results, 'schema.tabEnterText', async () => {
     const mod = await modSchema()
     await mod.testSchemaTabEnterText()

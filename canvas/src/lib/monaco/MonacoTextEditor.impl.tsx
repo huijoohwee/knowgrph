@@ -3,6 +3,8 @@ import type * as Monaco from 'monaco-editor/esm/vs/editor/editor.api'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { ensureMonacoStyles } from '@/lib/ui/lazyStyles'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { useShallow } from 'zustand/react/shallow'
 
 const FLASH_STYLE_ID = 'monaco-flash-style'
 const FLASH_CSS = `
@@ -90,6 +92,36 @@ export type MonacoTextEditorProps = {
 
 type MonacoApi = typeof import('monaco-editor/esm/vs/editor/editor.api')
 
+type MonacoCapabilitySettings = {
+  monacoLanguageJsonEnabled: boolean
+  monacoLanguageJsonLoadMode: 'lazy' | 'eager'
+  monacoLanguageSqlEnabled: boolean
+  monacoLanguageSqlLoadMode: 'lazy' | 'eager'
+  monacoLanguageYamlEnabled: boolean
+  monacoLanguageYamlLoadMode: 'lazy' | 'eager'
+  monacoHoverEnabled: boolean
+  monacoLinksEnabled: boolean
+  monacoQuickSuggestionsEnabled: boolean
+  monacoSuggestOnTriggerCharactersEnabled: boolean
+  monacoParameterHintsEnabled: boolean
+  monacoLineNumbersEnabled: boolean
+  monacoFoldingEnabled: boolean
+  monacoMinimapEnabled: boolean
+  monacoSelectionHighlightEnabled: boolean
+  monacoOccurrencesHighlightEnabled: boolean
+  monacoGuidesEnabled: boolean
+  monacoBracketPairColorizationEnabled: boolean
+}
+
+const resolveConfiguredMonacoLanguage = (language: string, settings: MonacoCapabilitySettings): string => {
+  const normalized = String(language || '').trim().toLowerCase()
+  if (!normalized) return 'plaintext'
+  if (normalized === 'json' && !settings.monacoLanguageJsonEnabled) return 'plaintext'
+  if (normalized === 'sql' && !settings.monacoLanguageSqlEnabled) return 'plaintext'
+  if ((normalized === 'yaml' || normalized === 'yml') && !settings.monacoLanguageYamlEnabled) return 'plaintext'
+  return normalized
+}
+
 const loadMonacoLanguageContribution = async (language: string): Promise<void> => {
   const normalized = String(language || '').trim().toLowerCase()
   if (normalized === 'markdown') {
@@ -108,6 +140,57 @@ const loadMonacoLanguageContribution = async (language: string): Promise<void> =
     await import('monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution')
   }
 }
+
+const preloadEagerMonacoLanguageContributions = async (settings: MonacoCapabilitySettings): Promise<void> => {
+  const tasks: Promise<void>[] = []
+  if (settings.monacoLanguageJsonEnabled && settings.monacoLanguageJsonLoadMode === 'eager') tasks.push(loadMonacoLanguageContribution('json'))
+  if (settings.monacoLanguageSqlEnabled && settings.monacoLanguageSqlLoadMode === 'eager') tasks.push(loadMonacoLanguageContribution('sql'))
+  if (settings.monacoLanguageYamlEnabled && settings.monacoLanguageYamlLoadMode === 'eager') tasks.push(loadMonacoLanguageContribution('yaml'))
+  if (!tasks.length) return
+  await Promise.all(tasks)
+}
+
+const buildMonacoEditorOptions = (
+  settings: MonacoCapabilitySettings,
+  args: {
+    readOnly: boolean
+    wordWrap: boolean
+    paddingTopPx?: number
+    paddingBottomPx?: number
+  },
+): Monaco.editor.IStandaloneEditorConstructionOptions => ({
+  readOnly: !!args.readOnly,
+  minimap: { enabled: settings.monacoMinimapEnabled },
+  scrollBeyondLastLine: false,
+  wordWrap: args.wordWrap ? 'on' : 'off',
+  fontLigatures: false,
+  automaticLayout: true,
+  contextmenu: false,
+  hover: { enabled: settings.monacoHoverEnabled },
+  links: settings.monacoLinksEnabled,
+  quickSuggestions: settings.monacoQuickSuggestionsEnabled,
+  suggestOnTriggerCharacters: settings.monacoSuggestOnTriggerCharactersEnabled,
+  parameterHints: { enabled: settings.monacoParameterHintsEnabled },
+  lineNumbers: settings.monacoLineNumbersEnabled ? 'on' : 'off',
+  folding: settings.monacoFoldingEnabled,
+  selectionHighlight: settings.monacoSelectionHighlightEnabled,
+  occurrencesHighlight: settings.monacoOccurrencesHighlightEnabled ? 'singleFile' : 'off',
+  guides: {
+    indentation: settings.monacoGuidesEnabled,
+    bracketPairs: settings.monacoGuidesEnabled,
+  },
+  bracketPairColorization: { enabled: settings.monacoBracketPairColorizationEnabled },
+  padding: {
+    top:
+      typeof args.paddingTopPx === 'number' && Number.isFinite(args.paddingTopPx) && args.paddingTopPx > 0
+        ? Math.floor(args.paddingTopPx)
+        : 0,
+    bottom:
+      typeof args.paddingBottomPx === 'number' && Number.isFinite(args.paddingBottomPx) && args.paddingBottomPx > 0
+        ? Math.floor(args.paddingBottomPx)
+        : 0,
+  },
+})
 
 export function MonacoTextEditor(props: MonacoTextEditorProps) {
   const {
@@ -138,6 +221,28 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
     flashLine,
     flashDurationMs = 1000,
   } = props
+  const monacoSettings = useGraphStore(
+    useShallow(s => ({
+      monacoLanguageJsonEnabled: s.monacoLanguageJsonEnabled,
+      monacoLanguageJsonLoadMode: s.monacoLanguageJsonLoadMode,
+      monacoLanguageSqlEnabled: s.monacoLanguageSqlEnabled,
+      monacoLanguageSqlLoadMode: s.monacoLanguageSqlLoadMode,
+      monacoLanguageYamlEnabled: s.monacoLanguageYamlEnabled,
+      monacoLanguageYamlLoadMode: s.monacoLanguageYamlLoadMode,
+      monacoHoverEnabled: s.monacoHoverEnabled,
+      monacoLinksEnabled: s.monacoLinksEnabled,
+      monacoQuickSuggestionsEnabled: s.monacoQuickSuggestionsEnabled,
+      monacoSuggestOnTriggerCharactersEnabled: s.monacoSuggestOnTriggerCharactersEnabled,
+      monacoParameterHintsEnabled: s.monacoParameterHintsEnabled,
+      monacoLineNumbersEnabled: s.monacoLineNumbersEnabled,
+      monacoFoldingEnabled: s.monacoFoldingEnabled,
+      monacoMinimapEnabled: s.monacoMinimapEnabled,
+      monacoSelectionHighlightEnabled: s.monacoSelectionHighlightEnabled,
+      monacoOccurrencesHighlightEnabled: s.monacoOccurrencesHighlightEnabled,
+      monacoGuidesEnabled: s.monacoGuidesEnabled,
+      monacoBracketPairColorizationEnabled: s.monacoBracketPairColorizationEnabled,
+    })),
+  )
 
   const hostRef = React.useRef<HTMLElement | null>(null)
   const textareaElRef = React.useRef<HTMLTextAreaElement | null>(null)
@@ -521,7 +626,9 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
     const start = async () => {
       await ensureMonacoStyles()
       const monaco = await import('monaco-editor/esm/vs/editor/editor.api')
-      await loadMonacoLanguageContribution(language)
+      const resolvedLanguage = resolveConfiguredMonacoLanguage(language, monacoSettings)
+      await preloadEagerMonacoLanguageContributions(monacoSettings)
+      await loadMonacoLanguageContribution(resolvedLanguage)
       const { ensureMonacoEnvironment } = await import('./monacoEnvironment')
       const { acquireTextModel } = await import('./monacoModelRegistry')
       if (cancelled) return
@@ -539,29 +646,18 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
       const initialValue = latestValueRef.current
       const { model, release } = acquireTextModel(monaco, {
         uri: monacoUri,
-        language,
+        language: resolvedLanguage,
         value: initialValue,
       })
 
       const editor = monaco.editor.create(host, {
         model,
-        readOnly: !!readOnly,
-        minimap: { enabled: false },
-        scrollBeyondLastLine: false,
-        wordWrap: wordWrap ? 'on' : 'off',
-        fontLigatures: false,
-        automaticLayout: true,
-        contextmenu: false,
-        padding: {
-          top:
-            typeof paddingTopPx === 'number' && Number.isFinite(paddingTopPx) && paddingTopPx > 0
-              ? Math.floor(paddingTopPx)
-              : 0,
-          bottom:
-            typeof paddingBottomPx === 'number' && Number.isFinite(paddingBottomPx) && paddingBottomPx > 0
-              ? Math.floor(paddingBottomPx)
-              : 0,
-        },
+        ...buildMonacoEditorOptions(monacoSettings, {
+          readOnly: !!readOnly,
+          wordWrap: !!wordWrap,
+          paddingTopPx,
+          paddingBottomPx,
+        }),
       })
 
       monaco.editor.setTheme(themeModeRef.current === 'dark' ? 'vs-dark' : 'vs')
@@ -799,6 +895,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
   }, [
     canUseMonaco,
     language,
+    monacoSettings,
     readOnly,
     uri,
     wordWrap,

@@ -1,5 +1,7 @@
 import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { LS_KEYS } from '@/lib/config.ls.keys'
+import { lsBool } from '@/lib/persistence'
 
 type VoxelModeApplicabilityArgs = {
   canvas2dRenderer: Canvas2dRendererId
@@ -25,8 +27,12 @@ export function isVoxelSemanticModeAllowed(args: Pick<VoxelModeApplicabilityArgs
   )
 }
 
+export function readGeospatialOverlayEnabled(): boolean {
+  return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+}
+
 export function getVoxelModeInapplicableReason(args: VoxelModeApplicabilityArgs): VoxelModeInapplicableReason {
-  if (args.geospatialEnabled === true) return 'geospatial'
+  if ((args.geospatialEnabled ?? readGeospatialOverlayEnabled()) === true) return 'geospatial'
   if (args.canvas2dRenderer !== 'd3Bipartite') return 'renderer'
   if (!isVoxelSemanticModeAllowed(args)) return 'semantic'
   if (args.schema?.layout?.mode !== 'block') return 'layout'

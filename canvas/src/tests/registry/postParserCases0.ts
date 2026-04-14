@@ -251,5 +251,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["ui.typography.mainPanel.usesUiSettings","@/__tests__/mainPanelTypography.test","testMainPanelTypographyUsesUiSettings"],
   ["ui.mainPanel.requestedSettingsSearch.usesTabMetadata","@/__tests__/mainPanelTypography.test","testMainPanelRequestedSettingsSearchUsesTabMetadata"],
   ["ui.typography.graphTable.usesUiSettings","@/__tests__/graphTableTypography.test","testGraphTableTypographyUsesUiSettings"],
+  ["ui.graphTable.workspace.multiDimMode.preserved","@/__tests__/graphTableWorkspaceMultiDimMode.test","testGraphTableWorkspacePreservesMultiDimWorkspaceMode"],
+  ["ui.graphTable.workspace.multiDimMode.ssot","@/__tests__/graphTableWorkspaceMultiDimMode.test","testGraphTableViewModeSupportsMultiDimTableSsot"],
   ["pdf.viewer.ssot.usesMarkdownPreview","@/__tests__/pdfDocumentViewerSsot.test","testPdfDocumentViewerUsesMarkdownPreviewSsot"],
 ]

@@ -48,6 +48,7 @@
 
 - **Source of truth**: Graph import commits `GraphData` into the store; the Graph Data Table (Multi-dimensional Table workspace view) mirrors the store via the RxDB-backed `GraphTableDb` materialized view.
   - Document Mode “Multi-dimensional Table Mode” is a Canvas layout mode and must not be treated as an entry point into the Graph Data Table workspace; only Workspace toolbar “Workspace: Multi-dimensional Table” may open or configure this table view.
+  - Workspace Editor `multiDimTable` must remain first-class in workspace preferences, Graph Data Table view selection, and local-storage persistence; the current DOM table renderer may be reused for that mode, but the mode contract itself must not be downgraded to plain `table`.
 - **Sync key**: table sync is keyed by a `(revision, collapsedGroupIdsKey)` pair plus a per-view `viewKey`:
   - In **Static** Canvas Interaction Mode, the revision is `graphContentRevision` (structure-only) so position-only drags do not cause table recomputation.
   - In **Interactive** Canvas Interaction Mode, the revision is `graphDataRevision` so table rows can reflect position-affecting edits when real-time sync is enabled.

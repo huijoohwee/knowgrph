@@ -80,6 +80,89 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'UI Density: Panels',
     responsibility: 'Tailwind class for panel monospace text in Graph JSON, Parser, Schema, and Markdown editors',
   },
+  monacoLanguageJsonEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco JSON language support',
+    notes: 'When disabled, JSON Monaco surfaces fall back to plaintext.',
+  },
+  monacoLanguageJsonLoadMode: {
+    area: 'Editor: Monaco',
+    responsibility: 'Load mode for Monaco JSON language support',
+  },
+  monacoLanguageSqlEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco SQL language support',
+    notes: 'When disabled, SQL Monaco surfaces fall back to plaintext.',
+  },
+  monacoLanguageSqlLoadMode: {
+    area: 'Editor: Monaco',
+    responsibility: 'Load mode for Monaco SQL language support',
+  },
+  monacoLanguageYamlEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco YAML language support',
+    notes: 'When disabled, YAML Monaco surfaces fall back to plaintext.',
+  },
+  monacoLanguageYamlLoadMode: {
+    area: 'Editor: Monaco',
+    responsibility: 'Load mode for Monaco YAML language support',
+  },
+  monacoWorkerJsonEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco JSON worker',
+  },
+  monacoWorkerJsonLoadMode: {
+    area: 'Editor: Monaco',
+    responsibility: 'Load mode for Monaco JSON worker',
+  },
+  monacoHoverEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco hover tooltips',
+  },
+  monacoLinksEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco clickable links',
+  },
+  monacoQuickSuggestionsEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco quick suggestions',
+  },
+  monacoSuggestOnTriggerCharactersEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco suggest-on-trigger-characters behavior',
+  },
+  monacoParameterHintsEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco parameter hints',
+  },
+  monacoLineNumbersEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Show Monaco line numbers',
+  },
+  monacoFoldingEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco code folding',
+  },
+  monacoMinimapEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Show Monaco minimap',
+  },
+  monacoSelectionHighlightEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco selection highlight matches',
+  },
+  monacoOccurrencesHighlightEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco symbol occurrence highlighting',
+  },
+  monacoGuidesEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco indentation and bracket guides',
+  },
+  monacoBracketPairColorizationEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco bracket pair colorization',
+  },
   uiHeaderRowHeightClass: {
     area: 'UI Density: Headers',
     responsibility: 'Tailwind class for primary header row min-height',

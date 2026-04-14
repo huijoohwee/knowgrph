@@ -1,5 +1,5 @@
 import type { StoreApi } from 'zustand';
-import type { GraphState, GraphDataTableScope, GraphDataTableFreezeMode, GraphHoverPreviewConfig, DocumentSemanticMode, BottomTab } from './types';
+import type { GraphState, GraphDataTableScope, GraphDataTableFreezeMode, GraphHoverPreviewConfig, DocumentSemanticMode, BottomTab, MonacoCapabilityLoadMode } from './types';
 import type { GraphFieldId, GraphFieldSettingsById } from '@/features/graph-fields/graphFields';
 import type {
   GraphDataTableColumnKey,
@@ -115,7 +115,7 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
     }
     return next
   }
-  const readMonacoLoadMode = (key: string, fallback: 'lazy' | 'eager' = 'lazy') => {
+  const readMonacoLoadMode = (key: string, fallback: MonacoCapabilityLoadMode = 'lazy'): MonacoCapabilityLoadMode => {
     const raw = readLsString(key, fallback)
     return raw === 'eager' ? 'eager' : 'lazy'
   }
@@ -160,8 +160,13 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   },
   monacoHoverEnabled: lsBool(LS_KEYS.monacoHoverEnabled, false),
   setMonacoHoverEnabled: (v: boolean) => set({ monacoHoverEnabled: lsSetBool(LS_KEYS.monacoHoverEnabled, !!v) }),
+  monacoLinksEnabled: lsBool(LS_KEYS.monacoLinksEnabled, false),
+  setMonacoLinksEnabled: (v: boolean) => set({ monacoLinksEnabled: lsSetBool(LS_KEYS.monacoLinksEnabled, !!v) }),
   monacoQuickSuggestionsEnabled: lsBool(LS_KEYS.monacoQuickSuggestionsEnabled, false),
   setMonacoQuickSuggestionsEnabled: (v: boolean) => set({ monacoQuickSuggestionsEnabled: lsSetBool(LS_KEYS.monacoQuickSuggestionsEnabled, !!v) }),
+  monacoSuggestOnTriggerCharactersEnabled: lsBool(LS_KEYS.monacoSuggestOnTriggerCharactersEnabled, false),
+  setMonacoSuggestOnTriggerCharactersEnabled: (v: boolean) =>
+    set({ monacoSuggestOnTriggerCharactersEnabled: lsSetBool(LS_KEYS.monacoSuggestOnTriggerCharactersEnabled, !!v) }),
   monacoParameterHintsEnabled: lsBool(LS_KEYS.monacoParameterHintsEnabled, false),
   setMonacoParameterHintsEnabled: (v: boolean) => set({ monacoParameterHintsEnabled: lsSetBool(LS_KEYS.monacoParameterHintsEnabled, !!v) }),
   monacoLineNumbersEnabled: lsBool(LS_KEYS.monacoLineNumbersEnabled, true),
@@ -170,6 +175,17 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   setMonacoFoldingEnabled: (v: boolean) => set({ monacoFoldingEnabled: lsSetBool(LS_KEYS.monacoFoldingEnabled, !!v) }),
   monacoMinimapEnabled: lsBool(LS_KEYS.monacoMinimapEnabled, false),
   setMonacoMinimapEnabled: (v: boolean) => set({ monacoMinimapEnabled: lsSetBool(LS_KEYS.monacoMinimapEnabled, !!v) }),
+  monacoSelectionHighlightEnabled: lsBool(LS_KEYS.monacoSelectionHighlightEnabled, false),
+  setMonacoSelectionHighlightEnabled: (v: boolean) =>
+    set({ monacoSelectionHighlightEnabled: lsSetBool(LS_KEYS.monacoSelectionHighlightEnabled, !!v) }),
+  monacoOccurrencesHighlightEnabled: lsBool(LS_KEYS.monacoOccurrencesHighlightEnabled, false),
+  setMonacoOccurrencesHighlightEnabled: (v: boolean) =>
+    set({ monacoOccurrencesHighlightEnabled: lsSetBool(LS_KEYS.monacoOccurrencesHighlightEnabled, !!v) }),
+  monacoGuidesEnabled: lsBool(LS_KEYS.monacoGuidesEnabled, false),
+  setMonacoGuidesEnabled: (v: boolean) => set({ monacoGuidesEnabled: lsSetBool(LS_KEYS.monacoGuidesEnabled, !!v) }),
+  monacoBracketPairColorizationEnabled: lsBool(LS_KEYS.monacoBracketPairColorizationEnabled, false),
+  setMonacoBracketPairColorizationEnabled: (v: boolean) =>
+    set({ monacoBracketPairColorizationEnabled: lsSetBool(LS_KEYS.monacoBracketPairColorizationEnabled, !!v) }),
 
   richMediaPanelMode: (() => {
     const raw = readLsString(LS_KEYS.renderRichMediaPanelMode, 'snapshot')
