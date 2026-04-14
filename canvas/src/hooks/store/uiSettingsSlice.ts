@@ -345,6 +345,20 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   monacoWordSeparatorsEnabled: lsBool(LS_KEYS.monacoWordSeparatorsEnabled, false),
   setMonacoWordSeparatorsEnabled: (v: boolean) =>
     set({ monacoWordSeparatorsEnabled: lsSetBool(LS_KEYS.monacoWordSeparatorsEnabled, !!v) }),
+  monacoMultiCursorModifierEnabled: lsBool(LS_KEYS.monacoMultiCursorModifierEnabled, false),
+  setMonacoMultiCursorModifierEnabled: (v: boolean) =>
+    set({ monacoMultiCursorModifierEnabled: lsSetBool(LS_KEYS.monacoMultiCursorModifierEnabled, !!v) }),
+  monacoMultiCursorMergeOverlappingEnabled: lsBool(LS_KEYS.monacoMultiCursorMergeOverlappingEnabled, false),
+  setMonacoMultiCursorMergeOverlappingEnabled: (v: boolean) =>
+    set({
+      monacoMultiCursorMergeOverlappingEnabled: lsSetBool(LS_KEYS.monacoMultiCursorMergeOverlappingEnabled, !!v),
+    }),
+  monacoMultiCursorPasteEnabled: lsBool(LS_KEYS.monacoMultiCursorPasteEnabled, false),
+  setMonacoMultiCursorPasteEnabled: (v: boolean) =>
+    set({ monacoMultiCursorPasteEnabled: lsSetBool(LS_KEYS.monacoMultiCursorPasteEnabled, !!v) }),
+  monacoAutoClosingOvertypeEnabled: lsBool(LS_KEYS.monacoAutoClosingOvertypeEnabled, false),
+  setMonacoAutoClosingOvertypeEnabled: (v: boolean) =>
+    set({ monacoAutoClosingOvertypeEnabled: lsSetBool(LS_KEYS.monacoAutoClosingOvertypeEnabled, !!v) }),
 
   richMediaPanelMode: (() => {
     const raw = readLsString(LS_KEYS.renderRichMediaPanelMode, 'snapshot')

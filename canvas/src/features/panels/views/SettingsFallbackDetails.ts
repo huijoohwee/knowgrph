@@ -363,6 +363,22 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'Editor: Monaco',
     responsibility: 'Enable Monaco default word separators',
   },
+  monacoMultiCursorModifierEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco alternate multi-cursor modifier',
+  },
+  monacoMultiCursorMergeOverlappingEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco multi-cursor overlap merging',
+  },
+  monacoMultiCursorPasteEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco multi-cursor spread paste',
+  },
+  monacoAutoClosingOvertypeEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco auto-closing overtype behavior',
+  },
   uiHeaderRowHeightClass: {
     area: 'UI Density: Headers',
     responsibility: 'Tailwind class for primary header row min-height',

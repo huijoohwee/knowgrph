@@ -556,6 +556,14 @@ export interface GraphState {
   setMonacoColumnSelectionEnabled: (v: boolean) => void;
   monacoWordSeparatorsEnabled: boolean;
   setMonacoWordSeparatorsEnabled: (v: boolean) => void;
+  monacoMultiCursorModifierEnabled: boolean;
+  setMonacoMultiCursorModifierEnabled: (v: boolean) => void;
+  monacoMultiCursorMergeOverlappingEnabled: boolean;
+  setMonacoMultiCursorMergeOverlappingEnabled: (v: boolean) => void;
+  monacoMultiCursorPasteEnabled: boolean;
+  setMonacoMultiCursorPasteEnabled: (v: boolean) => void;
+  monacoAutoClosingOvertypeEnabled: boolean;
+  setMonacoAutoClosingOvertypeEnabled: (v: boolean) => void;
   threeIframeOverlayPoolMax: number;
   setThreeIframeOverlayPoolMax: (v: number) => void;
   richMediaPanelMode: 'snapshot' | 'embed';

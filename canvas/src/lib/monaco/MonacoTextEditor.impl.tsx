@@ -161,6 +161,10 @@ type MonacoCapabilitySettings = {
   monacoEmptySelectionClipboardEnabled: boolean
   monacoColumnSelectionEnabled: boolean
   monacoWordSeparatorsEnabled: boolean
+  monacoMultiCursorModifierEnabled: boolean
+  monacoMultiCursorMergeOverlappingEnabled: boolean
+  monacoMultiCursorPasteEnabled: boolean
+  monacoAutoClosingOvertypeEnabled: boolean
 }
 
 const resolveConfiguredMonacoLanguage = (language: string, settings: MonacoCapabilitySettings): string => {
@@ -258,9 +262,13 @@ const buildMonacoEditorOptions = (
   },
   autoClosingDelete: settings.monacoAutoClosingDeleteEnabled ? 'always' : 'never',
   autoClosingComments: settings.monacoAutoClosingCommentsEnabled ? 'always' : 'never',
+  autoClosingOvertype: settings.monacoAutoClosingOvertypeEnabled ? 'always' : 'never',
   emptySelectionClipboard: settings.monacoEmptySelectionClipboardEnabled,
   columnSelection: settings.monacoColumnSelectionEnabled,
   wordSeparators: settings.monacoWordSeparatorsEnabled ? '`~!@#$%^&*()-=+[{]}\\|;:\'",.<>/?' : '',
+  multiCursorModifier: settings.monacoMultiCursorModifierEnabled ? 'ctrlCmd' : 'alt',
+  multiCursorMergeOverlapping: settings.monacoMultiCursorMergeOverlappingEnabled,
+  multiCursorPaste: settings.monacoMultiCursorPasteEnabled ? 'spread' : 'full',
   wrappingIndent: settings.monacoWrappingIndentEnabled ? 'indent' : 'none',
   wrappingStrategy: settings.monacoWrappingStrategyEnabled ? 'advanced' : 'simple',
   hover: { enabled: settings.monacoHoverEnabled },
@@ -408,6 +416,10 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
       monacoEmptySelectionClipboardEnabled: s.monacoEmptySelectionClipboardEnabled,
       monacoColumnSelectionEnabled: s.monacoColumnSelectionEnabled,
       monacoWordSeparatorsEnabled: s.monacoWordSeparatorsEnabled,
+      monacoMultiCursorModifierEnabled: s.monacoMultiCursorModifierEnabled,
+      monacoMultiCursorMergeOverlappingEnabled: s.monacoMultiCursorMergeOverlappingEnabled,
+      monacoMultiCursorPasteEnabled: s.monacoMultiCursorPasteEnabled,
+      monacoAutoClosingOvertypeEnabled: s.monacoAutoClosingOvertypeEnabled,
     })),
   )
 

@@ -46,6 +46,7 @@ Key implementation:
   - [adapter.ts](../../canvas/src/lib/graph/io/adapter.ts)
 - Markdown fenced GeoJSON that becomes GraphData should reuse the same geospatial auto-enable contract as file-based geo imports so ingest→parse→render behavior stays identical.
 - The computing-flow markdown sample is the canonical ingest→parse→render fixture; it must validate frontmatter-flow display derivation, embedded GeoJSON extraction, geospatial auto-enable parity, and Block-layout 3D mode.
+- Cross-repo pipeline docs may shard oversized markdown into companion files at stable section boundaries, but must keep the original filename as the sub-600 canonical index with explicit continuation links so sync-map references stay stable.
 - Registry auto-apply from GraphData metadata during store commit:
   - [graphDataSlice.ts](../../canvas/src/hooks/store/graphDataSlice.ts)
   - [graphDataSliceUtils.ts](../../canvas/src/hooks/store/graphDataSliceUtils.ts)

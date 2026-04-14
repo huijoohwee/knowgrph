@@ -14,14 +14,14 @@
 
 ## Current Status (Runtime Overlay)
 
-- In the extracted module, a MapLibre GL basemap renders as a translucent layer on top of the canvas.
+- In the default host path, a high-fidelity local SVG basemap renders on top of the canvas; it stays crisp, bounded, and free of MapLibre runtime crashes.
 - The overlay supports interaction gating (**Off / Hold Space / Always**). Default interaction mode is **Always** for immediate navigation, and users can switch in the Geo panel.
 - Geospatial Mode is a canvas rendering mode: when **ON**, the canvas suppresses knowledge-graph rendering (nodes/edges/layers/rich media) so the map overlay and geospatial datasets are the primary surface.
 - Floating Panel open/close does not toggle Geospatial Mode.
-- MapLibre’s required CSS is loaded by the extracted module so host runtimes do not need to remember to import it separately (restores reliable drag/pan/zoom + pointer hit-testing).
-- **Default Style**: Uses **OpenFreeMap Liberty** (`https://tiles.openfreemap.org/styles/liberty`) as the default basemap if no style URL is provided.
-- **Style URL Note**: The OpenFreeMap style endpoint is the `.../styles/<styleName>` path (no trailing `/style.json`). If a pasted URL ends with `/style.json`, it should be normalized to the canonical endpoint to avoid 404s.
-- Projection is configurable (**Auto / Mercator / Globe**). In **Auto**, 3D render mode uses a globe-style projection.
+- When a non-default MapLibre path is enabled, the extracted module still owns the required MapLibre CSS so host runtimes do not need to import it separately.
+- **Default Style**: A blank/default basemap style keeps the host on the high-fidelity SVG fallback. It does not route to any square raster fallback.
+- **Style URL Note**: Persisted remote style URLs and legacy sentinels normalize back to the SVG-first default path unless an explicit supported MapLibre path is intentionally reintroduced.
+- **Projection Note**: MapLibre projection settings remain a non-default capability; the current host default path stays SVG-first and keeps MapLibre runtime off.
 - Dataset layers can be added as http(s) URLs (GeoJSON or record-style JSON) and rendered as points/lines/polygons.
 - Same-origin datasets can also be referenced as absolute paths (starting with `/`) so hosts can serve local GeoJSON/JSON without CORS.
  - Host-side JSON imports that contain geo fields (e.g. `lat/lon` or `geo.{lat,lng}`) can be ingested as **sampled geodata** without parsing the entire JSON payload (prevents UI freezes on very large object-map datasets).
@@ -50,6 +50,7 @@
 - Style-relative URLs are resolved against a trailing-slash base (for example `.../styles/liberty/`) so `sprite`, `glyphs`, and `source.url` relative paths resolve correctly.
 - Runtime overlay status is surfaced via a native in-app toast (top-right, below the toolbar) so it stays visible above the Floating Panel and other UI layers.
 - Hover and click popups are rendered by MapLibre (not by the host UI) to keep POI feedback colocated with the map.
+- The SVG fallback is the current host default: ocean/land/frame/graticule styling is precomputed, avoids per-frame recomputation, and must not regress to square raster tiles or other legacy fallback paths.
 - If the basemap stays blank after refresh while requests succeed, the most common cause is a **0px-height overlay container** (e.g. `canvas=1728x0`). The overlay is mounted via a portal and forces viewport-sized layout (`100vw/100vh` with px fallbacks) and calls `map.resize()` to avoid this dead state.
 
 ### Troubleshooting: “Loaded” but blank

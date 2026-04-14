@@ -69,14 +69,16 @@ type FeatureProjection = {
 const HIGH_FIDELITY_WORLD_SVG_URL = new URL('./features/geospatial/assets/simple-world-map-edit.svg', import.meta.url).href
 const HIGH_FIDELITY_WORLD_SVG_WIDTH = 494.7
 const HIGH_FIDELITY_WORLD_SVG_HEIGHT = 265.7
+const SVG_FALLBACK_VIEWBOX_WIDTH = 1000
+const SVG_FALLBACK_VIEWBOX_HEIGHT = 560
 
 function SvgGeospatialFallback(args: {
   featureCollection: FeatureCollection
   selectedFeatureCollection: FeatureCollection
   className: string
 }): React.ReactElement {
-  const width = 1000
-  const height = 560
+  const width = SVG_FALLBACK_VIEWBOX_WIDTH
+  const height = SVG_FALLBACK_VIEWBOX_HEIGHT
   const projection = React.useMemo(() => {
     const equirect = geoEquirectangular()
     const features = Array.isArray(args.featureCollection.features) ? args.featureCollection.features : []
@@ -110,6 +112,9 @@ function SvgGeospatialFallback(args: {
     return equirect
   }, [args.featureCollection])
 
+  const areaPathBuilder = React.useMemo(() => geoPath(projection), [projection])
+  const pointPathBuilder = React.useMemo(() => geoPath(projection).pointRadius(4), [projection])
+  const selectedPointPathBuilder = React.useMemo(() => geoPath(projection).pointRadius(6), [projection])
   const worldTopLeft = React.useMemo(() => projection([-180, 90]) || [0, 0], [projection])
   const worldBottomRight = React.useMemo(() => projection([180, -90]) || [width, height], [projection, width, height])
   const svgImageX = Math.min(worldTopLeft[0], worldBottomRight[0])
@@ -117,12 +122,12 @@ function SvgGeospatialFallback(args: {
   const svgImageWidth = Math.abs(worldBottomRight[0] - worldTopLeft[0])
   const svgImageHeight = (svgImageWidth * HIGH_FIDELITY_WORLD_SVG_HEIGHT) / HIGH_FIDELITY_WORLD_SVG_WIDTH
   const svgImageYAdjusted = svgImageY + (Math.abs(worldBottomRight[1] - worldTopLeft[1]) - svgImageHeight) / 2
-  const spherePath = React.useMemo(() => geoPath(projection)({ type: 'Sphere' } as never) || '', [projection])
-  const graticulePath = React.useMemo(() => geoPath(projection)(geoGraticule10() as never) || '', [projection])
-  const pointsPath = React.useMemo(() => geoPath(projection).pointRadius(4)(args.featureCollection as never) || '', [projection, args.featureCollection])
+  const spherePath = React.useMemo(() => areaPathBuilder({ type: 'Sphere' } as never) || '', [areaPathBuilder])
+  const graticulePath = React.useMemo(() => areaPathBuilder(geoGraticule10() as never) || '', [areaPathBuilder])
+  const pointsPath = React.useMemo(() => pointPathBuilder(args.featureCollection as never) || '', [pointPathBuilder, args.featureCollection])
   const selectedPath = React.useMemo(
-    () => geoPath(projection).pointRadius(6)(args.selectedFeatureCollection as never) || '',
-    [projection, args.selectedFeatureCollection],
+    () => selectedPointPathBuilder(args.selectedFeatureCollection as never) || '',
+    [selectedPointPathBuilder, args.selectedFeatureCollection],
   )
 
   return (

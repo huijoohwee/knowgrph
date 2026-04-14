@@ -220,6 +220,18 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!monacoSettingsRegistryText.includes("key: 'monacoWordSeparatorsEnabled'")) {
     throw new Error('expected MainPanel settings registry to expose Monaco word-separators toggle control')
   }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoMultiCursorModifierEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco multi-cursor-modifier toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoMultiCursorMergeOverlappingEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco multi-cursor-merge-overlapping toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoMultiCursorPasteEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco multi-cursor-paste toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoAutoClosingOvertypeEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco auto-closing-overtype toggle control')
+  }
   if (!monacoTextEditorText.includes('links: settings.monacoLinksEnabled')) {
     throw new Error('expected MonacoTextEditor to wire Monaco links through MainPanel capability settings')
   }
@@ -402,6 +414,18 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
     !monacoTextEditorText.includes("`~!@#$%^&*()-=+[{]}\\\\|;:\\'\",.<>/?'")
   ) {
     throw new Error('expected MonacoTextEditor to wire wordSeparators through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("multiCursorModifier: settings.monacoMultiCursorModifierEnabled ? 'ctrlCmd' : 'alt'")) {
+    throw new Error('expected MonacoTextEditor to wire multiCursorModifier through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('multiCursorMergeOverlapping: settings.monacoMultiCursorMergeOverlappingEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire multiCursorMergeOverlapping through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("multiCursorPaste: settings.monacoMultiCursorPasteEnabled ? 'spread' : 'full'")) {
+    throw new Error('expected MonacoTextEditor to wire multiCursorPaste through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("autoClosingOvertype: settings.monacoAutoClosingOvertypeEnabled ? 'always' : 'never'")) {
+    throw new Error('expected MonacoTextEditor to wire autoClosingOvertype through MainPanel capability settings')
   }
 
   const markdownCodeBlockText = readFileSync(resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownCodeBlock.tsx'), 'utf8')
