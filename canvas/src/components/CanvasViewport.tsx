@@ -10,6 +10,7 @@ import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
+import FlowEditorCanvas from '@/components/FlowEditorCanvas'
 
 import { getCanvas2dSurfaceId, supportsCanvas2dMinimap } from '@/lib/config.render'
 
@@ -45,9 +46,6 @@ const GeospatialOverlayHostLazy = React.lazy(async (): Promise<{ default: React.
 const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
 const FlowCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowCanvas'), { retries: 2, retryDelayMs: 50 }))
 const DesignCanvasLazy = React.lazy(() => import('@/components/DesignCanvas'))
-const FlowEditorCanvasLazy = React.lazy(() =>
-  importWithRetry(() => import('@/components/FlowEditorCanvas'), { retries: 2, retryDelayMs: 50 }),
-)
 const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
 const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
 const LaunchSpotlightLazy = React.lazy(() => import('@/features/spotlight/LaunchSpotlight'))
@@ -369,7 +367,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
               {mounted2dRenderers.design ? <DesignCanvasLazy active={active2dSurface === 'design'} /> : null}
             </div>
             <div className={`absolute inset-0 ${active2dSurface === 'flowEditor' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'flowEditor'}>
-              {mounted2dRenderers.flowEditor ? <FlowEditorCanvasLazy active={active2dSurface === 'flowEditor'} /> : null}
+              {mounted2dRenderers.flowEditor ? <FlowEditorCanvas active={active2dSurface === 'flowEditor'} /> : null}
             </div>
           </div>
         )}
