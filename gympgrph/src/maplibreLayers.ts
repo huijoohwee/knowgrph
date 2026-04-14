@@ -1,15 +1,59 @@
 import type { FeatureCollection } from 'geojson'
+import type { GeospatialPointStyleConfig } from './features/geospatial/pointStyleConfig'
 
 const EMPTY_FEATURE_COLLECTION: FeatureCollection = { type: 'FeatureCollection', features: [] }
+
+const pointColorExpression = (fallbackColor: string, pointStyleConfig?: GeospatialPointStyleConfig) => [
+  'match',
+  ['get', 'kgCategory'],
+  'airport',
+  pointStyleConfig?.colors.airport || '#2563eb',
+  'hotel',
+  pointStyleConfig?.colors.hotel || '#7c3aed',
+  'poi',
+  pointStyleConfig?.colors.poi || '#ea580c',
+  'route',
+  pointStyleConfig?.colors.route || '#0f766e',
+  pointStyleConfig?.colors.other || fallbackColor,
+]
+const pointRadiusByZoomExpression = (radiusMultiplier: number) => [
+  'match',
+  ['get', 'kgCategory'],
+  'airport',
+  8 * radiusMultiplier,
+  'hotel',
+  6.5 * radiusMultiplier,
+  'poi',
+  7.5 * radiusMultiplier,
+  'route',
+  5 * radiusMultiplier,
+  6.5 * radiusMultiplier,
+]
 
 const isStyleReady = (map: any): boolean => {
   if (!map) return false
   try {
-    if (typeof map.isStyleLoaded === 'function') return map.isStyleLoaded() === true
+    if (typeof map.isStyleLoaded === 'function' && map.isStyleLoaded() === true) return true
   } catch {
-    return false
+    void 0
+  }
+  try {
+    if (typeof map.loaded === 'function' && map.loaded() === true) return true
+  } catch {
+    void 0
+  }
+  try {
+    const hasStyleObject = typeof map.getStyle === 'function' && !!map.getStyle?.()
+    const tilesLoaded = typeof map.areTilesLoaded === 'function' && map.areTilesLoaded() === true
+    if (hasStyleObject && tilesLoaded) return true
+  } catch {
+    void 0
   }
   return false
+}
+
+export function isMapLibreStyleReady(map: any): boolean {
+  return isStyleReady(map)
 }
 
 export function setGeoJsonSourceData(map: any, sourceId: string, fc: FeatureCollection): void {
@@ -41,11 +85,16 @@ export function ensureDatasetLayer(
   color: string,
   options?: {
     cluster?: boolean
+    pointStyleConfig?: GeospatialPointStyleConfig
   },
 ): void {
   if (!map || !sourceId) return
   if (!isStyleReady(map)) return
   const cluster = options?.cluster === true
+  const radiusMultiplier = (() => {
+    const n = Number(options?.pointStyleConfig?.radiusMultiplier)
+    return Number.isFinite(n) ? Math.max(0.6, Math.min(2.4, n)) : 1
+  })()
 
   if (!map.getSource?.(sourceId)) {
     try {
@@ -66,6 +115,19 @@ export function ensureDatasetLayer(
 
   if (cluster) {
     addLayerOnce({
+      id: `${sourceId}:cluster-bubbles`,
+      type: 'circle',
+      source: sourceId,
+      filter: ['has', 'point_count'],
+      paint: {
+        'circle-color': pointColorExpression(color, options?.pointStyleConfig),
+        'circle-radius': ['step', ['get', 'point_count'], 14, 10, 18, 50, 24, 200, 30],
+        'circle-opacity': 0.92,
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 2,
+      },
+    })
+    addLayerOnce({
       id: `${sourceId}:cluster-count`,
       type: 'symbol',
       source: sourceId,
@@ -80,9 +142,32 @@ export function ensureDatasetLayer(
   }
 
   addLayerOnce({
+    id: `${sourceId}:routes`,
+    type: 'line',
+    source: sourceId,
+    filter: ['all', ['==', ['geometry-type'], 'LineString'], ['==', ['get', 'kgCategory'], 'route']],
+    paint: {
+      'line-color': options?.pointStyleConfig?.colors.route || color,
+      'line-width': 2.5,
+      'line-opacity': 0.88,
+    },
+  })
+
+  addLayerOnce({
     id: `${sourceId}:points`,
     type: 'circle',
     source: sourceId,
-    paint: { 'circle-color': color, 'circle-radius': 4, 'circle-opacity': 0.9 },
+    filter: cluster
+      ? ['all', ['==', ['geometry-type'], 'Point'], ['!', ['has', 'point_count']]]
+      : ['==', ['geometry-type'], 'Point'],
+    paint: {
+      'circle-color': pointColorExpression(color, options?.pointStyleConfig),
+      'circle-radius': pointRadiusByZoomExpression(radiusMultiplier),
+      'circle-opacity': 0.96,
+      'circle-stroke-color': '#ffffff',
+      'circle-stroke-width': 1.5,
+      'circle-stroke-opacity': 0.95,
+      'circle-blur': 0.05,
+    },
   })
 }

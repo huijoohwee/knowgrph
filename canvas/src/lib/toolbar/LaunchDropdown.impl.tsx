@@ -220,6 +220,7 @@ export function LaunchDropdown({
           const files = e.target.files
           if (typeof bridge.importLocalFiles === 'function') bridge.importLocalFiles(files)
           else void importLocalFilesFallback(files)
+          onClose()
           try {
             e.currentTarget.value = ''
           } catch {
@@ -246,6 +247,7 @@ export function LaunchDropdown({
           const files = e.target.files
           if (typeof bridge.importLocalFolder === 'function') bridge.importLocalFolder(files)
           else void importLocalFolderFallback(files)
+          onClose()
           try {
             e.currentTarget.value = ''
           } catch {
@@ -302,7 +304,6 @@ export function LaunchDropdown({
               className={menuItemClass}
               onClick={() => {
                 openFilePicker(fileInputRef.current)
-                onClose()
               }}
             >
               <Upload className={menuIconClass} strokeWidth={1.6} />
@@ -339,7 +340,6 @@ export function LaunchDropdown({
               className={menuItemClass}
               onClick={() => {
                 openFilePicker(folderInputRef.current)
-                onClose()
               }}
             >
               <FolderOpen className={menuIconClass} strokeWidth={1.6} />

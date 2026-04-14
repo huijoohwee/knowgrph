@@ -2,6 +2,7 @@ import type { UiToastInput } from '@/hooks/store/types'
 import type { WorkspaceImportResult } from '@/components/BottomPanel/markdownWorkspace/workspaceImport/types'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 type PushUiToast = (toast: UiToastInput) => void
 
@@ -14,6 +15,37 @@ async function applyWorkspaceImportToCanvasIfAvailable(args: {
       '@/features/workspace-fs/applyWorkspaceImportToCanvas'
     )) as typeof import('@/features/workspace-fs/applyWorkspaceImportToCanvas')
     await applyWorkspaceImportToCanvas(args)
+  } catch {
+    void 0
+  }
+}
+
+async function focusFirstImportedWorkspaceFile(args: {
+  fs: WorkspaceFs
+  createdPaths: string[]
+}): Promise<void> {
+  const firstPath = Array.isArray(args.createdPaths) ? String(args.createdPaths.find(Boolean) || '').trim() : ''
+  if (!firstPath) return
+  try {
+    const [{ workspaceBasename, workspaceDocumentKey }, { normalizeMermaidMmdToMarkdown }] = await Promise.all([
+      import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
+      import('grph-shared/markdown/mermaidInput') as Promise<typeof import('grph-shared/markdown/mermaidInput')>,
+    ])
+    const text = String((await args.fs.readFileText(firstPath).catch(() => '')) || '')
+    const docKey = workspaceDocumentKey(firstPath)
+    const name = docKey || workspaceBasename(firstPath) || firstPath
+    const state = useGraphStore.getState()
+    state.setWorkspaceViewMode('editor')
+    await state.setActiveMarkdownDocument({
+      name,
+      text: normalizeMermaidMmdToMarkdown(name, text),
+      normalizeMermaidMmd: false,
+      sourceUrl: null,
+      jsonSourceText: null,
+      workspaceViewMode: 'editor',
+      applyToGraph: true,
+      forceApplyToGraph: true,
+    })
   } catch {
     void 0
   }
@@ -54,6 +86,7 @@ export async function importLocalFilesFallback(args: {
     )) as WorkspaceImportResult
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
     await applyWorkspaceImportToCanvasIfAvailable({ fs, createdPaths: res.createdPaths })
+    await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths })
     args.pushUiToast({
       id: 'launch:import:localFiles',
       kind: 'success',
@@ -94,6 +127,7 @@ export async function importLocalFolderFallback(args: {
     const res = (await runWorkspaceFsChangedBatch(() => importWorkspaceLocalFolder({ fs, files: snapshot }))) as WorkspaceImportResult
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
     await applyWorkspaceImportToCanvasIfAvailable({ fs, createdPaths: res.createdPaths })
+    await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths })
     args.pushUiToast({
       id: 'launch:import:folder',
       kind: 'success',
@@ -146,6 +180,7 @@ export async function importUrlFallback(args: {
     )) as WorkspaceImportResult
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
     await applyWorkspaceImportToCanvasIfAvailable({ fs, createdPaths: res.createdPaths })
+    await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths })
     args.pushUiToast({
       id: toastId,
       kind: 'success',

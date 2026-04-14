@@ -82,6 +82,9 @@ export const testGeospatialOverlayHostProvidesSvgFallbackBasemapAndDisablesDefau
   if (!text.includes('const show3dModern = active && geospatialViewMode === \'3d-modern\'')) {
     throw new Error('Expected GeospatialOverlayHost to expose a dedicated 3D MapLibre Modern mode')
   }
+  if (!text.includes('const show2dMapLibreModern = active && geospatialViewMode === \'2d-modern\'')) {
+    throw new Error('Expected GeospatialOverlayHost to expose a dedicated 2D MapLibre Modern mode')
+  }
   if (!text.includes('const mapLibreRuntimeEnabled = show2dMapLibre || show3d')) {
     throw new Error('Expected GeospatialOverlayHost runtime to enable MapLibre only for explicit 2D/3D MapLibre modes')
   }
@@ -136,14 +139,14 @@ export const testGeospatialOverlayHostAvoidsClusteredGeoJsonOnGlobeRenderer = ()
   }
 }
 
-export const testGeospatialOverlayHostSkipsGraphGeoJsonProjectionIn3d = () => {
+export const testGeospatialOverlayHostProjectsGraphGeoJsonIn3dWithoutClustering = () => {
   const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
   const text = readUtf8(hostPath)
-  if (!text.includes("if (viewMode === 'map3d')")) {
-    throw new Error('Expected GeospatialOverlayHost to short-circuit graph GeoJSON projection in 3D mode')
+  if (text.includes("if (viewMode === 'map3d')")) {
+    throw new Error('Expected GeospatialOverlayHost to keep graph GeoJSON projection active in 3D mode')
   }
-  if (!text.includes("graphDataAppliedRef.current[viewMode] = ''")) {
-    throw new Error('Expected GeospatialOverlayHost to reset applied graph source state when 3D projection is skipped')
+  if (!text.includes("const cluster = viewMode === 'map2d' && isPointOnlyFeatureCollection")) {
+    throw new Error('Expected GeospatialOverlayHost to restrict clustering to 2D while still rendering 3D graph points')
   }
 }
 
@@ -195,9 +198,12 @@ export const testGeospatialPanelHostIsNotEmpty = () => {
   if (!text.includes('Basemap style URL')) throw new Error('Expected GeospatialPanelHost to render basemap style controls')
   if (!text.includes('Fit to data')) throw new Error('Expected GeospatialPanelHost to render fit controls')
   if (!text.includes('2D (MapLibre, Classic)')) throw new Error('Expected GeospatialPanelHost to expose explicit 2D MapLibre Classic selection')
+  if (!text.includes('2D (MapLibre, Modern)')) throw new Error('Expected GeospatialPanelHost to expose explicit 2D MapLibre Modern selection')
   if (!text.includes('3D (MapLibre, Classic)')) throw new Error('Expected GeospatialPanelHost to expose explicit 3D MapLibre Classic selection')
   if (!text.includes('3D (MapLibre, Modern)')) throw new Error('Expected GeospatialPanelHost to expose explicit 3D MapLibre Modern selection')
   if (!text.includes('2D (SVG, fallback)')) throw new Error('Expected GeospatialPanelHost to expose explicit 2D SVG fallback selection')
+  if (!text.includes('Apply Point Style')) throw new Error('Expected GeospatialPanelHost to expose point style apply control')
+  if (!text.includes('Reset Point Style')) throw new Error('Expected GeospatialPanelHost to expose point style reset control')
 }
 
 export const testGympgrphDefaultInteractionModeIsAlways = () => {
@@ -399,6 +405,123 @@ export const testGympgrphMapLibreLayersGuardWritesUntilStyleReady = () => {
   }
   if (!text.includes('if (!isStyleReady(map)) return')) {
     throw new Error('Expected maplibre layer helpers to skip source/layer writes before style load')
+  }
+}
+
+export const testGeospatialHostDoesNotMemoizeGraphApplyBeforeStyleReady = () => {
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const layersPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'maplibreLayers.ts')
+  const hostText = readUtf8(hostPath)
+  const layersText = readUtf8(layersPath)
+  if (!layersText.includes('export function isMapLibreStyleReady')) {
+    throw new Error('Expected maplibre layer helpers to expose a style-ready predicate')
+  }
+  if (!hostText.includes('if (!isMapLibreStyleReady(basemapMap))')) {
+    throw new Error('Expected GeospatialHost to skip graph apply memoization until MapLibre style is ready')
+  }
+  if (!hostText.includes("graphDataAppliedRef.current[viewMode] = ''")) {
+    throw new Error('Expected GeospatialHost to clear apply memo when style is not ready')
+  }
+}
+
+export const testMapLibreStyleReadyPredicateAllowsLoadedRenderedMaps = () => {
+  const layersPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'maplibreLayers.ts')
+  const text = readUtf8(layersPath)
+  if (!text.includes("typeof map.isStyleLoaded === 'function' && map.isStyleLoaded() === true")) {
+    throw new Error('Expected MapLibre style-ready predicate to only short-circuit on positive isStyleLoaded')
+  }
+  if (!text.includes("typeof map.loaded === 'function' && map.loaded() === true")) {
+    throw new Error('Expected MapLibre style-ready predicate to accept fully loaded maps')
+  }
+  if (!text.includes("typeof map.areTilesLoaded === 'function' && map.areTilesLoaded() === true")) {
+    throw new Error('Expected MapLibre style-ready predicate to accept tile-loaded maps with a style object')
+  }
+}
+
+export const testGympgrphMapLibrePointLayersUseVisiblePaintStyling = () => {
+  const layersPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'maplibreLayers.ts')
+  const text = readUtf8(layersPath)
+  const required = [
+    'cluster-bubbles',
+    ':routes',
+    "'circle-stroke-color': '#ffffff'",
+    "'circle-stroke-width': 1.5",
+    'pointRadiusByZoomExpression',
+    'pointColorExpression',
+    "['get', 'kgCategory']",
+    "['==', ['geometry-type'], 'Point']",
+    "['==', ['geometry-type'], 'LineString']",
+  ]
+  const missing = required.filter(snippet => !text.includes(snippet))
+  if (missing.length) {
+    throw new Error(`Expected MapLibre point layers to use visibility-safe styling: ${missing.join(', ')}`)
+  }
+}
+
+export const testGeospatialHostProjectsCategoryForPointStyling = () => {
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const text = readUtf8(hostPath)
+  if (!text.includes('kgCategory')) {
+    throw new Error('Expected GeospatialHost projection to include kgCategory property for data-driven point styling')
+  }
+  if (!text.includes("if (v.includes('airport')) return 'airport'")) {
+    throw new Error('Expected GeospatialHost projection to classify airport category')
+  }
+  if (!text.includes("if (v.includes('hotel') || v.includes('hostel') || v.includes('accommodation')) return 'hotel'")) {
+    throw new Error('Expected GeospatialHost projection to classify hotel category')
+  }
+  if (!text.includes("if (v.includes('poi') || v.includes('attraction') || v.includes('landmark')) return 'poi'")) {
+    throw new Error('Expected GeospatialHost projection to classify poi category')
+  }
+}
+
+export const testGeospatialHostRendersInMapLegendFromPointStyleConfig = () => {
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const text = readUtf8(hostPath)
+  const required = [
+    'function GeospatialPointLegend',
+    'Legend',
+    'Airport',
+    'Hotel',
+    'POI',
+    'Route',
+    'pointStyleConfig.colors.airport',
+    'pointStyleConfig.colors.hotel',
+    'pointStyleConfig.colors.poi',
+    'pointStyleConfig.colors.route',
+  ]
+  const missing = required.filter(snippet => !text.includes(snippet))
+  if (missing.length) {
+    throw new Error(`Expected GeospatialHost to render in-map legend from point-style config: ${missing.join(', ')}`)
+  }
+}
+
+export const testLaunchDropdownFallbackActivatesFirstImportedWorkspaceFile = () => {
+  const fallbackPath = path.resolve(process.cwd(), 'src', 'features', 'toolbar', 'launchDropdownFallbacks.ts')
+  const text = readUtf8(fallbackPath)
+  const required = [
+    'async function focusFirstImportedWorkspaceFile',
+    "state.setWorkspaceViewMode('editor')",
+    'await state.setActiveMarkdownDocument({',
+    'await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths })',
+  ]
+  const missing = required.filter(snippet => !text.includes(snippet))
+  if (missing.length) {
+    throw new Error(`Expected launch dropdown fallback import to activate first imported workspace file: ${missing.join(', ')}`)
+  }
+}
+
+export const testLaunchDropdownFilePickerClosesAfterSelectionNotBefore = () => {
+  const dropdownPath = path.resolve(process.cwd(), 'src', 'lib', 'toolbar', 'LaunchDropdown.impl.tsx')
+  const text = readUtf8(dropdownPath)
+  if (!text.includes('if (typeof bridge.importLocalFiles === \'function\') bridge.importLocalFiles(files)\n          else void importLocalFilesFallback(files)\n          onClose()')) {
+    throw new Error('Expected local file picker flow to close dropdown after file selection is handled')
+  }
+  if (text.includes('openFilePicker(fileInputRef.current)\n                onClose()')) {
+    throw new Error('Expected local file picker button to avoid closing dropdown before native file selection returns')
+  }
+  if (text.includes('openFilePicker(folderInputRef.current)\n                onClose()')) {
+    throw new Error('Expected local folder picker button to avoid closing dropdown before native folder selection returns')
   }
 }
 

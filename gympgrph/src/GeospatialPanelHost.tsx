@@ -12,6 +12,13 @@ import {
   normalizePersistedGeospatialStyleUrl,
   SAFE_SVG_FALLBACK_STYLE_SENTINEL,
 } from './features/geospatial/basemapStyle'
+import {
+  MAIN_PANEL_DEFAULT_GEOSPATIAL_POINT_STYLE_CONFIG,
+  normalizeGeospatialPointStyleConfig,
+  readGeospatialPointStyleConfig,
+  type GeospatialPointStyleConfig,
+  writeGeospatialPointStyleConfig,
+} from './features/geospatial/pointStyleConfig'
 
 type GeospatialPanelHostProps = {
   active?: boolean
@@ -22,9 +29,12 @@ type GeospatialPanelHostProps = {
 }
 
 const MAPLIBRE_DEFAULT_STYLE_URL = MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL
+const GEOSPATIAL_COMMIT_DEBOUNCE_MS = 120
 const getBuiltInDefaultStyleUrl = (mode: GeospatialViewMode): string =>
   mode === '3d'
     ? MAPLIBRE_GLOBE_DEFAULT_STYLE_URL
+    : mode === '2d-modern'
+      ? MAPLIBRE_MODERN_DEFAULT_STYLE_URL
     : mode === '3d-modern'
       ? MAPLIBRE_MODERN_DEFAULT_STYLE_URL
       : MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL
@@ -109,11 +119,23 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
 
   const [styleUrlDraft, setStyleUrlDraft] = React.useState<string>(() => readLsString(LS_KEYS.geospatialStyleUrl, MAPLIBRE_DEFAULT_STYLE_URL))
   const [committedStyleUrl, setCommittedStyleUrl] = React.useState<string>(() => readLsString(LS_KEYS.geospatialStyleUrl, MAPLIBRE_DEFAULT_STYLE_URL))
+  const [pointStyleDraft, setPointStyleDraft] = React.useState<GeospatialPointStyleConfig>(() => readGeospatialPointStyleConfig())
+  const modeCommitTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const styleCommitTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pointStyleCommitTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const committedStyleUrlRef = React.useRef(committedStyleUrl)
   React.useEffect(() => {
     committedStyleUrlRef.current = committedStyleUrl
   }, [committedStyleUrl])
+
+  React.useEffect(() => {
+    return () => {
+      if (modeCommitTimerRef.current) clearTimeout(modeCommitTimerRef.current)
+      if (styleCommitTimerRef.current) clearTimeout(styleCommitTimerRef.current)
+      if (pointStyleCommitTimerRef.current) clearTimeout(pointStyleCommitTimerRef.current)
+    }
+  }, [])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -137,43 +159,46 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
 
   const selectGeospatialViewMode = React.useCallback(
     (nextMode: GeospatialViewMode) => {
-      const next = nextMode === '3d-modern' ? '3d-modern' : nextMode === '3d' ? '3d' : nextMode === '2d-svg' ? '2d-svg' : '2d'
-      if (typeof window !== 'undefined') {
-        try {
-          const persisted = String(window.localStorage.getItem(LS_KEYS.geospatialViewMode) || '').trim()
-          if (persisted !== next) {
-            window.localStorage.setItem(LS_KEYS.geospatialViewMode, next)
-          }
-          if (next === '2d' || next === '3d' || next === '3d-modern') {
-            const persistedStyle = String(window.localStorage.getItem(LS_KEYS.geospatialStyleUrl) || '').trim()
-            const shouldPromoteBuiltInDefault =
-              !persistedStyle ||
-              persistedStyle === SAFE_SVG_FALLBACK_STYLE_SENTINEL ||
-              persistedStyle === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
-              persistedStyle === MAPLIBRE_GLOBE_DEFAULT_STYLE_URL ||
-              persistedStyle === MAPLIBRE_MODERN_DEFAULT_STYLE_URL ||
-              persistedStyle.toLowerCase().startsWith('kg:style:')
-            if (shouldPromoteBuiltInDefault) {
-              const nextBuiltInStyle = getBuiltInDefaultStyleUrl(next)
-              window.localStorage.setItem(LS_KEYS.geospatialStyleUrl, nextBuiltInStyle)
-              setCommittedStyleUrl(nextBuiltInStyle)
-              setStyleUrlDraft(prev => (
-                prev === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
-                prev === MAPLIBRE_GLOBE_DEFAULT_STYLE_URL ||
-                prev === MAPLIBRE_MODERN_DEFAULT_STYLE_URL ||
-                prev === committedStyleUrlRef.current
-                  ? nextBuiltInStyle
-                  : prev
-              ))
-              window.dispatchEvent(new Event(GEOSPATIAL_STYLE_URL_CHANGED_EVENT))
+      const next = nextMode === '3d-modern' ? '3d-modern' : nextMode === '3d' ? '3d' : nextMode === '2d-modern' ? '2d-modern' : nextMode === '2d-svg' ? '2d-svg' : '2d'
+      if (modeCommitTimerRef.current) clearTimeout(modeCommitTimerRef.current)
+      modeCommitTimerRef.current = setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          try {
+            const persisted = String(window.localStorage.getItem(LS_KEYS.geospatialViewMode) || '').trim()
+            if (persisted !== next) {
+              window.localStorage.setItem(LS_KEYS.geospatialViewMode, next)
             }
+            if (next === '2d' || next === '2d-modern' || next === '3d' || next === '3d-modern') {
+              const persistedStyle = String(window.localStorage.getItem(LS_KEYS.geospatialStyleUrl) || '').trim()
+              const shouldPromoteBuiltInDefault =
+                !persistedStyle ||
+                persistedStyle === SAFE_SVG_FALLBACK_STYLE_SENTINEL ||
+                persistedStyle === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
+                persistedStyle === MAPLIBRE_GLOBE_DEFAULT_STYLE_URL ||
+                persistedStyle === MAPLIBRE_MODERN_DEFAULT_STYLE_URL ||
+                persistedStyle.toLowerCase().startsWith('kg:style:')
+              if (shouldPromoteBuiltInDefault) {
+                const nextBuiltInStyle = getBuiltInDefaultStyleUrl(next)
+                window.localStorage.setItem(LS_KEYS.geospatialStyleUrl, nextBuiltInStyle)
+                setCommittedStyleUrl(nextBuiltInStyle)
+                setStyleUrlDraft(prev => (
+                  prev === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
+                  prev === MAPLIBRE_GLOBE_DEFAULT_STYLE_URL ||
+                  prev === MAPLIBRE_MODERN_DEFAULT_STYLE_URL ||
+                  prev === committedStyleUrlRef.current
+                    ? nextBuiltInStyle
+                    : prev
+                ))
+                window.dispatchEvent(new Event(GEOSPATIAL_STYLE_URL_CHANGED_EVENT))
+              }
+            }
+          } catch {
+            void 0
           }
-        } catch {
-          void 0
         }
-      }
-      emitGeospatialModeChanged({ enabled: true, viewMode: next })
-      setGeospatialViewMode(next)
+        emitGeospatialModeChanged({ enabled: true, viewMode: next })
+        setGeospatialViewMode(next)
+      }, GEOSPATIAL_COMMIT_DEBOUNCE_MS)
     },
     [setGeospatialViewMode],
   )
@@ -183,31 +208,49 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
       String(styleUrlDraft || '').trim() === ''
         ? getBuiltInDefaultStyleUrl(geospatialViewMode)
         : normalizePersistedGeospatialStyleUrl(styleUrlDraft)
-    writeLsString(LS_KEYS.geospatialStyleUrl, next || MAPLIBRE_DEFAULT_STYLE_URL)
-    setCommittedStyleUrl(next || MAPLIBRE_DEFAULT_STYLE_URL)
-    setStyleUrlDraft(next || MAPLIBRE_DEFAULT_STYLE_URL)
-    if (typeof window !== 'undefined') {
-      try {
-        window.dispatchEvent(new Event(GEOSPATIAL_STYLE_URL_CHANGED_EVENT))
-      } catch {
-        void 0
+    if (styleCommitTimerRef.current) clearTimeout(styleCommitTimerRef.current)
+    styleCommitTimerRef.current = setTimeout(() => {
+      writeLsString(LS_KEYS.geospatialStyleUrl, next || MAPLIBRE_DEFAULT_STYLE_URL)
+      setCommittedStyleUrl(next || MAPLIBRE_DEFAULT_STYLE_URL)
+      setStyleUrlDraft(next || MAPLIBRE_DEFAULT_STYLE_URL)
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(new Event(GEOSPATIAL_STYLE_URL_CHANGED_EVENT))
+        } catch {
+          void 0
+        }
       }
-    }
+    }, GEOSPATIAL_COMMIT_DEBOUNCE_MS)
   }, [geospatialViewMode, styleUrlDraft])
 
   const resetStyleUrl = React.useCallback(() => {
     const next = getBuiltInDefaultStyleUrl(geospatialViewMode)
     setStyleUrlDraft(next)
-    writeLsString(LS_KEYS.geospatialStyleUrl, next)
-    setCommittedStyleUrl(next)
-    if (typeof window !== 'undefined') {
-      try {
-        window.dispatchEvent(new Event(GEOSPATIAL_STYLE_URL_CHANGED_EVENT))
-      } catch {
-        void 0
+    if (styleCommitTimerRef.current) clearTimeout(styleCommitTimerRef.current)
+    styleCommitTimerRef.current = setTimeout(() => {
+      writeLsString(LS_KEYS.geospatialStyleUrl, next)
+      setCommittedStyleUrl(next)
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(new Event(GEOSPATIAL_STYLE_URL_CHANGED_EVENT))
+        } catch {
+          void 0
+        }
       }
-    }
+    }, GEOSPATIAL_COMMIT_DEBOUNCE_MS)
   }, [geospatialViewMode])
+
+  const applyPointStyle = React.useCallback(() => {
+    if (pointStyleCommitTimerRef.current) clearTimeout(pointStyleCommitTimerRef.current)
+    pointStyleCommitTimerRef.current = setTimeout(() => {
+      writeGeospatialPointStyleConfig(normalizeGeospatialPointStyleConfig(pointStyleDraft))
+    }, GEOSPATIAL_COMMIT_DEBOUNCE_MS)
+  }, [pointStyleDraft])
+
+  const resetPointStyle = React.useCallback(() => {
+    setPointStyleDraft(MAIN_PANEL_DEFAULT_GEOSPATIAL_POINT_STYLE_CONFIG)
+    writeGeospatialPointStyleConfig(MAIN_PANEL_DEFAULT_GEOSPATIAL_POINT_STYLE_CONFIG)
+  }, [])
 
   const timeoutDraft = React.useMemo(() => String(Math.floor(geospatialDatasetTimeoutMs)), [geospatialDatasetTimeoutMs])
   const maxBytesMbDraft = React.useMemo(() => String(Math.round(geospatialDatasetMaxBytes / (1024 * 1024))), [geospatialDatasetMaxBytes])
@@ -256,7 +299,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
         <div className="flex items-center justify-between gap-2">
           <label className="text-[12px] text-gray-600 dark:text-gray-300">View</label>
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-4" aria-label="Geospatial view mode">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-5" aria-label="Geospatial view mode">
           <GeoViewModeChoice
             active={geospatialViewMode === '2d-svg'}
             label="2D (SVG, fallback)"
@@ -272,6 +315,13 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
             onClick={() => selectGeospatialViewMode('2d')}
           />
           <GeoViewModeChoice
+            active={geospatialViewMode === '2d-modern'}
+            label="2D (MapLibre, Modern)"
+            detail="Liberty style"
+            disabled={disabled}
+            onClick={() => selectGeospatialViewMode('2d-modern')}
+          />
+          <GeoViewModeChoice
             active={geospatialViewMode === '3d'}
             label="3D (MapLibre, Classic)"
             detail="Globe style"
@@ -285,6 +335,77 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
             disabled={disabled}
             onClick={() => selectGeospatialViewMode('3d-modern')}
           />
+        </div>
+
+        <div className="mt-2 rounded border border-gray-200/60 dark:border-gray-800/60 p-2">
+          <div className="text-[12px] text-gray-600 dark:text-gray-300">Point Style</div>
+          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-4">
+            <label className="text-[11px] text-gray-600 dark:text-gray-300">
+              Airport
+              <input
+                className="mt-1 w-full px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+                type="color"
+                value={pointStyleDraft.colors.airport}
+                disabled={disabled}
+                onChange={e => setPointStyleDraft(prev => ({ ...prev, colors: { ...prev.colors, airport: e.target.value } }))}
+              />
+            </label>
+            <label className="text-[11px] text-gray-600 dark:text-gray-300">
+              Hotel
+              <input
+                className="mt-1 w-full px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+                type="color"
+                value={pointStyleDraft.colors.hotel}
+                disabled={disabled}
+                onChange={e => setPointStyleDraft(prev => ({ ...prev, colors: { ...prev.colors, hotel: e.target.value } }))}
+              />
+            </label>
+            <label className="text-[11px] text-gray-600 dark:text-gray-300">
+              POI
+              <input
+                className="mt-1 w-full px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+                type="color"
+                value={pointStyleDraft.colors.poi}
+                disabled={disabled}
+                onChange={e => setPointStyleDraft(prev => ({ ...prev, colors: { ...prev.colors, poi: e.target.value } }))}
+              />
+            </label>
+            <label className="text-[11px] text-gray-600 dark:text-gray-300">
+              Radius x
+              <input
+                className="mt-1 w-full px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+                type="number"
+                step="0.05"
+                min="0.6"
+                max="2.4"
+                value={String(pointStyleDraft.radiusMultiplier)}
+                disabled={disabled}
+                onChange={e => {
+                  const n = Number(e.target.value)
+                  if (!Number.isFinite(n)) return
+                  setPointStyleDraft(prev => ({ ...prev, radiusMultiplier: n }))
+                }}
+              />
+            </label>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              className="px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+              disabled={disabled}
+              onClick={applyPointStyle}
+            >
+              Apply Point Style
+            </button>
+            <button
+              type="button"
+              className="px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+              disabled={disabled}
+              onClick={resetPointStyle}
+            >
+              Reset Point Style (MainPanel default)
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-2">

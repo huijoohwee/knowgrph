@@ -16,6 +16,7 @@ import {
 import type { GraphData } from '@/lib/graph/types'
 import { LRUCache } from 'grph-shared/cache/LRUCache'
 import { resolveSandboxRoot } from '@/tests/lib/sandboxRoot'
+import { buildGeospatialOverlayGraphData } from '@/features/geospatial/geospatialOverlayGraphData'
 
 const extractFirstGeoJsonFromJsonFences = (markdown: string): string | null => {
   const lines = String(markdown || '').split('\n')
@@ -367,6 +368,160 @@ export async function testMarkdownTripDemoMmdJsonFenceLoadsGraphData() {
   })
   if (!hasGeo) {
     throw new Error('Expected at least one node to have properties.geo.{lat,lng}')
+  }
+}
+
+export function testTripDemoMmdOverlayGraphDataGetsEmbeddedGeoSupplement() {
+  const markdown = readTripDemoMmd()
+  if (!markdown) return
+  const sourcePath = resolveTripDemoMmdDocumentPath() || 'trip-demo-mmd.md'
+  const baseGraph: GraphData = {
+    type: 'Graph',
+    context: 'markdown',
+    nodes: [
+      {
+        id: 'n:1',
+        type: 'MermaidNode',
+        label: 'Sydney Opera House',
+        properties: {},
+      },
+    ],
+    edges: [],
+  }
+  const next = buildGeospatialOverlayGraphData({
+    graphData: baseGraph,
+    markdownText: markdown,
+    sourceDocumentPath: sourcePath,
+  })
+  const nextNodes = Array.isArray(next.nodes) ? next.nodes : []
+  if (nextNodes.length <= baseGraph.nodes.length) {
+    throw new Error('Expected overlay graph data to be supplemented with embedded GeoJSON nodes from trip-demo-mmd')
+  }
+  const hasGeo = nextNodes.some(n => {
+    const props = (n?.properties || {}) as Record<string, unknown>
+    const geo = props.geo as Record<string, unknown> | null
+    return !!geo && Number.isFinite(Number(geo.lat)) && Number.isFinite(Number(geo.lng))
+  })
+  if (!hasGeo) {
+    throw new Error('Expected supplemented overlay graph data to contain geo-projected nodes')
+  }
+}
+
+export function testTripDemoMmdOverlayGraphDataFallsBackToSourceFilesText() {
+  const markdown = readTripDemoMmd()
+  if (!markdown) return
+  const sourcePath = resolveTripDemoMmdDocumentPath() || 'trip-demo-mmd.md'
+  const baseGraph: GraphData = {
+    type: 'Graph',
+    context: 'markdown',
+    metadata: { graphId: `workspace:${sourcePath}` },
+    nodes: [{ id: 'n:1', type: 'MermaidNode', label: 'Sydney Opera House', properties: {} }],
+    edges: [],
+  }
+  const next = buildGeospatialOverlayGraphData({
+    graphData: baseGraph,
+    markdownText: '',
+    sourceDocumentPath: '',
+    sourceFiles: [
+      {
+        id: 'sf:trip-demo',
+        name: 'trip-demo-mmd.md',
+        text: markdown,
+        enabled: true,
+        status: 'parsed',
+        source: { kind: 'local', path: sourcePath },
+      },
+    ],
+  })
+  const nextNodes = Array.isArray(next.nodes) ? next.nodes : []
+  if (nextNodes.length <= baseGraph.nodes.length) {
+    throw new Error('Expected overlay graph data to fall back to sourceFiles markdown text for embedded GeoJSON supplement')
+  }
+}
+
+export function testTripDemoMmdOverlayGraphDataMatchesWorkspacePrefixedSourcePath() {
+  const markdown = readTripDemoMmd()
+  if (!markdown) return
+  const sourcePath = resolveTripDemoMmdDocumentPath() || '/sandbox/demo/trip-demo-mmd.md'
+  const docKey = String(sourcePath).replace(/^\/+/, '')
+  const baseGraph: GraphData = {
+    type: 'Graph',
+    context: 'markdown',
+    metadata: { graphId: `workspace:${docKey}` },
+    nodes: [{ id: 'n:1', type: 'MermaidNode', label: 'Sydney Opera House', properties: {} }],
+    edges: [],
+  }
+  const next = buildGeospatialOverlayGraphData({
+    graphData: baseGraph,
+    markdownText: '',
+    sourceDocumentPath: '',
+    sourceFiles: [
+      {
+        id: 'sf:trip-demo-prefixed',
+        name: 'trip-demo-mmd.md',
+        text: markdown,
+        enabled: true,
+        status: 'parsed',
+        source: { kind: 'local', path: `workspace:${sourcePath}` },
+      },
+    ],
+  })
+  const nextNodes = Array.isArray(next.nodes) ? next.nodes : []
+  if (nextNodes.length <= baseGraph.nodes.length) {
+    throw new Error('Expected overlay graph data to match workspace-prefixed source file paths outside editor mode')
+  }
+}
+
+export function testTripDemoMmdOverlayGraphDataUsesParsedSourceGraphOutsideEditorMode() {
+  const sourcePath = resolveTripDemoMmdDocumentPath() || '/sandbox/demo/trip-demo-mmd.md'
+  const docKey = String(sourcePath).replace(/^\/+/, '')
+  const parsedGraph: GraphData = {
+    type: 'Graph',
+    context: 'geojson',
+    nodes: [
+      {
+        id: 'geo:1',
+        type: 'GeoFeature',
+        label: 'SIN Singapore Changi',
+        properties: { cat: 'airport', geo: { lng: 103.9915, lat: 1.3644 } },
+      },
+    ],
+    edges: [],
+  }
+  const baseGraph: GraphData = {
+    type: 'Graph',
+    context: 'markdown',
+    metadata: { graphId: `workspace:${docKey}` },
+    nodes: [{ id: 'n:1', type: 'MermaidNode', label: 'Sydney Opera House', properties: {} }],
+    edges: [],
+  }
+  const next = buildGeospatialOverlayGraphData({
+    graphData: baseGraph,
+    markdownText: '',
+    sourceDocumentPath: '',
+    sourceFiles: [
+      {
+        id: 'sf:trip-demo-parsed',
+        name: 'trip-demo-mmd.md',
+        text: '',
+        enabled: true,
+        status: 'parsed',
+        parsedGraphData: parsedGraph,
+        source: { kind: 'local', path: `workspace:${sourcePath}` },
+      },
+    ],
+  })
+  const nextNodes = Array.isArray(next.nodes) ? next.nodes : []
+  if (nextNodes.length <= baseGraph.nodes.length) {
+    throw new Error('Expected overlay graph data to use parsed source graph outside editor mode')
+  }
+  const hasGeo = nextNodes.some(n => {
+    const props = (n?.properties || {}) as Record<string, unknown>
+    const geo = props.geo as Record<string, unknown> | null
+    return !!geo && Number.isFinite(Number(geo.lat)) && Number.isFinite(Number(geo.lng))
+  })
+  if (!hasGeo) {
+    throw new Error('Expected parsed source graph fallback to contribute geo nodes')
   }
 }
 

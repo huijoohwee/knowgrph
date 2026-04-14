@@ -3,9 +3,9 @@ import { useGympgrphStore } from './store'
 import { useMapLibreBasemap } from './features/geospatial/useMapLibreBasemap'
 import { LS_KEYS } from './lib/config'
 import { onGeospatialModeChanged, type GeospatialViewMode } from 'grph-shared/geospatial/events'
-import { GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/constants'
+import { GEOSPATIAL_POINT_STYLE_CHANGED_EVENT, GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/constants'
 import { computeBoundsFromCollections } from './geo'
-import { clearGeoJsonSourceData, ensureDatasetLayer, setGeoJsonSourceData } from './maplibreLayers'
+import { clearGeoJsonSourceData, ensureDatasetLayer, isMapLibreStyleReady, setGeoJsonSourceData } from './maplibreLayers'
 import { colorForDataset } from './colors'
 import { isPointOnlyFeatureCollection } from './selection'
 import {
@@ -16,6 +16,11 @@ import {
   normalizePersistedGeospatialStyleUrl,
   SAFE_SVG_FALLBACK_STYLE_SENTINEL,
 } from './features/geospatial/basemapStyle'
+import {
+  MAIN_PANEL_DEFAULT_GEOSPATIAL_POINT_STYLE_CONFIG,
+  pointStyleConfigSignature,
+  readGeospatialPointStyleConfig,
+} from './features/geospatial/pointStyleConfig'
 import type { FeatureCollection } from 'geojson'
 import { geoEquirectangular, geoGraticule, geoPath } from 'd3'
 
@@ -52,6 +57,12 @@ function getSnapshotGraphData(snapshot: unknown): unknown {
   return snapshot.graphData
 }
 
+function getSnapshotHandlers(snapshot: unknown): Record<string, unknown> | null {
+  if (!isRecord(snapshot)) return null
+  const handlers = snapshot.handlers
+  return isRecord(handlers) ? handlers : null
+}
+
 function getSnapshotSelectedNodeIds(snapshot: unknown): Set<string> {
   if (!isRecord(snapshot)) return new Set<string>()
   const out = new Set<string>()
@@ -72,6 +83,40 @@ function getSnapshotSelectedNodeIds(snapshot: unknown): Set<string> {
 type FeatureProjection = {
   featureCollection: FeatureCollection
   signature: string
+}
+
+function GeospatialPointLegend(props: {
+  colors: {
+    airport: string
+    hotel: string
+    poi: string
+    route: string
+  }
+  visible: boolean
+}): React.ReactElement | null {
+  if (!props.visible) return null
+  const items: Array<{ key: 'airport' | 'hotel' | 'poi' | 'route'; label: string }> = [
+    { key: 'airport', label: 'Airport' },
+    { key: 'hotel', label: 'Hotel' },
+    { key: 'poi', label: 'POI' },
+    { key: 'route', label: 'Route' },
+  ]
+  return (
+    <div className="absolute left-2 bottom-2 z-20 pointer-events-none rounded-md border border-gray-200/70 bg-white/82 px-2 py-1.5 text-[11px] text-gray-700 shadow-sm dark:border-gray-800/70 dark:bg-black/62 dark:text-gray-200">
+      <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Legend</div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+        {items.map(item => (
+          <div key={item.key} className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full border border-white/80 shadow-[0_0_0_1px_rgba(15,23,42,0.16)]"
+              style={{ backgroundColor: props.colors[item.key] }}
+            />
+            <span>{item.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 const HIGH_FIDELITY_WORLD_SVG_URL = new URL('./features/geospatial/assets/simple-world-map-edit.svg', import.meta.url).href
@@ -267,8 +312,26 @@ function buildFeatureCollectionFromGraphData(graphData: unknown, selectedNodeIds
     const label = typeof labelRaw === 'string' && labelRaw.trim() ? labelRaw.trim() : nodeId
     const nodeTypeRaw = node.type
     const nodeType = typeof nodeTypeRaw === 'string' ? nodeTypeRaw : ''
+    const category = (() => {
+      const rawCandidates: unknown[] = [
+        readNestedValue(propsRaw, ['cat']),
+        readNestedValue(propsRaw, ['category']),
+        readNestedValue(propsRaw, ['kind']),
+        readNestedValue(propsRaw, ['type']),
+        nodeType,
+      ]
+      for (const raw of rawCandidates) {
+        const v = String(raw || '').trim().toLowerCase()
+        if (!v) continue
+        if (v.includes('airport')) return 'airport'
+        if (v.includes('hotel') || v.includes('hostel') || v.includes('accommodation')) return 'hotel'
+        if (v.includes('poi') || v.includes('attraction') || v.includes('landmark')) return 'poi'
+        if (v.includes('route') || v.includes('line') || v.includes('flight')) return 'route'
+      }
+      return 'other'
+    })()
     const selected = selectedNodeIds.has(nodeId)
-    if (signatureParts.length < 500) signatureParts.push(`${nodeId}:${lng.toFixed(6)}:${lat.toFixed(6)}:${selected ? 1 : 0}`)
+    if (signatureParts.length < 500) signatureParts.push(`${nodeId}:${category}:${lng.toFixed(6)}:${lat.toFixed(6)}:${selected ? 1 : 0}`)
     features.push({
       type: 'Feature',
       id: nodeId,
@@ -277,6 +340,7 @@ function buildFeatureCollectionFromGraphData(graphData: unknown, selectedNodeIds
         id: nodeId,
         label,
         type: nodeType,
+        kgCategory: category,
         selected,
       },
     })
@@ -309,6 +373,7 @@ const readPersistedViewMode = (): GeospatialViewMode => {
   if (typeof window === 'undefined') return '2d'
   try {
     const raw = String(window.localStorage.getItem(LS_KEYS.geospatialViewMode) || '').trim()
+    if (raw === '2d-modern') return '2d-modern'
     if (raw === '3d-modern') return '3d-modern'
     if (raw === '3d') return '3d'
     if (raw === '2d-svg') return '2d-svg'
@@ -328,6 +393,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   const map2dContainerRef = React.useRef<HTMLDivElement | null>(null)
   const map3dContainerRef = React.useRef<HTMLDivElement | null>(null)
   const [targetStyleUrl, setTargetStyleUrl] = React.useState<string | null>(() => readStyleUrl())
+  const [pointStyleConfig, setPointStyleConfig] = React.useState(() => readGeospatialPointStyleConfig())
   const [geospatialViewMode, setGeospatialViewMode] = React.useState<GeospatialViewMode>(() => storeGeospatialViewMode || readPersistedViewMode())
 
   React.useEffect(() => {
@@ -339,9 +405,14 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     const onChanged = () => {
       setTargetStyleUrl(readStyleUrl())
     }
+    const onPointStyleChanged = () => {
+      setPointStyleConfig(readGeospatialPointStyleConfig())
+    }
     window.addEventListener(GEOSPATIAL_STYLE_URL_CHANGED_EVENT, onChanged)
+    window.addEventListener(GEOSPATIAL_POINT_STYLE_CHANGED_EVENT, onPointStyleChanged)
     return () => {
       window.removeEventListener(GEOSPATIAL_STYLE_URL_CHANGED_EVENT, onChanged)
+      window.removeEventListener(GEOSPATIAL_POINT_STYLE_CHANGED_EVENT, onPointStyleChanged)
     }
   }, [])
 
@@ -353,7 +424,8 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   }, [])
 
   const show2dMapLibreClassic = active && geospatialViewMode === '2d'
-  const show2dMapLibre = show2dMapLibreClassic
+  const show2dMapLibreModern = active && geospatialViewMode === '2d-modern'
+  const show2dMapLibre = show2dMapLibreClassic || show2dMapLibreModern
   const show2dSvgFallback = active && geospatialViewMode === '2d-svg'
   const show3dClassic = active && geospatialViewMode === '3d'
   const show3dModern = active && geospatialViewMode === '3d-modern'
@@ -361,6 +433,17 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   const effectiveTargetStyleUrl = React.useMemo(() => {
     const current = String(targetStyleUrl || '').trim()
     if (show2dSvgFallback) return SAFE_SVG_FALLBACK_STYLE_SENTINEL
+    if (show2dMapLibreModern) {
+      if (
+        !current ||
+        current === SAFE_SVG_FALLBACK_STYLE_SENTINEL ||
+        current === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
+        current === MAPLIBRE_GLOBE_DEFAULT_STYLE_URL
+      ) {
+        return MAPLIBRE_MODERN_DEFAULT_STYLE_URL
+      }
+      return targetStyleUrl
+    }
     if (show3dModern) {
       if (
         !current ||
@@ -386,13 +469,20 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     // Migrate stale persisted SVG sentinel values for restored MapLibre modes.
     if (current === SAFE_SVG_FALLBACK_STYLE_SENTINEL) return MAPLIBRE_DEFAULT_STYLE_URL
     return targetStyleUrl
-  }, [show2dSvgFallback, show3d, show3dModern, targetStyleUrl])
+  }, [show2dMapLibreModern, show2dSvgFallback, show3d, show3dModern, targetStyleUrl])
   const fitPadding = show3d ? 0 : 24
   const selectedNodeIds = React.useMemo(() => getSnapshotSelectedNodeIds(props.snapshot), [props.snapshot])
   const graphProjection = React.useMemo(() => {
     const graphData = getSnapshotGraphData(props.snapshot)
     return buildFeatureCollectionFromGraphData(graphData, selectedNodeIds)
   }, [props.snapshot, selectedNodeIds])
+  const overlayDebugInfo = React.useMemo(() => {
+    const graphData = getSnapshotGraphData(props.snapshot)
+    if (!isRecord(graphData)) return null
+    const meta = isRecord(graphData.metadata) ? graphData.metadata : null
+    const raw = meta && isRecord(meta.kgGeospatialOverlayDebug) ? meta.kgGeospatialOverlayDebug : null
+    return raw
+  }, [props.snapshot])
   const graphFeatureCollection = graphProjection.featureCollection
   const graphBounds = React.useMemo(() => computeBoundsFromCollections([graphFeatureCollection]), [graphFeatureCollection])
   const selectedFeatureCollection = React.useMemo(() => {
@@ -435,15 +525,14 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   const graphSourceIdClustered = `${graphSourceIdBase}:clustered`
   const graphSourceIdUnclustered = `${graphSourceIdBase}:plain`
   const graphDataAppliedRef = React.useRef<{ map2d: string; map3d: string }>({ map2d: '', map3d: '' })
+  const debugToastMessageRef = React.useRef<string>('')
 
   const applyFeatureCollectionToBasemap = React.useCallback(
     (args: { basemapMap: any | null; styleRevision: number; viewMode: 'map2d' | 'map3d' }) => {
       const { basemapMap, styleRevision, viewMode } = args
       if (!basemapMap) return
       if (styleRevision <= 0) return
-      if (viewMode === 'map3d') {
-        clearGeoJsonSourceData(basemapMap, graphSourceIdClustered)
-        clearGeoJsonSourceData(basemapMap, graphSourceIdUnclustered)
+      if (!isMapLibreStyleReady(basemapMap)) {
         graphDataAppliedRef.current[viewMode] = ''
         return
       }
@@ -459,13 +548,19 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
       const activeSourceId = cluster ? graphSourceIdClustered : graphSourceIdUnclustered
       const inactiveSourceId = cluster ? graphSourceIdUnclustered : graphSourceIdClustered
       const applyKey = `${styleRevision}:${activeSourceId}:${graphDataKey}`
-      if (graphDataAppliedRef.current[viewMode] === applyKey) return
+      const styleKey = pointStyleConfigSignature(pointStyleConfig || MAIN_PANEL_DEFAULT_GEOSPATIAL_POINT_STYLE_CONFIG)
+      if (graphDataAppliedRef.current[viewMode] === `${applyKey}:${styleKey}`) return
       clearGeoJsonSourceData(basemapMap, inactiveSourceId)
-      ensureDatasetLayer(basemapMap, activeSourceId, colorForDataset(activeSourceId), cluster ? { cluster: true } : undefined)
+      ensureDatasetLayer(
+        basemapMap,
+        activeSourceId,
+        colorForDataset(activeSourceId),
+        cluster ? { cluster: true, pointStyleConfig } : { pointStyleConfig },
+      )
       setGeoJsonSourceData(basemapMap, activeSourceId, graphFeatureCollection)
-      graphDataAppliedRef.current[viewMode] = applyKey
+      graphDataAppliedRef.current[viewMode] = `${applyKey}:${styleKey}`
     },
-    [graphDataKey, graphFeatureCollection, graphSourceIdClustered, graphSourceIdUnclustered],
+    [graphDataKey, graphFeatureCollection, graphSourceIdClustered, graphSourceIdUnclustered, pointStyleConfig],
   )
 
   React.useEffect(() => {
@@ -477,6 +572,33 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     if (!show3d) return
     applyFeatureCollectionToBasemap({ basemapMap: basemap3d.map, styleRevision: basemap3d.styleRevision, viewMode: 'map3d' })
   }, [applyFeatureCollectionToBasemap, basemap3d.map, basemap3d.styleRevision, show3d])
+
+  const basemapGraphDebug = React.useMemo(() => {
+    const basemapMap = activeBasemap.map
+    if (!basemapMap) return null
+    const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
+    const cluster = active && !show3d && isPointOnlyFeatureCollection(graphFeatureCollection, 500) && featureCount >= 200
+    const activeSourceId = cluster ? graphSourceIdClustered : graphSourceIdUnclustered
+    const inactiveSourceId = cluster ? graphSourceIdUnclustered : graphSourceIdClustered
+    const readSourceFeatureCount = (sourceId: string): number | null => {
+      try {
+        const src = basemapMap.getSource?.(sourceId) as { _data?: { features?: unknown[] } } | null
+        const features = src && src._data && Array.isArray(src._data.features) ? src._data.features : null
+        return features ? features.length : null
+      } catch {
+        return null
+      }
+    }
+    return {
+      styleReady: isMapLibreStyleReady(basemapMap),
+      activeSourceId,
+      activeSourceFeatures: readSourceFeatureCount(activeSourceId),
+      inactiveSourceFeatures: readSourceFeatureCount(inactiveSourceId),
+      pointsLayer: !!basemapMap.getLayer?.(`${activeSourceId}:points`),
+      routesLayer: !!basemapMap.getLayer?.(`${activeSourceId}:routes`),
+      clusterLayer: !!basemapMap.getLayer?.(`${activeSourceId}:cluster-bubbles`),
+    }
+  }, [active, activeBasemap.map, graphFeatureCollection, graphSourceIdClustered, graphSourceIdUnclustered, show3d])
 
   const autoFitAppliedForDataKeyRef = React.useRef<string>('')
   React.useEffect(() => {
@@ -559,6 +681,30 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     }
   }, [])
 
+  React.useEffect(() => {
+    if (!debug) return
+    const handlers = getSnapshotHandlers(props.snapshot)
+    const upsert = handlers && typeof handlers.upsertUiToast === 'function' ? handlers.upsertUiToast as ((toast: { id: string; kind?: 'neutral' | 'success' | 'warning' | 'error'; message: string; ttlMs?: number | null; dismissible?: boolean; log?: boolean }) => void) : null
+    if (!upsert) return
+    const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
+    const resolvedFrom = String(overlayDebugInfo?.resolvedFrom || 'none')
+    const sourcePath = String(overlayDebugInfo?.sourceDocumentPath || '')
+    const embeddedBlocks = Number(overlayDebugInfo?.embeddedGeoBlockCount || 0)
+    const supplementedNodes = Number(overlayDebugInfo?.supplementedNodeCount || 0)
+    const sourceFilesCount = Number(overlayDebugInfo?.sourceFilesCount || 0)
+    const message = `Geo overlay: features=${featureCount}, source=${resolvedFrom}, blocks=${embeddedBlocks}, added=${supplementedNodes}, files=${sourceFilesCount}${sourcePath ? `, path=${sourcePath}` : ''}`
+    if (debugToastMessageRef.current === message) return
+    debugToastMessageRef.current = message
+    upsert({
+      id: 'kg:geo:overlay-debug',
+      kind: featureCount > 0 ? 'success' : 'warning',
+      ttlMs: 4000,
+      dismissible: true,
+      log: false,
+      message,
+    })
+  }, [debug, graphFeatureCollection.features, overlayDebugInfo, props.snapshot])
+
   return (
     <div ref={rootRef} className="relative w-full h-full" style={{ width: '100%', height: '100%' }}>
       <SvgGeospatialFallback
@@ -577,6 +723,15 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
         className={show3d ? 'absolute inset-0 pointer-events-auto opacity-100' : 'absolute inset-0 pointer-events-none opacity-0'}
         style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       />
+      <GeospatialPointLegend
+        visible={(show2dMapLibre || show3d) && Array.isArray(graphFeatureCollection.features) && graphFeatureCollection.features.length > 0}
+        colors={{
+          airport: pointStyleConfig.colors.airport,
+          hotel: pointStyleConfig.colors.hotel,
+          poi: pointStyleConfig.colors.poi,
+          route: pointStyleConfig.colors.route,
+        }}
+      />
       {debug ? (
         <div className="absolute top-2 right-2 z-20 pointer-events-none rounded-md border border-gray-200/60 bg-white/80 px-2 py-1 text-[11px] text-gray-700 dark:border-gray-800/60 dark:bg-black/60 dark:text-gray-200">
           <div>map: {activeBasemap.map ? 'yes' : 'no'}</div>
@@ -588,6 +743,13 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
             zoom: {activeBasemap.probe.zoom.toFixed(2)} center: {activeBasemap.probe.lng.toFixed(4)},{activeBasemap.probe.lat.toFixed(4)}
           </div>
           <div>features: {Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0}</div>
+          {basemapGraphDebug ? (
+            <>
+              <div>styleReady: {basemapGraphDebug.styleReady ? 'yes' : 'no'} source: {basemapGraphDebug.activeSourceId}</div>
+              <div>sourceFeatures: {String(basemapGraphDebug.activeSourceFeatures ?? 'n/a')} inactive: {String(basemapGraphDebug.inactiveSourceFeatures ?? 'n/a')}</div>
+              <div>layers: points={basemapGraphDebug.pointsLayer ? 'yes' : 'no'} routes={basemapGraphDebug.routesLayer ? 'yes' : 'no'} clusters={basemapGraphDebug.clusterLayer ? 'yes' : 'no'}</div>
+            </>
+          ) : null}
           {activeBasemap.mapError ? <div className="text-red-700 dark:text-red-300">err: {activeBasemap.mapError}</div> : null}
         </div>
       ) : null}

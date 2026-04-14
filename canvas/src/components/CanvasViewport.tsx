@@ -8,6 +8,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
+import { buildGeospatialOverlayGraphData } from '@/features/geospatial/geospatialOverlayGraphData'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import FlowEditorCanvas from '@/components/FlowEditorCanvas'
@@ -176,7 +177,7 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
       dismissUiToast: s.dismissUiToast,
     })),
   )
-  const { fitToScreenMode, zoomToSelectionMode, viewPinned, selectedNodeId, selectedNodeIds, selectedEdgeId } = useGraphStore(
+  const { fitToScreenMode, zoomToSelectionMode, viewPinned, selectedNodeId, selectedNodeIds, selectedEdgeId, markdownDocumentName, markdownDocumentText, sourceFiles } = useGraphStore(
     useShallow(s => ({
       fitToScreenMode: s.fitToScreenMode === true,
       zoomToSelectionMode: s.zoomToSelectionMode === true,
@@ -184,6 +185,9 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
       selectedNodeId: s.selectedNodeId,
       selectedNodeIds: s.selectedNodeIds,
       selectedEdgeId: s.selectedEdgeId,
+      markdownDocumentName: s.markdownDocumentName,
+      markdownDocumentText: s.markdownDocumentText,
+      sourceFiles: s.sourceFiles,
     })),
   )
 
@@ -191,8 +195,14 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
   const geospatialGraphData = React.useMemo(() => {
     if (!active) return geoGraphLastRef.current
     const derived = deriveSceneDisplayGraph({ graphData })?.displayGraphData || null
-    return (derived || graphData) as GraphData
-  }, [active, graphData])
+    const base = (derived || graphData) as GraphData
+    return buildGeospatialOverlayGraphData({
+      graphData: base,
+      markdownText: markdownDocumentText,
+      sourceDocumentPath: markdownDocumentName,
+      sourceFiles,
+    })
+  }, [active, graphData, markdownDocumentName, markdownDocumentText, sourceFiles])
 
   React.useEffect(() => {
     if (!active) return

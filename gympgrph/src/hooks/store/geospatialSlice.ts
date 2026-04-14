@@ -98,6 +98,7 @@ export const createDefaultGympgrphGeospatialState = (): Pick<
   const geospatialModeEnabled = readBool(LS_KEYS.geospatialOverlayEnabled, false)
   const readPersistedViewMode = (): GeospatialViewMode => {
     const raw = readString(LS_KEYS.geospatialViewMode, '2d')
+    if (raw === '2d-modern') return '2d-modern'
     if (raw === '3d-modern') return '3d-modern'
     if (raw === '3d') return '3d'
     if (raw === '2d-svg') return '2d-svg'
@@ -141,7 +142,7 @@ export const buildGympgrphGeospatialActions = (set: (updater: (prev: GympgrphGeo
   }
 
   const setGeospatialViewMode = (mode: GeospatialViewMode) => {
-    const next = mode === '3d-modern' ? '3d-modern' : mode === '3d' ? '3d' : mode === '2d-svg' ? '2d-svg' : '2d'
+    const next = mode === '3d-modern' ? '3d-modern' : mode === '3d' ? '3d' : mode === '2d-modern' ? '2d-modern' : mode === '2d-svg' ? '2d-svg' : '2d'
     set(prev => {
       if (prev.geospatialViewMode === next) return prev
       writeString(LS_KEYS.geospatialViewMode, next)

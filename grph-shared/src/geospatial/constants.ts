@@ -1,11 +1,13 @@
 export const GEOSPATIAL_MODE_CHANGED_EVENT = 'kg:geospatialModeChanged' as const
 
 export const GEOSPATIAL_STYLE_URL_CHANGED_EVENT = 'kg:geospatialStyleUrlChanged' as const
+export const GEOSPATIAL_POINT_STYLE_CHANGED_EVENT = 'kg:geospatialPointStyleChanged' as const
 
 export const GEOSPATIAL_LS_KEYS = {
   geospatialOverlayEnabled: 'kg:ui:geospatial:overlayEnabled',
   geospatialViewMode: 'kg:ui:geospatial:viewMode',
   geospatialStyleUrl: 'kg:ui:geospatial:styleUrl',
+  geospatialPointStyleConfig: 'kg:ui:geospatial:pointStyleConfig',
   geospatialOverlayOpacity: 'kg:ui:geospatial:overlayOpacity',
   geospatialInteractionMode: 'kg:ui:geospatial:interactionMode',
   geospatialProjectionMode: 'kg:ui:geospatial:projectionMode',
