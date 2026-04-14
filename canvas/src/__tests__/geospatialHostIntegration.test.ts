@@ -102,11 +102,13 @@ export const testGeospatialOverlayHostSvgFallbackAppliesMaplikeVisualPolish = ()
   const text = readUtf8(hostPath)
   const requiredSnippets = [
     'kg-geo-fallback-ocean-sheen',
+    'kg-geo-fallback-land-wash',
     'kg-geo-fallback-frame-stroke',
     'kg-geo-fallback-map-filter',
+    'kg-geo-fallback-sphere-shadow',
     'kg-geo-fallback-point-shadow',
-    'rgba(59,130,246,0.92)',
-    'rgba(245,158,11,0.98)',
+    'rgba(37,99,235,0.92)',
+    'rgba(249,115,22,0.98)',
   ]
   const missing = requiredSnippets.filter(snippet => !text.includes(snippet))
   if (missing.length) {
@@ -315,6 +317,23 @@ export const testGympgrphGeospatialStyleStorageNormalizesUnsafeRemoteStyles = ()
   const hostText = readUtf8(hostPath)
   if (!hostText.includes('normalizePersistedGeospatialStyleUrl(raw)')) {
     throw new Error('Expected GeospatialHost to normalize persisted style URLs when reading runtime basemap state')
+  }
+}
+
+export const testGympgrphGeospatialRuntimeContainsNoRasterFallbackContract = () => {
+  const helperPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'basemapStyle.ts')
+  const helperText = readUtf8(helperPath)
+  const legacyRasterSentinelSnippet = ['raster', 'osm'].join('-')
+  const legacyRasterConstantSnippet = ['SAFE', 'RASTER'].join('_')
+  if (helperText.includes(legacyRasterSentinelSnippet) || helperText.includes(legacyRasterConstantSnippet)) {
+    throw new Error('Expected geospatial basemap style helper to contain no raster fallback contract')
+  }
+
+  const hookPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
+  const hookText = readUtf8(hookPath)
+  const legacyRasterTileSnippet = ['tile', 'openstreetmap', 'org'].join('.')
+  if (hookText.includes(legacyRasterSentinelSnippet) || hookText.includes(legacyRasterTileSnippet)) {
+    throw new Error('Expected MapLibre basemap hook to contain no raster fallback path')
   }
 }
 

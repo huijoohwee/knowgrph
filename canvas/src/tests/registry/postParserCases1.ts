@@ -217,6 +217,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["geospatial.gympgrphMapLibre.globeProjection","@/__tests__/geospatialHostIntegration.test","testGympgrphMapLibreBasemapSupportsGlobeProjection"],
   ["geospatial.gympgrphMapLibre.svgFallbackDefaultAndSentinel","@/__tests__/geospatialHostIntegration.test","testGympgrphMapLibreBasemapBlankDefaultStaysOffForSvgFallback"],
   ["geospatial.gympgrphMapLibre.storageNormalizesUnsafeRemoteStyles","@/__tests__/geospatialHostIntegration.test","testGympgrphGeospatialStyleStorageNormalizesUnsafeRemoteStyles"],
+  ["geospatial.gympgrphMapLibre.containsNoRasterFallbackContract","@/__tests__/geospatialHostIntegration.test","testGympgrphGeospatialRuntimeContainsNoRasterFallbackContract"],
   ["geospatial.gympgrphMapLibre.globeProjection.fallbackOnUnsafeRuntimeError","@/__tests__/geospatialHostIntegration.test","testGympgrphMapLibreBasemapFallsBackFromUnsafeGlobeRuntimeErrors"],
   ["geospatial.gympgrphMapLibre.loggerSuppressesAbortNoise","@/__tests__/geospatialHostIntegration.test","testGympgrphMapLibreLoggerSuppressesAbortNoise"],
   ["geospatial.gympgrph.fitToSelection.requestExists","@/__tests__/geospatialHostIntegration.test","testGympgrphFitToSelectionRequestExists"],

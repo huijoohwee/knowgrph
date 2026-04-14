@@ -30,7 +30,7 @@ const resolveBasemapStyle = (rawStyleUrl: string | null | undefined) => {
   const lower = trimmed.toLowerCase()
   if (!trimmed) return null
   if (trimmed === SAFE_SVG_FALLBACK_STYLE_SENTINEL) return null
-  if (trimmed === 'kg:style:raster-osm') return null
+  if (lower.startsWith('kg:style:')) return null
   if (lower.includes('demotiles.maplibre.org')) return null
   if (lower.includes('tiles.openfreemap.org/styles/liberty')) return null
   return trimmed

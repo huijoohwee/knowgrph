@@ -130,18 +130,22 @@ function SvgGeospatialFallback(args: {
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" aria-label="Fallback geospatial basemap">
         <defs>
           <linearGradient id="kg-geo-fallback-bg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgb(216 231 240)" />
-            <stop offset="48%" stopColor="rgb(195 215 229)" />
-            <stop offset="100%" stopColor="rgb(172 197 214)" />
+            <stop offset="0%" stopColor="rgb(228 239 246)" />
+            <stop offset="44%" stopColor="rgb(206 224 236)" />
+            <stop offset="100%" stopColor="rgb(184 205 221)" />
           </linearGradient>
           <radialGradient id="kg-geo-fallback-ocean-sheen" cx="50%" cy="42%" r="78%">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.34)" />
-            <stop offset="58%" stopColor="rgba(255,255,255,0.12)" />
-            <stop offset="100%" stopColor="rgba(15,23,42,0.10)" />
+            <stop offset="0%" stopColor="rgba(255,255,255,0.38)" />
+            <stop offset="52%" stopColor="rgba(255,255,255,0.16)" />
+            <stop offset="100%" stopColor="rgba(15,23,42,0.08)" />
           </radialGradient>
+          <linearGradient id="kg-geo-fallback-land-wash" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="rgba(255,255,255,0.16)" />
+            <stop offset="100%" stopColor="rgba(148,163,184,0.10)" />
+          </linearGradient>
           <linearGradient id="kg-geo-fallback-frame-stroke" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.85)" />
-            <stop offset="100%" stopColor="rgba(71,85,105,0.70)" />
+            <stop offset="0%" stopColor="rgba(255,255,255,0.92)" />
+            <stop offset="100%" stopColor="rgba(71,85,105,0.78)" />
           </linearGradient>
           <clipPath id="kg-geo-fallback-sphere-clip">
             <path d={spherePath} />
@@ -150,17 +154,20 @@ function SvgGeospatialFallback(args: {
             <feColorMatrix
               type="matrix"
               values="
-                0.84 0.00 0.00 0 0.10
-                0.00 0.86 0.00 0 0.11
-                0.00 0.00 0.90 0 0.12
+                0.66 0.00 0.00 0 0.22
+                0.00 0.69 0.00 0 0.24
+                0.00 0.00 0.74 0 0.27
                 0.00 0.00 0.00 1 0
               "
             />
             <feComponentTransfer>
-              <feFuncR type="gamma" amplitude="1" exponent="0.9" offset="0" />
-              <feFuncG type="gamma" amplitude="1" exponent="0.9" offset="0" />
-              <feFuncB type="gamma" amplitude="1" exponent="0.9" offset="0" />
+              <feFuncR type="gamma" amplitude="1" exponent="0.82" offset="0" />
+              <feFuncG type="gamma" amplitude="1" exponent="0.84" offset="0" />
+              <feFuncB type="gamma" amplitude="1" exponent="0.88" offset="0" />
             </feComponentTransfer>
+          </filter>
+          <filter id="kg-geo-fallback-sphere-shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="2.5" stdDeviation="5" floodColor="rgba(15,23,42,0.18)" />
           </filter>
           <filter id="kg-geo-fallback-point-shadow" x="-100%" y="-100%" width="300%" height="300%">
             <feDropShadow dx="0" dy="1.2" stdDeviation="1.6" floodColor="rgba(15,23,42,0.35)" />
@@ -176,17 +183,18 @@ function SvgGeospatialFallback(args: {
             height={svgImageHeight}
             preserveAspectRatio="none"
             filter="url(#kg-geo-fallback-map-filter)"
+            opacity="0.9"
           />
-          <rect x={svgImageX} y={svgImageYAdjusted} width={svgImageWidth} height={svgImageHeight} fill="rgba(255,255,255,0.08)" />
+          <rect x={svgImageX} y={svgImageYAdjusted} width={svgImageWidth} height={svgImageHeight} fill="url(#kg-geo-fallback-land-wash)" />
         </g>
-        <path d={spherePath} fill="url(#kg-geo-fallback-ocean-sheen)" stroke="rgba(255,255,255,0.28)" strokeWidth="3" />
+        <path d={spherePath} fill="url(#kg-geo-fallback-ocean-sheen)" stroke="rgba(255,255,255,0.26)" strokeWidth="3.2" filter="url(#kg-geo-fallback-sphere-shadow)" />
         <path d={spherePath} fill="none" stroke="url(#kg-geo-fallback-frame-stroke)" strokeWidth="1.2" />
-        <path d={graticulePath} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="0.85" />
-        <path d={graticulePath} fill="none" stroke="rgba(71,85,105,0.10)" strokeWidth="1.6" />
-        <path d={pointsPath} fill="rgba(59,130,246,0.92)" stroke="rgba(255,255,255,0.96)" strokeWidth="2.25" filter="url(#kg-geo-fallback-point-shadow)" />
-        <path d={pointsPath} fill="none" stroke="rgba(30,64,175,0.82)" strokeWidth="1.1" />
-        <path d={selectedPath} fill="rgba(245,158,11,0.98)" stroke="rgba(255,255,255,1)" strokeWidth="3" filter="url(#kg-geo-fallback-point-shadow)" />
-        <path d={selectedPath} fill="none" stroke="rgba(120,53,15,0.92)" strokeWidth="1.35" />
+        <path d={graticulePath} fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="0.8" />
+        <path d={graticulePath} fill="none" stroke="rgba(100,116,139,0.08)" strokeWidth="1.45" />
+        <path d={pointsPath} fill="rgba(37,99,235,0.92)" stroke="rgba(255,255,255,0.98)" strokeWidth="2.2" filter="url(#kg-geo-fallback-point-shadow)" />
+        <path d={pointsPath} fill="none" stroke="rgba(29,78,216,0.74)" strokeWidth="0.95" />
+        <path d={selectedPath} fill="rgba(249,115,22,0.98)" stroke="rgba(255,255,255,1)" strokeWidth="3" filter="url(#kg-geo-fallback-point-shadow)" />
+        <path d={selectedPath} fill="none" stroke="rgba(154,52,18,0.88)" strokeWidth="1.25" />
       </svg>
     </div>
   )
