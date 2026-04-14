@@ -74,3 +74,60 @@ export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
     restore()
   }
 }
+
+export async function testFloatingPanelInteractionViewUsesFullHeightShellBody() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const store = useGraphStore.getState()
+  try {
+    try {
+      dom.window.localStorage.setItem(LS_KEYS.geospatialOverlayEnabled, '0')
+      ;(globalThis as unknown as { localStorage?: Storage }).localStorage?.setItem(LS_KEYS.geospatialOverlayEnabled, '0')
+    } catch {
+      void 0
+    }
+    store.setWorkspaceViewMode('canvas')
+    store.setCanvasRenderMode('2d')
+    store.setCanvas2dRenderer('d3')
+
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const root = createRoot(container)
+    root.render(
+      <ToolbarToolMenu
+        pipelineStatus="ingest->parse->render"
+        exportStatus={null}
+        toolMenuCardRef={{ current: null }}
+        toolMenuCardStyle={{ top: 0, left: 0 }}
+        onHeaderPointerDown={() => void 0}
+        requestedFloatingPanelView="interaction"
+        requestedFloatingPanelViewSeq={2}
+        onClose={() => void 0}
+      />,
+    )
+
+    for (let i = 0; i < 10; i++) await tick()
+
+    const shellBody = dom.window.document.querySelector(`[aria-label="${UI_LABELS.floatingPanel}"]`)
+    if (!(shellBody instanceof dom.window.HTMLElement)) {
+      throw new Error('expected floating panel shell body')
+    }
+    const shellClass = String(shellBody.getAttribute('class') || '')
+    if (!shellClass.includes('overflow-hidden')) {
+      throw new Error(`expected interaction view shell body to use overflow-hidden, got ${JSON.stringify(shellClass)}`)
+    }
+
+    const interactionPanel = dom.window.document.querySelector('[aria-label="Interaction panel"]')
+    if (!(interactionPanel instanceof dom.window.HTMLElement)) {
+      throw new Error('expected interaction panel to render')
+    }
+    const interactionContent = dom.window.document.querySelector('[aria-label="Interaction panel content"]')
+    if (!(interactionContent instanceof dom.window.HTMLElement)) {
+      throw new Error('expected interaction panel content to render')
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}

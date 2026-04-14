@@ -462,6 +462,18 @@ export interface GraphState {
   setMonacoLightbulbEnabled: (v: boolean) => void;
   monacoInlayHintsEnabled: boolean;
   setMonacoInlayHintsEnabled: (v: boolean) => void;
+  monacoWordBasedSuggestionsEnabled: boolean;
+  setMonacoWordBasedSuggestionsEnabled: (v: boolean) => void;
+  monacoInlineSuggestEnabled: boolean;
+  setMonacoInlineSuggestEnabled: (v: boolean) => void;
+  monacoAcceptSuggestionOnEnterEnabled: boolean;
+  setMonacoAcceptSuggestionOnEnterEnabled: (v: boolean) => void;
+  monacoDragAndDropEnabled: boolean;
+  setMonacoDragAndDropEnabled: (v: boolean) => void;
+  monacoDropIntoEditorEnabled: boolean;
+  setMonacoDropIntoEditorEnabled: (v: boolean) => void;
+  monacoColorDecoratorsEnabled: boolean;
+  setMonacoColorDecoratorsEnabled: (v: boolean) => void;
   threeIframeOverlayPoolMax: number;
   setThreeIframeOverlayPoolMax: (v: number) => void;
   richMediaPanelMode: 'snapshot' | 'embed';

@@ -202,6 +202,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["geospatial.interaction.holdSpaceKeyHardening","@/__tests__/geospatialHostIntegration.test","testHoldSpaceKeyHandlingPreventsScrollAndIgnoresInputs"],
   ["geospatial.host.enableForcesAlways","@/__tests__/geospatialHostIntegration.test","testHostEnableForcesAlwaysInteractionMode"],
   ["geospatial.host.supportsMapLibreGlobeRenderer","@/__tests__/geospatialHostIntegration.test","testGeospatialOverlayHostSupportsMapLibreGlobeRenderer"],
+  ["geospatial.host.globeRenderer.avoidsClusteredGeoJson","@/__tests__/geospatialHostIntegration.test","testGeospatialOverlayHostAvoidsClusteredGeoJsonOnGlobeRenderer"],
   ["geospatial.host.projectsSnapshotGraphDataToMapLayer","@/__tests__/geospatialHostIntegration.test","testGeospatialOverlayHostProjectsSnapshotGraphDataToMapLayer"],
   ["geospatial.host.clearsStaleDataAndSeparatesClusterSources","@/__tests__/geospatialHostIntegration.test","testGeospatialOverlayHostClearsStaleDataAndSeparatesClusterSources"],
   ["sourceFiles.persistence.usesContentHashNotLengthOnly","@/__tests__/geospatialHostIntegration.test","testSourceFilesPersistenceUsesContentHashNotLengthOnly"],

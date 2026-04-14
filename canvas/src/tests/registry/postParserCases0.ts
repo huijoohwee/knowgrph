@@ -128,6 +128,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["policy.toolbar.forbidLegacyToolMenuAreasSystem","@/__tests__/crossRepoBoundaryGuards.test","testForbidLegacyToolbarToolMenuAreasSystem"],
   ["toolbar.editorToggle.togglesWorkspaceViewMode","@/__tests__/embeddedEditorMode.test","testToolbarEditorButtonTogglesWorkspaceViewMode"],
   ["ui.floatingPanel.designLayers.rendersAsDiv","@/__tests__/floatingPanelDesignLayersView.test","testFloatingPanelDesignLayersViewRendersAsDiv"],
+  ["ui.floatingPanel.interaction.usesFullHeightShellBody","@/__tests__/floatingPanelDesignLayersView.test","testFloatingPanelInteractionViewUsesFullHeightShellBody"],
   ["editorShell.rendersMarkdownWorkspace","@/__tests__/embeddedEditorMode.test","testEmbeddedEditorShellRendersMarkdownWorkspace"],
   ["ui.editorWorkspace.inspector.usesSelectionInspectorWhenFlowEditorNotMounted","@/__tests__/embeddedEditorMode.test","testEditorWorkspaceInspectorUsesSelectionInspectorWhenFlowEditorNotMounted"],
   ["ui.editorWorkspace.previewGraphUpdates.applyToParentStore","@/__tests__/embeddedEditorMode.test","testEmbeddedPreviewGraphUpdatesApplyToParentStore"],

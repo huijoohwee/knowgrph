@@ -81,6 +81,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - Only the active SidePanel tab is mounted; inactive tabs must not render hidden panels to avoid background work and cross-mode interference.
 - SidePanel tabs header must use semantic navigation elements (`<header>` + `<nav>`/`<menu>`), not generic wrappers.
 - MainPanel tab behavior must come from one metadata path for tab labels, searchable tabs, search placeholders, and footer copy; forbid repeated per-tab condition chains across the shell.
+- FloatingPanel shell behavior must come from one metadata path for view buttons, shared header status chips, full-height body views, and renderer-only header actions; keep inactive views unmounted and forbid per-view shell drift.
 
 ### Canvas Interaction Panel (Floating)
 

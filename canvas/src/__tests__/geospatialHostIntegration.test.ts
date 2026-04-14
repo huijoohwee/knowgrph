@@ -69,6 +69,14 @@ export const testGeospatialOverlayHostSupportsMapLibreGlobeRenderer = () => {
   if (!text.includes('geospatialViewMode')) throw new Error('Expected host to read geospatialViewMode')
 }
 
+export const testGeospatialOverlayHostAvoidsClusteredGeoJsonOnGlobeRenderer = () => {
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const text = readUtf8(hostPath)
+  if (!text.includes("viewMode === 'map2d' && isPointOnlyFeatureCollection")) {
+    throw new Error('Expected GeospatialOverlayHost to restrict GeoJSON clustering to 2D MapLibre mode')
+  }
+}
+
 export const testGeospatialOverlayHostProjectsSnapshotGraphDataToMapLayer = () => {
   const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
   const text = readUtf8(hostPath)

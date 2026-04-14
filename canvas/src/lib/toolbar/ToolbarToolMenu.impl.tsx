@@ -45,6 +45,21 @@ type FloatingHeaderActions = {
   resetDisabled?: boolean
 }
 
+type FloatingPanelDevStatusMetrics = {
+  counter: string
+  hierarchyBadge: string
+  suffix: string
+} | null
+
+type FloatingPanelViewButtonSpec = {
+  view: FloatingPanelView
+  title: string
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
+  disabled?: boolean
+  hidden?: boolean
+  spotlightView?: string
+}
+
 type GeospatialPanelHostProps = {
   active?: boolean
   showDatasetsManager?: boolean
@@ -73,6 +88,47 @@ const GraphTableSelectionInspectorLazy = React.lazy(
 )
 
 const SidePanelChatLazy = React.lazy(() => import('@/features/chat/SidePanelChat'))
+
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['chat', 'geo', 'interaction'])
+
+const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(props: {
+  pipelineStatus: string | null
+  exportStatus?: string | null
+  devStatusMetrics: FloatingPanelDevStatusMetrics
+  uiPanelMicroLabelTextSizeClass: string
+}) {
+  const { pipelineStatus, exportStatus, devStatusMetrics, uiPanelMicroLabelTextSizeClass } = props
+
+  return (
+    <>
+      {pipelineStatus && (
+        <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[120px]`}>
+          {pipelineStatus}
+        </span>
+      )}
+      {devStatusMetrics && (
+        <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[160px]`}>
+          {devStatusMetrics.counter}
+        </span>
+      )}
+      {devStatusMetrics && (
+        <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[56px]`}>
+          {devStatusMetrics.hierarchyBadge}
+        </span>
+      )}
+      {devStatusMetrics && (
+        <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[132px]`}>
+          {devStatusMetrics.suffix}
+        </span>
+      )}
+      {exportStatus && (
+        <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[160px]`}>
+          {exportStatus}
+        </span>
+      )}
+    </>
+  )
+})
 
 const InspectorView = React.memo(function InspectorView(props: { geospatialModeEnabled: boolean }) {
   const { geospatialModeEnabled } = props
@@ -324,128 +380,66 @@ export function ToolbarToolMenu({
   const domPanelsAvailable =
     !geospatialModeEnabled && workspaceViewMode === 'canvas' && canvasRenderMode === '2d' && canvas2dRenderer === 'design'
   const domLayoutReady = domPanelsAvailable && !!designRendererWebpageLayoutKey
+  const rendererActionsEnabled = floatingPanelView === 'renderer'
+  const floatingPanelBodyClassName = cn(
+    'mt-1',
+    FLOATING_PANEL_FULL_HEIGHT_VIEWS.has(floatingPanelView)
+      ? 'flex-1 min-h-0 overflow-hidden'
+      : FLOATING_PANEL_SCROLL_CLASSNAME,
+    uiPanelTextFontClass,
+    uiPanelKeyValueTextSizeClass,
+    UI_THEME_TOKENS.text.primary,
+  )
+
+  const floatingPanelViewButtonSpecs = React.useMemo<FloatingPanelViewButtonSpec[]>(
+    () => [
+      { view: 'propsPanel', title: UI_LABELS.propsPanel, icon: SlidersHorizontal },
+      { view: 'designLayers', title: UI_LABELS.layerMode, icon: Layers, disabled: !domPanelsAvailable },
+      {
+        view: 'domTree',
+        title: domLayoutReady ? 'DOM Tree' : domPanelsAvailable ? 'DOM Tree (loading)' : 'DOM Tree',
+        icon: ListTree,
+        disabled: !domPanelsAvailable,
+        hidden: geospatialModeEnabled,
+      },
+      {
+        view: 'domInspect',
+        title: domLayoutReady ? 'Inspect (DOM)' : domPanelsAvailable ? 'Inspect (DOM) (loading)' : 'Inspect (DOM)',
+        icon: FileCode,
+        disabled: !domPanelsAvailable,
+        hidden: geospatialModeEnabled,
+      },
+      { view: 'interaction', title: 'Interaction', icon: Hand },
+      { view: 'inspector', title: UI_LABELS.inspector, icon: FileCode, hidden: geospatialModeEnabled },
+      { view: 'chat', title: UI_LABELS.chat, icon: MessageCircle },
+      { view: 'geo', title: UI_LABELS.geo, icon: Map, disabled: !geospatialModeEnabled },
+      { view: 'renderer', title: UI_LABELS.renderer, icon: MonitorPlay },
+      { view: 'graphTraversal', title: UI_LABELS.graphTraversal, icon: GitBranch, spotlightView: 'graphTraversal' },
+    ],
+    [domLayoutReady, domPanelsAvailable, geospatialModeEnabled],
+  )
 
   const viewButtons = (
     <>
-      <IconButton
-        title={UI_LABELS.propsPanel}
-        onClick={() => handleSelectView('propsPanel')}
-        className={`App-toolbar__btn ${
-          floatingPanelView === 'propsPanel' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
-        }`}
-        showTooltip
-      >
-        <SlidersHorizontal className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-      </IconButton>
-
-      <IconButton
-        title={UI_LABELS.layerMode}
-        onClick={() => handleSelectView('designLayers')}
-        disabled={!domPanelsAvailable}
-        className={`App-toolbar__btn ${
-          floatingPanelView === 'designLayers' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
-        }`}
-        showTooltip
-      >
-        <Layers className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-      </IconButton>
-
-      {!geospatialModeEnabled && (
-        <IconButton
-          title={domLayoutReady ? 'DOM Tree' : domPanelsAvailable ? 'DOM Tree (loading)' : 'DOM Tree'}
-          onClick={() => handleSelectView('domTree')}
-          disabled={!domPanelsAvailable}
-          className={`App-toolbar__btn ${
-            floatingPanelView === 'domTree' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
-          }`}
-          showTooltip
-        >
-          <ListTree className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-        </IconButton>
-      )}
-
-      {!geospatialModeEnabled && (
-        <IconButton
-          title={domLayoutReady ? 'Inspect (DOM)' : domPanelsAvailable ? 'Inspect (DOM) (loading)' : 'Inspect (DOM)'}
-          onClick={() => handleSelectView('domInspect')}
-          disabled={!domPanelsAvailable}
-          className={`App-toolbar__btn ${
-            floatingPanelView === 'domInspect' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
-          }`}
-          showTooltip
-        >
-          <FileCode className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-        </IconButton>
-      )}
-
-      <IconButton
-        title="Interaction"
-        onClick={() => handleSelectView('interaction')}
-        className={`App-toolbar__btn ${
-          floatingPanelView === 'interaction' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
-        }`}
-        showTooltip
-      >
-        <Hand className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-      </IconButton>
-
-      {!geospatialModeEnabled && (
-        <IconButton
-          title={UI_LABELS.inspector}
-          onClick={() => handleSelectView('inspector')}
-          className={`App-toolbar__btn ${
-            floatingPanelView === 'inspector' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
-          }`}
-          showTooltip
-        >
-          <FileCode className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-        </IconButton>
-      )}
-
-      <IconButton
-        title={UI_LABELS.chat}
-        onClick={() => handleSelectView('chat')}
-        className={`App-toolbar__btn ${
-          floatingPanelView === 'chat' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
-        }`}
-        showTooltip
-      >
-        <MessageCircle className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-      </IconButton>
-
-      <IconButton
-        title={UI_LABELS.geo}
-        onClick={() => handleSelectView('geo')}
-        disabled={!geospatialModeEnabled}
-        className={`App-toolbar__btn ${
-          floatingPanelView === 'geo' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
-        }`}
-        showTooltip
-      >
-        <Map className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-      </IconButton>
-
-      <IconButton
-        title={UI_LABELS.renderer}
-        onClick={() => handleSelectView('renderer')}
-        className={`App-toolbar__btn ${
-          floatingPanelView === 'renderer' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
-        }`}
-        showTooltip
-      >
-        <MonitorPlay className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-      </IconButton>
-      <IconButton
-        title={UI_LABELS.graphTraversal}
-        onClick={() => handleSelectView('graphTraversal')}
-        className={`App-toolbar__btn ${
-          floatingPanelView === 'graphTraversal' ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
-        }`}
-        showTooltip
-        data-kg-spotlight-view="graphTraversal"
-      >
-        <GitBranch className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-      </IconButton>
+      {floatingPanelViewButtonSpecs.map(spec => {
+        if (spec.hidden) return null
+        const Icon = spec.icon
+        return (
+          <IconButton
+            key={spec.view}
+            title={spec.title}
+            onClick={() => handleSelectView(spec.view)}
+            disabled={spec.disabled}
+            className={`App-toolbar__btn ${
+              floatingPanelView === spec.view ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
+            }`}
+            showTooltip
+            data-kg-spotlight-view={spec.spotlightView}
+          >
+            <Icon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+          </IconButton>
+        )
+      })}
     </>
   )
 
@@ -513,34 +507,19 @@ export function ToolbarToolMenu({
           <header className="flex items-center justify-between gap-2 w-full">
             <nav className={`flex items-center gap-1 min-w-0 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
               {viewButtons}
-              {pipelineStatus && (
-                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[120px]`}>
-                  {pipelineStatus}
-                </span>
-              )}
-              {devStatusMetrics && (
-                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[160px]`}>
-                  {devStatusMetrics.counter}
-                </span>
-              )}
-              {devStatusMetrics && (
-                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[56px]`}>
-                  {devStatusMetrics.hierarchyBadge}
-                </span>
-              )}
-              {devStatusMetrics && (
-                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[132px]`}>
-                  {devStatusMetrics.suffix}
-                </span>
-              )}
+              <FloatingPanelHeaderStatus
+                pipelineStatus={pipelineStatus}
+                devStatusMetrics={devStatusMetrics}
+                uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
+              />
             </nav>
             <HeaderActions
               onPinToggle={handlePinToggle}
               pinned={floatingPanelPinned}
-              onApply={floatingPanelView === 'renderer' ? rendererHeaderActions.apply : undefined}
-              onReset={floatingPanelView === 'renderer' ? rendererHeaderActions.reset : undefined}
-              applyDisabled={floatingPanelView === 'renderer' ? rendererHeaderActions.applyDisabled : true}
-              resetDisabled={floatingPanelView === 'renderer' ? rendererHeaderActions.resetDisabled : true}
+              onApply={rendererActionsEnabled ? rendererHeaderActions.apply : undefined}
+              onReset={rendererActionsEnabled ? rendererHeaderActions.reset : undefined}
+              applyDisabled={rendererActionsEnabled ? rendererHeaderActions.applyDisabled : true}
+              resetDisabled={rendererActionsEnabled ? rendererHeaderActions.resetDisabled : true}
               onRestore={() => {
                 setFloatingPanelMinimized(false)
               }}
@@ -551,16 +530,6 @@ export function ToolbarToolMenu({
       </section>
     )
   }
-
-  const floatingPanelBodyClassName = cn(
-    'mt-1',
-    (floatingPanelView === 'chat' || floatingPanelView === 'geo' || floatingPanelView === 'interaction')
-      ? 'flex-1 min-h-0 overflow-hidden'
-      : FLOATING_PANEL_SCROLL_CLASSNAME,
-    uiPanelTextFontClass,
-    uiPanelKeyValueTextSizeClass,
-    UI_THEME_TOKENS.text.primary,
-  )
 
   return (
     <section className={floatingPanelRootClassName} style={floatingPanelRootStyle}>
@@ -574,39 +543,20 @@ export function ToolbarToolMenu({
           <header className={`flex items-center justify-between gap-2 w-full select-none ${!floatingPanelPinned ? 'cursor-move' : ''}`}>
             <nav className={`flex items-center gap-1 min-w-0 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
               {viewButtons}
-              {pipelineStatus && (
-                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[120px]`}>
-                  {pipelineStatus}
-                </span>
-              )}
-              {devStatusMetrics && (
-                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[160px]`}>
-                  {devStatusMetrics.counter}
-                </span>
-              )}
-              {devStatusMetrics && (
-                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[56px]`}>
-                  {devStatusMetrics.hierarchyBadge}
-                </span>
-              )}
-              {devStatusMetrics && (
-                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[132px]`}>
-                  {devStatusMetrics.suffix}
-                </span>
-              )}
-              {exportStatus && (
-                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[160px]`}>
-                  {exportStatus}
-                </span>
-              )}
+              <FloatingPanelHeaderStatus
+                pipelineStatus={pipelineStatus}
+                exportStatus={exportStatus}
+                devStatusMetrics={devStatusMetrics}
+                uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
+              />
             </nav>
             <HeaderActions
               onPinToggle={handlePinToggle}
               pinned={floatingPanelPinned}
-              onApply={floatingPanelView === 'renderer' ? rendererHeaderActions.apply : undefined}
-              onReset={floatingPanelView === 'renderer' ? rendererHeaderActions.reset : undefined}
-              applyDisabled={floatingPanelView === 'renderer' ? rendererHeaderActions.applyDisabled : true}
-              resetDisabled={floatingPanelView === 'renderer' ? rendererHeaderActions.resetDisabled : true}
+              onApply={rendererActionsEnabled ? rendererHeaderActions.apply : undefined}
+              onReset={rendererActionsEnabled ? rendererHeaderActions.reset : undefined}
+              applyDisabled={rendererActionsEnabled ? rendererHeaderActions.applyDisabled : true}
+              resetDisabled={rendererActionsEnabled ? rendererHeaderActions.resetDisabled : true}
               onMinimize={() => {
                 setFloatingPanelMinimized(true)
               }}

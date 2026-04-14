@@ -175,6 +175,30 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'Editor: Monaco',
     responsibility: 'Enable Monaco inlay hints',
   },
+  monacoWordBasedSuggestionsEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco word-based suggestions',
+  },
+  monacoInlineSuggestEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco inline suggestions',
+  },
+  monacoAcceptSuggestionOnEnterEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco accept-suggestion-on-enter behavior',
+  },
+  monacoDragAndDropEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco drag-and-drop editing gestures',
+  },
+  monacoDropIntoEditorEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco drop-into-editor behavior',
+  },
+  monacoColorDecoratorsEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco color decorators',
+  },
   uiHeaderRowHeightClass: {
     area: 'UI Density: Headers',
     responsibility: 'Tailwind class for primary header row min-height',

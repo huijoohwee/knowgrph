@@ -79,6 +79,24 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!monacoSettingsRegistryText.includes("key: 'monacoInlayHintsEnabled'")) {
     throw new Error('expected MainPanel settings registry to expose Monaco inlay hints toggle control')
   }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoWordBasedSuggestionsEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco word-based suggestions toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoInlineSuggestEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco inline suggest toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoAcceptSuggestionOnEnterEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco accept-suggestion-on-enter toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoDragAndDropEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco drag-and-drop toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoDropIntoEditorEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco drop-into-editor toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoColorDecoratorsEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco color decorators toggle control')
+  }
   if (!monacoTextEditorText.includes('links: settings.monacoLinksEnabled')) {
     throw new Error('expected MonacoTextEditor to wire Monaco links through MainPanel capability settings')
   }
@@ -109,11 +127,32 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!monacoTextEditorText.includes('codeLens: settings.monacoCodeLensEnabled')) {
     throw new Error('expected MonacoTextEditor to wire code lens through MainPanel capability settings')
   }
-  if (!monacoTextEditorText.includes("lightbulb: { enabled: settings.monacoLightbulbEnabled ? 'onCode' : 'off' }")) {
+  if (
+    !monacoTextEditorText.includes("lightbulb: { enabled: settings.monacoLightbulbEnabled ? 'onCode' : 'off' }") &&
+    !monacoTextEditorText.includes("enabled: (settings.monacoLightbulbEnabled ? 'onCode' : 'off') as Monaco.editor.IEditorLightbulbOptions['enabled']")
+  ) {
     throw new Error('expected MonacoTextEditor to wire lightbulb through MainPanel capability settings')
   }
   if (!monacoTextEditorText.includes("inlayHints: { enabled: settings.monacoInlayHintsEnabled ? 'on' : 'off' }")) {
     throw new Error('expected MonacoTextEditor to wire inlay hints through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("wordBasedSuggestions: settings.monacoWordBasedSuggestionsEnabled ? 'currentDocument' : 'off'")) {
+    throw new Error('expected MonacoTextEditor to wire word-based suggestions through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('inlineSuggest: { enabled: settings.monacoInlineSuggestEnabled }')) {
+    throw new Error('expected MonacoTextEditor to wire inline suggest through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("acceptSuggestionOnEnter: settings.monacoAcceptSuggestionOnEnterEnabled ? 'on' : 'off'")) {
+    throw new Error('expected MonacoTextEditor to wire acceptSuggestionOnEnter through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('dragAndDrop: settings.monacoDragAndDropEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire dragAndDrop through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('dropIntoEditor: { enabled: settings.monacoDropIntoEditorEnabled }')) {
+    throw new Error('expected MonacoTextEditor to wire dropIntoEditor through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('colorDecorators: settings.monacoColorDecoratorsEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire color decorators through MainPanel capability settings')
   }
 
   const markdownCodeBlockText = readFileSync(resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownCodeBlock.tsx'), 'utf8')

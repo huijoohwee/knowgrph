@@ -192,6 +192,23 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   setMonacoLightbulbEnabled: (v: boolean) => set({ monacoLightbulbEnabled: lsSetBool(LS_KEYS.monacoLightbulbEnabled, !!v) }),
   monacoInlayHintsEnabled: lsBool(LS_KEYS.monacoInlayHintsEnabled, false),
   setMonacoInlayHintsEnabled: (v: boolean) => set({ monacoInlayHintsEnabled: lsSetBool(LS_KEYS.monacoInlayHintsEnabled, !!v) }),
+  monacoWordBasedSuggestionsEnabled: lsBool(LS_KEYS.monacoWordBasedSuggestionsEnabled, false),
+  setMonacoWordBasedSuggestionsEnabled: (v: boolean) =>
+    set({ monacoWordBasedSuggestionsEnabled: lsSetBool(LS_KEYS.monacoWordBasedSuggestionsEnabled, !!v) }),
+  monacoInlineSuggestEnabled: lsBool(LS_KEYS.monacoInlineSuggestEnabled, false),
+  setMonacoInlineSuggestEnabled: (v: boolean) => set({ monacoInlineSuggestEnabled: lsSetBool(LS_KEYS.monacoInlineSuggestEnabled, !!v) }),
+  monacoAcceptSuggestionOnEnterEnabled: lsBool(LS_KEYS.monacoAcceptSuggestionOnEnterEnabled, false),
+  setMonacoAcceptSuggestionOnEnterEnabled: (v: boolean) =>
+    set({ monacoAcceptSuggestionOnEnterEnabled: lsSetBool(LS_KEYS.monacoAcceptSuggestionOnEnterEnabled, !!v) }),
+  monacoDragAndDropEnabled: lsBool(LS_KEYS.monacoDragAndDropEnabled, false),
+  setMonacoDragAndDropEnabled: (v: boolean) =>
+    set({ monacoDragAndDropEnabled: lsSetBool(LS_KEYS.monacoDragAndDropEnabled, !!v) }),
+  monacoDropIntoEditorEnabled: lsBool(LS_KEYS.monacoDropIntoEditorEnabled, false),
+  setMonacoDropIntoEditorEnabled: (v: boolean) =>
+    set({ monacoDropIntoEditorEnabled: lsSetBool(LS_KEYS.monacoDropIntoEditorEnabled, !!v) }),
+  monacoColorDecoratorsEnabled: lsBool(LS_KEYS.monacoColorDecoratorsEnabled, false),
+  setMonacoColorDecoratorsEnabled: (v: boolean) =>
+    set({ monacoColorDecoratorsEnabled: lsSetBool(LS_KEYS.monacoColorDecoratorsEnabled, !!v) }),
 
   richMediaPanelMode: (() => {
     const raw = readLsString(LS_KEYS.renderRichMediaPanelMode, 'snapshot')

@@ -114,6 +114,12 @@ type MonacoCapabilitySettings = {
   monacoCodeLensEnabled: boolean
   monacoLightbulbEnabled: boolean
   monacoInlayHintsEnabled: boolean
+  monacoWordBasedSuggestionsEnabled: boolean
+  monacoInlineSuggestEnabled: boolean
+  monacoAcceptSuggestionOnEnterEnabled: boolean
+  monacoDragAndDropEnabled: boolean
+  monacoDropIntoEditorEnabled: boolean
+  monacoColorDecoratorsEnabled: boolean
 }
 
 const resolveConfiguredMonacoLanguage = (language: string, settings: MonacoCapabilitySettings): string => {
@@ -188,6 +194,12 @@ const buildMonacoEditorOptions = (
   links: settings.monacoLinksEnabled,
   quickSuggestions: settings.monacoQuickSuggestionsEnabled,
   suggestOnTriggerCharacters: settings.monacoSuggestOnTriggerCharactersEnabled,
+  wordBasedSuggestions: settings.monacoWordBasedSuggestionsEnabled ? 'currentDocument' : 'off',
+  inlineSuggest: { enabled: settings.monacoInlineSuggestEnabled },
+  acceptSuggestionOnEnter: settings.monacoAcceptSuggestionOnEnterEnabled ? 'on' : 'off',
+  dragAndDrop: settings.monacoDragAndDropEnabled,
+  dropIntoEditor: { enabled: settings.monacoDropIntoEditorEnabled },
+  colorDecorators: settings.monacoColorDecoratorsEnabled,
   parameterHints: { enabled: settings.monacoParameterHintsEnabled },
   lineNumbers: settings.monacoLineNumbersEnabled ? 'on' : 'off',
   folding: settings.monacoFoldingEnabled,
@@ -199,7 +211,9 @@ const buildMonacoEditorOptions = (
   },
   bracketPairColorization: { enabled: settings.monacoBracketPairColorizationEnabled },
   codeLens: settings.monacoCodeLensEnabled,
-  lightbulb: { enabled: settings.monacoLightbulbEnabled ? 'onCode' : 'off' },
+  lightbulb: {
+    enabled: (settings.monacoLightbulbEnabled ? 'onCode' : 'off') as Monaco.editor.IEditorLightbulbOptions['enabled'],
+  },
   inlayHints: { enabled: settings.monacoInlayHintsEnabled ? 'on' : 'off' },
   padding: {
     top:
@@ -265,6 +279,12 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
       monacoCodeLensEnabled: s.monacoCodeLensEnabled,
       monacoLightbulbEnabled: s.monacoLightbulbEnabled,
       monacoInlayHintsEnabled: s.monacoInlayHintsEnabled,
+      monacoWordBasedSuggestionsEnabled: s.monacoWordBasedSuggestionsEnabled,
+      monacoInlineSuggestEnabled: s.monacoInlineSuggestEnabled,
+      monacoAcceptSuggestionOnEnterEnabled: s.monacoAcceptSuggestionOnEnterEnabled,
+      monacoDragAndDropEnabled: s.monacoDragAndDropEnabled,
+      monacoDropIntoEditorEnabled: s.monacoDropIntoEditorEnabled,
+      monacoColorDecoratorsEnabled: s.monacoColorDecoratorsEnabled,
     })),
   )
 

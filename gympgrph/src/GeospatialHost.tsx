@@ -199,7 +199,8 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
         graphDataAppliedRef.current[viewMode] = ''
         return
       }
-      const cluster = isPointOnlyFeatureCollection(graphFeatureCollection, 500) && featureCount >= 200
+      // Avoid MapLibre clustered GeoJSON buckets on globe/3D until that path is stable.
+      const cluster = viewMode === 'map2d' && isPointOnlyFeatureCollection(graphFeatureCollection, 500) && featureCount >= 200
       const activeSourceId = cluster ? graphSourceIdClustered : graphSourceIdUnclustered
       const inactiveSourceId = cluster ? graphSourceIdUnclustered : graphSourceIdClustered
       const applyKey = `${styleRevision}:${activeSourceId}:${graphDataKey}`
